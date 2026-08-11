@@ -1,0 +1,7 @@
+node_modules/
+.vite/
+out/
+resources/bin/
+*.log
+test-results/
+playwright-report/

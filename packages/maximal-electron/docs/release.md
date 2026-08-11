@@ -130,10 +130,9 @@ repository ruleset does that, and there is none: `main` carries two branch
 rulesets, `main-no-force-delete` and `main-require-pr`, and nothing targets a
 tag, so `git push --delete origin v0.0.5` succeeds today.
 
-That gap is now machine-checked rather than only written down.
-`npm run verify:rulesets` reports it, `watch-rulesets.yml` files one issue for
-it daily, and [`docs/admin/repository-settings.md`](admin/repository-settings.md)
-states exactly what the owner has to click to close it.
+Closing that gap is an owner action in repository settings: a ruleset with a
+`tag` target, refusing deletion and non-fast-forward on `v*`. It is set once
+there rather than tracked here.
 
 ## The shape
 

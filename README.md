@@ -1,217 +1,143 @@
 # monimal
 
-A **spike**: `maximal`, `maximal-core` and `maximal-electron` in one pnpm
-workspace, driven by Turborepo. The three source repos stay canonical — see
-[SOURCES.md](SOURCES.md) for exactly what was copied, from which commit, and
-every deviation.
+A **spike**: `maximal`, `maximal-core`, `maximal-electron` and the Astro site in
+one pnpm workspace, driven by Turborepo. The source repos stay canonical — see
+[SOURCES.md](SOURCES.md) for what was copied, from which commit, and every
+deviation.
 
 Nothing here publishes. Nothing here is a home of record.
 
 ## Layout
 
 ```
-packages/maximal            @stuffbucket/maximal           the proxy + CLI
-packages/maximal-core       @stuffbucket/maximal-core      headless engine
+packages/maximal            @stuffbucket/maximal           CLI + packaging wrapper
+packages/maximal-core       @stuffbucket/maximal-core      the engine
 packages/maximal-electron   @stuffbucket/maximal-electron  Electron shell / UI library
 packages/site               maximal-site                   Astro marketing + guide site
 ```
 
-The parked Tauri shell is not here. `site` was nested inside `maximal` upstream
-and is a separate package here so the two builds are not commingled.
+All four are synced from `main`.
 
 ## Commands
 
 ```sh
 pnpm install
 pnpm run build        # turbo run build
-pnpm run typecheck    # turbo run typecheck
+pnpm run typecheck
+pnpm run lint
 pnpm run test         # turbo run test --concurrency=1
 pnpm run check        # build + typecheck, then test
-pnpm run sync         # re-sync from source repos (committed state only)
-pnpm run deviations   # re-apply local edits after a re-sync
+
+pnpm run sync         # git archive main -> packages/*, then re-apply deviations
+pnpm run deviations   # re-apply local edits (idempotent)
 pnpm run check:float  # dependencies resolving differently than upstream
-pnpm run drift        # maximal/src vs maximal-core/src divergence
 ```
 
-pnpm 10.20 manages dependencies; `bun` is still the test runner and bundler
-inside `maximal` and `maximal-core`, and `vitest` inside `maximal-electron`.
-`test` is pinned to `--concurrency=1` deliberately. See below.
+**A sync must be followed by `pnpm install`** — syncing replaces the package
+directories, which removes their `node_modules`.
+
+pnpm 10.20 manages dependencies. `bun` remains the bundler and test runner in
+`maximal` and `maximal-core`; `vitest` in `maximal-electron`; `astro` in `site`.
 
 ## Status
 
 | | build | typecheck | lint | test |
 | --- | --- | --- | --- | --- |
-| `maximal` | pass | pass | pass | 1625 pass, 0 fail (148 files) |
-| `maximal-core` | pass | pass | pass | 1766 pass, 0 fail (144 files) |
-| `maximal-electron` | pass | pass | pass | 60 files, 1091 tests pass |
+| `maximal` | pass | pass | pass | 75 pass, 0 fail |
+| `maximal-core` | pass | pass | pass | 1766 pass, 0 fail |
+| `maximal-electron` | pass | pass | pass | 59 files pass |
 | `site` | pass | — | — | pass |
 
-### Turborepo
+## What upstream did while this spike was being built
 
-Caching is the whole of the value here, and it is substantial:
+Between 2026-08-03 and 2026-08-11, `maximal`'s `main` absorbed the work this
+spike had been measuring:
+
+- **`chore: retire the Tauri shell and excavate the duplicated core` (#442)** —
+  `maximal/src` is **gone**. The package now builds, runs and starts directly out
+  of `node_modules/@stuffbucket/maximal-core/src`. The 4,235-line divergence this
+  repo previously reported no longer exists; it was excavated at the source.
+- **`feat(client): ship usable Electron desktop MVP` (#440)**, on top of
+  `feat(client): Electron client consuming maximal-core + stuffbucket/electron`
+  (#419) — there is now a real Electron Forge app at `packages/maximal/client`,
+  with vite configs, vitest and Playwright e2e.
+
+So `maximal` is a thin CLI and packaging wrapper, and the Electron client already
+exists. Earlier revisions of this README described the pre-excavation repo.
+
+## Turborepo
+
+Caching is real and the numbers are good — cold vs warm, whole workspace:
 
 | task | cold | warm |
 | --- | --- | --- |
-| `build` | 2.19s | 17ms |
-| `typecheck` | 4.67s | 16ms |
-| `lint` | 3.67s | 16ms |
-| `test` | 52.56s | 22ms |
+| `build` | ~2.2s | ~17ms |
+| `typecheck` | ~4.7s | ~16ms |
+| `lint` | ~3.7s | ~16ms |
+| `test` | ~53s | ~22ms |
 
-Cache scoping is correct, and verified two ways: editing one file in
-`maximal-core` rebuilds only `maximal-core`, and editing one in `maximal`
-correctly cascades to `maximal-site`. Task `inputs` exclude `research_log/`,
-`.claude/`, `.github/` and `reports/`, so churn in those no longer busts a
-cache — a docs edit used to.
+Cache scoping is correct: editing one file rebuilds only the packages downstream
+of it. Task `inputs` exclude `research_log/`, `.claude/`, `.github/` and
+`reports/`, so churn there no longer busts a cache.
 
-There is now **one** real edge: `maximal-site#build dependsOn
-@stuffbucket/maximal#build`, created by declaring the site's dependency on
-maximal's `docs/guide`. The other three packages still declare nothing about
-each other, so `^build` has almost nothing to order. And `test` runs at
-`--concurrency=1`, giving up parallelism across packages. Turbo is doing real
-work as a cache; it is barely being used as a build graph.
+There is now a genuine dependency chain, which earlier revisions of this repo
+did not have:
 
-`maximal-core`'s 1766 passing tests match its upstream count exactly.
-`maximal`'s count is lower than upstream's 1752 because 14 Tauri-coupled test
-files were removed with the shell.
+```
+@stuffbucket/maximal-core#build  ->  @stuffbucket/maximal#build  ->  maximal-site#build
+```
 
-## What the spike found
+`maximal-electron#build` still stands alone — nothing in the workspace consumes
+it yet. That is the next thing to change.
 
-Four things surfaced that are worth acting on regardless of whether this
-monorepo survives.
+## What the workspace is actually buying
 
-**1. `maximal-electron` has a phantom dependency.** It imports `typebox` in
-`src/main/native/agent.ts` and `src/main/native/toolsets.ts` but never declares
-it. npm's flat `node_modules` supplied it transitively via
-`@earendil-works/pi-agent-core`. Under a stricter layout it simply is not there,
-and typecheck fails. **This is a real bug in that repo**, not an artifact of
-copying — a consumer installing the package today can hit it.
+Two stale pins upstream, which a workspace link closes:
 
-**2. One lockfile means every dependency floats.** A workspace has a single root
-lockfile, so the per-package `bun.lock` files stop applying and everything
-re-resolves to the newest semver-compatible version. That is not theoretical: it
-moved `@hono/zod-openapi` from 1.5.0 to 1.5.2, whose changed type inference
-broke `tests/setup-status-openapi.test.ts` in **both** `maximal` and
-`maximal-core` — two packages that typecheck clean upstream. Pinning to `1.5.0`
-fixed it. Any real merge needs a deliberate pinning pass, not a hopeful install.
+| consumer | pins | actual | gap |
+| --- | --- | --- | --- |
+| `maximal` | `maximal-core#v0.1.1` | 0.6.3 | five minors |
+| `maximal/client` | `maximal-electron#2f1a06c` | 0.0.9 | **50 commits** |
 
-**3. `maximal` and `maximal-core` are near-identical.** Their bundles are 632
-modules / 7.36 MB and 629 modules / 7.38 MB, and both carry the same
-`setup-status-openapi` test that broke in the same way. This is the duplication
-`docs/maximal-core-integration.md` calls out as needing excavation, now visible
-as a measurement rather than a claim.
+The first is closed here: `apply-deviations.mjs` rewrites it to `workspace:*`,
+and because `maximal`'s build/dev/start all run out of
+`node_modules/@stuffbucket/maximal-core/src`, that link is load-bearing — this
+really does build the published CLI against current core, and it passes.
 
-**4. Almost nothing here depends on anything else here.** Splitting out the site
-produced the workspace's only edge (`site` -> `maximal`). `maximal`,
-`maximal-core` and `maximal-electron` still declare nothing about one another.
-The git-dep that motivated a monorepo (`"@stuffbucket/maximal-core":
-"github:...#v0.2.0"`, pinned four minors behind core's 0.6.3) lives in `client/`
-and `shell/` — neither of which is here.
+The second is **not** closed yet, because `packages/maximal/client` is not a
+workspace package. Closing it is the obvious next step.
 
-**5. The three packages disagree about `node-linker`, and only one can win.**
-maximal-electron sets `node-linker=hoisted` because Electron Forge packages
-native prebuilds (`node-pty`, `node-llama-cpp`) for the final app and does not
-follow pnpm's symlinked store. But `node-linker` is a *workspace-root* setting —
-a package-level `.npmrc` is ignored — so it is one choice for all three.
-Hoisted empties every package-local `node_modules` (all 822 packages land at the
-root), and maximal-core's build then **refuses to run**: `bun build` writes
-module paths relative to the resolved build root, so a bundle produced without
-package-local deps is not byte-comparable, and it has an explicit guard saying
-so. This workspace therefore runs pnpm's default isolated linker, which suits
-`tsc`/`bun test`/`vitest` but means `electron-forge package` is not expected to
-work from here. A real monorepo has to resolve this, not pick a side per task.
+One obstacle worth knowing before starting: the client declares the dependency
+as `"stuffbucket-electron": "github:stuffbucket/maximal-electron#..."`, but the
+package's actual name is `@stuffbucket/maximal-electron`. A git dependency
+tolerates that mismatch; a `workspace:*` link does not.
 
-**6. `maximal` and its site are mutually coupled, and neither break was loud.**
-Extracting `site` into its own package broke both directions. The site globs
-`../docs/guide` for its user guide, so as a sibling it built **successfully with
-an empty guide** — 8 pages down to 1, zero exit code. And `maximal` imports the
-site's updates-manifest library from a release script and four tests. The second
-direction cannot be expressed as a package dependency, because `site` already
-depends on `maximal` and the reverse would be a cycle Turborepo rejects; those
-imports are relative paths across packages, which is the smell that says these
-two are not actually separable as written.
+## Standing hazards
 
-That is the honest headline: **as assembled, this is four largely independent
-packages sharing an install, not an integrated monorepo.** It proves they can
-coexist, build, typecheck, lint and test under one pnpm workspace with
-Turborepo. It does not prove what the integration doc worries about, because the
-consumer that would exercise the real seam was left out.
+**Dependency float.** One root lockfile means per-package lockfiles stop
+applying and everything re-resolves to the newest semver-compatible version.
+This has broken the build three times — `@hono/zod-openapi` twice (a changed
+inferred type failed typecheck) and `prettier` once (changed union formatting
+produced 20 lint errors in untouched files). Only those two are pinned.
+`pnpm run check:float` reports the rest; treat every transitive tool version as
+floating until pinned.
 
-### The duplication, quantified
+**Tests are serialized.** `--concurrency=1`, because `maximal` and
+`maximal-core` both bind ports and install signal handlers.
 
-`pnpm run drift` compares the two copies of the engine:
+**`.github/` is load-bearing.** It looks like dead weight since those workflows
+cannot run here, but deleting it dropped 69 passing tests — `maximal-electron`
+asserts against those files.
 
-| | |
-| --- | --- |
-| files in `maximal/src` | 175 |
-| files in `maximal-core/src` | 174 |
-| shared paths | 155 |
-| — identical | 86 |
-| — **diverged** | **69** |
-| total differing lines | **4,235** |
+**The linker is unresolved.** `maximal-electron` sets `node-linker=hoisted` for
+Electron Forge's native prebuilds; `maximal-core`'s build refuses to run without
+a package-local `node_modules`, which hoisting empties. `node-linker` is a
+workspace-root setting, so only one can win. This workspace uses pnpm's default
+isolated linker, which suits `tsc`/`bun test`/`vitest` but means
+`electron-forge package` is not expected to work from here. **This will matter
+as soon as the client is wired in.**
 
-`server.ts` alone differs by 343 lines.
-
-**This is a one-way fork, not duplicated effort.** maximal-core was forked from
-maximal on **2026-07-30** with the history rewritten but preserved: 1,126 of the
-1,127 shared commit subjects carry identical author dates, so they are the same
-original commits, not the same fix applied twice. Since the fork:
-
-- `maximal-core` — **130 commits**
-- `maximal` — **2 commits**, a research note and a Tauri `Cargo.lock` bump.
-  **Nothing under `src/`.**
-
-So `maximal/src` is frozen at the fork point while core moves. Of the 69
-diverged files, 54 are core pulling ahead; the 8 where maximal has more lines
-are mostly core *deliberately shedding scope* — `lib/platform/cli-path.ts` drops
-from 240 lines to 58 because `ensureCliSymlink()`, the macOS `.app` first-launch
-shim, has no place in a headless engine.
-
-Two consequences follow.
-
-**The good one:** excavating `maximal/src` is a **deletion, not a merge**. No
-work lives only in maximal's copy, so there is nothing to rescue or reconcile —
-delete it and depend on `@stuffbucket/maximal-core`.
-
-**The bad one:** `@stuffbucket/maximal` is the public npm CLI (`bin: maximal`,
-`bun publish --access public`) and its engine stopped receiving fixes on
-2026-07-30, while core has taken 130 commits since. Every day that gap widens at
-roughly the rate core is developed. The cost of the excavation is not really the
-4,235 lines — it is that the shipped CLI and the maintained engine are no longer
-the same code.
-
-## Two operational notes
-
-**Tests are serialized.** `maximal` and `maximal-core` are near-duplicates that
-both bind ports and install signal handlers. Run concurrently under Turbo they
-interfere — `maximal-core` picked up spurious `process.exit`/SIGINT failures that
-vanish when run alone. Hence `--concurrency=1`. Real isolation would need port
-randomization in the suites.
-
-**Tests depend on repo state.** `getGitVersion` and the diagnostics
-`source_revision` test read git HEAD, so they fail in a repo with no commits.
-They pass once there is one.
-
-**`.github/` is load-bearing.** It looks like dead weight, since those workflows
-cannot run here. Deleting it dropped 69 passing tests — maximal-electron asserts
-against those files in `tests/workflows.test.ts` and `tests/workflow-health.test.ts`.
-
-**Dependency float is tracked, not fixed.** `pnpm run check:float` currently
-reports **22** dependencies resolving differently than upstream, including
-`oxlint` 1.63.0 -> 1.78.0 and `astro` 6.2.2 -> 6.4.8. Only the two that actually
-broke something are pinned. The rest are a standing risk.
-
-## Divergence to watch
-
-The package-manager question is **settled**: maximal-electron migrated to pnpm
-upstream, and this workspace followed. Its `pnpm.onlyBuiltDependencies` list
-(`electron`, `node-pty`, `node-llama-cpp`, `esbuild`, `@google/genai`,
-`protobufjs`) is hoisted to the root `package.json`, since only root pnpm
-settings apply in a workspace.
-
-What is **not** settled is the linker (finding 5). maximal-electron needs
-`hoisted` for Forge packaging; maximal-core's build needs package-local
-`node_modules`. Those are mutually exclusive under one root setting. Right now
-the spike favours maximal-core, because it exercises builds and tests rather
-than app packaging. Anything that has to produce a shippable Electron artifact
-will hit this and needs a real answer — most likely packaging maximal-electron
-outside the workspace, or relaxing maximal-core's reproducibility guard.
+**maximal <-> site is a cycle.** `site` depends on `maximal` for `docs/guide`;
+`maximal`'s release script and three tests import the site's updates-manifest
+library. The second direction has to stay a relative path (`../../site/...`),
+because a package dependency both ways is a cycle Turborepo rejects.

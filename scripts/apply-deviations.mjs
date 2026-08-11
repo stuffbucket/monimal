@@ -2,15 +2,21 @@
 /**
  * Re-apply monimal's deviations to the copied packages.
  *
- * A re-sync overwrites the packages wholesale, taking every local edit with it.
- * This script puts them back, so a re-sync is `rsync` + this, and the deviation
- * set stays a reviewable list instead of remembered hand-edits.
+ * A re-sync replaces the packages wholesale, taking every local edit with it.
+ * This puts them back, so the deviation set stays a reviewable list rather than
+ * remembered hand-edits. Idempotent; prints what it changed.
  *
- * Idempotent: safe to run repeatedly. Prints what it changed.
+ * Written against `main` as of 2026-08-11, AFTER upstream retired the Tauri
+ * shell and excavated the duplicated core (maximal#442). maximal now has no
+ * `src/` of its own — it builds from maximal-core and carries the Electron
+ * client in `client/`. Deviations written for the pre-excavation repo (removing
+ * Tauri scripts, deleting shell-coupled tests, pinning @hono/zod-openapi in
+ * maximal) are gone: they described a repo that no longer exists.
+ *
  * Every change here is explained in SOURCES.md.
  */
 
-import { readFileSync, writeFileSync, rmSync, existsSync, readdirSync } from 'node:fs'
+import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
@@ -25,17 +31,15 @@ const writePkg = (name, json) =>
   writeFileSync(pkgPath(name), `${JSON.stringify(json, null, 2)}\n`)
 
 /**
- * Set a nested key, optionally inserting it immediately before `before`.
+ * Set a key, optionally inserting it immediately before `before`.
  *
  * Position matters: these packages run `prettier-plugin-packagejson` through
- * eslint, and it fails the lint task on out-of-order `scripts`. Appending is
- * what a naive edit does and is exactly what that rule catches. A blanket
+ * eslint, which fails the lint task on out-of-order `scripts`. Appending is what
+ * a naive edit does and is exactly what that rule catches. A blanket
  * alphabetical sort is also wrong — the rule groups lifecycle scripts
- * (`prepack`, `prepare`) separately — so insert next to a known neighbour and
- * leave every other key where upstream had it.
+ * separately — so insert next to a known neighbour and leave the rest alone.
  *
- * Re-sorts even when the key already exists but sits in the wrong place, so a
- * re-run repairs a previously-appended key instead of reporting "nothing to do".
+ * Repairs an existing-but-misplaced key, so a re-run fixes rather than skips.
  */
 function set(json, section, key, value, label, before) {
   json[section] ??= {}
@@ -70,77 +74,64 @@ function drop(json, section, key, label) {
   note(`${label}: removed ${section}.${key}`)
 }
 
+/**
+ * Git hooks: two packages installing competing hooks into one .git is wrong.
+ *
+ * `anchor` is the script key the kept-but-renamed `prepare:hooks` must sit
+ * before — the packages have different script sets, so there is no single
+ * neighbour that works for both, and a missing anchor silently appends (which
+ * the package.json sort rule then fails on).
+ */
+function disableGitHooks(p, label, anchor) {
+  const hooks = p.scripts?.prepare ?? p.scripts?.['prepare:hooks']
+  if (hooks) {
+    if (p.scripts.prepare) {
+      delete p.scripts.prepare
+      note(`${label}: prepare -> prepare:hooks (off the install path)`)
+    }
+    // A bare `simple-git-hooks` prepare has nothing worth keeping once the
+    // dependency is gone; anything else is a real script, so keep it runnable.
+    if (hooks !== 'simple-git-hooks') {
+      if (anchor && !(anchor in p.scripts)) {
+        throw new Error(`${label}: anchor script "${anchor}" not found`)
+      }
+      set(p, 'scripts', 'prepare:hooks', hooks, label, anchor)
+    } else {
+      delete p.scripts['prepare:hooks']
+    }
+  }
+  drop(p, 'devDependencies', 'simple-git-hooks', label)
+}
+
 // ── maximal ────────────────────────────────────────────────────────────────
-// The Tauri shell is not in this workspace, and one lockfile floats versions.
 {
   const p = readPkg('maximal')
 
-  // `prepare` ended with `cd shell && bun install`; with no shell/ that fails
-  // the whole workspace install.
-  set(p, 'scripts', 'prepare', 'bun run ensure:ui-embed', 'maximal')
+  // THE SEAM. Upstream pins `github:stuffbucket/maximal-core#v0.1.1` while core
+  // is 0.6.3 — five minors of drift, and the whole reason a workspace exists.
+  // maximal's build/dev/start all run out of
+  // node_modules/@stuffbucket/maximal-core/src, so the link is load-bearing:
+  // this really does build the published CLI against current core.
+  set(p, 'dependencies', '@stuffbucket/maximal-core', 'workspace:*', 'maximal')
 
   // No plain `test` script upstream; Turborepo needs one.
-  set(p, 'scripts', 'test', 'bun test', 'maximal', 'test:ops')
+  set(p, 'scripts', 'test', 'bun test', 'maximal', 'typecheck')
 
-  // 1.5.2 changes an inferred type and breaks setup-status-openapi. Upstream's
-  // lockfile resolves 1.5.0; a workspace re-resolves and floats past it.
-  set(p, 'dependencies', '@hono/zod-openapi', '1.5.0', 'maximal')
-
-  // Two packages installing competing hooks into one .git is wrong.
-  drop(p, 'devDependencies', 'simple-git-hooks', 'maximal')
-
-  // Scripts that reach into the excluded Tauri `shell/`. They cannot work here
-  // and none is on the build/typecheck/lint/test path — leaving them only
-  // invites someone to run one and get a confusing failure.
-  for (const s of [
-    'app:build', 'app:dev', 'app:icons', 'app:setup', 'app:sidecar', 'app:ui',
-    'build:ui', 'typecheck:shell', 'ui:harness',
-  ]) {
-    drop(p, 'scripts', s, 'maximal')
-  }
-
+  disableGitHooks(p, 'maximal')
   writePkg('maximal', p)
-}
-
-// Test files that import from, or read, the excluded Tauri shell.
-const SHELL_COUPLED_TESTS = [
-  // import ../shell/src/**
-  'inline-state-client', 'project-slice', 'spa-router',
-  'tauri-shell-bridge', 'usage-format', 'ws/live-feed-core',
-  // read shell/** from disk at runtime
-  'single-history-invariant', 'account-section', 'docs-reference-parity',
-  'tauri-resources', 'i18n-catalog-parity', 'boot-status',
-  'shell-sidecar-env-contract', 'ui-url-contract',
-]
-
-for (const t of SHELL_COUPLED_TESTS) {
-  const f = join(ROOT, 'packages/maximal/tests', `${t}.test.ts`)
-  if (existsSync(f)) {
-    rmSync(f)
-    note(`maximal: removed tests/${t}.test.ts (needs Tauri shell)`)
-  }
 }
 
 // ── maximal-core ───────────────────────────────────────────────────────────
 {
   const p = readPkg('maximal-core')
 
-  // `prepare` installs git hooks. Keep it runnable, but off the install path.
-  // Read through to an already-renamed key so a re-run still repairs its
-  // position rather than treating the rename as done and leaving it appended.
-  const hooks = p.scripts?.prepare ?? p.scripts?.['prepare:hooks']
-  if (hooks) {
-    if (p.scripts.prepare) {
-      delete p.scripts.prepare
-      note('maximal-core: prepare -> prepare:hooks (off the install path)')
-    }
-    set(p, 'scripts', 'prepare:hooks', hooks, 'maximal-core', 'release:check')
-  }
-
   set(p, 'scripts', 'test', 'bun test', 'maximal-core', 'test:mutation')
-  set(p, 'dependencies', '@hono/zod-openapi', '1.5.0', 'maximal-core')
-  drop(p, 'devDependencies', 'simple-git-hooks', 'maximal-core')
 
+  // 1.5.2 changes an inferred type and breaks tests/setup-status-openapi.
+  // Upstream's lockfile resolves 1.5.0; one workspace lockfile floats past it.
+  set(p, 'dependencies', '@hono/zod-openapi', '1.5.0', 'maximal-core')
+
+  disableGitHooks(p, 'maximal-core', 'release:check')
   writePkg('maximal-core', p)
 }
 
@@ -148,10 +139,9 @@ for (const t of SHELL_COUPLED_TESTS) {
 {
   const p = readPkg('maximal-electron')
 
-  // Imported by src/main/native/{agent,toolsets}.ts but never declared —
-  // a phantom dependency hoisted in via @earendil-works/pi-agent-core.
-  // Real bug upstream; declared here so the workspace does not depend on
-  // hoisting luck.
+  // Imported by src/main/native/{agent,toolsets}.ts but never declared — a
+  // phantom dependency that npm's flat node_modules supplied via
+  // @earendil-works/pi-agent-core. Real bug upstream.
   set(p, 'devDependencies', 'typebox', '1.3.7', 'maximal-electron')
 
   // No plain `build` script upstream; Turborepo needs one.
@@ -161,42 +151,35 @@ for (const t of SHELL_COUPLED_TESTS) {
 }
 
 // ── site ───────────────────────────────────────────────────────────────────
-// Upstream the Astro site sits at maximal/site, and its `guide` collection
-// globs `../docs/guide` — i.e. maximal's own docs. Here it is a sibling
-// package, so that relative path resolves to nothing and the site builds with
-// an empty guide: a silent content loss, not a build failure.
-//
-// Rather than reach across directories, declare the dependency. maximal is a
-// workspace package, so its full source tree (not just its published `files`)
-// is reachable through node_modules, and Turborepo gains a real edge:
-// site#build now waits on maximal#build.
+// The Astro site lives at maximal/site upstream and is a separate package here.
+// Its `guide` collection globs `../docs/guide` — maximal's docs — which as a
+// sibling resolves to nothing, and Astro then builds an empty guide with a zero
+// exit code. Declaring the dependency fixes it and gives Turborepo a real edge.
 {
   const p = readPkg('site')
   set(p, 'dependencies', '@stuffbucket/maximal', 'workspace:*', 'site')
   writePkg('site', p)
 
   const cfg = join(ROOT, 'packages/site/src/content.config.ts')
-  const before = readFileSync(cfg, 'utf8')
-  const after = before.replace(
-    /base:\s*"\.\.\/docs\/guide"/,
-    'base: "./node_modules/@stuffbucket/maximal/docs/guide"',
-  )
-  if (after !== before) {
-    writeFileSync(cfg, after)
-    note('site: guide collection now resolves through the workspace dependency')
+  if (existsSync(cfg)) {
+    const before = readFileSync(cfg, 'utf8')
+    const after = before.replace(
+      /base:\s*"\.\.\/docs\/guide"/,
+      'base: "./node_modules/@stuffbucket/maximal/docs/guide"',
+    )
+    if (after !== before) {
+      writeFileSync(cfg, after)
+      note('site: guide collection resolves through the workspace dependency')
+    }
   }
 }
 
-// ── maximal <-> site coupling ──────────────────────────────────────────────
-// The coupling runs both ways. site reads maximal's docs/guide (handled above
-// with a workspace dependency), and maximal's release script and four tests
-// import the site's updates-manifest library. Upstream both lived in one repo,
-// so `../site/...` resolved; as sibling packages it is one level further out.
-//
-// This cannot be a package dependency: site already depends on maximal, so
-// maximal depending on site would be a cycle and Turborepo would reject the
-// graph. Relative paths across packages are a smell, and that is the point —
-// these two are not actually separable as they stand. See README.
+// ── maximal -> site ────────────────────────────────────────────────────────
+// The coupling runs both ways: maximal's release script and three tests import
+// the site's updates-manifest library. Upstream both live in one repo so
+// `../site/...` resolves; as siblings it is one level further out. This cannot
+// be a package dependency — site already depends on maximal, and the reverse
+// would be a cycle Turborepo rejects.
 {
   const walk = (dir) => {
     const out = []
@@ -208,14 +191,24 @@ for (const t of SHELL_COUPLED_TESTS) {
     return out
   }
 
+  // Lengthening `../site/` to `../../site/` changes import sort order, which
+  // perfectionist/sort-imports then fails on. Fix it here rather than shelling
+  // out to `eslint --fix`: this runs during a sync, when the packages have just
+  // been replaced and node_modules does not exist yet, so eslint is not
+  // available at the only moment it would be needed.
+  const reorder = (src) =>
+    src.replace(
+      /(import \{[^}]*\} from "\.\.\/scripts\/[^"]*"\n)(import \{[^}]*\} from "\.\.\/\.\.\/site\/[^"]*"\n)/,
+      '$2$1',
+    )
+
   const touched = []
   for (const sub of ['tests', 'scripts']) {
     const dir = join(ROOT, 'packages/maximal', sub)
     if (!existsSync(dir)) continue
     for (const f of walk(dir)) {
       const before = readFileSync(f, 'utf8')
-      // "../site/x" -> "../../site/x", without touching an already-fixed path
-      const after = before.replace(/(["'])\.\.\/site\//g, '$1../../site/')
+      const after = reorder(before.replace(/(["'])\.\.\/site\//g, '$1../../site/'))
       if (after !== before) {
         writeFileSync(f, after)
         touched.push(f)
@@ -224,22 +217,24 @@ for (const t of SHELL_COUPLED_TESTS) {
   }
   if (touched.length) {
     note(`maximal: repointed ${touched.length} file(s) at ../../site/`)
-    // Lengthening the specifier changes import sort order, which the
-    // perfectionist/sort-imports rule then fails on. Let eslint place them
-    // rather than reimplement its ordering here. Best-effort: before the first
-    // `pnpm install` there is no eslint to run, and the next run will catch it.
-    // Only the files just rewritten. Pointing eslint at whole directories made
-    // it exit non-zero on pre-existing findings elsewhere and report the fix as
-    // failed when it had actually worked.
+    // Lengthening the specifier changes import sort order, which
+    // perfectionist/sort-imports then fails on. Let eslint place them. Only the
+    // rewritten files: whole directories made it exit non-zero on unrelated
+    // pre-existing findings. Best-effort — before the first install there is no
+    // eslint to run.
+    // Run from inside the package: eslint resolves its flat config relative to
+    // cwd, and invoking it from the workspace root picks up the wrong one (it
+    // exits 0 having fixed nothing, which reads as success).
+    const pkgDir = join(ROOT, 'packages/maximal')
     const res = spawnSync(
       'pnpm',
-      ['exec', 'eslint', '--fix', ...touched.map((f) => f.replace(`${ROOT}/`, ''))],
-      { cwd: ROOT, stdio: 'ignore' },
+      ['exec', 'eslint', '--fix', ...touched.map((f) => f.replace(`${pkgDir}/`, ''))],
+      { cwd: pkgDir, stdio: 'ignore' },
     )
     note(
       res.status === 0
         ? 'maximal: eslint --fix reordered the changed imports'
-        : 'maximal: eslint --fix unavailable or incomplete — run `pnpm run lint` to check',
+        : 'maximal: eslint --fix unavailable — run `pnpm run lint` to check',
     )
   }
 }

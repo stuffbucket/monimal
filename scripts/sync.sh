@@ -2,7 +2,7 @@
 #
 # Re-sync the copied packages from their source repos.
 #
-# Uses `git archive HEAD`, so only COMMITTED state comes across. That makes a
+# Uses `git archive <ref>` (default `main`), so only COMMITTED state comes across. That makes a
 # copy reproducible from the SHAs this script prints: re-running it at the same
 # source commits reproduces the same tree. The earlier rsync-of-working-tree
 # approach dragged in-flight WIP along and could not offer that.
@@ -16,6 +16,12 @@ set -euo pipefail
 
 SB="${SB:-$HOME/github/stuffbucket}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# Which ref to copy. `main` rather than HEAD on purpose: the source repos are
+# working checkouts that sit on feature branches for long stretches, and a copy
+# taken from whatever happened to be checked out is not something you can reason
+# about later. Override with REF=... for a one-off.
+REF="${REF:-main}"
 
 # package-dir : source-repo
 PACKAGES=(
@@ -32,13 +38,15 @@ extract() {
   local src="$SB/$repo"
 
   [ -d "$src/.git" ] || { echo "  !! $src is not a git repo" >&2; return 1; }
+  git -C "$src" rev-parse --verify -q "$REF" >/dev/null \
+    || { echo "  !! $repo has no ref '$REF'" >&2; return 1; }
 
   local tmp
   tmp="$(mktemp -d)"
   # shellcheck disable=SC2064
   trap "rm -rf '$tmp'" RETURN
 
-  git -C "$src" archive HEAD | tar -x -C "$tmp"
+  git -C "$src" archive "$REF" | tar -x -C "$tmp"
 
   local from="$tmp"
   [ -n "$subdir" ] && from="$tmp/$subdir"
@@ -71,7 +79,7 @@ strip_noise() {
   fi
 }
 
-echo "syncing (committed state only):"
+echo "syncing $REF (committed state only):"
 for entry in "${PACKAGES[@]}"; do
   dest="${entry%%:*}"
   repo="${entry##*:}"
@@ -91,8 +99,8 @@ for entry in "${PACKAGES[@]}"; do
 
   strip_noise "$dest"
   printf "  %-18s %s  %s\n" "$dest" \
-    "$(git -C "$SB/$repo" rev-parse --short HEAD)" \
-    "$(git -C "$SB/$repo" branch --show-current)"
+    "$(git -C "$SB/$repo" rev-parse --short "$REF")" \
+    "$REF"
 done
 
 echo
@@ -104,8 +112,8 @@ for entry in "${PACKAGES[@]}"; do
   dest="${entry%%:*}"; repo="${entry##*:}"
   printf "| \`packages/%s\` | \`stuffbucket/%s\` | \`%s\` | \`%s\` |\n" \
     "$dest" "$repo" \
-    "$(git -C "$SB/$repo" branch --show-current)" \
-    "$(git -C "$SB/$repo" rev-parse --short HEAD)"
+    "$REF" \
+    "$(git -C "$SB/$repo" rev-parse --short "$REF")"
 done
 
 echo

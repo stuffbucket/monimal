@@ -26,3 +26,7 @@ storybook-static/
 
 # pnpm is the package manager; npm lockfiles must not reappear
 package-lock.json
+
+# Research notes and their archive. Working material the build never reads.
+research_log/
+research_log.zip

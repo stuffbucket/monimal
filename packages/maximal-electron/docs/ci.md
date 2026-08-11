@@ -1,10 +1,9 @@
 # Continuous integration
 
 Three workflows build. `ci.yml` is the blocking gate, `release.yml` builds and
-ships a tag, and `merge-preview.yml` tests what a merge would produce. Two
-more build nothing: `watch-rulesets.yml` reads the repository settings that no
-pull request can see change, and `workflow-health.yml` reads whether the others
-still run at all. Each is described in its own header.
+ships a tag, and `merge-preview.yml` tests what a merge would produce. One
+more builds nothing: `workflow-health.yml` reads whether the others still run
+at all. Each is described in its own header.
 
 ## What each one runs
 
@@ -13,7 +12,6 @@ still run at all. Each is described in its own header.
 | `ci.yml` | pull request, push to `main` and `release/**`, or a dispatch | Lint, types, unit and mutation tests, a git-ref install, packaging, the packaged smoke test and the end-to-end suite on macOS and Windows |
 | `merge-preview.yml` | push to `main` and `release/**` | Replays every open pull request against the new tip |
 | `release.yml` | tag `v*.*.*`, or a dispatch to rehearse or to retry | The draft release, the tarball, the registry publish, publish |
-| `watch-rulesets.yml` | daily, or a dispatch | Reads the live repository rulesets and files one issue when a protection drops below its floor |
 | `workflow-health.yml` | daily, a pull request, or a dispatch | Reads every workflow's run history and files one issue when one has never run, has stopped running, or fails every time |
 
 This repository ships no installer. `npm run package`, `npm run
@@ -355,12 +353,10 @@ read, which is the rule at the top of this page applied to itself.
 
 What it cannot do is stop the tag moving in the first place. That needs a
 repository ruleset with a `tag` target, which no pull request can create and
-which does not exist. `npm run verify:rulesets` reports that gap, and
-`watch-rulesets.yml` runs it daily and files one issue rather than reddening a
-branch nobody touched — a required check no pull request can turn green is a
-merge freeze, not a gate.
-[`docs/admin/repository-settings.md`](admin/repository-settings.md) holds the
-floor, the three states the check reports, and what the owner has to click.
+which does not exist. Creating it is an owner action in repository settings,
+and nothing in this repository checks that it stays: a required check no pull
+request can turn green is a merge freeze, not a gate, and the repository
+settings are deliberately not mirrored here.
 
 ## Whether the workflows themselves still run
 

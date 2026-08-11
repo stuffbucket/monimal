@@ -1,140 +1,144 @@
 # Sources
 
-`monimal` is a **spike**, not a home of record. Each package here is a plain
-working-tree copy — no git history came across, so this file is the only thread
-back to the originals. The canonical repos remain canonical.
+`monimal` is a **spike**, not a home of record. Each package is a copy — no git
+history came across, so this file is the only thread back to the originals. The
+canonical repos remain canonical.
 
 Last re-synced 2026-08-11.
 
-| Package | Source repo | Branch | Commit |
+| Package | Source repo | Ref | Commit |
 | --- | --- | --- | --- |
-| `packages/maximal` | `stuffbucket/maximal` | `docs/reel-clipping-reference` | `a137a0f` |
-| `packages/maximal-core` | `stuffbucket/maximal-core` | `feat/win11-vm-harness` | `6bb2eff` |
-| `packages/maximal-electron` | `stuffbucket/maximal-electron` | `feat/verify-peers` | `1e80267` |
-| `packages/site` | `stuffbucket/maximal` | `docs/reel-clipping-reference` | `a137a0f` |
+| `packages/maximal` | `stuffbucket/maximal` | `main` | `b831d87` |
+| `packages/maximal-core` | `stuffbucket/maximal-core` | `main` | `3e2b10c` |
+| `packages/maximal-electron` | `stuffbucket/maximal-electron` | `main` | `c31f238` |
+| `packages/site` | `stuffbucket/maximal` | `main` | `b831d87` |
 
-**Committed state only.** `scripts/sync.sh` uses `git archive HEAD`, so these
-SHAs fully describe the copy: re-running the sync at the same commits reproduces
-the same tree. An earlier rsync-of-working-tree approach dragged in-flight WIP
-along (maximal-core's `scripts/dev/win11/**`) and could not offer that; switching
-dropped that WIP, which is the intended trade.
+**Committed state on `main`.** `scripts/sync.sh` uses `git archive main`, so
+these SHAs fully describe the copy: re-running the sync at the same commits
+reproduces the same tree. `main` rather than `HEAD` on purpose — the source
+repos sit on feature branches for long stretches, and a copy taken from whatever
+happened to be checked out is not something you can reason about later. Override
+for a one-off with `REF=... pnpm run sync`.
 
 `packages/site` is the Astro site that lives at `maximal/site` upstream. It is a
-separate package here so its build is not commingled with the proxy's.
+separate package here so its build is not commingled with the CLI's.
 
 ## Re-syncing
 
 ```sh
-pnpm run sync        # git archive HEAD -> packages/*, then apply deviations
-pnpm install
+pnpm run sync        # git archive main -> packages/*, then re-apply deviations
+pnpm install         # REQUIRED: sync replaces package dirs, removing node_modules
 pnpm run check       # build, typecheck, test
 ```
 
-A re-sync replaces the packages wholesale. `scripts/apply-deviations.mjs` puts
-the local edits back and is idempotent, so the deviation set below stays a
-reviewable list rather than remembered hand-edits.
-
-Two other scripts exist for the failure modes this spike keeps hitting:
-
-- `pnpm run check:float` — every dependency whose resolved version differs from
-  upstream's. Currently **22**.
-- `pnpm run drift` — how far `maximal/src` and `maximal-core/src` have diverged.
+`scripts/apply-deviations.mjs` re-applies the local edits and is idempotent, so
+the deviation set below stays a reviewable list rather than remembered
+hand-edits. `pnpm run check:float` reports dependencies resolving differently
+than upstream — currently **22**.
 
 ## What was excluded
 
-- **`maximal/shell/`** — the parked Tauri shell (7.7G, mostly `src-tauri/` Rust
-  build artifacts). Excluded on request: no Tauri pieces.
-- **`maximal/site/`** — kept (source only, ~1.5MB); its `node_modules` was not.
-- **`.claude/worktrees/`** — 672MB of local agent state across the three repos.
-  `.claude/skills`, `.claude/agents` and `settings.local.json` were kept.
+- **`.claude/worktrees/`** — local agent state, hundreds of MB.
+  `.claude/skills`, `.claude/agents` and settings are kept.
 - **`maximal-electron/demo/`** — 2,581 jpg + 24 png + 2 mp4 of recorded demo
-  footage (287MB). The four `.json` files under `demo/edits/` and
-  `demo/takes/` were kept, because `tests/docs-claims.test.ts` references them.
-- Build and tool artifacts everywhere: `node_modules`, `dist`, `out`, `target`,
-  `coverage`, `reports`, `playwright-report`, `test-results`,
-  `storybook-static`, `.eslintcache`.
+  footage (287MB). The four `.json` files under `demo/edits/` and `demo/takes/`
+  are kept, because `tests/docs-claims.test.ts` references them.
+- **Per-package lockfiles** — ignored in a workspace; leaving them implies a
+  pinning that is not in effect.
+- Build and tool artifacts: `node_modules`, `dist`, `out`, `reports`,
+  `playwright-report`, `test-results`, `storybook-static`, `.eslintcache`.
 
-977MB on first copy → **18MB** after excluding the above.
+The Tauri shell and `maximal/src` are absent because **upstream deleted them**
+(maximal#442), not because this spike excluded them. Earlier revisions of this
+file described deviations for that pre-excavation layout; they are gone.
 
 ## Deviations from the sources
 
 Every change made to the copied packages, and why. Keep this list short — the
-more that accumulates here, the less the spike tells you about the real repos.
+more that accumulates, the less the spike tells you about the real repos.
 
-### Forced by removing the Tauri shell
+### The seam
 
-- `maximal`: `prepare` was `bun run ensure:ui-embed && simple-git-hooks && cd
-  shell && bun install`. The `cd shell` half fails outright with no `shell/`,
-  which breaks `bun install` for the whole workspace. Now `bun run
-  ensure:ui-embed`.
-- `maximal`: deleted 14 test files that import from or read `shell/`. Six
-  imported `../shell/src/**` (`inline-state-client`, `project-slice`,
-  `spa-router`, `tauri-shell-bridge`, `usage-format`, `ws/live-feed-core`);
-  eight read shell files at runtime (`single-history-invariant`,
-  `account-section`, `docs-reference-parity`, `tauri-resources`,
-  `i18n-catalog-parity`, `boot-status`, `shell-sidecar-env-contract`,
-  `ui-url-contract`).
-- `maximal`: these scripts are now inert because they reach into `shell/` —
-  `app:build`, `app:dev`, `app:icons`, `app:setup`, `app:sidecar`, `app:ui`,
-  `build:ui`, `ui:harness`, `typecheck:shell`, and `scripts/generate-css-tokens.ts`.
-  They were left in place rather than deleted, to keep the diff against upstream
-  small. None are on the `build` / `typecheck` / `test` path.
+`maximal` pins `"@stuffbucket/maximal-core": "github:stuffbucket/maximal-core#v0.1.1"`
+while core is **0.6.3**. Rewritten to `workspace:*`. This is not cosmetic:
+`maximal`'s `build`, `dev` and `start` all run out of
+`node_modules/@stuffbucket/maximal-core/src`, so the link is load-bearing — the
+workspace really does build the published CLI against current core, and it
+passes.
 
-### Forced by the package manager
+The equivalent pin in `packages/maximal/client`
+(`stuffbucket-electron` → `maximal-electron#2f1a06c`, 50 commits behind) is
+**not** closed, because `client/` is not a workspace package yet. Note the
+client declares the dependency under the key `stuffbucket-electron` while the
+package's real name is `@stuffbucket/maximal-electron`; a git dependency
+tolerates that, a `workspace:*` link will not.
 
-The workspace is **pnpm**, matching maximal-electron's own migration
-(`build: migrate from npm to pnpm`). It uses pnpm's **default isolated linker**,
-deliberately overriding maximal-electron's `node-linker=hoisted`. `node-linker`
-is a workspace-root setting, so a package-level `.npmrc` cannot win and the
-choice has to be made once for all three. See `.npmrc` for the reasoning and
-the README for what it costs.
+### Required by Turborepo
+
+- `maximal`, `maximal-core`: added `"test": "bun test"`. Neither had a plain
+  `test` script; Turbo needs one to drive the task.
+- `maximal-electron`: added `"build": "npm run build:package"` as an alias.
+
+### Workspace hygiene
+
+- `maximal`, `maximal-core`: git hooks taken off the install path
+  (`maximal`'s `prepare` dropped, `maximal-core`'s renamed to `prepare:hooks`)
+  and the `simple-git-hooks` devDependency removed. Two packages installing
+  competing pre-commit hooks into one repo's `.git` is wrong.
 
 ### Forced by the single workspace lockfile
 
-A workspace has one root lockfile. The per-package lockfiles came across but are
-ignored, so every dependency re-resolved to the newest semver-compatible
-version. That is not cosmetic — it broke a typecheck immediately, and it did so
-identically under both Bun and pnpm:
+One root lockfile means the per-package lockfiles stop applying and everything
+re-resolves to the newest semver-compatible version. This has broken the build
+three times:
 
-- `@hono/zod-openapi` floated `^1.5.0` → **1.5.2** in both `maximal` and
-  `maximal-core`, and 1.5.2 changes an inferred type such that
-  `Object.values(ready.checks)` yields `unknown`. Result:
-  `tests/setup-status-openapi.test.ts(399,7): error TS2345`, in both packages,
-  when both typecheck clean upstream. **Pinned to exactly `1.5.0`** to match
-  what upstream's lockfiles resolve. `hono` likewise floated 4.12.18 → 4.13.1;
-  left alone, as nothing failed because of it.
+- `@hono/zod-openapi` floated `^1.5.0` → **1.5.2**, whose changed type inference
+  makes `Object.values(ready.checks)` yield `unknown` and fails
+  `tests/setup-status-openapi.test.ts` — in a package that typechecks clean
+  upstream. **Pinned to `1.5.0`** in `maximal-core`.
+- `prettier` floated **3.8.3 → 3.9.6**, which changed union-type formatting and
+  produced 20 lint errors in files nobody touched. prettier is declared nowhere
+  — it arrives through `@echristian/eslint-config` — so the only lever is a root
+  `pnpm.overrides` entry. **Pinned to `3.8.3`.**
 
-- `prettier` floated **3.8.3 → 3.9.6**, and 3.9.6 changed how it formats union
-  types. `maximal` lints clean upstream and produced **20 formatting errors**
-  here, in files nobody had touched. prettier is not a declared dependency of
-  any package — it arrives transitively through `@echristian/eslint-config` —
-  so the only lever is a root `pnpm.overrides` entry pinning `prettier: 3.8.3`.
-  That restores a clean lint. Third instance of this failure mode, in a third
-  tool: **assume every transitive tool version floats until pinned.**
+  `eslint --cache` hid the fix at first, replaying errors from the 3.9.6 run.
+  Delete `.eslintcache` after changing a formatter version.
 
-  Note `eslint --cache` hid the fix at first — the cache was written by the
-  3.9.6 run and replayed stale errors. Delete `.eslintcache` after changing a
-  formatter version.
+Third instance, third tool: **assume every transitive tool version floats until
+pinned.**
 
 ### Forced by splitting the site into its own package
 
-The Astro site was nested at `maximal/site`. Extracting it broke the coupling in
-**both** directions, and neither break was loud:
+Extracting the Astro site broke the coupling in **both** directions, neither
+loudly:
 
 - `site` globs `../docs/guide` for its user guide — maximal's docs. As a sibling
-  package that path resolves to nothing, and Astro **built successfully with an
-  empty guide**: 1 page instead of 8, a content loss with a zero exit code. Fixed
-  by declaring `@stuffbucket/maximal` as a workspace dependency and globbing
-  through `node_modules`, which also gives Turborepo its first real edge.
-- `maximal` imports the site's updates-manifest library from one release script
-  and four tests. Those now point at `../../site/`. This **cannot** be a package
-  dependency: `site` already depends on `maximal`, so the reverse would be a
-  cycle and Turborepo would reject the graph. Cross-package relative imports are
-  a smell, and that is the finding — as written, these two are not separable.
+  that path resolves to nothing, and Astro **built successfully with an empty
+  guide**: 1 page instead of 8, content loss with a zero exit code. Fixed by
+  declaring `@stuffbucket/maximal` as a workspace dependency and globbing
+  through `node_modules`.
+- `maximal`'s release script and three tests import the site's updates-manifest
+  library. Those are repointed at `../../site/`. This **cannot** be a package
+  dependency: `site` already depends on `maximal`, so the reverse is a cycle
+  Turborepo rejects. Cross-package relative imports are a smell, and that is the
+  finding — as written, these two are not separable.
 
-Lengthening those specifiers also changed import sort order, which
-`perfectionist/sort-imports` fails on, so the script runs `eslint --fix` over
-exactly the files it rewrote.
+  Lengthening the specifier also changes import sort order, which
+  `perfectionist/sort-imports` fails on. The script reorders those imports
+  itself rather than shelling out to `eslint --fix`: this runs during a sync,
+  when the packages have just been replaced and `node_modules` does not exist
+  yet, so eslint is unavailable at the one moment it would be needed.
+
+### Forced by the package manager
+
+The workspace is **pnpm**, matching maximal-electron's own migration off npm. It
+uses pnpm's **default isolated linker**, deliberately overriding
+maximal-electron's `node-linker=hoisted`. `node-linker` is a workspace-root
+setting, so a package-level `.npmrc` cannot win and the choice is made once for
+everyone. Hoisting empties every package-local `node_modules`, and
+`maximal-core`'s build then refuses to run — `bun build` writes module paths
+relative to the resolved build root, so a bundle built without package-local
+deps is not byte-comparable. See `.npmrc`.
 
 ### Kept on purpose
 
@@ -148,24 +152,6 @@ so at the point where deleting them would be tempting.
 
 - `maximal-electron` imports `typebox` in `src/main/native/agent.ts` and
   `src/main/native/toolsets.ts` but **never declares it**. npm's flat
-  `node_modules` silently supplied it as a transitive dep of
-  `@earendil-works/pi-agent-core` / `pi-ai`. Bun's isolated layout does not, so
-  typecheck failed. Added `typebox: 1.3.7` to `devDependencies`, matching the
-  version that was being hoisted and the pinned style of its parents. **This is
-  a real bug in maximal-electron, not an artifact of the copy** — worth fixing
-  upstream.
-
-### Workspace hygiene
-
-- `maximal` and `maximal-core`: dropped the `simple-git-hooks` devDependency and
-  stopped invoking it (`maximal-core`'s `prepare` is renamed to
-  `prepare:hooks`). Two packages installing competing pre-commit hooks into one
-  repo's `.git` is wrong. (It was also load-bearing under the earlier Bun
-  workspace, where `simple-git-hooks`' own postinstall crashed on
-  `node_modules/.bun` and failed the install outright. pnpm blocks unapproved
-  dependency scripts by default, so that specific crash no longer applies — the
-  competing-hooks reason still does.)
-- `maximal`, `maximal-core`: added `"test": "bun test"`. Neither had a plain
-  `test` script; Turborepo needs one to drive the task.
-- `maximal-electron`: added `"build": "npm run build:package"` as an alias, so
-  Turbo's `build` task picks it up.
+  `node_modules` supplied it transitively via `@earendil-works/pi-agent-core`.
+  A stricter layout does not, and typecheck fails. `typebox: 1.3.7` added here.
+  **This is a real bug upstream**, not an artifact of copying.
