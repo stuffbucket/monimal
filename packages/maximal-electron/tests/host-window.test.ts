@@ -207,4 +207,33 @@ describe('createHostWindow', () => {
     expect(electron.openExternal).toHaveBeenCalledWith('https://outside.example');
     expect(electron.openExternal).toHaveBeenCalledWith('https://outside.example/path');
   });
+
+  /*
+   * `shell.openExternal` hands a URL to the operating system, so both seams
+   * here are the same command surface `shell:open-external` is. `src/main/ipc.ts`
+   * guards that channel with `isSafeExternalUrl`; these two shipped unguarded.
+   */
+  it('refuses to hand an unsafe scheme to the operating system', () => {
+    createHostWindow({
+      preloadPath: '/absolute/preload.js',
+      title: 'Consumer',
+      width: 900,
+      height: 600,
+      loadRenderer: vi.fn(),
+    });
+
+    // Still denied as a window, which was never the question.
+    expect(electron.openHandler?.({ url: 'file:///etc/passwd' })).toEqual({
+      action: 'deny',
+    });
+
+    const preventDefault = vi.fn();
+    electron.navigateHandler?.({ preventDefault }, 'custom-app:run?cmd=rm');
+
+    // Navigation away is still stopped.
+    expect(preventDefault).toHaveBeenCalledOnce();
+
+    // Neither reaches the operating system.
+    expect(electron.openExternal).not.toHaveBeenCalled();
+  });
 });

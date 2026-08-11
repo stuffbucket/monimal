@@ -16,14 +16,14 @@
 import { describe, expect, test } from "bun:test"
 
 import {
+  buildManifest,
+  type ManifestAsset,
+} from "../../site/src/lib/updates-manifest"
+import {
   channelForTag,
   mergeChannel,
   serializeManifest,
 } from "../scripts/write-updates-manifest"
-import {
-  buildManifest,
-  type ManifestAsset,
-} from "../site/src/lib/updates-manifest"
 
 // Same serialization the Astro route (site/src/pages/updates/manifest.json.ts)
 // uses, inlined so this test proves parity without importing the .astro route.

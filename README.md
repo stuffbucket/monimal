@@ -13,9 +13,11 @@ Nothing here publishes. Nothing here is a home of record.
 packages/maximal            @stuffbucket/maximal           the proxy + CLI
 packages/maximal-core       @stuffbucket/maximal-core      headless engine
 packages/maximal-electron   @stuffbucket/maximal-electron  Electron shell / UI library
+packages/site               maximal-site                   Astro marketing + guide site
 ```
 
-The parked Tauri shell is not here.
+The parked Tauri shell is not here. `site` was nested inside `maximal` upstream
+and is a separate package here so the two builds are not commingled.
 
 ## Commands
 
@@ -25,7 +27,10 @@ pnpm run build        # turbo run build
 pnpm run typecheck    # turbo run typecheck
 pnpm run test         # turbo run test --concurrency=1
 pnpm run check        # build + typecheck, then test
+pnpm run sync         # re-sync from source repos (committed state only)
 pnpm run deviations   # re-apply local edits after a re-sync
+pnpm run check:float  # dependencies resolving differently than upstream
+pnpm run drift        # maximal/src vs maximal-core/src divergence
 ```
 
 pnpm 10.20 manages dependencies; `bun` is still the test runner and bundler
@@ -38,28 +43,32 @@ inside `maximal` and `maximal-core`, and `vitest` inside `maximal-electron`.
 | --- | --- | --- | --- | --- |
 | `maximal` | pass | pass | pass | 1625 pass, 0 fail (148 files) |
 | `maximal-core` | pass | pass | pass | 1766 pass, 0 fail (144 files) |
-| `maximal-electron` | pass | pass | pass | 59 files pass |
+| `maximal-electron` | pass | pass | pass | 60 files, 1091 tests pass |
+| `site` | pass | — | — | pass |
 
 ### Turborepo
 
 Caching is the whole of the value here, and it is substantial:
 
-| task | cold | warm | packages rebuilt on a 1-file change |
-| --- | --- | --- | --- |
-| `build` | 2.19s | 17ms | 1 of 3 |
-| `typecheck` | 4.67s | 16ms | 1 of 3 |
-| `lint` | 3.67s | 16ms | 1 of 3 |
-| `test` | 52.56s | 22ms | 1 of 3 |
+| task | cold | warm |
+| --- | --- | --- |
+| `build` | 2.19s | 17ms |
+| `typecheck` | 4.67s | 16ms |
+| `lint` | 3.67s | 16ms |
+| `test` | 52.56s | 22ms |
 
-Cache scoping is correct: editing one file in `maximal-core` rebuilds only
-`maximal-core` and replays the other two from cache.
+Cache scoping is correct, and verified two ways: editing one file in
+`maximal-core` rebuilds only `maximal-core`, and editing one in `maximal`
+correctly cascades to `maximal-site`. Task `inputs` exclude `research_log/`,
+`.claude/`, `.github/` and `reports/`, so churn in those no longer busts a
+cache — a docs edit used to.
 
-What Turbo is *not* doing here is orchestration. `turbo run build --dry=json`
-reports `dependsOn: (none)` for all three packages, because none depends on
-another (finding 4) — so `^build` has no edges to order. And `test` runs at
-`--concurrency=1`, which gives up parallelism across packages. Net: this is a
-fast remote-cache-shaped tool being used as a local cache and task runner.
-Worth having, but a fraction of what it is for.
+There is now **one** real edge: `maximal-site#build dependsOn
+@stuffbucket/maximal#build`, created by declaring the site's dependency on
+maximal's `docs/guide`. The other three packages still declare nothing about
+each other, so `^build` has almost nothing to order. And `test` runs at
+`--concurrency=1`, giving up parallelism across packages. Turbo is doing real
+work as a cache; it is barely being used as a build graph.
 
 `maximal-core`'s 1766 passing tests match its upstream count exactly.
 `maximal`'s count is lower than upstream's 1752 because 14 Tauri-coupled test
@@ -91,11 +100,12 @@ modules / 7.36 MB and 629 modules / 7.38 MB, and both carry the same
 `docs/maximal-core-integration.md` calls out as needing excavation, now visible
 as a measurement rather than a claim.
 
-**4. Nothing here depends on anything else here.** None of the three packages
-declares a dependency on another, so `node_modules/@stuffbucket/` is empty and
-Turbo's `^build` ordering has no edges to order. The git-dep that motivated a
-monorepo (`"@stuffbucket/maximal-core": "github:...#v0.2.0"`, pinned four minors
-behind core's 0.6.3) lives in `client/` and `shell/` — neither of which is here.
+**4. Almost nothing here depends on anything else here.** Splitting out the site
+produced the workspace's only edge (`site` -> `maximal`). `maximal`,
+`maximal-core` and `maximal-electron` still declare nothing about one another.
+The git-dep that motivated a monorepo (`"@stuffbucket/maximal-core":
+"github:...#v0.2.0"`, pinned four minors behind core's 0.6.3) lives in `client/`
+and `shell/` — neither of which is here.
 
 **5. The three packages disagree about `node-linker`, and only one can win.**
 maximal-electron sets `node-linker=hoisted` because Electron Forge packages
@@ -110,11 +120,39 @@ so. This workspace therefore runs pnpm's default isolated linker, which suits
 `tsc`/`bun test`/`vitest` but means `electron-forge package` is not expected to
 work from here. A real monorepo has to resolve this, not pick a side per task.
 
-That last point is the honest headline: **as assembled, this is three
-independent packages sharing an install, not an integrated monorepo.** It proves
-the three can coexist, build, typecheck and test under one pnpm workspace with
-Turborepo. It does not yet prove the thing the integration doc actually worries
-about, because the consumer that would exercise the seam was left out.
+**6. `maximal` and its site are mutually coupled, and neither break was loud.**
+Extracting `site` into its own package broke both directions. The site globs
+`../docs/guide` for its user guide, so as a sibling it built **successfully with
+an empty guide** — 8 pages down to 1, zero exit code. And `maximal` imports the
+site's updates-manifest library from a release script and four tests. The second
+direction cannot be expressed as a package dependency, because `site` already
+depends on `maximal` and the reverse would be a cycle Turborepo rejects; those
+imports are relative paths across packages, which is the smell that says these
+two are not actually separable as written.
+
+That is the honest headline: **as assembled, this is four largely independent
+packages sharing an install, not an integrated monorepo.** It proves they can
+coexist, build, typecheck, lint and test under one pnpm workspace with
+Turborepo. It does not prove what the integration doc worries about, because the
+consumer that would exercise the real seam was left out.
+
+### The duplication, quantified
+
+`pnpm run drift` compares the two copies of the engine:
+
+| | |
+| --- | --- |
+| files in `maximal/src` | 175 |
+| files in `maximal-core/src` | 174 |
+| shared paths | 155 |
+| — identical | 86 |
+| — **diverged** | **69** |
+| total differing lines | **4,235** |
+
+`server.ts` alone differs by 343 lines. These are not two copies of one thing;
+they are two things drifting apart, and every fix has to land twice or not at
+all. Excavating `maximal/src` is the cleanup that would make this workspace
+worth keeping.
 
 ## Two operational notes
 
@@ -127,6 +165,15 @@ randomization in the suites.
 **Tests depend on repo state.** `getGitVersion` and the diagnostics
 `source_revision` test read git HEAD, so they fail in a repo with no commits.
 They pass once there is one.
+
+**`.github/` is load-bearing.** It looks like dead weight, since those workflows
+cannot run here. Deleting it dropped 69 passing tests — maximal-electron asserts
+against those files in `tests/workflows.test.ts` and `tests/workflow-health.test.ts`.
+
+**Dependency float is tracked, not fixed.** `pnpm run check:float` currently
+reports **22** dependencies resolving differently than upstream, including
+`oxlint` 1.63.0 -> 1.78.0 and `astro` 6.2.2 -> 6.4.8. Only the two that actually
+broke something are pinned. The rest are a standing risk.
 
 ## Divergence to watch
 

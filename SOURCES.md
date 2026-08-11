@@ -6,28 +6,39 @@ back to the originals. The canonical repos remain canonical.
 
 Last re-synced 2026-08-11.
 
-| Package | Source repo | Branch | Commit | Working tree |
-| --- | --- | --- | --- | --- |
-| `packages/maximal` | `stuffbucket/maximal` | `docs/reel-clipping-reference` | `a137a0f` | 2 untracked |
-| `packages/maximal-core` | `stuffbucket/maximal-core` | `feat/win11-vm-harness` | `6bb2eff` | **13 uncommitted** |
-| `packages/maximal-electron` | `stuffbucket/maximal-electron` | `docs/bump-instructions-after-pnpm` | `5d23fed` | 1 untracked |
+| Package | Source repo | Branch | Commit |
+| --- | --- | --- | --- |
+| `packages/maximal` | `stuffbucket/maximal` | `docs/reel-clipping-reference` | `a137a0f` |
+| `packages/maximal-core` | `stuffbucket/maximal-core` | `feat/win11-vm-harness` | `6bb2eff` |
+| `packages/maximal-electron` | `stuffbucket/maximal-electron` | `feat/verify-peers` | `1e80267` |
+| `packages/site` | `stuffbucket/maximal` | `docs/reel-clipping-reference` | `a137a0f` |
 
-These are **working-tree** copies, not commit checkouts, so uncommitted work came
-across too — notably maximal-core's in-flight `scripts/dev/win11/**` harness.
-That is deliberate (it matches what you would get by looking at the repo right
-now), but it means the copy is not reproducible from the SHA alone.
+**Committed state only.** `scripts/sync.sh` uses `git archive HEAD`, so these
+SHAs fully describe the copy: re-running the sync at the same commits reproduces
+the same tree. An earlier rsync-of-working-tree approach dragged in-flight WIP
+along (maximal-core's `scripts/dev/win11/**`) and could not offer that; switching
+dropped that WIP, which is the intended trade.
+
+`packages/site` is the Astro site that lives at `maximal/site` upstream. It is a
+separate package here so its build is not commingled with the proxy's.
 
 ## Re-syncing
 
 ```sh
-rsync -a --delete <excludes> ~/github/stuffbucket/<repo>/ packages/<pkg>/
-pnpm run deviations     # scripts/apply-deviations.mjs
+pnpm run sync        # git archive HEAD -> packages/*, then apply deviations
 pnpm install
+pnpm run check       # build, typecheck, test
 ```
 
-A re-sync overwrites every local edit. `scripts/apply-deviations.mjs` puts them
-back and is idempotent, so the deviation set below stays a reviewable list
-rather than remembered hand-edits.
+A re-sync replaces the packages wholesale. `scripts/apply-deviations.mjs` puts
+the local edits back and is idempotent, so the deviation set below stays a
+reviewable list rather than remembered hand-edits.
+
+Two other scripts exist for the failure modes this spike keeps hitting:
+
+- `pnpm run check:float` — every dependency whose resolved version differs from
+  upstream's. Currently **22**.
+- `pnpm run drift` — how far `maximal/src` and `maximal-core/src` have diverged.
 
 ## What was excluded
 
@@ -104,6 +115,34 @@ identically under both Bun and pnpm:
   Note `eslint --cache` hid the fix at first — the cache was written by the
   3.9.6 run and replayed stale errors. Delete `.eslintcache` after changing a
   formatter version.
+
+### Forced by splitting the site into its own package
+
+The Astro site was nested at `maximal/site`. Extracting it broke the coupling in
+**both** directions, and neither break was loud:
+
+- `site` globs `../docs/guide` for its user guide — maximal's docs. As a sibling
+  package that path resolves to nothing, and Astro **built successfully with an
+  empty guide**: 1 page instead of 8, a content loss with a zero exit code. Fixed
+  by declaring `@stuffbucket/maximal` as a workspace dependency and globbing
+  through `node_modules`, which also gives Turborepo its first real edge.
+- `maximal` imports the site's updates-manifest library from one release script
+  and four tests. Those now point at `../../site/`. This **cannot** be a package
+  dependency: `site` already depends on `maximal`, so the reverse would be a
+  cycle and Turborepo would reject the graph. Cross-package relative imports are
+  a smell, and that is the finding — as written, these two are not separable.
+
+Lengthening those specifiers also changed import sort order, which
+`perfectionist/sort-imports` fails on, so the script runs `eslint --fix` over
+exactly the files it rewrote.
+
+### Kept on purpose
+
+`.github/` looks like dead weight — those workflows cannot run from this repo.
+Deleting it silently dropped **69 passing tests**: maximal-electron's
+`tests/workflows.test.ts` and `tests/workflow-health.test.ts` assert against
+those files. They are tested artifacts, not inert config. `scripts/sync.sh` says
+so at the point where deleting them would be tempting.
 
 ### Latent bugs the workspace exposed
 

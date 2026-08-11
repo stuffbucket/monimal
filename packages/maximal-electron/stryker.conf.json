@@ -35,6 +35,7 @@
     "scripts/check-scope.mjs",
     "scripts/docs-claims.mjs",
     "scripts/fixture-imports.mjs",
+    "scripts/peer-requirements.mjs",
     "scripts/peer-table.mjs",
     "scripts/publish-decision.mjs"
   ],

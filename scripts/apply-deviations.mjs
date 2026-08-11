@@ -10,9 +10,10 @@
  * Every change here is explained in SOURCES.md.
  */
 
-import { readFileSync, writeFileSync, rmSync, existsSync } from 'node:fs'
+import { readFileSync, writeFileSync, rmSync, existsSync, readdirSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { spawnSync } from 'node:child_process'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const changes = []
@@ -88,6 +89,16 @@ function drop(json, section, key, label) {
   // Two packages installing competing hooks into one .git is wrong.
   drop(p, 'devDependencies', 'simple-git-hooks', 'maximal')
 
+  // Scripts that reach into the excluded Tauri `shell/`. They cannot work here
+  // and none is on the build/typecheck/lint/test path — leaving them only
+  // invites someone to run one and get a confusing failure.
+  for (const s of [
+    'app:build', 'app:dev', 'app:icons', 'app:setup', 'app:sidecar', 'app:ui',
+    'build:ui', 'typecheck:shell', 'ui:harness',
+  ]) {
+    drop(p, 'scripts', s, 'maximal')
+  }
+
   writePkg('maximal', p)
 }
 
@@ -147,6 +158,90 @@ for (const t of SHELL_COUPLED_TESTS) {
   set(p, 'scripts', 'build', 'npm run build:package', 'maximal-electron')
 
   writePkg('maximal-electron', p)
+}
+
+// ── site ───────────────────────────────────────────────────────────────────
+// Upstream the Astro site sits at maximal/site, and its `guide` collection
+// globs `../docs/guide` — i.e. maximal's own docs. Here it is a sibling
+// package, so that relative path resolves to nothing and the site builds with
+// an empty guide: a silent content loss, not a build failure.
+//
+// Rather than reach across directories, declare the dependency. maximal is a
+// workspace package, so its full source tree (not just its published `files`)
+// is reachable through node_modules, and Turborepo gains a real edge:
+// site#build now waits on maximal#build.
+{
+  const p = readPkg('site')
+  set(p, 'dependencies', '@stuffbucket/maximal', 'workspace:*', 'site')
+  writePkg('site', p)
+
+  const cfg = join(ROOT, 'packages/site/src/content.config.ts')
+  const before = readFileSync(cfg, 'utf8')
+  const after = before.replace(
+    /base:\s*"\.\.\/docs\/guide"/,
+    'base: "./node_modules/@stuffbucket/maximal/docs/guide"',
+  )
+  if (after !== before) {
+    writeFileSync(cfg, after)
+    note('site: guide collection now resolves through the workspace dependency')
+  }
+}
+
+// ── maximal <-> site coupling ──────────────────────────────────────────────
+// The coupling runs both ways. site reads maximal's docs/guide (handled above
+// with a workspace dependency), and maximal's release script and four tests
+// import the site's updates-manifest library. Upstream both lived in one repo,
+// so `../site/...` resolved; as sibling packages it is one level further out.
+//
+// This cannot be a package dependency: site already depends on maximal, so
+// maximal depending on site would be a cycle and Turborepo would reject the
+// graph. Relative paths across packages are a smell, and that is the point —
+// these two are not actually separable as they stand. See README.
+{
+  const walk = (dir) => {
+    const out = []
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      const f = join(dir, e.name)
+      if (e.isDirectory()) out.push(...walk(f))
+      else if (/\.(ts|tsx|mts)$/.test(e.name)) out.push(f)
+    }
+    return out
+  }
+
+  const touched = []
+  for (const sub of ['tests', 'scripts']) {
+    const dir = join(ROOT, 'packages/maximal', sub)
+    if (!existsSync(dir)) continue
+    for (const f of walk(dir)) {
+      const before = readFileSync(f, 'utf8')
+      // "../site/x" -> "../../site/x", without touching an already-fixed path
+      const after = before.replace(/(["'])\.\.\/site\//g, '$1../../site/')
+      if (after !== before) {
+        writeFileSync(f, after)
+        touched.push(f)
+      }
+    }
+  }
+  if (touched.length) {
+    note(`maximal: repointed ${touched.length} file(s) at ../../site/`)
+    // Lengthening the specifier changes import sort order, which the
+    // perfectionist/sort-imports rule then fails on. Let eslint place them
+    // rather than reimplement its ordering here. Best-effort: before the first
+    // `pnpm install` there is no eslint to run, and the next run will catch it.
+    // Only the files just rewritten. Pointing eslint at whole directories made
+    // it exit non-zero on pre-existing findings elsewhere and report the fix as
+    // failed when it had actually worked.
+    const res = spawnSync(
+      'pnpm',
+      ['exec', 'eslint', '--fix', ...touched.map((f) => f.replace(`${ROOT}/`, ''))],
+      { cwd: ROOT, stdio: 'ignore' },
+    )
+    note(
+      res.status === 0
+        ? 'maximal: eslint --fix reordered the changed imports'
+        : 'maximal: eslint --fix unavailable or incomplete — run `pnpm run lint` to check',
+    )
+  }
 }
 
 // ── report ─────────────────────────────────────────────────────────────────

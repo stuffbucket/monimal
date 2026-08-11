@@ -1,6 +1,7 @@
 import { BrowserWindow, shell, type BrowserWindowConstructorOptions } from 'electron';
 
 import { capabilityArguments, type BridgeDeclaration } from '../preload/capabilities.js';
+import { isSafeExternalUrl } from '../shared/urls.js';
 
 export { capabilityArguments };
 export type { BridgeDeclaration };
@@ -77,16 +78,19 @@ export function createHostWindow(options: HostWindowOptions): BrowserWindow {
     },
   });
 
-  // Anything that is not the consumer's own page goes to the real browser.
+  // Anything that is not the consumer's own page goes to the real browser, and
+  // only over a scheme `isSafeExternalUrl` allows: `shell.openExternal` hands
+  // the URL to the operating system, so this is the same command surface
+  // `shell:open-external` is, and it is guarded the same way.
   window.webContents.setWindowOpenHandler(({ url }) => {
-    void shell.openExternal(url);
+    if (isSafeExternalUrl(url)) void shell.openExternal(url);
     return { action: 'deny' };
   });
   window.webContents.on('will-navigate', (event, url) => {
     const current = window.webContents.getURL();
     if (current && new URL(url).origin !== new URL(current).origin) {
       event.preventDefault();
-      void shell.openExternal(url);
+      if (isSafeExternalUrl(url)) void shell.openExternal(url);
     }
   });
 

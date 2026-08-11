@@ -127,13 +127,54 @@ you use:
 | `@stuffbucket/maximal-electron/renderer` | `react`, `react-dom`, `ghostty-web`, `lucide-react`, `react-resizable-panels`, `@radix-ui/react-collapsible`, `@radix-ui/react-dialog`, `@radix-ui/react-dropdown-menu`, `@radix-ui/react-radio-group`, `@radix-ui/react-tabs`, `@radix-ui/react-tooltip`, `@radix-ui/react-visually-hidden` |
 | `@stuffbucket/maximal-electron/verify` | none |
 | `@stuffbucket/maximal-electron/verify/shell-variables` | none |
+| `@stuffbucket/maximal-electron/verify/peers` | none |
 
 npm says nothing about a missing optional peer at install time. The failure
 lands later: a bundler stops on the unresolved import and names the package,
 and a main-process entry throws when it loads. `npm run verify:exports` parses
 the rows above and compares each one against the packages that entry point's
 built import graph reaches, so a peer the table leaves out and a peer the table
-invents both fail the check. `react-dom` is the one name no import reaches: a
+invents both fail the check.
+
+That check runs here. `@stuffbucket/maximal-electron/verify/peers` is the one
+you run there, against your own installed tree, so a missing peer fails your
+build rather than a browser:
+
+```js
+import { createRequire } from 'node:module';
+import {
+  failedPeerChecks,
+  missingPeerChecks,
+  peerRequirements,
+} from '@stuffbucket/maximal-electron/verify/peers';
+
+const require = createRequire(import.meta.url);
+const root = path.dirname(require.resolve('@stuffbucket/maximal-electron/package.json'));
+const requirements = await peerRequirements(root, require('@stuffbucket/maximal-electron/package.json').exports);
+
+// Name only the entry points you import.
+const failed = failedPeerChecks(
+  missingPeerChecks({
+    requirements,
+    subpaths: ['./renderer'],
+    resolve: (specifier) => {
+      try {
+        require.resolve(specifier);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+  }),
+);
+
+if (failed.length > 0) throw new Error(failed.join('\n'));
+```
+
+The requirements come out of the graph the package shipped you, not out of the
+table above, so a version that adds an import reports it without anyone
+updating prose. `resolve` is yours because only your project can answer what
+resolves from it. `react-dom` is the one name no import reaches: a
 React component does not import a renderer, the consumer mounting these
 components needs one, and `scripts/peer-table.mjs` names it as the single
 exception rather than allowing any.

@@ -53,7 +53,7 @@ import {
   type ManifestAsset,
   type ManifestChannel,
   type UpdateManifest,
-} from "../site/src/lib/updates-manifest"
+} from "../../site/src/lib/updates-manifest"
 
 const DEFAULT_OUT = "site/public/updates/manifest.json"
 const DEFAULT_REPO = "stuffbucket/maximal"

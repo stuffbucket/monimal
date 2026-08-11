@@ -37,8 +37,11 @@
  * where they learn which. `peerTableChecks` asserts every name here is a
  * declared peer that no entry point imports, so a name that becomes reachable
  * has to leave rather than sit here excusing itself.
+ *
+ * Defined in `peer-requirements.mjs` because `./verify/peers` ships it to a
+ * consumer, who needs the same name for the same reason.
  */
-export const PEER_TABLE_EXCEPTIONS = [{ subpath: './renderer', name: 'react-dom' }];
+export { REQUIRED_WITHOUT_IMPORT as PEER_TABLE_EXCEPTIONS } from './peer-requirements.mjs';
 
 /** A two-cell row whose first cell is a single backticked token. */
 const ROW = /^\|\s*`([^`|]+)`\s*\|([^|]*)\|\s*$/gm;

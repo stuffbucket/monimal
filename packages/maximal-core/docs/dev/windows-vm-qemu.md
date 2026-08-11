@@ -13,12 +13,7 @@ bun scripts/dev/win11/winvm.ts build --iso ~/Downloads/Win11_ARM64.iso --bun 1.3
 bun run winvm:start                    # boot an instance (creates it if absent)
 bun run winvm:smoke                    # assert the staged bun matches .bun-version
 bun run winvm:exec -- bun --version    # run anything in the guest
-
-# rewind: back to a known-good guest in about a second, without rebooting
-bun scripts/dev/win11/winvm.ts rewind          # back to "fresh"
-bun scripts/dev/win11/winvm.ts snapshot ready  # or checkpoint your own
-
-bun run winvm:reset                    # discard everything, back to the base image
+bun run winvm:reset                    # discard changes, back to the base image
 bun run winvm:stop
 bun run winvm:ls                       # images and instances, with disk usage
 ```
@@ -49,7 +44,7 @@ That is why `winvm:smoke` in this repo is
 
 ## One base image, many thin instances
 
-A Windows install is ~15 GB, so a copy per consumer is not viable. The base is
+A Windows install is ~26 GB, so a copy per consumer is not viable. The base is
 built once and never written again; each instance is a qcow2 **overlay** backed
 by it, holding only its own deltas.
 
@@ -57,11 +52,9 @@ Measured on this machine:
 
 | | |
 |---|---|
-| base image | 15 GB, read-only |
-| build, from an empty state dir | **~12 min** |
-| instance after first boot | ~200 MB, plus ~1 GB once it holds a snapshot |
-| `reset` (back to the base) | **1.3 s** |
-| `rewind` (back to a snapshot) | **~0.7 s, no reboot** |
+| base image | 26 GB, read-only |
+| instance after first boot | **192 MB** |
+| `reset` | **1.3 s** |
 
 Three properties follow, which is why it is the design and not an optimisation:
 
@@ -77,43 +70,6 @@ Three properties follow, which is why it is the design and not an optimisation:
 
 `--ephemeral` adds QEMU's `-snapshot`, so even the overlay is untouched and the
 run is discarded on exit.
-
-## Rewinding
-
-`reset` returns an instance to the base image, which costs a full boot
-afterwards. A **snapshot** is cheaper and more useful: it captures the running
-machine — RAM included — and restoring one is not a reboot at all. The guest
-resumes mid-instruction from where it was taken.
-
-```sh
-winvm start                     # first boot also takes the "fresh" snapshot
-winvm exec -- <break things>
-winvm rewind                    # ~0.7 s later the guest is clean and running
-```
-
-`start` takes `fresh` automatically on the first boot that reaches a responsive
-guest agent, so `rewind` always has somewhere to go. After that it is yours:
-re-take it (`winvm snapshot fresh`) once the guest is set up the way you want to
-keep returning to, or keep several tags and rewind between them.
-
-`rewind` works on a stopped instance too — it starts QEMU directly into the
-saved state (`-loadvm`), skipping the boot entirely.
-
-Three devices had to change before any of this worked, and each announced itself
-as a flat refusal from `savevm` naming the offender:
-
-| device | refusal | fix |
-|---|---|---|
-| NVMe boot disk | `non-migratable` | virtio-blk (above) |
-| raw pflash NVRAM | `writable but does not support snapshots` | qcow2 NVRAM |
-| writable result volume | same | read-only once installed |
-
-**After a rewind, wait for the guest — do not sleep.** `loadvm` returns as soon
-as QEMU has restored the state, which is *before* the guest agent can serve a
-command. A fixed sleep that is slightly too short gives the worst possible
-result: a command answered from across the restore, which makes a rewind that
-did work look like one that changed nothing. That cost a debugging cycle here;
-`winvm rewind` polls the agent instead.
 
 The base is `chmod 444` after it is built. That is not ceremony: writing to a
 backing file while overlays reference it corrupts every one of them, and the
@@ -156,32 +112,12 @@ fixture.
 Most were derived from UTM's source, the best available record of what works for
 this guest on this hardware.
 
-**The boot disk changes bus between installing and running.** Both halves are
-load-bearing, and the reasons are unrelated to each other.
-
-*Installing on NVMe.* Windows 11 ARM64 has an in-box NVMe driver
+**NVMe boot disk, not virtio-blk.** Windows 11 ARM64 has an in-box NVMe driver
 (`stornvme.sys`), so Setup sees the disk with nothing injected. UTM's wizard
 hard-codes this for aarch64 + Windows, overriding the virtio default it uses for
-every other guest. Installing onto virtio would mean injecting `viostor` at
+every other guest. Choosing virtio would mean injecting `viostor` at
 `windowsPE`, and a `<DriverPaths>` entry names a *drive letter* — which WinPE
 assigns by device enumeration order.
-
-*Running on virtio-blk.* QEMU's `nvme` device model has **no migration
-support**, so `savevm` refuses outright — `Device '0000:00:01.0/nvme' is
-non-migratable`. Snapshots are impossible while the disk is NVMe, and this is a
-property of the device model, not of HVF: the identical machine with a
-`virtio-blk-pci` disk snapshots fine.
-
-The bridge is a scratch virtio-blk disk attached **during the build only**. Its
-sole job is to exist, so Windows installs `viostor` from the DriverStore and
-marks it boot-start (`Start=0`) — which is what lets the finished image boot
-with its real disk on virtio-blk. WinPE cannot see a virtio disk at all, so it
-cannot disturb the answer file's `DiskID 0` while Setup is running.
-
-`provision.ps1` checks the result and writes it to the image's `image.json`.
-Images built before this change say nothing, and keep booting on NVMe rather
-than bluescreening with `INACCESSIBLE_BOOT_DEVICE`; `winvm snapshot` tells you
-to rebuild.
 
 **swtpm with `tpm-tis-device`.** UTM uses `tpm-crb-device`; Homebrew's QEMU
 builds only the TIS model for aarch64. Verified equivalent — with swtpm attached
@@ -259,25 +195,17 @@ For genuine x64 parity, attach to the real runner (`action-tmate` on the
 
 **Watch a boot.** `winvm ls` prints each instance's VNC display; connect with
 `open vnc://127.0.0.1:590<n>`. Firmware output goes to the instance's
-`serial.log`, and the boot before it to `serial.prev.log` — kept because the
-usual response to a bad boot is another boot, which would otherwise overwrite
-the evidence. QEMU's own stderr goes to `qemu.log`.
+`serial.log`.
 
-**A build failed.** It says why, and it does not produce an image. `build`
-promotes the disk only when the guest reports success: `provision.ps1` writes
-`status.txt` to the result volume, and anything other than `ok` prints the tail
-of the transcript and keeps the scratch instance for inspection. Read the whole
-transcript with:
+**A build produced nothing.** Mount the result volume — the guest writes its
+provisioning transcript there, and it is the only channel that exists before
+qemu-ga does:
 
 ```sh
-hdiutil attach "$HOME/.local/state/winvm/instances/build-<image>/result.img"
+hdiutil attach "$HOME/.local/state/winvm/instances/<name>/result.img"
 cat /Volumes/MAXRESULT/provision.log
 hdiutil detach /Volumes/MAXRESULT
 ```
-
-**A build says one is already running.** It is — `build` detaches its VM, so an
-interrupted build leaves the guest alive. `winvm kill -i build-<image>`, then
-build again. Interrupting with Ctrl-C now kills the guest on the way out.
 
 **Guest agent never answers.** The tools did not install. Boot it, look over
 VNC, and re-run the installer from the mounted tools volume.
@@ -286,12 +214,4 @@ VNC, and re-run the installer from the mounted tools volume.
 selector; it prefers an installed Windows over the installer, which is what stops
 Setup's mid-install reboots from restarting the install forever.
 
-**A guest is wedged.** `winvm rewind -i <name>` first — it is faster than a reset
-and keeps the instance. `winvm kill -i <name>` then `winvm reset -i <name>` if
-the guest is too far gone to restore.
-
-**`snapshot` says the image predates virtio boot.** That image's guest has no
-boot-start `viostor`, so it runs on NVMe, which QEMU cannot snapshot. Rebuild it
-(`winvm build --image <name>`); `winvm build` reports whether snapshots are
-available when it finishes. `reset` deletes the overlay and therefore every
-snapshot with it — the next `start` takes a new `fresh`.
+**A guest is wedged.** `winvm kill -i <name>`, then `winvm reset -i <name>`.

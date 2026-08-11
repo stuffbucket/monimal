@@ -35,6 +35,10 @@
     "./verify/shell-variables": {
       "types": "./scripts/shell-variables.d.mts",
       "default": "./scripts/shell-variables.mjs"
+    },
+    "./verify/peers": {
+      "types": "./scripts/peer-requirements.d.mts",
+      "default": "./scripts/peer-requirements.mjs"
     }
   },
   "files": [
@@ -44,7 +48,9 @@
     "scripts/terminal-package.mjs",
     "scripts/terminal-package.d.mts",
     "scripts/shell-variables.mjs",
-    "scripts/shell-variables.d.mts"
+    "scripts/shell-variables.d.mts",
+    "scripts/peer-requirements.mjs",
+    "scripts/peer-requirements.d.mts"
   ],
   "repository": {
     "type": "git",

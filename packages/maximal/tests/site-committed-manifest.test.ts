@@ -21,16 +21,16 @@
 
 import { describe, expect, test } from "bun:test"
 
-import committedManifestJson from "../site/public/updates/manifest.json"
-import { readStableDownloads } from "../site/src/lib/hydrate-manifest"
+import committedManifestJson from "../../site/public/updates/manifest.json"
+import { readStableDownloads } from "../../site/src/lib/hydrate-manifest"
 import {
   MANIFEST_SCHEMA_VERSION,
   type UpdateManifest,
-} from "../site/src/lib/updates-manifest"
+} from "../../site/src/lib/updates-manifest"
 import {
   resolveLatestPrerelease,
   resolveLatestRelease,
-} from "../site/src/lib/version"
+} from "../../site/src/lib/version"
 import { parseManifestVersion } from "../src/lib/update/update-check"
 
 // Widen the imported JSON literal to the declared contract type so channel

@@ -12,7 +12,7 @@ const landing = defineCollection({
 // the site at /guide via this collection. README.md is the repo index and is
 // filtered out of the routed pages.
 const guide = defineCollection({
-  loader: glob({ pattern: "**/*.md", base: "../docs/guide" }),
+  loader: glob({ pattern: "**/*.md", base: "./node_modules/@stuffbucket/maximal/docs/guide" }),
 });
 
 export const collections = { landing, guide };
