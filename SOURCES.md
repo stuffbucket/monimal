@@ -9,8 +9,8 @@ Last re-synced 2026-08-11.
 | Package | Source repo | Branch | Commit | Working tree |
 | --- | --- | --- | --- | --- |
 | `packages/maximal` | `stuffbucket/maximal` | `docs/reel-clipping-reference` | `a137a0f` | 2 untracked |
-| `packages/maximal-core` | `stuffbucket/maximal-core` | `feat/win11-vm-harness` | `6bb2eff` | **12 uncommitted** |
-| `packages/maximal-electron` | `stuffbucket/maximal-electron` | `chore/pnpm-migration` | `795ef36` | 1 untracked |
+| `packages/maximal-core` | `stuffbucket/maximal-core` | `feat/win11-vm-harness` | `6bb2eff` | **13 uncommitted** |
+| `packages/maximal-electron` | `stuffbucket/maximal-electron` | `docs/bump-instructions-after-pnpm` | `5d23fed` | 1 untracked |
 
 These are **working-tree** copies, not commit checkouts, so uncommitted work came
 across too — notably maximal-core's in-flight `scripts/dev/win11/**` harness.

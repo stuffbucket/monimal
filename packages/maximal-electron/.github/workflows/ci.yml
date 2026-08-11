@@ -117,10 +117,13 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: pnpm/action-setup@v4
+      # No `cache: pnpm` here, unlike every other job. The cache action
+      # validates the store path in a post-job step, and this job runs no
+      # install, so the path never exists and the save fails the run after the
+      # work has already passed.
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-          cache: pnpm
 
       # No install step. The script imports nothing outside `scripts/`, and the
       # install under test builds from the ref, not from this checkout.

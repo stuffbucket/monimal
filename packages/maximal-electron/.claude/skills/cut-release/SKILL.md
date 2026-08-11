@@ -11,11 +11,11 @@ installer. See `docs/release.md`.
 ## Before you tag
 
 ```bash
-npm ci
-npm run lint && npm run typecheck && npm test
-npm run package && npm run verify:package && npm run smoke:packaged
-npm run test:e2e
-npm run verify:git-install
+pnpm install --frozen-lockfile
+pnpm run lint && pnpm run typecheck && pnpm test
+pnpm run package && pnpm run verify:package && pnpm run smoke:packaged
+pnpm run test:e2e
+pnpm run verify:git-install
 ```
 
 `verify:git-install` installs this checkout the way `stuffbucket/maximal` pins
@@ -26,20 +26,22 @@ pushed tag. The tarball and the git ref are different lifecycle scripts, and a
 tag has shipped with only one of them wired.
 
 Set the version by replacing the exact line and asserting the replacement
-count: one line in `package.json`, and two in `package-lock.json` (the
-top-level `version` and `packages[""].version`). The tag must match the version
-exactly, or the `tag-check` job fails before anything builds.
+count: one, in `package.json`. `pnpm-lock.yaml` does not record the root
+package's version, so it needs no bump and must not be edited by hand. The tag
+must match the version exactly, or the `tag-check` job fails before anything
+builds.
 
 **Three shortcuts are wrong here, all three measured:**
 
 - Loading the manifest into a JSON library and writing it back reformats the
   whole file, so a one-line bump arrives as a 46-line diff. This happened on
   the v0.0.6 cut.
-- `npm version <v> --no-git-tag-version` updates both files, and also expands
-  eleven compact `peerDependenciesMeta` entries into thirty-three lines.
-- A global replace of the version string repins `node_modules/tunnel`, which
-  sits in `package-lock.json` at `0.0.6` and has nothing to do with this
-  package.
+- `npm version <v> --no-git-tag-version` updates the version correctly, and
+  also expands eleven compact `peerDependenciesMeta` entries into thirty-three
+  lines.
+- A global replace of the version string repins an unrelated dependency whose
+  pin is the same text. This bit `package-lock.json`'s `node_modules/tunnel`
+  entry; `pnpm-lock.yaml` is equally full of version strings.
 
 Issue #167.
 

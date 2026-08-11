@@ -82,10 +82,11 @@ Each of these is load-bearing. Do not relax one to make a change fit.
   `npm version <v> --no-git-tag-version` expands this repository's compact
   `peerDependenciesMeta` entries from one line each to three, which is the same
   reformatting in a different place. A global replace of the version string
-  corrupts `package-lock.json`, which carries an unrelated `node_modules/tunnel`
-  pinned at `0.0.6`. Replace the exact line — one in `package.json`, two in
-  `package-lock.json` (top level and `packages[""]`) — and assert the
-  replacement count. Issue #167.
+  repins an unrelated dependency whose pin is the same text, as it did to
+  `package-lock.json`'s `node_modules/tunnel` at `0.0.6`; `pnpm-lock.yaml` is
+  equally full of version strings. Replace the exact line — one, in
+  `package.json` — and assert the replacement count. `pnpm-lock.yaml` does not
+  record the root package's version, so it needs no bump. Issue #167.
 
 ## Report what you verified
 
