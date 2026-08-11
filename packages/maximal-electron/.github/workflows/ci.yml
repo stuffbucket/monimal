@@ -50,51 +50,52 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-          cache: npm
+          cache: pnpm
 
-      # No Electron cache here. Electron 43 has no `postinstall`, so `npm ci`
+      # No Electron cache here. Electron 43 has no `postinstall`, so `pnpm install --frozen-lockfile`
       # downloads no binary, and this job never resolves one. Caching an empty
       # directory is worse than not caching: every later run restores nothing
       # and reports a hit. Issue #129.
-      - run: npm ci
-      - run: npm run lint
-      - run: npm run typecheck
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run lint
+      - run: pnpm run typecheck
 
       # The pair to `verify:exports` below. It reads only the checkout — no
       # build, no dist/, no Electron — so it runs before the minutes that
-      # `npm test` and `npm run mutate` cost.
-      - run: npm run verify:fixture-imports
+      # `pnpm test` and `pnpm run mutate` cost.
+      - run: pnpm run verify:fixture-imports
 
       # Unit tests run in a random order. The seed is printed, and VITEST_SEED
       # replays a failure exactly.
-      - run: npm test
+      - run: pnpm test
 
       # Mutation testing. It measures what the tests actually catch, which
       # coverage does not. Scoped to pure-logic modules; see stryker.conf.json.
-      - run: npm run mutate
+      - run: pnpm run mutate
 
       # Names the documentation claims. No style rules: a prose linter lived
       # here and could not tell a rule from a description. This asks only
       # whether a script, a constant, or a link target exists.
-      - run: npm run verify:docs
+      - run: pnpm run verify:docs
 
       # The shipped palette stays legible. See src/renderer/lib/contrast.ts.
-      - run: npm run check:contrast
+      - run: pnpm run check:contrast
 
       # The shipped shell knows nothing about the application it hosts. An
       # AST parse over src, because require.resolve and createRequire launder
       # an import past a grep, plus a word-boundary scan for the terms in
       # FORBIDDEN_TERMS. See scripts/verify-neutral.mjs for the scope.
-      - run: npm run verify:neutral
+      - run: pnpm run verify:neutral
 
       # The library exports. This rebuilds dist/, walks the renderer import
       # graph, and asserts the committed artifact matches that build. Nothing
       # in CI ran it before, so the published ./renderer export was free to
       # drift behind src/ — and did.
-      - run: npm run verify:exports
+      - run: pnpm run verify:exports
 
   # The other ways this package is consumed. `stuffbucket/maximal` pins it as
   # `github:stuffbucket/maximal-electron#<ref>`, and npm runs `prepare` for a
@@ -115,18 +116,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-          cache: npm
+          cache: pnpm
 
-      # No `npm ci`. The script imports nothing outside `scripts/`, and the
+      # No install step. The script imports nothing outside `scripts/`, and the
       # install under test builds from the ref, not from this checkout.
       - name: Install the ref under review and resolve every export
         env:
           REPOSITORY: github:${{ github.event.pull_request.head.repo.full_name || github.repository }}
           REF: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: npm run verify:git-install -- --repository "$REPOSITORY" --ref "$REF"
+        run: pnpm run verify:git-install -- --repository "$REPOSITORY" --ref "$REF"
 
   package:
     name: package (${{ matrix.os }})
@@ -137,22 +139,23 @@ jobs:
         os: [macos-latest, windows-latest]
     steps:
       - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-          cache: npm
+          cache: pnpm
 
       # `electron-forge package` is what downloads the Electron binary, so the
       # cache is restored before it and asserted after it. Issue #129.
       - uses: ./.github/actions/electron-cache
-      - run: npm ci
-      - run: npm run package
-      - run: npm run verify:electron-cache
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run package
+      - run: pnpm run verify:electron-cache
 
       # asar contents plus the fuse values. The end-to-end tests cannot cover
       # these: the EnableNodeCliInspectArguments fuse stops Playwright
       # attaching to a packaged build.
-      - run: npm run verify:package
+      - run: pnpm run verify:package
 
       # Launches the artifact and makes it open a shell, which is what an
       # archive listing cannot check. It runs on both packaging hosts: the
@@ -161,12 +164,12 @@ jobs:
       # shell inside the package. Issue #89. It launches from a copy of the
       # package outside this checkout, because a package that resolves into the
       # repository above it is not the one a user installs. Issue #149.
-      - run: npm run smoke:packaged
+      - run: pnpm run smoke:packaged
 
       # Crashes the packaged application's engine on purpose and reads the
       # minidump back off disk, against a control run that crashes nothing.
       # Issue #134.
-      - run: npm run verify:crash-artifact
+      - run: pnpm run verify:crash-artifact
 
   e2e:
     name: end-to-end (${{ matrix.os }})
@@ -177,25 +180,26 @@ jobs:
         os: [macos-latest, windows-latest]
     steps:
       - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-          cache: npm
+          cache: pnpm
       - uses: ./.github/actions/electron-cache
-      - run: npm ci
+      - run: pnpm install --frozen-lockfile
 
       # Produces the .vite bundles the harness drives. Not the capture fixture:
       # no spec reaches it, and this job does not run `verify:package`, which is
       # the check that fixture exists to satisfy.
-      - run: npm run package
+      - run: pnpm run package
         env:
           STUFFBUCKET_SKIP_FIXTURE: '1'
 
       # After packaging, because that is the step that resolves the Electron
       # binary and therefore the step that fills the cache. Issue #129.
-      - run: npm run verify:electron-cache
+      - run: pnpm run verify:electron-cache
 
-      - run: npm run test:e2e
+      - run: pnpm run test:e2e
 
       - if: failure()
         uses: actions/upload-artifact@v4

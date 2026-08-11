@@ -4,13 +4,30 @@
 working-tree copy — no git history came across, so this file is the only thread
 back to the originals. The canonical repos remain canonical.
 
-Copied 2026-08-11.
+Last re-synced 2026-08-11.
 
-| Package | Source repo | Branch | Commit |
-| --- | --- | --- | --- |
-| `packages/maximal` | `stuffbucket/maximal` | `docs/reel-clipping-reference` | `a137a0f` |
-| `packages/maximal-core` | `stuffbucket/maximal-core` | `feat/win11-vm-harness` | `6bb2eff` |
-| `packages/maximal-electron` | `stuffbucket/maximal-electron` | `main` | `86e210a` |
+| Package | Source repo | Branch | Commit | Working tree |
+| --- | --- | --- | --- | --- |
+| `packages/maximal` | `stuffbucket/maximal` | `docs/reel-clipping-reference` | `a137a0f` | 2 untracked |
+| `packages/maximal-core` | `stuffbucket/maximal-core` | `feat/win11-vm-harness` | `6bb2eff` | **12 uncommitted** |
+| `packages/maximal-electron` | `stuffbucket/maximal-electron` | `chore/pnpm-migration` | `795ef36` | 1 untracked |
+
+These are **working-tree** copies, not commit checkouts, so uncommitted work came
+across too — notably maximal-core's in-flight `scripts/dev/win11/**` harness.
+That is deliberate (it matches what you would get by looking at the repo right
+now), but it means the copy is not reproducible from the SHA alone.
+
+## Re-syncing
+
+```sh
+rsync -a --delete <excludes> ~/github/stuffbucket/<repo>/ packages/<pkg>/
+pnpm run deviations     # scripts/apply-deviations.mjs
+pnpm install
+```
+
+A re-sync overwrites every local edit. `scripts/apply-deviations.mjs` puts them
+back and is idempotent, so the deviation set below stays a reviewable list
+rather than remembered hand-edits.
 
 ## What was excluded
 
@@ -52,12 +69,21 @@ more that accumulates here, the less the spike tells you about the real repos.
   They were left in place rather than deleted, to keep the diff against upstream
   small. None are on the `build` / `typecheck` / `test` path.
 
+### Forced by the package manager
+
+The workspace is **pnpm**, matching maximal-electron's own migration
+(`build: migrate from npm to pnpm`). It uses pnpm's **default isolated linker**,
+deliberately overriding maximal-electron's `node-linker=hoisted`. `node-linker`
+is a workspace-root setting, so a package-level `.npmrc` cannot win and the
+choice has to be made once for all three. See `.npmrc` for the reasoning and
+the README for what it costs.
+
 ### Forced by the single workspace lockfile
 
-A Bun workspace has one root lockfile. The per-package `bun.lock` files came
-across but are ignored, so every dependency re-resolved to the newest
-semver-compatible version. That is not cosmetic — it broke a typecheck
-immediately:
+A workspace has one root lockfile. The per-package lockfiles came across but are
+ignored, so every dependency re-resolved to the newest semver-compatible
+version. That is not cosmetic — it broke a typecheck immediately, and it did so
+identically under both Bun and pnpm:
 
 - `@hono/zod-openapi` floated `^1.5.0` → **1.5.2** in both `maximal` and
   `maximal-core`, and 1.5.2 changes an inferred type such that
@@ -83,8 +109,11 @@ immediately:
 - `maximal` and `maximal-core`: dropped the `simple-git-hooks` devDependency and
   stopped invoking it (`maximal-core`'s `prepare` is renamed to
   `prepare:hooks`). Two packages installing competing pre-commit hooks into one
-  repo's `.git` is wrong, and `simple-git-hooks`' own postinstall crashes on
-  Bun's `node_modules/.bun` layout, which failed `bun install` outright.
+  repo's `.git` is wrong. (It was also load-bearing under the earlier Bun
+  workspace, where `simple-git-hooks`' own postinstall crashed on
+  `node_modules/.bun` and failed the install outright. pnpm blocks unapproved
+  dependency scripts by default, so that specific crash no longer applies — the
+  competing-hooks reason still does.)
 - `maximal`, `maximal-core`: added `"test": "bun test"`. Neither had a plain
   `test` script; Turborepo needs one to drive the task.
 - `maximal-electron`: added `"build": "npm run build:package"` as an alias, so

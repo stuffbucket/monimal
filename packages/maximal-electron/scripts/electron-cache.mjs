@@ -53,7 +53,7 @@ export function resolveCacheRoot({ platform, home, env }) {
 /**
  * The `key:` values an `actions/cache` step declares, in source order.
  *
- * A line scan rather than a YAML parse: this runs before `npm ci`, so it
+ * A line scan rather than a YAML parse: this runs before the install, so it
  * cannot import the `yaml` package, and the shape it reads is one line.
  */
 export function cacheKeys(text) {

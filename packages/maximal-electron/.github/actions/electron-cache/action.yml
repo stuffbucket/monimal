@@ -1,14 +1,14 @@
 # Cache Electron's binary download.
 #
-# `actions/setup-node`'s `cache: npm` caches the npm tarball cache, which is a
+# `actions/setup-node`'s `cache: pnpm` caches the pnpm store, which is a
 # different surface. Electron's binary is fetched from GitHub through
 # `@electron/get`, and nothing cached it. Issue #129.
 #
-# **Electron 43 has no `postinstall`.** `npm ci` downloads no binary at all:
+# **Electron 43 has no `postinstall`.** The install downloads no binary at all:
 # `node_modules/electron/index.js` fetches it the first time something resolves
 # the executable, which here is `electron-forge package`. So this belongs only
-# in jobs that package, and `npm run verify:electron-cache` goes after
-# `npm run package` rather than after `npm ci`.
+# in jobs that package, and `pnpm run verify:electron-cache` goes after
+# `pnpm run package` rather than after the install.
 #
 # The path is not written here. `scripts/verify-electron-cache.mjs --path`
 # computes it, and the same function decides what the check reads, so the
@@ -30,7 +30,7 @@ outputs:
     description: Whether the cache was restored
     value: ${{ steps.restore.outputs.cache-hit }}
   version:
-    description: The Electron version the lockfile resolves to
+    description: The Electron version package.json pins
     value: ${{ steps.resolve.outputs.version }}
   root:
     description: The download cache directory for this runner
@@ -45,9 +45,13 @@ runs:
       run: |
         set -euo pipefail
         root="$(node scripts/verify-electron-cache.mjs --path)"
-        version="$(node -p "require('./package-lock.json').packages['node_modules/electron'].version")"
+        version="$(node -p "require('./package.json').devDependencies.electron")"
         [[ -n "$root" ]] || { echo "::error::no Electron cache root for ${RUNNER_OS}"; exit 1; }
-        [[ -n "$version" ]] || { echo "::error::package-lock.json pins no electron version"; exit 1; }
+        [[ -n "$version" ]] || { echo "::error::package.json pins no electron version"; exit 1; }
+        [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+          echo "::error::electron must stay an exact pin for the cache key; got '${version}'"
+          exit 1
+        }
         echo "root=${root}" >> "$GITHUB_OUTPUT"
         echo "version=${version}" >> "$GITHUB_OUTPUT"
         echo "electron ${version} caches in ${root}"

@@ -197,17 +197,18 @@ jobs:
       TAG: ${{ needs.tag-check.outputs.tag }}
     steps:
       - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-          cache: npm
-      - run: npm ci
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
 
       # `npm pack` runs prepack, which builds `dist`. Nothing is committed.
       - name: Pack, and assert the exports are in it
         run: |
           set -euo pipefail
-          npm run verify:exports
+          pnpm run verify:exports
           # npm pack does not create the destination, and fails with ENOENT.
           mkdir -p dist-release
           npm pack --pack-destination dist-release
@@ -231,7 +232,7 @@ jobs:
         env:
           REPOSITORY: github:${{ github.repository }}
           REF: ${{ github.sha }}
-        run: npm run verify:git-install -- --repository "$REPOSITORY" --ref "$REF"
+        run: pnpm run verify:git-install -- --repository "$REPOSITORY" --ref "$REF"
 
       # Re-runnable. A draft takes the upload again under `--clobber`; a
       # release that is already published takes nothing at all, so the asset
@@ -312,6 +313,7 @@ jobs:
       TAG: ${{ needs.tag-check.outputs.tag }}
     steps:
       - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v5
         with:
           node-version: 22

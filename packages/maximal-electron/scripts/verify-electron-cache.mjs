@@ -2,10 +2,10 @@
 /**
  * The Electron download cache holds the binary this job actually fetched.
  *
- * Electron 43 downloads nothing at install time — `npm ci` in the `static` job
+ * Electron 43 downloads nothing at install time — the install in the `static` job
  * leaves the cache root empty, which is how #129's premise turned out to be
  * wrong. The download happens when `electron-forge package` first resolves the
- * executable, so this runs after `npm run package` rather than after `npm ci`.
+ * executable, so this runs after `pnpm run package` rather than after the install.
  *
  * Without it the arrangement fails silently: a job that never resolves Electron
  * caches an empty directory, every later run restores it, `actions/cache`
@@ -69,7 +69,7 @@ function main() {
   });
 
   if (!existsSync(installed)) {
-    console.error('\nRun npm ci before this check.');
+    console.error('\nRun pnpm install before this check.');
     process.exit(summary('verify:electron-cache'));
   }
 

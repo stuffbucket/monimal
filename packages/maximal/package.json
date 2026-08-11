@@ -59,7 +59,6 @@
     "sbom": "bun scripts/sbom.ts",
     "scan:secrets": "trufflehog filesystem . --no-verification --fail --no-update --exclude-paths .trufflehog-exclude",
     "start": "NODE_ENV=production bun run ./src/main.ts",
-    "test": "bun test",
     "test:ops": "cd scripts/ops && bun test",
     "tokens:generate": "bun scripts/generate-css-tokens.ts",
     "tokens:verify": "bun scripts/generate-css-tokens.ts --check",
@@ -68,7 +67,8 @@
     "typecheck:shell": "cd shell && bun run typecheck",
     "ui:harness": "bun run build:ui && bun run scripts/ui-harness.ts",
     "verify:build": "bun scripts/dev/verify-build.ts",
-    "watch:drift": "bun scripts/ops/watch-external-drift.ts"
+    "watch:drift": "bun scripts/ops/watch-external-drift.ts",
+    "test": "bun test"
   },
   "simple-git-hooks": {
     "pre-commit": "bunx lint-staged"

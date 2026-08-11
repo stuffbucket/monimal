@@ -93,9 +93,7 @@ export function EmptyState({
  * .sb-shell .chip[data-status='done']   { --shell-status: #4ade80 }
  * ```
  *
- * `--shell-status` is the label and `--shell-status-muted` the fill. Three
- * consumers in a row read this comment, passed a status, saw a grey pill, and
- * reported that the colour worked.
+ * `--shell-status` is the label and `--shell-status-muted` the fill.
  */
 export function StatusChip({ status, label }: { status: string; label: string }) {
   return (
@@ -138,8 +136,11 @@ export function InspectorPanel({
  * A full-width notice.
  *
  * The usual occupant of `ShellLayout`'s `top` slot: something that addresses
- * the whole window rather than one panel. `status` colours it through the same
- * `data-status` custom property everything else uses.
+ * the whole window rather than one panel.
+ *
+ * `status` reaches the markup as `data-status` and draws no colour on its own:
+ * the shipped stylesheet maps no value of it. The host sets `--shell-status`,
+ * the text, and `--shell-status-muted`, the fill.
  */
 export function Banner({
   status,

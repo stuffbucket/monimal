@@ -80,7 +80,6 @@
     "mutate": "stryker run",
     "prepack": "bun scripts/ops/prepack.ts",
     "preflight": "bun scripts/preflight.ts",
-    "prepare:hooks": "bun scripts/ops/prepare.ts",
     "release:check": "bun scripts/ops/release-gates.ts",
     "release:notes": "bun scripts/ops/release-notes.ts",
     "release:preflight": "bun scripts/ops/prepack.ts --check",
@@ -90,7 +89,6 @@
     "sbom": "bun scripts/sbom.ts",
     "scan:secrets": "trufflehog filesystem . --no-verification --fail --results=verified,unknown,unverified --no-update --exclude-paths .trufflehog-exclude",
     "start": "NODE_ENV=production bun run ./src/main.ts",
-    "test": "bun test",
     "test:mutation": "bun scripts/dev/run-mutation-tests.ts",
     "test:ops": "cd scripts/ops && bun test",
     "typecheck": "tsc",
@@ -103,7 +101,9 @@
     "winvm:reset": "bun scripts/dev/win11/winvm.ts reset",
     "winvm:smoke": "bun scripts/dev/win11/winvm.ts smoke --expect-file .bun-version",
     "winvm:start": "bun scripts/dev/win11/winvm.ts start",
-    "winvm:stop": "bun scripts/dev/win11/winvm.ts stop"
+    "winvm:stop": "bun scripts/dev/win11/winvm.ts stop",
+    "prepare:hooks": "bun scripts/ops/prepare.ts",
+    "test": "bun test"
   },
   "simple-git-hooks": {
     "pre-commit": "bunx lint-staged"

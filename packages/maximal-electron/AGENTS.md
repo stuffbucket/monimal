@@ -123,9 +123,11 @@ message in the pull request. See
 
 ### Comments
 
-The default is no comment. A comment earns its place by recording something the
-code cannot: a constraint from outside the file, a rejected alternative, or the
-failure that produced the shape.
+The default is no comment. A comment earns its place by recording one thing the
+code cannot: a constraint from outside the file that the shape obeys.
+
+These rules cover docstrings too. A docstring is a comment with a doc page
+attached, and the long ones here grew because that was forgotten.
 
 - **Do not restate code.** A comment that says what the next line says creates
   two things to keep in step, and they drift.
@@ -134,13 +136,22 @@ failure that produced the shape.
   document, so put it in `docs/` and leave one line pointing there. A ten line
   block over a one line rule is the case this is written for.
 - **State the constraint, not the story.** "macOS throttles an occluded
-  renderer" earns its line. Three paragraphs retelling how that was discovered
-  do not; name the issue number instead and let the issue hold the account.
+  renderer" earns its line. Retelling how that was discovered does not. No
+  measurements, no counts of what went wrong, no account of who believed what:
+  name the issue number and let the issue hold it.
+- **Leave the alternatives out.** The code is what is done. A comment arguing
+  against what is not done — "the obvious approach loses because", "do not use X
+  here" — asks a reader to hold a design that does not exist. If the rejected
+  option matters, it belongs in the commit message or the issue.
 - **Do not narrate the change.** The code is the current state, not a history.
   Anything of the form "changed from X" or "used to be Y" belongs in the commit
   message.
 - Every comment costs attention on every future read, not only the one where it
   was useful. Delete one that has stopped paying.
+
+Comments are 24 percent of `src` and 102 blocks run past eight lines, which is
+issue #55. Prose explaining a rationale is the bulk of it. When a comment starts
+to argue, stop writing and open an issue.
 
 ## Writing prose
 

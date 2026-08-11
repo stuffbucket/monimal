@@ -1,5 +1,6 @@
 import { FolderOpen } from 'lucide-react';
 import { useState } from 'react';
+import { expect, within } from 'storybook/test';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
 import { Button } from './Button.js';
@@ -14,12 +15,42 @@ import {
   type ViewMode,
 } from './Layout.js';
 
+/**
+ * The host's half of the status contract, as `e2e/fixtures/demo-shell/demo.css`
+ * writes it.
+ *
+ * Each state takes the token `controls.css` maps it to, so a mapped story
+ * measures one colour under either stylesheet.
+ */
+const HOST_CSS = `
+  [data-status='running'] { --shell-status: var(--accent); --shell-status-muted: var(--accent-soft); }
+  [data-status='blocked'] { --shell-status: var(--warning); --shell-status-muted: var(--warning-soft); }
+  [data-status='done'] { --shell-status: var(--success); --shell-status-muted: var(--success-soft); }
+  [data-status='failed'] { --shell-status: var(--danger); --shell-status-muted: var(--danger-soft); }
+`;
+
+function HostStyles() {
+  return <style>{HOST_CSS}</style>;
+}
+
+/** A token's computed value, resolved rather than transcribed. */
+function resolveToken(root: HTMLElement, token: string): string {
+  const probe = document.createElement('span');
+  probe.style.color = `var(${token})`;
+  root.append(probe);
+  const value = getComputedStyle(probe).color;
+  probe.remove();
+  return value;
+}
+
 const meta = {
   title: 'Controls/Banner',
   component: Banner,
   args: { children: 'An update is available.', status: undefined },
   argTypes: {
     status: {
+      description:
+        'Reaches the markup as `data-status`. The shipped stylesheet maps no value of it — a status vocabulary is the host\'s — so it draws the same neutral notice whatever you pass, until a host rule sets `--shell-status` and `--shell-status-muted`.',
       control: 'inline-radio',
       options: [undefined, 'running', 'blocked', 'done', 'failed'],
     },
@@ -42,6 +73,10 @@ type Story = StoryObj<typeof meta>;
  */
 export const Default: Story = {};
 
+/**
+ * A dismissible notice carrying `blocked`. The amber comes from `controls.css`,
+ * not the package: switch the Stylesheet toolbar to Package and it goes.
+ */
 export const Warning: Story = {
   args: {
     status: 'blocked',
@@ -50,6 +85,7 @@ export const Warning: Story = {
   },
 };
 
+/** The same shape with an action, and the same caveat about the colour. */
 export const Failed: Story = {
   args: {
     status: 'failed',
@@ -60,6 +96,13 @@ export const Failed: Story = {
 
 /* -------------------------------------------------------------- the others */
 
+/**
+ * Five states with no rule mapping any of them.
+ *
+ * Under the Application stylesheet `controls.css` colours these. Under Package,
+ * the only stylesheet a consumer installs, all five draw one neutral fill.
+ * `Host mapping` below is the rule that parts them. Issue #182.
+ */
 export const Chips: StoryObj = {
   name: 'StatusChip',
   render: () => (
@@ -71,6 +114,48 @@ export const Chips: StoryObj = {
       <StatusChip status="none" label="No status" />
     </div>
   ),
+};
+
+/**
+ * The same states with the host rule behind them, on both components that carry
+ * one. The `play` resolves each token rather than transcribing it, so a palette
+ * change cannot leave it passing against a colour nothing draws.
+ */
+export const HostMapping: StoryObj = {
+  name: 'Host mapping',
+  render: () => (
+    <div style={{ width: 560, display: 'grid', gap: 'var(--space-3)' }}>
+      <HostStyles />
+      <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+        <StatusChip status="running" label="Running" />
+        <StatusChip status="blocked" label="Needs approval" />
+        <StatusChip status="done" label="Done" />
+        <StatusChip status="failed" label="Failed" />
+      </div>
+      <Banner status="failed" testId="mapped-banner">
+        The last save failed.
+      </Banner>
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const danger = resolveToken(canvasElement, '--danger');
+    const success = resolveToken(canvasElement, '--success');
+
+    await expect(danger).not.toBe('');
+    await expect(danger).not.toBe(success);
+
+    // The notice takes the mapped text colour.
+    const banner = getComputedStyle(canvas.getByTestId('mapped-banner'));
+    await expect(banner.color).toBe(danger);
+
+    // And the pills part rather than sharing one fill.
+    const done = getComputedStyle(canvas.getByText('Done'));
+    const failed = getComputedStyle(canvas.getByText('Failed'));
+    await expect(done.color).toBe(success);
+    await expect(failed.color).toBe(danger);
+    await expect(done.backgroundColor).not.toBe(failed.backgroundColor);
+  },
 };
 
 export const Empty: StoryObj = {

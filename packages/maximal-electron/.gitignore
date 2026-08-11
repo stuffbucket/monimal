@@ -23,3 +23,6 @@ demo/takes/
 
 # Storybook build output. A developer tool, never shipped.
 storybook-static/
+
+# pnpm is the package manager; npm lockfiles must not reappear
+package-lock.json

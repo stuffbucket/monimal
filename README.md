@@ -1,6 +1,6 @@
 # monimal
 
-A **spike**: `maximal`, `maximal-core` and `maximal-electron` in one Bun
+A **spike**: `maximal`, `maximal-core` and `maximal-electron` in one pnpm
 workspace, driven by Turborepo. The three source repos stay canonical — see
 [SOURCES.md](SOURCES.md) for exactly what was copied, from which commit, and
 every deviation.
@@ -20,13 +20,16 @@ The parked Tauri shell is not here.
 ## Commands
 
 ```sh
-bun install
-bun run build        # turbo run build
-bun run typecheck    # turbo run typecheck
-bun run test         # turbo run test --concurrency=1
-bun run check        # build + typecheck, then test
+pnpm install
+pnpm run build        # turbo run build
+pnpm run typecheck    # turbo run typecheck
+pnpm run test         # turbo run test --concurrency=1
+pnpm run check        # build + typecheck, then test
+pnpm run deviations   # re-apply local edits after a re-sync
 ```
 
+pnpm 10.20 manages dependencies; `bun` is still the test runner and bundler
+inside `maximal` and `maximal-core`, and `vitest` inside `maximal-electron`.
 `test` is pinned to `--concurrency=1` deliberately. See below.
 
 ## Status
@@ -37,7 +40,7 @@ bun run check        # build + typecheck, then test
 | `maximal-core` | pass | pass | 1766 pass, 0 fail (144 files) |
 | `maximal-electron` | pass | pass | 59 files pass |
 
-Turbo caching works: a warm `build typecheck` is 6/6 cached in ~37ms.
+Turbo caching works: a warm `build typecheck` is 6/6 cached in ~15ms.
 
 `maximal-core`'s 1766 passing tests match its upstream count exactly.
 `maximal`'s count is lower than upstream's 1752 because 14 Tauri-coupled test
@@ -75,9 +78,22 @@ Turbo's `^build` ordering has no edges to order. The git-dep that motivated a
 monorepo (`"@stuffbucket/maximal-core": "github:...#v0.2.0"`, pinned four minors
 behind core's 0.6.3) lives in `client/` and `shell/` — neither of which is here.
 
+**5. The three packages disagree about `node-linker`, and only one can win.**
+maximal-electron sets `node-linker=hoisted` because Electron Forge packages
+native prebuilds (`node-pty`, `node-llama-cpp`) for the final app and does not
+follow pnpm's symlinked store. But `node-linker` is a *workspace-root* setting —
+a package-level `.npmrc` is ignored — so it is one choice for all three.
+Hoisted empties every package-local `node_modules` (all 822 packages land at the
+root), and maximal-core's build then **refuses to run**: `bun build` writes
+module paths relative to the resolved build root, so a bundle produced without
+package-local deps is not byte-comparable, and it has an explicit guard saying
+so. This workspace therefore runs pnpm's default isolated linker, which suits
+`tsc`/`bun test`/`vitest` but means `electron-forge package` is not expected to
+work from here. A real monorepo has to resolve this, not pick a side per task.
+
 That last point is the honest headline: **as assembled, this is three
 independent packages sharing an install, not an integrated monorepo.** It proves
-the three can coexist, build, typecheck and test under one Bun workspace with
+the three can coexist, build, typecheck and test under one pnpm workspace with
 Turborepo. It does not yet prove the thing the integration doc actually worries
 about, because the consumer that would exercise the seam was left out.
 
@@ -95,15 +111,16 @@ They pass once there is one.
 
 ## Divergence to watch
 
-`~/github/stuffbucket/maximal-electron` **has migrated to pnpm** — committed as
-`b6d9de1` ("build: migrate from npm to pnpm") on branch `release/0.0.9`, adding
-`"packageManager": "pnpm@10.20.0"` and a `pnpm.onlyBuiltDependencies` list for
-`electron`, `node-pty`, `node-llama-cpp`, `esbuild`, `@google/genai` and
-`protobufjs`.
+The package-manager question is **settled**: maximal-electron migrated to pnpm
+upstream, and this workspace followed. Its `pnpm.onlyBuiltDependencies` list
+(`electron`, `node-pty`, `node-llama-cpp`, `esbuild`, `@google/genai`,
+`protobufjs`) is hoisted to the root `package.json`, since only root pnpm
+settings apply in a workspace.
 
-This workspace uses Bun, and the copy here predates that migration
-(`86e210a`, `main`). So the package-manager question is now live rather than
-hypothetical: the one package with native build steps has picked pnpm, and that
-`onlyBuiltDependencies` list is precisely the native-module surface a Bun
-workspace would have to handle differently. Settle this before building further
-on this spike.
+What is **not** settled is the linker (finding 5). maximal-electron needs
+`hoisted` for Forge packaging; maximal-core's build needs package-local
+`node_modules`. Those are mutually exclusive under one root setting. Right now
+the spike favours maximal-core, because it exercises builds and tests rather
+than app packaging. Anything that has to produce a shippable Electron artifact
+will hit this and needs a real answer — most likely packaging maximal-electron
+outside the workspace, or relaxing maximal-core's reproducibility guard.

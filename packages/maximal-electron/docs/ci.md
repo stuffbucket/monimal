@@ -24,17 +24,17 @@ What was removed was the MSI and the dmg built on top of it, and
 
 ## The two caches
 
-`actions/setup-node` with `cache: npm` caches npm's own tarball cache, so a
+`actions/setup-node` with `cache: pnpm` caches npm's own tarball cache, so a
 registry package does not download twice. Electron's binary is not a registry
 package: it is fetched from GitHub through `@electron/get`, into a directory
 that library manages itself, and nothing cached it until #129.
 
-**It is not `npm ci` that downloads it.** Electron 43 ships no `postinstall` at
+**It is not the install that downloads it.** Electron 43 ships no `postinstall` at
 all. `node_modules/electron/index.js` fetches the binary the first time
 something resolves the executable path, and here that is
 `electron-forge package`. #129 opened on the assumption that every job paid for
 the download; the first run of the check below found the `lint, types, tests`
-job's cache root empty after `npm ci`, which is what disproved it. So the cache
+job's cache root empty after the install, which is what disproved it. So the cache
 is restored in the four jobs that package — `package` and `end-to-end` on both
 hosts — and in no others.
 
@@ -53,7 +53,7 @@ asks the script for it with `--path` rather than writing the three paths into
 YAML. The check reads the same function, so the directory that is cached and
 the directory that is asserted cannot drift apart.
 
-**The key carries the Electron version**, read out of `package-lock.json`, so a
+**The key carries the Electron version**, read out of `package.json`, so a
 version bump misses rather than restoring the wrong binary. It deliberately
 does not carry a lockfile hash: this cache holds Electron and nothing else, and
 a hash would throw it away on every unrelated dependency bump. Underneath,
@@ -90,7 +90,7 @@ directory, and every later run restores it and reports a hit while nothing is
 cached. Nothing in the log says so.
 
 So every job that uses the action runs `npm run verify:electron-cache`, **after
-`npm run package`** rather than after `npm ci`, because packaging is the step
+`pnpm run package`** rather than after the install, because packaging is the step
 that fills the cache. It counts the files under the root, fails on zero, and
 asserts that the download for this runner's platform and architecture is there
 at the version `node_modules/electron` actually installed.
@@ -215,10 +215,10 @@ the manifest does not export. It prints the files it declined beside the ones it
 read, because a scan that narrows its input and does not say what it dropped
 reads as coverage it does not have.
 
-It runs in the `static` job of `ci.yml`, before `npm test` and `npm run mutate`
+It runs in the `static` job of `ci.yml`, before `pnpm test` and `pnpm run mutate`
 rather than beside `verify:exports` at the end. The two ask the same question
 from opposite sides, so the reading order argues for pairing them. The cost
-argues louder: this one reads the checkout and nothing else — no `npm ci` step
+argues louder: this one reads the checkout and nothing else — no install step
 it depends on, no build, no `dist/`, no Electron binary — so it answers in a
 second, and the minutes after it are minutes not spent on a tree that already
 fails.
