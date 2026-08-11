@@ -1,0 +1,44 @@
+node_modules/
+# dist/ is ignored AND force-tracked (`git add -f`): the published package ships
+# the built bundle, so it must be committed, but a local `bun run build` must not
+# show up as noise. `bindings:check` verifies the committed copy is current.
+dist/
+# `scripts/sbom.ts` output.
+SBOM.cdx.json
+*.log
+.DS_Store
+.env
+.env.local
+.env.*.local
+# `publish-package.yml` writes one at runtime to carry the registry auth token.
+# It must never be committed; ignoring it means a stray local copy cannot be.
+.npmrc
+
+# bun
+.bun/
+
+# editor
+.vscode/
+.idea/
+*.swp
+
+# from upstream caozhiyuan/copilot-api
+# local env
+*.local
+# aider
+.aider*
+# eslint cache
+.eslintcache
+.claude
+# Stryker mutation testing
+.stryker-tmp/
+# `scripts/dev/measure-baseline.ts` writes reports/baseline-*.json here.
+reports/
+# bun --compile temp executables (live in cwd, ~60MB each)
+.*.bun-build
+# Compiled-binary output. Core no longer builds one — delivery is the GitHub
+# Package Registry — but `stuffbucket/maximal` compiles this repo's src/main.ts
+# through the git dependency, and a `bun build --compile` run started from here
+# still lands ~75 MB per target in the working tree.
+dist-bin/
+dist-release/

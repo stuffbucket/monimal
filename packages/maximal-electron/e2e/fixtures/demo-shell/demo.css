@@ -1,0 +1,410 @@
+/*
+ * The fixture's own stylesheet.
+ *
+ * Two jobs, and the first is the one that matters. `main.tsx` imports
+ * `@stuffbucket/maximal-electron/renderer/styles.css`, which ships no palette:
+ * every colour, space and radius in it comes from a `--shell-*` custom
+ * property the host defines. Nothing in that package defines one, so this file
+ * is the whole palette, written the way a dependent project writes it.
+ * `docs/shell-variables.md` and the README table are the specification.
+ *
+ * The values are copied from `src/renderer/styles/tokens.css` rather than
+ * imported from it. Copying is what a consumer does; importing this
+ * application's stylesheet would be reaching past the package again.
+ *
+ * The second job is the fleet itself: the run card, the run row, the approval
+ * block and the inspector's empty state, which no shell primitive draws. Those
+ * rules are scoped under `.sb-shell` because the package's own rules are, and
+ * an unscoped `.run-card` loses to `.sb-shell .card` on specificity.
+ */
+
+/* ------------------------------------------------------ the --shell-* contract */
+
+:root {
+  /* ---- required: the eleven with no default in the stylesheet ---- */
+  --shell-accent: #6ea8fe;
+  --shell-accent-muted: rgb(110 168 254 / 0.16);
+  --shell-active: #2f3540;
+  --shell-background: #16181d;
+  --shell-border: #262b33;
+  --shell-canvas: #101216;
+  --shell-hover: #272c35;
+  --shell-raised: #23272f;
+  --shell-text: #e6e8ec;
+  --shell-text-muted: #a0a8b4;
+  --shell-text-subtle: #8f97a2;
+
+  /* ---- fallback: only where this demo differs from the built-in value ---- */
+  --shell-accent-contrast: #0d1117;
+  --shell-border-hover: #454e5c;
+  --shell-border-strong: #363d48;
+  --shell-danger: #f47174;
+  --shell-danger-contrast: #ffffff;
+  --shell-elevation: 0 8px 24px rgb(0 0 0 / 0.28);
+  --shell-font:
+    400 0.875rem/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui,
+    sans-serif;
+  --shell-font-mono:
+    ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  --shell-input-background: #101216;
+  --shell-input-border: #363d48;
+  --shell-warning: #e0a33e;
+
+  /*
+   * The spacing scale. Every value equals the package's own fallback, and it
+   * is declared anyway: the fleet rules below read `var(--shell-space-3)` with
+   * no fallback of their own, and a consumer sharing one scale between its own
+   * CSS and the shell's is the ordinary case.
+   */
+  --shell-space-1: 4px;
+  --shell-space-2: 8px;
+  --shell-space-3: 12px;
+  --shell-space-4: 16px;
+  --shell-space-5: 24px;
+
+  /*
+   * Runtime, resolved by `readTerminalTheme` rather than by any rule. Declared
+   * on `:root` rather than on `.sb-shell` because `host.ts` reads them off the
+   * document element, which is where a canvas emulator's colours have to come
+   * from.
+   */
+  --shell-terminal-background: #101216;
+  --shell-terminal-foreground: #e6e8ec;
+  --shell-terminal-cursor: #6ea8fe;
+
+  /* ---- the fixture's own, outside the contract ---- */
+  --demo-text-xs: 0.6875rem;
+  --demo-text-sm: 0.8125rem;
+  --demo-text-base: 0.875rem;
+  --demo-text-md: 0.9375rem;
+  --demo-running: #6ea8fe;
+  --demo-running-soft: rgb(110 168 254 / 0.16);
+  --demo-blocked: #e0a33e;
+  --demo-blocked-soft: rgb(224 163 62 / 0.16);
+  --demo-done: #5fd08a;
+  --demo-done-soft: rgb(95 208 138 / 0.16);
+  --demo-failed: #f47174;
+  --demo-failed-soft: rgb(244 113 116 / 0.16);
+
+  color-scheme: dark;
+}
+
+/*
+ * The light scheme.
+ *
+ * `useThemePreference` writes `data-theme` on the document element, and the
+ * recording's closing shot is an agent switching to light while the window is
+ * on screen. A host with one palette would end that shot on a dark shell.
+ */
+:root[data-theme='light'] {
+  --shell-accent: #2563eb;
+  --shell-accent-muted: rgb(37 99 235 / 0.1);
+  --shell-active: #e2e6ec;
+  --shell-background: #ffffff;
+  --shell-border: #e3e6eb;
+  --shell-canvas: #eef0f4;
+  --shell-hover: #eceef2;
+  --shell-raised: #ffffff;
+  --shell-text: #12141a;
+  --shell-text-muted: #545c68;
+  --shell-text-subtle: #656d78;
+
+  --shell-accent-contrast: #ffffff;
+  --shell-border-hover: #aab3be;
+  --shell-border-strong: #ccd2da;
+  --shell-danger: #d3373b;
+  --shell-elevation: 0 8px 24px rgb(0 0 0 / 0.12);
+  --shell-input-background: #ffffff;
+  --shell-input-border: #ccd2da;
+  --shell-warning: #a9691b;
+
+  --shell-terminal-background: #eef0f4;
+  --shell-terminal-foreground: #12141a;
+  --shell-terminal-cursor: #2563eb;
+
+  --demo-running: #2563eb;
+  --demo-running-soft: rgb(37 99 235 / 0.12);
+  --demo-blocked: #a9691b;
+  --demo-blocked-soft: rgb(169 105 27 / 0.12);
+  --demo-done: #17864a;
+  --demo-done-soft: rgb(23 134 74 / 0.12);
+  --demo-failed: #d3373b;
+  --demo-failed-soft: rgb(211 55 59 / 0.12);
+
+  color-scheme: light;
+}
+
+/*
+ * The status pair, mapped from this fixture's own vocabulary.
+ *
+ * `docs/shell-variables.md`: "`--shell-status` and `--shell-status-muted` are
+ * the pair a host maps its own states onto. Nothing here maps them." One
+ * attribute selector covers every element that carries a status — the tab dot,
+ * the chip, the nav bucket, the run card — because each reads the pair off
+ * itself or off an ancestor that set it.
+ */
+.sb-shell [data-status='running'] {
+  --shell-status: var(--demo-running);
+  --shell-status-muted: var(--demo-running-soft);
+}
+
+.sb-shell [data-status='blocked'] {
+  --shell-status: var(--demo-blocked);
+  --shell-status-muted: var(--demo-blocked-soft);
+}
+
+.sb-shell [data-status='done'] {
+  --shell-status: var(--demo-done);
+  --shell-status-muted: var(--demo-done-soft);
+}
+
+.sb-shell [data-status='failed'] {
+  --shell-status: var(--demo-failed);
+  --shell-status-muted: var(--demo-failed-soft);
+}
+
+/* The nav buckets tint their icon only, so the list stays calm. */
+.sb-shell .nav__item[data-status] svg {
+  color: var(--shell-status);
+}
+
+/* ------------------------------------------------------------ the document */
+
+/*
+ * The page behind the shell.
+ *
+ * There is no frame to supply. `.sb-shell.app` is fixed to the viewport, so
+ * this fixture sizes neither `html` nor `body` nor `#root` and still fills the
+ * window. What is left is the document's own colour, which shows for the frame
+ * or two before React mounts.
+ */
+body {
+  background: var(--shell-background);
+  color: var(--shell-text);
+  font: var(--shell-font);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ------------------------------------------------------------- the fleet */
+
+.sb-shell .mono-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--shell-space-1);
+  padding: 1px var(--shell-space-2);
+  border-radius: var(--shell-radius-small, 4px);
+  background: var(--shell-canvas);
+  border: 1px solid var(--shell-border);
+  font-family: var(--shell-font-mono);
+  font-size: var(--demo-text-xs);
+  color: var(--shell-text-muted);
+  white-space: nowrap;
+}
+
+/* ---- grid mode ---- */
+
+.sb-shell .grid--runs {
+  grid-template-columns: repeat(auto-fill, minmax(248px, 1fr));
+}
+
+/*
+ * The card pays for the larger type out of its own spacing.
+ *
+ * A fleet grid that shows seven of seventeen runs is losing to the list view,
+ * which shows all of them. Tightening the stack rather than shrinking the text
+ * keeps the reading size and buys back the rows.
+ */
+.sb-shell .run-card {
+  gap: var(--shell-space-2);
+  padding: var(--shell-space-3);
+}
+
+.sb-shell .run-card__head {
+  display: flex;
+  align-items: center;
+  gap: var(--shell-space-2);
+}
+
+.sb-shell .run-card__elapsed {
+  margin-left: auto;
+  font-size: var(--demo-text-xs);
+  color: var(--shell-text-subtle);
+  font-variant-numeric: tabular-nums;
+}
+
+.sb-shell .run-card__meta {
+  padding: 0;
+  gap: var(--shell-space-1);
+}
+
+/* The task is the headline, so it wraps to two lines rather than truncating. */
+.sb-shell .run-card__task {
+  white-space: normal;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  min-height: calc(2 * 1.5 * var(--demo-text-base));
+}
+
+.sb-shell .run-card__meta .card__sub {
+  display: flex;
+  align-items: center;
+  gap: var(--shell-space-1);
+}
+
+.sb-shell .run-card__step {
+  font-size: var(--demo-text-sm);
+  color: var(--shell-text-muted);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.sb-shell .run-card__foot {
+  display: flex;
+  align-items: center;
+  gap: var(--shell-space-2);
+  border-top: 1px solid var(--shell-border);
+  padding-top: var(--shell-space-2);
+}
+
+.sb-shell .run-card__diff {
+  margin-left: auto;
+  font-family: var(--shell-font-mono);
+  font-size: var(--demo-text-xs);
+  color: var(--shell-text-subtle);
+}
+
+/* ---- list mode ---- */
+
+.sb-shell .run-row {
+  gap: var(--shell-space-3);
+}
+
+.sb-shell .run-row .row__sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: none;
+}
+
+.sb-shell .run-row__project {
+  width: 92px;
+}
+
+.sb-shell .run-row__model {
+  width: 148px;
+  font-family: var(--shell-font-mono);
+}
+
+.sb-shell .run-row__tokens {
+  width: 58px;
+  text-align: right;
+}
+
+.sb-shell .run-row__elapsed {
+  width: 66px;
+  text-align: right;
+}
+
+/* ---- the inspector's own ---- */
+
+.sb-shell .run-detail__task {
+  margin: 0;
+  font-size: var(--demo-text-md);
+  font-weight: 500;
+  color: var(--shell-text);
+}
+
+.sb-shell .approval {
+  display: grid;
+  gap: var(--shell-space-2);
+  padding: var(--shell-space-3);
+  border: 1px solid var(--demo-blocked);
+  background: var(--demo-blocked-soft);
+  border-radius: var(--shell-radius-large, 8px);
+}
+
+.sb-shell .approval__summary {
+  display: flex;
+  align-items: center;
+  gap: var(--shell-space-2);
+  margin: 0;
+  font-family: var(--shell-font-mono);
+  font-size: var(--demo-text-sm);
+  color: var(--shell-text);
+  overflow-wrap: anywhere;
+}
+
+.sb-shell .approval__actions {
+  display: flex;
+  gap: var(--shell-space-2);
+}
+
+/* The pair splits the row. `Button` sizes itself; this is the only thing the
+   fixture has to say about them. */
+.sb-shell .approval__actions > .btn {
+  flex: 1;
+}
+
+.sb-shell .tool-use {
+  display: flex;
+  align-items: center;
+  gap: var(--shell-space-2);
+}
+
+.sb-shell .tool-use .mono-chip {
+  width: 58px;
+}
+
+.sb-shell .tool-use__bar {
+  flex: 1;
+  height: 4px;
+  border-radius: 9999px;
+  background: var(--shell-active);
+  overflow: hidden;
+}
+
+.sb-shell .tool-use__fill {
+  display: block;
+  height: 100%;
+  background: var(--shell-accent);
+}
+
+/* ------------------------------------------------------- waiting on you */
+
+/*
+ * The inspector's empty state.
+ *
+ * It used to repeat the four status counts that the left rail already carries
+ * and the status bar summarised again. A count is cheap to repeat and worth
+ * nothing repeated; which runs are blocked is the thing a rail of numbers
+ * cannot tell you. So this lists them, and each one is a way in.
+ */
+.sb-shell .waiting__item {
+  display: grid;
+  gap: var(--shell-space-1);
+  padding: var(--shell-space-2) var(--shell-space-3);
+  border: 1px solid var(--shell-border);
+  border-radius: var(--shell-radius-large, 8px);
+  background: var(--shell-raised);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 120ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sb-shell .waiting__item:hover {
+  border-color: var(--shell-border-strong);
+}
+
+.sb-shell .waiting__title {
+  font-size: var(--demo-text-base);
+  color: var(--shell-text);
+}
+
+.sb-shell .waiting__meta {
+  font-size: var(--demo-text-sm);
+  color: var(--shell-text-subtle);
+}

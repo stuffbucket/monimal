@@ -1,0 +1,569 @@
+/**
+ * `runServer` argument → state translation, in-process.
+ *
+ * The existing tests/start-unauthenticated.test.ts spawns a real
+ * subprocess and only validates the no-token boot path. That leaves
+ * the CLI-args-to-state mapping (the `run({ args }) { return
+ * runServer({ ... }) }` block) and the per-option branches inside
+ * runServer untested — see the ~30 ConditionalExpression survivors
+ * around `options.accountType !== "individual"`, the verbose branch,
+ * the proxyEnv branch, the bootstrapUpstream("override" vs disk)
+ * branch, and the claude-code helper guard.
+ *
+ * To exercise those in-process without binding a real port or
+ * touching the GitHub device-code flow we mock every side-effecting
+ * dependency runServer pulls in. The mocks form a "test harness
+ * runServer": deterministic, fast, no listeners leaked.
+ */
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  test,
+  type Mock,
+} from "bun:test"
+
+import { pickFreePort } from "./helpers/free-port"
+
+// --- Mocks for the chunky boot dependencies ------------------------
+//
+// Every `real*Module` below is a spread COPY of the namespace, captured before
+// any install. `mock.module` mutates the live module record in place, so the
+// namespace object itself would carry this file's stubs by the time `afterAll`
+// reads it, and restoring from it would re-install exactly what the restore
+// meant to undo. That missing spread was the whole of #27. See
+// docs/dev/testing-strategy.md §5.1.
+
+const initOpencodeVersionMock = mock(() => Promise.resolve())
+const realOpencodeModule = { ...(await import("~/lib/platform/opencode")) }
+await mock.module("~/lib/platform/opencode", () => ({
+  ...realOpencodeModule,
+  initOpencodeVersion: initOpencodeVersionMock,
+}))
+
+// `~/lib/platform/paths` is shared by `~/lib/config/config`, `~/lib/platform/logger`, and the
+// real `~/server` — we keep its PATHS map intact and only stub
+// `ensurePaths` so the test never touches disk.
+const ensurePathsMock = mock(() => Promise.resolve())
+const realPathsModule = { ...(await import("~/lib/platform/paths")) }
+await mock.module("~/lib/platform/paths", () => ({
+  ...realPathsModule,
+  ensurePaths: ensurePathsMock,
+}))
+
+const initProxyFromEnvMock = mock(() => {})
+const realProxyModule = { ...(await import("~/lib/http/proxy")) }
+await mock.module("~/lib/http/proxy", () => ({
+  ...realProxyModule,
+  initProxyFromEnv: initProxyFromEnvMock,
+}))
+
+// `~/lib/auth/secrets` is NOT mocked. Stubbing it to keep boot off disk also
+// replaced `SECRET_DEFS` — a shared data table `~/debug` and
+// tests/anthropic-key-precedence.test.ts read. `bun test` interleaves evaluation
+// and execution (evaluate a file, run its tests, evaluate the next), so the
+// restore below does run before the next file is evaluated — but only a restore
+// that hands back a pre-install snapshot restores anything, and a leaked data
+// table is read silently and yields a plausible wrong answer. The boot step is
+// neutralized through the `__setBootSecretsForTests` DI seam instead (wired
+// below, after import), which has no leak window at all.
+const bootSecretsMock = mock(() => {})
+
+const cacheModelsMock = mock(() => Promise.resolve())
+const cacheVSCodeVersionMock = mock(() => Promise.resolve())
+const cacheMacMachineIdMock = mock(() => {})
+const cacheVsCodeSessionIdMock = mock(() => {})
+const cacheVsCodeDeviceIdMock = mock(() => Promise.resolve())
+const realUtilsModule = { ...(await import("~/lib/platform/utils")) }
+await mock.module("~/lib/platform/utils", () => ({
+  ...realUtilsModule,
+  cacheModels: cacheModelsMock,
+  cacheVSCodeVersion: cacheVSCodeVersionMock,
+  cacheMacMachineId: cacheMacMachineIdMock,
+  cacheVsCodeSessionId: cacheVsCodeSessionIdMock,
+  cacheVsCodeDeviceId: cacheVsCodeDeviceIdMock,
+}))
+
+const logUserMock = mock(() => {
+  // The real logUser() populates state.userName as part of its contract.
+  // Mirror that here so the cold-boot path (which now requires a real
+  // login before flipping to authenticated — ADR-0006) sees a populated
+  // userName and reaches markSignedIn("alice"). Tests that need a
+  // different login override this via logUserMock.mockImplementation.
+  state.userName = "alice"
+  return Promise.resolve()
+})
+const setupCopilotTokenMock = mock(() => Promise.resolve())
+const realTokenModule = { ...(await import("~/lib/auth/token")) }
+await mock.module("~/lib/auth/token", () => ({
+  ...realTokenModule,
+  logUser: logUserMock,
+  setupCopilotToken: setupCopilotTokenMock,
+}))
+
+let storedRecord: { accessToken: string } | null = null
+const readDefaultRecordMock = mock(() => Promise.resolve(storedRecord))
+const realStoreModule = { ...(await import("~/lib/auth/github-token-store")) }
+await mock.module("~/lib/auth/github-token-store", () => ({
+  ...realStoreModule,
+  readDefaultRecord: readDefaultRecordMock,
+}))
+
+// Don't mock `~/lib/config/config` — its real `mergeConfigWithDefaults` is a
+// safe no-op on a missing config file, and `~/server` (loaded by the
+// dynamic import in runServer) needs the rest of its exports.
+
+// Boot logger: capture log messages so we can assert format.
+const bootLogMessages: Array<string> = []
+const fakeLogger = {
+  info: (msg: string) => bootLogMessages.push(msg),
+  warn: () => {},
+  error: () => {},
+  debug: () => {},
+}
+const realLoggerModule = { ...(await import("~/lib/platform/logger")) }
+await mock.module("~/lib/platform/logger", () => ({
+  ...realLoggerModule,
+  createHandlerLogger: () => fakeLogger,
+}))
+
+// Stub the srvx `serve` binder so runServer never binds a port — injected via
+// the module-local DI seam (__setServeForTests), NOT mock.module("srvx"). A
+// module mock of srvx forward-leaks the stub into tests/ws/srvx-upgrade-
+// handshake.test.ts, which needs the real port-binding serve(); Bun doesn't
+// reset module mocks between files. The seam is wired below, after import.
+const serveMock = mock(() => ({ close: () => Promise.resolve() }))
+
+// NOTE: we deliberately don't mock `~/server`. Replacing the cached
+// module with a stub Hono leaks into other test files (e.g.
+// tests/debug-route.test.ts) that share the same `bun test` process.
+// The real server module is cheap to import and `serve()` is mocked
+// below so no port actually binds.
+
+// Force probePort -> "free" so runServer proceeds past the EADDRINUSE
+// guard without making any outbound HTTP requests.
+const realFetch = globalThis.fetch
+globalThis.fetch = (() =>
+  Promise.reject(
+    new Error("network disabled in test"),
+  )) as unknown as typeof fetch
+
+// --- Module under test (imported after mocks are wired) -----------
+
+const { state } = await import("~/lib/runtime-state/state")
+const { runServer, start, __setServeForTests, __setBootSecretsForTests } =
+  await import("~/start")
+
+// Inject the port-avoiding serve stub and the no-op secrets boot through the DI
+// seams (no module mocks).
+__setServeForTests(
+  serveMock as unknown as Parameters<typeof __setServeForTests>[0],
+)
+__setBootSecretsForTests(bootSecretsMock)
+const { getAuthStatus, signOut, __resetAuthControllerForTests } =
+  await import("~/lib/auth/auth-controller")
+const { stopCopilotOnlineRetry } =
+  await import("~/lib/auth/copilot-online-retry")
+const { CopilotAuthFatalError } = await import("~/lib/errors/error")
+
+function resetState(): void {
+  // Reset auth-controller module state (authState, the degrade single-flight /
+  // grace window, and the auto-recovery hook) so a sibling test file's recent
+  // markSignedIn / registered recovery can't leak in and suppress a boot degrade.
+  __resetAuthControllerForTests()
+  // The transient-Copilot-failure boot path now schedules a background
+  // online-retry loop (keeps a parked timer). Stop any leftover from a prior
+  // test so it can't re-mint or flip auth state mid-run.
+  stopCopilotOnlineRetry()
+  state.githubToken = undefined
+  state.userName = undefined
+  state.copilotToken = undefined
+  state.accountType = "individual"
+  state.manualApprove = false
+  state.rateLimitWait = false
+  state.showToken = false
+  state.verbose = false
+  state.rateLimitSeconds = undefined
+  bootLogMessages.length = 0
+  storedRecord = null
+  serveMock.mockClear()
+  initProxyFromEnvMock.mockClear()
+  logUserMock.mockClear()
+  setupCopilotTokenMock.mockClear()
+  cacheModelsMock.mockClear()
+}
+
+/**
+ * A port the OS has just confirmed free.
+ *
+ * NOT `41000 + random(1000)`, which is what this was: that picks a number and
+ * hopes. `runServer` bind-tests the requested port through `resolvePort`, so a
+ * collision makes the policy fall back to the next port and
+ * `expect(publicArg.port).toBe(port)` fails — green on a quiet laptop, red on a
+ * CI runner where sibling suites are binding ports concurrently. That is how it
+ * failed on the #58 rebase.
+ *
+ * The implementation now lives in `tests/helpers/free-port.ts`, which
+ * `tests/start-port-policy.test.ts` also needs and which documents why this is
+ * the *weakest* of the ways to get a port here. It is nonetheless the right one
+ * for this file: `runServer` takes a port *number* and binds it itself, so the
+ * test cannot hold the socket.
+ */
+function baseOptions(
+  over: Partial<Parameters<typeof runServer>[0]> = {},
+): Parameters<typeof runServer>[0] {
+  return {
+    port: pickFreePort(),
+    verbose: false,
+    accountType: "individual",
+    manual: false,
+    rateLimit: undefined as number | undefined,
+    rateLimitWait: false,
+    githubToken: undefined as string | undefined,
+    claudeCode: false,
+    showToken: false,
+    proxyEnv: false,
+    replace: false,
+    ...over,
+  }
+}
+
+beforeEach(() => {
+  resetState()
+})
+
+// `state` is a process-global shared with every other file in the Bun worker,
+// and this file writes to it (`runServer({ rateLimit })` sets
+// `state.rateLimitSeconds`, which gates /responses and /chat/completions with a
+// 429). Resetting only `beforeEach` left whatever the last-executed test wrote
+// in place for every later file — a `--randomize`-only 429 with no local cause.
+afterEach(() => {
+  resetState()
+})
+
+describe("runServer — state mutation from options", () => {
+  test("verbose=true sets state.verbose and bumps consola.level", async () => {
+    await runServer(baseOptions({ verbose: true }))
+    expect(state.verbose).toBe(true)
+  })
+
+  test("verbose=false leaves state.verbose false", async () => {
+    await runServer(baseOptions({ verbose: false }))
+    expect(state.verbose).toBe(false)
+  })
+
+  test("accountType=business lands in state.accountType", async () => {
+    await runServer(baseOptions({ accountType: "business" }))
+    expect(state.accountType).toBe("business")
+  })
+
+  test("accountType=enterprise lands in state.accountType", async () => {
+    await runServer(baseOptions({ accountType: "enterprise" }))
+    expect(state.accountType).toBe("enterprise")
+  })
+
+  test("accountType=individual is the default-shaped path", async () => {
+    await runServer(baseOptions({ accountType: "individual" }))
+    expect(state.accountType).toBe("individual")
+  })
+
+  test("manual=true flips state.manualApprove", async () => {
+    await runServer(baseOptions({ manual: true }))
+    expect(state.manualApprove).toBe(true)
+  })
+
+  test("rateLimit=5 lands in state.rateLimitSeconds", async () => {
+    await runServer(baseOptions({ rateLimit: 5 }))
+    expect(state.rateLimitSeconds).toBe(5)
+  })
+
+  test("rateLimitWait=true lands in state.rateLimitWait", async () => {
+    await runServer(baseOptions({ rateLimitWait: true }))
+    expect(state.rateLimitWait).toBe(true)
+  })
+
+  test("showToken=true lands in state.showToken", async () => {
+    await runServer(baseOptions({ showToken: true }))
+    expect(state.showToken).toBe(true)
+  })
+})
+
+describe("runServer — proxyEnv toggle", () => {
+  test("proxyEnv=true calls initProxyFromEnv", async () => {
+    await runServer(baseOptions({ proxyEnv: true }))
+    expect(initProxyFromEnvMock).toHaveBeenCalledTimes(1)
+  })
+
+  test("proxyEnv=false skips initProxyFromEnv", async () => {
+    await runServer(baseOptions({ proxyEnv: false }))
+    expect(initProxyFromEnvMock).toHaveBeenCalledTimes(0)
+  })
+})
+
+describe("runServer — GitHub token resolution", () => {
+  test("explicit githubToken option overrides disk store", async () => {
+    storedRecord = { accessToken: "from-disk" }
+    await runServer(baseOptions({ githubToken: "from-flag" }))
+    expect(state.githubToken).toBe("from-flag")
+    // logUser must be called once we have a token.
+    expect(logUserMock).toHaveBeenCalledTimes(1)
+    expect(setupCopilotTokenMock).toHaveBeenCalledTimes(1)
+  })
+
+  test("no flag + disk record present → token loaded from disk", async () => {
+    storedRecord = { accessToken: "from-disk" }
+    await runServer(baseOptions({ githubToken: undefined }))
+    expect(state.githubToken).toBe("from-disk")
+    expect(logUserMock).toHaveBeenCalledTimes(1)
+  })
+
+  test("no flag + no disk record → unauthenticated boot, no logUser call", async () => {
+    storedRecord = null
+    await runServer(baseOptions({ githubToken: undefined }))
+    expect(state.githubToken).toBeUndefined()
+    expect(logUserMock).toHaveBeenCalledTimes(0)
+    expect(setupCopilotTokenMock).toHaveBeenCalledTimes(0)
+  })
+
+  test("disk-loaded token that fails Copilot bootstrap transiently is RETAINED for a background retry", async () => {
+    storedRecord = { accessToken: "stale" }
+    const tmpLogUser = logUserMock.getMockImplementation()
+    ;(
+      logUserMock as unknown as Mock<() => Promise<void>>
+    ).mockImplementationOnce(() => Promise.reject(new Error("401 from /user")))
+    try {
+      await runServer(baseOptions({ githubToken: undefined }))
+    } finally {
+      if (tmpLogUser) logUserMock.mockImplementation(tmpLogUser)
+    }
+    // A transient Copilot-bootstrap failure is no longer treated as a wipe:
+    // bootstrapUpstream KEEPS the in-memory GitHub token so the scheduled
+    // background online-retry can re-mint with it (self-heal instead of
+    // wedging tokenless until a manual restart), while still stating the
+    // union explicitly as signed-out for now.
+    expect(state.githubToken).toBe("stale")
+    expect(getAuthStatus().state).toBe("unauthenticated")
+    // The parked retry loop is torn down by resetState()/afterAll's
+    // stopCopilotOnlineRetry(); assert we didn't latch signed-in over it.
+  })
+
+  test("a fatal Copilot rejection at boot surfaces its reason (not a generic sign-out)", async () => {
+    // Reproduce the lapsed-license / TOS case: GitHub token is fine, but
+    // Copilot rejects it fatally. The cause + remediation URL must reach the
+    // Settings "Sign in" screen instead of dead-ending as a bare
+    // "Not signed in".
+    storedRecord = { accessToken: "good-token" }
+    // Isolate from sibling-test pollution of the shared temp registry so the
+    // fatal cleanly surfaces as the error state (auto-recovery is disabled, so
+    // there's no account-switch path to take regardless).
+    await realStoreModule.writeDefaultRegistry(realStoreModule.emptyRegistry())
+    const tmpSetup = setupCopilotTokenMock.getMockImplementation()
+    ;(
+      setupCopilotTokenMock as unknown as Mock<() => Promise<void>>
+    ).mockImplementationOnce(() =>
+      Promise.reject(
+        new CopilotAuthFatalError(
+          "Copilot access has been revoked for this account.",
+          403,
+          "https://github.com/settings/copilot",
+        ),
+      ),
+    )
+    try {
+      await runServer(baseOptions({ githubToken: undefined }))
+    } finally {
+      if (tmpSetup) setupCopilotTokenMock.mockImplementation(tmpSetup)
+    }
+
+    const status = getAuthStatus()
+    if (status.state !== "error") {
+      throw new Error(`expected error state, got ${status.state}`)
+    }
+    expect(status.error).toContain("revoked")
+    expect(status.remediation_url).toBe("https://github.com/settings/copilot")
+    // Token is cleared (signed out) but the reason is preserved.
+    expect(state.githubToken).toBeUndefined()
+
+    // Reset controller state so the error doesn't bleed into sibling tests.
+    await signOut()
+  })
+})
+
+describe("runServer — boot logger format", () => {
+  test("first log line includes pid, version, branch, port, account", async () => {
+    const port = pickFreePort()
+    await runServer(baseOptions({ port, accountType: "business" }))
+    const first = bootLogMessages[0]
+    expect(first).toBeDefined()
+    expect(first).toContain("maximal start")
+    expect(first).toContain(`pid=${process.pid}`)
+    expect(first).toContain("version=")
+    expect(first).toContain("branch=")
+    expect(first).toContain(`port=${port}`)
+    expect(first).toContain("account=business")
+  })
+
+  test("second log line reports listening url + executor + auth state (unauth)", async () => {
+    storedRecord = null
+    const port = pickFreePort()
+    await runServer(baseOptions({ port, githubToken: undefined }))
+    const listening = bootLogMessages.find((m) => m.startsWith("listening "))
+    expect(listening).toBeDefined()
+    expect(listening).toContain(`url=http://localhost:${port}`)
+    expect(listening).toContain("executor=")
+    expect(listening).toContain("auth=unauthenticated")
+  })
+
+  test("listening log reports auth=authenticated when token is loaded", async () => {
+    storedRecord = { accessToken: "good-token" }
+    await runServer(baseOptions({ githubToken: undefined }))
+    const listening = bootLogMessages.find((m) => m.startsWith("listening "))
+    expect(listening).toContain("auth=authenticated")
+  })
+})
+
+describe("runServer — server bind", () => {
+  test("binds two listeners: public /v1 and the private control plane", async () => {
+    // maximal-core#10. Two calls, not one — and the second must be loopback-only
+    // and ephemeral, because the control plane is not for anything off-box and
+    // nothing external is meant to find it.
+    const port = pickFreePort()
+    await runServer(baseOptions({ port }))
+    expect(serveMock).toHaveBeenCalledTimes(2)
+
+    const calls = serveMock.mock.calls as unknown as Array<
+      [{ port: number; hostname?: string; bun: { idleTimeout: number } }]
+    >
+    const [publicArg] = calls[0]
+    const [controlArg] = calls[1]
+
+    expect(publicArg.port).toBe(port)
+    expect(publicArg.bun.idleTimeout).toBe(0)
+    // The public listener stays on all interfaces — unchanged behaviour.
+    expect(publicArg.hostname).toBeUndefined()
+
+    // 0 = OS-assigned. A supervisor reads the real value off the ready-line.
+    expect(controlArg.port).toBe(0)
+    expect(controlArg.hostname).toBe("127.0.0.1")
+    expect(controlArg.bun.idleTimeout).toBe(0)
+  })
+
+  test("an omitted control port becomes 0, never NaN", async () => {
+    // A programmatic caller that hands us `Number.parseInt(undefined)` must not
+    // reach the bind: NaN would surface much later as an unreachable control
+    // plane rather than as a startup error.
+    await runServer(baseOptions({ controlPort: Number.NaN }))
+    const calls = serveMock.mock.calls as unknown as Array<[{ port: number }]>
+    expect(calls[1][0].port).toBe(0)
+  })
+})
+
+describe("start.run — citty args → runServer options", () => {
+  test("threads every flag into runServer (manifests as state mutation)", async () => {
+    const port = pickFreePort()
+    if (!start.run) throw new Error("start.run not defined")
+    await (start.run as (ctx: unknown) => Promise<void>)({
+      args: {
+        port: String(port),
+        verbose: true,
+        "account-type": "enterprise",
+        manual: true,
+        "rate-limit": "7",
+        wait: true,
+        "github-token": "token-from-cli",
+        "claude-code": false,
+        "show-token": true,
+        "proxy-env": true,
+      },
+    })
+
+    expect(state.accountType).toBe("enterprise")
+    expect(state.verbose).toBe(true)
+    expect(state.manualApprove).toBe(true)
+    expect(state.rateLimitSeconds).toBe(7)
+    expect(state.rateLimitWait).toBe(true)
+    expect(state.showToken).toBe(true)
+    expect(state.githubToken).toBe("token-from-cli")
+    expect(initProxyFromEnvMock).toHaveBeenCalled()
+    // port gets parsed as number and forwarded to serve().
+    // `.at(-2)`: each runServer binds two listeners in order — public then
+    // control (maximal-core#10) — so the last call is the ephemeral control
+    // plane and the public port is the one before it.
+    const [arg] = serveMock.mock.calls.at(-2) as unknown as [{ port: number }]
+    expect(arg.port).toBe(port)
+  })
+
+  test("rate-limit undefined → state.rateLimitSeconds undefined (not NaN)", async () => {
+    if (!start.run) throw new Error("start.run not defined")
+    await (start.run as (ctx: unknown) => Promise<void>)({
+      args: {
+        port: String(pickFreePort()),
+        verbose: false,
+        "account-type": "individual",
+        manual: false,
+        "rate-limit": undefined,
+        wait: false,
+        "github-token": undefined,
+        "claude-code": false,
+        "show-token": false,
+        "proxy-env": false,
+      },
+    })
+    expect(state.rateLimitSeconds).toBeUndefined()
+  })
+
+  test("port string is Number.parseInt'd (decimal), not coerced loosely", async () => {
+    if (!start.run) throw new Error("start.run not defined")
+    await (start.run as (ctx: unknown) => Promise<void>)({
+      args: {
+        port: "4242",
+        verbose: false,
+        "account-type": "individual",
+        manual: false,
+        "rate-limit": undefined,
+        wait: false,
+        "github-token": undefined,
+        "claude-code": false,
+        "show-token": false,
+        "proxy-env": false,
+      },
+    })
+    // `.at(-2)` — the public listener; see the note above.
+    const [arg] = serveMock.mock.calls.at(-2) as unknown as [{ port: number }]
+    expect(arg.port).toBe(4242)
+    expect(typeof arg.port).toBe("number")
+  })
+})
+
+// Re-install the real implementations of every overridden export so
+// other test files in the same `bun test` process don't observe our
+// stubs. Bun's `mock.restore()` only undoes function spies, not module
+// mocks, so we re-`mock.module` each one back to the captured real
+// module snapshot.
+//
+// This restore does land in time on Bun 1.3.11: `bun test` interleaves
+// evaluation and execution, so `afterAll` runs before the next file's module
+// body is evaluated (measured; testing-strategy §5.1). What it depends on is the
+// SHAPE of the captured value — every `real*Module` above is a spread copy taken
+// before the install, because restoring from the live namespace would re-install
+// the stub. It is still a backstop, not a licence: the ordering is scheduling,
+// not contract, and anything a sibling reads passively (a `const` table, not a
+// function it calls) belongs behind a DI seam — see `__setBootSecretsForTests`
+// above.
+afterAll(async () => {
+  stopCopilotOnlineRetry()
+  globalThis.fetch = realFetch
+  __setServeForTests(null)
+  __setBootSecretsForTests(null)
+  mock.restore()
+  await mock.module("~/lib/platform/paths", () => realPathsModule)
+  await mock.module("~/lib/http/proxy", () => realProxyModule)
+  await mock.module("~/lib/platform/utils", () => realUtilsModule)
+  await mock.module("~/lib/auth/token", () => realTokenModule)
+  await mock.module("~/lib/auth/github-token-store", () => realStoreModule)
+  await mock.module("~/lib/platform/logger", () => realLoggerModule)
+  await mock.module("~/lib/platform/opencode", () => realOpencodeModule)
+})

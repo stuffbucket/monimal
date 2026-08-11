@@ -1,0 +1,18 @@
+import { describe, expect, test } from "bun:test"
+
+import { BUILD_VERSION } from "~/lib/update/build-info"
+import { publicApp } from "~/server"
+
+describe("x-maximal-version response header", () => {
+  test("GET /status stamps the build version", async () => {
+    const res = await publicApp.request("/status")
+    expect(res.status).toBe(200)
+    expect(res.headers.get("x-maximal-version")).toBe(BUILD_VERSION)
+  })
+
+  test("non-200 responses are stamped too", async () => {
+    const res = await publicApp.request("/definitely-not-a-route")
+    expect(res.status).toBe(404)
+    expect(res.headers.get("x-maximal-version")).toBe(BUILD_VERSION)
+  })
+})

@@ -1,0 +1,67 @@
+# Cache Electron's binary download.
+#
+# `actions/setup-node`'s `cache: npm` caches the npm tarball cache, which is a
+# different surface. Electron's binary is fetched from GitHub through
+# `@electron/get`, and nothing cached it. Issue #129.
+#
+# **Electron 43 has no `postinstall`.** `npm ci` downloads no binary at all:
+# `node_modules/electron/index.js` fetches it the first time something resolves
+# the executable, which here is `electron-forge package`. So this belongs only
+# in jobs that package, and `npm run verify:electron-cache` goes after
+# `npm run package` rather than after `npm ci`.
+#
+# The path is not written here. `scripts/verify-electron-cache.mjs --path`
+# computes it, and the same function decides what the check reads, so the
+# directory that is cached and the directory that is checked cannot drift
+# apart. It differs per operating system because `@electron/get` falls back to
+# `env-paths`, and CI does not pin `electron_config_cache`: `install.js` reads
+# that variable and `@electron/packager` does not, so pinning it would leave
+# half the downloads outside the cached path.
+#
+# The key carries the resolved Electron version, so a version bump misses. It
+# does not carry the lockfile hash: this cache holds Electron and nothing else,
+# and a hash would evict it on every unrelated dependency bump.
+
+name: Cache the Electron binary
+description: Restore Electron's download cache for this runner, by version
+
+outputs:
+  cache-hit:
+    description: Whether the cache was restored
+    value: ${{ steps.restore.outputs.cache-hit }}
+  version:
+    description: The Electron version the lockfile resolves to
+    value: ${{ steps.resolve.outputs.version }}
+  root:
+    description: The download cache directory for this runner
+    value: ${{ steps.resolve.outputs.root }}
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve the download cache and the pinned version
+      id: resolve
+      shell: bash
+      run: |
+        set -euo pipefail
+        root="$(node scripts/verify-electron-cache.mjs --path)"
+        version="$(node -p "require('./package-lock.json').packages['node_modules/electron'].version")"
+        [[ -n "$root" ]] || { echo "::error::no Electron cache root for ${RUNNER_OS}"; exit 1; }
+        [[ -n "$version" ]] || { echo "::error::package-lock.json pins no electron version"; exit 1; }
+        echo "root=${root}" >> "$GITHUB_OUTPUT"
+        echo "version=${version}" >> "$GITHUB_OUTPUT"
+        echo "electron ${version} caches in ${root}"
+
+    - id: restore
+      uses: actions/cache@v4
+      with:
+        path: ${{ steps.resolve.outputs.root }}
+        key: electron-${{ runner.os }}-${{ runner.arch }}-${{ steps.resolve.outputs.version }}
+
+    - name: Report the hit
+      shell: bash
+      env:
+        HIT: ${{ steps.restore.outputs.cache-hit }}
+        VERSION: ${{ steps.resolve.outputs.version }}
+      run: |
+        echo "electron ${VERSION} on ${RUNNER_OS}/${RUNNER_ARCH}, cache-hit=${HIT:-false}"

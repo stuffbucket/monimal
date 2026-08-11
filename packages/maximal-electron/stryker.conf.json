@@ -1,0 +1,72 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "_comment": "Mutation testing. Runs in CI, in the `static` job, and breaks the build below 100. `mutate` is not a hand-list: `scripts/mutation-scope.mjs` derives the set every file under `src/` and `scripts/` that Stryker can run, and fails when one is on neither this list nor its deferred list. Anything importing `electron` or React for a value cannot be mutated here: it needs a real Electron runtime or a browser, not Node. `scripts/mutation-report.mjs` then reads the run back, because the score alone says nothing about how many mutants there were or what killed them. The shape follows stuffbucket/maximal's stryker.conf.json, with the Vitest runner instead of a command runner because the unit suite is already Vitest.",
+  "packageManager": "npm",
+  "testRunner": "vitest",
+  "vitest": {
+    "configFile": "vitest.config.ts"
+  },
+  "mutate": [
+    "src/shared/urls.ts",
+    "src/host/main-options.ts",
+    "src/host/crash-artifacts.ts",
+    "src/preload/capabilities.ts",
+    "src/renderer/lib/data.ts",
+    "src/renderer/lib/theme.ts",
+    "src/main/native/approval.ts",
+    "src/main/native/provider-endpoint.ts",
+    "src/main/native/grammar.ts",
+    "src/main/native/llama-protocol.ts",
+    "src/main/native/ffmpeg.ts",
+    "src/main/native/icons.ts",
+    "src/renderer/lib/overlay-keys.ts",
+    "src/renderer/lib/resolve-bridge.ts",
+    "src/renderer/lib/contrast.ts",
+    "src/renderer/lib/tab-adornment.ts",
+    "src/renderer/lib/account.ts",
+    "src/renderer/lib/settings.ts",
+    "src/main/native/pty-session.ts",
+    "src/main/native/self-check.ts",
+    "src/renderer/lib/terminal-sessions.ts",
+    "src/renderer/lib/terminal-transport.ts",
+    "scripts/terminal-package.mjs",
+    "scripts/shell-variables.mjs",
+    "scripts/electron-cache.mjs",
+    "scripts/check-scope.mjs",
+    "scripts/docs-claims.mjs",
+    "scripts/fixture-imports.mjs",
+    "scripts/peer-table.mjs",
+    "scripts/publish-decision.mjs"
+  ],
+  "reporters": [
+    "progress",
+    "clear-text",
+    "html",
+    "json"
+  ],
+  "tempDirName": ".stryker-tmp",
+  "htmlReporter": {
+    "fileName": "reports/mutation/index.html"
+  },
+  "jsonReporter": {
+    "fileName": "reports/mutation/mutation.json"
+  },
+  "concurrency": 4,
+  "timeoutMS": 30000,
+  "coverageAnalysis": "perTest",
+  "thresholds": {
+    "high": 100,
+    "low": 100,
+    "break": 100
+  },
+  "ignorePatterns": [
+    "out",
+    ".vite",
+    "node_modules",
+    "dist",
+    "reports",
+    "test-results",
+    "playwright-report",
+    "e2e"
+  ]
+}

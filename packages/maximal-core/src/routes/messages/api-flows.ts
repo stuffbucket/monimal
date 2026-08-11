@@ -1,0 +1,525 @@
+import type { ConsolaInstance } from "consola"
+import type { Context } from "hono"
+
+import { streamSSE } from "hono/streaming"
+
+import type { CompactType } from "~/lib/models/compact"
+import type { SubagentMarker } from "~/lib/runtime-state/subagent"
+import type { Model } from "~/services/copilot/get-models"
+
+import { getPromptCacheRetention } from "~/lib/config/config"
+import {
+  type AnthropicMessagesPayload,
+  type AnthropicStreamEventData,
+  type AnthropicStreamState,
+} from "~/lib/models/anthropic-types"
+import { resolveModelProfile } from "~/lib/models/model-profile"
+import { getTokenCount } from "~/lib/models/tokenizer"
+import { debugJson, debugJsonTail, debugLazy } from "~/lib/platform/logger"
+import { parseUserIdMetadata } from "~/lib/platform/utils"
+import {
+  createCopilotTokenUsageRecorder,
+  mergeAnthropicUsage,
+  normalizeAnthropicUsage,
+  normalizeOpenAIUsage,
+  normalizeResponsesUsage,
+  type TokenUsageEndpoint,
+  type UsageTokens,
+  withCopilotCost,
+} from "~/lib/token-usage"
+import {
+  buildErrorEvent,
+  createResponsesStreamState,
+  translateResponsesStreamEvent,
+} from "~/routes/messages/responses-stream-translation"
+import {
+  translateAnthropicMessagesToResponsesPayload,
+  translateResponsesResultToAnthropic,
+} from "~/routes/messages/responses-translation"
+import {
+  applyResponsesApiContextManagement,
+  compactInputByLatestCompaction,
+  getResponsesRequestOptions,
+} from "~/routes/responses/utils"
+import { isAsyncIterable, isNonStreaming } from "~/routes/streaming-predicates"
+import { asRecord, readNestedUsage, readUsage } from "~/routes/untrusted-frame"
+import {
+  createChatCompletions,
+  type ChatCompletionChunk,
+} from "~/services/copilot/create-chat-completions"
+import { createMessages } from "~/services/copilot/create-messages"
+import {
+  createResponses,
+  type ResponsesResult,
+  type ResponseStreamEvent,
+} from "~/services/copilot/create-responses"
+
+import {
+  translateToAnthropic,
+  translateToOpenAI,
+} from "./non-stream-translation"
+import { prepareMessagesApiPayload } from "./preprocess"
+import { emitStreamError } from "./stream-error"
+import { translateChunkToAnthropicEvents } from "./stream-translation"
+
+export interface FlowBaseOptions {
+  logger: ConsolaInstance
+  subagentMarker?: SubagentMarker | null
+  requestId: string
+  sessionId?: string
+  compactType?: CompactType
+}
+
+interface ResponsesFlowOptions extends FlowBaseOptions {
+  selectedModel?: Model
+}
+
+interface MessagesFlowOptions extends FlowBaseOptions {
+  anthropicBetaHeader?: string
+  selectedModel?: Model
+}
+
+export const handleWithChatCompletions = async (
+  c: Context,
+  anthropicPayload: AnthropicMessagesPayload,
+  options: FlowBaseOptions,
+) => {
+  const { logger, subagentMarker, requestId, sessionId, compactType } = options
+  const openAIPayload = translateToOpenAI(anthropicPayload)
+  const recordUsage = createCopilotUsageRecorder({
+    endpoint: "chat_completions",
+    fallbackSessionId: sessionId,
+    model: openAIPayload.model,
+    payload: anthropicPayload,
+  })
+  debugJson(logger, "Translated OpenAI request payload:", openAIPayload)
+
+  const response = await createChatCompletions(openAIPayload, {
+    subagentMarker,
+    requestId,
+    sessionId,
+    compactType,
+  })
+
+  if (isNonStreaming(response)) {
+    debugJson(logger, "Non-streaming response from Copilot:", response)
+    recordUsage(
+      withCopilotCost(
+        normalizeOpenAIUsage(response.usage),
+        response.copilot_usage,
+      ),
+    )
+    const anthropicResponse = translateToAnthropic(response)
+    debugJson(logger, "Translated Anthropic response:", anthropicResponse)
+    return c.json(anthropicResponse)
+  }
+
+  logger.debug("Streaming response from Copilot")
+  return streamSSE(c, async (stream) => {
+    let usage: UsageTokens = {}
+    const streamState: AnthropicStreamState = {
+      messageStartSent: false,
+      contentBlockIndex: 0,
+      contentBlockOpen: false,
+      toolCalls: {},
+      thinkingBlockOpen: false,
+    }
+
+    try {
+      for await (const rawEvent of response) {
+        debugJson(logger, "Copilot raw stream event:", rawEvent)
+        if (rawEvent.data === "[DONE]") {
+          break
+        }
+
+        if (!rawEvent.data) {
+          continue
+        }
+
+        const chunk = readChatCompletionFrame(rawEvent.data)
+        if (chunk === null) {
+          logger.debug("Skipping unparseable chat-completions frame")
+          continue
+        }
+        if (asRecord(chunk)?.usage) {
+          usage = normalizeOpenAIUsage(readUsage(chunk))
+        }
+        const events = translateChunkToAnthropicEvents(chunk, streamState)
+
+        for (const event of events) {
+          const eventData = JSON.stringify(event)
+          debugLazy(logger, () => ["Translated Anthropic event:", eventData])
+          await stream.writeSSE({
+            event: event.type,
+            data: eventData,
+          })
+        }
+      }
+    } catch (error) {
+      await emitStreamError(stream, logger, { error, flow: "chat_completions" })
+    }
+
+    recordUsage(usage)
+  })
+}
+
+/**
+ * Estimate the prompt size locally, for `message_start` only.
+ *
+ * Reuses exactly the path `/v1/messages/count_tokens` already uses — translate
+ * to the OpenAI shape, then the model's own tokenizer — rather than inventing a
+ * second counting scheme that could disagree with the one clients can query.
+ *
+ * Best-effort by design: any failure yields `undefined` and `message_start`
+ * falls back to its previous behaviour. A wrong estimate would be worse than a
+ * missing one, and this must never be able to fail a request that would
+ * otherwise have succeeded.
+ */
+const estimateInputTokens = async (
+  anthropicPayload: AnthropicMessagesPayload,
+  selectedModel: Model | undefined,
+): Promise<number | undefined> => {
+  if (!selectedModel) return undefined
+  try {
+    const count = await getTokenCount(
+      translateToOpenAI(anthropicPayload),
+      selectedModel,
+    )
+    return count.input > 0 ? count.input : undefined
+  } catch {
+    return undefined
+  }
+}
+
+export const handleWithResponsesApi = async (
+  c: Context,
+  anthropicPayload: AnthropicMessagesPayload,
+  options: ResponsesFlowOptions,
+) => {
+  const { logger, selectedModel, ...requestOptions } = options
+
+  const responsesPayload =
+    translateAnthropicMessagesToResponsesPayload(anthropicPayload)
+  const recordUsage = createCopilotUsageRecorder({
+    endpoint: "responses",
+    fallbackSessionId: requestOptions.sessionId,
+    model: responsesPayload.model,
+    payload: anthropicPayload,
+  })
+
+  applyResponsesApiContextManagement(
+    responsesPayload,
+    selectedModel ?
+      resolveModelProfile(selectedModel).maxPromptTokens
+    : undefined,
+  )
+
+  // Copilot/OpenAI-Responses-specific prefix-cache retention. Opt-in via
+  // config; omitted otherwise so behavior is unchanged. Set on the built
+  // payload here (not in the pure translator). A future non-Copilot provider
+  // path won't use this. Safe to enable: create-responses.ts strips + retries
+  // once if a specific endpoint 400s on the param.
+  const promptCacheRetention = getPromptCacheRetention()
+  if (promptCacheRetention) {
+    responsesPayload.prompt_cache_retention = promptCacheRetention
+  }
+
+  compactInputByLatestCompaction(responsesPayload)
+
+  debugJson(logger, "Translated Responses payload:", responsesPayload)
+
+  const { vision, initiator } = getResponsesRequestOptions(responsesPayload)
+  // Started before the upstream call and awaited after: the network round-trip
+  // dwarfs local tokenization, so overlapping them costs no added latency.
+  const inputEstimate = estimateInputTokens(anthropicPayload, selectedModel)
+  const response = await createResponses(responsesPayload, {
+    vision,
+    initiator,
+    ...requestOptions,
+  })
+
+  if (responsesPayload.stream && isAsyncIterable(response)) {
+    logger.debug("Streaming response from Copilot (Responses API)")
+    return streamSSE(c, async (stream) => {
+      const streamState = createResponsesStreamState(await inputEstimate)
+      let usage: UsageTokens = {}
+
+      try {
+        for await (const chunk of response) {
+          const eventName = chunk.event
+          if (eventName === "ping") {
+            await stream.writeSSE({ event: "ping", data: '{"type":"ping"}' })
+            continue
+          }
+
+          const data = chunk.data
+          if (!data) {
+            continue
+          }
+
+          debugLazy(logger, () => ["Responses raw stream event:", data])
+
+          const frame = readResponsesFrame(data)
+          if (!frame) {
+            continue
+          }
+          if (frame.usage) {
+            usage = frame.usage
+          }
+
+          const events = translateResponsesStreamEvent(frame.event, streamState)
+          for (const event of events) {
+            const eventData = JSON.stringify(event)
+            debugLazy(logger, () => ["Translated Anthropic event:", eventData])
+            await stream.writeSSE({
+              event: event.type,
+              data: eventData,
+            })
+          }
+
+          if (streamState.messageCompleted) {
+            logger.debug("Message completed, ending stream")
+            break
+          }
+        }
+      } catch (error) {
+        await emitStreamError(stream, logger, { error, flow: "responses" })
+        recordUsage(usage)
+        return
+      }
+
+      if (!streamState.messageCompleted) {
+        logger.warn(
+          "Responses stream ended without completion; sending error event",
+        )
+        const errorEvent = buildErrorEvent(
+          "Responses stream ended without completion",
+        )
+        await stream.writeSSE({
+          event: errorEvent.type,
+          data: JSON.stringify(errorEvent),
+        })
+      }
+
+      recordUsage(usage)
+    })
+  }
+
+  return finishNonStreamingResponses(c, response as ResponsesResult, {
+    logger,
+    recordUsage,
+  })
+}
+
+/** Non-streaming /responses tail: log, translate to Anthropic, record
+ *  usage+cost, respond. Extracted to keep handleWithResponsesApi under the
+ *  per-function line cap. */
+function finishNonStreamingResponses(
+  c: Context,
+  result: ResponsesResult,
+  deps: { logger: ConsolaInstance; recordUsage: (usage: UsageTokens) => void },
+) {
+  const { logger, recordUsage } = deps
+  debugJsonTail(logger, "Non-streaming Responses result:", {
+    value: result,
+    tailLength: 400,
+  })
+  const anthropicResponse = translateResponsesResultToAnthropic(result)
+  recordUsage(
+    withCopilotCost(
+      normalizeResponsesUsage(result.usage),
+      result.copilot_usage,
+    ),
+  )
+  debugJson(logger, "Translated Anthropic response:", anthropicResponse)
+  return c.json(anthropicResponse)
+}
+
+export const handleWithMessagesApi = async (
+  c: Context,
+  anthropicPayload: AnthropicMessagesPayload,
+  options: MessagesFlowOptions,
+) => {
+  const {
+    logger,
+    anthropicBetaHeader,
+    subagentMarker,
+    selectedModel,
+    requestId,
+    sessionId,
+    compactType,
+  } = options
+
+  prepareMessagesApiPayload(anthropicPayload, selectedModel)
+  const recordUsage = createCopilotUsageRecorder({
+    endpoint: "messages",
+    fallbackSessionId: sessionId,
+    model: anthropicPayload.model,
+    payload: anthropicPayload,
+  })
+
+  debugJson(logger, "Translated Messages payload:", anthropicPayload)
+
+  const response = await createMessages(anthropicPayload, anthropicBetaHeader, {
+    subagentMarker,
+    requestId,
+    sessionId,
+    compactType,
+  })
+
+  if (isAsyncIterable(response)) {
+    logger.debug("Streaming response from Copilot (Messages API)")
+    return streamSSE(c, async (stream) => {
+      let usage: UsageTokens = {}
+
+      try {
+        for await (const event of response) {
+          const eventName = event.event
+          const data = event.data ?? ""
+          if (data === "[DONE]") {
+            break
+          }
+          if (!data) {
+            continue
+          }
+          debugLazy(logger, () => ["Messages raw stream event:", data])
+          const parsedEvent = parseAnthropicStreamEvent(data)
+          if (parsedEvent?.type === "message_start") {
+            usage = mergeAnthropicUsage(
+              usage,
+              normalizeAnthropicUsage(readNestedUsage(parsedEvent, "message")),
+            )
+          } else if (parsedEvent?.type === "message_delta") {
+            usage = mergeAnthropicUsage(
+              usage,
+              normalizeAnthropicUsage(readUsage(parsedEvent)),
+            )
+          }
+          await stream.writeSSE({
+            event: eventName,
+            data,
+          })
+        }
+      } catch (error) {
+        await emitStreamError(stream, logger, { error, flow: "messages" })
+      }
+
+      recordUsage(usage)
+    })
+  }
+
+  debugJsonTail(logger, "Non-streaming Messages result:", {
+    value: response,
+    tailLength: 400,
+  })
+  recordUsage(
+    withCopilotCost(
+      normalizeAnthropicUsage(response.usage),
+      response.copilot_usage,
+    ),
+  )
+  return c.json(response)
+}
+
+const createCopilotUsageRecorder = (options: {
+  endpoint: TokenUsageEndpoint
+  fallbackSessionId?: string
+  model: string
+  payload: AnthropicMessagesPayload
+}): ((usage: UsageTokens) => void) =>
+  createCopilotTokenUsageRecorder({
+    endpoint: options.endpoint,
+    fallbackSessionId: options.fallbackSessionId,
+    model: options.model,
+    sessionId: getMetadataSessionId(options.payload),
+  })
+
+const getMetadataSessionId = (
+  payload: AnthropicMessagesPayload,
+): string | null => parseUserIdMetadata(payload.metadata?.user_id).sessionId
+
+/**
+ * Decode one `/chat/completions` SSE frame, or `null` when there is nothing
+ * translatable in it.
+ *
+ * The `try` is the point. A body that parses to junk — `null`, `"hello"`, `42`
+ * — is already survivable here: `translateChunkToAnthropicEvents` and
+ * `normalizeOpenAIUsage` are total over it (proven in
+ * `tests/stream-boundary-tolerance.test.ts`), so the frame is skipped and the
+ * message continues. Without this `try`, the same junk that did NOT parse hit
+ * the flow-level catch and ended the message with an error event instead — the
+ * outcome decided by whether the garbage happened to be valid JSON. Every
+ * sibling reader in this codebase skips and continues; so does this one.
+ */
+const readChatCompletionFrame = (data: string): ChatCompletionChunk | null => {
+  try {
+    // Read only through `translateChunkToAnthropicEvents` and
+    // `normalizeOpenAIUsage`, both total over a malformed frame.
+    // casts-keep: reached only through total readers; tolerance proven in tests/stream-boundary-tolerance.test.ts
+    return JSON.parse(data) as ChatCompletionChunk
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Decode one `/responses` SSE frame into the event to translate plus, on a
+ * terminal frame, the usage to record.
+ *
+ * `null` means "nothing translatable in this frame": the `[DONE]` sentinel —
+ * which `JSON.parse` throws on, and which the two sibling stream loops both
+ * special-case — a body that does not parse at all, or a body that parsed to
+ * something other than an object. All used to reach `.type` and abort the rest
+ * of the stream; the last two now take the same skip-and-continue path, which
+ * is what the `!asRecord(event)` check below has always done for the parseable
+ * half of the same garbage.
+ */
+const readResponsesFrame = (
+  data: string,
+): { event: ResponseStreamEvent; usage?: UsageTokens } | null => {
+  if (data === "[DONE]") {
+    return null
+  }
+
+  let event: ResponseStreamEvent
+  try {
+    // Only `.type` is read directly, and only after the `asRecord` check below;
+    // the body is reached via `readNestedUsage` and
+    // `translateResponsesStreamEvent`, both total over a malformed frame.
+    // casts-keep: `.type` read behind an asRecord check, body via total readers; tolerance proven in tests/stream-boundary-tolerance.test.ts
+    event = JSON.parse(data) as ResponseStreamEvent
+  } catch {
+    return null
+  }
+
+  if (!asRecord(event)) {
+    return null
+  }
+
+  if (
+    event.type === "response.completed"
+    || event.type === "response.failed"
+    || event.type === "response.incomplete"
+  ) {
+    return {
+      event,
+      usage: normalizeResponsesUsage(readNestedUsage(event, "response")),
+    }
+  }
+
+  return { event }
+}
+
+const parseAnthropicStreamEvent = (
+  data: string,
+): AnthropicStreamEventData | null => {
+  try {
+    // Only `.type` is read off this value (through `?.`); usage is read through
+    // `readNestedUsage`/`readUsage`, both total, and the frame itself is
+    // forwarded verbatim.
+    // casts-keep: only `.type` read via `?.`, usage via total readers; tolerance proven in tests/stream-boundary-tolerance.test.ts
+    return JSON.parse(data) as AnthropicStreamEventData
+  } catch {
+    return null
+  }
+}

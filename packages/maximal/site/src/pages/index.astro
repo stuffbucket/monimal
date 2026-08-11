@@ -1,0 +1,149 @@
+---
+import { getEntry, render } from "astro:content";
+
+import StarButton from "../components/StarButton.astro";
+import "../styles/global.css";
+
+const REPO = "stuffbucket/maximal";
+const REPO_URL = `https://github.com/${REPO}`;
+
+// The landing body is authored in Markdoc (src/content/landing/index.mdoc).
+// Release-dependent data (download URLs, version label) is resolved inside the
+// Hero/Downloads components via the shared, memoized lib/downloads.ts — which
+// wraps the unchanged lib/version.ts logic — so this shell stays presentational.
+const entry = await getEntry("landing", "index");
+const { Content } = await render(entry);
+
+// Social / link-unfurl card. A generated screenshot of the hero card (see
+// scripts/gen-og.mjs → public/og.png) advertised via Open Graph + Twitter meta
+// only — invisible to the rendered page, but it's what unfurlers use instead of
+// guessing at the first inline <img> (which was grabbing the dashboard shot).
+const siteBase = (Astro.site?.href ?? "https://mxml.sh/")
+  .replace(/\/$/, "");
+const ogImage = `${siteBase}/og.png`;
+const ogTitle = "maximal · your AI tools, powered by GitHub Copilot";
+const ogDescription =
+  "Use Claude Code, Codex, and opencode with the models in your GitHub Copilot plan — no extra API keys, no second bill.";
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <link
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      href="/fonts/fraunces-latin.woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      href="/fonts/commissioner-latin.woff2"
+      crossorigin
+    />
+
+    <title>maximal · your AI tools, powered by GitHub Copilot</title>
+    <meta
+      name="description"
+      content="maximal swaps the engine inside the AI coding tools you use, like Claude Code, Codex, and opencode, so they run on the models in your GitHub Copilot subscription."
+    />
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href={`${import.meta.env.BASE_URL.replace(/\/$/, "")}/favicon.svg`}
+    />
+    <meta
+      name="theme-color"
+      content="#fafafa"
+      media="(prefers-color-scheme: light)"
+    />
+    <meta
+      name="theme-color"
+      content="#0a0a0a"
+      media="(prefers-color-scheme: dark)"
+    />
+    <meta name="color-scheme" content="light dark" />
+
+    <!-- Open Graph / Twitter: a generated hero-card screenshot for link unfurls.
+         Head metadata only; does not affect the visible page. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={`${siteBase}/`} />
+    <meta property="og:title" content={ogTitle} />
+    <meta property="og:description" content={ogDescription} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="The maximal wordmark on a dark canvas."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={ogTitle} />
+    <meta name="twitter:description" content={ogDescription} />
+    <meta name="twitter:image" content={ogImage} />
+  </head>
+  <body>
+    <a href="#main" class="skip-link">Skip to content</a>
+
+    <StarButton />
+
+    <main id="main">
+      <Content />
+    </main>
+
+    <!-- Foreground layer: bottom-pinned glass dock -->
+    <nav class="dock" aria-label="Page sections">
+      <div class="dock-inner">
+        <span class="dock-brand">maximal</span>
+        <a href="#how">How it works</a>
+        <a href="#start">Get started</a>
+        <a href={`${import.meta.env.BASE_URL.replace(/\/$/, "")}/guide`}>Guide</a>
+        <a href={REPO_URL} rel="noopener">GitHub</a>
+      </div>
+    </nav>
+
+    <script is:inline>
+      // aria-current on dock links based on viewport scroll position.
+      (function () {
+        var links = document.querySelectorAll('.dock a[href^="#"]');
+        if (!links.length || !("IntersectionObserver" in window)) return;
+        var byId = {};
+        links.forEach(function (a) {
+          byId[a.getAttribute("href").slice(1)] = a;
+        });
+        var io = new IntersectionObserver(
+          function (entries) {
+            entries.forEach(function (entry) {
+              var a = byId[entry.target.id];
+              if (!a) return;
+              if (entry.isIntersecting) {
+                links.forEach(function (l) {
+                  l.removeAttribute("aria-current");
+                });
+                a.setAttribute("aria-current", "page");
+              }
+            });
+          },
+          { rootMargin: "-40% 0px -50% 0px", threshold: 0 },
+        );
+        Object.keys(byId).forEach(function (id) {
+          var el = document.getElementById(id);
+          if (el) io.observe(el);
+        });
+      })();
+    </script>
+
+    <!-- Runtime download hydration (issue #221): upgrade the baked fallback
+         download links + version pills from /updates/manifest.json so a release
+         advertises itself with no site rebuild. Bundled (not is:inline) so it
+         can import the type-checked, schema-2 parser. Fail-closed. -->
+    <script>
+      import "../lib/hydrate-downloads";
+    </script>
+  </body>
+</html>

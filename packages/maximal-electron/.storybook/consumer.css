@@ -1,0 +1,101 @@
+/*
+ * The host half of the `--shell-*` contract, as a consumer writes it.
+ *
+ * `structural.css` ships no palette, so under the package mode something has
+ * to define the contract or every surface draws nothing. This file is that
+ * definition, and it is modelled on the one worked consumer this repository
+ * already has: `e2e/fixtures/demo-shell/demo.css`.
+ *
+ * Three rules decide what is here.
+ *
+ * **Aliases, not values.** Every row points at the token `tokens.css` already
+ * defines, so the palette has one source and the theme toolbar keeps working
+ * in both modes. Transcribing hex here would reproduce, inside the tool built
+ * to find drift, the drift issue #93 measured in `stuffbucket/maximal`.
+ *
+ * **Set what a host sets once.** The eleven `required` names have no value
+ * anywhere else. A `fallback` name is set only where this design system
+ * differs from the value the shipped rule already carries, which is what
+ * `docs/shell-variables.md` says to do; the ones left out are listed at the
+ * bottom with the reason.
+ *
+ * **Do not invent a vocabulary.** `--shell-status` and `--shell-status-muted`
+ * are a mapping rather than a value: `StatusChip` passes the state straight
+ * through to `data-status` and the package defines no states. A host writes
+ * its own `[data-status]` rules, as the fixture does. Supplying them here
+ * would draw colours the contract cannot promise, which is issue #182 made by
+ * the mode built to expose it. So they stay unset and what they draw is
+ * visible.
+ *
+ * Only `.storybook/shell-mode.ts` reads this file, and only in package mode.
+ */
+
+.sb-shell {
+  /* ---- required: eleven, with no value anywhere else ---- */
+  --shell-accent: var(--accent);
+  --shell-accent-muted: var(--accent-soft);
+  --shell-active: var(--bg-active);
+  --shell-background: var(--bg-app);
+  --shell-border: var(--border-subtle);
+  --shell-canvas: var(--bg-canvas);
+  --shell-hover: var(--bg-hover);
+  --shell-raised: var(--bg-raised);
+  --shell-text: var(--text-primary);
+  --shell-text-muted: var(--text-secondary);
+  --shell-text-subtle: var(--text-muted);
+
+  /* ---- fallback: set where this design system differs from the default ---- */
+
+  /* Defaults to `--shell-text`, which is a light label on a light accent. */
+  --shell-accent-contrast: var(--accent-contrast);
+  /* Defaults to the accent, so every hovered outline turned blue. */
+  --shell-border-hover: var(--border-input-hover);
+  --shell-border-strong: var(--border-strong);
+  /* Defaults to `--shell-hover`: a destructive control drawn as a hovered one. */
+  --shell-danger: var(--danger-fill);
+  --shell-danger-contrast: var(--text-on-solid);
+  /*
+   * The package has one danger name where this design system has two, and
+   * every rule that reads `--shell-danger` in the shipped stylesheet sets a
+   * background or a border with it. So it takes the solid fill, and the one
+   * place danger is a foreground — the message under an invalid field — takes
+   * the text colour rather than the fallback chain, which would have painted
+   * a 5.9:1 surface colour on the panel behind it.
+   */
+  --shell-invalid: var(--text-invalid);
+  /* Defaults to `none`. One value covers tooltip, menu and dialog. */
+  --shell-elevation: var(--elevation-popover);
+  --shell-font:
+    var(--weight-base) var(--text-base) / var(--leading-base) var(--font-body);
+  --shell-font-mono: var(--font-mono);
+  --shell-input-background: var(--bg-input);
+  /*
+   * Storybook is a page, not a window. The default is `fixed`, which pins the
+   * shell to the viewport and is right for an application that owns it; a
+   * story is content inside a container, which is the case this exists for.
+   */
+  --shell-position: static;
+  /* Defaults to `--shell-canvas`, which is the colour behind the strip. */
+  --shell-tab-active: var(--tab-active);
+  /* Defaults to the accent, so the attention marker matched the busy one. */
+  --shell-warning: var(--warning);
+
+  /* ---- runtime: read by `readTerminalTheme`, in no rule ---- */
+  --shell-terminal-background: var(--bg-canvas);
+  --shell-terminal-cursor: var(--accent);
+  --shell-terminal-foreground: var(--text-primary);
+}
+
+/*
+ * Left unset on purpose, in two groups.
+ *
+ * `--shell-status` and `--shell-status-muted`, for the reason at the top.
+ *
+ * And every name whose shipped value already equals this design system's
+ * token, where setting it would add a line that says nothing:
+ * `--shell-control-height`, `--shell-disabled-opacity`, `--shell-focus`,
+ * `--shell-icon-stroke`, `--shell-input-border`,
+ * `--shell-nav-heading-height`, `--shell-radius`, `--shell-radius-dialog`,
+ * `--shell-radius-large`, `--shell-radius-small`, `--shell-scrim`,
+ * `--shell-space-1` to `--shell-space-5`, and `--shell-titlebar-height`.
+ */

@@ -1,0 +1,22 @@
+{
+  "name": "maximal-site",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build && node scripts/verify-dist.mjs",
+    "test": "bun test tests",
+    "verify:dist": "node scripts/verify-dist.mjs",
+    "preview": "astro preview",
+    "og": "node scripts/gen-og.mjs",
+    "astro": "astro"
+  },
+  "devDependencies": {
+    "astro": "^6.2.2",
+    "typescript": "^5.6.0"
+  },
+  "dependencies": {
+    "@astrojs/markdoc": "^2.0.0"
+  }
+}

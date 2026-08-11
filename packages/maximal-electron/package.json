@@ -1,0 +1,178 @@
+{
+  "name": "@stuffbucket/maximal-electron",
+  "productName": "Stuffbucket",
+  "version": "0.0.8",
+  "description": "Reference Electron application with cross-platform build and release mechanics",
+  "license": "MIT",
+  "author": "stuffbucket",
+  "main": ".vite/build/main.js",
+  "exports": {
+    "./main": {
+      "types": "./dist/host/run-main.d.ts",
+      "default": "./dist/host/run-main.js"
+    },
+    "./host": {
+      "types": "./dist/host/host-window.d.ts",
+      "default": "./dist/host/host-window.js"
+    },
+    "./preload": {
+      "types": "./dist/preload/bridge.d.ts",
+      "default": "./dist/preload/bridge.js"
+    },
+    "./renderer": {
+      "types": "./dist/renderer/index.d.ts",
+      "default": "./dist/renderer/index.js"
+    },
+    "./renderer/styles.css": "./dist/renderer/styles.css",
+    "./host/terminal": {
+      "types": "./dist/host/terminal-host.d.ts",
+      "default": "./dist/host/terminal-host.js"
+    },
+    "./verify": {
+      "types": "./scripts/terminal-package.d.mts",
+      "default": "./scripts/terminal-package.mjs"
+    },
+    "./verify/shell-variables": {
+      "types": "./scripts/shell-variables.d.mts",
+      "default": "./scripts/shell-variables.mjs"
+    }
+  },
+  "files": [
+    "dist",
+    "scripts/check-install.mjs",
+    "scripts/export-checks.mjs",
+    "scripts/terminal-package.mjs",
+    "scripts/terminal-package.d.mts",
+    "scripts/shell-variables.mjs",
+    "scripts/shell-variables.d.mts"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stuffbucket/maximal-electron.git"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "scripts": {
+    "start": "electron-forge start",
+    "build:host": "tsc -p tsconfig.host.json",
+    "build:renderer": "tsc -p tsconfig.renderer-package.json && node scripts/copy-renderer-css.mjs",
+    "build:package": "npm run build:host && npm run build:renderer",
+    "build": "npm run build:package",
+    "prepack": "npm run build:package",
+    "prepare": "npm run build:package",
+    "prestart": "npm run build:package",
+    "prepackage": "npm run build:package",
+    "postinstall": "node scripts/check-install.mjs",
+    "package": "electron-forge package",
+    "icons": "node scripts/gen-icons.mjs",
+    "verify:package": "node scripts/verify-package.mjs",
+    "verify:crash-artifact": "node scripts/verify-crash-artifact.mjs",
+    "verify:electron-cache": "node scripts/verify-electron-cache.mjs",
+    "smoke:packaged": "node scripts/smoke-packaged.mjs",
+    "verify:exports": "npm run build:package && node scripts/verify-exports.mjs",
+    "verify:publish": "node scripts/verify-publish.mjs",
+    "publish:package": "node scripts/publish-package.mjs",
+    "verify:neutral": "node scripts/verify-neutral.mjs",
+    "verify:fixture-imports": "node scripts/verify-fixture-imports.mjs",
+    "verify:rulesets": "node scripts/verify-rulesets.mjs",
+    "verify:workflow-health": "node scripts/verify-workflow-health.mjs",
+    "verify:tag": "node scripts/verify-tag.mjs",
+    "verify:git-install": "node scripts/verify-git-install.mjs",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "record": "node scripts/record.mjs",
+    "mutate": "node scripts/mutation-scope.mjs && stryker run && node scripts/mutation-report.mjs",
+    "compose": "node scripts/compose.mjs",
+    "verify:docs": "node scripts/verify-docs.mjs",
+    "stills": "node scripts/stills.mjs",
+    "storybook": "storybook dev -p 6006 --no-open",
+    "storybook:build": "storybook build",
+    "storybook:check": "node scripts/storybook-check.mjs",
+    "check:contrast": "node --no-warnings=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/check-contrast.mjs"
+  },
+  "peerDependencies": {
+    "@radix-ui/react-collapsible": "^1.1.20",
+    "@radix-ui/react-dialog": "^1.1.23",
+    "@radix-ui/react-dropdown-menu": "^2.1.24",
+    "@radix-ui/react-radio-group": "^1.4.7",
+    "@radix-ui/react-tabs": "^1.1.21",
+    "@radix-ui/react-tooltip": "^1.2.16",
+    "@radix-ui/react-visually-hidden": "^1.2.11",
+    "electron": ">=30.0.0",
+    "ghostty-web": "^0.4.0",
+    "lucide-react": "^1.27.0",
+    "node-pty": ">=1.2.0-beta.14",
+    "react": ">=18.0.0 <20.0.0",
+    "react-dom": ">=18.0.0 <20.0.0",
+    "react-resizable-panels": "^4.12.2"
+  },
+  "peerDependenciesMeta": {
+    "@radix-ui/react-collapsible": { "optional": true },
+    "@radix-ui/react-dialog": { "optional": true },
+    "@radix-ui/react-dropdown-menu": { "optional": true },
+    "@radix-ui/react-radio-group": { "optional": true },
+    "@radix-ui/react-tabs": { "optional": true },
+    "@radix-ui/react-tooltip": { "optional": true },
+    "@radix-ui/react-visually-hidden": { "optional": true },
+    "electron": { "optional": true },
+    "ghostty-web": { "optional": true },
+    "lucide-react": { "optional": true },
+    "node-pty": { "optional": true },
+    "react": { "optional": true },
+    "react-dom": { "optional": true },
+    "react-resizable-panels": { "optional": true }
+  },
+  "devDependencies": {
+    "@earendil-works/pi-agent-core": "0.83.0",
+    "@earendil-works/pi-ai": "0.83.0",
+    "@electron-forge/cli": "7.11.2",
+    "@electron-forge/plugin-fuses": "7.11.2",
+    "@electron-forge/plugin-vite": "7.11.2",
+    "@electron-forge/shared-types": "7.11.2",
+    "@electron/asar": "^3.4.1",
+    "@electron/fuses": "^1.8.0",
+    "@eslint/js": "^9.39.0",
+    "@playwright/test": "^1.62.0",
+    "@radix-ui/react-collapsible": "1.1.20",
+    "@radix-ui/react-dialog": "1.1.23",
+    "@radix-ui/react-dropdown-menu": "2.1.24",
+    "@radix-ui/react-radio-group": "1.4.7",
+    "@radix-ui/react-tabs": "1.1.21",
+    "@radix-ui/react-tooltip": "1.2.16",
+    "@radix-ui/react-visually-hidden": "1.2.11",
+    "@storybook/addon-a11y": "10.5.6",
+    "@storybook/addon-docs": "10.5.6",
+    "@storybook/react-vite": "10.5.6",
+    "@stryker-mutator/core": "^9.6.1",
+    "@stryker-mutator/vitest-runner": "^9.6.1",
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.2.0",
+    "electron": "43.2.0",
+    "eslint": "^9.39.0",
+    "fast-check": "4.9.0",
+    "ghostty-web": "0.4.0",
+    "lucide-react": "1.27.0",
+    "node-llama-cpp": "3.19.1",
+    "node-pty": "1.2.0-beta.14",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-resizable-panels": "4.12.2",
+    "storybook": "10.5.6",
+    "typebox": "1.3.7",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.65.0",
+    "vite": "^7.3.6",
+    "vitest": "^4.1.10",
+    "yaml": "^2.9.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

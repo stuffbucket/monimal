@@ -1,0 +1,53 @@
+<!--
+  The preload bridge, stubbed before any module loads.
+
+  `src/renderer/lib/bridge.ts` reads `window.stuffbucket` at module scope, so a
+  component that touches it throws on import rather than on render. Its own
+  docstring names this case: "exactly one place to stub in a test or a browser
+  preview."
+
+  This runs as a classic script in the preview iframe's head, which is before
+  the module graph is evaluated. A stub inside `preview.ts` would be a race
+  against import hoisting.
+
+  `invoke` answers the few channels a story can reach and logs anything else,
+  so an unstubbed call is visible in the console rather than silent. `on`
+  returns an unsubscribe that does nothing, which is the honest shape: no main
+  process is running, so no event will ever arrive.
+-->
+<script>
+  window.stuffbucket = {
+    invoke(channel) {
+      switch (channel) {
+        case 'prefs:get':
+          return Promise.resolve({
+            menuBarIcon: false,
+            dockBadge: true,
+            splash: true,
+            overlayHotkey: 'CommandOrControl+Shift+Space',
+            agentTools: true,
+            agentApproval: 'writes',
+            agentCwd: '',
+            agentToolsets: ['app'],
+            theme: 'system',
+          });
+        case 'app:versions':
+          return Promise.resolve({
+            app: '0.0.0',
+            electron: '43.2.0',
+            chrome: '140.0.0.0',
+            node: '22.0.0',
+            platform: 'storybook',
+            arch: 'arm64',
+            packaged: false,
+          });
+        default:
+          console.info('[storybook] unstubbed bridge call:', channel);
+          return Promise.resolve(undefined);
+      }
+    },
+    on() {
+      return () => {};
+    },
+  };
+</script>

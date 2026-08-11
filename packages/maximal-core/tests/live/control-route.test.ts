@@ -1,0 +1,233 @@
+import { afterEach, beforeEach, describe, expect, test } from "bun:test"
+
+import type { ActiveClient } from "~/lib/http/active-clients"
+import type { ControlSnapshot } from "~/lib/live/resources"
+
+import { frameEnvelopeSchema, type FrameEnvelope } from "~/lib/live/contract"
+import { ControlHub } from "~/lib/live/hub"
+import { stopControlHub } from "~/lib/live/service"
+import {
+  __resetUpdateCheckDepsForTests,
+  __setUpdateCheckDepsForTests,
+} from "~/lib/update/update-check"
+import { createControlRoutes } from "~/routes/control/route"
+
+// `GET /update-status` calls getUpdateStatus(), whose default fetch hits the
+// real release manifest on the public CDN. That made this file's assertion
+// depend on the network — it timed out at the 5s default under load — and on
+// whether a sibling had already warmed the module-level cache. Pin the seam the
+// update-check suite already owns so the route test is offline and hermetic.
+beforeEach(() => {
+  __resetUpdateCheckDepsForTests()
+  __setUpdateCheckDepsForTests({
+    fetch: () => Promise.reject(new Error("offline (control-route test)")),
+  })
+})
+
+afterEach(() => {
+  // Safety: tear down the wired singleton if any test reached the default hub.
+  stopControlHub()
+  __resetUpdateCheckDepsForTests()
+})
+
+function makeApp(
+  opts: {
+    ip?: string
+    hub?: ControlHub<ControlSnapshot>
+    clients?: Array<ActiveClient>
+  } = {},
+): ReturnType<typeof createControlRoutes> {
+  return createControlRoutes({
+    getRequestIp: () => opts.ip ?? "127.0.0.1",
+    hub: opts.hub,
+    // The real roster is a process-global tracker every authed request writes
+    // to; injecting it keeps this file's assertions about what the route does,
+    // not about what ran before it in the same worker.
+    listClients: () => opts.clients ?? [],
+  })
+}
+
+describe("control route — loopback gate", () => {
+  test("a non-loopback caller gets 404 on every path", async () => {
+    const app = makeApp({ ip: "203.0.113.7" })
+    expect((await app.request("/auth")).status).toBe(404)
+    expect((await app.request("/events")).status).toBe(404)
+    expect(
+      (await app.request("/accounts/switch", { method: "POST" })).status,
+    ).toBe(404)
+  })
+})
+
+describe("control route — reads", () => {
+  test("GET /auth returns the auth status", async () => {
+    const res = await makeApp().request("/auth")
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as { state: string }
+    expect(typeof body.state).toBe("string")
+  })
+
+  test("GET /clients returns an empty roster with a total", async () => {
+    const res = await makeApp().request("/clients")
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ clients: [], total: 0 })
+  })
+
+  test("GET /clients totals the roster it is given", async () => {
+    const roster: Array<ActiveClient> = [
+      {
+        key: "k1|Cline/0.5",
+        label: "Cline",
+        userAgent: "Cline/0.5",
+        ageSeconds: 3,
+      },
+      {
+        key: "k2|curl/8",
+        label: "curl",
+        userAgent: "curl/8",
+        ageSeconds: 9,
+      },
+    ]
+    const res = await makeApp({ clients: roster }).request("/clients")
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ clients: roster, total: 2 })
+  })
+
+  test("GET /models returns a (possibly empty) catalog with a count", async () => {
+    const res = await makeApp().request("/models")
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as { count: number; models: Array<unknown> }
+    expect(body.count).toBe(body.models.length)
+  })
+
+  test("GET /config and /usage are 200", async () => {
+    const app = makeApp()
+    expect((await app.request("/config")).status).toBe(200)
+    expect((await app.request("/usage")).status).toBe(200)
+  })
+})
+
+describe("control route — shell signals", () => {
+  test("POST /quit is 409 with no supervising shell", async () => {
+    const res = await makeApp().request("/quit", { method: "POST" })
+    expect(res.status).toBe(409)
+    expect(await res.json()).toEqual({
+      ok: false,
+      reason: "no_supervising_shell",
+    })
+  })
+
+  test("POST /upgrade is 409 with no supervising shell", async () => {
+    const res = await makeApp().request("/upgrade", { method: "POST" })
+    expect(res.status).toBe(409)
+  })
+})
+
+describe("control route — actions", () => {
+  test("POST /accounts/switch without a key is 400", async () => {
+    const hub = new ControlHub<ControlSnapshot>({
+      buildSnapshot: () =>
+        Promise.resolve({ marker: "x" } as unknown as ControlSnapshot),
+    })
+    const res = await makeApp({ hub }).request("/accounts/switch", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{}",
+    })
+    expect(res.status).toBe(400)
+    hub.dispose()
+  })
+})
+
+describe("control route — SSE event stream", () => {
+  test("GET /events opens an event-stream and sends the snapshot frame first", async () => {
+    const hub = new ControlHub<ControlSnapshot>({
+      buildSnapshot: () =>
+        Promise.resolve({ marker: "snap-ok" } as unknown as ControlSnapshot),
+    })
+    const res = await makeApp({ hub }).request("/events")
+    expect(res.status).toBe(200)
+    expect(res.headers.get("content-type")).toContain("text/event-stream")
+    if (!res.body) throw new Error("expected a streaming body")
+
+    const reader = (res.body as ReadableStream<Uint8Array>).getReader()
+    const { value } = await reader.read()
+    await reader.cancel()
+    hub.dispose()
+    const block = new TextDecoder().decode(value).trim()
+
+    // v2: a JSON-RPC notification on the data line. No `id:` (nothing is
+    // resumable) and no `event:` (the method names the topic).
+    expect(block).not.toContain("id: 0")
+    expect(block).toContain("snap-ok")
+
+    const dataLine =
+      block.split("\n").find((line) => line.startsWith("data:")) ?? ""
+    const env: FrameEnvelope = frameEnvelopeSchema.parse(
+      JSON.parse(dataLine.slice("data:".length).trim()),
+    )
+    expect(env.method).toBe("control/snapshot")
+  })
+})
+
+describe("control route — auth flow", () => {
+  test("POST /auth/cancel with no active flow returns the current status", async () => {
+    const res = await makeApp().request("/auth/cancel", { method: "POST" })
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as { state: string }
+    expect(typeof body.state).toBe("string")
+  })
+
+  test("POST /auth/sign-out is ok with no session", async () => {
+    const res = await makeApp().request("/auth/sign-out", { method: "POST" })
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ ok: true })
+  })
+
+  test("POST /auth/rearm returns an outcome + status with no credential", async () => {
+    const res = await makeApp().request("/auth/rearm", { method: "POST" })
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as {
+      outcome: unknown
+      status: { state: string }
+    }
+    expect(body.outcome).toBeDefined()
+    expect(typeof body.status.state).toBe("string")
+  })
+
+  test("GET /update-status is 200", async () => {
+    expect((await makeApp().request("/update-status")).status).toBe(200)
+  })
+})
+
+describe("control route — settings endpoints", () => {
+  test("api-keys create → list → delete round-trips", async () => {
+    const app = makeApp()
+    const created = await app.request("/api-keys", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ label: "test-key", key: "testkey123" }),
+    })
+    expect(created.status).toBe(201)
+    const entry = (await created.json()) as { id: string; key: string }
+    expect(entry.key).toBe("testkey123")
+
+    const list = (await (await app.request("/api-keys")).json()) as {
+      entries: Array<{ id: string }>
+    }
+    expect(list.entries.some((e) => e.id === entry.id)).toBe(true)
+
+    const del = await app.request(`/api-keys/${entry.id}`, { method: "DELETE" })
+    expect(del.status).toBe(204)
+  })
+
+  test("GET /diagnostics returns version + token presence", async () => {
+    const res = await makeApp().request("/diagnostics")
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as {
+      version: string
+      tokens: { github_token_present: boolean }
+    }
+    expect(typeof body.version).toBe("string")
+    expect(typeof body.tokens.github_token_present).toBe("boolean")
+  })
+})

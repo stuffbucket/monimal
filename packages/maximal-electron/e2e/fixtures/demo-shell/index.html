@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!--
+      The same policy as src/renderer/index.html, verbatim, and it has to be.
+
+      This fixture renders the real TerminalView, so it needs 'wasm-unsafe-eval'
+      for ghostty-web's VT parser and connect-src data: for the module ghostty
+      inlines as a data URL. A weaker policy here fails as an opaque WebAssembly
+      compile error in a recording, minutes after the run starts.
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' data:"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Stuffbucket</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./main.tsx"></script>
+  </body>
+</html>

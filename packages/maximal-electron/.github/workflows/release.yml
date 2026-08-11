@@ -1,0 +1,381 @@
+# Release, as an operation you invoke against a tag rather than a consequence
+# of pushing one.
+#
+#   git tag -a v0.1.0 -m "Release 0.1.0"
+#   git push origin v0.1.0                         # publishes
+#   gh workflow run release.yml --ref v0.1.0 -f publish=true   # publishes again
+#
+# ## Why a dispatch can publish now
+#
+# A tag push used to be the only way, and a tag is a one-shot fuse: it is
+# immutable, so a run that never starts spends the version. On 2026-07-29 an
+# Actions outage held `tag-check` in the queue for fifteen minutes and
+# cancelled it with no runner ever assigned. The sibling `stuffbucket/maximal-core`
+# lost `v0.4.4` the same hour: the tag is correct, and nothing was ever built
+# or published against it. The documented remedy was to bump the patch and
+# burn another version on an outage nobody caused.
+#
+# So every job here is re-runnable against a tag that already exists. The draft
+# is created or reused, the tarball is attached or found already attached, the
+# draft is flipped or found already published, and the registry publish is
+# `scripts/publish-package.mjs`, which reports `ALREADY PUBLISHED` rather than
+# a 409. Retry until it is green; a cancelled run costs a re-invocation.
+#
+# ## The rail this replaced, and the rail that replaced it
+#
+# The old rail was "a dispatch run is always a dry run", which held because no
+# input existed to make one publish. That is gone, and a weaker rail would be
+# worse than none.
+#
+# The one that replaces it is a conjunction, and both halves are required:
+#
+#     github.ref_type == 'tag' && (github.event_name == 'push' || inputs.publish == true)
+#
+# The ref must be a **tag**, and the run must be a tag push or a dispatch that
+# **asked**, through an input that defaults to false. A dispatch against a
+# branch fails the first half whatever it passes, so no input makes a branch
+# publishable — the old rail's property, kept, in the half that carried it.
+#
+# It is stronger than a comment in three ways the old one was not:
+#
+#   - `tests/workflows.test.ts` asserts the exact string on every step that
+#     creates, moves, or publishes anything, so a step added without it fails.
+#   - `scripts/publish-decision.mjs` refuses `--mode publish` on a non-tag ref
+#     independently of this file, and `tests/publish-decision.test.ts` walks a
+#     table over it. The rail is executable, not only readable.
+#   - `--ref-type` comes from `GITHUB_REF_TYPE`, which the runner sets and a
+#     workflow input cannot reach.
+#
+# ## Why every asset lands on a DRAFT
+#
+# GitHub immutable releases reject an asset added after publish with HTTP 422.
+# So the release is created as a draft, every build job attaches to that draft,
+# and a single `publish` job flips it once at the end. This is the shape
+# stuffbucket/maximal uses, for exactly this reason.
+#
+# ## There is no installer
+#
+# No MSI and no dmg. Three jobs here built them. One had never once succeeded,
+# and the other shipped an installer containing zero files. See
+# `docs/release.md`. The tarball is the artifact, and `publish` gates on it.
+
+name: release
+
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: >-
+          Really publish. Off rehearses everything and uploads nothing. A
+          branch cannot publish however this is set; the ref must be a tag.
+        type: boolean
+        default: false
+
+# One group per ref, so a retry of a tag queues behind the run it is retrying
+# and a rehearsal on a branch queues behind neither.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  # The negation of the rail in the header. `env` is not available to a
+  # job-level condition, so the conditions below spell the rail out instead of
+  # reading this, and `tests/workflows.test.ts` pairs the two.
+  DRY_RUN: ${{ !(github.ref_type == 'tag' && (github.event_name == 'push' || inputs.publish == true)) }}
+
+jobs:
+  # Fail before the matrix spends any minutes. Mirrors codex's `tag-check`.
+  tag-check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # `verify:tag` reads the workflow runs on this ref. A tag deletion does
+      # not remove them, which is what makes them the record a re-cut cannot
+      # hide from.
+      actions: read
+    outputs:
+      tag: ${{ steps.resolve.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Resolve the tag and validate it against package.json
+        id: resolve
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          pkg_ver="$(node -p "require('./package.json').version")"
+
+          if [[ "${DRY_RUN}" == "true" ]]; then
+            tag="v${pkg_ver}"
+          else
+            [[ "${GITHUB_REF_TYPE}" == "tag" ]] \
+              || { echo "::error::Not a tag ref"; exit 1; }
+            tag="${GITHUB_REF_NAME}"
+          fi
+
+          [[ "${tag}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-(alpha|beta)(\.[0-9]+)?)?$ ]] \
+            || { echo "::error::Tag '${tag}' does not match the expected format"; exit 1; }
+
+          [[ "${tag#v}" == "${pkg_ver}" ]] \
+            || { echo "::error::Tag ${tag#v} != package.json ${pkg_ver}"; exit 1; }
+
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          echo "Tag and package.json agree (${pkg_ver})"
+
+      # A published tag is immutable, and nothing enforced that: `v0.0.2` was
+      # deleted and re-pushed onto another commit eight minutes later, and both
+      # runs are still listed on the ref. This refuses the second one. A dry
+      # run has no tag, so it checks the ordering alone and says so.
+      #
+      # A retry of the same tag is not a re-cut: every run on the ref built the
+      # same commit, so `elsewhere` is empty and this passes. That is what
+      # makes the retry path below possible at all.
+      - name: Refuse a tag that has already been cut
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.resolve.outputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${DRY_RUN}" == "true" ]]; then
+            node scripts/verify-tag.mjs --tag "$TAG"
+          else
+            node scripts/verify-tag.mjs --tag "$TAG" --sha "$GITHUB_SHA"
+          fi
+
+  release:
+    needs: tag-check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ needs.tag-check.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Create the draft release
+        if: ${{ github.ref_type == 'tag' && (github.event_name == 'push' || inputs.publish == true) }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "REUSED $TAG. It already exists, so this run created nothing."
+            exit 0
+          fi
+          gh release create "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$TAG" \
+            --draft \
+            --generate-notes
+          echo "CREATED the draft $TAG."
+      - name: Rehearsal, so no release is created
+        if: ${{ !(github.ref_type == 'tag' && (github.event_name == 'push' || inputs.publish == true)) }}
+        shell: bash
+        run: echo "Rehearsal for ${TAG}. Nothing is created, attached, or published."
+
+  # What a consumer installs, and the only artifact a release carries.
+  # `stuffbucket/maximal` depends on this shell as a library and packages and
+  # signs its own application, so the tarball is the artifact that matters.
+  #
+  # `publish` gates on this job alone. Gating it on an installer made a package
+  # release depend on a credential for a private signing repository, which is
+  # how `v0.0.1` produced a draft nobody could publish.
+  package-tarball:
+    needs: [tag-check, release]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ needs.tag-check.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      # `npm pack` runs prepack, which builds `dist`. Nothing is committed.
+      - name: Pack, and assert the exports are in it
+        run: |
+          set -euo pipefail
+          npm run verify:exports
+          # npm pack does not create the destination, and fails with ENOENT.
+          mkdir -p dist-release
+          npm pack --pack-destination dist-release
+          shopt -s nullglob
+          files=(dist-release/*.tgz)
+          [[ ${#files[@]} -eq 1 ]] \
+            || { echo "::error::Expected one tarball, found ${#files[@]}"; exit 1; }
+          echo "Packed $(basename "${files[0]}")"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: package-tarball
+          path: dist-release/*.tgz
+          if-no-files-found: error
+
+      # The other install path. `npm pack` runs `prepack`; a consumer pinning a
+      # git ref gets `prepare`, and a tag has shipped with only the first wired.
+      # Issue #83. The commit rather than the tag name, because a dry run has no
+      # tag to resolve and the two name the same objects on a tag push.
+      - name: Install this commit by git ref, the way a consumer pins it
+        env:
+          REPOSITORY: github:${{ github.repository }}
+          REF: ${{ github.sha }}
+        run: npm run verify:git-install -- --repository "$REPOSITORY" --ref "$REF"
+
+      # Re-runnable. A draft takes the upload again under `--clobber`; a
+      # release that is already published takes nothing at all, so the asset
+      # being there is the success and its absence is the one state no retry
+      # can repair.
+      - name: Attach the tarball to the draft
+        if: ${{ github.ref_type == 'tag' && (github.event_name == 'push' || inputs.publish == true) }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          files=(dist-release/*.tgz)
+          asset="$(basename "${files[0]}")"
+
+          draft="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft')"
+          present="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets \
+            --jq "[.assets[] | select(.name == \"${asset}\")] | length")"
+
+          if [[ "$draft" == "true" ]]; then
+            gh release upload "$TAG" "${files[0]}" --repo "$GITHUB_REPOSITORY" --clobber
+            echo "ATTACHED ${asset} to the draft ${TAG}."
+          elif [[ "$present" != "0" ]]; then
+            echo "ALREADY ATTACHED ${asset} is on the published ${TAG}. This run uploaded nothing."
+          else
+            echo "::error::${TAG} is published and carries no ${asset}. GitHub rejects an asset added after publish with HTTP 422, so no retry can fix this. Cut the next patch."
+            exit 1
+          fi
+
+  publish:
+    if: ${{ github.ref_type == 'tag' && (github.event_name == 'push' || inputs.publish == true) }}
+    needs: package-tarball
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ github.ref_name }}
+    steps:
+      # Re-runnable. `gh release edit --draft=false` on a published release is
+      # accepted and changes nothing, which is exactly the outcome that must
+      # not read like a publish.
+      - name: Flip the draft to published
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          draft="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft')"
+          if [[ "$draft" == "true" ]]; then
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest
+            echo "PUBLISHED ${TAG}. This run flipped the draft."
+          else
+            echo "ALREADY PUBLISHED ${TAG}. This run changed nothing."
+          fi
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name'
+
+  # The npm registry publish, to GitHub Packages. No secret is added for it:
+  # `GITHUB_TOKEN` with `packages: write` publishes to the registry for the
+  # repository the workflow runs in, and the scope has to be the account that
+  # owns that repository.
+  #
+  # It publishes the artifact `package-tarball` produced rather than packing a
+  # second time, so the bytes that were checked are the bytes that go up.
+  #
+  # `publish` does not gate on this, for the reason it does not gate on the
+  # installers: a registry failure must not strand a draft nobody can publish.
+  # A version that is already in the registry is no longer a dead end, though:
+  # `scripts/publish-package.mjs` reports it as `ALREADY PUBLISHED` and exits
+  # 0, so re-invoking this against the tag is safe however far the last attempt
+  # got.
+  publish-package:
+    needs: [tag-check, package-tarball]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      TAG: ${{ needs.tag-check.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          registry-url: https://npm.pkg.github.com
+          scope: '@stuffbucket'
+      - uses: actions/download-artifact@v4
+        with:
+          name: package-tarball
+          path: dist-release
+
+      - name: Check what would be published
+        shell: bash
+        run: node scripts/verify-publish.mjs dist-release --version "$TAG"
+
+      # No token, deliberately. The conditions are the guard; an invalid
+      # `NODE_AUTH_TOKEN` is the last one, so a rehearsal that somehow reached
+      # the registry authenticates as nobody. The cost is that the registry
+      # probe reads `unreadable` here and the already-published arm is not
+      # rehearsed; `tests/publish-decision.test.ts` covers that arm instead.
+      - name: Rehearse the publish
+        if: ${{ !(github.ref_type == 'tag' && (github.event_name == 'push' || inputs.publish == true)) }}
+        env:
+          NODE_AUTH_TOKEN: dry-run-carries-no-token
+        shell: bash
+        run: node scripts/publish-package.mjs --dir dist-release --tag "$TAG" --mode rehearse
+
+      - name: Publish to GitHub Packages
+        if: ${{ github.ref_type == 'tag' && (github.event_name == 'push' || inputs.publish == true) }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: node scripts/publish-package.mjs --dir dist-release --tag "$TAG" --mode publish
+
+  # The rehearsal's terminal job. Every attach step above is skipped, so
+  # without this a run that produced nothing would end green.
+  #
+  # It outlived the installers rather than going with them. One artifact is not
+  # zero artifacts, and `if-no-files-found: error` is not this check: that
+  # setting proves a file existed in the producing job's own directory. It says
+  # nothing about whether the name resolves on the download side, which is what
+  # #81 was, or whether the file that crossed has any bytes.
+  dry-run-artifacts:
+    if: ${{ !(github.ref_type == 'tag' && (github.event_name == 'push' || inputs.publish == true)) }}
+    needs: [package-tarball, publish-package]
+    runs-on: ubuntu-latest
+    steps:
+      # By name, not the whole run. An unnamed download would pass by finding
+      # some other job's artifact, and `tests/workflows.test.ts` pairs the name
+      # against the upload.
+      - uses: actions/download-artifact@v4
+        with:
+          name: package-tarball
+          path: artifacts
+      - name: Assert the release would have had something to attach
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+
+          tarballs=(artifacts/*.tgz)
+
+          [[ ${#tarballs[@]} -eq 1 ]] \
+            || { echo "::error::Expected one tarball, found ${#tarballs[@]}"; exit 1; }
+
+          file="${tarballs[0]}"
+          [[ -s "$file" ]] || { echo "::error::Missing or empty: ${file}"; exit 1; }
+          echo "$(stat -c %s "$file") bytes  ${file}"

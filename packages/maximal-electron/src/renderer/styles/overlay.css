@@ -1,0 +1,292 @@
+@import './controls.css';
+
+/*
+ * The floating overlay.
+ *
+ * The window is transparent and full screen. The dim and the card are drawn
+ * here rather than natively, which is the split stuffbucket/wiggle uses.
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  background: transparent;
+  overflow: hidden;
+}
+
+.overlay-body {
+  font:
+    var(--weight-base) var(--text-md) / var(--leading-base) var(--font-body);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  /* The whole surface is a dismiss target, so no text selection anywhere. */
+  user-select: none;
+  cursor: default;
+}
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  background: rgb(0 0 0 / 0.34);
+  animation: scrim-in 140ms var(--ease-out);
+}
+
+/*
+ * The card places itself.
+ *
+ * It used to be a flex child of `.scrim`. Radix portals the dialog content as
+ * a sibling of the overlay rather than a descendant, so the scrim can no
+ * longer position it. Same result, stated directly: wiggle drops the card near
+ * the bottom of the focused monitor.
+ */
+.card {
+  position: fixed;
+  bottom: 18vh;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(680px, 82vw);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-dialog);
+  background: var(--bg-panel);
+  border: 1px solid var(--border-strong);
+  box-shadow: var(--elevation-dialog);
+  animation: card-in 180ms var(--ease-out);
+}
+
+.card__input {
+  width: 100%;
+  resize: none;
+  padding: var(--space-3);
+  border-radius: var(--radius-input);
+  border: 1px solid var(--border-input);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font: inherit;
+  user-select: text;
+  cursor: text;
+}
+
+.card__input:hover:not(:disabled) {
+  border-color: var(--border-input-hover);
+}
+
+.card__input::placeholder {
+  color: var(--text-muted);
+}
+
+
+
+.card__answer {
+  max-height: 40vh;
+  overflow-y: auto;
+  padding: var(--space-3);
+  border-radius: var(--radius-input);
+  background: var(--bg-canvas);
+  border: 1px solid var(--border-subtle);
+  font-family: var(--font-mono);
+  font-size: var(--text-base);
+  white-space: pre-wrap;
+  user-select: text;
+  cursor: text;
+}
+
+.card__error {
+  display: block;
+  margin-top: var(--space-2);
+  color: var(--text-invalid);
+}
+
+/*
+ * The approval prompt.
+ *
+ * This is the one place the card asks for something rather than reporting.
+ * It sits directly above the footer, so the question and the key hint that
+ * answers it are next to each other.
+ */
+.approval {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-input);
+  background: var(--bg-canvas);
+  /* Warm border, because this is the one blocking state in the card. */
+  border: 1px solid var(--warning);
+}
+
+.approval__head {
+  font-size: var(--text-base);
+}
+
+.approval__tool {
+  font-family: var(--font-mono);
+  color: var(--accent);
+}
+
+.approval__summary {
+  margin: 0;
+  max-height: 20vh;
+  overflow-y: auto;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  /* A long command wraps rather than scrolling sideways. A decision cannot be
+     made from the first 60 characters of a pipeline. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+  cursor: text;
+}
+
+.approval__actions {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.approval__button {
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-input);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-panel);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--text-sm);
+}
+
+.approval__button:hover {
+  border-color: var(--accent);
+}
+
+.approval__button--primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+}
+
+/*
+ * First-run model download.
+ *
+ * Shown only when no proxy is running and the embedded weights are missing.
+ * It states the size before asking, because a third of a gigabyte is not a
+ * thing to start without saying so.
+ */
+.setup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-input);
+  background: var(--bg-canvas);
+  border: 1px solid var(--border-subtle);
+}
+
+.setup__head {
+  font-size: var(--text-base);
+}
+
+.setup__body {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.setup__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.setup__progress {
+  position: relative;
+  height: var(--control-sm);
+  border-radius: var(--radius-chip);
+  background: var(--bg-active);
+  overflow: hidden;
+}
+
+.setup__bar {
+  height: 100%;
+  background: var(--accent-soft);
+  border-right: 2px solid var(--accent);
+  transition: width var(--duration-fast) var(--ease-out);
+}
+
+.setup__figure {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.card__footer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.card__status {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card__status--ready {
+  color: var(--success);
+}
+
+.card__status--probing {
+  color: var(--text-muted);
+}
+
+.card__status--unavailable {
+  color: var(--danger);
+  /* The reason can be a full sentence, so let it wrap rather than truncate. */
+  white-space: normal;
+}
+
+.card__hint {
+  color: var(--text-muted);
+  flex: none;
+}
+
+@keyframes scrim-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* The card is centred by `translateX(-50%)`, so the animation has to carry
+   that through or it jumps sideways on the first frame. */
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 10px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scrim,
+  .card {
+    animation: none;
+  }
+}

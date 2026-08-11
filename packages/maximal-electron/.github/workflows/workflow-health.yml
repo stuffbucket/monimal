@@ -1,0 +1,149 @@
+# Whether the other workflows still run, and still work.
+#
+# `triage.yml` failed on all 77 of its runs and nothing said so.
+# `watch-rulesets.yml` has never run once. Neither is visible in a pull
+# request, and neither was noticed. Issue #153.
+#
+# ## Why this does not gate a merge
+#
+# A pull request cannot fix a hundred-percent failure rate in a workflow it
+# does not touch, and a workflow a pull request adds has no runs at all until
+# it merges. Making this required would be a merge freeze whose only remedy is
+# deleting the check, which is the failure
+# `.claude/skills/write-a-check/SKILL.md` was written for, one level up.
+#
+# So the answer to a finding is an issue, not a red tick. Seventy-five red runs
+# produced no issues; one issue is the whole difference. And `#139`'s rule
+# still applies at the seam: the half a pull request DOES own is gated. Exit 2
+# — the rules stopped detecting a dead workflow, the directory scan found
+# nothing, or the API could not be read — fails this job everywhere, including
+# on a pull request. Exit 1 is a finding about history, and is reported.
+#
+# ## Why it runs on a pull request as well as on a schedule
+#
+# A schedule fires only from the default branch. This file is being added on a
+# release branch, so its cron cannot fire until the release folds into `main`
+# — which is exactly the defect `watch-rulesets.yml` is. The `pull_request`
+# trigger fires where the file actually lives, so this job has run before it
+# merges rather than after. Shipping an unrun job to solve the unrun-job
+# problem would be its own joke.
+#
+# No `paths:` filter. A path filter is another hand-maintained list of what
+# matters, and this repository lost three workflows to a hand-list in one day.
+# The job takes well under a minute.
+#
+# See `docs/ci.md`.
+
+name: workflow-health
+
+on:
+  schedule:
+    # Daily, at an hour no other workflow here uses.
+    - cron: '41 7 * * *'
+  workflow_dispatch:
+  pull_request:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+concurrency:
+  group: workflow-health-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      # `--ignore-scripts` because the check needs `yaml` and nothing else.
+      # `prepare` builds the whole package, which this job never loads.
+      - run: npm ci --ignore-scripts
+
+      # `github.token` reads Actions on its own repository, which is all this
+      # needs. No credential is added.
+      - name: Read every workflow's run history
+        id: check
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set +e
+          node scripts/verify-workflow-health.mjs --body-file body.md 2>&1 | tee health.log
+          code=${PIPESTATUS[0]}
+          set -e
+          echo "code=${code}" >> "$GITHUB_OUTPUT"
+          {
+            echo '## Workflow health'
+            echo
+            echo '```'
+            cat health.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          case "$code" in
+            0) echo "State: HEALTHY" ;;
+            1) echo "State: BROKEN"
+               grep -E '^ FAIL ' health.log | while read -r line; do
+                 echo "::warning::${line}"
+               done ;;
+            2) echo "State: THIS CHECK COULD NOT RUN" ;;
+            3) echo "State: UNVERIFIED. Not a failure, and not a clean run." ;;
+            *) echo "::error::verify-workflow-health exited ${code}"; exit 1 ;;
+          esac
+
+      # Not on a pull request: one issue refreshed daily is a report, and one
+      # issue per pull request is spam.
+      - name: File or refresh the one issue
+        if: >-
+          (steps.check.outputs.code == '1' || steps.check.outputs.code == '2')
+          && github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: 'A workflow has stopped running, or never worked'
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -s body.md ]] || { echo "::error::No issue body was written"; exit 1; }
+          number="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
+            --search "\"$TITLE\" in:title" --json number,title \
+            --jq "map(select(.title == \"$TITLE\")) | .[0].number // empty")"
+          if [[ -n "$number" ]]; then
+            gh issue edit "$number" --repo "$GITHUB_REPOSITORY" --body-file body.md
+            echo "Refreshed #${number}"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" --body-file body.md
+          fi
+
+      - name: Close the issue once every workflow runs again
+        if: steps.check.outputs.code == '0' && github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: 'A workflow has stopped running, or never worked'
+        shell: bash
+        run: |
+          set -euo pipefail
+          number="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
+            --search "\"$TITLE\" in:title" --json number,title \
+            --jq "map(select(.title == \"$TITLE\")) | .[0].number // empty")"
+          if [[ -n "$number" ]]; then
+            gh issue close "$number" --repo "$GITHUB_REPOSITORY" \
+              --comment "Every workflow examined has run and is not failing every time. Closed by \`workflow-health\`."
+          else
+            echo "Nothing open to close."
+          fi
+
+      # The gating half, and the last step so the issue is filed first. A
+      # watcher that cannot see is the defect this whole workflow exists to
+      # end, so it is red everywhere — including on a pull request, which is
+      # the one place that can break the rules or the directory scan.
+      - name: Fail when this check could not run
+        if: steps.check.outputs.code == '2'
+        run: |
+          echo "::error::verify:workflow-health could not run, examined nothing, or read nothing"
+          exit 1

@@ -1,0 +1,105 @@
+# Repository settings this repository cannot make, and cannot see change.
+#
+# The rulesets protecting `main` and the release tags live in GitHub's settings
+# UI. No pull request can create one, and no pull request would notice one
+# being deleted. `scripts/rulesets.mjs` records the floor; this workflow is
+# what reads the live state and says when it drops below.
+#
+# ## Why this does not gate a merge
+#
+# The tag ruleset it asserts does not exist yet, so this check is red until the
+# owner creates it. A required check that no pull request can turn green is not
+# a gate, it is a merge freeze with one available remedy: deleting the check.
+# That is the failure `.claude/skills/write-a-check/SKILL.md` was written for,
+# one level up. So the gap is filed as one issue and refreshed, and the half of
+# this that a pull request CAN enforce — `verify:tag` in `release.yml` — is
+# blocking instead.
+#
+# See `docs/admin/repository-settings.md`.
+
+name: watch-rulesets
+
+on:
+  schedule:
+    # Daily. Drift here is a settings change, not a push, so nothing else fires.
+    - cron: '17 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: watch-rulesets
+  cancel-in-progress: false
+
+jobs:
+  rulesets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      # No `npm ci`. The script imports nothing outside `scripts/`.
+      #
+      # The token is the workflow's own. It cannot read repository
+      # administration, so the bypass list comes back unverified on every run
+      # here, which is why exit 3 is reported and not escalated: an alert that
+      # fires every single day is an alert nobody reads.
+      - name: Read the live rulesets
+        id: check
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set +e
+          node scripts/verify-rulesets.mjs --body-file body.md
+          code=$?
+          set -e
+          echo "code=${code}" >> "$GITHUB_OUTPUT"
+          case "$code" in
+            0) echo "State: PROTECTED" ;;
+            1) echo "State: UNPROTECTED" ;;
+            2) echo "State: UNREADABLE, or this run examined nothing" ;;
+            3) echo "State: UNVERIFIED. Not a failure, and not a clean run." ;;
+            *) echo "::error::verify-rulesets exited ${code}"; exit 1 ;;
+          esac
+
+      - name: File or refresh the one issue
+        if: steps.check.outputs.code == '1' || steps.check.outputs.code == '2'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: 'A repository ruleset is below the floor'
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -s body.md ]] || { echo "::error::No issue body was written"; exit 1; }
+          number="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
+            --search "\"$TITLE\" in:title" --json number,title \
+            --jq "map(select(.title == \"$TITLE\")) | .[0].number // empty")"
+          if [[ -n "$number" ]]; then
+            gh issue edit "$number" --repo "$GITHUB_REPOSITORY" --body-file body.md
+            echo "Refreshed #${number}"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" --body-file body.md
+          fi
+
+      - name: Close the issue once the gap is gone
+        if: steps.check.outputs.code == '0' || steps.check.outputs.code == '3'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: 'A repository ruleset is below the floor'
+        shell: bash
+        run: |
+          set -euo pipefail
+          number="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
+            --search "\"$TITLE\" in:title" --json number,title \
+            --jq "map(select(.title == \"$TITLE\")) | .[0].number // empty")"
+          if [[ -n "$number" ]]; then
+            gh issue close "$number" --repo "$GITHUB_REPOSITORY" \
+              --comment "Every readable assertion holds again. Closed by \`watch-rulesets\`."
+          else
+            echo "Nothing open to close."
+          fi

@@ -1,0 +1,817 @@
+import { type AnthropicStreamEventData } from "~/lib/models/anthropic-types"
+import { asRecord } from "~/routes/untrusted-frame"
+import {
+  type ResponseCompletedEvent,
+  type ResponseCreatedEvent,
+  type ResponseErrorEvent,
+  type ResponseFailedEvent,
+  type ResponseFunctionCallArgumentsDeltaEvent,
+  type ResponseFunctionCallArgumentsDoneEvent,
+  type ResponseIncompleteEvent,
+  type ResponseOutputItemAddedEvent,
+  type ResponseOutputItemDoneEvent,
+  type ResponseReasoningSummaryTextDeltaEvent,
+  type ResponseReasoningSummaryTextDoneEvent,
+  type ResponsesResult,
+  type ResponseStreamEvent,
+  type ResponseTextDeltaEvent,
+  type ResponseTextDoneEvent,
+} from "~/services/copilot/create-responses"
+
+import {
+  THINKING_TEXT,
+  encodeCompactionCarrierSignature,
+  translateResponsesResultToAnthropic,
+} from "./responses-translation"
+
+const MAX_CONSECUTIVE_FUNCTION_CALL_WHITESPACE = 20
+
+class FunctionCallArgumentsValidationError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = "FunctionCallArgumentsValidationError"
+  }
+}
+
+const updateWhitespaceRunState = (
+  previousCount: number,
+  chunk: string,
+): {
+  nextCount: number
+  exceeded: boolean
+} => {
+  let count = previousCount
+
+  for (const char of chunk) {
+    if (char === "\r" || char === "\n" || char === "\t") {
+      count += 1
+      if (count > MAX_CONSECUTIVE_FUNCTION_CALL_WHITESPACE) {
+        return { nextCount: count, exceeded: true }
+      }
+      continue
+    }
+
+    if (char !== " ") {
+      count = 0
+    }
+  }
+
+  return { nextCount: count, exceeded: false }
+}
+
+export interface ResponsesStreamState {
+  /**
+   * Locally-estimated prompt size, used only for `message_start`.
+   *
+   * The Responses API sends `usage: null` on `response.created`, so upstream has
+   * nothing to give us at the moment Anthropic's contract wants the input side
+   * of the ledger. Emitting 0 there is not a harmless placeholder: a client
+   * stamps it onto every record it flushes before the terminal `message_delta`,
+   * which is how ~30% of Claude Code's assistant rows for a Responses-flow model
+   * ended up reporting zero context (maximal-core: gpt-5.6-sol context meter).
+   *
+   * Undefined when the estimate could not be produced — then we fall back to the
+   * old zero rather than inventing a number.
+   */
+  estimatedInputTokens?: number
+  messageStartSent: boolean
+  messageCompleted: boolean
+  nextContentBlockIndex: number
+  blockIndexByKey: Map<string, number>
+  openBlocks: Set<number>
+  blockHasDelta: Set<number>
+  functionCallStateByOutputIndex: Map<number, FunctionCallStreamState>
+}
+
+type FunctionCallStreamState = {
+  blockIndex: number
+  toolCallId: string
+  name: string
+  consecutiveWhitespaceCount: number
+}
+
+export const createResponsesStreamState = (
+  estimatedInputTokens?: number,
+): ResponsesStreamState => ({
+  estimatedInputTokens,
+  messageStartSent: false,
+  messageCompleted: false,
+  nextContentBlockIndex: 0,
+  blockIndexByKey: new Map(),
+  openBlocks: new Set(),
+  blockHasDelta: new Set(),
+  functionCallStateByOutputIndex: new Map(),
+})
+
+/**
+ * Boundary tolerance for the `casts-keep: … translator tolerates missing
+ * fields` sites that feed this function.
+ *
+ * `rawEvent` is a `JSON.parse` of an upstream SSE frame cast to
+ * `ResponseStreamEvent`; nothing checked it. Three of the handlers below
+ * dereference a required sub-object — `rawEvent.response` on the terminal
+ * events, `rawEvent.item` on the output-item events — and a frame that carries
+ * the discriminating `type` without the body it implies used to throw there,
+ * aborting the rest of the stream. Each such handler now returns a defined
+ * outcome instead; unknown `type`s already returned `[]`.
+ *
+ * Exercised in `tests/stream-boundary-tolerance.test.ts`.
+ */
+export const translateResponsesStreamEvent = (
+  rawEvent: ResponseStreamEvent,
+  state: ResponsesStreamState,
+): Array<AnthropicStreamEventData> =>
+  asRecord(rawEvent) ? dispatchResponsesStreamEvent(rawEvent, state) : []
+
+const dispatchResponsesStreamEvent = (
+  rawEvent: ResponseStreamEvent,
+  state: ResponsesStreamState,
+): Array<AnthropicStreamEventData> => {
+  const eventType = rawEvent.type
+  switch (eventType) {
+    case "response.created": {
+      return handleResponseCreated(rawEvent, state)
+    }
+
+    case "response.output_item.added": {
+      return handleOutputItemAdded(rawEvent, state)
+    }
+
+    case "response.reasoning_summary_text.delta": {
+      return handleReasoningSummaryTextDelta(rawEvent, state)
+    }
+
+    case "response.output_text.delta": {
+      return handleOutputTextDelta(rawEvent, state)
+    }
+
+    case "response.reasoning_summary_text.done": {
+      return handleReasoningSummaryTextDone(rawEvent, state)
+    }
+
+    case "response.output_text.done": {
+      return handleOutputTextDone(rawEvent, state)
+    }
+    case "response.output_item.done": {
+      return handleOutputItemDone(rawEvent, state)
+    }
+
+    case "response.function_call_arguments.delta": {
+      return handleFunctionCallArgumentsDelta(rawEvent, state)
+    }
+
+    case "response.function_call_arguments.done": {
+      return handleFunctionCallArgumentsDone(rawEvent, state)
+    }
+
+    case "response.completed":
+    case "response.incomplete": {
+      return handleResponseCompleted(rawEvent, state)
+    }
+
+    case "response.failed": {
+      return handleResponseFailed(rawEvent, state)
+    }
+
+    case "error": {
+      return handleErrorEvent(rawEvent, state)
+    }
+
+    default: {
+      return []
+    }
+  }
+}
+
+// Helper handlers to keep translateResponsesStreamEvent concise
+const handleResponseCreated = (
+  rawEvent: ResponseCreatedEvent,
+  state: ResponsesStreamState,
+): Array<AnthropicStreamEventData> => {
+  if (!asRecord(rawEvent.response)) {
+    return []
+  }
+  return messageStart(state, rawEvent.response)
+}
+
+const handleOutputItemAdded = (
+  rawEvent: ResponseOutputItemAddedEvent,
+  state: ResponsesStreamState,
+): Array<AnthropicStreamEventData> => {
+  const events = new Array<AnthropicStreamEventData>()
+  const functionCallDetails = extractFunctionCallDetails(rawEvent)
+  if (!functionCallDetails) {
+    return events
+  }
+
+  const { outputIndex, toolCallId, name, initialArguments } =
+    functionCallDetails
+  const blockIndex = openFunctionCallBlock(state, {
+    outputIndex,
+    toolCallId,
+    name,
+    events,
+  })
+
+  if (initialArguments !== undefined && initialArguments.length > 0) {
+    events.push({
+      type: "content_block_delta",
+      index: blockIndex,
+      delta: {
+        type: "input_json_delta",
+        partial_json: initialArguments,
+      },
+    })
+    state.blockHasDelta.add(blockIndex)
+  }
+
+  return events
+}
+
+const handleOutputItemDone = (
+  rawEvent: ResponseOutputItemDoneEvent,
+  state: ResponsesStreamState,
+): Array<AnthropicStreamEventData> => {
+  const events = new Array<AnthropicStreamEventData>()
+  const item = rawEvent.item
+  if (!asRecord(item)) {
+    return events
+  }
+  const itemType = item.type
+  const outputIndex = rawEvent.output_index
+
+  if (itemType === "compaction") {
+    if (!item.id || !item.encrypted_content) {
+      return events
+    }
+
+    const blockIndex = openThinkingBlockIfNeeded(state, outputIndex, events)
+
+    if (!state.blockHasDelta.has(blockIndex)) {
+      events.push({
+        type: "content_block_delta",
+        index: blockIndex,
+        delta: {
+          type: "thinking_delta",
+          thinking: THINKING_TEXT,
+        },
+      })
+    }
+
+    events.push({
+      type: "content_block_delta",
+      index: blockIndex,
+      delta: {
+        type: "signature_delta",
+        signature: encodeCompactionCarrierSignature({
+          id: item.id,
+          encrypted_content: item.encrypted_content,
+        }),
+      },
+    })
+    state.blockHasDelta.add(blockIndex)
+    return events
+  }
+
+  if (itemType !== "reasoning") {
+    return events
+  }
+
+  const blockIndex = openThinkingBlockIfNeeded(state, outputIndex, events)
+  const signature = (item.encrypted_content ?? "") + "@" + item.id
+  if (signature) {
+    // Compatible with opencode, it will filter out blocks where the thinking text is empty, so we add a default thinking text here
+    if (!item.summary || item.summary.length === 0) {
+      events.push({
+        type: "content_block_delta",
+        index: blockIndex,
+        delta: {
+          type: "thinking_delta",
+          thinking: THINKING_TEXT,
+        },
+      })
+    }
+
+    events.push({
+      type: "content_block_delta",
+      index: blockIndex,
+      delta: {
+        type: "signature_delta",
+        signature,
+      },
+    })
+    state.blockHasDelta.add(blockIndex)
+  }
+
+  return events
+}
+
+const handleFunctionCallArgumentsDelta = (
+  rawEvent: ResponseFunctionCallArgumentsDeltaEvent,
+  state: ResponsesStreamState,
+): Array<AnthropicStreamEventData> => {
+  const events = new Array<AnthropicStreamEventData>()
+  const outputIndex = rawEvent.output_index
+  const deltaText = rawEvent.delta
+
+  if (!deltaText) {
+    return events
+  }
+
+  const blockIndex = openFunctionCallBlock(state, {
+    outputIndex,
+    events,
+  })
+
+  const functionCallState =
+    state.functionCallStateByOutputIndex.get(outputIndex)
+  if (!functionCallState) {
+    return handleFunctionCallArgumentsValidationError(
+      new FunctionCallArgumentsValidationError(
+        "Received function call arguments delta without an open tool call block.",
+      ),
+      state,
+      events,
+    )
+  }
+
+  // fix: copolit function call returning infinite line breaks until max_tokens limit
+  // "arguments": "{\"path\":\"xxx\",\"pattern\":\"**/*.ts\",\"} }? Wait extra braces. Need correct. I should run? Wait overcame. Need proper JSON with pattern \"\n\n\n\n\n\n\n\n...
+  const { nextCount, exceeded } = updateWhitespaceRunState(
+    functionCallState.consecutiveWhitespaceCount,
+    deltaText,
+  )
+  if (exceeded) {
+    return handleFunctionCallArgumentsValidationError(
+      new FunctionCallArgumentsValidationError(
+        "Received function call arguments delta containing more than 20 consecutive whitespace characters.",
+      ),
+      state,
+      events,
+    )
+  }
+  functionCallState.consecutiveWhitespaceCount = nextCount
+
+  events.push({
+    type: "content_block_delta",
+    index: blockIndex,
+    delta: {
+      type: "input_json_delta",
+      partial_json: deltaText,
+    },
+  })
+  state.blockHasDelta.add(blockIndex)
+
+  return events
+}
+
+const handleFunctionCallArgumentsDone = (
+  rawEvent: ResponseFunctionCallArgumentsDoneEvent,
+  state: ResponsesStreamState,
+): Array<AnthropicStreamEventData> => {
+  const events = new Array<AnthropicStreamEventData>()
+  const outputIndex = rawEvent.output_index
+  const blockIndex = openFunctionCallBlock(state, {
+    outputIndex,
+    events,
+  })
+
+  const finalArguments =
+    typeof rawEvent.arguments === "string" ? rawEvent.arguments : undefined
+
+  if (!state.blockHasDelta.has(blockIndex) && finalArguments) {
+    events.push({
+      type: "content_block_delta",
+      index: blockIndex,
+      delta: {
+        type: "input_json_delta",
+        partial_json: finalArguments,
+      },
+    })
+    state.blockHasDelta.add(blockIndex)
+  }
+
+  state.functionCallStateByOutputIndex.delete(outputIndex)
+  return events
+}
+
+const handleOutputTextDelta = (
+  rawEvent: ResponseTextDeltaEvent,
+  state: ResponsesStreamState,
+): Array<AnthropicStreamEventData> => {
+  const events = new Array<AnthropicStreamEventData>()
+  const outputIndex = rawEvent.output_index
+  const contentIndex = rawEvent.content_index
+  const deltaText = rawEvent.delta
+
+  if (!deltaText) {
+    return events
+  }
+
+  const blockIndex = openTextBlockIfNeeded(state, {
+    outputIndex,
+    contentIndex,
+    events,
+  })
+
+  events.push({
+    type: "content_block_delta",
+    index: blockIndex,
+    delta: {
+      type: "text_delta",
+      text: deltaText,
+    },
+  })
+  state.blockHasDelta.add(blockIndex)
+
+  return events
+}
+
+const handleReasoningSummaryTextDelta = (
+  rawEvent: ResponseReasoningSummaryTextDeltaEvent,
+  state: ResponsesStreamState,
+): Array<AnthropicStreamEventData> => {
+  const outputIndex = rawEvent.output_index
+  const deltaText = rawEvent.delta
+  const events = new Array<AnthropicStreamEventData>()
+  const blockIndex = openThinkingBlockIfNeeded(state, outputIndex, events)
+
+  events.push({
+    type: "content_block_delta",
+    index: blockIndex,
+    delta: {
+      type: "thinking_delta",
+      thinking: deltaText,
+    },
+  })
+  state.blockHasDelta.add(blockIndex)
+
+  return events
+}
+
+const handleReasoningSummaryTextDone = (
+  rawEvent: ResponseReasoningSummaryTextDoneEvent,
+  state: ResponsesStreamState,
+): Array<AnthropicStreamEventData> => {
+  const outputIndex = rawEvent.output_index
+  const text = rawEvent.text
+  const events = new Array<AnthropicStreamEventData>()
+  const blockIndex = openThinkingBlockIfNeeded(state, outputIndex, events)
+
+  if (text && !state.blockHasDelta.has(blockIndex)) {
+    events.push({
+      type: "content_block_delta",
+      index: blockIndex,
+      delta: {
+        type: "thinking_delta",
+        thinking: text,
+      },
+    })
+  }
+
+  return events
+}
+
+const handleOutputTextDone = (
+  rawEvent: ResponseTextDoneEvent,
+  state: ResponsesStreamState,
+): Array<AnthropicStreamEventData> => {
+  const events = new Array<AnthropicStreamEventData>()
+  const outputIndex = rawEvent.output_index
+  const contentIndex = rawEvent.content_index
+  const text = rawEvent.text
+
+  const blockIndex = openTextBlockIfNeeded(state, {
+    outputIndex,
+    contentIndex,
+    events,
+  })
+
+  if (text && !state.blockHasDelta.has(blockIndex)) {
+    events.push({
+      type: "content_block_delta",
+      index: blockIndex,
+      delta: {
+        type: "text_delta",
+        text,
+      },
+    })
+  }
+
+  return events
+}
+
+const handleResponseCompleted = (
+  rawEvent: ResponseCompletedEvent | ResponseIncompleteEvent,
+  state: ResponsesStreamState,
+): Array<AnthropicStreamEventData> => {
+  const response = rawEvent.response
+  const events = new Array<AnthropicStreamEventData>()
+
+  closeAllOpenBlocks(state, events)
+
+  // A terminal frame whose `response` body never arrived (truncation, an
+  // upstream shape change) used to throw here and abort the stream. Terminate
+  // it deliberately instead: the turn is over either way, and an `error` event
+  // is a defined outcome a client can act on.
+  if (!asRecord(response)) {
+    events.push(
+      buildErrorEvent(
+        `Upstream sent ${rawEvent.type} with no response body; the stream cannot be completed.`,
+      ),
+    )
+    state.messageCompleted = true
+    return events
+  }
+
+  const anthropic = translateResponsesResultToAnthropic(response)
+  events.push(
+    {
+      type: "message_delta",
+      delta: {
+        stop_reason: anthropic.stop_reason,
+        stop_sequence: anthropic.stop_sequence,
+      },
+      usage: anthropic.usage,
+    },
+    { type: "message_stop" },
+  )
+  state.messageCompleted = true
+  return events
+}
+
+const handleResponseFailed = (
+  rawEvent: ResponseFailedEvent,
+  state: ResponsesStreamState,
+): Array<AnthropicStreamEventData> => {
+  const response = rawEvent.response
+  const events = new Array<AnthropicStreamEventData>()
+  closeAllOpenBlocks(state, events)
+
+  const errorMessage = asRecord(asRecord(response)?.error)?.message
+  const message =
+    typeof errorMessage === "string" ? errorMessage : (
+      "The response failed due to an unknown error."
+    )
+
+  events.push(buildErrorEvent(message))
+  state.messageCompleted = true
+
+  return events
+}
+
+const handleErrorEvent = (
+  rawEvent: ResponseErrorEvent,
+  state: ResponsesStreamState,
+): Array<AnthropicStreamEventData> => {
+  const message =
+    typeof rawEvent.message === "string" ?
+      rawEvent.message
+    : "An unexpected error occurred during streaming."
+
+  state.messageCompleted = true
+  return [buildErrorEvent(message)]
+}
+
+const handleFunctionCallArgumentsValidationError = (
+  error: FunctionCallArgumentsValidationError,
+  state: ResponsesStreamState,
+  events: Array<AnthropicStreamEventData> = [],
+): Array<AnthropicStreamEventData> => {
+  const reason = error.message
+
+  closeAllOpenBlocks(state, events)
+  state.messageCompleted = true
+
+  events.push(buildErrorEvent(reason))
+
+  return events
+}
+
+const messageStart = (
+  state: ResponsesStreamState,
+  response: ResponsesResult,
+): Array<AnthropicStreamEventData> => {
+  state.messageStartSent = true
+  const inputCachedTokens = response.usage?.input_tokens_details?.cached_tokens
+  // Upstream usage when it exists, the local estimate when it does not. On the
+  // Responses API it never does at `response.created` — usage only appears on
+  // `response.completed` — so in practice this is the estimate, corrected by the
+  // authoritative numbers in the terminal `message_delta`. The estimate only has
+  // to be good enough that a context meter is not reading zero for the whole
+  // response; being approximate beats being wrong.
+  const upstreamInput = response.usage?.input_tokens
+  const inputTokens =
+    upstreamInput === undefined ?
+      (state.estimatedInputTokens ?? 0)
+    : upstreamInput - (inputCachedTokens ?? 0)
+  return [
+    {
+      type: "message_start",
+      message: {
+        id: response.id,
+        type: "message",
+        role: "assistant",
+        content: [],
+        model: response.model,
+        stop_reason: null,
+        stop_sequence: null,
+        usage: {
+          input_tokens: inputTokens,
+          output_tokens: 0,
+          cache_read_input_tokens: inputCachedTokens ?? 0,
+        },
+      },
+    },
+  ]
+}
+
+const openTextBlockIfNeeded = (
+  state: ResponsesStreamState,
+  params: {
+    outputIndex: number
+    contentIndex: number
+    events: Array<AnthropicStreamEventData>
+  },
+): number => {
+  const { outputIndex, contentIndex, events } = params
+  const key = getBlockKey(outputIndex, contentIndex)
+  let blockIndex = state.blockIndexByKey.get(key)
+
+  if (blockIndex === undefined) {
+    blockIndex = state.nextContentBlockIndex
+    state.nextContentBlockIndex += 1
+    state.blockIndexByKey.set(key, blockIndex)
+  }
+
+  if (!state.openBlocks.has(blockIndex)) {
+    closeOpenBlocks(state, events)
+    events.push({
+      type: "content_block_start",
+      index: blockIndex,
+      content_block: {
+        type: "text",
+        text: "",
+      },
+    })
+    state.openBlocks.add(blockIndex)
+  }
+
+  return blockIndex
+}
+
+const openThinkingBlockIfNeeded = (
+  state: ResponsesStreamState,
+  outputIndex: number,
+  events: Array<AnthropicStreamEventData>,
+): number => {
+  //thinking blocks has multiple summary_index, should combine into one block
+  const summaryIndex = 0
+  const key = getBlockKey(outputIndex, summaryIndex)
+  let blockIndex = state.blockIndexByKey.get(key)
+
+  if (blockIndex === undefined) {
+    blockIndex = state.nextContentBlockIndex
+    state.nextContentBlockIndex += 1
+    state.blockIndexByKey.set(key, blockIndex)
+  }
+
+  if (!state.openBlocks.has(blockIndex)) {
+    closeOpenBlocks(state, events)
+    events.push({
+      type: "content_block_start",
+      index: blockIndex,
+      content_block: {
+        type: "thinking",
+        thinking: "",
+      },
+    })
+    state.openBlocks.add(blockIndex)
+  }
+
+  return blockIndex
+}
+
+const closeBlockIfOpen = (
+  state: ResponsesStreamState,
+  blockIndex: number,
+  events: Array<AnthropicStreamEventData>,
+) => {
+  if (!state.openBlocks.has(blockIndex)) {
+    return
+  }
+
+  events.push({ type: "content_block_stop", index: blockIndex })
+  state.openBlocks.delete(blockIndex)
+  state.blockHasDelta.delete(blockIndex)
+}
+
+const closeOpenBlocks = (
+  state: ResponsesStreamState,
+  events: Array<AnthropicStreamEventData>,
+) => {
+  for (const blockIndex of state.openBlocks) {
+    closeBlockIfOpen(state, blockIndex, events)
+  }
+}
+
+const closeAllOpenBlocks = (
+  state: ResponsesStreamState,
+  events: Array<AnthropicStreamEventData>,
+) => {
+  closeOpenBlocks(state, events)
+
+  state.functionCallStateByOutputIndex.clear()
+}
+
+export const buildErrorEvent = (message: string): AnthropicStreamEventData => ({
+  type: "error",
+  error: {
+    type: "api_error",
+    message,
+  },
+})
+
+const getBlockKey = (outputIndex: number, contentIndex: number): string =>
+  `${outputIndex}:${contentIndex}`
+
+const openFunctionCallBlock = (
+  state: ResponsesStreamState,
+  params: {
+    outputIndex: number
+    toolCallId?: string
+    name?: string
+    events: Array<AnthropicStreamEventData>
+  },
+): number => {
+  const { outputIndex, toolCallId, name, events } = params
+
+  let functionCallState = state.functionCallStateByOutputIndex.get(outputIndex)
+
+  if (!functionCallState) {
+    const blockIndex = state.nextContentBlockIndex
+    state.nextContentBlockIndex += 1
+
+    const resolvedToolCallId = toolCallId ?? `tool_call_${blockIndex}`
+    const resolvedName = name ?? "function"
+
+    functionCallState = {
+      blockIndex,
+      toolCallId: resolvedToolCallId,
+      name: resolvedName,
+      consecutiveWhitespaceCount: 0,
+    }
+
+    state.functionCallStateByOutputIndex.set(outputIndex, functionCallState)
+  }
+
+  const { blockIndex } = functionCallState
+
+  if (!state.openBlocks.has(blockIndex)) {
+    closeOpenBlocks(state, events)
+    events.push({
+      type: "content_block_start",
+      index: blockIndex,
+      content_block: {
+        type: "tool_use",
+        id: functionCallState.toolCallId,
+        name: functionCallState.name,
+        input: {},
+      },
+    })
+    state.openBlocks.add(blockIndex)
+  }
+
+  return blockIndex
+}
+
+type FunctionCallDetails = {
+  outputIndex: number
+  toolCallId: string
+  name: string
+  initialArguments?: string
+}
+
+const extractFunctionCallDetails = (
+  rawEvent: ResponseOutputItemAddedEvent,
+): FunctionCallDetails | undefined => {
+  const item = rawEvent.item
+  if (!asRecord(item)) {
+    return undefined
+  }
+  const itemType = item.type
+  if (itemType !== "function_call") {
+    return undefined
+  }
+
+  const outputIndex = rawEvent.output_index
+  const toolCallId = item.call_id
+  const name = item.name
+  const initialArguments = item.arguments
+  return {
+    outputIndex,
+    toolCallId,
+    name,
+    initialArguments,
+  }
+}

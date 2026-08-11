@@ -1,0 +1,89 @@
+---
+// Restrained hero: the neutral Fraunces wordmark, a short tagline, and bronze
+// download CTAs. No shaders, no typewriter — type + space carry it.
+import { getDownloadInfo } from "../../lib/downloads";
+interface Props {
+  tagline: string;
+  downloadLabel?: string;
+}
+const { tagline, downloadLabel = "Download for macOS" } = Astro.props;
+// Markdoc doesn't forward $variables into tag attributes, so pull the resolved
+// release straight from the shared (memoized) build-time module.
+const { macDmg: downloadUrl, versionLabel, winSetup, hasWindows } =
+  await getDownloadInfo();
+---
+
+<header class="hero" aria-labelledby="title">
+  <span class="hero__watermark" aria-hidden="true">m</span>
+  <h1 id="title" class="wordmark">maximal</h1>
+  <p class="tagline">{tagline}</p>
+
+  {/* Server-rendered fallback (SEO / no-JS / fetch failure). A small bundled
+      script in index.astro upgrades these anchors' href + version pill from the
+      runtime manifest via the data-os / data-version-pill hooks. */}
+  <div class="hero-cta">
+    {
+      downloadUrl && (
+        <a
+          class="btn btn--primary hero-cta__item"
+          data-os="mac"
+          href={downloadUrl}
+          rel="noopener"
+        >
+          <span class="btn-label">{downloadLabel}</span>
+          {versionLabel && (
+            <span class="btn-meta" data-version-pill>
+              {versionLabel}
+            </span>
+          )}
+        </a>
+      )
+    }
+    {
+      hasWindows ? (
+        <a
+          class="btn btn--primary hero-cta__item"
+          data-os="windows"
+          href={winSetup}
+          rel="noopener"
+        >
+          <span class="btn-label">Download for Windows</span>
+          {versionLabel && (
+            <span class="btn-meta" data-version-pill>
+              {versionLabel}
+            </span>
+          )}
+        </a>
+      ) : (
+        <div
+          class="btn btn--soon hero-cta__item"
+          data-os="windows"
+          aria-disabled="true"
+        >
+          <span class="btn-label">Windows</span>
+          <span class="btn-meta">coming soon</span>
+        </div>
+      )
+    }
+  </div>
+</header>
+
+<style>
+  .hero-cta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+  }
+  .hero-cta__item {
+    flex: 0 0 auto;
+  }
+
+  @media (max-width: 560px) {
+    .hero-cta,
+    .hero-cta__item {
+      width: 100%;
+    }
+  }
+</style>

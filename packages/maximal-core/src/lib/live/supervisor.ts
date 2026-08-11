@@ -1,0 +1,279 @@
+/**
+ * Sidecar supervision helpers for a host that spawns `maximal start`
+ * (stuffbucket/maximal#408).
+ *
+ * Core owns the ready-line protocol, so it owns the parser. The alternative —
+ * every host re-deriving the marker format — is the drift hazard the contract
+ * package exists to prevent, and a supervisor that mis-parses the line hangs
+ * forever on a sidecar that started fine.
+ *
+ * Deliberately **no `child_process` dependency**: this takes the already-spawned
+ * process's stdout as an async iterable. A host may spawn with `node:child_process`,
+ * Electron's `utilityProcess`, Bun.spawn, or a test double, and core has no
+ * business dictating which. The boundary is the protocol, not the process model.
+ */
+import {
+  anyReadyLineSchema,
+  BOOT_STATUS_MARKER,
+  type ParsedReadyLine,
+  READY_MARKER,
+} from "~/lib/start/boot-status"
+
+/**
+ * The three non-ready stdout markers, re-exported so a supervisor can implement
+ * the documented behaviour without copying the literals.
+ *
+ * `boot-status.ts` says all marker constants MUST stay in sync with the
+ * supervisor that parses them — and until this export existed there was no way
+ * for a supervisor to obey it, because `./supervisor` carried only the
+ * ready-line helpers and Node's `exports` map rejects a deeper path. So a host
+ * hardcoded `"@@MAXIMAL_STATUS@@"` (stuffbucket/maximal
+ * `client/src/main/core.ts`), and a change here would have degraded it
+ * SILENTLY: the splash simply stops updating and shows a blank "Starting…"
+ * again — the exact failure the marker exists to prevent, with no error
+ * anywhere (maximal-core#110).
+ *
+ * - `BOOT_STATUS_MARKER` — prefixes a boot-phase line; use `parseBootStatus`
+ *   rather than matching it by hand.
+ * - `QUIT_REQUEST_MARKER` / `UPDATE_REQUEST_MARKER` — whole lines with no
+ *   payload, so an equality check against the trimmed line is the whole parse
+ *   and no helper would add anything.
+ */
+export {
+  BOOT_STATUS_MARKER,
+  QUIT_REQUEST_MARKER,
+  UPDATE_REQUEST_MARKER,
+} from "~/lib/start/boot-status"
+
+/**
+ * The ready-line payloads, re-exported so a consumer of `./supervisor` can
+ * *name* what these functions return.
+ *
+ * They were previously reachable only by inference, which is a contract defect
+ * in its own right: a host could not declare a field, write a helper signature,
+ * or narrow on the version without re-deriving the shape by hand — the exact
+ * drift this module exists to prevent.
+ *
+ * - `ParsedReadyLine` — what `parseReadyLine`/`awaitReadyLine` return.
+ * - `ReadyLine` — the subset an engine at the current version emits (`v >= 1`).
+ *
+ * The zod schemas themselves are deliberately **not** re-exported. A consumer
+ * that wants validation should call `parseReadyLine`, which is the one parser
+ * that also strips the marker prefix and honours the null-on-garbage contract;
+ * handing out the raw schemas invites a second, subtly different parser, which
+ * is the drift this module exists to prevent. There is nothing a caller can do
+ * with a bare schema that `parseReadyLine` does not already do correctly.
+ */
+export type { ParsedReadyLine, ReadyLine } from "~/lib/start/boot-status"
+
+/**
+ * Append what the sidecar actually emitted to a boot-failure message.
+ *
+ * A failed boot is usually observed once, in a log, by someone who cannot
+ * re-run it. "It did not become ready" names the symptom; the child's own
+ * output names the cause, and it is almost always on stderr — which this module
+ * never sees, by construction (it is handed stdout and nothing else). So the
+ * transcript arrives as a string from the supervisor that owns the pipes.
+ *
+ * Optional, so `new SidecarExitedError()` keeps working for a host that has
+ * nothing to add.
+ */
+function withOutput(message: string, output?: string): string {
+  const trimmed = output?.trim()
+  return trimmed ? `${message}\n${trimmed}` : message
+}
+
+/** Thrown when the sidecar never announces readiness. Distinguishes "it died"
+ *  from "it is still starting", which a supervisor must report differently. */
+export class SidecarReadyTimeoutError extends Error {
+  constructor(timeoutMs: number, output?: string) {
+    super(
+      withOutput(
+        `Sidecar did not emit a ready-line within ${timeoutMs}ms`,
+        output,
+      ),
+    )
+    this.name = "SidecarReadyTimeoutError"
+  }
+}
+
+/** Thrown when stdout closed before a ready-line arrived — the sidecar exited. */
+export class SidecarExitedError extends Error {
+  constructor(output?: string) {
+    super(
+      withOutput(
+        "Sidecar stdout closed before it emitted a ready-line",
+        output,
+      ),
+    )
+    this.name = "SidecarExitedError"
+  }
+}
+
+/**
+ * Parse one stdout line, returning the ready payload or null for anything else.
+ *
+ * Validated with the schema the emitter is typed from (`anyReadyLineSchema`,
+ * whose current-version branch *is* `readyLineSchema`), so the two cannot drift
+ * — and it accepts both versions, because this parser ships to hosts that may
+ * supervise an older or newer engine than themselves:
+ *
+ * - **v1** — `{v:1, controlPort, proxyPort, pid}`, two listeners. Any higher `v`
+ *   carrying those fields parses too: a newer engine must not hang an older host.
+ * - **v0** (no `v`) — the original `{port, pid}`, normalised by pointing both
+ *   ports at it, which is what that engine actually did.
+ *
+ * Returns `ParsedReadyLine`, **not** `ReadyLine`: the v0 branch reports `v: 0`,
+ * which the emitter's `v >= 1` does not admit. Annotating this `ReadyLine` type-
+ * checks (`0` is a `number`) and is exactly the lie this signature avoids.
+ * Nothing else changes for a caller — normalisation is total, so the ports and
+ * pid are usable without narrowing on `v`.
+ *
+ * Returns null rather than throwing on a malformed marker line: a supervisor
+ * should keep reading (the real line may follow) instead of aborting a healthy
+ * boot over one garbled write.
+ */
+export function parseReadyLine(line: string): ParsedReadyLine | null {
+  const trimmed = line.trim()
+  if (!trimmed.startsWith(`${READY_MARKER} `)) return null
+  try {
+    const parsed = anyReadyLineSchema.safeParse(
+      JSON.parse(trimmed.slice(READY_MARKER.length + 1)),
+    )
+    return parsed.success ? parsed.data : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Pull the human-readable message out of a boot-status line, or null if the
+ * line is not one.
+ *
+ * Paired with `awaitReadyLine`'s `onLine`, this is the whole splash relay: feed
+ * each line here, and show the string when it is non-null. Shipping the marker
+ * without the parser would leave every host to write `startsWith` + `slice`
+ * itself, which is the second-parser drift this module's ready-line docs argue
+ * against — and the same reasoning applies to a one-line prefix.
+ *
+ * The message is returned verbatim after the single separating space, NOT
+ * trimmed: `emitBootStatus` writes exactly what it was given, and a supervisor
+ * that wants to render leading indentation should be able to. Only the line
+ * terminator is stripped, and `\r\n` as well as `\n` — a host on Windows reads
+ * the same stdout, and `trimEnd()` here would eat a trailing space that is part
+ * of the message. An empty message yields `""`, which is a boot-status line
+ * carrying nothing — distinct from `null`, which means "not a boot-status line
+ * at all". Check against `null` explicitly; `if (parseBootStatus(line))`
+ * silently drops the empty case.
+ */
+export function parseBootStatus(line: string): string | null {
+  const withoutTerminator = line.replace(/\r?\n$/u, "")
+  const prefix = `${BOOT_STATUS_MARKER} `
+  if (!withoutTerminator.startsWith(prefix)) return null
+  return withoutTerminator.slice(prefix.length)
+}
+
+export interface AwaitReadyOptions {
+  /** Give up after this long. A supervisor needs an upper bound, or a sidecar
+   *  wedged before its bind hangs the whole app launch. */
+  timeoutMs?: number
+  /** Called for every non-ready stdout line — wire to a log or the splash so a
+   *  slow boot shows progress instead of a blank window. */
+  onLine?: (line: string) => void
+}
+
+const DEFAULT_READY_TIMEOUT_MS = 30_000
+
+/** Emit whole lines left in the buffer behind the ready marker. */
+function flushTrailing(buffer: string, onLine?: (line: string) => void): void {
+  if (!onLine) return
+  for (const line of buffer.split("\n")) {
+    if (line.trim()) onLine(line)
+  }
+}
+
+/**
+ * Read the sidecar's stdout until it announces readiness.
+ *
+ * Resolves with the bound ports and pid — `controlPort` because a supervised
+ * sidecar binds an **ephemeral** control port and this is the only way to learn
+ * it, `proxyPort` because the public `/v1` port falls back when 4141 is busy
+ * (maximal-core#10), and the pid because it is the invalidation key for a cached
+ * `server/discover` (maximal-core#8).
+ *
+ * Resolves with a `ParsedReadyLine`, so an engine older than this host resolves
+ * too (`v: 0`, both ports pointing at its single listener). A host that wants to
+ * log which protocol version it is supervising narrows on `v`; a host that only
+ * wants to connect does not have to.
+ *
+ * Lines are re-assembled across chunk boundaries: stdout is a byte stream, and a
+ * marker can straddle two reads. A supervisor that split on chunks rather than
+ * newlines would drop the line intermittently under load, which is exactly the
+ * kind of bug that only shows up on a slow machine.
+ *
+ * **The stream is left open.** Iteration is manual rather than `for await`,
+ * because exiting a `for await` calls `iterator.return()`, which destroys a Node
+ * Readable — closing the read end of the pipe so the sidecar dies with `EPIPE`
+ * on its very next log line. The host keeps ownership and must continue draining
+ * stdout after this resolves, or the pipe buffer fills and the child blocks.
+ */
+export async function awaitReadyLine(
+  stdout: AsyncIterable<Uint8Array | string>,
+  options: AwaitReadyOptions = {},
+): Promise<ParsedReadyLine> {
+  const timeoutMs = options.timeoutMs ?? DEFAULT_READY_TIMEOUT_MS
+
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(
+      () => reject(new SidecarReadyTimeoutError(timeoutMs)),
+      timeoutMs,
+    )
+  })
+
+  const scan = async (): Promise<ParsedReadyLine> => {
+    const decoder = new TextDecoder()
+    const iterator = stdout[Symbol.asyncIterator]()
+    let buffer = ""
+    for (;;) {
+      const next = await iterator.next()
+      if (next.done === true) throw new SidecarExitedError()
+      const chunk = next.value
+      buffer +=
+        typeof chunk === "string" ? chunk : (
+          decoder.decode(chunk, { stream: true })
+        )
+      let newline = buffer.indexOf("\n")
+      while (newline >= 0) {
+        const line = buffer.slice(0, newline)
+        buffer = buffer.slice(newline + 1)
+        const ready = parseReadyLine(line)
+        if (ready) {
+          // Surface anything already buffered behind the marker so a boot line
+          // sharing the chunk isn't silently dropped, then return WITHOUT
+          // calling iterator.return() — that would destroy the stream.
+          flushTrailing(buffer, options.onLine)
+          return ready
+        }
+        if (line.trim()) options.onLine?.(line)
+        newline = buffer.indexOf("\n")
+      }
+    }
+  }
+
+  try {
+    return await Promise.race([scan(), timeout])
+  } finally {
+    if (timer) clearTimeout(timer)
+  }
+}
+
+/** Env a host must set when spawning the sidecar. Without the parent pid the
+ *  sidecar emits no markers at all (that gate keeps a plain CLI terminal clean),
+ *  so a supervisor that forgets it waits forever on a ready-line that will never
+ *  come. */
+export function sidecarSpawnEnv(parentPid: number = process.pid): {
+  MAXIMAL_SIDECAR_PARENT_PID: string
+} {
+  return { MAXIMAL_SIDECAR_PARENT_PID: String(parentPid) }
+}

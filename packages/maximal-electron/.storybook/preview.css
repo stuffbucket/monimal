@@ -1,0 +1,28 @@
+/*
+ * Storybook-only overrides.
+ *
+ * `shell.css` opens with a document reset written for an Electron window:
+ * `html, body, #root { height: 100%; overflow: hidden }`. That is correct for
+ * an application that owns the whole viewport and wrong for a page you scroll,
+ * so a long story renders in full and then gets clipped at the fold.
+ *
+ * Worth noticing rather than just fixing: that reset is the shell's furniture,
+ * not a control style, which is why `controls.css` carries only the button
+ * reset and the focus ring. Anything importing `shell.css` inherits an opinion
+ * about the whole document.
+ *
+ * Nothing here reaches the application. Only `.storybook/preview.ts` imports it.
+ */
+
+html,
+body,
+#storybook-root {
+  height: auto;
+  overflow: visible;
+}
+
+body {
+  /* The canvas, not the window chrome: a story is content on a surface. */
+  background: var(--bg-app);
+  padding: var(--space-4);
+}

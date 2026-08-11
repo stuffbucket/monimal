@@ -1,0 +1,150 @@
+# Test the state a merge would produce, after the base has moved.
+#
+# `ci.yml` runs against a pull request head merged with the base as it was when
+# that run started. Nothing re-tests the pair once the base moves, so two
+# branches that are each green can land a failure between them. That is how
+# main acquired a failing test on 5 August (#52).
+#
+# This runs after a push to main or a release branch, replays every open pull
+# request against the new tip, and reports the result as a commit status on the
+# pull request head. It blocks nothing: it is a signal at the place the merge
+# decision is made, not a gate. `docs/ci.md` says what a gate would cost.
+
+name: merge preview
+
+on:
+  push:
+    branches: [main, 'release/**']
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: 'Pull request number to replay against its base'
+        required: true
+
+concurrency:
+  group: merge-preview-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+  statuses: write
+
+jobs:
+  # The scope this run covers. Printed in full, because the failure this
+  # repository keeps hitting is a check whose scope is empty for a reason
+  # nobody sees.
+  scope:
+    runs-on: ubuntu-latest
+    outputs:
+      targets: ${{ steps.list.outputs.targets }}
+      count: ${{ steps.list.outputs.count }}
+    steps:
+      - name: List the pull requests to replay
+        id: list
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ inputs.pr }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ -n "${PR}" ]]; then
+            targets="$(gh pr view "${PR}" --repo "$GITHUB_REPOSITORY" \
+              --json number,baseRefName --jq '[{pr: .number, base: .baseRefName}]')"
+          else
+            # Filtered here rather than by `gh pr list --base`, so the log shows
+            # every open pull request and why each one was or was not picked.
+            all="$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --limit 100 \
+              --json number,baseRefName,isDraft)"
+            echo "Open pull requests:"
+            jq -r '.[] | "  #\(.number) -> \(.baseRefName)\(if .isDraft then " (draft)" else "" end)"' <<<"$all"
+
+            targets="$(jq -c --arg base "$GITHUB_REF_NAME" \
+              '[.[] | select(.baseRefName == $base and .isDraft == false) | {pr: .number, base: .baseRefName}]' <<<"$all")"
+          fi
+
+          count="$(jq 'length' <<<"$targets")"
+          echo "Replaying ${count} against ${GITHUB_REF_NAME}: ${targets}"
+          echo "targets=${targets}" >> "$GITHUB_OUTPUT"
+          echo "count=${count}" >> "$GITHUB_OUTPUT"
+
+  preview:
+    needs: scope
+    if: needs.scope.outputs.count != '0'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.scope.outputs.targets) }}
+    name: preview (#${{ matrix.pr }})
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: refs/pull/${{ matrix.pr }}/head
+          fetch-depth: 0
+
+      - name: Merge the new base
+        id: merge
+        env:
+          BASE: ${{ matrix.base }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "head=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          git config user.name "merge-preview"
+          git config user.email "merge-preview@users.noreply.github.com"
+          git fetch --no-tags origin "${BASE}"
+          git merge --no-edit FETCH_HEAD
+          git --no-pager log --oneline -1
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      # The fast half of ci.yml. Packaging and the end-to-end suite are left
+      # out: they cost the most and have never been the thing two green
+      # branches broke between them. Nothing here resolves the Electron
+      # binary, so there is no Electron cache either. Issue #129.
+      - name: Lint, types, tests
+        id: checks
+        continue-on-error: true
+        run: |
+          npm ci
+          npm run lint
+          npm run typecheck
+          npm test
+
+      - name: Report on the pull request
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ steps.merge.outputs.head }}
+          MERGE: ${{ steps.merge.outcome }}
+          CHECKS: ${{ steps.checks.outcome }}
+          BASE: ${{ matrix.base }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${MERGE}" != "success" ]]; then
+            state=failure
+            description="Does not merge cleanly into ${BASE}"
+          elif [[ "${CHECKS}" == "success" ]]; then
+            state=success
+            description="Green against ${BASE} at $(git rev-parse --short FETCH_HEAD)"
+          else
+            state=failure
+            description="Fails when merged with ${BASE}"
+          fi
+
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/statuses/${HEAD_SHA}" \
+            -f state="${state}" \
+            -f context="merge-preview" \
+            -f description="${description}" \
+            -f target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+          echo "#${{ matrix.pr }}: ${state} — ${description}"
+          [[ "${state}" == "success" ]] \
+            || { echo "::error::#${{ matrix.pr }} ${description}"; exit 1; }

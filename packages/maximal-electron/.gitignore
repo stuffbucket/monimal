@@ -1,0 +1,25 @@
+out/
+.vite/
+node_modules/
+dist/
+dist-release/
+staging/
+*.log
+.DS_Store
+test-results/
+playwright-report/
+blob-report/
+coverage/
+
+.stryker-tmp/
+reports/
+demo/takes/
+
+# Agent worktrees. Whole copies of this repository, created per task.
+.claude/worktrees/
+
+# Another agent tool writes its session database here.
+.opencode/
+
+# Storybook build output. A developer tool, never shipped.
+storybook-static/

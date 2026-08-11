@@ -1,0 +1,20 @@
+# CodeQL configuration for this repo.
+#
+# By-design alerts are NOT expressed here. They are suppressed with an
+# inline `// codeql[<rule-id>] -- <rationale>` comment on the sink line
+# (grep `codeql\[` to enumerate them). The rationale lives next to the
+# code and moves with it, so it cannot drift.
+#
+# `query-filters` / `paths-ignore` are for "never run this query / scan
+# this path" — a syntactic, rule-wide exclusion — never a substitute for
+# a per-sink by-design decision.
+#
+# See `docs/decisions/0001-codeql-by-design-dismissals.md`.
+
+name: "maximal CodeQL config"
+
+paths-ignore:
+  - node_modules
+  - dist
+  - build
+  - shell/ui/dashboard/vendor

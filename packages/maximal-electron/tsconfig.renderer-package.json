@@ -1,0 +1,23 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "sourceMap": false,
+    "outDir": "dist/renderer",
+    "rootDir": "src/renderer",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "types": ["node"]
+  },
+  "include": ["src/renderer/index.ts"],
+  "exclude": [
+    "node_modules",
+    "out",
+    ".vite",
+    "dist",
+    "tests",
+    "e2e",
+    "src/renderer/**/*.stories.tsx"
+  ]
+}

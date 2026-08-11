@@ -1,0 +1,30 @@
+{
+  "take": "pipeline-check",
+  "output": "demo/pipeline-check.mp4",
+  "clips": [
+    {
+      "seq": "shell",
+      "hold": 7
+    },
+    {
+      "seq": "navigation",
+      "hold": 6
+    },
+    {
+      "seq": "layout",
+      "hold": 6
+    },
+    {
+      "seq": "panels",
+      "hold": 6
+    },
+    {
+      "seq": "terminal",
+      "hold": 8
+    },
+    {
+      "seq": "overlay",
+      "hold": 8
+    }
+  ]
+}

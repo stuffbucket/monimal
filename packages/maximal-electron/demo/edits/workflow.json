@@ -1,0 +1,14 @@
+{
+  "take": "workflow",
+  "output": "demo/stuffbucket-workflow.mp4",
+  "clips": [
+    { "seq": "fleet", "hold": 7 },
+    { "seq": "inspector", "hold": 8, "freezeAt": "approval-shown" },
+    { "seq": "tabs", "hold": 7 },
+    { "seq": "terminal", "hold": 10, "freezeAt": "claude-ready" },
+    { "seq": "ask-version", "hold": 7, "optional": true },
+    { "seq": "ask-theme", "hold": 7, "optional": true },
+    { "seq": "gate-asks", "hold": 8, "freezeAt": "gate-shown", "optional": true },
+    { "seq": "repaints", "hold": 11, "optional": true }
+  ]
+}

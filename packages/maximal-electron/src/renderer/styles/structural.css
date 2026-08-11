@@ -1,0 +1,1340 @@
+/*
+ * Structural styles for the public renderer package.
+ *
+ * This file intentionally defines no palette. Consumers provide the semantic
+ * --shell-* variables documented in README.md before importing this stylesheet.
+ */
+
+.sb-shell,
+.sb-shell *,
+.sb-shell *::before,
+.sb-shell *::after {
+  box-sizing: border-box;
+}
+
+/*
+ * Icon weight, once. Lucide writes `stroke-width` as an attribute at 2, which
+ * reads heavy beside text at these sizes, and every exported component draws a
+ * Lucide glyph. `.lucide` is the class Lucide puts on the element itself, so a
+ * consumer's own artwork and any other icon set keep the weight they were
+ * drawn at.
+ */
+.sb-shell svg.lucide {
+  stroke-width: var(--shell-icon-stroke, 1.5);
+}
+
+/*
+ * The design system baseline: colour, background and type for the whole
+ * shell tree, not only the frame `ShellLayout` renders.
+ *
+ * README.md tells a consumer composing the smaller exports directly to apply
+ * `.sb-shell` themselves, and a consumer who does exactly that — a `Button` or
+ * a `Card` with no `ShellLayout` above it — matches `.sb-shell` alone, never
+ * `.app`. Carrying these three properties on the compound selector left that
+ * consumer with the document's own font and colour: a `Button` reading Times
+ * New Roman at 16px in black, in package-mode Storybook, which is every story
+ * that composes without the frame. `ShellLayout` renders both classes on one
+ * element, so nothing here changes what it draws.
+ */
+.sb-shell {
+  color: var(--shell-text);
+  background: var(--shell-background);
+  font: var(--shell-font, 400 14px/1.5 system-ui, sans-serif);
+}
+
+/*
+ * The window, filled without a rule the consumer has to write. `height: 100%`
+ * measures against ancestors this file does not own, so the whole palette
+ * still drew a shell an inch tall. Fixed to the viewport needs neither that
+ * frame nor `body { margin: 0 }`, and `--shell-position: static` gives the
+ * percentage back to a consumer laying the shell out inside a container of
+ * their own.
+ *
+ * A column rather than a grid, because the `top` slot renders no element when
+ * it is empty and any number of them when it is not. A track list has to know
+ * that count, and it got it wrong: two tracks against three children put a
+ * one-line banner in `1fr` and squashed the panels into `auto`. A column sizes
+ * every child to its content and gives the rest to `.panels`, so nothing here
+ * counts children.
+ */
+.sb-shell.app {
+  position: var(--shell-position, fixed);
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.sb-shell .titlebar {
+  display: flex;
+  align-items: stretch;
+  gap: var(--shell-space-2, 8px);
+  height: var(--shell-titlebar-height, 40px);
+  padding: 0 var(--shell-space-3, 12px) 0 var(--shell-space-2, 8px);
+  flex: none;
+  overflow: hidden;
+  background: var(--shell-background);
+  border-bottom: 1px solid var(--shell-border);
+  -webkit-app-region: drag;
+}
+
+.sb-shell .titlebar__leading,
+.sb-shell .titlebar__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--shell-space-2, 8px);
+  -webkit-app-region: no-drag;
+}
+
+.sb-shell .titlebar button,
+.sb-shell .titlebar input,
+.sb-shell .titlebar select,
+.sb-shell .titlebar textarea,
+.sb-shell .titlebar a,
+.sb-shell .titlebar [role='button'],
+.sb-shell .titlebar [role='tablist'],
+.sb-shell .titlebar [role='tab'] {
+  -webkit-app-region: no-drag;
+}
+
+.sb-shell .titlebar__spacer-mac {
+  width: 68px;
+  flex: none;
+}
+
+.sb-shell .titlebar__spacer-win {
+  width: 138px;
+  flex: none;
+}
+
+.sb-shell .titlebar__grow,
+.sb-shell .statusbar__grow,
+.sb-shell .toolbar__grow,
+.sb-shell .banner__grow {
+  flex: 1;
+}
+
+/*
+ * A full-width notice, in the layout's top slot.
+ *
+ * `Banner` and `StatusChip` set no colour themselves. Both read the status
+ * pair, which a host maps from whatever vocabulary its own states use, and
+ * both fall back to an ordinary surface rather than to a colour nobody chose.
+ */
+.sb-shell .banner {
+  display: flex;
+  align-items: center;
+  gap: var(--shell-space-2, 8px);
+  padding: var(--shell-space-2, 8px) var(--shell-space-4, 16px);
+  flex: none;
+  color: var(--shell-status, var(--shell-text-muted));
+  background: var(--shell-status-muted, var(--shell-active));
+  border-bottom: 1px solid var(--shell-border);
+  font-size: 13px;
+}
+
+.sb-shell .icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--shell-control-height, 28px);
+  height: var(--shell-control-height, 28px);
+  padding: 0;
+  border: 0;
+  border-radius: var(--shell-radius, 6px);
+  color: var(--shell-text-muted);
+  background: transparent;
+  cursor: pointer;
+  transition: background 120ms ease-out;
+}
+
+.sb-shell .icon-button:hover {
+  color: var(--shell-text);
+  background: var(--shell-hover);
+}
+
+.sb-shell .icon-button[data-active='true'] {
+  color: var(--shell-accent);
+  background: var(--shell-accent-muted);
+}
+
+/*
+ * The destructive variant. `IconButton` takes a `danger` prop, so the package
+ * stylesheet has to carry the class it writes. Styled only in the reference
+ * application's `shell.css`, it reached a consumer with no rule at all.
+ *
+ * Both tokens fall back, so a consumer who names no danger colour gets a plain
+ * icon button rather than an invisible one.
+ */
+.sb-shell .icon-button--danger:hover {
+  color: var(--shell-danger-contrast, var(--shell-text));
+  background: var(--shell-danger, var(--shell-hover));
+}
+
+.sb-shell .icon-button:focus-visible,
+.sb-shell .tab:focus-visible,
+.sb-shell .tab__new:focus-visible,
+.sb-shell .nav button:focus-visible,
+.sb-shell .segmented button:focus-visible,
+.sb-shell .card:focus-visible,
+.sb-shell .row:focus-visible,
+.sb-shell .switch:focus-visible,
+.sb-shell .btn:focus-visible,
+.sb-shell .input:focus-visible,
+.sb-shell .checkbox__box:focus-visible,
+.sb-shell .radio__box:focus-visible {
+  outline: 2px solid var(--shell-focus, var(--shell-accent));
+  outline-offset: 2px;
+}
+
+.sb-shell .panels,
+.sb-shell .column {
+  flex: 1;
+  min-height: 0;
+}
+
+.sb-shell .panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--shell-background);
+}
+
+.sb-shell .panel--canvas {
+  background: var(--shell-canvas);
+}
+
+.sb-shell .tabpanel {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.sb-shell .panel--drawer {
+  overflow: auto;
+  border-top: 1px solid var(--shell-border);
+}
+
+.sb-shell .resize-handle {
+  position: relative;
+  width: 1px;
+  background: var(--shell-border);
+  transition: background 120ms ease-out;
+}
+
+.sb-shell .resize-handle::after {
+  content: '';
+  position: absolute;
+  inset: 0 -3px;
+}
+
+.sb-shell .resize-handle:hover,
+.sb-shell .resize-handle[data-resize-handle-active] {
+  background: var(--shell-accent);
+}
+
+.sb-shell .resize-handle--horizontal {
+  width: auto;
+  height: 1px;
+}
+
+.sb-shell .resize-handle--horizontal::after {
+  inset: -3px 0;
+}
+
+.sb-shell .tabs {
+  display: flex;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+.sb-shell .tabbar {
+  display: flex;
+  align-items: stretch;
+  height: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  /* Chrome, not content. The strip sits a notch below body size, with the
+     tracking opened to keep small text legible and the weight reserved for the
+     active tab. */
+  font-size: 13px;
+  letter-spacing: 0.005em;
+}
+
+.sb-shell .tabbar::-webkit-scrollbar {
+  display: none;
+}
+
+/*
+ * Every button under `.sb-shell` starts from the reference's own reset: a bare
+ * `button` selector, at the lowest specificity a class can ever beat, rather
+ * than a list of the classes that happen to need it today. The list version
+ * put `.nav button` at (0,2,1) — one type selector more specific than
+ * `.nav__heading` and `.nav__item` at (0,2,0) — so their own `color`, and
+ * `.nav__heading`'s `font-size` and `font-weight`, lost outright instead of
+ * winning by source order the way `.tab`'s own rule already does against this
+ * same list. Measured: `.nav__heading` computed white at 16px/400 in place of
+ * `--shell-text-subtle` at 11px/600. A bare `button` selector can never
+ * outrank a one-class rule, so nothing declared after it has to out-specify
+ * it, only outlive it in source order, which every one of them already does.
+ * `.icon-button`, `.tab__new` and `.radio__box` pick up the `padding: 0` none
+ * of them set for themselves, for the reason `controls.css`'s own `button`
+ * rule carries it. Issue #176.
+ */
+.sb-shell button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+.sb-shell .tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--shell-space-2, 8px);
+  min-width: 96px;
+  max-width: 200px;
+  padding: 0 var(--shell-space-2, 8px) 0 var(--shell-space-3, 12px);
+  color: var(--shell-text-subtle);
+  white-space: nowrap;
+  border-radius: var(--shell-radius, 6px) var(--shell-radius, 6px) 0 0;
+  /* The emphasis marker is absolute inside the tab. */
+  position: relative;
+  transition:
+    background 120ms ease-out,
+    color 120ms ease-out;
+}
+
+.sb-shell .tab:hover {
+  color: var(--shell-text-muted);
+  background: var(--shell-hover);
+}
+
+/* The selected tab's own fill, which is the canvas it opens onto until a host
+   names something else. `tokens.css` keeps a dedicated `--tab-active` because
+   a tab sits on the title bar rather than inside a panel, and the step it
+   needs is not the canvas in either scheme. */
+.sb-shell .tab[data-state='active'] {
+  color: var(--shell-text);
+  background: var(--shell-tab-active, var(--shell-canvas));
+  font-weight: 500;
+}
+
+/* `min-width: 0` is what lets the label shrink below its own text. Without it
+   the flex item refuses to narrow and the ellipsis never engages, so a long
+   title widens the tab instead of truncating inside it. */
+.sb-shell .tab__label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sb-shell .tab__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex: none;
+  color: inherit;
+  border-radius: var(--shell-radius-small, 4px);
+  opacity: 0;
+}
+
+.sb-shell .tab:hover .tab__close,
+.sb-shell .tab[data-state='active'] .tab__close {
+  opacity: 0.7;
+}
+
+.sb-shell .tab__close:hover {
+  background: var(--shell-active);
+  opacity: 1;
+}
+
+.sb-shell .tab__close-keyboard {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.sb-shell .tab__close-keyboard:focus-visible {
+  position: static;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 26px;
+  margin: 0;
+  overflow: visible;
+  clip: auto;
+  flex: none;
+  align-self: center;
+  color: var(--shell-text-subtle);
+  border-radius: var(--shell-radius, 6px);
+}
+
+.sb-shell .tab__new {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 26px;
+  flex: none;
+  align-self: center;
+  color: var(--shell-text-subtle);
+  border-radius: var(--shell-radius, 6px);
+}
+
+.sb-shell .tab__new:hover {
+  color: var(--shell-text);
+  background: var(--shell-hover);
+}
+
+/*
+ * Emphasis. Geometry carries the signal, so a consumer who supplies no
+ * `--shell-warning` still gets two shapes nothing else in the strip draws.
+ */
+.sb-shell .tab__emphasis {
+  position: absolute;
+  pointer-events: none;
+}
+
+.sb-shell .tab[data-emphasis='attention'] .tab__emphasis {
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 3px;
+  border-radius: var(--shell-radius, 6px) 0 0 0;
+  background: var(--shell-warning, var(--shell-accent));
+}
+
+.sb-shell .tab[data-emphasis='busy'] .tab__emphasis {
+  bottom: 5px;
+  left: var(--shell-space-3, 12px);
+  width: 34%;
+  height: 2px;
+  background: var(--shell-accent);
+  animation: sb-tab-busy 1.4s ease-out infinite;
+}
+
+/* Namespaced, because a keyframe name is global and this file is imported into
+   a consumer's application. */
+@keyframes sb-tab-busy {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  50% {
+    transform: translateX(150%);
+  }
+}
+
+.sb-shell .nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--shell-space-4, 16px);
+  padding: var(--shell-space-3, 12px) var(--shell-space-2, 8px);
+  overflow-y: auto;
+}
+
+.sb-shell .nav__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--shell-space-1, 4px);
+}
+
+.sb-shell .nav__heading,
+.sb-shell .nav__item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  text-align: left;
+  border-radius: var(--shell-radius, 6px);
+}
+
+.sb-shell .nav__heading {
+  gap: var(--shell-space-1, 4px);
+  height: var(--shell-nav-heading-height, 24px);
+  padding: var(--shell-space-1, 4px) var(--shell-space-2, 8px);
+  color: var(--shell-text-subtle);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.sb-shell .nav__chevron {
+  transition: transform 120ms ease-out;
+}
+
+/*
+ * The heading's space, kept when the rail collapses. There is no room for the
+ * label at that width, and removing the heading outright moved every icon
+ * below it. So the space stays and a rule is drawn in it. The first section
+ * gets the space and no rule, because a line above the first item divides it
+ * from nothing.
+ */
+.sb-shell .nav__break {
+  display: flex;
+  align-items: center;
+  height: var(--shell-nav-heading-height, 24px);
+  flex: none;
+}
+
+.sb-shell .nav__break:not([data-first])::before {
+  content: '';
+  width: 100%;
+  height: 1px;
+  background: var(--shell-border);
+}
+
+.sb-shell .nav__heading[aria-expanded='false'] .nav__chevron {
+  transform: rotate(-90deg);
+}
+
+.sb-shell .nav__item {
+  gap: var(--shell-space-2, 8px);
+  height: 30px;
+  padding: 0 var(--shell-space-2, 8px);
+  color: var(--shell-text-muted);
+  transition: background 120ms ease-out;
+}
+
+.sb-shell .nav__item:hover {
+  color: var(--shell-text);
+  background: var(--shell-hover);
+}
+
+.sb-shell .nav__item[aria-current='true'] {
+  color: var(--shell-accent);
+  background: var(--shell-accent-muted);
+  font-weight: 500;
+}
+
+/* `min-width: 0` is what lets the label shrink below its own text, the same
+   reasoning `.tab__label` carries: a flex item refuses to narrow past its
+   content otherwise, so the ellipsis never engages and a long project name
+   pushes the count out of the rail instead of truncating beside it. */
+.sb-shell .nav__label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sb-shell .nav__item-count {
+  margin-left: auto;
+  color: var(--shell-text-subtle);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The rail narrows to an icon column, so the horizontal padding narrows with
+   it. `shell.css` has carried this rule since the rail landed and the package
+   stylesheet never did, which left a consumer's collapsed rail padded for a
+   label that is no longer drawn. Issue #118. */
+.sb-shell .nav--collapsed {
+  padding: var(--shell-space-3, 12px) var(--shell-space-1, 4px);
+}
+
+.sb-shell .nav--collapsed .nav__item {
+  justify-content: center;
+  padding: 0;
+}
+
+.sb-shell .nav--collapsed .nav__label,
+.sb-shell .nav--collapsed .nav__item-count {
+  display: none;
+}
+
+.sb-shell .toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--shell-space-2, 8px);
+  padding: var(--shell-space-2, 8px) var(--shell-space-4, 16px);
+  flex: none;
+  border-bottom: 1px solid var(--shell-border);
+}
+
+.sb-shell .toolbar__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.sb-shell .segmented {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  background: var(--shell-raised);
+  border: 1px solid var(--shell-border);
+  border-radius: var(--shell-radius, 6px);
+}
+
+/* The reset a consumer's document does not have. `controls.css` carries one
+   `button` rule for all three of this repository's documents, and no part of it
+   ships. */
+.sb-shell .segmented button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 22px;
+  padding: 0;
+  color: var(--shell-text-subtle);
+  font: inherit;
+  border: 0;
+  border-radius: var(--shell-radius-small, 4px);
+  background: transparent;
+  cursor: pointer;
+}
+
+.sb-shell .segmented button[aria-pressed='true'] {
+  color: var(--shell-text);
+  background: var(--shell-active);
+}
+
+.sb-shell .canvas {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--shell-space-4, 16px);
+}
+
+.sb-shell .grid {
+  display: grid;
+  gap: var(--shell-space-3, 12px);
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+}
+
+.sb-shell .list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--shell-space-1, 4px);
+}
+
+/*
+ * The two tiles a canvas draws.
+ *
+ * `Card` and `Row` render a `<button>`, so each carries its own reset for the
+ * same reason `.segmented button` does. The `__` classes below them are the
+ * caller's to render — `Card` takes children — and they ship because a
+ * consumer building a card has nothing else to build it out of.
+ */
+.sb-shell .card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--shell-space-2, 8px);
+  padding: 0;
+  overflow: hidden;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  background: var(--shell-raised);
+  border: 1px solid var(--shell-border);
+  border-radius: var(--shell-radius-large, 8px);
+  cursor: pointer;
+  transition:
+    border-color 120ms ease-out,
+    transform 120ms ease-out;
+}
+
+.sb-shell .card:hover {
+  border-color: var(--shell-border-strong, var(--shell-border));
+  transform: translateY(-1px);
+}
+
+.sb-shell .card[aria-selected='true'] {
+  border-color: var(--shell-accent);
+  box-shadow: 0 0 0 1px var(--shell-accent);
+}
+
+.sb-shell .card__thumb {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 4 / 3;
+  color: var(--shell-text-subtle);
+  background: var(--shell-canvas);
+  border-bottom: 1px solid var(--shell-border);
+}
+
+.sb-shell .card__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 0 var(--shell-space-3, 12px) var(--shell-space-3, 12px);
+}
+
+.sb-shell .card__name {
+  display: block;
+  overflow: hidden;
+  color: var(--shell-text);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sb-shell .card__sub {
+  display: block;
+  overflow: hidden;
+  color: var(--shell-text-subtle);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The same muted size as prose. `.card__sub` clips to one line, which is right
+   for a subtitle and wrong for an explanation. */
+.sb-shell .card__sub--wrap {
+  overflow: visible;
+  line-height: 1.5;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.sb-shell .row {
+  display: flex;
+  align-items: center;
+  gap: var(--shell-space-3, 12px);
+  width: 100%;
+  height: 30px;
+  padding: 0 var(--shell-space-3, 12px);
+  color: var(--shell-text-muted);
+  font: inherit;
+  text-align: left;
+  border: 0;
+  border-radius: var(--shell-radius, 6px);
+  background: transparent;
+  cursor: pointer;
+}
+
+.sb-shell .row:hover {
+  background: var(--shell-hover);
+}
+
+.sb-shell .row[aria-selected='true'] {
+  color: var(--shell-accent);
+  background: var(--shell-accent-muted);
+}
+
+.sb-shell .row__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sb-shell .row__sub {
+  color: var(--shell-text-subtle);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.sb-shell .empty {
+  display: grid;
+  place-items: center;
+  gap: var(--shell-space-2, 8px);
+  height: 100%;
+  padding: var(--shell-space-5, 24px);
+  color: var(--shell-text-subtle);
+  text-align: center;
+}
+
+/* A minimum, not a fixed height. Content the consumer supplies — a control, a
+   chip, a second line of text — asks for more than the compact register at
+   times, and a fixed height clips or overlaps it instead of growing. Issue
+   #176 measured 46px for two lines against a 24px box that had already
+   overflowed both upward, over the panel above, and downward, off the window. */
+.sb-shell .statusbar {
+  display: flex;
+  align-items: center;
+  gap: var(--shell-space-3, 12px);
+  min-height: var(--shell-statusbar-height, 24px);
+  padding: 0 var(--shell-space-3, 12px);
+  flex: none;
+  color: var(--shell-text-subtle);
+  border-top: 1px solid var(--shell-border);
+  font-size: 11px;
+}
+
+.sb-shell .dot {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 9999px;
+  background: var(--shell-status, var(--shell-text-muted));
+  /* A halo, so a 7px dot still reads as live against a dark panel. It falls
+     back to transparent rather than to a surface: a host that names no status
+     tint gets the dot alone, not a grey ring around it. */
+  box-shadow: 0 0 0 3px var(--shell-status-muted, transparent);
+}
+
+.sb-shell .chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--shell-space-2, 8px);
+  color: var(--shell-status, var(--shell-text-muted));
+  background: var(--shell-status-muted, var(--shell-active));
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.sb-shell .tooltip {
+  padding: var(--shell-space-1, 4px) var(--shell-space-2, 8px);
+  color: var(--shell-text);
+  background: var(--shell-raised);
+  border: 1px solid var(--shell-border-strong, var(--shell-border));
+  border-radius: var(--shell-radius-small, 4px);
+  box-shadow: var(--shell-elevation, none);
+  font-size: 13px;
+  user-select: none;
+}
+
+.sb-shell .inspector {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-left: 1px solid var(--shell-border);
+}
+
+.sb-shell .inspector__header {
+  display: flex;
+  align-items: center;
+  gap: var(--shell-space-2, 8px);
+  min-height: 36px;
+  padding: var(--shell-space-2, 8px) var(--shell-space-3, 12px);
+  flex: none;
+  border-bottom: 1px solid var(--shell-border);
+}
+
+.sb-shell .inspector__title {
+  margin: 0;
+  color: var(--shell-text-subtle);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.sb-shell .inspector__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--shell-space-4, 16px);
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--shell-space-3, 12px);
+}
+
+.sb-shell .inspector__section {
+  display: grid;
+  gap: var(--shell-space-2, 8px);
+}
+
+/* A chip is a pill, not a block. Without this the grid stretches it edge to
+   edge, and it stops reading as a status. */
+.sb-shell .inspector__section > .chip {
+  justify-self: start;
+}
+
+/* A read-only label and value, which is what `Field` renders. The label column
+   is fixed so a column of them aligns. */
+.sb-shell .field {
+  display: grid;
+  align-items: center;
+  gap: var(--shell-space-2, 8px);
+  grid-template-columns: 74px 1fr;
+}
+
+.sb-shell .field__label {
+  color: var(--shell-text-subtle);
+  font-size: 13px;
+}
+
+.sb-shell .field__value {
+  font-family: var(--shell-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.sb-shell .switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--shell-space-3, 12px);
+  width: 100%;
+  padding: 0;
+  color: var(--shell-text-muted);
+  font: inherit;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.sb-shell .switch__track {
+  position: relative;
+  width: 30px;
+  height: 18px;
+  flex: none;
+  border-radius: 9999px;
+  background: var(--shell-active);
+  transition: background 120ms ease-out;
+}
+
+.sb-shell .switch__track[data-on='true'] {
+  background: var(--shell-accent);
+}
+
+/* The thumb sits on the accent when the switch is on and on a neutral fill
+   when it is off, so its own colour falls back to the shell's text rather than
+   to a literal white. */
+.sb-shell .switch__thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--shell-accent-contrast, var(--shell-text));
+  transition: transform 120ms ease-out;
+}
+
+.sb-shell .switch__track[data-on='true'] .switch__thumb {
+  transform: translateX(12px);
+}
+
+/*
+ * Form controls, and the buttons and overlays beside them.
+ *
+ * `controls.css` styles these for the three documents this repository renders
+ * and ships to nobody. A consumer importing `TextInput`, `Select`, `Checkbox`,
+ * `RadioGroup`, `Button`, `Dialog` or `Menu` received markup with no rule at
+ * all, which is the defect `components/controls/index.ts` names: a shell meant
+ * to be depended on cannot hand a consumer a text field they have to write
+ * themselves.
+ *
+ * Disabled is styled on the control classes rather than through a blanket
+ * attribute selector, for the reason `controls.css` records.
+ */
+
+.sb-shell .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--shell-space-1, 4px);
+  padding: 0 var(--shell-space-3, 12px);
+  color: var(--shell-text);
+  font: inherit;
+  font-weight: 500;
+  white-space: nowrap;
+  background: var(--shell-raised);
+  border: 1px solid var(--shell-border-strong, var(--shell-border));
+  border-radius: var(--shell-radius, 6px);
+  cursor: pointer;
+  transition: background 120ms ease-out;
+}
+
+.sb-shell .btn:hover:not(:disabled) {
+  background: var(--shell-hover);
+  border-color: var(--shell-border-hover, var(--shell-accent));
+}
+
+.sb-shell .btn--sm {
+  height: 22px;
+  padding: 0 var(--shell-space-2, 8px);
+  font-size: 11px;
+}
+
+.sb-shell .btn--md {
+  height: 26px;
+  font-size: 13px;
+}
+
+.sb-shell .btn--lg {
+  height: var(--shell-control-height, 28px);
+  padding: 0 var(--shell-space-4, 16px);
+  font-size: 14px;
+}
+
+.sb-shell .btn--block {
+  width: 100%;
+}
+
+.sb-shell .btn--primary {
+  color: var(--shell-accent-contrast, var(--shell-text));
+  background: var(--shell-accent);
+  border-color: var(--shell-accent);
+}
+
+/*
+ * A filled variant brightens rather than taking a second token. The host names
+ * one accent, and a hover step derived from it cannot drift from it.
+ *
+ * Each restates its own fill, because `.btn:hover:not(:disabled)` above has the
+ * same specificity and would otherwise repaint a filled button with
+ * `--shell-hover`. A consumer's primary button lost its accent on hover for as
+ * long as these two shared a rule that set `filter` alone.
+ */
+.sb-shell .btn--primary:hover:not(:disabled) {
+  background: var(--shell-accent);
+  filter: brightness(1.08);
+}
+
+.sb-shell .btn--danger:hover:not(:disabled) {
+  background: var(--shell-danger, var(--shell-hover));
+  filter: brightness(1.08);
+}
+
+.sb-shell .btn--danger {
+  color: var(--shell-danger-contrast, var(--shell-text));
+  background: var(--shell-danger, var(--shell-hover));
+  border-color: var(--shell-danger, var(--shell-hover));
+}
+
+.sb-shell .btn:disabled,
+.sb-shell .input:disabled,
+.sb-shell .switch:disabled,
+.sb-shell .checkbox__box:disabled,
+.sb-shell .radio-group[data-disabled] {
+  opacity: var(--shell-disabled-opacity, 0.5);
+  cursor: not-allowed;
+}
+
+.sb-shell .input {
+  width: 100%;
+  height: var(--shell-control-height, 28px);
+  padding: 0 var(--shell-space-2, 8px);
+  color: var(--shell-text);
+  font: inherit;
+  font-size: 13px;
+  background: var(--shell-input-background, var(--shell-canvas));
+  border: 1px solid var(--shell-input-border, var(--shell-border-strong, var(--shell-border)));
+  border-radius: var(--shell-radius, 6px);
+}
+
+.sb-shell .input::placeholder {
+  color: var(--shell-text-subtle);
+}
+
+.sb-shell .input:hover:not(:disabled) {
+  border-color: var(--shell-border-hover, var(--shell-accent));
+}
+
+.sb-shell .input[aria-invalid='true'] {
+  border-color: var(--shell-invalid, var(--shell-danger, var(--shell-hover)));
+}
+
+.sb-shell .input--multiline {
+  height: auto;
+  padding: var(--shell-space-2, 8px);
+  line-height: 1.5;
+  resize: vertical;
+}
+
+/* The native arrow needs room, and the platform draws it. */
+.sb-shell .input--select {
+  padding-right: var(--shell-space-1, 4px);
+}
+
+.sb-shell .form-field {
+  display: grid;
+  gap: var(--shell-space-1, 4px);
+}
+
+.sb-shell .form-field__label {
+  color: var(--shell-text-muted);
+  font-size: 13px;
+}
+
+.sb-shell .form-field__hint {
+  margin: 0;
+  color: var(--shell-text-subtle);
+  font-size: 11px;
+}
+
+.sb-shell .form-field__error {
+  margin: 0;
+  color: var(--shell-invalid, var(--shell-danger, var(--shell-hover)));
+  font-size: 11px;
+}
+
+.sb-shell .checkbox,
+.sb-shell .radio {
+  display: flex;
+  align-items: center;
+  gap: var(--shell-space-2, 8px);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.sb-shell .checkbox__box {
+  width: 15px;
+  height: 15px;
+  flex: none;
+  accent-color: var(--shell-accent);
+  cursor: inherit;
+}
+
+.sb-shell .radio-group {
+  display: grid;
+  gap: var(--shell-space-2, 8px);
+}
+
+.sb-shell .radio__box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  flex: none;
+  background: var(--shell-input-background, var(--shell-canvas));
+  border: 1px solid var(--shell-input-border, var(--shell-border-strong, var(--shell-border)));
+  border-radius: 9999px;
+}
+
+.sb-shell .radio__box[data-state='checked'] {
+  border-color: var(--shell-accent);
+}
+
+.sb-shell .radio__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 9999px;
+  background: var(--shell-accent);
+}
+
+/*
+ * The three surfaces that float over the window.
+ *
+ * `--shell-elevation` defaults to `none` rather than to a shadow, because a
+ * shadow is a palette decision and the border is what makes each one legible
+ * against whatever is behind it. A host that wants depth names one value and
+ * gets it on all three.
+ */
+.sb-shell .dialog__scrim {
+  position: fixed;
+  inset: 0;
+  background: var(--shell-scrim, rgb(0 0 0 / 0.34));
+}
+
+.sb-shell .dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--shell-space-3, 12px);
+  width: min(520px, 90vw);
+  padding: var(--shell-space-4, 16px);
+  background: var(--shell-raised);
+  border: 1px solid var(--shell-border-strong, var(--shell-border));
+  border-radius: var(--shell-radius-dialog, 14px);
+  box-shadow: var(--shell-elevation, none);
+  transform: translate(-50%, -50%);
+}
+
+.sb-shell .menu {
+  min-width: 180px;
+  padding: var(--shell-space-1, 4px);
+  background: var(--shell-raised);
+  border: 1px solid var(--shell-border-strong, var(--shell-border));
+  border-radius: var(--shell-radius, 6px);
+  box-shadow: var(--shell-elevation, none);
+}
+
+.sb-shell .menu__item {
+  display: flex;
+  align-items: center;
+  gap: var(--shell-space-2, 8px);
+  height: 30px;
+  padding: 0 var(--shell-space-2, 8px);
+  color: var(--shell-text-muted);
+  font-size: 13px;
+  border-radius: var(--shell-radius-small, 4px);
+  /* Radix moves a roving highlight rather than focus, so the ring would draw
+     on an item the pointer has left. */
+  outline: none;
+  cursor: pointer;
+}
+
+.sb-shell .menu__item[data-highlighted] {
+  color: var(--shell-text);
+  background: var(--shell-hover);
+}
+
+.sb-shell .menu__item[data-disabled] {
+  opacity: var(--shell-disabled-opacity, 0.5);
+  cursor: not-allowed;
+}
+
+/* The same pair `.icon-button--danger` uses, rather than a second danger tint.
+   Both tokens fall back, so a host that names no danger colour gets an
+   ordinary highlighted item rather than an invisible one. */
+.sb-shell .menu__item--danger[data-highlighted] {
+  color: var(--shell-danger-contrast, var(--shell-text));
+  background: var(--shell-danger, var(--shell-hover));
+}
+
+.sb-shell .menu__header {
+  display: block;
+  padding: var(--shell-space-2, 8px);
+  margin-bottom: var(--shell-space-1, 4px);
+  border-bottom: 1px solid var(--shell-border);
+}
+
+/* A quiet scrollbar on the three surfaces that scroll. The default one is
+   sized and coloured for a document. */
+.sb-shell .canvas,
+.sb-shell .nav,
+.sb-shell .inspector__body {
+  scrollbar-width: thin;
+  scrollbar-color: var(--shell-border-strong, var(--shell-border)) transparent;
+}
+
+.sb-shell .canvas::-webkit-scrollbar,
+.sb-shell .nav::-webkit-scrollbar,
+.sb-shell .inspector__body::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.sb-shell .canvas::-webkit-scrollbar-thumb,
+.sb-shell .nav::-webkit-scrollbar-thumb,
+.sb-shell .inspector__body::-webkit-scrollbar-thumb {
+  /* Inset the thumb so it reads as a hint rather than as a rail. */
+  border: 3px solid transparent;
+  border-radius: 9999px;
+  background: var(--shell-border-strong, var(--shell-border));
+  background-clip: content-box;
+}
+
+.sb-shell .canvas::-webkit-scrollbar-thumb:hover,
+.sb-shell .nav::-webkit-scrollbar-thumb:hover,
+.sb-shell .inspector__body::-webkit-scrollbar-thumb:hover {
+  background: var(--shell-text-subtle);
+  background-clip: content-box;
+}
+
+.sb-shell .canvas::-webkit-scrollbar-track,
+.sb-shell .nav::-webkit-scrollbar-track,
+.sb-shell .inspector__body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/*
+ * Motion, withdrawn wholesale rather than rule by rule.
+ *
+ * Naming each transition here is a second list to keep in step with the first,
+ * and the rule a new transition needs is the rule that gets forgotten.
+ * `shell.css` collapses the duration on `*`; this does the same inside the
+ * shell and touches nothing outside it.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .sb-shell *,
+  .sb-shell *::before,
+  .sb-shell *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
+/*
+ * Terminals.
+ *
+ * The emulator draws to a canvas and takes literal colours at construction, so
+ * `--shell-terminal-*` is read by `readTerminalTheme` in JavaScript rather than
+ * by any rule here. Those three are the only properties in this file with no
+ * corresponding declaration.
+ */
+.sb-shell .terminal-host {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.sb-shell .terminal-host[hidden] {
+  display: none;
+}
+
+.sb-shell .terminal {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  padding: var(--shell-space-2, 8px);
+  overflow: hidden;
+  background: var(--shell-terminal-background, var(--shell-canvas));
+}
+
+.sb-shell .terminal canvas {
+  display: block;
+}
+
+/*
+ * A titled region that asks for something, in the content rather than in the
+ * top slot.
+ *
+ * The outline is what separates it from a panel, and it is drawn from the
+ * status pair rather than from a colour of the package's own, on the same terms
+ * as `Banner` and `StatusChip`: the vocabulary is the host's. Unmapped it is a
+ * plain outlined box.
+ */
+.sb-shell .callout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--shell-space-2, 8px);
+  padding: var(--shell-space-3, 12px);
+  color: var(--shell-text);
+  background: var(--shell-status-muted, var(--shell-active));
+  border: 1px solid var(--shell-status, var(--shell-text-muted));
+  border-radius: var(--shell-radius-large, 8px);
+}
+
+/* Primary text rather than subtle when no status is mapped. An 11px uppercase
+   label in `--shell-text-subtle` fails contrast on this fill, which is the one
+   surface in the package raised above the panel it sits on. */
+.sb-shell .callout__title {
+  margin: 0;
+  color: var(--shell-status, var(--shell-text));
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.sb-shell .callout__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--shell-space-2, 8px);
+  min-width: 0;
+  font-size: 13px;
+}
+
+/* Right aligned and wrapping, because the last button is the one a pointer
+   arrives at and two of them do not always fit on one line. */
+.sb-shell .callout__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--shell-space-2, 8px);
+  justify-content: flex-end;
+}
