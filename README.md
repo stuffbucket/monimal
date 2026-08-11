@@ -95,10 +95,15 @@ They pass once there is one.
 
 ## Divergence to watch
 
-`~/github/stuffbucket/maximal-electron` is being converted to **pnpm** upstream
-(`"packageManager": "pnpm@10.20.0"` plus a `pnpm.onlyBuiltDependencies` list for
-`electron`, `node-pty`, `node-llama-cpp`, `esbuild`). This workspace uses Bun.
-It also moved to `release/0.0.9` (`bafd89e`) after the copy taken here
-(`86e210a`, `main`). If that pnpm conversion is the intended direction, the
-package-manager choice for any real monorepo should be revisited before more is
-built on this.
+`~/github/stuffbucket/maximal-electron` **has migrated to pnpm** — committed as
+`b6d9de1` ("build: migrate from npm to pnpm") on branch `release/0.0.9`, adding
+`"packageManager": "pnpm@10.20.0"` and a `pnpm.onlyBuiltDependencies` list for
+`electron`, `node-pty`, `node-llama-cpp`, `esbuild`, `@google/genai` and
+`protobufjs`.
+
+This workspace uses Bun, and the copy here predates that migration
+(`86e210a`, `main`). So the package-manager question is now live rather than
+hypothetical: the one package with native build steps has picked pnpm, and that
+`onlyBuiltDependencies` list is precisely the native-module surface a Bun
+workspace would have to handle differently. Settle this before building further
+on this spike.
