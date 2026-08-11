@@ -149,10 +149,35 @@ consumer that would exercise the real seam was left out.
 | — **diverged** | **69** |
 | total differing lines | **4,235** |
 
-`server.ts` alone differs by 343 lines. These are not two copies of one thing;
-they are two things drifting apart, and every fix has to land twice or not at
-all. Excavating `maximal/src` is the cleanup that would make this workspace
-worth keeping.
+`server.ts` alone differs by 343 lines.
+
+**This is a one-way fork, not duplicated effort.** maximal-core was forked from
+maximal on **2026-07-30** with the history rewritten but preserved: 1,126 of the
+1,127 shared commit subjects carry identical author dates, so they are the same
+original commits, not the same fix applied twice. Since the fork:
+
+- `maximal-core` — **130 commits**
+- `maximal` — **2 commits**, a research note and a Tauri `Cargo.lock` bump.
+  **Nothing under `src/`.**
+
+So `maximal/src` is frozen at the fork point while core moves. Of the 69
+diverged files, 54 are core pulling ahead; the 8 where maximal has more lines
+are mostly core *deliberately shedding scope* — `lib/platform/cli-path.ts` drops
+from 240 lines to 58 because `ensureCliSymlink()`, the macOS `.app` first-launch
+shim, has no place in a headless engine.
+
+Two consequences follow.
+
+**The good one:** excavating `maximal/src` is a **deletion, not a merge**. No
+work lives only in maximal's copy, so there is nothing to rescue or reconcile —
+delete it and depend on `@stuffbucket/maximal-core`.
+
+**The bad one:** `@stuffbucket/maximal` is the public npm CLI (`bin: maximal`,
+`bun publish --access public`) and its engine stopped receiving fixes on
+2026-07-30, while core has taken 130 commits since. Every day that gap widens at
+roughly the rate core is developed. The cost of the excavation is not really the
+4,235 lines — it is that the shipped CLI and the maintained engine are no longer
+the same code.
 
 ## Two operational notes
 
