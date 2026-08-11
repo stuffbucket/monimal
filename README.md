@@ -34,13 +34,32 @@ inside `maximal` and `maximal-core`, and `vitest` inside `maximal-electron`.
 
 ## Status
 
-| | build | typecheck | test |
-| --- | --- | --- | --- |
-| `maximal` | pass | pass | 1625 pass, 0 fail (148 files) |
-| `maximal-core` | pass | pass | 1766 pass, 0 fail (144 files) |
-| `maximal-electron` | pass | pass | 59 files pass |
+| | build | typecheck | lint | test |
+| --- | --- | --- | --- | --- |
+| `maximal` | pass | pass | pass | 1625 pass, 0 fail (148 files) |
+| `maximal-core` | pass | pass | pass | 1766 pass, 0 fail (144 files) |
+| `maximal-electron` | pass | pass | pass | 59 files pass |
 
-Turbo caching works: a warm `build typecheck` is 6/6 cached in ~15ms.
+### Turborepo
+
+Caching is the whole of the value here, and it is substantial:
+
+| task | cold | warm | packages rebuilt on a 1-file change |
+| --- | --- | --- | --- |
+| `build` | 2.19s | 17ms | 1 of 3 |
+| `typecheck` | 4.67s | 16ms | 1 of 3 |
+| `lint` | 3.67s | 16ms | 1 of 3 |
+| `test` | 52.56s | 22ms | 1 of 3 |
+
+Cache scoping is correct: editing one file in `maximal-core` rebuilds only
+`maximal-core` and replays the other two from cache.
+
+What Turbo is *not* doing here is orchestration. `turbo run build --dry=json`
+reports `dependsOn: (none)` for all three packages, because none depends on
+another (finding 4) — so `^build` has no edges to order. And `test` runs at
+`--concurrency=1`, which gives up parallelism across packages. Net: this is a
+fast remote-cache-shaped tool being used as a local cache and task runner.
+Worth having, but a fraction of what it is for.
 
 `maximal-core`'s 1766 passing tests match its upstream count exactly.
 `maximal`'s count is lower than upstream's 1752 because 14 Tauri-coupled test

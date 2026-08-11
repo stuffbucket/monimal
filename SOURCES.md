@@ -93,6 +93,18 @@ identically under both Bun and pnpm:
   what upstream's lockfiles resolve. `hono` likewise floated 4.12.18 → 4.13.1;
   left alone, as nothing failed because of it.
 
+- `prettier` floated **3.8.3 → 3.9.6**, and 3.9.6 changed how it formats union
+  types. `maximal` lints clean upstream and produced **20 formatting errors**
+  here, in files nobody had touched. prettier is not a declared dependency of
+  any package — it arrives transitively through `@echristian/eslint-config` —
+  so the only lever is a root `pnpm.overrides` entry pinning `prettier: 3.8.3`.
+  That restores a clean lint. Third instance of this failure mode, in a third
+  tool: **assume every transitive tool version floats until pinned.**
+
+  Note `eslint --cache` hid the fix at first — the cache was written by the
+  3.9.6 run and replayed stale errors. Delete `.eslintcache` after changing a
+  formatter version.
+
 ### Latent bugs the workspace exposed
 
 - `maximal-electron` imports `typebox` in `src/main/native/agent.ts` and

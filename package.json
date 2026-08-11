@@ -16,6 +16,9 @@
     "turbo": "^2.10.9"
   },
   "pnpm": {
+    "overrides": {
+      "prettier": "3.8.3"
+    },
     "onlyBuiltDependencies": [
       "@google/genai",
       "electron",
