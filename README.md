@@ -168,6 +168,25 @@ it fails here on `node-pty depends on node-addon-api, which is not installed`
 (node-pty wants `^7.1.0`; the hoist puts 8.9.1 at the root). Packaging that demo
 app is not something this workspace needs to do.
 
+## CI
+
+`.github/workflows/ci.yml` has two jobs:
+
+- **check** (ubuntu) — `install --frozen-lockfile` -> lint -> typecheck -> build
+  -> test, with the Turbo cache persisted across runs.
+- **package** (macos-14) — `pnpm run package`, then a gate asserting the
+  packaged app's embedded sidecar reports the *workspace* core version. That is
+  the one check that would catch this repo silently reverting to a stale pin.
+  Uploads `Maximal.app` as an artifact.
+
+Both need node (from `.nvmrc`), pnpm (from `packageManager`) and bun — `maximal`
+and `maximal-core` build and test with bun, not node. The two `.bun-version`
+pins disagree (1.3.11 vs 1.3.14) because they are separate repos upstream; CI
+takes the newer.
+
+**This repo has no git remote, so the workflow has never actually run.** The
+sequence and the sidecar gate were validated locally, command for command.
+
 ## Standing hazards
 
 **Dependency float.** One root lockfile means per-package lockfiles stop

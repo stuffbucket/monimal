@@ -1,0 +1,116 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Turborepo's own telemetry prompt, off in CI.
+  TURBO_TELEMETRY_DISABLED: 1
+
+jobs:
+  check:
+    name: build / typecheck / lint / test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      # pnpm before setup-node, so setup-node's cache: pnpm can find it.
+      - uses: pnpm/action-setup@v4
+        with:
+          # No version here: it comes from packageManager in package.json,
+          # so there is one place to change it.
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      # maximal and maximal-core build and test with bun, not node. Both pin a
+      # .bun-version, and they disagree (1.3.11 vs 1.3.14) because they are
+      # separate repos upstream; take the newer.
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      # Turborepo's local cache. Keyed on the lockfile plus the commit, falling
+      # back to any cache for the same lockfile, so an unchanged dependency set
+      # still gets warm task results.
+      - name: Restore turbo cache
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
+            turbo-${{ runner.os }}-
+
+      - run: pnpm install --frozen-lockfile
+
+      # Fails if any dependency resolves differently than the source repos.
+      # Advisory: this workspace has one lockfile, so some float is expected.
+      - name: Report dependency float
+        run: pnpm run check:float
+        continue-on-error: true
+
+      - run: pnpm run lint
+      - run: pnpm run typecheck
+      - run: pnpm run build
+
+      # Serialized on purpose: maximal and maximal-core both bind ports and
+      # install signal handlers, and interfere when run concurrently.
+      - run: pnpm run test
+
+  package:
+    name: package macOS app
+    runs-on: macos-14
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - run: pnpm install --frozen-lockfile
+
+      # Builds maximal-core, compiles it into a standalone sidecar, bundles the
+      # renderer against the workspace copy of maximal-electron, and emits
+      # Maximal.app. The target triple is darwin-arm64, hence macos-14.
+      - run: pnpm run package
+
+      - name: Verify the app carries a working sidecar
+        run: |
+          set -euo pipefail
+          APP="packages/maximal/client/out/Maximal-darwin-arm64/Maximal.app"
+          test -d "$APP"
+          SIDECAR="$APP/Contents/Resources/bin/maximal-core"
+          test -x "$SIDECAR"
+          # Must match the workspace copy of maximal-core, not a stale git pin.
+          EXPECTED="$(node -p "require('./packages/maximal-core/package.json').version")"
+          ACTUAL="$("$SIDECAR" --version | tr -d '[:space:]')"
+          echo "sidecar $ACTUAL, workspace core $EXPECTED"
+          test "$ACTUAL" = "$EXPECTED"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Maximal-darwin-arm64
+          path: packages/maximal/client/out/Maximal-darwin-arm64
+          retention-days: 7
