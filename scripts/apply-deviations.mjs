@@ -131,6 +131,32 @@ function disableGitHooks(p, label, anchor) {
 
   set(p, 'scripts', 'test', 'bun test', 'maximal-core', 'test:mutation')
 
+  // `build` produces the standalone sidecar bundle (dist/main.js) and nothing
+  // else. The library surface consumers import — the five subpath exports in
+  // the `exports` map — lives at dist/lib/*.d.ts and comes from a SEPARATE
+  // script, `build:lib` (tsup). Upstream never wires the two together because
+  // it ships dist/lib COMMITTED, force-added past its own .gitignore, so a
+  // git-install consumer gets prebuilt files without running a build.
+  //
+  // That arrangement does not survive being copied into a workspace. sync.sh
+  // brings the built files across, but packages/maximal-core/.gitignore comes
+  // with them, so git ignores dist/ here and the lib is never committed. A
+  // local checkout typechecks against the synced files while a fresh clone —
+  // i.e. CI — fails TS2307 on all five subpaths.
+  //
+  // Building it is the monorepo answer: the source is right here, so generate
+  // dist/lib rather than commit a 7.4MB artifact that every re-sync re-dirties.
+  // turbo's `build` already declares `outputs: ["dist/**"]` and `typecheck`
+  // dependsOn `^build`, so wiring it into `build` is the whole fix. tsup runs
+  // with `clean: false`, so it will not wipe the sidecar bundle beside it.
+  set(
+    p,
+    'scripts',
+    'build',
+    'bun scripts/ops/build-bundle.ts && bun run build:lib',
+    'maximal-core',
+  )
+
   // 1.5.2 changes an inferred type and breaks tests/setup-status-openapi.
   // Upstream's lockfile resolves 1.5.0; one workspace lockfile floats past it.
   set(p, 'dependencies', '@hono/zod-openapi', '1.5.0', 'maximal-core')

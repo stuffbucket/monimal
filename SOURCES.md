@@ -107,6 +107,28 @@ three times:
 Third instance, third tool: **assume every transitive tool version floats until
 pinned.**
 
+### Forced by copying a git-dependency package into a workspace
+
+`maximal-core`'s `exports` map points its five subpath exports at built files
+(`dist/lib/*.d.ts`), and upstream satisfies that by **committing** `dist/lib` —
+force-added past its own `.gitignore` — because its consumers install it from
+git, and a git install runs no build.
+
+A copy does not inherit the force-add. `sync.sh` brings the built files across,
+but `packages/maximal-core/.gitignore` comes with them, so git ignores `dist/`
+here and the lib is never committed. The breakage is invisible locally, where
+the synced files sit on disk, and appears only on a fresh clone: `maximal-client`
+fails `tsc` with TS2307 on all five subpaths, plus a tail of `unknown`/implicit-
+`any` errors that are downstream of the unresolved modules.
+
+`build` is therefore extended to
+`bun scripts/ops/build-bundle.ts && bun run build:lib`. Upstream keeps the two
+apart — `build` makes the sidecar bundle, `build:lib` (tsup) makes the library —
+and never has cause to run them together. A workspace has the source, so it
+builds the lib rather than committing a 7.4MB artifact that every re-sync
+re-dirties. Turbo already declared `outputs: ["dist/**"]` on `build` and
+`dependsOn: ["^build"]` on `typecheck`, so nothing else had to move.
+
 ### Forced by splitting the site into its own package
 
 Extracting the Astro site broke the coupling in **both** directions, neither

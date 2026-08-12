@@ -51,7 +51,7 @@
   ],
   "scripts": {
     "bindings:check": "bun scripts/ops/check-bindings.ts",
-    "build": "bun scripts/ops/build-bundle.ts",
+    "build": "bun scripts/ops/build-bundle.ts && bun run build:lib",
     "build:lib": "tsup",
     "casts": "bun run scripts/find-casts.ts",
     "casts:check": "bun run scripts/find-casts.ts --check",
