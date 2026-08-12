@@ -11,6 +11,7 @@
 
 ## Sources
 
-- Read [SOURCES.md](SOURCES.md) before changing anything under `packages/`. It
-  records what those packages were copied from, and the rules that keep the
-  workspace building.
+- Record agent workspace build rules in [SOURCES.md](SOURCES.md).
+- Agents consult SOURCES.md before changing `./packages/**`.
+- Record deviations from the upstream copies in SOURCES.md.
+- Do not restate SOURCES.md rules here.
