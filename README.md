@@ -28,6 +28,8 @@ pnpm run lint
 pnpm run test         # turbo run test --concurrency=1
 pnpm run check        # build + typecheck, then test
 
+pnpm run package      # build the macOS app (see Packaging)
+
 pnpm run sync         # git archive main -> packages/*, then re-apply deviations
 pnpm run deviations   # re-apply local edits (idempotent)
 pnpm run check:float  # dependencies resolving differently than upstream
@@ -119,29 +121,52 @@ protocol, `workspace:@stuffbucket/maximal-electron@*`.
 
 ## Packaging
 
-`electron-forge package` does **not** yet succeed from this workspace. Two
-distinct causes, one solved:
+```sh
+pnpm run package     # turbo run package --filter maximal-client
+```
 
-**1. Forge gates on the linker (solved).** It refuses to run under pnpm unless
-`node-linker=hoisted` or a hoist pattern is defined. Hoisting outright breaks
-maximal-core's build, so `.npmrc` defines `public-hoist-pattern` entries for
-electron and node-pty instead. Forge's check passes, and main and preload build.
+**This works.** From a clean tree it builds maximal-core, compiles it into a
+74MB standalone sidecar, bundles the renderer against the workspace copy of
+maximal-electron, and emits
+`packages/maximal/client/out/Maximal-darwin-arm64/Maximal.app` (359MB).
 
-**2. Renderer bundling still fails (open).** Rolldown cannot resolve Radix's
-transitive imports. The first layer was a genuine workspace-link artifact:
-maximal-electron ships **no runtime dependencies** — React and Radix are
-devDependencies plus optional peers — so a published install brings only `dist/`
-and the consumer supplies them, while a `workspace:*` link symlinks the whole
-source tree *including its devDependency `node_modules`*, which the bundler then
-walks into. A `resolve.dedupe` in the client's renderer config stops that. The
-failure then moves to the client's own Radix copies, where Rolldown still cannot
-follow a symlinked package's transitive deps under pnpm's isolated layout.
+Verified end to end: the packaged app launches, spawns its embedded sidecar, and
+the proxy binds a port. The sidecar reports **0.6.3** — the workspace copy of
+core, not the `v0.1.1` the repo pins.
 
-So: **linking these packages for typecheck, lint and test works and is
-valuable; producing a shippable app from this workspace is unsolved.** The
-options are a Vite resolution fix, packaging the client outside the workspace,
-or relaxing maximal-core's build guard so `node-linker=hoisted` becomes
-available.
+Getting there needed three things, each a genuine obstacle:
+
+**1. Forge gates on the linker.** It refuses to run under pnpm unless
+`node-linker=hoisted` or a hoist pattern is defined.
+
+**2. Rolldown resolves through symlink paths.** Vite 8 resolves a symlinked
+package's imports relative to the symlink rather than the realpath, so under
+isolated linking a Radix package's transitive deps (`@radix-ui/react-primitive`,
+`react-remove-scroll`) are invisible and the renderer build fails one package at
+a time as each is hoisted by hand. A first layer of this was a real
+workspace-link artifact: maximal-electron ships **no runtime dependencies** —
+React and Radix are devDependencies plus optional peers — so a published install
+brings only `dist/` and the consumer supplies them, while a `workspace:*` link
+symlinks the whole source tree *including its devDependency `node_modules`*,
+which the bundler walks into. `resolve.dedupe` in the client's renderer config
+stops that part.
+
+Both are settled by `public-hoist-pattern[]=*` in `.npmrc`: everything is also
+placed in the root `node_modules`, so symlink-path resolution finds it and Forge
+sees a hoist pattern — while the isolated linker still gives every package its
+own `node_modules`, which maximal-core's build requires. See `.npmrc` for the
+full reasoning, including what this costs.
+
+**3. The sidecar has to exist first.** Forge fails late with
+`ENOENT: resources/bin` if `build:core` has not run. The client's `build` is
+mapped to `build:core` so the sidecar is on the task graph, where it correctly
+depends on `maximal-core#build`.
+
+`package` is filtered to `maximal-client` on purpose. `maximal-electron` has a
+`package` script too — it is a reference Electron app as well as a library — and
+it fails here on `node-pty depends on node-addon-api, which is not installed`
+(node-pty wants `^7.1.0`; the hoist puts 8.9.1 at the root). Packaging that demo
+app is not something this workspace needs to do.
 
 ## Standing hazards
 
@@ -160,8 +185,11 @@ floating until pinned.
 cannot run here, but deleting it dropped 69 passing tests — `maximal-electron`
 asserts against those files.
 
-**The linker conflict is real, and now measured** — see "Packaging" above. It no
-longer blocks typecheck, lint or test; it blocks producing an app bundle.
+**The total public hoist re-hides phantom dependencies.** `public-hoist-pattern[]=*`
+is what makes packaging work, but it also restores exactly the flat resolution
+that let `typebox`, `@types/node` and `@electron/packager` go undeclared
+upstream. All three are declared here, but the workspace will no longer catch
+the next one. An install with that line removed is the way to check.
 
 **maximal <-> site is a cycle.** `site` depends on `maximal` for `docs/guide`;
 `maximal`'s release script and three tests import the site's updates-manifest

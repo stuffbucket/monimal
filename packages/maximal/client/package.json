@@ -7,6 +7,7 @@
   "private": true,
   "main": ".vite/build/main.js",
   "scripts": {
+    "build": "bun scripts/build-core.ts",
     "build:core": "bun scripts/build-core.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",

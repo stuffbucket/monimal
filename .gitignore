@@ -23,3 +23,6 @@ reports/
 
 # os
 .DS_Store
+
+# packaged app output
+packages/maximal/client/resources/bin/

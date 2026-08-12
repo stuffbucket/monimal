@@ -283,6 +283,12 @@ function disableGitHooks(p, label, anchor) {
   // CI change. `test:run` is the same suite, explicitly single-shot.
   set(p, 'scripts', 'test', 'vitest run', 'client')
 
+  // No plain `build` upstream, so Turbo had nothing to run — but `package`
+  // needs the compiled core sidecar at resources/bin, and without it Forge
+  // fails late with `ENOENT: resources/bin`. Mapping build -> build:core puts
+  // the sidecar on the task graph, where it correctly depends on maximal-core.
+  set(p, 'scripts', 'build', 'bun scripts/build-core.ts', 'client', 'build:core')
+
   writePkg('maximal/client', p)
 
   // Renderer bundling: resolve React and Radix from THIS package.

@@ -8,6 +8,11 @@
       "outputs": ["dist/**"],
       "inputs": ["$TURBO_DEFAULT$", "!research_log/**", "!.claude/**", "!.github/**", "!reports/**"]
     },
+    "maximal-client#build": {
+      "dependsOn": ["^build"],
+      "outputs": ["resources/bin/**"],
+      "inputs": ["$TURBO_DEFAULT$", "!research_log/**", "!.claude/**", "!.github/**", "!reports/**"]
+    },
     "typecheck": {
       "dependsOn": ["^build"],
       "outputs": [],
@@ -20,6 +25,11 @@
     },
     "lint": {
       "outputs": [],
+      "inputs": ["$TURBO_DEFAULT$", "!research_log/**", "!.claude/**", "!.github/**", "!reports/**"]
+    },
+    "package": {
+      "dependsOn": ["build", "^build"],
+      "outputs": ["out/**", ".vite/**"],
       "inputs": ["$TURBO_DEFAULT$", "!research_log/**", "!.claude/**", "!.github/**", "!reports/**"]
     },
     "dev": {
