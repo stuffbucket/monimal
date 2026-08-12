@@ -44,6 +44,7 @@ pnpm 10.20 manages dependencies. `bun` remains the bundler and test runner in
 | | build | typecheck | lint | test |
 | --- | --- | --- | --- | --- |
 | `maximal` | pass | pass | pass | 75 pass, 0 fail |
+| `maximal-client` | pass | pass | pass | 54 pass, 0 fail |
 | `maximal-core` | pass | pass | pass | 1766 pass, 0 fail |
 | `maximal-electron` | pass | pass | pass | 59 files pass |
 | `site` | pass | — | — | pass |
@@ -84,11 +85,14 @@ There is now a genuine dependency chain, which earlier revisions of this repo
 did not have:
 
 ```
-@stuffbucket/maximal-core#build  ->  @stuffbucket/maximal#build  ->  maximal-site#build
+maximal-core   ─┬─>  maximal-client        (the Electron app)
+maximal-electron┘
+
+maximal-core   ──>  maximal  ──>  maximal-site
 ```
 
-`maximal-electron#build` still stands alone — nothing in the workspace consumes
-it yet. That is the next thing to change.
+Both libraries feed the client, which is the only thing here that consumes
+both.
 
 ## What the workspace is actually buying
 
@@ -104,13 +108,40 @@ and because `maximal`'s build/dev/start all run out of
 `node_modules/@stuffbucket/maximal-core/src`, that link is load-bearing — this
 really does build the published CLI against current core, and it passes.
 
-The second is **not** closed yet, because `packages/maximal/client` is not a
-workspace package. Closing it is the obvious next step.
+**Both are now closed.** `packages/maximal/client` is a workspace package, and
+the client typechecks, lints and passes its 54 tests against a maximal-electron
+50 commits newer than its pin — with no source changes. That is the single most
+useful thing this workspace has demonstrated.
 
-One obstacle worth knowing before starting: the client declares the dependency
-as `"stuffbucket-electron": "github:stuffbucket/maximal-electron#..."`, but the
-package's actual name is `@stuffbucket/maximal-electron`. A git dependency
-tolerates that mismatch; a `workspace:*` link does not.
+The name mismatch (`stuffbucket-electron` vs the real
+`@stuffbucket/maximal-electron`) is bridged with pnpm's aliased workspace
+protocol, `workspace:@stuffbucket/maximal-electron@*`.
+
+## Packaging
+
+`electron-forge package` does **not** yet succeed from this workspace. Two
+distinct causes, one solved:
+
+**1. Forge gates on the linker (solved).** It refuses to run under pnpm unless
+`node-linker=hoisted` or a hoist pattern is defined. Hoisting outright breaks
+maximal-core's build, so `.npmrc` defines `public-hoist-pattern` entries for
+electron and node-pty instead. Forge's check passes, and main and preload build.
+
+**2. Renderer bundling still fails (open).** Rolldown cannot resolve Radix's
+transitive imports. The first layer was a genuine workspace-link artifact:
+maximal-electron ships **no runtime dependencies** — React and Radix are
+devDependencies plus optional peers — so a published install brings only `dist/`
+and the consumer supplies them, while a `workspace:*` link symlinks the whole
+source tree *including its devDependency `node_modules`*, which the bundler then
+walks into. A `resolve.dedupe` in the client's renderer config stops that. The
+failure then moves to the client's own Radix copies, where Rolldown still cannot
+follow a symlinked package's transitive deps under pnpm's isolated layout.
+
+So: **linking these packages for typecheck, lint and test works and is
+valuable; producing a shippable app from this workspace is unsolved.** The
+options are a Vite resolution fix, packaging the client outside the workspace,
+or relaxing maximal-core's build guard so `node-linker=hoisted` becomes
+available.
 
 ## Standing hazards
 
@@ -129,13 +160,8 @@ floating until pinned.
 cannot run here, but deleting it dropped 69 passing tests — `maximal-electron`
 asserts against those files.
 
-**The linker is unresolved.** `maximal-electron` sets `node-linker=hoisted` for
-Electron Forge's native prebuilds; `maximal-core`'s build refuses to run without
-a package-local `node_modules`, which hoisting empties. `node-linker` is a
-workspace-root setting, so only one can win. This workspace uses pnpm's default
-isolated linker, which suits `tsc`/`bun test`/`vitest` but means
-`electron-forge package` is not expected to work from here. **This will matter
-as soon as the client is wired in.**
+**The linker conflict is real, and now measured** — see "Packaging" above. It no
+longer blocks typecheck, lint or test; it blocks producing an app bundle.
 
 **maximal <-> site is a cycle.** `site` depends on `maximal` for `docs/guide`;
 `maximal`'s release script and three tests import the site's updates-manifest

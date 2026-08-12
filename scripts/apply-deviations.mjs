@@ -284,6 +284,51 @@ function disableGitHooks(p, label, anchor) {
   set(p, 'scripts', 'test', 'vitest run', 'client')
 
   writePkg('maximal/client', p)
+
+  // Renderer bundling: resolve React and Radix from THIS package.
+  //
+  // stuffbucket-electron ships no runtime dependencies — React and Radix are
+  // devDependencies plus optional peers, so a published or git install brings
+  // only dist/ and the consumer supplies them. A workspace link is different:
+  // it symlinks the whole source directory, node_modules included, so the
+  // bundler walks into that package's own devDependency copies, whose
+  // transitive deps are not reachable from there.
+  //
+  // NECESSARY BUT NOT SUFFICIENT. This stops the bundler resolving into
+  // maximal-electron's tree, and the failure moves to the client's own Radix
+  // copies — where Rolldown still cannot follow a symlinked package's
+  // transitive deps under pnpm's isolated layout. `electron-forge package` does
+  // not yet succeed from this workspace. See README, "Packaging".
+  const cfg = join(ROOT, 'packages/maximal/client/vite.renderer.config.ts')
+  if (existsSync(cfg)) {
+    const before = readFileSync(cfg, 'utf8')
+    if (!before.includes('dedupe:')) {
+      const after = before.replace(
+        /(\n\s*plugins: \[react\(\)\],)/,
+        `$1
+  resolve: {
+    // See scripts/apply-deviations.mjs — needed because maximal-electron is a
+    // workspace link here, not a published install.
+    dedupe: [
+      'react',
+      'react-dom',
+      'react-resizable-panels',
+      '@radix-ui/react-collapsible',
+      '@radix-ui/react-dialog',
+      '@radix-ui/react-dropdown-menu',
+      '@radix-ui/react-radio-group',
+      '@radix-ui/react-tabs',
+      '@radix-ui/react-tooltip',
+      '@radix-ui/react-visually-hidden',
+    ],
+  },`,
+      )
+      if (after !== before) {
+        writeFileSync(cfg, after)
+        note('client: renderer dedupes react/radix to this package')
+      }
+    }
+  }
 }
 
 // ── report ─────────────────────────────────────────────────────────────────
