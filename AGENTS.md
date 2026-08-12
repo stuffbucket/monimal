@@ -4,23 +4,31 @@ Root of the documentation DAG.
 
 ## Documentation
 
+Duplication hinders discovery.
+
 - Look before you write.
-- Do not repeat or restate information, in this file or any other. Duplication
-  hinders discovery.
-- Optimize for traversal. Link to the node that owns a fact; never copy it.
+- Do not repeat information, verbatim or semantically.
+- Do not combine weakly related concepts into a single statement.
+- Collapse clauses that repeat verbatim into a list.
 - Do not distribute knowledge across more than one subtree.
+- Link to the node that owns a fact.
+- Optimize for traversal.
 
 ## CI
 
-- Do not use `runs-on: macos-*` in workflows. Use ubuntu instead.
-- Use github.com/stuffbucket/macos-builder when an Apple ID is needed (signing
-  and notarization) or macOS must be used in a workflow.
-- Use node ^22 in workflows.
-- Pin all external actions and dependencies in workflows to a SHA, never a
-  version.
+In workflows:
+
+- Do not use `runs-on: macos-*`.
+- Use ubuntu.
+- Use node ^22.
+- Pin external actions and dependencies to a SHA.
+- Use github.com/stuffbucket/macos-builder when:
+  - an Apple ID is needed for signing or notarization
+  - macOS is required
 
 ## Sources
 
-- Record agent workspace build rules in [SOURCES.md](SOURCES.md).
-- Agents consult SOURCES.md before changing `./packages/**`.
-- Record deviations from the upstream copies in SOURCES.md.
+- Consult [SOURCES.md](SOURCES.md) before changing `./packages/**`.
+- Record in SOURCES.md:
+  - agent workspace build rules
+  - deviations from the upstream copies
