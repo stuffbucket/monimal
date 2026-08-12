@@ -8,6 +8,7 @@ Duplication hinders discovery.
 
 - Look before you write.
 - Do not repeat information, verbatim or semantically.
+- Do not record state that is transient by construction.
 - Do not combine weakly related concepts into a single statement.
 - Collapse clauses that repeat verbatim into a list.
 - Do not distribute knowledge across more than one subtree.
@@ -16,15 +17,15 @@ Duplication hinders discovery.
 
 ## CI
 
+Versions may be mutated without notice.
+
 In workflows:
 
-- Do not use `runs-on: macos-*`.
-- Use ubuntu.
+- Only use ubuntu, windows, or macos-builder as runners.
+- Use github.com/stuffbucket/macos-builder when an Apple ID is needed for
+  signing or notarization.
 - Use node ^22.
-- Pin external actions and dependencies to a SHA.
-- Use github.com/stuffbucket/macos-builder when:
-  - an Apple ID is needed for signing or notarization
-  - macOS is required
+- Pin dependencies by SHA.
 
 ## Sources
 
