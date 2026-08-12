@@ -239,6 +239,53 @@ function disableGitHooks(p, label, anchor) {
   }
 }
 
+// ── maximal/client ─────────────────────────────────────────────────────────
+// The Electron app. It is the one thing here that consumes BOTH libraries, so
+// it is where the workspace either earns its keep or does not:
+//
+//     {maximal-core, maximal-electron} -> maximal/client
+//
+// Upstream it reaches both over git: maximal-core#v0.6.3 (current) and
+// maximal-electron#2f1a06c (50 commits behind). Both become workspace links.
+//
+// The electron dependency is declared under the key `stuffbucket-electron`
+// while the package's real name is `@stuffbucket/maximal-electron`, and the
+// source imports `stuffbucket-electron/renderer` etc. A git dependency does not
+// care what the target calls itself; a workspace link does. pnpm's aliased
+// workspace protocol keeps the import specifier working against the real
+// package: `workspace:@stuffbucket/maximal-electron@*`.
+{
+  const p = readPkg('maximal/client')
+  set(p, 'dependencies', '@stuffbucket/maximal-core', 'workspace:*', 'client')
+  set(
+    p,
+    'dependencies',
+    'stuffbucket-electron',
+    'workspace:@stuffbucket/maximal-electron@*',
+    'client',
+  )
+  writePkg('maximal/client', p)
+
+  // Second phantom dependency, same class as maximal-electron's typebox:
+  // client/tsconfig.json sets `"types": ["node"]` but nothing declares
+  // @types/node. npm's flat node_modules supplied it transitively; pnpm's
+  // isolated layout does not, and typecheck fails with TS2688. Matched to
+  // maximal-electron's version. Real bug upstream.
+  set(p, 'devDependencies', '@types/node', '^22.10.0', 'client')
+
+  // Third phantom dependency: forge.config.ts imports @electron/packager for
+  // its types, but only @electron-forge/* are declared. Same npm-flat-hoisting
+  // story as the other two. Version matched to what Forge 7.11.2 pulls in.
+  set(p, 'devDependencies', '@electron/packager', '^18.4.0', 'client')
+
+  // `test` is bare `vitest`, i.e. watch mode. It happens to exit under Turbo
+  // because vitest sees a non-TTY, but relying on that is a hang waiting for a
+  // CI change. `test:run` is the same suite, explicitly single-shot.
+  set(p, 'scripts', 'test', 'vitest run', 'client')
+
+  writePkg('maximal/client', p)
+}
+
 // ── report ─────────────────────────────────────────────────────────────────
 if (changes.length === 0) {
   console.log('deviations: already applied, nothing to do')

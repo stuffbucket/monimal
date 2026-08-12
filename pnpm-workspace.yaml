@@ -1,2 +1,6 @@
 packages:
   - "packages/*"
+  # The Electron app lives inside the maximal package upstream. It is listed
+  # explicitly so it can link maximal-core and maximal-electron as workspace
+  # deps rather than the stale git pins it ships with.
+  - "packages/maximal/client"

@@ -60,8 +60,15 @@ extract() {
 
 strip_noise() {
   local dest="$ROOT/packages/$1"
-  # Committed build output and local agent state: never wanted in the workspace.
-  rm -rf "$dest/.claude/worktrees" "$dest/dist" "$dest/out" "$dest/reports"
+  # Local agent state and uncommitted build residue.
+  #
+  # NOT dist/: maximal-core deliberately COMMITS dist/lib (force-added past its
+  # own .gitignore) so git-dependency consumers get the built library — its
+  # `exports` map points straight at dist/lib/*.d.ts, and nothing in a plain
+  # install regenerates it. Deleting it broke the client's typecheck with
+  # "Cannot find module '@stuffbucket/maximal-core/client'". `git archive` only
+  # ever yields committed files, so anything under dist/ here is intentional.
+  rm -rf "$dest/.claude/worktrees" "$dest/out" "$dest/reports"
   # Per-package lockfiles are ignored in a workspace -- one root lockfile wins.
   # Leaving them implies a pinning that is not in effect.
   rm -f "$dest/bun.lock" "$dest/bun.lockb" "$dest/pnpm-lock.yaml" "$dest/package-lock.json"

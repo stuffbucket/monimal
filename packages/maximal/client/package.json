@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "test": "vitest",
+    "test": "vitest run",
     "test:run": "vitest run",
     "start": "electron-forge start",
     "package": "electron-forge package",
@@ -27,8 +27,9 @@
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-resizable-panels": "^4.12.2",
-    "stuffbucket-electron": "github:stuffbucket/maximal-electron#2f1a06ced486162b047d43a0fcca5fd82a6943e0",
-    "zod": "^4.4.3"
+    "stuffbucket-electron": "workspace:@stuffbucket/maximal-electron@*",
+    "zod": "^4.4.3",
+    "@stuffbucket/maximal-core": "workspace:*"
   },
   "devDependencies": {
     "@babel/core": "^7.29.7",
@@ -51,6 +52,8 @@
     "jsdom": "^30.0.1",
     "typescript": "^7.0.2",
     "vite": "^8.2.1",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.10",
+    "@types/node": "^22.10.0",
+    "@electron/packager": "^18.4.0"
   }
 }
