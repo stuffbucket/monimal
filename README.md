@@ -29,14 +29,7 @@ pnpm run test         # turbo run test --concurrency=1
 pnpm run check        # build + typecheck, then test
 
 pnpm run package      # build the macOS app (see Packaging)
-
-pnpm run sync         # git archive main -> packages/*, then re-apply deviations
-pnpm run deviations   # re-apply local edits (idempotent)
-pnpm run check:float  # dependencies resolving differently than upstream
 ```
-
-**A sync must be followed by `pnpm install`** — syncing replaces the package
-directories, which removes their `node_modules`.
 
 pnpm 10.20 manages dependencies. `bun` remains the bundler and test runner in
 `maximal` and `maximal-core`; `vitest` in `maximal-electron`; `astro` in `site`.
@@ -105,7 +98,7 @@ Two stale pins upstream, which a workspace link closes:
 | `maximal` | `maximal-core#v0.1.1` | 0.6.3 | five minors |
 | `maximal/client` | `maximal-electron#2f1a06c` | 0.0.9 | **50 commits** |
 
-The first is closed here: `apply-deviations.mjs` rewrites it to `workspace:*`,
+The first is closed here: the pin is rewritten to `workspace:*`,
 and because `maximal`'s build/dev/start all run out of
 `node_modules/@stuffbucket/maximal-core/src`, that link is load-bearing — this
 really does build the published CLI against current core, and it passes.
@@ -170,22 +163,14 @@ app is not something this workspace needs to do.
 
 ## CI
 
-`.github/workflows/ci.yml` has two jobs:
+`.github/workflows/ci.yml` runs one job on ubuntu: `install --frozen-lockfile`
+-> lint -> typecheck -> build -> test, with the Turbo cache persisted across
+runs. It needs node (from `.nvmrc`), pnpm (from `packageManager`) and bun —
+`maximal` and `maximal-core` build and test with bun, not node. The two
+`.bun-version` pins disagree (1.3.11 vs 1.3.14) because they are separate repos
+upstream; CI takes the newer.
 
-- **check** (ubuntu) — `install --frozen-lockfile` -> lint -> typecheck -> build
-  -> test, with the Turbo cache persisted across runs.
-- **package** (macos-14) — `pnpm run package`, then a gate asserting the
-  packaged app's embedded sidecar reports the *workspace* core version. That is
-  the one check that would catch this repo silently reverting to a stale pin.
-  Uploads `Maximal.app` as an artifact.
-
-Both need node (from `.nvmrc`), pnpm (from `packageManager`) and bun — `maximal`
-and `maximal-core` build and test with bun, not node. The two `.bun-version`
-pins disagree (1.3.11 vs 1.3.14) because they are separate repos upstream; CI
-takes the newer.
-
-**This repo has no git remote, so the workflow has never actually run.** The
-sequence and the sidecar gate were validated locally, command for command.
+There is no macOS job, and actions are SHA-pinned. See [AGENTS.md](AGENTS.md).
 
 ## Standing hazards
 
@@ -193,9 +178,8 @@ sequence and the sidecar gate were validated locally, command for command.
 applying and everything re-resolves to the newest semver-compatible version.
 This has broken the build three times — `@hono/zod-openapi` twice (a changed
 inferred type failed typecheck) and `prettier` once (changed union formatting
-produced 20 lint errors in untouched files). Only those two are pinned.
-`pnpm run check:float` reports the rest; treat every transitive tool version as
-floating until pinned.
+produced 20 lint errors in untouched files). Only those two are pinned; treat
+every transitive tool version as floating until pinned.
 
 **Tests are serialized.** `--concurrency=1`, because `maximal` and
 `maximal-core` both bind ports and install signal handlers.
