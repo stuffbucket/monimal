@@ -19,7 +19,7 @@ import {
   MANIFEST_SCHEMA_VERSION,
   resolveDownloads,
   type ManifestAsset,
-} from "../../site/src/lib/updates-manifest"
+} from "../site/src/lib/updates-manifest"
 
 // The parseManifestVersion regex the shipped desktop client uses, inlined so
 // this test proves schema-2 output stays readable without importing src/.

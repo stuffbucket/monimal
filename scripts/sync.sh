@@ -28,7 +28,6 @@ PACKAGES=(
   "maximal:maximal"
   "maximal-core:maximal-core"
   "maximal-electron:maximal-electron"
-  "site:maximal"          # the Astro site lives in maximal/site upstream
 )
 
 want="${1:-}"
@@ -92,17 +91,11 @@ for entry in "${PACKAGES[@]}"; do
   repo="${entry##*:}"
   [ -n "$want" ] && [ "$want" != "$dest" ] && continue
 
-  if [ "$dest" = "site" ]; then
-    extract "$repo" "$dest" "site"
-  else
-    extract "$repo" "$dest"
-  fi
+  extract "$repo" "$dest"
 
-  # The Tauri shell and the site are not part of the maximal package here:
-  # the shell is excluded outright, the site is its own workspace package.
-  if [ "$dest" = "maximal" ]; then
-    rm -rf "$ROOT/packages/maximal/shell" "$ROOT/packages/maximal/site"
-  fi
+  # site/ stays inside maximal. It is the GitHub Pages site, not a package:
+  # it is not a workspace member, nothing depends on it, and maximal's own
+  # release script and tests import it by relative path.
 
   strip_noise "$dest"
   printf "  %-18s %s  %s\n" "$dest" \

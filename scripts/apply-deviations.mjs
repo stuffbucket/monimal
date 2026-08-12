@@ -13,6 +13,10 @@
  * Tauri scripts, deleting shell-coupled tests, pinning @hono/zod-openapi in
  * maximal) are gone: they described a repo that no longer exists.
  *
+ * `site/` is the GitHub Pages site, not a package. It stays inside maximal
+ * exactly as upstream has it: not a workspace member, nothing depends on it,
+ * and maximal's release script and tests reach it by relative path.
+ *
  * Every change here is explained in SOURCES.md.
  */
 
@@ -148,95 +152,6 @@ function disableGitHooks(p, label, anchor) {
   set(p, 'scripts', 'build', 'npm run build:package', 'maximal-electron')
 
   writePkg('maximal-electron', p)
-}
-
-// ── site ───────────────────────────────────────────────────────────────────
-// The Astro site lives at maximal/site upstream and is a separate package here.
-// Its `guide` collection globs `../docs/guide` — maximal's docs — which as a
-// sibling resolves to nothing, and Astro then builds an empty guide with a zero
-// exit code. Declaring the dependency fixes it and gives Turborepo a real edge.
-{
-  const p = readPkg('site')
-  set(p, 'dependencies', '@stuffbucket/maximal', 'workspace:*', 'site')
-  writePkg('site', p)
-
-  const cfg = join(ROOT, 'packages/site/src/content.config.ts')
-  if (existsSync(cfg)) {
-    const before = readFileSync(cfg, 'utf8')
-    const after = before.replace(
-      /base:\s*"\.\.\/docs\/guide"/,
-      'base: "./node_modules/@stuffbucket/maximal/docs/guide"',
-    )
-    if (after !== before) {
-      writeFileSync(cfg, after)
-      note('site: guide collection resolves through the workspace dependency')
-    }
-  }
-}
-
-// ── maximal -> site ────────────────────────────────────────────────────────
-// The coupling runs both ways: maximal's release script and three tests import
-// the site's updates-manifest library. Upstream both live in one repo so
-// `../site/...` resolves; as siblings it is one level further out. This cannot
-// be a package dependency — site already depends on maximal, and the reverse
-// would be a cycle Turborepo rejects.
-{
-  const walk = (dir) => {
-    const out = []
-    for (const e of readdirSync(dir, { withFileTypes: true })) {
-      const f = join(dir, e.name)
-      if (e.isDirectory()) out.push(...walk(f))
-      else if (/\.(ts|tsx|mts)$/.test(e.name)) out.push(f)
-    }
-    return out
-  }
-
-  // Lengthening `../site/` to `../../site/` changes import sort order, which
-  // perfectionist/sort-imports then fails on. Fix it here rather than shelling
-  // out to `eslint --fix`: this runs during a sync, when the packages have just
-  // been replaced and node_modules does not exist yet, so eslint is not
-  // available at the only moment it would be needed.
-  const reorder = (src) =>
-    src.replace(
-      /(import \{[^}]*\} from "\.\.\/scripts\/[^"]*"\n)(import \{[^}]*\} from "\.\.\/\.\.\/site\/[^"]*"\n)/,
-      '$2$1',
-    )
-
-  const touched = []
-  for (const sub of ['tests', 'scripts']) {
-    const dir = join(ROOT, 'packages/maximal', sub)
-    if (!existsSync(dir)) continue
-    for (const f of walk(dir)) {
-      const before = readFileSync(f, 'utf8')
-      const after = reorder(before.replace(/(["'])\.\.\/site\//g, '$1../../site/'))
-      if (after !== before) {
-        writeFileSync(f, after)
-        touched.push(f)
-      }
-    }
-  }
-  if (touched.length) {
-    note(`maximal: repointed ${touched.length} file(s) at ../../site/`)
-    // Lengthening the specifier changes import sort order, which
-    // perfectionist/sort-imports then fails on. Let eslint place them. Only the
-    // rewritten files: whole directories made it exit non-zero on unrelated
-    // pre-existing findings. Best-effort — before the first install there is no
-    // eslint to run.
-    // Run from inside the package: eslint resolves its flat config relative to
-    // cwd, and invoking it from the workspace root picks up the wrong one (it
-    // exits 0 having fixed nothing, which reads as success).
-    const pkgDir = join(ROOT, 'packages/maximal')
-    const res = spawnSync(
-      'pnpm',
-      ['exec', 'eslint', '--fix', ...touched.map((f) => f.replace(`${pkgDir}/`, ''))],
-      { cwd: pkgDir, stdio: 'ignore' },
-    )
-    note(
-      res.status === 0
-        ? 'maximal: eslint --fix reordered the changed imports'
-        : 'maximal: eslint --fix unavailable — run `pnpm run lint` to check',
-    )
-  }
 }
 
 // ── maximal/client ─────────────────────────────────────────────────────────

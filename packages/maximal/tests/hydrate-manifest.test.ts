@@ -17,8 +17,8 @@ import {
   parseManifest,
   readStableDownloads,
   type HydratedDownloads,
-} from "../../site/src/lib/hydrate-manifest"
-import { buildManifest } from "../../site/src/lib/updates-manifest"
+} from "../site/src/lib/hydrate-manifest"
+import { buildManifest } from "../site/src/lib/updates-manifest"
 
 const dmgArm = {
   name: "maximal-v0.4.39-darwin-arm64.dmg",
