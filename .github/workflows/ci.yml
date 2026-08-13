@@ -5,6 +5,15 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      test_trace:
+        description: >-
+          Module-evaluation tracing for the bun suites. Use when a test fails
+          only in CI, or only in a particular order. See
+          packages/maximal-core/docs/dev/testing-strategy.md 5.7.
+        type: choice
+        options: ["off", "tests", "all"]
+        default: "off"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -61,7 +70,47 @@ jobs:
 
       # Serialized on purpose: maximal and maximal-core both bind ports and
       # install signal handlers, and interfere when run concurrently.
-      - run: pnpm run test
+      #
+      # Split by runner, not by preference: the two bun suites and the two
+      # vitest ones take different reporter flags. Both write a JUnit file,
+      # uploaded below, which is the only durable per-test record a failed run
+      # leaves -- name, file, line and duration per test, comparable against a
+      # green run. Bun's <failure> element carries no message, so the console
+      # output above is still where the diff and stack live.
+      #
+      # `--reporter=junit` suppresses bun's per-test (pass) lines, which is the
+      # point: it drops ~1800 lines of noise from the log while still printing
+      # every failure in full.
+      - name: test (bun suites)
+        run: |
+          mkdir -p packages/maximal/reports packages/maximal-core/reports
+          pnpm exec turbo run test --concurrency=1 \
+            --filter=@stuffbucket/maximal --filter=@stuffbucket/maximal-core \
+            -- --reporter=junit --reporter-outfile=reports/junit.xml
+        env:
+          # Inverted on purpose. `a && b || c` falls through to c when b is
+          # falsy, so `== 'off' && '' || inputs.test_trace` yields the string
+          # "off" — which is truthy, and would switch the tracer ON.
+          MAXIMAL_TEST_TRACE: ${{ inputs.test_trace != 'off' && inputs.test_trace || '' }}
+
+      - name: test (vitest suites)
+        run: |
+          mkdir -p packages/maximal-electron/reports packages/maximal/client/reports
+          pnpm exec turbo run test --concurrency=1 \
+            --filter=@stuffbucket/maximal-electron --filter=maximal-client \
+            -- --reporter=default --reporter=junit --outputFile=reports/junit.xml
+
+      # `always()`: the report is worth most when the run is red. Turbo may
+      # replay a cached test task without rewriting the file, so a missing one
+      # is not an error.
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: junit-${{ github.run_id }}-${{ github.run_attempt }}
+          path: packages/**/reports/junit.xml
+          if-no-files-found: ignore
+          retention-days: 30
 
   # No macOS job here; see AGENTS.md. The job that was removed also asserted the
   # packaged sidecar's version matched the workspace maximal-core, catching a
