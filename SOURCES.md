@@ -16,6 +16,7 @@ them here.
   `workflow-health.test.ts` assert against those files.
 - Do not add per-package lockfiles. The root lockfile is the only one that
   applies; a second implies a pinning that is not in effect.
+- Do not call `npm` in package scripts. Use pnpm.
 - Do not set `node-linker=hoisted`. It empties package-local `node_modules`, and
   maximal-core's `bun build` then writes module paths that are not
   byte-comparable. See `.npmrc`.
@@ -41,6 +42,10 @@ them here.
 - `maximal` and `maximal-core`: added `"test": "bun test"`; Turbo needs a plain
   `test` script. `maximal-electron`: added `"build"` as an alias for
   `build:package`, same reason.
+- `maximal-electron`: every `npm run` replaced with `pnpm run`. npm does not
+  recognise the config pnpm exports and warned four times per invocation.
+- `maximal-electron`: dropped `pnpm.onlyBuiltDependencies`. It duplicated the
+  root list, which is the only one pnpm honours.
 - `maximal-core`: `@hono/zod-openapi` pinned to `1.5.0`. 1.5.2 changes an
   inferred type and fails `tests/setup-status-openapi.test.ts`.
 - Root: `prettier` pinned to `3.8.3` via `pnpm.overrides`. 3.9.6 reformats
