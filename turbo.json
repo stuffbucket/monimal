@@ -20,7 +20,7 @@
     },
     "test": {
       "dependsOn": ["^build"],
-      "outputs": [],
+      "outputs": ["reports/**"],
       "inputs": ["$TURBO_DEFAULT$", "!research_log/**", "!.claude/**", "!.github/**", "!reports/**"]
     },
     "lint": {

@@ -100,9 +100,13 @@ jobs:
             --filter=@stuffbucket/maximal-electron --filter=maximal-client \
             -- --reporter=default --reporter=junit --outputFile=reports/junit.xml
 
-      # `always()`: the report is worth most when the run is red. Turbo may
-      # replay a cached test task without rewriting the file, so a missing one
-      # is not an error.
+      # `always()`: the report is worth most when the run is red.
+      #
+      # `reports/**` is declared as a turbo output on the test task, so a
+      # replayed cache hit restores the file and every run carries an artifact,
+      # not just the ones that actually execute tests. A restored report holds
+      # the timings of the run that produced it — same inputs, same numbers —
+      # exactly as the replayed console log does.
       #
       # Paths are one directory deep on purpose. `packages/**/reports` follows
       # pnpm's workspace symlinks into node_modules and uploads every report a
