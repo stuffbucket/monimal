@@ -104,9 +104,15 @@ jobs:
       #
       # `reports/**` is declared as a turbo output on the test task, so a
       # replayed cache hit restores the file and every run carries an artifact,
-      # not just the ones that actually execute tests. A restored report holds
-      # the timings of the run that produced it — same inputs, same numbers —
-      # exactly as the replayed console log does.
+      # not just the ones that execute tests.
+      #
+      # READ A RESTORED REPORT WITH CARE. It holds the timings of whichever run
+      # last produced that hash, which is NOT necessarily this commit: turbo's
+      # inputs exclude .github/**, reports/**, research_log/** and .claude/**,
+      # and cover only the four package directories. Two commits with different
+      # content can share a hash and therefore an artifact. Check whether the
+      # run's test tasks say "cache miss, executing" before treating the numbers
+      # as this commit's.
       #
       # Paths are one directory deep on purpose. `packages/**/reports` follows
       # pnpm's workspace symlinks into node_modules and uploads every report a

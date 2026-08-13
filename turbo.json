@@ -1,7 +1,12 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "ui": "stream",
-  "globalDependencies": ["pnpm-lock.yaml", ".npmrc"],
+  "globalDependencies": [
+    "pnpm-lock.yaml",
+    ".npmrc",
+    ".nvmrc",
+    ".github/workflows/ci.yml"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
@@ -21,7 +26,7 @@
     "test": {
       "dependsOn": ["^build"],
       "outputs": ["reports/**"],
-      "inputs": ["$TURBO_DEFAULT$", "!research_log/**", "!.claude/**", "!.github/**", "!reports/**"],
+      "inputs": ["$TURBO_DEFAULT$", "!research_log/**", "!.claude/**", "!reports/**"],
       "env": ["MAXIMAL_TEST_TRACE"]
     },
     "lint": {
