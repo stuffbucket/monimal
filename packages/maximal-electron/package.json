@@ -63,11 +63,11 @@
     "start": "electron-forge start",
     "build:host": "tsc -p tsconfig.host.json",
     "build:renderer": "tsc -p tsconfig.renderer-package.json && node scripts/copy-renderer-css.mjs",
-    "build:package": "npm run build:host && npm run build:renderer",
-    "prepack": "npm run build:package",
-    "prepare": "npm run build:package",
-    "prestart": "npm run build:package",
-    "prepackage": "npm run build:package",
+    "build:package": "pnpm run build:host && pnpm run build:renderer",
+    "prepack": "pnpm run build:package",
+    "prepare": "pnpm run build:package",
+    "prestart": "pnpm run build:package",
+    "prepackage": "pnpm run build:package",
     "postinstall": "node scripts/check-install.mjs",
     "package": "electron-forge package",
     "icons": "node scripts/gen-icons.mjs",
@@ -75,7 +75,7 @@
     "verify:crash-artifact": "node scripts/verify-crash-artifact.mjs",
     "verify:electron-cache": "node scripts/verify-electron-cache.mjs",
     "smoke:packaged": "node scripts/smoke-packaged.mjs",
-    "verify:exports": "npm run build:package && node scripts/verify-exports.mjs",
+    "verify:exports": "pnpm run build:package && node scripts/verify-exports.mjs",
     "verify:publish": "node scripts/verify-publish.mjs",
     "publish:package": "node scripts/publish-package.mjs",
     "verify:neutral": "node scripts/verify-neutral.mjs",
@@ -98,7 +98,7 @@
     "storybook:build": "storybook build",
     "storybook:check": "node scripts/storybook-check.mjs",
     "check:contrast": "node --no-warnings=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/check-contrast.mjs",
-    "build": "npm run build:package"
+    "build": "pnpm run build:package"
   },
   "peerDependencies": {
     "@radix-ui/react-collapsible": "^1.1.20",
@@ -208,15 +208,5 @@
   "engines": {
     "node": ">=22"
   },
-  "packageManager": "pnpm@10.20.0",
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@google/genai",
-      "electron",
-      "esbuild",
-      "node-llama-cpp",
-      "node-pty",
-      "protobufjs"
-    ]
-  }
+  "packageManager": "pnpm@10.20.0"
 }

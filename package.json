@@ -10,10 +10,7 @@
     "test": "turbo run test --concurrency=1",
     "lint": "turbo run lint",
     "check": "turbo run build typecheck && turbo run test --concurrency=1",
-    "package": "turbo run package --filter maximal-client",
-    "sync": "./scripts/sync.sh",
-    "deviations": "node scripts/apply-deviations.mjs",
-    "check:float": "node scripts/check-float.mjs --warn"
+    "package": "turbo run package --filter maximal-client"
   },
   "devDependencies": {
     "turbo": "^2.10.9"
