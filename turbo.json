@@ -5,7 +5,7 @@
     "pnpm-lock.yaml",
     ".npmrc",
     ".nvmrc",
-    ".github/workflows/ci.yml"
+    ".bun-version"
   ],
   "tasks": {
     "build": {
@@ -26,7 +26,13 @@
     "test": {
       "dependsOn": ["^build"],
       "outputs": ["reports/**"],
-      "inputs": ["$TURBO_DEFAULT$", "!research_log/**", "!.claude/**", "!reports/**"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!research_log/**",
+        "!.claude/**",
+        "!reports/**",
+        "!.github/pr-artifacts/**"
+      ],
       "env": ["MAXIMAL_TEST_TRACE"]
     },
     "lint": {
