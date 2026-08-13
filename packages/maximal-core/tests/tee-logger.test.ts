@@ -89,52 +89,52 @@ describe("createTeeLogger — console delegation", () => {
   })
 })
 
-describe("createTeeLogger — redacted file write", () => {
-  // A fresh logger name per run. `logStreams` in platform/logger.ts caches the
-  // WriteStream by path for the life of the process, so a test that unlinks its
-  // own log file strands that stream on the deleted inode and every later run
-  // in the same process writes to a file that no longer has a name. That made
-  // these tests pass once and then fail forever after — invisible under a
-  // single `bun test`, fatal under `--rerun-each` and under Stryker, which
-  // re-runs the suite per mutant.
-  let runId = 0
-  const uniqueName = (base: string) => `${base}-${Date.now()}-${++runId}`
+// A fresh logger name per run. `logStreams` in platform/logger.ts caches the
+// WriteStream by path for the life of the process, so a test that unlinks its
+// own log file strands that stream on the deleted inode and every later run
+// in the same process writes to a file that no longer has a name. That made
+// these tests pass once and then fail forever after — invisible under a
+// single `bun test`, fatal under `--rerun-each` and under Stryker, which
+// re-runs the suite per mutant.
+let runId = 0
+const uniqueName = (base: string) => `${base}-${Date.now()}-${++runId}`
 
-  /**
-   * Wait for the tee writer to flush, then return the file body.
-   *
-   * The writer buffers and flushes on a 1s interval, so the file appears
-   * asynchronously. Sleeping a fixed 1300ms for that leaves 300ms of margin,
-   * which a loaded machine can eat — the assertions then run against a file
-   * that does not exist yet. Polling for the markers the assertions need is
-   * robust and returns on the flush rather than after a fixed wait.
-   *
-   * The markers matter most for the NEGATIVE assertions: `not.toContain`
-   * passes trivially on an empty or half-written file, so a timing slip would
-   * quietly turn the leak guard into a test that cannot fail.
-   *
-   * The deadline sits under Bun's 5s per-test timeout so a real failure
-   * surfaces as this message rather than an opaque timeout.
-   */
-  async function readWhenFlushed(
-    file: string,
-    ...markers: Array<string>
-  ): Promise<string> {
-    const deadline = Date.now() + 4000
-    for (;;) {
-      if (fs.existsSync(file)) {
-        const body = fs.readFileSync(file, "utf8")
-        if (markers.every((marker) => body.includes(marker))) return body
-      }
-      if (Date.now() > deadline) {
-        throw new Error(
-          `tee log ${file} did not flush ${JSON.stringify(markers)} within 4s`,
-        )
-      }
-      await new Promise((r) => setTimeout(r, 25))
+/**
+ * Wait for the tee writer to flush, then return the file body.
+ *
+ * The writer buffers and flushes on a 1s interval, so the file appears
+ * asynchronously. Sleeping a fixed 1300ms for that leaves 300ms of margin,
+ * which a loaded machine can eat — the assertions then run against a file
+ * that does not exist yet. Polling for the markers the assertions need is
+ * robust and returns on the flush rather than after a fixed wait.
+ *
+ * The markers matter most for the NEGATIVE assertions: `not.toContain`
+ * passes trivially on an empty or half-written file, so a timing slip would
+ * quietly turn the leak guard into a test that cannot fail.
+ *
+ * The deadline sits under Bun's 5s per-test timeout so a real failure
+ * surfaces as this message rather than an opaque timeout.
+ */
+async function readWhenFlushed(
+  file: string,
+  ...markers: Array<string>
+): Promise<string> {
+  const deadline = Date.now() + 4000
+  for (;;) {
+    if (fs.existsSync(file)) {
+      const body = fs.readFileSync(file, "utf8")
+      if (markers.every((marker) => body.includes(marker))) return body
     }
+    if (Date.now() > deadline) {
+      throw new Error(
+        `tee log ${file} did not flush ${JSON.stringify(markers)} within 4s`,
+      )
+    }
+    await new Promise((r) => setTimeout(r, 25))
   }
+}
 
+describe("createTeeLogger — redacted file write", () => {
   test("writes a dated file, keeps string labels, redacts object args", async () => {
     const name = uniqueName("tee-file-test")
     const file = logFileFor(name)
