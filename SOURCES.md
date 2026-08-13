@@ -46,6 +46,8 @@ them here.
   recognise the config pnpm exports and warned four times per invocation.
 - `maximal-electron`: dropped `pnpm.onlyBuiltDependencies`. It duplicated the
   root list, which is the only one pnpm honours.
+- `maximal-electron`: deleted its `.npmrc`. Its only line set
+  `node-linker=hoisted`, which the root setting overrides.
 - `maximal-core`: `@hono/zod-openapi` pinned to `1.5.0`. 1.5.2 changes an
   inferred type and fails `tests/setup-status-openapi.test.ts`.
 - Root: `prettier` pinned to `3.8.3` via `pnpm.overrides`. 3.9.6 reformats
