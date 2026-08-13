@@ -21,7 +21,8 @@
     "test": {
       "dependsOn": ["^build"],
       "outputs": ["reports/**"],
-      "inputs": ["$TURBO_DEFAULT$", "!research_log/**", "!.claude/**", "!.github/**", "!reports/**"]
+      "inputs": ["$TURBO_DEFAULT$", "!research_log/**", "!.claude/**", "!.github/**", "!reports/**"],
+      "env": ["MAXIMAL_TEST_TRACE"]
     },
     "lint": {
       "outputs": [],
