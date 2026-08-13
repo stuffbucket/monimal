@@ -168,49 +168,57 @@ async function readWhenFlushed(
 }
 
 describe("createTeeLogger — redacted file write", () => {
-  test("writes a dated file, keeps string labels, redacts object args", async () => {
-    const name = uniqueName("tee-file-test")
-    const file = logFileFor(name)
+  test(
+    "writes a dated file, keeps string labels, redacts object args",
+    async () => {
+      const name = uniqueName("tee-file-test")
+      const file = logFileFor(name)
 
-    const log = createTeeLogger(name)
-    log.warn("degraded for", "alice@github.com", {
-      token: "ghu_supersecret_value_1234567890",
-    })
+      const log = createTeeLogger(name)
+      log.warn("degraded for", "alice@github.com", {
+        token: "ghu_supersecret_value_1234567890",
+      })
 
-    const body = await readWhenFlushed(file, `[${name}]`, "degraded for")
+      const body = await readWhenFlushed(file, `[${name}]`, "degraded for")
 
-    expect(fs.existsSync(file)).toBe(true)
-    // String labels survive; the line is tagged.
-    expect(body).toContain("degraded for")
-    expect(body).toContain("alice@github.com")
-    expect(body).toContain("[warn]")
-    expect(body).toContain(`[${name}]`)
-    // The token inside the object arg is NEVER written raw.
-    expect(body).not.toContain("ghu_supersecret_value_1234567890")
-  }, FLUSH_TEST_TIMEOUT_MS)
+      expect(fs.existsSync(file)).toBe(true)
+      // String labels survive; the line is tagged.
+      expect(body).toContain("degraded for")
+      expect(body).toContain("alice@github.com")
+      expect(body).toContain("[warn]")
+      expect(body).toContain(`[${name}]`)
+      // The token inside the object arg is NEVER written raw.
+      expect(body).not.toContain("ghu_supersecret_value_1234567890")
+    },
+    FLUSH_TEST_TIMEOUT_MS,
+  )
 
-  test("scrubs a secret passed as a bare STRING arg (the leak surface)", async () => {
-    // Regression guard: createTeeLogger used to write string args verbatim, so
-    // a token logged/interpolated as a string leaked to disk. It must be masked.
-    const name = uniqueName("tee-string-secret")
-    const file = logFileFor(name)
+  test(
+    "scrubs a secret passed as a bare STRING arg (the leak surface)",
+    async () => {
+      // Regression guard: createTeeLogger used to write string args verbatim, so
+      // a token logged/interpolated as a string leaked to disk. It must be masked.
+      const name = uniqueName("tee-string-secret")
+      const file = logFileFor(name)
 
-    const log = createTeeLogger(name)
-    log.warn("GitHub token:", "ghu_AbCdEf0123456789AbCdEf0123456789")
-    log.warn(
-      "bearer tid=abc123def456ghi789;exp=1700000000;sku=z:deadbeefsignature",
-    )
+      const log = createTeeLogger(name)
+      log.warn("GitHub token:", "ghu_AbCdEf0123456789AbCdEf0123456789")
+      log.warn(
+        "bearer tid=abc123def456ghi789;exp=1700000000;sku=z:deadbeefsignature",
+      )
 
-    // Both lines must be on disk before the negatives mean anything.
-    const body = await readWhenFlushed(
-      file,
-      "[redacted github token]",
-      "[redacted copilot token]",
-    )
+      // Both lines must be on disk before the negatives mean anything.
+      const body = await readWhenFlushed(
+        file,
+        "[redacted github token]",
+        "[redacted copilot token]",
+      )
 
-    expect(body).not.toContain("ghu_AbCdEf0123456789AbCdEf0123456789")
-    expect(body).not.toContain("tid=abc123def456ghi789")
-    expect(body).toContain("[redacted github token]")
-    expect(body).toContain("[redacted copilot token]")
-  }, FLUSH_TEST_TIMEOUT_MS)
+      expect(body).not.toContain("ghu_AbCdEf0123456789AbCdEf0123456789")
+      expect(body).not.toContain("tid=abc123def456ghi789")
+      expect(body).toContain("[redacted github token]")
+      expect(body).toContain("[redacted copilot token]")
+    },
+    FLUSH_TEST_TIMEOUT_MS,
+  )
 })
