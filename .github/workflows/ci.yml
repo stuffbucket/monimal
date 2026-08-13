@@ -76,11 +76,11 @@ jobs:
       # uploaded below, which is the only durable per-test record a failed run
       # leaves -- name, file, line and duration per test, comparable against a
       # green run. Bun's <failure> element carries no message, so the console
-      # output above is still where the diff and stack live.
+      # output is still where the diff and stack live.
       #
-      # `--reporter=junit` suppresses bun's per-test (pass) lines, which is the
-      # point: it drops ~1800 lines of noise from the log while still printing
-      # every failure in full.
+      # Console output is unaffected. Invoked directly, `bun test
+      # --reporter=junit` replaces the per-test lines; run through turbo it does
+      # not, so the log keeps every (pass)/(fail) line AND we get the file.
       - name: test (bun suites)
         run: |
           mkdir -p packages/maximal/reports packages/maximal-core/reports
@@ -103,12 +103,18 @@ jobs:
       # `always()`: the report is worth most when the run is red. Turbo may
       # replay a cached test task without rewriting the file, so a missing one
       # is not an error.
+      #
+      # Paths are one directory deep on purpose. `packages/**/reports` follows
+      # pnpm's workspace symlinks into node_modules and uploads every report a
+      # second time under the package that links it.
       - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: junit-${{ github.run_id }}-${{ github.run_attempt }}
-          path: packages/**/reports/junit.xml
+          path: |
+            packages/*/reports/junit.xml
+            packages/maximal/client/reports/junit.xml
           if-no-files-found: ignore
           retention-days: 30
 
