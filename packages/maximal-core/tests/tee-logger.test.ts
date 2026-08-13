@@ -100,37 +100,70 @@ let runId = 0
 const uniqueName = (base: string) => `${base}-${Date.now()}-${++runId}`
 
 /**
+ * The wait the original fixed sleep allowed. Kept as a WARNING threshold, not a
+ * failure: an intermittent `maximal-core#test` failure was never reproduced, and
+ * this sleep was a suspect. Deleting it would have destroyed the evidence — if a
+ * flush really does run long, the run now says so in the log instead of either
+ * going red for an invisible reason or passing in silence.
+ */
+const FLUSH_WARN_AFTER_MS = 1300
+/** Binary backoff. Doubles from here to the cap. */
+const FLUSH_BACKOFF_START_MS = 256
+const FLUSH_BACKOFF_CAP_MS = 4096
+/** Hard stop. Only a writer that never flushes reaches this. */
+const FLUSH_GIVE_UP_MS = 20_000
+/** Per-test budget, above the give-up so our message wins over Bun's timeout. */
+const FLUSH_TEST_TIMEOUT_MS = 30_000
+
+/**
  * Wait for the tee writer to flush, then return the file body.
  *
  * The writer buffers and flushes on a 1s interval, so the file appears
- * asynchronously. Sleeping a fixed 1300ms for that leaves 300ms of margin,
- * which a loaded machine can eat — the assertions then run against a file
- * that does not exist yet. Polling for the markers the assertions need is
- * robust and returns on the flush rather than after a fixed wait.
+ * asynchronously. Polling for the markers the assertions need — rather than
+ * sleeping a fixed span and hoping — is what makes this robust; the markers
+ * matter most for the NEGATIVE assertions, since `not.toContain` passes
+ * trivially on a file that does not exist yet.
  *
- * The markers matter most for the NEGATIVE assertions: `not.toContain`
- * passes trivially on an empty or half-written file, so a timing slip would
- * quietly turn the leak guard into a test that cannot fail.
- *
- * The deadline sits under Bun's 5s per-test timeout so a real failure
- * surfaces as this message rather than an opaque timeout.
+ * The warning compares the LAST UNSUCCESSFUL check against the threshold, not
+ * the elapsed total. With binary backoff the checks land at roughly 0, 256,
+ * 768, 1792, 3840ms, so a normal ~1000ms flush is first seen at ~1792ms and
+ * reporting raw elapsed would warn on every healthy run. Asking instead
+ * "was the file still missing at a check taken after 1300ms?" only fires when
+ * the flush genuinely outran what the fixed sleep permitted.
  */
 async function readWhenFlushed(
   file: string,
   ...markers: Array<string>
 ): Promise<string> {
-  const deadline = Date.now() + 4000
+  const started = Date.now()
+  let wait = FLUSH_BACKOFF_START_MS
+  let lastMissAt = 0
+
   for (;;) {
     if (fs.existsSync(file)) {
       const body = fs.readFileSync(file, "utf8")
-      if (markers.every((marker) => body.includes(marker))) return body
+      if (markers.every((marker) => body.includes(marker))) {
+        if (lastMissAt > FLUSH_WARN_AFTER_MS) {
+          console.warn(
+            `[tee-logger] SLOW FLUSH: ${path.basename(file)} was still`
+              + ` incomplete ${lastMissAt}ms in, seen at ${Date.now() - started}ms.`
+              + ` The fixed ${FLUSH_WARN_AFTER_MS}ms sleep this replaced would`
+              + " have failed here.",
+          )
+        }
+        return body
+      }
     }
-    if (Date.now() > deadline) {
+
+    lastMissAt = Date.now() - started
+    if (lastMissAt > FLUSH_GIVE_UP_MS) {
       throw new Error(
-        `tee log ${file} did not flush ${JSON.stringify(markers)} within 4s`,
+        `tee log ${file} did not flush ${JSON.stringify(markers)} in`
+          + ` ${lastMissAt}ms`,
       )
     }
-    await new Promise((r) => setTimeout(r, 25))
+    await new Promise((r) => setTimeout(r, wait))
+    wait = Math.min(wait * 2, FLUSH_BACKOFF_CAP_MS)
   }
 }
 
@@ -154,7 +187,7 @@ describe("createTeeLogger — redacted file write", () => {
     expect(body).toContain(`[${name}]`)
     // The token inside the object arg is NEVER written raw.
     expect(body).not.toContain("ghu_supersecret_value_1234567890")
-  })
+  }, FLUSH_TEST_TIMEOUT_MS)
 
   test("scrubs a secret passed as a bare STRING arg (the leak surface)", async () => {
     // Regression guard: createTeeLogger used to write string args verbatim, so
@@ -179,5 +212,5 @@ describe("createTeeLogger — redacted file write", () => {
     expect(body).not.toContain("tid=abc123def456ghi789")
     expect(body).toContain("[redacted github token]")
     expect(body).toContain("[redacted copilot token]")
-  })
+  }, FLUSH_TEST_TIMEOUT_MS)
 })
