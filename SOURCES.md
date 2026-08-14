@@ -48,6 +48,11 @@ them here.
   root list, which is the only one pnpm honours.
 - `maximal-electron`: deleted its `.npmrc`. Its only line set
   `node-linker=hoisted`, which the root setting overrides.
+- `maximal-core`: `tests/tee-logger.test.ts` waits for the log flush by polling
+  for the content it asserts on, and uses a fresh logger name per run. It slept
+  a fixed 1300ms against a 1s flush interval and unlinked its own log file,
+  which strands the cached `WriteStream` in `platform/logger.ts` on a deleted
+  inode. Both tests then failed on every re-run in the same process.
 - `maximal-core`: `@hono/zod-openapi` pinned to `1.5.0`. 1.5.2 changes an
   inferred type and fails `tests/setup-status-openapi.test.ts`.
 - Root: `prettier` pinned to `3.8.3` via `pnpm.overrides`. 3.9.6 reformats
