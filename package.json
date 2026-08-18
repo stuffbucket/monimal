@@ -17,7 +17,11 @@
   },
   "pnpm": {
     "overrides": {
-      "prettier": "3.8.3"
+      "prettier": "3.8.3",
+      "tar": "^7.5.22",
+      "tmp": "^0.2.6",
+      "qs": "^6.15.2",
+      "esbuild": "^0.28.2"
     },
     "onlyBuiltDependencies": [
       "@google/genai",
