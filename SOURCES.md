@@ -48,6 +48,11 @@ them here.
   root list, which is the only one pnpm honours.
 - `maximal-electron`: deleted its `.npmrc`. Its only line set
   `node-linker=hoisted`, which the root setting overrides.
+- `maximal/client`: deleted `package-lock.json`, and `scripts/build-core.ts`
+  now takes the sidecar's git SHA from `git rev-parse HEAD`. It parsed the
+  lockfile for the git URL maximal-core was once installed from — a commit that
+  is not what gets compiled, since the workspace link means the code comes from
+  this checkout.
 - `maximal-core`: `tests/tee-logger.test.ts` waits for the log flush by polling
   for the content it asserts on, and uses a fresh logger name per run. It slept
   a fixed 1300ms against a 1s flush interval and unlinked its own log file,
