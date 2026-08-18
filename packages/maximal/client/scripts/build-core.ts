@@ -6,19 +6,17 @@ interface CorePackage {
   version: string
 }
 
-interface LockPackage {
-  resolved?: string
-}
-
-interface PackageLock {
-  packages?: Record<string, LockPackage>
-}
-
 const coreRoot = resolve('node_modules/@stuffbucket/maximal-core')
 const corePackage = JSON.parse(readFileSync(resolve(coreRoot, 'package.json'), 'utf8')) as CorePackage
-const lock = JSON.parse(readFileSync('package-lock.json', 'utf8')) as PackageLock
-const resolved = lock.packages?.['node_modules/@stuffbucket/maximal-core']?.resolved ?? ''
-const gitSha = resolved.match(/#([0-9a-f]{40})$/)?.[1] ?? ''
+
+// Provenance for the compiled sidecar. This used to be parsed out of
+// package-lock.json, which recorded the git URL maximal-core was once installed
+// from. In a workspace that is wrong twice over: the lockfile is not what pnpm
+// installs from, and the SHA it carried named a commit that is not what gets
+// compiled -- coreRoot is a symlink to packages/maximal-core, so the code came
+// from THIS checkout. Ask git for the commit that actually produced it.
+const head = spawnSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' })
+const gitSha = head.status === 0 ? head.stdout.trim() : ''
 const spec = process.env.MAXIMAL_CORE_REF || `v${corePackage.version}`
 const channel = corePackage.version.includes('-') ? corePackage.version.split('-', 2)[1].split('.', 1)[0] : 'stable'
 const output = resolve(process.env.MAXIMAL_CORE_OUT || 'resources/bin/maximal-core')
