@@ -99,6 +99,24 @@ jobs:
           }
           echo "sidecar embeds $SHA, core $(node -p "require('./packages/maximal-core/package.json').version")"
 
+      # The Pages site is NOT a workspace member and is not in the turbo graph:
+      # it installs with bun from its own lockfile, and nothing above touches it.
+      # That is why a dependabot bump to astro 7 merged green while leaving the
+      # site unbuildable, and why an earlier astro build produced 1 page instead
+      # of 8 with a zero exit code. Both were silent.
+      #
+      # Installing separately keeps it out of the root lockfile, which is the
+      # reason it is not a workspace member in the first place. The two commands
+      # catch different things: --frozen-lockfile fails when package.json
+      # declares a version the lockfile does not carry (astro ^7.2.2 against a
+      # lock pinning ^6.2.2, exactly what that bump left behind), and the build
+      # is what catches a missing dependency or a config the new major rejects.
+      - name: Build the Pages site
+        working-directory: packages/maximal/site
+        run: |
+          bun install --frozen-lockfile
+          bun run build
+
       # Serialized on purpose: maximal and maximal-core both bind ports and
       # install signal handlers, and interfere when run concurrently.
       #
