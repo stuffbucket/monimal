@@ -17,6 +17,9 @@ them here.
 - Do not add per-package lockfiles. The root lockfile is the only one that
   applies; a second implies a pinning that is not in effect.
 - Do not call `npm` in package scripts. Use pnpm.
+- Do not chase `extract-zip`. No patched version exists, it reaches the repo only
+  through `@electron/packager`, and nothing imports it — the exposure is a
+  malicious archive on the build host during packaging, never the shipped app.
 - Do not set `node-linker=hoisted`. It empties package-local `node_modules`, and
   maximal-core's `bun build` then writes module paths that are not
   byte-comparable. See `.npmrc`.
@@ -29,6 +32,14 @@ them here.
   errors.
 
 ## Deviations
+
+- Root: `tar`, `tmp`, `qs` and `esbuild` pinned forward through
+  `pnpm.overrides` to clear 16 dependabot advisories, one critical. All four are
+  transitive build tooling — `tar` via `@electron/rebuild`, `tmp` via
+  `@inquirer/prompts`, `qs` via stryker, `esbuild` via the `tsup` that builds
+  maximal-core's `dist/lib`.
+- `maximal/site`: `@astrojs/markdown-remark` pinned to exactly `7.2.2`. astro
+  declares that peer exactly, so a caret would let the two drift apart.
 
 - `maximal` and `maximal/client`: git pins on `@stuffbucket/maximal-core`
   rewritten to `workspace:*`. Load-bearing — maximal's `build`, `dev` and
