@@ -70,6 +70,35 @@ jobs:
       - run: pnpm run typecheck
       - run: pnpm run build
 
+      # Restores what the deleted macOS packaging job used to prove: that the
+      # client bundles THIS workspace's maximal-core rather than falling back to
+      # the stale git pin it ships with upstream.
+      #
+      # The old check ran `maximal-core --version` inside the packaged .app,
+      # which needs a Mac. These two assertions need neither a Mac nor an
+      # executable: the sidecar is compiled --target=bun-darwin-arm64 and cannot
+      # run on the runner, but it can be read.
+      - name: Verify the sidecar came from this workspace
+        run: |
+          set -euo pipefail
+          LINK=packages/maximal/client/node_modules/@stuffbucket/maximal-core
+          # 1. The dependency resolves to the workspace copy, not a git tarball.
+          test -L "$LINK" || { echo "::error::$LINK is not a workspace symlink"; exit 1; }
+          TARGET="$(cd "$(dirname "$LINK")" && cd "$(readlink "$(basename "$LINK")")" && pwd)"
+          EXPECTED="$PWD/packages/maximal-core"
+          echo "resolves to: $TARGET"
+          test "$TARGET" = "$EXPECTED" || { echo "::error::expected $EXPECTED"; exit 1; }
+          # 2. The compiled sidecar carries this commit, so it was built from
+          #    that copy in this run and is not a stale or cached artifact.
+          BIN=packages/maximal/client/resources/bin/maximal-core
+          test -s "$BIN" || { echo "::error::no sidecar at $BIN"; exit 1; }
+          SHA="$(git rev-parse HEAD)"
+          strings "$BIN" | grep -qF "$SHA" || {
+            echo "::error::sidecar does not embed HEAD ($SHA) — built from something else"
+            exit 1
+          }
+          echo "sidecar embeds $SHA, core $(node -p "require('./packages/maximal-core/package.json').version")"
+
       # Serialized on purpose: maximal and maximal-core both bind ports and
       # install signal handlers, and interfere when run concurrently.
       #
