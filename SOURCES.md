@@ -29,7 +29,11 @@ them here.
 - Pin transitive tool versions. The root lockfile re-resolves everything to the
   newest semver-compatible version, so assume anything unpinned floats.
 - Delete `.eslintcache` after changing a formatter version, or it replays stale
-  errors.
+  errors. CI's cold job does this for every run, since a stale cache once
+  replayed a lint crash as green.
+- Run `node scripts/verify-workspace.mjs` after changing anything in
+  `pnpm-workspace.yaml`. It reads the installed tree rather than the config,
+  which is the only way to catch a pnpm setting that is accepted and ignored.
 
 ## Deviations
 
