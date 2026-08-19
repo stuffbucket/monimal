@@ -4,6 +4,10 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Drives the cold job below. Weekly rather than per-PR because its whole
+  # point is to run without any cached state, which is slow by construction.
+  schedule:
+    - cron: "23 5 * * 1"
   workflow_dispatch:
     inputs:
       test_trace:
@@ -65,6 +69,30 @@ jobs:
             turbo-${{ runner.os }}-
 
       - run: pnpm install --frozen-lockfile
+
+      # Reads the installed tree, not the config. Every assertion here covers a
+      # setting whose failure mode is silence: pnpm 11 dropped
+      # `public-hoist-pattern` from .npmrc without warning and emptied the root
+      # node_modules, and renamed `onlyBuiltDependencies` to `allowBuilds` while
+      # still accepting the old key and building nothing. Both installs
+      # "succeeded", and build/typecheck/test stayed green.
+      - name: Verify the workspace installed the way the config asks
+        run: node scripts/verify-workspace.mjs
+
+      # Build and install mechanics that nothing else reaches. These were
+      # written against the workflows vendored under packages/*/.github, which
+      # GitHub never executes -- only the root .github/workflows runs -- so they
+      # had never run in CI. Release-time checks (verify:publish, verify:tag,
+      # verify:crash-artifact) are deliberately not here: they assert against a
+      # tag or a packaged app that does not exist on a PR.
+      - name: Verify package mechanics
+        run: |
+          pnpm --filter @stuffbucket/maximal-electron run verify:fixture-imports
+          pnpm --filter @stuffbucket/maximal-electron run verify:neutral
+          pnpm --filter @stuffbucket/maximal-electron run verify:docs
+          pnpm --filter @stuffbucket/maximal-electron run verify:workflow-health
+          pnpm --filter @stuffbucket/maximal-electron run verify:exports
+          pnpm --filter @stuffbucket/maximal-electron run check:contrast
 
       - run: pnpm run lint
       - run: pnpm run typecheck
@@ -181,3 +209,120 @@ jobs:
   # packaged sidecar's version matched the workspace maximal-core, catching a
   # fall-back to the stale git pin. That check has no replacement yet.
 
+  # Everything the fast gate cannot see, because the fast gate is allowed to
+  # replay results it did not produce.
+  #
+  # Turbo's cache is keyed on inputs, so a task can report success without
+  # running -- and a task that never runs cannot fail. Two real breakages hid
+  # exactly there: a lint crash that a stale .eslintcache replayed as green, and
+  # an astro major that built 1 page instead of 8 with a zero exit code. Neither
+  # was visible until something forced the work to actually happen.
+  #
+  # So this job removes every layer that can answer from memory: no turbo cache
+  # restore, --force so every task executes, and the eslint caches deleted.
+  cold:
+    name: cold build (no cache)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          run_install: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: .bun-version
+
+      # Deliberately no "Restore turbo cache" step. That is the point.
+      - run: pnpm install --frozen-lockfile
+
+      - name: Verify the workspace installed the way the config asks
+        run: node scripts/verify-workspace.mjs
+
+      - name: Delete the eslint caches
+        run: find packages -maxdepth 3 -name .eslintcache -delete
+
+      - name: build / typecheck / lint, forced
+        run: pnpm exec turbo run build typecheck lint --force --continue
+
+      - name: test, forced
+        run: pnpm exec turbo run test --concurrency=1 --force
+
+      - name: Build the Pages site
+        working-directory: packages/maximal/site
+        run: |
+          bun install --frozen-lockfile
+          bun run build
+
+  # The only thing that exercises the two properties the hoist exists for, both
+  # of which are invisible to build/typecheck/lint/test:
+  #
+  #   1. Electron Forge refuses to run under pnpm unless a hoist pattern is
+  #      defined.
+  #   2. Rolldown resolves a symlinked package's imports from the symlink path
+  #      rather than the realpath, so Radix's transitive deps disappear under
+  #      isolated linking and the renderer build fails one package at a time.
+  #
+  # Neither has ever run in CI -- `turbo run package` was defined and never
+  # invoked -- which is why a pnpm 11 migration could silently empty the root
+  # node_modules and still go green. Linux, not macOS: this asks whether Forge
+  # and the renderer build work at all, not whether a signed .app is shippable,
+  # and AGENTS.md reserves macos-builder for signing.
+  package:
+    name: electron package
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          run_install: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: .bun-version
+
+      # Electron's binary is ~100MB and is fetched by a postinstall, so it is
+      # cached on the version that asks for it rather than on the lockfile.
+      - name: Cache the Electron download
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/electron
+          key: electron-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: electron-${{ runner.os }}-
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Verify the workspace installed the way the config asks
+        run: node scripts/verify-workspace.mjs
+
+      - run: pnpm run package
+
+      # A green exit is not evidence: Forge reports success having produced an
+      # app directory. Assert the renderer bundle and the sidecar are in it.
+      - name: Verify the packaged app has contents
+        run: |
+          set -euo pipefail
+          OUT=packages/maximal/client/out
+          APP="$(find "$OUT" -maxdepth 1 -type d -name 'Maximal-*' | head -1)"
+          test -n "$APP" || { echo "::error::no packaged app under $OUT"; exit 1; }
+          echo "packaged: $APP"
+          ASAR="$(find "$APP" -name app.asar | head -1)"
+          test -s "$ASAR" || { echo "::error::no app.asar in $APP"; exit 1; }
+          SIDECAR="$(find "$APP" -name 'maximal-core*' | head -1)"
+          test -s "$SIDECAR" || { echo "::error::no sidecar in $APP"; exit 1; }
+          echo "asar $(stat -c%s "$ASAR") bytes, sidecar $(stat -c%s "$SIDECAR") bytes"
