@@ -70,14 +70,15 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # Reads the installed tree, not the config. Every assertion here covers a
-      # setting whose failure mode is silence: pnpm 11 dropped
-      # `public-hoist-pattern` from .npmrc without warning and emptied the root
-      # node_modules, and renamed `onlyBuiltDependencies` to `allowBuilds` while
-      # still accepting the old key and building nothing. Both installs
-      # "succeeded", and build/typecheck/test stayed green.
+      # Reads the installed tree rather than the config, so a pnpm setting that
+      # is accepted and ignored turns red here. See SOURCES.md, "Put pnpm
+      # settings in pnpm-workspace.yaml".
       - name: Verify the workspace installed the way the config asks
-        run: node scripts/verify-workspace.mjs
+        run: pnpm run verify:workspace
+
+      - run: pnpm run lint
+      - run: pnpm run typecheck
+      - run: pnpm run build
 
       # Build and install mechanics that nothing else reaches. These were
       # written against the workflows vendored under packages/*/.github, which
@@ -85,18 +86,20 @@ jobs:
       # had never run in CI. Release-time checks (verify:publish, verify:tag,
       # verify:crash-artifact) are deliberately not here: they assert against a
       # tag or a packaged app that does not exist on a PR.
+      #
+      # After `build`, and calling verify-exports.mjs rather than the
+      # `verify:exports` script: that script is `build:package && verify`, which
+      # is the same host+renderer build turbo just ran, outside turbo and so
+      # uncached. Running it here would build maximal-electron's renderer twice
+      # per PR.
       - name: Verify package mechanics
         run: |
           pnpm --filter @stuffbucket/maximal-electron run verify:fixture-imports
           pnpm --filter @stuffbucket/maximal-electron run verify:neutral
           pnpm --filter @stuffbucket/maximal-electron run verify:docs
           pnpm --filter @stuffbucket/maximal-electron run verify:workflow-health
-          pnpm --filter @stuffbucket/maximal-electron run verify:exports
+          pnpm --filter @stuffbucket/maximal-electron exec node scripts/verify-exports.mjs
           pnpm --filter @stuffbucket/maximal-electron run check:contrast
-
-      - run: pnpm run lint
-      - run: pnpm run typecheck
-      - run: pnpm run build
 
       # Restores what the deleted macOS packaging job used to prove: that the
       # client bundles THIS workspace's maximal-core rather than falling back to
@@ -245,7 +248,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: Verify the workspace installed the way the config asks
-        run: node scripts/verify-workspace.mjs
+        run: pnpm run verify:workspace
 
       - name: Delete the eslint caches
         run: find packages -maxdepth 3 -name .eslintcache -delete
@@ -253,8 +256,11 @@ jobs:
       - name: build / typecheck / lint, forced
         run: pnpm exec turbo run build typecheck lint --force --continue
 
-      - name: test, forced
-        run: pnpm exec turbo run test --concurrency=1 --force
+      # No --force here: the job restores no cache, so nothing can replay
+      # anyway, and forcing again would rebuild the dependencies the step above
+      # just built into the local .turbo.
+      - name: test
+        run: pnpm exec turbo run test --concurrency=1
 
       - name: Build the Pages site
         working-directory: packages/maximal/site
@@ -262,20 +268,15 @@ jobs:
           bun install --frozen-lockfile
           bun run build
 
-  # The only thing that exercises the two properties the hoist exists for, both
-  # of which are invisible to build/typecheck/lint/test:
+  # The only thing that exercises the two properties `publicHoistPattern` exists
+  # for -- see pnpm-workspace.yaml -- both of which are invisible to
+  # build/typecheck/lint/test. `turbo run package` was defined and never
+  # invoked, which is why a pnpm 11 migration could silently empty the root
+  # node_modules and still go green.
   #
-  #   1. Electron Forge refuses to run under pnpm unless a hoist pattern is
-  #      defined.
-  #   2. Rolldown resolves a symlinked package's imports from the symlink path
-  #      rather than the realpath, so Radix's transitive deps disappear under
-  #      isolated linking and the renderer build fails one package at a time.
-  #
-  # Neither has ever run in CI -- `turbo run package` was defined and never
-  # invoked -- which is why a pnpm 11 migration could silently empty the root
-  # node_modules and still go green. Linux, not macOS: this asks whether Forge
-  # and the renderer build work at all, not whether a signed .app is shippable,
-  # and AGENTS.md reserves macos-builder for signing.
+  # Linux, not macOS: this asks whether Forge and the renderer build work at
+  # all, not whether a signed .app is shippable, and AGENTS.md reserves
+  # macos-builder for signing.
   package:
     name: electron package
     runs-on: ubuntu-latest
@@ -296,19 +297,36 @@ jobs:
         with:
           bun-version-file: .bun-version
 
-      # Electron's binary is ~100MB and is fetched by a postinstall, so it is
-      # cached on the version that asks for it rather than on the lockfile.
+      # Without this the job rebuilds the whole graph from scratch on every PR:
+      # `package` dependsOn build and ^build, so it redoes maximal-core,
+      # maximal-electron, maximal and the bun sidecar that `check` just built.
+      # It cannot hit this run's cache -- the jobs run in parallel -- but the
+      # lockfile-prefixed restore-key hits a previous run's.
+      - name: Restore turbo cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .turbo
+          key: turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
+            turbo-${{ runner.os }}-
+
+      # Electron's binary is ~100MB and is fetched by a postinstall. Keyed on
+      # the manifest that pins the version rather than on the lockfile: the pin
+      # is exact, so a lockfile key would write a fresh ~100MB entry on every
+      # dependency change while the artifact is unchanged, evicting the turbo
+      # and pnpm caches that share the repo's budget.
       - name: Cache the Electron download
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/electron
-          key: electron-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          key: electron-${{ runner.os }}-${{ hashFiles('packages/maximal/client/package.json') }}
           restore-keys: electron-${{ runner.os }}-
 
       - run: pnpm install --frozen-lockfile
 
       - name: Verify the workspace installed the way the config asks
-        run: node scripts/verify-workspace.mjs
+        run: pnpm run verify:workspace
 
       - run: pnpm run package
 

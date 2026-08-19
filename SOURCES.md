@@ -19,7 +19,8 @@ them here.
 - Do not call `npm` in package scripts. Use pnpm.
 - Do not set `node-linker=hoisted`. It empties package-local `node_modules`, and
   maximal-core's `bun build` then writes module paths that are not
-  byte-comparable. See `pnpm-workspace.yaml`.
+  byte-comparable. `publicHoistPattern` in `pnpm-workspace.yaml` is what gets
+  the hoisting Electron Forge and Rolldown need without it.
 - Put pnpm settings in `pnpm-workspace.yaml`, not `.npmrc` or `package.json`.
   pnpm 11 reads neither of the latter for them and does not warn: the setting is
   simply ignored. `.npmrc` carries the registry and nothing else.
@@ -34,6 +35,9 @@ them here.
 - Run `node scripts/verify-workspace.mjs` after changing anything in
   `pnpm-workspace.yaml`. It reads the installed tree rather than the config,
   which is the only way to catch a pnpm setting that is accepted and ignored.
+- Do not let two packages pin different versions of the same dependency. The
+  script above ratchets this: `DELIBERATE` holds the splits that are meant
+  (typescript), `BACKLOG` holds the ones that are not and may only shrink.
 
 ## Deviations
 
@@ -95,6 +99,16 @@ them here.
   and reshaped from a list to a map. Under pnpm 11 the old spellings are ignored
   silently, which does not fail the install — it just leaves every native
   dependency unbuilt.
+- `maximal-electron`: `electron` moved from `43.2.0` to `43.3.0`, matching
+  `maximal/client`. The UI library was tested against one Electron and the app
+  that ships it was built against another, which nothing reported because each
+  package was internally consistent.
+- Root: `@electron/node-gyp` overridden to `10.2.0-electron.1`, the same
+  version, taken from the registry instead of the GitHub tarball
+  `@electron/rebuild` pins. pnpm 11 refuses to resolve any git-hosted
+  subdependency (`blockExoticSubdeps`, on by default). The committed lockfile
+  is grandfathered, so installs worked while every re-resolution failed — which
+  would have hit the first dependabot PR rather than anything a human ran.
 - Root: the hoist pattern moved from `.npmrc` to `publicHoistPattern` in
   `pnpm-workspace.yaml`, gaining a `!typescript` exemption. `maximal/client`
   pins typescript `^7.0.2` and everything else pins `^5.9.3`, so hoisting either
