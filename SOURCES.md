@@ -19,7 +19,10 @@ them here.
 - Do not call `npm` in package scripts. Use pnpm.
 - Do not set `node-linker=hoisted`. It empties package-local `node_modules`, and
   maximal-core's `bun build` then writes module paths that are not
-  byte-comparable. See `.npmrc`.
+  byte-comparable. See `pnpm-workspace.yaml`.
+- Put pnpm settings in `pnpm-workspace.yaml`, not `.npmrc` or `package.json`.
+  pnpm 11 reads neither of the latter for them and does not warn: the setting is
+  simply ignored. `.npmrc` carries the registry and nothing else.
 - Do not commit `maximal-core/dist`. Its `build` generates it.
 - Keep `maximal/site` inside `maximal`. It is the Pages site, not a workspace
   member.
@@ -60,15 +63,40 @@ them here.
   inode. Both tests then failed on every re-run in the same process.
 - `maximal-core`: `@hono/zod-openapi` pinned to `1.5.0`. 1.5.2 changes an
   inferred type and fails `tests/setup-status-openapi.test.ts`.
-- Root: `prettier` pinned to `3.8.3` via `pnpm.overrides`. 3.9.6 reformats
-  unions and turns untouched files into lint errors. It is declared nowhere —
-  it arrives through `@echristian/eslint-config` — so overrides is the only lever.
+- Root: `prettier` pinned to `3.8.3` via `overrides` in `pnpm-workspace.yaml`.
+  3.9.6 reformats unions and turns untouched files into lint errors. It is
+  declared nowhere — it arrives through `@echristian/eslint-config` — so
+  overrides is the only lever.
 - `maximal` and `maximal-core`: git hooks taken off the install path and
   `simple-git-hooks` dropped. Two packages installing competing hooks into one
   `.git` is wrong.
 - `maximal-electron`: added `typebox`. `maximal/client`: added `@types/node` and
   `@electron/packager`. All three are imported but never declared, and npm's
   flat `node_modules` used to supply them. Real bugs upstream.
+- `maximal-electron`: `vite` moved from `^7.3.6` to `^8.2.1`. The registry in
+  `.npmrc` carries 7.3.5 and then 8.x, never 7.3.6, so the pinned version cannot
+  be installed at all. Every dependent already accepts vite 8 as a peer, and
+  `maximal/client` was on `^8.2.1` already.
+- `maximal/site`: `astro` and `@astrojs/markdown-remark` moved from `^7.2.2` to
+  `^7.2.1`, and `bun.lock` re-resolved. Same cause in the other direction — the
+  registry's newest astro is 7.2.1 — so this walks back the dependabot bump in
+  33c4a5f for as long as that gap persists.
+- Root: `packageManager` moved to `pnpm@11.17.0`, and `mise.toml` / `mise.lock`
+  pin the same version locally so pnpm never has to switch versions to satisfy
+  the field. mise verifies GitHub artifact attestations and records a per-
+  platform checksum, which is the only content pin available here: the registry
+  publishes no signatures, no attestations, and only a SHA-1 shasum.
+- Root: `pnpm.overrides` and `pnpm.onlyBuiltDependencies` moved out of
+  `package.json` into `pnpm-workspace.yaml`, the latter renamed to `allowBuilds`
+  and reshaped from a list to a map. Under pnpm 11 the old spellings are ignored
+  silently, which does not fail the install — it just leaves every native
+  dependency unbuilt.
+- Root: the hoist pattern moved from `.npmrc` to `publicHoistPattern` in
+  `pnpm-workspace.yaml`, gaining a `!typescript` exemption. `maximal/client`
+  pins typescript `^7.0.2` and everything else pins `^5.9.3`, so hoisting either
+  shadows the other for any dependency that resolves by walking up rather than
+  through its own peer link — which is what made `eslint-plugin-perfectionist`
+  call a TS 5 API on the TS 7 module.
 
 ## Excluded from the copies
 

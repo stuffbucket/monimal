@@ -4,3 +4,35 @@ packages:
   # and is listed so it links maximal-core and maximal-electron as workspace
   # deps rather than the stale git pins it ships with.
   - "packages/maximal/client"
+
+# Moved here from package.json's "pnpm" block: pnpm 11 no longer reads that
+# field and silently ignores it, which would drop the prettier override and --
+# more seriously -- stop every native dependency below from running its build
+# scripts.
+overrides:
+  prettier: 3.8.3
+
+# pnpm 11 renamed this from onlyBuiltDependencies (a list) to allowBuilds (a
+# map). The old key is silently ignored, which does not fail the install -- it
+# just leaves every native dependency unbuilt.
+allowBuilds:
+  "@google/genai": true
+  "electron": true
+  "esbuild": true
+  "node-llama-cpp": true
+  "node-pty": true
+  "protobufjs": true
+
+# Moved here from .npmrc: pnpm 11 no longer reads public-hoist-pattern from
+# .npmrc and silently drops it, which empties the root node_modules entirely.
+# See .npmrc for why the total hoist exists (Electron Forge refuses to run
+# under pnpm without a hoist pattern, and Rolldown resolves a symlinked
+# package's imports from the symlink path rather than the realpath).
+#
+# The !typescript exemption is load-bearing: packages/maximal/client pins
+# typescript ^7.0.2 while every other package pins ^5.9.3, and hoisting either
+# one shadows the other for dependencies that resolve by walking up rather than
+# through their own peer link.
+publicHoistPattern:
+  - "*"
+  - "!typescript"
