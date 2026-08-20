@@ -1,9 +1,10 @@
 # monimal
 
 A spike combining the Maximal CLI, engine, Electron packages, client, and Astro
-site in one pnpm workspace driven by Turborepo. The packages were copied from
-separate repositories and are now edited here; [SOURCES.md](SOURCES.md) records
-the copied commits, workspace rules, and deliberate deviations.
+site in one pnpm workspace driven by Turborepo. The product packages were copied
+from separate repositories and are now edited here; shared tooling and runtime
+adapters are owned here. [SOURCES.md](SOURCES.md) records the copied commits,
+workspace rules, and deliberate deviations.
 
 Nothing here publishes, and this repository is not a release home of record.
 
@@ -11,11 +12,13 @@ Nothing here publishes, and this repository is not a release home of record.
 
 ```text
 packages/eslint-config       @stuffbucket/eslint-config      shared ESLint config
+packages/llama-server        @stuffbucket/llama-server       llama.cpp HTTP adapter scaffold
 packages/maximal             @stuffbucket/maximal            CLI + packaging wrapper
 packages/maximal-core        @stuffbucket/maximal-core       engine
 packages/maximal-electron    @stuffbucket/maximal-electron   Electron shell / UI library
 packages/maximal/client      maximal-client                  Electron app
 packages/maximal/site        maximal-site                    Astro marketing + guide site
+packages/omlx                @stuffbucket/omlx               oMLX HTTP adapter scaffold
 ```
 
 ## Commands
@@ -44,7 +47,7 @@ Turbo models the real workspace graph:
 @stuffbucket/maximal-electron ┘
 
 @stuffbucket/maximal-core ───> @stuffbucket/maximal
-@stuffbucket/eslint-config ──> the five linted code packages
+@stuffbucket/eslint-config ──> the seven linted code packages
 maximal-site ────────────────> packages/maximal/docs/guide (file input)
 ```
 

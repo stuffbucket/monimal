@@ -213,13 +213,15 @@ check(
 //    advisory -- pnpm warns and installs anyway -- so the range is not the
 //    check. Every consumer is listed by name and every one must be observed:
 //    a mistyped path drops a package out of the comparison silently, and a
-//    comparison over four of five packages passes for the wrong reason.
+//    comparison over only a subset passes for the wrong reason.
 const ESLINT_CONSUMERS = [
   'packages/eslint-config',
+  'packages/llama-server',
   'packages/maximal-core',
   'packages/maximal',
   'packages/maximal-electron',
   'packages/maximal/client',
+  'packages/omlx',
 ];
 const eslintVersions = new Map();
 for (const pkg of ESLINT_CONSUMERS) {

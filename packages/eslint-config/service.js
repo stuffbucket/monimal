@@ -14,7 +14,7 @@ import { typescript, TYPESCRIPT_FILES } from "./typescript.js"
  *
  * The numbers are load-bearing, not tidy: `complexity: 16` and
  * `max-lines: 800` are what the existing source already satisfies. Rounding
- * either one down is a refactor of both packages, not a config edit.
+ * either one down is a refactor of the service packages, not a config edit.
  *
  * Option objects are spelled out even where they restate a default, so that a
  * plugin changing its defaults shows up as a diff here rather than as a
@@ -102,7 +102,7 @@ export const TYPESCRIPT_RULES = {
  *
  * The plugin's `recommended-*` presets add roughly twenty sort rules,
  * including object-key and union-member sorting, which reorder declarations
- * throughout both packages. These four touch imports and exports only.
+ * throughout the service packages. These four touch imports and exports only.
  */
 export const PERFECTIONIST_RULES = {
   "perfectionist/sort-array-includes": "error",
@@ -242,7 +242,7 @@ function exceptPackageJson(config) {
 }
 
 /**
- * The profile the two service packages (`maximal-core`, `maximal`) run.
+ * The profile the service packages run.
  *
  * `prettier` runs as an ESLint rule here because these packages are already
  * formatted that way, and the three non-default options are why: `semi:

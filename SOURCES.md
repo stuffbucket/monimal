@@ -110,8 +110,14 @@ package provenance or publisher identity -- the proxy does that.
   `react-hooks` -- were the only thing capping the workspace at ESLint 9.
   Removing it took 83 packages out of the root `node_modules`.
   Three entry points: `./base` (ignores + `js.configs.recommended`, used by
-  all five packages), `./typescript` (adds typescript-eslint), `./service`
-  (adds the quality plugins and prettier; the two service packages only).
+  all seven packages), `./typescript` (adds typescript-eslint), `./service`
+  (adds the quality plugins and prettier for service packages).
+- Added `packages/omlx` (`@stuffbucket/omlx`) and `packages/llama-server`
+  (`@stuffbucket/llama-server`) as private, independently buildable runtime
+  adapter scaffolds. They have no runtime dependencies and establish only the
+  HTTP process boundary and native model format. The llama-server package is
+  deliberately separate from `maximal-electron`'s embedded `node-llama-cpp`
+  utility process; neither package is wired into Maximal yet.
 - Pin rule SETS, not just plugin versions, when a plugin major moves. The
   replaced preset enumerated 83 unicorn rules against unicorn 60; ESLint 10
   needs unicorn >= 73, whose `recommended` turns on 227 more. Taking
