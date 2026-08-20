@@ -13,6 +13,11 @@ packages:
 # scripts.
 overrides:
   prettier: 3.8.3
+  # 12 advisories, one critical, all cleared by 7.5.21. Two copies resolve
+  # without this: 6.2.1 under @electron/rebuild and @electron/node-gyp, 7.5.22
+  # elsewhere, so the alerts stand even though a patched copy is already
+  # installed. Build tooling only -- tar is not in the packaged app.
+  tar: 7.5.22
   # Same version, fetched from the registry instead of a GitHub tarball.
   # @electron/rebuild pins @electron/node-gyp to a codeload.github.com commit,
   # and pnpm 11 refuses to resolve a git-hosted subdependency at all
