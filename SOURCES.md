@@ -33,6 +33,15 @@ them here.
   run history for `GITHUB_REPOSITORY`, so it passes locally by querying the
   upstream repo and fails in CI by asking monimal about workflows only the
   vendored `packages/*/.github` fixtures declare.
+- Run `node scripts/relock-integrity.mjs` after any install that re-resolves,
+  and prefer `pnpm install --frozen-lockfile` so that it rarely has to. The
+  registry in `.npmrc` publishes only a sha1 `shasum` and rotating `ms-feed-N`
+  tarball hosts -- no `dist.integrity` on either packument form, no signing
+  keys, no sha256 anywhere -- so pnpm records a weak pin and a hostname that
+  expires every time it resolves. The script restores sha512 from the
+  committed lockfile where the version is unchanged and derives the rest from
+  the tarball bytes, refusing any that do not match the attested shasum.
+  `verify-workspace.mjs` fails if it is skipped.
 - Run `node scripts/verify-workspace.mjs` after changing anything in
   `pnpm-workspace.yaml`. It reads the installed tree rather than the config,
   which is the only way to catch a pnpm setting that is accepted and ignored.

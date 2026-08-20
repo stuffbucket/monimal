@@ -264,7 +264,7 @@ const weakPins = (lockfile.match(/integrity: sha1-/g) ?? []).length;
 const shardTarballs = (lockfile.match(/ms-feed-\d+\.pkgs\.visualstudio\.com/g) ?? []).length;
 if (weakPins > 0 || shardTarballs > 0) {
   console.error(`       ${String(weakPins)} sha1 integrities, ${String(shardTarballs)} rotating shard-host tarball URLs`);
-  console.error('       sha512 is recoverable locally: the proxy serves the same bytes npmjs published.');
+  console.error('       Repair with: node scripts/relock-integrity.mjs');
 }
 check(
   weakPins === 0 && shardTarballs === 0 && strongPins > 0,
