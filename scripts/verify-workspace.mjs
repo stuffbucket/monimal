@@ -171,16 +171,22 @@ check(
 //    site resolves it from a separate bun lockfile that the workspace's
 //    overrides cannot reach. A major drifting apart there is invisible until a
 //    renderer build behaves differently in one place.
-const VITE_CONSUMERS = [
-  'packages/maximal-electron',
-  'packages/maximal/client',
-  'packages/maximal/site',
-];
+//    The site is read from its committed bun.lock, not from its node_modules:
+//    it installs separately, and no CI job has run that install by the time
+//    this does. Reading the tree made the assertion depend on whether someone
+//    had happened to build the site, which is the machine-dependence these
+//    checks exist to remove -- it passed locally and failed in all three jobs.
+const VITE_CONSUMERS = ['packages/maximal-electron', 'packages/maximal/client'];
 const viteMajors = new Map();
 for (const pkg of VITE_CONSUMERS) {
   const version = manifestAt(ROOT, pkg, 'node_modules/vite')?.version;
   if (version != null) viteMajors.set(pkg, version);
 }
+
+const siteLock = readFileSync(path.join(ROOT, 'packages/maximal/site/bun.lock'), 'utf8');
+const siteVite = /"vite@(\d+\.\d+\.\d+)"/.exec(siteLock)?.[1];
+if (siteVite != null) viteMajors.set('packages/maximal/site (bun.lock)', siteVite);
+const EXPECTED_VITE_CONSUMERS = VITE_CONSUMERS.length + 1;
 const distinctViteMajors = new Set(
   [...viteMajors.values()].map((version) => version.split('.')[0]),
 );
@@ -188,7 +194,7 @@ if (distinctViteMajors.size > 1 || ![...distinctViteMajors].every((m) => m === '
   for (const [pkg, version] of viteMajors) console.error(`       ${pkg}: vite ${version}`);
 }
 check(
-  viteMajors.size === VITE_CONSUMERS.length &&
+  viteMajors.size === EXPECTED_VITE_CONSUMERS &&
     distinctViteMajors.size === 1 &&
     [...distinctViteMajors][0] === '8',
   'every vite consumer is on the same major (8)',
