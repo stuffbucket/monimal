@@ -146,57 +146,78 @@ function knownPins(relPath, extract) {
   return pins;
 }
 
-/**
- * Fetch and hash, returning sha512, or throw if the bytes do not match the
- * shasum the registry attested to.
- *
- * Falls back to the registry-relative URL when the recorded one fails, which
- * is the expected case once a shard host has rotated: the pinned URL is dead
- * but the package is still perfectly fetchable.
- */
-async function derive({ key, sha1, url }, registry) {
-  const { name, version } = splitSpec(key);
-  const candidates = [url, registryUrl(registry, name, version)].filter(
-    (candidate, index, all) =>
-      typeof candidate === 'string' && candidate !== '' && all.indexOf(candidate) === index,
-  );
+/** Algorithms an attestation may use. Only sha512 is strong enough to record. */
+const ATTESTABLE = new Set(['sha1', 'sha256', 'sha384', 'sha512']);
 
-  if (sha1 === null) {
-    // An entry can carry a shard URL and no integrity at all. Fetching one
-    // would mean recording a hash for bytes nothing vouched for -- a strong
-    // pin manufactured from an unauthenticated download, which is worse than
-    // the weak pin it replaces because it looks trustworthy. Refuse, and let
-    // the invariant keep failing until a human decides what the entry should
-    // be pinned to.
+/**
+ * Fetch, verify against whatever the registry attested, and return sha512.
+ *
+ * The attestation is checked in its OWN algorithm rather than assumed to be
+ * sha1. This proxy only ever serves sha1, but a lockfile can carry sha256 or
+ * sha384 from a registry that did better, and those are perfectly good things
+ * to verify bytes against -- better than sha1. What none of them are is
+ * strong enough to leave recorded, so they are attestations here and never
+ * pins.
+ *
+ * Attestation is checked BEFORE the registry is consulted. Otherwise an
+ * entry with no attestation reports "no registry configured" when none is
+ * present, which is a different fault with a different fix, and the real
+ * refusal never surfaces.
+ *
+ * The registry arrives as a getter so a run that never needs a fallback never
+ * requires one to exist.
+ */
+async function derive({ key, attested, url }, getRegistry) {
+  if (attested === null) {
+    // Fetching would mean recording a hash for bytes nothing vouched for -- a
+    // strong pin manufactured from an unauthenticated download, which is
+    // worse than the weak pin it replaces because it looks trustworthy.
     throw new Error(
-      `${key}: shard-pinned with no integrity to verify against; refusing to ` +
-        'record a hash for unattested bytes',
+      `${key}: pinned with no integrity to verify against; refusing to record ` +
+        'a hash for unattested bytes',
     );
   }
+  const algorithm = attested.slice(0, attested.indexOf('-'));
+  if (!ATTESTABLE.has(algorithm)) {
+    throw new Error(`${key}: unrecognised integrity algorithm ${algorithm}`);
+  }
 
+  const seen = new Set();
   let lastError = 'no URL to try';
-  for (const candidate of candidates) {
-    let bytes;
+
+  const attempt = async (candidate) => {
+    if (typeof candidate !== 'string' || candidate === '' || seen.has(candidate)) return null;
+    seen.add(candidate);
     try {
       const response = await fetch(candidate);
       if (!response.ok) {
         lastError = `HTTP ${String(response.status)} from ${candidate}`;
-        continue;
+        return null;
       }
-      bytes = Buffer.from(await response.arrayBuffer());
+      return Buffer.from(await response.arrayBuffer());
     } catch (error) {
       lastError = `${error instanceof Error ? error.message : String(error)} (${candidate})`;
-      continue;
+      return null;
     }
-    const got = `sha1-${createHash('sha1').update(bytes).digest('base64')}`;
-    if (got !== sha1) {
-      // Never record a hash for bytes that do not match what was attested.
-      throw new Error(
-        `${key}: bytes do not match the attested shasum (got ${got}, expected ${sha1})`,
-      );
+  };
+
+  const check = (bytes) => {
+    const got = `${algorithm}-${createHash(algorithm).update(bytes).digest('base64')}`;
+    if (got !== attested) {
+      throw new Error(`${key}: bytes do not match the attested integrity (got ${got}, expected ${attested})`);
     }
     return `sha512-${createHash('sha512').update(bytes).digest('base64')}`;
-  }
+  };
+
+  const recorded = await attempt(url);
+  if (recorded !== null) return check(recorded);
+
+  // Only now is a registry needed: the recorded URL is dead, which is the
+  // expected state once a shard host has rotated.
+  const { name, version } = splitSpec(key);
+  const fallback = await attempt(registryUrl(getRegistry(), name, version));
+  if (fallback !== null) return check(fallback);
+
   throw new Error(`${key}: could not fetch -- ${lastError}`);
 }
 
@@ -246,20 +267,25 @@ function pnpmDamage(lines) {
     if (head === null) continue;
     const resolution = lines[i + 1];
     if (resolution === undefined || !resolution.startsWith('    resolution: {')) continue;
-    const weak = /integrity: (sha1-[^,}]+)/.exec(resolution);
-    const strong = /integrity: (sha512-[^,}]+)/.exec(resolution);
+    const integrity = /integrity: (sha\d+-[^,}]+)/.exec(resolution);
+    const attested = integrity === null ? null : integrity[1];
+    // ONLY sha512 counts as a pin. sha256 and sha384 are good enough to
+    // verify bytes against and not good enough to leave recorded; treating
+    // them as strong would write them straight back and leave the invariant
+    // failing forever on an entry the script had just declared repaired.
+    const strong = attested !== null && attested.startsWith('sha512-') ? attested : null;
     const tarball = /tarball: ([^,}]+)/.exec(resolution);
     // Only a SHARD host counts as URL damage. A lockfile may legitimately pin
     // a tarball elsewhere -- a git dependency, a GitHub release -- and
     // blanking one of those would not weaken the pin, it would break
     // resolution outright.
     const shardPinned = tarball !== null && SHARD_HOST.test(tarball[1]);
-    if (weak === null && !shardPinned) continue;
+    if (strong !== null && !shardPinned) continue;
     found.push({
       key: `${head[1]}@${head[2]}`,
       line: i + 1,
-      sha1: weak === null ? null : weak[1],
-      strong: strong === null ? null : strong[1],
+      attested,
+      strong,
       url: tarball === null ? null : tarball[1],
       // A non-shard URL is preserved verbatim; a shard one is dropped so the
       // configured registry supplies it.
@@ -288,16 +314,18 @@ function bunDamage(lines) {
   for (let i = 0; i < lines.length; i++) {
     const match = BUN_ENTRY.exec(lines[i]);
     if (match === null) continue;
-    const weak = match[6].startsWith('sha1-');
-    // Same gate as the pnpm side: only a shard host is damage. bun records
-    // git and non-registry sources in this slot too.
+    const attested = match[6];
+    // Same rule as the pnpm side: only sha512 is a pin.
+    const strong = attested.startsWith('sha512-') ? attested : null;
+    // Only a shard host is URL damage. bun records git and non-registry
+    // sources in this slot too, and blanking one breaks resolution outright.
     const shardPinned = match[4] !== '' && SHARD_HOST.test(match[4]);
-    if (!weak && !shardPinned) continue;
+    if (strong !== null && !shardPinned) continue;
     found.push({
       key: match[2],
       line: i,
-      sha1: weak ? match[6] : null,
-      strong: weak ? null : match[6],
+      attested,
+      strong,
       url: match[4] === '' ? null : match[4],
       keepUrl: shardPinned || match[4] === '' ? null : match[4],
     });
@@ -346,10 +374,10 @@ for (const target of TARGETS) {
     continue;
   }
 
-  const weak = damaged.filter((entry) => entry.sha1 !== null);
+  const weak = damaged.filter((entry) => entry.strong === null);
   console.log(
     `${target.rel}: ${String(damaged.length)} entr(ies) to repair ` +
-      `(${String(weak.length)} weak pin(s), ${String(damaged.length - weak.length)} host-pinned only)`,
+      `(${String(weak.length)} not sha512-pinned, ${String(damaged.length - weak.length)} host-pinned only)`,
   );
 
   const known = knownPins(target.rel, target.extract);
@@ -372,10 +400,14 @@ for (const target of TARGETS) {
 
   // Resolved lazily: a run that repairs everything from history touches no
   // network and must not require a registry to be configured at all.
-  let registry = null;
+  // Passed as a getter, memoised: a repair satisfied entirely from history
+  // must not require a registry, and an entry refused for lacking an
+  // attestation must be refused for that reason rather than for a missing
+  // .npmrc it never reached.
+  let registry;
+  const getRegistry = () => (registry ??= registryFor(target.rel));
   const failures = await pooled(toFetch, async (entry) => {
-    registry ??= registryFor(target.rel);
-    target.write(lines, entry, await derive(entry, registry));
+    target.write(lines, entry, await derive(entry, getRegistry));
   });
 
   if (failures.length > 0) {
