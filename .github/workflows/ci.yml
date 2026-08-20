@@ -22,6 +22,16 @@ concurrency:
 env:
   TURBO_TELEMETRY_DISABLED: 1
 
+# GitHub's default is `bash -e {0}`: -e without -o pipefail. A pipeline reports
+# the exit status of its LAST command, so `run-something | tee log` reports
+# tee's success and a failing step passes. Every pipeline in this file today is
+# either a deliberate predicate (`| grep -q`) or has its output asserted on the
+# next line, so nothing is currently masked -- this keeps it that way without
+# anyone having to notice.
+defaults:
+  run:
+    shell: bash -eo pipefail {0}
+
 jobs:
   check:
     name: build / typecheck / lint / test
@@ -98,7 +108,11 @@ jobs:
           BIN=packages/maximal/client/resources/bin/maximal-core
           test -s "$BIN" || { echo "::error::no sidecar at $BIN"; exit 1; }
           SHA="$(git rev-parse HEAD)"
-          strings "$BIN" | grep -qF "$SHA" || {
+          # Process substitution, not a pipe: `grep -q` exits at the first
+          # match, which SIGPIPEs `strings` part-way through a 74MB binary.
+          # Under pipefail that 141 becomes the pipeline's status and this
+          # check fails on a sidecar that is correct.
+          grep -qF "$SHA" < <(strings "$BIN") || {
             echo "::error::sidecar does not embed HEAD ($SHA) — built from something else"
             exit 1
           }
