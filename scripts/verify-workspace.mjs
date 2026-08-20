@@ -240,39 +240,61 @@ check(
   { count: eslintVersions.size, of: 'eslint consumers' },
 );
 
-// 7. The lockfile pins content, not just versions.
+// 7. Both lockfiles pin content, not just versions.
 //
-//    The registry in .npmrc is a read-through proxy that publishes only the
+//    The registry in `.npmrc` is a read-through proxy that publishes only the
 //    legacy npm `shasum` -- sha1 -- and tarball URLs on shard-specific
-//    `ms-feed-N` hosts. So any full re-resolution through it rewrites every
-//    integrity in the lockfile from sha512 down to sha1 and pins a hostname
-//    that rotates.
+//    `ms-feed-N` hosts. So any resolution through it writes a weak pin and a
+//    hostname that rotates, and it does so to whichever lockfile is being
+//    written: the workspace's `pnpm-lock.yaml` and the Pages site's separate
+//    `bun.lock` degrade identically, for the same reason.
 //
-//    Both failures are silent in the way this file exists to catch: the
+//    The site is checked here rather than left to its own install because it
+//    has no other gate: it is not a workspace member, nothing else reads its
+//    lockfile, and its 365 entries sat fully degraded through every green CI
+//    run because this assertion only looked at the pnpm one.
+//
+//    Both failures are silent in the way this file exists to catch. The
 //    install succeeds, every gate stays green, and the damage surfaces later
 //    -- as an install that cannot fetch once a shard moves, and as a content
-//    pin weak enough that a package swapped at the same version can satisfy
-//    it, which is the specific thing pinning was adopted for. sha1 collision
-//    resistance is broken; sha512's is not.
+//    pin weak enough that a package swapped at the same version satisfies it.
+//    sha1 collision resistance is broken; sha512's is not.
 //
-//    Counting rather than sampling because the degradation is all-or-nothing
-//    per resolution pass, and asserting a positive sha512 count as well so a
-//    regex that stops matching fails here rather than reporting a clean zero.
-const lockfile = readFileSync(path.join(ROOT, 'pnpm-lock.yaml'), 'utf8');
-const strongPins = (lockfile.match(/integrity: sha512-/g) ?? []).length;
-const weakPins = (lockfile.match(/integrity: sha1-/g) ?? []).length;
-const shardTarballs = (lockfile.match(/ms-feed-\d+\.pkgs\.visualstudio\.com/g) ?? []).length;
+//    A positive strong-pin count is asserted as well, so a pattern that stops
+//    matching the file format fails here rather than reporting a clean zero.
+const LOCKFILES = ['pnpm-lock.yaml', 'packages/maximal/site/bun.lock'];
+let weakPins = 0;
+let shardTarballs = 0;
+let strongPins = 0;
+let lockfilesRead = 0;
+
+for (const relative of LOCKFILES) {
+  const contents = readFileSync(path.join(ROOT, relative), 'utf8');
+  lockfilesRead += 1;
+  const weak = (contents.match(/sha1-/g) ?? []).length;
+  const shards = (contents.match(/ms-feed-\d+\.pkgs\.visualstudio\.com/g) ?? []).length;
+  strongPins += (contents.match(/sha512-/g) ?? []).length;
+  weakPins += weak;
+  shardTarballs += shards;
+  if (weak > 0 || shards > 0) {
+    console.error(
+      `       ${relative}: ${String(weak)} sha1 pins, ${String(shards)} rotating shard-host URLs`,
+    );
+  }
+}
 if (weakPins > 0 || shardTarballs > 0) {
-  console.error(`       ${String(weakPins)} sha1 integrities, ${String(shardTarballs)} rotating shard-host tarball URLs`);
   console.error('       Repair with: node scripts/relock-integrity.mjs');
 }
 check(
-  weakPins === 0 && shardTarballs === 0 && strongPins > 0,
+  lockfilesRead === LOCKFILES.length &&
+    weakPins === 0 &&
+    shardTarballs === 0 &&
+    strongPins > 0,
   'every lockfile entry is content-pinned by sha512, with no shard-host URLs',
-  { count: strongPins, of: 'sha512-pinned packages' },
+  { count: strongPins, of: 'sha512-pinned packages across both lockfiles' },
 );
 
-// 7. No two workspace packages may end up on different versions of the same
+// 8. No two workspace packages may end up on different versions of the same
 //    directly-declared dependency. maximal-electron pinned electron 43.2.0
 //    while maximal/client pinned 43.3.0, so the UI library was tested against
 //    one runtime and the app that ships it was built against another -- a

@@ -1,138 +1,174 @@
 #!/usr/bin/env node
 /**
- * Repair the lockfile's content pins after a resolution through the proxy.
+ * Restore strong content pins to the lockfiles after a resolution through the
+ * proxy.
  *
  * The registry in `.npmrc` is a read-through proxy that publishes only the
  * legacy npm `shasum` -- sha1 -- and tarball URLs on shard-specific
- * `ms-feed-N` hosts. Checked directly, and it is not a gap in one code path:
- * neither the full packument nor the abbreviated one carries `dist.integrity`,
- * the tarball responses offer only an MD5 blob header, the blob
+ * `ms-feed-N` hosts. Checked directly across every channel it exposes:
+ * neither the full packument nor the abbreviated one carries
+ * `dist.integrity`, tarball responses offer only an MD5 blob header, the blob
  * content-address in the redirect is an Azure-internal identifier rather than
  * a sha256, and `/-/npm/v1/keys` is a 404. sha1 and MD5 are the whole menu.
  *
- * So pnpm records sha1 whenever it re-resolves, and every non-frozen install
- * silently downgrades every pin in the file. Nothing fails: the install
- * succeeds, the build is green, the tests pass. That is how it shipped once.
+ * So every package manager pointed at it records a weak pin, and every
+ * non-frozen install silently downgrades the file it writes. Nothing fails at
+ * the time: the install succeeds, the build is green, the tests pass.
  *
- * Two things are lost, and only one of them is theoretical:
+ * Two things are lost, and only one is theoretical:
  *
- *   - The tarball URL pins a shard hostname that ROTATES. Requests seconds
- *     apart return `ms-feed-2` and `ms-feed-25` for the same package. A
- *     pinned one is an install that stops working later for no local reason.
+ *   - The recorded tarball URL pins a shard hostname that ROTATES. Requests
+ *     seconds apart return `ms-feed-2` and `ms-feed-25` for the same package.
+ *     A pinned one is an install that stops working later for no local
+ *     reason. This is the half that is certain.
  *   - sha1 collision resistance is broken, so a sha1 pin can be satisfied by
  *     a package swapped at the same version -- the thing pinning is for.
  *
- * Both are repairable locally because the proxy serves the same bytes npmjs
- * published: fetch the tarball, hash it, record sha512. `verify-workspace.mjs`
- * asserts the repaired state, so a forgotten run fails there rather than
- * months later at a rotated hostname.
+ * Both lockfiles in this repo are affected, and they degrade the same way for
+ * the same reason, so both are handled here. `pnpm-lock.yaml` can drop its
+ * `tarball:` field entirely; `bun.lock` needs the URL slot to exist, and an
+ * empty string is its "resolve from the configured registry" form. Neither
+ * ends up naming a host.
  *
- * Usage:
- *   node scripts/relock-integrity.mjs            repair, reusing known pins
- *   node scripts/relock-integrity.mjs --verify   re-download and check every
- *                                                pin, changing nothing
+ * Usage: node scripts/relock-integrity.mjs
  *
- * By default a sha1 entry whose name@version already appears in the committed
- * lockfile with a sha512 takes that value: same package, same version, a hash
- * already proven by an install. Only genuinely new packages are fetched, which
- * is the difference between 80 downloads and 1500. `--verify` skips that path
- * and re-derives everything from bytes.
+ * A weak entry whose name@version already appears with a sha512 in recent
+ * history takes that value -- same package, same version, a hash already
+ * proven by an install. Only genuinely new packages are fetched, which is the
+ * difference between tens of downloads and thousands. History is searched
+ * back through several commits rather than just HEAD, because the commit you
+ * are standing on is frequently the degraded one: a Dependabot branch's tip
+ * carries the freshly weakened lockfile, and reading only HEAD there would
+ * find nothing to reuse and refetch the entire tree.
  *
  * Every fetched tarball is checked against the sha1 the proxy attested to
  * before its sha512 is recorded. That matters: deriving from bytes pins
  * whatever the proxy served at that moment, so on its own it would faithfully
  * pin malicious content if any were served. SHA-1's *second-preimage*
- * resistance is intact -- it is collisions that are broken -- so matching the
+ * resistance is intact -- collisions are what is broken -- so matching the
  * attested shasum is real evidence the bytes are the ones published upstream.
- * The residual exposure is a publisher who crafted a collision pair at publish
- * time, which is a far narrower threat than an unauthenticated download.
+ * The residual exposure is a publisher who crafted a collision pair at
+ * publish time, a far narrower threat than an unauthenticated download.
  */
 
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-const LOCKFILE = path.join(ROOT, 'pnpm-lock.yaml');
-const VERIFY_ONLY = process.argv.includes('--verify');
-/** Concurrent fetches. The proxy is slow enough that serial is painful and
- *  eager enough to time out if crowded; 8 has been stable. */
+/** Concurrent fetches. The proxy times out when crowded; 8 has been stable. */
 const CONCURRENCY = 8;
+/** How far back to look for a lockfile that still has strong pins. */
+const HISTORY_DEPTH = 20;
+const SHARD_HOST = /ms-feed-\d+\.pkgs\.visualstudio\.com/;
 
-/** `name@version` -> sha512, from a lockfile blob. */
-function strongPins(text) {
-  const pins = new Map();
-  const re = /^ {2}(\S+?)@([^:@][^:]*):\n {4}resolution: \{integrity: (sha512-[^,}]+)\}/gm;
-  let match;
-  while ((match = re.exec(text)) !== null) pins.set(`${match[1]}@${match[2]}`, match[3]);
-  return pins;
+const REGISTRY = (() => {
+  const npmrc = readFileSync(path.join(ROOT, '.npmrc'), 'utf8');
+  const match = /^registry=(.+)$/m.exec(npmrc);
+  if (match === null) throw new Error('.npmrc names no registry');
+  return match[1].trim().replace(/\/?$/, '/');
+})();
+
+/** The registry-relative URL for a package, used when a pinned shard has rotated away. */
+function registryUrl(name, version) {
+  const bare = name.startsWith('@') ? name.slice(name.indexOf('/') + 1) : name;
+  return `${REGISTRY}${name}/-/${bare}-${version}.tgz`;
 }
 
-/** The last committed lockfile, or an empty map when there is no git history. */
-function committedPins() {
-  try {
-    return strongPins(
-      execFileSync('git', ['show', 'HEAD:pnpm-lock.yaml'], {
-        cwd: ROOT,
-        encoding: 'utf8',
-        maxBuffer: 64 * 1024 * 1024,
-      }),
-    );
-  } catch {
-    return new Map();
-  }
-}
-
-/** Every weak entry in the working lockfile, with the line it sits on. */
-function weakEntries(lines) {
-  const found = [];
-  for (let i = 0; i < lines.length; i++) {
-    const head = /^ {2}(\S+?)@([^:@][^:]*):$/.exec(lines[i]);
-    if (head === null) continue;
-    const resolution = lines[i + 1];
-    if (resolution === undefined || !resolution.startsWith('    resolution: {')) continue;
-    const sha1 = /integrity: (sha1-[^,}]+)/.exec(resolution);
-    if (sha1 === null) continue;
-    const tarball = /tarball: ([^,}]+)/.exec(resolution);
-    found.push({
-      key: `${head[1]}@${head[2]}`,
-      line: i + 1,
-      sha1: sha1[1],
-      url: tarball === null ? null : tarball[1],
-    });
-  }
-  return found;
+/** Split `name@version`, tolerating scoped names. */
+function splitSpec(spec) {
+  const at = spec.lastIndexOf('@');
+  return { name: spec.slice(0, at), version: spec.slice(at + 1) };
 }
 
 /**
- * Fetch `entry`'s tarball and return its sha512, or throw if the bytes do not
- * match the sha1 the proxy attested to.
+ * `name@version` -> sha512, gathered from recent history of `relPath`.
+ *
+ * Walks backwards and merges, rather than trusting one commit: the newest
+ * commit that touched the lockfile is exactly the one most likely to be
+ * degraded.
  */
-async function derive(entry) {
-  if (entry.url === null) {
-    throw new Error(`${entry.key}: sha1 pin with no tarball URL to derive from`);
+function knownPins(relPath, extract) {
+  const pins = new Map();
+  let revisions = [];
+  try {
+    revisions = execFileSync(
+      'git',
+      ['rev-list', `--max-count=${String(HISTORY_DEPTH)}`, 'HEAD', '--', relPath],
+      { cwd: ROOT, encoding: 'utf8' },
+    )
+      .split('\n')
+      .filter(Boolean);
+  } catch {
+    return pins;
   }
-  const response = await fetch(entry.url);
-  if (!response.ok) throw new Error(`${entry.key}: HTTP ${String(response.status)}`);
-  const bytes = Buffer.from(await response.arrayBuffer());
-
-  const sha1 = `sha1-${createHash('sha1').update(bytes).digest('base64')}`;
-  if (sha1 !== entry.sha1) {
-    throw new Error(
-      `${entry.key}: bytes do not match the attested shasum (got ${sha1}, expected ${entry.sha1}). ` +
-        'Do not record a hash for these bytes.',
-    );
+  for (const revision of revisions) {
+    let blob;
+    try {
+      blob = execFileSync('git', ['show', `${revision}:${relPath}`], {
+        cwd: ROOT,
+        encoding: 'utf8',
+        maxBuffer: 64 * 1024 * 1024,
+        // Silent: walking back past a lockfile's first commit is expected and
+        // git reports it on stderr, which would otherwise look like a fault.
+        stdio: ['ignore', 'pipe', 'ignore'],
+      });
+    } catch {
+      continue;
+    }
+    for (const [key, pin] of extract(blob)) if (!pins.has(key)) pins.set(key, pin);
   }
-  return `sha512-${createHash('sha512').update(bytes).digest('base64')}`;
+  return pins;
 }
 
-/** Run `task` over `items` with a fixed number of workers. */
+/**
+ * Fetch and hash, returning sha512, or throw if the bytes do not match the
+ * shasum the registry attested to.
+ *
+ * Falls back to the registry-relative URL when the recorded one fails, which
+ * is the expected case once a shard host has rotated: the pinned URL is dead
+ * but the package is still perfectly fetchable.
+ */
+async function derive({ key, sha1, url }) {
+  const { name, version } = splitSpec(key);
+  const candidates = [url, registryUrl(name, version)].filter(
+    (candidate, index, all) =>
+      typeof candidate === 'string' && candidate !== '' && all.indexOf(candidate) === index,
+  );
+
+  let lastError = 'no URL to try';
+  for (const candidate of candidates) {
+    let bytes;
+    try {
+      const response = await fetch(candidate);
+      if (!response.ok) {
+        lastError = `HTTP ${String(response.status)} from ${candidate}`;
+        continue;
+      }
+      bytes = Buffer.from(await response.arrayBuffer());
+    } catch (error) {
+      lastError = `${error instanceof Error ? error.message : String(error)} (${candidate})`;
+      continue;
+    }
+    const got = `sha1-${createHash('sha1').update(bytes).digest('base64')}`;
+    if (sha1 !== null && got !== sha1) {
+      // Never record a hash for bytes that do not match what was attested.
+      throw new Error(
+        `${key}: bytes do not match the attested shasum (got ${got}, expected ${sha1})`,
+      );
+    }
+    return `sha512-${createHash('sha512').update(bytes).digest('base64')}`;
+  }
+  throw new Error(`${key}: could not fetch -- ${lastError}`);
+}
+
+/** Run `task` over `items` with a fixed pool of workers. */
 async function pooled(items, task) {
   const queue = [...items];
   const failures = [];
-  let completed = 0;
+  let done = 0;
   await Promise.all(
     Array.from({ length: Math.min(CONCURRENCY, queue.length) }, async () => {
       for (let item = queue.shift(); item !== undefined; item = queue.shift()) {
@@ -141,67 +177,170 @@ async function pooled(items, task) {
         } catch (error) {
           failures.push(error instanceof Error ? error.message : String(error));
         }
-        completed += 1;
-        if (completed % 20 === 0) {
-          process.stdout.write(`  ...${String(completed)}/${String(items.length)}\n`);
-        }
+        done += 1;
+        if (done % 25 === 0) process.stdout.write(`    ...${String(done)}/${String(items.length)}\n`);
       }
     }),
   );
   return failures;
 }
 
-const lines = readFileSync(LOCKFILE, 'utf8').split('\n');
-const weak = weakEntries(lines);
+// --- pnpm-lock.yaml -------------------------------------------------------
 
-if (weak.length === 0 && !VERIFY_ONLY) {
-  const strong = strongPins(lines.join('\n')).size;
-  console.log(`relock: nothing to repair (${String(strong)} sha512 pins, 0 weak)`);
-  process.exit(0);
+const PNPM_STRONG = /^ {2}(\S+?)@([^:@][^:]*):\n {4}resolution: \{integrity: (sha512-[^,}]+)/gm;
+
+function pnpmPins(blob) {
+  const found = [];
+  let match;
+  const re = new RegExp(PNPM_STRONG.source, 'gm');
+  while ((match = re.exec(blob)) !== null) found.push([`${match[1]}@${match[2]}`, match[3]]);
+  return found;
 }
 
-if (VERIFY_ONLY) {
-  // Re-derive every pin from bytes and compare. Reports rather than writes.
-  const all = strongPins(lines.join('\n'));
-  console.log(`relock --verify: re-deriving ${String(all.size)} pins from bytes`);
-  console.log('  (this refetches the whole tree and is slow by design)');
-  process.exit(0);
+/**
+ * Weak or host-pinned entries. A sha512 entry that still carries a `tarball:`
+ * is included: the hash is fine but the rotating hostname is not, and the
+ * invariant fails on either, so repairing only one of them would leave a file
+ * that can never pass.
+ */
+function pnpmDamage(lines) {
+  const found = [];
+  for (let i = 0; i < lines.length; i++) {
+    const head = /^ {2}(\S+?)@([^:@][^:]*):$/.exec(lines[i]);
+    if (head === null) continue;
+    const resolution = lines[i + 1];
+    if (resolution === undefined || !resolution.startsWith('    resolution: {')) continue;
+    const weak = /integrity: (sha1-[^,}]+)/.exec(resolution);
+    const strong = /integrity: (sha512-[^,}]+)/.exec(resolution);
+    const tarball = /tarball: ([^,}]+)/.exec(resolution);
+    if (weak === null && tarball === null) continue;
+    found.push({
+      key: `${head[1]}@${head[2]}`,
+      line: i + 1,
+      sha1: weak === null ? null : weak[1],
+      strong: strong === null ? null : strong[1],
+      url: tarball === null ? null : tarball[1],
+    });
+  }
+  return found;
 }
 
-console.log(`relock: ${String(weak.length)} weak pin(s) to repair`);
-const known = committedPins();
-const toFetch = [];
-let reused = 0;
+// --- bun.lock -------------------------------------------------------------
 
-for (const entry of weak) {
-  const pin = known.get(entry.key);
-  if (pin === undefined) {
-    toFetch.push(entry);
+// One package per line: "name": ["name@version", "url", { deps }, "integrity"],
+const BUN_ENTRY = /^(\s*"(?:[^"]+)": \[")([^"]+)(", ")([^"]*)(".*, ")(sha\d+-[^"]+)("\],?)$/;
+
+function bunPins(blob) {
+  const found = [];
+  for (const line of blob.split('\n')) {
+    const match = BUN_ENTRY.exec(line);
+    if (match !== null && match[6].startsWith('sha512-')) found.push([match[2], match[6]]);
+  }
+  return found;
+}
+
+function bunDamage(lines) {
+  const found = [];
+  for (let i = 0; i < lines.length; i++) {
+    const match = BUN_ENTRY.exec(lines[i]);
+    if (match === null) continue;
+    const weak = match[6].startsWith('sha1-');
+    const hostPinned = match[4] !== '';
+    if (!weak && !hostPinned) continue;
+    found.push({
+      key: match[2],
+      line: i,
+      sha1: weak ? match[6] : null,
+      strong: weak ? null : match[6],
+      url: match[4] === '' ? null : match[4],
+    });
+  }
+  return found;
+}
+
+// --- drive ----------------------------------------------------------------
+
+const TARGETS = [
+  {
+    rel: 'pnpm-lock.yaml',
+    extract: pnpmPins,
+    damage: pnpmDamage,
+    // pnpm reconstructs the URL from the configured registry when absent.
+    write: (lines, entry, pin) => {
+      lines[entry.line] = `    resolution: {integrity: ${pin}}`;
+    },
+  },
+  {
+    rel: path.join('packages', 'maximal', 'site', 'bun.lock'),
+    extract: bunPins,
+    damage: bunDamage,
+    // bun needs the URL slot to exist; empty means "use the configured registry".
+    write: (lines, entry, pin) => {
+      lines[entry.line] = lines[entry.line].replace(
+        BUN_ENTRY,
+        (_all, head, spec, mid, _url, tail, _integrity, close) =>
+          `${head}${spec}${mid}${tail}${pin}${close}`,
+      );
+    },
+  },
+];
+
+let exitCode = 0;
+
+for (const target of TARGETS) {
+  const absolute = path.join(ROOT, target.rel);
+  if (!existsSync(absolute)) continue;
+
+  const lines = readFileSync(absolute, 'utf8').split('\n');
+  const damaged = target.damage(lines);
+  if (damaged.length === 0) {
+    console.log(`${target.rel}: clean`);
     continue;
   }
-  lines[entry.line] = `    resolution: {integrity: ${pin}}`;
-  reused += 1;
+
+  const weak = damaged.filter((entry) => entry.sha1 !== null);
+  console.log(
+    `${target.rel}: ${String(damaged.length)} entr(ies) to repair ` +
+      `(${String(weak.length)} weak pin(s), ${String(damaged.length - weak.length)} host-pinned only)`,
+  );
+
+  const known = knownPins(target.rel, target.extract);
+  const toFetch = [];
+  let resolved = 0;
+
+  for (const entry of damaged) {
+    // An entry that is already strong only needs its hostname dropped.
+    const pin = entry.strong ?? known.get(entry.key);
+    if (pin === undefined) {
+      toFetch.push(entry);
+      continue;
+    }
+    target.write(lines, entry, pin);
+    resolved += 1;
+  }
+
+  console.log(`  reused or already strong: ${String(resolved)}`);
+  console.log(`  to derive by fetching:    ${String(toFetch.length)}`);
+
+  const failures = await pooled(toFetch, async (entry) => {
+    target.write(lines, entry, await derive(entry));
+  });
+
+  if (failures.length > 0) {
+    console.error(`  FAILED; ${target.rel} was not written:`);
+    for (const message of failures) console.error(`    ${message}`);
+    exitCode = 1;
+    continue;
+  }
+
+  writeFileSync(absolute, lines.join('\n'));
+  const after = readFileSync(absolute, 'utf8');
+  console.log(
+    `  wrote: ${String((after.match(/sha512-/g) ?? []).length)} sha512, ` +
+      `${String((after.match(/sha1-/g) ?? []).length)} weak, ` +
+      `${String((after.match(new RegExp(SHARD_HOST.source, 'g')) ?? []).length)} shard URLs`,
+  );
 }
 
-console.log(`  reused from the committed lockfile: ${String(reused)}`);
-console.log(`  to derive by fetching:              ${String(toFetch.length)}`);
-
-const failures = await pooled(toFetch, async (entry) => {
-  const pin = await derive(entry);
-  lines[entry.line] = `    resolution: {integrity: ${pin}}`;
-});
-
-if (failures.length > 0) {
-  console.error('\nrelock FAILED; the lockfile was not written:');
-  for (const message of failures) console.error(`  ${message}`);
-  process.exit(1);
-}
-
-writeFileSync(LOCKFILE, lines.join('\n'));
-const after = readFileSync(LOCKFILE, 'utf8');
-console.log(
-  `\nrelock: wrote ${String(strongPins(after).size)} sha512 pins, ` +
-    `${String((after.match(/integrity: sha1-/g) ?? []).length)} weak remaining, ` +
-    `${String((after.match(/ms-feed-\d+\.pkgs\.visualstudio\.com/g) ?? []).length)} shard URLs remaining`,
-);
-console.log('Now run: node scripts/verify-workspace.mjs');
+if (exitCode === 0) console.log('\nNow run: node scripts/verify-workspace.mjs');
+process.exit(exitCode);
