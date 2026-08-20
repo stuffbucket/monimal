@@ -85,7 +85,13 @@ jobs:
       # GitHub never executes -- only the root .github/workflows runs -- so they
       # had never run in CI. Release-time checks (verify:publish, verify:tag,
       # verify:crash-artifact) are deliberately not here: they assert against a
-      # tag or a packaged app that does not exist on a PR.
+      # tag or a packaged app that does not exist on a PR. verify:workflow-health
+      # is out for a subtler reason: it reads Actions run history for
+      # `GITHUB_REPOSITORY`, which is this repo in CI and the upstream repo
+      # locally. Here that asks monimal for runs of maximal-electron's vendored
+      # fixture workflows, which it has never executed, so three assertions fail
+      # on an empty set and a fourth passes only because a filename collides
+      # with this workflow. It measures another repository's health.
       #
       # After `build`, and calling verify-exports.mjs rather than the
       # `verify:exports` script: that script is `build:package && verify`, which
@@ -97,7 +103,6 @@ jobs:
           pnpm --filter @stuffbucket/maximal-electron run verify:fixture-imports
           pnpm --filter @stuffbucket/maximal-electron run verify:neutral
           pnpm --filter @stuffbucket/maximal-electron run verify:docs
-          pnpm --filter @stuffbucket/maximal-electron run verify:workflow-health
           pnpm --filter @stuffbucket/maximal-electron exec node scripts/verify-exports.mjs
           pnpm --filter @stuffbucket/maximal-electron run check:contrast
 

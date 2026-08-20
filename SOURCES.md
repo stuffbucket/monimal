@@ -32,6 +32,10 @@ them here.
 - Delete `.eslintcache` after changing a formatter version, or it replays stale
   errors. CI's cold job does this for every run, since a stale cache once
   replayed a lint crash as green.
+- Do not wire `verify:workflow-health` into this repo's CI. It reads Actions
+  run history for `GITHUB_REPOSITORY`, so it passes locally by querying the
+  upstream repo and fails in CI by asking monimal about workflows only the
+  vendored `packages/*/.github` fixtures declare.
 - Run `node scripts/verify-workspace.mjs` after changing anything in
   `pnpm-workspace.yaml`. It reads the installed tree rather than the config,
   which is the only way to catch a pnpm setting that is accepted and ignored.
