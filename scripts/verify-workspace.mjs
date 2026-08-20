@@ -172,14 +172,28 @@ check(
 //    three install from the same workspace lockfile, so inspect their resolved
 //    package-local trees in the same way.
 const VITE_CONSUMERS = [
-  'packages/maximal-electron',
-  'packages/maximal/client',
-  'packages/maximal/site',
+  ['packages/maximal-electron', null],
+  ['packages/maximal/client', null],
+  // The site gets Vite through Astro. Resolve from Astro's real installed
+  // manifest instead of requiring a package-local Vite link that pnpm does not
+  // create on a clean install.
+  ['packages/maximal/site', 'astro'],
 ];
 const viteMajors = new Map();
-for (const pkg of VITE_CONSUMERS) {
-  const version = manifestAt(ROOT, pkg, 'node_modules/vite')?.version;
-  if (version != null) viteMajors.set(pkg, version);
+for (const [pkg, through] of VITE_CONSUMERS) {
+  let manifest;
+  if (through === null) {
+    manifest = manifestAt(ROOT, pkg, 'node_modules/vite');
+  } else {
+    const throughManifest = resolvesFrom(
+      path.join(ROOT, pkg, 'package.json'),
+      `${through}/package.json`,
+    );
+    const viteManifest =
+      throughManifest === null ? null : resolvesFrom(throughManifest, 'vite/package.json');
+    manifest = viteManifest === null ? null : manifestAt(path.dirname(viteManifest));
+  }
+  if (manifest?.version != null) viteMajors.set(pkg, manifest.version);
 }
 
 const EXPECTED_VITE_CONSUMERS = VITE_CONSUMERS.length;
