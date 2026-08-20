@@ -24,7 +24,7 @@ In workflows:
 - Only use ubuntu, windows, or macos-builder as runners.
 - Use github.com/stuffbucket/macos-builder when an Apple ID is needed for
   signing or notarization.
-- Use node ^22.
+- Use node ^24. `.nvmrc` owns the exact version; CI reads it.
 - Pin dependencies by SHA.
 
 ## Sources

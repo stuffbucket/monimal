@@ -153,7 +153,49 @@ check(
   { count: 1, of: 'overrides' },
 );
 
-// 6. No two workspace packages may end up on different versions of the same
+// 6. One node version, and one vite major, across everything.
+//
+//    Declaring a version in .nvmrc does not make anything run on it: the
+//    runtime in use is whatever is on PATH, and mise, a shell, and CI each
+//    decide that separately. The engines fields are equally inert -- pnpm warns
+//    at most. So compare the running major against the file that names it.
+const wantedNodeMajor = Number(readFileSync(path.join(ROOT, '.nvmrc'), 'utf8').trim().split('.')[0]);
+check(
+  Number(process.versions.node.split('.')[0]) === wantedNodeMajor,
+  `node ${String(wantedNodeMajor)}.x is what is running (${process.version})`,
+  { count: 1, of: 'node runtimes' },
+);
+
+//    vite is the other one worth pinning globally: it is the bundler under the
+//    electron renderer, the client, and (through astro) the Pages site, and the
+//    site resolves it from a separate bun lockfile that the workspace's
+//    overrides cannot reach. A major drifting apart there is invisible until a
+//    renderer build behaves differently in one place.
+const VITE_CONSUMERS = [
+  'packages/maximal-electron',
+  'packages/maximal/client',
+  'packages/maximal/site',
+];
+const viteMajors = new Map();
+for (const pkg of VITE_CONSUMERS) {
+  const version = manifestAt(ROOT, pkg, 'node_modules/vite')?.version;
+  if (version != null) viteMajors.set(pkg, version);
+}
+const distinctViteMajors = new Set(
+  [...viteMajors.values()].map((version) => version.split('.')[0]),
+);
+if (distinctViteMajors.size > 1 || ![...distinctViteMajors].every((m) => m === '8')) {
+  for (const [pkg, version] of viteMajors) console.error(`       ${pkg}: vite ${version}`);
+}
+check(
+  viteMajors.size === VITE_CONSUMERS.length &&
+    distinctViteMajors.size === 1 &&
+    [...distinctViteMajors][0] === '8',
+  'every vite consumer is on the same major (8)',
+  { count: viteMajors.size, of: 'vite consumers' },
+);
+
+// 7. No two workspace packages may end up on different versions of the same
 //    directly-declared dependency. maximal-electron pinned electron 43.2.0
 //    while maximal/client pinned 43.3.0, so the UI library was tested against
 //    one runtime and the app that ships it was built against another -- a

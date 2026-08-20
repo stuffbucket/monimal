@@ -39,6 +39,10 @@ them here.
 - Run `node scripts/verify-workspace.mjs` after changing anything in
   `pnpm-workspace.yaml`. It reads the installed tree rather than the config,
   which is the only way to catch a pnpm setting that is accepted and ignored.
+- One node version, named in `.nvmrc` and nowhere else. `mise.toml` opts node
+  into idiomatic version files so mise reads that same file; CI reads it through
+  setup-node's `node-version-file`. `engines` states the floor, which nothing
+  enforces, so `verify-workspace.mjs` compares the *running* major against it.
 - Do not let two packages pin different versions of the same dependency. The
   script above ratchets this: `DELIBERATE` holds the splits that are meant
   (typescript), `BACKLOG` holds the ones that are not and may only shrink.
@@ -113,12 +117,31 @@ them here.
   subdependency (`blockExoticSubdeps`, on by default). The committed lockfile
   is grandfathered, so installs worked while every re-resolution failed — which
   would have hit the first dependabot PR rather than anything a human ran.
+- `maximal-electron`: dropped its `packageManager` field. It pinned pnpm
+  10.20.0 against the root's 11.17.0, and a second declaration implies a pinning
+  that is not in effect.
+- All packages: `engines.node` moved to `>=24` and `.nvmrc` to 24, replacing 22.
+  24 is Active LTS where 26 is still Current, and it clears the floor ESLint 10
+  will need (`^20.19 || ^22.13 || >=24`) if that ever unblocks. `maximal/client`
+  and `maximal/site` had no `engines` at all and now state it.
 - Root: the hoist pattern moved from `.npmrc` to `publicHoistPattern` in
   `pnpm-workspace.yaml`, gaining a `!typescript` exemption. `maximal/client`
   pins typescript `^7.0.2` and everything else pins `^5.9.3`, so hoisting either
   shadows the other for any dependency that resolves by walking up rather than
   through its own peer link — which is what made `eslint-plugin-perfectionist`
   call a TS 5 API on the TS 7 module.
+
+## Known-blocked upgrades
+
+- ESLint stays on 9. 10.8.1 is out and most of the stack accepts it
+  (typescript-eslint, unicorn, perfectionist, regexp, unused-imports, prettier,
+  `@eslint/compat`, flat-gitignore), but `@echristian/eslint-config@0.0.54` --
+  already its latest release -- pins `@eslint-react/eslint-plugin ^1.52.7`,
+  `eslint-plugin-jsx-a11y ^6.10.2` and `eslint-plugin-react-hooks ^5.2.0`, all of
+  which cap at eslint 9. `@eslint-react` has since reached 5.x with an open peer
+  range, so this unblocks when that config publishes past 0.0.54; overriding it
+  underneath would jump that family four majors against a config never tested on
+  them.
 
 ## Excluded from the copies
 
