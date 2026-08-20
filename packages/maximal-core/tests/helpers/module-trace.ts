@@ -157,7 +157,7 @@ function markSource(absolute: string): string {
 function filterFor(mode: TraceMode): RegExp {
   const root = ROOT.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`)
   const dirs = mode === "all" ? "(?:src|tests)" : "tests"
-  return new RegExp(`^${root}/${dirs}/.+\\.tsx?$`)
+  return new RegExp(String.raw`^${root}/${dirs}/.+\.tsx?$`)
 }
 
 function traceMockModule(specifier: string, stack: string | undefined): void {

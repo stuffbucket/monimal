@@ -30,8 +30,8 @@
     "check:fast": "bun run lint:fast && bun run typecheck && bun run lint:all",
     "dev": "bun run --watch ./node_modules/@stuffbucket/maximal-core/src/main.ts",
     "knip": "knip-bun",
-    "lint": "eslint --cache",
-    "lint:all": "eslint --cache .",
+    "lint": "eslint",
+    "lint:all": "eslint .",
     "lint:fast": "oxlint",
     "prepack": "bun run build",
     "release:manual": "bumpp && bun publish --access public",
@@ -56,14 +56,13 @@
     "@stuffbucket/maximal-core": "workspace:*"
   },
   "devDependencies": {
-    "@echristian/eslint-config": "^0.0.54",
+    "@stuffbucket/eslint-config": "workspace:*",
     "@types/bun": "^1.2.23",
     "bumpp": "^10.2.3",
-    "eslint": "^9.37.0",
+    "eslint": "^10.8.1",
     "knip": "^5.64.1",
     "lint-staged": "^16.2.3",
     "oxlint": "^1.63.0",
-    "prettier-plugin-packagejson": "^2.5.19",
     "typescript": "^5.9.3"
   },
   "engines": {

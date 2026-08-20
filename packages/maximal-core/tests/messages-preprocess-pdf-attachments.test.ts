@@ -5,8 +5,8 @@ import type { AnthropicMessagesPayload } from "~/lib/models/anthropic-types"
 import { mergeToolResultForClaude } from "../src/routes/messages/preprocess"
 
 test("matches pasted PDF documents to PDF file read tool_results", () => {
-  const pdfPath1 = String.raw`/home/user/docs/report2024.pdf`
-  const pdfPath2 = String.raw`/home/user/docs/datasheet.pdf`
+  const pdfPath1 = "/home/user/docs/report2024.pdf"
+  const pdfPath2 = "/home/user/docs/datasheet.pdf"
   const pdfReadText1 = `PDF file read: ${pdfPath1} (276.1KB)`
   const pdfReadText2 = `PDF file read: ${pdfPath2} (943.8KB)`
 
@@ -126,7 +126,7 @@ test("matches pasted PDF documents to PDF file read tool_results", () => {
 })
 
 test("preserves image and document order for PDF file read matches", () => {
-  const pdfPath = String.raw`/home/user/docs/report2024.pdf`
+  const pdfPath = "/home/user/docs/report2024.pdf"
   const pdfReadText = `PDF file read: ${pdfPath} (276.1KB)`
 
   const payload: AnthropicMessagesPayload = {
@@ -200,8 +200,8 @@ test("preserves image and document order for PDF file read matches", () => {
 })
 
 test("matches PDF documents in order before falling back for leftovers", () => {
-  const pdfPath1 = String.raw`/home/user/docs/report2024.pdf`
-  const pdfPath2 = String.raw`/home/user/docs/datasheet.pdf`
+  const pdfPath1 = "/home/user/docs/report2024.pdf"
+  const pdfPath2 = "/home/user/docs/datasheet.pdf"
   const pdfReadText1 = `PDF file read: ${pdfPath1} (276.1KB)`
   const pdfReadText2 = `PDF file read: ${pdfPath2} (943.8KB)`
 
@@ -311,8 +311,8 @@ test("matches PDF documents in order before falling back for leftovers", () => {
 })
 
 test("excludes matched PDF tool results from leftover count matching", () => {
-  const pdfPath1 = String.raw`/home/user/docs/report2024.pdf`
-  const pdfPath2 = String.raw`/home/user/docs/datasheet.pdf`
+  const pdfPath1 = "/home/user/docs/report2024.pdf"
+  const pdfPath2 = "/home/user/docs/datasheet.pdf"
   const pdfReadText1 = `PDF file read: ${pdfPath1} (276.1KB)`
   const pdfReadText2 = `PDF file read: ${pdfPath2} (943.8KB)`
 
@@ -435,7 +435,7 @@ test("excludes matched PDF tool results from leftover count matching", () => {
 })
 
 test("skips PDF read matches when the tool result already contains a document", () => {
-  const pdfPath = String.raw`/home/user/docs/report2024.pdf`
+  const pdfPath = "/home/user/docs/report2024.pdf"
   const pdfReadText = `PDF file read: ${pdfPath} (276.1KB)`
 
   const payload: AnthropicMessagesPayload = {

@@ -67,6 +67,7 @@ export function atomicWriteJson(
     if (err instanceof Error && "code" in err && err.code === "EEXIST") {
       throw new Error(
         `refusing to write ${label}: ${tmp} already exists (possible symlink attack); remove it and retry`,
+        { cause: err },
       )
     }
     throw err

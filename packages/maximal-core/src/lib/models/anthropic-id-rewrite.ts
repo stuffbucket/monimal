@@ -16,7 +16,7 @@ const SENTINEL_DATE = "20260301"
 
 const FORWARD_RE = /^claude-(opus|sonnet|haiku)-(\d+)\.(\d+)(?:-(.*))?$/
 const REVERSE_RE = new RegExp(
-  `^claude-(opus|sonnet|haiku)-(\\d+)-(\\d+)(?:-(.*))?-${SENTINEL_DATE}$`,
+  String.raw`^claude-(opus|sonnet|haiku)-(\d+)-(\d+)(?:-(.*))?-${SENTINEL_DATE}$`,
 )
 
 /**

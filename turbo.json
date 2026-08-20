@@ -40,6 +40,7 @@
       "env": ["MAXIMAL_TEST_TRACE"]
     },
     "lint": {
+      "dependsOn": ["^lint"],
       "outputs": [],
       "inputs": ["$TURBO_DEFAULT$", "!research_log/**", "!.claude/**", "!.github/**", "!reports/**"]
     },

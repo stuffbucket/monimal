@@ -169,7 +169,6 @@
     "@electron-forge/shared-types": "7.11.2",
     "@electron/asar": "^3.4.1",
     "@electron/fuses": "^1.8.0",
-    "@eslint/js": "^9.39.0",
     "@playwright/test": "^1.62.0",
     "@radix-ui/react-collapsible": "1.1.20",
     "@radix-ui/react-dialog": "1.1.23",
@@ -183,12 +182,13 @@
     "@storybook/react-vite": "10.5.6",
     "@stryker-mutator/core": "^9.6.1",
     "@stryker-mutator/vitest-runner": "^9.6.1",
+    "@stuffbucket/eslint-config": "workspace:*",
     "@types/node": "^22.10.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.2.0",
     "electron": "43.3.0",
-    "eslint": "^9.39.0",
+    "eslint": "^10.8.1",
     "fast-check": "4.9.0",
     "ghostty-web": "0.4.0",
     "lucide-react": "1.27.0",
@@ -198,12 +198,11 @@
     "react-dom": "^19.2.8",
     "react-resizable-panels": "4.12.2",
     "storybook": "10.5.6",
+    "typebox": "1.3.7",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.65.0",
     "vite": "^8.2.1",
     "vitest": "^4.1.10",
-    "yaml": "^2.9.0",
-    "typebox": "1.3.7"
+    "yaml": "^2.9.0"
   },
   "engines": {
     "node": ">=24"

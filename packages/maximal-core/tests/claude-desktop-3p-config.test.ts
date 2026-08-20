@@ -46,7 +46,6 @@ afterEach(() => {
 })
 
 function readJson(file: string): Record<string, unknown> {
-  // eslint-disable-next-line unicorn/prefer-json-parse-buffer -- JSON.parse's type only accepts string
   return JSON.parse(fs.readFileSync(file, "utf8")) as Record<string, unknown>
 }
 

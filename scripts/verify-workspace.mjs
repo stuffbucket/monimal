@@ -130,9 +130,10 @@ check(ptyLoads, `node-pty loads on this node ABI (${process.version})`, {
 });
 
 // 5. The `overrides` block moved out of package.json's `pnpm` field, which
-//    pnpm 11 ignores. prettier is declared nowhere -- it arrives through
-//    @echristian/eslint-config -- so the override is the only thing pinning it,
-//    and 3.9.6 reformats unions into lint errors across untouched files.
+//    pnpm 11 ignores. @stuffbucket/eslint-config now declares prettier at
+//    3.8.3 directly, but the override still matters: it also pins the copies
+//    that arrive transitively, which a declaration cannot reach. 3.9.6
+//    reformats unions into lint errors across untouched files.
 check(
   JSON.parse(readFileSync(require.resolve('prettier/package.json'), 'utf8')).version === '3.8.3',
   'the prettier override is in effect',
@@ -199,6 +200,44 @@ check(
     [...distinctViteMajors][0] === '8',
   'every vite consumer is on the same major (8)',
   { count: viteMajors.size, of: 'vite consumers' },
+);
+
+//    eslint is the third, and the one best able to hide a split: each package
+//    runs its own eslint binary, so a package left behind on an older major
+//    does not fail. It lints with a different engine against a different
+//    resolved rule set and comes back green, which reads as "that package is
+//    clean" rather than "that package was checked by something else". The
+//    shared config states `eslint ^10.0.0` as a peer, and a peer range is
+//    advisory -- pnpm warns and installs anyway -- so the range is not the
+//    check. Every consumer is listed by name and every one must be observed:
+//    a mistyped path drops a package out of the comparison silently, and a
+//    comparison over four of five packages passes for the wrong reason.
+const ESLINT_CONSUMERS = [
+  'packages/eslint-config',
+  'packages/maximal-core',
+  'packages/maximal',
+  'packages/maximal-electron',
+  'packages/maximal/client',
+];
+const eslintVersions = new Map();
+for (const pkg of ESLINT_CONSUMERS) {
+  const version = manifestAt(ROOT, pkg, 'node_modules/eslint')?.version;
+  if (version != null) eslintVersions.set(pkg, version);
+}
+const distinctEslintMajors = new Set(
+  [...eslintVersions.values()].map((version) => version.split('.')[0]),
+);
+if (eslintVersions.size !== ESLINT_CONSUMERS.length || distinctEslintMajors.size !== 1) {
+  for (const pkg of ESLINT_CONSUMERS) {
+    console.error(`       ${pkg}: eslint ${eslintVersions.get(pkg) ?? '(not installed)'}`);
+  }
+}
+check(
+  eslintVersions.size === ESLINT_CONSUMERS.length &&
+    distinctEslintMajors.size === 1 &&
+    [...distinctEslintMajors][0] === '10',
+  'every package resolves the same eslint major (10)',
+  { count: eslintVersions.size, of: 'eslint consumers' },
 );
 
 // 7. No two workspace packages may end up on different versions of the same

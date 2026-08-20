@@ -27,7 +27,7 @@ const IS_WINDOWS = process.platform === "win32"
 export function redirectLocalAppData(home: string): () => void {
   if (!IS_WINDOWS) return () => {}
   const saved = process.env.LOCALAPPDATA
-  process.env.LOCALAPPDATA = `${home}\\AppData\\Local`
+  process.env.LOCALAPPDATA = String.raw`${home}\AppData\Local`
   return () => {
     if (saved === undefined) delete process.env.LOCALAPPDATA
     else process.env.LOCALAPPDATA = saved

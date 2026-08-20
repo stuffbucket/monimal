@@ -29,9 +29,6 @@ them here.
   member.
 - Pin transitive tool versions. The root lockfile re-resolves everything to the
   newest semver-compatible version, so assume anything unpinned floats.
-- Delete `.eslintcache` after changing a formatter version, or it replays stale
-  errors. CI's cold job does this for every run, since a stale cache once
-  replayed a lint crash as green.
 - Do not wire `verify:workflow-health` into this repo's CI. It reads Actions
   run history for `GITHUB_REPOSITORY`, so it passes locally by querying the
   upstream repo and fails in CI by asking monimal about workflows only the
@@ -48,6 +45,30 @@ them here.
   (typescript), `BACKLOG` holds the ones that are not and may only shrink.
 
 ## Deviations
+
+- Added `packages/eslint-config` (`@stuffbucket/eslint-config`), a private
+  workspace package holding the shared flat config, and dropped
+  `@echristian/eslint-config` from `maximal` and `maximal-core`. That preset
+  was one person's personal config, last published 2025-08-28, and the React
+  plugins it pinned but left disabled -- `@eslint-react/*`, `jsx-a11y`,
+  `react-hooks` -- were the only thing capping the workspace at ESLint 9.
+  Removing it took 83 packages out of the root `node_modules`.
+  Three entry points: `./base` (ignores + `js.configs.recommended`, used by
+  all five packages), `./typescript` (adds typescript-eslint), `./service`
+  (adds the quality plugins and prettier; the two service packages only).
+- Pin rule SETS, not just plugin versions, when a plugin major moves. The
+  replaced preset enumerated 83 unicorn rules against unicorn 60; ESLint 10
+  needs unicorn >= 73, whose `recommended` turns on 227 more. Taking
+  `recommended` produced 3071 errors in untouched files. `service.js` lists
+  the rules instead, so the plugin version floats and the enforced set does
+  not. The same applies to `eslint-plugin-package-json`, whose 1.x added two
+  `require-*` rules that are switched off there.
+- Do not add `{ ignores: [...] }` as a standalone object to share an exclusion
+  between config layers. A config object whose only key is `ignores` is a
+  GLOBAL ignore in flat config, so one added for "keep TypeScript rules off
+  package.json" silently stopped all three manifests being linted at all --
+  invisible in the findings, which stayed at zero, and visible only in the
+  linted-file count. Attach `ignores` to the objects that carry rules.
 
 - `maximal` and `maximal/client`: git pins on `@stuffbucket/maximal-core`
   rewritten to `workspace:*`. Load-bearing — maximal's `build`, `dev` and
@@ -80,9 +101,10 @@ them here.
 - `maximal-core`: `@hono/zod-openapi` pinned to `1.5.0`. 1.5.2 changes an
   inferred type and fails `tests/setup-status-openapi.test.ts`.
 - Root: `prettier` pinned to `3.8.3` via `overrides` in `pnpm-workspace.yaml`.
-  3.9.6 reformats unions and turns untouched files into lint errors. It is
-  declared nowhere — it arrives through `@echristian/eslint-config` — so
-  overrides is the only lever.
+  3.9.6 reformats unions and turns untouched files into lint errors.
+  `@stuffbucket/eslint-config` declares it at that exact version, so overrides
+  is no longer the only lever; it stays because it also pins the copies that
+  arrive transitively, which a declaration cannot reach.
 - `maximal` and `maximal-core`: git hooks taken off the install path and
   `simple-git-hooks` dropped. Two packages installing competing hooks into one
   `.git` is wrong.
@@ -133,15 +155,14 @@ them here.
 
 ## Known-blocked upgrades
 
-- ESLint stays on 9. 10.8.1 is out and most of the stack accepts it
-  (typescript-eslint, unicorn, perfectionist, regexp, unused-imports, prettier,
-  `@eslint/compat`, flat-gitignore), but `@echristian/eslint-config@0.0.54` --
-  already its latest release -- pins `@eslint-react/eslint-plugin ^1.52.7`,
-  `eslint-plugin-jsx-a11y ^6.10.2` and `eslint-plugin-react-hooks ^5.2.0`, all of
-  which cap at eslint 9. `@eslint-react` has since reached 5.x with an open peer
-  range, so this unblocks when that config publishes past 0.0.54; overriding it
-  underneath would jump that family four majors against a config never tested on
-  them.
+- `maximal/client` cannot use typescript-eslint, so it lints without any
+  type-aware rule. It pins `typescript ^7.0.2`; typescript-eslint still
+  declares `typescript >=4.8.4 <6.1.0` at 8.67.0 and throws at import time even
+  for plain, non-type-aware parsing. The package parses with
+  `@babel/eslint-parser` instead. The only way out short of upstream support is
+  a second, aliased TypeScript <6.1 installed for the linter alone -- a shadow
+  compiler whose type layer can disagree with the real `tsc` -- which is a
+  human decision, not a config change.
 
 ## Excluded from the copies
 

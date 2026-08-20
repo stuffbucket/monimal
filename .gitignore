@@ -15,7 +15,6 @@ coverage/
 playwright-report/
 test-results/
 storybook-static/
-.eslintcache
 reports/
 
 # local agent state

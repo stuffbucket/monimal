@@ -46,7 +46,6 @@ describe("boot migrates a legacy token into the registry", () => {
   test("writes accounts.json with a migration-tagged active account", () => {
     const registryPath = path.join(tmpHome, "accounts.json")
     expect(fs.existsSync(registryPath)).toBe(true)
-    // eslint-disable-next-line unicorn/prefer-json-parse-buffer -- JSON.parse's type only accepts string
     const reg = JSON.parse(fs.readFileSync(registryPath, "utf8")) as {
       schemaVersion: number
       activeKey: string | null
@@ -116,7 +115,6 @@ describe("boot with a registry that has no active account", () => {
   })
 
   test("the remembered account is left intact in the registry", () => {
-    // eslint-disable-next-line unicorn/prefer-json-parse-buffer -- JSON.parse's type only accepts string
     const raw = fs.readFileSync(path.join(tmpHome, "accounts.json"), "utf8")
     const reg = JSON.parse(raw) as {
       activeKey: string | null

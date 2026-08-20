@@ -69,7 +69,6 @@ describe("atomicWriteJson (shared helper)", () => {
   it("creates missing parent directories", () => {
     const file = path.join(dir, "nested", "deep", "out.json")
     atomicWriteJson(file, { ok: true })
-    // eslint-disable-next-line unicorn/prefer-json-parse-buffer
     expect(JSON.parse(fs.readFileSync(file, "utf8"))).toEqual({ ok: true })
   })
 
@@ -78,7 +77,6 @@ describe("atomicWriteJson (shared helper)", () => {
     // A prior write crashed between open and rename, leaving a stale temp.
     fs.writeFileSync(`${file}.tmp`, "stale garbage from a crashed write")
     atomicWriteJson(file, { a: 1 })
-    // eslint-disable-next-line unicorn/prefer-json-parse-buffer
     expect(JSON.parse(fs.readFileSync(file, "utf8"))).toEqual({ a: 1 })
     expectOwnerOnlyFile(file)
     expect(fs.existsSync(`${file}.tmp`)).toBe(false)
@@ -92,7 +90,6 @@ describe("atomicWriteJson (shared helper)", () => {
     fs.symlinkSync(victim, `${file}.tmp`)
     atomicWriteJson(file, { a: 1 })
     // Real write landed at the intended path…
-    // eslint-disable-next-line unicorn/prefer-json-parse-buffer
     expect(JSON.parse(fs.readFileSync(file, "utf8"))).toEqual({ a: 1 })
     // …the symlink's target was never followed or overwritten…
     expect(fs.readFileSync(victim, "utf8")).toBe("precious")
@@ -105,7 +102,6 @@ describe("writeClaudeCodeSettings — atomic write (#231)", () => {
   it("happy path: writes settings with mode 0600 and correct content", () => {
     const file = path.join(dir, "settings.json")
     writeClaudeCodeSettings(file, { foo: "bar" })
-    // eslint-disable-next-line unicorn/prefer-json-parse-buffer
     expect(JSON.parse(fs.readFileSync(file, "utf8"))).toEqual({ foo: "bar" })
     expectOwnerOnlyFile(file)
     expect(fs.existsSync(`${file}.tmp`)).toBe(false)
@@ -115,7 +111,6 @@ describe("writeClaudeCodeSettings — atomic write (#231)", () => {
     const file = path.join(dir, "settings.json")
     fs.writeFileSync(`${file}.tmp`, "stale")
     writeClaudeCodeSettings(file, { foo: "bar" })
-    // eslint-disable-next-line unicorn/prefer-json-parse-buffer
     expect(JSON.parse(fs.readFileSync(file, "utf8"))).toEqual({ foo: "bar" })
     expect(fs.existsSync(`${file}.tmp`)).toBe(false)
   })
@@ -126,7 +121,6 @@ describe("writeClaudeCodeSettings — atomic write (#231)", () => {
     fs.writeFileSync(victim, "precious")
     fs.symlinkSync(victim, `${file}.tmp`)
     writeClaudeCodeSettings(file, { foo: "bar" })
-    // eslint-disable-next-line unicorn/prefer-json-parse-buffer
     expect(JSON.parse(fs.readFileSync(file, "utf8"))).toEqual({ foo: "bar" })
     expect(fs.readFileSync(victim, "utf8")).toBe("precious")
   })
@@ -148,7 +142,6 @@ describe("Claude Desktop config writer — atomic write (#231)", () => {
     fs.writeFileSync(path.join(libDir, "_meta.json.tmp"), "stale")
     const result = applyConfigLibraryProfile(dir)
     expect(result.wrote).toBe(true)
-    // eslint-disable-next-line unicorn/prefer-json-parse-buffer -- JSON.parse needs string
     const raw = fs.readFileSync(path.join(libDir, "_meta.json"), "utf8")
     const meta = JSON.parse(raw) as Record<string, unknown>
     expect(meta.appliedId).toBe(result.profileId)
@@ -164,7 +157,6 @@ describe("Claude Desktop config writer — atomic write (#231)", () => {
     const result = applyConfigLibraryProfile(dir)
     expect(result.wrote).toBe(true)
     expect(fs.readFileSync(victim, "utf8")).toBe("precious")
-    // eslint-disable-next-line unicorn/prefer-json-parse-buffer -- JSON.parse needs string
     const raw = fs.readFileSync(path.join(libDir, "_meta.json"), "utf8")
     const meta = JSON.parse(raw) as Record<string, unknown>
     expect(meta.appliedId).toBe(result.profileId)
