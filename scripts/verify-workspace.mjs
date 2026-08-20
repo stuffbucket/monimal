@@ -264,38 +264,71 @@ check(
 //    matching the file format fails here rather than reporting a clean zero.
 // `siteLock` is the copy already read for the vite check above; the file is
 // not read twice.
+//
+// Each lockfile declares how to count its own entries, because the claim
+// being made is "EVERY entry is pinned by sha512" and that cannot be checked
+// without a denominator. Counting only weak pins and shard URLs -- which is
+// what this did first -- passes a file whose entries carry sha256, or carry
+// no integrity at all: neither is sha1, neither is a shard host, and the
+// total stays positive on the strength of the entries that are fine.
 const LOCKFILES = [
-  ['pnpm-lock.yaml', readFileSync(path.join(ROOT, 'pnpm-lock.yaml'), 'utf8')],
-  ['packages/maximal/site/bun.lock', siteLock],
+  {
+    relative: 'pnpm-lock.yaml',
+    contents: readFileSync(path.join(ROOT, 'pnpm-lock.yaml'), 'utf8'),
+    // A `directory:` resolution is a workspace link with no artifact to pin,
+    // so it is excluded from the denominator rather than counted as a miss.
+    countEntries: (text) =>
+      (text.match(/^ {4}resolution: \{/gm) ?? []).length -
+      (text.match(/^ {4}resolution: \{directory:/gm) ?? []).length,
+  },
+  {
+    relative: 'packages/maximal/site/bun.lock',
+    contents: siteLock,
+    countEntries: (text) => (text.match(/^ {4}"[^"]+": \[/gm) ?? []).length,
+  },
 ];
+
+let unpinned = 0;
 let weakPins = 0;
 let shardTarballs = 0;
 let strongPins = 0;
-// Counted per file, not in total. A single total is not a guard: if one
-// lockfile's format changes so the pattern stops matching it, the other still
-// contributes thousands and the sum stays reassuringly positive while half
-// the check silently examines nothing.
-let lockfilesWithPins = 0;
+let totalEntries = 0;
 
-for (const [relative, contents] of LOCKFILES) {
-  const weak = (contents.match(/sha1-/g) ?? []).length;
+for (const { relative, contents, countEntries } of LOCKFILES) {
+  const entries = countEntries(contents);
+  // Anchored to the two shapes an integrity actually takes -- pnpm's
+  // `integrity: sha512-...` and bun's `"sha512-..."` -- rather than matching
+  // the algorithm name anywhere. `@aws-crypto/sha256-browser` and
+  // `@aws-crypto/sha256-js` are real dependencies here, and an unanchored
+  // pattern counts their NAMES as integrity fields. Today that only made a
+  // diagnostic lie; a package called `sha1-something` would have inflated the
+  // count the assertion below depends on.
+  const integrity = (algorithm) =>
+    (contents.match(new RegExp(`(?:integrity: |")${algorithm}-`, 'g')) ?? []).length;
+  const strong = integrity('sha512');
+  const weak = integrity('sha1');
+  const otherAlgorithms = integrity('sha256') + integrity('sha384');
   const shards = (contents.match(/ms-feed-\d+\.pkgs\.visualstudio\.com/g) ?? []).length;
-  const strong = (contents.match(/sha512-/g) ?? []).length;
-  if (strong > 0) lockfilesWithPins += 1;
+
+  totalEntries += entries;
   strongPins += strong;
   weakPins += weak;
   shardTarballs += shards;
-  if (weak > 0 || shards > 0) {
+  if (strong !== entries) unpinned += 1;
+
+  if (strong !== entries || weak > 0 || shards > 0) {
     console.error(
-      `       ${relative}: ${String(weak)} sha1 pins, ${String(shards)} rotating shard-host URLs`,
+      `       ${relative}: ${String(strong)} sha512 of ${String(entries)} entr(ies)` +
+        `, ${String(weak)} sha1, ${String(otherAlgorithms)} other-algorithm` +
+        `, ${String(shards)} rotating shard-host URL(s)`,
     );
   }
 }
-if (weakPins > 0 || shardTarballs > 0) {
+if (unpinned > 0 || weakPins > 0 || shardTarballs > 0) {
   console.error('       Repair with: node scripts/relock-integrity.mjs');
 }
 check(
-  lockfilesWithPins === LOCKFILES.length && weakPins === 0 && shardTarballs === 0,
+  unpinned === 0 && weakPins === 0 && shardTarballs === 0 && totalEntries > 0,
   'every lockfile entry is content-pinned by sha512, with no shard-host URLs',
   { count: strongPins, of: 'sha512-pinned packages across both lockfiles' },
 );

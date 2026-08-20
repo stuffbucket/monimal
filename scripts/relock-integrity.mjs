@@ -161,6 +161,19 @@ async function derive({ key, sha1, url }, registry) {
       typeof candidate === 'string' && candidate !== '' && all.indexOf(candidate) === index,
   );
 
+  if (sha1 === null) {
+    // An entry can carry a shard URL and no integrity at all. Fetching one
+    // would mean recording a hash for bytes nothing vouched for -- a strong
+    // pin manufactured from an unauthenticated download, which is worse than
+    // the weak pin it replaces because it looks trustworthy. Refuse, and let
+    // the invariant keep failing until a human decides what the entry should
+    // be pinned to.
+    throw new Error(
+      `${key}: shard-pinned with no integrity to verify against; refusing to ` +
+        'record a hash for unattested bytes',
+    );
+  }
+
   let lastError = 'no URL to try';
   for (const candidate of candidates) {
     let bytes;
@@ -176,7 +189,7 @@ async function derive({ key, sha1, url }, registry) {
       continue;
     }
     const got = `sha1-${createHash('sha1').update(bytes).digest('base64')}`;
-    if (sha1 !== null && got !== sha1) {
+    if (got !== sha1) {
       // Never record a hash for bytes that do not match what was attested.
       throw new Error(
         `${key}: bytes do not match the attested shasum (got ${got}, expected ${sha1})`,
@@ -357,8 +370,11 @@ for (const target of TARGETS) {
   console.log(`  reused or already strong: ${String(resolved)}`);
   console.log(`  to derive by fetching:    ${String(toFetch.length)}`);
 
-  const registry = registryFor(target.rel);
+  // Resolved lazily: a run that repairs everything from history touches no
+  // network and must not require a registry to be configured at all.
+  let registry = null;
   const failures = await pooled(toFetch, async (entry) => {
+    registry ??= registryFor(target.rel);
     target.write(lines, entry, await derive(entry, registry));
   });
 
