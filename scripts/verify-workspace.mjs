@@ -240,6 +240,38 @@ check(
   { count: eslintVersions.size, of: 'eslint consumers' },
 );
 
+// 7. The lockfile pins content, not just versions.
+//
+//    The registry in .npmrc is a read-through proxy that publishes only the
+//    legacy npm `shasum` -- sha1 -- and tarball URLs on shard-specific
+//    `ms-feed-N` hosts. So any full re-resolution through it rewrites every
+//    integrity in the lockfile from sha512 down to sha1 and pins a hostname
+//    that rotates.
+//
+//    Both failures are silent in the way this file exists to catch: the
+//    install succeeds, every gate stays green, and the damage surfaces later
+//    -- as an install that cannot fetch once a shard moves, and as a content
+//    pin weak enough that a package swapped at the same version can satisfy
+//    it, which is the specific thing pinning was adopted for. sha1 collision
+//    resistance is broken; sha512's is not.
+//
+//    Counting rather than sampling because the degradation is all-or-nothing
+//    per resolution pass, and asserting a positive sha512 count as well so a
+//    regex that stops matching fails here rather than reporting a clean zero.
+const lockfile = readFileSync(path.join(ROOT, 'pnpm-lock.yaml'), 'utf8');
+const strongPins = (lockfile.match(/integrity: sha512-/g) ?? []).length;
+const weakPins = (lockfile.match(/integrity: sha1-/g) ?? []).length;
+const shardTarballs = (lockfile.match(/ms-feed-\d+\.pkgs\.visualstudio\.com/g) ?? []).length;
+if (weakPins > 0 || shardTarballs > 0) {
+  console.error(`       ${String(weakPins)} sha1 integrities, ${String(shardTarballs)} rotating shard-host tarball URLs`);
+  console.error('       sha512 is recoverable locally: the proxy serves the same bytes npmjs published.');
+}
+check(
+  weakPins === 0 && shardTarballs === 0 && strongPins > 0,
+  'every lockfile entry is content-pinned by sha512, with no shard-host URLs',
+  { count: strongPins, of: 'sha512-pinned packages' },
+);
+
 // 7. No two workspace packages may end up on different versions of the same
 //    directly-declared dependency. maximal-electron pinned electron 43.2.0
 //    while maximal/client pinned 43.3.0, so the UI library was tested against
