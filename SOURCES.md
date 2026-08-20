@@ -17,6 +17,13 @@ them here.
 - Do not add per-package lockfiles. The root lockfile is the only one that
   applies; a second implies a pinning that is not in effect.
 - Do not call `npm` in package scripts. Use pnpm.
+- Root rules win over `packages/*/AGENTS.md` and `packages/*/CLAUDE.md`. Those
+  were written for standalone repos, so their `npm run` commands and release
+  steps do not apply here.
+- Do not delete `maximal-core/AGENTS.md` or `maximal-electron/AGENTS.md`.
+  `docs-reference-parity.test.ts` and `verify-docs.mjs` read them.
+- Do not reference a root file from inside `packages/**`. A link to `AGENTS.md`
+  or `SOURCES.md` there resolves to nothing in the source repo.
 - Do not set `node-linker=hoisted`. It empties package-local `node_modules`, and
   maximal-core's `bun build` then writes module paths that are not
   byte-comparable. `publicHoistPattern` in `pnpm-workspace.yaml` is what gets
