@@ -1,4 +1,4 @@
-import config from "@echristian/eslint-config"
+import { service } from "@stuffbucket/eslint-config/service"
 
 // The single-mechanism invariant (ADR-0001): a credential token becomes an
 // Authorization / x-api-key header in EXACTLY one file, `src/lib/http/send-request.ts`.
@@ -349,7 +349,8 @@ const mockModuleLeakGuard = {
 }
 
 export default [
-  ...config({
+  ...service({
+    tsconfigRootDir: import.meta.dirname,
     // Every entry here must name something that EXISTS in this repo. Ignores
     // for absent trees (`.opencode/**`, `contrib/**`, `shell/**`, `site/**`,
     // `landing/**` — all inherited from the pre-split repo) read as policy and
@@ -367,9 +368,6 @@ export default [
       "downstream/src/**",
       ".dependency-cruiser.cjs",
     ],
-    prettier: {
-      plugins: ["prettier-plugin-packagejson"],
-    },
   }),
   tokenAttachmentGuard,
   mockModuleLeakGuard,

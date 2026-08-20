@@ -3,32 +3,20 @@
   "private": true,
   "type": "module",
   "description": "Monorepo spike: maximal, maximal-core and maximal-electron in one pnpm workspace, driven by Turborepo.",
-  "packageManager": "pnpm@10.20.0",
+  "packageManager": "pnpm@11.17.0",
   "scripts": {
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test --concurrency=1",
     "lint": "turbo run lint",
-    "check": "turbo run build typecheck && turbo run test --concurrency=1",
+    "verify:workspace": "node scripts/verify-workspace.mjs",
+    "check": "turbo run build typecheck lint && turbo run test --concurrency=1",
     "package": "turbo run package --filter maximal-client"
   },
   "devDependencies": {
     "turbo": "^2.10.9"
   },
-  "pnpm": {
-    "overrides": {
-      "prettier": "3.8.3"
-    },
-    "onlyBuiltDependencies": [
-      "@google/genai",
-      "electron",
-      "esbuild",
-      "node-llama-cpp",
-      "node-pty",
-      "protobufjs"
-    ]
-  },
   "engines": {
-    "node": ">=22"
+    "node": ">=24"
   }
 }

@@ -27,8 +27,6 @@ SBOM.cdx.json
 *.local
 # aider
 .aider*
-# eslint cache
-.eslintcache
 .claude
 # Stryker mutation testing
 .stryker-tmp/

@@ -4,3 +4,62 @@ packages:
   # and is listed so it links maximal-core and maximal-electron as workspace
   # deps rather than the stale git pins it ships with.
   - "packages/maximal/client"
+  # The nested Astro site shares this lockfile and install with the workspace.
+  - "packages/maximal/site"
+
+# Moved here from package.json's "pnpm" block: pnpm 11 no longer reads that
+# field and silently ignores it, which would drop the prettier override and --
+# more seriously -- stop every native dependency below from running its build
+# scripts.
+overrides:
+  prettier: 3.8.3
+  # Same version, fetched from the registry instead of a GitHub tarball.
+  # @electron/rebuild pins @electron/node-gyp to a codeload.github.com commit,
+  # and pnpm 11 refuses to resolve a git-hosted subdependency at all
+  # (ERR_PNPM_EXOTIC_SUBDEP, `blockExoticSubdeps`, on by default). The existing
+  # lockfile is grandfathered, so installs kept working while any re-resolution
+  # -- an electron bump, a dependabot PR -- failed outright. The pinned commit
+  # is 10.2.0-electron.1 and the registry publishes that exact version, so this
+  # unblocks resolution without turning the protection off workspace-wide.
+  #
+  # Drop this when @electron-forge 8 ships: @electron/rebuild stops pinning the
+  # tarball in 4.0.1, but forge 7.11.2 (latest stable) pins rebuild ^3.7.0 and
+  # only forge 8, still alpha, moves to ^4.0.1.
+  "@electron/node-gyp": 10.2.0-electron.1
+
+# pnpm 11 renamed this from onlyBuiltDependencies (a list) to allowBuilds (a
+# map). The old key is silently ignored, which does not fail the install -- it
+# just leaves every native dependency unbuilt.
+allowBuilds:
+  "@google/genai": true
+  "electron": true
+  "esbuild": true
+  "node-llama-cpp": true
+  "node-pty": true
+  "protobufjs": true
+
+# Two constraints pull in opposite directions, and a total hoist minus one
+# exemption is the only combination found that satisfies both.
+#
+#   Electron Forge refuses to run under pnpm unless node-linker is hoisted OR a
+#   hoist pattern is defined. Separately, Rolldown resolves a symlinked
+#   package's imports from the symlink path rather than the realpath, so Radix's
+#   transitive deps are invisible under isolated linking and the renderer build
+#   fails one package at a time as each is hoisted by hand.
+#
+#   maximal-core's build refuses to run without a package-local node_modules --
+#   `bun build` writes module paths relative to the resolved build root -- which
+#   rules out node-linker=hoisted, since that empties every package-local tree.
+#
+# The cost: a total public hoist re-hides undeclared dependencies, which is how
+# the typebox / @types/node / @electron/packager phantoms stayed invisible
+# upstream. An install with this list reduced to nothing is the way to check for
+# new ones.
+#
+# The !typescript exemption is load-bearing: packages/maximal/client pins
+# typescript ^7.0.2 while every other package pins ^5.9.3, and hoisting either
+# one shadows the other for dependencies that resolve by walking up rather than
+# through their own peer link.
+publicHoistPattern:
+  - "*"
+  - "!typescript"

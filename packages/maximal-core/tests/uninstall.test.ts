@@ -78,7 +78,6 @@ describe("uninstall — Claude Desktop revert integration", () => {
 
     // User prefs survive the revert; only our deploymentMode is cleared.
     const cfgFile = path.join(dir, "claude_desktop_config.json")
-    // eslint-disable-next-line unicorn/prefer-json-parse-buffer -- JSON.parse's type only accepts string
     const after = JSON.parse(fs.readFileSync(cfgFile, "utf8")) as Record<
       string,
       unknown
@@ -107,7 +106,6 @@ describe("uninstall — Claude Code settings revert integration", () => {
     expect(reverted.wrote).toBe(true)
     expect(isProxyBaseUrlConfigured(settings)).toBe(false)
     // The user's own key survived.
-    // eslint-disable-next-line unicorn/prefer-json-parse-buffer
     const after = JSON.parse(fs.readFileSync(settings, "utf8")) as {
       env?: { ANTHROPIC_API_KEY?: string }
     }
@@ -128,7 +126,6 @@ describe("uninstall — Claude Code settings revert integration", () => {
       JSON.stringify({ env: { ANTHROPIC_BASE_URL: "https://other.example" } }),
     )
     revertProxyBaseUrl(settings)
-    // eslint-disable-next-line unicorn/prefer-json-parse-buffer
     const after = JSON.parse(fs.readFileSync(settings, "utf8")) as {
       env?: { ANTHROPIC_BASE_URL?: string }
     }

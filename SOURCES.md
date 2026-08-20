@@ -4,11 +4,11 @@
 copies of the repos below. No git history came across. Syncing is over — edit
 them here.
 
-| Package | Source repo | Commit copied |
-| --- | --- | --- |
-| `packages/maximal` | `stuffbucket/maximal` | `b831d87` |
-| `packages/maximal-core` | `stuffbucket/maximal-core` | `3e2b10c` |
-| `packages/maximal-electron` | `stuffbucket/maximal-electron` | `c31f238` |
+| Package                     | Source repo                    | Commit copied |
+| --------------------------- | ------------------------------ | ------------- |
+| `packages/maximal`          | `stuffbucket/maximal`          | `b831d87`     |
+| `packages/maximal-core`     | `stuffbucket/maximal-core`     | `3e2b10c`     |
+| `packages/maximal-electron` | `stuffbucket/maximal-electron` | `c31f238`     |
 
 ## Rules
 
@@ -17,18 +17,86 @@ them here.
 - Do not add per-package lockfiles. The root lockfile is the only one that
   applies; a second implies a pinning that is not in effect.
 - Do not call `npm` in package scripts. Use pnpm.
+- Root rules win over `packages/*/AGENTS.md` and `packages/*/CLAUDE.md`. Those
+  were written for standalone repos, so their `npm run` commands and release
+  steps do not apply here.
+- Do not delete `maximal-core/AGENTS.md` or `maximal-electron/AGENTS.md`.
+  `docs-reference-parity.test.ts` and `verify-docs.mjs` read them.
+- Do not reference a root file from inside `packages/**`. A link to `AGENTS.md`
+  or `SOURCES.md` there resolves to nothing in the source repo.
 - Do not set `node-linker=hoisted`. It empties package-local `node_modules`, and
   maximal-core's `bun build` then writes module paths that are not
-  byte-comparable. See `.npmrc`.
+  byte-comparable. `publicHoistPattern` in `pnpm-workspace.yaml` is what gets
+  the hoisting Electron Forge and Rolldown need without it.
+- Put pnpm settings in `pnpm-workspace.yaml`, not `.npmrc` or `package.json`.
+  pnpm 11 reads neither of the latter for them and does not warn: the setting is
+  simply ignored. `.npmrc` carries the registry and nothing else.
 - Do not commit `maximal-core/dist`. Its `build` generates it.
-- Keep `maximal/site` inside `maximal`. It is the Pages site, not a workspace
-  member.
+- Keep `packages/maximal/site` inside `maximal`; copied scripts and frozen
+  workflow fixtures address it as `site/` relative to that package.
+- Keep `packages/maximal/site` in the root pnpm workspace. Otherwise the root
+  install, lockfile, Dependabot entry, and Turbo graph do not cover it.
 - Pin transitive tool versions. The root lockfile re-resolves everything to the
   newest semver-compatible version, so assume anything unpinned floats.
-- Delete `.eslintcache` after changing a formatter version, or it replays stale
-  errors.
+- Do not wire `verify:workflow-health` into this repo's CI. It reads Actions
+  run history for `GITHUB_REPOSITORY`, so it passes locally by querying the
+  upstream repo and fails in CI by asking monimal about workflows only the
+  vendored `packages/*/.github` fixtures declare.
+- Prefer `pnpm install --frozen-lockfile`; an unintended re-resolution can
+  weaken the content pins and replace stable resolution with rotating hosts.
+- Run `node scripts/relock-integrity.mjs` after an intentional re-resolution.
+  `verify-workspace.mjs` fails when the repair was skipped.
+- Run `node scripts/verify-workspace.mjs` after changing anything in
+  `pnpm-workspace.yaml`. It reads the installed tree rather than the config,
+  which is the only way to catch a pnpm setting that is accepted and ignored.
+- One node version, named in `.nvmrc` and nowhere else. `mise.toml` opts node
+  into idiomatic version files so mise reads that same file; CI reads it through
+  setup-node's `node-version-file`. `engines` states the floor, which nothing
+  enforces, so `verify-workspace.mjs` compares the _running_ major against it.
+- Do not let two packages pin different versions of the same dependency. The
+  script above ratchets this: `DELIBERATE` holds the splits that are meant
+  (typescript), `BACKLOG` holds the ones that are not and may only shrink.
+
+## Lockfile integrity
+
+The root `.npmrc` sends installs through the public 1ES read-through proxy. Its
+packuments expose only the legacy SHA-1 `shasum` and rotating `ms-feed-N`
+tarball hosts, not `dist.integrity` or signing keys. A re-resolution therefore
+writes a weaker content pin and a hostname that can expire even though the
+install itself succeeds.
+
+`pnpm-lock.yaml` is the only dependency lockfile. After an intentional
+re-resolution, `scripts/relock-integrity.mjs` reuses known SHA-512 pins and
+verifies newly fetched bytes against the registry's attestation before recording
+SHA-512. `scripts/verify-workspace.mjs` checks every artifact resolution and
+rejects weak pins or shard-host URLs. It checks lockfile metadata; it does not
+establish package provenance or publisher identity.
 
 ## Deviations
+
+- Added `packages/eslint-config` (`@stuffbucket/eslint-config`), a private
+  workspace package holding the shared flat config, and dropped
+  `@echristian/eslint-config` from `maximal` and `maximal-core`. That preset
+  was one person's personal config, last published 2025-08-28, and the React
+  plugins it pinned but left disabled -- `@eslint-react/*`, `jsx-a11y`,
+  `react-hooks` -- were the only thing capping the workspace at ESLint 9.
+  Removing it took 83 packages out of the root `node_modules`.
+  Three entry points: `./base` (ignores + `js.configs.recommended`, used by
+  all five packages), `./typescript` (adds typescript-eslint), `./service`
+  (adds the quality plugins and prettier; the two service packages only).
+- Pin rule SETS, not just plugin versions, when a plugin major moves. The
+  replaced preset enumerated 83 unicorn rules against unicorn 60; ESLint 10
+  needs unicorn >= 73, whose `recommended` turns on 227 more. Taking
+  `recommended` produced 3071 errors in untouched files. `service.js` lists
+  the rules instead, so the plugin version floats and the enforced set does
+  not. The same applies to `eslint-plugin-package-json`, whose 1.x added two
+  `require-*` rules that are switched off there.
+- Do not add `{ ignores: [...] }` as a standalone object to share an exclusion
+  between config layers. A config object whose only key is `ignores` is a
+  GLOBAL ignore in flat config, so one added for "keep TypeScript rules off
+  package.json" silently stopped all three manifests being linted at all --
+  invisible in the findings, which stayed at zero, and visible only in the
+  linted-file count. Attach `ignores` to the objects that carry rules.
 
 - `maximal` and `maximal/client`: git pins on `@stuffbucket/maximal-core`
   rewritten to `workspace:*`. Load-bearing — maximal's `build`, `dev` and
@@ -60,15 +128,71 @@ them here.
   inode. Both tests then failed on every re-run in the same process.
 - `maximal-core`: `@hono/zod-openapi` pinned to `1.5.0`. 1.5.2 changes an
   inferred type and fails `tests/setup-status-openapi.test.ts`.
-- Root: `prettier` pinned to `3.8.3` via `pnpm.overrides`. 3.9.6 reformats
-  unions and turns untouched files into lint errors. It is declared nowhere —
-  it arrives through `@echristian/eslint-config` — so overrides is the only lever.
+- Root: `prettier` pinned to `3.8.3` via `overrides` in `pnpm-workspace.yaml`.
+  3.9.6 reformats unions and turns untouched files into lint errors.
+  `@stuffbucket/eslint-config` declares it at that exact version, so overrides
+  is no longer the only lever; it stays because it also pins the copies that
+  arrive transitively, which a declaration cannot reach.
 - `maximal` and `maximal-core`: git hooks taken off the install path and
   `simple-git-hooks` dropped. Two packages installing competing hooks into one
   `.git` is wrong.
 - `maximal-electron`: added `typebox`. `maximal/client`: added `@types/node` and
   `@electron/packager`. All three are imported but never declared, and npm's
   flat `node_modules` used to supply them. Real bugs upstream.
+- `maximal-electron`: `vite` moved from `^7.3.6` to `^8.2.1`. The registry in
+  `.npmrc` carries 7.3.5 and then 8.x, never 7.3.6, so the pinned version cannot
+  be installed at all. Every dependent already accepts vite 8 as a peer, and
+  `maximal/client` was on `^8.2.1` already.
+- `maximal/site`: `astro` and `@astrojs/markdown-remark` moved from `^7.2.2` to
+  `^7.2.1`. The registry's newest Astro is 7.2.1, so this walks back the
+  Dependabot bump in 33c4a5f for as long as that gap persists.
+- `maximal/site`: added to the root pnpm workspace and root lockfile. Its Astro
+  build is package-manager-neutral; the separate Bun install, lockfile,
+  registry file, Dependabot entry, and CI path duplicated workspace machinery.
+- Root: `packageManager` moved to `pnpm@11.17.0`, and `mise.toml` / `mise.lock`
+  pin the same version locally so pnpm never has to switch versions to satisfy
+  the field. mise verifies GitHub artifact attestations and records a per-
+  platform checksum, which is the only content pin available here: the registry
+  publishes no signatures, no attestations, and only a SHA-1 shasum.
+- Root: `pnpm.overrides` and `pnpm.onlyBuiltDependencies` moved out of
+  `package.json` into `pnpm-workspace.yaml`, the latter renamed to `allowBuilds`
+  and reshaped from a list to a map. Under pnpm 11 the old spellings are ignored
+  silently, which does not fail the install — it just leaves every native
+  dependency unbuilt.
+- `maximal-electron`: `electron` moved from `43.2.0` to `43.3.0`, matching
+  `maximal/client`. The UI library was tested against one Electron and the app
+  that ships it was built against another, which nothing reported because each
+  package was internally consistent.
+- Root: `@electron/node-gyp` overridden to `10.2.0-electron.1`, the same
+  version, taken from the registry instead of the GitHub tarball
+  `@electron/rebuild` pins. pnpm 11 refuses to resolve any git-hosted
+  subdependency (`blockExoticSubdeps`, on by default). The committed lockfile
+  is grandfathered, so installs worked while every re-resolution failed — which
+  would have hit the first dependabot PR rather than anything a human ran.
+- `maximal-electron`: dropped its `packageManager` field. It pinned pnpm
+  10.20.0 against the root's 11.17.0, and a second declaration implies a pinning
+  that is not in effect.
+- All packages: `engines.node` moved to `>=24` and `.nvmrc` to 24, replacing 22.
+  24 is Active LTS where 26 is still Current, and it clears the floor ESLint 10
+  will need (`^20.19 || ^22.13 || >=24`) if that ever unblocks. `maximal/client`
+  and `maximal/site` had no `engines` at all and now state it.
+- Root: the hoist pattern moved from `.npmrc` to `publicHoistPattern` in
+  `pnpm-workspace.yaml`, gaining a `!typescript` exemption. `maximal/client`
+  pins typescript `^7.0.2` and everything else pins `^5.9.3`, so hoisting either
+  shadows the other for any dependency that resolves by walking up rather than
+  through its own peer link — which is what made `eslint-plugin-perfectionist`
+  call a TS 5 API on the TS 7 module.
+
+## Known-blocked upgrades
+
+- `maximal/client` cannot use typescript-eslint, so it lints without any
+  type-aware rule. It pins `typescript ^7.0.2`; typescript-eslint still
+  declares `typescript >=4.8.4 <6.1.0` at 8.67.0 and throws at import time even
+  for plain, non-type-aware parsing. The package parses with
+  `@babel/eslint-parser` instead. The only way out short of upstream support is
+  a second, aliased TypeScript <6.1 installed for the linter alone -- a shadow
+  compiler whose type layer can disagree with the real `tsc` -- which is a
+  human decision, not a config change.
 
 ## Excluded from the copies
 

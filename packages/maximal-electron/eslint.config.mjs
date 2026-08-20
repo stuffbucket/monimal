@@ -1,24 +1,17 @@
-import js from '@eslint/js';
-import tseslint from 'typescript-eslint';
+import { typescript } from '@stuffbucket/eslint-config/typescript';
 
-export default tseslint.config(
-  {
-    ignores: [
-      'out/**',
-      '.vite/**',
-      'node_modules/**',
-      'dist/**',
-      'test-results/**',
-      'playwright-report/**',
-      // Storybook's build output. Minified vendor code, not this repository's.
-      'storybook-static/**',
-      // Agent worktrees are whole copies of this repository. Linting them
-      // reports every finding twice, against files that are not this checkout.
-      '.claude/**',
-    ],
-  },
-  js.configs.recommended,
-  ...tseslint.configs.recommended,
+export default [
+  // No `ignores` argument: this package's generated trees (out, .vite, dist,
+  // test-results, playwright-report, storybook-static) are all in the shared
+  // list.
+  //
+  // `level: 'recommended'` is where this package differs from the two service
+  // packages, which run `strict`. This app is clean under `recommended`;
+  // raising it is a refactor of the app, not a config change.
+  ...typescript({
+    tsconfigRootDir: import.meta.dirname,
+    level: 'recommended',
+  }),
   {
     // Build and tooling scripts run in Node, outside the TypeScript program.
     files: ['scripts/**/*.mjs'],
@@ -51,10 +44,9 @@ export default tseslint.config(
     // renderer component.
     files: ['**/*.ts', '**/*.tsx'],
     languageOptions: {
-      parserOptions: {
-        projectService: true,
-        tsconfigRootDir: import.meta.dirname,
-      },
+      // parserOptions (projectService + tsconfigRootDir) comes from the
+      // shared typescript profile; only the build-time constants Vite injects
+      // are specific to this package.
       globals: {
         MAIN_WINDOW_VITE_DEV_SERVER_URL: 'readonly',
         MAIN_WINDOW_VITE_NAME: 'readonly',
@@ -132,4 +124,4 @@ export default tseslint.config(
       ],
     },
   },
-);
+];

@@ -210,6 +210,7 @@ export async function pollAccessToken(
       if (consecutiveTransportErrors >= MAX_CONSECUTIVE_TRANSPORT_ERRORS) {
         throw new Error(
           "Device-code poll: network unreachable after repeated attempts. Check your connection and re-run setup.",
+          { cause: err },
         )
       }
       consola.warn("Device-code poll: network error, retrying", err)

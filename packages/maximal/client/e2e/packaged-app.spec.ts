@@ -317,7 +317,7 @@ test('exits cleanly without orphaning the sidecar process', async () => {
   // so give the sidecar a moment to actually finish tearing down before
   // declaring it orphaned.
   const deadline = Date.now() + 10_000
-  let remaining: string[] = []
+  let remaining: string[]
   do {
     remaining = findProcessesContaining(running.appRoot)
     if (remaining.length === 0) break

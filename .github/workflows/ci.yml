@@ -20,7 +20,6 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # Turborepo's own telemetry prompt, off in CI.
   TURBO_TELEMETRY_DISABLED: 1
 
 jobs:
@@ -31,11 +30,10 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # pnpm before setup-node, so setup-node's cache: pnpm can find it.
+      # pnpm before setup-node, so setup-node's cache can find it. The version
+      # comes from packageManager in package.json.
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
         with:
-          # No version here: it comes from packageManager in package.json,
-          # so there is one place to change it.
           run_install: false
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -43,18 +41,13 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
 
-      # maximal and maximal-core build and test with bun, not node. Both pin a
-      # .bun-version, and they disagree (1.3.11 vs 1.3.14) because they are
-      # separate repos upstream; the root .bun-version takes the newer. It lives
-      # in a file rather than inline so turbo can hash it: a runtime bump has to
-      # invalidate every task, or CI replays results produced under the old one.
+      # maximal and maximal-core genuinely build and test with Bun. The root
+      # version file is also a Turbo global input, so runtime bumps invalidate
+      # results produced under the previous version.
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version-file: .bun-version
 
-      # Turborepo's local cache. Keyed on the lockfile plus the commit, falling
-      # back to any cache for the same lockfile, so an unchanged dependency set
-      # still gets warm task results.
       - name: Restore turbo cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -66,30 +59,42 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm run lint
-      - run: pnpm run typecheck
-      - run: pnpm run build
+      # Reads the installed tree rather than trusting accepted configuration.
+      - name: Verify workspace installation
+        run: pnpm run verify:workspace
 
-      # Restores what the deleted macOS packaging job used to prove: that the
-      # client bundles THIS workspace's maximal-core rather than falling back to
-      # the stale git pin it ships with upstream.
-      #
-      # The old check ran `maximal-core --version` inside the packaged .app,
-      # which needs a Mac. These two assertions need neither a Mac nor an
-      # executable: the sidecar is compiled --target=bun-darwin-arm64 and cannot
-      # run on the runner, but it can be read.
-      - name: Verify the sidecar came from this workspace
+      # Build/typecheck/lint use normal graph parallelism. Tests alone are
+      # serialized because Bun suites bind ports and install signal handlers.
+      # The sidecar build is intentionally uncached and executes on every run;
+      # the Astro site is a normal workspace build covered here too.
+      - name: Check workspace
+        run: pnpm run check
+        env:
+          # Inverted deliberately: the string "off" is truthy and would enable
+          # tracing if forwarded directly.
+          MAXIMAL_TEST_TRACE: ${{ inputs.test_trace != 'off' && inputs.test_trace || '' }}
+
+      # Build/install mechanics outside the normal package scripts. Release-time
+      # checks that require a tag or packaged app remain out of the PR gate.
+      - name: Verify package mechanics
+        run: |
+          pnpm --filter @stuffbucket/maximal-electron run verify:fixture-imports
+          pnpm --filter @stuffbucket/maximal-electron run verify:neutral
+          pnpm --filter @stuffbucket/maximal-electron run verify:docs
+          pnpm --filter @stuffbucket/maximal-electron exec node scripts/verify-exports.mjs
+          pnpm --filter @stuffbucket/maximal-electron run check:contrast
+
+      # Prove that the client compiled this checkout's workspace core rather
+      # than the stale git dependency from the copied upstream manifest.
+      - name: Verify sidecar provenance
         run: |
           set -euo pipefail
           LINK=packages/maximal/client/node_modules/@stuffbucket/maximal-core
-          # 1. The dependency resolves to the workspace copy, not a git tarball.
           test -L "$LINK" || { echo "::error::$LINK is not a workspace symlink"; exit 1; }
           TARGET="$(cd "$(dirname "$LINK")" && cd "$(readlink "$(basename "$LINK")")" && pwd)"
           EXPECTED="$PWD/packages/maximal-core"
           echo "resolves to: $TARGET"
           test "$TARGET" = "$EXPECTED" || { echo "::error::expected $EXPECTED"; exit 1; }
-          # 2. The compiled sidecar carries this commit, so it was built from
-          #    that copy in this run and is not a stale or cached artifact.
           BIN=packages/maximal/client/resources/bin/maximal-core
           test -s "$BIN" || { echo "::error::no sidecar at $BIN"; exit 1; }
           SHA="$(git rev-parse HEAD)"
@@ -99,85 +104,64 @@ jobs:
           }
           echo "sidecar embeds $SHA, core $(node -p "require('./packages/maximal-core/package.json').version")"
 
-      # The Pages site is NOT a workspace member and is not in the turbo graph:
-      # it installs with bun from its own lockfile, and nothing above touches it.
-      # That is why a dependabot bump to astro 7 merged green while leaving the
-      # site unbuildable, and why an earlier astro build produced 1 page instead
-      # of 8 with a zero exit code. Both were silent.
-      #
-      # Installing separately keeps it out of the root lockfile, which is the
-      # reason it is not a workspace member in the first place. The two commands
-      # catch different things: --frozen-lockfile fails when package.json
-      # declares a version the lockfile does not carry (astro ^7.2.2 against a
-      # lock pinning ^6.2.2, exactly what that bump left behind), and the build
-      # is what catches a missing dependency or a config the new major rejects.
-      - name: Build the Pages site
-        working-directory: packages/maximal/site
-        run: |
-          bun install --frozen-lockfile
-          bun run build
+  # Exercises Forge packaging and the public-hoist behavior that ordinary
+  # build/typecheck/lint/test do not prove.
+  package:
+    name: electron package
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # Serialized on purpose: maximal and maximal-core both bind ports and
-      # install signal handlers, and interfere when run concurrently.
-      #
-      # Split by runner, not by preference: the two bun suites and the two
-      # vitest ones take different reporter flags. Both write a JUnit file,
-      # uploaded below, which is the only durable per-test record a failed run
-      # leaves -- name, file, line and duration per test, comparable against a
-      # green run. Bun's <failure> element carries no message, so the console
-      # output is still where the diff and stack live.
-      #
-      # Console output is unaffected. Invoked directly, `bun test
-      # --reporter=junit` replaces the per-test lines; run through turbo it does
-      # not, so the log keeps every (pass)/(fail) line AND we get the file.
-      - name: test (bun suites)
-        run: |
-          mkdir -p packages/maximal/reports packages/maximal-core/reports
-          pnpm exec turbo run test --concurrency=1 \
-            --filter=@stuffbucket/maximal --filter=@stuffbucket/maximal-core \
-            -- --reporter=junit --reporter-outfile=reports/junit.xml
-        env:
-          # Inverted on purpose. `a && b || c` falls through to c when b is
-          # falsy, so `== 'off' && '' || inputs.test_trace` yields the string
-          # "off" — which is truthy, and would switch the tracer ON.
-          MAXIMAL_TEST_TRACE: ${{ inputs.test_trace != 'off' && inputs.test_trace || '' }}
-
-      - name: test (vitest suites)
-        run: |
-          mkdir -p packages/maximal-electron/reports packages/maximal/client/reports
-          pnpm exec turbo run test --concurrency=1 \
-            --filter=@stuffbucket/maximal-electron --filter=maximal-client \
-            -- --reporter=default --reporter=junit --outputFile=reports/junit.xml
-
-      # `always()`: the report is worth most when the run is red.
-      #
-      # `reports/**` is declared as a turbo output on the test task, so a
-      # replayed cache hit restores the file and every run carries an artifact,
-      # not just the ones that execute tests.
-      #
-      # READ A RESTORED REPORT WITH CARE. It holds the timings of whichever run
-      # last produced that hash, which is NOT necessarily this commit: turbo's
-      # inputs exclude .github/**, reports/**, research_log/** and .claude/**,
-      # and cover only the four package directories. Two commits with different
-      # content can share a hash and therefore an artifact. Check whether the
-      # run's test tasks say "cache miss, executing" before treating the numbers
-      # as this commit's.
-      #
-      # Paths are one directory deep on purpose. `packages/**/reports` follows
-      # pnpm's workspace symlinks into node_modules and uploads every report a
-      # second time under the package that links it.
-      - name: Upload test reports
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
         with:
-          name: junit-${{ github.run_id }}-${{ github.run_attempt }}
-          path: |
-            packages/*/reports/junit.xml
-            packages/maximal/client/reports/junit.xml
-          if-no-files-found: ignore
-          retention-days: 30
+          run_install: false
 
-  # No macOS job here; see AGENTS.md. The job that was removed also asserted the
-  # packaged sidecar's version matched the workspace maximal-core, catching a
-  # fall-back to the stale git pin. That check has no replacement yet.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
 
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: .bun-version
+
+      # Dependency builds can replay from a previous run. The Git-dependent
+      # maximal-client sidecar build is uncached and therefore recompiles.
+      - name: Restore turbo cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .turbo
+          key: turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
+            turbo-${{ runner.os }}-
+
+      # Electron's binary is fetched by a postinstall. The exact manifest pin
+      # avoids writing another ~100MB cache entry after unrelated lock changes.
+      - name: Cache the Electron download
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/electron
+          key: electron-${{ runner.os }}-${{ hashFiles('packages/maximal/client/package.json') }}
+          restore-keys: electron-${{ runner.os }}-
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Verify workspace installation
+        run: pnpm run verify:workspace
+
+      - run: pnpm run package
+
+      - name: Verify packaged app contents
+        run: |
+          set -euo pipefail
+          OUT=packages/maximal/client/out
+          APP="$(find "$OUT" -maxdepth 1 -type d -name 'Maximal-*' | head -1)"
+          test -n "$APP" || { echo "::error::no packaged app under $OUT"; exit 1; }
+          echo "packaged: $APP"
+          ASAR="$(find "$APP" -name app.asar | head -1)"
+          test -s "$ASAR" || { echo "::error::no app.asar in $APP"; exit 1; }
+          SIDECAR="$(find "$APP" -name 'maximal-core*' | head -1)"
+          test -s "$SIDECAR" || { echo "::error::no sidecar in $APP"; exit 1; }
+          echo "asar $(stat -c%s "$ASAR") bytes, sidecar $(stat -c%s "$SIDECAR") bytes"

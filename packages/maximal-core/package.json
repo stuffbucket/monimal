@@ -73,8 +73,8 @@
     "e2e:replace": "bun scripts/dev/e2e-replace.ts",
     "e2e:seam": "bun scripts/dev/e2e-seam.ts",
     "knip": "knip-bun",
-    "lint": "eslint --cache",
-    "lint:all": "eslint --cache .",
+    "lint": "eslint",
+    "lint:all": "eslint .",
     "lint:fast": "oxlint",
     "measure:baseline": "bun scripts/dev/measure-baseline.ts",
     "mutate": "stryker run",
@@ -132,25 +132,24 @@
     "zod": "^4.1.11"
   },
   "devDependencies": {
-    "@echristian/eslint-config": "^0.0.54",
     "@stryker-mutator/core": "^9.6.1",
+    "@stuffbucket/eslint-config": "workspace:*",
     "@types/bun": "^1.2.23",
     "@types/proxy-from-env": "^1.0.4",
     "@types/turndown": "^5.0.6",
     "@types/winreg": "^1.2.36",
     "bumpp": "^10.2.3",
     "dependency-cruiser": "^17.4.0",
-    "eslint": "^9.37.0",
+    "eslint": "^10.8.1",
     "jscpd": "^5.0.14",
     "knip": "^5.64.1",
     "lint-staged": "^16.2.3",
     "oxlint": "^1.63.0",
-    "prettier-plugin-packagejson": "^2.5.19",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3"
   },
   "engines": {
-    "node": ">=22.13.0"
+    "node": ">=24"
   },
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"

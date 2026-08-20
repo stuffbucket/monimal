@@ -1,4 +1,3 @@
-/* eslint-disable unicorn/prefer-json-parse-buffer -- TS overload doesn't accept Buffer for JSON.parse */
 /**
  * Crash-detection sentinel for the Claude Code routing lifecycle.
  *

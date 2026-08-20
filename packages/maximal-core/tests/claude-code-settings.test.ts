@@ -205,7 +205,6 @@ describe("writeClaudeCodeSettings", () => {
   it("creates parent directory if missing", () => {
     const nested = path.join(dir, "a", "b", "settings.json")
     writeClaudeCodeSettings(nested, { foo: "bar" })
-    // eslint-disable-next-line unicorn/prefer-json-parse-buffer
     expect(JSON.parse(fs.readFileSync(nested, "utf8"))).toEqual({ foo: "bar" })
   })
 

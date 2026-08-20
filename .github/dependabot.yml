@@ -12,3 +12,30 @@ updates:
       actions:
         patterns:
           - "*"
+
+  # Routine npm updates. Without this entry the only npm bumps that arrive are
+  # security ones -- those come through the npm_and_yarn group regardless of
+  # what is configured here, which is how astro 6 -> 7 landed unattended and
+  # left the Pages site unbuildable.
+  #
+  # Grouped so a workspace-wide bump is one PR to verify rather than a dozen
+  # that each re-resolve the same lockfile. Majors are separated because they
+  # are the ones that need a human: the two breakages this repo has actually
+  # hit -- astro 6 -> 7 and vite 7 -> 8 -- were both majors.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      npm-minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+      npm-major:
+        patterns:
+          - "*"
+        update-types:
+          - major

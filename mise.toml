@@ -1,0 +1,28 @@
+# Local toolchain pins. CI does not read this file -- it installs pnpm via
+# pnpm/action-setup and node via .nvmrc (see .github/workflows/ci.yml).
+#
+# Node is deliberately absent here: .nvmrc owns the node version and mise reads
+# it directly, so duplicating it would create a second place to change.
+#
+# pnpm is pinned here rather than left to whatever is on PATH because the
+# `packageManager` field alone cannot be satisfied on this workspace: pnpm
+# refuses to switch to a version it cannot verify, and the 1ES proxy in .npmrc
+# publishes no npm registry signatures (no dist.signatures, no
+# /-/npm/v1/keys, no attestations -- only a SHA-1 shasum). Having the exact
+# pinned version already on PATH means no switch is ever attempted.
+#
+# The aqua backend fetches from GitHub releases and verifies a checksum, and
+# mise.lock records the resolved version and hash per platform -- that is the
+# content pin, so a re-published or swapped artifact at the same version fails
+# rather than silently installing.
+[tools]
+pnpm = "11.17.0"
+
+[settings]
+lockfile = true
+# Read .nvmrc for the node version instead of restating it here. mise ignores
+# idiomatic version files unless a tool opts in, and CI reads .nvmrc directly
+# via setup-node's node-version-file -- so without this, mise and CI would
+# silently run different majors. verify-workspace.mjs asserts the running major
+# against .nvmrc, which is what catches that if this setting ever regresses.
+idiomatic_version_file_enable_tools = ["node"]
