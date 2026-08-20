@@ -64,23 +64,46 @@ const CONCURRENCY = 8;
 const HISTORY_DEPTH = 20;
 const SHARD_HOST = /ms-feed-\d+\.pkgs\.visualstudio\.com/;
 
-const REGISTRY = (() => {
-  const npmrc = readFileSync(path.join(ROOT, '.npmrc'), 'utf8');
-  const match = /^registry=(.+)$/m.exec(npmrc);
-  if (match === null) throw new Error('.npmrc names no registry');
-  return match[1].trim().replace(/\/?$/, '/');
-})();
-
-/** The registry-relative URL for a package, used when a pinned shard has rotated away. */
-function registryUrl(name, version) {
-  const bare = name.startsWith('@') ? name.slice(name.indexOf('/') + 1) : name;
-  return `${REGISTRY}${name}/-/${bare}-${version}.tgz`;
+/**
+ * The registry a given lockfile resolves through.
+ *
+ * Read from the `.npmrc` beside the lockfile, falling back to the root one.
+ * The site has its own: it is not a workspace member, CI installs it with its
+ * own working-directory, and bun's config lookup starts there. Using the root
+ * registry for it would be right only by coincidence.
+ */
+function registryFor(relLockPath) {
+  const candidates = [
+    path.join(ROOT, path.dirname(relLockPath), '.npmrc'),
+    path.join(ROOT, '.npmrc'),
+  ];
+  for (const candidate of candidates) {
+    if (!existsSync(candidate)) continue;
+    const match = /^registry=(.+)$/m.exec(readFileSync(candidate, 'utf8'));
+    if (match !== null) return match[1].trim().replace(/\/?$/, '/');
+  }
+  throw new Error(`no registry configured for ${relLockPath}`);
 }
 
-/** Split `name@version`, tolerating scoped names. */
+/**
+ * Split `name@version`.
+ *
+ * pnpm quotes any key containing a scope, so roughly two thirds of this
+ * lockfile's keys arrive as `'@scope/name@1.2.3'`. Left in, the quotes reach
+ * the fallback URL and produce a path no registry will serve -- and because
+ * the fallback only runs when the recorded URL has already failed, it would
+ * have surfaced as an unfixable lockfile long after the change that caused it.
+ */
 function splitSpec(spec) {
-  const at = spec.lastIndexOf('@');
-  return { name: spec.slice(0, at), version: spec.slice(at + 1) };
+  const unquoted = /^'(.*)'$/.exec(spec)?.[1] ?? spec;
+  const at = unquoted.lastIndexOf('@');
+  return { name: unquoted.slice(0, at), version: unquoted.slice(at + 1) };
+}
+
+/** The registry-relative URL for a package, used when a pinned shard has rotated away. */
+function registryUrl(registry, name, version) {
+  const bare = name.startsWith('@') ? name.slice(name.indexOf('/') + 1) : name;
+  return `${registry}${name}/-/${bare}-${version}.tgz`;
 }
 
 /**
@@ -131,9 +154,9 @@ function knownPins(relPath, extract) {
  * is the expected case once a shard host has rotated: the pinned URL is dead
  * but the package is still perfectly fetchable.
  */
-async function derive({ key, sha1, url }) {
+async function derive({ key, sha1, url }, registry) {
   const { name, version } = splitSpec(key);
-  const candidates = [url, registryUrl(name, version)].filter(
+  const candidates = [url, registryUrl(registry, name, version)].filter(
     (candidate, index, all) =>
       typeof candidate === 'string' && candidate !== '' && all.indexOf(candidate) === index,
   );
@@ -213,13 +236,21 @@ function pnpmDamage(lines) {
     const weak = /integrity: (sha1-[^,}]+)/.exec(resolution);
     const strong = /integrity: (sha512-[^,}]+)/.exec(resolution);
     const tarball = /tarball: ([^,}]+)/.exec(resolution);
-    if (weak === null && tarball === null) continue;
+    // Only a SHARD host counts as URL damage. A lockfile may legitimately pin
+    // a tarball elsewhere -- a git dependency, a GitHub release -- and
+    // blanking one of those would not weaken the pin, it would break
+    // resolution outright.
+    const shardPinned = tarball !== null && SHARD_HOST.test(tarball[1]);
+    if (weak === null && !shardPinned) continue;
     found.push({
       key: `${head[1]}@${head[2]}`,
       line: i + 1,
       sha1: weak === null ? null : weak[1],
       strong: strong === null ? null : strong[1],
       url: tarball === null ? null : tarball[1],
+      // A non-shard URL is preserved verbatim; a shard one is dropped so the
+      // configured registry supplies it.
+      keepUrl: shardPinned || tarball === null ? null : tarball[1],
     });
   }
   return found;
@@ -245,14 +276,17 @@ function bunDamage(lines) {
     const match = BUN_ENTRY.exec(lines[i]);
     if (match === null) continue;
     const weak = match[6].startsWith('sha1-');
-    const hostPinned = match[4] !== '';
-    if (!weak && !hostPinned) continue;
+    // Same gate as the pnpm side: only a shard host is damage. bun records
+    // git and non-registry sources in this slot too.
+    const shardPinned = match[4] !== '' && SHARD_HOST.test(match[4]);
+    if (!weak && !shardPinned) continue;
     found.push({
       key: match[2],
       line: i,
       sha1: weak ? match[6] : null,
       strong: weak ? null : match[6],
       url: match[4] === '' ? null : match[4],
+      keepUrl: shardPinned || match[4] === '' ? null : match[4],
     });
   }
   return found;
@@ -267,7 +301,8 @@ const TARGETS = [
     damage: pnpmDamage,
     // pnpm reconstructs the URL from the configured registry when absent.
     write: (lines, entry, pin) => {
-      lines[entry.line] = `    resolution: {integrity: ${pin}}`;
+      const tarball = entry.keepUrl === null ? '' : `, tarball: ${entry.keepUrl}`;
+      lines[entry.line] = `    resolution: {integrity: ${pin}${tarball}}`;
     },
   },
   {
@@ -279,7 +314,7 @@ const TARGETS = [
       lines[entry.line] = lines[entry.line].replace(
         BUN_ENTRY,
         (_all, head, spec, mid, _url, tail, _integrity, close) =>
-          `${head}${spec}${mid}${tail}${pin}${close}`,
+          `${head}${spec}${mid}${entry.keepUrl ?? ''}${tail}${pin}${close}`,
       );
     },
   },
@@ -322,8 +357,9 @@ for (const target of TARGETS) {
   console.log(`  reused or already strong: ${String(resolved)}`);
   console.log(`  to derive by fetching:    ${String(toFetch.length)}`);
 
+  const registry = registryFor(target.rel);
   const failures = await pooled(toFetch, async (entry) => {
-    target.write(lines, entry, await derive(entry));
+    target.write(lines, entry, await derive(entry, registry));
   });
 
   if (failures.length > 0) {

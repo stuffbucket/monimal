@@ -262,18 +262,27 @@ check(
 //
 //    A positive strong-pin count is asserted as well, so a pattern that stops
 //    matching the file format fails here rather than reporting a clean zero.
-const LOCKFILES = ['pnpm-lock.yaml', 'packages/maximal/site/bun.lock'];
+// `siteLock` is the copy already read for the vite check above; the file is
+// not read twice.
+const LOCKFILES = [
+  ['pnpm-lock.yaml', readFileSync(path.join(ROOT, 'pnpm-lock.yaml'), 'utf8')],
+  ['packages/maximal/site/bun.lock', siteLock],
+];
 let weakPins = 0;
 let shardTarballs = 0;
 let strongPins = 0;
-let lockfilesRead = 0;
+// Counted per file, not in total. A single total is not a guard: if one
+// lockfile's format changes so the pattern stops matching it, the other still
+// contributes thousands and the sum stays reassuringly positive while half
+// the check silently examines nothing.
+let lockfilesWithPins = 0;
 
-for (const relative of LOCKFILES) {
-  const contents = readFileSync(path.join(ROOT, relative), 'utf8');
-  lockfilesRead += 1;
+for (const [relative, contents] of LOCKFILES) {
   const weak = (contents.match(/sha1-/g) ?? []).length;
   const shards = (contents.match(/ms-feed-\d+\.pkgs\.visualstudio\.com/g) ?? []).length;
-  strongPins += (contents.match(/sha512-/g) ?? []).length;
+  const strong = (contents.match(/sha512-/g) ?? []).length;
+  if (strong > 0) lockfilesWithPins += 1;
+  strongPins += strong;
   weakPins += weak;
   shardTarballs += shards;
   if (weak > 0 || shards > 0) {
@@ -286,10 +295,7 @@ if (weakPins > 0 || shardTarballs > 0) {
   console.error('       Repair with: node scripts/relock-integrity.mjs');
 }
 check(
-  lockfilesRead === LOCKFILES.length &&
-    weakPins === 0 &&
-    shardTarballs === 0 &&
-    strongPins > 0,
+  lockfilesWithPins === LOCKFILES.length && weakPins === 0 && shardTarballs === 0,
   'every lockfile entry is content-pinned by sha512, with no shard-host URLs',
   { count: strongPins, of: 'sha512-pinned packages across both lockfiles' },
 );
