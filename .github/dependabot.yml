@@ -39,16 +39,3 @@ updates:
           - "*"
         update-types:
           - major
-
-  # The Pages site is not a workspace member and carries its own bun lockfile,
-  # so the root entry above does not see it. Listed separately for the same
-  # reason CI installs it separately.
-  - package-ecosystem: npm
-    directory: /packages/maximal/site
-    schedule:
-      interval: weekly
-    open-pull-requests-limit: 3
-    groups:
-      site:
-        patterns:
-          - "*"

@@ -1,54 +1,13 @@
 #!/usr/bin/env node
 /**
- * Restore strong content pins to the lockfiles after a resolution through the
- * proxy.
+ * Restore SHA-512 pins and remove rotating shard URLs after a lockfile
+ * re-resolution. SOURCES.md#lockfile-integrity owns the reason and policy.
  *
- * The registry in `.npmrc` is a read-through proxy that publishes only the
- * legacy npm `shasum` -- sha1 -- and tarball URLs on shard-specific
- * `ms-feed-N` hosts. Checked directly across every channel it exposes:
- * neither the full packument nor the abbreviated one carries
- * `dist.integrity`, tarball responses offer only an MD5 blob header, the blob
- * content-address in the redirect is an Azure-internal identifier rather than
- * a sha256, and `/-/npm/v1/keys` is a 404. sha1 and MD5 are the whole menu.
- *
- * So every package manager pointed at it records a weak pin, and every
- * non-frozen install silently downgrades the file it writes. Nothing fails at
- * the time: the install succeeds, the build is green, the tests pass.
- *
- * Two things are lost, and only one is theoretical:
- *
- *   - The recorded tarball URL pins a shard hostname that ROTATES. Requests
- *     seconds apart return `ms-feed-2` and `ms-feed-25` for the same package.
- *     A pinned one is an install that stops working later for no local
- *     reason. This is the half that is certain.
- *   - sha1 collision resistance is broken, so a sha1 pin can be satisfied by
- *     a package swapped at the same version -- the thing pinning is for.
- *
- * Both lockfiles in this repo are affected, and they degrade the same way for
- * the same reason, so both are handled here. `pnpm-lock.yaml` can drop its
- * `tarball:` field entirely; `bun.lock` needs the URL slot to exist, and an
- * empty string is its "resolve from the configured registry" form. Neither
- * ends up naming a host.
+ * Reuse exact name@version pins from recent history. Fetch only new entries,
+ * verify the bytes against their recorded integrity first, and fail without
+ * writing when no attestation matches.
  *
  * Usage: node scripts/relock-integrity.mjs
- *
- * A weak entry whose name@version already appears with a sha512 in recent
- * history takes that value -- same package, same version, a hash already
- * proven by an install. Only genuinely new packages are fetched, which is the
- * difference between tens of downloads and thousands. History is searched
- * back through several commits rather than just HEAD, because the commit you
- * are standing on is frequently the degraded one: a Dependabot branch's tip
- * carries the freshly weakened lockfile, and reading only HEAD there would
- * find nothing to reuse and refetch the entire tree.
- *
- * Every fetched tarball is checked against the sha1 the proxy attested to
- * before its sha512 is recorded. That matters: deriving from bytes pins
- * whatever the proxy served at that moment, so on its own it would faithfully
- * pin malicious content if any were served. SHA-1's *second-preimage*
- * resistance is intact -- collisions are what is broken -- so matching the
- * attested shasum is real evidence the bytes are the ones published upstream.
- * The residual exposure is a publisher who crafted a collision pair at
- * publish time, a far narrower threat than an unauthenticated download.
  */
 
 import { execFileSync } from 'node:child_process';
@@ -64,25 +23,14 @@ const CONCURRENCY = 8;
 const HISTORY_DEPTH = 20;
 const SHARD_HOST = /ms-feed-\d+\.pkgs\.visualstudio\.com/;
 
-/**
- * The registry a given lockfile resolves through.
- *
- * Read from the `.npmrc` beside the lockfile, falling back to the root one.
- * The site has its own: it is not a workspace member, CI installs it with its
- * own working-directory, and bun's config lookup starts there. Using the root
- * registry for it would be right only by coincidence.
- */
-function registryFor(relLockPath) {
-  const candidates = [
-    path.join(ROOT, path.dirname(relLockPath), '.npmrc'),
-    path.join(ROOT, '.npmrc'),
-  ];
-  for (const candidate of candidates) {
-    if (!existsSync(candidate)) continue;
-    const match = /^registry=(.+)$/m.exec(readFileSync(candidate, 'utf8'));
+/** Read the workspace registry from the canonical root `.npmrc`. */
+function registryFor() {
+  const npmrc = path.join(ROOT, '.npmrc');
+  if (existsSync(npmrc)) {
+    const match = /^registry=(.+)$/m.exec(readFileSync(npmrc, 'utf8'));
     if (match !== null) return match[1].trim().replace(/\/?$/, '/');
   }
-  throw new Error(`no registry configured for ${relLockPath}`);
+  throw new Error('no registry configured in root .npmrc');
 }
 
 /**
@@ -295,44 +243,6 @@ function pnpmDamage(lines) {
   return found;
 }
 
-// --- bun.lock -------------------------------------------------------------
-
-// One package per line: "name": ["name@version", "url", { deps }, "integrity"],
-const BUN_ENTRY = /^(\s*"(?:[^"]+)": \[")([^"]+)(", ")([^"]*)(".*, ")(sha\d+-[^"]+)("\],?)$/;
-
-function bunPins(blob) {
-  const found = [];
-  for (const line of blob.split('\n')) {
-    const match = BUN_ENTRY.exec(line);
-    if (match !== null && match[6].startsWith('sha512-')) found.push([match[2], match[6]]);
-  }
-  return found;
-}
-
-function bunDamage(lines) {
-  const found = [];
-  for (let i = 0; i < lines.length; i++) {
-    const match = BUN_ENTRY.exec(lines[i]);
-    if (match === null) continue;
-    const attested = match[6];
-    // Same rule as the pnpm side: only sha512 is a pin.
-    const strong = attested.startsWith('sha512-') ? attested : null;
-    // Only a shard host is URL damage. bun records git and non-registry
-    // sources in this slot too, and blanking one breaks resolution outright.
-    const shardPinned = match[4] !== '' && SHARD_HOST.test(match[4]);
-    if (strong !== null && !shardPinned) continue;
-    found.push({
-      key: match[2],
-      line: i,
-      attested,
-      strong,
-      url: match[4] === '' ? null : match[4],
-      keepUrl: shardPinned || match[4] === '' ? null : match[4],
-    });
-  }
-  return found;
-}
-
 // --- drive ----------------------------------------------------------------
 
 const TARGETS = [
@@ -344,19 +254,6 @@ const TARGETS = [
     write: (lines, entry, pin) => {
       const tarball = entry.keepUrl === null ? '' : `, tarball: ${entry.keepUrl}`;
       lines[entry.line] = `    resolution: {integrity: ${pin}${tarball}}`;
-    },
-  },
-  {
-    rel: path.join('packages', 'maximal', 'site', 'bun.lock'),
-    extract: bunPins,
-    damage: bunDamage,
-    // bun needs the URL slot to exist; empty means "use the configured registry".
-    write: (lines, entry, pin) => {
-      lines[entry.line] = lines[entry.line].replace(
-        BUN_ENTRY,
-        (_all, head, spec, mid, _url, tail, _integrity, close) =>
-          `${head}${spec}${mid}${entry.keepUrl ?? ''}${tail}${pin}${close}`,
-      );
     },
   },
 ];
@@ -405,7 +302,7 @@ for (const target of TARGETS) {
   // attestation must be refused for that reason rather than for a missing
   // .npmrc it never reached.
   let registry;
-  const getRegistry = () => (registry ??= registryFor(target.rel));
+  const getRegistry = () => (registry ??= registryFor());
   const failures = await pooled(toFetch, async (entry) => {
     target.write(lines, entry, await derive(entry, getRegistry));
   });

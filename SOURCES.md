@@ -4,11 +4,11 @@
 copies of the repos below. No git history came across. Syncing is over — edit
 them here.
 
-| Package | Source repo | Commit copied |
-| --- | --- | --- |
-| `packages/maximal` | `stuffbucket/maximal` | `b831d87` |
-| `packages/maximal-core` | `stuffbucket/maximal-core` | `3e2b10c` |
-| `packages/maximal-electron` | `stuffbucket/maximal-electron` | `c31f238` |
+| Package                     | Source repo                    | Commit copied |
+| --------------------------- | ------------------------------ | ------------- |
+| `packages/maximal`          | `stuffbucket/maximal`          | `b831d87`     |
+| `packages/maximal-core`     | `stuffbucket/maximal-core`     | `3e2b10c`     |
+| `packages/maximal-electron` | `stuffbucket/maximal-electron` | `c31f238`     |
 
 ## Rules
 
@@ -25,35 +25,45 @@ them here.
   pnpm 11 reads neither of the latter for them and does not warn: the setting is
   simply ignored. `.npmrc` carries the registry and nothing else.
 - Do not commit `maximal-core/dist`. Its `build` generates it.
-- Keep `maximal/site` inside `maximal`. It is the Pages site, not a workspace
-  member.
+- Keep `packages/maximal/site` inside `maximal`; copied scripts and frozen
+  workflow fixtures address it as `site/` relative to that package.
+- Keep `packages/maximal/site` in the root pnpm workspace. Otherwise the root
+  install, lockfile, Dependabot entry, and Turbo graph do not cover it.
 - Pin transitive tool versions. The root lockfile re-resolves everything to the
   newest semver-compatible version, so assume anything unpinned floats.
 - Do not wire `verify:workflow-health` into this repo's CI. It reads Actions
   run history for `GITHUB_REPOSITORY`, so it passes locally by querying the
   upstream repo and fails in CI by asking monimal about workflows only the
   vendored `packages/*/.github` fixtures declare.
-- Run `node scripts/relock-integrity.mjs` after any install that re-resolves,
-  and prefer `--frozen-lockfile` so that it rarely has to. The registry in
-  `.npmrc` publishes only a sha1 `shasum` and rotating `ms-feed-N` tarball
-  hosts -- no `dist.integrity` on either packument form, no signing keys, no
-  sha256 anywhere -- so any resolver records a weak pin and a hostname that
-  expires. This applies to BOTH lockfiles: `pnpm-lock.yaml` and the Pages
-  site's separate `bun.lock`, which is not a workspace member and has no other
-  gate. The script repairs both, reusing sha512 from recent history where the
-  version is unchanged and deriving the rest from tarball bytes, refusing any
-  that do not match the attested shasum. `verify-workspace.mjs` fails if it is
-  skipped.
+- Prefer `pnpm install --frozen-lockfile`; an unintended re-resolution can
+  weaken the content pins and replace stable resolution with rotating hosts.
+- Run `node scripts/relock-integrity.mjs` after an intentional re-resolution.
+  `verify-workspace.mjs` fails when the repair was skipped.
 - Run `node scripts/verify-workspace.mjs` after changing anything in
   `pnpm-workspace.yaml`. It reads the installed tree rather than the config,
   which is the only way to catch a pnpm setting that is accepted and ignored.
 - One node version, named in `.nvmrc` and nowhere else. `mise.toml` opts node
   into idiomatic version files so mise reads that same file; CI reads it through
   setup-node's `node-version-file`. `engines` states the floor, which nothing
-  enforces, so `verify-workspace.mjs` compares the *running* major against it.
+  enforces, so `verify-workspace.mjs` compares the _running_ major against it.
 - Do not let two packages pin different versions of the same dependency. The
   script above ratchets this: `DELIBERATE` holds the splits that are meant
   (typescript), `BACKLOG` holds the ones that are not and may only shrink.
+
+## Lockfile integrity
+
+The root `.npmrc` sends installs through the public 1ES read-through proxy. Its
+packuments expose only the legacy SHA-1 `shasum` and rotating `ms-feed-N`
+tarball hosts, not `dist.integrity` or signing keys. A re-resolution therefore
+writes a weaker content pin and a hostname that can expire even though the
+install itself succeeds.
+
+`pnpm-lock.yaml` is the only dependency lockfile. After an intentional
+re-resolution, `scripts/relock-integrity.mjs` reuses known SHA-512 pins and
+verifies newly fetched bytes against the registry's attestation before recording
+SHA-512. `scripts/verify-workspace.mjs` checks every artifact resolution and
+rejects weak pins or shard-host URLs. It checks lockfile metadata; it does not
+establish package provenance or publisher identity.
 
 ## Deviations
 
@@ -127,9 +137,11 @@ them here.
   be installed at all. Every dependent already accepts vite 8 as a peer, and
   `maximal/client` was on `^8.2.1` already.
 - `maximal/site`: `astro` and `@astrojs/markdown-remark` moved from `^7.2.2` to
-  `^7.2.1`, and `bun.lock` re-resolved. Same cause in the other direction — the
-  registry's newest astro is 7.2.1 — so this walks back the dependabot bump in
-  33c4a5f for as long as that gap persists.
+  `^7.2.1`. The registry's newest Astro is 7.2.1, so this walks back the
+  Dependabot bump in 33c4a5f for as long as that gap persists.
+- `maximal/site`: added to the root pnpm workspace and root lockfile. Its Astro
+  build is package-manager-neutral; the separate Bun install, lockfile,
+  registry file, Dependabot entry, and CI path duplicated workspace machinery.
 - Root: `packageManager` moved to `pnpm@11.17.0`, and `mise.toml` / `mise.lock`
   pin the same version locally so pnpm never has to switch versions to satisfy
   the field. mise verifies GitHub artifact attestations and records a per-

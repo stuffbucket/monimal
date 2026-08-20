@@ -168,26 +168,21 @@ check(
 );
 
 //    vite is the other one worth pinning globally: it is the bundler under the
-//    electron renderer, the client, and (through astro) the Pages site, and the
-//    site resolves it from a separate bun lockfile that the workspace's
-//    overrides cannot reach. A major drifting apart there is invisible until a
-//    renderer build behaves differently in one place.
-//    The site is read from its committed bun.lock, not from its node_modules:
-//    it installs separately, and no CI job has run that install by the time
-//    this does. Reading the tree made the assertion depend on whether someone
-//    had happened to build the site, which is the machine-dependence these
-//    checks exist to remove -- it passed locally and failed in all three jobs.
-const VITE_CONSUMERS = ['packages/maximal-electron', 'packages/maximal/client'];
+//    electron renderer, the client, and (through astro) the Pages site. All
+//    three install from the same workspace lockfile, so inspect their resolved
+//    package-local trees in the same way.
+const VITE_CONSUMERS = [
+  'packages/maximal-electron',
+  'packages/maximal/client',
+  'packages/maximal/site',
+];
 const viteMajors = new Map();
 for (const pkg of VITE_CONSUMERS) {
   const version = manifestAt(ROOT, pkg, 'node_modules/vite')?.version;
   if (version != null) viteMajors.set(pkg, version);
 }
 
-const siteLock = readFileSync(path.join(ROOT, 'packages/maximal/site/bun.lock'), 'utf8');
-const siteVite = /"vite@(\d+\.\d+\.\d+)"/.exec(siteLock)?.[1];
-if (siteVite != null) viteMajors.set('packages/maximal/site (bun.lock)', siteVite);
-const EXPECTED_VITE_CONSUMERS = VITE_CONSUMERS.length + 1;
+const EXPECTED_VITE_CONSUMERS = VITE_CONSUMERS.length;
 const distinctViteMajors = new Set(
   [...viteMajors.values()].map((version) => version.split('.')[0]),
 );
@@ -240,51 +235,19 @@ check(
   { count: eslintVersions.size, of: 'eslint consumers' },
 );
 
-// 7. Both lockfiles pin content, not just versions.
+// 7. Every registry artifact in the workspace lockfile is content-pinned.
 //
-//    The registry in `.npmrc` is a read-through proxy that publishes only the
-//    legacy npm `shasum` -- sha1 -- and tarball URLs on shard-specific
-//    `ms-feed-N` hosts. So any resolution through it writes a weak pin and a
-//    hostname that rotates, and it does so to whichever lockfile is being
-//    written: the workspace's `pnpm-lock.yaml` and the Pages site's separate
-//    `bun.lock` degrade identically, for the same reason.
-//
-//    The site is checked here rather than left to its own install because it
-//    has no other gate: it is not a workspace member, nothing else reads its
-//    lockfile, and its 365 entries sat fully degraded through every green CI
-//    run because this assertion only looked at the pnpm one.
-//
-//    Both failures are silent in the way this file exists to catch. The
-//    install succeeds, every gate stays green, and the damage surfaces later
-//    -- as an install that cannot fetch once a shard moves, and as a content
-//    pin weak enough that a package swapped at the same version satisfies it.
-//    sha1 collision resistance is broken; sha512's is not.
-//
-//    A positive strong-pin count is asserted as well, so a pattern that stops
-//    matching the file format fails here rather than reporting a clean zero.
-// `siteLock` is the copy already read for the vite check above; the file is
-// not read twice.
-//
-// Each lockfile declares how to count its own entries, because the claim
-// being made is "EVERY entry is pinned by sha512" and that cannot be checked
-// without a denominator. Counting only weak pins and shard URLs -- which is
-// what this did first -- passes a file whose entries carry sha256, or carry
-// no integrity at all: neither is sha1, neither is a shard host, and the
-// total stays positive on the strength of the entries that are fine.
+//    SOURCES.md#lockfile-integrity owns the proxy rationale. Compare the
+//    sha512 count with the number of artifact resolutions: checking only for
+//    sha1 and shard URLs would miss sha256 or missing integrity.
 const LOCKFILES = [
   {
     relative: 'pnpm-lock.yaml',
     contents: readFileSync(path.join(ROOT, 'pnpm-lock.yaml'), 'utf8'),
-    // A `directory:` resolution is a workspace link with no artifact to pin,
-    // so it is excluded from the denominator rather than counted as a miss.
+    // A `directory:` resolution is a workspace link with no artifact to pin.
     countEntries: (text) =>
       (text.match(/^ {4}resolution: \{/gm) ?? []).length -
       (text.match(/^ {4}resolution: \{directory:/gm) ?? []).length,
-  },
-  {
-    relative: 'packages/maximal/site/bun.lock',
-    contents: siteLock,
-    countEntries: (text) => (text.match(/^ {4}"[^"]+": \[/gm) ?? []).length,
   },
 ];
 
@@ -296,15 +259,10 @@ let totalEntries = 0;
 
 for (const { relative, contents, countEntries } of LOCKFILES) {
   const entries = countEntries(contents);
-  // Anchored to the two shapes an integrity actually takes -- pnpm's
-  // `integrity: sha512-...` and bun's `"sha512-..."` -- rather than matching
-  // the algorithm name anywhere. `@aws-crypto/sha256-browser` and
-  // `@aws-crypto/sha256-js` are real dependencies here, and an unanchored
-  // pattern counts their NAMES as integrity fields. Today that only made a
-  // diagnostic lie; a package called `sha1-something` would have inflated the
-  // count the assertion below depends on.
+  // Anchor to pnpm's integrity field rather than package names containing an
+  // algorithm string (for example @aws-crypto/sha256-browser).
   const integrity = (algorithm) =>
-    (contents.match(new RegExp(`(?:integrity: |")${algorithm}-`, 'g')) ?? []).length;
+    (contents.match(new RegExp(`integrity: ${algorithm}-`, 'g')) ?? []).length;
   const strong = integrity('sha512');
   const weak = integrity('sha1');
   const otherAlgorithms = integrity('sha256') + integrity('sha384');
@@ -330,7 +288,7 @@ if (unpinned > 0 || weakPins > 0 || shardTarballs > 0) {
 check(
   unpinned === 0 && weakPins === 0 && shardTarballs === 0 && totalEntries > 0,
   'every lockfile entry is content-pinned by sha512, with no shard-host URLs',
-  { count: strongPins, of: 'sha512-pinned packages across both lockfiles' },
+  { count: strongPins, of: 'sha512-pinned packages in the workspace lockfile' },
 );
 
 // 8. No two workspace packages may end up on different versions of the same

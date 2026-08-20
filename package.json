@@ -10,7 +10,7 @@
     "test": "turbo run test --concurrency=1",
     "lint": "turbo run lint",
     "verify:workspace": "node scripts/verify-workspace.mjs",
-    "check": "turbo run build typecheck && turbo run test --concurrency=1",
+    "check": "turbo run build typecheck lint && turbo run test --concurrency=1",
     "package": "turbo run package --filter maximal-client"
   },
   "devDependencies": {

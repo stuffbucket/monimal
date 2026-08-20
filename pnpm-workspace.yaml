@@ -4,6 +4,8 @@ packages:
   # and is listed so it links maximal-core and maximal-electron as workspace
   # deps rather than the stale git pins it ships with.
   - "packages/maximal/client"
+  # The nested Astro site shares this lockfile and install with the workspace.
+  - "packages/maximal/site"
 
 # Moved here from package.json's "pnpm" block: pnpm 11 no longer reads that
 # field and silently ignores it, which would drop the prettier override and --

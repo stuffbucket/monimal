@@ -19,6 +19,7 @@ reports/
 
 # local agent state
 .claude/worktrees/
+.claude/settings.local.json
 
 # os
 .DS_Store
