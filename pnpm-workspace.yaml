@@ -18,6 +18,13 @@ overrides:
   # elsewhere, so the alerts stand even though a patched copy is already
   # installed. Build tooling only -- tar is not in the packaged app.
   tar: 7.5.22
+  # CVE-2026-56876 (high) has no patched extract-zip at any version. This is
+  # Electron's fork, which packager 20.3.0 uses. Drop it when forge moves past
+  # packager 18 -- 7.11.2 pins ^18.3.5.
+  #
+  # The fork is ESM-only and packager 18 require()s it. That works only on
+  # node >= 22.12; engines.node is >=24, so lowering the floor breaks packaging.
+  extract-zip: npm:@electron-internal/extract-zip@1.0.5
   # Same version, fetched from the registry instead of a GitHub tarball.
   # @electron/rebuild pins @electron/node-gyp to a codeload.github.com commit,
   # and pnpm 11 refuses to resolve a git-hosted subdependency at all
