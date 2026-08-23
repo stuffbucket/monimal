@@ -14,7 +14,7 @@
     "package": "turbo run package --filter maximal-client"
   },
   "devDependencies": {
-    "turbo": "^2.10.9"
+    "turbo": "^2.10.10"
   },
   "engines": {
     "node": ">=24"
