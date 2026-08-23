@@ -25,6 +25,16 @@ overrides:
   # The fork is ESM-only and packager 18 require()s it. That works only on
   # node >= 22.12; engines.node is >=24, so lowering the floor breaks packaging.
   extract-zip: npm:@electron-internal/extract-zip@1.0.5
+  # tmp 0.0.33 arrives via @inquirer/prompts -> external-editor. 0.0.x is
+  # unmaintained and both advisories need >= 0.2.6; 0.2.x moved the API, so
+  # this is exercised by packaging rather than assumed.
+  tmp: 0.2.7
+  # qs 6.15.1 via @stryker-mutator/core. Patch bump; 6.15.2 is the fix.
+  qs: 6.15.3
+  # Two copies resolve otherwise -- 0.27.7 under tsup, 0.28.2 elsewhere -- and
+  # the advisory only applies to the older one, same shape as tar. Kept in
+  # allowBuilds: its postinstall fetches the platform binary.
+  esbuild: 0.28.2
   # Same version, fetched from the registry instead of a GitHub tarball.
   # @electron/rebuild pins @electron/node-gyp to a codeload.github.com commit,
   # and pnpm 11 refuses to resolve a git-hosted subdependency at all
