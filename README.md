@@ -108,8 +108,10 @@ remain present.
 
 ## Standing hazards
 
-- A non-frozen dependency resolution through the configured proxy can weaken
-  lockfile integrity metadata. The requirement and repair procedure are owned by
+- A non-frozen dependency resolution through the configured proxy records
+  rotating `ms-feed-N` tarball hosts, which expire and break later installs for
+  no local reason. The registry's SHA-1 pins are accepted; the hosts are not.
+  Both decisions and the repair are owned by
   [SOURCES.md](SOURCES.md#lockfile-integrity).
 - `publicHoistPattern` necessarily makes undeclared dependencies easier to hide.
   `verify:workspace` covers the known linker and native-module requirements; it
