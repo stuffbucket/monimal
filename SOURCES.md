@@ -46,6 +46,10 @@ them here.
   resolution with rotating hosts.
 - Run `node scripts/strip-lockfile-hosts.mjs` after an intentional
   re-resolution. `verify-workspace.mjs` fails when it was skipped.
+- Do not re-add a SHA-512 requirement for lockfile entries. It was enforced and
+  removed deliberately: see [Lockfile integrity](#lockfile-integrity). Weak pins
+  read like a defect worth fixing, and fixing them costs a full re-download of
+  the tree on every re-resolution.
 - Run `node scripts/verify-workspace.mjs` after changing anything in
   `pnpm-workspace.yaml`. It reads the installed tree rather than the config,
   which is the only way to catch a pnpm setting that is accepted and ignored.
