@@ -4,9 +4,13 @@
  *
  * The registry in `.npmrc` serves tarballs from `ms-feed-N` hosts that rotate:
  * a single install here hit ms-feed-2, -12, -17 and -25. pnpm records whichever
- * one answered, so a re-resolution bakes in a hostname that expires. The
- * failure arrives later, on a machine that changed nothing, as a fetch error
- * for a package that plainly exists.
+ * one answered, and then rejects that record on the NEXT install --
+ * ERR_PNPM_TARBALL_URL_MISMATCH -- because pnpm 11 verifies every recorded
+ * tarball URL against the registry's current metadata.
+ *
+ * That check runs BEFORE lifecycle scripts, so this must run before
+ * `pnpm install`. A `postinstall` hook cannot repair it: the install is
+ * already dead by the time the hook would fire.
  *
  * pnpm reconstructs the URL from the configured registry when `tarball:` is
  * absent, so the repair is to drop the field. A tarball URL that is NOT a
@@ -14,8 +18,8 @@
  * there deliberately, and blanking it would break resolution rather than
  * harden it.
  *
- * Integrity is not touched. The proxy publishes only a sha1 shasum and that is
- * accepted; see SOURCES.md#lockfile-integrity.
+ * Integrity is not touched. The proxy is the supply-chain control and the hash
+ * only detects transit corruption; see SOURCES.md#lockfile-integrity.
  *
  * Usage: node scripts/strip-lockfile-hosts.mjs
  */

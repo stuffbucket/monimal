@@ -249,26 +249,22 @@ check(
   { count: eslintVersions.size, of: 'eslint consumers' },
 );
 
-// 7. No lockfile entry names a host, and every entry carries some integrity.
+// 7. No lockfile entry names a host, and every entry carries a digest.
 //
 //    SOURCES.md#lockfile-integrity owns the rationale. Two separate concerns
-//    used to be one assertion; only one of them is still enforced.
+//    used to be one assertion; only one of them still bites.
 //
-//    The hash: the proxy publishes only a legacy sha1 shasum, so requiring
-//    sha512 meant repairing the lockfile after every re-resolution -- and
-//    rewriting the hashes invalidated pnpm's store, forcing a full re-download
-//    on the next install. SHA-1's collision resistance is broken but its
-//    second-preimage resistance is not, and a lockfile pin is a
-//    second-preimage question: an attacker swapping an already-published
-//    package must find a second preimage for a recorded hash. That is
-//    infeasible. So any integrity is accepted; only a missing one fails.
+//    The hash: the proxy is the supply-chain control -- that is why .npmrc
+//    points at it -- so the lockfile hash only detects corruption in transit.
+//    The proxy serves a legacy sha1 shasum, which is adequate for that, and it
+//    is recorded as served. A missing or malformed digest still fails.
 //
-//    The host: this is not cryptographic and has not been relaxed. The
-//    registry serves tarballs from `ms-feed-N` hosts that ROTATE -- a single
-//    install here hit ms-feed-2, -12, -17 and -25 -- so an entry that records
-//    one is an install that stops working later for no local reason. pnpm
-//    reconstructs the URL from the configured registry when the field is
-//    absent, so the fix is for no entry to carry it.
+//    The host: pnpm 11 verifies every recorded `tarball:` URL against the
+//    registry's CURRENT metadata and refuses the lockfile outright
+//    (ERR_PNPM_TARBALL_URL_MISMATCH). Since which `ms-feed-N` shard answers
+//    rotates constantly, a recorded host is rejected on the next install, not
+//    eventually. This assertion is only a backstop: pnpm fails first, and
+//    earlier, so a lockfile normally never reaches here carrying one.
 const LOCKFILES = [
   {
     relative: 'pnpm-lock.yaml',
@@ -289,7 +285,9 @@ for (const { relative, contents, countEntries } of LOCKFILES) {
   const entries = countEntries(contents);
   // Anchor to pnpm's integrity field rather than package names containing an
   // algorithm string (for example @aws-crypto/sha256-browser).
-  const withIntegrity = (contents.match(/integrity: sha\d+-/g) ?? []).length;
+  // Require a digest, not just the algorithm label: `integrity: sha1-}` would
+  // otherwise count as pinned. base64 with the standard alphabet and padding.
+  const withIntegrity = (contents.match(/integrity: sha\d+-[A-Za-z0-9+/]+={0,2}/g) ?? []).length;
   const hosts = (contents.match(/ms-feed-\d+\.pkgs\.visualstudio\.com/g) ?? []).length;
 
   totalEntries += entries;
