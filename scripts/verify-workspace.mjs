@@ -346,7 +346,7 @@ const DELIBERATE = new Map([
       'this is what the !typescript hoist exemption exists for',
   ],
 ]);
-const BACKLOG = new Set(['@vitejs/plugin-react', 'lucide-react']);
+const BACKLOG = new Set(['@vitejs/plugin-react']);
 
 /** name -> { declaredBy, byVersion } for every directly-declared dependency. */
 const declared = new Map();
