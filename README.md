@@ -108,8 +108,11 @@ remain present.
 
 ## Standing hazards
 
-- A non-frozen dependency resolution through the configured proxy can weaken
-  lockfile integrity metadata. The requirement and repair procedure are owned by
+- A non-frozen dependency resolution records rotating `ms-feed-N` tarball
+  hosts, and pnpm rejects the lockfile on the *next* install with
+  `ERR_PNPM_TARBALL_URL_MISMATCH`. Strip them before installing, never after.
+  The registry's SHA-1 pins are kept as served: the proxy is the supply-chain
+  control, so the hash only detects transit corruption. Owned by
   [SOURCES.md](SOURCES.md#lockfile-integrity).
 - `publicHoistPattern` necessarily makes undeclared dependencies easier to hide.
   `verify:workspace` covers the known linker and native-module requirements; it

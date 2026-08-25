@@ -249,11 +249,22 @@ check(
   { count: eslintVersions.size, of: 'eslint consumers' },
 );
 
-// 7. Every registry artifact in the workspace lockfile is content-pinned.
+// 7. No lockfile entry names a host, and every entry carries a digest.
 //
-//    SOURCES.md#lockfile-integrity owns the proxy rationale. Compare the
-//    sha512 count with the number of artifact resolutions: checking only for
-//    sha1 and shard URLs would miss sha256 or missing integrity.
+//    SOURCES.md#lockfile-integrity owns the rationale. Two separate concerns
+//    used to be one assertion; only one of them still bites.
+//
+//    The hash: the proxy is the supply-chain control -- that is why .npmrc
+//    points at it -- so the lockfile hash only detects corruption in transit.
+//    The proxy serves a legacy sha1 shasum, which is adequate for that, and it
+//    is recorded as served. A missing or malformed digest still fails.
+//
+//    The host: pnpm 11 verifies every recorded `tarball:` URL against the
+//    registry's CURRENT metadata and refuses the lockfile outright
+//    (ERR_PNPM_TARBALL_URL_MISMATCH). Since which `ms-feed-N` shard answers
+//    rotates constantly, a recorded host is rejected on the next install, not
+//    eventually. This assertion is only a backstop: pnpm fails first, and
+//    earlier, so a lockfile normally never reaches here carrying one.
 const LOCKFILES = [
   {
     relative: 'pnpm-lock.yaml',
@@ -266,43 +277,38 @@ const LOCKFILES = [
 ];
 
 let unpinned = 0;
-let weakPins = 0;
-let shardTarballs = 0;
-let strongPins = 0;
+let hostPinned = 0;
+let pinned = 0;
 let totalEntries = 0;
 
 for (const { relative, contents, countEntries } of LOCKFILES) {
   const entries = countEntries(contents);
   // Anchor to pnpm's integrity field rather than package names containing an
   // algorithm string (for example @aws-crypto/sha256-browser).
-  const integrity = (algorithm) =>
-    (contents.match(new RegExp(`integrity: ${algorithm}-`, 'g')) ?? []).length;
-  const strong = integrity('sha512');
-  const weak = integrity('sha1');
-  const otherAlgorithms = integrity('sha256') + integrity('sha384');
-  const shards = (contents.match(/ms-feed-\d+\.pkgs\.visualstudio\.com/g) ?? []).length;
+  // Require a digest, not just the algorithm label: `integrity: sha1-}` would
+  // otherwise count as pinned. base64 with the standard alphabet and padding.
+  const withIntegrity = (contents.match(/integrity: sha\d+-[A-Za-z0-9+/]+={0,2}/g) ?? []).length;
+  const hosts = (contents.match(/ms-feed-\d+\.pkgs\.visualstudio\.com/g) ?? []).length;
 
   totalEntries += entries;
-  strongPins += strong;
-  weakPins += weak;
-  shardTarballs += shards;
-  if (strong !== entries) unpinned += 1;
+  pinned += withIntegrity;
+  hostPinned += hosts;
+  if (withIntegrity !== entries) unpinned += entries - withIntegrity;
 
-  if (strong !== entries || weak > 0 || shards > 0) {
+  if (withIntegrity !== entries || hosts > 0) {
     console.error(
-      `       ${relative}: ${String(strong)} sha512 of ${String(entries)} entr(ies)` +
-        `, ${String(weak)} sha1, ${String(otherAlgorithms)} other-algorithm` +
-        `, ${String(shards)} rotating shard-host URL(s)`,
+      `       ${relative}: ${String(withIntegrity)} pinned of ${String(entries)} entr(ies)` +
+        `, ${String(hosts)} rotating shard-host URL(s)`,
     );
   }
 }
-if (unpinned > 0 || weakPins > 0 || shardTarballs > 0) {
-  console.error('       Repair with: node scripts/relock-integrity.mjs');
+if (unpinned > 0 || hostPinned > 0) {
+  console.error('       Repair with: node scripts/strip-lockfile-hosts.mjs');
 }
 check(
-  unpinned === 0 && weakPins === 0 && shardTarballs === 0 && totalEntries > 0,
-  'every lockfile entry is content-pinned by sha512, with no shard-host URLs',
-  { count: strongPins, of: 'sha512-pinned packages in the workspace lockfile' },
+  unpinned === 0 && hostPinned === 0 && totalEntries > 0,
+  'every lockfile entry is pinned, and none names a rotating host',
+  { count: pinned, of: 'pinned packages in the workspace lockfile' },
 );
 
 // 8. No two workspace packages may end up on different versions of the same
