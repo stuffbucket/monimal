@@ -225,15 +225,18 @@ describe("setNetworkDiagnosis / clearNetworkDiagnosis", () => {
 // Per ADR-0011 this drives the REAL modules — no `mock.module` of a shared
 // module (whose awaited afterAll restore doesn't reliably land before the next
 // file's imports on CI, leaking stubs sideways). The test preload redirects
-// COPILOT_API_HOME to a temp dir, so signOut's registry deactivation + token-
-// file unlink land there harmlessly (both are ENOENT-tolerant). markSignedIn /
-// getAuthStatus are pure in-memory state; nothing here touches the network or
-// real credentials. Importing auth-controller registers the auth-status
+// COPILOT_API_HOME to a container-only temp dir. signOut's registry deactivation
+// and token-file unlink land there (both are ENOENT-tolerant), and afterEach
+// clears the shared worker registry so this file cannot affect a later one.
+// markSignedIn / getAuthStatus are pure in-memory state; nothing here touches the
+// network or real credentials. Importing auth-controller registers the auth-status
 // projector, so setNetworkDiagnosis reaches a real emit — the production
 // wiring, not a re-plumbed parallel.
 
 const { getAuthStatus, signOut, markSignedIn, __resetAuthControllerForTests } =
   await import("~/lib/auth/auth-controller")
+const { resetDefaultTestRegistry } = await import("./helpers/account-fixtures")
+const TEST_LOGIN = "maximal-test-only-network-user"
 
 describe("getAuthStatus + network_diagnosis / account_type", () => {
   beforeEach(() => {
@@ -245,17 +248,18 @@ describe("getAuthStatus + network_diagnosis / account_type", () => {
     state.networkDiagnosis = undefined
   })
 
-  afterEach(() => {
+  afterEach(async () => {
     __resetAuthControllerForTests()
     state.githubToken = undefined
     state.copilotToken = undefined
     state.userName = undefined
     state.accountType = "individual"
     state.networkDiagnosis = undefined
+    await resetDefaultTestRegistry()
   })
 
   test("authenticated state surfaces network_diagnosis + the resolved account_type", () => {
-    markSignedIn("alice")
+    markSignedIn(TEST_LOGIN)
     state.accountType = "enterprise"
     setNetworkDiagnosis({
       kind: NETWORK_DIAGNOSIS_KIND.scopeUnreachable,
@@ -266,7 +270,7 @@ describe("getAuthStatus + network_diagnosis / account_type", () => {
     if (status.state !== "authenticated") {
       throw new Error(`expected authenticated, got ${status.state}`)
     }
-    expect(status.account_login).toBe("alice")
+    expect(status.account_login).toBe(TEST_LOGIN)
     expect(status.account_type).toBe("enterprise")
     expect(status.network_diagnosis).toEqual({
       kind: NETWORK_DIAGNOSIS_KIND.scopeUnreachable,
@@ -290,7 +294,7 @@ describe("getAuthStatus + network_diagnosis / account_type", () => {
   })
 
   test("omits network_diagnosis entirely when connectivity is healthy", () => {
-    markSignedIn("alice")
+    markSignedIn(TEST_LOGIN)
     state.networkDiagnosis = undefined
 
     const status = getAuthStatus()
@@ -298,7 +302,7 @@ describe("getAuthStatus + network_diagnosis / account_type", () => {
   })
 
   test("account_type is present (nullable contract) even with no network issue", () => {
-    markSignedIn("alice")
+    markSignedIn(TEST_LOGIN)
 
     const status = getAuthStatus()
     if (status.state !== "authenticated") throw new Error("unreachable")
@@ -308,7 +312,7 @@ describe("getAuthStatus + network_diagnosis / account_type", () => {
   })
 
   test("signOut clears the network-diagnosis sidecar", async () => {
-    markSignedIn("alice")
+    markSignedIn(TEST_LOGIN)
     setNetworkDiagnosis({
       kind: NETWORK_DIAGNOSIS_KIND.offline,
       scope: NETWORK_SCOPE.githubCopilotAuth,

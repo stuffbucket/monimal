@@ -61,8 +61,10 @@ const log = createTeeLogger("auth")
 /** Best-effort: the active credential just worked, so clear any stale
  *  needs-reauth flag (a prior transient rejection self-healed). Fire-and-forget
  *  — a flag-clear failure must not add latency to or fail the mint path. */
+let clearActiveNeedsReauthInRegistry = clearActiveNeedsReauthInDefaultRegistry
+
 const clearActiveNeedsReauth = (): void => {
-  void clearActiveNeedsReauthInDefaultRegistry().catch((err: unknown) => {
+  void clearActiveNeedsReauthInRegistry().catch((err: unknown) => {
     log.warn("Couldn't clear needs-reauth flag after a successful mint:", err)
   })
 }
@@ -80,6 +82,7 @@ let markAuthDegraded: typeof defaultMarkAuthDegraded = defaultMarkAuthDegraded
 export interface TokenDepsTestOverrides {
   getCopilotToken?: typeof defaultGetCopilotToken
   markAuthDegraded?: typeof defaultMarkAuthDegraded
+  clearActiveNeedsReauth?: typeof clearActiveNeedsReauthInDefaultRegistry
   /** Override the refresh-loop fatal-retry threshold (default 3). Set to 1 to
    *  drive the escalation path deterministically without waiting out retries. */
   maxFatalRefreshRetries?: number
@@ -94,6 +97,9 @@ export function __setTokenDepsForTests(
   if (overrides.markAuthDegraded !== undefined) {
     markAuthDegraded = overrides.markAuthDegraded
   }
+  if (overrides.clearActiveNeedsReauth !== undefined) {
+    clearActiveNeedsReauthInRegistry = overrides.clearActiveNeedsReauth
+  }
   if (overrides.maxFatalRefreshRetries !== undefined) {
     maxFatalRefreshRetries = overrides.maxFatalRefreshRetries
   }
@@ -102,6 +108,7 @@ export function __setTokenDepsForTests(
 export function __resetTokenDepsForTests(): void {
   getCopilotToken = defaultGetCopilotToken
   markAuthDegraded = defaultMarkAuthDegraded
+  clearActiveNeedsReauthInRegistry = clearActiveNeedsReauthInDefaultRegistry
   maxFatalRefreshRetries = 3
 }
 

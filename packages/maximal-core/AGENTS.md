@@ -7,17 +7,22 @@ tier drives the engine over the loopback `/control` JSON-RPC 2.0 surface.
 
 ## Every turn
 
-- **`bun run check:fast` after each edit** — oxlint + `tsc` + ESLint. This is
-  the inner loop.
-- **`bun run check:deep` before you call the task done** — adds `casts:check`,
-  `bun test`, knip, `deps:check`, `dupes:check`, the build,
-  `typecheck:downstream`, and `bindings:check`. It is a superset of CI's `test`
-  job, so green here means green there. It does **not** cover `ci.yml`'s
-  `windows` job, which runs `bun install` (the `prepare` lifecycle script under
-  Bun's Windows shell) and `bun test` on a Windows runner. If you touched
-  `scripts/ops/`, also run `bun run check:ops`.
-- Single test file: `bun test tests/foo.test.ts`. Tests live in `tests/` as
-  `*.test.ts` on Bun's built-in runner.
+- From the monorepo root, run **`pnpm --filter @stuffbucket/maximal-core run
+  check:fast` after each edit** — oxlint + `tsc` + ESLint. This is the native,
+  non-product inner loop.
+- Before you call the task done, run **`pnpm run check:core` from the monorepo
+  root**. It runs Core's complete non-test gate natively (`check:deep:host`,
+  including the real-index `bindings:check`) and then runs the Core test suite
+  in the root-owned, mountless Docker boundary. It does **not** cover `ci.yml`'s
+  native Windows job. If you touched `scripts/ops/`, also run
+  `pnpm --filter @stuffbucket/maximal-core run check:ops`.
+- To rerun only Core's tests, use **`pnpm test -- --suite=maximal-core` from the
+  monorepo root**. The suite selector maps to a fixed guarded inner script; it
+  does not forward arbitrary test commands or paths.
+- **Never run raw host `bun test` or package-local `bun run check:deep` in this
+  monorepo.** Both deliberately fail closed outside the marked test container.
+  Tests live in `tests/` as `*.test.ts` on Bun's built-in runner, but Docker is
+  the supported execution boundary here.
 - **`bun run e2e` if you changed the control plane, the ready-line, or
   shutdown.** Spawns the engine from source and drives the real socket —
   outside `bun test` because it costs seconds and a port. Every bug it has

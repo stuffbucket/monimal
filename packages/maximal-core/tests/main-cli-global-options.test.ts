@@ -23,6 +23,7 @@ const decoder = new TextDecoder()
 const baseEnv = {
   ...process.env,
   COPILOT_API_HOME: "",
+  COPILOT_API_HOME_POLICY: "",
   COPILOT_API_OAUTH_APP: "",
   COPILOT_API_ENTERPRISE_URL: "",
 }

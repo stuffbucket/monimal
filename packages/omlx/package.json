@@ -1,8 +1,14 @@
 {
+  "$schema": "https://json.schemastore.org/package.json",
   "name": "@stuffbucket/omlx",
   "version": "0.0.0",
-  "private": true,
-  "description": "Scaffold for the oMLX local inference server adapter.",
+  "description": "Cordis/DSH adapter for oMLX's Anthropic-compatible Messages API.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/stuffbucket/monimal"
+  },
+  "license": "MIT",
+  "author": "stuffbucket",
   "sideEffects": false,
   "type": "module",
   "exports": {
@@ -21,13 +27,26 @@
     "test": "node --test tests/*.test.js",
     "typecheck": "tsc --noEmit"
   },
+  "dependencies": {
+    "@deepseek-ai/schemastery": "3.18.1"
+  },
   "devDependencies": {
+    "@deepseek-ai/cordis": "4.0.1",
+    "@deepseek-ai/dsh-llm": "0.1.0-rc.6",
     "@stuffbucket/eslint-config": "workspace:*",
+    "@types/node": "^22.10.0",
     "eslint": "^10.8.1",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3"
   },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "4.0.1",
+    "@deepseek-ai/dsh-llm": "0.1.0-rc.6"
+  },
   "engines": {
     "node": ">=24"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

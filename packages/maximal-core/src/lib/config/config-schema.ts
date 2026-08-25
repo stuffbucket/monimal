@@ -38,6 +38,15 @@ const ProviderConfigSchema = z.object({
   adjustInputTokens: z.boolean().optional(),
 })
 
+const ProviderPluginSchema = z
+  .object({
+    enabled: z.boolean().optional(),
+    // Plugin-owned data is intentionally opaque to core. `unknown()` validates
+    // nothing and, unlike an enumerated object schema, preserves the value.
+    config: z.unknown().optional(),
+  })
+  .loose()
+
 const ReasoningEffortSchema = z.enum([
   "none",
   "minimal",
@@ -96,6 +105,13 @@ export const AppConfigSchema = z
       })
       .optional(),
     providers: z.record(z.string(), ProviderConfigSchema).optional(),
+    providerHost: z
+      .object({
+        mode: z.enum(["legacy", "dsh"]).optional(),
+        profileDirectory: z.string().optional(),
+      })
+      .optional(),
+    providerPlugins: z.record(z.string(), ProviderPluginSchema).optional(),
     extraPrompts: z.record(z.string(), z.string()).optional(),
     smallModel: z.string().optional(),
     responsesApiContextManagementModels: z.array(z.string()).optional(),

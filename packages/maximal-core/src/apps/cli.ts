@@ -77,10 +77,11 @@ async function showStatus(app: ClientApp): Promise<void> {
 async function enableApp(app: ClientApp): Promise<void> {
   const result = await app.enable()
   if (result.conflict) {
-    consola.warn(
-      `Left ${app.name} untouched: a ${result.conflict} is already set.`
-        + " Remove it first if you want proxy routing.",
-    )
+    const detail =
+      result.conflict === "invalid-api-key-helper" ?
+        "this maximal invocation cannot provide a safe apiKeyHelper."
+      : `a ${result.conflict} is already set. Remove it first if you want proxy routing.`
+    consola.warn(`Left ${app.name} untouched: ${detail}`)
     return
   }
   if (result.success) {

@@ -1,8 +1,13 @@
 {
   "$schema": "https://unpkg.com/knip@5/schema.json",
   "entry": ["scripts/*.ts", "scripts/dev/*.ts", "tests/**/*.test.ts"],
-  "project": ["scripts/**/*.ts", "tests/**/*.ts"],
-  "ignoreDependencies": ["prettier-plugin-packagejson", "@stuffbucket/maximal-core"],
+  "project": ["src/**/*.ts", "scripts/**/*.ts", "tests/**/*.ts"],
+  "ignoreDependencies": [
+    "@stuffbucket/maximal-core",
+    "@stuffbucket/maximal-dsh-host",
+    "@stuffbucket/maximal-provider-contract",
+    "prettier-plugin-packagejson"
+  ],
   "ignoreBinaries": ["trufflehog"],
   "ignoreExportsUsedInFile": true
 }

@@ -1,7 +1,7 @@
 # Testing Strategy — maximal
 
 **Status:** Living document, prepared for external review.
-**Last updated:** 2026-08-05.
+**Last updated:** 2026-08-24.
 **Audience:** professional software-testing reviewers, plus contributors who
 need one place that describes how this project verifies itself.
 
@@ -126,33 +126,47 @@ Bun version delta can change test outcomes.
 
 ## 4. Test isolation & safety
 
-Three global safeguards are registered via `bunfig.toml`'s `[test] preload`
-(`tests/test-setup.ts`), applied before any module loads:
+The normal monorepo test graph runs in a disposable Docker container, not in a
+bind-mounted checkout. The image receives a filtered source copy, owns empty
+HOME/XDG directories, runs as non-root, and starts without runtime networking,
+capabilities, host mounts, forwarded environment, credentials, or the Docker
+socket. Its writable overlay is discarded after the run. Docker may use the
+network while building the image and installing the pinned toolchain; tests may
+not.
 
-1. **Credential isolation.** `COPILOT_API_HOME` is redirected to a throwaway
-   temp directory so `paths.ts` resolves `APP_DIR`, `ACCOUNTS_PATH`,
-   `GITHUB_TOKEN_PATH`, and logs into temp. Without this, any test that reaches
-   the real registry/token helpers would read and **write the developer's real
-   sign-in state** — which has corrupted real credentials during test runs in
-   the past. A test may set its own `COPILOT_API_HOME` and it wins.
-2. **Consola level reset.** `consola.level` is reset to Info (3) before every
-   test, because some tests raise verbosity and don't restore it, leaking
-   flooding debug output into later tests.
-3. **`process.exit` is made to throw.** Nothing may kill the runner. Product
-   code calls it in seven modules — the `/_internal/shutdown` handler, port
-   acquisition, config load, shutdown — all reachable in-process, and a real
-   call truncates the run *at exit 0*: no summary, no failure, and a green
-   verdict for a suite that never ran. Throwing keeps the run alive and turns
-   the attempt into an ordinary test failure. Code that needs a testable exit
-   injects it, as `createInternalRoutes({ exit })` does. §6 records the mutant
-   this was found by.
+This boundary replaced a preload-only model after a root-CWD `bun test` skipped
+this package's `bunfig.toml`. That one bypass caused two persistent host writes:
 
-The preload also registers the **outermost `afterEach(() => mock.restore())`**
-(`tests/test-setup.ts`): a defense-in-depth net that restores every `spyOn` spy
-after each test. It runs last — after any file's own `afterEach` — so a spy a
-file forgot to restore can't leak. A leaked `spyOn` permanently patches the real
-method for every later file in the Bun worker (the spy analog of the
-`mock.module` leak; see §5.2). It does **not** undo `mock.module` — that is
+1. `auth-recovery.test.ts` reached the default account registry and wrote its
+   plausible Alice fixture into the real Maximal data home.
+2. The first imported Claude reconciliation test froze its own path into the
+   module-level `apiKeyHelper` command through `Bun.main`. Later,
+   `start-run-server.test.ts` exercised the real boot reconciler, which read the
+   real enabled routing intent and wrote that test-file command plus the proxy
+   URL into the real Claude Code settings.
+
+The rule is therefore structural: **run the normal suite through `pnpm test` at
+the monorepo root, never raw `bun test`**. Root and package preloads reject raw
+host execution. Product-level guards in Maximal's path resolver and Claude
+Code's settings resolver provide a second layer: a `--config /dev/null` bypass
+must still fail before either default user path is derived.
+
+Inside the marked container, `tests/test-setup.ts` runs before product modules:
+
+1. It creates one fresh temporary root per Bun worker and unconditionally places
+   both `COPILOT_API_HOME` and `CLAUDE_CONFIG_DIR` beneath it. Inherited values
+   never win. The Maximal home is created first and uses
+   `COPILOT_API_HOME_POLICY=require`, so a typo cannot silently create or select
+   another home.
+2. `consola.level` is reset to Info (3) before every test, because some tests
+   raise verbosity and otherwise leak flooding debug output into later tests.
+3. `process.exit` is made to throw. Nothing may kill the runner. A real call can
+   truncate the run at exit 0, producing no summary and a false green result.
+   Throwing keeps the run alive and attributes the attempt to a failing test.
+
+The preload also registers the **outermost `afterEach(() => mock.restore())`**:
+a defense-in-depth net that restores every `spyOn` spy after each test. It runs
+last, after a file's own `afterEach`. It does **not** undo `mock.module`; that is
 restored per-file (§5.1).
 
 **Shared fixtures/helpers** live in `tests/helpers/` (`fake-executor.ts`,
@@ -161,8 +175,9 @@ order for test doubles: **injectable function options > `mock.module`** — for 
 hazard reason spelled out in §5.
 
 The preload also carries one **opt-in diagnostic**, `MAXIMAL_TEST_TRACE`, which
-records module evaluation order and every `mock.module` install. It is off by
-default and costs a single `process.env` read when off. See §5.7.
+records module evaluation order and every `mock.module` install. The outer
+Docker wrapper accepts only `off`, `tests`, or `all` and forwards no ambient
+trace value. See §5.7.
 
 ---
 
@@ -247,11 +262,11 @@ changes silently. Treat a restore as version-dependent cleanup that happens to
 hold today, never as the reason a shared-module mock is safe. The durable fix is
 unchanged: **do not mock a shared module** — use a DI seam.
 
-**Reproduce it deterministically.** `bun test --randomize --seed N` shuffles both
-file order and within-file test order, and prints the seed it used in the run
-summary (`--seed=…`) whether the run passes or fails — so a failure is always
-replayable. This is the tool for this whole class, including the non-mock
-variants in §5.6.
+**Exercise it only through the isolation boundary.** From the monorepo root,
+run `pnpm test -- --suite=maximal-core`. The closed Docker wrapper deliberately
+does not forward arbitrary Bun flags such as `--randomize` or `--seed`; do not
+bypass it to reproduce an ordering failure. Use the supported trace option in
+§5.7 to capture evaluation order from the guarded run.
 
 **Mitigations, in order of strength:**
 - **Durable fix: don't mock a shared module across files.** Prefer the **real**
@@ -260,8 +275,8 @@ variants in §5.6.
   round-trips are already isolated — or **injectable function options**
   (`__setServeForTests`, `__setBootSecretsForTests`). Only stub a module with no
   env/injection seam, keep the wrapper behaviorally identical (`...actual` /
-  forward `...rest`), and prove with `--randomize` over a spread of seeds that it
-  can't break a later file.
+  forward `...rest`), and exercise the complete Core suite through
+  `pnpm test -- --suite=maximal-core`.
 - **Never stub a *data* export.** All 24 `mock.module` sites were audited in #27:
   every one replaces *function* exports and spreads `...real` — except the one
   that stubbed a data table (`SECRET_DEFS: []`), which is the one that caused the
@@ -349,9 +364,10 @@ before pushing.** This has produced red CI on otherwise-good PRs.
 
 ### 5.5 Fresh worktrees need setup
 A `git worktree` created for isolated work has no `node_modules` — `git worktree
-add` does not run an install. Run `bun install` (matches the lockfile) in the new
-tree before `bun run typecheck` or `bun test`, or imports fail with an opaque
-missing-module error.
+add` does not run an install. In this monorepo, run `pnpm install` at the root
+before the native checks, then use `pnpm run check:core` or the focused Docker
+suite described in §9. Do not substitute a raw host `bun test`; it fails closed
+outside the marked test container.
 
 ### 5.6 Module-level runtime state leaks the same way mocks do
 `mock.module` is the famous case, but it is a *special case* of a wider one:
@@ -383,9 +399,10 @@ one PR that added this section):
    `/responses` test whose body assertion then fails on `undefined` — the stack
    names the victim, never the writer. When a `--randomize` failure makes no
    local sense, look for a global the file reads but never sets.
-4. `bun test --randomize --seed N` is the detector. Run a spread of seeds — one
-   passing seed proves nothing, and the seed is printed in the run summary so any
-   failure replays exactly.
+4. Run the complete guarded Core suite from the monorepo root with
+   `pnpm test -- --suite=maximal-core`. For order diagnosis, add
+   `--trace=tests`; the wrapper keeps the test boundary closed and does not
+   accept arbitrary Bun flags or paths.
 
 ### 5.7 `MAXIMAL_TEST_TRACE` — making the causal phase visible
 
@@ -396,7 +413,8 @@ to a singleton — happens while a module body is executing, and no line of a
 normal run covers it. Reconstructing the `(writer, module)` pair by hand is what
 makes one of these failures a multi-hour job.
 
-`MAXIMAL_TEST_TRACE=1 bun test` records that phase. The preload
+`pnpm test -- --suite=maximal-core --trace=tests`, run from the monorepo root,
+records that phase inside the guarded Docker suite. The preload
 (`tests/test-setup.ts`) loads `tests/helpers/module-trace.ts`, which registers a
 `Bun.plugin` loader hook and patches `mock.module`. Every line is prefixed
 `[test-trace]` and goes to stdout, the stream Bun's reporter uses, so in CI the
@@ -413,9 +431,9 @@ headers — that interleaving is the correlation mechanism.
                   <- tests/api-config.test.ts:14:12 (module-scope, after 4 evals)
 ```
 
-`MAXIMAL_TEST_TRACE=all` widens the eval stream from the test tree to `src/**`
-as well, which is what you want for a plain module-level singleton (§5.6) rather
-than a mock.
+`pnpm test -- --suite=maximal-core --trace=all` widens the eval stream from the
+test tree to `src/**` as well, which is what you want for a plain module-level
+singleton (§5.6) rather than a mock.
 
 **What it gives you.**
 
@@ -463,31 +481,13 @@ preserved and failure stack traces stay exact; only one line's columns shift.
 (On the CLI entrypoints the marker goes after the shebang, which must stay at
 offset 0.)
 
-**Proposal (not yet shipped): CI should set it unconditionally.** The trace is
-only wanted when something fails, but that cannot be known in advance, and a
-plain `bun test` run assigns no seed — so a CI-only failure cannot be replayed
-locally, and re-running with more logging produces a different order. That is
-the asymmetry: ~200 extra lines on every green run, against a red run whose
-causal record does not exist and cannot be recovered. Both test jobs should set
-it — `ci.yml`:
-
-```yaml
-      - name: Run tests
-        # Records module evaluation order and every mock.module install with its
-        # call site (docs/dev/testing-strategy.md §5.7). Always on, not
-        # on-failure: `bun test` assigns no seed, so a failing order cannot be
-        # reproduced after the fact, and the run that failed is the only one that
-        # could have recorded it.
-        env:
-          MAXIMAL_TEST_TRACE: "1"
-        run: bun test
-```
-
-and `randomized-test-order.yml`, whose per-seed invocation becomes
-`MAXIMAL_TEST_TRACE=1 bun test --randomize --seed "$SEED"`. That job is the one
-most likely to surface this class, it is non-blocking, and its output is already
-summarized into an issue rather than read line by line — so the log cost lands
-where it matters least and the payoff is highest.
+**Tracing stays behind the root wrapper.** Use
+`pnpm test -- --suite=maximal-core --trace=tests` for test-tree evaluation or
+`pnpm test -- --suite=maximal-core --trace=all` when source-module evaluation
+matters. The wrapper validates the mode, sets `MAXIMAL_TEST_TRACE` only inside
+the disposable container, and forwards no ambient value from the host. CI uses
+the same wrapper option for an explicitly requested trace; direct environment
+assignment plus a raw host test command is unsupported.
 
 ### 5.8 A test that names a port is asserting about the whole machine
 
@@ -827,10 +827,10 @@ We would specifically like external judgment on these:
    scheduling, not contract, and Bun documents no ordering guarantee, so it is
    cleanup rather than protection. The same applies to plain module-level
    singletons (§5.6), which no lint rule sees at all. So "prefer
-   real/injectable deps for shared state" still rests on review. **The one
-   mechanical detector we have is `bun test --randomize`**, now run nightly by
-   `randomized-test-order.yml` over eight seeds — non-blocking, filing an issue
-   rather than failing a build. See §9.
+   real/injectable deps for shared state" still rests on review. The supported
+   root Docker wrapper currently exposes the fixed Core suite and tracing, not
+   arbitrary randomized-runner flags; use
+   `pnpm test -- --suite=maximal-core --trace=tests` for diagnosis. See §9.
 6. **No load/performance/soak coverage** for the proxy under sustained
    concurrent request load or long-running sidecar sessions.
 
@@ -907,38 +907,19 @@ milestone, tagged by hand, and it is the tag push that fires
 `publish-package.yml` and `release-tag-check.yml` (see `docs/architecture.md` →
 *Release & PR conventions* and `docs/release-runbook.md`).
 
-### Why `--randomize` is not a PR gate
+### Why randomized order is not a PR gate
 
-Step 9 of `test` runs `bun test` in its declared order, deliberately. `bun test
---randomize` is the only mechanical detector we have for the cross-file
-shared-state class (§5.1, §5.6), but it is the wrong shape for a merge gate:
+The guarded Docker suite runs Bun in its declared order. Randomized execution is
+a useful detector for the cross-file shared-state class (§5.1, §5.6), but it is
+the wrong shape for a required merge gate: it can surface a latent defect that
+the PR did not introduce, and process-spawning suites can still fail from runner
+timing independently of their order.
 
-- **It fails PRs for defects they did not introduce.** The two flakes fixed
-  alongside this section were latent for months and surfaced on seeds unrelated
-  to any change. As a required check, that is an unrelated PR going red and a
-  contributor debugging someone else's leak — the reliable path to a gate people
-  learn to re-run until green, which is worse than no gate.
-- **Not every failure it surfaces is seed-reproducible.** Some of the suites it
-  shuffles spawn real engines on real ports; under a loaded runner those fail on
-  timing, at any seed. A gate must distinguish "your change is wrong" from "the
-  runner was busy", and this one cannot.
-- **Reproducibility itself is fine.** Bun prints `--seed=<N>` in the run summary
-  on every `--randomize` run, pass or fail, so the seed is always in the log and
-  a failure replays exactly. That objection does not survive contact.
-
-So the disposition is: **a separate scheduled job**, several seeds per run,
-non-blocking, filing an issue on failure — plus `--randomize` in the local loop
-when you touch a shared singleton or add a `mock.module`. Run a spread of seeds;
-one passing seed proves nothing.
-
-That job is now **`randomized-test-order.yml`** (nightly at 05:41 UTC, plus
-`workflow_dispatch` with an optional pinned `seed` input to replay a reported
-failure). It runs eight seeds per night — `seq $((run_number * 8))
-$((run_number * 8 + 7))`, so the seeds are a function of the run number and are
-known before the run starts — and on any failure it files or comments on one
-idempotent `flaky-order`-labelled issue rather than going red. It does not
-auto-close on a clean night: this class is intermittent, and one green run is
-not evidence.
+The root wrapper therefore exposes a closed suite selector and trace modes, not
+arbitrary Bun arguments or test paths. Run `pnpm test -- --suite=maximal-core`
+from the monorepo root; add `--trace=tests` or `--trace=all` when evaluation
+order is the evidence needed. Do not bypass the fail-closed boundary with a raw
+host command to obtain randomized execution.
 
 ### Duplication: a ratchet on file pairs, not a percentage
 
@@ -1004,17 +985,27 @@ following `AGENTS.md`. Adding the step to `ci.yml`'s `test` job is a one-line
 change this workstream did not own; until it lands, `check:deep` is a strict
 superset of CI rather than an exact match.
 
-**Local pre-merge equivalents:**
+**Local pre-merge equivalents (run from the monorepo root):**
 
-- `bun run check:fast` = `lint:fast → typecheck → lint:all`.
-- `bun run check:deep` = `check:fast → casts:check → bun test → knip →
-  deps:check → dupes:check → build → typecheck:downstream → bindings:check`.
-  This is a superset of the `test` job's step list above, so green here means
-  green there. It says nothing about the `windows` job, which builds and
-  exercises a compiled artifact on a Windows runner — nothing local reproduces
-  that.
-- `bun run check:ops` = `typecheck:ops → test:ops`, for `scripts/ops/` (its own
-  tsconfig and test run; `tooling-ci.yml` is the CI counterpart).
+- `pnpm --filter @stuffbucket/maximal-core run check:fast` = `lint:fast →
+  typecheck → lint:all`, the safe native inner loop.
+- `pnpm run check:core` is the supported complete Core gate. It first runs
+  `check:deep:host` natively: `preflight → check:fast → casts:check → knip →
+  deps:check → dupes:check → ci:check → build → typecheck:downstream →
+  bindings:check`. The final bindings check reads the real git index. It then
+  runs `pnpm test -- --suite=maximal-core`, which selects Core's fixed guarded
+  inner script in the root-owned, mountless Docker boundary.
+- `pnpm test -- --suite=maximal-core` is the supported focused rerun when only
+  Core's Docker test suite is needed. The closed suite selector does not forward
+  arbitrary commands or test paths.
+- Raw host `bun test` and package-local `bun run check:deep` deliberately fail
+  closed in this monorepo. The latter remains the coherent standalone/Core-CI
+  aggregate (`check:deep:host → bun test`), so `ci:check` still derives the same
+  constituent coverage and retains its justified exclusions; it is not the
+  monorepo host entry point.
+- `pnpm --filter @stuffbucket/maximal-core run check:ops` = `typecheck:ops →
+  test:ops`, for `scripts/ops/` (its own tsconfig and test run;
+  `tooling-ci.yml` is the CI counterpart).
 - **Pre-commit hook** (simple-git-hooks → lint-staged): `bun run lint --fix` +
   `scripts/secret-scan.sh` on staged files. Note this runs the staged-file
   `lint`, not full-tree `lint:all`; §5.4 still applies — run `lint:all` yourself

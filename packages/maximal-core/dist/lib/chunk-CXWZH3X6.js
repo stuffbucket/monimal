@@ -1,0 +1,177 @@
+// package.json
+var package_default = {
+  $schema: "https://json.schemastore.org/package.json",
+  name: "@stuffbucket/maximal-core",
+  version: "0.6.3",
+  description: "Headless core of maximal: a local proxy that exposes GitHub Copilot as OpenAI- and Anthropic-compatible HTTP endpoints. No UI.",
+  keywords: [
+    "proxy",
+    "github-copilot",
+    "openai-compatible",
+    "anthropic-compatible"
+  ],
+  homepage: "https://github.com/stuffbucket/maximal-core",
+  bugs: "https://github.com/stuffbucket/maximal-core/issues",
+  repository: {
+    type: "git",
+    url: "https://github.com/stuffbucket/maximal-core"
+  },
+  license: "MIT",
+  author: "stuffbucket",
+  type: "module",
+  exports: {
+    "./client": {
+      types: "./dist/lib/client.d.ts",
+      import: "./dist/lib/client.js"
+    },
+    "./contract": {
+      types: "./dist/lib/contract.d.ts",
+      import: "./dist/lib/contract.js"
+    },
+    "./control-contract": {
+      types: "./dist/lib/control-contract.d.ts",
+      import: "./dist/lib/control-contract.js"
+    },
+    "./package.json": "./package.json",
+    "./provider-host": {
+      types: "./dist/lib/provider-host.d.ts",
+      import: "./dist/lib/provider-host.js"
+    },
+    "./settings-types": {
+      types: "./dist/lib/settings-types.d.ts",
+      import: "./dist/lib/settings-types.js"
+    },
+    "./supervisor": {
+      types: "./dist/lib/supervisor.d.ts",
+      import: "./dist/lib/supervisor.js"
+    }
+  },
+  bin: {
+    maximal: "./dist/main.js"
+  },
+  files: [
+    "dist",
+    "src",
+    "tsconfig.json"
+  ],
+  scripts: {
+    "bindings:check": "bun scripts/ops/check-bindings.ts",
+    build: "bun scripts/ops/build-bundle.ts && bun run build:lib",
+    "build:lib": "tsup",
+    casts: "bun run scripts/find-casts.ts",
+    "casts:check": "bun run scripts/find-casts.ts --check",
+    "check:deep": "bun run check:deep:host && bun test",
+    "check:deep:host": "bun run preflight && bun run check:fast && bun run casts:check && bun run knip && bun run deps:check && bun run dupes:check && bun run ci:check && bun run build && bun run typecheck:downstream && bun run bindings:check",
+    "check:fast": "bun run lint:fast && bun run typecheck && bun run lint:all",
+    "check:ops": "bun run typecheck:ops && bun run test:ops",
+    "ci:check": "bun scripts/ops/check-ci-coverage.ts",
+    "container:build": "bun scripts/dev/container.ts build",
+    "container:run": "bun scripts/dev/container.ts run",
+    "container:shell": "bun scripts/dev/container.ts shell",
+    "deps:check": "bun scripts/check-deps.ts",
+    dev: "bun run --watch ./src/main.ts",
+    "dev:stale-check": "bun scripts/dev/verify-build.ts",
+    dupes: "bun scripts/check-dupes.ts --list",
+    "dupes:check": "bun scripts/check-dupes.ts",
+    e2e: "bun run e2e:seam && bun run e2e:feed && bun run e2e:lifecycle && bun run e2e:replace",
+    "e2e:feed": "bun scripts/dev/e2e-feed.ts",
+    "e2e:lifecycle": "bun scripts/dev/e2e-lifecycle.ts",
+    "e2e:replace": "bun scripts/dev/e2e-replace.ts",
+    "e2e:seam": "bun scripts/dev/e2e-seam.ts",
+    knip: "knip-bun",
+    lint: "eslint",
+    "lint:all": "eslint .",
+    "lint:fast": "oxlint",
+    "measure:baseline": "bun scripts/dev/measure-baseline.ts",
+    mutate: "stryker run",
+    prepack: "bun scripts/ops/prepack.ts",
+    preflight: "bun scripts/preflight.ts",
+    "prepare:hooks": "bun scripts/ops/prepare.ts",
+    "release:check": "bun scripts/ops/release-gates.ts",
+    "release:notes": "bun scripts/ops/release-notes.ts",
+    "release:preflight": "bun scripts/ops/prepack.ts --check",
+    "release:prepare": "bun scripts/ops/release.ts prepare",
+    "release:tag": "bun scripts/ops/release.ts tag",
+    "rules:check": "bun scripts/ops/check-rulesets.ts",
+    sbom: "bun scripts/sbom.ts",
+    "scan:secrets": "trufflehog filesystem . --no-verification --fail --results=verified,unknown,unverified --no-update --exclude-paths .trufflehog-exclude",
+    start: "NODE_ENV=production bun run ./src/main.ts",
+    test: "bun test",
+    "test:mutation": "bun scripts/dev/run-mutation-tests.ts",
+    "test:ops": "cd scripts/ops && bun test",
+    "test:winvm": "cd scripts/dev/win11 && bun test",
+    typecheck: "tsc",
+    "typecheck:downstream": "bun downstream/check.ts",
+    "typecheck:ops": "tsc -p scripts/ops/tsconfig.json",
+    "watch:drift": "bun scripts/ops/watch-external-drift.ts",
+    "winvm:doctor": "bun scripts/dev/win11/winvm.ts doctor",
+    "winvm:exec": "bun scripts/dev/win11/winvm.ts exec",
+    "winvm:ls": "bun scripts/dev/win11/winvm.ts ls",
+    "winvm:reset": "bun scripts/dev/win11/winvm.ts reset",
+    "winvm:smoke": "bun scripts/dev/win11/winvm.ts smoke --expect-file .bun-version",
+    "winvm:start": "bun scripts/dev/win11/winvm.ts start",
+    "winvm:stop": "bun scripts/dev/win11/winvm.ts stop"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "bunx lint-staged"
+  },
+  "lint-staged": {
+    "!dist/**": [
+      "bun run lint --fix",
+      "bash scripts/secret-scan.sh"
+    ]
+  },
+  dependencies: {
+    "@hono/zod-openapi": "1.6.0",
+    "@stuffbucket/maximal-provider-contract": "workspace:*",
+    citty: "^0.2.2",
+    clipboardy: "^5.0.0",
+    consola: "^3.4.2",
+    "fetch-event-stream": "^0.1.5",
+    "gpt-tokenizer": "^3.0.1",
+    hono: "^4.13.2",
+    "proxy-from-env": "^1.1.0",
+    srvx: "^0.12.5",
+    "tiny-invariant": "^1.3.3",
+    turndown: "^7.2.4",
+    undici: "^7.16.0",
+    winreg: "^1.2.5",
+    zod: "^4.1.11"
+  },
+  devDependencies: {
+    "@stryker-mutator/core": "^9.6.1",
+    "@stuffbucket/eslint-config": "workspace:*",
+    "@types/bun": "^1.2.23",
+    "@types/proxy-from-env": "^1.0.4",
+    "@types/turndown": "^5.0.6",
+    "@types/winreg": "^1.2.36",
+    bumpp: "^10.2.3",
+    "dependency-cruiser": "^17.4.0",
+    eslint: "^10.8.1",
+    jscpd: "^5.0.15",
+    knip: "^5.64.1",
+    "lint-staged": "^16.2.3",
+    oxlint: "^1.63.0",
+    tsup: "^8.5.1",
+    typescript: "^5.9.3"
+  },
+  engines: {
+    node: ">=24"
+  },
+  publishConfig: {
+    registry: "https://npm.pkg.github.com"
+  }
+};
+
+// src/lib/update/build-info.ts
+var BUILD_VERSION = typeof __MAXIMAL_VERSION__ === "string" && __MAXIMAL_VERSION__.length > 0 ? __MAXIMAL_VERSION__ : package_default.version;
+var BUILD_GIT_SHA = typeof __MAXIMAL_GIT_SHA__ === "string" && __MAXIMAL_GIT_SHA__.length > 0 ? __MAXIMAL_GIT_SHA__ : void 0;
+var BUILD_GIT_BRANCH = typeof __MAXIMAL_GIT_BRANCH__ === "string" && __MAXIMAL_GIT_BRANCH__.length > 0 ? __MAXIMAL_GIT_BRANCH__ : void 0;
+var BUILD_CHANNEL = typeof __MAXIMAL_CHANNEL__ === "string" && __MAXIMAL_CHANNEL__.length > 0 ? __MAXIMAL_CHANNEL__ : "stable";
+
+export {
+  BUILD_VERSION,
+  BUILD_GIT_SHA,
+  BUILD_GIT_BRANCH,
+  BUILD_CHANNEL
+};

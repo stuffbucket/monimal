@@ -147,6 +147,28 @@ Least-privilege routing (each credential reaches exactly one host; no
 host receives two credentials) was already true and is preserved — the
 mechanism centralizes it rather than changing it.
 
+# Amendment (2026-08-23): external DSH plugins are a separate trusted sink
+
+The single authenticated-HTTP mechanism above remains the invariant for
+Maximal Core and its temporary `legacy` provider path. It does not apply to
+external DSH adapters. Those packages execute as trusted in-process code and
+own their native credential selection, request construction, and network
+transport; routing their traffic back through Core would couple provider
+implementations to Maximal and break stock DSH interoperability.
+
+This is a trust boundary, not an allowlist or sandbox claim. The profile loader
+constrains package resolution and rejects duplicate Cordis/DSH identities, but
+a loaded plugin still has the Maximal process's OS-user authority. Maximal must
+therefore keep plugin configuration, credentials, request bodies, prompts,
+model weights, logs, and settings out of status/topology diagnostics. Cordis
+can dispose effects registered in its scope; a process restart is the recovery
+boundary for ambient effects leaked by a trusted plugin.
+
+The DSH host and concrete provider packages remain outside Maximal Core. The
+compiled CLI and sidecar may contain the generic host, but no concrete adapter.
+See [`../provider-profiles.md`](../provider-profiles.md) for profile provisioning,
+rollback, lifecycle, and package-change behavior.
+
 Out of scope / follow-ups: the web-tools executor's sandbox credential
 is not yet a `Credential` domain.
 

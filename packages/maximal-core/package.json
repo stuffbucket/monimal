@@ -32,6 +32,10 @@
       "import": "./dist/lib/control-contract.js"
     },
     "./package.json": "./package.json",
+    "./provider-host": {
+      "types": "./dist/lib/provider-host.d.ts",
+      "import": "./dist/lib/provider-host.js"
+    },
     "./settings-types": {
       "types": "./dist/lib/settings-types.d.ts",
       "import": "./dist/lib/settings-types.js"
@@ -55,7 +59,8 @@
     "build:lib": "tsup",
     "casts": "bun run scripts/find-casts.ts",
     "casts:check": "bun run scripts/find-casts.ts --check",
-    "check:deep": "bun run preflight && bun run check:fast && bun run casts:check && bun test && bun run knip && bun run deps:check && bun run dupes:check && bun run ci:check && bun run build && bun run typecheck:downstream && bun run bindings:check",
+    "check:deep": "bun run check:deep:host && bun test",
+    "check:deep:host": "bun run preflight && bun run check:fast && bun run casts:check && bun run knip && bun run deps:check && bun run dupes:check && bun run ci:check && bun run build && bun run typecheck:downstream && bun run bindings:check",
     "check:fast": "bun run lint:fast && bun run typecheck && bun run lint:all",
     "check:ops": "bun run typecheck:ops && bun run test:ops",
     "ci:check": "bun scripts/ops/check-ci-coverage.ts",
@@ -117,6 +122,7 @@
   },
   "dependencies": {
     "@hono/zod-openapi": "1.6.0",
+    "@stuffbucket/maximal-provider-contract": "workspace:*",
     "citty": "^0.2.2",
     "clipboardy": "^5.0.0",
     "consola": "^3.4.2",

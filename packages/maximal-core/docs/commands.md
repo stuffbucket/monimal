@@ -1,15 +1,25 @@
 # Commands
 
-Every script below is defined in `package.json`.
+Run the supported verification commands from the monorepo root. The remaining
+commands are Core package scripts and are run from `packages/maximal-core/`
+unless shown with a root-level `pnpm` invocation.
 
 ```sh
+# Supported monorepo verification (run from the monorepo root)
+pnpm --filter @stuffbucket/maximal-core run check:fast
+                     # native non-product inner loop: lint:fast + typecheck + lint:all
+pnpm run check:core  # complete Core gate: check:deep:host natively, then the
+                     # focused Core test suite in the root-owned Docker boundary
+pnpm test -- --suite=maximal-core
+                     # focused Docker rerun of Core's fixed guarded test script
+
 bun install          # Install dependencies
 bun run dev          # Dev mode with watch
 bun run build        # Bundle src/main.ts to dist/ (refuses off `.bun-version`)
 bun run build:lib    # Library build of the consumer exports (tsup -> dist/lib)
 bun run start        # Production start (NODE_ENV=production)
 
-# Lint / type / test
+# Lint / type / package gates
 bun run lint         # ESLint with cache (auto-fixes staged files pre-commit)
 bun run lint:all     # ESLint on entire project
 bun run lint:fast    # oxlint — mechanical pass, ~10ms full repo
@@ -17,17 +27,22 @@ bun run typecheck    # tsc type check only (no emit)
 bun run typecheck:downstream  # compile the downstream/ consumer against the exports map
 bun run casts:check  # fail on a new unannotated boundary cast (scripts/find-casts.ts)
 bun run bindings:check  # committed dist/lib + dist/main.js vs a fresh build.
-                     # Off-pin Bun → "could not verify" (exit 2), never "stale".
-bun test             # Run all tests
-bun test tests/foo.test.ts  # Run a single test file
+                     # Reads the real git index. Off-pin Bun → "could not verify"
+                     # (exit 2), never "stale".
 
 # Aggregates
 bun run check:fast   # lint:fast + typecheck + lint:all (the per-edit inner loop)
-bun run check:deep   # preflight + check:fast + casts:check + bun test + knip +
-                     # deps:check + dupes:check + ci:check + build +
-                     # typecheck:downstream + bindings:check (end-of-task gate;
-                     # every step of it also runs in a required CI job — that is
-                     # what ci:check asserts, `preflight` excepted and recorded)
+bun run check:deep:host
+                     # every non-test check: preflight + check:fast + casts:check +
+                     # knip + deps:check + dupes:check + ci:check + build +
+                     # typecheck:downstream + real-index bindings:check. This is
+                     # the native half used by root `pnpm run check:core`.
+bun run check:deep   # standalone/Core-CI composition: check:deep:host + bun test.
+                     # In this monorepo, raw host execution deliberately fails
+                     # closed at the guarded test command; use `pnpm run
+                     # check:core` instead. Every constituent still runs in a
+                     # required CI job — what ci:check asserts, with the recorded
+                     # justified exclusions unchanged.
 bun run preflight    # fail if node_modules is missing, before any check that
                      # would blame something else for it (scripts/preflight.ts).
                      # Only checks that node_modules exists — not that the
@@ -101,7 +116,9 @@ bun run ci:check     # every step of check:deep also runs in a job that is a
                      # shape dupes:check and .dependency-cruiser.cjs both had —
                      # fails here by name. Offline; it is in check:deep and in
                      # ci.yml. Deliberate exclusions live in that file, each
-                     # with its reason.
+                     # with its reason. The two build leaves are covered only
+                     # through the composite `build`; their exclusions fail if
+                     # the required root job drops its `turbo run build` task.
 bun run rules:check  # the live branch rulesets on `main` vs the floor recorded
                      # in scripts/ops/check-rulesets.ts. Needs the network, so it
                      # is NOT in check:deep; the daily watch-branch-rules.yml
@@ -115,12 +132,20 @@ bun run watch:drift  # the daily external-surface pin watch (docs/admin/external
 # The pinned toolchain container (docs/dev/container-toolchain.md)
 bun run container:build  # build maximal-core-ci:bun-<.bun-version>. The tag IS
                          # the pin, so a stale image is not addressable.
-bun run container:run -- <cmd>  # run <cmd> against this tree inside it. Builds
-                         # on first use. Its own node_modules volume (never the
-                         # host's — platform-specific binaries) and your uid,
-                         # not root. `-- bun run check:deep` is the usual one.
+bun run container:run -- <cmd>  # run a non-test <cmd> against this tree inside
+                         # the pinned package toolchain. Its own node_modules
+                         # volume is never the host's. For the non-test gate use
+                         # `-- bun run check:deep:host`; tests belong to the
+                         # root-owned mountless Docker boundary above.
 bun run container:shell  # interactive bash in the same environment
 ```
+
+Raw host `bun test` (with or without a file path) is not a supported shortcut:
+the package preload rejects it outside the marked container. Package-local
+`bun run check:deep` is retained as the coherent standalone/Core-CI aggregate,
+but likewise cannot complete on a monorepo host because its test member fails
+closed. Use the two root commands above instead; the focused selector is
+intentionally a closed suite name rather than an arbitrary command passthrough.
 
 `bun run typecheck` (root `tsc`) covers `src/`, `tests/`, `scripts/`,
 `eslint.config.js`, `tsup.config.ts` and `downstream/check.ts`. `scripts/ops/` is

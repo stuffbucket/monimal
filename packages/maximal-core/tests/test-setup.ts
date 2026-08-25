@@ -1,15 +1,11 @@
 /**
  * Global test preload (registered via bunfig.toml `[test] preload`).
  *
- * Points COPILOT_API_HOME at a throwaway temp directory BEFORE any module is
- * imported, so paths.ts resolves PATHS.APP_DIR / ACCOUNTS_PATH / GITHUB_TOKEN_PATH
- * / logs into that temp dir. Without this, any test that exercises the real
- * registry/token helpers (e.g. forwardError -> markAuthDegraded -> the default
- * registry wrappers) reads and WRITES the developer's real
- * ~/.local/share/maximal/accounts.json — which has corrupted real sign-in state
- * during test runs. Tests must never touch real user credentials.
- *
- * Respects an explicit COPILOT_API_HOME (a test that sets its own wins).
+ * Normal tests run only inside the root disposable Docker test container. Each
+ * Bun worker gets a fresh root beneath the container's temporary directory, and
+ * both Maximal's data home and Claude Code's config directory are placed under
+ * it before any product module loads. Inherited path overrides are deliberately
+ * ignored: ambient host state must never influence a test run.
  */
 
 import { afterEach, beforeEach, mock } from "bun:test"
@@ -17,6 +13,23 @@ import consola from "consola"
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
+
+const TEST_CONTAINER_ENV = "MAXIMAL_TEST_CONTAINER"
+if (process.env[TEST_CONTAINER_ENV] !== "1") {
+  throw new Error(
+    `Refusing to run Maximal tests outside the disposable Docker container.`
+      + ` Run \`pnpm test\` instead of invoking \`bun test\` directly.`,
+  )
+}
+
+const testRoot = fs.mkdtempSync(path.join(os.tmpdir(), "maximal-tests-"))
+const maximalHome = path.join(testRoot, "maximal")
+const claudeConfigDir = path.join(testRoot, "claude")
+fs.mkdirSync(maximalHome, { recursive: true })
+fs.mkdirSync(claudeConfigDir, { recursive: true })
+process.env.COPILOT_API_HOME = maximalHome
+process.env.COPILOT_API_HOME_POLICY = "require"
+process.env.CLAUDE_CONFIG_DIR = claudeConfigDir
 
 // Reset the global consola level before every test. Some tests bump it to 5
 // (verbose mode, e.g. start-run-server) and don't restore it, leaking debug
@@ -54,12 +67,6 @@ process.exit = (code?: number): never => {
     `process.exit(${String(code)}) was called during a test run. Nothing may`
       + " kill the runner — inject the exit as a dependency instead.",
   )
-}
-
-if (!process.env.COPILOT_API_HOME) {
-  const dir = path.join(os.tmpdir(), `maximal-test-home-${process.pid}`)
-  fs.mkdirSync(dir, { recursive: true })
-  process.env.COPILOT_API_HOME = dir
 }
 
 // Opt-in diagnostic for the cross-file leak class (testing-strategy §5.1/§5.6).

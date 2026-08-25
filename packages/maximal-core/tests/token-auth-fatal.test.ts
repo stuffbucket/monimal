@@ -74,6 +74,7 @@ beforeEach(() => {
       harness.markCalls.push(err)
       return harness.markImpl()
     },
+    clearActiveNeedsReauth: () => Promise.resolve(),
     // Reset the retry threshold each test so a test that lowers it (escalation
     // path) can't leak into one that depends on the default (retry-before-fatal).
     maxFatalRefreshRetries: 3,

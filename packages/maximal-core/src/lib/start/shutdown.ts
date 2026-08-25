@@ -34,6 +34,7 @@ let shuttingDown = false
 export async function initiateShutdown(
   servers: Array<ReturnType<typeof serve>>,
   reason: string,
+  disposeProviderGateway?: () => Promise<void>,
 ): Promise<void> {
   if (shuttingDown) return
   shuttingDown = true
@@ -67,6 +68,12 @@ export async function initiateShutdown(
     }
   }
 
+  try {
+    await disposeProviderGateway?.()
+  } catch (error) {
+    consola.warn("shutdown: provider gateway disposal threw", error)
+  }
+
   // Pidfile is a hint, not a lock — best-effort cleanup.
   await removePidfile()
 
@@ -91,13 +98,14 @@ export async function initiateShutdown(
  *  reverter is idempotent (no-op when the URL is absent or foreign),
  *  so it's safe even when initiateShutdown ALSO runs first. */
 export function installShutdownHandlers(
-  ...servers: Array<ReturnType<typeof serve>>
+  servers: Array<ReturnType<typeof serve>>,
+  disposeProviderGateway?: () => Promise<void>,
 ): void {
   process.on("SIGTERM", () => {
-    void initiateShutdown(servers, "received SIGTERM")
+    void initiateShutdown(servers, "received SIGTERM", disposeProviderGateway)
   })
   process.on("SIGINT", () => {
-    void initiateShutdown(servers, "received SIGINT")
+    void initiateShutdown(servers, "received SIGINT", disposeProviderGateway)
   })
 
   // Safety net: synchronous revert on any Node-controlled exit path,
@@ -130,7 +138,11 @@ export function installShutdownHandlers(
       } catch {
         clearInterval(interval)
         consola.warn(`shutdown: parent ${parentPid} gone`)
-        void initiateShutdown(servers, `parent ${parentPid} exited`)
+        void initiateShutdown(
+          servers,
+          `parent ${parentPid} exited`,
+          disposeProviderGateway,
+        )
       }
     }, 3000)
     interval.unref()

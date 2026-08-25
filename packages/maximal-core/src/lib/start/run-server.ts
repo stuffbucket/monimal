@@ -8,8 +8,16 @@
  * claude-code-flow.ts) so this file reads as a checklist.
  */
 
+import type { ProviderGateway } from "@stuffbucket/maximal-provider-contract"
+
 import consola from "consola"
 import { serve } from "srvx"
+
+import type {
+  ProviderGatewayFactory,
+  ProviderHostConfigSource,
+} from "~/lib/provider-host-types"
+import type { ProviderDispatcher } from "~/services/providers/provider-dispatcher"
 
 import { removeLegacyShimIfPresent } from "~/apps/claude-code/detect"
 import { reconcileClaudeCodeOnBoot } from "~/apps/claude-code/reconcile"
@@ -19,6 +27,7 @@ import {
   getConfig,
   mergeConfigWithDefaults,
 } from "~/lib/config/config"
+import { createProviderHostConfigSource } from "~/lib/config/provider-host-source"
 import { initProxyFromEnv } from "~/lib/http/proxy"
 import { initOpencodeVersion } from "~/lib/platform/opencode"
 import { ensurePaths } from "~/lib/platform/paths"
@@ -46,7 +55,7 @@ import {
   markSessionRunning,
   staleSessionMarkerPresent,
 } from "./session-sentinel"
-import { installShutdownHandlers } from "./shutdown"
+import { initiateShutdown, installShutdownHandlers } from "./shutdown"
 
 // Injectable server binder. Defaults to srvx's real `serve()`; tests swap it
 // via `__setServeForTests` to avoid binding a port. This is a module-local
@@ -99,6 +108,13 @@ export interface RunServerOptions {
    *  ephemeral — because nothing external is meant to find it; a supervisor
    *  learns the bound value from the ready-line. */
   controlPort?: number
+  /** Optional prebuilt provider boundary. Omit for standalone legacy mode. */
+  providerGateway?: ProviderGateway
+  /**
+   * Lazy host-owned provider boundary. Called only by `start`, only after config
+   * validation, and only when `providerHost.mode` is `dsh`.
+   */
+  createProviderGateway?: ProviderGatewayFactory
 }
 
 export async function runServer(options: RunServerOptions): Promise<void> {
@@ -122,6 +138,7 @@ export async function runServer(options: RunServerOptions): Promise<void> {
   // Ensure config is merged with defaults at startup. Ahead of the port
   // decision because that decision now reads `server.portPolicy` from it.
   mergeConfigWithDefaults()
+  const config = getConfig()
 
   // Resolve the port we will actually bind. Default policy moves to the next
   // free port rather than refusing to start; `fail` restores the old behaviour.
@@ -129,7 +146,7 @@ export async function runServer(options: RunServerOptions): Promise<void> {
   const port = portOrExit(
     await resolvePort(
       options.port,
-      getConfig().server?.portPolicy ?? DEFAULT_PORT_POLICY,
+      config.server?.portPolicy ?? DEFAULT_PORT_POLICY,
     ),
   )
 
@@ -238,16 +255,22 @@ export async function runServer(options: RunServerOptions): Promise<void> {
 
   logListening(bootLogger, serverUrl, executorName)
 
-  const { proxyServer, controlServer } = await bindListeners(
-    port,
-    controlPortRequested,
-  )
+  const providerConfigSource = createProviderHostConfigSource()
+  const { proxyServer, controlServer, providerDispatcher } =
+    await bindListeners({
+      controlPort: controlPortRequested,
+      createProviderGateway: options.createProviderGateway,
+      providerConfigSource,
+      providerGateway: options.providerGateway,
+      proxyPort: port,
+    })
 
   finalizeBoot({
     proxyServer,
     proxyRequested: port,
     controlServer,
     controlRequested: controlPortRequested,
+    providerDispatcher,
   })
 }
 
@@ -264,6 +287,14 @@ function logListening(
   )
 }
 
+interface BindListenersOptions {
+  controlPort: number
+  createProviderGateway?: ProviderGatewayFactory
+  providerConfigSource: ProviderHostConfigSource
+  providerGateway?: ProviderGateway
+  proxyPort: number
+}
+
 /**
  * Bind both listeners (maximal-core#10).
  *
@@ -276,26 +307,64 @@ function logListening(
  * Two `serve()` calls rather than one app with a path filter: the separation is
  * the point, and a filter is something a later edit can quietly regress.
  */
-async function bindListeners(
-  proxyPort: number,
-  controlPort: number,
-): Promise<{
+async function bindListeners({
+  controlPort,
+  createProviderGateway,
+  providerConfigSource,
+  providerGateway,
+  proxyPort,
+}: BindListenersOptions): Promise<{
   proxyServer: ReturnType<ServeFn>
   controlServer: ReturnType<ServeFn>
+  providerDispatcher: ProviderDispatcher
 }> {
-  const { publicApp, controlApp } = await import("~/server")
-  return {
-    proxyServer: serveImpl({
-      fetch: publicApp.fetch,
+  let providerDispatcher: ProviderDispatcher | undefined
+  const listeners: Array<ReturnType<ServeFn>> = []
+  const requestShutdown = (reason: string): Promise<void> => {
+    const dispatcher = providerDispatcher
+    if (!dispatcher) return Promise.resolve()
+    return initiateShutdown(listeners, reason, () => dispatcher.dispose())
+  }
+
+  try {
+    const { createServerApps } = await import("~/server")
+    const apps = createServerApps({
+      createProviderGateway,
+      providerConfigSource,
+      providerGateway,
+      requestShutdown,
+    })
+    providerDispatcher = apps.providerDispatcher
+    await providerDispatcher.ready()
+    const proxyServer = serveImpl({
+      fetch: apps.publicApp.fetch,
       port: proxyPort,
       bun: { idleTimeout: 0 },
-    }),
-    controlServer: serveImpl({
-      fetch: controlApp.fetch,
+    })
+    listeners.push(proxyServer)
+    const controlServer = serveImpl({
+      fetch: apps.controlApp.fetch,
       port: controlPort,
       hostname: "127.0.0.1",
       bun: { idleTimeout: 0 },
-    }),
+    })
+    listeners.push(controlServer)
+    return { proxyServer, controlServer, providerDispatcher }
+  } catch (error) {
+    for (const listener of listeners) {
+      try {
+        await listener.close(true)
+      } catch (closeError) {
+        consola.warn("startup: server.close() threw", closeError)
+      }
+    }
+    if (providerDispatcher) {
+      await providerDispatcher.dispose()
+    } else {
+      await providerConfigSource.dispose()
+      await providerGateway?.dispose()
+    }
+    throw error
   }
 }
 
@@ -356,6 +425,7 @@ interface FinalizeBootArgs {
   proxyRequested: number
   controlServer: ReturnType<ServeFn>
   controlRequested: number
+  providerDispatcher: ProviderDispatcher
 }
 
 function finalizeBoot({
@@ -363,6 +433,7 @@ function finalizeBoot({
   proxyRequested,
   controlServer,
   controlRequested,
+  providerDispatcher,
 }: FinalizeBootArgs): void {
   // Re-record both bound ports now that they are knowable: under `--port 0` the
   // pre-bind value was 0, which would make the Origin guard compare every
@@ -392,5 +463,7 @@ function finalizeBoot({
   reconcileClaudeCodeOnBoot()
   markSessionRunning()
   startTokenUsageRetention()
-  installShutdownHandlers(proxyServer, controlServer)
+  installShutdownHandlers([proxyServer, controlServer], () =>
+    providerDispatcher.dispose(),
+  )
 }

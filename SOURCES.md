@@ -110,14 +110,20 @@ package provenance or publisher identity -- the proxy does that.
   `react-hooks` -- were the only thing capping the workspace at ESLint 9.
   Removing it took 83 packages out of the root `node_modules`.
   Three entry points: `./base` (ignores + `js.configs.recommended`, used by
-  all seven packages), `./typescript` (adds typescript-eslint), `./service`
+  the workspace packages), `./typescript` (adds typescript-eslint), `./service`
   (adds the quality plugins and prettier for service packages).
-- Added `packages/omlx` (`@stuffbucket/omlx`) and `packages/llama-server`
-  (`@stuffbucket/llama-server`) as private, independently buildable runtime
-  adapter scaffolds. They have no runtime dependencies and establish only the
-  HTTP process boundary and native model format. The llama-server package is
-  deliberately separate from `maximal-electron`'s embedded `node-llama-cpp`
-  utility process; neither package is wired into Maximal yet.
+- Added `packages/maximal-provider-contract` as the side-effect-free HTTP
+  gateway contract, `packages/maximal-dsh-host` as its trusted in-process DSH
+  implementation, and `packages/anthropic-provider` as an independently
+  installable stock Cordis/DSH adapter. Maximal Core consumes only the contract;
+  the packaging composition may consume the host; neither depends on a concrete
+  provider plugin.
+- Replaced the private `packages/omlx` descriptor scaffold with a publishable
+  stock Cordis/DSH adapter for an independently running oMLX HTTP server. Cordis
+  and DSH are exact peers of external provider packages and are loaded from a
+  user-managed profile rather than compiled into Maximal. `packages/llama-server`
+  remains a private descriptor scaffold and is deliberately separate from
+  `maximal-electron`'s embedded `node-llama-cpp` utility process.
 - Pin rule SETS, not just plugin versions, when a plugin major moves. The
   replaced preset enumerated 83 unicorn rules against unicorn 60; ESLint 10
   needs unicorn >= 73, whose `recommended` turns on 227 more. Taking
@@ -216,6 +222,15 @@ package provenance or publisher identity -- the proxy does that.
   shadows the other for any dependency that resolves by walking up rather than
   through its own peer link — which is what made `eslint-plugin-perfectionist`
   call a TS 5 API on the TS 7 module.
+- Root, `maximal`, and `maximal-core`: the normal test graph moved behind the
+  root mountless Docker runner. Package Bun preloads now reject raw host tests,
+  and Core creates isolated Maximal and Claude homes only after the container
+  marker is present. This is deliberately stricter than either copied upstream
+  repository because a root-CWD run can skip a package-local `bunfig.toml`.
+- `maximal/client`: `scripts/build-core.ts` accepts a validated
+  `MAXIMAL_GIT_SHA` before falling back to `git rev-parse`. The filtered Docker
+  context cannot use this linked worktree's host-absolute `.git` pointer, but
+  the sidecar must still embed the checkout revision supplied by the wrapper.
 
 ## Known-blocked upgrades
 

@@ -63,6 +63,8 @@
  */
 import path from "node:path"
 
+import { checkProviderHostBoundary } from "./provider-host-boundary"
+
 const ROOT = path.resolve(import.meta.dir, "..")
 const CONFIG = path.join(ROOT, ".dependency-cruiser.cjs")
 const CRUISE_PATHS = ["src", "tests"]
@@ -272,6 +274,13 @@ async function writeKnown(edges: string[]): Promise<void> {
   await Bun.write(self, next)
 }
 
+const providerBoundaryViolations = await checkProviderHostBoundary(ROOT)
+for (const violation of providerBoundaryViolations) {
+  console.error(
+    `✖ provider-host-boundary: ${violation.file} imports or declares ${violation.specifier}`,
+  )
+}
+
 const result = await cruise()
 const edges = cycleEdges(result)
 const current = [...edges.keys()].sort()
@@ -324,7 +333,7 @@ if (UPDATE) {
   process.exit(errors.length > 0 ? 1 : 0)
 }
 
-let failed = errors.length > 0
+let failed = errors.length > 0 || providerBoundaryViolations.length > 0
 
 if (added.length > 0) {
   failed = true

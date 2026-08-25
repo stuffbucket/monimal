@@ -18,7 +18,15 @@
  * token path.
  */
 
-import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test"
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  test,
+} from "bun:test"
 
 // Capture the real module BEFORE mocking so afterAll can restore it
 // (mock.module is process-wide; without the restore, a later test
@@ -53,24 +61,29 @@ const { CopilotAuthFatalError, forwardError, HTTPError } = errorMod
 const stateMod = await import("~/lib/runtime-state/state")
 const { state } = stateMod
 const { PATHS } = await import("~/lib/platform/paths")
-const {
-  accountKey,
-  addAccountToDefaultRegistry,
-  emptyRegistry,
-  makeAccountRecord,
-  readDefaultRegistry,
-  writeDefaultRegistry,
-} = await import("~/lib/auth/github-token-store")
+const { addAccountToDefaultRegistry, readDefaultRegistry } =
+  await import("~/lib/auth/github-token-store")
 const { __resetAuthControllerForTests } =
   await import("~/lib/auth/auth-controller")
+const {
+  makeTestAccount,
+  resetDefaultTestRegistry,
+  testAccountKey,
+  testAccountToken,
+} = await import("./helpers/account-fixtures")
 
 beforeEach(async () => {
   // Reset the auth state machine (so markAuthDegraded's idempotency guard
   // doesn't dedupe across cases) and the temp registry between tests.
   __resetAuthControllerForTests()
-  await writeDefaultRegistry(emptyRegistry())
+  await resetDefaultTestRegistry()
   unlinkCalls.length = 0
   state.githubToken = undefined
+})
+
+afterEach(async () => {
+  __resetAuthControllerForTests()
+  await resetDefaultTestRegistry()
 })
 
 interface CapturedResponse {
@@ -158,15 +171,9 @@ describe("forwardError", () => {
     // Seed an active account in the (temp-isolated) registry. A `gho_` token so
     // the re-mint discriminator short-circuits to auth_fatal (no network) and
     // we exercise the degrade-retains path deterministically.
-    await addAccountToDefaultRegistry(
-      makeAccountRecord({
-        login: "alice",
-        host: "github.com",
-        token: "gho_seed_credential",
-        addedVia: "device-code",
-      }),
-    )
-    state.githubToken = "gho_seed_credential"
+    const testToken = testAccountToken("alice", "gho_")
+    await addAccountToDefaultRegistry(makeTestAccount("alice", "gho_"))
+    state.githubToken = testToken
     const { ctx } = makeContextStub()
 
     await forwardError(
@@ -175,10 +182,10 @@ describe("forwardError", () => {
     )
 
     const reg = await readDefaultRegistry()
-    const key = accountKey("alice", "github.com")
+    const key = testAccountKey("alice")
     // The credential is RETAINED — the bug was deleting it here.
     expect(key in reg.accounts).toBe(true)
-    expect(reg.accounts[key].token).toBe("gho_seed_credential")
+    expect(reg.accounts[key].token).toBe(testToken)
     expect(reg.accounts[key].needsReauth).toBe(true)
     expect(reg.accounts[key].lastError?.status).toBe(401)
     // The token file is never unlinked on an upstream rejection.

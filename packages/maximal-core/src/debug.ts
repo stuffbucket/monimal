@@ -18,7 +18,7 @@ import {
   resolveResponsesModel,
 } from "./routes/messages/web-tools/executor"
 
-interface SecretStatus {
+export interface SecretStatus {
   name: string
   source: "env" | "file" | "config" | "unset"
 }

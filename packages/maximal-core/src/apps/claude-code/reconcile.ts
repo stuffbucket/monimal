@@ -4,8 +4,10 @@ import { ensureDefaultEndpointKey } from "~/lib/auth/api-key-helper"
 import { getConfig, writeConfig } from "~/lib/config/config"
 
 import {
+  type ApiKeyHelperResolver,
   applyProxyBaseUrl,
   getClaudeCodeSettingsPath,
+  resolveApiKeyHelperCommand,
   revertProxyBaseUrl,
 } from "./config"
 
@@ -39,28 +41,43 @@ export function setClaudeCodeRoutingIntent(enabled: boolean): void {
 export function reconcileClaudeCodeOnBoot(
   intended: boolean = claudeCodeRoutingIntended(),
   filePath: string = getClaudeCodeSettingsPath(),
+  resolveApiKeyHelper: ApiKeyHelperResolver = resolveApiKeyHelperCommand,
 ): void {
   if (!intended) return
   try {
-    // Heal existing already-enabled-but-key-less installs: mint the default
-    // endpoint key if none exists (idempotent), so the apiKeyHelper resolves.
-    ensureDefaultEndpointKey()
-    const result = applyProxyBaseUrl(filePath)
+    const result = applyProxyBaseUrl(filePath, resolveApiKeyHelper)
     if (result.wrote) {
       consola.info(
         "claude-code: re-applied proxy base URL on boot (routing intent is on)",
       )
-    } else if (result.skippedReason === "foreign-base-url") {
-      consola.warn(
-        "claude-code: routing intent is on, but a non-proxy ANTHROPIC_BASE_URL"
-          + " is present — left it untouched",
-      )
-    } else if (result.skippedReason === "foreign-api-key-helper") {
-      consola.warn(
-        "claude-code: routing intent is on, but a custom apiKeyHelper"
-          + " is present — left it untouched",
-      )
-    }
+    } else
+      switch (result.skippedReason) {
+        case "foreign-base-url": {
+          consola.warn(
+            "claude-code: routing intent is on, but a non-proxy ANTHROPIC_BASE_URL"
+              + " is present — left it untouched",
+          )
+          return
+        }
+        case "foreign-api-key-helper": {
+          consola.warn(
+            "claude-code: routing intent is on, but a custom apiKeyHelper"
+              + " is present — left it untouched",
+          )
+          return
+        }
+        case "invalid-api-key-helper": {
+          consola.warn(
+            "claude-code: routing intent is on, but this maximal invocation cannot"
+              + " provide a safe apiKeyHelper — left settings untouched",
+          )
+          return
+        }
+        // No default
+      }
+    // Applying succeeded or the settings were already current. Only now may boot
+    // mint the default endpoint key that the helper resolves.
+    ensureDefaultEndpointKey()
   } catch (err) {
     consola.warn("claude-code: failed to reconcile base URL on boot", err)
   }

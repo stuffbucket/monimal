@@ -2,6 +2,14 @@ import { ControlRpcError } from '@stuffbucket/maximal-core/client'
 import { SUPPORTED_PROTOCOL_VERSION } from '@stuffbucket/maximal-core/contract'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+vi.mock('electron', () => ({
+  app: {
+    isPackaged: false,
+    getAppPath: () => '/tmp/maximal-client-test',
+    getPath: () => '/tmp/maximal-client-test/userData',
+  },
+}))
+
 import { createControlSession } from './control-session'
 import type { CoreStatus } from './core'
 

@@ -10,8 +10,10 @@ runtime shortlist has been reduced.
 Method: reviewed the current upstream repositories and runtime documentation for
 oMLX, llama.cpp, MLX-LM, SGLang, LMCache, ExLlamaV3, MLC LLM, ONNX Runtime
 GenAI, OpenVINO GenAI, vLLM, and TensorRT-LLM. No local benchmark or packaged-app
-spike was run. Performance claims below are therefore architectural expectations
-or upstream claims, not measurements of maximal.
+spike informed this initial comparison. A subsequent same-day signed-app smoke
+test is recorded in [the oMLX 0.6.3rc2 smoke-test note](2026-08-20-omlx-smoke-test.md);
+performance claims below remain architectural expectations or upstream claims,
+not measurements of maximal.
 
 ## Bottom line
 

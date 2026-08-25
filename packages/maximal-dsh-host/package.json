@@ -1,0 +1,40 @@
+{
+  "name": "@stuffbucket/maximal-dsh-host",
+  "version": "0.0.0",
+  "private": true,
+  "description": "In-process host for profile-installed DeepSeek Harness providers.",
+  "sideEffects": false,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --clean --target node24 --out-dir dist",
+    "lint": "eslint",
+    "test": "node --test tests/*.test.ts",
+    "test:bun-import": "bun scripts/compiled-bun-import.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@stuffbucket/maximal-provider-contract": "workspace:*"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "4.0.1",
+    "@deepseek-ai/dsh-llm": "0.1.0-rc.6",
+    "@stuffbucket/eslint-config": "workspace:*",
+    "@types/node": "^22.10.0",
+    "eslint": "^10.8.1",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}
