@@ -335,7 +335,7 @@ const WORKSPACE_MANIFESTS = JSON.parse(
 // Splits that are meant. Empty is the goal: every entry here is a version of
 // the same dependency resolved twice, which the workspace exists to avoid.
 const DELIBERATE = new Map();
-const BACKLOG = new Set(['@vitejs/plugin-react', 'lucide-react']);
+const BACKLOG = new Set(['@vitejs/plugin-react']);
 
 /** name -> { declaredBy, byVersion } for every directly-declared dependency. */
 const declared = new Map();

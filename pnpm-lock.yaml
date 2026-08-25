@@ -18,8 +18,8 @@ importers:
   .:
     devDependencies:
       turbo:
-        specifier: ^2.10.9
-        version: 2.10.9
+        specifier: ^2.10.10
+        version: 2.10.10
 
   packages/eslint-config:
     dependencies:
@@ -101,11 +101,11 @@ importers:
   packages/maximal-core:
     dependencies:
       '@hono/zod-openapi':
-        specifier: 1.5.0
-        version: 1.5.0(hono@4.13.1)(zod@4.4.3)
+        specifier: 1.6.0
+        version: 1.6.0(hono@4.13.2)(zod@4.4.3)
       citty:
-        specifier: ^0.1.6
-        version: 0.1.6
+        specifier: ^0.2.2
+        version: 0.2.2
       clipboardy:
         specifier: ^5.0.0
         version: 5.3.2
@@ -119,14 +119,14 @@ importers:
         specifier: ^3.0.1
         version: 3.4.0
       hono:
-        specifier: ^4.12.0
-        version: 4.13.1
+        specifier: ^4.13.2
+        version: 4.13.2
       proxy-from-env:
         specifier: ^1.1.0
         version: 1.1.0
       srvx:
-        specifier: ^0.11.15
-        version: 0.11.22
+        specifier: ^0.12.5
+        version: 0.12.5
       tiny-invariant:
         specifier: ^1.3.3
         version: 1.3.3
@@ -171,8 +171,8 @@ importers:
         specifier: ^10.8.1
         version: 10.8.1(jiti@2.7.0)(supports-color@8.1.1)
       jscpd:
-        specifier: ^5.0.14
-        version: 5.0.14
+        specifier: ^5.0.15
+        version: 5.0.16
       knip:
         specifier: ^5.64.1
         version: 5.88.1(@types/node@24.13.3)(typescript@5.9.3)
@@ -192,11 +192,11 @@ importers:
   packages/maximal-electron:
     devDependencies:
       '@earendil-works/pi-agent-core':
-        specifier: 0.83.0
-        version: 0.83.0(supports-color@8.1.1)(ws@8.21.3)(zod@4.4.3)
+        specifier: 0.84.2
+        version: 0.84.2(supports-color@8.1.1)(ws@8.21.3)(zod@4.4.3)
       '@earendil-works/pi-ai':
-        specifier: 0.83.0
-        version: 0.83.0(supports-color@8.1.1)(ws@8.21.3)(zod@4.4.3)
+        specifier: 0.84.2
+        version: 0.84.2(supports-color@8.1.1)(ws@8.21.3)(zod@4.4.3)
       '@electron-forge/cli':
         specifier: 7.11.2
         version: 7.11.2(bluebird@3.7.2)(csso@5.0.5)(encoding@0.1.13)(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.26)(supports-color@8.1.1)
@@ -240,14 +240,14 @@ importers:
         specifier: 1.2.11
         version: 1.2.11(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@storybook/addon-a11y':
-        specifier: 10.5.6
-        version: 10.5.6(storybook@10.5.6(@types/react@19.2.18)(prettier@3.8.3)(react@19.2.8))
+        specifier: 10.5.8
+        version: 10.5.8(storybook@10.5.8(@types/react@19.2.18)(prettier@3.8.3)(react@19.2.8))
       '@storybook/addon-docs':
-        specifier: 10.5.6
-        version: 10.5.6(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(esbuild@0.28.2)(rollup@4.62.4)(storybook@10.5.6(@types/react@19.2.18)(prettier@3.8.3)(react@19.2.8))(vite@8.2.1(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))(webpack@5.109.2(csso@5.0.5)(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.26))
+        specifier: 10.5.8
+        version: 10.5.8(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(esbuild@0.28.2)(rollup@4.62.4)(storybook@10.5.8(@types/react@19.2.18)(prettier@3.8.3)(react@19.2.8))(vite@8.2.1(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))(webpack@5.109.2(csso@5.0.5)(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.26))
       '@storybook/react-vite':
-        specifier: 10.5.6
-        version: 10.5.6(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(esbuild@0.28.2)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(rollup@4.62.4)(storybook@10.5.6(@types/react@19.2.18)(prettier@3.8.3)(react@19.2.8))(supports-color@8.1.1)(typescript@5.9.3)(vite@8.2.1(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))(webpack@5.109.2(csso@5.0.5)(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.26))
+        specifier: 10.5.8
+        version: 10.5.8(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(esbuild@0.28.2)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(rollup@4.62.4)(storybook@10.5.8(@types/react@19.2.18)(prettier@3.8.3)(react@19.2.8))(supports-color@8.1.1)(typescript@5.9.3)(vite@8.2.1(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))(webpack@5.109.2(csso@5.0.5)(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.26))
       '@stryker-mutator/core':
         specifier: ^9.6.1
         version: 9.6.1(@types/node@22.20.1)(supports-color@8.1.1)
@@ -270,8 +270,8 @@ importers:
         specifier: ^5.2.0
         version: 5.2.0(supports-color@8.1.1)(vite@8.2.1(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))
       electron:
-        specifier: 43.3.0
-        version: 43.3.0(supports-color@8.1.1)
+        specifier: 43.4.0
+        version: 43.4.0(supports-color@8.1.1)
       eslint:
         specifier: ^10.8.1
         version: 10.8.1(jiti@2.7.0)(supports-color@8.1.1)
@@ -282,11 +282,11 @@ importers:
         specifier: 0.4.0
         version: 0.4.0
       lucide-react:
-        specifier: 1.27.0
-        version: 1.27.0(react@19.2.8)
+        specifier: 1.31.0
+        version: 1.31.0(react@19.2.8)
       node-llama-cpp:
-        specifier: 3.19.1
-        version: 3.19.1(supports-color@8.1.1)(typescript@5.9.3)
+        specifier: 3.20.0
+        version: 3.20.0(supports-color@8.1.1)(typescript@5.9.3)
       node-pty:
         specifier: 1.2.0-beta.15
         version: 1.2.0-beta.15
@@ -300,11 +300,11 @@ importers:
         specifier: 4.12.2
         version: 4.12.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       storybook:
-        specifier: 10.5.6
-        version: 10.5.6(@types/react@19.2.18)(prettier@3.8.3)(react@19.2.8)
+        specifier: 10.5.8
+        version: 10.5.8(@types/react@19.2.18)(prettier@3.8.3)(react@19.2.8)
       typebox:
-        specifier: 1.3.7
-        version: 1.3.7
+        specifier: 1.3.14
+        version: 1.3.14
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -339,7 +339,7 @@ importers:
         specifier: ^0.4.0
         version: 0.4.0
       lucide-react:
-        specifier: ^1.29.0
+        specifier: ^1.31.0
         version: 1.31.0(react@19.2.8)
       react:
         specifier: ^19.2.8
@@ -388,8 +388,8 @@ importers:
         specifier: ^6.0.5
         version: 6.0.5(vite@8.2.1(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))
       electron:
-        specifier: 43.3.0
-        version: 43.3.0(supports-color@8.1.1)
+        specifier: 43.4.0
+        version: 43.4.0(supports-color@8.1.1)
       eslint:
         specifier: ^10.8.1
         version: 10.8.1(jiti@2.7.0)(supports-color@8.1.1)
@@ -416,14 +416,14 @@ importers:
     dependencies:
       '@astrojs/markdoc':
         specifier: ^2.0.0
-        version: 2.0.6(@types/react@19.2.18)(astro@7.2.1(@astrojs/markdown-remark@7.2.2(supports-color@8.1.1))(@emnapi/core@1.11.2)(@emnapi/runtime@1.11.2)(@types/node@24.13.3)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))(react@19.2.8)
+        version: 2.0.6(@types/react@19.2.18)(astro@7.2.2(@astrojs/markdown-remark@7.2.2(supports-color@8.1.1))(@emnapi/core@1.11.2)(@emnapi/runtime@1.11.2)(@types/node@24.13.3)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))(react@19.2.8)
     devDependencies:
       '@astrojs/markdown-remark':
         specifier: ^7.2.1
         version: 7.2.2(supports-color@8.1.1)
       astro:
-        specifier: ^7.2.1
-        version: 7.2.1(@astrojs/markdown-remark@7.2.2(supports-color@8.1.1))(@emnapi/core@1.11.2)(@emnapi/runtime@1.11.2)(@types/node@24.13.3)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0)
+        specifier: ^7.2.2
+        version: 7.2.2(@astrojs/markdown-remark@7.2.2(supports-color@8.1.1))(@emnapi/core@1.11.2)(@emnapi/runtime@1.11.2)(@types/node@24.13.3)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0)
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -453,8 +453,8 @@ packages:
     resolution: {integrity: sha1-HoTB6h4SqSHBqpTaSx9lcWjwlZY=}
     engines: {node: ^22.13.0 || >=24.0.0}
 
-  '@asteasolutions/zod-to-openapi@8.5.0':
-    resolution: {integrity: sha1-8HOCLarYfEqyrpke6GsaUHCsmUI=}
+  '@asteasolutions/zod-to-openapi@9.1.0':
+    resolution: {integrity: sha1-URgtKgXXfOsES+BmvyWKll3nz34=}
     peerDependencies:
       zod: ^4.0.0
 
@@ -913,14 +913,18 @@ packages:
     resolution: {integrity: sha1-eYozlQ0RImoOu2rK+mD1WUQkln8=}
     engines: {node: '>=20.19.0'}
 
-  '@earendil-works/pi-agent-core@0.83.0':
-    resolution: {integrity: sha1-QzLvACG4U4xoqHSsWt7W5sYPD/o=}
+  '@earendil-works/pi-agent-core@0.84.2':
+    resolution: {integrity: sha1-KjISRlkC8lU9wI0GqK9ZJtY9IaA=}
     engines: {node: '>=22.19.0'}
 
-  '@earendil-works/pi-ai@0.83.0':
-    resolution: {integrity: sha1-rJASh7ZxBGminHe9Owhhzi28Gow=}
+  '@earendil-works/pi-ai@0.84.2':
+    resolution: {integrity: sha1-cI8T0ZwPXP2UMv7nBLDN5G5NkG8=}
     engines: {node: '>=22.19.0'}
     hasBin: true
+
+  '@earendil-works/pi-telemetry@0.84.2':
+    resolution: {integrity: sha1-oXJf5KqwHJ/tB7cIJHtUsrLJePU=}
+    engines: {node: '>=22.19.0'}
 
   '@electron-forge/cli@7.11.2':
     resolution: {integrity: sha1-a9+C2jN7LKf2nIGEODq2KcBZjG0=}
@@ -1298,17 +1302,17 @@ packages:
       '@modelcontextprotocol/sdk':
         optional: true
 
-  '@hono/zod-openapi@1.5.0':
-    resolution: {integrity: sha1-QaYhgmjbgm3qRIhEqL+f64kRxJQ=}
+  '@hono/zod-openapi@1.6.0':
+    resolution: {integrity: sha1-eIBVJgF3M9+9js0TVFH8df6IthA=}
     engines: {node: '>=16.0.0'}
     peerDependencies:
       hono: '>=4.10.0'
       zod: ^4.0.0
 
-  '@hono/zod-validator@0.8.0':
-    resolution: {integrity: sha1-K/llPiBYEFBtGp+bT07UrH9D+S4=}
+  '@hono/zod-validator@0.9.0':
+    resolution: {integrity: sha1-x6ygnXTzXSKMTsYSjKYn8JcDiiw=}
     peerDependencies:
-      hono: '>=4.10.0'
+      hono: '>=4.11.2'
       zod: ^3.25.0 || ^4.0.0
 
   '@huggingface/jinja@0.5.9':
@@ -1757,14 +1761,6 @@ packages:
       '@types/react': '>=16'
       react: '>=16'
 
-  '@mistralai/mistralai@2.2.6':
-    resolution: {integrity: sha1-C8jALP+AkSl3oH8nu4hsG7WovZE=}
-    peerDependencies:
-      '@opentelemetry/api': ^1.9.0
-    peerDependenciesMeta:
-      '@opentelemetry/api':
-        optional: true
-
   '@mixmark-io/domino@2.2.0':
     resolution: {integrity: sha1-To7Gm/Gv63oU8GKLfiwPNb2zNsM=}
 
@@ -1782,93 +1778,93 @@ packages:
       '@emnapi/core': ^1.7.1 || ^2.0.0-alpha.3
       '@emnapi/runtime': ^1.7.1 || ^2.0.0-alpha.3
 
-  '@node-llama-cpp/linux-arm64@3.19.1':
-    resolution: {integrity: sha1-fIral4kCiKKSOYZNLsZmA1D7WCo=}
+  '@node-llama-cpp/linux-arm64@3.20.0':
+    resolution: {integrity: sha1-2jBCu8qB0+/fVXLtjc+sO0p5eJU=}
     engines: {node: '>=20.0.0'}
     cpu: [arm64, x64]
     os: [linux]
     libc: [glibc]
 
-  '@node-llama-cpp/linux-armv7l@3.19.1':
-    resolution: {integrity: sha1-KNR/j1MOsbCiqNQEZAb9p8pSSWI=}
+  '@node-llama-cpp/linux-armv7l@3.20.0':
+    resolution: {integrity: sha1-47Du81xSwFA2OaE77rC5dllJljk=}
     engines: {node: '>=20.0.0'}
     cpu: [arm, x64]
     os: [linux]
     libc: [glibc]
 
-  '@node-llama-cpp/linux-riscv64@3.19.1':
-    resolution: {integrity: sha1-78u07cJ8ZHTU2UQwjbu/Dh1KxYk=}
+  '@node-llama-cpp/linux-riscv64@3.20.0':
+    resolution: {integrity: sha1-YnSr+gh+15m+M11t4R+Jo8CLvn0=}
     engines: {node: '>=20.0.0'}
     cpu: [riscv64]
     os: [linux]
     libc: [glibc]
 
-  '@node-llama-cpp/linux-x64-cuda-ext@3.19.1':
-    resolution: {integrity: sha1-NDuIfxmv7D4jrL39/xO1kW3298U=}
+  '@node-llama-cpp/linux-x64-cuda-ext@3.20.0':
+    resolution: {integrity: sha1-z0y4EA7YoyXPe92ocXSCxAyPkOM=}
     engines: {node: '>=20.0.0'}
     cpu: [x64]
     os: [linux]
     libc: [glibc]
 
-  '@node-llama-cpp/linux-x64-cuda@3.19.1':
-    resolution: {integrity: sha1-UGm3ihdNmmmOYKlyqm9SuGc1SpE=}
+  '@node-llama-cpp/linux-x64-cuda@3.20.0':
+    resolution: {integrity: sha1-AMaMqsA0lzKp06tRJdvLYqwL8g4=}
     engines: {node: '>=20.0.0'}
     cpu: [x64]
     os: [linux]
     libc: [glibc]
 
-  '@node-llama-cpp/linux-x64-vulkan@3.19.1':
-    resolution: {integrity: sha1-F4P6afVsJ2VhhRk+szwBW34Mm/4=}
+  '@node-llama-cpp/linux-x64-vulkan@3.20.0':
+    resolution: {integrity: sha1-hqWeryqpN5ZpPWA9B2KIx4+1/Ec=}
     engines: {node: '>=20.0.0'}
     cpu: [x64]
     os: [linux]
     libc: [glibc]
 
-  '@node-llama-cpp/linux-x64@3.19.1':
-    resolution: {integrity: sha1-twYIkgy2YS1P0bm6y3gfEU6dbtY=}
+  '@node-llama-cpp/linux-x64@3.20.0':
+    resolution: {integrity: sha1-jCYK4w041nHy2E+zXYn/m0G13tQ=}
     engines: {node: '>=20.0.0'}
     cpu: [x64]
     os: [linux]
     libc: [glibc]
 
-  '@node-llama-cpp/mac-arm64-metal@3.19.1':
-    resolution: {integrity: sha1-jgkTxn57GsGasK8cMqXYRDujrL8=}
+  '@node-llama-cpp/mac-arm64-metal@3.20.0':
+    resolution: {integrity: sha1-xOYP9GOjlVZjDg75Ko763JZ0ztI=}
     engines: {node: '>=20.0.0'}
     cpu: [arm64, x64]
     os: [darwin]
 
-  '@node-llama-cpp/mac-x64@3.19.1':
-    resolution: {integrity: sha1-Qk+bAXR8hjiuUuutG2Kr0vxD0dw=}
+  '@node-llama-cpp/mac-x64@3.20.0':
+    resolution: {integrity: sha1-+BFKLv2/r274ZlzR9TbFC+myIXM=}
     engines: {node: '>=20.0.0'}
     cpu: [x64]
     os: [darwin]
 
-  '@node-llama-cpp/win-arm64@3.19.1':
-    resolution: {integrity: sha1-/MrtO6r/ZTAjjNjMxBHfLx8A5fQ=}
+  '@node-llama-cpp/win-arm64@3.20.0':
+    resolution: {integrity: sha1-49XOzX8vSeqskEn//d646U4UzaI=}
     engines: {node: '>=20.0.0'}
     cpu: [arm64, x64]
     os: [win32]
 
-  '@node-llama-cpp/win-x64-cuda-ext@3.19.1':
-    resolution: {integrity: sha1-KmYkN92DGNf3FOKggK5ixaaJSKU=}
+  '@node-llama-cpp/win-x64-cuda-ext@3.20.0':
+    resolution: {integrity: sha1-0rCxLORgx0hn/2DhBnNiGwra5yk=}
     engines: {node: '>=20.0.0'}
     cpu: [x64]
     os: [win32]
 
-  '@node-llama-cpp/win-x64-cuda@3.19.1':
-    resolution: {integrity: sha1-2ImeS+d3DydbFHty0VT2ecy/4ho=}
+  '@node-llama-cpp/win-x64-cuda@3.20.0':
+    resolution: {integrity: sha1-vmB0bWBfNlpRVoy1kZaZf9U8GFs=}
     engines: {node: '>=20.0.0'}
     cpu: [x64]
     os: [win32]
 
-  '@node-llama-cpp/win-x64-vulkan@3.19.1':
-    resolution: {integrity: sha1-8ZJEFlGhTl3XPSHJZwHUZVmB3w8=}
+  '@node-llama-cpp/win-x64-vulkan@3.20.0':
+    resolution: {integrity: sha1-6zIh5HGY9TYzqng7NVpWX8gPWcU=}
     engines: {node: '>=20.0.0'}
     cpu: [x64]
     os: [win32]
 
-  '@node-llama-cpp/win-x64@3.19.1':
-    resolution: {integrity: sha1-TsZqutpvgSpNzJmfUOgKXGvTb78=}
+  '@node-llama-cpp/win-x64@3.20.0':
+    resolution: {integrity: sha1-k70omnqys3Md8PtP446fhBhu2IE=}
     engines: {node: '>=20.0.0'}
     cpu: [x64]
     os: [win32]
@@ -1897,10 +1893,6 @@ packages:
   '@opentelemetry/api@1.9.0':
     resolution: {integrity: sha1-0D66aCc9wPdQnio9XLoh6uEDef4=}
     engines: {node: '>=8.0.0'}
-
-  '@opentelemetry/semantic-conventions@1.43.0':
-    resolution: {integrity: sha1-8/Rn42wnMy8Oc17IbNzXjdbyeGU=}
-    engines: {node: '>=14'}
 
   '@oslojs/encoding@1.1.0':
     resolution: {integrity: sha1-VfPZpZdDCgHype9jxrQvdp+c404=}
@@ -3033,32 +3025,32 @@ packages:
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha1-p5tV26+GBIEvUtFAssmrQbwVC7g=}
 
-  '@storybook/addon-a11y@10.5.6':
-    resolution: {integrity: sha1-DHgeeDJ4KoocpTArJejVH3sxrxs=}
+  '@storybook/addon-a11y@10.5.8':
+    resolution: {integrity: sha1-dQw+mB2+t/cR+taiK4N1nncS5cM=}
     peerDependencies:
-      storybook: ^10.5.6
+      storybook: ^10.5.8
 
-  '@storybook/addon-docs@10.5.6':
-    resolution: {integrity: sha1-RF1OCZKghioiv/zqMh7iywNIRrU=}
+  '@storybook/addon-docs@10.5.8':
+    resolution: {integrity: sha1-dnwQx6TMG2Jbk/hpsqKwn8hRTy4=}
     peerDependencies:
       '@types/react': ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
-      storybook: ^10.5.6
+      storybook: ^10.5.8
     peerDependenciesMeta:
       '@types/react':
         optional: true
 
-  '@storybook/builder-vite@10.5.6':
-    resolution: {integrity: sha1-wQvFUNirJQHJig0quBzYetGHS2w=}
+  '@storybook/builder-vite@10.5.8':
+    resolution: {integrity: sha1-38CscYElYwLa5shKmurSsqlPMDQ=}
     peerDependencies:
-      storybook: ^10.5.6
+      storybook: ^10.5.8
       vite: ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0
 
-  '@storybook/csf-plugin@10.5.6':
-    resolution: {integrity: sha1-n8oo9f19VFoyY4u08IkC9ohwcrI=}
+  '@storybook/csf-plugin@10.5.8':
+    resolution: {integrity: sha1-xibFv+VdDiebJFflzxUKeI0fxjc=}
     peerDependencies:
       esbuild: 0.28.2
       rollup: '*'
-      storybook: ^10.5.6
+      storybook: ^10.5.8
       vite: '*'
       webpack: '*'
     peerDependenciesMeta:
@@ -3079,40 +3071,40 @@ packages:
     peerDependencies:
       react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
-  '@storybook/react-dom-shim@10.5.6':
-    resolution: {integrity: sha1-NoVgXJ3Scpj62n/vJkgBsufWLLs=}
+  '@storybook/react-dom-shim@10.5.8':
+    resolution: {integrity: sha1-QMw+Mq9CS6ouQQmjJdri7eKZmeI=}
     peerDependencies:
       '@types/react': ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
       '@types/react-dom': ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
       react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
       react-dom: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
-      storybook: ^10.5.6
+      storybook: ^10.5.8
     peerDependenciesMeta:
       '@types/react':
         optional: true
       '@types/react-dom':
         optional: true
 
-  '@storybook/react-vite@10.5.6':
-    resolution: {integrity: sha1-HutYCrEWNqsBQGPRE/ebArZrjhY=}
+  '@storybook/react-vite@10.5.8':
+    resolution: {integrity: sha1-ZhavS/evqccsDvDzQ4afdD62Uhk=}
     peerDependencies:
       react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
       react-dom: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
-      storybook: ^10.5.6
+      storybook: ^10.5.8
       typescript: '>= 4.9.x'
       vite: ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0
     peerDependenciesMeta:
       typescript:
         optional: true
 
-  '@storybook/react@10.5.6':
-    resolution: {integrity: sha1-ywDY1Ra/JP4/oYrbEOdux2z05OE=}
+  '@storybook/react@10.5.8':
+    resolution: {integrity: sha1-SOsg3oDHljKhTx7cp3hoOOEci7I=}
     peerDependencies:
       '@types/react': ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
       '@types/react-dom': ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
       react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
       react-dom: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
-      storybook: ^10.5.6
+      storybook: ^10.5.8
       typescript: '>= 4.9.x'
     peerDependenciesMeta:
       '@types/react':
@@ -3171,33 +3163,33 @@ packages:
     resolution: {integrity: sha1-Na3GIi42YvoiIs4SO5YUdqdGueo=}
     engines: {node: '>= 10'}
 
-  '@turbo/darwin-64@2.10.9':
-    resolution: {integrity: sha1-UBSzPPtcGiyeBAFIvhGFo8tRyVw=}
+  '@turbo/darwin-64@2.10.10':
+    resolution: {integrity: sha1-Q8V1J6PvUTFewhrJb8WyrRmKwHw=}
     cpu: [x64]
     os: [darwin]
 
-  '@turbo/darwin-arm64@2.10.9':
-    resolution: {integrity: sha1-7yeghRvgleqxUSC8YZlaLLGilIk=}
+  '@turbo/darwin-arm64@2.10.10':
+    resolution: {integrity: sha1-NiaSgxX3A3gdkOjm5tVnpE925jA=}
     cpu: [arm64]
     os: [darwin]
 
-  '@turbo/linux-64@2.10.9':
-    resolution: {integrity: sha1-b73Nyn+1FMps1Msem3Aklqag+BI=}
+  '@turbo/linux-64@2.10.10':
+    resolution: {integrity: sha1-c9Z2F/vqI4JJq6Ly1nd0+LBOqGg=}
     cpu: [x64]
     os: [android, linux]
 
-  '@turbo/linux-arm64@2.10.9':
-    resolution: {integrity: sha1-XcRyBj9uS6uLB9xFjcptiLwfBw4=}
+  '@turbo/linux-arm64@2.10.10':
+    resolution: {integrity: sha1-6wbjgoIVnf2XlOZLwABDC90ykyA=}
     cpu: [arm64]
     os: [android, linux]
 
-  '@turbo/windows-64@2.10.9':
-    resolution: {integrity: sha1-DEMMWnx2fAcaWieP6a84qFIrkJQ=}
+  '@turbo/windows-64@2.10.10':
+    resolution: {integrity: sha1-pSqb9ZnTQ4faKStHCCfRLOwm8Ck=}
     cpu: [x64]
     os: [win32]
 
-  '@turbo/windows-arm64@2.10.9':
-    resolution: {integrity: sha1-4Zv+vmLsEG6pGakGjEgT2O+7rQ0=}
+  '@turbo/windows-arm64@2.10.10':
+    resolution: {integrity: sha1-+J8IW0/E+BwiMkYHSrbK1WbOqtY=}
     cpu: [arm64]
     os: [win32]
 
@@ -3653,8 +3645,8 @@ packages:
     resolution: {integrity: sha1-ep2hYXyQgbwSH6r+kXEbTIu4HaI=}
     engines: {node: '>=4'}
 
-  astro@7.2.1:
-    resolution: {integrity: sha1-WR7OwVRtub4e6ISosfDBlRm8F+U=}
+  astro@7.2.2:
+    resolution: {integrity: sha1-te2s7/P7THxEeAb6UyTu791zpY8=}
     engines: {node: '>=22.12.0', npm: '>=9.6.5', pnpm: '>=7.1.0'}
     hasBin: true
     peerDependencies:
@@ -3879,8 +3871,8 @@ packages:
     resolution: {integrity: sha1-fVTv+fVLRbYkAcJgMmlutZyL0Yw=}
     engines: {node: '>=8'}
 
-  citty@0.1.6:
-    resolution: {integrity: sha1-D3kE2h7UYl4anqfg+ngJgaq3xeQ=}
+  citty@0.2.2:
+    resolution: {integrity: sha1-ktP30ThopzCrBsQguxC97QbPJZ8=}
 
   clean-stack@2.2.0:
     resolution: {integrity: sha1-7oRy27Ep5yezHooQpCfe6d/kAIs=}
@@ -4258,8 +4250,8 @@ packages:
   electron-to-chromium@1.5.404:
     resolution: {integrity: sha1-nzTm0grilXX7rnAWgMLp8pKpKSk=}
 
-  electron@43.3.0:
-    resolution: {integrity: sha1-hRfL2UAtuX5yZ83tM8ASn/873Lg=}
+  electron@43.4.0:
+    resolution: {integrity: sha1-bWV5zGGsyG/kkGH3RZTCI8kV0yY=}
     engines: {node: '>= 22.12.0'}
     hasBin: true
 
@@ -4636,6 +4628,10 @@ packages:
     resolution: {integrity: sha1-RCZdPKwH4+p9wkdRY4BkN1SgUpI=}
     engines: {node: '>=8'}
 
+  find-process@2.1.1:
+    resolution: {integrity: sha1-1q44uoxpd/afy0jRKeZ4EiQYYw8=}
+    hasBin: true
+
   find-up-simple@1.0.1:
     resolution: {integrity: sha1-GPuQrUnkUlLE1/yla6reBPo/yh4=}
     engines: {node: '>=18'}
@@ -4912,8 +4908,8 @@ packages:
   hermes-parser@0.25.1:
     resolution: {integrity: sha1-W+Dkh7IJCIbGK9ihFyTNdm1fVNE=}
 
-  hono@4.13.1:
-    resolution: {integrity: sha1-1KYGt5KVTQemIV0SwBt89Z2gPLw=}
+  hono@4.13.2:
+    resolution: {integrity: sha1-aS1ADSoOoIbj7sXHOqMgfLU/l7U=}
     engines: {node: '>=16.9.0'}
 
   hosted-git-info@2.8.9:
@@ -5196,41 +5192,41 @@ packages:
     resolution: {integrity: sha1-ASFsAB1n9I4s1WDXCMevIQkKOEg=}
     hasBin: true
 
-  jscpd-darwin-arm64@5.0.14:
-    resolution: {integrity: sha1-BQvzkRQQWQ/NP4MDk6Up99smDrc=}
+  jscpd-darwin-arm64@5.0.16:
+    resolution: {integrity: sha1-syO/VPD0KQQZgHe2ZeldvsXQ4tI=}
     cpu: [arm64]
     os: [darwin]
 
-  jscpd-darwin-x64@5.0.14:
-    resolution: {integrity: sha1-ICX8EJ9Na6fdL/hgkClX8N2h4f8=}
+  jscpd-darwin-x64@5.0.16:
+    resolution: {integrity: sha1-XMKlo05BmBtspEkEYZ9QxqJZDIw=}
     cpu: [x64]
     os: [darwin]
 
-  jscpd-linux-arm64-gnu@5.0.14:
-    resolution: {integrity: sha1-4Lql63pXbieOZ9FU4YG7HlJnc1g=}
+  jscpd-linux-arm64-gnu@5.0.16:
+    resolution: {integrity: sha1-Q6B9MaVXs66rA1CvDQLvRtEEVwI=}
     cpu: [arm64]
     os: [linux]
     libc: [glibc]
 
-  jscpd-linux-x64-gnu@5.0.14:
-    resolution: {integrity: sha1-gFa19bVJjVMXMPSrmqPsUMlHLTI=}
+  jscpd-linux-x64-gnu@5.0.16:
+    resolution: {integrity: sha1-zRgFy6HN8wsvYz7Y3OB4cru35tM=}
     cpu: [x64]
     os: [linux]
     libc: [glibc]
 
-  jscpd-linux-x64-musl@5.0.14:
-    resolution: {integrity: sha1-2RIRF7g/9/CbCwLaElX3Oa+KlzM=}
+  jscpd-linux-x64-musl@5.0.16:
+    resolution: {integrity: sha1-iBw98sK1z5RkDZmYc6PbzwB4BMg=}
     cpu: [x64]
     os: [linux]
     libc: [musl]
 
-  jscpd-windows-x64-msvc@5.0.14:
-    resolution: {integrity: sha1-m70NjnUsuif7czEtFJyFgiRKwS4=}
+  jscpd-windows-x64-msvc@5.0.16:
+    resolution: {integrity: sha1-uhcNSUOp5G3KaFNQtgJ85ZVKNXk=}
     cpu: [x64]
     os: [win32]
 
-  jscpd@5.0.14:
-    resolution: {integrity: sha1-ezD1m60pIxxhtNj1wEcLHDUrwEc=}
+  jscpd@5.0.16:
+    resolution: {integrity: sha1-8yrU5T9mY2UaGFDHHQiNi+XTwsw=}
     engines: {node: '>=18'}
     hasBin: true
 
@@ -5327,8 +5323,8 @@ packages:
   lifecycle-utils@2.1.0:
     resolution: {integrity: sha1-RHxoSao2aSoNIyeTfI8tOxQR9Ns=}
 
-  lifecycle-utils@3.2.0:
-    resolution: {integrity: sha1-IsJsC5NawWbq6EVEjvYmFxxTvLU=}
+  lifecycle-utils@4.1.0:
+    resolution: {integrity: sha1-GZqEevNpaHVSjo1UZTrgLjZ89vc=}
 
   lightningcss-android-arm64@1.33.0:
     resolution: {integrity: sha1-mmhB+IrlD8g1ApA4krQa9BvCuQc=}
@@ -5466,6 +5462,10 @@ packages:
     resolution: {integrity: sha1-GgT/OBZvlGR64a9WL0vWoVsbfNQ=}
     engines: {node: '>=18'}
 
+  loglevel@1.9.2:
+    resolution: {integrity: sha1-wuAo1sdXcgEH305kUIUw22Yhugg=}
+    engines: {node: '>= 0.6.0'}
+
   long@5.3.2:
     resolution: {integrity: sha1-HYRGMJWZkmLX17f4v9SozFUWf4M=}
 
@@ -5493,11 +5493,6 @@ packages:
   lru-cache@7.18.3:
     resolution: {integrity: sha1-95OJbg/Q6VSlnf3YLwdzgI32qok=}
     engines: {node: '>=12'}
-
-  lucide-react@1.27.0:
-    resolution: {integrity: sha1-d79S6d+sRKuf/RHRuOipbanAzIM=}
-    peerDependencies:
-      react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
   lucide-react@1.31.0:
     resolution: {integrity: sha1-HnWPP4a8BFaVfUR+blULZF2W4lU=}
@@ -5929,8 +5924,8 @@ packages:
     resolution: {integrity: sha1-0eiJus33M7T/OyskPrehKGagt4s=}
     engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
 
-  node-llama-cpp@3.19.1:
-    resolution: {integrity: sha1-igT6V+5JF7q5qLUlF0m0l5Lc8Us=}
+  node-llama-cpp@3.20.0:
+    resolution: {integrity: sha1-KuoeU1GLimrB3K7MqDaPV3OkQtQ=}
     engines: {node: '>=20.0.0'}
     hasBin: true
     peerDependencies:
@@ -6027,9 +6022,8 @@ packages:
     resolution: {integrity: sha1-udhVvgB2IOgLb7BfrJgUH+Yttzw=}
     engines: {node: '>=18'}
 
-  openai@6.26.0:
-    resolution: {integrity: sha1-4xuBBAYGBQxH532D1d8vb83Ourk=}
-    hasBin: true
+  openai@6.40.0:
+    resolution: {integrity: sha1-bb4ETPBTepHgp5SYePhW6QM4avw=}
     peerDependencies:
       ws: ^8.18.0
       zod: ^3.25 || ^4.0
@@ -6873,8 +6867,8 @@ packages:
   sprintf-js@1.1.3:
     resolution: {integrity: sha1-SRS5A6L4toXRf994pw6RfocuREo=}
 
-  srvx@0.11.22:
-    resolution: {integrity: sha1-+DQTYoAU6zdBa6RgnhC0uzhHIpU=}
+  srvx@0.12.5:
+    resolution: {integrity: sha1-kXKA0dUrf56EHjJS9zOTWnUi4PY=}
     engines: {node: '>=20.16.0'}
     hasBin: true
 
@@ -6900,8 +6894,8 @@ packages:
     resolution: {integrity: sha1-m9mw/8ImoflDbykTLIuOcZnSLFA=}
     engines: {node: '>=18'}
 
-  storybook@10.5.6:
-    resolution: {integrity: sha1-yR8i9hfzcY3QbFjIe0b/ZvTOe/U=}
+  storybook@10.5.8:
+    resolution: {integrity: sha1-1fBRmD5iMsCnPqAhSacse6+0MnU=}
     hasBin: true
     peerDependencies:
       '@types/react': ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
@@ -7180,8 +7174,8 @@ packages:
     resolution: {integrity: sha1-cvExSzSlsZLbASMk3yzFh8pH+Sw=}
     engines: {node: '>=0.6.11 <=0.7.0 || >=0.7.3'}
 
-  turbo@2.10.9:
-    resolution: {integrity: sha1-znV5k5ZauRXfBZ9oW4slfdLQR/U=}
+  turbo@2.10.10:
+    resolution: {integrity: sha1-iAvIFdYAI/fAp29AD7Km0xRLerE=}
     hasBin: true
 
   turndown@7.2.4:
@@ -7211,6 +7205,9 @@ packages:
   type-fest@4.41.0:
     resolution: {integrity: sha1-auHI5XMSc8K/H1itOcuuLJGkbFg=}
     engines: {node: '>=16'}
+
+  typebox@1.3.14:
+    resolution: {integrity: sha1-pYoKorQR32oeA8WTysJdK2d65M0=}
 
   typebox@1.3.7:
     resolution: {integrity: sha1-IfAKYPBxLtQ4rWHAZlq8oE1yuyQ=}
@@ -7743,11 +7740,6 @@ packages:
     resolution: {integrity: sha1-xLaO5HfzmCwz5N4kpapKNUvlBtM=}
     engines: {node: '>=18'}
 
-  zod-to-json-schema@3.25.2:
-    resolution: {integrity: sha1-P6eZp7rdVUVBRy+2WEP9xGCy5ao=}
-    peerDependencies:
-      zod: ^3.25.28 || ^4
-
   zod-validation-error@4.0.2:
     resolution: {integrity: sha1-vGBeuknOD81ZjBJ/7hwja+PyKRg=}
     engines: {node: '>=18.0.0'}
@@ -7787,7 +7779,7 @@ snapshots:
       is-potential-custom-element-name: 1.0.1
       lru-cache: 11.5.2
 
-  '@asteasolutions/zod-to-openapi@8.5.0(zod@4.4.3)':
+  '@asteasolutions/zod-to-openapi@9.1.0(zod@4.4.3)':
     dependencies:
       openapi3-ts: 4.6.1
       zod: 4.4.3
@@ -7857,12 +7849,12 @@ snapshots:
       smol-toml: 1.7.1
       unified: 11.0.5
 
-  '@astrojs/markdoc@2.0.6(@types/react@19.2.18)(astro@7.2.1(@astrojs/markdown-remark@7.2.2(supports-color@8.1.1))(@emnapi/core@1.11.2)(@emnapi/runtime@1.11.2)(@types/node@24.13.3)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))(react@19.2.8)':
+  '@astrojs/markdoc@2.0.6(@types/react@19.2.18)(astro@7.2.2(@astrojs/markdown-remark@7.2.2(supports-color@8.1.1))(@emnapi/core@1.11.2)(@emnapi/runtime@1.11.2)(@types/node@24.13.3)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))(react@19.2.8)':
     dependencies:
       '@astrojs/internal-helpers': 0.10.2
       '@astrojs/prism': 4.0.2
       '@markdoc/markdoc': 0.5.9(@types/react@19.2.18)(react@19.2.8)
-      astro: 7.2.1(@astrojs/markdown-remark@7.2.2(supports-color@8.1.1))(@emnapi/core@1.11.2)(@emnapi/runtime@1.11.2)(@types/node@24.13.3)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0)
+      astro: 7.2.2(@astrojs/markdown-remark@7.2.2(supports-color@8.1.1))(@emnapi/core@1.11.2)(@emnapi/runtime@1.11.2)(@types/node@24.13.3)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0)
       esbuild: 0.28.2
       github-slugger: 2.0.0
       htmlparser2: 12.0.0
@@ -8428,9 +8420,10 @@ snapshots:
 
   '@csstools/css-tokenizer@4.0.0': {}
 
-  '@earendil-works/pi-agent-core@0.83.0(supports-color@8.1.1)(ws@8.21.3)(zod@4.4.3)':
+  '@earendil-works/pi-agent-core@0.84.2(supports-color@8.1.1)(ws@8.21.3)(zod@4.4.3)':
     dependencies:
-      '@earendil-works/pi-ai': 0.83.0(supports-color@8.1.1)(ws@8.21.3)(zod@4.4.3)
+      '@earendil-works/pi-ai': 0.84.2(supports-color@8.1.1)(ws@8.21.3)(zod@4.4.3)
+      '@earendil-works/pi-telemetry': 0.84.2
       diff: 8.0.4
       ignore: 7.0.5
       typebox: 1.3.7
@@ -8443,17 +8436,17 @@ snapshots:
       - ws
       - zod
 
-  '@earendil-works/pi-ai@0.83.0(supports-color@8.1.1)(ws@8.21.3)(zod@4.4.3)':
+  '@earendil-works/pi-ai@0.84.2(supports-color@8.1.1)(ws@8.21.3)(zod@4.4.3)':
     dependencies:
       '@anthropic-ai/sdk': 0.91.1(zod@4.4.3)
       '@aws-sdk/client-bedrock-runtime': 3.1048.0
+      '@earendil-works/pi-telemetry': 0.84.2
       '@google/genai': 1.52.0(supports-color@8.1.1)
-      '@mistralai/mistralai': 2.2.6(@opentelemetry/api@1.9.0)
       '@opentelemetry/api': 1.9.0
       '@smithy/node-http-handler': 4.7.3
       http-proxy-agent: 7.0.2(supports-color@8.1.1)
       https-proxy-agent: 7.0.6(supports-color@8.1.1)
-      openai: 6.26.0(ws@8.21.3)(zod@4.4.3)
+      openai: 6.40.0(ws@8.21.3)(zod@4.4.3)
       partial-json: 0.1.7
       typebox: 1.3.7
     transitivePeerDependencies:
@@ -8463,6 +8456,8 @@ snapshots:
       - utf-8-validate
       - ws
       - zod
+
+  '@earendil-works/pi-telemetry@0.84.2': {}
 
   '@electron-forge/cli@7.11.2(bluebird@3.7.2)(csso@5.0.5)(encoding@0.1.13)(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.26)(supports-color@8.1.1)':
     dependencies:
@@ -9025,17 +9020,17 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  '@hono/zod-openapi@1.5.0(hono@4.13.1)(zod@4.4.3)':
+  '@hono/zod-openapi@1.6.0(hono@4.13.2)(zod@4.4.3)':
     dependencies:
-      '@asteasolutions/zod-to-openapi': 8.5.0(zod@4.4.3)
-      '@hono/zod-validator': 0.8.0(hono@4.13.1)(zod@4.4.3)
-      hono: 4.13.1
+      '@asteasolutions/zod-to-openapi': 9.1.0(zod@4.4.3)
+      '@hono/zod-validator': 0.9.0(hono@4.13.2)(zod@4.4.3)
+      hono: 4.13.2
       openapi3-ts: 4.6.1
       zod: 4.4.3
 
-  '@hono/zod-validator@0.8.0(hono@4.13.1)(zod@4.4.3)':
+  '@hono/zod-validator@0.9.0(hono@4.13.2)(zod@4.4.3)':
     dependencies:
-      hono: 4.13.1
+      hono: 4.13.2
       zod: 4.4.3
 
   '@huggingface/jinja@0.5.9': {}
@@ -9563,18 +9558,6 @@ snapshots:
       '@types/react': 19.2.18
       react: 19.2.8
 
-  '@mistralai/mistralai@2.2.6(@opentelemetry/api@1.9.0)':
-    dependencies:
-      '@opentelemetry/semantic-conventions': 1.43.0
-      ws: 8.21.3
-      zod: 4.4.3
-      zod-to-json-schema: 3.25.2(zod@4.4.3)
-    optionalDependencies:
-      '@opentelemetry/api': 1.9.0
-    transitivePeerDependencies:
-      - bufferutil
-      - utf-8-validate
-
   '@mixmark-io/domino@2.2.0': {}
 
   '@napi-rs/lzma-linux-x64-gnu@1.5.1':
@@ -9601,46 +9584,46 @@ snapshots:
       '@tybys/wasm-util': 0.10.3
     optional: true
 
-  '@node-llama-cpp/linux-arm64@3.19.1':
+  '@node-llama-cpp/linux-arm64@3.20.0':
     optional: true
 
-  '@node-llama-cpp/linux-armv7l@3.19.1':
+  '@node-llama-cpp/linux-armv7l@3.20.0':
     optional: true
 
-  '@node-llama-cpp/linux-riscv64@3.19.1':
+  '@node-llama-cpp/linux-riscv64@3.20.0':
     optional: true
 
-  '@node-llama-cpp/linux-x64-cuda-ext@3.19.1':
+  '@node-llama-cpp/linux-x64-cuda-ext@3.20.0':
     optional: true
 
-  '@node-llama-cpp/linux-x64-cuda@3.19.1':
+  '@node-llama-cpp/linux-x64-cuda@3.20.0':
     optional: true
 
-  '@node-llama-cpp/linux-x64-vulkan@3.19.1':
+  '@node-llama-cpp/linux-x64-vulkan@3.20.0':
     optional: true
 
-  '@node-llama-cpp/linux-x64@3.19.1':
+  '@node-llama-cpp/linux-x64@3.20.0':
     optional: true
 
-  '@node-llama-cpp/mac-arm64-metal@3.19.1':
+  '@node-llama-cpp/mac-arm64-metal@3.20.0':
     optional: true
 
-  '@node-llama-cpp/mac-x64@3.19.1':
+  '@node-llama-cpp/mac-x64@3.20.0':
     optional: true
 
-  '@node-llama-cpp/win-arm64@3.19.1':
+  '@node-llama-cpp/win-arm64@3.20.0':
     optional: true
 
-  '@node-llama-cpp/win-x64-cuda-ext@3.19.1':
+  '@node-llama-cpp/win-x64-cuda-ext@3.20.0':
     optional: true
 
-  '@node-llama-cpp/win-x64-cuda@3.19.1':
+  '@node-llama-cpp/win-x64-cuda@3.20.0':
     optional: true
 
-  '@node-llama-cpp/win-x64-vulkan@3.19.1':
+  '@node-llama-cpp/win-x64-vulkan@3.20.0':
     optional: true
 
-  '@node-llama-cpp/win-x64@3.19.1':
+  '@node-llama-cpp/win-x64@3.20.0':
     optional: true
 
   '@nodelib/fs.scandir@2.1.5':
@@ -9666,8 +9649,6 @@ snapshots:
       rimraf: 3.0.2
 
   '@opentelemetry/api@1.9.0': {}
-
-  '@opentelemetry/semantic-conventions@1.43.0': {}
 
   '@oslojs/encoding@1.1.0': {}
 
@@ -10498,21 +10479,21 @@ snapshots:
 
   '@standard-schema/spec@1.1.0': {}
 
-  '@storybook/addon-a11y@10.5.6(storybook@10.5.6(@types/react@19.2.18)(prettier@3.8.3)(react@19.2.8))':
+  '@storybook/addon-a11y@10.5.8(storybook@10.5.8(@types/react@19.2.18)(prettier@3.8.3)(react@19.2.8))':
     dependencies:
       '@storybook/global': 5.0.0
       axe-core: 4.13.0
-      storybook: 10.5.6(@types/react@19.2.18)(prettier@3.8.3)(react@19.2.8)
+      storybook: 10.5.8(@types/react@19.2.18)(prettier@3.8.3)(react@19.2.8)
 
-  '@storybook/addon-docs@10.5.6(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(esbuild@0.28.2)(rollup@4.62.4)(storybook@10.5.6(@types/react@19.2.18)(prettier@3.8.3)(react@19.2.8))(vite@8.2.1(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))(webpack@5.109.2(csso@5.0.5)(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.26))':
+  '@storybook/addon-docs@10.5.8(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(esbuild@0.28.2)(rollup@4.62.4)(storybook@10.5.8(@types/react@19.2.18)(prettier@3.8.3)(react@19.2.8))(vite@8.2.1(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))(webpack@5.109.2(csso@5.0.5)(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.26))':
     dependencies:
       '@mdx-js/react': 3.1.1(@types/react@19.2.18)(react@19.2.8)
-      '@storybook/csf-plugin': 10.5.6(esbuild@0.28.2)(rollup@4.62.4)(storybook@10.5.6(@types/react@19.2.18)(prettier@3.8.3)(react@19.2.8))(vite@8.2.1(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))(webpack@5.109.2(csso@5.0.5)(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.26))
+      '@storybook/csf-plugin': 10.5.8(esbuild@0.28.2)(rollup@4.62.4)(storybook@10.5.8(@types/react@19.2.18)(prettier@3.8.3)(react@19.2.8))(vite@8.2.1(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))(webpack@5.109.2(csso@5.0.5)(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.26))
       '@storybook/icons': 2.1.0(react@19.2.8)
-      '@storybook/react-dom-shim': 10.5.6(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(storybook@10.5.6(@types/react@19.2.18)(prettier@3.8.3)(react@19.2.8))
+      '@storybook/react-dom-shim': 10.5.8(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(storybook@10.5.8(@types/react@19.2.18)(prettier@3.8.3)(react@19.2.8))
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
-      storybook: 10.5.6(@types/react@19.2.18)(prettier@3.8.3)(react@19.2.8)
+      storybook: 10.5.8(@types/react@19.2.18)(prettier@3.8.3)(react@19.2.8)
       ts-dedent: 2.3.0
     optionalDependencies:
       '@types/react': 19.2.18
@@ -10523,10 +10504,10 @@ snapshots:
       - vite
       - webpack
 
-  '@storybook/builder-vite@10.5.6(esbuild@0.28.2)(rollup@4.62.4)(storybook@10.5.6(@types/react@19.2.18)(prettier@3.8.3)(react@19.2.8))(vite@8.2.1(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))(webpack@5.109.2(csso@5.0.5)(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.26))':
+  '@storybook/builder-vite@10.5.8(esbuild@0.28.2)(rollup@4.62.4)(storybook@10.5.8(@types/react@19.2.18)(prettier@3.8.3)(react@19.2.8))(vite@8.2.1(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))(webpack@5.109.2(csso@5.0.5)(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.26))':
     dependencies:
-      '@storybook/csf-plugin': 10.5.6(esbuild@0.28.2)(rollup@4.62.4)(storybook@10.5.6(@types/react@19.2.18)(prettier@3.8.3)(react@19.2.8))(vite@8.2.1(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))(webpack@5.109.2(csso@5.0.5)(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.26))
-      storybook: 10.5.6(@types/react@19.2.18)(prettier@3.8.3)(react@19.2.8)
+      '@storybook/csf-plugin': 10.5.8(esbuild@0.28.2)(rollup@4.62.4)(storybook@10.5.8(@types/react@19.2.18)(prettier@3.8.3)(react@19.2.8))(vite@8.2.1(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))(webpack@5.109.2(csso@5.0.5)(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.26))
+      storybook: 10.5.8(@types/react@19.2.18)(prettier@3.8.3)(react@19.2.8)
       ts-dedent: 2.3.0
       vite: 8.2.1(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0)
     transitivePeerDependencies:
@@ -10534,9 +10515,9 @@ snapshots:
       - rollup
       - webpack
 
-  '@storybook/csf-plugin@10.5.6(esbuild@0.28.2)(rollup@4.62.4)(storybook@10.5.6(@types/react@19.2.18)(prettier@3.8.3)(react@19.2.8))(vite@8.2.1(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))(webpack@5.109.2(csso@5.0.5)(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.26))':
+  '@storybook/csf-plugin@10.5.8(esbuild@0.28.2)(rollup@4.62.4)(storybook@10.5.8(@types/react@19.2.18)(prettier@3.8.3)(react@19.2.8))(vite@8.2.1(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))(webpack@5.109.2(csso@5.0.5)(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.26))':
     dependencies:
-      storybook: 10.5.6(@types/react@19.2.18)(prettier@3.8.3)(react@19.2.8)
+      storybook: 10.5.8(@types/react@19.2.18)(prettier@3.8.3)(react@19.2.8)
       unplugin: 2.3.11
     optionalDependencies:
       esbuild: 0.28.2
@@ -10550,28 +10531,28 @@ snapshots:
     dependencies:
       react: 19.2.8
 
-  '@storybook/react-dom-shim@10.5.6(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(storybook@10.5.6(@types/react@19.2.18)(prettier@3.8.3)(react@19.2.8))':
+  '@storybook/react-dom-shim@10.5.8(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(storybook@10.5.8(@types/react@19.2.18)(prettier@3.8.3)(react@19.2.8))':
     dependencies:
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
-      storybook: 10.5.6(@types/react@19.2.18)(prettier@3.8.3)(react@19.2.8)
+      storybook: 10.5.8(@types/react@19.2.18)(prettier@3.8.3)(react@19.2.8)
     optionalDependencies:
       '@types/react': 19.2.18
       '@types/react-dom': 19.2.4(@types/react@19.2.18)
 
-  '@storybook/react-vite@10.5.6(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(esbuild@0.28.2)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(rollup@4.62.4)(storybook@10.5.6(@types/react@19.2.18)(prettier@3.8.3)(react@19.2.8))(supports-color@8.1.1)(typescript@5.9.3)(vite@8.2.1(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))(webpack@5.109.2(csso@5.0.5)(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.26))':
+  '@storybook/react-vite@10.5.8(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(esbuild@0.28.2)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(rollup@4.62.4)(storybook@10.5.8(@types/react@19.2.18)(prettier@3.8.3)(react@19.2.8))(supports-color@8.1.1)(typescript@5.9.3)(vite@8.2.1(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))(webpack@5.109.2(csso@5.0.5)(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.26))':
     dependencies:
       '@joshwooding/vite-plugin-react-docgen-typescript': 0.7.0(typescript@5.9.3)(vite@8.2.1(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))
       '@rollup/pluginutils': 5.4.0(rollup@4.62.4)
-      '@storybook/builder-vite': 10.5.6(esbuild@0.28.2)(rollup@4.62.4)(storybook@10.5.6(@types/react@19.2.18)(prettier@3.8.3)(react@19.2.8))(vite@8.2.1(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))(webpack@5.109.2(csso@5.0.5)(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.26))
-      '@storybook/react': 10.5.6(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(storybook@10.5.6(@types/react@19.2.18)(prettier@3.8.3)(react@19.2.8))(supports-color@8.1.1)(typescript@5.9.3)
+      '@storybook/builder-vite': 10.5.8(esbuild@0.28.2)(rollup@4.62.4)(storybook@10.5.8(@types/react@19.2.18)(prettier@3.8.3)(react@19.2.8))(vite@8.2.1(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))(webpack@5.109.2(csso@5.0.5)(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.26))
+      '@storybook/react': 10.5.8(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(storybook@10.5.8(@types/react@19.2.18)(prettier@3.8.3)(react@19.2.8))(supports-color@8.1.1)(typescript@5.9.3)
       empathic: 2.0.1
       magic-string: 0.30.21
       react: 19.2.8
       react-docgen: 8.0.3(supports-color@8.1.1)
       react-dom: 19.2.8(react@19.2.8)
       resolve: 1.22.12
-      storybook: 10.5.6(@types/react@19.2.18)(prettier@3.8.3)(react@19.2.8)
+      storybook: 10.5.8(@types/react@19.2.18)(prettier@3.8.3)(react@19.2.8)
       tsconfig-paths: 4.2.0
       vite: 8.2.1(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0)
     optionalDependencies:
@@ -10584,15 +10565,15 @@ snapshots:
       - supports-color
       - webpack
 
-  '@storybook/react@10.5.6(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(storybook@10.5.6(@types/react@19.2.18)(prettier@3.8.3)(react@19.2.8))(supports-color@8.1.1)(typescript@5.9.3)':
+  '@storybook/react@10.5.8(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(storybook@10.5.8(@types/react@19.2.18)(prettier@3.8.3)(react@19.2.8))(supports-color@8.1.1)(typescript@5.9.3)':
     dependencies:
       '@storybook/global': 5.0.0
-      '@storybook/react-dom-shim': 10.5.6(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(storybook@10.5.6(@types/react@19.2.18)(prettier@3.8.3)(react@19.2.8))
+      '@storybook/react-dom-shim': 10.5.8(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(storybook@10.5.8(@types/react@19.2.18)(prettier@3.8.3)(react@19.2.8))
       react: 19.2.8
       react-docgen: 8.0.3(supports-color@8.1.1)
       react-docgen-typescript: 2.4.0(typescript@5.9.3)
       react-dom: 19.2.8(react@19.2.8)
-      storybook: 10.5.6(@types/react@19.2.18)(prettier@3.8.3)(react@19.2.8)
+      storybook: 10.5.8(@types/react@19.2.18)(prettier@3.8.3)(react@19.2.8)
     optionalDependencies:
       '@types/react': 19.2.18
       '@types/react-dom': 19.2.4(@types/react@19.2.18)
@@ -10731,22 +10712,22 @@ snapshots:
 
   '@tootallnate/once@2.0.1': {}
 
-  '@turbo/darwin-64@2.10.9':
+  '@turbo/darwin-64@2.10.10':
     optional: true
 
-  '@turbo/darwin-arm64@2.10.9':
+  '@turbo/darwin-arm64@2.10.10':
     optional: true
 
-  '@turbo/linux-64@2.10.9':
+  '@turbo/linux-64@2.10.10':
     optional: true
 
-  '@turbo/linux-arm64@2.10.9':
+  '@turbo/linux-arm64@2.10.10':
     optional: true
 
-  '@turbo/windows-64@2.10.9':
+  '@turbo/windows-64@2.10.10':
     optional: true
 
-  '@turbo/windows-arm64@2.10.9':
+  '@turbo/windows-arm64@2.10.10':
     optional: true
 
   '@tybys/wasm-util@0.10.3':
@@ -11278,7 +11259,7 @@ snapshots:
     dependencies:
       tslib: 2.8.1
 
-  astro@7.2.1(@astrojs/markdown-remark@7.2.2(supports-color@8.1.1))(@emnapi/core@1.11.2)(@emnapi/runtime@1.11.2)(@types/node@24.13.3)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0):
+  astro@7.2.2(@astrojs/markdown-remark@7.2.2(supports-color@8.1.1))(@emnapi/core@1.11.2)(@emnapi/runtime@1.11.2)(@types/node@24.13.3)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0):
     dependencies:
       '@astrojs/compiler-rs': 0.3.2(@emnapi/core@1.11.2)(@emnapi/runtime@1.11.2)
       '@astrojs/internal-helpers': 0.10.2
@@ -11299,6 +11280,7 @@ snapshots:
       dset: 3.1.4
       es-module-lexer: 2.3.1
       esbuild: 0.28.2
+      find-process: 2.1.1
       flattie: 1.1.1
       fontace: 0.4.1
       get-tsconfig: 5.0.0-beta.4
@@ -11596,9 +11578,7 @@ snapshots:
 
   ci-info@4.4.0: {}
 
-  citty@0.1.6:
-    dependencies:
-      consola: 3.4.2
+  citty@0.2.2: {}
 
   clean-stack@2.2.0: {}
 
@@ -11959,7 +11939,7 @@ snapshots:
 
   electron-to-chromium@1.5.404: {}
 
-  electron@43.3.0(supports-color@8.1.1):
+  electron@43.4.0(supports-color@8.1.1):
     dependencies:
       '@electron-internal/extract-zip': 1.0.5
       '@electron/get': 5.1.0(supports-color@8.1.1)
@@ -12385,6 +12365,12 @@ snapshots:
     dependencies:
       to-regex-range: 5.0.1
 
+  find-process@2.1.1:
+    dependencies:
+      chalk: 4.1.2
+      commander: 14.0.3
+      loglevel: 1.9.2
+
   find-up-simple@1.0.1: {}
 
   find-up@2.1.0:
@@ -12769,7 +12755,7 @@ snapshots:
     dependencies:
       hermes-estree: 0.25.1
 
-  hono@4.13.1: {}
+  hono@4.13.2: {}
 
   hosted-git-info@2.8.9: {}
 
@@ -13014,32 +13000,32 @@ snapshots:
     dependencies:
       argparse: 2.0.1
 
-  jscpd-darwin-arm64@5.0.14:
+  jscpd-darwin-arm64@5.0.16:
     optional: true
 
-  jscpd-darwin-x64@5.0.14:
+  jscpd-darwin-x64@5.0.16:
     optional: true
 
-  jscpd-linux-arm64-gnu@5.0.14:
+  jscpd-linux-arm64-gnu@5.0.16:
     optional: true
 
-  jscpd-linux-x64-gnu@5.0.14:
+  jscpd-linux-x64-gnu@5.0.16:
     optional: true
 
-  jscpd-linux-x64-musl@5.0.14:
+  jscpd-linux-x64-musl@5.0.16:
     optional: true
 
-  jscpd-windows-x64-msvc@5.0.14:
+  jscpd-windows-x64-msvc@5.0.16:
     optional: true
 
-  jscpd@5.0.14:
+  jscpd@5.0.16:
     optionalDependencies:
-      jscpd-darwin-arm64: 5.0.14
-      jscpd-darwin-x64: 5.0.14
-      jscpd-linux-arm64-gnu: 5.0.14
-      jscpd-linux-x64-gnu: 5.0.14
-      jscpd-linux-x64-musl: 5.0.14
-      jscpd-windows-x64-msvc: 5.0.14
+      jscpd-darwin-arm64: 5.0.16
+      jscpd-darwin-x64: 5.0.16
+      jscpd-linux-arm64-gnu: 5.0.16
+      jscpd-linux-x64-gnu: 5.0.16
+      jscpd-linux-x64-musl: 5.0.16
+      jscpd-windows-x64-msvc: 5.0.16
 
   jsdoc-type-pratt-parser@9.1.1:
     dependencies:
@@ -13159,7 +13145,7 @@ snapshots:
 
   lifecycle-utils@2.1.0: {}
 
-  lifecycle-utils@3.2.0: {}
+  lifecycle-utils@4.1.0: {}
 
   lightningcss-android-arm64@1.33.0:
     optional: true
@@ -13291,6 +13277,8 @@ snapshots:
       strip-ansi: 7.2.0
       wrap-ansi: 9.0.2
 
+  loglevel@1.9.2: {}
+
   long@5.3.2: {}
 
   longest-streak@3.1.0: {}
@@ -13310,10 +13298,6 @@ snapshots:
       yallist: 3.1.1
 
   lru-cache@7.18.3: {}
-
-  lucide-react@1.27.0(react@19.2.8):
-    dependencies:
-      react: 19.2.8
 
   lucide-react@1.31.0(react@19.2.8):
     dependencies:
@@ -13883,7 +13867,7 @@ snapshots:
       fetch-blob: 3.2.0
       formdata-polyfill: 4.0.10
 
-  node-llama-cpp@3.19.1(supports-color@8.1.1)(typescript@5.9.3):
+  node-llama-cpp@3.20.0(supports-color@8.1.1)(typescript@5.9.3):
     dependencies:
       '@huggingface/jinja': 0.5.9
       async-retry: 1.3.3
@@ -13898,7 +13882,7 @@ snapshots:
       ignore: 7.0.6
       ipull: 3.9.5
       is-unicode-supported: 2.1.0
-      lifecycle-utils: 3.2.0
+      lifecycle-utils: 4.1.0
       log-symbols: 7.0.1
       nanoid: 5.1.16
       node-addon-api: 8.9.1
@@ -13914,20 +13898,20 @@ snapshots:
       which: 6.0.1
       yargs: 17.7.3
     optionalDependencies:
-      '@node-llama-cpp/linux-arm64': 3.19.1
-      '@node-llama-cpp/linux-armv7l': 3.19.1
-      '@node-llama-cpp/linux-riscv64': 3.19.1
-      '@node-llama-cpp/linux-x64': 3.19.1
-      '@node-llama-cpp/linux-x64-cuda': 3.19.1
-      '@node-llama-cpp/linux-x64-cuda-ext': 3.19.1
-      '@node-llama-cpp/linux-x64-vulkan': 3.19.1
-      '@node-llama-cpp/mac-arm64-metal': 3.19.1
-      '@node-llama-cpp/mac-x64': 3.19.1
-      '@node-llama-cpp/win-arm64': 3.19.1
-      '@node-llama-cpp/win-x64': 3.19.1
-      '@node-llama-cpp/win-x64-cuda': 3.19.1
-      '@node-llama-cpp/win-x64-cuda-ext': 3.19.1
-      '@node-llama-cpp/win-x64-vulkan': 3.19.1
+      '@node-llama-cpp/linux-arm64': 3.20.0
+      '@node-llama-cpp/linux-armv7l': 3.20.0
+      '@node-llama-cpp/linux-riscv64': 3.20.0
+      '@node-llama-cpp/linux-x64': 3.20.0
+      '@node-llama-cpp/linux-x64-cuda': 3.20.0
+      '@node-llama-cpp/linux-x64-cuda-ext': 3.20.0
+      '@node-llama-cpp/linux-x64-vulkan': 3.20.0
+      '@node-llama-cpp/mac-arm64-metal': 3.20.0
+      '@node-llama-cpp/mac-x64': 3.20.0
+      '@node-llama-cpp/win-arm64': 3.20.0
+      '@node-llama-cpp/win-x64': 3.20.0
+      '@node-llama-cpp/win-x64-cuda': 3.20.0
+      '@node-llama-cpp/win-x64-cuda-ext': 3.20.0
+      '@node-llama-cpp/win-x64-vulkan': 3.20.0
       typescript: 5.9.3
     transitivePeerDependencies:
       - supports-color
@@ -14023,7 +14007,7 @@ snapshots:
       is-inside-container: 1.0.0
       wsl-utils: 0.1.0
 
-  openai@6.26.0(ws@8.21.3)(zod@4.4.3):
+  openai@6.40.0(ws@8.21.3)(zod@4.4.3):
     optionalDependencies:
       ws: 8.21.3
       zod: 4.4.3
@@ -15025,7 +15009,7 @@ snapshots:
   sprintf-js@1.1.3:
     optional: true
 
-  srvx@0.11.22: {}
+  srvx@0.12.5: {}
 
   ssri@9.0.1:
     dependencies:
@@ -15046,7 +15030,7 @@ snapshots:
 
   steno@4.0.2: {}
 
-  storybook@10.5.6(@types/react@19.2.18)(prettier@3.8.3)(react@19.2.8):
+  storybook@10.5.8(@types/react@19.2.18)(prettier@3.8.3)(react@19.2.8):
     dependencies:
       '@storybook/global': 5.0.0
       '@storybook/icons': 2.1.0(react@19.2.8)
@@ -15331,14 +15315,14 @@ snapshots:
 
   tunnel@0.0.6: {}
 
-  turbo@2.10.9:
+  turbo@2.10.10:
     optionalDependencies:
-      '@turbo/darwin-64': 2.10.9
-      '@turbo/darwin-arm64': 2.10.9
-      '@turbo/linux-64': 2.10.9
-      '@turbo/linux-arm64': 2.10.9
-      '@turbo/windows-64': 2.10.9
-      '@turbo/windows-arm64': 2.10.9
+      '@turbo/darwin-64': 2.10.10
+      '@turbo/darwin-arm64': 2.10.10
+      '@turbo/linux-64': 2.10.10
+      '@turbo/linux-arm64': 2.10.10
+      '@turbo/windows-64': 2.10.10
+      '@turbo/windows-arm64': 2.10.10
 
   turndown@7.2.4:
     dependencies:
@@ -15358,6 +15342,8 @@ snapshots:
   type-fest@2.19.0: {}
 
   type-fest@4.41.0: {}
+
+  typebox@1.3.14: {}
 
   typebox@1.3.7: {}
 
@@ -15806,10 +15792,6 @@ snapshots:
   yoctocolors-cjs@2.1.3: {}
 
   yoctocolors@2.2.0: {}
-
-  zod-to-json-schema@3.25.2(zod@4.4.3):
-    dependencies:
-      zod: 4.4.3
 
   zod-validation-error@4.0.2(zod@4.4.3):
     dependencies:
