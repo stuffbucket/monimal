@@ -80,6 +80,23 @@ export function typescript({
         globals,
         parserOptions: { projectService: true, tsconfigRootDir },
       },
+      rules: {
+        // A leading underscore means "deliberately unused" across this
+        // workspace. Without these patterns the rule reports every such
+        // binding: 56 findings in the two service packages and 4 in the
+        // client, none of them defects. Defined here rather than in
+        // `./service` so every consumer of the shared config gets the same
+        // convention.
+        "@typescript-eslint/no-unused-vars": ["error", {
+          args: "all",
+          argsIgnorePattern: "^_",
+          caughtErrors: "all",
+          caughtErrorsIgnorePattern: "^_",
+          destructuredArrayIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          ignoreRestSiblings: true,
+        }],
+      },
     },
 
     // Type-aware rules are switched back off for files outside the program.

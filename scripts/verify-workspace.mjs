@@ -62,29 +62,22 @@ const rootScope = { count: rootEntries.length, of: 'entries in the root node_mod
 
 check(rootEntries.length > 400, 'the root node_modules is publicly hoisted', rootScope);
 
-// 2. ...except typescript, which must NOT be hoisted. maximal/client pins
-//    typescript ^7.0.2 and every other package pins ^5.9.3. Hoisting either one
-//    shadows the other for any dependency that resolves by walking up rather
-//    than through its own peer link, which is what made
-//    eslint-plugin-perfectionist call a TS 5 API on the TS 7 module.
-check(!rootEntries.includes('typescript'), 'typescript is exempt from the hoist', {
-  count: 1,
-  of: 'hoist exemptions',
-});
-
-const TYPESCRIPT_MAJORS = [
-  ['packages/maximal-core', 5],
-  ['packages/maximal/client', 7],
-];
-const ownTypescript = TYPESCRIPT_MAJORS.every(([pkg, major]) => {
-  const version = manifestAt(ROOT, pkg, 'node_modules/typescript')?.version;
-  return version != null && Number(version.split('.')[0]) === major;
-});
-check(
-  ownTypescript,
-  'each package resolves its own typescript major',
-  { count: TYPESCRIPT_MAJORS.length, of: 'packages pinned to a typescript major' },
+// 2. One typescript, everywhere. The workspace previously ran two -- client on
+//    the 7.x native port, everything else on 5.9.3 -- which forced a
+//    !typescript hoist exemption, kept client off typescript-eslint entirely,
+//    and made eslint-plugin-perfectionist call a TS 5 API on the TS 7 module.
+//    Client typechecks clean on 5.9.3, so the split bought nothing. Assert one
+//    resolved major rather than policing an exemption that no longer exists.
+const typescriptVersions = new Set(
+  ['packages/maximal', 'packages/maximal-core', 'packages/maximal-electron', 'packages/maximal/client']
+    .map((pkg) => manifestAt(ROOT, pkg, 'node_modules/typescript')?.version)
+    .filter((version) => version != null)
+    .map((version) => version.split('.')[0]),
 );
+check(typescriptVersions.size === 1, 'the whole workspace is on one typescript major', {
+  count: typescriptVersions.size,
+  of: 'typescript majors resolved',
+});
 
 // 3. Radix's transitive deps, resolved from the SYMLINK path rather than the
 //    realpath. This is the resolution mode Rolldown uses, and the one that goes
@@ -339,13 +332,9 @@ const WORKSPACE_MANIFESTS = JSON.parse(
     stdio: ['ignore', 'pipe', 'ignore'],
   }),
 ).map((project) => path.relative(ROOT, project.path) || '.');
-const DELIBERATE = new Map([
-  [
-    'typescript',
-    'maximal/client is on the native port (7.x) while the rest are on 5.9.3; ' +
-      'this is what the !typescript hoist exemption exists for',
-  ],
-]);
+// Splits that are meant. Empty is the goal: every entry here is a version of
+// the same dependency resolved twice, which the workspace exists to avoid.
+const DELIBERATE = new Map();
 const BACKLOG = new Set(['@vitejs/plugin-react']);
 
 /** name -> { declaredBy, byVersion } for every directly-declared dependency. */

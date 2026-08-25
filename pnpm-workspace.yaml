@@ -77,11 +77,5 @@ allowBuilds:
 # the typebox / @types/node / @electron/packager phantoms stayed invisible
 # upstream. An install with this list reduced to nothing is the way to check for
 # new ones.
-#
-# The !typescript exemption is load-bearing: packages/maximal/client pins
-# typescript ^7.0.2 while every other package pins ^5.9.3, and hoisting either
-# one shadows the other for dependencies that resolve by walking up rather than
-# through their own peer link.
 publicHoistPattern:
   - "*"
-  - "!typescript"

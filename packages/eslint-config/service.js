@@ -74,9 +74,8 @@ export const CORE_OPINIONS = {
 /**
  * typescript-eslint rules tuned away from their defaults.
  *
- * `no-unused-vars` is the one that matters: without the `^_` patterns it
- * reports every deliberately-unused binding in these packages -- 56 findings,
- * no defects.
+ * `no-unused-vars` is not here: the `^_` convention is workspace-wide and is
+ * defined in `./typescript`, which this profile builds on.
  */
 export const TYPESCRIPT_RULES = {
   "@typescript-eslint/array-type": ["error", { default: "generic" }],
@@ -92,15 +91,6 @@ export const TYPESCRIPT_RULES = {
     "error",
     { allowConstantLoopConditions: true },
   ],
-  "@typescript-eslint/no-unused-vars": ["error", {
-    args: "all",
-    argsIgnorePattern: "^_",
-    caughtErrors: "all",
-    caughtErrorsIgnorePattern: "^_",
-    destructuredArrayIgnorePattern: "^_",
-    varsIgnorePattern: "^_",
-    ignoreRestSiblings: true,
-  }],
   "@typescript-eslint/restrict-template-expressions": [
     "error",
     { allowNumber: true },
