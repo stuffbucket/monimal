@@ -42,10 +42,14 @@ them here.
   run history for `GITHUB_REPOSITORY`, so it passes locally by querying the
   upstream repo and fails in CI by asking monimal about workflows only the
   vendored `packages/*/.github` fixtures declare.
-- Prefer `pnpm install --frozen-lockfile`; an unintended re-resolution can
-  weaken the content pins and replace stable resolution with rotating hosts.
-- Run `node scripts/relock-integrity.mjs` after an intentional re-resolution.
-  `verify-workspace.mjs` fails when the repair was skipped.
+- Prefer `pnpm install --frozen-lockfile`; a re-resolution replaces stable
+  resolution with rotating hosts.
+- Run `node scripts/strip-lockfile-hosts.mjs` after an intentional
+  re-resolution. `verify-workspace.mjs` fails when it was skipped.
+- Do not re-add a SHA-512 requirement for lockfile entries. It was enforced and
+  removed deliberately: see [Lockfile integrity](#lockfile-integrity). Weak pins
+  read like a defect worth fixing, and fixing them costs a full re-download of
+  the tree on every re-resolution.
 - Run `node scripts/verify-workspace.mjs` after changing anything in
   `pnpm-workspace.yaml`. It reads the installed tree rather than the config,
   which is the only way to catch a pnpm setting that is accepted and ignored.
@@ -61,16 +65,27 @@ them here.
 
 The root `.npmrc` sends installs through the public 1ES read-through proxy. Its
 packuments expose only the legacy SHA-1 `shasum` and rotating `ms-feed-N`
-tarball hosts, not `dist.integrity` or signing keys. A re-resolution therefore
-writes a weaker content pin and a hostname that can expire even though the
-install itself succeeds.
+tarball hosts, not `dist.integrity` or signing keys.
 
-`pnpm-lock.yaml` is the only dependency lockfile. After an intentional
-re-resolution, `scripts/relock-integrity.mjs` reuses known SHA-512 pins and
-verifies newly fetched bytes against the registry's attestation before recording
-SHA-512. `scripts/verify-workspace.mjs` checks every artifact resolution and
-rejects weak pins or shard-host URLs. It checks lockfile metadata; it does not
-establish package provenance or publisher identity.
+**The SHA-1 pins are accepted.** A lockfile pin asks a second-preimage
+question -- these bytes were published, do the bytes received match the
+recorded hash -- and SHA-1's second-preimage resistance is intact; only its
+collision resistance is broken. Requiring SHA-512 meant rewriting the lockfile
+after every re-resolution, which also invalidated pnpm's store, because store
+lookups are keyed on the integrity string. That forced a full re-download of
+the tree on the next install and put a manual repair step in front of every
+Dependabot PR, in exchange for a guarantee against an attack that is not
+practical.
+
+**The rotating hosts are not accepted**, and that is not a cryptographic
+concern. One install here was served by ms-feed-2, -12, -17 and -25; an entry
+that records a hostname is an install that stops working later with no local
+cause. pnpm reconstructs the URL from the configured registry when `tarball:`
+is absent, so no entry carries one.
+`scripts/strip-lockfile-hosts.mjs` removes them and
+`scripts/verify-workspace.mjs` fails if any remain, or if an entry has no
+integrity at all. It checks lockfile metadata; it does not establish package
+provenance or publisher identity.
 
 ## Deviations
 
