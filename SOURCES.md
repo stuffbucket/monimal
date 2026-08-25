@@ -42,10 +42,14 @@ them here.
   run history for `GITHUB_REPOSITORY`, so it passes locally by querying the
   upstream repo and fails in CI by asking monimal about workflows only the
   vendored `packages/*/.github` fixtures declare.
-- Prefer `pnpm install --frozen-lockfile`; an unintended re-resolution can
-  weaken the content pins and replace stable resolution with rotating hosts.
-- Run `node scripts/relock-integrity.mjs` after an intentional re-resolution.
-  `verify-workspace.mjs` fails when the repair was skipped.
+- Prefer `pnpm install --frozen-lockfile`; a re-resolution records rotating
+  hosts that pnpm rejects on the next install.
+- Run `node scripts/strip-lockfile-hosts.mjs` BEFORE `pnpm install`, not after,
+  and never as a `postinstall` hook. pnpm's supply-chain check rejects a
+  recorded host before lifecycle scripts run, so a hook cannot repair it.
+- Do not re-add a SHA-512 requirement for lockfile entries. SHA-1 as served is
+  deliberate: the proxy is the supply-chain control and the hash only detects
+  transit corruption. See [Lockfile integrity](#lockfile-integrity).
 - Run `node scripts/verify-workspace.mjs` after changing anything in
   `pnpm-workspace.yaml`. It reads the installed tree rather than the config,
   which is the only way to catch a pnpm setting that is accepted and ignored.
@@ -59,18 +63,42 @@ them here.
 
 ## Lockfile integrity
 
-The root `.npmrc` sends installs through the public 1ES read-through proxy. Its
-packuments expose only the legacy SHA-1 `shasum` and rotating `ms-feed-N`
-tarball hosts, not `dist.integrity` or signing keys. A re-resolution therefore
-writes a weaker content pin and a hostname that can expire even though the
-install itself succeeds.
+The root `.npmrc` sends installs through the public 1ES read-through proxy.
+**The proxy is the supply-chain control** -- that is why it is configured, and
+it is what vets what may be installed. The lockfile hash is not doing security
+work; it detects corruption in transit and nothing more.
 
-`pnpm-lock.yaml` is the only dependency lockfile. After an intentional
-re-resolution, `scripts/relock-integrity.mjs` reuses known SHA-512 pins and
-verifies newly fetched bytes against the registry's attestation before recording
-SHA-512. `scripts/verify-workspace.mjs` checks every artifact resolution and
-rejects weak pins or shard-host URLs. It checks lockfile metadata; it does not
-establish package provenance or publisher identity.
+That settles the algorithm. The proxy publishes only a legacy SHA-1 `shasum` --
+no `dist.integrity`, no signing keys, no attestations -- and SHA-1 is adequate
+for a transport check, so the pins are recorded as served. Requiring SHA-512
+meant repairing the lockfile after every re-resolution to buy a property the
+proxy already provides.
+
+**Hostnames are a different matter, and are not tolerated.** The proxy serves
+tarballs from `ms-feed-N.pkgs.visualstudio.com`, and which shard answers
+rotates constantly: two installs of the same package minutes apart were served
+by different hosts. Only four shards -- 2, 12, 17 and 25 -- answer anonymously
+at all; others return 401 or 404.
+
+A recorded hostname does not fail eventually. It fails on the **next** install,
+and pnpm is what rejects it: pnpm 11 verifies every recorded `tarball:` URL
+against the registry's *current* metadata and refuses the lockfile outright.
+
+```
+[ERR_PNPM_TARBALL_URL_MISMATCH] 1 lockfile entries failed verification:
+  picocolors@1.1.1 has a tarball URL (...ms-feed-7...) that does not match
+  the registry's published metadata (...ms-feed-17...)
+```
+
+That check runs **before lifecycle scripts**, so no `postinstall` hook can
+repair it -- the install is already dead. `scripts/strip-lockfile-hosts.mjs`
+must run *before* `pnpm install`. pnpm reconstructs the URL from the configured
+registry when `tarball:` is absent, so the rule is simply that no entry carries
+one.
+
+`scripts/verify-workspace.mjs` is a backstop for a lockfile that reaches the
+tree by some other route. It checks lockfile metadata; it does not establish
+package provenance or publisher identity -- the proxy does that.
 
 ## Deviations
 
