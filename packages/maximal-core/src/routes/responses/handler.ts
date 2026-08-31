@@ -10,6 +10,7 @@ import {
 import { awaitApproval } from "~/lib/http/approval"
 import { checkRateLimit } from "~/lib/http/rate-limit"
 import { reverseId } from "~/lib/models/anthropic-id-rewrite"
+import { shouldUseResponsesApi } from "~/lib/models/endpoint-selection"
 import { resolveModelProfile } from "~/lib/models/model-profile"
 import {
   createHandlerLogger,
@@ -62,8 +63,6 @@ import {
 } from "./utils"
 
 const logger = createHandlerLogger("responses-handler")
-
-const RESPONSES_ENDPOINT = "/responses"
 
 /** Response for a model that can't use the /responses endpoint. Distinguishes
  *  a genuinely-unsupported model (400) from an empty/never-loaded catalog we
@@ -127,10 +126,7 @@ export const handleResponses = async (c: Context) => {
   const selectedModel = state.models?.data.find(
     (model) => model.id === payload.model,
   )
-  const supportsResponses =
-    selectedModel?.supported_endpoints?.includes(RESPONSES_ENDPOINT) ?? false
-
-  if (!supportsResponses) {
+  if (!shouldUseResponsesApi(selectedModel)) {
     return responsesUnavailableForModel(c)
   }
 

@@ -21,6 +21,7 @@ import TurndownService from "turndown"
 import type { ResponsesPayload } from "~/services/copilot/create-responses"
 
 import { getSmallModel } from "~/lib/config/config"
+import { shouldUseResponsesApi } from "~/lib/models/endpoint-selection"
 import { Cache } from "~/lib/runtime-state/cache"
 import { hasCopilotToken, state } from "~/lib/runtime-state/state"
 import {
@@ -832,7 +833,7 @@ export function resolveResponsesModel(): string | undefined {
   return pickResponsesModel(
     (state.models?.data ?? []).map((m) => ({
       id: m.id,
-      supportsResponses: m.supported_endpoints?.includes("/responses") ?? false,
+      supportsResponses: shouldUseResponsesApi(m),
     })),
     getSmallModel(),
   )
