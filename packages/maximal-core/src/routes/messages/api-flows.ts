@@ -175,7 +175,7 @@ export const handleWithChatCompletions = async (
  * missing one, and this must never be able to fail a request that would
  * otherwise have succeeded.
  */
-const estimateInputTokens = async (
+export const estimateInputTokens = async (
   anthropicPayload: AnthropicMessagesPayload,
   selectedModel: Model | undefined,
 ): Promise<number | undefined> => {
@@ -474,7 +474,7 @@ const readChatCompletionFrame = (data: string): ChatCompletionChunk | null => {
  * is what the `!asRecord(event)` check below has always done for the parseable
  * half of the same garbage.
  */
-const readResponsesFrame = (
+export const readResponsesFrame = (
   data: string,
 ): { event: ResponseStreamEvent; usage?: UsageTokens } | null => {
   if (data === "[DONE]") {

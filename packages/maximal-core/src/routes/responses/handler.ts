@@ -25,6 +25,7 @@ import {
   type UsageTokens,
   withCopilotCost,
 } from "~/lib/token-usage"
+import { TOOL_TYPE } from "~/routes/messages/web-tools/vocab"
 import { isAsyncIterable } from "~/routes/streaming-predicates"
 import { readNestedUsage } from "~/routes/untrusted-frame"
 import {
@@ -273,7 +274,22 @@ const removeWebSearchTool = (payload: ResponsesPayload): void => {
   })
 }
 
-const COPILOT_UNSUPPORTED_TOOL_TYPES = new Set(["image_generation"])
+/**
+ * Tool types Copilot's `/responses` rejects, dropped so one bad declaration
+ * does not 400 the whole request.
+ *
+ * The two Anthropic server-side web tools are here because this route has no
+ * web-tools agent loop: `splitWebTools` / `handleWithWebToolsAgent` are mounted
+ * only on `/v1/messages`, so nothing on this path strips and shims them. Left
+ * in, they reach Copilot raw and are rejected. A client wanting web search over
+ * `/responses` should declare the native `web_search` tool, which passes
+ * through untouched when `useResponsesApiWebSearch` is on.
+ */
+const COPILOT_UNSUPPORTED_TOOL_TYPES = new Set<string>([
+  "image_generation",
+  TOOL_TYPE.webSearch,
+  TOOL_TYPE.webFetch,
+])
 
 export const removeUnsupportedTools = (payload: ResponsesPayload): void => {
   if (!Array.isArray(payload.tools) || payload.tools.length === 0) return

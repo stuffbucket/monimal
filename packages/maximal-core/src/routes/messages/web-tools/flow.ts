@@ -59,9 +59,8 @@ const defaultUpstreamDeps: WebToolsUpstreamDeps = {
  * the payload is endpoint-specific, so either transport can carry it and the
  * only question is which one the model actually serves.
  *
- * Non-streaming only. `runStreamingAgent` still calls `/chat/completions`
- * unconditionally, so a `/responses`-only model remains broken for streaming
- * requests — which is what real clients send.
+ * The streaming path makes the same choice per turn — see
+ * `StreamTurnTransport` in `./stream`.
  */
 export function buildCallOnce(
   selectedModel: Model | undefined,
@@ -161,6 +160,7 @@ export async function handleWithWebToolsAgent(args: WebToolsFlowArgs) {
         stream,
         options,
         executor,
+        selectedModel,
         upstreamCall: args.upstreamCall,
       })
     } catch (error) {
