@@ -34,6 +34,19 @@ const CASES: Array<{ name: string; result: string }> = [
   { name: "web-fetch-streaming", result: "web_fetch_tool_result" },
 ]
 
+test("the captured handler log carries no unredacted content", async () => {
+  const raw = await Bun.file(
+    new URL("./fixtures/traces/agent-loop-handler.trace.txt", import.meta.url)
+      .pathname,
+  ).text()
+
+  expect(raw).not.toMatch(/\bgh[oprsu]_[A-Za-z0-9]{20,}/)
+  expect(raw).not.toMatch(/https?:\/\//)
+  // Prompt text is the content the handler log must never carry; the engine's
+  // redactor replaces it with a length marker.
+  expect(raw).toMatch(/"content":"\[redacted \d+ chars\]"/)
+})
+
 describe.each(CASES)("captured trace: $name", ({ name, result }) => {
   test("is a well-formed Anthropic Messages stream", async () => {
     const events = await loadTrace(name)
