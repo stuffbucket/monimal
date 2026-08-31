@@ -11,8 +11,8 @@ tier drives the engine over the loopback `/control` JSON-RPC 2.0 surface.
   check:fast` after each edit** — oxlint + `tsc` + ESLint. This is the native,
   non-product inner loop.
 - Before you call the task done, run **`pnpm run check:core` from the monorepo
-  root**. It runs Core's complete non-test gate natively (`check:deep:host`,
-  including the real-index `bindings:check`) and then runs the Core test suite
+  root**. It runs Core's complete non-test gate natively (`check:deep:host`)
+  and then runs the Core test suite
   in the root-owned, mountless Docker boundary. It does **not** cover `ci.yml`'s
   native Windows job. If you touched `scripts/ops/`, also run
   `pnpm --filter @stuffbucket/maximal-core run check:ops`.

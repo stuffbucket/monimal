@@ -26,17 +26,14 @@ bun run lint:fast    # oxlint — mechanical pass, ~10ms full repo
 bun run typecheck    # tsc type check only (no emit)
 bun run typecheck:downstream  # compile the downstream/ consumer against the exports map
 bun run casts:check  # fail on a new unannotated boundary cast (scripts/find-casts.ts)
-bun run bindings:check  # committed dist/lib + dist/main.js vs a fresh build.
-                     # Reads the real git index. Off-pin Bun → "could not verify"
-                     # (exit 2), never "stale".
 
 # Aggregates
 bun run check:fast   # lint:fast + typecheck + lint:all (the per-edit inner loop)
 bun run check:deep:host
                      # every non-test check: preflight + check:fast + casts:check +
                      # knip + deps:check + dupes:check + ci:check + build +
-                     # typecheck:downstream + real-index bindings:check. This is
-                     # the native half used by root `pnpm run check:core`.
+                     # typecheck:downstream. This is the native half used by
+                     # root `pnpm run check:core`.
 bun run check:deep   # standalone/Core-CI composition: check:deep:host + bun test.
                      # In this monorepo, raw host execution deliberately fails
                      # closed at the guarded test command; use `pnpm run

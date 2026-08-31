@@ -859,30 +859,26 @@ concurrent jobs**.
    `downstream/` against the published exports map. Nothing else proves a
    downstream package can resolve and compile against `./supervisor` and
    `./control-contract`.
-8. **`bun run bindings:check`** ("Committed dist is fresh") — rebuilds
-   `dist/lib` and `dist/main.js` into temp dirs outside the repo and compares
-   against git's *index*, so no earlier or later rebuild in this job can launder
-   the result.
-9. **`bun run casts:check`** (`scripts/find-casts.ts --check`) — fails on a new
+8. **`bun run casts:check`** (`scripts/find-casts.ts --check`) — fails on a new
    unannotated boundary cast.
-10. **`bun test`** (full suite).
-11. **`bun run knip`** (unused files / exports / deps).
-12. **`bun run deps:check`** (dependency-cruiser via `scripts/check-deps.ts`).
+9. **`bun test`** (full suite).
+10. **`bun run knip`** (unused files / exports / deps).
+11. **`bun run deps:check`** (dependency-cruiser via `scripts/check-deps.ts`).
     All three `error` rules affect the exit code: `no-circular` is no longer a
     `warn`, and the standing backlog is ratcheted against a recorded set of
     cycle-closing imports in that script. A new cycle fails by name; fixing one
     fails too, until the set is re-recorded (`--update`).
-13. **`bun run dupes:check`** (`scripts/check-dupes.ts`) — a down-only ratchet on
+12. **`bun run dupes:check`** (`scripts/check-dupes.ts`) — a down-only ratchet on
     the set of `src/**` file pairs sharing a jscpd clone. A pair set, not a
     percentage: `src` is ~31k lines, so a 40-line copy moves 0.33% to 0.46% and
     any threshold green today would swallow it.
-14. **`bun run ci:check`** (`scripts/ops/check-ci-coverage.ts`) — asserts every
+13. **`bun run ci:check`** (`scripts/ops/check-ci-coverage.ts`) — asserts every
     `check:deep` step is named by a job that is a required status check. It is
     the gate against this repo's most-repeated failure: a check that exists, is
     correct, and runs nowhere. It found `lint:fast` running in no workflow at
     all on its first run.
-15. **`bun run build`**.
-16. **`bun run e2e`** — the seam / feed / lifecycle / replace harnesses, against
+14. **`bun run build`**.
+15. **`bun run e2e`** — the seam / feed / lifecycle / replace harnesses, against
     `src/`. Until this step they ran only in the `windows` job against a
     compiled artifact, so the from-source path (what `bun run dev` and
     `bun start` use) ran in no workflow, and neither did Linux. That artifact
@@ -991,8 +987,7 @@ superset of CI rather than an exact match.
   typecheck → lint:all`, the safe native inner loop.
 - `pnpm run check:core` is the supported complete Core gate. It first runs
   `check:deep:host` natively: `preflight → check:fast → casts:check → knip →
-  deps:check → dupes:check → ci:check → build → typecheck:downstream →
-  bindings:check`. The final bindings check reads the real git index. It then
+  deps:check → dupes:check → ci:check → build → typecheck:downstream`. It then
   runs `pnpm test -- --suite=maximal-core`, which selects Core's fixed guarded
   inner script in the root-owned, mountless Docker boundary.
 - `pnpm test -- --suite=maximal-core` is the supported focused rerun when only

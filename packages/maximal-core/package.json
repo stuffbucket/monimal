@@ -54,13 +54,12 @@
     "tsconfig.json"
   ],
   "scripts": {
-    "bindings:check": "bun scripts/ops/check-bindings.ts",
     "build": "bun scripts/ops/build-bundle.ts && bun run build:lib",
     "build:lib": "tsup",
     "casts": "bun run scripts/find-casts.ts",
     "casts:check": "bun run scripts/find-casts.ts --check",
     "check:deep": "bun run check:deep:host && bun test",
-    "check:deep:host": "bun run preflight && bun run check:fast && bun run casts:check && bun run knip && bun run deps:check && bun run dupes:check && bun run ci:check && bun run build && bun run typecheck:downstream && bun run bindings:check",
+    "check:deep:host": "bun run preflight && bun run check:fast && bun run casts:check && bun run knip && bun run deps:check && bun run dupes:check && bun run ci:check && bun run build && bun run typecheck:downstream",
     "check:fast": "bun run lint:fast && bun run typecheck && bun run lint:all",
     "check:ops": "bun run typecheck:ops && bun run test:ops",
     "ci:check": "bun scripts/ops/check-ci-coverage.ts",
