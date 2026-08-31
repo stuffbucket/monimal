@@ -2,9 +2,6 @@ import type { Context } from "hono"
 
 import { z } from "zod"
 
-import type { Model } from "~/services/copilot/get-models"
-
-import { isMessagesApiEnabled } from "~/lib/config/config"
 import { awaitApproval } from "~/lib/http/approval"
 import { checkRateLimit } from "~/lib/http/rate-limit"
 import {
@@ -13,6 +10,10 @@ import {
 } from "~/lib/models/anthropic-id-rewrite"
 import { type AnthropicMessagesPayload } from "~/lib/models/anthropic-types"
 import { COMPACT_REQUEST, type CompactType } from "~/lib/models/compact"
+import {
+  shouldUseMessagesApi,
+  shouldUseResponsesApi,
+} from "~/lib/models/endpoint-selection"
 import { findEndpointModel } from "~/lib/models/models"
 import {
   createHandlerLogger,
@@ -230,6 +231,7 @@ export async function handleCompletion(
       payload: anthropicPayload,
       options: { subagentMarker, requestId, sessionId, compactType, logger },
       policy: webToolPolicy,
+      selectedModel,
     })
   }
 
@@ -263,23 +265,4 @@ export async function handleCompletion(
     compactType,
     logger,
   })
-}
-
-const RESPONSES_ENDPOINT = "/responses"
-const MESSAGES_ENDPOINT = "/v1/messages"
-
-const shouldUseResponsesApi = (selectedModel: Model | undefined): boolean => {
-  return (
-    selectedModel?.supported_endpoints?.includes(RESPONSES_ENDPOINT) ?? false
-  )
-}
-
-const shouldUseMessagesApi = (selectedModel: Model | undefined): boolean => {
-  const useMessagesApi = isMessagesApiEnabled()
-  if (!useMessagesApi) {
-    return false
-  }
-  return (
-    selectedModel?.supported_endpoints?.includes(MESSAGES_ENDPOINT) ?? false
-  )
 }

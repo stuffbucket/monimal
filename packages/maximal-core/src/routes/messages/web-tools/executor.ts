@@ -21,6 +21,7 @@ import TurndownService from "turndown"
 import type { ResponsesPayload } from "~/services/copilot/create-responses"
 
 import { getSmallModel } from "~/lib/config/config"
+import { shouldUseResponsesApi } from "~/lib/models/endpoint-selection"
 import { Cache } from "~/lib/runtime-state/cache"
 import { hasCopilotToken, state } from "~/lib/runtime-state/state"
 import {
@@ -302,7 +303,7 @@ export class CopilotResponsesExecutor implements Executor {
 // Shape per OpenAI docs + openai-python web_search_tool_param + Vercel AI
 // SDK. Returns {} (no filters key) when neither list is set, so the tool
 // declaration stays minimal.
-function buildResponsesFilters(opts: SearchOpts): {
+export function buildResponsesFilters(opts: SearchOpts): {
   filters?: { allowed_domains?: Array<string>; blocked_domains?: Array<string> }
 } {
   const filters: {
@@ -832,7 +833,7 @@ export function resolveResponsesModel(): string | undefined {
   return pickResponsesModel(
     (state.models?.data ?? []).map((m) => ({
       id: m.id,
-      supportsResponses: m.supported_endpoints?.includes("/responses") ?? false,
+      supportsResponses: shouldUseResponsesApi(m),
     })),
     getSmallModel(),
   )

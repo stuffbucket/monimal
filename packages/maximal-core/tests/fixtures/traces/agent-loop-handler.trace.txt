@@ -1,0 +1,29 @@
+[<ts>] [debug] [messages-handler] [<req>] Anthropic request payload: {"model":"gpt-5.6-sol","max_tokens":512,"stream":true,"tools":[{"type":"web_search_20250305","name":"web_search"}],"messages":[{"role":"user","content":"[redacted 53 chars]"}]}
+[<ts>] [debug] [messages-handler] [<req>] Extracted session ID: undefined
+[<ts>] [debug] [messages-handler] [<req>] Anthropic Beta header: undefined
+[<ts>] [debug] [messages-handler] [<req>] Generated request ID: <id-001>
+[<ts>] [debug] [messages-handler] [<req>] web-tools stream start {"decls":["web_search"],"max_turns":10}
+[<ts>] [debug] [messages-handler] [<req>] web-tools stream turn {"turn":0,"msgs":1}
+[<ts>] [debug] [messages-handler] [<req>] web-tools outcome {"tool":"web_search","id":"<id-003>","ok":true,"ms":<ms>}
+[<ts>] [debug] [messages-handler] [<req>] web-tools stream turn {"turn":1,"msgs":3}
+[<ts>] [debug] [messages-handler] [<req>] web-tools stream done {"turns":2,"stop_reason":"end_turn"}
+[<ts>] [debug] [messages-handler] [<req>] Anthropic request payload: {"model":"gpt-5.6-sol","max_tokens":512,"stream":true,"tools":[{"type":"web_fetch_20250910","name":"web_fetch"}],"messages":[{"role":"user","content":"[redacted 50 chars]"}]}
+[<ts>] [debug] [messages-handler] [<req>] Extracted session ID: undefined
+[<ts>] [debug] [messages-handler] [<req>] Anthropic Beta header: undefined
+[<ts>] [debug] [messages-handler] [<req>] Generated request ID: <id-002>
+[<ts>] [debug] [messages-handler] [<req>] web-tools stream start {"decls":["web_fetch"],"max_turns":10}
+[<ts>] [debug] [messages-handler] [<req>] web-tools stream turn {"turn":0,"msgs":1}
+[<ts>] [debug] [messages-handler] [<req>] web-tools outcome {"tool":"web_fetch","id":"<id-004>","ok":true,"ms":<ms>}
+[<ts>] [debug] [messages-handler] [<req>] web-tools stream turn {"turn":1,"msgs":3}
+[<ts>] [debug] [messages-handler] [<req>] web-tools stream done {"turns":2,"stop_reason":"end_turn"}
+[<ts>] [debug] [messages-handler] [<req>] Anthropic request payload: {"model":"gpt-5.6-sol","max_tokens":512,"stream":false,"tools":[{"type":"web_search_20250305","name":"web_search"}],"messages":[{"role":"user","content":"[redacted 53 chars]"}]}
+[<ts>] [debug] [messages-handler] [<req>] Extracted session ID: undefined
+[<ts>] [debug] [messages-handler] [<req>] Anthropic Beta header: undefined
+[<ts>] [debug] [messages-handler] [<req>] Generated request ID: <id-001>
+[<ts>] [debug] [messages-handler] [<req>] web-tools agent start {"decls":["web_search"],"max_turns":10}
+[<ts>] [debug] [messages-handler] [<req>] web-tools agent turn {"turn":0,"msgs":1}
+[<ts>] [debug] [messages-handler] [<req>] web-tools outcome {"tool":"web_search","id":"<id-005>","ok":true,"ms":<ms>}
+[<ts>] [debug] [messages-handler] [<req>] web-tools agent turn {"turn":1,"msgs":3}
+[<ts>] [debug] [messages-handler] [<req>] web-tools outcome {"tool":"web_search","id":"<id-006>","ok":true,"ms":<ms>}
+[<ts>] [debug] [messages-handler] [<req>] web-tools agent turn {"turn":2,"msgs":5}
+[<ts>] [debug] [messages-handler] [<req>] web-tools agent done {"turns":3,"stop_reason":"end_turn"}

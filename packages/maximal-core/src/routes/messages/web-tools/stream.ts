@@ -39,15 +39,28 @@ import type {
 } from "~/lib/models/anthropic-types"
 import type { CompactType } from "~/lib/models/compact"
 import type { SubagentMarker } from "~/lib/runtime-state/subagent"
+import type { Model } from "~/services/copilot/get-models"
+import type { CopilotCallOptions } from "~/services/copilot/upstream-request"
 
+import { shouldUseResponsesApi } from "~/lib/models/endpoint-selection"
 import { debugLazy } from "~/lib/platform/logger"
-import { isNonStreaming } from "~/routes/streaming-predicates"
+import { getResponsesRequestOptions } from "~/routes/responses/utils"
+import { isAsyncIterable, isNonStreaming } from "~/routes/streaming-predicates"
 import {
   createChatCompletions,
   type ChatCompletionChunk,
 } from "~/services/copilot/create-chat-completions"
+import { createResponses } from "~/services/copilot/create-responses"
 
+import type { ResponsesStreamState } from "../responses-stream-translation"
+
+import { estimateInputTokens, readResponsesFrame } from "../api-flows"
 import { translateToOpenAI } from "../non-stream-translation"
+import {
+  createResponsesStreamState,
+  translateResponsesStreamEvent,
+} from "../responses-stream-translation"
+import { translateAnthropicMessagesToResponsesPayload } from "../responses-translation"
 import { translateChunkToAnthropicEvents } from "../stream-translation"
 import {
   buildResultBlockForOutcome,
@@ -64,6 +77,111 @@ import { BLOCK_KIND, MAX_AGENT_TURNS, type ToolName } from "./vocab"
  *  type their stub without `as unknown as ...` casts. */
 export type UpstreamCall = typeof createChatCompletions
 
+/** The upstream `/responses` function. Exported for the same reason as
+ *  {@link UpstreamCall}. */
+export type ResponsesCall = typeof createResponses
+
+/** One raw SSE frame as the Copilot clients yield them. `event` is the SSE
+ *  event name (Responses uses it; chat-completions does not). */
+interface UpstreamFrame {
+  event?: string
+  data?: string
+}
+
+/**
+ * One turn's upstream stream, normalized to canonical Anthropic events.
+ *
+ * The agent loop is a *downstream* Anthropic Messages stream: whatever the
+ * client asked for, it is owed `message_start` / `content_block_*` /
+ * `message_delta`. What varies is only which upstream wire format we emulate
+ * that from. An implementation owns its payload shape, its call, and its frame
+ * decoding; everything past `decode` — block bookkeeping, web-tool execution,
+ * usage accumulation — is identical for both and lives below.
+ */
+interface StreamTurnTransport {
+  /** Open the upstream stream. Throws when upstream ignored `stream=true`. */
+  open: () => Promise<AsyncIterable<UpstreamFrame>>
+  /** One raw frame → canonical Anthropic events. `[]` when the frame carries
+   *  none (keepalive, terminator, or an unparseable body). */
+  decode: (frame: UpstreamFrame) => Array<AnthropicStreamEventData>
+}
+
+const NON_STREAMING_UPSTREAM =
+  "web-tools stream: upstream returned non-streaming response despite stream=true"
+
+/** Chat-completions turn transport. Anthropic models on Copilot are served
+ *  here, which is why this was the agent loop's only transport for so long. */
+function chatStreamTransport(
+  payload: AnthropicMessagesPayload,
+  callOptions: CopilotCallOptions,
+  upstreamCall: UpstreamCall,
+): StreamTurnTransport {
+  const state: AnthropicStreamState = {
+    messageStartSent: false,
+    contentBlockIndex: 0,
+    contentBlockOpen: false,
+    toolCalls: {},
+    thinkingBlockOpen: false,
+  }
+  return {
+    open: async () => {
+      const openAIPayload = translateToOpenAI(payload)
+      openAIPayload.stream = true
+      const response = await upstreamCall(openAIPayload, callOptions)
+      if (isNonStreaming(response)) throw new Error(NON_STREAMING_UPSTREAM)
+      return response
+    },
+    decode: (frame) => {
+      if (!frame.data || frame.data === "[DONE]") return []
+      // casts-keep: read only through `translateChunkToAnthropicEvents`, total over a malformed frame; tolerance proven in tests/stream-boundary-tolerance.test.ts
+      const chunk = JSON.parse(frame.data) as ChatCompletionChunk
+      return translateChunkToAnthropicEvents(chunk, state)
+    },
+  }
+}
+
+/** Responses turn transport, for models Copilot serves only on `/responses`
+ *  (gpt-5.6-*). Reuses the same emulator the ordinary `/responses` flow uses,
+ *  so the estimated-input-token handling for `usage: null` on
+ *  `response.created` is inherited rather than reinvented. */
+function responsesStreamTransport(
+  payload: AnthropicMessagesPayload,
+  ctx: {
+    callOptions: CopilotCallOptions
+    selectedModel: Model | undefined
+    responsesCall: ResponsesCall
+  },
+): StreamTurnTransport {
+  let state: ResponsesStreamState | null = null
+  return {
+    open: async () => {
+      const responsesPayload =
+        translateAnthropicMessagesToResponsesPayload(payload)
+      responsesPayload.stream = true
+      const { vision, initiator } = getResponsesRequestOptions(responsesPayload)
+      // Started before the upstream call and awaited after: the round-trip
+      // dwarfs local tokenization, so overlapping them costs no latency.
+      const inputEstimate = estimateInputTokens(payload, ctx.selectedModel)
+      const response = await ctx.responsesCall(responsesPayload, {
+        vision,
+        initiator,
+        ...ctx.callOptions,
+      })
+      state = createResponsesStreamState(await inputEstimate)
+      if (!isAsyncIterable<UpstreamFrame>(response)) {
+        throw new Error(NON_STREAMING_UPSTREAM)
+      }
+      return response
+    },
+    decode: (frame) => {
+      // `open` always assigns before any frame is decoded.
+      if (!state || !frame.data || frame.event === "ping") return []
+      const parsed = readResponsesFrame(frame.data)
+      return parsed ? translateResponsesStreamEvent(parsed.event, state) : []
+    },
+  }
+}
+
 interface StreamingAgentArgs {
   initialPayload: AnthropicMessagesPayload
   policy: WebToolPolicy
@@ -76,10 +194,18 @@ interface StreamingAgentArgs {
     subagentMarker?: SubagentMarker | null
     logger: ConsolaInstance
   }
+  /** Catalog entry for the resolved model, used to pick each turn's upstream
+   *  transport. `undefined` (model absent from the catalog) keeps
+   *  `/chat/completions`. */
+  selectedModel?: Model
   /** Upstream-call dependency injection for tests. Defaults to the
    *  real createChatCompletions; pass a stub to drive synthetic
-   *  chunk streams. */
+   *  chunk streams. Applies to the chat-completions transport only. */
   upstreamCall?: UpstreamCall
+  /** The `/responses` counterpart of {@link StreamingAgentArgs.upstreamCall}.
+   *  Two seams because the two transports take different payload shapes; a
+   *  single one would have to be a union that neither side can use directly. */
+  responsesCall?: ResponsesCall
   /** Keepalive-ping interval for silent gaps (tool execution, next upstream
    *  turn). Test seam; defaults to {@link HEARTBEAT_INTERVAL_MS}. */
   heartbeatIntervalMs?: number
@@ -124,6 +250,27 @@ export async function runStreamingAgent(
       stream: true,
     }
 
+    const callOptions: CopilotCallOptions = {
+      requestId: args.options.requestId,
+      sessionId: args.options.sessionId,
+      compactType: args.options.compactType,
+      subagentMarker: args.options.subagentMarker,
+    }
+    // Per turn, not per request: each transport carries its own stream state,
+    // and a turn must not inherit the previous turn's block indices.
+    const transport =
+      shouldUseResponsesApi(args.selectedModel) ?
+        responsesStreamTransport(turnPayload, {
+          callOptions,
+          selectedModel: args.selectedModel,
+          responsesCall: args.responsesCall ?? createResponses,
+        })
+      : chatStreamTransport(
+          turnPayload,
+          callOptions,
+          args.upstreamCall ?? createChatCompletions,
+        )
+
     const turnResult = await runOneStreamingTurn({
       payload: turnPayload,
       options: args.options,
@@ -132,7 +279,7 @@ export async function runStreamingAgent(
       messageStartEmitted,
       executor,
       state,
-      upstreamCall: args.upstreamCall ?? createChatCompletions,
+      transport,
       heartbeatIntervalMs,
     })
     messageStartEmitted = turnResult.messageStartEmitted
@@ -219,7 +366,7 @@ interface TurnArgs {
   messageStartEmitted: boolean
   executor: Executor
   state: RequestState
-  upstreamCall: UpstreamCall
+  transport: StreamTurnTransport
   heartbeatIntervalMs: number
 }
 
@@ -239,37 +386,14 @@ interface OpenBlock {
 }
 
 async function runOneStreamingTurn(args: TurnArgs): Promise<TurnResult> {
-  const openAIPayload = translateToOpenAI(args.payload)
-  openAIPayload.stream = true
-
   const response = await withHeartbeat(
     {
       stream: args.stream,
       messageStartEmitted: args.messageStartEmitted,
       intervalMs: args.heartbeatIntervalMs,
     },
-    () =>
-      args.upstreamCall(openAIPayload, {
-        requestId: args.options.requestId,
-        sessionId: args.options.sessionId,
-        compactType: args.options.compactType,
-        subagentMarker: args.options.subagentMarker,
-      }),
+    () => args.transport.open(),
   )
-
-  if (isNonStreaming(response)) {
-    throw new Error(
-      "web-tools stream: upstream returned non-streaming response despite stream=true",
-    )
-  }
-
-  const innerState: AnthropicStreamState = {
-    messageStartSent: false,
-    contentBlockIndex: 0,
-    contentBlockOpen: false,
-    toolCalls: {},
-    thinkingBlockOpen: false,
-  }
 
   const upstreamToClient = new Map<number, OpenBlock>()
   const outcomes: Array<{
@@ -281,13 +405,8 @@ async function runOneStreamingTurn(args: TurnArgs): Promise<TurnResult> {
   let stopReason: string | null = null
   let messageStartEmitted = args.messageStartEmitted
 
-  for await (const rawEvent of response as AsyncIterable<{ data?: string }>) {
-    if (rawEvent.data === "[DONE]") break
-    if (!rawEvent.data) continue
-
-    // casts-keep: read only through `translateChunkToAnthropicEvents`, total over a malformed frame; tolerance proven in tests/stream-boundary-tolerance.test.ts
-    const chunk = JSON.parse(rawEvent.data) as ChatCompletionChunk
-    const events = translateChunkToAnthropicEvents(chunk, innerState)
+  for await (const frame of response) {
+    const events = args.transport.decode(frame)
 
     for (const event of events) {
       const dispatched = await dispatchEvent({
