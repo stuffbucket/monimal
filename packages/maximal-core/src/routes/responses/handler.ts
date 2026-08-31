@@ -2,6 +2,8 @@ import type { Context } from "hono"
 
 import { streamSSE } from "hono/streaming"
 
+import type { WebSearchToolDecl } from "~/routes/messages/web-tools/types"
+
 import {
   getConfig,
   getPromptCacheRetention,
@@ -25,6 +27,7 @@ import {
   type UsageTokens,
   withCopilotCost,
 } from "~/lib/token-usage"
+import { buildResponsesFilters } from "~/routes/messages/web-tools/executor"
 import { TOOL_TYPE } from "~/routes/messages/web-tools/vocab"
 import { isAsyncIterable } from "~/routes/streaming-predicates"
 import { readNestedUsage } from "~/routes/untrusted-frame"
@@ -117,6 +120,8 @@ export const handleResponses = async (c: Context) => {
   useFunctionApplyPatch(payload)
 
   removeUnsupportedTools(payload)
+
+  mapAnthropicWebTools(payload)
 
   if (!isResponsesApiWebSearchEnabled()) {
     removeWebSearchTool(payload)
@@ -274,22 +279,72 @@ const removeWebSearchTool = (payload: ResponsesPayload): void => {
   })
 }
 
+const COPILOT_UNSUPPORTED_TOOL_TYPES = new Set<string>(["image_generation"])
+
 /**
- * Tool types Copilot's `/responses` rejects, dropped so one bad declaration
- * does not 400 the whole request.
+ * Translate Anthropic's server-side web tools into the native `/responses`
+ * `web_search`.
  *
- * The two Anthropic server-side web tools are here because this route has no
- * web-tools agent loop: `splitWebTools` / `handleWithWebToolsAgent` are mounted
- * only on `/v1/messages`, so nothing on this path strips and shims them. Left
- * in, they reach Copilot raw and are rejected. A client wanting web search over
- * `/responses` should declare the native `web_search` tool, which passes
- * through untouched when `useResponsesApiWebSearch` is on.
+ * This route has no web-tools agent loop -- `splitWebTools` and
+ * `handleWithWebToolsAgent` are mounted only on `/v1/messages` -- so a
+ * declaration left in place reaches Copilot raw and 400s the whole request.
+ *
+ * Translating rather than dropping is what keeps the caller's **domain policy**,
+ * which must not be silently lost: Copilot's `/responses` honors
+ * `filters.allowed_domains` / `blocked_domains`, verified live and shared with
+ * the broker via {@link buildResponsesFilters}. `user_location` carries over
+ * as-is; both APIs use the same `approximate` shape.
+ *
+ * Two things do not survive, both stated rather than hidden:
+ *   - `max_uses` has no native counterpart. Counting invocations is the agent
+ *     loop's job and there is no loop here, so a cap declared on this route is
+ *     not enforced.
+ *   - `web_fetch` has no native counterpart at all and is dropped. Its domain
+ *     policy is not merged into `web_search`: a fetch allow-list is not a
+ *     search allow-list, and widening one with the other would be worse than
+ *     dropping it.
  */
-const COPILOT_UNSUPPORTED_TOOL_TYPES = new Set<string>([
-  "image_generation",
-  TOOL_TYPE.webSearch,
-  TOOL_TYPE.webFetch,
-])
+export const mapAnthropicWebTools = (payload: ResponsesPayload): void => {
+  if (!Array.isArray(payload.tools) || payload.tools.length === 0) return
+
+  const tools = payload.tools as Array<{ type?: string }>
+  if (
+    !tools.some(
+      (t) => t.type === TOOL_TYPE.webSearch || t.type === TOOL_TYPE.webFetch,
+    )
+  ) {
+    return
+  }
+
+  const alreadyNative = tools.some((t) => t.type === "web_search")
+  const out: Array<{ type?: string }> = []
+
+  for (const tool of tools) {
+    if (tool.type === TOOL_TYPE.webFetch) {
+      logger.debug("Dropped web_fetch: no native /responses counterpart")
+      continue
+    }
+    if (tool.type !== TOOL_TYPE.webSearch) {
+      out.push(tool)
+      continue
+    }
+    if (alreadyNative) {
+      logger.debug("Dropped Anthropic web_search: native web_search declared")
+      continue
+    }
+    const decl = tool as WebSearchToolDecl
+    out.push({
+      type: "web_search",
+      ...buildResponsesFilters({
+        allowedDomains: decl.allowed_domains,
+        blockedDomains: decl.blocked_domains,
+      }),
+      ...(decl.user_location ? { user_location: decl.user_location } : {}),
+    })
+  }
+
+  payload.tools = out
+}
 
 export const removeUnsupportedTools = (payload: ResponsesPayload): void => {
   if (!Array.isArray(payload.tools) || payload.tools.length === 0) return

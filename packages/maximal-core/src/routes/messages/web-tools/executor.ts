@@ -303,7 +303,7 @@ export class CopilotResponsesExecutor implements Executor {
 // Shape per OpenAI docs + openai-python web_search_tool_param + Vercel AI
 // SDK. Returns {} (no filters key) when neither list is set, so the tool
 // declaration stays minimal.
-function buildResponsesFilters(opts: SearchOpts): {
+export function buildResponsesFilters(opts: SearchOpts): {
   filters?: { allowed_domains?: Array<string>; blocked_domains?: Array<string> }
 } {
   const filters: {
