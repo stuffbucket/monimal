@@ -144,6 +144,15 @@ package provenance or publisher identity -- the proxy does that.
   root list, which is the only one pnpm honours.
 - `maximal-electron`: deleted its `.npmrc`. Its only line set
   `node-linker=hoisted`, which the root setting overrides.
+- `maximal/client`: added a `README.md`. The upstream copy carries none, and
+  its gap list had no owner -- `docs/dev/client-architecture.md` listed four
+  gaps without sequencing them. The README owns the sequence; that section now
+  links to it rather than restating it.
+- `maximal/client`: was on `typescript ^7.0.2` with `@babel/eslint-parser` and
+  no typescript-eslint. bb12eaf moved the workspace to one TypeScript, so it
+  now lints through `@stuffbucket/eslint-config/typescript` like every other
+  package. Type-aware rules stay off pending 38 findings; that is a scoped
+  task, not a blocked upgrade, and it is step 4 of `client/README.md`.
 - `maximal/client`: deleted `package-lock.json`, and `scripts/build-core.ts`
   now takes the sidecar's git SHA from `git rev-parse HEAD`. It parsed the
   lockfile for the git URL maximal-core was once installed from — a commit that
@@ -213,14 +222,8 @@ package provenance or publisher identity -- the proxy does that.
 
 ## Known-blocked upgrades
 
-- `maximal/client` cannot use typescript-eslint, so it lints without any
-  type-aware rule. It pins `typescript ^7.0.2`; typescript-eslint still
-  declares `typescript >=4.8.4 <6.1.0` at 8.67.0 and throws at import time even
-  for plain, non-type-aware parsing. The package parses with
-  `@babel/eslint-parser` instead. The only way out short of upstream support is
-  a second, aliased TypeScript <6.1 installed for the linter alone -- a shadow
-  compiler whose type layer can disagree with the real `tsc` -- which is a
-  human decision, not a config change.
+None. The last entry was `maximal/client`'s TypeScript 7 pin, which bb12eaf
+cleared; the Deviations section records what replaced it.
 
 ## Excluded from the copies
 

@@ -137,12 +137,14 @@ client replacement without learning the new private origin.
 
 ## Placeholder data
 
-`WorkspaceSource` is either `placeholder` or `live`. There is no live source
-until core supplies durable project/run state (tracked by
-`stuffbucket/maximal#432` and `stuffbucket/maximal-core#109`). Placeholder
-records are deterministic, visibly named as placeholders, and accompanied by
-persistent notices in Workspace and Dashboard. Fabricated fleet data must
-never look live.
+`WorkspaceSource` is either `placeholder` or `live`, and only `placeholder` is
+implemented. No live source backs the fleet model it was written against,
+because nothing produces one: core is a proxy, and a harness owns run state.
+Replacing it is step 1 of [`../../client/README.md`](../../client/README.md).
+
+Until then, placeholder records are deterministic, visibly named as
+placeholders, and accompanied by persistent notices in Workspace and
+Dashboard. Fabricated fleet data must never look live.
 
 Completed and failed `AgentRun` records carry `finishedAt`; Dashboard orders
 recent completions by that value rather than array position.
@@ -165,8 +167,9 @@ tree-shaking.
   lifecycle mapping, control generations, error transport, capability
   adapters, and UI behavior are covered.
 - ESLint enforces React hooks, basic syntax rules, and the renderer import
-  boundary. It is intentionally not type-aware while the client uses
-  TypeScript 7 and the supported `typescript-eslint` line cannot load it.
+  boundary. typescript-eslint runs at `recommended` with `typeChecked: false`;
+  switching type-aware rules on is step 4 of
+  [`../../client/README.md`](../../client/README.md).
 - TypeScript validates the complete main/preload/renderer contract.
 - Packaged Playwright tests launch a relocated copy outside the repository's
   dependency tree. They verify sidecar readiness, the exact deep preload API,
@@ -182,12 +185,7 @@ resolve unshipped dependencies and validate an artifact users never receive.
 
 ## Known gaps
 
-- Workspace and Dashboard still have no live project/run source.
-- Workspace and Dashboard each compose a full `ShellLayout`; the app-level
-  view switcher and each surface's internal navigation are not yet one shared
-  frame.
-- Client linting is not type-aware pending TypeScript 7 support in the lint
-  toolchain or an explicit decision to maintain a shadow compiler.
-- Destructive and process-lifecycle control operations remain deliberately
-  absent. Adding one requires a named main/preload capability and appropriate
-  confirmation UX; it cannot be reached through a generic dispatcher.
+Listed, sequenced, and owned by
+[`../../client/README.md`](../../client/README.md). Placeholder data, the
+duplicated `ShellLayout`, the two shell stylesheet workarounds, and the
+deferred lint rules are all tracked there rather than restated here.
