@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process'
 
 /**
  * List `pid command` for every process whose command line contains
- * `pathFragment`. Used to prove a spawned sidecar (or the packaged app's own
+ * `pathFragment`. Proves a spawned sidecar (or the packaged app's own
  * main process) is really gone after shutdown, without depending on
  * capturing an OS pid ourselves — the relocated app lives at a fresh
  * `mktemp -d` path unique to this run, so a substring match against that path

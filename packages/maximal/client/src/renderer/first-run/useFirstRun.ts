@@ -103,11 +103,9 @@ export function useFirstRun(): UseFirstRunResult {
       unsubAuth()
       unsubLifecycle()
       if (poll) clearInterval(poll)
-      // Tears down both `onCoreStatus` bridge listeners this mount's
-      // capability bundle registered (`auth`'s and `lifecycle`'s). Without
-      // this, every mount — including every sign-out, which remounts
-      // `FirstRun` — left a fresh pair of listeners nothing would ever
-      // remove (review finding M4).
+      // Tears down both bridge listeners this mount's capability bundle
+      // registered. Without it, every mount — including every sign-out, which
+      // remounts `FirstRun` — leaks a fresh pair that nothing removes.
       capabilities.dispose()
     }
   }, [])

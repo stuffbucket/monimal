@@ -3,14 +3,9 @@ import type { ReactElement } from 'react'
 import { StatusBadge } from './RunCard'
 import { type AgentRun, formatElapsed } from './model'
 
-// Presentational only — no data fetching. See stuffbucket/maximal#432.
-// Composed inside the shell's collapsible right inspector
-// (`@stuffbucket/maximal-electron/renderer`'s ShellLayout), which "shows
-// properties when something is selected, and settings when nothing is" —
-// this component is that split for a selected AgentRun. Styling follows the
-// same `--shell-*` custom-property contract RunCard.tsx uses; see the
-// comment above that file's injected stylesheet for the fallback-value
-// rationale.
+// Presentational only — no data fetching. Renders into the shell's right
+// inspector: properties for a selected run, and an empty state when nothing
+// is selected.
 
 interface ToolCallRow {
   key: 'read' | 'edit' | 'bash'
@@ -115,11 +110,9 @@ export function Inspector({ run }: InspectorProps): ReactElement {
 
 // ---- Styles ----
 //
-// Injected once on import, guarded by element id (see RunCard.tsx for the
-// same pattern and its rationale). `StatusBadge` is imported from
-// RunCard.tsx rather than redefined here, so its `.status-badge` rules ship
-// once — importing that module for the component runs its module-level
-// style injection too, so `.status-badge` is guaranteed present before this
+// Injected once on import, guarded by element id. `StatusBadge` comes from
+// RunCard rather than being redefined here, and importing it also runs that
+// module's style injection, so `.status-badge` is present before this
 // stylesheet needs it.
 const INSPECTOR_CSS = `
 .inspector {

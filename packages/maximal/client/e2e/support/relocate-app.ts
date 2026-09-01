@@ -37,14 +37,12 @@ function packagedAppSourcePath(): string {
  * Copy the packaged .app to a fresh directory OUTSIDE the repo (and therefore
  * outside every node_modules in its ancestry), then assert both things held.
  *
- * WHY THIS EXISTS (non-negotiable, not theoretical):
- * stuffbucket/maximal-electron#154 measured the IDENTICAL build hanging for
- * 180 seconds when launched in place from `out/`, vs. ~0.7s launched from a
- * relocated copy — because the in-place run resolved an unshipped native
- * backend from the checkout's parent `node_modules`. A test that runs the
- * app from `out/` tests a bundle no user will ever run, and it would pass
- * while the shipped artifact is broken. Every packaged-app check MUST go
- * through this relocation first.
+ * WHY THIS EXISTS (measured, not theoretical): launched in place from `out/`,
+ * the identical build resolves unshipped dependencies from the checkout's
+ * parent `node_modules` — which has cost minutes of startup where a relocated
+ * copy took under a second. A test that runs the app from `out/` exercises a
+ * bundle no user will ever run, and passes while the shipped artifact is
+ * broken. Every packaged-app check MUST go through this relocation first.
  */
 export function relocatePackagedApp(): RelocatedApp {
   const source = packagedAppSourcePath()

@@ -1,13 +1,11 @@
 import { z } from 'zod'
 
 // Shapes for the agent-fleet workspace: a projects rail with run counts,
-// status filters, run cards, and an inspector. See stuffbucket/maximal#432.
+// status filters, run cards, and an inspector.
 //
-// maximal-core cannot back this data yet (it has no concept of projects,
-// agent runs, branches, tool calls, or diffs — see maximal-core#109), so
-// these schemas describe the model the UI renders against, independent of
-// where the data ultimately comes from. The adapter seam lives in
-// ./source.ts.
+// Nothing produces this data. These schemas describe the model the UI renders
+// against, independent of where the data would come from; the adapter seam is
+// in ./source.ts.
 
 export const RunStatus = z.enum(['running', 'needs-approval', 'done', 'failed'])
 export type RunStatus = z.infer<typeof RunStatus>

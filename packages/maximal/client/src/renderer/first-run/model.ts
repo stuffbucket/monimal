@@ -15,11 +15,10 @@ import type { BootPhase } from './capabilities'
  * `error` — there is no dedicated `authorization_denied` or
  * `device_code_expired` wire state. Both are collapsed into the generic
  * `error` variant's free-text `error` message by
- * `poll-access-token.ts`/`auth-controller.ts` upstream. `deriveFirstRunPhase`
- * below reconstructs the distinct, task-required terminal states from that
- * text (denied / expired / offline) — a heuristic, not a structural
- * discriminant; see the task report for why and what a sturdier upstream
- * contract would look like.
+ * upstream. `deriveFirstRunPhase` below reconstructs the distinct terminal
+ * states the screens need from that text (denied / expired / offline). That
+ * is a heuristic, not a structural discriminant: it is only as stable as the
+ * wording it matches, and a coded error variant upstream would replace it.
  */
 
 export type ActionError =

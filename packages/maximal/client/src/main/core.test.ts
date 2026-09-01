@@ -127,7 +127,7 @@ describe('core lifecycle status (no sidecar spawned)', () => {
   })
 })
 
-describe('launchCore ready-vs-shutdown race (review finding M3)', () => {
+describe('launchCore ready-vs-shutdown race', () => {
   it('discards a ready line that arrives after killCore() was called mid-startup', async () => {
     const { spawnCore, killCore, currentCoreStatus } = await freshCore()
 
@@ -154,7 +154,7 @@ describe('launchCore ready-vs-shutdown race (review finding M3)', () => {
   })
 })
 
-describe('restart attempt budget (review finding M2)', () => {
+describe('restart attempt budget', () => {
   it('does not reset the attempt counter just because a restart reaches ready — only a stability window does', async () => {
     vi.useFakeTimers()
     try {
@@ -187,7 +187,7 @@ describe('restart attempt budget (review finding M2)', () => {
       })
 
       // The restart reached `ready`, but nowhere near the 30s stability
-      // window (review finding M2's fix) — crashing again immediately must
+      // window — crashing again immediately must
       // count as attempt 2, not reset back to a fresh attempt 1. Before the
       // fix, the reset happened synchronously on `ready`, so this crash would
       // have reported attempt: 1 again, and a sidecar that dies right after

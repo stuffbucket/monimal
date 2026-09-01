@@ -66,17 +66,11 @@ function contrastRatio(a: Rgba, b: Rgba): number {
  * through every ancestor up to `<html>`, rather than just reading the
  * element's own value.
  *
- * This matters here specifically: the package's "selected" states (e.g.
- * `.nav__item[aria-current='true']`, `.icon-button[data-active='true']`) are
- * painted with a TRANSLUCENT `--shell-accent-muted` background (see
- * `theme.ts`'s own comment: chosen at 0.12 alpha specifically so accent text
- * on top still clears 4.5:1). Reading that rgba string's R/G/B directly and
- * ignoring alpha would silently overstate contrast for exactly the controls
- * most worth checking. Compositing bottom-up over every ancestor (each layer
- * painted over the accumulated result, per the standard "over" alpha
- * operator) reproduces what a viewer actually sees, and matches the ratios
- * `theme.ts` documents for these pairs (verified against its "--shell-accent
- * on --shell-accent-muted 4.61:1" figure while building this helper).
+ * Selected states are painted with a translucent background, so reading an
+ * rgba string's R/G/B directly and ignoring alpha would overstate contrast for
+ * exactly the controls most worth checking. Compositing bottom-up over every
+ * ancestor, per the standard "over" operator, reproduces what a viewer
+ * actually sees.
  */
 async function resolvedColors(locator: Locator): Promise<{ color: Rgba; background: Rgba }> {
   const raw = await locator.evaluate((el) => {

@@ -1,11 +1,7 @@
-// Shared handling for `AuthStatus`'s `account_login` best-effort-failure
-// sentinel. `@stuffbucket/maximal-core/settings-types` documents that the
-// `authenticated` variant's `account_login` is the literal string
-// `"unknown"` when sign-in succeeded but the controller couldn't fetch the
-// GitHub user (rather than the field being dropped), and that "the renderer
-// treats `\"unknown\"` as a placeholder trigger" — i.e. this is a rendering
-// obligation the wire contract assumes callers honour, not an edge case a
-// surface can skip.
+// Shared handling for `account_login`'s failure sentinel. The wire contract
+// sets it to the literal string `"unknown"` when sign-in succeeded but the
+// GitHub user could not be fetched, and expects the renderer to substitute
+// copy for it. That is an obligation, not an edge case a surface may skip.
 
 const UNKNOWN_ACCOUNT_LOGIN = 'unknown'
 

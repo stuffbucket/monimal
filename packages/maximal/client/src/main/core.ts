@@ -22,22 +22,15 @@ export function proxyUrl(): string {
 /**
  * Resolve once the sidecar has an origin, rather than answering with `''`.
  *
- * `main/index.ts` creates the window BEFORE awaiting `spawnCore()`, so a
- * renderer reliably asks for the origin while `controlBase` is still empty.
- * Returning `''` made every cold launch build a client against an empty base
- * URL and emit a `net::ERR_FILE_NOT_FOUND` + `TypeError: Failed to fetch`
- * pair. It self-healed when `onCoreStatus` delivered the real origin, so it was
- * never user-visible — but "recovers" is not "correct", and a deterministic
- * error on every launch is noise that hides real ones.
+ * The window is created before the sidecar is awaited, so a renderer reliably
+ * asks for the origin while `controlBase` is still empty. Answering `''` would
+ * build a client against an empty base URL on every cold launch.
  *
- * Deliberately NOT an unbounded wait. It settles on all three terminal phases:
- * `ready` resolves; `failed` rejects (the restart budget is spent, or the first
- * start threw); and `stopped` rejects, because `killCore()` never emits
- * `failed` — a deliberate quit is not a failure — so waiting only on `ready` or
- * `failed` left this promise unsettled forever when the user quit mid-startup.
- * An earlier version of this comment claimed the wait was bounded while the
- * code omitted `stopped`, which is the worst combination: a reader trusts the
- * comment and never checks. Hanging forever is the one outcome not allowed.
+ * Bounded: it settles on all three terminal phases. `ready` resolves; `failed`
+ * rejects; and `stopped` rejects, because a deliberate quit never emits
+ * `failed`. Waiting only on `ready` and `failed` would leave this promise
+ * unsettled forever when the user quits mid-startup. Hanging is the one
+ * outcome not allowed.
  */
 function awaitOrigin(pick: () => string): Promise<string> {
   const current = pick()
@@ -105,10 +98,9 @@ function backoffFor(attempt: number): number {
  * Lifecycle state the main process can observe without polling.
  *
  * `boot-status` is a live relay of the sidecar's own boot narration.
- * `crashed`/`restarting`/`failed` cover the case this module previously had
- * no answer for: the sidecar dying *after* a successful start. `willRetry` on
- * `crashed` tells a listener whether a `restarting` event should be expected
- * next, or whether this crash was the one that hit the bound.
+ * `crashed`/`restarting`/`failed` cover a sidecar dying *after* a successful
+ * start. `willRetry` on `crashed` tells a listener whether a `restarting`
+ * event should be expected next, or whether this crash hit the bound.
  */
 export type CoreStatus =
   | { phase: 'starting' }
@@ -193,14 +185,10 @@ function clearRestartTimer(): void {
 
 /** How long a restarted sidecar must stay up before its `ready` is treated as
  *  proof the *process* recovered, not just that it can print a ready line.
- *  `useFirstRun`'s poll (3s, `useFirstRun.ts`) is the fastest thing that can
- *  provoke a crash right after boot, and `POLL_MS` is 3000 — so a stability
- *  window at that scale would still let a "dies on the first poll" sidecar
- *  reset its budget every cycle (review finding M2's actual failure). 30s is
- *  an order of magnitude past that: long enough that a crash tied to the
- *  first few control-plane requests never resets the counter, short enough
- *  that a genuinely-recovered sidecar (the case the reset exists for) isn't
- *  stuck on a depleted budget for long after a real transient blip. */
+ *  An order of magnitude past the renderers' few-second status polls, so a
+ *  sidecar that dies on its first control-plane request never resets its
+ *  budget, while one that genuinely recovered is not held on a depleted
+ *  budget long after a transient blip. */
 const RESTART_STABILITY_MS = 30_000
 let stabilityTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -241,10 +229,9 @@ async function attemptRestart(): Promise<void> {
   }
 }
 
-/** Called when a previously-ready sidecar's process exits on its own — the gap
- *  this module used to have no answer for. Never fires for a `killCore()`-
- *  initiated exit (`intentionalShutdown` short-circuits it), and never
- *  restarts past `MAX_RESTART_ATTEMPTS`. */
+/** Called when a ready sidecar's process exits on its own. Never fires for a
+ *  `killCore()`-initiated exit, and never restarts past
+ *  `MAX_RESTART_ATTEMPTS`. */
 function onUnexpectedExit(proc: ChildProcess, code: number | null, signal: NodeJS.Signals | null): void {
   if (intentionalShutdown) return
   // A newer launch may already have superseded this process; only the
@@ -334,14 +321,11 @@ async function launchCore(): Promise<{ controlOrigin: string; proxyUrl: string; 
       throw new Error(`maximal-core ready-line pid ${ready.pid} did not match spawned pid ${String(proc.pid)}`)
     }
 
-    // `killCore()` (or a newer launch superseding this one — see the
-    // `child !== proc` guard `onUnexpectedExit` already applies) can land
-    // while this function was awaiting the ready line. Neither can cancel the
-    // in-flight await, so without this check a `killCore()` mid-startup would
-    // be followed by a `ready` for a process already torn down: `controlBase`
-    // pinned to a dead port, `restartAttempts` reset, and a `ready` emitted
-    // after the `stopped` that already told everyone the app was shutting
-    // down (review finding M3).
+    // A shutdown, or a newer launch superseding this one, can land while this
+    // function awaits the ready line, and neither cancels the in-flight await.
+    // Without this check, a shutdown mid-startup is followed by a `ready` for
+    // a process already torn down: `controlBase` pinned to a dead port and a
+    // `ready` emitted after the `stopped` that announced the teardown.
     if (intentionalShutdown || child !== proc) {
       throw new Error('maximal-core became ready after shutdown was requested; discarding')
     }
@@ -355,13 +339,10 @@ async function launchCore(): Promise<{ controlOrigin: string; proxyUrl: string; 
     controlBase = `http://127.0.0.1:${ready.controlPort}`
     proxyBase = `http://127.0.0.1:${ready.proxyPort}`
     // A restart that reaches readiness has only proven the sidecar CAN come
-    // up again — not that it stays up. Resetting the budget immediately here
-    // let a sidecar that dies right after every ready line restart forever,
-    // once per boot cycle, without ever reaching `failed` (review finding
-    // M2). Reset only once this process has stayed alive for
-    // `RESTART_STABILITY_MS`; the `child === proc` check in the callback
-    // guards against a stale timer from a launch already superseded by a
-    // later one firing after the fact.
+    // up again — not that it stays up. Resetting the budget here would let one
+    // that dies right after every ready line restart forever without ever
+    // reaching `failed`, so the reset waits for `RESTART_STABILITY_MS`. The
+    // `child === proc` check guards a stale timer from a superseded launch.
     clearStabilityTimer()
     stabilityTimer = setTimeout(() => {
       stabilityTimer = null

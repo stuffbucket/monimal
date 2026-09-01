@@ -25,15 +25,12 @@ export function ConnectionSection({ capabilities }: ConnectionSectionProps): Rea
   useEffect(() => {
     let settled = false
 
-    // One effect owns the whole read lifetime, mirroring AccountSection's
-    // shape: the first read, every later push, and teardown. `proxyUrl()`
-    // now tracks the sidecar's CURRENT proxy port rather than a value
-    // captured once before core existed (review finding M1) — but that only
-    // helps a mounted component if it asks again after a restart. `subscribe`
-    // fires on every control-plane state change, including the explicit
-    // invalidation main emits after installing a restart replacement, so it
-    // doubles as the restart signal here even though this section has no
-    // auth/account state of its own to refresh.
+    // One effect owns the whole read lifetime: the first read, every later
+    // push, and teardown. `proxyUrl()` tracks the sidecar's current port, but
+    // that only helps a mounted component if it asks again after a restart.
+    // `subscribe` fires on every control-plane change, including the
+    // invalidation main emits after installing a replacement, so it doubles as
+    // the restart signal even though this section holds no auth state.
     const refresh = () => {
       capabilities.connection
         .proxyUrl()
