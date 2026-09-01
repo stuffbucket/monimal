@@ -6,7 +6,9 @@ from separate repositories and are now edited here; shared tooling and runtime
 adapters are owned here. [SOURCES.md](SOURCES.md) records the copied commits,
 workspace rules, and deliberate deviations.
 
-Nothing here publishes, and this repository is not a release home of record.
+This repository publishes signed, notarized macOS DMGs to GitHub Releases;
+[RELEASING.md](RELEASING.md) owns that process. It does not publish the update
+manifest served at mxml.sh, which lives in `stuffbucket/maximal`.
 
 ## Layout
 
@@ -119,6 +121,11 @@ Both jobs restore Turbo's local cache. Cacheable dependency builds may replay;
 the sidecar recompiles because its task is uncached. Actions are SHA-pinned and
 tool versions come from the same repository files used locally.
 
+[`.github/workflows/release.yml`](.github/workflows/release.yml) is separate: a
+tag creates a draft release, dispatches the private builder that holds the Apple
+credentials, and waits for the signed DMG. It never publishes. Owned by
+[RELEASING.md](RELEASING.md).
+
 The workflows under `packages/*/.github` are copied upstream fixtures. GitHub
 does not execute them here, but package tests assert against them, so they must
 remain present.
@@ -138,3 +145,6 @@ remain present.
   Keep the corresponding external Turbo input when changing its content loader.
 - Vendored `.github` directories are test fixtures, not disposable workflow
   copies.
+- The root `.macos-builder/` is the live release producer; the vendored
+  `packages/maximal/.macos-builder/` is a fixture for a different layout and is
+  never executed. Owned by [RELEASING.md](RELEASING.md).

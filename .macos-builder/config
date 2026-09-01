@@ -1,0 +1,40 @@
+# Client contract for the private stuffbucket/macos-builder pipeline.
+#
+# The builder checks this repository out at a tag, reads THIS file, runs
+# ./.macos-builder/build.sh to produce the .app, then owns the whole tail it is
+# never safe to hand a public repo: top-level sign, dmg, notarize, staple,
+# sha256, and upload onto this repo's release at that tag.
+#
+# The vendored packages/maximal/.macos-builder/ is NOT this file. It is a test
+# fixture copied from the standalone maximal repo and targets a different
+# layout (npm, client/ at the root). The builder reads the CHECKOUT ROOT only.
+# See RELEASING.md.
+
+# Where build.sh leaves the bundle, relative to the checkout root.
+# @electron/packager writes out/<productName>-darwin-<arch>/, productName is
+# "Maximal" in packages/maximal/client/package.json, and build.sh pins --arch,
+# so this literal path is always what appears.
+app_path = packages/maximal/client/out/Maximal-darwin-arm64/Maximal.app
+
+volname = Maximal
+
+# MUST equal appBundleId in packages/maximal/client/forge.config.ts AND
+# bundle_id_allowed in the builder's clients/stuffbucket/<repo>.policy. A
+# mismatch is caught by the builder's policy gate only AFTER a full build.
+bundle_id = co.stuffbucket.maximal
+
+# Builder-owned, enumerated by name (never a path). bun-runtime is the superset
+# that covers Electron's V8 and the Bun/JavaScriptCore sidecar in one profile:
+# allow-jit, allow-unsigned-executable-memory, disable-library-validation,
+# network. forge.config.ts applies it uniformly via optionsForFile.
+entitlements = bun-runtime
+
+# dmg only. This repo ships no auto-update channel, and nothing here feeds
+# https://mxml.sh, whose manifest is committed in stuffbucket/maximal.
+artifact = dmg
+
+# THE single owner of the asset name. {tag} is the full tag, {version} the tag
+# without its leading v. .github/workflows/release.yml parses this file to learn
+# what to wait for rather than restating the name. The checksum arrives beside
+# it as <dmg_name>.sha256.
+dmg_name = maximal-{tag}-darwin-arm64.dmg
