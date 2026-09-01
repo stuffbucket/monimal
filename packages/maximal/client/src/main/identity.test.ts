@@ -58,15 +58,36 @@ describe('applyAppName', () => {
 })
 
 describe('installApplicationMenu', () => {
-  it('labels the first submenu from app.name rather than a literal', () => {
+  /*
+   * The template's shape is platform-dependent, so asserting one shape
+   * everywhere fails wherever the suite happens not to run locally — this test
+   * pinned the macOS shape and went red on the Linux CI runner, where the first
+   * entry is File. Both contracts are worth stating, so each platform asserts
+   * its own rather than skipping.
+   */
+  const onDarwin = process.platform === 'darwin' ? it : it.skip
+  const offDarwin = process.platform === 'darwin' ? it.skip : it
+
+  it('installs exactly one menu', () => {
+    installApplicationMenu()
+    expect(setApplicationMenu).toHaveBeenCalledTimes(1)
+  })
+
+  onDarwin('leads with an application submenu labelled from app.name', () => {
     installApplicationMenu()
 
     const template = buildFromTemplate.mock.calls[0]?.[0] as Array<{ label?: string }>
-    // The macOS application menu is the whole point of installing a template:
-    // Electron's default is labelled from its own binary. Reading `app.name`
-    // rather than repeating the string is what keeps the two from disagreeing.
+    // This submenu is the whole point of installing a template: Electron's
+    // default is labelled from its own binary. Reading `app.name` rather than
+    // repeating the string is what keeps the two from disagreeing.
     expect(template[0]?.label).toBe('Maximal')
-    expect(setApplicationMenu).toHaveBeenCalledTimes(1)
+  })
+
+  offDarwin('has no application submenu, so File leads', () => {
+    installApplicationMenu()
+
+    const template = buildFromTemplate.mock.calls[0]?.[0] as Array<{ label?: string }>
+    expect(template[0]?.label).toBe('File')
   })
 })
 
