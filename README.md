@@ -1,21 +1,27 @@
 # monimal
 
 A spike combining the Maximal CLI, engine, Electron packages, client, and Astro
-site in one pnpm workspace driven by Turborepo. The packages were copied from
-separate repositories and are now edited here; [SOURCES.md](SOURCES.md) records
-the copied commits, workspace rules, and deliberate deviations.
+site in one pnpm workspace driven by Turborepo. The product packages were copied
+from separate repositories and are now edited here; shared tooling and runtime
+adapters are owned here. [SOURCES.md](SOURCES.md) records the copied commits,
+workspace rules, and deliberate deviations.
 
 Nothing here publishes, and this repository is not a release home of record.
 
 ## Layout
 
 ```text
-packages/eslint-config       @stuffbucket/eslint-config      shared ESLint config
-packages/maximal             @stuffbucket/maximal            CLI + packaging wrapper
-packages/maximal-core        @stuffbucket/maximal-core       engine
-packages/maximal-electron    @stuffbucket/maximal-electron   Electron shell / UI library
-packages/maximal/client      maximal-client                  Electron app
-packages/maximal/site        maximal-site                    Astro marketing + guide site
+packages/anthropic-provider  @stuffbucket/anthropic-provider external stock DSH adapter
+packages/eslint-config       @stuffbucket/eslint-config       shared ESLint config
+packages/llama-server        @stuffbucket/llama-server        llama.cpp HTTP adapter scaffold
+packages/maximal             @stuffbucket/maximal             CLI + runtime composition
+packages/maximal-core        @stuffbucket/maximal-core        engine
+packages/maximal-dsh-host    @stuffbucket/maximal-dsh-host    generic external DSH host
+packages/maximal-electron    @stuffbucket/maximal-electron    Electron shell / UI library
+packages/maximal-provider-contract @stuffbucket/maximal-provider-contract provider gateway contract
+packages/maximal/client      maximal-client                   Electron app
+packages/maximal/site        maximal-site                     Astro marketing + guide site
+packages/omlx                @stuffbucket/omlx                 external stock DSH oMLX adapter
 ```
 
 ## Commands
@@ -25,15 +31,18 @@ pnpm install
 pnpm run build        # turbo run build
 pnpm run typecheck
 pnpm run lint
-pnpm run test         # serialized workspace tests
-pnpm run check        # parallel build/typecheck/lint, then serialized tests
+pnpm run test         # mountless Docker workspace tests
+pnpm run check:core   # Core host checks, then focused mountless Core tests
+pnpm run check        # workspace static + Core host checks, then one Docker graph
 pnpm run package      # package maximal-client with Electron Forge
 ```
 
 The pnpm version comes from root `package.json#packageManager`; Node and Bun come
 from `.nvmrc` and `.bun-version`. Bun remains where package scripts genuinely use
 its compiler or test runner. Astro installs with the rest of the pnpm workspace
-and builds under Node.
+and builds under Node. Tests run through the root mountless Docker boundary; see
+[`docs/testing-in-docker.md`](docs/testing-in-docker.md) for its closed focused
+suite selectors.
 
 ## Turborepo
 
@@ -43,10 +52,18 @@ Turbo models the real workspace graph:
 @stuffbucket/maximal-core ─┬─> maximal-client
 @stuffbucket/maximal-electron ┘
 
-@stuffbucket/maximal-core ───> @stuffbucket/maximal
-@stuffbucket/eslint-config ──> the five linted code packages
-maximal-site ────────────────> packages/maximal/docs/guide (file input)
+@stuffbucket/maximal-provider-contract ─┬─> @stuffbucket/maximal-core
+                                       └─> @stuffbucket/maximal-dsh-host
+@stuffbucket/maximal-core ───────────────┐
+@stuffbucket/maximal-dsh-host ───────────┼─> @stuffbucket/maximal
+@stuffbucket/maximal-provider-contract ──┘
+@stuffbucket/eslint-config ──────────────> linted code packages
+maximal-site ────────────────────────────> packages/maximal/docs/guide (file input)
 ```
+
+Concrete Anthropic and oMLX adapters are not Maximal dependencies. They are
+stock Cordis/DSH plugins installed separately in a trusted external provider
+profile and loaded through the generic host only when DSH mode is selected.
 
 The site reads Markdown from `packages/maximal/docs/guide`, so its build task
 hashes that path explicitly even though the site is a nested workspace package.

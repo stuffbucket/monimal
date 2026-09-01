@@ -7,10 +7,15 @@
   "scripts": {
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
-    "test": "turbo run test --concurrency=1",
+    "test": "node scripts/docker-test.mjs",
+    "test:inner": "node scripts/assert-test-container.mjs && node --test tests/docker-test-policy.test.mjs && turbo run test --concurrency=1",
+    "test:maximal-core:inner": "node scripts/assert-test-container.mjs && pnpm --filter @stuffbucket/maximal-core test",
+    "test:maximal-dsh-host:inner": "node scripts/assert-test-container.mjs && pnpm --filter @stuffbucket/maximal-dsh-host test",
+    "test:policy:inner": "node scripts/assert-test-container.mjs && node --test tests/docker-test-policy.test.mjs",
     "lint": "turbo run lint",
     "verify:workspace": "node scripts/verify-workspace.mjs",
-    "check": "turbo run build typecheck lint && turbo run test --concurrency=1",
+    "check:core": "pnpm --filter @stuffbucket/maximal-core run check:deep:host && pnpm test -- --suite=maximal-core",
+    "check": "turbo run build typecheck lint && pnpm --filter @stuffbucket/maximal-core run check:deep:host && pnpm test",
     "package": "turbo run package --filter maximal-client"
   },
   "devDependencies": {

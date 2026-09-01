@@ -12,11 +12,12 @@
  * no baseline to bump. `EXCLUDED` is the one hand-written part, and it is a
  * policy like `check-rulesets.ts`'s `EXPECTED`, not a last-reviewed value like
  * `external-drift-baseline.json`: typed, unit-tested, `why` required, and
- * stale entries fail (see below). It holds one entry, `preflight`.
+ * stale entries fail (see below). It holds `preflight` plus the two leaf
+ * commands covered through Core's composite `build` script.
  *
- * "RUNS IN CI" = named by a step of a job that is a REQUIRED status check
- * (`CHECK_JOBS` in check-rulesets.ts), not "appears somewhere in a workflow".
- * A comment is not a step, and a job that is not required — or is path-filtered
+ * "RUNS IN CI" = named by a step of a job that is a REQUIRED status check:
+ * the package jobs in `CHECK_JOBS` plus the monorepo root's required `check`
+ * job. A comment is not a step, and a job that is not required — or is path-filtered
  * like tooling-ci.yml's — can be red with the merge button still green.
  * `check:deep` is composite and CI runs its constituents as separate named
  * steps, so composite members are expanded to the scripts CI actually names.
@@ -42,6 +43,10 @@ import { CHECK_JOBS, repoPath } from "./check-rulesets"
 export interface Exclusion {
   /** The script name, or the raw command, as `check:deep` runs it. */
   readonly step: string
+  /** A composite ancestor a required job must invoke for this exclusion to hold. */
+  readonly coveredBy?: string
+  /** When set, only this required job may satisfy `coveredBy`. */
+  readonly requiredJob?: string
   readonly why: string
 }
 
@@ -50,10 +55,24 @@ export interface Exclusion {
  * checked in both directions — a step that is excluded but does run, or that
  * `check:deep` no longer runs at all, fails this gate rather than lingering.
  */
+export const ROOT_BUILD_JOB_LABEL = "check (root .github/workflows/ci.yml)"
+
 export const EXCLUDED: ReadonlyArray<Exclusion> = [
   {
     step: "preflight",
     why: "asserts node_modules exists, which every CI job establishes with `bun install` before it runs anything; in CI it could only ever be a no-op, and a guard that can trip there is a guard someone deletes",
+  },
+  {
+    step: "bun scripts/ops/build-bundle.ts",
+    coveredBy: "build",
+    requiredJob: ROOT_BUILD_JOB_LABEL,
+    why: "runs through the package's composite `build` script, which the required root CI job must invoke through its `turbo run build` task",
+  },
+  {
+    step: "build:lib",
+    coveredBy: "build",
+    requiredJob: ROOT_BUILD_JOB_LABEL,
+    why: "runs through the package's composite `build` script, which the required root CI job must invoke through its `turbo run build` task",
   },
 ]
 
@@ -137,10 +156,11 @@ export function jobBlock(yaml: string, jobId: string): string | undefined {
 }
 
 /**
- * The shell lines a block's `run:` steps execute — inline scalars and block
- * scalars alike, with YAML comments dropped. A `bun run x` inside a `#` comment
- * is documentation, and this check exists precisely because documentation and
- * execution drift apart.
+ * The shell commands a block's `run:` steps execute, with one entry per scalar
+ * and YAML comments dropped. Block scalars retain their marker and physical-line
+ * grouping: a continued conditional must not turn a later line into apparent
+ * standalone execution. A `bun run x` inside a `#` comment is documentation,
+ * and this check exists precisely because documentation and execution drift apart.
  */
 export function runLines(block: string): Array<string> {
   const lines = block.split("\n")
@@ -156,12 +176,14 @@ export function runLines(block: string): Array<string> {
       out.push(inline)
       continue
     }
+    const command: Array<string> = []
     for (i += 1; i < lines.length; i += 1) {
       const body = lines[i] ?? ""
       if (body.trim() === "") continue
       if (body.search(/\S/u) <= indent) break
-      if (!/^\s*#/u.test(body)) out.push(body.trim())
+      if (!/^\s*#/u.test(body)) command.push(body.trim())
     }
+    if (command.length > 0) out.push(`${inline}\n${command.join("\n")}`)
     i -= 1
   }
   return out
@@ -169,12 +191,84 @@ export function runLines(block: string): Array<string> {
 
 const escape = (value: string): string => value.replaceAll(/[.*+?^${}()|[\]\\]/gu, String.raw`\$&`)
 
-/** Whether `commands` invoke `step` — by script name, or as the literal command. */
+/** A simple shell literal, or undefined when shell evaluation would be required. */
+function shellLiteral(value: string): string | undefined {
+  const singleQuoted = /^'([^']*)'$/u.exec(value)?.[1]
+  if (singleQuoted !== undefined) return singleQuoted
+
+  const doubleQuoted = /^"([^"\\$`]*)"$/u.exec(value)?.[1]
+  if (doubleQuoted !== undefined) return doubleQuoted
+
+  if (/['"\\$`|;&()<>]/u.test(value)) return undefined
+  return value
+}
+
+/** Whether a root Turbo invocation runs a package script for Core. */
+function runsTurboTask(command: string, task: string): boolean {
+  // `pnpm exec` is how a workflow `run:` block reaches the workspace-local
+  // turbo binary: bare `turbo` is not on PATH there. Stripping the prefix keeps
+  // this a direct invocation -- the operator check below still fails closed.
+  const direct = command.trim().replace(/^pnpm\s+exec\s+/u, "")
+  if (!/^turbo\s+run(?:\s|$)/u.test(direct)) return false
+  // This is evidence only for a direct invocation. Shell composition can make
+  // the text present without executing Turbo, so operators and evaluation fail closed.
+  if (/[\r\n|;&#$`\\()<>]/u.test(direct)) return false
+
+  const words = direct.split(/\s+/u)
+  for (let i = 0; i < words.length - 1; i += 1) {
+    if (words[i] !== "turbo" || words[i + 1] !== "run") continue
+
+    let runsTask = false
+    let readingTasks = true
+    const filters: Array<string> = []
+    for (let j = i + 2; j < words.length; j += 1) {
+      const word = words[j] ?? ""
+      if (/[|;&]/u.test(word)) break
+      if (word.startsWith("-")) readingTasks = false
+      if (readingTasks && word === task) runsTask = true
+
+      const inlineFilter = /^(?:--filter=|-F=?)(.+)$/u.exec(word)?.[1]
+      if (inlineFilter !== undefined) {
+        const filter = shellLiteral(inlineFilter)
+        if (filter === undefined) return false
+        filters.push(filter)
+        continue
+      }
+      if (word === "--filter" || word === "-F") {
+        const rawFilter = words[j + 1]
+        if (rawFilter === undefined || rawFilter.startsWith("-") || /[|;&]/u.test(rawFilter)) {
+          return false
+        }
+        const filter = shellLiteral(rawFilter)
+        if (filter === undefined) return false
+        filters.push(filter)
+        j += 1
+        continue
+      }
+      if (word.startsWith("--filter") || word.startsWith("-F")) return false
+      // Any other flag is fail-closed: Turbo can add scope or execution modes
+      // (`--affected`, `--dry`) whose presence means this command proves no build.
+      if (word.startsWith("-")) return false
+      const literal = shellLiteral(word)
+      if (literal === undefined || literal !== word) return false
+    }
+
+    if (!runsTask) continue
+    if (filters.length === 0) return true
+    if (filters.some((filter) => filter.startsWith("!"))) return false
+    return filters.includes("@stuffbucket/maximal-core")
+  }
+  return false
+}
+
+/** Whether `commands` invoke `step` — by script name, Turbo task, or literal command. */
 export function runsStep(commands: ReadonlyArray<string>, step: Step): boolean {
   const pattern = step.isScript
     ? new RegExp(String.raw`(?:^|[\s(])bun run ${escape(step.name)}(?![\w:./-])`, "u")
     : new RegExp(String.raw`(?:^|[\s(])${escape(step.name)}(?:\s+-|\s*$)`, "u")
-  return commands.some((command) => pattern.test(command))
+  return commands.some(
+    (command) => pattern.test(command) || (step.isScript && runsTurboTask(command, step.name)),
+  )
 }
 
 // --- evaluation (pure) ---
@@ -203,6 +297,28 @@ export function coverage(
         report.stale.push(
           `\`${step.name}\` is excluded — "${exclusion.why}" — but ${where.join(", ")} runs it. Delete the exclusion.`,
         )
+      }
+      if (exclusion.coveredBy !== undefined) {
+        if (!step.via.includes(exclusion.coveredBy)) {
+          report.stale.push(
+            `\`${step.name}\` claims coverage through \`${exclusion.coveredBy}\`, but that script is not an ancestor in check:deep. Fix or delete the exclusion.`,
+          )
+        } else {
+          const parent = { name: exclusion.coveredBy, isScript: true, via: step.via }
+          const parentJobs = jobs
+            .filter(
+              (job) =>
+                (exclusion.requiredJob === undefined || job.label === exclusion.requiredJob) &&
+                runsStep(job.commands, parent),
+            )
+            .map((job) => job.label)
+          if (parentJobs.length === 0) {
+            const required = exclusion.requiredJob ?? "a required job"
+            report.stale.push(
+              `\`${step.name}\` is excluded only through parent \`${exclusion.coveredBy}\`, but ${required} does not invoke that parent (directly or as a root Turbo task).`,
+            )
+          }
+        }
       }
       continue
     }
@@ -254,8 +370,10 @@ export function render(report: Report, jobs: ReadonlyArray<Job>): string {
 // --- entry point ---
 
 /** The required jobs, read from disk. Throws if a job named as required is gone. */
-export function readJobs(check: ReadonlyArray<{ context: string; workflow: string }> = CHECK_JOBS): Array<Job> {
-  return check.map(({ context, workflow }) => {
+export function readJobs(
+  check: ReadonlyArray<{ context: string; workflow: string }> = CHECK_JOBS,
+): Array<Job> {
+  const packageJobs = check.map(({ context, workflow }) => {
     const block = jobBlock(fs.readFileSync(repoPath(workflow), "utf8"), context)
     if (block === undefined) {
       throw new Error(
@@ -264,6 +382,23 @@ export function readJobs(check: ReadonlyArray<{ context: string; workflow: strin
     }
     return { label: `${context} (${workflow})`, commands: runLines(block) }
   })
+
+  const rootWorkflow = ".github/workflows/ci.yml"
+  const rootContext = "check"
+  const rootBlock = jobBlock(
+    fs.readFileSync(repoPath(`../../${rootWorkflow}`), "utf8"),
+    rootContext,
+  )
+  if (rootBlock === undefined) {
+    throw new Error(
+      `${rootWorkflow} defines no \`${rootContext}\` job, but that root job is required to cover Core's composite build.`,
+    )
+  }
+
+  return [
+    ...packageJobs,
+    { label: ROOT_BUILD_JOB_LABEL, commands: runLines(rootBlock) },
+  ]
 }
 
 export function readScripts(): Record<string, string> {

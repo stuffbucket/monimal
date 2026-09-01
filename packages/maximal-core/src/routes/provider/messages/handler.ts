@@ -14,6 +14,11 @@ import {
   type ResolvedProviderConfig,
 } from "~/lib/config/config"
 import { HTTPError } from "~/lib/errors/error"
+import {
+  asRecord,
+  readNestedUsage,
+  readUsage,
+} from "~/lib/http/untrusted-frame"
 import { createHandlerLogger, debugJson } from "~/lib/platform/logger"
 import { parseUserIdMetadata } from "~/lib/platform/utils"
 import {
@@ -23,7 +28,6 @@ import {
   type UsageTokens,
 } from "~/lib/token-usage"
 import { stripUnsupportedTopLevelAnthropicFields } from "~/routes/messages/preprocess"
-import { asRecord, readNestedUsage, readUsage } from "~/routes/untrusted-frame"
 import { forwardProviderMessages } from "~/services/providers/anthropic-proxy"
 
 const logger = createHandlerLogger("provider-messages-handler")

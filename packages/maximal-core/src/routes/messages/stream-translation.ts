@@ -1,8 +1,8 @@
+import { asRecord } from "~/lib/http/untrusted-frame"
 import {
   type AnthropicStreamEventData,
   type AnthropicStreamState,
 } from "~/lib/models/anthropic-types"
-import { asRecord } from "~/routes/untrusted-frame"
 import {
   type ChatCompletionChunk,
   type Choice,

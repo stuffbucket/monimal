@@ -23,8 +23,7 @@
  * `files` and `bin` are never exercised — it proves the exports map compiles.
  * `verify:artifact` and `e2e:binary` run the `--compile` binary, where a shebang
  * is meaningless. Every e2e harness spawns `process.execPath` — the Bun already
- * running — rather than the bin through its own shebang. And `bindings:check`
- * compares bytes, so identical wrong bytes are identical.
+ * running — rather than the bin through its own shebang.
  *
  * WHY IT LIVES IN `tests/` AND NOT `scripts/ops/check-bindings.test.ts`, where
  * the rest of the build-config parity assertions are: that suite runs in
@@ -91,9 +90,9 @@ describe("the shipped bin declares the runtime that can run it", () => {
   })
 
   // The artifact itself, because the entry's shebang only matters if it
-  // survives the bundler. `dist/main.js` is force-tracked, so this reads what
-  // a consumer receives rather than what a rebuild would produce.
-  it("the committed dist/main.js carries it too", () => {
+  // survives the bundler. `dist/main.js` is build output — this reads the bytes
+  // the current build produced, which are the bytes `prepack` uploads.
+  it("the built dist/main.js carries it too", () => {
     const target = buildTarget(MAIN_BUILD_ARGV) ?? ""
     expect(readFirstLine("dist/main.js")).toBe(shebangFor(target))
   })

@@ -1,7 +1,17 @@
+import type { ProviderGateway } from "@stuffbucket/maximal-provider-contract"
+import type { MiddlewareHandler } from "hono"
+
 import consola from "consola"
 import { Hono } from "hono"
 import { cors } from "hono/cors"
 import { logger } from "hono/logger"
+
+import type { AppConfig } from "~/lib/config/config"
+import type {
+  ProviderGatewayFactory,
+  ProviderHostConfigSource,
+} from "~/lib/provider-host-types"
+import type { ProviderDispatcher } from "~/services/providers/provider-dispatcher"
 
 import {
   buildCorsOptions,
@@ -22,15 +32,16 @@ import { completionRoutes } from "./routes/chat-completions/route"
 import { controlRoutes } from "./routes/control/route"
 import { debugRoutes } from "./routes/debug/route"
 import { embeddingRoutes } from "./routes/embeddings/route"
-import { internalRoutes } from "./routes/internal/route"
+import { createInternalRoutes } from "./routes/internal/route"
 import { messageRoutes } from "./routes/messages/route"
 import { modelRoutes } from "./routes/models/route"
 import { productApiRoutes } from "./routes/product-api"
-import { providerMessageRoutes } from "./routes/provider/messages/route"
-import { providerModelRoutes } from "./routes/provider/models/route"
+import { createProviderMessageRoutes } from "./routes/provider/messages/route"
+import { createProviderModelRoutes } from "./routes/provider/models/route"
 import { responsesRoutes } from "./routes/responses/route"
 import { tokenUsageRoute } from "./routes/token-usage/route"
 import { usageRoute } from "./routes/usage/route"
+import { createProviderDispatcher } from "./services/providers/provider-dispatcher"
 
 /**
  * The two listeners (maximal-core#10).
@@ -47,9 +58,6 @@ import { usageRoute } from "./routes/usage/route"
  * property the issue asks for is a fact about the route table rather than a
  * check somebody could regress.
  */
-export const publicApp = new Hono()
-export const controlApp = new Hono()
-
 /** Captured at module load — anchors the `/status` uptime to "when the
  *  server module first ran," which is what callers mean by "how long has
  *  Maximal been up." */
@@ -145,97 +153,111 @@ function applyCommonMiddleware(app: Hono): void {
   )
 }
 
-applyCommonMiddleware(publicApp)
-applyCommonMiddleware(controlApp)
-
-// ── Control listener ────────────────────────────────────────────────────────
-// The decoupled control API + live event stream for a same-machine UI.
-// Loopback-gated inside the router. See src/routes/control/route.ts.
-controlApp.route("/control", controlRoutes)
-// Diagnostics move here with the control surface: `/_debug/state` is a
-// CSRF-guarded prefix, and keeping it off the well-known port is the point of
-// the split. A CLI user finds this port in the boot banner.
-controlApp.route("/_debug", debugRoutes)
-
-// ── Public listener ─────────────────────────────────────────────────────────
-// The identity probe. `probePort` (src/lib/start/port.ts) keys off this exact
-// body to tell another maximal from a foreign process, so it must stay on the
-// PUBLIC port — that is the one a second instance contends for.
-publicApp.get("/", (c) => c.text("Server running"))
-
-// Identity + liveness probe. Unauthenticated and loopback-friendly so a
-// local caller (the Claude Code shim, a health check, a script) can ask
-// "is the thing on :4141 actually Maximal, is it up, and is it ready to
-// serve?" without an API key. The `service: "maximal"` field is the
-// unambiguous identity marker the shim keys off; `subsystems` namespaces
-// per-part health so new subsystems slot in without reshaping the
-// contract. Safe-for-unauth only (booleans/tiers/counts, no secrets);
-// see src/lib/runtime-state/status.ts. Cheap: in-memory state, no upstream calls.
-publicApp.get("/status", (c) => c.json(buildStatus(SERVER_START_MS)))
-
-// Stays public deliberately: `evictRunning` takes over the public port by
-// POSTing /_internal/shutdown *to that port*. Moving it to the control listener
-// would break `--replace`, since the evicting process does not know the
-// occupant's ephemeral control port.
-publicApp.route("/_internal", internalRoutes)
-// The maximal-specific product API surface: `/setup-status` plus its
-// route-bound OpenAPI document at `/openapi.json`. See routes/product-api.ts.
-publicApp.route("/", productApiRoutes)
-
-/**
- * The upstream-touching route set — everything that forwards to GitHub Copilot.
- *
- * Listed once because two middlewares gate exactly this set and must never
- * drift apart: `requireSupportedBuild` (is this build still allowed to proxy?)
- * and `requireGithubAuth` (do we hold a credential to proxy with?). Order is
- * deliberate — a retired build gets the force-upgrade error even when it is
- * also signed out, because "sign in" is not the actionable remedy there.
- *
- * Nothing outside this list is gated: `/`, `/status`, `/setup-status`,
- * `/openapi.json`, `/usage`, `/token-usage`, `/_internal`, and the entire
- * control listener stay reachable, so a blocked user can still see why and
- * still drive an upgrade.
- */
-const UPSTREAM_ROUTES = [
-  "/chat/completions",
-  "/chat/completions/*",
-  "/models",
-  "/models/*",
-  "/embeddings",
-  "/embeddings/*",
-  "/responses",
-  "/responses/*",
-  "/v1/*",
-  "/:provider/v1/*",
-]
-
-for (const path of UPSTREAM_ROUTES) {
-  // Force-upgrade lever (#7). Fail-open and synchronous — see version-gate.ts.
-  publicApp.use(path, requireSupportedBuild)
-  // Gate on the presence of a GitHub token. When the engine boots without one,
-  // the HTTP server still listens (so a supervisor can drive sign-in over
-  // `/control`, and `maximal auth` can run alongside) but the proxy endpoints
-  // 401 with `not_authenticated` instead of crashing or firing the device-code
-  // flow.
-  publicApp.use(path, requireGithubAuth)
+export interface CreateServerAppsOptions {
+  createProviderGateway?: ProviderGatewayFactory
+  providerConfigSource?: ProviderHostConfigSource
+  providerGateway?: ProviderGateway
+  readConfig?: () => AppConfig
+  requestShutdown?: (reason: string) => void
 }
 
-publicApp.route("/chat/completions", completionRoutes)
-publicApp.route("/models", modelRoutes)
-publicApp.route("/embeddings", embeddingRoutes)
-publicApp.route("/usage", usageRoute)
-publicApp.route("/token-usage", tokenUsageRoute)
-publicApp.route("/responses", responsesRoutes)
+export interface ServerApps {
+  controlApp: Hono
+  providerDispatcher: ProviderDispatcher
+  publicApp: Hono
+}
 
-// Compatibility with tools that expect v1/ prefix
-publicApp.route("/v1/chat/completions", completionRoutes)
-publicApp.route("/v1/models", modelRoutes)
-publicApp.route("/v1/embeddings", embeddingRoutes)
-publicApp.route("/v1/responses", responsesRoutes)
+/** Build isolated listeners around an explicitly injected provider boundary. */
+export function createServerApps(
+  options: CreateServerAppsOptions = {},
+): ServerApps {
+  const publicApp = new Hono()
+  const controlApp = new Hono()
+  const providerDispatcher = createProviderDispatcher({
+    configSource: options.providerConfigSource,
+    gateway: options.providerGateway,
+    gatewayFactory: options.createProviderGateway,
+    readConfig: options.readConfig,
+  })
 
-// Anthropic compatible endpoints
-publicApp.route("/v1/messages", messageRoutes)
+  applyCommonMiddleware(publicApp)
+  applyCommonMiddleware(controlApp)
 
-// Provider scoped Anthropic-compatible endpoints
-publicApp.route("/:provider/v1/messages", providerMessageRoutes)
-publicApp.route("/:provider/v1/models", providerModelRoutes)
+  // ── Control listener ──────────────────────────────────────────────────────
+  controlApp.route("/control", controlRoutes)
+  controlApp.route("/_debug", debugRoutes)
+
+  // ── Public listener ───────────────────────────────────────────────────────
+  publicApp.get("/", (c) => c.text("Server running"))
+  publicApp.get("/status", (c) => c.json(buildStatus(SERVER_START_MS)))
+  publicApp.route(
+    "/_internal",
+    createInternalRoutes({ requestShutdown: options.requestShutdown }),
+  )
+  publicApp.route("/", productApiRoutes)
+
+  /** Every provider mode keeps the common build floor. GitHub authentication is
+   * mode-dependent and is delegated to the dispatcher so no middleware or route
+   * has to know the rollout values. */
+  publicApp.use("/:provider/v1/*", requireSupportedBuild)
+  const requireConfiguredProviderAuth: MiddlewareHandler = async (c, next) => {
+    if (providerDispatcher.requiresGithubAuth()) {
+      return await requireGithubAuth(c, next)
+    }
+    await next()
+  }
+  publicApp.use("/:provider/v1/*", requireConfiguredProviderAuth)
+
+  const githubUpstreamRoutes = [
+    "/chat/completions",
+    "/chat/completions/*",
+    "/models",
+    "/models/*",
+    "/embeddings",
+    "/embeddings/*",
+    "/responses",
+    "/responses/*",
+    "/v1/*",
+  ]
+
+  for (const path of githubUpstreamRoutes) {
+    publicApp.use(path, requireSupportedBuild)
+    publicApp.use(path, requireGithubAuth)
+  }
+
+  publicApp.route("/chat/completions", completionRoutes)
+  publicApp.route("/models", modelRoutes)
+  publicApp.route("/embeddings", embeddingRoutes)
+  publicApp.route("/usage", usageRoute)
+  publicApp.route("/token-usage", tokenUsageRoute)
+  publicApp.route("/responses", responsesRoutes)
+
+  // Compatibility with tools that expect v1/ prefix
+  publicApp.route("/v1/chat/completions", completionRoutes)
+  publicApp.route("/v1/models", modelRoutes)
+  publicApp.route("/v1/embeddings", embeddingRoutes)
+  publicApp.route("/v1/responses", responsesRoutes)
+
+  // Anthropic compatible endpoints
+  publicApp.route("/v1/messages", messageRoutes)
+
+  // Provider scoped Anthropic-compatible endpoints
+  publicApp.route(
+    "/:provider/v1/messages",
+    createProviderMessageRoutes(providerDispatcher),
+  )
+  publicApp.route(
+    "/:provider/v1/models",
+    createProviderModelRoutes(providerDispatcher),
+  )
+
+  return { controlApp, providerDispatcher, publicApp }
+}
+
+// Backward-compatible standalone apps. No gateway is captured at import time;
+// standalone invocation therefore remains on the legacy path by default.
+const defaultApps = createServerApps()
+/** @internal Legacy standalone public app. */
+export const publicApp = defaultApps.publicApp
+/** @internal Legacy standalone control app. */
+export const controlApp = defaultApps.controlApp

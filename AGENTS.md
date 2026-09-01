@@ -29,6 +29,9 @@ Duplication hinders discovery.
 - Clauses that repeat verbatim SHOULD be collapsed into a list.
 - A document SHOULD be reachable by link from this one.
 
+The normal test boundary is documented in
+[`docs/testing-in-docker.md`](docs/testing-in-docker.md).
+
 ## CI
 
 Registry and toolchain versions may be mutated without notice, so a workflow

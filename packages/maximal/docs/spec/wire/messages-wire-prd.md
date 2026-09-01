@@ -198,20 +198,28 @@ forwarded verbatim.
    for `mcp__`/single-`Skill` tools), then multiply by **1.15** for
    Claude (`getClaudeTokenMultiplier()`).
 
-The provider-scoped variant
-(`provider/messages/count-tokens-handler.ts`) always uses the local
-tokenizer (no real-Anthropic path, no multiplier).
+The provider-scoped variant is mode-dependent. In `legacy` mode it uses
+the local tokenizer (no real-Anthropic path, no multiplier). The pinned DSH
+LLM contract has no universal token-count operation, so `dsh` mode returns an
+explicit `UNSUPPORTED` response rather than estimating, dropping options, or
+falling back to legacy.
 
 ## Provider-scoped (`/:provider/v1/messages`)
 
-Forwards to a configured passthrough provider's Anthropic-compatible
-endpoint rather than Copilot (`src/routes/provider/messages/handler.ts`,
-`src/services/providers/anthropic-proxy.ts`). Auth is the provider's own
-(`Bearer` or `x-api-key` per `authType`); forwardable client headers
-(`anthropic-version`, `anthropic-beta`, `accept`, `user-agent`) are
-passed through, hop-by-hop headers stripped. Usage may be adjusted via
-`adjustInputTokens()` (subtract cache tokens) when the provider config
-sets it.
+One Core-owned dispatcher selects the configured mode for provider-scoped
+routes. `legacy` preserves the existing configured Anthropic-compatible
+passthrough (`src/routes/provider/messages/handler.ts`,
+`src/services/providers/anthropic-proxy.ts`): provider auth is `Bearer` or
+`x-api-key` per `authType`, forwardable client headers are passed through,
+hop-by-hop headers are stripped, and `adjustInputTokens()` may subtract cache
+tokens.
+
+`dsh` mode forwards the raw `Request`, response body, and cancellation signal
+through the injected provider gateway. The external plugin owns transport and
+credentials. Core still inspects the returned Anthropic JSON/SSE usage for
+accounting, but does not buffer the response. A selected DSH mode never silently
+falls back to the legacy branch; unavailable, invalid, and unsupported cases
+remain explicit bounded errors.
 
 ## Error mapping
 

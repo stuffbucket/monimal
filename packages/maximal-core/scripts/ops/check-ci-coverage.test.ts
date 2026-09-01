@@ -10,6 +10,7 @@ import {
   readJobs,
   readScripts,
   render,
+  ROOT_BUILD_JOB_LABEL,
   runLines,
   runsStep,
   type Step,
@@ -101,13 +102,41 @@ describe("reading a job's steps", () => {
 
   test("inline, block and folded scalars are all read; comments are not", () => {
     const lines = runLines(jobBlock(WORKFLOW, "test") ?? "")
-    expect(lines).toEqual(["bun run lint:all", "set -euo pipefail", "bun run build", "bun run deps:check"])
+    expect(lines).toEqual([
+      "bun run lint:all",
+      "|\nset -euo pipefail\nbun run build",
+      ">-\nbun run deps:check",
+    ])
+    expect(runsStep(lines, step("build"))).toBe(true)
+    expect(runsStep(lines, step("deps:check"))).toBe(true)
   })
 
   test("a step named only in a comment does not count as running", () => {
     const lines = runLines(jobBlock(WORKFLOW, "test") ?? "")
     expect(runsStep(lines, step("knip"))).toBe(false)
     expect(runsStep(lines, step("casts:check"))).toBe(false)
+  })
+
+  test("block-scalar continuation context cannot masquerade as direct Turbo", () => {
+    const workflow = [
+      "jobs:",
+      "  check:",
+      "    steps:",
+      "      - run: |",
+      "          true ||",
+      "            turbo run build typecheck lint",
+      "      - run: |",
+      "          false &&",
+      "            turbo run build typecheck lint",
+      "      - run: |",
+      "          printf ok \\",
+      "            turbo run build typecheck lint",
+      "      - run: |",
+      "          turbo run build typecheck lint",
+    ].join("\n")
+    const lines = runLines(jobBlock(workflow, "check") ?? "")
+    expect(lines).toHaveLength(4)
+    expect(runsStep(lines, step("build"))).toBe(false)
   })
 })
 
@@ -122,6 +151,93 @@ describe("matching an invocation", () => {
 
   test("arguments are not compared — the assertion is that the check runs", () => {
     expect(runsStep(["bun run deps:check --list"], step("deps:check"))).toBe(true)
+  })
+
+  test("the current unfiltered root Turbo command invokes Core's package script", () => {
+    const actualRequiredRootCommand = "pnpm exec turbo run build typecheck lint"
+    expect(runsStep([actualRequiredRootCommand], step("build"))).toBe(true)
+    expect(runsStep(["turbo run build typecheck lint"], step("build"))).toBe(true)
+    expect(runsStep(["pnpm exec turbo run typecheck lint"], step("build"))).toBe(false)
+    expect(runsStep(["pnpm exec turbo run build:lib typecheck lint"], step("build"))).toBe(false)
+  })
+
+  test("only `pnpm exec` is unwrapped — other indirection is not execution evidence", () => {
+    for (const command of [
+      "pnpm run turbo run build",
+      "pnpm dlx turbo run build",
+      "npx turbo run build",
+      "pnpm exec echo turbo run build",
+    ]) {
+      expect(runsStep([command], step("build"))).toBe(false)
+    }
+  })
+
+  test("Turbo text that is not a direct invocation proves no coverage", () => {
+    for (const command of [
+      "echo turbo run build typecheck lint",
+      "false && turbo run build typecheck lint",
+      "turbo run build typecheck lint | cat",
+      "turbo run build typecheck lint; true",
+      "turbo run build typecheck lint # not execution evidence",
+      "turbo run build typecheck lint || true",
+      "turbo run build typecheck lint $(printf ignored)",
+    ]) {
+      expect(runsStep([command], step("build"))).toBe(false)
+    }
+  })
+
+  test("a filtered root Turbo task counts only when the filter includes Core", () => {
+    expect(runsStep(["turbo run build --filter=maximal-site"], step("build"))).toBe(false)
+    expect(
+      runsStep(["turbo run build --filter=@stuffbucket/maximal-core"], step("build")),
+    ).toBe(true)
+    expect(
+      runsStep(["turbo run build --filter @stuffbucket/maximal-core"], step("build")),
+    ).toBe(true)
+    expect(
+      runsStep(["turbo run build --filter='@stuffbucket/maximal-core'"], step("build")),
+    ).toBe(true)
+    expect(
+      runsStep(["turbo run build --filter \"@stuffbucket/maximal-core\""], step("build")),
+    ).toBe(true)
+  })
+
+  test("negative Turbo filters fail closed even alongside a Core filter", () => {
+    const positive = "--filter=@stuffbucket/maximal-core"
+    for (const negative of [
+      "--filter=!@stuffbucket/maximal-core",
+      "--filter='!@stuffbucket/maximal-core'",
+      '--filter="!@stuffbucket/maximal-core"',
+      "'--filter=!@stuffbucket/maximal-core'",
+      '"--filter=!@stuffbucket/maximal-core"',
+    ]) {
+      expect(runsStep([`turbo run build ${positive} ${negative}`], step("build"))).toBe(false)
+    }
+  })
+
+  test("malformed or evaluated Turbo filters cannot establish Core coverage", () => {
+    for (const filter of [
+      "--filter='@stuffbucket/maximal-core",
+      '--filter="$CORE_PACKAGE"',
+      "--filter=@stuffbucket/maximal-core'",
+      "--filter=",
+    ]) {
+      expect(runsStep([`turbo run build ${filter}`], step("build"))).toBe(false)
+    }
+  })
+
+  test("scope-changing, dry-run, and unknown Turbo flags fail closed", () => {
+    for (const suffix of [
+      "--affected",
+      "--dry",
+      "--dry-run",
+      "--dry=json",
+      "--concurrency=1",
+      "--output-logs errors-only",
+      "--unknown value",
+    ]) {
+      expect(runsStep([`turbo run build typecheck lint ${suffix}`], step("build"))).toBe(false)
+    }
   })
 
   test("a raw command matches the full-suite invocation, not a single-file one", () => {
@@ -171,6 +287,54 @@ describe("coverage", () => {
     const excluded = [{ step: "mutate", why: "manual only" }]
     const report = coverage(steps, [job("test (ci.yml)", "bun run knip", "bun run dupes:check")], excluded)
     expect(report.stale[0]).toContain("`check:deep` no longer runs it")
+    expect(exitCodeFor(report)).toBe(1)
+  })
+
+  test("an excluded build child requires its composite parent in required CI", () => {
+    const buildChild: Step = {
+      name: "build:lib",
+      isScript: true,
+      via: ["check:deep", "check:deep:host", "build"],
+    }
+    const excluded = [
+      {
+        step: "build:lib",
+        coveredBy: "build",
+        requiredJob: ROOT_BUILD_JOB_LABEL,
+        why: "the required root build task invokes Core's composite build",
+      },
+    ]
+
+    const covered = coverage(
+      [buildChild],
+      [job(ROOT_BUILD_JOB_LABEL, "turbo run build typecheck lint")],
+      excluded,
+    )
+    expect(covered.stale).toEqual([])
+    expect(exitCodeFor(covered)).toBe(0)
+
+    const removedBuild = coverage(
+      [buildChild],
+      [
+        job(ROOT_BUILD_JOB_LABEL, "turbo run typecheck lint"),
+        job("test (package ci.yml)", "bun run build"),
+      ],
+      excluded,
+    )
+    expect(removedBuild.stale).toContainEqual(expect.stringContaining("does not invoke that parent"))
+    expect(exitCodeFor(removedBuild)).toBe(1)
+  })
+
+  test("an exclusion cannot claim an unrelated script as its covering parent", () => {
+    const excluded = [
+      {
+        step: "dupes:check",
+        coveredBy: "build",
+        why: "an invalid fixture whose claimed parent is not in the expansion chain",
+      },
+    ]
+    const report = coverage([step("dupes:check")], [job("check (ci.yml)", "turbo run build")], excluded)
+    expect(report.stale).toContainEqual(expect.stringContaining("not an ancestor in check:deep"))
     expect(exitCodeFor(report)).toBe(1)
   })
 })

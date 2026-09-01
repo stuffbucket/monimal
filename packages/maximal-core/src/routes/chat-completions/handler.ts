@@ -4,6 +4,7 @@ import { streamSSE, type SSEMessage } from "hono/streaming"
 
 import { awaitApproval } from "~/lib/http/approval"
 import { checkRateLimit } from "~/lib/http/rate-limit"
+import { asRecord, readUsage } from "~/lib/http/untrusted-frame"
 import { reverseId } from "~/lib/models/anthropic-id-rewrite"
 import { resolveModelProfile } from "~/lib/models/model-profile"
 import {
@@ -24,7 +25,6 @@ import {
   withCopilotCost,
 } from "~/lib/token-usage"
 import { isNonStreaming } from "~/routes/streaming-predicates"
-import { asRecord, readUsage } from "~/routes/untrusted-frame"
 import {
   createChatCompletions,
   type ChatCompletionChunk,

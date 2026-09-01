@@ -8,13 +8,12 @@
  *
  * ## Why this exists
  *
- * `dist/main.js` is committed and is a function of the Bun version
- * (docs/bun-version-policy.md), so `bindings:check` is only meaningful on the
- * pin — and `bun run build` re-resolves a bare `bun` from PATH, so putting the
- * pinned Bun somewhere is not enough, it has to be *first*. Getting that wrong
- * does not fail loudly: it reports the committed bundle as stale, which sends
- * you to regenerate it on the wrong toolchain. The container removes the
- * question by removing the choice.
+ * `dist/main.js` is a function of the Bun version that builds it
+ * (docs/bun-version-policy.md) — and `bun run build` re-resolves a bare `bun`
+ * from PATH, so putting the pinned Bun somewhere is not enough, it has to be
+ * *first*. Getting that wrong does not fail loudly: it produces a bundle that
+ * the pin cannot reproduce, which is what ships in the published tarball. The
+ * container removes the question by removing the choice.
  *
  * CI never had this problem — every workflow `cat .bun-version` into
  * `.github/actions/setup-bun`. The failure is local, which is why this ships
@@ -168,10 +167,9 @@ function contains(parent: string, child: string, flavour: typeof posix): boolean
  *
  * That is an absolute HOST path into the main checkout. Bind-mounting only the
  * worktree at `/work` leaves it absent inside the container, so every `git` call
- * exits 128 — and the two things that read it both degrade quietly rather than
- * going red: `bindings:check` reports "could not run" (the committed-`dist`
- * freshness gate, silently off) and `getGitVersion` returns undefined (one unit
- * test, a false negative). See maximal-core#124.
+ * exits 128 — and the thing that reads it degrades quietly rather than going
+ * red: `getGitVersion` returns undefined (one unit test, a false negative).
+ * See maximal-core#124.
  *
  * `git config --system --add safe.directory '*'` in the Dockerfile is a
  * DIFFERENT problem — that one is about a git dir git distrusts. This one is
@@ -302,8 +300,8 @@ export function nodeModulesNote(root: string = REPO_ROOT): string | undefined {
   return (
     `container: docker created an empty ${dir} as the mount target for this\n`
     + "image's node_modules volume. Nothing in the container reads it, but on the HOST\n"
-    + "Bun will now resolve upward past it, so `bun run build` and `bindings:check`\n"
-    + "will report that they cannot verify anything here until you run:\n"
+    + "Bun will now resolve upward past it, so `bun run build` will report that it\n"
+    + "cannot verify anything here until you run:\n"
     + "    bun install\n"
   )
 }
@@ -426,8 +424,8 @@ function runInContainer(tag: string, command: ReadonlyArray<string>, tty: boolea
   if (git.objection !== undefined) {
     console.error(
       `container: REFUSING to run — git would not work inside the container.\n\n  ${git.objection}\n\n`
-        + "Every `git` call would exit 128, which `bindings:check` reports as \"could not run\"\n"
-        + "rather than as a failure. Run from the main checkout instead.\n",
+        + "Every `git` call would exit 128, which the tools that read git report as\n"
+        + "\"could not run\" rather than as a failure. Run from the main checkout instead.\n",
     )
     return 1
   }

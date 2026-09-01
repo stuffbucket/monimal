@@ -7,6 +7,7 @@ import {
   ensureDefaultEndpointKey,
   generateApiKeyValue,
   isOwnedApiKeyHelper,
+  isWritableApiKeyHelper,
   resolveApiKey,
   runApiKeyHelper,
 } from "~/lib/auth/api-key-helper"
@@ -119,6 +120,60 @@ describe("apiKeyHelperCommand", () => {
     expect(apiKeyHelperCommand("claude-code", triple, ENTRY)).toBe(
       `"${triple}" api claude-code`,
     )
+  })
+})
+
+describe("isWritableApiKeyHelper", () => {
+  test("accepts absolute compiled Maximal executables", () => {
+    expect(
+      isWritableApiKeyHelper(
+        '"/Applications/Maximal.app/Contents/MacOS/maximal" api claude-code',
+        "claude-code",
+      ),
+    ).toBe(true)
+    expect(
+      isWritableApiKeyHelper(
+        String.raw`"C:\Program Files\Maximal\maximal-x86_64-pc-windows-msvc.exe" api claude-code`,
+        "claude-code",
+      ),
+    ).toBe(true)
+  })
+
+  test("accepts recognized Maximal product source and dist entries", () => {
+    expect(
+      isWritableApiKeyHelper(
+        '"/usr/local/bin/bun" "/workspace/packages/maximal/src/main.ts" api claude-code',
+        "claude-code",
+      ),
+    ).toBe(true)
+    expect(
+      isWritableApiKeyHelper(
+        '"/usr/bin/node" "/workspace/packages/maximal-core/dist/main.js" api claude-code',
+        "claude-code",
+      ),
+    ).toBe(true)
+  })
+
+  test("rejects tests, arbitrary scripts, foreign executables, and legacy forms", () => {
+    const invalid = [
+      '"/usr/local/bin/bun" "/workspace/packages/maximal-core/tests/claude-code-reconcile.test.ts" api claude-code',
+      '"/usr/local/bin/bun" "/workspace/tools/main.ts" api claude-code',
+      '"/usr/local/bin/bun" "/workspace/packages/maximal/src/other.ts" api claude-code',
+      '"/usr/local/bin/bun" api claude-code',
+      '"/opt/other-tool/bin/other" api claude-code',
+      "maximal api claude-code",
+      '"/Applications/Maximal.app/Contents/MacOS/maximal" --apiKeyHelper claude-code',
+    ]
+    for (const command of invalid) {
+      expect(isWritableApiKeyHelper(command, "claude-code")).toBe(false)
+    }
+  })
+
+  test("keeps the historical test command owned but not writable", () => {
+    const leaked =
+      '"/opt/homebrew/bin/bun" "/workspace/packages/maximal-core/tests/claude-code-reconcile.test.ts" api claude-code'
+    expect(isOwnedApiKeyHelper(leaked, "claude-code")).toBe(true)
+    expect(isWritableApiKeyHelper(leaked, "claude-code")).toBe(false)
   })
 })
 

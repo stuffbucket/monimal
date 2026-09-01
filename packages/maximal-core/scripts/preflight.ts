@@ -4,9 +4,8 @@
  *
  * WHY: on a fresh checkout — and especially a git worktree, where module
  * resolution walks up to the parent checkout so most steps still pass — `knip`
- * reports phantom unused devDependencies and unlisted binaries, and
- * `bindings:check` reports the committed `dist` as STALE. Both name a cause
- * that is not the cause, and each one has cost an agent a debugging session.
+ * reports phantom unused devDependencies and unlisted binaries. That names a
+ * cause that is not the cause, and it has cost an agent a debugging session.
  *
  * WHAT IT DOES NOT CHECK: whether the install is complete, or current. A
  * half-finished `bun install`, or one that predates a `package.json` change,
@@ -28,8 +27,7 @@ if (!fs.existsSync(path.join(root, "node_modules"))) {
   console.error(
     `preflight: no node_modules in ${root} — dependencies are not installed.\n\n` +
       "Later steps will fail naming something else — knip reports phantom unused\n" +
-      "devDependencies and unlisted binaries, bindings:check reports the committed\n" +
-      "dist as STALE. That is this, not your changes.\n\n" +
+      "devDependencies and unlisted binaries. That is this, not your changes.\n\n" +
       "    bun install\n\n" +
       "This only checks that node_modules exists. It does not verify the install\n" +
       "is complete or current with package.json — that is still on you.",

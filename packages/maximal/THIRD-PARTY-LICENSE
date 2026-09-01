@@ -7,9 +7,66 @@ third-party sources below, each under the license noted.
 Runtime / build dependencies
 ================================================================================
 
-A complete enumeration of npm-resolved runtime and build dependencies,
-with their licenses, is generated as `SBOM.spdx.json` per release. See
-the GitHub Releases page for the SBOM associated with each version.
+A production-dependency inventory with licenses is generated as
+`SBOM.cdx.json` per release. See the GitHub Releases page for the SBOM
+associated with each version.
+
+Maximal's optional DSH provider host interoperates with separately installed
+Cordis and DeepSeek Harness packages. Their notices follow because a configured
+provider profile is part of the distributed runtime system even though those
+packages remain external to the Maximal executable.
+
+--------------------------------------------------------------------------------
+@deepseek-ai/cordis 4.0.1
+--------------------------------------------------------------------------------
+
+MIT License
+
+Copyright (c) 2021-present Shigma
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+--------------------------------------------------------------------------------
+@deepseek-ai/dsh-llm 0.1.0-rc.6
+--------------------------------------------------------------------------------
+
+MIT License
+
+Copyright (c) 2026 DeepSeek
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 
 ================================================================================
 Static landing-page assets (under site/)

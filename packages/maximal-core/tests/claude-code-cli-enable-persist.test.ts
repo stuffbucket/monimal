@@ -7,44 +7,40 @@
  *
  * These drive `claudeCodeApp.enable()/disable()` directly — that's the exact
  * seam the CLI dispatch (`src/apps/cli.ts` → enableApp/disableApp) invokes, and
- * now the single owner of the flag. Isolation, no mock.module (avoids Bun's
- * forward-persisting hazard — see apps-cli.test.ts):
- *   - CLAUDE_CONFIG_DIR → a temp dir, so applyProxyBaseUrl writes a throwaway
- *     settings.json instead of the developer's real ~/.claude/settings.json.
- *   - config.json lives under COPILOT_API_HOME, already redirected to a temp
- *     dir by the global preload (tests/test-setup.ts); we reset it per test.
+ * now the single owner of the flag. The global preload places Claude settings
+ * and Maximal config beneath one fresh container-only test root before any
+ * product module loads. No mock.module is used here (avoids Bun's
+ * forward-persisting hazard — see apps-cli.test.ts).
  */
 
 import { afterAll, beforeEach, describe, expect, test } from "bun:test"
 import fs from "node:fs"
-import os from "node:os"
 import path from "node:path"
 
-import { claudeCodeApp } from "~/apps/claude-code"
+import { createClaudeCodeApp } from "~/apps/claude-code"
 import { isProxyBaseUrlConfigured } from "~/apps/claude-code/config"
 import { claudeCodeRoutingIntended } from "~/apps/claude-code/reconcile"
 import { resolveApiKey } from "~/lib/auth/api-key-helper"
 import { getConfig, writeConfig } from "~/lib/config/config"
 
-const TMP_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "cc-cli-persist-"))
-const SETTINGS = path.join(TMP_DIR, "settings.json")
-const savedConfigDir = process.env.CLAUDE_CONFIG_DIR
+const claudeConfigDir = process.env.CLAUDE_CONFIG_DIR
+if (!claudeConfigDir) {
+  throw new Error("The container test preload did not set CLAUDE_CONFIG_DIR.")
+}
+const SETTINGS = path.join(claudeConfigDir, "settings.json")
+const TEST_HELPER =
+  '"/Applications/Maximal.app/Contents/MacOS/maximal" api claude-code'
+const claudeCodeApp = createClaudeCodeApp({
+  resolveApiKeyHelper: () => TEST_HELPER,
+})
 
 beforeEach(() => {
-  // Route claude-code settings.json writes into the temp dir.
-  process.env.CLAUDE_CONFIG_DIR = TMP_DIR
   fs.rmSync(SETTINGS, { force: true })
   // Clean config so the intent flag starts unset for each case.
   writeConfig({})
 })
 
 afterAll(() => {
-  if (savedConfigDir === undefined) {
-    delete process.env.CLAUDE_CONFIG_DIR
-  } else {
-    process.env.CLAUDE_CONFIG_DIR = savedConfigDir
-  }
-  fs.rmSync(TMP_DIR, { recursive: true, force: true })
   writeConfig({})
 })
 
@@ -121,5 +117,23 @@ describe("claude-code CLI enable/disable persists routing intent (#229)", () => 
     const entries = getConfig().auth?.apiKeyEntries ?? []
     expect(entries).toHaveLength(1)
     expect(entries[0]?.key).toBe("mxl_existing")
+  })
+
+  test("invalid helper leaves settings, routing intent, and keys untouched", async () => {
+    const invalidApp = createClaudeCodeApp({
+      resolveApiKeyHelper: () => null,
+    })
+    writeConfig({ apps: { claudeDesktop: { enabled: true } } })
+
+    const result = await invalidApp.enable()
+
+    expect(result).toEqual({
+      success: false,
+      conflict: "invalid-api-key-helper",
+    })
+    expect(fs.existsSync(SETTINGS)).toBe(false)
+    expect(getConfig().apps?.claudeCode?.enabled).not.toBe(true)
+    expect(getConfig().apps?.claudeDesktop?.enabled).toBe(true)
+    expect(getConfig().auth?.apiKeyEntries ?? []).toHaveLength(0)
   })
 })

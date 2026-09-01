@@ -28,6 +28,11 @@ import type { ChatCompletionChunk } from "~/services/copilot/create-chat-complet
 import type { ResponseStreamEvent } from "~/services/copilot/create-responses"
 
 import {
+  asRecord,
+  readNestedUsage,
+  readUsage,
+} from "~/lib/http/untrusted-frame"
+import {
   createResponsesStreamState,
   translateResponsesStreamEvent,
 } from "~/routes/messages/responses-stream-translation"
@@ -37,7 +42,6 @@ import {
   createStreamIdTracker,
   fixStreamIds,
 } from "~/routes/responses/stream-id-sync"
-import { asRecord, readNestedUsage, readUsage } from "~/routes/untrusted-frame"
 
 const freshChatState = (): AnthropicStreamState => ({
   messageStartSent: false,

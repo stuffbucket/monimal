@@ -15,6 +15,8 @@
  * dependency runServer pulls in. The mocks form a "test harness
  * runServer": deterministic, fast, no listeners leaked.
  */
+import type { ProviderGateway } from "@stuffbucket/maximal-provider-contract"
+
 import {
   afterAll,
   afterEach,
@@ -87,13 +89,14 @@ await mock.module("~/lib/platform/utils", () => ({
   cacheVsCodeDeviceId: cacheVsCodeDeviceIdMock,
 }))
 
+const TEST_RUNTIME_LOGIN = "maximal-test-only-runtime-user"
 const logUserMock = mock(() => {
   // The real logUser() populates state.userName as part of its contract.
   // Mirror that here so the cold-boot path (which now requires a real
   // login before flipping to authenticated — ADR-0006) sees a populated
-  // userName and reaches markSignedIn("alice"). Tests that need a
-  // different login override this via logUserMock.mockImplementation.
-  state.userName = "alice"
+  // userName and reaches markSignedIn. Tests that need a different login
+  // override this via logUserMock.mockImplementation.
+  state.userName = TEST_RUNTIME_LOGIN
   return Promise.resolve()
 })
 const setupCopilotTokenMock = mock(() => Promise.resolve())
@@ -135,7 +138,10 @@ await mock.module("~/lib/platform/logger", () => ({
 // module mock of srvx forward-leaks the stub into tests/ws/srvx-upgrade-
 // handshake.test.ts, which needs the real port-binding serve(); Bun doesn't
 // reset module mocks between files. The seam is wired below, after import.
-const serveMock = mock(() => ({ close: () => Promise.resolve() }))
+const defaultServeImpl = () => ({ close: () => Promise.resolve() })
+const unsubscribeNoop = () => undefined
+const subscribeNoop: ProviderGateway["subscribe"] = () => unsubscribeNoop
+const serveMock = mock(defaultServeImpl)
 
 // NOTE: we deliberately don't mock `~/server`. Replacing the cached
 // module with a stub Hono leaks into other test files (e.g.
@@ -168,6 +174,7 @@ const { getAuthStatus, signOut, __resetAuthControllerForTests } =
 const { stopCopilotOnlineRetry } =
   await import("~/lib/auth/copilot-online-retry")
 const { CopilotAuthFatalError } = await import("~/lib/errors/error")
+const { resetDefaultTestRegistry } = await import("./helpers/account-fixtures")
 
 function resetState(): void {
   // Reset auth-controller module state (authState, the degrade single-flight /
@@ -231,8 +238,9 @@ function baseOptions(
   }
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   resetState()
+  await resetDefaultTestRegistry()
 })
 
 // `state` is a process-global shared with every other file in the Bun worker,
@@ -240,8 +248,9 @@ beforeEach(() => {
 // `state.rateLimitSeconds`, which gates /responses and /chat/completions with a
 // 429). Resetting only `beforeEach` left whatever the last-executed test wrote
 // in place for every later file — a `--randomize`-only 429 with no local cause.
-afterEach(() => {
+afterEach(async () => {
   resetState()
+  await resetDefaultTestRegistry()
 })
 
 describe("runServer — state mutation from options", () => {
@@ -359,7 +368,7 @@ describe("runServer — GitHub token resolution", () => {
     // Isolate from sibling-test pollution of the shared temp registry so the
     // fatal cleanly surfaces as the error state (auto-recovery is disabled, so
     // there's no account-switch path to take regardless).
-    await realStoreModule.writeDefaultRegistry(realStoreModule.emptyRegistry())
+    await resetDefaultTestRegistry()
     const tmpSetup = setupCopilotTokenMock.getMockImplementation()
     ;(
       setupCopilotTokenMock as unknown as Mock<() => Promise<void>>
@@ -449,6 +458,49 @@ describe("runServer — server bind", () => {
     expect(controlArg.port).toBe(0)
     expect(controlArg.hostname).toBe("127.0.0.1")
     expect(controlArg.bun.idleTimeout).toBe(0)
+  })
+
+  test("a second bind failure closes the partial listener before provider cleanup", async () => {
+    const events: Array<string> = []
+    const close = mock((_force?: boolean) => {
+      events.push("listener closed")
+      return Promise.resolve()
+    })
+    const dispose = mock(() => {
+      events.push("provider disposed")
+      return Promise.resolve()
+    })
+    const gateway: ProviderGateway = {
+      dispatch: () => Promise.resolve(new Response()),
+      dispose,
+      getStatus: () => undefined,
+      listStatuses: () => [],
+      subscribe: subscribeNoop,
+    }
+    const bindError = new Error("control bind failed")
+    const previousServeImpl = serveMock.getMockImplementation()
+    serveMock
+      .mockImplementationOnce(() => ({ close }))
+      .mockImplementationOnce(() => {
+        throw bindError
+      })
+
+    let caught: unknown
+    try {
+      try {
+        await runServer(baseOptions({ providerGateway: gateway }))
+      } catch (error) {
+        caught = error
+      }
+    } finally {
+      serveMock.mockImplementation(previousServeImpl ?? defaultServeImpl)
+    }
+
+    expect(caught).toBe(bindError)
+    expect(close).toHaveBeenCalledTimes(1)
+    expect(close).toHaveBeenCalledWith(true)
+    expect(dispose).toHaveBeenCalledTimes(1)
+    expect(events).toEqual(["listener closed", "provider disposed"])
   })
 
   test("an omitted control port becomes 0, never NaN", async () => {

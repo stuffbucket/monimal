@@ -3,6 +3,8 @@ import fs from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
 
+import { assertIsolatedTestPath } from "~/lib/platform/test-isolation"
+
 const AUTH_APP = process.env.COPILOT_API_OAUTH_APP?.trim() || ""
 const ENTERPRISE_PREFIX = process.env.COPILOT_API_ENTERPRISE_URL ? "ent_" : ""
 
@@ -162,6 +164,7 @@ export function requireExistingHome(dir: string): string {
  * and that must keep meaning the default, not a hard boot failure.
  */
 const HOME_OVERRIDE = process.env.COPILOT_API_HOME?.trim()
+assertIsolatedTestPath(HOME_OVERRIDE, "COPILOT_API_HOME")
 
 // `resolveAppDir` stays pure — no fs, no throw. It is the shared convention
 // table, and `scripts/dev/verify-build.ts` plus `tests/paths.test.ts` drive it

@@ -36,7 +36,7 @@ jobs:
   check:
     name: build / typecheck / lint / test
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -77,16 +77,24 @@ jobs:
       - name: Verify workspace installation
         run: pnpm run verify:workspace
 
-      # Build/typecheck/lint use normal graph parallelism. Tests alone are
-      # serialized because Bun suites bind ports and install signal handlers.
-      # The sidecar build is intentionally uncached and executes on every run;
-      # the Astro site is a normal workspace build covered here too.
-      - name: Check workspace
-        run: pnpm run check
+      # Build/typecheck/lint remain native and use normal graph parallelism. The
+      # sidecar build is intentionally uncached and executes on every run; the
+      # Astro site is a normal workspace build covered here too.
+      - name: Build, typecheck, and lint workspace
+        run: pnpm exec turbo run build typecheck lint
+
+      # Core's host-only deep gate covers static policy, dependency, downstream,
+      # binding, and bundle checks. Its Bun tests remain in the Docker step below.
+      - name: Check Core host verification
+        run: pnpm --filter @stuffbucket/maximal-core run check:deep:host
+
+      # The same mountless, offline-runtime Docker boundary contributors get
+      # from `pnpm test`. No workflow environment is forwarded into the test
+      # container; tracing is the wrapper's one validated option.
+      - name: Test workspace in disposable container
+        run: pnpm test -- --trace="$TEST_TRACE"
         env:
-          # Inverted deliberately: the string "off" is truthy and would enable
-          # tracing if forwarded directly.
-          MAXIMAL_TEST_TRACE: ${{ inputs.test_trace != 'off' && inputs.test_trace || '' }}
+          TEST_TRACE: ${{ inputs.test_trace || 'off' }}
 
       # Build/install mechanics outside the normal package scripts. Release-time
       # checks that require a tag or packaged app remain out of the PR gate.

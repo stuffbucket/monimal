@@ -1,8 +1,10 @@
 # Client architecture — `client/`
 
 `client/` is the Electron + React + TypeScript desktop application. It
-composes the `stuffbucket-electron` shell and supervises a bundled
-`maximal-core` sidecar.
+composes the `stuffbucket-electron` shell and supervises a bundled sidecar named
+`maximal-core`. That binary starts at Maximal's composition entry, invokes
+Core's public CLI, and can load the generic DSH host without bundling concrete
+providers.
 
 ## Process boundary
 

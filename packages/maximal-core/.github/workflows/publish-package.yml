@@ -22,8 +22,8 @@
 # that assertion fails by construction and no tarball is ever produced. The
 # assertion is not incidental: `bun build` bundles with Bun's own bundler, so
 # `dist/main.js` is a function of the Bun version, and an off-pin tarball ships
-# a `bin` bundle that disagrees with the committed one `bindings:check`
-# verifies. See that file's header for the measured hashes.
+# a `bin` bundle the pin cannot reproduce. See scripts/ops/check-bindings.ts's
+# header for the measured hashes.
 #
 # ## Why `.npmrc` is written here rather than committed
 #

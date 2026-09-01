@@ -1,17 +1,27 @@
 # The pinned container toolchain
 
-`bun run container:run -- <command>` runs any command against this work tree
-inside an image where Bun is exactly `.bun-version` and cannot be anything else.
+`bun run container:run -- <command>` runs a non-test command against this work
+tree inside the legacy package toolchain image, where Bun is exactly
+`.bun-version` and cannot be anything else. It is not the monorepo's test
+isolation boundary: it bind-mounts the checkout, while the root-owned test image
+receives a filtered copy and runs mountless and offline.
 
 ```sh
+# Supported verification, from the monorepo root
+pnpm run check:core                   # native non-test gate + Core Docker suite
+pnpm test -- --suite=maximal-core    # focused Core Docker suite
+
+# Pinned package toolchain, from packages/maximal-core
 bun run container:build              # build the image for the current pin
-bun run container:run -- bun run check:deep
-bun run container:run -- bun test tests/secrets.test.ts
+bun run container:run -- bun run check:deep:host
 bun run container:shell              # interactive bash, same environment
 ```
 
 `container:run` builds the image on first use, so `container:build` is only
-needed to rebuild deliberately.
+needed to rebuild deliberately. Raw host `bun test` and package-local `bun run
+check:deep` deliberately fail closed outside the marked root test container;
+the bind-mounted toolchain is not an escape hatch. Use the focused root suite
+above for tests.
 
 ## Why
 

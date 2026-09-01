@@ -21,6 +21,9 @@ reports/
 .claude/worktrees/
 .claude/settings.local.json
 
+# local inference smoke-test artifacts (may contain credentials and model weights)
+.tmp-omlx-*/
+
 # os
 .DS_Store
 

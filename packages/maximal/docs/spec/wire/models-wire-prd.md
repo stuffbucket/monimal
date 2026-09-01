@@ -110,14 +110,16 @@ Two transforms shape the list (both shapes):
 
 ## Response contract — `/:provider/v1/models`
 
-Passthrough to the configured provider's `${baseUrl}/v1/models`
-(`src/services/providers/anthropic-proxy.ts:79-87`). Provider auth
-(`Bearer`/`x-api-key` per `authType`) and forwardable headers
-(`anthropic-version`, `anthropic-beta`, `accept`, `user-agent`) are
-applied; the response is relayed with hop-by-hop headers stripped
-(`connection`, `content-encoding`, `content-length`, `keep-alive`,
-`proxy-*`, `te`, `trailer`, `transfer-encoding`, `upgrade`). The body
-shape is whatever the provider returns (Anthropic models list).
+The provider dispatcher selects the same explicit mode used by provider-scoped
+messages. In `legacy` mode, the route passes through to the configured
+provider's `${baseUrl}/v1/models` (`src/services/providers/anthropic-proxy.ts`),
+applies that provider's auth and forwardable headers, strips hop-by-hop headers,
+and relays the Anthropic models-list body.
+
+In `dsh` mode, the raw request is dispatched through the injected provider
+gateway. Model discovery is advisory rather than a routing whitelist. The
+external adapter owns credentials and transport; Core relays the bounded
+status, headers, and body without silently retrying through legacy mode.
 
 ## Error mapping
 

@@ -9,6 +9,11 @@ import type { Model } from "~/services/copilot/get-models"
 
 import { getPromptCacheRetention } from "~/lib/config/config"
 import {
+  asRecord,
+  readNestedUsage,
+  readUsage,
+} from "~/lib/http/untrusted-frame"
+import {
   type AnthropicMessagesPayload,
   type AnthropicStreamEventData,
   type AnthropicStreamState,
@@ -42,7 +47,6 @@ import {
   getResponsesRequestOptions,
 } from "~/routes/responses/utils"
 import { isAsyncIterable, isNonStreaming } from "~/routes/streaming-predicates"
-import { asRecord, readNestedUsage, readUsage } from "~/routes/untrusted-frame"
 import {
   createChatCompletions,
   type ChatCompletionChunk,

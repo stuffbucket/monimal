@@ -1,5 +1,5 @@
+import { asRecord } from "~/lib/http/untrusted-frame"
 import { type AnthropicStreamEventData } from "~/lib/models/anthropic-types"
-import { asRecord } from "~/routes/untrusted-frame"
 import {
   type ResponseCompletedEvent,
   type ResponseCreatedEvent,

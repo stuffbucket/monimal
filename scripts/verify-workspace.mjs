@@ -213,13 +213,18 @@ check(
 //    advisory -- pnpm warns and installs anyway -- so the range is not the
 //    check. Every consumer is listed by name and every one must be observed:
 //    a mistyped path drops a package out of the comparison silently, and a
-//    comparison over four of five packages passes for the wrong reason.
+//    comparison over only a subset passes for the wrong reason.
 const ESLINT_CONSUMERS = [
+  'packages/anthropic-provider',
   'packages/eslint-config',
+  'packages/llama-server',
   'packages/maximal-core',
+  'packages/maximal-dsh-host',
+  'packages/maximal-provider-contract',
   'packages/maximal',
   'packages/maximal-electron',
   'packages/maximal/client',
+  'packages/omlx',
 ];
 const eslintVersions = new Map();
 for (const pkg of ESLINT_CONSUMERS) {
@@ -242,7 +247,104 @@ check(
   { count: eslintVersions.size, of: 'eslint consumers' },
 );
 
-// 7. No lockfile entry names a host, and every entry carries a digest.
+// 7. The provider architecture is deliberately split across packages. Concrete
+//    adapters are profile-installed trusted code: compiling one into Core, the
+//    DSH host, or the Maximal composition root would defeat hot replacement.
+//    Check every declaration kind because a dev/peer edge can still make an
+//    undeclared architecture look valid in this publicly-hoisted workspace.
+function declaredDependencies(manifest) {
+  return new Set([
+    ...Object.keys(manifest?.dependencies ?? {}),
+    ...Object.keys(manifest?.devDependencies ?? {}),
+    ...Object.keys(manifest?.optionalDependencies ?? {}),
+    ...Object.keys(manifest?.peerDependencies ?? {}),
+  ]);
+}
+
+const providerManifests = new Map(
+  [
+    'packages/maximal-provider-contract',
+    'packages/maximal-core',
+    'packages/maximal-dsh-host',
+    'packages/maximal',
+    'packages/anthropic-provider',
+    'packages/omlx',
+  ].map((pkg) => [pkg, manifestAt(ROOT, pkg)]),
+);
+const providerDeps = new Map(
+  [...providerManifests].map(([pkg, manifest]) => [pkg, declaredDependencies(manifest)]),
+);
+const concreteProviders = new Set([
+  '@stuffbucket/anthropic-provider',
+  '@stuffbucket/omlx',
+]);
+const dshRuntime = new Set([
+  '@deepseek-ai/cordis',
+  '@deepseek-ai/dsh-llm',
+  '@deepseek-ai/schemastery',
+]);
+const maximalPackages = new Set([
+  '@stuffbucket/maximal',
+  '@stuffbucket/maximal-core',
+  '@stuffbucket/maximal-dsh-host',
+  '@stuffbucket/maximal-provider-contract',
+]);
+const violations = [];
+
+for (const pkg of [
+  'packages/maximal-core',
+  'packages/maximal-dsh-host',
+  'packages/maximal',
+]) {
+  for (const dependency of concreteProviders) {
+    if (providerDeps.get(pkg)?.has(dependency)) violations.push(`${pkg} -> ${dependency}`);
+  }
+}
+for (const dependency of dshRuntime) {
+  if (providerDeps.get('packages/maximal-core')?.has(dependency)) {
+    violations.push(`packages/maximal-core -> ${dependency}`);
+  }
+  if (providerDeps.get('packages/maximal')?.has(dependency)) {
+    violations.push(`packages/maximal -> ${dependency}`);
+  }
+  if (providerDeps.get('packages/maximal-provider-contract')?.has(dependency)) {
+    violations.push(`packages/maximal-provider-contract -> ${dependency}`);
+  }
+}
+for (const pkg of ['packages/anthropic-provider', 'packages/omlx']) {
+  for (const dependency of maximalPackages) {
+    if (providerDeps.get(pkg)?.has(dependency)) violations.push(`${pkg} -> ${dependency}`);
+  }
+}
+for (const [pkg, dependencies] of [
+  ['packages/maximal-core', ['@stuffbucket/maximal-provider-contract']],
+  ['packages/maximal-dsh-host', ['@stuffbucket/maximal-provider-contract']],
+  [
+    'packages/maximal',
+    [
+      '@stuffbucket/maximal-core',
+      '@stuffbucket/maximal-dsh-host',
+      '@stuffbucket/maximal-provider-contract',
+    ],
+  ],
+]) {
+  for (const dependency of dependencies) {
+    if (!providerDeps.get(pkg)?.has(dependency)) {
+      violations.push(`${pkg} missing ${dependency}`);
+    }
+  }
+}
+if (violations.length > 0) {
+  for (const violation of violations) console.error(`       forbidden provider edge: ${violation}`);
+}
+check(
+  [...providerManifests.values()].every((manifest) => manifest !== null) &&
+    violations.length === 0,
+  'provider package dependency boundaries are intact',
+  { count: providerManifests.size, of: 'provider architecture manifests' },
+);
+
+// 8. No lockfile entry names a host, and every entry carries a digest.
 //
 //    SOURCES.md#lockfile-integrity owns the rationale. Two separate concerns
 //    used to be one assertion; only one of them still bites.
@@ -304,7 +406,7 @@ check(
   { count: pinned, of: 'pinned packages in the workspace lockfile' },
 );
 
-// 8. No two workspace packages may end up on different versions of the same
+// 9. No two workspace packages may end up on different versions of the same
 //    directly-declared dependency. maximal-electron pinned electron 43.2.0
 //    while maximal/client pinned 43.3.0, so the UI library was tested against
 //    one runtime and the app that ships it was built against another -- a

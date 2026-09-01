@@ -12,36 +12,30 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 
 import {
-  accountKey,
   addAndActivate,
   clearNeedsReauth,
   deactivate,
   emptyRegistry,
-  makeAccountRecord,
   markNeedsReauth,
   readRegistry,
   writeRegistry,
 } from "~/lib/auth/github-token-store"
 
+import {
+  makeTestAccount,
+  testAccountKey,
+  testAccountToken,
+} from "./helpers/account-fixtures"
+
 function seed() {
-  // Two accounts, the first active.
-  const a = makeAccountRecord({
-    login: "alice",
-    host: "github.com",
-    token: "ghu_alice",
-    addedVia: "device-code",
-  })
-  const b = makeAccountRecord({
-    login: "bob",
-    host: "github.com",
-    token: "ghu_bob",
-    addedVia: "gh-cli",
-  })
+  // Two unmistakable test accounts, the first active.
+  const a = makeTestAccount("alice")
+  const b = { ...makeTestAccount("bob"), addedVia: "gh-cli" as const }
   return addAndActivate(addAndActivate(emptyRegistry(), b), a) // a ends active
 }
 
-const KEY_A = accountKey("alice", "github.com")
-const KEY_B = accountKey("bob", "github.com")
+const KEY_A = testAccountKey("alice")
+const KEY_B = testAccountKey("bob")
 const ERR = {
   status: 401 as number | null,
   message: "revoked",
@@ -55,7 +49,7 @@ describe("markNeedsReauth / clearNeedsReauth / deactivate (pure)", () => {
     expect(rec.needsReauth).toBe(true)
     expect(rec.lastError).toEqual(ERR)
     // The credential is retained — this is the whole point.
-    expect(rec.token).toBe("ghu_alice")
+    expect(rec.token).toBe(testAccountToken("alice"))
     // The active pointer is untouched (the account stays the boot default and
     // gets re-attempted on the next restart — a transient rejection self-heals).
     expect(reg.activeKey).toBe(KEY_A)
@@ -79,7 +73,7 @@ describe("markNeedsReauth / clearNeedsReauth / deactivate (pure)", () => {
     const reg = deactivate(seed())
     expect(reg.activeKey).toBeNull()
     expect(Object.keys(reg.accounts)).toHaveLength(2)
-    expect(reg.accounts[KEY_A].token).toBe("ghu_alice")
+    expect(reg.accounts[KEY_A].token).toBe(testAccountToken("alice"))
   })
 })
 
@@ -102,7 +96,7 @@ describe("persistence: a degrade does not empty the registry", () => {
     // Critically NOT empty — the credential survived the rejection.
     expect(Object.keys(reloaded.accounts)).toHaveLength(2)
     expect(reloaded.activeKey).toBe(KEY_A)
-    expect(reloaded.accounts[KEY_A].token).toBe("ghu_alice")
+    expect(reloaded.accounts[KEY_A].token).toBe(testAccountToken("alice"))
     expect(reloaded.accounts[KEY_A].needsReauth).toBe(true)
     expect(reloaded.accounts[KEY_A].lastError).toEqual(ERR)
   })
