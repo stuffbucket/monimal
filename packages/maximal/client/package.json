@@ -18,7 +18,7 @@
     "package": "electron-forge package",
     "e2e": "playwright test",
     "icons": "node scripts/gen-icon-png.mjs",
-    "prestart": "node scripts/gen-icon-png.mjs",
+    "prestart": "node scripts/gen-icon-png.mjs && node scripts/name-dev-bundle.mjs",
     "prepackage": "node scripts/gen-icon-png.mjs"
   },
   "dependencies": {

@@ -64,6 +64,17 @@ const THEME_CSS = `
      outlines resolve on the first name rather than by falling through. */
   --shell-focus: var(--shell-accent);
 
+  /* The application's type. Defined here, and read by base.ts for the
+     document as well as by the package's own .sb-shell rule, so the family and
+     size are stated once instead of once per consumer of them.
+
+     --shell-position is deliberately NOT defined. The package positions its
+     frame with var(--shell-position, fixed), and fixed is what this
+     application wants: the frame is the root element, it has no siblings to
+     overlay, and being fixed is what frees it from depending on a height
+     chain through html/body/#root. */
+  --shell-font: 400 14px/1.5 system-ui, sans-serif;
+
   /* Status colours. Outside the package's required contract, centralized
      here so surfaces do not each hardcode them. */
   --shell-danger: #ef4444;

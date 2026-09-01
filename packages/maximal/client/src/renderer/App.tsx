@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactElement } from 'react'
 
+import { WindowChrome } from './chrome/WindowChrome'
 import { Dashboard } from './dashboard/Dashboard'
 import { FirstRun } from './first-run/FirstRun'
 import { Settings } from './settings/Settings'
@@ -78,7 +79,15 @@ export function App(): ReactElement {
   // `null` means "not answered yet" and is deliberately NOT treated as signed
   // out: first-run handles both the pre-auth and the still-booting cases, so
   // rendering it while the answer is unknown is correct rather than a fallback.
-  if (authenticated !== true) return <FirstRun />
+  // Wrapped, not bare. First run needs a frame for the same reason every other
+  // surface does — without one the window has no drag region and cannot be
+  // moved, and this is the screen a new user meets first.
+  if (authenticated !== true)
+    return (
+      <WindowChrome>
+        <FirstRun />
+      </WindowChrome>
+    )
 
   return (
     <div className="app-shell">
@@ -118,28 +127,6 @@ export function App(): ReactElement {
 //    the selection by colour AND weight, so selection is never colour alone.
 
 const APP_SHELL_CSS = `
-html,
-body,
-#root {
-  height: 100%;
-  margin: 0;
-}
-
-/*
- * The window background belongs on the DOCUMENT, not on \`.app-shell\`.
- *
- * \`.app-shell\` only exists once the user is authenticated, so a background
- * set there leaves first-run painting light text on the browser's default
- * white canvas — near-invisible, on the first screen a new user sees. Setting
- * \`color\` here too means any surface rendered outside \`.app-shell\` inherits
- * a legible pair rather than depending on its own rules.
- */
-html,
-body {
-  color: var(--shell-text, #f5f5f5);
-  background: var(--shell-background, #16181d);
-}
-
 .app-shell {
   display: flex;
   flex-direction: column;
@@ -147,7 +134,6 @@ body {
   min-height: 0;
   color: var(--shell-text, #f5f5f5);
   background: var(--shell-background, #16181d);
-  font: 400 14px/1.5 system-ui, sans-serif;
 }
 
 .app-shell__views {

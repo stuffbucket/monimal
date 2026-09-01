@@ -5,6 +5,7 @@ import { createRoot } from 'react-dom/client'
 // package ships no palette by design. Imported first so the tokens exist
 // before first paint.
 import './theme'
+import './base'
 import 'stuffbucket-electron/renderer/styles.css'
 
 import { App } from './App'
