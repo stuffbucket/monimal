@@ -26,8 +26,14 @@ set -euo pipefail
 # vendored fixture for the standalone maximal repo (npm, client/ at the root).
 # The two target different layouts and must diverge. See SOURCES.md.
 
-# Self-hosted runners use non-login shells that do not read ~/.zshrc.
-export PATH="${BUN_INSTALL:-}/bin:${CARGO_HOME:-}/bin:/opt/homebrew/bin:$PATH"
+# Self-hosted runners use non-login shells that do not read ~/.zshrc. Prepend
+# only what is actually set: "${BUN_INSTALL:-}/bin" collapses to "/bin" when the
+# variable is absent, which silently puts /bin ahead of everything else.
+# `if`, not `a && b`: under set -e a trailing AND-OR list whose test fails takes
+# its non-zero status with it, so the && form is safe only where it sits now.
+export PATH="/opt/homebrew/bin:$PATH"
+if [ -n "${CARGO_HOME:-}" ]; then export PATH="${CARGO_HOME}/bin:$PATH"; fi
+if [ -n "${BUN_INSTALL:-}" ]; then export PATH="${BUN_INSTALL}/bin:$PATH"; fi
 export TURBO_TELEMETRY_DISABLED=1
 export CI=1
 
@@ -73,7 +79,9 @@ echo "Producing Maximal.app (Electron) for ${TAG} (version ${VERSION}, ${ARCH})"
 echo "--- preflight ---"
 node -v
 npm -v
-bun --version
+# Tolerated here so the named Bun assertion below is what reports a missing or
+# wrong Bun; bare `set -e` on this line would abort with no explanation.
+bun --version || true
 git rev-parse HEAD
 sw_vers -productVersion
 # Native modules in allowBuilds (node-pty, node-llama-cpp) need the Command Line
@@ -92,6 +100,8 @@ echo "-----------------"
 # Fix by bumping .bun-version and re-cutting the tag, never by changing the
 # builder: .bun-version is the single owner of that version (SOURCES.md).
 # ---------------------------------------------------------------------------
+command -v bun >/dev/null \
+  || fail "bun is not on PATH (BUN_INSTALL=${BUN_INSTALL:-unset}); the maximal-core sidecar cannot be compiled."
 WANT_BUN="$(tr -d '[:space:]' < .bun-version)"
 HAVE_BUN="$(bun --version)"
 [ "$HAVE_BUN" = "$WANT_BUN" ] \
