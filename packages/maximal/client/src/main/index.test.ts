@@ -62,6 +62,16 @@ vi.mock('electron', () => ({
 
 vi.mock('./shell.js', () => ({ runShell: vi.fn() }))
 
+// Identity — the app's name, menu and dock icon — is not what this file is
+// about, and it reaches for Electron surfaces (`Menu`, `nativeImage`,
+// `app.dock`) that the boundary fake below deliberately does not carry.
+// `identity.test.ts` covers it against its own fakes.
+vi.mock('./identity.js', () => ({
+  applyAppName: vi.fn(),
+  applyDockIcon: vi.fn(),
+  installApplicationMenu: vi.fn(),
+}))
+
 const { killCoreMock, spawnCoreMock, onCoreStatusMock } = vi.hoisted(() => ({
   killCoreMock: vi.fn(),
   spawnCoreMock: vi.fn(() =>

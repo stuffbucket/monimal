@@ -58,14 +58,10 @@ const STATUS_ORDER: readonly RunStatus[] = ['running', 'needs-approval', 'done',
 const EMPTY_SNAPSHOT: WorkspaceSnapshot = { projects: [], runs: [] }
 
 /*
- * Spacing and radius are read the way the package's own stylesheet reads them:
- * `var(--shell-space-4, 16px)`. Those tokens are "fallback" variables in the
- * shell's published contract — a host is not required to define them, and the
- * shipped rules (`.canvas`, `.nav`, `.statusbar`) all fall back to these exact
- * numbers. Matching the fallback keeps this header aligned with the canvas
- * underneath it when no host theme is present. Colours are read bare, or with
- * `currentColor`, because those are the host's to define and a wrong guess
- * would be worse than an inherited one.
+ * Spacing and radius carry the same fallbacks the shell's own rules use, so
+ * this header stays aligned with the canvas beneath it even with no host
+ * theme defined. Colours are read bare, or as `currentColor`: those are the
+ * host's to define, and a wrong guess is worse than an inherited value.
  */
 const headerStyle: CSSProperties = {
   display: 'flex',

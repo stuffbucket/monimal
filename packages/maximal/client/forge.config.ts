@@ -22,6 +22,11 @@ if (identity && (!entitlements || !existsSync(entitlements))) {
 const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
+    // The bundle's name, and the executable inside it. Absent, @electron/packager
+    // falls back to `productName`, which happens to agree today — stating both
+    // means a rename of the npm package cannot silently rename the app.
+    name: 'Maximal',
+    executableName: process.platform === 'linux' ? 'maximal' : 'Maximal',
     // Must EQUAL the approved builder policy's bundle_id_allowed
     // (co.stuffbucket.maximal); otherwise Electron defaults to a wrong
     // CFBundleIdentifier and the builder's per-repo policy gate rejects the build.
@@ -31,6 +36,11 @@ const config: ForgeConfig = {
     // maximal-core ships as a compiled Bun sidecar under resources/bin and is
     // copied into the packaged app at Contents/Resources/bin — OUTSIDE the asar,
     // so it stays a real, spawnable, signable executable; the client spawns it.
+    // Only the sidecar. The runtime PNG that `app.dock.setIcon` reads is
+    // deliberately NOT shipped: a packaged bundle takes its icon from the
+    // .icns Forge installs from `packagerConfig.icon`, so the dock is already
+    // correct there and `applyDockIcon` leaves it alone. The PNG exists for
+    // unpackaged runs only, where the bundle is stock Electron's.
     extraResource: ['resources/bin'],
     ...(identity
       ? {

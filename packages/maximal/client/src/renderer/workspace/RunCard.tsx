@@ -2,15 +2,9 @@ import type { ReactElement } from 'react'
 
 import { type AgentRun, type RunStatus, statusLabel, formatElapsed } from './model'
 
-// Presentational only — no data fetching, no source.ts import. See
-// stuffbucket/maximal#432. Composed inside the shell's Canvas region
-// (`@stuffbucket/maximal-electron/renderer`), which ships no palette and
-// expects consumers to style against its `--shell-*` custom-property
-// contract (see that package's README "Consume the shell frame" section
-// and `scripts/shell-variables.mjs`). There is no shared stylesheet file
-// for this feature yet (task scope is exactly two files), so the CSS
-// below is injected once, on import, rather than duplicated inline per
-// card instance.
+// Presentational only — no data fetching. Styled against the shell's
+// `--shell-*` custom-property contract, which the host defines in theme.ts.
+// The CSS is injected once on import rather than inlined per card.
 
 function cx(...parts: Array<string | false | null | undefined>): string {
   return parts.filter(Boolean).join(' ')
@@ -46,12 +40,10 @@ export function RunCard({ run, selected, onSelect }: RunCardProps): ReactElement
     <button
       type="button"
       className={cx('run-card', selected && 'run-card--selected')}
-      // The shell's `Canvas` hardcodes `role="listbox"` on the item container
-      // (dist/renderer/components/Canvas.js), and a listbox's children must be
-      // options carrying `aria-selected` — a button with `aria-current` inside
-      // one is an invalid structure that assistive tech reports incoherently.
-      // Kept as a real <button> so it stays keyboard-activatable, since `Canvas`
-      // supplies no roving-tabindex model of its own. See maximal-electron#171.
+      // The shell's `Canvas` gives the item container `role="listbox"`, whose
+      // children must be options carrying `aria-selected`. Kept as a real
+      // <button> so it stays keyboard-activatable, since the container supplies
+      // no roving-tabindex model.
       role="option"
       aria-selected={selected}
       onClick={() => onSelect(run.id)}

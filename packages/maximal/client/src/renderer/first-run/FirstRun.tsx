@@ -134,7 +134,15 @@ const FIRST_RUN_CSS = `
   align-items: center;
 }
 
-.first-run-button {
+/*
+ * Prefixed with .sb-shell, and it has to be. These screens render inside the
+ * shell frame now, and the package resets every button in it: its
+ * .sb-shell button rule sets background, border, padding and colour, at a
+ * specificity of one class plus one type. A bare .first-run-button is one
+ * class and loses, which strips these buttons back to plain text. Two
+ * classes wins.
+ */
+.sb-shell .first-run-button {
   padding: var(--shell-space-2, 8px) var(--shell-space-4, 16px);
   border: 1px solid var(--shell-border, #2a2a2a);
   border-radius: var(--shell-radius-small, 4px);
@@ -146,27 +154,27 @@ const FIRST_RUN_CSS = `
   transition: background-color 150ms ease-out, border-color 150ms ease-out;
 }
 
-.first-run-button:hover:not(:disabled) {
+.sb-shell .first-run-button:hover:not(:disabled) {
   background: var(--shell-hover, rgb(255 255 255 / 0.04));
 }
 
-.first-run-button:disabled {
+.sb-shell .first-run-button:disabled {
   cursor: default;
   opacity: 0.6;
 }
 
-.first-run-button--primary {
+.sb-shell .first-run-button--primary {
   border-color: var(--shell-accent, #5198a6);
   color: var(--shell-accent, #5198a6);
 }
 
-.first-run-button:focus-visible,
-.first-run-link-button:focus-visible {
+.sb-shell .first-run-button:focus-visible,
+.sb-shell .first-run-link-button:focus-visible {
   outline: 2px solid var(--shell-focus, var(--shell-accent, #5198a6));
   outline-offset: 2px;
 }
 
-.first-run-link-button {
+.sb-shell .first-run-link-button {
   padding: 0;
   border: none;
   background: none;
@@ -223,7 +231,7 @@ const FIRST_RUN_CSS = `
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .first-run-button {
+  .sb-shell .first-run-button {
     transition-duration: 0.01ms;
   }
   .first-run-spinner {

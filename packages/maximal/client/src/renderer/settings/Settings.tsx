@@ -32,16 +32,11 @@ export function Settings({ capabilities }: SettingsProps): ReactElement {
 
 // ---- Styles ----
 //
-// Injected once on import (guarded by element id so Vite HMR reloads don't
-// pile up duplicate <style> tags — same pattern as workspace/RunCard.tsx and
-// workspace/Inspector.tsx). Every child component in this directory only
-// references these classnames; this file is the single place the rules are
-// declared, so there is one source to check for drift rather than one per
-// section. Values reference the `--shell-*` custom-property contract
-// `stuffbucket-electron` publishes (see that package's README "Consume the
-// shell frame" section), with the same "sensible fallback" idiom the
-// workspace components use — this package ships no palette by design, so a
-// host that defines no theme still renders something legible.
+// Injected once on import, guarded by element id so HMR reloads don't pile up
+// duplicate <style> tags. Every component in this directory references these
+// classnames and declares none of its own, so there is one place to check for
+// drift. Values read the `--shell-*` contract with fallbacks, so a host that
+// defines no theme still renders something legible.
 const SETTINGS_CSS = `
 .settings {
   display: flex;

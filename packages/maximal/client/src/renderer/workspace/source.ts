@@ -1,15 +1,11 @@
 import { AgentRun, Project, RunStatus, WorkspaceSnapshot } from './model'
 
-// The adapter seam between the workspace UI and wherever run data actually
-// comes from. maximal-core is a Copilot proxy today — it has auth, models,
-// and usage, but no durable project catalog and no harness runtime (both are
-// explicitly deferred; see stuffbucket/maximal#432 and
-// stuffbucket/maximal-core#109). Until core (or something else) can back a
-// live source, `createPlaceholderSource` is the only implementation, and its
-// `kind` field lets callers — and, ultimately, anyone rendering this data —
-// tell placeholder from live at a glance. There is deliberately no
-// `createLiveSource` here yet: inventing one would fabricate data that looks
-// real but isn't.
+// The adapter seam between the workspace UI and wherever run data comes from.
+// Nothing produces it: core is a proxy, with auth, models and usage but no
+// project catalog or harness runtime, and a harness owns run state. So
+// `createPlaceholderSource` is the only implementation, and `kind` lets any
+// caller tell placeholder from live at a glance. There is deliberately no
+// `createLiveSource`: inventing one would fabricate data that looks real.
 export interface WorkspaceSource {
   readonly kind: 'placeholder' | 'live'
   snapshot(): Promise<WorkspaceSnapshot>
@@ -96,13 +92,10 @@ const placeholderRuns: readonly AgentRun[] = [
 ]
 
 /**
- * Runs belonging to a project, matched by name. This is the one place "which
- * runs belong to this project" is decided — `Project.runCount` is a stored
- * field with no relational constraint tying it to the run list (see
- * `model.ts`), so any surface that needs a per-project count must derive it
- * from `runs` through here rather than trusting the stored field or
- * re-implementing the filter, both of which can drift from the runs they're
- * supposed to describe.
+ * Runs belonging to a project, matched by name. The one place that question is
+ * decided: `Project.runCount` is a stored field with nothing tying it to the
+ * run list, so a per-project count must be derived through here rather than
+ * read from the stored field or filtered again elsewhere.
  */
 export function runsForProject(runs: readonly AgentRun[], projectName: string): AgentRun[] {
   return runs.filter((run) => run.project === projectName)

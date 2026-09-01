@@ -1,8 +1,5 @@
-// Shared "spell a device code out for assistive tech" helper. Both
-// `first-run` and `settings` render the same GitHub device code and must
-// announce it identically — see the task report for why rendering it as one
-// contiguous string breaks screen readers, and why the two surfaces had
-// drifted to spelling it out two different ways.
+// Shared "spell a device code out for assistive tech" helper. First-run and
+// settings render the same device code and must announce it identically.
 
 /** Spells a code out for assistive tech: "1234-ABCD" -> "1 2 3 4 dash A B C
  *  D", so a screen reader announces discrete characters instead of

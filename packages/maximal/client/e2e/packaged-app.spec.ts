@@ -40,12 +40,9 @@ test.afterAll(async () => {
 })
 
 test('launches from a relocated copy and the sidecar reaches ready', async () => {
-  // relocatePackagedApp() (inside launchPackagedApp(), run in beforeAll)
-  // already asserted the copy is complete and outside every node_modules in
-  // its ancestry — if either had failed, beforeAll itself would have thrown
-  // before this test ever ran. What's left to prove here is that the
-  // relocated copy actually boots: the sidecar spawns, binds, and the app's
-  // own main process narrates readiness on stdout.
+  // The relocation itself is asserted during launch, so what is left to prove
+  // is that the relocated copy boots: the sidecar spawns, binds, and main
+  // narrates readiness.
   await waitForLine(running.lines, /\[maximal-client\] core ready — control /)
 })
 
@@ -53,18 +50,11 @@ test('window opens with exactly one non-empty primary heading', async () => {
   const window = await running.app.firstWindow()
   const headings = window.locator('h1')
 
-  // Asserts the INVARIANT, not the copy. This previously pinned the exact
-  // string 'Maximal', which came from a placeholder sign-in screen in
-  // `renderer/main.tsx` that has since been deleted — so the assertion broke
-  // the moment the real UI mounted, having proved nothing about it.
-  //
-  // What is worth asserting is the rule every surface is held to in
-  // `.design-context.md`: exactly one primary heading per view, never
-  // competing `h1`s. Which surface is showing depends on auth and sidecar
-  // state and legitimately varies ('Starting Maximal', 'Sign in to Maximal',
-  // 'Enter this code on GitHub', …), so the text is not the contract — the
-  // count is. This also catches a real regression class the unit tests
-  // cannot: two surfaces mounted at once, each bringing its own `h1`.
+  // Asserts the INVARIANT, not the copy: exactly one primary heading per
+  // view, never competing `h1`s. Which surface is showing depends on auth and
+  // sidecar state and legitimately varies, so the text is not the contract —
+  // the count is. It catches what the unit tests cannot: two surfaces mounted
+  // at once, each bringing its own `h1`.
   await expect(headings).toHaveCount(1)
   await expect(headings.first()).not.toBeEmpty()
 })
@@ -101,17 +91,13 @@ test('packaged preload exposes only the closed named bridge', async () => {
 })
 
 test('renderer window is hardened: contextIsolation, no nodeIntegration, sandboxed', async () => {
-  // WHY THIS TEST (maximal#436): none of contextIsolation/nodeIntegration/
-  // sandbox is set by THIS repo. `src/main/shell.ts` is a 3-line re-export of
-  // `createHostWindow` from the `stuffbucket-electron` dependency (pinned by
-  // raw commit SHA and bumped aggressively) — the flags live entirely inside
-  // node_modules/stuffbucket-electron/dist/host/host-window.js. A shell bump
-  // could silently flip `sandbox` to false with no diff in our source and no
-  // failing unit test; the first symptom would be a compromised renderer with
-  // Node access. Only launching the real packaged app and inspecting the real
-  // window proves the shipped posture — a unit test that reads the
-  // dependency's source would be asserting the very file this guards against
-  // changing.
+  // None of contextIsolation/nodeIntegration/sandbox is set by this package:
+  // the window comes from the shell dependency, so an upgrade there could flip
+  // `sandbox` to false with no diff here and no failing unit test, and the
+  // first symptom would be a renderer with Node access. Only launching the
+  // real packaged app and inspecting the real window proves the shipped
+  // posture; a unit test reading the dependency's source would assert the very
+  // file this guards against changing.
   //
   // `webContents.getLastWebPreferences()` returns the EFFECTIVE webPreferences
   // Electron actually applied to this live WebContents — not the options
@@ -159,13 +145,10 @@ test('renderer window is hardened: contextIsolation, no nodeIntegration, sandbox
  * assertion, or skips outright, when it is not reachable — never fails —
  * so this suite stays meaningful (and green) signed-out on CI while still
  * being the assertion that would catch a regression once a real session is
- * live. The package-chrome path was verified BY HAND against the real,
- * unmodified rendered components: a scratch Playwright script stubbed only
- * the `auth/status` JSON-RPC response (no source edit, no real GitHub call)
- * to reach the identical Dashboard/Workspace DOM this harness would show a
- * signed-in user, confirmed each assertion below passes against it, then
- * confirmed each one goes red under the specific historical regression it
- * guards — see the task report for the full break/confirm log.
+ * live. The signed-in path was verified by hand against the real rendered
+ * components, by stubbing only the `auth/status` response to reach the same
+ * DOM a signed-in user sees, confirming each assertion passes there and then
+ * that each goes red under the regression it guards.
  */
 async function probeVisible(window: Page, selector: string, timeoutMs = 3_000): Promise<boolean> {
   try {
@@ -180,13 +163,12 @@ const SIGNED_OUT_SKIP_MESSAGE =
   'Package chrome (post sign-in) did not render within the probe window. This harness is ' +
   'structurally always signed out (a fresh --user-data-dir per run scopes COPILOT_API_HOME to an ' +
   'empty profile — see src/main/core.ts), which is also the state a real CI machine is in, so this ' +
-  'is expected here and is not a failure. See the task report for how this assertion was verified ' +
-  'against the real package chrome via an auth-status route stub.'
+  'is expected here and is not a failure.'
 
 test('chrome text is not near-invisible against its background', async () => {
-  // Historical defect: no --shell-* custom property was defined at all, so
-  // `color: var(--shell-text)` and friends computed to inherited/initial
-  // values on every package control — near-black text on a near-black
+  // The regression class: with no --shell-* custom property defined,
+  // `color: var(--shell-text)` and friends compute to inherited/initial
+  // values on every shell control — near-black text on a near-black
   // window, ~1.1:1. Signed out, first-run's OWN controls share the exact
   // same `var(--shell-*, fallback)` chain (see FirstRun.tsx's header
   // comment), so checking them here is checking the same failure mode,

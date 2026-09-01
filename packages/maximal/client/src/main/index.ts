@@ -12,8 +12,13 @@ import {
   onCoreStatus,
   spawnCore,
 } from './core.js'
+import { applyAppName, applyDockIcon, installApplicationMenu } from './identity.js'
 import { toLifecycleStatus } from './lifecycle-status.js'
 import { runShell } from './shell.js'
+
+// Before `whenReady`, not inside it: `app.name` is read when the default menu
+// and the About panel are built, so setting it later leaves both stale.
+applyAppName()
 
 let controlSession: ControlSession | null = null
 
@@ -86,6 +91,9 @@ function createWindow(): void {
 }
 
 void app.whenReady().then(async () => {
+  applyDockIcon()
+  installApplicationMenu()
+
   controlSession = createControlSession({
     onChange: () => broadcast(BRIDGE_CHANNELS.controlChanged),
   })
