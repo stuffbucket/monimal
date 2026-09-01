@@ -762,14 +762,22 @@
    chip, a second line of text — asks for more than the compact register at
    times, and a fixed height clips or overlaps it instead of growing. Issue
    #176 measured 46px for two lines against a 24px box that had already
-   overflowed both upward, over the panel above, and downward, off the window. */
+   overflowed both upward, over the panel above, and downward, off the window.
+
+   The row also wraps rather than overflowing sideways, for the same reason and
+   with the same failure if it does not: children carry no `nowrap`, so a
+   narrow window pushes them out of a row that cannot grow. Wrapping needs the
+   symmetric vertical padding below — with `padding: 0` a second line sits hard
+   against both edges. */
 .sb-shell .statusbar {
   display: flex;
   align-items: center;
   gap: var(--shell-space-3, 12px);
   min-height: var(--shell-statusbar-height, 24px);
-  padding: 0 var(--shell-space-3, 12px);
+  padding: var(--shell-space-1, 4px) var(--shell-space-3, 12px);
   flex: none;
+  flex-wrap: wrap;
+  row-gap: var(--shell-space-1, 4px);
   color: var(--shell-text-subtle);
   border-top: 1px solid var(--shell-border);
   font-size: 11px;

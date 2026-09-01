@@ -1,4 +1,5 @@
 import { typescript } from "@stuffbucket/eslint-config/typescript";
+import globals from "globals";
 import reactHooks from "eslint-plugin-react-hooks";
 
 // client/ is a separate npm-managed TypeScript project (see docs/code-style.md).
@@ -19,6 +20,13 @@ export default [
     // its own change, not a side effect of unpinning TypeScript.
     typeChecked: false,
   }),
+  {
+    // Build scripts run under plain node, outside any tsconfig, so they get
+    // node globals and nothing else. Without this every `process` and
+    // `console` in them reads as undefined.
+    files: ["scripts/**/*.mjs"],
+    languageOptions: { globals: globals.node },
+  },
   {
     files: ["src/**/*.ts", "src/**/*.tsx", "e2e/**/*.ts"],
     plugins: { "react-hooks": reactHooks },

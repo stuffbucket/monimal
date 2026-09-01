@@ -26,14 +26,10 @@ import { createPlaceholderSource } from './workspace/source'
  */
 
 /** How often to re-read auth status while nothing is pushing changes.
- *  `subscribe()` is the fast path; this is the safety net for a missed or
- *  renamed event — the same fallback every other auth-status consumer in
- *  this app already has (`settings/AccountSection.tsx`,
- *  `first-run/useFirstRun.ts`). This file was the one exception (review
- *  finding M3): it gates the ENTIRE app on `authenticated`, so a push this
- *  consumer alone missed didn't just show a stale value somewhere — it
- *  stranded a signed-in user on the first-run screen with no route back in
- *  until something else happened to re-trigger a read. */
+ *  `subscribe()` is the fast path; this is the safety net for a missed event.
+ *  It matters most here: this is the one consumer that gates the ENTIRE app
+ *  on `authenticated`, so a missed push strands a signed-in user on the
+ *  first-run screen with no route back in. */
 const POLL_MS = 3_000
 
 type View = 'dashboard' | 'workspace' | 'settings'
@@ -110,54 +106,17 @@ export function App(): ReactElement {
 
 // ---- Styles ----
 //
-// Injected once on import, guarded by element id — same pattern as
-// `settings/Settings.tsx` and `workspace/RunCard.tsx`. Three things live here
-// that no other file owns:
+// Injected once on import, guarded by element id. Three things live here that
+// no other file owns:
 //
-// 1. The height chain. `.sb-shell.app` (the package's root class, applied by
-//    `ShellLayout` inside Dashboard/Workspace) is `height: 100%`, and nothing
-//    between it and the viewport established a height: `index.html` sets
-//    none on `html`/`body`/`#root`, and these `app-shell*` classnames had no
-//    CSS at all before this file. A percentage height against an `auto`
-//    containing block resolves to `auto`, so the three-panel frame was
-//    sizing to its content instead of the window — the whole document
-//    scrolled, taking the tab strip and status bar with it. Fixed here
-//    rather than in `index.html` so the whole chain lives with the
-//    component that depends on it.
-// 2. Rules for `app-shell`, `app-shell__views` and `app-shell__view-tab` —
-//    this file's own primary navigation. Unlike every other surface here, it
-//    used to inject no `<style>` block at all, so the three view buttons
-//    were unstyled UA chrome (light-gray boxes, black labels) on the dark
-//    window, and the selected view was marked only by `aria-current`, for
-//    which no rule existed. `[aria-current='page']` below carries the
-//    selection two ways — colour AND weight — so it is not colour alone.
-// 3. Two `stuffbucket-electron` package stylesheet gaps, found by rendering
-//    the packaged app at 760x620 and comparing screenshots to actual pixels
-//    (measuring `.app-shell__surface`'s rect against `innerHeight` reported
-//    "fills the window, no overflow" while the window visibly showed
-//    overlapping nav text and two scrollbars — a metric that lied). Both
-//    gaps live in `dist/renderer/styles.css`, not in any client container, so
-//    they are overridden here with `.app-shell`-qualified selectors (higher
-//    specificity than the package's own two-class rules, so this wins
-//    regardless of `<style>` injection order) rather than "fixed" by
-//    restructuring a client container that was already correct:
-//      a. `.nav__label` carries no `white-space`/`overflow` rule, so a label
-//         too long for the rail (e.g. "Placeholder Project — Aurora") wraps
-//         to a second line inside a `.nav__item` whose height is a hardcoded
-//         30px — the wrapped line renders on top of the next item's row.
-//         Truncating with an ellipsis keeps every row at its fixed height.
-//      b. `.statusbar` is `height: 24px` (not `min-height`), so when its
-//         `<span>` children (no `white-space: nowrap`) don't fit the
-//         available width, they wrap and the wrapped text overflows the
-//         fixed-height box both upward (colliding with the run cards above)
-//         and downward (cut off at the window's bottom edge). That overflow
-//         sits inside `.panel--canvas`, which `react-resizable-panels`
-//         always renders with an inline `overflow: auto` — so the overflow
-//         also opened a second, redundant scrollbar next to `.canvas`'s own
-//         legitimate one. `height: auto` with a `min-height` floor lets the
-//         row grow to fit wrapped text instead of fighting it, which fixes
-//         both the clipped status bar and the doubled scrollbar in one
-//         change.
+// 1. The height chain. The shell frame's root is `height: 100%`, and nothing
+//    between it and the viewport establishes a height, so the three-panel
+//    frame sizes to its content instead of the window and the whole document
+//    scrolls. Fixed here rather than in `index.html` so the chain lives with
+//    the component that depends on it.
+// 2. Rules for this file's own view switcher. `[aria-current='page']` carries
+//    the selection by colour AND weight, so selection is never colour alone.
+
 const APP_SHELL_CSS = `
 html,
 body,
@@ -169,15 +128,11 @@ body,
 /*
  * The window background belongs on the DOCUMENT, not on \`.app-shell\`.
  *
- * \`.app-shell\` only exists once the user is authenticated — signed out, \`App\`
- * returns \`<FirstRun />\` directly with no wrapper — so putting the background
- * there left first-run painting \`--shell-text\` (#f5f5f5) on Chromium's default
- * white canvas: 1.09:1, i.e. near-invisible, on the FIRST screen a new user
- * sees. Caught by the packaged suite's new contrast assertion on unmodified
- * code, which is exactly the regression class it was added for.
- *
- * Setting \`color\` here too means any surface rendered outside \`.app-shell\`
- * inherits a legible pair rather than depending on its own rules.
+ * \`.app-shell\` only exists once the user is authenticated, so a background
+ * set there leaves first-run painting light text on the browser's default
+ * white canvas — near-invisible, on the first screen a new user sees. Setting
+ * \`color\` here too means any surface rendered outside \`.app-shell\` inherits
+ * a legible pair rather than depending on its own rules.
  */
 html,
 body {
@@ -237,23 +192,6 @@ body {
   flex-direction: column;
   min-height: 0;
   overflow: auto;
-}
-
-.app-shell .sb-shell .nav__label {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.app-shell .sb-shell .statusbar {
-  height: auto;
-  min-height: 24px;
-  flex-wrap: wrap;
-  row-gap: var(--shell-space-1, 4px);
-  padding-top: var(--shell-space-1, 4px);
-  padding-bottom: var(--shell-space-1, 4px);
 }
 `
 

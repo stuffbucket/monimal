@@ -5,3 +5,4 @@ resources/bin/
 *.log
 test-results/
 playwright-report/
+build/icon.png
