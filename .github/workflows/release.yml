@@ -1,0 +1,336 @@
+# Signed + notarized macOS release.
+#
+# This repository never sees an Apple credential. It creates a DRAFT release at
+# a tag, asks the private stuffbucket/macos-builder to build that tag, and waits
+# for the signed, notarized, stapled .dmg to be attached. The builder owns the
+# self-hosted Mac and every Apple secret. RELEASING.md owns the process.
+#
+# Triggers:
+#   push tags   the tag IS the version. packages/maximal/client/package.json
+#               stays 0.0.0 and is stamped from the tag at build time, so there
+#               is no second place to bump.
+#   dispatch    recovery. Every job below is idempotent: a re-run reuses the
+#               existing draft, re-dispatches, and re-waits.
+#
+# `release: published` is deliberately NOT a trigger. The builder's upload is
+# asynchronous, and attaching an asset after publish is HTTP 422 once immutable
+# releases are on. Draft-first works either way.
+#
+# Neither trigger fires on pull_request, which is what keeps MACOS_BUILDER_PAT
+# out of reach of a fork PR in this public repo.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to build and attach artifacts to, e.g. v0.5.0-rc.1
+        required: true
+        type: string
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  # Never cancel a run that is mid-notarization; Apple's queue is not resumable.
+  cancel-in-progress: false
+
+permissions: {}
+
+defaults:
+  run:
+    # GitHub's default is `bash -e {0}`: -e without -o pipefail. A pipeline
+    # reports the exit status of its LAST command, so a failing step passes.
+    shell: bash -eo pipefail {0}
+
+jobs:
+  verify:
+    name: verify tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      checks: read
+    outputs:
+      tag: ${{ steps.resolve.outputs.tag }}
+      sha: ${{ steps.resolve.outputs.sha }}
+      dmg: ${{ steps.config.outputs.dmg }}
+      prerelease: ${{ steps.resolve.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # `git branch --contains` needs the branches, not just the tag.
+          fetch-depth: 0
+
+      - name: Resolve and validate the tag
+        id: resolve
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          TAG="${INPUT_TAG:-${GITHUB_REF_NAME}}"
+          [ -n "$TAG" ] || { echo "::error::No tag to release."; exit 1; }
+
+          # Our shape.
+          if ! printf '%s' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$'; then
+            echo "::error::Tag '${TAG}' is not vMAJOR.MINOR.PATCH[-prerelease]."
+            exit 1
+          fi
+          # The builder's shape, asserted HERE so a bad ref fails in seconds
+          # rather than minutes after dispatch with no artifact and no cause.
+          # It rejects anything containing a slash or a non-numeric prefix, so
+          # `release/0.5` and `client-v1.0.0` are unbuildable by construction.
+          if ! printf '%s' "$TAG" | grep -Eq '^v?[0-9][0-9A-Za-z.+~_-]{0,99}$'; then
+            echo "::error::Tag '${TAG}' is rejected by the builder's ref pattern."
+            exit 1
+          fi
+
+          git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null \
+            || { echo "::error::Tag '${TAG}' does not exist in this repository."; exit 1; }
+          SHA="$(git rev-list -n1 "$TAG")"
+
+          # A prerelease is any tag carrying a hyphenated suffix.
+          PRE=false
+          case "$TAG" in *-*) PRE=true ;; esac
+
+          {
+            echo "tag=${TAG}"
+            echo "sha=${SHA}"
+            echo "prerelease=${PRE}"
+          } >> "$GITHUB_OUTPUT"
+          echo "Releasing ${TAG} at ${SHA} (prerelease=${PRE})"
+
+      - name: Assert the tag is on a released line
+        env:
+          TAG: ${{ steps.resolve.outputs.tag }}
+          SHA: ${{ steps.resolve.outputs.sha }}
+        run: |
+          # What breaks otherwise is not tidiness. The producer runs arbitrary
+          # repository code on the self-hosted Mac that holds the Developer ID
+          # in its keychain. This check, plus the tag ruleset, IS the access
+          # control on that machine.
+          # checkout@v7 with fetch-depth 0 normally leaves origin/* in place, but
+          # a tag push fetches the tag first; make the branch refs explicit so
+          # this check can never pass or fail for want of a remote ref.
+          git fetch --quiet --prune origin '+refs/heads/*:refs/remotes/origin/*'
+          LINES="$(git branch -r --contains "$SHA" --list 'origin/main' 'origin/release/*')"
+          if [ -z "$LINES" ]; then
+            echo "::error::${TAG} (${SHA}) is not contained in origin/main or any origin/release/* branch."
+            exit 1
+          fi
+          echo "Contained in:"
+          echo "$LINES"
+
+      - name: Assert CI passed on the tagged commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ steps.resolve.outputs.sha }}
+        run: |
+          # Deliberately does not name individual job names. ci.yml owns those;
+          # restating them here creates a second owner that drifts silently.
+          RUNS="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${SHA}/check-runs?per_page=100" \
+                    --jq '.check_runs[] | "\(.name)|\(.conclusion)|\(.details_url)"')"
+
+          # This workflow's own jobs are check runs on the SAME commit and are
+          # still in progress, so they would read as conclusion=null. Drop them.
+          OWN="/actions/runs/${GITHUB_RUN_ID}/"
+          OTHERS="$(printf '%s\n' "$RUNS" | grep -vF "$OWN" || true)"
+
+          if [ -z "$OTHERS" ]; then
+            echo "::error::No check runs on ${SHA} apart from this release run. Was CI ever run on this commit?"
+            exit 1
+          fi
+          printf '%s\n' "$OTHERS" | awk -F'|' '{printf "  %s = %s\n", $1, $2}'
+
+          # An unfinished check reports conclusion=null, which is a different
+          # problem from a failed one: the tag was pushed before CI settled.
+          PENDING="$(printf '%s\n' "$OTHERS" | awk -F'|' '$2 == "null" || $2 == "" { print $1 }')"
+          if [ -n "$PENDING" ]; then
+            echo "::error::CI has not finished on ${SHA}; still running: $(printf '%s' "$PENDING" | tr '\n' ' ')"
+            exit 1
+          fi
+
+          BAD="$(printf '%s\n' "$OTHERS" | awk -F'|' '$2 != "success" && $2 != "skipped" && $2 != "neutral" { print $1 "=" $2 }')"
+          if [ -n "$BAD" ]; then
+            echo "::error::Non-success checks on ${SHA}: $(printf '%s' "$BAD" | tr '\n' ' ')"
+            exit 1
+          fi
+
+      - name: Read the builder contract
+        id: config
+        env:
+          TAG: ${{ steps.resolve.outputs.tag }}
+        run: |
+          CFG=.macos-builder/config
+          [ -f "$CFG" ] || { echo "::error::${CFG} is missing; the builder refuses a client without it."; exit 1; }
+
+          get() {
+            sed -nE "s/^[[:space:]]*$1[[:space:]]*=[[:space:]]*(.*[^[:space:]])[[:space:]]*$/\1/p" "$CFG" | head -1
+          }
+          BUNDLE_ID="$(get bundle_id)"
+          APP_PATH="$(get app_path)"
+          DMG_TMPL="$(get dmg_name)"
+
+          [ -n "$BUNDLE_ID" ] || { echo "::error::bundle_id missing from ${CFG}."; exit 1; }
+          [ -n "$DMG_TMPL" ]  || { echo "::error::dmg_name missing from ${CFG}; this workflow derives the asset name from it."; exit 1; }
+          case "$APP_PATH" in
+            *.app) ;;
+            *) echo "::error::app_path '${APP_PATH}' must end in .app."; exit 1 ;;
+          esac
+
+          # forge.config.ts is the other place the bundle id appears. A
+          # disagreement is otherwise caught by the builder's policy gate only
+          # AFTER a full 20-minute build.
+          FORGE=packages/maximal/client/forge.config.ts
+          grep -q "appBundleId: '${BUNDLE_ID}'" "$FORGE" \
+            || { echo "::error::bundle_id '${BUNDLE_ID}' in ${CFG} does not match appBundleId in ${FORGE}."; exit 1; }
+
+          DMG="${DMG_TMPL//\{version\}/${TAG#v}}"
+          DMG="${DMG//\{tag\}/${TAG}}"
+          echo "dmg=${DMG}" >> "$GITHUB_OUTPUT"
+          echo "Expecting ${DMG} (+ ${DMG}.sha256)"
+
+  draft:
+    name: draft release
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Create or reuse the draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.verify.outputs.tag }}
+          PRERELEASE: ${{ needs.verify.outputs.prerelease }}
+        run: |
+          if STATE="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft 2>/dev/null)"; then
+            if [ "$STATE" != "true" ]; then
+              echo "::error::${TAG} is already PUBLISHED. The builder's upload is asynchronous and cannot attach to a published release under immutable releases. Delete the release (keeping the tag) and re-run, or cut a new tag."
+              exit 1
+            fi
+            echo "::notice::Reusing the existing draft for ${TAG}."
+            exit 0
+          fi
+
+          ARGS=(--repo "$GITHUB_REPOSITORY" --draft --verify-tag --title "$TAG" --generate-notes)
+          # --verify-tag refuses to invent a tag that does not exist.
+          if [ "$PRERELEASE" = "true" ]; then
+            ARGS+=(--prerelease)
+          fi
+          gh release create "$TAG" "${ARGS[@]}"
+          echo "::notice::Created draft release ${TAG}."
+
+  dispatch:
+    name: dispatch macos-builder
+    needs: [verify, draft]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # This job needs NO access to this repository at all — only the PAT, whose
+    # single power is starting a build on the builder.
+    permissions: {}
+    # Gates the trigger behind a required reviewer. It moves no credentials:
+    # every Apple secret stays on the builder's Mac and never enters CI here.
+    environment: release
+    outputs:
+      dispatched: ${{ steps.go.outputs.dispatched }}
+    steps:
+      - name: Ask the builder to build this tag
+        id: go
+        env:
+          GH_TOKEN: ${{ secrets.MACOS_BUILDER_PAT }}
+          TAG: ${{ needs.verify.outputs.tag }}
+        run: |
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "::notice::MACOS_BUILDER_PAT is not set — this repository is not onboarded to macos-builder. The draft for ${TAG} stays unfilled; see RELEASING.md."
+            echo "dispatched=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          gh workflow run build.yml \
+            --repo stuffbucket/macos-builder \
+            --ref main \
+            -f "repo=${GITHUB_REPOSITORY}" \
+            -f "ref=${TAG}"
+          echo "dispatched=true" >> "$GITHUB_OUTPUT"
+          echo "::notice::Dispatched macos-builder for ${GITHUB_REPOSITORY}@${TAG}."
+
+  collect:
+    name: await + verify dmg
+    needs: [verify, draft, dispatch]
+    if: needs.dispatch.outputs.dispatched == 'true'
+    runs-on: ubuntu-latest
+    # Builder time is 20-40 min (install, Electron download, turbo build,
+    # inside-out sign, hdiutil) plus Apple's unbounded notary queue.
+    timeout-minutes: 75
+    permissions:
+      # write, not read: a DRAFT release is only visible to a token with push
+      # access, so contents: read cannot see or download it.
+      contents: write
+    steps:
+      - name: Wait for the signed dmg
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.verify.outputs.tag }}
+          DMG: ${{ needs.verify.outputs.dmg }}
+        run: |
+          DEADLINE=$(( SECONDS + 3600 ))
+          while [ "$SECONDS" -lt "$DEADLINE" ]; do
+            ASSETS="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' 2>/dev/null || true)"
+            if printf '%s\n' "$ASSETS" | grep -qxF "$DMG" \
+               && printf '%s\n' "$ASSETS" | grep -qxF "${DMG}.sha256"; then
+              echo "::notice::${DMG} and its checksum are attached."
+              exit 0
+            fi
+            echo "waiting for ${DMG} ... ($(( (DEADLINE - SECONDS) / 60 )) min left)"
+            sleep 30
+          done
+          echo "::error::Timed out waiting for ${DMG} on ${TAG}. The draft is intact — check the macos-builder run, then re-run this workflow with workflow_dispatch to resume."
+          exit 1
+
+      - name: Verify what Ubuntu can prove
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.verify.outputs.tag }}
+          DMG: ${{ needs.verify.outputs.dmg }}
+        run: |
+          # This proves PRESENCE, INTEGRITY and CONTAINER SHAPE only. Gatekeeper,
+          # notarization and stapling cannot be checked off a Mac, and this repo
+          # forbids GitHub-hosted macOS runners. scripts/verify-dmg.sh owns that
+          # proof and must be run by a human on a clean Mac. See RELEASING.md.
+          cd "$RUNNER_TEMP"
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" \
+            --pattern "$DMG" --pattern "${DMG}.sha256" --clobber
+
+          HAVE="$(sha256sum "$DMG" | awk '{print $1}')"
+          grep -qi "$HAVE" "${DMG}.sha256" \
+            || { echo "::error::sha256 mismatch for ${DMG}; got ${HAVE}, checksum file says $(cat "${DMG}.sha256")"; exit 1; }
+
+          BYTES="$(stat -c%s "$DMG")"
+          # The Bun sidecar alone is ~74MB; anything near zero is a failed
+          # hdiutil that still produced a file.
+          [ "$BYTES" -gt 50000000 ] \
+            || { echo "::error::${DMG} is ${BYTES} bytes — far too small to contain the app."; exit 1; }
+
+          # A real UDIF disk image ends with a 512-byte 'koly' trailer.
+          TRAILER="$(tail -c 512 "$DMG" | head -c 4)"
+          [ "$TRAILER" = "koly" ] \
+            || { echo "::error::${DMG} has no UDIF koly trailer — not a disk image."; exit 1; }
+
+          echo "::notice::${DMG} — ${BYTES} bytes, sha256 ${HAVE}, valid UDIF."
+
+      - name: Summary
+        env:
+          TAG: ${{ needs.verify.outputs.tag }}
+          DMG: ${{ needs.verify.outputs.dmg }}
+        run: |
+          {
+            echo "### ${TAG} — draft release ready"
+            echo
+            echo "\`${DMG}\` is attached, signed, notarized and stapled by stuffbucket/macos-builder."
+            echo
+            echo "The release is a **draft** and this workflow will not publish it."
+            echo "Before publishing, run the Gatekeeper acceptance test on a clean Mac:"
+            echo
+            echo "\`\`\`sh"
+            echo "scripts/verify-dmg.sh ${TAG}"
+            echo "\`\`\`"
+          } >> "$GITHUB_STEP_SUMMARY"

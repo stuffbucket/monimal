@@ -47,6 +47,23 @@ In workflows:
 - `uses:` MUST reference a full 40-character commit SHA. Package integrity is a
   separate problem, owned by [SOURCES.md](SOURCES.md).
 
+## Releases
+
+[RELEASING.md](RELEASING.md) owns the process; these are the constraints on it.
+
+- A release tag MUST match `vMAJOR.MINOR.PATCH` with an optional
+  `-prerelease` suffix. macos-builder rejects any ref containing a slash or a
+  non-numeric prefix, and it does so minutes after dispatch, having produced
+  nothing and named no cause.
+- A release tag MUST point at a commit contained in `main` or a `release/*`
+  branch. The producer runs repository code on the self-hosted machine that
+  holds the Developer ID, so any other tag runs unreviewed code there.
+- The released version MUST come from the tag and MUST NOT be committed to a
+  manifest. A second copy can disagree with the bundle that ships.
+- A release MUST NOT be published before the Gatekeeper acceptance test has run
+  on a Mac that has never held the signing identity. Notarization succeeding is
+  not evidence that a user's Mac will open the app.
+
 ## Sources
 
 - [SOURCES.md](SOURCES.md) MUST be consulted before changing `./packages/**`.
