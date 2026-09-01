@@ -1,16 +1,18 @@
-import type { ReactElement } from 'react'
+import { useCallback, useState, type ReactElement } from 'react'
 
+import { SurfaceRail, SurfaceStatus, useTabTriggerId } from '../frame/AppFrame'
 import { AccountSection } from './AccountSection'
 import { AccountsSection } from './AccountsSection'
 import type { SettingsCapabilities } from './capabilities'
 import { ConnectionSection } from './ConnectionSection'
+import { SectionRail, type SettingsSection } from './SectionRail'
 
 // The Settings surface. Composition only: this file owns the page heading and
 // the section order; each section owns its own data lifecycle against
-// `SettingsCapabilities`. Mounting (which window/tab hosts this, and building
-// the capabilities instance via `createCoreSettingsCapabilities`) is
-// deliberately somebody else's decision — this module exports a component and
-// touches no root, mirroring workspace/Workspace.tsx.
+// `SettingsCapabilities`. Building the capabilities instance via
+// `createCoreSettingsCapabilities` is deliberately somebody else's decision.
+// The window frame is too: it belongs to ../frame/AppFrame, and this surface
+// reaches the parts of it that are its own through that module's slots.
 //
 // One primary heading per view: the "Settings" h1 below is the only h1 this
 // surface renders; each section heading is an h2.
@@ -19,14 +21,44 @@ interface SettingsProps {
   capabilities: SettingsCapabilities
 }
 
+/** The rail's entries, in the order the page renders them. Each id is the
+ *  heading id its section already declares for its own aria-labelledby. */
+const SECTIONS: readonly SettingsSection[] = [
+  { id: 'settings-account-heading', label: 'Account' },
+  { id: 'settings-accounts-heading', label: 'Accounts' },
+  { id: 'settings-connection-heading', label: 'Connection' },
+]
+
 export function Settings({ capabilities }: SettingsProps): ReactElement {
+  const triggerId = useTabTriggerId()
+  const [current, setCurrent] = useState<string | null>(null)
+
+  const jumpToSection = useCallback((id: string) => {
+    setCurrent(id)
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [])
+
   return (
-    <div className="settings">
-      <h1 className="settings__heading">Settings</h1>
-      <AccountSection capabilities={capabilities} />
-      <AccountsSection capabilities={capabilities} />
-      <ConnectionSection capabilities={capabilities} />
-    </div>
+    <>
+      <SurfaceRail>
+        {(collapsed) => (
+          <SectionRail sections={SECTIONS} current={current} onSelect={jumpToSection} collapsed={collapsed} />
+        )}
+      </SurfaceRail>
+
+      <SurfaceStatus>
+        <span>{SECTIONS.length} sections</span>
+      </SurfaceStatus>
+
+      <div className="settings" aria-labelledby={`${triggerId} settings-heading`}>
+        <h1 id="settings-heading" className="settings__heading">
+          Settings
+        </h1>
+        <AccountSection capabilities={capabilities} />
+        <AccountsSection capabilities={capabilities} />
+        <ConnectionSection capabilities={capabilities} />
+      </div>
+    </>
   )
 }
 
@@ -51,6 +83,65 @@ const SETTINGS_CSS = `
   margin: 0;
   font-size: 1.3em;
   font-weight: 600;
+}
+
+/* The rail. Its own rules rather than the shell's .nav class, which belongs to
+   NavRail and carries a selection model this rail does not have. */
+.settings-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--shell-space-2, 8px);
+}
+
+.settings-rail__heading {
+  margin: 0 0 var(--shell-space-2, 8px);
+  padding: 0 var(--shell-space-2, 8px);
+  color: var(--shell-text-muted, #8a8a8a);
+  font-size: 0.75em;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.settings-rail__link {
+  display: flex;
+  align-items: center;
+  gap: var(--shell-space-2, 8px);
+  appearance: none;
+  border: 0;
+  border-radius: var(--shell-radius, 6px);
+  padding: var(--shell-space-2, 8px);
+  color: var(--shell-text-muted, #8a8a8a);
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.settings-rail__link:hover {
+  color: var(--shell-text, #f5f5f5);
+  background: var(--shell-hover, rgb(255 255 255 / 0.06));
+}
+
+/* Colour and weight together, so the current section is never marked by hue
+   alone. */
+.settings-rail__link[aria-current='true'] {
+  color: var(--shell-accent, #5198a6);
+  background: var(--shell-accent-muted, rgb(81 152 166 / 0.12));
+  font-weight: 500;
+}
+
+.settings-rail__link:focus-visible {
+  outline: 2px solid var(--shell-focus, var(--shell-accent, #5198a6));
+  outline-offset: 2px;
+}
+
+.settings-rail__mark {
+  flex: none;
+  width: 16px;
+  font-weight: 600;
+  text-align: center;
 }
 
 .settings-section {

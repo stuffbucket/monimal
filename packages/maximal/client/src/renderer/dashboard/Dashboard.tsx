@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
-import { getTabTriggerId, ShellLayout, type Tab } from 'stuffbucket-electron/renderer'
 import 'stuffbucket-electron/renderer/styles.css'
+
+import { SurfaceRail, SurfaceRight, SurfaceStatus, SurfaceTop, useTabTriggerId } from '../frame/AppFrame'
 
 import { type WorkspaceSnapshot } from '../workspace/model'
 import { type WorkspaceSource } from '../workspace/source'
@@ -25,16 +26,12 @@ import { WaitingOnYouPanel } from './WaitingOnYouPanel'
  * (status totals, per-project rollups), and what just finished (done vs.
  * failed, kept separate).
  *
- * Structural composition only, same discipline as Workspace.tsx: the
- * three-panel frame and tab strip come from `stuffbucket-electron/renderer`.
- * All aggregation lives in pure functions in ./derive.ts, not inline here.
- * Mounting is somebody else's decision — this module exports a component and
- * touches no root.
+ * Structural composition only, same discipline as Workspace.tsx: the frame
+ * around this belongs to ../frame/AppFrame, and the parts of it this surface
+ * fills — the rail, the right panel, the status bar — are reached through that
+ * module's slots. All aggregation lives in pure functions in ./derive.ts, not
+ * inline here.
  */
-
-const LAYOUT_ID = 'maximal-dashboard'
-const TAB_ID_BASE = `${LAYOUT_ID}-documents`
-const OVERVIEW_TAB_ID = 'overview'
 
 const EMPTY_SNAPSHOT: WorkspaceSnapshot = { projects: [], runs: [] }
 
@@ -125,19 +122,7 @@ export function Dashboard({ source }: { source: WorkspaceSource }) {
     [sectionRefs],
   )
 
-  const tabs: Tab[] = useMemo(
-    () => [
-      {
-        id: OVERVIEW_TAB_ID,
-        title: 'Overview',
-        icon: 'document',
-        emphasis: statusCounts['needs-approval'] > 0 ? 'attention' : statusCounts.running > 0 ? 'busy' : undefined,
-      },
-    ],
-    [statusCounts],
-  )
-
-  const triggerId = getTabTriggerId(TAB_ID_BASE, OVERVIEW_TAB_ID)
+  const triggerId = useTabTriggerId()
 
   const rightContent =
     loading ? (
@@ -153,83 +138,84 @@ export function Dashboard({ source }: { source: WorkspaceSource }) {
     )
 
   return (
-    <ShellLayout
-      layoutId={LAYOUT_ID}
-      tabs={tabs}
-      activeTab={OVERVIEW_TAB_ID}
-      onSelectTab={() => {}}
-      tabsLabel="Dashboard documents"
-      top={isPlaceholder ? <PlaceholderBanner id={placeholderId} /> : undefined}
-      left={(collapsed) => (
-        <SectionNav items={sectionItems} current={currentSection} onSelect={jumpToSection} collapsed={collapsed} />
-      )}
-      main={
-        <section
-          className="dashboard"
-          aria-labelledby={`${triggerId} ${headingId}`}
-          aria-describedby={isPlaceholder ? placeholderId : undefined}
-        >
-          <header>
-            <h1 id={headingId} className="dashboard__heading">
-              Fleet overview
-            </h1>
-            <p className="dashboard__subhead">
-              {statusCounts.all} {statusCounts.all === 1 ? 'run' : 'runs'} across {data.projects.length}{' '}
-              {data.projects.length === 1 ? 'project' : 'projects'}
-              {isPlaceholder ? ' · placeholder data' : ''}
-            </p>
-          </header>
+    <>
+      {isPlaceholder ? (
+        <SurfaceTop>
+          <PlaceholderBanner id={placeholderId} />
+        </SurfaceTop>
+      ) : null}
 
-          {loading ? (
-            <p className="dashboard__empty-text">Loading fleet…</p>
-          ) : error !== null ? (
-            <>
-              <p className="dashboard__empty-text">
-                <strong>Couldn&rsquo;t load the fleet.</strong> {error}
-              </p>
-              <button
-                type="button"
-                className="dashboard-retry"
-                onClick={() => setReloadKey((key) => key + 1)}
-              >
-                Try again
-              </button>
-            </>
-          ) : data.runs.length === 0 ? (
+      <SurfaceRail>
+        {(collapsed) => (
+          <SectionNav items={sectionItems} current={currentSection} onSelect={jumpToSection} collapsed={collapsed} />
+        )}
+      </SurfaceRail>
+
+      <SurfaceRight>{rightContent}</SurfaceRight>
+
+      <SurfaceStatus>
+        <span>
+          {statusCounts.all} {statusCounts.all === 1 ? 'run' : 'runs'} in the fleet
+        </span>
+        <span>{statusCounts['needs-approval']} awaiting approval</span>
+        <span>{isPlaceholder ? 'Placeholder data — not a live fleet' : 'Live data'}</span>
+      </SurfaceStatus>
+
+      <section
+        className="dashboard"
+        aria-labelledby={`${triggerId} ${headingId}`}
+        aria-describedby={isPlaceholder ? placeholderId : undefined}
+      >
+        <header>
+          <h1 id={headingId} className="dashboard__heading">
+            Fleet overview
+          </h1>
+          <p className="dashboard__subhead">
+            {statusCounts.all} {statusCounts.all === 1 ? 'run' : 'runs'} across {data.projects.length}{' '}
+            {data.projects.length === 1 ? 'project' : 'projects'}
+            {isPlaceholder ? ' · placeholder data' : ''}
+          </p>
+        </header>
+
+        {loading ? (
+          <p className="dashboard__empty-text">Loading fleet…</p>
+        ) : error !== null ? (
+          <>
             <p className="dashboard__empty-text">
-              <strong>No agent runs yet.</strong> Runs appear here — with their status, project, and
-              what they're doing — as soon as agents start work.
+              <strong>Couldn&rsquo;t load the fleet.</strong> {error}
             </p>
-          ) : (
-            <>
-              <div className="dashboard__section" id={SECTION_TOTALS} ref={totalsRef}>
-                <h2 className="dashboard__section-heading">Status totals</h2>
-                <StatusTotals counts={statusCounts} />
-              </div>
+            <button
+              type="button"
+              className="dashboard-retry"
+              onClick={() => setReloadKey((key) => key + 1)}
+            >
+              Try again
+            </button>
+          </>
+        ) : data.runs.length === 0 ? (
+          <p className="dashboard__empty-text">
+            <strong>No agent runs yet.</strong> Runs appear here — with their status, project, and
+            what they're doing — as soon as agents start work.
+          </p>
+        ) : (
+          <>
+            <div className="dashboard__section" id={SECTION_TOTALS} ref={totalsRef}>
+              <h2 className="dashboard__section-heading">Status totals</h2>
+              <StatusTotals counts={statusCounts} />
+            </div>
 
-              <div className="dashboard__section" id={SECTION_PROJECTS} ref={projectsRef}>
-                <h2 className="dashboard__section-heading">Projects</h2>
-                <ProjectRollups rollups={projectRollups} />
-              </div>
+            <div className="dashboard__section" id={SECTION_PROJECTS} ref={projectsRef}>
+              <h2 className="dashboard__section-heading">Projects</h2>
+              <ProjectRollups rollups={projectRollups} />
+            </div>
 
-              <div className="dashboard__section" id={SECTION_FINISHED} ref={finishedRef}>
-                <h2 className="dashboard__section-heading">Recently finished</h2>
-                <RecentlyFinished finished={finished} />
-              </div>
-            </>
-          )}
-        </section>
-      }
-      right={rightContent}
-      status={
-        <>
-          <span>
-            {statusCounts.all} {statusCounts.all === 1 ? 'run' : 'runs'} in the fleet
-          </span>
-          <span>{statusCounts['needs-approval']} awaiting approval</span>
-          <span>{isPlaceholder ? 'Placeholder data — not a live fleet' : 'Live data'}</span>
-        </>
-      }
-    />
+            <div className="dashboard__section" id={SECTION_FINISHED} ref={finishedRef}>
+              <h2 className="dashboard__section-heading">Recently finished</h2>
+              <RecentlyFinished finished={finished} />
+            </div>
+          </>
+        )}
+      </section>
+    </>
   )
 }

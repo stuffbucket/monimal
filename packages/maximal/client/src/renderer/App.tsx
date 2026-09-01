@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState, type ReactElement } from 'react'
 import { WindowChrome } from './chrome/WindowChrome'
 import { Dashboard } from './dashboard/Dashboard'
 import { FirstRun } from './first-run/FirstRun'
+import { AppFrame, type View } from './frame/AppFrame'
 import { Settings } from './settings/Settings'
 import { createCoreSettingsCapabilities } from './settings/capabilities'
 import { Workspace } from './workspace/Workspace'
@@ -19,7 +20,11 @@ import { createPlaceholderSource } from './workspace/source'
  * Auth gates the app: `first-run/` owns everything up to and including a
  * completed device flow — which is also where boot narration lives, since it is
  * the only surface that can be on screen while the sidecar is still starting.
- * Once authenticated, the working surfaces take over.
+ * Once authenticated, the working surfaces take over inside `frame/AppFrame`.
+ *
+ * Which surface is showing is that frame's active tab, so this file holds the
+ * view but draws no switcher of its own: there is one set of navigation, and it
+ * lives in the title bar where it is always reachable.
  *
  * Nothing here touches `ControlClient` or `window.maximal`. It reads auth
  * through the Settings capability seam; that adapter is the sole renderer
@@ -32,14 +37,6 @@ import { createPlaceholderSource } from './workspace/source'
  *  on `authenticated`, so a missed push strands a signed-in user on the
  *  first-run screen with no route back in. */
 const POLL_MS = 3_000
-
-type View = 'dashboard' | 'workspace' | 'settings'
-
-const VIEWS: ReadonlyArray<{ id: View; label: string }> = [
-  { id: 'dashboard', label: 'Dashboard' },
-  { id: 'workspace', label: 'Runs' },
-  { id: 'settings', label: 'Settings' },
-]
 
 export function App(): ReactElement {
   // Built once for the app's lifetime. Electron main owns sidecar replacement;
@@ -89,103 +86,16 @@ export function App(): ReactElement {
       </WindowChrome>
     )
 
+  /*
+   * One surface mounted at a time, deliberately. Each runs a data lifecycle of
+   * its own — a poll, a subscription, a live snapshot — and keeping all three
+   * mounted would keep all three running for the two nobody is looking at.
+   */
   return (
-    <div className="app-shell">
-      <nav className="app-shell__views" aria-label="Views">
-        {VIEWS.map(({ id, label }) => (
-          <button
-            key={id}
-            type="button"
-            className="app-shell__view-tab"
-            aria-current={view === id ? 'page' : undefined}
-            onClick={() => setView(id)}
-          >
-            {label}
-          </button>
-        ))}
-      </nav>
-      <div className="app-shell__surface">
-        {view === 'dashboard' ? <Dashboard source={source} /> : null}
-        {view === 'workspace' ? <Workspace source={source} /> : null}
-        {view === 'settings' ? <Settings capabilities={settings} /> : null}
-      </div>
-    </div>
+    <AppFrame view={view} onSelectView={setView}>
+      {view === 'dashboard' ? <Dashboard source={source} /> : null}
+      {view === 'workspace' ? <Workspace source={source} /> : null}
+      {view === 'settings' ? <Settings capabilities={settings} /> : null}
+    </AppFrame>
   )
-}
-
-// ---- Styles ----
-//
-// Injected once on import, guarded by element id. Three things live here that
-// no other file owns:
-//
-// 1. The height chain. The shell frame's root is `height: 100%`, and nothing
-//    between it and the viewport establishes a height, so the three-panel
-//    frame sizes to its content instead of the window and the whole document
-//    scrolls. Fixed here rather than in `index.html` so the chain lives with
-//    the component that depends on it.
-// 2. Rules for this file's own view switcher. `[aria-current='page']` carries
-//    the selection by colour AND weight, so selection is never colour alone.
-
-const APP_SHELL_CSS = `
-.app-shell {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  min-height: 0;
-  color: var(--shell-text, #f5f5f5);
-  background: var(--shell-background, #16181d);
-}
-
-.app-shell__views {
-  display: flex;
-  flex: none;
-  gap: var(--shell-space-2, 8px);
-  padding: var(--shell-space-2, 8px) var(--shell-space-4, 16px);
-  border-bottom: 1px solid var(--shell-border, #2a2a2a);
-  background: var(--shell-background, #16181d);
-}
-
-.app-shell__view-tab {
-  appearance: none;
-  border: 0;
-  border-radius: var(--shell-radius, 6px);
-  padding: var(--shell-space-2, 8px) var(--shell-space-3, 12px);
-  color: var(--shell-text-muted, #8a8a8a);
-  background: transparent;
-  font: inherit;
-  cursor: pointer;
-}
-
-.app-shell__view-tab:hover {
-  color: var(--shell-text, #f5f5f5);
-  background: var(--shell-hover, rgb(255 255 255 / 0.06));
-}
-
-.app-shell__view-tab[aria-current='page'] {
-  color: var(--shell-accent, #5198a6);
-  background: var(--shell-accent-muted, rgb(81 152 166 / 0.12));
-  font-weight: 500;
-}
-
-.app-shell__view-tab:focus-visible {
-  outline: 2px solid var(--shell-focus, var(--shell-accent, #5198a6));
-  outline-offset: 2px;
-}
-
-.app-shell__surface {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-height: 0;
-  overflow: auto;
-}
-`
-
-const APP_SHELL_STYLE_ID = 'app-shell-styles'
-
-if (typeof document !== 'undefined' && !document.getElementById(APP_SHELL_STYLE_ID)) {
-  const style = document.createElement('style')
-  style.id = APP_SHELL_STYLE_ID
-  style.textContent = APP_SHELL_CSS
-  document.head.appendChild(style)
 }

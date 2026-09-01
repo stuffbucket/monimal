@@ -57,6 +57,21 @@ test('window opens with exactly one non-empty primary heading', async () => {
   // at once, each bringing its own `h1`.
   await expect(headings).toHaveCount(1)
   await expect(headings.first()).not.toBeEmpty()
+
+  // The invariant the whole single-frame change exists to establish: every
+  // surface used to mount its OWN frame, and the frame's root is a fixed-
+  // position element, so more than one mounted at once meant overlapping
+  // fixed-position roots stacked on top of each other rather than two boxes
+  // sharing the window peacefully. `.sb-shell.app` renders whether the app is
+  // signed in (the authenticated frame) or still on first-run (`WindowChrome`
+  // renders the very same class), so this holds in both states this suite
+  // ever reaches.
+  await expect(window.locator('.sb-shell.app')).toHaveCount(1)
+
+  // The title bar carries `-webkit-app-region: drag`, the window's only drag
+  // region, so its absence means a window the user cannot move at all — not a
+  // cosmetic gap.
+  await expect(window.locator('.sb-shell.app .titlebar')).toBeVisible()
 })
 
 test('packaged preload exposes only the closed named bridge', async () => {
@@ -174,13 +189,20 @@ test('chrome text is not near-invisible against its background', async () => {
   // comment), so checking them here is checking the same failure mode,
   // just on the surface this harness can actually reach.
   const window = await running.app.firstWindow()
-  const packageChromeVisible = await probeVisible(window, '.app-shell .sb-shell')
+  // Probed on the panel toggle, not on the frame root. Both signed-in and
+  // first-run mount a `.sb-shell.app`, so the root no longer distinguishes
+  // them; the toggle is rendered only by the full three-panel shell, which is
+  // exactly the "signed in" condition these branches mean.
+  const packageChromeVisible = await probeVisible(
+    window,
+    '.sb-shell.app .icon-button[data-testid="toggle-left"]',
+  )
 
   const targets = packageChromeVisible
     ? [
-        { locator: window.locator('.app-shell .sb-shell .icon-button[data-testid="toggle-left"]'), label: 'titlebar icon button' },
-        { locator: window.locator('.app-shell .sb-shell .statusbar span').first(), label: 'status bar text' },
-        { locator: window.locator('.app-shell__view-tab[aria-current="page"]'), label: 'selected view tab' },
+        { locator: window.locator('.sb-shell.app .icon-button[data-testid="toggle-left"]'), label: 'titlebar icon button' },
+        { locator: window.locator('.sb-shell.app .statusbar span').first(), label: 'status bar text' },
+        { locator: window.locator('.sb-shell.app .tab[aria-selected="true"]'), label: 'selected document tab' },
       ]
     : [
         { locator: window.locator('.first-run-heading'), label: 'first-run heading' },
@@ -205,10 +227,17 @@ test("a focused chrome control's outline actually resolves", async () => {
   // primary button carries the identical `:focus-visible` rule shape
   // (`FirstRun.tsx`), so it exercises the same failure mode signed out.
   const window = await running.app.firstWindow()
-  const packageChromeVisible = await probeVisible(window, '.app-shell .sb-shell')
+  // Probed on the panel toggle, not on the frame root. Both signed-in and
+  // first-run mount a `.sb-shell.app`, so the root no longer distinguishes
+  // them; the toggle is rendered only by the full three-panel shell, which is
+  // exactly the "signed in" condition these branches mean.
+  const packageChromeVisible = await probeVisible(
+    window,
+    '.sb-shell.app .icon-button[data-testid="toggle-left"]',
+  )
 
   const target = packageChromeVisible
-    ? window.locator('.app-shell .sb-shell .icon-button[data-testid="toggle-left"]')
+    ? window.locator('.sb-shell.app .icon-button[data-testid="toggle-left"]')
     : window.locator('.first-run-button--primary')
   const label = packageChromeVisible ? 'titlebar icon button' : 'first-run primary button'
 
@@ -224,12 +253,15 @@ test('nav rail entries do not overlap vertically', async () => {
   // equivalent exists (first-run has no repeated sibling list at a fixed row
   // height), so this is package-chrome only and skips signed out.
   const window = await running.app.firstWindow()
-  if (!(await probeVisible(window, '.app-shell__view-tab'))) {
+  // Guarded on the Runs tab specifically. First-run mounts a frame with a tab
+  // strip of its own, so the presence of *a* tab says nothing about whether the
+  // view tabs this test drives are there.
+  if (!(await probeVisible(window, '.sb-shell.app .tab:has-text("Runs")'))) {
     test.skip(true, SIGNED_OUT_SKIP_MESSAGE)
     return
   }
 
-  await window.locator('.app-shell__view-tab', { hasText: 'Runs' }).click()
+  await window.locator('.sb-shell.app .tab', { hasText: 'Runs' }).click()
 
   // Checked on `.nav__label`, NOT `.nav__item`: `.nav__item`'s own box is a
   // hardcoded `height: 30px` in the package stylesheet, which stays exactly
@@ -254,17 +286,20 @@ test('status bar text is not clipped at the window edge', async () => {
   // first-run has nothing structurally comparable to check — so this skips
   // signed out.
   const window = await running.app.firstWindow()
-  if (!(await probeVisible(window, '.app-shell__view-tab'))) {
+  // Guarded on the Runs tab specifically. First-run mounts a frame with a tab
+  // strip of its own, so the presence of *a* tab says nothing about whether the
+  // view tabs this test drives are there.
+  if (!(await probeVisible(window, '.sb-shell.app .tab:has-text("Runs")'))) {
     test.skip(true, SIGNED_OUT_SKIP_MESSAGE)
     return
   }
 
-  await window.locator('.app-shell__view-tab', { hasText: 'Runs' }).click()
+  await window.locator('.sb-shell.app .tab', { hasText: 'Runs' }).click()
 
   // Checked per SPAN, not just on the `.statusbar` container: the original
   // bug's container was itself nominally "within the window" at a fixed
   // 24px while its wrapped children individually extended past it.
-  const statusTexts = window.locator('.app-shell .sb-shell .statusbar span')
+  const statusTexts = window.locator('.sb-shell.app .statusbar span')
   const count = await statusTexts.count()
   expect(count, 'expected the status bar to render at least one text span').toBeGreaterThan(0)
   for (const span of await statusTexts.all()) {
@@ -274,7 +309,7 @@ test('status bar text is not clipped at the window edge', async () => {
   // The "upward" half of the same defect: wrapped status-bar text drawing
   // over the document content above it.
   await assertNoVerticalOverlap(
-    [window.locator('.tabpanel'), window.locator('.app-shell .sb-shell .statusbar')],
+    [window.locator('.tabpanel'), window.locator('.sb-shell.app .statusbar')],
     'tabpanel vs statusbar',
   )
 
