@@ -17,13 +17,10 @@ import { join } from 'node:path'
 
 import { app, Menu, nativeImage, shell, type MenuItemConstructorOptions } from 'electron'
 
-/** Where the runtime icon sits, packaged and not. `scripts/gen-icon-png.mjs`
- *  writes the unpackaged one; Forge's `extraResource` ships the same file into
- *  `Contents/Resources` for the packaged case. */
+/** Where the runtime icon sits. Unpackaged only, because that is the only case
+ *  this file sets an icon for — `scripts/gen-icon-png.mjs` writes it. */
 function dockIconPath(): string {
-  return app.isPackaged
-    ? join(process.resourcesPath, 'icon.png')
-    : join(app.getAppPath(), 'build', 'icon.png')
+  return join(app.getAppPath(), 'build', 'icon.png')
 }
 
 /**

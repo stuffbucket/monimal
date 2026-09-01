@@ -36,10 +36,12 @@ const config: ForgeConfig = {
     // maximal-core ships as a compiled Bun sidecar under resources/bin and is
     // copied into the packaged app at Contents/Resources/bin — OUTSIDE the asar,
     // so it stays a real, spawnable, signable executable; the client spawns it.
-    // `bin` holds the sidecar. `icon.png` is the same artwork as the .icns, in a
-    // form `nativeImage` can load at runtime: the OS reads the .icns from the
-    // bundle, but `app.dock.setIcon` needs a raster file on disk.
-    extraResource: ['resources/bin', 'build/icon.png'],
+    // Only the sidecar. The runtime PNG that `app.dock.setIcon` reads is
+    // deliberately NOT shipped: a packaged bundle takes its icon from the
+    // .icns Forge installs from `packagerConfig.icon`, so the dock is already
+    // correct there and `applyDockIcon` leaves it alone. The PNG exists for
+    // unpackaged runs only, where the bundle is stock Electron's.
+    extraResource: ['resources/bin'],
     ...(identity
       ? {
           osxSign: {
