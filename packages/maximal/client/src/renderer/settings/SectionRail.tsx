@@ -1,4 +1,4 @@
-import type { ReactElement } from 'react'
+import type { ComponentType, ReactElement } from 'react'
 
 /**
  * Settings' left rail: in-page navigation to the sections below it.
@@ -17,6 +17,8 @@ export interface SettingsSection {
   /** The section's `<h2>` id. Also the scroll target. */
   id: string
   label: string
+  /** Shown in place of the label once the rail narrows to an icon column. */
+  icon: ComponentType<{ size?: number }>
 }
 
 export function SectionRail({
@@ -33,7 +35,7 @@ export function SectionRail({
   return (
     <nav className="settings-rail" aria-label="Settings sections">
       {!collapsed && <h2 className="settings-rail__heading">On this page</h2>}
-      {sections.map(({ id, label }) => (
+      {sections.map(({ id, label, icon: Icon }) => (
         <button
           key={id}
           type="button"
@@ -43,12 +45,12 @@ export function SectionRail({
           onClick={() => onSelect(id)}
           data-testid={`settings-rail-${id}`}
         >
-          {/* Collapsed, the rail is an icon column and there are no icons for
-              these yet, so the initial stands in — a letter is at least a
-              stable, distinguishable mark rather than three identical dots. */}
-          <span aria-hidden="true" className="settings-rail__mark">
-            {label.slice(0, 1)}
-          </span>
+          {/* The icon is always drawn and the label only when there is room.
+              An initial was the obvious stand-in and the wrong one: Account and
+              Accounts share a first letter, so the collapsed rail showed the
+              same mark twice. The name still reaches a pointer through `title`,
+              and a screen reader through the button's own text. */}
+          <Icon size={16} />
           {!collapsed && <span>{label}</span>}
         </button>
       ))}

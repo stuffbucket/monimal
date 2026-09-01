@@ -72,6 +72,23 @@ test('window opens with exactly one non-empty primary heading', async () => {
   // region, so its absence means a window the user cannot move at all — not a
   // cosmetic gap.
   await expect(window.locator('.sb-shell.app .titlebar')).toBeVisible()
+
+  // Measured, not asserted on a class: the frame's height comes from a chain
+  // the package only half provides. Its root is
+  // `position: var(--shell-position, fixed); inset: 0`, and the surrounding
+  // surfaces have to supply the rest — `WindowChrome` grows the one panel it
+  // renders, because `.panel` carries `min-height: 0` but no grow factor and
+  // otherwise sizes to its content, leaving the rest of the window bare
+  // background. A class-name check passes through every one of those failures;
+  // only the computed box catches them.
+  const frameBox = await window.locator('.sb-shell.app').boundingBox()
+  const viewport = await window.evaluate(() => ({
+    width: document.documentElement.clientWidth,
+    height: document.documentElement.clientHeight,
+  }))
+  expect(frameBox, 'the frame should have a layout box at all').not.toBeNull()
+  expect(frameBox!.height).toBeGreaterThanOrEqual(viewport.height - 1)
+  expect(frameBox!.width).toBeGreaterThanOrEqual(viewport.width - 1)
 })
 
 test('packaged preload exposes only the closed named bridge', async () => {

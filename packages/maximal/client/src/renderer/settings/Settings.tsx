@@ -1,6 +1,7 @@
+import { Link2, User, Users } from 'lucide-react'
 import { useCallback, useState, type ReactElement } from 'react'
 
-import { SurfaceRail, SurfaceStatus, useTabTriggerId } from '../frame/AppFrame'
+import { SurfaceRail, useTabTriggerId } from '../frame/AppFrame'
 import { AccountSection } from './AccountSection'
 import { AccountsSection } from './AccountsSection'
 import type { SettingsCapabilities } from './capabilities'
@@ -24,9 +25,9 @@ interface SettingsProps {
 /** The rail's entries, in the order the page renders them. Each id is the
  *  heading id its section already declares for its own aria-labelledby. */
 const SECTIONS: readonly SettingsSection[] = [
-  { id: 'settings-account-heading', label: 'Account' },
-  { id: 'settings-accounts-heading', label: 'Accounts' },
-  { id: 'settings-connection-heading', label: 'Connection' },
+  { id: 'settings-account-heading', label: 'Account', icon: User },
+  { id: 'settings-accounts-heading', label: 'Accounts', icon: Users },
+  { id: 'settings-connection-heading', label: 'Connection', icon: Link2 },
 ]
 
 export function Settings({ capabilities }: SettingsProps): ReactElement {
@@ -45,10 +46,6 @@ export function Settings({ capabilities }: SettingsProps): ReactElement {
           <SectionRail sections={SECTIONS} current={current} onSelect={jumpToSection} collapsed={collapsed} />
         )}
       </SurfaceRail>
-
-      <SurfaceStatus>
-        <span>{SECTIONS.length} sections</span>
-      </SurfaceStatus>
 
       <div className="settings" aria-labelledby={`${triggerId} settings-heading`}>
         <h1 id="settings-heading" className="settings__heading">
@@ -137,12 +134,6 @@ const SETTINGS_CSS = `
   outline-offset: 2px;
 }
 
-.settings-rail__mark {
-  flex: none;
-  width: 16px;
-  font-weight: 600;
-  text-align: center;
-}
 
 .settings-section {
   display: flex;
