@@ -1,7 +1,7 @@
 node_modules/
-# dist/ is ignored AND force-tracked (`git add -f`): the published package ships
-# the built bundle, so it must be committed, but a local `bun run build` must not
-# show up as noise. `bindings:check` verifies the committed copy is current.
+# Build output, never committed. The published tarball still carries it —
+# `files` includes `dist` and `prepack` builds into it before packing — but
+# nothing in git does. See SOURCES.md for why the monorepo builds instead.
 dist/
 # `scripts/sbom.ts` output.
 SBOM.cdx.json

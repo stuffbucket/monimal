@@ -20,6 +20,6 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["scripts/**/*", "tests/**/*", "eslint.config.js"],
+  "include": ["src/**/*", "scripts/**/*", "tests/**/*", "eslint.config.js"],
   "exclude": ["node_modules", "dist", "build", "scripts/ops"]
 }

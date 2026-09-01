@@ -21,10 +21,8 @@ import {
   attemptAutoRecovery,
 } from "~/lib/auth/auth-recovery"
 import {
-  accountKey,
   addAndActivate,
   emptyRegistry,
-  makeAccountRecord,
   markNeedsReauth,
   readDefaultRegistry,
   writeDefaultRegistry,
@@ -32,15 +30,19 @@ import {
 import { CopilotAuthFatalError } from "~/lib/errors/error"
 import { state } from "~/lib/runtime-state/state"
 
-const HOST = "github.com"
-const rec = (login: string) =>
-  makeAccountRecord({
-    login,
-    host: HOST,
-    token: `ghu_${login}`,
-    addedVia: "device-code",
-  })
-const key = (login: string) => accountKey(login, HOST)
+import {
+  makeTestAccount,
+  resetDefaultTestRegistry,
+  testAccountKey,
+  testAccountLogin,
+  testAccountToken,
+  type TestAccountName,
+} from "./helpers/account-fixtures"
+
+const rec = (name: TestAccountName) => makeTestAccount(name)
+const key = (name: TestAccountName) => testAccountKey(name)
+const login = (name: TestAccountName) => testAccountLogin(name)
+const token = (name: TestAccountName) => testAccountToken(name)
 const ERR = { status: 401 as number | null, message: "revoked", at: "t" }
 
 const harness = {
@@ -75,12 +77,13 @@ beforeEach(async () => {
       return Promise.resolve()
     },
   })
-  await writeDefaultRegistry(emptyRegistry())
+  await resetDefaultTestRegistry()
 })
 
-afterEach(() => {
+afterEach(async () => {
   __resetAuthRecoveryDepsForTests()
   __resetAuthControllerForTests()
+  await resetDefaultTestRegistry()
 })
 
 describe("attemptAutoRecovery", () => {
@@ -96,24 +99,24 @@ describe("attemptAutoRecovery", () => {
     const ok = await attemptAutoRecovery()
 
     expect(ok).toBe(true)
-    expect(harness.setupSawToken).toBe("ghu_bob") // minted with bob's token
+    expect(harness.setupSawToken).toBe(token("bob")) // minted with bob's token
     // The mint MUST be invoked with onAuthFatal:"throw" — recovery owns the
     // degrade decision; a default ("degrade") would recurse the sweep.
     expect(harness.setupSawOpts).toEqual({ onAuthFatal: "throw" })
     // The live switch repopulates the model catalog for the new identity.
     expect(harness.cacheCalls).toBe(1)
-    expect(state.githubToken).toBe("ghu_bob")
-    expect(state.userName).toBe("bob")
+    expect(state.githubToken).toBe(token("bob"))
+    expect(state.userName).toBe(login("bob"))
     expect(getAuthStatus()).toMatchObject({
       state: "authenticated",
-      account_login: "bob",
+      account_login: login("bob"),
     })
     const after = await readDefaultRegistry()
     expect(after.activeKey).toBe(key("bob"))
     expect(after.accounts[key("bob")].needsReauth ?? false).toBe(false)
     // The failed account is retained, still flagged — never deleted.
     expect(after.accounts[key("alice")].needsReauth).toBe(true)
-    expect(after.accounts[key("alice")].token).toBe("ghu_alice")
+    expect(after.accounts[key("alice")].token).toBe(token("alice"))
   })
 
   test("returns false (and clears state) when every other account is flagged or active", async () => {
@@ -139,13 +142,15 @@ describe("attemptAutoRecovery", () => {
     reg = addAndActivate(reg, rec("alice")) // alice active
     reg = markNeedsReauth(reg, key("alice"), ERR)
     await writeDefaultRegistry(reg)
-    harness.preflight = (_t, l) =>
-      Promise.resolve(l === "bob" ? "bob has no Copilot" : null)
+    harness.preflight = (_t, candidateLogin) =>
+      Promise.resolve(
+        candidateLogin === login("bob") ? "bob has no Copilot" : null,
+      )
 
     const ok = await attemptAutoRecovery()
 
     expect(ok).toBe(true)
-    expect(state.userName).toBe("carol")
+    expect(state.userName).toBe(login("carol"))
     const after = await readDefaultRegistry()
     expect(after.activeKey).toBe(key("carol"))
     expect(after.accounts[key("bob")].needsReauth).toBe(true) // flagged by sweep
@@ -164,14 +169,14 @@ describe("attemptAutoRecovery", () => {
     await writeDefaultRegistry(reg)
     // preflight passes for all; the mint throws only for bob's token.
     harness.setup = () =>
-      state.githubToken === "ghu_bob" ?
+      state.githubToken === token("bob") ?
         Promise.reject(new Error("mint 401"))
       : Promise.resolve()
 
     const ok = await attemptAutoRecovery()
 
     expect(ok).toBe(true)
-    expect(state.userName).toBe("carol")
+    expect(state.userName).toBe(login("carol"))
     const after = await readDefaultRegistry()
     expect(after.accounts[key("bob")].needsReauth).toBe(true)
     // The recorded reason is the thrown mint error (not an empty payload).
@@ -185,23 +190,23 @@ describe("markAuthDegraded → auto-recovery wiring", () => {
     let called = 0
     registerAutoRecovery(() => {
       called++
-      markSignedIn("bob") // recovery switched live onto another account
+      markSignedIn(login("bob")) // recovery switched live onto another account
       return Promise.resolve(true)
     })
-    state.githubToken = "ghu_x"
+    state.githubToken = "ghu_maximal_test_only_transient_noncredential"
 
     await markAuthDegraded(new CopilotAuthFatalError("revoked", 401, null))
 
     expect(called).toBe(1)
     expect(getAuthStatus()).toMatchObject({
       state: "authenticated",
-      account_login: "bob",
+      account_login: login("bob"),
     })
   })
 
   test("falls to the error state when recovery finds no good account", async () => {
     registerAutoRecovery(() => Promise.resolve(false))
-    state.githubToken = "ghu_x"
+    state.githubToken = "ghu_maximal_test_only_transient_noncredential"
 
     await markAuthDegraded(
       new CopilotAuthFatalError("revoked", 401, "https://x"),
@@ -223,13 +228,15 @@ describe("activateAccountLive (user-initiated switch)", () => {
     const result = await activateAccountLive(key("alice"))
 
     expect(result.ok).toBe(true)
-    expect(harness.setupSawToken).toBe("ghu_alice") // minted with alice's token
+    expect(harness.setupSawToken).toBe(token("alice")) // minted with alice's token
     expect(getAuthStatus().state).toBe("authenticated")
     expect((await readDefaultRegistry()).activeKey).toBe(key("alice"))
   })
 
   test("404 for an unknown account key", async () => {
-    const result = await activateAccountLive("ghost@github.com")
+    const result = await activateAccountLive(
+      "maximal-test-only-ghost@github.example.invalid",
+    )
     expect(result.ok).toBe(false)
     if (!result.ok) {
       expect(result.status).toBe(404)

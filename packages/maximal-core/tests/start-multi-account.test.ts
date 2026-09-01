@@ -24,6 +24,11 @@ import type { Engine } from "./helpers/spawn-engine"
 
 import { startEngine } from "./helpers/spawn-engine"
 
+const TEST_LEGACY_TOKEN = "gho_maximal_test_only_legacy_noncredential"
+const TEST_INACTIVE_HOST = "github.example.invalid"
+const TEST_INACTIVE_LOGIN = "maximal-test-only-bob"
+const TEST_INACTIVE_KEY = `${TEST_INACTIVE_LOGIN}@${TEST_INACTIVE_HOST}`
+
 describe("boot migrates a legacy token into the registry", () => {
   const tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "maximal-migrate-"))
   let engine: Engine
@@ -34,7 +39,7 @@ describe("boot migrates a legacy token into the registry", () => {
     // NON-fatally (a plain 401 from /user or /models, not a
     // CopilotAuthFatalError) — it degrades and KEEPS the on-disk record rather
     // than wiping it, leaving the migrated registry observable.
-    fs.writeFileSync(path.join(tmpHome, "github_token"), "gho_legacytoken123")
+    fs.writeFileSync(path.join(tmpHome, "github_token"), TEST_LEGACY_TOKEN)
     engine = await startEngine({ home: tmpHome, args: ["--verbose"] })
   })
 
@@ -58,7 +63,7 @@ describe("boot migrates a legacy token into the registry", () => {
     const entries = Object.values(reg.accounts)
     expect(entries).toHaveLength(1)
     expect(entries[0]?.addedVia).toBe("migration")
-    expect(entries[0]?.token).toBe("gho_legacytoken123")
+    expect(entries[0]?.token).toBe(TEST_LEGACY_TOKEN)
     // login lookup fails with a garbage token → keyed unknown@github.com, and
     // that key is active.
     expect(reg.activeKey).toBe("unknown@github.com")
@@ -85,10 +90,10 @@ describe("boot with a registry that has no active account", () => {
         schemaVersion: 2,
         activeKey: null,
         accounts: {
-          "bob@github.com": {
-            login: "bob",
-            host: "github.com",
-            token: "gho_bobtoken",
+          [TEST_INACTIVE_KEY]: {
+            login: TEST_INACTIVE_LOGIN,
+            host: TEST_INACTIVE_HOST,
+            token: "gho_maximal_test_only_bob_noncredential",
             tokenType: "gho_",
             addedVia: "gh-cli",
             obtainedAt: "2026-01-01T00:00:00.000Z",
@@ -121,6 +126,6 @@ describe("boot with a registry that has no active account", () => {
       accounts: Record<string, unknown>
     }
     expect(reg.activeKey).toBeNull()
-    expect("bob@github.com" in reg.accounts).toBe(true)
+    expect(TEST_INACTIVE_KEY in reg.accounts).toBe(true)
   })
 })

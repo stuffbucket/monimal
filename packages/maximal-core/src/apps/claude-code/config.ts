@@ -9,20 +9,28 @@ import path from "node:path"
 import {
   apiKeyHelperCommand,
   isOwnedApiKeyHelper,
+  isWritableApiKeyHelper,
 } from "~/lib/auth/api-key-helper"
 import { atomicWriteJson } from "~/lib/platform/atomic-json"
+import { assertIsolatedTestPath } from "~/lib/platform/test-isolation"
 
 /** The label Claude Code attributes its key under (Settings → API clients).
- *  Single-sourced: it is both the `api <client>` token written on disk (via
- *  `API_KEY_HELPER_COMMAND`) and the `ClientApp.apiKeyLabel` used by `maximal
- *  api claude-code`, so both resolve the same key. */
+ *  Single-sourced: it is both the `api <client>` token written on disk and the
+ *  `ClientApp.apiKeyLabel` used by `maximal api claude-code`, so both resolve
+ *  the same key. */
 export const HELPER_LABEL = "claude-code"
 
 export const PROXY_BASE_URL = "http://127.0.0.1:4141"
-/** The apiKeyHelper command for THIS running binary (absolute execPath). A
- *  config carrying an older path is still recognized as ours via
- *  `isOwnedApiKeyHelper` and healed to this value on apply/boot. */
-export const API_KEY_HELPER_COMMAND = apiKeyHelperCommand(HELPER_LABEL)
+
+export type ApiKeyHelperResolver = () => string | null
+
+/** Resolve and validate the helper for THIS invocation. This must run at apply
+ *  time: under Bun, `Bun.main` is contextual and a module-level command can
+ *  freeze an unrelated test or tool entrypoint for the lifetime of the process. */
+export function resolveApiKeyHelperCommand(): string | null {
+  const command = apiKeyHelperCommand(HELPER_LABEL)
+  return isWritableApiKeyHelper(command, HELPER_LABEL) ? command : null
+}
 
 const API_KEY_HELPER_KEY = "apiKeyHelper"
 const BASE_URL_KEY = "ANTHROPIC_BASE_URL"
@@ -59,8 +67,9 @@ function readPriorSnapshot(
 }
 
 export function getClaudeCodeSettingsPath(): string {
-  const configDir =
-    process.env.CLAUDE_CONFIG_DIR ?? path.join(os.homedir(), ".claude")
+  const override = process.env.CLAUDE_CONFIG_DIR?.trim()
+  assertIsolatedTestPath(override, "CLAUDE_CONFIG_DIR")
+  const configDir = override || path.join(os.homedir(), ".claude")
   return path.join(configDir, "settings.json")
 }
 
@@ -124,6 +133,7 @@ export function getApiKeyHelperOwnership(
 
 export function mergeBaseUrl(
   existing: Record<string, unknown>,
+  apiKeyHelper: string,
 ): Record<string, unknown> {
   const env = { ...readEnv(existing), [BASE_URL_KEY]: PROXY_BASE_URL }
   // Capture the prior values of the two fields we touch — but ONLY on the first
@@ -146,7 +156,7 @@ export function mergeBaseUrl(
   return {
     ...existing,
     [ENV_KEY]: env,
-    [API_KEY_HELPER_KEY]: API_KEY_HELPER_COMMAND,
+    [API_KEY_HELPER_KEY]: apiKeyHelper,
     [PRIOR_KEY]: prior,
   }
 }
@@ -235,6 +245,7 @@ export type SkipReason =
   | "already-ours"
   | "foreign-base-url"
   | "foreign-api-key-helper"
+  | "invalid-api-key-helper"
 
 export interface ApplyResult {
   path: string
@@ -244,20 +255,11 @@ export interface ApplyResult {
 
 export function applyProxyBaseUrl(
   filePath: string = getClaudeCodeSettingsPath(),
+  resolveHelper: ApiKeyHelperResolver = resolveApiKeyHelperCommand,
 ): ApplyResult {
   const existing = readClaudeCodeSettings(filePath)
   const baseUrlOwnership = getBaseUrlOwnership(existing)
   const helperOwnership = getApiKeyHelperOwnership(existing)
-  if (baseUrlOwnership === "ours" && helperOwnership === "ours") {
-    // Both ours. Skip UNLESS the helper command points at a stale maximal path
-    // (ours by signature but not the current execPath) — then heal it to the
-    // current absolute path so a moved/updated app keeps working.
-    if (existing[API_KEY_HELPER_KEY] === API_KEY_HELPER_COMMAND) {
-      return { path: filePath, wrote: false, skippedReason: "already-ours" }
-    }
-    writeClaudeCodeSettings(filePath, mergeBaseUrl(existing))
-    return { path: filePath, wrote: true }
-  }
   if (baseUrlOwnership === "foreign") {
     return { path: filePath, wrote: false, skippedReason: "foreign-base-url" }
   }
@@ -268,7 +270,27 @@ export function applyProxyBaseUrl(
       skippedReason: "foreign-api-key-helper",
     }
   }
-  writeClaudeCodeSettings(filePath, mergeBaseUrl(existing))
+
+  const helper = resolveHelper()
+  if (helper === null || !isWritableApiKeyHelper(helper, HELPER_LABEL)) {
+    return {
+      path: filePath,
+      wrote: false,
+      skippedReason: "invalid-api-key-helper",
+    }
+  }
+
+  if (baseUrlOwnership === "ours" && helperOwnership === "ours") {
+    // Both ours. Skip UNLESS the helper command points at a stale maximal path
+    // (ours by signature but not the current execPath) — then heal it to the
+    // current absolute path so a moved/updated app keeps working.
+    if (existing[API_KEY_HELPER_KEY] === helper) {
+      return { path: filePath, wrote: false, skippedReason: "already-ours" }
+    }
+    writeClaudeCodeSettings(filePath, mergeBaseUrl(existing, helper))
+    return { path: filePath, wrote: true }
+  }
+  writeClaudeCodeSettings(filePath, mergeBaseUrl(existing, helper))
   return { path: filePath, wrote: true }
 }
 

@@ -21,8 +21,18 @@
  *   src/lib/start/session-sentinel.ts   — crash-detection session sentinel
  */
 
+export type {
+  ProviderCompatibilityConfig,
+  ProviderCompatibilityModelConfig,
+  ProviderGatewayFactory,
+  ProviderGatewayFactoryContext,
+  ProviderHostConfigFailureReason,
+  ProviderHostConfigSnapshot,
+  ProviderHostConfigSource,
+  ProviderHostConfigStatus,
+} from "~/lib/provider-host-types"
 export { BOOT_STATUS_MARKER, emitBootStatus } from "~/lib/start/boot-status"
-export { start } from "~/lib/start/cli"
+export { createStartCommand, start } from "~/lib/start/cli"
 export {
   __setBootSecretsForTests,
   __setServeForTests,

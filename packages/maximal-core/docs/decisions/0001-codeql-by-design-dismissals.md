@@ -3,7 +3,7 @@ id: ADR-0001
 title: CodeQL by-design dismissals
 status: accepted
 date: 2026-05-11
-amended: 2026-08-05
+amended: 2026-08-31
 authors:
   - stuffbucket
 links:
@@ -411,3 +411,32 @@ structural stand-in would still need `Response` and `AbortSignal`), so the
 fixture now compiles with `lib: ["ESNext", "DOM"]`; `types: []` is unchanged, so
 a binding that leans on `process`, `Buffer`, or a Bun global still fails there.
 
+# Amendment (2026-08-31): the alert surface was removed, not suppressed
+
+CodeQL opened seven alerts against `packages/maximal-core/dist/main.js` — three
+`js/incomplete-sanitization` (high) and four `js/overly-large-range` (medium).
+None was in a workspace `src/`. All seven were third-party code the bundler had
+inlined: `execa@5.1.1`'s `escapedCommand` display formatter, `turndown@7.2.4`'s
+markdown link escaping, and `hono@4.13.2`'s RFC 6265 cookie charset.
+
+Neither mechanism above could reach them. An inline `// codeql[…]` comment
+cannot survive in a file the build regenerates from `node_modules`. And the
+`query-filters` fallback has nowhere to live: monimal runs CodeQL **default
+setup**, which reads no in-repo configuration — the `links.codeql_config`
+pointer in this document's frontmatter is inherited from `stuffbucket/maximal`
+and names a path that does not exist here.
+
+The resolution was to stop committing the bundle. Its 46 files and 7.4 MB were
+force-added to serve `bun add github:stuffbucket/maximal-core`, an install path
+that belongs to the standalone repo: monimal's copy sits at
+`packages/maximal-core/`, and no package manager's git specifier addresses a
+subdirectory. `SOURCES.md` had already recorded the monorepo's position —
+`build` was extended with `build:lib` so the `exports` map resolves without a
+committed `dist/lib` — and `maximal-electron` had already dropped its own. The
+container test boundary never saw the committed copy either: `.dockerignore`
+excludes `dist`, and the image build runs `turbo run build`.
+
+So there are no bundle dismissals to audit, and the criterion that would have
+governed them does not need writing down. What remains is the original rule:
+an alert on an un-annotated sink in code this repo authors is real signal, and
+gets a fix or a reviewed inline suppression in the PR that introduces it.

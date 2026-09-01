@@ -31,6 +31,27 @@ describe("validateAppConfig", () => {
     expect(validateAppConfig(config)).toEqual(config)
   })
 
+  it("preserves opaque provider plugin config", () => {
+    const config = {
+      providerHost: {
+        mode: "dsh" as const,
+        profileDirectory: "/tmp/maximal-providers",
+      },
+      providerPlugins: {
+        anthropic: {
+          enabled: true,
+          futurePluginField: "preserved",
+          config: {
+            nested: { arbitrary: [1, "two", { three: true }] },
+            credentialReference: null,
+          },
+        },
+      },
+    }
+
+    expect(validateAppConfig(config)).toEqual(config)
+  })
+
   it("accepts 'max' reasoning effort (GPT-5.6 ladder top)", () => {
     // Regression for the boot-rejection bug: before "max" was added to
     // ReasoningEffortSchema, a config setting any model's effort to the top of

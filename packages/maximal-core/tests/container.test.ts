@@ -129,8 +129,8 @@ describe("gitDirMount", () => {
   })
 
   // The bug: the absolute host path in the `.git` file does not exist inside
-  // the container, so every `git` call exits 128 and `bindings:check` reports
-  // "could not run". maximal-core#124.
+  // the container, so every `git` call exits 128 and the tools that read git
+  // report "could not run". maximal-core#124.
   //
   // The two platforms have genuinely DIFFERENT correct answers here, so both
   // are pinned rather than either being skipped. A container path is always

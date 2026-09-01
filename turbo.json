@@ -17,7 +17,8 @@
     },
     "maximal-client#build": {
       "dependsOn": ["^build"],
-      "cache": false
+      "cache": false,
+      "env": ["MAXIMAL_CORE_TARGET", "MAXIMAL_GIT_SHA"]
     },
     "maximal-site#build": {
       "dependsOn": ["^build"],
@@ -32,13 +33,13 @@
     "test": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", "!research_log/**", "!.claude/**", "!.github/pr-artifacts/**"],
-      "env": ["MAXIMAL_TEST_TRACE"]
+      "env": ["MAXIMAL_TEST_CONTAINER", "MAXIMAL_TEST_TRACE"]
     },
     "topo": {
       "dependsOn": ["^topo"]
     },
     "lint": {
-      "dependsOn": ["topo"],
+      "dependsOn": ["topo", "^build"],
       "outputs": [],
       "inputs": ["$TURBO_DEFAULT$", "!research_log/**", "!.claude/**", "!.github/**"]
     },

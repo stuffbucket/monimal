@@ -23,24 +23,39 @@ import { Hono } from "hono"
 import { defaultGetRequestIp, isLoopbackAddress } from "~/lib/auth/request-auth"
 import { requestContext } from "~/lib/http/request-context"
 
+interface ShutdownTimer {
+  unref(): void
+}
+
+type ScheduleShutdown = (callback: () => void, delayMs: number) => ShutdownTimer
+
 interface InternalRoutesOptions {
-  /** Injectable for tests so we don't actually exit the runner. */
-  exit?: (code: number) => void
   /** Injectable so tests can simulate non-loopback requests. */
   getRequestIp?: (c: Context) => string | null
+  /** Owned by runServer so disposal completes before the process exits. */
+  requestShutdown?: (reason: string) => Promise<void> | void
+  /** Injectable response-flush delay; the returned timer is always unref'ed. */
+  scheduleShutdown?: ScheduleShutdown
 }
 
 export function createInternalRoutes(
   options: InternalRoutesOptions = {},
 ): Hono {
-  const exit = options.exit ?? ((code: number) => process.exit(code))
   const getRequestIp = options.getRequestIp ?? defaultGetRequestIp
+  const requestShutdown = options.requestShutdown
+  const scheduleShutdown =
+    options.scheduleShutdown
+    ?? ((callback: () => void, delayMs: number) =>
+      setTimeout(callback, delayMs))
 
   const app = new Hono()
 
   app.post("/shutdown", async (c) => {
     if (!isLoopbackAddress(getRequestIp(c))) {
       return c.notFound()
+    }
+    if (!requestShutdown) {
+      return c.json({ ok: false, draining: false }, 503)
     }
 
     let reason: string | undefined
@@ -58,16 +73,24 @@ export function createInternalRoutes(
       `shutting down due to /_internal/shutdown${reason ? ` (reason: ${reason})` : ""}${traceId ? ` [trace ${traceId}]` : ""}`,
     )
 
-    // Schedule the actual exit *after* Hono has had a chance to flush
-    // the 202 response and Bun's HTTP server has released the port.
-    // 250ms is empirically enough for both, and the caller is polling
-    // for the port-release anyway.
-    setTimeout(() => exit(0), 250)
+    // Schedule the owned asynchronous drain *after* Hono has had a chance to
+    // flush the 202 response. The shutdown owner closes both listeners, disposes
+    // the provider boundary, and only then exits; this route never exits directly.
+    const timer = scheduleShutdown(() => {
+      try {
+        void Promise.resolve(
+          requestShutdown(`/_internal/shutdown${reason ? ` (${reason})` : ""}`),
+        ).catch((error: unknown) => {
+          consola.error("shutdown owner rejected", error)
+        })
+      } catch (error) {
+        consola.error("shutdown owner threw", error)
+      }
+    }, 250)
+    timer.unref()
 
     return c.json({ ok: true, draining: true }, 202)
   })
 
   return app
 }
-
-export const internalRoutes = createInternalRoutes()

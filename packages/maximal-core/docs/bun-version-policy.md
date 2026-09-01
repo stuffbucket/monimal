@@ -33,13 +33,14 @@ artifact that the version decides:
    toolchain image locally: `bun run container:build`. The tag carries the pin,
    so this cannot reuse the old image —
    [`docs/dev/container-toolchain.md`](dev/container-toolchain.md).
-3. Rebuild and stage the committed CLI bundle **on the pin**:
-   `bun run container:run -- bun run build && git add -f dist/main.js`. **This
-   step is not optional and it is not cosmetic** — see below.
+3. Rebuild the CLI bundle **on the pin**:
+   `bun run container:run -- bun run build`. Nothing is staged — `dist/` is not
+   committed — but a pin that cannot build the bundle must not land, and the
+   bytes it produces are what a release uploads. See below.
 4. Run the whole suite on the new version:
    `bun run container:run -- bun run check:deep`, then `bun run check:ops` and
    `bun run e2e`.
-5. If green, commit `.bun-version`, `ci.yml` and `dist/main.js` together.
+5. If green, commit `.bun-version` and `ci.yml` together.
 6. Watch the next CI run — including the `windows` job, which is native rather
    than containerised and is where a Bun bump has broken `bun install`'s
    lifecycle scripts before (maximal-core#38, #90).
@@ -79,39 +80,33 @@ than reusing the old one. See
 
 ## The pin decides `dist/main.js`
 
-`dist/main.js` is committed (`bin.maximal` points at it, so a git-dependency
-install runs those exact bytes) and it is built by `bun build`, which bundles
-with **Bun's own bundler**. Its output is therefore a function of the Bun
-version. Measured on a 2x2 of {`ubuntu-latest`, `macos-latest`} x {1.3.11,
-1.3.14}: both OSes produced identical bytes within a version, and the two
-versions differed. The host OS makes no difference; the Bun version makes all
+`dist/main.js` is the `bin.maximal` target, and it is built by `bun build`,
+which bundles with **Bun's own bundler**. Its output is therefore a function of
+the Bun version. Measured on a 2x2 of {`ubuntu-latest`, `macos-latest`} x
+{1.3.11, 1.3.14}: both OSes produced identical bytes within a version, and the
+two versions differed. The host OS makes no difference; the Bun version makes all
 of it.
 
-So a `.bun-version` bump silently invalidates the committed bundle. Committing
-the bump without step 3 leaves `main` shipping a `bin` that nobody following
-this document can regenerate — which is exactly how it stood before
-maximal-core#31, where the committed bundle only reproduced under an *unpinned*
-Bun a developer happened to have.
+So a `.bun-version` bump silently changes the bundle. Landing the bump without
+step 3 leaves a pin nobody following this document has ever built against —
+which is exactly how it stood before maximal-core#31, where the bundle then
+committed only reproduced under an *unpinned* Bun a developer happened to have.
 
 `dist/lib` is not affected: `build:lib` is tsup, which bundles with esbuild, a
 pinned dependency in `package.json`. Bun is only the process runner there, and
-its version provably does not move those bytes. That asymmetry is why
-`bindings:check` stayed green for `dist/lib` under dev-machine Bun drift from
-the day it landed (maximal-core#24) and went red the moment `dist/main.js` came
-under the same gate (maximal-core#31).
-
-`bun run bindings:check` enforces this from both sides: it compares the
-committed bundle against a fresh build, and when the running Bun is not the
-pinned one it reports **"could not verify"** (exit 2) rather than "stale" — a
-stale report would have you regenerate on the wrong toolchain and commit bytes
-CI still cannot reproduce.
+its version provably does not move those bytes. That asymmetry is why the
+freshness gate this repo inherited stayed green for `dist/lib` under dev-machine
+Bun drift from the day it landed (maximal-core#24) and went red the moment
+`dist/main.js` came under it (maximal-core#31). That gate compared a *committed*
+bundle against a fresh build; monimal does not commit one, so it is retired here
+— `bun run build` refusing to bundle off-pin is what remains, and it is the part
+that matters.
 
 ## The pin also decides the published tarball
 
-`bindings:check` guards the bundle in **git**. The bundle in the **tarball** is
-a second artifact built at a second time: `bun publish` fires `prepack`, which
-rebuilds `dist/` into what gets uploaded. Measured against Bun 1.3.14 rather
-than assumed from npm's docs, because the exposure depends on it:
+The bundle in the tarball is built at publish time: `bun publish` fires
+`prepack`, which rebuilds `dist/` into what gets uploaded. Measured against Bun
+1.3.14 rather than assumed from npm's docs, because the exposure depends on it:
 
 ```
 bun publish  →  prepublishOnly → prepack → prepare → (pack) → upload

@@ -139,6 +139,42 @@ export function isOwnedApiKeyHelper(command: unknown, label?: string): boolean {
   return false
 }
 
+/**
+ * Return whether a helper is safe to persist for a third-party process.
+ *
+ * Ownership is deliberately broader: it recognizes historical malformed and
+ * stale commands so they can be healed or removed. New writes accept only an
+ * absolute compiled maximal executable, or an absolute Bun/Node executable
+ * followed by a recognized maximal product entry. Test files, arbitrary
+ * scripts named `main`, legacy forms, runtime flags, and foreign executables
+ * are never writable.
+ */
+export function isWritableApiKeyHelper(
+  command: unknown,
+  label?: string,
+): boolean {
+  if (typeof command !== "string") return false
+  const tokens = tokenizeCommand(command)
+  const leading = matchTrailingSubcommand(
+    tokens,
+    HELPER_SUBCOMMAND,
+    label?.trim(),
+  )
+  if (leading === null) return false
+  if (leading.length === 1) {
+    return (
+      isAbsoluteCommandPath(leading[0])
+      && isCompiledMaximalExecutable(leading[0])
+    )
+  }
+  if (leading.length !== 2) return false
+  return (
+    isAbsoluteCommandPath(leading[0])
+    && isRuntimeExecPath(leading[0])
+    && isProductMainScript(leading[1])
+  )
+}
+
 /** Split a shell-ish command into tokens, treating a `"double quoted"` run as a
  *  single token (our writer always quotes the exec path). Good enough for the
  *  commands we emit; we don't need full POSIX quoting. */
@@ -189,6 +225,43 @@ function basename(p: string): string {
       .pop()
       ?.toLowerCase()
       .replace(/\.exe$/u, "") ?? ""
+  )
+}
+
+function isAbsoluteCommandPath(value: string): boolean {
+  return /^(?:[/\\]{1,2}|[A-Za-z]:[/\\])/u.test(value)
+}
+
+function isCompiledMaximalExecutable(value: string): boolean {
+  const base = basename(value)
+  return base === "maximal" || base.startsWith("maximal-")
+}
+
+function isProductMainScript(value: string): boolean {
+  if (!isAbsoluteCommandPath(value)) return false
+  const segments = value
+    .split(/[/\\]/u)
+    .filter(Boolean)
+    .map((segment) => segment.toLowerCase())
+  const file = segments.at(-1)
+  const directory = segments.at(-2)
+  if ((file !== "main.ts" && file !== "main.js") || directory === undefined) {
+    return false
+  }
+  if (directory !== "src" && directory !== "dist") return false
+  if (
+    segments.some(
+      (segment) =>
+        segment === "test"
+        || segment === "tests"
+        || segment === "__tests__"
+        || /\.test\.[cm]?[jt]sx?$/u.test(segment),
+    )
+  ) {
+    return false
+  }
+  return segments.some(
+    (segment) => segment === "maximal" || segment === "maximal-core",
   )
 }
 

@@ -26,6 +26,17 @@ export interface AppConfig {
     enforce?: boolean
   }
   providers?: Record<string, ProviderConfig>
+  providerHost?: {
+    mode?: "legacy" | "dsh"
+    profileDirectory?: string
+  }
+  providerPlugins?: Record<
+    string,
+    {
+      enabled?: boolean
+      config?: unknown
+    }
+  >
   extraPrompts?: Record<string, string>
   smallModel?: string
   responsesApiContextManagementModels?: Array<string>
@@ -238,6 +249,19 @@ const defaultConfig: AppConfig = {
 }
 
 let cachedConfig: AppConfig | null = null
+const configListeners = new Set<(config: AppConfig) => void>()
+
+const publishConfig = (config: AppConfig): void => {
+  for (const listener of configListeners) listener(config)
+}
+
+/** Subscribe to validated in-memory config replacements. */
+export function subscribeConfig(
+  listener: (config: AppConfig) => void,
+): () => void {
+  configListeners.add(listener)
+  return () => configListeners.delete(listener)
+}
 
 /**
  * Seed `config.json` with the defaults when there isn't a usable one already.
@@ -276,22 +300,51 @@ function ensureConfigFile(): void {
   }
 }
 
-function readConfigFromDisk(): AppConfig {
-  ensureConfigFile()
-  let parsed: unknown
+type ConfigReadMode = "reload" | "startup"
+export type ConfigReloadFailureReason = "parse" | "read" | "validation"
+
+export class ConfigReloadError extends Error {
+  readonly reason: ConfigReloadFailureReason
+
+  constructor(reason: ConfigReloadFailureReason) {
+    super(`external config reload failed: ${reason}`)
+    this.name = "ConfigReloadError"
+    this.reason = reason
+  }
+}
+
+function readConfigFromDisk(mode: ConfigReadMode = "startup"): AppConfig {
+  if (mode === "startup") ensureConfigFile()
+
+  let raw: string
   try {
-    const raw = fs.readFileSync(PATHS.CONFIG_PATH, "utf8")
-    if (!raw.trim()) {
+    raw = fs.readFileSync(PATHS.CONFIG_PATH, "utf8")
+  } catch (error) {
+    if (mode === "reload") throw new ConfigReloadError("read")
+    consola.error("Failed to read config file, using default config", error)
+    return defaultConfig
+  }
+
+  if (!raw.trim()) {
+    if (mode === "reload") throw new ConfigReloadError("parse")
+    try {
       fs.writeFileSync(
         PATHS.CONFIG_PATH,
         `${JSON.stringify(defaultConfig, null, 2)}\n`,
         "utf8",
       )
-      return defaultConfig
+    } catch (error) {
+      consola.error("Failed to seed empty config file, using defaults", error)
     }
+    return defaultConfig
+  }
+
+  let parsed: unknown
+  try {
     parsed = JSON.parse(raw)
   } catch (error) {
-    consola.error("Failed to read config file, using default config", error)
+    if (mode === "reload") throw new ConfigReloadError("parse")
+    consola.error("Failed to parse config file, using default config", error)
     return defaultConfig
   }
 
@@ -305,6 +358,7 @@ function readConfigFromDisk(): AppConfig {
     config = validateAppConfig(parsed)
   } catch (error) {
     if (error instanceof ConfigValidationError) {
+      if (mode === "reload") throw new ConfigReloadError("validation")
       consola.error(
         `Invalid ${PATHS.CONFIG_PATH}:\n${error.issues
           .map((i) => `  ${i.path || "<root>"}: ${i.message}`)
@@ -328,72 +382,57 @@ function readConfigFromDisk(): AppConfig {
   return config
 }
 
-function mergeDefaultConfig(config: AppConfig): {
-  mergedConfig: AppConfig
-  changed: boolean
-} {
+function mergeDefaultConfig(config: AppConfig): AppConfig {
   const extraPrompts = config.extraPrompts ?? {}
   const defaultExtraPrompts = defaultConfig.extraPrompts ?? {}
   const modelReasoningEfforts = config.modelReasoningEfforts ?? {}
   const defaultModelReasoningEfforts = defaultConfig.modelReasoningEfforts ?? {}
 
-  const missingExtraPromptModels = Object.keys(defaultExtraPrompts).filter(
+  const hasMissingExtraPrompts = Object.keys(defaultExtraPrompts).some(
     (model) => !Object.hasOwn(extraPrompts, model),
   )
-
-  const missingReasoningEffortModels = Object.keys(
+  const hasMissingReasoningEfforts = Object.keys(
     defaultModelReasoningEfforts,
-  ).filter((model) => !Object.hasOwn(modelReasoningEfforts, model))
+  ).some((model) => !Object.hasOwn(modelReasoningEfforts, model))
 
-  const hasExtraPromptChanges = missingExtraPromptModels.length > 0
-  const hasReasoningEffortChanges = missingReasoningEffortModels.length > 0
-
-  if (!hasExtraPromptChanges && !hasReasoningEffortChanges) {
-    return { mergedConfig: config, changed: false }
-  }
+  if (!hasMissingExtraPrompts && !hasMissingReasoningEfforts) return config
 
   return {
-    mergedConfig: {
-      ...config,
-      extraPrompts: {
-        ...defaultExtraPrompts,
-        ...extraPrompts,
-      },
-      modelReasoningEfforts: {
-        ...defaultModelReasoningEfforts,
-        ...modelReasoningEfforts,
-      },
+    ...config,
+    extraPrompts: {
+      ...defaultExtraPrompts,
+      ...extraPrompts,
     },
-    changed: true,
+    modelReasoningEfforts: {
+      ...defaultModelReasoningEfforts,
+      ...modelReasoningEfforts,
+    },
   }
+}
+
+function adoptConfig(config: AppConfig): AppConfig {
+  const adopted = mergeDefaultConfig(config)
+  cachedConfig = adopted
+  publishConfig(adopted)
+  return adopted
 }
 
 export function mergeConfigWithDefaults(): AppConfig {
-  const config = readConfigFromDisk()
-  const { mergedConfig, changed } = mergeDefaultConfig(config)
+  return adoptConfig(readConfigFromDisk())
+}
 
-  if (changed) {
-    try {
-      fs.writeFileSync(
-        PATHS.CONFIG_PATH,
-        `${JSON.stringify(mergedConfig, null, 2)}\n`,
-        "utf8",
-      )
-    } catch (writeError) {
-      consola.warn(
-        "Failed to write merged extraPrompts to config file",
-        writeError,
-      )
-    }
-  }
-
-  cachedConfig = mergedConfig
-  return mergedConfig
+/** Re-read and validate an external replacement of config.json. */
+export function reloadConfigFromDisk(): AppConfig {
+  return adoptConfig(readConfigFromDisk("reload"))
 }
 
 export function getConfig(): AppConfig {
-  cachedConfig ??= readConfigFromDisk()
-  return cachedConfig
+  return cachedConfig ?? adoptConfig(readConfigFromDisk())
+}
+
+/** @internal Test seam for exercising cold-cache reads. */
+export function __resetConfigCacheForTests(): void {
+  cachedConfig = null
 }
 
 /**
@@ -422,8 +461,7 @@ export function writeConfig(next: AppConfig): AppConfig {
     // honor mode bits. The data write still went through.
   }
   fs.renameSync(tmpPath, PATHS.CONFIG_PATH)
-  cachedConfig = validated
-  return validated
+  return adoptConfig(validated)
 }
 
 export function getExtraPromptForModel(model: string): string {

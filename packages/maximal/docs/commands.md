@@ -11,12 +11,11 @@ bun run lint         # ESLint with cache (auto-fixes staged files pre-commit)
 bun run lint:all     # ESLint on entire project
 bun run lint:fast    # oxlint — mechanical pass, ~10ms full repo
 bun run typecheck    # tsc type check only (no emit)
-bun test             # Run all tests
-bun test tests/foo.test.ts  # Run a single test file
+pnpm test            # From monorepo root: run all tests in disposable Docker
 
 # Aggregates
 bun run check:fast   # lint:fast + typecheck + lint:all (the per-edit inner loop)
-bun run check:deep   # check:fast + bun test + knip (end-of-task gate)
+pnpm check           # From monorepo root: build, type, lint, and Docker tests
 bun run knip         # find unused exports/files
 bun run verify:build # smoke-check the built CLI
 
@@ -29,26 +28,32 @@ bun run sbom            # generate the SBOM
 bun run scan:secrets    # trufflehog filesystem scan
 ```
 
-`dev`, `build`, and `start` all run the proxy engine out of
-`@stuffbucket/maximal-core` — this repo packages and ships it, but the engine
-source lives in that separate repo.
+Tests must go through the monorepo-root Docker wrapper. Raw `bun test`
+invocations—including single-file paths—and `bun run check:deep` fail closed
+outside that container. The wrapper does not support forwarding arbitrary test
+paths; use the full `pnpm test` or `pnpm check` root commands shown above.
+
+`dev`, `build`, and `start` all begin at `src/main.ts`, the package-owned
+composition entry. It invokes `@stuffbucket/maximal-core`'s public CLI and may
+supply the generic DSH provider host; routing and engine behavior remain in
+Core, and concrete providers remain external profile packages.
 
 ## Electron client (`client/`)
 
-`client/` is the desktop app. It is managed by **npm, not Bun**:
+`client/` is a package in the root pnpm workspace. Run its commands from the
+monorepo root:
 
 ```sh
-cd client
-npm install          # Install dependencies (npm, not bun)
-npm run build:core   # Compile the maximal-core sidecar (uses bun under the hood)
-npm run typecheck    # tsc --noEmit
-npm run test         # Vitest, watch mode
-npm run test:run     # Vitest, single run (what CI runs)
-npm start            # electron-forge start
-npm run package      # electron-forge package
+pnpm install                              # Install the workspace
+pnpm --filter maximal-client build:core  # Compile the maximal-core sidecar
+pnpm --filter maximal-client typecheck   # tsc --noEmit
+pnpm test                                 # Test the full workspace in Docker
+pnpm --filter maximal-client start       # electron-forge start
+pnpm package                              # Package the Electron client via Turbo
 ```
 
-Bun is only invoked internally by `build:core` to compile the extracted
-`@stuffbucket/maximal-core` proxy engine into a sidecar binary — every other
-`client/` command runs through npm/Node. CI for `client/` runs in its own
-workflow, `.github/workflows/client-ci.yml`, separate from the root `ci.yml`.
+Bun is invoked internally by `build:core` to compile the composed
+`@stuffbucket/maximal-core` proxy into a sidecar binary. The client Vitest suite
+belongs to the root Docker/Turbo test graph; do not invoke it directly on the
+host. Client build, lint, typecheck, and test coverage run in the root
+`.github/workflows/ci.yml`, which also owns the Electron packaging job.

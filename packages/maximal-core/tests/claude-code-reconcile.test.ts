@@ -14,7 +14,6 @@ import os from "node:os"
 import path from "node:path"
 
 import {
-  API_KEY_HELPER_COMMAND,
   isProxyBaseUrlConfigured,
   PROXY_BASE_URL,
   readClaudeCodeSettings,
@@ -23,9 +22,13 @@ import {
   reconcileClaudeCodeOnBoot,
   reconcileClaudeCodeOnShutdown,
 } from "~/apps/claude-code/reconcile"
+import { getConfig, writeConfig } from "~/lib/config/config"
 
 const TMP_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "cc-reconcile-"))
 const SETTINGS = path.join(TMP_DIR, "settings.json")
+const TEST_HELPER =
+  '"/Applications/Maximal.app/Contents/MacOS/maximal" api claude-code'
+const resolveTestHelper = () => TEST_HELPER
 
 function writeSettings(obj: unknown): void {
   fs.writeFileSync(SETTINGS, JSON.stringify(obj))
@@ -33,15 +36,17 @@ function writeSettings(obj: unknown): void {
 
 beforeEach(() => {
   fs.rmSync(SETTINGS, { force: true })
+  writeConfig({})
 })
 
 afterAll(() => {
   fs.rmSync(TMP_DIR, { recursive: true, force: true })
+  writeConfig({})
 })
 
 describe("reconcileClaudeCodeOnBoot", () => {
   test("writes the proxy base URL when routing is intended", () => {
-    reconcileClaudeCodeOnBoot(true, SETTINGS)
+    reconcileClaudeCodeOnBoot(true, SETTINGS, resolveTestHelper)
     expect(isProxyBaseUrlConfigured(SETTINGS)).toBe(true)
   })
 
@@ -54,7 +59,7 @@ describe("reconcileClaudeCodeOnBoot", () => {
     writeSettings({
       env: { ANTHROPIC_API_KEY: "sk-keep", ANTHROPIC_AUTH_TOKEN: "tok-keep" },
     })
-    reconcileClaudeCodeOnBoot(true, SETTINGS)
+    reconcileClaudeCodeOnBoot(true, SETTINGS, resolveTestHelper)
     const env = (readClaudeCodeSettings(SETTINGS).env ?? {}) as Record<
       string,
       unknown
@@ -66,13 +71,23 @@ describe("reconcileClaudeCodeOnBoot", () => {
 
   test("does not clobber a foreign base URL even when intended", () => {
     writeSettings({ env: { ANTHROPIC_BASE_URL: "https://other.example" } })
-    reconcileClaudeCodeOnBoot(true, SETTINGS)
+    reconcileClaudeCodeOnBoot(true, SETTINGS, resolveTestHelper)
     const env = (readClaudeCodeSettings(SETTINGS).env ?? {}) as Record<
       string,
       unknown
     >
     expect(env.ANTHROPIC_BASE_URL).toBe("https://other.example")
     expect(isProxyBaseUrlConfigured(SETTINGS)).toBe(false)
+  })
+
+  test("invalid helper resolution leaves settings and API keys untouched", () => {
+    writeSettings({ keep: { nested: true } })
+    const before = fs.readFileSync(SETTINGS)
+
+    reconcileClaudeCodeOnBoot(true, SETTINGS, () => null)
+
+    expect(fs.readFileSync(SETTINGS)).toEqual(before)
+    expect(getConfig().auth?.apiKeyEntries ?? []).toHaveLength(0)
   })
 })
 
@@ -88,7 +103,7 @@ describe("reconcileClaudeCodeOnShutdown", () => {
     // is intent-gated, so it must NOT touch it — that's the boot reconciler's
     // and the toggle's job, not shutdown's.
     writeSettings({
-      apiKeyHelper: API_KEY_HELPER_COMMAND,
+      apiKeyHelper: TEST_HELPER,
       env: { ANTHROPIC_BASE_URL: PROXY_BASE_URL },
     })
     reconcileClaudeCodeOnShutdown(false, SETTINGS)
@@ -121,11 +136,11 @@ describe("reconcileClaudeCodeOnShutdown", () => {
 
 describe("boot/shutdown round trip", () => {
   test("boot applies, shutdown removes, boot re-applies (intent persists)", () => {
-    reconcileClaudeCodeOnBoot(true, SETTINGS)
+    reconcileClaudeCodeOnBoot(true, SETTINGS, resolveTestHelper)
     expect(isProxyBaseUrlConfigured(SETTINGS)).toBe(true)
     reconcileClaudeCodeOnShutdown(true, SETTINGS)
     expect(isProxyBaseUrlConfigured(SETTINGS)).toBe(false)
-    reconcileClaudeCodeOnBoot(true, SETTINGS)
+    reconcileClaudeCodeOnBoot(true, SETTINGS, resolveTestHelper)
     expect(isProxyBaseUrlConfigured(SETTINGS)).toBe(true)
   })
 })

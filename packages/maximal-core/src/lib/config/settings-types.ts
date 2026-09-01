@@ -467,11 +467,15 @@ export const AppEntry = z.object({
   status: z.enum(["ready", "not-installed", "coming-soon"]),
   installs: z.array(AppInstall),
   install: AppInstallHint.nullable(),
-  /** Non-null when enabling was refused because the app's config already
-   *  has a setting we don't own (e.g. a user-set ANTHROPIC_BASE_URL or
-   *  apiKeyHelper). The UI surfaces this so the user knows why the toggle
-   *  didn't take. */
-  conflict: z.enum(["foreign-base-url", "foreign-api-key-helper"]).nullable(),
+  /** Non-null when enabling was refused because the app's config has a setting
+   *  we don't own, or this invocation cannot produce a safe helper command. */
+  conflict: z
+    .enum([
+      "foreign-base-url",
+      "foreign-api-key-helper",
+      "invalid-api-key-helper",
+    ])
+    .nullable(),
 })
 export type AppEntry = z.infer<typeof AppEntry>
 

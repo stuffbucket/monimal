@@ -89,6 +89,9 @@ describe("uninstall — Claude Desktop revert integration", () => {
 })
 
 describe("uninstall — Claude Code settings revert integration", () => {
+  const testHelper =
+    '"/Applications/Maximal.app/Contents/MacOS/maximal" api claude-code'
+
   it("reverts only the ANTHROPIC_BASE_URL we wrote, preserving other env", async () => {
     const { applyProxyBaseUrl, revertProxyBaseUrl, isProxyBaseUrlConfigured } =
       await import("~/apps/claude-code/config")
@@ -99,7 +102,7 @@ describe("uninstall — Claude Code settings revert integration", () => {
       JSON.stringify({ env: { ANTHROPIC_API_KEY: "user-key" } }),
     )
 
-    applyProxyBaseUrl(settings)
+    applyProxyBaseUrl(settings, () => testHelper)
     expect(isProxyBaseUrlConfigured(settings)).toBe(true)
 
     const reverted = revertProxyBaseUrl(settings)

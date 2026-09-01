@@ -11,6 +11,7 @@ import {
 } from "~/lib/config/config"
 import { awaitApproval } from "~/lib/http/approval"
 import { checkRateLimit } from "~/lib/http/rate-limit"
+import { readNestedUsage } from "~/lib/http/untrusted-frame"
 import { reverseId } from "~/lib/models/anthropic-id-rewrite"
 import { shouldUseResponsesApi } from "~/lib/models/endpoint-selection"
 import { resolveModelProfile } from "~/lib/models/model-profile"
@@ -30,7 +31,6 @@ import {
 import { buildResponsesFilters } from "~/routes/messages/web-tools/executor"
 import { TOOL_TYPE } from "~/routes/messages/web-tools/vocab"
 import { isAsyncIterable } from "~/routes/streaming-predicates"
-import { readNestedUsage } from "~/routes/untrusted-frame"
 import {
   createResponses as defaultCreateResponses,
   type ResponsesPayload,

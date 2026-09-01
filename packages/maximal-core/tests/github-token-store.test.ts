@@ -28,6 +28,15 @@ import {
   writeRegistry,
 } from "~/lib/auth/github-token-store"
 
+import type { TestAccountName } from "./helpers/account-fixtures"
+
+import {
+  TEST_ACCOUNT_HOST,
+  testAccountKey,
+  testAccountLogin,
+  testAccountToken,
+} from "./helpers/account-fixtures"
+
 /** Local builder for a v1 single-record token file. Production code never
  *  constructs these outside `readGitHubTokenRecord`'s upgrade path, so this
  *  helper lives with the tests that need a record to write/read back. */
@@ -130,80 +139,94 @@ describe("writeGitHubTokenRecord", () => {
   })
 })
 
-const rec = (login: string, host = "github.com", token = "ghu_t") =>
-  makeAccountRecord({ login, host, token, addedVia: "device-code" })
+const rec = (
+  name: TestAccountName,
+  host = TEST_ACCOUNT_HOST,
+  token = testAccountToken(name),
+) =>
+  makeAccountRecord({
+    login: testAccountLogin(name),
+    host,
+    token,
+    addedVia: "device-code",
+  })
 
 describe("registry — pure ops", () => {
   it("addAndActivate inserts by login@host and sets it active", () => {
     const reg = addAndActivate(emptyRegistry(), rec("alice"))
-    expect(reg.activeKey).toBe("alice@github.com")
-    expect(getActiveRecord(reg)?.login).toBe("alice")
-    expect(Object.keys(reg.accounts)).toEqual(["alice@github.com"])
+    expect(reg.activeKey).toBe(testAccountKey("alice"))
+    expect(getActiveRecord(reg)?.login).toBe(testAccountLogin("alice"))
+    expect(Object.keys(reg.accounts)).toEqual([testAccountKey("alice")])
   })
 
   it("addAndActivate replaces the same identity (latest wins), no dup", () => {
+    const oldToken = "ghu_maximal_test_only_alice_old_noncredential"
+    const newToken = "ghu_maximal_test_only_alice_new_noncredential"
     let reg = addAndActivate(
       emptyRegistry(),
-      rec("alice", "github.com", "ghu_old"),
+      rec("alice", TEST_ACCOUNT_HOST, oldToken),
     )
-    reg = addAndActivate(reg, rec("alice", "github.com", "ghu_new"))
+    reg = addAndActivate(reg, rec("alice", TEST_ACCOUNT_HOST, newToken))
     expect(Object.keys(reg.accounts)).toHaveLength(1)
-    expect(getActiveRecord(reg)?.token).toBe("ghu_new")
+    expect(getActiveRecord(reg)?.token).toBe(newToken)
   })
 
   it("distinct hosts are distinct accounts", () => {
-    let reg = addAndActivate(emptyRegistry(), rec("alice", "github.com"))
-    reg = addAndActivate(reg, rec("alice", "ghe.corp.com"))
+    const secondHost = "github-two.example.invalid"
+    let reg = addAndActivate(emptyRegistry(), rec("alice"))
+    reg = addAndActivate(reg, rec("alice", secondHost))
     expect(Object.keys(reg.accounts)).toHaveLength(2)
-    expect(reg.activeKey).toBe(accountKey("alice", "ghe.corp.com"))
+    expect(reg.activeKey).toBe(
+      accountKey(testAccountLogin("alice"), secondHost),
+    )
   })
 
   it("setActive no-ops on an absent key (no dangling pointer)", () => {
     const reg = addAndActivate(emptyRegistry(), rec("alice"))
-    expect(setActive(reg, "ghost@github.com").activeKey).toBe(
-      "alice@github.com",
-    )
-    expect(setActive(reg, "alice@github.com").activeKey).toBe(
-      "alice@github.com",
+    expect(
+      setActive(reg, "maximal-test-only-ghost@github.example.invalid")
+        .activeKey,
+    ).toBe(testAccountKey("alice"))
+    expect(setActive(reg, testAccountKey("alice")).activeKey).toBe(
+      testAccountKey("alice"),
     )
   })
 
   it("removeAccount clears activeKey when removing the active one", () => {
     let reg = addAndActivate(emptyRegistry(), rec("alice"))
     reg = addAndActivate(reg, rec("bob"))
-    // bob is active; remove bob → active falls back to null
-    reg = removeAccount(reg, "bob@github.com")
+    // The second test account is active; removing it falls back to null.
+    reg = removeAccount(reg, testAccountKey("bob"))
     expect(reg.activeKey).toBeNull()
-    expect(Object.keys(reg.accounts)).toEqual(["alice@github.com"])
+    expect(Object.keys(reg.accounts)).toEqual([testAccountKey("alice")])
   })
 
   it("removeAccount keeps activeKey when removing a non-active account", () => {
     let reg = addAndActivate(emptyRegistry(), rec("alice"))
-    reg = addAndActivate(reg, rec("bob")) // bob active
-    reg = removeAccount(reg, "alice@github.com")
-    expect(reg.activeKey).toBe("bob@github.com")
+    reg = addAndActivate(reg, rec("bob")) // second account active
+    reg = removeAccount(reg, testAccountKey("alice"))
+    expect(reg.activeKey).toBe(testAccountKey("bob"))
   })
 
   it("listAccounts flags the active account", () => {
     let reg = addAndActivate(emptyRegistry(), rec("alice"))
-    reg = addAndActivate(reg, rec("bob")) // bob active
+    reg = addAndActivate(reg, rec("bob")) // second account active
     const list = listAccounts(reg)
-    expect(list.find((a) => a.login === "bob")?.active).toBe(true)
-    expect(list.find((a) => a.login === "alice")?.active).toBe(false)
+    expect(list.find((a) => a.login === testAccountLogin("bob"))?.active).toBe(
+      true,
+    )
+    expect(
+      list.find((a) => a.login === testAccountLogin("alice"))?.active,
+    ).toBe(false)
   })
 })
 
 describe("registry — persistence", () => {
   it("write then read round-trips", async () => {
-    const reg = addAndActivate(
-      emptyRegistry(),
-      makeAccountRecord({
-        login: "alice",
-        host: "github.com",
-        token: "ghu_t",
-        addedVia: "gh-cli",
-      }),
-    )
+    const reg = addAndActivate(emptyRegistry(), {
+      ...rec("alice"),
+      addedVia: "gh-cli",
+    })
     await writeRegistry(registryPath, reg)
     const back = await readRegistry(registryPath)
     expect(back).toEqual(reg)
@@ -211,29 +234,33 @@ describe("registry — persistence", () => {
 
   it("persists the refresh token + expiries when present, defaults to null otherwise", async () => {
     const withRefresh = makeAccountRecord({
-      login: "alice",
-      host: "github.com",
-      token: "ghu_expiring",
+      login: testAccountLogin("alice"),
+      host: TEST_ACCOUNT_HOST,
+      token: "ghu_maximal_test_only_alice_expiring_noncredential",
       addedVia: "device-code",
-      refreshToken: "ghr_renewal",
+      refreshToken: "ghr_maximal_test_only_renewal_noncredential",
       accessTokenExpiresAt: 1_700_000_000_000,
       refreshTokenExpiresAt: 1_800_000_000_000,
     })
-    expect(withRefresh.refreshToken).toBe("ghr_renewal")
+    expect(withRefresh.refreshToken).toBe(
+      "ghr_maximal_test_only_renewal_noncredential",
+    )
     expect(withRefresh.accessTokenExpiresAt).toBe(1_700_000_000_000)
 
     const reg = addAndActivate(emptyRegistry(), withRefresh)
     await writeRegistry(registryPath, reg)
     const back = await readRegistry(registryPath)
     const key = Object.keys(back.accounts)[0]
-    expect(back.accounts[key].refreshToken).toBe("ghr_renewal")
+    expect(back.accounts[key].refreshToken).toBe(
+      "ghr_maximal_test_only_renewal_noncredential",
+    )
     expect(back.accounts[key].refreshTokenExpiresAt).toBe(1_800_000_000_000)
 
     // Omitted → null defaults (non-expiring token), round-trips cleanly.
     const noRefresh = makeAccountRecord({
-      login: "bob",
-      host: "github.com",
-      token: "gho_forever",
+      login: testAccountLogin("bob"),
+      host: TEST_ACCOUNT_HOST,
+      token: "gho_maximal_test_only_bob_noncredential",
       addedVia: "gh-cli",
     })
     expect(noRefresh.refreshToken).toBeNull()
@@ -257,23 +284,35 @@ describe("registry — persistence", () => {
 
 describe("migrateLegacyRecord", () => {
   it("lifts a legacy v1 record into a login-keyed registry", async () => {
-    await writeGitHubTokenRecord(tokenPath, makeRecord("ghu_legacy"))
+    await writeGitHubTokenRecord(
+      tokenPath,
+      makeRecord("ghu_maximal_test_only_legacy_noncredential"),
+    )
     const migrated = await migrateLegacyRecord({
       legacyPath: tokenPath,
       registryPath,
       host: "github.com",
-      resolveLogin: () => Promise.resolve("alice"),
+      resolveLogin: () => Promise.resolve(testAccountLogin("alice")),
     })
-    expect(migrated?.activeKey).toBe("alice@github.com")
+    expect(migrated?.activeKey).toBe(
+      accountKey(testAccountLogin("alice"), "github.com"),
+    )
     // Assert via the persisted registry (also proves it was written to disk).
     const onDisk = await readRegistry(registryPath)
-    expect(onDisk.activeKey).toBe("alice@github.com")
-    expect(getActiveRecord(onDisk)?.token).toBe("ghu_legacy")
+    expect(onDisk.activeKey).toBe(
+      accountKey(testAccountLogin("alice"), "github.com"),
+    )
+    expect(getActiveRecord(onDisk)?.token).toBe(
+      "ghu_maximal_test_only_legacy_noncredential",
+    )
     expect(getActiveRecord(onDisk)?.addedVia).toBe("migration")
   })
 
   it("falls back to unknown@host when the login lookup fails (offline)", async () => {
-    await writeGitHubTokenRecord(tokenPath, makeRecord("ghu_legacy"))
+    await writeGitHubTokenRecord(
+      tokenPath,
+      makeRecord("ghu_maximal_test_only_legacy_noncredential"),
+    )
     const migrated = await migrateLegacyRecord({
       legacyPath: tokenPath,
       registryPath,
@@ -286,26 +325,23 @@ describe("migrateLegacyRecord", () => {
   it("is a no-op when the registry already has accounts", async () => {
     await writeRegistry(
       registryPath,
-      addAndActivate(
-        emptyRegistry(),
-        makeAccountRecord({
-          login: "bob",
-          host: "github.com",
-          token: "ghu_b",
-          addedVia: "device-code",
-        }),
-      ),
+      addAndActivate(emptyRegistry(), rec("bob")),
     )
-    await writeGitHubTokenRecord(tokenPath, makeRecord("ghu_legacy"))
+    await writeGitHubTokenRecord(
+      tokenPath,
+      makeRecord("ghu_maximal_test_only_legacy_noncredential"),
+    )
     const migrated = await migrateLegacyRecord({
       legacyPath: tokenPath,
       registryPath,
       host: "github.com",
-      resolveLogin: () => Promise.resolve("alice"),
+      resolveLogin: () => Promise.resolve(testAccountLogin("alice")),
     })
     expect(migrated).toBeNull()
     // existing registry untouched
-    expect(getActiveRecord(await readRegistry(registryPath))?.login).toBe("bob")
+    expect(getActiveRecord(await readRegistry(registryPath))?.login).toBe(
+      testAccountLogin("bob"),
+    )
   })
 
   it("is a no-op when there is no legacy token", async () => {
@@ -313,20 +349,20 @@ describe("migrateLegacyRecord", () => {
       legacyPath: tokenPath,
       registryPath,
       host: "github.com",
-      resolveLogin: () => Promise.resolve("alice"),
+      resolveLogin: () => Promise.resolve(testAccountLogin("alice")),
     })
     expect(migrated).toBeNull()
   })
 
   it("preserves the legacy obtainedAt rather than re-stamping", async () => {
-    const legacy = makeRecord("ghu_legacy")
+    const legacy = makeRecord("ghu_maximal_test_only_legacy_noncredential")
     legacy.obtainedAt = "2020-01-01T00:00:00.000Z"
     await writeGitHubTokenRecord(tokenPath, legacy)
     await migrateLegacyRecord({
       legacyPath: tokenPath,
       registryPath,
       host: "github.com",
-      resolveLogin: () => Promise.resolve("alice"),
+      resolveLogin: () => Promise.resolve(testAccountLogin("alice")),
     })
     const active = getActiveRecord(await readRegistry(registryPath))
     expect(active?.obtainedAt).toBe("2020-01-01T00:00:00.000Z")
