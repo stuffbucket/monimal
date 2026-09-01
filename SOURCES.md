@@ -14,6 +14,11 @@ them here.
 
 - Do not delete `packages/*/.github`. maximal-electron's `workflows.test.ts` and
   `workflow-health.test.ts` assert against those files.
+- Do not edit, delete, or sync `packages/maximal/.macos-builder/`. It is a
+  vendored copy of maximal's producer; the builder reads the ROOT
+  `.macos-builder/` and never that path. The two target different layouts
+  (npm with `client/` at the root, versus pnpm with `packages/maximal/client`)
+  and are meant to diverge.
 - Do not add per-package lockfiles. The root lockfile is the only one that
   applies; a second implies a pinning that is not in effect.
 - Do not call `npm` in package scripts. Use pnpm.
