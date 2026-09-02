@@ -26,8 +26,18 @@ bundle_id = co.stuffbucket.maximal
 # Builder-owned, enumerated by name (never a path). bun-runtime is the superset
 # that covers Electron's V8 and the Bun/JavaScriptCore sidecar in one profile:
 # allow-jit, allow-unsigned-executable-memory, disable-library-validation,
-# network. forge.config.ts applies it uniformly via optionsForFile.
+# network.
 entitlements = bun-runtime
+
+# Sign every nested code item with that same profile, deepest-first, before the
+# top-level seal. An Electron bundle nests four Helper .apps and the Electron
+# Framework, and a bundle must be signed as a DIRECTORY so the seal covers its
+# Info.plist and structure — which sign_nested cannot express, since it takes
+# regular files only.
+#
+# This repository does not sign: the producer runs with the keychain locked and
+# SIGN_IDENTITY="-". The builder owns every codesign call.
+sign_walk = bun-runtime
 
 # dmg only. This repo ships no auto-update channel, and nothing here feeds
 # https://mxml.sh, whose manifest is committed in stuffbucket/maximal.
