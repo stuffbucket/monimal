@@ -108,9 +108,11 @@ It answers three questions, and all three must pass:
 The previous release is picked automatically. Pass a second argument to choose
 one (`scripts/verify-dmg.sh v0.5.0 v0.5.0-rc.2`), or `none` to skip.
 
-`stapler` needs full Xcode, so the script calls it through `xcrun`; a machine
-with only the Command Line Tools says so and falls back where it can — step 13
-proves stapling from the bundle's files instead, step 4 goes unchecked.
+`stapler` is not on `PATH`, so the script calls it through `xcrun`, which finds
+it in the Command Line Tools (`/Library/Developer/CommandLineTools/usr/bin/`) —
+full Xcode is not required. Where it does not resolve at all the script says so
+and falls back: step 13 proves stapling from the bundle's files instead, and
+step 4 goes unchecked.
 
 Finish the three manual steps it prints — offline launch, quarantine
 inheritance, and upgrade over the installed version. Those are the ones that

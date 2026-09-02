@@ -144,11 +144,14 @@ trap cleanup EXIT
 step() { printf '\n\033[1m==> %s\033[0m\n' "$*"; }
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
-# `stapler` ships with full Xcode, NOT the Command Line Tools, so a machine with
-# only CLT cannot run it. That is not a reason to fail: step A below (offline
-# spctl) is the stronger proof of stapling anyway, because a ticket that is
-# merely resolvable online passes an online check whether or not it is stapled
-# INTO the artifact.
+# `stapler` is not on PATH; `xcrun` resolves it from the active developer
+# directory. The Command Line Tools DO carry it — /Library/Developer/
+# CommandLineTools/usr/bin/stapler, alongside notarytool — so full Xcode is not
+# required, contrary to what #34 concluded from an older CLT that lacked it.
+# The fallback stays for a machine where it genuinely does not resolve: it is
+# not a reason to fail, because step A below (offline spctl) is the stronger
+# proof anyway — a ticket that is merely resolvable online passes an online
+# check whether or not it is stapled INTO the artifact.
 HAVE_STAPLER=0
 if xcrun --find stapler >/dev/null 2>&1; then HAVE_STAPLER=1; fi
 
@@ -189,7 +192,7 @@ spctl -a -t open --context context:primary-signature -vv "$DMG"
 if [ "$HAVE_STAPLER" -eq 1 ]; then
   xcrun stapler validate "$DMG" || fail "the dmg carries no stapled ticket. The builder staples it in finalize(); this is a pipeline defect, not the known .app gap."
 else
-  echo "SKIP: stapler needs full Xcode (this machine has Command Line Tools only)."
+  echo "SKIP: xcrun cannot resolve stapler on this machine."
   echo "      Step A below proves the .app half without it; the dmg half goes unchecked."
 fi
 
@@ -278,7 +281,7 @@ if [ "$HAVE_STAPLER" -eq 1 ]; then
   fi
 else
   APP_STAPLED=unknown
-  echo "SKIP: stapler needs full Xcode. Step A below proves this without it."
+  echo "SKIP: xcrun cannot resolve stapler here. Step A below proves this without it."
 fi
 
 step "10. Nested code: helpers, framework, sidecar"
@@ -494,7 +497,7 @@ case "$APP_STAPLED" in
      known limit, not a regression. It does not block a normal online upgrade;
      it IS what a user on a plane or behind a strict proxy hits, on every
      version they install. See RELEASING.md → Offline launch." ;;
-  *) STEP_A_EXPECT="Step 9 could not tell (no stapler on this machine), so this is the
+  *) STEP_A_EXPECT="Step 9 could not tell (stapler did not resolve here), so this is the
      only check that can." ;;
 esac
 
