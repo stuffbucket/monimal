@@ -15,18 +15,28 @@ every Apple secret; this repository only asks it to build a tag.
 
 | Owned here | Owned by the builder |
 | --- | --- |
-| [`.macos-builder/config`](.macos-builder/config) — what to build, what to call it | Top-level sign, `hdiutil` dmg, `notarytool`, `stapler`, `sha256` |
-| [`.macos-builder/build.sh`](.macos-builder/build.sh) — builds and inside-out signs the `.app`, nothing else | Uploading both assets onto the draft release |
+| [`.macos-builder/config`](.macos-builder/config) — what to build, what to call it, and which entitlements profile signs it | Every `codesign` call, `hdiutil` dmg, `notarytool`, `stapler`, `sha256` |
+| [`.macos-builder/build.sh`](.macos-builder/build.sh) — builds the `.app`, and nothing else | Uploading both assets onto the draft release |
 | [`.github/workflows/release.yml`](.github/workflows/release.yml) — tag → draft → dispatch → wait → verify | The Developer ID keychain, `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID` |
 
-The producer is handed `SIGN_IDENTITY` and an entitlements path. It is never
-handed `APPLE_*` or `KEYCHAIN_PASSWORD`.
+**This repository never signs anything.** The producer runs with the builder's
+signing keychain LOCKED and `SIGN_IDENTITY` set to the ad-hoc identity `-`, so
+it could not use the Developer ID even if it tried. It is never handed `APPLE_*`
+or `KEYCHAIN_PASSWORD` either.
 
-The `.app` is signed **here** rather than by the builder's top-level pass
-because an Electron bundle nests Helper apps and the Electron Framework, which
-must be signed inside-out. `@electron/osx-sign` does that during
-`electron-forge package`, gated on `SIGN_IDENTITY` in
-[`packages/maximal/client/forge.config.ts`](packages/maximal/client/forge.config.ts).
+An Electron bundle nests four Helper apps and the Electron Framework, and a
+bundle must be signed as a *directory* so the seal covers its `Info.plist` and
+structure. The builder does that with `sign_walk = bun-runtime` in
+[`.macos-builder/config`](.macos-builder/config): it signs every nested code
+item deepest-first with that profile, then seals the outer bundle. The client
+picks the profile **by name**; it cannot supply a path, so it cannot widen what
+it is signed with.
+
+This changed with the builder's producer-isolation work. It previously signed
+inside-out here, via `@electron/osx-sign` during `electron-forge package`. That
+is why `forge.config.ts` has no `osxSign` block: under the current contract it
+would fail, and failing is the intended outcome for a producer that tries to
+sign.
 
 `packages/maximal/.macos-builder/` is **not** part of this. It is a vendored
 fixture for the standalone `maximal` repository, targeting a different layout,

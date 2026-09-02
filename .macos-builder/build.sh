@@ -3,35 +3,42 @@ set -euo pipefail
 
 # monimal's PRODUCER for the private stuffbucket/macos-builder pipeline.
 #
-# Builds the inside-out-signed Electron client into an .app and leaves it at the
-# path .macos-builder/config names:
+# Builds the UNSIGNED Electron client into an .app and leaves it at the path
+# .macos-builder/config names:
 #   packages/maximal/client/out/Maximal-darwin-arm64/Maximal.app
 #
-# It does NOT build a dmg, notarize, staple, or write OUTPUT_DIR. The builder
-# owns that tail (lib/package-macos.sh: top-level sign without --deep → package
-# → notarize → staple → checksum → upload). This script is never handed APPLE_*
-# or KEYCHAIN_PASSWORD, and the keychain is already unlocked — do not unlock it.
+# THIS SCRIPT DOES NOT SIGN, and must not learn how. The builder runs it with the
+# signing keychain LOCKED and SIGN_IDENTITY set to the ad-hoc identity "-", so a
+# packager configured to sign fails with "No identity found for signing". That
+# failure is the point: untrusted client code can never reach the Developer ID.
 #
-# Why the .app is signed HERE and not by the builder's top-level pass: an
-# Electron bundle nests Helper apps and the Electron Framework, which must be
-# signed inside-out. A single top-level sign cannot reach them. @electron/osx-sign
-# does that pass during `electron-forge package`, gated on SIGN_IDENTITY in
-# packages/maximal/client/forge.config.ts. The builder's later top-level re-sign
-# just re-seals the outer bundle (no --deep, idempotent).
+# The builder owns every codesign call, plus the dmg, notarization, stapling,
+# checksum and upload. `sign_walk = bun-runtime` in .macos-builder/config tells
+# it to sign every nested code item deepest-first — the four Helper .apps and the
+# Electron Framework included, each sealed as a bundle — then seal the outer
+# bundle. See RELEASING.md.
 #
-# Builder-supplied env consumed: TAG, ARCH, SIGN_IDENTITY, ENTITLEMENTS_DIR,
-# BUN_INSTALL, CARGO_HOME. Node 24 + npm are already on PATH.
+# Builder-supplied env consumed: TAG, ARCH, BUN_INSTALL, CARGO_HOME. Node 24 and
+# npm are already on PATH. SIGN_IDENTITY and ENTITLEMENTS_DIR are also exported
+# and are deliberately UNUSED here.
 #
 # NOT to be confused with packages/maximal/.macos-builder/build.sh, which is a
 # vendored fixture for the standalone maximal repo (npm, client/ at the root).
 # The two target different layouts and must diverge. See SOURCES.md.
 
-# Self-hosted runners use non-login shells that do not read ~/.zshrc. Prepend
-# only what is actually set: "${BUN_INSTALL:-}/bin" collapses to "/bin" when the
-# variable is absent, which silently puts /bin ahead of everything else.
+# Self-hosted runners use non-login shells that do not read ~/.zshrc.
+#
+# /opt/homebrew/bin is APPENDED, never prepended. Prepending it puts Homebrew's
+# node ahead of the pinned Node the builder installs via actions/setup-node, and
+# the producer then silently builds on whatever major Homebrew happens to carry.
+# Caught locally: `node -v` reported 24.19.0 while this script saw 26.5.0.
+#
+# Prepend only what is actually set: "${BUN_INSTALL:-}/bin" collapses to "/bin"
+# when the variable is absent, silently putting /bin ahead of everything else.
+#
 # `if`, not `a && b`: under set -e a trailing AND-OR list whose test fails takes
 # its non-zero status with it, so the && form is safe only where it sits now.
-export PATH="/opt/homebrew/bin:$PATH"
+export PATH="$PATH:/opt/homebrew/bin"
 if [ -n "${CARGO_HOME:-}" ]; then export PATH="${CARGO_HOME}/bin:$PATH"; fi
 if [ -n "${BUN_INSTALL:-}" ]; then export PATH="${BUN_INSTALL}/bin:$PATH"; fi
 export TURBO_TELEMETRY_DISABLED=1
@@ -42,9 +49,7 @@ fail() { echo "::error::$*" >&2; exit 1; }
 # ---------------------------------------------------------------------------
 # 1. Inputs
 # ---------------------------------------------------------------------------
-[ -n "${TAG:-}" ]              || fail "TAG is empty; the builder must export the tag being built."
-[ -n "${SIGN_IDENTITY:-}" ]    || fail "SIGN_IDENTITY is empty; forge.config.ts would silently produce an UNSIGNED app."
-[ -n "${ENTITLEMENTS_DIR:-}" ] || fail "ENTITLEMENTS_DIR is empty; the builder must point at its enumerated entitlements."
+[ -n "${TAG:-}" ] || fail "TAG is empty; the builder must export the tag being built."
 
 VERSION="${TAG#v}"
 ARCH="${ARCH:-arm64}"
@@ -54,12 +59,6 @@ ARCH="${ARCH:-arm64}"
 # out/Maximal-darwin-<other>/ and the builder fails with "app not found" only
 # after the entire build has already run.
 [ "$ARCH" = "arm64" ] || fail "ARCH=${ARCH}; this producer is arm64-only."
-
-ENTITLEMENTS="${ENTITLEMENTS_DIR}/bun-runtime.entitlements"
-[ -f "$ENTITLEMENTS" ] || fail "Entitlements not found at ${ENTITLEMENTS} (config declares 'entitlements = bun-runtime')."
-# forge.config.ts throws at config load if SIGN_IDENTITY is set and this file is
-# missing; asserting here produces the readable error instead.
-export MACOS_ENTITLEMENTS="$ENTITLEMENTS"
 
 # Every path below is relative to the checkout root. If the builder ever runs
 # this from elsewhere they resolve somewhere else, silently.
@@ -102,6 +101,13 @@ echo "-----------------"
 # ---------------------------------------------------------------------------
 command -v bun >/dev/null \
   || fail "bun is not on PATH (BUN_INSTALL=${BUN_INSTALL:-unset}); the maximal-core sidecar cannot be compiled."
+# Node major must match .nvmrc. verify-workspace checks this too, but only after
+# a full install; failing here names the cause in one line instead.
+WANT_NODE="$(tr -d '[:space:]' < .nvmrc)"
+HAVE_NODE="$(node -p 'process.versions.node.split(".")[0]')"
+[ "$HAVE_NODE" = "$WANT_NODE" ] \
+  || fail "node ${HAVE_NODE}.x is on PATH but .nvmrc says ${WANT_NODE} (node: $(command -v node))."
+
 WANT_BUN="$(tr -d '[:space:]' < .bun-version)"
 HAVE_BUN="$(bun --version)"
 [ "$HAVE_BUN" = "$WANT_BUN" ] \
@@ -230,7 +236,6 @@ echo "Built bundle version: ${BUILT_VERSION} (expected ${VERSION})"
 
 BUNDLED_CORE="${APP}/Contents/Resources/bin/maximal-core"
 [ -f "$BUNDLED_CORE" ] || fail "Sidecar missing from the bundle: ${BUNDLED_CORE}."
-codesign --verify --strict --verbose=2 "$BUNDLED_CORE"
 
 # The sidecar must have been compiled from THIS commit, not restored from a
 # cache. Process substitution, not a pipe: `grep -q` exits at the first match and
@@ -241,20 +246,14 @@ SHA="$(git rev-parse HEAD)"
 grep -qF "$SHA" < <(strings "$BUNDLED_CORE") \
   || fail "Sidecar does not embed HEAD (${SHA}) — it was built from something else."
 
-# Full inside-out verification: helpers + Electron Framework + sidecar + app.
-codesign --verify --deep --strict --verbose=2 "$APP"
-
-# Prove it is a REAL Developer ID signature with the hardened runtime on. Without
-# these three, a bad signature is discovered by Apple's notary service minutes
-# later, as an opaque rejection with no local evidence.
-CS_OUT="$(codesign -dvv "$APP" 2>&1)"
-printf '%s\n' "$CS_OUT" | grep -E 'Identifier=|Authority=|TeamIdentifier=|flags=' || true
-printf '%s\n' "$CS_OUT" | grep -q 'Authority=Developer ID Application' \
-  || fail "Not Developer ID signed; notarization would be rejected."
-printf '%s\n' "$CS_OUT" | grep -q 'flags=.*runtime' \
-  || fail "Hardened runtime missing; notarization would be rejected."
-if printf '%s\n' "$CS_OUT" | grep -q 'Signature=adhoc'; then
-  fail "Ad-hoc signature reached the release path."
+# Isolation tripwire — the inverse of the assertion this replaced. The producer
+# MUST NOT be able to sign. A Developer ID signature on a bundle this script
+# built means the builder's keychain lock or its ad-hoc SIGN_IDENTITY has
+# regressed, and untrusted client code is reaching the signing identity.
+CS_OUT="$(codesign -dvv "$APP" 2>&1 || true)"
+printf '%s\n' "$CS_OUT" | grep -E 'Identifier=|Authority=|Signature=|flags=' || true
+if printf '%s\n' "$CS_OUT" | grep -q 'Authority=Developer ID Application'; then
+  fail "Producer output is Developer ID signed. It must not be able to sign — check the builder's keychain isolation."
 fi
 
-echo "Producer done — ${APP} is ready for the builder (top-level sign + dmg + notarize + staple + sha256)."
+echo "Producer done — ${APP} is unsigned and ready for the builder (sign_walk + top-level seal + dmg + notarize + staple + sha256)."
