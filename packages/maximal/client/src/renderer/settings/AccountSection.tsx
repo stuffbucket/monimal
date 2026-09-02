@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactElement } from 'react'
 
+import { Button, Note } from 'stuffbucket-electron/renderer'
+
 import { displayAccountLogin } from '../shared/account-login'
 import type { AuthStatus, SettingsCapabilities } from './capabilities'
 import { DeviceCodePanel } from './DeviceCodePanel'
@@ -105,27 +107,26 @@ export function AccountSection({ capabilities }: AccountSectionProps): ReactElem
         Account
       </h2>
 
-      {/* Assertive: a failed action needs to interrupt, not queue quietly
-          behind whatever the user is doing next. */}
+      {/* `live="assertive"` is the whole of what the hand-written note spelled
+          as role="alert" plus aria-live: a failed action needs to interrupt,
+          not queue quietly behind whatever the user is doing next. */}
       {error ? (
-        <p className="settings-note settings-note--error" role="alert" aria-live="assertive">
+        <Note status="failed" live="assertive">
           {error}
-        </p>
+        </Note>
       ) : null}
 
       {status === null ? (
-        <p className="settings-note" aria-live="polite">
-          Loading account status…
-        </p>
+        <Note live="polite">Loading account status…</Note>
       ) : status.state === 'unauthenticated' ? (
         <div className="settings-field">
-          <p className="settings-note">Not signed in.</p>
+          <Note>Not signed in.</Note>
           {status.last_upstream_rejection ? (
-            <p className="settings-note settings-note--warning">{status.last_upstream_rejection.message}</p>
+            <Note status="needs-approval">{status.last_upstream_rejection.message}</Note>
           ) : null}
-          <button type="button" className="settings-button settings-button--primary" onClick={handleStart} disabled={busy}>
+          <Button variant="primary" onClick={handleStart} disabled={busy}>
             {busy ? 'Starting…' : 'Sign in with GitHub'}
-          </button>
+          </Button>
         </div>
       ) : status.state === 'device_code_issued' || status.state === 'polling' ? (
         <DeviceCodePanel
@@ -156,29 +157,36 @@ export function AccountSection({ capabilities }: AccountSectionProps): ReactElem
             ) : null}
           </dl>
           {status.last_upstream_rejection ? (
-            <p className="settings-note settings-note--warning">{status.last_upstream_rejection.message}</p>
+            <Note status="needs-approval">{status.last_upstream_rejection.message}</Note>
           ) : null}
-          <button type="button" className="settings-button" onClick={handleSignOut} disabled={busy}>
+          <Button onClick={handleSignOut} disabled={busy}>
             {busy ? 'Signing out…' : 'Sign out'}
-          </button>
+          </Button>
         </div>
       ) : (
         // status.state === 'error'
         <div className="settings-field">
-          <p className="settings-note settings-note--error" role="alert" aria-live="assertive">
+          <Note status="failed" live="assertive">
             {status.error}
             {status.remediation_url ? (
               <>
                 {' '}
-                <button type="button" className="settings-link-button" onClick={() => handleOpenVerification(status.remediation_url ?? '')}>
+                {/* Stays a link, not a Button: it navigates to a remediation
+                    URL from inside a sentence, which is what
+                    `.settings-link-button` draws and what `Button` is not. */}
+                <button
+                  type="button"
+                  className="settings-link-button"
+                  onClick={() => handleOpenVerification(status.remediation_url ?? '')}
+                >
                   Learn more
                 </button>
               </>
             ) : null}
-          </p>
-          <button type="button" className="settings-button settings-button--primary" onClick={handleStart} disabled={busy}>
+          </Note>
+          <Button variant="primary" onClick={handleStart} disabled={busy}>
             {busy ? 'Starting…' : 'Try again'}
-          </button>
+          </Button>
         </div>
       )}
     </section>

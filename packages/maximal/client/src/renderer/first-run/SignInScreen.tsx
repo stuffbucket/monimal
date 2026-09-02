@@ -1,5 +1,7 @@
 import type { ReactElement } from 'react'
 
+import { Button, Note } from 'stuffbucket-electron/renderer'
+
 // Signed-out screen: the entry point into the device flow. One primary
 // heading, one primary action.
 
@@ -12,13 +14,13 @@ export function SignInScreen({ busy, onSignIn }: SignInScreenProps): ReactElemen
   return (
     <div className="first-run-screen">
       <h1 className="first-run-heading">Sign in to Maximal</h1>
-      <p className="first-run-note">
+      <Note>
         Maximal uses your GitHub account to authorize access. You'll get a code to enter on
         GitHub's site — nothing to type here.
-      </p>
-      <button type="button" className="first-run-button first-run-button--primary" onClick={onSignIn} disabled={busy}>
+      </Note>
+      <Button variant="primary" onClick={onSignIn} disabled={busy}>
         {busy ? 'Starting…' : 'Sign in with GitHub'}
-      </button>
+      </Button>
     </div>
   )
 }

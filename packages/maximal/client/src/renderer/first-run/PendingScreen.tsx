@@ -1,5 +1,7 @@
 import type { ReactElement } from 'react'
 
+import { Button, Note } from 'stuffbucket-electron/renderer'
+
 import { DeviceCode } from './DeviceCode'
 import { formatRemaining } from './model'
 
@@ -30,20 +32,15 @@ export function PendingScreen({
     <div className="first-run-screen">
       <h1 className="first-run-heading">Enter this code on GitHub</h1>
       <DeviceCode code={userCode} />
-      <button
-        type="button"
-        className="first-run-button first-run-button--primary"
-        onClick={() => onOpenVerification(verificationUri)}
-        disabled={busy}
-      >
+      <Button variant="primary" onClick={() => onOpenVerification(verificationUri)} disabled={busy}>
         Open {verificationUri}
-      </button>
+      </Button>
       {/* Polite: ongoing progress, never interrupts. */}
-      <p className="first-run-note" aria-live="polite">
+      <Note live="polite">
         {polling
           ? `Waiting for you to finish on GitHub… code expires in ${formatRemaining(remainingMs)}.`
           : `Code expires in ${formatRemaining(remainingMs)}.`}
-      </p>
+      </Note>
     </div>
   )
 }

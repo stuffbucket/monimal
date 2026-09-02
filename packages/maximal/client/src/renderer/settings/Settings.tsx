@@ -62,10 +62,14 @@ export function Settings({ capabilities }: SettingsProps): ReactElement {
 // ---- Styles ----
 //
 // Injected once on import, guarded by element id so HMR reloads don't pile up
-// duplicate <style> tags. Every component in this directory references these
-// classnames and declares none of its own, so there is one place to check for
-// drift. Values read the `--shell-*` contract with fallbacks, so a host that
-// defines no theme still renders something legible.
+// duplicate <style> tags. What is left here is this surface's own layout — the
+// page column, the rail, the section rhythm, the device-code and accounts
+// blocks. The controls inside them are the package's (`Note`, `Button`,
+// `CopyButton`), and they ship their own rules, so `.settings-note` and
+// `.settings-button` are gone rather than renamed. No component in this
+// directory declares a classname of its own, so there is still one place to
+// check for drift. Values read the `--shell-*` contract with fallbacks, so a
+// host that defines no theme still renders something legible.
 //
 // The page block is `settings-page`, not `settings`, and must stay that way.
 // The package's `SettingsPage` styles `.sb-shell .settings` as a header-plus-
@@ -170,20 +174,6 @@ const SETTINGS_CSS = `
   gap: var(--shell-space-2, 8px);
 }
 
-.settings-note {
-  margin: 0;
-  font-size: var(--shell-text-sm, 0.9em);
-  color: var(--shell-text-muted, #8a8a8a);
-}
-
-.settings-note--warning {
-  color: var(--shell-warning, #eab308);
-}
-
-.settings-note--error {
-  color: var(--shell-danger, #ef4444);
-}
-
 .settings-details {
   display: flex;
   flex-direction: column;
@@ -210,38 +200,6 @@ const SETTINGS_CSS = `
   color: var(--shell-text, #f5f5f5);
 }
 
-.settings-button {
-  padding: var(--shell-space-2, 8px) var(--shell-space-3, 12px);
-  border: 1px solid var(--shell-border, #2a2a2a);
-  border-radius: var(--shell-radius-small, 4px);
-  background: transparent;
-  color: var(--shell-text, #f5f5f5);
-  font: inherit;
-  font-size: var(--shell-text-sm, 0.9em);
-  cursor: pointer;
-  transition: background-color 150ms ease-out, border-color 150ms ease-out;
-}
-
-.settings-button:hover:not(:disabled) {
-  background: var(--shell-hover, rgb(255 255 255 / 0.04));
-}
-
-.settings-button:disabled {
-  cursor: default;
-  opacity: 0.6;
-}
-
-.settings-button--primary {
-  border-color: var(--shell-accent, #5198a6);
-  color: var(--shell-accent, #5198a6);
-}
-
-.settings-button:focus-visible,
-.settings-link-button:focus-visible {
-  outline: 2px solid var(--shell-focus, var(--shell-accent, #5198a6));
-  outline-offset: 2px;
-}
-
 .settings-link-button {
   padding: 0;
   border: none;
@@ -253,17 +211,16 @@ const SETTINGS_CSS = `
   cursor: pointer;
 }
 
+.settings-link-button:focus-visible {
+  outline: 2px solid var(--shell-focus, var(--shell-accent, #5198a6));
+  outline-offset: 2px;
+}
+
 .settings-device-code {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: var(--shell-space-2, 8px);
-}
-
-.settings-device-code__instructions {
-  margin: 0;
-  font-size: var(--shell-text-sm, 0.9em);
-  color: var(--shell-text-muted, #8a8a8a);
 }
 
 .settings-device-code__code {
@@ -279,12 +236,6 @@ const SETTINGS_CSS = `
 
 .settings-device-code__link-row {
   margin: 0;
-}
-
-.settings-device-code__status {
-  margin: 0;
-  font-size: var(--shell-text-sm, 0.9em);
-  color: var(--shell-text-muted, #8a8a8a);
 }
 
 .settings-device-code__actions {
@@ -367,12 +318,6 @@ const SETTINGS_CSS = `
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .settings-button {
-    transition-duration: 0.01ms;
-  }
 }
 `
 

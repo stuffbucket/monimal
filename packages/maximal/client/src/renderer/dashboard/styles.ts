@@ -8,6 +8,19 @@
 // (see RunCard.tsx's comment for the fallback-value rationale); this module
 // ships no palette of its own.
 //
+// What is left here is what the package has no component for: the scroll
+// container, the section rhythm, the two list shapes, and the in-page jump
+// rail. Everything that *was* a control — the placeholder strip, the status
+// pills, the notes, the retry button — is a package component now, and its
+// rules went with it.
+//
+// Nothing here names a status colour. `../theme.ts` maps every state this
+// application has to `--shell-status` once, so a rule that wants the status
+// colour reads that one name and needs no per-state rule: eight such rules
+// (four states, twice, once per class) came out of this file for one
+// declaration on `.dashboard-row__title` and two package controls that need
+// no rule at all.
+//
 // Deliberately no bordered "stat tile" grid here. `docs/design/failure-modes.md`
 // (Tauri shell, but the underlying aesthetic call generalizes) flags a page
 // that reads as a grid of similar rectangles as cards used for sectioning
@@ -15,19 +28,6 @@
 // list, separated by rules, not boxes in a grid.
 
 export const DASHBOARD_CSS = `
-.dashboard-banner {
-  display: flex;
-  align-items: baseline;
-  gap: var(--shell-space-2, 8px);
-  flex: none;
-  padding: var(--shell-space-2, 8px) var(--shell-space-4, 16px);
-  color: var(--shell-text, currentColor);
-  background: var(--shell-accent-muted, transparent);
-  border-bottom: 1px solid var(--shell-border, currentColor);
-  border-left: 3px solid var(--shell-warning, currentColor);
-  font-size: 0.9em;
-}
-
 .dashboard {
   display: flex;
   flex-direction: column;
@@ -43,12 +43,6 @@ export const DASHBOARD_CSS = `
   margin: 0 0 var(--shell-space-1, 4px);
   font-size: 1.15em;
   font-weight: 600;
-}
-
-.dashboard__subhead {
-  margin: 0;
-  color: var(--shell-text-subtle, currentColor);
-  font-size: 0.85em;
 }
 
 .dashboard__section {
@@ -67,12 +61,9 @@ export const DASHBOARD_CSS = `
   color: var(--shell-text-subtle, #6a6a6a);
 }
 
-.dashboard__empty-text {
-  margin: 0;
-  font-size: 13px;
-  color: var(--shell-text-muted, #8a8a8a);
-}
-
+/* Not a look — a Button in a flex column stretches to the column's width
+   without it. Everything else this rule used to carry, the focus ring
+   included, is \`.btn\`'s. */
 .dashboard-retry {
   align-self: flex-start;
 }
@@ -87,39 +78,21 @@ export const DASHBOARD_CSS = `
   list-style: none;
 }
 
+/* \`align-items\` keeps the chip under each figure a pill: it is a block-level
+   flex item here, and stretching it edge to edge stops it reading as one. */
 .dashboard-totals__item {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  align-items: flex-start;
+  gap: var(--shell-space-1, 4px);
   min-width: 6ch;
 }
 
 .dashboard-totals__figure {
-  display: flex;
-  align-items: baseline;
-  gap: var(--shell-space-1, 4px);
   font-size: 1.6em;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--shell-text, #f5f5f5);
-}
-
-.dashboard-totals__dot {
-  width: 8px;
-  height: 8px;
-  flex: none;
-  border-radius: 9999px;
-  background: currentcolor;
-}
-
-.dashboard-totals__item[data-status='running'] .dashboard-totals__figure { color: var(--shell-accent, #5198a6); }
-.dashboard-totals__item[data-status='needs-approval'] .dashboard-totals__figure { color: var(--shell-warning, #eab308); }
-.dashboard-totals__item[data-status='done'] .dashboard-totals__figure { color: var(--maximal-success, #22c55e); }
-.dashboard-totals__item[data-status='failed'] .dashboard-totals__figure { color: var(--shell-danger, #ef4444); }
-
-.dashboard-totals__label {
-  font-size: 12px;
-  color: var(--shell-text-muted, #8a8a8a);
 }
 
 /* ---- Project rollups & recently-finished: list rows, not cards ---- */
@@ -153,17 +126,9 @@ export const DASHBOARD_CSS = `
 .dashboard-row__counts {
   display: flex;
   flex: none;
-  gap: var(--shell-space-3, 12px);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-  color: var(--shell-text-muted, #8a8a8a);
-  white-space: nowrap;
+  align-items: baseline;
+  gap: var(--shell-space-2, 8px);
 }
-
-.dashboard-row__count[data-status='running'] { color: var(--shell-accent, #5198a6); }
-.dashboard-row__count[data-status='needs-approval'] { color: var(--shell-warning, #eab308); }
-.dashboard-row__count[data-status='done'] { color: var(--maximal-success, #22c55e); }
-.dashboard-row__count[data-status='failed'] { color: var(--shell-danger, #ef4444); }
 
 .dashboard-row--stacked {
   flex-direction: column;
@@ -171,19 +136,13 @@ export const DASHBOARD_CSS = `
   gap: 2px;
 }
 
+/* The one place this file reads the status mapping directly. It replaced
+   \`.dashboard-row__title[data-status='failed']\`, and it is why adding a fifth
+   outcome to \`selectRecentlyFinished\` needs no rule here. */
 .dashboard-row__title {
   font-size: 13px;
   font-weight: 600;
-  color: var(--shell-text, #f5f5f5);
-}
-
-.dashboard-row__activity {
-  font-size: 12px;
-  color: var(--shell-text-muted, #8a8a8a);
-}
-
-.dashboard-row__title[data-status='failed'] {
-  color: var(--shell-danger, #ef4444);
+  color: var(--shell-status, var(--shell-text, #f5f5f5));
 }
 
 .dashboard-row__meta {
@@ -229,7 +188,7 @@ export const DASHBOARD_CSS = `
   gap: 4px;
   padding: var(--shell-space-2, 8px) var(--shell-space-3, 12px);
   border: 1px solid var(--shell-border, #2a2a2a);
-  border-left: 3px solid var(--shell-warning, #eab308);
+  border-left: 3px solid var(--shell-status, var(--shell-border, #2a2a2a));
   border-radius: var(--shell-radius-small, 4px);
   background: var(--shell-canvas, transparent);
 }
@@ -239,16 +198,6 @@ export const DASHBOARD_CSS = `
   font-weight: 600;
   line-height: 1.35;
   color: var(--shell-text, #f5f5f5);
-}
-
-.dashboard-waiting__meta {
-  font-size: 11px;
-  color: var(--shell-text-subtle, #6a6a6a);
-}
-
-.dashboard-waiting__blocked {
-  font-size: 12px;
-  color: var(--shell-text-muted, #8a8a8a);
 }
 
 /* ---- Left rail "on this page" nav (plain, honest — no filter it can't perform) ---- */
@@ -302,9 +251,7 @@ export const DASHBOARD_CSS = `
   color: var(--shell-text-subtle, #6a6a6a);
 }
 
-.dashboard-jump__link:focus-visible,
-.dashboard-retry :focus-visible,
-button.dashboard-retry:focus-visible {
+.dashboard-jump__link:focus-visible {
   outline: 2px solid var(--shell-focus, var(--shell-accent, #5198a6));
   outline-offset: 2px;
 }

@@ -1,5 +1,7 @@
 import { useEffect, useState, type ReactElement } from 'react'
 
+import { Button, Note } from 'stuffbucket-electron/renderer'
+
 import { spellOutCode } from '../shared/device-code'
 import { hasExpired, minutesRemaining } from './format'
 
@@ -48,9 +50,9 @@ export function DeviceCodePanel({
 
   return (
     <div className="settings-device-code">
-      <p className="settings-device-code__instructions">
-        Enter this code on GitHub to finish signing in:
-      </p>
+      {/* Was `.settings-device-code__instructions`, whose four declarations
+          were `.settings-note`'s four declarations under another name. */}
+      <Note>Enter this code on GitHub to finish signing in:</Note>
       {/* Visual rendering: hidden from assistive tech so it isn't announced
           twice alongside the spelled-out version below. `aria-label` on a
           role-less `<p>` is prohibited by ARIA-in-HTML and silently dropped
@@ -62,28 +64,31 @@ export function DeviceCodePanel({
       {/* What a screen reader actually announces: discrete characters, with
           "-" replaced by the word "dash" — the same spelling first-run uses,
           via the shared `spellOutCode` helper, so the code reads identically
-          in both surfaces. */}
+          in both surfaces. Not a Note: a Note is a visible sentence, and this
+          one exists only to be read aloud. */}
       <p className="settings-visually-hidden">Verification code: {spellOutCode(status.user_code)}</p>
       <p className="settings-device-code__link-row">
+        {/* Stays a link, not a Button: it opens the verification URL and its
+            label *is* that URL. */}
         <button type="button" className="settings-link-button" onClick={onOpenVerification} disabled={busy}>
           Open {status.verification_uri}
         </button>
       </p>
       {/* Polite: this is progress narration, not a blocking error. */}
-      <p className="settings-device-code__status" aria-live="polite">
+      <Note live="polite">
         {expired
           ? 'This code has expired.'
           : `Waiting for you to finish on GitHub… code expires in ${String(minutesLeft)} minute${minutesLeft === 1 ? '' : 's'}.`}
-      </p>
+      </Note>
       <div className="settings-device-code__actions">
         {expired ? (
-          <button type="button" className="settings-button settings-button--primary" onClick={onRequestNewCode} disabled={busy}>
+          <Button variant="primary" onClick={onRequestNewCode} disabled={busy}>
             {busy ? 'Requesting…' : 'Get a new code'}
-          </button>
+          </Button>
         ) : null}
-        <button type="button" className="settings-button" onClick={onCancel} disabled={busy}>
+        <Button onClick={onCancel} disabled={busy}>
           Cancel sign-in
-        </button>
+        </Button>
       </div>
     </div>
   )

@@ -1,5 +1,7 @@
 import { useEffect, useState, type ReactElement } from 'react'
 
+import { CopyButton, Note } from 'stuffbucket-electron/renderer'
+
 import type { SettingsCapabilities } from './capabilities'
 import { describeError } from './format'
 
@@ -12,15 +14,9 @@ interface ConnectionSectionProps {
   capabilities: SettingsCapabilities
 }
 
-/** How long the "Copied" confirmation stays up before reverting to the plain
- *  "Copy" label. Not an animation — just text — so it needs no
- *  reduced-motion handling. */
-const COPIED_RESET_MS = 2000
-
 export function ConnectionSection({ capabilities }: ConnectionSectionProps): ReactElement {
   const [proxyUrl, setProxyUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     let settled = false
@@ -50,52 +46,30 @@ export function ConnectionSection({ capabilities }: ConnectionSectionProps): Rea
     }
   }, [capabilities])
 
-  useEffect(() => {
-    if (!copied) return
-    const timer = setTimeout(() => setCopied(false), COPIED_RESET_MS)
-    return () => clearTimeout(timer)
-  }, [copied])
-
   const endpoint = proxyUrl ? `${proxyUrl}/v1` : null
-
-  const handleCopy = () => {
-    if (!endpoint) return
-    void navigator.clipboard
-      .writeText(endpoint)
-      .then(() => setCopied(true))
-      .catch(() => {
-        // Clipboard access can fail (permissions, headless CI, etc.); the
-        // endpoint is still selectable text in the field below, so this is
-        // not a blocking failure — no error surfaced.
-      })
-  }
 
   return (
     <section className="settings-section" aria-labelledby="settings-connection-heading">
       <h2 id="settings-connection-heading" className="settings-section__heading">
         Connection
       </h2>
-      <p className="settings-note">Point OpenAI-compatible clients at this address.</p>
+      <Note>Point OpenAI-compatible clients at this address.</Note>
 
       {error ? (
-        <p className="settings-note settings-note--error" role="alert" aria-live="assertive">
+        <Note status="failed" live="assertive">
           {error}
-        </p>
+        </Note>
       ) : endpoint === null ? (
-        <p className="settings-note" aria-live="polite">
-          Loading connection details…
-        </p>
+        <Note live="polite">Loading connection details…</Note>
       ) : (
         <div className="settings-connection-row">
           <code className="settings-connection-row__value">{endpoint}</code>
-          <button type="button" className="settings-button" onClick={handleCopy}>
-            {copied ? 'Copied' : 'Copy'}
-          </button>
-          {/* Polite live region announces the confirmation without stealing
-              focus from the button that just fired it. */}
-          <span className="settings-visually-hidden" aria-live="polite">
-            {copied ? 'Copied to clipboard' : ''}
-          </span>
+          {/* CopyButton owns the whole interaction: the write, the label
+              flipping to the catalogue's word for "copied", the timeout that
+              flips it back, and the accessible name that says *what* was
+              copied so four copy buttons in one dialog are told apart. All of
+              that was hand-rolled here, minus the last part. */}
+          <CopyButton text={endpoint} about="the endpoint address" testId="connection-copy" />
         </div>
       )}
     </section>

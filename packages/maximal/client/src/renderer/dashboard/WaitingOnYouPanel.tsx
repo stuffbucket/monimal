@@ -1,5 +1,7 @@
 import type { ReactElement } from 'react'
 
+import { Note } from 'stuffbucket-electron/renderer'
+
 import { type AgentRun, formatElapsed } from '../workspace/model'
 
 // The right-rail "waiting on you" queue — the fleet-wide default the
@@ -11,7 +13,13 @@ import { type AgentRun, formatElapsed } from '../workspace/model'
 //
 // Each run's blocker is its own `activity` string (e.g. "Waiting for
 // approval to run: npm test") — the same text RunCard and Inspector show —
-// so this queue never states a fact the rest of the UI doesn't back up.
+// so this queue never states a fact the rest of the UI doesn't back up. It is
+// a `Note` with the run's state on it, so ../theme.ts's `--shell-status`
+// mapping tints it and this surface names no colour.
+//
+// `data-status` on the entry does the same job for its left edge: one rule
+// reading `--shell-status` instead of a hardcoded `--shell-warning` that
+// would have to be duplicated the day a second kind of entry joins the queue.
 
 interface WaitingOnYouPanelProps {
   runs: readonly AgentRun[]
@@ -22,16 +30,16 @@ export function WaitingOnYouPanel({ runs }: WaitingOnYouPanelProps): ReactElemen
     <aside className="dashboard-waiting" aria-label="Waiting on you">
       <h2 className="dashboard__section-heading">Waiting on you ({runs.length})</h2>
       {runs.length === 0 ? (
-        <p className="dashboard__empty-text">Nothing needs your approval right now.</p>
+        <Note>Nothing needs your approval right now.</Note>
       ) : (
         <ul className="dashboard-waiting__list">
           {runs.map((run) => (
-            <li className="dashboard-waiting__item" key={run.id}>
+            <li className="dashboard-waiting__item" data-status="needs-approval" key={run.id}>
               <span className="dashboard-waiting__title">{run.title}</span>
-              <span className="dashboard-waiting__meta">
+              <Note>
                 {run.project} · {formatElapsed(run.elapsedMs)} elapsed
-              </span>
-              <span className="dashboard-waiting__blocked">{run.activity}</span>
+              </Note>
+              <Note status="needs-approval">{run.activity}</Note>
             </li>
           ))}
         </ul>

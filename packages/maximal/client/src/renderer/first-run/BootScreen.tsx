@@ -1,5 +1,7 @@
 import type { ReactElement } from 'react'
 
+import { Note } from 'stuffbucket-electron/renderer'
+
 import type { BootPhase } from './capabilities'
 
 // The waiting-for-core screen. Renders every `BootPhase` variant, all of
@@ -25,16 +27,17 @@ export function BootScreen({ boot }: BootScreenProps): ReactElement {
   return (
     <div className="first-run-screen">
       <h1 className="first-run-heading">Starting Maximal</h1>
-      <p
-        className={isProblem ? 'first-run-note first-run-note--error' : 'first-run-note'}
-        // Progress narration is polite; a boot failure is promoted to an
-        // assertive alert so it interrupts rather than sits quietly under a
-        // spinner that will never resolve.
-        aria-live={isProblem ? undefined : 'polite'}
-        role={isProblem ? 'alert' : undefined}
-      >
+      {/*
+       * `live` rather than a hand-written `role`/`aria-live` pair. Progress
+       * narration is polite; a boot failure is promoted to an assertive alert
+       * so it interrupts rather than sits quietly under a spinner that will
+       * never resolve. `status` carries the colour through `data-status`,
+       * which theme.ts maps to `--shell-status` — the same red the deleted
+       * `.first-run-note--error` painted, stated once instead of per surface.
+       */}
+      <Note status={isProblem ? 'failed' : undefined} live={isProblem ? 'assertive' : 'polite'}>
         {message}
-      </p>
+      </Note>
       {!isProblem ? <BootSpinner /> : null}
     </div>
   )
@@ -62,7 +65,8 @@ function describeBoot(boot: BootPhase): string {
 }
 
 /** Purely decorative — `aria-hidden` and gated by `prefers-reduced-motion`
- *  via CSS (see FirstRun.tsx's injected styles). */
+ *  via CSS (see FirstRun.tsx's injected styles). The package publishes no
+ *  spinner, meter or progress indicator, so this stays hand-written. */
 function BootSpinner(): ReactElement {
   return <div className="first-run-spinner" aria-hidden="true" />
 }

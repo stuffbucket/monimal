@@ -196,8 +196,14 @@ test('chrome text is not near-invisible against its background', async () => {
       ]
     : [
         { locator: window.locator('.first-run-heading'), label: 'first-run heading' },
-        { locator: window.locator('.first-run-note').first(), label: 'first-run note' },
-        { locator: window.locator('.first-run-button--primary'), label: 'first-run primary button' },
+        // `.note` and `.btn--primary`, not `.first-run-note` and
+        // `.first-run-button--primary`. First run composes the package's `Note`
+        // and `Button` now, and those two classes are gone. Left as they were,
+        // this branch would have kept passing on the heading alone and quietly
+        // dropped from three contrast checks to one — the count is not
+        // asserted, only that something was checked.
+        { locator: window.locator('.sb-shell .note').first(), label: 'first-run note' },
+        { locator: window.locator('.sb-shell .btn--primary').first(), label: 'first-run primary button' },
       ]
 
   let checked = 0
@@ -213,8 +219,12 @@ test("a focused chrome control's outline actually resolves", async () => {
   // `outline: 2px solid var(--shell-focus, var(--shell-accent))` is invalid at
   // computed-value time when neither property is defined (CSS Custom Properties
   // §3.2), and an invalid declaration computes to `outline: none` — silently,
-  // on every focusable shell control at once. First-run's primary button
-  // carries the same rule shape, so either target exercises it.
+  // on every focusable shell control at once.
+  //
+  // The signed-out branch used to target first run's own hand-rolled button,
+  // which merely copied that rule shape. It now targets the package's `.btn`,
+  // because first run composes `Button` — so both branches exercise the real
+  // `.btn:focus-visible`, which is what this test was always about.
   const window = await running.app.firstWindow()
   // The panel toggle, not the frame root: first-run mounts a `.sb-shell.app`
   // too, so only the toggle — which the three-panel shell alone renders —
@@ -226,7 +236,7 @@ test("a focused chrome control's outline actually resolves", async () => {
 
   const target = packageChromeVisible
     ? window.locator('.sb-shell.app .icon-button[data-testid="toggle-left"]')
-    : window.locator('.first-run-button--primary')
+    : window.locator('.sb-shell .btn--primary').first()
   const label = packageChromeVisible ? 'titlebar icon button' : 'first-run primary button'
 
   await expect(target).toBeVisible()

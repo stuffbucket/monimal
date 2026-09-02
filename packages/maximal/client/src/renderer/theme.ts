@@ -86,6 +86,42 @@ const THEME_CSS = `
   --shell-warning: #eab308;
   --maximal-success: #22c55e;
 }
+
+/*
+ * The status mapping, which is the host's half of the package's status
+ * contract and belongs here rather than in each surface.
+ *
+ * StatusChip, Note, Banner and Callout all pass their state straight through
+ * to data-status and read --shell-status for the colour; the package defines
+ * no states, so what a state means is ours to say. Saying it once here makes
+ * every one of those controls work everywhere, in the states this application
+ * actually has.
+ *
+ * It replaces eight hand-written colour rules that said the same four things
+ * twice, once per class, in dashboard/styles.ts -- which is the shape of the
+ * problem: a per-class colour rule has to be rewritten for every new class,
+ * and a mapping does not.
+ */
+.sb-shell [data-status='running'] {
+  --shell-status: var(--shell-accent);
+  --shell-status-muted: var(--shell-accent-muted);
+}
+
+.sb-shell [data-status='needs-approval'] {
+  --shell-status: var(--shell-warning);
+  --shell-status-muted: rgb(234 179 8 / 0.12);
+}
+
+.sb-shell [data-status='done'] {
+  --shell-status: var(--maximal-success);
+  --shell-status-muted: rgb(34 197 94 / 0.12);
+}
+
+.sb-shell [data-status='failed'],
+.sb-shell [data-status='blocked'] {
+  --shell-status: var(--shell-danger);
+  --shell-status-muted: rgb(239 68 68 / 0.12);
+}
 `
 
 const THEME_STYLE_ID = 'maximal-theme'

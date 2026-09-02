@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
+import { Button, Note } from 'stuffbucket-electron/renderer'
 import 'stuffbucket-electron/renderer/styles.css'
 
 import { SurfaceRail, SurfaceRight, SurfaceStatus, SurfaceTop, useTabTriggerId } from '../frame/AppFrame'
@@ -127,11 +128,13 @@ export function Dashboard({ source }: { source: WorkspaceSource }) {
   const rightContent =
     loading ? (
       <aside className="dashboard-waiting" aria-label="Waiting on you">
-        <p className="dashboard__empty-text">Loading…</p>
+        <Note live="polite">Loading…</Note>
       </aside>
     ) : error !== null ? (
       <aside className="dashboard-waiting" aria-label="Waiting on you">
-        <p className="dashboard__empty-text">Couldn&rsquo;t load the fleet.</p>
+        <Note status="failed" live="assertive">
+          Couldn&rsquo;t load the fleet.
+        </Note>
       </aside>
     ) : (
       <WaitingOnYouPanel runs={waitingOnYou} />
@@ -170,33 +173,33 @@ export function Dashboard({ source }: { source: WorkspaceSource }) {
           <h1 id={headingId} className="dashboard__heading">
             Fleet overview
           </h1>
-          <p className="dashboard__subhead">
+          <Note>
             {statusCounts.all} {statusCounts.all === 1 ? 'run' : 'runs'} across {data.projects.length}{' '}
             {data.projects.length === 1 ? 'project' : 'projects'}
             {isPlaceholder ? ' · placeholder data' : ''}
-          </p>
+          </Note>
         </header>
 
         {loading ? (
-          <p className="dashboard__empty-text">Loading fleet…</p>
+          <Note live="polite">Loading fleet…</Note>
         ) : error !== null ? (
           <>
-            <p className="dashboard__empty-text">
+            <Note status="failed" live="assertive">
               <strong>Couldn&rsquo;t load the fleet.</strong> {error}
-            </p>
-            <button
-              type="button"
-              className="dashboard-retry"
-              onClick={() => setReloadKey((key) => key + 1)}
-            >
+            </Note>
+            {/* An action, so a Button. `.dashboard-retry` survives as the one
+                declaration the package cannot supply: this column is a flex
+                column, and without `align-self` a Button stretches across it.
+                The focus ring it used to carry is `.btn:focus-visible` now. */}
+            <Button className="dashboard-retry" onClick={() => setReloadKey((key) => key + 1)}>
               Try again
-            </button>
+            </Button>
           </>
         ) : data.runs.length === 0 ? (
-          <p className="dashboard__empty-text">
+          <Note>
             <strong>No agent runs yet.</strong> Runs appear here — with their status, project, and
             what they're doing — as soon as agents start work.
-          </p>
+          </Note>
         ) : (
           <>
             <div className="dashboard__section" id={SECTION_TOTALS} ref={totalsRef}>

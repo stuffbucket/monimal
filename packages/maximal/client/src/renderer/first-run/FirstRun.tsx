@@ -1,5 +1,7 @@
 import type { ReactElement } from 'react'
 
+import { Note } from 'stuffbucket-electron/renderer'
+
 import { AuthorizedScreen } from './AuthorizedScreen'
 import { BootScreen } from './BootScreen'
 import { assertNever } from './model'
@@ -31,9 +33,7 @@ export function FirstRun(): ReactElement {
       return (
         <div className="first-run-screen">
           <h1 className="first-run-heading">Maximal</h1>
-          <p className="first-run-note" aria-live="polite">
-            Checking sign-in status…
-          </p>
+          <Note live="polite">Checking sign-in status…</Note>
         </div>
       )
 
@@ -94,13 +94,28 @@ export function FirstRun(): ReactElement {
 // ---- Styles ----
 //
 // Injected once on import (guarded by element id so Vite HMR reloads don't
-// pile up duplicate <style> tags — same pattern as workspace/RunCard.tsx and
-// settings/Settings.tsx). Every screen component in this directory only
-// references these classnames; this file is the single place the rules are
-// declared. Values reference the `--shell-*` custom-property contract
-// `stuffbucket-electron` publishes, with the same "sensible fallback" idiom
-// used elsewhere in this app — this package ships no palette by design.
+// pile up duplicate <style> tags). Every screen component in this directory
+// only references these classnames; this file is the single place the rules
+// are declared.
+//
+// What is left is what `stuffbucket-electron/renderer` publishes no component
+// for. `Note` took the two note rules; `Button` took the five button rules,
+// the link-button rule and the shared focus outline with them — and with them
+// the `.sb-shell` prefix they carried to out-specify the package's own
+// `button` reset. That prefix was never load-bearing: the package ships every
+// rule inside `@layer sb-shell.base`, and an unlayered rule outranks a layered
+// one whatever its specificity, so these rules already won. It is moot either
+// way now, because the button is the package's.
+//
+// The rest of this file is the gap list: a screen column, a page heading, a
+// row of actions, a big monospace value, a screen-reader-only utility, and a
+// spinner.
 const FIRST_RUN_CSS = `
+/*
+ * The screen: a narrow centred column. The package has no page or screen
+ * layout primitive — ShellLayout is the window frame and Callout is a
+ * region inside content — so this stays.
+ */
 .first-run-screen {
   display: flex;
   flex-direction: column;
@@ -112,77 +127,24 @@ const FIRST_RUN_CSS = `
   color: var(--shell-text, #f5f5f5);
 }
 
+/*
+ * The one <h1> per screen. The package publishes no heading: Toolbar will
+ * render one but drags a view-mode switch in with it, and Callout's and
+ * InspectorPanel's titles are both 11px uppercase eyebrows.
+ */
 .first-run-heading {
   margin: 0;
   font-size: 1.4em;
   font-weight: 600;
 }
 
-.first-run-note {
-  margin: 0;
-  font-size: 0.95em;
-  color: var(--shell-text-muted, #8a8a8a);
-}
-
-.first-run-note--error {
-  color: var(--shell-danger, #ef4444);
-}
-
+/* A row of actions. Callout has an actions slot for exactly this, but it
+   comes attached to a titled region, and these screens already have their
+   heading. */
 .first-run-actions {
   display: flex;
   gap: var(--shell-space-2, 8px);
   align-items: center;
-}
-
-/*
- * Prefixed with .sb-shell, and it has to be. These screens render inside the
- * shell frame now, and the package resets every button in it: its
- * .sb-shell button rule sets background, border, padding and colour, at a
- * specificity of one class plus one type. A bare .first-run-button is one
- * class and loses, which strips these buttons back to plain text. Two
- * classes wins.
- */
-.sb-shell .first-run-button {
-  padding: var(--shell-space-2, 8px) var(--shell-space-4, 16px);
-  border: 1px solid var(--shell-border, #2a2a2a);
-  border-radius: var(--shell-radius-small, 4px);
-  background: transparent;
-  color: var(--shell-text, #f5f5f5);
-  font: inherit;
-  font-size: 0.95em;
-  cursor: pointer;
-  transition: background-color 150ms ease-out, border-color 150ms ease-out;
-}
-
-.sb-shell .first-run-button:hover:not(:disabled) {
-  background: var(--shell-hover, rgb(255 255 255 / 0.04));
-}
-
-.sb-shell .first-run-button:disabled {
-  cursor: default;
-  opacity: 0.6;
-}
-
-.sb-shell .first-run-button--primary {
-  border-color: var(--shell-accent, #5198a6);
-  color: var(--shell-accent, #5198a6);
-}
-
-.sb-shell .first-run-button:focus-visible,
-.sb-shell .first-run-link-button:focus-visible {
-  outline: 2px solid var(--shell-focus, var(--shell-accent, #5198a6));
-  outline-offset: 2px;
-}
-
-.sb-shell .first-run-link-button {
-  padding: 0;
-  border: none;
-  background: none;
-  color: var(--shell-accent, #5198a6);
-  font: inherit;
-  font-size: inherit;
-  text-decoration: underline;
-  cursor: pointer;
 }
 
 .first-run-device-code {
@@ -192,17 +154,22 @@ const FIRST_RUN_CSS = `
   gap: var(--shell-space-2, 8px);
 }
 
+/* The device code itself: one large monospace value, read off a screen and
+   typed into another device. Nothing published is close — Field is a 13px
+   label/value row and Tag is a pill. */
 .first-run-device-code__code {
   margin: 0;
   padding: var(--shell-space-2, 8px) var(--shell-space-4, 16px);
   border-radius: var(--shell-radius, 6px);
   background: var(--shell-hover, rgb(255 255 255 / 0.06));
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  font-family: var(--shell-font-mono, ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace);
   font-size: 1.6em;
   font-weight: 700;
   letter-spacing: 0.08em;
 }
 
+/* The package has this rule — .tab__close-keyboard — but does not publish it
+   under a name a consumer can use, so every consumer writes it again. */
 .first-run-visually-hidden {
   position: absolute;
   width: 1px;
@@ -215,6 +182,7 @@ const FIRST_RUN_CSS = `
   border: 0;
 }
 
+/* No published spinner, progress bar or meter. */
 .first-run-spinner {
   width: 20px;
   height: 20px;
@@ -231,9 +199,6 @@ const FIRST_RUN_CSS = `
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sb-shell .first-run-button {
-    transition-duration: 0.01ms;
-  }
   .first-run-spinner {
     animation: none;
     /* A static ring still communicates "in progress" without motion. */
