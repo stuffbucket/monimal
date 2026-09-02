@@ -428,66 +428,71 @@ else
   echo "OK: ${TAG} is an upgrade of ${PREV} — same identifier, same designated requirement, higher build."
 fi
 
-step "13. The updater artifact"
-# `artifact = dmg,updater` in the contract adds a gzipped tar of the .app plus a
-# detached Ed25519 signature. Two things make it worth checking here rather than
-# trusting: it is what any future in-app updater installs, and unlike the dmg's
-# copy it is expected to carry its own stapled ticket.
-UPDATER_TMPL="$(cfg_get updater_name "$CFG")"
+step "13. The zip artifact"
+# `artifact = dmg,zip` in the contract adds the .app in a ditto archive — the
+# shape Squirrel.Mac installs, and what an in-app updater here would consume.
+# Two things make it worth checking rather than trusting: nothing downstream
+# re-verifies it (an updater unpacks it and swaps it in, having already moved
+# the running app aside), and it must be the same app the dmg ships.
+ZIP_TMPL="$(cfg_get zip_name "$CFG")"
 case ",$(printf '%s' "$(cfg_get artifact "$CFG")" | tr -d '[:space:]')," in
-  *,updater,*) WANT_UPDATER=1 ;;
-  *)           WANT_UPDATER=0 ;;
+  *,zip,*) WANT_ZIP=1 ;;
+  *)       WANT_ZIP=0 ;;
 esac
 
-if [ "$WANT_UPDATER" -eq 0 ]; then
-  echo "SKIPPED: the contract at ${TAG} does not request an updater artifact."
+if [ "$WANT_ZIP" -eq 0 ]; then
+  echo "SKIPPED: the contract at ${TAG} does not request a zip artifact."
 else
-  [ -n "$UPDATER_TMPL" ] \
-    || fail "the contract at ${TAG} lists artifact=updater but names no updater_name."
-  UPDATER="$(expand_name "$UPDATER_TMPL" "$TAG")"
-  echo "updater: ${UPDATER}"
+  [ -n "$ZIP_TMPL" ] \
+    || fail "the contract at ${TAG} lists artifact=zip but names no zip_name."
+  ZIP="$(expand_name "$ZIP_TMPL" "$TAG")"
+  echo "zip: ${ZIP}"
   gh release download "$TAG" --repo "$REPO" \
-    --pattern "$UPDATER" --pattern "${UPDATER}.sha256" --pattern "${UPDATER}.sig" --clobber
+    --pattern "$ZIP" --pattern "${ZIP}.sha256" --clobber
 
-  HAVE_U="$(shasum -a 256 "$UPDATER" | awk '{print $1}')"
-  grep -qi "$HAVE_U" "${UPDATER}.sha256" || fail "sha256 mismatch for ${UPDATER}."
-  [ -s "${UPDATER}.sig" ] || fail "${UPDATER}.sig is empty; the Ed25519 signature is what a client verifies before swapping the bundle in."
-  echo "OK: checksum matches, signature file present."
+  HAVE_Z="$(shasum -a 256 "$ZIP" | awk '{print $1}')"
+  grep -qi "$HAVE_Z" "${ZIP}.sha256" || fail "sha256 mismatch for ${ZIP}."
+  echo "OK: checksum matches."
 
-  mkdir -p unpack
-  tar -xzf "$UPDATER" -C unpack
-  U_APP="unpack/${APP_NAME}"
-  [ -d "$U_APP" ] || fail "no ${APP_NAME} at the root of ${UPDATER}."
+  # ditto, not unzip: the archive stores a bundle's symlinks and extended
+  # attributes, and unpacking with anything else materialises a framework's
+  # Versions/Current as a directory — which invalidates the signature. That is
+  # the same reason the builder writes it with ditto.
+  rm -rf unpack-zip && mkdir -p unpack-zip
+  /usr/bin/ditto -x -k "$ZIP" unpack-zip
+  Z_APP="unpack-zip/${APP_NAME}"
+  [ -d "$Z_APP" ] || fail "no ${APP_NAME} at the root of ${ZIP}."
 
-  # Same code and same identity as the dmg ships. A tarball signed by a
-  # different identity would install and then fail to launch, or silently
-  # replace the app with something the user never trusted.
-  codesign --verify --deep --strict --verbose=2 "$U_APP"
-  codesign -dvv "$U_APP" 2>u-sig.txt || true
-  grep -q 'Authority=Developer ID Application' u-sig.txt \
-    || fail "the app inside ${UPDATER} is not Developer ID signed."
-  grep -q 'flags=.*runtime' u-sig.txt \
-    || fail "the app inside ${UPDATER} has no hardened runtime."
-  codesign -d -r- "$U_APP" 2>/dev/null | sed -n 's/^designated => //p' > dr-updater.txt
-  if ! diff -q dr-new.txt dr-updater.txt >/dev/null; then
-    diff dr-new.txt dr-updater.txt >&2 || true
-    fail "the app in ${UPDATER} has a different designated requirement from the one in ${DMG}. The two artifacts of one release must be the same app."
+  # Same code and same identity as the dmg ships.
+  codesign --verify --deep --strict --verbose=2 "$Z_APP"
+  codesign -dvv "$Z_APP" 2>z-sig.txt || true
+  grep -q 'Authority=Developer ID Application' z-sig.txt \
+    || fail "the app inside ${ZIP} is not Developer ID signed."
+  grep -q 'flags=.*runtime' z-sig.txt \
+    || fail "the app inside ${ZIP} has no hardened runtime."
+  codesign -d -r- "$Z_APP" 2>/dev/null | sed -n 's/^designated => //p' > dr-zip.txt
+  if ! diff -q dr-new.txt dr-zip.txt >/dev/null; then
+    diff dr-new.txt dr-zip.txt >&2 || true
+    fail "the app in ${ZIP} has a different designated requirement from the one in ${DMG}. The two artifacts of one release must be the same app."
   fi
   echo "OK: same Developer ID, hardened runtime, and designated requirement as the dmg."
 
-  # The reason this artifact exists. The builder staples the bundle on its
-  # updater path, so unlike the dmg's copy this one must carry its ticket.
+  # An updater swaps this in with no network guarantee, so the ticket has to be
+  # in the bundle rather than resolvable.
   if [ "$HAVE_STAPLER" -eq 1 ]; then
-    xcrun stapler validate "$U_APP" \
-      || fail "the app inside ${UPDATER} carries no stapled ticket, which is this artifact's whole purpose — an update swapped in offline would be refused."
+    xcrun stapler validate "$Z_APP" \
+      || fail "the app inside ${ZIP} carries no stapled ticket — an update swapped in offline would be refused."
   else
     # Same proof without stapler: Contents/CodeResources at the BUNDLE ROOT is
-    # the ticket, and is a different file from Contents/_CodeSignature/CodeResources.
-    [ -e "${U_APP}/Contents/CodeResources" ] \
-      || fail "the app inside ${UPDATER} has no Contents/CodeResources, so it carries no stapled ticket."
+    # the ticket, distinct from Contents/_CodeSignature/CodeResources.
+    [ -e "${Z_APP}/Contents/CodeResources" ] \
+      || fail "the app inside ${ZIP} has no Contents/CodeResources, so it carries no stapled ticket."
     echo "(stapler unavailable; proved via Contents/CodeResources instead)"
   fi
-  echo "OK: the updater artifact ships a STAPLED ${APP_NAME}."
+  spctl -a -t exec -vv "$Z_APP" 2>z-spctl.txt || { cat z-spctl.txt; fail "Gatekeeper rejects the app inside ${ZIP}."; }
+  grep -q 'source=Notarized Developer ID' z-spctl.txt \
+    || fail "the app inside ${ZIP} does not assess as Notarized Developer ID."
+  echo "OK: the zip ships a STAPLED, notarized ${APP_NAME}."
 fi
 
 case "$APP_STAPLED" in

@@ -41,27 +41,33 @@ sign_walk = bun-runtime
 
 # Two artifacts, for two different jobs.
 #
-# dmg      what a person downloads and drags to /Applications.
-# updater  a gzipped tar of the .app plus a detached Ed25519 signature. It is
-#          the artifact an in-app updater consumes, and it is the only one CI
-#          can prove anything about from Ubuntu: a tar can be listed, an APFS
-#          disk image cannot.
+# dmg  what a person downloads and drags to /Applications.
+# zip  the same .app in a `ditto` archive. This is the shape Squirrel.Mac
+#      installs — Electron's autoUpdater fetches with `Accept: application/zip`
+#      and supports ZIP only — so it is what an in-app updater here would
+#      consume. It is also the only artifact CI can inspect the .app through: a
+#      zip can be listed from Ubuntu, an APFS disk image cannot.
 #
-# NOTE what does NOT come from this line. The .app inside the dmg carries its own
-# notarization ticket because the builder staples the bundle BEFORE hdiutil seals
-# it into the image, not because `updater` is listed here. Requesting `updater`
-# alone would leave the dmg exactly as it was: the builder's updater path staples
-# the bundle outside the image, after 3a has already copied it in.
+# NOT `updater`. That artifact is a .app.tar.gz plus a detached Ed25519
+# signature for tauri-plugin-updater, and this is an Electron client: Squirrel
+# cannot install it, so the Ed25519 key would be a long-lived secret guarding a
+# signature nothing we ship can verify.
+#
+# NOTE what does NOT come from this line. The .app in both artifacts carries its
+# own notarization ticket because the builder staples the bundle BEFORE any
+# container is built (package-macos.sh section 2b), not because of anything
+# requested here. That used to be gated on `updater`, which is why the tarball
+# once looked like the way to get it.
 #
 # REQUIRES the builder policy to permit both. `artifact_allowed` for this repo
-# must list dmg AND updater, or the policy gate rejects the build — and it does
-# so only AFTER a full 20-40 minute run. See RELEASING.md → Onboarding, step 1.
+# must list dmg AND zip, or the policy gate rejects the build — and it does so
+# only AFTER a full 20-40 minute run. See RELEASING.md → Onboarding, step 1.
 #
-# Producing the updater artifact is NOT operating an update channel. Nothing here
-# may write an update manifest to https://mxml.sh: that manifest is committed in
-# stuffbucket/maximal, is pinned at v0.4.41, and the installed Tauri client reads
-# it. See RELEASING.md → mxml.sh.
-artifact = dmg,updater
+# Shipping a zip is NOT operating an update channel. Nothing here may write an
+# update manifest to https://mxml.sh: that manifest is committed in
+# stuffbucket/maximal, is pinned at v0.4.41, and the installed Tauri client
+# reads it. See RELEASING.md → mxml.sh.
+artifact = dmg,zip
 
 # THE single owner of the asset name. {tag} is the full tag, {version} the tag
 # without its leading v. .github/workflows/release.yml parses this file to learn
@@ -71,6 +77,5 @@ dmg_name = maximal-{tag}-darwin-arm64.dmg
 
 # Same substitution as dmg_name, and the same single-owner rule: release.yml
 # parses this to learn what to wait for. The builder requires the name to end in
-# .app.tar.gz, and lands three files — <updater_name>, <updater_name>.sig
-# (Ed25519, for a future in-app updater) and <updater_name>.sha256.
-updater_name = maximal-{tag}-darwin-arm64.app.tar.gz
+# .zip, and lands it beside its checksum as <zip_name>.sha256.
+zip_name = maximal-{tag}-darwin-arm64.zip

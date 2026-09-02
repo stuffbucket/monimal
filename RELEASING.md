@@ -4,12 +4,12 @@ Owner of the release process. [AGENTS.md](AGENTS.md) carries the rules; this
 file carries the mechanics.
 
 This repository produces two artifacts, both attached to a **draft** GitHub
-Release: a signed, notarized, stapled macOS `.dmg` containing `Maximal.app`, and
-a gzipped tar of that same `.app` with a detached Ed25519 signature — the pair a
-future in-app updater consumes. Windows and Linux are not in scope yet.
+Release and both containing the same notarized, **stapled** `Maximal.app`: a
+signed macOS `.dmg`, and a `.zip` of the bundle. Windows and Linux are not in
+scope yet.
 
-> **Two builder-side changes must land before the next tag.** See
-> [Builder prerequisites](#builder-prerequisites). Tagging without them fails the
+> **A builder change must land before the next tag.** See
+> [Builder prerequisites](#builder-prerequisites). Tagging without it fails the
 > release after a full 20–40 minute build.
 
 ## The split
@@ -103,7 +103,7 @@ It answers three questions, and all three must pass:
 | --- | --- |
 | Will a user's Mac open this? | Steps 2–11 — checksum, quarantine, Gatekeeper source, the entitlement set, every nested helper, the framework and the sidecar. |
 | Will it treat this as the same app as the version already installed? | Step 12, against the previous release's actual dmg. See [Upgrades](#upgrades). |
-| Is the updater artifact the same app, and stapled? | Step 13. See [Offline launch](#offline-launch). |
+| Is the zip the same app, and stapled? | Step 13. See [Offline launch](#offline-launch). |
 
 The previous release is picked automatically. Pass a second argument to choose
 one (`scripts/verify-dmg.sh v0.5.0 v0.5.0-rc.2`), or `none` to skip.
@@ -160,13 +160,13 @@ Three things should each carry their own ticket:
 | --- | --- |
 | the **dmg** container | the builder's `finalize`, already |
 | the **`.app` inside the dmg** | the builder, *before* `hdiutil` seals it into the image — see [Builder prerequisites](#builder-prerequisites) |
-| the **`.app` in the updater tarball** | the builder's updater path, already |
+| the **`.app` in the zip** | the same section 2b, once, for both |
 
-The middle row is the one that matters most, because it is what people actually
-install, and it is the one that needed a builder change. Requesting
-`artifact = updater` does **not** produce it: that path staples the bundle
-*outside* the image, after section 3a has already copied an unstapled one in.
-Only stapling before `hdiutil create` puts a ticket in the copy a user gets.
+The middle row is what people actually install, and it is the one that needed a
+builder change. `artifact = updater` was never the answer, though it looked like
+it: that path staples the bundle *outside* the image, after section 3a has
+already copied an unstapled one in, so it only ever fixed the tarball. Stapling
+once, before any container is built, fixes every artifact at the same time.
 
 Why it is worth an extra notary round trip: every upgrade is a fresh download and
 a new cdhash with its own quarantine bit, so an unstapled app needs Apple's
@@ -177,10 +177,10 @@ still launches fine — that one's assessment is cached, which makes the failure
 read as a corrupt download rather than as a policy check.
 
 `scripts/verify-dmg.sh` step 9 reports which state the dmg's app is in and step
-13 asserts the tarball's, but neither can be proven from CI for the dmg: an APFS
-disk image is not readable from Ubuntu. `release.yml` therefore checks only the
-tarball, and step A of the manual checks is what confirms the consequence
-offline.
+13 asserts the zip's. Neither can be proven from CI for the dmg — an APFS disk
+image is not readable from Ubuntu — so `release.yml` checks the zip, whose
+entries it can list, and step A of the manual checks is what confirms the
+consequence offline.
 
 A user stuck on an older, unstapled release can launch once with a network, or
 clear the attribute:
@@ -191,24 +191,26 @@ xattr -dr com.apple.quarantine /Applications/Maximal.app
 
 ## Builder prerequisites
 
-Both live in the private `stuffbucket/macos-builder` and neither can be made
-from here. Until both land, `.macos-builder/config` asks for something the
-builder will refuse or cannot deliver.
+`.macos-builder/config` asks for `artifact = dmg,zip`, which the private
+`stuffbucket/macos-builder` must be able to deliver and must be allowed to. One
+change carries both, and until it lands, tagging fails:
 
-1. **Widen the policy.** `clients/stuffbucket/monimal.policy` must set
-   `artifact_allowed = dmg,updater`. The gate rejects a wider request than the
-   policy allows, and it does so only *after* the full build. The builder also
-   needs `TAURI_SIGNING_PRIVATE_KEY` and the `TAURI_SIGNING_PUBLIC_KEY` variable
-   populated, or the updater path refuses to start.
-2. **Staple the `.app` before the dmg is built.** In `lib/package-macos.sh`,
-   notarize and staple the bundle between the top-level seal (section 2) and the
-   dmg (section 3a), so `cp -R "$APP" "$STAGE/"` copies an already-stapled
-   bundle. Stapling writes the ticket to `Contents/CodeResources` at the bundle
-   root, which is outside the seal, so the signature stays valid — `codesign
-   --verify --strict` passes on a stapled bundle. Section 3c then finds
-   `APP_NOTARIZED=1` and its `stapler staple` is a no-op.
+1. **`zip` as an artifact**, in `lib/package-macos.sh` and `build.yml`. The
+   bundle in a `ditto` archive, checksummed — no second signature and no new
+   secret.
+2. **Section 2b**, which notarizes and staples the `.app` once, before any
+   container is built. This is what puts a ticket in the copy sealed into the
+   dmg. It used to be gated on `updater`, which is why that artifact looked like
+   the way to get a stapled app.
+3. **`clients/stuffbucket/monimal.policy`** widened to
+   `artifact_allowed = dmg,zip`. The gate rejects a wider request than the
+   policy allows, and only *after* the full build.
 
-Order does not matter between them, but both must precede the next tag.
+No new credential: `zip` needs neither the Ed25519 updater key nor the Tauri
+CLI. That is the point of choosing it over `updater` — Squirrel.Mac, which is
+what an Electron client would use, fetches with `Accept: application/zip` and
+installs ZIP only, so a `.app.tar.gz` and its signature would be a long-lived
+secret guarding bytes nothing here can consume.
 
 ## Onboarding a repository to the builder
 
@@ -218,7 +220,7 @@ stops after the draft with a notice and stays green.
 1. **A builder policy.** A repo with no `clients/stuffbucket/<name>.policy` is
    refused outright. Open a `build-config` issue in `stuffbucket/macos-builder`
    requesting `bundle_id_allowed = co.stuffbucket.maximal`,
-   `entitlements_allowed = bun-runtime`, `artifact_allowed = dmg,updater`, then
+   `entitlements_allowed = bun-runtime`, `artifact_allowed = dmg,zip`, then
    apply the `approved` label. The issue-ops flow commits the file.
 2. **`app-repoman` installed here**, with Contents: read+write. Without it the
    builder cannot mint its scoped token, so it can neither check this repository
@@ -262,10 +264,9 @@ cherry-picks get no CI run and `release.yml` refuses every patch release:
 ## mxml.sh
 
 This repository MUST NOT publish an update manifest or otherwise write to
-https://mxml.sh. Producing the updater artifact is not the same thing and does
-not breach this: the tarball and its signature are attached to a GitHub Release
-and advertised nowhere. Nothing installed reads them, and nothing here may make
-it so. That manifest is committed in `stuffbucket/maximal`, is pinned
+https://mxml.sh. Shipping the zip is not the same thing and does not breach
+this: it is attached to a GitHub Release and advertised nowhere. Nothing
+installed reads it, and nothing here may make it so. That manifest is committed in `stuffbucket/maximal`, is pinned
 at v0.4.41, and the installed desktop client reads it to decide whether an
 update exists. A second publisher would advertise a version no release there
 contains.

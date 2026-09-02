@@ -63,7 +63,7 @@ jobs:
       tag: ${{ steps.resolve.outputs.tag }}
       sha: ${{ steps.resolve.outputs.sha }}
       dmg: ${{ steps.config.outputs.dmg }}
-      updater: ${{ steps.config.outputs.updater }}
+      zip: ${{ steps.config.outputs.zip }}
       app_name: ${{ steps.config.outputs.app_name }}
       bundle_id: ${{ steps.config.outputs.bundle_id }}
       prerelease: ${{ steps.resolve.outputs.prerelease }}
@@ -181,7 +181,7 @@ jobs:
           APP_PATH="$(get app_path)"
           DMG_TMPL="$(get dmg_name)"
           ARTIFACT="$(get artifact)"
-          UPDATER_TMPL="$(get updater_name)"
+          ZIP_TMPL="$(get zip_name)"
 
           [ -n "$BUNDLE_ID" ] || { echo "::error::bundle_id missing from ${CFG}."; exit 1; }
           [ -n "$DMG_TMPL" ]  || { echo "::error::dmg_name missing from ${CFG}; this workflow derives the asset name from it."; exit 1; }
@@ -203,29 +203,29 @@ jobs:
           }
           DMG="$(expand "$DMG_TMPL")"
 
-          # The updater artifact is optional in the contract, so what this
-          # workflow waits for is derived from `artifact`, never assumed.
-          UPDATER=""
+          # The zip artifact is optional in the contract, so what this workflow
+          # waits for is derived from `artifact`, never assumed.
+          ZIP=""
           case ",$(printf '%s' "$ARTIFACT" | tr -d '[:space:]')," in
-            *,updater,*)
-              [ -n "$UPDATER_TMPL" ] \
-                || { echo "::error::artifact lists updater but updater_name is missing from ${CFG}."; exit 1; }
-              UPDATER="$(expand "$UPDATER_TMPL")"
-              case "$UPDATER" in
-                *.app.tar.gz) ;;
-                *) echo "::error::updater_name '${UPDATER}' must end in .app.tar.gz; the builder rejects any other shape."; exit 1 ;;
+            *,zip,*)
+              [ -n "$ZIP_TMPL" ] \
+                || { echo "::error::artifact lists zip but zip_name is missing from ${CFG}."; exit 1; }
+              ZIP="$(expand "$ZIP_TMPL")"
+              case "$ZIP" in
+                *.zip) ;;
+                *) echo "::error::zip_name '${ZIP}' must end in .zip; the builder rejects any other shape."; exit 1 ;;
               esac
               ;;
           esac
 
           {
             echo "dmg=${DMG}"
-            echo "updater=${UPDATER}"
+            echo "zip=${ZIP}"
             echo "bundle_id=${BUNDLE_ID}"
             echo "app_name=$(basename "$APP_PATH")"
           } >> "$GITHUB_OUTPUT"
           echo "Expecting ${DMG} (+ ${DMG}.sha256)"
-          [ -z "$UPDATER" ] || echo "Expecting ${UPDATER} (+ .sig, .sha256)"
+          [ -z "$ZIP" ] || echo "Expecting ${ZIP} (+ .sha256)"
 
       - name: Assert the app identity has not changed since the previous tag
         env:
@@ -357,14 +357,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.verify.outputs.tag }}
           DMG: ${{ needs.verify.outputs.dmg }}
-          UPDATER: ${{ needs.verify.outputs.updater }}
+          ZIP: ${{ needs.verify.outputs.zip }}
         run: |
           # Every asset the contract implies, not just the dmg. The builder
           # uploads them one at a time, so waiting on a subset can report success
           # while the rest are still in flight.
           REQUIRED=("$DMG" "${DMG}.sha256")
-          if [ -n "$UPDATER" ]; then
-            REQUIRED+=("$UPDATER" "${UPDATER}.sig" "${UPDATER}.sha256")
+          if [ -n "$ZIP" ]; then
+            REQUIRED+=("$ZIP" "${ZIP}.sha256")
           fi
           printf 'waiting for %d asset(s):\n' "${#REQUIRED[@]}"
           printf '  %s\n' "${REQUIRED[@]}"
@@ -417,54 +417,55 @@ jobs:
 
           echo "::notice::${DMG} — ${BYTES} bytes, sha256 ${HAVE}, valid UDIF."
 
-      - name: Verify the updater artifact
-        if: needs.verify.outputs.updater != ''
+      - name: Verify the zip artifact
+        if: needs.verify.outputs.zip != ''
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.verify.outputs.tag }}
-          UPDATER: ${{ needs.verify.outputs.updater }}
+          ZIP: ${{ needs.verify.outputs.zip }}
           APP_NAME: ${{ needs.verify.outputs.app_name }}
         run: |
           # This artifact is the ONLY one Ubuntu can inspect the .app through: a
-          # tar can be listed, an APFS disk image cannot.
+          # zip can be listed, an APFS disk image cannot.
           #
           # What that proves and what it does not: this checks the app inside the
-          # TARBALL. The builder staples the bundle on its updater path
-          # regardless, so a pass here does NOT prove the copy sealed into the
-          # dmg is stapled — only that the updater artifact is well formed.
-          # scripts/verify-dmg.sh step 9, on a Mac, is what answers that for the
-          # dmg. See RELEASING.md → Offline launch.
+          # ZIP. The builder staples the bundle once, before any container is
+          # built, so in practice the dmg's copy is stapled too — but that is not
+          # provable from here. scripts/verify-dmg.sh step 9, on a Mac, is what
+          # answers it for the dmg. See RELEASING.md → Offline launch.
           cd "$RUNNER_TEMP"
           gh release download "$TAG" --repo "$GITHUB_REPOSITORY" \
-            --pattern "$UPDATER" --pattern "${UPDATER}.sha256" --pattern "${UPDATER}.sig" --clobber
+            --pattern "$ZIP" --pattern "${ZIP}.sha256" --clobber
 
-          HAVE="$(sha256sum "$UPDATER" | awk '{print $1}')"
-          grep -qi "$HAVE" "${UPDATER}.sha256" \
-            || { echo "::error::sha256 mismatch for ${UPDATER}."; exit 1; }
+          HAVE="$(sha256sum "$ZIP" | awk '{print $1}')"
+          grep -qi "$HAVE" "${ZIP}.sha256" \
+            || { echo "::error::sha256 mismatch for ${ZIP}."; exit 1; }
 
-          [ -s "${UPDATER}.sig" ] \
-            || { echo "::error::${UPDATER}.sig is empty; tauri signer produced nothing usable."; exit 1; }
+          # PKZip magic, before unzip is asked to read it.
+          MAGIC="$(head -c2 "$ZIP" | od -An -tx1 | tr -d ' \n')"
+          [ "$MAGIC" = "504b" ] \
+            || { echo "::error::${ZIP} does not start with the PKZip magic (got ${MAGIC})."; exit 1; }
 
-          # gzip magic, before tar is asked to read it.
-          MAGIC="$(head -c2 "$UPDATER" | od -An -tx1 | tr -d ' \n')"
-          [ "$MAGIC" = "1f8b" ] \
-            || { echo "::error::${UPDATER} does not start with the gzip magic (got ${MAGIC})."; exit 1; }
-
-          ENTRIES="$(tar tzf "$UPDATER")"
-          printf '%s\n' "$ENTRIES" | head -5
+          # -Z1 is zipinfo's bare listing: one entry per line, no header or
+          # totals to filter out.
+          ENTRIES="$(unzip -Z1 "$ZIP")"
+          echo "${ENTRIES}" | head -5
+          echo "  ... $(printf '%s\n' "$ENTRIES" | wc -l | tr -d ' ') entries"
 
           printf '%s\n' "$ENTRIES" | grep -qxF "${APP_NAME}/Contents/Info.plist" \
-            || { echo "::error::${UPDATER} does not contain ${APP_NAME}/Contents/Info.plist."; exit 1; }
+            || { echo "::error::${ZIP} does not contain ${APP_NAME}/Contents/Info.plist."; exit 1; }
 
           # `Contents/CodeResources` at the BUNDLE ROOT is the stapled
           # notarization ticket. It is a different file from
           # `Contents/_CodeSignature/CodeResources`, which is the resource
-          # manifest and is present whether or not the app was ever stapled.
-          # Its absence means the app resolves its ticket online at first launch.
+          # manifest and is there whether or not the app was ever stapled, and
+          # from `Contents/._CodeResources`, which is ditto's AppleDouble
+          # sidecar. Absence means the app resolves its ticket online at first
+          # launch.
           if printf '%s\n' "$ENTRIES" | grep -qxF "${APP_NAME}/Contents/CodeResources"; then
-            echo "::notice::${UPDATER} — sha256 ${HAVE}, contains a STAPLED ${APP_NAME}."
+            echo "::notice::${ZIP} — sha256 ${HAVE}, contains a STAPLED ${APP_NAME}."
           else
-            echo "::error::${APP_NAME} inside ${UPDATER} carries no stapled ticket. The builder must staple the .app before packaging it; without that, every install of this version needs Apple's notary service reachable at first launch. See RELEASING.md → Offline launch."
+            echo "::error::${APP_NAME} inside ${ZIP} carries no stapled ticket. package-macos.sh section 2b must staple the .app before packaging; without it, every install of this version needs Apple's notary service reachable at first launch. See RELEASING.md → Offline launch."
             exit 1
           fi
 
