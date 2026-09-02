@@ -313,10 +313,12 @@ function published(): ShellVariableEntry[] {
 
 /** The stylesheets the package ships, read from disk. */
 function shipped(): { name: string; css: string }[] {
-  return packageStylesheets().map((entry) => ({
-    name: entry.source,
-    css: readFileSync(new URL(entry.source, ROOT), 'utf8'),
-  }));
+  return packageStylesheets().flatMap((entry) =>
+    entry.sources.map((source) => ({
+      name: source,
+      css: readFileSync(new URL(source, ROOT), 'utf8'),
+    })),
+  );
 }
 
 describe('the published contract', () => {
@@ -356,7 +358,8 @@ describe('the published contract', () => {
 
     expect(exported.length).toBeGreaterThan(0);
     expect(packageStylesheets().map((entry) => entry.published).sort()).toEqual(exported);
-    expect(packageStylesheets().map((entry) => entry.source)).toEqual([
+    expect(packageStylesheets().flatMap((entry) => entry.sources)).toEqual([
+      'src/renderer/styles/structure.css',
       'src/renderer/styles/structural.css',
     ]);
   });
@@ -384,10 +387,20 @@ describe('the published contract', () => {
     // The floor, again, at the boundary this file owns. Everything above runs
     // over `shipped`; an unreadable path or a renamed file would leave the
     // comparison holding over no CSS at all.
+    //
+    // A shipped stylesheet takes part in the namespace one of two ways: it
+    // declares structural tokens, or it reads them. Requiring a read of every
+    // sheet would reject `structure.css`, which is nothing but declarations;
+    // requiring neither would let an empty file through, which is the hole this
+    // exists to close.
     const stylesheets = shipped();
+    const declares = (css: string): boolean => new RegExp(`^\\s*${SHELL_NAMESPACE}`, 'm').test(css);
+    const reads = (css: string): boolean => css.includes(`var(${SHELL_NAMESPACE}`);
+
     expect(SHELL_NAMESPACE).toBe('--shell-');
     expect(stylesheets.length).toBeGreaterThan(0);
-    expect(stylesheets.every((entry) => entry.css.includes(`var(${SHELL_NAMESPACE}`))).toBe(true);
+    expect(stylesheets.every((entry) => declares(entry.css) || reads(entry.css))).toBe(true);
+    expect(stylesheets.some((entry) => reads(entry.css))).toBe(true);
     expect(runtimeProperties.length).toBeGreaterThan(0);
     expect(published().length).toBeGreaterThan(runtimeProperties.length);
   });

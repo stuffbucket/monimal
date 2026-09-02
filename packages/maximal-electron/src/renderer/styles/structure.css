@@ -1,0 +1,77 @@
+/*
+ * The structural half of the `--shell-*` contract.
+ *
+ * These carry values. A consumer is not required to define any of them, and
+ * `README.md` does not list them as required: they are this package's, the way
+ * the palette is the consumer's. A rule here that needs a size, a radius, a
+ * weight, a duration or an elevation reads one of these rather than writing a
+ * literal, so the ramp stays a ramp.
+ *
+ * They are not a consumer-facing knob set. A consumer reaching for a spacing
+ * token is writing layout CSS, which is the thing the components exist to make
+ * unnecessary.
+ *
+ * Defined on `.sb-shell` rather than `:root`. A custom property resolves from
+ * the nearest ancestor that sets it, so the shell root is what keeps these in
+ * force for the components inside it without reaching the rest of a consumer's
+ * document.
+ *
+ * The values mirror `tokens.css`, which is the reference application's palette
+ * and is not published. `tests/structure-tokens.test.ts` compares the two.
+ */
+
+.sb-shell {
+  /* Control heights. */
+  --shell-control-sm: 22px;
+  --shell-control-md: 26px;
+  --shell-control-lg: 28px;
+
+  /* Fixed chrome. */
+  --shell-size-row: 30px;
+  --shell-size-tabbar: 36px;
+  --shell-size-titlebar: 40px;
+  --shell-nav-heading: 24px;
+  --shell-tab-min: 112px;
+  --shell-tab-max: 216px;
+
+  /* Spacing ramp. */
+  --shell-space-1: 4px;
+  --shell-space-2: 8px;
+  --shell-space-3: 12px;
+  --shell-space-4: 16px;
+  --shell-space-5: 24px;
+
+  /* Radii. A pill is 9999px rather than the next step up: snapping it to a
+     finite radius squares the ends and loses the shape. */
+  --shell-radius-chip: 4px;
+  --shell-radius-input: 6px;
+  --shell-radius-card: 8px;
+  --shell-radius-dialog: 14px;
+  --shell-radius-pill: 9999px;
+
+  /* Type. rem, not px: the ramp scales with the root font size rather than
+     pinning against it. */
+  --shell-font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --shell-font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  --shell-text-xs: 0.6875rem;
+  --shell-text-sm: 0.8125rem;
+  --shell-text-base: 0.875rem;
+  --shell-text-md: 0.9375rem;
+  --shell-weight-base: 400;
+  --shell-weight-md: 500;
+  --shell-weight-lg: 600;
+  --shell-leading-base: 1.5;
+  --shell-tracking-caps: 0.04em;
+
+  /* Focus ring geometry. The colour is the consumer's, and required. */
+  --shell-focus-ring-width: 2px;
+  --shell-focus-ring-offset: 2px;
+
+  /* Elevation, motion, and the rest. */
+  --shell-elevation-popover: 0 8px 24px rgb(0 0 0 / 0.28);
+  --shell-elevation-dialog: 0 24px 64px rgb(0 0 0 / 0.5);
+  --shell-duration-fast: 120ms;
+  --shell-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --shell-icon-stroke: 1.5;
+  --shell-opacity-disabled: 0.5;
+}

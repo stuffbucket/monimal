@@ -59,7 +59,16 @@ export const SHELL_NAMESPACE = '--shell-';
  */
 export function packageStylesheets() {
   return [
-    { source: 'src/renderer/styles/structural.css', published: 'dist/renderer/styles.css' },
+    {
+      /*
+       * Concatenated in order. `structure.css` declares the structural tokens
+       * and must precede the rules that read them, so a consumer who overrides
+       * one still wins: a later declaration in the same file beats an earlier
+       * one at equal specificity.
+       */
+      sources: ['src/renderer/styles/structure.css', 'src/renderer/styles/structural.css'],
+      published: 'dist/renderer/styles.css',
+    },
   ];
 }
 

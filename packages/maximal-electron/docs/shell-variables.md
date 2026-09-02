@@ -23,17 +23,48 @@ one of the eleven `required` variables is set, so the drift renders a plausible
 shell rather than a broken one, which is why nothing on either side said so.
 Issue #93.
 
-## The three kinds
+## The four kinds
 
 | Kind | Read as | Unset renders |
 | --- | --- | --- |
 | `required` | `var(--shell-x)` in at least one rule | nothing: a transparent surface or an inherited colour |
 | `fallback` | only ever `var(--shell-x, …)` | the fallback in the table |
 | `runtime` | resolved by JavaScript, in no rule | the emulator's own default |
+| `structural` | declared by `structure.css`, read by any rule | never unset; this package ships the value |
 
 The kind is a property of the CSS, not a judgement. A `fallback` variable that
 gains a rule with no fallback becomes `required`, and the check fails until the
 table says so.
+
+## Structural variables
+
+The first three kinds are the consumer's. The fourth is this package's, and it
+is the reason the split is worth naming.
+
+`src/renderer/styles/structure.css` declares the spacing ramp, the radii, the
+type ramp and its weights, the control and chrome heights, the focus-ring
+geometry, elevation, motion, icon stroke and disabled opacity — with values.
+They ship at the head of `@stuffbucket/maximal-electron/renderer/styles.css`. A
+consumer defines none of
+them, and no row for them appears in README.md's table, which lists what a
+consumer owes.
+
+They exist so a rule in this package never writes `font-size: 13px` again. The
+ramp is only a ramp while everything is on it.
+
+They are not an invitation to write CSS. A consumer's surface is the components
+and the palette; if reaching for a spacing token feels necessary, the component
+is missing a prop or a slot, and that is the thing to add.
+
+Declared on `.sb-shell`, not `:root`. A custom property resolves from the
+nearest ancestor that sets it, which keeps them in force for everything this
+package renders without reaching the rest of a consumer's document. A consumer
+who does need a different value sets it on their own `.sb-shell` root, and
+because `structure.css` is concatenated ahead of the rules that read it, a later
+declaration at equal specificity wins.
+
+`tests/structure-tokens.test.ts` holds each value against `tokens.css`, which is
+where the reference application authors the same ramp.
 
 ## Required
 

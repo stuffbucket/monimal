@@ -43,9 +43,9 @@ export interface ShellVariableContract {
 }
 
 export interface PackageStylesheet {
-  /** Repository-relative path to the stylesheet this package ships. */
-  readonly source: string;
-  /** Repository-relative path the build copies it to. */
+  /** Repository-relative paths, concatenated in order into `published`. */
+  readonly sources: readonly string[];
+  /** Repository-relative path the build writes. */
   readonly published: string;
 }
 
