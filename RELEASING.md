@@ -87,6 +87,16 @@ Ubuntu, and a GitHub-hosted macOS runner is not an option
 scripts/verify-dmg.sh v0.5.0-rc.1
 ```
 
+`stapler` needs full Xcode, so the script calls it through `xcrun`; a machine
+with only the Command Line Tools would otherwise fail on `stapler: command not
+found` partway through.
+
+Note what it will report: the **dmg** carries a stapled ticket, the `.app` inside
+does not. The builder staples the app only for the `updater` artifact, so a
+dmg-only client ships an app whose ticket is resolved online at first launch.
+That is ordinary for dmg distribution, and it is the one thing an offline first
+launch cannot fall back on — which is why step A below exists.
+
 Run it on a Mac that has never held the signing identity, and finish the two
 manual steps it prints — the offline `spctl` check and the copy-and-launch
 quarantine test. Those two are the only ones that distinguish a stapled
