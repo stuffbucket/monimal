@@ -75,11 +75,16 @@ const THEME_CSS = `
      chain through html/body/#root. */
   --shell-font: 400 14px/1.5 system-ui, sans-serif;
 
-  /* Status colours. Outside the package's required contract, centralized
-     here so surfaces do not each hardcode them. */
+  /* Status colours, centralized here so surfaces do not each hardcode them.
+     The first two are the package's names, supplied as any consumer supplies
+     them. The third is this application's own, under this application's
+     prefix, because the package has no success colour: a name invented inside
+     --shell-* is one the package may publish later meaning something else, and
+     until then it reads as part of a contract it is not part of.
+     eslint/shell-contract.mjs is what keeps that distinction. */
   --shell-danger: #ef4444;
   --shell-warning: #eab308;
-  --shell-success: #22c55e;
+  --maximal-success: #22c55e;
 }
 `
 

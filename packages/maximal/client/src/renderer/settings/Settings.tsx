@@ -337,7 +337,7 @@ const SETTINGS_CSS = `
   border-radius: var(--shell-radius-small, 4px);
   font-size: 12px;
   font-weight: 500;
-  color: var(--shell-success, #22c55e);
+  color: var(--maximal-success, #22c55e);
   white-space: nowrap;
 }
 

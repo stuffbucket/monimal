@@ -405,3 +405,56 @@ describe('the published contract', () => {
     expect(published().length).toBeGreaterThan(runtimeProperties.length);
   });
 });
+
+describe('the declaration a consumer compiles against', () => {
+  /*
+   * `scripts/shell-variables.d.mts` is hand-written, because the module it
+   * describes is plain ESM that a consumer's check runs under bare `node`.
+   * Hand-written is the whole problem: `structural` was added to the
+   * implementation and not to the declaration, so `shellVariableContract()`
+   * returned four lists and told every consumer it returned three.
+   * `packages/maximal/client` hit it as `Property 'structural' does not exist`
+   * on a field that had existed for a day.
+   *
+   * Nothing else can see this. `tsc` type-checks this package against the
+   * source, not against the declaration a consumer resolves, and every test
+   * here calls the implementation directly.
+   */
+  const declaration = readFileSync(new URL('../scripts/shell-variables.d.mts', import.meta.url), 'utf8');
+
+  it('names every kind the implementation produces', () => {
+    const declared = [...(/export type ShellVariableKind =([^;]+);/.exec(declaration)?.[1] ?? '')
+      .matchAll(/'([a-z]+)'/g)]
+      .map((match) => match[1] ?? '')
+      .sort();
+
+    // Derived from a contract rather than from a list, so a fifth kind added
+    // to the implementation arrives here without anyone deciding to add it.
+    const produced = Object.keys(
+      shellVariableContract({
+        stylesheets: whole.stylesheets,
+        runtimeProperties: whole.runtimeProperties,
+      }),
+    ).sort();
+
+    expect(declared.length).toBeGreaterThan(2);
+    expect(declared).toEqual(produced);
+  });
+
+  it('names every list the contract carries', () => {
+    const fields = [...(/export interface ShellVariableContract \{([^}]*)}/.exec(declaration)?.[1] ?? '')
+      .matchAll(/readonly (\w+):/g)]
+      .map((match) => match[1] ?? '')
+      .sort();
+
+    expect(fields.length).toBeGreaterThan(2);
+    expect(fields).toEqual(
+      Object.keys(
+        shellVariableContract({
+          stylesheets: whole.stylesheets,
+          runtimeProperties: whole.runtimeProperties,
+        }),
+      ).sort(),
+    );
+  });
+});

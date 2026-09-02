@@ -203,7 +203,7 @@ const INSPECTOR_CSS = `
 }
 
 .run-inspector__diff-added {
-  color: var(--shell-success, #22c55e);
+  color: var(--maximal-success, #22c55e);
   font-weight: 600;
 }
 

@@ -114,7 +114,7 @@ export const DASHBOARD_CSS = `
 
 .dashboard-totals__item[data-status='running'] .dashboard-totals__figure { color: var(--shell-accent, #5198a6); }
 .dashboard-totals__item[data-status='needs-approval'] .dashboard-totals__figure { color: var(--shell-warning, #eab308); }
-.dashboard-totals__item[data-status='done'] .dashboard-totals__figure { color: var(--shell-success, #22c55e); }
+.dashboard-totals__item[data-status='done'] .dashboard-totals__figure { color: var(--maximal-success, #22c55e); }
 .dashboard-totals__item[data-status='failed'] .dashboard-totals__figure { color: var(--shell-danger, #ef4444); }
 
 .dashboard-totals__label {
@@ -162,7 +162,7 @@ export const DASHBOARD_CSS = `
 
 .dashboard-row__count[data-status='running'] { color: var(--shell-accent, #5198a6); }
 .dashboard-row__count[data-status='needs-approval'] { color: var(--shell-warning, #eab308); }
-.dashboard-row__count[data-status='done'] { color: var(--shell-success, #22c55e); }
+.dashboard-row__count[data-status='done'] { color: var(--maximal-success, #22c55e); }
 .dashboard-row__count[data-status='failed'] { color: var(--shell-danger, #ef4444); }
 
 .dashboard-row--stacked {

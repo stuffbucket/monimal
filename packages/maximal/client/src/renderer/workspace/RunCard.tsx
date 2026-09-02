@@ -82,10 +82,15 @@ export function RunCard({ run, selected, onSelect }: RunCardProps): ReactElement
 // connection-card in shell/src/ui/styles/styles.css); values reference the
 // `--shell-*` custom-property contract this package's host defines, with the
 // same "sensible fallback" idiom `structural.css` itself uses
-// (`var(--shell-warning, var(--shell-accent))`) for anything the contract
-// doesn't publish (there's no `--shell-success` — diff-added and the "done"
-// status fall back to maximal's existing status-success green so the two
-// design systems agree if they're ever shown side by side).
+// (`var(--shell-warning, var(--shell-accent))`).
+//
+// A colour the package has no name for takes this application's own prefix
+// rather than the package's. `--shell-*` is the package's namespace: a name
+// invented inside it is one the package may publish later with a different
+// meaning, and until then it resolves to nothing for anyone but us. The
+// package publishes `--shell-danger` and `--shell-warning` and no success, so
+// diff-added and the "done" status read `--maximal-success`, defined in
+// `theme.ts` beside the rest of the application's palette.
 const RUN_CARD_CSS = `
 .run-card {
   display: flex;
@@ -179,7 +184,7 @@ const RUN_CARD_CSS = `
 }
 
 .run-card__diff-added {
-  color: var(--shell-success, #22c55e);
+  color: var(--maximal-success, #22c55e);
 }
 
 .run-card__diff-removed {
@@ -221,7 +226,7 @@ const RUN_CARD_CSS = `
 }
 
 .status-badge.is-done {
-  color: var(--shell-success, #22c55e);
+  color: var(--maximal-success, #22c55e);
 }
 
 .status-badge.is-failed {
