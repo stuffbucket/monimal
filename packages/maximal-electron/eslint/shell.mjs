@@ -1,5 +1,6 @@
 /**
- * The design contract, enforced where it is written.
+ * The two contracts a reusable surface has to keep, enforced where they are
+ * written.
  *
  * A component carries the rules it draws itself with, as a template literal in
  * its own `.tsx`. That solved the drift a hand-copied stylesheet had, and it
@@ -55,7 +56,7 @@ function publishedTokens() {
 
   if (found.size < 30) {
     throw new Error(
-      `shell-styles: read ${String(found.size)} tokens from the shipped stylesheets, which is too few to be the contract. ` +
+      `shell: read ${String(found.size)} tokens from the shipped stylesheets, which is too few to be the contract. ` +
         'Check that packageStylesheets() still names files that exist.',
     );
   }
@@ -115,7 +116,98 @@ const designTokens = {
   },
 };
 
+/**
+ * Words a reusable control may not hold.
+ *
+ * Five exported components carried fifty-seven user-facing strings. A control
+ * that does that fixes the language and the product's voice for everyone who
+ * installs it. `src/renderer/lib/content.ts` is where the strings went, and
+ * this is what stops the next one being typed back in.
+ *
+ * `tests/content-seam.test.ts` is the other half: it renders each surface from
+ * the lorem stub and fails on English that still reaches the DOM. That check
+ * is the stronger one and it cannot see the two dialogs, because Radix portals
+ * them and there is no document to portal into. This reads source, so it sees
+ * every surface — and it sees them while they are being written.
+ */
+
+/** Props whose value a person reads. */
+const CONTENT_PROPS = new Set([
+  'about',
+  'aria-label',
+  'aria-description',
+  'confirmLabel',
+  'description',
+  'hint',
+  'label',
+  'message',
+  'placeholder',
+  'title',
+]);
+
+/** Text with a letter in it. `·`, `(`, `.` and a bare entity are not content. */
+const PROSE = /\p{L}/u;
+
+/** @type {import('eslint').Rule.RuleModule} */
+const content = {
+  meta: {
+    type: 'problem',
+    docs: { description: 'Keep user-facing words out of a reusable component.' },
+    schema: [],
+    messages: {
+      text: 'A reusable control takes its words from the caller. Move `{{text}}` into `src/renderer/lib/content.ts` and read it through `useShellContent()`.',
+      prop: '`{{name}}` is what a person reads. Move `{{text}}` into `src/renderer/lib/content.ts` and read it through `useShellContent()`.',
+    },
+  },
+  create(context) {
+    /** Trimmed to one line, and cut, so a message stays a message. */
+    const excerpt = (value) => {
+      const text = value.trim().replaceAll(/\s+/g, ' ');
+      return text.length > 40 ? `${text.slice(0, 40)}…` : text;
+    };
+
+    return {
+      JSXText(node) {
+        if (!PROSE.test(node.value)) return;
+        context.report({ node, messageId: 'text', data: { text: excerpt(node.value) } });
+      },
+      JSXAttribute(node) {
+        const name = node.name.type === 'JSXIdentifier' ? node.name.name : '';
+        if (!CONTENT_PROPS.has(name)) return;
+
+        const value = node.value;
+        if (value === null) return;
+
+        // A string written in the tag: title="Usage".
+        if (value.type === 'Literal' && typeof value.value === 'string') {
+          if (!PROSE.test(value.value)) return;
+          context.report({
+            node: value,
+            messageId: 'prop',
+            data: { name, text: excerpt(value.value) },
+          });
+          return;
+        }
+
+        // A template in braces: label={`Remove ${client.label}`}. The words
+        // between the substitutions are the part that is English.
+        if (value.type !== 'JSXExpressionContainer') return;
+        const expression = value.expression;
+        if (expression.type !== 'TemplateLiteral') return;
+
+        const literal = expression.quasis.map((quasi) => quasi.value.cooked ?? '').join(' ');
+        if (!PROSE.test(literal)) return;
+        context.report({
+          node: expression,
+          messageId: 'prop',
+          data: { name, text: excerpt(literal) },
+        });
+      },
+    };
+  },
+};
+
 export default {
-  meta: { name: 'shell-styles' },
-  rules: { 'design-tokens': designTokens },
+  meta: { name: 'shell' },
+  rules: { content, 'design-tokens': designTokens },
 };

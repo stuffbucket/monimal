@@ -198,6 +198,17 @@ sheet, with a value, overridable at the root. That is the third tier of the
 usual primitive, semantic and component split, and it is the only way a literal
 gets into one of these files.
 
+## The words a surface says
+
+Not a variable, and named here because it is the other half of the same
+question. Colour, spacing and radius come from the token contract above; the
+copy comes from `SHELL_CONTENT`, supplied through `ShellContentProvider` and
+read by every settings surface. Five components held fifty-seven strings of
+their own before that, which fixed the language and the product's voice for
+everyone who installed the package. `LOREM_CONTENT` is the stub half, and
+`tests/content-seam.test.ts` renders each surface from it and fails on English
+that still reaches the DOM.
+
 ## Overriding what the package draws
 
 That paragraph said "overridable at the root" for some time before it was true.

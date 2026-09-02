@@ -1,5 +1,5 @@
 /**
- * Types for `shell-styles.mjs`.
+ * Types for `shell.mjs`.
  *
  * A flat ESLint config is loaded by ESLint rather than by `tsc`, so the plugin
  * itself is plain ESM. `tests/component-styles.test.ts` imports it to prove

@@ -224,6 +224,32 @@ root is fixed to the viewport, so it fills the window with no document reset of
 your own; set `--shell-position: static` to lay the shell out inside a container
 you have given a height to instead.
 
+### The words
+
+The five settings surfaces take their copy from a catalogue rather than holding
+it. `SHELL_CONTENT` is the shipped one, in English; pass your own — or a
+partial spread of it — through `ShellContentProvider` and every surface below
+follows.
+
+```tsx
+import {
+  SHELL_CONTENT,
+  ShellContentProvider,
+  Usage,
+} from '@stuffbucket/maximal-electron/renderer';
+
+<ShellContentProvider
+  content={{ ...SHELL_CONTENT, usage: { ...SHELL_CONTENT.usage, title: 'Spend' } }}
+>
+  <Usage report={report} period={period} onPeriodChange={setPeriod} />
+</ShellContentProvider>;
+```
+
+`LOREM_CONTENT` is the same shape filled with lorem ipsum, for building a
+surface before its wording exists. It is also what holds the seam: the package's
+own tests render every surface from it and fail on any English that reaches the
+DOM, so a string left inside a component cannot ship quietly.
+
 Everything the package draws sits in a cascade layer, `sb-shell.base` for the
 stylesheet and `sb-shell.components` for the rules a component injects when it
 first renders. A rule of your own outside a layer beats both, whatever their

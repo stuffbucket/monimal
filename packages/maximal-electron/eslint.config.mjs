@@ -1,6 +1,6 @@
 import { typescript } from '@stuffbucket/eslint-config/typescript';
 
-import shellStyles from './eslint/shell-styles.mjs';
+import shell from './eslint/shell.mjs';
 
 export default [
   // No `ignores` argument: this package's generated trees (out, .vite, dist,
@@ -92,8 +92,35 @@ export default [
      */
     files: ['src/**/*.ts', 'src/**/*.tsx'],
     ignores: ['**/*.stories.tsx'],
-    plugins: { 'shell-styles': shellStyles },
-    rules: { 'shell-styles/design-tokens': 'error' },
+    plugins: { shell },
+    rules: { 'shell/design-tokens': 'error' },
+  },
+  {
+    /*
+     * A published surface takes its words from the caller.
+     *
+     * These five carried fifty-seven user-facing strings, which fixes the
+     * language and the product's voice for everyone who installs the package
+     * and puts the thing a consumer is most certain to want to change in the
+     * one place they cannot reach. `src/renderer/lib/content.ts` holds them
+     * now.
+     *
+     * Scoped to the settings surfaces rather than the whole renderer, and the
+     * scope is the honest part: `src/renderer/components/` also holds this
+     * application's own chrome, which is a consumer of the package and is
+     * allowed its own copy. Widening this is the work of publishing those,
+     * not a lint setting.
+     *
+     * `tests/content-seam.test.ts` is the stronger half — it renders each
+     * surface from the lorem stub and fails on English that reaches the DOM —
+     * and it cannot see the two dialogs, because Radix portals them and the
+     * test environment has no document. This reads source, so it sees all of
+     * them, and it sees them as they are typed.
+     */
+    files: ['src/renderer/components/settings/**/*.tsx'],
+    ignores: ['**/*.stories.tsx'],
+    plugins: { shell },
+    rules: { 'shell/content': 'error' },
   },
   {
     /*

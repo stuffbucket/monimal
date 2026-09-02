@@ -11,7 +11,7 @@ import {
   declaredTokens,
   readTokens,
 } from '../scripts/component-css.mjs';
-import shellStyles from '../eslint/shell-styles.mjs';
+import shell from '../eslint/shell.mjs';
 import {
   SHELL_COMPONENT_LAYER,
   injectComponentStyles,
@@ -35,7 +35,7 @@ import { componentStyles, exportedModules, publishedTokens } from './stylesheets
  * `--shell-*` and then asserted that nothing matched began with `--shell-`,
  * which is structurally incapable of failing. Two readers of one rule is the
  * drift this whole change is about, so there is one, and
- * `eslint/shell-styles.mjs` reports the same findings at the character while
+ * `eslint/shell.mjs` reports the same findings at the character while
  * the file is open.
  */
 
@@ -150,8 +150,8 @@ describe('the rule that reports those findings in the editor', () => {
     const linter = new Linter();
     return linter
       .verify(code, {
-        plugins: { 'shell-styles': shellStyles as never },
-        rules: { 'shell-styles/design-tokens': 'error' },
+        plugins: { shell: shell as never },
+        rules: { 'shell/design-tokens': 'error' },
       })
       .map((message) => message.messageId ?? '');
   };

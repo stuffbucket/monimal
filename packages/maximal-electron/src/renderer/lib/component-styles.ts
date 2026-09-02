@@ -20,7 +20,7 @@ import { ShellRoot } from './shell-root.js';
  * layer: `structure.css` ships the structural ramp with values and `README.md`
  * holds the palette a consumer defines, so a literal here is a design decision
  * made somewhere no theme can reach it. `scripts/component-css.mjs` is that
- * judgement, delivered twice — by `eslint/shell-styles.mjs` at the character
+ * judgement, delivered twice — by `eslint/shell.mjs` at the character
  * as it is typed, and by `tests/component-styles.test.ts` over every carried
  * string at once.
  */

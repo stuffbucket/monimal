@@ -40,7 +40,7 @@
   --shell-space-5: 24px;
   --shell-radius: 6px;
   --shell-radius-large: 8px;
-  --shell-input-border: var(--shell-border-strong, var(--shell-border, #2a2a2a));
+  --shell-input-border: var(--shell-border-strong, var(--shell-border));
 
   --shell-text-xs: 0.6875rem;
   --shell-text-sm: 0.8125rem;

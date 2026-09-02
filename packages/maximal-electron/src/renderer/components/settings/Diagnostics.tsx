@@ -1,5 +1,6 @@
 import { FolderOpen, ScrollText } from 'lucide-react';
 
+import { fill, useShellContent } from '../../lib/content.js';
 import {
   diagnosticsBundle,
   type DiagnosticGroup,
@@ -37,22 +38,24 @@ export function Diagnostics({
   onRevealLogs?: () => void;
   onRevealConfig?: () => void;
 }) {
+  const content = useShellContent().diagnostics;
+
   return (
     <SettingsPage
       testId="settings-diagnostics"
-      title="Logs and diagnostics"
-      description="What this build is, what it is talking to, and where it writes its logs."
+      title={content.title}
+      description={content.description}
       actions={
         <>
           <CopyButton
             text={diagnosticsBundle(groups)}
-            label="Copy report"
+            label={content.copyReport}
             testId="diagnostics-copy"
           />
           {onRevealConfig && (
             <Button size="sm" onClick={onRevealConfig} testId="diagnostics-reveal-config">
               <FolderOpen size={14} />
-              Reveal configuration
+              {content.revealConfiguration}
             </Button>
           )}
         </>
@@ -60,25 +63,25 @@ export function Diagnostics({
     >
       {logs && (
         <SettingsSection
-          title="Log files"
-          description="One file per day, written as requests are handled. Reveal the folder to read them, or follow the current one with `tail -F`."
+          title={content.logsTitle}
+          description={content.logsDescription}
           testId="diagnostics-logs"
         >
           <div className="field">
-            <span className="field__label">Folder</span>
+            <span className="field__label">{content.folder}</span>
             <span className="field__value">{logs.path}</span>
           </div>
           <div className="field">
-            <span className="field__label">Retention</span>
+            <span className="field__label">{content.retention}</span>
             <span className="field__value">
-              {logs.retentionDays} days, then deleted on the next start
+              {fill(content.retentionValue, { days: logs.retentionDays })}
             </span>
           </div>
           {onRevealLogs && (
             <div className="settings__row">
               <Button size="sm" onClick={onRevealLogs} testId="diagnostics-reveal-logs">
                 <ScrollText size={14} />
-                Reveal logs
+                {content.revealLogs}
               </Button>
             </div>
           )}
@@ -86,7 +89,7 @@ export function Diagnostics({
       )}
 
       {groups.length === 0 ? (
-        <EmptyState icon={ScrollText} message="Nothing to report yet." />
+        <EmptyState icon={ScrollText} message={content.empty} />
       ) : (
         groups.map((group) => (
           <SettingsSection key={group.id} title={group.label} testId={`diagnostics-${group.id}`}>

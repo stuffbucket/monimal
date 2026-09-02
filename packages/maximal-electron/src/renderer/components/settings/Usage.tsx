@@ -13,6 +13,7 @@ import {
   type UsageTotals,
 } from '../../lib/settings.js';
 import { useComponentStyles } from '../../lib/component-styles.js';
+import { fill, useShellContent, type ShellUsageContent } from '../../lib/content.js';
 import { EmptyState, Tag } from '../controls/Layout.js';
 
 import { SettingsPage, SettingsSection } from './SettingsPage.js';
@@ -34,14 +35,16 @@ import { SettingsPage, SettingsSection } from './SettingsPage.js';
  * consumer cannot write. Everything it needs is in `UsageReport`.
  */
 
-const BANDS: { id: string; label: string; of: (totals: UsageTotals) => number }[] = [
-  { id: 'input', label: 'Input', of: (totals) => totals.input },
-  { id: 'output', label: 'Output', of: (totals) => totals.output },
-  {
-    id: 'cache',
-    label: 'Cache',
-    of: (totals) => totals.cacheRead + totals.cacheCreation,
-  },
+/**
+ * The three token classes a bar is split by.
+ *
+ * The id is the key into the catalogue and the value of `data-band`, so the
+ * word a reader sees and the colour the rule picks come from one list.
+ */
+const BANDS: { id: keyof ShellUsageContent['bands']; of: (totals: UsageTotals) => number }[] = [
+  { id: 'input', of: (totals) => totals.input },
+  { id: 'output', of: (totals) => totals.output },
+  { id: 'cache', of: (totals) => totals.cacheRead + totals.cacheCreation },
 ];
 
 /** One bar, split by band. Used for the period and for each breakdown row. */
@@ -69,6 +72,7 @@ function Breakdown({
   rows: UsageBreakdown[];
   testId: string;
 }) {
+  const content = useShellContent().usage;
   // A floor of 1, so an empty or all-zero breakdown divides by something.
   const widest = Math.max(1, ...rows.map((row) => row.totals.total));
 
@@ -79,7 +83,7 @@ function Breakdown({
           <li className="breakdown__row" key={row.id}>
             <span className="breakdown__label">
               {row.label}
-              {row.premium === true && <Tag>premium</Tag>}
+              {row.premium === true && <Tag>{content.premium}</Tag>}
             </span>
             <span
               className="breakdown__bar"
@@ -87,7 +91,9 @@ function Breakdown({
             >
               <Bands totals={row.totals} />
             </span>
-            <span className="breakdown__meta">{row.totals.requests} req</span>
+            <span className="breakdown__meta">
+              {fill(content.requestCount, { count: row.totals.requests })}
+            </span>
           </li>
         ))}
       </ul>
@@ -330,35 +336,36 @@ export function Usage({
   useComponentStyles('usage', USAGE_STYLES);
   useComponentStyles('usage-table', USAGE_TABLE_STYLES);
 
+  const content = useShellContent().usage;
   const { totals, byModel, byProvider, events } = report;
-  const noun = USAGE_PERIODS.find((entry) => entry.id === period)?.noun ?? '';
+  const noun = content.periods[period].noun;
 
   const counters: { label: string; band: string; value: number }[] = [
-    { label: 'Input', band: 'input', value: totals.input },
-    { label: 'Output', band: 'output', value: totals.output },
-    { label: 'Cached input', band: 'cache', value: totals.cacheRead },
-    { label: 'Cached output', band: 'cache', value: totals.cacheCreation },
-    { label: 'Total', band: 'total', value: totals.total },
+    { label: content.counters.input, band: 'input', value: totals.input },
+    { label: content.counters.output, band: 'output', value: totals.output },
+    { label: content.counters.cachedInput, band: 'cache', value: totals.cacheRead },
+    { label: content.counters.cachedOutput, band: 'cache', value: totals.cacheCreation },
+    { label: content.counters.total, band: 'total', value: totals.total },
   ];
 
   return (
     <SettingsPage
       testId="settings-usage"
-      title="Usage"
-      description="Token traffic across the models and providers this shell talks to."
+      title={content.title}
+      description={content.description}
       actions={
-        <div className="segmented segmented--text" role="group" aria-label="Period">
-          {USAGE_PERIODS.map((entry) => (
+        <div className="segmented segmented--text" role="group" aria-label={content.periodLabel}>
+          {USAGE_PERIODS.map((id) => (
             <button
-              key={entry.id}
+              key={id}
               type="button"
-              aria-pressed={entry.id === period}
+              aria-pressed={id === period}
               onClick={() => {
-                onPeriodChange(entry.id);
+                onPeriodChange(id);
               }}
-              data-testid={`usage-period-${entry.id}`}
+              data-testid={`usage-period-${id}`}
             >
-              {entry.label}
+              {content.periods[id].label}
             </button>
           ))}
         </div>
@@ -374,45 +381,48 @@ export function Usage({
       </ul>
 
       {totals.total === 0 ? (
-        <EmptyState icon={ChartColumn} message={`No traffic ${noun}.`} />
+        <EmptyState icon={ChartColumn} message={fill(content.empty, { noun })} />
       ) : (
         <>
           <p className="settings__summary" data-testid="usage-summary">
-            {noun.charAt(0).toUpperCase() + noun.slice(1)}:{' '}
-            <strong>{formatCompact(totals.total)}</strong> tokens across{' '}
-            <strong>{totals.requests}</strong> requests to{' '}
-            <strong>{byModel.length}</strong> models via{' '}
-            <strong>{byProvider.length}</strong> providers
-            {totals.nanoCost > 0 && <> · {formatCost(totals.nanoCost)}</>}.
+            {fill(content.summary, {
+              period: noun.charAt(0).toUpperCase() + noun.slice(1),
+              tokens: formatCompact(totals.total),
+              requests: totals.requests,
+              models: byModel.length,
+              providers: byProvider.length,
+            })}
+            {totals.nanoCost > 0 && fill(content.summaryCost, { cost: formatCost(totals.nanoCost) })}
+            .
           </p>
 
-          <SettingsSection title="Where it went" testId="usage-proportion">
+          <SettingsSection title={content.proportion} testId="usage-proportion">
             <Bands totals={totals} />
             <ul className="legend">
               {BANDS.map((band) => (
                 <li key={band.id} data-band={band.id}>
-                  {band.label} {formatCompact(band.of(totals))}
+                  {content.bands[band.id]} {formatCompact(band.of(totals))}
                 </li>
               ))}
             </ul>
           </SettingsSection>
 
           {byProvider.length > 1 && (
-            <Breakdown title="By provider" rows={byProvider} testId="usage-by-provider" />
+            <Breakdown title={content.byProvider} rows={byProvider} testId="usage-by-provider" />
           )}
 
-          <Breakdown title="By model" rows={byModel} testId="usage-by-model" />
+          <Breakdown title={content.byModel} rows={byModel} testId="usage-by-model" />
 
-          <SettingsSection title="Per-model detail" testId="usage-model-table">
+          <SettingsSection title={content.perModel} testId="usage-model-table">
             <table className="table">
               <thead>
                 <tr>
-                  <th scope="col">Model</th>
-                  <th scope="col">Tokens</th>
-                  <th scope="col">Input</th>
-                  <th scope="col">Output</th>
-                  <th scope="col">Requests</th>
-                  <th scope="col">Cost</th>
+                  <th scope="col">{content.columns.model}</th>
+                  <th scope="col">{content.columns.tokens}</th>
+                  <th scope="col">{content.columns.input}</th>
+                  <th scope="col">{content.columns.output}</th>
+                  <th scope="col">{content.columns.requests}</th>
+                  <th scope="col">{content.columns.cost}</th>
                 </tr>
               </thead>
               <tbody>
@@ -430,20 +440,20 @@ export function Usage({
             </table>
           </SettingsSection>
 
-          <SettingsSection title="Recent requests" testId="usage-events">
+          <SettingsSection title={content.recent} testId="usage-events">
             {events.length === 0 ? (
               <p className="settings__description">{NO_VALUE}</p>
             ) : (
               <table className="table">
                 <thead>
                   <tr>
-                    <th scope="col">When</th>
-                    <th scope="col">Provider</th>
-                    <th scope="col">Model</th>
-                    <th scope="col">Endpoint</th>
-                    <th scope="col">Input</th>
-                    <th scope="col">Output</th>
-                    <th scope="col">Total</th>
+                    <th scope="col">{content.columns.when}</th>
+                    <th scope="col">{content.columns.provider}</th>
+                    <th scope="col">{content.columns.model}</th>
+                    <th scope="col">{content.columns.endpoint}</th>
+                    <th scope="col">{content.columns.input}</th>
+                    <th scope="col">{content.columns.output}</th>
+                    <th scope="col">{content.columns.total}</th>
                   </tr>
                 </thead>
                 <tbody>

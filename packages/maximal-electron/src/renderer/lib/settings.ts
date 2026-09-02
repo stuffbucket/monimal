@@ -154,13 +154,6 @@ export interface AppIntegration {
   conflict?: string;
 }
 
-/** Whether the switch can be operated, and the caption under the name. */
-export const APP_STATUS_LABELS: Record<AppStatus, string> = {
-  ready: 'Ready',
-  'not-installed': 'Not installed',
-  'coming-soon': 'Coming soon',
-};
-
 /* ---------------------------------------------------------- diagnostics */
 
 /** One read-only fact. `status` colours it through the usual attribute. */
@@ -203,12 +196,14 @@ export function diagnosticsBundle(groups: DiagnosticGroup[]): string {
 
 export type UsagePeriod = 'day' | 'week' | 'month' | 'all';
 
-export const USAGE_PERIODS: { id: UsagePeriod; label: string; noun: string }[] = [
-  { id: 'day', label: 'Today', noun: 'today' },
-  { id: 'week', label: '7 days', noun: 'the last 7 days' },
-  { id: 'month', label: 'This month', noun: 'this month' },
-  { id: 'all', label: 'All time', noun: 'all time' },
-];
+/**
+ * The periods a usage report can cover, in the order they are offered.
+ *
+ * Ids only. What each one is called, and the noun a sentence uses for it, are
+ * content and live in `content.ts` — this used to carry `label` and `noun`,
+ * which put four user-facing strings in a module about arithmetic.
+ */
+export const USAGE_PERIODS: UsagePeriod[] = ['day', 'week', 'month', 'all'];
 
 /** The four token classes, plus what they cost and how often they were asked. */
 export interface UsageTotals {

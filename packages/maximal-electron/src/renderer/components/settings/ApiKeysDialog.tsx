@@ -1,4 +1,5 @@
 import { useComponentStyles } from '../../lib/component-styles.js';
+import { fill, useShellContent } from '../../lib/content.js';
 import { Eye, EyeOff, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -48,7 +49,7 @@ function Secret({
   name: string;
   testId: string;
 }) {
-
+  const content = useShellContent().apiKeys;
   const [revealed, setRevealed] = useState(false);
 
   return (
@@ -57,7 +58,7 @@ function Secret({
         {revealed ? value : maskSecret(value)}
       </code>
       <IconButton
-        label={`${revealed ? 'Hide' : 'Reveal'} ${name}`}
+        label={fill(revealed ? content.hide : content.reveal, { name })}
         onClick={() => {
           setRevealed(!revealed);
         }}
@@ -183,6 +184,8 @@ export function ApiKeysDialog({
   useComponentStyles('settings-page', SETTINGS_STYLES);
   useComponentStyles('api-keys', API_KEYS_STYLES);
 
+  const content = useShellContent().apiKeys;
+
   const [draft, setDraft] = useState('');
   const [touched, setTouched] = useState(false);
   const error = touched ? labelError(draft) : undefined;
@@ -199,27 +202,27 @@ export function ApiKeysDialog({
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      title="API keys"
-      description="The endpoint applications call, and the keys that identify them."
+      title={content.title}
+      description={content.description}
       className="dialog dialog--wide"
       testId="settings-api-keys"
     >
-      <h2 className="settings__title">API keys</h2>
+      <h2 className="settings__title">{content.title}</h2>
 
       {endpoint && (
         <SettingsSection
-          title="Endpoint"
-          description="What an application points at."
+          title={content.endpointTitle}
+          description={content.endpointDescription}
           as="h3"
           testId="api-keys-endpoint"
         >
           <div className="field">
-            <span className="field__label">Base URL</span>
+            <span className="field__label">{content.baseUrl}</span>
             <span className="field__value">
               {endpoint.baseUrl}
               <CopyButton
                 text={endpoint.baseUrl}
-                about="the base URL"
+                about={content.baseUrlAbout}
                 testId="endpoint-copy-url"
               />
             </span>
@@ -227,9 +230,9 @@ export function ApiKeysDialog({
 
           {endpoint.key !== undefined && (
             <div className="field">
-              <span className="field__label">Key</span>
+              <span className="field__label">{content.key}</span>
               <span className="field__value">
-                <Secret value={endpoint.key} name="the endpoint key" testId="endpoint-key" />
+                <Secret value={endpoint.key} name={content.endpointKeyName} testId="endpoint-key" />
               </span>
             </div>
           )}
@@ -246,15 +249,15 @@ export function ApiKeysDialog({
       )}
 
       <SettingsSection
-        title="Connections"
-        description="One key per tool, so they can be told apart. Anything not listed still works."
+        title={content.connectionsTitle}
+        description={content.connectionsDescription}
         as="h3"
         testId="api-keys-clients"
       >
         {clients.length === 0 ? (
           <EmptyState
             icon={Plus}
-            message="Nothing here yet. Add a connection for each application you want to recognise."
+            message={content.empty}
           />
         ) : (
           <ul className="client-list">
@@ -263,11 +266,11 @@ export function ApiKeysDialog({
                 <span className="client__label">{client.label}</span>
                 <Secret
                   value={client.key}
-                  name={`the ${client.label} key`}
+                  name={fill(content.clientKeyName, { name: client.label })}
                   testId={`client-${client.id}-key`}
                 />
                 <Switch
-                  label={client.enabled ? 'On' : 'Off'}
+                  label={client.enabled ? content.on : content.off}
                   checked={client.enabled}
                   onChange={(next) => onToggleClient?.(client.id, next)}
                   disabled={onToggleClient === undefined}
@@ -276,7 +279,7 @@ export function ApiKeysDialog({
                 {onRemoveClient && (
                   <IconButton
                     danger
-                    label={`Remove ${client.label}`}
+                    label={fill(content.remove, { name: client.label })}
                     onClick={() => {
                       onRemoveClient(client.id);
                     }}
@@ -293,8 +296,8 @@ export function ApiKeysDialog({
         {onAddClient && (
           <div className="settings__row settings__row--bottom">
             <FormField
-              label="What is this connection for?"
-              hint="A name you will recognise later."
+              label={content.addLabel}
+              hint={content.addHint}
               error={error}
             >
               {(field) => (
@@ -302,13 +305,13 @@ export function ApiKeysDialog({
                   {...field}
                   value={draft}
                   onChange={setDraft}
-                  placeholder="e.g. Claude Code, Cursor, Raycast"
+                  placeholder={content.addPlaceholder}
                   testId="client-new-label"
                 />
               )}
             </FormField>
             <Button variant="primary" onClick={add} testId="client-add">
-              Add
+              {content.add}
             </Button>
           </div>
         )}
@@ -321,7 +324,7 @@ export function ApiKeysDialog({
           }}
           testId="api-keys-done"
         >
-          Done
+          {content.done}
         </Button>
       </div>
     </Dialog>

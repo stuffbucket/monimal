@@ -39,6 +39,21 @@ export {
   type TerminalViewProps,
 } from './components/TerminalView.js';
 export { TitleBar } from './components/TitleBar.js';
+export {
+  fill,
+  SHELL_CONTENT,
+  ShellContentContext,
+  ShellContentProvider,
+  useShellContent,
+  type ShellApiKeysContent,
+  type ShellAppsContent,
+  type ShellChromeContent,
+  type ShellContent,
+  type ShellDiagnosticsContent,
+  type ShellModelsContent,
+  type ShellUsageContent,
+} from './lib/content.js';
+export { LOREM_CONTENT } from './lib/content-lorem.js';
 export { detachedSessions } from './lib/terminal-sessions.js';
 export {
   createTerminalTransport,

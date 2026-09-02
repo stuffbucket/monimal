@@ -1,7 +1,7 @@
+import { SHELL_CONTENT } from '../src/renderer/lib/content.js';
 import { describe, expect, it } from 'vitest';
 
 import {
-  APP_STATUS_LABELS,
   capabilityLabels,
   diagnosticsBundle,
   formatCompact,
@@ -251,20 +251,33 @@ describe('relativeTime', () => {
 });
 
 describe('the label tables', () => {
-  it('names every application status', () => {
-    expect(APP_STATUS_LABELS).toEqual({
+  /*
+   * These used to be here, as `APP_STATUS_LABELS` and a `USAGE_PERIODS` that
+   * carried `label` and `noun`. They are content, so they moved to
+   * `lib/content.ts`; what stays in this module is the order the periods are
+   * offered in, which is arithmetic's business rather than copy's.
+   */
+  it('offers every period, in order', () => {
+    expect(USAGE_PERIODS).toEqual(['day', 'week', 'month', 'all']);
+  });
+
+  it('names each of them, and each application status, in the catalogue', () => {
+    expect(SHELL_CONTENT.usage.periods).toEqual({
+      day: { label: 'Today', noun: 'today' },
+      week: { label: '7 days', noun: 'the last 7 days' },
+      month: { label: 'This month', noun: 'this month' },
+      all: { label: 'All time', noun: 'all time' },
+    });
+
+    expect(SHELL_CONTENT.apps.statuses).toEqual({
       ready: 'Ready',
       'not-installed': 'Not installed',
       'coming-soon': 'Coming soon',
     });
   });
 
-  it('names every period, with the noun the summary sentence uses', () => {
-    expect(USAGE_PERIODS).toEqual([
-      { id: 'day', label: 'Today', noun: 'today' },
-      { id: 'week', label: '7 days', noun: 'the last 7 days' },
-      { id: 'month', label: 'This month', noun: 'this month' },
-      { id: 'all', label: 'All time', noun: 'all time' },
-    ]);
+  it('has a word for every period the type allows', () => {
+    // A period added to the union with no entry here renders an empty button.
+    expect(Object.keys(SHELL_CONTENT.usage.periods).sort()).toEqual([...USAGE_PERIODS].sort());
   });
 });

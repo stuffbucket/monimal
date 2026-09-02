@@ -1,8 +1,8 @@
 import { useComponentStyles } from '../../lib/component-styles.js';
+import { fill, useShellContent } from '../../lib/content.js';
 import { TriangleAlert } from 'lucide-react';
 
 import {
-  APP_STATUS_LABELS,
   type AppIntegration,
 } from '../../lib/settings.js';
 import { Button } from '../controls/Button.js';
@@ -116,22 +116,21 @@ export function AppTogglesDialog({
   useComponentStyles('settings-page', SETTINGS_STYLES);
   useComponentStyles('app-toggles', APP_TOGGLES_STYLES);
 
+  const content = useShellContent().apps;
+
   return (
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Apps"
-      description="Which applications route through this shell."
+      title={content.title}
+      description={content.description}
       testId="settings-app-toggles"
     >
-      <h2 className="settings__title">Apps</h2>
-      <p className="settings__description">
-        Turn one on and it sends its requests here. Turning one off leaves its
-        own settings exactly as they were.
-      </p>
+      <h2 className="settings__title">{content.title}</h2>
+      <p className="settings__description">{content.intro}</p>
 
       {apps.length === 0 ? (
-        <EmptyState icon={TriangleAlert} message="No applications detected." />
+        <EmptyState icon={TriangleAlert} message={content.empty} />
       ) : (
         <ul className="app-list">
           {apps.map((app) => (
@@ -140,11 +139,11 @@ export function AppTogglesDialog({
                 <span className="app-card__name">{app.name}</span>
 
                 {app.status === 'coming-soon' ? (
-                  <Tag>{APP_STATUS_LABELS[app.status]}</Tag>
+                  <Tag>{content.statuses[app.status]}</Tag>
                 ) : (
                   app.installCommand === undefined && (
                     <Switch
-                      label={app.enabled ? 'On' : 'Off'}
+                      label={app.enabled ? content.on : content.off}
                       checked={app.enabled}
                       disabled={onToggle === undefined || app.status === 'not-installed'}
                       onChange={(next) => onToggle?.(app.id, next)}
@@ -154,23 +153,23 @@ export function AppTogglesDialog({
                 )}
               </div>
 
-              <p className="app-card__path">{app.path ?? APP_STATUS_LABELS[app.status]}</p>
+              <p className="app-card__path">{app.path ?? content.statuses[app.status]}</p>
 
               {app.installCommand !== undefined && (
                 <div className="app-card__install">
                   <p className="settings__description">
-                    Run this to install {app.name}, then scan again.
+                    {fill(content.installHint, { name: app.name })}
                   </p>
                   <code className="app-card__command">{app.installCommand}</code>
                   <div className="settings__row">
                     <CopyButton
                       text={app.installCommand}
-                      label="Copy command"
+                      label={content.copyCommand}
                       testId={`app-${app.id}-copy`}
                     />
                     {onRescan && (
                       <Button size="sm" onClick={onRescan} testId={`app-${app.id}-rescan`}>
-                        Scan again
+                        {content.rescan}
                       </Button>
                     )}
                   </div>
@@ -179,7 +178,7 @@ export function AppTogglesDialog({
 
               {app.conflict !== undefined && (
                 <Banner status="blocked" testId={`app-${app.id}-conflict`}>
-                  <strong>Left your existing setting in place.</strong> {app.conflict}
+                  <strong>{content.conflict}</strong> {app.conflict}
                 </Banner>
               )}
             </li>
@@ -194,7 +193,7 @@ export function AppTogglesDialog({
           }}
           testId="app-toggles-done"
         >
-          Done
+          {content.done}
         </Button>
       </div>
     </Dialog>

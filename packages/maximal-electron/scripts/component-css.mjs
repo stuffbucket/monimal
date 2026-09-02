@@ -5,7 +5,7 @@
  * literal, which is a place nothing was watching for a literal. Two readers
  * need to judge them and they must not judge them differently:
  *
- * - `eslint/shell-styles.mjs` reports at the character while the file is open,
+ * - `eslint/shell.mjs` reports at the character while the file is open,
  *   which is where a mistake is cheapest to fix.
  * - `tests/component-styles.test.ts` reports over every carried string at once,
  *   which is what CI fails on.

@@ -175,7 +175,13 @@ the class names in the shipped stylesheet are an implementation detail, and the
 structural tokens of decision 1 are what makes that a fair thing to say — a
 consumer given a complete ramp has no reason to reach for a selector.
 
-**5. The published stylesheet ships inside a cascade layer.** `@layer` makes
+**5. The published stylesheet ships inside a cascade layer.** *(Shipped in
+`fd01f21`, ahead of its stated sequencing. The blocker below was measured
+rather than assumed: after the `.inspector__*` rename the client and the
+package share no class name at all — `styledClassNames` over both reports one
+overlap, `.sb-shell`, which is the root a consumer is meant to set tokens on.
+Handing the client's rules the win at once turned out to be handing them
+nothing.)* `@layer` makes
 layer order beat specificity, so a consumer's rule wins over ours however many
 classes ours chains — without `!important`, and without this package policing
 its own selectors forever. Radix Themes had to retrofit exactly this after
@@ -191,12 +197,17 @@ those rules the win at once, including the ones that are wrong.
 evaluated anywhere that can abort first paint. An unparseable or missing value
 falls back and warns.
 
-**7. Controls carry no content.** Fifteen user-facing strings sit in five
-components here, and the published `Inspector` ships one application's settings
-copy — "Send a test notification", "Menu bar icon", "Ask before running",
-"Keep terminals running". A reusable control must take its content from its
-caller. Placeholder and story data comes from a stub provider returning lorem
-ipsum, so the seam sits between model and view rather than inside the view.
+**7. Controls carry no content.** Fifty-seven user-facing strings sit in five
+components here. A reusable control must take its content from its caller.
+Placeholder and story data comes from a stub provider returning lorem ipsum, so
+the seam sits between model and view rather than inside the view.
+
+*(This paragraph said fifteen strings, and named `Inspector` as a published
+component shipping one application's settings copy. `Inspector` is the
+client's, not this package's — `InspectorPanel` is what is exported, and it
+takes its children. The count was of one file rather than of the surfaces the
+decision is about. Both corrected; the measurement is `Usage` 18, `ApiKeys` 15,
+`Diagnostics` 10, `Apps` 10, `ModelCards` 6, plus `CopyButton`'s two.)*
 
 **8. The styling surface is named slots, not class names.** Decision 4 says
 class names stop being the API; this says what replaces them. React Aria, Base
@@ -233,15 +244,41 @@ Per `docs/proposals/README.md`, this proposal is not done until the issues exist
 and are named here. They are not filed yet:
 
 1. ~~Ship the 34 structural tokens~~ — done, `db9da26`.
-2. Re-express the 30 `fallback` colour defaults as derivations of `required`
-   tokens.
+2. ~~Re-express the `fallback` colour defaults as derivations of `required`
+   tokens~~ — done, and largely already true when this was written. All
+   fourteen colour fallbacks name another token; the twenty literals left are
+   structural — spacing, radii, control heights, opacity, icon stroke, the two
+   font stacks — which decision 1 says this package *should* ship with values.
+   The measurement behind "30 independent literals" counted those.
+
+   One real case was found and fixed: `--shell-input-border:
+   var(--shell-border-strong, var(--shell-border, #2a2a2a))`, a transcribed
+   swatch three levels down a chain, in the file added to end exactly this. It
+   was also pointless — `--shell-border` is required, so a consumer defines it
+   or nothing has a border. `tests/fallback-derivation.test.ts` now asserts the
+   published stylesheet names no colour at all, and that a colour fallback is
+   always a `var()`. `--shell-scrim` is the one named exemption, with its
+   reason: derived from the palette it would be white on a light theme, which
+   is not a dimmer page but a brighter one.
 3. ~~Colocate the settings rules with their components~~ — done, `1ee7bca`.
    546 lines left `controls.css`. The remaining controls still read the
    internal namespace and `structural.css` still mirrors them; the mirror
    retires when the last one moves.
 4. ~~Export the settings components with their styles~~ — done, `1ee7bca`.
-5. Lift embedded content out of `Inspector` and the four other components;
-   add a lorem-ipsum stub provider for stories and placeholders.
+5. ~~Lift embedded content out of the five components; add a lorem-ipsum stub
+   provider for stories and placeholders~~ — done. `lib/content.ts` holds the
+   catalogue, `ShellContentProvider` supplies it, and `lib/content-lorem.ts` is
+   the stub, exported so a consumer can build against shape before wording
+   exists. `USAGE_PERIODS`'s labels and `APP_STATUS_LABELS` moved there too:
+   they were content in a module about arithmetic.
+
+   Two checks, because neither reaches everything. `tests/content-seam.test.ts`
+   renders each surface from the stub and fails on any English the stub cannot
+   account for — the strong check, and blind to the two dialogs, which Radix
+   portals into a document the test environment does not have.
+   `eslint/shell.mjs`'s `content` rule reads source, so it sees all five, and
+   it reports as the words are typed. Both were verified by putting a string
+   back: the rule named the character, the render named the word.
 6. Client: delete the hand-written CSS, compose the published controls, and
    remove the `.inspector__*` and `.nav` redeclarations. Measured after
    `1ee7bca`: 750 lines across nine injected blocks, five class names

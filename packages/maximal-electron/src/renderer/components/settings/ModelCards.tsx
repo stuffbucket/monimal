@@ -1,6 +1,7 @@
 import { Cpu, RefreshCw } from 'lucide-react';
 
 import { useComponentStyles } from '../../lib/component-styles.js';
+import { fill, useShellContent } from '../../lib/content.js';
 import {
   capabilityLabels,
   groupByKind,
@@ -27,11 +28,6 @@ import { SettingsPage } from './SettingsPage.js';
  * provider, read while something else is being configured, and worth leaving
  * open.
  */
-
-const KIND_LABELS: Record<string, string> = {
-  chat: 'Chat models',
-  embeddings: 'Embeddings',
-};
 
 function tokens(value: number | undefined): string {
   return value === undefined ? NO_VALUE : formatCompact(value);
@@ -139,35 +135,36 @@ export function ModelCards({
 }) {
   useComponentStyles('model-cards', MODEL_CARD_STYLES);
 
+  const content = useShellContent().models;
   const freshness =
     loadedAtMs === undefined
-      ? 'Not loaded yet'
-      : `Updated ${relativeTime(loadedAtMs, nowMs)}`;
+      ? content.neverLoaded
+      : fill(content.updated, { when: relativeTime(loadedAtMs, nowMs) });
 
   return (
     <SettingsPage
       testId="settings-model-cards"
-      title="Model cards"
-      description="Models available to applications through this shell, grouped by kind. The list comes from the provider."
+      title={content.title}
+      description={content.description}
       actions={
         <>
           <span className="settings__note">{freshness}</span>
           {onRefresh && (
             <Button size="sm" onClick={onRefresh} disabled={refreshing} testId="models-refresh">
               <RefreshCw size={14} />
-              {refreshing ? 'Refreshing…' : 'Refresh'}
+              {refreshing ? content.refreshing : content.refresh}
             </Button>
           )}
         </>
       }
     >
       {models.length === 0 ? (
-        <EmptyState icon={Cpu} message="No models cached yet." />
+        <EmptyState icon={Cpu} message={content.empty} />
       ) : (
         groupByKind(models).map((group) => (
           <section className="settings__section" key={group.kind}>
             <h2 className="settings__section-title">
-              {KIND_LABELS[group.kind] ?? group.kind} ({group.models.length})
+              {content.kinds[group.kind] ?? group.kind} ({group.models.length})
             </h2>
 
             <div className="model-grid">
@@ -175,17 +172,17 @@ export function ModelCards({
                 <article className="model-card" key={model.id} data-testid={`model-${model.id}`}>
                   <header className="model-card__head">
                     <h3 className="model-card__name">{model.name}</h3>
-                    {model.preview === true && <Tag>Preview</Tag>}
+                    {model.preview === true && <Tag>{content.preview}</Tag>}
                   </header>
                   <p className="model-card__id">{model.id}</p>
 
                   <dl className="model-card__stats">
                     <div>
-                      <dt>Context</dt>
+                      <dt>{content.context}</dt>
                       <dd>{tokens(model.contextWindowTokens)}</dd>
                     </div>
                     <div>
-                      <dt>Max out</dt>
+                      <dt>{content.maxOutput}</dt>
                       <dd>{tokens(model.maxOutputTokens)}</dd>
                     </div>
                   </dl>

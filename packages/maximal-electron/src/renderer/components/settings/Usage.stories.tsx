@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
+import { LOREM_CONTENT } from '../../lib/content-lorem.js';
+import { ShellContentProvider } from '../../lib/content.js';
 import { sampleUsage } from '../../lib/sample-settings.js';
 import type { UsagePeriod, UsageReport } from '../../lib/settings.js';
 
@@ -68,4 +70,23 @@ export const NoCost: Story = {
   args: {
     report: { ...REPORT, totals: { ...REPORT.totals, nanoCost: 0 } },
   },
+};
+
+/**
+ * The same surface with no copy decided yet.
+ *
+ * Every word here comes from `LOREM_CONTENT`, the stub half of the catalogue
+ * in `lib/content.ts`. It is what a consumer renders against before their own
+ * wording exists, and it is the demonstration that the component holds none of
+ * its own: a string this shows in English would be one that never left the
+ * component. `tests/content-seam.test.ts` makes that a failure rather than
+ * something to notice.
+ */
+export const StubContent: Story = {
+  name: 'Stub content',
+  render: (args) => (
+    <ShellContentProvider content={LOREM_CONTENT}>
+      <UsageStory {...args} />
+    </ShellContentProvider>
+  ),
 };
