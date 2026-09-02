@@ -63,6 +63,14 @@ In workflows:
 - A release MUST NOT be published before the Gatekeeper acceptance test has run
   on a Mac that has never held the signing identity. Notarization succeeding is
   not evidence that a user's Mac will open the app.
+- The bundle identifier and the signing Team ID MUST NOT change between
+  releases. macOS keys TCC grants, keychain ACLs and LaunchServices registration
+  on the two together, so a change strands every installed copy: it keeps its
+  own permissions and data, and the new build starts from nothing.
+- A release MUST carry a `CFBundleVersion` of one to three period-separated
+  integers, higher than the previous release's. LaunchServices stops parsing at
+  the first non-digit, so a tag string leaves it unable to tell two installed
+  copies apart.
 
 ## Sources
 

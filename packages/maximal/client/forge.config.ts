@@ -25,6 +25,17 @@ const config: ForgeConfig = {
     // CFBundleIdentifier and the builder's per-repo policy gate rejects the build.
     appBundleId: 'co.stuffbucket.maximal',
     appCategoryType: 'public.app-category.developer-tools',
+    // CFBundleVersion — the field macOS compares when it finds two copies of the
+    // same bundle id, and therefore the one the UPGRADE path rides on. Apple
+    // requires one to three period-separated integers, and LaunchServices' parse
+    // stops at the first non-digit: left as the tag version, "0.5.0-rc.2" would
+    // collapse to 0.5.0 and compare EQUAL to the final 0.5.0.
+    //
+    // `.macos-builder/build.sh` is the single owner of the value and derives it
+    // from the tagged commit's date. Unset — a local `electron-forge package` —
+    // @electron/packager falls back to appVersion, which is correct for a build
+    // nothing ever upgrades from.
+    buildVersion: process.env.MAXIMAL_BUILD_VERSION,
     icon: 'build/icon', // Forge appends the platform extension (.icns on macOS)
     // maximal-core ships as a compiled Bun sidecar under resources/bin and is
     // copied into the packaged app at Contents/Resources/bin — OUTSIDE the asar,
