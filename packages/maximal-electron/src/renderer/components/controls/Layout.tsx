@@ -139,6 +139,83 @@ export function Tag({ children }: { children: ReactNode }) {
 }
 
 /**
+ * The rules a note draws itself with.
+ *
+ * They travel with the component so exporting one ships the other.
+ * `src/renderer/lib/component-styles.ts` says why.
+ */
+const NOTE_STYLES = `
+.sb-shell .note {
+  margin: 0;
+  font-size: var(--shell-text-sm);
+  line-height: var(--shell-leading-base);
+  color: var(--shell-text-muted);
+}
+
+/*
+ * The status colour, on the same mapping every other stateful control here
+ * uses: the component passes the state through to data-status and a host
+ * writes the --shell-status rules. The package promises no vocabulary of
+ * states, so a note with an unrecognised one is a quiet note rather than an
+ * unstyled one.
+ */
+.sb-shell .note[data-status] {
+  color: var(--shell-status, var(--shell-text-muted));
+}
+`;
+
+/**
+ * A line of explanation, or of trouble, under the thing it is about.
+ *
+ * It earns a place here the way `controls/index.ts` says a primitive has to:
+ * `packages/maximal/client` hand-rolled it sixteen times across five files as
+ * `.settings-note`, with a plain, a warning and an error tone, and this
+ * package styles `.settings__description` and `.settings__note` for the same
+ * job without ever exposing either. Three spellings of one thing.
+ *
+ * Not `Banner`. That is a strip with an action and a dismiss control, and it
+ * announces itself as a region; this is a sentence. Reaching for `Banner`
+ * because a note has a colour is how a form gets four dismissable regions
+ * under it.
+ *
+ * `live` is the reason this is a component rather than a class name. Every one
+ * of the client's error notes carried `role="alert"` and `aria-live` by hand,
+ * and half of the polite ones did not — a message that replaces itself and is
+ * never announced. Passing the intent instead of the attributes is what makes
+ * that decidable once.
+ */
+export function Note({
+  children,
+  status,
+  live,
+  testId,
+}: {
+  children: ReactNode;
+  /** A state a host has a `--shell-status` rule for. Absent means quiet. */
+  status?: string;
+  /**
+   * How a replacement is announced. `assertive` interrupts, and is for a
+   * failure the person has to act on; `polite` waits, and is for progress.
+   */
+  live?: 'polite' | 'assertive';
+  testId?: string;
+}) {
+  useComponentStyles('note', NOTE_STYLES);
+
+  return (
+    <p
+      className="note"
+      data-status={status}
+      data-testid={testId}
+      role={live === 'assertive' ? 'alert' : undefined}
+      aria-live={live}
+    >
+      {children}
+    </p>
+  );
+}
+
+/**
  * The chrome of a side panel: a title, and what is in it.
  *
  * It used to carry its own collapse button, which sat about forty pixels below

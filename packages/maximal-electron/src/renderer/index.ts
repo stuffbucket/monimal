@@ -83,6 +83,7 @@ export {
   IconButton,
   InspectorPanel,
   Menu,
+  Note,
   RadioGroup,
   Row,
   Select,

@@ -3,7 +3,8 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { declaredTokens, readTokens } from '../scripts/component-css.mjs';
+import { declaredTokens } from '../scripts/component-css.mjs';
+import { shellVariablesIn } from '../scripts/shell-variables.mjs';
 import { componentStyles } from './stylesheets.js';
 
 /**
@@ -108,15 +109,23 @@ function definedBy(files: string[]): Set<string> {
   return new Set(declaredTokens(css).filter((name) => name.startsWith('--shell-')));
 }
 
-/** Every `--shell-*` a carried rule reads and does not itself declare. */
+/**
+ * Every `--shell-*` a carried rule reads *bare*, and does not itself declare.
+ *
+ * The distinction is the whole check. `var(--shell-space-3)` with nothing
+ * after the comma has no value if nobody defines the name, and an undefined
+ * custom property with no fallback makes the whole declaration invalid at
+ * computed-value time — no gap, not a smaller one. `var(--shell-status,
+ * var(--shell-text-muted))` has a value either way, and `--shell-status` is
+ * deliberately undefined until a host writes its own `[data-status]` rules:
+ * `.storybook/consumer.css` says so at length and leaves it unset on purpose.
+ * Demanding a definition for it would be demanding the package promise a
+ * vocabulary of states it does not have.
+ */
 function carriedReads(): string[] {
   const css = componentStyles();
   const declared = new Set(declaredTokens(css));
-  return [
-    ...new Set(
-      readTokens(css).filter((name) => name.startsWith('--shell-') && !declared.has(name)),
-    ),
-  ].sort();
+  return shellVariablesIn(css).required.filter((name) => !declared.has(name));
 }
 
 describe('the contract a carried rule reads', () => {

@@ -160,6 +160,7 @@ export const RENDERER_SURFACE = [
   'Menu',
   'ModelCards',
   'NavRail',
+  'Note',
   'RadioGroup',
   'Row',
   'SHELL_CONTENT',

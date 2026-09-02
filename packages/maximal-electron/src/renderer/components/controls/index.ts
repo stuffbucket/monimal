@@ -33,6 +33,7 @@ export {
   Banner,
   EmptyState,
   InspectorPanel,
+  Note,
   StatusChip,
   Tag,
   Toolbar,

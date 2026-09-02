@@ -9,6 +9,7 @@ import {
   Banner,
   EmptyState,
   InspectorPanel,
+  Note,
   StatusChip,
   Toolbar,
   ViewModeSwitch,
@@ -212,4 +213,29 @@ export const Inspector: StoryObj = {
       </InspectorPanel>
     </div>
   ),
+};
+
+export const Notes: StoryObj = {
+  name: 'Note',
+  render: () => (
+    <div style={{ display: 'grid', gap: 12, maxWidth: 420 }}>
+      <Note>Point OpenAI-compatible clients at this address.</Note>
+      <Note status="blocked" live="assertive">
+        Could not reach the proxy. Check that it is running.
+      </Note>
+      <Note status="running" live="polite">
+        Signing in…
+      </Note>
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    // The failing note interrupts; the progress note waits. Passing the intent
+    // rather than the attributes is the reason this is a component: the client
+    // that hand-rolled it set `role="alert"` on every error and `aria-live` on
+    // only half the polite ones.
+    await expect(canvas.getByRole('alert')).toHaveTextContent('Could not reach the proxy');
+    await expect(canvas.getByText('Signing in…')).toHaveAttribute('aria-live', 'polite');
+  },
 };
