@@ -153,6 +153,7 @@ export const RENDERER_SURFACE = [
   'EMPHASIS_LABELS',
   'EmptyState',
   'Field',
+  'FieldList',
   'FormField',
   'IconButton',
   'InspectorPanel',

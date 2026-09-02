@@ -79,6 +79,7 @@ export {
   Dialog,
   EmptyState,
   Field,
+  FieldList,
   FormField,
   IconButton,
   InspectorPanel,

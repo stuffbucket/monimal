@@ -10,7 +10,7 @@ import {
   type Endpoint,
 } from '../../lib/settings.js';
 import { Button, IconButton } from '../controls/Button.js';
-import { FormField, Switch, TextInput } from '../controls/Fields.js';
+import { Field, FieldList, FormField, Switch, TextInput } from '../controls/Fields.js';
 import { EmptyState } from '../controls/Layout.js';
 import { Dialog } from '../controls/Overlays.js';
 
@@ -216,35 +216,42 @@ export function ApiKeysDialog({
           as="h3"
           testId="api-keys-endpoint"
         >
-          <div className="field">
-            <span className="field__label">{content.baseUrl}</span>
-            <span className="field__value">
-              {endpoint.baseUrl}
-              <CopyButton
-                text={endpoint.baseUrl}
-                about={content.baseUrlAbout}
-                testId="endpoint-copy-url"
+          <FieldList>
+            <Field
+              label={content.baseUrl}
+              value={
+                <>
+                  {endpoint.baseUrl}
+                  <CopyButton
+                    text={endpoint.baseUrl}
+                    about={content.baseUrlAbout}
+                    testId="endpoint-copy-url"
+                  />
+                </>
+              }
+            />
+
+            {endpoint.key !== undefined && (
+              <Field
+                label={content.key}
+                value={
+                  <Secret
+                    value={endpoint.key}
+                    name={content.endpointKeyName}
+                    testId="endpoint-key"
+                  />
+                }
               />
-            </span>
-          </div>
+            )}
 
-          {endpoint.key !== undefined && (
-            <div className="field">
-              <span className="field__label">{content.key}</span>
-              <span className="field__value">
-                <Secret value={endpoint.key} name={content.endpointKeyName} testId="endpoint-key" />
-              </span>
-            </div>
-          )}
-
-          {endpoint.routes.map((route) => (
-            <div className="field" key={route.path}>
-              <span className="field__label">{route.label}</span>
-              <span className="field__value">
-                {route.method} {route.path}
-              </span>
-            </div>
-          ))}
+            {endpoint.routes.map((route) => (
+              <Field
+                key={route.path}
+                label={route.label}
+                value={`${route.method} ${route.path}`}
+              />
+            ))}
+          </FieldList>
         </SettingsSection>
       )}
 

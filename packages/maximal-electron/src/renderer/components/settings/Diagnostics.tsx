@@ -7,6 +7,7 @@ import {
   type LogLocation,
 } from '../../lib/settings.js';
 import { Button } from '../controls/Button.js';
+import { Field, FieldList } from '../controls/Fields.js';
 import { EmptyState, StatusChip } from '../controls/Layout.js';
 
 import { CopyButton } from './CopyButton.js';
@@ -67,16 +68,13 @@ export function Diagnostics({
           description={content.logsDescription}
           testId="diagnostics-logs"
         >
-          <div className="field">
-            <span className="field__label">{content.folder}</span>
-            <span className="field__value">{logs.path}</span>
-          </div>
-          <div className="field">
-            <span className="field__label">{content.retention}</span>
-            <span className="field__value">
-              {fill(content.retentionValue, { days: logs.retentionDays })}
-            </span>
-          </div>
+          <FieldList>
+            <Field label={content.folder} value={logs.path} />
+            <Field
+              label={content.retention}
+              value={fill(content.retentionValue, { days: logs.retentionDays })}
+            />
+          </FieldList>
           {onRevealLogs && (
             <div className="settings__row">
               <Button size="sm" onClick={onRevealLogs} testId="diagnostics-reveal-logs">
@@ -93,20 +91,23 @@ export function Diagnostics({
       ) : (
         groups.map((group) => (
           <SettingsSection key={group.id} title={group.label} testId={`diagnostics-${group.id}`}>
-            {group.entries.map((entry) => (
-              <div className="field" key={entry.label}>
-                <span className="field__label">{entry.label}</span>
-                <span className="field__value">
-                  {/* A status colours the value rather than adding a second
-                      one beside it. */}
-                  {entry.status === undefined ? (
-                    entry.value
-                  ) : (
-                    <StatusChip status={entry.status} label={entry.value} />
-                  )}
-                </span>
-              </div>
-            ))}
+            <FieldList>
+              {group.entries.map((entry) => (
+                <Field
+                  key={entry.label}
+                  label={entry.label}
+                  // A status colours the value rather than adding a second one
+                  // beside it.
+                  value={
+                    entry.status === undefined ? (
+                      entry.value
+                    ) : (
+                      <StatusChip status={entry.status} label={entry.value} />
+                    )
+                  }
+                />
+              ))}
+            </FieldList>
           </SettingsSection>
         ))
       )}

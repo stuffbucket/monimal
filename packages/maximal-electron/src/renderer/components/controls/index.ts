@@ -19,6 +19,7 @@ export { Callout } from './Callout.js';
 export {
   Checkbox,
   Field,
+  FieldList,
   FormField,
   RadioGroup,
   Select,
