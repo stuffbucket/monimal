@@ -20,6 +20,7 @@
  * Import this rather than `tokens.css` directly. It re-exports them.
  */
 
+@layer sb-shell.base {
 button {
   font: inherit;
   color: inherit;
@@ -509,4 +510,5 @@ svg {
   flex-wrap: wrap;
   gap: var(--space-2);
   justify-content: flex-end;
+}
 }

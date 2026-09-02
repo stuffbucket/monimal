@@ -188,6 +188,12 @@ export function declaredProperties(body) {
  * shortened by a second inside `@media (prefers-reduced-motion: reduce)`; a
  * reader who loses the first still sees the second. Issue #118. The prelude
  * rather than a flag, because two different media queries are two conditions.
+ *
+ * `layers` is the other axis and answers a different question: not who sees
+ * the rule, but whether a consumer can beat it. An unlayered rule outranks a
+ * layered one whatever its specificity, so a rule that has escaped its layer
+ * is one this package would win with and should not. `tests/cascade-layers.
+ * test.ts` is the reader.
  */
 export function styleRules(css) {
   const found = [];
@@ -195,6 +201,10 @@ export function styleRules(css) {
   const holds = [RULES];
   /** The conditional at-rule preludes enclosing the current block. */
   const conditions = [];
+  /** The cascade layers enclosing the current block, outermost first. */
+  const layers = [];
+  /** The block depth each of those layers was opened at, so a `}` can pop it. */
+  const layerDepths = [];
   /** The open style rule, when the innermost block is one. */
   let rule = null;
   let prelude = '';
@@ -242,11 +252,18 @@ export function styleRules(css) {
         if (CONDITIONAL.has(name)) {
           conditions.push(head.replace(/\s+/g, ' '));
           holds.push(CONDITIONAL_RULES);
-        } else holds.push(NESTS_RULES.has(name) ? RULES : 'declarations');
+        } else {
+          holds.push(NESTS_RULES.has(name) ? RULES : 'declarations');
+          if (name === 'layer') {
+            layers.push(head.replace(/^@layer\s*/i, '').trim());
+            layerDepths.push(holds.length);
+          }
+        }
       } else {
         rule = {
           selectors: splitSelectorList(head),
           conditions: [...conditions],
+          layers: [...layers],
           body: '',
           depth: holds.length,
         };
@@ -259,12 +276,16 @@ export function styleRules(css) {
       if (rule && holds.length === rule.depth + 1) {
         const properties = declaredProperties(rule.body);
         for (const selector of rule.selectors) {
-          found.push({ selector, conditions: rule.conditions, properties });
+          found.push({ selector, conditions: rule.conditions, layers: rule.layers, properties });
         }
         rule = null;
       } else if (rule) write('}');
 
       if (holds.at(-1) === CONDITIONAL_RULES) conditions.pop();
+      if (layerDepths.at(-1) === holds.length) {
+        layerDepths.pop();
+        layers.pop();
+      }
       if (holds.length > 1) holds.pop();
       prelude = '';
       index += 1;

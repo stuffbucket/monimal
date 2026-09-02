@@ -16,6 +16,8 @@ export interface StyleRule {
   selector: string;
   /** The conditional at-rule preludes enclosing it, outermost first. */
   conditions: string[];
+  /** The cascade layer names enclosing it, outermost first. */
+  layers: string[];
   /** The property names its body sets, in source order and with repeats. */
   properties: string[];
 }

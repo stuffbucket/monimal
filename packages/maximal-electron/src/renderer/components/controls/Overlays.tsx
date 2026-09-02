@@ -1,7 +1,9 @@
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
-import { createContext, useContext, type ComponentType, type ReactNode } from 'react';
+import { useContext, type ComponentType, type ReactNode } from 'react';
+
+import { SHELL_ROOT_CLASS, ShellRoot } from '../../lib/shell-root.js';
 
 /**
  * Things that sit above the page.
@@ -13,15 +15,6 @@ import { createContext, useContext, type ComponentType, type ReactNode } from 'r
  * first four.
  */
 
-/**
- * The shell root, or `null` for the one render before `ShellLayout`'s root
- * element attaches. `undefined` means no shell above this component at all,
- * which is the case the fallback below is for.
- */
-const ShellRoot = createContext<HTMLElement | null | undefined>(undefined);
-
-/** The class every rule in the shipped stylesheet is scoped under. */
-const SHELL_ROOT_CLASS = 'sb-shell';
 
 /** Marks the element `shellPortalRoot` creates, so a second call finds it. */
 const STANDALONE_ATTRIBUTE = 'data-sb-shell-portal-root';

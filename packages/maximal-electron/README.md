@@ -224,6 +224,13 @@ root is fixed to the viewport, so it fills the window with no document reset of
 your own; set `--shell-position: static` to lay the shell out inside a container
 you have given a height to instead.
 
+Everything the package draws sits in a cascade layer, `sb-shell.base` for the
+stylesheet and `sb-shell.components` for the rules a component injects when it
+first renders. A rule of your own outside a layer beats both, whatever their
+specificity, so overriding one takes no `!important` and no counting of
+classes. `@layer reset, sb-shell, app;` in your own CSS places the package
+against layers you already have.
+
 `:root` or `body` rather than your own container, because `Dialog`, `Menu` and
 `IconButton`'s tooltip do not render where they are written. Each portals above
 the page, so it lands outside whatever element you put `.sb-shell` on. The

@@ -315,6 +315,7 @@ export function reExportedNames(source) {
 const CONTRACTS = [
   /(?:^|\/)lib\/component-styles(?:\.js)?$/,
   /(?:^|\/)lib\/settings(?:\.js)?$/,
+  /(?:^|\/)lib\/shell-root(?:\.js)?$/,
   /(?:^|\/)lib\/terminal-transport(?:\.js)?$/,
   /(?:^|\/)lib\/tab-adornment(?:\.js)?$/,
   /(?:^|\/)lib\/terminal-sessions(?:\.js)?$/,

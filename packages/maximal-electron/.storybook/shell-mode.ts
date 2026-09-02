@@ -8,7 +8,11 @@ import tokensCss from '../src/renderer/styles/tokens.css?inline';
  * Which stylesheet a story is drawn with.
  *
  * `app` is `shell.css`, the stylesheet this application builds: one palette,
- * every selector unscoped. `package` is the sources `packageStylesheets()`
+ * every selector unscoped — plus `structure.css`, which draws nothing and is
+ * the only file that gives the structural ramp values. Both modes need it for
+ * the same reason: a carried rule reads `--shell-space-3` bare, and an
+ * undefined custom property with no fallback is not a smaller gap, it is
+ * none. `package` is the sources `packageStylesheets()`
  * concatenates into `dist/renderer/styles.css`, which is the CSS a consumer
  * installs: the structural ramp with values, no palette, every rule under
  * `.sb-shell`.
@@ -44,7 +48,7 @@ const ELEMENT_ID = 'sb-shell-mode';
  * may not.
  */
 const STYLESHEETS: Record<ShellMode, string> = {
-  app: shellCss,
+  app: [structureCss, shellCss].join('\n'),
   package: [tokensCss, consumerCss, structureCss, structuralCss].join('\n'),
 };
 

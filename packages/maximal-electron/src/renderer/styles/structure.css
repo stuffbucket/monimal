@@ -29,6 +29,9 @@
  * changes when they need larger text.
  */
 
+@layer sb-shell.base, sb-shell.components;
+
+@layer sb-shell.base {
 .sb-shell {
   --shell-space-1: 4px;
   --shell-space-2: 8px;
@@ -49,4 +52,5 @@
   --shell-tracking-caps: 0.04em;
   --shell-radius-pill: 9999px;
   --shell-control-lg: 28px;
+}
 }

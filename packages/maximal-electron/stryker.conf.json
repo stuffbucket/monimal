@@ -7,6 +7,7 @@
     "configFile": "vitest.config.ts"
   },
   "mutate": [
+    "scripts/component-css.mjs",
     "src/shared/urls.ts",
     "src/host/main-options.ts",
     "src/host/crash-artifacts.ts",

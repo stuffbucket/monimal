@@ -198,6 +198,44 @@ sheet, with a value, overridable at the root. That is the third tier of the
 usual primitive, semantic and component split, and it is the only way a literal
 gets into one of these files.
 
+## Overriding what the package draws
+
+That paragraph said "overridable at the root" for some time before it was true.
+Every rule this package ships is `.sb-shell .thing`. A consumer writing
+`.sb-shell .thing` matches at the same specificity, so source order decides —
+and a carried rule arrives by `document.head.append` during the first render,
+after any stylesheet the consumer linked. Theirs lost every time, including the
+declaration of a component's own geometry token, and a losing rule is not an
+error.
+
+So the package ships inside a cascade layer. An unlayered rule beats a layered
+one whatever its specificity, which means a consumer's plain rule wins with no
+`!important` and without this package having to police how many classes its
+own selectors chain. Two layers, in this order:
+
+| Layer | What is in it |
+| --- | --- |
+| `sb-shell.base` | `./renderer/styles.css` — the structural ramp and every shipped rule |
+| `sb-shell.components` | the rules a component carries and injects when it first renders |
+
+`@layer sb-shell.base, sb-shell.components;` is stated rather than left to
+first appearance, because a carried stylesheet appears when its component first
+renders and the order would otherwise depend on which surface a consumer
+happened to open first. The statement is at the top of the shipped file and is
+also injected ahead of the first carried sheet.
+
+Anything a consumer writes outside a layer wins over both. To place the package
+against layers of their own, name it in their own statement:
+`@layer reset, sb-shell, app;`.
+
+This is the mechanical end of a class of bug rather than a convenience.
+`packages/maximal/client` declared `.inspector__title` against this package's
+`.sb-shell .inspector__title`; ours is (0,2,0) and theirs is (0,1,0), so theirs
+had never applied and their inspector rendered two eyebrows and no title. Atom
+shipped the same failure in issue #13019 — a mechanical selector rewrite that
+stayed syntactically faithful and silently lowered specificity. With layers the
+colliding rule simply wins, which is what the consumer meant.
+
 ## What the variables do not cover
 
 Every rule in the shipped stylesheet is scoped under `.sb-shell`, so the

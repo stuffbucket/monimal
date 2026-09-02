@@ -5,6 +5,7 @@
  * --shell-* variables documented in README.md before importing this stylesheet.
  */
 
+@layer sb-shell.base {
 .sb-shell,
 .sb-shell *,
 .sb-shell *::before,
@@ -1345,4 +1346,5 @@
   flex-wrap: wrap;
   gap: var(--shell-space-2, 8px);
   justify-content: flex-end;
+}
 }
