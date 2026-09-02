@@ -162,6 +162,33 @@ black.
 `--shell-terminal-background` is read both ways and is listed above, under its
 CSS kind.
 
+## Rules a component carries
+
+The shipped stylesheet is not the only CSS a consumer receives. A component may
+carry its own rules in its own source and inject them the first time it renders
+— `src/renderer/lib/component-styles.ts` is the mechanism, and the settings
+surfaces are the components that use it.
+
+That exists because `structural.css` is a hand-maintained copy of rules
+authored in `controls.css`, and a copy drifts. `tests/package-styles.test.ts`
+was written to catch that drift and its header records twenty selectors that
+had already gone, including a primary button that stopped changing colour on
+hover. A component that carries its own rules has no copy to drift: exporting
+it and shipping its styles are one act.
+
+Nothing about the contract changes. Those rules read `--shell-*` like every
+other, they are scoped under `.sb-shell` like every other, and
+`tests/component-styles.test.ts` holds them to both — plus one rule the
+stylesheet never needed, that they may write no value a token should hold. A
+colour or a size spelled out in a TypeScript file is a design decision in a
+place no theme can reach.
+
+Where a component needs geometry the ramp has no name for — the height of a
+usage bar, the width of a legend swatch — it declares a token for it in its own
+sheet, with a value, overridable at the root. That is the third tier of the
+usual primitive, semantic and component split, and it is the only way a literal
+gets into one of these files.
+
 ## What the variables do not cover
 
 Every rule in the shipped stylesheet is scoped under `.sb-shell`, so the

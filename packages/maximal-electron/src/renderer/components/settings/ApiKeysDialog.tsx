@@ -1,3 +1,4 @@
+import { useComponentStyles } from '../../lib/component-styles.js';
 import { Eye, EyeOff, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -13,7 +14,7 @@ import { EmptyState } from '../controls/Layout.js';
 import { Dialog } from '../controls/Overlays.js';
 
 import { CopyButton } from './CopyButton.js';
-import { SettingsSection } from './SettingsPage.js';
+import { SETTINGS_STYLES, SettingsSection } from './SettingsPage.js';
 
 /**
  * The endpoint, and the clients that call it.
@@ -47,6 +48,7 @@ function Secret({
   name: string;
   testId: string;
 }) {
+
   const [revealed, setRevealed] = useState(false);
 
   return (
@@ -68,6 +70,99 @@ function Secret({
   );
 }
 
+/**
+ * The rules the key list draws itself with.
+ *
+ * They travel with the component so exporting one ships the other, and every
+ * value is a token. `src/renderer/lib/component-styles.ts` says why.
+ */
+const API_KEYS_STYLES = `
+/*
+ * How tall the list may grow before it scrolls. A share of the viewport rather
+ * than a size on any ramp, so it is this sheet's token.
+ */
+.sb-shell {
+  --shell-keys-dialog-max-height: 80vh;
+}
+/*
+ * A dialog holding a list rather than a sentence.
+ *
+ * The default 520px fits a confirmation. A key, its reveal and its copy button
+ * on one line do not fit in it.
+ */
+.sb-shell .dialog--wide {
+  width: min(720px, 92vw);
+  max-height: var(--shell-keys-dialog-max-height);
+  overflow-y: auto;
+}
+
+.sb-shell .secret {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--shell-space-1);
+  min-width: 0;
+}
+
+.sb-shell .secret__value {
+  padding: 0 var(--shell-space-2);
+  height: var(--shell-control-lg);
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--shell-radius-input);
+  border: 1px solid var(--shell-border-input);
+  background: var(--shell-bg-input);
+  font-family: var(--shell-font-mono);
+  font-size: var(--shell-text-xs);
+  color: var(--shell-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sb-shell .client-list,
+.sb-shell .app-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--shell-space-2);
+}
+
+.sb-shell .client {
+  display: flex;
+  align-items: center;
+  gap: var(--shell-space-2);
+  padding: var(--shell-space-2);
+  border: 1px solid var(--shell-border-subtle);
+  border-radius: var(--shell-radius-input);
+}
+
+.sb-shell .client__label {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--shell-text-sm);
+  color: var(--shell-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The switch fills its container by default, which is right in the inspector
+   and wrong in a row that already has four things in it. */
+.sb-shell .client .switch {
+  width: auto;
+  flex: none;
+}
+`;
+
+/**
+ * The keys a consumer issues, and the switch that requires one.
+ *
+ * A dialog rather than a tab: issuing a key is a bounded task, and the key
+ * itself is a secret that should leave the screen when the task is done.
+ *
+ * Holds no keys. The caller supplies the list and handles every action.
+ */
 export function ApiKeysDialog({
   open,
   onOpenChange,
@@ -85,6 +180,9 @@ export function ApiKeysDialog({
   onRemoveClient?: (id: string) => void;
   onToggleClient?: (id: string, enabled: boolean) => void;
 }) {
+  useComponentStyles('settings-page', SETTINGS_STYLES);
+  useComponentStyles('api-keys', API_KEYS_STYLES);
+
   const [draft, setDraft] = useState('');
   const [touched, setTouched] = useState(false);
   const error = touched ? labelError(draft) : undefined;

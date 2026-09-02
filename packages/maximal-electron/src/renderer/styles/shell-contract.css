@@ -1,0 +1,91 @@
+/*
+ * The reference application, supplying the contract as a consumer would.
+ *
+ * Rules that ship with a component read the published namespace — the one
+ * `README.md` tells a consumer to define. Rules in this directory read the
+ * short names `tokens.css` authors. Both render in the same document here, so
+ * this file is what makes the published names resolve while it does.
+ *
+ * That makes the reference application a consumer of its own package, which is
+ * the strongest available test of the contract: a token missing from
+ * `REQUIRED_TOKENS` shows up as an unstyled control in `npm start` and in
+ * `npm run stills`, not only in a consumer's application.
+ *
+ * Every line is one entry of `REQUIRED_TOKENS` in `src/renderer/lib/contrast.ts`,
+ * and `tests/shell-contract.test.ts` holds the two to each other. Do not edit
+ * by hand: add the token to that list.
+ *
+ * This file disappears when the stylesheets in this directory are renamed onto
+ * the published namespace, because there will be one set of names.
+ */
+
+:root {
+  --shell-accent: var(--accent);
+  --shell-accent-contrast: var(--accent-contrast);
+  --shell-accent-soft: var(--accent-soft);
+  --shell-bg-active: var(--bg-active);
+  --shell-bg-app: var(--bg-app);
+  --shell-bg-canvas: var(--bg-canvas);
+  --shell-bg-hover: var(--bg-hover);
+  --shell-bg-input: var(--bg-input);
+  --shell-bg-panel: var(--bg-panel);
+  --shell-bg-raised: var(--bg-raised);
+  --shell-border-input: var(--border-input);
+  --shell-border-input-hover: var(--border-input-hover);
+  --shell-border-invalid: var(--border-invalid);
+  --shell-border-strong: var(--border-strong);
+  --shell-border-subtle: var(--border-subtle);
+  --shell-control-lg: var(--control-lg);
+  --shell-control-md: var(--control-md);
+  --shell-control-sm: var(--control-sm);
+  --shell-danger: var(--danger);
+  --shell-danger-fill: var(--danger-fill);
+  --shell-danger-soft: var(--danger-soft);
+  --shell-duration-fast: var(--duration-fast);
+  --shell-ease-out: var(--ease-out);
+  --shell-elevation-dialog: var(--elevation-dialog);
+  --shell-elevation-popover: var(--elevation-popover);
+  --shell-focus-ring-color: var(--focus-ring-color);
+  --shell-focus-ring-offset: var(--focus-ring-offset);
+  --shell-focus-ring-width: var(--focus-ring-width);
+  --shell-font-body: var(--font-body);
+  --shell-font-mono: var(--font-mono);
+  --shell-icon-stroke: var(--icon-stroke);
+  --shell-leading-base: var(--leading-base);
+  --shell-nav-heading: var(--nav-heading);
+  --shell-opacity-disabled: var(--opacity-disabled);
+  --shell-radius-card: var(--radius-card);
+  --shell-radius-chip: var(--radius-chip);
+  --shell-radius-dialog: var(--radius-dialog);
+  --shell-radius-input: var(--radius-input);
+  --shell-radius-pill: var(--radius-pill);
+  --shell-size-row: var(--size-row);
+  --shell-size-tabbar: var(--size-tabbar);
+  --shell-size-titlebar: var(--size-titlebar);
+  --shell-space-1: var(--space-1);
+  --shell-space-2: var(--space-2);
+  --shell-space-3: var(--space-3);
+  --shell-space-4: var(--space-4);
+  --shell-space-5: var(--space-5);
+  --shell-success: var(--success);
+  --shell-success-soft: var(--success-soft);
+  --shell-tab-active: var(--tab-active);
+  --shell-tab-fade: var(--tab-fade);
+  --shell-tab-max: var(--tab-max);
+  --shell-tab-min: var(--tab-min);
+  --shell-text-base: var(--text-base);
+  --shell-text-invalid: var(--text-invalid);
+  --shell-text-md: var(--text-md);
+  --shell-text-muted: var(--text-muted);
+  --shell-text-on-solid: var(--text-on-solid);
+  --shell-text-primary: var(--text-primary);
+  --shell-text-secondary: var(--text-secondary);
+  --shell-text-sm: var(--text-sm);
+  --shell-text-xs: var(--text-xs);
+  --shell-tracking-caps: var(--tracking-caps);
+  --shell-warning: var(--warning);
+  --shell-warning-soft: var(--warning-soft);
+  --shell-weight-base: var(--weight-base);
+  --shell-weight-lg: var(--weight-lg);
+  --shell-weight-md: var(--weight-md);
+}

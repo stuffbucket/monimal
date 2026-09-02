@@ -12,7 +12,8 @@ import {
   type UsageReport,
   type UsageTotals,
 } from '../../lib/settings.js';
-import { EmptyState } from '../controls/Layout.js';
+import { useComponentStyles } from '../../lib/component-styles.js';
+import { EmptyState, Tag } from '../controls/Layout.js';
 
 import { SettingsPage, SettingsSection } from './SettingsPage.js';
 
@@ -78,7 +79,7 @@ function Breakdown({
           <li className="breakdown__row" key={row.id}>
             <span className="breakdown__label">
               {row.label}
-              {row.premium === true && <span className="tag">premium</span>}
+              {row.premium === true && <Tag>premium</Tag>}
             </span>
             <span
               className="breakdown__bar"
@@ -94,6 +95,226 @@ function Breakdown({
   );
 }
 
+/**
+ * The rules the usage report draws itself with.
+ *
+ * They travel with the component so exporting one ships the other, and every
+ * value is a token. `src/renderer/lib/component-styles.ts` says why.
+ */
+const USAGE_STYLES = `
+/*
+ * The report's own geometry.
+ *
+ * A bar's height and a legend swatch are not steps on the spacing ramp — a
+ * consumer who changed --shell-space-2 would not mean to resize a chart — so
+ * they are this component's tokens rather than the system's. Declared here
+ * with values and overridable at the root, which is the third tier of the
+ * usual primitive/semantic/component split.
+ */
+.sb-shell {
+  --shell-usage-band-height: 10px;
+  --shell-usage-swatch: 8px;
+  --shell-usage-bar-min: 2px;
+  --shell-usage-counter-rule: 2px;
+}
+/*
+ * Text in a segmented control, rather than the icon it was sized for.
+ *
+ * 'flex: none' because the header lets its actions shrink, and a switch whose
+ * labels are words folded "This month" onto two lines inside a 26px cell.
+ */
+.sb-shell .segmented--text {
+  flex: none;
+}
+
+/*
+ * Two classes on the block, because 'shell.css' imports this file and its own
+ * '.segmented button' rule therefore comes later at equal specificity. The
+ * fixed 26px width it sets folded "This month" into a stack of letters.
+ */
+.sb-shell .segmented.segmented--text button {
+  width: auto;
+  padding: 0 var(--shell-space-2);
+  font-size: var(--shell-text-xs);
+  white-space: nowrap;
+}
+
+/*
+ * One colour per token class, used by the counters, the proportion bar, the
+ * breakdown bars and the legend. Set as a custom property so a child reads it
+ * without repeating the mapping, exactly as '--shell-status' works.
+ */
+.sb-shell [data-band='input'] {
+  --band: var(--shell-accent);
+}
+.sb-shell [data-band='output'] {
+  --band: var(--shell-success);
+}
+.sb-shell [data-band='cache'] {
+  --band: var(--shell-warning);
+}
+.sb-shell [data-band='total'] {
+  --band: var(--shell-text-primary);
+}
+
+.sb-shell .counters {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--shell-space-3);
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+}
+
+.sb-shell .counter {
+  display: grid;
+  gap: var(--shell-space-1);
+  padding: var(--shell-space-3);
+  border: 1px solid var(--shell-border-subtle);
+  border-top: var(--shell-usage-counter-rule) solid var(--shell-band, var(--shell-border-strong));
+  border-radius: var(--shell-radius-card);
+  background: var(--shell-bg-raised);
+}
+
+.sb-shell .counter__value {
+  font-size: var(--shell-text-md);
+  font-weight: var(--shell-weight-lg);
+  color: var(--shell-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.sb-shell .counter__label {
+  font-size: var(--shell-text-xs);
+  color: var(--shell-text-muted);
+}
+
+.sb-shell .bands {
+  display: flex;
+  height: var(--shell-usage-band-height);
+  width: 100%;
+  border-radius: var(--shell-radius-pill);
+  overflow: hidden;
+  background: var(--shell-bg-active);
+}
+
+.sb-shell .bands__band {
+  background: var(--shell-band, var(--shell-border-strong));
+}
+
+.sb-shell .legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--shell-space-3);
+  font-size: var(--shell-text-xs);
+  color: var(--shell-text-muted);
+}
+
+.sb-shell .legend li {
+  display: flex;
+  align-items: center;
+  gap: var(--shell-space-1);
+}
+
+.sb-shell .legend li::before {
+  content: '';
+  width: var(--shell-usage-swatch);
+  height: var(--shell-usage-swatch);
+  border-radius: var(--shell-radius-pill);
+  background: var(--shell-band, var(--shell-border-strong));
+}
+
+.sb-shell .breakdown {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--shell-space-2);
+}
+
+.sb-shell .breakdown__row {
+  display: grid;
+  grid-template-columns: minmax(0, 12rem) 1fr auto;
+  align-items: center;
+  gap: var(--shell-space-3);
+}
+
+.sb-shell .breakdown__label {
+  display: flex;
+  align-items: center;
+  gap: var(--shell-space-2);
+  min-width: 0;
+  font-size: var(--shell-text-sm);
+  color: var(--shell-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The width is the row's share of the widest row, so the bar itself is the
+   comparison and the numbers beside it are the detail. */
+.sb-shell .breakdown__bar {
+  display: block;
+  min-width: var(--shell-usage-bar-min);
+}
+
+.sb-shell .breakdown__meta {
+  font-size: var(--shell-text-xs);
+  color: var(--shell-text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+`;
+
+/**
+ * The rules the usage tables draw themselves with.
+ *
+ * A second string rather than more of `USAGE_STYLES`, because a table is a
+ * shape a surface other than this one will want and these are the rules it
+ * would take.
+ */
+const USAGE_TABLE_STYLES = `
+.sb-shell .table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--shell-text-sm);
+}
+
+.sb-shell .table th {
+  text-align: left;
+  font-size: var(--shell-text-xs);
+  font-weight: var(--shell-weight-lg);
+  letter-spacing: var(--shell-tracking-caps);
+  text-transform: uppercase;
+  color: var(--shell-text-muted);
+  padding: var(--shell-space-1) var(--shell-space-2);
+  border-bottom: 1px solid var(--shell-border-subtle);
+  white-space: nowrap;
+}
+
+.sb-shell .table td {
+  padding: var(--shell-space-1) var(--shell-space-2);
+  border-bottom: 1px solid var(--shell-border-subtle);
+  color: var(--shell-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The first column names the row; the rest are numbers and read right. */
+.sb-shell .table td:not(:first-child),
+.sb-shell .table th:not(:first-child) {
+  text-align: right;
+}
+`;
+
+/**
+ * What has been spent, over a period the caller chooses.
+ *
+ * Counters, a breakdown by model and by provider, and the recent events.
+ * Every number arrives as a prop; this totals and formats, and measures
+ * nothing itself.
+ */
 export function Usage({
   report,
   period,
@@ -106,6 +327,9 @@ export function Usage({
   /** An argument so a story and a test can pin the "3m ago" column. */
   nowMs?: number;
 }) {
+  useComponentStyles('usage', USAGE_STYLES);
+  useComponentStyles('usage-table', USAGE_TABLE_STYLES);
+
   const { totals, byModel, byProvider, events } = report;
   const noun = USAGE_PERIODS.find((entry) => entry.id === period)?.noun ?? '';
 

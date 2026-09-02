@@ -73,6 +73,7 @@ export {
   Select,
   StatusChip,
   Switch,
+  Tag,
   TextInput,
   Textarea,
   Toolbar,
@@ -85,6 +86,34 @@ export {
   type TileProps,
   type ViewMode,
 } from './components/controls/index.js';
+export {
+  type ApiClient,
+  type AppIntegration,
+  type AppStatus,
+  type Diagnostic,
+  type DiagnosticGroup,
+  type Endpoint,
+  type LogLocation,
+  type ModelCapabilities,
+  type ModelCard,
+  type SettingsSurface,
+  type UsageBreakdown,
+  type UsageEvent,
+  type UsagePeriod,
+  type UsageReport,
+  type UsageTotals,
+} from './lib/settings.js';
+export {
+  ApiKeysDialog,
+  AppTogglesDialog,
+  CopyButton,
+  copyText,
+  Diagnostics,
+  ModelCards,
+  SettingsPage,
+  SettingsSection,
+  Usage,
+} from './components/settings/index.js';
 export { useShellTabs } from './lib/useShellTabs.js';
 export {
   useThemePreference,

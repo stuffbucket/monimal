@@ -1,5 +1,6 @@
 import consumerCss from './consumer.css?inline';
 import shellCss from '../src/renderer/styles/shell.css?inline';
+import structureCss from '../src/renderer/styles/structure.css?inline';
 import structuralCss from '../src/renderer/styles/structural.css?inline';
 import tokensCss from '../src/renderer/styles/tokens.css?inline';
 
@@ -7,9 +8,15 @@ import tokensCss from '../src/renderer/styles/tokens.css?inline';
  * Which stylesheet a story is drawn with.
  *
  * `app` is `shell.css`, the stylesheet this application builds: one palette,
- * every selector unscoped. `package` is `structural.css`, the file copied to
- * `dist/renderer/styles.css` and the only CSS a consumer installs: no palette,
- * every rule under `.sb-shell`.
+ * every selector unscoped. `package` is the sources `packageStylesheets()`
+ * concatenates into `dist/renderer/styles.css`, which is the CSS a consumer
+ * installs: the structural ramp with values, no palette, every rule under
+ * `.sb-shell`.
+ *
+ * A component that carries its own rules injects them in either mode, because
+ * it is the component doing it rather than a stylesheet. That is the point of
+ * carrying them: there is no arrangement in which a component ships and its
+ * rules do not.
  *
  * The two are mutually exclusive rather than layered, and that is the reason
  * there is no side-by-side view. `shell.css` matches `.chip` anywhere in the
@@ -38,7 +45,7 @@ const ELEMENT_ID = 'sb-shell-mode';
  */
 const STYLESHEETS: Record<ShellMode, string> = {
   app: shellCss,
-  package: [tokensCss, consumerCss, structuralCss].join('\n'),
+  package: [tokensCss, consumerCss, structureCss, structuralCss].join('\n'),
 };
 
 /**
@@ -82,9 +89,18 @@ export function applyShellMode(mode: ShellMode): void {
  * worse still: a Radix portal defaults to the body, so marking it would style
  * every portalled surface for free and retire the instrument that caught
  * issue #185 on the day it was built.
+ *
+ * In both modes, not only the package one. It used to be package-only, because
+ * `shell.css` is unscoped and reaches a story without it. A component that
+ * carries its own rules scopes them like the shipped stylesheet does, so under
+ * app mode those stories drew nothing: bullet lists where the usage report has
+ * counters and bars. The application this mode models always has the class —
+ * `ShellLayout` renders it — so a story without it was modelling an
+ * arrangement that does not exist. Nothing else changes: an unscoped rule
+ * matches whether the class is there or not.
  */
-export function applyShellRoot(mode: ShellMode, element: HTMLElement): void {
-  element.classList.toggle(SHELL_ROOT_CLASS, mode === 'package');
+export function applyShellRoot(_mode: ShellMode, element: HTMLElement): void {
+  element.classList.add(SHELL_ROOT_CLASS);
 }
 
 /**

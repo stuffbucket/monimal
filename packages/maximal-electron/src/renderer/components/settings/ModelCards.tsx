@@ -1,5 +1,6 @@
 import { Cpu, RefreshCw } from 'lucide-react';
 
+import { useComponentStyles } from '../../lib/component-styles.js';
 import {
   capabilityLabels,
   groupByKind,
@@ -9,7 +10,7 @@ import {
   type ModelCard,
 } from '../../lib/settings.js';
 import { Button } from '../controls/Button.js';
-import { EmptyState } from '../controls/Layout.js';
+import { EmptyState, Tag } from '../controls/Layout.js';
 
 import { SettingsPage } from './SettingsPage.js';
 
@@ -36,6 +37,91 @@ function tokens(value: number | undefined): string {
   return value === undefined ? NO_VALUE : formatCompact(value);
 }
 
+/**
+ * The rules a model card draws itself with.
+ *
+ * They travel with the component so exporting one ships the other, and every
+ * value is a token. `src/renderer/lib/component-styles.ts` says why.
+ */
+const MODEL_CARD_STYLES = `
+.sb-shell .model-grid {
+  display: grid;
+  gap: var(--shell-space-3);
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+}
+
+.sb-shell .model-card {
+  display: grid;
+  gap: var(--shell-space-2);
+  align-content: start;
+  padding: var(--shell-space-3);
+  border: 1px solid var(--shell-border-subtle);
+  border-radius: var(--shell-radius-card);
+  background: var(--shell-bg-raised);
+}
+
+.sb-shell .model-card__head {
+  display: flex;
+  align-items: center;
+  gap: var(--shell-space-2);
+}
+
+.sb-shell .model-card__name {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  font-size: var(--shell-text-base);
+  font-weight: var(--shell-weight-md);
+  color: var(--shell-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sb-shell .model-card__id {
+  margin: 0;
+  font-family: var(--shell-font-mono);
+  font-size: var(--shell-text-xs);
+  color: var(--shell-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.sb-shell .model-card__stats {
+  display: flex;
+  gap: var(--shell-space-4);
+  margin: 0;
+}
+
+.sb-shell .model-card__stats dt {
+  font-size: var(--shell-text-xs);
+  color: var(--shell-text-muted);
+}
+
+.sb-shell .model-card__stats dd {
+  margin: 0;
+  font-size: var(--shell-text-sm);
+  color: var(--shell-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.sb-shell .model-card__caps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--shell-space-1);
+  margin: 0;
+  font-size: var(--shell-text-xs);
+  color: var(--shell-text-muted);
+}
+`;
+
+/**
+ * The models a provider offers, as a catalogue.
+ *
+ * A tab rather than a dialog: a grid that grows with the provider, read while
+ * something else is being configured, and worth leaving open.
+ *
+ * Fetches nothing. The caller supplies the cards and the refresh action.
+ */
 export function ModelCards({
   models,
   loadedAtMs,
@@ -51,6 +137,8 @@ export function ModelCards({
   onRefresh?: () => void;
   refreshing?: boolean;
 }) {
+  useComponentStyles('model-cards', MODEL_CARD_STYLES);
+
   const freshness =
     loadedAtMs === undefined
       ? 'Not loaded yet'
@@ -87,7 +175,7 @@ export function ModelCards({
                 <article className="model-card" key={model.id} data-testid={`model-${model.id}`}>
                   <header className="model-card__head">
                     <h3 className="model-card__name">{model.name}</h3>
-                    {model.preview === true && <span className="tag">Preview</span>}
+                    {model.preview === true && <Tag>Preview</Tag>}
                   </header>
                   <p className="model-card__id">{model.id}</p>
 
@@ -104,9 +192,7 @@ export function ModelCards({
 
                   <p className="model-card__caps">
                     {capabilityLabels(model.capabilities).map((label) => (
-                      <span className="tag" key={label}>
-                        {label}
-                      </span>
+                      <Tag key={label}>{label}</Tag>
                     ))}
                     {capabilityLabels(model.capabilities).length === 0 && NO_VALUE}
                   </p>

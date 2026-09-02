@@ -1,3 +1,4 @@
+import { useComponentStyles } from '../../lib/component-styles.js';
 import { TriangleAlert } from 'lucide-react';
 
 import {
@@ -6,10 +7,81 @@ import {
 } from '../../lib/settings.js';
 import { Button } from '../controls/Button.js';
 import { Switch } from '../controls/Fields.js';
-import { Banner, EmptyState } from '../controls/Layout.js';
+import { Banner, EmptyState, Tag } from '../controls/Layout.js';
 import { Dialog } from '../controls/Overlays.js';
 
 import { CopyButton } from './CopyButton.js';
+import { SETTINGS_STYLES } from './SettingsPage.js';
+
+/**
+ * The rules an application row draws itself with.
+ *
+ * They travel with the component so exporting one ships the other, and every
+ * value is a token. `src/renderer/lib/component-styles.ts` says why.
+ */
+const APP_TOGGLES_STYLES = `
+/*
+ * A compound name, not '.app'.
+ *
+ * '.app' collided with the shell root, which carries the same bare class for
+ * an unrelated reason ('shell.css''s own layout rule). Equal specificity and
+ * 'controls.css' loading first through 'shell.css''s '@import' meant each side
+ * won the properties the other did not redeclare: the shell root inherited
+ * this card's 'padding', 'gap', 'border' and 'border-radius', and this card
+ * inherited the shell root's 'display: flex'. Issue #184.
+ */
+.sb-shell .app-card {
+  display: grid;
+  gap: var(--shell-space-2);
+  padding: var(--shell-space-3);
+  border: 1px solid var(--shell-border-subtle);
+  border-radius: var(--shell-radius-card);
+}
+
+.sb-shell .app-card__head {
+  display: flex;
+  align-items: center;
+  gap: var(--shell-space-2);
+}
+
+.sb-shell .app-card__name {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--shell-text-base);
+  font-weight: var(--shell-weight-md);
+  color: var(--shell-text-primary);
+}
+
+.sb-shell .app-card__head .switch {
+  width: auto;
+  flex: none;
+}
+
+.sb-shell .app-card__path {
+  margin: 0;
+  font-family: var(--shell-font-mono);
+  font-size: var(--shell-text-xs);
+  color: var(--shell-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.sb-shell .app-card__install {
+  display: grid;
+  gap: var(--shell-space-2);
+}
+
+.sb-shell .app-card__command {
+  display: block;
+  padding: var(--shell-space-2);
+  border-radius: var(--shell-radius-input);
+  border: 1px solid var(--shell-border-input);
+  background: var(--shell-bg-input);
+  font-family: var(--shell-font-mono);
+  font-size: var(--shell-text-xs);
+  color: var(--shell-text-primary);
+  overflow-wrap: anywhere;
+}
+`;
 
 /**
  * Which applications route through this shell.
@@ -41,6 +113,9 @@ export function AppTogglesDialog({
   onToggle?: (id: string, enabled: boolean) => void;
   onRescan?: () => void;
 }) {
+  useComponentStyles('settings-page', SETTINGS_STYLES);
+  useComponentStyles('app-toggles', APP_TOGGLES_STYLES);
+
   return (
     <Dialog
       open={open}
@@ -65,7 +140,7 @@ export function AppTogglesDialog({
                 <span className="app-card__name">{app.name}</span>
 
                 {app.status === 'coming-soon' ? (
-                  <span className="tag">{APP_STATUS_LABELS[app.status]}</span>
+                  <Tag>{APP_STATUS_LABELS[app.status]}</Tag>
                 ) : (
                   app.installCommand === undefined && (
                     <Switch

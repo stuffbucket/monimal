@@ -34,6 +34,7 @@ export {
   EmptyState,
   InspectorPanel,
   StatusChip,
+  Tag,
   Toolbar,
   ViewModeSwitch,
   type ViewMode,

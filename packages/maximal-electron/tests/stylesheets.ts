@@ -100,6 +100,33 @@ export function exportedModules(): [string, string][] {
   return found;
 }
 
+/**
+ * Every rule an exported component carries in its own source.
+ *
+ * `structural.css` is a copy of rules authored elsewhere, and the checks in
+ * `tests/package-styles.test.ts` exist to catch the copy drifting. A component
+ * that carries its own rules has no copy, so the rules have to be read out of
+ * the component for those checks to still see them.
+ *
+ * The marker is a top-level `const` initialised to a template literal holding
+ * `.sb-shell`. Every such string is a stylesheet by construction:
+ * `src/renderer/lib/component-styles.ts` requires the scope, and
+ * `scripts/verify-exports.mjs` requires it of the published sheet for the same
+ * reason — an unscoped rule restyles a consumer's document.
+ *
+ * Anchored on the declaration rather than on any backtick, because a doc
+ * comment may fence an example: `StatusChip` documents the two rules a host
+ * writes to give a status a colour, and matching those would report literal
+ * hex values in a stylesheet nothing ships.
+ */
+export function componentStyles(): string {
+  return exportedModules()
+    .flatMap(([, source]) => [...source.matchAll(/^(?:export )?const [A-Z_]+ = `([^`]*)`;$/gm)])
+    .filter((match) => (match[1] ?? '').includes('.sb-shell'))
+    .map((match) => match[1] ?? '')
+    .join('\n');
+}
+
 /** Every class a stylesheet writes a rule for. */
 export function styledClasses(css: string): Set<string> {
   return new Set(styledClassNames(css));

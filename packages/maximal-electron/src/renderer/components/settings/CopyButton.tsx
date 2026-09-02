@@ -21,6 +21,12 @@ export function copyText(text: string): void {
 
 const CONFIRMATION_MS = 1500;
 
+/**
+ * Copy, with the confirmation on the button.
+ *
+ * The label becomes "Copied" for a moment rather than raising a toast, which
+ * keeps the confirmation next to the thing that was copied.
+ */
 export function CopyButton({
   text,
   label = 'Copy',

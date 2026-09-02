@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { renderedClasses, scanClassNames } from './class-names.js';
 import {
   baseStyledClasses,
+  componentStyles,
   exportedModules,
   isPackageToken,
   mirroredRules,
@@ -135,7 +136,14 @@ describe('the README contract table', () => {
 
 describe('the exported components', () => {
   const modules = exportedModules();
-  const styled = styledClasses(structural);
+  /*
+   * Both sources of a shipped rule. `structural.css` is the stylesheet a
+   * consumer links; a component that carries its own rules injects them at
+   * first render instead. A class styled by either arrives at the consumer,
+   * and a class styled by neither does not.
+   */
+  const shipped = `${structural}\n${componentStyles()}`;
+  const styled = styledClasses(shipped);
 
   it('are all reachable from the package entry point', () => {
     // The floor. Everything below iterates this list, so a walk that found

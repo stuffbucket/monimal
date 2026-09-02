@@ -1,6 +1,8 @@
 import { LayoutGrid, List, X } from 'lucide-react';
 import type { ComponentType, ReactNode } from 'react';
 
+import { useComponentStyles } from '../../lib/component-styles.js';
+
 import { IconButton } from './Button.js';
 
 /** Grid and list are the two content modes a canvas offers. */
@@ -101,6 +103,39 @@ export function StatusChip({ status, label }: { status: string; label: string })
       {label}
     </span>
   );
+}
+
+/**
+ * The rules a tag draws itself with.
+ *
+ * They travel with the component so exporting one ships the other.
+ * `src/renderer/lib/component-styles.ts` says why.
+ */
+const TAG_STYLES = `
+.sb-shell .tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px var(--shell-space-2);
+  border-radius: var(--shell-radius-pill);
+  border: 1px solid var(--shell-border-subtle);
+  font-size: var(--shell-text-xs);
+  color: var(--shell-text-muted);
+  white-space: nowrap;
+}
+`;
+
+/**
+ * A label on a value, not a state.
+ *
+ * `StatusChip` reads its colour from `--shell-status`, which only a status
+ * vocabulary sets. A tag says "Vision" or "Coming soon" — a property of the
+ * thing, true whatever state it is in — so it is outlined rather than filled
+ * and carries no status attribute for a host to colour.
+ */
+export function Tag({ children }: { children: ReactNode }) {
+  useComponentStyles('tag', TAG_STYLES);
+
+  return <span className="tag">{children}</span>;
 }
 
 /**
