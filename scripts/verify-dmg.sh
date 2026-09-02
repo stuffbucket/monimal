@@ -38,6 +38,22 @@ trap cleanup EXIT
 
 step() { printf '\n\033[1m==> %s\033[0m\n' "$*"; }
 
+# `stapler` ships with full Xcode, NOT the Command Line Tools, so a machine with
+# only CLT cannot run it. That is not a reason to fail: step A below (offline
+# spctl) is the stronger proof of stapling anyway, because a ticket that is
+# merely resolvable online passes an online check whether or not it is stapled
+# INTO the artifact.
+HAVE_STAPLER=0
+if xcrun --find stapler >/dev/null 2>&1; then HAVE_STAPLER=1; fi
+staple_check() {
+  if [ "$HAVE_STAPLER" -eq 1 ]; then
+    xcrun stapler validate "$1"
+  else
+    echo "SKIP: stapler needs full Xcode (this machine has Command Line Tools only)."
+    echo "      Step A below proves stapling without it."
+  fi
+}
+
 cd "$WORK"
 
 step "1. Download ${DMG} from ${REPO}@${TAG}"
@@ -65,7 +81,7 @@ step "4. The dmg is notarized and stapled"
 # --context context:primary-signature is the correct assessment for a disk
 # image; -t install is for installer packages.
 spctl -a -t open --context context:primary-signature -vv "$DMG"
-stapler validate "$DMG"
+staple_check "$DMG"
 
 step "5. Mount"
 hdiutil attach "$DMG" -nobrowse -readonly -mountpoint "$MOUNT"
@@ -84,7 +100,7 @@ echo "OK: Developer ID + hardened runtime."
 
 step "8. The .app: Gatekeeper and staple"
 spctl -a -t exec -vv "$APP"
-stapler validate "$APP"
+staple_check "$APP"
 
 step "9. The sidecar inside the bundle"
 codesign --verify --strict --verbose=2 "${APP}/Contents/Resources/bin/maximal-core"
