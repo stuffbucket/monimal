@@ -224,34 +224,74 @@ export function llamaPackagePlan(present, platform, arch, backends) {
  * builds cleanly and fails at run time, which is the failure this exists for.
  *
  * @param {{
- *   readPackageJson: (dir: string) => { dependencies?: Record<string, string> } | undefined,
+ *   readPackageJson: (dir: string) => {
+ *     dependencies?: Record<string, string>,
+ *     optionalDependencies?: Record<string, string>,
+ *   } | undefined,
  *   join: (...parts: string[]) => string,
+ *   basename: (path: string) => string,
+ *   realpath: (path: string) => string,
+ *   sep: string,
  * }} io
  * @param {string} nodeModules Absolute path of the top-level `node_modules`.
  * @param {readonly string[]} roots Module names whose closure is wanted.
- * @returns {string[]} Top-level package names, sorted. Scoped names included.
+ * @returns {{ name: string, dir: string }[]} Every package the roots reach
+ *   that does not already travel inside one of them, sorted by name.
  */
-export function hoistedDependencies(io, nodeModules, roots) {
+export function externalClosure(io, nodeModules, roots) {
   const rootSet = new Set(roots);
-  const kept = new Set();
+  /** name -> the directory it really resolved to. */
+  const kept = new Map();
   const visited = new Set();
 
-  /**
-   * Node's own algorithm: `<dir>/node_modules/<name>`, then up a directory.
-   *
-   * It stops at the project root rather than continuing to the filesystem
-   * root. A checkout inside another checkout would otherwise resolve against
-   * the outer tree, and record a package that is not in this one.
-   */
   const projectRoot = io.join(nodeModules, '..');
+
+  /** Whether a path is inside a `node_modules` tree, or is one. */
+  const insideModules = (dir) =>
+    io.basename(dir) === 'node_modules' || dir.split(io.sep).includes('node_modules');
+
+  /**
+   * Node's own algorithm, which this used to approximate and get wrong twice.
+   *
+   * **The realpath.** A package directory is often a symlink — pnpm makes
+   * every one of them one — and Node resolves through it, because it works on
+   * the real path unless started with `--preserve-symlinks`. Walking the link
+   * path instead never enters the directory the dependencies are actually in.
+   *
+   * **A `node_modules` directory is itself a search root.** Node skips
+   * appending `node_modules` to a directory already named that. It matters
+   * because pnpm puts a package's dependencies *beside* it —
+   * `.pnpm/node-pty@1.2.0-beta.15/node_modules/` holds both `node-pty` and its
+   * `node-addon-api` — so the sibling is one hop up and nowhere else.
+   *
+   * Together those two made `npm run package` fail here with "node-pty depends
+   * on node-addon-api, which is not installed" against an install where Node
+   * resolves it fine. Nothing caught it: this function had no test, and the
+   * `electron package` job in CI packages `packages/maximal/client`, whose
+   * Forge config does not call this.
+   *
+   * **What bounds the walk.** It used to stop at the project root, so that a
+   * checkout inside another checkout could not resolve against the outer tree.
+   * A realpath legitimately leaves the project — pnpm's store belongs to the
+   * workspace, above this package — so that stop now applies only while the
+   * walk is still under the project root, and leaving every `node_modules`
+   * tree is what ends it otherwise. Past that there is nothing but whatever
+   * directory happens to enclose the checkout.
+   */
   const resolve = (fromDir, name) => {
-    let dir = fromDir;
+    let dir = io.realpath(fromDir);
+    const underProject = dir === projectRoot || dir.startsWith(projectRoot + io.sep);
+
     for (;;) {
-      const candidate = io.join(dir, 'node_modules', name);
+      const searchRoot = io.basename(dir) === 'node_modules' ? dir : io.join(dir, 'node_modules');
+      const candidate = io.join(searchRoot, name);
       if (io.readPackageJson(candidate)) return candidate;
-      if (dir === projectRoot) return undefined;
+
+      if (underProject && dir === projectRoot) return undefined;
+
       const parent = io.join(dir, '..');
       if (parent === dir) return undefined;
+      if (!insideModules(parent)) return undefined;
       dir = parent;
     }
   };
@@ -268,15 +308,63 @@ export function hoistedDependencies(io, nodeModules, roots) {
       if (!target) {
         throw new Error(`${name} depends on ${dependency}, which is not installed.`);
       }
-      // A top-level resolution is one the keep-list has to name. A nested one
-      // already travels inside the directory that owns it.
-      if (target === io.join(nodeModules, dependency) && !rootSet.has(dependency)) {
-        kept.add(dependency);
-      }
+      if (!rootSet.has(dependency)) kept.set(dependency, target);
+      walk(target, dependency);
+    }
+
+    /*
+     * Optional dependencies, which is how every package that ships prebuilt
+     * binaries distributes them: `node-llama-cpp` declares fourteen
+     * `@node-llama-cpp/*` platform builds and the installer places the one
+     * that matches. Absent is the normal case, so a miss is skipped rather
+     * than thrown on — the opposite of the rule above, and the reason they are
+     * walked separately.
+     *
+     * This walked none of them and got away with it, because under a flat
+     * install the platform build is hoisted to the top level and
+     * `packagerConfig.ignore` keeps the whole `@node-llama-cpp` scope by
+     * prefix without the closure ever mentioning it. Under pnpm there is no
+     * top-level path to keep, so the bundle came out with no scope at all.
+     */
+    for (const dependency of Object.keys(json.optionalDependencies ?? {})) {
+      const target = resolve(dir, dependency);
+      if (!target) continue;
+      if (!rootSet.has(dependency)) kept.set(dependency, target);
       walk(target, dependency);
     }
   };
 
+  const rootDirs = roots.map((root) => io.realpath(io.join(nodeModules, root)));
   for (const root of roots) walk(io.join(nodeModules, root), root);
-  return [...kept].sort();
+
+  /*
+   * A dependency already inside a root's own directory travels with it, so it
+   * is not a separate entry. That is the nested case under a flat install;
+   * under pnpm nothing is nested and every entry is a sibling in the store,
+   * which is why the closure has to carry where each one really is rather than
+   * only its name.
+   */
+  return [...kept]
+    .filter(([, dir]) => !rootDirs.some((rootDir) => dir.startsWith(rootDir + io.sep)))
+    .map(([name, dir]) => ({ name, dir }))
+    .sort((left, right) => (left.name < right.name ? -1 : left.name > right.name ? 1 : 0));
+}
+
+/**
+ * The names of closure members a flat install hoisted to the top level.
+ *
+ * What `packagerConfig.ignore` can keep by prefix, which is only ever the
+ * whole closure under npm. Under pnpm it is empty and
+ * `externalClosure` is what the build has to use, because a store sibling has
+ * no top-level path to name.
+ *
+ * @param {PackageContractIo} io
+ * @param {string} nodeModules
+ * @param {readonly string[]} roots
+ * @returns {string[]}
+ */
+export function hoistedDependencies(io, nodeModules, roots) {
+  return externalClosure(io, nodeModules, roots)
+    .filter(({ name, dir }) => dir === io.join(nodeModules, name))
+    .map(({ name }) => name);
 }

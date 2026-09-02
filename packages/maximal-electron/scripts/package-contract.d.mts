@@ -42,9 +42,22 @@ export declare function llamaPackagePlan(
 ): LlamaPackageDecision[];
 
 export interface PackageContractIo {
-  readPackageJson: (dir: string) => { dependencies?: Record<string, string> } | undefined;
+  readPackageJson: (dir: string) =>
+    | { dependencies?: Record<string, string>; optionalDependencies?: Record<string, string> }
+    | undefined;
   join: (...parts: string[]) => string;
+  basename: (path: string) => string;
+  /** Through symlinks, because Node resolves a package from its real path. */
+  realpath: (path: string) => string;
+  sep: string;
 }
+
+/** Every package the external modules reach, and where each one really is. */
+export declare function externalClosure(
+  io: PackageContractIo,
+  nodeModules: string,
+  roots: readonly string[],
+): { name: string; dir: string }[];
 
 export declare function hoistedDependencies(
   io: PackageContractIo,

@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, readFileSync, readdirSync, realpathSync, rmSync } from 'node:fs';
 import path from 'node:path';
 
 import { FusesPlugin } from '@electron-forge/plugin-fuses';
@@ -6,7 +6,7 @@ import { VitePlugin } from '@electron-forge/plugin-vite';
 import type { ForgeConfig } from '@electron-forge/shared-types';
 import { FuseV1Options, FuseVersion } from '@electron/fuses';
 
-import { PACKAGE_FUSES, RUNTIME_ICONS, LLAMA_BACKENDS_VARIABLE, bundleIcon, hoistedDependencies, llamaPackagePlan, parseLlamaBackends } from './scripts/package-contract.mjs';
+import { PACKAGE_FUSES, RUNTIME_ICONS, LLAMA_BACKENDS_VARIABLE, bundleIcon, externalClosure, hoistedDependencies, llamaPackagePlan, parseLlamaBackends } from './scripts/package-contract.mjs';
 
 /**
  * The external native modules, and the packages npm hoisted out of them.
@@ -21,18 +21,28 @@ const EXTERNAL_MODULES = ['node-pty', 'node-llama-cpp'];
 
 const NODE_MODULES = path.resolve('node_modules');
 
-const HOISTED = hoistedDependencies(
-  {
+const IO = {
+    basename: (target: string) => path.basename(target),
+    realpath: (target: string) => {
+      // A package directory is usually a symlink under pnpm, and its
+      // dependencies sit beside its real location rather than beside the link.
+      try {
+        return realpathSync(target);
+      } catch {
+        return target;
+      }
+    },
+    sep: path.sep,
     join: (...parts: string[]) => path.join(...parts),
     readPackageJson: (dir: string) => {
       const file = path.join(dir, 'package.json');
       if (!existsSync(file)) return undefined;
       return JSON.parse(readFileSync(file, 'utf8')) as { dependencies?: Record<string, string> };
     },
-  },
-  NODE_MODULES,
-  EXTERNAL_MODULES,
-);
+  };
+
+const HOISTED = hoistedDependencies(IO, NODE_MODULES, EXTERNAL_MODULES);
+const CLOSURE = externalClosure(IO, NODE_MODULES, EXTERNAL_MODULES);
 
 /**
  * Where the application icons come from.
@@ -56,6 +66,41 @@ for (const file of [BUNDLE_ICON, ...RUNTIME_ICONS]) {
       `Icon directory ${ICON_DIR} has no ${file}. ` +
         'Run `npm run icons`, or point STUFFBUCKET_ICON_DIR at a complete set.',
     );
+  }
+}
+
+/**
+ * Copies in every closure member the keep-list could not name.
+ *
+ * `packagerConfig.ignore` selects by path prefix, so it can only keep a
+ * dependency that has a top-level path — which is every one of them under a
+ * flat `node_modules`, and none of them under pnpm. There a package's
+ * dependencies are its *siblings* in `node_modules/.pnpm/<name>@<version>/
+ * node_modules/`, so copying `node-llama-cpp` copies the library and none of
+ * the twenty-odd packages it loads: the bundle came out with no
+ * `@node-llama-cpp` scope at all, and the prune hook below reported it as a
+ * missing prebuild rather than as a missing copy.
+ *
+ * So the closure is materialised by path rather than selected by prefix.
+ * Anything the packager already placed is left alone, which is the flat case,
+ * and nothing is copied twice.
+ */
+function copyExternalClosure(buildPath: string): void {
+  const modules = path.join(buildPath, 'node_modules');
+
+  for (const { name, dir } of CLOSURE) {
+    const destination = path.join(modules, name);
+    if (existsSync(destination)) continue;
+    if (!existsSync(dir)) {
+      throw new Error(`${name} resolved to ${dir}, which does not exist.`);
+    }
+    // `dereference`, for the reason `derefSymlinks` is on: a bundle may not
+    // carry a link out of itself.
+    cpSync(dir, destination, { recursive: true, dereference: true });
+  }
+
+  if (CLOSURE.length > 0 && readdirSync(modules).length === 0) {
+    throw new Error(`the closure has ${String(CLOSURE.length)} entries and none reached ${modules}.`);
   }
 }
 
@@ -163,6 +208,27 @@ const config: ForgeConfig = {
     prune: false,
 
     /**
+     * Symlinks are followed rather than copied.
+     *
+     * Packager's default is `false`, which copies a link as a link. That is
+     * harmless under a flat `node_modules`, where a kept module is a real
+     * directory, and ruinous under pnpm, where every one of them is a link
+     * into `node_modules/.pnpm`. The bundle then carries
+     * `node_modules/node-pty -> ../../../node_modules/.pnpm/…`, a path that
+     * resolves to nothing once the application is installed anywhere.
+     *
+     * The symptom was not a dangling link. `packageAfterCopy` reported
+     * "node-pty has no prebuilds directory", because the directory it looked
+     * in was a link to a path that did not exist inside the bundle — a
+     * packaging fault wearing the appearance of an upstream layout change.
+     *
+     * True regardless of package manager: an application bundle may not
+     * contain a link out of itself. `scripts/verify-package.mjs` now asserts
+     * that of the packaged tree.
+     */
+    derefSymlinks: true,
+
+    /**
      * Native code cannot be loaded from inside an asar, so it is unpacked
      * beside it. `OnlyLoadAppFromAsar` still applies to app code.
      *
@@ -241,6 +307,8 @@ const config: ForgeConfig = {
   rebuildConfig: {},
   hooks: {
     packageAfterCopy: (_forgeConfig, buildPath, _electronVersion, platform, arch) => {
+      // Before the prune hooks: they inspect directories this puts there.
+      copyExternalClosure(buildPath);
       prunePtyPrebuilds(buildPath, platform, arch);
       pruneLlamaBackends(buildPath, platform, arch);
       return Promise.resolve();
