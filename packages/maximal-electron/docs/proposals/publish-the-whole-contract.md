@@ -146,14 +146,21 @@ has a value, express it against a `required` token rather than as an independent
 literal. A consumer who changes the palette then moves everything that depends
 on it, and drift of the kind measured above stops being possible.
 
-**3. A component's stylesheet is imported by the component.** Move each
-control's rules next to it and import them from its own source file. The
-published stylesheet becomes a build artifact concatenated from those files.
+**3. A component carries the rules it draws itself with.** Not a sibling
+`.css` file: `dist/` is built by `tsc`, which has no loader for one. The rules
+live in the component's own source as a string and inject on first render —
+`src/renderer/lib/component-styles.ts`.
 
-This retires the mirror. `mirroredRules()`, the `DELIBERATE` list, and the
-partition test all exist to police a hand-copied duplicate; with one source
-there is nothing to police. Exporting a component and shipping its styles
-become one act, which is the property that was missing.
+This retires the mirror for everything that moves. `mirroredRules()`, the
+`DELIBERATE` list and the partition test all exist to police a hand-copied
+duplicate; a component with one source has nothing to police. Exporting a
+component and shipping its styles become one act, which is the property that
+was missing.
+
+A string in a TypeScript file is somewhere nothing was watching for a literal,
+so `tests/component-styles.test.ts` is the other half of the decision: no
+colour, and no length beyond a hairline, `0` and `100%`. Geometry a component
+owns and the ramp has no name for becomes a token that component declares.
 
 **4. Class names stop being the consumer API.** The consumer's surface is
 components, tokens, and slots. It is not selectors. Today a consumer can write
@@ -225,14 +232,19 @@ so both should land in one release rather than accreting.
 Per `docs/proposals/README.md`, this proposal is not done until the issues exist
 and are named here. They are not filed yet:
 
-1. Ship the 34 structural tokens; extend `docs/shell-variables.md` with the
-   second kind and the rule that a consumer never has to set them.
+1. ~~Ship the 34 structural tokens~~ — done, `db9da26`.
 2. Re-express the 30 `fallback` colour defaults as derivations of `required`
    tokens.
-3. Colocate control CSS; generate the published stylesheet; delete the mirror
-   and its exemption list.
-4. Export the settings components with their styles.
+3. ~~Colocate the settings rules with their components~~ — done, `1ee7bca`.
+   546 lines left `controls.css`. The remaining controls still read the
+   internal namespace and `structural.css` still mirrors them; the mirror
+   retires when the last one moves.
+4. ~~Export the settings components with their styles~~ — done, `1ee7bca`.
 5. Lift embedded content out of `Inspector` and the four other components;
    add a lorem-ipsum stub provider for stories and placeholders.
 6. Client: delete the hand-written CSS, compose the published controls, and
-   remove the `.inspector__*` and `.nav` redeclarations.
+   remove the `.inspector__*` and `.nav` redeclarations. Measured after
+   `1ee7bca`: 750 lines across nine injected blocks, five class names
+   colliding with rules the package ships, and 56 of 158 `var(--shell-*)`
+   sites naming a token the contract does not define — so those always paint
+   their hardcoded fallback and ignore the theme.
