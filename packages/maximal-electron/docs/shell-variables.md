@@ -36,35 +36,52 @@ The kind is a property of the CSS, not a judgement. A `fallback` variable that
 gains a rule with no fallback becomes `required`, and the check fails until the
 table says so.
 
-## Structural variables
+## Structural
 
-The first three kinds are the consumer's. The fourth is this package's, and it
-is the reason the split is worth naming.
+`structure.css` declares these with values, so a consumer never has to supply
+one and never has to know they exist. They are not a knob set: reaching for a
+spacing token means writing layout CSS, which is what the components exist to
+make unnecessary. What they are for is that no rule — ours or a consumer's —
+writes `font-size: 13px` again.
 
-`src/renderer/styles/structure.css` declares the spacing ramp, the radii, the
-type ramp and its weights, the control and chrome heights, the focus-ring
-geometry, elevation, motion, icon stroke and disabled opacity — with values.
-They ship at the head of `@stuffbucket/maximal-electron/renderer/styles.css`. A
-consumer defines none of
-them, and no row for them appears in README.md's table, which lists what a
-consumer owes.
+| Variable | Value | What it sets |
+| --- | --- | --- |
+| `--shell-control-lg` | `28px` | The tallest control height. |
+| `--shell-input-border` | `var(--shell-border-strong, var(--shell-border, #2a2a2a))` | The outline of a field. |
+| `--shell-leading-base` | `1.5` | Line height for a paragraph. |
+| `--shell-radius` | `6px` | A control corner. |
+| `--shell-radius-large` | `8px` | A card corner. |
+| `--shell-radius-pill` | `9999px` | A fully rounded control. |
+| `--shell-space-1` | `4px` | The tightest gap. |
+| `--shell-space-2` | `8px` | A gap inside a control. |
+| `--shell-space-3` | `12px` | A gap between controls. |
+| `--shell-space-4` | `16px` | Padding around a surface. |
+| `--shell-space-5` | `24px` | A gap between sections. |
+| `--shell-text-base` | `0.875rem` | Body text. |
+| `--shell-text-md` | `0.9375rem` | A surface title. |
+| `--shell-text-sm` | `0.8125rem` | Secondary text. |
+| `--shell-text-xs` | `0.6875rem` | All-caps section labels and counts. |
+| `--shell-tracking-caps` | `0.04em` | Tracking for an all-caps label. |
+| `--shell-weight-lg` | `600` | A heading. |
+| `--shell-weight-md` | `500` | A label that carries emphasis. |
 
-They exist so a rule in this package never writes `font-size: 13px` again. The
-ramp is only a ramp while everything is on it.
+Two groups. The first nine the published stylesheet already read, but only as
+an inline fallback on each use — `var(--shell-radius, 6px)`. That works for a
+rule that spells the fallback out and fails for one that does not, and the
+rules a component carries do not: a bare `var(--shell-radius-large)` is not a
+smaller radius, it is a square corner. Declaring them once is what makes a bare
+read safe, and `tests/structure-tokens.test.ts` holds each value to the
+fallback the stylesheet still spells out.
 
-They are not an invitation to write CSS. A consumer's surface is the components
-and the palette; if reaching for a spacing token feels necessary, the component
-is missing a prop or a slot, and that is the thing to add.
+The rest the published stylesheet has no name for at all. The rules a component
+carries set type, and `--shell-font` is one shorthand: one size, one weight,
+one leading. A settings surface draws four sizes and three weights.
 
-Declared on `.sb-shell`, not `:root`. A custom property resolves from the
-nearest ancestor that sets it, which keeps them in force for everything this
-package renders without reaching the rest of a consumer's document. A consumer
-who does need a different value sets it on their own `.sb-shell` root, and
-because `structure.css` is concatenated ahead of the rules that read it, a later
-declaration at equal specificity wins.
-
-`tests/structure-tokens.test.ts` holds each value against `tokens.css`, which is
-where the reference application authors the same ramp.
+The first version of this file declared thirty-eight, built by prefixing the
+short names `tokens.css` authors. Twenty were a second name for something
+already published — `--shell-radius-card` beside `--shell-radius-large` — and
+nothing read either. The tests now fail on a declared name nothing reads, and
+on a value that disagrees with the stylesheet's own fallback.
 
 ## Required
 
@@ -109,20 +126,12 @@ looks exactly like an ordinary hovered one.
 | `--shell-font-mono` | `ui-monospace, SFMono-Regular, Menlo, monospace` | the value half of a `Field` |
 | `--shell-icon-stroke` | `1.5` | the stroke weight of every Lucide glyph inside the shell |
 | `--shell-input-background` | `--shell-canvas` | the surface of a text field, textarea, select and radio |
-| `--shell-input-border` | `--shell-border-strong` | the outline of one of those at rest |
 | `--shell-invalid` | `--shell-danger` | the outline and the message of a field that failed validation |
 | `--shell-nav-heading-height` | `24px` | the space a collapsed `NavRail` keeps for a section heading |
 | `--shell-position` | `fixed` | how the `ShellLayout` root meets the window; `static` lays it out inside the consumer's own container instead |
-| `--shell-radius` | `6px` | buttons, tabs, nav items, list rows, fields, menu popup |
 | `--shell-radius-dialog` | `14px` | the modal card, which is a panel rather than a control |
-| `--shell-radius-large` | `8px` | the `Card` tile and the `Callout` box, for the same reason |
 | `--shell-radius-small` | `4px` | tab close affordance, tooltip, segmented control, menu item |
 | `--shell-scrim` | `rgb(0 0 0 / 0.34)` | the layer a modal dims the window with |
-| `--shell-space-1` | `4px` | nav section gaps |
-| `--shell-space-2` | `8px` | control gaps, terminal padding |
-| `--shell-space-3` | `12px` | title bar and status bar padding, grid gaps |
-| `--shell-space-4` | `16px` | canvas padding, nav section spacing, dialog padding |
-| `--shell-space-5` | `24px` | the padding an `EmptyState` keeps around its message |
 | `--shell-status` | `--shell-text-muted` | the status dot, the `StatusChip` label, the `Banner` text, the `Callout` outline; the `Callout` heading reads it too and falls back to `--shell-text`, which is the legible one on a raised fill |
 | `--shell-status-muted` | `--shell-active` | the `StatusChip`, `Banner` and `Callout` fills |
 | `--shell-statusbar-height` | `24px` | the compact register `.statusbar` keeps as a minimum, not a fixed height |

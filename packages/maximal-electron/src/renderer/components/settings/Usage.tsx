@@ -145,16 +145,16 @@ const USAGE_STYLES = `
  * without repeating the mapping, exactly as '--shell-status' works.
  */
 .sb-shell [data-band='input'] {
-  --band: var(--shell-accent);
+  --shell-band: var(--shell-accent);
 }
 .sb-shell [data-band='output'] {
-  --band: var(--shell-success);
+  --shell-band: var(--shell-text-muted);
 }
 .sb-shell [data-band='cache'] {
-  --band: var(--shell-warning);
+  --shell-band: var(--shell-warning);
 }
 .sb-shell [data-band='total'] {
-  --band: var(--shell-text-primary);
+  --shell-band: var(--shell-text);
 }
 
 .sb-shell .counters {
@@ -170,22 +170,22 @@ const USAGE_STYLES = `
   display: grid;
   gap: var(--shell-space-1);
   padding: var(--shell-space-3);
-  border: 1px solid var(--shell-border-subtle);
+  border: 1px solid var(--shell-border);
   border-top: var(--shell-usage-counter-rule) solid var(--shell-band, var(--shell-border-strong));
-  border-radius: var(--shell-radius-card);
-  background: var(--shell-bg-raised);
+  border-radius: var(--shell-radius-large);
+  background: var(--shell-raised);
 }
 
 .sb-shell .counter__value {
   font-size: var(--shell-text-md);
   font-weight: var(--shell-weight-lg);
-  color: var(--shell-text-primary);
+  color: var(--shell-text);
   font-variant-numeric: tabular-nums;
 }
 
 .sb-shell .counter__label {
   font-size: var(--shell-text-xs);
-  color: var(--shell-text-muted);
+  color: var(--shell-text-subtle);
 }
 
 .sb-shell .bands {
@@ -194,7 +194,7 @@ const USAGE_STYLES = `
   width: 100%;
   border-radius: var(--shell-radius-pill);
   overflow: hidden;
-  background: var(--shell-bg-active);
+  background: var(--shell-active);
 }
 
 .sb-shell .bands__band {
@@ -209,7 +209,7 @@ const USAGE_STYLES = `
   flex-wrap: wrap;
   gap: var(--shell-space-3);
   font-size: var(--shell-text-xs);
-  color: var(--shell-text-muted);
+  color: var(--shell-text-subtle);
 }
 
 .sb-shell .legend li {
@@ -247,7 +247,7 @@ const USAGE_STYLES = `
   gap: var(--shell-space-2);
   min-width: 0;
   font-size: var(--shell-text-sm);
-  color: var(--shell-text-primary);
+  color: var(--shell-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -262,7 +262,7 @@ const USAGE_STYLES = `
 
 .sb-shell .breakdown__meta {
   font-size: var(--shell-text-xs);
-  color: var(--shell-text-muted);
+  color: var(--shell-text-subtle);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -288,16 +288,16 @@ const USAGE_TABLE_STYLES = `
   font-weight: var(--shell-weight-lg);
   letter-spacing: var(--shell-tracking-caps);
   text-transform: uppercase;
-  color: var(--shell-text-muted);
+  color: var(--shell-text-subtle);
   padding: var(--shell-space-1) var(--shell-space-2);
-  border-bottom: 1px solid var(--shell-border-subtle);
+  border-bottom: 1px solid var(--shell-border);
   white-space: nowrap;
 }
 
 .sb-shell .table td {
   padding: var(--shell-space-1) var(--shell-space-2);
-  border-bottom: 1px solid var(--shell-border-subtle);
-  color: var(--shell-text-primary);
+  border-bottom: 1px solid var(--shell-border);
+  color: var(--shell-text);
   font-variant-numeric: tabular-nums;
 }
 

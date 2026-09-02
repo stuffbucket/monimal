@@ -34,8 +34,8 @@ function buildDetailRows(run: AgentRun): DetailRow[] {
       label: 'Diff',
       value: (
         <>
-          <span className="inspector__diff-added">{`+${run.diff.added}`}</span>{' '}
-          <span className="inspector__diff-removed">{`−${run.diff.removed}`}</span>
+          <span className="run-inspector__diff-added">{`+${run.diff.added}`}</span>{' '}
+          <span className="run-inspector__diff-removed">{`−${run.diff.removed}`}</span>
         </>
       ),
     },
@@ -50,9 +50,9 @@ interface InspectorProps {
 export function Inspector({ run }: InspectorProps): ReactElement {
   if (!run) {
     return (
-      <aside className="inspector">
-        <h2 className="inspector__eyebrow">Fleet</h2>
-        <p className="inspector__empty-text">Select a run to inspect it.</p>
+      <aside className="run-inspector">
+        <h2 className="run-inspector__eyebrow">Fleet</h2>
+        <p className="run-inspector__empty-text">Select a run to inspect it.</p>
       </aside>
     )
   }
@@ -61,44 +61,44 @@ export function Inspector({ run }: InspectorProps): ReactElement {
   const maxToolCalls = Math.max(run.toolCalls.read, run.toolCalls.edit, run.toolCalls.bash, 1)
 
   return (
-    <aside className="inspector">
-      <h2 className="inspector__eyebrow">Agent run</h2>
+    <aside className="run-inspector">
+      <h2 className="run-inspector__eyebrow">Agent run</h2>
       <StatusBadge status={run.status} />
-      <p className="inspector__title">{run.title}</p>
-      <p className="inspector__activity">{run.activity}</p>
+      <p className="run-inspector__title">{run.title}</p>
+      <p className="run-inspector__activity">{run.activity}</p>
 
-      <section className="inspector__section" aria-labelledby="inspector-details-heading">
-        <h3 id="inspector-details-heading" className="inspector__eyebrow">
+      <section className="run-inspector__section" aria-labelledby="inspector-details-heading">
+        <h3 id="inspector-details-heading" className="run-inspector__eyebrow">
           Details
         </h3>
-        <dl className="inspector__details">
+        <dl className="run-inspector__details">
           {detailRows.map((row) => (
-            <div className="inspector__detail-row" key={row.label}>
-              <dt className="inspector__detail-label">{row.label}</dt>
-              <dd className="inspector__detail-value">{row.value}</dd>
+            <div className="run-inspector__detail-row" key={row.label}>
+              <dt className="run-inspector__detail-label">{row.label}</dt>
+              <dd className="run-inspector__detail-value">{row.value}</dd>
             </div>
           ))}
         </dl>
       </section>
 
-      <section className="inspector__section" aria-labelledby="inspector-tool-calls-heading">
-        <h3 id="inspector-tool-calls-heading" className="inspector__eyebrow">
+      <section className="run-inspector__section" aria-labelledby="inspector-tool-calls-heading">
+        <h3 id="inspector-tool-calls-heading" className="run-inspector__eyebrow">
           Tool calls
         </h3>
-        <ul className="inspector__bars">
+        <ul className="run-inspector__bars">
           {TOOL_CALL_ROWS.map(({ key, label }) => {
             const count = run.toolCalls[key]
             const pct = (count / maxToolCalls) * 100
             return (
-              <li className="inspector__bar-row" key={key}>
-                <span className="inspector__bar-label">{label}</span>
-                <span className="inspector__bar-track" aria-hidden="true">
-                  <span className="inspector__bar-fill" style={{ width: `${pct}%` }} />
+              <li className="run-inspector__bar-row" key={key}>
+                <span className="run-inspector__bar-label">{label}</span>
+                <span className="run-inspector__bar-track" aria-hidden="true">
+                  <span className="run-inspector__bar-fill" style={{ width: `${pct}%` }} />
                 </span>
                 {/* The count is a real text node, not just an aria-label: the
                     bar's width is decorative, never the only way the number
                     reaches a screen reader. */}
-                <span className="inspector__bar-count">{count}</span>
+                <span className="run-inspector__bar-count">{count}</span>
               </li>
             )
           })}
@@ -114,8 +114,20 @@ export function Inspector({ run }: InspectorProps): ReactElement {
 // RunCard rather than being redefined here, and importing it also runs that
 // module's style injection, so `.status-badge` is present before this
 // stylesheet needs it.
+//
+// The namespace is `run-inspector`, not `inspector`, and must stay that way.
+// The package styles `.sb-shell .inspector`, `.inspector__title`,
+// `.inspector__section`, `.inspector__header` and `.inspector__body` at
+// specificity (0,2,0); every rule here is a bare class at (0,1,0), so a shared
+// name loses silently — a losing rule is not an error. Two of those meant
+// something else entirely: the package's `.inspector` is the panel container
+// and paints a `border-left` this content column must not draw inside the
+// frame's right panel, and its `.inspector__title` is an 11px uppercase
+// eyebrow, which turned the run title below into a second eyebrow. Renaming is
+// the fix rather than out-specifying: a name collision won on specificity is
+// the same bug waiting for the next release.
 const INSPECTOR_CSS = `
-.inspector {
+.run-inspector {
   display: flex;
   flex-direction: column;
   gap: var(--shell-space-4, 16px);
@@ -123,7 +135,7 @@ const INSPECTOR_CSS = `
   color: var(--shell-text, #f5f5f5);
 }
 
-.inspector__eyebrow {
+.run-inspector__eyebrow {
   margin: 0;
   font-size: 11px;
   font-weight: 600;
@@ -132,13 +144,13 @@ const INSPECTOR_CSS = `
   color: var(--shell-text-subtle, #6a6a6a);
 }
 
-.inspector__empty-text {
+.run-inspector__empty-text {
   margin: 0;
   font-size: 13px;
   color: var(--shell-text-muted, #8a8a8a);
 }
 
-.inspector__title {
+.run-inspector__title {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
@@ -146,40 +158,40 @@ const INSPECTOR_CSS = `
   color: var(--shell-text, #f5f5f5);
 }
 
-.inspector__activity {
+.run-inspector__activity {
   margin: 0;
   font-size: 13px;
   color: var(--shell-text-muted, #8a8a8a);
 }
 
-.inspector__section {
+.run-inspector__section {
   display: flex;
   flex-direction: column;
   gap: var(--shell-space-2, 8px);
 }
 
-.inspector__details {
+.run-inspector__details {
   display: flex;
   flex-direction: column;
   gap: var(--shell-space-2, 8px);
   margin: 0;
 }
 
-.inspector__detail-row {
+.run-inspector__detail-row {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: var(--shell-space-3, 12px);
 }
 
-.inspector__detail-label {
+.run-inspector__detail-label {
   margin: 0;
   font-size: 12px;
   color: var(--shell-text-subtle, #6a6a6a);
   flex: none;
 }
 
-.inspector__detail-value {
+.run-inspector__detail-value {
   margin: 0;
   font-size: 13px;
   color: var(--shell-text, #f5f5f5);
@@ -190,17 +202,17 @@ const INSPECTOR_CSS = `
   font-variant-numeric: tabular-nums;
 }
 
-.inspector__diff-added {
+.run-inspector__diff-added {
   color: var(--shell-success, #22c55e);
   font-weight: 600;
 }
 
-.inspector__diff-removed {
+.run-inspector__diff-removed {
   color: var(--shell-danger, #ef4444);
   font-weight: 600;
 }
 
-.inspector__bars {
+.run-inspector__bars {
   display: flex;
   flex-direction: column;
   gap: var(--shell-space-2, 8px);
@@ -209,19 +221,19 @@ const INSPECTOR_CSS = `
   list-style: none;
 }
 
-.inspector__bar-row {
+.run-inspector__bar-row {
   display: grid;
   grid-template-columns: 44px 1fr auto;
   align-items: center;
   gap: var(--shell-space-2, 8px);
 }
 
-.inspector__bar-label {
+.run-inspector__bar-label {
   font-size: 12px;
   color: var(--shell-text-muted, #8a8a8a);
 }
 
-.inspector__bar-track {
+.run-inspector__bar-track {
   position: relative;
   height: 6px;
   border-radius: 9999px;
@@ -229,7 +241,7 @@ const INSPECTOR_CSS = `
   overflow: hidden;
 }
 
-.inspector__bar-fill {
+.run-inspector__bar-fill {
   display: block;
   height: 100%;
   border-radius: 9999px;
@@ -237,7 +249,7 @@ const INSPECTOR_CSS = `
   transition: width 200ms ease-out;
 }
 
-.inspector__bar-count {
+.run-inspector__bar-count {
   min-width: 1.5em;
   font-size: 12px;
   text-align: right;
@@ -250,7 +262,7 @@ const INSPECTOR_CSS = `
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .inspector__bar-fill {
+  .run-inspector__bar-fill {
     transition-duration: 0.01ms;
   }
 }

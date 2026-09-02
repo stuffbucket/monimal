@@ -108,12 +108,12 @@ const API_KEYS_STYLES = `
   height: var(--shell-control-lg);
   display: inline-flex;
   align-items: center;
-  border-radius: var(--shell-radius-input);
-  border: 1px solid var(--shell-border-input);
-  background: var(--shell-bg-input);
+  border-radius: var(--shell-radius);
+  border: 1px solid var(--shell-input-border);
+  background: var(--shell-input-background);
   font-family: var(--shell-font-mono);
   font-size: var(--shell-text-xs);
-  color: var(--shell-text-primary);
+  color: var(--shell-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -133,15 +133,15 @@ const API_KEYS_STYLES = `
   align-items: center;
   gap: var(--shell-space-2);
   padding: var(--shell-space-2);
-  border: 1px solid var(--shell-border-subtle);
-  border-radius: var(--shell-radius-input);
+  border: 1px solid var(--shell-border);
+  border-radius: var(--shell-radius);
 }
 
 .sb-shell .client__label {
   flex: 1;
   min-width: 0;
   font-size: var(--shell-text-sm);
-  color: var(--shell-text-primary);
+  color: var(--shell-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

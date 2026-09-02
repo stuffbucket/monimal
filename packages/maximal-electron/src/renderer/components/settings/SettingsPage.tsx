@@ -37,7 +37,7 @@ export const SETTINGS_STYLES = `
   gap: var(--shell-space-2);
   padding: var(--shell-space-4);
   flex: none;
-  border-bottom: 1px solid var(--shell-border-subtle);
+  border-bottom: 1px solid var(--shell-border);
 }
 
 .sb-shell .settings__heading {
@@ -53,7 +53,7 @@ export const SETTINGS_STYLES = `
 .sb-shell .settings__title {
   font-size: var(--shell-text-md);
   font-weight: var(--shell-weight-lg);
-  color: var(--shell-text-primary);
+  color: var(--shell-text);
   margin: 0;
 }
 
@@ -61,13 +61,13 @@ export const SETTINGS_STYLES = `
   margin: 0;
   font-size: var(--shell-text-sm);
   line-height: var(--shell-leading-base);
-  color: var(--shell-text-muted);
+  color: var(--shell-text-subtle);
   max-width: var(--shell-settings-measure);
 }
 
 .sb-shell .settings__note {
   font-size: var(--shell-text-xs);
-  color: var(--shell-text-muted);
+  color: var(--shell-text-subtle);
   white-space: nowrap;
   align-self: center;
 }
@@ -97,14 +97,14 @@ export const SETTINGS_STYLES = `
   margin: 0;
   font-size: var(--shell-text-base);
   font-weight: var(--shell-weight-lg);
-  color: var(--shell-text-primary);
+  color: var(--shell-text);
 }
 
 .sb-shell .settings__summary {
   margin: 0;
   font-size: var(--shell-text-base);
   line-height: var(--shell-leading-base);
-  color: var(--shell-text-primary);
+  color: var(--shell-text);
 }
 
 .sb-shell .settings__row {

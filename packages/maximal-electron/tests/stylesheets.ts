@@ -2,6 +2,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 
 import { baseStyledClassNames, isScoped, styleRules, styledClassNames } from '../scripts/css-selectors.mjs';
+import { packageStylesheets } from '../scripts/shell-variables.mjs';
 
 /**
  * What the two stylesheet contracts are, and how to tell them apart.
@@ -125,6 +126,28 @@ export function componentStyles(): string {
     .filter((match) => (match[1] ?? '').includes('.sb-shell'))
     .map((match) => match[1] ?? '')
     .join('\n');
+}
+
+/**
+ * Every `--shell-*` name the published stylesheet reads.
+ *
+ * The contract, derived rather than listed. `scripts/shell-variables.mjs`
+ * builds the same set for the consumer-facing check; this is the test-side
+ * reader, and both take the sources from `packageStylesheets()` so a new
+ * stylesheet cannot reach one and be missed by the other.
+ */
+export function publishedTokens(): string[] {
+  const css = packageStylesheets()
+    .flatMap((sheet) => sheet.sources)
+    .map((source) => readFileSync(new URL(`../${source}`, import.meta.url), 'utf8'))
+    .join('\n');
+
+  return [
+    ...new Set([
+      ...[...css.matchAll(/var\(\s*(--shell-[a-z0-9-]+)/g)].map((match) => match[1] ?? ''),
+      ...[...css.matchAll(/^\s*(--shell-[a-z0-9-]+)\s*:/gm)].map((match) => match[1] ?? ''),
+    ]),
+  ].sort();
 }
 
 /** Every class a stylesheet writes a rule for. */

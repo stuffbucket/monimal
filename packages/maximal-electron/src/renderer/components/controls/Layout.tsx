@@ -117,9 +117,9 @@ const TAG_STYLES = `
   align-items: center;
   padding: 1px var(--shell-space-2);
   border-radius: var(--shell-radius-pill);
-  border: 1px solid var(--shell-border-subtle);
+  border: 1px solid var(--shell-border);
   font-size: var(--shell-text-xs);
-  color: var(--shell-text-muted);
+  color: var(--shell-text-subtle);
   white-space: nowrap;
 }
 `;

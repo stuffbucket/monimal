@@ -16,7 +16,7 @@
  */
 
 /**
- * @typedef {'required' | 'fallback' | 'runtime'} ShellVariableKind
+ * @typedef {'required' | 'fallback' | 'structural' | 'runtime'} ShellVariableKind
  */
 
 /**
@@ -106,22 +106,58 @@ export function shellVariablesIn(css) {
 export function shellVariableContract(input) {
   const required = new Set();
   const fallback = new Set();
+  const structural = new Set();
 
   for (const sheet of input.stylesheets) {
     const found = shellVariablesIn(sheet.css);
     for (const name of found.required) required.add(name);
     for (const name of found.fallback) fallback.add(name);
+    for (const name of declaredIn(sheet.css)) structural.add(name);
   }
 
   // Read both ways, a variable is required: the rule with no fallback is the
   // one that renders nothing.
   for (const name of required) fallback.delete(name);
 
+  /*
+   * Declared beats read, whichever way it is read.
+   *
+   * A name a shipped stylesheet declares with a value is one a consumer never
+   * has to supply, so reporting it as `required` sends them to define
+   * something that already has an answer. `--shell-radius-large` is read bare
+   * and declared in `structure.css`; before this it was published as
+   * `required` and `README.md`'s table is the list of what a consumer must
+   * define.
+   */
+  for (const name of structural) {
+    required.delete(name);
+    fallback.delete(name);
+  }
+
   const runtime = new Set(input.runtimeProperties);
   for (const name of required) runtime.delete(name);
   for (const name of fallback) runtime.delete(name);
+  for (const name of structural) runtime.delete(name);
 
-  return { required: sorted(required), fallback: sorted(fallback), runtime: sorted(runtime) };
+  return {
+    required: sorted(required),
+    fallback: sorted(fallback),
+    structural: sorted(structural),
+    runtime: sorted(runtime),
+  };
+}
+
+/**
+ * Every `--shell-*` a stylesheet declares a value for.
+ *
+ * Anchored on the start of a declaration, so `var(--shell-x, …)` inside a
+ * value is not mistaken for one. Issue #93 is the same reader in reverse.
+ *
+ * @param {string} css
+ * @returns {string[]}
+ */
+function declaredIn(css) {
+  return [...css.matchAll(/^\s*(--shell-[a-z0-9-]+)\s*:/gm)].map((match) => match[1] ?? '');
 }
 
 /** The whole contract as one list of name and kind, in name order. */
@@ -131,6 +167,7 @@ export function shellVariableEntries(input) {
 
   for (const name of contract.required) kinds.set(name, 'required');
   for (const name of contract.fallback) kinds.set(name, 'fallback');
+  for (const name of contract.structural) kinds.set(name, 'structural');
   for (const name of contract.runtime) kinds.set(name, 'runtime');
 
   return sorted(kinds.keys()).map((name) => ({ name, kind: kinds.get(name) }));

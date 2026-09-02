@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 
 import { SettingsPage } from '../src/renderer/components/settings/SettingsPage.js';
-import { componentStyles, exportedModules } from './stylesheets.js';
+import { componentStyles, exportedModules, publishedTokens } from './stylesheets.js';
 
 /**
  * What a component's own rules may say.
@@ -76,13 +76,58 @@ describe('the rules a component carries', () => {
     expect([...new Set(literals)].sort()).toEqual([]);
   });
 
-  it('declare a token for the geometry they own', () => {
-    // The other half of the rule above. A component may need a size the ramp
-    // has no name for; what it may not do is inline it. A declaration here is
-    // what a consumer overrides.
-    const declared = [...styles.matchAll(/^\s*(--shell-[a-z0-9-]+)\s*:/gm)].map((m) => m[1]);
+  it('declare every property they set in the published namespace', () => {
+    /*
+     * The other half of the rule above. A component may need a size the ramp
+     * has no name for; what it may not do is inline it, and what it may not do
+     * is name it outside `--shell-*`.
+     *
+     * The pattern used to match only `--shell-*` and the assertion then
+     * filtered for names that are not `--shell-*`, so it could not fail. It
+     * was written to catch a component writing one property and reading
+     * another, which is exactly what `--band: var(--shell-accent)` was doing
+     * three rules from one reading `var(--shell-band)`: four writes, three
+     * reads, no definition, and the usage chart drawn in one colour.
+     */
+    const declared = [...styles.matchAll(/^\s*(--[a-z0-9-]+)\s*:/gm)].map((match) => match[1] ?? '');
+
     expect(declared.length).toBeGreaterThan(0);
-    expect(declared.filter((name) => name !== undefined && !name.startsWith('--shell-'))).toEqual([]);
+    expect(declared.filter((name) => !name.startsWith('--shell-'))).toEqual([]);
+  });
+
+  it('read only names the published contract carries', () => {
+    /*
+     * The check this change most needed and did not have.
+     *
+     * `--shell-*` looks like one namespace and is two. The published one is
+     * what `structural.css` reads, `README.md` tabulates and a consumer
+     * defines: `--shell-text`, `--shell-border`, `--shell-radius-small`. The
+     * other is what you get by prefixing the short names `tokens.css` authors:
+     * `--shell-text-primary`, `--shell-border-subtle`, `--shell-radius-chip`.
+     * Nothing defines the second, and an undefined custom property with no
+     * fallback makes the whole declaration invalid at computed-value time — so
+     * `border: 1px solid var(--shell-border-subtle)` is not a wrong colour, it
+     * is no border.
+     *
+     * Rules moved into a component get renamed by hand, and every other check
+     * that would notice reads `structural.css` alone.
+     */
+    const contract = new Set(publishedTokens());
+    // The floor. An empty contract reports every name unknown; a contract read
+    // from the wrong file reports every name fine.
+    expect(contract.size).toBeGreaterThan(30);
+    expect(contract.has('--shell-text')).toBe(true);
+
+    const read = [...styles.matchAll(/var\(\s*(--shell-[a-z0-9-]+)/g)].map((match) => match[1] ?? '');
+    const declared = new Set(
+      [...styles.matchAll(/^\s*(--shell-[a-z0-9-]+)\s*:/gm)].map((match) => match[1] ?? ''),
+    );
+
+    const unknown = [...new Set(read)]
+      .filter((name) => !contract.has(name) && !declared.has(name))
+      .sort();
+
+    expect(unknown).toEqual([]);
   });
 
   it('scope every rule under the shell root', () => {

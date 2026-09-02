@@ -34,8 +34,8 @@ const APP_TOGGLES_STYLES = `
   display: grid;
   gap: var(--shell-space-2);
   padding: var(--shell-space-3);
-  border: 1px solid var(--shell-border-subtle);
-  border-radius: var(--shell-radius-card);
+  border: 1px solid var(--shell-border);
+  border-radius: var(--shell-radius-large);
 }
 
 .sb-shell .app-card__head {
@@ -49,7 +49,7 @@ const APP_TOGGLES_STYLES = `
   min-width: 0;
   font-size: var(--shell-text-base);
   font-weight: var(--shell-weight-md);
-  color: var(--shell-text-primary);
+  color: var(--shell-text);
 }
 
 .sb-shell .app-card__head .switch {
@@ -61,7 +61,7 @@ const APP_TOGGLES_STYLES = `
   margin: 0;
   font-family: var(--shell-font-mono);
   font-size: var(--shell-text-xs);
-  color: var(--shell-text-muted);
+  color: var(--shell-text-subtle);
   overflow-wrap: anywhere;
 }
 
@@ -73,12 +73,12 @@ const APP_TOGGLES_STYLES = `
 .sb-shell .app-card__command {
   display: block;
   padding: var(--shell-space-2);
-  border-radius: var(--shell-radius-input);
-  border: 1px solid var(--shell-border-input);
-  background: var(--shell-bg-input);
+  border-radius: var(--shell-radius);
+  border: 1px solid var(--shell-input-border);
+  background: var(--shell-input-background);
   font-family: var(--shell-font-mono);
   font-size: var(--shell-text-xs);
-  color: var(--shell-text-primary);
+  color: var(--shell-text);
   overflow-wrap: anywhere;
 }
 `;

@@ -47,8 +47,8 @@ export function Settings({ capabilities }: SettingsProps): ReactElement {
         )}
       </SurfaceRail>
 
-      <div className="settings" aria-labelledby={`${triggerId} settings-heading`}>
-        <h1 id="settings-heading" className="settings__heading">
+      <div className="settings-page" aria-labelledby={`${triggerId} settings-heading`}>
+        <h1 id="settings-heading" className="settings-page__heading">
           Settings
         </h1>
         <AccountSection capabilities={capabilities} />
@@ -66,8 +66,17 @@ export function Settings({ capabilities }: SettingsProps): ReactElement {
 // classnames and declares none of its own, so there is one place to check for
 // drift. Values read the `--shell-*` contract with fallbacks, so a host that
 // defines no theme still renders something legible.
+//
+// The page block is `settings-page`, not `settings`, and must stay that way.
+// The package's `SettingsPage` styles `.sb-shell .settings` as a header-plus-
+// scrolling-body frame, and `.sb-shell .settings__heading` as a grid wrapper
+// around a title and a description — both at specificity (0,2,0) against the
+// bare classes here at (0,1,0), so the package won silently. This surface is
+// neither of those things: it is a padded content column with an `h1` in it.
+// `settings-page` also follows the convention every other block below already
+// uses, and leaves the package's namespace alone.
 const SETTINGS_CSS = `
-.settings {
+.settings-page {
   display: flex;
   flex-direction: column;
   gap: var(--shell-space-5, 24px);
@@ -76,7 +85,7 @@ const SETTINGS_CSS = `
   color: var(--shell-text, #f5f5f5);
 }
 
-.settings__heading {
+.settings-page__heading {
   margin: 0;
   font-size: 1.3em;
   font-weight: 600;

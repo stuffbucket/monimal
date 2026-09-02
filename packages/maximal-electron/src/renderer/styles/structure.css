@@ -1,77 +1,52 @@
 /*
- * The structural half of the `--shell-*` contract.
+ * Structure, declared once instead of at every use.
  *
- * These carry values. A consumer is not required to define any of them, and
- * `README.md` does not list them as required: they are this package's, the way
- * the palette is the consumer's. A rule here that needs a size, a radius, a
- * weight, a duration or an elevation reads one of these rather than writing a
- * literal, so the ramp stays a ramp.
+ * The published stylesheet carries most of it already — but as an inline
+ * fallback on each use: `var(--shell-radius, 6px)`, `var(--shell-space-3, 12px)`.
+ * That works for a rule that spells the fallback out and fails for one that
+ * does not, and the rules a component carries do not: an undefined custom
+ * property with no fallback makes the whole declaration invalid, so a bare
+ * `var(--shell-radius-large)` is not a smaller radius, it is a square corner.
  *
- * They are not a consumer-facing knob set. A consumer reaching for a spacing
- * token is writing layout CSS, which is the thing the components exist to make
- * unnecessary.
+ * So the first block below gives those names a home. Same names, same values —
+ * `tests/structure-tokens.test.ts` holds each one to what the published
+ * stylesheet falls back to, because two values for one name is the drift this
+ * file exists to end rather than start.
  *
- * Defined on `.sb-shell` rather than `:root`. A custom property resolves from
- * the nearest ancestor that sets it, so the shell root is what keeps these in
- * force for the components inside it without reaching the rest of a consumer's
- * document.
+ * The second block is what the published stylesheet has no name for at all.
+ * The rules a component carries set type, and `--shell-font` is one shorthand:
+ * one size, one weight, one leading. A settings surface draws four sizes and
+ * three weights. `tokens.css` is where those values are authored.
  *
- * The values mirror `tokens.css`, which is the reference application's palette
- * and is not published. `tests/structure-tokens.test.ts` compares the two.
+ * A consumer defines none of this and is not expected to. It is not a knob
+ * set: reaching for a spacing token means writing layout CSS, which is what
+ * the components exist to make unnecessary. It is here so that no rule — ours
+ * or a consumer's — writes `font-size: 13px` again.
+ *
+ * On `.sb-shell` rather than `:root`: the nearest ancestor of everything this
+ * package renders, and nothing else. The reading sizes are `rem` on purpose —
+ * a ramp in `px` stops tracking the root font size, which is what a reader
+ * changes when they need larger text.
  */
 
 .sb-shell {
-  /* Control heights. */
-  --shell-control-sm: 22px;
-  --shell-control-md: 26px;
-  --shell-control-lg: 28px;
-
-  /* Fixed chrome. */
-  --shell-size-row: 30px;
-  --shell-size-tabbar: 36px;
-  --shell-size-titlebar: 40px;
-  --shell-nav-heading: 24px;
-  --shell-tab-min: 112px;
-  --shell-tab-max: 216px;
-
-  /* Spacing ramp. */
   --shell-space-1: 4px;
   --shell-space-2: 8px;
   --shell-space-3: 12px;
   --shell-space-4: 16px;
   --shell-space-5: 24px;
+  --shell-radius: 6px;
+  --shell-radius-large: 8px;
+  --shell-input-border: var(--shell-border-strong, var(--shell-border, #2a2a2a));
 
-  /* Radii. A pill is 9999px rather than the next step up: snapping it to a
-     finite radius squares the ends and loses the shape. */
-  --shell-radius-chip: 4px;
-  --shell-radius-input: 6px;
-  --shell-radius-card: 8px;
-  --shell-radius-dialog: 14px;
-  --shell-radius-pill: 9999px;
-
-  /* Type. rem, not px: the ramp scales with the root font size rather than
-     pinning against it. */
-  --shell-font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-  --shell-font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
   --shell-text-xs: 0.6875rem;
   --shell-text-sm: 0.8125rem;
   --shell-text-base: 0.875rem;
   --shell-text-md: 0.9375rem;
-  --shell-weight-base: 400;
   --shell-weight-md: 500;
   --shell-weight-lg: 600;
   --shell-leading-base: 1.5;
   --shell-tracking-caps: 0.04em;
-
-  /* Focus ring geometry. The colour is the consumer's, and required. */
-  --shell-focus-ring-width: 2px;
-  --shell-focus-ring-offset: 2px;
-
-  /* Elevation, motion, and the rest. */
-  --shell-elevation-popover: 0 8px 24px rgb(0 0 0 / 0.28);
-  --shell-elevation-dialog: 0 24px 64px rgb(0 0 0 / 0.5);
-  --shell-duration-fast: 120ms;
-  --shell-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  --shell-icon-stroke: 1.5;
-  --shell-opacity-disabled: 0.5;
+  --shell-radius-pill: 9999px;
+  --shell-control-lg: 28px;
 }

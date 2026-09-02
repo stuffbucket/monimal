@@ -293,13 +293,13 @@ describe('failedShellVariableChecks', () => {
 
 /* ------------------------------------------------- the contract as it ships */
 
-/** The three tables in `docs/shell-variables.md`, by the heading above them. */
+/** The four tables in `docs/shell-variables.md`, by the heading above them. */
 function published(): ShellVariableEntry[] {
   const text = readFileSync(new URL('docs/shell-variables.md', ROOT), 'utf8');
   const entries: ShellVariableEntry[] = [];
 
   for (const section of text.split(/^## /m)) {
-    const kind = (/^(Required|Fallback|Runtime)\n/.exec(section)?.[1] ?? '').toLowerCase();
+    const kind = (/^(Required|Fallback|Structural|Runtime)\n/.exec(section)?.[1] ?? '').toLowerCase();
     if (kind === '') continue;
     // The first cell only. A fallback row names another variable in its second
     // column, and counting that would publish it twice under the wrong kind.

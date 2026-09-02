@@ -55,9 +55,9 @@ const MODEL_CARD_STYLES = `
   gap: var(--shell-space-2);
   align-content: start;
   padding: var(--shell-space-3);
-  border: 1px solid var(--shell-border-subtle);
-  border-radius: var(--shell-radius-card);
-  background: var(--shell-bg-raised);
+  border: 1px solid var(--shell-border);
+  border-radius: var(--shell-radius-large);
+  background: var(--shell-raised);
 }
 
 .sb-shell .model-card__head {
@@ -72,7 +72,7 @@ const MODEL_CARD_STYLES = `
   min-width: 0;
   font-size: var(--shell-text-base);
   font-weight: var(--shell-weight-md);
-  color: var(--shell-text-primary);
+  color: var(--shell-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -82,7 +82,7 @@ const MODEL_CARD_STYLES = `
   margin: 0;
   font-family: var(--shell-font-mono);
   font-size: var(--shell-text-xs);
-  color: var(--shell-text-muted);
+  color: var(--shell-text-subtle);
   overflow-wrap: anywhere;
 }
 
@@ -94,13 +94,13 @@ const MODEL_CARD_STYLES = `
 
 .sb-shell .model-card__stats dt {
   font-size: var(--shell-text-xs);
-  color: var(--shell-text-muted);
+  color: var(--shell-text-subtle);
 }
 
 .sb-shell .model-card__stats dd {
   margin: 0;
   font-size: var(--shell-text-sm);
-  color: var(--shell-text-primary);
+  color: var(--shell-text);
   font-variant-numeric: tabular-nums;
 }
 
@@ -110,7 +110,7 @@ const MODEL_CARD_STYLES = `
   gap: var(--shell-space-1);
   margin: 0;
   font-size: var(--shell-text-xs);
-  color: var(--shell-text-muted);
+  color: var(--shell-text-subtle);
 }
 `;
 
