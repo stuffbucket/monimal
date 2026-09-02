@@ -818,7 +818,21 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  border-left: 1px solid var(--border-subtle);
+  /*
+   * Fills the slot, and draws no edge of its own.
+   *
+   * It did both the other way round. ShellLayout's own `.resize-handle` is
+   * `width: 1px; background: var(--shell-border)` and already draws the
+   * divider between the canvas and this panel, so a `border-left` here put a
+   * second 1px line of the same colour immediately beside the first: measured
+   * in the browser at x=857 and x=858, a 2px divider where the design says
+   * one. And with no `flex` the panel was content-height inside its column —
+   * 21px in a 520px slot — so the divider it drew stopped partway down.
+   *
+   * Neither is an error and neither had ever been reported. A consumer found
+   * both while trying to put this component in the one slot it exists for.
+   */
+  flex: 1;
 }
 
 .inspector__header {

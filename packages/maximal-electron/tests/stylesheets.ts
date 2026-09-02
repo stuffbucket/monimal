@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 
+import { withoutComments } from '../scripts/component-css.mjs';
 import { baseStyledClassNames, isScoped, styleRules, styledClassNames } from '../scripts/css-selectors.mjs';
 import { packageStylesheets } from '../scripts/shell-variables.mjs';
 
@@ -39,9 +40,18 @@ export function stylesheets(): [string, string][] {
     .map((name) => [name, readFileSync(new URL(name, STYLES), 'utf8')]);
 }
 
-/** Every `var(--…)` a stylesheet reads, in source order and with repeats. */
+/**
+ * Every `var(--…)` a stylesheet reads, in source order and with repeats.
+ *
+ * Comments are stripped first, because a comment is prose. `structural.css`
+ * explains why a rule reads one name by naming the other, and counting that as
+ * a read reported `shell.css` — the application's stylesheet, in the
+ * application's own namespace — as reading both namespaces at once, purely on
+ * the strength of a sentence describing the package's. Same reasoning as
+ * `scripts/component-css.mjs`, which strips them before looking for a literal.
+ */
 export function readTokens(css: string): string[] {
-  return [...css.matchAll(/var\((--[a-z0-9-]+)/gi)].map((match) => match[1] ?? '');
+  return [...withoutComments(css).matchAll(/var\((--[a-z0-9-]+)/gi)].map((match) => match[1] ?? '');
 }
 
 /**
