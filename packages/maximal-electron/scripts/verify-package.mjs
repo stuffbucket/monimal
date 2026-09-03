@@ -14,7 +14,7 @@
  * This script closes that gap. Run it after `npm run package`.
  */
 
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -25,6 +25,7 @@ import {
   LLAMA_BACKENDS_VARIABLE,
   PACKAGE_FUSES,
   RUNTIME_ICONS,
+  externalClosure,
   hoistedDependencies,
   llamaPackagePlan,
   parseLlamaBackends,
@@ -276,9 +277,74 @@ check(
 // CUDA backend as present because the CPU one is — the same widened scope this
 // script exists to catch.
 const LIBRARY_EXTENSIONS = ['.dylib', '.so', '.dll'];
+const EXTERNAL_MODULES = ['node-pty', 'node-llama-cpp'];
+
+/**
+ * The two native modules, and everything they reach.
+ *
+ * The keep-list names directories, so a dependency that landed at the top
+ * level was silently absent and `node-llama-cpp` could not load in any
+ * packaged build. Derived from the installed tree by `hoistedDependencies`, so
+ * this checks the same set `forge.config.ts` kept rather than a second list.
+ * Issue #133.
+ */
+const IO = {
+    basename: (target) => path.basename(target),
+    realpath: (target) => {
+      // A package directory is usually a symlink under pnpm, and its
+      // dependencies sit beside its real location rather than beside the link.
+      try {
+        return realpathSync(target);
+      } catch {
+        return target;
+      }
+    },
+    sep: path.sep,
+    join: (...parts) => path.join(...parts),
+    readPackageJson: (dir) => {
+      const file = path.join(dir, 'package.json');
+      return existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : undefined;
+    },
+  };
+
+/*
+ * The highest directory resolution may reach: the workspace root, found rather
+ * than assumed. pnpm keeps the real files above this package and npm below it,
+ * so an unbounded walk climbs into whatever encloses the checkout.
+ */
+const workspaceRoot = (() => {
+  let dir = ROOT;
+  for (;;) {
+    if (existsSync(path.join(dir, 'pnpm-workspace.yaml'))) return dir;
+    const parent = path.dirname(dir);
+    if (parent === dir) return ROOT;
+    dir = parent;
+  }
+})();
+
+const RESOLUTION = { boundary: workspaceRoot };
+const hoisted = hoistedDependencies(IO, path.join(ROOT, 'node_modules'), EXTERNAL_MODULES, RESOLUTION);
+const CLOSURE = externalClosure(IO, path.join(ROOT, 'node_modules'), EXTERNAL_MODULES, RESOLUTION);
+
 const LLAMA_SCOPE = 'node_modules/@node-llama-cpp';
-const llamaScope = path.join(ROOT, LLAMA_SCOPE);
-const installed = existsSync(llamaScope) ? readdirSync(llamaScope) : [];
+
+/*
+ * Where the prebuild scope really is.
+ *
+ * `<root>/node_modules/@node-llama-cpp` is where a flat install puts it and
+ * where nothing puts it under pnpm: the platform build is an optional
+ * dependency of `node-llama-cpp` and lives beside it in the store. Reading the
+ * assumed path found nothing, and every check below then reported the packaged
+ * scope as full of strays — the expectation was empty, not the archive.
+ *
+ * `externalClosure` already resolves each one, so the directory it found is
+ * the directory to read.
+ */
+const scopeEntries = CLOSURE.filter(({ name }) => name.startsWith('@node-llama-cpp/'));
+const llamaScopeDir = (name) =>
+  scopeEntries.find((entry) => entry.name === `@node-llama-cpp/${name}`)?.dir ??
+  path.join(ROOT, LLAMA_SCOPE, name);
+const installed = scopeEntries.map(({ name }) => name.slice('@node-llama-cpp/'.length));
 
 // The first floor. With no scope installed the plan is empty, every loop below
 // runs zero times, and the run is green over a package with no llama.cpp in it.
@@ -309,7 +375,7 @@ for (const entry of dropped) {
 check(kept.length > 0, 'the plan keeps a llama.cpp prebuild package for this target');
 
 const shippedLibraries = kept.flatMap((name) =>
-  readdirSync(path.join(llamaScope, name), { recursive: true, encoding: 'utf8' })
+  readdirSync(llamaScopeDir(name), { recursive: true, encoding: 'utf8' })
     .map((entry) => entry.split(path.sep).join('/'))
     .filter((entry) => LIBRARY_EXTENSIONS.includes(path.extname(entry)))
     .map((entry) => `${name}/${entry}`),
@@ -350,56 +416,61 @@ check(
     : `${String(strays.length)} scope entr(ies) belong to a dropped package, first ${strays[0]}`,
 );
 
-/**
- * Every package npm hoisted out of the two external modules.
- *
- * The keep-list names directories, so a dependency that landed at the top
- * level was silently absent and `node-llama-cpp` could not load in any
- * packaged build. Derived from the installed tree by `hoistedDependencies`, so
- * this checks the same set `forge.config.ts` kept rather than a second list.
- * Issue #133.
- */
-const hoisted = hoistedDependencies(
-  {
-    join: (...parts) => path.join(...parts),
-    readPackageJson: (dir) => {
-      const file = path.join(dir, 'package.json');
-      return existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : undefined;
-    },
-  },
-  path.join(ROOT, 'node_modules'),
-  ['node-pty', 'node-llama-cpp'],
-);
 
 // The floor. With an empty closure every assertion below runs zero times, and
 // the run is green over a package that cannot load the library at all.
+/*
+ * The floor is on the closure, not on hoisting.
+ *
+ * `hoistedDependencies` answers "which of these did the installer put at the
+ * top level", and the honest answer under pnpm is none: every one is a sibling
+ * in the store. That is not an empty scope to check, it is a different shape
+ * of install, and asserting the old number here failed a correct build.
+ */
 check(
-  hoisted.length > 0,
-  hoisted.length > 0
-    ? `the external modules hoist ${String(hoisted.length)} package(s)`
-    : 'nothing to check: the external modules hoist 0 packages',
+  CLOSURE.length > 0,
+  CLOSURE.length > 0
+    ? `the external modules reach ${String(CLOSURE.length)} package(s), ${String(hoisted.length)} of them hoisted`
+    : 'nothing to check: the external modules reach 0 packages',
 );
 
-/**
- * Which top-level packages the archive carries. A scoped name is two segments,
- * so `@huggingface` alone would report `@huggingface/jinja` as present when
- * some other package under that scope is the one that shipped.
+/*
+ * Every closure placement reached the archive, at the path it belongs at.
+ *
+ * This used to iterate `hoisted` — the names a *flat* installer lifts to the
+ * top level — which under pnpm is the empty list. The floor above it was moved
+ * to the closure in the same change, so the run reported `all 0 hoisted
+ * dependencies are packed` and passed. A check that examined nothing, guarding
+ * the output of the copy that had just been rewritten.
+ *
+ * Paths rather than names, because the placement is the part that can be
+ * wrong: a version conflict nests, and a nested copy landing at the top level
+ * is how the library stops loading.
  */
-const packedPackages = new Set(
-  listing
-    .filter((entry) => entry.startsWith('/node_modules/'))
-    .map((entry) => {
-      const parts = entry.split('/').slice(2);
-      return parts[0]?.startsWith('@') ? parts.slice(0, 2).join('/') : parts[0];
-    })
-    .filter((name) => name !== undefined && !name.startsWith('.')),
-);
-const absent = hoisted.filter((name) => !packedPackages.has(name));
+const listedPaths = new Set(listing.map((entry) => entry.replace(/^\//, '')));
+const unplaced = CLOSURE.filter(({ path: placement }) => !listedPaths.has(placement));
 check(
-  absent.length === 0,
-  absent.length === 0
-    ? `all ${String(hoisted.length)} hoisted dependencies are packed`
-    : `${String(absent.length)} hoisted dependenc(ies) are missing, first ${absent[0]}`,
+  unplaced.length === 0,
+  unplaced.length === 0
+    ? `all ${String(CLOSURE.length)} closure placements are packed`
+    : `${String(unplaced.length)} closure placement(s) are missing, first ${unplaced[0]?.path ?? ''}`,
+);
+
+/*
+ * And the nested ones are really nested.
+ *
+ * Sixteen names in this closure resolve to more than one version. Flattening
+ * them by name produced a `node_modules` where `restore-cursor` got the
+ * `signal-exit` with no `onExit` export and `node-llama-cpp` could not be
+ * imported at all — issue #133's failure, reintroduced by the fix for it and
+ * caught by nothing. If the closure ever stops nesting, this says so.
+ */
+const nested = CLOSURE.filter(({ path: placement }) => placement.split('node_modules/').length > 2);
+check(
+  nested.length > 0,
+  nested.length > 0
+    ? `${String(nested.length)} closure placement(s) nest under the package that asked for them`
+    : 'nothing nests: every closure entry claims the top level, which a tree with two versions of one name cannot',
 );
 
 /* ---------------------------------------------------------------- icons */

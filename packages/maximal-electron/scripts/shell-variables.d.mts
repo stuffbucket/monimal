@@ -7,10 +7,12 @@
 
 /**
  * `required` is read as `var(--shell-x)` somewhere, so an unset value renders
- * nothing. `fallback` is only ever read as `var(--shell-x, …)`. `runtime` is
- * resolved by JavaScript and appears in no rule.
+ * nothing. `fallback` is only ever read as `var(--shell-x, …)`. `structural`
+ * is declared with a value by a stylesheet this package ships, so a consumer
+ * never has to supply it. `runtime` is resolved by JavaScript and appears in
+ * no rule.
  */
-export type ShellVariableKind = 'required' | 'fallback' | 'runtime';
+export type ShellVariableKind = 'required' | 'fallback' | 'structural' | 'runtime';
 
 export interface ShellStylesheet {
   /** For the failure message. Any label the caller can act on. */
@@ -39,13 +41,14 @@ export interface ShellVariableCheck {
 export interface ShellVariableContract {
   readonly required: string[];
   readonly fallback: string[];
+  readonly structural: string[];
   readonly runtime: string[];
 }
 
 export interface PackageStylesheet {
-  /** Repository-relative path to the stylesheet this package ships. */
-  readonly source: string;
-  /** Repository-relative path the build copies it to. */
+  /** Repository-relative paths, concatenated in order into `published`. */
+  readonly sources: readonly string[];
+  /** Repository-relative path the build writes. */
   readonly published: string;
 }
 

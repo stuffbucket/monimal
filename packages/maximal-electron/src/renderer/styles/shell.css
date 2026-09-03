@@ -1,5 +1,28 @@
+/*
+ * The structural ramp, which this application is a consumer of.
+ *
+ * Not decoration and not a duplicate. The rules a component carries read
+ * `--shell-space-3`, `--shell-radius-large`, `--shell-text-sm` and fifteen
+ * more, and `structure.css` is the only file that gives those names values.
+ * A consumer gets it because it is half of `dist/renderer/styles.css`; this
+ * application builds its own stylesheet and so got none of it, which meant
+ * every carried rule's padding, radius, type size and weight was an undefined
+ * custom property with no fallback — invalid at computed-value time, so zero
+ * rather than wrong. Measured in the running application: a model card with
+ * `border-radius: 0px` and `padding: 0px`, through 106 stories that render and
+ * pass axe.
+ *
+ * `tests/reference-consumer.test.ts` is what now says this line may not be
+ * removed: it holds every name a carried rule reads against what this
+ * application actually defines.
+ *
+ * First, so the `@layer` statement inside it establishes layer order ahead of
+ * every rule that depends on it.
+ */
+@import './structure.css';
 @import './controls.css';
 
+@layer sb-shell.base {
 *,
 *::before,
 *::after {
@@ -795,7 +818,21 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  border-left: 1px solid var(--border-subtle);
+  /*
+   * Fills the slot, and draws no edge of its own.
+   *
+   * It did both the other way round. ShellLayout's own `.resize-handle` is
+   * `width: 1px; background: var(--shell-border)` and already draws the
+   * divider between the canvas and this panel, so a `border-left` here put a
+   * second 1px line of the same colour immediately beside the first: measured
+   * in the browser at x=857 and x=858, a 2px divider where the design says
+   * one. And with no `flex` the panel was content-height inside its column —
+   * 21px in a 520px slot — so the divider it drew stopped partway down.
+   *
+   * Neither is an error and neither had ever been reported. A consumer found
+   * both while trying to put this component in the one slot it exists for.
+   */
+  flex: 1;
 }
 
 .inspector__header {
@@ -1105,4 +1142,5 @@ body {
 
 .banner__grow {
   flex: 1;
+}
 }

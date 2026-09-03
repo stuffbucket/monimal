@@ -1,5 +1,7 @@
 import type { ReactElement } from 'react'
 
+import { Button, Note } from 'stuffbucket-electron/renderer'
+
 import { displayAccountLogin } from '../shared/account-login'
 
 // Authorized screen: brief confirmation that sign-in succeeded. First-run
@@ -19,12 +21,12 @@ export function AuthorizedScreen({ login, busy, onSignOut }: AuthorizedScreenPro
   return (
     <div className="first-run-screen">
       <h1 className="first-run-heading">You're signed in</h1>
-      <p className="first-run-note">
+      <Note>
         Signed in as <strong>{displayAccountLogin(login)}</strong>.
-      </p>
-      <button type="button" className="first-run-button" onClick={onSignOut} disabled={busy}>
+      </Note>
+      <Button onClick={onSignOut} disabled={busy}>
         {busy ? 'Signing out…' : 'Sign out'}
-      </button>
+      </Button>
     </div>
   )
 }

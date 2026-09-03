@@ -293,13 +293,13 @@ describe('failedShellVariableChecks', () => {
 
 /* ------------------------------------------------- the contract as it ships */
 
-/** The three tables in `docs/shell-variables.md`, by the heading above them. */
+/** The four tables in `docs/shell-variables.md`, by the heading above them. */
 function published(): ShellVariableEntry[] {
   const text = readFileSync(new URL('docs/shell-variables.md', ROOT), 'utf8');
   const entries: ShellVariableEntry[] = [];
 
   for (const section of text.split(/^## /m)) {
-    const kind = (/^(Required|Fallback|Runtime)\n/.exec(section)?.[1] ?? '').toLowerCase();
+    const kind = (/^(Required|Fallback|Structural|Runtime)\n/.exec(section)?.[1] ?? '').toLowerCase();
     if (kind === '') continue;
     // The first cell only. A fallback row names another variable in its second
     // column, and counting that would publish it twice under the wrong kind.
@@ -313,10 +313,12 @@ function published(): ShellVariableEntry[] {
 
 /** The stylesheets the package ships, read from disk. */
 function shipped(): { name: string; css: string }[] {
-  return packageStylesheets().map((entry) => ({
-    name: entry.source,
-    css: readFileSync(new URL(entry.source, ROOT), 'utf8'),
-  }));
+  return packageStylesheets().flatMap((entry) =>
+    entry.sources.map((source) => ({
+      name: source,
+      css: readFileSync(new URL(source, ROOT), 'utf8'),
+    })),
+  );
 }
 
 describe('the published contract', () => {
@@ -356,7 +358,8 @@ describe('the published contract', () => {
 
     expect(exported.length).toBeGreaterThan(0);
     expect(packageStylesheets().map((entry) => entry.published).sort()).toEqual(exported);
-    expect(packageStylesheets().map((entry) => entry.source)).toEqual([
+    expect(packageStylesheets().flatMap((entry) => entry.sources)).toEqual([
+      'src/renderer/styles/structure.css',
       'src/renderer/styles/structural.css',
     ]);
   });
@@ -384,11 +387,74 @@ describe('the published contract', () => {
     // The floor, again, at the boundary this file owns. Everything above runs
     // over `shipped`; an unreadable path or a renamed file would leave the
     // comparison holding over no CSS at all.
+    //
+    // A shipped stylesheet takes part in the namespace one of two ways: it
+    // declares structural tokens, or it reads them. Requiring a read of every
+    // sheet would reject `structure.css`, which is nothing but declarations;
+    // requiring neither would let an empty file through, which is the hole this
+    // exists to close.
     const stylesheets = shipped();
+    const declares = (css: string): boolean => new RegExp(`^\\s*${SHELL_NAMESPACE}`, 'm').test(css);
+    const reads = (css: string): boolean => css.includes(`var(${SHELL_NAMESPACE}`);
+
     expect(SHELL_NAMESPACE).toBe('--shell-');
     expect(stylesheets.length).toBeGreaterThan(0);
-    expect(stylesheets.every((entry) => entry.css.includes(`var(${SHELL_NAMESPACE}`))).toBe(true);
+    expect(stylesheets.every((entry) => declares(entry.css) || reads(entry.css))).toBe(true);
+    expect(stylesheets.some((entry) => reads(entry.css))).toBe(true);
     expect(runtimeProperties.length).toBeGreaterThan(0);
     expect(published().length).toBeGreaterThan(runtimeProperties.length);
+  });
+});
+
+describe('the declaration a consumer compiles against', () => {
+  /*
+   * `scripts/shell-variables.d.mts` is hand-written, because the module it
+   * describes is plain ESM that a consumer's check runs under bare `node`.
+   * Hand-written is the whole problem: `structural` was added to the
+   * implementation and not to the declaration, so `shellVariableContract()`
+   * returned four lists and told every consumer it returned three.
+   * `packages/maximal/client` hit it as `Property 'structural' does not exist`
+   * on a field that had existed for a day.
+   *
+   * Nothing else can see this. `tsc` type-checks this package against the
+   * source, not against the declaration a consumer resolves, and every test
+   * here calls the implementation directly.
+   */
+  const declaration = readFileSync(new URL('../scripts/shell-variables.d.mts', import.meta.url), 'utf8');
+
+  it('names every kind the implementation produces', () => {
+    const declared = [...(/export type ShellVariableKind =([^;]+);/.exec(declaration)?.[1] ?? '')
+      .matchAll(/'([a-z]+)'/g)]
+      .map((match) => match[1] ?? '')
+      .sort();
+
+    // Derived from a contract rather than from a list, so a fifth kind added
+    // to the implementation arrives here without anyone deciding to add it.
+    const produced = Object.keys(
+      shellVariableContract({
+        stylesheets: whole.stylesheets,
+        runtimeProperties: whole.runtimeProperties,
+      }),
+    ).sort();
+
+    expect(declared.length).toBeGreaterThan(2);
+    expect(declared).toEqual(produced);
+  });
+
+  it('names every list the contract carries', () => {
+    const fields = [...(/export interface ShellVariableContract \{([^}]*)}/.exec(declaration)?.[1] ?? '')
+      .matchAll(/readonly (\w+):/g)]
+      .map((match) => match[1] ?? '')
+      .sort();
+
+    expect(fields.length).toBeGreaterThan(2);
+    expect(fields).toEqual(
+      Object.keys(
+        shellVariableContract({
+          stylesheets: whole.stylesheets,
+          runtimeProperties: whole.runtimeProperties,
+        }),
+      ).sort(),
+    );
   });
 });

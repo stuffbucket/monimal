@@ -1,12 +1,16 @@
 import type { ReactElement } from 'react'
 
+import { Note, StatusChip, Tag } from 'stuffbucket-electron/renderer'
+
 import { statusLabel, type RunStatus } from '../workspace/model'
 import type { ProjectRollup } from './derive'
 
 // Per-project rollups. Rows in one list, not a card per project — the same
 // "no grid of similar rectangles" reasoning as StatusTotals. Each status
-// count is real text (`"2 running"`), so the breakdown reads correctly with
-// color turned off entirely.
+// count is real text (`"2 running"`) inside a `StatusChip`, so the breakdown
+// reads correctly with color turned off entirely, and the colour it does have
+// comes from ../theme.ts's one `--shell-status` mapping rather than from four
+// per-state rules of this surface's own.
 
 const STATUS_ORDER: readonly RunStatus[] = ['running', 'needs-approval', 'done', 'failed']
 
@@ -16,7 +20,7 @@ interface ProjectRollupsProps {
 
 export function ProjectRollups({ rollups }: ProjectRollupsProps): ReactElement {
   if (rollups.length === 0) {
-    return <p className="dashboard__empty-text">No projects yet.</p>
+    return <Note>No projects yet.</Note>
   }
 
   return (
@@ -28,12 +32,16 @@ export function ProjectRollups({ rollups }: ProjectRollupsProps): ReactElement {
             <span className="dashboard-row__name">{project.name}</span>
             <span className="dashboard-row__counts">
               {nonZero.length === 0 ? (
-                <span>No runs</span>
+                // `Tag`, not a `StatusChip` with some "none" status: an empty
+                // project is not in a state, it has nothing to be in one.
+                <Tag>No runs</Tag>
               ) : (
                 nonZero.map((status) => (
-                  <span className="dashboard-row__count" data-status={status} key={status}>
-                    {counts[status]} {statusLabel[status].toLowerCase()}
-                  </span>
+                  <StatusChip
+                    key={status}
+                    status={status}
+                    label={`${String(counts[status])} ${statusLabel[status].toLowerCase()}`}
+                  />
                 ))
               )}
             </span>

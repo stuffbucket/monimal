@@ -19,6 +19,7 @@ export { Callout } from './Callout.js';
 export {
   Checkbox,
   Field,
+  FieldList,
   FormField,
   RadioGroup,
   Select,
@@ -33,7 +34,9 @@ export {
   Banner,
   EmptyState,
   InspectorPanel,
+  Note,
   StatusChip,
+  Tag,
   Toolbar,
   ViewModeSwitch,
   type ViewMode,

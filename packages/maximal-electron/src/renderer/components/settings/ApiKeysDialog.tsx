@@ -1,3 +1,5 @@
+import { useComponentStyles } from '../../lib/component-styles.js';
+import { fill, useShellContent } from '../../lib/content.js';
 import { Eye, EyeOff, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -8,12 +10,12 @@ import {
   type Endpoint,
 } from '../../lib/settings.js';
 import { Button, IconButton } from '../controls/Button.js';
-import { FormField, Switch, TextInput } from '../controls/Fields.js';
+import { Field, FieldList, FormField, Switch, TextInput } from '../controls/Fields.js';
 import { EmptyState } from '../controls/Layout.js';
 import { Dialog } from '../controls/Overlays.js';
 
 import { CopyButton } from './CopyButton.js';
-import { SettingsSection } from './SettingsPage.js';
+import { SETTINGS_STYLES, SettingsSection } from './SettingsPage.js';
 
 /**
  * The endpoint, and the clients that call it.
@@ -47,6 +49,7 @@ function Secret({
   name: string;
   testId: string;
 }) {
+  const content = useShellContent().apiKeys;
   const [revealed, setRevealed] = useState(false);
 
   return (
@@ -55,7 +58,7 @@ function Secret({
         {revealed ? value : maskSecret(value)}
       </code>
       <IconButton
-        label={`${revealed ? 'Hide' : 'Reveal'} ${name}`}
+        label={fill(revealed ? content.hide : content.reveal, { name })}
         onClick={() => {
           setRevealed(!revealed);
         }}
@@ -68,6 +71,99 @@ function Secret({
   );
 }
 
+/**
+ * The rules the key list draws itself with.
+ *
+ * They travel with the component so exporting one ships the other, and every
+ * value is a token. `src/renderer/lib/component-styles.ts` says why.
+ */
+const API_KEYS_STYLES = `
+/*
+ * How tall the list may grow before it scrolls. A share of the viewport rather
+ * than a size on any ramp, so it is this sheet's token.
+ */
+.sb-shell {
+  --shell-keys-dialog-max-height: 80vh;
+}
+/*
+ * A dialog holding a list rather than a sentence.
+ *
+ * The default 520px fits a confirmation. A key, its reveal and its copy button
+ * on one line do not fit in it.
+ */
+.sb-shell .dialog--wide {
+  width: min(720px, 92vw);
+  max-height: var(--shell-keys-dialog-max-height);
+  overflow-y: auto;
+}
+
+.sb-shell .secret {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--shell-space-1);
+  min-width: 0;
+}
+
+.sb-shell .secret__value {
+  padding: 0 var(--shell-space-2);
+  height: var(--shell-control-lg);
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--shell-radius);
+  border: 1px solid var(--shell-input-border);
+  background: var(--shell-input-background);
+  font-family: var(--shell-font-mono);
+  font-size: var(--shell-text-xs);
+  color: var(--shell-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sb-shell .client-list,
+.sb-shell .app-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--shell-space-2);
+}
+
+.sb-shell .client {
+  display: flex;
+  align-items: center;
+  gap: var(--shell-space-2);
+  padding: var(--shell-space-2);
+  border: 1px solid var(--shell-border);
+  border-radius: var(--shell-radius);
+}
+
+.sb-shell .client__label {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--shell-text-sm);
+  color: var(--shell-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The switch fills its container by default, which is right in the inspector
+   and wrong in a row that already has four things in it. */
+.sb-shell .client .switch {
+  width: auto;
+  flex: none;
+}
+`;
+
+/**
+ * The keys a consumer issues, and the switch that requires one.
+ *
+ * A dialog rather than a tab: issuing a key is a bounded task, and the key
+ * itself is a secret that should leave the screen when the task is done.
+ *
+ * Holds no keys. The caller supplies the list and handles every action.
+ */
 export function ApiKeysDialog({
   open,
   onOpenChange,
@@ -85,6 +181,11 @@ export function ApiKeysDialog({
   onRemoveClient?: (id: string) => void;
   onToggleClient?: (id: string, enabled: boolean) => void;
 }) {
+  useComponentStyles('settings-page', SETTINGS_STYLES);
+  useComponentStyles('api-keys', API_KEYS_STYLES);
+
+  const content = useShellContent().apiKeys;
+
   const [draft, setDraft] = useState('');
   const [touched, setTouched] = useState(false);
   const error = touched ? labelError(draft) : undefined;
@@ -101,62 +202,69 @@ export function ApiKeysDialog({
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      title="API keys"
-      description="The endpoint applications call, and the keys that identify them."
+      title={content.title}
+      description={content.description}
       className="dialog dialog--wide"
       testId="settings-api-keys"
     >
-      <h2 className="settings__title">API keys</h2>
+      <h2 className="settings__title">{content.title}</h2>
 
       {endpoint && (
         <SettingsSection
-          title="Endpoint"
-          description="What an application points at."
+          title={content.endpointTitle}
+          description={content.endpointDescription}
           as="h3"
           testId="api-keys-endpoint"
         >
-          <div className="field">
-            <span className="field__label">Base URL</span>
-            <span className="field__value">
-              {endpoint.baseUrl}
-              <CopyButton
-                text={endpoint.baseUrl}
-                about="the base URL"
-                testId="endpoint-copy-url"
+          <FieldList>
+            <Field
+              label={content.baseUrl}
+              value={
+                <>
+                  {endpoint.baseUrl}
+                  <CopyButton
+                    text={endpoint.baseUrl}
+                    about={content.baseUrlAbout}
+                    testId="endpoint-copy-url"
+                  />
+                </>
+              }
+            />
+
+            {endpoint.key !== undefined && (
+              <Field
+                label={content.key}
+                value={
+                  <Secret
+                    value={endpoint.key}
+                    name={content.endpointKeyName}
+                    testId="endpoint-key"
+                  />
+                }
               />
-            </span>
-          </div>
+            )}
 
-          {endpoint.key !== undefined && (
-            <div className="field">
-              <span className="field__label">Key</span>
-              <span className="field__value">
-                <Secret value={endpoint.key} name="the endpoint key" testId="endpoint-key" />
-              </span>
-            </div>
-          )}
-
-          {endpoint.routes.map((route) => (
-            <div className="field" key={route.path}>
-              <span className="field__label">{route.label}</span>
-              <span className="field__value">
-                {route.method} {route.path}
-              </span>
-            </div>
-          ))}
+            {endpoint.routes.map((route) => (
+              <Field
+                key={route.path}
+                label={route.label}
+                value={`${route.method} ${route.path}`}
+              />
+            ))}
+          </FieldList>
         </SettingsSection>
       )}
 
       <SettingsSection
-        title="Connections"
-        description="One key per tool, so they can be told apart. Anything not listed still works."
+        title={content.connectionsTitle}
+        description={content.connectionsDescription}
         as="h3"
         testId="api-keys-clients"
       >
         {clients.length === 0 ? (
           <EmptyState
             icon={Plus}
-            message="Nothing here yet. Add a connection for each application you want to recognise."
+            message={content.empty}
           />
         ) : (
           <ul className="client-list">
@@ -165,11 +273,11 @@ export function ApiKeysDialog({
                 <span className="client__label">{client.label}</span>
                 <Secret
                   value={client.key}
-                  name={`the ${client.label} key`}
+                  name={fill(content.clientKeyName, { name: client.label })}
                   testId={`client-${client.id}-key`}
                 />
                 <Switch
-                  label={client.enabled ? 'On' : 'Off'}
+                  label={client.enabled ? content.on : content.off}
                   checked={client.enabled}
                   onChange={(next) => onToggleClient?.(client.id, next)}
                   disabled={onToggleClient === undefined}
@@ -178,7 +286,7 @@ export function ApiKeysDialog({
                 {onRemoveClient && (
                   <IconButton
                     danger
-                    label={`Remove ${client.label}`}
+                    label={fill(content.remove, { name: client.label })}
                     onClick={() => {
                       onRemoveClient(client.id);
                     }}
@@ -195,8 +303,8 @@ export function ApiKeysDialog({
         {onAddClient && (
           <div className="settings__row settings__row--bottom">
             <FormField
-              label="What is this connection for?"
-              hint="A name you will recognise later."
+              label={content.addLabel}
+              hint={content.addHint}
               error={error}
             >
               {(field) => (
@@ -204,13 +312,13 @@ export function ApiKeysDialog({
                   {...field}
                   value={draft}
                   onChange={setDraft}
-                  placeholder="e.g. Claude Code, Cursor, Raycast"
+                  placeholder={content.addPlaceholder}
                   testId="client-new-label"
                 />
               )}
             </FormField>
             <Button variant="primary" onClick={add} testId="client-add">
-              Add
+              {content.add}
             </Button>
           </div>
         )}
@@ -223,7 +331,7 @@ export function ApiKeysDialog({
           }}
           testId="api-keys-done"
         >
-          Done
+          {content.done}
         </Button>
       </div>
     </Dialog>

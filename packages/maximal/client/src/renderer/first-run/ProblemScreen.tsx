@@ -1,5 +1,7 @@
 import type { ReactElement } from 'react'
 
+import { Button, Note } from 'stuffbucket-electron/renderer'
+
 // The one terminal-problem screen, parameterized by kind. A user must never
 // be stuck staring at a spinner that will never resolve — each of these
 // kinds is a distinct, named dead end with a clear way forward, announced
@@ -49,18 +51,19 @@ export function ProblemScreen({
       <h1 className="first-run-heading">{copy.heading}</h1>
       {/* Assertive: every kind here blocks the user from continuing until
           they act, so each is announced as an interruption, not narration. */}
-      <p className="first-run-note first-run-note--error" role="alert">
+      <Note status="failed" live="assertive">
         {copy.body}
         {message ? ` (${message})` : ''}
-      </p>
+      </Note>
       <div className="first-run-actions">
-        <button type="button" className="first-run-button first-run-button--primary" onClick={onRestart} disabled={busy}>
+        <Button variant="primary" onClick={onRestart} disabled={busy}>
           {busy ? 'Starting…' : 'Try again'}
-        </button>
+        </Button>
         {remediationUrl ? (
-          <button type="button" className="first-run-link-button" onClick={() => onOpenUrl(remediationUrl)}>
-            Learn more
-          </button>
+          // Was a link-styled button. The package publishes no link, ghost or
+          // tertiary variant, so the secondary action is a default `Button`
+          // beside the primary one. Same words, same handler.
+          <Button onClick={() => onOpenUrl(remediationUrl)}>Learn more</Button>
         ) : null}
       </div>
     </div>

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { copyFile, mkdir } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -16,5 +16,8 @@ const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 for (const sheet of packageStylesheets()) {
   const target = path.join(root, sheet.published);
   await mkdir(path.dirname(target), { recursive: true });
-  await copyFile(path.join(root, sheet.source), target);
+  const parts = await Promise.all(
+    sheet.sources.map((source) => readFile(path.join(root, source), 'utf8')),
+  );
+  await writeFile(target, parts.join('\n'));
 }

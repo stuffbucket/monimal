@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync } from 'node:fs';
 import path from 'node:path';
 
 import { FusesPlugin } from '@electron-forge/plugin-fuses';
@@ -6,7 +6,7 @@ import { VitePlugin } from '@electron-forge/plugin-vite';
 import type { ForgeConfig } from '@electron-forge/shared-types';
 import { FuseV1Options, FuseVersion } from '@electron/fuses';
 
-import { PACKAGE_FUSES, RUNTIME_ICONS, LLAMA_BACKENDS_VARIABLE, bundleIcon, hoistedDependencies, llamaPackagePlan, parseLlamaBackends } from './scripts/package-contract.mjs';
+import { PACKAGE_FUSES, RUNTIME_ICONS, LLAMA_BACKENDS_VARIABLE, bundleIcon, externalClosure, hoistedDependencies, llamaPackagePlan, parseLlamaBackends } from './scripts/package-contract.mjs';
 
 /**
  * The external native modules, and the packages npm hoisted out of them.
@@ -21,18 +21,49 @@ const EXTERNAL_MODULES = ['node-pty', 'node-llama-cpp'];
 
 const NODE_MODULES = path.resolve('node_modules');
 
-const HOISTED = hoistedDependencies(
-  {
+const IO = {
+    basename: (target: string) => path.basename(target),
+    realpath: (target: string) => {
+      // A package directory is usually a symlink under pnpm, and its
+      // dependencies sit beside its real location rather than beside the link.
+      try {
+        return realpathSync(target);
+      } catch {
+        return target;
+      }
+    },
+    sep: path.sep,
     join: (...parts: string[]) => path.join(...parts),
     readPackageJson: (dir: string) => {
       const file = path.join(dir, 'package.json');
       if (!existsSync(file)) return undefined;
       return JSON.parse(readFileSync(file, 'utf8')) as { dependencies?: Record<string, string> };
     },
-  },
-  NODE_MODULES,
-  EXTERNAL_MODULES,
-);
+  };
+
+/**
+ * The highest directory dependency resolution may reach.
+ *
+ * The workspace root, found rather than assumed. It cannot be derived from
+ * `node_modules` alone: pnpm keeps the real files in the workspace's store,
+ * above this package, and npm keeps them below it. Without a bound the walk
+ * would climb into whatever encloses the checkout — which is what happened
+ * once the resolver started following real paths.
+ */
+function workspaceRoot(): string {
+  let dir = __dirname;
+  for (;;) {
+    if (existsSync(path.join(dir, 'pnpm-workspace.yaml'))) return dir;
+    const parent = path.dirname(dir);
+    if (parent === dir) return path.resolve(__dirname);
+    dir = parent;
+  }
+}
+
+const RESOLUTION = { boundary: workspaceRoot() };
+
+const HOISTED = hoistedDependencies(IO, NODE_MODULES, EXTERNAL_MODULES, RESOLUTION);
+const CLOSURE = externalClosure(IO, NODE_MODULES, EXTERNAL_MODULES, RESOLUTION);
 
 /**
  * Where the application icons come from.
@@ -55,6 +86,52 @@ for (const file of [BUNDLE_ICON, ...RUNTIME_ICONS]) {
     throw new Error(
       `Icon directory ${ICON_DIR} has no ${file}. ` +
         'Run `npm run icons`, or point STUFFBUCKET_ICON_DIR at a complete set.',
+    );
+  }
+}
+
+/**
+ * Copies in every closure member the keep-list could not name.
+ *
+ * `packagerConfig.ignore` selects by path prefix, so it can only keep a
+ * dependency that has a top-level path — which is every one of them under a
+ * flat `node_modules`, and none of them under pnpm. There a package's
+ * dependencies are its *siblings* in `node_modules/.pnpm/<name>@<version>/
+ * node_modules/`, so copying `node-llama-cpp` copies the library and none of
+ * the twenty-odd packages it loads: the bundle came out with no
+ * `@node-llama-cpp` scope at all, and the prune hook below reported it as a
+ * missing prebuild rather than as a missing copy.
+ *
+ * So the closure is materialised by path rather than selected by prefix.
+ * Anything the packager already placed is left alone, which is the flat case,
+ * and nothing is copied twice.
+ */
+function copyExternalClosure(buildPath: string): void {
+  for (const { name, dir, path: placement } of CLOSURE) {
+    const destination = path.join(buildPath, placement);
+    if (existsSync(destination)) continue;
+    if (!existsSync(dir)) {
+      throw new Error(`${name} resolved to ${dir}, which does not exist.`);
+    }
+    mkdirSync(path.dirname(destination), { recursive: true });
+    // `dereference`, for the reason `derefSymlinks` is on: a bundle may not
+    // carry a link out of itself.
+    cpSync(dir, destination, { recursive: true, dereference: true });
+  }
+
+  /*
+   * Every placement is there, by name.
+   *
+   * The predecessor asked whether `node_modules` was empty, which cannot be
+   * true after a loop that either found each destination present or created
+   * it — a check that examines nothing, in a repository with a skill about
+   * not writing those. This asks the question that can fail: a placement the
+   * copy skipped, or one a later copy buried.
+   */
+  const missing = CLOSURE.filter(({ path: placement }) => !existsSync(path.join(buildPath, placement)));
+  if (missing.length > 0) {
+    throw new Error(
+      `${String(missing.length)} of ${String(CLOSURE.length)} closure entries did not reach the package, first ${missing[0]?.path ?? ''}.`,
     );
   }
 }
@@ -163,6 +240,27 @@ const config: ForgeConfig = {
     prune: false,
 
     /**
+     * Symlinks are followed rather than copied.
+     *
+     * Packager's default is `false`, which copies a link as a link. That is
+     * harmless under a flat `node_modules`, where a kept module is a real
+     * directory, and ruinous under pnpm, where every one of them is a link
+     * into `node_modules/.pnpm`. The bundle then carries
+     * `node_modules/node-pty -> ../../../node_modules/.pnpm/…`, a path that
+     * resolves to nothing once the application is installed anywhere.
+     *
+     * The symptom was not a dangling link. `packageAfterCopy` reported
+     * "node-pty has no prebuilds directory", because the directory it looked
+     * in was a link to a path that did not exist inside the bundle — a
+     * packaging fault wearing the appearance of an upstream layout change.
+     *
+     * True regardless of package manager: an application bundle may not
+     * contain a link out of itself. `scripts/verify-package.mjs` now asserts
+     * that of the packaged tree.
+     */
+    derefSymlinks: true,
+
+    /**
      * Native code cannot be loaded from inside an asar, so it is unpacked
      * beside it. `OnlyLoadAppFromAsar` still applies to app code.
      *
@@ -241,6 +339,8 @@ const config: ForgeConfig = {
   rebuildConfig: {},
   hooks: {
     packageAfterCopy: (_forgeConfig, buildPath, _electronVersion, platform, arch) => {
+      // Before the prune hooks: they inspect directories this puts there.
+      copyExternalClosure(buildPath);
       prunePtyPrebuilds(buildPath, platform, arch);
       pruneLlamaBackends(buildPath, platform, arch);
       return Promise.resolve();

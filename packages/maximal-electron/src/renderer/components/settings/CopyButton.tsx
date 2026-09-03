@@ -1,6 +1,7 @@
 import { Copy } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
+import { useShellContent } from '../../lib/content.js';
 import { Button } from '../controls/Button.js';
 
 /**
@@ -21,13 +22,20 @@ export function copyText(text: string): void {
 
 const CONFIRMATION_MS = 1500;
 
+/**
+ * Copy, with the confirmation on the button.
+ *
+ * The label becomes "Copied" for a moment rather than raising a toast, which
+ * keeps the confirmation next to the thing that was copied.
+ */
 export function CopyButton({
   text,
-  label = 'Copy',
+  label,
   about,
   testId,
 }: {
   text: string;
+  /** Defaults to the catalogue's word for it. */
   label?: string;
   /**
    * What is being copied, for the accessible name.
@@ -38,8 +46,9 @@ export function CopyButton({
   about?: string;
   testId?: string;
 }) {
+  const content = useShellContent().chrome;
   const [copied, setCopied] = useState(false);
-  const visible = copied ? 'Copied' : label;
+  const visible = copied ? content.copied : (label ?? content.copy);
 
   useEffect(() => {
     if (!copied) return;

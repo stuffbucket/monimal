@@ -80,14 +80,32 @@ Pick one, and record which in this file:
 Do not leave it placeholder. A permanent "this is not real" banner is a
 decision deferred, not a decision made.
 
-### 3. One frame
+### 3. One frame — done
 
-Dashboard and Runs each mount their own `ShellLayout`, and `App.tsx` draws a
-third navigation strip above them. Three navigation systems on one screen is
-the defect; whichever surface survives step 2 should not carry its own frame.
+Dashboard and Runs each mounted their own `ShellLayout`, and `App.tsx` drew a
+third navigation strip above them. Three navigation systems on one screen was
+the defect, and it was worse than untidy: the frame's root is
+`position: fixed; inset: 0`, so a mounted surface covered the switcher above it
+and a signed-in user had no way to reach Settings at all. Settings, meanwhile,
+mounted no frame, so it rendered with no title bar — and the title bar carries
+the window's only drag region.
 
-Hoist a single `ShellLayout` into `App.tsx`, give it the view switcher as its
-nav rail, and let each surface render into the canvas.
+`src/renderer/frame/AppFrame.tsx` now mounts the one frame. The three views are
+its document tabs, which is the shell's own model rather than an adaptation of
+it: a tab strip lists what is open, and it puts navigation in the title bar,
+the one region always on screen. Surfaces render into `main` and push their
+peripheral parts — rail, right panel, status bar, full-width top band — through
+`SurfaceRail` / `SurfaceRight` / `SurfaceStatus` / `SurfaceTop`. Those are
+portals, not state: a slot holding a React element would need an effect whose
+own output is a fresh element every render, and that effect would re-fire on
+itself forever.
+
+**Deliberately dropped, to restore later:** each surface's tab used to carry an
+`emphasis` marker derived from its runs — "attention" when something needed
+approval, "busy" when something was running. The frame owns the tabs now and
+they are static. Restoring it means a channel for a view to report its own
+emphasis, and that is worth building once a view has real runs to report on;
+today the signal would be computed entirely from placeholder data. See step 2.
 
 This also retires the workaround in `App.tsx`. Two of its rules patched
 `stuffbucket-electron` from the outside — a nav label that wrapped inside a

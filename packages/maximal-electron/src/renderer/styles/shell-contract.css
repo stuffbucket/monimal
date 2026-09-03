@@ -1,0 +1,52 @@
+/*
+ * The reference application, supplying the contract as a consumer does.
+ *
+ * Rules a component carries read the published namespace — the one `README.md`
+ * tabulates and a consumer defines. Rules in this directory read the short
+ * names `tokens.css` authors. Both render in the same document here, so this
+ * is what makes the published names resolve while that is true.
+ *
+ * Every row is a row of `.storybook/consumer.css`, which is the one worked
+ * example of a host defining the contract, and `tests/shell-contract.test.ts`
+ * holds the two together. It used to be generated from `REQUIRED_TOKENS`
+ * instead — `--shell-` plus the short name — which produced a third vocabulary
+ * that no consumer defines and no shipped rule reads, and then defined it on
+ * `:root` so the reference application rendered perfectly while a consumer got
+ * rules with no border and no background at all. Deriving it from the worked
+ * example is what stops that: a name here is a name somebody has actually had
+ * to supply.
+ *
+ * The names left out are the ones `structural.css` reads with a fallback and
+ * the ones set at run time. `docs/shell-variables.md` says which are which.
+ *
+ * This file disappears when the stylesheets in this directory are renamed onto
+ * the published namespace, because there will be one set of names.
+ */
+
+:root {
+  --shell-accent: var(--accent);
+  --shell-accent-muted: var(--accent-soft);
+  --shell-active: var(--bg-active);
+  --shell-background: var(--bg-app);
+  --shell-border: var(--border-subtle);
+  --shell-canvas: var(--bg-canvas);
+  --shell-hover: var(--bg-hover);
+  --shell-raised: var(--bg-raised);
+  --shell-text: var(--text-primary);
+  --shell-text-muted: var(--text-secondary);
+  --shell-text-subtle: var(--text-muted);
+  --shell-accent-contrast: var(--accent-contrast);
+  --shell-border-hover: var(--border-input-hover);
+  --shell-border-strong: var(--border-strong);
+  --shell-danger: var(--danger-fill);
+  --shell-danger-contrast: var(--text-on-solid);
+  --shell-invalid: var(--text-invalid);
+  --shell-elevation: var(--elevation-popover);
+  --shell-font-mono: var(--font-mono);
+  --shell-input-background: var(--bg-input);
+  --shell-tab-active: var(--tab-active);
+  --shell-warning: var(--warning);
+  --shell-terminal-background: var(--bg-canvas);
+  --shell-terminal-cursor: var(--accent);
+  --shell-terminal-foreground: var(--text-primary);
+}

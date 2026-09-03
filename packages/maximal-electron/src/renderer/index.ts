@@ -39,6 +39,21 @@ export {
   type TerminalViewProps,
 } from './components/TerminalView.js';
 export { TitleBar } from './components/TitleBar.js';
+export {
+  fill,
+  SHELL_CONTENT,
+  ShellContentContext,
+  ShellContentProvider,
+  useShellContent,
+  type ShellApiKeysContent,
+  type ShellAppsContent,
+  type ShellChromeContent,
+  type ShellContent,
+  type ShellDiagnosticsContent,
+  type ShellModelsContent,
+  type ShellUsageContent,
+} from './lib/content.js';
+export { LOREM_CONTENT } from './lib/content-lorem.js';
 export { detachedSessions } from './lib/terminal-sessions.js';
 export {
   createTerminalTransport,
@@ -64,15 +79,18 @@ export {
   Dialog,
   EmptyState,
   Field,
+  FieldList,
   FormField,
   IconButton,
   InspectorPanel,
   Menu,
+  Note,
   RadioGroup,
   Row,
   Select,
   StatusChip,
   Switch,
+  Tag,
   TextInput,
   Textarea,
   Toolbar,
@@ -85,6 +103,34 @@ export {
   type TileProps,
   type ViewMode,
 } from './components/controls/index.js';
+export {
+  type ApiClient,
+  type AppIntegration,
+  type AppStatus,
+  type Diagnostic,
+  type DiagnosticGroup,
+  type Endpoint,
+  type LogLocation,
+  type ModelCapabilities,
+  type ModelCard,
+  type SettingsSurface,
+  type UsageBreakdown,
+  type UsageEvent,
+  type UsagePeriod,
+  type UsageReport,
+  type UsageTotals,
+} from './lib/settings.js';
+export {
+  ApiKeysDialog,
+  AppTogglesDialog,
+  CopyButton,
+  copyText,
+  Diagnostics,
+  ModelCards,
+  SettingsPage,
+  SettingsSection,
+  Usage,
+} from './components/settings/index.js';
 export { useShellTabs } from './lib/useShellTabs.js';
 export {
   useThemePreference,

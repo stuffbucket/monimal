@@ -1,15 +1,87 @@
+import { useComponentStyles } from '../../lib/component-styles.js';
+import { fill, useShellContent } from '../../lib/content.js';
 import { TriangleAlert } from 'lucide-react';
 
 import {
-  APP_STATUS_LABELS,
   type AppIntegration,
 } from '../../lib/settings.js';
 import { Button } from '../controls/Button.js';
 import { Switch } from '../controls/Fields.js';
-import { Banner, EmptyState } from '../controls/Layout.js';
+import { Banner, EmptyState, Tag } from '../controls/Layout.js';
 import { Dialog } from '../controls/Overlays.js';
 
 import { CopyButton } from './CopyButton.js';
+import { SETTINGS_STYLES } from './SettingsPage.js';
+
+/**
+ * The rules an application row draws itself with.
+ *
+ * They travel with the component so exporting one ships the other, and every
+ * value is a token. `src/renderer/lib/component-styles.ts` says why.
+ */
+const APP_TOGGLES_STYLES = `
+/*
+ * A compound name, not '.app'.
+ *
+ * '.app' collided with the shell root, which carries the same bare class for
+ * an unrelated reason ('shell.css''s own layout rule). Equal specificity and
+ * 'controls.css' loading first through 'shell.css''s '@import' meant each side
+ * won the properties the other did not redeclare: the shell root inherited
+ * this card's 'padding', 'gap', 'border' and 'border-radius', and this card
+ * inherited the shell root's 'display: flex'. Issue #184.
+ */
+.sb-shell .app-card {
+  display: grid;
+  gap: var(--shell-space-2);
+  padding: var(--shell-space-3);
+  border: 1px solid var(--shell-border);
+  border-radius: var(--shell-radius-large);
+}
+
+.sb-shell .app-card__head {
+  display: flex;
+  align-items: center;
+  gap: var(--shell-space-2);
+}
+
+.sb-shell .app-card__name {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--shell-text-base);
+  font-weight: var(--shell-weight-md);
+  color: var(--shell-text);
+}
+
+.sb-shell .app-card__head .switch {
+  width: auto;
+  flex: none;
+}
+
+.sb-shell .app-card__path {
+  margin: 0;
+  font-family: var(--shell-font-mono);
+  font-size: var(--shell-text-xs);
+  color: var(--shell-text-subtle);
+  overflow-wrap: anywhere;
+}
+
+.sb-shell .app-card__install {
+  display: grid;
+  gap: var(--shell-space-2);
+}
+
+.sb-shell .app-card__command {
+  display: block;
+  padding: var(--shell-space-2);
+  border-radius: var(--shell-radius);
+  border: 1px solid var(--shell-input-border);
+  background: var(--shell-input-background);
+  font-family: var(--shell-font-mono);
+  font-size: var(--shell-text-xs);
+  color: var(--shell-text);
+  overflow-wrap: anywhere;
+}
+`;
 
 /**
  * Which applications route through this shell.
@@ -41,22 +113,24 @@ export function AppTogglesDialog({
   onToggle?: (id: string, enabled: boolean) => void;
   onRescan?: () => void;
 }) {
+  useComponentStyles('settings-page', SETTINGS_STYLES);
+  useComponentStyles('app-toggles', APP_TOGGLES_STYLES);
+
+  const content = useShellContent().apps;
+
   return (
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Apps"
-      description="Which applications route through this shell."
+      title={content.title}
+      description={content.description}
       testId="settings-app-toggles"
     >
-      <h2 className="settings__title">Apps</h2>
-      <p className="settings__description">
-        Turn one on and it sends its requests here. Turning one off leaves its
-        own settings exactly as they were.
-      </p>
+      <h2 className="settings__title">{content.title}</h2>
+      <p className="settings__description">{content.intro}</p>
 
       {apps.length === 0 ? (
-        <EmptyState icon={TriangleAlert} message="No applications detected." />
+        <EmptyState icon={TriangleAlert} message={content.empty} />
       ) : (
         <ul className="app-list">
           {apps.map((app) => (
@@ -65,11 +139,11 @@ export function AppTogglesDialog({
                 <span className="app-card__name">{app.name}</span>
 
                 {app.status === 'coming-soon' ? (
-                  <span className="tag">{APP_STATUS_LABELS[app.status]}</span>
+                  <Tag>{content.statuses[app.status]}</Tag>
                 ) : (
                   app.installCommand === undefined && (
                     <Switch
-                      label={app.enabled ? 'On' : 'Off'}
+                      label={app.enabled ? content.on : content.off}
                       checked={app.enabled}
                       disabled={onToggle === undefined || app.status === 'not-installed'}
                       onChange={(next) => onToggle?.(app.id, next)}
@@ -79,23 +153,23 @@ export function AppTogglesDialog({
                 )}
               </div>
 
-              <p className="app-card__path">{app.path ?? APP_STATUS_LABELS[app.status]}</p>
+              <p className="app-card__path">{app.path ?? content.statuses[app.status]}</p>
 
               {app.installCommand !== undefined && (
                 <div className="app-card__install">
                   <p className="settings__description">
-                    Run this to install {app.name}, then scan again.
+                    {fill(content.installHint, { name: app.name })}
                   </p>
                   <code className="app-card__command">{app.installCommand}</code>
                   <div className="settings__row">
                     <CopyButton
                       text={app.installCommand}
-                      label="Copy command"
+                      label={content.copyCommand}
                       testId={`app-${app.id}-copy`}
                     />
                     {onRescan && (
                       <Button size="sm" onClick={onRescan} testId={`app-${app.id}-rescan`}>
-                        Scan again
+                        {content.rescan}
                       </Button>
                     )}
                   </div>
@@ -104,7 +178,7 @@ export function AppTogglesDialog({
 
               {app.conflict !== undefined && (
                 <Banner status="blocked" testId={`app-${app.id}-conflict`}>
-                  <strong>Left your existing setting in place.</strong> {app.conflict}
+                  <strong>{content.conflict}</strong> {app.conflict}
                 </Banner>
               )}
             </li>
@@ -119,7 +193,7 @@ export function AppTogglesDialog({
           }}
           testId="app-toggles-done"
         >
-          Done
+          {content.done}
         </Button>
       </div>
     </Dialog>

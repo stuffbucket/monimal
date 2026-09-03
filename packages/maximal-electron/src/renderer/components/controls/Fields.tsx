@@ -1,5 +1,7 @@
 import * as RadioGroupPrimitive from '@radix-ui/react-radio-group';
-import { useId, type ReactNode } from 'react';
+import { createContext, useContext, useId, type ReactNode } from 'react';
+
+import { useComponentStyles } from '../../lib/component-styles.js';
 
 /**
  * Form controls.
@@ -273,11 +275,93 @@ export function Switch({
  * Not a form field, despite the name it has always had. It renders what
  * something is, not somewhere to change it.
  */
-export function Field({ label, value }: { label: string; value: string }) {
+/** Whether a `Field` has a `FieldList` above it, and so a `<dl>` to sit in. */
+const InFieldList = createContext(false);
+
+/**
+ * The rules a list of fields draws itself with.
+ *
+ * They travel with the component so exporting one ships the other.
+ * `src/renderer/lib/component-styles.ts` says why. The `.field` grid itself is
+ * in `structural.css` and unchanged — these are only what a description list
+ * needs on top of it.
+ */
+const FIELD_LIST_STYLES = `
+.sb-shell .field-list {
+  margin: 0;
+  display: grid;
+  gap: var(--shell-space-2);
+}
+
+/*
+ * A dd carries a browser default margin-inline-start of 40px, which would
+ * indent every value out of the grid column the .field rule puts it in.
+ */
+.sb-shell .field-list dt,
+.sb-shell .field-list dd {
+  margin: 0;
+}
+`;
+
+/**
+ * A group of read-only label/value pairs, as a description list.
+ *
+ * The pairs are the point. A screen reader announces "Plan, Pro" from a
+ * `<dl>`; from two `<span>`s it announces "Plan" and "Pro" as unrelated text
+ * and the reader has to infer the association from where they happen to sit.
+ * `Field` on its own could not render `dt`/`dd`, because those are only valid
+ * inside a `<dl>` — which is why this exists rather than an option on `Field`.
+ *
+ * Three spellings of one thing is what prompted it. `ModelCards` here already
+ * renders a real `<dl>`; `ApiKeysDialog` and `Diagnostics` write
+ * `.field`/`.field__label` markup by hand; and `Field`, the one this package
+ * actually exports, rendered spans. A consuming application kept its own
+ * `<dl>` rather than use the export, which was the correct call and the
+ * evidence.
+ */
+export function FieldList({ children, testId }: { children: ReactNode; testId?: string }) {
+  useComponentStyles('field-list', FIELD_LIST_STYLES);
+
   return (
-    <div className="field">
-      <span className="field__label">{label}</span>
-      <span className="field__value">{value}</span>
+    <InFieldList.Provider value={true}>
+      <dl className="field-list" data-testid={testId}>
+        {children}
+      </dl>
+    </InFieldList.Provider>
+  );
+}
+
+/**
+ * A read-only label and the value beside it.
+ *
+ * Inside a `FieldList` it is a `dt`/`dd` pair and the association is stated;
+ * on its own it stays the two spans it has always been, so no existing call
+ * site changes shape. That is deliberate rather than tidy: `dt` outside a
+ * `<dl>` is invalid, and a primitive that silently emitted invalid markup
+ * depending on where it was put would be worse than one that emits plain
+ * markup everywhere.
+ *
+ * `value` takes a node, so a value can carry a control — the copy button
+ * beside a key, the chip on a diagnostic — which is what the three hand-written
+ * copies of this markup were each working around.
+ */
+export function Field({
+  label,
+  value,
+  testId,
+}: {
+  label: string;
+  value: ReactNode;
+  testId?: string;
+}) {
+  const paired = useContext(InFieldList);
+  const Label = paired ? 'dt' : 'span';
+  const Value = paired ? 'dd' : 'span';
+
+  return (
+    <div className="field" data-testid={testId}>
+      <Label className="field__label">{label}</Label>
+      <Value className="field__value">{value}</Value>
     </div>
   );
 }

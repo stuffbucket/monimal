@@ -1,32 +1,21 @@
 import type { ReactElement } from 'react'
 
-import { type AgentRun, type RunStatus, statusLabel, formatElapsed } from './model'
+import { Card, StatusChip, Tag } from 'stuffbucket-electron/renderer'
 
-// Presentational only — no data fetching. Styled against the shell's
-// `--shell-*` custom-property contract, which the host defines in theme.ts.
-// The CSS is injected once on import rather than inlined per card.
+import { type AgentRun, statusLabel, formatElapsed } from './model'
 
-function cx(...parts: Array<string | false | null | undefined>): string {
-  return parts.filter(Boolean).join(' ')
-}
-
-const STATUS_TONE: Record<RunStatus, string> = {
-  running: 'is-running',
-  'needs-approval': 'is-needs-approval',
-  done: 'is-done',
-  failed: 'is-failed',
-}
-
-/** Status badge shared by RunCard and Inspector. Text always carries the
- *  status — color is reinforcement, never the only channel. */
-export function StatusBadge({ status }: { status: RunStatus }): ReactElement {
-  return (
-    <span className={cx('status-badge', STATUS_TONE[status])}>
-      <span className="status-badge__dot" aria-hidden="true" />
-      {statusLabel[status]}
-    </span>
-  )
-}
+// Presentational only — no data fetching.
+//
+// The card itself is the package's `Card`: a `role="option"` tile with the
+// border, the fill, the hover, the selected ring and the focus outline already
+// on it. What is left below is the arrangement of this application's own
+// content inside it, and the two colours the package has no name for.
+//
+// `StatusBadge` used to live here and is gone. It was a bordered pill with a
+// coloured dot and four `.is-*` colour rules; `StatusChip` is the same pill,
+// and theme.ts maps `data-status` to `--shell-status` application-wide, so the
+// colour needs no rule at any call site. The text still carries the status —
+// colour is reinforcement, never the only channel.
 
 interface RunCardProps {
   run: AgentRun
@@ -37,88 +26,81 @@ interface RunCardProps {
 // Cohesive presentational card; splitting fragments tightly-coupled JSX.
 export function RunCard({ run, selected, onSelect }: RunCardProps): ReactElement {
   return (
-    <button
-      type="button"
-      className={cx('run-card', selected && 'run-card--selected')}
-      // The shell's `Canvas` gives the item container `role="listbox"`, whose
-      // children must be options carrying `aria-selected`. Kept as a real
-      // <button> so it stays keyboard-activatable, since the container supplies
-      // no roving-tabindex model.
-      role="option"
-      aria-selected={selected}
-      onClick={() => onSelect(run.id)}
+    // `status` publishes `--shell-status` and `--shell-status-muted` to
+    // everything inside the tile, which is how the chip below colours itself
+    // with no rule of its own. `role="option"`, `aria-selected` and the tab
+    // stop are `Card`'s and `Canvas`'s — this file no longer states any of
+    // them, and can no longer state them wrongly.
+    <Card
+      modifier="run-card"
+      selected={selected}
+      onSelect={() => onSelect(run.id)}
+      status={run.status}
+      testId={`run-card-${run.id}`}
     >
       <span className="run-card__head">
-        <StatusBadge status={run.status} />
+        <StatusChip status={run.status} label={statusLabel[run.status]} />
         <span className="run-card__elapsed">{formatElapsed(run.elapsedMs)}</span>
       </span>
 
-      <span className="run-card__title">{run.title}</span>
+      <span className="card__name">{run.title}</span>
 
-      <span className="run-card__meta">
-        <span className="run-card__project">{run.project}</span>
+      <span className="card__sub">
+        {run.project}
         {' · '}
-        <span className="run-card__branch mono">{run.branch}</span>
+        {run.branch}
       </span>
 
-      <span className="run-card__activity">{run.activity}</span>
+      <span className="card__sub card__sub--wrap">{run.activity}</span>
 
       <span className="run-card__footer">
-        <span className="run-card__model mono">{run.model}</span>
+        {/* A model name is a property of the run, true in every state it can
+            be in, which is exactly what `Tag` is for and what `StatusChip` is
+            not. */}
+        <Tag>{run.model}</Tag>
         <span className="run-card__diff">
           <span className="run-card__diff-added">{`+${run.diff.added}`}</span>{' '}
           <span className="run-card__diff-removed">{`−${run.diff.removed}`}</span>
         </span>
       </span>
-    </button>
+    </Card>
   )
 }
 
 // ---- Styles ----
 //
-// Injected once on module import (guarded by element id so Vite HMR reloads
-// don't pile up duplicate <style> tags). Classnames follow the BEM-ish
-// convention already used by the Tauri shell's components (app-card,
-// connection-card in shell/src/ui/styles/styles.css); values reference the
-// `--shell-*` custom-property contract this package's host defines, with the
-// same "sensible fallback" idiom `structural.css` itself uses
-// (`var(--shell-warning, var(--shell-accent))`) for anything the contract
-// doesn't publish (there's no `--shell-success` — diff-added and the "done"
-// status fall back to maximal's existing status-success green so the two
-// design systems agree if they're ever shown side by side).
+// What is left after `Card`, `StatusChip` and `Tag` took the rest: one padding
+// override, one row layout the package publishes no primitive for, and the two
+// numbers.
+//
+// A colour the package has no name for takes this application's own prefix
+// rather than the package's. The package publishes `--shell-danger` and no
+// success, so diff-added reads `--maximal-success`, defined in `theme.ts`
+// beside the rest of the application's palette. `eslint/shell-contract.mjs` is
+// what keeps that distinction.
 const RUN_CARD_CSS = `
+/*
+ * .sb-shell .card is padding: 0, so a caller can draw a full-bleed thumbnail
+ * above a padded .card__meta. This card is all text and wants one padded box,
+ * which is what Card's own \`modifier\` prop is for.
+ *
+ * One class is enough, and that is not luck. Every rule the package ships is
+ * inside \`@layer sb-shell.base\`, and an unlayered rule beats a layered one
+ * whatever its specificity, so this stylesheet -- which is appended to head
+ * with no layer -- wins against .sb-shell .card without chaining a second
+ * class to out-specify it.
+ */
 .run-card {
-  display: flex;
-  flex-direction: column;
-  gap: var(--shell-space-2, 8px);
-  width: 100%;
-  box-sizing: border-box;
-  padding: var(--shell-space-3, 12px) var(--shell-space-4, 16px);
-  border: 1px solid var(--shell-border, #2a2a2a);
-  border-radius: var(--shell-radius, 6px);
-  background: var(--shell-canvas, transparent);
-  color: var(--shell-text, #f5f5f5);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition: background-color 150ms ease-out, border-color 150ms ease-out;
+  padding: var(--shell-space-3, 12px);
 }
 
-.run-card:hover {
-  background: var(--shell-hover, rgb(255 255 255 / 0.04));
-}
-
-.run-card--selected {
-  border-color: var(--shell-accent, #5198a6);
-  background: var(--shell-accent-muted, var(--shell-hover, rgb(255 255 255 / 0.04)));
-}
-
-.run-card:focus-visible {
-  outline: 2px solid var(--shell-focus, var(--shell-accent, #5198a6));
-  outline-offset: 2px;
-}
-
-.run-card__head {
+/*
+ * A line with something at each end. The package has no layout row to reach
+ * for: its \`Row\` is a selectable tile, and the growing spacer that \`Toolbar\`
+ * and \`Banner\` use is private to them.
+ */
+.run-card__head,
+.run-card__footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -126,49 +108,10 @@ const RUN_CARD_CSS = `
 }
 
 .run-card__elapsed {
-  font-size: 12px;
+  font-size: var(--shell-text-xs, 11px);
   color: var(--shell-text-subtle, #6a6a6a);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-}
-
-.run-card__title {
-  font-size: 15px;
-  font-weight: 600;
-  line-height: 1.35;
-  color: var(--shell-text, #f5f5f5);
-}
-
-.run-card__meta {
-  font-size: 12px;
-  color: var(--shell-text-muted, #8a8a8a);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.run-card__activity {
-  font-size: 13px;
-  color: var(--shell-text-muted, #8a8a8a);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.run-card__footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--shell-space-2, 8px);
-  margin-top: var(--shell-space-1, 4px);
-}
-
-.run-card__model {
-  font-size: 11px;
-  padding: 2px 6px;
-  border-radius: var(--shell-radius-small, 4px);
-  background: var(--shell-hover, rgb(255 255 255 / 0.06));
-  color: var(--shell-text-muted, #8a8a8a);
 }
 
 .run-card__diff {
@@ -179,59 +122,11 @@ const RUN_CARD_CSS = `
 }
 
 .run-card__diff-added {
-  color: var(--shell-success, #22c55e);
+  color: var(--maximal-success, #22c55e);
 }
 
 .run-card__diff-removed {
   color: var(--shell-danger, #ef4444);
-}
-
-.mono {
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
-}
-
-/* ---- Status badge (shared with Inspector via the exported StatusBadge component) ---- */
-.status-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--shell-space-1, 4px);
-  padding: 2px var(--shell-space-2, 8px);
-  border: 1px solid var(--shell-border, #2a2a2a);
-  border-radius: var(--shell-radius-small, 4px);
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--shell-text-muted, #8a8a8a);
-  white-space: nowrap;
-}
-
-.status-badge__dot {
-  width: 6px;
-  height: 6px;
-  flex: none;
-  border-radius: 9999px;
-  background: currentcolor;
-}
-
-.status-badge.is-running {
-  color: var(--shell-accent, #5198a6);
-}
-
-.status-badge.is-needs-approval {
-  color: var(--shell-warning, #eab308);
-}
-
-.status-badge.is-done {
-  color: var(--shell-success, #22c55e);
-}
-
-.status-badge.is-failed {
-  color: var(--shell-danger, #ef4444);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .run-card {
-    transition-duration: 0.01ms;
-  }
 }
 `
 

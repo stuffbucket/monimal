@@ -1,11 +1,13 @@
 import { FolderOpen, ScrollText } from 'lucide-react';
 
+import { fill, useShellContent } from '../../lib/content.js';
 import {
   diagnosticsBundle,
   type DiagnosticGroup,
   type LogLocation,
 } from '../../lib/settings.js';
 import { Button } from '../controls/Button.js';
+import { Field, FieldList } from '../controls/Fields.js';
 import { EmptyState, StatusChip } from '../controls/Layout.js';
 
 import { CopyButton } from './CopyButton.js';
@@ -37,22 +39,24 @@ export function Diagnostics({
   onRevealLogs?: () => void;
   onRevealConfig?: () => void;
 }) {
+  const content = useShellContent().diagnostics;
+
   return (
     <SettingsPage
       testId="settings-diagnostics"
-      title="Logs and diagnostics"
-      description="What this build is, what it is talking to, and where it writes its logs."
+      title={content.title}
+      description={content.description}
       actions={
         <>
           <CopyButton
             text={diagnosticsBundle(groups)}
-            label="Copy report"
+            label={content.copyReport}
             testId="diagnostics-copy"
           />
           {onRevealConfig && (
             <Button size="sm" onClick={onRevealConfig} testId="diagnostics-reveal-config">
               <FolderOpen size={14} />
-              Reveal configuration
+              {content.revealConfiguration}
             </Button>
           )}
         </>
@@ -60,25 +64,22 @@ export function Diagnostics({
     >
       {logs && (
         <SettingsSection
-          title="Log files"
-          description="One file per day, written as requests are handled. Reveal the folder to read them, or follow the current one with `tail -F`."
+          title={content.logsTitle}
+          description={content.logsDescription}
           testId="diagnostics-logs"
         >
-          <div className="field">
-            <span className="field__label">Folder</span>
-            <span className="field__value">{logs.path}</span>
-          </div>
-          <div className="field">
-            <span className="field__label">Retention</span>
-            <span className="field__value">
-              {logs.retentionDays} days, then deleted on the next start
-            </span>
-          </div>
+          <FieldList>
+            <Field label={content.folder} value={logs.path} />
+            <Field
+              label={content.retention}
+              value={fill(content.retentionValue, { days: logs.retentionDays })}
+            />
+          </FieldList>
           {onRevealLogs && (
             <div className="settings__row">
               <Button size="sm" onClick={onRevealLogs} testId="diagnostics-reveal-logs">
                 <ScrollText size={14} />
-                Reveal logs
+                {content.revealLogs}
               </Button>
             </div>
           )}
@@ -86,24 +87,27 @@ export function Diagnostics({
       )}
 
       {groups.length === 0 ? (
-        <EmptyState icon={ScrollText} message="Nothing to report yet." />
+        <EmptyState icon={ScrollText} message={content.empty} />
       ) : (
         groups.map((group) => (
           <SettingsSection key={group.id} title={group.label} testId={`diagnostics-${group.id}`}>
-            {group.entries.map((entry) => (
-              <div className="field" key={entry.label}>
-                <span className="field__label">{entry.label}</span>
-                <span className="field__value">
-                  {/* A status colours the value rather than adding a second
-                      one beside it. */}
-                  {entry.status === undefined ? (
-                    entry.value
-                  ) : (
-                    <StatusChip status={entry.status} label={entry.value} />
-                  )}
-                </span>
-              </div>
-            ))}
+            <FieldList>
+              {group.entries.map((entry) => (
+                <Field
+                  key={entry.label}
+                  label={entry.label}
+                  // A status colours the value rather than adding a second one
+                  // beside it.
+                  value={
+                    entry.status === undefined ? (
+                      entry.value
+                    ) : (
+                      <StatusChip status={entry.status} label={entry.value} />
+                    )
+                  }
+                />
+              ))}
+            </FieldList>
           </SettingsSection>
         ))
       )}

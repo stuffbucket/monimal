@@ -1,13 +1,18 @@
 import type { ReactElement } from 'react'
 
+import { Note } from 'stuffbucket-electron/renderer'
+
 import { formatElapsed, type AgentRun } from '../workspace/model'
 import type { FinishedRuns } from './derive'
 
 // Recently finished, split into "Done" and "Failed" — two headed lists, not
 // one merged pile with a status dot doing all the work. The group heading is
-// the primary channel that separates success from failure; the row's own
-// muted/danger tint is reinforcement, per the "status never color-alone"
-// rule.
+// the primary channel that separates success from failure; the row title's
+// own status tint is reinforcement, per the "status never color-alone" rule.
+//
+// That tint is one declaration reading `--shell-status` rather than a rule per
+// outcome: ../theme.ts maps the state to the colour once, for every surface,
+// so the title carries `data-status` and nothing here names a colour.
 //
 // Each list is ordered most-recently-finished first (see derive.ts's
 // `selectRecentlyFinished`), and each row states *how* recent via
@@ -40,7 +45,7 @@ function RunGroup({ heading, runs, emptyText, status }: RunGroupProps): ReactEle
         {heading} ({runs.length})
       </h3>
       {runs.length === 0 ? (
-        <p className="dashboard__empty-text">{emptyText}</p>
+        <Note>{emptyText}</Note>
       ) : (
         <ul className="dashboard-rows" aria-label={heading}>
           {runs.map((run) => (
@@ -48,9 +53,11 @@ function RunGroup({ heading, runs, emptyText, status }: RunGroupProps): ReactEle
               <span className="dashboard-row__title" data-status={status}>
                 {run.title}
               </span>
-              <span className="dashboard-row__activity">
+              {/* The line of explanation under the thing it is about, which is
+                  what `Note` is. It was `.dashboard-row__activity`. */}
+              <Note>
                 {run.project} · {run.activity}
-              </span>
+              </Note>
               {run.finishedAt !== undefined ? (
                 <span className="dashboard-row__meta">{finishedAgo(run.finishedAt)}</span>
               ) : null}

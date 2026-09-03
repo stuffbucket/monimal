@@ -7,6 +7,7 @@
  * here rather than natively, which is the split stuffbucket/wiggle uses.
  */
 
+@layer sb-shell.base {
 *,
 *::before,
 *::after {
@@ -289,4 +290,5 @@ body,
   .card {
     animation: none;
   }
+}
 }

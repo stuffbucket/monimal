@@ -23,17 +23,65 @@ one of the eleven `required` variables is set, so the drift renders a plausible
 shell rather than a broken one, which is why nothing on either side said so.
 Issue #93.
 
-## The three kinds
+## The four kinds
 
 | Kind | Read as | Unset renders |
 | --- | --- | --- |
 | `required` | `var(--shell-x)` in at least one rule | nothing: a transparent surface or an inherited colour |
 | `fallback` | only ever `var(--shell-x, …)` | the fallback in the table |
 | `runtime` | resolved by JavaScript, in no rule | the emulator's own default |
+| `structural` | declared by `structure.css`, read by any rule | never unset; this package ships the value |
 
 The kind is a property of the CSS, not a judgement. A `fallback` variable that
 gains a rule with no fallback becomes `required`, and the check fails until the
 table says so.
+
+## Structural
+
+`structure.css` declares these with values, so a consumer never has to supply
+one and never has to know they exist. They are not a knob set: reaching for a
+spacing token means writing layout CSS, which is what the components exist to
+make unnecessary. What they are for is that no rule — ours or a consumer's —
+writes `font-size: 13px` again.
+
+| Variable | Value | What it sets |
+| --- | --- | --- |
+| `--shell-control-lg` | `28px` | The tallest control height. |
+| `--shell-input-border` | `var(--shell-border-strong, var(--shell-border, #2a2a2a))` | The outline of a field. |
+| `--shell-leading-base` | `1.5` | Line height for a paragraph. |
+| `--shell-radius` | `6px` | A control corner. |
+| `--shell-radius-large` | `8px` | A card corner. |
+| `--shell-radius-pill` | `9999px` | A fully rounded control. |
+| `--shell-space-1` | `4px` | The tightest gap. |
+| `--shell-space-2` | `8px` | A gap inside a control. |
+| `--shell-space-3` | `12px` | A gap between controls. |
+| `--shell-space-4` | `16px` | Padding around a surface. |
+| `--shell-space-5` | `24px` | A gap between sections. |
+| `--shell-text-base` | `0.875rem` | Body text. |
+| `--shell-text-md` | `0.9375rem` | A surface title. |
+| `--shell-text-sm` | `0.8125rem` | Secondary text. |
+| `--shell-text-xs` | `0.6875rem` | All-caps section labels and counts. |
+| `--shell-tracking-caps` | `0.04em` | Tracking for an all-caps label. |
+| `--shell-weight-lg` | `600` | A heading. |
+| `--shell-weight-md` | `500` | A label that carries emphasis. |
+
+Two groups. The first nine the published stylesheet already read, but only as
+an inline fallback on each use — `var(--shell-radius, 6px)`. That works for a
+rule that spells the fallback out and fails for one that does not, and the
+rules a component carries do not: a bare `var(--shell-radius-large)` is not a
+smaller radius, it is a square corner. Declaring them once is what makes a bare
+read safe, and `tests/structure-tokens.test.ts` holds each value to the
+fallback the stylesheet still spells out.
+
+The rest the published stylesheet has no name for at all. The rules a component
+carries set type, and `--shell-font` is one shorthand: one size, one weight,
+one leading. A settings surface draws four sizes and three weights.
+
+The first version of this file declared thirty-eight, built by prefixing the
+short names `tokens.css` authors. Twenty were a second name for something
+already published — `--shell-radius-card` beside `--shell-radius-large` — and
+nothing read either. The tests now fail on a declared name nothing reads, and
+on a value that disagrees with the stylesheet's own fallback.
 
 ## Required
 
@@ -78,20 +126,12 @@ looks exactly like an ordinary hovered one.
 | `--shell-font-mono` | `ui-monospace, SFMono-Regular, Menlo, monospace` | the value half of a `Field` |
 | `--shell-icon-stroke` | `1.5` | the stroke weight of every Lucide glyph inside the shell |
 | `--shell-input-background` | `--shell-canvas` | the surface of a text field, textarea, select and radio |
-| `--shell-input-border` | `--shell-border-strong` | the outline of one of those at rest |
 | `--shell-invalid` | `--shell-danger` | the outline and the message of a field that failed validation |
 | `--shell-nav-heading-height` | `24px` | the space a collapsed `NavRail` keeps for a section heading |
 | `--shell-position` | `fixed` | how the `ShellLayout` root meets the window; `static` lays it out inside the consumer's own container instead |
-| `--shell-radius` | `6px` | buttons, tabs, nav items, list rows, fields, menu popup |
 | `--shell-radius-dialog` | `14px` | the modal card, which is a panel rather than a control |
-| `--shell-radius-large` | `8px` | the `Card` tile and the `Callout` box, for the same reason |
 | `--shell-radius-small` | `4px` | tab close affordance, tooltip, segmented control, menu item |
 | `--shell-scrim` | `rgb(0 0 0 / 0.34)` | the layer a modal dims the window with |
-| `--shell-space-1` | `4px` | nav section gaps |
-| `--shell-space-2` | `8px` | control gaps, terminal padding |
-| `--shell-space-3` | `12px` | title bar and status bar padding, grid gaps |
-| `--shell-space-4` | `16px` | canvas padding, nav section spacing, dialog padding |
-| `--shell-space-5` | `24px` | the padding an `EmptyState` keeps around its message |
 | `--shell-status` | `--shell-text-muted` | the status dot, the `StatusChip` label, the `Banner` text, the `Callout` outline; the `Callout` heading reads it too and falls back to `--shell-text`, which is the legible one on a raised fill |
 | `--shell-status-muted` | `--shell-active` | the `StatusChip`, `Banner` and `Callout` fills |
 | `--shell-statusbar-height` | `24px` | the compact register `.statusbar` keeps as a minimum, not a fixed height |
@@ -130,6 +170,82 @@ black.
 
 `--shell-terminal-background` is read both ways and is listed above, under its
 CSS kind.
+
+## Rules a component carries
+
+The shipped stylesheet is not the only CSS a consumer receives. A component may
+carry its own rules in its own source and inject them the first time it renders
+— `src/renderer/lib/component-styles.ts` is the mechanism, and the settings
+surfaces are the components that use it.
+
+That exists because `structural.css` is a hand-maintained copy of rules
+authored in `controls.css`, and a copy drifts. `tests/package-styles.test.ts`
+was written to catch that drift and its header records twenty selectors that
+had already gone, including a primary button that stopped changing colour on
+hover. A component that carries its own rules has no copy to drift: exporting
+it and shipping its styles are one act.
+
+Nothing about the contract changes. Those rules read `--shell-*` like every
+other, they are scoped under `.sb-shell` like every other, and
+`tests/component-styles.test.ts` holds them to both — plus one rule the
+stylesheet never needed, that they may write no value a token should hold. A
+colour or a size spelled out in a TypeScript file is a design decision in a
+place no theme can reach.
+
+Where a component needs geometry the ramp has no name for — the height of a
+usage bar, the width of a legend swatch — it declares a token for it in its own
+sheet, with a value, overridable at the root. That is the third tier of the
+usual primitive, semantic and component split, and it is the only way a literal
+gets into one of these files.
+
+## The words a surface says
+
+Not a variable, and named here because it is the other half of the same
+question. Colour, spacing and radius come from the token contract above; the
+copy comes from `SHELL_CONTENT`, supplied through `ShellContentProvider` and
+read by every settings surface. Five components held fifty-seven strings of
+their own before that, which fixed the language and the product's voice for
+everyone who installed the package. `LOREM_CONTENT` is the stub half, and
+`tests/content-seam.test.ts` renders each surface from it and fails on English
+that still reaches the DOM.
+
+## Overriding what the package draws
+
+That paragraph said "overridable at the root" for some time before it was true.
+Every rule this package ships is `.sb-shell .thing`. A consumer writing
+`.sb-shell .thing` matches at the same specificity, so source order decides —
+and a carried rule arrives by `document.head.append` during the first render,
+after any stylesheet the consumer linked. Theirs lost every time, including the
+declaration of a component's own geometry token, and a losing rule is not an
+error.
+
+So the package ships inside a cascade layer. An unlayered rule beats a layered
+one whatever its specificity, which means a consumer's plain rule wins with no
+`!important` and without this package having to police how many classes its
+own selectors chain. Two layers, in this order:
+
+| Layer | What is in it |
+| --- | --- |
+| `sb-shell.base` | `./renderer/styles.css` — the structural ramp and every shipped rule |
+| `sb-shell.components` | the rules a component carries and injects when it first renders |
+
+`@layer sb-shell.base, sb-shell.components;` is stated rather than left to
+first appearance, because a carried stylesheet appears when its component first
+renders and the order would otherwise depend on which surface a consumer
+happened to open first. The statement is at the top of the shipped file and is
+also injected ahead of the first carried sheet.
+
+Anything a consumer writes outside a layer wins over both. To place the package
+against layers of their own, name it in their own statement:
+`@layer reset, sb-shell, app;`.
+
+This is the mechanical end of a class of bug rather than a convenience.
+`packages/maximal/client` declared `.inspector__title` against this package's
+`.sb-shell .inspector__title`; ours is (0,2,0) and theirs is (0,1,0), so theirs
+had never applied and their inspector rendered two eyebrows and no title. Atom
+shipped the same failure in issue #13019 — a mechanical selector rewrite that
+stayed syntactically faithful and silently lowered specificity. With layers the
+colliding rule simply wins, which is what the consumer meant.
 
 ## What the variables do not cover
 

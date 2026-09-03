@@ -2,6 +2,8 @@ import { typescript } from "@stuffbucket/eslint-config/typescript";
 import globals from "globals";
 import reactHooks from "eslint-plugin-react-hooks";
 
+import shellContract from "./eslint/shell-contract.mjs";
+
 // client/ is a separate npm-managed TypeScript project (see docs/code-style.md).
 // It shares the workspace's ignores and typescript-eslint setup, but NOT the
 // `/service` profile the two service packages run: that carries a large
@@ -48,6 +50,16 @@ export default [
       "react-hooks/set-state-in-effect": "warn",
       "react-hooks/refs": "warn",
     },
+  },
+  {
+    // Every `--shell-*` this application writes has to be a name the installed
+    // package actually publishes. `theme.test.ts` checks the other direction —
+    // that every required variable is defined — and a name invented inside the
+    // package's prefix passes that while resolving to nothing. See the header
+    // of `eslint/shell-contract.mjs`.
+    files: ["src/renderer/**/*.ts", "src/renderer/**/*.tsx"],
+    plugins: { "shell-contract": shellContract },
+    rules: { "shell-contract/namespace": "error" },
   },
   {
     files: ["src/renderer/**/*.ts", "src/renderer/**/*.tsx"],

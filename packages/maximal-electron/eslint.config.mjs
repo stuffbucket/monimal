@@ -1,5 +1,7 @@
 import { typescript } from '@stuffbucket/eslint-config/typescript';
 
+import shell from './eslint/shell.mjs';
+
 export default [
   // No `ignores` argument: this package's generated trees (out, .vite, dist,
   // test-results, playwright-report, storybook-static) are all in the shared
@@ -13,8 +15,9 @@ export default [
     level: 'recommended',
   }),
   {
-    // Build and tooling scripts run in Node, outside the TypeScript program.
-    files: ['scripts/**/*.mjs'],
+    // Build and tooling scripts run in Node, outside the TypeScript program,
+    // and so does the flat config's own plugin.
+    files: ['scripts/**/*.mjs', 'eslint/**/*.mjs'],
     languageOptions: {
       globals: {
         Buffer: 'readonly',
@@ -23,6 +26,7 @@ export default [
         fetch: 'readonly',
         process: 'readonly',
         setTimeout: 'readonly',
+        URL: 'readonly',
       },
     },
     rules: { 'no-console': 'off' },
@@ -63,6 +67,60 @@ export default [
       eqeqeq: ['error', 'always'],
       'no-console': ['warn', { allow: ['warn', 'error'] }],
     },
+  },
+  {
+    /*
+     * A carried stylesheet is held to the published contract as it is typed.
+     *
+     * The rules a component draws itself with live in a template literal, so
+     * `tsc` sees a string and no CSS tooling ever reads the file. That is how
+     * a whole namespace came to be invented — thirty tokens read by nothing,
+     * twenty of them second names for values already published, and five
+     * exported surfaces that would have reached a consumer with no border and
+     * no background at all. Every check ran green over it, because each one
+     * reads `structural.css` and the rules had moved out from under it.
+     *
+     * `scripts/component-css.mjs` is the judgement;
+     * `tests/component-styles.test.ts` runs the same call over every carried
+     * string at once. This is the same finding delivered where it is cheap.
+     *
+     * Stories are exempt, and the exemption is the point rather than a
+     * loophole: `Tile.stories.tsx` writes the two rules a *host* writes to
+     * give a status a colour, in the host's own namespace. A story
+     * demonstrating what a consumer supplies is the one place these rules do
+     * not apply.
+     */
+    files: ['src/**/*.ts', 'src/**/*.tsx'],
+    ignores: ['**/*.stories.tsx'],
+    plugins: { shell },
+    rules: { 'shell/design-tokens': 'error' },
+  },
+  {
+    /*
+     * A published surface takes its words from the caller.
+     *
+     * These five carried fifty-seven user-facing strings, which fixes the
+     * language and the product's voice for everyone who installs the package
+     * and puts the thing a consumer is most certain to want to change in the
+     * one place they cannot reach. `src/renderer/lib/content.ts` holds them
+     * now.
+     *
+     * Scoped to the settings surfaces rather than the whole renderer, and the
+     * scope is the honest part: `src/renderer/components/` also holds this
+     * application's own chrome, which is a consumer of the package and is
+     * allowed its own copy. Widening this is the work of publishing those,
+     * not a lint setting.
+     *
+     * `tests/content-seam.test.ts` is the stronger half — it renders each
+     * surface from the lorem stub and fails on English that reaches the DOM —
+     * and it cannot see the two dialogs, because Radix portals them and the
+     * test environment has no document. This reads source, so it sees all of
+     * them, and it sees them as they are typed.
+     */
+    files: ['src/renderer/components/settings/**/*.tsx'],
+    ignores: ['**/*.stories.tsx'],
+    plugins: { shell },
+    rules: { 'shell/content': 'error' },
   },
   {
     /*

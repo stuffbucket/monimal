@@ -1,0 +1,56 @@
+/*
+ * Structure, declared once instead of at every use.
+ *
+ * The published stylesheet carries most of it already — but as an inline
+ * fallback on each use: `var(--shell-radius, 6px)`, `var(--shell-space-3, 12px)`.
+ * That works for a rule that spells the fallback out and fails for one that
+ * does not, and the rules a component carries do not: an undefined custom
+ * property with no fallback makes the whole declaration invalid, so a bare
+ * `var(--shell-radius-large)` is not a smaller radius, it is a square corner.
+ *
+ * So the first block below gives those names a home. Same names, same values —
+ * `tests/structure-tokens.test.ts` holds each one to what the published
+ * stylesheet falls back to, because two values for one name is the drift this
+ * file exists to end rather than start.
+ *
+ * The second block is what the published stylesheet has no name for at all.
+ * The rules a component carries set type, and `--shell-font` is one shorthand:
+ * one size, one weight, one leading. A settings surface draws four sizes and
+ * three weights. `tokens.css` is where those values are authored.
+ *
+ * A consumer defines none of this and is not expected to. It is not a knob
+ * set: reaching for a spacing token means writing layout CSS, which is what
+ * the components exist to make unnecessary. It is here so that no rule — ours
+ * or a consumer's — writes `font-size: 13px` again.
+ *
+ * On `.sb-shell` rather than `:root`: the nearest ancestor of everything this
+ * package renders, and nothing else. The reading sizes are `rem` on purpose —
+ * a ramp in `px` stops tracking the root font size, which is what a reader
+ * changes when they need larger text.
+ */
+
+@layer sb-shell.base, sb-shell.components;
+
+@layer sb-shell.base {
+.sb-shell {
+  --shell-space-1: 4px;
+  --shell-space-2: 8px;
+  --shell-space-3: 12px;
+  --shell-space-4: 16px;
+  --shell-space-5: 24px;
+  --shell-radius: 6px;
+  --shell-radius-large: 8px;
+  --shell-input-border: var(--shell-border-strong, var(--shell-border));
+
+  --shell-text-xs: 0.6875rem;
+  --shell-text-sm: 0.8125rem;
+  --shell-text-base: 0.875rem;
+  --shell-text-md: 0.9375rem;
+  --shell-weight-md: 500;
+  --shell-weight-lg: 600;
+  --shell-leading-base: 1.5;
+  --shell-tracking-caps: 0.04em;
+  --shell-radius-pill: 9999px;
+  --shell-control-lg: 28px;
+}
+}

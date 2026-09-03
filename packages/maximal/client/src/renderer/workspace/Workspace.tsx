@@ -1,18 +1,22 @@
 import { useCallback, useEffect, useId, useMemo, useState, type CSSProperties } from 'react'
 import {
   Canvas,
-  getTabPanelId,
-  getTabTriggerId,
   IconButton,
   NavRail,
-  ShellLayout,
   type CanvasViewMode,
   type NavRailEntry,
   type NavRailSection,
-  type Tab,
 } from 'stuffbucket-electron/renderer'
 import 'stuffbucket-electron/renderer/styles.css'
 
+import {
+  SurfaceRail,
+  SurfaceRight,
+  SurfaceStatus,
+  SurfaceTop,
+  useTabPanelId,
+  useTabTriggerId,
+} from '../frame/AppFrame'
 import { Inspector } from './Inspector'
 import { RunCard } from './RunCard'
 import { statusLabel, type AgentRun, type RunStatus, type WorkspaceSnapshot } from './model'
@@ -21,31 +25,16 @@ import { deriveStatusCounts, runsForProject, type WorkspaceSource } from './sour
 /*
  * The agent-fleet workspace.
  *
- * Composition only: every structural part of this screen — the three-panel
- * frame, the tab strip, the nav rails, the grid/list canvas — comes from
- * `stuffbucket-electron/renderer`. What is written here is the arrangement,
- * the filter state, and the wiring to the workspace data source. Nothing here
- * re-implements a primitive the shell already ships.
+ * Composition only: every structural part of this screen — the nav rails, the
+ * grid/list canvas — comes from `stuffbucket-electron/renderer`; the frame
+ * around it comes from `AppFrame`, whose slots this component portals into.
+ * What is written here is the arrangement, the filter state, and the wiring
+ * to the workspace data source. Nothing here re-implements a primitive the
+ * shell already ships.
  *
  * Mounting is deliberately somebody else's decision: this module exports a
  * component and touches no root.
  */
-
-/**
- * Namespaces the persisted panel sizes. `ShellLayout` derives the tab id base
- * from it as `${layoutId}-documents`; `TAB_ID_BASE` below mirrors that so the
- * ids this component references are the ids the shell actually renders. The
- * pair must move together.
- */
-const LAYOUT_ID = 'maximal-workspace'
-const TAB_ID_BASE = `${LAYOUT_ID}-documents`
-
-/**
- * The runs document. A string id rather than a union member so a terminal tab
- * (or any other document the shell can host) can join this strip later without
- * changing the identity model.
- */
-const RUNS_TAB_ID = 'runs'
 
 const ALL_PROJECTS = 'project:all'
 const ALL_STATUSES = 'status:all'
@@ -121,9 +110,9 @@ const inspectorStyle: CSSProperties = {
  * Persistent, non-dismissible, and drawn with geometry as well as colour: a
  * rule down the leading edge and the word "Placeholder" in bold survive a host
  * that defines no warning colour, a monochrome display, and a screen reader.
- * It sits in `ShellLayout`'s `top` slot, which is the full-width band under the
- * title bar — the slot the shell documents for anything addressing the whole
- * window rather than one panel.
+ * It sits in `AppFrame`'s `SurfaceTop`, the full-width band under the title
+ * bar — the slot documented for anything addressing the whole window rather
+ * than one panel.
  */
 const placeholderStyle: CSSProperties = {
   display: 'flex',
@@ -272,10 +261,11 @@ export function Workspace({ source }: { source: WorkspaceSource }) {
   const [statusFilter, setStatusFilter] = useState<StatusFilterId>(ALL_STATUSES)
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<CanvasViewMode>('grid')
-  const [activeTabId, setActiveTabId] = useState<string>(RUNS_TAB_ID)
 
   const headingId = useId()
   const placeholderId = useId()
+  const tabTriggerId = useTabTriggerId()
+  const tabPanelId = useTabPanelId()
 
   /*
    * One effect owns the whole subscription lifetime: the first snapshot, every
@@ -391,33 +381,12 @@ export function Workspace({ source }: { source: WorkspaceSource }) {
     [statusCounts],
   )
 
-  /*
-   * The document strip. One runs tab today, typed as the shell's `Tab` so a
-   * terminal tab can be appended without changing anything here but the array.
-   * The emphasis is data, not decoration: `adornmentLabel` inside the shell
-   * turns it into words, so the marker is never the only carrier of the signal.
-   */
-  const tabs: Tab[] = useMemo(() => {
-    const needsApproval = data.runs.some((run) => run.status === 'needs-approval')
-    const running = data.runs.some((run) => run.status === 'running')
-    return [
-      {
-        id: RUNS_TAB_ID,
-        title: 'Agent fleet',
-        icon: 'folder',
-        emphasis: needsApproval ? 'attention' : running ? 'busy' : undefined,
-      },
-    ]
-  }, [data.runs])
-
   const clearFilters = useCallback(() => {
     setProjectFilter(ALL_PROJECTS)
     setStatusFilter(ALL_STATUSES)
   }, [])
 
   const isPlaceholder = source.kind !== 'live'
-  const panelId = getTabPanelId(TAB_ID_BASE, activeTabId)
-  const triggerId = getTabTriggerId(TAB_ID_BASE, activeTabId)
 
   const heading = statusFilter === ALL_STATUSES ? 'All runs' : statusLabel[statusFilter.slice('status:'.length) as RunStatus]
   const scope = projectName ?? 'All projects'
@@ -464,22 +433,17 @@ export function Workspace({ source }: { source: WorkspaceSource }) {
   )
 
   return (
-    <ShellLayout
-      layoutId={LAYOUT_ID}
-      tabs={tabs}
-      activeTab={activeTabId}
-      onSelectTab={setActiveTabId}
-      tabsLabel="Workspace documents"
-      top={
-        isPlaceholder ? (
-          /*
+    <>
+      {isPlaceholder ? (
+        <SurfaceTop>
+          {/*
            * Requirement, not decoration: nobody may mistake this for a live
            * fleet. It cannot be dismissed, it is rendered for the entire life
            * of a placeholder source, and it is announced — `role="note"` puts
            * it in the accessibility tree, and the runs region below points at
            * it with `aria-describedby`, so it is read on arrival rather than
            * only when someone happens to navigate past it.
-           */
+           */}
           <div id={placeholderId} role="note" style={placeholderStyle} data-testid="placeholder-notice">
             <strong>Placeholder data</strong>
             <span>
@@ -487,110 +451,108 @@ export function Workspace({ source }: { source: WorkspaceSource }) {
               are fixed sample values shown so the layout can be reviewed before live data exists.
             </span>
           </div>
-        ) : undefined
-      }
-      left={(collapsed) => (
-        <div style={railsStyle}>
-          {/*
-           * Two rails rather than one with two sections: a project and a status
-           * are chosen independently, and `NavRail` carries one `current` per
-           * rail. One rail would have to forget one of the two selections, and
-           * `aria-current` would then lie about the other.
-           */}
-          <NavRail
-            sections={projectSections}
-            current={projectFilter}
-            onSelect={setProjectFilter}
-            collapsed={collapsed}
-            icon={projectIcon}
-            label="Projects"
-            testId="projects-nav"
-          />
-          <NavRail
-            sections={statusSections}
-            current={statusFilter}
-            onSelect={setStatusFilter}
-            collapsed={collapsed}
-            icon={statusIcon}
-            label="Runs by status"
-            testId="status-nav"
-          />
-        </div>
-      )}
-      main={
-        <section
-          style={mainStyle}
-          // Named by its tab and its heading; described by the placeholder
-          // notice when there is one. The ids come from the shell's own
-          // helpers so they cannot drift from the strip it renders.
-          aria-labelledby={`${triggerId} ${headingId}`}
-          aria-describedby={isPlaceholder ? placeholderId : undefined}
-        >
-          <header style={headerStyle}>
-            <div>
-              <h1 id={headingId} style={headingStyle}>
-                {heading}
-              </h1>
-              <p style={subheadStyle}>
-                {scope} · {visibleRuns.length} {visibleRuns.length === 1 ? 'run' : 'runs'}
-                {isPlaceholder ? ' · placeholder data' : ''}
-              </p>
-            </div>
-            <div style={toolbarStyle} role="group" aria-label="Run layout">
-              <IconButton
-                label="Grid view"
-                active={viewMode === 'grid'}
-                aria-pressed={viewMode === 'grid'}
-                aria-controls={panelId}
-                onClick={() => setViewMode('grid')}
-                testId="view-grid"
-              >
-                <GridIcon />
-              </IconButton>
-              <IconButton
-                label="List view"
-                active={viewMode === 'list'}
-                aria-pressed={viewMode === 'list'}
-                aria-controls={panelId}
-                onClick={() => setViewMode('list')}
-                testId="view-list"
-              >
-                <ListIcon />
-              </IconButton>
-            </div>
-          </header>
-          <Canvas
-            items={visibleRuns}
-            mode={viewMode}
-            selectedId={selectedRun?.id}
-            renderCard={(run, selected) => (
-              <RunCard run={run} selected={selected} onSelect={() => setSelectedRunId(run.id)} />
-            )}
-            renderRow={(run, selected) => (
-              <RunCard run={run} selected={selected} onSelect={() => setSelectedRunId(run.id)} />
-            )}
-            empty={empty}
-            label={filtered ? `${heading} in ${scope}` : 'All runs'}
-            testId="runs-canvas"
-          />
-        </section>
-      }
-      right={
+        </SurfaceTop>
+      ) : null}
+      <SurfaceRail>
+        {(collapsed) => (
+          <div style={railsStyle}>
+            {/*
+             * Two rails rather than one with two sections: a project and a status
+             * are chosen independently, and `NavRail` carries one `current` per
+             * rail. One rail would have to forget one of the two selections, and
+             * `aria-current` would then lie about the other.
+             */}
+            <NavRail
+              sections={projectSections}
+              current={projectFilter}
+              onSelect={setProjectFilter}
+              collapsed={collapsed}
+              icon={projectIcon}
+              label="Projects"
+              testId="projects-nav"
+            />
+            <NavRail
+              sections={statusSections}
+              current={statusFilter}
+              onSelect={setStatusFilter}
+              collapsed={collapsed}
+              icon={statusIcon}
+              label="Runs by status"
+              testId="status-nav"
+            />
+          </div>
+        )}
+      </SurfaceRail>
+      <SurfaceRight>
         <aside style={inspectorStyle} aria-label="Run inspector">
           <Inspector run={selectedRun} />
         </aside>
-      }
-      status={
-        <>
-          <span>
-            {visibleRuns.length} of {data.runs.length} {data.runs.length === 1 ? 'run' : 'runs'}
-          </span>
-          <span>{statusCounts['needs-approval']} awaiting approval</span>
-          {/* The third statement of the same fact, in the one place that is
-              always on screen no matter how far the canvas is scrolled. */}
-          <span>{isPlaceholder ? 'Placeholder data — not a live fleet' : 'Live data'}</span>
-        </>
-      }
-    />
+      </SurfaceRight>
+      <SurfaceStatus>
+        <span>
+          {visibleRuns.length} of {data.runs.length} {data.runs.length === 1 ? 'run' : 'runs'}
+        </span>
+        <span>{statusCounts['needs-approval']} awaiting approval</span>
+        {/* The third statement of the same fact, in the one place that is
+            always on screen no matter how far the canvas is scrolled. */}
+        <span>{isPlaceholder ? 'Placeholder data — not a live fleet' : 'Live data'}</span>
+      </SurfaceStatus>
+      <section
+        style={mainStyle}
+        // Named by its tab and its heading; described by the placeholder
+        // notice when there is one. The trigger id comes from the frame's
+        // own hook so it cannot drift from the tab strip it renders.
+        aria-labelledby={`${tabTriggerId} ${headingId}`}
+        aria-describedby={isPlaceholder ? placeholderId : undefined}
+      >
+        <header style={headerStyle}>
+          <div>
+            <h1 id={headingId} style={headingStyle}>
+              {heading}
+            </h1>
+            <p style={subheadStyle}>
+              {scope} · {visibleRuns.length} {visibleRuns.length === 1 ? 'run' : 'runs'}
+              {isPlaceholder ? ' · placeholder data' : ''}
+            </p>
+          </div>
+          <div style={toolbarStyle} role="group" aria-label="Run layout">
+            <IconButton
+              label="Grid view"
+              active={viewMode === 'grid'}
+              aria-pressed={viewMode === 'grid'}
+              aria-controls={tabPanelId}
+              onClick={() => setViewMode('grid')}
+              testId="view-grid"
+            >
+              <GridIcon />
+            </IconButton>
+            <IconButton
+              label="List view"
+              active={viewMode === 'list'}
+              aria-pressed={viewMode === 'list'}
+              aria-controls={tabPanelId}
+              onClick={() => setViewMode('list')}
+              testId="view-list"
+            >
+              <ListIcon />
+            </IconButton>
+          </div>
+        </header>
+        <Canvas
+          items={visibleRuns}
+          mode={viewMode}
+          selectedId={selectedRun?.id}
+          renderCard={(run, selected) => (
+            <RunCard run={run} selected={selected} onSelect={() => setSelectedRunId(run.id)} />
+          )}
+          renderRow={(run, selected) => (
+            <RunCard run={run} selected={selected} onSelect={() => setSelectedRunId(run.id)} />
+          )}
+          empty={empty}
+          label={filtered ? `${heading} in ${scope}` : 'All runs'}
+          testId="runs-canvas"
+        />
+      </section>
+    </>
   )
 }

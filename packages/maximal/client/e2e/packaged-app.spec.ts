@@ -7,12 +7,11 @@ import { assertContrastAtLeast, assertFocusOutlineResolves, assertNoVerticalOver
 /*
  * Packaged-app E2E — a SMALL, high-value suite, not a broad one.
  *
- * Every test in this file shares one launch of one relocated copy of the
- * packaged app (see support/relocate-app.ts for why relocation is
- * non-negotiable): a fresh package build per test would multiply an already
- * slow suite for no extra confidence, since the properties under test
- * (relocation held, sidecar reached ready, window rendered, shutdown is
- * clean) are all about a single run's lifecycle.
+ * Every test here shares one launch of one relocated copy of the packaged app
+ * (support/relocate-app.ts explains the relocation). The properties under test
+ * — relocation held, sidecar reached ready, window rendered, shutdown was clean
+ * — all describe a single run's lifecycle, so a package build per test would
+ * lengthen an already slow suite without covering anything more.
  *
  * Requires `npm run package` to have already produced
  * client/out/Maximal-darwin-<arch>/Maximal.app — this suite never builds it
@@ -40,9 +39,9 @@ test.afterAll(async () => {
 })
 
 test('launches from a relocated copy and the sidecar reaches ready', async () => {
-  // The relocation itself is asserted during launch, so what is left to prove
-  // is that the relocated copy boots: the sidecar spawns, binds, and main
-  // narrates readiness.
+  // Relocation is asserted during launch; this line is the proof that the
+  // relocated copy then boots — the sidecar spawned, bound a port, and main saw
+  // it come up.
   await waitForLine(running.lines, /\[maximal-client\] core ready — control /)
 })
 
@@ -50,13 +49,36 @@ test('window opens with exactly one non-empty primary heading', async () => {
   const window = await running.app.firstWindow()
   const headings = window.locator('h1')
 
-  // Asserts the INVARIANT, not the copy: exactly one primary heading per
-  // view, never competing `h1`s. Which surface is showing depends on auth and
-  // sidecar state and legitimately varies, so the text is not the contract —
-  // the count is. It catches what the unit tests cannot: two surfaces mounted
-  // at once, each bringing its own `h1`.
+  // Which surface is showing depends on auth and sidecar state, so the
+  // heading's text is not fixed and the count is what the app guarantees: one
+  // primary heading per view. Two means two surfaces are mounted at once.
   await expect(headings).toHaveCount(1)
   await expect(headings.first()).not.toBeEmpty()
+
+  // The frame's root is fixed-positioned and fills the window, so a second one
+  // does not sit beside the first — it covers it, along with anything else on
+  // screen. Both the signed-in frame and first-run's render this class, so one
+  // is the count in either state.
+  await expect(window.locator('.sb-shell.app')).toHaveCount(1)
+
+  // `.titlebar` carries `-webkit-app-region: drag`, and the window has a hidden
+  // native frame, so this element is the only thing a user can drag the window
+  // by. Without it the window cannot be moved at all.
+  await expect(window.locator('.sb-shell.app .titlebar')).toBeVisible()
+
+  // The frame's size comes from a chain the package only half provides: its
+  // root is `position: var(--shell-position, fixed); inset: 0`, and the mounting
+  // surface supplies the grow factor `.panel` lacks. Every way that chain breaks
+  // leaves the class names intact and the box short, so the box is what to
+  // measure.
+  const frameBox = await window.locator('.sb-shell.app').boundingBox()
+  const viewport = await window.evaluate(() => ({
+    width: document.documentElement.clientWidth,
+    height: document.documentElement.clientHeight,
+  }))
+  expect(frameBox, 'the frame should have a layout box at all').not.toBeNull()
+  expect(frameBox!.height).toBeGreaterThanOrEqual(viewport.height - 1)
+  expect(frameBox!.width).toBeGreaterThanOrEqual(viewport.width - 1)
 })
 
 test('packaged preload exposes only the closed named bridge', async () => {
@@ -91,23 +113,18 @@ test('packaged preload exposes only the closed named bridge', async () => {
 })
 
 test('renderer window is hardened: contextIsolation, no nodeIntegration, sandboxed', async () => {
-  // None of contextIsolation/nodeIntegration/sandbox is set by this package:
-  // the window comes from the shell dependency, so an upgrade there could flip
-  // `sandbox` to false with no diff here and no failing unit test, and the
-  // first symptom would be a renderer with Node access. Only launching the
-  // real packaged app and inspecting the real window proves the shipped
-  // posture; a unit test reading the dependency's source would assert the very
-  // file this guards against changing.
+  // This package sets none of contextIsolation/nodeIntegration/sandbox — the
+  // window comes from the shell dependency. A version bump there could flip
+  // `sandbox` to false with no diff in this repository and no failing unit
+  // test, and the first symptom would be a renderer holding Node. A unit test
+  // would have to read the dependency's own source, which is the thing that
+  // changed; only the real window answers.
   //
-  // `webContents.getLastWebPreferences()` returns the EFFECTIVE webPreferences
-  // Electron actually applied to this live WebContents — not the options
-  // object anyone constructed it with, so it reflects reality even if some
-  // upstream default or override changed the outcome. It is absent from
-  // Electron's public .d.ts (undocumented/legacy) but confirmed present and
-  // functional at runtime on the Electron version this app ships (see the
-  // WebContentsWithLegacyPreferences cast below). This is the DIRECT read the
-  // task calls for, preferred over inferring posture from renderer-side
-  // symptoms.
+  // `getLastWebPreferences()` reports the preferences Electron actually applied
+  // to this live WebContents, not the options object it was constructed with,
+  // so upstream defaults and overrides are already reflected in what it
+  // returns. It is absent from Electron's public .d.ts and present at runtime,
+  // hence the cast below.
   interface WebContentsWithLegacyPreferences {
     getLastWebPreferences(): Electron.WebPreferences | undefined
   }
@@ -127,28 +144,19 @@ test('renderer window is hardened: contextIsolation, no nodeIntegration, sandbox
 
 /**
  * Waits up to `timeoutMs` for `selector`'s first match to become visible,
- * reporting whether it did rather than throwing. Used below to distinguish
- * "the authenticated package chrome rendered" from "still on first-run" —
- * this harness launches with a fresh `--user-data-dir` every run (see
- * `support/launch.ts`), and `main/core.ts` scopes `COPILOT_API_HOME` under
- * that same per-run `userData` directory, so there is structurally no
- * persisted GitHub session this suite could ever resume: it is ALWAYS
- * signed out, on this machine and on CI alike. The package's own chrome
- * (tab strip, nav rails, icon buttons, status bar) therefore never renders
- * in an automated run of this suite — reaching it requires a live GitHub
- * device-code flow, which is both infeasible to script here and against
- * this task's constraints.
+ * reporting whether it did rather than throwing.
  *
- * The four tests below are still written to check the package chrome, not
- * just first-run, because that is what actually shipped broken. Each one
- * probes for the package chrome first and skips to a first-run-based
- * assertion, or skips outright, when it is not reachable — never fails —
- * so this suite stays meaningful (and green) signed-out on CI while still
- * being the assertion that would catch a regression once a real session is
- * live. The signed-in path was verified by hand against the real rendered
- * components, by stubbing only the `auth/status` response to reach the same
- * DOM a signed-in user sees, confirming each assertion passes there and then
- * that each goes red under the regression it guards.
+ * The tests below use it to tell the signed-in chrome apart from first-run.
+ * This suite is always signed out: `support/launch.ts` gives every run a fresh
+ * `--user-data-dir`, and `main/core.ts` scopes `COPILOT_API_HOME` under that
+ * same directory, so no GitHub session survives to be resumed. Reaching the
+ * signed-in chrome needs a live device-code flow, which is not scriptable here.
+ *
+ * The assertions are still written against that chrome, because that is the
+ * surface whose layout they protect. Each test probes first and either falls
+ * back to an equivalent first-run target or skips — never fails — so the suite
+ * is green signed out while still being the check that fires once a real
+ * session is present.
  */
 async function probeVisible(window: Page, selector: string, timeoutMs = 3_000): Promise<boolean> {
   try {
@@ -166,26 +174,36 @@ const SIGNED_OUT_SKIP_MESSAGE =
   'is expected here and is not a failure.'
 
 test('chrome text is not near-invisible against its background', async () => {
-  // The regression class: with no --shell-* custom property defined,
-  // `color: var(--shell-text)` and friends compute to inherited/initial
-  // values on every shell control — near-black text on a near-black
-  // window, ~1.1:1. Signed out, first-run's OWN controls share the exact
-  // same `var(--shell-*, fallback)` chain (see FirstRun.tsx's header
-  // comment), so checking them here is checking the same failure mode,
-  // just on the surface this harness can actually reach.
+  // Every shell control colours itself from `var(--shell-*)`. With none of
+  // those properties defined the declarations fall back to inherited or initial
+  // values, which is near-black text on a near-black window at roughly 1.1:1 —
+  // legible in the DOM, invisible on screen. First-run's controls read the same
+  // chain, so either set of targets exercises it.
   const window = await running.app.firstWindow()
-  const packageChromeVisible = await probeVisible(window, '.app-shell .sb-shell')
+  // The panel toggle, not the frame root: first-run mounts a `.sb-shell.app`
+  // too, so only the toggle — which the three-panel shell alone renders —
+  // identifies the signed-in chrome these branches select between.
+  const packageChromeVisible = await probeVisible(
+    window,
+    '.sb-shell.app .icon-button[data-testid="toggle-left"]',
+  )
 
   const targets = packageChromeVisible
     ? [
-        { locator: window.locator('.app-shell .sb-shell .icon-button[data-testid="toggle-left"]'), label: 'titlebar icon button' },
-        { locator: window.locator('.app-shell .sb-shell .statusbar span').first(), label: 'status bar text' },
-        { locator: window.locator('.app-shell__view-tab[aria-current="page"]'), label: 'selected view tab' },
+        { locator: window.locator('.sb-shell.app .icon-button[data-testid="toggle-left"]'), label: 'titlebar icon button' },
+        { locator: window.locator('.sb-shell.app .statusbar span').first(), label: 'status bar text' },
+        { locator: window.locator('.sb-shell.app .tab[aria-selected="true"]'), label: 'selected document tab' },
       ]
     : [
         { locator: window.locator('.first-run-heading'), label: 'first-run heading' },
-        { locator: window.locator('.first-run-note').first(), label: 'first-run note' },
-        { locator: window.locator('.first-run-button--primary'), label: 'first-run primary button' },
+        // `.note` and `.btn--primary`, not `.first-run-note` and
+        // `.first-run-button--primary`. First run composes the package's `Note`
+        // and `Button` now, and those two classes are gone. Left as they were,
+        // this branch would have kept passing on the heading alone and quietly
+        // dropped from three contrast checks to one — the count is not
+        // asserted, only that something was checked.
+        { locator: window.locator('.sb-shell .note').first(), label: 'first-run note' },
+        { locator: window.locator('.sb-shell .btn--primary').first(), label: 'first-run primary button' },
       ]
 
   let checked = 0
@@ -198,18 +216,27 @@ test('chrome text is not near-invisible against its background', async () => {
 })
 
 test("a focused chrome control's outline actually resolves", async () => {
-  // Historical defect: `outline: 2px solid var(--shell-focus, var(--shell-accent))`
-  // with neither custom property defined is an invalid declaration at
-  // computed-value time (CSS Custom Properties §3.2) — it computes to
-  // `outline: none`, on every focusable shell control at once. First-run's
-  // primary button carries the identical `:focus-visible` rule shape
-  // (`FirstRun.tsx`), so it exercises the same failure mode signed out.
+  // `outline: 2px solid var(--shell-focus, var(--shell-accent))` is invalid at
+  // computed-value time when neither property is defined (CSS Custom Properties
+  // §3.2), and an invalid declaration computes to `outline: none` — silently,
+  // on every focusable shell control at once.
+  //
+  // The signed-out branch used to target first run's own hand-rolled button,
+  // which merely copied that rule shape. It now targets the package's `.btn`,
+  // because first run composes `Button` — so both branches exercise the real
+  // `.btn:focus-visible`, which is what this test was always about.
   const window = await running.app.firstWindow()
-  const packageChromeVisible = await probeVisible(window, '.app-shell .sb-shell')
+  // The panel toggle, not the frame root: first-run mounts a `.sb-shell.app`
+  // too, so only the toggle — which the three-panel shell alone renders —
+  // identifies the signed-in chrome these branches select between.
+  const packageChromeVisible = await probeVisible(
+    window,
+    '.sb-shell.app .icon-button[data-testid="toggle-left"]',
+  )
 
   const target = packageChromeVisible
-    ? window.locator('.app-shell .sb-shell .icon-button[data-testid="toggle-left"]')
-    : window.locator('.first-run-button--primary')
+    ? window.locator('.sb-shell.app .icon-button[data-testid="toggle-left"]')
+    : window.locator('.sb-shell .btn--primary').first()
   const label = packageChromeVisible ? 'titlebar icon button' : 'first-run primary button'
 
   await expect(target).toBeVisible()
@@ -217,64 +244,58 @@ test("a focused chrome control's outline actually resolves", async () => {
 })
 
 test('nav rail entries do not overlap vertically', async () => {
-  // Historical defect: `.nav__label` carried no white-space/overflow rule in
-  // the package stylesheet, so a label too long for the rail wrapped to a
-  // second line inside a `.nav__item` whose height is a hardcoded 30px — the
-  // wrapped line rendered on top of the next item's row. No first-run
-  // equivalent exists (first-run has no repeated sibling list at a fixed row
-  // height), so this is package-chrome only and skips signed out.
+  // `.nav__item` is a hardcoded `height: 30px`, so a label that wraps to a
+  // second line paints outside its own row and over the next one. First-run has
+  // no repeated list at a fixed row height, so there is nothing equivalent to
+  // check signed out.
   const window = await running.app.firstWindow()
-  if (!(await probeVisible(window, '.app-shell__view-tab'))) {
+  // The Runs tab specifically: first-run's frame has a tab strip of its own, so
+  // the presence of a tab does not mean the view tabs this test drives exist.
+  if (!(await probeVisible(window, '.sb-shell.app .tab:has-text("Runs")'))) {
     test.skip(true, SIGNED_OUT_SKIP_MESSAGE)
     return
   }
 
-  await window.locator('.app-shell__view-tab', { hasText: 'Runs' }).click()
+  await window.locator('.sb-shell.app .tab', { hasText: 'Runs' }).click()
 
-  // Checked on `.nav__label`, NOT `.nav__item`: `.nav__item`'s own box is a
-  // hardcoded `height: 30px` in the package stylesheet, which stays exactly
-  // 30px and flush against its neighbours regardless of whether its child
-  // label wraps and paints outside it — asserting on THAT box reproduces the
-  // exact "measures fine but is visibly broken" blind spot this suite exists
-  // to close (confirmed empirically while building this test: checking
-  // `.nav__item` never caught the reverted-fix break below; `.nav__label`
-  // caught it immediately, since a wrapped label's own rendered box grows
-  // taller than 30px instead of staying pinned to its container's height).
+  // `.nav__label`, not `.nav__item`. The item's box stays exactly 30px and
+  // flush against its neighbours whether or not the label inside it wraps, so
+  // measuring the item reports a healthy layout while the screen is visibly
+  // broken. A wrapped label's own box grows past 30px, which is the overlap
+  // itself.
   const navLabels = window.locator('[data-testid="projects-nav"] .nav__label')
   await expect(navLabels.first()).toBeVisible()
   await assertNoVerticalOverlap(await navLabels.all(), 'projects nav rail labels')
 })
 
 test('status bar text is not clipped at the window edge', async () => {
-  // Historical defect: `.statusbar` was a fixed `height: 24px` (not a
-  // `min-height`), so when its <span> children didn't fit the available
-  // width, they wrapped and the wrapped text overflowed the fixed-height box
-  // both upward (drawing over the run cards above, inside `.tabpanel`) and
-  // downward (cut off at the window's bottom edge). Package-chrome only —
-  // first-run has nothing structurally comparable to check — so this skips
-  // signed out.
+  // Status items wrap when they do not fit the window's width. If the bar's
+  // height is fixed rather than a floor, the wrapped line escapes the box in
+  // both directions: up over the document content, and down past the window's
+  // bottom edge. First-run has nothing comparable, so this skips signed out.
   const window = await running.app.firstWindow()
-  if (!(await probeVisible(window, '.app-shell__view-tab'))) {
+  // The Runs tab specifically: first-run's frame has a tab strip of its own, so
+  // the presence of a tab does not mean the view tabs this test drives exist.
+  if (!(await probeVisible(window, '.sb-shell.app .tab:has-text("Runs")'))) {
     test.skip(true, SIGNED_OUT_SKIP_MESSAGE)
     return
   }
 
-  await window.locator('.app-shell__view-tab', { hasText: 'Runs' }).click()
+  await window.locator('.sb-shell.app .tab', { hasText: 'Runs' }).click()
 
-  // Checked per SPAN, not just on the `.statusbar` container: the original
-  // bug's container was itself nominally "within the window" at a fixed
-  // 24px while its wrapped children individually extended past it.
-  const statusTexts = window.locator('.app-shell .sb-shell .statusbar span')
+  // Per span, not on the container. A fixed-height bar stays nominally within
+  // the window while the children that wrapped out of it do not.
+  const statusTexts = window.locator('.sb-shell.app .statusbar span')
   const count = await statusTexts.count()
   expect(count, 'expected the status bar to render at least one text span').toBeGreaterThan(0)
   for (const span of await statusTexts.all()) {
     await assertWithinWindow(window, span, 'status bar text')
   }
 
-  // The "upward" half of the same defect: wrapped status-bar text drawing
-  // over the document content above it.
+  // The other direction: status text must not reach up into the document
+  // content above it.
   await assertNoVerticalOverlap(
-    [window.locator('.tabpanel'), window.locator('.app-shell .sb-shell .statusbar')],
+    [window.locator('.tabpanel'), window.locator('.sb-shell.app .statusbar')],
     'tabpanel vs statusbar',
   )
 

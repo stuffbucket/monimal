@@ -1,7 +1,9 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 
+import { withoutComments } from '../scripts/component-css.mjs';
 import { baseStyledClassNames, isScoped, styleRules, styledClassNames } from '../scripts/css-selectors.mjs';
+import { packageStylesheets } from '../scripts/shell-variables.mjs';
 
 /**
  * What the two stylesheet contracts are, and how to tell them apart.
@@ -38,9 +40,18 @@ export function stylesheets(): [string, string][] {
     .map((name) => [name, readFileSync(new URL(name, STYLES), 'utf8')]);
 }
 
-/** Every `var(--…)` a stylesheet reads, in source order and with repeats. */
+/**
+ * Every `var(--…)` a stylesheet reads, in source order and with repeats.
+ *
+ * Comments are stripped first, because a comment is prose. `structural.css`
+ * explains why a rule reads one name by naming the other, and counting that as
+ * a read reported `shell.css` — the application's stylesheet, in the
+ * application's own namespace — as reading both namespaces at once, purely on
+ * the strength of a sentence describing the package's. Same reasoning as
+ * `scripts/component-css.mjs`, which strips them before looking for a literal.
+ */
 export function readTokens(css: string): string[] {
-  return [...css.matchAll(/var\((--[a-z0-9-]+)/gi)].map((match) => match[1] ?? '');
+  return [...withoutComments(css).matchAll(/var\((--[a-z0-9-]+)/gi)].map((match) => match[1] ?? '');
 }
 
 /**
@@ -98,6 +109,55 @@ export function exportedModules(): [string, string][] {
   }
 
   return found;
+}
+
+/**
+ * Every rule an exported component carries in its own source.
+ *
+ * `structural.css` is a copy of rules authored elsewhere, and the checks in
+ * `tests/package-styles.test.ts` exist to catch the copy drifting. A component
+ * that carries its own rules has no copy, so the rules have to be read out of
+ * the component for those checks to still see them.
+ *
+ * The marker is a top-level `const` initialised to a template literal holding
+ * `.sb-shell`. Every such string is a stylesheet by construction:
+ * `src/renderer/lib/component-styles.ts` requires the scope, and
+ * `scripts/verify-exports.mjs` requires it of the published sheet for the same
+ * reason — an unscoped rule restyles a consumer's document.
+ *
+ * Anchored on the declaration rather than on any backtick, because a doc
+ * comment may fence an example: `StatusChip` documents the two rules a host
+ * writes to give a status a colour, and matching those would report literal
+ * hex values in a stylesheet nothing ships.
+ */
+export function componentStyles(): string {
+  return exportedModules()
+    .flatMap(([, source]) => [...source.matchAll(/^(?:export )?const [A-Z_]+ = `([^`]*)`;$/gm)])
+    .filter((match) => (match[1] ?? '').includes('.sb-shell'))
+    .map((match) => match[1] ?? '')
+    .join('\n');
+}
+
+/**
+ * Every `--shell-*` name the published stylesheet reads.
+ *
+ * The contract, derived rather than listed. `scripts/shell-variables.mjs`
+ * builds the same set for the consumer-facing check; this is the test-side
+ * reader, and both take the sources from `packageStylesheets()` so a new
+ * stylesheet cannot reach one and be missed by the other.
+ */
+export function publishedTokens(): string[] {
+  const css = packageStylesheets()
+    .flatMap((sheet) => sheet.sources)
+    .map((source) => readFileSync(new URL(`../${source}`, import.meta.url), 'utf8'))
+    .join('\n');
+
+  return [
+    ...new Set([
+      ...[...css.matchAll(/var\(\s*(--shell-[a-z0-9-]+)/g)].map((match) => match[1] ?? ''),
+      ...[...css.matchAll(/^\s*(--shell-[a-z0-9-]+)\s*:/gm)].map((match) => match[1] ?? ''),
+    ]),
+  ].sort();
 }
 
 /** Every class a stylesheet writes a rule for. */

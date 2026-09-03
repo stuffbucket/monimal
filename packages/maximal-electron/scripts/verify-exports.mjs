@@ -18,6 +18,7 @@ import {
   reExportedNames,
 } from './export-checks.mjs';
 import { PEER_TABLE_EXCEPTIONS, peerTable, peerTableChecks } from './peer-table.mjs';
+import { packageStylesheets } from './shell-variables.mjs';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const manifest = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'));
@@ -71,26 +72,40 @@ for (const { subpath, condition, target } of targets) {
 /*
  * The stylesheet a consumer installs.
  *
- * `structural.css` ships unbundled and unscoped by anything but itself, so a
- * selector that escapes `.sb-shell` restyles the consumer's whole application.
- * `tests/package-exports.test.ts` judges the source; this judges the artifact,
- * and asserts the two agree, which nothing did while
+ * The published stylesheet ships unbundled and unscoped by anything but itself,
+ * so a selector that escapes `.sb-shell` restyles the consumer's whole
+ * application. `tests/package-exports.test.ts` judges the sources; this judges
+ * the artifact, and asserts the two agree, which nothing did while
  * `scripts/copy-renderer-css.mjs` was the only thing keeping them in step.
  * Issue #51.
+ *
+ * The sources come from `packageStylesheets()`, which is also what the copy
+ * step and the `--shell-*` contract check read. Naming a file here instead
+ * would be the fourth place a stylesheet is listed.
  */
 console.log('\nShipped stylesheet');
 const SHELL_ROOT = '.sb-shell';
-const stylesheetSource = await readFile(
-  path.join(root, 'src/renderer/styles/structural.css'),
-  'utf8',
+const publishedSheet = packageStylesheets().find(
+  (sheet) => sheet.published === manifest.exports['./renderer/styles.css']?.replace(/^\.\//, ''),
 );
+const stylesheetSource = publishedSheet
+  ? (
+      await Promise.all(
+        publishedSheet.sources.map((source) => readFile(path.join(root, source), 'utf8')),
+      )
+    ).join('\n')
+  : '';
 const stylesheetTarget = manifest.exports['./renderer/styles.css'];
 const shipped = existsSync(path.join(root, stylesheetTarget ?? ''))
   ? await readFile(path.join(root, stylesheetTarget), 'utf8')
   : '';
 const shippedSelectors = selectors(shipped);
 
-check(shipped === stylesheetSource, `${String(stylesheetTarget)} is the source stylesheet`);
+check(
+  publishedSheet !== undefined && shipped === stylesheetSource,
+  `${String(stylesheetTarget)} is its sources, concatenated`,
+  { count: publishedSheet?.sources.length ?? 0, of: 'source stylesheets' },
+);
 // The floor. A parse that found nothing would report every selector scoped by
 // judging none of them.
 check(shippedSelectors.length > 30, `${String(shippedSelectors.length)} selectors were read`);

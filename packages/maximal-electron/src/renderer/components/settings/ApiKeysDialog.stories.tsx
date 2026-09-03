@@ -2,6 +2,8 @@ import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, within } from 'storybook/test';
 
+import { LOREM_CONTENT } from '../../lib/content-lorem.js';
+import { ShellContentProvider } from '../../lib/content.js';
 import { SAMPLE_CLIENTS, SAMPLE_ENDPOINT } from '../../lib/sample-settings.js';
 import type { ApiClient } from '../../lib/settings.js';
 
@@ -99,4 +101,22 @@ export const EmptyLabelRefused: Story = {
       'Give this connection a name.',
     );
   },
+};
+
+/**
+ * The dialog with no copy decided yet.
+ *
+ * The stub half of the catalogue, and the one place it can be seen for a
+ * dialog: `tests/content-seam.test.ts` renders the other surfaces from it and
+ * fails on English that reaches the DOM, but Radix portals this one and the
+ * test environment has no document to portal into. `eslint/shell.mjs` reads
+ * the source instead, and this is the eye on it.
+ */
+export const StubContent: Story = {
+  name: 'Stub content',
+  render: (args) => (
+    <ShellContentProvider content={LOREM_CONTENT}>
+      <KeysStory {...args} />
+    </ShellContentProvider>
+  ),
 };

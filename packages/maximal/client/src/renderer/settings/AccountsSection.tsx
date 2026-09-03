@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState, type ReactElement } from 'react'
 
+import { Button, Note } from 'stuffbucket-electron/renderer'
+
 import type { AccountsListResponse, SettingsCapabilities } from './capabilities'
 import { addedViaLabel, describeError, formatTimestamp } from './format'
 
@@ -63,21 +65,22 @@ export function AccountsSection({ capabilities }: AccountsSectionProps): ReactEl
         Accounts
       </h2>
 
+      {/* Retry is an action, not navigation, so it is a Button and it sits
+          beside the message rather than underlined inside it. `settings-field`
+          is what keeps a Button from stretching the column's full width. */}
       {error ? (
-        <p className="settings-note settings-note--error" role="alert" aria-live="assertive">
-          {error}{' '}
-          <button type="button" className="settings-link-button" onClick={() => setReloadKey((k) => k + 1)}>
-            Try again
-          </button>
-        </p>
+        <div className="settings-field">
+          <Note status="failed" live="assertive">
+            {error}
+          </Note>
+          <Button onClick={() => setReloadKey((k) => k + 1)}>Try again</Button>
+        </div>
       ) : null}
 
       {list === null ? (
-        <p className="settings-note" aria-live="polite">
-          Loading accounts…
-        </p>
+        <Note live="polite">Loading accounts…</Note>
       ) : list.accounts.length === 0 ? (
-        <p className="settings-note">No accounts yet.</p>
+        <Note>No accounts yet.</Note>
       ) : (
         <ul className="settings-accounts-list">
           {list.accounts.map((account) => {
@@ -92,16 +95,16 @@ export function AccountsSection({ capabilities }: AccountsSectionProps): ReactEl
                   </span>
                 </div>
                 {isActive ? (
+                  // Still hand-written: see the report on this change. The
+                  // package's two pills are `StatusChip`, which colours from a
+                  // `--shell-status` vocabulary with no member meaning "the
+                  // selected one", and `Tag`, documented as explicitly not for
+                  // states. "Active" is a state, so neither fits.
                   <span className="settings-accounts-list__active-badge">Active</span>
                 ) : (
-                  <button
-                    type="button"
-                    className="settings-button"
-                    onClick={() => void handleSwitch(account.key)}
-                    disabled={switchingKey !== null}
-                  >
+                  <Button onClick={() => void handleSwitch(account.key)} disabled={switchingKey !== null}>
                     {isSwitching ? 'Switching…' : 'Switch to this account'}
-                  </button>
+                  </Button>
                 )}
               </li>
             )
