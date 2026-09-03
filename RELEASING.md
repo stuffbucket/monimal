@@ -8,10 +8,6 @@ Release and both containing the same notarized, **stapled** `Maximal.app`: a
 signed macOS `.dmg`, and a `.zip` of the bundle. Windows and Linux are not in
 scope yet.
 
-> **A builder change must land before the next tag.** See
-> [Builder prerequisites](#builder-prerequisites). Tagging without it fails the
-> release after a full 20–40 minute build.
-
 ## The split
 
 No Apple credential is in this repository, and none passes through its CI. The
@@ -159,7 +155,7 @@ Three things should each carry their own ticket:
 | | Stapled by |
 | --- | --- |
 | the **dmg** container | the builder's `finalize`, already |
-| the **`.app` inside the dmg** | the builder, *before* `hdiutil` seals it into the image — see [Builder prerequisites](#builder-prerequisites) |
+| the **`.app` inside the dmg** | the builder, *before* `hdiutil` seals it into the image — see [What the builder provides](#what-the-builder-provides) |
 | the **`.app` in the zip** | the same section 2b, once, for both |
 
 The middle row is what people actually install, and it is the one that needed a
@@ -189,22 +185,23 @@ clear the attribute:
 xattr -dr com.apple.quarantine /Applications/Maximal.app
 ```
 
-## Builder prerequisites
+## What the builder provides
 
-`.macos-builder/config` asks for `artifact = dmg,zip`, which the private
-`stuffbucket/macos-builder` must be able to deliver and must be allowed to. One
-change carries both, and until it lands, tagging fails:
+`.macos-builder/config` asks for `artifact = dmg,zip`. Three things on the
+builder side make that work, all landed in
+[macos-builder#25](https://github.com/stuffbucket/macos-builder/pull/25):
 
-1. **`zip` as an artifact**, in `lib/package-macos.sh` and `build.yml`. The
-   bundle in a `ditto` archive, checksummed — no second signature and no new
-   secret.
-2. **Section 2b**, which notarizes and staples the `.app` once, before any
-   container is built. This is what puts a ticket in the copy sealed into the
-   dmg. It used to be gated on `updater`, which is why that artifact looked like
-   the way to get a stapled app.
-3. **`clients/stuffbucket/monimal.policy`** widened to
-   `artifact_allowed = dmg,zip`. The gate rejects a wider request than the
-   policy allows, and only *after* the full build.
+1. **Section 2b** of `lib/package-macos.sh` notarizes and staples the `.app`
+   once, before any container is built. This is what puts a ticket in the copy
+   sealed into the dmg. It used to be gated on `updater`, which is why that
+   artifact looked like the way to get a stapled app — gated there, the staple
+   landed on the bundle *outside* the image, after the copy had been made.
+2. **`zip` as an artifact**: the bundle in a `ditto` archive, checksummed. No
+   second signature and no new secret.
+3. **`clients/stuffbucket/monimal.policy`** allows `dmg,zip`. The policy gate
+   rejects any artifact wider than the policy permits, and it does so only
+   *after* the full 20–40 minute build — so a config that outruns the policy
+   costs a whole release run, not a fast failure.
 
 No new credential: `zip` needs neither the Ed25519 updater key nor the Tauri
 CLI. That is the point of choosing it over `updater` — Squirrel.Mac, which is
