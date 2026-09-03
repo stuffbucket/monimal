@@ -307,8 +307,24 @@ const IO = {
     },
   };
 
-const hoisted = hoistedDependencies(IO, path.join(ROOT, 'node_modules'), EXTERNAL_MODULES);
-const CLOSURE = externalClosure(IO, path.join(ROOT, 'node_modules'), EXTERNAL_MODULES);
+/*
+ * The highest directory resolution may reach: the workspace root, found rather
+ * than assumed. pnpm keeps the real files above this package and npm below it,
+ * so an unbounded walk climbs into whatever encloses the checkout.
+ */
+const workspaceRoot = (() => {
+  let dir = ROOT;
+  for (;;) {
+    if (existsSync(path.join(dir, 'pnpm-workspace.yaml'))) return dir;
+    const parent = path.dirname(dir);
+    if (parent === dir) return ROOT;
+    dir = parent;
+  }
+})();
+
+const RESOLUTION = { boundary: workspaceRoot };
+const hoisted = hoistedDependencies(IO, path.join(ROOT, 'node_modules'), EXTERNAL_MODULES, RESOLUTION);
+const CLOSURE = externalClosure(IO, path.join(ROOT, 'node_modules'), EXTERNAL_MODULES, RESOLUTION);
 
 const LLAMA_SCOPE = 'node_modules/@node-llama-cpp';
 
@@ -418,26 +434,43 @@ check(
     : 'nothing to check: the external modules reach 0 packages',
 );
 
-/**
- * Which top-level packages the archive carries. A scoped name is two segments,
- * so `@huggingface` alone would report `@huggingface/jinja` as present when
- * some other package under that scope is the one that shipped.
+/*
+ * Every closure placement reached the archive, at the path it belongs at.
+ *
+ * This used to iterate `hoisted` — the names a *flat* installer lifts to the
+ * top level — which under pnpm is the empty list. The floor above it was moved
+ * to the closure in the same change, so the run reported `all 0 hoisted
+ * dependencies are packed` and passed. A check that examined nothing, guarding
+ * the output of the copy that had just been rewritten.
+ *
+ * Paths rather than names, because the placement is the part that can be
+ * wrong: a version conflict nests, and a nested copy landing at the top level
+ * is how the library stops loading.
  */
-const packedPackages = new Set(
-  listing
-    .filter((entry) => entry.startsWith('/node_modules/'))
-    .map((entry) => {
-      const parts = entry.split('/').slice(2);
-      return parts[0]?.startsWith('@') ? parts.slice(0, 2).join('/') : parts[0];
-    })
-    .filter((name) => name !== undefined && !name.startsWith('.')),
-);
-const absent = hoisted.filter((name) => !packedPackages.has(name));
+const listedPaths = new Set(listing.map((entry) => entry.replace(/^\//, '')));
+const unplaced = CLOSURE.filter(({ path: placement }) => !listedPaths.has(placement));
 check(
-  absent.length === 0,
-  absent.length === 0
-    ? `all ${String(hoisted.length)} hoisted dependencies are packed`
-    : `${String(absent.length)} hoisted dependenc(ies) are missing, first ${absent[0]}`,
+  unplaced.length === 0,
+  unplaced.length === 0
+    ? `all ${String(CLOSURE.length)} closure placements are packed`
+    : `${String(unplaced.length)} closure placement(s) are missing, first ${unplaced[0]?.path ?? ''}`,
+);
+
+/*
+ * And the nested ones are really nested.
+ *
+ * Sixteen names in this closure resolve to more than one version. Flattening
+ * them by name produced a `node_modules` where `restore-cursor` got the
+ * `signal-exit` with no `onExit` export and `node-llama-cpp` could not be
+ * imported at all — issue #133's failure, reintroduced by the fix for it and
+ * caught by nothing. If the closure ever stops nesting, this says so.
+ */
+const nested = CLOSURE.filter(({ path: placement }) => placement.split('node_modules/').length > 2);
+check(
+  nested.length > 0,
+  nested.length > 0
+    ? `${String(nested.length)} closure placement(s) nest under the package that asked for them`
+    : 'nothing nests: every closure entry claims the top level, which a tree with two versions of one name cannot',
 );
 
 /* ---------------------------------------------------------------- icons */

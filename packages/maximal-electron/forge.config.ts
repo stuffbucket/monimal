@@ -1,4 +1,4 @@
-import { cpSync, existsSync, readFileSync, readdirSync, realpathSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync } from 'node:fs';
 import path from 'node:path';
 
 import { FusesPlugin } from '@electron-forge/plugin-fuses';
@@ -41,8 +41,29 @@ const IO = {
     },
   };
 
-const HOISTED = hoistedDependencies(IO, NODE_MODULES, EXTERNAL_MODULES);
-const CLOSURE = externalClosure(IO, NODE_MODULES, EXTERNAL_MODULES);
+/**
+ * The highest directory dependency resolution may reach.
+ *
+ * The workspace root, found rather than assumed. It cannot be derived from
+ * `node_modules` alone: pnpm keeps the real files in the workspace's store,
+ * above this package, and npm keeps them below it. Without a bound the walk
+ * would climb into whatever encloses the checkout — which is what happened
+ * once the resolver started following real paths.
+ */
+function workspaceRoot(): string {
+  let dir = __dirname;
+  for (;;) {
+    if (existsSync(path.join(dir, 'pnpm-workspace.yaml'))) return dir;
+    const parent = path.dirname(dir);
+    if (parent === dir) return path.resolve(__dirname);
+    dir = parent;
+  }
+}
+
+const RESOLUTION = { boundary: workspaceRoot() };
+
+const HOISTED = hoistedDependencies(IO, NODE_MODULES, EXTERNAL_MODULES, RESOLUTION);
+const CLOSURE = externalClosure(IO, NODE_MODULES, EXTERNAL_MODULES, RESOLUTION);
 
 /**
  * Where the application icons come from.
@@ -86,21 +107,32 @@ for (const file of [BUNDLE_ICON, ...RUNTIME_ICONS]) {
  * and nothing is copied twice.
  */
 function copyExternalClosure(buildPath: string): void {
-  const modules = path.join(buildPath, 'node_modules');
-
-  for (const { name, dir } of CLOSURE) {
-    const destination = path.join(modules, name);
+  for (const { name, dir, path: placement } of CLOSURE) {
+    const destination = path.join(buildPath, placement);
     if (existsSync(destination)) continue;
     if (!existsSync(dir)) {
       throw new Error(`${name} resolved to ${dir}, which does not exist.`);
     }
+    mkdirSync(path.dirname(destination), { recursive: true });
     // `dereference`, for the reason `derefSymlinks` is on: a bundle may not
     // carry a link out of itself.
     cpSync(dir, destination, { recursive: true, dereference: true });
   }
 
-  if (CLOSURE.length > 0 && readdirSync(modules).length === 0) {
-    throw new Error(`the closure has ${String(CLOSURE.length)} entries and none reached ${modules}.`);
+  /*
+   * Every placement is there, by name.
+   *
+   * The predecessor asked whether `node_modules` was empty, which cannot be
+   * true after a loop that either found each destination present or created
+   * it — a check that examines nothing, in a repository with a skill about
+   * not writing those. This asks the question that can fail: a placement the
+   * copy skipped, or one a later copy buried.
+   */
+  const missing = CLOSURE.filter(({ path: placement }) => !existsSync(path.join(buildPath, placement)));
+  if (missing.length > 0) {
+    throw new Error(
+      `${String(missing.length)} of ${String(CLOSURE.length)} closure entries did not reach the package, first ${missing[0]?.path ?? ''}.`,
+    );
   }
 }
 

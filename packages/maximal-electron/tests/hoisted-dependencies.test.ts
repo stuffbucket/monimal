@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { hoistedDependencies } from '../scripts/package-contract.mjs';
+import { externalClosure, hoistedDependencies } from '../scripts/package-contract.mjs';
 
 /**
  * Which packages travel inside a packaged build.
@@ -36,12 +36,23 @@ type Tree = Record<string, Record<string, string> | Package | null>;
  * what a real path walk does.
  */
 function fakeIo(tree: Tree, links: Record<string, string> = {}) {
+  /*
+   * Resolves repeatedly, because the real one resolves every component and
+   * keeps going when a target is itself a link. The predecessor rewrote one
+   * prefix once, so `link1 -> link2 -> /real` stopped at `link2` — and a
+   * store package's entries are themselves links into other store
+   * directories, which is the shape these tests exist to model.
+   */
   const realpath = (target: string): string => {
-    for (const [link, actual] of Object.entries(links)) {
-      if (target === link) return actual;
-      if (target.startsWith(`${link}/`)) return actual + target.slice(link.length);
+    let current = target;
+    for (let step = 0; step < 32; step += 1) {
+      const hit = Object.entries(links).find(
+        ([link]) => current === link || current.startsWith(`${link}/`),
+      );
+      if (hit === undefined) return current;
+      current = hit[1] + current.slice(hit[0].length);
     }
-    return target;
+    return current;
   };
 
   return {
@@ -110,7 +121,12 @@ describe('the closure a packaged build has to carry', () => {
       { '/ws/packages/app/node_modules/node-pty': `${store}/node-pty` },
     );
 
-    expect(hoistedDependencies(io, '/ws/packages/app/node_modules', ['node-pty'])).toEqual([]);
+    // The boundary is the workspace root, which is what the callers pass. The
+    // default — the project root — is above nothing here: pnpm's store belongs
+    // to the workspace, so a walk bounded by the package resolves none of it.
+    expect(
+      hoistedDependencies(io, '/ws/packages/app/node_modules', ['node-pty'], { boundary: '/ws' }),
+    ).toEqual([]);
   });
 
   it('prefers a nested copy over the hoisted one', () => {
@@ -217,5 +233,166 @@ describe('the closure a packaged build has to carry', () => {
     expect(hoistedDependencies(io, '/app/node_modules', ['node-llama-cpp'])).toEqual([
       '@huggingface/jinja',
     ]);
+  });
+});
+
+describe('where each package goes in the bundle', () => {
+  /*
+   * `externalClosure` is what the build consumes, and until now no test called
+   * it. Every test above goes through `hoistedDependencies`, which returns
+   * names only — so nothing asserted a single directory or placement, and a
+   * closure that resolved everything to the wrong place returned exactly the
+   * answer a correct one does.
+   *
+   * That is how the version-collapsing defect shipped. The closure kept a
+   * `name -> directory` map, one version of each name survived, and the hook
+   * flattened the survivors into the bundle. Sixteen names in this
+   * repository's real closure resolve to more than one version;
+   * `restore-cursor` was handed the `signal-exit` with no `onExit` export and
+   * `node-llama-cpp` could not be imported at all.
+   */
+  const boundary = { boundary: '/ws' };
+
+  it('puts a package at the top level when nothing contests the name', () => {
+    const io = fakeIo({
+      '/ws/app/node_modules/node-pty': { 'node-addon-api': '^7' },
+      '/ws/app/node_modules/node-addon-api': null,
+    });
+
+    expect(externalClosure(io, '/ws/app/node_modules', ['node-pty'], boundary)).toEqual([
+      { name: 'node-addon-api', dir: '/ws/app/node_modules/node-addon-api', path: 'node_modules/node-addon-api' },
+    ]);
+  });
+
+  it('nests the second version under the package that asked for it', () => {
+    /*
+     * The defect, as a test. Two dependents need different versions of one
+     * name; the top-level slot goes to the first and the second nests, which
+     * is npm's own rule. Collapsing them by name — what the first attempt did
+     * — puts one version where the other is required and the tree stops
+     * loading.
+     */
+    const store = '/ws/node_modules/.pnpm';
+    const io = fakeIo({
+      [`${store}/root@1/node_modules/root`]: { alpha: '^1', beta: '^1' },
+      [`${store}/alpha@1/node_modules/alpha`]: { shared: '^4' },
+      [`${store}/alpha@1/node_modules/shared`]: null,
+      [`${store}/beta@1/node_modules/beta`]: { shared: '^3' },
+      [`${store}/beta@1/node_modules/shared`]: null,
+    }, {
+      '/ws/app/node_modules/root': `${store}/root@1/node_modules/root`,
+      [`${store}/root@1/node_modules/alpha`]: `${store}/alpha@1/node_modules/alpha`,
+      [`${store}/root@1/node_modules/beta`]: `${store}/beta@1/node_modules/beta`,
+    });
+
+    const closure = externalClosure(io, '/ws/app/node_modules', ['root'], boundary);
+    const paths = closure.map((entry) => entry.path).sort();
+
+    // One `shared` at the top, one nested — never one entry for two versions.
+    expect(paths.filter((entry) => entry.endsWith('shared'))).toHaveLength(2);
+    expect(paths).toContain('node_modules/shared');
+    expect(paths.some((entry) => /node_modules\/(alpha|beta)\/node_modules\/shared/.test(entry))).toBe(
+      true,
+    );
+
+    // And the two point at different directories, which is the whole reason.
+    const dirs = new Set(closure.filter((e) => e.name === 'shared').map((e) => e.dir));
+    expect(dirs.size).toBe(2);
+  });
+
+  it('gives one directory one placement however many dependents reach it', () => {
+    const io = fakeIo({
+      '/ws/app/node_modules/root': { alpha: '^1', beta: '^1' },
+      '/ws/app/node_modules/alpha': { shared: '^1' },
+      '/ws/app/node_modules/beta': { shared: '^1' },
+      '/ws/app/node_modules/shared': null,
+    });
+
+    const paths = externalClosure(io, '/ws/app/node_modules', ['root'], boundary).map((e) => e.path);
+    expect(paths.filter((entry) => entry.endsWith('shared'))).toEqual(['node_modules/shared']);
+  });
+
+  it('survives a dependency cycle', () => {
+    // `visited` is keyed on placement rather than directory, so a cycle has to
+    // terminate on the placement it has already produced.
+    const io = fakeIo({
+      '/ws/app/node_modules/root': { alpha: '^1' },
+      '/ws/app/node_modules/alpha': { beta: '^1' },
+      '/ws/app/node_modules/beta': { alpha: '^1' },
+    });
+
+    expect(externalClosure(io, '/ws/app/node_modules', ['root'], boundary).map((e) => e.path)).toEqual([
+      'node_modules/alpha',
+      'node_modules/beta',
+    ]);
+  });
+
+  it('never leaves the boundary it was given', () => {
+    /*
+     * The guard, tested on the layout it has to hold for. The previous version
+     * computed "am I still under the project root" from the *real* path, which
+     * under pnpm is always in the workspace store above the project — so the
+     * condition was false everywhere and the only remaining bound was "does
+     * this path contain a node_modules segment", true for
+     * `/outer/node_modules/inner` and therefore no bound at all.
+     *
+     * Here the project lives inside an outer checkout's `node_modules` and the
+     * dependency exists only in that outer tree. Resolving it would put a
+     * package this install does not have into the bundle.
+     */
+    const store = '/outer/node_modules/ws/node_modules/.pnpm';
+    const io = fakeIo({
+      [`${store}/node-pty@1/node_modules/node-pty`]: { evil: '^1' },
+      '/outer/node_modules/evil': null,
+    }, {
+      '/outer/node_modules/ws/packages/app/node_modules/node-pty': `${store}/node-pty@1/node_modules/node-pty`,
+    });
+
+    expect(() =>
+      externalClosure(io, '/outer/node_modules/ws/packages/app/node_modules', ['node-pty'], {
+        boundary: '/outer/node_modules/ws',
+      }),
+    ).toThrow(/depends on evil/);
+  });
+
+  it('resolves through a link whose target is itself a link', () => {
+    // pnpm's store entries are links into other store directories, so a real
+    // path walk keeps going. A single-rewrite fake cannot model that, and the
+    // one this file used to carry could not.
+    const io = fakeIo({
+      '/ws/real/node_modules/pkg': { dep: '^1' },
+      '/ws/real/node_modules/dep': null,
+    }, {
+      '/ws/app/node_modules/pkg': '/ws/hop/node_modules/pkg',
+      '/ws/hop': '/ws/real',
+    });
+
+    expect(externalClosure(io, '/ws/app/node_modules', ['pkg'], boundary).map((e) => e.path)).toEqual([
+      'node_modules/dep',
+    ]);
+  });
+
+  it('searches a node_modules directory itself, not a node_modules inside it', () => {
+    /*
+     * Node's rule, isolated. Under pnpm a package's dependencies are its
+     * siblings, so the answer is the directory the package sits in — and
+     * appending `node_modules` to it looks one level too deep.
+     *
+     * The boundary is that directory, which is what makes the two behaviours
+     * differ. Without it the walk climbs one more step and the wrong rule
+     * still lands on the right answer by coincidence of pnpm's shape, which is
+     * why this needs saying explicitly rather than relying on the layout tests
+     * above.
+     */
+    const io = fakeIo({
+      '/ws/store/node_modules/pkg': { dep: '^1' },
+      '/ws/store/node_modules/dep': null,
+    });
+
+    expect(
+      externalClosure(io, '/ws/store/node_modules', ['pkg'], {
+        boundary: '/ws/store/node_modules',
+      }).map((entry) => entry.path),
+    ).toEqual(['node_modules/dep']);
   });
 });

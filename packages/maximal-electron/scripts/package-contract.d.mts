@@ -57,10 +57,12 @@ export declare function externalClosure(
   io: PackageContractIo,
   nodeModules: string,
   roots: readonly string[],
-): { name: string; dir: string }[];
+  options?: { boundary?: string },
+): { name: string; dir: string; path: string }[];
 
 export declare function hoistedDependencies(
   io: PackageContractIo,
   nodeModules: string,
   roots: readonly string[],
+  options?: { boundary?: string },
 ): string[];

@@ -235,20 +235,34 @@ export function llamaPackagePlan(present, platform, arch, backends) {
  * }} io
  * @param {string} nodeModules Absolute path of the top-level `node_modules`.
  * @param {readonly string[]} roots Module names whose closure is wanted.
- * @returns {{ name: string, dir: string }[]} Every package the roots reach
- *   that does not already travel inside one of them, sorted by name.
+ * @param {{ boundary?: string }} [options] `boundary` is the highest directory
+ *   the walk may resolve in — the workspace root. It defaults to the project
+ *   root, which is right only for an installer that puts every real file under
+ *   it.
+ * @returns {{ name: string, dir: string, path: string }[]} Every package the
+ *   roots reach, with `path` the bundle-relative directory it belongs at.
+ *   Sorted by `path`, so a parent always precedes what nests inside it.
  */
-export function externalClosure(io, nodeModules, roots) {
-  const rootSet = new Set(roots);
-  /** name -> the directory it really resolved to. */
-  const kept = new Map();
-  const visited = new Set();
+export function externalClosure(io, nodeModules, roots, options = {}) {
 
-  const projectRoot = io.join(nodeModules, '..');
-
-  /** Whether a path is inside a `node_modules` tree, or is one. */
-  const insideModules = (dir) =>
-    io.basename(dir) === 'node_modules' || dir.split(io.sep).includes('node_modules');
+  /*
+   * The walk may not go above this.
+   *
+   * It used to be the project root, so a checkout inside another checkout
+   * could not resolve against the outer tree. Then the realpath change made
+   * that stop unreachable: under pnpm every real path lands in the
+   * workspace's `node_modules/.pnpm`, which is *above* the project root, so
+   * the condition guarding it was false for all 94 resolutions in this
+   * repository and the only remaining bound was "is there a `node_modules`
+   * segment anywhere in this path" — true for `/outer/node_modules/inner`,
+   * and so no bound at all.
+   *
+   * A boundary cannot be derived from `nodeModules` alone, because where the
+   * real files live depends on the installer. So the caller passes it: it is
+   * the workspace root, and the caller is the one that knows.
+   */
+  const boundary = options.boundary ?? io.join(nodeModules, '..');
+  const withinBoundary = (dir) => dir === boundary || dir.startsWith(boundary + io.sep);
 
   /**
    * Node's own algorithm, which this used to approximate and get wrong twice.
@@ -266,39 +280,66 @@ export function externalClosure(io, nodeModules, roots) {
    *
    * Together those two made `npm run package` fail here with "node-pty depends
    * on node-addon-api, which is not installed" against an install where Node
-   * resolves it fine. Nothing caught it: this function had no test, and the
-   * `electron package` job in CI packages `packages/maximal/client`, whose
-   * Forge config does not call this.
-   *
-   * **What bounds the walk.** It used to stop at the project root, so that a
-   * checkout inside another checkout could not resolve against the outer tree.
-   * A realpath legitimately leaves the project — pnpm's store belongs to the
-   * workspace, above this package — so that stop now applies only while the
-   * walk is still under the project root, and leaving every `node_modules`
-   * tree is what ends it otherwise. Past that there is nothing but whatever
-   * directory happens to enclose the checkout.
+   * resolves it fine.
    */
   const resolve = (fromDir, name) => {
     let dir = io.realpath(fromDir);
-    const underProject = dir === projectRoot || dir.startsWith(projectRoot + io.sep);
 
     for (;;) {
       const searchRoot = io.basename(dir) === 'node_modules' ? dir : io.join(dir, 'node_modules');
       const candidate = io.join(searchRoot, name);
-      if (io.readPackageJson(candidate)) return candidate;
-
-      if (underProject && dir === projectRoot) return undefined;
+      // Twice, deliberately: once on what was found and once on where the
+      // walk goes next. Either alone holds the guard for the layouts tested,
+      // and removing both fails three of them — so neither is dead code, and
+      // a reader deleting "the redundant one" is removing a belt or a brace.
+      if (io.readPackageJson(candidate) && withinBoundary(candidate)) return candidate;
 
       const parent = io.join(dir, '..');
       if (parent === dir) return undefined;
-      if (!insideModules(parent)) return undefined;
+      if (!withinBoundary(parent)) return undefined;
       dir = parent;
     }
   };
 
-  const walk = (dir, name) => {
-    if (visited.has(dir)) return;
-    visited.add(dir);
+  /*
+   * Where each package goes in the bundle, as a path relative to it.
+   *
+   * This is the half the first attempt got wrong, and it was the whole point.
+   * That version kept a `name -> directory` map, so when two packages in the
+   * closure needed different versions of the same dependency, one silently
+   * won. Sixteen names in this repository's closure resolve to more than one
+   * version — `string-width` to three — and flattening them produced a
+   * `node_modules` where `restore-cursor` was handed the `signal-exit` that
+   * has no `onExit` export, so `node-llama-cpp` could not be imported at all.
+   * That is the failure issue #133 exists for, reintroduced by the fix for it.
+   *
+   * So placement follows npm's rule rather than a map: a package goes to the
+   * top level when nothing else of that name is there, and nests under the
+   * package that asked for it when the top-level slot is taken by a different
+   * directory. A second dependent of the same directory reuses the placement.
+   */
+  const placements = new Map();
+  const visited = new Set();
+
+  const place = (name, dir, parentPath) => {
+    const top = `node_modules/${name}`;
+    const existing = placements.get(top);
+    if (existing === dir) return top;
+    if (existing === undefined) {
+      placements.set(top, dir);
+      return top;
+    }
+
+    const nested = `${parentPath}/node_modules/${name}`;
+    placements.set(nested, dir);
+    return nested;
+  };
+
+  const walk = (dir, name, ownPath) => {
+    // Keyed on the placement rather than the directory: one directory can be
+    // reached at two placements, and a package graph may contain a cycle.
+    if (visited.has(ownPath)) return;
+    visited.add(ownPath);
 
     const json = io.readPackageJson(dir);
     if (!json) throw new Error(`${name} is not installed at ${dir}.`);
@@ -308,8 +349,7 @@ export function externalClosure(io, nodeModules, roots) {
       if (!target) {
         throw new Error(`${name} depends on ${dependency}, which is not installed.`);
       }
-      if (!rootSet.has(dependency)) kept.set(dependency, target);
-      walk(target, dependency);
+      walk(target, dependency, place(dependency, target, ownPath));
     }
 
     /*
@@ -329,25 +369,26 @@ export function externalClosure(io, nodeModules, roots) {
     for (const dependency of Object.keys(json.optionalDependencies ?? {})) {
       const target = resolve(dir, dependency);
       if (!target) continue;
-      if (!rootSet.has(dependency)) kept.set(dependency, target);
-      walk(target, dependency);
+      walk(target, dependency, place(dependency, target, ownPath));
     }
   };
 
-  const rootDirs = roots.map((root) => io.realpath(io.join(nodeModules, root)));
-  for (const root of roots) walk(io.join(nodeModules, root), root);
+  // The roots are already at the top level: `packagerConfig.ignore` keeps them
+  // by prefix, so their placement is fixed before anything else is decided.
+  for (const root of roots) {
+    const dir = io.realpath(io.join(nodeModules, root));
+    placements.set(`node_modules/${root}`, dir);
+  }
+  for (const root of roots) {
+    walk(io.join(nodeModules, root), root, `node_modules/${root}`);
+  }
 
-  /*
-   * A dependency already inside a root's own directory travels with it, so it
-   * is not a separate entry. That is the nested case under a flat install;
-   * under pnpm nothing is nested and every entry is a sibling in the store,
-   * which is why the closure has to carry where each one really is rather than
-   * only its name.
-   */
-  return [...kept]
-    .filter(([, dir]) => !rootDirs.some((rootDir) => dir.startsWith(rootDir + io.sep)))
-    .map(([name, dir]) => ({ name, dir }))
-    .sort((left, right) => (left.name < right.name ? -1 : left.name > right.name ? 1 : 0));
+  const rootPaths = new Set(roots.map((root) => `node_modules/${root}`));
+
+  return [...placements]
+    .filter(([placement]) => !rootPaths.has(placement))
+    .map(([placement, dir]) => ({ name: placement.slice(placement.lastIndexOf('node_modules/') + 'node_modules/'.length), dir, path: placement }))
+    .sort((left, right) => (left.path < right.path ? -1 : left.path > right.path ? 1 : 0));
 }
 
 /**
@@ -363,8 +404,8 @@ export function externalClosure(io, nodeModules, roots) {
  * @param {readonly string[]} roots
  * @returns {string[]}
  */
-export function hoistedDependencies(io, nodeModules, roots) {
-  return externalClosure(io, nodeModules, roots)
-    .filter(({ name, dir }) => dir === io.join(nodeModules, name))
+export function hoistedDependencies(io, nodeModules, roots, options = {}) {
+  return externalClosure(io, nodeModules, roots, options)
+    .filter(({ name, dir, path }) => path === `node_modules/${name}` && dir === io.join(nodeModules, name))
     .map(({ name }) => name);
 }
