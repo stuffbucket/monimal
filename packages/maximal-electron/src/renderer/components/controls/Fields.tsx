@@ -315,7 +315,7 @@ const FIELD_LIST_STYLES = `
  * Three spellings of one thing is what prompted it. `ModelCards` here already
  * renders a real `<dl>`; `ApiKeysDialog` and `Diagnostics` write
  * `.field`/`.field__label` markup by hand; and `Field`, the one this package
- * actually exports, rendered spans. `packages/maximal/client` kept its own
+ * actually exports, rendered spans. A consuming application kept its own
  * `<dl>` rather than use the export, which was the correct call and the
  * evidence.
  */

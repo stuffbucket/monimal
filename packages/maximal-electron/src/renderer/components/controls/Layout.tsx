@@ -168,7 +168,7 @@ const NOTE_STYLES = `
  * A line of explanation, or of trouble, under the thing it is about.
  *
  * It earns a place here the way `controls/index.ts` says a primitive has to:
- * `packages/maximal/client` hand-rolled it sixteen times across five files as
+ * a consuming application hand-rolled it sixteen times across five files as
  * `.settings-note`, with a plain, a warning and an error tone, and this
  * package styles `.settings__description` and `.settings__note` for the same
  * job without ever exposing either. Three spellings of one thing.
