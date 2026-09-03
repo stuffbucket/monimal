@@ -31,9 +31,30 @@ const DECLARATION = /^\s*--shell-([a-z0-9-]+)\s*:\s*([^;]+);/gm;
 
 const normalise = (value: string): string => value.trim().replace(/\s+/g, ' ');
 
+/**
+ * Every custom property `tokens.css` authors, read once.
+ *
+ * A lookup rather than a regular expression built from the name. The
+ * predecessor interpolated the name into a pattern and escaped it by replacing
+ * `-` with `\\-`, which CodeQL flagged as incomplete sanitisation: it escapes
+ * nothing that matters — a hyphen is not a metacharacter outside a character
+ * class — and leaves a backslash in the input untouched.
+ *
+ * Not exploitable here, because the names come from this package's own
+ * stylesheets through a `[a-z0-9-]+` capture, so a backslash cannot reach it.
+ * Building a pattern out of data to look up a key is the wrong shape
+ * regardless, and a map is both simpler and faster over the eighty-odd names
+ * this asks about.
+ */
+const AUTHORED = new Map(
+  [...tokens.matchAll(/^\s*--([a-z0-9-]+)\s*:\s*([^;]+);/gm)].map((match) => [
+    match[1] ?? '',
+    match[2] ?? '',
+  ]),
+);
+
 function referenceValue(bare: string): string | undefined {
-  const pattern = new RegExp(`^\\s*--${bare.replace(/-/g, '\\-')}\\s*:\\s*([^;]+);`, 'm');
-  return pattern.exec(tokens)?.[1];
+  return AUTHORED.get(bare);
 }
 
 
