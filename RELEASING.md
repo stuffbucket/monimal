@@ -3,9 +3,10 @@
 Owner of the release process. [AGENTS.md](AGENTS.md) carries the rules; this
 file carries the mechanics.
 
-This repository produces one artifact: a signed, notarized, stapled macOS `.dmg`
-containing `Maximal.app`, attached to a **draft** GitHub Release. Windows and
-Linux are not in scope yet.
+This repository produces two artifacts, both attached to a **draft** GitHub
+Release and both containing the same notarized, **stapled** `Maximal.app`: a
+signed macOS `.dmg`, and a `.zip` of the bundle. Windows and Linux are not in
+scope yet.
 
 ## The split
 
@@ -81,27 +82,132 @@ from the Actions tab with the same tag. Every job is idempotent.
 
 CI proves presence, checksum and container shape. That is the ceiling from
 Ubuntu, and a GitHub-hosted macOS runner is not an option
-([AGENTS.md](AGENTS.md) → CI). Gatekeeper is proven by hand:
+([AGENTS.md](AGENTS.md) → CI). The rest is proven by hand:
 
 ```sh
-scripts/verify-dmg.sh v0.5.0-rc.1
+scripts/verify-dmg.sh v0.5.0-rc.2
 ```
 
-`stapler` needs full Xcode, so the script calls it through `xcrun`; a machine
-with only the Command Line Tools would otherwise fail on `stapler: command not
-found` partway through.
+Run it on a Mac that has never held the signing identity. It reads
+[`.macos-builder/config`](.macos-builder/config) **at the tag** for the asset
+name, the bundle id and the app path, so it cannot drift from what the builder
+was told to produce.
 
-Note what it will report: the **dmg** carries a stapled ticket, the `.app` inside
-does not. The builder staples the app only for the `updater` artifact, so a
-dmg-only client ships an app whose ticket is resolved online at first launch.
-That is ordinary for dmg distribution, and it is the one thing an offline first
-launch cannot fall back on — which is why step A below exists.
+It answers three questions, and all three must pass:
 
-Run it on a Mac that has never held the signing identity, and finish the two
-manual steps it prints — the offline `spctl` check and the copy-and-launch
-quarantine test. Those two are the only ones that distinguish a stapled
-artifact from one that merely resolves online. **That output is the definition
-of done**; paste it into the release notes before publishing.
+| Question | Where |
+| --- | --- |
+| Will a user's Mac open this? | Steps 2–11 — checksum, quarantine, Gatekeeper source, the entitlement set, every nested helper, the framework and the sidecar. |
+| Will it treat this as the same app as the version already installed? | Step 12, against the previous release's actual dmg. See [Upgrades](#upgrades). |
+| Is the zip the same app, and stapled? | Step 13. See [Offline launch](#offline-launch). |
+
+The previous release is picked automatically. Pass a second argument to choose
+one (`scripts/verify-dmg.sh v0.5.0 v0.5.0-rc.2`), or `none` to skip.
+
+`stapler` is not on `PATH`, so the script calls it through `xcrun`, which finds
+it in the Command Line Tools (`/Library/Developer/CommandLineTools/usr/bin/`) —
+full Xcode is not required. Where it does not resolve at all the script says so
+and falls back: step 13 proves stapling from the bundle's files instead, and
+step 4 goes unchecked.
+
+Finish the three manual steps it prints — offline launch, quarantine
+inheritance, and upgrade over the installed version. Those are the ones that
+cannot be scripted honestly. **That output is the definition of done**; paste it
+into the release notes before publishing.
+
+## Upgrades
+
+macOS decides whether a new build replaces the installed one or sits beside it
+as an unrelated app. Three facts decide it:
+
+| Fact | Owner | Checked by |
+| --- | --- | --- |
+| `CFBundleIdentifier` | [`.macos-builder/config`](.macos-builder/config) | `release.yml` against the previous tag, then `verify-dmg.sh` step 12 against the previous artifact |
+| The designated requirement — that identifier plus the Apple Team ID | The builder's Developer ID | `verify-dmg.sh` step 12 |
+| `CFBundleVersion` | [`.macos-builder/build.sh`](.macos-builder/build.sh) | `build.sh` at package time, then `verify-dmg.sh` step 12 for the increase |
+
+Change either of the first two and every existing install becomes a stranger:
+TCC grants reset, keychain items orphan, `~/Library/Application Support/Maximal`
+is abandoned, and a future in-app updater refuses the swap. No part of the build
+fails when that happens — a release is internally consistent with itself either
+way — so both are compared against what actually shipped last rather than
+against a constant restated in a check.
+
+`CFBundleVersion` is deliberately **not** the tag. Apple requires one to three
+period-separated integers and LaunchServices stops parsing at the first
+non-digit, so `0.5.0-rc.2` would collapse to `0.5.0` and compare equal to the
+final release, leaving macOS no reason to prefer either copy. The producer
+derives `YYYY.MMDD.HHMM` from the tagged commit's committer date instead.
+`CFBundleShortVersionString` keeps the tag, and is the version users see.
+
+A rename is a migration, not a release. `release.yml` refuses one; re-run the
+workflow from the Actions tab with `allow_identity_change=true` once you have
+accepted that installed copies stay where they are.
+
+## Offline launch
+
+A notarization ticket that is merely *resolvable* from Apple is not the same as
+one *stapled into* the artifact. The difference shows up once per install, at
+first launch, and only on a machine that cannot reach Apple.
+
+Three things should each carry their own ticket:
+
+| | Stapled by |
+| --- | --- |
+| the **dmg** container | the builder's `finalize`, already |
+| the **`.app` inside the dmg** | the builder, *before* `hdiutil` seals it into the image — see [What the builder provides](#what-the-builder-provides) |
+| the **`.app` in the zip** | the same section 2b, once, for both |
+
+The middle row is what people actually install, and it is the one that needed a
+builder change. `artifact = updater` was never the answer, though it looked like
+it: that path staples the bundle *outside* the image, after section 3a has
+already copied an unstapled one in, so it only ever fixed the tarball. Stapling
+once, before any container is built, fixes every artifact at the same time.
+
+Why it is worth an extra notary round trip: every upgrade is a fresh download and
+a new cdhash with its own quarantine bit, so an unstapled app needs Apple's
+notary service reachable on **every** version a user installs, not just the
+first. Someone upgrading offline, or from behind a proxy that blocks it, gets
+"Maximal is damaged and can't be opened" on a Mac where the previous version
+still launches fine — that one's assessment is cached, which makes the failure
+read as a corrupt download rather than as a policy check.
+
+`scripts/verify-dmg.sh` step 9 reports which state the dmg's app is in and step
+13 asserts the zip's. Neither can be proven from CI for the dmg — an APFS disk
+image is not readable from Ubuntu — so `release.yml` checks the zip, whose
+entries it can list, and step A of the manual checks is what confirms the
+consequence offline.
+
+A user stuck on an older, unstapled release can launch once with a network, or
+clear the attribute:
+
+```sh
+xattr -dr com.apple.quarantine /Applications/Maximal.app
+```
+
+## What the builder provides
+
+`.macos-builder/config` asks for `artifact = dmg,zip`. Three things on the
+builder side make that work, all landed in
+[macos-builder#25](https://github.com/stuffbucket/macos-builder/pull/25):
+
+1. **Section 2b** of `lib/package-macos.sh` notarizes and staples the `.app`
+   once, before any container is built. This is what puts a ticket in the copy
+   sealed into the dmg. It used to be gated on `updater`, which is why that
+   artifact looked like the way to get a stapled app — gated there, the staple
+   landed on the bundle *outside* the image, after the copy had been made.
+2. **`zip` as an artifact**: the bundle in a `ditto` archive, checksummed. No
+   second signature and no new secret.
+3. **`clients/stuffbucket/monimal.policy`** allows `dmg,zip`. The policy gate
+   rejects any artifact wider than the policy permits, and it does so only
+   *after* the full 20–40 minute build — so a config that outruns the policy
+   costs a whole release run, not a fast failure.
+
+No new credential: `zip` needs neither the Ed25519 updater key nor the Tauri
+CLI. That is the point of choosing it over `updater` — Squirrel.Mac, which is
+what an Electron client would use, fetches with `Accept: application/zip` and
+installs ZIP only, so a `.app.tar.gz` and its signature would be a long-lived
+secret guarding bytes nothing here can consume.
 
 ## Onboarding a repository to the builder
 
@@ -111,8 +217,8 @@ stops after the draft with a notice and stays green.
 1. **A builder policy.** A repo with no `clients/stuffbucket/<name>.policy` is
    refused outright. Open a `build-config` issue in `stuffbucket/macos-builder`
    requesting `bundle_id_allowed = co.stuffbucket.maximal`,
-   `entitlements_allowed = bun-runtime`, `artifact_allowed = dmg`, then apply
-   the `approved` label. The issue-ops flow commits the file.
+   `entitlements_allowed = bun-runtime`, `artifact_allowed = dmg,zip`, then
+   apply the `approved` label. The issue-ops flow commits the file.
 2. **`app-repoman` installed here**, with Contents: read+write. Without it the
    builder cannot mint its scoped token, so it can neither check this repository
    out nor upload the asset. App installations follow the repository id, not its
@@ -155,7 +261,9 @@ cherry-picks get no CI run and `release.yml` refuses every patch release:
 ## mxml.sh
 
 This repository MUST NOT publish an update manifest or otherwise write to
-https://mxml.sh. That manifest is committed in `stuffbucket/maximal`, is pinned
+https://mxml.sh. Shipping the zip is not the same thing and does not breach
+this: it is attached to a GitHub Release and advertised nowhere. Nothing
+installed reads it, and nothing here may make it so. That manifest is committed in `stuffbucket/maximal`, is pinned
 at v0.4.41, and the installed desktop client reads it to decide whether an
 update exists. A second publisher would advertise a version no release there
 contains.

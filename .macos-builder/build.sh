@@ -22,6 +22,9 @@ set -euo pipefail
 # npm are already on PATH. SIGN_IDENTITY and ENTITLEMENTS_DIR are also exported
 # and are deliberately UNUSED here.
 #
+# Env this script EXPORTS: MAXIMAL_BUILD_VERSION, which forge.config.ts passes to
+# @electron/packager as buildVersion (CFBundleVersion). See section 1.
+#
 # NOT to be confused with packages/maximal/.macos-builder/build.sh, which is a
 # vendored fixture for the standalone maximal repo (npm, client/ at the root).
 # The two target different layouts and must diverge. See SOURCES.md.
@@ -69,7 +72,43 @@ APP="packages/maximal/client/out/Maximal-darwin-${ARCH}/Maximal.app"
 CLIENT_PKG="packages/maximal/client/package.json"
 CORE="packages/maximal/client/resources/bin/maximal-core"
 
+# The bundle id is READ, not restated. .macos-builder/config is its owner here
+# (release.yml parses the same file and cross-checks it against forge.config.ts),
+# and a copy in this script could only ever disagree with it.
+BUNDLE_ID="$(sed -nE 's/^[[:space:]]*bundle_id[[:space:]]*=[[:space:]]*(.*[^[:space:]])[[:space:]]*$/\1/p' .macos-builder/config | head -1)"
+[ -n "$BUNDLE_ID" ] || fail "bundle_id is missing from .macos-builder/config; the builder's policy gate would reject this build anyway."
+
+# ---------------------------------------------------------------------------
+# CFBundleVersion. NOT the tag.
+#
+# This is the field macOS compares when it finds two copies of the same bundle
+# id, so it is what the UPGRADE path rides on. Apple requires one to three
+# period-separated integers and LaunchServices' parse stops at the first
+# non-digit, so the tag version is unusable: "0.5.0-rc.2" collapses to 0.5.0 and
+# compares EQUAL to the final 0.5.0, and macOS then has no reason to prefer
+# either copy.
+#
+# Derived from the TAGGED COMMIT'S committer date, in UTC, as YYYY.MMDD.HHMM:
+#   - Monotonic. A later release is a later commit, on main and on a release
+#     branch alike, where a cherry-pick's committer date is the pick's.
+#   - Shallow-safe. The builder checks the client out with actions/checkout's
+#     default depth of 1, so `git rev-list --count` would return 1 for every
+#     release; `git log -1` reads the one commit that IS there.
+#   - Each component stays under 10000, and 10# forces decimal so a zero-padded
+#     month or hour is never read as octal.
+#
+# scripts/verify-dmg.sh asserts the shape, and asserts it INCREASED against the
+# previously released artifact — which is the backstop for two tags landing in
+# the same minute.
+# ---------------------------------------------------------------------------
+COMMIT_TS="$(git log -1 --format=%ct HEAD)"
+[ -n "$COMMIT_TS" ] || fail "Could not read the committer date of HEAD; CFBundleVersion cannot be derived."
+BUILD_VERSION="$(date -u -r "$COMMIT_TS" +%Y).$((10#$(date -u -r "$COMMIT_TS" +%m%d))).$((10#$(date -u -r "$COMMIT_TS" +%H%M)))"
+export MAXIMAL_BUILD_VERSION="$BUILD_VERSION"
+
 echo "Producing Maximal.app (Electron) for ${TAG} (version ${VERSION}, ${ARCH})"
+echo "  bundle id       ${BUNDLE_ID}   (from .macos-builder/config)"
+echo "  CFBundleVersion ${BUILD_VERSION}   (from the committer date of $(git rev-parse --short HEAD))"
 
 # ---------------------------------------------------------------------------
 # 2. Preflight. One block, so a first-run failure on the Mac mini is
@@ -226,13 +265,24 @@ ls -la "$(dirname "$APP")"
 
 BUILT_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "${APP}/Contents/Info.plist" 2>/dev/null || echo '')"
 echo "Bundle id: ${BUILT_ID}"
-[ "$BUILT_ID" = "co.stuffbucket.maximal" ] \
-  || fail "CFBundleIdentifier '${BUILT_ID}' != co.stuffbucket.maximal; the builder's policy gate would reject this."
+[ "$BUILT_ID" = "$BUNDLE_ID" ] \
+  || fail "CFBundleIdentifier '${BUILT_ID}' != '${BUNDLE_ID}' from .macos-builder/config; the builder's policy gate would reject this."
 
 BUILT_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "${APP}/Contents/Info.plist" 2>/dev/null || echo '')"
 echo "Built bundle version: ${BUILT_VERSION} (expected ${VERSION})"
 [ "$BUILT_VERSION" = "$VERSION" ] \
   || fail "Bundle version '${BUILT_VERSION}' != release version '${VERSION}'. Stale build?"
+
+# The upgrade field. @electron/packager silently falls back to appVersion when
+# buildVersion is unset, which would put the unusable tag string here and look
+# exactly like success, so assert BOTH that the stamp took and that what landed
+# is a shape macOS can order.
+BUILT_BUILD="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "${APP}/Contents/Info.plist" 2>/dev/null || echo '')"
+echo "Built CFBundleVersion: ${BUILT_BUILD} (expected ${BUILD_VERSION})"
+[ "$BUILT_BUILD" = "$BUILD_VERSION" ] \
+  || fail "CFBundleVersion '${BUILT_BUILD}' != '${BUILD_VERSION}'. forge.config.ts must pass buildVersion: process.env.MAXIMAL_BUILD_VERSION."
+printf '%s' "$BUILT_BUILD" | grep -Eq '^[0-9]+(\.[0-9]+){0,2}$' \
+  || fail "CFBundleVersion '${BUILT_BUILD}' is not one to three period-separated integers; macOS could not order this against an installed copy."
 
 BUNDLED_CORE="${APP}/Contents/Resources/bin/maximal-core"
 [ -f "$BUNDLED_CORE" ] || fail "Sidecar missing from the bundle: ${BUNDLED_CORE}."

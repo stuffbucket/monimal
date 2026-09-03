@@ -29,6 +29,14 @@ on:
         description: Existing tag to build and attach artifacts to, e.g. v0.5.0-rc.1
         required: true
         type: string
+      allow_identity_change:
+        description: >-
+          Release even though the bundle id changed since the previous tag. This
+          makes every existing install a different app to macOS. Deliberate
+          migrations only.
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   group: release-${{ inputs.tag || github.ref_name }}
@@ -55,6 +63,9 @@ jobs:
       tag: ${{ steps.resolve.outputs.tag }}
       sha: ${{ steps.resolve.outputs.sha }}
       dmg: ${{ steps.config.outputs.dmg }}
+      zip: ${{ steps.config.outputs.zip }}
+      app_name: ${{ steps.config.outputs.app_name }}
+      bundle_id: ${{ steps.config.outputs.bundle_id }}
       prerelease: ${{ steps.resolve.outputs.prerelease }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -169,6 +180,8 @@ jobs:
           BUNDLE_ID="$(get bundle_id)"
           APP_PATH="$(get app_path)"
           DMG_TMPL="$(get dmg_name)"
+          ARTIFACT="$(get artifact)"
+          ZIP_TMPL="$(get zip_name)"
 
           [ -n "$BUNDLE_ID" ] || { echo "::error::bundle_id missing from ${CFG}."; exit 1; }
           [ -n "$DMG_TMPL" ]  || { echo "::error::dmg_name missing from ${CFG}; this workflow derives the asset name from it."; exit 1; }
@@ -184,10 +197,83 @@ jobs:
           grep -q "appBundleId: '${BUNDLE_ID}'" "$FORGE" \
             || { echo "::error::bundle_id '${BUNDLE_ID}' in ${CFG} does not match appBundleId in ${FORGE}."; exit 1; }
 
-          DMG="${DMG_TMPL//\{version\}/${TAG#v}}"
-          DMG="${DMG//\{tag\}/${TAG}}"
-          echo "dmg=${DMG}" >> "$GITHUB_OUTPUT"
+          expand() {
+            local t="${1//\{version\}/${TAG#v}}"
+            printf '%s' "${t//\{tag\}/${TAG}}"
+          }
+          DMG="$(expand "$DMG_TMPL")"
+
+          # The zip artifact is optional in the contract, so what this workflow
+          # waits for is derived from `artifact`, never assumed.
+          ZIP=""
+          case ",$(printf '%s' "$ARTIFACT" | tr -d '[:space:]')," in
+            *,zip,*)
+              [ -n "$ZIP_TMPL" ] \
+                || { echo "::error::artifact lists zip but zip_name is missing from ${CFG}."; exit 1; }
+              ZIP="$(expand "$ZIP_TMPL")"
+              case "$ZIP" in
+                *.zip) ;;
+                *) echo "::error::zip_name '${ZIP}' must end in .zip; the builder rejects any other shape."; exit 1 ;;
+              esac
+              ;;
+          esac
+
+          {
+            echo "dmg=${DMG}"
+            echo "zip=${ZIP}"
+            echo "bundle_id=${BUNDLE_ID}"
+            echo "app_name=$(basename "$APP_PATH")"
+          } >> "$GITHUB_OUTPUT"
           echo "Expecting ${DMG} (+ ${DMG}.sha256)"
+          [ -z "$ZIP" ] || echo "Expecting ${ZIP} (+ .sha256)"
+
+      - name: Assert the app identity has not changed since the previous tag
+        env:
+          TAG: ${{ steps.resolve.outputs.tag }}
+          BUNDLE_ID: ${{ steps.config.outputs.bundle_id }}
+          ALLOW: ${{ inputs.allow_identity_change }}
+        run: |
+          # macOS decides whether a new build is an UPGRADE of an installed one,
+          # or an unrelated app, from the bundle identifier and the code
+          # signature's designated requirement. Change either and every existing
+          # install loses its TCC grants and orphans its keychain items — and
+          # nothing else in this pipeline notices, because both halves of the
+          # comparison are internally consistent within a single release.
+          #
+          # Checked here: the bundle id, against the previous tag's contract.
+          # NOT checked here: the designated requirement, which needs the signed
+          # artifact and therefore a Mac. scripts/verify-dmg.sh step 12 owns that
+          # half, against the previously released dmg, before publishing.
+          #
+          # Compared against the previous TAG rather than the previous RELEASE:
+          # a draft release is invisible to `contents: read`, and this job has no
+          # reason to hold more than that.
+          PREV="$(git tag --list 'v*' --sort=-creatordate | grep -vxF "$TAG" | head -1 || true)"
+          if [ -z "$PREV" ]; then
+            echo "::notice::${TAG} is the first tag; nothing is upgrading from anything yet."
+            exit 0
+          fi
+
+          PREV_CFG="$(git show "${PREV}:.macos-builder/config" 2>/dev/null || true)"
+          if [ -z "$PREV_CFG" ]; then
+            echo "::notice::${PREV} predates .macos-builder/config; no identity to compare."
+            exit 0
+          fi
+          PREV_ID="$(printf '%s\n' "$PREV_CFG" | sed -nE 's/^[[:space:]]*bundle_id[[:space:]]*=[[:space:]]*(.*[^[:space:]])[[:space:]]*$/\1/p' | head -1)"
+
+          echo "${PREV}: ${PREV_ID:-<none>}"
+          echo "${TAG}: ${BUNDLE_ID}"
+          if [ "$PREV_ID" = "$BUNDLE_ID" ]; then
+            echo "::notice::Bundle id unchanged since ${PREV}; installs will upgrade in place."
+            exit 0
+          fi
+
+          if [ "$ALLOW" = "true" ]; then
+            echo "::warning::Bundle id changed from '${PREV_ID}' to '${BUNDLE_ID}' since ${PREV}, allowed by allow_identity_change. Existing installs will NOT upgrade: they keep the old app, its permissions and its data."
+            exit 0
+          fi
+          echo "::error::Bundle id changed from '${PREV_ID}' (${PREV}) to '${BUNDLE_ID}' (${TAG}). To macOS this is a different app: every existing install keeps its own copy, TCC grants reset and keychain items orphan. If that is intended, re-run this workflow with allow_identity_change=true."
+          exit 1
 
   draft:
     name: draft release
@@ -266,24 +352,38 @@ jobs:
       # access, so contents: read cannot see or download it.
       contents: write
     steps:
-      - name: Wait for the signed dmg
+      - name: Wait for the signed artifacts
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.verify.outputs.tag }}
           DMG: ${{ needs.verify.outputs.dmg }}
+          ZIP: ${{ needs.verify.outputs.zip }}
         run: |
+          # Every asset the contract implies, not just the dmg. The builder
+          # uploads them one at a time, so waiting on a subset can report success
+          # while the rest are still in flight.
+          REQUIRED=("$DMG" "${DMG}.sha256")
+          if [ -n "$ZIP" ]; then
+            REQUIRED+=("$ZIP" "${ZIP}.sha256")
+          fi
+          printf 'waiting for %d asset(s):\n' "${#REQUIRED[@]}"
+          printf '  %s\n' "${REQUIRED[@]}"
+
           DEADLINE=$(( SECONDS + 3600 ))
           while [ "$SECONDS" -lt "$DEADLINE" ]; do
             ASSETS="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' 2>/dev/null || true)"
-            if printf '%s\n' "$ASSETS" | grep -qxF "$DMG" \
-               && printf '%s\n' "$ASSETS" | grep -qxF "${DMG}.sha256"; then
-              echo "::notice::${DMG} and its checksum are attached."
+            MISSING=()
+            for want in "${REQUIRED[@]}"; do
+              printf '%s\n' "$ASSETS" | grep -qxF "$want" || MISSING+=("$want")
+            done
+            if [ "${#MISSING[@]}" -eq 0 ]; then
+              echo "::notice::All ${#REQUIRED[@]} assets are attached to ${TAG}."
               exit 0
             fi
-            echo "waiting for ${DMG} ... ($(( (DEADLINE - SECONDS) / 60 )) min left)"
+            echo "still missing: ${MISSING[*]}  ($(( (DEADLINE - SECONDS) / 60 )) min left)"
             sleep 30
           done
-          echo "::error::Timed out waiting for ${DMG} on ${TAG}. The draft is intact — check the macos-builder run, then re-run this workflow with workflow_dispatch to resume."
+          echo "::error::Timed out waiting on ${TAG}; still missing: ${MISSING[*]}. The draft is intact — check the macos-builder run, then re-run this workflow with workflow_dispatch to resume."
           exit 1
 
       - name: Verify what Ubuntu can prove
@@ -316,6 +416,58 @@ jobs:
             || { echo "::error::${DMG} has no UDIF koly trailer — not a disk image."; exit 1; }
 
           echo "::notice::${DMG} — ${BYTES} bytes, sha256 ${HAVE}, valid UDIF."
+
+      - name: Verify the zip artifact
+        if: needs.verify.outputs.zip != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.verify.outputs.tag }}
+          ZIP: ${{ needs.verify.outputs.zip }}
+          APP_NAME: ${{ needs.verify.outputs.app_name }}
+        run: |
+          # This artifact is the ONLY one Ubuntu can inspect the .app through: a
+          # zip can be listed, an APFS disk image cannot.
+          #
+          # What that proves and what it does not: this checks the app inside the
+          # ZIP. The builder staples the bundle once, before any container is
+          # built, so in practice the dmg's copy is stapled too — but that is not
+          # provable from here. scripts/verify-dmg.sh step 9, on a Mac, is what
+          # answers it for the dmg. See RELEASING.md → Offline launch.
+          cd "$RUNNER_TEMP"
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" \
+            --pattern "$ZIP" --pattern "${ZIP}.sha256" --clobber
+
+          HAVE="$(sha256sum "$ZIP" | awk '{print $1}')"
+          grep -qi "$HAVE" "${ZIP}.sha256" \
+            || { echo "::error::sha256 mismatch for ${ZIP}."; exit 1; }
+
+          # PKZip magic, before unzip is asked to read it.
+          MAGIC="$(head -c2 "$ZIP" | od -An -tx1 | tr -d ' \n')"
+          [ "$MAGIC" = "504b" ] \
+            || { echo "::error::${ZIP} does not start with the PKZip magic (got ${MAGIC})."; exit 1; }
+
+          # -Z1 is zipinfo's bare listing: one entry per line, no header or
+          # totals to filter out.
+          ENTRIES="$(unzip -Z1 "$ZIP")"
+          echo "${ENTRIES}" | head -5
+          echo "  ... $(printf '%s\n' "$ENTRIES" | wc -l | tr -d ' ') entries"
+
+          printf '%s\n' "$ENTRIES" | grep -qxF "${APP_NAME}/Contents/Info.plist" \
+            || { echo "::error::${ZIP} does not contain ${APP_NAME}/Contents/Info.plist."; exit 1; }
+
+          # `Contents/CodeResources` at the BUNDLE ROOT is the stapled
+          # notarization ticket. It is a different file from
+          # `Contents/_CodeSignature/CodeResources`, which is the resource
+          # manifest and is there whether or not the app was ever stapled, and
+          # from `Contents/._CodeResources`, which is ditto's AppleDouble
+          # sidecar. Absence means the app resolves its ticket online at first
+          # launch.
+          if printf '%s\n' "$ENTRIES" | grep -qxF "${APP_NAME}/Contents/CodeResources"; then
+            echo "::notice::${ZIP} — sha256 ${HAVE}, contains a STAPLED ${APP_NAME}."
+          else
+            echo "::error::${APP_NAME} inside ${ZIP} carries no stapled ticket. package-macos.sh section 2b must staple the .app before packaging; without it, every install of this version needs Apple's notary service reachable at first launch. See RELEASING.md → Offline launch."
+            exit 1
+          fi
 
       - name: Summary
         env:
