@@ -391,7 +391,10 @@ jobs:
             ASSETS="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' 2>/dev/null || true)"
             MISSING=()
             for want in "${REQUIRED[@]}"; do
-              printf '%s\n' "$ASSETS" | grep -qxF "$want" || MISSING+=("$want")
+              # Herestring for the reason above, but here SIGPIPE would not
+              # fail the step — it would take the `||` branch and report an
+              # asset that IS attached as missing, then wait an hour for it.
+              grep -qxF "$want" <<< "$ASSETS" || MISSING+=("$want")
             done
             if [ "${#MISSING[@]}" -eq 0 ]; then
               echo "::notice::All ${#REQUIRED[@]} assets are attached to ${TAG}."
@@ -466,10 +469,24 @@ jobs:
           # -Z1 is zipinfo's bare listing: one entry per line, no header or
           # totals to filter out.
           ENTRIES="$(unzip -Z1 "$ZIP")"
-          echo "${ENTRIES}" | head -5
-          echo "  ... $(printf '%s\n' "$ENTRIES" | wc -l | tr -d ' ') entries"
 
-          printf '%s\n' "$ENTRIES" | grep -qxF "${APP_NAME}/Contents/Info.plist" \
+          # Herestrings, never `printf ... | reader`. This job runs under
+          # `bash -eo pipefail`, and every reader below exits before consuming
+          # its input: `head` after 5 lines, `grep -q` at the first match. The
+          # writer then takes SIGPIPE, and pipefail promotes that 141 to the
+          # status of the whole pipeline — failing a check that SUCCEEDED.
+          #
+          # Not hypothetical: v0.5.0-rc.4's dmg, zip and both checksums were
+          # correctly built, signed, stapled and uploaded, and this step still
+          # failed at the `head -5` below. An Electron bundle lists thousands of
+          # entries, far past the 64K pipe buffer, so the write cannot complete
+          # before the reader is gone. A herestring is a file, not a pipe, so
+          # there is no second exit status to inherit. Same hazard .macos-builder/build.sh
+          # documents at its sidecar-provenance check.
+          head -5 <<< "$ENTRIES"
+          echo "  ... $(wc -l <<< "$ENTRIES" | tr -d ' ') entries"
+
+          grep -qxF "${APP_NAME}/Contents/Info.plist" <<< "$ENTRIES" \
             || { echo "::error::${ZIP} does not contain ${APP_NAME}/Contents/Info.plist."; exit 1; }
 
           # `Contents/CodeResources` at the BUNDLE ROOT is the stapled
@@ -479,7 +496,7 @@ jobs:
           # from `Contents/._CodeResources`, which is ditto's AppleDouble
           # sidecar. Absence means the app resolves its ticket online at first
           # launch.
-          if printf '%s\n' "$ENTRIES" | grep -qxF "${APP_NAME}/Contents/CodeResources"; then
+          if grep -qxF "${APP_NAME}/Contents/CodeResources" <<< "$ENTRIES"; then
             echo "::notice::${ZIP} — sha256 ${HAVE}, contains a STAPLED ${APP_NAME}."
           else
             echo "::error::${APP_NAME} inside ${ZIP} carries no stapled ticket. package-macos.sh section 2b must staple the .app before packaging; without it, every install of this version needs Apple's notary service reachable at first launch. See RELEASING.md → Offline launch."
