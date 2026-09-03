@@ -23,7 +23,7 @@
   },
   "devDependencies": {
     "@stuffbucket/eslint-config": "workspace:*",
-    "eslint": "^10.8.1",
+    "eslint": "^10.9.1",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3"
   },
