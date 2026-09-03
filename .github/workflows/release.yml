@@ -141,10 +141,27 @@ jobs:
           RUNS="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${SHA}/check-runs?per_page=100" \
                     --jq '.check_runs[] | "\(.name)|\(.conclusion)|\(.details_url)"')"
 
-          # This workflow's own jobs are check runs on the SAME commit and are
-          # still in progress, so they would read as conclusion=null. Drop them.
-          OWN="/actions/runs/${GITHUB_RUN_ID}/"
-          OTHERS="$(printf '%s\n' "$RUNS" | grep -vF "$OWN" || true)"
+          # Drop every check run belonging to THIS workflow — the current attempt
+          # AND any earlier one on the same commit.
+          #
+          # The current run's jobs are still in progress and would read as
+          # conclusion=null. An EARLIER attempt is worse: a release run that was
+          # cancelled or timed out leaves its jobs behind as check runs with
+          # conclusion=cancelled/failure, and this step would then read the
+          # previous attempt as failed CI and refuse the retry. That is precisely
+          # the situation RELEASING.md tells you to recover from by re-running
+          # with the same tag, so filtering on GITHUB_RUN_ID alone made the
+          # documented recovery path unusable exactly when it was needed.
+          #
+          # Resolved by workflow id rather than by filename or job names: this
+          # file is not a second owner of either.
+          WF_ID="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" --jq .workflow_id)"
+          SELF_IDS="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${WF_ID}/runs?per_page=100" \
+                        --jq '.workflow_runs[].id')"
+          OTHERS="$RUNS"
+          for rid in $SELF_IDS; do
+            OTHERS="$(printf '%s\n' "$OTHERS" | grep -vF "/actions/runs/${rid}/" || true)"
+          done
 
           if [ -z "$OTHERS" ]; then
             echo "::error::No check runs on ${SHA} apart from this release run. Was CI ever run on this commit?"
