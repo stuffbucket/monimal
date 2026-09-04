@@ -188,61 +188,31 @@ jobs:
         env:
           TAG: ${{ steps.resolve.outputs.tag }}
         run: |
-          CFG=.macos-builder/config
-          [ -f "$CFG" ] || { echo "::error::${CFG} is missing; the builder refuses a client without it."; exit 1; }
+          # The CONTRACT comes from the tag. The SCRIPTS come from the checkout.
+          #
+          # On a tag push those are the same commit and this reads as a no-op.
+          # On workflow_dispatch — the recovery path — the checkout is a branch,
+          # so a fix to this workflow or to scripts/release/ reaches an
+          # already-cut tag, while the contract being released stays the tag's
+          # own. Reading .macos-builder/config from the working tree would
+          # silently release main's contract at the tag's commit.
+          #
+          # forge.config.ts is pulled from the tag for the same reason: the
+          # bundle-id cross-check has to compare the tag against itself.
+          D="$RUNNER_TEMP/contract"
+          mkdir -p "$D"
+          git show "${TAG}:.macos-builder/config" > "$D/config" \
+            || { echo "::error::${TAG} has no .macos-builder/config."; exit 1; }
+          git show "${TAG}:packages/maximal/client/forge.config.ts" > "$D/forge.config.ts" \
+            || { echo "::error::${TAG} has no client forge.config.ts."; exit 1; }
 
-          get() {
-            sed -nE "s/^[[:space:]]*$1[[:space:]]*=[[:space:]]*(.*[^[:space:]])[[:space:]]*$/\1/p" "$CFG" | head -1
-          }
-          BUNDLE_ID="$(get bundle_id)"
-          APP_PATH="$(get app_path)"
-          DMG_TMPL="$(get dmg_name)"
-          ARTIFACT="$(get artifact)"
-          ZIP_TMPL="$(get zip_name)"
-
-          [ -n "$BUNDLE_ID" ] || { echo "::error::bundle_id missing from ${CFG}."; exit 1; }
-          [ -n "$DMG_TMPL" ]  || { echo "::error::dmg_name missing from ${CFG}; this workflow derives the asset name from it."; exit 1; }
-          case "$APP_PATH" in
-            *.app) ;;
-            *) echo "::error::app_path '${APP_PATH}' must end in .app."; exit 1 ;;
-          esac
-
-          # forge.config.ts is the other place the bundle id appears. A
-          # disagreement is otherwise caught by the builder's policy gate only
-          # AFTER a full 20-minute build.
-          FORGE=packages/maximal/client/forge.config.ts
-          grep -q "appBundleId: '${BUNDLE_ID}'" "$FORGE" \
-            || { echo "::error::bundle_id '${BUNDLE_ID}' in ${CFG} does not match appBundleId in ${FORGE}."; exit 1; }
-
-          expand() {
-            local t="${1//\{version\}/${TAG#v}}"
-            printf '%s' "${t//\{tag\}/${TAG}}"
-          }
-          DMG="$(expand "$DMG_TMPL")"
-
-          # The zip artifact is optional in the contract, so what this workflow
-          # waits for is derived from `artifact`, never assumed.
-          ZIP=""
-          case ",$(printf '%s' "$ARTIFACT" | tr -d '[:space:]')," in
-            *,zip,*)
-              [ -n "$ZIP_TMPL" ] \
-                || { echo "::error::artifact lists zip but zip_name is missing from ${CFG}."; exit 1; }
-              ZIP="$(expand "$ZIP_TMPL")"
-              case "$ZIP" in
-                *.zip) ;;
-                *) echo "::error::zip_name '${ZIP}' must end in .zip; the builder rejects any other shape."; exit 1 ;;
-              esac
-              ;;
-          esac
-
-          {
-            echo "dmg=${DMG}"
-            echo "zip=${ZIP}"
-            echo "bundle_id=${BUNDLE_ID}"
-            echo "app_name=$(basename "$APP_PATH")"
-          } >> "$GITHUB_OUTPUT"
-          echo "Expecting ${DMG} (+ ${DMG}.sha256)"
-          [ -z "$ZIP" ] || echo "Expecting ${ZIP} (+ .sha256)"
+          # tee, not a redirect, so the resolved names appear in the log too.
+          # `tee` consumes all of its input, so there is no early-exit reader
+          # here for pipefail to trip over.
+          scripts/release/contract.sh \
+            --config "$D/config" \
+            --forge "$D/forge.config.ts" \
+            --tag "$TAG" | tee -a "$GITHUB_OUTPUT"
 
       - name: Assert the app identity has not changed since the previous tag
         env:
@@ -265,7 +235,11 @@ jobs:
           # Compared against the previous TAG rather than the previous RELEASE:
           # a draft release is invisible to `contents: read`, and this job has no
           # reason to hold more than that.
-          PREV="$(git tag --list 'v*' --sort=-creatordate | grep -vxF "$TAG" | head -1 || true)"
+          # The entry AFTER $TAG in a newest-first listing. Not "the newest tag
+          # that is not $TAG", which returns a NEWER release when an older tag
+          # is re-released. scripts/release/selftest.sh covers both.
+          git tag --list 'v*' --sort=-creatordate > "$RUNNER_TEMP/tags"
+          PREV="$(scripts/release/prev-tag.sh --tag "$TAG" --tags-file "$RUNNER_TEMP/tags")"
           if [ -z "$PREV" ]; then
             echo "::notice::${TAG} is the first tag; nothing is upgrading from anything yet."
             exit 0
@@ -391,9 +365,13 @@ jobs:
             ASSETS="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' 2>/dev/null || true)"
             MISSING=()
             for want in "${REQUIRED[@]}"; do
-              # Herestring for the reason above, but here SIGPIPE would not
-              # fail the step — it would take the `||` branch and report an
-              # asset that IS attached as missing, then wait an hour for it.
+              # Herestring, never `printf "$ASSETS" | grep -q`. `grep -q`
+              # exits at the first match and can SIGPIPE the writer, and here
+              # that would not even fail the step: the non-zero pipeline takes
+              # the `||` branch and reports an asset that IS attached as
+              # missing, then waits the full hour for it. See
+              # scripts/release/verify-assets.sh for the same hazard and how it
+              # reached a real release.
               grep -qxF "$want" <<< "$ASSETS" || MISSING+=("$want")
             done
             if [ "${#MISSING[@]}" -eq 0 ]; then
@@ -406,102 +384,46 @@ jobs:
           echo "::error::Timed out waiting on ${TAG}; still missing: ${MISSING[*]}. The draft is intact — check the macos-builder run, then re-run this workflow with workflow_dispatch to resume."
           exit 1
 
+      - name: Check out the verification scripts
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Cone mode (the default): a directory path, which is exactly what
+          # this needs. Non-cone mode takes gitignore-style patterns, where a
+          # bare `scripts/release` is not a reliable way to get the files.
+          sparse-checkout: scripts/release
+
       - name: Verify what Ubuntu can prove
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.verify.outputs.tag }}
           DMG: ${{ needs.verify.outputs.dmg }}
-        run: |
-          # This proves PRESENCE, INTEGRITY and CONTAINER SHAPE only. Gatekeeper,
-          # notarization and stapling cannot be checked off a Mac, and this repo
-          # forbids GitHub-hosted macOS runners. scripts/verify-dmg.sh owns that
-          # proof and must be run by a human on a clean Mac. See RELEASING.md.
-          cd "$RUNNER_TEMP"
-          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" \
-            --pattern "$DMG" --pattern "${DMG}.sha256" --clobber
-
-          HAVE="$(sha256sum "$DMG" | awk '{print $1}')"
-          grep -qi "$HAVE" "${DMG}.sha256" \
-            || { echo "::error::sha256 mismatch for ${DMG}; got ${HAVE}, checksum file says $(cat "${DMG}.sha256")"; exit 1; }
-
-          BYTES="$(stat -c%s "$DMG")"
-          # The Bun sidecar alone is ~74MB; anything near zero is a failed
-          # hdiutil that still produced a file.
-          [ "$BYTES" -gt 50000000 ] \
-            || { echo "::error::${DMG} is ${BYTES} bytes — far too small to contain the app."; exit 1; }
-
-          # A real UDIF disk image ends with a 512-byte 'koly' trailer.
-          TRAILER="$(tail -c 512 "$DMG" | head -c 4)"
-          [ "$TRAILER" = "koly" ] \
-            || { echo "::error::${DMG} has no UDIF koly trailer — not a disk image."; exit 1; }
-
-          echo "::notice::${DMG} — ${BYTES} bytes, sha256 ${HAVE}, valid UDIF."
-
-      - name: Verify the zip artifact
-        if: needs.verify.outputs.zip != ''
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ needs.verify.outputs.tag }}
           ZIP: ${{ needs.verify.outputs.zip }}
           APP_NAME: ${{ needs.verify.outputs.app_name }}
         run: |
-          # This artifact is the ONLY one Ubuntu can inspect the .app through: a
-          # zip can be listed, an APFS disk image cannot.
+          # Presence, integrity and container shape. Gatekeeper, notarization
+          # and the designated requirement cannot be checked off a Mac, and
+          # AGENTS.md forbids GitHub-hosted macOS runners — scripts/verify-dmg.sh
+          # owns that proof, run by a human before publishing.
           #
-          # What that proves and what it does not: this checks the app inside the
-          # ZIP. The builder staples the bundle once, before any container is
-          # built, so in practice the dmg's copy is stapled too — but that is not
-          # provable from here. scripts/verify-dmg.sh step 9, on a Mac, is what
-          # answers it for the dmg. See RELEASING.md → Offline launch.
-          cd "$RUNNER_TEMP"
-          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" \
-            --pattern "$ZIP" --pattern "${ZIP}.sha256" --clobber
+          # The assertions live in scripts/release/verify-assets.sh so
+          # scripts/release/selftest.sh can drive every one of them, in both
+          # directions, on every PR. They used to live inline here, where they
+          # first executed during a real release: that is how v0.5.0-rc.4 failed
+          # on four artifacts that were entirely correct.
+          DL="$RUNNER_TEMP/assets"
+          mkdir -p "$DL"
 
-          HAVE="$(sha256sum "$ZIP" | awk '{print $1}')"
-          grep -qi "$HAVE" "${ZIP}.sha256" \
-            || { echo "::error::sha256 mismatch for ${ZIP}."; exit 1; }
-
-          # PKZip magic, before unzip is asked to read it.
-          MAGIC="$(head -c2 "$ZIP" | od -An -tx1 | tr -d ' \n')"
-          [ "$MAGIC" = "504b" ] \
-            || { echo "::error::${ZIP} does not start with the PKZip magic (got ${MAGIC})."; exit 1; }
-
-          # -Z1 is zipinfo's bare listing: one entry per line, no header or
-          # totals to filter out.
-          ENTRIES="$(unzip -Z1 "$ZIP")"
-
-          # Herestrings, never `printf ... | reader`. This job runs under
-          # `bash -eo pipefail`, and every reader below exits before consuming
-          # its input: `head` after 5 lines, `grep -q` at the first match. The
-          # writer then takes SIGPIPE, and pipefail promotes that 141 to the
-          # status of the whole pipeline — failing a check that SUCCEEDED.
-          #
-          # Not hypothetical: v0.5.0-rc.4's dmg, zip and both checksums were
-          # correctly built, signed, stapled and uploaded, and this step still
-          # failed at the `head -5` below. An Electron bundle lists thousands of
-          # entries, far past the 64K pipe buffer, so the write cannot complete
-          # before the reader is gone. A herestring is a file, not a pipe, so
-          # there is no second exit status to inherit. Same hazard .macos-builder/build.sh
-          # documents at its sidecar-provenance check.
-          head -5 <<< "$ENTRIES"
-          echo "  ... $(wc -l <<< "$ENTRIES" | tr -d ' ') entries"
-
-          grep -qxF "${APP_NAME}/Contents/Info.plist" <<< "$ENTRIES" \
-            || { echo "::error::${ZIP} does not contain ${APP_NAME}/Contents/Info.plist."; exit 1; }
-
-          # `Contents/CodeResources` at the BUNDLE ROOT is the stapled
-          # notarization ticket. It is a different file from
-          # `Contents/_CodeSignature/CodeResources`, which is the resource
-          # manifest and is there whether or not the app was ever stapled, and
-          # from `Contents/._CodeResources`, which is ditto's AppleDouble
-          # sidecar. Absence means the app resolves its ticket online at first
-          # launch.
-          if grep -qxF "${APP_NAME}/Contents/CodeResources" <<< "$ENTRIES"; then
-            echo "::notice::${ZIP} — sha256 ${HAVE}, contains a STAPLED ${APP_NAME}."
-          else
-            echo "::error::${APP_NAME} inside ${ZIP} carries no stapled ticket. package-macos.sh section 2b must staple the .app before packaging; without it, every install of this version needs Apple's notary service reachable at first launch. See RELEASING.md → Offline launch."
-            exit 1
+          PATTERNS=(--pattern "$DMG" --pattern "${DMG}.sha256")
+          ARGS=(--dir "$DL" --dmg "$DMG" --app-name "$APP_NAME")
+          if [ -n "$ZIP" ]; then
+            PATTERNS+=(--pattern "$ZIP" --pattern "${ZIP}.sha256")
+            ARGS+=(--zip "$ZIP")
           fi
+
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" \
+            --dir "$DL" "${PATTERNS[@]}" --clobber
+
+          scripts/release/verify-assets.sh "${ARGS[@]}"
 
       - name: Summary
         env:
