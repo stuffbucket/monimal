@@ -29,10 +29,10 @@
     "@deepseek-ai/cordis": "4.0.1",
     "@deepseek-ai/dsh-llm": "0.1.0-rc.6",
     "@stuffbucket/eslint-config": "workspace:*",
-    "@types/node": "^22.10.0",
+    "@types/node": "^26.4.0",
     "eslint": "^10.8.1",
     "tsup": "^8.5.1",
-    "typescript": "^5.9.3"
+    "typescript": "^7.0.2"
   },
   "engines": {
     "node": ">=24"
