@@ -31,7 +31,7 @@ while [ $# -gt 0 ]; do
     *) usage ;;
   esac
 done
-[ -n "$TAG" ] && [ -n "$TAGS_FILE" ] || usage
+if [ -z "$TAG" ] || [ -z "$TAGS_FILE" ]; then usage; fi
 [ -f "$TAGS_FILE" ] || fail "${TAGS_FILE} is missing; the tag list cannot be read."
 
 # Prints the line after the one equal to $TAG, then stops. Empty output means

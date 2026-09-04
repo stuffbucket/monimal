@@ -44,7 +44,7 @@ while [ $# -gt 0 ]; do
     *) usage ;;
   esac
 done
-[ -n "$DIR" ] && [ -n "$DMG" ] && [ -n "$APP_NAME" ] || usage
+if [ -z "$DIR" ] || [ -z "$DMG" ] || [ -z "$APP_NAME" ]; then usage; fi
 [ -d "$DIR" ] || fail "${DIR} is not a directory."
 
 # GNU on the runner, BSD on a maintainer's Mac. Both are load-bearing: the

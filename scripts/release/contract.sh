@@ -39,7 +39,7 @@ while [ $# -gt 0 ]; do
     *) usage ;;
   esac
 done
-[ -n "$CFG" ] && [ -n "$FORGE" ] && [ -n "$TAG" ] || usage
+if [ -z "$CFG" ] || [ -z "$FORGE" ] || [ -z "$TAG" ]; then usage; fi
 [ -f "$CFG" ] || fail "${CFG} is missing; the builder refuses a client without it."
 [ -f "$FORGE" ] || fail "${FORGE} is missing; the bundle id cannot be cross-checked."
 
