@@ -40,6 +40,37 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # Release shell, checked BEFORE the install: it needs no workspace, runs
+      # in seconds, and is placed inside this job rather than beside it because
+      # `build / typecheck / lint / test` is the only check main's ruleset
+      # requires. A separate job would run and be ignorable.
+      #
+      # actionlint (below) covers shell EMBEDDED in a workflow. These are
+      # standalone scripts, which nothing linted until release verification
+      # started living in them.
+      - name: Lint the shell scripts
+        run: |
+          if ! command -v shellcheck >/dev/null; then
+            echo "::error::shellcheck is not on this runner image."
+            exit 1
+          fi
+          # --severity=warning, and the version echoed, because shellcheck comes
+          # from the runner image and drifts under us in BOTH directions: the
+          # image ships 0.9.0, which reports SC2015 on lines that 0.11.0 does
+          # not. info-level findings are style opinions that move between
+          # releases; warning and above are defects. Without this pin the gate
+          # would go red on an image bump that changed nothing in this repo.
+          shellcheck --version | sed -n '2p'
+          shellcheck --severity=warning scripts/release/*.sh scripts/verify-dmg.sh
+
+      # Drives every assertion in scripts/release/ against fixtures, in both
+      # directions. This is the gate that two releases were spent buying: the
+      # bugs that cost v0.5.0-rc.3 and v0.5.0-rc.4 were in shell that no test
+      # ever executed, and each cost a tag, a 20-40 minute signed build and a
+      # human approval to find.
+      - name: Test the release verification shell
+        run: scripts/release/selftest.sh
+
       # pnpm before setup-node, so setup-node's cache can find it. The version
       # comes from packageManager in package.json.
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10

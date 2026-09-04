@@ -65,8 +65,16 @@ a tag and a bundle version to disagree.
    with a hyphenated suffix is marked prerelease.
 3. **dispatch** — asks the builder to build the tag. Gated on the `release`
    environment, so it waits for a reviewer.
-4. **collect** — waits up to an hour for `<dmg>` and `<dmg>.sha256`, then checks
-   the checksum, a size floor, and the UDIF `koly` trailer.
+4. **collect** — waits up to an hour for every asset the contract implies, then
+   checks each checksum, a size floor, the UDIF `koly` trailer, and — through
+   the zip, the only artifact Ubuntu can see inside — that the `.app` carries a
+   stapled notarization ticket.
+
+The assertions in steps 1 and 4 live in [`scripts/release/`](scripts/release/),
+not inline in the workflow, so `scripts/release/selftest.sh` can drive every one
+of them against fixtures in the ordinary PR gate. They were inline once, where
+they first executed during a real release — which is how `v0.5.0-rc.4` failed on
+four artifacts that were entirely correct.
 
 **The workflow never publishes.** It ends with a filled, verified draft.
 Publishing is deliberate and manual, after the acceptance test below:
@@ -75,8 +83,32 @@ Publishing is deliberate and manual, after the acceptance test below:
 gh release edit v0.5.0-rc.1 --draft=false
 ```
 
-To resume a run whose builder dispatch failed or timed out, re-run the workflow
-from the Actions tab with the same tag. Every job is idempotent.
+### Recovery
+
+To resume a run whose builder dispatch failed or timed out, dispatch the workflow
+again with the same tag:
+
+```sh
+gh workflow run release.yml --repo stuffbucket/monimal -f tag=v0.5.0-rc.1
+```
+
+Every job is idempotent: the draft is reused, the builder re-dispatched, and
+assets already attached are re-verified rather than rebuilt.
+
+**This requires the `release` environment to permit the default branch**, not
+only `v*` tags. A `workflow_dispatch` run executes at `refs/heads/main`, so with
+a tags-only deployment policy it is rejected before the reviewer gate ever sees
+it, and the only recovery is a new tag.
+
+What a dispatch run reads from where, and why it is safe:
+
+| | comes from | so that |
+|---|---|---|
+| `release.yml`, `scripts/release/` | the **branch** dispatched | a fix to the release machinery reaches an already-cut tag |
+| `.macos-builder/config`, `forge.config.ts` | the **tag** (`git show`) | the contract released is the tag's own, never the branch's |
+
+That split is what makes branch-dispatch safe. Without it a dispatch would build
+the tag's commit against `main`'s contract.
 
 ## Acceptance test
 
