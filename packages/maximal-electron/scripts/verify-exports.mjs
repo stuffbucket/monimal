@@ -6,6 +6,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath, URL } from 'node:url';
 
+import { buildPackage } from './build-package.mjs';
 import { selectors, unscopedSelectors } from './css-selectors.mjs';
 import {
   RENDERER_SURFACE,
@@ -22,6 +23,21 @@ import { packageStylesheets } from './shell-variables.mjs';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const manifest = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'));
+
+/*
+ * Build first, here, rather than in front of this script in `package.json`.
+ *
+ * Everything below reads `dist/`: the export targets, the shipped stylesheet,
+ * the renderer import graph, the packed file list. A run against whatever was
+ * last built is a green run over the wrong files, and there is no way to tell
+ * the two apart from the output.
+ *
+ * It is also what lets the pack below skip lifecycle scripts. This IS the
+ * build `prepack` runs -- the same function, from the same file -- so the
+ * artifact npm would produce is already on disk by the time it is asked what
+ * it would pack.
+ */
+await buildPackage();
 const failures = [];
 const check = (condition, message) => {
   console.log(`${condition ? '  ok  ' : ' FAIL '} ${message}`);
@@ -180,17 +196,43 @@ const { checks: graphChecks, inspected } = await moduleGraphChecks(root, rendere
 for (const { name, ok } of graphChecks) check(ok, name);
 
 /*
- * Deliberately without `--ignore-scripts`. `dist/` is built by `prepack` and
- * not committed, so skipping scripts would test whether a stale build happens
- * to be on disk rather than what a publish produces.
+ * `--ignore-scripts`, because this script already ran the build they perform.
+ *
+ * It used to run them, on the reasoning that skipping them would test whether
+ * a stale build happened to be on disk. `buildPackage()` above answers that:
+ * the tree npm is asked about was written by the same function `prepack`
+ * calls, moments ago.
+ *
+ * What the hooks bought was not worth what they cost. `npm pack` runs BOTH
+ * `prepare` and `prepack`, so the package built three times per run, and
+ * whatever they wrote to stdout arrived in the middle of the JSON parsed
+ * here. When those hooks shelled into `pnpm run`, that was pnpm's resolution
+ * progress -- silent in CI, where the lockfile matches the registry, and
+ * several kilobytes of it on a developer machine behind the proxy registry in
+ * `.npmrc`. The check passed in CI and died with `Unexpected token 'S'`
+ * everywhere else, and rewrote `pnpm-lock.yaml` on its way out (issue #26).
+ *
+ * `scripts/build-package.mjs` removed the nested package manager, and this
+ * removes the dependence on the build staying quiet.
  */
-const packed = JSON.parse(
-  execFileSync('npm', ['pack', '--dry-run', '--json'], {
-    cwd: root,
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'inherit'],
-  }),
-)[0].files.map((file) => file.path);
+const packOutput = execFileSync('npm', ['pack', '--dry-run', '--json', '--ignore-scripts'], {
+  cwd: root,
+  encoding: 'utf8',
+  stdio: ['ignore', 'pipe', 'inherit'],
+});
+
+let packed;
+try {
+  packed = JSON.parse(packOutput)[0].files.map((file) => file.path);
+} catch (error) {
+  // A bare `Unexpected token` names neither the command nor what it said. The
+  // failure this replaces cost an afternoon for exactly that reason.
+  console.error(
+    `npm pack --dry-run --json did not return JSON: ${error.message}\n` +
+      `First 200 characters of its stdout:\n${packOutput.slice(0, 200)}`,
+  );
+  process.exit(1);
+}
 
 console.log('\nPacked library artifacts');
 for (const { target } of targets) {
