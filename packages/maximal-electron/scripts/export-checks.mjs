@@ -295,11 +295,22 @@ export async function preloadSurfaceChecks(packageRoot, declaration) {
 /**
  * Names a built entry re-exports, sorted.
  *
+ * The class excludes `{` as well as `}`, which is what makes the scan linear.
+ * With `[^}]+` the body could run across any number of following `export {`
+ * sequences before failing on the closing brace, so every start position paid
+ * for the rest of the file: quadratic in the length of the input, and a
+ * CodeQL `js/polynomial-redos` finding. Stopping at the first brace of either
+ * kind fails a non-match immediately.
+ *
+ * It is also the more accurate pattern. An ECMAScript export clause cannot
+ * contain `{`, so a match that crossed one was never a single export
+ * statement.
+ *
  * @param {string} source
  * @returns {string[]}
  */
 export function reExportedNames(source) {
-  return [...source.matchAll(/export\s*\{([^}]+)}\s*from/g)]
+  return [...source.matchAll(/export\s*\{([^{}]+)}\s*from/g)]
     .flatMap((match) =>
       (match[1] ?? '')
         .split(',')

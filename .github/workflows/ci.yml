@@ -22,6 +22,17 @@ concurrency:
 env:
   TURBO_TELEMETRY_DISABLED: 1
 
+# Read-only for every job, set here rather than per job so one added later
+# inherits it. Nothing in this workflow writes to the repository: it checks
+# out, installs, builds, packages and asserts. A token that can push, open
+# issues or publish packages is handed to every third-party action and every
+# `run:` block in the file, and it is the default when this block is absent.
+#
+# A job that genuinely needs to write should widen it at the job level, which
+# makes the exception visible in review rather than global by omission.
+permissions:
+  contents: read
+
 # GitHub's default is `bash -e {0}`: -e without -o pipefail. A pipeline reports
 # the exit status of its LAST command, so `run-something | tee log` reports
 # tee's success and a failing step passes. Every pipeline in this file today is
