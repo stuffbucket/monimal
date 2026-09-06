@@ -41,6 +41,8 @@ export declare function llamaPackagePlan(
   backends: readonly string[],
 ): LlamaPackageDecision[];
 
+export declare const LLAMA_SOURCE_INPUTS: readonly string[];
+
 export interface PackageContractIo {
   readPackageJson: (dir: string) =>
     | { dependencies?: Record<string, string>; optionalDependencies?: Record<string, string> }

@@ -84,14 +84,33 @@ interface ChatSessionCtor {
   };
 }
 
+/**
+ * What this process asks `getLlama()` for, and the reason it is written down.
+ *
+ * `node-llama-cpp` can compile llama.cpp from source when no prebuilt binary
+ * loads, and inside Electron it already declines to: `defaultBuildOption` is
+ * `"never"` there, against `"auto"` everywhere else. Passing it makes that an
+ * argument this application chose rather than a default it happens to inherit.
+ *
+ * The packaging depends on it. `forge.config.ts` drops the 33 MB llama.cpp
+ * source bundle and the compiler tooling that only a from-source build reads,
+ * and `scripts/verify-package.mjs` asserts both that they are gone and that
+ * this option is still here. Change one and the other fails, which is the
+ * point: a build this bundle cannot perform should fail at load with
+ * `NoBinaryFoundError` and not halfway through a compile.
+ */
+const LLAMA_OPTIONS = { build: 'never' } as const;
+
 let loaded: { path: string; model: LoadedModel } | undefined;
 
 /** Load the library and report the backend it chose, and what it cost. */
 async function probe(id: string): Promise<string> {
   const started = Date.now();
   const nlc = await library();
-  const getLlama = nlc.getLlama as () => Promise<{ gpu: string | false }>;
-  const llama = await getLlama();
+  const getLlama = nlc.getLlama as (
+    options: typeof LLAMA_OPTIONS,
+  ) => Promise<{ gpu: string | false }>;
+  const llama = await getLlama(LLAMA_OPTIONS);
   const device = llama.gpu === false ? 'cpu' : llama.gpu;
   // The number, not a round guess, is what a timeout on a platform nobody has
   // measured should be derived from. Issue #133.
@@ -114,11 +133,13 @@ async function model(modelPath: string, id: string): Promise<LoadedModel> {
 
   await probe(id);
   const nlc = await library();
-  const getLlama = nlc.getLlama as () => Promise<{
+  const getLlama = nlc.getLlama as (
+    options: typeof LLAMA_OPTIONS,
+  ) => Promise<{
     loadModel: (options: { modelPath: string }) => Promise<LoadedModel>;
   }>;
 
-  const llama = await getLlama();
+  const llama = await getLlama(LLAMA_OPTIONS);
   const opened = await llama.loadModel({ modelPath });
   loaded = { path: modelPath, model: opened };
   return opened;

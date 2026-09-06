@@ -1,4 +1,4 @@
-import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, statSync } from 'node:fs';
 import path from 'node:path';
 
 import { FusesPlugin } from '@electron-forge/plugin-fuses';
@@ -6,7 +6,7 @@ import { VitePlugin } from '@electron-forge/plugin-vite';
 import type { ForgeConfig } from '@electron-forge/shared-types';
 import { FuseV1Options, FuseVersion } from '@electron/fuses';
 
-import { PACKAGE_FUSES, RUNTIME_ICONS, LLAMA_BACKENDS_VARIABLE, bundleIcon, externalClosure, hoistedDependencies, llamaPackagePlan, parseLlamaBackends } from './scripts/package-contract.mjs';
+import { PACKAGE_FUSES, RUNTIME_ICONS, LLAMA_BACKENDS_VARIABLE, LLAMA_SOURCE_INPUTS, bundleIcon, externalClosure, hoistedDependencies, llamaPackagePlan, parseLlamaBackends } from './scripts/package-contract.mjs';
 
 /**
  * The external native modules, and the packages npm hoisted out of them.
@@ -226,6 +226,32 @@ function pruneLlamaBackends(buildPath: string, platform: string, arch: string): 
   }
 }
 
+/**
+ * Drop the llama.cpp source this build cannot compile.
+ *
+ * `LLAMA_SOURCE_INPUTS` holds the argument. It throws on a path that is not
+ * there rather than skipping it, for the reason `prunePtyPrebuilds` does: a
+ * rename upstream would otherwise ship the 33 MB again with the build still
+ * green, and nobody looks at a bundle's size on purpose.
+ */
+function pruneLlamaSource(buildPath: string): void {
+  for (const entry of LLAMA_SOURCE_INPUTS) {
+    const target = path.join(buildPath, entry);
+    if (!existsSync(target)) {
+      throw new Error(
+        `${entry} is not in the package. node-llama-cpp's layout has changed and ` +
+          'this build cannot tell what it is shipping.',
+      );
+    }
+    const { size } = statSync(target);
+    rmSync(target, { recursive: true, force: true });
+    console.warn(
+      `llama source: dropped ${entry} (${String(Math.round(size / 1e6))} MB); ` +
+        'this build sets `build: never`, so llama.cpp is never compiled here.',
+    );
+  }
+}
+
 const config: ForgeConfig = {
   packagerConfig: {
     /**
@@ -343,6 +369,7 @@ const config: ForgeConfig = {
       copyExternalClosure(buildPath);
       prunePtyPrebuilds(buildPath, platform, arch);
       pruneLlamaBackends(buildPath, platform, arch);
+      pruneLlamaSource(buildPath);
       return Promise.resolve();
     },
   },

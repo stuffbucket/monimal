@@ -157,6 +157,12 @@ package provenance or publisher identity -- the proxy does that.
   `build:package`, same reason.
 - `maximal-electron`: every `npm run` replaced with `pnpm run`. npm does not
   recognise the config pnpm exports and warned four times per invocation.
+- `maximal-electron`: `src/main/llama-worker.ts` passes `build: 'never'` to
+  `getLlama()`, and packaging drops
+  `node-llama-cpp/llama/gitRelease.bundle` -- 33 MB of llama.cpp source for a
+  compile that cannot run in an Electron bundle. Upstream already defaults the
+  option that way inside Electron; stating it makes the packaging decision rest
+  on this application's choice rather than on a default that could change.
 - `maximal-electron`: dropped `pnpm.onlyBuiltDependencies`. It duplicated the
   root list, which is the only one pnpm honours.
 - `maximal-electron`: deleted its `.npmrc`. Its only line set

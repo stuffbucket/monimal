@@ -23,6 +23,7 @@ import { FuseV1Options, getCurrentFuseWire } from '@electron/fuses';
 
 import {
   LLAMA_BACKENDS_VARIABLE,
+  LLAMA_SOURCE_INPUTS,
   PACKAGE_FUSES,
   RUNTIME_ICONS,
   externalClosure,
@@ -416,6 +417,51 @@ check(
     : `${String(strays.length)} scope entr(ies) belong to a dropped package, first ${strays[0]}`,
 );
 
+
+/*
+ * The llama.cpp source is not in the package, and the option that makes that
+ * safe is.
+ *
+ * Two halves of one argument, so neither can be changed alone. The build drops
+ * `llama/gitRelease.bundle` because `getLlama` is asked for `build: 'never'`
+ * and therefore never clones or compiles; if that option went away, the
+ * application would ask for a build whose 33 MB of input this hook had already
+ * deleted, and the failure would arrive at run time on a user's machine.
+ *
+ * The option is read off the BUILT worker, not off `src/`. What ships is what
+ * matters, and the two are a bundler apart.
+ */
+console.log('\nllama.cpp source');
+
+const packedSet = new Set(listing.map((entry) => entry.replace(/^\//, '')));
+const unpackedSet = new Set(unpackedFiles);
+for (const entry of LLAMA_SOURCE_INPUTS) {
+  check(
+    !packedSet.has(entry) && !unpackedSet.has(entry),
+    `${entry} is not in the package`,
+  );
+}
+
+const worker = (() => {
+  const built = listing
+    .map((entry) => entry.replace(/^\//, ''))
+    .filter((entry) => /^\.vite\/build\/.*llama.*\.js$/.test(entry));
+  // The floor. A pattern that matched nothing would report the option present
+  // by reading no file at all -- and this file has been renamed once already.
+  check(built.length === 1, `one built llama worker was found, at ${built[0] ?? 'nowhere'}`);
+  if (built.length !== 1) return '';
+  return extractFile(asar, path.join(...built[0].split('/'))).toString('utf8');
+})();
+
+/*
+ * Backticks are in the character class deliberately. The bundler emits
+ * `{build:`never`}` -- a template literal -- and a pattern that accepted only
+ * quotes failed against a worker that was correct.
+ */
+check(
+  /build\s*:\s*["'`]never["'`]/.test(worker),
+  'the built worker asks getLlama for build: never',
+);
 
 // The floor. With an empty closure every assertion below runs zero times, and
 // the run is green over a package that cannot load the library at all.
