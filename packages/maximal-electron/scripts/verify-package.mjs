@@ -29,6 +29,7 @@ import {
   hoistedDependencies,
   llamaPackagePlan,
   parseLlamaBackends,
+  platformPackagePlan,
 } from './package-contract.mjs';
 import { terminalPackageChecks } from './terminal-package.mjs';
 
@@ -448,12 +449,78 @@ check(
  * is how the library stops loading.
  */
 const listedPaths = new Set(listing.map((entry) => entry.replace(/^\//, '')));
-const unplaced = CLOSURE.filter(({ path: placement }) => !listedPaths.has(placement));
+
+/*
+ * Minus what this target cannot run.
+ *
+ * `packageAfterCopy` drops a package whose own `os` or `cpu` excludes the
+ * build's platform, so the closure is the set that was COPIED and not the set
+ * that ships. Expecting all of it here would fail a build that pruned
+ * correctly, which is the same drift `llamaPackagePlan` above exists to avoid:
+ * what the build drops is what this stops expecting, from one function.
+ */
+const platformPlan = platformPackagePlan(
+  CLOSURE.map(({ dir, path: placement }) => {
+    const json = IO.readPackageJson(dir) ?? {};
+    return { path: placement, os: json.os, cpu: json.cpu };
+  }),
+  process.platform,
+  process.arch,
+);
+const platformDropped = platformPlan.filter((entry) => !entry.keep);
+for (const entry of platformDropped) {
+  console.log(`  dropped ${entry.path}: ${entry.reason}`);
+}
+
+const expected = new Set(platformPlan.filter((entry) => entry.keep).map((entry) => entry.path));
+const unplaced = CLOSURE.filter(
+  ({ path: placement }) => expected.has(placement) && !listedPaths.has(placement),
+);
 check(
   unplaced.length === 0,
   unplaced.length === 0
-    ? `all ${String(CLOSURE.length)} closure placements are packed`
+    ? `all ${String(expected.size)} closure placements this target runs are packed`
     : `${String(unplaced.length)} closure placement(s) are missing, first ${unplaced[0]?.path ?? ''}`,
+);
+
+/*
+ * And nothing packed is for another platform.
+ *
+ * The other half, and the one a prune that silently did nothing fails:
+ * `unplaced` is satisfied whether or not anything was dropped. Read off the
+ * archive rather than off the closure, so a package the copy placed and the
+ * closure does not name is judged too.
+ *
+ * `@reflink/reflink-darwin-arm64` is why this exists. It reaches the closure
+ * through `ipull` through `node-llama-cpp`, declares `"os": ["darwin"]`, and a
+ * `--platform=win32` build made on a Mac shipped it -- a Mach-O `.node` in a
+ * Windows bundle, three optional dependencies down from anything this package
+ * imports.
+ */
+const packedManifests = listing
+  .map((entry) => entry.replace(/^\//, ''))
+  .filter((entry) => entry.startsWith('node_modules/') && entry.endsWith('/package.json'));
+
+// The floor. An archive this found no manifests in would report every packed
+// package as runnable by reading none of them.
+check(packedManifests.length > 0, `${String(packedManifests.length)} packed manifest(s) were read`);
+
+const packedPlan = platformPackagePlan(
+  packedManifests.map((manifest) => {
+    // `extractFile` splits on `path.sep`, so a forward-slashed path resolves
+    // nowhere on Windows. Same rewrite as `declaredPolicy` above.
+    const json = JSON.parse(extractFile(asar, path.join(...manifest.split('/'))).toString('utf8'));
+    return { path: path.posix.dirname(manifest), os: json.os, cpu: json.cpu };
+  }),
+  process.platform,
+  process.arch,
+);
+const foreign = packedPlan.filter((entry) => !entry.keep);
+check(
+  foreign.length === 0,
+  foreign.length === 0
+    ? `all ${String(packedPlan.length)} packed package(s) run on ${process.platform}-${process.arch}`
+    : `${String(foreign.length)} packed package(s) cannot run here, first ${foreign[0]?.path ?? ''} (${foreign[0]?.reason ?? ''})`,
 );
 
 /*

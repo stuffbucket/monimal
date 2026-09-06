@@ -30,7 +30,7 @@
     "@deepseek-ai/dsh-llm": "0.1.0-rc.6",
     "@stuffbucket/eslint-config": "workspace:*",
     "@types/node": "^22.10.0",
-    "eslint": "^10.8.1",
+    "eslint": "^10.9.1",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3"
   },

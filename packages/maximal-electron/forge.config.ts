@@ -6,7 +6,7 @@ import { VitePlugin } from '@electron-forge/plugin-vite';
 import type { ForgeConfig } from '@electron-forge/shared-types';
 import { FuseV1Options, FuseVersion } from '@electron/fuses';
 
-import { PACKAGE_FUSES, RUNTIME_ICONS, LLAMA_BACKENDS_VARIABLE, bundleIcon, externalClosure, hoistedDependencies, llamaPackagePlan, parseLlamaBackends } from './scripts/package-contract.mjs';
+import { PACKAGE_FUSES, RUNTIME_ICONS, LLAMA_BACKENDS_VARIABLE, bundleIcon, externalClosure, hoistedDependencies, llamaPackagePlan, parseLlamaBackends, platformPackagePlan } from './scripts/package-contract.mjs';
 
 /**
  * The external native modules, and the packages npm hoisted out of them.
@@ -226,6 +226,71 @@ function pruneLlamaBackends(buildPath: string, platform: string, arch: string): 
   }
 }
 
+/**
+ * Drop every copied package this target cannot run.
+ *
+ * The two prune hooks above each know one scope by name. This one knows none:
+ * it reads the `os` and `cpu` fields npm publishes and keeps what they admit,
+ * so a package that ships one prebuilt binary per platform is handled the day
+ * it enters the closure rather than the day someone notices.
+ *
+ * There was already a second instance. `@reflink/reflink` -- reached through
+ * `ipull`, reached through `node-llama-cpp` -- declares eight platform
+ * siblings as optional dependencies, and the installer places the one matching
+ * the machine running the install. That machine is not the target, so a
+ * `--platform=win32` build made on an Apple Silicon Mac copied
+ * `@reflink/reflink-darwin-arm64`, a Mach-O `.node`, into a Windows bundle.
+ *
+ * Last of the three, so the two hooks that throw on a layout change report
+ * first, and this stays a backstop rather than removing what they came to
+ * inspect.
+ */
+function prunePlatformPackages(buildPath: string, platform: string, arch: string): void {
+  const modules = path.join(buildPath, 'node_modules');
+  if (!existsSync(modules)) {
+    throw new Error(`The bundle has no node_modules at ${modules}.`);
+  }
+
+  const manifests = readdirSync(modules, { recursive: true, encoding: 'utf8' })
+    .filter((entry) => path.basename(entry) === 'package.json')
+    .map((entry) => path.join('node_modules', entry));
+
+  // The floor. A walk that found nothing would pass every package as
+  // compatible by judging none of them, which is the shape of green run this
+  // whole file exists to stop.
+  if (manifests.length === 0) {
+    throw new Error(`No package manifests under ${modules}. Nothing was judged.`);
+  }
+
+  const plan = platformPackagePlan(
+    manifests.map((manifest) => {
+      const json = JSON.parse(readFileSync(path.join(buildPath, manifest), 'utf8')) as {
+        os?: string[];
+        cpu?: string[];
+      };
+      return { path: path.dirname(manifest), os: json.os, cpu: json.cpu };
+    }),
+    platform,
+    arch,
+  );
+
+  const dropped = plan.filter((entry) => !entry.keep);
+  for (const entry of dropped) {
+    rmSync(path.join(buildPath, entry.path), { recursive: true, force: true });
+  }
+
+  // Said out loud for the same reason the llama.cpp backends are: a package
+  // that leaves the bundle is a behaviour change for whoever installs it, and
+  // a required dependency dropped here would be visible in this line rather
+  // than inferred from a crash.
+  if (dropped.length > 0) {
+    console.warn(
+      `platform: dropped ${String(dropped.length)} of ${String(plan.length)} packed package(s) for ` +
+        `${platform}-${arch}; ${dropped.map((entry) => `${entry.path} (${entry.reason})`).join(', ')}.`,
+    );
+  }
+}
+
 const config: ForgeConfig = {
   packagerConfig: {
     /**
@@ -343,6 +408,9 @@ const config: ForgeConfig = {
       copyExternalClosure(buildPath);
       prunePtyPrebuilds(buildPath, platform, arch);
       pruneLlamaBackends(buildPath, platform, arch);
+      // Last: the two above throw on a layout change, and this would otherwise
+      // have removed what they came to inspect.
+      prunePlatformPackages(buildPath, platform, arch);
       return Promise.resolve();
     },
   },
