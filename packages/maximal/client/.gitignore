@@ -1,4 +1,6 @@
 node_modules/
+# The privately named development Electron bundle. See scripts/name-dev-bundle.mjs.
+.electron-dev/
 .vite/
 out/
 resources/bin/

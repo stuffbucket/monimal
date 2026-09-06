@@ -27,6 +27,15 @@ export default defineConfig({
           include: ['src/renderer/**/*.test.{ts,tsx}'],
         },
       },
+      // Build and launch scripts. Plain ESM run by `node`, outside both of the
+      // environments above, and previously outside every test.
+      {
+        test: {
+          name: 'scripts',
+          environment: 'node',
+          include: ['scripts/**/*.test.ts'],
+        },
+      },
     ],
   },
 })
