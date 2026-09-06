@@ -201,6 +201,119 @@ export function llamaPackagePlan(present, platform, arch, backends) {
   });
 }
 
+/* ------------------------------------------------ platform-locked packages */
+
+/**
+ * The `process.platform` a Forge target runs on.
+ *
+ * `mas` is the Mac App Store build of a darwin application, so a package
+ * declaring `"os": ["darwin"]` runs there. Every other Forge platform name is
+ * already a `process.platform` value.
+ */
+const TARGET_PLATFORM = { mas: 'darwin' };
+
+/**
+ * npm's own `os`/`cpu` rule, which is not "is the value in the list".
+ *
+ * A list may hold exclusions, written `!win32`. If every entry is an
+ * exclusion, anything not named matches; if any entry is an inclusion, the
+ * value has to be one of them. `any` matches everything. Reimplemented rather
+ * than depended on: this module loads under plain `node` with no imports, for
+ * `verify-package.mjs`.
+ *
+ * @param {readonly string[] | string | undefined} list
+ * @param {string} value
+ * @returns {boolean}
+ */
+export function admitsTarget(list, value) {
+  if (list === undefined) return true;
+  const entries = typeof list === 'string' ? [list] : [...list];
+  if (entries.length === 0) return true;
+  if (entries.length === 1 && entries[0] === 'any') return true;
+
+  let excluded = 0;
+  let included = false;
+  for (const entry of entries) {
+    if (entry.startsWith('!')) {
+      excluded += 1;
+      if (entry.slice(1) === value) return false;
+    } else if (entry === value) {
+      included = true;
+    }
+  }
+  return excluded === entries.length || included;
+}
+
+/**
+ * @typedef {object} PlatformPackage
+ * @property {string} path Bundle-relative directory, used in the message.
+ * @property {readonly string[] | string} [os]
+ * @property {readonly string[] | string} [cpu]
+ */
+
+/**
+ * @typedef {object} PlatformPackageDecision
+ * @property {string} path
+ * @property {boolean} keep
+ * @property {string} reason
+ */
+
+/**
+ * Decide which copied packages this target can actually run.
+ *
+ * A package that ships a prebuilt binary per platform is published as a scope
+ * of siblings, each declaring the one `os` and `cpu` it holds a binary for,
+ * and the installer places whichever matches the machine doing the installing.
+ * That machine is not the target: `--platform=win32` built here copied
+ * `@reflink/reflink-darwin-arm64` -- a Mach-O `.node` -- into a Windows
+ * bundle, where the only thing that could happen is a load failure.
+ *
+ * `llamaPackagePlan` is the same rule written for one scope, by parsing names.
+ * This reads the fields npm publishes, so it needs no knowledge of any
+ * package: it caught `@reflink/reflink-*` on the day it was written, which was
+ * the second instance of a shape that had already cost issue #113.
+ *
+ * Dropping is right whether or not the dependency was optional. A package
+ * whose own manifest excludes the target cannot load there, so shipping it
+ * trades a missing optional feature for a crash. The build says what it
+ * dropped, so a required one is visible rather than inferred.
+ *
+ * Sorted by path, so the build log and the check read alike.
+ *
+ * @param {readonly PlatformPackage[]} packages
+ * @param {string} platform A Forge platform name.
+ * @param {string} arch A Forge arch name; `universal` means both macOS slices.
+ * @returns {PlatformPackageDecision[]}
+ */
+export function platformPackagePlan(packages, platform, arch) {
+  const os = TARGET_PLATFORM[platform] ?? platform;
+  // A universal build carries both slices, so a package holding a binary for
+  // either one is still needed by half of it.
+  const arches = arch === 'universal' ? ['x64', 'arm64'] : [arch];
+
+  return [...packages]
+    .sort((left, right) => (left.path < right.path ? -1 : left.path > right.path ? 1 : 0))
+    .map((entry) => {
+      if (!admitsTarget(entry.os, os)) {
+        return { path: entry.path, keep: false, reason: `declares os ${describe(entry.os)}, not ${os}` };
+      }
+      if (!arches.some((each) => admitsTarget(entry.cpu, each))) {
+        return {
+          path: entry.path,
+          keep: false,
+          reason: `declares cpu ${describe(entry.cpu)}, not ${arches.join(' or ')}`,
+        };
+      }
+      return { path: entry.path, keep: true, reason: 'runs on this target' };
+    });
+}
+
+/** @param {readonly string[] | string | undefined} list */
+function describe(list) {
+  if (list === undefined) return 'nothing';
+  return (typeof list === 'string' ? [list] : list).join(', ');
+}
+
 /* ------------------------------------------------ building from source */
 
 /**

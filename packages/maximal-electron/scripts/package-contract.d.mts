@@ -41,6 +41,29 @@ export declare function llamaPackagePlan(
   backends: readonly string[],
 ): LlamaPackageDecision[];
 
+export declare function admitsTarget(
+  list: readonly string[] | string | undefined,
+  value: string,
+): boolean;
+
+export interface PlatformPackage {
+  path: string;
+  os?: readonly string[] | string;
+  cpu?: readonly string[] | string;
+}
+
+export interface PlatformPackageDecision {
+  path: string;
+  keep: boolean;
+  reason: string;
+}
+
+export declare function platformPackagePlan(
+  packages: readonly PlatformPackage[],
+  platform: string,
+  arch: string,
+): PlatformPackageDecision[];
+
 export declare const LLAMA_SOURCE_INPUTS: readonly string[];
 
 export interface PackageContractIo {

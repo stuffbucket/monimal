@@ -46,6 +46,7 @@ const RUNTIME_ONLY = [
  * not an exemption: #125 holds the count and the disposition rule.
  */
 export const DEFERRED = new Map([
+  ['scripts/build-package.mjs', 125],
   ['scripts/check-contrast.mjs', 125],
   ['scripts/check-install.mjs', 125],
   ['scripts/compose.mjs', 125],

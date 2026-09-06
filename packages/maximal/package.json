@@ -62,10 +62,10 @@
     "@stuffbucket/eslint-config": "workspace:*",
     "@types/bun": "^1.2.23",
     "bumpp": "^10.2.3",
-    "eslint": "^10.8.1",
+    "eslint": "^10.9.1",
     "knip": "^5.64.1",
     "lint-staged": "^16.2.3",
-    "oxlint": "^1.63.0",
+    "oxlint": "^1.80.0",
     "typescript": "^5.9.3"
   },
   "engines": {

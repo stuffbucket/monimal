@@ -157,6 +157,17 @@ package provenance or publisher identity -- the proxy does that.
   `build:package`, same reason.
 - `maximal-electron`: every `npm run` replaced with `pnpm run`. npm does not
   recognise the config pnpm exports and warned four times per invocation.
+- `maximal-electron`: the nested `pnpm run` taken back out of the build hooks.
+  `build:package` and the four `pre*` hooks that called it are now
+  `node scripts/build-package.mjs`, which invokes `tsc` at its installed path
+  and imports the stylesheet copy. `pnpm run` writes resolution progress to
+  stdout whenever the lockfile does not match the configured registry — every
+  invocation behind the proxy in `.npmrc` — and `scripts/verify-exports.mjs`
+  parses `npm pack --dry-run --json` off the stdout `prepack` inherits. The
+  check therefore passed in CI, where resolution is clean, and crashed with
+  `Unexpected token 'S'` for anyone who ran it locally; it also rewrote
+  `pnpm-lock.yaml` on its way out, which is the lockfile hazard above reached
+  through a read-only check.
 - `maximal-electron`: `src/main/llama-worker.ts` passes `build: 'never'` to
   `getLlama()`, and packaging drops
   `node-llama-cpp/llama/gitRelease.bundle` -- 33 MB of llama.cpp source for a
