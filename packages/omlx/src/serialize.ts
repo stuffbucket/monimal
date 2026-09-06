@@ -119,16 +119,23 @@ function replayForMessage(message: Message): OmlxReplayState | undefined {
   if (value === undefined) return undefined
   if (
     !isRecord(value)
-    || value.type !== ANTHROPIC_REPLAY_TYPE
-    || !Array.isArray(value.content)
-    || !hasOnlyKeys(value, ["content", "type"])
+    || !isRecord(value.response)
+    || value.response.type !== ANTHROPIC_REPLAY_TYPE
+    || !hasOnlyKeys(value.response, ["type"])
+    || !Array.isArray(value.blocks)
+    || !hasOnlyKeys(value, ["blocks", "response"])
   ) {
     invalidReplay(
       "assistant replay state is malformed or belongs to another adapter",
     )
   }
-  if (value.content.length !== message.content.length) {
-    invalidReplay("assistant replay content does not match the message")
+  // dsh-llm's assembler discards an envelope whose `blocks` do not align with
+  // the emitted content, and it does so silently. Reaching here with a length
+  // mismatch therefore means the envelope was built wrong rather than pruned,
+  // which is worth an error rather than a quietly signature-less reasoning
+  // block.
+  if (value.blocks.length !== message.content.length) {
+    invalidReplay("assistant replay blocks do not match the message")
   }
   return value as unknown as OmlxReplayState
 }
@@ -190,7 +197,7 @@ function serializeMessage(message: Message): WireMessage {
   const replay = replayForMessage(message)
   const content: Array<JsonObject> = []
   for (const [index, block] of message.content.entries()) {
-    const replayBlock = replay?.content[index]
+    const replayBlock = replay?.blocks[index]
     switch (block.type) {
       case "text": {
         if (replay !== undefined) validateTextReplay(block, replayBlock)

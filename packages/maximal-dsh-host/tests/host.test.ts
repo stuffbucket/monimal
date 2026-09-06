@@ -422,8 +422,8 @@ void test("assistant thinking history carries strict Anthropic replay state", as
   }
   assert.deepEqual(echoed.replayStates, [
     {
-      type: "anthropic-message-v1",
-      content: [
+      response: { type: "anthropic-message-v1" },
+      blocks: [
         {
           type: "thinking",
           thinking: "prior thought",

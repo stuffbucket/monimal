@@ -109,7 +109,7 @@ async function materializeOmlx(nodeModules: string): Promise<void> {
       dependencies: { "@deepseek-ai/schemastery": "3.18.1" },
       peerDependencies: {
         "@deepseek-ai/cordis": "4.0.1",
-        "@deepseek-ai/dsh-llm": "0.1.0-rc.6",
+        "@deepseek-ai/dsh-llm": "0.1.0-rc.8",
       },
     }),
   )
@@ -142,7 +142,7 @@ async function createProfile(): Promise<string> {
         "@deepseek-ai/dsh-attachment": "0.1.0-rc.6",
         "@deepseek-ai/dsh-brand": "0.1.0-rc.6",
         "@deepseek-ai/dsh-invariants": "0.1.0-rc.6",
-        "@deepseek-ai/dsh-llm": "0.1.0-rc.6",
+        "@deepseek-ai/dsh-llm": "0.1.0-rc.8",
         "@deepseek-ai/dsh-timeout": "0.1.0-rc.6",
         "@deepseek-ai/schemastery": "3.18.1",
         "@stuffbucket/omlx": "0.0.0",

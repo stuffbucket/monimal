@@ -57,9 +57,16 @@ type WireContent =
       type: "tool_result"
     }
 
+/** dsh-llm's `ReplayEnvelope`, narrowed to this adapter's own state.
+ *
+ *  The per-block half lives in `blocks`, not inside `response`: the assembler
+ *  prunes `blocks` in step with the content it drops (a max-tokens finish drops
+ *  unexecutable tool calls), so the two stay aligned. It also discards the whole
+ *  envelope, silently, when they are not -- which is why `replayState` below
+ *  rebuilds rather than casts. */
 interface ReplayState {
-  content: Array<unknown>
-  type: "anthropic-message-v1"
+  response: { type: "anthropic-message-v1" }
+  blocks: Array<unknown>
 }
 
 const KNOWN_OPTION_KEYS = new Set([
@@ -136,7 +143,7 @@ function serializeMessage(message: Message): WireMessage {
   }
   const replay = replayState(message)
   const content = message.content.map((block, index) =>
-    serializeBlock(block, role, replay?.content[index]),
+    serializeBlock(block, role, replay?.blocks[index]),
   )
   return { content, role }
 }
@@ -229,10 +236,12 @@ function serializeTool(tool: ToolSchema): WireTool {
 function replayState(message: Message): ReplayState | undefined {
   if (message.source.kind !== "model") return undefined
   const value = message.source.replayState
-  if (!isRecord(value) || value.type !== "anthropic-message-v1")
+  if (!isRecord(value)) return undefined
+  const response = value.response
+  if (!isRecord(response) || response.type !== "anthropic-message-v1")
     return undefined
-  if (!Array.isArray(value.content)) return undefined
-  return { content: value.content, type: "anthropic-message-v1" }
+  if (!Array.isArray(value.blocks)) return undefined
+  return { blocks: value.blocks, response: { type: "anthropic-message-v1" } }
 }
 
 function validateStop(stop: Array<string>): Array<string> {

@@ -225,7 +225,10 @@ function parseContent(
             kind: "model",
             provider,
             model,
-            replayState: { type: "anthropic-message-v1", content: replay },
+            replayState: {
+              blocks: replay,
+              response: { type: "anthropic-message-v1" },
+            },
           }
         : { kind: "user" },
     })
@@ -645,20 +648,31 @@ function completionBlocks(
   const needsReplay = entries.some(([, block]) => block.type === "reasoning")
   let replay: Array<unknown> | undefined
   if (needsReplay) {
+    // dsh-llm's ReplayEnvelope: `response` carries what is true of the whole
+    // reply, `blocks` one entry per emitted block. The assembler prunes
+    // `blocks` alongside any block it drops, so the lengths agree here unless
+    // the provider built the envelope wrong -- and when they disagree earlier,
+    // the assembler discards the envelope entirely and silently, which arrives
+    // as a missing one rather than a mismatched one.
     const envelope = providerObject(replayState, "Anthropic replay state")
     assertProviderKeys(
       envelope,
-      new Set(["type", "content"]),
+      new Set(["response", "blocks"]),
       "Anthropic replay state",
     )
+    const response = providerObject(
+      envelope.response,
+      "Anthropic replay response",
+    )
+    assertProviderKeys(response, new Set(["type"]), "Anthropic replay response")
     if (
-      envelope.type !== "anthropic-message-v1"
-      || !Array.isArray(envelope.content)
-      || envelope.content.length !== entries.length
+      response.type !== "anthropic-message-v1"
+      || !Array.isArray(envelope.blocks)
+      || envelope.blocks.length !== entries.length
     ) {
       providerProtocol("The provider returned invalid Anthropic replay state.")
     }
-    replay = envelope.content
+    replay = envelope.blocks
   }
   return entries.map(([, block], index) => mapBlock(block, replay?.[index]))
 }
