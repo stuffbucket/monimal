@@ -302,8 +302,8 @@ test("sends exact oMLX headers and Anthropic Messages request body", async () =>
                 },
               ],
               {
-                type: "anthropic-message-v1",
-                content: [
+                response: { type: "anthropic-message-v1" },
+                blocks: [
                   {
                     type: "thinking",
                     thinking: "thought",
@@ -602,8 +602,8 @@ test("translates text, reasoning, and tool streams with usage immediately before
       type: "finish",
       reason: { kind: "tool-calls" },
       replayState: {
-        type: "anthropic-message-v1",
-        content: [
+        response: { type: "anthropic-message-v1" },
+        blocks: [
           {
             type: "thinking",
             thinking: "plan",

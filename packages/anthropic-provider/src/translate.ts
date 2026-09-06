@@ -108,7 +108,10 @@ export async function* translate(
   yield {
     type: "finish",
     reason: state.finishReason,
-    replayState: { content: state.replay, type: "anthropic-message-v1" },
+    replayState: {
+      blocks: state.replay,
+      response: { type: "anthropic-message-v1" },
+    },
   }
 }
 

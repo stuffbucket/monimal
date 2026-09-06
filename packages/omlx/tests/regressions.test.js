@@ -230,8 +230,8 @@ test("accepts host-shaped Anthropic replay and round-trips signed reasoning", as
     const finish = first.at(-1)
     assert.equal(finish.type, "finish")
     assert.deepEqual(finish.replayState, {
-      type: "anthropic-message-v1",
-      content: [
+      response: { type: "anthropic-message-v1" },
+      blocks: [
         {
           type: "thinking",
           thinking: "signed plan",
@@ -269,14 +269,17 @@ test("accepts host-shaped Anthropic replay and round-trips signed reasoning", as
 test("rejects malformed and mismatched Anthropic replay before fetch", async () => {
   const adapter = new plugin.OmlxAdapter(config("http://127.0.0.1:1"))
   const malformedStates = [
-    { type: "other-adapter", content: [] },
+    // Another adapter's envelope: well-formed, wrong owner. Keeping this in the
+    // envelope shape is the point -- a bare `{type, content}` would be rejected
+    // for being malformed and would stop covering the ownership check.
+    { response: { type: "other-adapter" }, blocks: [] },
     {
-      type: "anthropic-message-v1",
-      content: [{ type: "thinking", thinking: "different", signature: "sig" }],
+      response: { type: "anthropic-message-v1" },
+      blocks: [{ type: "thinking", thinking: "different", signature: "sig" }],
     },
     {
-      type: "anthropic-message-v1",
-      content: [
+      response: { type: "anthropic-message-v1" },
+      blocks: [
         {
           type: "thinking",
           thinking: "plan",

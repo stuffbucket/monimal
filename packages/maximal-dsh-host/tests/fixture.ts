@@ -149,8 +149,30 @@ class Adapter extends LlmAdapter {
         type: "finish",
         reason: { kind: "stop" },
         replayState: {
-          type: "anthropic-message-v1",
-          content: [{ type: "thinking", thinking: "considering", signature: "signed-fixture" }],
+          response: { type: "anthropic-message-v1" },
+          blocks: [{ type: "thinking", thinking: "considering", signature: "signed-fixture" }],
+        },
+      }
+      return
+    }
+    if (this.config.mode === "reasoning-misaligned-replay") {
+      // One emitted block, two replay entries. dsh-llm's own assembler would
+      // discard an envelope like this SILENTLY, leaving the reasoning block
+      // with no signature; the host reads the finish chunk directly, so here it
+      // must be rejected out loud instead.
+      yield { type: "block-start", index: 0, blockType: "reasoning" }
+      yield { type: "reasoning-delta", index: 0, text: "considering" }
+      yield { type: "block-end", index: 0, block: { type: "reasoning", text: "considering" } }
+      yield { type: "usage", usage: { inputTokens: 7, outputTokens: 3 } }
+      yield {
+        type: "finish",
+        reason: { kind: "stop" },
+        replayState: {
+          response: { type: "anthropic-message-v1" },
+          blocks: [
+            { type: "thinking", thinking: "considering", signature: "signed-fixture" },
+            { type: "text", text: "an entry with no block" },
+          ],
         },
       }
       return
@@ -269,7 +291,7 @@ export async function createFixtureProfile(): Promise<FixtureProfile> {
       },
       dependencies: {
         "@deepseek-ai/cordis": "4.0.1",
-        "@deepseek-ai/dsh-llm": "0.1.0-rc.6",
+        "@deepseek-ai/dsh-llm": "0.1.0-rc.8",
         "@deepseek-ai/schemastery": "3.18.1",
         "fixture-dependency": "1.0.0",
       },
@@ -285,7 +307,7 @@ export async function createFixtureProfile(): Promise<FixtureProfile> {
       type: "module",
       dependencies: {
         "@deepseek-ai/cordis": "4.0.1",
-        "@deepseek-ai/dsh-llm": "0.1.0-rc.6",
+        "@deepseek-ai/dsh-llm": "0.1.0-rc.8",
         "fixture-provider": "1.0.0",
       },
     }),

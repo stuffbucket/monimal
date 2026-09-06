@@ -88,7 +88,7 @@ test("sends exact Messages requests and both supported auth forms", async () => 
           model: "claude-opus-5",
           provider: "key-auth",
           replayState: {
-            content: [
+            blocks: [
               { signature: "sig-history", thinking: "Plan", type: "thinking" },
               { text: "Calling it.", type: "text" },
               {
@@ -98,7 +98,7 @@ test("sends exact Messages requests and both supported auth forms", async () => 
                 type: "tool_use",
               },
             ],
-            type: "anthropic-message-v1",
+            response: { type: "anthropic-message-v1" },
           },
         },
       }),
@@ -389,7 +389,7 @@ test("parses CRLF and UTF-8 boundaries for reasoning, text, tools, and usage", a
     if (finish?.type === "finish") {
       assert.deepEqual(finish.reason, { kind: "tool-calls" })
       assert.deepEqual(finish.replayState, {
-        content: [
+        blocks: [
           { signature: "sig-live", thinking: "Reason", type: "thinking" },
           { text: "Héllo 🐈", type: "text" },
           {
@@ -399,7 +399,7 @@ test("parses CRLF and UTF-8 boundaries for reasoning, text, tools, and usage", a
             type: "tool_use",
           },
         ],
-        type: "anthropic-message-v1",
+        response: { type: "anthropic-message-v1" },
       })
     }
   } finally {

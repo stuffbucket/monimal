@@ -79,7 +79,7 @@ void test("profile accepts only declared bare exact dependencies", async () => {
       version: "1.0.0",
       dependencies: {
         "@deepseek-ai/cordis": "^4.0.1",
-        "@deepseek-ai/dsh-llm": "0.1.0-rc.6",
+        "@deepseek-ai/dsh-llm": "0.1.0-rc.8",
       },
     }),
   )
