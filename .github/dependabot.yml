@@ -22,11 +22,23 @@ updates:
   # that each re-resolve the same lockfile. Majors are separated because they
   # are the ones that need a human: the two breakages this repo has actually
   # hit -- astro 6 -> 7 and vite 7 -> 8 -- were both majors.
+  #
+  # Majors are split further, by what evidence would settle the PR. One group
+  # of 17 arrived once and could not be reviewed: a green CI run is sufficient
+  # evidence for a linter and no evidence at all that the released app still
+  # signs, notarizes and staples, so the two cannot share a verdict.
+  #
+  # Dependabot puts a package in the FIRST group whose patterns match, so the
+  # catch-all MUST stay last. Adding a group above it silently reassigns
+  # whatever it matches.
   - package-ecosystem: npm
     directory: /
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
+    # Five groups below can be open at once, and this limit is shared with any
+    # ungrouped npm PR. At 5 the split would starve itself: one stale open PR
+    # and a whole group stops arriving, silently.
+    open-pull-requests-limit: 8
     groups:
       npm-minor-and-patch:
         patterns:
@@ -34,7 +46,49 @@ updates:
         update-types:
           - minor
           - patch
-      npm-major:
+
+      # Changes the artifact users install. Green CI cannot show that the
+      # bundle identifier and Team ID survived, and RELEASING.md makes a
+      # Gatekeeper acceptance test on a Mac that never held the signing
+      # identity a precondition for publishing. Verified by a prerelease tag
+      # through macos-builder, then scripts/verify-dmg.sh.
+      npm-major-electron:
+        patterns:
+          - "electron"
+          - "@electron/*"
+          - "@vitejs/plugin-react"
+        update-types:
+          - major
+
+      # Retypes every package at once, so a break here is workspace-wide and
+      # unrelated to any one package's behaviour. Verified by build, typecheck
+      # and lint across the workspace.
+      npm-major-language:
+        patterns:
+          - "typescript"
+          - "@types/node"
+        update-types:
+          - major
+
+      # Ships inside the product rather than building it, so a behaviour change
+      # reaches users. Verified by the container suite plus the package
+      # mechanics and sidecar provenance steps.
+      #
+      # This list is explicit and therefore NOT self-maintaining: a newly added
+      # runtime dependency falls through to npm-major-tooling below and gets
+      # reviewed under a name that undersells it. Add it here when it lands.
+      # The two groups above are pattern-based and need no such upkeep.
+      npm-major-runtime:
+        patterns:
+          - "undici"
+          - "gpt-tokenizer"
+          - "proxy-from-env"
+        update-types:
+          - major
+
+      # Everything else: dev-time only, so it cannot reach a user, and a green
+      # CI run is the whole verdict.
+      npm-major-tooling:
         patterns:
           - "*"
         update-types:
