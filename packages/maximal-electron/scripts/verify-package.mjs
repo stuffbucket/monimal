@@ -472,7 +472,32 @@ for (const entry of platformDropped) {
   console.log(`  dropped ${entry.path}: ${entry.reason}`);
 }
 
-const expected = new Set(platformPlan.filter((entry) => entry.keep).map((entry) => entry.path));
+/*
+ * And minus the llama.cpp backends `pruneLlamaBackends` drops, which is not
+ * the same set.
+ *
+ * Two rules drop things and only one of them is about the platform. A
+ * `linux-x64` build installs six `@node-llama-cpp` packages: `linux-arm64` and
+ * `linux-armv7l` go for the architecture, and `linux-x64-cuda`,
+ * `linux-x64-cuda-ext` and `linux-x64-vulkan` go because they are GPU runtimes
+ * nobody asked for -- 505 MB of CUDA that declares exactly this platform and
+ * architecture. The platform plan keeps all three of those, correctly, and the
+ * backend plan drops them.
+ *
+ * This check never saw it. macOS installs ONE package for this target, so the
+ * expectation and the archive agreed on every developer machine, and the first
+ * Linux run of `verify:package` reported five placements missing from a bundle
+ * that was right.
+ */
+const droppedLlamaPaths = new Set(
+  dropped.map((entry) => `${LLAMA_SCOPE}/${entry.name}`),
+);
+
+const expected = new Set(
+  platformPlan
+    .filter((entry) => entry.keep && !droppedLlamaPaths.has(entry.path))
+    .map((entry) => entry.path),
+);
 const unplaced = CLOSURE.filter(
   ({ path: placement }) => expected.has(placement) && !listedPaths.has(placement),
 );

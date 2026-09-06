@@ -163,10 +163,21 @@ jobs:
 
   # Exercises Forge packaging and the public-hoist behavior that ordinary
   # build/typecheck/lint/test do not prove.
+  #
+  # BOTH Electron applications, because they package differently and only one
+  # of them was ever built here. `maximal-client` bundles its dependencies and
+  # ships a sidecar; `@stuffbucket/maximal-electron` keeps two native modules
+  # external and materialises their dependency closure by hand. Four packaging
+  # defects lived in the second one undetected -- a resolver that walked
+  # symlinks, one that appended `node_modules` to a directory already named
+  # that, one that never read `optionalDependencies`, and a packager that
+  # copied links out of the bundle -- because `turbo run package` was filtered
+  # to the first.
   package:
     name: electron package
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Two Forge builds, not one.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -200,7 +211,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/electron
-          key: electron-${{ runner.os }}-${{ hashFiles('packages/maximal/client/package.json') }}
+          key: electron-${{ runner.os }}-${{ hashFiles('packages/maximal/client/package.json', 'packages/maximal-electron/package.json') }}
           restore-keys: electron-${{ runner.os }}-
 
       - run: pnpm install --frozen-lockfile
@@ -210,7 +221,7 @@ jobs:
 
       - run: pnpm run package
 
-      - name: Verify packaged app contents
+      - name: Verify the client's packaged app
         run: |
           set -euo pipefail
           OUT=packages/maximal/client/out
@@ -222,3 +233,11 @@ jobs:
           SIDECAR="$(find "$APP" -name 'maximal-core*' | head -1)"
           test -s "$SIDECAR" || { echo "::error::no sidecar in $APP"; exit 1; }
           echo "asar $(stat -c%s "$ASAR") bytes, sidecar $(stat -c%s "$SIDECAR") bytes"
+
+      # The shell's bundle has its own check already written. It reads the asar
+      # listing, the renderer content policy, the fuse wire off the built
+      # binary, and the native-module closure -- none of which any other job
+      # can see, because the end-to-end suite deliberately drives the
+      # UNPACKAGED tree. Nothing in this repository ran it until now.
+      - name: Verify the shell's packaged app
+        run: pnpm --filter @stuffbucket/maximal-electron run verify:package
