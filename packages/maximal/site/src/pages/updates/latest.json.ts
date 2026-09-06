@@ -14,8 +14,16 @@
 // time, and inline the signature. This mirrors the site's historical build-time
 // releases lookup: authenticate with GITHUB_TOKEN, and FAIL CLOSED.
 //
+// The lookup REQUIRES that token. Anonymous, it draws on GitHub's
+// 60-requests-per-hour-per-IP budget, which every Actions customer on a
+// GitHub-hosted runner shares, so it 403s for reasons unrelated to this repo —
+// which is why a build without a token makes no request at all.
+//
 // FAIL CLOSED — a `latest.json` with a wrong `url` or an empty/placeholder
 // `signature` would make EVERY client's updater fail signature verification. So:
+//   - No GITHUB_TOKEN ⇒ no lookup, and the same EMPTY-body 404 below. A build
+//     that cannot authenticate cannot prove an artifact, and this repository
+//     deploys no manifest from here anyway (see below).
 //   - No updater artifact yet (true until the macos-builder ships it) ⇒ we
 //     return an EMPTY-body 404. Astro then does NOT write dist/updates/latest.json
 //     at all (an empty response body skips file creation), so no bad file ships.
@@ -26,6 +34,7 @@
 
 import {
   buildUpdaterManifest,
+  canFetchUpdaterRelease,
   resolveUpdaterArtifact,
   serializeUpdaterManifest,
   type UpdaterAsset,
@@ -36,10 +45,13 @@ export const prerender = true;
 const REPO = "stuffbucket/maximal";
 
 /** Build-time GitHub API auth + cache-busting, mirroring the site's historical
- *  releases lookup. GITHUB_TOKEN is passed by deploy-pages.yml; it must never
- *  reach the client bundle (this route runs in the Node build context only). */
-function githubHeaders(): Record<string, string> {
-  const token = (process.env.GITHUB_TOKEN ?? "").trim();
+ *  releases lookup. The token comes from GITHUB_TOKEN, supplied by whichever
+ *  workflow deploys this site; it must never reach the client bundle (this
+ *  route runs in the Node build context only). No workflow in THIS repository
+ *  supplies one — `.github/workflows/` holds only ci.yml and release.yml, and
+ *  the manifest mxml.sh serves is deployed from stuffbucket/maximal — so here
+ *  `GET` returns before ever calling this. */
+function githubHeaders(token: string): Record<string, string> {
   const headers: Record<string, string> = {
     Accept: "application/vnd.github+json",
     "User-Agent": "maximal-site-build",
@@ -49,7 +61,7 @@ function githubHeaders(): Record<string, string> {
     "Cache-Control": "no-cache",
     Pragma: "no-cache",
   };
-  if (token) headers.Authorization = `Bearer ${token}`;
+  headers.Authorization = `Bearer ${token}`;
   return headers;
 }
 
@@ -71,12 +83,12 @@ function parseAssets(raw: unknown): UpdaterAsset[] {
 /** Resolve the latest published release's tag + asset list, or null when there
  *  is no published release yet (a legitimate first-launch state). Non-404
  *  failures THROW to fail the build closed. */
-async function fetchLatestRelease(): Promise<{
+async function fetchLatestRelease(token: string): Promise<{
   tag: string;
   assets: UpdaterAsset[];
 } | null> {
   const url = `https://api.github.com/repos/${REPO}/releases/latest?_cb=${Date.now()}`;
-  const res = await fetch(url, { headers: githubHeaders() });
+  const res = await fetch(url, { headers: githubHeaders(token) });
   if (res.status === 404) return null;
   if (!res.ok) {
     throw new Error(
@@ -92,8 +104,11 @@ async function fetchLatestRelease(): Promise<{
 
 /** Fetch the FULL TEXT of the detached signature asset. Returns null when the
  *  body is missing/empty so the caller fails closed. A non-404 error THROWS. */
-async function fetchSignature(asset: UpdaterAsset): Promise<string | null> {
-  const res = await fetch(asset.url, { headers: githubHeaders() });
+async function fetchSignature(
+  asset: UpdaterAsset,
+  token: string,
+): Promise<string | null> {
+  const res = await fetch(asset.url, { headers: githubHeaders(token) });
   if (res.status === 404) return null;
   if (!res.ok) {
     throw new Error(
@@ -112,10 +127,17 @@ function noManifest(): Response {
 }
 
 export async function GET(): Promise<Response> {
-  const release = await fetchLatestRelease();
+  const token = (process.env.GITHUB_TOKEN ?? "").trim();
+  // Before the network, not after it: an unauthenticated lookup fails at random
+  // on a shared runner IP, and this build has nothing to publish either way.
+  if (!canFetchUpdaterRelease(token)) return noManifest();
+
+  const release = await fetchLatestRelease(token);
   if (!release) return noManifest();
 
-  const artifact = await resolveUpdaterArtifact(release.assets, fetchSignature);
+  const artifact = await resolveUpdaterArtifact(release.assets, (asset) =>
+    fetchSignature(asset, token),
+  );
   if (!artifact) return noManifest();
 
   const manifest = buildUpdaterManifest({ tag: release.tag, artifact });

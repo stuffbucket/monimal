@@ -11,6 +11,8 @@
  *   4. FAIL CLOSED: with no updater artifact (or an empty signature body) the
  *      builder/resolver returns null — the route then writes NO latest.json — so
  *      a client never receives an unverifiable manifest.
+ *   5. An unauthenticated build does not look the release up at all, so CI does
+ *      not depend on the anonymous GitHub API budget.
  *
  * Colocated under site/tests (site's builder has no test runner of its own);
  * imports the pure module by relative path. No network — the signature fetch is
@@ -21,6 +23,7 @@ import { describe, expect, test } from "bun:test";
 
 import {
   buildUpdaterManifest,
+  canFetchUpdaterRelease,
   resolveUpdaterArtifact,
   resolveUpdaterAssets,
   serializeUpdaterManifest,
@@ -68,6 +71,22 @@ function mockSignatureFetcher(body: string | null): {
     },
   };
 }
+
+describe("canFetchUpdaterRelease", () => {
+  test("a real token authorizes the lookup", () => {
+    expect(canFetchUpdaterRelease("ghp_example")).toBe(true);
+  });
+
+  test("no token, or a blank one, does not", () => {
+    // process.env.X is undefined when unset and "" when set-but-empty; a
+    // whitespace-only value comes from a workflow interpolating a secret that
+    // does not exist. All three must take the no-lookup path, or CI spends the
+    // anonymous 60/hour/IP budget it shares with every other Actions customer.
+    for (const token of [undefined, "", "   ", "\n\t "]) {
+      expect(canFetchUpdaterRelease(token)).toBe(false);
+    }
+  });
+});
 
 describe("resolveUpdaterAssets", () => {
   test("maps the darwin-arm64 filename to the darwin-aarch64 Tauri key", () => {
