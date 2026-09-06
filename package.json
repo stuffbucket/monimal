@@ -16,7 +16,7 @@
     "verify:workspace": "node scripts/verify-workspace.mjs",
     "check:core": "pnpm --filter @stuffbucket/maximal-core run check:deep:host && pnpm test -- --suite=maximal-core",
     "check": "turbo run build typecheck lint && pnpm --filter @stuffbucket/maximal-core run check:deep:host && pnpm test",
-    "package": "turbo run package --filter maximal-client"
+    "package": "turbo run package"
   },
   "devDependencies": {
     "turbo": "^2.10.10"
