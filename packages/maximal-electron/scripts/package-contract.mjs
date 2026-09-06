@@ -314,6 +314,37 @@ function describe(list) {
   return (typeof list === 'string' ? [list] : list).join(', ');
 }
 
+/* ------------------------------------------------ building from source */
+
+/**
+ * What `node-llama-cpp` reads only when it compiles llama.cpp itself.
+ *
+ * It cannot, here. `defaultBuildOption` in `dist/bindings/getLlama.js` is
+ * `"never"` when `process.versions.electron` is set, and
+ * `src/main/llama-worker.ts` passes `build: 'never'` on top of that rather
+ * than inheriting it. With `build === "never"`, `canBuild` is false and
+ * `getLlama` throws `NoBinaryFoundError` before it reaches either the clone or
+ * the compile.
+ *
+ * So the input to those two is dead weight, and it is not small: the git
+ * bundle is 33 MB of a 352 MB application -- 9% of what a user downloads, to
+ * carry a copy of the llama.cpp source that this build has no compiler for.
+ *
+ * `llama/gitRelease.bundle` and nothing else under `llama/`. The rest of that
+ * directory is 300 KB, and `llama/grammars` is read at RUN time
+ * (`dist/utils/getGrammarsFolder.js`), so dropping the directory would take a
+ * runtime input with it.
+ *
+ * The compiler tooling those paths also pull in -- `cmake-js`,
+ * `node-addon-api`, and the twenty-odd packages they reach -- is another
+ * 5.4 MB and is deliberately still shipped. Removing a dependency EDGE
+ * re-runs placement over a different graph, and 23 of the remaining packages
+ * change position when it does. Issue #133 was a bundle that could not be
+ * imported at all because placement moved, so 14% more saving is not worth
+ * paying that twice. This file is one file.
+ */
+export const LLAMA_SOURCE_INPUTS = ['node_modules/node-llama-cpp/llama/gitRelease.bundle'];
+
 /* ------------------------------------------- external module dependencies */
 
 /**

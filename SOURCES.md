@@ -168,6 +168,12 @@ package provenance or publisher identity -- the proxy does that.
   `Unexpected token 'S'` for anyone who ran it locally; it also rewrote
   `pnpm-lock.yaml` on its way out, which is the lockfile hazard above reached
   through a read-only check.
+- `maximal-electron`: `src/main/llama-worker.ts` passes `build: 'never'` to
+  `getLlama()`, and packaging drops
+  `node-llama-cpp/llama/gitRelease.bundle` -- 33 MB of llama.cpp source for a
+  compile that cannot run in an Electron bundle. Upstream already defaults the
+  option that way inside Electron; stating it makes the packaging decision rest
+  on this application's choice rather than on a default that could change.
 - `maximal-electron`: dropped `pnpm.onlyBuiltDependencies`. It duplicated the
   root list, which is the only one pnpm honours.
 - `maximal-electron`: deleted its `.npmrc`. Its only line set

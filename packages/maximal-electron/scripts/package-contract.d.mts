@@ -64,6 +64,8 @@ export declare function platformPackagePlan(
   arch: string,
 ): PlatformPackageDecision[];
 
+export declare const LLAMA_SOURCE_INPUTS: readonly string[];
+
 export interface PackageContractIo {
   readPackageJson: (dir: string) =>
     | { dependencies?: Record<string, string>; optionalDependencies?: Record<string, string> }
