@@ -134,7 +134,7 @@ jobs:
           pnpm --filter @stuffbucket/maximal-electron run verify:fixture-imports
           pnpm --filter @stuffbucket/maximal-electron run verify:neutral
           pnpm --filter @stuffbucket/maximal-electron run verify:docs
-          pnpm --filter @stuffbucket/maximal-electron exec node scripts/verify-exports.mjs
+          pnpm --filter @stuffbucket/maximal-electron run verify:exports
           pnpm --filter @stuffbucket/maximal-electron run check:contrast
 
       # Prove that the client compiled this checkout's workspace core rather
