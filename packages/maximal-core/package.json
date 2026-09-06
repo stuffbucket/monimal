@@ -137,18 +137,18 @@
     "zod": "^4.1.11"
   },
   "devDependencies": {
-    "@stryker-mutator/core": "^9.6.1",
+    "@stryker-mutator/core": "^10.0.0",
     "@stuffbucket/eslint-config": "workspace:*",
     "@types/bun": "^1.2.23",
     "@types/proxy-from-env": "^1.0.4",
     "@types/turndown": "^5.0.6",
     "@types/winreg": "^1.2.36",
-    "bumpp": "^10.2.3",
-    "dependency-cruiser": "^17.4.0",
+    "bumpp": "^12.2.2",
+    "dependency-cruiser": "^18.2.0",
     "eslint": "^10.9.1",
     "jscpd": "^5.0.15",
     "knip": "^5.64.1",
-    "lint-staged": "^16.2.3",
+    "lint-staged": "^17.3.0",
     "oxlint": "^1.80.0",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3"
