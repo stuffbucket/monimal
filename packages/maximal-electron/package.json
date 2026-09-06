@@ -61,13 +61,13 @@
   },
   "scripts": {
     "start": "electron-forge start",
-    "build:host": "tsc -p tsconfig.host.json",
-    "build:renderer": "tsc -p tsconfig.renderer-package.json && node scripts/copy-renderer-css.mjs",
-    "build:package": "pnpm run build:host && pnpm run build:renderer",
-    "prepack": "pnpm run build:package",
-    "prepare": "pnpm run build:package",
-    "prestart": "pnpm run build:package",
-    "prepackage": "pnpm run build:package",
+    "build:host": "node scripts/build-package.mjs --host",
+    "build:renderer": "node scripts/build-package.mjs --renderer",
+    "build:package": "node scripts/build-package.mjs",
+    "prepack": "node scripts/build-package.mjs",
+    "prepare": "node scripts/build-package.mjs",
+    "prestart": "node scripts/build-package.mjs",
+    "prepackage": "node scripts/build-package.mjs",
     "postinstall": "node scripts/check-install.mjs",
     "package": "electron-forge package",
     "icons": "node scripts/gen-icons.mjs",
@@ -75,7 +75,7 @@
     "verify:crash-artifact": "node scripts/verify-crash-artifact.mjs",
     "verify:electron-cache": "node scripts/verify-electron-cache.mjs",
     "smoke:packaged": "node scripts/smoke-packaged.mjs",
-    "verify:exports": "pnpm run build:package && node scripts/verify-exports.mjs",
+    "verify:exports": "node scripts/verify-exports.mjs",
     "verify:publish": "node scripts/verify-publish.mjs",
     "publish:package": "node scripts/publish-package.mjs",
     "verify:neutral": "node scripts/verify-neutral.mjs",
@@ -98,7 +98,7 @@
     "storybook:build": "storybook build",
     "storybook:check": "node scripts/storybook-check.mjs",
     "check:contrast": "node --no-warnings=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/check-contrast.mjs",
-    "build": "pnpm run build:package"
+    "build": "node scripts/build-package.mjs"
   },
   "peerDependencies": {
     "@radix-ui/react-collapsible": "^1.1.20",
