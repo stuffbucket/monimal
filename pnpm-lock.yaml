@@ -180,14 +180,14 @@ importers:
         specifier: ^0.1.5
         version: 0.1.6
       gpt-tokenizer:
-        specifier: ^3.0.1
-        version: 3.4.0
+        specifier: ^4.0.0
+        version: 4.0.0
       hono:
         specifier: ^4.13.5
         version: 4.13.5
       proxy-from-env:
-        specifier: ^1.1.0
-        version: 1.1.0
+        specifier: ^2.1.0
+        version: 2.1.0
       srvx:
         specifier: ^0.12.7
         version: 0.12.7
@@ -198,8 +198,8 @@ importers:
         specifier: ^7.2.4
         version: 7.2.4
       undici:
-        specifier: ^7.16.0
-        version: 7.29.0
+        specifier: ^8.10.0
+        version: 8.10.0
       winreg:
         specifier: ^1.2.5
         version: 1.2.5
@@ -5320,8 +5320,8 @@ packages:
     resolution: {integrity: sha1-J26Cfq2Hcu3bz8lxcFkLhBgjIzo=}
     engines: {node: '>=10.19.0'}
 
-  gpt-tokenizer@3.4.0:
-    resolution: {integrity: sha1-TKpz7f2qZJ8B36hPkw6KMgrAsbE=}
+  gpt-tokenizer@4.0.0:
+    resolution: {integrity: sha1-VEPuhSK7h8GrGHfAKe/kup6RKzI=}
 
   graceful-fs@4.2.11:
     resolution: {integrity: sha1-QYPk6L8Iu24Fu7L30uDI9xLKQOM=}
@@ -6851,8 +6851,9 @@ packages:
     resolution: {integrity: sha1-e5JQza9KBhOanw/kaKQNfU/rynE=}
     engines: {node: '>=12.0.0'}
 
-  proxy-from-env@1.1.0:
-    resolution: {integrity: sha1-4QLxbKNVQkhldV0sno6k8k1Yw+I=}
+  proxy-from-env@2.1.0:
+    resolution: {integrity: sha1-p0h1aK2tV3z6qn6IxJyrOrMIGro=}
+    engines: {node: '>=10'}
 
   pump@3.0.4:
     resolution: {integrity: sha1-HzE0MFJ/qLkFYi69Iv4UROdXqzw=}
@@ -13410,7 +13411,7 @@ snapshots:
       p-cancelable: 2.1.1
       responselike: 2.0.1
 
-  gpt-tokenizer@3.4.0: {}
+  gpt-tokenizer@4.0.0: {}
 
   graceful-fs@4.2.11: {}
 
@@ -15175,7 +15176,7 @@ snapshots:
       '@types/node': 22.20.1
       long: 5.3.2
 
-  proxy-from-env@1.1.0: {}
+  proxy-from-env@2.1.0: {}
 
   pump@3.0.4:
     dependencies:
@@ -16204,7 +16205,8 @@ snapshots:
 
   undici-types@7.18.2: {}
 
-  undici@7.29.0: {}
+  undici@7.29.0:
+    optional: true
 
   undici@8.10.0: {}
 
