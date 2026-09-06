@@ -170,6 +170,13 @@ package provenance or publisher identity -- the proxy does that.
   now lints through `@stuffbucket/eslint-config/typescript` like every other
   package. Type-aware rules stay off pending 38 findings; that is a scoped
   task, not a blocked upgrade, and it is step 4 of `client/README.md`.
+- `maximal/client`: `scripts/name-dev-bundle.mjs` names a private copy of the
+  Electron dist rather than the installed one, and `start` runs through
+  `scripts/start.mjs` to point `ELECTRON_OVERRIDE_DIST_PATH` at it. Upstream is
+  a single-package repository where `node_modules/electron` belongs to one
+  application. Here pnpm links it from a store directory that
+  `maximal-electron` shares, so naming the development bundle renamed that
+  package's development bundle too.
 - `maximal/client`: deleted `package-lock.json`, and `scripts/build-core.ts`
   now takes the sidecar's git SHA from `git rev-parse HEAD`. It parsed the
   lockfile for the git URL maximal-core was once installed from — a commit that

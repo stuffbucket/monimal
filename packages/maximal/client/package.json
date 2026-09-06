@@ -14,11 +14,11 @@
     "lint:fix": "eslint . --fix",
     "test": "vitest run",
     "test:run": "vitest run",
-    "start": "electron-forge start",
+    "start": "node scripts/start.mjs",
     "package": "electron-forge package",
     "e2e": "playwright test",
     "icons": "node scripts/gen-icon-png.mjs",
-    "prestart": "node scripts/gen-icon-png.mjs && node scripts/name-dev-bundle.mjs",
+    "prestart": "node scripts/gen-icon-png.mjs",
     "prepackage": "node scripts/gen-icon-png.mjs"
   },
   "dependencies": {
