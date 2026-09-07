@@ -1,13 +1,9 @@
 {
-  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "$schema": "https://unpkg.com/knip@6/schema.json",
   "entry": ["scripts/*.ts", "scripts/dev/*.ts", "tests/**/*.test.ts"],
   "project": ["src/**/*.ts", "scripts/**/*.ts", "tests/**/*.ts"],
-  "ignoreDependencies": [
-    "@stuffbucket/maximal-core",
-    "@stuffbucket/maximal-dsh-host",
-    "@stuffbucket/maximal-provider-contract",
-    "prettier-plugin-packagejson"
-  ],
+  "ignore": ["client/**"],
+  "ignoreDependencies": ["lint-staged"],
   "ignoreBinaries": ["trufflehog"],
   "ignoreExportsUsedInFile": true
 }

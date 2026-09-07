@@ -1,10 +1,8 @@
 {
-  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "$schema": "https://unpkg.com/knip@6/schema.json",
   "entry": ["scripts/*.ts", "scripts/dev/*.ts", "scripts/ops/*.ts", "scripts/dev/win11/tests/*.ts"],
   "project": ["src/**/*.ts", "scripts/**/*.ts", "tests/**/*.ts"],
   "ignoreDependencies": [
-    "@stuffbucket/eslint-config",
-    "@stuffbucket/maximal-provider-contract",
     "electron",
     "undici",
     "@stryker-mutator/command-runner",
@@ -12,11 +10,17 @@
     "jscpd",
     "lint-staged"
   ],
-  "ignoreBinaries": ["trufflehog"],
+  "ignoreBinaries": [
+    "pgrep",
+    "qemu-system-aarch64",
+    "schtasks",
+    "swtpm",
+    "trufflehog"
+  ],
   "ignoreExportsUsedInFile": true,
   "tags": ["-internal"],
   "ignoreIssues": {
     "tests/**": ["files", "exports", "types"]
   },
-  "ignore": ["src/lib/auth/token.ts", "src/lib/auth/copilot-online-retry.ts"]
+  "ignore": ["src/lib/auth/copilot-online-retry.ts"]
 }

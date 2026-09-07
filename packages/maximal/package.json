@@ -64,7 +64,7 @@
     "@typescript/native": "npm:typescript@^7.0.2",
     "bumpp": "^12.2.2",
     "eslint": "^10.9.1",
-    "knip": "^5.64.1",
+    "knip": "^6.32.3",
     "lint-staged": "^17.3.0",
     "oxlint": "^1.80.0",
     "typescript": "npm:@typescript/typescript6@^6.0.2"
