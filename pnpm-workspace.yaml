@@ -7,6 +7,24 @@ packages:
   # The nested Astro site shares this lockfile and install with the workspace.
   - "packages/maximal/site"
 
+# pnpm 11 defaults this to `install`: every `pnpm run`, `pnpm test` and
+# `pnpm --filter ... run ...` silently runs a full install first -- a full
+# re-resolution behind every script, which is not what any of them asked for.
+#
+# That used to be worse than slow. Re-resolution re-recorded the rotating
+# `ms-feed-N` tarball hosts that `scripts/strip-lockfile-hosts.mjs` exists to
+# remove -- all 1724, every time -- so stripping the lockfile and then running
+# any script put them straight back, and the next `--frozen-lockfile` install
+# (the Docker test image, and CI) rejected it. That is the whole of #26.
+# `.pnpmfile.cjs` now drops those hosts at write time, so an implicit install no
+# longer poisons anything; the reason to keep this is the silent write itself.
+#
+# `warn` keeps the check the default was added for -- it still reports a
+# node_modules that has drifted from the lockfile -- and does not write. Do not
+# set this to `install`; `false` also works but gives up the warning for
+# nothing.
+verifyDepsBeforeRun: warn
+
 # Moved here from package.json's "pnpm" block: pnpm 11 no longer reads that
 # field and silently ignores it, which would drop the prettier override and --
 # more seriously -- stop every native dependency below from running its build

@@ -60,6 +60,12 @@ them here.
 - Re-resolve and commit `pnpm-lock.yaml` in the same change as any edit to
   `.pnpmfile.cjs`. pnpm records a `pnpmfileChecksum`, and every frozen install
   fails with `ERR_PNPM_LOCKFILE_CONFIG_MISMATCH` until the two agree.
+- Do not set `verifyDepsBeforeRun` to `install`, and do not remove it from
+  `pnpm-workspace.yaml`. That is pnpm 11's default, and it makes every `pnpm
+  run` install first -- a silent re-resolution behind every script. Before
+  `.pnpmfile.cjs` that re-recorded all 1724 rotating hosts the strip script had
+  just removed, which is the whole of #26; the hook now drops them either way,
+  so what `warn` buys is no longer writing the tree from under a `run`.
 - Run `node scripts/strip-lockfile-hosts.mjs` BEFORE `pnpm install`, not after,
   and never as a `postinstall` hook. pnpm's supply-chain check rejects a
   recorded host before lifecycle scripts run, so a hook cannot repair it. Since
