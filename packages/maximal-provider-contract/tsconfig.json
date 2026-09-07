@@ -1,5 +1,10 @@
 {
   "compilerOptions": {
+    // tsup injects `baseUrl` when it generates declarations, and TypeScript 6
+    // errors on it because TypeScript 7 drops it. This config does not set
+    // baseUrl itself, so this silences a deprecation we do not own. Remove it
+    // once tsup stops emitting baseUrl.
+    "ignoreDeprecations": "6.0",
     "target": "ESNext",
     "lib": ["ESNext", "DOM", "DOM.Iterable"],
     "module": "ESNext",

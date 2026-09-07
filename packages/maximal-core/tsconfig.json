@@ -4,6 +4,13 @@
     "lib": ["ESNext"],
     "module": "ESNext",
     "skipLibCheck": true,
+    // Named explicitly because TypeScript 6/7 no longer picks it up on its own.
+    // `lib` is ESNext-only, so the fetch/timer/AbortController globals this
+    // package uses come from @types/bun; without this the declaration build
+    // fails on RequestInit, Response, AbortController and setTimeout.
+    // downstream/tsconfig*.json deliberately keeps `types: []` and is
+    // unaffected -- it does not extend this file.
+    "types": ["bun"],
 
     "allowJs": true,
     "moduleResolution": "Bundler",
@@ -19,6 +26,12 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
+    // tsup injects `baseUrl` when it generates declarations, and TypeScript 6
+    // errors on it because TypeScript 7 drops it. Ours is not the config that
+    // sets it -- `paths` below resolves relative to this file, which needs no
+    // baseUrl -- so this silences a deprecation we do not own. Remove it once
+    // tsup stops emitting baseUrl.
+    "ignoreDeprecations": "6.0",
     "paths": {
       "~/*": ["./src/*"]
     }

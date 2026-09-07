@@ -143,6 +143,7 @@
     "@types/proxy-from-env": "^1.0.4",
     "@types/turndown": "^5.0.6",
     "@types/winreg": "^1.2.36",
+    "@typescript/native": "npm:typescript@^7.0.2",
     "bumpp": "^12.2.2",
     "dependency-cruiser": "^18.2.0",
     "eslint": "^10.9.1",
@@ -151,7 +152,7 @@
     "lint-staged": "^17.3.0",
     "oxlint": "^1.80.0",
     "tsup": "^8.5.1",
-    "typescript": "^5.9.3"
+    "typescript": "npm:@typescript/typescript6@^6.0.2"
   },
   "engines": {
     "node": ">=24"
