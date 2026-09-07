@@ -88,6 +88,23 @@ export interface UpdaterManifestInput {
   pubDate?: string;
 }
 
+/** Whether this build may look the release up at all.
+ *
+ *  The lookup is an authenticated GitHub API call. Anonymous, it draws on the
+ *  60-requests-per-hour-per-IP budget that every Actions customer on a
+ *  GitHub-hosted runner shares, so it fails at random for reasons that have
+ *  nothing to do with this repository. A build with no token therefore does not
+ *  make the call: it publishes no manifest, which is the correct outcome
+ *  wherever nothing deploys one.
+ *
+ *  This is not a relaxation of the fail-closed rule. Emitting no `latest.json`
+ *  is exactly what the rest of this module does when it cannot prove an
+ *  artifact — see `buildUpdaterManifest`. What changes is only that an
+ *  unauthenticated build stops before the network rather than after it. */
+export function canFetchUpdaterRelease(token: string | undefined): boolean {
+  return (token ?? "").trim().length > 0;
+}
+
 /** Locate the `.app.tar.gz` updater bundle + its `.sig` in a release's assets,
  *  and map the `darwin-arm64` FILENAME to the `darwin-aarch64` Tauri KEY. Returns
  *  null when either the bundle or its detached signature asset is absent — the
