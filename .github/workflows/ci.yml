@@ -113,7 +113,41 @@ jobs:
       # `run:` block. That shell is not covered by any other lint here.
       - uses: raven-actions/actionlint@3d39aea434753780c3b3d4a1a31c854b4dbf49d7 # v2.2.0
 
+      # `.pnpmfile.cjs` keeps these out of any lockfile written from here, but
+      # it cannot help one that arrives already carrying them: --frozen-lockfile
+      # skips resolution, so the hook never runs and pnpm rejects the record
+      # against the registry's current metadata. That is what this repairs --
+      # a lockfile resolved before the hook existed, or by a tool that did not
+      # load it. Normalising rather than failing is what lets such a pull
+      # request be built and tested at all. Must precede the install: pnpm's
+      # check runs before lifecycle scripts. See SOURCES.md#lockfile-integrity.
+      - name: Normalise the lockfile
+        run: node scripts/strip-lockfile-hosts.mjs
+
       - run: pnpm install --frozen-lockfile
+
+      # The step above repairs the tree, so nothing downstream can notice a
+      # host-pinned lockfile. This is the one place it is still visible: a
+      # warning on a pull request, and a hard failure once it is on main, where
+      # it would otherwise sit until the shard it names rotates away.
+      - name: Check the committed lockfile carries no rotating hosts
+        env:
+          # `push` is restricted to main above, so this distinguishes "on main"
+          # from "in a pull request" without reading a branch name.
+          EVENT: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- pnpm-lock.yaml; then
+            echo "pnpm-lock.yaml is host-free as committed."
+            exit 0
+          fi
+          hosts=$(git diff -- pnpm-lock.yaml | grep -c '^-.*tarball: https://ms-feed' || true)
+          fix='run "node scripts/strip-lockfile-hosts.mjs" and commit the result'
+          if [ "$EVENT" = push ]; then
+            echo "::error::pnpm-lock.yaml on main pins ${hosts} rotating shard host(s); ${fix}"
+            exit 1
+          fi
+          echo "::warning::pnpm-lock.yaml pins ${hosts} rotating shard host(s); ${fix}"
 
       # Reads the installed tree rather than trusting accepted configuration.
       - name: Verify workspace installation
@@ -224,6 +258,11 @@ jobs:
           path: ~/.cache/electron
           key: electron-${{ runner.os }}-${{ hashFiles('packages/maximal/client/package.json', 'packages/maximal-electron/package.json') }}
           restore-keys: electron-${{ runner.os }}-
+
+      # Same reason as the check job: a lockfile can arrive host-pinned, and
+      # --frozen-lockfile will not repair it. See SOURCES.md#lockfile-integrity.
+      - name: Normalise the lockfile
+        run: node scripts/strip-lockfile-hosts.mjs
 
       - run: pnpm install --frozen-lockfile
 
