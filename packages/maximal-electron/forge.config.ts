@@ -1,4 +1,5 @@
-import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, statSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 
 import { FusesPlugin } from '@electron-forge/plugin-fuses';
@@ -20,6 +21,29 @@ import { PACKAGE_FUSES, RUNTIME_ICONS, LLAMA_BACKENDS_VARIABLE, LLAMA_SOURCE_INP
 const EXTERNAL_MODULES = ['node-pty', 'node-llama-cpp'];
 
 const NODE_MODULES = path.resolve('node_modules');
+
+/**
+ * A staging base this build owns alone.
+ *
+ * Packager's default base is a constant -- `os.tmpdir()/electron-packager` --
+ * and `ensureTempDir` runs `fs.remove` over the whole of it at the start of
+ * every run. The build directory *inside* it is already unique, because
+ * `stagingPath` calls `mkdtemp`; uniqueness is not what is missing. The wipe of
+ * the shared parent is what destroys it.
+ *
+ * CI packages two applications at once (`turbo run package`, and ci.yml says
+ * "Two Forge builds, not one"), so the second build deletes the first's staging
+ * tree while asar is midway through reading it. asar crawls, `lstat`s every
+ * path, then opens each in turn -- so the failure surfaces as ENOENT on a file
+ * it had already stat'ed, naming whichever file it reached at that instant. A
+ * different file and a different application every run, which is why it reads
+ * as a dependency break on whatever pull request happens to be red.
+ *
+ * So: mkdtemp one level up. Packager still wipes this base, but it is ours and
+ * it is empty, and `move()` relocates the finished build into `out/`, so
+ * nothing accumulates here.
+ */
+const PACKAGER_STAGING_BASE = mkdtempSync(path.join(os.tmpdir(), 'forge-maximal-electron-'));
 
 const IO = {
     basename: (target: string) => path.basename(target),
@@ -319,6 +343,9 @@ function pruneLlamaSource(buildPath: string): void {
 
 const config: ForgeConfig = {
   packagerConfig: {
+    // Never the shared default; see PACKAGER_STAGING_BASE.
+    tmpdir: PACKAGER_STAGING_BASE,
+
     /**
      * Packager's own production-only walk, off.
      *

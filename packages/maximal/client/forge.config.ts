@@ -1,3 +1,7 @@
+import { mkdtempSync } from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+
 import { VitePlugin } from '@electron-forge/plugin-vite'
 import type { ForgeConfig } from '@electron-forge/shared-types'
 
@@ -12,9 +16,26 @@ import type { ForgeConfig } from '@electron-forge/shared-types'
 // .macos-builder/config walks every nested code item deepest-first, then seals
 // the outer bundle. See RELEASING.md.
 
+/**
+ * A staging base this build owns alone.
+ *
+ * Packager's default base is a constant -- `os.tmpdir()/electron-packager` --
+ * wiped with `fs.remove` at the start of every run. The build directory inside
+ * it is already unique via `mkdtemp`, so the wipe of the shared parent is the
+ * whole problem: CI packages this application and maximal-electron at the same
+ * time, and whichever starts second deletes the other's staging tree mid-pack.
+ * asar then fails opening a file it had already stat'ed.
+ *
+ * Both applications must set this. One of them alone still leaves the other
+ * wiping a directory it does not own.
+ */
+const PACKAGER_STAGING_BASE = mkdtempSync(path.join(os.tmpdir(), 'forge-maximal-client-'))
+
 const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
+    // Never the shared default; see PACKAGER_STAGING_BASE.
+    tmpdir: PACKAGER_STAGING_BASE,
     // The bundle's name, and the executable inside it. Absent, @electron/packager
     // falls back to `productName`, which happens to agree today — stating both
     // means a rename of the npm package cannot silently rename the app.
