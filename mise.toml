@@ -4,19 +4,27 @@
 # Node is deliberately absent here: .nvmrc owns the node version and mise reads
 # it directly, so duplicating it would create a second place to change.
 #
-# pnpm is pinned here rather than left to whatever is on PATH because the
-# `packageManager` field alone cannot be satisfied on this workspace: pnpm
-# refuses to switch to a version it cannot verify, and the 1ES proxy in .npmrc
-# publishes no npm registry signatures (no dist.signatures, no
-# /-/npm/v1/keys, no attestations -- only a SHA-1 shasum). Having the exact
-# pinned version already on PATH means no switch is ever attempted.
+# pnpm is pinned here so the version in `packageManager` is already on PATH and
+# no switch is attempted. That used to be a hard requirement rather than a
+# convenience: pnpm refused to switch to a version it could not verify, and the
+# 1ES proxy in .npmrc publishes no npm registry signatures (no dist.signatures,
+# no /-/npm/v1/keys, no attestations -- only a SHA-1 shasum), so the
+# `packageManager` field alone could not be satisfied on this workspace.
+#
+# pnpm 11.21.0 lifted that. pnpm/pnpm#13728 fixed both halves of it, against
+# this exact proxy: package-manager entries are now recorded integrity-only
+# (the advertised tarball host is dropped, since the bootstrap always derives
+# the URL from the trusted registries), and the engine signature falls back to
+# registry.npmjs.org when the configured registry cannot provide one. Keep the
+# two versions equal anyway -- a switch that works is still a download nobody
+# asked for -- but this is now determinism, not a workaround.
 #
 # The aqua backend fetches from GitHub releases and verifies a checksum, and
 # mise.lock records the resolved version and hash per platform -- that is the
 # content pin, so a re-published or swapped artifact at the same version fails
 # rather than silently installing.
 [tools]
-pnpm = "11.17.0"
+pnpm = "11.25.0"
 
 [settings]
 lockfile = true
