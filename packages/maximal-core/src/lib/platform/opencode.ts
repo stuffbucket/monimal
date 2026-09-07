@@ -2,28 +2,18 @@ import consola from "consola"
 import { exec } from "node:child_process"
 import { readFile } from "node:fs/promises"
 import path from "node:path"
+import { promisify } from "node:util"
 import { z } from "zod"
 
 /** Only `version` is read; everything else in the package.json passes through. */
 const OpencodePackageSchema = z.object({ version: z.string() }).loose()
 
-const execAsync = (command: string): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    exec(command, (error, stdout) => {
-      if (error) {
-        reject(error)
-        return
-      }
-
-      resolve(stdout)
-    })
-  })
-}
+const execAsync = promisify(exec)
 
 let opencodeVersionCache: string | undefined
 
 const getGlobalNpmRoot = async (): Promise<string> => {
-  const stdout = await execAsync("npm root -g")
+  const { stdout } = await execAsync("npm root -g")
   return stdout.trim()
 }
 
