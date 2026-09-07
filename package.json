@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "description": "Monorepo spike: maximal, maximal-core and maximal-electron in one pnpm workspace, driven by Turborepo.",
-  "packageManager": "pnpm@11.17.0",
+  "packageManager": "pnpm@11.25.0",
   "scripts": {
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
