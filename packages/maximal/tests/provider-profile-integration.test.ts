@@ -72,6 +72,27 @@ function packageRoot(name: string): string {
   return dirname(require.resolve(`${name}/package.json`))
 }
 
+/**
+ * Read a linked package's real installed version.
+ *
+ * The profile manifest must declare versions that match what is actually
+ * resolved, so hardcoding them here turns any dependency bump into a failure
+ * that names neither the package nor the version. Derive them from the same
+ * resolution `packageRoot` already uses. See the twin helper in
+ * `packages/maximal-dsh-host/tests/fixture.ts`.
+ */
+function packageVersion(name: string): string {
+  const manifest: unknown = require(`${name}/package.json`)
+  if (
+    typeof manifest !== "object"
+    || manifest === null
+    || !("version" in manifest)
+    || typeof manifest.version !== "string"
+  )
+    throw new Error(`Package "${name}" has no usable version.`)
+  return manifest.version
+}
+
 async function linkPackage(
   nodeModules: string,
   name: string,
@@ -106,10 +127,12 @@ async function materializeOmlx(nodeModules: string): Promise<void> {
         ".": { import: "./dist/index.js" },
         "./package.json": "./package.json",
       },
-      dependencies: { "@deepseek-ai/schemastery": "3.18.1" },
+      dependencies: {
+        "@deepseek-ai/schemastery": packageVersion("@deepseek-ai/schemastery"),
+      },
       peerDependencies: {
-        "@deepseek-ai/cordis": "4.0.1",
-        "@deepseek-ai/dsh-llm": "0.1.0-rc.8",
+        "@deepseek-ai/cordis": packageVersion("@deepseek-ai/cordis"),
+        "@deepseek-ai/dsh-llm": packageVersion("@deepseek-ai/dsh-llm"),
       },
     }),
   )
@@ -138,13 +161,17 @@ async function createProfile(): Promise<string> {
       private: true,
       type: "module",
       dependencies: {
-        "@deepseek-ai/cordis": "4.0.1",
-        "@deepseek-ai/dsh-attachment": "0.1.0-rc.6",
-        "@deepseek-ai/dsh-brand": "0.1.0-rc.6",
-        "@deepseek-ai/dsh-invariants": "0.1.0-rc.6",
-        "@deepseek-ai/dsh-llm": "0.1.0-rc.8",
-        "@deepseek-ai/dsh-timeout": "0.1.0-rc.6",
-        "@deepseek-ai/schemastery": "3.18.1",
+        "@deepseek-ai/cordis": packageVersion("@deepseek-ai/cordis"),
+        "@deepseek-ai/dsh-attachment": packageVersion(
+          "@deepseek-ai/dsh-attachment",
+        ),
+        "@deepseek-ai/dsh-brand": packageVersion("@deepseek-ai/dsh-brand"),
+        "@deepseek-ai/dsh-invariants": packageVersion(
+          "@deepseek-ai/dsh-invariants",
+        ),
+        "@deepseek-ai/dsh-llm": packageVersion("@deepseek-ai/dsh-llm"),
+        "@deepseek-ai/dsh-timeout": packageVersion("@deepseek-ai/dsh-timeout"),
+        "@deepseek-ai/schemastery": packageVersion("@deepseek-ai/schemastery"),
         "@stuffbucket/omlx": "0.0.0",
       },
     }),
