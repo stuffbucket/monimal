@@ -28,16 +28,11 @@ export {
 export type {
   PersistedTokenUsageEvent,
   TokenUsageEndpoint,
-  TokenUsageEventRecord,
   TokenUsageEventsPage,
-  TokenUsageModelSummary,
   TokenUsagePeriod,
-  TokenUsageProviderSummary,
   TokenUsageSeries,
-  TokenUsageSeriesBucket,
   TokenUsageSource,
   TokenUsageSummary,
-  TokenUsageTotals,
   UsageTokens,
 } from "./store"
 
