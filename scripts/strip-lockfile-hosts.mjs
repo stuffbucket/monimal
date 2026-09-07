@@ -28,8 +28,12 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+// Shared with `.pnpmfile.cjs`, which drops the same URLs before the lockfile is
+// ever written. Two removers, one definition of what they remove.
+import shardHosts from './lockfile-shard-hosts.cjs';
+
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-const SHARD_HOST = /ms-feed-\d+\.pkgs\.visualstudio\.com/;
+const { SHARD_HOST } = shardHosts;
 const LOCKFILE = 'pnpm-lock.yaml';
 
 const absolute = path.join(ROOT, LOCKFILE);

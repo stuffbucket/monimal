@@ -49,9 +49,17 @@ them here.
   vendored `packages/*/.github` fixtures declare.
 - Prefer `pnpm install --frozen-lockfile`; a re-resolution records rotating
   hosts that pnpm rejects on the next install.
+- Do not delete `.pnpmfile.cjs`, and keep its `afterAllResolved` hook. It drops
+  the rotating shard hosts from the lockfile before pnpm writes it, which is the
+  only point at which Dependabot can be stopped from committing them.
+- Re-resolve and commit `pnpm-lock.yaml` in the same change as any edit to
+  `.pnpmfile.cjs`. pnpm records a `pnpmfileChecksum`, and every frozen install
+  fails with `ERR_PNPM_LOCKFILE_CONFIG_MISMATCH` until the two agree.
 - Run `node scripts/strip-lockfile-hosts.mjs` BEFORE `pnpm install`, not after,
   and never as a `postinstall` hook. pnpm's supply-chain check rejects a
-  recorded host before lifecycle scripts run, so a hook cannot repair it.
+  recorded host before lifecycle scripts run, so a hook cannot repair it. Since
+  `.pnpmfile.cjs` this is a repair for lockfiles written without it, not part of
+  the normal loop.
 - Do not re-add a SHA-512 requirement for lockfile entries. SHA-1 as served is
   deliberate: the proxy is the supply-chain control and the hash only detects
   transit corruption. See [Lockfile integrity](#lockfile-integrity).
@@ -96,10 +104,20 @@ against the registry's *current* metadata and refuses the lockfile outright.
 ```
 
 That check runs **before lifecycle scripts**, so no `postinstall` hook can
-repair it -- the install is already dead. `scripts/strip-lockfile-hosts.mjs`
-must run *before* `pnpm install`. pnpm reconstructs the URL from the configured
-registry when `tarball:` is absent, so the rule is simply that no entry carries
-one.
+repair it -- the install is already dead. pnpm reconstructs the URL from the
+configured registry when `tarball:` is absent, so the rule is simply that no
+entry carries one.
+
+The place to enforce that is `.pnpmfile.cjs`. Its `afterAllResolved` hook runs
+on the in-memory lockfile *before* serialization, so the hosts are never written
+rather than removed afterwards. That is what makes it work for Dependabot, which
+cannot be asked to run a repair script and which previously opened every
+dependency PR with ~1700 host-pinned entries. A forced re-resolution of this
+workspace drops ~1740 and leaves the lockfile byte-identical.
+
+`scripts/strip-lockfile-hosts.mjs` does the same edit after the fact. It is the
+repair for a lockfile written before the hook existed, and it must run *before*
+`pnpm install` for the reason above; it is not part of the normal loop.
 
 `scripts/verify-workspace.mjs` is a backstop for a lockfile that reaches the
 tree by some other route. It checks lockfile metadata; it does not establish
