@@ -19,6 +19,27 @@ function packageRoot(name: string): string {
   return dirname(require.resolve(`${name}/package.json`))
 }
 
+/**
+ * Read a linked package's real installed version.
+ *
+ * `resolveExternalProfile` requires the profile manifest to declare exact
+ * versions that match what is actually resolved, so a hardcoded version string
+ * here breaks the whole suite the moment that dependency is bumped -- #54 had
+ * to fix these by hand, and the next bump would have done it again. Derive them
+ * from the same resolution `packageRoot` already uses.
+ */
+function packageVersion(name: string): string {
+  const manifest: unknown = require(`${name}/package.json`)
+  if (
+    typeof manifest !== "object"
+    || manifest === null
+    || !("version" in manifest)
+    || typeof manifest.version !== "string"
+  )
+    throw new Error(`Package "${name}" has no usable version.`)
+  return manifest.version
+}
+
 async function linkPackage(
   nodeModules: string,
   name: string,
@@ -290,9 +311,9 @@ export async function createFixtureProfile(): Promise<FixtureProfile> {
         "./package.json": "./package.json",
       },
       dependencies: {
-        "@deepseek-ai/cordis": "4.0.1",
-        "@deepseek-ai/dsh-llm": "0.1.0-rc.8",
-        "@deepseek-ai/schemastery": "3.18.1",
+        "@deepseek-ai/cordis": packageVersion("@deepseek-ai/cordis"),
+        "@deepseek-ai/dsh-llm": packageVersion("@deepseek-ai/dsh-llm"),
+        "@deepseek-ai/schemastery": packageVersion("@deepseek-ai/schemastery"),
         "fixture-dependency": "1.0.0",
       },
     }),
@@ -306,8 +327,8 @@ export async function createFixtureProfile(): Promise<FixtureProfile> {
       private: true,
       type: "module",
       dependencies: {
-        "@deepseek-ai/cordis": "4.0.1",
-        "@deepseek-ai/dsh-llm": "0.1.0-rc.8",
+        "@deepseek-ai/cordis": packageVersion("@deepseek-ai/cordis"),
+        "@deepseek-ai/dsh-llm": packageVersion("@deepseek-ai/dsh-llm"),
         "fixture-provider": "1.0.0",
       },
     }),
