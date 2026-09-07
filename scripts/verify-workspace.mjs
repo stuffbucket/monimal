@@ -418,12 +418,12 @@ check(
 //    two workspace manifests naming the same dependency at different versions
 //    is a decision nobody made.
 //
-//    A down-only ratchet, the same shape maximal-core uses for cycles and
-//    clones: deliberate splits are named with their reason, the rest are a
-//    backlog that may shrink and may not grow. Removing a split from the
-//    backlog without removing it from this list fails too, so the list cannot
-//    quietly outlive the problem it describes. When BACKLOG reaches zero,
-//    delete it and this ratchet with it.
+//    Splits that are meant are named in DELIBERATE with their reason;
+//    anything else fails. There was a BACKLOG of splits inherited rather than
+//    chosen, held to a down-only ratchet, and it reached zero when
+//    @vitejs/plugin-react aligned on 6.1 -- so it is gone, as its own note
+//    instructed. Re-introducing one means fixing it or justifying it, not
+//    re-opening the backlog.
 // Asked of pnpm rather than hand-listed. A hardcoded copy of
 // pnpm-workspace.yaml's globs would leave a newly added package silently
 // uncovered by the one check meant to catch silent things.
@@ -437,7 +437,6 @@ const WORKSPACE_MANIFESTS = JSON.parse(
 // Splits that are meant. Empty is the goal: every entry here is a version of
 // the same dependency resolved twice, which the workspace exists to avoid.
 const DELIBERATE = new Map();
-const BACKLOG = new Set(['@vitejs/plugin-react']);
 
 /** name -> { declaredBy, byVersion } for every directly-declared dependency. */
 const declared = new Map();
@@ -452,10 +451,9 @@ for (const pkg of WORKSPACE_MANIFESTS) {
     if (!declared.has(name)) declared.set(name, { declaredBy: 0, byVersion: new Map() });
     const record = declared.get(name);
     record.declaredBy += 1;
-    // Counted separately from `declaredBy`: a dependency declared in two
-    // packages but installed in only one is not evidence of alignment, and
-    // treating it as such is how a half-finished install talks you into
-    // editing the ratchet. Only fully observed names are judged below.
+    // Recorded per resolved version, separately from `declaredBy`: a
+    // dependency declared in two packages but installed in only one shows a
+    // single version here and must not read as alignment.
     const version = manifestAt(ROOT, pkg, 'node_modules', name)?.version;
     if (version == null) continue;
     if (!record.byVersion.has(version)) record.byVersion.set(version, []);
@@ -464,11 +462,8 @@ for (const pkg of WORKSPACE_MANIFESTS) {
 }
 
 const split = new Map();
-const observed = new Set();
 for (const [name, { declaredBy, byVersion }] of declared) {
   if (declaredBy < 2) continue;
-  const installed = [...byVersion.values()].reduce((total, pkgs) => total + pkgs.length, 0);
-  if (installed === declaredBy) observed.add(name);
   if (byVersion.size < 2) continue;
   split.set(
     name,
@@ -480,25 +475,13 @@ for (const [name, reason] of DELIBERATE) {
   if (split.has(name)) console.log(`       ${name} is split on purpose: ${reason}`);
 }
 
-const unexpected = [...split.keys()].filter((name) => !DELIBERATE.has(name) && !BACKLOG.has(name));
+const unexpected = [...split.keys()].filter((name) => !DELIBERATE.has(name));
 for (const name of unexpected) {
   console.error(`       ${name}: ${split.get(name)}`);
 }
 check(unexpected.length === 0, 'no new dependency is split across the workspace', {
   count: declared.size,
   of: 'declared dependency names',
-});
-
-const healed = [...BACKLOG].filter((name) => observed.has(name) && !split.has(name));
-for (const name of healed) {
-  console.error(`       ${name} is aligned now — drop it from BACKLOG`);
-}
-// Scoped to the names compared, not to BACKLOG: scoping to the backlog would
-// make this assertion fail as an empty set at the exact moment the last split
-// is fixed, which is the state it exists to reach.
-check(healed.length === 0, 'the known-split list has no stale entries', {
-  count: observed.size,
-  of: 'dependencies declared by more than one package',
 });
 
 process.exit(summary('verify:workspace'));
