@@ -148,7 +148,7 @@
     "dependency-cruiser": "^18.2.0",
     "eslint": "^10.9.1",
     "jscpd": "^5.0.15",
-    "knip": "^5.64.1",
+    "knip": "^6.33.0",
     "lint-staged": "^17.3.0",
     "oxlint": "^1.80.0",
     "tsup": "^8.5.1",
