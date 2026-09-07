@@ -4,6 +4,11 @@
     "lib": ["ESNext"],
     "module": "ESNext",
     "skipLibCheck": true,
+    // Named explicitly because TypeScript 7 no longer picks it up on its own.
+    // This package declares no @types/node and gets Node's globals and module
+    // declarations through @types/bun; without this every `node:*` import and
+    // every `process`/`console` reference fails to resolve.
+    "types": ["bun"],
 
     "allowJs": true,
     "moduleResolution": "Bundler",
