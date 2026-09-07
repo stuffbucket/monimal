@@ -60,7 +60,7 @@
   },
   "devDependencies": {
     "@stuffbucket/eslint-config": "workspace:*",
-    "@types/bun": "^1.2.23",
+    "@types/bun": "^1.4.0",
     "@typescript/native": "npm:typescript@^7.0.2",
     "bumpp": "^12.2.2",
     "eslint": "^10.9.1",
