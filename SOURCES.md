@@ -47,8 +47,13 @@ them here.
   run history for `GITHUB_REPOSITORY`, so it passes locally by querying the
   upstream repo and fails in CI by asking monimal about workflows only the
   vendored `packages/*/.github` fixtures declare.
-- Prefer `pnpm install --frozen-lockfile`; a re-resolution records rotating
-  hosts that pnpm rejects on the next install.
+- Keep `--frozen-lockfile` on every install that is not deliberately resolving.
+  It fails when the lockfile disagrees with the manifests -- `specifiers in the
+  lockfile don't match specifiers in package.json` -- where a plain `pnpm
+  install` silently re-resolves and rewrites. That is what makes CI install what
+  was committed. It used to be justified by rotating hosts as well; since
+  `.pnpmfile.cjs` a re-resolution no longer records them, so reproducibility is
+  now the whole of the reason.
 - Do not delete `.pnpmfile.cjs`, and keep its `afterAllResolved` hook. It drops
   the rotating shard hosts from the lockfile before pnpm writes it, which is the
   only point at which Dependabot can be stopped from committing them.
