@@ -13,13 +13,13 @@
     "astro": "astro"
   },
   "devDependencies": {
-    "@astrojs/markdown-remark": "^7.2.4",
-    "astro": "^7.2.8",
+    "@astrojs/markdown-remark": "^7.3.0",
+    "astro": "^7.2.10",
     "@typescript/native": "npm:typescript@^7.0.2",
     "typescript": "npm:@typescript/typescript6@^6.0.2"
   },
   "dependencies": {
-    "@astrojs/markdoc": "^2.0.8"
+    "@astrojs/markdoc": "^2.0.9"
   },
   "engines": {
     "node": ">=24"
