@@ -13,6 +13,8 @@ overrides:
   esbuild: 0.28.2
   '@electron/node-gyp': 10.2.0-electron.1
 
+pnpmfileChecksum: sha256-RoYPVc17Zo9HRSJwzERiWsWfZEOJXNY5mzVyi+AFssk=
+
 importers:
 
   .:
