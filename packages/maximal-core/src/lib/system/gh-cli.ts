@@ -11,7 +11,7 @@
  *
  * The runner is injectable so tests exercise the parser without a real `gh`.
  */
-import { type ExecFileException, execFile } from "node:child_process"
+import { type ExecException, execFile } from "node:child_process"
 
 export interface GhAccount {
   login: string
@@ -76,7 +76,7 @@ const defaultRunner: GhRunner = (args) => {
       "gh",
       args,
       { encoding: "utf8", timeout: GH_TIMEOUT_MS, maxBuffer: 1_000_000 },
-      (error: ExecFileException | null, stdout, stderr) => {
+      (error: ExecException | null, stdout, stderr) => {
         if (error?.code === "ENOENT") {
           resolve({ stdout: "", stderr: "", code: 127, notFound: true })
           return
