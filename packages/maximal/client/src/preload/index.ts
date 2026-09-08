@@ -32,6 +32,19 @@ const bridge = {
       ipcRenderer.off(BRIDGE_CHANNELS.lifecycleChanged, handler)
     }
   },
+  /** The application menu asking for the Settings surface. The payload is a
+   *  section id to scroll to, or null for the surface itself. */
+  onOpenSettings: (
+    listener: (sectionId: string | null) => void,
+  ): (() => void) => {
+    const handler = (_event: unknown, sectionId: string | null): void => {
+      listener(sectionId)
+    }
+    ipcRenderer.on(BRIDGE_CHANNELS.menuOpenSettings, handler)
+    return () => {
+      ipcRenderer.off(BRIDGE_CHANNELS.menuOpenSettings, handler)
+    }
+  },
   control: {
     authStatus: (): Promise<ControlResult<AuthStatus>> =>
       ipcRenderer.invoke(BRIDGE_CHANNELS.authStatus),

@@ -36,6 +36,7 @@ describe('preload bridge allowlist', () => {
       'getCoreStatus',
       'getProxyUrl',
       'onCoreStatus',
+      'onOpenSettings',
       'openExternal',
     ])
     expect(Object.keys(bridge.control).sort()).toEqual([

@@ -92,7 +92,14 @@ function createWindow(): void {
 
 void app.whenReady().then(async () => {
   applyDockIcon()
-  installApplicationMenu()
+  // The menu's only way to reach a surface. `broadcast` is the same helper the
+  // lifecycle and control-change pushes use, and the payload is a section id or
+  // null — never a command, and never anything the renderer could not have
+  // named itself.
+  installApplicationMenu({
+    onOpenSettings: (sectionId) =>
+      broadcast(BRIDGE_CHANNELS.menuOpenSettings, sectionId),
+  })
 
   controlSession = createControlSession({
     onChange: () => broadcast(BRIDGE_CHANNELS.controlChanged),

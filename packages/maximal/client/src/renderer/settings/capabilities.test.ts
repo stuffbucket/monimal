@@ -35,6 +35,7 @@ function fakeBridge(): MaximalBridge {
     getProxyUrl: vi.fn(async () => 'http://127.0.0.1:4141'),
     openExternal: vi.fn(async () => {}),
     onCoreStatus: vi.fn(() => () => {}),
+    onOpenSettings: vi.fn(() => () => {}),
     control: {
       authStatus: vi.fn(async () => success(authStatus)),
       authStart: vi.fn(async () => success(authStatus)),

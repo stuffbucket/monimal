@@ -11,6 +11,16 @@ import type { ComponentType, ReactElement } from 'react'
  * `aria-labelledby`, so a section is reachable from here without exporting a ref
  * or being wrapped in anything. A section that is not on screen yet — one whose
  * data has not arrived — simply does not scroll, rather than throwing.
+ *
+ * The rail carries no visible heading. It had one reading "On this page", which
+ * is documentation chrome: it describes a document you are reading rather than
+ * an application you are configuring, and it said nothing the list below it did
+ * not. The `<nav>`'s `aria-label` is what a screen reader announces, and it
+ * still says what this is, so nothing was lost with the `<h2>`.
+ *
+ * `sections` is structural on purpose — id, label, icon and nothing else. The
+ * manifest entries it is given carry a panel component too, and a rail that
+ * named that type would be a rail that knows what it is scrolling to.
  */
 
 export interface SettingsSection {
@@ -34,7 +44,6 @@ export function SectionRail({
 }): ReactElement {
   return (
     <nav className="settings-rail" aria-label="Settings sections">
-      {!collapsed && <h2 className="settings-rail__heading">On this page</h2>}
       {sections.map(({ id, label, icon: Icon }) => (
         <button
           key={id}
