@@ -7,6 +7,7 @@ import {
   TrafficDispatchMetadataSchema,
   TrafficErrorMetadataSchema,
   TrafficIdentityMetadataSchema,
+  TrafficResponseMetadataSchema,
   TrafficRouteMetadataSchema,
   TrafficSizeMetadataSchema,
   TrafficTimingMetadataSchema,
@@ -46,6 +47,10 @@ void test("all metadata groups accept serializable request facts", () => {
     request.context,
   )
   assert.deepEqual(TrafficSizeMetadataSchema.parse(request.size), request.size)
+  assert.deepEqual(
+    TrafficResponseMetadataSchema.parse(request.response),
+    request.response,
+  )
 })
 
 void test("schemas reject transport objects, content, and invalid counters", () => {

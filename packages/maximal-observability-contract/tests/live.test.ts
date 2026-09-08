@@ -13,6 +13,8 @@ void test("live invalidations are versioned bounded hints", () => {
     contractVersion: TRAFFIC_OBSERVABILITY_CONTRACT_VERSION,
     revision: 12,
     emittedAt: timestamp,
+    activeCount: 3,
+    overflow: false,
     scopes: ["requests", "request-detail", "overview"] as const,
     requestIds: ["request-1"],
   }

@@ -12,6 +12,7 @@ export const emptyTokens: TrafficTokenMetadata = {
   cacheCreationInputTokens: 0,
   reasoningTokens: 0,
   totalTokens: 0,
+  totalNanoAiu: 0,
 }
 
 export const completedRequest = (
@@ -46,6 +47,9 @@ export const completedRequest = (
     project: null,
     provider: "anthropic",
     model: "model-1",
+    parentSessionId: null,
+    subagent: null,
+    compactType: null,
   },
   dispatch: {
     attemptCount: 1,
@@ -53,6 +57,8 @@ export const completedRequest = (
     statusCode: 200,
     streamed: true,
     upstreamRequestId: "upstream-1",
+    requestedModel: "model-1",
+    resolvedModel: "model-1",
   },
   tokens: {
     ...emptyTokens,
@@ -65,11 +71,17 @@ export const completedRequest = (
     toolDefinitionCount: 1,
     contextWindowTokens: 200_000,
     requestedMaxOutputTokens: 1_024,
+    usedTokens: 20,
+    usedRatio: 0.0001,
   },
   size: {
     requestBytes: 512,
     responseBytes: 1_024,
     responseChunks: 4,
+  },
+  response: {
+    stopReason: "end_turn",
+    toolUseCount: 0,
   },
   error: null,
 })

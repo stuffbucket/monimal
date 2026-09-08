@@ -22,6 +22,8 @@ void test("request filters and cursor query have stable defaults", () => {
     providers: [],
     models: [],
     clients: [],
+    projects: [],
+    streaming: null,
     search: null,
     minimumDurationMs: null,
     maximumDurationMs: null,

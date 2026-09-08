@@ -6,6 +6,7 @@ import {
   TrafficDispatchMetadataSchema,
   TrafficErrorMetadataSchema,
   TrafficIdentityMetadataSchema,
+  TrafficResponseMetadataSchema,
   TrafficRouteMetadataSchema,
   TrafficSizeMetadataSchema,
   TrafficTokenMetadataSchema,
@@ -74,6 +75,9 @@ export const TrafficCompletionObservationSchema = z
     dispatch: TrafficDispatchMetadataSchema,
     tokens: TrafficTokenMetadataSchema.nullable(),
     size: TrafficSizeMetadataSchema,
+    response: TrafficResponseMetadataSchema.default(() =>
+      TrafficResponseMetadataSchema.parse({}),
+    ),
     error: TrafficErrorMetadataSchema.nullable(),
   })
   .strict()

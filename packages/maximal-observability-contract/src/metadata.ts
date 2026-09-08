@@ -64,6 +64,9 @@ export const TrafficAttributionMetadataSchema = z
     project: nullableIdentifier,
     provider: nullableIdentifier,
     model: nullableIdentifier,
+    parentSessionId: nullableIdentifier.default(null),
+    subagent: z.boolean().nullable().default(null),
+    compactType: nullableIdentifier.default(null),
   })
   .strict()
 
@@ -79,6 +82,8 @@ export const TrafficDispatchMetadataSchema = z
     statusCode: z.number().int().min(100).max(599).nullable(),
     streamed: z.boolean().nullable(),
     upstreamRequestId: nullableIdentifier,
+    requestedModel: nullableIdentifier.default(null),
+    resolvedModel: nullableIdentifier.default(null),
   })
   .strict()
 
@@ -95,6 +100,7 @@ export const TrafficTokenMetadataSchema = z
     cacheCreationInputTokens: TrafficCountSchema,
     reasoningTokens: TrafficCountSchema,
     totalTokens: TrafficCountSchema,
+    totalNanoAiu: TrafficCountSchema.default(0),
   })
   .strict()
 
@@ -107,6 +113,8 @@ export const TrafficContextMetadataSchema = z
     toolDefinitionCount: TrafficCountSchema.nullable(),
     contextWindowTokens: TrafficCountSchema.nullable(),
     requestedMaxOutputTokens: TrafficCountSchema.nullable(),
+    usedTokens: TrafficCountSchema.nullable().default(null),
+    usedRatio: z.number().nonnegative().nullable().default(null),
   })
   .strict()
 
@@ -124,6 +132,18 @@ export const TrafficSizeMetadataSchema = z
   .strict()
 
 export type TrafficSizeMetadata = z.infer<typeof TrafficSizeMetadataSchema>
+
+/** Normalized response semantics, never response content. */
+export const TrafficResponseMetadataSchema = z
+  .object({
+    stopReason: nullableIdentifier.default(null),
+    toolUseCount: TrafficCountSchema.nullable().default(null),
+  })
+  .strict()
+
+export type TrafficResponseMetadata = z.infer<
+  typeof TrafficResponseMetadataSchema
+>
 
 export const TrafficErrorCategorySchema = z.enum([
   "client",

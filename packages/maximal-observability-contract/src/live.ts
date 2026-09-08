@@ -26,6 +26,8 @@ export const TrafficInvalidationSchema = z
     contractVersion: TrafficContractVersionSchema,
     revision: z.number().int().nonnegative(),
     emittedAt: TrafficTimestampSchema,
+    activeCount: z.number().int().nonnegative().default(0),
+    overflow: z.boolean().default(false),
     scopes: z
       .array(TrafficInvalidationScopeSchema)
       .min(1)

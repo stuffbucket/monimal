@@ -6,6 +6,7 @@ import {
   TrafficDispatchMetadataSchema,
   TrafficErrorMetadataSchema,
   TrafficIdentityMetadataSchema,
+  TrafficResponseMetadataSchema,
   TrafficRouteMetadataSchema,
   TrafficSizeMetadataSchema,
   TrafficTimingMetadataSchema,
@@ -41,6 +42,8 @@ export const TrafficRequestFiltersSchema = z
     providers: uniqueFilter.default([]),
     models: uniqueFilter.default([]),
     clients: uniqueFilter.default([]),
+    projects: uniqueFilter.default([]),
+    streaming: z.boolean().nullable().default(null),
     search: z.string().trim().max(200).nullable().default(null),
     minimumDurationMs: TrafficDurationMsSchema.nullable().default(null),
     maximumDurationMs: TrafficDurationMsSchema.nullable().default(null),
@@ -103,6 +106,9 @@ export const TrafficRequestSummarySchema = z
     tokens: TrafficTokenMetadataSchema.nullable(),
     context: TrafficContextMetadataSchema,
     size: TrafficSizeMetadataSchema,
+    response: TrafficResponseMetadataSchema.default(() =>
+      TrafficResponseMetadataSchema.parse({}),
+    ),
     error: TrafficErrorMetadataSchema.nullable(),
   })
   .strict()
