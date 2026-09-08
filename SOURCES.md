@@ -221,6 +221,10 @@ package provenance or publisher identity -- the proxy does that.
   now lints through `@stuffbucket/eslint-config/typescript` like every other
   package. Type-aware rules stay off pending 38 findings; that is a scoped
   task, not a blocked upgrade, and it is step 4 of `client/README.md`.
+- `maximal/client` and `maximal-electron`: renamed `vitest.config.ts` to
+  `vitest.config.mts`. Both packages are CommonJS at their package boundary,
+  while their Vitest configs use ESM syntax; the explicit extension keeps Vite
+  from loading those configs as CommonJS.
 - `maximal/client`: `scripts/name-dev-bundle.mjs` names a private copy of the
   Electron dist rather than the installed one, and `start` runs through
   `scripts/start.mjs` to point `ELECTRON_OVERRIDE_DIST_PATH` at it. Upstream is

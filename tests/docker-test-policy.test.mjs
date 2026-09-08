@@ -132,16 +132,30 @@ test("the outer and fixed inner test scripts cannot recurse", () => {
   ]);
 });
 
-test("required CI runs Core's host gate before the Docker test graph", () => {
+test("required CI runs native checks before Docker and has one cache writer", () => {
   const workflow = read(".github/workflows/ci.yml");
   const hostGate =
     "pnpm --filter @stuffbucket/maximal-core run check:deep:host";
+  const packageMechanics =
+    "pnpm --filter @stuffbucket/maximal-electron run verify:fixture-imports";
+  const sidecarProvenance =
+    "LINK=packages/maximal/client/node_modules/@stuffbucket/maximal-core";
   const dockerGate = 'pnpm test -- --trace="$TEST_TRACE"';
   assert.equal(workflow.split(hostGate).length - 1, 1);
+  assert.equal(workflow.split(packageMechanics).length - 1, 1);
+  assert.equal(workflow.split(sidecarProvenance).length - 1, 1);
   assert.equal(workflow.split(dockerGate).length - 1, 1);
   assert.doesNotMatch(workflow, /pnpm (?:run )?check:core/);
   assert.doesNotMatch(workflow, /\bbun (?:run )?test\b/);
   assert.ok(workflow.indexOf(hostGate) < workflow.indexOf(dockerGate));
+  assert.ok(workflow.indexOf(packageMechanics) < workflow.indexOf(dockerGate));
+  assert.ok(workflow.indexOf(sidecarProvenance) < workflow.indexOf(dockerGate));
+  assert.equal(
+    workflow.split("uses: actions/cache@").length - 1,
+    2,
+    "only the check Turbo cache and Electron download cache may save",
+  );
+  assert.equal(workflow.split("uses: actions/cache/restore@").length - 1, 1);
 });
 
 test("runtime arguments enforce the mountless offline boundary", () => {

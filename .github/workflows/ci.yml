@@ -164,14 +164,6 @@ jobs:
       - name: Check Core host verification
         run: pnpm --filter @stuffbucket/maximal-core run check:deep:host
 
-      # The same mountless, offline-runtime Docker boundary contributors get
-      # from `pnpm test`. No workflow environment is forwarded into the test
-      # container; tracing is the wrapper's one validated option.
-      - name: Test workspace in disposable container
-        run: pnpm test -- --trace="$TEST_TRACE"
-        env:
-          TEST_TRACE: ${{ inputs.test_trace || 'off' }}
-
       # Build/install mechanics outside the normal package scripts. Release-time
       # checks that require a tag or packaged app remain out of the PR gate.
       - name: Verify package mechanics
@@ -205,6 +197,14 @@ jobs:
             exit 1
           }
           echo "sidecar embeds $SHA, core $(node -p "require('./packages/maximal-core/package.json').version")"
+
+      # The same mountless, offline-runtime Docker boundary contributors get
+      # from `pnpm test`. Keep it after checks that use the native build above:
+      # constructing the test image is the longest step in this job.
+      - name: Test workspace in disposable container
+        run: pnpm test -- --trace="$TEST_TRACE"
+        env:
+          TEST_TRACE: ${{ inputs.test_trace || 'off' }}
 
   # Exercises Forge packaging and the public-hoist behavior that ordinary
   # build/typecheck/lint/test do not prove.
@@ -241,8 +241,10 @@ jobs:
 
       # Dependency builds can replay from a previous run. The Git-dependent
       # maximal-client sidecar build is uncached and therefore recompiles.
+      # The check job owns saving this key. Restore-only avoids two successful
+      # parallel jobs racing to reserve the same cache in their post-steps.
       - name: Restore turbo cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .turbo
           key: turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
