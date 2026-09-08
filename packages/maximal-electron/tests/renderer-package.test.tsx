@@ -199,6 +199,24 @@ describe('packaged renderer components', () => {
     expect(last).not.toContain('aria-keyshortcuts');
   });
 
+  it('keeps individually non-closable tabs fixed while terminal documents can close', () => {
+    const markup = renderToStaticMarkup(
+      <TabBar
+        tabIdBase="test-documents"
+        tabs={[
+          { id: 'overview', title: 'Overview', closable: false },
+          { id: 'terminal', title: 'zsh' },
+        ]}
+        active="terminal"
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(markup).not.toContain('aria-label="Close Overview"');
+    expect(markup).toContain('aria-label="Close zsh"');
+  });
+
   it('keeps the create and close controls out of the tablist', () => {
     const markup = renderToStaticMarkup(
       <TabBar

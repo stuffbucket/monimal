@@ -34,18 +34,23 @@ import { getTabPanelId, getTabTriggerId, ShellLayout, type Tab } from 'stuffbuck
 const LAYOUT_ID = 'maximal'
 const TAB_ID_BASE = `${LAYOUT_ID}-documents`
 
-export type View = 'overview' | 'traffic' | 'terminal' | 'settings'
+export type View = 'overview' | 'traffic' | 'settings'
+export type Surface = View | 'terminal'
+
+export interface AppTab extends Tab {
+  kind: Surface
+  sessionId?: string
+}
 
 /*
  * Tab identity is the view id, so the persisted active tab and the active view
  * cannot drift apart. `icon` and `title` are the strip's; the rail and the
  * heading below read the same names from here.
  */
-const VIEW_TABS: Array<Tab & { id: View }> = [
-  { id: 'overview', title: 'Overview', icon: 'document' },
-  { id: 'traffic', title: 'Traffic', icon: 'folder' },
-  { id: 'terminal', title: 'Terminal', icon: 'terminal' },
-  { id: 'settings', title: 'Settings', icon: 'settings' },
+export const PRODUCT_TABS: AppTab[] = [
+  { id: 'overview', title: 'Overview', icon: 'document', kind: 'overview', closable: false },
+  { id: 'traffic', title: 'Traffic', icon: 'folder', kind: 'traffic', closable: false },
+  { id: 'settings', title: 'Settings', icon: 'settings', kind: 'settings', closable: false },
 ]
 
 /**
@@ -147,14 +152,20 @@ function RailCollapse({
 }
 
 export function AppFrame({
-  view,
-  onSelectView,
-  availableViews = VIEW_TABS.map((tab) => tab.id),
+  tabs,
+  activeTab,
+  surface,
+  onSelectTab,
+  onCloseTab,
+  onNewTab,
   children,
 }: {
-  view: View
-  onSelectView: (view: View) => void
-  availableViews?: readonly View[]
+  tabs: AppTab[]
+  activeTab: string
+  surface: Surface
+  onSelectTab: (id: string) => void
+  onCloseTab?: (id: string) => void
+  onNewTab?: () => void
   children: ReactNode
 }): ReactElement {
   useAppFrameStyles()
@@ -164,36 +175,32 @@ export function AppFrame({
   const [right, setRight] = useState<HTMLElement | null>(null)
   const [status, setStatus] = useState<HTMLElement | null>(null)
   const [railCollapsed, setRailCollapsed] = useState(false)
-  const viewTabs = VIEW_TABS.filter((tab) => availableViews.includes(tab.id))
-
   const frame = useMemo<FrameContextValue>(
     () => ({
       railCollapsed,
-      tabTriggerId: getTabTriggerId(TAB_ID_BASE, view),
-      tabPanelId: getTabPanelId(TAB_ID_BASE, view),
+      tabTriggerId: getTabTriggerId(TAB_ID_BASE, activeTab),
+      tabPanelId: getTabPanelId(TAB_ID_BASE, activeTab),
       top,
       rail,
       right,
       status,
     }),
-    [railCollapsed, view, top, rail, right, status],
+    [railCollapsed, activeTab, top, rail, right, status],
   )
 
   return (
     <FrameContext.Provider value={frame}>
       <ShellLayout
         layoutId={LAYOUT_ID}
-        tabs={viewTabs}
-        activeTab={view}
-        onSelectTab={(id) => {
-          // A lookup rather than a cast: the strip is typed by its own tabs, so
-          // this is the one place that has to prove an id is a view.
-          const next = viewTabs.find((tab) => tab.id === id)
-          if (next !== undefined) onSelectView(next.id)
-        }}
+        tabs={tabs}
+        activeTab={activeTab}
+        onSelectTab={onSelectTab}
+        onCloseTab={onCloseTab}
+        onNewTab={onNewTab}
         tabsLabel="Views"
+        newTabLabel="New terminal"
         top={<div ref={setTop} className="app-frame__slot" />}
-        left={(collapsed) => (
+        left={surface === 'terminal' ? undefined : (collapsed) => (
           <>
             {/*
              * The frame hands `collapsed` to this render prop and nowhere else,
@@ -208,11 +215,13 @@ export function AppFrame({
         )}
         main={children}
         right={
-          view === 'settings' ? undefined : (
+          surface === 'overview' || surface === 'traffic' ? (
             <div ref={setRight} className="app-frame__slot app-frame__slot--fill" />
-          )
+          ) : undefined
         }
-        status={<div ref={setStatus} className="app-frame__slot app-frame__slot--contents" />}
+        status={surface === 'terminal' ? undefined : (
+          <div ref={setStatus} className="app-frame__slot app-frame__slot--contents" />
+        )}
       />
     </FrameContext.Provider>
   )

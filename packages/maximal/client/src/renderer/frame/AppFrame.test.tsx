@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
   AppFrame,
+  PRODUCT_TABS,
   SurfaceRail,
   SurfaceRight,
   SurfaceStatus,
@@ -86,9 +87,10 @@ function renderFrame(
   act(() => {
     root?.render(
       <AppFrame
-        view={view}
-        onSelectView={onSelectView}
-        availableViews={availableViews}
+        tabs={PRODUCT_TABS.filter((tab) => availableViews?.includes(tab.kind as View) ?? true)}
+        activeTab={view}
+        surface={view}
+        onSelectTab={(id) => onSelectView(id as View)}
       >
         {children}
       </AppFrame>,
@@ -135,11 +137,11 @@ describe('AppFrame', () => {
     expect(shell.querySelector('.sb-shell.app .titlebar')).not.toBeNull()
   })
 
-  it('lists the four views as tabs, with the current view marked selected', () => {
+  it('lists the product views as tabs, with the current view marked selected', () => {
     const shell = renderFrame('traffic', vi.fn(), <p>content</p>)
     const tabs = [...shell.querySelectorAll('[role="tab"]')]
 
-    expect(tabs.map((tab) => tab.textContent)).toEqual(['Overview', 'Traffic', 'Terminal', 'Settings'])
+    expect(tabs.map((tab) => tab.textContent)).toEqual(['Overview', 'Traffic', 'Settings'])
 
     const selected = tabs.filter((tab) => tab.getAttribute('aria-selected') === 'true')
     expect(selected).toHaveLength(1)
@@ -153,13 +155,47 @@ describe('AppFrame', () => {
     expect(tabs.map((tab) => tab.id)).toEqual([
       'maximal-documents-tab-overview',
       'maximal-documents-tab-traffic',
-      'maximal-documents-tab-terminal',
       'maximal-documents-tab-settings',
     ])
     expect(tabs[0]?.querySelector('svg.lucide-file-text')).not.toBeNull()
     expect(tabs[1]?.querySelector('svg.lucide-folder')).not.toBeNull()
-    expect(tabs[2]?.querySelector('svg.lucide-square-terminal')).not.toBeNull()
-    expect(tabs[3]?.querySelector('svg.lucide-settings')).not.toBeNull()
+    expect(tabs[2]?.querySelector('svg.lucide-settings')).not.toBeNull()
+  })
+
+  it('renders a terminal session as a closable full-width document', () => {
+    const onCloseTab = vi.fn()
+    const onNewTab = vi.fn()
+    const terminal = { id: 'terminal:session-1', title: 'zsh', icon: 'terminal', kind: 'terminal' } as const
+    container = document.createElement('div')
+    document.body.appendChild(container)
+    root = createRoot(container)
+    act(() => {
+      root?.render(
+        <AppFrame
+          tabs={[...PRODUCT_TABS, terminal]}
+          activeTab={terminal.id}
+          surface="terminal"
+          onSelectTab={vi.fn()}
+          onCloseTab={onCloseTab}
+          onNewTab={onNewTab}
+        >
+          <p>terminal content</p>
+        </AppFrame>,
+      )
+    })
+
+    expect(container.querySelector('#left')).toBeNull()
+    expect(container.querySelector('#right')).toBeNull()
+    expect(container.querySelector('.statusbar')).toBeNull()
+    expect(container.querySelector('[data-testid="toggle-left"]')).toBeNull()
+    expect(container.querySelector('[data-testid="toggle-right"]')).toBeNull()
+    expect(container.querySelector('[aria-label="Close Overview"]')).toBeNull()
+    expect(container.querySelector('[aria-label="Close zsh"]')).not.toBeNull()
+
+    const newTerminal = container.querySelector<HTMLElement>('[aria-label="New terminal"]')
+    if (newTerminal === null) throw new Error('no new-terminal control was rendered')
+    act(() => newTerminal.click())
+    expect(onNewTab).toHaveBeenCalledOnce()
   })
 
   it('limits navigation to the views available in the current app state', () => {
@@ -207,7 +243,7 @@ describe('AppFrame', () => {
 
     act(() => {
       root?.render(
-        <AppFrame view="settings" onSelectView={vi.fn()}>
+        <AppFrame tabs={PRODUCT_TABS} activeTab="settings" surface="settings" onSelectTab={vi.fn()}>
           <SurfaceRight><p data-testid="settings-right">settings</p></SurfaceRight>
         </AppFrame>,
       )
@@ -218,7 +254,7 @@ describe('AppFrame', () => {
 
     act(() => {
       root?.render(
-        <AppFrame view="traffic" onSelectView={vi.fn()}>
+        <AppFrame tabs={PRODUCT_TABS} activeTab="traffic" surface="traffic" onSelectTab={vi.fn()}>
           <SurfaceRight><p data-testid="traffic-right">traffic</p></SurfaceRight>
         </AppFrame>,
       )
@@ -228,7 +264,7 @@ describe('AppFrame', () => {
 
     act(() => {
       root?.render(
-        <AppFrame view="overview" onSelectView={vi.fn()}>
+        <AppFrame tabs={PRODUCT_TABS} activeTab="overview" surface="overview" onSelectTab={vi.fn()}>
           <SurfaceRight><p data-testid="overview-right">overview</p></SurfaceRight>
         </AppFrame>,
       )
