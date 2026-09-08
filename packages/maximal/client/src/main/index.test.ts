@@ -423,11 +423,11 @@ describe('closed IPC boundary', () => {
 })
 
 describe('window defaults', () => {
-  it('opens at a size that fits the application content', async () => {
+  it('opens wide enough for the three-panel Overview without horizontal scrolling', async () => {
     await loadIndexOn('darwin')
 
     expect(runShellMock).toHaveBeenCalledWith(
-      expect.objectContaining({ width: 1024, height: 768 }),
+      expect.objectContaining({ width: 1280, height: 768 }),
     )
   })
 })
