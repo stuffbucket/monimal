@@ -21,6 +21,57 @@ const scrubbedEnvironment = [
   "OPENAI_API_KEY",
 ];
 const usage = "Usage: pnpm test -- [--all|--core] [--trace=off|tests|all]";
+const performanceMarkerEnvironment = "MONIMAL_PERF_MARKERS";
+
+export function formatPerformanceMarker({
+  phase,
+  startedAt,
+  endedAt,
+  elapsedMilliseconds,
+  status,
+}) {
+  return [
+    "perf-marker",
+    `phase=${phase}`,
+    `started_at=${startedAt.toISOString()}`,
+    `ended_at=${endedAt.toISOString()}`,
+    `elapsed_seconds=${(elapsedMilliseconds / 1000).toFixed(3)}`,
+    `status=${status}`,
+  ].join(" ");
+}
+
+export function measurePerformancePhase(
+  phase,
+  operation,
+  {
+    enabled = process.env[performanceMarkerEnvironment] === "1",
+    now = () => new Date(),
+    monotonicNow = () => performance.now(),
+    write = (line) => console.error(line),
+  } = {},
+) {
+  if (!enabled) return operation();
+
+  const startedAt = now();
+  const started = monotonicNow();
+  let status = "success";
+  try {
+    return operation();
+  } catch (error) {
+    status = "failure";
+    throw error;
+  } finally {
+    write(
+      formatPerformanceMarker({
+        phase,
+        startedAt,
+        endedAt: now(),
+        elapsedMilliseconds: monotonicNow() - started,
+        status,
+      }),
+    );
+  }
+}
 
 export function parseTestOptions(arguments_) {
   const separators = arguments_.filter((option) => option === "--").length;
@@ -86,6 +137,7 @@ export function createIsolatedTestEnvironment(parent = os.tmpdir()) {
     CLAUDE_CONFIG_DIR: directories.claude,
   });
   delete environment.MAXIMAL_TEST_CONTAINER;
+  delete environment[performanceMarkerEnvironment];
   return { environment, root };
 }
 
@@ -115,32 +167,47 @@ export function turboTestArguments(options, base) {
 }
 
 export function main(arguments_ = process.argv.slice(2)) {
-  const options = parseTestOptions(arguments_);
-  const base = options.scope === "affected" ? affectedBase() : undefined;
-  const isolated = createIsolatedTestEnvironment();
-  if (options.trace !== "off") {
-    isolated.environment.MAXIMAL_TEST_TRACE =
-      options.trace === "all" ? "all" : "1";
-  } else {
-    delete isolated.environment.MAXIMAL_TEST_TRACE;
-  }
+  const markersEnabled = process.env[performanceMarkerEnvironment] === "1";
+  const measure = (phase, operation) =>
+    measurePerformancePhase(phase, operation, { enabled: markersEnabled });
 
-  try {
-    run(
-      process.execPath,
-      ["--test", "tests/docker-test-policy.test.mjs"],
-      isolated.environment,
-      "Root policy tests",
-    );
-    run(
-      path.join(repositoryRoot, "node_modules/.bin/turbo"),
-      turboTestArguments(options, base),
-      isolated.environment,
-      "Workspace tests",
-    );
-  } finally {
-    fs.rmSync(isolated.root, { recursive: true, force: true });
-  }
+  return measure("test-total", () => {
+    const options = parseTestOptions(arguments_);
+    const base =
+      options.scope === "affected"
+        ? measure("test-affected-base", affectedBase)
+        : undefined;
+    const isolated = createIsolatedTestEnvironment();
+    if (options.trace !== "off") {
+      isolated.environment.MAXIMAL_TEST_TRACE =
+        options.trace === "all" ? "all" : "1";
+    } else {
+      delete isolated.environment.MAXIMAL_TEST_TRACE;
+    }
+
+    try {
+      measure("test-root-policy", () =>
+        run(
+          process.execPath,
+          ["--test", "tests/docker-test-policy.test.mjs"],
+          isolated.environment,
+          "Root policy tests",
+        ),
+      );
+      measure("test-workspace", () =>
+        run(
+          path.join(repositoryRoot, "node_modules/.bin/turbo"),
+          turboTestArguments(options, base),
+          isolated.environment,
+          "Workspace tests",
+        ),
+      );
+    } finally {
+      measure("test-cleanup", () =>
+        fs.rmSync(isolated.root, { recursive: true, force: true }),
+      );
+    }
+  });
 }
 
 const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : "";

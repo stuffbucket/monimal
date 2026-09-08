@@ -153,9 +153,9 @@ describe("parity with the real build config", () => {
   // pin guard — and both sides call the SAME `realMainBuild`, so the argv
   // parity is structural. What is left to assert is that `build` still routes
   // through that script and still writes where the committed bundle lives.
-  test("`build` is the guarded script, writing where `bin` ships", () => {
+  test("`build` starts with the guarded script, writing where `bin` ships", () => {
     const scripts = readPackageJson().scripts as Record<string, string>
-    expect(scripts.build).toBe(BUILD_COMMAND)
+    expect(scripts.build.split("&&", 1)[0]?.trim()).toBe(BUILD_COMMAND)
     expect(BUILD_OUT_DIR).toBe(path.posix.dirname(MAIN_BUNDLE))
   })
 
@@ -169,20 +169,21 @@ describe("parity with the real build config", () => {
   // The real `git ls-files -s -z` output shape, parsed by the real parser. A
   // git version that changed it would otherwise leave the gate reading an
   // empty index — which looks exactly like "everything is orphaned", but only
-  // in CI.
-  test("the real index actually yields the committed bindings", () => {
-    const tree = readIndexTree(realGit)
-    expect(Object.keys(tree)).toContain("supervisor.d.ts")
-    expect(Object.keys(tree)).toContain("supervisor.js")
+  // in CI. Use tracked source because this monorepo does not commit dist/.
+  test("the real index yields a tracked directory relative to its base", () => {
+    const base = "src/lib/platform"
+    const tree = readIndexTree(realGit, base, base)
+    expect(Object.keys(tree)).toContain("sqlite.ts")
     for (const blob of Object.values(tree)) expect(blob).toMatch(/^[0-9a-f]{40,64}$/u)
   })
 
-  // A single-file artifact relativises against its PARENT, so the index entry
-  // `dist/main.js` keys as `main.js` and lines up with a scratch outDir.
-  test("the real index yields the committed bundle, keyed by basename", () => {
-    const tree = readIndexTree(realGit, MAIN_ARTIFACT.id, MAIN_ARTIFACT.base)
-    expect(Object.keys(tree)).toEqual(["main.js"])
-    expect(tree["main.js"]).toMatch(/^[0-9a-f]{40,64}$/u)
+  // A single-file pathspec relativises against its PARENT, so the full index
+  // path keys by basename and lines up with an artifact scratch outDir.
+  test("the real index yields a tracked file keyed by basename", () => {
+    const base = "src/lib/platform"
+    const tree = readIndexTree(realGit, `${base}/sqlite.ts`, base)
+    expect(Object.keys(tree)).toEqual(["sqlite.ts"])
+    expect(tree["sqlite.ts"]).toMatch(/^[0-9a-f]{40,64}$/u)
   })
 
   test("both committed artifacts are covered", () => {

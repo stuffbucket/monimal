@@ -52,6 +52,11 @@ mutually exclusive. Unknown, duplicate, positional, or split-form options fail.
 The wrapper does not forward arbitrary package names, runner flags, commands, or
 test paths.
 
+CI MUST set `MONIMAL_PERF_MARKERS=1` on the native wrapper. When enabled, the
+wrapper MUST emit one `perf-marker` line for affected-base resolution, root
+policy tests, workspace tests, cleanup, and the total run where each phase
+applies. The wrapper MUST NOT forward this control variable to package tests.
+
 `pnpm run test:all` and `pnpm run test:core` are fixed script aliases for the two
 explicit scopes. CI uses `pnpm run test:all`; ordinary CI does not build the
 Docker image. GitHub-hosted runners use the same isolated native wrapper rather
@@ -66,6 +71,24 @@ The aggregate gates remain native:
 
 Neither aggregate proves that the workspace also passes with the pinned Linux
 dependencies and toolchains.
+
+## Test graph parallelism
+
+The native and Docker workspace graphs MUST use `--concurrency=1` while package
+tasks share one isolated home and suites can bind machine-wide ports. A package
+MUST receive an independent test root and pass repeated socket-free and
+home-state-free runs before admission to a parallel lane.
+
+The first experimental lane SHOULD be limited to:
+
+- `@stuffbucket/maximal-observability-contract`;
+- `@stuffbucket/maximal-provider-contract`;
+- `@stuffbucket/omlx`;
+- `@stuffbucket/anthropic-provider`;
+- `@stuffbucket/maximal-observability`.
+
+A parallel lane MUST NOT include Core, DSH host, or maximal until their port and
+user-state boundaries no longer overlap another package task.
 
 ## Docker dependency boundary
 

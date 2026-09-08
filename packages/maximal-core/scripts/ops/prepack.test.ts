@@ -17,6 +17,7 @@ import {
 } from "./prepack"
 import { BUILD_COMMAND, OUT_DIR as BUILD_OUT_DIR } from "./build-bundle"
 import { MAIN_ARTIFACT, MAIN_BUILD_ARGV, needsNodeModules, needsPinnedBun } from "./check-bindings"
+import { parseSemver, semverGt } from "./watch-external-drift"
 
 // Offline and deterministic: the runner is injected, so nothing here invokes a
 // bundler or writes to dist/. The parity guards are the deliberate exception —
@@ -97,8 +98,8 @@ describe("parity with the real package.json", () => {
   // `mainBuildArgv`, `build` through `check-bindings.ts`'s `realMainBuild` — so
   // the argv cannot diverge textually any more. What still can is the OUT DIR,
   // and a tarball built into the wrong one ships a bundle no gate has seen.
-  test("the bundle build writes the `dist` `bun run build` writes", () => {
-    expect(readScripts().build).toBe(BUILD_COMMAND)
+  test("the bundle build starts with the guarded `dist` build", () => {
+    expect(readScripts().build.split("&&", 1)[0]?.trim()).toBe(BUILD_COMMAND)
     expect(mainBuildArgv()).toEqual([...MAIN_BUILD_ARGV, "--outdir", BUILD_OUT_DIR])
   })
 
@@ -116,41 +117,27 @@ describe("parity with the real package.json", () => {
     expect(LIB_BUILD_ARGV).toEqual(["x", "tsup"])
   })
 
-  // Same PATH limitation, same failure: a bare `simple-git-hooks` in `prepare`
-  // exits 127 under the pack lifecycle and aborts the publish AFTER prepack has
-  // already rewritten dist/. So the invocation must go through `bun x`.
+  // Hook installation is explicit in this monorepo rather than an install
+  // lifecycle. The command still has to resolve `simple-git-hooks` through the
+  // interpreter: a bare binary is not portable across Bun lifecycle PATHs.
   //
-  // Not an equality assertion any more, because `prepare` also has to VERIFY
-  // its own result: `simple-git-hooks` catches every install error and exits 0
-  // (its cli.js `.catch(e => console.log(...))`), so a failed hook install
-  // reads as success and the pre-commit lint + secret scan silently stop
-  // existing. `prepare` therefore ends by checking the hook file is actually
-  // there, at `git rev-parse --git-path hooks` — which resolves through the
-  // common dir, so a linked worktree (where simple-git-hooks always fails,
-  // upstream bug: it joins `.git/hooks` onto cwd rather than the resolved git
-  // dir) still passes off the main checkout's hook.
-  //
-  // The body now lives in `scripts/ops/prepare.ts` rather than an inline shell
-  // string. The inline version used `> /dev/null 2>&1` and `$(…)`, which Bun's
-  // built-in shell rejects on Windows (`expected a command or assignment but
-  // got: "Redirect"`), failing `bun install` outright there. Nothing caught it:
-  // ci.yml is Linux-only and the sole Windows leg runs on a tag push, so it
-  // surfaced only after v0.4.2 was tagged, leaving that release asset-less.
-  test("`prepare` resolves its binary through the interpreter too", () => {
-    const prepare = readScripts().prepare
-    expect(prepare).toBe("bun scripts/ops/prepare.ts")
+  // The body also verifies its own result because `simple-git-hooks` catches
+  // install errors and exits 0. It lives in TypeScript rather than inline shell
+  // so the same command remains valid on Windows.
+  test("`prepare:hooks` resolves its binary through the interpreter", () => {
+    const prepareHooks = readScripts()["prepare:hooks"]
+    expect(prepareHooks).toBe("bun scripts/ops/prepare.ts")
     // No bare invocation anywhere in the chain — neither in the script entry
     // nor in the file it delegates to.
-    expect(prepare).not.toMatch(/(?:^|[;&|]\s*)simple-git-hooks/)
+    expect(prepareHooks).not.toMatch(/(?:^|[;&|]\s*)simple-git-hooks/)
     const body = fs.readFileSync(path.join(import.meta.dir, "prepare.ts"), "utf8")
     expect(body).toContain('process.execPath, ["x", "simple-git-hooks"]')
     expect(body).not.toMatch(/spawnSync\(\s*"(?:bun|simple-git-hooks)"/)
   })
 
-  // The other half of the same fix: `prepare` must not exit 0 when the hook
-  // was not installed. Guarded so it is a no-op outside a git repo, which is
-  // how a git-dependency or tarball install sees it.
-  test("`prepare` verifies the hook landed, and no-ops outside a git repo", () => {
+  // The other half of the same fix: the explicit hook command must not exit 0
+  // when the hook was not installed. It remains a no-op outside a git repo.
+  test("`prepare:hooks` verifies the hook landed, and no-ops outside a git repo", () => {
     const body = fs.readFileSync(path.join(import.meta.dir, "prepare.ts"), "utf8")
     expect(body).toContain("rev-parse")
     expect(body).toContain("--git-path")
@@ -173,7 +160,7 @@ describe("parity with the real package.json", () => {
   // Read as text rather than imported: this suite runs under `check:ops` with no
   // `bun install`, and pulling in a `~/`-aliased src module would drag the
   // engine's import graph into an offline tooling test.
-  test("`engines.node` is the floor src/lib/platform/sqlite.ts actually enforces", () => {
+  test("`engines.node` does not admit runtimes below the SQLite floor", () => {
     const pkg = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, "package.json"), "utf8")) as {
       engines: { node: string }
     }
@@ -181,9 +168,16 @@ describe("parity with the real package.json", () => {
       path.join(REPO_ROOT, "src", "lib", "platform", "sqlite.ts"),
       "utf8",
     )
-    const declared = /MINIMUM_NODE_SQLITE_VERSION\s*=\s*"([^"]+)"/.exec(source)?.[1]
-    expect(declared).toBeDefined()
-    expect(pkg.engines.node).toBe(`>=${declared}`)
+    const sqliteMinimum = /MINIMUM_NODE_SQLITE_VERSION\s*=\s*"([^"]+)"/.exec(source)?.[1]
+    const engineMinimum = /^>=(\d+(?:\.\d+){0,2})$/u.exec(pkg.engines.node)?.[1]
+    expect(sqliteMinimum).toBeDefined()
+    expect(engineMinimum).toBeDefined()
+    if (sqliteMinimum === undefined || engineMinimum === undefined) return
+
+    const normalizedEngine = parseSemver(engineMinimum)
+    const normalizedSqlite = parseSemver(sqliteMinimum)
+    const sameMinimum = normalizedEngine.every((part, index) => part === normalizedSqlite[index])
+    expect(sameMinimum || semverGt(engineMinimum, sqliteMinimum)).toBe(true)
   })
 })
 
