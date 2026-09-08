@@ -5,6 +5,10 @@ import type {
 } from '@stuffbucket/maximal-core/settings-types'
 
 import type { MaximalBridge } from '../../preload'
+import {
+  isSettingsSectionId,
+  type SettingsSectionId,
+} from '../../shared/settings-sections'
 import { unwrapControlResult } from '../shared/control-error'
 
 export type { AccountsListResponse, AccountSummary, AuthStatus }
@@ -27,6 +31,17 @@ export interface SettingsCapabilities {
     /** Base URL where /v1 is served for external programs (to display/copy). */
     proxyUrl(): Promise<string>
   }
+  /**
+   * The application menu asking for this surface.
+   *
+   * Here rather than read from `window.maximal` at the call site, because this
+   * adapter is the renderer's only boundary to the named bridge and the surface
+   * that answers a menu request should not be the exception. `null` means the
+   * surface itself, with no section singled out. Returns an unsubscribe.
+   */
+  onOpenRequest(
+    listener: (sectionId: SettingsSectionId | null) => void,
+  ): () => void
   openExternal(url: string): Promise<void>
 }
 
@@ -120,6 +135,13 @@ export function createCoreSettingsCapabilities(): SettingsCapabilities {
     connection: {
       proxyUrl: () => proxyUrlTracker.current(),
     },
+    // Narrowed rather than cast. Main sends only ids from the shared manifest,
+    // so an unknown one is a rename that got away — and the surface it would
+    // scroll to does not exist, which is what `null` already means.
+    onOpenRequest: (listener) =>
+      bridge.onOpenSettings((sectionId) => {
+        listener(isSettingsSectionId(sectionId) ? sectionId : null)
+      }),
     openExternal: (url) => bridge.openExternal(url),
   }
 }

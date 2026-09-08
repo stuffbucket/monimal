@@ -1,49 +1,177 @@
-import { Link2, User, Users } from 'lucide-react'
-import { useCallback, useState, type ReactElement } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactElement } from 'react'
 
+import type { SettingsSectionId } from '../../shared/settings-sections'
 import { SurfaceRail, useTabTriggerId } from '../frame/AppFrame'
-import { AccountSection } from './AccountSection'
-import { AccountsSection } from './AccountsSection'
 import type { SettingsCapabilities } from './capabilities'
-import { ConnectionSection } from './ConnectionSection'
-import { SectionRail, type SettingsSection } from './SectionRail'
+import { SETTINGS_SECTION_VIEWS } from './manifest'
+import { SectionRail } from './SectionRail'
 
 // The Settings surface. Composition only: this file owns the page heading and
-// the section order; each section owns its own data lifecycle against
-// `SettingsCapabilities`. Building the capabilities instance via
-// `createCoreSettingsCapabilities` is deliberately somebody else's decision.
-// The window frame is too: it belongs to ../frame/AppFrame, and this surface
-// reaches the parts of it that are its own through that module's slots.
+// nothing about which sections exist — that is `shared/settings-sections.ts`,
+// joined to its icons and panels in `./manifest`. Each section owns its own
+// data lifecycle against `SettingsCapabilities`. Building the capabilities
+// instance via `createCoreSettingsCapabilities` is deliberately somebody
+// else's decision. The window frame is too: it belongs to ../frame/AppFrame,
+// and this surface reaches the parts of it that are its own through that
+// module's slots.
+//
+// The rail and the panels are both projections of the manifest. They used to
+// be two hand-written lists in this file, which could disagree and eventually
+// would: a section in the rail with no panel scrolls to nothing.
 //
 // One primary heading per view: the "Settings" h1 below is the only h1 this
 // surface renders; each section heading is an h2.
 
-interface SettingsProps {
-  capabilities: SettingsCapabilities
+/** A section the application menu asked to be shown. */
+export interface SettingsSectionRequest {
+  id: SettingsSectionId
+  /** Bumped per request. Asking for the same section twice has to scroll
+   *  twice, and an unchanged object would look like nothing had happened. */
+  seq: number
 }
 
-/** The rail's entries, in the order the page renders them. Each id is the
- *  heading id its section already declares for its own aria-labelledby. */
-const SECTIONS: readonly SettingsSection[] = [
-  { id: 'settings-account-heading', label: 'Account', icon: User },
-  { id: 'settings-accounts-heading', label: 'Accounts', icon: Users },
-  { id: 'settings-connection-heading', label: 'Connection', icon: Link2 },
-]
+interface SettingsProps {
+  capabilities: SettingsCapabilities
+  request?: SettingsSectionRequest | null
+}
 
-export function Settings({ capabilities }: SettingsProps): ReactElement {
+/** Where in the window a heading becomes "the section you are reading".
+ *  A quarter down: high enough to feel like the top, low enough that the
+ *  section above has visibly left. */
+const READING_LINE = 0.25
+
+/** How long a jump keeps the observer quiet before giving up on arriving.
+ *  A jump to a section too near the end of the page to reach the reading line
+ *  never arrives, and the rail must not be stuck on it forever. */
+const JUMP_SETTLE_MS = 1_000
+
+export function Settings({ capabilities, request = null }: SettingsProps): ReactElement {
   const triggerId = useTabTriggerId()
-  const [current, setCurrent] = useState<string | null>(null)
+  /* Seeded from the request, because a menu click from another surface mounts
+     this one with the request already in hand — there is no prop change to
+     notice, and `seenRequest` below would start out having seen it. */
+  const [current, setCurrent] = useState<string | null>(request?.id ?? null)
 
-  const jumpToSection = useCallback((id: string) => {
-    setCurrent(id)
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  // The section a jump is on its way to. While it is set, the observer stays
+  // quiet: a smooth scroll passes over every section between here and there,
+  // and marking each one in turn makes the rail flicker through the list.
+  const jumpTarget = useRef<string | null>(null)
+  const settleTimer = useRef<number | undefined>(undefined)
+
+  /** Move the page. Touches the DOM and two refs, and no state — which is what
+   *  lets an effect call it. */
+  const scrollToSection = useCallback((id: string) => {
+    jumpTarget.current = id
+    window.clearTimeout(settleTimer.current)
+    settleTimer.current = window.setTimeout(() => {
+      jumpTarget.current = null
+    }, JUMP_SETTLE_MS)
+
+    document.getElementById(id)?.scrollIntoView({
+      // Honour a reduced-motion preference: the jump still happens, it just
+      // does not animate.
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+        ? 'auto'
+        : 'smooth',
+      block: 'start',
+    })
+  }, [])
+
+  /** The rail's click handler. Marks the target immediately, because a control
+   *  the user just pressed should look pressed before the scroll gets there. */
+  const jumpToSection = useCallback(
+    (id: string) => {
+      setCurrent(id)
+      scrollToSection(id)
+    },
+    [scrollToSection],
+  )
+
+  useEffect(() => () => { window.clearTimeout(settleTimer.current) }, [])
+
+  /*
+   * A request from the application menu, in two halves.
+   *
+   * Marking it happens during render — React's own way to adjust state when a
+   * prop changes, and the reason `request` is replaced per request rather than
+   * compared by value. It was an effect first, and the effect could not set the
+   * marker without cascading a render, so it left the observer to do it. That
+   * is wrong whenever the page cannot move: pick a section already on screen
+   * and nothing scrolls, no observer fires, and the rail marks nothing at all.
+   * The rail's own click path had always marked optimistically; this is the
+   * same rule reaching the same state from the other entry point.
+   *
+   * Scrolling is the other half, and it is a side effect, so it stays in one.
+   */
+  const [seenRequest, setSeenRequest] = useState(request)
+  if (request !== seenRequest) {
+    setSeenRequest(request)
+    if (request !== null) setCurrent(request.id)
+  }
+
+  useEffect(() => {
+    if (request === null) return
+    scrollToSection(request.id)
+  }, [request, scrollToSection])
+
+  /*
+   * Keep the rail's mark on the section actually on screen.
+   *
+   * `current` used to change only on click, so scrolling left the mark behind
+   * on wherever you last jumped from — invisible enough to live with until the
+   * application menu started jumping into the page from outside it.
+   *
+   * The observer is a change signal, not the answer: its callback recomputes
+   * from every heading's position rather than trusting which entries happen to
+   * be intersecting. That is what makes the last section reachable — it is the
+   * last heading above the reading line, whether or not anything is below it.
+   */
+  useEffect(() => {
+    const headings = SETTINGS_SECTION_VIEWS.map(({ id }) => document.getElementById(id)).filter(
+      (element): element is HTMLElement => element !== null,
+    )
+    if (headings.length === 0) return
+
+    const recompute = (): void => {
+      const line = window.innerHeight * READING_LINE
+      let active: string | null = null
+      for (const heading of headings) {
+        if (heading.getBoundingClientRect().top <= line) active = heading.id
+      }
+      // Above the first heading, the first section is the one being read.
+      active ??= headings[0]?.id ?? null
+
+      // A jump in flight suppresses the marker until it lands: a smooth scroll
+      // passes over every section on the way, and marking each one in turn
+      // makes the rail flicker through the list.
+      if (jumpTarget.current !== null) {
+        if (jumpTarget.current !== active) return
+        jumpTarget.current = null
+      }
+      setCurrent(active)
+    }
+
+    // The band is the top quarter of the window, so a heading crossing the
+    // reading line is exactly what makes the observer fire.
+    const observer = new IntersectionObserver(recompute, {
+      rootMargin: `0px 0px -${String((1 - READING_LINE) * 100)}% 0px`,
+    })
+    for (const heading of headings) observer.observe(heading)
+    return () => {
+      observer.disconnect()
+    }
   }, [])
 
   return (
     <>
       <SurfaceRail>
         {(collapsed) => (
-          <SectionRail sections={SECTIONS} current={current} onSelect={jumpToSection} collapsed={collapsed} />
+          <SectionRail
+            sections={SETTINGS_SECTION_VIEWS}
+            current={current}
+            onSelect={jumpToSection}
+            collapsed={collapsed}
+          />
         )}
       </SurfaceRail>
 
@@ -51,9 +179,9 @@ export function Settings({ capabilities }: SettingsProps): ReactElement {
         <h1 id="settings-heading" className="settings-page__heading">
           Settings
         </h1>
-        <AccountSection capabilities={capabilities} />
-        <AccountsSection capabilities={capabilities} />
-        <ConnectionSection capabilities={capabilities} />
+        {SETTINGS_SECTION_VIEWS.map(({ id, Panel }) => (
+          <Panel key={id} capabilities={capabilities} />
+        ))}
       </div>
     </>
   )
@@ -102,16 +230,6 @@ const SETTINGS_CSS = `
   flex-direction: column;
   gap: 2px;
   padding: var(--shell-space-2, 8px);
-}
-
-.settings-rail__heading {
-  margin: 0 0 var(--shell-space-2, 8px);
-  padding: 0 var(--shell-space-2, 8px);
-  color: var(--shell-text-muted, #8a8a8a);
-  font-size: 0.75em;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
 }
 
 .settings-rail__link {

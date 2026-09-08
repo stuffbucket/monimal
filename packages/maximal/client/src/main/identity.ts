@@ -17,6 +17,11 @@ import { join } from 'node:path'
 
 import { app, Menu, nativeImage, shell, type MenuItemConstructorOptions } from 'electron'
 
+import {
+  SETTINGS_SECTIONS,
+  type SettingsSectionId,
+} from '../shared/settings-sections.js'
+
 /** Where the runtime icon sits. Unpackaged only, because that is the only case
  *  this file sets an icon for — `scripts/gen-icon-png.mjs` writes it. */
 function dockIconPath(): string {
@@ -63,6 +68,23 @@ export function applyDockIcon(): void {
 }
 
 /**
+ * What the menu can ask the application to do.
+ *
+ * A menu item cannot reach the renderer on its own, and main has no business
+ * knowing what a settings surface is. So the template calls back, and
+ * `main/index.ts` decides that the answer is a broadcast on a named channel.
+ */
+export interface MenuCallbacks {
+  /**
+   * Show Settings.
+   *
+   * `sectionId` names a section to scroll to, or is `null` for the surface
+   * itself with nothing in particular selected.
+   */
+  onOpenSettings?: (sectionId: SettingsSectionId | null) => void
+}
+
+/**
  * Install the application menu.
  *
  * Electron ships a default menu whose macOS application submenu is labelled
@@ -73,9 +95,43 @@ export function applyDockIcon(): void {
  * Deliberately close to Electron's own default beyond that: standard roles
  * carry the platform's expected accelerators and behaviour, so Edit and Window
  * work without this file reimplementing copy, paste, or minimize.
+ *
+ * ## Settings, in two places
+ *
+ * Both are the platform's own convention rather than a choice. macOS puts a
+ * `Settings…` item in the application submenu on `Cmd-,`, above Services, and
+ * a user looks for it there before anywhere else. Elsewhere there is no
+ * application submenu to put it in, so it leads the Settings menu instead.
+ *
+ * The `Settings` menu itself lists the sections, and the list is
+ * `shared/settings-sections.ts` — the same array the surface renders from, so
+ * a menu entry cannot name a section that is not there. It sits after View and
+ * before Window, where a menu about the application's own state belongs.
  */
-export function installApplicationMenu(): void {
+export function installApplicationMenu(callbacks: MenuCallbacks = {}): void {
   const isMac = process.platform === 'darwin'
+  const { onOpenSettings } = callbacks
+
+  const openSettings = (sectionId: SettingsSectionId | null) => () => {
+    onOpenSettings?.(sectionId)
+  }
+
+  /* Enabled only when someone is listening. A menu item that reliably does
+     nothing is worse than one that is visibly unavailable. */
+  const settingsItem: MenuItemConstructorOptions = {
+    label: 'Settings…',
+    accelerator: 'CmdOrCtrl+,',
+    enabled: onOpenSettings !== undefined,
+    click: openSettings(null),
+  }
+
+  const sectionItems: MenuItemConstructorOptions[] = SETTINGS_SECTIONS.map(
+    ({ id, label }) => ({
+      label,
+      enabled: onOpenSettings !== undefined,
+      click: openSettings(id),
+    }),
+  )
 
   const template: MenuItemConstructorOptions[] = [
     ...(isMac
@@ -84,6 +140,8 @@ export function installApplicationMenu(): void {
             label: app.name,
             submenu: [
               { role: 'about' },
+              { type: 'separator' },
+              settingsItem,
               { type: 'separator' },
               { role: 'services' },
               { type: 'separator' },
@@ -102,6 +160,12 @@ export function installApplicationMenu(): void {
     },
     { role: 'editMenu' },
     { role: 'viewMenu' },
+    {
+      label: 'Settings',
+      submenu: isMac
+        ? sectionItems
+        : [settingsItem, { type: 'separator' }, ...sectionItems],
+    },
     { role: 'windowMenu' },
     {
       role: 'help',

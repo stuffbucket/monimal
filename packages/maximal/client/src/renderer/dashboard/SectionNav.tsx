@@ -12,6 +12,12 @@ import type { ComponentType, ReactElement } from 'react'
 // Counts are the same real numbers the sections themselves render (fleet
 // total, project count, finished count) — never a second, independently
 // computed figure that could drift from the section it points at.
+//
+// No visible heading. It read "On this page", which describes a document
+// rather than an application and repeated what the list below it already
+// showed. The `<nav>`'s `aria-label` still names the region for a screen
+// reader. Settings' rail carried the identical string and lost it in the same
+// change.
 
 export interface SectionNavItem {
   id: string
@@ -30,7 +36,6 @@ interface SectionNavProps {
 export function SectionNav({ items, current, onSelect, collapsed }: SectionNavProps): ReactElement {
   return (
     <nav className="dashboard-jump" aria-label="Dashboard sections">
-      {!collapsed && <h2 className="dashboard-jump__heading">On this page</h2>}
       {items.map(({ id, label, count, icon: Icon }) => (
         <button
           key={id}

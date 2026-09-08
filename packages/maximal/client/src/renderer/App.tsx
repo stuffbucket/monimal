@@ -4,7 +4,7 @@ import { WindowChrome } from './chrome/WindowChrome'
 import { Dashboard } from './dashboard/Dashboard'
 import { FirstRun } from './first-run/FirstRun'
 import { AppFrame, type View } from './frame/AppFrame'
-import { Settings } from './settings/Settings'
+import { Settings, type SettingsSectionRequest } from './settings/Settings'
 import { createCoreSettingsCapabilities } from './settings/capabilities'
 import { Workspace } from './workspace/Workspace'
 import { createPlaceholderSource } from './workspace/source'
@@ -28,7 +28,8 @@ import { createPlaceholderSource } from './workspace/source'
  *
  * Nothing here touches `ControlClient` or `window.maximal`. It reads auth
  * through the Settings capability seam; that adapter is the sole renderer
- * boundary to the named main-process bridge.
+ * boundary to the named main-process bridge — including the application
+ * menu's requests, which arrive on that seam for the same reason.
  */
 
 /** How often to re-read auth status while nothing is pushing changes.
@@ -47,6 +48,26 @@ export function App(): ReactElement {
 
   const [authenticated, setAuthenticated] = useState<boolean | null>(null)
   const [view, setView] = useState<View>('dashboard')
+  const [sectionRequest, setSectionRequest] = useState<SettingsSectionRequest | null>(null)
+
+  /*
+   * The application menu's Settings entries. Switching the view is this file's
+   * job because it owns which surface is showing; where to scroll is not, so
+   * the section id is handed on untouched.
+   *
+   * `seq` is what makes a repeat request a request. Choosing the same section
+   * twice produces an equal object, and the surface would see nothing change.
+   */
+  useEffect(
+    () =>
+      settings.onOpenRequest((sectionId) => {
+        setView('settings')
+        setSectionRequest((previous) =>
+          sectionId === null ? null : { id: sectionId, seq: (previous?.seq ?? 0) + 1 },
+        )
+      }),
+    [settings],
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -95,7 +116,9 @@ export function App(): ReactElement {
     <AppFrame view={view} onSelectView={setView}>
       {view === 'dashboard' ? <Dashboard source={source} /> : null}
       {view === 'workspace' ? <Workspace source={source} /> : null}
-      {view === 'settings' ? <Settings capabilities={settings} /> : null}
+      {view === 'settings' ? (
+        <Settings capabilities={settings} request={sectionRequest} />
+      ) : null}
     </AppFrame>
   )
 }

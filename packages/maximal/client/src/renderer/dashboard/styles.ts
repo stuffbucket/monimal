@@ -208,15 +208,6 @@ export const DASHBOARD_CSS = `
   gap: 2px;
 }
 
-.dashboard-jump__heading {
-  margin: 0 0 var(--shell-space-1, 4px) var(--shell-space-2, 8px);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--shell-text-subtle, #6a6a6a);
-}
-
 .dashboard-jump__link {
   display: flex;
   align-items: center;

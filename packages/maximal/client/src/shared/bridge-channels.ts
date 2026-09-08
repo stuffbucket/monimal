@@ -10,6 +10,7 @@ export const BRIDGE_CHANNELS = {
   accountsSwitch: 'maximal:control/accounts-switch',
   lifecycleChanged: 'maximal:lifecycle/changed',
   controlChanged: 'maximal:control/changed',
+  menuOpenSettings: 'maximal:menu/open-settings',
 } as const
 
 export const INVOKE_CHANNELS = [
@@ -27,4 +28,5 @@ export const INVOKE_CHANNELS = [
 export const EVENT_CHANNELS = [
   BRIDGE_CHANNELS.lifecycleChanged,
   BRIDGE_CHANNELS.controlChanged,
+  BRIDGE_CHANNELS.menuOpenSettings,
 ] as const
