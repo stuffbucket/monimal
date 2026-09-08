@@ -1,4 +1,5 @@
-import { existsSync, mkdtempSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import os from 'node:os'
 import path from 'node:path'
 
@@ -31,6 +32,16 @@ import type { ForgeConfig, StartOptions } from '@electron-forge/shared-types'
  * wiping a directory it does not own.
  */
 const PACKAGER_STAGING_BASE = mkdtempSync(path.join(os.tmpdir(), 'forge-maximal-client-'))
+const require = createRequire(import.meta.url)
+
+function copyTerminalDependencies(buildPath: string): void {
+  for (const name of ['node-pty', 'node-addon-api']) {
+    const source = path.dirname(require.resolve(`${name}/package.json`))
+    const destination = path.join(buildPath, 'node_modules', name)
+    mkdirSync(path.dirname(destination), { recursive: true })
+    cpSync(source, destination, { recursive: true, dereference: true })
+  }
+}
 
 const REQUIRED_TRAY_ASSETS = [
   'resources/tray/tray.png',
@@ -73,7 +84,9 @@ class DevBundlePlugin extends PluginBase<Record<string, never>> {
 
 const config: ForgeConfig = {
   packagerConfig: {
-    asar: true,
+    asar: {
+      unpack: '**/node_modules/node-pty/**',
+    },
     // Never the shared default; see PACKAGER_STAGING_BASE.
     tmpdir: PACKAGER_STAGING_BASE,
     // The bundle's name, and the executable inside it. Absent, @electron/packager
@@ -107,6 +120,12 @@ const config: ForgeConfig = {
     // correct there and `applyDockIcon` leaves it alone. The PNG exists for
     // unpackaged runs only, where the bundle is stock Electron's.
     extraResource: ['resources/bin', 'resources/tray'],
+  },
+  hooks: {
+    packageAfterCopy: (_config, buildPath) => {
+      copyTerminalDependencies(buildPath)
+      return Promise.resolve()
+    },
   },
   makers: [], // the private macos-builder packages the .dmg; we only build the .app
   plugins: [

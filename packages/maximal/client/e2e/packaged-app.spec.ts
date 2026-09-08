@@ -101,6 +101,7 @@ test('packaged preload exposes only the closed named bridge', async () => {
       'onOpenSettings',
       'openExternal',
       'pendingSettingsRequest',
+      'terminal',
     ],
     control: [
       'accountsList',
@@ -129,6 +130,38 @@ test('packaged preload exposes only the closed named bridge', async () => {
     hasCoreOrigin: false,
     hasWindowRequire: false,
   })
+})
+
+test('packaged terminal bridge launches and terminates a native shell', async () => {
+  const page = await running.app.firstWindow()
+  const result = await page.evaluate(async () => {
+    const profiles = await window.maximal.terminal.profiles()
+    const launched = await window.maximal.terminal.launch({
+      profileId: 'local',
+      cols: 80,
+      rows: 24,
+    })
+    let output = ''
+    const complete = new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('terminal produced no output')), 10_000)
+      const unsubscribe = window.maximal.terminal.onData((message) => {
+        if (message.id !== launched.sessionId) return
+        output += message.data
+        if (!output.includes('MAXIMAL_TERMINAL_READY')) return
+        clearTimeout(timeout)
+        unsubscribe()
+        resolve()
+      })
+    })
+    await window.maximal.terminal.spawn({ id: launched.sessionId, cols: 80, rows: 24 })
+    await window.maximal.terminal.write(launched.sessionId, "printf 'MAXIMAL_TERMINAL_READY\\n'\r")
+    await complete
+    await window.maximal.terminal.terminate(launched.sessionId)
+    return { hasLocal: profiles.some((profile) => profile.id === 'local'), output }
+  })
+
+  expect(result.hasLocal).toBe(true)
+  expect(result.output).toContain('MAXIMAL_TERMINAL_READY')
 })
 
 test('native Settings flyout opens every restored section in the packaged UI', async () => {

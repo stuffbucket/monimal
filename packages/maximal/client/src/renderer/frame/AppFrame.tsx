@@ -34,7 +34,7 @@ import { getTabPanelId, getTabTriggerId, ShellLayout, type Tab } from 'stuffbuck
 const LAYOUT_ID = 'maximal'
 const TAB_ID_BASE = `${LAYOUT_ID}-documents`
 
-export type View = 'overview' | 'traffic' | 'settings'
+export type View = 'overview' | 'traffic' | 'terminal' | 'settings'
 
 /*
  * Tab identity is the view id, so the persisted active tab and the active view
@@ -44,6 +44,7 @@ export type View = 'overview' | 'traffic' | 'settings'
 const VIEW_TABS: Array<Tab & { id: View }> = [
   { id: 'overview', title: 'Overview', icon: 'document' },
   { id: 'traffic', title: 'Traffic', icon: 'folder' },
+  { id: 'terminal', title: 'Terminal', icon: 'terminal' },
   { id: 'settings', title: 'Settings', icon: 'settings' },
 ]
 

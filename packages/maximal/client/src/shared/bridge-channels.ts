@@ -30,10 +30,21 @@ export const BRIDGE_CHANNELS = {
   menuBarModeConfirmEnable: 'maximal:native/menu-bar-mode-confirm-enable',
   menuBarModeCancelEnable: 'maximal:native/menu-bar-mode-cancel-enable',
   menuBarModeDisable: 'maximal:native/menu-bar-mode-disable',
+  terminalSpawn: 'maximal:terminal/spawn',
+  terminalWrite: 'maximal:terminal/write',
+  terminalResize: 'maximal:terminal/resize',
+  terminalAck: 'maximal:terminal/ack',
+  terminalTerminate: 'maximal:terminal/terminate',
+  terminalList: 'maximal:terminal/list',
+  terminalProfiles: 'maximal:terminal/profiles',
+  terminalDiscover: 'maximal:terminal/discover',
+  terminalLaunch: 'maximal:terminal/launch',
   lifecycleChanged: 'maximal:lifecycle/changed',
   controlChanged: 'maximal:control/changed',
   menuOpenSettings: 'maximal:menu/open-settings',
   trafficInvalidated: 'maximal:control/traffic-invalidated',
+  terminalData: 'maximal:terminal/data',
+  terminalExit: 'maximal:terminal/exit',
 } as const
 
 export const INVOKE_CHANNELS = [
@@ -68,6 +79,15 @@ export const INVOKE_CHANNELS = [
   BRIDGE_CHANNELS.menuBarModeConfirmEnable,
   BRIDGE_CHANNELS.menuBarModeCancelEnable,
   BRIDGE_CHANNELS.menuBarModeDisable,
+  BRIDGE_CHANNELS.terminalProfiles,
+  BRIDGE_CHANNELS.terminalDiscover,
+  BRIDGE_CHANNELS.terminalLaunch,
+  BRIDGE_CHANNELS.terminalSpawn,
+  BRIDGE_CHANNELS.terminalWrite,
+  BRIDGE_CHANNELS.terminalResize,
+  BRIDGE_CHANNELS.terminalTerminate,
+  BRIDGE_CHANNELS.terminalList,
+  BRIDGE_CHANNELS.terminalAck,
 ] as const
 
 export const EVENT_CHANNELS = [
@@ -75,4 +95,6 @@ export const EVENT_CHANNELS = [
   BRIDGE_CHANNELS.controlChanged,
   BRIDGE_CHANNELS.menuOpenSettings,
   BRIDGE_CHANNELS.trafficInvalidated,
+  BRIDGE_CHANNELS.terminalData,
+  BRIDGE_CHANNELS.terminalExit,
 ] as const

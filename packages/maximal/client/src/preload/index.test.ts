@@ -45,6 +45,7 @@ describe('preload bridge allowlist', () => {
       'onOpenSettings',
       'openExternal',
       'pendingSettingsRequest',
+      'terminal',
     ])
     expect(Object.keys(bridge.control).sort()).toEqual([
       'accountsList',
@@ -77,6 +78,19 @@ describe('preload bridge allowlist', () => {
       'confirmEnable',
       'disable',
       'get',
+    ])
+    expect(Object.keys(bridge.terminal).sort()).toEqual([
+      'acknowledge',
+      'discover',
+      'launch',
+      'list',
+      'onData',
+      'onExit',
+      'profiles',
+      'resize',
+      'spawn',
+      'terminate',
+      'write',
     ])
     expect(bridge).not.toHaveProperty('getCoreOrigin')
   })
@@ -116,6 +130,15 @@ describe('preload bridge allowlist', () => {
     await bridge.menuBarMode.confirmEnable('attempt-1')
     await bridge.menuBarMode.cancelEnable('attempt-1')
     await bridge.menuBarMode.disable()
+    await bridge.terminal.spawn({ id: 'terminal-1', cols: 80, rows: 24 })
+    await bridge.terminal.write('terminal-1', 'pwd\r')
+    await bridge.terminal.resize('terminal-1', 120, 40)
+    await bridge.terminal.acknowledge('terminal-1', 4)
+    await bridge.terminal.terminate('terminal-1')
+    await bridge.terminal.list()
+    await bridge.terminal.profiles()
+    await bridge.terminal.discover()
+    await bridge.terminal.launch({ profileId: 'local', cols: 80, rows: 24 })
 
     expect(invoke.mock.calls).toEqual([
       [BRIDGE_CHANNELS.lifecycleCurrent],
@@ -149,7 +172,37 @@ describe('preload bridge allowlist', () => {
       [BRIDGE_CHANNELS.menuBarModeConfirmEnable, 'attempt-1'],
       [BRIDGE_CHANNELS.menuBarModeCancelEnable, 'attempt-1'],
       [BRIDGE_CHANNELS.menuBarModeDisable],
+      [BRIDGE_CHANNELS.terminalSpawn, { id: 'terminal-1', cols: 80, rows: 24 }],
+      [BRIDGE_CHANNELS.terminalWrite, { id: 'terminal-1', data: 'pwd\r' }],
+      [BRIDGE_CHANNELS.terminalResize, { id: 'terminal-1', cols: 120, rows: 40 }],
+      [BRIDGE_CHANNELS.terminalAck, { id: 'terminal-1', sequence: 4 }],
+      [BRIDGE_CHANNELS.terminalTerminate, { id: 'terminal-1' }],
+      [BRIDGE_CHANNELS.terminalList],
+      [BRIDGE_CHANNELS.terminalProfiles],
+      [BRIDGE_CHANNELS.terminalDiscover],
+      [BRIDGE_CHANNELS.terminalLaunch, { profileId: 'local', cols: 80, rows: 24 }],
     ])
+  })
+
+  it('wraps terminal events and removes only their listeners', () => {
+    const onData = vi.fn()
+    const onExit = vi.fn()
+    const unsubscribeData = bridge.terminal.onData(onData)
+    const unsubscribeExit = bridge.terminal.onExit(onExit)
+    const dataHandler = on.mock.calls[0]?.[1] as (event: unknown, payload: unknown) => void
+    const exitHandler = on.mock.calls[1]?.[1] as (event: unknown, payload: unknown) => void
+    const data = { id: 'terminal-1', data: 'ready', sequence: 1 }
+    const exit = { id: 'terminal-1', exitCode: 0 }
+
+    dataHandler({}, data)
+    exitHandler({}, exit)
+    expect(onData).toHaveBeenCalledWith(data)
+    expect(onExit).toHaveBeenCalledWith(exit)
+
+    unsubscribeData()
+    unsubscribeExit()
+    expect(off).toHaveBeenCalledWith(BRIDGE_CHANNELS.terminalData, dataHandler)
+    expect(off).toHaveBeenCalledWith(BRIDGE_CHANNELS.terminalExit, exitHandler)
   })
 
   it('wraps lifecycle payloads and removes only its own listener', () => {

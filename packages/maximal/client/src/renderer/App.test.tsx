@@ -49,6 +49,9 @@ vi.mock('./overview/Overview', () => ({
 vi.mock('./traffic/Traffic', () => ({
   Traffic: () => <div data-testid="traffic">Traffic content</div>,
 }))
+vi.mock('./terminal/Terminal', () => ({
+  Terminal: () => <div data-testid="terminal">Terminal content</div>,
+}))
 vi.mock('./frame/AppFrame', () => ({
   AppFrame: ({
     availableViews,
@@ -58,7 +61,7 @@ vi.mock('./frame/AppFrame', () => ({
   }: {
     availableViews?: readonly string[]
     children: ReactNode
-    onSelectView: (view: 'overview' | 'traffic' | 'settings') => void
+    onSelectView: (view: 'overview' | 'traffic' | 'terminal' | 'settings') => void
     view: string
   }) => (
     <div
@@ -67,6 +70,7 @@ vi.mock('./frame/AppFrame', () => ({
       data-available-views={availableViews?.join(',') ?? 'all'}
     >
       <button onClick={() => onSelectView('traffic')}>Traffic</button>
+      <button onClick={() => onSelectView('terminal')}>Terminal</button>
       {children}
     </div>
   ),
@@ -134,6 +138,20 @@ describe('App routing', () => {
     expect(shell.querySelector('[data-testid="traffic"]')).not.toBeNull()
     expect(createObservabilitySource).toHaveBeenCalledTimes(1)
     expect(observabilitySource).toEqual({ source: 'stable-observability-source' })
+  })
+
+  it('mounts the terminal surface for authenticated users', async () => {
+    accountStatus.mockResolvedValue({ state: 'authenticated' })
+    const shell = await renderApp()
+    const terminal = [...shell.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Terminal',
+    )
+    if (terminal === undefined) throw new Error('Terminal action was not rendered')
+
+    act(() => terminal.click())
+
+    expect(shell.querySelector('[data-testid="terminal"]')).not.toBeNull()
+    expect(shell.querySelector('[data-testid="settings"]')).toBeNull()
   })
 
   it('opens a native section request without exposing authenticated views', async () => {
