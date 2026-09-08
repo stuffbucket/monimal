@@ -16,9 +16,15 @@ export interface AuthCapability {
   openExternal(url: string): Promise<void>
 }
 
-export function createAuthCapability(
-  bridge: Pick<MaximalBridge, 'control' | 'openExternal'>,
-): AuthCapability {
+type AuthBridge = {
+  control: Pick<
+    MaximalBridge['control'],
+    'authStatus' | 'authStart' | 'authSignOut' | 'onChange'
+  >
+  openExternal: MaximalBridge['openExternal']
+}
+
+export function createAuthCapability(bridge: AuthBridge): AuthCapability {
   return {
     kind: 'main-bridge',
     status: async () => unwrapControlResult(await bridge.control.authStatus()),

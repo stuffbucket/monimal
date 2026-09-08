@@ -1,6 +1,7 @@
 import { ObservabilityProvider } from '@stuffbucket/maximal-observability'
 import { useEffect, useMemo, useState, type ReactElement } from 'react'
 
+import { DEFAULT_SETTINGS_SECTION_ID } from '../shared/settings-sections'
 import { WindowChrome } from './chrome/WindowChrome'
 import { FirstRun } from './first-run/FirstRun'
 import { AppFrame, type View } from './frame/AppFrame'
@@ -51,21 +52,13 @@ export function App(): ReactElement {
   const [view, setView] = useState<View>('overview')
   const [sectionRequest, setSectionRequest] = useState<SettingsSectionRequest | null>(null)
 
-  /*
-   * The application menu's Settings entries. Switching the view is this file's
-   * job because it owns which surface is showing; where to scroll is not, so
-   * the section id is handed on untouched.
-   *
-   * `seq` is what makes a repeat request a request. Choosing the same section
-   * twice produces an equal object, and the surface would see nothing change.
-   */
+  /* The application menu chooses the surface here and the section there. A new
+     object keeps every request observable without a parallel counter. */
   useEffect(
     () =>
       settings.onOpenRequest((sectionId) => {
         setView('settings')
-        setSectionRequest((previous) =>
-          sectionId === null ? null : { id: sectionId, seq: (previous?.seq ?? 0) + 1 },
-        )
+        setSectionRequest({ id: sectionId ?? DEFAULT_SETTINGS_SECTION_ID })
       }),
     [settings],
   )
@@ -101,20 +94,34 @@ export function App(): ReactElement {
   // Wrapped, not bare. First run needs a frame for the same reason every other
   // surface does — without one the window has no drag region and cannot be
   // moved, and this is the screen a new user meets first.
-  if (authenticated !== true)
+  if (authenticated !== true && view !== 'settings')
     return (
       <WindowChrome>
         <FirstRun />
       </WindowChrome>
     )
 
+  /*
+   * One surface mounted at a time, deliberately. Each runs a data lifecycle of
+   * its own — a poll, a subscription, a live snapshot — and keeping inactive
+   * surfaces mounted would keep their work running out of view.
+   */
+  const signedOut = authenticated !== true
   return (
     <ObservabilityProvider source={observability}>
-      <AppFrame view={view} onSelectView={setView}>
-        {view === 'overview' ? <Overview /> : null}
-        {view === 'traffic' ? <Traffic /> : null}
+      <AppFrame
+        view={view}
+        onSelectView={setView}
+        availableViews={signedOut ? ['settings'] : undefined}
+      >
+        {!signedOut && view === 'overview' ? <Overview /> : null}
+        {!signedOut && view === 'traffic' ? <Traffic /> : null}
         {view === 'settings' ? (
-          <Settings capabilities={settings} request={sectionRequest} />
+          <Settings
+            capabilities={settings}
+            request={sectionRequest}
+            onBack={signedOut ? () => setView('overview') : undefined}
+          />
         ) : null}
       </AppFrame>
     </ObservabilityProvider>

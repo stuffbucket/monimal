@@ -51,7 +51,7 @@ export const SETTINGS_STYLES = `
 }
 
 .sb-shell .settings__title {
-  font-size: var(--shell-text-md);
+  font-size: var(--shell-text-xl);
   font-weight: var(--shell-weight-lg);
   color: var(--shell-text);
   margin: 0;
@@ -95,7 +95,7 @@ export const SETTINGS_STYLES = `
 
 .sb-shell .settings__section-title {
   margin: 0;
-  font-size: var(--shell-text-base);
+  font-size: var(--shell-text-lg);
   font-weight: var(--shell-weight-lg);
   color: var(--shell-text);
 }

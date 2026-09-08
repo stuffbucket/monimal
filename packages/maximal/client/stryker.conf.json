@@ -1,0 +1,39 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "_comment": "Manual, focused mutation testing. Narrow source scope with --mutate while retaining the complete three-project Vitest suite. No mutation-score threshold gates normal development or CI.",
+  "packageManager": "npm",
+  "plugins": ["@stryker-mutator/vitest-runner"],
+  "testRunner": "vitest",
+  "vitest": {
+    "configFile": "vitest.config.mts"
+  },
+  "mutate": [
+    "src/renderer/settings/Settings.tsx:1:0-111:0",
+    "src/renderer/settings/Settings.tsx:539:0-546:1"
+  ],
+  "reporters": ["progress", "clear-text", "html", "json"],
+  "tempDirName": ".stryker-tmp",
+  "htmlReporter": {
+    "fileName": "reports/mutation/index.html"
+  },
+  "jsonReporter": {
+    "fileName": "reports/mutation/mutation.json"
+  },
+  "concurrency": 4,
+  "timeoutMS": 30000,
+  "coverageAnalysis": "perTest",
+  "thresholds": {
+    "break": null
+  },
+  "ignorePatterns": [
+    "out",
+    ".electron-dev",
+    ".vite",
+    "node_modules",
+    "dist",
+    "reports",
+    "test-results",
+    "playwright-report",
+    "e2e"
+  ]
+}
