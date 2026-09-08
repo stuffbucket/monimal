@@ -11,7 +11,7 @@ import {
   DEFAULT_SETTINGS_SECTION_ID,
   SETTINGS_SECTIONS,
 } from '../../shared/settings-sections'
-import { AppFrame } from '../frame/AppFrame'
+import { AppFrame, PRODUCT_TABS } from '../frame/AppFrame'
 import type { SettingsCapabilities } from './capabilities'
 import { Settings, type SettingsSectionRequest } from './Settings'
 
@@ -129,7 +129,7 @@ async function renderSettings(request?: SettingsSectionRequest): Promise<HTMLEle
 async function rerender(request?: SettingsSectionRequest): Promise<void> {
   await act(async () => {
     root?.render(
-      <AppFrame view="settings" onSelectView={vi.fn()}>
+      <AppFrame tabs={PRODUCT_TABS} activeTab="settings" surface="settings" onSelectTab={vi.fn()}>
         <Settings capabilities={fakeCapabilities()} request={request ?? null} />
       </AppFrame>,
     )

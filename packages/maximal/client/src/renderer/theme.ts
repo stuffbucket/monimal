@@ -128,30 +128,6 @@ const THEME_CSS = `
   --shell-status-muted: rgb(239 68 68 / 0.12);
 }
 
-.terminal-tabs-toolbar {
-   align-items: center;
-   border-bottom: 1px solid var(--shell-border);
-   display: flex;
-   min-height: 36px;
-   padding: 2px 6px;
-}
-
-.terminal-tabs-toolbar__tab {
-   align-items: center;
-   display: flex;
-}
-
-.terminal-tabs-toolbar__tab[data-active='true'] {
-   background: var(--shell-active);
-}
-
-.terminal-empty {
-   align-items: center;
-   display: flex;
-   height: 100%;
-   justify-content: center;
-}
-
 .terminal-host {
    height: 100%;
    min-height: 0;

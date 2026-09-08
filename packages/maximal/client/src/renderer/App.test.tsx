@@ -8,6 +8,7 @@ const {
   createObservabilitySource,
   observabilitySource,
   subscribe,
+  terminalList,
 } = vi.hoisted(() => {
   const observabilitySource = { source: 'stable-observability-source' }
   return {
@@ -18,8 +19,20 @@ const {
     createObservabilitySource: vi.fn(() => observabilitySource),
     observabilitySource,
     subscribe: vi.fn(() => vi.fn()),
+    terminalList: vi.fn(() => Promise.resolve([])),
   }
 })
+
+vi.mock('stuffbucket-electron/renderer', () => ({
+  TerminalLauncher: ({ open, onLaunched }: {
+    open: boolean
+    onLaunched: (result: { sessionId: string; label: string }) => void
+  }) => open ? (
+    <button onClick={() => onLaunched({ sessionId: 'session-1', label: 'zsh' })}>
+      Launch zsh
+    </button>
+  ) : null,
+}))
 
 vi.mock('@stuffbucket/maximal-observability', () => ({
   ObservabilityProvider: ({ children }: { children: ReactNode }) => children,
@@ -50,27 +63,39 @@ vi.mock('./traffic/Traffic', () => ({
   Traffic: () => <div data-testid="traffic">Traffic content</div>,
 }))
 vi.mock('./terminal/Terminal', () => ({
-  Terminal: () => <div data-testid="terminal">Terminal content</div>,
+  Terminal: ({ activeId }: { activeId: string }) => (
+    <div data-testid="terminal" data-active-id={activeId}>Terminal content</div>
+  ),
+}))
+vi.mock('./terminal/transport', () => ({
+  terminalTransport: { list: terminalList },
 }))
 vi.mock('./frame/AppFrame', () => ({
+  PRODUCT_TABS: [
+    { id: 'overview', title: 'Overview', kind: 'overview' },
+    { id: 'traffic', title: 'Traffic', kind: 'traffic' },
+    { id: 'settings', title: 'Settings', kind: 'settings' },
+  ],
   AppFrame: ({
-    availableViews,
+    activeTab,
     children,
-    onSelectView,
-    view,
+    onNewTab,
+    onSelectTab,
+    tabs,
   }: {
-    availableViews?: readonly string[]
+    activeTab: string
     children: ReactNode
-    onSelectView: (view: 'overview' | 'traffic' | 'terminal' | 'settings') => void
-    view: string
+    onNewTab?: () => void
+    onSelectTab: (id: string) => void
+    tabs: Array<{ id: string; title: string }>
   }) => (
     <div
       data-testid="app-frame"
-      data-view={view}
-      data-available-views={availableViews?.join(',') ?? 'all'}
+      data-view={activeTab}
+      data-available-views={tabs.map((tab) => tab.id).join(',')}
     >
-      <button onClick={() => onSelectView('traffic')}>Traffic</button>
-      <button onClick={() => onSelectView('terminal')}>Terminal</button>
+      <button onClick={() => onSelectTab('traffic')}>Traffic</button>
+      {onNewTab ? <button onClick={onNewTab}>New terminal</button> : null}
       {children}
     </div>
   ),
@@ -99,6 +124,15 @@ let container: HTMLElement | null = null
 beforeEach(() => {
   capabilityState.openSettings = null
   accountStatus.mockResolvedValue({ state: 'unauthenticated' })
+  Object.assign(window, {
+    maximal: {
+      terminal: {
+        profiles: vi.fn(() => Promise.resolve([])),
+        discover: vi.fn(() => Promise.resolve({ targets: [] })),
+        launch: vi.fn(),
+      },
+    },
+  })
   container = document.createElement('div')
   document.body.appendChild(container)
   root = createRoot(container)
@@ -140,17 +174,28 @@ describe('App routing', () => {
     expect(observabilitySource).toEqual({ source: 'stable-observability-source' })
   })
 
-  it('mounts the terminal surface for authenticated users', async () => {
+  it('opens the launcher from the title bar and mounts the session as a document tab', async () => {
     accountStatus.mockResolvedValue({ state: 'authenticated' })
     const shell = await renderApp()
-    const terminal = [...shell.querySelectorAll('button')].find(
-      (button) => button.textContent === 'Terminal',
+    const newTerminal = [...shell.querySelectorAll('button')].find(
+      (button) => button.textContent === 'New terminal',
     )
-    if (terminal === undefined) throw new Error('Terminal action was not rendered')
+    if (newTerminal === undefined) throw new Error('New terminal action was not rendered')
 
-    act(() => terminal.click())
+    act(() => newTerminal.click())
+    const launch = [...shell.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Launch zsh',
+    )
+    if (launch === undefined) throw new Error('Terminal launcher was not rendered')
+    act(() => launch.click())
 
     expect(shell.querySelector('[data-testid="terminal"]')).not.toBeNull()
+    expect(shell.querySelector('[data-testid="terminal"]')?.getAttribute('data-active-id')).toBe(
+      'terminal:session-1',
+    )
+    expect(shell.querySelector('[data-testid="app-frame"]')?.getAttribute('data-view')).toBe(
+      'terminal:session-1',
+    )
     expect(shell.querySelector('[data-testid="settings"]')).toBeNull()
   })
 

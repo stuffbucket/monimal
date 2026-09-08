@@ -68,8 +68,12 @@ const LEFT: PanelSize = {
 };
 const RIGHT: PanelSize = { default: '22', min: '16', max: '36', collapsed: '0' };
 const BOTTOM: PanelSize = { default: '30', min: '10', max: '70', collapsed: '0' };
-const PANELS_WITH_RIGHT = ['left', 'main', 'right'];
-const PANELS_WITHOUT_RIGHT = ['left', 'main'];
+const PANEL_IDS: Record<'both' | 'left' | 'right' | 'neither', string[]> = {
+  both: ['left', 'main', 'right'],
+  left: ['left', 'main'],
+  right: ['main', 'right'],
+  neither: ['main'],
+};
 
 /**
  * The application frame, with the tab strip in the title bar.
@@ -121,7 +125,7 @@ export function ShellLayout<T extends Tab>({
    * update prompt, a failed-save notice.
    */
   top?: ReactNode;
-  left: (collapsed: boolean) => ReactNode;
+  left?: (collapsed: boolean) => ReactNode;
   main: ReactNode;
   /**
    * Under `main`, in the same column, behind a draggable divider. For a
@@ -132,7 +136,7 @@ export function ShellLayout<T extends Tab>({
   bottom?: ReactNode;
   /** Optional inspector. Omit it to give the document the remaining width. */
   right?: ReactNode;
-  status: ReactNode;
+  status?: ReactNode;
   leftSize?: PanelSize;
   rightSize?: PanelSize;
   bottomSize?: PanelSize;
@@ -143,6 +147,7 @@ export function ShellLayout<T extends Tab>({
   // shell class sits on exists.
   const [root, setRoot] = useState<HTMLDivElement | null>(null);
   const tabIdBase = `${layoutId}-documents`;
+  const hasLeft = left !== undefined;
   const hasRight = right !== undefined;
 
   const leftPanel = usePanelRef();
@@ -153,7 +158,7 @@ export function ShellLayout<T extends Tab>({
   // inspector-free layout from one that owns the right panel.
   const layout = useDefaultLayout({
     id: `${layoutId}:tab:${encodeURIComponent(activeTab)}`,
-    panelIds: hasRight ? PANELS_WITH_RIGHT : PANELS_WITHOUT_RIGHT,
+    panelIds: PANEL_IDS[hasLeft ? (hasRight ? 'both' : 'left') : (hasRight ? 'right' : 'neither')],
   });
 
   // A second, independent layout for the centre column's split. Only created
@@ -199,14 +204,16 @@ export function ShellLayout<T extends Tab>({
             leading={
               <>
                 {titleBarLeading}
-                <IconButton
-                  label={leftCollapsed ? 'Show sidebar' : 'Hide sidebar'}
-                  onClick={() => togglePanel('left')}
-                  active={!leftCollapsed}
-                  testId="toggle-left"
-                >
-                  <PanelLeft size={15} />
-                </IconButton>
+                {hasLeft && (
+                  <IconButton
+                    label={leftCollapsed ? 'Show sidebar' : 'Hide sidebar'}
+                    onClick={() => togglePanel('left')}
+                    active={!leftCollapsed}
+                    testId="toggle-left"
+                  >
+                    <PanelLeft size={15} />
+                  </IconButton>
+                )}
               </>
             }
             actions={
@@ -243,23 +250,26 @@ export function ShellLayout<T extends Tab>({
             defaultLayout={layout.defaultLayout}
             onLayoutChanged={layout.onLayoutChanged}
           >
-            <Panel
-              id="left"
-              panelRef={leftPanel}
-              defaultSize={leftSize.default}
-              minSize={leftSize.min}
-              maxSize={leftSize.max}
-              collapsible
-              collapsedSize={leftSize.collapsed}
-              onResize={() =>
-                setLeftCollapsed(leftPanel.current?.isCollapsed() ?? false)
-              }
-              className="panel"
-            >
-              {left(leftCollapsed)}
-            </Panel>
-
-            <Separator className="resize-handle" />
+            {hasLeft && (
+              <>
+                <Panel
+                  id="left"
+                  panelRef={leftPanel}
+                  defaultSize={leftSize.default}
+                  minSize={leftSize.min}
+                  maxSize={leftSize.max}
+                  collapsible
+                  collapsedSize={leftSize.collapsed}
+                  onResize={() =>
+                    setLeftCollapsed(leftPanel.current?.isCollapsed() ?? false)
+                  }
+                  className="panel"
+                >
+                  {left(leftCollapsed)}
+                </Panel>
+                <Separator className="resize-handle" />
+              </>
+            )}
 
             <Panel id="main" minSize="30" className="panel panel--canvas">
               {bottom === undefined ? (
@@ -289,10 +299,12 @@ export function ShellLayout<T extends Tab>({
                   </Panel>
                 </Group>
               )}
-              <footer className="statusbar">
-                {status}
-                <span className="statusbar__grow" />
-              </footer>
+              {status !== undefined && (
+                <footer className="statusbar">
+                  {status}
+                  <span className="statusbar__grow" />
+                </footer>
+              )}
             </Panel>
 
             {hasRight && (

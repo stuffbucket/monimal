@@ -24,6 +24,7 @@ import {
 export interface Tab extends TabAdornment {
   id: string;
   title: string;
+  closable?: boolean;
 }
 
 /** The glyph behind each name in `TAB_ICON_NAMES`. */
@@ -159,6 +160,7 @@ export function TabBar<T extends Tab>({
   // Closing the last tab is refused, so every close affordance hangs off this
   // rather than repeating the condition.
   const closeTab = tabs.length > 1 ? onClose : undefined;
+  const closeActiveTab = activeItem?.closable === false ? undefined : closeTab;
 
   /*
    * Which trigger to focus once the caller has dropped a tab.
@@ -199,6 +201,7 @@ export function TabBar<T extends Tab>({
     >
       <Tabs.List className="tabbar" aria-label={label}>
         {tabs.map((tab, index) => {
+          const closeThisTab = tab.closable === false ? undefined : closeTab;
           const Custom = icon?.(tab);
           const slot = tabSlot(tab, Custom !== undefined);
           const Named = tab.icon === undefined ? undefined : TAB_ICON_GLYPHS[tab.icon];
@@ -219,9 +222,9 @@ export function TabBar<T extends Tab>({
               aria-controls={
                 tab.id === active ? getTabPanelId(tabIdBase, tab.id) : undefined
               }
-              aria-keyshortcuts={closeTab ? 'Delete' : undefined}
+              aria-keyshortcuts={closeThisTab ? 'Delete' : undefined}
               onKeyDown={(event) => {
-                if (!closeTab) return;
+                if (!closeThisTab) return;
                 // The key macOS prints as "delete" sends Backspace, so both
                 // close. Neither has a default action worth keeping on a tab.
                 if (event.key !== 'Delete' && event.key !== 'Backspace') return;
@@ -237,14 +240,14 @@ export function TabBar<T extends Tab>({
               <TabLabel title={tab.title} />
               {/* After the label, so the tab reads "Terminal 1, Working". */}
               {words !== undefined && <VisuallyHidden>{words}</VisuallyHidden>}
-              {closeTab && (
+              {closeThisTab && (
                 <span
                   aria-hidden="true"
                   className="tab__close"
                   onPointerDown={(event) => {
                     event.stopPropagation();
                     event.preventDefault();
-                    closeTab(tab.id);
+                    closeThisTab(tab.id);
                   }}
                 >
                   <X size={12} />
@@ -254,7 +257,7 @@ export function TabBar<T extends Tab>({
           );
         })}
       </Tabs.List>
-      {closeTab && activeItem && (
+      {closeActiveTab && activeItem && (
         <button
           type="button"
           className="tab__close-keyboard"
