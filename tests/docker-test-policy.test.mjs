@@ -166,7 +166,7 @@ test("the outer and fixed inner test scripts cannot recurse", () => {
   assert.equal(turbo.tasks.package.outputs, undefined);
 });
 
-test("required CI runs native checks before Docker and has one cache writer", () => {
+test("required CI runs tests on its disposable runner and has one cache writer", () => {
   const workflow = read(".github/workflows/ci.yml");
   const hostGate =
     "pnpm --filter @stuffbucket/maximal-core run check:deep:host";
@@ -174,29 +174,25 @@ test("required CI runs native checks before Docker and has one cache writer", ()
     "pnpm --filter @stuffbucket/maximal-electron run verify:fixture-imports";
   const sidecarProvenance =
     "LINK=packages/maximal/client/node_modules/@stuffbucket/maximal-core";
-  const dockerGate = 'pnpm test -- --trace="$TEST_TRACE"';
+  const policyGate = "node --test tests/docker-test-policy.test.mjs";
+  const testGate = "pnpm exec turbo run test --concurrency=1";
   assert.equal(workflow.split(hostGate).length - 1, 1);
   assert.equal(workflow.split(packageMechanics).length - 1, 1);
   assert.equal(workflow.split(sidecarProvenance).length - 1, 1);
-  assert.equal(workflow.split(dockerGate).length - 1, 1);
+  assert.equal(workflow.split(policyGate).length - 1, 1);
+  assert.equal(workflow.split(testGate).length - 1, 1);
   assert.doesNotMatch(workflow, /pnpm (?:run )?check:core/);
   assert.doesNotMatch(workflow, /\bbun (?:run )?test\b/);
-  assert.ok(workflow.indexOf(hostGate) < workflow.indexOf(dockerGate));
-  assert.ok(workflow.indexOf(packageMechanics) < workflow.indexOf(dockerGate));
-  assert.ok(workflow.indexOf(sidecarProvenance) < workflow.indexOf(dockerGate));
+  assert.doesNotMatch(workflow, /MAXIMAL_DOCKER_CACHE|docker\/setup-buildx-action|ghaction-github-runtime/);
+  assert.match(workflow, /MAXIMAL_TEST_CONTAINER: 1/);
+  assert.ok(workflow.indexOf(hostGate) < workflow.indexOf(testGate));
+  assert.ok(workflow.indexOf(packageMechanics) < workflow.indexOf(testGate));
+  assert.ok(workflow.indexOf(sidecarProvenance) < workflow.indexOf(testGate));
+  assert.ok(workflow.indexOf(policyGate) < workflow.indexOf(testGate));
   assert.equal(workflow.split("uses: actions/cache/save@").length - 1, 1);
   assert.equal(workflow.split("uses: actions/cache@").length - 1, 1);
   assert.equal(workflow.split("uses: actions/cache/restore@").length - 1, 2);
   assert.match(workflow, /if: github\.event_name == 'push'/);
-  assert.match(workflow, /MAXIMAL_DOCKER_CACHE: gha/);
-  const buildxSetup =
-    "docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e";
-  const runtimeSetup =
-    "crazy-max/ghaction-github-runtime@04d248b84655b509d8c44dc1d6f990c879747487";
-  assert.equal(workflow.split(buildxSetup).length - 1, 1);
-  assert.equal(workflow.split(runtimeSetup).length - 1, 1);
-  assert.ok(workflow.indexOf(buildxSetup) < workflow.indexOf(dockerGate));
-  assert.ok(workflow.indexOf(runtimeSetup) < workflow.indexOf(dockerGate));
   assert.equal(workflow.split("turbo-v2-").length - 1, 6);
 });
 

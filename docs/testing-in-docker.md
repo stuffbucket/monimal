@@ -61,11 +61,12 @@ graph fails the build; historical entries accumulated in the mount are not baked
 into each image. Build task inputs explicitly exclude nested `dist`,
 `.turbo`, and generated `resources/bin` trees, so outputs do not change their own
 hashes in the filtered image. Runtime test tasks can replay build prerequisites
-from that bounded image-owned cache. CI additionally uses the GitHub Actions
-BuildKit backend to preserve image layers across replacement hosted runners; that
-backend does not export cache-mount contents. These caches change build
-performance only: the final test image and its mountless runtime invocation remain
-deterministic.
+from that bounded image-owned cache. GitHub-hosted CI runners are already
+disposable and contain no developer state, so CI executes the installed test graph
+directly instead of rebuilding this local Docker safety boundary. Package test
+preloads still create isolated Maximal and Claude state roots there. These caches
+change local build performance only: the final test image and its mountless runtime
+invocation remain deterministic.
 
 The root `.dockerignore` is part of the boundary. It removes Git metadata, local
 Claude state, dependency and build output (including generated `resources/bin`
