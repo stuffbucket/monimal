@@ -184,8 +184,13 @@ function TerminalAttachmentView({
 
     const orientation = current.direction === 'right' ? 'horizontal' : 'vertical';
     return (
-      <Group orientation={orientation} className="terminal-split">
-        <Panel id={`${path}-first`} minSize="10%">
+      <Group
+        orientation={orientation}
+        className="terminal-split"
+        defaultLayout={{ [`${path}-first`]: 50, [`${path}-second`]: 50 }}
+        resizeTargetMinimumSize={{ coarse: 20, fine: 9 }}
+      >
+        <Panel className="terminal-split__panel" id={`${path}-first`} minSize="10%">
           {renderPane(current.first, `${path}-first`)}
         </Panel>
         <Separator
@@ -193,7 +198,7 @@ function TerminalAttachmentView({
             ? 'resize-handle resize-handle--horizontal'
             : 'resize-handle'}
         />
-        <Panel id={`${path}-second`} minSize="10%">
+        <Panel className="terminal-split__panel" id={`${path}-second`} minSize="10%">
           {renderPane(current.second, `${path}-second`)}
         </Panel>
       </Group>
