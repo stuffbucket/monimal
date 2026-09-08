@@ -17,18 +17,13 @@ function success<T>(value: T): ControlResult<T> {
   return { ok: true, value }
 }
 
-function fakeAuthBridge(): Pick<MaximalBridge, 'control' | 'openExternal'> {
+function fakeAuthBridge(): Parameters<typeof createAuthCapability>[0] {
   return {
     openExternal: vi.fn(async () => {}),
     control: {
       authStatus: vi.fn(async () => success(authStatus)),
       authStart: vi.fn(async () => success(authStatus)),
-      authCancel: vi.fn(async () => success(authStatus)),
       authSignOut: vi.fn(async () => success(null)),
-      accountsList: vi.fn(async () =>
-        success({ accounts: [], active_key: null }),
-      ),
-      accountsSwitch: vi.fn(async () => success(null)),
       onChange: vi.fn(() => () => {}),
     },
   }

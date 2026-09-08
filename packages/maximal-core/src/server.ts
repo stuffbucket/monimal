@@ -1,3 +1,4 @@
+import type { TrafficObserver } from "@stuffbucket/maximal-observability-contract"
 import type { ProviderGateway } from "@stuffbucket/maximal-provider-contract"
 import type { MiddlewareHandler } from "hono"
 
@@ -23,13 +24,21 @@ import {
 } from "./lib/auth/request-auth"
 import { traceIdMiddleware } from "./lib/http/trace"
 import { staleRefreshMiddleware } from "./lib/models/refresh-models"
+import {
+  createTrafficObservationMiddleware,
+  observedInferencePaths,
+} from "./lib/observability/middleware"
+import {
+  getDefaultTrafficObserver,
+  type TrafficQueryStore,
+} from "./lib/observability/store"
 import { cacheModels } from "./lib/platform/utils"
 import { getModelsLoadedAtMs, state } from "./lib/runtime-state/state"
 import { buildStatus } from "./lib/runtime-state/status"
 import { BUILD_VERSION } from "./lib/update/build-info"
 import { requireSupportedBuild } from "./lib/update/version-gate"
 import { completionRoutes } from "./routes/chat-completions/route"
-import { controlRoutes } from "./routes/control/route"
+import { createControlRoutes } from "./routes/control/route"
 import { debugRoutes } from "./routes/debug/route"
 import { embeddingRoutes } from "./routes/embeddings/route"
 import { createInternalRoutes } from "./routes/internal/route"
@@ -159,6 +168,18 @@ export interface CreateServerAppsOptions {
   providerGateway?: ProviderGateway
   readConfig?: () => AppConfig
   requestShutdown?: (reason: string) => void
+  trafficObserver?: TrafficObserver
+  trafficQueries?: TrafficQueryStore
+}
+
+function isTrafficQueryStore(
+  observer: TrafficObserver,
+): observer is TrafficObserver & TrafficQueryStore {
+  return (
+    "getOverview" in observer
+    && "getRequest" in observer
+    && "listRequests" in observer
+  )
 }
 
 export interface ServerApps {
@@ -173,6 +194,7 @@ export function createServerApps(
 ): ServerApps {
   const publicApp = new Hono()
   const controlApp = new Hono()
+  const trafficObserver = options.trafficObserver ?? getDefaultTrafficObserver()
   const providerDispatcher = createProviderDispatcher({
     configSource: options.providerConfigSource,
     gateway: options.providerGateway,
@@ -184,7 +206,14 @@ export function createServerApps(
   applyCommonMiddleware(controlApp)
 
   // ── Control listener ──────────────────────────────────────────────────────
-  controlApp.route("/control", controlRoutes)
+  controlApp.route(
+    "/control",
+    createControlRoutes({
+      trafficQueries:
+        options.trafficQueries
+        ?? (isTrafficQueryStore(trafficObserver) ? trafficObserver : undefined),
+    }),
+  )
   controlApp.route("/_debug", debugRoutes)
 
   // ── Public listener ───────────────────────────────────────────────────────
@@ -223,6 +252,11 @@ export function createServerApps(
   for (const path of githubUpstreamRoutes) {
     publicApp.use(path, requireSupportedBuild)
     publicApp.use(path, requireGithubAuth)
+  }
+
+  const observeTraffic = createTrafficObservationMiddleware(trafficObserver)
+  for (const path of observedInferencePaths()) {
+    publicApp.use(path, observeTraffic)
   }
 
   publicApp.route("/chat/completions", completionRoutes)

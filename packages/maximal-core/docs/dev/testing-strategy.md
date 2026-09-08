@@ -6,13 +6,15 @@
 need one place that describes how this project verifies itself.
 
 This document consolidates the project's testing process: what we test, how,
-with what tooling, where the gates are, what we deliberately *don't* do, and
+with what tooling, where the gates are, what we deliberately _don't_ do, and
 the known weaknesses we want a review to pressure-test. It describes the system
 **as it actually is today**, and flags aspirational items explicitly as such.
 
 For the terse in-repo pointers this expands on, see
-[`docs/architecture.md` → *Testing gotchas*](../architecture.md) and the
-project root [`AGENTS.md`](../../AGENTS.md).
+[`docs/architecture.md` → _Testing gotchas_](../architecture.md) and the
+project root [`AGENTS.md`](../../AGENTS.md). The
+[monorepo test workflow](https://github.com/stuffbucket/monimal/blob/main/docs/testing-in-docker.md)
+owns workspace test scopes, native isolation, and the Docker dependency boundary.
 
 ---
 
@@ -27,13 +29,13 @@ costs human judgment only where judgment is actually required:
   file/function rename untouched.
 - **Anchors** — command names (`bun run …`), config files (`eslint.config.js`,
   `bunfig.toml`, `stryker.conf.json`, `.bun-version`) and ADRs — are named
-  directly. Renaming one *is* a policy change, so a doc edit is expected then.
+  directly. Renaming one _is_ a policy change, so a doc edit is expected then.
 - **Inventory** — concrete `src/…` paths, function names, example test files —
   is kept to a minimum and never used as the load-bearing content of a section.
   Counts come from the `bun test` summary rather than being hand-maintained
   here.
 
-**So the contract is:** a pure rename never requires *rethinking* this document —
+**So the contract is:** a pure rename never requires _rethinking_ this document —
 at most it re-points a reference.
 
 **`tests/docs-reference-parity.test.ts` enforces the re-pointing half.** It
@@ -46,7 +48,7 @@ workflows but absent from `.github/workflows/`.
 It is tuned for **precision, not coverage** — a docs test that cries wolf gets
 suppressed, and then enforces nothing. It only reads inline code spans, skips
 anything holding a glob or a `<placeholder>`, skips paragraphs whose own point
-is that the named thing is *absent*, and skips document classes that exist to
+is that the named thing is _absent_, and skips document classes that exist to
 record a past state: `docs/archive/**`, `docs/decisions/**` (ADRs),
 `docs/spec/**` (PRDs), and any file or section carrying a `>` scope banner. So
 it will not catch every stale reference — but anything it does flag is real.
@@ -67,7 +69,7 @@ no UI in this repo; a decoupled tier drives the engine over `/control`.
 The testing implications that shape everything below:
 
 - **The proxy is a translation boundary.** Most defects are wrong
-  *transformations* of a request/response payload, not crashes. Correctness is
+  _transformations_ of a request/response payload, not crashes. Correctness is
   about the exact shape and field values sent upstream and returned
   downstream. This is why contract/translation tests dominate and why we care
   about mutation testing (a payload can be subtly wrong while every line is
@@ -75,7 +77,7 @@ The testing implications that shape everything below:
 - **Upstream behavior is partly undocumented.** Copilot's endpoint semantics
   (which models support `/responses`, how `thinking.display` surfaces reasoning,
   which sampling params are rejected) are established empirically and can drift.
-  Tests pin *our* behavior; they cannot pin the live upstream. See §7.
+  Tests pin _our_ behavior; they cannot pin the live upstream. See §7.
 - **Auth touches real user credentials on disk.** Tests must never read or
   write the developer's real `~/.local/share/maximal` state. This is enforced
   globally (see §4).
@@ -89,15 +91,16 @@ We do not maintain a formal test-pyramid ratio. In practice the suite
 test-run summary rather than being hand-maintained here)
 breaks down into these layers:
 
-| Layer | What it covers | Example files |
-|---|---|---|
-| **Pure-logic / unit** | Deterministic transforms, parsers, matchers, config resolution | `find-endpoint-model.test.ts`, `copilot-error-parser.test.ts`, `messages-preprocess.test.ts`, `anthropic-id-rewrite.test.ts` |
-| **Contract** | The shape of a wire payload or a public response matches a published schema — or a single source of truth still agrees with its mirrors | `auth-status-contract.test.ts`, `config-schema.test.ts` |
-| **Route / handler (in-process)** | A Hono route, exercised via `server.request(...)` / `app.fetch(...)` — no network, no listening port | `*-route.test.ts`, `*-handler.test.ts`, `debug-route.test.ts` |
-| **Behavioral / lifecycle** | Stateful subsystems (auth controller, recovery, rate limit) across event sequences | `auth-controller-lifecycle.test.ts`, `auth-recovery.test.ts`, `copilot-rate-limit.test.ts` |
-| **Mutation (manual, targeted)** | Whether tests *would fail* if the logic were wrong — see §6 | run on demand via `bun run mutate` |
+| Layer                            | What it covers                                                                                                                          | Example files                                                                                                                |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| **Pure-logic / unit**            | Deterministic transforms, parsers, matchers, config resolution                                                                          | `find-endpoint-model.test.ts`, `copilot-error-parser.test.ts`, `messages-preprocess.test.ts`, `anthropic-id-rewrite.test.ts` |
+| **Contract**                     | The shape of a wire payload or a public response matches a published schema — or a single source of truth still agrees with its mirrors | `auth-status-contract.test.ts`, `config-schema.test.ts`                                                                      |
+| **Route / handler (in-process)** | A Hono route, exercised via `server.request(...)` / `app.fetch(...)` — no network, no listening port                                    | `*-route.test.ts`, `*-handler.test.ts`, `debug-route.test.ts`                                                                |
+| **Behavioral / lifecycle**       | Stateful subsystems (auth controller, recovery, rate limit) across event sequences                                                      | `auth-controller-lifecycle.test.ts`, `auth-recovery.test.ts`, `copilot-rate-limit.test.ts`                                   |
+| **Mutation (manual, targeted)**  | Whether tests _would fail_ if the logic were wrong — see §6                                                                             | run on demand via `bun run mutate`                                                                                           |
 
 **Not present today** (gaps, see §8):
+
 - No end-to-end test against a real (or recorded) Copilot backend.
 - No formal coverage-percentage tracking (see §6 for why, and the caveat).
 - No load/performance/soak testing.
@@ -106,36 +109,40 @@ breaks down into these layers:
 
 ## 3. Tooling
 
-| Concern | Tool | Notes |
-|---|---|---|
-| Test runner | **`bun test`** | Native Bun runner. Fast; no Jest/Vitest layer. |
-| Type checking | **`tsc`** (`bun run typecheck`) | `strict` TypeScript. Treated as a first-class gate, not advisory. |
-| Lint (fast) | **oxlint** (`bun run lint:fast`) | Rust-based, runs first as a cheap filter. |
-| Lint (authoritative) | **ESLint** (`bun run lint:all` = `eslint --cache .`) | Full-tree. This is what CI runs and is the source of truth. Both `lint` and `lint:all` use `--cache`; the difference is **scope** — the pre-commit `lint` only sees *staged* files, and CI runs on a fresh checkout with no cache, so a violation outside your staged set surfaces only under `lint:all`/CI. See §5. |
-| Mutation testing | **StrykerJS** (`bun run mutate`) | Manual, narrow-scope. `testRunner: "command"`. See §6. |
-| Dead-code / unused deps | **knip** (`bun run knip`) | Part of `check:deep`. |
-| Copy-paste detection | **jscpd** (`bun run dupes`, gated by `dupes:check`) | Part of `check:deep`. Tuning in `.jscpd.json`, ratchet in `scripts/check-dupes.ts`. See §9. |
-| Secret scanning | **trufflehog** + `scripts/secret-scan.sh` | Runs pre-commit (lint-staged) and in CI. |
+| Concern                 | Tool                                                 | Notes                                                                                                                                                                                                                                                                                                                |
+| ----------------------- | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Test runner             | **`bun test`**                                       | Native Bun runner. Fast; no Jest/Vitest layer.                                                                                                                                                                                                                                                                       |
+| Type checking           | **`tsc`** (`bun run typecheck`)                      | `strict` TypeScript. Treated as a first-class gate, not advisory.                                                                                                                                                                                                                                                    |
+| Lint (fast)             | **oxlint** (`bun run lint:fast`)                     | Rust-based, runs first as a cheap filter.                                                                                                                                                                                                                                                                            |
+| Lint (authoritative)    | **ESLint** (`bun run lint:all` = `eslint --cache .`) | Full-tree. This is what CI runs and is the source of truth. Both `lint` and `lint:all` use `--cache`; the difference is **scope** — the pre-commit `lint` only sees _staged_ files, and CI runs on a fresh checkout with no cache, so a violation outside your staged set surfaces only under `lint:all`/CI. See §5. |
+| Mutation testing        | **StrykerJS** (`bun run mutate`)                     | Manual, narrow-scope. `testRunner: "command"`. See §6.                                                                                                                                                                                                                                                               |
+| Dead-code / unused deps | **knip** (`bun run knip`)                            | Part of `check:deep`.                                                                                                                                                                                                                                                                                                |
+| Copy-paste detection    | **jscpd** (`bun run dupes`, gated by `dupes:check`)  | Part of `check:deep`. Tuning in `.jscpd.json`, ratchet in `scripts/check-dupes.ts`. See §9.                                                                                                                                                                                                                          |
+| Secret scanning         | **trufflehog** + `scripts/secret-scan.sh`            | Runs pre-commit (lint-staged) and in CI.                                                                                                                                                                                                                                                                             |
 
 **Runtime pin:** Bun is pinned via `.bun-version`, which every CI workflow
 reads at runtime — no workflow holds a copy to drift from (see
-`docs/bun-version-policy.md`). Rationale: the test runner *is* the runtime, so a
+`docs/bun-version-policy.md`). Rationale: the test runner _is_ the runtime, so a
 Bun version delta can change test outcomes.
 
 ---
 
 ## 4. Test isolation & safety
 
-The normal monorepo test graph runs in a disposable Docker container, not in a
-bind-mounted checkout. The image receives a filtered source copy, owns empty
-HOME/XDG directories, runs as non-root, and starts without runtime networking,
-capabilities, host mounts, forwarded environment, credentials, or the Docker
-socket. Its writable overlay is discarded after the run. Docker may use the
-network while building the image and installing the pinned toolchain; tests may
-not.
+The normal monorepo graph enters through the root isolated native wrapper. It
+creates a private temporary root, redirects every home, XDG, Maximal, and Claude
+state path beneath it, removes inherited credentials and proxy variables, and
+cleans the root after the run. The package preload verifies that admission before
+any product module loads.
 
-This boundary replaced a preload-only model after a root-CWD `bun test` skipped
-this package's `bunfig.toml`. That one bypass caused two persistent host writes:
+The separate Docker rerun uses a read-only checkout mount, staged writable
+source, and container-owned dependencies. It adds pinned Linux toolchains plus a
+non-root, offline, no-capability runtime without replacing the native edit-test
+loop. The workflow owner linked above defines both boundaries.
+
+These boundaries replaced a preload-only model after a root-CWD `bun test`
+skipped this package's `bunfig.toml`. That one bypass caused two persistent host
+writes:
 
 1. `auth-recovery.test.ts` reached the default account registry and wrote its
    plausible Alice fixture into the real Maximal data home.
@@ -146,12 +153,13 @@ this package's `bunfig.toml`. That one bypass caused two persistent host writes:
    URL into the real Claude Code settings.
 
 The rule is therefore structural: **run the normal suite through `pnpm test` at
-the monorepo root, never raw `bun test`**. Root and package preloads reject raw
-host execution. Product-level guards in Maximal's path resolver and Claude
-Code's settings resolver provide a second layer: a `--config /dev/null` bypass
-must still fail before either default user path is derived.
+the monorepo root, never raw `bun test`**. The preload admits only the isolated
+native wrapper or the marked Docker container. Product-level guards in Maximal's
+path resolver and Claude Code's settings resolver provide a second layer: a
+`--config /dev/null` bypass must still fail before either default user path is
+derived.
 
-Inside the marked container, `tests/test-setup.ts` runs before product modules:
+After admission, `tests/test-setup.ts` runs before product modules:
 
 1. It creates one fresh temporary root per Bun worker and unconditionally places
    both `COPILOT_API_HOME` and `CLAUDE_CONFIG_DIR` beneath it. Inherited values
@@ -175,21 +183,22 @@ order for test doubles: **injectable function options > `mock.module`** — for 
 hazard reason spelled out in §5.
 
 The preload also carries one **opt-in diagnostic**, `MAXIMAL_TEST_TRACE`, which
-records module evaluation order and every `mock.module` install. The outer
-Docker wrapper accepts only `off`, `tests`, or `all` and forwards no ambient
-trace value. See §5.7.
+records module evaluation order and every `mock.module` install. Both root
+wrappers accept only `off`, `tests`, or `all` and forward no ambient trace value.
+See §5.7.
 
 ---
 
 ## 5. Known hazards (hard-won, must-read for contributors)
 
-These are documented in `docs/architecture.md` → *Testing gotchas* and expanded
+These are documented in `docs/architecture.md` → _Testing gotchas_ and expanded
 here because they are the failure modes most likely to bite a reviewer or a new
 contributor.
 
 ### 5.1 `mock.module` persists forward across files in a run — partly lint-enforced
+
 Bun does **not** reset module mocks between test files, and CI orders files
-differently than local. An unrestored mock leaks its stub into a *sibling* file
+differently than local. An unrestored mock leaks its stub into a _sibling_ file
 that then reads stale state — passing locally but failing in CI (or vice versa).
 This bit the project **four times** (culminating in a long #229 debugging loop),
 then a fifth (#27).
@@ -218,20 +227,20 @@ what makes it expensive: in the §5.7 demonstration the writer evaluated 5th and
 the victim 105th, 99 files later.
 
 **But "so the restore works" is also wrong. What breaks a restore is its
-*value*.** `mock.module` mutates the live module record **in place**, so a
+_value_.** `mock.module` mutates the live module record **in place**, so a
 namespace object captured before the install is retroactively updated to hold the
 stub. Restoring from it re-installs what the restore meant to undo:
 
 ```ts
-const real = await import("./m")
-await mock.module("./m", () => ({ ...real, TABLE: [] }))  // install: fine
-await mock.module("./m", () => real)                      // restore: NO-OP
-await mock.module("./m", () => ({ ...real }))             // restore: NO-OP
-                                                          // `real` is already
-                                                          // stubbed by now
+const real = await import("./m");
+await mock.module("./m", () => ({ ...real, TABLE: [] })); // install: fine
+await mock.module("./m", () => real); // restore: NO-OP
+await mock.module("./m", () => ({ ...real })); // restore: NO-OP
+// `real` is already
+// stubbed by now
 
-const snapshot = { ...(await import("./m")) }   // copy taken BEFORE the install
-await mock.module("./m", () => snapshot)        // restore: WORKS
+const snapshot = { ...(await import("./m")) }; // copy taken BEFORE the install
+await mock.module("./m", () => snapshot); // restore: WORKS
 ```
 
 Measured both directions on the same seed with a two-file writer/reader probe:
@@ -242,7 +251,7 @@ restore -> it sees the real table. Directly instrumented, `real.TABLE.length` is
 the namespace, so a later sibling got a `sleep` that returned instantly on **5 of
 12** seeds; with the snapshot form, **0 of 12**.
 
-It is *not* that `mock.module` refuses a Module Namespace exotic object —
+It is _not_ that `mock.module` refuses a Module Namespace exotic object —
 installing one works fine (probed with an unrelated module's pristine namespace).
 It is that the namespace is **live**. `tests/uninstall.test.ts` had this right all
 along; nine other files did not, and the capture-time bug in
@@ -263,12 +272,13 @@ hold today, never as the reason a shared-module mock is safe. The durable fix is
 unchanged: **do not mock a shared module** — use a DI seam.
 
 **Exercise it only through the isolation boundary.** From the monorepo root,
-run `pnpm test -- --suite=maximal-core`. The closed Docker wrapper deliberately
-does not forward arbitrary Bun flags such as `--randomize` or `--seed`; do not
-bypass it to reproduce an ordering failure. Use the supported trace option in
-§5.7 to capture evaluation order from the guarded run.
+run `pnpm test -- --core`. The closed native wrapper does not forward arbitrary
+Bun flags such as `--randomize` or `--seed`; do not bypass it to reproduce an
+ordering failure. Use the supported trace option in §5.7 to capture evaluation
+order from the guarded run.
 
 **Mitigations, in order of strength:**
+
 - **Durable fix: don't mock a shared module across files.** Prefer the **real**
   module — the preload redirects `COPILOT_API_HOME` to a temp dir and
   `getClaudeCodeSettingsPath()` honors `CLAUDE_CONFIG_DIR`, so config/settings
@@ -276,9 +286,9 @@ bypass it to reproduce an ordering failure. Use the supported trace option in
   (`__setServeForTests`, `__setBootSecretsForTests`). Only stub a module with no
   env/injection seam, keep the wrapper behaviorally identical (`...actual` /
   forward `...rest`), and exercise the complete Core suite through
-  `pnpm test -- --suite=maximal-core`.
-- **Never stub a *data* export.** All 24 `mock.module` sites were audited in #27:
-  every one replaces *function* exports and spreads `...real` — except the one
+  `pnpm test -- --core`.
+- **Never stub a _data_ export.** All 24 `mock.module` sites were audited in #27:
+  every one replaces _function_ exports and spreads `...real` — except the one
   that stubbed a data table (`SECRET_DEFS: []`), which is the one that caused the
   outage. The asymmetry is the whole lesson. A leaked function stub gets
   **called** by the sibling and usually throws or returns an obviously wrong
@@ -308,14 +318,14 @@ bypass it to reproduce an ordering failure. Use the supported trace option in
      and `~/lib/auth/secrets`. Membership is earned by an incident.
   4. `maximal/no-live-namespace-mock-factory` — a `mock.module` factory that
      reads a live namespace binding (`import * as ns`, `const ns = await
-     import(…)`). This is the broken-restore shape, and it is the one part of
-     the hazard that *is* statically decidable. It needs scope analysis rather
+import(…)`). This is the broken-restore shape, and it is the one part of
+     the hazard that _is_ statically decidable. It needs scope analysis rather
      than a selector: `() => real` is both the broken form and the correct one,
      depending only on whether `real` is a namespace or a copy, and the
      `() => ({ ...ns })` variant is broken for the same reason a selector on
      bare identifiers would miss.
 
-  **What it cannot enforce, by construction:** whether any *given* `mock.module`
+  **What it cannot enforce, by construction:** whether any _given_ `mock.module`
   is safe. That depends on whether another file evaluated later in the run
   imports the mocked module and when it reads the binding — a property of the
   whole run's module graph, not of the call site. No rule decides it. Treat a
@@ -327,50 +337,57 @@ This discipline is the decision of
 that ADR remain authoritative: **prefer DI / injectable options over
 `mock.module`** for any shared module, and the **wrapper rule** (forward
 `...rest`, preserve return shape) when a stub is unavoidable. What actually
-*shipped* for enforcement is narrower than the ADR's original proposal — there
+_shipped_ for enforcement is narrower than the ADR's original proposal — there
 is no `tests/helpers/` allowlist. The ADR's "awaited install + awaited `afterAll`
 restore" is sound on Bun 1.3.11 **provided the restore hands back a pre-install
 snapshot** — but it is sound by scheduling, not by contract, so it stays a
 hygiene rule rather than a licence to mock a shared module.
 
 ### 5.2 Spies leak too
+
 `spyOn` has the same cross-file hazard as `mock.module`: a spy left unrestored
 permanently patches the real method for every later file in the Bun worker — a
-CI-order-dependent flake whose failure surfaces in a *different* file than the
+CI-order-dependent flake whose failure surfaces in a _different_ file than the
 one that leaked it. **Mitigations:**
+
 - **Global net (defense-in-depth).** The preload's outermost
   `afterEach(() => mock.restore())` (§4) restores every spy after each test, so a
   forgotten restore can't leak forward. Note `mock.restore()` undoes `spyOn`
-  spies **only** — it does *not* undo `mock.module` (§5.1).
+  spies **only** — it does _not_ undo `mock.module` (§5.1).
 - **Still restore your own spies per-file.** The net is a backstop, not a
   license: keep `spy.mockRestore()` in the test's own `afterEach`/`afterAll`
   (e.g. `tests/uninstall.test.ts`) so intent is local and the leak window is
   zero even within a file.
 
 ### 5.3 Green tests can still test nothing
+
 A passing assertion does not prove the branch it claims to cover was exercised.
-Mutation testing has caught classification tests whose fixture hit a *different*
+Mutation testing has caught classification tests whose fixture hit a _different_
 code path that happened to return the same value. **Mitigation:** for
 security-critical or branchy logic, run Stryker and confirm the targeted
 mutants actually die. See §6.
 
 ### 5.4 Local staged lint ≠ full-tree CI lint
+
 Both `lint` and `lint:all` pass `--cache`, so this is **not** a cached-vs-uncached
 difference — it is **scope**. The pre-commit `lint` (via lint-staged) only lints
-*staged* files; `bun run lint:all` (`eslint --cache .`) lints the whole tree,
+_staged_ files; `bun run lint:all` (`eslint --cache .`) lints the whole tree,
 which is what CI runs — on a fresh checkout with no cache. So a violation in a
 file you didn't stage passes locally and fails CI. **Always run `lint:all`
 before pushing.** This has produced red CI on otherwise-good PRs.
 
 ### 5.5 Fresh worktrees need setup
+
 A `git worktree` created for isolated work has no `node_modules` — `git worktree
-add` does not run an install. In this monorepo, run `pnpm install` at the root
-before the native checks, then use `pnpm run check:core` or the focused Docker
-suite described in §9. Do not substitute a raw host `bun test`; it fails closed
-outside the marked test container.
+add` does not run an install. Run `pnpm install` at the root before native checks,
+then use `pnpm run check:core` or `pnpm test -- --core`. Do not substitute raw
+host `bun test`; only the root wrapper supplies an admitted isolated environment.
+The pinned-dependency Docker rerun refuses linked worktrees and runs from the
+primary checkout after integration.
 
 ### 5.6 Module-level runtime state leaks the same way mocks do
-`mock.module` is the famous case, but it is a *special case* of a wider one:
+
+`mock.module` is the famous case, but it is a _special case_ of a wider one:
 anything held at module scope is shared by every test file in the Bun worker.
 `src/` is full of legitimate process-global singletons — an active-clients Map, a
 single-flight guard, a prime cooldown, a models cache, and the whole `state`
@@ -378,15 +395,16 @@ object — and each is one shared mutable object for the whole run. Two
 symmetrical bugs follow, and this project has shipped both (three times, in the
 one PR that added this section):
 
-- **A writer that resets only `beforeEach`** leaves whatever the *last-executed*
+- **A writer that resets only `beforeEach`** leaves whatever the _last-executed_
   test recorded visible to every later file. Under the declared order the file
   usually happens to end on a test that wrote nothing, so it looks clean;
   `--randomize` removes the coincidence.
-- **A reader that resets only `afterEach`** inherits the previous *file's* state
+- **A reader that resets only `afterEach`** inherits the previous _file's_ state
   for its own first-executed test, because `afterEach` has not run yet. Same
   coincidence, mirrored.
 
 **Rules:**
+
 1. If a test touches process-global state, reset it in **both** `beforeEach` and
    `afterEach`. One-sided cleanup is correct only by accident of ordering.
 2. Better, remove the dependency: a test that asserts "the roster is empty" is
@@ -400,7 +418,7 @@ one PR that added this section):
    names the victim, never the writer. When a `--randomize` failure makes no
    local sense, look for a global the file reads but never sets.
 4. Run the complete guarded Core suite from the monorepo root with
-   `pnpm test -- --suite=maximal-core`. For order diagnosis, add
+   `pnpm test -- --core`. For order diagnosis, add
    `--trace=tests`; the wrapper keeps the test boundary closed and does not
    accept arbitrary Bun flags or paths.
 
@@ -413,8 +431,8 @@ to a singleton — happens while a module body is executing, and no line of a
 normal run covers it. Reconstructing the `(writer, module)` pair by hand is what
 makes one of these failures a multi-hour job.
 
-`pnpm test -- --suite=maximal-core --trace=tests`, run from the monorepo root,
-records that phase inside the guarded Docker suite. The preload
+`pnpm test -- --core --trace=tests`, run from the monorepo root,
+records that phase inside the isolated native Core suite. The preload
 (`tests/test-setup.ts`) loads `tests/helpers/module-trace.ts`, which registers a
 `Bun.plugin` loader hook and patches `mock.module`. Every line is prefixed
 `[test-trace]` and goes to stdout, the stream Bun's reporter uses, so in CI the
@@ -431,7 +449,7 @@ headers — that interleaving is the correlation mechanism.
                   <- tests/api-config.test.ts:14:12 (module-scope, after 4 evals)
 ```
 
-`pnpm test -- --suite=maximal-core --trace=all` widens the eval stream from the
+`pnpm test -- --core --trace=all` widens the eval stream from the
 test tree to `src/**` as well, which is what you want for a plain module-level
 singleton (§5.6) rather than a mock.
 
@@ -468,7 +486,7 @@ singleton (§5.6) rather than a mock.
   `expect.getState().testPath` and no per-file hook. CI's group headers supply
   it; locally, use the call sites.
 - **The ordering seed.** `bun test` only assigns one under `--randomize`, and
-  prints it itself. The trace records the resulting *order*, which is what a
+  prints it itself. The trace records the resulting _order_, which is what a
   seed would have been used to reconstruct.
 
 **Cost.** Off — the default — the preload does one `process.env` read: the
@@ -482,17 +500,17 @@ preserved and failure stack traces stay exact; only one line's columns shift.
 offset 0.)
 
 **Tracing stays behind the root wrapper.** Use
-`pnpm test -- --suite=maximal-core --trace=tests` for test-tree evaluation or
-`pnpm test -- --suite=maximal-core --trace=all` when source-module evaluation
-matters. The wrapper validates the mode, sets `MAXIMAL_TEST_TRACE` only inside
-the disposable container, and forwards no ambient value from the host. CI uses
+`pnpm test -- --core --trace=tests` for test-tree evaluation or
+`pnpm test -- --core --trace=all` when source-module evaluation
+matters. The wrapper validates the mode, sets `MAXIMAL_TEST_TRACE` only in the
+admitted test environment, and forwards no ambient value from the host. CI uses
 the same wrapper option for an explicitly requested trace; direct environment
 assignment plus a raw host test command is unsupported.
 
 ### 5.8 A test that names a port is asserting about the whole machine
 
 The shared-state hazards above are about state inside the Bun worker. Ports are
-the same failure with a wider blast radius: the shared resource is the *runner*,
+the same failure with a wider blast radius: the shared resource is the _runner_,
 so a sibling suite, a leftover process, or a second checkout can fail a test
 that is itself correct. This project has now paid for it three times — the
 fixed-port flakes in #34, the `4143 + random(100)` / `4243 + random(100)`
@@ -502,21 +520,21 @@ Every one was green in isolation. **Widening the range does not make a guess
 safe**; it only makes the collision rarer and therefore harder to reproduce.
 
 There are four ways to get a port here. They are **not** interchangeable, and
-they rank by *who owns the socket when the assertion runs*:
+they rank by _who owns the socket when the assertion runs_:
 
-| | Mechanism | Ownership at assertion time |
-|---|---|---|
-| 1 | `Bun.serve({ port: 0 })`, then read `server.port` | Never leaves. No window. |
-| 2 | `startEngine` (`tests/helpers/spawn-engine.ts`) — child binds `--port 0`, reports on the ready-line | Never leaves. No window. |
-| 3 | `holdPort()` (`tests/helpers/free-port.ts`) — the test binds and keeps the socket | Held by the test. No window. |
-| 4 | `pickFreePort()` (same file) — bind, read the number back, release | **Passes to the code under test. Window exists.** |
+|     | Mechanism                                                                                           | Ownership at assertion time                       |
+| --- | --------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| 1   | `Bun.serve({ port: 0 })`, then read `server.port`                                                   | Never leaves. No window.                          |
+| 2   | `startEngine` (`tests/helpers/spawn-engine.ts`) — child binds `--port 0`, reports on the ready-line | Never leaves. No window.                          |
+| 3   | `holdPort()` (`tests/helpers/free-port.ts`) — the test binds and keeps the socket                   | Held by the test. No window.                      |
+| 4   | `pickFreePort()` (same file) — bind, read the number back, release                                  | **Passes to the code under test. Window exists.** |
 
 Forms 1 and 2 are two observation channels for two runtimes, not duplication;
 merging them would buy nothing and cost the thing that makes each work. Only 3
 and 4 are the test's own bookkeeping, and only those are shared.
 
 **Form 4 is the weakest and is a last resort.** Use it only when the API under
-test takes a port *number* and binds it later — `runServer({ port })` is the
+test takes a port _number_ and binds it later — `runServer({ port })` is the
 one case in this repo. Anything that can hold its own socket should.
 
 **Enforced.** `tests/spawned-engine-ports.test.ts` is the guard, and it now
@@ -526,7 +544,7 @@ in-process binds: every real `.listen(...)` / `Bun.serve({ port })` in `tests/**
 must either request `0` outright or live in a file that sources ports from
 `helpers/free-port.ts`. That inversion is deliberate — the defect that shipped
 was `const port = 45_872` with `listen(port, …)` at the call site, so matching
-numeric *arguments* would have missed it, and tracing the value needs data flow
+numeric _arguments_ would have missed it, and tracing the value needs data flow
 a text scan does not have. The guard carries its own fixture asserting it
 recognises that exact shape, so it cannot rot into a no-op.
 
@@ -539,18 +557,28 @@ sites that reach the network stack are matched.
 ## 6. Mutation testing (the differentiator)
 
 ### How it's configured
-StrykerJS, invoked manually via `bun run mutate`. The config
-(`stryker.conf.json`) narrows the **source** scope, not the test command:
 
-- `mutate` names the module(s) under test. Override it per run rather than
-  editing the file: `bunx stryker run --mutate 'src/routes/messages/utils.ts'`.
+StrykerJS is invoked manually through the root Docker mutation wrapper while
+logic and its tests are under development. It is not a routine check or CI job.
+`pnpm run mutate:core` prepares or reuses the pinned dependency image, mutates
+the changed destination-side Core source ranges, and publishes the report under
+`reports/mutation`. The package's `bun run mutate` is an alias for the same
+wrapper. Mutation narrows the **source** scope, not the test command:
+
+- The default target is each changed destination-side range under `src/**/*.ts`
+  since the `origin/main` merge base, including committed, staged, unstaged,
+  edited-renamed, and eligible untracked source. `--mutate=src/path.ts:40-57` is
+  a complete explicit override.
+  `--all` is the intentionally expensive full-source escape hatch.
 - `testRunner: "command"` runs **`bun run test:mutation`** — the whole suite
-  minus six files. It is **not** narrowed to the module's own test file, and
+  minus six port/process tests and the built-artifact-only `bin-shebang` test. It
+  is **not** narrowed to the module's own test file, and
   narrowing it is the one mistake this config used to make. See below. The
   command is a script (`scripts/dev/run-mutation-tests.ts`) because a command
   runner scores a mutant from the child's exit code alone; the script withholds
   that code until bun has proven the run finished (sweep log).
-- `--concurrency` defaults to 4; 10 is comfortable on a 24-core machine.
+- `--concurrency` defaults to 10 in `stryker.conf.json`; an explicit CLI value
+  overrides it for that sweep.
 
 Cost, measured on the pin (Bun 1.3.11, `--concurrency 10`): **~2.0–2.5 s per
 mutant**, dominated by the ~15 s suite run divided across workers. 104 mutants
@@ -558,32 +586,35 @@ took 4m24s; 629 took 21m24s. Budget ~1.2 mutants/second/10-workers and scope
 accordingly — a 400-line module is roughly 450 mutants, so ~20 minutes.
 
 **Why the runner is the whole suite.** A command runner narrowed to one test
-file reports every mutant that *only some other file* would have killed as a
+file reports every mutant that _only some other file_ would have killed as a
 survivor. Those false survivors are indistinguishable from real ones until you
 hand-apply the mutation, and triaging them costs far more than the runtime
 saved. The shipped config used to run a single file; re-running the same target
 against the full suite produced an identical survivor set, which is the good
 case — but nothing about the narrow command guaranteed that.
 
-**Why six files are excluded.** `test:mutation` skips
+**Why seven files are excluded.** `test:mutation` skips
 `start-run-server`, `start-unauthenticated`, `start-multi-account`,
-`spawned-engine-ports`, `cli-branding`, and `main-cli-global-options`. Those
-bind real ports or spawn real processes (§5.8), and Stryker runs N suites
-concurrently. Measured: with the full suite at concurrency 4,
-`tests/start-run-server.test.ts` failed on **2 of 4** runs; with the six
-excluded, **0 of 10** at concurrency 10. A flaky test under a mutation run
-produces a **false kill**, which is the dangerous direction — it hides a
-survivor rather than inventing one. None of the six exercises pure request-path
+`spawned-engine-ports`, `cli-branding`, `main-cli-global-options`, and
+`bin-shebang`. The first six bind real ports or spawn real processes (§5.8),
+and Stryker runs N suites concurrently. Measured: with the full suite at
+concurrency 4, `tests/start-run-server.test.ts` failed on **2 of 4** runs; with
+the six excluded, **0 of 10** at concurrency 10. A flaky test under a mutation
+run produces a **false kill**, which is the dangerous direction — it hides a
+survivor rather than inventing one. `bin-shebang` reads the built
+`dist/main.js`, which is deliberately omitted from the mutation sandbox and
+cannot kill a source mutant. None of the seven exercises mutable request-path
 logic, so excluding them costs no real kills.
 
 ### Why we use it
+
 Line/branch coverage answers "did this line execute?" Mutation testing answers
 the question that actually matters for a translation proxy: **"if this line
 were wrong, would a test fail?"** A concrete example from this codebase: an
 extended-thinking display gate (`if (!hasThinking)`) shipped inverted. The
 function had tests and green coverage — but no test fed an input that flipped
 the gate, so the bug was invisible. Post-hoc Stryker flagged the exact mutant
-(`if (!hasThinking) → if (true)` *survived*). That surviving mutant is the
+(`if (!hasThinking) → if (true)` _survived_). That surviving mutant is the
 bug's fingerprint; running mutation testing on that module beforehand would
 have caught it.
 
@@ -603,7 +634,7 @@ the test name claims**. Three recorded instances, all found in one sweep:
   too. Disabling byName entirely changed no observable output.
 - **`tests/security/origin-guard.test.ts` › "a foreign origin is rejected"** —
   asserted `isAllowedOrigin("https://evil.example", 4141) === false`. That
-  origin has an *empty* `URL.port`, so it was rejected by the port comparison
+  origin has an _empty_ `URL.port`, so it was rejected by the port comparison
   and never reached the hostname allowlist. Deleting the allowlist check left
   the test green; so did flipping the unparseable-origin `catch` from
   `return false` to `return true`, because no fixture was unparseable.
@@ -654,11 +685,11 @@ reference standard for what "provable" means here:
 
 The anti-pattern we are eliminating: accepting a live mutant because "we can't
 write a test to observe it." If a test can't observe it, that is a finding
-*about the code* (bucket 2), not a license to move on.
+_about the code_ (bucket 2), not a license to move on.
 
 **Status of this policy:** codified (issue #216). The three scope items are
 complete — this rule is written into the testing docs (and linked from
-`docs/architecture.md` → *Testing gotchas*), the previously-dismissed
+`docs/architecture.md` → _Testing gotchas_), the previously-dismissed
 "equivalent" survivors were re-adjudicated (the request-preprocess audit found
 several were in fact **killable**, including one reachable via a
 `selectedModel?: Model` parameter the public contract genuinely allows to be
@@ -667,22 +698,23 @@ several were in fact **killable**, including one reachable via a
 **Deliberate non-goal:** we do **not** gate CI on a mutation-score threshold,
 and the numbers above are the argument rather than a preference. A useful sweep
 of one 400-line module is ~20 minutes on a 24-core laptop; CI runners are
-smaller. It is also *ratchet-hostile* in a way the `deps:check` and
+smaller. It is also _ratchet-hostile_ in a way the `deps:check` and
 `dupes:check` ratchets are not: a survivor count moves when a **test** changes,
 not only when source does, so an unrelated refactor of a fixture re-scores
 modules it did not touch. And the score is not the deliverable — of the 222
 survivors in the sweep recorded below, three were vacuous tests, and finding
 them required reading each survivor, not comparing a percentage. A number that
 takes 20 minutes to produce and still needs the same manual read afterwards
-buys nothing a gate can enforce. The bar remains the *per-survivor disposition
-rule above*, applied during review of test/logic PRs.
+buys nothing a gate can enforce. The bar remains the _per-survivor disposition
+rule above_, applied during review of test/logic PRs.
 
 ### Which modules to sweep — a criterion, not a hand-list
-The target set is *computable*, not a matter of taste. "Branchy, pure-logic
+
+The target set is _computable_, not a matter of taste. "Branchy, pure-logic
 transforms on the request path" decomposes into three mechanical signals: a
 module is reachable from `src/routes/**` in the import graph, imports no I/O
 sink, and carries cyclomatic complexity above a threshold. Rank that set by a
-*measured* signal — surviving-mutant density from a scheduled `bun run mutate`,
+_measured_ signal — surviving-mutant density from a scheduled `bun run mutate`,
 or branch-density × line-coverage — and the sweep list falls out
 deterministically. Human judgment sets the thresholds and the disposition rule
 above; it does **not** re-pick a file list on every rename. The canonical mutate
@@ -696,17 +728,17 @@ gate, and domain-policy matching.
 Recording what a sweep found is what stops the next one re-deriving it. Keep
 this terse: target, date, and the survivors that turned out to matter.
 
-| Target | Mutants | Survivors before → after | Outcome |
-|---|---|---|---|
-| `src/lib/models/models.ts` | 104 | 7 → 0 | All 7 on the `byName` lookup, all "covered" by four test titles that named them. Fixed in `tests/find-endpoint-model.test.ts`. |
-| `src/lib/auth/origin-guard.ts` | 49 | 5 → 1 | 4 real gaps on `isAllowedOrigin` (foreign host on the bound port, unparseable Origin, the `[::1]` allowlist entry). Fixed in `tests/security/origin-guard.test.ts`. The 1 left is the 403 body's prose `message`, deliberately unpinned — the machine-readable `error.type` is the contract clients branch on, and pinning prose only invites churn. |
-| `src/lib/auth/request-auth.ts` | 219 | 42 | No vacuous tests. Three provable equivalents (above). The rest are genuinely uncovered surfaces, listed below. |
-| `src/routes/messages/non-stream-translation.ts` | 329 | 172 → 78 | 1 vacuous test (the Zod-schema-only assertion). The bulk was whole unasserted features: `normalizeToolSchema`, the `thinking_budget` clamp, the `tool_choice` map, `handleSystemPrompt`'s array arm, cache-token accounting, the multi-choice stop-reason merge, non-streaming thinking blocks. All now pinned. The remaining 78 are the array-content paths (`mapContent`'s `image`/`document` arms, the tool-result split, the claude-model thinking-block filter) plus `OptionalChaining` mutants that are equivalent under a well-formed upstream response. |
-| `src/routes/messages/utils.ts` | 32 | 3 | Only the `consola.warn` inside the JSON-parse `catch`. Logging, deliberately unasserted. |
-| `src/lib/auth/origin-guard.ts` + `request-auth.ts` | 268 | 41 → 32 | 2026-08-05, 9m50s at `--concurrency 10`. Security-surface-only re-sweep of the two auth modules together. origin-guard held at 1 (the 403 prose `message`, still deliberate). request-auth 40 → 31: the 9 killed are the whole `MAXIMAL_SHELL_KEY` arm — `isShellKey` plus its `decideAuth` call site — which was the only cluster where an attacker-influenced value reaches the line *and* the line decides allow/deny. `requestApiKey === state.shellApiKey` → `!==`, and that same conjunct → `true`, each turn **any** presented key into a valid credential that outranks the enforce flag. Pinned in `tests/security/shell-key-bypass.test.ts`. The 31 left are deliberate: 18 attribution-only, 12 provable equivalents, 1 false survivor (below). |
+| Target                                             | Mutants | Survivors before → after | Outcome                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| -------------------------------------------------- | ------- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/lib/models/models.ts`                         | 104     | 7 → 0                    | All 7 on the `byName` lookup, all "covered" by four test titles that named them. Fixed in `tests/find-endpoint-model.test.ts`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `src/lib/auth/origin-guard.ts`                     | 49      | 5 → 1                    | 4 real gaps on `isAllowedOrigin` (foreign host on the bound port, unparseable Origin, the `[::1]` allowlist entry). Fixed in `tests/security/origin-guard.test.ts`. The 1 left is the 403 body's prose `message`, deliberately unpinned — the machine-readable `error.type` is the contract clients branch on, and pinning prose only invites churn.                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `src/lib/auth/request-auth.ts`                     | 219     | 42                       | No vacuous tests. Three provable equivalents (above). The rest are genuinely uncovered surfaces, listed below.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `src/routes/messages/non-stream-translation.ts`    | 329     | 172 → 78                 | 1 vacuous test (the Zod-schema-only assertion). The bulk was whole unasserted features: `normalizeToolSchema`, the `thinking_budget` clamp, the `tool_choice` map, `handleSystemPrompt`'s array arm, cache-token accounting, the multi-choice stop-reason merge, non-streaming thinking blocks. All now pinned. The remaining 78 are the array-content paths (`mapContent`'s `image`/`document` arms, the tool-result split, the claude-model thinking-block filter) plus `OptionalChaining` mutants that are equivalent under a well-formed upstream response.                                                                                                                                                                                            |
+| `src/routes/messages/utils.ts`                     | 32      | 3                        | Only the `consola.warn` inside the JSON-parse `catch`. Logging, deliberately unasserted.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `src/lib/auth/origin-guard.ts` + `request-auth.ts` | 268     | 41 → 32                  | 2026-08-05, 9m50s at `--concurrency 10`. Security-surface-only re-sweep of the two auth modules together. origin-guard held at 1 (the 403 prose `message`, still deliberate). request-auth 40 → 31: the 9 killed are the whole `MAXIMAL_SHELL_KEY` arm — `isShellKey` plus its `decideAuth` call site — which was the only cluster where an attacker-influenced value reaches the line _and_ the line decides allow/deny. `requestApiKey === state.shellApiKey` → `!==`, and that same conjunct → `true`, each turn **any** presented key into a valid credential that outranks the enforce flag. Pinned in `tests/security/shell-key-bypass.test.ts`. The 31 left are deliberate: 18 attribution-only, 12 provable equivalents, 1 false survivor (below). |
 
 **A mutant that exits the runner 0 is scored as a survivor.** The command
-runner reads only the exit code, so a mutant that *terminates* the suite
+runner reads only the exit code, so a mutant that _terminates_ the suite
 successfully is indistinguishable from one no test covers.
 `isLoopbackAddress`'s `if (!address) return false` → `return true` is reported
 alive and is not: two tests in `tests/request-auth.test.ts` fail on it when run
@@ -721,7 +753,7 @@ check for a summary block, not just the exit code.
 **Known-uncovered, not yet pinned** (recorded so the next sweep does not
 re-derive them): `findApiKeyEntry` attribution, whose result reaches
 `recordClient` and is asserted nowhere — reachable with an attacker-chosen key,
-but it runs only *after* the allow/deny decision and nothing branches on its
+but it runs only _after_ the allow/deny decision and nothing branches on its
 output, so the 12 mutants on it mis-label a client rather than admit one; and
 `mapContent`'s `image` and `document` arms, including the PDF-placeholder text.
 
@@ -733,7 +765,6 @@ drives the real `publicApp`, which passes no `isEnforcing` option, and sets the
 flag through `writeConfig` — no config DI seam needed, and no mutant on that
 line survives.
 
-
 **A mis-scored mutant the `request-auth.ts` sweep found in the runner itself
 (fixed).** `isLoopbackAddress`'s `if (!address) return false` → `return true`
 was scored **survived**. It is not: under it an in-process `app.request` has a
@@ -744,8 +775,8 @@ code alone — read 0 as a pass. A mutant that kills the test process was
 recorded as one the tests fail to catch, on the security surface where it
 matters most.
 
-Two mechanisms now enforce the triage rule *"require evidence the suite
-completed; do not trust the exit code on its own"*:
+Two mechanisms now enforce the triage rule _"require evidence the suite
+completed; do not trust the exit code on its own"_:
 
 - **`scripts/dev/run-mutation-tests.ts`** is what `bun run test:mutation` runs.
   It passes bun's exit code through **only** if bun wrote its
@@ -753,15 +784,17 @@ completed; do not trust the exit code on its own"*:
   cannot have written. So a failing suite is still a kill and a clean suite is
   still a survivor; the script adds no verdict of its own and can invent
   neither. A run without the summary is inconclusive, not a pass: it exits 97
-  and appends the mutant id to `reports/mutation/incomplete-runs.log`. Stryker's
+  and atomically appends the mutant id to the workspace-supplied absolute
+  `incomplete-runs.log` path outside Stryker's disposable sandbox. Stryker's
   command runner reaches `MutantRunStatus.Error` only from a spawn failure, so
-  a child cannot report "inconclusive" and that exit is scored as a kill — the
-  ledger is how a sweep declares which of its kills were not earned.
+  a child cannot report "inconclusive" and that exit is scored as a kill. The
+  published ledger names kills that were not earned, and any non-empty ledger
+  makes the outer mutation command fail.
 - **`tests/test-setup.ts` makes `process.exit` throw** for the whole suite. That
   removes the mechanism, so the branch above is an alarm rather than a routine
   path: the same mutant now fails `isLoopbackAddress > rejects everything else`
   and `createAuthMiddleware loopback exemption > missing peer IP is treated as
-  non-loopback`, and is killed by assertions instead of by a crash. It also
+non-loopback`, and is killed by assertions instead of by a crash. It also
   closes the same hole in the plain `bun test` gate, where a truncated run at
   exit 0 likewise looked like a pass.
 
@@ -769,7 +802,6 @@ Unmutated, `/_internal/shutdown` is **not** reachable from an in-process test:
 `defaultGetRequestIp` reads `Request.ip`, which `app.request` never sets, so the
 handler 404s (and auth 401s ahead of it) — and the clean suite now passes with
 the `process.exit` guard armed, which is the direct evidence.
-
 
 ---
 
@@ -781,11 +813,11 @@ important to state the boundary of our guarantees honestly:
 - **Tests pin our transformation.** We can and do assert that, given input X,
   the payload we send upstream (or return downstream) is exactly Y.
 - **Tests cannot pin live upstream behavior.** Claims like "`thinking.display:
-  "summarized"` is what surfaces reasoning text on Copilot-served Claude" or
+"summarized"` is what surfaces reasoning text on Copilot-served Claude" or
   "only GPT models support `/responses`" are **empirically established**, not
   contract-guaranteed, and can drift when GitHub changes the backend. Where a
-  fix depends on such behavior, the test verifies that we *send the right
-  thing*; the end-to-end outcome rests on captured evidence (wire logs) and
+  fix depends on such behavior, the test verifies that we _send the right
+  thing_; the end-to-end outcome rests on captured evidence (wire logs) and
   project-recorded knowledge, and is flagged as a residual risk in the relevant
   PR.
 - **Implication for reviewers:** the most valuable defensive addition here is
@@ -801,16 +833,16 @@ We would specifically like external judgment on these:
 
 1. **No upstream contract canary.** Undocumented Copilot semantics can drift
    with no signal until a user reports breakage. A periodic recorded/live
-   contract check would convert silent drift into a failing check. *(Highest
-   strategic value, in our view.)*
+   contract check would convert silent drift into a failing check. _(Highest
+   strategic value, in our view.)_
 2. **Mutation sweeps are manual and unscheduled.** §6 defines the disposition
-   rule and a *computable* target criterion, but the pieces that would make it
+   rule and a _computable_ target criterion, but the pieces that would make it
    automatic — a generator that emits the target set from the import graph, and
    a scheduled `bun run mutate` that ranks by surviving-mutant density — aren't
    built yet, and results aren't archived. Risk: sweeps only run when someone
    remembers.
-3. **No coverage measurement at all.** We intentionally avoid a coverage *gate*
-   (§6), but we currently have no coverage *visibility* either — we cannot point
+3. **No coverage measurement at all.** We intentionally avoid a coverage _gate_
+   (§6), but we currently have no coverage _visibility_ either — we cannot point
    at which modules are under-exercised without running Stryker on each. A
    reporting-only coverage signal (not a gate) may be worth adding.
 4. **Cross-file test-size friction.** Large single-domain test files keep
@@ -820,17 +852,17 @@ We would specifically like external judgment on these:
 5. **Cross-file shared-state hazard (§5.1, §5.6)** — `mockModuleLeakGuard` bans
    the fire-and-forget `mock.module` forms, literal data stubs, a deny-list of
    known-passive modules, and the live-namespace restore factory. **Residual
-   gap, and it is structural:** the rule cannot decide whether a *given* mock is
+   gap, and it is structural:** the rule cannot decide whether a _given_ mock is
    safe, because that depends on the whole run's module graph rather than the
-   call site. A correct `afterAll` restore *does* run before the next file is
+   call site. A correct `afterAll` restore _does_ run before the next file is
    evaluated on Bun 1.3.11 — the leak is forward-only (§5.1) — but that is
    scheduling, not contract, and Bun documents no ordering guarantee, so it is
    cleanup rather than protection. The same applies to plain module-level
    singletons (§5.6), which no lint rule sees at all. So "prefer
    real/injectable deps for shared state" still rests on review. The supported
-   root Docker wrapper currently exposes the fixed Core suite and tracing, not
-   arbitrary randomized-runner flags; use
-   `pnpm test -- --suite=maximal-core --trace=tests` for diagnosis. See §9.
+   root native wrapper exposes the fixed Core scope and tracing, not arbitrary
+   randomized-runner flags; use `pnpm test -- --core --trace=tests` for
+   diagnosis. See §9.
 6. **No load/performance/soak coverage** for the proxy under sustained
    concurrent request load or long-running sidecar sessions.
 
@@ -838,13 +870,11 @@ We would specifically like external judgment on these:
 
 ## 9. CI gates & the local equivalents
 
-CI (`.github/workflows/ci.yml`) runs on every pull request, on pushes to `main`
-and `dev`, and — inertly, since no Merge Queue exists on a user-owned repo — in
-the merge queue. Its two jobs, `test` and `windows`, are **required status
-checks** on `main` alongside `release-gates.yml`'s `gate`, so they block the
-merge button rather than merely reporting; the branch must also be up to date
-with `main` before it can merge (`docs/admin/branch-rulesets.md`). It has **two
-concurrent jobs**.
+The CI inventory below describes maximal-core's standalone workflow fixture. In
+the monorepo, the workflow owner linked at the start of this document defines the
+normal local and CI test scopes; package commands here must not redefine them.
+The monorepo CI runs the complete graph through the full isolated native tier,
+while the pinned Linux Docker rerun remains an explicit local command.
 
 **Job `test`** (`ubuntu-latest`) — the product gate. Steps, in order:
 
@@ -897,40 +927,40 @@ site. `e2e` does **not** run here (#89).
 
 Security workflows (CodeQL, trufflehog) run alongside, `release-gates.yml`
 checks a PR's milestone and bump, and `randomized-test-order.yml` runs nightly
-(see below). There is **no** build/sign/publish pipeline on a *PR* — no dmg,
+(see below). There is **no** build/sign/publish pipeline on a _PR_ — no dmg,
 MSI, checksums, or signing — and no release automation: a release is a GitHub
 milestone, tagged by hand, and it is the tag push that fires
 `publish-package.yml` and `release-tag-check.yml` (see `docs/architecture.md` →
-*Release & PR conventions* and `docs/release-runbook.md`).
+_Release & PR conventions_ and `docs/release-runbook.md`).
 
 ### Why randomized order is not a PR gate
 
-The guarded Docker suite runs Bun in its declared order. Randomized execution is
+The guarded native suite runs Bun in its declared order. Randomized execution is
 a useful detector for the cross-file shared-state class (§5.1, §5.6), but it is
 the wrong shape for a required merge gate: it can surface a latent defect that
 the PR did not introduce, and process-spawning suites can still fail from runner
 timing independently of their order.
 
-The root wrapper therefore exposes a closed suite selector and trace modes, not
-arbitrary Bun arguments or test paths. Run `pnpm test -- --suite=maximal-core`
-from the monorepo root; add `--trace=tests` or `--trace=all` when evaluation
-order is the evidence needed. Do not bypass the fail-closed boundary with a raw
-host command to obtain randomized execution.
+The root wrapper therefore exposes closed native scopes and trace modes, not
+arbitrary Bun arguments or test paths. Run `pnpm test -- --core` from the
+monorepo root; add `--trace=tests` or `--trace=all` when evaluation order is the
+evidence needed. Do not bypass the fail-closed boundary with a raw host command
+to obtain randomized execution.
 
 ### Duplication: a ratchet on file pairs, not a percentage
 
 `bun run dupes:check` (`scripts/check-dupes.ts`, tuning in `.jscpd.json`) runs
-jscpd and fails when **a pair of files in `src/**` starts sharing copy-pasted
-code that it did not share before**. `bun run dupes` prints the full inventory
-across `src`, `tests` and `scripts` and gates nothing. It is in `check:deep`.
+jscpd and fails when **a pair of files in `src/**`starts sharing copy-pasted
+code that it did not share before**.`bun run dupes`prints the full inventory
+across`src`, `tests`and`scripts`and gates nothing. It is in`check:deep`.
 
 **Measured first.** jscpd over `src`, `tests` and `scripts`, TypeScript only:
 
 | min-tokens | clones | duplicated lines |
-|---|---|---|
-| 30 | 457 | 6.15% |
-| 50 | 119 | 2.48% |
-| 100 | 13 | 0.55% |
+| ---------- | ------ | ---------------- |
+| 30         | 457    | 6.15%            |
+| 50         | 119    | 2.48%            |
+| 100        | 13     | 0.55%            |
 
 and at min-tokens 50, split by tree: `src` **0.33%** (10 clones, 9 of them
 inside a single file), `scripts` **0.95%** (11), `tests` **5.16%** (96). Across
@@ -963,7 +993,7 @@ Three decisions follow, and the numbers picked all of them.
   when someone copies code.
 
 **Scope.** Only `src/**` is gated. `tests/**` is out because 96 of the 119
-clones live there and they are near-identical *test bodies* — the thing §10
+clones live there and they are near-identical _test bodies_ — the thing §10
 calls correct. Folding those into a table costs the property tests exist for:
 reading a failure and knowing what broke. `scripts/**` is out because it is
 tooling rather than the product. Both stay in `bun run dupes`.
@@ -971,7 +1001,7 @@ tooling rather than the product. Both stay in `bun run dupes`.
 **Two limits, stated rather than buried.** It finds copy-paste, **not
 reimplementation** — the question that prompted building it ("was this fix
 implemented twice, two different ways?") is one jscpd cannot answer, because two
-different implementations share no tokens. And it is pair-granular: a *second*
+different implementations share no tokens. And it is pair-granular: a _second_
 copy-paste between two files that already share one adds no pair and passes.
 That is the same limitation `check-deps.ts` accepts for its edges, for the same
 reason.
@@ -984,22 +1014,23 @@ superset of CI rather than an exact match.
 **Local pre-merge equivalents (run from the monorepo root):**
 
 - `pnpm --filter @stuffbucket/maximal-core run check:fast` = `lint:fast →
-  typecheck → lint:all`, the safe native inner loop.
+typecheck → lint:all`, the safe native inner loop.
 - `pnpm run check:core` is the supported complete Core gate. It first runs
-  `check:deep:host` natively: `preflight → check:fast → casts:check → knip →
-  deps:check → dupes:check → ci:check → build → typecheck:downstream`. It then
-  runs `pnpm test -- --suite=maximal-core`, which selects Core's fixed guarded
-  inner script in the root-owned, mountless Docker boundary.
-- `pnpm test -- --suite=maximal-core` is the supported focused rerun when only
-  Core's Docker test suite is needed. The closed suite selector does not forward
-  arbitrary commands or test paths.
+  `check:deep:host`: `preflight → check:fast → casts:check → knip → deps:check →
+dupes:check → ci:check → build → typecheck:downstream`. It then runs the
+  focused Core suite through the isolated native wrapper.
+- `pnpm test -- --core` is the supported focused native rerun. The closed scope
+  does not forward arbitrary commands or test paths.
+- `pnpm run test:docker -- --suite=maximal-core` reruns Core with pinned Linux
+  dependencies and toolchains. It runs only from the primary checkout; linked
+  worktrees use the native tiers.
 - Raw host `bun test` and package-local `bun run check:deep` deliberately fail
   closed in this monorepo. The latter remains the coherent standalone/Core-CI
   aggregate (`check:deep:host → bun test`), so `ci:check` still derives the same
   constituent coverage and retains its justified exclusions; it is not the
   monorepo host entry point.
 - `pnpm --filter @stuffbucket/maximal-core run check:ops` = `typecheck:ops →
-  test:ops`, for `scripts/ops/` (its own tsconfig and test run;
+test:ops`, for `scripts/ops/` (its own tsconfig and test run;
   `tooling-ci.yml` is the CI counterpart).
 - **Pre-commit hook** (simple-git-hooks → lint-staged): `bun run lint --fix` +
   `scripts/secret-scan.sh` on staged files. Note this runs the staged-file

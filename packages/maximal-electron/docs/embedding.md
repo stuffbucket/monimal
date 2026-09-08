@@ -536,9 +536,11 @@ write and not why.
 - **`ShellLayout` takes no children.** Every region is a named prop, so the
   layout owns where a region goes and the caller owns what is in it. `left` is
   a function rather than a node because `ShellLayout` owns whether the left
-  panel is collapsed, and `NavRail` needs that answer.
-- **`layoutId` is the persistence key.** `ShellLayout` namespaces the panel
-  sizes it writes to `localStorage` under it, so two shells in one application
+  panel is collapsed, and `NavRail` needs that answer. `right` is optional;
+  omitting it also removes the inspector toggle and divider.
+- **`layoutId` is the persistence namespace.** `ShellLayout` stores a separate
+  panel layout for each active tab and panel topology under it, so document tabs
+  can restore different sidebars and inspectors. Two shells in one application
   must not share one.
 - **`Card` and `Row` are one component under two names**, and that component is
   a selectable option rather than a container. Both require `selected` and

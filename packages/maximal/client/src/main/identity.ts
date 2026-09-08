@@ -132,6 +132,12 @@ export function installApplicationMenu(callbacks: MenuCallbacks = {}): void {
       click: openSettings(id),
     }),
   )
+  const settingsSubmenu: MenuItemConstructorOptions[] = [
+    ...(isMac
+      ? []
+      : ([settingsItem, { type: 'separator' }] satisfies MenuItemConstructorOptions[])),
+    { label: 'Open Section', submenu: sectionItems },
+  ]
 
   const template: MenuItemConstructorOptions[] = [
     ...(isMac
@@ -162,9 +168,7 @@ export function installApplicationMenu(callbacks: MenuCallbacks = {}): void {
     { role: 'viewMenu' },
     {
       label: 'Settings',
-      submenu: isMac
-        ? sectionItems
-        : [settingsItem, { type: 'separator' }, ...sectionItems],
+      submenu: settingsSubmenu,
     },
     { role: 'windowMenu' },
     {

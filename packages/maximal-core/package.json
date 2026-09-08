@@ -81,7 +81,7 @@
     "lint:all": "eslint .",
     "lint:fast": "oxlint",
     "measure:baseline": "bun scripts/dev/measure-baseline.ts",
-    "mutate": "stryker run",
+    "mutate": "node ../../scripts/docker-mutate.mjs",
     "prepack": "bun scripts/ops/prepack.ts",
     "preflight": "bun scripts/preflight.ts",
     "prepare:hooks": "bun scripts/ops/prepare.ts",
@@ -121,6 +121,7 @@
   },
   "dependencies": {
     "@hono/zod-openapi": "1.6.1",
+    "@stuffbucket/maximal-observability-contract": "workspace:*",
     "@stuffbucket/maximal-provider-contract": "workspace:*",
     "citty": "^0.2.2",
     "clipboardy": "^5.0.0",

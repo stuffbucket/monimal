@@ -37,7 +37,7 @@ Other commands are in [AGENTS.md](./AGENTS.md).
 
 ## The shell
 
-A three-panel layout in the shape Figma uses:
+A document layout with an optional inspector:
 
 - A **collapsible left navigation** that reduces to an icon rail, with
   sections that collapse on their own.
@@ -49,10 +49,10 @@ A three-panel layout in the shape Figma uses:
   key, and nothing to install: it prefers a local proxy when one is running,
   and otherwise runs a small model inside the application.
 - A **grid and list canvas** with selection.
-- A **collapsible right inspector** that shows properties when something is
-  selected, and settings when nothing is.
+- An optional **collapsible right inspector** for documents that have secondary
+  properties to show.
 
-Panel sizes persist across restarts.
+Panel sizes and collapsed state persist per document tab across restarts.
 
 Native integration covers a splash window and the application menu. It also
 covers an optional menu bar or tray icon, notifications, and an update check.
@@ -286,10 +286,11 @@ colour worked, so this is stated rather than left to be discovered.
 `IconButton` outside it — or `Banner` with `onDismiss`, which draws one — and
 the button is absent rather than broken.
 
-`ShellLayout` takes no children. `left`, `main`, `right` and `status` are named
-props, plus an optional `top` and `bottom`, and `left` is a function of the
-collapsed state because `ShellLayout` owns that state and `NavRail` needs it.
-[docs/embedding.md](./docs/embedding.md) assembles a whole three-panel
+`ShellLayout` takes no children. `left`, `main` and `status` are named props;
+`top`, `bottom` and `right` are optional. Omit `right` to remove the inspector
+and its title-bar toggle. `left` is a function of the collapsed state because
+`ShellLayout` owns that state and `NavRail` needs it. Panel geometry is restored
+per active tab. [docs/embedding.md](./docs/embedding.md) assembles a whole
 application — nav rail, canvas, inspector, tabs, status bar — in one snippet.
 
 `NavRail` is a list of labelled collapsible groups, not a flat icon strip. A

@@ -95,21 +95,92 @@ test('packaged preload exposes only the closed named bridge', async () => {
       'control',
       'getCoreStatus',
       'getProxyUrl',
+      'logs',
+      'menuBarMode',
       'onCoreStatus',
+      'onOpenSettings',
       'openExternal',
+      'pendingSettingsRequest',
     ],
     control: [
       'accountsList',
       'accountsSwitch',
+      'apiKeysCreate',
+      'apiKeysList',
+      'apiKeysRemove',
+      'apiKeysSetEnforcement',
+      'apiKeysUpdate',
+      'appsList',
+      'appsSetEnabled',
       'authCancel',
       'authSignOut',
       'authStart',
       'authStatus',
+      'diagnosticsGet',
+      'modelsList',
+      'modelsRefresh',
+      'observabilityOverview',
+      'observabilityRequest',
+      'observabilityRequests',
       'onChange',
+      'onTrafficInvalidation',
+      'usageGet',
     ],
     hasCoreOrigin: false,
     hasWindowRequire: false,
   })
+})
+
+test('native Settings flyout opens every restored section in the packaged UI', async () => {
+  const page = await running.app.firstWindow()
+  const nativeLabels = await running.app.evaluate(({ BrowserWindow, Menu }) => {
+    const settings = Menu.getApplicationMenu()?.items.find(
+      (item) => item.label === 'Settings',
+    )
+    const flyout = settings?.submenu?.items.find(
+      (item) => item.label === 'Open Section',
+    )
+    const leaves = flyout?.submenu?.items ?? []
+    const usage = leaves.find((item) => item.label === 'Usage')
+    usage?.click?.(
+      usage,
+      BrowserWindow.getFocusedWindow() ?? undefined,
+      {
+        keyCode: '',
+        triggeredByAccelerator: false,
+        type: 'keyDown',
+      },
+    )
+    return leaves.map((item) => item.label)
+  })
+
+  expect(nativeLabels).toEqual([
+    'Account',
+    'General',
+    'Apps',
+    'Endpoint',
+    'API keys',
+    'Models',
+    'Usage',
+    'Logs',
+    'Diagnostics',
+  ])
+  await expect(page.locator('h1')).toHaveText('Usage')
+  await expect(page.locator('h1')).toHaveCount(1)
+  await expect(page.locator('.settings-page')).toHaveAttribute(
+    'aria-labelledby',
+    'settings-usage-heading',
+  )
+  await expect(page.locator('#settings-usage-heading')).toBeVisible()
+
+  const selected = page.locator('[data-testid="settings-rail-settings-usage-heading"]')
+  await expect(selected).toHaveAttribute('aria-current', 'page')
+  const tabpanel = page.locator('.tabpanel')
+  await expect(tabpanel).toHaveCount(1)
+  expect(await selected.getAttribute('aria-controls')).toBe(await tabpanel.getAttribute('id'))
+
+  await expect(page.locator('#right')).toHaveCount(0)
+  await expect(page.locator('[data-testid="toggle-right"]')).toHaveCount(0)
 })
 
 test('renderer window is hardened: contextIsolation, no nodeIntegration, sandboxed', async () => {
@@ -243,30 +314,37 @@ test("a focused chrome control's outline actually resolves", async () => {
   await assertFocusOutlineResolves(window, target, label)
 })
 
-test('nav rail entries do not overlap vertically', async () => {
-  // `.nav__item` is a hardcoded `height: 30px`, so a label that wraps to a
-  // second line paints outside its own row and over the next one. First-run has
-  // no repeated list at a fixed row height, so there is nothing equivalent to
-  // check signed out.
+test('Settings rail entries do not overlap vertically', async () => {
   const window = await running.app.firstWindow()
-  // The Runs tab specifically: first-run's frame has a tab strip of its own, so
-  // the presence of a tab does not mean the view tabs this test drives exist.
-  if (!(await probeVisible(window, '.sb-shell.app .tab:has-text("Runs")'))) {
-    test.skip(true, SIGNED_OUT_SKIP_MESSAGE)
-    return
-  }
+  await running.app.evaluate(({ BrowserWindow, Menu }) => {
+    const settings = Menu.getApplicationMenu()?.items.find(
+      (item) => item.label === 'Settings',
+    )
+    const flyout = settings?.submenu?.items.find(
+      (item) => item.label === 'Open Section',
+    )
+    const account = flyout?.submenu?.items.find(
+      (item) => item.label === 'Account',
+    )
+    account?.click?.(
+      account,
+      BrowserWindow.getFocusedWindow() ?? undefined,
+      {
+        keyCode: '',
+        triggeredByAccelerator: false,
+        type: 'keyDown',
+      },
+    )
+  })
 
-  await window.locator('.sb-shell.app .tab', { hasText: 'Runs' }).click()
-
-  // `.nav__label`, not `.nav__item`. The item's box stays exactly 30px and
-  // flush against its neighbours whether or not the label inside it wraps, so
-  // measuring the item reports a healthy layout while the screen is visibly
-  // broken. A wrapped label's own box grows past 30px, which is the overlap
-  // itself.
-  const navLabels = window.locator('[data-testid="projects-nav"] .nav__label')
-  await expect(navLabels.first()).toBeVisible()
-  await assertNoVerticalOverlap(await navLabels.all(), 'projects nav rail labels')
+  const settingsLinks = window.locator('.settings-rail__link')
+  await expect(settingsLinks.first()).toBeVisible()
+  await assertNoVerticalOverlap(
+    await settingsLinks.all(),
+    'settings section rail entries',
+  )
 })
+
 
 test('status bar text is not clipped at the window edge', async () => {
   // Status items wrap when they do not fit the window's width. If the bar's
@@ -274,14 +352,14 @@ test('status bar text is not clipped at the window edge', async () => {
   // both directions: up over the document content, and down past the window's
   // bottom edge. First-run has nothing comparable, so this skips signed out.
   const window = await running.app.firstWindow()
-  // The Runs tab specifically: first-run's frame has a tab strip of its own, so
+  // The Traffic tab specifically: first-run's frame has a tab strip of its own, so
   // the presence of a tab does not mean the view tabs this test drives exist.
-  if (!(await probeVisible(window, '.sb-shell.app .tab:has-text("Runs")'))) {
+  if (!(await probeVisible(window, '.sb-shell.app .tab:has-text("Traffic")'))) {
     test.skip(true, SIGNED_OUT_SKIP_MESSAGE)
     return
   }
 
-  await window.locator('.sb-shell.app .tab', { hasText: 'Runs' }).click()
+  await window.locator('.sb-shell.app .tab', { hasText: 'Traffic' }).click()
 
   // Per span, not on the container. A fixed-height bar stays nominally within
   // the window while the children that wrapped out of it do not.
@@ -298,13 +376,6 @@ test('status bar text is not clipped at the window edge', async () => {
     [window.locator('.tabpanel'), window.locator('.sb-shell.app .statusbar')],
     'tabpanel vs statusbar',
   )
-
-  // The runs canvas is DELIBERATELY internally scrollable (package
-  // stylesheet: `.canvas { overflow-y: auto }`) — its CONTENT may legitimately
-  // be taller than its box; that is what the scrollbar is for. What must
-  // still hold is that its own outer box, like any other panel, fits inside
-  // the window rather than being clipped by the window edge itself.
-  await assertWithinWindow(window, window.locator('[data-testid="runs-canvas"]'), 'runs canvas (outer box)')
 })
 
 test('exits cleanly without orphaning the sidecar process', async () => {

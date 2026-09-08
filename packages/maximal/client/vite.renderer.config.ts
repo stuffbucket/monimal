@@ -12,6 +12,8 @@ export default defineConfig({
     // See scripts/apply-deviations.mjs — needed because maximal-electron is a
     // workspace link here, not a published install.
     dedupe: [
+      '@stuffbucket/maximal-electron',
+      '@stuffbucket/maximal-observability',
       'react',
       'react-dom',
       'react-resizable-panels',

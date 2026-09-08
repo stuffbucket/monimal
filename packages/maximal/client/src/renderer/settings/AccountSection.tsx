@@ -4,6 +4,7 @@ import { Button, Note } from 'stuffbucket-electron/renderer'
 
 import { displayAccountLogin } from '../shared/account-login'
 import type { AuthStatus, SettingsCapabilities } from './capabilities'
+import { AccountsSection } from './AccountsSection'
 import { DeviceCodePanel } from './DeviceCodePanel'
 import { describeError, formatTimestamp } from './format'
 
@@ -31,8 +32,7 @@ export function AccountSection({ capabilities }: AccountSectionProps): ReactElem
   busyRef.current = busy
 
   // One effect owns the whole read lifetime: the first read, every later
-  // push, the poll fallback, and teardown. Mirrors the pattern in
-  // workspace/Workspace.tsx's snapshot effect.
+  // push, the poll fallback, and teardown.
   useEffect(() => {
     let settled = false
 
@@ -103,9 +103,9 @@ export function AccountSection({ capabilities }: AccountSectionProps): ReactElem
 
   return (
     <section className="settings-section" aria-labelledby="settings-account-heading">
-      <h2 id="settings-account-heading" className="settings-section__heading">
+      <h1 id="settings-account-heading" className="settings-section__heading">
         Account
-      </h2>
+      </h1>
 
       {/* `live="assertive"` is the whole of what the hand-written note spelled
           as role="alert" plus aria-live: a failed action needs to interrupt,
@@ -189,6 +189,8 @@ export function AccountSection({ capabilities }: AccountSectionProps): ReactElem
           </Button>
         </div>
       )}
+
+      <AccountsSection capabilities={capabilities} embedded />
     </section>
   )
 }

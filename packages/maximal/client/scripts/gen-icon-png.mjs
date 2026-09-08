@@ -14,11 +14,16 @@
  */
 
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 
 const source = resolve('build/icon.icns')
 const output = resolve('build/icon.png')
+const trayOutputs = [
+  resolve('resources/tray/tray.png'),
+  resolve('resources/tray/trayTemplate.png'),
+  resolve('resources/tray/trayTemplate@2x.png'),
+]
 
 if (process.platform !== 'darwin') {
   console.log('gen-icon-png: not darwin, nothing to do')
@@ -46,4 +51,9 @@ if (result.status !== 0) {
   process.exit(1)
 }
 
-console.log(`gen-icon-png: wrote ${output}`)
+for (const trayOutput of trayOutputs) {
+  mkdirSync(dirname(trayOutput), { recursive: true })
+  copyFileSync(output, trayOutput)
+}
+
+console.log(`gen-icon-png: wrote ${output} and tray resources`)

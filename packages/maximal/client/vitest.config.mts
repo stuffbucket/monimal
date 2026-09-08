@@ -7,6 +7,12 @@ import { defineConfig } from 'vitest/config'
 // `window`/`document`, or give the main process a fake DOM it never has.
 export default defineConfig({
   test: {
+    sequence: {
+      shuffle: { files: true, tests: true },
+      ...(process.env['VITEST_SEED']
+        ? { seed: Number(process.env['VITEST_SEED']) }
+        : {}),
+    },
     projects: [
       {
         test: {

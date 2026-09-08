@@ -10,40 +10,42 @@ linked document.
 
 ## Commands
 
-| Task | Command |
-| --- | --- |
-| Run the app | `npm start` |
-| Lint | `npm run lint`, `npm run lint:fix` |
-| Types | `npm run typecheck` |
-| Unit tests | `npm test` |
-| Terminal unit tests | `npm run test:terminal` |
-| Mutation tests | `npm run mutate` |
-| Terminal mutation tests | `npm run mutate:terminal` |
-| End-to-end tests | `npm run package && npm run test:e2e` |
-| Record a demo | `npm run package && npm run record` |
-| Re-cut a demo | `npm run compose -- <name>` |
-| Capture reference images | `npm run package && npm run stills` |
-| Look at a component | `npm run storybook` |
-| Check every story | `npm run storybook:check` |
-| Check the palette | `npm run check:contrast` |
-| Package | `npm run package` |
-| Verify a package | `npm run verify:package` |
-| Verify a crash writes a minidump | `npm run verify:crash-artifact` |
-| Verify the Electron download cache | `npm run verify:electron-cache` |
-| Verify a publish | `npm run verify:publish` |
-| Launch a package | `npm run smoke:packaged` |
-| Verify the exports | `npm run verify:exports` |
-| Verify the fixture consumes the package | `npm run verify:fixture-imports` |
-| Verify an install by specifier | `npm run verify:git-install` |
-| Verify the shell stays agnostic | `npm run verify:neutral` |
-| Verify the docs | `npm run verify:docs` |
-| Verify every workflow still runs | `npm run verify:workflow-health` |
-| Verify a tag has never been cut | `npm run verify:tag` |
-| Regenerate icons | `npm run icons` |
+| Task                                    | Command                                                                                                               |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Run the app                             | `npm start`                                                                                                           |
+| Lint                                    | `npm run lint`, `npm run lint:fix`                                                                                    |
+| Types                                   | `npm run typecheck`                                                                                                   |
+| Unit tests                              | From the monorepo root, `pnpm test`; see [`docs/testing.md`](docs/testing.md)                                         |
+| Terminal unit tests                     | `pnpm --filter @stuffbucket/maximal-electron run test:terminal`                                                       |
+| Mutation tests                          | `pnpm --filter @stuffbucket/maximal-electron run mutate`                                                              |
+| Terminal mutation tests                 | `pnpm --filter @stuffbucket/maximal-electron run mutate:terminal`                                                     |
+| End-to-end tests                        | `pnpm --filter @stuffbucket/maximal-electron run package && pnpm --filter @stuffbucket/maximal-electron run test:e2e` |
+| Record a demo                           | `npm run package && npm run record`                                                                                   |
+| Re-cut a demo                           | `npm run compose -- <name>`                                                                                           |
+| Capture reference images                | `npm run package && npm run stills`                                                                                   |
+| Look at a component                     | `npm run storybook`                                                                                                   |
+| Check every story                       | `npm run storybook:check`                                                                                             |
+| Check the palette                       | `npm run check:contrast`                                                                                              |
+| Package                                 | `npm run package`                                                                                                     |
+| Verify a package                        | `npm run verify:package`                                                                                              |
+| Verify a crash writes a minidump        | `npm run verify:crash-artifact`                                                                                       |
+| Verify the Electron download cache      | `npm run verify:electron-cache`                                                                                       |
+| Verify a publish                        | `npm run verify:publish`                                                                                              |
+| Launch a package                        | `npm run smoke:packaged`                                                                                              |
+| Verify the exports                      | `npm run verify:exports`                                                                                              |
+| Verify the fixture consumes the package | `npm run verify:fixture-imports`                                                                                      |
+| Verify an install by specifier          | `npm run verify:git-install`                                                                                          |
+| Verify the shell stays agnostic         | `npm run verify:neutral`                                                                                              |
+| Verify the docs                         | `npm run verify:docs`                                                                                                 |
+| Verify every workflow still runs        | `npm run verify:workflow-health`                                                                                      |
+| Verify a tag has never been cut         | `npm run verify:tag`                                                                                                  |
+| Regenerate icons                        | `npm run icons`                                                                                                       |
 
 Run `npm run lint:fix` after you change code. Do not ask first.
 
-Run `npm run typecheck` and `npm test` before you report a change as done.
+Run `pnpm --filter @stuffbucket/maximal-electron run typecheck` and the native
+workspace tier from [`docs/testing.md`](docs/testing.md) before you report a
+change as done. Run the pinned-dependency Docker rerun from the primary checkout.
 
 ## Never
 
@@ -63,7 +65,8 @@ Each of these is load-bearing. Do not relax one to make a change fit.
   arbitrary file read and a path traversal surface. The application icon is the
   worked example: it is configuration the host owns, through
   `STUFFBUCKET_ICON_DIR`, not a request the renderer makes.
-- **Never lower the mutation threshold.** `npm run mutate` breaks below 100.
+- **Never lower the mutation threshold.** `pnpm --filter
+@stuffbucket/maximal-electron run mutate` breaks below 100.
   It also breaks when a module the criterion selects is on neither the mutate
   list nor its deferred list, and when the mutant count falls. See
   `docs/testing.md`.
@@ -71,8 +74,7 @@ Each of these is load-bearing. Do not relax one to make a change fit.
   `EnableNodeCliInspectArguments: false` is why the end-to-end tests drive the
   unpackaged build, and why `npm run smoke:packaged` drives the packaged one
   through an argument the application answers itself.
-- **Never add an asset to a published release.** GitHub rejects it with HTTP
-  422. Everything attaches to the draft.
+- **Never add an asset to a published release.** GitHub rejects it with HTTP 422. Everything attaches to the draft.
 - **Never round-trip a manifest through a serializer to edit one field.**
   `json.load` then `json.dumps` on `package.json` rewrites key order, escaping,
   wrapping and the trailing newline, so a one-line version bump arrives as a
@@ -200,20 +202,20 @@ See `docs/release.md`.
 Read the linked document before working in that area. Each one holds rules, not
 only background.
 
-| Area | Document |
-| --- | --- |
-| Processes, the IPC contract, terminals, build output | `docs/architecture.md` |
-| The exports a consumer imports, `runMain`, the `options` shape | `docs/embedding.md` |
-| The `--shell-*` contract the renderer package reads from its host | `docs/shell-variables.md` |
-| The overlay agent, the provider chain, the approval gate | `docs/agent.md` |
-| Random order, mutation testing, layout evidence, the off-screen suite | `docs/testing.md` |
-| Stories, the a11y run, what is deliberately not in CI | `docs/storybook.md` |
-| Capture and compose, the pacing constants | `docs/recording.md` |
-| Trains, the draft release, macOS signing | `docs/release.md` |
-| The install specifiers a consumer may write, and the registry | `docs/consuming.md` |
-| The workflows, the release rehearsal and retry, the merge race | `docs/ci.md` |
-| Code signing | `docs/signing.md` |
-| What is planned and what is deliberately not | `docs/roadmap.md` |
+| Area                                                                  | Document                  |
+| --------------------------------------------------------------------- | ------------------------- |
+| Processes, the IPC contract, terminals, build output                  | `docs/architecture.md`    |
+| The exports a consumer imports, `runMain`, the `options` shape        | `docs/embedding.md`       |
+| The `--shell-*` contract the renderer package reads from its host     | `docs/shell-variables.md` |
+| The overlay agent, the provider chain, the approval gate              | `docs/agent.md`           |
+| Random order, mutation testing, layout evidence, the off-screen suite | `docs/testing.md`         |
+| Stories, the a11y run, what is deliberately not in CI                 | `docs/storybook.md`       |
+| Capture and compose, the pacing constants                             | `docs/recording.md`       |
+| Trains, the draft release, macOS signing                              | `docs/release.md`         |
+| The install specifiers a consumer may write, and the registry         | `docs/consuming.md`       |
+| The workflows, the release rehearsal and retry, the merge race        | `docs/ci.md`              |
+| Code signing                                                          | `docs/signing.md`         |
+| What is planned and what is deliberately not                          | `docs/roadmap.md`         |
 
 Skills carry the walk-throughs. Read `.claude/skills/`. A list written out here
 goes stale; the one this replaces named three of the five that existed.

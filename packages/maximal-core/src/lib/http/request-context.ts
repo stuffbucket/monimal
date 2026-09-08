@@ -1,3 +1,8 @@
+import type {
+  TrafficObservationHandle,
+  TrafficTokenMetadata,
+} from "@stuffbucket/maximal-observability-contract"
+
 import { AsyncLocalStorage } from "node:async_hooks"
 
 export interface RequestContext {
@@ -6,6 +11,9 @@ export interface RequestContext {
   userAgent: string
   sessionAffinity: string | undefined
   parentSessionId: string | undefined
+  trafficObservation?: TrafficObservationHandle
+  trafficRequestId?: string
+  trafficTokens?: TrafficTokenMetadata
 }
 
 const TRACE_ID_MAX_LENGTH = 64

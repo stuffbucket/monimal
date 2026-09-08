@@ -1,3 +1,7 @@
+import type { TrafficInvalidation } from "@stuffbucket/maximal-observability-contract"
+
+import { TRAFFIC_INVALIDATION_REQUEST_IDS_MAX } from "@stuffbucket/maximal-observability-contract"
+
 import {
   CONTROL_PROTOCOL_VERSION,
   type ControlTopic,
@@ -59,6 +63,7 @@ export class ControlHub<Snapshot = unknown> {
 
   private latestUsage: unknown = undefined
   private usageDirty = false
+  private pendingTraffic: TrafficInvalidation | null = null
 
   private readonly buildSnapshot: () => Promise<Snapshot>
   private readonly queueCapacity: number
@@ -113,6 +118,38 @@ export class ControlHub<Snapshot = unknown> {
     if (!this.usageDirty) return
     this.usageDirty = false
     this.emit("usage", this.latestUsage)
+  }
+
+  /** Merge high-frequency traffic hints without retaining request payloads. */
+  recordTraffic(invalidation: TrafficInvalidation): void {
+    const previous = this.pendingTraffic
+    if (!previous) {
+      this.pendingTraffic = invalidation
+      return
+    }
+    const requestIds = [
+      ...new Set([...previous.requestIds, ...invalidation.requestIds]),
+    ]
+    this.pendingTraffic = {
+      contractVersion: invalidation.contractVersion,
+      revision: Math.max(previous.revision, invalidation.revision),
+      emittedAt: invalidation.emittedAt,
+      activeCount: invalidation.activeCount,
+      overflow:
+        previous.overflow
+        || invalidation.overflow
+        || requestIds.length > TRAFFIC_INVALIDATION_REQUEST_IDS_MAX,
+      scopes: [...new Set([...previous.scopes, ...invalidation.scopes])],
+      requestIds: requestIds.slice(0, TRAFFIC_INVALIDATION_REQUEST_IDS_MAX),
+    }
+  }
+
+  /** Emit at most one bounded traffic invalidation per service tick. */
+  flushTraffic(): void {
+    if (!this.pendingTraffic) return
+    const invalidation = this.pendingTraffic
+    this.pendingTraffic = null
+    this.emit("traffic", invalidation)
   }
 
   // ── Consumer API ────────────────────────────────────────────────────────

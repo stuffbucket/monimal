@@ -1,7 +1,11 @@
 # Testing
 
 `docs/architecture.md` lists the three layers and what each covers. This
-document holds the rules an agent needs when writing or reading a test here.
+document holds the package-specific rules for writing or reading a test. The
+[monorepo test workflow](https://github.com/stuffbucket/monimal/blob/main/docs/testing-in-docker.md)
+owns normal unit-test entry, native isolation and scopes, and the pinned Linux
+Docker rerun. Run `pnpm test` from the monorepo root for the affected native tier;
+do not invoke this package's `test` script directly as a normal shortcut.
 
 ## Tests run in a random order
 
@@ -28,16 +32,17 @@ commands fail when their scope is empty.
 
 ## Mutation testing
 
-`npm run mutate` reports what the tests actually catch, which coverage does not.
+`pnpm --filter @stuffbucket/maximal-electron run mutate` reports what the tests
+actually catch, which coverage does not.
 **It breaks below 100.** It is three commands, and the two either side of
 Stryker exist because a percentage on its own is a weak claim: it says nothing
 about how many mutants there were, which files produced them, or what did the
 killing.
 
-| Step | What it decides |
-| --- | --- |
-| `scripts/mutation-scope.mjs` | Which modules Stryker should sweep, from a criterion |
-| `stryker run` | The score, against `break: 100` |
+| Step                          | What it decides                                          |
+| ----------------------------- | -------------------------------------------------------- |
+| `scripts/mutation-scope.mjs`  | Which modules Stryker should sweep, from a criterion     |
+| `stryker run`                 | The score, against `break: 100`                          |
 | `scripts/mutation-report.mjs` | Whether the run measured what it claims to have measured |
 
 A surviving mutant is a real gap. It found one here: `src/renderer/lib/data.ts`
@@ -112,7 +117,6 @@ catch-all is not acceptable**:
 The rule comes from `stuffbucket/maximal-core`'s testing strategy, which states
 it better than anything written here before.
 
-
 Never lower the threshold to make a change fit.
 
 ## Property testing, over one module
@@ -130,7 +134,8 @@ Three rules come with it.
   mutants from a dry run and reruns the covering tests once per mutant. A suite
   that draws different inputs on the second run can report a mutant as
   surviving for a reason that has nothing to do with the mutant, and
-  `npm run mutate` breaks below 100. Exploration is something a person does by
+  `pnpm --filter @stuffbucket/maximal-electron run mutate` breaks below 100.
+  Exploration is something a person does by
   moving the seed, not something a gate does by accident.
 - **A property over an empty set asserts nothing.** The same rule as a check
   with no scope. A property whose body returns early for most inputs counts the
@@ -147,14 +152,17 @@ holds, and it is the reason this section names one module.
 
 ## The packaged application answers for itself
 
-`npm run test:e2e` drives the unpackaged build, because
+`pnpm --filter @stuffbucket/maximal-electron run test:e2e` drives the unpackaged
+build, because
 `EnableNodeCliInspectArguments: false` stops Playwright attaching to a packaged
 one. That fuse stays as it is. Until now nothing launched the artifact a user
 installs, and two defects shipped inside it: #86 and #88. `verify-package.mjs`
 reads the archive listing, which finds a file that is absent and not one that
 is present where the loader cannot reach it.
 
-`npm run package && npm run smoke:packaged` closes it, on macOS and on Windows.
+Run `pnpm --filter @stuffbucket/maximal-electron run package` and then
+`pnpm --filter @stuffbucket/maximal-electron run smoke:packaged` to close it on
+macOS and Windows.
 `scripts/smoke-packaged.mjs` copies the package out of this checkout —
 `scripts/packaged-app.mjs` does that, and issue #149 is why — then launches
 `Stuffbucket.app/Contents/MacOS/Stuffbucket`, or `Stuffbucket.exe`, with
@@ -314,7 +322,9 @@ Three rules come with it.
 `demo/stills/*.png` are artifacts to look at. Do not diff them for equality and
 read the result as proof a change was neutral.
 
-They are bistable. Running `npm run stills` three times over identical code
+They are bistable. Running
+`pnpm --filter @stuffbucket/maximal-electron run stills` three times over
+identical code
 produced state A once and state B twice, differing by 179,000 pixels — around
 four percent of the frame — in the canvas region of `01-projects` and
 `03-multi-agent-tabs`. A separate 5,024-pixel floor is the macOS traffic lights,
@@ -386,10 +396,10 @@ still lays out exactly as it does in production.
 
 They are not the same thing, and the names are a trap.
 
-| Path | What it is |
-| --- | --- |
-| `demo/` | Output. Committed stills, mp4 files, and the `edits/*.json` that cut them. |
-| `e2e/demo/` | The recorder. Generic capture, compose, and encode machinery. |
+| Path                       | What it is                                                                                                                           |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `demo/`                    | Output. Committed stills, mp4 files, and the `edits/*.json` that cut them.                                                           |
+| `e2e/demo/`                | The recorder. Generic capture, compose, and encode machinery.                                                                        |
 | `e2e/fixtures/demo-shell/` | The fixture itself: the fake agent fleet and the components that render it. Its own renderer entry point, excluded from the package. |
 
 The fixture may import from `src/`. The product may not import from `e2e/` —
@@ -402,14 +412,15 @@ suffixes: `.demo.ts` records, `.compose.ts` cuts, `.stills.ts` photographs,
 
 ## The capture fixture is not always built
 
-`npm run package` builds `demo_window` alongside the application, and
+`pnpm --filter @stuffbucket/maximal-electron run package` builds `demo_window`
+alongside the application, and
 `forge.config.ts` then excludes it from the package. `verify-package.mjs`
 asserts that exclusion, which is why the default builds it: a check that the
 fixture is absent proves nothing if the fixture was never made.
 
 `STUFFBUCKET_SKIP_FIXTURE=1` drops it. CI sets that on the end-to-end job only,
 where no spec reaches the fixture and `verify:package` does not run. Leave it
-unset anywhere `npm run stills` or `npm run record` follows.
+unset anywhere the package `stills` or `record` script follows.
 
 ## Techniques rejected, with the reason
 
@@ -437,7 +448,8 @@ here. That is worse than not having it, because a green run reads as verified.
   generic dialog pattern. Porting each specific assertion into the end-to-end
   suite that already runs closes the same gap without a second framework that
   knows how to render them.
-- **Do not add a coverage percentage gate on top of `npm run mutate`.** Line
+- **Do not add a coverage percentage gate on top of the package `mutate`
+  command.** Line
   coverage answers "did this execute", which a 100 mutation score subsumes and
   exceeds. It is a second number to chase carrying less information than the
   first. It could mean something on the modules Stryker cannot reach, but that

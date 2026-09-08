@@ -495,3 +495,77 @@ export const ClaudeDesktopToggleRequest = z.object({
 export type ClaudeDesktopToggleRequest = z.infer<
   typeof ClaudeDesktopToggleRequest
 >
+
+export const AppSetEnabledRequest = z.object({
+  appId: z.enum({
+    "claude-code": "claude-code",
+    "claude-desktop": "claude-desktop",
+    "copilot-cli": "copilot-cli",
+  }),
+  enabled: z.boolean(),
+})
+export type AppSetEnabledRequest = z.infer<typeof AppSetEnabledRequest>
+
+export const ApiKeyIdRequest = z.object({ id: z.string().min(1) })
+export type ApiKeyIdRequest = z.infer<typeof ApiKeyIdRequest>
+
+export const ApiKeyUpdateRpcRequest = z.object({
+  id: z.string().min(1),
+  update: ApiKeyUpdateRequest,
+})
+export type ApiKeyUpdateRpcRequest = z.infer<typeof ApiKeyUpdateRpcRequest>
+
+export const ApiKeyEnforcementRequest = z.object({ enforcing: z.boolean() })
+export type ApiKeyEnforcementRequest = z.infer<typeof ApiKeyEnforcementRequest>
+
+export const TokenUsagePeriod = z.enum({
+  day: "day",
+  week: "week",
+  month: "month",
+})
+export type TokenUsagePeriod = z.infer<typeof TokenUsagePeriod>
+
+export const TokenUsageRequest = z.object({
+  period: TokenUsagePeriod.default("day"),
+})
+export type TokenUsageRequest = z.infer<typeof TokenUsageRequest>
+
+export const TokenUsageTotals = z.object({
+  cache_creation_input_tokens: z.number(),
+  cache_read_input_tokens: z.number(),
+  input_tokens: z.number(),
+  output_tokens: z.number(),
+  request_count: z.number().int(),
+  total_tokens: z.number(),
+  total_nano_aiu: z.number(),
+})
+export type TokenUsageTotals = z.infer<typeof TokenUsageTotals>
+
+export const TokenUsageModelSummary = TokenUsageTotals.extend({
+  model: z.string(),
+  is_premium: z.boolean().nullable(),
+})
+export type TokenUsageModelSummary = z.infer<typeof TokenUsageModelSummary>
+
+export const TokenUsageProviderSummary = TokenUsageTotals.extend({
+  source: z.enum({ copilot: "copilot", provider: "provider" }),
+  provider_name: z.string().nullable(),
+  provider: z.string(),
+})
+export type TokenUsageProviderSummary = z.infer<
+  typeof TokenUsageProviderSummary
+>
+
+export const TokenUsageSummary = z.object({
+  byModel: z.array(TokenUsageModelSummary),
+  byProvider: z.array(TokenUsageProviderSummary),
+  period: TokenUsagePeriod,
+  range: z.object({
+    end_ms: z.number(),
+    end_utc: z.string(),
+    start_ms: z.number(),
+    start_utc: z.string(),
+  }),
+  totals: TokenUsageTotals,
+})
+export type TokenUsageSummary = z.infer<typeof TokenUsageSummary>

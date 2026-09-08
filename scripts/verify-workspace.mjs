@@ -18,23 +18,25 @@
  * the root -- is the duplication this repo's AGENTS.md rules out.
  */
 
-import { execFileSync } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { createRequire } from 'node:module';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { execFileSync } from "node:child_process";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-import { scopedChecks } from '../packages/maximal-electron/scripts/check-scope.mjs';
+import { scopedChecks } from "../packages/maximal-electron/scripts/check-scope.mjs";
 
-const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-const require = createRequire(path.join(ROOT, 'noop.js'));
+const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
+const require = createRequire(path.join(ROOT, "noop.js"));
 
 const { check, summary } = scopedChecks();
 
 /** A package's manifest, or null when it is not installed. */
 function manifestAt(...segments) {
   try {
-    return JSON.parse(readFileSync(path.join(...segments, 'package.json'), 'utf8'));
+    return JSON.parse(
+      readFileSync(path.join(...segments, "package.json"), "utf8"),
+    );
   } catch {
     return null;
   }
@@ -54,13 +56,20 @@ function resolvesFrom(fromFile, specifier) {
 //    under pnpm without a hoist pattern, and Rolldown resolves a symlinked
 //    package's imports from the symlink path, so both depend on this. A dropped
 //    setting shows up as a root tree with a handful of entries instead of ~850.
-const rootModules = path.join(ROOT, 'node_modules');
+const rootModules = path.join(ROOT, "node_modules");
 const rootEntries = existsSync(rootModules)
-  ? readdirSync(rootModules).filter((entry) => !entry.startsWith('.'))
+  ? readdirSync(rootModules).filter((entry) => !entry.startsWith("."))
   : [];
-const rootScope = { count: rootEntries.length, of: 'entries in the root node_modules' };
+const rootScope = {
+  count: rootEntries.length,
+  of: "entries in the root node_modules",
+};
 
-check(rootEntries.length > 400, 'the root node_modules is publicly hoisted', rootScope);
+check(
+  rootEntries.length > 400,
+  "the root node_modules is publicly hoisted",
+  rootScope,
+);
 
 // 2. One typescript, everywhere. The workspace previously ran two -- client on
 //    the 7.x native port, everything else on 5.9.3 -- which forced a
@@ -69,31 +78,44 @@ check(rootEntries.length > 400, 'the root node_modules is publicly hoisted', roo
 //    Client typechecks clean on 5.9.3, so the split bought nothing. Assert one
 //    resolved major rather than policing an exemption that no longer exists.
 const typescriptVersions = new Set(
-  ['packages/maximal', 'packages/maximal-core', 'packages/maximal-electron', 'packages/maximal/client']
-    .map((pkg) => manifestAt(ROOT, pkg, 'node_modules/typescript')?.version)
+  [
+    "packages/maximal",
+    "packages/maximal-core",
+    "packages/maximal-electron",
+    "packages/maximal-observability-contract",
+    "packages/maximal-observability",
+    "packages/maximal/client",
+  ]
+    .map((pkg) => manifestAt(ROOT, pkg, "node_modules/typescript")?.version)
     .filter((version) => version != null)
-    .map((version) => version.split('.')[0]),
+    .map((version) => version.split(".")[0]),
 );
-check(typescriptVersions.size === 1, 'the whole workspace is on one typescript major', {
-  count: typescriptVersions.size,
-  of: 'typescript majors resolved',
-});
+check(
+  typescriptVersions.size === 1,
+  "the whole workspace is on one typescript major",
+  {
+    count: typescriptVersions.size,
+    of: "typescript majors resolved",
+  },
+);
 
 // 3. Radix's transitive deps, resolved from the SYMLINK path rather than the
 //    realpath. This is the resolution mode Rolldown uses, and the one that goes
 //    invisible under isolated linking -- failing one package at a time, which
 //    reads as unrelated breakage.
-const RADIX_TRANSITIVES = ['@radix-ui/react-primitive', 'react-remove-scroll'];
+const RADIX_TRANSITIVES = ["@radix-ui/react-primitive", "react-remove-scroll"];
 const rendererEntry = path.join(
   ROOT,
-  'packages/maximal/client/node_modules/stuffbucket-electron/dist/renderer/index.js',
+  "packages/maximal/client/node_modules/stuffbucket-electron/dist/renderer/index.js",
 );
 const rendererBuilt = existsSync(rendererEntry);
 check(
   rendererBuilt &&
-    RADIX_TRANSITIVES.every((specifier) => resolvesFrom(rendererEntry, specifier) !== null),
-  'Radix transitive deps resolve through the symlink path',
-  { count: RADIX_TRANSITIVES.length, of: 'radix transitive deps' },
+    RADIX_TRANSITIVES.every(
+      (specifier) => resolvesFrom(rendererEntry, specifier) !== null,
+    ),
+  "Radix transitive deps resolve through the symlink path",
+  { count: RADIX_TRANSITIVES.length, of: "radix transitive deps" },
 );
 
 // 4. Native dependencies work. esbuild is the sentinel for `allowBuilds`
@@ -101,11 +123,11 @@ check(
 //    an allowlist that stops being honoured leaves `bin/esbuild` absent. Read
 //    the binary rather than the setting, since the failure mode being guarded
 //    against is a setting that is accepted and ignored.
-const esbuildRoot = path.dirname(require.resolve('esbuild/package.json'));
+const esbuildRoot = path.dirname(require.resolve("esbuild/package.json"));
 check(
-  existsSync(path.join(esbuildRoot, 'bin/esbuild')),
-  'esbuild has the platform binary its postinstall fetches',
-  { count: 1, of: 'postinstalled binaries' },
+  existsSync(path.join(esbuildRoot, "bin/esbuild")),
+  "esbuild has the platform binary its postinstall fetches",
+  { count: 1, of: "postinstalled binaries" },
 );
 
 //    node-pty ships prebuilds for every platform, so the presence of a binary
@@ -115,11 +137,11 @@ check(
 //    are free to disagree.
 let ptyLoads = false;
 try {
-  ptyLoads = typeof require('node-pty').spawn === 'function';
+  ptyLoads = typeof require("node-pty").spawn === "function";
 } catch {}
 check(ptyLoads, `node-pty loads on this node ABI (${process.version})`, {
   count: 1,
-  of: 'native modules loaded',
+  of: "native modules loaded",
 });
 
 // 5. The `overrides` block moved out of package.json's `pnpm` field, which
@@ -128,9 +150,10 @@ check(ptyLoads, `node-pty loads on this node ABI (${process.version})`, {
 //    that arrive transitively, which a declaration cannot reach. 3.9.6
 //    reformats unions into lint errors across untouched files.
 check(
-  JSON.parse(readFileSync(require.resolve('prettier/package.json'), 'utf8')).version === '3.8.3',
-  'the prettier override is in effect',
-  { count: 1, of: 'overrides' },
+  JSON.parse(readFileSync(require.resolve("prettier/package.json"), "utf8"))
+    .version === "3.8.3",
+  "the prettier override is in effect",
+  { count: 1, of: "overrides" },
 );
 
 //    The @electron/node-gyp override is the same shape: pnpm 11 refuses to
@@ -139,12 +162,12 @@ check(
 //    registry, so what needs proving is that the resolved copy is that version
 //    and not the tarball.
 const nodeGyp = JSON.parse(
-  readFileSync(require.resolve('@electron/node-gyp/package.json'), 'utf8'),
+  readFileSync(require.resolve("@electron/node-gyp/package.json"), "utf8"),
 );
 check(
-  nodeGyp.version === '10.2.0-electron.1',
-  'the @electron/node-gyp override resolves to the registry copy',
-  { count: 1, of: 'overrides' },
+  nodeGyp.version === "10.2.0-electron.1",
+  "the @electron/node-gyp override resolves to the registry copy",
+  { count: 1, of: "overrides" },
 );
 
 // 6. One node version, and one vite major, across everything.
@@ -153,11 +176,13 @@ check(
 //    runtime in use is whatever is on PATH, and mise, a shell, and CI each
 //    decide that separately. The engines fields are equally inert -- pnpm warns
 //    at most. So compare the running major against the file that names it.
-const wantedNodeMajor = Number(readFileSync(path.join(ROOT, '.nvmrc'), 'utf8').trim().split('.')[0]);
+const wantedNodeMajor = Number(
+  readFileSync(path.join(ROOT, ".nvmrc"), "utf8").trim().split(".")[0],
+);
 check(
-  Number(process.versions.node.split('.')[0]) === wantedNodeMajor,
+  Number(process.versions.node.split(".")[0]) === wantedNodeMajor,
   `node ${String(wantedNodeMajor)}.x is what is running (${process.version})`,
-  { count: 1, of: 'node runtimes' },
+  { count: 1, of: "node runtimes" },
 );
 
 //    vite is the other one worth pinning globally: it is the bundler under the
@@ -165,43 +190,53 @@ check(
 //    three install from the same workspace lockfile, so inspect their resolved
 //    package-local trees in the same way.
 const VITE_CONSUMERS = [
-  ['packages/maximal-electron', null],
-  ['packages/maximal/client', null],
+  ["packages/maximal-electron", null],
+  ["packages/maximal/client", null],
+  // The renderer surfaces run under Vitest's Vite pipeline. Resolve through
+  // Vitest for the same reason the site resolves through Astro below.
+  ["packages/maximal-observability", "vitest"],
   // The site gets Vite through Astro. Resolve from Astro's real installed
   // manifest instead of requiring a package-local Vite link that pnpm does not
   // create on a clean install.
-  ['packages/maximal/site', 'astro'],
+  ["packages/maximal/site", "astro"],
 ];
 const viteMajors = new Map();
 for (const [pkg, through] of VITE_CONSUMERS) {
   let manifest;
   if (through === null) {
-    manifest = manifestAt(ROOT, pkg, 'node_modules/vite');
+    manifest = manifestAt(ROOT, pkg, "node_modules/vite");
   } else {
     const throughManifest = resolvesFrom(
-      path.join(ROOT, pkg, 'package.json'),
+      path.join(ROOT, pkg, "package.json"),
       `${through}/package.json`,
     );
     const viteManifest =
-      throughManifest === null ? null : resolvesFrom(throughManifest, 'vite/package.json');
-    manifest = viteManifest === null ? null : manifestAt(path.dirname(viteManifest));
+      throughManifest === null
+        ? null
+        : resolvesFrom(throughManifest, "vite/package.json");
+    manifest =
+      viteManifest === null ? null : manifestAt(path.dirname(viteManifest));
   }
   if (manifest?.version != null) viteMajors.set(pkg, manifest.version);
 }
 
 const EXPECTED_VITE_CONSUMERS = VITE_CONSUMERS.length;
 const distinctViteMajors = new Set(
-  [...viteMajors.values()].map((version) => version.split('.')[0]),
+  [...viteMajors.values()].map((version) => version.split(".")[0]),
 );
-if (distinctViteMajors.size > 1 || ![...distinctViteMajors].every((m) => m === '8')) {
-  for (const [pkg, version] of viteMajors) console.error(`       ${pkg}: vite ${version}`);
+if (
+  distinctViteMajors.size > 1 ||
+  ![...distinctViteMajors].every((m) => m === "8")
+) {
+  for (const [pkg, version] of viteMajors)
+    console.error(`       ${pkg}: vite ${version}`);
 }
 check(
   viteMajors.size === EXPECTED_VITE_CONSUMERS &&
     distinctViteMajors.size === 1 &&
-    [...distinctViteMajors][0] === '8',
-  'every vite consumer is on the same major (8)',
-  { count: viteMajors.size, of: 'vite consumers' },
+    [...distinctViteMajors][0] === "8",
+  "every vite consumer is on the same major (8)",
+  { count: viteMajors.size, of: "vite consumers" },
 );
 
 //    eslint is the third, and the one best able to hide a split: each package
@@ -215,36 +250,43 @@ check(
 //    a mistyped path drops a package out of the comparison silently, and a
 //    comparison over only a subset passes for the wrong reason.
 const ESLINT_CONSUMERS = [
-  'packages/anthropic-provider',
-  'packages/eslint-config',
-  'packages/llama-server',
-  'packages/maximal-core',
-  'packages/maximal-dsh-host',
-  'packages/maximal-provider-contract',
-  'packages/maximal',
-  'packages/maximal-electron',
-  'packages/maximal/client',
-  'packages/omlx',
+  "packages/anthropic-provider",
+  "packages/eslint-config",
+  "packages/llama-server",
+  "packages/maximal-core",
+  "packages/maximal-dsh-host",
+  "packages/maximal-provider-contract",
+  "packages/maximal",
+  "packages/maximal-electron",
+  "packages/maximal-observability-contract",
+  "packages/maximal-observability",
+  "packages/maximal/client",
+  "packages/omlx",
 ];
 const eslintVersions = new Map();
 for (const pkg of ESLINT_CONSUMERS) {
-  const version = manifestAt(ROOT, pkg, 'node_modules/eslint')?.version;
+  const version = manifestAt(ROOT, pkg, "node_modules/eslint")?.version;
   if (version != null) eslintVersions.set(pkg, version);
 }
 const distinctEslintMajors = new Set(
-  [...eslintVersions.values()].map((version) => version.split('.')[0]),
+  [...eslintVersions.values()].map((version) => version.split(".")[0]),
 );
-if (eslintVersions.size !== ESLINT_CONSUMERS.length || distinctEslintMajors.size !== 1) {
+if (
+  eslintVersions.size !== ESLINT_CONSUMERS.length ||
+  distinctEslintMajors.size !== 1
+) {
   for (const pkg of ESLINT_CONSUMERS) {
-    console.error(`       ${pkg}: eslint ${eslintVersions.get(pkg) ?? '(not installed)'}`);
+    console.error(
+      `       ${pkg}: eslint ${eslintVersions.get(pkg) ?? "(not installed)"}`,
+    );
   }
 }
 check(
   eslintVersions.size === ESLINT_CONSUMERS.length &&
     distinctEslintMajors.size === 1 &&
-    [...distinctEslintMajors][0] === '10',
-  'every package resolves the same eslint major (10)',
-  { count: eslintVersions.size, of: 'eslint consumers' },
+    [...distinctEslintMajors][0] === "10",
+  "every package resolves the same eslint major (10)",
+  { count: eslintVersions.size, of: "eslint consumers" },
 );
 
 // 7. The provider architecture is deliberately split across packages. Concrete
@@ -263,68 +305,73 @@ function declaredDependencies(manifest) {
 
 const providerManifests = new Map(
   [
-    'packages/maximal-provider-contract',
-    'packages/maximal-core',
-    'packages/maximal-dsh-host',
-    'packages/maximal',
-    'packages/anthropic-provider',
-    'packages/omlx',
+    "packages/maximal-provider-contract",
+    "packages/maximal-core",
+    "packages/maximal-dsh-host",
+    "packages/maximal",
+    "packages/anthropic-provider",
+    "packages/omlx",
   ].map((pkg) => [pkg, manifestAt(ROOT, pkg)]),
 );
 const providerDeps = new Map(
-  [...providerManifests].map(([pkg, manifest]) => [pkg, declaredDependencies(manifest)]),
+  [...providerManifests].map(([pkg, manifest]) => [
+    pkg,
+    declaredDependencies(manifest),
+  ]),
 );
 const concreteProviders = new Set([
-  '@stuffbucket/anthropic-provider',
-  '@stuffbucket/omlx',
+  "@stuffbucket/anthropic-provider",
+  "@stuffbucket/omlx",
 ]);
 const dshRuntime = new Set([
-  '@deepseek-ai/cordis',
-  '@deepseek-ai/dsh-llm',
-  '@deepseek-ai/schemastery',
+  "@deepseek-ai/cordis",
+  "@deepseek-ai/dsh-llm",
+  "@deepseek-ai/schemastery",
 ]);
 const maximalPackages = new Set([
-  '@stuffbucket/maximal',
-  '@stuffbucket/maximal-core',
-  '@stuffbucket/maximal-dsh-host',
-  '@stuffbucket/maximal-provider-contract',
+  "@stuffbucket/maximal",
+  "@stuffbucket/maximal-core",
+  "@stuffbucket/maximal-dsh-host",
+  "@stuffbucket/maximal-provider-contract",
 ]);
 const violations = [];
 
 for (const pkg of [
-  'packages/maximal-core',
-  'packages/maximal-dsh-host',
-  'packages/maximal',
+  "packages/maximal-core",
+  "packages/maximal-dsh-host",
+  "packages/maximal",
 ]) {
   for (const dependency of concreteProviders) {
-    if (providerDeps.get(pkg)?.has(dependency)) violations.push(`${pkg} -> ${dependency}`);
+    if (providerDeps.get(pkg)?.has(dependency))
+      violations.push(`${pkg} -> ${dependency}`);
   }
 }
 for (const dependency of dshRuntime) {
-  if (providerDeps.get('packages/maximal-core')?.has(dependency)) {
+  if (providerDeps.get("packages/maximal-core")?.has(dependency)) {
     violations.push(`packages/maximal-core -> ${dependency}`);
   }
-  if (providerDeps.get('packages/maximal')?.has(dependency)) {
+  if (providerDeps.get("packages/maximal")?.has(dependency)) {
     violations.push(`packages/maximal -> ${dependency}`);
   }
-  if (providerDeps.get('packages/maximal-provider-contract')?.has(dependency)) {
+  if (providerDeps.get("packages/maximal-provider-contract")?.has(dependency)) {
     violations.push(`packages/maximal-provider-contract -> ${dependency}`);
   }
 }
-for (const pkg of ['packages/anthropic-provider', 'packages/omlx']) {
+for (const pkg of ["packages/anthropic-provider", "packages/omlx"]) {
   for (const dependency of maximalPackages) {
-    if (providerDeps.get(pkg)?.has(dependency)) violations.push(`${pkg} -> ${dependency}`);
+    if (providerDeps.get(pkg)?.has(dependency))
+      violations.push(`${pkg} -> ${dependency}`);
   }
 }
 for (const [pkg, dependencies] of [
-  ['packages/maximal-core', ['@stuffbucket/maximal-provider-contract']],
-  ['packages/maximal-dsh-host', ['@stuffbucket/maximal-provider-contract']],
+  ["packages/maximal-core", ["@stuffbucket/maximal-provider-contract"]],
+  ["packages/maximal-dsh-host", ["@stuffbucket/maximal-provider-contract"]],
   [
-    'packages/maximal',
+    "packages/maximal",
     [
-      '@stuffbucket/maximal-core',
-      '@stuffbucket/maximal-dsh-host',
-      '@stuffbucket/maximal-provider-contract',
+      "@stuffbucket/maximal-core",
+      "@stuffbucket/maximal-dsh-host",
+      "@stuffbucket/maximal-provider-contract",
     ],
   ],
 ]) {
@@ -335,13 +382,14 @@ for (const [pkg, dependencies] of [
   }
 }
 if (violations.length > 0) {
-  for (const violation of violations) console.error(`       forbidden provider edge: ${violation}`);
+  for (const violation of violations)
+    console.error(`       forbidden provider edge: ${violation}`);
 }
 check(
   [...providerManifests.values()].every((manifest) => manifest !== null) &&
     violations.length === 0,
-  'provider package dependency boundaries are intact',
-  { count: providerManifests.size, of: 'provider architecture manifests' },
+  "provider package dependency boundaries are intact",
+  { count: providerManifests.size, of: "provider architecture manifests" },
 );
 
 // 8. No lockfile entry names a host, and every entry carries a digest.
@@ -362,8 +410,8 @@ check(
 //    earlier, so a lockfile normally never reaches here carrying one.
 const LOCKFILES = [
   {
-    relative: 'pnpm-lock.yaml',
-    contents: readFileSync(path.join(ROOT, 'pnpm-lock.yaml'), 'utf8'),
+    relative: "pnpm-lock.yaml",
+    contents: readFileSync(path.join(ROOT, "pnpm-lock.yaml"), "utf8"),
     // A `directory:` resolution is a workspace link with no artifact to pin.
     countEntries: (text) =>
       (text.match(/^ {4}resolution: \{/gm) ?? []).length -
@@ -382,8 +430,11 @@ for (const { relative, contents, countEntries } of LOCKFILES) {
   // algorithm string (for example @aws-crypto/sha256-browser).
   // Require a digest, not just the algorithm label: `integrity: sha1-}` would
   // otherwise count as pinned. base64 with the standard alphabet and padding.
-  const withIntegrity = (contents.match(/integrity: sha\d+-[A-Za-z0-9+/]+={0,2}/g) ?? []).length;
-  const hosts = (contents.match(/ms-feed-\d+\.pkgs\.visualstudio\.com/g) ?? []).length;
+  const withIntegrity = (
+    contents.match(/integrity: sha\d+-[A-Za-z0-9+/]+={0,2}/g) ?? []
+  ).length;
+  const hosts = (contents.match(/ms-feed-\d+\.pkgs\.visualstudio\.com/g) ?? [])
+    .length;
 
   totalEntries += entries;
   pinned += withIntegrity;
@@ -398,12 +449,12 @@ for (const { relative, contents, countEntries } of LOCKFILES) {
   }
 }
 if (unpinned > 0 || hostPinned > 0) {
-  console.error('       Repair with: node scripts/strip-lockfile-hosts.mjs');
+  console.error("       Repair with: node scripts/strip-lockfile-hosts.mjs");
 }
 check(
   unpinned === 0 && hostPinned === 0 && totalEntries > 0,
-  'every lockfile entry is pinned, and none names a rotating host',
-  { count: pinned, of: 'pinned packages in the workspace lockfile' },
+  "every lockfile entry is pinned, and none names a rotating host",
+  { count: pinned, of: "pinned packages in the workspace lockfile" },
 );
 
 // 9. No two workspace packages may end up on different versions of the same
@@ -428,12 +479,12 @@ check(
 // pnpm-workspace.yaml's globs would leave a newly added package silently
 // uncovered by the one check meant to catch silent things.
 const WORKSPACE_MANIFESTS = JSON.parse(
-  execFileSync('pnpm', ['ls', '--recursive', '--depth', '-1', '--json'], {
+  execFileSync("pnpm", ["ls", "--recursive", "--depth", "-1", "--json"], {
     cwd: ROOT,
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'ignore'],
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "ignore"],
   }),
-).map((project) => path.relative(ROOT, project.path) || '.');
+).map((project) => path.relative(ROOT, project.path) || ".");
 // Splits that are meant. Empty is the goal: every entry here is a version of
 // the same dependency resolved twice, which the workspace exists to avoid.
 const DELIBERATE = new Map();
@@ -448,13 +499,14 @@ for (const pkg of WORKSPACE_MANIFESTS) {
     ...Object.keys(manifest.devDependencies ?? {}),
   ];
   for (const name of names) {
-    if (!declared.has(name)) declared.set(name, { declaredBy: 0, byVersion: new Map() });
+    if (!declared.has(name))
+      declared.set(name, { declaredBy: 0, byVersion: new Map() });
     const record = declared.get(name);
     record.declaredBy += 1;
     // Recorded per resolved version, separately from `declaredBy`: a
     // dependency declared in two packages but installed in only one shows a
     // single version here and must not read as alignment.
-    const version = manifestAt(ROOT, pkg, 'node_modules', name)?.version;
+    const version = manifestAt(ROOT, pkg, "node_modules", name)?.version;
     if (version == null) continue;
     if (!record.byVersion.has(version)) record.byVersion.set(version, []);
     record.byVersion.get(version).push(pkg);
@@ -467,21 +519,28 @@ for (const [name, { declaredBy, byVersion }] of declared) {
   if (byVersion.size < 2) continue;
   split.set(
     name,
-    [...byVersion].map(([version, pkgs]) => `${pkgs.join('+')}@${version}`).join(', '),
+    [...byVersion]
+      .map(([version, pkgs]) => `${pkgs.join("+")}@${version}`)
+      .join(", "),
   );
 }
 
 for (const [name, reason] of DELIBERATE) {
-  if (split.has(name)) console.log(`       ${name} is split on purpose: ${reason}`);
+  if (split.has(name))
+    console.log(`       ${name} is split on purpose: ${reason}`);
 }
 
 const unexpected = [...split.keys()].filter((name) => !DELIBERATE.has(name));
 for (const name of unexpected) {
   console.error(`       ${name}: ${split.get(name)}`);
 }
-check(unexpected.length === 0, 'no new dependency is split across the workspace', {
-  count: declared.size,
-  of: 'declared dependency names',
-});
+check(
+  unexpected.length === 0,
+  "no new dependency is split across the workspace",
+  {
+    count: declared.size,
+    of: "declared dependency names",
+  },
+);
 
-process.exit(summary('verify:workspace'));
+process.exit(summary("verify:workspace"));

@@ -184,6 +184,37 @@ describe("ControlHub — statelessness", () => {
     hub.dispose()
   })
 
+  test("coalesces traffic invalidations with bounded unique request IDs", async () => {
+    const hub = new ControlHub({ buildSnapshot: snapshotBuilder() })
+    const sink = new FakeSink()
+    await hub.subscribe(sink)
+    for (let index = 0; index < 80; index += 1) {
+      hub.recordTraffic({
+        contractVersion: 1,
+        revision: index,
+        emittedAt: new Date(1_000 + index).toISOString(),
+        activeCount: index,
+        overflow: false,
+        scopes: index % 2 === 0 ? ["requests"] : ["overview"],
+        requestIds: [`request-${index}`],
+      })
+    }
+    hub.flushTraffic()
+    hub.flushTraffic()
+    await settle()
+    const traffic = sink.frames.filter((frame) => topicOf(frame) === "traffic")
+    expect(traffic).toHaveLength(1)
+    expect(traffic[0].params).toMatchObject({
+      revision: 79,
+      activeCount: 79,
+      overflow: true,
+    })
+    expect(
+      (traffic[0].params as { requestIds: Array<string> }).requestIds,
+    ).toHaveLength(64)
+    hub.dispose()
+  })
+
   test("coalesced usage still flushes at most one frame", async () => {
     const hub = new ControlHub({ buildSnapshot: snapshotBuilder() })
     const sink = new FakeSink()

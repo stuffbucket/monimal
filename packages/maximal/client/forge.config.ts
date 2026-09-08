@@ -1,4 +1,4 @@
-import { mkdtempSync } from 'node:fs'
+import { existsSync, mkdtempSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
@@ -31,6 +31,18 @@ import type { ForgeConfig, StartOptions } from '@electron-forge/shared-types'
  * wiping a directory it does not own.
  */
 const PACKAGER_STAGING_BASE = mkdtempSync(path.join(os.tmpdir(), 'forge-maximal-client-'))
+
+const REQUIRED_TRAY_ASSETS = [
+  'resources/tray/tray.png',
+  'resources/tray/trayTemplate.png',
+  'resources/tray/trayTemplate@2x.png',
+] as const
+
+for (const asset of REQUIRED_TRAY_ASSETS) {
+  if (!existsSync(path.resolve(asset))) {
+    throw new Error(`Required runtime asset is missing: ${asset}`)
+  }
+}
 
 /**
  * Start the named development bundle instead of the stock one.
@@ -94,7 +106,7 @@ const config: ForgeConfig = {
     // .icns Forge installs from `packagerConfig.icon`, so the dock is already
     // correct there and `applyDockIcon` leaves it alone. The PNG exists for
     // unpackaged runs only, where the bundle is stock Electron's.
-    extraResource: ['resources/bin'],
+    extraResource: ['resources/bin', 'resources/tray'],
   },
   makers: [], // the private macos-builder packages the .dmg; we only build the .app
   plugins: [

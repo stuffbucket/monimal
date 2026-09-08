@@ -13,17 +13,50 @@ import {
   type View,
 } from './AppFrame'
 
-// `ShellLayout` lays itself out with `react-resizable-panels`, which observes
-// its own element for resize so it can recompute panel sizes. jsdom has no
-// `ResizeObserver`, and none of the assertions below depend on layout math —
-// only on what mounted and where — so a no-op stub is enough to let the tree
-// render at all instead of throwing on mount.
-class NoopResizeObserver implements ResizeObserver {
-  observe(): void {}
-  unobserve(): void {}
-  disconnect(): void {}
+// `ShellLayout` uses `ResizeObserver` both for layout and to publish panel
+// collapse. jsdom supplies neither the observer nor element dimensions, so this
+// deterministic shim records targets and lets the collapse test notify them.
+const resizeObservers = new Set<TestResizeObserver>()
+
+class TestResizeObserver implements ResizeObserver {
+  readonly #targets = new Set<Element>()
+
+  constructor(private readonly callback: ResizeObserverCallback) {
+    resizeObservers.add(this)
+  }
+
+  observe(target: Element): void {
+    this.#targets.add(target)
+  }
+
+  unobserve(target: Element): void {
+    this.#targets.delete(target)
+  }
+
+  disconnect(): void {
+    this.#targets.clear()
+    resizeObservers.delete(this)
+  }
+
+  flush(): void {
+    const entries = [...this.#targets].map(
+      (target) => ({ target, borderBoxSize: [{}] }) as unknown as ResizeObserverEntry,
+    )
+    this.callback(entries, this)
+  }
 }
-globalThis.ResizeObserver = NoopResizeObserver as unknown as typeof ResizeObserver
+globalThis.ResizeObserver = TestResizeObserver as unknown as typeof ResizeObserver
+
+// jsdom reports every panel as zero-width, which makes the panel library reject
+// imperative collapse as impossible before AppFrame can observe the change.
+Object.defineProperties(HTMLElement.prototype, {
+  offsetWidth: { configurable: true, get: () => 400 },
+  offsetHeight: { configurable: true, get: () => 300 },
+})
+
+function flushResizeObservers(): void {
+  for (const observer of resizeObservers) observer.flush()
+}
 
 // React only suppresses its "update not wrapped in act(...)" warning when
 // this flag is set. No testing-library integration is installed here to set
@@ -45,13 +78,18 @@ function renderFrame(
   view: View,
   onSelectView: (view: View) => void,
   children: ReactNode,
+  availableViews?: readonly View[],
 ): HTMLElement {
   container = document.createElement('div')
   document.body.appendChild(container)
   root = createRoot(container)
   act(() => {
     root?.render(
-      <AppFrame view={view} onSelectView={onSelectView}>
+      <AppFrame
+        view={view}
+        onSelectView={onSelectView}
+        availableViews={availableViews}
+      >
         {children}
       </AppFrame>,
     )
@@ -60,11 +98,31 @@ function renderFrame(
 }
 
 describe('AppFrame', () => {
+  it('rejects frame hooks outside the application frame', () => {
+    function OutsideFrameProbe() {
+      useTabPanelId()
+      return null
+    }
+
+    container = document.createElement('div')
+    document.body.appendChild(container)
+    root = createRoot(container)
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    try {
+      expect(() => {
+        act(() => root?.render(<OutsideFrameProbe />))
+      }).toThrowError('frame slots are only available inside AppFrame')
+    } finally {
+      consoleError.mockRestore()
+    }
+  })
+
   it('mounts exactly one frame root', () => {
     // Every surface used to mount a `ShellLayout` of its own, and the frame's
     // root is `position: fixed; inset: 0` — a second one does not sit beside
     // the first, it covers its chrome.
-    const shell = renderFrame('dashboard', vi.fn(), <p>content</p>)
+    const shell = renderFrame('overview', vi.fn(), <p>content</p>)
 
     expect(shell.querySelectorAll('.sb-shell.app')).toHaveLength(1)
   })
@@ -72,25 +130,52 @@ describe('AppFrame', () => {
   it('renders a title bar', () => {
     // `.titlebar` carries `-webkit-app-region: drag`, the window's only drag
     // region. Without it, the window cannot be moved.
-    const shell = renderFrame('dashboard', vi.fn(), <p>content</p>)
+    const shell = renderFrame('overview', vi.fn(), <p>content</p>)
 
     expect(shell.querySelector('.sb-shell.app .titlebar')).not.toBeNull()
   })
 
   it('lists the three views as tabs, with the current view marked selected', () => {
-    const shell = renderFrame('workspace', vi.fn(), <p>content</p>)
+    const shell = renderFrame('traffic', vi.fn(), <p>content</p>)
     const tabs = [...shell.querySelectorAll('[role="tab"]')]
 
-    expect(tabs.map((tab) => tab.textContent)).toEqual(['Dashboard', 'Runs', 'Settings'])
+    expect(tabs.map((tab) => tab.textContent)).toEqual(['Overview', 'Traffic', 'Settings'])
 
     const selected = tabs.filter((tab) => tab.getAttribute('aria-selected') === 'true')
     expect(selected).toHaveLength(1)
-    expect(selected[0]?.textContent).toBe('Runs')
+    expect(selected[0]?.textContent).toBe('Traffic')
+  })
+
+  it('gives every view a stable tab id and its identifying icon', () => {
+    const shell = renderFrame('overview', vi.fn(), <p>content</p>)
+    const tabs = [...shell.querySelectorAll('[role="tab"]')]
+
+    expect(tabs.map((tab) => tab.id)).toEqual([
+      'maximal-documents-tab-overview',
+      'maximal-documents-tab-traffic',
+      'maximal-documents-tab-settings',
+    ])
+    expect(tabs[0]?.querySelector('svg.lucide-file-text')).not.toBeNull()
+    expect(tabs[1]?.querySelector('svg.lucide-folder')).not.toBeNull()
+    expect(tabs[2]?.querySelector('svg.lucide-settings')).not.toBeNull()
+  })
+
+  it('limits navigation to the views available in the current app state', () => {
+    const shell = renderFrame(
+      'settings',
+      vi.fn(),
+      <p>content</p>,
+      ['settings'],
+    )
+
+    expect(
+      [...shell.querySelectorAll('[role="tab"]')].map((tab) => tab.textContent),
+    ).toEqual(['Settings'])
   })
 
   it('reports the tab a click lands on through onSelectView', () => {
     const onSelectView = vi.fn()
-    const shell = renderFrame('dashboard', onSelectView, <p>content</p>)
+    const shell = renderFrame('overview', onSelectView, <p>content</p>)
     const settingsTab = [...shell.querySelectorAll('[role="tab"]')].find(
       (tab) => tab.textContent === 'Settings',
     )
@@ -108,12 +193,75 @@ describe('AppFrame', () => {
     expect(onSelectView).toHaveBeenCalledWith('settings')
   })
 
+  it('removes the inspector only for Settings and restores tab-specific content', () => {
+    const surface = renderFrame(
+      'overview',
+      vi.fn(),
+      <SurfaceRight><p data-testid="overview-right">overview</p></SurfaceRight>,
+    )
+
+    expect(surface.querySelector('#right [data-testid="overview-right"]')).not.toBeNull()
+    expect(surface.querySelector('[data-testid="toggle-right"]')).not.toBeNull()
+
+    act(() => {
+      root?.render(
+        <AppFrame view="settings" onSelectView={vi.fn()}>
+          <SurfaceRight><p data-testid="settings-right">settings</p></SurfaceRight>
+        </AppFrame>,
+      )
+    })
+    expect(surface.querySelector('#right')).toBeNull()
+    expect(surface.querySelector('[data-testid="toggle-right"]')).toBeNull()
+    expect(surface.querySelector('[data-testid="settings-right"]')).toBeNull()
+
+    act(() => {
+      root?.render(
+        <AppFrame view="traffic" onSelectView={vi.fn()}>
+          <SurfaceRight><p data-testid="traffic-right">traffic</p></SurfaceRight>
+        </AppFrame>,
+      )
+    })
+    expect(surface.querySelector('#right [data-testid="traffic-right"]')).not.toBeNull()
+    expect(surface.querySelector('[data-testid="overview-right"]')).toBeNull()
+
+    act(() => {
+      root?.render(
+        <AppFrame view="overview" onSelectView={vi.fn()}>
+          <SurfaceRight><p data-testid="overview-right">overview</p></SurfaceRight>
+        </AppFrame>,
+      )
+    })
+    expect(surface.querySelectorAll('.sb-shell.app')).toHaveLength(1)
+    expect(surface.querySelector('#right [data-testid="overview-right"]')).not.toBeNull()
+  })
+
+  it('reports sidebar collapse state to rail content', () => {
+    const shell = renderFrame(
+      'overview',
+      vi.fn(),
+      <SurfaceRail>
+        {(collapsed) => <p data-testid="rail-state">{collapsed ? 'collapsed' : 'expanded'}</p>}
+      </SurfaceRail>,
+    )
+    const toggle = shell.querySelector<HTMLElement>('[data-testid="toggle-left"]')
+    if (toggle === null) throw new Error('no sidebar toggle was rendered')
+
+    expect(shell.querySelector('[data-testid="rail-state"]')?.textContent).toBe('expanded')
+    expect(toggle.getAttribute('aria-label')).toBe('Hide sidebar')
+
+    act(() => toggle.click())
+    act(() => flushResizeObservers())
+
+    expect(shell.querySelector('[data-testid="rail-state"]')?.textContent).toBe('collapsed')
+    expect(toggle.getAttribute('aria-label')).toBe('Show sidebar')
+  })
+
   it('routes each slot into its own region of the shell, not another one', () => {
     // Every slot is a portal, and a portal aimed at the wrong node still
     // renders — it just renders in the wrong place, which no other test here
     // would catch.
     const shell = renderFrame(
-      'dashboard',
+      'overview',
       vi.fn(),
       <>
         <SurfaceTop>
@@ -157,6 +305,26 @@ describe('AppFrame', () => {
     expect(rightPanel?.contains(top)).toBe(false)
     expect(statusbar?.contains(top)).toBe(false)
     expect(tabpanel?.contains(top)).toBe(false)
+  })
+
+  it('installs its structural styles once across frame remounts', () => {
+    document.getElementById('app-frame-styles')?.remove()
+    renderFrame('overview', vi.fn(), <p>first frame</p>)
+
+    const styles = document.querySelectorAll('style#app-frame-styles')
+    expect(styles).toHaveLength(1)
+    expect(styles[0]?.tagName).toBe('STYLE')
+    expect(styles[0]?.textContent).toContain('.app-frame__slot--contents')
+    expect(styles[0]?.textContent).toContain('display: contents')
+    expect(styles[0]?.textContent).toContain('.app-frame__slot--rail')
+    expect(styles[0]?.textContent).toContain('flex-direction: column')
+
+    act(() => root?.unmount())
+    container?.remove()
+    root = null
+    container = null
+    renderFrame('overview', vi.fn(), <p>second frame</p>)
+    expect(document.querySelectorAll('style#app-frame-styles')).toHaveLength(1)
   })
 
   it('gives its hooks the ids of the frame\'s own tab elements', () => {

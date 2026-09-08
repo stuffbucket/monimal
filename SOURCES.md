@@ -10,6 +10,16 @@ them here.
 | `packages/maximal-core`     | `stuffbucket/maximal-core`     | `3e2b10c`     |
 | `packages/maximal-electron` | `stuffbucket/maximal-electron` | `c31f238`     |
 
+## Monorepo-native packages
+
+These packages originated in this workspace and have no standalone source
+repository or imported commit:
+
+| Package                                   | Purpose                                                                                   |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `packages/maximal-observability-contract` | Runtime-neutral, versioned traffic-observability schemas and passive observer interfaces. |
+| `packages/maximal-observability`          | Renderer-only traffic explorer components and source interface.                           |
+
 ## Rules
 
 - Do not delete `packages/*/.github`. maximal-electron's `workflows.test.ts` and
@@ -49,8 +59,8 @@ them here.
   vendored `packages/*/.github` fixtures declare.
 - Keep `--frozen-lockfile` on every install that is not deliberately resolving.
   It fails when the lockfile disagrees with the manifests -- `specifiers in the
-  lockfile don't match specifiers in package.json` -- where a plain `pnpm
-  install` silently re-resolves and rewrites. That is what makes CI install what
+lockfile don't match specifiers in package.json` -- where a plain `pnpm
+install` silently re-resolves and rewrites. That is what makes CI install what
   was committed. It used to be justified by rotating hosts as well; since
   `.pnpmfile.cjs` a re-resolution no longer records them, so reproducibility is
   now the whole of the reason.
@@ -62,7 +72,7 @@ them here.
   fails with `ERR_PNPM_LOCKFILE_CONFIG_MISMATCH` until the two agree.
 - Do not set `verifyDepsBeforeRun` to `install`, and do not remove it from
   `pnpm-workspace.yaml`. That is pnpm 11's default, and it makes every `pnpm
-  run` install first -- a silent re-resolution behind every script. Before
+run` install first -- a silent re-resolution behind every script. Before
   `.pnpmfile.cjs` that re-recorded all 1724 rotating hosts the strip script had
   just removed, which is the whole of #26; the hook now drops them either way,
   so what `warn` buys is no longer writing the tree from under a `run`.
@@ -86,6 +96,8 @@ them here.
   by checksum. CI setup actions are SHA-pinned and validate their installed
   versions; the isolated macOS producer bootstraps only the committed
   `mise.lock` macOS artifact after verifying its checksum.
+- Host CLI requirements MUST be version-pinned in `mise.toml` and resolved in
+  `mise.lock`; Homebrew MAY provide the same tool outside mise on macOS.
 - Do not let two packages pin different versions of the same dependency. The
   script above ratchets this: `DELIBERATE` holds the splits that are meant
   (typescript), `BACKLOG` holds the ones that are not and may only shrink.
@@ -111,7 +123,7 @@ at all; others return 401 or 404.
 
 A recorded hostname does not fail eventually. It fails on the **next** install,
 and pnpm is what rejects it: pnpm 11 verifies every recorded `tarball:` URL
-against the registry's *current* metadata and refuses the lockfile outright.
+against the registry's _current_ metadata and refuses the lockfile outright.
 
 ```
 [ERR_PNPM_TARBALL_URL_MISMATCH] 1 lockfile entries failed verification:
@@ -125,14 +137,14 @@ configured registry when `tarball:` is absent, so the rule is simply that no
 entry carries one.
 
 The place to enforce that is `.pnpmfile.cjs`. Its `afterAllResolved` hook runs
-on the in-memory lockfile *before* serialization, so the hosts are never written
+on the in-memory lockfile _before_ serialization, so the hosts are never written
 rather than removed afterwards. That is what makes it work for Dependabot, which
 cannot be asked to run a repair script and which previously opened every
 dependency PR with ~1700 host-pinned entries. A forced re-resolution of this
 workspace drops ~1740 and leaves the lockfile byte-identical.
 
 `scripts/strip-lockfile-hosts.mjs` does the same edit after the fact. It is the
-repair for a lockfile written before the hook existed, and it must run *before*
+repair for a lockfile written before the hook existed, and it must run _before_
 `pnpm install` for the reason above; it is not part of the normal loop.
 
 `scripts/verify-workspace.mjs` is a backstop for a lockfile that reaches the
@@ -160,6 +172,11 @@ package provenance or publisher identity -- the proxy does that.
   installable stock Cordis/DSH adapter. Maximal Core consumes only the contract;
   the packaging composition may consume the host; neither depends on a concrete
   provider plugin.
+- Added the monorepo-native `packages/maximal-observability-contract` for the
+  versioned, runtime-neutral traffic contract and passive observer seam, and
+  `packages/maximal-observability` for renderer-only traffic surfaces. The UI
+  package depends on the contract; the contract depends on neither Core nor a
+  UI, database, transport, or desktop runtime.
 - Replaced the private `packages/omlx` descriptor scaffold with a publishable
   stock Cordis/DSH adapter for an independently running oMLX HTTP server. Cordis
   and DSH are exact peers of external provider packages and are loaded from a
@@ -301,11 +318,13 @@ package provenance or publisher identity -- the proxy does that.
   shadows the other for any dependency that resolves by walking up rather than
   through its own peer link — which is what made `eslint-plugin-perfectionist`
   call a TS 5 API on the TS 7 module.
-- Root, `maximal`, and `maximal-core`: the normal test graph moved behind the
-  root mountless Docker runner. Package Bun preloads now reject raw host tests,
-  and Core creates isolated Maximal and Claude homes only after the container
-  marker is present. This is deliberately stricter than either copied upstream
-  repository because a root-CWD run can skip a package-local `bunfig.toml`.
+- Root, `maximal`, and `maximal-core`: package Bun preloads admit native host
+  tests only through the root wrapper's isolated temporary home and state paths;
+  raw host tests still fail closed. This native admission is a monorepo deviation
+  from the copied repositories' direct package test commands. The root wrapper
+  runs affected or explicit full/focused tests natively. The Docker runner mounts
+  the primary checkout read-only, stages Git-visible source into writable
+  container storage, and uses container-owned dependencies and toolchains.
 - `maximal/client`: `scripts/build-core.ts` accepts a validated
   `MAXIMAL_GIT_SHA` before falling back to `git rev-parse`. The filtered Docker
   context cannot use this linked worktree's host-absolute `.git` pointer, but

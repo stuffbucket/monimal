@@ -4,14 +4,24 @@
 
 node_modules
 **/node_modules
+.pnpm-store
+**/.pnpm-store
 .turbo
 **/.turbo
 dist
 **/dist
 out
 **/out
+resources/bin
+**/resources/bin
 coverage
 **/coverage
+reports/mutation
+**/reports/mutation
+reports/.mutation-*
+**/reports/.mutation-*
+.stryker-tmp
+**/.stryker-tmp
 .vite
 **/.vite
 *.tsbuildinfo

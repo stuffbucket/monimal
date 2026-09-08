@@ -11,9 +11,13 @@ import { addedViaLabel, describeError, formatTimestamp } from './format'
 
 interface AccountsSectionProps {
   capabilities: SettingsCapabilities
+  embedded?: boolean
 }
 
-export function AccountsSection({ capabilities }: AccountsSectionProps): ReactElement {
+export function AccountsSection({
+  capabilities,
+  embedded = false,
+}: AccountsSectionProps): ReactElement {
   const [list, setList] = useState<AccountsListResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [switchingKey, setSwitchingKey] = useState<string | null>(null)
@@ -59,11 +63,19 @@ export function AccountsSection({ capabilities }: AccountsSectionProps): ReactEl
     [capabilities],
   )
 
+  const Root = embedded ? 'div' : 'section'
   return (
-    <section className="settings-section" aria-labelledby="settings-accounts-heading">
-      <h2 id="settings-accounts-heading" className="settings-section__heading">
-        Accounts
-      </h2>
+    <Root
+      className={embedded ? 'settings-subsection' : 'settings-section'}
+      {...(embedded ? {} : { 'aria-labelledby': 'settings-accounts-heading' })}
+    >
+      {embedded ? (
+        <h2 className="settings-section__subheading">Saved accounts</h2>
+      ) : (
+        <h1 id="settings-accounts-heading" className="settings-section__heading">
+          Accounts
+        </h1>
+      )}
 
       {/* Retry is an action, not navigation, so it is a Button and it sits
           beside the message rather than underlined inside it. `settings-field`
@@ -118,6 +130,6 @@ export function AccountsSection({ capabilities }: AccountsSectionProps): ReactEl
        * capability plus confirmation UX; it cannot be reached through the
        * closed bridge's current allowlist.
        */}
-    </section>
+    </Root>
   )
 }

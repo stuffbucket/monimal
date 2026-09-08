@@ -1,14 +1,35 @@
-import { afterEach, describe, expect, test } from "bun:test"
+import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test"
+import { Hono } from "hono"
 
+import type { AppEntry } from "~/lib/config/settings-types"
+import type { ControlSnapshot } from "~/lib/live/resources"
+import type { ControlRpcOperationOverrides } from "~/routes/control/rpc"
+
+import { writeConfig } from "~/lib/config/config"
+import { SettingsOperationError } from "~/lib/config/settings-operations"
+import { AppsListResponse } from "~/lib/config/settings-types"
+import {
+  CONTROL_UPSTREAM_ERROR,
+  JSON_RPC_INVALID_PARAMS,
+} from "~/lib/jsonrpc/codes"
+import { createRpcHandler } from "~/lib/jsonrpc/dispatch"
 import {
   PROTOCOL_VERSION_HEADER,
   SUPPORTED_PROTOCOL_VERSION,
 } from "~/lib/live/contract"
+import { ControlHub } from "~/lib/live/hub"
+import { AsyncMutex } from "~/lib/live/mutex"
 import { stopControlHub } from "~/lib/live/service"
 import { createControlRoutes } from "~/routes/control/route"
+import { createControlRpcMethods } from "~/routes/control/rpc"
+
+beforeEach(() => {
+  writeConfig({})
+})
 
 afterEach(() => {
   stopControlHub()
+  writeConfig({})
 })
 
 interface RpcBody {
@@ -45,6 +66,46 @@ async function rpc(
   return { status: res.status, body: text ? (JSON.parse(text) as RpcBody) : {} }
 }
 
+function appWithOperations(operations: ControlRpcOperationOverrides): {
+  app: Hono
+  hub: ControlHub<ControlSnapshot>
+} {
+  const hub = new ControlHub<ControlSnapshot>({
+    buildSnapshot: () => Promise.reject(new Error("snapshot is not used")),
+  })
+  const rpcApp = new Hono()
+  rpcApp.post(
+    "/rpc",
+    createRpcHandler(
+      createControlRpcMethods({
+        hub: () => hub,
+        mutex: new AsyncMutex(),
+        listClients: () => [],
+        operations,
+      }),
+    ),
+  )
+  return { app: rpcApp, hub }
+}
+
+async function rpcThrough(
+  target: Hono,
+  method: string,
+  params?: unknown,
+): Promise<RpcBody> {
+  const res = await target.request("/rpc", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method,
+      ...(params === undefined ? {} : { params }),
+    }),
+  })
+  return (await res.json()) as RpcBody
+}
+
 describe("control /rpc — discovery", () => {
   test("server/discover works with no prior handshake", async () => {
     const { status, body } = await rpc("server/discover", { id: 1 })
@@ -61,6 +122,20 @@ describe("control /rpc — discovery", () => {
     expect(caps.methods).toContain("auth/status")
     expect(caps.methods).toContain("accounts/switch")
     expect(caps.methods).toContain("health")
+    const settingsMethods = [
+      "apps/list",
+      "apps/setEnabled",
+      "apiKeys/list",
+      "apiKeys/create",
+      "apiKeys/update",
+      "apiKeys/remove",
+      "apiKeys/setEnforcement",
+      "models/list",
+      "models/refresh",
+      "usage/get",
+      "diagnostics/get",
+    ]
+    for (const method of settingsMethods) expect(caps.methods).toContain(method)
   })
 })
 
@@ -110,6 +185,261 @@ describe("control /rpc — params validation", () => {
     const { body } = await rpc("accounts/switch", { id: 1, params: {} })
     expect(body.error?.code).toBe(-32602)
     expect(body.error?.message).toContain("key")
+  })
+
+  test("settings methods reject malformed parameters with their contracts", async () => {
+    const cases = [
+      [
+        "apps/setEnabled",
+        { appId: "unknown", enabled: true },
+        "Expected { appId, enabled } for a configurable app.",
+      ],
+      ["apiKeys/create", {}, "Expected { label, key?, enabled? }."],
+      [
+        "apiKeys/update",
+        { id: "key-1", update: { enabled: "yes" } },
+        "Expected { id, update }.",
+      ],
+      ["apiKeys/remove", {}, "Expected { id } string."],
+      [
+        "apiKeys/setEnforcement",
+        { enforcing: "yes" },
+        "Expected { enforcing: boolean }.",
+      ],
+      [
+        "usage/get",
+        { period: "year" },
+        "Expected optional { period: day | week | month }.",
+      ],
+    ] as const
+
+    for (const [method, params, message] of cases) {
+      const { body } = await rpc(method, { id: 1, params })
+      expect(body.error).toMatchObject({
+        code: JSON_RPC_INVALID_PARAMS,
+        message,
+      })
+    }
+  })
+
+  test("settings operation failures stay legible JSON-RPC parameter errors", async () => {
+    const { body } = await rpc("apiKeys/remove", {
+      id: 1,
+      params: { id: "not-a-real-key" },
+    })
+
+    expect(body.error?.code).toBe(-32602)
+    expect(body.error?.message).toContain("not found")
+  })
+})
+
+describe("control /rpc — settings", () => {
+  test("list methods return concrete settings snapshots", async () => {
+    const apps = (await rpc("apps/list", { id: 1 })).body.result
+    expect(AppsListResponse.safeParse(apps).success).toBe(true)
+
+    const apiKeys = (await rpc("apiKeys/list", { id: 1 })).body.result
+    expect(apiKeys).toEqual({ entries: [], enforcing: false })
+
+    const models = (await rpc("models/list", { id: 1 })).body.result
+    const modelList = models?.models
+    expect(Array.isArray(modelList)).toBe(true)
+    expect(models?.count).toBe(Array.isArray(modelList) ? modelList.length : -1)
+  })
+
+  test("API-key methods expose their results and persist each mutation", async () => {
+    const created = (
+      await rpc("apiKeys/create", {
+        id: 1,
+        params: { label: "RPC test", key: "rpc-test-key", enabled: true },
+      })
+    ).body.result
+    expect(created).toMatchObject({
+      label: "RPC test",
+      key: "rpc-test-key",
+      enabled: true,
+    })
+    expect(typeof created?.id).toBe("string")
+    const id = created?.id as string
+
+    expect((await rpc("apiKeys/list", { id: 1 })).body.result).toMatchObject({
+      entries: [{ id, key: "rpc-test-key" }],
+      enforcing: false,
+    })
+
+    expect(
+      (
+        await rpc("apiKeys/update", {
+          id: 1,
+          params: { id, update: { label: "Updated", enabled: false } },
+        })
+      ).body.result,
+    ).toMatchObject({ id, label: "Updated", enabled: false })
+
+    expect(
+      (
+        await rpc("apiKeys/setEnforcement", {
+          id: 1,
+          params: { enforcing: true },
+        })
+      ).body.result,
+    ).toMatchObject({ enforcing: true })
+
+    expect(
+      (
+        await rpc("apiKeys/remove", {
+          id: 1,
+          params: { id },
+        })
+      ).body.result,
+    ).toEqual({ ok: true, id })
+    expect((await rpc("apiKeys/list", { id: 1 })).body.result).toEqual({
+      entries: [],
+      enforcing: true,
+    })
+  })
+
+  test("models/refresh invokes the refresh operation before returning models", async () => {
+    let refreshes = 0
+    const custom = appWithOperations({
+      refreshModels: () => {
+        refreshes += 1
+        return Promise.resolve()
+      },
+    })
+    try {
+      const body = await rpcThrough(custom.app, "models/refresh")
+      const models = body.result?.models
+      expect(refreshes).toBe(1)
+      expect(Array.isArray(models)).toBe(true)
+      expect(body.result?.count).toBe(
+        Array.isArray(models) ? models.length : -1,
+      )
+    } finally {
+      custom.hub.dispose()
+    }
+  })
+
+  test("apps/setEnabled returns the app and publishes the refreshed list", async () => {
+    const configuredApp: AppEntry = {
+      id: "claude-code",
+      name: "Claude Code",
+      kind: "config",
+      enabled: false,
+      status: "ready",
+      installs: [],
+      install: null,
+      conflict: null,
+    }
+    let received: [AppEntry["id"], boolean] | undefined
+    const custom = appWithOperations({
+      setAppEnabled: (appId, enabled) => {
+        received = [appId, enabled]
+        return Promise.resolve(configuredApp)
+      },
+    })
+    const emit = spyOn(custom.hub, "emit")
+    try {
+      const body = await rpcThrough(custom.app, "apps/setEnabled", {
+        appId: "claude-code",
+        enabled: false,
+      })
+      expect(received).toEqual(["claude-code", false])
+      expect(body.result).toEqual(configuredApp)
+      expect(emit).toHaveBeenCalledTimes(1)
+      expect(emit.mock.calls[0]?.[0]).toBe("apps")
+      expect(AppsListResponse.safeParse(emit.mock.calls[0]?.[1]).success).toBe(
+        true,
+      )
+    } finally {
+      emit.mockRestore()
+      custom.hub.dispose()
+    }
+  })
+
+  test("domain operation errors become invalid params", async () => {
+    const custom = appWithOperations({
+      setAppEnabled: () =>
+        Promise.reject(
+          new SettingsOperationError("configuration conflict", "conflict"),
+        ),
+    })
+    try {
+      const body = await rpcThrough(custom.app, "apps/setEnabled", {
+        appId: "claude-code",
+        enabled: true,
+      })
+      expect(body.error).toMatchObject({
+        code: JSON_RPC_INVALID_PARAMS,
+        message: "configuration conflict",
+      })
+    } finally {
+      custom.hub.dispose()
+    }
+  })
+
+  test("non-domain operation errors rethrow to the dispatcher", async () => {
+    const sync = appWithOperations({
+      createApiKey: () => {
+        throw new Error("sync operation failed")
+      },
+    })
+    try {
+      const body = await rpcThrough(sync.app, "apiKeys/create", {
+        label: "RPC test",
+      })
+      expect(body.error).toMatchObject({
+        code: CONTROL_UPSTREAM_ERROR,
+        message: "sync operation failed",
+      })
+    } finally {
+      sync.hub.dispose()
+    }
+
+    const asyncOperation = appWithOperations({
+      setAppEnabled: () => Promise.reject(new Error("async operation failed")),
+    })
+    try {
+      const body = await rpcThrough(asyncOperation.app, "apps/setEnabled", {
+        appId: "claude-code",
+        enabled: true,
+      })
+      expect(body.error).toMatchObject({
+        code: CONTROL_UPSTREAM_ERROR,
+        message: "async operation failed",
+      })
+    } finally {
+      asyncOperation.hub.dispose()
+    }
+  })
+
+  test("usage/get defaults to a day and accepts each advertised period", async () => {
+    for (const period of [undefined, "day", "week", "month"] as const) {
+      const { body } = await rpc("usage/get", {
+        id: 1,
+        params: period === undefined ? {} : { period },
+      })
+      const result = body.result as
+        | { period?: string; totals?: { request_count?: number } }
+        | undefined
+      expect(result?.period).toBe(period ?? "day")
+      expect(typeof result?.totals?.request_count).toBe("number")
+    }
+  })
+
+  test("diagnostics/get returns the safe token-presence contract", async () => {
+    const { body } = await rpc("diagnostics/get", { id: 1 })
+    const result = body.result as
+      | {
+          tokens?: {
+            github_token_present?: boolean
+            copilot_token_present?: boolean
+          }
+        }
+      | undefined
+
+    expect(typeof result?.tokens?.github_token_present).toBe("boolean")
+    expect(typeof result?.tokens?.copilot_token_present).toBe("boolean")
   })
 })
 

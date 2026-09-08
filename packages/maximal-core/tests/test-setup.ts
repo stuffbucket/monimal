@@ -1,11 +1,11 @@
 /**
  * Global test preload (registered via bunfig.toml `[test] preload`).
  *
- * Normal tests run only inside the root disposable Docker test container. Each
- * Bun worker gets a fresh root beneath the container's temporary directory, and
- * both Maximal's data home and Claude Code's config directory are placed under
- * it before any product module loads. Inherited path overrides are deliberately
- * ignored: ambient host state must never influence a test run.
+ * Normal tests run through the root-owned isolation wrapper, either natively
+ * beneath its private temporary root or inside the disposable Docker container.
+ * Each Bun worker gets fresh Maximal and Claude roots before product modules
+ * load. Inherited product path overrides are ignored so ambient user state never
+ * influences a test run.
  */
 
 import { afterEach, beforeEach, mock } from "bun:test"
@@ -15,14 +15,62 @@ import os from "node:os"
 import path from "node:path"
 
 const TEST_CONTAINER_ENV = "MAXIMAL_TEST_CONTAINER"
-if (process.env[TEST_CONTAINER_ENV] !== "1") {
-  throw new Error(
-    `Refusing to run Maximal tests outside the disposable Docker container.`
-      + ` Run \`pnpm test\` instead of invoking \`bun test\` directly.`,
+const TEST_HOST_ENV = "MAXIMAL_TEST_HOST"
+const TEST_ROOT_ENV = "MAXIMAL_TEST_ROOT"
+const isolatedPathVariables = [
+  "HOME",
+  "XDG_CACHE_HOME",
+  "XDG_CONFIG_HOME",
+  "XDG_DATA_HOME",
+  "XDG_STATE_HOME",
+  "USERPROFILE",
+  "APPDATA",
+  "LOCALAPPDATA",
+  "COPILOT_API_HOME",
+  "CLAUDE_CONFIG_DIR",
+]
+
+function isInside(root: string, candidate: string): boolean {
+  const relative = path.relative(root, candidate)
+  return (
+    relative.length > 0
+    && !relative.startsWith(`..${path.sep}`)
+    && relative !== ".."
+    && !path.isAbsolute(relative)
   )
 }
 
-const testRoot = fs.mkdtempSync(path.join(os.tmpdir(), "maximal-tests-"))
+let testParent = os.tmpdir()
+if (process.env[TEST_CONTAINER_ENV] !== "1") {
+  const rootValue = process.env[TEST_ROOT_ENV]
+  if (
+    process.env[TEST_HOST_ENV] !== "1"
+    || !rootValue
+    || !path.isAbsolute(rootValue)
+  ) {
+    throw new Error(
+      `Refusing to run Maximal tests outside an isolated test environment.`
+        + ` Run \`pnpm test\` instead of invoking \`bun test\` directly.`,
+    )
+  }
+
+  const root = fs.realpathSync(rootValue)
+  for (const name of isolatedPathVariables) {
+    const value = process.env[name]
+    if (
+      !value
+      || !path.isAbsolute(value)
+      || !isInside(root, fs.realpathSync(value))
+    ) {
+      throw new Error(
+        `Refusing native tests: ${name} must be inside ${TEST_ROOT_ENV}.`,
+      )
+    }
+  }
+  testParent = root
+}
+
+const testRoot = fs.mkdtempSync(path.join(testParent, "maximal-tests-"))
 const maximalHome = path.join(testRoot, "maximal")
 const claudeConfigDir = path.join(testRoot, "claude")
 fs.mkdirSync(maximalHome, { recursive: true })

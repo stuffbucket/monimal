@@ -2,14 +2,18 @@
 
 `bun run container:run -- <command>` runs a non-test command against this work
 tree inside the legacy package toolchain image, where Bun is exactly
-`.bun-version` and cannot be anything else. It is not the monorepo's test
-isolation boundary: it bind-mounts the checkout, while the root-owned test image
-receives a filtered copy and runs mountless and offline.
+`.bun-version` and cannot be anything else. It is not a monorepo test boundary:
+it bind-mounts the checkout. The
+[monorepo test workflow](https://github.com/stuffbucket/monimal/blob/main/docs/testing-in-docker.md)
+owns the isolated native tiers and the separate pinned-dependency, offline Docker
+rerun.
 
 ```sh
 # Supported verification, from the monorepo root
-pnpm run check:core                   # native non-test gate + Core Docker suite
-pnpm test -- --suite=maximal-core    # focused Core Docker suite
+pnpm run check:core                   # non-test gate + focused native Core suite
+pnpm test -- --core                  # focused isolated native Core suite
+pnpm run test:docker -- --suite=maximal-core
+                                      # pinned dependency rerun; primary checkout
 
 # Pinned package toolchain, from packages/maximal-core
 bun run container:build              # build the image for the current pin
@@ -19,16 +23,16 @@ bun run container:shell              # interactive bash, same environment
 
 `container:run` builds the image on first use, so `container:build` is only
 needed to rebuild deliberately. Raw host `bun test` and package-local `bun run
-check:deep` deliberately fail closed outside the marked root test container;
-the bind-mounted toolchain is not an escape hatch. Use the focused root suite
-above for tests.
+check:deep` fail unless the isolated root wrapper or marked Docker boundary
+admits the test process; the bind-mounted toolchain is not an escape hatch. Use
+the root commands above.
 
 ## Why
 
 `dist/main.js` is committed and is a **function of the Bun version** — see
 [`bun-version-policy.md`](../bun-version-policy.md), where the 2x2 measurement
 lives. So `bindings:check` is only meaningful on the pin. Worse, `bun run build`
-used to re-resolve a bare `bun` from PATH, so *having* the pinned Bun installed
+used to re-resolve a bare `bun` from PATH, so _having_ the pinned Bun installed
 was not enough; it had to be first. Getting that wrong did not fail loudly — it
 reported the committed bundle as **stale**, which sends you off to regenerate it
 on the wrong toolchain and commit bytes CI cannot reproduce. That has happened,
@@ -51,7 +55,7 @@ this landed before any change to `ci.yml`.
 
 The image is tagged `maximal-core-ci:bun-<version>`, read from `.bun-version` by
 [`scripts/dev/container.ts`](../../scripts/dev/container.ts). A stale image is
-therefore not *addressable*: bump the pin and the tag you ask for does not exist
+therefore not _addressable_: bump the pin and the tag you ask for does not exist
 yet, so it gets built. There is no floating name for the toolchain to drift
 behind, and so nothing here needs a parity gate to keep it honest.
 
@@ -107,7 +111,7 @@ genuinely not there.
 
 ### The empty `node_modules` a run leaves behind
 
-`/work/node_modules` is a named volume mounted over a path *inside* the
+`/work/node_modules` is a named volume mounted over a path _inside_ the
 bind-mounted work tree, and docker creates a mount target that does not exist —
 on the host, because that is where the bind source lives. A worktree with no
 `node_modules` therefore acquires an empty one that the container never writes
@@ -121,10 +125,10 @@ docker created as the volume's mount target leaves the shared filesystem in a
 state where the following `docker run` mounts nothing useful there. Measured,
 from a fresh clone with no `node_modules`, three container runs in sequence:
 
-| | `bindings:check` | `bun test` | `bun run build` |
-|---|---|---|---|
-| with the removal | ok | 0 pass, 144 errors (`Cannot find package 'consola'`) | `Could not resolve: citty` |
-| without it | ok | 1763 pass, 0 fail | ok |
+|                  | `bindings:check` | `bun test`                                           | `bun run build`            |
+| ---------------- | ---------------- | ---------------------------------------------------- | -------------------------- |
+| with the removal | ok               | 0 pass, 144 errors (`Cannot find package 'consola'`) | `Could not resolve: citty` |
+| without it       | ok               | 1763 pass, 0 fail                                    | ok                         |
 
 The packages were in the volume the whole time — a later `ls` from inside the
 container listed both. The cleanup did not merely fail to help, it took the
@@ -193,7 +197,7 @@ It names the per-pin tag — the same one `scripts/dev/container.ts` builds — 
 `jobs.<id>.container.image` is resolved before any step of the job runs, so it
 cannot read a step output: computing the tag from `.bun-version` would need a
 preceding job and a `needs:` edge, and if that job failed, `test` would never
-run, so the *required* `test` status check would never report and the PR would
+run, so the _required_ `test` status check would never report and the PR would
 wedge with no way to push a fix past it. A literal in the tree needs none of
 that.
 
@@ -209,7 +213,7 @@ The literal is the one place a version string is duplicated, so it gets a gate
 on each side: [`scripts/ops/check-ci-image.test.ts`](../../scripts/ops/check-ci-image.test.ts)
 fails offline when the tag and `.bun-version` disagree, and the job's first step
 still asserts `bun --version` equals `.bun-version` — which is what catches an
-image whose *contents* disagree with its tag, something no offline check can
+image whose _contents_ disagree with its tag, something no offline check can
 see.
 
 The consequence is an ordering rule when the pin moves: publish the image, then
@@ -227,8 +231,8 @@ also remains in use by every other workflow.
 
 ## Why not `act`
 
-[`act`](https://github.com/nektos/act) runs the *workflow*, on images that
-*approximate* GitHub's runners. Two approximations, and the gap between them is
+[`act`](https://github.com/nektos/act) runs the _workflow_, on images that
+_approximate_ GitHub's runners. Two approximations, and the gap between them is
 the class of bug this repo keeps finding late. It also cannot run
 `windows-latest` at all — which is where every Windows defect in the record
 actually lives (maximal-core#90) — so it does not buy the thing that hurts most.

@@ -1,3 +1,6 @@
+import type { Context } from "hono"
+import type { ZodType } from "zod"
+
 /**
  * JSON-RPC method registry for the control plane (ADR-0023, maximal-core#4/#8).
  *
@@ -9,13 +12,21 @@
  * `auth/status`, `config/get`, `health`, …) rather than anything invented here,
  * so the Electron client codes against one agreed method set.
  */
-import type { Context } from "hono"
+import {
+  TrafficOverviewQuerySchema,
+  TrafficOverviewSchema,
+  TrafficRequestDetailQuerySchema,
+  TrafficRequestDetailSchema,
+  TrafficRequestListQuerySchema,
+  TrafficRequestListSchema,
+} from "@stuffbucket/maximal-observability-contract"
 
 import type { ClientRosterReader } from "~/lib/http/active-clients"
 import type { RpcRegistry } from "~/lib/jsonrpc/dispatch"
 import type { ControlHub } from "~/lib/live/hub"
 import type { AsyncMutex } from "~/lib/live/mutex"
 import type { ControlSnapshot } from "~/lib/live/resources"
+import type { TrafficQueryStore } from "~/lib/observability/store"
 
 import {
   cancelDeviceFlow,
@@ -31,6 +42,24 @@ import {
   writeDefaultRegistry,
 } from "~/lib/auth/github-token-store"
 import { getConfig } from "~/lib/config/config"
+import {
+  buildDiagnostics,
+  createApiKey,
+  listApiKeys,
+  removeApiKey,
+  setApiKeyEnforcement,
+  setAppEnabled,
+  SettingsOperationError,
+  updateApiKey,
+} from "~/lib/config/settings-operations"
+import {
+  ApiKeyCreateRequest,
+  ApiKeyEnforcementRequest,
+  ApiKeyIdRequest,
+  ApiKeyUpdateRpcRequest,
+  AppSetEnabledRequest,
+  TokenUsageRequest,
+} from "~/lib/config/settings-types"
 import { listActiveClients } from "~/lib/http/active-clients"
 import { RpcParamsError } from "~/lib/jsonrpc/errors"
 import {
@@ -43,12 +72,19 @@ import {
   buildModelsList,
 } from "~/lib/live/resources"
 import { streamSubscription } from "~/lib/live/stream-subscription"
+import { getDefaultTrafficObserver } from "~/lib/observability/store"
 import { cacheModels } from "~/lib/platform/utils"
 import { state } from "~/lib/runtime-state/state"
 import { emitQuitRequest, emitUpdateRequest } from "~/lib/start/boot-status"
 import { getTokenUsageSummary } from "~/lib/token-usage"
 import { BUILD_VERSION } from "~/lib/update/build-info"
 import { getUpdateStatus } from "~/lib/update/update-check"
+
+export interface ControlRpcOperationOverrides {
+  createApiKey?: typeof createApiKey
+  refreshModels?: typeof cacheModels
+  setAppEnabled?: typeof setAppEnabled
+}
 
 export interface ControlRpcDeps {
   hub: () => ControlHub<ControlSnapshot>
@@ -57,16 +93,141 @@ export interface ControlRpcDeps {
    *  Mirrors `ControlRoutesOptions.listClients` so `GET /clients` and
    *  `clients/list` cannot answer from different state. */
   listClients?: ClientRosterReader
+  trafficQueries?: TrafficQueryStore
+  /** Narrow operation seams for dispatcher-level tests. Production uses the real
+   *  shared settings operations when an override is absent. */
+  operations?: ControlRpcOperationOverrides
 }
 
 /** Both account methods take `{ key }`; validated once so the two call sites
  *  cannot disagree about the shape. */
+function parseObservabilityParams<T>(
+  schema: {
+    safeParse(value: unknown): { success: true; data: T } | { success: false }
+  },
+  params: unknown,
+): T {
+  const parsed = schema.safeParse(params ?? {})
+  if (!parsed.success)
+    throw new RpcParamsError("Invalid observability query parameters.")
+  return parsed.data
+}
+
 function keyFromParams(params: unknown): string {
   const key = (params as { key?: unknown } | null | undefined)?.key
   if (typeof key !== "string" || !key) {
     throw new RpcParamsError("Expected { key } string.")
   }
   return key
+}
+
+function parseParams<T>(
+  schema: ZodType<T>,
+  params: unknown,
+  expected: string,
+): T {
+  const parsed = schema.safeParse(params ?? {})
+  if (!parsed.success) throw new RpcParamsError(expected)
+  return parsed.data
+}
+
+function asRpcOperation<T>(operation: () => T): T {
+  try {
+    return operation()
+  } catch (error) {
+    if (error instanceof SettingsOperationError) {
+      throw new RpcParamsError(error.message)
+    }
+    throw error
+  }
+}
+
+async function asAsyncRpcOperation<T>(operation: () => Promise<T>): Promise<T> {
+  try {
+    return await operation()
+  } catch (error) {
+    if (error instanceof SettingsOperationError) {
+      throw new RpcParamsError(error.message)
+    }
+    throw error
+  }
+}
+
+function createSettingsRpcMethods({
+  hub,
+  operations = {},
+}: ControlRpcDeps): RpcRegistry {
+  const createApiKeyOperation = operations.createApiKey ?? createApiKey
+  const refreshModels = operations.refreshModels ?? cacheModels
+  const setAppEnabledOperation = operations.setAppEnabled ?? setAppEnabled
+
+  return {
+    "apps/list": () => buildAppsList(),
+    "apiKeys/list": () => listApiKeys(),
+    "models/list": () => buildModelsList(),
+    "usage/get": (params: unknown) => {
+      const { period } = parseParams(
+        TokenUsageRequest,
+        params,
+        "Expected optional { period: day | week | month }.",
+      )
+      return getTokenUsageSummary(period)
+    },
+    "diagnostics/get": () => buildDiagnostics(),
+    "models/refresh": async () => {
+      await refreshModels()
+      return buildModelsList()
+    },
+    "apps/setEnabled": async (params: unknown) => {
+      const { appId, enabled } = parseParams(
+        AppSetEnabledRequest,
+        params,
+        "Expected { appId, enabled } for a configurable app.",
+      )
+      const app = await asAsyncRpcOperation(() =>
+        setAppEnabledOperation(appId, enabled),
+      )
+      hub().emit("apps", await buildAppsList())
+      return app
+    },
+    "apiKeys/create": (params: unknown) =>
+      asRpcOperation(() =>
+        createApiKeyOperation(
+          parseParams(
+            ApiKeyCreateRequest,
+            params,
+            "Expected { label, key?, enabled? }.",
+          ),
+        ),
+      ),
+    "apiKeys/update": (params: unknown) =>
+      asRpcOperation(() => {
+        const { id, update } = parseParams(
+          ApiKeyUpdateRpcRequest,
+          params,
+          "Expected { id, update }.",
+        )
+        return updateApiKey(id, update)
+      }),
+    "apiKeys/remove": (params: unknown) =>
+      asRpcOperation(() => {
+        const { id } = parseParams(
+          ApiKeyIdRequest,
+          params,
+          "Expected { id } string.",
+        )
+        removeApiKey(id)
+        return { ok: true, id }
+      }),
+    "apiKeys/setEnforcement": (params: unknown) => {
+      const { enforcing } = parseParams(
+        ApiKeyEnforcementRequest,
+        params,
+        "Expected { enforcing: boolean }.",
+      )
+      return setApiKeyEnforcement(enforcing)
+    },
+  }
 }
 
 /**
@@ -93,17 +254,39 @@ function relayToShell(emit: () => boolean, verb: "quitting" | "upgrading") {
 export function createControlRpcMethods(deps: ControlRpcDeps): RpcRegistry {
   const { hub, mutex } = deps
   const listClients = deps.listClients ?? listActiveClients
+  const trafficQueries = deps.trafficQueries ?? getDefaultTrafficObserver()
 
   const registry: RpcRegistry = {
     health: () => ({ ok: true, version: BUILD_VERSION }),
+    ...createSettingsRpcMethods(deps),
 
     // Reads. Each mirrors a live feed topic and shares its builder, so a
     // snapshot read and a pushed update can never describe different shapes.
     "auth/status": () => getAuthStatus(),
     "accounts/list": () => buildAccountsList(),
-    "apps/list": () => buildAppsList(),
-    "models/list": () => buildModelsList(),
-    "usage/get": () => getTokenUsageSummary("day"),
+    "observability/overview": async (params: unknown) => {
+      const query = parseObservabilityParams(TrafficOverviewQuerySchema, params)
+      return TrafficOverviewSchema.parse(
+        await trafficQueries.getOverview(query),
+      )
+    },
+    "observability/requests": async (params: unknown) => {
+      const query = parseObservabilityParams(
+        TrafficRequestListQuerySchema,
+        params,
+      )
+      return TrafficRequestListSchema.parse(
+        await trafficQueries.listRequests(query),
+      )
+    },
+    "observability/request": async (params: unknown) => {
+      const query = parseObservabilityParams(
+        TrafficRequestDetailQuerySchema,
+        params,
+      )
+      const result = await trafficQueries.getRequest(query.requestId)
+      return result === null ? null : TrafficRequestDetailSchema.parse(result)
+    },
     "config/get": () => getConfig(),
     "clients/list": () => {
       const clients = listClients()
@@ -122,11 +305,6 @@ export function createControlRpcMethods(deps: ControlRpcDeps): RpcRegistry {
     "auth/signOut": async () => {
       await signOut()
       return { ok: true }
-    },
-
-    "models/refresh": async () => {
-      await cacheModels()
-      return buildModelsList()
     },
 
     // Account mutations, serialized through the same mutex the REST routes use

@@ -326,6 +326,8 @@ describe("provider host config source failure handling", () => {
       },
       subscribeValidatedConfig: ignoreConfigChanges,
     })
+    await Bun.sleep(50)
+    reloads = 0
 
     fs.writeFileSync(path.join(directory, "accounts.json"), "{}", "utf8")
     fs.writeFileSync(

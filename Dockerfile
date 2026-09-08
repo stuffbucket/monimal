@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.7
 FROM node:24-bookworm-slim@sha256:3638d9a6fe4030bd716be989438248074489337ba3275657f93595428be4fc03
 
 ARG NODE_MAJOR
@@ -5,15 +6,16 @@ ARG BUN_VERSION
 ARG PNPM_VERSION
 ARG PNPM_SHA256_AMD64
 ARG PNPM_SHA256_ARM64
-ARG GIT_SHA
 ARG TARGETARCH
 
+# Stryker's process cleanup invokes `ps` through tree-kill.
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
     git \
     libatomic1 \
+    procps \
     unzip \
   && rm -rf /var/lib/apt/lists/*
 
@@ -44,12 +46,16 @@ RUN set -eux; \
 
 RUN useradd --create-home --uid 10001 --shell /bin/bash maximal \
   && mkdir -p \
+    /checkout \
     /home/maximal/.cache \
     /home/maximal/.config \
     /home/maximal/.local/share \
     /home/maximal/.local/state \
+    /opt/monimal \
     /workspace \
-  && chown -R maximal:maximal /home/maximal /workspace
+  && chown -R maximal:maximal /home/maximal /workspace \
+  && git config --system --add safe.directory /checkout \
+  && git config --system --add safe.directory /workspace
 
 ENV HOME=/home/maximal \
   XDG_CACHE_HOME=/home/maximal/.cache \
@@ -58,23 +64,36 @@ ENV HOME=/home/maximal \
   XDG_STATE_HOME=/home/maximal/.local/state \
   ELECTRON_SKIP_BINARY_DOWNLOAD=1 \
   MAXIMAL_TEST_CONTAINER=1 \
-  MAXIMAL_GIT_SHA=${GIT_SHA} \
   MAXIMAL_CORE_TARGET=bun \
   TURBO_TELEMETRY_DISABLED=1 \
   CI=1
 
 WORKDIR /workspace
-COPY --chown=maximal:maximal . .
+
+COPY --chown=maximal:maximal package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc .pnpmfile.cjs ./
+COPY --chown=maximal:maximal scripts/lockfile-shard-hosts.cjs scripts/lockfile-shard-hosts.cjs
+COPY --chown=maximal:maximal packages/anthropic-provider/package.json packages/anthropic-provider/package.json
+COPY --chown=maximal:maximal packages/eslint-config/package.json packages/eslint-config/package.json
+COPY --chown=maximal:maximal packages/llama-server/package.json packages/llama-server/package.json
+COPY --chown=maximal:maximal packages/maximal-core/package.json packages/maximal-core/package.json
+COPY --chown=maximal:maximal packages/maximal-core/downstream/package.json packages/maximal-core/downstream/package.json
+COPY --chown=maximal:maximal packages/maximal-dsh-host/package.json packages/maximal-dsh-host/package.json
+COPY --chown=maximal:maximal packages/maximal-electron/package.json packages/maximal-electron/package.json
+COPY --chown=maximal:maximal packages/maximal-observability/package.json packages/maximal-observability/package.json
+COPY --chown=maximal:maximal packages/maximal-observability-contract/package.json packages/maximal-observability-contract/package.json
+COPY --chown=maximal:maximal packages/maximal-provider-contract/package.json packages/maximal-provider-contract/package.json
+COPY --chown=maximal:maximal packages/maximal/package.json packages/maximal/package.json
+COPY --chown=maximal:maximal packages/maximal/client/package.json packages/maximal/client/package.json
+COPY --chown=maximal:maximal packages/maximal/site/package.json packages/maximal/site/package.json
+COPY --chown=maximal:maximal packages/omlx/package.json packages/omlx/package.json
 
 USER maximal
+RUN --mount=type=cache,id=maximal-pnpm-${TARGETARCH},target=/workspace/.pnpm-store,uid=10001,gid=10001,sharing=locked \
+  --mount=type=cache,id=maximal-pnpm-cache-${TARGETARCH},target=/home/maximal/.cache/pnpm,uid=10001,gid=10001,sharing=locked \
+  --mount=type=cache,id=maximal-pnpm-state-${TARGETARCH},target=/home/maximal/.local/state/pnpm,uid=10001,gid=10001,sharing=locked \
+  pnpm install --frozen-lockfile --ignore-scripts --store-dir=/workspace/.pnpm-store \
+  && pnpm --filter @stuffbucket/maximal-core exec stryker --version
 
-RUN test "$(printf '%s' "${MAXIMAL_GIT_SHA}" | wc -c)" -eq 40 \
-  && git init --quiet \
-  && printf '%s\n' "${MAXIMAL_GIT_SHA}" > .git/HEAD \
-  && test "$(git rev-parse HEAD)" = "${MAXIMAL_GIT_SHA}"
+COPY --chown=maximal:maximal scripts/stage-test-checkout.mjs /opt/monimal/stage-test-checkout.mjs
 
-RUN pnpm install --frozen-lockfile \
-  && pnpm run verify:workspace \
-  && pnpm exec turbo run build --concurrency=1
-
-CMD ["pnpm", "run", "test:inner"]
+CMD ["node", "/opt/monimal/stage-test-checkout.mjs", "--rebuild=workspace", "--", "pnpm", "run", "test:inner"]
