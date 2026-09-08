@@ -151,9 +151,9 @@
     "dependency-cruiser": "^18.2.0",
     "eslint": "^10.9.1",
     "jscpd": "^5.1.1",
-    "knip": "^6.32.3",
+    "knip": "^6.34.0",
     "lint-staged": "^17.3.0",
-    "oxlint": "^1.80.0",
+    "oxlint": "^1.81.0",
     "tsup": "^8.5.1",
     "typescript": "npm:@typescript/typescript6@^6.0.2"
   },
