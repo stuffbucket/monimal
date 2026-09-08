@@ -14,6 +14,7 @@ import { Hono } from "hono"
 import { z } from "zod"
 
 import type { ClientRosterReader } from "~/lib/http/active-clients"
+import type { TrafficQueryStore } from "~/lib/observability/store"
 
 import {
   cancelDeviceFlow,
@@ -46,6 +47,7 @@ import {
 } from "~/lib/live/resources"
 import { getControlHub } from "~/lib/live/service"
 import { streamSubscription } from "~/lib/live/stream-subscription"
+import { getDefaultTrafficObserver } from "~/lib/observability/store"
 import { cacheModels } from "~/lib/platform/utils"
 import { emitQuitRequest, emitUpdateRequest } from "~/lib/start/boot-status"
 import { getTokenUsageSummary } from "~/lib/token-usage"
@@ -70,6 +72,7 @@ export interface ControlRoutesOptions {
    * asserting on state owned by whatever else ran first in the same process.
    */
   listClients?: ClientRosterReader
+  trafficQueries?: TrafficQueryStore
 }
 
 /** Validated rather than cast: `c.req.json()` returns `any`, and asserting a
@@ -305,9 +308,12 @@ export function createControlRoutes(options: ControlRoutesOptions = {}): Hono {
   registerSettingsEndpoints(app)
   registerShellSignals(app)
   registerAccountActions(app, hub, new AsyncMutex())
-  registerRpc(app, { hub, mutex: new AsyncMutex(), listClients })
+  registerRpc(app, {
+    hub,
+    mutex: new AsyncMutex(),
+    listClients,
+    trafficQueries: options.trafficQueries ?? getDefaultTrafficObserver(),
+  })
 
   return app
 }
-
-export const controlRoutes = createControlRoutes()

@@ -1,3 +1,7 @@
+import type { TrafficTokenMetadata } from "@stuffbucket/maximal-observability-contract"
+
+import consola from "consola"
+
 import { requestContext, generateTraceId } from "~/lib/http/request-context"
 import { state } from "~/lib/runtime-state/state"
 import { pricedModelIsPaid } from "~/services/copilot/get-models"
@@ -126,6 +130,7 @@ function toPersistedEvent(
     total_nano_aiu: normalizeToken(input.total_nano_aiu),
     is_premium: resolveIsPaid(input.model),
     trace_id: resolveTraceId(input.traceId),
+    traffic_request_id: requestContext.getStore()?.trafficRequestId ?? null,
     user_id: resolveUserId(input),
   }
 }
@@ -172,12 +177,91 @@ export function onTokenUsageRecorded(
   return tokenUsageEventBus.subscribe("token_usage.recorded", listener)
 }
 
+function toTrafficTokens(input: UsageTokens): TrafficTokenMetadata {
+  return {
+    inputTokens: normalizeToken(input.input_tokens),
+    outputTokens: normalizeToken(input.output_tokens),
+    cacheReadInputTokens: normalizeToken(input.cache_read_input_tokens),
+    cacheCreationInputTokens: normalizeToken(input.cache_creation_input_tokens),
+    reasoningTokens: normalizeToken(input.reasoning_tokens),
+    totalTokens: resolveTotalTokens(input),
+    totalNanoAiu: normalizeToken(input.total_nano_aiu),
+  }
+}
+
+function boundedTrafficIdentifier(
+  value: string | null | undefined,
+): string | null {
+  const normalized = value?.trim().slice(0, 200)
+  return normalized || null
+}
+
+function addTrafficTokens(
+  left: TrafficTokenMetadata | undefined,
+  right: TrafficTokenMetadata,
+): TrafficTokenMetadata {
+  if (!left) return right
+  return {
+    inputTokens: left.inputTokens + right.inputTokens,
+    outputTokens: left.outputTokens + right.outputTokens,
+    cacheReadInputTokens:
+      left.cacheReadInputTokens + right.cacheReadInputTokens,
+    cacheCreationInputTokens:
+      left.cacheCreationInputTokens + right.cacheCreationInputTokens,
+    reasoningTokens: left.reasoningTokens + right.reasoningTokens,
+    totalTokens: left.totalTokens + right.totalTokens,
+    totalNanoAiu: left.totalNanoAiu + right.totalNanoAiu,
+  }
+}
+
+function annotateTrafficObservation(input: TokenUsageEventInput): void {
+  const store = requestContext.getStore()
+  const observation = store?.trafficObservation
+  if (!observation) return
+  const at = new Date().toISOString()
+  const model = boundedTrafficIdentifier(input.model)
+  const parentSessionId = boundedTrafficIdentifier(store.parentSessionId)
+  try {
+    observation.recordDispatch({
+      at,
+      attribution: {
+        source: input.source,
+        client: null,
+        project: null,
+        provider:
+          input.source === "provider" ?
+            boundedTrafficIdentifier(input.providerName)
+          : "copilot",
+        model,
+        parentSessionId,
+        subagent: parentSessionId === null ? null : true,
+        compactType: null,
+      },
+      dispatch: {
+        attemptCount: 1,
+        retryCount: 0,
+        statusCode: null,
+        streamed: null,
+        upstreamRequestId: null,
+        requestedModel: null,
+        resolvedModel: model,
+      },
+    })
+    const tokens = addTrafficTokens(store.trafficTokens, toTrafficTokens(input))
+    store.trafficTokens = tokens
+    observation.recordTokens({ at, tokens })
+  } catch (error) {
+    consola.warn("Traffic observer rejected token annotation", error)
+  }
+}
+
 export function recordTokenUsageEvent(input: TokenUsageEventInput): void {
   const event = toPersistedEvent(input)
   if (!event) {
     return
   }
 
+  annotateTrafficObservation(input)
   tokenUsageEventBus.publish("token_usage.recorded", event)
 }
 
@@ -243,6 +327,9 @@ export function normalizeResponsesUsage(
           cached_tokens?: number
         }
         output_tokens?: number
+        output_tokens_details?: {
+          reasoning_tokens?: number
+        }
         total_tokens?: number
       }
     | null
@@ -256,6 +343,9 @@ export function normalizeResponsesUsage(
     cache_read_input_tokens: cachedTokens,
     input_tokens: Math.max(0, inputTokens - cachedTokens),
     output_tokens: normalizeToken(usage?.output_tokens),
+    reasoning_tokens: normalizeOptionalToken(
+      usage?.output_tokens_details?.reasoning_tokens,
+    ),
     total_tokens: normalizeOptionalToken(usage?.total_tokens),
   }
 }

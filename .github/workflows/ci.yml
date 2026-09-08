@@ -199,13 +199,17 @@ jobs:
           }
           echo "sidecar embeds $SHA, core $(node -p "require('./packages/maximal-core/package.json').version")"
 
-      # The same mountless, offline-runtime Docker boundary contributors get
-      # from `pnpm test`. Keep it after checks that use the native build above:
-      # constructing the test image is the longest step in this job.
-      - name: Test workspace in disposable container
-        run: pnpm test -- --trace="$TEST_TRACE"
+      # GitHub-hosted runners are already disposable and carry no developer
+      # state, so CI executes the installed test graph directly instead of
+      # rebuilding the local Docker safety boundary. The marker admits the Bun
+      # suites; their preloads still create isolated data and Claude roots.
+      - name: Test workspace on disposable runner
+        run: |
+          node --test tests/docker-test-policy.test.mjs
+          pnpm exec turbo run test --concurrency=1
         env:
-          TEST_TRACE: ${{ inputs.test_trace || 'off' }}
+          MAXIMAL_TEST_CONTAINER: 1
+          MAXIMAL_TEST_TRACE: ${{ inputs.test_trace || 'off' }}
 
       # Pull requests can restore main's cache, but caches created under a PR
       # merge ref are invisible to main. Save only the exact tested main SHA so

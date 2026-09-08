@@ -43,7 +43,11 @@ function fakeBridge(): MaximalBridge {
       authSignOut: vi.fn(async () => success(null)),
       accountsList: vi.fn(async () => success(accounts)),
       accountsSwitch: vi.fn(async () => success(null)),
+      observabilityOverview: vi.fn(),
+      observabilityRequests: vi.fn(),
+      observabilityRequest: vi.fn(),
       onChange: vi.fn(() => () => {}),
+      onTrafficInvalidation: vi.fn(() => () => {}),
     },
   }
 }

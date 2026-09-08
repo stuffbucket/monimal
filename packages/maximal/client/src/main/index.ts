@@ -1,5 +1,10 @@
 import { join } from 'node:path'
 
+import type {
+  TrafficOverviewQuery,
+  TrafficRequestDetailQuery,
+  TrafficRequestListQuery,
+} from '@stuffbucket/maximal-observability-contract'
 import { app, BrowserWindow, ipcMain, shell } from 'electron'
 
 import { BRIDGE_CHANNELS } from '../shared/bridge-channels.js'
@@ -52,6 +57,21 @@ function registerIpc(session: ControlSession): void {
     BRIDGE_CHANNELS.accountsSwitch,
     (_event, key: string) => session.accountsSwitch(key),
   )
+  ipcMain.handle(
+    BRIDGE_CHANNELS.observabilityOverview,
+    (_event, query: TrafficOverviewQuery) =>
+      session.observabilityOverview(query),
+  )
+  ipcMain.handle(
+    BRIDGE_CHANNELS.observabilityRequests,
+    (_event, query: TrafficRequestListQuery) =>
+      session.observabilityRequests(query),
+  )
+  ipcMain.handle(
+    BRIDGE_CHANNELS.observabilityRequest,
+    (_event, query: TrafficRequestDetailQuery) =>
+      session.observabilityRequest(query),
+  )
 }
 
 function broadcast(channel: string, payload?: unknown): void {
@@ -103,6 +123,8 @@ void app.whenReady().then(async () => {
 
   controlSession = createControlSession({
     onChange: () => broadcast(BRIDGE_CHANNELS.controlChanged),
+    onTrafficInvalidation: (invalidation) =>
+      broadcast(BRIDGE_CHANNELS.trafficInvalidated, invalidation),
   })
   registerIpc(controlSession)
 

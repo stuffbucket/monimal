@@ -24,7 +24,7 @@ import { getTabPanelId, getTabTriggerId, ShellLayout, type Tab } from 'stuffbuck
  * render their content and push their peripheral parts into this one's slots.
  *
  * The document tabs are the views. That is the shell's own model rather than an
- * adaptation of it: a tab strip lists what is open, and Dashboard, Runs and
+ * adaptation of it: a tab strip lists what is open, and Overview, Traffic and
  * Settings are the three things this application can have open. It also puts
  * navigation inside the title bar, which is the one region always on screen.
  */
@@ -33,7 +33,7 @@ import { getTabPanelId, getTabTriggerId, ShellLayout, type Tab } from 'stuffbuck
 const LAYOUT_ID = 'maximal'
 const TAB_ID_BASE = `${LAYOUT_ID}-documents`
 
-export type View = 'dashboard' | 'workspace' | 'settings'
+export type View = 'overview' | 'traffic' | 'settings'
 
 /*
  * Tab identity is the view id, so the persisted active tab and the active view
@@ -41,8 +41,8 @@ export type View = 'dashboard' | 'workspace' | 'settings'
  * heading below read the same names from here.
  */
 const VIEW_TABS: Array<Tab & { id: View }> = [
-  { id: 'dashboard', title: 'Dashboard', icon: 'document' },
-  { id: 'workspace', title: 'Runs', icon: 'folder' },
+  { id: 'overview', title: 'Overview', icon: 'document' },
+  { id: 'traffic', title: 'Traffic', icon: 'folder' },
   { id: 'settings', title: 'Settings', icon: 'settings' },
 ]
 

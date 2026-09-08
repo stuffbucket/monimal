@@ -1,5 +1,15 @@
-import { ControlRpcError } from '@stuffbucket/maximal-core/client'
-import { SUPPORTED_PROTOCOL_VERSION } from '@stuffbucket/maximal-core/contract'
+import {
+  ControlRpcError,
+  type ControlState,
+} from '@stuffbucket/maximal-core/client'
+import {
+  SUPPORTED_PROTOCOL_VERSION,
+  type ControlTopic,
+} from '@stuffbucket/maximal-core/contract'
+import {
+  TrafficOverviewQuerySchema,
+  TrafficRequestListQuerySchema,
+} from '@stuffbucket/maximal-observability-contract'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('electron', () => ({
@@ -17,6 +27,48 @@ const originOne = 'http://127.0.0.1:50001'
 const originTwo = 'http://127.0.0.1:50002'
 const authStatus = { state: 'unauthenticated' } as const
 const accounts = { accounts: [], active_key: null }
+const emptyPercentiles = {
+  sampleCount: 0,
+  p50Ms: null,
+  p90Ms: null,
+  p95Ms: null,
+  p99Ms: null,
+}
+const emptyOverview = {
+  contractVersion: 1,
+  generatedAt: '2026-09-07T20:01:00.000Z',
+  range: {
+    from: '2026-09-07T19:01:00.000Z',
+    to: '2026-09-07T20:01:00.000Z',
+  },
+  totals: {
+    requests: 0,
+    active: 0,
+    succeeded: 0,
+    failed: 0,
+    cancelled: 0,
+    inputTokens: 0,
+    outputTokens: 0,
+    cacheReadInputTokens: 0,
+    cacheCreationInputTokens: 0,
+    totalTokens: 0,
+    requestBytes: 0,
+    responseBytes: 0,
+  },
+  latency: {
+    queue: emptyPercentiles,
+    timeToFirstResponse: emptyPercentiles,
+    total: emptyPercentiles,
+  },
+  flow: { nodes: [], edges: [] },
+  tokens: { bucketMs: 60_000, points: [] },
+}
+const emptyRequestPage = {
+  contractVersion: 1,
+  items: [],
+  nextCursor: null,
+  hasMore: false,
+}
 
 function discovery(overrides: Record<string, unknown> = {}): unknown {
   return {
@@ -29,6 +81,9 @@ function discovery(overrides: Record<string, unknown> = {}): unknown {
         'auth/signOut',
         'accounts/list',
         'accounts/switch',
+        'observability/overview',
+        'observability/requests',
+        'observability/request',
         'subscriptions/listen',
       ],
       feed: true,
@@ -38,10 +93,16 @@ function discovery(overrides: Record<string, unknown> = {}): unknown {
   }
 }
 
+type TestControlState = ControlState & { traffic?: unknown }
+
 class FakeClient {
   readonly calls: Array<{ method: string; params?: unknown }> = []
-  readonly listeners = new Set<() => void>()
-  readonly staleListeners = new Set<() => void>()
+  readonly listeners = new Set<
+    (state: ControlState, topic: ControlTopic | null) => void
+  >()
+  readonly staleListeners = new Set<
+    (state: ControlState, topic: ControlTopic | null) => void
+  >()
   readonly responses = new Map<string, unknown>()
   connected = 0
   closed = 0
@@ -59,19 +120,21 @@ class FakeClient {
     return response as T
   }
 
-  onState(listener: () => void): () => void {
+  onState(
+    listener: (state: ControlState, topic: ControlTopic | null) => void,
+  ): () => void {
     this.listeners.add(listener)
     this.staleListeners.add(listener)
-    listener()
+    listener({}, null)
     return () => this.listeners.delete(listener)
   }
 
-  emit(): void {
-    for (const listener of this.listeners) listener()
+  emit(state: TestControlState = {}, topic: ControlTopic = 'auth'): void {
+    for (const listener of this.listeners) listener(state, topic)
   }
 
-  emitStale(): void {
-    for (const listener of this.staleListeners) listener()
+  emitStale(state: TestControlState = {}, topic: ControlTopic = 'auth'): void {
+    for (const listener of this.staleListeners) listener(state, topic)
   }
 
   async connect(): Promise<void> {
@@ -92,6 +155,7 @@ function createHarness({ origins = [originOne], clients }: HarnessOptions) {
   let originIndex = 0
   let lifecycleListener: ((status: CoreStatus) => void) | null = null
   const onChange = vi.fn()
+  const onTrafficInvalidation = vi.fn()
   const stopLifecycle = vi.fn()
   const logError = vi.fn()
   let clientIndex = 0
@@ -109,12 +173,14 @@ function createHarness({ origins = [originOne], clients }: HarnessOptions) {
       return client
     },
     onChange,
+    onTrafficInvalidation,
     logError,
   })
 
   return {
     session,
     onChange,
+    onTrafficInvalidation,
     stopLifecycle,
     logError,
     clientCount: () => clientIndex,
@@ -141,6 +207,9 @@ function fullLiveClient(
     'auth/signOut': { ok: true },
     'accounts/list': accounts,
     'accounts/switch': { ok: true, key: 'github.com:octocat' },
+    'observability/overview': emptyOverview,
+    'observability/requests': emptyRequestPage,
+    'observability/request': null,
     ...overrides,
   })
 }
@@ -192,10 +261,12 @@ describe('control discovery', () => {
 })
 
 describe('named control operations', () => {
-  it('dispatches only the six allowed wire methods and validates results', async () => {
+  it('dispatches only the named wire methods and validates results', async () => {
     const discover = new FakeClient({ 'server/discover': discovery() })
     const live = fullLiveClient()
     const harness = createHarness({ clients: [discover, live] })
+    const overviewQuery = TrafficOverviewQuerySchema.parse({})
+    const requestsQuery = TrafficRequestListQuerySchema.parse({})
 
     await expect(harness.session.authStatus()).resolves.toEqual({
       ok: true,
@@ -220,6 +291,15 @@ describe('named control operations', () => {
     await expect(
       harness.session.accountsSwitch('github.com:octocat'),
     ).resolves.toEqual({ ok: true, value: null })
+    await expect(
+      harness.session.observabilityOverview(overviewQuery),
+    ).resolves.toEqual({ ok: true, value: emptyOverview })
+    await expect(
+      harness.session.observabilityRequests(requestsQuery),
+    ).resolves.toEqual({ ok: true, value: emptyRequestPage })
+    await expect(
+      harness.session.observabilityRequest({ requestId: 'req-1' }),
+    ).resolves.toEqual({ ok: true, value: null })
 
     expect(live.calls).toEqual([
       { method: 'auth/status' },
@@ -231,6 +311,9 @@ describe('named control operations', () => {
         method: 'accounts/switch',
         params: { key: 'github.com:octocat' },
       },
+      { method: 'observability/overview', params: overviewQuery },
+      { method: 'observability/requests', params: requestsQuery },
+      { method: 'observability/request', params: { requestId: 'req-1' } },
     ])
     expect(live.connected).toBe(1)
   })
@@ -260,15 +343,55 @@ describe('named control operations', () => {
         retryable: false,
       },
     })
+    await expect(
+      harness.session.observabilityOverview(
+        TrafficOverviewQuerySchema.parse({}),
+      ),
+    ).resolves.toEqual({
+      ok: false,
+      error: {
+        reason: 'unsupported',
+        message: 'maximal-core does not advertise observability/overview',
+        retryable: false,
+      },
+    })
     expect(live.calls).toEqual([])
+  })
+
+  it('rejects invalid observability queries before a wire call', async () => {
+    const harness = createHarness({ clients: [] })
+
+    await expect(
+      harness.session.observabilityOverview({
+        filters: {
+          minimumDurationMs: 20,
+          maximumDurationMs: 10,
+        },
+      } as never),
+    ).resolves.toMatchObject({
+      ok: false,
+      error: { reason: 'internal', retryable: false },
+    })
+    expect(harness.clientCount()).toBe(0)
   })
 
   it('maps invalid operation results to a non-retryable internal failure', async () => {
     const discover = new FakeClient({ 'server/discover': discovery() })
-    const live = fullLiveClient({ 'accounts/list': { accounts: 'invalid' } })
+    const live = fullLiveClient({
+      'accounts/list': { accounts: 'invalid' },
+      'observability/overview': { contractVersion: 1 },
+    })
     const harness = createHarness({ clients: [discover, live] })
 
     await expect(harness.session.accountsList()).resolves.toMatchObject({
+      ok: false,
+      error: { reason: 'internal', retryable: false },
+    })
+    await expect(
+      harness.session.observabilityOverview(
+        TrafficOverviewQuerySchema.parse({}),
+      ),
+    ).resolves.toMatchObject({
       ok: false,
       error: { reason: 'internal', retryable: false },
     })
@@ -316,6 +439,90 @@ describe('control failures', () => {
         retryable: true,
       },
     })
+  })
+})
+
+describe('traffic invalidations', () => {
+  it('validates, de-duplicates, and stops forwarding invalidations on dispose', async () => {
+    const discover = new FakeClient({ 'server/discover': discovery() })
+    const live = fullLiveClient()
+    const harness = createHarness({ clients: [discover, live] })
+    const invalidation = {
+      contractVersion: 1,
+      revision: 4,
+      emittedAt: '2026-09-07T20:01:00.000Z',
+      activeCount: 0,
+      overflow: false,
+      scopes: ['overview'],
+      requestIds: [],
+    }
+
+    await harness.session.authStatus()
+    live.emit({ traffic: invalidation })
+    live.emit({ traffic: invalidation })
+    live.emit({ traffic: { invalid: true } })
+
+    expect(harness.onTrafficInvalidation).toHaveBeenCalledTimes(1)
+    expect(harness.onTrafficInvalidation).toHaveBeenCalledWith(invalidation)
+    expect(harness.logError).toHaveBeenCalledTimes(1)
+
+    harness.session.dispose()
+    live.emitStale({
+      traffic: { ...invalidation, revision: invalidation.revision + 1 },
+    })
+    expect(harness.onTrafficInvalidation).toHaveBeenCalledTimes(1)
+  })
+
+  it('invalidates all traffic reads when a reconnect snapshot arrives', async () => {
+    const discover = new FakeClient({ 'server/discover': discovery() })
+    const live = fullLiveClient()
+    const harness = createHarness({ clients: [discover, live] })
+
+    await harness.session.authStatus()
+    live.emit({
+      traffic: {
+        contractVersion: 1,
+        revision: 0,
+        emittedAt: '2026-09-07T20:00:00.000Z',
+        activeCount: 0,
+        overflow: false,
+        scopes: ['overview'],
+        requestIds: [],
+      },
+    })
+    live.emit(
+      {
+        auth: {},
+        accounts: {},
+        apps: {},
+        models: {},
+        usage: {},
+        clients: {},
+      },
+      'snapshot',
+    )
+
+    expect(harness.onTrafficInvalidation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        overflow: true,
+        scopes: ['requests', 'request-detail', 'overview'],
+        requestIds: [],
+      }),
+    )
+
+    const restartedRevision = {
+      contractVersion: 1,
+      revision: 0,
+      emittedAt: '2026-09-07T20:02:00.000Z',
+      activeCount: 1,
+      overflow: false,
+      scopes: ['overview'],
+      requestIds: [],
+    }
+    live.emit({ traffic: restartedRevision })
+    expect(harness.onTrafficInvalidation).toHaveBeenLastCalledWith(
+      restartedRevision,
+    )
   })
 })
 

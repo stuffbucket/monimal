@@ -175,6 +175,9 @@ importers:
       '@hono/zod-openapi':
         specifier: 1.6.1
         version: 1.6.1(hono@4.13.5)(zod@4.5.4)
+      '@stuffbucket/maximal-observability-contract':
+        specifier: workspace:*
+        version: link:../maximal-observability-contract
       '@stuffbucket/maximal-provider-contract':
         specifier: workspace:*
         version: link:../maximal-provider-contract
@@ -430,6 +433,80 @@ importers:
         specifier: ^2.9.0
         version: 2.9.0
 
+  packages/maximal-observability:
+    dependencies:
+      '@stuffbucket/maximal-observability-contract':
+        specifier: workspace:*
+        version: link:../maximal-observability-contract
+    devDependencies:
+      '@stuffbucket/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@stuffbucket/maximal-electron':
+        specifier: workspace:*
+        version: link:../maximal-electron
+      '@types/node':
+        specifier: ^26.4.0
+        version: 26.4.0
+      '@types/react':
+        specifier: ^19.2.17
+        version: 19.2.18
+      '@types/react-dom':
+        specifier: ^19.2.5
+        version: 19.2.5(@types/react@19.2.18)
+      '@typescript/native':
+        specifier: npm:typescript@^7.0.2
+        version: typescript@7.0.2
+      axe-core:
+        specifier: ^4.13.0
+        version: 4.13.0
+      eslint:
+        specifier: ^10.9.1
+        version: 10.9.1(jiti@2.7.0)(supports-color@8.1.1)
+      jsdom:
+        specifier: ^30.0.1
+        version: 30.0.1
+      react:
+        specifier: ^19.2.8
+        version: 19.2.8
+      react-dom:
+        specifier: ^19.2.8
+        version: 19.2.8(react@19.2.8)
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(@typescript/typescript6@6.0.2)(jiti@2.7.0)(postcss@8.5.26)(supports-color@8.1.1)(yaml@2.9.0)
+      typescript:
+        specifier: npm:@typescript/typescript6@^6.0.2
+        version: '@typescript/typescript6@6.0.2'
+      vitest:
+        specifier: ^4.1.11
+        version: 4.1.11(@opentelemetry/api@1.9.0)(@types/node@26.4.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))
+
+  packages/maximal-observability-contract:
+    dependencies:
+      zod:
+        specifier: ^4.5.4
+        version: 4.5.4
+    devDependencies:
+      '@stuffbucket/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@types/node':
+        specifier: ^26.4.0
+        version: 26.4.0
+      '@typescript/native':
+        specifier: npm:typescript@^7.0.2
+        version: typescript@7.0.2
+      eslint:
+        specifier: ^10.9.1
+        version: 10.9.1(jiti@2.7.0)(supports-color@8.1.1)
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(@typescript/typescript6@6.0.2)(jiti@2.7.0)(postcss@8.5.26)(supports-color@8.1.1)(yaml@2.9.0)
+      typescript:
+        specifier: npm:@typescript/typescript6@^6.0.2
+        version: '@typescript/typescript6@6.0.2'
+
   packages/maximal-provider-contract:
     devDependencies:
       '@stuffbucket/eslint-config':
@@ -477,6 +554,15 @@ importers:
       '@stuffbucket/maximal-core':
         specifier: workspace:*
         version: link:../../maximal-core
+      '@stuffbucket/maximal-electron':
+        specifier: workspace:*
+        version: link:../../maximal-electron
+      '@stuffbucket/maximal-observability':
+        specifier: workspace:*
+        version: link:../../maximal-observability
+      '@stuffbucket/maximal-observability-contract':
+        specifier: workspace:*
+        version: link:../../maximal-observability-contract
       ghostty-web:
         specifier: ^0.4.0
         version: 0.4.0

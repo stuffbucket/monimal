@@ -4,16 +4,22 @@ import { z } from "zod"
 
 import { awaitApproval } from "~/lib/http/approval"
 import { checkRateLimit } from "~/lib/http/rate-limit"
+import { requestContext } from "~/lib/http/request-context"
 import {
   pickCopilotVariantId,
   reverseId,
 } from "~/lib/models/anthropic-id-rewrite"
 import { type AnthropicMessagesPayload } from "~/lib/models/anthropic-types"
-import { COMPACT_REQUEST, type CompactType } from "~/lib/models/compact"
+import {
+  COMPACT_AUTO_CONTINUE,
+  COMPACT_REQUEST,
+  type CompactType,
+} from "~/lib/models/compact"
 import {
   shouldUseMessagesApi,
   shouldUseResponsesApi,
 } from "~/lib/models/endpoint-selection"
+import { resolveModelProfile } from "~/lib/models/model-profile"
 import { findEndpointModel } from "~/lib/models/models"
 import {
   createHandlerLogger,
@@ -101,6 +107,88 @@ function resolveCopilotModel(
     { effort: payload.output_config?.effort, longContext },
     state.models?.data.map((m) => m.id) ?? [],
   )
+}
+
+function boundedIdentifier(value: string | null | undefined): string | null {
+  const normalized = value?.trim().slice(0, 200)
+  return normalized || null
+}
+
+function compactLabel(compactType: CompactType): string | null {
+  if (compactType === COMPACT_REQUEST) return "request"
+  if (compactType === COMPACT_AUTO_CONTINUE) return "auto-continue"
+  return null
+}
+
+function positiveLimit(value: number | undefined): number | null {
+  return typeof value === "number" && Number.isInteger(value) && value > 0 ?
+      value
+    : null
+}
+
+function annotateTrafficDispatch({
+  payload,
+  requestedModel,
+  selectedModel,
+  subagentSessionId,
+  compactType,
+}: {
+  payload: AnthropicMessagesPayload
+  requestedModel: string
+  selectedModel: ReturnType<typeof findEndpointModel>
+  subagentSessionId: string | null
+  compactType: CompactType
+}): void {
+  const store = requestContext.getStore()
+  const observation = store?.trafficObservation
+  if (!observation) return
+
+  const at = new Date().toISOString()
+  const resolvedModel = boundedIdentifier(selectedModel?.id ?? payload.model)
+  try {
+    observation.recordDispatch({
+      at,
+      attribution: {
+        source: null,
+        client: null,
+        project: null,
+        provider: null,
+        model: resolvedModel,
+        parentSessionId: boundedIdentifier(
+          subagentSessionId ?? store.parentSessionId,
+        ),
+        subagent: subagentSessionId === null ? null : true,
+        compactType: compactLabel(compactType),
+      },
+      dispatch: {
+        attemptCount: 1,
+        retryCount: 0,
+        statusCode: null,
+        streamed: payload.stream ?? false,
+        upstreamRequestId: null,
+        requestedModel: boundedIdentifier(requestedModel),
+        resolvedModel,
+      },
+    })
+    observation.recordContext?.({
+      at,
+      context: {
+        messageCount: payload.messages.length,
+        toolDefinitionCount: payload.tools?.length ?? 0,
+        contextWindowTokens:
+          selectedModel ?
+            positiveLimit(
+              resolveModelProfile(selectedModel).maxContextWindowTokens,
+            )
+          : null,
+        requestedMaxOutputTokens: positiveLimit(payload.max_tokens),
+        usedTokens: null,
+        usedRatio: null,
+      },
+    })
+  } catch {
+    // Traffic observation is passive and cannot affect request delivery.
+  }
 }
 
 // Injectable seam for tests. `mock.module`-ing shared modules (`~/lib/models/models`,
@@ -222,8 +310,16 @@ export async function handleCompletion(
     await awaitApproval()
   }
 
-  const selectedModel = deps.findEndpointModel(anthropicPayload.model)
-  anthropicPayload.model = selectedModel?.id ?? anthropicPayload.model
+  const requestedModel = anthropicPayload.model
+  const selectedModel = deps.findEndpointModel(requestedModel)
+  anthropicPayload.model = selectedModel?.id ?? requestedModel
+  annotateTrafficDispatch({
+    payload: anthropicPayload,
+    requestedModel,
+    selectedModel,
+    subagentSessionId: subagentMarker?.session_id ?? null,
+    compactType,
+  })
 
   if (webToolPolicy.declarations.length > 0) {
     return await handleWithWebToolsAgent({

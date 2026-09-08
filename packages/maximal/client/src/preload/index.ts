@@ -2,6 +2,16 @@ import type {
   AccountsListResponse,
   AuthStatus,
 } from '@stuffbucket/maximal-core/settings-types'
+import {
+  TrafficInvalidationSchema,
+  type TrafficInvalidation,
+  type TrafficOverview,
+  type TrafficOverviewQuery,
+  type TrafficRequestDetail,
+  type TrafficRequestDetailQuery,
+  type TrafficRequestListQuery,
+  type TrafficRequestPage,
+} from '@stuffbucket/maximal-observability-contract'
 import { contextBridge, ipcRenderer } from 'electron'
 
 import { BRIDGE_CHANNELS } from '../shared/bridge-channels.js'
@@ -58,6 +68,18 @@ const bridge = {
       ipcRenderer.invoke(BRIDGE_CHANNELS.accountsList),
     accountsSwitch: (key: string): Promise<ControlResult<null>> =>
       ipcRenderer.invoke(BRIDGE_CHANNELS.accountsSwitch, key),
+    observabilityOverview: (
+      query: TrafficOverviewQuery,
+    ): Promise<ControlResult<TrafficOverview>> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.observabilityOverview, query),
+    observabilityRequests: (
+      query: TrafficRequestListQuery,
+    ): Promise<ControlResult<TrafficRequestPage>> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.observabilityRequests, query),
+    observabilityRequest: (
+      query: TrafficRequestDetailQuery,
+    ): Promise<ControlResult<TrafficRequestDetail | null>> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.observabilityRequest, query),
     onChange: (listener: () => void): (() => void) => {
       const handler = (): void => {
         listener()
@@ -65,6 +87,18 @@ const bridge = {
       ipcRenderer.on(BRIDGE_CHANNELS.controlChanged, handler)
       return () => {
         ipcRenderer.off(BRIDGE_CHANNELS.controlChanged, handler)
+      }
+    },
+    onTrafficInvalidation: (
+      listener: (invalidation: TrafficInvalidation) => void,
+    ): (() => void) => {
+      const handler = (_event: unknown, payload: unknown): void => {
+        const invalidation = TrafficInvalidationSchema.safeParse(payload)
+        if (invalidation.success) listener(invalidation.data)
+      }
+      ipcRenderer.on(BRIDGE_CHANNELS.trafficInvalidated, handler)
+      return () => {
+        ipcRenderer.off(BRIDGE_CHANNELS.trafficInvalidated, handler)
       }
     },
   },

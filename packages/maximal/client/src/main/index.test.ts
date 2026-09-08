@@ -95,13 +95,19 @@ const { createControlSessionMock, disposeControlSessionMock } = vi.hoisted(
     const disposeControlSessionMock = vi.fn()
     return {
       disposeControlSessionMock,
-      createControlSessionMock: vi.fn((_options: { onChange(): void }) => ({
+      createControlSessionMock: vi.fn((_options: {
+        onChange(): void
+        onTrafficInvalidation(invalidation: unknown): void
+      }) => ({
         authStatus: vi.fn(),
         authStart: vi.fn(),
         authCancel: vi.fn(),
         authSignOut: vi.fn(),
         accountsList: vi.fn(),
         accountsSwitch: vi.fn(),
+        observabilityOverview: vi.fn(),
+        observabilityRequests: vi.fn(),
+        observabilityRequest: vi.fn(),
         dispose: disposeControlSessionMock,
       })),
     }
@@ -162,6 +168,33 @@ describe('closed IPC boundary', () => {
     )
   })
 
+  it('routes each observability invoke channel to its named session method', async () => {
+    await loadIndexOn('darwin')
+    const session = createControlSessionMock.mock.results[0]?.value
+    const overviewQuery = { filters: {}, tokenBucketMs: null }
+    const requestsQuery = { filters: {}, cursor: null, limit: 50 }
+    const requestQuery = { requestId: 'req-1' }
+
+    const invoke = async (channel: string, payload: unknown): Promise<void> => {
+      const registration = ipcMainHandle.mock.calls.find(
+        ([registered]) => registered === channel,
+      )
+      const handler = registration?.[1] as (
+        event: unknown,
+        query: unknown,
+      ) => Promise<unknown>
+      await handler({}, payload)
+    }
+
+    await invoke(BRIDGE_CHANNELS.observabilityOverview, overviewQuery)
+    await invoke(BRIDGE_CHANNELS.observabilityRequests, requestsQuery)
+    await invoke(BRIDGE_CHANNELS.observabilityRequest, requestQuery)
+
+    expect(session.observabilityOverview).toHaveBeenCalledWith(overviewQuery)
+    expect(session.observabilityRequests).toHaveBeenCalledWith(requestsQuery)
+    expect(session.observabilityRequest).toHaveBeenCalledWith(requestQuery)
+  })
+
   it('does not install Electron webRequest header or CORS hooks', async () => {
     await loadIndexOn('darwin')
 
@@ -195,6 +228,22 @@ describe('closed IPC boundary', () => {
     createControlSessionMock.mock.calls[0]?.[0].onChange()
     expect(webContentsSend).toHaveBeenCalledWith(
       BRIDGE_CHANNELS.controlChanged,
+    )
+
+    const invalidation = {
+      contractVersion: 1,
+      revision: 2,
+      emittedAt: '2026-09-07T20:01:00.000Z',
+      activeCount: 0,
+      overflow: false,
+      scopes: ['overview'],
+      requestIds: [],
+    }
+    createControlSessionMock.mock.calls[0]?.[0]
+      .onTrafficInvalidation(invalidation)
+    expect(webContentsSend).toHaveBeenCalledWith(
+      BRIDGE_CHANNELS.trafficInvalidated,
+      invalidation,
     )
   })
 

@@ -97,10 +97,8 @@ const THEME_CSS = `
  * every one of those controls work everywhere, in the states this application
  * actually has.
  *
- * It replaces eight hand-written colour rules that said the same four things
- * twice, once per class, in dashboard/styles.ts -- which is the shape of the
- * problem: a per-class colour rule has to be rewritten for every new class,
- * and a mapping does not.
+ * A shared mapping avoids per-class colour rules that must be repeated for
+ * every new surface.
  */
 .sb-shell [data-status='running'] {
   --shell-status: var(--shell-accent);

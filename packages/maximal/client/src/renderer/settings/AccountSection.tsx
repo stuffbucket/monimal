@@ -31,8 +31,7 @@ export function AccountSection({ capabilities }: AccountSectionProps): ReactElem
   busyRef.current = busy
 
   // One effect owns the whole read lifetime: the first read, every later
-  // push, the poll fallback, and teardown. Mirrors the pattern in
-  // workspace/Workspace.tsx's snapshot effect.
+  // push, the poll fallback, and teardown.
   useEffect(() => {
     let settled = false
 

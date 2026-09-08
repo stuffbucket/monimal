@@ -1,15 +1,39 @@
-import { ControlClient, ControlRpcError } from '@stuffbucket/maximal-core/client'
+import {
+  ControlClient,
+  ControlRpcError,
+  type ControlState,
+} from '@stuffbucket/maximal-core/client'
 import {
   CONTROL_ERROR_REASONS,
   type ControlErrorReason,
 } from '@stuffbucket/maximal-core/control-contract'
-import { SUPPORTED_PROTOCOL_VERSION } from '@stuffbucket/maximal-core/contract'
+import {
+  SUPPORTED_PROTOCOL_VERSION,
+  type ControlTopic,
+} from '@stuffbucket/maximal-core/contract'
 import {
   AccountsListResponse as AccountsListResponseSchema,
   type AccountsListResponse,
   AuthStatus as AuthStatusSchema,
   type AuthStatus,
 } from '@stuffbucket/maximal-core/settings-types'
+import {
+  TRAFFIC_OBSERVABILITY_CONTRACT_VERSION,
+  TrafficInvalidationSchema,
+  type TrafficInvalidation,
+  TrafficOverviewQuerySchema,
+  TrafficOverviewSchema,
+  type TrafficOverview,
+  type TrafficOverviewQuery,
+  TrafficRequestDetailQuerySchema,
+  TrafficRequestDetailSchema,
+  type TrafficRequestDetail,
+  type TrafficRequestDetailQuery,
+  TrafficRequestListQuerySchema,
+  TrafficRequestPageSchema,
+  type TrafficRequestListQuery,
+  type TrafficRequestPage,
+} from '@stuffbucket/maximal-observability-contract'
 import { z } from 'zod'
 
 import { awaitControlOrigin, onCoreStatus, type CoreStatus } from './core'
@@ -25,10 +49,15 @@ type ControlMethod =
   | 'auth/signOut'
   | 'accounts/list'
   | 'accounts/switch'
+  | 'observability/overview'
+  | 'observability/requests'
+  | 'observability/request'
 
 interface ControlClientLike {
   call<T = unknown>(method: string, params?: unknown): Promise<T>
-  onState(listener: () => void): () => void
+  onState(
+    listener: (state: ControlState, topic: ControlTopic | null) => void,
+  ): () => void
   connect(): Promise<void>
   close(): void
 }
@@ -46,6 +75,7 @@ interface ControlSessionDependencies {
   onLifecycle(listener: (status: CoreStatus) => void): () => void
   createClient(origin: string): ControlClientLike
   onChange(): void
+  onTrafficInvalidation(invalidation: TrafficInvalidation): void
   logError(message: string, error: unknown): void
 }
 
@@ -56,6 +86,15 @@ export interface ControlSession {
   authSignOut(): Promise<ControlResult<null>>
   accountsList(): Promise<ControlResult<AccountsListResponse>>
   accountsSwitch(key: string): Promise<ControlResult<null>>
+  observabilityOverview(
+    query: TrafficOverviewQuery,
+  ): Promise<ControlResult<TrafficOverview>>
+  observabilityRequests(
+    query: TrafficRequestListQuery,
+  ): Promise<ControlResult<TrafficRequestPage>>
+  observabilityRequest(
+    query: TrafficRequestDetailQuery,
+  ): Promise<ControlResult<TrafficRequestDetail | null>>
   dispose(): void
 }
 
@@ -70,6 +109,9 @@ const optionalMethods = [
   'auth/cancel',
   'accounts/list',
   'accounts/switch',
+  'observability/overview',
+  'observability/requests',
+  'observability/request',
 ] as const
 
 const discoverySchema = z.object({
@@ -170,7 +212,10 @@ function unsupported(method: ControlMethod): ControlResult<never> {
 
 export function createControlSession(
   options: Partial<ControlSessionDependencies> &
-    Pick<ControlSessionDependencies, 'onChange'>,
+    Pick<
+      ControlSessionDependencies,
+      'onChange' | 'onTrafficInvalidation'
+    >,
 ): ControlSession {
   const dependencies: ControlSessionDependencies = {
     awaitOrigin: awaitControlOrigin,
@@ -223,13 +268,39 @@ export function createControlSession(
 
     const client = dependencies.createClient(origin)
     const nextGeneration = generation + 1
-    let initialState = true
-    const stopState = client.onState(() => {
-      if (initialState) {
-        initialState = false
+    let trafficRevision: number | null = null
+    const stopState = client.onState((state, topic) => {
+      if (topic === null || disposed || generation !== nextGeneration) return
+
+      dependencies.onChange()
+      if (topic === 'snapshot') trafficRevision = null
+      const traffic = Reflect.get(state, 'traffic') as unknown
+      if (traffic === undefined) {
+        if (topic === 'snapshot') {
+          dependencies.onTrafficInvalidation({
+            contractVersion: TRAFFIC_OBSERVABILITY_CONTRACT_VERSION,
+            revision: trafficRevision ?? 0,
+            emittedAt: new Date().toISOString(),
+            activeCount: 0,
+            overflow: true,
+            scopes: ['requests', 'request-detail', 'overview'],
+            requestIds: [],
+          })
+        }
         return
       }
-      if (!disposed && generation === nextGeneration) dependencies.onChange()
+
+      const invalidation = TrafficInvalidationSchema.safeParse(traffic)
+      if (!invalidation.success) {
+        dependencies.logError(
+          '[maximal-client] invalid traffic invalidation:',
+          invalidation.error,
+        )
+        return
+      }
+      if (invalidation.data.revision === trafficRevision) return
+      trafficRevision = invalidation.data.revision
+      dependencies.onTrafficInvalidation(invalidation.data)
     })
 
     return {
@@ -290,8 +361,11 @@ export function createControlSession(
     method: ControlMethod,
     parse: (input: unknown) => T,
     params?: unknown,
+    parseParams?: (input: unknown) => unknown,
   ): Promise<ControlResult<T>> {
     try {
+      const validatedParams =
+        parseParams === undefined ? params : parseParams(params)
       const active = await current()
       if (
         optionalMethods.includes(
@@ -303,7 +377,7 @@ export function createControlSession(
       }
       return {
         ok: true,
-        value: parse(await active.client.call(method, params)),
+        value: parse(await active.client.call(method, validatedParams)),
       }
     } catch (error) {
       return failureResult(mapFailure(error))
@@ -335,6 +409,28 @@ export function createControlSession(
         accountsSwitchResultSchema.parse(input)
         return null
       }, { key }),
+    observabilityOverview: (query) =>
+      call(
+        'observability/overview',
+        TrafficOverviewSchema.parse,
+        query,
+        TrafficOverviewQuerySchema.parse,
+      ),
+    observabilityRequests: (query) =>
+      call(
+        'observability/requests',
+        TrafficRequestPageSchema.parse,
+        query,
+        TrafficRequestListQuerySchema.parse,
+      ),
+    observabilityRequest: (query) =>
+      call(
+        'observability/request',
+        (input) =>
+          input === null ? null : TrafficRequestDetailSchema.parse(input),
+        query,
+        TrafficRequestDetailQuerySchema.parse,
+      ),
     dispose() {
       if (disposed) return
       disposed = true

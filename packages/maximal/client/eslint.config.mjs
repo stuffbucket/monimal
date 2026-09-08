@@ -33,16 +33,15 @@ export default [
     files: ["src/**/*.ts", "src/**/*.tsx", "e2e/**/*.ts"],
     plugins: { "react-hooks": reactHooks },
     rules: {
-      // exhaustive-deps is why react-hooks is here: several dashboard and
-      // first-run components subscribe to core-client events in a `useEffect`,
+      // exhaustive-deps is why react-hooks is here: renderer components
+      // subscribe to core-client events in a `useEffect`,
       // where a missing dep is a stale-closure bug rather than a style nit.
       ...reactHooks.configs["recommended-latest"].rules,
       // Warnings, not errors, and not switched off: each names a real place
       // whose fix is a render-behaviour change that should be made by someone
       // able to run the app. Promote to "error" once cleared.
       //
-      //   set-state-in-effect  dashboard/Dashboard.tsx, first-run/useFirstRun.ts,
-      //                        workspace/Workspace.tsx -- each seeds state from a
+      //   set-state-in-effect  first-run/useFirstRun.ts seeds state from a
       //                        capability's current() synchronously inside the
       //                        effect that also subscribes to it.
       //   refs                 settings/AccountSection.tsx writes busyRef.current
