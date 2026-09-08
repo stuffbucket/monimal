@@ -4,7 +4,6 @@ import { fileURLToPath } from "node:url";
 
 import {
   assertPrimaryCheckout,
-  currentImageState,
   dockerServerArchitecture,
   imageLabels,
   inspectDockerImage,
@@ -68,7 +67,7 @@ export function main(arguments_ = process.argv.slice(2)) {
     ),
   ];
   const images = ids.map((id) => inspectDockerImage(id)).filter(Boolean);
-  const currentId = reusableImageId({ ...currentImageState(), targetArch });
+  const currentId = reusableImageId({ targetArch });
   const retainedId = selectRetainedImage(images, currentId);
 
   for (const image of images) {

@@ -1,19 +1,18 @@
 import { execFileSync, spawnSync } from "node:child_process";
-import { createHash } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { affectedBase } from "./git-changes.mjs";
+
 const repositoryRoot = path.resolve(import.meta.dirname, "..");
 const dockerfile = path.join(repositoryRoot, "Dockerfile");
+const stageScript = "/opt/monimal/stage-test-checkout.mjs";
 export const imageLabels = Object.freeze({
   architecture: "io.stuffbucket.monimal.architecture",
-  dirty: "io.stuffbucket.monimal.dirty",
   mutation: "io.stuffbucket.monimal.mutation",
   purpose: "io.stuffbucket.monimal.purpose",
-  revision: "org.opencontainers.image.revision",
-  sourceDigest: "io.stuffbucket.monimal.source-digest",
 });
 
 function readRequired(filePath) {
@@ -80,29 +79,41 @@ export function readToolPins(root = repositoryRoot) {
   };
 }
 
-const innerScripts = Object.freeze({
-  workspace: "test:inner",
-  "maximal-core": "test:maximal-core:inner",
-  "maximal-dsh-host": "test:maximal-dsh-host:inner",
-  policy: "test:policy:inner",
+const suites = Object.freeze({
+  workspace: { innerScript: "test:inner", rebuild: "workspace" },
+  "maximal-core": {
+    innerScript: "test:maximal-core:inner",
+    rebuild: "core",
+  },
+  "maximal-dsh-host": {
+    innerScript: "test:maximal-dsh-host:inner",
+    rebuild: "maximal-dsh-host",
+  },
+  policy: { innerScript: "test:policy:inner", rebuild: "policy" },
 });
 
 const usage =
-  "Usage: pnpm run test:docker -- [--suite=workspace|maximal-core|maximal-dsh-host|policy] [--trace=off|tests|all]";
+  "Usage: pnpm run test:docker -- [--all] [--suite=workspace|maximal-core|maximal-dsh-host|policy] [--trace=off|tests|all]";
 
 export function parseOptions(arguments_) {
   const options = arguments_[0] === "--" ? arguments_.slice(1) : arguments_;
   let suite = "workspace";
+  let scope = "affected";
   let trace = "off";
   let sawSuite = false;
   let sawTrace = false;
 
   for (const option of options) {
+    if (option === "--all") {
+      if (scope === "all") throw new Error("Duplicate --all option");
+      scope = "all";
+      continue;
+    }
     if (option.startsWith("--suite=")) {
       if (sawSuite) throw new Error("Duplicate --suite option");
       sawSuite = true;
       suite = option.slice("--suite=".length);
-      if (!Object.hasOwn(innerScripts, suite)) {
+      if (!Object.hasOwn(suites, suite)) {
         throw new Error(`Invalid test suite: ${suite}`);
       }
       continue;
@@ -119,7 +130,10 @@ export function parseOptions(arguments_) {
     throw new Error(usage);
   }
 
-  return { suite, trace };
+  if (scope === "all" && suite !== "workspace") {
+    throw new Error("--all only applies to the workspace Docker suite");
+  }
+  return { scope, suite, trace };
 }
 
 export function parseTrace(arguments_) {
@@ -127,158 +141,37 @@ export function parseTrace(arguments_) {
 }
 
 export function innerScriptForSuite(suite) {
-  const script = innerScripts[suite];
+  const script = suites[suite]?.innerScript;
   if (!script) throw new Error(`Invalid test suite: ${suite}`);
   return script;
 }
 
-function snapshotCanaryFile(filePath) {
-  const stat = fs.statSync(filePath, { bigint: true });
-  return {
-    filePath,
-    bytes: fs.readFileSync(filePath),
-    device: stat.dev,
-    inode: stat.ino,
-    mode: stat.mode,
-    size: stat.size,
-    modifiedAt: stat.mtimeNs,
-  };
+function rebuildScopeForSuite(suite) {
+  const rebuild = suites[suite]?.rebuild;
+  if (!rebuild) throw new Error(`Invalid test suite: ${suite}`);
+  return rebuild;
 }
 
-export function createHostStateCanary() {
-  const root = fs.mkdtempSync(
-    path.join(os.tmpdir(), "maximal-host-state-canary-"),
-  );
-  const paths = [
-    path.join(root, "home/.claude/settings.json"),
-    path.join(root, "xdg-data/maximal/accounts.json"),
-  ];
-  for (const filePath of paths) {
-    fs.mkdirSync(path.dirname(filePath), { recursive: true, mode: 0o700 });
-    fs.writeFileSync(filePath, "maximal-docker-test-host-canary\n", {
-      mode: 0o600,
-    });
+export function imageTagForArchitecture(targetArch) {
+  if (targetArch !== "amd64" && targetArch !== "arm64") {
+    throw new Error(`Unsupported Docker target architecture: ${targetArch}`);
   }
-  return { root, files: paths.map(snapshotCanaryFile) };
+  return `monimal-test:dependencies-${targetArch}`;
 }
 
-export function assertHostStateCanaryUnchanged(canary) {
-  for (const before of canary.files) {
-    const after = snapshotCanaryFile(before.filePath);
-    if (
-      !after.bytes.equals(before.bytes) ||
-      after.device !== before.device ||
-      after.inode !== before.inode ||
-      after.mode !== before.mode ||
-      after.size !== before.size ||
-      after.modifiedAt !== before.modifiedAt
-    ) {
-      throw new Error("The Docker test run changed a host-state canary");
-    }
-  }
-}
-
-export function imageTagForState(gitSha, dirty) {
-  requireMatch(gitSha, /^[0-9a-f]{40}$/u, "Git SHA");
-  if (typeof dirty !== "boolean") {
-    throw new Error("Docker image dirty state must be a boolean");
-  }
-  return `monimal-test:${gitSha.slice(0, 12)}-${dirty ? "dirty" : "clean"}`;
-}
-
-function gitBuffer(arguments_, root = repositoryRoot) {
-  return execFileSync("git", arguments_, {
-    cwd: root,
-    encoding: "buffer",
-    stdio: ["ignore", "pipe", "pipe"],
-  });
-}
-
-export function sourceDigest(root = repositoryRoot) {
-  const hash = createHash("sha256");
-  const sha = currentGitSha(root);
-  hash.update("head\0").update(sha).update("\0diff\0");
-  hash.update(
-    gitBuffer(["diff", "--binary", "--no-ext-diff", "HEAD", "--"], root),
-  );
-
-  const untracked = gitBuffer(
-    ["ls-files", "--others", "--exclude-standard", "-z"],
-    root,
-  )
-    .toString("utf8")
-    .split("\0")
-    .filter(Boolean)
-    .sort();
-  for (const relativePath of untracked) {
-    const filePath = path.resolve(root, relativePath);
-    const relative = path.relative(root, filePath);
-    if (relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
-      throw new Error(`Invalid untracked path: ${relativePath}`);
-    }
-    const stat = fs.lstatSync(filePath);
-    hash.update("\0untracked\0").update(relativePath).update("\0");
-    hash.update(String(stat.mode)).update("\0");
-    if (stat.isFile()) {
-      hash.update(fs.readFileSync(filePath));
-    } else if (stat.isSymbolicLink()) {
-      hash.update(fs.readlinkSync(filePath));
-    } else {
-      throw new Error(`Unsupported untracked entry: ${relativePath}`);
-    }
-  }
-  return hash.digest("hex");
-}
-
-export function isLinkedGitWorktree(root = repositoryRoot) {
-  const gitDirectory = fs.realpathSync(
-    execFileSync("git", ["rev-parse", "--path-format=absolute", "--git-dir"], {
-      cwd: root,
-      encoding: "utf8",
-    }).trim(),
-  );
-  const commonDirectory = fs.realpathSync(
-    execFileSync(
-      "git",
-      ["rev-parse", "--path-format=absolute", "--git-common-dir"],
-      { cwd: root, encoding: "utf8" },
-    ).trim(),
-  );
-  return gitDirectory !== commonDirectory;
-}
-
-export function assertPrimaryCheckout(root = repositoryRoot) {
-  let linked;
-  try {
-    linked = isLinkedGitWorktree(root);
-  } catch (error) {
-    throw new Error("Could not verify the primary Git checkout", {
-      cause: error,
-    });
-  }
-  if (linked) {
-    throw new Error(
-      "Docker tests and mutations do not run from linked worktrees. Run `pnpm test`" +
-        " here, then run `pnpm run test:docker` from the primary checkout.",
-    );
-  }
-}
-
-export function expectedImageLabels({ gitSha, dirty, digest, targetArch }) {
+export function expectedImageLabels({ targetArch }) {
   return {
     [imageLabels.architecture]: targetArch,
-    [imageLabels.dirty]: String(dirty),
     [imageLabels.mutation]: "stryker",
     [imageLabels.purpose]: "workspace-test",
-    [imageLabels.revision]: gitSha,
-    [imageLabels.sourceDigest]: digest,
   };
 }
 
 export function validatedImageId(image, expected) {
   if (!image || !/^sha256:[0-9a-f]{64}$/u.test(image.Id)) return undefined;
-  if (image.Architecture !== expected[imageLabels.architecture])
+  if (image.Architecture !== expected[imageLabels.architecture]) {
     return undefined;
+  }
   const labels = image.Config?.Labels;
   if (!labels || typeof labels !== "object") return undefined;
   for (const [name, value] of Object.entries(expected)) {
@@ -310,9 +203,6 @@ export function inspectDockerImage(tag) {
 
 export function buildDockerArguments({
   iidFile,
-  gitSha,
-  dirty,
-  digest,
   pins,
   targetArch,
   cache = "off",
@@ -320,14 +210,11 @@ export function buildDockerArguments({
   if (cache !== "off" && cache !== "gha") {
     throw new Error(`Invalid Docker cache mode: ${cache}`);
   }
-  const imageTag = imageTagForState(gitSha, dirty);
-  requireMatch(digest, /^[0-9a-f]{64}$/u, "source digest");
-  if (targetArch !== "amd64" && targetArch !== "arm64") {
-    throw new Error(`Unsupported Docker target architecture: ${targetArch}`);
-  }
-  const labels = expectedImageLabels({ gitSha, dirty, digest, targetArch });
+  const imageTag = imageTagForArchitecture(targetArch);
+  const labels = expectedImageLabels({ targetArch });
   const arguments_ = [
     ...(cache === "gha" ? ["buildx", "build", "--load"] : ["build"]),
+    "--provenance=false",
     "--file",
     dockerfile,
     "--iidfile",
@@ -335,7 +222,7 @@ export function buildDockerArguments({
     "--tag",
     imageTag,
     "--label",
-    "org.opencontainers.image.title=monimal-test",
+    "org.opencontainers.image.title=monimal-test-dependencies",
     ...Object.entries(labels).flatMap(([name, value]) => [
       "--label",
       `${name}=${value}`,
@@ -350,8 +237,6 @@ export function buildDockerArguments({
     `PNPM_SHA256_AMD64=${pins.pnpmSha256Amd64}`,
     "--build-arg",
     `PNPM_SHA256_ARM64=${pins.pnpmSha256Arm64}`,
-    "--build-arg",
-    `GIT_SHA=${gitSha}`,
     "--build-arg",
     `TARGETARCH=${targetArch}`,
     repositoryRoot,
@@ -377,16 +262,61 @@ export function containerBoundaryArguments() {
   ];
 }
 
+export function checkoutMountArguments(root = repositoryRoot) {
+  if (root.includes(",")) {
+    throw new Error("Docker checkout path cannot contain a comma");
+  }
+  return ["--mount", `type=bind,source=${root},target=/checkout,readonly`];
+}
+
+export function stagedCommandArguments(
+  rebuild,
+  command,
+  commandArguments = [],
+) {
+  return [
+    "node",
+    stageScript,
+    `--rebuild=${rebuild}`,
+    "--",
+    command,
+    ...commandArguments,
+  ];
+}
+
 export function runDockerArguments(imageId, options = {}) {
-  const { suite = "workspace", trace = "off" } = options;
-  const arguments_ = ["run", "--rm", ...containerBoundaryArguments()];
+  const {
+    suite = "workspace",
+    scope = "affected",
+    trace = "off",
+    base,
+  } = options;
+  const arguments_ = [
+    "run",
+    "--rm",
+    ...containerBoundaryArguments(),
+    ...checkoutMountArguments(),
+  ];
   if (trace !== "off") {
     arguments_.push(
       "--env",
       `MAXIMAL_TEST_TRACE=${trace === "all" ? "all" : "1"}`,
     );
   }
-  arguments_.push(imageId, "pnpm", "run", innerScriptForSuite(suite));
+
+  const commandArguments = ["run", innerScriptForSuite(suite)];
+  if (suite === "workspace" && scope === "affected") {
+    requireMatch(base, /^[0-9a-f]{40}$/u, "affected test base");
+    commandArguments.push("--", `--filter=...[${base}]`);
+  }
+  arguments_.push(
+    imageId,
+    ...stagedCommandArguments(
+      rebuildScopeForSuite(suite),
+      "pnpm",
+      commandArguments,
+    ),
+  );
   return arguments_;
 }
 
@@ -405,49 +335,41 @@ function runDocker(arguments_, label) {
   }
 }
 
-export function reusableImageId(state) {
-  const tag = imageTagForState(state.gitSha, state.dirty);
-  return validatedImageId(inspectDockerImage(tag), expectedImageLabels(state));
+export function reusableImageId({ targetArch }) {
+  const tag = imageTagForArchitecture(targetArch);
+  return validatedImageId(
+    inspectDockerImage(tag),
+    expectedImageLabels({ targetArch }),
+  );
 }
 
-export function requireReusableImage(state) {
-  const imageId = reusableImageId(state);
-  if (!imageId) {
-    throw new Error(
-      "No matching mutation-capable test image exists. Run `pnpm run test:docker`" +
-        " from the primary checkout first.",
-    );
-  }
-  return imageId;
-}
-
-export function ensureTestImage({ cache = "off", pins, ...state }) {
-  const existing = reusableImageId(state);
-  if (existing) {
-    console.error(`Reusing Docker test image ${existing}`);
-    return existing;
-  }
-
+export function ensureTestImage({ cache = "off", pins, targetArch }) {
+  const before = reusableImageId({ targetArch });
   const iidDirectory = fs.mkdtempSync(
     path.join(os.tmpdir(), "maximal-test-iid-"),
   );
   const iidFile = path.join(iidDirectory, "image-id");
   try {
     runDocker(
-      buildDockerArguments({ iidFile, pins, cache, ...state }),
-      "Docker test image build",
+      buildDockerArguments({ iidFile, pins, cache, targetArch }),
+      "Docker dependency image build",
     );
     const builtId = requireMatch(
       readRequired(iidFile),
       /^sha256:[0-9a-f]{64}$/u,
       "Docker image ID",
     );
-    const inspectedId = reusableImageId(state);
+    const inspectedId = reusableImageId({ targetArch });
     if (inspectedId !== builtId) {
       throw new Error(
-        "Built Docker image metadata does not match the source state",
+        "Built Docker image metadata does not match its contract",
       );
     }
+    console.error(
+      before === builtId
+        ? `Reusing Docker dependency image ${builtId}`
+        : `Built Docker dependency image ${builtId}`,
+    );
     return builtId;
   } finally {
     fs.rmSync(iidDirectory, { recursive: true, force: true });
@@ -462,9 +384,7 @@ export function dockerServerArchitecture() {
   );
   const architecture = result.stdout?.trim();
   if (result.error || result.status !== 0 || !architecture) {
-    throw new Error(
-      "Docker is unavailable. Start Docker and rerun `pnpm run test:docker`.",
-    );
+    throw new Error("Docker is unavailable. Start Docker and retry.");
   }
   if (architecture !== "amd64" && architecture !== "arm64") {
     throw new Error(`Unsupported Docker server architecture: ${architecture}`);
@@ -472,30 +392,38 @@ export function dockerServerArchitecture() {
   return architecture;
 }
 
-export function currentGitSha(root = repositoryRoot) {
-  const sha = execFileSync("git", ["rev-parse", "HEAD"], {
-    cwd: root,
-    encoding: "utf8",
-  }).trim();
-  return requireMatch(sha, /^[0-9a-f]{40}$/, "Git SHA");
-}
-
-export function isGitWorktreeDirty(root = repositoryRoot) {
-  const status = execFileSync(
-    "git",
-    ["status", "--porcelain=v1", "--untracked-files=all"],
-    { cwd: root, encoding: "utf8" },
+export function isLinkedGitWorktree(root = repositoryRoot) {
+  const gitDirectory = fs.realpathSync(
+    execFileSync("git", ["rev-parse", "--path-format=absolute", "--git-dir"], {
+      cwd: root,
+      encoding: "utf8",
+    }).trim(),
   );
-  return status.trim().length > 0;
+  const commonDirectory = fs.realpathSync(
+    execFileSync(
+      "git",
+      ["rev-parse", "--path-format=absolute", "--git-common-dir"],
+      { cwd: root, encoding: "utf8" },
+    ).trim(),
+  );
+  return gitDirectory !== commonDirectory;
 }
 
-export function currentImageState(root = repositoryRoot) {
-  const gitSha = currentGitSha(root);
-  return {
-    gitSha,
-    dirty: isGitWorktreeDirty(root),
-    digest: sourceDigest(root),
-  };
+export function assertPrimaryCheckout(root = repositoryRoot) {
+  let linked;
+  try {
+    linked = isLinkedGitWorktree(root);
+  } catch (error) {
+    throw new Error("Could not verify the primary Git checkout", {
+      cause: error,
+    });
+  }
+  if (linked) {
+    throw new Error(
+      "Docker tests and mutations do not run from linked worktrees. Run `pnpm test`" +
+        " here, then use the primary checkout for Docker.",
+    );
+  }
 }
 
 export function main(arguments_ = process.argv.slice(2)) {
@@ -503,20 +431,19 @@ export function main(arguments_ = process.argv.slice(2)) {
   assertPrimaryCheckout();
   const cache = process.env.MAXIMAL_DOCKER_CACHE || "off";
   const targetArch = dockerServerArchitecture();
-  const pins = readToolPins();
-  const state = { ...currentImageState(), targetArch };
-  const imageId = ensureTestImage({ cache, pins, ...state });
-  const hostStateCanary = createHostStateCanary();
-
-  try {
-    runDocker(runDockerArguments(imageId, options), "Docker test container");
-  } finally {
-    try {
-      assertHostStateCanaryUnchanged(hostStateCanary);
-    } finally {
-      fs.rmSync(hostStateCanary.root, { recursive: true, force: true });
-    }
-  }
+  const imageId = ensureTestImage({
+    cache,
+    pins: readToolPins(),
+    targetArch,
+  });
+  const base =
+    options.suite === "workspace" && options.scope === "affected"
+      ? affectedBase()
+      : undefined;
+  runDocker(
+    runDockerArguments(imageId, { ...options, base }),
+    "Docker test container",
+  );
 }
 
 const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : "";

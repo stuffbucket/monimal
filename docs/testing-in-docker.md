@@ -9,7 +9,7 @@ The workflow has three tiers:
 | ---------------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------- |
 | Affected native        | `pnpm test`                                   | Fast default for a change in any checkout, including a linked worktree.                  |
 | Full or focused native | `pnpm test -- --all` or `pnpm test -- --core` | Complete workspace admission or a focused Core rerun in the same isolated host boundary. |
-| Mountless Docker       | `pnpm run test:docker`                        | Final host-state boundary from the primary checkout.                                     |
+| Pinned Docker          | `pnpm run test:docker`                        | Linux rerun with container-owned dependencies and toolchains, from the primary checkout. |
 
 Raw package test commands are inner scripts, not supported host entry points. In
 particular, do not run `bun test`, a package-local `test` script, or a test file
@@ -64,41 +64,44 @@ The aggregate gates remain native:
 - `pnpm run check` runs workspace build, typecheck, and lint, Core's host-only
   deep checks, and the default affected native test tier.
 
-Neither aggregate is proof of the mountless Docker boundary.
+Neither aggregate proves that the workspace also passes with the pinned Linux
+dependencies and toolchains.
 
-## Docker final gate
+## Docker dependency boundary
 
-`pnpm run test:docker` builds or reuses an immutable image from the exact checkout
-state, then starts it without a source bind mount. It is an explicit final gate,
-not the edit-test inner loop and not an ordinary CI job.
+`pnpm run test:docker` builds or reuses a dependency image, mounts the primary
+checkout read-only at `/checkout`, and stages the current Git-visible files into
+the container-owned `/workspace`. It is an explicit Linux rerun, not the
+edit-test inner loop and not an ordinary CI job.
 
 Docker tests and Core mutations refuse linked worktrees. Run the native tiers in
 the linked worktree, integrate the change into the primary checkout, and run the
-Docker gate there. This prevents a linked worktree's host-absolute `.git` pointer
-from entering the filtered build context.
+Docker command there. The primary-checkout rule keeps Git discovery and source
+staging on one supported layout.
 
 The runtime container:
 
-- receives no bind mount, named volume, Docker socket, env-file, host UID, or
-  forwarded host environment;
-- runs as the image-owned non-root `maximal` user;
-- owns empty `HOME` and XDG directories under `/home/maximal`;
+- receives one read-only checkout bind mount and no named volume, Docker socket,
+  env-file, host UID, or forwarded host environment;
+- copies tracked and non-ignored untracked files into writable container storage;
+- preserves the image-owned root and package `node_modules` trees instead of
+  reading host dependencies;
+- runs as the image-owned non-root `maximal` user with `HOME` and XDG directories
+  under `/home/maximal`;
 - starts with `--network=none`, `--cap-drop=ALL`,
   `--security-opt=no-new-privileges`, `--init`, and `--rm`;
-- discards every test-time write with the container overlay.
+- discards staged source and every test-time write with the container overlay.
 
-This is a host-state safety boundary, not a sandbox for untrusted code. Docker
-may use the network while building the image. The runtime test phase has no
+This isolates dependencies and toolchains from the host. It is not a sandbox for
+untrusted source: the container can read the mounted checkout, and Docker may use
+the network while building the dependency image. The runtime test phase has no
 network interface beyond loopback.
-
-The wrapper creates temporary host-side Claude and Maximal canaries outside the
-build context. After the container run it verifies their bytes, device, inode,
-mode, size, and nanosecond modification time before removing them.
 
 ### Docker suites and tracing
 
 ```sh
 pnpm run test:docker
+pnpm run test:docker -- --all
 pnpm run test:docker -- --suite=maximal-core
 pnpm run test:docker -- --suite=maximal-dsh-host
 pnpm run test:docker -- --suite=policy
@@ -106,8 +109,10 @@ pnpm run test:docker -- --suite=maximal-core --trace=tests
 pnpm run test:docker -- --trace=all
 ```
 
-`workspace` is the default suite. The wrapper maps each accepted suite to one
-fixed root-owned inner script:
+`workspace` is the default suite. It uses the same merge-base Turbo filter as
+`pnpm test`; `--all` deliberately selects its complete graph and does not combine
+with a focused suite. Focused suites run their complete fixed scope. The wrapper
+maps each accepted suite to one root-owned inner script:
 
 | Suite              | Root inner script             |
 | ------------------ | ----------------------------- |
@@ -123,34 +128,29 @@ arguments, and split selector forms fail closed.
 
 ### Image construction and reuse
 
-The image copies workspace manifests and performs a script-free frozen install
-before it copies source. Source-only changes can therefore reuse the dependency
-layer. Architecture-scoped BuildKit mounts hold pnpm's store and Turborepo cache;
-mount contents are not image-layer content.
+The image contains the pinned Node, Bun, and pnpm toolchains plus a script-free
+frozen workspace install. Its source inputs are the lockfile, workspace manifests,
+registry and pnpm policy files, and the staging helper. Ordinary source and test
+files never enter the image.
 
-After the source copy, the build:
+Every Docker test or mutation asks BuildKit to prepare the stable architecture tag:
 
-1. runs deferred dependency and workspace install scripts with `pnpm rebuild`;
-2. verifies the installed workspace and mutation runner;
-3. builds the workspace;
-4. copies only the Turbo cache artifacts produced for that exact build graph into
-   the ordinary image filesystem.
+```text
+monimal-test:dependencies-amd64
+monimal-test:dependencies-arm64
+```
 
-The Git SHA enters after the dependency layer. Build inputs exclude nested
-`dist`, `.turbo`, and generated `resources/bin` trees so outputs do not change
-their own hashes.
+BuildKit reuses the install layer when the dependency inputs are unchanged and
+rebuilds it when they change. Architecture-scoped cache mounts hold pnpm's store
+and state during image construction; their contents are not image-layer content.
+The wrapper validates the resulting immutable image ID against the architecture,
+workspace-test purpose, and mutation-capable labels before starting a container.
 
-A reusable image must match all of these values:
-
-- the complete current Git SHA;
-- clean or dirty state;
-- a SHA-256 digest of `HEAD`, the binary tracked diff, and every untracked file;
-- Docker server architecture;
-- the workspace-test purpose and mutation-capable labels.
-
-The convenience tag is
-`monimal-test:<12-character-sha>-clean|dirty`, but containers run by immutable
-image ID. A matching labeled image is reused; a tag alone is insufficient.
+At startup, the staging helper copies the checkout into `/workspace`, runs the
+applicable deferred rebuilds and build graph, verifies the installed workspace,
+and starts the fixed inner command. A subsequent Turbo test graph replays those
+build tasks from the container's local cache. The dependency image does not
+contain source-specific build output or a Turbo cache.
 
 Use the repository-owned cleanup command rather than a builder-wide prune:
 
@@ -158,34 +158,45 @@ Use the repository-owned cleanup command rather than a builder-wide prune:
 pnpm run docker:prune:test-images
 ```
 
-It keeps the exact current image when available, otherwise the newest compatible
-Monimal test image. It removes other labeled test images only when no container
-references them. It never invokes `docker builder prune`, which would affect
-other projects.
+It keeps the image for the current architecture when available, otherwise the
+newest compatible Monimal test image. It removes other labeled test images only
+when no container references them. It never invokes `docker builder prune`, which
+would affect other projects.
 
-The root `.dockerignore` is part of the boundary. It removes Git metadata, local
-Claude state, dependencies, build output, generated sidecars, environment files,
-credential-shaped state files, and temporary oMLX material before Docker receives
-the context. The context retains `.npmrc` and vendored package workflow fixtures
-required by workspace verification. The Linux sidecar is rebuilt in the image.
+The root `.dockerignore` limits the dependency-image build context. It removes Git
+metadata, local Claude state, dependencies, build output, generated sidecars,
+environment files, credential-shaped state files, and temporary oMLX material.
+Runtime staging independently uses Git's tracked and non-ignored untracked file
+list, and excludes host dependencies, caches, build output, generated sidecars,
+and mutation reports.
 
 ## Mutation testing
 
-Core mutation testing reuses the exact mutation-capable image admitted by the
-Docker gate. It never builds an image implicitly:
+Core mutation testing is manual during test development. It does not run from CI
+or either aggregate check. The wrapper prepares or reuses the dependency image
+directly; no preceding Docker test is required.
 
 ```sh
-pnpm run test:docker
 pnpm run mutate:core
-pnpm run mutate:core -- --mutate=src/routes/messages/utils.ts --concurrency=4
+pnpm run mutate:core -- --mutate=src/routes/messages/utils.ts:40-57 --concurrency=4
+pnpm run mutate:core -- --all
 ```
 
-The image must still match the current source digest and architecture. If the
-checkout changes after `test:docker`, run that gate again before mutation.
+The default compares the current checkout with the `origin/main` merge base. It
+mutates destination-side line ranges in changed Core TypeScript source, including
+committed, staged, unstaged, edited-renamed, and eligible untracked files. Deleted
+files, rename-only changes, and pure-deletion hunks add no targets. If no mutable
+lines changed, the command fails closed instead of expanding to all source.
 
-The mutation wrapper uses the same isolation flags and host-state canary. It uses
-`docker create`, `start --attach`, `cp`, and `rm --force` because the report must
-survive the disposable container. The report copy into
+`--mutate` completely overrides the derived source targets. `--all` is mutually
+exclusive with that override and deliberately selects the expensive
+`src/**/*.ts` sweep. These options narrow only the code Stryker mutates. Every
+selected mutant still runs Core's complete mutation-safe test command because the
+command runner has no safe test-to-mutant coverage map.
+
+The mutation wrapper uses the same read-only checkout mount and runtime isolation
+flags. It uses `docker create`, `start --attach`, `cp`, and `rm --force` because
+the report must survive the disposable container. The report copy into
 `packages/maximal-core/reports/mutation` is the only intentional host write. It
 is staged and validated before it replaces a previous report.
 

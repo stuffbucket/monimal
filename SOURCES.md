@@ -320,8 +320,9 @@ package provenance or publisher identity -- the proxy does that.
   tests only through the root wrapper's isolated temporary home and state paths;
   raw host tests still fail closed. This native admission is a monorepo deviation
   from the copied repositories' direct package test commands. The root wrapper
-  runs affected or explicit full/focused tests natively, while the mountless,
-  offline Docker runner remains the explicit final host-state gate.
+  runs affected or explicit full/focused tests natively. The Docker runner mounts
+  the primary checkout read-only, stages Git-visible source into writable
+  container storage, and uses container-owned dependencies and toolchains.
 - `maximal/client`: `scripts/build-core.ts` accepts a validated
   `MAXIMAL_GIT_SHA` before falling back to `git rev-parse`. The filtered Docker
   context cannot use this linked worktree's host-absolute `.git` pointer, but

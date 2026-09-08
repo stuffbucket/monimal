@@ -13,12 +13,12 @@ check:fast` after each edit** — oxlint + `tsc` + ESLint. This is the native,
 - Before you call the task done, run **`pnpm run check:core` from the monorepo
   root**. It runs Core's complete non-test gate (`check:deep:host`) and then the
   focused Core suite through the isolated native wrapper. It does **not** cover
-  the mountless Docker final gate or `ci.yml`'s native Windows job. If you
+  the pinned-dependency Docker rerun or `ci.yml`'s native Windows job. If you
   touched `scripts/ops/`, also run
   `pnpm --filter @stuffbucket/maximal-core run check:ops`.
 - To rerun only Core's tests, use **`pnpm test -- --core` from the monorepo
-  root**. For the final host-state gate, use **`pnpm run test:docker --
---suite=maximal-core` from the primary checkout**. The
+  root**. To rerun Core with pinned container dependencies, use **`pnpm run
+test:docker -- --suite=maximal-core` from the primary checkout**. The
   [monorepo test workflow](https://github.com/stuffbucket/monimal/blob/main/docs/testing-in-docker.md)
   owns the scopes, isolation, and linked-worktree rule.
 - **Never run raw host `bun test` or package-local `bun run check:deep` in this

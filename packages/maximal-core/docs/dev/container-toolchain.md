@@ -5,15 +5,15 @@ tree inside the legacy package toolchain image, where Bun is exactly
 `.bun-version` and cannot be anything else. It is not a monorepo test boundary:
 it bind-mounts the checkout. The
 [monorepo test workflow](https://github.com/stuffbucket/monimal/blob/main/docs/testing-in-docker.md)
-owns the isolated native tiers and the separate mountless, offline Docker final
-gate.
+owns the isolated native tiers and the separate pinned-dependency, offline Docker
+rerun.
 
 ```sh
 # Supported verification, from the monorepo root
 pnpm run check:core                   # non-test gate + focused native Core suite
 pnpm test -- --core                  # focused isolated native Core suite
 pnpm run test:docker -- --suite=maximal-core
-                                      # mountless final gate; primary checkout
+                                      # pinned dependency rerun; primary checkout
 
 # Pinned package toolchain, from packages/maximal-core
 bun run container:build              # build the image for the current pin

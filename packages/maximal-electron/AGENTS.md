@@ -43,7 +43,7 @@ Run `npm run lint:fix` after you change code. Do not ask first.
 
 Run `pnpm --filter @stuffbucket/maximal-electron run typecheck` and the native
 workspace tier from [`docs/testing.md`](docs/testing.md) before you report a
-change as done. Run the Docker final gate from the primary checkout.
+change as done. Run the pinned-dependency Docker rerun from the primary checkout.
 
 ## Never
 

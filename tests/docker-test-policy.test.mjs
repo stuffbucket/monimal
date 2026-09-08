@@ -10,29 +10,36 @@ import {
   inspectMutationReport,
   parseMutationOptions,
   publishMutationReport,
+  resolveMutationTargets,
 } from "../scripts/docker-mutate.mjs";
 import {
   publishTurboBuildCache,
   readTurboBuildGraph,
   selectTurboCacheHashes,
 } from "../scripts/copy-turbo-build-cache.mjs";
+import { parseDockerWorkspaceOptions } from "../scripts/docker-workspace-test.mjs";
 import {
-  assertHostStateCanaryUnchanged,
   buildDockerArguments,
+  checkoutMountArguments,
   containerBoundaryArguments,
-  createHostStateCanary,
   expectedImageLabels,
   imageLabels,
+  imageTagForArchitecture,
   innerScriptForSuite,
-  isGitWorktreeDirty,
   isLinkedGitWorktree,
   parseOptions,
   parseTrace,
   readToolPins,
   runDockerArguments,
-  sourceDigest,
+  stagedCommandArguments,
   validatedImageId,
 } from "../scripts/docker-test.mjs";
+import {
+  parseStageOptions,
+  shouldStagePath,
+  stageCheckout,
+  validateCheckoutPath,
+} from "../scripts/stage-test-checkout.mjs";
 import { selectRetainedImage } from "../scripts/prune-test-images.mjs";
 import {
   affectedBase,
@@ -146,8 +153,7 @@ test("the outer and fixed inner test scripts cannot recurse", () => {
       "mutate:core:inner": manifest.scripts["mutate:core:inner"],
     },
     {
-      "test:inner":
-        "node scripts/assert-test-container.mjs && node --test tests/docker-test-policy.test.mjs && turbo run test --concurrency=1",
+      "test:inner": "node scripts/docker-workspace-test.mjs",
       "test:maximal-core:inner":
         "node scripts/assert-test-container.mjs && pnpm --filter @stuffbucket/maximal-core test",
       "test:maximal-dsh-host:inner":
@@ -159,11 +165,7 @@ test("the outer and fixed inner test scripts cannot recurse", () => {
     },
   );
   for (const [name, script] of Object.entries(manifest.scripts)) {
-    if (
-      name === "test:inner" ||
-      /^test:.+:inner$/.test(name) ||
-      name === "mutate:core:inner"
-    ) {
+    if (/^test:.+:inner$/.test(name) || name === "mutate:core:inner") {
       assert.match(script, /^node scripts\/assert-test-container\.mjs /);
       assert.doesNotMatch(script, /pnpm (?:run )?(?:test|mutate:core)(?:\s|$)/);
     }
@@ -242,12 +244,9 @@ test("required CI runs tests on its disposable runner and has one cache writer",
   assert.equal(workflow.split("turbo-v2-").length - 1, 6);
 });
 
-test("Docker builds use an optional fixed GitHub Actions cache", () => {
+test("Docker builds use a reusable dependency image and optional Actions cache", () => {
   const input = {
     iidFile: "/tmp/image-id",
-    gitSha: "a".repeat(40),
-    dirty: false,
-    digest: "d".repeat(64),
     pins: {
       nodeMajor: "24",
       bunVersion: "1.3.14",
@@ -259,70 +258,29 @@ test("Docker builds use an optional fixed GitHub Actions cache", () => {
   };
   const local = buildDockerArguments(input);
   assert.equal(local[0], "build");
-  assert.ok(local.includes("monimal-test:aaaaaaaaaaaa-clean"));
-  assert.ok(local.includes("org.opencontainers.image.title=monimal-test"));
+  assert.ok(local.includes("--provenance=false"));
+  assert.ok(local.includes("monimal-test:dependencies-amd64"));
   assert.ok(
-    local.includes(`org.opencontainers.image.revision=${"a".repeat(40)}`),
+    local.includes("org.opencontainers.image.title=monimal-test-dependencies"),
   );
   assert.ok(local.includes("io.stuffbucket.monimal.purpose=workspace-test"));
-  assert.ok(local.includes("io.stuffbucket.monimal.dirty=false"));
   assert.ok(local.includes("io.stuffbucket.monimal.architecture=amd64"));
   assert.ok(local.includes("io.stuffbucket.monimal.mutation=stryker"));
-  assert.ok(
-    local.includes(`io.stuffbucket.monimal.source-digest=${"d".repeat(64)}`),
+  assert.doesNotMatch(local.join(" "), /GIT_SHA|source-digest|dirty|revision/);
+  assert.equal(
+    imageTagForArchitecture("arm64"),
+    "monimal-test:dependencies-arm64",
   );
-  assert.ok(local.includes(`GIT_SHA=${"a".repeat(40)}`));
-
-  const dirty = buildDockerArguments({ ...input, dirty: true });
-  assert.ok(dirty.includes("monimal-test:aaaaaaaaaaaa-dirty"));
-  assert.ok(dirty.includes("io.stuffbucket.monimal.dirty=true"));
 
   const cached = buildDockerArguments({ ...input, cache: "gha" });
   assert.deepEqual(cached.slice(0, 3), ["buildx", "build", "--load"]);
   assert.ok(cached.includes("type=gha,scope=workspace-test"));
   assert.ok(cached.includes("type=gha,mode=max,scope=workspace-test"));
   assert.throws(
-    () => buildDockerArguments({ ...input, dirty: undefined }),
-    /dirty state must be a boolean/,
-  );
-  assert.throws(
     () => buildDockerArguments({ ...input, cache: "type=local,dest=/tmp" }),
     /Invalid Docker cache mode/,
   );
-});
-
-test("Docker image dirtiness includes tracked and untracked changes", () => {
-  const directory = fs.mkdtempSync(
-    path.join(os.tmpdir(), "monimal-git-status-"),
-  );
-  const git = (...arguments_) =>
-    spawnSync("git", arguments_, { cwd: directory, encoding: "utf8" });
-
-  try {
-    assert.equal(git("init", "--quiet").status, 0);
-    assert.equal(git("config", "user.name", "Docker Policy Test").status, 0);
-    assert.equal(
-      git("config", "user.email", "docker-policy@example.invalid").status,
-      0,
-    );
-    fs.writeFileSync(path.join(directory, "tracked.txt"), "clean\n");
-    assert.equal(git("add", "tracked.txt").status, 0);
-    assert.equal(
-      git("commit", "--quiet", "--no-gpg-sign", "-m", "fixture").status,
-      0,
-    );
-    assert.equal(isGitWorktreeDirty(directory), false);
-
-    fs.appendFileSync(path.join(directory, "tracked.txt"), "dirty\n");
-    assert.equal(isGitWorktreeDirty(directory), true);
-    assert.equal(git("checkout", "--", "tracked.txt").status, 0);
-    assert.equal(isGitWorktreeDirty(directory), false);
-
-    fs.writeFileSync(path.join(directory, "untracked.txt"), "dirty\n");
-    assert.equal(isGitWorktreeDirty(directory), true);
-  } finally {
-    fs.rmSync(directory, { recursive: true, force: true });
-  }
+  assert.throws(() => imageTagForArchitecture("ppc64"), /Unsupported Docker/);
 });
 
 test("native test selection is closed and uses affected dependents", () => {
@@ -410,7 +368,7 @@ test("native test isolation redirects state and scrubs credentials", () => {
   }
 });
 
-test("affected base, source digest, and linked worktree detection use Git state", () => {
+test("affected base and linked worktree detection use Git state", () => {
   const directory = fs.mkdtempSync(
     path.join(os.tmpdir(), "monimal-git-policy-"),
   );
@@ -442,15 +400,6 @@ test("affected base, source digest, and linked worktree detection use Git state"
     );
     assert.equal(isLinkedGitWorktree(directory), false);
 
-    const cleanDigest = sourceDigest(directory);
-    fs.appendFileSync(path.join(directory, "tracked.txt"), "unstaged\n");
-    const unstagedDigest = sourceDigest(directory);
-    assert.notEqual(unstagedDigest, cleanDigest);
-    assert.equal(git("add", "tracked.txt").status, 0);
-    assert.notEqual(sourceDigest(directory), cleanDigest);
-    fs.writeFileSync(path.join(directory, "untracked.txt"), "untracked\n");
-    assert.notEqual(sourceDigest(directory), unstagedDigest);
-
     assert.equal(git("worktree", "add", "--quiet", linked).status, 0);
     assert.equal(isLinkedGitWorktree(linked), true);
   } finally {
@@ -464,13 +413,7 @@ test("affected base, source digest, and linked worktree detection use Git state"
 });
 
 test("Docker image validation and retention require reusable Stryker metadata", () => {
-  const state = {
-    gitSha: "a".repeat(40),
-    dirty: false,
-    digest: "b".repeat(64),
-    targetArch: "arm64",
-  };
-  const labels = expectedImageLabels(state);
+  const labels = expectedImageLabels({ targetArch: "arm64" });
   const exactId = `sha256:${"c".repeat(64)}`;
   const fallbackId = `sha256:${"d".repeat(64)}`;
   const exact = {
@@ -492,13 +435,7 @@ test("Docker image validation and retention require reusable Stryker metadata", 
   };
   assert.equal(validatedImageId(exact, labels), exactId);
   assert.equal(
-    validatedImageId(
-      {
-        ...exact,
-        Config: { Labels: { ...labels, [imageLabels.sourceDigest]: "wrong" } },
-      },
-      labels,
-    ),
+    validatedImageId({ ...exact, Architecture: "amd64" }, labels),
     undefined,
   );
   assert.equal(selectRetainedImage([fallback, exact], exactId), exactId);
@@ -511,14 +448,20 @@ test("Docker image validation and retention require reusable Stryker metadata", 
   );
 });
 
-test("runtime arguments enforce the mountless offline boundary", () => {
+test("runtime arguments mount the checkout read-only behind the offline boundary", () => {
   assert.deepEqual(containerBoundaryArguments(), [
     "--init",
     "--network=none",
     "--cap-drop=ALL",
     "--security-opt=no-new-privileges",
   ]);
-  const arguments_ = runDockerArguments("sha256:" + "a".repeat(64));
+  assert.deepEqual(checkoutMountArguments("/repo"), [
+    "--mount",
+    "type=bind,source=/repo,target=/checkout,readonly",
+  ]);
+  const imageId = "sha256:" + "a".repeat(64);
+  const base = "b".repeat(40);
+  const arguments_ = runDockerArguments(imageId, { base });
   assert.deepEqual(arguments_, [
     "run",
     "--rm",
@@ -526,17 +469,29 @@ test("runtime arguments enforce the mountless offline boundary", () => {
     "--network=none",
     "--cap-drop=ALL",
     "--security-opt=no-new-privileges",
-    "sha256:" + "a".repeat(64),
+    "--mount",
+    `type=bind,source=${root},target=/checkout,readonly`,
+    imageId,
+    "node",
+    "/opt/monimal/stage-test-checkout.mjs",
+    "--rebuild=workspace",
+    "--",
     "pnpm",
     "run",
     "test:inner",
+    "--",
+    `--filter=...[${base}]`,
   ]);
   const joined = arguments_.join(" ");
-  assert.doesNotMatch(joined, /(?:--volume|-v|--mount|--env-file)/);
-  assert.doesNotMatch(joined, /docker\.sock|--network=host/);
+  assert.match(joined, /target=\/checkout,readonly/);
+  assert.doesNotMatch(joined, /--env-file|docker\.sock|--network=host/);
+  assert.doesNotMatch(
+    runDockerArguments(imageId, { scope: "all" }).join(" "),
+    /--filter=/,
+  );
 });
 
-test("mutation arguments enforce the same mountless offline boundary", () => {
+test("mutation arguments use the same mounted dependency boundary", () => {
   const imageId = "sha256:" + "d".repeat(64);
   const options = {
     concurrency: 10,
@@ -549,9 +504,15 @@ test("mutation arguments enforce the same mountless offline boundary", () => {
     "--network=none",
     "--cap-drop=ALL",
     "--security-opt=no-new-privileges",
+    "--mount",
+    `type=bind,source=${root},target=/checkout,readonly`,
     "--env",
     "MAXIMAL_MUTATION_LEDGER=/workspace/packages/maximal-core/reports/mutation/incomplete-runs.log",
     imageId,
+    "node",
+    "/opt/monimal/stage-test-checkout.mjs",
+    "--rebuild=core",
+    "--",
     "pnpm",
     "run",
     "mutate:core:inner",
@@ -561,27 +522,30 @@ test("mutation arguments enforce the same mountless offline boundary", () => {
     "10",
   ]);
   const joined = arguments_.join(" ");
-  assert.doesNotMatch(joined, /(?:--volume|-v|--mount|--env-file)/);
-  assert.doesNotMatch(joined, /docker\.sock|--network=host/);
+  assert.match(joined, /target=\/checkout,readonly/);
+  assert.doesNotMatch(joined, /--env-file|docker\.sock|--network=host/);
 });
 
-test("mutation selectors validate source paths, ranges, and concurrency", () => {
+test("mutation selectors validate affected, explicit, and full source scopes", () => {
   assert.deepEqual(parseMutationOptions([]), {
+    all: false,
     concurrency: undefined,
     mutate: undefined,
   });
-  assert.deepEqual(
-    parseMutationOptions([
-      "--",
-      "--mutate=src/lib/observability/query.ts:43-65,src/lib/observability/schema.ts",
-      "--concurrency=4",
-    ]),
-    {
-      concurrency: 4,
-      mutate:
-        "src/lib/observability/query.ts:43-65,src/lib/observability/schema.ts",
-    },
-  );
+  const explicit = parseMutationOptions([
+    "--",
+    "--mutate=src/lib/observability/query.ts:43-65,src/lib/observability/schema.ts",
+    "--concurrency=4",
+  ]);
+  assert.deepEqual(explicit, {
+    all: false,
+    concurrency: 4,
+    mutate:
+      "src/lib/observability/query.ts:43-65,src/lib/observability/schema.ts",
+  });
+  const all = parseMutationOptions(["--all"]);
+  assert.equal(resolveMutationTargets(explicit), explicit.mutate);
+  assert.equal(resolveMutationTargets(all), "src/**/*.ts");
   for (const option of [
     "--mutate=../outside.ts",
     "--mutate=/tmp/outside.ts",
@@ -593,6 +557,14 @@ test("mutation selectors validate source paths, ranges, and concurrency", () => 
   ]) {
     assert.throws(() => parseMutationOptions([option]), /Invalid mutation/);
   }
+  assert.throws(
+    () => parseMutationOptions(["--all", "--mutate=src/a.ts"]),
+    /mutually exclusive/,
+  );
+  assert.throws(
+    () => parseMutationOptions(["--all", "--all"]),
+    /Duplicate --all/,
+  );
   assert.throws(
     () => parseMutationOptions(["--mutate=src/a.ts", "--mutate=src/b.ts"]),
     /Duplicate --mutate/,
@@ -646,25 +618,125 @@ test("mutation reports replace the prior report only after validation", () => {
   }
 });
 
-test("host-state canaries survive without content or metadata changes", () => {
-  const canary = createHostStateCanary();
+test("checkout staging copies Git-visible source without host dependencies", () => {
+  const checkout = fs.mkdtempSync(path.join(os.tmpdir(), "monimal-checkout-"));
+  const workspace = fs.mkdtempSync(
+    path.join(os.tmpdir(), "monimal-workspace-"),
+  );
+  const git = (...arguments_) =>
+    spawnSync("git", arguments_, { cwd: checkout, encoding: "utf8" });
   try {
-    assertHostStateCanaryUnchanged(canary);
+    assert.equal(git("init", "--quiet").status, 0);
+    assert.equal(git("config", "user.name", "Docker Policy Test").status, 0);
+    assert.equal(
+      git("config", "user.email", "docker-policy@example.invalid").status,
+      0,
+    );
+    fs.writeFileSync(
+      path.join(checkout, ".gitignore"),
+      "node_modules\ndist\nreports/mutation\n",
+    );
+    fs.mkdirSync(path.join(checkout, "packages/core"), { recursive: true });
+    fs.writeFileSync(
+      path.join(checkout, "packages/core/source.ts"),
+      "tracked\n",
+    );
+    assert.equal(git("add", ".").status, 0);
+    assert.equal(
+      git("commit", "--quiet", "--no-gpg-sign", "-m", "fixture").status,
+      0,
+    );
+    fs.writeFileSync(
+      path.join(checkout, "packages/core/new.ts"),
+      "untracked\n",
+    );
+    fs.mkdirSync(path.join(checkout, "node_modules"));
+    fs.writeFileSync(path.join(checkout, "node_modules/host"), "forbidden\n");
+    fs.mkdirSync(path.join(workspace, "node_modules"));
+    fs.writeFileSync(path.join(workspace, "node_modules/image"), "owned\n");
+
+    assert.equal(stageCheckout({ checkout, workspace }), 3);
+    assert.equal(
+      fs.realpathSync(path.join(workspace, ".git")),
+      fs.realpathSync(path.join(checkout, ".git")),
+    );
+    assert.equal(
+      fs.readFileSync(path.join(workspace, "packages/core/source.ts"), "utf8"),
+      "tracked\n",
+    );
+    assert.equal(
+      fs.readFileSync(path.join(workspace, "packages/core/new.ts"), "utf8"),
+      "untracked\n",
+    );
+    assert.equal(
+      fs.readFileSync(path.join(workspace, "node_modules/image"), "utf8"),
+      "owned\n",
+    );
+    assert.equal(
+      fs.statSync(path.join(workspace, "node_modules/host"), {
+        throwIfNoEntry: false,
+      }),
+      undefined,
+    );
+    assert.equal(shouldStagePath("packages/core/source.ts"), true);
+    assert.equal(shouldStagePath("packages/core/dist/index.js"), false);
+    assert.throws(() => validateCheckoutPath("../outside"), /Invalid checkout/);
+    assert.deepEqual(
+      parseStageOptions(["--rebuild=core", "--", "pnpm", "test"]),
+      { command: "pnpm", commandArguments: ["test"], rebuild: "core" },
+    );
+    assert.deepEqual(stagedCommandArguments("core", "pnpm", ["test"]), [
+      "node",
+      "/opt/monimal/stage-test-checkout.mjs",
+      "--rebuild=core",
+      "--",
+      "pnpm",
+      "test",
+    ]);
   } finally {
-    fs.rmSync(canary.root, { recursive: true, force: true });
+    fs.rmSync(checkout, { recursive: true, force: true });
+    fs.rmSync(workspace, { recursive: true, force: true });
   }
 });
 
+test("the Docker workspace runner accepts only one affected Turbo filter", () => {
+  const filter = `--filter=...[${"a".repeat(40)}]`;
+  assert.deepEqual(parseDockerWorkspaceOptions([]), []);
+  assert.deepEqual(parseDockerWorkspaceOptions(["--", filter]), [filter]);
+  assert.throws(
+    () => parseDockerWorkspaceOptions(["--filter=package"]),
+    /Usage: docker-workspace-test/,
+  );
+  assert.throws(
+    () => parseDockerWorkspaceOptions([filter, filter]),
+    /Usage: docker-workspace-test/,
+  );
+});
+
 test("suite and trace selectors are closed and do not forward arguments", () => {
-  assert.deepEqual(parseOptions([]), { suite: "workspace", trace: "off" });
-  assert.deepEqual(parseOptions(["--"]), { suite: "workspace", trace: "off" });
+  assert.deepEqual(parseOptions([]), {
+    scope: "affected",
+    suite: "workspace",
+    trace: "off",
+  });
+  assert.deepEqual(parseOptions(["--"]), {
+    scope: "affected",
+    suite: "workspace",
+    trace: "off",
+  });
   assert.deepEqual(parseOptions(["--suite=maximal-core"]), {
+    scope: "affected",
     suite: "maximal-core",
+    trace: "off",
+  });
+  assert.deepEqual(parseOptions(["--all"]), {
+    scope: "all",
+    suite: "workspace",
     trace: "off",
   });
   assert.deepEqual(
     parseOptions(["--", "--trace=all", "--suite=maximal-dsh-host"]),
-    { suite: "maximal-dsh-host", trace: "all" },
+    { scope: "affected", suite: "maximal-dsh-host", trace: "all" },
   );
   assert.equal(parseTrace(["--trace=tests"]), "tests");
   assert.throws(() => parseOptions(["--suite=other"]), /Invalid test suite/);
@@ -676,6 +748,11 @@ test("suite and trace selectors are closed and do not forward arguments", () => 
   assert.throws(
     () => parseOptions(["--trace=tests", "--trace=all"]),
     /Duplicate --trace/,
+  );
+  assert.throws(() => parseOptions(["--all", "--all"]), /Duplicate --all/);
+  assert.throws(
+    () => parseOptions(["--all", "--suite=maximal-core"]),
+    /only applies to the workspace/,
   );
   for (const arguments_ of [
     ["maximal-core"],
@@ -708,13 +785,17 @@ test("each suite selects one fixed root-owned inner script", () => {
     suite: "maximal-core",
     trace: "tests",
   });
-  assert.deepEqual(arguments_.slice(-4), [
+  assert.deepEqual(arguments_.slice(-8), [
     imageId,
+    "node",
+    "/opt/monimal/stage-test-checkout.mjs",
+    "--rebuild=core",
+    "--",
     "pnpm",
     "run",
     "test:maximal-core:inner",
   ]);
-  assert.deepEqual(arguments_.slice(-6, -4), ["--env", "MAXIMAL_TEST_TRACE=1"]);
+  assert.ok(arguments_.includes("MAXIMAL_TEST_TRACE=1"));
 });
 
 test("tool pins come from their owner files and pnpm checksums from mise", () => {
@@ -728,16 +809,13 @@ test("tool pins come from their owner files and pnpm checksums from mise", () =>
 
   const arguments_ = buildDockerArguments({
     iidFile: "/tmp/image-id",
-    gitSha: "c".repeat(40),
-    dirty: false,
-    digest: "d".repeat(64),
     pins,
     targetArch: "arm64",
   });
   assert.ok(arguments_.includes(`NODE_MAJOR=${pins.nodeMajor}`));
   assert.ok(arguments_.includes(`BUN_VERSION=${pins.bunVersion}`));
   assert.ok(arguments_.includes(`PNPM_VERSION=${pins.pnpmVersion}`));
-  assert.ok(arguments_.includes("GIT_SHA=" + "c".repeat(40)));
+  assert.doesNotMatch(arguments_.join(" "), /GIT_SHA=/);
   assert.ok(arguments_.includes("TARGETARCH=arm64"));
 });
 
@@ -966,7 +1044,7 @@ test("the build context excludes local state but retains source fixtures", () =>
   }
 });
 
-test("the reusable Docker install layer includes every workspace manifest", () => {
+test("the reusable Docker dependency image includes every workspace manifest", () => {
   const dockerfile = read("Dockerfile");
   const manifests = [];
   const visit = (directory) => {
@@ -985,10 +1063,6 @@ test("the reusable Docker install layer includes every workspace manifest", () =
   const install = dockerfile.indexOf(
     "pnpm install --frozen-lockfile --ignore-scripts",
   );
-  const sourceCopy = dockerfile.indexOf("COPY --chown=maximal:maximal . .");
-  const gitShaEnvironment = dockerfile.indexOf(
-    "ENV MAXIMAL_GIT_SHA=${GIT_SHA}",
-  );
   for (const manifest of manifests) {
     const copy = dockerfile.indexOf(
       `COPY --chown=maximal:maximal ${manifest} ${manifest}`,
@@ -996,68 +1070,64 @@ test("the reusable Docker install layer includes every workspace manifest", () =
     assert.ok(copy >= 0, `${manifest} is missing from the metadata layer`);
     assert.ok(copy < install, `${manifest} must be copied before the install`);
   }
-  assert.ok(install >= 0 && install < sourceCopy);
-  assert.ok(sourceCopy < gitShaEnvironment);
+  assert.ok(install >= 0);
+  assert.match(
+    dockerfile,
+    /COPY --chown=maximal:maximal scripts\/stage-test-checkout\.mjs \/opt\/monimal\/stage-test-checkout\.mjs/,
+  );
+  assert.doesNotMatch(dockerfile, /COPY --chown=maximal:maximal \. \./);
+  assert.doesNotMatch(
+    dockerfile,
+    /GIT_SHA|turbo run build|copy-turbo-build-cache/,
+  );
   const pnpmStoreMount =
     "--mount=type=cache,id=maximal-pnpm-${TARGETARCH},target=/workspace/.pnpm-store,uid=10001,gid=10001,sharing=locked";
   const pnpmCacheMount =
     "--mount=type=cache,id=maximal-pnpm-cache-${TARGETARCH},target=/home/maximal/.cache/pnpm,uid=10001,gid=10001,sharing=locked";
   const pnpmStateMount =
     "--mount=type=cache,id=maximal-pnpm-state-${TARGETARCH},target=/home/maximal/.local/state/pnpm,uid=10001,gid=10001,sharing=locked";
-  assert.equal(dockerfile.split(pnpmStoreMount).length - 1, 2);
-  assert.equal(dockerfile.split(pnpmCacheMount).length - 1, 2);
-  assert.equal(dockerfile.split(pnpmStateMount).length - 1, 2);
+  assert.equal(dockerfile.split(pnpmStoreMount).length - 1, 1);
+  assert.equal(dockerfile.split(pnpmCacheMount).length - 1, 1);
+  assert.equal(dockerfile.split(pnpmStateMount).length - 1, 1);
   assert.match(
     dockerfile,
     /pnpm install --frozen-lockfile --ignore-scripts --store-dir=\/workspace\/\.pnpm-store/,
   );
-  assert.match(
-    dockerfile,
-    /pnpm rebuild -r --store-dir=\/workspace\/\.pnpm-store/,
-  );
-  assert.match(
-    dockerfile,
-    /--mount=type=cache,id=maximal-turbo-v3-\$\{TARGETARCH\},target=\/workspace\/\.turbo-build-cache,uid=10001,gid=10001,sharing=locked/,
-  );
-  assert.doesNotMatch(dockerfile, /target=\/workspace\/\.turbo(?:,|\/)/);
-  const graphSnapshot =
-    "./node_modules/.bin/turbo run build --concurrency=1 --dry=json --cache-dir=/workspace/.turbo-build-cache > /tmp/turbo-build-graph.json";
-  const build =
-    "./node_modules/.bin/turbo run build --concurrency=1 --cache-dir=/workspace/.turbo-build-cache";
-  assert.ok(dockerfile.indexOf(graphSnapshot) < dockerfile.indexOf(build));
-  assert.match(
-    dockerfile,
-    /node scripts\/copy-turbo-build-cache\.mjs \/tmp\/turbo-build-graph\.json \/workspace\/\.turbo-build-cache \/workspace\/\.turbo\/cache/,
-  );
-  assert.doesNotMatch(
-    dockerfile,
-    /cp -a \/workspace\/\.turbo-build-cache\/. \/workspace\/\.turbo\/cache\//,
-  );
 });
 
-test("the image owns test homes and runs the test command as non-root", () => {
+test("the image owns test homes and stages commands as non-root", () => {
   const dockerfile = read("Dockerfile");
   assert.match(dockerfile, /^FROM node:24-bookworm-slim@sha256:[0-9a-f]{64}$/m);
-  assert.match(dockerfile, /COPY --chown=maximal:maximal \. \./);
   assert.match(dockerfile, /USER maximal/);
   assert.match(dockerfile, /MAXIMAL_TEST_CONTAINER=1/);
   assert.match(dockerfile, /XDG_CONFIG_HOME=\/home\/maximal\/\.config/);
+  assert.match(
+    dockerfile,
+    /git config --system --add safe\.directory \/checkout/,
+  );
+  assert.match(
+    dockerfile,
+    /git config --system --add safe\.directory \/workspace/,
+  );
   assert.match(dockerfile, /sha256sum -c -/);
   assert.match(dockerfile, /\bprocps\b/);
   assert.match(
     dockerfile,
     /pnpm --filter @stuffbucket\/maximal-core exec stryker --version/,
   );
-  assert.match(dockerfile, /CMD \["pnpm", "run", "test:inner"\]/);
+  assert.match(
+    dockerfile,
+    /CMD \["node", "\/opt\/monimal\/stage-test-checkout\.mjs", "--rebuild=workspace", "--", "pnpm", "run", "test:inner"\]/,
+  );
 });
 
-test("mutation reuses the test image and project pruning stays label-scoped", () => {
+test("mutation prepares the dependency image and pruning stays label-scoped", () => {
   const mutation = read("scripts/docker-mutate.mjs");
   const prune = read("scripts/prune-test-images.mjs");
-  assert.match(mutation, /requireReusableImage/);
+  assert.match(mutation, /ensureTestImage/);
   assert.doesNotMatch(
     mutation,
-    /buildDockerArguments|ensureTestImage|docker[^\n]*build/,
+    /requireReusableImage|sourceDigest|test:docker/,
   );
   assert.match(prune, /label=\$\{imageLabels\.purpose\}=workspace-test/);
   assert.match(prune, /\["image", "rm", image\.Id\]/);

@@ -6,7 +6,6 @@ ARG BUN_VERSION
 ARG PNPM_VERSION
 ARG PNPM_SHA256_AMD64
 ARG PNPM_SHA256_ARM64
-ARG GIT_SHA
 ARG TARGETARCH
 
 # Stryker's process cleanup invokes `ps` through tree-kill.
@@ -47,12 +46,16 @@ RUN set -eux; \
 
 RUN useradd --create-home --uid 10001 --shell /bin/bash maximal \
   && mkdir -p \
+    /checkout \
     /home/maximal/.cache \
     /home/maximal/.config \
     /home/maximal/.local/share \
     /home/maximal/.local/state \
+    /opt/monimal \
     /workspace \
-  && chown -R maximal:maximal /home/maximal /workspace
+  && chown -R maximal:maximal /home/maximal /workspace \
+  && git config --system --add safe.directory /checkout \
+  && git config --system --add safe.directory /workspace
 
 ENV HOME=/home/maximal \
   XDG_CACHE_HOME=/home/maximal/.cache \
@@ -67,9 +70,6 @@ ENV HOME=/home/maximal \
 
 WORKDIR /workspace
 
-# Keep dependency resolution reusable across source-only changes. This layer
-# defers dependency and workspace install scripts until the full checkout is
-# available; workspace build scripts run through Turborepo after the source copy.
 COPY --chown=maximal:maximal package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc .pnpmfile.cjs ./
 COPY --chown=maximal:maximal scripts/lockfile-shard-hosts.cjs scripts/lockfile-shard-hosts.cjs
 COPY --chown=maximal:maximal packages/anthropic-provider/package.json packages/anthropic-provider/package.json
@@ -88,31 +88,12 @@ COPY --chown=maximal:maximal packages/maximal/site/package.json packages/maximal
 COPY --chown=maximal:maximal packages/omlx/package.json packages/omlx/package.json
 
 USER maximal
-
 RUN --mount=type=cache,id=maximal-pnpm-${TARGETARCH},target=/workspace/.pnpm-store,uid=10001,gid=10001,sharing=locked \
   --mount=type=cache,id=maximal-pnpm-cache-${TARGETARCH},target=/home/maximal/.cache/pnpm,uid=10001,gid=10001,sharing=locked \
   --mount=type=cache,id=maximal-pnpm-state-${TARGETARCH},target=/home/maximal/.local/state/pnpm,uid=10001,gid=10001,sharing=locked \
-  pnpm install --frozen-lockfile --ignore-scripts --store-dir=/workspace/.pnpm-store
+  pnpm install --frozen-lockfile --ignore-scripts --store-dir=/workspace/.pnpm-store \
+  && pnpm --filter @stuffbucket/maximal-core exec stryker --version
 
-USER root
-COPY --chown=maximal:maximal . .
-USER maximal
+COPY --chown=maximal:maximal scripts/stage-test-checkout.mjs /opt/monimal/stage-test-checkout.mjs
 
-ENV MAXIMAL_GIT_SHA=${GIT_SHA}
-RUN test "$(printf '%s' "${MAXIMAL_GIT_SHA}" | wc -c)" -eq 40 \
-  && git init --quiet \
-  && printf '%s\n' "${MAXIMAL_GIT_SHA}" > .git/HEAD \
-  && test "$(git rev-parse HEAD)" = "${MAXIMAL_GIT_SHA}"
-
-RUN --mount=type=cache,id=maximal-pnpm-${TARGETARCH},target=/workspace/.pnpm-store,uid=10001,gid=10001,sharing=locked \
-  --mount=type=cache,id=maximal-pnpm-cache-${TARGETARCH},target=/home/maximal/.cache/pnpm,uid=10001,gid=10001,sharing=locked \
-  --mount=type=cache,id=maximal-pnpm-state-${TARGETARCH},target=/home/maximal/.local/state/pnpm,uid=10001,gid=10001,sharing=locked \
-  --mount=type=cache,id=maximal-turbo-v3-${TARGETARCH},target=/workspace/.turbo-build-cache,uid=10001,gid=10001,sharing=locked \
-  pnpm rebuild -r --store-dir=/workspace/.pnpm-store \
-  && pnpm run verify:workspace \
-  && pnpm --filter @stuffbucket/maximal-core exec stryker --version \
-  && ./node_modules/.bin/turbo run build --concurrency=1 --dry=json --cache-dir=/workspace/.turbo-build-cache > /tmp/turbo-build-graph.json \
-  && ./node_modules/.bin/turbo run build --concurrency=1 --cache-dir=/workspace/.turbo-build-cache \
-  && node scripts/copy-turbo-build-cache.mjs /tmp/turbo-build-graph.json /workspace/.turbo-build-cache /workspace/.turbo/cache
-
-CMD ["pnpm", "run", "test:inner"]
+CMD ["node", "/opt/monimal/stage-test-checkout.mjs", "--rebuild=workspace", "--", "pnpm", "run", "test:inner"]

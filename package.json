@@ -11,7 +11,7 @@
     "test:all": "node scripts/test-workspace.mjs --all",
     "test:core": "node scripts/test-workspace.mjs --core",
     "test:docker": "node scripts/docker-test.mjs",
-    "test:inner": "node scripts/assert-test-container.mjs && node --test tests/docker-test-policy.test.mjs && turbo run test --concurrency=1",
+    "test:inner": "node scripts/docker-workspace-test.mjs",
     "test:maximal-core:inner": "node scripts/assert-test-container.mjs && pnpm --filter @stuffbucket/maximal-core test",
     "test:maximal-dsh-host:inner": "node scripts/assert-test-container.mjs && pnpm --filter @stuffbucket/maximal-dsh-host test",
     "test:policy:inner": "node scripts/assert-test-container.mjs && node --test tests/docker-test-policy.test.mjs",
