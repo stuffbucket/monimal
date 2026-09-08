@@ -110,6 +110,7 @@ RUN --mount=type=cache,id=maximal-pnpm-${TARGETARCH},target=/workspace/.pnpm-sto
   --mount=type=cache,id=maximal-turbo-v3-${TARGETARCH},target=/workspace/.turbo-build-cache,uid=10001,gid=10001,sharing=locked \
   pnpm rebuild -r --store-dir=/workspace/.pnpm-store \
   && pnpm run verify:workspace \
+  && pnpm --filter @stuffbucket/maximal-core exec stryker --version \
   && ./node_modules/.bin/turbo run build --concurrency=1 --dry=json --cache-dir=/workspace/.turbo-build-cache > /tmp/turbo-build-graph.json \
   && ./node_modules/.bin/turbo run build --concurrency=1 --cache-dir=/workspace/.turbo-build-cache \
   && node scripts/copy-turbo-build-cache.mjs /tmp/turbo-build-graph.json /workspace/.turbo-build-cache /workspace/.turbo/cache

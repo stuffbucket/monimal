@@ -1,4 +1,5 @@
 import { execFileSync, spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -6,6 +7,14 @@ import { fileURLToPath } from "node:url";
 
 const repositoryRoot = path.resolve(import.meta.dirname, "..");
 const dockerfile = path.join(repositoryRoot, "Dockerfile");
+export const imageLabels = Object.freeze({
+  architecture: "io.stuffbucket.monimal.architecture",
+  dirty: "io.stuffbucket.monimal.dirty",
+  mutation: "io.stuffbucket.monimal.mutation",
+  purpose: "io.stuffbucket.monimal.purpose",
+  revision: "org.opencontainers.image.revision",
+  sourceDigest: "io.stuffbucket.monimal.source-digest",
+});
 
 function readRequired(filePath) {
   const value = fs.readFileSync(filePath, "utf8").trim();
@@ -79,7 +88,7 @@ const innerScripts = Object.freeze({
 });
 
 const usage =
-  "Usage: pnpm test -- [--suite=workspace|maximal-core|maximal-dsh-host|policy] [--trace=off|tests|all]";
+  "Usage: pnpm run test:docker -- [--suite=workspace|maximal-core|maximal-dsh-host|policy] [--trace=off|tests|all]";
 
 export function parseOptions(arguments_) {
   const options = arguments_[0] === "--" ? arguments_.slice(1) : arguments_;
@@ -169,10 +178,141 @@ export function assertHostStateCanaryUnchanged(canary) {
   }
 }
 
+export function imageTagForState(gitSha, dirty) {
+  requireMatch(gitSha, /^[0-9a-f]{40}$/u, "Git SHA");
+  if (typeof dirty !== "boolean") {
+    throw new Error("Docker image dirty state must be a boolean");
+  }
+  return `monimal-test:${gitSha.slice(0, 12)}-${dirty ? "dirty" : "clean"}`;
+}
+
+function gitBuffer(arguments_, root = repositoryRoot) {
+  return execFileSync("git", arguments_, {
+    cwd: root,
+    encoding: "buffer",
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+}
+
+export function sourceDigest(root = repositoryRoot) {
+  const hash = createHash("sha256");
+  const sha = currentGitSha(root);
+  hash.update("head\0").update(sha).update("\0diff\0");
+  hash.update(
+    gitBuffer(["diff", "--binary", "--no-ext-diff", "HEAD", "--"], root),
+  );
+
+  const untracked = gitBuffer(
+    ["ls-files", "--others", "--exclude-standard", "-z"],
+    root,
+  )
+    .toString("utf8")
+    .split("\0")
+    .filter(Boolean)
+    .sort();
+  for (const relativePath of untracked) {
+    const filePath = path.resolve(root, relativePath);
+    const relative = path.relative(root, filePath);
+    if (relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
+      throw new Error(`Invalid untracked path: ${relativePath}`);
+    }
+    const stat = fs.lstatSync(filePath);
+    hash.update("\0untracked\0").update(relativePath).update("\0");
+    hash.update(String(stat.mode)).update("\0");
+    if (stat.isFile()) {
+      hash.update(fs.readFileSync(filePath));
+    } else if (stat.isSymbolicLink()) {
+      hash.update(fs.readlinkSync(filePath));
+    } else {
+      throw new Error(`Unsupported untracked entry: ${relativePath}`);
+    }
+  }
+  return hash.digest("hex");
+}
+
+export function isLinkedGitWorktree(root = repositoryRoot) {
+  const gitDirectory = fs.realpathSync(
+    execFileSync("git", ["rev-parse", "--path-format=absolute", "--git-dir"], {
+      cwd: root,
+      encoding: "utf8",
+    }).trim(),
+  );
+  const commonDirectory = fs.realpathSync(
+    execFileSync(
+      "git",
+      ["rev-parse", "--path-format=absolute", "--git-common-dir"],
+      { cwd: root, encoding: "utf8" },
+    ).trim(),
+  );
+  return gitDirectory !== commonDirectory;
+}
+
+export function assertPrimaryCheckout(root = repositoryRoot) {
+  let linked;
+  try {
+    linked = isLinkedGitWorktree(root);
+  } catch (error) {
+    throw new Error("Could not verify the primary Git checkout", {
+      cause: error,
+    });
+  }
+  if (linked) {
+    throw new Error(
+      "Docker tests and mutations do not run from linked worktrees. Run `pnpm test`" +
+        " here, then run `pnpm run test:docker` from the primary checkout.",
+    );
+  }
+}
+
+export function expectedImageLabels({ gitSha, dirty, digest, targetArch }) {
+  return {
+    [imageLabels.architecture]: targetArch,
+    [imageLabels.dirty]: String(dirty),
+    [imageLabels.mutation]: "stryker",
+    [imageLabels.purpose]: "workspace-test",
+    [imageLabels.revision]: gitSha,
+    [imageLabels.sourceDigest]: digest,
+  };
+}
+
+export function validatedImageId(image, expected) {
+  if (!image || !/^sha256:[0-9a-f]{64}$/u.test(image.Id)) return undefined;
+  if (image.Architecture !== expected[imageLabels.architecture])
+    return undefined;
+  const labels = image.Config?.Labels;
+  if (!labels || typeof labels !== "object") return undefined;
+  for (const [name, value] of Object.entries(expected)) {
+    if (labels[name] !== value) return undefined;
+  }
+  return image.Id;
+}
+
+export function inspectDockerImage(tag) {
+  const result = spawnSync(
+    "docker",
+    ["image", "inspect", "--format", "{{json .}}", tag],
+    { cwd: repositoryRoot, encoding: "utf8" },
+  );
+  if (result.error) {
+    throw new Error(
+      `Docker image inspection could not start: ${result.error.message}`,
+    );
+  }
+  if (result.status !== 0 || !result.stdout?.trim()) return undefined;
+  try {
+    return JSON.parse(result.stdout.trim());
+  } catch (error) {
+    throw new Error("Docker image inspection returned invalid JSON", {
+      cause: error,
+    });
+  }
+}
+
 export function buildDockerArguments({
   iidFile,
   gitSha,
   dirty,
+  digest,
   pins,
   targetArch,
   cache = "off",
@@ -180,10 +320,12 @@ export function buildDockerArguments({
   if (cache !== "off" && cache !== "gha") {
     throw new Error(`Invalid Docker cache mode: ${cache}`);
   }
-  if (typeof dirty !== "boolean") {
-    throw new Error("Docker image dirty state must be a boolean");
+  const imageTag = imageTagForState(gitSha, dirty);
+  requireMatch(digest, /^[0-9a-f]{64}$/u, "source digest");
+  if (targetArch !== "amd64" && targetArch !== "arm64") {
+    throw new Error(`Unsupported Docker target architecture: ${targetArch}`);
   }
-  const imageTag = `monimal-test:${gitSha.slice(0, 12)}-${dirty ? "dirty" : "clean"}`;
+  const labels = expectedImageLabels({ gitSha, dirty, digest, targetArch });
   const arguments_ = [
     ...(cache === "gha" ? ["buildx", "build", "--load"] : ["build"]),
     "--file",
@@ -194,12 +336,10 @@ export function buildDockerArguments({
     imageTag,
     "--label",
     "org.opencontainers.image.title=monimal-test",
-    "--label",
-    `org.opencontainers.image.revision=${gitSha}`,
-    "--label",
-    "io.stuffbucket.monimal.purpose=workspace-test",
-    "--label",
-    `io.stuffbucket.monimal.dirty=${dirty}`,
+    ...Object.entries(labels).flatMap(([name, value]) => [
+      "--label",
+      `${name}=${value}`,
+    ]),
     "--build-arg",
     `NODE_MAJOR=${pins.nodeMajor}`,
     "--build-arg",
@@ -265,6 +405,55 @@ function runDocker(arguments_, label) {
   }
 }
 
+export function reusableImageId(state) {
+  const tag = imageTagForState(state.gitSha, state.dirty);
+  return validatedImageId(inspectDockerImage(tag), expectedImageLabels(state));
+}
+
+export function requireReusableImage(state) {
+  const imageId = reusableImageId(state);
+  if (!imageId) {
+    throw new Error(
+      "No matching mutation-capable test image exists. Run `pnpm run test:docker`" +
+        " from the primary checkout first.",
+    );
+  }
+  return imageId;
+}
+
+export function ensureTestImage({ cache = "off", pins, ...state }) {
+  const existing = reusableImageId(state);
+  if (existing) {
+    console.error(`Reusing Docker test image ${existing}`);
+    return existing;
+  }
+
+  const iidDirectory = fs.mkdtempSync(
+    path.join(os.tmpdir(), "maximal-test-iid-"),
+  );
+  const iidFile = path.join(iidDirectory, "image-id");
+  try {
+    runDocker(
+      buildDockerArguments({ iidFile, pins, cache, ...state }),
+      "Docker test image build",
+    );
+    const builtId = requireMatch(
+      readRequired(iidFile),
+      /^sha256:[0-9a-f]{64}$/u,
+      "Docker image ID",
+    );
+    const inspectedId = reusableImageId(state);
+    if (inspectedId !== builtId) {
+      throw new Error(
+        "Built Docker image metadata does not match the source state",
+      );
+    }
+    return builtId;
+  } finally {
+    fs.rmSync(iidDirectory, { recursive: true, force: true });
+  }
+}
+
 export function dockerServerArchitecture() {
   const result = spawnSync(
     "docker",
@@ -274,7 +463,7 @@ export function dockerServerArchitecture() {
   const architecture = result.stdout?.trim();
   if (result.error || result.status !== 0 || !architecture) {
     throw new Error(
-      "Docker is unavailable. Start Docker and rerun `pnpm test`.",
+      "Docker is unavailable. Start Docker and rerun `pnpm run test:docker`.",
     );
   }
   if (architecture !== "amd64" && architecture !== "arm64") {
@@ -300,32 +489,31 @@ export function isGitWorktreeDirty(root = repositoryRoot) {
   return status.trim().length > 0;
 }
 
+export function currentImageState(root = repositoryRoot) {
+  const gitSha = currentGitSha(root);
+  return {
+    gitSha,
+    dirty: isGitWorktreeDirty(root),
+    digest: sourceDigest(root),
+  };
+}
+
 export function main(arguments_ = process.argv.slice(2)) {
   const options = parseOptions(arguments_);
+  assertPrimaryCheckout();
   const cache = process.env.MAXIMAL_DOCKER_CACHE || "off";
   const targetArch = dockerServerArchitecture();
   const pins = readToolPins();
-  const gitSha = currentGitSha();
-  const dirty = isGitWorktreeDirty();
-  const iidDirectory = fs.mkdtempSync(
-    path.join(os.tmpdir(), "maximal-test-iid-"),
-  );
-  const iidFile = path.join(iidDirectory, "image-id");
+  const state = { ...currentImageState(), targetArch };
+  const imageId = ensureTestImage({ cache, pins, ...state });
   const hostStateCanary = createHostStateCanary();
 
   try {
-    runDocker(
-      buildDockerArguments({ iidFile, gitSha, dirty, pins, targetArch, cache }),
-      "Docker test image build",
-    );
-    const imageId = readRequired(iidFile);
-    requireMatch(imageId, /^sha256:[0-9a-f]{64}$/, "Docker image ID");
     runDocker(runDockerArguments(imageId, options), "Docker test container");
   } finally {
     try {
       assertHostStateCanaryUnchanged(hostStateCanary);
     } finally {
-      fs.rmSync(iidDirectory, { recursive: true, force: true });
       fs.rmSync(hostStateCanary.root, { recursive: true, force: true });
     }
   }

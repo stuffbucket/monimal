@@ -1,17 +1,20 @@
 # Commands
 
-Run the supported verification commands from the monorepo root. The remaining
-commands are Core package scripts and are run from `packages/maximal-core/`
-unless shown with a root-level `pnpm` invocation.
+Run the supported verification commands from the monorepo root. The
+[monorepo test workflow](https://github.com/stuffbucket/monimal/blob/main/docs/testing-in-docker.md)
+owns native isolation, scopes, and the primary-checkout Docker final gate. The
+remaining commands are Core package scripts and are run from
+`packages/maximal-core/` unless shown with a root-level `pnpm` invocation.
 
 ```sh
 # Supported monorepo verification (run from the monorepo root)
 pnpm --filter @stuffbucket/maximal-core run check:fast
                      # native non-product inner loop: lint:fast + typecheck + lint:all
-pnpm run check:core  # complete Core gate: check:deep:host natively, then the
-                     # focused Core test suite in the root-owned Docker boundary
-pnpm test -- --suite=maximal-core
-                     # focused Docker rerun of Core's fixed guarded test script
+pnpm run check:core  # complete Core gate: check:deep:host, then the focused
+                     # Core suite through the isolated native wrapper
+pnpm test -- --core  # focused isolated native Core rerun
+pnpm run test:docker -- --suite=maximal-core
+                     # mountless Docker final gate, from the primary checkout
 
 bun install          # Install dependencies
 bun run dev          # Dev mode with watch
@@ -32,11 +35,11 @@ bun run check:fast   # lint:fast + typecheck + lint:all (the per-edit inner loop
 bun run check:deep:host
                      # every non-test check: preflight + check:fast + casts:check +
                      # knip + deps:check + dupes:check + ci:check + build +
-                     # typecheck:downstream. This is the native half used by
-                     # root `pnpm run check:core`.
+                     # typecheck:downstream. Root `pnpm run check:core` follows it
+                     # with the focused isolated native Core suite.
 bun run check:deep   # standalone/Core-CI composition: check:deep:host + bun test.
                      # In this monorepo, raw host execution deliberately fails
-                     # closed at the guarded test command; use `pnpm run
+                     # closed at the guarded test command; use root `pnpm run
                      # check:core` instead. Every constituent still runs in a
                      # required CI job — what ci:check asserts, with the recorded
                      # justified exclusions unchanged.
@@ -72,17 +75,16 @@ MAXIMAL_E2E_BINARY=<path> bun run e2e
                      # src/main.ts — so point it at that artifact.
 
 # Mutation testing (manual only — not wired into check:deep)
-bun run mutate       # workspace-owned run over stryker.conf.json's scope;
-                     # concurrency defaults to 10
-bun run mutate -- --mutate=src/routes/messages/utils.ts --concurrency=4
+pnpm run test:docker # root, primary checkout: admit the exact test image first
+pnpm run mutate:core # root wrapper; reuses that image and publishes the report
+pnpm run mutate:core -- --mutate=src/routes/messages/utils.ts --concurrency=4
                      # narrow the SOURCE scope per run instead of editing the file.
-                     # Budget ~2-2.5s per mutant; a 400-line module is ~20 min.
-                     # Reports are published to reports/mutation. Do NOT narrow
-                     # the test command.
-bun run test:mutation  # Stryker-only inner command; requires the workspace-owned
-                     # absolute ledger path. Runs everything except six
-                     # port/process tests that can false-kill concurrent mutants
-                     # and bin-shebang, whose required dist file is not sandboxed.
+                     # The image must match the current source digest. Reports are
+                     # published to reports/mutation. Do NOT narrow the test command.
+bun run mutate       # package alias for the same root Docker mutation wrapper
+bun run test:mutation  # container-only Stryker inner command; requires the
+                     # wrapper-owned absolute ledger path. Runs everything except
+                     # six port/process tests and bin-shebang.
 
 # Release tooling
 bun run release:check pr <n>              # scripts/ops/release-gates.ts — one PR's
@@ -135,17 +137,17 @@ bun run container:build  # build maximal-core-ci:bun-<.bun-version>. The tag IS
 bun run container:run -- <cmd>  # run a non-test <cmd> against this tree inside
                          # the pinned package toolchain. Its own node_modules
                          # volume is never the host's. For the non-test gate use
-                         # `-- bun run check:deep:host`; tests belong to the
-                         # root-owned mountless Docker boundary above.
+                         # `-- bun run check:deep:host`; normal tests use the root
+                         # native tiers, and the final gate uses root Docker.
 bun run container:shell  # interactive bash in the same environment
 ```
 
 Raw host `bun test` (with or without a file path) is not a supported shortcut:
-the package preload rejects it outside the marked container. Package-local
-`bun run check:deep` is retained as the coherent standalone/Core-CI aggregate,
-but likewise cannot complete on a monorepo host because its test member fails
-closed. Use the two root commands above instead; the focused selector is
-intentionally a closed suite name rather than an arbitrary command passthrough.
+the package preload admits it only under the isolated root wrapper or the marked
+container. Package-local `bun run check:deep` remains the standalone/Core-CI
+aggregate but cannot complete directly on a monorepo host. Use the root commands
+above; their native scope and Docker suite selectors are closed rather than
+arbitrary command passthroughs.
 
 `bun run typecheck` (root `tsc`) covers `src/`, `tests/`, `scripts/`,
 `eslint.config.js`, `tsup.config.ts` and `downstream/check.ts`. `scripts/ops/` is
@@ -155,4 +157,3 @@ files are type-checked but only oxlint-linted.
 
 Core is headless — there is no `shell/`, no desktop-shell build, and no UI bundle to
 watch. `bun run dev -- start --port 4141` runs the proxy from source.
-

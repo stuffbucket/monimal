@@ -1,18 +1,16 @@
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
   assertHostStateCanaryUnchanged,
-  buildDockerArguments,
+  assertPrimaryCheckout,
   containerBoundaryArguments,
   createHostStateCanary,
-  currentGitSha,
+  currentImageState,
   dockerServerArchitecture,
-  isGitWorktreeDirty,
-  readToolPins,
+  requireReusableImage,
 } from "./docker-test.mjs";
 
 const repositoryRoot = path.resolve(import.meta.dirname, "..");
@@ -199,32 +197,13 @@ function copyMutationReport(containerId) {
 
 export function main(arguments_ = process.argv.slice(2)) {
   const options = parseMutationOptions(arguments_);
-  const cache = process.env.MAXIMAL_DOCKER_CACHE || "off";
+  assertPrimaryCheckout();
   const targetArch = dockerServerArchitecture();
-  const pins = readToolPins();
-  const gitSha = currentGitSha();
-  const dirty = isGitWorktreeDirty();
-  const temporaryDirectory = fs.mkdtempSync(
-    path.join(os.tmpdir(), "maximal-mutation-iid-"),
-  );
-  const iidFile = path.join(temporaryDirectory, "image-id");
+  const imageId = requireReusableImage({ ...currentImageState(), targetArch });
   const hostStateCanary = createHostStateCanary();
   let containerId;
 
   try {
-    const build = runDocker(
-      buildDockerArguments({ iidFile, gitSha, dirty, pins, targetArch, cache }),
-      "Docker mutation image build",
-    );
-    if (build.status !== 0) {
-      throw new Error(
-        `Docker mutation image build failed with exit code ${build.status ?? "unknown"}`,
-      );
-    }
-    const imageId = fs.readFileSync(iidFile, "utf8").trim();
-    if (!/^sha256:[0-9a-f]{64}$/u.test(imageId)) {
-      throw new Error(`Invalid Docker image ID: ${imageId}`);
-    }
     containerId = requiredOutput(
       runDocker(
         createMutationContainerArguments(imageId, options),
@@ -257,7 +236,6 @@ export function main(arguments_ = process.argv.slice(2)) {
     try {
       assertHostStateCanaryUnchanged(hostStateCanary);
     } finally {
-      fs.rmSync(temporaryDirectory, { recursive: true, force: true });
       fs.rmSync(hostStateCanary.root, { recursive: true, force: true });
     }
   }
