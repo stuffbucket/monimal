@@ -4,7 +4,7 @@
   "packageManager": "npm",
   "testRunner": "vitest",
   "vitest": {
-    "configFile": "vitest.config.ts"
+    "configFile": "vitest.config.mts"
   },
   "mutate": [
     "scripts/component-css.mjs",

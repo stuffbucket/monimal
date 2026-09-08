@@ -74,7 +74,7 @@ const SOURCE_FILES = [
   'forge.config.ts',
   'stryker.conf.json',
   'eslint.config.mjs',
-  'vitest.config.ts',
+  'vitest.config.mts',
   'playwright.config.ts',
   'tsconfig.json',
 ];

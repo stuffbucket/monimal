@@ -1,7 +1,7 @@
 import { defineConfig } from '@playwright/test'
 
 // Packaged-app E2E only — see e2e/packaged-app.spec.ts. Deliberately separate
-// from vitest.config.ts's unit suite: this one needs `npm run package` to
+// from vitest.config.mts's unit suite: this one needs `npm run package` to
 // have already produced client/out/**, drives a REAL packaged app process
 // (relocated outside the repo first — see e2e/support/relocate-app.ts), and
 // is far slower than the unit tests (real Electron + sidecar boot).
