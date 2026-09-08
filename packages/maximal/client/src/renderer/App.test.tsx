@@ -18,6 +18,7 @@ vi.mock('./settings/capabilities', () => ({
   createCoreSettingsCapabilities: () => ({
     account: { status: async () => ({ state: 'authenticated' }) },
     subscribe: () => () => {},
+    onOpenRequest: () => () => {},
   }),
 }))
 vi.mock('./first-run/FirstRun', () => ({ FirstRun: () => <p>First run</p> }))
