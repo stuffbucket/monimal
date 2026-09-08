@@ -101,13 +101,14 @@ jobs:
           bun-version-file: .bun-version
 
       - name: Restore turbo cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: turbo-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .turbo
-          key: turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          key: turbo-v2-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
           restore-keys: |
-            turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
-            turbo-${{ runner.os }}-
+            turbo-v2-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
+            turbo-v2-${{ runner.os }}-
 
       # Checks this file itself: workflow schema, plus shellcheck over every
       # `run:` block. That shell is not covered by any other lint here.
@@ -206,6 +207,16 @@ jobs:
         env:
           TEST_TRACE: ${{ inputs.test_trace || 'off' }}
 
+      # Pull requests can restore main's cache, but caches created under a PR
+      # merge ref are invisible to main. Save only the exact tested main SHA so
+      # one useful lineage is retained and PR runs avoid uploading it.
+      - name: Save turbo cache
+        if: github.event_name == 'push' && steps.turbo-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .turbo
+          key: ${{ steps.turbo-cache.outputs.cache-primary-key }}
+
   # Exercises Forge packaging and the public-hoist behavior that ordinary
   # build/typecheck/lint/test do not prove.
   #
@@ -247,10 +258,10 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .turbo
-          key: turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          key: turbo-v2-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
           restore-keys: |
-            turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
-            turbo-${{ runner.os }}-
+            turbo-v2-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
+            turbo-v2-${{ runner.os }}-
 
       # Electron's binary is fetched by a postinstall. The exact manifest pin
       # avoids writing another ~100MB cache entry after unrelated lock changes.

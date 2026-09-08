@@ -45,7 +45,7 @@
     },
     "package": {
       "dependsOn": ["build"],
-      "outputs": ["out/**", ".vite/**"],
+      "cache": false,
       "inputs": ["$TURBO_DEFAULT$", "!research_log/**", "!.claude/**", "!.github/**"]
     },
     "dev": {
