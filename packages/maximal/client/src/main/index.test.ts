@@ -8,13 +8,55 @@ import {
 const {
   browserWindows,
   fakeApp,
+  fakeWindow,
+  installApplicationMenuMock,
   ipcMainHandle,
   onBeforeSendHeaders,
   onHeadersReceived,
+  runShellMock,
   shellOpenExternal,
   webContentsSend,
+  windowState,
 } = vi.hoisted(() => {
   const listeners = new Map<string, Set<(...args: unknown[]) => void>>()
+  const windowListeners = new Map<string, (...args: unknown[]) => void>()
+  const webContentsListeners = new Map<string, (...args: unknown[]) => void>()
+  const webContentsSend = vi.fn()
+  const windowState = {
+    destroyed: false,
+    loading: false,
+    minimized: false,
+    visible: true,
+  }
+  const fakeWindow = {
+    isDestroyed: () => windowState.destroyed,
+    isMinimized: () => windowState.minimized,
+    isVisible: () => windowState.visible,
+    restore: vi.fn(() => {
+      windowState.minimized = false
+    }),
+    show: vi.fn(() => {
+      windowState.visible = true
+    }),
+    focus: vi.fn(),
+    setSkipTaskbar: vi.fn(),
+    on: vi.fn((event: string, listener: (...args: unknown[]) => void) => {
+      windowListeners.set(event, listener)
+    }),
+    emit: (event: string, ...args: unknown[]) => {
+      windowListeners.get(event)?.(...args)
+    },
+    webContents: {
+      isLoading: () => windowState.loading,
+      send: webContentsSend,
+      on: vi.fn((event: string, listener: (...args: unknown[]) => void) => {
+        webContentsListeners.set(event, listener)
+      }),
+      emit: (event: string, ...args: unknown[]) => {
+        webContentsListeners.get(event)?.(...args)
+      },
+    },
+  }
   const fakeApp = {
     isPackaged: false,
     whenReady: vi.fn(() => Promise.resolve()),
@@ -31,6 +73,8 @@ const {
     },
     removeAllListeners() {
       listeners.clear()
+      windowListeners.clear()
+      webContentsListeners.clear()
     },
   }
   return {
@@ -39,11 +83,15 @@ const {
       webContents: { send: ReturnType<typeof vi.fn> }
     }>,
     fakeApp,
+    fakeWindow,
+    installApplicationMenuMock: vi.fn(),
     ipcMainHandle: vi.fn(),
     onBeforeSendHeaders: vi.fn(),
     onHeadersReceived: vi.fn(),
+    runShellMock: vi.fn(() => fakeWindow),
     shellOpenExternal: vi.fn(() => Promise.resolve()),
-    webContentsSend: vi.fn(),
+    webContentsSend,
+    windowState,
   }
 })
 
@@ -60,7 +108,22 @@ vi.mock('electron', () => ({
   shell: { openExternal: shellOpenExternal },
 }))
 
-vi.mock('./shell.js', () => ({ runShell: vi.fn() }))
+vi.mock('./shell.js', () => ({ runShell: runShellMock }))
+
+vi.mock('./menu-bar-mode.js', () => ({
+  MenuBarModeController: class {
+    initialize = vi.fn(async () => {})
+    applyToWindow = vi.fn()
+    cancelPending = vi.fn()
+    keepsAlive = vi.fn(() => false)
+    state = vi.fn(() => ({ enabled: false, pending: false }))
+    beginEnable = vi.fn(() => ({ attemptId: 'attempt-1', deadlineMs: 1 }))
+    confirmEnable = vi.fn(async () => ({ enabled: true, pending: false }))
+    cancelEnable = vi.fn(() => ({ enabled: false, pending: false }))
+    disable = vi.fn(async () => ({ enabled: false, pending: false }))
+    dispose = vi.fn()
+  },
+}))
 
 // Identity — the app's name, menu and dock icon — is not what this file is
 // about, and it reaches for Electron surfaces (`Menu`, `nativeImage`,
@@ -69,7 +132,7 @@ vi.mock('./shell.js', () => ({ runShell: vi.fn() }))
 vi.mock('./identity.js', () => ({
   applyAppName: vi.fn(),
   applyDockIcon: vi.fn(),
-  installApplicationMenu: vi.fn(),
+  installApplicationMenu: installApplicationMenuMock,
 }))
 
 const { killCoreMock, spawnCoreMock, onCoreStatusMock } = vi.hoisted(() => ({
@@ -130,7 +193,17 @@ async function loadIndexOn(platform: NodeJS.Platform): Promise<void> {
   onHeadersReceived.mockClear()
   shellOpenExternal.mockClear()
   webContentsSend.mockClear()
+  runShellMock.mockClear()
+  installApplicationMenuMock.mockClear()
+  fakeWindow.restore.mockClear()
+  fakeWindow.show.mockClear()
+  fakeWindow.focus.mockClear()
+  fakeWindow.setSkipTaskbar.mockClear()
   browserWindows.length = 0
+  windowState.destroyed = false
+  windowState.loading = false
+  windowState.minimized = false
+  windowState.visible = true
   fakeApp.quit.mockClear()
   fakeApp.removeAllListeners()
   Object.defineProperty(process, 'platform', {
@@ -277,6 +350,68 @@ describe('closed IPC boundary', () => {
 
     expect(INVOKE_CHANNELS).toContain(BRIDGE_CHANNELS.lifecycleCurrent)
     expect(INVOKE_CHANNELS).not.toContain('core:status:current')
+  })
+})
+
+describe('native Settings requests', () => {
+  function onOpenSettings(): (sectionId: string | null) => void {
+    const callbacks = installApplicationMenuMock.mock.calls[0]?.[0] as
+      | { onOpenSettings?: (sectionId: string | null) => void }
+      | undefined
+    if (!callbacks?.onOpenSettings) throw new Error('Settings callback not installed')
+    return callbacks.onOpenSettings
+  }
+
+  function pendingRequestHandler(): () => unknown {
+    const registration = ipcMainHandle.mock.calls.find(
+      ([channel]) => channel === BRIDGE_CHANNELS.pendingSettingsRequest,
+    )
+    if (!registration) throw new Error('Pending request IPC not registered')
+    return registration[1] as () => unknown
+  }
+
+  it('delivers immediately to a live renderer after restoring and focusing its window', async () => {
+    await loadIndexOn('darwin')
+    windowState.minimized = true
+    windowState.visible = false
+
+    onOpenSettings()('settings-usage-heading')
+
+    expect(fakeWindow.restore).toHaveBeenCalledTimes(1)
+    expect(fakeWindow.show).toHaveBeenCalledTimes(1)
+    expect(fakeWindow.focus).toHaveBeenCalledTimes(1)
+    expect(webContentsSend).toHaveBeenCalledWith(
+      BRIDGE_CHANNELS.menuOpenSettings,
+      'settings-usage-heading',
+    )
+    expect(pendingRequestHandler()()).toBeNull()
+  })
+
+  it('retains a request while the renderer is loading and consumes it once', async () => {
+    await loadIndexOn('darwin')
+    windowState.loading = true
+
+    onOpenSettings()('settings-models-heading')
+
+    expect(webContentsSend).not.toHaveBeenCalledWith(
+      BRIDGE_CHANNELS.menuOpenSettings,
+      expect.anything(),
+    )
+    expect(pendingRequestHandler()()).toEqual({
+      sectionId: 'settings-models-heading',
+    })
+    expect(pendingRequestHandler()()).toBeNull()
+  })
+
+  it('creates a reachable window and retains the request when none exists', async () => {
+    await loadIndexOn('darwin')
+    fakeWindow.emit('closed')
+
+    onOpenSettings()(null)
+
+    expect(runShellMock).toHaveBeenCalledTimes(2)
+    expect(fakeWindow.focus).toHaveBeenCalledTimes(1)
+    expect(pendingRequestHandler()()).toEqual({ sectionId: null })
   })
 })
 

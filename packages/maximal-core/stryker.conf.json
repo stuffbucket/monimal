@@ -19,7 +19,6 @@
   "concurrency": 10,
   "timeoutMS": 30000,
   "ignorePatterns": [
-    "dist",
     "build",
     "node_modules",
     ".claude",

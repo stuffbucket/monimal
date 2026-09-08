@@ -46,6 +46,8 @@
   --shell-text-sm: 0.8125rem;
   --shell-text-base: 0.875rem;
   --shell-text-md: 0.9375rem;
+  --shell-text-lg: 1.0625rem;
+  --shell-text-xl: 1.375rem;
   --shell-weight-md: 500;
   --shell-weight-lg: 600;
   --shell-leading-base: 1.5;

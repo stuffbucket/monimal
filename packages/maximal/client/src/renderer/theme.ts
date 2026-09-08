@@ -23,6 +23,7 @@
  *   --shell-text-muted on --shell-background     5.14:1
  *   --shell-text-subtle on --shell-background    3.28:1  (sub-AA; quiet text only)
  *   --shell-accent on --shell-background         5.41:1
+ *   --shell-accent-contrast on --shell-accent    5.41:1  (primary actions)
  *   --shell-accent on --shell-accent-muted       4.61:1  (selected nav text)
  */
 const THEME_CSS = `
@@ -52,8 +53,10 @@ const THEME_CSS = `
   --shell-hover: rgb(255 255 255 / 0.06);
   --shell-active: rgb(255 255 255 / 0.1);
 
-  /* Selection, focus and resize feedback. */
+  /* Selection, focus and resize feedback. Primary actions reuse the window
+     background as their contrasting foreground instead of adding a palette. */
   --shell-accent: #5198a6;
+  --shell-accent-contrast: #16181d;
 
   /* Selected-control background. A translucent tint of --shell-accent rather
      than a flat colour, so accent-coloured text on top of it still clears
@@ -73,7 +76,7 @@ const THEME_CSS = `
      application wants: the frame is the root element, it has no siblings to
      overlay, and being fixed is what frees it from depending on a height
      chain through html/body/#root. */
-  --shell-font: 400 14px/1.5 system-ui, sans-serif;
+  --shell-font: 400 15px/1.5 system-ui, sans-serif;
 
   /* Status colours, centralized here so surfaces do not each hardcode them.
      The first two are the package's names, supplied as any consumer supplies

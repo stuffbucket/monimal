@@ -1,14 +1,19 @@
-import { useCallback, useEffect, useRef, useState, type ReactElement } from 'react'
+import { useState, type ReactElement } from 'react'
 
-import type { SettingsSectionId } from '../../shared/settings-sections'
-import { SurfaceRail, useTabTriggerId } from '../frame/AppFrame'
+import { Button } from 'stuffbucket-electron/renderer'
+
+import {
+  DEFAULT_SETTINGS_SECTION_ID,
+  type SettingsSectionId,
+} from '../../shared/settings-sections'
+import { SurfaceRail, useTabPanelId } from '../frame/AppFrame'
 import type { SettingsCapabilities } from './capabilities'
 import { SETTINGS_SECTION_VIEWS } from './manifest'
 import { SectionRail } from './SectionRail'
 
-// The Settings surface. Composition only: this file owns the page heading and
-// nothing about which sections exist — that is `shared/settings-sections.ts`,
-// joined to its icons and panels in `./manifest`. Each section owns its own
+// The Settings surface. Composition only: `shared/settings-sections.ts` owns
+// which sections exist, joined to their icons and panels in `./manifest`.
+// Each section owns its primary heading and its own
 // data lifecycle against `SettingsCapabilities`. Building the capabilities
 // instance via `createCoreSettingsCapabilities` is deliberately somebody
 // else's decision. The window frame is too: it belongs to ../frame/AppFrame,
@@ -19,148 +24,36 @@ import { SectionRail } from './SectionRail'
 // be two hand-written lists in this file, which could disagree and eventually
 // would: a section in the rail with no panel scrolls to nothing.
 //
-// One primary heading per view: the "Settings" h1 below is the only h1 this
-// surface renders; each section heading is an h2.
 
 /** A section the application menu asked to be shown. */
 export interface SettingsSectionRequest {
   id: SettingsSectionId
-  /** Bumped per request. Asking for the same section twice has to scroll
-   *  twice, and an unchanged object would look like nothing had happened. */
-  seq: number
 }
 
 interface SettingsProps {
   capabilities: SettingsCapabilities
   request?: SettingsSectionRequest | null
+  onBack?: () => void
 }
 
-/** Where in the window a heading becomes "the section you are reading".
- *  A quarter down: high enough to feel like the top, low enough that the
- *  section above has visibly left. */
-const READING_LINE = 0.25
-
-/** How long a jump keeps the observer quiet before giving up on arriving.
- *  A jump to a section too near the end of the page to reach the reading line
- *  never arrives, and the rail must not be stuck on it forever. */
-const JUMP_SETTLE_MS = 1_000
-
-export function Settings({ capabilities, request = null }: SettingsProps): ReactElement {
-  const triggerId = useTabTriggerId()
-  /* Seeded from the request, because a menu click from another surface mounts
-     this one with the request already in hand — there is no prop change to
-     notice, and `seenRequest` below would start out having seen it. */
-  const [current, setCurrent] = useState<string | null>(request?.id ?? null)
-
-  // The section a jump is on its way to. While it is set, the observer stays
-  // quiet: a smooth scroll passes over every section between here and there,
-  // and marking each one in turn makes the rail flicker through the list.
-  const jumpTarget = useRef<string | null>(null)
-  const settleTimer = useRef<number | undefined>(undefined)
-
-  /** Move the page. Touches the DOM and two refs, and no state — which is what
-   *  lets an effect call it. */
-  const scrollToSection = useCallback((id: string) => {
-    jumpTarget.current = id
-    window.clearTimeout(settleTimer.current)
-    settleTimer.current = window.setTimeout(() => {
-      jumpTarget.current = null
-    }, JUMP_SETTLE_MS)
-
-    document.getElementById(id)?.scrollIntoView({
-      // Honour a reduced-motion preference: the jump still happens, it just
-      // does not animate.
-      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
-        ? 'auto'
-        : 'smooth',
-      block: 'start',
-    })
-  }, [])
-
-  /** The rail's click handler. Marks the target immediately, because a control
-   *  the user just pressed should look pressed before the scroll gets there. */
-  const jumpToSection = useCallback(
-    (id: string) => {
-      setCurrent(id)
-      scrollToSection(id)
-    },
-    [scrollToSection],
+export function Settings({
+  capabilities,
+  request = null,
+  onBack,
+}: SettingsProps): ReactElement {
+  ensureSettingsStyles()
+  const panelId = useTabPanelId()
+  const [current, setCurrent] = useState<SettingsSectionId>(
+    request?.id ?? DEFAULT_SETTINGS_SECTION_ID,
   )
-
-  useEffect(() => () => { window.clearTimeout(settleTimer.current) }, [])
-
-  /*
-   * A request from the application menu, in two halves.
-   *
-   * Marking it happens during render — React's own way to adjust state when a
-   * prop changes, and the reason `request` is replaced per request rather than
-   * compared by value. It was an effect first, and the effect could not set the
-   * marker without cascading a render, so it left the observer to do it. That
-   * is wrong whenever the page cannot move: pick a section already on screen
-   * and nothing scrolls, no observer fires, and the rail marks nothing at all.
-   * The rail's own click path had always marked optimistically; this is the
-   * same rule reaching the same state from the other entry point.
-   *
-   * Scrolling is the other half, and it is a side effect, so it stays in one.
-   */
   const [seenRequest, setSeenRequest] = useState(request)
+
   if (request !== seenRequest) {
     setSeenRequest(request)
     if (request !== null) setCurrent(request.id)
   }
 
-  useEffect(() => {
-    if (request === null) return
-    scrollToSection(request.id)
-  }, [request, scrollToSection])
-
-  /*
-   * Keep the rail's mark on the section actually on screen.
-   *
-   * `current` used to change only on click, so scrolling left the mark behind
-   * on wherever you last jumped from — invisible enough to live with until the
-   * application menu started jumping into the page from outside it.
-   *
-   * The observer is a change signal, not the answer: its callback recomputes
-   * from every heading's position rather than trusting which entries happen to
-   * be intersecting. That is what makes the last section reachable — it is the
-   * last heading above the reading line, whether or not anything is below it.
-   */
-  useEffect(() => {
-    const headings = SETTINGS_SECTION_VIEWS.map(({ id }) => document.getElementById(id)).filter(
-      (element): element is HTMLElement => element !== null,
-    )
-    if (headings.length === 0) return
-
-    const recompute = (): void => {
-      const line = window.innerHeight * READING_LINE
-      let active: string | null = null
-      for (const heading of headings) {
-        if (heading.getBoundingClientRect().top <= line) active = heading.id
-      }
-      // Above the first heading, the first section is the one being read.
-      active ??= headings[0]?.id ?? null
-
-      // A jump in flight suppresses the marker until it lands: a smooth scroll
-      // passes over every section on the way, and marking each one in turn
-      // makes the rail flicker through the list.
-      if (jumpTarget.current !== null) {
-        if (jumpTarget.current !== active) return
-        jumpTarget.current = null
-      }
-      setCurrent(active)
-    }
-
-    // The band is the top quarter of the window, so a heading crossing the
-    // reading line is exactly what makes the observer fire.
-    const observer = new IntersectionObserver(recompute, {
-      rootMargin: `0px 0px -${String((1 - READING_LINE) * 100)}% 0px`,
-    })
-    for (const heading of headings) observer.observe(heading)
-    return () => {
-      observer.disconnect()
-    }
-  }, [])
+  const CurrentPanel = SETTINGS_SECTION_VIEWS.find(({ id }) => id === current)!.Panel
 
   return (
     <>
@@ -169,19 +62,20 @@ export function Settings({ capabilities, request = null }: SettingsProps): React
           <SectionRail
             sections={SETTINGS_SECTION_VIEWS}
             current={current}
-            onSelect={jumpToSection}
+            controls={panelId}
+            onSelect={setCurrent}
             collapsed={collapsed}
           />
         )}
       </SurfaceRail>
 
-      <div className="settings-page" aria-labelledby={`${triggerId} settings-heading`}>
-        <h1 id="settings-heading" className="settings-page__heading">
-          Settings
-        </h1>
-        {SETTINGS_SECTION_VIEWS.map(({ id, Panel }) => (
-          <Panel key={id} capabilities={capabilities} />
-        ))}
+      <div className="settings-page" aria-labelledby={current}>
+        {onBack ? (
+          <div className="settings-page__back">
+            <Button onClick={onBack}>Back to sign in</Button>
+          </div>
+        ) : null}
+        <CurrentPanel key={current} capabilities={capabilities} />
       </div>
     </>
   )
@@ -212,15 +106,19 @@ const SETTINGS_CSS = `
   display: flex;
   flex-direction: column;
   gap: var(--shell-space-5, 24px);
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
   padding: var(--shell-space-4, 16px);
-  max-width: 640px;
   color: var(--shell-text, #f5f5f5);
 }
 
-.settings-page__heading {
-  margin: 0;
-  font-size: 1.3em;
-  font-weight: 600;
+.settings-page__back {
+  display: flex;
+  justify-content: flex-end;
 }
 
 /* The rail. Its own rules rather than the shell's .nav class, which belongs to
@@ -230,6 +128,8 @@ const SETTINGS_CSS = `
   flex-direction: column;
   gap: 2px;
   padding: var(--shell-space-2, 8px);
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .settings-rail__link {
@@ -254,7 +154,7 @@ const SETTINGS_CSS = `
 
 /* Colour and weight together, so the current section is never marked by hue
    alone. */
-.settings-rail__link[aria-current='true'] {
+.settings-rail__link[aria-current='page'] {
   color: var(--shell-accent, #5198a6);
   background: var(--shell-accent-muted, rgb(81 152 166 / 0.12));
   font-weight: 500;
@@ -270,19 +170,13 @@ const SETTINGS_CSS = `
   display: flex;
   flex-direction: column;
   gap: var(--shell-space-3, 12px);
-  padding-top: var(--shell-space-4, 16px);
-  border-top: 1px solid var(--shell-border, #2a2a2a);
-}
-
-.settings-section:first-of-type {
-  padding-top: 0;
-  border-top: none;
+  min-width: 0;
 }
 
 .settings-section__heading {
   margin: 0;
-  font-size: 1em;
-  font-weight: 600;
+  font-size: var(--shell-text-lg, 1.0625rem);
+  font-weight: var(--shell-weight-lg, 600);
 }
 
 .settings-field {
@@ -392,7 +286,7 @@ const SETTINGS_CSS = `
 }
 
 .settings-accounts-list__meta {
-  font-size: 12px;
+  font-size: var(--shell-text-sm, 0.8125rem);
   color: var(--shell-text-subtle, #6a6a6a);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -404,7 +298,7 @@ const SETTINGS_CSS = `
   padding: 2px var(--shell-space-2, 8px);
   border: 1px solid var(--shell-border, #2a2a2a);
   border-radius: var(--shell-radius-small, 4px);
-  font-size: 12px;
+  font-size: var(--shell-text-sm, 0.8125rem);
   font-weight: 500;
   color: var(--maximal-success, #22c55e);
   white-space: nowrap;
@@ -426,6 +320,214 @@ const SETTINGS_CSS = `
   user-select: all;
 }
 
+.settings-subsection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--shell-space-2, 8px);
+  min-width: 0;
+}
+
+.settings-section__subheading {
+  margin: 0;
+  font-size: var(--shell-text-sm, 0.9em);
+  font-weight: 600;
+}
+
+.settings-section__title-row,
+.settings-section__actions,
+.settings-copy-value,
+.settings-dialog__actions,
+.settings-periods {
+  display: flex;
+  align-items: center;
+  gap: var(--shell-space-2, 8px);
+  flex-wrap: wrap;
+}
+
+.settings-section__title-row {
+  justify-content: space-between;
+}
+
+.settings-dialog__heading {
+  margin: 0;
+  font-size: 1.1em;
+}
+
+.settings-dialog__actions {
+  justify-content: flex-end;
+}
+
+.settings-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--shell-space-2, 8px);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.settings-list__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--shell-space-3, 12px);
+  padding: var(--shell-space-2, 8px) 0;
+  border-bottom: 1px solid var(--shell-border, #2a2a2a);
+}
+
+.settings-list__content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--shell-space-1, 4px);
+  min-width: 0;
+}
+
+.settings-list__meta,
+.settings-list__detail {
+  color: var(--shell-text-subtle, #6a6a6a);
+  font-size: var(--shell-text-sm, 0.9em);
+}
+
+.settings-list__detail,
+.settings-copy-value code,
+.settings-code-block code {
+  overflow-wrap: anywhere;
+}
+
+.settings-code-block {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--shell-space-2, 8px);
+  padding: var(--shell-space-3, 12px);
+  border: 1px solid var(--shell-border, #2a2a2a);
+  border-radius: var(--shell-radius, 6px);
+  min-width: 0;
+}
+
+.settings-wide-content,
+.settings-table-wrap {
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.settings-table-wrap:focus-visible {
+  outline: 2px solid var(--shell-focus, var(--shell-accent, #5198a6));
+  outline-offset: 2px;
+}
+
+.settings-model-vendor-groups,
+.settings-model-vendor,
+.settings-model-tables {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.settings-model-vendor-groups {
+  gap: var(--shell-space-5, 24px);
+}
+
+.settings-model-vendor,
+.settings-model-tables {
+  gap: var(--shell-space-3, 12px);
+}
+
+.settings-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: var(--shell-space-2, 8px);
+  margin: 0;
+}
+
+.settings-metrics > div {
+  display: flex;
+  flex-direction: column;
+  gap: var(--shell-space-1, 4px);
+}
+
+.settings-metrics dt,
+.settings-metrics dd {
+  margin: 0;
+}
+
+.settings-metrics dt {
+  color: var(--shell-text-subtle, #6a6a6a);
+  font-size: var(--shell-text-sm, 0.9em);
+}
+
+.settings-metrics dd {
+  font-size: 1.15em;
+  font-weight: 600;
+}
+
+.settings-table {
+  width: 100%;
+  min-width: 440px;
+  border-collapse: collapse;
+  font-size: var(--shell-text-base, 0.875rem);
+  text-align: left;
+}
+
+.settings-table--models {
+  min-width: 560px;
+}
+
+.settings-table caption {
+  padding: var(--shell-space-2, 8px) 0;
+  font-size: var(--shell-text-base, 0.875rem);
+  font-weight: var(--shell-weight-lg, 600);
+  text-align: left;
+}
+
+.settings-table th,
+.settings-table td {
+  padding: var(--shell-space-2, 8px);
+  border-bottom: 1px solid var(--shell-border, #2a2a2a);
+  vertical-align: top;
+}
+
+.settings-table thead th {
+  color: var(--shell-text-muted, #8a8a8a);
+  font-size: var(--shell-text-sm, 0.8125rem);
+  font-weight: var(--shell-weight-lg, 600);
+  white-space: nowrap;
+}
+
+.settings-table tbody th {
+  font-weight: var(--shell-weight-md, 500);
+}
+
+.settings-table__number {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.settings-table__capabilities {
+  display: flex;
+  align-items: center;
+  gap: var(--shell-space-2, 8px);
+}
+
+.settings-table__capability {
+  display: inline-flex;
+  color: var(--shell-text-muted, #8a8a8a);
+}
+
+.settings-table__model-name,
+.settings-table--models code {
+  display: block;
+}
+
+.settings-table--models code {
+  margin-top: var(--shell-space-1, 4px);
+  color: var(--shell-text-muted, #8a8a8a);
+  font-size: var(--shell-text-sm, 0.8125rem);
+  font-weight: 400;
+}
+
 .settings-visually-hidden {
   position: absolute;
   width: 1px;
@@ -441,9 +543,11 @@ const SETTINGS_CSS = `
 
 const SETTINGS_STYLE_ID = 'settings-styles'
 
-if (typeof document !== 'undefined' && !document.getElementById(SETTINGS_STYLE_ID)) {
-  const style = document.createElement('style')
-  style.id = SETTINGS_STYLE_ID
-  style.textContent = SETTINGS_CSS
-  document.head.appendChild(style)
+function ensureSettingsStyles(): void {
+  if (!document.getElementById(SETTINGS_STYLE_ID)) {
+    const style = document.createElement('style')
+    style.id = SETTINGS_STYLE_ID
+    style.textContent = SETTINGS_CSS
+    document.head.appendChild(style)
+  }
 }

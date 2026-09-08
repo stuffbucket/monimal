@@ -50,9 +50,9 @@ export function ConnectionSection({ capabilities }: ConnectionSectionProps): Rea
 
   return (
     <section className="settings-section" aria-labelledby="settings-connection-heading">
-      <h2 id="settings-connection-heading" className="settings-section__heading">
+      <h1 id="settings-connection-heading" className="settings-section__heading">
         Connection
-      </h2>
+      </h1>
       <Note>Point OpenAI-compatible clients at this address.</Note>
 
       {error ? (

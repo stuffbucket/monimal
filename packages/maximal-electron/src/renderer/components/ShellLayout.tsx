@@ -20,12 +20,12 @@ import {
 } from './TabBar.js';
 
 /**
- * The three-panel shell.
+ * The application shell.
  *
- * A collapsible left rail, a tabbed document area, and a collapsible right
- * inspector, driven by `react-resizable-panels` v4. This component owns the
- * frame: the panel geometry, which panel is collapsed, and the menu event that
- * toggles one. It owns no content.
+ * A collapsible left rail, a tabbed document area, and an optional collapsible
+ * right inspector, driven by `react-resizable-panels` v4. This component owns
+ * the frame: the per-tab panel geometry, which panel is collapsed, and the menu
+ * event that toggles one. It owns no content.
  *
  * It exists because the frame was written twice — once for the application and
  * once for the capture fixture — and the second copy was made for the only
@@ -68,9 +68,11 @@ const LEFT: PanelSize = {
 };
 const RIGHT: PanelSize = { default: '22', min: '16', max: '36', collapsed: '0' };
 const BOTTOM: PanelSize = { default: '30', min: '10', max: '70', collapsed: '0' };
+const PANELS_WITH_RIGHT = ['left', 'main', 'right'];
+const PANELS_WITHOUT_RIGHT = ['left', 'main'];
 
 /**
- * The three-panel frame, with the tab strip in the title bar.
+ * The application frame, with the tab strip in the title bar.
  *
  * It takes no children: every region is a named prop, and `left` is a function
  * receiving the collapsed state, because the rail's collapse is the frame's to
@@ -128,7 +130,8 @@ export function ShellLayout<T extends Tab>({
    * group of one.
    */
   bottom?: ReactNode;
-  right: ReactNode;
+  /** Optional inspector. Omit it to give the document the remaining width. */
+  right?: ReactNode;
   status: ReactNode;
   leftSize?: PanelSize;
   rightSize?: PanelSize;
@@ -140,16 +143,17 @@ export function ShellLayout<T extends Tab>({
   // shell class sits on exists.
   const [root, setRoot] = useState<HTMLDivElement | null>(null);
   const tabIdBase = `${layoutId}-documents`;
+  const hasRight = right !== undefined;
 
   const leftPanel = usePanelRef();
   const rightPanel = usePanelRef();
   const bottomPanel = usePanelRef();
 
-  // Persists panel sizes to `localStorage`, so a reload restores the layout
-  // with no storage code here.
+  // Each document restores its own geometry. The panel list also separates an
+  // inspector-free layout from one that owns the right panel.
   const layout = useDefaultLayout({
-    id: layoutId,
-    panelIds: ['left', 'main', 'right'],
+    id: `${layoutId}:tab:${encodeURIComponent(activeTab)}`,
+    panelIds: hasRight ? PANELS_WITH_RIGHT : PANELS_WITHOUT_RIGHT,
   });
 
   // A second, independent layout for the centre column's split. Only created
@@ -208,14 +212,16 @@ export function ShellLayout<T extends Tab>({
             actions={
               <>
                 {titleBarActions}
-                <IconButton
-                  label={rightCollapsed ? 'Show panel' : 'Hide panel'}
-                  onClick={() => togglePanel('right')}
-                  active={!rightCollapsed}
-                  testId="toggle-right"
-                >
-                  <PanelRight size={15} />
-                </IconButton>
+                {hasRight && (
+                  <IconButton
+                    label={rightCollapsed ? 'Show panel' : 'Hide panel'}
+                    onClick={() => togglePanel('right')}
+                    active={!rightCollapsed}
+                    testId="toggle-right"
+                  >
+                    <PanelRight size={15} />
+                  </IconButton>
+                )}
               </>
             }
             tabs={tabs}
@@ -231,6 +237,7 @@ export function ShellLayout<T extends Tab>({
           {top}
 
           <Group
+            key={`${activeTab}:${hasRight ? 'with-right' : 'without-right'}`}
             orientation="horizontal"
             className="panels"
             defaultLayout={layout.defaultLayout}
@@ -288,23 +295,26 @@ export function ShellLayout<T extends Tab>({
               </footer>
             </Panel>
 
-            <Separator className="resize-handle" />
-
-            <Panel
-              id="right"
-              panelRef={rightPanel}
-              defaultSize={rightSize.default}
-              minSize={rightSize.min}
-              maxSize={rightSize.max}
-              collapsible
-              collapsedSize={rightSize.collapsed}
-              onResize={() =>
-                setRightCollapsed(rightPanel.current?.isCollapsed() ?? false)
-              }
-              className="panel"
-            >
-              {right}
-            </Panel>
+            {hasRight && (
+              <>
+                <Separator className="resize-handle" />
+                <Panel
+                  id="right"
+                  panelRef={rightPanel}
+                  defaultSize={rightSize.default}
+                  minSize={rightSize.min}
+                  maxSize={rightSize.max}
+                  collapsible
+                  collapsedSize={rightSize.collapsed}
+                  onResize={() =>
+                    setRightCollapsed(rightPanel.current?.isCollapsed() ?? false)
+                  }
+                  className="panel"
+                >
+                  {right}
+                </Panel>
+              </>
+            )}
           </Group>
         </div>
       </ShellPortalRoot>

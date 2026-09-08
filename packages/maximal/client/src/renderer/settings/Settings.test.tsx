@@ -4,52 +4,23 @@ import type {
 } from '@stuffbucket/maximal-core/settings-types'
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { SETTINGS_SECTIONS } from '../../shared/settings-sections'
+import {
+  DEFAULT_SETTINGS_SECTION_ID,
+  SETTINGS_SECTIONS,
+} from '../../shared/settings-sections'
 import { AppFrame } from '../frame/AppFrame'
 import type { SettingsCapabilities } from './capabilities'
 import { Settings, type SettingsSectionRequest } from './Settings'
 
-/*
- * What this file is for.
- *
- * The rail and the page used to be two hand-written lists in `Settings.tsx`.
- * Nothing stopped them disagreeing, and the failure is quiet: a rail entry with
- * no matching panel scrolls to nothing at all. Both are projections of the
- * manifest now, and the assertions below are what keeps that true — they check
- * the rendered output against the manifest rather than against a copy of it.
- */
-
-// jsdom implements none of these. `ShellLayout` observes itself for resize,
-// the rail marker follows an IntersectionObserver, and both jumps go through
-// `scrollIntoView` and `matchMedia`. Stubs rather than fakes: no assertion
-// here depends on layout maths or on an observer actually firing.
 class NoopResizeObserver implements ResizeObserver {
   observe(): void {}
   unobserve(): void {}
   disconnect(): void {}
 }
 globalThis.ResizeObserver = NoopResizeObserver as unknown as typeof ResizeObserver
-
-class NoopIntersectionObserver {
-  observe(): void {}
-  unobserve(): void {}
-  disconnect(): void {}
-  takeRecords(): [] {
-    return []
-  }
-  readonly root = null
-  readonly rootMargin = ''
-  readonly thresholds: readonly number[] = []
-}
-globalThis.IntersectionObserver =
-  NoopIntersectionObserver as unknown as typeof IntersectionObserver
-
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
-
-/** Ids `scrollIntoView` was called on, in order. */
-const scrolledTo: string[] = []
 
 const authStatus: AuthStatus = { state: 'unauthenticated' }
 const accountsList: AccountsListResponse = { accounts: [], active_key: null }
@@ -68,7 +39,76 @@ function fakeCapabilities(): SettingsCapabilities {
       list: vi.fn(async () => accountsList),
       switchTo: vi.fn(async () => {}),
     },
+    general: {
+      menuBarMode: vi.fn(async () => ({ enabled: false, pending: false })),
+      beginMenuBarOnly: vi.fn(async () => ({ attemptId: 'attempt-1', deadlineMs: 1 })),
+      confirmMenuBarOnly: vi.fn(async () => ({ enabled: true, pending: false })),
+      cancelMenuBarOnly: vi.fn(async () => ({ enabled: false, pending: false })),
+      disableMenuBarOnly: vi.fn(async () => ({ enabled: false, pending: false })),
+    },
+    apps: {
+      list: vi.fn(async () => ({ apps: [] })),
+      setEnabled: vi.fn(),
+    },
     connection: { proxyUrl: vi.fn(async () => 'http://127.0.0.1:4141') },
+    apiKeys: {
+      list: vi.fn(async () => ({ entries: [], enforcing: false })),
+      create: vi.fn(),
+      update: vi.fn(),
+      remove: vi.fn(async () => {}),
+      setEnforcement: vi.fn(async (enforcing: boolean) => ({
+        entries: [],
+        enforcing,
+      })),
+    },
+    models: {
+      list: vi.fn(async () => ({ models: [], count: 0, loaded_at: null })),
+      refresh: vi.fn(async () => ({ models: [], count: 0, loaded_at: null })),
+    },
+    usage: {
+      get: vi.fn(async (period) => ({
+        period,
+        range: { start_ms: 0, end_ms: 0, start_utc: '', end_utc: '' },
+        totals: {
+          cache_creation_input_tokens: 0,
+          cache_read_input_tokens: 0,
+          input_tokens: 0,
+          output_tokens: 0,
+          request_count: 0,
+          total_tokens: 0,
+          total_nano_aiu: 0,
+        },
+        byModel: [],
+        byProvider: [],
+      })),
+    },
+    logs: {
+      location: vi.fn(async () => '/tmp/maximal/logs'),
+      reveal: vi.fn(async () => {}),
+    },
+    diagnostics: {
+      get: vi.fn(async () => ({
+        version: '0.0.0',
+        source_revision: null,
+        source_branch: null,
+        launch_path: '/tmp/maximal',
+        launch_kind: 'dev' as const,
+        pid: 1,
+        uptime_ms: 0,
+        account_type: 'unknown',
+        models_cached: 0,
+        tokens: {
+          github_token_present: false,
+          copilot_token_present: false,
+        },
+        rate_limit: {
+          interval_seconds: null,
+          last_request_at: null,
+          wait_when_throttled: false,
+        },
+        web_search: { kind: 'none', detail: null },
+      })),
+    },
     onOpenRequest: vi.fn(() => () => {}),
     openExternal: vi.fn(async () => {}),
   }
@@ -77,43 +117,15 @@ function fakeCapabilities(): SettingsCapabilities {
 let root: Root | null = null
 let container: HTMLElement | null = null
 
-beforeEach(() => {
-  scrolledTo.length = 0
-  vi.stubGlobal(
-    'matchMedia',
-    vi.fn((query: string) => ({
-      matches: false,
-      media: query,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-    })),
-  )
-  Element.prototype.scrollIntoView = function scrollIntoView(this: Element): void {
-    scrolledTo.push(this.id)
-  }
-})
-
-afterEach(() => {
-  if (root !== null) act(() => root?.unmount())
-  container?.remove()
-  root = null
-  container = null
-  vi.unstubAllGlobals()
-})
-
 async function renderSettings(request?: SettingsSectionRequest): Promise<HTMLElement> {
   container = document.createElement('div')
   document.body.appendChild(container)
   root = createRoot(container)
   await rerender(request)
-  return container as HTMLElement
+  return container
 }
 
-/** Render into the existing root. A second call is a live prop change, which is
- *  the case where Settings is already open when the menu asks for a section. */
 async function rerender(request?: SettingsSectionRequest): Promise<void> {
-  // Inside the frame, because the rail is a portal into one of its slots and
-  // renders nowhere at all outside it.
   await act(async () => {
     root?.render(
       <AppFrame view="settings" onSelectView={vi.fn()}>
@@ -123,101 +135,140 @@ async function rerender(request?: SettingsSectionRequest): Promise<void> {
   })
 }
 
-function markedSection(surface: HTMLElement): string | undefined {
-  const marked = surface.querySelectorAll('.settings-rail__link[aria-current="true"]')
-  expect(marked).toHaveLength(1)
-  return marked[0]?.getAttribute('data-testid') ?? undefined
+function selectedId(surface: HTMLElement): string | undefined {
+  const selected = surface.querySelectorAll('.settings-rail__link[aria-current="page"]')
+  expect(selected).toHaveLength(1)
+  return selected[0]?.getAttribute('data-testid')?.replace('settings-rail-', '')
 }
+
+function activeHeadingId(surface: HTMLElement): string | undefined {
+  const headings = surface.querySelectorAll('.settings-page h1[id]')
+  expect(headings).toHaveLength(1)
+  return headings[0]?.id
+}
+
+afterEach(() => {
+  if (root !== null) act(() => root?.unmount())
+  container?.remove()
+  root = null
+  container = null
+  vi.restoreAllMocks()
+})
 
 describe('Settings', () => {
   it('lists exactly the manifest sections in the rail, in order', async () => {
     const surface = await renderSettings()
-    const rail = surface.querySelectorAll('.settings-rail__link')
 
-    expect([...rail].map((link) => link.textContent)).toEqual(
+    expect([...surface.querySelectorAll('.settings-rail__link')].map((link) => link.textContent)).toEqual(
       SETTINGS_SECTIONS.map(({ label }) => label),
     )
   })
 
-  it('renders a panel for every section the rail offers', async () => {
-    // The drift regression, stated as the thing that actually breaks: every
-    // rail entry names a heading id, and every one of those has to exist.
+  it('renders only the default section at first', async () => {
     const surface = await renderSettings()
-    const targets = [...surface.querySelectorAll('.settings-rail__link')].map((link) =>
-      link.getAttribute('data-testid')?.replace('settings-rail-', ''),
-    )
 
-    for (const id of targets) {
-      expect(surface.querySelector(`h2#${String(id)}`)).not.toBeNull()
+    expect(activeHeadingId(surface)).toBe(DEFAULT_SETTINGS_SECTION_ID)
+    expect(selectedId(surface)).toBe(DEFAULT_SETTINGS_SECTION_ID)
+  })
+
+  it('selects every manifest destination into the same tabpanel', async () => {
+    const surface = await renderSettings()
+    const tabpanel = surface.querySelector<HTMLElement>('.tabpanel')
+    if (tabpanel === null) throw new Error('the Settings tabpanel did not render')
+
+    for (const { id } of SETTINGS_SECTIONS) {
+      const button = surface.querySelector<HTMLButtonElement>(`[data-testid="settings-rail-${id}"]`)
+      if (button === null) throw new Error(`the Settings rail omitted ${id}`)
+      expect(button.getAttribute('aria-controls')).toBe(tabpanel.id)
+
+      await act(async () => button.click())
+
+      expect(activeHeadingId(surface)).toBe(id)
+      expect(selectedId(surface)).toBe(id)
     }
-    expect(targets).toHaveLength(SETTINGS_SECTIONS.length)
   })
 
-  it('renders one h1, so the sections stay subordinate to the page', async () => {
+  it('renders only the selected section as the primary heading', async () => {
     const surface = await renderSettings()
 
-    expect(surface.querySelectorAll('.settings-page h1')).toHaveLength(1)
-  })
-
-  it('carries no "On this page" heading', async () => {
-    // Documentation chrome. The nav's aria-label is what names the rail now.
-    const surface = await renderSettings()
-
+    const primaryHeading = surface.querySelector('.settings-page h1')
+    expect(primaryHeading?.textContent).toBe('Account')
     expect(surface.textContent).not.toContain('On this page')
+    expect(surface.querySelector('#settings-heading')).toBeNull()
     expect(surface.querySelector('nav.settings-rail')?.getAttribute('aria-label')).toBe(
       'Settings sections',
     )
   })
 
-  it('marks a section the rail was clicked on', async () => {
-    const surface = await renderSettings()
-    const link = surface.querySelector<HTMLButtonElement>(
-      '[data-testid="settings-rail-settings-connection-heading"]',
+  it('selects a section requested while opening Settings', async () => {
+    const surface = await renderSettings({ id: 'settings-api-keys-heading' })
+
+    expect(activeHeadingId(surface)).toBe('settings-api-keys-heading')
+    expect(selectedId(surface)).toBe('settings-api-keys-heading')
+  })
+
+  it('adopts live and repeated native section requests', async () => {
+    const surface = await renderSettings({ id: 'settings-endpoint-heading' })
+    const models = surface.querySelector<HTMLButtonElement>(
+      '[data-testid="settings-rail-settings-models-heading"]',
     )
+    if (models === null) throw new Error('the Models rail entry did not render')
 
-    await act(async () => {
-      link?.click()
-    })
+    await act(async () => models.click())
+    await rerender({ id: 'settings-endpoint-heading' })
+    expect(activeHeadingId(surface)).toBe('settings-endpoint-heading')
 
-    expect(link?.getAttribute('aria-current')).toBe('true')
-    expect(scrolledTo).toEqual(['settings-connection-heading'])
+    await act(async () => models.click())
+    await rerender({ id: 'settings-endpoint-heading' })
+    expect(activeHeadingId(surface)).toBe('settings-endpoint-heading')
+    expect(selectedId(surface)).toBe('settings-endpoint-heading')
   })
 
-  it('scrolls to the section the application menu asked for', async () => {
-    await renderSettings({ id: 'settings-accounts-heading', seq: 1 })
+  it('preserves the user selection when a native request is cleared', async () => {
+    const surface = await renderSettings({ id: 'settings-endpoint-heading' })
+    const models = surface.querySelector<HTMLButtonElement>(
+      '[data-testid="settings-rail-settings-models-heading"]',
+    )
+    if (models === null) throw new Error('the Models rail entry did not render')
 
-    expect(scrolledTo).toEqual(['settings-accounts-heading'])
+    await act(async () => models.click())
+    await rerender()
+
+    expect(activeHeadingId(surface)).toBe('settings-models-heading')
+    expect(selectedId(surface)).toBe('settings-models-heading')
   })
 
-  it('marks a section asked for while opening this surface', async () => {
-    // Not left to the observer. A request for a section already on screen
-    // scrolls nowhere, so no observer fires, and the rail marked nothing —
-    // which is how this surfaced when the menu was first driven by hand.
-    //
-    // This is the menu's usual path: choosing a section from another surface
-    // mounts this one with the request already in hand.
-    const surface = await renderSettings({ id: 'settings-accounts-heading', seq: 1 })
+  it('labels the Settings page with the selected section heading', async () => {
+    const surface = await renderSettings({ id: 'settings-models-heading' })
+    const page = surface.querySelector<HTMLElement>('.settings-page')
+    if (page === null) throw new Error('the Settings page did not render')
 
-    expect(markedSection(surface)).toBe('settings-rail-settings-accounts-heading')
+    expect(page.getAttribute('aria-labelledby')).toBe('settings-models-heading')
+    expect(document.getElementById('settings-models-heading')?.tagName).toBe('H1')
   })
 
-  it('marks a section asked for while this surface is already open', async () => {
-    const surface = await renderSettings({ id: 'settings-accounts-heading', seq: 1 })
-    await rerender({ id: 'settings-connection-heading', seq: 2 })
+  it('injects its surface styles when no style element exists', async () => {
+    document.querySelectorAll('#settings-styles').forEach((style) => style.remove())
 
-    expect(markedSection(surface)).toBe('settings-rail-settings-connection-heading')
+    await renderSettings()
+
+    const style = document.getElementById('settings-styles')
+    expect(style).toBeInstanceOf(HTMLStyleElement)
+    expect(style?.tagName).toBe('STYLE')
+    expect(style?.textContent).toContain('.settings-page {')
   })
 
-  it('scrolls again when the same section is asked for twice', async () => {
-    // What `seq` is for: an unchanged request object looks like nothing having
-    // happened, and choosing a section a second time has to move the page.
-    const surface = await renderSettings({ id: 'settings-connection-heading', seq: 1 })
-    await rerender({ id: 'settings-connection-heading', seq: 2 })
+  it('does not replace or duplicate an existing surface style element', async () => {
+    document.querySelectorAll('#settings-styles').forEach((style) => style.remove())
+    const existing = document.createElement('style')
+    existing.id = 'settings-styles'
+    existing.textContent = '.existing-settings-styles {}'
+    document.head.appendChild(existing)
 
-    expect(scrolledTo).toEqual([
-      'settings-connection-heading',
-      'settings-connection-heading',
-    ])
-    expect(markedSection(surface)).toBe('settings-rail-settings-connection-heading')
+    await renderSettings()
+
+    expect(document.querySelectorAll('#settings-styles')).toHaveLength(1)
+    expect(document.getElementById('settings-styles')).toBe(existing)
+    expect(existing.textContent).toBe('.existing-settings-styles {}')
   })
 })

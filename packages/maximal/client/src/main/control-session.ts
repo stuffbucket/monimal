@@ -14,8 +14,25 @@ import {
 import {
   AccountsListResponse as AccountsListResponseSchema,
   type AccountsListResponse,
+  ApiKeyEntry as ApiKeyEntrySchema,
+  type ApiKeyEntry,
+  type ApiKeyCreateRequest,
+  type ApiKeyUpdateRequest,
+  ApiKeysListResponse as ApiKeysListResponseSchema,
+  type ApiKeysListResponse,
+  AppEntry as AppEntrySchema,
+  type AppEntry,
+  AppsListResponse as AppsListResponseSchema,
+  type AppsListResponse,
   AuthStatus as AuthStatusSchema,
   type AuthStatus,
+  DiagnosticsResponse as DiagnosticsResponseSchema,
+  type DiagnosticsResponse,
+  ModelsListResponse as ModelsListResponseSchema,
+  type ModelsListResponse,
+  TokenUsageSummary as TokenUsageSummarySchema,
+  type TokenUsagePeriod,
+  type TokenUsageSummary,
 } from '@stuffbucket/maximal-core/settings-types'
 import {
   TRAFFIC_OBSERVABILITY_CONTRACT_VERSION,
@@ -52,6 +69,17 @@ type ControlMethod =
   | 'observability/overview'
   | 'observability/requests'
   | 'observability/request'
+  | 'apps/list'
+  | 'apps/setEnabled'
+  | 'apiKeys/list'
+  | 'apiKeys/create'
+  | 'apiKeys/update'
+  | 'apiKeys/remove'
+  | 'apiKeys/setEnforcement'
+  | 'models/list'
+  | 'models/refresh'
+  | 'usage/get'
+  | 'diagnostics/get'
 
 interface ControlClientLike {
   call<T = unknown>(method: string, params?: unknown): Promise<T>
@@ -95,6 +123,17 @@ export interface ControlSession {
   observabilityRequest(
     query: TrafficRequestDetailQuery,
   ): Promise<ControlResult<TrafficRequestDetail | null>>
+  appsList(): Promise<ControlResult<AppsListResponse>>
+  appsSetEnabled(appId: AppEntry['id'], enabled: boolean): Promise<ControlResult<AppEntry>>
+  apiKeysList(): Promise<ControlResult<ApiKeysListResponse>>
+  apiKeysCreate(input: ApiKeyCreateRequest): Promise<ControlResult<ApiKeyEntry>>
+  apiKeysUpdate(id: string, update: ApiKeyUpdateRequest): Promise<ControlResult<ApiKeyEntry>>
+  apiKeysRemove(id: string): Promise<ControlResult<null>>
+  apiKeysSetEnforcement(enforcing: boolean): Promise<ControlResult<ApiKeysListResponse>>
+  modelsList(): Promise<ControlResult<ModelsListResponse>>
+  modelsRefresh(): Promise<ControlResult<ModelsListResponse>>
+  usageGet(period: TokenUsagePeriod): Promise<ControlResult<TokenUsageSummary>>
+  diagnosticsGet(): Promise<ControlResult<DiagnosticsResponse>>
   dispose(): void
 }
 
@@ -112,6 +151,17 @@ const optionalMethods = [
   'observability/overview',
   'observability/requests',
   'observability/request',
+  'apps/list',
+  'apps/setEnabled',
+  'apiKeys/list',
+  'apiKeys/create',
+  'apiKeys/update',
+  'apiKeys/remove',
+  'apiKeys/setEnforcement',
+  'models/list',
+  'models/refresh',
+  'usage/get',
+  'diagnostics/get',
 ] as const
 
 const discoverySchema = z.object({
@@ -136,6 +186,11 @@ const controlErrorDataSchema = z.object({
 const accountsSwitchResultSchema = z.object({
   ok: z.literal(true),
   key: z.string(),
+})
+
+const apiKeyRemoveResultSchema = z.object({
+  ok: z.literal(true),
+  id: z.string(),
 })
 
 class SessionFailure extends Error {
@@ -431,6 +486,27 @@ export function createControlSession(
         query,
         TrafficRequestDetailQuerySchema.parse,
       ),
+    appsList: () => call('apps/list', AppsListResponseSchema.parse),
+    appsSetEnabled: (appId, enabled) =>
+      call('apps/setEnabled', AppEntrySchema.parse, { appId, enabled }),
+    apiKeysList: () => call('apiKeys/list', ApiKeysListResponseSchema.parse),
+    apiKeysCreate: (input) =>
+      call('apiKeys/create', ApiKeyEntrySchema.parse, input),
+    apiKeysUpdate: (id, update) =>
+      call('apiKeys/update', ApiKeyEntrySchema.parse, { id, update }),
+    apiKeysRemove: (id) =>
+      call('apiKeys/remove', (input) => {
+        apiKeyRemoveResultSchema.parse(input)
+        return null
+      }, { id }),
+    apiKeysSetEnforcement: (enforcing) =>
+      call('apiKeys/setEnforcement', ApiKeysListResponseSchema.parse, { enforcing }),
+    modelsList: () => call('models/list', ModelsListResponseSchema.parse),
+    modelsRefresh: () => call('models/refresh', ModelsListResponseSchema.parse),
+    usageGet: (period) =>
+      call('usage/get', TokenUsageSummarySchema.parse, { period }),
+    diagnosticsGet: () =>
+      call('diagnostics/get', DiagnosticsResponseSchema.parse),
     dispose() {
       if (disposed) return
       disposed = true

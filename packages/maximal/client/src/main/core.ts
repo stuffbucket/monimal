@@ -19,6 +19,10 @@ export function proxyUrl(): string {
   return proxyBase
 }
 
+export function coreHomePath(): string {
+  return join(app.getPath('userData'), 'core-home')
+}
+
 /**
  * Resolve once the sidecar has an origin, rather than answering with `''`.
  *
@@ -259,7 +263,7 @@ function onUnexpectedExit(proc: ChildProcess, code: number | null, signal: NodeJ
  *  line. Shared by the initial start and every restart attempt, so both go
  *  through identical readiness/pid-check/drain/monitor wiring. */
 async function launchCore(): Promise<{ controlOrigin: string; proxyUrl: string; port: number; pid: number }> {
-  const dataHome = join(app.getPath('userData'), 'core-home')
+  const dataHome = coreHomePath()
   await mkdir(dataHome, { recursive: true })
 
   // `--port` is the PUBLIC PROXY port, not the control port. Passing `--port 0`

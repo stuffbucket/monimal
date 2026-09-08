@@ -57,3 +57,17 @@ export interface ObservabilityControlBridge {
   ): Promise<ControlResult<TrafficRequestDetail | null>>
   onTrafficInvalidation(listener: TrafficInvalidationListener): () => void
 }
+
+export interface PendingSettingsRequest {
+  sectionId: string | null
+}
+
+export interface MenuBarModeState {
+  enabled: boolean
+  pending: boolean
+}
+
+export interface MenuBarModeAttempt {
+  attemptId: string
+  deadlineMs: number
+}
