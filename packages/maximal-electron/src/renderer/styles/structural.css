@@ -1202,19 +1202,19 @@
 .sb-shell .terminal-launcher__kind,
 .sb-shell .terminal-launcher__pending {
   margin-left: auto;
-  color: var(--shell-text-secondary);
-  font-size: var(--shell-text-xs, 12px);
+  color: var(--shell-text-muted);
+  font-size: var(--shell-text-xs, 0.6875rem);
 }
 
 .sb-shell .terminal-launcher__unavailable {
   border-top: 1px solid var(--shell-border);
   padding-top: var(--shell-space-2, 8px);
-  color: var(--shell-text-secondary);
+  color: var(--shell-text-muted);
 }
 
 .sb-shell .terminal-launcher__unavailable summary {
   cursor: pointer;
-  font-size: var(--shell-text-sm, 13px);
+  font-size: var(--shell-text-sm, 0.8125rem);
 }
 
 .sb-shell .terminal-launcher__unavailable ul {
@@ -1229,7 +1229,7 @@
   display: flex;
   justify-content: space-between;
   gap: var(--shell-space-3, 12px);
-  font-size: var(--shell-text-xs, 12px);
+  font-size: var(--shell-text-xs, 0.6875rem);
 }
 
 .sb-shell .menu {
@@ -1367,8 +1367,8 @@
   inset: auto var(--shell-space-2, 8px) var(--shell-space-2, 8px) auto;
   margin: 0;
   padding: var(--shell-space-1, 4px) var(--shell-space-2, 8px);
-  background: var(--shell-raised, var(--shell-canvas));
-  color: var(--shell-text-muted, var(--shell-text));
+  background: var(--shell-raised);
+  color: var(--shell-text-muted);
 }
 
 .sb-shell .terminal {
@@ -1389,7 +1389,7 @@
   display: flex;
   align-items: center;
   gap: var(--shell-space-2, 8px);
-  color: var(--shell-text-muted, var(--shell-text));
+  color: var(--shell-text-muted);
 }
 
 /*
