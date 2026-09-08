@@ -25,6 +25,10 @@ function coerce(raw: unknown): Preferences {
       typeof input.menuBarIcon === 'boolean'
         ? input.menuBarIcon
         : DEFAULT_PREFERENCES.menuBarIcon,
+    quitOnLastWindowClosed:
+      typeof input.quitOnLastWindowClosed === 'boolean'
+        ? input.quitOnLastWindowClosed
+        : DEFAULT_PREFERENCES.quitOnLastWindowClosed,
     dockBadge:
       typeof input.dockBadge === 'boolean'
         ? input.dockBadge
