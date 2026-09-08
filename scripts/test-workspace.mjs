@@ -19,7 +19,9 @@ const scrubbedEnvironment = [
 const usage = "Usage: pnpm test -- [--all|--core] [--trace=off|tests|all]";
 
 export function parseTestOptions(arguments_) {
-  const options = arguments_[0] === "--" ? arguments_.slice(1) : arguments_;
+  const separators = arguments_.filter((option) => option === "--").length;
+  if (separators > 1) throw new Error(usage);
+  const options = arguments_.filter((option) => option !== "--");
   let scope = "affected";
   let trace = "off";
   let sawTrace = false;

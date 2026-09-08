@@ -336,6 +336,10 @@ test("native test selection is closed and uses affected dependents", () => {
     scope: "core",
     trace: "off",
   });
+  assert.deepEqual(parseTestOptions(["--all", "--", "--trace=tests"]), {
+    scope: "all",
+    trace: "tests",
+  });
   assert.deepEqual(turboTestArguments({ scope: "affected" }, base), [
     "run",
     "test",
@@ -356,6 +360,10 @@ test("native test selection is closed and uses affected dependents", () => {
   assert.throws(
     () => parseTestOptions(["--all", "--core"]),
     /Duplicate test scope/,
+  );
+  assert.throws(
+    () => parseTestOptions(["--", "--", "--trace=tests"]),
+    /Usage:/,
   );
   assert.throws(() => parseTestOptions(["--filter=x"]), /Usage:/);
 });
