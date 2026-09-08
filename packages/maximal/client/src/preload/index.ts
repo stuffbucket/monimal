@@ -26,6 +26,15 @@ import { contextBridge, ipcRenderer } from 'electron'
 
 import { BRIDGE_CHANNELS } from '../shared/bridge-channels.js'
 import type {
+  TerminalDataMessage,
+  TerminalDiscovery,
+  TerminalExitMessage,
+  TerminalLaunchRequest,
+  TerminalLaunchResult,
+  TerminalProfileSummary,
+  TerminalSession,
+} from 'stuffbucket-electron/renderer'
+import type {
   ControlResult,
   LifecycleStatus,
   MenuBarModeAttempt,
@@ -73,6 +82,36 @@ const bridge = {
       ipcRenderer.invoke(BRIDGE_CHANNELS.menuBarModeCancelEnable, attemptId),
     disable: (): Promise<MenuBarModeState> =>
       ipcRenderer.invoke(BRIDGE_CHANNELS.menuBarModeDisable),
+  },
+  terminal: {
+    spawn: (request: { id: string; cols: number; rows: number; shell?: string; cwd?: string }): Promise<void> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.terminalSpawn, request),
+    write: (id: string, data: string): Promise<void> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.terminalWrite, { id, data }),
+    resize: (id: string, cols: number, rows: number): Promise<void> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.terminalResize, { id, cols, rows }),
+    acknowledge: (id: string, sequence: number): Promise<void> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.terminalAck, { id, sequence }),
+    terminate: (id: string): Promise<void> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.terminalTerminate, { id }),
+    list: (): Promise<TerminalSession[]> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.terminalList),
+    profiles: (): Promise<TerminalProfileSummary[]> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.terminalProfiles),
+    discover: (): Promise<TerminalDiscovery> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.terminalDiscover),
+    launch: (request: TerminalLaunchRequest): Promise<TerminalLaunchResult> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.terminalLaunch, request),
+    onData: (listener: (message: TerminalDataMessage) => void): (() => void) => {
+      const handler = (_event: unknown, message: TerminalDataMessage): void => listener(message)
+      ipcRenderer.on(BRIDGE_CHANNELS.terminalData, handler)
+      return () => ipcRenderer.off(BRIDGE_CHANNELS.terminalData, handler)
+    },
+    onExit: (listener: (message: TerminalExitMessage) => void): (() => void) => {
+      const handler = (_event: unknown, message: TerminalExitMessage): void => listener(message)
+      ipcRenderer.on(BRIDGE_CHANNELS.terminalExit, handler)
+      return () => ipcRenderer.off(BRIDGE_CHANNELS.terminalExit, handler)
+    },
   },
   /** The application menu asking for the Settings surface. The payload is a
    *  section id to scroll to, or null for the surface itself. */

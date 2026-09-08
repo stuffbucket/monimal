@@ -8,6 +8,7 @@ import { AppFrame, type View } from './frame/AppFrame'
 import { Overview } from './overview/Overview'
 import { Settings, type SettingsSectionRequest } from './settings/Settings'
 import { createCoreSettingsCapabilities } from './settings/capabilities'
+import { Terminal } from './terminal/Terminal'
 import { Traffic } from './traffic/Traffic'
 import { createObservabilitySource } from './traffic/source'
 
@@ -116,6 +117,7 @@ export function App(): ReactElement {
       >
         {!signedOut && view === 'overview' ? <Overview /> : null}
         {!signedOut && view === 'traffic' ? <Traffic /> : null}
+        {!signedOut && view === 'terminal' ? <Terminal /> : null}
         {view === 'settings' ? (
           <Settings
             capabilities={settings}

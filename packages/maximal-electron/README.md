@@ -124,6 +124,7 @@ you use:
 | `@stuffbucket/maximal-electron/host` | `electron` |
 | `@stuffbucket/maximal-electron/preload` | `electron` |
 | `@stuffbucket/maximal-electron/host/terminal` | `node-pty` |
+| `@stuffbucket/maximal-electron/electron-terminal` | `electron`, `node-pty` |
 | `@stuffbucket/maximal-electron/renderer` | `react`, `react-dom`, `ghostty-web`, `lucide-react`, `react-resizable-panels`, `@radix-ui/react-collapsible`, `@radix-ui/react-dialog`, `@radix-ui/react-dropdown-menu`, `@radix-ui/react-radio-group`, `@radix-ui/react-tabs`, `@radix-ui/react-tooltip`, `@radix-ui/react-visually-hidden` |
 | `@stuffbucket/maximal-electron/verify` | none |
 | `@stuffbucket/maximal-electron/verify/shell-variables` | none |

@@ -135,11 +135,11 @@ describe('AppFrame', () => {
     expect(shell.querySelector('.sb-shell.app .titlebar')).not.toBeNull()
   })
 
-  it('lists the three views as tabs, with the current view marked selected', () => {
+  it('lists the four views as tabs, with the current view marked selected', () => {
     const shell = renderFrame('traffic', vi.fn(), <p>content</p>)
     const tabs = [...shell.querySelectorAll('[role="tab"]')]
 
-    expect(tabs.map((tab) => tab.textContent)).toEqual(['Overview', 'Traffic', 'Settings'])
+    expect(tabs.map((tab) => tab.textContent)).toEqual(['Overview', 'Traffic', 'Terminal', 'Settings'])
 
     const selected = tabs.filter((tab) => tab.getAttribute('aria-selected') === 'true')
     expect(selected).toHaveLength(1)
@@ -153,11 +153,13 @@ describe('AppFrame', () => {
     expect(tabs.map((tab) => tab.id)).toEqual([
       'maximal-documents-tab-overview',
       'maximal-documents-tab-traffic',
+      'maximal-documents-tab-terminal',
       'maximal-documents-tab-settings',
     ])
     expect(tabs[0]?.querySelector('svg.lucide-file-text')).not.toBeNull()
     expect(tabs[1]?.querySelector('svg.lucide-folder')).not.toBeNull()
-    expect(tabs[2]?.querySelector('svg.lucide-settings')).not.toBeNull()
+    expect(tabs[2]?.querySelector('svg.lucide-square-terminal')).not.toBeNull()
+    expect(tabs[3]?.querySelector('svg.lucide-settings')).not.toBeNull()
   })
 
   it('limits navigation to the views available in the current app state', () => {

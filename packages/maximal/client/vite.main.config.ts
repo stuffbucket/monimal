@@ -5,7 +5,7 @@ export default defineConfig({
   build: {
     sourcemap: true,
     rollupOptions: {
-      external: [/^node:/, 'electron'],
+      external: [/^node:/, 'electron', 'node-pty'],
       output: { entryFileNames: 'main.js' },
     },
   },

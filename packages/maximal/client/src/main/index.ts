@@ -11,7 +11,6 @@ import type {
   TrafficRequestDetailQuery,
   TrafficRequestListQuery,
 } from '@stuffbucket/maximal-observability-contract'
-
 import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import { z } from 'zod'
 
@@ -31,6 +30,7 @@ import { applyAppName, applyDockIcon, installApplicationMenu } from './identity.
 import { toLifecycleStatus } from './lifecycle-status.js'
 import { MenuBarModeController } from './menu-bar-mode.js'
 import { runShell } from './shell.js'
+import { configureTerminalHost, registerTerminalIpc, stopTerminalHost } from './terminal-host.js'
 
 // Before `whenReady`, not inside it: `app.name` is read when the default menu
 // and the About panel are built, so setting it later leaves both stale.
@@ -42,7 +42,6 @@ let pendingSettingsRequest: PendingSettingsRequest | null = null
 let menuBarMode: MenuBarModeController | null = null
 
 const nonEmptyString = z.string().min(1)
-
 function openExternalUrl(url: string): Promise<void> {
   let parsed: URL
   try {
@@ -147,6 +146,7 @@ function registerIpc(
       mode.cancelEnable(nonEmptyString.parse(attemptId)),
   )
   ipcMain.handle(BRIDGE_CHANNELS.menuBarModeDisable, () => mode.disable())
+  registerTerminalIpc()
 }
 
 function broadcast(channel: string, payload?: unknown): void {
@@ -233,6 +233,7 @@ void app.whenReady().then(async () => {
     onTrafficInvalidation: (invalidation) =>
       broadcast(BRIDGE_CHANNELS.trafficInvalidated, invalidation),
   })
+  configureTerminalHost()
   registerIpc(controlSession, nativeMode)
 
   onCoreStatus((status) => {
@@ -272,4 +273,5 @@ app.on('before-quit', () => {
   menuBarMode?.dispose()
   controlSession?.dispose()
   killCore()
+  stopTerminalHost()
 })
