@@ -2,6 +2,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useInsertionEffect,
   useMemo,
   useState,
   type ReactElement,
@@ -147,17 +148,22 @@ function RailCollapse({
 export function AppFrame({
   view,
   onSelectView,
+  availableViews = VIEW_TABS.map((tab) => tab.id),
   children,
 }: {
   view: View
   onSelectView: (view: View) => void
+  availableViews?: readonly View[]
   children: ReactNode
 }): ReactElement {
+  useAppFrameStyles()
+
   const [top, setTop] = useState<HTMLElement | null>(null)
   const [rail, setRail] = useState<HTMLElement | null>(null)
   const [right, setRight] = useState<HTMLElement | null>(null)
   const [status, setStatus] = useState<HTMLElement | null>(null)
   const [railCollapsed, setRailCollapsed] = useState(false)
+  const viewTabs = VIEW_TABS.filter((tab) => availableViews.includes(tab.id))
 
   const frame = useMemo<FrameContextValue>(
     () => ({
@@ -176,12 +182,12 @@ export function AppFrame({
     <FrameContext.Provider value={frame}>
       <ShellLayout
         layoutId={LAYOUT_ID}
-        tabs={VIEW_TABS}
+        tabs={viewTabs}
         activeTab={view}
         onSelectTab={(id) => {
           // A lookup rather than a cast: the strip is typed by its own tabs, so
           // this is the one place that has to prove an id is a view.
-          const next = VIEW_TABS.find((tab) => tab.id === id)
+          const next = viewTabs.find((tab) => tab.id === id)
           if (next !== undefined) onSelectView(next.id)
         }}
         tabsLabel="Views"
@@ -200,7 +206,11 @@ export function AppFrame({
           </>
         )}
         main={children}
-        right={<div ref={setRight} className="app-frame__slot app-frame__slot--fill" />}
+        right={
+          view === 'settings' ? undefined : (
+            <div ref={setRight} className="app-frame__slot app-frame__slot--fill" />
+          )
+        }
         status={<div ref={setStatus} className="app-frame__slot app-frame__slot--contents" />}
       />
     </FrameContext.Provider>
@@ -233,9 +243,13 @@ const APP_FRAME_CSS = `
 
 const APP_FRAME_STYLE_ID = 'app-frame-styles'
 
-if (typeof document !== 'undefined' && !document.getElementById(APP_FRAME_STYLE_ID)) {
-  const style = document.createElement('style')
-  style.id = APP_FRAME_STYLE_ID
-  style.textContent = APP_FRAME_CSS
-  document.head.appendChild(style)
+function useAppFrameStyles(): void {
+  useInsertionEffect(() => {
+    if (document.getElementById(APP_FRAME_STYLE_ID)) return
+
+    const style = document.createElement('style')
+    style.id = APP_FRAME_STYLE_ID
+    style.textContent = APP_FRAME_CSS
+    document.head.appendChild(style)
+  })
 }

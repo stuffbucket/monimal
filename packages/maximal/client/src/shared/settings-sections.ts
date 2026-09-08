@@ -1,5 +1,5 @@
 /**
- * What sections the Settings surface has, in the order it renders them.
+ * What sections the Settings surface has, in navigation order.
  *
  * The single source of truth for three consumers that used to each keep their
  * own list: the in-page rail, the page itself, and the application menu. Before
@@ -17,18 +17,14 @@
  *
  * ## Why the ids look like heading ids
  *
- * Because they are. Each panel already declares an `<h2 id>` for its own
- * `aria-labelledby`, and the rail scrolls to it. Reusing that id rather than
- * inventing a parallel key means a section is reachable without exporting a ref
- * or being wrapped in anything, and there is no second name to keep in step.
+ * Because they are. Each panel declares an `<h2 id>` for its own
+ * `aria-labelledby`, and the rail selects that panel. Reusing the id avoids a
+ * second section key that could drift from the heading it names.
  *
- * ## `requires`
  *
- * `server/discover` advertises the control methods the running core actually
- * offers, and `main/control-session.ts` already keeps that set. A section that
- * names methods it cannot work without is hidden when the core does not offer
- * them, which is how a client built against a newer core stays usable against
- * an older one. No section needs it yet; `visibleSections` is the mechanism.
+ * Every section remains visible against every supported Core version. A method
+ * unavailable in an older Core is an explicit panel state, not a disappearing
+ * destination in the rail or native menu.
  */
 
 /**
@@ -41,14 +37,21 @@
  */
 export const SETTINGS_SECTION_IDS = [
   'settings-account-heading',
-  'settings-accounts-heading',
-  'settings-connection-heading',
+  'settings-general-heading',
+  'settings-apps-heading',
+  'settings-endpoint-heading',
+  'settings-api-keys-heading',
+  'settings-models-heading',
+  'settings-usage-heading',
+  'settings-logs-heading',
+  'settings-diagnostics-heading',
 ] as const
 
 export type SettingsSectionId = (typeof SETTINGS_SECTION_IDS)[number]
+export const DEFAULT_SETTINGS_SECTION_ID = SETTINGS_SECTION_IDS[0]
 
 export interface SettingsSectionSpec {
-  /** The section's `<h2>` id, and the scroll target the rail jumps to. */
+  /** The section's `<h2>` id and navigation identity. */
   id: SettingsSectionId
   /**
    * What the section is called, in the rail and in the application menu.
@@ -57,37 +60,21 @@ export interface SettingsSectionSpec {
    * and never the surface configuring it.
    */
   label: string
-  /** Control methods the panel cannot work without. Absent from
-   *  `server/discover` — section hidden. */
-  requires?: readonly string[]
 }
 
 /** Array order is rendered order. No `order` field: that buys tie-breaking
  *  between independently-registered contributors, and there is one list. */
 export const SETTINGS_SECTIONS: readonly SettingsSectionSpec[] = [
   { id: 'settings-account-heading', label: 'Account' },
-  { id: 'settings-accounts-heading', label: 'Accounts' },
-  { id: 'settings-connection-heading', label: 'Connection' },
+  { id: 'settings-general-heading', label: 'General' },
+  { id: 'settings-apps-heading', label: 'Apps' },
+  { id: 'settings-endpoint-heading', label: 'Endpoint' },
+  { id: 'settings-api-keys-heading', label: 'API keys' },
+  { id: 'settings-models-heading', label: 'Models' },
+  { id: 'settings-usage-heading', label: 'Usage' },
+  { id: 'settings-logs-heading', label: 'Logs' },
+  { id: 'settings-diagnostics-heading', label: 'Diagnostics' },
 ]
-
-/**
- * The sections a core advertising `methods` can actually back.
- *
- * `undefined` means the advertised set is not known yet — the core is still
- * starting, or discovery has not answered. Every section is shown in that
- * case, deliberately: hiding on "not known yet" would empty the surface during
- * every boot and every sidecar restart, which reads as breakage rather than as
- * waiting.
- */
-export function visibleSections(
-  sections: readonly SettingsSectionSpec[],
-  methods: ReadonlySet<string> | undefined,
-): readonly SettingsSectionSpec[] {
-  if (methods === undefined) return sections
-  return sections.filter(
-    (section) => section.requires?.every((method) => methods.has(method)) ?? true,
-  )
-}
 
 /**
  * Whether a value names a section.

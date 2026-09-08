@@ -132,9 +132,7 @@ function openItem(): TemplateItem | undefined {
 const sectionLabels = SETTINGS_SECTIONS.map(({ label }) => label)
 
 function sectionItems(): TemplateItem[] {
-  return settingsMenu().filter(
-    (item) => item.label !== undefined && sectionLabels.includes(item.label),
-  )
+  return settingsMenu().find((item) => item.label === 'Open Section')?.submenu ?? []
 }
 
 describe('installApplicationMenu, Settings', () => {
@@ -153,11 +151,12 @@ describe('installApplicationMenu, Settings', () => {
     expect(onOpenSettings).toHaveBeenCalledWith(null)
   })
 
-  it('lists every section the manifest declares, in its order', () => {
+  it('lists every section in one Open Section flyout, in manifest order', () => {
     // The regression this catches is a menu naming a section the surface does
     // not render: the item would scroll to nothing.
     installApplicationMenu({ onOpenSettings: vi.fn() })
 
+    expect(settingsMenu().filter((item) => item.label === 'Open Section')).toHaveLength(1)
     expect(sectionItems().map((item) => item.label)).toEqual(sectionLabels)
   })
 

@@ -4,8 +4,6 @@ import {
   isSettingsSectionId,
   SETTINGS_SECTION_IDS,
   SETTINGS_SECTIONS,
-  visibleSections,
-  type SettingsSectionSpec,
 } from './settings-sections'
 
 describe('SETTINGS_SECTIONS', () => {
@@ -19,46 +17,6 @@ describe('SETTINGS_SECTIONS', () => {
   it('names every section', () => {
     // The label is product copy: it reaches the native menu and the rail.
     expect(SETTINGS_SECTIONS.every(({ label }) => label.trim() !== '')).toBe(true)
-  })
-})
-
-describe('visibleSections', () => {
-  const sections: SettingsSectionSpec[] = [
-    { id: 'settings-account-heading', label: 'Account' },
-    { id: 'settings-accounts-heading', label: 'Accounts', requires: ['accounts/list'] },
-    {
-      id: 'settings-connection-heading',
-      label: 'Connection',
-      requires: ['config/get', 'server/discover'],
-    },
-  ]
-
-  it('shows everything while the advertised methods are unknown', () => {
-    // Before the first `server/discover`, hiding would flash sections away and
-    // back. An unknown method set is not an empty one.
-    expect(visibleSections(sections, undefined)).toEqual(sections)
-  })
-
-  it('keeps a section that requires nothing', () => {
-    expect(visibleSections(sections, new Set()).map(({ id }) => id)).toEqual([
-      'settings-account-heading',
-    ])
-  })
-
-  it('hides a section whose core does not offer its method', () => {
-    const visible = visibleSections(sections, new Set(['config/get']))
-
-    // Connection needs both, and has one.
-    expect(visible.map(({ id }) => id)).toEqual(['settings-account-heading'])
-  })
-
-  it('keeps a section once every method it needs is advertised', () => {
-    const visible = visibleSections(
-      sections,
-      new Set(['accounts/list', 'config/get', 'server/discover']),
-    )
-
-    expect(visible).toEqual(sections)
   })
 })
 

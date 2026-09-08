@@ -88,6 +88,72 @@ export const Default: StoryObj = {
   },
 };
 
+const PANEL_TABS = [
+  { id: 'dashboard', title: 'Dashboard' },
+  { id: 'runs', title: 'Runs' },
+  { id: 'settings', title: 'Settings' },
+];
+
+function PerTabPanelsShell() {
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const hasInspector = activeTab !== 'settings';
+
+  return (
+    <ShellLayout
+      layoutId="shell-per-tab-story"
+      tabs={PANEL_TABS}
+      activeTab={activeTab}
+      onSelectTab={setActiveTab}
+      tabsLabel="Views"
+      left={(collapsed) => <nav className="nav">{collapsed ? null : activeTab}</nav>}
+      main={<div className="canvas">{activeTab}</div>}
+      right={hasInspector ? <div className="inspector">{activeTab} inspector</div> : undefined}
+      status={<span>Ready</span>}
+    />
+  );
+}
+
+export const PerTabPanels: StoryObj = {
+  render: () => <PerTabPanelsShell />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const dashboardRight = canvasElement.querySelector('#right');
+    if (!dashboardRight) throw new Error('nothing to measure: Dashboard inspector did not render');
+    const dashboardWidth = dashboardRight.getBoundingClientRect().width;
+    await expect(dashboardWidth, 'Dashboard inspector has width').toBeGreaterThan(0);
+
+    await userEvent.click(canvas.getByRole('tab', { name: 'Runs' }));
+    await userEvent.click(await canvas.findByRole('button', { name: 'Hide panel' }));
+    await expect((canvasElement.querySelector('#right') as HTMLElement | null)?.offsetWidth).toBe(0);
+
+    await userEvent.click(canvas.getByRole('tab', { name: 'Settings' }));
+    await expect(canvasElement.querySelector('#right')).toBeNull();
+    await expect(canvas.queryByTestId('toggle-right')).toBeNull();
+    await expect(canvas.getAllByRole('separator')).toHaveLength(1);
+    const panels = canvasElement.querySelector('.panels');
+    const main = canvasElement.querySelector('#main');
+    if (!panels || !main) throw new Error('nothing to measure: Settings panels did not render');
+    await expect(main.getBoundingClientRect().right).toBeCloseTo(
+      panels.getBoundingClientRect().right,
+      0,
+    );
+
+    await userEvent.click(canvas.getByRole('tab', { name: 'Dashboard' }));
+    await canvas.findByRole('button', { name: 'Hide panel' });
+    await expect(canvasElement.querySelector('#right')?.getBoundingClientRect().width).toBeCloseTo(
+      dashboardWidth,
+      0,
+    );
+
+    await userEvent.click(canvas.getByRole('tab', { name: 'Runs' }));
+    await canvas.findByRole('button', { name: 'Show panel' });
+    await expect((canvasElement.querySelector('#right') as HTMLElement | null)?.offsetWidth).toBe(0);
+
+    await userEvent.click(canvas.getByRole('tab', { name: 'Dashboard' }));
+    await canvas.findByRole('button', { name: 'Hide panel' });
+  },
+};
+
 function TallStatusShell() {
   return (
     <ShellLayout

@@ -14,7 +14,7 @@ import { componentStyles } from './stylesheets.js';
  * `--shell-radius-large`, `--shell-size-titlebar` beside
  * `--shell-titlebar-height` — and nothing read either. What is left is what
  * the published stylesheet has no name for at all, which is the type ramp:
- * `--shell-font` is one shorthand and a settings surface draws four sizes.
+ * `--shell-font` is one shorthand and a settings surface draws six sizes.
  *
  * A value here is only correct if it is the reference value. The reading sizes
  * are `rem` on purpose: a ramp in `px` stops tracking the root font size,

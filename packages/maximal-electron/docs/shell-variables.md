@@ -58,8 +58,10 @@ writes `font-size: 13px` again.
 | `--shell-space-4` | `16px` | Padding around a surface. |
 | `--shell-space-5` | `24px` | A gap between sections. |
 | `--shell-text-base` | `0.875rem` | Body text. |
-| `--shell-text-md` | `0.9375rem` | A surface title. |
+| `--shell-text-lg` | `1.0625rem` | A section title. |
+| `--shell-text-md` | `0.9375rem` | An emphasized label. |
 | `--shell-text-sm` | `0.8125rem` | Secondary text. |
+| `--shell-text-xl` | `1.375rem` | A surface title. |
 | `--shell-text-xs` | `0.6875rem` | All-caps section labels and counts. |
 | `--shell-tracking-caps` | `0.04em` | Tracking for an all-caps label. |
 | `--shell-weight-lg` | `600` | A heading. |
@@ -75,7 +77,7 @@ fallback the stylesheet still spells out.
 
 The rest the published stylesheet has no name for at all. The rules a component
 carries set type, and `--shell-font` is one shorthand: one size, one weight,
-one leading. A settings surface draws four sizes and three weights.
+one leading. A settings surface draws six sizes and three weights.
 
 The first version of this file declared thirty-eight, built by prefixing the
 short names `tokens.css` authors. Twenty were a second name for something

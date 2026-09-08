@@ -39,22 +39,44 @@ describe('preload bridge allowlist', () => {
       'control',
       'getCoreStatus',
       'getProxyUrl',
+      'logs',
+      'menuBarMode',
       'onCoreStatus',
       'onOpenSettings',
       'openExternal',
+      'pendingSettingsRequest',
     ])
     expect(Object.keys(bridge.control).sort()).toEqual([
       'accountsList',
       'accountsSwitch',
+      'apiKeysCreate',
+      'apiKeysList',
+      'apiKeysRemove',
+      'apiKeysSetEnforcement',
+      'apiKeysUpdate',
+      'appsList',
+      'appsSetEnabled',
       'authCancel',
       'authSignOut',
       'authStart',
       'authStatus',
+      'diagnosticsGet',
+      'modelsList',
+      'modelsRefresh',
       'observabilityOverview',
       'observabilityRequest',
       'observabilityRequests',
       'onChange',
       'onTrafficInvalidation',
+      'usageGet',
+    ])
+    expect(Object.keys(bridge.logs).sort()).toEqual(['location', 'reveal'])
+    expect(Object.keys(bridge.menuBarMode).sort()).toEqual([
+      'beginEnable',
+      'cancelEnable',
+      'confirmEnable',
+      'disable',
+      'get',
     ])
     expect(bridge).not.toHaveProperty('getCoreOrigin')
   })
@@ -75,6 +97,25 @@ describe('preload bridge allowlist', () => {
     await bridge.control.observabilityOverview(overviewQuery)
     await bridge.control.observabilityRequests(requestsQuery)
     await bridge.control.observabilityRequest({ requestId: 'req-1' })
+    await bridge.control.appsList()
+    await bridge.control.appsSetEnabled('claude-code', true)
+    await bridge.control.apiKeysList()
+    await bridge.control.apiKeysCreate({ label: 'Claude Code' })
+    await bridge.control.apiKeysUpdate('key-1', { enabled: false })
+    await bridge.control.apiKeysRemove('key-1')
+    await bridge.control.apiKeysSetEnforcement(true)
+    await bridge.control.modelsList()
+    await bridge.control.modelsRefresh()
+    await bridge.control.usageGet('week')
+    await bridge.control.diagnosticsGet()
+    await bridge.pendingSettingsRequest()
+    await bridge.logs.location()
+    await bridge.logs.reveal()
+    await bridge.menuBarMode.get()
+    await bridge.menuBarMode.beginEnable()
+    await bridge.menuBarMode.confirmEnable('attempt-1')
+    await bridge.menuBarMode.cancelEnable('attempt-1')
+    await bridge.menuBarMode.disable()
 
     expect(invoke.mock.calls).toEqual([
       [BRIDGE_CHANNELS.lifecycleCurrent],
@@ -89,6 +130,25 @@ describe('preload bridge allowlist', () => {
       [BRIDGE_CHANNELS.observabilityOverview, overviewQuery],
       [BRIDGE_CHANNELS.observabilityRequests, requestsQuery],
       [BRIDGE_CHANNELS.observabilityRequest, { requestId: 'req-1' }],
+      [BRIDGE_CHANNELS.appsList],
+      [BRIDGE_CHANNELS.appsSetEnabled, 'claude-code', true],
+      [BRIDGE_CHANNELS.apiKeysList],
+      [BRIDGE_CHANNELS.apiKeysCreate, { label: 'Claude Code' }],
+      [BRIDGE_CHANNELS.apiKeysUpdate, 'key-1', { enabled: false }],
+      [BRIDGE_CHANNELS.apiKeysRemove, 'key-1'],
+      [BRIDGE_CHANNELS.apiKeysSetEnforcement, true],
+      [BRIDGE_CHANNELS.modelsList],
+      [BRIDGE_CHANNELS.modelsRefresh],
+      [BRIDGE_CHANNELS.usageGet, 'week'],
+      [BRIDGE_CHANNELS.diagnosticsGet],
+      [BRIDGE_CHANNELS.pendingSettingsRequest],
+      [BRIDGE_CHANNELS.logsLocation],
+      [BRIDGE_CHANNELS.logsReveal],
+      [BRIDGE_CHANNELS.menuBarModeGet],
+      [BRIDGE_CHANNELS.menuBarModeBeginEnable],
+      [BRIDGE_CHANNELS.menuBarModeConfirmEnable, 'attempt-1'],
+      [BRIDGE_CHANNELS.menuBarModeCancelEnable, 'attempt-1'],
+      [BRIDGE_CHANNELS.menuBarModeDisable],
     ])
   })
 

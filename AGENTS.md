@@ -5,6 +5,19 @@ This is the documentation DAG root.
 Every `AGENTS.md` uses RFC 2119 keywords: MUST, MUST NOT, SHOULD, SHOULD NOT,
 MAY. Documentation MUST NOT include nonbinding background.
 
+## Before a task
+
+1. Agents MUST locate the files most likely to own the requested behavior before
+   opening supporting documentation.
+2. Agents MUST read the closest `AGENTS.md` that contains those files.
+3. Agents MUST NOT open supporting documentation without a concrete,
+   task-specific question.
+4. For changes under `./packages/**`, agents MUST consult the package's
+   provenance row and only the applicable Rules or Deviations in
+   [SOURCES.md](SOURCES.md).
+5. Orientation MUST stop when the behavior owner and applicable constraints are
+   known.
+
 ## Documentation
 
 - Facts MUST have one owner; other mentions MUST link to it.
@@ -37,7 +50,6 @@ The tiered native and Docker test workflow is documented only in
 
 ## Sources
 
-- [SOURCES.md](SOURCES.md) MUST be consulted before changing `./packages/**`.
 - SOURCES.md MUST record:
   - agent workspace build rules
   - deviations from the upstream copies

@@ -1,17 +1,27 @@
 import { join } from 'node:path'
 
+import {
+  ApiKeyCreateRequest,
+  ApiKeyUpdateRequest,
+  AppSetEnabledRequest,
+  TokenUsagePeriod,
+} from '@stuffbucket/maximal-core/settings-types'
 import type {
   TrafficOverviewQuery,
   TrafficRequestDetailQuery,
   TrafficRequestListQuery,
 } from '@stuffbucket/maximal-observability-contract'
+
 import { app, BrowserWindow, ipcMain, shell } from 'electron'
+import { z } from 'zod'
 
 import { BRIDGE_CHANNELS } from '../shared/bridge-channels.js'
+import type { PendingSettingsRequest } from '../shared/bridge-types.js'
 import { createControlSession, type ControlSession } from './control-session.js'
 import {
   type CoreStatus,
   awaitProxyUrl,
+  coreHomePath,
   currentCoreStatus,
   killCore,
   onCoreStatus,
@@ -19,6 +29,7 @@ import {
 } from './core.js'
 import { applyAppName, applyDockIcon, installApplicationMenu } from './identity.js'
 import { toLifecycleStatus } from './lifecycle-status.js'
+import { MenuBarModeController } from './menu-bar-mode.js'
 import { runShell } from './shell.js'
 
 // Before `whenReady`, not inside it: `app.name` is read when the default menu
@@ -26,6 +37,11 @@ import { runShell } from './shell.js'
 applyAppName()
 
 let controlSession: ControlSession | null = null
+let mainWindow: BrowserWindow | null = null
+let pendingSettingsRequest: PendingSettingsRequest | null = null
+let menuBarMode: MenuBarModeController | null = null
+
+const nonEmptyString = z.string().min(1)
 
 function openExternalUrl(url: string): Promise<void> {
   let parsed: URL
@@ -40,7 +56,10 @@ function openExternalUrl(url: string): Promise<void> {
   return shell.openExternal(url)
 }
 
-function registerIpc(session: ControlSession): void {
+function registerIpc(
+  session: ControlSession,
+  mode: MenuBarModeController,
+): void {
   ipcMain.handle(BRIDGE_CHANNELS.lifecycleCurrent, () =>
     toLifecycleStatus(currentCoreStatus()),
   )
@@ -53,9 +72,8 @@ function registerIpc(session: ControlSession): void {
   ipcMain.handle(BRIDGE_CHANNELS.authCancel, () => session.authCancel())
   ipcMain.handle(BRIDGE_CHANNELS.authSignOut, () => session.authSignOut())
   ipcMain.handle(BRIDGE_CHANNELS.accountsList, () => session.accountsList())
-  ipcMain.handle(
-    BRIDGE_CHANNELS.accountsSwitch,
-    (_event, key: string) => session.accountsSwitch(key),
+  ipcMain.handle(BRIDGE_CHANNELS.accountsSwitch, (_event, key: unknown) =>
+    session.accountsSwitch(nonEmptyString.parse(key)),
   )
   ipcMain.handle(
     BRIDGE_CHANNELS.observabilityOverview,
@@ -72,6 +90,63 @@ function registerIpc(session: ControlSession): void {
     (_event, query: TrafficRequestDetailQuery) =>
       session.observabilityRequest(query),
   )
+  ipcMain.handle(BRIDGE_CHANNELS.appsList, () => session.appsList())
+  ipcMain.handle(
+    BRIDGE_CHANNELS.appsSetEnabled,
+    (_event, appId: unknown, enabled: unknown) => {
+      const input = AppSetEnabledRequest.parse({ appId, enabled })
+      return session.appsSetEnabled(input.appId, input.enabled)
+    },
+  )
+  ipcMain.handle(BRIDGE_CHANNELS.apiKeysList, () => session.apiKeysList())
+  ipcMain.handle(BRIDGE_CHANNELS.apiKeysCreate, (_event, input: unknown) =>
+    session.apiKeysCreate(ApiKeyCreateRequest.parse(input)),
+  )
+  ipcMain.handle(
+    BRIDGE_CHANNELS.apiKeysUpdate,
+    (_event, id: unknown, update: unknown) =>
+      session.apiKeysUpdate(
+        nonEmptyString.parse(id),
+        ApiKeyUpdateRequest.parse(update),
+      ),
+  )
+  ipcMain.handle(BRIDGE_CHANNELS.apiKeysRemove, (_event, id: unknown) =>
+    session.apiKeysRemove(nonEmptyString.parse(id)),
+  )
+  ipcMain.handle(
+    BRIDGE_CHANNELS.apiKeysSetEnforcement,
+    (_event, enforcing: unknown) =>
+      session.apiKeysSetEnforcement(z.boolean().parse(enforcing)),
+  )
+  ipcMain.handle(BRIDGE_CHANNELS.modelsList, () => session.modelsList())
+  ipcMain.handle(BRIDGE_CHANNELS.modelsRefresh, () => session.modelsRefresh())
+  ipcMain.handle(BRIDGE_CHANNELS.usageGet, (_event, period: unknown) =>
+    session.usageGet(TokenUsagePeriod.parse(period)),
+  )
+  ipcMain.handle(BRIDGE_CHANNELS.diagnosticsGet, () => session.diagnosticsGet())
+  ipcMain.handle(BRIDGE_CHANNELS.logsLocation, () => join(coreHomePath(), 'logs'))
+  ipcMain.handle(BRIDGE_CHANNELS.logsReveal, async () => {
+    const error = await shell.openPath(join(coreHomePath(), 'logs'))
+    if (error) throw new Error(error)
+  })
+  ipcMain.handle(BRIDGE_CHANNELS.pendingSettingsRequest, () => {
+    const request = pendingSettingsRequest
+    pendingSettingsRequest = null
+    return request
+  })
+  ipcMain.handle(BRIDGE_CHANNELS.menuBarModeGet, () => mode.state())
+  ipcMain.handle(BRIDGE_CHANNELS.menuBarModeBeginEnable, () => mode.beginEnable())
+  ipcMain.handle(
+    BRIDGE_CHANNELS.menuBarModeConfirmEnable,
+    (_event, attemptId: unknown) =>
+      mode.confirmEnable(nonEmptyString.parse(attemptId)),
+  )
+  ipcMain.handle(
+    BRIDGE_CHANNELS.menuBarModeCancelEnable,
+    (_event, attemptId: unknown) =>
+      mode.cancelEnable(nonEmptyString.parse(attemptId)),
+  )
+  ipcMain.handle(BRIDGE_CHANNELS.menuBarModeDisable, () => mode.disable())
 }
 
 function broadcast(channel: string, payload?: unknown): void {
@@ -100,33 +175,65 @@ function loadRenderer(win: BrowserWindow): void {
   }
 }
 
-function createWindow(): void {
-  runShell({
+function focusWindow(win: BrowserWindow): void {
+  if (win.isMinimized()) win.restore()
+  if (!win.isVisible()) win.show()
+  win.focus()
+}
+
+function createWindow(): BrowserWindow {
+  const win = runShell({
     preloadPath: join(__dirname, 'preload.js'),
     title: 'Maximal',
-    width: 760,
-    height: 620,
+    width: 1024,
+    height: 768,
     loadRenderer,
   })
+  mainWindow = win
+  menuBarMode?.applyToWindow(win)
+  win.on('closed', () => {
+    menuBarMode?.cancelPending()
+    if (mainWindow === win) mainWindow = null
+  })
+  win.webContents.on('render-process-gone', () => {
+    menuBarMode?.cancelPending()
+  })
+  return win
+}
+
+function activateWindow(): BrowserWindow {
+  const win = mainWindow?.isDestroyed() === false ? mainWindow : createWindow()
+  focusWindow(win)
+  return win
+}
+
+function openSettings(sectionId: PendingSettingsRequest['sectionId']): void {
+  const existing = mainWindow?.isDestroyed() === false ? mainWindow : null
+  if (existing === null || existing.webContents.isLoading()) {
+    pendingSettingsRequest = { sectionId }
+    activateWindow()
+    return
+  }
+  focusWindow(existing)
+  existing.webContents.send(BRIDGE_CHANNELS.menuOpenSettings, sectionId)
 }
 
 void app.whenReady().then(async () => {
   applyDockIcon()
-  // The menu's only way to reach a surface. `broadcast` is the same helper the
-  // lifecycle and control-change pushes use, and the payload is a section id or
-  // null — never a command, and never anything the renderer could not have
-  // named itself.
-  installApplicationMenu({
-    onOpenSettings: (sectionId) =>
-      broadcast(BRIDGE_CHANNELS.menuOpenSettings, sectionId),
+  const nativeMode = new MenuBarModeController(() => {
+    activateWindow()
   })
+  menuBarMode = nativeMode
+  await nativeMode.initialize()
+
+  installApplicationMenu({ onOpenSettings: openSettings })
 
   controlSession = createControlSession({
     onChange: () => broadcast(BRIDGE_CHANNELS.controlChanged),
     onTrafficInvalidation: (invalidation) =>
       broadcast(BRIDGE_CHANNELS.trafficInvalidated, invalidation),
   })
-  registerIpc(controlSession)
+  registerIpc(controlSession, nativeMode)
 
   onCoreStatus((status) => {
     if (status.phase === 'ready') {
@@ -140,7 +247,7 @@ void app.whenReady().then(async () => {
   // Window first, then core, so the renderer can narrate a slow sidecar boot.
   createWindow()
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    activateWindow()
   })
 
   try {
@@ -155,14 +262,14 @@ void app.whenReady().then(async () => {
 // On macOS the sidecar is app-scoped, not window-scoped: closing every window
 // leaves it alive so `activate` can reopen immediately. Other platforms quit.
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    controlSession?.dispose()
-    killCore()
-    app.quit()
-  }
+  if (process.platform === 'darwin' || menuBarMode?.keepsAlive() === true) return
+  controlSession?.dispose()
+  killCore()
+  app.quit()
 })
 
 app.on('before-quit', () => {
+  menuBarMode?.dispose()
   controlSession?.dispose()
   killCore()
 })

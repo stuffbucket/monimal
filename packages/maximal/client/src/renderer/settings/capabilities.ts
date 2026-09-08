@@ -1,8 +1,23 @@
 import type {
   AccountsListResponse,
   AccountSummary,
+  ApiKeyCreateRequest,
+  ApiKeyEntry,
+  ApiKeysListResponse,
+  ApiKeyUpdateRequest,
+  AppEntry,
+  AppsListResponse,
   AuthStatus,
+  DiagnosticsResponse,
+  ModelsListResponse,
+  TokenUsagePeriod,
+  TokenUsageSummary,
 } from '@stuffbucket/maximal-core/settings-types'
+
+import type {
+  MenuBarModeAttempt,
+  MenuBarModeState,
+} from '../../shared/bridge-types'
 
 import type { MaximalBridge } from '../../preload'
 import {
@@ -11,7 +26,23 @@ import {
 } from '../../shared/settings-sections'
 import { unwrapControlResult } from '../shared/control-error'
 
-export type { AccountsListResponse, AccountSummary, AuthStatus }
+export type {
+  AccountsListResponse,
+  AccountSummary,
+  ApiKeyCreateRequest,
+  ApiKeyEntry,
+  ApiKeysListResponse,
+  ApiKeyUpdateRequest,
+  AppEntry,
+  AppsListResponse,
+  AuthStatus,
+  DiagnosticsResponse,
+  MenuBarModeAttempt,
+  MenuBarModeState,
+  ModelsListResponse,
+  TokenUsagePeriod,
+  TokenUsageSummary,
+}
 
 /** Narrow UI contract; Electron transport stays inside this adapter. */
 export interface SettingsCapabilities {
@@ -27,9 +58,41 @@ export interface SettingsCapabilities {
     list(): Promise<AccountsListResponse>
     switchTo(key: string): Promise<void>
   }
+  general: {
+    menuBarMode(): Promise<MenuBarModeState>
+    beginMenuBarOnly(): Promise<MenuBarModeAttempt>
+    confirmMenuBarOnly(attemptId: string): Promise<MenuBarModeState>
+    cancelMenuBarOnly(attemptId: string): Promise<MenuBarModeState>
+    disableMenuBarOnly(): Promise<MenuBarModeState>
+  }
+  apps: {
+    list(): Promise<AppsListResponse>
+    setEnabled(appId: AppEntry['id'], enabled: boolean): Promise<AppEntry>
+  }
   connection: {
     /** Base URL where /v1 is served for external programs (to display/copy). */
     proxyUrl(): Promise<string>
+  }
+  apiKeys: {
+    list(): Promise<ApiKeysListResponse>
+    create(input: ApiKeyCreateRequest): Promise<ApiKeyEntry>
+    update(id: string, update: ApiKeyUpdateRequest): Promise<ApiKeyEntry>
+    remove(id: string): Promise<void>
+    setEnforcement(enforcing: boolean): Promise<ApiKeysListResponse>
+  }
+  models: {
+    list(): Promise<ModelsListResponse>
+    refresh(): Promise<ModelsListResponse>
+  }
+  usage: {
+    get(period: TokenUsagePeriod): Promise<TokenUsageSummary>
+  }
+  logs: {
+    location(): Promise<string>
+    reveal(): Promise<void>
+  }
+  diagnostics: {
+    get(): Promise<DiagnosticsResponse>
   }
   /**
    * The application menu asking for this surface.
@@ -132,16 +195,71 @@ export function createCoreSettingsCapabilities(): SettingsCapabilities {
         unwrapControlResult(await bridge.control.accountsSwitch(key))
       },
     },
+    general: {
+      menuBarMode: () => bridge.menuBarMode.get(),
+      beginMenuBarOnly: () => bridge.menuBarMode.beginEnable(),
+      confirmMenuBarOnly: (attemptId) => bridge.menuBarMode.confirmEnable(attemptId),
+      cancelMenuBarOnly: (attemptId) => bridge.menuBarMode.cancelEnable(attemptId),
+      disableMenuBarOnly: () => bridge.menuBarMode.disable(),
+    },
+    apps: {
+      list: async () => unwrapControlResult(await bridge.control.appsList()),
+      setEnabled: async (appId, enabled) =>
+        unwrapControlResult(await bridge.control.appsSetEnabled(appId, enabled)),
+    },
     connection: {
       proxyUrl: () => proxyUrlTracker.current(),
     },
-    // Narrowed rather than cast. Main sends only ids from the shared manifest,
-    // so an unknown one is a rename that got away — and the surface it would
-    // scroll to does not exist, which is what `null` already means.
-    onOpenRequest: (listener) =>
-      bridge.onOpenSettings((sectionId) => {
+    apiKeys: {
+      list: async () => unwrapControlResult(await bridge.control.apiKeysList()),
+      create: async (input) =>
+        unwrapControlResult(await bridge.control.apiKeysCreate(input)),
+      update: async (id, update) =>
+        unwrapControlResult(await bridge.control.apiKeysUpdate(id, update)),
+      remove: async (id) => {
+        unwrapControlResult(await bridge.control.apiKeysRemove(id))
+      },
+      setEnforcement: async (enforcing) =>
+        unwrapControlResult(
+          await bridge.control.apiKeysSetEnforcement(enforcing),
+        ),
+    },
+    models: {
+      list: async () => unwrapControlResult(await bridge.control.modelsList()),
+      refresh: async () =>
+        unwrapControlResult(await bridge.control.modelsRefresh()),
+    },
+    usage: {
+      get: async (period) =>
+        unwrapControlResult(await bridge.control.usageGet(period)),
+    },
+    logs: bridge.logs,
+    diagnostics: {
+      get: async () =>
+        unwrapControlResult(await bridge.control.diagnosticsGet()),
+    },
+    // Subscribe before consuming the startup request. A menu request that lands
+    // during this handshake is either delivered live or retained by main; it
+    // cannot disappear between the two operations.
+    onOpenRequest: (listener) => {
+      const unsubscribe = bridge.onOpenSettings((sectionId) => {
         listener(isSettingsSectionId(sectionId) ? sectionId : null)
-      }),
+      })
+      void bridge
+        .pendingSettingsRequest()
+        .then((request) => {
+          if (request !== null) {
+            listener(
+              isSettingsSectionId(request.sectionId) ? request.sectionId : null,
+            )
+          }
+        })
+        .catch(() => {
+          // A renderer can still receive live requests. Do not turn a failed
+          // startup consume into an unhandled rejection that breaks that path.
+        })
+      return unsubscribe
+    },
     openExternal: (url) => bridge.openExternal(url),
   }
 }

@@ -1,6 +1,16 @@
 import type {
   AccountsListResponse,
+  ApiKeyCreateRequest,
+  ApiKeyEntry,
+  ApiKeysListResponse,
+  ApiKeyUpdateRequest,
+  AppEntry,
+  AppsListResponse,
   AuthStatus,
+  DiagnosticsResponse,
+  ModelsListResponse,
+  TokenUsagePeriod,
+  TokenUsageSummary,
 } from '@stuffbucket/maximal-core/settings-types'
 import {
   TrafficInvalidationSchema,
@@ -18,6 +28,9 @@ import { BRIDGE_CHANNELS } from '../shared/bridge-channels.js'
 import type {
   ControlResult,
   LifecycleStatus,
+  MenuBarModeAttempt,
+  MenuBarModeState,
+  PendingSettingsRequest,
 } from '../shared/bridge-types.js'
 
 const bridge = {
@@ -41,6 +54,25 @@ const bridge = {
     return () => {
       ipcRenderer.off(BRIDGE_CHANNELS.lifecycleChanged, handler)
     }
+  },
+  pendingSettingsRequest: (): Promise<PendingSettingsRequest | null> =>
+    ipcRenderer.invoke(BRIDGE_CHANNELS.pendingSettingsRequest),
+  logs: {
+    location: (): Promise<string> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.logsLocation),
+    reveal: (): Promise<void> => ipcRenderer.invoke(BRIDGE_CHANNELS.logsReveal),
+  },
+  menuBarMode: {
+    get: (): Promise<MenuBarModeState> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.menuBarModeGet),
+    beginEnable: (): Promise<MenuBarModeAttempt> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.menuBarModeBeginEnable),
+    confirmEnable: (attemptId: string): Promise<MenuBarModeState> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.menuBarModeConfirmEnable, attemptId),
+    cancelEnable: (attemptId: string): Promise<MenuBarModeState> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.menuBarModeCancelEnable, attemptId),
+    disable: (): Promise<MenuBarModeState> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.menuBarModeDisable),
   },
   /** The application menu asking for the Settings surface. The payload is a
    *  section id to scroll to, or null for the surface itself. */
@@ -80,6 +112,40 @@ const bridge = {
       query: TrafficRequestDetailQuery,
     ): Promise<ControlResult<TrafficRequestDetail | null>> =>
       ipcRenderer.invoke(BRIDGE_CHANNELS.observabilityRequest, query),
+    appsList: (): Promise<ControlResult<AppsListResponse>> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.appsList),
+    appsSetEnabled: (
+      appId: AppEntry['id'],
+      enabled: boolean,
+    ): Promise<ControlResult<AppEntry>> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.appsSetEnabled, appId, enabled),
+    apiKeysList: (): Promise<ControlResult<ApiKeysListResponse>> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.apiKeysList),
+    apiKeysCreate: (
+      input: ApiKeyCreateRequest,
+    ): Promise<ControlResult<ApiKeyEntry>> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.apiKeysCreate, input),
+    apiKeysUpdate: (
+      id: string,
+      update: ApiKeyUpdateRequest,
+    ): Promise<ControlResult<ApiKeyEntry>> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.apiKeysUpdate, id, update),
+    apiKeysRemove: (id: string): Promise<ControlResult<null>> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.apiKeysRemove, id),
+    apiKeysSetEnforcement: (
+      enforcing: boolean,
+    ): Promise<ControlResult<ApiKeysListResponse>> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.apiKeysSetEnforcement, enforcing),
+    modelsList: (): Promise<ControlResult<ModelsListResponse>> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.modelsList),
+    modelsRefresh: (): Promise<ControlResult<ModelsListResponse>> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.modelsRefresh),
+    usageGet: (
+      period: TokenUsagePeriod,
+    ): Promise<ControlResult<TokenUsageSummary>> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.usageGet, period),
+    diagnosticsGet: (): Promise<ControlResult<DiagnosticsResponse>> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.diagnosticsGet),
     onChange: (listener: () => void): (() => void) => {
       const handler = (): void => {
         listener()
