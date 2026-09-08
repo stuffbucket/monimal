@@ -317,5 +317,3 @@ export function createControlRoutes(options: ControlRoutesOptions = {}): Hono {
 
   return app
 }
-
-export const controlRoutes = createControlRoutes()

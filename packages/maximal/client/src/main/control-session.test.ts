@@ -2,7 +2,10 @@ import {
   ControlRpcError,
   type ControlState,
 } from '@stuffbucket/maximal-core/client'
-import { SUPPORTED_PROTOCOL_VERSION } from '@stuffbucket/maximal-core/contract'
+import {
+  SUPPORTED_PROTOCOL_VERSION,
+  type ControlTopic,
+} from '@stuffbucket/maximal-core/contract'
 import {
   TrafficOverviewQuerySchema,
   TrafficRequestListQuerySchema,
@@ -94,8 +97,12 @@ type TestControlState = ControlState & { traffic?: unknown }
 
 class FakeClient {
   readonly calls: Array<{ method: string; params?: unknown }> = []
-  readonly listeners = new Set<(state: ControlState) => void>()
-  readonly staleListeners = new Set<(state: ControlState) => void>()
+  readonly listeners = new Set<
+    (state: ControlState, topic: ControlTopic | null) => void
+  >()
+  readonly staleListeners = new Set<
+    (state: ControlState, topic: ControlTopic | null) => void
+  >()
   readonly responses = new Map<string, unknown>()
   connected = 0
   closed = 0
@@ -113,19 +120,21 @@ class FakeClient {
     return response as T
   }
 
-  onState(listener: (state: ControlState) => void): () => void {
+  onState(
+    listener: (state: ControlState, topic: ControlTopic | null) => void,
+  ): () => void {
     this.listeners.add(listener)
     this.staleListeners.add(listener)
-    listener({})
+    listener({}, null)
     return () => this.listeners.delete(listener)
   }
 
-  emit(state: TestControlState = {}): void {
-    for (const listener of this.listeners) listener(state)
+  emit(state: TestControlState = {}, topic: ControlTopic = 'auth'): void {
+    for (const listener of this.listeners) listener(state, topic)
   }
 
-  emitStale(state: TestControlState = {}): void {
-    for (const listener of this.staleListeners) listener(state)
+  emitStale(state: TestControlState = {}, topic: ControlTopic = 'auth'): void {
+    for (const listener of this.staleListeners) listener(state, topic)
   }
 
   async connect(): Promise<void> {
@@ -462,6 +471,58 @@ describe('traffic invalidations', () => {
       traffic: { ...invalidation, revision: invalidation.revision + 1 },
     })
     expect(harness.onTrafficInvalidation).toHaveBeenCalledTimes(1)
+  })
+
+  it('invalidates all traffic reads when a reconnect snapshot arrives', async () => {
+    const discover = new FakeClient({ 'server/discover': discovery() })
+    const live = fullLiveClient()
+    const harness = createHarness({ clients: [discover, live] })
+
+    await harness.session.authStatus()
+    live.emit({
+      traffic: {
+        contractVersion: 1,
+        revision: 0,
+        emittedAt: '2026-09-07T20:00:00.000Z',
+        activeCount: 0,
+        overflow: false,
+        scopes: ['overview'],
+        requestIds: [],
+      },
+    })
+    live.emit(
+      {
+        auth: {},
+        accounts: {},
+        apps: {},
+        models: {},
+        usage: {},
+        clients: {},
+      },
+      'snapshot',
+    )
+
+    expect(harness.onTrafficInvalidation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        overflow: true,
+        scopes: ['requests', 'request-detail', 'overview'],
+        requestIds: [],
+      }),
+    )
+
+    const restartedRevision = {
+      contractVersion: 1,
+      revision: 0,
+      emittedAt: '2026-09-07T20:02:00.000Z',
+      activeCount: 1,
+      overflow: false,
+      scopes: ['overview'],
+      requestIds: [],
+    }
+    live.emit({ traffic: restartedRevision })
+    expect(harness.onTrafficInvalidation).toHaveBeenLastCalledWith(
+      restartedRevision,
+    )
   })
 })
 

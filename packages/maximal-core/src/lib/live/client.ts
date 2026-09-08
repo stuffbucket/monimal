@@ -192,7 +192,10 @@ export interface ControlClientOptions {
 }
 
 export type ControlState = Partial<Record<ControlTopic, unknown>>
-export type StateListener = (state: ControlState) => void
+export type StateListener = (
+  state: ControlState,
+  topic: ControlTopic | null,
+) => void
 
 const DEFAULT_RECONNECT_MS = 500
 const DEFAULT_MAX_RECONNECT_MS = 15_000
@@ -255,7 +258,7 @@ export class ControlClient {
    *  current state and on every subsequent change. Returns an unsubscribe. */
   onState(listener: StateListener): () => void {
     this.listeners.add(listener)
-    listener(this.state)
+    listener(this.state, null)
     return () => {
       this.listeners.delete(listener)
     }
@@ -405,7 +408,7 @@ export class ControlClient {
     } else {
       this.state = { ...this.state, [topic]: data }
     }
-    for (const listener of this.listeners) listener(this.state)
+    for (const listener of this.listeners) listener(this.state, topic)
   }
 
   // ── Reads / actions (thin fetch helpers) ──────────────────────────────────

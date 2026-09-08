@@ -125,12 +125,7 @@ export function deriveTokenStacks(
     start: point.start,
     end: point.end,
     values: [
-      Math.max(
-        0,
-        point.inputTokens
-          - point.cacheReadInputTokens
-          - point.cacheCreationInputTokens,
-      ),
+      point.inputTokens,
       point.cacheReadInputTokens,
       point.cacheCreationInputTokens,
       point.outputTokens,

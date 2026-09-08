@@ -189,10 +189,38 @@ function toTrafficTokens(input: UsageTokens): TrafficTokenMetadata {
   }
 }
 
+function boundedTrafficIdentifier(
+  value: string | null | undefined,
+): string | null {
+  const normalized = value?.trim().slice(0, 200)
+  return normalized || null
+}
+
+function addTrafficTokens(
+  left: TrafficTokenMetadata | undefined,
+  right: TrafficTokenMetadata,
+): TrafficTokenMetadata {
+  if (!left) return right
+  return {
+    inputTokens: left.inputTokens + right.inputTokens,
+    outputTokens: left.outputTokens + right.outputTokens,
+    cacheReadInputTokens:
+      left.cacheReadInputTokens + right.cacheReadInputTokens,
+    cacheCreationInputTokens:
+      left.cacheCreationInputTokens + right.cacheCreationInputTokens,
+    reasoningTokens: left.reasoningTokens + right.reasoningTokens,
+    totalTokens: left.totalTokens + right.totalTokens,
+    totalNanoAiu: left.totalNanoAiu + right.totalNanoAiu,
+  }
+}
+
 function annotateTrafficObservation(input: TokenUsageEventInput): void {
-  const observation = requestContext.getStore()?.trafficObservation
+  const store = requestContext.getStore()
+  const observation = store?.trafficObservation
   if (!observation) return
   const at = new Date().toISOString()
+  const model = boundedTrafficIdentifier(input.model)
+  const parentSessionId = boundedTrafficIdentifier(store.parentSessionId)
   try {
     observation.recordDispatch({
       at,
@@ -202,12 +230,11 @@ function annotateTrafficObservation(input: TokenUsageEventInput): void {
         project: null,
         provider:
           input.source === "provider" ?
-            input.providerName?.trim() || null
+            boundedTrafficIdentifier(input.providerName)
           : "copilot",
-        model: input.model.trim() || null,
-        parentSessionId:
-          requestContext.getStore()?.parentSessionId?.trim() || null,
-        subagent: requestContext.getStore()?.parentSessionId ? true : null,
+        model,
+        parentSessionId,
+        subagent: parentSessionId === null ? null : true,
         compactType: null,
       },
       dispatch: {
@@ -217,10 +244,12 @@ function annotateTrafficObservation(input: TokenUsageEventInput): void {
         streamed: null,
         upstreamRequestId: null,
         requestedModel: null,
-        resolvedModel: input.model.trim() || null,
+        resolvedModel: model,
       },
     })
-    observation.recordTokens({ at, tokens: toTrafficTokens(input) })
+    const tokens = addTrafficTokens(store.trafficTokens, toTrafficTokens(input))
+    store.trafficTokens = tokens
+    observation.recordTokens({ at, tokens })
   } catch (error) {
     consola.warn("Traffic observer rejected token annotation", error)
   }

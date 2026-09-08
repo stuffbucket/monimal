@@ -14,7 +14,9 @@ import {
 export function Traffic() {
   return (
     <>
-      <SurfaceRail>{() => <TrafficExplorerRail />}</SurfaceRail>
+      <SurfaceRail>
+        {(collapsed) => (collapsed ? null : <TrafficExplorerRail />)}
+      </SurfaceRail>
       <SurfaceRight>
         <TrafficExplorerInspector />
       </SurfaceRight>

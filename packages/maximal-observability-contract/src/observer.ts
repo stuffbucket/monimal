@@ -56,6 +56,18 @@ export type TrafficFirstResponseObservation = z.infer<
   typeof TrafficFirstResponseObservationSchema
 >
 
+/** Request-body metadata that can arrive after passive ingress observation starts. */
+export const TrafficContextObservationSchema = z
+  .object({
+    at: TrafficTimestampSchema,
+    context: TrafficContextMetadataSchema,
+  })
+  .strict()
+
+export type TrafficContextObservation = z.infer<
+  typeof TrafficContextObservationSchema
+>
+
 /** A complete token snapshot; repeated observations replace rather than add. */
 export const TrafficTokenObservationSchema = z
   .object({
@@ -105,6 +117,7 @@ export type TrafficCompletionObservation = z.infer<
 export interface TrafficObservationHandle {
   recordDispatch(observation: TrafficDispatchObservation): void
   recordFirstResponse(observation: TrafficFirstResponseObservation): void
+  recordContext?(observation: TrafficContextObservation): void
   recordTokens(observation: TrafficTokenObservation): void
   complete(observation: TrafficCompletionObservation): void
 }

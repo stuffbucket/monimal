@@ -19,6 +19,7 @@ export function initializeTrafficDb(
   initializeTokenUsageDb(db)
   db.exec("PRAGMA journal_mode = WAL")
   db.exec("PRAGMA busy_timeout = 5000")
+  db.exec("PRAGMA foreign_keys = ON")
   db.exec(`
     CREATE TABLE IF NOT EXISTS traffic_schema_migrations (
       version INTEGER PRIMARY KEY,
@@ -115,6 +116,10 @@ export function initializeTrafficDb(
   recoverActiveRows(db, nowMs)
   backfillLegacyUsageRows(db)
   const cutoff = nowMs - Math.max(1, Math.floor(retentionDays)) * DAY_MS
+  db.exec(`
+    DELETE FROM traffic_request_lifecycle
+    WHERE request_id NOT IN (SELECT request_id FROM traffic_requests)
+  `)
   db.prepare(
     "DELETE FROM traffic_requests WHERE state = 'completed' AND accepted_at_ms < ?",
   ).run(cutoff)
@@ -171,7 +176,8 @@ export function backfillLegacyUsageRows(db: SqliteDatabase): void {
       CASE WHEN source = 'provider' THEN provider_name ELSE 'copilot' END,
       model, 1, 0, 1, input_tokens, output_tokens,
       cache_read_input_tokens, cache_creation_input_tokens, total_tokens,
-      total_nano_aiu, total_tokens
+      total_nano_aiu,
+      input_tokens + cache_read_input_tokens + cache_creation_input_tokens
     FROM token_usage_events
     WHERE traffic_request_id IS NULL
   `)

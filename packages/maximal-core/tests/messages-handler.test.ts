@@ -1,8 +1,14 @@
+import type {
+  TrafficContextObservation,
+  TrafficDispatchObservation,
+} from "@stuffbucket/maximal-observability-contract"
+
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test"
 import { Hono } from "hono"
 
 import type { AnthropicMessagesPayload } from "~/lib/models/anthropic-types"
 
+import { requestContext } from "../src/lib/http/request-context"
 import {
   generateRequestIdFromPayload,
   getUUID,
@@ -28,6 +34,9 @@ const originalState = {
 type SelectedModel = {
   id: string
   supported_endpoints?: Array<string>
+  capabilities?: {
+    limits?: { max_context_window_tokens?: number }
+  }
 }
 
 type FlowCallOptions = {
@@ -105,6 +114,7 @@ afterEach(() => {
   state.lastRequestTimestamp = originalState.lastRequestTimestamp
 })
 
+// eslint-disable-next-line max-lines-per-function
 describe("messages handler orchestration", () => {
   test("removes executeCode and rewrites getDiagnostics before forwarding tools", async () => {
     selectedModel = {
@@ -183,6 +193,83 @@ describe("messages handler orchestration", () => {
 
     const [, forwardedPayload] = handleWithMessagesApi.mock.calls[0]
     expect(forwardedPayload.model).toBe("messages-model")
+  })
+
+  test("annotates resolved model, context, and subagent metadata", async () => {
+    selectedModel = {
+      id: "messages-model",
+      supported_endpoints: ["/v1/messages"],
+      capabilities: { limits: { max_context_window_tokens: 200_000 } },
+    }
+    const dispatches: Array<TrafficDispatchObservation> = []
+    const contexts: Array<TrafficContextObservation> = []
+    const app = createApp()
+
+    const response = await requestContext.run(
+      {
+        traceId: "trace-observation",
+        startTime: Date.now(),
+        userAgent: "test",
+        sessionAffinity: undefined,
+        parentSessionId: undefined,
+        trafficObservation: {
+          recordDispatch: (observation) => dispatches.push(observation),
+          recordContext: (observation) => contexts.push(observation),
+          recordFirstResponse: () => undefined,
+          recordTokens: () => undefined,
+          complete: () => undefined,
+        },
+      },
+      () =>
+        app.request("/", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(
+            createPayload({
+              max_tokens: 4_096,
+              messages: [
+                {
+                  role: "user",
+                  content: [
+                    {
+                      type: "text",
+                      text: '<system-reminder>__SUBAGENT_MARKER__ {"session_id":"parent-session","agent_id":"agent-1","agent_type":"worker"}</system-reminder>',
+                    },
+                  ],
+                },
+              ],
+              tools: [
+                {
+                  name: "keep_me",
+                  input_schema: { type: "object" },
+                },
+              ],
+            }),
+          ),
+        }),
+    )
+
+    expect(response.status).toBe(200)
+    expect(dispatches.at(-1)).toMatchObject({
+      attribution: {
+        model: "messages-model",
+        parentSessionId: "parent-session",
+        subagent: true,
+      },
+      dispatch: {
+        requestedModel: "original-model",
+        resolvedModel: "messages-model",
+        streamed: false,
+      },
+    })
+    expect(contexts.at(-1)?.context).toEqual({
+      messageCount: 1,
+      toolDefinitionCount: 1,
+      contextWindowTokens: 200_000,
+      requestedMaxOutputTokens: 4_096,
+      usedTokens: null,
+      usedRatio: null,
+    })
   })
 
   test("strips unsupported top-level diagnostics before forwarding", async () => {

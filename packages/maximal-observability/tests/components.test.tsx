@@ -130,6 +130,8 @@ describe("observability components", () => {
       contractVersion: 1,
       revision: 1,
       emittedAt: "2026-09-07T20:02:00.000Z",
+      activeCount: 0,
+      overflow: false,
       scopes: ["overview"],
       requestIds: [],
     })

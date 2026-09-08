@@ -4,6 +4,7 @@ import type {
   TrafficContextMetadata,
   TrafficDispatchMetadata,
   TrafficErrorMetadata,
+  TrafficObservationHandle,
   TrafficObserver,
 } from "@stuffbucket/maximal-observability-contract"
 import type { Context, MiddlewareHandler } from "hono"
@@ -33,6 +34,22 @@ export function observedInferencePaths(): Array<string> {
   ]
 }
 
+/** Persist bounded route templates, never user-controlled wildcard suffixes. */
+function normalizedRoutePath(path: string): string {
+  if (/^\/[^/]+\/v1\/messages\/count_tokens(?:\/|$)/u.test(path)) {
+    return "/:provider/v1/messages/count_tokens"
+  }
+  if (/^\/[^/]+\/v1\/messages(?:\/|$)/u.test(path)) {
+    return "/:provider/v1/messages"
+  }
+  for (const candidate of [...OBSERVED_PATHS].sort(
+    (left, right) => right.length - left.length,
+  )) {
+    if (path === candidate || path.startsWith(`${candidate}/`)) return candidate
+  }
+  return "/inference"
+}
+
 function operationForPath(path: string): string {
   if (path.endsWith("/count_tokens")) return "count-tokens"
   if (path.includes("/chat/completions")) return "chat-completions"
@@ -41,9 +58,14 @@ function operationForPath(path: string): string {
   return "messages"
 }
 
+function boundedIdentifier(value: string | null | undefined): string | null {
+  const normalized = value?.trim().slice(0, 200)
+  return normalized || null
+}
+
 function providerForPath(path: string): string {
   const match = /^\/([^/]+)\/v1\/messages(?:\/|$)/u.exec(path)
-  return match?.[1] ?? "copilot"
+  return boundedIdentifier(match?.[1]) ?? "copilot"
 }
 
 /** Known, fixed client labels only. The raw user-agent is never returned. */
@@ -71,31 +93,34 @@ function nonnegativeInteger(value: unknown): number | null {
     : null
 }
 
-async function readNormalizedRequest(c: Context): Promise<{
+function normalizedRequest(
+  c: Context,
+  body: Record<string, unknown>,
+): {
   attribution: TrafficAttributionMetadata
   context: TrafficContextMetadata
-}> {
-  const body = asRecord(await c.req.json().catch(() => null)) ?? {}
-  const path = c.req.path
-  const provider = providerForPath(path)
-  const model =
-    typeof body.model === "string" ? body.model.trim().slice(0, 200) : ""
+} {
+  const store = requestContext.getStore()
+  const provider = providerForPath(c.req.path)
+  const model = boundedIdentifier(
+    typeof body.model === "string" ? body.model : null,
+  )
   const contextWindow =
     nonnegativeInteger(body.context_window)
     ?? nonnegativeInteger(body.context_window_tokens)
   const requestedMax =
     nonnegativeInteger(body.max_tokens)
     ?? nonnegativeInteger(body.max_output_tokens)
+  const parentSessionId = boundedIdentifier(store?.parentSessionId)
   return {
     attribution: {
       source: provider === "copilot" ? "copilot" : "provider",
-      client: normalizedClient(requestContext.getStore()?.userAgent ?? ""),
+      client: normalizedClient(store?.userAgent ?? ""),
       project: null,
       provider,
-      model: model || null,
-      parentSessionId:
-        requestContext.getStore()?.parentSessionId?.trim() || null,
-      subagent: requestContext.getStore()?.parentSessionId ? true : null,
+      model,
+      parentSessionId,
+      subagent: parentSessionId === null ? null : true,
       compactType: null,
     },
     context: {
@@ -107,6 +132,20 @@ async function readNormalizedRequest(c: Context): Promise<{
       usedRatio: null,
     },
   }
+}
+
+async function readNormalizedRequest(c: Context): Promise<{
+  attribution: TrafficAttributionMetadata
+  context: TrafficContextMetadata
+}> {
+  const body =
+    asRecord(
+      await c.req.raw
+        .clone()
+        .json()
+        .catch(() => null),
+    ) ?? {}
+  return normalizedRequest(c, body)
 }
 
 function requestBytes(c: Context): number | null {
@@ -207,6 +246,55 @@ interface ResponseStreamInput {
   streamed: boolean
 }
 
+function passiveHandle(
+  observer: TrafficObserver,
+  observation: Parameters<TrafficObserver["beginRequest"]>[0],
+): TrafficObservationHandle {
+  let handle: TrafficObservationHandle | null = null
+  try {
+    handle = observer.beginRequest(observation)
+  } catch {
+    // Observability is passive: a broken sink cannot affect request delivery.
+  }
+  return {
+    recordDispatch(value) {
+      try {
+        handle?.recordDispatch(value)
+      } catch {
+        // Best-effort telemetry only.
+      }
+    },
+    recordFirstResponse(value) {
+      try {
+        handle?.recordFirstResponse(value)
+      } catch {
+        // Best-effort telemetry only.
+      }
+    },
+    recordContext(value) {
+      try {
+        handle?.recordContext?.(value)
+      } catch {
+        // Best-effort telemetry only.
+      }
+    },
+    recordTokens(value) {
+      try {
+        handle?.recordTokens(value)
+      } catch {
+        // Best-effort telemetry only.
+      }
+    },
+    complete(value) {
+      try {
+        handle?.complete(value)
+      } catch {
+        // Best-effort telemetry only.
+      }
+    },
+  }
+}
+
 function wrapResponseBody(
   input: ResponseStreamInput,
 ): ReadableStream<Uint8Array> {
@@ -278,21 +366,27 @@ export function createTrafficObservationMiddleware(
   // eslint-disable-next-line max-lines-per-function
   return async (c, next) => {
     const store = requestContext.getStore()
+    if (store?.trafficObservation) {
+      await next()
+      return
+    }
+
     const requestId = crypto.randomUUID()
     const acceptedAt = new Date().toISOString()
-    const normalized = await readNormalizedRequest(c)
-    const handle = observer.beginRequest({
+    const normalized = normalizedRequest(c, {})
+    const requestMetadata = readNormalizedRequest(c)
+    const handle = passiveHandle(observer, {
       identity: {
         requestId,
         traceId: store?.traceId ?? null,
-        sessionId: store?.sessionAffinity?.trim() || null,
+        sessionId: boundedIdentifier(store?.sessionAffinity),
         parentRequestId: null,
         clientRequestId: null,
       },
       acceptedAt,
       route: {
         method: c.req.method.toUpperCase(),
-        path: c.req.path,
+        path: normalizedRoutePath(c.req.path),
         operation: operationForPath(c.req.path),
       },
       attribution: normalized.attribution,
@@ -312,9 +406,22 @@ export function createTrafficObservationMiddleware(
       attribution: normalized.attribution,
       dispatch: dispatchMetadata(null, null, normalized.attribution.model),
     })
+    const annotateRequest = requestMetadata
+      .then((metadata) => {
+        const at = new Date().toISOString()
+        handle.recordDispatch({
+          at,
+          attribution: metadata.attribution,
+          dispatch: dispatchMetadata(null, null, metadata.attribution.model),
+        })
+        handle.recordContext?.({ at, context: metadata.context })
+      })
+      .catch(() => {
+        // Metadata extraction is passive and cannot affect request delivery.
+      })
 
     try {
-      await next()
+      await Promise.all([next(), annotateRequest])
     } catch (error) {
       handle.complete({
         ...completion({

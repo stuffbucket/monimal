@@ -14,7 +14,7 @@ import {
 export function Overview() {
   return (
     <>
-      <SurfaceRail>{() => <OverviewRail />}</SurfaceRail>
+      <SurfaceRail>{(collapsed) => (collapsed ? null : <OverviewRail />)}</SurfaceRail>
       <SurfaceRight>
         <OverviewInspector />
       </SurfaceRight>

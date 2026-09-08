@@ -30,6 +30,8 @@ export type Loadable<T> =
 export type TimePreset = "15m" | "1h" | "24h" | "7d" | "all"
 export type FilterDimension = "clients" | "operations" | "providers" | "models"
 
+const systemNow = (): Date => new Date()
+
 export interface ObservabilityContextValue {
   source: ObservabilitySource
   filters: TrafficRequestFilters
@@ -63,6 +65,8 @@ const EMPTY_FILTERS: TrafficRequestFilters = {
   providers: [],
   models: [],
   clients: [],
+  projects: [],
+  streaming: null,
   search: null,
   minimumDurationMs: null,
   maximumDurationMs: null,
@@ -101,18 +105,21 @@ function loadable<T>(
     : { status: "ready", data: result.data }
 }
 
+// eslint-disable-next-line max-lines-per-function
 export function ObservabilityProvider({
   source,
   children,
-  now = () => new Date(),
+  now = systemNow,
 }: {
   source: ObservabilitySource
   children: ReactNode
   now?: () => Date
 }) {
+  const nowRef = useRef(now)
+  nowRef.current = now
   const [filters, setFilters] = useState<TrafficRequestFilters>(() => ({
     ...EMPTY_FILTERS,
-    range: rangeForPreset("1h", now()),
+    range: rangeForPreset("1h", nowRef.current()),
   }))
   const [timePreset, setTimePresetState] = useState<TimePreset>("1h")
   const [live, setLive] = useState(true)
@@ -134,46 +141,84 @@ export function ObservabilityProvider({
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const overviewGeneration = useRef(0)
   const requestsGeneration = useRef(0)
+  const detailGeneration = useRef(0)
+  const loadingMore = useRef(false)
+  const pageFilters = useRef<TrafficRequestFilters | null>(null)
 
-  const readOverview = useCallback(async () => {
-    const current = ++overviewGeneration.current
-    setOverview({ status: "loading" })
-    try {
-      const result = await source.readOverview({ filters, tokenBucketMs: null })
-      if (overviewGeneration.current === current) {
-        setOverview(loadable(result, ({ totals }) => totals.requests === 0))
+  const readOverview = useCallback(
+    async (activeFilters: TrafficRequestFilters) => {
+      const current = ++overviewGeneration.current
+      setOverview({ status: "loading" })
+      try {
+        const result = await source.readOverview({
+          filters: activeFilters,
+          tokenBucketMs: null,
+        })
+        if (overviewGeneration.current === current) {
+          setOverview(loadable(result, ({ totals }) => totals.requests === 0))
+        }
+      } catch (error) {
+        if (overviewGeneration.current === current)
+          setOverview({ status: "error", message: messageFrom(error) })
       }
-    } catch (error) {
-      if (overviewGeneration.current === current)
-        setOverview({ status: "error", message: messageFrom(error) })
-    }
-  }, [filters, source])
+    },
+    [source],
+  )
 
-  const readFirstPage = useCallback(async () => {
-    const current = ++requestsGeneration.current
-    setRequests({ status: "loading" })
-    try {
-      const result = await source.readRequests({
-        filters,
-        cursor: null,
-        limit: 50,
-        sort: "acceptedAt",
-        direction: "descending",
-      })
-      if (requestsGeneration.current !== current) return
-      setRequests(loadable(result, ({ items }) => items.length === 0))
-      setRequestItems(result.status === "ready" ? result.data.items : [])
-    } catch (error) {
-      if (requestsGeneration.current === current) {
-        setRequests({ status: "error", message: messageFrom(error) })
-        setRequestItems([])
+  const readFirstPage = useCallback(
+    async (activeFilters: TrafficRequestFilters) => {
+      const current = ++requestsGeneration.current
+      loadingMore.current = false
+      setIsLoadingMore(false)
+      pageFilters.current = activeFilters
+      setRequests({ status: "loading" })
+      try {
+        const result = await source.readRequests({
+          filters: activeFilters,
+          cursor: null,
+          limit: 50,
+          sort: "acceptedAt",
+          direction: "descending",
+        })
+        if (requestsGeneration.current !== current) return
+        setRequests(loadable(result, ({ items }) => items.length === 0))
+        setRequestItems(result.status === "ready" ? result.data.items : [])
+      } catch (error) {
+        if (requestsGeneration.current === current) {
+          setRequests({ status: "error", message: messageFrom(error) })
+          setRequestItems([])
+        }
       }
-    }
-  }, [filters, source])
+    },
+    [source],
+  )
 
   const refresh = useCallback(async () => {
-    await Promise.all([readOverview(), readFirstPage()])
-  }, [readFirstPage, readOverview])
+    const activeFilters = {
+      ...filters,
+      range: rangeForPreset(timePreset, nowRef.current()),
+    }
+    await Promise.all([
+      readOverview(activeFilters),
+      readFirstPage(activeFilters),
+    ])
+  }, [filters, readFirstPage, readOverview, timePreset])
+
+  const readDetail = useCallback(
+    async (requestId: string, showLoading: boolean) => {
+      const current = ++detailGeneration.current
+      if (showLoading) setDetail({ status: "loading" })
+      try {
+        const result = await source.readRequestDetail({ requestId })
+        if (detailGeneration.current === current)
+          setDetail(loadable(result, () => false))
+      } catch (error) {
+        if (detailGeneration.current === current)
+          setDetail({ status: "error", message: messageFrom(error) })
+      }
+    },
+    [source],
+  )
 
   useEffect(() => {
     void refresh()
@@ -191,31 +236,22 @@ export function ObservabilityProvider({
       if (
         selectedRequestId
         && invalidation.scopes.includes("request-detail")
-        && (invalidation.requestIds.length === 0
+        && (invalidation.overflow
+          || invalidation.requestIds.length === 0
           || invalidation.requestIds.includes(selectedRequestId))
       ) {
-        void source
-          .readRequestDetail({ requestId: selectedRequestId })
-          .then((result) => {
-            setDetail(loadable(result, () => false))
-          })
-          .catch((error: unknown) =>
-            setDetail({ status: "error", message: messageFrom(error) }),
-          )
+        void readDetail(selectedRequestId, false)
       }
     })
-  }, [live, refresh, selectedRequestId, source])
+  }, [live, readDetail, refresh, selectedRequestId, source])
 
-  const setTimePreset = useCallback(
-    (preset: TimePreset) => {
-      setTimePresetState(preset)
-      setFilters((current) => ({
-        ...current,
-        range: rangeForPreset(preset, now()),
-      }))
-    },
-    [now],
-  )
+  const setTimePreset = useCallback((preset: TimePreset) => {
+    setTimePresetState(preset)
+    setFilters((current) => ({
+      ...current,
+      range: rangeForPreset(preset, nowRef.current()),
+    }))
+  }, [])
 
   const setDimension = useCallback(
     (dimension: FilterDimension, value: string) => {
@@ -238,20 +274,13 @@ export function ObservabilityProvider({
     (requestId: string | null) => {
       setSelectedRequestId(requestId)
       if (requestId === null) {
+        detailGeneration.current += 1
         setDetail(null)
         return
       }
-      setDetail({ status: "loading" })
-      void source
-        .readRequestDetail({ requestId })
-        .then((result) => {
-          setDetail(loadable(result, () => false))
-        })
-        .catch((error: unknown) =>
-          setDetail({ status: "error", message: messageFrom(error) }),
-        )
+      void readDetail(requestId, true)
     },
-    [source],
+    [readDetail],
   )
 
   const hasMore = requests.status === "ready" && requests.data.hasMore
@@ -259,18 +288,23 @@ export function ObservabilityProvider({
     if (
       requests.status !== "ready"
       || !requests.data.nextCursor
-      || isLoadingMore
+      || loadingMore.current
     )
       return
+    const current = requestsGeneration.current
+    const activeFilters = pageFilters.current
+    if (!activeFilters) return
+    loadingMore.current = true
     setIsLoadingMore(true)
     try {
       const result = await source.readRequests({
-        filters,
+        filters: activeFilters,
         cursor: requests.data.nextCursor,
         limit: 50,
         sort: "acceptedAt",
         direction: "descending",
       })
+      if (requestsGeneration.current !== current) return
       if (result.status === "unsupported") {
         setRequests(result)
       } else {
@@ -278,11 +312,17 @@ export function ObservabilityProvider({
         setRequestItems((items) => [...items, ...result.data.items])
       }
     } catch (error) {
-      setRequests({ status: "error", message: messageFrom(error) })
+      if (requestsGeneration.current === current)
+        setRequests({ status: "error", message: messageFrom(error) })
     } finally {
-      setIsLoadingMore(false)
+      if (requestsGeneration.current === current) {
+        // The generation check excludes any newer refresh or pagination request.
+        // eslint-disable-next-line require-atomic-updates
+        loadingMore.current = false
+        setIsLoadingMore(false)
+      }
     }
-  }, [filters, isLoadingMore, requests, source])
+  }, [requests, source])
 
   const value = useMemo<ObservabilityContextValue>(
     () => ({

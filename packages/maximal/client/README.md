@@ -6,141 +6,82 @@ The Maximal desktop app: an Electron shell that supervises a bundled
 How it is built is owned by
 [`../docs/dev/client-architecture.md`](../docs/dev/client-architecture.md).
 How it should look is owned by
-[`../.design-context.md`](../.design-context.md). This file owns the roadmap,
-and only the roadmap.
+[`../.design-context.md`](../.design-context.md). This file records the current
+surface state and near-term roadmap.
 
 ## State
 
 | Surface | Backed by |
 | --- | --- |
-| First run | Live. Full device-code flow over `auth/*`, with boot narration. |
-| Settings | Live, three sections. `auth/*`, `accounts/*`, and the public proxy URL. |
-| Dashboard | **Placeholder.** Fixed sample values behind a permanent notice. |
-| Runs | **Placeholder.** Same source. |
+| First run | Live device-code flow over `auth/*`, with boot narration. |
+| Overview | Live and persisted traffic metadata through `observability/overview`, with traffic flow, token volume, latency, and recent requests. |
+| Traffic | Cursor-paged request metadata through `observability/requests` and `observability/request`. |
+| Settings | Live account and proxy configuration through named control methods. |
 
-Two of four surfaces render data that was written by hand.
+The renderer does not import Core or use a generic RPC escape hatch. Main owns
+one `ControlClient`, validates observability results against
+`@stuffbucket/maximal-observability-contract`, and exposes only named IPC and
+preload methods. The renderer-owned `ObservabilitySource` adapts those methods
+for the feature package.
+
+`src/renderer/frame/AppFrame.tsx` owns the single `ShellLayout`. Overview,
+Traffic, and Settings are its document tabs. Feature surfaces render their main
+content normally and use `SurfaceRail`, `SurfaceRight`, `SurfaceStatus`, and
+`SurfaceTop` portals for host-owned shell slots.
+
+## Privacy boundary
+
+The dashboard is metadata-first. It may display normalized request identity,
+timing, route, provider/model, token/context counts, byte counts, and bounded
+failure classifications. It does not capture or expose prompts, responses,
+tool bodies, headers, API keys, raw user-agent strings, or arbitrary upstream
+errors.
+
+Request/response content inspection is deferred. If added, it must be explicit
+opt-in behavior with separate storage, retention, redaction, truncation, and
+deletion controls.
 
 ## Roadmap
 
-Four items, in order. Each one is finishable on its own, and each unblocks
-the next.
+### 1. Validate the packaged traffic experience
 
-### 1. Point Dashboard at data that exists
+Keep packaged-app coverage for Overview and Traffic, including sidecar restart,
+persisted history, live invalidation refresh, empty/error/unsupported states,
+and keyboard access to chart and table equivalents.
 
-The placeholder source was written against an agent-fleet model — projects,
-branches, diffs, approvals, tool-call counts. Nothing produces that. Core is a
-proxy; a harness owns run state, and core takes correlation headers without
-reading them. Waiting is not a plan, because nothing is on the way.
+### 2. Add trustworthy attribution
 
-Core already serves, and already pushes, more than this app reads. Its
-control RPC answers `apps/list`, `clients/list`, `models/list`, `usage/get`,
-`config/get`, and `update/status`; its feed carries `apps`, `clients`,
-`models`, `usage`, `config`, `accounts`, `auth`, and `boot`. The client
-consumes two of those nine topics.
+Project attribution remains nullable until Core has an explicit, trustworthy
+signal. Expand client/session/subagent and compaction attribution only through
+additive contract fields; do not derive high-cardinality aggregate labels from
+raw request content or user-agent values.
 
-So the Dashboard's question changes from *what are my agents doing* — which
-nothing can answer — to **what is using Maximal, and what has it cost**, which
-core answers today:
+### 3. Add an explicit shaping policy seam
 
-- `clients/list` returns the programs that hit the proxy inside a freshness
-  window: label, user agent, and age in seconds, pruned after five minutes.
-  That is a live "who is connected" panel with no new core work.
-- `usage/get` returns a persisted `TokenUsageSummary` — totals, `byModel`,
-  `byProvider`, and the period's range. The same module also exposes a
-  bucketed series and paged events when a chart or a log needs them.
-- `models/list` and `apps/list` fill in what is available and what is
-  configured.
+Observability is passive. Future token budgets, routing decisions, or stream
+mutation belong behind a separately injected policy interface with explicit
+authority. Telemetry callbacks must never gain mutation powers.
 
-Steps:
+### 4. Consider opt-in content inspection
 
-1. Add named `clientsList` and `usageGet` capabilities through main and
-   preload. There is deliberately no generic dispatcher, so each operation is
-   its own reviewed pair.
-2. Rewrite `WorkspaceSource` around the roster and the usage summary, and
-   delete the `kind: 'placeholder' | 'live'` discriminator with the last
-   placeholder that needed it.
-3. Redraw Dashboard against the new model, and drop `PlaceholderBanner`.
+Only after the metadata dashboard is stable, define capture policy and status
+in the contract and add explicit single-request content reads. Keep captured
+content out of list queries, aggregates, live invalidations, logs, and the
+metadata database.
 
-Done when no surface renders a value nobody measured.
+### 5. Finish renderer lint hardening
 
-### 2. Decide what Runs is
-
-Runs is the fleet model with no producer. Step 1 leaves it the only fake
-screen in the app, and a screen that exists to display data that will never
-arrive is worse than one that does not exist.
-
-Pick one, and record which in this file:
-
-- **Retire it.** Delete `workspace/`, keep the app three surfaces wide. The
-  composition it demonstrates is preserved in git.
-- **Repoint it.** Make it the detail view under the Dashboard — per-client
-  request history from the usage event pages, which is real and which the
-  Dashboard summarises rather than lists.
-
-Do not leave it placeholder. A permanent "this is not real" banner is a
-decision deferred, not a decision made.
-
-### 3. One frame — done
-
-Dashboard and Runs each mounted their own `ShellLayout`, and `App.tsx` drew a
-third navigation strip above them. Three navigation systems on one screen was
-the defect, and it was worse than untidy: the frame's root is
-`position: fixed; inset: 0`, so a mounted surface covered the switcher above it
-and a signed-in user had no way to reach Settings at all. Settings, meanwhile,
-mounted no frame, so it rendered with no title bar — and the title bar carries
-the window's only drag region.
-
-`src/renderer/frame/AppFrame.tsx` now mounts the one frame. The three views are
-its document tabs, which is the shell's own model rather than an adaptation of
-it: a tab strip lists what is open, and it puts navigation in the title bar,
-the one region always on screen. Surfaces render into `main` and push their
-peripheral parts — rail, right panel, status bar, full-width top band — through
-`SurfaceRail` / `SurfaceRight` / `SurfaceStatus` / `SurfaceTop`. Those are
-portals, not state: a slot holding a React element would need an effect whose
-own output is a fresh element every render, and that effect would re-fire on
-itself forever.
-
-**Deliberately dropped, to restore later:** each surface's tab used to carry an
-`emphasis` marker derived from its runs — "attention" when something needed
-approval, "busy" when something was running. The frame owns the tabs now and
-they are static. Restoring it means a channel for a view to report its own
-emphasis, and that is worth building once a view has real runs to report on;
-today the signal would be computed entirely from placeholder data. See step 2.
-
-This also retires the workaround in `App.tsx`. Two of its rules patched
-`stuffbucket-electron` from the outside — a nav label that wrapped inside a
-fixed-height row, and a status bar with a fixed height rather than a floor.
-Both are now fixed upstream in
-`packages/maximal-electron/src/renderer/styles/structural.css`, where they
-belong: the workspace link makes that a same-repo change, which is one of the
-few things this monorepo makes cheaper than the three repositories it was
-assembled from.
-
-### 4. Turn the lint warnings into errors
-
-`eslint.config.mjs` runs typescript-eslint at `recommended` with
-`typeChecked: false`, and holds two `react-hooks` rules at `warn`. Both are
-scoped, and both name the files they are waiting on:
-
-- Type-aware rules: 38 findings, mostly `require-await` and `unbound-method`.
-- `set-state-in-effect`: `dashboard/Dashboard.tsx`,
-  `first-run/useFirstRun.ts`, `workspace/Workspace.tsx`.
-- `refs`: `settings/AccountSection.tsx`.
-
-Steps 1 through 3 rewrite three of those four files anyway. Clear the
-findings there, then set `typeChecked: true` and promote both rules to
-`error`.
-
-Last, because doing it first means fixing code that step 1 deletes.
+`eslint.config.mjs` still carries narrowly scoped React hook warnings. Clear the
+remaining findings and promote those rules to errors without weakening the
+existing architecture checks.
 
 ## Not on this roadmap
 
-- **The library's own sequencing** — overlay conversation history, a diff view
-  in the approval prompt, a double-tap-Ctrl monitor, Windows and Linux
-  terminal verification. That list is
-  [`maximal-electron`'s](../../maximal-electron/docs/roadmap.md), and it
-  describes the terminal and the overlay agent. This app renders neither. The
-  only thing it needs from that package is step 3's two stylesheet fixes.
-- **Destructive and lifecycle operations** — `accounts/remove`, `app/quit`,
-  `app/upgrade`. Absent by design. Each needs a named capability pair and a
-  confirmation flow, which is a feature, not cleanup.
+- Runtime loading of third-party React components. UI feature packages are
+  reviewed, statically composed dependencies.
+- Giving the renderer access to `ipcRenderer`, the control origin, or a generic
+  JSON-RPC method.
+- Moving product-specific observability UI into `maximal-electron`; that package
+  remains the neutral shell and component library.
+- The optional OTel/SigNoz operations stack. It is an export and deployment
+  concern distinct from the embedded local SQLite dashboard.

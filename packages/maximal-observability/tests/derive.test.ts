@@ -51,10 +51,11 @@ describe("observability derivation", () => {
     ).toBe(true)
   })
 
-  it("separates cache input without double counting", () => {
+  it("stacks uncached and cached input without subtracting cache twice", () => {
     const stacks = deriveTokenStacks(OVERVIEW.tokens.points)
     expect(stacks[0]?.values).toEqual([90, 20, 10, 80])
     expect(stacks[0]?.values.reduce((sum, value) => sum + value, 0)).toBe(200)
+    expect(stacks[0]?.total).toBe(200)
   })
 
   it("scales and formats boundary values", () => {

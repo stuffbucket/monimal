@@ -7,7 +7,10 @@ import {
   CONTROL_ERROR_REASONS,
   type ControlErrorReason,
 } from '@stuffbucket/maximal-core/control-contract'
-import { SUPPORTED_PROTOCOL_VERSION } from '@stuffbucket/maximal-core/contract'
+import {
+  SUPPORTED_PROTOCOL_VERSION,
+  type ControlTopic,
+} from '@stuffbucket/maximal-core/contract'
 import {
   AccountsListResponse as AccountsListResponseSchema,
   type AccountsListResponse,
@@ -15,6 +18,7 @@ import {
   type AuthStatus,
 } from '@stuffbucket/maximal-core/settings-types'
 import {
+  TRAFFIC_OBSERVABILITY_CONTRACT_VERSION,
   TrafficInvalidationSchema,
   type TrafficInvalidation,
   TrafficOverviewQuerySchema,
@@ -51,7 +55,9 @@ type ControlMethod =
 
 interface ControlClientLike {
   call<T = unknown>(method: string, params?: unknown): Promise<T>
-  onState(listener: (state: ControlState) => void): () => void
+  onState(
+    listener: (state: ControlState, topic: ControlTopic | null) => void,
+  ): () => void
   connect(): Promise<void>
   close(): void
 }
@@ -262,18 +268,27 @@ export function createControlSession(
 
     const client = dependencies.createClient(origin)
     const nextGeneration = generation + 1
-    let initialState = true
     let trafficRevision: number | null = null
-    const stopState = client.onState((state) => {
-      if (initialState) {
-        initialState = false
-        return
-      }
-      if (disposed || generation !== nextGeneration) return
+    const stopState = client.onState((state, topic) => {
+      if (topic === null || disposed || generation !== nextGeneration) return
 
       dependencies.onChange()
+      if (topic === 'snapshot') trafficRevision = null
       const traffic = Reflect.get(state, 'traffic') as unknown
-      if (traffic === undefined) return
+      if (traffic === undefined) {
+        if (topic === 'snapshot') {
+          dependencies.onTrafficInvalidation({
+            contractVersion: TRAFFIC_OBSERVABILITY_CONTRACT_VERSION,
+            revision: trafficRevision ?? 0,
+            emittedAt: new Date().toISOString(),
+            activeCount: 0,
+            overflow: true,
+            scopes: ['requests', 'request-detail', 'overview'],
+            requestIds: [],
+          })
+        }
+        return
+      }
 
       const invalidation = TrafficInvalidationSchema.safeParse(traffic)
       if (!invalidation.success) {

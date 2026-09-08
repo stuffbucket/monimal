@@ -5,7 +5,10 @@ import {
   TrafficRequestListQuerySchema,
   TrafficRequestListSchema,
   type TrafficCompletionObservation,
+  type TrafficContextObservation,
+  type TrafficDispatchObservation,
   type TrafficObservationHandle,
+  type TrafficTokenObservation,
   type TrafficObservationStart,
   type TrafficObserver,
 } from "@stuffbucket/maximal-observability-contract"
@@ -16,6 +19,7 @@ import fs from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
 
+import { requestContext } from "~/lib/http/request-context"
 import { traceIdMiddleware } from "~/lib/http/trace"
 import { createTrafficObservationMiddleware } from "~/lib/observability/middleware"
 import {
@@ -234,6 +238,47 @@ describe("SQLite traffic observability", () => {
     await traffic.close()
   })
 
+  test("updates late context and uses input-side tokens for fullness", async () => {
+    const traffic = observer()
+    const handle = traffic.beginRequest(
+      start("context-request", "2026-09-07T11:59:59.000Z"),
+    )
+    handle.recordContext?.({
+      at: "2026-09-07T11:59:59.050Z",
+      context: {
+        messageCount: 4,
+        toolDefinitionCount: 2,
+        contextWindowTokens: 200,
+        requestedMaxOutputTokens: 64,
+        usedTokens: null,
+        usedRatio: null,
+      },
+    })
+    handle.recordTokens({
+      at: "2026-09-07T11:59:59.100Z",
+      tokens: {
+        inputTokens: 70,
+        outputTokens: 100,
+        cacheReadInputTokens: 20,
+        cacheCreationInputTokens: 10,
+        reasoningTokens: 40,
+        totalTokens: 200,
+        totalNanoAiu: 0,
+      },
+    })
+
+    const detail = await traffic.getRequest("context-request")
+    expect(detail?.request.context).toEqual({
+      messageCount: 4,
+      toolDefinitionCount: 2,
+      contextWindowTokens: 200,
+      requestedMaxOutputTokens: 64,
+      usedTokens: 100,
+      usedRatio: 0.5,
+    })
+    await traffic.close()
+  })
+
   test("cursor snapshot remains stable under live inserts", async () => {
     const traffic = observer()
     for (const [id, second] of [
@@ -268,18 +313,27 @@ describe("SQLite traffic observability", () => {
 
 class CaptureHandle implements TrafficObservationHandle {
   completions: Array<TrafficCompletionObservation> = []
+  contexts: Array<TrafficContextObservation> = []
+  dispatchObservations: Array<TrafficDispatchObservation> = []
+  tokens: Array<TrafficTokenObservation> = []
   dispatches = 0
   firstResponses = 0
   complete(observation: TrafficCompletionObservation): void {
     this.completions.push(observation)
   }
-  recordDispatch(): void {
+  recordContext(observation: TrafficContextObservation): void {
+    this.contexts.push(observation)
+  }
+  recordDispatch(observation: TrafficDispatchObservation): void {
     this.dispatches += 1
+    this.dispatchObservations.push(observation)
   }
   recordFirstResponse(): void {
     this.firstResponses += 1
   }
-  recordTokens(): void {}
+  recordTokens(observation: TrafficTokenObservation): void {
+    this.tokens.push(observation)
+  }
 }
 
 class CaptureObserver implements TrafficObserver {
@@ -311,7 +365,48 @@ function middlewareApp(
   return app
 }
 
+// eslint-disable-next-line max-lines-per-function
 describe("traffic inference middleware", () => {
+  test("accumulates repeated token events for one ingress request", () => {
+    const handle = new CaptureHandle()
+    requestContext.run(
+      {
+        traceId: "trace-cumulative",
+        startTime: Date.now(),
+        userAgent: "test",
+        sessionAffinity: undefined,
+        parentSessionId: undefined,
+        trafficObservation: handle,
+        trafficRequestId: "request-cumulative",
+      },
+      () => {
+        recordTokenUsageEvent({
+          endpoint: "messages",
+          input_tokens: 10,
+          output_tokens: 2,
+          model: "claude-test",
+          source: "copilot",
+        })
+        recordTokenUsageEvent({
+          endpoint: "messages",
+          input_tokens: 5,
+          output_tokens: 3,
+          cache_read_input_tokens: 4,
+          model: "claude-test",
+          source: "copilot",
+        })
+      },
+    )
+
+    expect(handle.tokens).toHaveLength(2)
+    expect(handle.tokens[1]?.tokens).toMatchObject({
+      inputTokens: 15,
+      outputTokens: 5,
+      cacheReadInputTokens: 4,
+      totalTokens: 24,
+    })
+  })
+
   test("passes streaming bytes unchanged and completes on EOF", async () => {
     const capture = new CaptureObserver()
     const encoder = new TextEncoder()
@@ -373,5 +468,120 @@ describe("traffic inference middleware", () => {
     await reader?.cancel("consumer stopped")
     expect(upstreamCancelled).toBe(true)
     expect(capture.handles[0]?.completions[0]?.outcome).toBe("cancelled")
+  })
+
+  test("keeps request delivery independent from throwing observer callbacks", async () => {
+    const app = new Hono()
+    const throwingObserver: TrafficObserver = {
+      beginRequest() {
+        return {
+          recordDispatch() {
+            throw new Error("dispatch sink failed")
+          },
+          recordFirstResponse() {
+            throw new Error("response sink failed")
+          },
+          recordTokens() {
+            throw new Error("token sink failed")
+          },
+          complete() {
+            throw new Error("completion sink failed")
+          },
+        }
+      },
+    }
+    app.use(traceIdMiddleware)
+    app.use(
+      "/v1/messages",
+      createTrafficObservationMiddleware(throwingObserver),
+    )
+    app.post("/v1/messages", async (c) => c.json(await c.req.json()))
+
+    const response = await app.request("/v1/messages", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ model: "claude-test", messages: [] }),
+    })
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({
+      model: "claude-test",
+      messages: [],
+    })
+  })
+
+  test("keeps request delivery independent when observer startup throws", async () => {
+    const app = new Hono()
+    const throwingObserver: TrafficObserver = {
+      beginRequest() {
+        throw new Error("observer unavailable")
+      },
+    }
+    app.use(traceIdMiddleware)
+    app.use(
+      "/v1/messages",
+      createTrafficObservationMiddleware(throwingObserver),
+    )
+    app.post("/v1/messages", (c) => c.text("ok"))
+
+    const response = await app.request("/v1/messages", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ model: "claude-test", messages: [] }),
+    })
+    expect(response.status).toBe(200)
+    expect(await response.text()).toBe("ok")
+  })
+
+  test("observes a request once when exact and wildcard middleware overlap", async () => {
+    const capture = new CaptureObserver()
+    const app = new Hono()
+    const middleware = createTrafficObservationMiddleware(capture)
+    app.use(traceIdMiddleware)
+    app.use("/v1/messages", middleware)
+    app.use("/v1/messages/*", middleware)
+    app.post("/v1/messages", (c) => c.text("ok"))
+
+    const response = await app.request("/v1/messages", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ model: "claude-test", messages: [] }),
+    })
+
+    expect(await response.text()).toBe("ok")
+    expect(capture.starts).toHaveLength(1)
+    expect(capture.handles).toHaveLength(1)
+  })
+
+  test("preserves request bodies and stores canonical wildcard route paths", async () => {
+    const capture = new CaptureObserver()
+    const app = new Hono()
+    app.use(traceIdMiddleware)
+    app.use(
+      "/:provider/v1/messages/*",
+      createTrafficObservationMiddleware(capture),
+    )
+    app.post("/:provider/v1/messages/*", async (c) =>
+      c.json(await c.req.json()),
+    )
+
+    const response = await app.request(
+      "/hosted/v1/messages/private-unbounded-suffix",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ model: "m".repeat(250), messages: [] }),
+      },
+    )
+    expect(await response.json()).toEqual({
+      model: "m".repeat(250),
+      messages: [],
+    })
+    expect(capture.starts[0]?.route.path).toBe("/:provider/v1/messages")
+    expect(capture.handles[0]?.contexts).toHaveLength(1)
+    expect(capture.starts[0]?.attribution.model).toBeNull()
+    expect(capture.handles[0]?.dispatches).toBe(2)
+    expect(capture.handles[0]?.dispatchObservations[1]?.attribution.model).toBe(
+      "m".repeat(200),
+    )
   })
 })

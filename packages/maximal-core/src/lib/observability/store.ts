@@ -1,5 +1,6 @@
 import type {
   TrafficCompletionObservation,
+  TrafficContextObservation,
   TrafficDispatchObservation,
   TrafficFirstResponseObservation,
   TrafficInvalidationListener,
@@ -54,6 +55,7 @@ import {
 const DB_PATH_ENV = "COPILOT_API_SQLITE_DB_PATH"
 const DEFAULT_DB_FILENAME = "copilot-api.sqlite"
 const DEFAULT_RETENTION_DAYS = 365
+const RETENTION_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1_000
 
 type Row = Record<string, unknown>
 
@@ -86,8 +88,10 @@ export class SqliteTrafficObserver
 {
   private queue: Promise<void> = Promise.resolve()
   private revision = 0
+  private nextRetentionCheckMs: number
   private readonly now: () => Date
   private readonly onInvalidation?: TrafficInvalidationListener
+  private readonly retentionMs: number
   private readonly store: SqliteDbStore
 
   constructor(options: SqliteTrafficObserverOptions = {}) {
@@ -97,7 +101,13 @@ export class SqliteTrafficObserver
       options.dbPath
       ?? process.env[DB_PATH_ENV]
       ?? path.join(PATHS.APP_DIR, DEFAULT_DB_FILENAME)
-    const retentionDays = options.retentionDays ?? DEFAULT_RETENTION_DAYS
+    const retentionDays = Math.max(
+      1,
+      Math.floor(options.retentionDays ?? DEFAULT_RETENTION_DAYS),
+    )
+    this.retentionMs = retentionDays * RETENTION_CHECK_INTERVAL_MS
+    this.nextRetentionCheckMs =
+      this.now().getTime() + RETENTION_CHECK_INTERVAL_MS
     this.store = new SqliteDbStore({
       getPath: () => dbPath,
       initialize: (db) =>
@@ -226,6 +236,35 @@ export class SqliteTrafficObserver
     }, requestId)
   }
 
+  recordContext(
+    requestId: string,
+    observation: TrafficContextObservation,
+  ): void {
+    this.enqueue((db) => {
+      const context = observation.context
+      db.prepare(
+        `
+        UPDATE traffic_requests SET
+          message_count = COALESCE(?, message_count),
+          tool_definition_count = COALESCE(?, tool_definition_count),
+          context_window_tokens = COALESCE(?, context_window_tokens),
+          requested_max_output_tokens = COALESCE(?, requested_max_output_tokens),
+          used_tokens = COALESCE(?, used_tokens),
+          used_ratio = COALESCE(?, used_ratio)
+        WHERE request_id = ? AND state != 'completed'
+      `,
+      ).run(
+        context.messageCount,
+        context.toolDefinitionCount,
+        context.contextWindowTokens,
+        context.requestedMaxOutputTokens,
+        context.usedTokens,
+        context.usedRatio,
+        requestId,
+      )
+    }, requestId)
+  }
+
   recordFirstResponse(
     requestId: string,
     observation: TrafficFirstResponseObservation,
@@ -270,6 +309,8 @@ export class SqliteTrafficObserver
   recordTokens(requestId: string, observation: TrafficTokenObservation): void {
     this.enqueue((db) => {
       const t = observation.tokens
+      const usedTokens =
+        t.inputTokens + t.cacheReadInputTokens + t.cacheCreationInputTokens
       db.prepare(
         `
         UPDATE traffic_requests SET tokens_observed = 1, input_tokens = ?,
@@ -288,8 +329,8 @@ export class SqliteTrafficObserver
         t.reasoningTokens,
         t.totalTokens,
         t.totalNanoAiu,
-        t.totalTokens,
-        t.totalTokens,
+        usedTokens,
+        usedTokens,
         requestId,
       )
     }, requestId)
@@ -299,79 +340,96 @@ export class SqliteTrafficObserver
     // The terminal snapshot deliberately maps every nullable contract field.
     // eslint-disable-next-line complexity
     this.enqueue((db) => {
-      const atMs = timestampMs(observation.at)
-      const t = observation.tokens
-      const error = observation.error
-      db.prepare(
-        `
-        UPDATE traffic_requests SET state = 'completed', outcome = ?,
-          completed_at_ms = ?, completed_at_utc = ?,
-          attempt_count = MAX(attempt_count, ?), retry_count = MAX(retry_count, ?),
-          status_code = COALESCE(?, status_code), streamed = COALESCE(?, streamed),
-          upstream_request_id = COALESCE(?, upstream_request_id),
-          requested_model = COALESCE(?, requested_model),
-          resolved_model = COALESCE(?, resolved_model),
-          tokens_observed = CASE WHEN ? IS NULL THEN tokens_observed ELSE 1 END,
-          input_tokens = COALESCE(?, input_tokens), output_tokens = COALESCE(?, output_tokens),
-          cache_read_input_tokens = COALESCE(?, cache_read_input_tokens),
-          cache_creation_input_tokens = COALESCE(?, cache_creation_input_tokens),
-          reasoning_tokens = COALESCE(?, reasoning_tokens), total_tokens = COALESCE(?, total_tokens),
-          total_nano_aiu = COALESCE(?, total_nano_aiu),
-          used_tokens = COALESCE(?, used_tokens),
-          used_ratio = CASE WHEN context_window_tokens > 0 AND ? IS NOT NULL
-            THEN CAST(? AS REAL) / context_window_tokens ELSE used_ratio END,
-          request_bytes = COALESCE(?, request_bytes), response_bytes = COALESCE(?, response_bytes),
-          response_chunks = COALESCE(?, response_chunks), stop_reason = ?, tool_use_count = ?,
-          error_category = ?, error_code = ?,
-          error_message = ?, error_retryable = ?
-        WHERE request_id = ? AND state != 'completed'
-      `,
-      ).run(
-        observation.outcome,
-        atMs,
-        observation.at,
-        observation.dispatch.attemptCount,
-        observation.dispatch.retryCount,
-        observation.dispatch.statusCode,
-        sqliteBoolean(observation.dispatch.streamed),
-        observation.dispatch.upstreamRequestId,
-        observation.dispatch.requestedModel,
-        observation.dispatch.resolvedModel,
-        t === null ? null : 1,
-        t?.inputTokens ?? null,
-        t?.outputTokens ?? null,
-        t?.cacheReadInputTokens ?? null,
-        t?.cacheCreationInputTokens ?? null,
-        t?.reasoningTokens ?? null,
-        t?.totalTokens ?? null,
-        t?.totalNanoAiu ?? null,
-        t?.totalTokens ?? null,
-        t?.totalTokens ?? null,
-        t?.totalTokens ?? null,
-        observation.size.requestBytes,
-        observation.size.responseBytes,
-        observation.size.responseChunks,
-        observation.response.stopReason,
-        observation.response.toolUseCount,
-        error?.category ?? null,
-        error?.code ?? null,
-        error?.message ?? null,
-        error === null ? null : sqliteBoolean(error.retryable),
-        requestId,
-      )
-      insertLifecycle(
-        db,
-        requestId,
-        nextSequence(db, requestId),
-        atMs,
-        observation.at,
-        "completed",
-        "completed",
-        observation.outcome,
-      )
+      db.exec("BEGIN IMMEDIATE")
+      try {
+        const atMs = timestampMs(observation.at)
+        const t = observation.tokens
+        const usedTokens =
+          t === null ? null : (
+            t.inputTokens + t.cacheReadInputTokens + t.cacheCreationInputTokens
+          )
+        const error = observation.error
+        const result = db
+          .prepare(
+            `
+          UPDATE traffic_requests SET state = 'completed', outcome = ?,
+            completed_at_ms = ?, completed_at_utc = ?,
+            attempt_count = MAX(attempt_count, ?), retry_count = MAX(retry_count, ?),
+            status_code = COALESCE(?, status_code), streamed = COALESCE(?, streamed),
+            upstream_request_id = COALESCE(?, upstream_request_id),
+            requested_model = COALESCE(?, requested_model),
+            resolved_model = COALESCE(?, resolved_model),
+            tokens_observed = CASE WHEN ? IS NULL THEN tokens_observed ELSE 1 END,
+            input_tokens = COALESCE(?, input_tokens), output_tokens = COALESCE(?, output_tokens),
+            cache_read_input_tokens = COALESCE(?, cache_read_input_tokens),
+            cache_creation_input_tokens = COALESCE(?, cache_creation_input_tokens),
+            reasoning_tokens = COALESCE(?, reasoning_tokens), total_tokens = COALESCE(?, total_tokens),
+            total_nano_aiu = COALESCE(?, total_nano_aiu),
+            used_tokens = COALESCE(?, used_tokens),
+            used_ratio = CASE WHEN context_window_tokens > 0 AND ? IS NOT NULL
+              THEN CAST(? AS REAL) / context_window_tokens ELSE used_ratio END,
+            request_bytes = COALESCE(?, request_bytes), response_bytes = COALESCE(?, response_bytes),
+            response_chunks = COALESCE(?, response_chunks), stop_reason = ?, tool_use_count = ?,
+            error_category = ?, error_code = ?,
+            error_message = ?, error_retryable = ?
+          WHERE request_id = ? AND state != 'completed'
+        `,
+          )
+          .run(
+            observation.outcome,
+            atMs,
+            observation.at,
+            observation.dispatch.attemptCount,
+            observation.dispatch.retryCount,
+            observation.dispatch.statusCode,
+            sqliteBoolean(observation.dispatch.streamed),
+            observation.dispatch.upstreamRequestId,
+            observation.dispatch.requestedModel,
+            observation.dispatch.resolvedModel,
+            t === null ? null : 1,
+            t?.inputTokens ?? null,
+            t?.outputTokens ?? null,
+            t?.cacheReadInputTokens ?? null,
+            t?.cacheCreationInputTokens ?? null,
+            t?.reasoningTokens ?? null,
+            t?.totalTokens ?? null,
+            t?.totalNanoAiu ?? null,
+            usedTokens,
+            usedTokens,
+            usedTokens,
+            observation.size.requestBytes,
+            observation.size.responseBytes,
+            observation.size.responseChunks,
+            observation.response.stopReason,
+            observation.response.toolUseCount,
+            error?.category ?? null,
+            error?.code ?? null,
+            error?.message ?? null,
+            error === null ? null : sqliteBoolean(error.retryable),
+            requestId,
+          )
+        const changes = numberValue((result as { changes?: unknown }).changes)
+        if (changes > 0) {
+          insertLifecycle(
+            db,
+            requestId,
+            nextSequence(db, requestId),
+            atMs,
+            observation.at,
+            "completed",
+            "completed",
+            observation.outcome,
+          )
+        }
+        db.exec("COMMIT")
+      } catch (error) {
+        db.exec("ROLLBACK")
+        throw error
+      }
     }, requestId)
   }
 
+  // eslint-disable-next-line complexity
   async listRequests(
     query: TrafficRequestListQuery,
   ): Promise<TrafficRequestList> {
@@ -400,9 +458,21 @@ export class SqliteTrafficObserver
       .get() as Row | undefined
     const snapshotMaxId = cursor?.snapshotMaxId ?? numberValue(maxRow?.id)
     const snapshotAtMs = cursor?.snapshotAtMs ?? this.now().getTime()
+    const range = query.filters.range
     const rows = db
-      .prepare("SELECT * FROM traffic_requests WHERE id <= ?")
-      .all(snapshotMaxId) as Array<Row>
+      .prepare(
+        `SELECT * FROM traffic_requests
+         WHERE id <= ?
+           AND (? IS NULL OR accepted_at_ms >= ?)
+           AND (? IS NULL OR accepted_at_ms <= ?)`,
+      )
+      .all(
+        snapshotMaxId,
+        range?.from ?? null,
+        range ? Date.parse(range.from) : null,
+        range?.to ?? null,
+        range ? Date.parse(range.to) : null,
+      ) as Array<Row>
     const candidates = rows
       .map((row) => ({
         id: numberValue(row.id),
@@ -492,23 +562,23 @@ export class SqliteTrafficObserver
     await this.synchronize()
     const db = await this.store.getDb()
     const generated = this.now()
+    const filterRange = query.filters.range ?? {
+      from: new Date(generated.getTime() - this.retentionMs).toISOString(),
+      to: generated.toISOString(),
+    }
     const rows = db
-      .prepare("SELECT * FROM traffic_requests")
-      .all() as Array<Row>
+      .prepare(
+        `SELECT * FROM traffic_requests
+         WHERE accepted_at_ms >= ? AND accepted_at_ms <= ?`,
+      )
+      .all(
+        Date.parse(filterRange.from),
+        Date.parse(filterRange.to),
+      ) as Array<Row>
     const items = rows
       .map((row) => rowToSummary(row, generated.getTime()))
       .filter((item) => matchesFilters(item, query.filters))
-    const range = query.filters.range ?? {
-      from:
-        items.length > 0 ?
-          new Date(
-            Math.min(
-              ...items.map((item) => Date.parse(item.timing.acceptedAt)),
-            ),
-          ).toISOString()
-        : generated.toISOString(),
-      to: generated.toISOString(),
-    }
+    const range = filterRange
     return {
       contractVersion: TRAFFIC_OBSERVABILITY_CONTRACT_VERSION,
       generatedAt: generated.toISOString(),
@@ -576,11 +646,21 @@ export class SqliteTrafficObserver
       .then(async () => {
         const db = await this.store.getDb()
         await action(db)
+        this.pruneExpired(db)
         this.invalidate(db, requestId)
       })
       .catch((error: unknown) => {
         consola.warn("Failed to persist traffic observation", error)
       })
+  }
+
+  private pruneExpired(db: SqliteDatabase): void {
+    const nowMs = this.now().getTime()
+    if (nowMs < this.nextRetentionCheckMs) return
+    this.nextRetentionCheckMs = nowMs + RETENTION_CHECK_INTERVAL_MS
+    db.prepare(
+      "DELETE FROM traffic_requests WHERE state = 'completed' AND accepted_at_ms < ?",
+    ).run(nowMs - this.retentionMs)
   }
 
   private invalidate(db: SqliteDatabase, requestId: string): void {
@@ -639,6 +719,9 @@ class SqliteTrafficObservationHandle implements TrafficObservationHandle {
   recordFirstResponse(observation: TrafficFirstResponseObservation): void {
     if (!this.terminal)
       this.observer.recordFirstResponse(this.requestId, observation)
+  }
+  recordContext(observation: TrafficContextObservation): void {
+    if (!this.terminal) this.observer.recordContext(this.requestId, observation)
   }
   recordTokens(observation: TrafficTokenObservation): void {
     if (!this.terminal) this.observer.recordTokens(this.requestId, observation)

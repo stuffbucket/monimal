@@ -12,6 +12,7 @@ import {
   TRAFFIC_OBSERVABILITY_CONTRACT_VERSION,
   TRAFFIC_TOKEN_SERIES_POINTS_MAX,
 } from "@stuffbucket/maximal-observability-contract"
+import { createHash } from "node:crypto"
 
 type Row = Record<string, unknown>
 
@@ -39,6 +40,7 @@ function duration(end: number | null, start: number): number | null {
   return end === null ? null : Math.max(0, end - start)
 }
 
+// eslint-disable-next-line max-lines-per-function
 export function rowToSummary(
   row: Row,
   activeAtMs: number,
@@ -46,8 +48,10 @@ export function rowToSummary(
   const acceptedMs = numberValue(row.accepted_at_ms)
   const completedMs = nullableNumber(row.completed_at_ms)
   const state = stringValue(row.state) as TrafficRequestSummary["state"]
-  const effectiveEnd =
-    completedMs ?? (state === "completed" ? null : activeAtMs)
+  let effectiveEnd = completedMs
+  if (completedMs === null && state !== "completed") effectiveEnd = activeAtMs
+  else if (completedMs !== null)
+    effectiveEnd = Math.min(completedMs, activeAtMs)
   const tokens =
     numberValue(row.tokens_observed) === 1 ?
       {
@@ -315,6 +319,18 @@ export function buildTotals(
   )
 }
 
+function flowNodeId(
+  kind: TrafficOverview["flow"]["nodes"][number]["kind"],
+  label: string,
+): string {
+  const direct = `${kind}:${label}`
+  if (direct.length <= 200) return direct
+  const digest = createHash("sha256").update(label).digest("hex").slice(0, 16)
+  const prefix = `${kind}:`
+  const headLength = 200 - prefix.length - digest.length - 1
+  return `${prefix}${label.slice(0, headLength)}:${digest}`
+}
+
 export function buildFlow(
   items: Array<TrafficRequestSummary>,
 ): TrafficOverview["flow"] {
@@ -325,7 +341,7 @@ export function buildFlow(
     label: string,
     item: TrafficRequestSummary,
   ): string => {
-    const id = `${kind}:${label}`
+    const id = flowNodeId(kind, label)
     const current = nodes.get(id) ?? {
       id,
       kind,
