@@ -96,6 +96,8 @@ run` install first -- a silent re-resolution behind every script. Before
   by checksum. CI setup actions are SHA-pinned and validate their installed
   versions; the isolated macOS producer bootstraps only the committed
   `mise.lock` macOS artifact after verifying its checksum.
+- Host CLI requirements MUST be version-pinned in `mise.toml` and resolved in
+  `mise.lock`; Homebrew MAY provide the same tool outside mise on macOS.
 - Do not let two packages pin different versions of the same dependency. The
   script above ratchets this: `DELIBERATE` holds the splits that are meant
   (typescript), `BACKLOG` holds the ones that are not and may only shrink.

@@ -25,6 +25,7 @@
 # rather than silently installing.
 [tools]
 pnpm = "11.25.0"
+ripgrep = "15.2.0"
 
 [settings]
 lockfile = true
