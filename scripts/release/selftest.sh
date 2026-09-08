@@ -42,6 +42,10 @@ set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 CONTRACT="${HERE}/contract.sh"
 VERIFY="${HERE}/verify-assets.sh"
+TAG_CHECK="${HERE}/tag.sh"
+BUILD_VERSION="${HERE}/build-version.sh"
+CI_RUN_CHECK="${HERE}/assert-ci-run.mjs"
+EVIDENCE="${HERE}/acceptance-evidence.sh"
 
 PASS=0
 FAIL=0
@@ -74,6 +78,152 @@ expect_fail() { # <label> <expected-substring> <cmd...>
   fi
   ok "$label"
 }
+
+# ---------------------------------------------------------------------------
+# assert-ci-run.mjs
+# ---------------------------------------------------------------------------
+echo "== assert-ci-run.mjs =="
+check_ci_runs() { # <name> <expected: pass|fail> <json>
+  local name="$1" expected="$2" json="$3" runs_file
+  runs_file="$(mktemp)"
+  printf '%s\n' "$json" > "$runs_file"
+  if [ "$expected" = pass ]; then
+    expect_pass "$name" node "$CI_RUN_CHECK" --sha tagged-sha --workflow-id 42 --runs-file "$runs_file"
+  else
+    expect_fail "$name" "CI workflow 42" node "$CI_RUN_CHECK" --sha tagged-sha --workflow-id 42 --runs-file "$runs_file"
+  fi
+  rm -f "$runs_file"
+}
+
+check_ci_runs "completed successful CI run passes" pass '{"workflow_runs":[{"id":1,"workflow_id":42,"head_sha":"tagged-sha","status":"completed","conclusion":"success"}]}'
+check_ci_runs "missing CI run fails" fail '{"workflow_runs":[]}'
+check_ci_runs "in-progress CI run fails" fail '{"workflow_runs":[{"id":2,"workflow_id":42,"head_sha":"tagged-sha","status":"in_progress","conclusion":null}]}'
+check_ci_runs "failed CI run fails" fail '{"workflow_runs":[{"id":3,"workflow_id":42,"head_sha":"tagged-sha","status":"completed","conclusion":"failure"}]}'
+check_ci_runs "cancelled CI run fails" fail '{"workflow_runs":[{"id":4,"workflow_id":42,"head_sha":"tagged-sha","status":"completed","conclusion":"cancelled"}]}'
+check_ci_runs "skipped CI run fails closed" fail '{"workflow_runs":[{"id":5,"workflow_id":42,"head_sha":"tagged-sha","status":"completed","conclusion":"skipped"}]}'
+check_ci_runs "neutral CI run fails closed" fail '{"workflow_runs":[{"id":6,"workflow_id":42,"head_sha":"tagged-sha","status":"completed","conclusion":"neutral"}]}'
+check_ci_runs "unrelated successful check cannot satisfy CI" fail '{"workflow_runs":[{"id":7,"workflow_id":99,"head_sha":"tagged-sha","status":"completed","conclusion":"success"}]}'
+check_ci_runs "prior release run cannot satisfy CI" fail '{"workflow_runs":[{"id":8,"workflow_id":99,"head_sha":"tagged-sha","status":"completed","conclusion":"success"}]}'
+
+# ---------------------------------------------------------------------------
+# tag.sh
+# ---------------------------------------------------------------------------
+echo "== tag.sh =="
+check_tag() { # <tag> <prerelease> <label>
+  local tag="$1" want="$2" label="$3" out got
+  if ! out="$(run "$TAG_CHECK" "$tag")"; then
+    bad "$label - expected success"
+    return
+  fi
+  got="$(sed -n 's/^prerelease=//p' <<< "$out")"
+  if [ "$(sed -n 's/^tag=//p' <<< "$out")" = "$tag" ] \
+    && [ "$(sed -n 's/^version=//p' <<< "$out")" = "${tag#v}" ] \
+    && [ "$got" = "$want" ]; then
+    ok "$label"
+  else
+    bad "$label - unexpected output: ${out}"
+  fi
+}
+
+while IFS='|' read -r tag prerelease label; do
+  check_tag "$tag" "$prerelease" "$label"
+done <<'VALID_TAGS'
+v1.2.3|false|stable release
+v1.2.3-rc1|true|normal prerelease
+v1.2.3-alpha.1-x|true|dotted prerelease
+VALID_TAGS
+
+while IFS='|' read -r tag label; do
+  expect_fail "$label" "" run "$TAG_CHECK" "$tag"
+done <<'INVALID_TAGS'
+v1.2.3-|empty suffix
+v1.2.3-rc.|trailing dot
+v1.2.3-rc..1|repeated dot
+v01.2.3|leading-zero core
+v1.2.3-rc.01|leading-zero numeric prerelease
+v1.2.3+build.1|build metadata
+v1.2.3/rc|slash
+v1.2.3 rc|whitespace
+maximal-v1.2.3|prefixed package tag
+INVALID_TAGS
+
+# ---------------------------------------------------------------------------
+# build-version.sh
+# ---------------------------------------------------------------------------
+echo "== build-version.sh =="
+DERIVED="$(run "$BUILD_VERSION" derive --timestamp 1767225600)"
+if [ "$DERIVED" = "2026.101.0" ]; then
+  ok "UTC commit timestamp derives YYYY.MMDD.HHMM"
+else
+  bad "UTC commit timestamp derivation: got '${DERIVED}', want '2026.101.0'"
+fi
+expect_pass "newer candidate passes component comparison" \
+  run "$BUILD_VERSION" check --candidate 2026.101.1 --previous 2026.101.0
+expect_pass "later middle component outranks a larger trailing component" \
+  run "$BUILD_VERSION" check --candidate 1.2.0 --previous 1.1.999
+expect_pass "first release has no predecessor" \
+  run "$BUILD_VERSION" check --candidate 2026.101.0 --previous none
+expect_fail "same-minute candidate is rejected" "is not greater" \
+  run "$BUILD_VERSION" check --candidate 2026.101.0 --previous 2026.101.0
+expect_fail "older candidate is rejected" "is not greater" \
+  run "$BUILD_VERSION" check --candidate 2026.100.2359 --previous 2026.101.0
+expect_fail "candidate with four components is malformed" "must be one to three" \
+  run "$BUILD_VERSION" check --candidate 2026.1.1.1 --previous none
+expect_fail "previous with non-numeric component is malformed" "must be one to three" \
+  run "$BUILD_VERSION" check --candidate 2026.1.1 --previous 2026.alpha.1
+
+# ---------------------------------------------------------------------------
+# acceptance-evidence.sh
+# ---------------------------------------------------------------------------
+echo "== acceptance-evidence.sh =="
+EVIDENCE_FILE="$(mktemp)"
+create_evidence() {
+  run "$EVIDENCE" create --repo stuffbucket/monimal --tag v9.9.9 \
+    --dmg maximal-v9.9.9-darwin-arm64.dmg --dmg-sha256 "$(printf 'a%.0s' $(seq 1 64))" \
+    --zip maximal-v9.9.9-darwin-arm64.zip --zip-sha256 "$(printf 'b%.0s' $(seq 1 64))" \
+    --predecessor none --bundle-id co.stuffbucket.maximal \
+    --designated-requirement-sha256 "$(printf 'c%.0s' $(seq 1 64))" \
+    --bundle-version 2026.101.0 --accepted-at 100 --offline-launch true \
+    --quarantine-inheritance true --upgrade true > "$EVIDENCE_FILE"
+}
+verify_evidence() {
+  run "$EVIDENCE" verify --file "$EVIDENCE_FILE" --repo "${1:-stuffbucket/monimal}" \
+    --tag "${2:-v9.9.9}" --dmg "${3:-maximal-v9.9.9-darwin-arm64.dmg}" \
+    --dmg-sha256 "${4:-$(printf 'a%.0s' $(seq 1 64))}" \
+    --zip maximal-v9.9.9-darwin-arm64.zip --zip-sha256 "$(printf 'b%.0s' $(seq 1 64))" \
+    --predecessor "${5:-none}" --bundle-id co.stuffbucket.maximal \
+    --designated-requirement-sha256 "$(printf 'c%.0s' $(seq 1 64))" \
+    --bundle-version 2026.101.0 --now 101 --max-age 10 --release-draft "${6:-true}"
+}
+create_evidence
+expect_pass "valid acceptance evidence" verify_evidence
+run "$EVIDENCE" create --repo stuffbucket/monimal --tag v9.9.9 \
+  --dmg maximal-v9.9.9-darwin-arm64.dmg --dmg-sha256 "$(printf 'a%.0s' $(seq 1 64))" \
+  --zip none --zip-sha256 none --predecessor none --bundle-id co.stuffbucket.maximal \
+  --designated-requirement-sha256 "$(printf 'c%.0s' $(seq 1 64))" \
+  --bundle-version 2026.101.0 --accepted-at 100 --offline-launch true \
+  --quarantine-inheritance true --upgrade true > "$EVIDENCE_FILE"
+expect_pass "dmg-only acceptance evidence" \
+  run "$EVIDENCE" verify --file "$EVIDENCE_FILE" --repo stuffbucket/monimal \
+    --tag v9.9.9 --dmg maximal-v9.9.9-darwin-arm64.dmg \
+    --dmg-sha256 "$(printf 'a%.0s' $(seq 1 64))" --zip none --zip-sha256 none \
+    --predecessor none --bundle-id co.stuffbucket.maximal \
+    --designated-requirement-sha256 "$(printf 'c%.0s' $(seq 1 64))" \
+    --bundle-version 2026.101.0 --now 101 --max-age 10 --release-draft true
+create_evidence
+expect_fail "wrong evidence tag" "does not match" verify_evidence stuffbucket/monimal v9.9.8
+expect_fail "wrong evidence repo" "does not match" verify_evidence other/repo
+expect_fail "wrong evidence asset name" "does not match" verify_evidence stuffbucket/monimal v9.9.9 other.dmg
+expect_fail "wrong evidence asset hash" "does not match" verify_evidence stuffbucket/monimal v9.9.9 maximal-v9.9.9-darwin-arm64.dmg "$(printf 'd%.0s' $(seq 1 64))"
+expect_fail "wrong evidence predecessor" "does not match" verify_evidence stuffbucket/monimal v9.9.9 maximal-v9.9.9-darwin-arm64.dmg "$(printf 'a%.0s' $(seq 1 64))" v9.9.8
+sed -i.bak 's/^offline_launch=true/offline_launch=false/' "$EVIDENCE_FILE"
+expect_fail "missing manual attestation" "does not match" verify_evidence
+create_evidence
+printf 'this is not evidence\n' > "$EVIDENCE_FILE"
+expect_fail "malformed evidence" "malformed" verify_evidence
+create_evidence
+expect_fail "published release state is refused" "not a draft" verify_evidence stuffbucket/monimal v9.9.9 maximal-v9.9.9-darwin-arm64.dmg "$(printf 'a%.0s' $(seq 1 64))" none false
+rm -f "$EVIDENCE_FILE" "$EVIDENCE_FILE.bak"
 
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
@@ -221,9 +371,10 @@ zip_name = maximal-{version}-darwin-arm64.zip
 CFG
 }
 printf "  appBundleId: 'co.stuffbucket.maximal',\n" > forge.ts
+printf '{"version":"0.0.0"}\n' > manifest.json
 mk_cfg cfg.ok "dmg,zip"
 
-OUT="$(run "$CONTRACT" --config cfg.ok --forge forge.ts --tag v1.2.3)"
+OUT="$(run "$CONTRACT" --config cfg.ok --forge forge.ts --manifest manifest.json --tag v1.2.3)"
 check_kv() { # <key> <want>
   local got
   got="$(sed -n "s/^$1=//p" <<< "$OUT")"
@@ -235,62 +386,75 @@ check_kv bundle_id "co.stuffbucket.maximal"
 check_kv app_name "Maximal.app"
 
 mk_cfg cfg.nozip "dmg"
-OUT="$(run "$CONTRACT" --config cfg.nozip --forge forge.ts --tag v1.2.3)"
+OUT="$(run "$CONTRACT" --config cfg.nozip --forge forge.ts --manifest manifest.json --tag v1.2.3)"
 check_kv zip ""
 
 # `unzip` must not be read as requesting the zip artifact.
 mk_cfg cfg.substr "dmg,unzip"
-OUT="$(run "$CONTRACT" --config cfg.substr --forge forge.ts --tag v1.2.3)"
+OUT="$(run "$CONTRACT" --config cfg.substr --forge forge.ts --manifest manifest.json --tag v1.2.3)"
 check_kv zip ""
 
 printf "  appBundleId: 'co.stuffbucket.other',\n" > forge.bad.ts
 expect_fail "bundle id disagrees with forge.config.ts" "does not match appBundleId" \
-  run "$CONTRACT" --config cfg.ok --forge forge.bad.ts --tag v1.2.3
+  run "$CONTRACT" --config cfg.ok --forge forge.bad.ts --manifest manifest.json --tag v1.2.3
+
+printf '{"version":"1.2.3"}\n' > manifest.bad.json
+expect_fail "manifest carries a release version" "expected 0.0.0" \
+  run "$CONTRACT" --config cfg.ok --forge forge.ts --manifest manifest.bad.json --tag v1.2.3
 
 mk_cfg cfg.nozipname "dmg,zip"; sed -i.bak '/^zip_name/d' cfg.nozipname
 expect_fail "artifact lists zip but zip_name is missing" "zip_name is missing" \
-  run "$CONTRACT" --config cfg.nozipname --forge forge.ts --tag v1.2.3
+  run "$CONTRACT" --config cfg.nozipname --forge forge.ts --manifest manifest.json --tag v1.2.3
 
 mk_cfg cfg.badapp "dmg"; sed -i.bak 's#Maximal.app$#Maximal.bundle#' cfg.badapp
 expect_fail "app_path does not end in .app" "must end in .app" \
-  run "$CONTRACT" --config cfg.badapp --forge forge.ts --tag v1.2.3
+  run "$CONTRACT" --config cfg.badapp --forge forge.ts --manifest manifest.json --tag v1.2.3
 
 mk_cfg cfg.nodmg "dmg"; sed -i.bak '/^dmg_name/d' cfg.nodmg
 expect_fail "dmg_name missing" "dmg_name missing" \
-  run "$CONTRACT" --config cfg.nodmg --forge forge.ts --tag v1.2.3
+  run "$CONTRACT" --config cfg.nodmg --forge forge.ts --manifest manifest.json --tag v1.2.3
 
 expect_fail "config file absent" "is missing" \
-  run "$CONTRACT" --config cfg.nope --forge forge.ts --tag v1.2.3
+  run "$CONTRACT" --config cfg.nope --forge forge.ts --manifest manifest.json --tag v1.2.3
 
 # ---------------------------------------------------------------------------
 # prev-tag.sh
 # ---------------------------------------------------------------------------
 echo "== prev-tag.sh =="
 PREV="${HERE}/prev-tag.sh"
-# Newest first, as `git tag --list --sort=-creatordate` emits.
-cat > tags <<'TAGS'
-v0.5.0-rc.5
-v0.5.0-rc.4
-v0.5.0-rc.3
-v0.5.0-rc.2
-TAGS
-check_prev() { # <tag> <want> <label>
+# Deliberately unordered GitHub Releases API records. Drafts must not establish
+# upgrade continuity; prereleases are ordinary published releases for it.
+cat > releases.json <<'RELEASES'
+[
+  {"tag_name":"v3.0.0","draft":false,"published_at":"2026-04-01T00:00:00Z"},
+  {"tag_name":"v4.0.0","draft":true,"published_at":"2026-05-01T00:00:00Z"},
+  {"tag_name":"v1.0.0","draft":false,"published_at":"2026-01-01T00:00:00Z"},
+  {"tag_name":"v2.0.0","draft":false,"published_at":"2026-03-01T00:00:00Z"},
+  {"tag_name":"v2.0.0-rc.1","draft":false,"published_at":"2026-02-01T00:00:00Z"}
+]
+RELEASES
+check_prev() { # <records-file> <tag> <want> <label>
   local got
-  got="$(run "$PREV" --tag "$1" --tags-file tags)"
-  if [ "$got" = "$2" ]; then ok "$3"; else bad "$3 — got '${got}', want '${2}'"; fi
+  got="$(run "$PREV" --tag "$2" --releases-file "$1")"
+  if [ "$got" = "$3" ]; then ok "$4"; else bad "$4 — got '${got}', want '${3}'"; fi
 }
-check_prev v0.5.0-rc.5 v0.5.0-rc.4 "newest tag sees the one before it"
-check_prev v0.5.0-rc.3 v0.5.0-rc.2 "a middle tag sees the one before it"
-check_prev v0.5.0-rc.2 ""          "the oldest tag has no predecessor"
-# The regression: re-releasing rc.3 must NOT compare against rc.5, which is what
-# `grep -vxF "$TAG" | head -1` returned.
-got="$(run "$PREV" --tag v0.5.0-rc.3 --tags-file tags)"
-if [ "$got" = "v0.5.0-rc.5" ]; then
-  bad "re-released tag compared against a NEWER release"
-else
-  ok "re-releasing an older tag does not compare against a newer one"
-fi
-check_prev v9.9.9 "" "a tag absent from the list has no predecessor"
+check_prev releases.json v2.0.0 v2.0.0-rc.1 "a published target in the middle sees its immediately preceding published prerelease"
+check_prev releases.json v1.0.0 "" "the first published release has no predecessor"
+check_prev releases.json v4.0.0 v3.0.0 "an unpublished draft target sees the latest published release"
+
+# More than GitHub's default first page: this nested page array matches
+# `--paginate --slurp`, and the resolver must not impose a separate record cap.
+{
+  printf '[['
+  index=1
+  while [ "$index" -le 35 ]; do
+    [ "$index" -eq 1 ] || printf ','
+    printf '{"tag_name":"v8.0.%s","draft":false,"published_at":"2026-06-01T00:%02d:00Z"}' "$index" "$index"
+    index=$((index + 1))
+  done
+  printf ']]\n'
+} > releases-many.json
+check_prev releases-many.json v8.0.35 v8.0.34 "a published target beyond 30 records sees its predecessor"
 
 # ---------------------------------------------------------------------------
 echo

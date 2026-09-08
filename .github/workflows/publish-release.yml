@@ -1,0 +1,108 @@
+# The sole normal publisher. It is deliberately dispatch-only, protected by
+# release-publish, and executes only when dispatched from the default branch.
+name: Publish Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing draft release tag to publish
+        required: true
+        type: string
+      acceptance_evidence_base64:
+        description: Base64 of the clean-Mac acceptance evidence file
+        required: true
+        type: string
+      evidence_sha256:
+        description: SHA-256 of the exact acceptance evidence bytes
+        required: true
+        type: string
+
+permissions: {}
+
+defaults:
+  run:
+    shell: bash -eo pipefail {0}
+
+jobs:
+  publish:
+    # workflow_dispatch may select a branch. Refuse it before credentials or a
+    # protected environment are reached; trusted logic is checked out from main.
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: release-publish
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+
+      - name: Re-fetch and validate the accepted draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+          EVIDENCE_BASE64: ${{ inputs.acceptance_evidence_base64 }}
+          EVIDENCE_SHA256: ${{ inputs.evidence_sha256 }}
+        run: |
+          scripts/release/tag.sh "$TAG" >/dev/null
+          git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null \
+            || { echo "::error::Tag '${TAG}' does not exist."; exit 1; }
+          STATE="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)"
+          [ "$STATE" = true ] || { echo "::error::${TAG} is not a draft release."; exit 1; }
+
+          CONTRACT="$RUNNER_TEMP/contract"
+          mkdir -p "$CONTRACT"
+          git show "${TAG}:.macos-builder/config" > "$CONTRACT/config"
+          git show "${TAG}:packages/maximal/client/forge.config.ts" > "$CONTRACT/forge.config.ts"
+          git show "${TAG}:packages/maximal/client/package.json" > "$CONTRACT/package.json"
+          OUTPUT="$(scripts/release/contract.sh --config "$CONTRACT/config" --forge "$CONTRACT/forge.config.ts" --manifest "$CONTRACT/package.json" --tag "$TAG")"
+          DMG="$(sed -n 's/^dmg=//p' <<< "$OUTPUT")"
+          ZIP="$(sed -n 's/^zip=//p' <<< "$OUTPUT")"
+          APP_NAME="$(sed -n 's/^app_name=//p' <<< "$OUTPUT")"
+          BUNDLE_ID="$(sed -n 's/^bundle_id=//p' <<< "$OUTPUT")"
+
+          EVIDENCE="$RUNNER_TEMP/acceptance-evidence.txt"
+          printf '%s' "$EVIDENCE_BASE64" | base64 --decode > "$EVIDENCE"
+          HAVE_EVIDENCE_SHA="$(sha256sum "$EVIDENCE" | awk '{print $1}')"
+          [ "$HAVE_EVIDENCE_SHA" = "$EVIDENCE_SHA256" ] \
+            || { echo "::error::Evidence digest does not match the dispatch input."; exit 1; }
+
+          DL="$RUNNER_TEMP/assets"
+          mkdir -p "$DL"
+          PATTERNS=(--pattern "$DMG" --pattern "${DMG}.sha256")
+          VERIFY_ARGS=(--dir "$DL" --dmg "$DMG" --app-name "$APP_NAME")
+          if [ -n "$ZIP" ]; then
+            PATTERNS+=(--pattern "$ZIP" --pattern "${ZIP}.sha256")
+            VERIFY_ARGS+=(--zip "$ZIP")
+          fi
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir "$DL" --clobber "${PATTERNS[@]}"
+          scripts/release/verify-assets.sh "${VERIFY_ARGS[@]}"
+          DMG_SHA="$(sha256sum "$DL/$DMG" | awk '{print $1}')"
+          if [ -n "$ZIP" ]; then
+            ZIP_SHA="$(sha256sum "$DL/$ZIP" | awk '{print $1}')"
+          else
+            ZIP=none
+            ZIP_SHA=none
+          fi
+          gh api --paginate --slurp "repos/${GITHUB_REPOSITORY}/releases?per_page=100" > "$RUNNER_TEMP/releases.json"
+          PREDECESSOR="$(scripts/release/prev-tag.sh --tag "$TAG" --releases-file "$RUNNER_TEMP/releases.json")"
+          [ -n "$PREDECESSOR" ] || PREDECESSOR=none
+          BUILD_VERSION="$(scripts/release/build-version.sh derive --timestamp "$(git log -1 --format=%ct "$TAG")")"
+          # The evidence's requirement hash is the clean-Mac observation; its
+          # digest is structurally checked here while assets are tied by hash.
+          REQUIREMENT_SHA="$(sed -n 's/^designated_requirement_sha256=//p' "$EVIDENCE")"
+          scripts/release/acceptance-evidence.sh verify --file "$EVIDENCE" \
+            --repo "$GITHUB_REPOSITORY" --tag "$TAG" --dmg "$DMG" --dmg-sha256 "$DMG_SHA" \
+            --zip "$ZIP" --zip-sha256 "$ZIP_SHA" --predecessor "$PREDECESSOR" \
+            --bundle-id "$BUNDLE_ID" --designated-requirement-sha256 "$REQUIREMENT_SHA" \
+            --bundle-version "$BUILD_VERSION" --now "$(date +%s)" --max-age 604800 --release-draft "$STATE"
+          cat "$EVIDENCE" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish the verified draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false

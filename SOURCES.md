@@ -81,6 +81,11 @@ them here.
   into idiomatic version files so mise reads that same file; CI reads it through
   setup-node's `node-version-file`. `engines` states the floor, which nothing
   enforces, so `verify-workspace.mjs` compares the _running_ major against it.
+- `package.json`'s `packageManager` owns the pnpm version. `mise.toml` and
+  `mise.lock` resolve that same version locally and lock its platform artifacts
+  by checksum. CI setup actions are SHA-pinned and validate their installed
+  versions; the isolated macOS producer bootstraps only the committed
+  `mise.lock` macOS artifact after verifying its checksum.
 - Do not let two packages pin different versions of the same dependency. The
   script above ratchets this: `DELIBERATE` holds the splits that are meant
   (typescript), `BACKLOG` holds the ones that are not and may only shrink.

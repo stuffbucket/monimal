@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
@@ -19,6 +20,65 @@ const root = path.resolve(import.meta.dirname, "..");
 function read(relativePath) {
   return fs.readFileSync(path.join(root, relativePath), "utf8");
 }
+
+function runLockfileHostStrip(...arguments_) {
+  return spawnSync(process.execPath, ["scripts/strip-lockfile-hosts.mjs", ...arguments_], {
+    cwd: root,
+    encoding: "utf8",
+  });
+}
+
+function withShardHost(lockfile) {
+  return lockfile.replace(
+    /^(    resolution: \{[^\n}]*)(\})$/m,
+    "$1, tarball: https://ms-feed-7.pkgs.visualstudio.com/tarball.tgz$2",
+  );
+}
+
+test("lockfile host check accepts clean input without mutation", () => {
+  const before = read("pnpm-lock.yaml");
+  const result = runLockfileHostStrip("--check");
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /pnpm-lock\.yaml: clean/);
+  assert.equal(read("pnpm-lock.yaml"), before);
+});
+
+test("lockfile host check rejects repairable input without mutation", () => {
+  const clean = read("pnpm-lock.yaml");
+  const dirty = withShardHost(clean);
+  assert.notEqual(dirty, clean, "fixture needs a lockfile resolution");
+
+  try {
+    fs.writeFileSync(path.join(root, "pnpm-lock.yaml"), dirty);
+    const result = runLockfileHostStrip("--check");
+
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /Run node scripts\/strip-lockfile-hosts\.mjs/);
+    assert.match(result.stderr, /commit the repaired lockfile/);
+    assert.match(result.stderr, /retag the release/);
+    assert.equal(read("pnpm-lock.yaml"), dirty);
+  } finally {
+    fs.writeFileSync(path.join(root, "pnpm-lock.yaml"), clean);
+  }
+});
+
+test("lockfile host repair retains the default mutating behavior", () => {
+  const clean = read("pnpm-lock.yaml");
+  const dirty = withShardHost(clean);
+  assert.notEqual(dirty, clean, "fixture needs a lockfile resolution");
+
+  try {
+    fs.writeFileSync(path.join(root, "pnpm-lock.yaml"), dirty);
+    const result = runLockfileHostStrip();
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /stripped 1 shard-host URL/);
+    assert.equal(read("pnpm-lock.yaml"), clean);
+  } finally {
+    fs.writeFileSync(path.join(root, "pnpm-lock.yaml"), clean);
+  }
+});
 
 test("the outer and fixed inner test scripts cannot recurse", () => {
   const manifest = JSON.parse(read("package.json"));
@@ -194,6 +254,35 @@ test("tool pins come from their owner files and pnpm checksums from mise", () =>
   assert.ok(arguments_.includes(`PNPM_VERSION=${pins.pnpmVersion}`));
   assert.ok(arguments_.includes("GIT_SHA=" + "c".repeat(40)));
   assert.ok(arguments_.includes("TARGETARCH=arm64"));
+});
+
+test("the macOS producer bootstraps pnpm from the committed locked artifact", () => {
+  const manifest = JSON.parse(read("package.json"));
+  const pnpmVersion = manifest.packageManager.slice("pnpm@".length);
+  const miseToml = read("mise.toml");
+  const miseLock = read("mise.lock");
+  const producer = read(".macos-builder/build.sh");
+  const platformEntry = miseLock.match(
+    /\[tools\.pnpm\."platforms\.macos-arm64"\]\nchecksum = "sha256:([0-9a-f]{64})"\nurl = "([^"]+)"/,
+  );
+
+  assert.equal(miseToml.match(/^pnpm = "(\d+\.\d+\.\d+)"$/m)?.[1], pnpmVersion);
+  assert.equal(
+    miseLock.match(/\[\[tools\.pnpm\]\]\nversion = "(\d+\.\d+\.\d+)"/)?.[1],
+    pnpmVersion,
+  );
+  assert.match(
+    platformEntry?.[2] ?? "",
+    new RegExp(`/v${pnpmVersion}/pnpm-darwin-arm64\\.tar\\.gz$`),
+  );
+  assert.match(platformEntry?.[1] ?? "", /^[0-9a-f]{64}$/);
+  assert.match(producer, /PNPM_SPEC="\$\(node -p "require\('\.\/package\.json'\)\.packageManager"\)"/);
+  assert.match(producer, /\[tools\.pnpm\.\\"platforms\.macos-arm64\\"\]/);
+  assert.match(producer, /curl --fail --location --retry 3 --output "\$PNPM_ARCHIVE" "\$PNPM_URL"/);
+  assert.match(producer, /shasum -a 256 -c -/);
+  assert.match(producer, /tar -xzf "\$PNPM_ARCHIVE" -C "\$PNPM_STAGING"/);
+  assert.doesNotMatch(producer, /^\s*npm install --prefix/m);
+  assert.match(producer, /\[ "\$HAVE_PNPM" = "\$PNPM_VERSION" \]/);
 });
 
 test("the build context excludes local state but retains source fixtures", () => {
