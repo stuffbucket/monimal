@@ -11,6 +11,7 @@ const ghostty = vi.hoisted(() => ({
   scrollToTop: vi.fn(),
   scrollToBottom: vi.fn(),
   focus: vi.fn(),
+  blur: vi.fn(),
   subscription: undefined as ((event: { type: 'exit'; exitCode: number }) => void) | undefined,
 }));
 
@@ -34,6 +35,7 @@ vi.mock('ghostty-web', () => ({
     scrollToTop(): void { ghostty.scrollToTop(); }
     scrollToBottom(): void { ghostty.scrollToBottom(); }
     focus(): void { ghostty.focus(); }
+    blur(): void { ghostty.blur(); }
     onTitleChange(handler: (title: string) => void): void {
       ghostty.titleHandler = handler;
     }
@@ -158,6 +160,33 @@ describe('TerminalView lifecycle', () => {
 
     await act(async () => ghostty.subscription?.({ type: 'exit', exitCode: 7 }));
     expect(onExit).toHaveBeenCalledWith(7);
+
+    await act(async () => root.unmount());
+  });
+
+  it('blurs an inactive pane and claims focus on pointer down', async () => {
+    const onFocus = vi.fn();
+    const transport = {
+      spawn: vi.fn(async () => undefined),
+      write: vi.fn(async () => undefined),
+      resize: vi.fn(async () => undefined),
+      terminate: vi.fn(async () => undefined),
+      subscribe: vi.fn(() => () => undefined),
+    };
+    const element = document.createElement('div');
+    const root = createRoot(element);
+
+    await act(async () => {
+      root.render(
+        <TerminalView id="session-1" focused={false} onFocus={onFocus} transport={transport} />,
+      );
+    });
+    expect(ghostty.blur).toHaveBeenCalled();
+
+    element.querySelector('.terminal')?.dispatchEvent(
+      new PointerEvent('pointerdown', { bubbles: true }),
+    );
+    expect(onFocus).toHaveBeenCalledOnce();
 
     await act(async () => root.unmount());
   });

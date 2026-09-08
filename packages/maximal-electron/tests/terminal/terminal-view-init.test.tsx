@@ -23,6 +23,7 @@ vi.mock('ghostty-web', () => ({
       ghostty.open();
     }
     focus(): void {}
+    blur(): void {}
     onData(): void {}
     onResize(): void {}
     attachCustomKeyEventHandler(): void {}

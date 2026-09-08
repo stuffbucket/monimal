@@ -155,6 +155,7 @@ export function TerminalView({
       fit.fit();
       terminal.current = term;
       if (shouldFocus.current) term.focus();
+      else term.blur();
 
       // The emulator draws to a canvas, so there is no text in the DOM to
       // assert on. Exposing the instance lets a test read the real buffer.
@@ -259,6 +260,7 @@ export function TerminalView({
 
   useEffect(() => {
     if (focused) terminal.current?.focus();
+    else terminal.current?.blur();
   }, [focused]);
 
   return (
@@ -270,6 +272,7 @@ export function TerminalView({
       aria-label={ariaLabel}
       ref={host}
       onFocus={onFocus}
+      onPointerDown={onFocus}
     >
       {wasmFailed && (
         <div className="terminal__error" role="alert">
