@@ -169,17 +169,28 @@ export function backfillLegacyUsageRows(db: SqliteDatabase): void {
       total_nano_aiu, used_tokens
     )
     SELECT
-      'legacy-token-usage-' || id, id, NULLIF(trace_id, ''), NULLIF(session_id, ''),
+      'legacy-token-usage-' || id, id,
+      NULLIF(substr(trim(trace_id), 1, 200), ''),
+      NULLIF(substr(trim(session_id), 1, 200), ''),
       created_at_ms, created_at_utc, created_at_ms, created_at_utc,
       'completed', 'succeeded', 'POST', '/legacy/token-usage', endpoint,
       source,
-      CASE WHEN source = 'provider' THEN provider_name ELSE 'copilot' END,
-      model, 1, 0, 1, input_tokens, output_tokens,
+      CASE WHEN source = 'provider'
+        THEN NULLIF(substr(trim(provider_name), 1, 200), '') ELSE 'copilot' END,
+      NULLIF(substr(trim(model), 1, 200), ''), 1, 0, 1, input_tokens, output_tokens,
       cache_read_input_tokens, cache_creation_input_tokens, total_tokens,
       total_nano_aiu,
       input_tokens + cache_read_input_tokens + cache_creation_input_tokens
     FROM token_usage_events
     WHERE traffic_request_id IS NULL
+  `)
+  db.exec(`
+    UPDATE traffic_requests SET
+      trace_id = NULLIF(substr(trim(trace_id), 1, 200), ''),
+      session_id = NULLIF(substr(trim(session_id), 1, 200), ''),
+      provider = NULLIF(substr(trim(provider), 1, 200), ''),
+      model = NULLIF(substr(trim(model), 1, 200), '')
+    WHERE legacy_usage_id IS NOT NULL
   `)
   db.exec(`
     INSERT OR IGNORE INTO traffic_request_lifecycle

@@ -51,7 +51,7 @@ function normalizedRoutePath(path: string): string {
 }
 
 function operationForPath(path: string): string {
-  if (path.endsWith("/count_tokens")) return "count-tokens"
+  if (path.includes("/count_tokens")) return "count-tokens"
   if (path.includes("/chat/completions")) return "chat-completions"
   if (path.includes("/embeddings")) return "embeddings"
   if (path.includes("/responses")) return "responses"

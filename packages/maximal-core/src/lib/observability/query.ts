@@ -183,6 +183,13 @@ export function decodeCursor(value: string | null): CursorPayload | null {
   }
 }
 
+function includesNullableString(
+  values: ReadonlyArray<string>,
+  value: string | null,
+): boolean {
+  return (values as ReadonlyArray<string | null>).includes(value)
+}
+
 // Each optional contract filter is an independent predicate.
 // eslint-disable-next-line complexity
 export function matchesFilters(
@@ -200,7 +207,7 @@ export function matchesFilters(
     return false
   if (
     filters.outcomes.length > 0
-    && (item.outcome === null || !filters.outcomes.includes(item.outcome))
+    && !includesNullableString(filters.outcomes, item.outcome)
   )
     return false
   if (
@@ -210,20 +217,17 @@ export function matchesFilters(
     return false
   if (
     filters.providers.length > 0
-    && (item.attribution.provider === null
-      || !filters.providers.includes(item.attribution.provider))
+    && !includesNullableString(filters.providers, item.attribution.provider)
   )
     return false
   if (
     filters.models.length > 0
-    && (item.attribution.model === null
-      || !filters.models.includes(item.attribution.model))
+    && !includesNullableString(filters.models, item.attribution.model)
   )
     return false
   if (
     filters.projects.length > 0
-    && (item.attribution.project === null
-      || !filters.projects.includes(item.attribution.project))
+    && !includesNullableString(filters.projects, item.attribution.project)
   )
     return false
   if (
@@ -233,8 +237,7 @@ export function matchesFilters(
     return false
   if (
     filters.clients.length > 0
-    && (item.attribution.client === null
-      || !filters.clients.includes(item.attribution.client))
+    && !includesNullableString(filters.clients, item.attribution.client)
   )
     return false
   const durationMs = item.timing.durationMs
@@ -250,7 +253,7 @@ export function matchesFilters(
     return false
   if (filters.search) {
     const needle = filters.search.toLocaleLowerCase()
-    const haystack = [
+    const searchableValues = [
       item.identity.requestId,
       item.identity.traceId,
       item.identity.sessionId,
@@ -259,10 +262,12 @@ export function matchesFilters(
       item.attribution.model,
       item.attribution.client,
     ]
-      .filter((value): value is string => value !== null)
-      .join("\n")
-      .toLocaleLowerCase()
-    if (!haystack.includes(needle)) return false
+    if (
+      !searchableValues.some(
+        (value) => value?.toLocaleLowerCase().includes(needle) === true,
+      )
+    )
+      return false
   }
   return true
 }
@@ -270,9 +275,7 @@ export function matchesFilters(
 export function percentile(values: Array<number>) {
   const sorted = [...values].sort((a, b) => a - b)
   const read = (p: number): number | null =>
-    sorted.length === 0 ?
-      null
-    : (sorted[Math.max(0, Math.ceil(sorted.length * p) - 1)] ?? null)
+    sorted[Math.max(0, Math.ceil(sorted.length * p) - 1)] ?? null
   return {
     sampleCount: sorted.length,
     p50Ms: read(0.5),
