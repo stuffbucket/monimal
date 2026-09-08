@@ -2,8 +2,9 @@ import { mkdtempSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
+import { PluginBase } from '@electron-forge/plugin-base'
 import { VitePlugin } from '@electron-forge/plugin-vite'
-import type { ForgeConfig } from '@electron-forge/shared-types'
+import type { ForgeConfig, StartOptions } from '@electron-forge/shared-types'
 
 // This config NEVER signs, and must not learn how.
 //
@@ -30,6 +31,33 @@ import type { ForgeConfig } from '@electron-forge/shared-types'
  * wiping a directory it does not own.
  */
 const PACKAGER_STAGING_BASE = mkdtempSync(path.join(os.tmpdir(), 'forge-maximal-client-'))
+
+/**
+ * Start the named development bundle instead of the stock one.
+ *
+ * Forge resolves the Electron binary itself — `require()`ing the `electron`
+ * package, which joins `ELECTRON_OVERRIDE_DIST_PATH` with a `path.txt` that
+ * always ends in `Electron.app/Contents/MacOS/Electron`. That fixed `.app`
+ * component is the problem: macOS takes a Dock tile's name from the bundle
+ * DIRECTORY, so a bundle reachable only as `Electron.app` hovers as "Electron"
+ * however its plist is written. `scripts/name-dev-bundle.mjs` has the evidence.
+ *
+ * Forge lets a plugin take the start command over, which is the supported way
+ * past that, and this is the only plugin here that claims it — Forge throws if
+ * two do, and `VitePlugin` does not.
+ *
+ * Returning `false` declines: no variable means `scripts/start.mjs` prepared no
+ * bundle (any platform but macOS, or a dist that could not be had), and Forge
+ * goes back to its own resolution rather than the run failing. Packaging never
+ * reaches here; a packaged bundle is already `Maximal.app`.
+ */
+class DevBundlePlugin extends PluginBase<Record<string, never>> {
+  name = 'maximal-dev-bundle'
+
+  override async startLogic(_opts: StartOptions): Promise<string | false> {
+    return process.env.MAXIMAL_DEV_ELECTRON ?? false
+  }
+}
 
 const config: ForgeConfig = {
   packagerConfig: {
@@ -70,6 +98,7 @@ const config: ForgeConfig = {
   },
   makers: [], // the private macos-builder packages the .dmg; we only build the .app
   plugins: [
+    new DevBundlePlugin({}),
     new VitePlugin({
       build: [
         { entry: 'src/main/index.ts', config: 'vite.main.config.ts', target: 'main' },
