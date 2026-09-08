@@ -16,6 +16,16 @@ The Maximal guide and product documentation are available in the
 
 ## Development
 
+Run the desktop client from the repository root:
+
+```bash
+pnpm start
+```
+
+Turborepo builds the client and its workspace dependencies before Electron
+starts. The command remains attached to the development process until the app
+closes or you press Ctrl+C.
+
 Repository setup, workspace commands, testing, packaging, and release guidance
 are documented in the developer documentation. See
 [`docs/testing-in-docker.md`](docs/testing-in-docker.md) for the test workflow

@@ -5,6 +5,7 @@
   "description": "Monorepo spike: maximal, maximal-core and maximal-electron in one pnpm workspace, driven by Turborepo.",
   "packageManager": "pnpm@11.25.0",
   "scripts": {
+    "start": "turbo run start --filter=maximal-client",
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "test": "node scripts/test-workspace.mjs",
