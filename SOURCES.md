@@ -141,6 +141,9 @@ package provenance or publisher identity -- the proxy does that.
 
 ## Deviations
 
+- `maximal`, `maximal-core`, and `maximal-electron`: `CLAUDE.md` is a direct
+  `@AGENTS.md` include. `maximal`'s instruction owner moved from `CLAUDE.md` to
+  `AGENTS.md`, matching the other packages and preventing parallel rule copies.
 - Added `packages/eslint-config` (`@stuffbucket/eslint-config`), a private
   workspace package holding the shared flat config, and dropped
   `@echristian/eslint-config` from `maximal` and `maximal-core`. That preset
