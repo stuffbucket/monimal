@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { APP_ICON, TRAY_ICON, TRAY_TEMPLATE_ICON } from '../src/main/native/icons.js';
+import { APP_ICON, TRAY_ICON } from '../src/main/native/icons.js';
 
 /**
  * What the icon layer asks Electron for, on each platform.
@@ -83,7 +83,7 @@ let errors: string[] = [];
 beforeEach(() => {
   vi.stubEnv('STUFFBUCKET_ICON_DIR', ICON_DIR);
   // A complete icon directory. A test that wants a missing file deletes one.
-  electron.present = new Set([APP_ICON, TRAY_ICON, TRAY_TEMPLATE_ICON].map(at));
+  electron.present = new Set([APP_ICON, TRAY_ICON].map(at));
   electron.requested = [];
   electron.trays = [];
   electron.hasDock = true;
@@ -165,10 +165,10 @@ describe('applyDockIcon', () => {
 });
 
 describe('setTrayEnabled', () => {
-  it('takes the alpha-only image on macOS, and marks it a template', () => {
+  it('takes the coloured Tauri image on macOS without system tinting', () => {
     setTrayEnabled(true, 'darwin', vi.fn());
-    expect(electron.requested).toEqual([at(TRAY_TEMPLATE_ICON)]);
-    expect(electron.trays).toEqual([{ path: at(TRAY_TEMPLATE_ICON), template: true }]);
+    expect(electron.requested).toEqual([at(TRAY_ICON)]);
+    expect(electron.trays).toEqual([{ path: at(TRAY_ICON), template: false }]);
   });
 
   it.each(['win32', 'linux'] as const)(
