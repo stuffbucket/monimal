@@ -2,7 +2,8 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { BrowserWindow, app, globalShortcut } from 'electron';
+import type { BrowserWindow } from 'electron';
+import { app, dialog, globalShortcut } from 'electron';
 
 import { RUN_MAIN_OPTIONS_VERSION, runMain } from '../host/run-main.js';
 import { registerIpcHandlers, sendEvent } from './ipc.js';
@@ -83,10 +84,6 @@ function setDockVisible(visible: boolean): void {
   if (visible && isE2EQuiet()) return;
   if (visible) void app.dock.show();
   else app.dock.hide();
-}
-
-function hasOpenWindow(): boolean {
-  return BrowserWindow.getAllWindows().some((window) => !window.isDestroyed());
 }
 
 /* ---------------------------------------------------------------- windows */
@@ -215,11 +212,27 @@ function bootstrap(): void {
   onPreferencesChanged((next) => {
     setTrayEnabled(next.menuBarIcon, process.platform, activate);
     bindOverlayHotkey(next.overlayHotkey);
-    // Turning the menu bar icon off while no window is open would otherwise
-    // strand the application with no way to reach it.
-    if (!next.menuBarIcon && !hasOpenWindow()) activate();
     sendEvent(mainWindow, 'prefs:changed', next);
   });
+}
+
+async function shouldQuitAfterLastWindow(): Promise<boolean> {
+  const prefs = getPreferences();
+  if (prefs.menuBarIcon) return false;
+  if (prefs.quitOnLastWindowClosed) return true;
+
+  const result = await dialog.showMessageBox({
+    type: 'question',
+    title: 'Stop Maximal?',
+    message: 'Stop Maximal?',
+    detail:
+      'Maximal and all of its processes will stop. Keep running leaves the application open without a window.',
+    buttons: ['Keep Running', 'Stop Maximal'],
+    defaultId: 0,
+    cancelId: 0,
+    noLink: true,
+  });
+  return result.response === 1;
 }
 
 /**
@@ -279,7 +292,7 @@ if (selfCheckRequested(process.argv)) {
     {
       version: RUN_MAIN_OPTIONS_VERSION,
       userDataDirectory,
-      keepRunningWithoutWindows: () => getPreferences().menuBarIcon,
+      shouldQuitAfterLastWindow,
       window: mainWindowOptions,
       onReady: (context) => {
         activate = context.activate;

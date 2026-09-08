@@ -89,6 +89,7 @@ second launch. `runMain` opens a replacement window when none is left, and
 | `singleInstance` | `true` | Take the single instance lock |
 | `collectCrashDumps` | `false` | Write a local minidump for every process the shell owns |
 | `keepRunningWithoutWindows` | `() => false` | Survive the last window on every platform |
+| `shouldQuitAfterLastWindow` | platform policy | Decide whether the last window quits, including after user confirmation |
 | `discoverDaemonUrl` | none | An origin to resolve before the first window |
 | `onReady` | none | After discovery, before the first window |
 | `onActivate` | none | Every activation, with the surviving window |
@@ -99,6 +100,8 @@ second launch. `runMain` opens a replacement window when none is left, and
 `keepRunningWithoutWindows` is a callback rather than a value because the
 answer changes while the application runs: this shell reads a preference the
 user can toggle. macOS keeps an application alive without windows regardless.
+`shouldQuitAfterLastWindow` takes precedence when supplied. It may return a
+promise so an application can wait for a native confirmation dialog.
 
 `collectCrashDumps` is off by default and needs `runtime.crashReporter` when it
 is on, or `runMain` throws rather than starting nothing in silence. A crash
@@ -124,7 +127,8 @@ the message can name the callback, rather than as a blank window.
 runs before the shell acts. An application that reacts to the last window
 closing — this one pulls its dock icon out — therefore never recomputes the
 policy and never depends on where its own listener sits in the order. It
-observes; `keepRunningWithoutWindows` is what changes the answer.
+observes; `keepRunningWithoutWindows` changes the answer unless
+`shouldQuitAfterLastWindow` supplies it instead.
 
 ## Registering your own handlers
 

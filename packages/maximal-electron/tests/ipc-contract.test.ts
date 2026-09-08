@@ -101,6 +101,10 @@ describe('default preferences', () => {
     expect(DEFAULT_PREFERENCES.menuBarIcon).toBe(false);
   });
 
+  it('asks before quitting with the last window', () => {
+    expect(DEFAULT_PREFERENCES.quitOnLastWindowClosed).toBe(false);
+  });
+
   it('follows the system theme', () => {
     expect(DEFAULT_PREFERENCES.theme).toBe('system');
   });

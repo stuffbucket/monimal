@@ -276,6 +276,42 @@ describe('runMain', () => {
     expect(app.quit).toHaveBeenCalledOnce();
   });
 
+  it('waits for the consumer to decide whether the last window should quit', async () => {
+    const { app, runtime } = fakeApp();
+    let decide = (_quitting: boolean) => undefined as void;
+    const decision = new Promise<boolean>((resolve) => {
+      decide = resolve;
+    });
+
+    await runMain(runtime, {
+      version: RUN_MAIN_OPTIONS_VERSION,
+      window: () => windowOptions,
+      shouldQuitAfterLastWindow: () => decision,
+    });
+
+    app.emit('window-all-closed');
+    expect(app.quit).not.toHaveBeenCalled();
+
+    decide(true);
+    await decision;
+    await Promise.resolve();
+    expect(app.quit).toHaveBeenCalledOnce();
+  });
+
+  it('stays alive when the consumer declines to quit with the last window', async () => {
+    const { app, runtime } = fakeApp();
+
+    await runMain(runtime, {
+      version: RUN_MAIN_OPTIONS_VERSION,
+      window: () => windowOptions,
+      shouldQuitAfterLastWindow: () => false,
+    });
+
+    app.emit('window-all-closed');
+    await Promise.resolve();
+    expect(app.quit).not.toHaveBeenCalled();
+  });
+
   it('defers the quit until pending shutdown work settles, then lets it through', async () => {
     const { app, runtime } = fakeApp();
     let release = () => undefined as void;

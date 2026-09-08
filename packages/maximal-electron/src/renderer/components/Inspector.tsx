@@ -80,6 +80,16 @@ export function Inspector({
               testId="pref-menubar"
             />
             <Switch
+              label="Quit when the last window closes"
+              checked={prefs.quitOnLastWindowClosed}
+              onChange={(next) => onPrefChange({ quitOnLastWindowClosed: next })}
+              testId="pref-quit-on-last-window"
+            />
+            <p className="card__sub card__sub--wrap">
+              Applies when the menu bar icon is off. Otherwise, Maximal asks
+              before it stops.
+            </p>
+            <Switch
               label="Dock badge"
               checked={prefs.dockBadge}
               onChange={(next) => onPrefChange({ dockBadge: next })}

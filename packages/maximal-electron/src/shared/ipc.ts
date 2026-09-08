@@ -37,6 +37,8 @@ export type AgentApproval = 'all' | 'writes' | 'none';
 export interface Preferences {
   /** Show a menu bar (macOS) or tray (Windows and Linux) icon. */
   menuBarIcon: boolean;
+  /** Quit instead of asking when the last window closes without a menu bar icon. */
+  quitOnLastWindowClosed: boolean;
   /** Reflect unread count on the macOS dock badge. */
   dockBadge: boolean;
   /** Show the splash window at launch. */
@@ -463,6 +465,7 @@ export const BRIDGE_KEY = 'stuffbucket' as const;
 /** Defaults for a fresh profile. */
 export const DEFAULT_PREFERENCES: Preferences = {
   menuBarIcon: false,
+  quitOnLastWindowClosed: false,
   dockBadge: true,
   splash: true,
   overlayHotkey: 'CommandOrControl+Shift+Space',

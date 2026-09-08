@@ -56,6 +56,11 @@ export interface RunMainOptions {
    */
   keepRunningWithoutWindows?: () => boolean;
   /**
+   * Decide whether closing the last window quits the application. This takes
+   * precedence over the platform default and may wait for user confirmation.
+   */
+  shouldQuitAfterLastWindow?: () => boolean | Promise<boolean>;
+  /**
    * The origin of a service this application talks to, resolved once before
    * the first window opens. The shell normalizes it and hands it back through
    * `context.daemonUrl`; how it reaches the renderer is the consumer's choice.

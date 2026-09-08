@@ -96,9 +96,11 @@ export async function runMain(
     return context;
   }
 
-  app.on('window-all-closed', () => {
+  app.on('window-all-closed', async () => {
     const keepRunning = options.keepRunningWithoutWindows?.() ?? false;
-    const quitting = quitsWithLastWindow(platform, keepRunning);
+    const quitting = options.shouldQuitAfterLastWindow
+      ? await options.shouldQuitAfterLastWindow()
+      : quitsWithLastWindow(platform, keepRunning);
     options.onWindowAllClosed?.(quitting);
     if (quitting) app.quit();
   });
