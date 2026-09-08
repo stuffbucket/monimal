@@ -51,6 +51,7 @@ interface TerminalViewCommonProps extends TerminalDescriptor {
   onFocus?: () => void;
   onSplit?: (direction: TerminalSplitDirection) => void;
   onNavigateSplit?: (direction: 'previous' | 'next') => void;
+  onExit?: (exitCode: number) => void;
   onTitleChange?: (title: string) => void;
 }
 
@@ -93,16 +94,17 @@ export function TerminalView({
   onFocus,
   onSplit,
   onNavigateSplit,
+  onExit,
   onTitleChange,
 }: TerminalViewProps) {
   const host = useRef<HTMLDivElement>(null);
   const terminal = useRef<GhosttyTerminal | undefined>(undefined);
   const lifecycle = useRef({ id, generation: 0 });
-  const callbacks = useRef({ onSplit, onNavigateSplit, onTitleChange });
+  const callbacks = useRef({ onSplit, onNavigateSplit, onExit, onTitleChange });
   const shouldFocus = useRef(focused);
   const [wasmFailed, setWasmFailed] = useState(false);
   const [wasmAttempt, setWasmAttempt] = useState(0);
-  callbacks.current = { onSplit, onNavigateSplit, onTitleChange };
+  callbacks.current = { onSplit, onNavigateSplit, onExit, onTitleChange };
   shouldFocus.current = focused;
 
   // The disposition is read at cleanup rather than at mount, so a caller that
@@ -206,6 +208,9 @@ export function TerminalView({
             if (event.sequence !== undefined) acknowledgements.consume(event.sequence);
           });
         }
+        else if (callbacks.current.onExit) {
+          callbacks.current.onExit(event.exitCode);
+        }
         else {
           term?.write(
             `\r\n\x1b[2m[process exited with ${String(event.exitCode)}]\x1b[0m\r\n`,
@@ -260,6 +265,7 @@ export function TerminalView({
     <div
       className="terminal"
       data-testid={testId}
+      data-focused={focused || undefined}
       role="group"
       aria-label={ariaLabel}
       ref={host}

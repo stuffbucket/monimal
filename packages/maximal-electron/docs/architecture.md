@@ -110,7 +110,9 @@ therefore owns that layer: `TerminalView` consumes Command+D and
 Command+Shift+D, while `TerminalTabs` builds a resizable right or down split
 from a second host-launched Local session. An embedder that supplies no split
 launcher keeps those keys unconsumed. Command+[ and Command+] cycle split
-focus. Command+K, Command+A, Command+Home, and Command+End use the emulator's
+focus, and the active pane carries the focus ring. An exited pane collapses to
+its sibling; an exited final pane closes the terminal tab. Command+K, Command+A,
+Command+Home, and Command+End use the emulator's
 clear, select, and scroll actions. OSC 0 and OSC 2 title changes name a terminal
 tab; controls are removed and titles are bounded before the tab stores them.
 The PTY launch directory basename is the initial shell title.

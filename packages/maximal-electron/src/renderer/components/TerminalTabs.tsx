@@ -23,6 +23,7 @@ interface TerminalTabsCommonProps {
   shell?: string;
   theme?: ITheme;
   launchSplit?: () => Promise<{ sessionId: string }>;
+  onExit?: (tabId: string) => void;
   onSessionsChange?: (tabId: string, sessionIds: string[]) => void;
   onTitleChange?: (tabId: string, title: string) => void;
 }
@@ -75,11 +76,21 @@ function paneSessionIds(pane: TerminalPane): string[] {
     : [...paneSessionIds(pane.first), ...paneSessionIds(pane.second)];
 }
 
+function removePane(pane: TerminalPane, sessionId: string): TerminalPane | undefined {
+  if ('sessionId' in pane) return pane.sessionId === sessionId ? undefined : pane;
+  const first = removePane(pane.first, sessionId);
+  const second = removePane(pane.second, sessionId);
+  if (!first) return second;
+  if (!second) return first;
+  return { ...pane, first, second };
+}
+
 interface TerminalAttachmentViewProps {
   attachment: TerminalAttachment;
   shell?: string;
   theme?: ITheme;
   launchSplit?: () => Promise<{ sessionId: string }>;
+  onExit?: (tabId: string) => void;
   onSessionsChange?: (tabId: string, sessionIds: string[]) => void;
   onTitleChange?: (tabId: string, title: string) => void;
   session:
@@ -92,6 +103,7 @@ function TerminalAttachmentView({
   shell,
   theme,
   launchSplit,
+  onExit,
   onSessionsChange,
   onTitleChange,
   session,
@@ -122,6 +134,17 @@ function TerminalAttachmentView({
     setFocusedId(ids[(index + offset + ids.length) % ids.length] ?? fromId);
   }
 
+  function exitPane(sessionId: string): void {
+    const remaining = removePane(paneRef.current, sessionId);
+    if (!remaining) {
+      onExit?.(attachment.id);
+      return;
+    }
+    const ids = paneSessionIds(remaining);
+    setPane(remaining);
+    if (focusedId === sessionId) setFocusedId(ids[0]!);
+  }
+
   function renderPane(current: TerminalPane, path: string): React.ReactNode {
     if ('sessionId' in current) {
       const sessionId = current.sessionId;
@@ -134,6 +157,7 @@ function TerminalAttachmentView({
           transport={session.transport}
           focused={focusedId === sessionId}
           onFocus={() => setFocusedId(sessionId)}
+          onExit={() => exitPane(sessionId)}
           onSplit={launchSplit ? (direction) => {
             if (splitPending.current) return;
             splitPending.current = true;
@@ -199,6 +223,7 @@ export function TerminalTabs(props: TerminalTabsProps) {
     shell,
     theme,
     launchSplit,
+    onExit,
     onSessionsChange,
     onTitleChange,
   } = props;
@@ -217,6 +242,7 @@ export function TerminalTabs(props: TerminalTabsProps) {
             shell={shell}
             theme={theme}
             launchSplit={launchSplit}
+            onExit={onExit}
             onSessionsChange={onSessionsChange}
             onTitleChange={onTitleChange}
             session={session}

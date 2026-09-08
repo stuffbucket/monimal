@@ -10,6 +10,8 @@ const ghostty = vi.hoisted(() => ({
   selectAll: vi.fn(),
   scrollToTop: vi.fn(),
   scrollToBottom: vi.fn(),
+  focus: vi.fn(),
+  subscription: undefined as ((event: { type: 'exit'; exitCode: number }) => void) | undefined,
 }));
 
 vi.mock('ghostty-web', () => ({
@@ -31,6 +33,7 @@ vi.mock('ghostty-web', () => ({
     selectAll(): void { ghostty.selectAll(); }
     scrollToTop(): void { ghostty.scrollToTop(); }
     scrollToBottom(): void { ghostty.scrollToBottom(); }
+    focus(): void { ghostty.focus(); }
     onTitleChange(handler: (title: string) => void): void {
       ghostty.titleHandler = handler;
     }
@@ -126,6 +129,35 @@ describe('TerminalView lifecycle', () => {
 
     ghostty.titleHandler?.('vim README.md');
     expect(onTitleChange).toHaveBeenCalledWith('vim README.md');
+
+    await act(async () => root.unmount());
+  });
+
+  it('focuses an active pane and forwards process exit', async () => {
+    const onExit = vi.fn();
+    const transport = {
+      spawn: vi.fn(async () => undefined),
+      write: vi.fn(async () => undefined),
+      resize: vi.fn(async () => undefined),
+      terminate: vi.fn(async () => undefined),
+      subscribe: vi.fn((_id: string, listener: typeof ghostty.subscription) => {
+        ghostty.subscription = listener;
+        return () => undefined;
+      }),
+    };
+    const element = document.createElement('div');
+    const root = createRoot(element);
+
+    await act(async () => {
+      root.render(
+        <TerminalView id="session-1" focused onExit={onExit} transport={transport} />,
+      );
+    });
+    expect(ghostty.focus).toHaveBeenCalled();
+    expect(element.querySelector('.terminal')?.getAttribute('data-focused')).toBe('true');
+
+    await act(async () => ghostty.subscription?.({ type: 'exit', exitCode: 7 }));
+    expect(onExit).toHaveBeenCalledWith(7);
 
     await act(async () => root.unmount());
   });

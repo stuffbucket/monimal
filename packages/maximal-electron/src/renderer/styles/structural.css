@@ -1380,6 +1380,10 @@
   background: var(--shell-terminal-background, var(--shell-canvas));
 }
 
+.sb-shell .terminal[data-focused='true'] {
+  box-shadow: inset 0 0 0 1px var(--shell-focus, var(--shell-accent));
+}
+
 .sb-shell .terminal canvas {
   display: block;
 }
