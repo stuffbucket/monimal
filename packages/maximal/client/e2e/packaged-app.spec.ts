@@ -77,6 +77,7 @@ test('window opens with exactly one non-empty primary heading', async () => {
     height: document.documentElement.clientHeight,
   }))
   expect(frameBox, 'the frame should have a layout box at all').not.toBeNull()
+  expect(viewport.width, 'the Overview canvas needs the wide three-panel window').toBeGreaterThanOrEqual(1279)
   expect(frameBox!.height).toBeGreaterThanOrEqual(viewport.height - 1)
   expect(frameBox!.width).toBeGreaterThanOrEqual(viewport.width - 1)
 })
