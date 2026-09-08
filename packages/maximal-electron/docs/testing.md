@@ -3,9 +3,9 @@
 `docs/architecture.md` lists the three layers and what each covers. This
 document holds the package-specific rules for writing or reading a test. The
 [monorepo test workflow](https://github.com/stuffbucket/monimal/blob/main/docs/testing-in-docker.md)
-owns normal unit-test entry, native isolation and scopes, and the mountless
-Docker final gate. Run `pnpm test` from the monorepo root for the affected native
-tier; do not invoke this package's `test` script directly as a normal shortcut.
+owns normal unit-test entry, native isolation and scopes, and the pinned Linux
+Docker rerun. Run `pnpm test` from the monorepo root for the affected native tier;
+do not invoke this package's `test` script directly as a normal shortcut.
 
 ## Tests run in a random order
 

@@ -2,7 +2,7 @@
 
 Run the supported verification commands from the monorepo root. The
 [monorepo test workflow](https://github.com/stuffbucket/monimal/blob/main/docs/testing-in-docker.md)
-owns native isolation, scopes, and the primary-checkout Docker final gate. The
+owns native isolation, scopes, and the primary-checkout Docker dependency boundary. The
 remaining commands are Core package scripts and are run from
 `packages/maximal-core/` unless shown with a root-level `pnpm` invocation.
 
@@ -14,7 +14,7 @@ pnpm run check:core  # complete Core gate: check:deep:host, then the focused
                      # Core suite through the isolated native wrapper
 pnpm test -- --core  # focused isolated native Core rerun
 pnpm run test:docker -- --suite=maximal-core
-                     # mountless Docker final gate, from the primary checkout
+                     # pinned-dependency Docker rerun, from the primary checkout
 
 bun install          # Install dependencies
 bun run dev          # Dev mode with watch
@@ -74,13 +74,13 @@ MAXIMAL_E2E_BINARY=<path> bun run e2e
                      # builds none — stuffbucket/maximal compiles this repo's
                      # src/main.ts — so point it at that artifact.
 
-# Mutation testing (manual only — not wired into check:deep)
-pnpm run test:docker # root, primary checkout: admit the exact test image first
-pnpm run mutate:core # root wrapper; reuses that image and publishes the report
-pnpm run mutate:core -- --mutate=src/routes/messages/utils.ts --concurrency=4
-                     # narrow the SOURCE scope per run instead of editing the file.
-                     # The image must match the current source digest. Reports are
-                     # published to reports/mutation. Do NOT narrow the test command.
+# Mutation testing (manual during test development; not wired into checks or CI)
+pnpm run mutate:core # mutate changed Core source lines and publish the report
+pnpm run mutate:core -- --mutate=src/routes/messages/utils.ts:40-57 --concurrency=4
+                     # explicit SOURCE override for the code under development
+pnpm run mutate:core -- --all
+                     # intentionally expensive full-source sweep
+                     # Every mutant still runs the complete mutation-safe test command.
 bun run mutate       # package alias for the same root Docker mutation wrapper
 bun run test:mutation  # container-only Stryker inner command; requires the
                      # wrapper-owned absolute ledger path. Runs everything except
@@ -138,7 +138,7 @@ bun run container:run -- <cmd>  # run a non-test <cmd> against this tree inside
                          # the pinned package toolchain. Its own node_modules
                          # volume is never the host's. For the non-test gate use
                          # `-- bun run check:deep:host`; normal tests use the root
-                         # native tiers, and the final gate uses root Docker.
+                         # native tiers, and pinned Linux reruns use root Docker.
 bun run container:shell  # interactive bash in the same environment
 ```
 

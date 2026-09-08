@@ -4,14 +4,15 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
-  assertHostStateCanaryUnchanged,
   assertPrimaryCheckout,
+  checkoutMountArguments,
   containerBoundaryArguments,
-  createHostStateCanary,
-  currentImageState,
   dockerServerArchitecture,
-  requireReusableImage,
+  ensureTestImage,
+  readToolPins,
+  stagedCommandArguments,
 } from "./docker-test.mjs";
+import { coreMutationTargets } from "./git-changes.mjs";
 
 const repositoryRoot = path.resolve(import.meta.dirname, "..");
 const mutationReportDirectory = path.join(
@@ -21,18 +22,24 @@ const mutationReportDirectory = path.join(
 const mutationLedgerContainerPath =
   "/workspace/packages/maximal-core/reports/mutation/incomplete-runs.log";
 const usage =
-  "Usage: pnpm mutate:core -- [--mutate=src/path.ts[:start-end]] [--concurrency=1..32]" +
-  " (or bun run mutate -- with the same options)";
+  "Usage: pnpm run mutate:core -- [--all|--mutate=src/path.ts[:start-end]]" +
+  " [--concurrency=1..32] (or bun run mutate -- with the same options)";
 const targetPattern =
   /^src\/[A-Za-z0-9_./*-]+\.ts(?::\d+(?::\d+)?-\d+(?::\d+)?)?$/u;
 
 export function parseMutationOptions(arguments_) {
   const options = arguments_[0] === "--" ? arguments_.slice(1) : arguments_;
+  let all = false;
   let mutate;
   let concurrency;
   let sawConcurrency = false;
 
   for (const option of options) {
+    if (option === "--all") {
+      if (all) throw new Error("Duplicate --all option");
+      all = true;
+      continue;
+    }
     if (option.startsWith("--mutate=")) {
       if (mutate !== undefined) throw new Error("Duplicate --mutate option");
       mutate = option.slice("--mutate=".length);
@@ -63,27 +70,31 @@ export function parseMutationOptions(arguments_) {
     throw new Error(usage);
   }
 
-  return { concurrency, mutate };
+  if (all && mutate !== undefined) {
+    throw new Error("--all and --mutate are mutually exclusive");
+  }
+  return { all, concurrency, mutate };
 }
 
 export function createMutationContainerArguments(imageId, options) {
-  const arguments_ = [
+  const commandArguments = [
+    "run",
+    "mutate:core:inner",
+    "--mutate",
+    options.mutate,
+  ];
+  if (options.concurrency !== undefined) {
+    commandArguments.push("--concurrency", String(options.concurrency));
+  }
+  return [
     "create",
     ...containerBoundaryArguments(),
+    ...checkoutMountArguments(),
     "--env",
     `MAXIMAL_MUTATION_LEDGER=${mutationLedgerContainerPath}`,
     imageId,
-    "pnpm",
-    "run",
-    "mutate:core:inner",
+    ...stagedCommandArguments("core", "pnpm", commandArguments),
   ];
-  if (options.mutate !== undefined) {
-    arguments_.push("--mutate", options.mutate);
-  }
-  if (options.concurrency !== undefined) {
-    arguments_.push("--concurrency", String(options.concurrency));
-  }
-  return arguments_;
 }
 
 function runDocker(arguments_, label, options = {}) {
@@ -195,18 +206,28 @@ function copyMutationReport(containerId) {
   }
 }
 
+export function resolveMutationTargets(options) {
+  if (options.mutate !== undefined) return options.mutate;
+  if (options.all) return "src/**/*.ts";
+  return coreMutationTargets().join(",");
+}
+
 export function main(arguments_ = process.argv.slice(2)) {
   const options = parseMutationOptions(arguments_);
   assertPrimaryCheckout();
+  const mutate = resolveMutationTargets(options);
   const targetArch = dockerServerArchitecture();
-  const imageId = requireReusableImage({ ...currentImageState(), targetArch });
-  const hostStateCanary = createHostStateCanary();
+  const imageId = ensureTestImage({
+    cache: process.env.MAXIMAL_DOCKER_CACHE || "off",
+    pins: readToolPins(),
+    targetArch,
+  });
   let containerId;
 
   try {
     containerId = requiredOutput(
       runDocker(
-        createMutationContainerArguments(imageId, options),
+        createMutationContainerArguments(imageId, { ...options, mutate }),
         "Docker mutation container creation",
         { capture: true },
       ),
@@ -232,11 +253,6 @@ export function main(arguments_ = process.argv.slice(2)) {
       runDocker(["rm", "--force", containerId], "Docker mutation cleanup", {
         capture: true,
       });
-    }
-    try {
-      assertHostStateCanaryUnchanged(hostStateCanary);
-    } finally {
-      fs.rmSync(hostStateCanary.root, { recursive: true, force: true });
     }
   }
 }

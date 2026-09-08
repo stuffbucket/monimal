@@ -1,8 +1,12 @@
-import { execFileSync, spawnSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { affectedBase } from "./git-changes.mjs";
+
+export { affectedBase };
 
 const repositoryRoot = path.resolve(import.meta.dirname, "..");
 const traceValues = new Set(["off", "tests", "all"]);
@@ -45,44 +49,6 @@ export function parseTestOptions(arguments_) {
   }
 
   return { scope, trace };
-}
-
-function gitOutput(arguments_, label, root = repositoryRoot) {
-  try {
-    return execFileSync("git", arguments_, {
-      cwd: root,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-    }).trim();
-  } catch (error) {
-    const detail = error instanceof Error ? error.message : String(error);
-    throw new Error(`${label} could not be resolved: ${detail}`);
-  }
-}
-
-export function affectedBase(root = repositoryRoot) {
-  try {
-    gitOutput(
-      ["rev-parse", "--verify", "origin/main^{commit}"],
-      "origin/main",
-      root,
-    );
-  } catch (error) {
-    throw new Error(
-      "The affected test base origin/main is unavailable. Run `git fetch origin main`" +
-        " and retry.",
-      { cause: error },
-    );
-  }
-  const base = gitOutput(
-    ["merge-base", "HEAD", "origin/main"],
-    "merge base",
-    root,
-  );
-  if (!/^[0-9a-f]{40}$/u.test(base)) {
-    throw new Error(`Invalid merge base: ${base}`);
-  }
-  return base;
 }
 
 export function createIsolatedTestEnvironment(parent = os.tmpdir()) {

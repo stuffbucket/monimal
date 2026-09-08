@@ -14,7 +14,7 @@ For the terse in-repo pointers this expands on, see
 [`docs/architecture.md` → _Testing gotchas_](../architecture.md) and the
 project root [`AGENTS.md`](../../AGENTS.md). The
 [monorepo test workflow](https://github.com/stuffbucket/monimal/blob/main/docs/testing-in-docker.md)
-owns workspace test scopes, native isolation, and the Docker final gate.
+owns workspace test scopes, native isolation, and the Docker dependency boundary.
 
 ---
 
@@ -135,9 +135,10 @@ state path beneath it, removes inherited credentials and proxy variables, and
 cleans the root after the run. The package preload verifies that admission before
 any product module loads.
 
-The separate final gate uses a disposable, mountless Docker image. It adds the
-non-root, offline, no-capability host boundary without replacing the native
-edit-test loop. The workflow owner linked above defines both boundaries.
+The separate Docker rerun uses a read-only checkout mount, staged writable
+source, and container-owned dependencies. It adds pinned Linux toolchains plus a
+non-root, offline, no-capability runtime without replacing the native edit-test
+loop. The workflow owner linked above defines both boundaries.
 
 These boundaries replaced a preload-only model after a root-CWD `bun test`
 skipped this package's `bunfig.toml`. That one bypass caused two persistent host
@@ -381,8 +382,8 @@ A `git worktree` created for isolated work has no `node_modules` — `git worktr
 add` does not run an install. Run `pnpm install` at the root before native checks,
 then use `pnpm run check:core` or `pnpm test -- --core`. Do not substitute raw
 host `bun test`; only the root wrapper supplies an admitted isolated environment.
-The Docker final gate refuses linked worktrees and runs from the primary checkout
-after integration.
+The pinned-dependency Docker rerun refuses linked worktrees and runs from the
+primary checkout after integration.
 
 ### 5.6 Module-level runtime state leaks the same way mocks do
 
@@ -557,16 +558,18 @@ sites that reach the network stack are matched.
 
 ### How it's configured
 
-StrykerJS is invoked manually through the root Docker mutation wrapper. First run
-`pnpm run test:docker` from the primary checkout; `pnpm run mutate:core` then
-requires and reuses that exact source-digest and architecture image. It publishes
-the completed report under `reports/mutation`. The package's `bun run mutate` is
-an alias for the same wrapper. The config (`stryker.conf.json`) narrows the
-**source** scope, not the test command:
+StrykerJS is invoked manually through the root Docker mutation wrapper while
+logic and its tests are under development. It is not a routine check or CI job.
+`pnpm run mutate:core` prepares or reuses the pinned dependency image, mutates
+the changed destination-side Core source ranges, and publishes the report under
+`reports/mutation`. The package's `bun run mutate` is an alias for the same
+wrapper. Mutation narrows the **source** scope, not the test command:
 
-- `mutate` names the module(s) under test. Override it per run rather than
-  editing the file:
-  `pnpm run mutate:core -- --mutate=src/routes/messages/utils.ts --concurrency=10`.
+- The default target is each changed destination-side range under `src/**/*.ts`
+  since the `origin/main` merge base, including committed, staged, unstaged,
+  edited-renamed, and eligible untracked source. `--mutate=src/path.ts:40-57` is
+  a complete explicit override.
+  `--all` is the intentionally expensive full-source escape hatch.
 - `testRunner: "command"` runs **`bun run test:mutation`** — the whole suite
   minus six port/process tests and the built-artifact-only `bin-shebang` test. It
   is **not** narrowed to the module's own test file, and
@@ -871,7 +874,7 @@ The CI inventory below describes maximal-core's standalone workflow fixture. In
 the monorepo, the workflow owner linked at the start of this document defines the
 normal local and CI test scopes; package commands here must not redefine them.
 The monorepo CI runs the complete graph through the full isolated native tier,
-while Docker remains an explicit local final gate.
+while the pinned Linux Docker rerun remains an explicit local command.
 
 **Job `test`** (`ubuntu-latest`) — the product gate. Steps, in order:
 
@@ -1018,8 +1021,9 @@ dupes:check → ci:check → build → typecheck:downstream`. It then runs the
   focused Core suite through the isolated native wrapper.
 - `pnpm test -- --core` is the supported focused native rerun. The closed scope
   does not forward arbitrary commands or test paths.
-- `pnpm run test:docker -- --suite=maximal-core` is the mountless final gate. It
-  runs only from the primary checkout; linked worktrees use the native tiers.
+- `pnpm run test:docker -- --suite=maximal-core` reruns Core with pinned Linux
+  dependencies and toolchains. It runs only from the primary checkout; linked
+  worktrees use the native tiers.
 - Raw host `bun test` and package-local `bun run check:deep` deliberately fail
   closed in this monorepo. The latter remains the coherent standalone/Core-CI
   aggregate (`check:deep:host → bun test`), so `ci:check` still derives the same
