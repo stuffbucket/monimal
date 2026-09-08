@@ -107,10 +107,11 @@ RUN test "$(printf '%s' "${MAXIMAL_GIT_SHA}" | wc -c)" -eq 40 \
 RUN --mount=type=cache,id=maximal-pnpm-${TARGETARCH},target=/workspace/.pnpm-store,uid=10001,gid=10001,sharing=locked \
   --mount=type=cache,id=maximal-pnpm-cache-${TARGETARCH},target=/home/maximal/.cache/pnpm,uid=10001,gid=10001,sharing=locked \
   --mount=type=cache,id=maximal-pnpm-state-${TARGETARCH},target=/home/maximal/.local/state/pnpm,uid=10001,gid=10001,sharing=locked \
-  --mount=type=cache,id=maximal-turbo-${TARGETARCH},target=/workspace/.turbo-build-cache,uid=10001,gid=10001,sharing=locked \
+  --mount=type=cache,id=maximal-turbo-v3-${TARGETARCH},target=/workspace/.turbo-build-cache,uid=10001,gid=10001,sharing=locked \
   pnpm rebuild -r --store-dir=/workspace/.pnpm-store \
   && pnpm run verify:workspace \
-  && pnpm exec turbo run build --concurrency=1 --cache-dir=/workspace/.turbo-build-cache \
-  && node scripts/copy-turbo-build-cache.mjs /workspace/.turbo-build-cache /workspace/.turbo/cache
+  && ./node_modules/.bin/turbo run build --concurrency=1 --dry=json --cache-dir=/workspace/.turbo-build-cache > /tmp/turbo-build-graph.json \
+  && ./node_modules/.bin/turbo run build --concurrency=1 --cache-dir=/workspace/.turbo-build-cache \
+  && node scripts/copy-turbo-build-cache.mjs /tmp/turbo-build-graph.json /workspace/.turbo-build-cache /workspace/.turbo/cache
 
 CMD ["pnpm", "run", "test:inner"]

@@ -52,11 +52,13 @@ a new commit from invalidating that install.
 
 BuildKit cache mounts retain the architecture-specific pnpm and Turborepo caches
 across local builds, but mount contents are not image-layer content. The build
-therefore uses a separate mounted Turbo cache, asks Turbo for the current build
-graph after the build, and copies only the cache triplets named by cache-enabled,
-executable tasks into the image's ordinary `.turbo/cache`. A missing artifact or
-malformed graph fails the build; historical entries accumulated in the mount are
-not baked into each image. Build task inputs explicitly exclude nested `dist`,
+therefore uses a separate mounted Turbo cache, snapshots Turbo's current build
+graph immediately before the build, and copies only the cache triplets named by
+that exact build's cache-enabled, executable tasks into the image's ordinary
+`.turbo/cache`. Taking the snapshot first prevents generated outputs from changing
+task hashes between execution and publication. A missing artifact or malformed
+graph fails the build; historical entries accumulated in the mount are not baked
+into each image. Build task inputs explicitly exclude nested `dist`,
 `.turbo`, and generated `resources/bin` trees, so outputs do not change their own
 hashes in the filtered image. Runtime test tasks can replay build prerequisites
 from that bounded image-owned cache. CI additionally uses the GitHub Actions

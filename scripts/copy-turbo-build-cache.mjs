@@ -1,9 +1,6 @@
-import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-
-const repositoryRoot = path.resolve(import.meta.dirname, "..");
 const cacheFileSuffixes = [".tar.zst", "-meta.json", "-manifest.json"];
 
 export function selectTurboCacheHashes(report) {
@@ -83,44 +80,28 @@ export function publishTurboBuildCache(
   }
 }
 
-export function readTurboBuildGraph(sourceDirectory) {
-  const result = spawnSync(
-    "pnpm",
-    [
-      "exec",
-      "turbo",
-      "run",
-      "build",
-      "--concurrency=1",
-      "--dry=json",
-      `--cache-dir=${sourceDirectory}`,
-    ],
-    { cwd: repositoryRoot, encoding: "utf8" },
-  );
-  if (result.error) {
-    throw new Error(`Turbo dry run could not start: ${result.error.message}`);
-  }
-  if (result.status !== 0) {
-    throw new Error(
-      `Turbo dry run failed with exit code ${result.status ?? "unknown"}` +
-        (result.stderr ? `: ${result.stderr.trim()}` : ""),
-    );
+export function readTurboBuildGraph(reportPath) {
+  let serialized;
+  try {
+    serialized = fs.readFileSync(path.resolve(reportPath), "utf8");
+  } catch (error) {
+    throw new Error("Turbo dry-run report could not be read", { cause: error });
   }
   try {
-    return JSON.parse(result.stdout);
+    return JSON.parse(serialized);
   } catch (error) {
-    throw new Error("Turbo dry run returned invalid JSON", { cause: error });
+    throw new Error("Turbo dry-run report contains invalid JSON", { cause: error });
   }
 }
 
 export function main(arguments_ = process.argv.slice(2)) {
-  if (arguments_.length !== 2) {
+  if (arguments_.length !== 3) {
     throw new Error(
-      "Usage: node scripts/copy-turbo-build-cache.mjs <source> <destination>",
+      "Usage: node scripts/copy-turbo-build-cache.mjs <report> <source> <destination>",
     );
   }
-  const [source, destination] = arguments_;
-  const report = readTurboBuildGraph(source);
+  const [reportPath, source, destination] = arguments_;
+  const report = readTurboBuildGraph(reportPath);
   publishTurboBuildCache(report, source, destination);
 }
 

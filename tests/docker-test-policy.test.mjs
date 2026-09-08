@@ -13,6 +13,7 @@ import {
 } from "../scripts/docker-mutate.mjs";
 import {
   publishTurboBuildCache,
+  readTurboBuildGraph,
   selectTurboCacheHashes,
 } from "../scripts/copy-turbo-build-cache.mjs";
 import {
@@ -577,6 +578,31 @@ test("Turbo replay cache selects only cacheable executable task hashes", () => {
   );
 });
 
+test("Turbo build graph is read from a pre-build snapshot", () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "monimal-turbo-graph-"));
+  const reportPath = path.join(directory, "graph.json");
+  const report = {
+    tasks: [
+      {
+        hash: "a".repeat(16),
+        command: "node build.mjs",
+        resolvedTaskDefinition: { cache: true },
+      },
+    ],
+  };
+
+  try {
+    fs.writeFileSync(reportPath, JSON.stringify(report));
+    assert.deepEqual(readTurboBuildGraph(reportPath), report);
+    fs.writeFileSync(reportPath, "not JSON");
+    assert.throws(() => readTurboBuildGraph(reportPath), /invalid JSON/);
+    fs.rmSync(reportPath);
+    assert.throws(() => readTurboBuildGraph(reportPath), /could not be read/);
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 test("Turbo replay cache publication is selective and transactional", () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "monimal-turbo-cache-"));
   const source = path.join(directory, "source");
@@ -740,16 +766,17 @@ test("the reusable Docker install layer includes every workspace manifest", () =
   );
   assert.match(
     dockerfile,
-    /--mount=type=cache,id=maximal-turbo-\$\{TARGETARCH\},target=\/workspace\/\.turbo-build-cache,uid=10001,gid=10001,sharing=locked/,
+    /--mount=type=cache,id=maximal-turbo-v3-\$\{TARGETARCH\},target=\/workspace\/\.turbo-build-cache,uid=10001,gid=10001,sharing=locked/,
   );
   assert.doesNotMatch(dockerfile, /target=\/workspace\/\.turbo(?:,|\/)/);
+  const graphSnapshot =
+    "./node_modules/.bin/turbo run build --concurrency=1 --dry=json --cache-dir=/workspace/.turbo-build-cache > /tmp/turbo-build-graph.json";
+  const build =
+    "./node_modules/.bin/turbo run build --concurrency=1 --cache-dir=/workspace/.turbo-build-cache";
+  assert.ok(dockerfile.indexOf(graphSnapshot) < dockerfile.indexOf(build));
   assert.match(
     dockerfile,
-    /turbo run build --concurrency=1 --cache-dir=\/workspace\/\.turbo-build-cache/,
-  );
-  assert.match(
-    dockerfile,
-    /node scripts\/copy-turbo-build-cache\.mjs \/workspace\/\.turbo-build-cache \/workspace\/\.turbo\/cache/,
+    /node scripts\/copy-turbo-build-cache\.mjs \/tmp\/turbo-build-graph\.json \/workspace\/\.turbo-build-cache \/workspace\/\.turbo\/cache/,
   );
   assert.doesNotMatch(
     dockerfile,
