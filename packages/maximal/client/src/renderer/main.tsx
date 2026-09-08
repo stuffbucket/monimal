@@ -7,6 +7,7 @@ import { createRoot } from 'react-dom/client'
 import './theme'
 import './base'
 import 'stuffbucket-electron/renderer/styles.css'
+import '@stuffbucket/maximal-observability/styles.css'
 
 import { App } from './App'
 

@@ -29,7 +29,11 @@ function fakeAuthBridge(): Pick<MaximalBridge, 'control' | 'openExternal'> {
         success({ accounts: [], active_key: null }),
       ),
       accountsSwitch: vi.fn(async () => success(null)),
+      observabilityOverview: vi.fn(),
+      observabilityRequests: vi.fn(),
+      observabilityRequest: vi.fn(),
       onChange: vi.fn(() => () => {}),
+      onTrafficInvalidation: vi.fn(() => () => {}),
     },
   }
 }

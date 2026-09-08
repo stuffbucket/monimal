@@ -64,7 +64,7 @@ describe('AppFrame', () => {
     // Every surface used to mount a `ShellLayout` of its own, and the frame's
     // root is `position: fixed; inset: 0` — a second one does not sit beside
     // the first, it covers its chrome.
-    const shell = renderFrame('dashboard', vi.fn(), <p>content</p>)
+    const shell = renderFrame('overview', vi.fn(), <p>content</p>)
 
     expect(shell.querySelectorAll('.sb-shell.app')).toHaveLength(1)
   })
@@ -72,25 +72,25 @@ describe('AppFrame', () => {
   it('renders a title bar', () => {
     // `.titlebar` carries `-webkit-app-region: drag`, the window's only drag
     // region. Without it, the window cannot be moved.
-    const shell = renderFrame('dashboard', vi.fn(), <p>content</p>)
+    const shell = renderFrame('overview', vi.fn(), <p>content</p>)
 
     expect(shell.querySelector('.sb-shell.app .titlebar')).not.toBeNull()
   })
 
   it('lists the three views as tabs, with the current view marked selected', () => {
-    const shell = renderFrame('workspace', vi.fn(), <p>content</p>)
+    const shell = renderFrame('traffic', vi.fn(), <p>content</p>)
     const tabs = [...shell.querySelectorAll('[role="tab"]')]
 
-    expect(tabs.map((tab) => tab.textContent)).toEqual(['Dashboard', 'Runs', 'Settings'])
+    expect(tabs.map((tab) => tab.textContent)).toEqual(['Overview', 'Traffic', 'Settings'])
 
     const selected = tabs.filter((tab) => tab.getAttribute('aria-selected') === 'true')
     expect(selected).toHaveLength(1)
-    expect(selected[0]?.textContent).toBe('Runs')
+    expect(selected[0]?.textContent).toBe('Traffic')
   })
 
   it('reports the tab a click lands on through onSelectView', () => {
     const onSelectView = vi.fn()
-    const shell = renderFrame('dashboard', onSelectView, <p>content</p>)
+    const shell = renderFrame('overview', onSelectView, <p>content</p>)
     const settingsTab = [...shell.querySelectorAll('[role="tab"]')].find(
       (tab) => tab.textContent === 'Settings',
     )
@@ -113,7 +113,7 @@ describe('AppFrame', () => {
     // renders — it just renders in the wrong place, which no other test here
     // would catch.
     const shell = renderFrame(
-      'dashboard',
+      'overview',
       vi.fn(),
       <>
         <SurfaceTop>

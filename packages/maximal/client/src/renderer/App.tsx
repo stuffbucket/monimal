@@ -1,21 +1,22 @@
+import { ObservabilityProvider } from '@stuffbucket/maximal-observability'
 import { useEffect, useMemo, useState, type ReactElement } from 'react'
 
 import { WindowChrome } from './chrome/WindowChrome'
-import { Dashboard } from './dashboard/Dashboard'
 import { FirstRun } from './first-run/FirstRun'
 import { AppFrame, type View } from './frame/AppFrame'
+import { Overview } from './overview/Overview'
 import { Settings, type SettingsSectionRequest } from './settings/Settings'
 import { createCoreSettingsCapabilities } from './settings/capabilities'
-import { Workspace } from './workspace/Workspace'
-import { createPlaceholderSource } from './workspace/source'
+import { Traffic } from './traffic/Traffic'
+import { createObservabilitySource } from './traffic/source'
 
 /**
  * Top-level composition.
  *
  * This is the one place that decides which surface is showing, and it exists
- * because that decision cannot be made by any surface individually — each of
- * `first-run/`, `workspace/`, `dashboard/` and `settings/` was built to be
- * mounted, and none of them could know what mounts it.
+ * because that decision cannot be made by any surface individually. First-run,
+ * Overview, Traffic, and Settings are built to be mounted; none of them decides
+ * when it is the active surface.
  *
  * Auth gates the app: `first-run/` owns everything up to and including a
  * completed device flow — which is also where boot narration lives, since it is
@@ -44,10 +45,10 @@ export function App(): ReactElement {
   // this adapter keeps one stable named-bridge subscription across restarts.
   // Recreating it per render would drop live subscriptions and defeat that.
   const settings = useMemo(() => createCoreSettingsCapabilities(), [])
-  const source = useMemo(() => createPlaceholderSource(), [])
+  const observability = useMemo(() => createObservabilitySource(), [])
 
   const [authenticated, setAuthenticated] = useState<boolean | null>(null)
-  const [view, setView] = useState<View>('dashboard')
+  const [view, setView] = useState<View>('overview')
   const [sectionRequest, setSectionRequest] = useState<SettingsSectionRequest | null>(null)
 
   /*
@@ -107,18 +108,15 @@ export function App(): ReactElement {
       </WindowChrome>
     )
 
-  /*
-   * One surface mounted at a time, deliberately. Each runs a data lifecycle of
-   * its own — a poll, a subscription, a live snapshot — and keeping all three
-   * mounted would keep all three running for the two nobody is looking at.
-   */
   return (
-    <AppFrame view={view} onSelectView={setView}>
-      {view === 'dashboard' ? <Dashboard source={source} /> : null}
-      {view === 'workspace' ? <Workspace source={source} /> : null}
-      {view === 'settings' ? (
-        <Settings capabilities={settings} request={sectionRequest} />
-      ) : null}
-    </AppFrame>
+    <ObservabilityProvider source={observability}>
+      <AppFrame view={view} onSelectView={setView}>
+        {view === 'overview' ? <Overview /> : null}
+        {view === 'traffic' ? <Traffic /> : null}
+        {view === 'settings' ? (
+          <Settings capabilities={settings} request={sectionRequest} />
+        ) : null}
+      </AppFrame>
+    </ObservabilityProvider>
   )
 }
