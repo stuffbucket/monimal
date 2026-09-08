@@ -206,6 +206,9 @@ package provenance or publisher identity -- the proxy does that.
   and a workspace link does not.
 - `maximal-core`: `build` extended with `bun run build:lib`, so the subpath
   exports in its `exports` map resolve without committing `dist/lib`.
+- `maximal-core`: root CI uses `check:deep:host:after-workspace` after Turbo's
+  workspace tasks; it retains both lint variants and the other host checks while
+  reusing generated build output for downstream typechecking.
 - `maximal` and `maximal-core`: added `"test": "bun test"`; Turbo needs a plain
   `test` script. `maximal-electron`: added `"build"` as an alias for
   `build:package`, same reason.

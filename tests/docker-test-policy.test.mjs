@@ -44,6 +44,8 @@ import { selectRetainedImage } from "../scripts/prune-test-images.mjs";
 import {
   affectedBase,
   createIsolatedTestEnvironment,
+  formatPerformanceMarker,
+  measurePerformancePhase,
   parseTestOptions,
   turboTestArguments,
 } from "../scripts/test-workspace.mjs";
@@ -217,7 +219,7 @@ test("the outer and fixed inner test scripts cannot recurse", () => {
 test("required CI runs tests on its disposable runner and has one cache writer", () => {
   const workflow = read(".github/workflows/ci.yml");
   const hostGate =
-    "pnpm --filter @stuffbucket/maximal-core run check:deep:host";
+    "pnpm --filter @stuffbucket/maximal-core run check:deep:host:after-workspace";
   const packageMechanics =
     "pnpm --filter @stuffbucket/maximal-electron run verify:fixture-imports";
   const sidecarProvenance =
@@ -228,6 +230,20 @@ test("required CI runs tests on its disposable runner and has one cache writer",
   assert.equal(workflow.split(packageMechanics).length - 1, 1);
   assert.equal(workflow.split(sidecarProvenance).length - 1, 1);
   assert.equal(workflow.split(testGate).length - 1, 1);
+  assert.equal(workflow.split("MONIMAL_PERF_MARKERS: 1").length - 1, 1);
+  assert.equal(
+    workflow.split("if: always() && steps.workspace-check-start.outcome == 'success'")
+      .length - 1,
+    1,
+  );
+  assert.equal(
+    workflow.split("perf-marker phase=workspace-check-window").length - 1,
+    1,
+  );
+  assert.equal(
+    workflow.split("perf-marker phase=core-host-after-workspace").length - 1,
+    1,
+  );
   assert.doesNotMatch(workflow, /pnpm (?:run )?check:core/);
   assert.doesNotMatch(workflow, /\bbun (?:run )?test\b/);
   assert.doesNotMatch(
@@ -326,14 +342,85 @@ test("native test selection is closed and uses affected dependents", () => {
   assert.throws(() => parseTestOptions(["--filter=x"]), /Usage:/);
 });
 
+test("native performance markers are deterministic, optional, and failure-aware", () => {
+  const lines = [];
+  const times = [
+    new Date("2026-09-08T12:00:00.000Z"),
+    new Date("2026-09-08T12:00:01.250Z"),
+  ];
+  const ticks = [100, 1350];
+  const result = measurePerformancePhase(
+    "test-workspace",
+    () => "passed",
+    {
+      enabled: true,
+      now: () => times.shift(),
+      monotonicNow: () => ticks.shift(),
+      write: (line) => lines.push(line),
+    },
+  );
+
+  assert.equal(result, "passed");
+  assert.equal(
+    lines[0],
+    formatPerformanceMarker({
+      phase: "test-workspace",
+      startedAt: new Date("2026-09-08T12:00:00.000Z"),
+      endedAt: new Date("2026-09-08T12:00:01.250Z"),
+      elapsedMilliseconds: 1250,
+      status: "success",
+    }),
+  );
+  assert.equal(
+    lines[0],
+    "perf-marker phase=test-workspace started_at=2026-09-08T12:00:00.000Z ended_at=2026-09-08T12:00:01.250Z elapsed_seconds=1.250 status=success",
+  );
+
+  let disabledRan = false;
+  measurePerformancePhase(
+    "test-disabled",
+    () => {
+      disabledRan = true;
+    },
+    { enabled: false, write: (line) => lines.push(line) },
+  );
+  assert.equal(disabledRan, true);
+  assert.equal(lines.length, 1);
+
+  const failureTimes = [
+    new Date("2026-09-08T12:00:02.000Z"),
+    new Date("2026-09-08T12:00:02.500Z"),
+  ];
+  const failureTicks = [2000, 2500];
+  assert.throws(
+    () =>
+      measurePerformancePhase(
+        "test-root-policy",
+        () => {
+          throw new Error("fixture failure");
+        },
+        {
+          enabled: true,
+          now: () => failureTimes.shift(),
+          monotonicNow: () => failureTicks.shift(),
+          write: (line) => lines.push(line),
+        },
+      ),
+    /fixture failure/,
+  );
+  assert.match(lines[1], /phase=test-root-policy .* status=failure$/);
+});
+
 test("native test isolation redirects state and scrubs credentials", () => {
   const parent = fs.mkdtempSync(
     path.join(os.tmpdir(), "monimal-native-policy-"),
   );
   const priorToken = process.env.GITHUB_TOKEN;
   const priorProxy = process.env.HTTPS_PROXY;
+  const priorPerformanceMarkers = process.env.MONIMAL_PERF_MARKERS;
   process.env.GITHUB_TOKEN = "secret";
   process.env.HTTPS_PROXY = "https://proxy.invalid";
+  process.env.MONIMAL_PERF_MARKERS = "1";
   try {
     const isolated = createIsolatedTestEnvironment(parent);
     assert.equal(fs.statSync(isolated.root).mode & 0o777, 0o700);
@@ -342,6 +429,7 @@ test("native test isolation redirects state and scrubs credentials", () => {
     assert.equal(isolated.environment.MAXIMAL_TEST_CONTAINER, undefined);
     assert.equal(isolated.environment.GITHUB_TOKEN, undefined);
     assert.equal(isolated.environment.HTTPS_PROXY, undefined);
+    assert.equal(isolated.environment.MONIMAL_PERF_MARKERS, undefined);
     for (const name of [
       "HOME",
       "XDG_CACHE_HOME",
@@ -364,6 +452,9 @@ test("native test isolation redirects state and scrubs credentials", () => {
     else process.env.GITHUB_TOKEN = priorToken;
     if (priorProxy === undefined) delete process.env.HTTPS_PROXY;
     else process.env.HTTPS_PROXY = priorProxy;
+    if (priorPerformanceMarkers === undefined)
+      delete process.env.MONIMAL_PERF_MARKERS;
+    else process.env.MONIMAL_PERF_MARKERS = priorPerformanceMarkers;
     fs.rmSync(parent, { recursive: true, force: true });
   }
 });
