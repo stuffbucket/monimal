@@ -130,6 +130,7 @@ while IFS='|' read -r tag prerelease label; do
 done <<'VALID_TAGS'
 v1.2.3|false|stable release
 v1.2.3-rc1|true|normal prerelease
+v1.2.3-rc.1|true|single-digit numeric prerelease
 v1.2.3-alpha.1-x|true|dotted prerelease
 VALID_TAGS
 
