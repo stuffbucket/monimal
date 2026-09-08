@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 
 import {
   assertPrimaryCheckout,
+  dockerBuilderName,
   dockerServerArchitecture,
   imageLabels,
   inspectDockerImage,
@@ -43,10 +44,47 @@ export function selectRetainedImage(images, currentId) {
     )[0]?.Id;
 }
 
-export function main(arguments_ = process.argv.slice(2)) {
-  if (arguments_.length !== 0) {
-    throw new Error("Usage: pnpm run docker:prune:test-images");
+export function parsePruneOptions(arguments_) {
+  if (arguments_.length === 0) return { minAgeMilliseconds: 0 };
+  const match = arguments_[0]?.match(/^--min-age=(\d+)$/u);
+  if (arguments_.length !== 1 || !match?.[1]) {
+    throw new Error(
+      "Usage: pnpm run docker:prune:test-images [--min-age=<seconds>]",
+    );
   }
+  return { minAgeMilliseconds: Number(match[1]) * 1000 };
+}
+
+export function imageIsOldEnough(image, minAgeMilliseconds, now = Date.now()) {
+  const created = Date.parse(image.Created);
+  return Number.isFinite(created) && now - created >= minAgeMilliseconds;
+}
+
+function pruneBuilderCache() {
+  const inspect = spawnSync(
+    "docker",
+    ["buildx", "inspect", dockerBuilderName],
+    { cwd: repositoryRoot, encoding: "utf8" },
+  );
+  if (inspect.status !== 0) return;
+  dockerOutput(
+    [
+      "buildx",
+      "prune",
+      "--builder",
+      dockerBuilderName,
+      "--force",
+      "--max-used-space",
+      "8gb",
+      "--reserved-space",
+      "2gb",
+    ],
+    "Docker builder cache cleanup",
+  );
+}
+
+export function main(arguments_ = process.argv.slice(2)) {
+  const { minAgeMilliseconds } = parsePruneOptions(arguments_);
   assertPrimaryCheckout();
   const targetArch = dockerServerArchitecture();
   const ids = [
@@ -72,6 +110,7 @@ export function main(arguments_ = process.argv.slice(2)) {
 
   for (const image of images) {
     if (image.Id === retainedId) continue;
+    if (!imageIsOldEnough(image, minAgeMilliseconds)) continue;
     const containers = dockerOutput(
       ["ps", "--all", "--quiet", "--filter", `ancestor=${image.Id}`],
       "Docker container lookup",
@@ -87,6 +126,7 @@ export function main(arguments_ = process.argv.slice(2)) {
   }
 
   if (retainedId) console.error(`Retained Monimal test image ${retainedId}`);
+  pruneBuilderCache();
 }
 
 const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : "";

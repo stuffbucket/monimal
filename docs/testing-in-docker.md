@@ -58,9 +58,10 @@ policy tests, workspace tests, cleanup, and the total run where each phase
 applies. The wrapper MUST NOT forward this control variable to package tests.
 
 `pnpm run test:all` and `pnpm run test:core` are fixed script aliases for the two
-explicit scopes. CI uses `pnpm run test:all`; ordinary CI does not build the
-Docker image. GitHub-hosted runners use the same isolated native wrapper rather
-than an ambient marker.
+explicit scopes. CI uses `pnpm run test:all`; the separate Docker policy workflow
+builds the pinned dependency image weekly and when its declared inputs change.
+GitHub-hosted runners use the same isolated native wrapper rather than an ambient
+marker.
 
 The aggregate gates remain native:
 
@@ -95,7 +96,8 @@ user-state boundaries no longer overlap another package task.
 `pnpm run test:docker` builds or reuses a dependency image, mounts the primary
 checkout read-only at `/checkout`, and stages the current Git-visible files into
 the container-owned `/workspace`. It is an explicit Linux rerun, not the
-edit-test inner loop and not an ordinary CI job.
+edit-test inner loop. CI runs only its policy suite on the weekly and
+Docker-input-triggered workflow.
 
 Docker tests and Core mutations refuse linked worktrees. Run the native tiers in
 the linked worktree, integrate the change into the primary checkout, and run the
@@ -152,9 +154,11 @@ arguments, and split selector forms fail closed.
 ### Image construction and reuse
 
 The image contains the pinned Node, Bun, and pnpm toolchains plus a script-free
-frozen workspace install. Its source inputs are the lockfile, workspace manifests,
-registry and pnpm policy files, and the staging helper. Ordinary source and test
-files never enter the image.
+frozen workspace install. It validates the exact Node version and installs the
+target architecture's Bun and pnpm artifacts from the URLs and checksums in
+`mise.lock`. Its source inputs are the lockfile, workspace manifests, registry
+and pnpm policy files, and the staging helper. Ordinary source and test files
+never enter the image.
 
 Every Docker test or mutation asks BuildKit to prepare the stable architecture tag:
 
@@ -166,6 +170,9 @@ monimal-test:dependencies-arm64
 BuildKit reuses the install layer when the dependency inputs are unchanged and
 rebuilds it when they change. Architecture-scoped cache mounts hold pnpm's store
 and state during image construction; their contents are not image-layer content.
+All builds use the dedicated `monimal-test` Buildx builder with a digest-pinned
+BuildKit image. Cleanup caps that builder's cache at 8 GB while reserving 2 GB,
+without pruning the shared default builder or another project's cache.
 The wrapper validates the resulting immutable image ID against the architecture,
 workspace-test purpose, and mutation-capable labels before starting a container.
 
@@ -175,7 +182,10 @@ and starts the fixed inner command. A subsequent Turbo test graph replays those
 build tasks from the container's local cache. The dependency image does not
 contain source-specific build output or a Turbo cache.
 
-Use the repository-owned cleanup command rather than a builder-wide prune:
+After each Docker test or mutation, the wrapper removes unreferenced Monimal
+test images older than one hour. The grace period prevents one concurrent run
+from deleting an image another run has just built but not started. The same
+label-scoped cleanup is available immediately and explicitly:
 
 ```sh
 pnpm run docker:prune:test-images

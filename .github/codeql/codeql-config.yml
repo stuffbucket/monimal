@@ -1,0 +1,21 @@
+name: Monimal CodeQL config
+
+paths:
+  - packages
+  - scripts
+  - .pnpmfile.cjs
+
+paths-ignore:
+  - packages/**/.github
+  - packages/**/build
+  - packages/**/coverage
+  - packages/**/dist
+  - packages/**/docs
+  - packages/**/node_modules
+  - packages/**/out
+  - packages/**/reports
+  - packages/**/research_log
+  - packages/**/tests
+  - packages/**/test
+  - packages/**/.stryker-tmp
+  - packages/**/site/dist

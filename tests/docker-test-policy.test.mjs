@@ -40,7 +40,11 @@ import {
   stageCheckout,
   validateCheckoutPath,
 } from "../scripts/stage-test-checkout.mjs";
-import { selectRetainedImage } from "../scripts/prune-test-images.mjs";
+import {
+  imageIsOldEnough,
+  parsePruneOptions,
+  selectRetainedImage,
+} from "../scripts/prune-test-images.mjs";
 import {
   affectedBase,
   createIsolatedTestEnvironment,
@@ -260,6 +264,39 @@ test("required CI runs tests on its disposable runner and has one cache writer",
   assert.equal(workflow.split("turbo-v2-").length - 1, 6);
 });
 
+test("root automation schedules Docker and keeps CodeQL lean and pinned", () => {
+  const dockerWorkflow = read(".github/workflows/docker-policy.yml");
+  const codeqlWorkflow = read(".github/workflows/codeql.yml");
+  const codeqlConfig = read(".github/codeql/codeql-config.yml");
+  const dependabot = read(".github/dependabot.yml");
+  const rootWorkflows = fs
+    .readdirSync(path.join(root, ".github/workflows"))
+    .filter((name) => name.endsWith(".yml"))
+    .map((name) => read(`.github/workflows/${name}`))
+    .join("\n");
+
+  assert.match(dockerWorkflow, /^  schedule:\n    - cron: /m);
+  assert.match(
+    dockerWorkflow,
+    /run: node scripts\/docker-test\.mjs --suite=policy/,
+  );
+  assert.match(codeqlWorkflow, /languages: javascript-typescript/);
+  assert.doesNotMatch(codeqlWorkflow, /security-and-quality/);
+  assert.doesNotMatch(codeqlWorkflow, /uses: github\/codeql-action\/autobuild@/);
+  assert.match(codeqlConfig, /^paths:\n  - packages\n  - scripts/m);
+  assert.match(codeqlConfig, /packages\/\*\*\/tests/);
+  assert.match(codeqlConfig, /packages\/\*\*\/dist/);
+  assert.match(
+    dependabot,
+    /package-ecosystem: docker\n    directory: \/\n    schedule:\n      interval: weekly/,
+  );
+  assert.doesNotMatch(rootWorkflows, /runs-on: ubuntu-latest/);
+  for (const reference of rootWorkflows.matchAll(/uses: ([^\s#]+)/g)) {
+    if (reference[1]?.startsWith("./")) continue;
+    assert.match(reference[1] ?? "", /@[0-9a-f]{40}$/);
+  }
+});
+
 test("Docker builds use a reusable dependency image and optional Actions cache", () => {
   const input = {
     iidFile: "/tmp/image-id",
@@ -273,7 +310,13 @@ test("Docker builds use a reusable dependency image and optional Actions cache",
     targetArch: "amd64",
   };
   const local = buildDockerArguments(input);
-  assert.equal(local[0], "build");
+  assert.deepEqual(local.slice(0, 5), [
+    "buildx",
+    "build",
+    "--builder",
+    "monimal-test",
+    "--load",
+  ]);
   assert.ok(local.includes("--provenance=false"));
   assert.ok(local.includes("monimal-test:dependencies-amd64"));
   assert.ok(
@@ -289,7 +332,7 @@ test("Docker builds use a reusable dependency image and optional Actions cache",
   );
 
   const cached = buildDockerArguments({ ...input, cache: "gha" });
-  assert.deepEqual(cached.slice(0, 3), ["buildx", "build", "--load"]);
+  assert.deepEqual(cached.slice(0, 5), local.slice(0, 5));
   assert.ok(cached.includes("type=gha,scope=workspace-test"));
   assert.ok(cached.includes("type=gha,mode=max,scope=workspace-test"));
   assert.throws(
@@ -537,6 +580,18 @@ test("Docker image validation and retention require reusable Stryker metadata", 
     ]),
     undefined,
   );
+});
+
+test("automatic image cleanup leaves a concurrency grace period", () => {
+  assert.deepEqual(parsePruneOptions([]), { minAgeMilliseconds: 0 });
+  assert.deepEqual(parsePruneOptions(["--min-age=3600"]), {
+    minAgeMilliseconds: 3_600_000,
+  });
+  assert.throws(() => parsePruneOptions(["--min-age=one"]), /Usage:/);
+  const image = { Created: "2026-09-08T12:00:00.000Z" };
+  const now = Date.parse("2026-09-08T12:30:00.000Z");
+  assert.equal(imageIsOldEnough(image, 3_600_000, now), false);
+  assert.equal(imageIsOldEnough(image, 1_800_000, now), true);
 });
 
 test("runtime arguments mount the checkout read-only behind the offline boundary", () => {
@@ -889,12 +944,19 @@ test("each suite selects one fixed root-owned inner script", () => {
   assert.ok(arguments_.includes("MAXIMAL_TEST_TRACE=1"));
 });
 
-test("tool pins come from their owner files and pnpm checksums from mise", () => {
+test("tool pins and Docker artifacts come from their owner files", () => {
   const pins = readToolPins(root);
   const manifest = JSON.parse(read("package.json"));
   assert.equal(pins.nodeMajor, read(".nvmrc").trim());
+  assert.match(pins.nodeVersion, new RegExp(`^${pins.nodeMajor}\\.`));
   assert.equal(pins.bunVersion, read(".bun-version").trim());
   assert.equal(pins.pnpmVersion, manifest.packageManager.slice("pnpm@".length));
+  assert.match(pins.bunUrlAmd64, /bun-linux-x64\.zip$/);
+  assert.match(pins.bunUrlArm64, /bun-linux-aarch64\.zip$/);
+  assert.match(pins.bunSha256Amd64, /^[0-9a-f]{64}$/);
+  assert.match(pins.bunSha256Arm64, /^[0-9a-f]{64}$/);
+  assert.match(pins.pnpmUrlAmd64, /pnpm-linux-x64\.tar\.gz$/);
+  assert.match(pins.pnpmUrlArm64, /pnpm-linux-arm64\.tar\.gz$/);
   assert.match(pins.pnpmSha256Amd64, /^[0-9a-f]{64}$/);
   assert.match(pins.pnpmSha256Arm64, /^[0-9a-f]{64}$/);
 
@@ -904,8 +966,15 @@ test("tool pins come from their owner files and pnpm checksums from mise", () =>
     targetArch: "arm64",
   });
   assert.ok(arguments_.includes(`NODE_MAJOR=${pins.nodeMajor}`));
+  assert.ok(arguments_.includes(`NODE_VERSION=${pins.nodeVersion}`));
   assert.ok(arguments_.includes(`BUN_VERSION=${pins.bunVersion}`));
+  assert.ok(arguments_.includes(`BUN_URL_AMD64=${pins.bunUrlAmd64}`));
+  assert.ok(arguments_.includes(`BUN_URL_ARM64=${pins.bunUrlArm64}`));
+  assert.ok(arguments_.includes(`BUN_SHA256_AMD64=${pins.bunSha256Amd64}`));
+  assert.ok(arguments_.includes(`BUN_SHA256_ARM64=${pins.bunSha256Arm64}`));
   assert.ok(arguments_.includes(`PNPM_VERSION=${pins.pnpmVersion}`));
+  assert.ok(arguments_.includes(`PNPM_URL_AMD64=${pins.pnpmUrlAmd64}`));
+  assert.ok(arguments_.includes(`PNPM_URL_ARM64=${pins.pnpmUrlArm64}`));
   assert.doesNotMatch(arguments_.join(" "), /GIT_SHA=/);
   assert.ok(arguments_.includes("TARGETARCH=arm64"));
 });
@@ -1189,6 +1258,10 @@ test("the reusable Docker dependency image includes every workspace manifest", (
 test("the image owns test homes and stages commands as non-root", () => {
   const dockerfile = read("Dockerfile");
   assert.match(dockerfile, /^FROM node:24-bookworm-slim@sha256:[0-9a-f]{64}$/m);
+  assert.match(dockerfile, /test "\$\(node --version\)" = "v\$\{NODE_VERSION\}"/);
+  assert.doesNotMatch(dockerfile, /https:\/\/bun\.sh\/install/);
+  assert.match(dockerfile, /curl -fsSL "\$\{bun_url\}"/);
+  assert.match(dockerfile, /bun_sha.*sha256sum -c -/s);
   assert.match(dockerfile, /USER maximal/);
   assert.match(dockerfile, /MAXIMAL_TEST_CONTAINER=1/);
   assert.match(dockerfile, /XDG_CONFIG_HOME=\/home\/maximal\/\.config/);
@@ -1214,13 +1287,25 @@ test("the image owns test homes and stages commands as non-root", () => {
 
 test("mutation prepares the dependency image and pruning stays label-scoped", () => {
   const mutation = read("scripts/docker-mutate.mjs");
+  const dockerTest = read("scripts/docker-test.mjs");
   const prune = read("scripts/prune-test-images.mjs");
   assert.match(mutation, /ensureTestImage/);
+  assert.match(mutation, /finally \{[\s\S]*pruneTestImages\(\);/);
+  assert.match(dockerTest, /finally \{[\s\S]*pruneTestImages\(\);/);
+  assert.match(dockerTest, /pruneScript, "--min-age=3600"/);
+  assert.match(
+    dockerTest,
+    /moby\/buildkit@sha256:[0-9a-f]{64}/,
+  );
+  assert.match(dockerTest, /`image=\$\{dockerBuildkitImage\}`/);
   assert.doesNotMatch(
     mutation,
     /requireReusableImage|sourceDigest|test:docker/,
   );
   assert.match(prune, /label=\$\{imageLabels\.purpose\}=workspace-test/);
+  assert.match(prune, /"--builder",\s*dockerBuilderName/);
+  assert.match(prune, /"--max-used-space",\s*"8gb"/);
+  assert.match(prune, /"--reserved-space",\s*"2gb"/);
   assert.match(prune, /\["image", "rm", image\.Id\]/);
   assert.doesNotMatch(
     prune,

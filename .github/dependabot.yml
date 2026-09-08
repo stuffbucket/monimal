@@ -13,6 +13,13 @@ updates:
         patterns:
           - "*"
 
+  # Refreshes the digest-pinned base image. Dockerfile changes trigger the
+  # pinned-image policy workflow before the update can merge.
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+
   # Routine npm updates. Without this entry the only npm bumps that arrive are
   # security ones -- those come through the npm_and_yarn group regardless of
   # what is configured here, which is how astro 6 -> 7 landed unattended and
