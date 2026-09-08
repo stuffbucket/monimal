@@ -353,6 +353,16 @@ describe('closed IPC boundary', () => {
   })
 })
 
+describe('window defaults', () => {
+  it('opens at a size that fits the application content', async () => {
+    await loadIndexOn('darwin')
+
+    expect(runShellMock).toHaveBeenCalledWith(
+      expect.objectContaining({ width: 1024, height: 768 }),
+    )
+  })
+})
+
 describe('native Settings requests', () => {
   function onOpenSettings(): (sectionId: string | null) => void {
     const callbacks = installApplicationMenuMock.mock.calls[0]?.[0] as

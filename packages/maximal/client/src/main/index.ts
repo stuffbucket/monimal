@@ -185,8 +185,8 @@ function createWindow(): BrowserWindow {
   const win = runShell({
     preloadPath: join(__dirname, 'preload.js'),
     title: 'Maximal',
-    width: 760,
-    height: 620,
+    width: 1024,
+    height: 768,
     loadRenderer,
   })
   mainWindow = win
