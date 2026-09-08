@@ -81,7 +81,7 @@
     "lint:all": "eslint .",
     "lint:fast": "oxlint",
     "measure:baseline": "bun scripts/dev/measure-baseline.ts",
-    "mutate": "stryker run",
+    "mutate": "node ../../scripts/docker-mutate.mjs",
     "prepack": "bun scripts/ops/prepack.ts",
     "preflight": "bun scripts/preflight.ts",
     "prepare:hooks": "bun scripts/ops/prepare.ts",

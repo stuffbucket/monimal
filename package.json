@@ -13,6 +13,8 @@
     "test:maximal-dsh-host:inner": "node scripts/assert-test-container.mjs && pnpm --filter @stuffbucket/maximal-dsh-host test",
     "test:policy:inner": "node scripts/assert-test-container.mjs && node --test tests/docker-test-policy.test.mjs",
     "lint": "turbo run lint",
+    "mutate:core": "node scripts/docker-mutate.mjs",
+    "mutate:core:inner": "node scripts/assert-test-container.mjs && pnpm --filter @stuffbucket/maximal-core exec stryker run",
     "verify:workspace": "node scripts/verify-workspace.mjs",
     "check:core": "pnpm --filter @stuffbucket/maximal-core run check:deep:host && pnpm test -- --suite=maximal-core",
     "check": "turbo run build typecheck lint && pnpm --filter @stuffbucket/maximal-core run check:deep:host && pnpm test",

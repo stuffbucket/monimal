@@ -169,13 +169,37 @@ export function assertHostStateCanaryUnchanged(canary) {
   }
 }
 
-export function buildDockerArguments({ iidFile, gitSha, pins, targetArch }) {
-  return [
-    "build",
+export function buildDockerArguments({
+  iidFile,
+  gitSha,
+  dirty,
+  pins,
+  targetArch,
+  cache = "off",
+}) {
+  if (cache !== "off" && cache !== "gha") {
+    throw new Error(`Invalid Docker cache mode: ${cache}`);
+  }
+  if (typeof dirty !== "boolean") {
+    throw new Error("Docker image dirty state must be a boolean");
+  }
+  const imageTag = `monimal-test:${gitSha.slice(0, 12)}-${dirty ? "dirty" : "clean"}`;
+  const arguments_ = [
+    ...(cache === "gha" ? ["buildx", "build", "--load"] : ["build"]),
     "--file",
     dockerfile,
     "--iidfile",
     iidFile,
+    "--tag",
+    imageTag,
+    "--label",
+    "org.opencontainers.image.title=monimal-test",
+    "--label",
+    `org.opencontainers.image.revision=${gitSha}`,
+    "--label",
+    "io.stuffbucket.monimal.purpose=workspace-test",
+    "--label",
+    `io.stuffbucket.monimal.dirty=${dirty}`,
     "--build-arg",
     `NODE_MAJOR=${pins.nodeMajor}`,
     "--build-arg",
@@ -192,18 +216,30 @@ export function buildDockerArguments({ iidFile, gitSha, pins, targetArch }) {
     `TARGETARCH=${targetArch}`,
     repositoryRoot,
   ];
+  if (cache === "gha") {
+    arguments_.splice(-1, 0, "--cache-from", "type=gha,scope=workspace-test");
+    arguments_.splice(
+      -1,
+      0,
+      "--cache-to",
+      "type=gha,mode=max,scope=workspace-test",
+    );
+  }
+  return arguments_;
 }
 
-export function runDockerArguments(imageId, options = {}) {
-  const { suite = "workspace", trace = "off" } = options;
-  const arguments_ = [
-    "run",
-    "--rm",
+export function containerBoundaryArguments() {
+  return [
     "--init",
     "--network=none",
     "--cap-drop=ALL",
     "--security-opt=no-new-privileges",
   ];
+}
+
+export function runDockerArguments(imageId, options = {}) {
+  const { suite = "workspace", trace = "off" } = options;
+  const arguments_ = ["run", "--rm", ...containerBoundaryArguments()];
   if (trace !== "off") {
     arguments_.push(
       "--env",
@@ -229,7 +265,7 @@ function runDocker(arguments_, label) {
   }
 }
 
-function dockerServerArchitecture() {
+export function dockerServerArchitecture() {
   const result = spawnSync(
     "docker",
     ["version", "--format", "{{.Server.Arch}}"],
@@ -255,11 +291,22 @@ export function currentGitSha(root = repositoryRoot) {
   return requireMatch(sha, /^[0-9a-f]{40}$/, "Git SHA");
 }
 
+export function isGitWorktreeDirty(root = repositoryRoot) {
+  const status = execFileSync(
+    "git",
+    ["status", "--porcelain=v1", "--untracked-files=all"],
+    { cwd: root, encoding: "utf8" },
+  );
+  return status.trim().length > 0;
+}
+
 export function main(arguments_ = process.argv.slice(2)) {
   const options = parseOptions(arguments_);
+  const cache = process.env.MAXIMAL_DOCKER_CACHE || "off";
   const targetArch = dockerServerArchitecture();
   const pins = readToolPins();
   const gitSha = currentGitSha();
+  const dirty = isGitWorktreeDirty();
   const iidDirectory = fs.mkdtempSync(
     path.join(os.tmpdir(), "maximal-test-iid-"),
   );
@@ -268,7 +315,7 @@ export function main(arguments_ = process.argv.slice(2)) {
 
   try {
     runDocker(
-      buildDockerArguments({ iidFile, gitSha, pins, targetArch }),
+      buildDockerArguments({ iidFile, gitSha, dirty, pins, targetArch, cache }),
       "Docker test image build",
     );
     const imageId = readRequired(iidFile);

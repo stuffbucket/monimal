@@ -6,6 +6,7 @@
     "electron",
     "undici",
     "@stryker-mutator/command-runner",
+    "@stryker-mutator/core",
     "bumpp",
     "jscpd",
     "lint-staged"

@@ -72,14 +72,17 @@ MAXIMAL_E2E_BINARY=<path> bun run e2e
                      # src/main.ts — so point it at that artifact.
 
 # Mutation testing (manual only — not wired into check:deep)
-bun run mutate       # Stryker over the module(s) in stryker.conf.json's `mutate`
-bunx stryker run --mutate 'src/routes/messages/utils.ts' --concurrency 10
+bun run mutate       # workspace-owned run over stryker.conf.json's scope;
+                     # concurrency defaults to 10
+bun run mutate -- --mutate=src/routes/messages/utils.ts --concurrency=4
                      # narrow the SOURCE scope per run instead of editing the file.
                      # Budget ~2-2.5s per mutant; a 400-line module is ~20 min.
-                     # Do NOT narrow the test command — see testing-strategy.md §6.
-bun run test:mutation  # the suite Stryker runs: everything except the six
-                     # port-binding/process-spawning files, which false-kill
-                     # mutants under Stryker's concurrent workers.
+                     # Reports are published to reports/mutation. Do NOT narrow
+                     # the test command.
+bun run test:mutation  # Stryker-only inner command; requires the workspace-owned
+                     # absolute ledger path. Runs everything except six
+                     # port/process tests that can false-kill concurrent mutants
+                     # and bin-shebang, whose required dist file is not sandboxed.
 
 # Release tooling
 bun run release:check pr <n>              # scripts/ops/release-gates.ts — one PR's

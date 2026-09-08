@@ -21,16 +21,77 @@ outside the build context. After the image build and container run, it verifies
 their bytes, device, inode, mode, size, and nanosecond modification time before
 removing them.
 
+Mutation testing uses the same image construction, fixed inner-command guard,
+isolation flags, and host-state canary. Because its HTML report must survive, the
+root `mutate:core` wrapper uses `docker create`, `start --attach`, `cp`, and
+`rm --force` instead of `run --rm`. The copy into
+`packages/maximal-core/reports/mutation` is the boundary's only intentional host
+write. It is staged and validated before replacing the previous report.
+
+A mutation command succeeds only when Stryker exits zero, a valid report is
+published, and `incomplete-runs.log` is absent or empty. A non-zero Stryker exit
+still publishes a valid diagnostic report before the wrapper fails. A non-empty
+ledger also publishes the report and fails explicitly because one or more mutant
+test runs ended without Bun's completion marker. Copy or validation failure leaves
+the previous host report intact.
+
 Docker may use the network while building the image. That phase installs the
 pinned toolchain, verifies pnpm's release archive against `mise.lock`, performs a
 frozen workspace install, and prepares build outputs. The runtime test phase has
 no network interface beyond loopback.
 
+The image copies every workspace manifest and performs a script-free frozen
+install before copying source. Source-only changes therefore reuse the dependency
+layer. The architecture-scoped BuildKit mounts hold pnpm's package store, metadata
+cache, and state for both install and rebuild; none of that transient download
+state is committed to the image. After the source copy, `pnpm rebuild -r` runs
+deferred dependency and workspace install scripts against the same mounted store,
+workspace verification runs against the complete tree, and Turborepo runs
+workspace builds. The Git SHA is added only after the dependency layer, preventing
+a new commit from invalidating that install.
+
+BuildKit cache mounts retain the architecture-specific pnpm and Turborepo caches
+across local builds, but mount contents are not image-layer content. The build
+therefore uses a separate mounted Turbo cache, asks Turbo for the current build
+graph after the build, and copies only the cache triplets named by cache-enabled,
+executable tasks into the image's ordinary `.turbo/cache`. A missing artifact or
+malformed graph fails the build; historical entries accumulated in the mount are
+not baked into each image. Build task inputs explicitly exclude nested `dist`,
+`.turbo`, and generated `resources/bin` trees, so outputs do not change their own
+hashes in the filtered image. Runtime test tasks can replay build prerequisites
+from that bounded image-owned cache. CI additionally uses the GitHub Actions
+BuildKit backend to preserve image layers across replacement hosted runners; that
+backend does not export cache-mount contents. These caches change build
+performance only: the final test image and its mountless runtime invocation remain
+deterministic.
+
 The root `.dockerignore` is part of the boundary. It removes Git metadata, local
-Claude state, dependency and build output, environment files, credential-shaped
-state files, and temporary oMLX material before Docker receives the context. It
+Claude state, dependency and build output (including generated `resources/bin`
+sidecars), environment files, credential-shaped state files, and temporary oMLX
+material before Docker receives the context. The Linux sidecar is rebuilt inside
+the image rather than copied from the host and overwritten. The context
 intentionally retains `.npmrc` and vendored `packages/*/.github` fixtures needed
 by workspace verification.
+
+Each loaded image is tagged
+`monimal-test:<12-character-sha>-clean|dirty`. The 40-character Git SHA remains the
+compiled product revision; worktree dirtiness is separate metadata and includes
+tracked and untracked files. Containers run by immutable image ID rather than by
+the mutable convenience tag. Images also carry
+`io.stuffbucket.monimal.purpose=workspace-test`, the OCI title and revision, and a
+dirty-state label. List and deliberately remove unused images from this boundary
+without matching unrelated projects with:
+
+```sh
+docker image ls --filter label=io.stuffbucket.monimal.purpose=workspace-test
+docker image prune -a --filter label=io.stuffbucket.monimal.purpose=workspace-test
+```
+
+Docker will retain an image referenced by a running or stopped container; inspect
+and remove that container separately only when its lifecycle is understood. Image
+labels do not label BuildKit records. `docker builder prune` is a separate,
+builder-wide operation and can discard caches belonging to other projects, so the
+wrapper never invokes it automatically.
 
 ## Commands
 

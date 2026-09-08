@@ -1,4 +1,8 @@
 #!/usr/bin/env bun
+
+import { appendFile, mkdir } from "node:fs/promises"
+import path from "node:path"
+
 /**
  * `bun run test:mutation` — the command Stryker's `testRunner: "command"`
  * executes once per mutant (`stryker.conf.json`).
@@ -23,7 +27,7 @@
  *     adds no verdicts of its own, so it can invent neither a false kill nor a
  *     false survivor.
  *   - marker absent → the run is INCONCLUSIVE, not a pass. Exit non-zero and
- *     record the mutant id in `reports/mutation/incomplete-runs.log`.
+ *     record the mutant id at the wrapper-owned absolute ledger path.
  *
  * ON THAT LAST BRANCH: Stryker's command runner has a two-valued channel —
  * `MutantRunStatus.Error` is reachable only from a spawn failure, so a child
@@ -35,19 +39,22 @@
  * `tests/test-setup.ts`, which turns such a mutant into an ordinary test
  * failure instead.
  *
- * SCOPE: the whole suite minus six port-binding / process-spawning files.
- * Never narrow it further — see `docs/dev/testing-strategy.md` §6.
+ * SCOPE: the whole suite minus tests that bind ports, spawn processes, or require
+ * a built artifact that Stryker deliberately excludes from its sandbox. Never
+ * narrow it further — see `docs/dev/testing-strategy.md` §6.
  *
  * Exit codes: bun's own when the run completed · 97 when it did not.
  */
 
 /**
- * Files excluded from the mutation runner. They bind real ports or spawn real
- * processes (docs/dev/testing-strategy.md §5.8) and Stryker runs N suites
- * concurrently, so a collision produces a FALSE KILL — it hides a survivor.
- * None exercises pure request-path logic, so excluding them costs no kills.
+ * Files excluded from the mutation runner. Six bind real ports or spawn real
+ * processes (docs/dev/testing-strategy.md §5.8), so concurrent Stryker workers
+ * can produce false kills. `bin-shebang` reads `dist/main.js`, but `dist` is
+ * deliberately absent from Stryker sandboxes. None exercises mutable
+ * request-path logic, so excluding them costs no kills.
  */
 const EXCLUDED = [
+  "bin-shebang",
   "start-run-server",
   "start-unauthenticated",
   "start-multi-account",
@@ -60,7 +67,17 @@ const EXCLUDED = [
 const COMPLETION_MARKER = /^Ran \d+ tests? across \d+ files?\./m
 
 const INCOMPLETE_EXIT_CODE = 97
-const LEDGER_PATH = "reports/mutation/incomplete-runs.log"
+const ledgerPath = process.env.MAXIMAL_MUTATION_LEDGER
+
+if (!ledgerPath || !path.isAbsolute(ledgerPath)) {
+  console.error(
+    "test:mutation: MAXIMAL_MUTATION_LEDGER must be an absolute path",
+  )
+  process.exit(INCOMPLETE_EXIT_CODE)
+}
+
+await mkdir(path.dirname(ledgerPath), { recursive: true })
+await appendFile(ledgerPath, "")
 
 const files = [...new Bun.Glob("**/*.test.ts").scanSync({ cwd: "tests" })]
   .map((file) => `tests/${file}`)
@@ -97,13 +114,12 @@ console.error(
   `\ntest:mutation: SUITE DID NOT COMPLETE (exit ${exitCode}, mutant ${mutant}).`
     + "\nNo `Ran <n> tests across <n> files.` summary was written, so this run"
     + " proves nothing about the mutant and its exit code is not a verdict."
-    + `\nRecorded in ${LEDGER_PATH}.`,
+    + `\nRecorded in ${ledgerPath}.`,
 )
 
-await Bun.write(
-  LEDGER_PATH,
-  (await Bun.file(LEDGER_PATH).text().catch(() => ""))
-    + `${new Date().toISOString()} mutant=${mutant} exit=${exitCode}\n`,
+await appendFile(
+  ledgerPath,
+  `${new Date().toISOString()} mutant=${mutant} exit=${exitCode}\n`,
 )
 
 process.exit(INCOMPLETE_EXIT_CODE)

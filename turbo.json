@@ -13,7 +13,15 @@
     "build": {
       "dependsOn": ["^build"],
       "outputs": ["dist/**"],
-      "inputs": ["$TURBO_DEFAULT$", "!research_log/**", "!.claude/**", "!.github/**"]
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!**/dist/**",
+        "!**/.turbo/**",
+        "!**/resources/bin/**",
+        "!research_log/**",
+        "!.claude/**",
+        "!.github/**"
+      ]
     },
     "maximal-client#build": {
       "dependsOn": ["^build"],
@@ -23,7 +31,13 @@
     "maximal-site#build": {
       "dependsOn": ["^build"],
       "outputs": ["dist/**"],
-      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/packages/maximal/docs/guide/**"]
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!**/dist/**",
+        "!**/.turbo/**",
+        "!**/resources/bin/**",
+        "$TURBO_ROOT$/packages/maximal/docs/guide/**"
+      ]
     },
     "typecheck": {
       "dependsOn": ["^build"],

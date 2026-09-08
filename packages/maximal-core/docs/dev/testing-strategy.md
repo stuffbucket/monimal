@@ -539,18 +539,23 @@ sites that reach the network stack are matched.
 ## 6. Mutation testing (the differentiator)
 
 ### How it's configured
-StrykerJS, invoked manually via `bun run mutate`. The config
-(`stryker.conf.json`) narrows the **source** scope, not the test command:
+StrykerJS is invoked manually via `bun run mutate`. The package command delegates
+to the workspace runner, which publishes the completed report under
+`reports/mutation`. The config (`stryker.conf.json`) narrows the **source** scope,
+not the test command:
 
 - `mutate` names the module(s) under test. Override it per run rather than
-  editing the file: `bunx stryker run --mutate 'src/routes/messages/utils.ts'`.
+  editing the file:
+  `bun run mutate -- --mutate=src/routes/messages/utils.ts --concurrency=10`.
 - `testRunner: "command"` runs **`bun run test:mutation`** — the whole suite
-  minus six files. It is **not** narrowed to the module's own test file, and
+  minus six port/process tests and the built-artifact-only `bin-shebang` test. It
+  is **not** narrowed to the module's own test file, and
   narrowing it is the one mistake this config used to make. See below. The
   command is a script (`scripts/dev/run-mutation-tests.ts`) because a command
   runner scores a mutant from the child's exit code alone; the script withholds
   that code until bun has proven the run finished (sweep log).
-- `--concurrency` defaults to 4; 10 is comfortable on a 24-core machine.
+- `--concurrency` defaults to 10 in `stryker.conf.json`; an explicit CLI value
+  overrides it for that sweep.
 
 Cost, measured on the pin (Bun 1.3.11, `--concurrency 10`): **~2.0–2.5 s per
 mutant**, dominated by the ~15 s suite run divided across workers. 104 mutants
@@ -565,15 +570,17 @@ saved. The shipped config used to run a single file; re-running the same target
 against the full suite produced an identical survivor set, which is the good
 case — but nothing about the narrow command guaranteed that.
 
-**Why six files are excluded.** `test:mutation` skips
+**Why seven files are excluded.** `test:mutation` skips
 `start-run-server`, `start-unauthenticated`, `start-multi-account`,
-`spawned-engine-ports`, `cli-branding`, and `main-cli-global-options`. Those
-bind real ports or spawn real processes (§5.8), and Stryker runs N suites
-concurrently. Measured: with the full suite at concurrency 4,
-`tests/start-run-server.test.ts` failed on **2 of 4** runs; with the six
-excluded, **0 of 10** at concurrency 10. A flaky test under a mutation run
-produces a **false kill**, which is the dangerous direction — it hides a
-survivor rather than inventing one. None of the six exercises pure request-path
+`spawned-engine-ports`, `cli-branding`, `main-cli-global-options`, and
+`bin-shebang`. The first six bind real ports or spawn real processes (§5.8),
+and Stryker runs N suites concurrently. Measured: with the full suite at
+concurrency 4, `tests/start-run-server.test.ts` failed on **2 of 4** runs; with
+the six excluded, **0 of 10** at concurrency 10. A flaky test under a mutation
+run produces a **false kill**, which is the dangerous direction — it hides a
+survivor rather than inventing one. `bin-shebang` reads the built
+`dist/main.js`, which is deliberately omitted from the mutation sandbox and
+cannot kill a source mutant. None of the seven exercises mutable request-path
 logic, so excluding them costs no real kills.
 
 ### Why we use it
@@ -753,10 +760,12 @@ completed; do not trust the exit code on its own"*:
   cannot have written. So a failing suite is still a kill and a clean suite is
   still a survivor; the script adds no verdict of its own and can invent
   neither. A run without the summary is inconclusive, not a pass: it exits 97
-  and appends the mutant id to `reports/mutation/incomplete-runs.log`. Stryker's
+  and atomically appends the mutant id to the workspace-supplied absolute
+  `incomplete-runs.log` path outside Stryker's disposable sandbox. Stryker's
   command runner reaches `MutantRunStatus.Error` only from a spawn failure, so
-  a child cannot report "inconclusive" and that exit is scored as a kill — the
-  ledger is how a sweep declares which of its kills were not earned.
+  a child cannot report "inconclusive" and that exit is scored as a kill. The
+  published ledger names kills that were not earned, and any non-empty ledger
+  makes the outer mutation command fail.
 - **`tests/test-setup.ts` makes `process.exit` throw** for the whole suite. That
   removes the mechanism, so the branch above is an alarm rather than a routine
   path: the same mutant now fails `isLoopbackAddress > rejects everything else`
