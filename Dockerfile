@@ -2,8 +2,15 @@
 FROM node:24-bookworm-slim@sha256:3638d9a6fe4030bd716be989438248074489337ba3275657f93595428be4fc03
 
 ARG NODE_MAJOR
+ARG NODE_VERSION
 ARG BUN_VERSION
+ARG BUN_URL_AMD64
+ARG BUN_URL_ARM64
+ARG BUN_SHA256_AMD64
+ARG BUN_SHA256_ARM64
 ARG PNPM_VERSION
+ARG PNPM_URL_AMD64
+ARG PNPM_URL_ARM64
 ARG PNPM_SHA256_AMD64
 ARG PNPM_SHA256_ARM64
 ARG TARGETARCH
@@ -19,22 +26,31 @@ RUN apt-get update \
     unzip \
   && rm -rf /var/lib/apt/lists/*
 
-RUN test "$(node -p "process.versions.node.split('.')[0]")" = "${NODE_MAJOR}"
-
-ENV BUN_INSTALL=/usr/local
-RUN curl -fsSL https://bun.sh/install | bash -s "bun-v${BUN_VERSION}" \
-  && test "$(bun --version)" = "${BUN_VERSION}"
+RUN test "$(node -p "process.versions.node.split('.')[0]")" = "${NODE_MAJOR}" \
+  && test "$(node --version)" = "v${NODE_VERSION}"
 
 RUN set -eux; \
   case "${TARGETARCH}" in \
-    amd64) pnpm_arch=x64; pnpm_sha="${PNPM_SHA256_AMD64}" ;; \
-    arm64) pnpm_arch=arm64; pnpm_sha="${PNPM_SHA256_ARM64}" ;; \
+    amd64) bun_url="${BUN_URL_AMD64}"; bun_sha="${BUN_SHA256_AMD64}" ;; \
+    arm64) bun_url="${BUN_URL_ARM64}"; bun_sha="${BUN_SHA256_ARM64}" ;; \
+    *) echo "unsupported Docker architecture: ${TARGETARCH}" >&2; exit 1 ;; \
+  esac; \
+  archive=/tmp/bun.zip; \
+  curl -fsSL "${bun_url}" -o "${archive}"; \
+  printf '%s  %s\n' "${bun_sha}" "${archive}" | sha256sum -c -; \
+  unzip -q "${archive}" -d /tmp/bun; \
+  mv /tmp/bun/bun-linux-*/bun /usr/local/bin/bun; \
+  test "$(bun --version)" = "${BUN_VERSION}"; \
+  rm -rf "${archive}" /tmp/bun
+
+RUN set -eux; \
+  case "${TARGETARCH}" in \
+    amd64) pnpm_url="${PNPM_URL_AMD64}"; pnpm_sha="${PNPM_SHA256_AMD64}" ;; \
+    arm64) pnpm_url="${PNPM_URL_ARM64}"; pnpm_sha="${PNPM_SHA256_ARM64}" ;; \
     *) echo "unsupported Docker architecture: ${TARGETARCH}" >&2; exit 1 ;; \
   esac; \
   archive=/tmp/pnpm.tar.gz; \
-  curl -fsSL \
-    "https://github.com/pnpm/pnpm/releases/download/v${PNPM_VERSION}/pnpm-linux-${pnpm_arch}.tar.gz" \
-    -o "${archive}"; \
+  curl -fsSL "${pnpm_url}" -o "${archive}"; \
   printf '%s  %s\n' "${pnpm_sha}" "${archive}" | sha256sum -c -; \
   mkdir /tmp/pnpm; \
   tar -xzf "${archive}" -C /tmp/pnpm; \

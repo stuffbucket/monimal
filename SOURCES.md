@@ -96,6 +96,12 @@ run` install first -- a silent re-resolution behind every script. Before
   by checksum. CI setup actions are SHA-pinned and validate their installed
   versions; the isolated macOS producer bootstraps only the committed
   `mise.lock` macOS artifact after verifying its checksum.
+- The Docker dependency image MUST validate Node's exact `mise.lock` version and
+  MUST install the Bun and pnpm URLs and checksums from that lock for its target
+  architecture.
+- Docker dependency-image builds MUST use the dedicated `monimal-test` Buildx
+  builder. Cleanup MUST bound only that builder's cache and MUST NOT prune a
+  shared builder.
 - Host CLI requirements MUST be version-pinned in `mise.toml` and resolved in
   `mise.lock`; Homebrew MAY provide the same tool outside mise on macOS.
 - Do not let two packages pin different versions of the same dependency. The

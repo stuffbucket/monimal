@@ -9,6 +9,7 @@ import {
   containerBoundaryArguments,
   dockerServerArchitecture,
   ensureTestImage,
+  pruneTestImages,
   readToolPins,
   stagedCommandArguments,
 } from "./docker-test.mjs";
@@ -254,6 +255,7 @@ export function main(arguments_ = process.argv.slice(2)) {
         capture: true,
       });
     }
+    pruneTestImages();
   }
 }
 
