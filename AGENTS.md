@@ -14,7 +14,7 @@ MAY. Documentation MUST NOT include nonbinding background.
 - Knowledge MUST live in one subtree, except vendored `packages/` copies from separate upstreams.
 - Repeated clauses SHOULD be listed.
 
-The normal test boundary is documented in
+The tiered native and Docker test workflow is documented only in
 [`docs/testing-in-docker.md`](docs/testing-in-docker.md).
 
 ## Dependencies

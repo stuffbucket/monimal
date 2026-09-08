@@ -42,12 +42,39 @@
     "typecheck": {
       "dependsOn": ["^build"],
       "outputs": [],
-      "inputs": ["$TURBO_DEFAULT$", "!research_log/**", "!.claude/**", "!.github/**"]
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!research_log/**",
+        "!.claude/**",
+        "!.github/**"
+      ]
     },
     "test": {
       "dependsOn": ["^build"],
-      "inputs": ["$TURBO_DEFAULT$", "!research_log/**", "!.claude/**", "!.github/pr-artifacts/**"],
-      "env": ["MAXIMAL_TEST_CONTAINER", "MAXIMAL_TEST_TRACE"]
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!research_log/**",
+        "!.claude/**",
+        "!.github/pr-artifacts/**"
+      ],
+      "env": [
+        "MAXIMAL_TEST_CONTAINER",
+        "MAXIMAL_TEST_HOST",
+        "MAXIMAL_TEST_TRACE"
+      ],
+      "passThroughEnv": [
+        "APPDATA",
+        "CLAUDE_CONFIG_DIR",
+        "COPILOT_API_HOME",
+        "HOME",
+        "LOCALAPPDATA",
+        "MAXIMAL_TEST_ROOT",
+        "USERPROFILE",
+        "XDG_CACHE_HOME",
+        "XDG_CONFIG_HOME",
+        "XDG_DATA_HOME",
+        "XDG_STATE_HOME"
+      ]
     },
     "topo": {
       "dependsOn": ["^topo"]
@@ -55,12 +82,22 @@
     "lint": {
       "dependsOn": ["topo", "^build"],
       "outputs": [],
-      "inputs": ["$TURBO_DEFAULT$", "!research_log/**", "!.claude/**", "!.github/**"]
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!research_log/**",
+        "!.claude/**",
+        "!.github/**"
+      ]
     },
     "package": {
       "dependsOn": ["build"],
       "cache": false,
-      "inputs": ["$TURBO_DEFAULT$", "!research_log/**", "!.claude/**", "!.github/**"]
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!research_log/**",
+        "!.claude/**",
+        "!.github/**"
+      ]
     },
     "dev": {
       "cache": false,

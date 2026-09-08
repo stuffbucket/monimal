@@ -21,13 +21,25 @@ import {
   buildDockerArguments,
   containerBoundaryArguments,
   createHostStateCanary,
+  expectedImageLabels,
+  imageLabels,
   innerScriptForSuite,
   isGitWorktreeDirty,
+  isLinkedGitWorktree,
   parseOptions,
   parseTrace,
   readToolPins,
   runDockerArguments,
+  sourceDigest,
+  validatedImageId,
 } from "../scripts/docker-test.mjs";
+import { selectRetainedImage } from "../scripts/prune-test-images.mjs";
+import {
+  affectedBase,
+  createIsolatedTestEnvironment,
+  parseTestOptions,
+  turboTestArguments,
+} from "../scripts/test-workspace.mjs";
 
 const root = path.resolve(import.meta.dirname, "..");
 
@@ -36,10 +48,14 @@ function read(relativePath) {
 }
 
 function runLockfileHostStrip(...arguments_) {
-  return spawnSync(process.execPath, ["scripts/strip-lockfile-hosts.mjs", ...arguments_], {
-    cwd: root,
-    encoding: "utf8",
-  });
+  return spawnSync(
+    process.execPath,
+    ["scripts/strip-lockfile-hosts.mjs", ...arguments_],
+    {
+      cwd: root,
+      encoding: "utf8",
+    },
+  );
 }
 
 function withShardHost(lockfile) {
@@ -98,8 +114,24 @@ test("the outer and fixed inner test scripts cannot recurse", () => {
   const manifest = JSON.parse(read("package.json"));
   const coreManifest = JSON.parse(read("packages/maximal-core/package.json"));
   const turbo = JSON.parse(read("turbo.json"));
-  assert.equal(manifest.scripts.test, "node scripts/docker-test.mjs");
-  assert.equal(manifest.scripts["mutate:core"], "node scripts/docker-mutate.mjs");
+  assert.equal(manifest.scripts.test, "node scripts/test-workspace.mjs");
+  assert.equal(
+    manifest.scripts["test:all"],
+    "node scripts/test-workspace.mjs --all",
+  );
+  assert.equal(
+    manifest.scripts["test:core"],
+    "node scripts/test-workspace.mjs --core",
+  );
+  assert.equal(manifest.scripts["test:docker"], "node scripts/docker-test.mjs");
+  assert.equal(
+    manifest.scripts["docker:prune:test-images"],
+    "node scripts/prune-test-images.mjs",
+  );
+  assert.equal(
+    manifest.scripts["mutate:core"],
+    "node scripts/docker-mutate.mjs",
+  );
   assert.equal(
     coreManifest.scripts.mutate,
     "node ../../scripts/docker-mutate.mjs",
@@ -138,7 +170,7 @@ test("the outer and fixed inner test scripts cannot recurse", () => {
   }
   assert.equal(
     manifest.scripts["check:core"],
-    "pnpm --filter @stuffbucket/maximal-core run check:deep:host && pnpm test -- --suite=maximal-core",
+    "pnpm --filter @stuffbucket/maximal-core run check:deep:host && pnpm run test:core",
   );
   assert.equal(
     manifest.scripts.check,
@@ -160,7 +192,21 @@ test("the outer and fixed inner test scripts cannot recurse", () => {
   }
   assert.deepEqual(turbo.tasks.test.env, [
     "MAXIMAL_TEST_CONTAINER",
+    "MAXIMAL_TEST_HOST",
     "MAXIMAL_TEST_TRACE",
+  ]);
+  assert.deepEqual(turbo.tasks.test.passThroughEnv, [
+    "APPDATA",
+    "CLAUDE_CONFIG_DIR",
+    "COPILOT_API_HOME",
+    "HOME",
+    "LOCALAPPDATA",
+    "MAXIMAL_TEST_ROOT",
+    "USERPROFILE",
+    "XDG_CACHE_HOME",
+    "XDG_CONFIG_HOME",
+    "XDG_DATA_HOME",
+    "XDG_STATE_HOME",
   ]);
   assert.equal(turbo.tasks.package.cache, false);
   assert.equal(turbo.tasks.package.outputs, undefined);
@@ -174,21 +220,21 @@ test("required CI runs tests on its disposable runner and has one cache writer",
     "pnpm --filter @stuffbucket/maximal-electron run verify:fixture-imports";
   const sidecarProvenance =
     "LINK=packages/maximal/client/node_modules/@stuffbucket/maximal-core";
-  const policyGate = "node --test tests/docker-test-policy.test.mjs";
-  const testGate = "pnpm exec turbo run test --concurrency=1";
+  const testGate =
+    "pnpm run test:all -- --trace=${{ inputs.test_trace || 'off' }}";
   assert.equal(workflow.split(hostGate).length - 1, 1);
   assert.equal(workflow.split(packageMechanics).length - 1, 1);
   assert.equal(workflow.split(sidecarProvenance).length - 1, 1);
-  assert.equal(workflow.split(policyGate).length - 1, 1);
   assert.equal(workflow.split(testGate).length - 1, 1);
   assert.doesNotMatch(workflow, /pnpm (?:run )?check:core/);
   assert.doesNotMatch(workflow, /\bbun (?:run )?test\b/);
-  assert.doesNotMatch(workflow, /MAXIMAL_DOCKER_CACHE|docker\/setup-buildx-action|ghaction-github-runtime/);
-  assert.match(workflow, /MAXIMAL_TEST_CONTAINER: 1/);
+  assert.doesNotMatch(
+    workflow,
+    /MAXIMAL_DOCKER_CACHE|MAXIMAL_TEST_CONTAINER|docker\/setup-buildx-action|ghaction-github-runtime/,
+  );
   assert.ok(workflow.indexOf(hostGate) < workflow.indexOf(testGate));
   assert.ok(workflow.indexOf(packageMechanics) < workflow.indexOf(testGate));
   assert.ok(workflow.indexOf(sidecarProvenance) < workflow.indexOf(testGate));
-  assert.ok(workflow.indexOf(policyGate) < workflow.indexOf(testGate));
   assert.equal(workflow.split("uses: actions/cache/save@").length - 1, 1);
   assert.equal(workflow.split("uses: actions/cache@").length - 1, 1);
   assert.equal(workflow.split("uses: actions/cache/restore@").length - 1, 2);
@@ -201,6 +247,7 @@ test("Docker builds use an optional fixed GitHub Actions cache", () => {
     iidFile: "/tmp/image-id",
     gitSha: "a".repeat(40),
     dirty: false,
+    digest: "d".repeat(64),
     pins: {
       nodeMajor: "24",
       bunVersion: "1.3.14",
@@ -219,6 +266,11 @@ test("Docker builds use an optional fixed GitHub Actions cache", () => {
   );
   assert.ok(local.includes("io.stuffbucket.monimal.purpose=workspace-test"));
   assert.ok(local.includes("io.stuffbucket.monimal.dirty=false"));
+  assert.ok(local.includes("io.stuffbucket.monimal.architecture=amd64"));
+  assert.ok(local.includes("io.stuffbucket.monimal.mutation=stryker"));
+  assert.ok(
+    local.includes(`io.stuffbucket.monimal.source-digest=${"d".repeat(64)}`),
+  );
   assert.ok(local.includes(`GIT_SHA=${"a".repeat(40)}`));
 
   const dirty = buildDockerArguments({ ...input, dirty: true });
@@ -240,7 +292,9 @@ test("Docker builds use an optional fixed GitHub Actions cache", () => {
 });
 
 test("Docker image dirtiness includes tracked and untracked changes", () => {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "monimal-git-status-"));
+  const directory = fs.mkdtempSync(
+    path.join(os.tmpdir(), "monimal-git-status-"),
+  );
   const git = (...arguments_) =>
     spawnSync("git", arguments_, { cwd: directory, encoding: "utf8" });
 
@@ -269,6 +323,184 @@ test("Docker image dirtiness includes tracked and untracked changes", () => {
   } finally {
     fs.rmSync(directory, { recursive: true, force: true });
   }
+});
+
+test("native test selection is closed and uses affected dependents", () => {
+  const base = "a".repeat(40);
+  assert.deepEqual(parseTestOptions([]), { scope: "affected", trace: "off" });
+  assert.deepEqual(parseTestOptions(["--all", "--trace=tests"]), {
+    scope: "all",
+    trace: "tests",
+  });
+  assert.deepEqual(parseTestOptions(["--", "--core"]), {
+    scope: "core",
+    trace: "off",
+  });
+  assert.deepEqual(turboTestArguments({ scope: "affected" }, base), [
+    "run",
+    "test",
+    "--concurrency=1",
+    `--filter=...[${base}]`,
+  ]);
+  assert.deepEqual(turboTestArguments({ scope: "all" }), [
+    "run",
+    "test",
+    "--concurrency=1",
+  ]);
+  assert.deepEqual(turboTestArguments({ scope: "core" }), [
+    "run",
+    "test",
+    "--concurrency=1",
+    "--filter=@stuffbucket/maximal-core",
+  ]);
+  assert.throws(
+    () => parseTestOptions(["--all", "--core"]),
+    /Duplicate test scope/,
+  );
+  assert.throws(() => parseTestOptions(["--filter=x"]), /Usage:/);
+});
+
+test("native test isolation redirects state and scrubs credentials", () => {
+  const parent = fs.mkdtempSync(
+    path.join(os.tmpdir(), "monimal-native-policy-"),
+  );
+  const priorToken = process.env.GITHUB_TOKEN;
+  const priorProxy = process.env.HTTPS_PROXY;
+  process.env.GITHUB_TOKEN = "secret";
+  process.env.HTTPS_PROXY = "https://proxy.invalid";
+  try {
+    const isolated = createIsolatedTestEnvironment(parent);
+    assert.equal(fs.statSync(isolated.root).mode & 0o777, 0o700);
+    assert.equal(isolated.environment.MAXIMAL_TEST_HOST, "1");
+    assert.equal(isolated.environment.MAXIMAL_TEST_ROOT, isolated.root);
+    assert.equal(isolated.environment.MAXIMAL_TEST_CONTAINER, undefined);
+    assert.equal(isolated.environment.GITHUB_TOKEN, undefined);
+    assert.equal(isolated.environment.HTTPS_PROXY, undefined);
+    for (const name of [
+      "HOME",
+      "XDG_CACHE_HOME",
+      "XDG_CONFIG_HOME",
+      "XDG_DATA_HOME",
+      "XDG_STATE_HOME",
+      "USERPROFILE",
+      "APPDATA",
+      "LOCALAPPDATA",
+      "COPILOT_API_HOME",
+      "CLAUDE_CONFIG_DIR",
+    ]) {
+      const relative = path.relative(isolated.root, isolated.environment[name]);
+      assert.ok(
+        relative && !relative.startsWith("..") && !path.isAbsolute(relative),
+      );
+    }
+  } finally {
+    if (priorToken === undefined) delete process.env.GITHUB_TOKEN;
+    else process.env.GITHUB_TOKEN = priorToken;
+    if (priorProxy === undefined) delete process.env.HTTPS_PROXY;
+    else process.env.HTTPS_PROXY = priorProxy;
+    fs.rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test("affected base, source digest, and linked worktree detection use Git state", () => {
+  const directory = fs.mkdtempSync(
+    path.join(os.tmpdir(), "monimal-git-policy-"),
+  );
+  const linked = `${directory}-linked`;
+  const git = (...arguments_) =>
+    spawnSync("git", arguments_, { cwd: directory, encoding: "utf8" });
+  try {
+    assert.equal(git("init", "--quiet").status, 0);
+    assert.equal(git("config", "user.name", "Docker Policy Test").status, 0);
+    assert.equal(
+      git("config", "user.email", "docker-policy@example.invalid").status,
+      0,
+    );
+    fs.writeFileSync(path.join(directory, "tracked.txt"), "clean\n");
+    assert.equal(git("add", "tracked.txt").status, 0);
+    assert.equal(
+      git("commit", "--quiet", "--no-gpg-sign", "-m", "fixture").status,
+      0,
+    );
+    assert.throws(() => affectedBase(directory), /git fetch origin main/);
+    assert.equal(git("remote", "add", "origin", directory).status, 0);
+    assert.equal(
+      git("fetch", "--quiet", "origin", "HEAD:refs/remotes/origin/main").status,
+      0,
+    );
+    assert.equal(
+      affectedBase(directory),
+      git("rev-parse", "HEAD").stdout.trim(),
+    );
+    assert.equal(isLinkedGitWorktree(directory), false);
+
+    const cleanDigest = sourceDigest(directory);
+    fs.appendFileSync(path.join(directory, "tracked.txt"), "unstaged\n");
+    const unstagedDigest = sourceDigest(directory);
+    assert.notEqual(unstagedDigest, cleanDigest);
+    assert.equal(git("add", "tracked.txt").status, 0);
+    assert.notEqual(sourceDigest(directory), cleanDigest);
+    fs.writeFileSync(path.join(directory, "untracked.txt"), "untracked\n");
+    assert.notEqual(sourceDigest(directory), unstagedDigest);
+
+    assert.equal(git("worktree", "add", "--quiet", linked).status, 0);
+    assert.equal(isLinkedGitWorktree(linked), true);
+  } finally {
+    spawnSync("git", ["worktree", "remove", "--force", linked], {
+      cwd: directory,
+      encoding: "utf8",
+    });
+    fs.rmSync(linked, { recursive: true, force: true });
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("Docker image validation and retention require reusable Stryker metadata", () => {
+  const state = {
+    gitSha: "a".repeat(40),
+    dirty: false,
+    digest: "b".repeat(64),
+    targetArch: "arm64",
+  };
+  const labels = expectedImageLabels(state);
+  const exactId = `sha256:${"c".repeat(64)}`;
+  const fallbackId = `sha256:${"d".repeat(64)}`;
+  const exact = {
+    Id: exactId,
+    Architecture: "arm64",
+    Created: "2026-09-01T00:00:00Z",
+    Config: { Labels: labels },
+  };
+  const fallback = {
+    Id: fallbackId,
+    Architecture: "amd64",
+    Created: "2026-09-02T00:00:00Z",
+    Config: {
+      Labels: {
+        [imageLabels.purpose]: "workspace-test",
+        [imageLabels.mutation]: "stryker",
+      },
+    },
+  };
+  assert.equal(validatedImageId(exact, labels), exactId);
+  assert.equal(
+    validatedImageId(
+      {
+        ...exact,
+        Config: { Labels: { ...labels, [imageLabels.sourceDigest]: "wrong" } },
+      },
+      labels,
+    ),
+    undefined,
+  );
+  assert.equal(selectRetainedImage([fallback, exact], exactId), exactId);
+  assert.equal(selectRetainedImage([exact, fallback]), fallbackId);
+  assert.equal(
+    selectRetainedImage([
+      { ...fallback, Config: { Labels: { [imageLabels.purpose]: "other" } } },
+    ]),
+    undefined,
+  );
 });
 
 test("runtime arguments enforce the mountless offline boundary", () => {
@@ -354,16 +586,11 @@ test("mutation selectors validate source paths, ranges, and concurrency", () => 
     assert.throws(() => parseMutationOptions([option]), /Invalid mutation/);
   }
   assert.throws(
-    () =>
-      parseMutationOptions([
-        "--mutate=src/a.ts",
-        "--mutate=src/b.ts",
-      ]),
+    () => parseMutationOptions(["--mutate=src/a.ts", "--mutate=src/b.ts"]),
     /Duplicate --mutate/,
   );
   assert.throws(
-    () =>
-      parseMutationOptions(["--concurrency=4", "--concurrency=10"]),
+    () => parseMutationOptions(["--concurrency=4", "--concurrency=10"]),
     /Duplicate --concurrency/,
   );
 });
@@ -495,6 +722,7 @@ test("tool pins come from their owner files and pnpm checksums from mise", () =>
     iidFile: "/tmp/image-id",
     gitSha: "c".repeat(40),
     dirty: false,
+    digest: "d".repeat(64),
     pins,
     targetArch: "arm64",
   });
@@ -525,9 +753,15 @@ test("the macOS producer bootstraps pnpm from the committed locked artifact", ()
     new RegExp(`/v${pnpmVersion}/pnpm-darwin-arm64\\.tar\\.gz$`),
   );
   assert.match(platformEntry?.[1] ?? "", /^[0-9a-f]{64}$/);
-  assert.match(producer, /PNPM_SPEC="\$\(node -p "require\('\.\/package\.json'\)\.packageManager"\)"/);
+  assert.match(
+    producer,
+    /PNPM_SPEC="\$\(node -p "require\('\.\/package\.json'\)\.packageManager"\)"/,
+  );
   assert.match(producer, /\[tools\.pnpm\.\\"platforms\.macos-arm64\\"\]/);
-  assert.match(producer, /curl --fail --location --retry 3 --output "\$PNPM_ARCHIVE" "\$PNPM_URL"/);
+  assert.match(
+    producer,
+    /curl --fail --location --retry 3 --output "\$PNPM_ARCHIVE" "\$PNPM_URL"/,
+  );
   assert.match(producer, /shasum -a 256 -c -/);
   assert.match(producer, /tar -xzf "\$PNPM_ARCHIVE" -C "\$PNPM_STAGING"/);
   assert.doesNotMatch(producer, /^\s*npm install --prefix/m);
@@ -575,7 +809,9 @@ test("Turbo replay cache selects only cacheable executable task hashes", () => {
 });
 
 test("Turbo build graph is read from a pre-build snapshot", () => {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "monimal-turbo-graph-"));
+  const directory = fs.mkdtempSync(
+    path.join(os.tmpdir(), "monimal-turbo-graph-"),
+  );
   const reportPath = path.join(directory, "graph.json");
   const report = {
     tasks: [
@@ -600,7 +836,9 @@ test("Turbo build graph is read from a pre-build snapshot", () => {
 });
 
 test("Turbo replay cache publication is selective and transactional", () => {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "monimal-turbo-cache-"));
+  const directory = fs.mkdtempSync(
+    path.join(os.tmpdir(), "monimal-turbo-cache-"),
+  );
   const source = path.join(directory, "source");
   const destination = path.join(directory, "destination");
   const suffixes = [".tar.zst", "-meta.json", "-manifest.json"];
@@ -628,7 +866,9 @@ test("Turbo replay cache publication is selective and transactional", () => {
       );
     }
 
-    assert.deepEqual(publishTurboBuildCache(report, source, destination), [hash]);
+    assert.deepEqual(publishTurboBuildCache(report, source, destination), [
+      hash,
+    ]);
     assert.deepEqual(
       fs.readdirSync(destination).sort(),
       suffixes.map((suffix) => `${hash}${suffix}`).sort(),
@@ -641,11 +881,7 @@ test("Turbo replay cache publication is selective and transactional", () => {
     );
     assert.deepEqual(
       fs.readdirSync(destination).sort(),
-      [
-        `${hash}.tar.zst`,
-        `${hash}-meta.json`,
-        `${hash}-manifest.json`,
-      ].sort(),
+      [`${hash}.tar.zst`, `${hash}-meta.json`, `${hash}-manifest.json`].sort(),
     );
   } finally {
     fs.rmSync(directory, { recursive: true, force: true });
@@ -699,7 +935,10 @@ test("the build context excludes local state but retains source fixtures", () =>
     "packages/maximal-core/github_token",
     "packages/maximal-core/settings.json",
   ]) {
-    assert.ok(isIgnored(sensitivePath), `build context includes ${sensitivePath}`);
+    assert.ok(
+      isIgnored(sensitivePath),
+      `build context includes ${sensitivePath}`,
+    );
   }
 
   for (const requiredPath of [
@@ -708,8 +947,14 @@ test("the build context excludes local state but retains source fixtures", () =>
     "packages/maximal-core/tests/fixtures/isolation/maximal-path-probe.test-fixture.ts",
     "packages/maximal-electron/e2e/fixtures/demo-shell/index.html",
   ]) {
-    assert.ok(fs.existsSync(path.join(root, requiredPath)), `missing ${requiredPath}`);
-    assert.ok(!isIgnored(requiredPath), `build context excludes ${requiredPath}`);
+    assert.ok(
+      fs.existsSync(path.join(root, requiredPath)),
+      `missing ${requiredPath}`,
+    );
+    assert.ok(
+      !isIgnored(requiredPath),
+      `build context excludes ${requiredPath}`,
+    );
   }
 });
 
@@ -733,7 +978,9 @@ test("the reusable Docker install layer includes every workspace manifest", () =
     "pnpm install --frozen-lockfile --ignore-scripts",
   );
   const sourceCopy = dockerfile.indexOf("COPY --chown=maximal:maximal . .");
-  const gitShaEnvironment = dockerfile.indexOf("ENV MAXIMAL_GIT_SHA=${GIT_SHA}");
+  const gitShaEnvironment = dockerfile.indexOf(
+    "ENV MAXIMAL_GIT_SHA=${GIT_SHA}",
+  );
   for (const manifest of manifests) {
     const copy = dockerfile.indexOf(
       `COPY --chown=maximal:maximal ${manifest} ${manifest}`,
@@ -789,5 +1036,25 @@ test("the image owns test homes and runs the test command as non-root", () => {
   assert.match(dockerfile, /XDG_CONFIG_HOME=\/home\/maximal\/\.config/);
   assert.match(dockerfile, /sha256sum -c -/);
   assert.match(dockerfile, /\bprocps\b/);
+  assert.match(
+    dockerfile,
+    /pnpm --filter @stuffbucket\/maximal-core exec stryker --version/,
+  );
   assert.match(dockerfile, /CMD \["pnpm", "run", "test:inner"\]/);
+});
+
+test("mutation reuses the test image and project pruning stays label-scoped", () => {
+  const mutation = read("scripts/docker-mutate.mjs");
+  const prune = read("scripts/prune-test-images.mjs");
+  assert.match(mutation, /requireReusableImage/);
+  assert.doesNotMatch(
+    mutation,
+    /buildDockerArguments|ensureTestImage|docker[^\n]*build/,
+  );
+  assert.match(prune, /label=\$\{imageLabels\.purpose\}=workspace-test/);
+  assert.match(prune, /\["image", "rm", image\.Id\]/);
+  assert.doesNotMatch(
+    prune,
+    /system prune|builder prune|container prune|volume prune/,
+  );
 });

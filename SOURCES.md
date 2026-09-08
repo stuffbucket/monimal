@@ -316,11 +316,12 @@ package provenance or publisher identity -- the proxy does that.
   shadows the other for any dependency that resolves by walking up rather than
   through its own peer link — which is what made `eslint-plugin-perfectionist`
   call a TS 5 API on the TS 7 module.
-- Root, `maximal`, and `maximal-core`: the normal test graph moved behind the
-  root mountless Docker runner. Package Bun preloads now reject raw host tests,
-  and Core creates isolated Maximal and Claude homes only after the container
-  marker is present. This is deliberately stricter than either copied upstream
-  repository because a root-CWD run can skip a package-local `bunfig.toml`.
+- Root, `maximal`, and `maximal-core`: package Bun preloads admit native host
+  tests only through the root wrapper's isolated temporary home and state paths;
+  raw host tests still fail closed. This native admission is a monorepo deviation
+  from the copied repositories' direct package test commands. The root wrapper
+  runs affected or explicit full/focused tests natively, while the mountless,
+  offline Docker runner remains the explicit final host-state gate.
 - `maximal/client`: `scripts/build-core.ts` accepts a validated
   `MAXIMAL_GIT_SHA` before falling back to `git rev-parse`. The filtered Docker
   context cannot use this linked worktree's host-absolute `.git` pointer, but

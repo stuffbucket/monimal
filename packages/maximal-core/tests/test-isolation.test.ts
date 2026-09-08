@@ -86,7 +86,7 @@ function expectRefused(
 ): void {
   expect(result.exitCode).not.toBe(0)
   const diagnostics = `${result.stdout.toString()}\n${result.stderr.toString()}`
-  expect(diagnostics).toContain("Refusing to")
+  expect(diagnostics).toMatch(/Refusing (?:to|native tests)/)
   expectCanaryUnchanged(canary)
 }
 
@@ -94,13 +94,19 @@ describe("test path isolation", () => {
   test("the preload installs separate fresh path families", () => {
     const maximalHome = process.env.COPILOT_API_HOME
     const claudeConfigDir = process.env.CLAUDE_CONFIG_DIR
-    expect(process.env.MAXIMAL_TEST_CONTAINER).toBe("1")
+    expect(
+      process.env.MAXIMAL_TEST_CONTAINER === "1"
+        || process.env.MAXIMAL_TEST_HOST === "1",
+    ).toBe(true)
     expect(process.env.COPILOT_API_HOME_POLICY).toBe("require")
     expect(maximalHome).toBeTruthy()
     expect(claudeConfigDir).toBeTruthy()
     expect(maximalHome).not.toBe(claudeConfigDir)
-    expect(maximalHome?.startsWith(os.tmpdir())).toBe(true)
-    expect(claudeConfigDir?.startsWith(os.tmpdir())).toBe(true)
+    const testParent = fs.realpathSync(
+      process.env.MAXIMAL_TEST_ROOT ?? os.tmpdir(),
+    )
+    expect(maximalHome?.startsWith(testParent)).toBe(true)
+    expect(claudeConfigDir?.startsWith(testParent)).toBe(true)
     expect(fs.statSync(maximalHome ?? "").isDirectory()).toBe(true)
     expect(fs.statSync(claudeConfigDir ?? "").isDirectory()).toBe(true)
   })

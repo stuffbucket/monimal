@@ -160,13 +160,7 @@ export function createProviderHostConfigSource(
         // Bun/Linux reports an atomic sibling rename by its source name only.
         // Stat the target to distinguish that from a genuinely unrelated write.
         const changedConfig = refreshObservedConfigIdentity()
-        if (
-          filename !== null
-          && filename !== configFilename
-          && !changedConfig
-        ) {
-          return
-        }
+        if (!changedConfig && filename !== configFilename) return
         scheduleReload()
       })
       watcher.unref()
