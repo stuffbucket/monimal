@@ -374,17 +374,16 @@ STUFFBUCKET_ICON_DIR=~/brand/icons npm run package
 STUFFBUCKET_ICON_DIR=~/brand/icons npm start
 ```
 
-The directory must carry all six names. `npm run icons` writes them, and honours
-the same variable, so it can seed a new set.
+The directory must carry all five names. `npm run icons` installs Maximal's
+canonical set there, and honours the same variable.
 
 | File | Used for |
 | --- | --- |
 | `icon.icns` | The macOS bundle icon. |
 | `icon.ico` | The Windows executable icon. |
 | `icon.png` | 512 square. Linux, the dock, the taskbar, and the window. |
-| `tray.png` | 32 square, full colour. The Windows and Linux tray. |
-| `trayTemplate.png` | 16 square, alpha only. The macOS menu bar. |
-| `trayTemplate@2x.png` | 32 square, alpha only. The same, on a retina display. |
+| `tray.png` | 22 square, full colour. The menu bar and system tray. |
+| `tray@2x.png` | 44 square, full colour. The same, on a retina display. |
 
 `forge.config.ts` reads the variable at build time and fails the build when a
 name is missing. `src/main/native/icons.ts` reads it again at run time, which is
@@ -464,9 +463,9 @@ Stated here rather than discovered later.
   user data directory. The package stays smaller and the model can be upgraded
   without a new build, but a first run with no network and no proxy cannot
   answer.
-- **Placeholder icons.** `scripts/gen-icons.mjs` draws them. Replace the output
-  with designer assets before a public release, or point
-  `STUFFBUCKET_ICON_DIR` at your own set.
+- **Maximal icons.** `scripts/gen-icons.mjs` installs the canonical application
+  and tray assets retired with the Tauri shell. Point `STUFFBUCKET_ICON_DIR` at
+  a complete replacement set to ship another identity.
 
 ## Fork it
 

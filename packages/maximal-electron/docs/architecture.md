@@ -821,18 +821,18 @@ is silent: packager warns and ships the Electron default.
 
 **Run time** is what the developer sees, and what the tray needs. The main
 process loads `icon.png` for the dock and for the `BrowserWindow` icon, and the
-tray images for the menu bar. Those files ship beside `app.asar` rather than
-inside it, because they are read as files.
+coloured Tauri icon at 22pt or 44px retina for the menu bar and system tray.
+Those files ship beside `app.asar` rather than inside it, because they are read
+as files.
 
 `src/main/native/icons.ts` decides which directory that is and which file each
 platform takes, and imports no Electron, so both decisions are unit and mutation
-tested. `windowIconName`, `dockIconName` and `trayIconChoice` each read a
-`platform` argument rather than `process.platform`, so a run on any host answers
-for all three targets. `src/main/native/app-icon.ts` is the thin part that
-touches `nativeImage`, and `tests/app-icon.test.ts` mocks Electron to check the
-decision reaches it. Issue #49: before that, the taskbar icon and the
-full-colour tray image had only ever been selected on macOS, where neither is
-used.
+tested. `windowIconName`, `dockIconName` and `trayIconChoice` read their inputs
+rather than `process.platform`, so a run on any host answers for all three
+targets. The tray choice is deliberately the same coloured image everywhere;
+macOS must not tint it as a template. `src/main/native/app-icon.ts` is the thin
+part that touches `nativeImage`, and `tests/app-icon.test.ts` mocks Electron to
+check the decision reaches it.
 
 **A development run on macOS shows Electron's dock icon.** Packaging cannot
 change that, because there is no bundle. `app.dock.setIcon` is the only way to

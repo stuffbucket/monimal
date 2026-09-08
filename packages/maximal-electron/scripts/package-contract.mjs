@@ -31,15 +31,10 @@ export const PACKAGE_FUSES = {
  * them. They land beside `app.asar`, which is where `src/main/native/icons.ts`
  * looks.
  *
- * `trayTemplate@2x.png` is never named in code: `nativeImage` finds a `@2x`
+ * `tray@2x.png` is never named in code: `nativeImage` finds a `@2x`
  * variant beside the file it was given. It still has to ship.
  */
-export const RUNTIME_ICONS = [
-  'icon.png',
-  'tray.png',
-  'trayTemplate.png',
-  'trayTemplate@2x.png',
-];
+export const RUNTIME_ICONS = ['icon.png', 'tray.png', 'tray@2x.png'];
 
 /**
  * The icon packager embeds in the bundle, by the platform being built for.
