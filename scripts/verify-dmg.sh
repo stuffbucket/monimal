@@ -13,7 +13,7 @@ set -euo pipefail
 # checksum and UDIF container shape from Ubuntu, because AGENTS.md forbids
 # GitHub-hosted macOS runners and the signed artifact only exists off-runner.
 #
-#   Usage: scripts/verify-dmg.sh <tag> [previous-tag|none]
+#   Usage: scripts/verify-dmg.sh <tag> [previous-tag|none] [attestation flags]
 #
 #     scripts/verify-dmg.sh v0.5.0-rc.2                 auto-detect the previous release
 #     scripts/verify-dmg.sh v0.5.0-rc.2 v0.5.0-rc.1     compare against that one
@@ -40,14 +40,31 @@ set -euo pipefail
 # is to run on a machine nobody prepared.
 
 usage() {
-  echo "Usage: $(basename "$0") <tag> [previous-tag|none]" >&2
+  echo "Usage: $(basename "$0") <tag> [previous-tag|none] [attestation flags]" >&2
   echo "   e.g. $(basename "$0") v0.5.0-rc.2" >&2
   exit 2
 }
 
 TAG="${1:-}"
-PREV_ARG="${2:-}"
 [ -n "$TAG" ] || usage
+shift
+PREV_ARG=""
+case "${1:-}" in
+  --*|'') ;;
+  *) PREV_ARG="$1"; shift ;;
+esac
+ATTEST_OFFLINE=false
+ATTEST_QUARANTINE=false
+ATTEST_UPGRADE=false
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --attest-offline-launch) ATTEST_OFFLINE=true ;;
+    --attest-quarantine-inheritance) ATTEST_QUARANTINE=true ;;
+    --attest-upgrade) ATTEST_UPGRADE=true ;;
+    *) usage ;;
+  esac
+  shift
+done
 [ "$(uname -s)" = "Darwin" ] || { echo "error: this test only means anything on macOS." >&2; exit 1; }
 command -v gh >/dev/null || { echo "error: gh is required to download a draft release." >&2; exit 1; }
 command -v git >/dev/null || { echo "error: git is required to read the builder contract at the tag." >&2; exit 1; }
@@ -357,11 +374,12 @@ step "12. Upgrade continuity against the previous release"
 # The check nothing else in the pipeline makes. See the header.
 PREV="$PREV_ARG"
 if [ -z "$PREV" ]; then
-  # The previously CUT release, by creation time — which is what a user
-  # upgrading from "whatever they had" actually has. Drafts included: a draft is
-  # the state every release passes through, and the artifact is already built.
-  PREV="$(gh release list --repo "$REPO" --limit 30 --json tagName,createdAt \
-            --jq "[.[] | select(.tagName != \"${TAG}\")] | sort_by(.createdAt) | reverse | .[0].tagName // empty" 2>/dev/null || true)"
+  # Published Releases establish the installed upgrade path. The shared resolver
+  # sorts published_at and takes the target's immediate predecessor, so rerunning
+  # an old release never compares it against a newer one.
+  gh api --paginate --slurp "repos/${REPO}/releases?per_page=100" > releases.json \
+    || fail "could not fetch release history from ${REPO}."
+  PREV="$("$ROOT/scripts/release/prev-tag.sh" --tag "$TAG" --releases-file releases.json)"
   if [ -n "$PREV" ]; then
     echo "auto-detected previous release: ${PREV}  (override with a second argument, or 'none')"
   fi
@@ -552,3 +570,31 @@ Three steps remain, and they are the ones that cannot be scripted honestly.
 
 Then detach:  hdiutil detach "${MOUNT}"
 MANUAL
+
+confirm() { # <flag value> <human step>
+  local flag="$1" label="$2" answer
+  if [ "$flag" = true ]; then
+    return 0
+  fi
+  printf 'Confirm %s passed (type yes): ' "$label" >&2
+  IFS= read -r answer
+  [ "$answer" = yes ] || fail "${label} was not attested; no acceptance evidence was written."
+}
+
+confirm "$ATTEST_OFFLINE" "offline launch"
+confirm "$ATTEST_QUARANTINE" "quarantine inheritance"
+confirm "$ATTEST_UPGRADE" "upgrade over the installed version"
+
+EVIDENCE="${WORK}/acceptance-evidence-${TAG}.txt"
+DR_SHA="$(shasum -a 256 dr-new.txt | awk '{print $1}')"
+"$ROOT/scripts/release/acceptance-evidence.sh" create \
+  --repo "$REPO" --tag "$TAG" --dmg "$DMG" --dmg-sha256 "$HAVE" \
+  --zip "${ZIP:-none}" --zip-sha256 "${HAVE_Z:-none}" --predecessor "${PREV:-none}" \
+  --bundle-id "$GOT_ID" --designated-requirement-sha256 "$DR_SHA" \
+  --bundle-version "$BUILD" --accepted-at "$(date +%s)" \
+  --offline-launch true --quarantine-inheritance true --upgrade true > "$EVIDENCE"
+
+echo
+echo "ACCEPTANCE EVIDENCE: ${EVIDENCE}"
+echo "EVIDENCE SHA-256: $(shasum -a 256 "$EVIDENCE" | awk '{print $1}')"
+echo "EVIDENCE BASE64: $(base64 < "$EVIDENCE" | tr -d '\n')"

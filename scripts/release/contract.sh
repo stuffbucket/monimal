@@ -4,7 +4,7 @@ set -euo pipefail
 # Reads the macos-builder client contract and prints what a release needs to
 # know, as KEY=VALUE lines suitable for appending to $GITHUB_OUTPUT.
 #
-#   Usage: scripts/release/contract.sh --config <file> --forge <file> --tag <tag>
+#   Usage: scripts/release/contract.sh --config <file> --forge <file> --manifest <file> --tag <tag>
 #
 # WHY THIS TAKES FILES AND NOT PATHS IT FINDS ITSELF
 #
@@ -26,22 +26,28 @@ set -euo pipefail
 
 fail() { echo "::error::$*" >&2; exit 1; }
 usage() {
-  echo "Usage: $(basename "$0") --config <file> --forge <file> --tag <tag>" >&2
+  echo "Usage: $(basename "$0") --config <file> --forge <file> --manifest <file> --tag <tag>" >&2
   exit 2
 }
 
-CFG=""; FORGE=""; TAG=""
+CFG=""; FORGE=""; MANIFEST=""; TAG=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --config) CFG="${2:-}"; shift 2 ;;
     --forge)  FORGE="${2:-}"; shift 2 ;;
+    --manifest) MANIFEST="${2:-}"; shift 2 ;;
     --tag)    TAG="${2:-}"; shift 2 ;;
     *) usage ;;
   esac
 done
-if [ -z "$CFG" ] || [ -z "$FORGE" ] || [ -z "$TAG" ]; then usage; fi
+if [ -z "$CFG" ] || [ -z "$FORGE" ] || [ -z "$MANIFEST" ] || [ -z "$TAG" ]; then usage; fi
 [ -f "$CFG" ] || fail "${CFG} is missing; the builder refuses a client without it."
 [ -f "$FORGE" ] || fail "${FORGE} is missing; the bundle id cannot be cross-checked."
+[ -f "$MANIFEST" ] || fail "${MANIFEST} is missing; the tag-derived version cannot be enforced."
+
+MANIFEST_VERSION="$(node -e 'const fs = require("node:fs"); const manifest = JSON.parse(fs.readFileSync(process.argv[1], "utf8")); process.stdout.write(String(manifest.version ?? ""));' "$MANIFEST")"
+[ "$MANIFEST_VERSION" = "0.0.0" ] \
+  || fail "version in ${MANIFEST} is '${MANIFEST_VERSION}', expected 0.0.0; releases derive their version from the tag."
 
 # One key, first occurrence, trailing whitespace stripped. `sed -n` writes at
 # most one line here, so there is no reader to exit early and no pipeline to

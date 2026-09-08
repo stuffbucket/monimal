@@ -103,7 +103,7 @@ BUNDLE_ID="$(sed -nE 's/^[[:space:]]*bundle_id[[:space:]]*=[[:space:]]*(.*[^[:sp
 # ---------------------------------------------------------------------------
 COMMIT_TS="$(git log -1 --format=%ct HEAD)"
 [ -n "$COMMIT_TS" ] || fail "Could not read the committer date of HEAD; CFBundleVersion cannot be derived."
-BUILD_VERSION="$(date -u -r "$COMMIT_TS" +%Y).$((10#$(date -u -r "$COMMIT_TS" +%m%d))).$((10#$(date -u -r "$COMMIT_TS" +%H%M)))"
+BUILD_VERSION="$(scripts/release/build-version.sh derive --timestamp "$COMMIT_TS")"
 export MAXIMAL_BUILD_VERSION="$BUILD_VERSION"
 
 echo "Producing Maximal.app (Electron) for ${TAG} (version ${VERSION}, ${ARCH})"
@@ -159,29 +159,52 @@ HAVE_BUN="$(bun --version)"
 # would couple every other client repo to this one's toolchain.
 #
 # The version is read from packageManager rather than named here, so this file
-# is not a second owner of it (SOURCES.md owns that fact).
+# is not a second owner of it. The macOS artifact URL and checksum are read from
+# the committed mise.lock entry, rather than mutable npm registry metadata.
 # ---------------------------------------------------------------------------
 PNPM_SPEC="$(node -p "require('./package.json').packageManager")"
 case "$PNPM_SPEC" in
-  pnpm@*) ;;
+  pnpm@[0-9]*.[0-9]*.[0-9]*) ;;
   *) fail "packageManager is '${PNPM_SPEC}', expected pnpm@x.y.z." ;;
 esac
 PNPM_VERSION="${PNPM_SPEC#pnpm@}"
 PNPM_DIR="${RUNNER_TEMP:-${TMPDIR:-/tmp}}/pnpm-${PNPM_VERSION}"
 
-# --prefix into scratch: no sudo, no global prefix mutated on a shared
-# persistent runner, nothing left behind between builds. Run from OUTSIDE the
-# checkout so npm reads its own config rather than this workspace's .npmrc —
-# pnpm is not in this workspace's dependency graph, and the default registry
-# publishes dist.integrity (sha512), a stronger content check than the proxy's
-# SHA-1 shasum.
-#
-# Not corepack: unbundled from Node 25, and its embedded signature keys go stale.
-if [ ! -x "${PNPM_DIR}/node_modules/.bin/pnpm" ]; then
-  ( cd "${TMPDIR:-/tmp}" \
-    && npm install --prefix "$PNPM_DIR" --no-save --no-audit --no-fund "pnpm@${PNPM_VERSION}" )
+PNPM_LOCK_ENTRY="$(awk '
+  $0 == "[tools.pnpm.\"platforms.macos-arm64\"]" { found = 1; next }
+  found && /^\[/ { exit }
+  found { print }
+' mise.lock)"
+[ -n "$PNPM_LOCK_ENTRY" ] \
+  || fail "mise.lock has no pnpm macOS ARM64 artifact. Run mise lock and commit the result."
+PNPM_URL="$(printf '%s\n' "$PNPM_LOCK_ENTRY" | sed -nE 's/^url = "([^"]+)"$/\1/p')"
+PNPM_SHA256="$(printf '%s\n' "$PNPM_LOCK_ENTRY" | sed -nE 's/^checksum = "sha256:([0-9a-f]{64})"$/\1/p')"
+[ -n "$PNPM_URL" ] && [ -n "$PNPM_SHA256" ] \
+  || fail "mise.lock pnpm macOS ARM64 artifact must provide one URL and SHA-256 checksum."
+[ "$(printf '%s\n' "$PNPM_URL" | sed -nE 's#^https://github.com/pnpm/pnpm/releases/download/v([0-9]+\.[0-9]+\.[0-9]+)/pnpm-darwin-arm64\.tar\.gz$#\1#p')" = "$PNPM_VERSION" ] \
+  || fail "mise.lock pnpm macOS artifact URL does not match packageManager ${PNPM_VERSION}."
+
+# Scratch-only bootstrap: neither npm's global prefix nor its mutable package
+# metadata participates. A re-published release artifact fails before it can
+# reach PATH; an existing binary is reused only after the version assertion.
+if [ ! -x "${PNPM_DIR}/pnpm" ]; then
+  PNPM_ARCHIVE="${PNPM_DIR}.tar.gz"
+  PNPM_STAGING="${PNPM_DIR}.staging"
+  rm -rf "$PNPM_STAGING"
+  mkdir -p "$PNPM_STAGING"
+  curl --fail --location --retry 3 --output "$PNPM_ARCHIVE" "$PNPM_URL" \
+    || fail "Could not download pnpm ${PNPM_VERSION} from the committed mise.lock URL."
+  printf '%s  %s\n' "$PNPM_SHA256" "$PNPM_ARCHIVE" | shasum -a 256 -c - \
+    || fail "pnpm ${PNPM_VERSION} does not match the mise.lock SHA-256 checksum."
+  tar -xzf "$PNPM_ARCHIVE" -C "$PNPM_STAGING" \
+    || fail "Could not unpack verified pnpm ${PNPM_VERSION} artifact."
+  [ -x "${PNPM_STAGING}/pnpm" ] \
+    || fail "Verified pnpm ${PNPM_VERSION} artifact does not contain its executable."
+  rm -rf "$PNPM_DIR"
+  mv "$PNPM_STAGING" "$PNPM_DIR"
+  rm -f "$PNPM_ARCHIVE"
 fi
-export PATH="${PNPM_DIR}/node_modules/.bin:$PATH"
+export PATH="${PNPM_DIR}:$PATH"
 
 # Without this assert, a pnpm that disagrees with packageManager self-manages by
 # downloading the named version THROUGH THE CONFIGURED REGISTRY. .npmrc points at
@@ -194,16 +217,17 @@ HAVE_PNPM="$(pnpm --version)"
 # ---------------------------------------------------------------------------
 # 5. Install.
 #
-# strip-lockfile-hosts.mjs MUST run BEFORE the install: pnpm verifies every
-# recorded tarball: URL against the registry's current metadata before lifecycle
-# scripts run, so no hook can repair it. See SOURCES.md#lockfile-integrity.
+# strip-lockfile-hosts.mjs MUST check the tagged lockfile before the install:
+# pnpm verifies every recorded tarball: URL against the registry's current
+# metadata before lifecycle scripts run, so no hook can repair it. See
+# SOURCES.md#lockfile-integrity.
 #
 # Nothing here uses `pnpm run`. Under this workspace `pnpm run <script>`
 # re-resolves and rewrites rotating ms-feed-N hosts into pnpm-lock.yaml BEFORE
-# the script body executes (monimal#26), which would poison the very lockfile
-# the line above just repaired.
+# the script body executes (monimal#26), which would poison the tagged input
+# this check requires to remain unchanged.
 # ---------------------------------------------------------------------------
-node scripts/strip-lockfile-hosts.mjs
+node scripts/strip-lockfile-hosts.mjs --check
 pnpm install --frozen-lockfile
 
 # Reused rather than reimplemented: it already asserts the RUNNING Node major

@@ -1,40 +1,43 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Prints the tag released immediately BEFORE <tag>, or nothing if there is none.
+# Prints the published release immediately BEFORE <tag>, or nothing if there is
+# none. If <tag> is not published, prints the latest published release.
 #
-#   Usage: scripts/release/prev-tag.sh --tag <tag> --tags-file <file>
+#   Usage: scripts/release/prev-tag.sh --tag <tag> --releases-file <file>
 #
-# <file> is `git tag --list 'v*' --sort=-creatordate`: newest first, one per
-# line. Taking the list as a file rather than shelling out to git is what makes
-# this testable without fabricating a repository full of dated tags.
+# <file> is the JSON emitted by:
 #
-# WHAT THIS FIXES
+#   gh api --paginate --slurp "repos/<owner>/<repo>/releases?per_page=100"
 #
-# The previous form was `git tag --list ... | grep -vxF "$TAG" | head -1`, which
-# takes the newest tag that is not <tag> — and that may be NEWER than <tag>.
-# Re-releasing an older tag then compared its bundle identity against a LATER
-# release, so the identity gate answered a question nobody asked. It only stayed
-# invisible because releases had always been cut newest-first.
-#
-# Position in the list, not "anything but me": the entry after <tag> in a
-# newest-first ordering IS the previous release, by construction.
+# `--slurp` produces one stable outer array around the page arrays. The resolver
+# accepts a single flat page too, so synthetic records remain small in selftest.
+# Drafts and releases without published_at are ignored. Published releases sort
+# newest first by published_at; when the target is present, its following entry
+# is its predecessor. This prevents an old-release rerun from comparing against
+# a newer release.
 
 fail() { echo "::error::$*" >&2; exit 1; }
-usage() { echo "Usage: $(basename "$0") --tag <tag> --tags-file <file>" >&2; exit 2; }
+usage() { echo "Usage: $(basename "$0") --tag <tag> --releases-file <file>" >&2; exit 2; }
 
-TAG=""; TAGS_FILE=""
+TAG=""; RELEASES_FILE=""
 while [ $# -gt 0 ]; do
   case "$1" in
-    --tag)       TAG="${2:-}"; shift 2 ;;
-    --tags-file) TAGS_FILE="${2:-}"; shift 2 ;;
+    --tag)           TAG="${2:-}"; shift 2 ;;
+    --releases-file) RELEASES_FILE="${2:-}"; shift 2 ;;
     *) usage ;;
   esac
 done
-if [ -z "$TAG" ] || [ -z "$TAGS_FILE" ]; then usage; fi
-[ -f "$TAGS_FILE" ] || fail "${TAGS_FILE} is missing; the tag list cannot be read."
+if [ -z "$TAG" ] || [ -z "$RELEASES_FILE" ]; then usage; fi
+[ -f "$RELEASES_FILE" ] || fail "${RELEASES_FILE} is missing; the release records cannot be read."
+command -v jq >/dev/null 2>&1 || fail "jq is required to resolve the previous release."
 
-# Prints the line after the one equal to $TAG, then stops. Empty output means
-# $TAG is the oldest tag, or is absent from the list entirely — both of which
-# the caller must treat as "nothing to compare against".
-awk -v t="$TAG" 'found { print; exit } $0 == t { found = 1 }' "$TAGS_FILE"
+jq -r --arg tag "$TAG" '
+  [ .[] | if type == "array" then .[] else . end
+    | select(.draft != true and .published_at != null) ]
+  | sort_by(.published_at) | reverse
+  | . as $published
+  | ($published | map(.tag_name) | index($tag)) as $target_index
+  | if $target_index == null then $published[0] else $published[$target_index + 1] end
+  | .tag_name // empty
+' "$RELEASES_FILE"

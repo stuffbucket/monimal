@@ -21,7 +21,7 @@
  * Integrity is not touched. The proxy is the supply-chain control and the hash
  * only detects transit corruption; see SOURCES.md#lockfile-integrity.
  *
- * Usage: node scripts/strip-lockfile-hosts.mjs
+ * Usage: node scripts/strip-lockfile-hosts.mjs [--check]
  */
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
@@ -35,6 +35,12 @@ import shardHosts from './lockfile-shard-hosts.cjs';
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const { SHARD_HOST } = shardHosts;
 const LOCKFILE = 'pnpm-lock.yaml';
+const CHECK_ONLY = process.argv.slice(2).includes('--check');
+
+if (process.argv.length !== (CHECK_ONLY ? 3 : 2)) {
+  console.error(`Usage: node scripts/strip-lockfile-hosts.mjs [--check]`);
+  process.exit(1);
+}
 
 const absolute = path.join(ROOT, LOCKFILE);
 if (!existsSync(absolute)) {
@@ -58,7 +64,16 @@ if (stripped === 0) {
   process.exit(0);
 }
 
-writeFileSync(absolute, lines.join('\n'));
+const repaired = lines.join('\n');
+if (CHECK_ONLY) {
+  console.error(
+    `${LOCKFILE}: contains ${String(stripped)} shard-host URL(s). ` +
+      'Run node scripts/strip-lockfile-hosts.mjs, commit the repaired lockfile, and retag the release.',
+  );
+  process.exit(1);
+}
+
+writeFileSync(absolute, repaired);
 const after = readFileSync(absolute, 'utf8');
 console.log(
   `${LOCKFILE}: stripped ${String(stripped)} shard-host URL(s); ` +

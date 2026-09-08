@@ -1,7 +1,6 @@
 # Releasing
 
-Owner of the release process. [AGENTS.md](AGENTS.md) carries the rules; this
-file carries the mechanics.
+Owner of the release requirements and process.
 
 This repository produces two artifacts, both attached to a **draft** GitHub
 Release and both containing the same notarized, **stapled** `Maximal.app`: a
@@ -23,7 +22,8 @@ every Apple secret; this repository only asks it to build a tag.
 **This repository never signs anything.** The producer runs with the builder's
 signing keychain LOCKED and `SIGN_IDENTITY` set to the ad-hoc identity `-`, so
 it could not use the Developer ID even if it tried. It is never handed `APPLE_*`
-or `KEYCHAIN_PASSWORD` either.
+or `KEYCHAIN_PASSWORD` either. Apple ID signing and notarization MUST run through
+`stuffbucket/macos-builder`.
 
 An Electron bundle nests four Helper apps and the Electron Framework, and a
 bundle must be signed as a *directory* so the seal covers its `Info.plist` and
@@ -45,6 +45,12 @@ and the builder never reads it. See [SOURCES.md](SOURCES.md).
 
 ## Cutting a release
 
+A release tag MUST match `vMAJOR.MINOR.PATCH` with an optional SemVer
+prerelease suffix: dot-separated nonempty `[0-9A-Za-z-]` identifiers whose
+numeric identifiers have no leading zero. Build metadata is not accepted. It
+MUST point at a commit contained in `main` or a `release/*` branch. The
+`verify` job checks both before any builder dispatch.
+
 ```sh
 git switch main && git pull
 git tag -a v0.5.0-rc.1 -m "v0.5.0-rc.1"
@@ -54,13 +60,17 @@ git push origin v0.5.0-rc.1
 That is the whole trigger. The tag is the single owner of the version:
 `packages/maximal/client/package.json` stays at `0.0.0` and the producer stamps
 `${TAG#v}` into it at build time, so there is no manifest to bump and no way for
-a tag and a bundle version to disagree.
+a tag and a bundle version to disagree. A released version MUST come from the
+tag and MUST NOT be committed to the manifest; `scripts/release/contract.sh`
+checks the tagged manifest in the release preflight and its self-test runs in
+the ordinary PR gate.
 
 `release.yml` then, in order:
 
 1. **verify** — tag shape (ours *and* the builder's), the tag is contained in
-   `main` or a `release/*` branch, every check run on that commit succeeded, and
-   `.macos-builder/config` agrees with `forge.config.ts` about the bundle id.
+   `main` or a `release/*` branch, the root CI workflow completed successfully
+   on that exact commit, and `.macos-builder/config` agrees with
+   `forge.config.ts` about the bundle id.
 2. **draft** — creates the draft release, or reuses an existing one. Any tag
    with a hyphenated suffix is marked prerelease.
 3. **dispatch** — asks the builder to build the tag. Gated on the `release`
@@ -76,12 +86,43 @@ of them against fixtures in the ordinary PR gate. They were inline once, where
 they first executed during a real release — which is how `v0.5.0-rc.4` failed on
 four artifacts that were entirely correct.
 
-**The workflow never publishes.** It ends with a filled, verified draft.
-Publishing is deliberate and manual, after the acceptance test below:
+### Required CI and repository settings
 
-```sh
-gh release edit v0.5.0-rc.1 --draft=false
-```
+The release verifier resolves `.github/workflows/ci.yml` through the GitHub
+Actions workflow API, then lists only that workflow's runs with `head_sha` equal
+to the tagged commit. At least one returned run MUST have `status=completed` and
+`conclusion=success`. A missing, queued, or in-progress run fails the release;
+`failure`, `cancelled`, `skipped`, `neutral`, and every other conclusion also
+fail closed. Release workflow runs and unrelated check suites cannot satisfy
+this assertion because they are not runs of the resolved CI workflow.
+
+The repository's `main` branch ruleset MUST require the status check
+`build / typecheck / lint / test`, emitted by the root CI workflow's
+`check` job. GitHub does not grant ordinary workflow tokens repository
+administration visibility, so PR CI cannot reliably read or assert that ruleset
+or its bypass actors. The release workflow independently enforces a successful
+root CI run on every tag; an administrator changing the `main` ruleset MUST
+preserve that required status check or restore it before merging further
+releases.
+
+`release.yml` never publishes. It ends with a filled, verified draft. A release
+MUST remain a draft until the acceptance test below passes. The dispatch-only
+[`publish-release.yml`](.github/workflows/publish-release.yml) workflow is the
+sole normal publisher. It runs only when dispatched from the default branch,
+uses the trusted publisher scripts from that branch, and independently reads
+the artifact contract from the target tag. This permits a publisher fix without
+letting a branch dispatch substitute another tag's contract.
+
+The `release-publish` environment is a repository setting, not a file:
+
+- It MUST require `stuffbucket` as a reviewer.
+- It MUST permit self-review, because `stuffbucket` is the sole active releaser.
+- It MUST permit deployment-administrator bypass as the manual recovery path.
+- Its deployment branch policy MUST permit only `main`.
+
+The normal path still records a distinct environment approval. Administrator
+bypass remains explicit in the deployment history rather than replacing the
+review gate for every publication.
 
 ### Recovery
 
@@ -116,6 +157,8 @@ CI proves presence, checksum and container shape. That is the ceiling from
 Ubuntu, and a GitHub-hosted macOS runner is not an option
 ([AGENTS.md](AGENTS.md) → CI). The rest is proven by hand:
 
+This test MUST run on a Mac that has never held the signing identity.
+
 ```sh
 scripts/verify-dmg.sh v0.5.0-rc.2
 ```
@@ -133,8 +176,11 @@ It answers three questions, and all three must pass:
 | Will it treat this as the same app as the version already installed? | Step 12, against the previous release's actual dmg. See [Upgrades](#upgrades). |
 | Is the zip the same app, and stapled? | Step 13. See [Offline launch](#offline-launch). |
 
-The previous release is picked automatically. Pass a second argument to choose
-one (`scripts/verify-dmg.sh v0.5.0 v0.5.0-rc.2`), or `none` to skip.
+The previous release is picked automatically from published GitHub Releases:
+if the target is published, it uses the release immediately before it by
+publication time; otherwise it uses the latest published release. Drafts do not
+establish a predecessor. Pass a second argument to choose one
+(`scripts/verify-dmg.sh v0.5.0 v0.5.0-rc.2`), or `none` to skip.
 
 `stapler` is not on `PATH`, so the script calls it through `xcrun`, which finds
 it in the Command Line Tools (`/Library/Developer/CommandLineTools/usr/bin/`) —
@@ -144,8 +190,19 @@ step 4 goes unchecked.
 
 Finish the three manual steps it prints — offline launch, quarantine
 inheritance, and upgrade over the installed version. Those are the ones that
-cannot be scripted honestly. **That output is the definition of done**; paste it
-into the release notes before publishing.
+cannot be scripted honestly. The script requires an explicit `yes` for each
+before it writes `acceptance-evidence-<tag>.txt`; automation may use all three
+`--attest-*` flags only after those checks have actually passed.
+
+The evidence records the repository, tag, downloaded dmg and zip names and
+SHA-256 values, selected predecessor, bundle identifier, SHA-256 of the
+designated requirement, and `CFBundleVersion`. It also records all three manual
+attestations and its timestamp. The script prints its base64 and SHA-256.
+Dispatch `Publish Release` from `main` with the tag, that base64, and that
+digest. The protected workflow rejects evidence older than seven days, a
+published or missing draft, changed assets, a changed predecessor, or any
+evidence that disagrees with the target tag's contract, then publishes the
+draft. The accepted evidence is copied to the workflow summary for audit.
 
 ## Upgrades
 
@@ -154,7 +211,7 @@ as an unrelated app. Three facts decide it:
 
 | Fact | Owner | Checked by |
 | --- | --- | --- |
-| `CFBundleIdentifier` | [`.macos-builder/config`](.macos-builder/config) | `release.yml` against the previous tag, then `verify-dmg.sh` step 12 against the previous artifact |
+| `CFBundleIdentifier` | [`.macos-builder/config`](.macos-builder/config) | `release.yml` against the previous published release, then `verify-dmg.sh` step 12 against the previous artifact |
 | The designated requirement — that identifier plus the Apple Team ID | The builder's Developer ID | `verify-dmg.sh` step 12 |
 | `CFBundleVersion` | [`.macos-builder/build.sh`](.macos-builder/build.sh) | `build.sh` at package time, then `verify-dmg.sh` step 12 for the increase |
 
@@ -163,14 +220,20 @@ TCC grants reset, keychain items orphan, `~/Library/Application Support/Maximal`
 is abandoned, and a future in-app updater refuses the swap. No part of the build
 fails when that happens — a release is internally consistent with itself either
 way — so both are compared against what actually shipped last rather than
-against a constant restated in a check.
+against a constant restated in a check. An ordinary release MUST preserve both
+the bundle identifier and the signing Team ID.
 
 `CFBundleVersion` is deliberately **not** the tag. Apple requires one to three
 period-separated integers and LaunchServices stops parsing at the first
 non-digit, so `0.5.0-rc.2` would collapse to `0.5.0` and compare equal to the
 final release, leaving macOS no reason to prefer either copy. The producer
 derives `YYYY.MMDD.HHMM` from the tagged commit's committer date instead.
-`CFBundleShortVersionString` keeps the tag, and is the version users see.
+`CFBundleShortVersionString` keeps the tag, and is the version users see. Every
+release MUST carry a one-to-three-component numeric `CFBundleVersion` greater
+than its predecessor. Before creating a draft or dispatching the builder,
+`release.yml` derives both versions from their tagged commits and rejects an
+invalid or non-increasing candidate; `scripts/verify-dmg.sh` keeps the
+artifact-level comparison as the final backstop.
 
 A rename is a migration, not a release. `release.yml` refuses one; re-run the
 workflow from the Actions tab with `allow_identity_change=true` once you have

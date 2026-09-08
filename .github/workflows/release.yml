@@ -53,10 +53,15 @@ defaults:
 
 jobs:
   verify:
+    # A dispatch executes the workflow definition from its selected branch.
+    # Only the default branch may start recovery; tag pushes remain valid and
+    # are constrained below to commits on a released line.
+    if: github.event_name == 'push' || github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     name: verify tag
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
+      actions: read
       contents: read
       checks: read
     outputs:
@@ -79,34 +84,16 @@ jobs:
           INPUT_TAG: ${{ inputs.tag }}
         run: |
           TAG="${INPUT_TAG:-${GITHUB_REF_NAME}}"
-          [ -n "$TAG" ] || { echo "::error::No tag to release."; exit 1; }
-
-          # Our shape.
-          if ! printf '%s' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$'; then
-            echo "::error::Tag '${TAG}' is not vMAJOR.MINOR.PATCH[-prerelease]."
-            exit 1
-          fi
-          # The builder's shape, asserted HERE so a bad ref fails in seconds
-          # rather than minutes after dispatch with no artifact and no cause.
-          # It rejects anything containing a slash or a non-numeric prefix, so
-          # `release/0.5` and `client-v1.0.0` are unbuildable by construction.
-          if ! printf '%s' "$TAG" | grep -Eq '^v?[0-9][0-9A-Za-z.+~_-]{0,99}$'; then
-            echo "::error::Tag '${TAG}' is rejected by the builder's ref pattern."
-            exit 1
-          fi
+          TAG_OUTPUT="$(scripts/release/tag.sh "$TAG")"
+          printf '%s\n' "$TAG_OUTPUT" >> "$GITHUB_OUTPUT"
+          PRE="$(sed -n 's/^prerelease=//p' <<< "$TAG_OUTPUT")"
 
           git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null \
             || { echo "::error::Tag '${TAG}' does not exist in this repository."; exit 1; }
           SHA="$(git rev-list -n1 "$TAG")"
 
-          # A prerelease is any tag carrying a hyphenated suffix.
-          PRE=false
-          case "$TAG" in *-*) PRE=true ;; esac
-
           {
-            echo "tag=${TAG}"
             echo "sha=${SHA}"
-            echo "prerelease=${PRE}"
           } >> "$GITHUB_OUTPUT"
           echo "Releasing ${TAG} at ${SHA} (prerelease=${PRE})"
 
@@ -136,52 +123,23 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           SHA: ${{ steps.resolve.outputs.sha }}
         run: |
-          # Deliberately does not name individual job names. ci.yml owns those;
-          # restating them here creates a second owner that drifts silently.
-          RUNS="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${SHA}/check-runs?per_page=100" \
-                    --jq '.check_runs[] | "\(.name)|\(.conclusion)|\(.details_url)"')"
-
-          # Drop every check run belonging to THIS workflow — the current attempt
-          # AND any earlier one on the same commit.
-          #
-          # The current run's jobs are still in progress and would read as
-          # conclusion=null. An EARLIER attempt is worse: a release run that was
-          # cancelled or timed out leaves its jobs behind as check runs with
-          # conclusion=cancelled/failure, and this step would then read the
-          # previous attempt as failed CI and refuse the retry. That is precisely
-          # the situation RELEASING.md tells you to recover from by re-running
-          # with the same tag, so filtering on GITHUB_RUN_ID alone made the
-          # documented recovery path unusable exactly when it was needed.
-          #
-          # Resolved by workflow id rather than by filename or job names: this
-          # file is not a second owner of either.
-          WF_ID="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" --jq .workflow_id)"
-          SELF_IDS="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${WF_ID}/runs?per_page=100" \
-                        --jq '.workflow_runs[].id')"
-          OTHERS="$RUNS"
-          for rid in $SELF_IDS; do
-            OTHERS="$(printf '%s\n' "$OTHERS" | grep -vF "/actions/runs/${rid}/" || true)"
-          done
-
-          if [ -z "$OTHERS" ]; then
-            echo "::error::No check runs on ${SHA} apart from this release run. Was CI ever run on this commit?"
-            exit 1
-          fi
-          printf '%s\n' "$OTHERS" | awk -F'|' '{printf "  %s = %s\n", $1, $2}'
-
-          # An unfinished check reports conclusion=null, which is a different
-          # problem from a failed one: the tag was pushed before CI settled.
-          PENDING="$(printf '%s\n' "$OTHERS" | awk -F'|' '$2 == "null" || $2 == "" { print $1 }')"
-          if [ -n "$PENDING" ]; then
-            echo "::error::CI has not finished on ${SHA}; still running: $(printf '%s' "$PENDING" | tr '\n' ' ')"
+          # Resolve the required workflow by its API path, then query only its
+          # runs. Job/check display names belong to ci.yml and are deliberately
+          # not duplicated here. The narrow endpoint also excludes this release
+          # workflow and every unrelated check, including their retry history.
+          CI_ID="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml" --jq .id)"
+          CI_PATH="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${CI_ID}" --jq .path)"
+          if [ "$CI_PATH" != ".github/workflows/ci.yml" ]; then
+            echo "::error::Workflow ${CI_ID} resolved to ${CI_PATH}, not the repository CI workflow."
             exit 1
           fi
 
-          BAD="$(printf '%s\n' "$OTHERS" | awk -F'|' '$2 != "success" && $2 != "skipped" && $2 != "neutral" { print $1 "=" $2 }')"
-          if [ -n "$BAD" ]; then
-            echo "::error::Non-success checks on ${SHA}: $(printf '%s' "$BAD" | tr '\n' ' ')"
-            exit 1
-          fi
+          RUNS="$RUNNER_TEMP/ci-workflow-runs.json"
+          gh api --paginate --slurp \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/${CI_ID}/runs?head_sha=${SHA}&per_page=100" \
+            > "$RUNS"
+          node scripts/release/assert-ci-run.mjs \
+            --sha "$SHA" --workflow-id "$CI_ID" --runs-file "$RUNS"
 
       - name: Read the builder contract
         id: config
@@ -205,6 +163,8 @@ jobs:
             || { echo "::error::${TAG} has no .macos-builder/config."; exit 1; }
           git show "${TAG}:packages/maximal/client/forge.config.ts" > "$D/forge.config.ts" \
             || { echo "::error::${TAG} has no client forge.config.ts."; exit 1; }
+          git show "${TAG}:packages/maximal/client/package.json" > "$D/package.json" \
+            || { echo "::error::${TAG} has no client package.json."; exit 1; }
 
           # tee, not a redirect, so the resolved names appear in the log too.
           # `tee` consumes all of its input, so there is no early-exit reader
@@ -212,13 +172,15 @@ jobs:
           scripts/release/contract.sh \
             --config "$D/config" \
             --forge "$D/forge.config.ts" \
+            --manifest "$D/package.json" \
             --tag "$TAG" | tee -a "$GITHUB_OUTPUT"
 
-      - name: Assert the app identity has not changed since the previous tag
+      - name: Assert the app identity has not changed since the previous release
         env:
           TAG: ${{ steps.resolve.outputs.tag }}
           BUNDLE_ID: ${{ steps.config.outputs.bundle_id }}
           ALLOW: ${{ inputs.allow_identity_change }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           # macOS decides whether a new build is an UPGRADE of an installed one,
           # or an unrelated app, from the bundle identifier and the code
@@ -227,21 +189,51 @@ jobs:
           # nothing else in this pipeline notices, because both halves of the
           # comparison are internally consistent within a single release.
           #
-          # Checked here: the bundle id, against the previous tag's contract.
+          # Checked here: the bundle id, against the previous published
+          # release's contract.
           # NOT checked here: the designated requirement, which needs the signed
           # artifact and therefore a Mac. scripts/verify-dmg.sh step 12 owns that
           # half, against the previously released dmg, before publishing.
           #
-          # Compared against the previous TAG rather than the previous RELEASE:
-          # a draft release is invisible to `contents: read`, and this job has no
-          # reason to hold more than that.
-          # The entry AFTER $TAG in a newest-first listing. Not "the newest tag
-          # that is not $TAG", which returns a NEWER release when an older tag
-          # is re-released. scripts/release/selftest.sh covers both.
-          git tag --list 'v*' --sort=-creatordate > "$RUNNER_TEMP/tags"
-          PREV="$(scripts/release/prev-tag.sh --tag "$TAG" --tags-file "$RUNNER_TEMP/tags")"
+          # Only published Releases establish an installed upgrade predecessor.
+          # The resolver sorts their published_at timestamps, so an old-release
+          # rerun cannot compare against a newer release. `--slurp` gives it one
+          # stable JSON array even when pagination yields multiple API pages.
+          gh api --paginate --slurp "repos/${GITHUB_REPOSITORY}/releases?per_page=100" > "$RUNNER_TEMP/releases.json"
+          PREV="$(scripts/release/prev-tag.sh --tag "$TAG" --releases-file "$RUNNER_TEMP/releases.json")"
+
+          # CFBundleVersion is derived from each tag's commit timestamp, not
+          # from the SemVer tag. Check its numeric form and strict upgrade
+          # order before a draft or macos-builder dispatch can be created.
+          TAG_TS="$(git log -1 --format=%ct "$TAG" 2>/dev/null || true)"
+          [ -n "$TAG_TS" ] \
+            || { echo "::error::Could not read ${TAG}'s commit timestamp; CFBundleVersion cannot be derived."; exit 1; }
+          CANDIDATE="$(scripts/release/build-version.sh derive --timestamp "$TAG_TS")"
           if [ -z "$PREV" ]; then
-            echo "::notice::${TAG} is the first tag; nothing is upgrading from anything yet."
+            scripts/release/build-version.sh check --candidate "$CANDIDATE" --previous none
+            echo "::notice::${TAG} has no published predecessor; CFBundleVersion ${CANDIDATE} is well formed."
+          else
+            # A predecessor without this assignment did not use the
+            # timestamp-derived scheme, so guessing an upgrade comparison
+            # would turn a migration into a silent pass.
+            PREV_BUILD="$(git show "${PREV}:.macos-builder/build.sh" 2>/dev/null || true)"
+            if [ -z "$PREV_BUILD" ] || ! grep -qF 'MAXIMAL_BUILD_VERSION' <<< "$PREV_BUILD"; then
+              echo "::error::${PREV} predates the timestamp-derived CFBundleVersion scheme. Investigate the published artifact and establish an explicit upgrade baseline before releasing ${TAG}."
+              exit 1
+            fi
+            PREV_TS="$(git log -1 --format=%ct "$PREV" 2>/dev/null || true)"
+            [ -n "$PREV_TS" ] \
+              || { echo "::error::Could not read ${PREV}'s commit timestamp; investigate the published upgrade baseline before releasing ${TAG}."; exit 1; }
+            if ! PREVIOUS="$(scripts/release/build-version.sh derive --timestamp "$PREV_TS")"; then
+              echo "::error::Could not derive ${PREV}'s timestamp-based CFBundleVersion; investigate the published upgrade baseline before releasing ${TAG}."
+              exit 1
+            fi
+            scripts/release/build-version.sh check --candidate "$CANDIDATE" --previous "$PREVIOUS"
+            echo "::notice::CFBundleVersion ${CANDIDATE} (${TAG}) is greater than ${PREVIOUS} (${PREV})."
+          fi
+
+          if [ -z "$PREV" ]; then
+            echo "::notice::${TAG} has no published predecessor; nothing is upgrading from anything yet."
             exit 0
           fi
 
@@ -441,4 +433,6 @@ jobs:
             echo "\`\`\`sh"
             echo "scripts/verify-dmg.sh ${TAG}"
             echo "\`\`\`"
+            echo
+            echo "After its three manual attestations, dispatch \`Publish Release\` from \`main\` with the evidence base64 and SHA-256 it prints."
           } >> "$GITHUB_STEP_SUMMARY"
