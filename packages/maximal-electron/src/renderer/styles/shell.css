@@ -824,6 +824,10 @@ body {
   overflow: hidden;
 }
 
+.terminal[data-focused='true'] {
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
 .terminal canvas {
   display: block;
 }

@@ -25,9 +25,10 @@ function currentTheme() {
   )
 }
 
-export function Terminal({ tabs, activeId, onTitleChange }: {
+export function Terminal({ tabs, activeId, onExit, onTitleChange }: {
   tabs: TerminalTab[]
   activeId: string
+  onExit: (id: string) => void
   onTitleChange: (id: string, title: string) => void
 }): ReactElement {
   const launchSplit = useCallback(async () => {
@@ -41,6 +42,7 @@ export function Terminal({ tabs, activeId, onTitleChange }: {
       attachments={tabs}
       disposition="terminate"
       launchSplit={launchSplit}
+      onExit={onExit}
       onTitleChange={onTitleChange}
       theme={currentTheme()}
       transport={terminalTransport}

@@ -199,6 +199,7 @@ export function App(): ReactElement {
           <Terminal
             tabs={terminalTabs}
             activeId={current?.id ?? ''}
+            onExit={closeTab}
             onTitleChange={updateTerminalTitle}
           />
         ) : null}

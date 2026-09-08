@@ -63,8 +63,11 @@ vi.mock('./traffic/Traffic', () => ({
   Traffic: () => <div data-testid="traffic">Traffic content</div>,
 }))
 vi.mock('./terminal/Terminal', () => ({
-  Terminal: ({ activeId }: { activeId: string }) => (
-    <div data-testid="terminal" data-active-id={activeId}>Terminal content</div>
+  Terminal: ({ activeId, onExit }: { activeId: string; onExit: (id: string) => void }) => (
+    <div data-testid="terminal" data-active-id={activeId}>
+      Terminal content
+      <button onClick={() => onExit(activeId)}>Exit shell</button>
+    </div>
   ),
 }))
 vi.mock('./terminal/transport', () => ({
@@ -197,6 +200,34 @@ describe('App routing', () => {
       'terminal:session-1',
     )
     expect(shell.querySelector('[data-testid="settings"]')).toBeNull()
+  })
+
+  it('closes a terminal document when its final shell exits', async () => {
+    accountStatus.mockResolvedValue({ state: 'authenticated' })
+    const shell = await renderApp()
+    const newTerminal = [...shell.querySelectorAll('button')].find(
+      (button) => button.textContent === 'New terminal',
+    )
+    if (newTerminal === undefined) throw new Error('New terminal action was not rendered')
+
+    act(() => newTerminal.click())
+    const launch = [...shell.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Launch zsh',
+    )
+    if (launch === undefined) throw new Error('Terminal launcher was not rendered')
+    act(() => launch.click())
+
+    const exit = [...shell.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Exit shell',
+    )
+    if (exit === undefined) throw new Error('Terminal exit action was not rendered')
+    act(() => exit.click())
+
+    expect(shell.querySelector('[data-testid="terminal"]')).toBeNull()
+    expect(shell.querySelector('[data-testid="settings"]')).not.toBeNull()
+    expect(shell.querySelector('[data-testid="app-frame"]')?.getAttribute('data-view')).toBe(
+      'settings',
+    )
   })
 
   it('opens a native section request without exposing authenticated views', async () => {
