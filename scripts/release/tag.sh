@@ -34,7 +34,7 @@ case "$TAG" in
     for IDENTIFIER in "$@"; do
       case "$IDENTIFIER" in
         *[!0-9]*) ;;
-        0|[1-9][0-9]*) ;;
+        0|[1-9]|[1-9][0-9]*) ;;
         *) fail "Tag '${TAG}' has a prerelease numeric identifier with a leading zero." ;;
       esac
     done
