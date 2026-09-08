@@ -130,6 +130,8 @@ test("the outer and fixed inner test scripts cannot recurse", () => {
     "MAXIMAL_TEST_CONTAINER",
     "MAXIMAL_TEST_TRACE",
   ]);
+  assert.equal(turbo.tasks.package.cache, false);
+  assert.equal(turbo.tasks.package.outputs, undefined);
 });
 
 test("required CI runs native checks before Docker and has one cache writer", () => {
@@ -150,12 +152,11 @@ test("required CI runs native checks before Docker and has one cache writer", ()
   assert.ok(workflow.indexOf(hostGate) < workflow.indexOf(dockerGate));
   assert.ok(workflow.indexOf(packageMechanics) < workflow.indexOf(dockerGate));
   assert.ok(workflow.indexOf(sidecarProvenance) < workflow.indexOf(dockerGate));
-  assert.equal(
-    workflow.split("uses: actions/cache@").length - 1,
-    2,
-    "only the check Turbo cache and Electron download cache may save",
-  );
-  assert.equal(workflow.split("uses: actions/cache/restore@").length - 1, 1);
+  assert.equal(workflow.split("uses: actions/cache/save@").length - 1, 1);
+  assert.equal(workflow.split("uses: actions/cache@").length - 1, 1);
+  assert.equal(workflow.split("uses: actions/cache/restore@").length - 1, 2);
+  assert.match(workflow, /if: github\.event_name == 'push'/);
+  assert.equal(workflow.split("turbo-v2-").length - 1, 6);
 });
 
 test("runtime arguments enforce the mountless offline boundary", () => {
