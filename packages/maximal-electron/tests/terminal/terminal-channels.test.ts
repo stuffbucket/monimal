@@ -3,8 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   registerTerminalChannels,
   type TerminalChannelHost,
-} from '../src/host/terminal-host.js';
-import { BRIDGE_KEY, IPC_CHANNELS, IPC_EVENTS } from '../src/shared/ipc.js';
+} from '../../src/host/terminal-host.js';
+import { BRIDGE_KEY, IPC_CHANNELS, IPC_EVENTS } from '../../src/shared/ipc.js';
 
 /**
  * The two halves of the terminal wire name the same channels.
@@ -36,23 +36,23 @@ vi.mock('electron', () => ({
   },
 }));
 
-vi.mock('../src/main/native/agent.js', () => ({
+vi.mock('../../src/main/native/agent.js', () => ({
   abortAgent: vi.fn(),
   discoverProvider: vi.fn(),
   isAgentBusy: vi.fn(),
   resolveApproval: vi.fn(),
   runAgent: vi.fn(),
 }));
-vi.mock('../src/main/native/llama.js', () => ({ ensureModel: vi.fn() }));
-vi.mock('../src/main/native/notifications.js', () => ({
+vi.mock('../../src/main/native/llama.js', () => ({ ensureModel: vi.fn() }));
+vi.mock('../../src/main/native/notifications.js', () => ({
   setBadgeCount: vi.fn(),
   showNotification: vi.fn(),
 }));
-vi.mock('../src/main/native/preferences.js', () => ({
+vi.mock('../../src/main/native/preferences.js', () => ({
   getPreferences: vi.fn(),
   setPreferences: vi.fn(),
 }));
-vi.mock('../src/main/native/pty.js', () => ({
+vi.mock('../../src/main/native/pty.js', () => ({
   defaultShell: vi.fn(),
   killPty: vi.fn(),
   listPtys: vi.fn(() => []),
@@ -60,13 +60,13 @@ vi.mock('../src/main/native/pty.js', () => ({
   spawnPty: vi.fn(),
   writePty: vi.fn(),
 }));
-vi.mock('../src/main/native/updates.js', () => ({ checkForUpdates: vi.fn() }));
-vi.mock('../src/main/windows/overlay.js', () => ({
+vi.mock('../../src/main/native/updates.js', () => ({ checkForUpdates: vi.fn() }));
+vi.mock('../../src/main/windows/overlay.js', () => ({
   hideOverlay: vi.fn(),
   toggleOverlay: vi.fn(),
 }));
 
-const main = await import('../src/main/ipc.js');
+const main = await import('../../src/main/ipc.js');
 
 /* --------------------------------------------------- the renderer half */
 
@@ -88,7 +88,7 @@ const subscribed: string[] = [];
 };
 
 const { bridgeTerminalTransport } = await import(
-  '../src/renderer/lib/bridge-terminal.js'
+  '../../src/renderer/lib/bridge-terminal.js'
 );
 
 await bridgeTerminalTransport.spawn({ id: 'one', cols: 80, rows: 24 });
@@ -96,6 +96,7 @@ await bridgeTerminalTransport.write('one', 'ls\r');
 await bridgeTerminalTransport.resize('one', 100, 40);
 await bridgeTerminalTransport.terminate('one');
 await bridgeTerminalTransport.list();
+await bridgeTerminalTransport.ack?.('one', 1);
 bridgeTerminalTransport.subscribe('one', () => undefined);
 
 /* ------------------------------------------------------- the main half */
@@ -137,10 +138,10 @@ describe('the terminal channels', () => {
     expect(new Set(names)).toEqual(new Set(called));
   });
 
-  it('reaches five request channels and two events', () => {
+  it('reaches six request channels and two events', () => {
     // A transport that used one name for two operations would pass the set
     // comparison above, because a set does not count.
-    expect(called).toHaveLength(5);
+    expect(called).toHaveLength(6);
     expect(new Set(called).size).toBe(called.length);
     expect(subscribed).toHaveLength(2);
     expect(new Set(subscribed).size).toBe(subscribed.length);
@@ -148,7 +149,7 @@ describe('the terminal channels', () => {
 
   it('names only channels and events this shell declares', () => {
     const names = [...called, ...subscribed];
-    expect(names).toHaveLength(7);
+    expect(names).toHaveLength(8);
     expect(called.filter((channel) => !IPC_CHANNELS.includes(channel as never))).toEqual([]);
     expect(subscribed.filter((event) => !IPC_EVENTS.includes(event as never))).toEqual([]);
   });

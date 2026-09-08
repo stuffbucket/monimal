@@ -4,6 +4,8 @@ import {
   DEFAULT_PREFERENCES,
   IPC_CHANNELS,
   IPC_EVENTS,
+  isPtySpawnRequest,
+  isTerminalLaunchRequest,
   type IpcChannel,
   type IpcEvent,
 } from '../src/shared/ipc.js';
@@ -51,8 +53,8 @@ describe('IPC contract', () => {
     // noticing this list is not. Update it in the same change.
     const channels: IpcChannel[] = [...IPC_CHANNELS];
     const events: IpcEvent[] = [...IPC_EVENTS];
-    expect(channels).toHaveLength(20);
-    expect(events).toHaveLength(11);
+    expect(channels).toHaveLength(24);
+    expect(events).toHaveLength(12);
   });
 
   it('keeps the terminal channels together', () => {
@@ -63,10 +65,33 @@ describe('IPC contract', () => {
       'pty:spawn',
       'pty:write',
       'pty:resize',
+      'pty:ack',
       'pty:kill',
       'pty:list',
       'pty:default-shell',
     ]);
+  });
+
+  it('keeps launcher requests free of executable configuration', () => {
+    const request = { profileId: 'local', targetId: 'local', cols: 80, rows: 24 };
+    expect(Object.keys(request)).toEqual(['profileId', 'targetId', 'cols', 'rows']);
+    expect(Object.keys(request)).not.toContain('cwd');
+    expect(Object.keys(request)).not.toContain('env');
+    expect(Object.keys(request)).not.toContain('args');
+  });
+
+  it('rejects executable configuration and malformed dimensions at the terminal boundary', () => {
+    expect(isPtySpawnRequest({ id: 'session', cols: 80, rows: 24 })).toBe(true);
+    expect(isPtySpawnRequest({ id: 'session', cols: 80, rows: 24, shell: '/bin/sh' })).toBe(false);
+    expect(isPtySpawnRequest({ id: 'session', cols: 80, rows: 24, args: ['-c', 'unsafe'] })).toBe(false);
+    expect(isPtySpawnRequest({ id: 'session', cols: 80, rows: 24, env: { PATH: '/tmp' } })).toBe(false);
+    expect(isPtySpawnRequest({ id: 'session', cols: 0, rows: 24 })).toBe(false);
+    expect(isTerminalLaunchRequest({ profileId: 'local', cols: 80, rows: 24 })).toBe(true);
+    expect(isTerminalLaunchRequest({ profileId: 'local', cols: 80, rows: 24, cwd: '/' })).toBe(false);
+  });
+
+  it('whitelists terminal lifecycle status events', () => {
+    expect(IPC_EVENTS).toContain('pty:status');
   });
 });
 

@@ -2,6 +2,9 @@
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
   "_comment": "Mutation testing. Runs in CI, in the `static` job, and breaks the build below 100. `mutate` is not a hand-list: `scripts/mutation-scope.mjs` derives the set every file under `src/` and `scripts/` that Stryker can run, and fails when one is on neither this list nor its deferred list. Anything importing `electron` or React for a value cannot be mutated here: it needs a real Electron runtime or a browser, not Node. `scripts/mutation-report.mjs` then reads the run back, because the score alone says nothing about how many mutants there were or what killed them. The shape follows stuffbucket/maximal's stryker.conf.json, with the Vitest runner instead of a command runner because the unit suite is already Vitest.",
   "packageManager": "npm",
+  "plugins": [
+    "@stryker-mutator/vitest-runner"
+  ],
   "testRunner": "vitest",
   "vitest": {
     "configFile": "vitest.config.mts"
@@ -11,6 +14,7 @@
     "src/shared/urls.ts",
     "src/host/main-options.ts",
     "src/host/crash-artifacts.ts",
+    "src/host/terminal-connector.ts",
     "src/preload/capabilities.ts",
     "src/renderer/lib/data.ts",
     "src/renderer/lib/theme.ts",
@@ -27,8 +31,14 @@
     "src/renderer/lib/account.ts",
     "src/renderer/lib/settings.ts",
     "src/main/native/pty-session.ts",
+    "src/main/native/tmux-control-protocol.ts",
+    "src/main/native/tmux-control-host.ts",
+    "src/main/native/terminal-launcher.ts",
+    "src/main/native/command-connectors.ts",
     "src/main/native/self-check.ts",
+    "src/renderer/lib/terminal-tab.ts",
     "src/renderer/lib/terminal-sessions.ts",
+    "src/renderer/lib/terminal-ack.ts",
     "src/renderer/lib/terminal-transport.ts",
     "scripts/terminal-package.mjs",
     "scripts/shell-variables.mjs",

@@ -1,12 +1,17 @@
 import { FitAddon, Terminal as GhosttyTerminal, init } from 'ghostty-web';
 import type { ITheme } from 'ghostty-web';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import type {
   DetachableTerminalTransport,
   TerminalDescriptor,
   TerminalTransport,
 } from '../lib/terminal-transport.js';
+import {
+  animationFrameScheduler,
+  TerminalAcknowledgements,
+  TerminalResizes,
+} from '../lib/terminal-ack.js';
 
 /**
  * A real terminal, driven by an injected transport.
@@ -25,7 +30,13 @@ import type {
 /** `init()` is shared, so several tabs opening at once await one load. */
 let wasmReady: Promise<void> | undefined;
 function ensureWasm(): Promise<void> {
-  wasmReady ??= init();
+  if (wasmReady === undefined) {
+    const loading = init().catch((error: unknown) => {
+      if (wasmReady === loading) wasmReady = undefined;
+      throw error;
+    });
+    wasmReady = loading;
+  }
   return wasmReady;
 }
 
@@ -36,7 +47,14 @@ interface TerminalViewCommonProps extends TerminalDescriptor {
   /** Literal colours. Resolve with `readTerminalTheme`. */
   theme?: ITheme;
   testId?: string;
+  focused?: boolean;
+  onFocus?: () => void;
+  onSplit?: (direction: TerminalSplitDirection) => void;
+  onNavigateSplit?: (direction: 'previous' | 'next') => void;
+  onTitleChange?: (title: string) => void;
 }
+
+export type TerminalSplitDirection = 'right' | 'down';
 
 /**
  * The view's own lifetime, and the session's, as two decisions.
@@ -50,6 +68,7 @@ export type TerminalViewProps = TerminalViewCommonProps &
   (
     | { disposition?: 'terminate'; transport: TerminalTransport }
     | { disposition: 'detach'; transport: DetachableTerminalTransport }
+    | { disposition: 'preserve'; transport: TerminalTransport }
   );
 
 /**
@@ -70,8 +89,21 @@ export function TerminalView({
   disposition = 'terminate',
   theme,
   testId = 'terminal',
+  focused = false,
+  onFocus,
+  onSplit,
+  onNavigateSplit,
+  onTitleChange,
 }: TerminalViewProps) {
   const host = useRef<HTMLDivElement>(null);
+  const terminal = useRef<GhosttyTerminal | undefined>(undefined);
+  const lifecycle = useRef({ id, generation: 0 });
+  const callbacks = useRef({ onSplit, onNavigateSplit, onTitleChange });
+  const shouldFocus = useRef(focused);
+  const [wasmFailed, setWasmFailed] = useState(false);
+  const [wasmAttempt, setWasmAttempt] = useState(0);
+  callbacks.current = { onSplit, onNavigateSplit, onTitleChange };
+  shouldFocus.current = focused;
 
   // The disposition is read at cleanup rather than at mount, so a caller that
   // changes it while a session runs gets the current answer.
@@ -84,11 +116,25 @@ export function TerminalView({
   useEffect(() => {
     const element = host.current;
     if (!element) return;
+    const generation = lifecycle.current.generation + 1;
+    lifecycle.current = { id, generation };
 
     let disposed = false;
     let term: GhosttyTerminal | undefined;
     let unsubscribe: (() => void) | undefined;
     let cleanupObserver: (() => void) | undefined;
+    const acknowledgements = new TerminalAcknowledgements(
+      (sequence) => {
+        if (!disposed) void transport.ack?.(id, sequence);
+      },
+      animationFrameScheduler,
+    );
+    const resizes = new TerminalResizes(
+      (cols, rows) => {
+        if (!disposed) void transport.resize(id, cols, rows);
+      },
+      animationFrameScheduler,
+    );
 
     void ensureWasm().then(() => {
       // The view can unmount while the WebAssembly module loads.
@@ -105,21 +151,61 @@ export function TerminalView({
       term.loadAddon(fit);
       term.open(host.current);
       fit.fit();
+      terminal.current = term;
+      if (shouldFocus.current) term.focus();
 
       // The emulator draws to a canvas, so there is no text in the DOM to
       // assert on. Exposing the instance lets a test read the real buffer.
       (host.current as TerminalHost).__terminal = term;
 
       term.onData((data) => {
-        void transport.write(id, data);
+        if (!disposed) void transport.write(id, data);
       });
 
       term.onResize(({ cols, rows }) => {
-        void transport.resize(id, cols, rows);
+        resizes.update(cols, rows);
+      });
+
+      term.attachCustomKeyEventHandler((event) => {
+        if (event.type !== 'keydown' || !event.metaKey) return false;
+        const key = event.key.toLowerCase();
+        if (key === 'd' && callbacks.current.onSplit) {
+          callbacks.current.onSplit(event.shiftKey ? 'down' : 'right');
+          return true;
+        }
+        if ((key === '[' || key === ']') && callbacks.current.onNavigateSplit) {
+          callbacks.current.onNavigateSplit(key === '[' ? 'previous' : 'next');
+          return true;
+        }
+        if (key === 'k') {
+          term?.clear();
+          return true;
+        }
+        if (key === 'a') {
+          term?.selectAll();
+          return true;
+        }
+        if (event.key === 'Home') {
+          term?.scrollToTop();
+          return true;
+        }
+        if (event.key === 'End') {
+          term?.scrollToBottom();
+          return true;
+        }
+        return false;
+      });
+
+      term.onTitleChange((title) => {
+        callbacks.current.onTitleChange?.(title);
       });
 
       unsubscribe = transport.subscribe(id, (event) => {
-        if (event.type === 'data') term?.write(event.data);
+        if (event.type === 'data') {
+          term?.write(event.data, () => {
+            if (event.sequence !== undefined) acknowledgements.consume(event.sequence);
+          });
+        }
         else {
           term?.write(
             `\r\n\x1b[2m[process exited with ${String(event.exitCode)}]\x1b[0m\r\n`,
@@ -127,23 +213,48 @@ export function TerminalView({
         }
       });
 
-      void transport.spawn({ id, cwd, shell, cols: term.cols, rows: term.rows });
+      const attached = transport.spawn({ id, cwd, shell, cols: term.cols, rows: term.rows });
 
       // The panel group resizes the host without a window resize, so a
       // ResizeObserver is the only reliable trigger.
-      const observer = new ResizeObserver(() => fit.fit());
+      const observer = new ResizeObserver(() => {
+        if (!disposed) fit.fit();
+      });
       observer.observe(element);
       cleanupObserver = () => observer.disconnect();
+      return attached;
+    }).catch(() => {
+      if (disposed) return;
+      cleanupObserver?.();
+      cleanupObserver = undefined;
+      unsubscribe?.();
+      unsubscribe = undefined;
+      if (terminal.current === term) terminal.current = undefined;
+      term?.dispose();
+      term = undefined;
+      setWasmFailed(true);
     });
 
     return () => {
       disposed = true;
+      acknowledgements.dispose();
+      resizes.dispose();
       cleanupObserver?.();
       unsubscribe?.();
-      if (onUnmount.current === 'terminate') void transport.terminate(id);
+      const disposition = onUnmount.current;
+      queueMicrotask(() => {
+        const current = lifecycle.current;
+        const remountedSameSession = current.generation !== generation && current.id === id;
+        if (!remountedSameSession && disposition === 'terminate') void transport.terminate(id);
+      });
+      if (terminal.current === term) terminal.current = undefined;
       term?.dispose();
     };
-  }, [id]);
+  }, [id, wasmAttempt]);
+
+  useEffect(() => {
+    if (focused) terminal.current?.focus();
+  }, [focused]);
 
   return (
     <div
@@ -152,6 +263,22 @@ export function TerminalView({
       role="group"
       aria-label={ariaLabel}
       ref={host}
-    />
+      onFocus={onFocus}
+    >
+      {wasmFailed && (
+        <div className="terminal__error" role="alert">
+          <span>Terminal could not start.</span>
+          <button
+            type="button"
+            onClick={() => {
+              setWasmFailed(false);
+              setWasmAttempt((attempt) => attempt + 1);
+            }}
+          >
+            Retry
+          </button>
+        </div>
+      )}
+    </div>
   );
 }

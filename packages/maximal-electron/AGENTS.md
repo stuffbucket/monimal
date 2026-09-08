@@ -16,7 +16,9 @@ linked document.
 | Lint | `npm run lint`, `npm run lint:fix` |
 | Types | `npm run typecheck` |
 | Unit tests | `npm test` |
+| Terminal unit tests | `npm run test:terminal` |
 | Mutation tests | `npm run mutate` |
+| Terminal mutation tests | `npm run mutate:terminal` |
 | End-to-end tests | `npm run package && npm run test:e2e` |
 | Record a demo | `npm run package && npm run record` |
 | Re-cut a demo | `npm run compose -- <name>` |

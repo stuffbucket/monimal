@@ -31,7 +31,7 @@ export interface TerminalDescriptor {
 
 /** Output, or the end of it. */
 export type TerminalEvent =
-  | { type: 'data'; data: string }
+  | { type: 'data'; data: string; sequence?: number }
   | { type: 'exit'; exitCode: number };
 
 /**
@@ -39,9 +39,11 @@ export type TerminalEvent =
  *
  * `terminate` is the default, and is what every caller got before there was a
  * choice. `detach` leaves the shell running, which is what a long build needs
- * and what `tmux detach` means.
+ * and what `tmux detach` means. `preserve` is for a parent that still owns
+ * termination while it reshapes child views; it does not make the session
+ * user-detached.
  */
-export type TerminalDisposition = 'terminate' | 'detach';
+export type TerminalDisposition = 'terminate' | 'detach' | 'preserve';
 
 /** A live session, whether or not a view is showing it. */
 export interface TerminalSession {
@@ -63,6 +65,8 @@ export interface TerminalTransport {
   write(id: string, data: string): Promise<void>;
   resize(id: string, cols: number, rows: number): Promise<void>;
   terminate(id: string): Promise<void>;
+  /** Optional cumulative output acknowledgement capability. */
+  ack?(id: string, sequence: number): Promise<void>;
   /** Only this session's events. Returns its own unsubscribe. */
   subscribe(id: string, listener: (event: TerminalEvent) => void): () => void;
 }
@@ -102,6 +106,8 @@ export interface TerminalChannels<
   resize: C;
   terminate: C;
   list: C;
+  /** Optional: enables bounded cumulative output acknowledgements. */
+  ack?: C;
   data: E;
   exit: E;
 }
@@ -110,6 +116,7 @@ export interface TerminalChannels<
 export interface TerminalDataMessage {
   id: string;
   data: string;
+  sequence?: number;
 }
 
 /** What a host sends on the `exit` channel. */
@@ -166,6 +173,12 @@ export function createTerminalTransport<C extends string, E extends string>({
       await invoke(channels.terminate, { id });
     },
 
+    ack: channels.ack
+      ? async function ack(id: string, sequence: number): Promise<void> {
+          await invoke(channels.ack!, { id, sequence });
+        }
+      : undefined,
+
     async list() {
       return (await invoke(channels.list)) as TerminalSession[];
     },
@@ -173,7 +186,9 @@ export function createTerminalTransport<C extends string, E extends string>({
     subscribe(id, listener) {
       const onData = on(channels.data, (payload) => {
         const message = payload as TerminalDataMessage;
-        if (message.id === id) listener({ type: 'data', data: message.data });
+        if (message.id === id) {
+          listener({ type: 'data', data: message.data, sequence: message.sequence });
+        }
       });
 
       const onExit = on(channels.exit, (payload) => {

@@ -5,6 +5,7 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
 import { newestMtime } from './e2e/freshness.js';
+import { DEMO_RENDERER_CACHE } from './vite.cache-paths.js';
 
 const root = resolve(__dirname, 'e2e/fixtures/demo-shell');
 
@@ -68,7 +69,9 @@ export default defineConfig(() => {
 
   return {
     root,
+    cacheDir: DEMO_RENDERER_CACHE,
     plugins: [react()],
+    resolve: { preserveSymlinks: false },
     build: {
       outDir: resolve(__dirname, '.vite/renderer/demo_window'),
       emptyOutDir: true,

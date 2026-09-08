@@ -13,6 +13,12 @@ import {
 } from '../host/terminal-host.js';
 import {
   IPC_CHANNELS,
+  isPtyAcknowledgement,
+  isPtyIdRequest,
+  isPtyResizeRequest,
+  isPtySpawnRequest,
+  isPtyWriteRequest,
+  isTerminalLaunchRequest,
   type AppVersions,
   type IpcChannel,
   type IpcEvent,
@@ -32,8 +38,12 @@ import {
 import { ensureModel } from './native/llama.js';
 import { getPreferences, setPreferences } from './native/preferences.js';
 import {
+  acknowledgePty,
   defaultShell,
+  discoverTerminalTargets,
   killPty,
+  launchTerminal,
+  listTerminalProfiles,
   listPtys,
   resizePty,
   spawnPty,
@@ -55,12 +65,13 @@ type IpcHandler<C extends IpcChannel> = (
  * The renderer half names the same five in
  * `src/renderer/lib/bridge-terminal.ts`, and neither imports the other:
  * `./host/terminal` is a consumer's export and knows nothing of this contract.
- * `tests/terminal-channels.test.ts` is the check that duplication owes.
+ * `tests/terminal/terminal-channels.test.ts` is the check that duplication owes.
  */
 export const TERMINAL_CHANNELS = {
   spawn: 'pty:spawn',
   write: 'pty:write',
   resize: 'pty:resize',
+  ack: 'pty:ack',
   terminate: 'pty:kill',
   list: 'pty:list',
 } as const satisfies TerminalRequestChannels<IpcChannel>;
@@ -121,6 +132,13 @@ const handlers: IpcHandlers = {
 
   'pty:default-shell': () => defaultShell(),
 
+  'terminal:profiles': (_request, window) => listTerminalProfiles(window),
+  'terminal:discover': (_request, window) => discoverTerminalTargets(window),
+  'terminal:launch': (request, window) => {
+    if (!isTerminalLaunchRequest(request)) throw new Error('Invalid terminal launch request.');
+    return launchTerminal(window, request);
+  },
+
   'overlay:toggle': () => toggleOverlay(),
 
   'overlay:hide': () => hideOverlay(),
@@ -165,15 +183,23 @@ function terminalHostFor(event: IpcMainInvokeEvent): TerminalChannelHost {
   const window = BrowserWindow.fromWebContents(event.sender) ?? undefined;
   return {
     spawn: (request) => {
+      if (!isPtySpawnRequest(request)) throw new Error('Invalid terminal spawn request.');
       spawnPty(window, request);
     },
     write: (id, data) => {
+      if (!isPtyWriteRequest({ id, data })) throw new Error('Invalid terminal write request.');
       writePty(window, id, data);
     },
     resize: (id, cols, rows) => {
+      if (!isPtyResizeRequest({ id, cols, rows })) throw new Error('Invalid terminal resize request.');
       resizePty(window, id, cols, rows);
     },
+    acknowledge: (id, sequence) => {
+      if (!isPtyAcknowledgement({ id, sequence })) throw new Error('Invalid terminal acknowledgement.');
+      acknowledgePty(window, id, sequence);
+    },
     terminate: (id) => {
+      if (!isPtyIdRequest({ id })) throw new Error('Invalid terminal termination request.');
       killPty(window, id);
     },
     list: () => listPtys(window),

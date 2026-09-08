@@ -3,6 +3,8 @@ import { resolve } from 'node:path';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
+import { MAIN_RENDERER_CACHE } from './vite.cache-paths.js';
+
 const root = resolve(__dirname, 'src/renderer');
 
 // Renderer.
@@ -18,6 +20,7 @@ const root = resolve(__dirname, 'src/renderer');
 // `../renderer/<MAIN_WINDOW_VITE_NAME>/<name>.html`.
 export default defineConfig({
   root,
+  cacheDir: MAIN_RENDERER_CACHE,
   plugins: [react()],
 
   /*
@@ -42,9 +45,8 @@ export default defineConfig({
    * was unaffected throughout, because it never goes through Forge's config
    * and therefore only ever saw one React.
    *
-   * A bisect found no guilty commit: every commit back to the repository's
-   * root fails the same way, and the same two commits pass with this line.
-   * Nothing here changed — the install shape did.
+   * The demo renderer uses a separate cache below. Two concurrently running
+   * optimizers must not replace each other's dependency graph.
    */
   resolve: { preserveSymlinks: false },
   build: {

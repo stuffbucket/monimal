@@ -6,7 +6,7 @@ import {
   terminalPackageChecks,
   terminalPrebuildDirectory,
   type TerminalPackageCheck,
-} from '../scripts/terminal-package.mjs';
+} from '../../scripts/terminal-package.mjs';
 
 /**
  * The checks a consumer runs against their own build.

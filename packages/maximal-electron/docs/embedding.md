@@ -703,6 +703,8 @@ const transport = createTerminalTransport({
     resize: 'term:resize',
     terminate: 'term:kill',
     list: 'term:list',
+    // Optional: enables bounded acknowledged terminal output.
+    ack: 'term:ack',
     data: 'term:data',
     exit: 'term:exit',
   },
@@ -741,6 +743,7 @@ registerTerminalChannels(ipcMain, host, {
     resize: 'term:resize',
     terminate: 'term:kill',
     list: 'term:list',
+    ack: 'term:ack',
   },
 });
 ```
@@ -780,5 +783,5 @@ calls `createTerminalTransport` and `src/main/ipc.ts` calls
 `registerTerminalChannels`, so the export is not a second implementation that
 can drift from the one this repository runs: it is the one this repository
 runs. Neither half imports the other, and neither may, so
-`tests/terminal-channels.test.ts` is the check that duplication owes: it drives
+`tests/terminal/terminal-channels.test.ts` is the check that duplication owes: it drives
 both halves and asserts they name the same set.

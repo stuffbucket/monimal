@@ -164,6 +164,15 @@ export class Owners<Owner, Manager> {
  */
 export const MAX_PENDING_BYTES = 1_000_000;
 
+/** The largest unacknowledged output window sent across an IPC boundary. */
+export const MAX_IN_FLIGHT_BYTES = MAX_PENDING_BYTES;
+
+/** Pause a pausable pty at this outstanding-output high watermark. */
+export const PAUSE_HIGH_WATERMARK = MAX_IN_FLIGHT_BYTES;
+
+/** Resume only after enough acknowledgements avoid pause/resume thrashing. */
+export const RESUME_LOW_WATERMARK = MAX_IN_FLIGHT_BYTES / 2;
+
 export interface Buffered {
   text: string;
   /** How many characters were dropped since the last flush. */

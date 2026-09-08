@@ -1,5 +1,4 @@
-import { StrictMode, useCallback, useEffect, useRef, useState } from 'react';
-import { createRoot } from 'react-dom/client';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import './styles/overlay.css';
 
@@ -24,6 +23,9 @@ import { escapeAction, outsideAction } from './lib/overlay-keys.js';
  * The answer streams. `overlay:ask` returns as soon as the run starts, and
  * text arrives as `agent:delta` events, so a long answer appears as it is
  * written rather than all at once at the end.
+ *
+ * `overlay-entry.tsx` owns `createRoot` so this module remains a stable React
+ * Fast Refresh boundary during development.
  */
 
 function providerLabel(status: ProviderStatus): string {
@@ -44,7 +46,7 @@ function megabytes(bytes: number): string {
   return `${String(Math.round(bytes / 1_000_000))} MB`;
 }
 
-function Overlay() {
+export function Overlay() {
   const [status, setStatus] = useState<ProviderStatus>({ state: 'probing' });
   const [prompt, setPrompt] = useState('');
   const [answer, setAnswer] = useState('');
@@ -146,13 +148,19 @@ function Overlay() {
     if (!text || busy) return;
 
     setBusy(true);
+    setPrompt('');
     setAnswer('');
     setError(undefined);
 
     void bridge.invoke('overlay:ask', { prompt: text }).then((accepted) => {
       if (accepted.started) return;
       setBusy(false);
+      setPrompt(text);
       setError(accepted.reason);
+    }).catch(() => {
+      setBusy(false);
+      setPrompt(text);
+      setError('The request could not be started.');
     });
   }, [prompt, busy]);
 
@@ -241,24 +249,6 @@ function Overlay() {
       onEscapeKeyDown={onEscape}
       onPointerDownOutside={onOutside}
     >
-        <textarea
-          ref={input}
-          className="card__input"
-          rows={2}
-          placeholder={ready ? 'Ask anything…' : 'Waiting for a local model…'}
-          value={prompt}
-          disabled={!ready}
-          onChange={(event) => setPrompt(event.target.value)}
-          onKeyDown={(event) => {
-            // Enter sends. Shift and Enter makes a new line.
-            if (event.key === 'Enter' && !event.shiftKey) {
-              event.preventDefault();
-              submit();
-            }
-          }}
-          data-testid="overlay-input"
-        />
-
         {(answer || error) && (
           <div
             className="card__answer"
@@ -355,6 +345,24 @@ function Overlay() {
           </div>
         )}
 
+        <textarea
+          ref={input}
+          className="card__input"
+          rows={2}
+          placeholder={ready ? 'Ask anything…' : 'Waiting for a local model…'}
+          value={prompt}
+          disabled={!ready}
+          onChange={(event) => setPrompt(event.target.value)}
+          onKeyDown={(event) => {
+            // Enter sends. Shift and Enter makes a new line.
+            if (event.key === 'Enter' && !event.shiftKey) {
+              event.preventDefault();
+              submit();
+            }
+          }}
+          data-testid="overlay-input"
+        />
+
         <div className="card__footer">
           <span
             className={`card__status card__status--${status.state}`}
@@ -379,12 +387,3 @@ function Overlay() {
     </Dialog>
   );
 }
-
-const container = document.getElementById('root');
-if (!container) throw new Error('Missing #root');
-
-createRoot(container).render(
-  <StrictMode>
-    <Overlay />
-  </StrictMode>,
-);

@@ -2,17 +2,61 @@ import { homedir } from 'node:os';
 
 import { describe, expect, it } from 'vitest';
 
-import { TerminalHost } from '../src/host/terminal-host.js';
 import {
+  TerminalHost,
   registerTerminalChannels,
   type TerminalChannelHost,
+  type TerminalConnectOptions,
+  type TerminalConnector,
+  type TerminalProcess,
   type TerminalRequestChannels,
-} from '../src/host/terminal-host.js';
+} from '../../src/host/terminal-host.js';
+import { MAX_IN_FLIGHT_BYTES } from '../../src/main/native/pty-session.js';
+
+function flowHost(pausable = true) {
+  let data: (chunk: string) => void = () => {};
+  let exit: (event: { exitCode: number }) => void = () => {};
+  const calls: string[] = [];
+  const output: Array<{ chunk: string; sequence?: number }> = [];
+  const process: TerminalProcess = {
+    onData: (listener) => {
+      data = listener;
+    },
+    onExit: (listener) => {
+      exit = listener;
+    },
+    write: () => undefined,
+    resize: () => undefined,
+    ...(pausable
+      ? { pause: () => calls.push('pause'), resume: () => calls.push('resume') }
+      : {}),
+    kill: () => undefined,
+  };
+  const exits: number[] = [];
+  const host = new TerminalHost({
+    homeDirectory: '/home/test',
+    defaultShell: '/bin/sh',
+    connector: { connect: () => process },
+    flowControl: true,
+    flushMs: 1_000_000,
+    emit: (_id, chunk, sequence) => output.push({ chunk, sequence }),
+    onExit: (_id, exitCode) => exits.push(exitCode),
+  });
+  host.spawn({ id: 'one', cols: 80, rows: 24 });
+  return {
+    calls,
+    emitData: (chunk: string) => data(chunk),
+    emitExit: (exitCode: number) => exit({ exitCode }),
+    exits,
+    host,
+    output,
+  };
+}
 
 /**
  * Owner-scoped reaping, against real shells.
  *
- * `Owners` in `tests/pty-session.test.ts` proves the registry rule with fake
+ * `Owners` in `tests/terminal/pty-session.test.ts` proves the registry rule with fake
  * managers. This proves the thing the rule exists for: terminating one
  * manager kills its shell process and leaves another manager's alone. A map
  * entry disappearing is not the claim; a process ending is.
@@ -23,6 +67,222 @@ import {
  */
 
 const POSIX = process.platform !== 'win32';
+
+describe('TerminalHost connector', () => {
+  it('delegates process operations while retaining session policy', () => {
+    const calls: string[] = [];
+    let connected: TerminalConnectOptions | undefined;
+    let dataListener: (data: string) => void = () => {};
+    let exitListener: (event: { exitCode: number }) => void = () => {};
+    const terminalProcess: TerminalProcess = {
+      onData: (listener) => {
+        dataListener = listener;
+      },
+      onExit: (listener) => {
+        exitListener = listener;
+      },
+      write: (data) => calls.push(`write ${data}`),
+      resize: (cols, rows) => calls.push(`resize ${String(cols)}x${String(rows)}`),
+      kill: () => calls.push('kill'),
+    };
+    const connector: TerminalConnector = {
+      connect: (options) => {
+        connected = options;
+        return terminalProcess;
+      },
+    };
+    const output: string[] = [];
+    const exits: number[] = [];
+    const host = new TerminalHost({
+      homeDirectory: '/home/test',
+      defaultShell: '/bin/test-shell',
+      flushMs: 0,
+      env: { TERM_PROGRAM: 'Test' },
+      connector,
+      emit: (_id, chunk) => output.push(chunk),
+      onExit: (_id, exitCode) => exits.push(exitCode),
+    });
+
+    host.spawn({ id: 'one', cols: 0, rows: -1 });
+    expect(connected).toMatchObject({
+      command: '/bin/test-shell',
+      args: [],
+      name: 'xterm-256color',
+      cols: 1,
+      rows: 1,
+      cwd: '/home/test',
+      env: { TERM: 'xterm-256color', COLORTERM: 'truecolor', TERM_PROGRAM: 'Test' },
+    });
+    expect(connected?.env['PATH']).toBe(process.env['PATH']);
+    expect(host.list()).toEqual([
+      {
+        id: 'one',
+        cwd: '/home/test',
+        shell: '/bin/test-shell',
+        startedAt: expect.any(Number),
+      },
+    ]);
+
+    host.write('one', 'hello');
+    host.resize('one', 0, 4);
+    dataListener('output');
+    host.spawn({ id: 'one', cols: 9, rows: 5 });
+    expect(calls).toEqual(['write hello', 'resize 1x4', 'resize 9x5']);
+
+    host.terminate('one');
+    exitListener({ exitCode: 7 });
+    expect(calls).toContain('kill');
+    expect(exits).toEqual([]);
+    expect(host.list()).toEqual([]);
+    expect(output).toEqual(['output']);
+  });
+
+  it('delivers data and exit events from an injected process', () => {
+    let dataListener: (data: string) => void = () => {};
+    let exitListener: (event: { exitCode: number }) => void = () => {};
+    const terminalProcess: TerminalProcess = {
+      onData: (listener) => {
+        dataListener = listener;
+      },
+      onExit: (listener) => {
+        exitListener = listener;
+      },
+      write: () => undefined,
+      resize: () => undefined,
+      kill: () => undefined,
+    };
+    const output: string[] = [];
+    const exits: number[] = [];
+    const host = new TerminalHost({
+      homeDirectory: '/home/test',
+      defaultShell: '/bin/test-shell',
+      connector: { connect: () => terminalProcess },
+      emit: (_id, chunk) => output.push(chunk),
+      onExit: (_id, exitCode) => exits.push(exitCode),
+    });
+
+    host.spawn({ id: 'one', cols: 80, rows: 24 });
+    dataListener('output');
+    exitListener({ exitCode: 7 });
+
+    expect(output).toEqual(['output']);
+    expect(exits).toEqual([7]);
+    expect(host.list()).toEqual([]);
+  });
+
+  it('reports registered sessions before current-generation exits only', () => {
+    const exitListeners: Array<(event: { exitCode: number }) => void> = [];
+    const statuses: string[] = [];
+    const exits: string[] = [];
+    const connector: TerminalConnector = {
+      connect: () => ({
+        onData: () => undefined,
+        onExit: (listener) => exitListeners.push(listener),
+        write: () => undefined,
+        resize: () => undefined,
+        kill: () => undefined,
+      }),
+    };
+    const host = new TerminalHost({
+      homeDirectory: '/home/test',
+      defaultShell: '/bin/test-shell',
+      connector,
+      emit: () => undefined,
+      onExit: (id, exitCode) => exits.push(`${id}:${String(exitCode)}`),
+      onStatus: (status) => {
+        statuses.push(
+          status.state === 'started'
+            ? `started:${status.session.id}`
+            : `exited:${status.id}:${String(status.exitCode)}`,
+        );
+      },
+    });
+
+    host.spawn({ id: 'one', cols: 80, rows: 24 });
+    host.terminate('one');
+    host.spawn({ id: 'one', cols: 80, rows: 24 });
+    exitListeners[0]!({ exitCode: 3 });
+    exitListeners[1]!({ exitCode: 4 });
+
+    expect(statuses).toEqual(['started:one', 'started:one', 'exited:one:4']);
+    expect(exits).toEqual(['one:4']);
+  });
+});
+
+describe('TerminalHost flow control', () => {
+  it('bounds output and pauses then resumes with hysteresis', () => {
+    const wire = flowHost();
+    wire.emitData('a'.repeat(MAX_IN_FLIGHT_BYTES));
+    wire.emitExit(0);
+
+    expect(wire.output).toEqual([{ chunk: 'a'.repeat(MAX_IN_FLIGHT_BYTES), sequence: 1 }]);
+    expect(wire.calls).toEqual(['pause']);
+    expect(wire.exits).toEqual([]);
+
+    wire.host.acknowledge('one', 1);
+    expect(wire.calls).toEqual(['pause', 'resume']);
+    expect(wire.exits).toEqual([0]);
+  });
+
+  it('keeps the newest bounded tail and emits one loss notice for a non-pausable process', () => {
+    const wire = flowHost(false);
+    wire.emitData('a'.repeat(MAX_IN_FLIGHT_BYTES));
+    wire.emitExit(0);
+    wire.emitData('b'.repeat(MAX_IN_FLIGHT_BYTES + 1));
+
+    wire.host.acknowledge('one', 1);
+    expect(wire.output).toHaveLength(2);
+    expect(wire.output[1]?.chunk).toContain('characters dropped');
+    expect(wire.output[1]?.chunk.length).toBeLessThanOrEqual(MAX_IN_FLIGHT_BYTES);
+    expect(wire.output[1]?.chunk.endsWith('b')).toBe(true);
+    expect(wire.exits).toEqual([]);
+
+    wire.host.acknowledge('one', 2);
+    expect(wire.exits).toEqual([0]);
+  });
+
+  it('ignores duplicate, stale, and future acknowledgements', () => {
+    const wire = flowHost();
+    wire.emitData('output');
+    wire.emitExit(7);
+
+    wire.host.acknowledge('one', 0);
+    wire.host.acknowledge('one', 2);
+    expect(wire.exits).toEqual([]);
+
+    wire.host.acknowledge('one', 1);
+    wire.host.acknowledge('one', 1);
+    expect(wire.exits).toEqual([7]);
+  });
+
+  it('leaves output batching unchanged when acknowledgement flow control is absent', () => {
+    const output: Array<{ chunk: string; sequence?: number }> = [];
+    let data: (chunk: string) => void = () => {};
+    const host = new TerminalHost({
+      homeDirectory: '/home/test',
+      defaultShell: '/bin/sh',
+      flushMs: 1_000_000,
+      connector: {
+        connect: () => ({
+          onData: (listener) => {
+            data = listener;
+          },
+          onExit: () => undefined,
+          write: () => undefined,
+          resize: () => undefined,
+          kill: () => undefined,
+        }),
+      },
+      emit: (_id, chunk, sequence) => output.push({ chunk, sequence }),
+      onExit: () => undefined,
+    });
+    host.spawn({ id: 'one', cols: 80, rows: 24 });
+    data('output');
+    host.terminate('one');
+
+    expect(output).toEqual([]);
+  });
+});
 
 /** Does a process still exist? Signal 0 checks without delivering anything. */
 function alive(pid: number): boolean {
@@ -147,7 +407,7 @@ describe.skipIf(!POSIX)('TerminalHost, per owner', () => {
  *
  * Nothing here names a channel of this repository's: the names are the
  * caller's argument, so these use names no contract holds and a hard-coded one
- * would fail. `tests/terminal-channels.test.ts` is what pairs the names this
+ * would fail. `tests/terminal/terminal-channels.test.ts` is what pairs the names this
  * shell passes with the ones its renderer calls.
  */
 

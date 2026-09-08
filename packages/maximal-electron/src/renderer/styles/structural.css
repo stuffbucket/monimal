@@ -1177,6 +1177,61 @@
   transform: translate(-50%, -50%);
 }
 
+.sb-shell .terminal-launcher {
+  width: min(440px, 90vw);
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+}
+
+.sb-shell .terminal-launcher__search {
+  display: flex;
+  align-items: center;
+  gap: var(--shell-space-2, 8px);
+}
+
+.sb-shell .terminal-launcher__group {
+  display: grid;
+  gap: var(--shell-space-2, 8px);
+}
+
+.sb-shell .terminal-launcher__choice {
+  justify-content: flex-start;
+  gap: var(--shell-space-2, 8px);
+}
+
+.sb-shell .terminal-launcher__kind,
+.sb-shell .terminal-launcher__pending {
+  margin-left: auto;
+  color: var(--shell-text-secondary);
+  font-size: var(--shell-text-xs, 12px);
+}
+
+.sb-shell .terminal-launcher__unavailable {
+  border-top: 1px solid var(--shell-border);
+  padding-top: var(--shell-space-2, 8px);
+  color: var(--shell-text-secondary);
+}
+
+.sb-shell .terminal-launcher__unavailable summary {
+  cursor: pointer;
+  font-size: var(--shell-text-sm, 13px);
+}
+
+.sb-shell .terminal-launcher__unavailable ul {
+  display: grid;
+  gap: var(--shell-space-1, 4px);
+  margin: var(--shell-space-2, 8px) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sb-shell .terminal-launcher__unavailable li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--shell-space-3, 12px);
+  font-size: var(--shell-text-xs, 12px);
+}
+
 .sb-shell .menu {
   min-width: 180px;
   padding: var(--shell-space-1, 4px);
@@ -1291,6 +1346,7 @@
  * corresponding declaration.
  */
 .sb-shell .terminal-host {
+  position: relative;
   display: flex;
   flex: 1;
   min-height: 0;
@@ -1298,6 +1354,21 @@
 
 .sb-shell .terminal-host[hidden] {
   display: none;
+}
+
+.sb-shell .terminal-split {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.sb-shell .terminal-split__error {
+  position: absolute;
+  inset: auto var(--shell-space-2, 8px) var(--shell-space-2, 8px) auto;
+  margin: 0;
+  padding: var(--shell-space-1, 4px) var(--shell-space-2, 8px);
+  background: var(--shell-raised, var(--shell-canvas));
+  color: var(--shell-text-muted, var(--shell-text));
 }
 
 .sb-shell .terminal {
@@ -1311,6 +1382,14 @@
 
 .sb-shell .terminal canvas {
   display: block;
+}
+
+.sb-shell .terminal__error {
+  margin: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--shell-space-2, 8px);
+  color: var(--shell-text-muted, var(--shell-text));
 }
 
 /*

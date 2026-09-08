@@ -16,7 +16,7 @@ import {
  * this repository runs: it is the one this repository runs. This file is the
  * part a consumer replaces, which is the channel names and the bridge.
  *
- * `tests/terminal-channels.test.ts` pairs these names with the ones
+ * `tests/terminal/terminal-channels.test.ts` pairs these names with the ones
  * `src/main/ipc.ts` registers, because neither half imports the other.
  */
 
@@ -25,6 +25,7 @@ export const TERMINAL_CHANNELS: TerminalChannels<IpcChannel, IpcEvent> = {
   spawn: 'pty:spawn',
   write: 'pty:write',
   resize: 'pty:resize',
+  ack: 'pty:ack',
   terminate: 'pty:kill',
   list: 'pty:list',
   data: 'pty:data',
@@ -42,11 +43,16 @@ const wire = bridge as unknown as {
 };
 
 export const bridgeTerminalTransport: DetachableTerminalTransport =
-  createTerminalTransport({
+  {
+    ...createTerminalTransport({
     invoke: (channel, request) => wire.invoke(channel, request),
     on: (event, listener) => wire.on(event, listener),
     channels: TERMINAL_CHANNELS,
-  });
+    }),
+    spawn: async ({ id, cols, rows }) => {
+      await wire.invoke('pty:spawn', { id, cols, rows });
+    },
+  };
 
 /** The emulator theme for this application's current scheme. */
 export { currentTerminalTheme };
