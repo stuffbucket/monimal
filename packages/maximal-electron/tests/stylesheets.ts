@@ -22,8 +22,15 @@ import { packageStylesheets } from '../scripts/shell-variables.mjs';
  * Not a `.test.ts` file, so Vitest does not collect it.
  */
 
-const STYLES = new URL('../src/renderer/styles/', import.meta.url);
-const RENDERER = new URL('../src/renderer/', import.meta.url);
+const inStrykerSandbox = import.meta.url.includes('/.stryker-tmp/sandbox-');
+const STYLES = new URL(
+  inStrykerSandbox ? '../../../src/renderer/styles/' : '../src/renderer/styles/',
+  import.meta.url,
+);
+const RENDERER = new URL(
+  inStrykerSandbox ? '../../../src/renderer/' : '../src/renderer/',
+  import.meta.url,
+);
 
 /** The prefix that marks a token as the consumer's to supply. */
 export const PACKAGE_NAMESPACE = '--shell-';

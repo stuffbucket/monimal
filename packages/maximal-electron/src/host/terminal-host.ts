@@ -1,7 +1,5 @@
 import { statSync } from 'node:fs';
 
-import { spawn, type IPty } from 'node-pty';
-
 import {
   append,
   cwdMessage,
@@ -9,12 +7,27 @@ import {
   emptyBuffer,
   emptyRetained,
   Generations,
+  MAX_IN_FLIGHT_BYTES,
+  PAUSE_HIGH_WATERMARK,
   replay,
   resolveCwd,
+  RESUME_LOW_WATERMARK,
   retain,
   type Buffered,
   type Retained,
 } from '../main/native/pty-session.js';
+import {
+  LocalPtyConnector,
+  type TerminalConnector,
+  type TerminalProcess,
+} from './terminal-connector.js';
+
+export {
+  LocalPtyConnector,
+  type TerminalConnectOptions,
+  type TerminalConnector,
+  type TerminalProcess,
+} from './terminal-connector.js';
 
 /**
  * Pseudo-terminal sessions, for a consumer's main process.
@@ -29,8 +42,10 @@ import {
 
 /** Emit batched output, and the end of a session. */
 export interface TerminalHostHandlers {
-  emit: (id: string, chunk: string) => void;
+  emit: (id: string, chunk: string, sequence?: number) => void;
   onExit: (id: string, exitCode: number) => void;
+  /** Reports a session after registration and when its current process exits. */
+  onStatus?: (status: TerminalStatus) => void;
 }
 
 export interface SpawnOptions {
@@ -39,6 +54,10 @@ export interface SpawnOptions {
   rows: number;
   shell?: string;
   cwd?: string;
+  /** Optional command arguments, for a trusted host-owned launcher. */
+  args?: string[];
+  /** Optional command environment, for a trusted host-owned launcher. */
+  env?: Record<string, string>;
 }
 
 export interface TerminalHostOptions extends TerminalHostHandlers {
@@ -60,15 +79,25 @@ export interface TerminalHostOptions extends TerminalHostHandlers {
    * `TERM_PROGRAM`; the export carries no product string of its own.
    */
   env?: Record<string, string>;
+  /** Opens the process behind each session. Defaults to a local pseudo-terminal. */
+  connector?: TerminalConnector;
+  /** Bound output until `acknowledge` confirms the renderer consumed it. */
+  flowControl?: boolean;
 }
 
 interface Session {
-  pty: IPty;
+  process: TerminalProcess;
   pending: Buffered;
   retained: Retained;
   timer: ReturnType<typeof setTimeout> | undefined;
   generation: number;
   summary: TerminalSession;
+  nextSequence: number;
+  acknowledgedSequence: number;
+  inFlight: Map<number, number>;
+  inFlightBytes: number;
+  paused: boolean;
+  exitCode: number | undefined;
 }
 
 /**
@@ -87,6 +116,11 @@ export interface TerminalSession {
   startedAt: number;
 }
 
+/** A session lifecycle change for hosts that choose to observe it. */
+export type TerminalStatus =
+  | { state: 'started'; session: TerminalSession }
+  | { state: 'exited'; id: string; exitCode: number };
+
 /**
  * One manager per owner.
  *
@@ -99,7 +133,14 @@ export class TerminalHost {
   private readonly options: Required<TerminalHostOptions>;
 
   constructor(options: TerminalHostOptions) {
-    this.options = { flushMs: 8, env: {}, ...options };
+    this.options = {
+      flushMs: 8,
+      env: {},
+      connector: new LocalPtyConnector(),
+      flowControl: false,
+      onStatus: () => undefined,
+      ...options,
+    };
   }
 
   /**
@@ -139,7 +180,9 @@ export class TerminalHost {
     const cwd = resolved.ok ? resolved.cwd : homeDirectory;
     const shell = request.shell ?? defaultShell;
 
-    const pty = spawn(shell, [], {
+    const terminalProcess = this.options.connector.connect({
+      command: shell,
+      args: request.args ?? [],
       name: 'xterm-256color',
       cols: Math.max(1, request.cols),
       rows: Math.max(1, request.rows),
@@ -149,32 +192,40 @@ export class TerminalHost {
         TERM: 'xterm-256color',
         COLORTERM: 'truecolor',
         ...this.options.env,
+        ...request.env,
       },
     });
 
     const session: Session = {
-      pty,
+      process: terminalProcess,
       pending: emptyBuffer(),
       retained: emptyRetained(),
       timer: undefined,
       generation,
       summary: { id: request.id, cwd, shell, startedAt: Date.now() },
+      nextSequence: 1,
+      acknowledgedSequence: 0,
+      inFlight: new Map(),
+      inFlightBytes: 0,
+      paused: false,
+      exitCode: undefined,
     };
     this.sessions.set(request.id, session);
+    this.options.onStatus?.({ state: 'started', session: { ...session.summary } });
 
-    pty.onData((data) => {
+    terminalProcess.onData((data) => {
       append(session.pending, data);
       retain(session.retained, data);
       this.schedule(request.id, session);
     });
 
-    pty.onExit(({ exitCode }) => {
+    terminalProcess.onExit(({ exitCode }) => {
       this.flush(request.id, session);
       // A killed session's exit can arrive after the id was reused. Acting on
       // it then would delete the live session and silence a running shell.
-      if (!this.generations.release(request.id, generation)) return;
-      this.sessions.delete(request.id);
-      this.options.onExit(request.id, exitCode);
+      if (!this.generations.isCurrent(request.id, generation)) return;
+      session.exitCode = exitCode;
+      this.finishExit(request.id, session);
     });
   }
 
@@ -184,13 +235,13 @@ export class TerminalHost {
   }
 
   write(id: string, data: string): void {
-    this.sessions.get(id)?.pty.write(data);
+    this.sessions.get(id)?.process.write(data);
   }
 
   resize(id: string, cols: number, rows: number): void {
     // node-pty throws on a zero or negative dimension, which happens whenever
     // a view is measured while hidden.
-    this.sessions.get(id)?.pty.resize(Math.max(1, cols), Math.max(1, rows));
+    this.sessions.get(id)?.process.resize(Math.max(1, cols), Math.max(1, rows));
   }
 
   terminate(id: string): void {
@@ -200,10 +251,29 @@ export class TerminalHost {
     this.generations.release(id, session.generation);
     this.sessions.delete(id);
     try {
-      session.pty.kill();
+      session.process.kill();
     } catch {
       // Already gone.
     }
+  }
+
+  /** Confirm all output through this cumulative sequence was consumed. */
+  acknowledge(id: string, sequence: number): void {
+    if (!this.options.flowControl || !Number.isSafeInteger(sequence)) return;
+    const session = this.sessions.get(id);
+    if (!session || sequence <= session.acknowledgedSequence || sequence >= session.nextSequence) {
+      return;
+    }
+
+    session.acknowledgedSequence = sequence;
+    for (const [sent, bytes] of session.inFlight) {
+      if (sent > sequence) continue;
+      session.inFlight.delete(sent);
+      session.inFlightBytes -= bytes;
+    }
+    this.updatePause(session);
+    this.flush(id, session);
+    this.finishExit(id, session);
   }
 
   /**
@@ -215,23 +285,38 @@ export class TerminalHost {
   }
 
   private attach(request: SpawnOptions, session: Session): void {
-    session.pty.resize(Math.max(1, request.cols), Math.max(1, request.rows));
+    session.process.resize(Math.max(1, request.cols), Math.max(1, request.rows));
     const text = replay(session.retained);
     if (text === '') return;
-    queueMicrotask(() => {
-      this.options.emit(request.id, text);
-    });
+    if (!this.options.flowControl) {
+      queueMicrotask(() => {
+        this.options.emit(request.id, text);
+      });
+      return;
+    }
+    append(session.pending, text);
+    this.schedule(request.id, session);
   }
 
   private flush(id: string, session: Session): void {
     session.timer = undefined;
+    if (this.options.flowControl && session.inFlightBytes >= MAX_IN_FLIGHT_BYTES) return;
     const { text, dropped } = drain(session.pending);
     if (text === '' && dropped === 0) return;
-    const notice =
-      dropped > 0
-        ? `\r\n\x1b[2m[${String(dropped)} characters dropped: output outran the display]\x1b[0m\r\n`
-        : '';
-    this.options.emit(id, notice + text);
+    let output = text;
+    if (dropped > 0) {
+      const notice = `\r\n\x1b[2m[${String(dropped)} characters dropped: output outran the display]\x1b[0m\r\n`;
+      output = notice + text.slice(Math.max(0, text.length - (MAX_IN_FLIGHT_BYTES - notice.length)));
+    }
+    if (!this.options.flowControl) {
+      this.options.emit(id, output);
+      return;
+    }
+    const sequence = session.nextSequence++;
+    session.inFlight.set(sequence, output.length);
+    session.inFlightBytes += output.length;
+    this.options.emit(id, output, sequence);
+    this.updatePause(session);
   }
 
   private schedule(id: string, session: Session): void {
@@ -239,6 +324,28 @@ export class TerminalHost {
     session.timer = setTimeout(() => {
       this.flush(id, session);
     }, this.options.flushMs);
+  }
+
+  private updatePause(session: Session): void {
+    if (!this.options.flowControl) return;
+    if (!session.paused && session.inFlightBytes >= PAUSE_HIGH_WATERMARK) {
+      session.process.pause?.();
+      session.paused = true;
+    } else if (session.paused && session.inFlightBytes <= RESUME_LOW_WATERMARK) {
+      session.process.resume?.();
+      session.paused = false;
+    }
+  }
+
+  private finishExit(id: string, session: Session): void {
+    if (session.exitCode === undefined) return;
+    if (this.options.flowControl && (session.pending.text !== '' || session.inFlightBytes > 0)) {
+      return;
+    }
+    if (!this.generations.release(id, session.generation)) return;
+    this.sessions.delete(id);
+    this.options.onExit(id, session.exitCode);
+    this.options.onStatus?.({ state: 'exited', id, exitCode: session.exitCode });
   }
 }
 
@@ -258,6 +365,8 @@ export interface TerminalRequestChannels<C extends string = string> {
   resize: C;
   terminate: C;
   list: C;
+  /** Optional: enables bounded cumulative output acknowledgements. */
+  ack?: C;
 }
 
 /**
@@ -272,6 +381,7 @@ export interface TerminalChannelHost {
   resize(id: string, cols: number, rows: number): void;
   terminate(id: string): void;
   list(): TerminalSession[];
+  acknowledge?(id: string, sequence: number): void;
 }
 
 /**
@@ -318,4 +428,11 @@ export function registerTerminalChannels<E, C extends string>(
   });
 
   ipcMain.handle(channels.list, (event) => resolve(event)?.list() ?? []);
+
+  if (channels.ack) {
+    ipcMain.handle(channels.ack, (event, request) => {
+      const { id, sequence } = request as { id: string; sequence: number };
+      resolve(event)?.acknowledge?.(id, sequence);
+    });
+  }
 }

@@ -1,7 +1,7 @@
 import { Component, FileText, Play, Sparkles, SquareTerminal } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState, type ComponentType } from 'react';
 
-import type { AppVersions, UpdateStatus, ViewId } from '../shared/ipc.js';
+import type { AppVersions, TerminalLaunchRequest, UpdateStatus, ViewId } from '../shared/ipc.js';
 
 import { Canvas } from './components/Canvas.js';
 import {
@@ -28,6 +28,7 @@ import {
   useShellSettings,
 } from './components/ShellSettings.js';
 import { TerminalTabs } from './components/TerminalTabs.js';
+import { TerminalLauncher } from './components/TerminalLauncher.js';
 import {
   bridgeTerminalTransport,
   currentTerminalTheme,
@@ -37,6 +38,11 @@ import type { Account } from './lib/account.js';
 import { bridge, useBridgeEvent, usePreferences } from './lib/bridge.js';
 import { SAMPLE_ACCOUNT, VIEW_LABELS, itemsFor, type Item } from './lib/data.js';
 import type { SettingsSurface } from './lib/settings.js';
+import {
+  newTerminalTab,
+  terminalDirectoryTitle,
+  terminalProcessTitle,
+} from './lib/terminal-tab.js';
 import { useShellTabs } from './lib/useShellTabs.js';
 import { useDetachedTerminals } from './lib/useDetachedTerminals.js';
 import { useThemePreference } from './lib/useThemePreference.js';
@@ -52,6 +58,7 @@ import { useThemePreference } from './lib/useThemePreference.js';
 /** A tab in this application. `kind` is ours, not the tab strip's. */
 interface ShellTab extends Tab {
   kind: 'library' | 'terminal' | SettingsSurface;
+  sessionId?: string;
 }
 
 const KIND_ICONS: Record<Item['kind'], ComponentType<{ size?: number }>> = {
@@ -71,17 +78,6 @@ function icon(item: Item, size = 28) {
   return <Icon size={size} />;
 }
 
-/** The `+` button opens a terminal, numbered from the terminals already open. */
-function newTerminal(existing: ShellTab[]): ShellTab {
-  const count = existing.filter((tab) => tab.kind === 'terminal').length + 1;
-  return terminalTab(`term-${String(count)}`);
-}
-
-/** `newTerminal` chose the id, so reattaching reads the number back out of it. */
-function terminalTab(id: string): ShellTab {
-  return { id, title: `Terminal ${id.replace('term-', '')}`, kind: 'terminal' };
-}
-
 const subscribeToPanelToggles: PanelToggleSubscription = (listener) =>
   bridge.on('menu:toggle-panel', ({ panel }) => listener(panel));
 
@@ -97,32 +93,46 @@ export function App() {
   // account in and out; a real one would ask its own provider.
   const [account, setAccount] = useState<Account | undefined>(SAMPLE_ACCOUNT);
   const [dialog, setDialog] = useState<SettingsSurface>();
+  const [launcherOpen, setLauncherOpen] = useState(false);
+  const [recentProfiles, setRecentProfiles] = useState<string[]>([]);
   const settings = useShellSettings();
 
-  const { tabs, setTabs, activeTab, setActiveTab, openTab, closeTab } = useShellTabs(
+  const { tabs, setTabs, activeTab, setActiveTab, closeTab } = useShellTabs(
     [{ id: 'tab-1', title: 'Library', kind: 'library' }] as ShellTab[],
-    newTerminal,
+    newTerminalTab,
   );
 
   const items = useMemo(() => itemsFor(view), [view]);
   const selected = items.find((item) => item.id === selectedId);
   const current = tabs.find((tab) => tab.id === activeTab);
 
-  const terminalIds = useMemo(
-    () => tabs.filter((tab) => tab.kind === 'terminal').map((tab) => tab.id),
+  const terminalAttachments = useMemo(
+    () =>
+      tabs.flatMap((tab) =>
+        tab.kind === 'terminal' && tab.sessionId
+          ? [{ id: tab.id, sessionId: tab.sessionId }]
+          : [],
+      ),
     [tabs],
+  );
+  const [splitSessions, setSplitSessions] = useState<Record<string, string[]>>({});
+  const attachedSessionIds = terminalAttachments.flatMap((attachment) =>
+    splitSessions[attachment.id] ?? [attachment.sessionId],
   );
   const { detached, refresh } = useDetachedTerminals(
     bridgeTerminalTransport,
-    terminalIds,
+    attachedSessionIds,
   );
 
   const reattachTerminal = useCallback(
-    (id: string) => {
-      setTabs((prev) => (prev.some((tab) => tab.id === id) ? prev : [...prev, terminalTab(id)]));
-      setActiveTab(id);
+    (sessionId: string) => {
+      const tab = newTerminalTab(tabs, sessionId);
+      setTabs((prev) => {
+        return prev.some((existing) => existing.sessionId === sessionId) ? prev : [...prev, tab];
+      });
+      setActiveTab(tab.id);
     },
-    [setActiveTab, setTabs],
+    [setActiveTab, setTabs, tabs],
   );
 
   /* ------------------------------------------------------------- effects */
@@ -200,6 +210,41 @@ export function App() {
     void bridge.invoke('update:check').then(setUpdateStatus);
   }, []);
 
+  const launchTerminal = useCallback((result: { sessionId: string; label: string }) => {
+    void bridgeTerminalTransport.list()
+      .then((sessions) => sessions.find((candidate) => candidate.id === result.sessionId))
+      .catch(() => undefined)
+      .then((session) => {
+        const title = session === undefined ? result.label : terminalDirectoryTitle(session.cwd);
+        setTabs((previous) => {
+          const tab = newTerminalTab(previous, result.sessionId, title);
+          setActiveTab(tab.id);
+          return [...previous, tab];
+        });
+      });
+    setRecentProfiles((previous) => ['local', ...previous.filter((id) => id !== 'local')]);
+  }, [setActiveTab, setTabs]);
+  const terminalProfiles = useCallback(() => bridge.invoke('terminal:profiles'), []);
+  const discoverTerminals = useCallback(() => bridge.invoke('terminal:discover'), []);
+  const launchTerminalProfile = useCallback(
+    (request: TerminalLaunchRequest) => bridge.invoke('terminal:launch', request),
+    [],
+  );
+  const launchTerminalSplit = useCallback(
+    () => launchTerminalProfile({ profileId: 'local', cols: 80, rows: 24 }),
+    [launchTerminalProfile],
+  );
+  const updateAttachedSessions = useCallback((tabId: string, sessionIds: string[]) => {
+    setSplitSessions((previous) => ({ ...previous, [tabId]: sessionIds }));
+  }, []);
+  const updateTerminalTitle = useCallback((tabId: string, title: string) => {
+    const nextTitle = terminalProcessTitle(title);
+    if (nextTitle === '') return;
+    setTabs((previous) => previous.map((tab) =>
+      tab.id === tabId && tab.kind === 'terminal' ? { ...tab, title: nextTitle } : tab,
+    ));
+  }, [setTabs]);
+
   /* -------------------------------------------------------------- render */
 
   const surface = current === undefined ? undefined : tabSurface(current.kind);
@@ -214,11 +259,14 @@ export function App() {
     if (current?.kind === 'terminal') {
       return (
         <TerminalTabs
-          ids={terminalIds}
+          attachments={terminalAttachments}
           activeId={activeTab}
           transport={bridgeTerminalTransport}
           disposition={prefs?.terminalDetach ? 'detach' : 'terminate'}
           theme={currentTerminalTheme()}
+          launchSplit={launchTerminalSplit}
+          onSessionsChange={updateAttachedSessions}
+          onTitleChange={updateTerminalTitle}
         />
       );
     }
@@ -262,7 +310,7 @@ export function App() {
       activeTab={activeTab}
       onSelectTab={setActiveTab}
       onCloseTab={closeTab}
-      onNewTab={openTab}
+      onNewTab={() => setLauncherOpen(true)}
       tabsLabel="Open documents"
       newTabLabel="New terminal tab"
       tabIcon={(tab) => TAB_ICONS[tab.kind]}
@@ -313,6 +361,15 @@ export function App() {
         setDialog(undefined);
       }}
       settings={settings}
+    />
+    <TerminalLauncher
+      open={launcherOpen}
+      onOpenChange={setLauncherOpen}
+      profiles={terminalProfiles}
+      discover={discoverTerminals}
+      launch={launchTerminalProfile}
+      onLaunched={launchTerminal}
+      recentProfileIds={recentProfiles}
     />
     </>
   );

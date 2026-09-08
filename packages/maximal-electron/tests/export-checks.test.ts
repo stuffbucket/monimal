@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { reExportedNames } from '../scripts/export-checks.mjs';
+import { isGeneric, reExportedNames } from '../scripts/export-checks.mjs';
 
 /**
  * What `verify:exports` reads off the built renderer entry to decide whether
@@ -65,5 +65,12 @@ describe('reExportedNames', () => {
     const started = performance.now();
     expect(reExportedNames(hostile)).toEqual([]);
     expect(performance.now() - started).toBeLessThan(50);
+  });
+});
+
+describe('isGeneric', () => {
+  it('allows the pure terminal scheduler without allowing application libraries', () => {
+    expect(isGeneric('dist/renderer/lib/terminal-ack.js')).toBe(true);
+    expect(isGeneric('dist/renderer/lib/bridge-terminal.js')).toBe(false);
   });
 });

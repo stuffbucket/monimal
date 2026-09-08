@@ -790,6 +790,7 @@ body {
 /* The host fills the panel. `hidden` keeps an inactive tab's shell alive while
    taking it out of layout, so switching tabs never restarts a process. */
 .terminal-host {
+  position: relative;
   flex: 1;
   min-height: 0;
   display: flex;
@@ -797,6 +798,21 @@ body {
 
 .terminal-host[hidden] {
   display: none;
+}
+
+.terminal-split {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.terminal-split__error {
+  position: absolute;
+  inset: auto var(--space-2) var(--space-2) auto;
+  margin: 0;
+  padding: var(--space-1) var(--space-2);
+  background: var(--bg-raised);
+  color: var(--text-muted);
 }
 
 .terminal {
@@ -810,6 +826,14 @@ body {
 
 .terminal canvas {
   display: block;
+}
+
+.terminal__error {
+  margin: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-muted);
 }
 
 /* ------------------------------------------------------------ right panel */

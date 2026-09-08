@@ -34,6 +34,15 @@ export {
   type TerminalTabsProps,
 } from './components/TerminalTabs.js';
 export {
+  TerminalLauncher,
+  type TerminalDiscovery,
+  type TerminalLaunchRequest,
+  type TerminalLaunchResult,
+  type TerminalLauncherProps,
+  type TerminalProfileSummary,
+  type TerminalTargetSummary,
+} from './components/TerminalLauncher.js';
+export {
   TerminalView,
   type TerminalHost,
   type TerminalViewProps,

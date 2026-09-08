@@ -7,13 +7,16 @@ import {
   emptyBuffer,
   emptyRetained,
   Generations,
+  MAX_IN_FLIGHT_BYTES,
   MAX_PENDING_BYTES,
   MAX_RETAINED_BYTES,
   Owners,
+  PAUSE_HIGH_WATERMARK,
   replay,
+  RESUME_LOW_WATERMARK,
   resolveCwd,
   retain,
-} from '../src/main/native/pty-session.js';
+} from '../../src/main/native/pty-session.js';
 
 /** A filesystem, as a lookup. */
 const fs = (entries: Record<string, boolean>) => (target: string) =>
@@ -213,6 +216,11 @@ describe('Owners', () => {
 });
 
 describe('append and drain', () => {
+  it('resumes only after acknowledgements drain half the paused output window', () => {
+    expect(PAUSE_HIGH_WATERMARK).toBe(MAX_IN_FLIGHT_BYTES);
+    expect(RESUME_LOW_WATERMARK).toBe(MAX_IN_FLIGHT_BYTES / 2);
+  });
+
   it('keeps everything under the limit', () => {
     const buffer = emptyBuffer();
     append(buffer, 'one');

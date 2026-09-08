@@ -72,6 +72,16 @@ export const RULES: ScriptedRule[] = [
     }),
   },
   {
+    when: /Reply with a long scrolling answer/,
+    reply: () => ({
+      kind: 'text',
+      text: [
+        ...Array.from({ length: 47 }, (_, index) => `Output line ${String(index + 1)}`),
+        'OVERLAY_BOTTOM_48',
+      ].join('\n'),
+    }),
+  },
+  {
     when: /Reply with (?:exactly|the single word):\s*(\S+)/,
     reply: (match) => ({ kind: 'text', text: match[1] ?? '' }),
   },

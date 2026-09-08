@@ -23,6 +23,13 @@ Known cost: the end-to-end tests all register from one call site, so the
 reporter shows the same source line for each. Names stay unique, and `--grep`
 still works.
 
+## Terminal scope
+
+`tests/terminal/` owns the terminal unit-test boundary. `npm run test:terminal`
+runs that directory alone. `npm run mutate:terminal` derives terminal source
+files from the canonical `mutate` list and limits Stryker to those tests. Both
+commands fail when their scope is empty.
+
 ## Mutation testing
 
 `pnpm --filter @stuffbucket/maximal-electron run mutate` reports what the tests

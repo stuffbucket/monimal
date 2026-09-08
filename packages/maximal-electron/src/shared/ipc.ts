@@ -97,15 +97,11 @@ export type UpdateStatus =
 /** Top-level views the left navigation can select. */
 export type ViewId = 'library' | 'recents' | 'drafts' | 'shared' | 'trash';
 
-/** Open a shell for one tab. `id` is the tab's identifier. */
+/** Open a shell for one opaque terminal session. */
 export interface PtySpawnRequest {
   id: string;
   cols: number;
   rows: number;
-  /** Defaults to the user's login shell. */
-  shell?: string;
-  /** Defaults to the home directory. */
-  cwd?: string;
 }
 
 export interface PtyWriteRequest {
@@ -119,6 +115,99 @@ export interface PtyResizeRequest {
   rows: number;
 }
 
+/** A renderer-visible terminal profile, with no executable configuration. */
+export interface TerminalProfileSummary {
+  id: string;
+  label: string;
+  kind: 'local' | 'tmux-control' | 'docker' | 'podman' | 'lima' | 'multipass' | 'kubernetes' | 'wsl' | 'vagrant' | 'ssh' | 'tmux' | 'ssh-tmux';
+}
+
+export interface TerminalTargetSummary {
+  id: string;
+  profileId: string;
+  label: string;
+  state: 'available' | 'unavailable' | 'timed-out';
+}
+
+export interface TerminalDiscovery {
+  generation: number;
+  targets: TerminalTargetSummary[];
+}
+
+export interface TerminalLaunchRequest {
+  profileId: string;
+  targetId?: string;
+  cols: number;
+  rows: number;
+}
+
+export interface TerminalLaunchResult {
+  sessionId: string;
+  label: string;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function hasOnly(value: Record<string, unknown>, keys: readonly string[]): boolean {
+  return Object.keys(value).every((key) => keys.includes(key));
+}
+
+function isDimension(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
+}
+
+function isTerminalIdentifier(value: unknown): value is string {
+  return typeof value === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(value);
+}
+
+/** Runtime validation for this application's untrusted terminal IPC payloads. */
+export function isPtySpawnRequest(value: unknown): value is PtySpawnRequest {
+  return isRecord(value)
+    && hasOnly(value, ['id', 'cols', 'rows'])
+    && typeof value.id === 'string'
+    && isDimension(value.cols)
+    && isDimension(value.rows);
+}
+
+export function isPtyWriteRequest(value: unknown): value is PtyWriteRequest {
+  return isRecord(value)
+    && hasOnly(value, ['id', 'data'])
+    && typeof value.id === 'string'
+    && typeof value.data === 'string';
+}
+
+export function isPtyResizeRequest(value: unknown): value is PtyResizeRequest {
+  return isRecord(value)
+    && hasOnly(value, ['id', 'cols', 'rows'])
+    && typeof value.id === 'string'
+    && isDimension(value.cols)
+    && isDimension(value.rows);
+}
+
+export function isPtyAcknowledgement(value: unknown): value is { id: string; sequence: number } {
+  return isRecord(value)
+    && hasOnly(value, ['id', 'sequence'])
+    && typeof value.id === 'string'
+    && typeof value.sequence === 'number'
+    && Number.isSafeInteger(value.sequence)
+    && value.sequence > 0;
+}
+
+export function isPtyIdRequest(value: unknown): value is { id: string } {
+  return isRecord(value) && hasOnly(value, ['id']) && typeof value.id === 'string';
+}
+
+export function isTerminalLaunchRequest(value: unknown): value is TerminalLaunchRequest {
+  return isRecord(value)
+    && hasOnly(value, ['profileId', 'targetId', 'cols', 'rows'])
+    && isTerminalIdentifier(value.profileId)
+    && (value.targetId === undefined || isTerminalIdentifier(value.targetId))
+    && isDimension(value.cols)
+    && isDimension(value.rows);
+}
+
 /** A live shell, whether or not a terminal view is showing it. */
 export interface PtySession {
   id: string;
@@ -127,6 +216,11 @@ export interface PtySession {
   /** Milliseconds since the epoch. */
   startedAt: number;
 }
+
+/** A terminal session was registered or its current process exited. */
+export type PtyStatus =
+  | { state: 'started'; session: PtySession }
+  | { state: 'exited'; id: string; exitCode: number };
 
 /* ------------------------------------------------------- overlay agent */
 
@@ -211,10 +305,17 @@ export interface IpcContract {
   'pty:spawn': { request: PtySpawnRequest; response: void };
   'pty:write': { request: PtyWriteRequest; response: void };
   'pty:resize': { request: PtyResizeRequest; response: void };
+  'pty:ack': { request: { id: string; sequence: number }; response: void };
   'pty:kill': { request: { id: string }; response: void };
   /** Every live session for this window, so a detached one can be found again. */
   'pty:list': { request: void; response: PtySession[] };
   'pty:default-shell': { request: void; response: string };
+
+  // App terminal launcher. These requests contain identifiers only; executable
+  // configuration stays in the owner-scoped main-process reservation.
+  'terminal:profiles': { request: void; response: TerminalProfileSummary[] };
+  'terminal:discover': { request: void; response: TerminalDiscovery };
+  'terminal:launch': { request: TerminalLaunchRequest; response: TerminalLaunchResult };
 
   // The floating overlay. `overlay:hide` is how the card dismisses itself,
   // because the renderer cannot close its own window.
@@ -254,9 +355,13 @@ export const IPC_CHANNELS = [
   'pty:spawn',
   'pty:write',
   'pty:resize',
+  'pty:ack',
   'pty:kill',
   'pty:list',
   'pty:default-shell',
+  'terminal:profiles',
+  'terminal:discover',
+  'terminal:launch',
   'overlay:toggle',
   'overlay:hide',
   'overlay:provider',
@@ -279,10 +384,12 @@ export interface IpcEvents {
   /** Preferences changed, from any source. */
   'prefs:changed': Preferences;
 
-  /** A batch of terminal output for one tab's shell. */
-  'pty:data': { id: string; data: string };
-  /** That tab's shell ended. */
+  /** A batch of terminal output for one opaque terminal session. */
+  'pty:data': { id: string; data: string; sequence?: number };
+  /** That terminal session's shell ended. */
   'pty:exit': { id: string; exitCode: number };
+  /** A terminal session started or its current process exited. */
+  'pty:status': PtyStatus;
 
   /** A chunk of the agent's answer. Append it; do not replace. */
   'agent:delta': { text: string };
@@ -306,6 +413,7 @@ export const IPC_EVENTS = [
   'prefs:changed',
   'pty:data',
   'pty:exit',
+  'pty:status',
   'agent:delta',
   'agent:tool',
   'agent:approval',

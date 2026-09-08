@@ -5,6 +5,7 @@ import path from 'node:path';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
 import {
+  capture,
   closeApp,
   getPrefs,
   launchApp,
@@ -337,6 +338,10 @@ scenario('the terminal runs a command and shows its output', async () => {
   const { window } = harness;
 
   await window.click('[data-testid="tab-new"]');
+  const launcher = window.locator('[data-testid="terminal-launcher"]');
+  await expect(launcher).toBeVisible();
+  await launcher.getByRole('button', { name: 'Local', exact: true }).click();
+
   const terminal = window.locator('[data-testid="terminal"]').last();
   await expect(terminal.locator('canvas').first()).toBeVisible({
     timeout: 20_000,
@@ -356,6 +361,51 @@ scenario('the terminal runs a command and shows its output', async () => {
       { timeout: 20_000, message: 'terminal never echoed the command output' },
     )
     .toContain('GHOSTTY_OK_7391');
+});
+
+scenario('Ghostty shortcuts create right and down terminal splits', async () => {
+  const { window } = harness;
+
+  await window.click('[data-testid="tab-new"]');
+  const launcher = window.locator('[data-testid="terminal-launcher"]');
+  await expect(launcher).toBeVisible();
+  await launcher.getByRole('button', { name: 'Local', exact: true }).click();
+
+  const activeTab = window.locator('.tab[aria-selected="true"]');
+  await expect(activeTab).not.toHaveText('Local');
+
+  const terminals = window.locator('[data-testid="terminal"]:visible');
+  await expect(terminals).toHaveCount(1, { timeout: 20_000 });
+  await terminals.first().click();
+  await window.keyboard.press('Meta+d');
+  await expect(terminals).toHaveCount(2, { timeout: 20_000 });
+
+  const left = await terminals.nth(0).boundingBox();
+  const right = await terminals.nth(1).boundingBox();
+  expect(left).not.toBeNull();
+  expect(right).not.toBeNull();
+  expect(right!.x).toBeGreaterThan(left!.x);
+  expect(Math.abs(right!.y - left!.y)).toBeLessThan(10);
+
+  await terminals.nth(1).click();
+  await window.keyboard.press('Meta+Shift+d');
+  await expect(terminals).toHaveCount(3, { timeout: 20_000 });
+
+  const upperRight = await terminals.nth(1).boundingBox();
+  const lowerRight = await terminals.nth(2).boundingBox();
+  expect(upperRight).not.toBeNull();
+  expect(lowerRight).not.toBeNull();
+  expect(lowerRight!.y).toBeGreaterThan(upperRight!.y);
+  expect(Math.abs(lowerRight!.x - upperRight!.x)).toBeLessThan(10);
+
+  await window.keyboard.press('Meta+[');
+  await expect.poll(() => terminals.evaluateAll((nodes) =>
+    nodes.findIndex((node) => node === document.activeElement))).toBe(1);
+  await window.keyboard.press('Meta+]');
+  await expect.poll(() => terminals.evaluateAll((nodes) =>
+    nodes.findIndex((node) => node === document.activeElement))).toBe(2);
+
+  await capture(window, path.join('test-results', 'terminal-splits.png'));
 });
 
 /* ---------------------------------------------------------------- overlay */
@@ -714,17 +764,38 @@ scenario('the overlay streams an answer back into the card', async () => {
   const overlay = await openOverlay();
   await requireScriptedBackend(overlay);
 
-  await overlay.fill('[data-testid="overlay-input"]', 'Reply with exactly: OVERLAY_OK');
+  const input = overlay.locator('[data-testid="overlay-input"]');
+  await input.fill('Reply with a long scrolling answer');
+  await overlay.locator('[data-testid="overlay-card"]').evaluate(async (card) => {
+    await Promise.all(card.getAnimations().map((animation) => animation.finished));
+  });
+  const inputBefore = await input.boundingBox();
   await overlay.keyboard.press('Enter');
+  await expect(input).toHaveValue('');
 
   // The answer arrives as `agent:delta` events, so this asserts the whole path:
   // the pi agent loop, the provider's HTTP and SSE handling, the IPC events,
   // and incremental render. The scripted backend sends the word in several
   // deltas rather than one, so a card that only rendered the last chunk fails.
-  await expect(overlay.locator('[data-testid="overlay-answer"]')).toContainText(
-    'OVERLAY_OK',
+  const answer = overlay.locator('[data-testid="overlay-answer"]');
+  await expect(answer).toContainText(
+    'OVERLAY_BOTTOM_48',
     { timeout: 30_000 },
   );
+
+  const answerBox = await answer.boundingBox();
+  const inputAfter = await input.boundingBox();
+  expect(answerBox).not.toBeNull();
+  expect(inputBefore).not.toBeNull();
+  expect(inputAfter).not.toBeNull();
+  expect(answerBox!.y + answerBox!.height).toBeLessThanOrEqual(inputAfter!.y);
+  expect(Math.abs(inputAfter!.y - inputBefore!.y)).toBeLessThanOrEqual(1);
+  await expect
+    .poll(() => answer.evaluate((node) => node.scrollHeight - node.clientHeight))
+    .toBeGreaterThan(0);
+  await expect
+    .poll(() => answer.evaluate((node) => node.scrollHeight - node.clientHeight - node.scrollTop))
+    .toBeLessThanOrEqual(1);
 
   expect(model.calls.length, 'the scripted backend answered').toBeGreaterThan(0);
 

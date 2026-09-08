@@ -12,8 +12,8 @@ import type { TerminalSession } from './terminal-transport.js';
  */
 export function detachedSessions(
   sessions: readonly TerminalSession[],
-  attachedIds: Iterable<string>,
+  attachedSessionIds: Iterable<string>,
 ): TerminalSession[] {
-  const attached = new Set(attachedIds);
+  const attached = new Set(attachedSessionIds);
   return sessions.filter((session) => !attached.has(session.id));
 }

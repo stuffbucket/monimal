@@ -6,7 +6,7 @@ import {
   readTerminalTheme,
   type TerminalChannels,
   type TerminalEvent,
-} from '../src/renderer/lib/terminal-transport.js';
+} from '../../src/renderer/lib/terminal-transport.js';
 
 /**
  * The colours the emulator is handed.
@@ -168,6 +168,25 @@ function wired(answer: unknown = []) {
 }
 
 describe('createTerminalTransport', () => {
+  it('does not expose acknowledgement when its channel is omitted', () => {
+    expect(wired().transport.ack).toBeUndefined();
+  });
+
+  it('acknowledges the greatest consumed sequence on an optional channel', async () => {
+    const { transport, invoked } = wired();
+    const acknowledged = createTerminalTransport({
+      invoke: (channel, request) => {
+        invoked.push({ channel, request });
+        return Promise.resolve();
+      },
+      on: () => () => undefined,
+      channels: { ...CHANNELS, ack: 'consumer/ack' },
+    });
+
+    await acknowledged.ack?.('one', 4);
+    expect(invoked).toEqual([{ channel: 'consumer/ack', request: { id: 'one', sequence: 4 } }]);
+    expect(transport.ack).toBeUndefined();
+  });
   it('opens a session on the channel it was given', async () => {
     const { transport, invoked } = wired();
     await transport.spawn({
@@ -219,7 +238,7 @@ describe('createTerminalTransport', () => {
     expect(invoked).toEqual([{ channel: 'consumer/list', request: undefined }]);
   });
 
-  it('uses each of the seven names exactly once', () => {
+  it('uses each legacy name exactly once when acknowledgement is unavailable', () => {
     // The floor. A transport that called nothing would satisfy every
     // assertion above by never reaching a channel.
     const { transport, invoked, listeners } = wired();

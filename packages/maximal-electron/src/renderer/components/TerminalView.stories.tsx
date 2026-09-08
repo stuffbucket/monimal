@@ -49,7 +49,7 @@ const SESSION = [
 const FAILED = [
   '\x1b[1;32mavery\x1b[0m:\x1b[1;34m~/work/shell\x1b[0m $ npm test',
   '',
-  '  \x1b[31mFAIL\x1b[0m  tests/terminal-channels.test.ts',
+  '  \x1b[31mFAIL\x1b[0m  tests/terminal/terminal-channels.test.ts',
   '        \x1b[2mpty:list is not declared on the contract\x1b[0m',
   '',
 ].join('\r\n');

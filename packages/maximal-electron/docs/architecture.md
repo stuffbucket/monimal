@@ -32,7 +32,7 @@ review:
    five. Declare a channel without handling it and the build fails; take a name
    out of `TERMINAL_CHANNELS` without giving it a handler and the build fails
    the same way, because the map's key type stops excluding it.
-   `tests/terminal-channels.test.ts` covers the seam the two registrations
+  `tests/terminal/terminal-channels.test.ts` covers the seam the two registrations
    leave, and asserts they cover `IPC_CHANNELS` exactly once between them.
 2. **No drift.** A handler's argument and return types come from the contract,
    so it cannot quietly return a different shape.
@@ -105,6 +105,22 @@ button opens a terminal.
 implementation compiled to WebAssembly, with the xterm.js API on top. Coder
 built it for Mux, and it is MIT licensed.
 
+Native Ghostty owns windows and splits outside its virtual terminal. This shell
+therefore owns that layer: `TerminalView` consumes Command+D and
+Command+Shift+D, while `TerminalTabs` builds a resizable right or down split
+from a second host-launched Local session. An embedder that supplies no split
+launcher keeps those keys unconsumed. Command+[ and Command+] cycle split
+focus. Command+K, Command+A, Command+Home, and Command+End use the emulator's
+clear, select, and scroll actions. OSC 0 and OSC 2 title changes name a terminal
+tab; controls are removed and titles are bounded before the tab stores them.
+The PTY launch directory basename is the initial shell title.
+
+`init()` is shared across terminal views. A rejected load clears that shared
+promise, and the view shows a retry action rather than leaving an empty canvas.
+Emulator resize events coalesce to the latest dimensions once per animation
+frame before crossing IPC. `ghostty-web` itself owns clipboard paste and IME
+composition; the shell does not layer competing handlers over them.
+
 It parses and renders. It does not run a process. The shell lives in the main
 process, in `src/main/native/pty.ts`, which is what lets the renderer keep
 `sandbox: true`. That file is the Electron half of the manager: which window
@@ -116,9 +132,76 @@ through `registerTerminalChannels` and `src/renderer/lib/bridge-terminal.ts`
 builds its transport through `createTerminalTransport`. `docs/embedding.md`
 holds the consumer's call of both.
 
+The application also owns a separate launcher path. `terminal:profiles`,
+`terminal:discover`, and `terminal:launch` accept only opaque identifiers and
+dimensions. `terminal-launcher.ts` repairs versioned `terminal-profiles.json`
+under `userData`, always synthesizes Local, and holds a short-lived reservation
+for the owning window. `terminal:launch` consumes that reservation and starts
+the process before it returns a session id. Its later `pty:spawn` attaches the
+view and resizes the live id. The shipped spawn request accepts only that id
+and dimensions, so a renderer cannot override executable configuration.
+Direct `pty:spawn` remains the exported compatibility path for trusted
+embedders. Discovery is generation-labelled and bounds a connector failure or
+timeout to that profile, while Local remains available.
+
+Local, Docker, Podman, Lima, Multipass, Kubernetes, WSL, Vagrant, SSH, Tmux,
+and SSH + Tmux are immutable built-in profiles. Podman is available on supported hosts; Lima is
+available on macOS and Linux; Multipass, Kubernetes, and Vagrant are available
+on macOS, Linux, and Windows when their CLI is present; WSL is Windows only.
+SSH is available on macOS, Linux, and Windows when system OpenSSH is present;
+a bounded `ssh -V` probe makes an absent client SSH-local unavailable.
+Discovery runs only in the main process through bounded `execFile` calls. WSL
+uses `wsl.exe --list --quiet` and launches a registered distribution with its
+exact `--distribution` argv. Vagrant reads pruned machine-readable global
+status, exposes only running machines, retains its project directory only in
+main, and launches its stable machine id without a renderer supplied cwd.
+Kubernetes uses the current context and one
+all-namespace JSON pod query, then exposes only Running pods and declared
+normal containers. It caps subprocesses, duration, bytes, namespaces, pods,
+containers, and labels. The renderer receives opaque target ids and labels,
+never connection names, instance names, Kubernetes contexts, namespaces, pod
+UIDs, container ids, Vagrant project directories, or WSL distribution names.
+Kubernetes target state retains the context, namespace, pod name and UID, and
+container in main. A later discovery invalidates all
+older targets for that window. This slice launches its exact `kubectl exec`
+argv without a third UID preflight, so a same-name replacement between discovery
+and launch is resolved by Kubernetes rather than silently remapped by this
+application. SSH reads only the trusted primary user config at `~/.ssh/config`
+through a capped main-owned reader. It accepts a single strict `Host alias`
+directive before `Match`; comments, wildcard and negated aliases, multi-pattern
+entries, `Include`, and every option are ignored. Alias target ids are opaque;
+the main process validates the cached alias again and launches exactly
+`ssh -tt alias`. System OpenSSH retains all configuration and authentication.
+Tmux is available locally on macOS and Linux and through SSH on every SSH
+platform. Its fixed bounded discovery command is `tmux list-sessions -F
+'#{session_name}'`; the SSH form runs that exact remote command against at most
+16 strict aliases. A missing tmux server still exposes one host-generated New
+target, named `stuffbucket-` plus 32 lowercase hexadecimal characters; a
+missing binary is unavailable. Existing session names and SSH aliases remain in
+the owner- and generation-scoped main-process target cache. The renderer sees
+only neutral `Tmux session N` or `New tmux session` labels and opaque ids.
+Launches use exactly `tmux new-session -A -s NAME` or `ssh -tt ALIAS tmux
+new-session -A -s NAME`; no renderer value becomes command text. Closing a
+terminal, its owner window, or the app kills only the local tmux or SSH client
+PTY. The tmux server and session survive, while renderer scrollback and an SSH
+connection do not. Multiple windows may attach to an existing tmux session;
+tmux owns terminal-size arbitration.
+
+Tmux Control (Experimental) is a separate local macOS/Linux capability. Its
+main-process control client selects one pane and forwards that pane through the
+existing terminal channel, so Ghostty excludes tmux status, copy, and choose
+interfaces. It has no SSH form. The client bounds protocol and output backlog
+and closes on a protocol failure; renderer acknowledgement does not currently
+drive tmux `pause-after` flow control.
+The connector is mutation tested through `command-connectors.ts`. Command-backed
+sessions are ephemeral and non-reconnectable:
+closing their view terminates the command, and the application does not claim
+detach support.
+
 ```
 keystroke -> term.onData -> `pty:write` channel -> shell
 shell     -> `pty:data` event                   -> term.write
+term.write -> `pty:ack` channel                 -> shell
 ```
 
 Four details are load-bearing.
@@ -132,9 +215,19 @@ Four details are load-bearing.
 - **`TerminalHost` batches output.** A build log emits thousands of small
   writes per second. One message each would swamp the channel, so it coalesces
   on an 8 millisecond timer.
+- **Output has a bounded acknowledged window.** The shipped `pty:ack` channel
+  cumulatively confirms `pty:data.sequence` after `ghostty-web` finishes a
+  write. `MAX_IN_FLIGHT_BYTES` bounds IPC output. A pausable pty stops at its
+  high watermark and resumes at `RESUME_LOW_WATERMARK`; a non-pausable pty
+  retains only the newest `MAX_PENDING_BYTES` tail and reports one loss notice.
+  The host sends `pty:exit` only after prior output is acknowledged.
 - **Terminals stay mounted.** Switching tabs hides the inactive host rather
   than unmounting it. A remount loses the scrollback, which lives in the
   emulator, and by default kills the shell as well.
+- **Tab and session identity differ.** The renderer owns tab ids and gives each
+  terminal tab an opaque session id. IPC keeps the backward-compatible `id`
+  field name for that session id. `pty:status` reports `started` after host
+  registration and `exited` only for the current process generation.
 - **The content policy needs two additions.** `script-src` needs
   `'wasm-unsafe-eval'`, and `connect-src` needs `data:`. `ghostty-web` inlines
   its WebAssembly module as a data URL and fetches it at startup, so there is
@@ -148,6 +241,12 @@ away ending a shell. `disposition="detach"` opts out, and then the shell keeps
 running with nothing showing it, which is what a long build needs and what
 `tmux detach` means.
 
+`disposition="preserve"` also leaves the session running, but only while a
+parent still owns it. `TerminalTabs` uses this when a split reparents existing
+pane views, then terminates every pane itself when the owning tab unmounts.
+That keeps a layout change from killing a visible shell without turning it
+into a detached session.
+
 Three things make that a detach rather than a leak.
 
 - **It still has an owner.** `TerminalHost.terminateAll` covers every session
@@ -156,7 +255,7 @@ Three things make that a detach rather than a leak.
 - **It can be found.** `TerminalHost.list` returns every live session, and the
   `pty:list` channel carries that to the renderer. Nothing signals a detach,
   because a detach is the absence of a terminate, so the set of detached
-  sessions is derived: `detachedSessions` subtracts the ids the renderer holds
+  sessions is derived: `detachedSessions` subtracts the session ids the renderer holds
   views for. There is no attached flag in the main process to fall out of step
   with the views.
 - **It can be attached to.** `TerminalHost.spawn` on an id it already holds

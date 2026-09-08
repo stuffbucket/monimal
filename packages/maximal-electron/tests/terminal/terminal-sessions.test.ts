@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
-import { detachedSessions } from '../src/renderer/lib/terminal-sessions.js';
-import type { TerminalSession } from '../src/renderer/lib/terminal-transport.js';
+import { detachedSessions } from '../../src/renderer/lib/terminal-sessions.js';
+import type { TerminalSession } from '../../src/renderer/lib/terminal-transport.js';
 
 function session(id: string): TerminalSession {
   return { id, cwd: '/work', shell: '/bin/sh', startedAt: 1 };
 }
 
 describe('detachedSessions', () => {
-  it('reports a live session no view holds', () => {
-    expect(detachedSessions([session('a'), session('b')], ['a'])).toEqual([
+  it('subtracts session ids rather than renderer tab ids', () => {
+    expect(detachedSessions([session('a'), session('b')], ['session-tab-a', 'a'])).toEqual([
       session('b'),
     ]);
   });

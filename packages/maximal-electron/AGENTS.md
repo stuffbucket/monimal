@@ -16,7 +16,9 @@ linked document.
 | Lint                                    | `npm run lint`, `npm run lint:fix`                                                                                    |
 | Types                                   | `npm run typecheck`                                                                                                   |
 | Unit tests                              | From the monorepo root, `pnpm test`; see [`docs/testing.md`](docs/testing.md)                                         |
+| Terminal unit tests                     | `pnpm --filter @stuffbucket/maximal-electron run test:terminal`                                                       |
 | Mutation tests                          | `pnpm --filter @stuffbucket/maximal-electron run mutate`                                                              |
+| Terminal mutation tests                 | `pnpm --filter @stuffbucket/maximal-electron run mutate:terminal`                                                     |
 | End-to-end tests                        | `pnpm --filter @stuffbucket/maximal-electron run package && pnpm --filter @stuffbucket/maximal-electron run test:e2e` |
 | Record a demo                           | `npm run package && npm run record`                                                                                   |
 | Re-cut a demo                           | `npm run compose -- <name>`                                                                                           |
