@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- legacy usage store remains one transactional module */
 import consola from "consola"
 import path from "node:path"
 
@@ -27,6 +28,7 @@ export interface UsageTokens {
   cache_read_input_tokens?: number | null
   input_tokens?: number | null
   output_tokens?: number | null
+  reasoning_tokens?: number | null
   total_tokens?: number | null
   /** Copilot per-request cost in nano-AIU (copilot_usage.total_nano_aiu).
    *  Authoritative billing signal under usage-based billing. */
@@ -51,6 +53,7 @@ export interface PersistedTokenUsageEvent {
    *  at record time, or a pre-capture row). SQLite stores 0/1/NULL. */
   is_premium: number | null
   trace_id: string
+  traffic_request_id: string | null
   user_id: string
 }
 
@@ -178,7 +181,7 @@ export function isTokenUsageStorageEnabled(): boolean {
   return isSqliteRuntimeSupported()
 }
 
-function initializeTokenUsageDb(db: SqliteDatabase): void {
+export function initializeTokenUsageDb(db: SqliteDatabase): void {
   db.exec("PRAGMA journal_mode = WAL")
   db.exec("PRAGMA busy_timeout = 5000")
   // Baseline schema (schema version 0). CREATE ... IF NOT EXISTS + the two
@@ -263,6 +266,21 @@ export const TOKEN_USAGE_MIGRATIONS: Array<Migration> = [
       db.exec("ALTER TABLE token_usage_events ADD COLUMN project_id TEXT")
     },
   },
+  {
+    // Links an existing usage row to the richer request lifecycle when one is
+    // active. NULL is deliberate for direct/non-HTTP callers; the traffic store
+    // backfills those rows with deterministic legacy IDs on its next read/open.
+    name: "link usage rows to traffic requests",
+    up: (db) => {
+      db.exec(
+        "ALTER TABLE token_usage_events ADD COLUMN traffic_request_id TEXT",
+      )
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_token_usage_events_traffic_request_id
+        ON token_usage_events(traffic_request_id)
+      `)
+    },
+  },
 ]
 
 function ensureColumn(
@@ -342,8 +360,9 @@ async function writeTokenUsageEvent(
         cache_creation_input_tokens,
         total_tokens,
         total_nano_aiu,
-        is_premium
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        is_premium,
+        traffic_request_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
   ).run(
     event.created_at_ms,
@@ -362,6 +381,7 @@ async function writeTokenUsageEvent(
     event.total_tokens,
     event.total_nano_aiu,
     event.is_premium,
+    event.traffic_request_id,
   )
 }
 
@@ -377,7 +397,8 @@ export function enqueueTokenUsageWrite(event: PersistedTokenUsageEvent): void {
     })
 }
 
-async function flushTokenUsageEvents(): Promise<void> {
+/** @internal Synchronize the traffic backfill bridge with queued usage writes. */
+export async function flushTokenUsageEvents(): Promise<void> {
   let currentQueue = writeQueue
   while (true) {
     await currentQueue

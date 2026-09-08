@@ -308,23 +308,26 @@ it, so a core-owned schema would be core-owned coupling with none of the
 knowledge, and a core release every time a field is added. Agent-run
 orchestration belongs to the harness that does the orchestrating.
 
-What core does own is per-request facts, tagged with a caller-supplied key it
-never interprets. `traceIdMiddleware` (`src/lib/http/trace.ts`) accepts
-`x-trace-id`, `x-session-affinity` and `x-parent-session-id` on any request,
-echoes the trace id back, and carries all three in `AsyncLocalStorage`.
-`x-session-affinity` then becomes the `session_id` on every persisted usage row
-(`src/lib/token-usage/`), which records model, endpoint, timestamps, the four
-token counts, nano-AIU and the premium flag. A harness that stamps its own run
-id on outbound requests can therefore attribute cost and model choice per run
-without core knowing what a run is.
+What core does own is per-request traffic. Inference routes create a passive
+observation handle in `AsyncLocalStorage`; the SQLite adapter in
+`src/lib/observability/` records accepted, dispatching, streaming and terminal
+states, normalized routing/context metadata, byte counts, timing and token
+snapshots. It never stores request or response content, headers, raw user-agent
+strings, secrets, or transport objects. Status, model, control and diagnostic
+routes are outside this boundary. Existing `token_usage_events` remain the
+source for the legacy usage API and are linked to active observations; older and
+direct-call rows are projected once with deterministic `legacy-token-usage-*`
+request IDs.
 
-Reading those rows back by key is not exposed today — `usage/get` returns a
-day summary, not per-event rows filtered by session. Note also that the `usage`
-control topic is coalesced last-value on purpose (`src/lib/live/hub.ts`): a
-per-request event storm would overflow every subscriber's bounded queue and get
-slow clients dropped, so "stream every request as it happens" is the shape this
-design rejects. The workable pattern is the coalesced tick as a change signal,
-with the consumer re-querying by key when it fires.
+The validated JSON-RPC reads are `observability/overview`,
+`observability/requests`, and `observability/request`. Request lists use a
+snapshot watermark plus keyset cursor, so concurrent inserts cannot reorder a
+walk already in progress. The `traffic` control topic carries bounded,
+coalesced invalidations only: consumers re-run the reads instead of receiving a
+payload-bearing event for every lifecycle update. `traceIdMiddleware`
+(`src/lib/http/trace.ts`) still accepts `x-trace-id`, `x-session-affinity` and
+`x-parent-session-id`; the observation keeps only the normalized identifiers
+needed for correlation.
 
 ## Diagnostic surfaces
 

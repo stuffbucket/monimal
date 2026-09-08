@@ -14,6 +14,7 @@ import {
   buildControlSnapshot,
   type ControlSnapshot,
 } from "~/lib/live/resources"
+import { setDefaultTrafficInvalidationListener } from "~/lib/observability/store"
 import { getTokenUsageSummary, onTokenUsageRecorded } from "~/lib/token-usage"
 
 /** How often a dirty usage tally is recomputed and flushed as one coalesced
@@ -33,7 +34,13 @@ export function getControlHub(): ControlHub<ControlSnapshot> {
     heartbeatMs: HEARTBEAT_MS,
   })
 
+  setDefaultTrafficInvalidationListener((invalidation) => {
+    created.recordTraffic(invalidation)
+  })
   teardown.push(
+    () => {
+      setDefaultTrafficInvalidationListener(undefined)
+    },
     settingsEventBus.subscribe("auth.changed", (payload) => {
       created.emit("auth", payload)
     }),
@@ -49,6 +56,7 @@ export function getControlHub(): ControlHub<ControlSnapshot> {
     }),
   )
   const timer = setInterval(() => {
+    created.flushTraffic()
     if (!usageDirty) return
     usageDirty = false
     void getTokenUsageSummary("day").then(

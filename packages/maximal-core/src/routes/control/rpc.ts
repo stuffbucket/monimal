@@ -1,3 +1,5 @@
+import type { Context } from "hono"
+
 /**
  * JSON-RPC method registry for the control plane (ADR-0023, maximal-core#4/#8).
  *
@@ -9,13 +11,21 @@
  * `auth/status`, `config/get`, `health`, …) rather than anything invented here,
  * so the Electron client codes against one agreed method set.
  */
-import type { Context } from "hono"
+import {
+  TrafficOverviewQuerySchema,
+  TrafficOverviewSchema,
+  TrafficRequestDetailQuerySchema,
+  TrafficRequestDetailSchema,
+  TrafficRequestListQuerySchema,
+  TrafficRequestListSchema,
+} from "@stuffbucket/maximal-observability-contract"
 
 import type { ClientRosterReader } from "~/lib/http/active-clients"
 import type { RpcRegistry } from "~/lib/jsonrpc/dispatch"
 import type { ControlHub } from "~/lib/live/hub"
 import type { AsyncMutex } from "~/lib/live/mutex"
 import type { ControlSnapshot } from "~/lib/live/resources"
+import type { TrafficQueryStore } from "~/lib/observability/store"
 
 import {
   cancelDeviceFlow,
@@ -43,6 +53,7 @@ import {
   buildModelsList,
 } from "~/lib/live/resources"
 import { streamSubscription } from "~/lib/live/stream-subscription"
+import { getDefaultTrafficObserver } from "~/lib/observability/store"
 import { cacheModels } from "~/lib/platform/utils"
 import { state } from "~/lib/runtime-state/state"
 import { emitQuitRequest, emitUpdateRequest } from "~/lib/start/boot-status"
@@ -57,10 +68,23 @@ export interface ControlRpcDeps {
    *  Mirrors `ControlRoutesOptions.listClients` so `GET /clients` and
    *  `clients/list` cannot answer from different state. */
   listClients?: ClientRosterReader
+  trafficQueries?: TrafficQueryStore
 }
 
 /** Both account methods take `{ key }`; validated once so the two call sites
  *  cannot disagree about the shape. */
+function parseParams<T>(
+  schema: {
+    safeParse(value: unknown): { success: true; data: T } | { success: false }
+  },
+  params: unknown,
+): T {
+  const parsed = schema.safeParse(params ?? {})
+  if (!parsed.success)
+    throw new RpcParamsError("Invalid observability query parameters.")
+  return parsed.data
+}
+
 function keyFromParams(params: unknown): string {
   const key = (params as { key?: unknown } | null | undefined)?.key
   if (typeof key !== "string" || !key) {
@@ -93,6 +117,7 @@ function relayToShell(emit: () => boolean, verb: "quitting" | "upgrading") {
 export function createControlRpcMethods(deps: ControlRpcDeps): RpcRegistry {
   const { hub, mutex } = deps
   const listClients = deps.listClients ?? listActiveClients
+  const trafficQueries = deps.trafficQueries ?? getDefaultTrafficObserver()
 
   const registry: RpcRegistry = {
     health: () => ({ ok: true, version: BUILD_VERSION }),
@@ -104,6 +129,23 @@ export function createControlRpcMethods(deps: ControlRpcDeps): RpcRegistry {
     "apps/list": () => buildAppsList(),
     "models/list": () => buildModelsList(),
     "usage/get": () => getTokenUsageSummary("day"),
+    "observability/overview": async (params: unknown) => {
+      const query = parseParams(TrafficOverviewQuerySchema, params)
+      return TrafficOverviewSchema.parse(
+        await trafficQueries.getOverview(query),
+      )
+    },
+    "observability/requests": async (params: unknown) => {
+      const query = parseParams(TrafficRequestListQuerySchema, params)
+      return TrafficRequestListSchema.parse(
+        await trafficQueries.listRequests(query),
+      )
+    },
+    "observability/request": async (params: unknown) => {
+      const query = parseParams(TrafficRequestDetailQuerySchema, params)
+      const result = await trafficQueries.getRequest(query.requestId)
+      return result === null ? null : TrafficRequestDetailSchema.parse(result)
+    },
     "config/get": () => getConfig(),
     "clients/list": () => {
       const clients = listClients()

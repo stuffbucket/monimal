@@ -1,3 +1,7 @@
+import type { TrafficTokenMetadata } from "@stuffbucket/maximal-observability-contract"
+
+import consola from "consola"
+
 import { requestContext, generateTraceId } from "~/lib/http/request-context"
 import { state } from "~/lib/runtime-state/state"
 import { pricedModelIsPaid } from "~/services/copilot/get-models"
@@ -126,6 +130,7 @@ function toPersistedEvent(
     total_nano_aiu: normalizeToken(input.total_nano_aiu),
     is_premium: resolveIsPaid(input.model),
     trace_id: resolveTraceId(input.traceId),
+    traffic_request_id: requestContext.getStore()?.trafficRequestId ?? null,
     user_id: resolveUserId(input),
   }
 }
@@ -172,12 +177,62 @@ export function onTokenUsageRecorded(
   return tokenUsageEventBus.subscribe("token_usage.recorded", listener)
 }
 
+function toTrafficTokens(input: UsageTokens): TrafficTokenMetadata {
+  return {
+    inputTokens: normalizeToken(input.input_tokens),
+    outputTokens: normalizeToken(input.output_tokens),
+    cacheReadInputTokens: normalizeToken(input.cache_read_input_tokens),
+    cacheCreationInputTokens: normalizeToken(input.cache_creation_input_tokens),
+    reasoningTokens: normalizeToken(input.reasoning_tokens),
+    totalTokens: resolveTotalTokens(input),
+    totalNanoAiu: normalizeToken(input.total_nano_aiu),
+  }
+}
+
+function annotateTrafficObservation(input: TokenUsageEventInput): void {
+  const observation = requestContext.getStore()?.trafficObservation
+  if (!observation) return
+  const at = new Date().toISOString()
+  try {
+    observation.recordDispatch({
+      at,
+      attribution: {
+        source: input.source,
+        client: null,
+        project: null,
+        provider:
+          input.source === "provider" ?
+            input.providerName?.trim() || null
+          : "copilot",
+        model: input.model.trim() || null,
+        parentSessionId:
+          requestContext.getStore()?.parentSessionId?.trim() || null,
+        subagent: requestContext.getStore()?.parentSessionId ? true : null,
+        compactType: null,
+      },
+      dispatch: {
+        attemptCount: 1,
+        retryCount: 0,
+        statusCode: null,
+        streamed: null,
+        upstreamRequestId: null,
+        requestedModel: null,
+        resolvedModel: input.model.trim() || null,
+      },
+    })
+    observation.recordTokens({ at, tokens: toTrafficTokens(input) })
+  } catch (error) {
+    consola.warn("Traffic observer rejected token annotation", error)
+  }
+}
+
 export function recordTokenUsageEvent(input: TokenUsageEventInput): void {
   const event = toPersistedEvent(input)
   if (!event) {
     return
   }
 
+  annotateTrafficObservation(input)
   tokenUsageEventBus.publish("token_usage.recorded", event)
 }
 
@@ -243,6 +298,9 @@ export function normalizeResponsesUsage(
           cached_tokens?: number
         }
         output_tokens?: number
+        output_tokens_details?: {
+          reasoning_tokens?: number
+        }
         total_tokens?: number
       }
     | null
@@ -256,6 +314,9 @@ export function normalizeResponsesUsage(
     cache_read_input_tokens: cachedTokens,
     input_tokens: Math.max(0, inputTokens - cachedTokens),
     output_tokens: normalizeToken(usage?.output_tokens),
+    reasoning_tokens: normalizeOptionalToken(
+      usage?.output_tokens_details?.reasoning_tokens,
+    ),
     total_tokens: normalizeOptionalToken(usage?.total_tokens),
   }
 }

@@ -37,6 +37,7 @@ export const CONTROL_TOPICS = [
   "models",
   "clients",
   "usage",
+  "traffic",
   "config",
   "boot",
 ] as const
