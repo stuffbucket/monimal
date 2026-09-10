@@ -4,10 +4,12 @@ import consola from "consola"
 
 import { getConfig, type AppConfig } from "~/lib/config/config"
 import { recordClient } from "~/lib/http/active-clients"
+import { requestContext } from "~/lib/http/request-context"
 import { hasGithubToken, state } from "~/lib/runtime-state/state"
 
 interface AuthMiddlewareOptions {
   getApiKeys?: () => Array<string>
+  findApiKeyEntry?: (requestKey: string) => { id: string; label: string } | null
   /**
    * Resolver for the "block unknown connections" flag. When it returns
    * false (the default), the middleware allows every request and only
@@ -183,6 +185,7 @@ export function createAuthMiddleware(
   options: AuthMiddlewareOptions = {},
 ): MiddlewareHandler {
   const getApiKeys = options.getApiKeys ?? getConfiguredApiKeys
+  const findEntry = options.findApiKeyEntry ?? findApiKeyEntry
   const isEnforcing =
     options.isEnforcing ?? (() => getConfig().auth?.enforce === true)
   const allowUnauthenticatedPaths = options.allowUnauthenticatedPaths ?? ["/"]
@@ -216,13 +219,13 @@ export function createAuthMiddleware(
       return { allow: true, id: null, label: "Maximal Settings" }
     }
     if (!isEnforcing()) {
-      const entry = requestApiKey ? findApiKeyEntry(requestApiKey) : null
+      const entry = requestApiKey ? findEntry(requestApiKey) : null
       return { allow: true, id: entry?.id ?? null, label: entry?.label ?? null }
     }
     if (!requestApiKey || !apiKeyAllowed(getApiKeys(), requestApiKey)) {
       return { allow: false }
     }
-    const entry = findApiKeyEntry(requestApiKey)
+    const entry = findEntry(requestApiKey)
     return { allow: true, id: entry?.id ?? null, label: entry?.label ?? null }
   }
 
@@ -230,6 +233,11 @@ export function createAuthMiddleware(
     if (shouldBypass(c)) return next()
     const decision = decideAuth(extractRequestApiKey(c))
     if (!decision.allow) return createUnauthorizedResponse(c)
+    const context = requestContext.getStore()
+    if (context) {
+      context.apiKeyId = decision.id
+      context.apiKeyLabel = decision.label
+    }
     recordClient({
       apiKeyId: decision.id,
       apiKeyLabel: decision.label,

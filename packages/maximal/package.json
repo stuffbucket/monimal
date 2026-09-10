@@ -54,6 +54,7 @@
     ]
   },
   "dependencies": {
+    "@stuffbucket/maximal-configurators": "workspace:*",
     "@stuffbucket/maximal-core": "workspace:*",
     "@stuffbucket/maximal-dsh-host": "workspace:*",
     "@stuffbucket/maximal-provider-contract": "workspace:*"

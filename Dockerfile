@@ -91,6 +91,7 @@ COPY --chown=maximal:maximal scripts/lockfile-shard-hosts.cjs scripts/lockfile-s
 COPY --chown=maximal:maximal packages/anthropic-provider/package.json packages/anthropic-provider/package.json
 COPY --chown=maximal:maximal packages/eslint-config/package.json packages/eslint-config/package.json
 COPY --chown=maximal:maximal packages/llama-server/package.json packages/llama-server/package.json
+COPY --chown=maximal:maximal packages/maximal-configurators/package.json packages/maximal-configurators/package.json
 COPY --chown=maximal:maximal packages/maximal-core/package.json packages/maximal-core/package.json
 COPY --chown=maximal:maximal packages/maximal-core/downstream/package.json packages/maximal-core/downstream/package.json
 COPY --chown=maximal:maximal packages/maximal-dsh-host/package.json packages/maximal-dsh-host/package.json

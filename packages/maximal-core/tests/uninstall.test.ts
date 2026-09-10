@@ -1,38 +1,21 @@
-/**
- * Tests focus on the parts of uninstall that don't require root or
- * platform-specific calls — the Claude Desktop config reversion path
- * (the writer itself is covered by claude-desktop-3p-config.test.ts) plus
- * the binary-removal candidate list. The launchd / scheduled-task path is
- * exercised by the install scripts in B2/B3a; mocking spawnSync per-OS
- * here would be more brittle than the production code.
- */
-
-import {
-  afterAll,
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  mock,
-  spyOn,
-} from "bun:test"
-import * as childProcess from "node:child_process"
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test"
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
 
 import type { ClientApp } from "~/apps/index"
+import type { AppEntry } from "~/lib/config/settings-types"
+import type {
+  RunUninstallDependencies,
+  UninstallControlClient,
+} from "~/uninstall"
 
-import * as realRegistryModule from "~/apps/registry"
-
-// Capture the REAL registry exports by value at load time, before any test
-// installs a `mock.module` over it. Bun's `mock.module` mutates the existing
-// module record in place, so a reference captured *after* a mock is applied
-// would already point at the fake — a spread copy taken now is immune. Each
-// describe's afterAll restores from this so the registry mock can't leak
-// forward into sibling test files.
-const realRegistry = { ...realRegistryModule }
+import {
+  enabledApps,
+  installTargets,
+  revertLegacyAppIntegrations,
+  runUninstall,
+} from "~/uninstall"
 
 let workDir: string
 
@@ -41,15 +24,11 @@ beforeEach(() => {
 })
 
 afterEach(() => {
-  try {
-    fs.rmSync(workDir, { recursive: true, force: true })
-  } catch {
-    /* best effort */
-  }
+  fs.rmSync(workDir, { recursive: true, force: true })
 })
 
 describe("uninstall — Claude Desktop revert integration", () => {
-  it("revertConfigLibraryProfile removes our profile, preserving user prefs", async () => {
+  it("removes its profile while preserving user preferences", async () => {
     const {
       applyConfigLibraryProfile,
       revertConfigLibraryProfile,
@@ -57,9 +36,7 @@ describe("uninstall — Claude Desktop revert integration", () => {
       getClaude3pDir,
     } = await import("~/apps/claude-desktop/config")
 
-    const home = workDir
-    const dir = getClaude3pDir(home)
-    // Pre-seed a user-owned top-level config with unrelated prefs.
+    const dir = getClaude3pDir(workDir)
     fs.mkdirSync(dir, { recursive: true })
     fs.writeFileSync(
       path.join(dir, "claude_desktop_config.json"),
@@ -69,19 +46,16 @@ describe("uninstall — Claude Desktop revert integration", () => {
       }),
     )
 
-    applyConfigLibraryProfile(home)
-    expect(isConfigLibraryApplied(home)).toBe(true)
+    applyConfigLibraryProfile(workDir)
+    expect(isConfigLibraryApplied(workDir)).toBe(true)
 
-    const result = revertConfigLibraryProfile(home)
+    const result = revertConfigLibraryProfile(workDir)
     expect(result.reverted).toBe(true)
-    expect(isConfigLibraryApplied(home)).toBe(false)
+    expect(isConfigLibraryApplied(workDir)).toBe(false)
 
-    // User prefs survive the revert; only our deploymentMode is cleared.
-    const cfgFile = path.join(dir, "claude_desktop_config.json")
-    const after = JSON.parse(fs.readFileSync(cfgFile, "utf8")) as Record<
-      string,
-      unknown
-    >
+    const after = JSON.parse(
+      fs.readFileSync(path.join(dir, "claude_desktop_config.json"), "utf8"),
+    ) as Record<string, unknown>
     expect(after.deploymentMode).toBeUndefined()
     expect(after.coworkUserFilesPath).toBe("/Users/x/Claude")
     expect((after.preferences as { theme: string }).theme).toBe("dark")
@@ -92,11 +66,10 @@ describe("uninstall — Claude Code settings revert integration", () => {
   const testHelper =
     '"/Applications/Maximal.app/Contents/MacOS/maximal" api claude-code'
 
-  it("reverts only the ANTHROPIC_BASE_URL we wrote, preserving other env", async () => {
+  it("reverts only the base URL it wrote", async () => {
     const { applyProxyBaseUrl, revertProxyBaseUrl, isProxyBaseUrlConfigured } =
       await import("~/apps/claude-code/config")
     const settings = path.join(workDir, "settings.json")
-    // Seed a sibling env var we must NOT touch.
     fs.writeFileSync(
       settings,
       JSON.stringify({ env: { ANTHROPIC_API_KEY: "user-key" } }),
@@ -104,26 +77,19 @@ describe("uninstall — Claude Code settings revert integration", () => {
 
     applyProxyBaseUrl(settings, () => testHelper)
     expect(isProxyBaseUrlConfigured(settings)).toBe(true)
+    expect(revertProxyBaseUrl(settings).wrote).toBe(true)
 
-    const reverted = revertProxyBaseUrl(settings)
-    expect(reverted.wrote).toBe(true)
-    expect(isProxyBaseUrlConfigured(settings)).toBe(false)
-    // The user's own key survived.
     const after = JSON.parse(fs.readFileSync(settings, "utf8")) as {
       env?: { ANTHROPIC_API_KEY?: string }
     }
     expect(after.env?.ANTHROPIC_API_KEY).toBe("user-key")
   })
 
-  it("revert is a no-op when nothing was configured", async () => {
+  it("does not revert an absent or foreign base URL", async () => {
     const { revertProxyBaseUrl } = await import("~/apps/claude-code/config")
     const settings = path.join(workDir, "settings.json")
     expect(revertProxyBaseUrl(settings).wrote).toBe(false)
-  })
 
-  it("does not revert a foreign ANTHROPIC_BASE_URL", async () => {
-    const { revertProxyBaseUrl } = await import("~/apps/claude-code/config")
-    const settings = path.join(workDir, "settings.json")
     fs.writeFileSync(
       settings,
       JSON.stringify({ env: { ANTHROPIC_BASE_URL: "https://other.example" } }),
@@ -137,384 +103,262 @@ describe("uninstall — Claude Code settings revert integration", () => {
 })
 
 describe("uninstall — install-target selection", () => {
-  it("targets the Homebrew binaries and nothing installer-shaped", async () => {
-    const { installTargets } = await import("~/uninstall")
-    if (process.platform === "win32") return // brew targets are POSIX-only
+  it("targets only the Homebrew binaries", () => {
+    if (process.platform === "win32") return
     const paths = installTargets()
     expect(paths).toContain("/opt/homebrew/bin/maximal")
     expect(paths).toContain("/usr/local/bin/maximal")
-    // maximal ships no OS installer: no .app bundle, no PATH symlink.
-    expect(paths.some((p) => p.endsWith(".app"))).toBe(false)
-    expect(paths.some((p) => p.includes("/.local/bin/"))).toBe(false)
+    expect(paths.some((candidate) => candidate.endsWith(".app"))).toBe(false)
+    expect(paths.some((candidate) => candidate.includes("/.local/bin/"))).toBe(
+      false,
+    )
   })
 })
 
-// ────────────────────────────────────────────────────────────────────
-// Registry-driven precondition gate + revert sweep.
-//
-// These exercise the SAFETY-CRITICAL precondition logic in uninstall.ts
-// without ever running its destructive steps (stopProxy / removeBinary
-// shell out and rmSync REAL paths). We mock the app registry so
-// `getAllApps()` returns in-memory fakes, and we only ever drive
-// `runUninstall` down its REFUSAL path — it throws at the gate, before
-// any destructive step. The registry mock is captured and restored in
-// afterAll so it can't leak into sibling test files (Bun's `mock.module`
-// persists forward across a run).
-// ────────────────────────────────────────────────────────────────────
+function appEntry(
+  id: AppEntry["id"],
+  name: string,
+  enabled: boolean,
+): AppEntry {
+  return {
+    id,
+    name,
+    kind: id === "copilot-cli" ? "coming-soon" : "config",
+    enabled,
+    status: id === "copilot-cli" ? "coming-soon" : "ready",
+    installs: [],
+    install: null,
+    conflict: null,
+  }
+}
 
 interface FakeAppOptions {
-  id: string
+  id: ClientApp["id"]
   name: string
   enabled: boolean
   disable?: ReturnType<typeof mock>
   uninstall?: ReturnType<typeof mock>
 }
 
-function makeFakeApp(opts: FakeAppOptions): ClientApp {
-  const disable = opts.disable ?? mock(() => Promise.resolve({ success: true }))
-  const uninstall =
-    opts.uninstall ?? mock(() => Promise.resolve({ reverted: [] }))
+function fakeApp(options: FakeAppOptions): ClientApp {
   return {
-    id: opts.id as ClientApp["id"],
-    name: opts.name,
+    id: options.id,
+    name: options.name,
     kind: "config",
-    isEnabled: () => opts.enabled,
-    disable,
-    uninstall,
-    // Only the members above are exercised by enabledApps /
-    // revertAppIntegrations / the runUninstall gate. The rest satisfy the
-    // ClientApp contract but are never called by these paths.
+    isEnabled: () => options.enabled,
+    disable: options.disable ?? mock(() => Promise.resolve({ success: true })),
+    uninstall:
+      options.uninstall ?? mock(() => Promise.resolve({ reverted: [] })),
     detect: () => Promise.resolve(true),
-    getDetails: () => Promise.reject(new Error("not used")),
+    getDetails: () =>
+      Promise.resolve(appEntry(options.id, options.name, options.enabled)),
     enable: () => Promise.resolve({ success: true }),
   }
 }
 
-describe("uninstall — enabledApps (registry-driven precondition)", () => {
-  // Each test installs its own registry mock; afterAll restores the real one
-  // (captured by value at module load — see `realRegistry`).
-  afterAll(async () => {
-    await mock.module("~/apps/registry", () => realRegistry)
+function uninstallDependencies(
+  control: UninstallControlClient | null,
+  events: Array<string>,
+  legacyApps: ReadonlyArray<ClientApp> = [],
+): RunUninstallDependencies {
+  return {
+    connectControl: () => Promise.resolve(control),
+    enabledLegacyApps: () => enabledApps(legacyApps),
+    stopProxy: () => events.push("stop-proxy"),
+    removeStartupIntegration: () => events.push("remove-startup"),
+    removeBinary: () => events.push("remove-binary"),
+    revertLegacyAppIntegrations: () => {
+      events.push("legacy-sweep")
+      return Promise.resolve()
+    },
+    maybePurgeSecrets: () => {
+      events.push("purge")
+      return Promise.resolve()
+    },
+  }
+}
+
+const uninstallOptions = {
+  purge: false,
+  force: false,
+  unattended: true,
+  keepApp: false,
+} as const
+
+async function caughtError(operation: Promise<void>): Promise<Error> {
+  try {
+    await operation
+  } catch (error) {
+    if (error instanceof Error) return error
+  }
+  throw new Error("Expected operation to fail")
+}
+
+describe("uninstall — daemon-owned disconnect", () => {
+  it("refuses enabled live connections before destructive work", async () => {
+    const events: Array<string> = []
+    const setAppEnabled = mock((appId: AppEntry["id"], enabled: boolean) =>
+      Promise.resolve(appEntry(appId, "Claude Code", enabled)),
+    )
+    const control: UninstallControlClient = {
+      listApps: () =>
+        Promise.resolve({
+          apps: [
+            appEntry("claude-code", "Claude Code", true),
+            appEntry("claude-desktop", "Claude Desktop", true),
+          ],
+        }),
+      setAppEnabled,
+    }
+
+    const error = await caughtError(
+      runUninstall(uninstallOptions, uninstallDependencies(control, events)),
+    )
+
+    expect(error.message).toContain("Refusing to uninstall")
+    expect(error.message).toContain("Claude Code")
+    expect(error.message).toContain("Claude Desktop")
+    expect(setAppEnabled).not.toHaveBeenCalled()
+    expect(events).toEqual([])
   })
 
-  it("returns only apps whose isEnabled() is true", async () => {
-    const enabledApp = makeFakeApp({
+  it("disconnects every enabled connection before stopping the proxy", async () => {
+    const events: Array<string> = []
+    const legacyProbe = mock((): Array<ClientApp> => {
+      throw new Error("live state must not use the legacy registry")
+    })
+    const control: UninstallControlClient = {
+      listApps: () =>
+        Promise.resolve({
+          apps: [
+            appEntry("claude-code", "Claude Code", true),
+            appEntry("claude-desktop", "Claude Desktop", false),
+          ],
+        }),
+      setAppEnabled: (appId, enabled) => {
+        events.push(`disconnect:${appId}`)
+        return Promise.resolve(appEntry(appId, "Claude Code", enabled))
+      },
+    }
+    const dependencies = uninstallDependencies(control, events)
+    dependencies.enabledLegacyApps = legacyProbe
+
+    await runUninstall({ ...uninstallOptions, force: true }, dependencies)
+
+    expect(legacyProbe).not.toHaveBeenCalled()
+    expect(events).toEqual([
+      "disconnect:claude-code",
+      "stop-proxy",
+      "remove-startup",
+      "remove-binary",
+      "legacy-sweep",
+      "purge",
+    ])
+  })
+
+  it("stops before proxy removal when the daemon does not confirm disconnect", async () => {
+    const events: Array<string> = []
+    const control: UninstallControlClient = {
+      listApps: () =>
+        Promise.resolve({
+          apps: [appEntry("claude-code", "Claude Code", true)],
+        }),
+      setAppEnabled: () =>
+        Promise.resolve(appEntry("claude-code", "Claude Code", true)),
+    }
+
+    const error = await caughtError(
+      runUninstall(
+        { ...uninstallOptions, force: true },
+        uninstallDependencies(control, events),
+      ),
+    )
+
+    expect(error.message).toContain("did not disconnect Claude Code")
+    expect(events).toEqual([])
+  })
+
+  it("never mutates an enabled target from a short-lived process", async () => {
+    const events: Array<string> = []
+    const disable = mock(() => Promise.resolve({ success: true }))
+    const legacy = fakeApp({
       id: "claude-code",
       name: "Claude Code",
       enabled: true,
+      disable,
     })
-    const disabledApp = makeFakeApp({
-      id: "claude-desktop",
-      name: "Claude Desktop",
+
+    const error = await caughtError(
+      runUninstall(
+        { ...uninstallOptions, force: true },
+        uninstallDependencies(null, events, [legacy]),
+      ),
+    )
+
+    expect(error.message).toContain("without a running Maximal control plane")
+    expect(error.message).toContain("Start maximal")
+    expect(disable).not.toHaveBeenCalled()
+    expect(events).toEqual([])
+  })
+
+  it("allows legacy cleanup without a daemon when no integration is active", async () => {
+    const events: Array<string> = []
+    const legacy = fakeApp({
+      id: "claude-code",
+      name: "Claude Code",
       enabled: false,
     })
-    await mock.module("~/apps/registry", () => ({
-      getAllApps: () => [enabledApp, disabledApp],
-    }))
-    const { enabledApps } = await import("~/uninstall")
-    const result = enabledApps()
-    expect(result.map((a) => a.name)).toEqual(["Claude Code"])
-  })
 
-  it("returns empty when no app is enabled", async () => {
-    await mock.module("~/apps/registry", () => ({
-      getAllApps: () => [
-        makeFakeApp({ id: "claude-code", name: "Claude Code", enabled: false }),
-        makeFakeApp({
-          id: "claude-desktop",
-          name: "Claude Desktop",
-          enabled: false,
-        }),
-      ],
-    }))
-    const { enabledApps } = await import("~/uninstall")
-    expect(enabledApps()).toEqual([])
-  })
+    await runUninstall(
+      uninstallOptions,
+      uninstallDependencies(null, events, [legacy]),
+    )
 
-  it("filters a mix down to exactly the enabled subset", async () => {
-    await mock.module("~/apps/registry", () => ({
-      getAllApps: () => [
-        makeFakeApp({ id: "claude-code", name: "Claude Code", enabled: true }),
-        makeFakeApp({
-          id: "claude-desktop",
-          name: "Claude Desktop",
-          enabled: false,
-        }),
-        makeFakeApp({ id: "copilot-cli", name: "Copilot CLI", enabled: true }),
-      ],
-    }))
-    const { enabledApps } = await import("~/uninstall")
-    expect(enabledApps().map((a) => a.name)).toEqual([
-      "Claude Code",
-      "Copilot CLI",
+    expect(events).toEqual([
+      "stop-proxy",
+      "remove-startup",
+      "remove-binary",
+      "legacy-sweep",
+      "purge",
     ])
   })
 })
 
-describe("uninstall — runUninstall precondition gate (refusal path only)", () => {
-  afterAll(async () => {
-    await mock.module("~/apps/registry", () => realRegistry)
-  })
-
-  it("throws (refuses) when ≥1 app is enabled and force=false, naming the apps", async () => {
-    // disable() must NEVER be called on the refusal path — if it were, we'd
-    // have run past the gate. Wire it to throw so any accidental call is loud.
-    const disableSpy = mock(() => {
-      throw new Error("disable() must not run on the refusal path")
-    })
-    await mock.module("~/apps/registry", () => ({
-      getAllApps: () => [
-        makeFakeApp({
-          id: "claude-code",
-          name: "Claude Code",
-          enabled: true,
-          disable: disableSpy,
-        }),
-        makeFakeApp({
-          id: "copilot-cli",
-          name: "Copilot CLI",
-          enabled: true,
-          disable: disableSpy,
-        }),
-      ],
-    }))
-    const { runUninstall } = await import("~/uninstall")
-
-    // It rejects at the gate, before any destructive step. Capture the error
-    // and assert on its message directly (rather than `.rejects`, which the
-    // lint rule doesn't treat as thenable).
-    let caught: unknown
-    try {
-      await runUninstall({
-        purge: false,
-        force: false,
-        unattended: true,
-        keepApp: false,
-      })
-    } catch (err) {
-      caught = err
-    }
-    expect(caught).toBeInstanceOf(Error)
-    const message = (caught as Error).message
-    expect(message).toContain("Refusing to uninstall while apps are enabled")
-    // The message names every enabled app.
-    expect(message).toContain("Claude Code")
-    expect(message).toContain("Copilot CLI")
-    // Proof we never crossed the gate: the disable sweep (step 4) never ran.
-    expect(disableSpy).not.toHaveBeenCalled()
-  })
-
-  // Case 3 (gate PASSES) — driven END-TO-END through runUninstall, with every
-  // destructive step neutralized so the real gate predicate executes (mirroring
-  // it in the test can't catch a `> 0`→`>= 0` or `&&`→`||` mutation). We spy the
-  // syscalls the post-gate steps bottom out on:
-  //   • spawnSync (launchctl/schtasks) → no-op success
-  //   • fs.lstatSync → throw ENOENT so removeBinary finds nothing to remove
-  //   • fs.existsSync → false so removeStartupIntegration / purge find nothing
-  //   • fs.rmSync → throw (belt-and-braces: must never be reached given the above)
-  // With force=true (or no apps enabled) the gate must NOT throw and must reach
-  // the step-4 disable→sweep. afterEach restores all spies.
-  describe("gate PASSES end-to-end (destructive steps mocked)", () => {
-    const restore: Array<() => void> = []
-
-    function neutralizeDestructiveSteps(): void {
-      const spawnSpy = spyOn(childProcess, "spawnSync").mockReturnValue({
-        status: 0,
-        stdout: "",
-        stderr: "",
-        pid: 0,
-        output: [],
-        signal: null,
-      })
-      const lstatSpy = spyOn(fs, "lstatSync").mockImplementation(() => {
-        const err = new Error("ENOENT (test)") as NodeJS.ErrnoException
-        err.code = "ENOENT"
-        throw err
-      })
-      const existsSpy = spyOn(fs, "existsSync").mockReturnValue(false)
-      const rmSpy = spyOn(fs, "rmSync").mockImplementation(() => {
-        throw new Error("fs.rmSync must not run in the gate-pass test")
-      })
-      restore.push(
-        () => spawnSpy.mockRestore(),
-        () => lstatSpy.mockRestore(),
-        () => existsSpy.mockRestore(),
-        () => rmSpy.mockRestore(),
-      )
-    }
-
-    afterEach(() => {
-      while (restore.length > 0) restore.pop()?.()
-    })
-
-    it("force=true with apps enabled does NOT throw and runs the disable→sweep", async () => {
-      neutralizeDestructiveSteps()
-      const disable = mock(() => Promise.resolve({ success: true }))
-      const uninstall = mock(() => Promise.resolve({ reverted: [] }))
-      await mock.module("~/apps/registry", () => ({
-        getAllApps: () => [
-          makeFakeApp({
-            id: "claude-code",
-            name: "Claude Code",
-            enabled: true,
-            disable,
-            uninstall,
-          }),
-        ],
-      }))
-      const { runUninstall } = await import("~/uninstall")
-
-      // Must resolve (not throw): force=true short-circuits the refusal even
-      // though an app is enabled. Then step 4 disables the enabled app and
-      // sweeps uninstall() across the registry.
-      await runUninstall({
-        purge: false,
-        force: true,
-        unattended: true,
-        keepApp: false,
-      })
-      expect(disable).toHaveBeenCalledTimes(1)
-      expect(uninstall).toHaveBeenCalledTimes(1)
-    })
-
-    it("no apps enabled does NOT throw (force=false), sweeps uninstall only", async () => {
-      neutralizeDestructiveSteps()
-      const disable = mock(() => Promise.resolve({ success: true }))
-      const uninstall = mock(() => Promise.resolve({ reverted: [] }))
-      await mock.module("~/apps/registry", () => ({
-        getAllApps: () => [
-          makeFakeApp({
-            id: "claude-code",
-            name: "Claude Code",
-            enabled: false,
-            disable,
-            uninstall,
-          }),
-        ],
-      }))
-      const { runUninstall } = await import("~/uninstall")
-
-      // Empty enabledApps() → gate body skipped regardless of force. No app was
-      // enabled, so the step-4 disable pass touches nothing, but the uninstall
-      // sweep still runs ownership-guarded across the registry.
-      await runUninstall({
-        purge: false,
-        force: false,
-        unattended: true,
-        keepApp: false,
-      })
-      expect(disable).not.toHaveBeenCalled()
-      expect(uninstall).toHaveBeenCalledTimes(1)
-    })
-  })
-})
-
-describe("uninstall — revertAppIntegrations (registry sweep)", () => {
-  afterAll(async () => {
-    await mock.module("~/apps/registry", () => realRegistry)
-  })
-
-  it("disables every still-enabled app and uninstalls every registered app, surfacing reverted lines", async () => {
-    const disableA = mock(() => Promise.resolve({ success: true }))
-    const uninstallA = mock(() =>
-      Promise.resolve({ reverted: ["reverted A line"] }),
-    )
-    const uninstallB = mock(() =>
-      Promise.resolve({ reverted: ["reverted B line"] }),
-    )
-
-    const appA = makeFakeApp({
+describe("uninstall — legacy compatibility helpers", () => {
+  it("finds only enabled legacy apps", () => {
+    const enabled = fakeApp({
       id: "claude-code",
       name: "Claude Code",
       enabled: true,
-      disable: disableA,
-      uninstall: uninstallA,
     })
-    const appB = makeFakeApp({
+    const disabled = fakeApp({
       id: "claude-desktop",
       name: "Claude Desktop",
       enabled: false,
-      uninstall: uninstallB,
     })
 
-    await mock.module("~/apps/registry", () => ({
-      getAllApps: () => [appA, appB],
-    }))
-    const { revertAppIntegrations } = await import("~/uninstall")
-
-    // stillEnabled is just appA; the sweep still uninstalls BOTH apps.
-    await revertAppIntegrations([appA])
-
-    // (a) every app in stillEnabled was disabled
-    expect(disableA).toHaveBeenCalledTimes(1)
-    // (b) every app from getAllApps() was uninstalled
-    expect(uninstallA).toHaveBeenCalledTimes(1)
-    expect(uninstallB).toHaveBeenCalledTimes(1)
+    expect(enabledApps([enabled, disabled])).toEqual([enabled])
   })
 
-  it("continues the loop when a disable() throws (other apps still process)", async () => {
-    const badDisable = mock(() => Promise.reject(new Error("boom disable")))
-    const goodDisable = mock(() => Promise.resolve({ success: true }))
-    const uninstallA = mock(() => Promise.resolve({ reverted: [] }))
-    const uninstallB = mock(() => Promise.resolve({ reverted: [] }))
-
-    const appA = makeFakeApp({
-      id: "claude-code",
-      name: "Claude Code",
-      enabled: true,
-      disable: badDisable,
-      uninstall: uninstallA,
-    })
-    const appB = makeFakeApp({
-      id: "claude-desktop",
-      name: "Claude Desktop",
-      enabled: true,
-      disable: goodDisable,
-      uninstall: uninstallB,
-    })
-
-    await mock.module("~/apps/registry", () => ({
-      getAllApps: () => [appA, appB],
-    }))
-    const { revertAppIntegrations } = await import("~/uninstall")
-
-    // The first app's disable() rejects; the call must not abort the loop.
-    await revertAppIntegrations([appA, appB])
-
-    expect(badDisable).toHaveBeenCalledTimes(1)
-    expect(goodDisable).toHaveBeenCalledTimes(1) // loop continued past the throw
-    // The uninstall sweep still ran for both apps afterwards.
-    expect(uninstallA).toHaveBeenCalledTimes(1)
-    expect(uninstallB).toHaveBeenCalledTimes(1)
-  })
-
-  it("continues the uninstall sweep when one uninstall() throws", async () => {
-    const badUninstall = mock(() => Promise.reject(new Error("boom uninstall")))
-    const goodUninstall = mock(() =>
-      Promise.resolve({ reverted: ["B reverted"] }),
-    )
-
-    const appA = makeFakeApp({
+  it("continues the compatibility sweep after one app fails", async () => {
+    const badUninstall = mock(() => Promise.reject(new Error("legacy failure")))
+    const goodUninstall = mock(() => Promise.resolve({ reverted: [] }))
+    const bad = fakeApp({
       id: "claude-code",
       name: "Claude Code",
       enabled: false,
       uninstall: badUninstall,
     })
-    const appB = makeFakeApp({
+    const good = fakeApp({
       id: "claude-desktop",
       name: "Claude Desktop",
       enabled: false,
       uninstall: goodUninstall,
     })
 
-    await mock.module("~/apps/registry", () => ({
-      getAllApps: () => [appA, appB],
-    }))
-    const { revertAppIntegrations } = await import("~/uninstall")
-
-    await revertAppIntegrations([])
+    await revertLegacyAppIntegrations([bad, good])
 
     expect(badUninstall).toHaveBeenCalledTimes(1)
-    expect(goodUninstall).toHaveBeenCalledTimes(1) // sweep continued past the throw
+    expect(goodUninstall).toHaveBeenCalledTimes(1)
   })
 })

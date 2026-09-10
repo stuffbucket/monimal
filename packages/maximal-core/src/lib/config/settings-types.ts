@@ -395,6 +395,8 @@ export const ApiKeyEntry = z.object({
   key: z.string(),
   enabled: z.boolean(),
   created_at: z.string(),
+  kind: z.enum(["managed", "manual"]).optional(),
+  configurator_id: z.string().optional(),
 })
 export type ApiKeyEntry = z.infer<typeof ApiKeyEntry>
 
@@ -517,6 +519,86 @@ export type ApiKeyUpdateRpcRequest = z.infer<typeof ApiKeyUpdateRpcRequest>
 
 export const ApiKeyEnforcementRequest = z.object({ enforcing: z.boolean() })
 export type ApiKeyEnforcementRequest = z.infer<typeof ApiKeyEnforcementRequest>
+
+const ConfiguratorId = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/u)
+
+export const ConnectionAction = z.enum(["connect", "disconnect", "reconnect"])
+export type ConnectionAction = z.infer<typeof ConnectionAction>
+
+export const ConnectionStatus = z.enum([
+  "available",
+  "not-installed",
+  "coming-soon",
+  "connected",
+  "owned-by-another-configurator",
+  "changed-externally",
+  "stale-recovery-required",
+  "recovery-required",
+])
+export type ConnectionStatus = z.infer<typeof ConnectionStatus>
+
+export const ConnectionCredentialSummary = z.object({
+  id: z.string(),
+  label: z.string(),
+  kind: z.enum(["managed", "manual"]),
+  enabled: z.boolean(),
+})
+export type ConnectionCredentialSummary = z.infer<
+  typeof ConnectionCredentialSummary
+>
+
+export const ConnectionOwnership = z.object({
+  configurator_id: ConfiguratorId,
+  target_path: z.string(),
+  pid: z.number().int().positive(),
+  started_at: z.string(),
+})
+export type ConnectionOwnership = z.infer<typeof ConnectionOwnership>
+
+export const ConnectionRecovery = z.object({
+  preserved_paths: z.array(z.array(z.string())),
+})
+export type ConnectionRecovery = z.infer<typeof ConnectionRecovery>
+
+export const ConnectionEntry = z.object({
+  id: ConfiguratorId,
+  name: z.string(),
+  status: ConnectionStatus,
+  allowed_actions: z.array(ConnectionAction),
+  detail: z.string().nullable(),
+  credential: ConnectionCredentialSummary.nullable(),
+  ownership: ConnectionOwnership.nullable(),
+  recovery: ConnectionRecovery.nullable(),
+})
+export type ConnectionEntry = z.infer<typeof ConnectionEntry>
+
+export const ConnectionsListResponse = z.object({
+  clients: z.array(ConnectionEntry),
+  manual_credentials: z.array(ConnectionCredentialSummary),
+  require_known_keys: z.boolean(),
+})
+export type ConnectionsListResponse = z.infer<typeof ConnectionsListResponse>
+
+export const ConnectionActionRequest = z.object({
+  id: ConfiguratorId,
+  action: ConnectionAction,
+})
+export type ConnectionActionRequest = z.infer<typeof ConnectionActionRequest>
+
+export const ConnectionCredentialIdRequest = z.object({
+  id: z.string().min(1),
+})
+export type ConnectionCredentialIdRequest = z.infer<
+  typeof ConnectionCredentialIdRequest
+>
+
+export const ConnectionCredentialReveal = z.object({
+  id: z.string(),
+  key: z.string(),
+})
+export type ConnectionCredentialReveal = z.infer<
+  typeof ConnectionCredentialReveal
+>
 
 export const TokenUsagePeriod = z.enum({
   day: "day",

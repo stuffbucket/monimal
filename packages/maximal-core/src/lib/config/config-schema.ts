@@ -62,10 +62,9 @@ const ReasoningEffortSchema = z.enum([
  * key can survive double-quoting / single-quoting in any shell without
  * escaping headaches: ASCII letters, digits, underscore, hyphen.
  *
- * Plus a single special form: the literal "*" wildcard (and only that —
- * no embedded glob) which the auth middleware honors as "accept any
- * non-empty bearer." Useful for the default "permit-all" entry the UI
- * seeds when the user first enables API-key auth.
+ * The literal "*" remains parseable only for compatibility with existing
+ * configuration. Authentication compares it as an ordinary exact key; new
+ * entries and rotations never create or advertise it.
  */
 export const API_KEY_VALUE_PATTERN = /^(?:\*|[\w-]{8,128})$/
 
@@ -75,6 +74,8 @@ const ApiKeyEntrySchema = z.object({
   key: z.string().regex(API_KEY_VALUE_PATTERN),
   enabled: z.boolean(),
   created_at: z.string(),
+  kind: z.enum(["managed", "manual"]).optional(),
+  configurator_id: z.string().min(1).optional(),
 })
 
 export const AppConfigSchema = z

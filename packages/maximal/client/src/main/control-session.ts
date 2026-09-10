@@ -25,6 +25,13 @@ import {
   AppsListResponse as AppsListResponseSchema,
   type AppsListResponse,
   AuthStatus as AuthStatusSchema,
+  type ConnectionAction,
+  ConnectionCredentialReveal as ConnectionCredentialRevealSchema,
+  type ConnectionCredentialReveal,
+  ConnectionEntry as ConnectionEntrySchema,
+  type ConnectionEntry,
+  ConnectionsListResponse as ConnectionsListResponseSchema,
+  type ConnectionsListResponse,
   type AuthStatus,
   DiagnosticsResponse as DiagnosticsResponseSchema,
   type DiagnosticsResponse,
@@ -69,6 +76,9 @@ type ControlMethod =
   | 'observability/overview'
   | 'observability/requests'
   | 'observability/request'
+  | 'connections/list'
+  | 'connections/act'
+  | 'connections/revealCredential'
   | 'apps/list'
   | 'apps/setEnabled'
   | 'apiKeys/list'
@@ -123,6 +133,14 @@ export interface ControlSession {
   observabilityRequest(
     query: TrafficRequestDetailQuery,
   ): Promise<ControlResult<TrafficRequestDetail | null>>
+  connectionsList(): Promise<ControlResult<ConnectionsListResponse>>
+  connectionsAct(
+    id: string,
+    action: ConnectionAction,
+  ): Promise<ControlResult<ConnectionEntry>>
+  connectionsRevealCredential(
+    id: string,
+  ): Promise<ControlResult<ConnectionCredentialReveal>>
   appsList(): Promise<ControlResult<AppsListResponse>>
   appsSetEnabled(appId: AppEntry['id'], enabled: boolean): Promise<ControlResult<AppEntry>>
   apiKeysList(): Promise<ControlResult<ApiKeysListResponse>>
@@ -151,6 +169,9 @@ const optionalMethods = [
   'observability/overview',
   'observability/requests',
   'observability/request',
+  'connections/list',
+  'connections/act',
+  'connections/revealCredential',
   'apps/list',
   'apps/setEnabled',
   'apiKeys/list',
@@ -489,6 +510,16 @@ export function createControlSession(
           input === null ? null : TrafficRequestDetailSchema.parse(input),
         query,
         parseWith(TrafficRequestDetailQuerySchema),
+      ),
+    connectionsList: () =>
+      call('connections/list', parseWith(ConnectionsListResponseSchema)),
+    connectionsAct: (id, action) =>
+      call('connections/act', parseWith(ConnectionEntrySchema), { id, action }),
+    connectionsRevealCredential: (id) =>
+      call(
+        'connections/revealCredential',
+        parseWith(ConnectionCredentialRevealSchema),
+        { id },
       ),
     appsList: () => call('apps/list', parseWith(AppsListResponseSchema)),
     appsSetEnabled: (appId, enabled) =>

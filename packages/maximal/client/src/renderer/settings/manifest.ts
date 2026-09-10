@@ -1,8 +1,6 @@
 import {
-  Blocks,
   ChartColumn,
   Cpu,
-  KeyRound,
   Link2,
   ScrollText,
   SlidersHorizontal,
@@ -17,11 +15,9 @@ import {
   type SettingsSectionSpec,
 } from '../../shared/settings-sections'
 import { AccountSection } from './AccountSection'
-import { ApiKeysSection } from './ApiKeysSection'
-import { AppsSection } from './AppsSection'
 import type { SettingsCapabilities } from './capabilities'
+import { ConnectionsSection } from './ConnectionsSection'
 import { DiagnosticsSection } from './DiagnosticsSection'
-import { EndpointSection } from './EndpointSection'
 import { GeneralSection } from './GeneralSection'
 import { LogsSection } from './LogsSection'
 import { ModelsSection } from './ModelsSection'
@@ -40,9 +36,7 @@ const SECTION_PARTS: Record<SettingsSectionId, SectionParts> = {
     icon: SlidersHorizontal,
     Panel: GeneralSection,
   },
-  'settings-apps-heading': { icon: Blocks, Panel: AppsSection },
-  'settings-endpoint-heading': { icon: Link2, Panel: EndpointSection },
-  'settings-api-keys-heading': { icon: KeyRound, Panel: ApiKeysSection },
+  'settings-connections-heading': { icon: Link2, Panel: ConnectionsSection },
   'settings-models-heading': { icon: Cpu, Panel: ModelsSection },
   'settings-usage-heading': { icon: ChartColumn, Panel: UsageSection },
   'settings-logs-heading': { icon: ScrollText, Panel: LogsSection },

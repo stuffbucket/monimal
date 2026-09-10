@@ -8,6 +8,10 @@ import type {
   AppEntry,
   AppsListResponse,
   AuthStatus,
+  ConnectionAction,
+  ConnectionCredentialReveal,
+  ConnectionEntry,
+  ConnectionsListResponse,
   DiagnosticsResponse,
   ModelsListResponse,
   TokenUsagePeriod,
@@ -21,7 +25,7 @@ import type {
 
 import type { MaximalBridge } from '../../preload'
 import {
-  isSettingsSectionId,
+  settingsSectionIdFrom,
   type SettingsSectionId,
 } from '../../shared/settings-sections'
 import { unwrapControlResult } from '../shared/control-error'
@@ -36,6 +40,10 @@ export type {
   AppEntry,
   AppsListResponse,
   AuthStatus,
+  ConnectionAction,
+  ConnectionCredentialReveal,
+  ConnectionEntry,
+  ConnectionsListResponse,
   DiagnosticsResponse,
   MenuBarModeAttempt,
   MenuBarModeState,
@@ -64,6 +72,11 @@ export interface SettingsCapabilities {
     confirmMenuBarOnly(attemptId: string): Promise<MenuBarModeState>
     cancelMenuBarOnly(attemptId: string): Promise<MenuBarModeState>
     disableMenuBarOnly(): Promise<MenuBarModeState>
+  }
+  connections: {
+    list(): Promise<ConnectionsListResponse>
+    act(id: string, action: ConnectionAction): Promise<ConnectionEntry>
+    revealCredential(id: string): Promise<ConnectionCredentialReveal>
   }
   apps: {
     list(): Promise<AppsListResponse>
@@ -202,6 +215,16 @@ export function createCoreSettingsCapabilities(): SettingsCapabilities {
       cancelMenuBarOnly: (attemptId) => bridge.menuBarMode.cancelEnable(attemptId),
       disableMenuBarOnly: () => bridge.menuBarMode.disable(),
     },
+    connections: {
+      list: async () =>
+        unwrapControlResult(await bridge.control.connectionsList()),
+      act: async (id, action) =>
+        unwrapControlResult(await bridge.control.connectionsAct(id, action)),
+      revealCredential: async (id) =>
+        unwrapControlResult(
+          await bridge.control.connectionsRevealCredential(id),
+        ),
+    },
     apps: {
       list: async () => unwrapControlResult(await bridge.control.appsList()),
       setEnabled: async (appId, enabled) =>
@@ -243,14 +266,14 @@ export function createCoreSettingsCapabilities(): SettingsCapabilities {
     // cannot disappear between the two operations.
     onOpenRequest: (listener) => {
       const unsubscribe = bridge.onOpenSettings((sectionId) => {
-        listener(isSettingsSectionId(sectionId) ? sectionId : null)
+        listener(settingsSectionIdFrom(sectionId))
       })
       void bridge
         .pendingSettingsRequest()
         .then((request) => {
           if (request !== null) {
             listener(
-              isSettingsSectionId(request.sectionId) ? request.sectionId : null,
+              settingsSectionIdFrom(request.sectionId),
             )
           }
         })

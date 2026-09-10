@@ -8,9 +8,10 @@ import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
 
+import { getClaude3pDir } from "~/lib/configurator-effects/claude-desktop-path"
 import { atomicWriteJson as atomicWriteJsonShared } from "~/lib/platform/atomic-json"
 
-const USERDATA_3P_SUFFIX = "-3p"
+export { getClaude3pDir } from "~/lib/configurator-effects/claude-desktop-path"
 
 export const CLAUDE_3P_PREF_DOMAIN = "com.anthropic.claudefordesktop"
 
@@ -61,23 +62,6 @@ export function gatewayProfile(
     isDesktopExtensionSignatureRequired: false,
     isClaudeCodeForDesktopEnabled: true,
   }
-}
-
-export function getClaude3pDir(
-  home: string = os.homedir(),
-  platform: NodeJS.Platform = process.platform,
-): string {
-  if (platform === "win32") {
-    const localAppData =
-      process.env.LOCALAPPDATA ?? path.join(home, "AppData", "Local")
-    return path.join(localAppData, `Claude${USERDATA_3P_SUFFIX}`)
-  }
-  return path.join(
-    home,
-    "Library",
-    "Application Support",
-    `Claude${USERDATA_3P_SUFFIX}`,
-  )
 }
 
 interface MetaFile {

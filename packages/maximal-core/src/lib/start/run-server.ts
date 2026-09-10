@@ -14,13 +14,16 @@ import consola from "consola"
 import { serve } from "srvx"
 
 import type {
+  ConfiguratorRegistry,
+  ConfiguratorRuntimeFactory,
+} from "~/lib/configurator-host"
+import type {
   ProviderGatewayFactory,
   ProviderHostConfigSource,
 } from "~/lib/provider-host-types"
 import type { ProviderDispatcher } from "~/services/providers/provider-dispatcher"
 
 import { removeLegacyShimIfPresent } from "~/apps/claude-code/detect"
-import { reconcileClaudeCodeOnBoot } from "~/apps/claude-code/reconcile"
 import { type AccountType } from "~/lib/auth/auth-types"
 import {
   DEFAULT_PORT_POLICY,
@@ -28,7 +31,13 @@ import {
   mergeConfigWithDefaults,
 } from "~/lib/config/config"
 import { createProviderHostConfigSource } from "~/lib/config/provider-host-source"
+import { createConfiguratorHost } from "~/lib/configurator-host-runtime"
+import { currentRuntimeIdentity } from "~/lib/host-config/runtime-identity"
 import { initProxyFromEnv } from "~/lib/http/proxy"
+import {
+  clearRuntimeEndpoint,
+  writeRuntimeEndpoint,
+} from "~/lib/live/runtime-endpoint"
 import { initOpencodeVersion } from "~/lib/platform/opencode"
 import { ensurePaths } from "~/lib/platform/paths"
 import { writePidfile } from "~/lib/platform/replace-running"
@@ -90,6 +99,22 @@ export function __setBootSecretsForTests(fn: BootSecretsFn | null): void {
   bootSecretsImpl = fn ?? bootSecrets
 }
 
+function emptyConfiguratorRegistry(): ConfiguratorRegistry {
+  return {
+    all: () => [],
+    get: () => undefined,
+    dispose: () => Promise.resolve(),
+  }
+}
+
+function activateConfiguratorRuntime(
+  factory: ConfiguratorRuntimeFactory | undefined,
+): Promise<ConfiguratorRegistry> {
+  return factory ?
+      factory(createConfiguratorHost())
+    : Promise.resolve(emptyConfiguratorRegistry())
+}
+
 export interface RunServerOptions {
   port: number
   verbose: boolean
@@ -108,6 +133,8 @@ export interface RunServerOptions {
    *  ephemeral — because nothing external is meant to find it; a supervisor
    *  learns the bound value from the ready-line. */
   controlPort?: number
+  /** Statically linked first-party configurators. Omit for standalone Core. */
+  createConfiguratorRuntime?: ConfiguratorRuntimeFactory
   /** Optional prebuilt provider boundary. Omit for standalone legacy mode. */
   providerGateway?: ProviderGateway
   /**
@@ -115,6 +142,17 @@ export interface RunServerOptions {
    * validation, and only when `providerHost.mode` is `dsh`.
    */
   createProviderGateway?: ProviderGatewayFactory
+}
+
+function warnAboutStaleSession(): void {
+  if (!staleSessionMarkerPresent()) return
+  consola.warn(
+    "Previous maximal session ended ungracefully (likely a crash, "
+      + "force-quit, or system shutdown). If `claude` produced "
+      + "connection-refused errors since then, that was why — your "
+      + "Claude Code config still pointed at this proxy. Routing is "
+      + "being re-applied now and will work again.",
+  )
 }
 
 export async function runServer(options: RunServerOptions): Promise<void> {
@@ -202,18 +240,9 @@ export async function runServer(options: RunServerOptions): Promise<void> {
   // refused" in `claude` since then. We can't auto-recover the
   // inter-session window (an external watchdog would be needed), but
   // we can at least surface the cause so the symptom isn't mysterious.
-  // The reconcileClaudeCodeOnBoot() call below will re-apply the URL
-  // for the new session; that ends the broken-window.
-  const staleSession = staleSessionMarkerPresent()
-  if (staleSession) {
-    consola.warn(
-      "Previous maximal session ended ungracefully (likely a crash, "
-        + "force-quit, or system shutdown). If `claude` produced "
-        + "connection-refused errors since then, that was why — your "
-        + "Claude Code config still pointed at this proxy. Routing is "
-        + "being re-applied now and will work again.",
-    )
-  }
+  // Post-bind configurator reconciliation below will reclaim or reapply the
+  // connection for the new session; that ends the broken window.
+  warnAboutStaleSession()
 
   // One-shot cleanup of the pre-v0.4.13 ~/.local/share/maximal/shims/claude
   // wrapper, which is now orphaned (we route via ~/.claude/settings.json
@@ -255,23 +284,33 @@ export async function runServer(options: RunServerOptions): Promise<void> {
 
   logListening(bootLogger, serverUrl, executorName)
 
+  const configuratorRegistry = await activateConfiguratorRuntime(
+    options.createConfiguratorRuntime,
+  )
   const providerConfigSource = createProviderHostConfigSource()
-  const { proxyServer, controlServer, providerDispatcher } =
-    await bindListeners({
-      controlPort: controlPortRequested,
-      createProviderGateway: options.createProviderGateway,
-      providerConfigSource,
-      providerGateway: options.providerGateway,
-      proxyPort: port,
-    })
+  try {
+    const { proxyServer, controlServer, providerDispatcher } =
+      await bindListeners({
+        configurators: configuratorRegistry,
+        controlPort: controlPortRequested,
+        createProviderGateway: options.createProviderGateway,
+        providerConfigSource,
+        providerGateway: options.providerGateway,
+        proxyPort: port,
+      })
 
-  finalizeBoot({
-    proxyServer,
-    proxyRequested: port,
-    controlServer,
-    controlRequested: controlPortRequested,
-    providerDispatcher,
-  })
+    await finalizeBoot({
+      proxyServer,
+      proxyRequested: port,
+      controlServer,
+      controlRequested: controlPortRequested,
+      configurators: configuratorRegistry,
+      providerDispatcher,
+    })
+  } catch (error) {
+    await configuratorRegistry.dispose()
+    throw error
+  }
 }
 
 /** One structured line the boot log is grepped for after the fact. */
@@ -288,6 +327,7 @@ function logListening(
 }
 
 interface BindListenersOptions {
+  configurators: ConfiguratorRegistry
   controlPort: number
   createProviderGateway?: ProviderGatewayFactory
   providerConfigSource: ProviderHostConfigSource
@@ -308,6 +348,7 @@ interface BindListenersOptions {
  * the point, and a filter is something a later edit can quietly regress.
  */
 async function bindListeners({
+  configurators,
   controlPort,
   createProviderGateway,
   providerConfigSource,
@@ -323,12 +364,22 @@ async function bindListeners({
   const requestShutdown = (reason: string): Promise<void> => {
     const dispatcher = providerDispatcher
     if (!dispatcher) return Promise.resolve()
-    return initiateShutdown(listeners, reason, () => dispatcher.dispose())
+    return initiateShutdown(listeners, reason, {
+      beforeClose: () => configurators.dispose(),
+      afterClose: async () => {
+        try {
+          await dispatcher.dispose()
+        } finally {
+          clearRuntimeEndpoint(currentRuntimeIdentity())
+        }
+      },
+    })
   }
 
   try {
     const { createServerApps } = await import("~/server")
     const apps = createServerApps({
+      configurators,
       createProviderGateway,
       providerConfigSource,
       providerGateway,
@@ -413,28 +464,59 @@ function boundPort(httpServer: ReturnType<ServeFn>, requested: number): number {
 }
 
 /**
- * Post-bind finalization — order is load-bearing: record the PID, re-apply the
- * Claude Code base URL (self-heals a URL a prior crash stranded over a dead
- * proxy; ownership-guarded, no-op when routing is off), then drop the
- * "session running" sentinel ONLY after that URL is in place (a
- * present-on-next-boot sentinel means the last exit was ungraceful — see the
- * `staleSession` check), then install the shutdown handlers.
+ * Post-bind finalization — order is load-bearing: publish the actual runtime
+ * ports, record the PID, reconcile enabled configurators through their owner
+ * claims, then write the session marker only after client routing is live.
+ * Graceful shutdown restores configured clients before closing the proxy and
+ * disposes providers only after no new requests can enter.
  */
 interface FinalizeBootArgs {
   proxyServer: ReturnType<ServeFn>
   proxyRequested: number
   controlServer: ReturnType<ServeFn>
   controlRequested: number
+  configurators: ConfiguratorRegistry
   providerDispatcher: ProviderDispatcher
 }
 
-function finalizeBoot({
+function configuratorIntentEnabled(id: string): boolean {
+  const apps = getConfig().apps
+  if (id === "claude-code") return apps?.claudeCode?.enabled === true
+  if (id === "claude-desktop") return apps?.claudeDesktop?.enabled === true
+  return false
+}
+
+async function reconcileConfiguratorsOnBoot(
+  configurators: ConfiguratorRegistry,
+): Promise<void> {
+  for (const configurator of configurators.all()) {
+    if (!configuratorIntentEnabled(configurator.metadata.id)) continue
+    try {
+      const connection = await configurator.connect()
+      if (connection.status !== "connected") {
+        const detail =
+          connection.detail ?? connection.status.replaceAll("-", " ")
+        consola.warn(
+          `Could not reconnect ${configurator.metadata.name}: ${detail}.`,
+        )
+      }
+    } catch (error) {
+      consola.warn(
+        `Could not reconnect ${configurator.metadata.name} during startup.`,
+        error,
+      )
+    }
+  }
+}
+
+async function finalizeBoot({
   proxyServer,
   proxyRequested,
   controlServer,
   controlRequested,
+  configurators,
   providerDispatcher,
-}: FinalizeBootArgs): void {
+}: FinalizeBootArgs): Promise<void> {
   // Re-record both bound ports now that they are knowable: under `--port 0` the
   // pre-bind value was 0, which would make the Origin guard compare every
   // localhost origin against the wrong port and reject the UI. The control port
@@ -443,6 +525,14 @@ function finalizeBoot({
   const controlPort = boundPort(controlServer, controlRequested)
   state.proxyPort = proxyPort
   state.controlPort = controlPort
+  const runtime = currentRuntimeIdentity()
+  if (runtime.proxyPort > 0 && runtime.controlPort > 0) {
+    try {
+      writeRuntimeEndpoint(runtime)
+    } catch (error) {
+      consola.warn("Could not publish the local control endpoint.", error)
+    }
+  }
 
   // Emitted here, after both binds and never before: a supervisor treats this
   // line as "connectable now" and would otherwise race a socket that is not
@@ -460,10 +550,17 @@ function finalizeBoot({
   printReadyBanner(proxyPort, controlPort)
 
   void writePidfile()
-  reconcileClaudeCodeOnBoot()
+  await reconcileConfiguratorsOnBoot(configurators)
   markSessionRunning()
   startTokenUsageRetention()
-  installShutdownHandlers([proxyServer, controlServer], () =>
-    providerDispatcher.dispose(),
-  )
+  installShutdownHandlers([proxyServer, controlServer], {
+    beforeClose: () => configurators.dispose(),
+    afterClose: async () => {
+      try {
+        await providerDispatcher.dispose()
+      } finally {
+        clearRuntimeEndpoint(runtime)
+      }
+    },
+  })
 }

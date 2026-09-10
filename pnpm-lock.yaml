@@ -132,6 +132,9 @@ importers:
 
   packages/maximal:
     dependencies:
+      '@stuffbucket/maximal-configurators':
+        specifier: workspace:*
+        version: link:../maximal-configurators
       '@stuffbucket/maximal-core':
         specifier: workspace:*
         version: link:../maximal-core
@@ -170,6 +173,34 @@ importers:
         specifier: npm:@typescript/typescript6@^6.0.2
         version: '@typescript/typescript6@6.0.2'
 
+  packages/maximal-configurators:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 4.0.2
+        version: 4.0.2
+      '@stuffbucket/maximal-core':
+        specifier: workspace:*
+        version: link:../maximal-core
+    devDependencies:
+      '@stuffbucket/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@types/node':
+        specifier: ^26.4.0
+        version: 26.4.0
+      '@typescript/native':
+        specifier: npm:typescript@^7.0.2
+        version: typescript@7.0.2
+      eslint:
+        specifier: ^10.9.1
+        version: 10.9.1(jiti@2.7.0)(supports-color@8.1.1)
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(@typescript/typescript6@6.0.2)(jiti@2.7.0)(postcss@8.5.26)(supports-color@8.1.1)(yaml@2.9.0)
+      typescript:
+        specifier: npm:@typescript/typescript6@^6.0.2
+        version: '@typescript/typescript6@6.0.2'
+
   packages/maximal-core:
     dependencies:
       '@hono/zod-openapi':
@@ -199,6 +230,9 @@ importers:
       hono:
         specifier: ^4.13.5
         version: 4.13.5
+      proper-lockfile:
+        specifier: 4.1.2
+        version: 4.1.2
       proxy-from-env:
         specifier: ^2.1.0
         version: 2.1.0

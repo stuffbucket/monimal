@@ -23,6 +23,10 @@
       "types": "./dist/lib/client.d.ts",
       "import": "./dist/lib/client.js"
     },
+    "./configurator-host": {
+      "types": "./dist/lib/configurator-host.d.ts",
+      "import": "./dist/lib/configurator-host.js"
+    },
     "./contract": {
       "types": "./dist/lib/contract.d.ts",
       "import": "./dist/lib/contract.js"
@@ -131,6 +135,7 @@
     "fetch-event-stream": "^0.1.5",
     "gpt-tokenizer": "^4.0.0",
     "hono": "^4.13.5",
+    "proper-lockfile": "4.1.2",
     "proxy-from-env": "^2.1.0",
     "srvx": "^0.12.7",
     "tiny-invariant": "^1.3.3",

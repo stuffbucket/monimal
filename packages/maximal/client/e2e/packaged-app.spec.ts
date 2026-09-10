@@ -157,9 +157,7 @@ test('native Settings flyout opens every restored section in the packaged UI', a
   expect(nativeLabels).toEqual([
     'Account',
     'General',
-    'Apps',
-    'Endpoint',
-    'API keys',
+    'Connections',
     'Models',
     'Usage',
     'Logs',

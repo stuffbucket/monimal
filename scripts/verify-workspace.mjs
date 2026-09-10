@@ -256,6 +256,7 @@ const ESLINT_CONSUMERS = [
   "packages/anthropic-provider",
   "packages/eslint-config",
   "packages/llama-server",
+  "packages/maximal-configurators",
   "packages/maximal-core",
   "packages/maximal-dsh-host",
   "packages/maximal-provider-contract",

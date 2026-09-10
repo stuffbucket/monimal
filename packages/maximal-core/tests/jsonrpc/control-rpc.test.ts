@@ -7,7 +7,10 @@ import type { ControlRpcOperationOverrides } from "~/routes/control/rpc"
 
 import { writeConfig } from "~/lib/config/config"
 import { SettingsOperationError } from "~/lib/config/settings-operations"
-import { AppsListResponse } from "~/lib/config/settings-types"
+import {
+  AppsListResponse,
+  ConnectionsListResponse,
+} from "~/lib/config/settings-types"
 import {
   CONTROL_UPSTREAM_ERROR,
   JSON_RPC_INVALID_PARAMS,
@@ -123,6 +126,9 @@ describe("control /rpc — discovery", () => {
     expect(caps.methods).toContain("accounts/switch")
     expect(caps.methods).toContain("health")
     const settingsMethods = [
+      "connections/list",
+      "connections/act",
+      "connections/revealCredential",
       "apps/list",
       "apps/setEnabled",
       "apiKeys/list",
@@ -190,6 +196,12 @@ describe("control /rpc — params validation", () => {
   test("settings methods reject malformed parameters with their contracts", async () => {
     const cases = [
       [
+        "connections/act",
+        { id: "Claude Code", action: "connect" },
+        "Expected { id, action: connect | disconnect | reconnect }.",
+      ],
+      ["connections/revealCredential", { id: "" }, "Expected { id } string."],
+      [
         "apps/setEnabled",
         { appId: "unknown", enabled: true },
         "Expected { appId, enabled } for a configurable app.",
@@ -235,6 +247,14 @@ describe("control /rpc — params validation", () => {
 
 describe("control /rpc — settings", () => {
   test("list methods return concrete settings snapshots", async () => {
+    const connections = (await rpc("connections/list", { id: 1 })).body.result
+    expect(ConnectionsListResponse.safeParse(connections).success).toBe(true)
+    expect(connections).toEqual({
+      clients: [],
+      manual_credentials: [],
+      require_known_keys: false,
+    })
+
     const apps = (await rpc("apps/list", { id: 1 })).body.result
     expect(AppsListResponse.safeParse(apps).success).toBe(true)
 
@@ -261,6 +281,15 @@ describe("control /rpc — settings", () => {
     })
     expect(typeof created?.id).toBe("string")
     const id = created?.id as string
+
+    expect(
+      (
+        await rpc("connections/revealCredential", {
+          id: 1,
+          params: { id },
+        })
+      ).body.result,
+    ).toEqual({ id, key: "rpc-test-key" })
 
     expect((await rpc("apiKeys/list", { id: 1 })).body.result).toMatchObject({
       entries: [{ id, key: "rpc-test-key" }],
@@ -298,7 +327,9 @@ describe("control /rpc — settings", () => {
       enforcing: true,
     })
   })
+})
 
+describe("control /rpc — settings operations", () => {
   test("models/refresh invokes the refresh operation before returning models", async () => {
     let refreshes = 0
     const custom = appWithOperations({

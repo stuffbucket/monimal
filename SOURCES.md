@@ -18,6 +18,7 @@ repository or imported commit:
 | Package                                   | Purpose                                                                                   |
 | ----------------------------------------- | ----------------------------------------------------------------------------------------- |
 | `packages/maximal-observability-contract` | Runtime-neutral, versioned traffic-observability schemas and passive observer interfaces. |
+| `packages/maximal-configurators`          | Statically linked first-party client configurators using Core's capability host.          |
 | `packages/maximal-observability`          | Renderer-only traffic explorer components and source interface.                           |
 
 ## Rules
@@ -172,6 +173,10 @@ package provenance or publisher identity -- the proxy does that.
   Three entry points: `./base` (ignores + `js.configs.recommended`, used by
   the workspace packages), `./typescript` (adds typescript-eslint), `./service`
   (adds the quality plugins and prettier for service packages).
+- Added `packages/maximal-configurators` as the monorepo-native, statically
+  linked set of first-party client configurators. It depends only on Core's
+  capability-scoped `configurator-host` subpath. The package owns Cordis
+  registration; Core owns filesystem, process, credential, and network effects.
 - Added `packages/maximal-provider-contract` as the side-effect-free HTTP
   gateway contract, `packages/maximal-dsh-host` as its trusted in-process DSH
   implementation, and `packages/anthropic-provider` as an independently

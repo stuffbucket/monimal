@@ -4,6 +4,8 @@ import {
   ApiKeyCreateRequest,
   ApiKeyUpdateRequest,
   AppSetEnabledRequest,
+  ConnectionActionRequest,
+  ConnectionCredentialIdRequest,
   TokenUsagePeriod,
 } from '@stuffbucket/maximal-core/settings-types'
 import {
@@ -90,6 +92,23 @@ function registerIpc(
     BRIDGE_CHANNELS.observabilityRequest,
     (_event, query: unknown) =>
       session.observabilityRequest(TrafficRequestDetailQuerySchema.parse(query)),
+  )
+  ipcMain.handle(BRIDGE_CHANNELS.connectionsList, () =>
+    session.connectionsList(),
+  )
+  ipcMain.handle(
+    BRIDGE_CHANNELS.connectionsAct,
+    (_event, id: unknown, action: unknown) => {
+      const input = ConnectionActionRequest.parse({ id, action })
+      return session.connectionsAct(input.id, input.action)
+    },
+  )
+  ipcMain.handle(
+    BRIDGE_CHANNELS.connectionsRevealCredential,
+    (_event, id: unknown) => {
+      const input = ConnectionCredentialIdRequest.parse({ id })
+      return session.connectionsRevealCredential(input.id)
+    },
   )
   ipcMain.handle(BRIDGE_CHANNELS.appsList, () => session.appsList())
   ipcMain.handle(

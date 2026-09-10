@@ -60,6 +60,9 @@ describe('preload bridge allowlist', () => {
       'authSignOut',
       'authStart',
       'authStatus',
+      'connectionsAct',
+      'connectionsList',
+      'connectionsRevealCredential',
       'diagnosticsGet',
       'modelsList',
       'modelsRefresh',
@@ -97,6 +100,9 @@ describe('preload bridge allowlist', () => {
     await bridge.control.observabilityOverview(overviewQuery)
     await bridge.control.observabilityRequests(requestsQuery)
     await bridge.control.observabilityRequest({ requestId: 'req-1' })
+    await bridge.control.connectionsList()
+    await bridge.control.connectionsAct('claude-code', 'connect')
+    await bridge.control.connectionsRevealCredential('key-1')
     await bridge.control.appsList()
     await bridge.control.appsSetEnabled('claude-code', true)
     await bridge.control.apiKeysList()
@@ -130,6 +136,9 @@ describe('preload bridge allowlist', () => {
       [BRIDGE_CHANNELS.observabilityOverview, overviewQuery],
       [BRIDGE_CHANNELS.observabilityRequests, requestsQuery],
       [BRIDGE_CHANNELS.observabilityRequest, { requestId: 'req-1' }],
+      [BRIDGE_CHANNELS.connectionsList],
+      [BRIDGE_CHANNELS.connectionsAct, 'claude-code', 'connect'],
+      [BRIDGE_CHANNELS.connectionsRevealCredential, 'key-1'],
       [BRIDGE_CHANNELS.appsList],
       [BRIDGE_CHANNELS.appsSetEnabled, 'claude-code', true],
       [BRIDGE_CHANNELS.apiKeysList],

@@ -17,6 +17,7 @@ import type {
   ModelsListResponse,
   ModelSummary,
 } from "~/lib/config/settings-types"
+import type { ConfiguratorRegistry } from "~/lib/configurator-host"
 import type { Model } from "~/services/copilot/get-models"
 
 import { getAllApps } from "~/apps/registry"
@@ -25,6 +26,7 @@ import {
   listAccounts,
   readDefaultRegistry,
 } from "~/lib/auth/github-token-store"
+import { buildConfiguratorAppsList } from "~/lib/configurator-app-compat"
 import { listActiveClients } from "~/lib/http/active-clients"
 import { getModelsLoadedAtMs, state } from "~/lib/runtime-state/state"
 import { getTokenUsageSummary } from "~/lib/token-usage"
@@ -44,8 +46,21 @@ export async function buildAccountsList(): Promise<AccountsListResponse> {
 }
 
 /** The `/control/apps` body — every registered client app's live details. */
-export async function buildAppsList(): Promise<AppsListResponse> {
-  const apps = await Promise.all(getAllApps().map((app) => app.getDetails()))
+export async function buildAppsList(
+  configurators?: ConfiguratorRegistry,
+): Promise<AppsListResponse> {
+  const legacyApps = getAllApps()
+  if (configurators) {
+    const configured = await buildConfiguratorAppsList(configurators)
+    const configuredById = new Map(configured.apps.map((app) => [app.id, app]))
+    const apps = await Promise.all(
+      legacyApps.map((app) =>
+        Promise.resolve(configuredById.get(app.id) ?? app.getDetails()),
+      ),
+    )
+    return { apps }
+  }
+  const apps = await Promise.all(legacyApps.map((app) => app.getDetails()))
   return { apps }
 }
 
@@ -105,11 +120,13 @@ export interface ControlSnapshot {
   clients: { clients: ReturnType<typeof listActiveClients>; total: number }
 }
 
-export async function buildControlSnapshot(): Promise<ControlSnapshot> {
+export async function buildControlSnapshot(
+  configurators?: ConfiguratorRegistry,
+): Promise<ControlSnapshot> {
   const auth = getAuthStatus()
   const [accounts, apps, usage] = await Promise.all([
     buildAccountsList(),
-    buildAppsList(),
+    buildAppsList(configurators),
     getTokenUsageSummary("day"),
   ])
   const models = buildModelsList()

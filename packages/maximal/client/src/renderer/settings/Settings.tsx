@@ -333,6 +333,18 @@ const SETTINGS_CSS = `
   font-weight: 600;
 }
 
+.settings-advanced > summary {
+  width: fit-content;
+  font-size: var(--shell-text-sm, 0.9em);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.settings-advanced > summary:focus-visible {
+  outline: 2px solid var(--shell-focus, var(--shell-accent, #5198a6));
+  outline-offset: 2px;
+}
+
 .settings-section__title-row,
 .settings-section__actions,
 .settings-copy-value,
