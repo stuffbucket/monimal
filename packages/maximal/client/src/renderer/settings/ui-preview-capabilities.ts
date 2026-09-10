@@ -49,10 +49,14 @@ const initialSearchSettings: SearchSettingsResponse = {
             key: 'apiKey',
             type: 'secret',
             label: 'API key',
-            description: 'Overrides OLLAMA_API_KEY when set.',
+            description: 'Use an Ollama API key to authorize hosted search.',
+            helpLink: {
+              label: 'Create or manage an API key',
+              url: 'https://ollama.com/settings/keys',
+            },
             required: true,
             layout: 'full',
-            emptyDescription: 'Enter an Ollama API key or set OLLAMA_API_KEY.',
+            emptyDescription: 'Enter an Ollama API key below.',
           },
           {
             key: 'baseUrl',

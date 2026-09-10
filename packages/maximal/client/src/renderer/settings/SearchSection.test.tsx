@@ -36,7 +36,15 @@ const snapshot: SearchSettingsResponse = {
         capabilities: ['search', 'fetch'],
         settings: [
           { key: 'endpoint', type: 'string', label: 'Endpoint' },
-          { key: 'token', type: 'secret', label: 'Token' },
+          {
+            key: 'token',
+            type: 'secret',
+            label: 'Token',
+            helpLink: {
+              label: 'Create a token',
+              url: 'https://search.example/tokens',
+            },
+          },
           {
             key: 'limit',
             type: 'integer',
@@ -219,6 +227,12 @@ describe('SearchSection', () => {
       HTMLSelectElement,
     )
     expect(surface.textContent).toContain('A value is stored in settings.')
+    const helpLink = surface.querySelector<HTMLAnchorElement>(
+      'a[href="https://search.example/tokens"]',
+    )
+    expect(helpLink?.textContent).toBe('Create a token')
+    expect(helpLink?.target).toBe('_blank')
+    expect(helpLink?.rel).toBe('noreferrer')
   })
 
   it('sends only changed fields and leaves an untouched secret alone', async () => {

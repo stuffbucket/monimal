@@ -84,7 +84,7 @@ function fieldHint({
   field,
   secretSource,
   clearing,
-}: Pick<SettingControlProps, 'field' | 'secretSource' | 'clearing'>): string | undefined {
+}: Pick<SettingControlProps, 'field' | 'secretSource' | 'clearing'>): ReactNode | undefined {
   const details = [field.description, field.emptyDescription]
   if (secretSource === 'environment') {
     details.push('Provided by the environment until you save an override.')
@@ -92,7 +92,17 @@ function fieldHint({
     details.push('A value is stored in settings.')
   }
   if (clearing) details.push('The stored value will be cleared when you save.')
-  return details.filter(Boolean).join(' ') || undefined
+  const text = details.filter(Boolean).join(' ')
+  if (field.helpLink === undefined) return text || undefined
+  return (
+    <>
+      {text ? `${text} ` : null}
+      <a href={field.helpLink.url} target="_blank" rel="noreferrer">
+        {field.helpLink.label}
+      </a>
+      .
+    </>
+  )
 }
 
 function sameItems(left: readonly string[], right: readonly string[]): boolean {

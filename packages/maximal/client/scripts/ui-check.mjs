@@ -214,6 +214,13 @@ try {
     await expandedOllamaDisclosure.getAttribute('aria-expanded') === 'true',
     'The Ollama disclosure closed without user input.',
   )
+  const ollamaKeyLink = page.getByRole('link', {
+    name: 'Create or manage an API key',
+  })
+  check(
+    await ollamaKeyLink.getAttribute('href') === 'https://ollama.com/settings/keys',
+    'The Ollama API key help link is missing or incorrect.',
+  )
   const ollamaFields = await providerFieldLayout(page, 'ollama', 'baseUrl')
   const ollamaApiKey = await providerFieldLayout(page, 'ollama', 'apiKey')
   check(

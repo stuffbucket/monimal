@@ -45,7 +45,15 @@ test("search settings present provider defaults and display metadata", () => {
   )
 
   expect(ollama?.settings).toMatchObject([
-    { key: "apiKey", required: true, layout: "full" },
+    {
+      key: "apiKey",
+      required: true,
+      layout: "full",
+      helpLink: {
+        label: "Create or manage an API key",
+        url: "https://ollama.com/settings/keys",
+      },
+    },
     {
       key: "baseUrl",
       required: true,

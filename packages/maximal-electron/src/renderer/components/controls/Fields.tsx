@@ -40,7 +40,7 @@ export function FormField({
 }: {
   label: string;
   labelAction?: ReactNode;
-  hint?: string;
+  hint?: ReactNode;
   error?: string;
   children: (field: FieldControl) => ReactNode;
 }) {

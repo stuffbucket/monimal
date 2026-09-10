@@ -112,6 +112,12 @@ const ConnectorSettingFieldBase = {
   key: z.string(),
   label: z.string(),
   description: z.string().optional(),
+  helpLink: z
+    .object({
+      label: z.string(),
+      url: z.url(),
+    })
+    .optional(),
   required: z.boolean().optional(),
   format: z.literal("url").optional(),
   unit: z.literal("seconds").optional(),

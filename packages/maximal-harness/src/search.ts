@@ -57,6 +57,10 @@ interface SettingFieldBase {
   readonly key: string
   readonly label: string
   readonly description?: string
+  readonly helpLink?: {
+    readonly label: string
+    readonly url: string
+  }
   readonly required?: boolean
   readonly format?: "url"
   readonly unit?: "seconds"
