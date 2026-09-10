@@ -47,12 +47,13 @@ async function freshV0Db(): Promise<SqliteDatabase> {
   return db
 }
 
-describe("token_usage project_id migration (§5)", () => {
-  test("adds a nullable project_id column on top of the earlier migration", async () => {
+describe("token_usage attribution migrations (§5)", () => {
+  test("adds separate nullable project and API-key attribution columns", async () => {
     const db = await freshV0Db()
     runMigrations(db, TOKEN_USAGE_MIGRATIONS)
     const cols = columnNames(db)
     expect(cols).toContain("project_id")
+    expect(cols).toContain("api_key_id")
     // The whole append-only chain applied, in order.
     expect(cols).toContain("total_nano_aiu")
     expect(cols).toContain("is_premium")
@@ -68,32 +69,37 @@ describe("token_usage project_id migration (§5)", () => {
     runMigrations(db, TOKEN_USAGE_MIGRATIONS)
     const row = db
       .prepare(
-        "SELECT session_id, project_id, total_nano_aiu, is_premium FROM token_usage_events WHERE session_id = ?",
+        "SELECT session_id, project_id, api_key_id, total_nano_aiu, is_premium FROM token_usage_events WHERE session_id = ?",
       )
       .get("legacy-session") as {
       session_id: string
       project_id: string | null
+      api_key_id: string | null
       total_nano_aiu: number
       is_premium: number | null
     }
     expect(row.session_id).toBe("legacy-session")
     expect(row.project_id).toBeNull()
+    expect(row.api_key_id).toBeNull()
     // The earlier migration backfills a cost of 0 and unknown premium status.
     expect(row.total_nano_aiu).toBe(0)
     expect(row.is_premium).toBeNull()
     db.close?.()
   })
 
-  test("project_id accepts a value and round-trips", async () => {
+  test("project and API-key identities round-trip independently", async () => {
     const db = await freshV0Db()
     runMigrations(db, TOKEN_USAGE_MIGRATIONS)
     db.prepare(
-      "INSERT INTO token_usage_events (session_id, project_id) VALUES (?, ?)",
-    ).run("s", "acme")
+      "INSERT INTO token_usage_events (session_id, project_id, api_key_id) VALUES (?, ?, ?)",
+    ).run("s", "acme", "managed:claude-code")
     const row = db
-      .prepare("SELECT project_id FROM token_usage_events WHERE session_id = ?")
-      .get("s") as { project_id: string | null }
+      .prepare(
+        "SELECT project_id, api_key_id FROM token_usage_events WHERE session_id = ?",
+      )
+      .get("s") as { project_id: string | null; api_key_id: string | null }
     expect(row.project_id).toBe("acme")
+    expect(row.api_key_id).toBe("managed:claude-code")
     db.close?.()
   })
 
@@ -105,6 +111,7 @@ describe("token_usage project_id migration (§5)", () => {
     expect(second).toBe(first)
     // Still exactly one project_id column — a second ADD COLUMN would have thrown.
     expect(columnNames(db).filter((n) => n === "project_id")).toHaveLength(1)
+    expect(columnNames(db).filter((n) => n === "api_key_id")).toHaveLength(1)
     db.close?.()
   })
 })

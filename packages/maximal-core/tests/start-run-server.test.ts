@@ -28,6 +28,11 @@ import {
   type Mock,
 } from "bun:test"
 
+import type {
+  ConfiguratorPlugin,
+  ConfiguratorRegistry,
+} from "~/lib/configurator-host"
+
 import { pickFreePort } from "./helpers/free-port"
 
 // --- Mocks for the chunky boot dependencies ------------------------
@@ -160,6 +165,7 @@ globalThis.fetch = (() =>
 // --- Module under test (imported after mocks are wired) -----------
 
 const { state } = await import("~/lib/runtime-state/state")
+const { getConfig, writeConfig } = await import("~/lib/config/config")
 const { runServer, start, __setServeForTests, __setBootSecretsForTests } =
   await import("~/start")
 
@@ -431,6 +437,74 @@ describe("runServer — boot logger format", () => {
     await runServer(baseOptions({ githubToken: undefined }))
     const listening = bootLogMessages.find((m) => m.startsWith("listening "))
     expect(listening).toContain("auth=authenticated")
+  })
+})
+
+describe("runServer — configurator lifecycle", () => {
+  test("reconciles an enabled configurator after actual ports are bound", async () => {
+    const original = structuredClone(getConfig())
+    const connections: Array<{ proxyPort: number; controlPort: number }> = []
+    const plugin: ConfiguratorPlugin = {
+      metadata: {
+        id: "claude-code",
+        name: "Claude Code",
+        targetId: "claude-code-settings",
+        credentialBinding: {
+          kind: "bearer-env",
+          name: "ANTHROPIC_AUTH_TOKEN",
+        },
+      },
+      connection: () =>
+        Promise.resolve({ status: "available", allowedActions: ["connect"] }),
+      connect: () => {
+        connections.push({
+          proxyPort: state.proxyPort,
+          controlPort: state.controlPort,
+        })
+        return Promise.resolve({
+          status: "connected",
+          allowedActions: ["disconnect"],
+        })
+      },
+      reconnect: () =>
+        Promise.resolve({
+          status: "connected",
+          allowedActions: ["disconnect"],
+        }),
+      disconnect: () =>
+        Promise.resolve({ status: "available", allowedActions: ["connect"] }),
+    }
+    const registry: ConfiguratorRegistry = {
+      all: () => [plugin],
+      get: (id) => (id === plugin.metadata.id ? plugin : undefined),
+      dispose: () => Promise.resolve(),
+    }
+
+    writeConfig({
+      ...original,
+      apps: {
+        ...original.apps,
+        claudeCode: { ...original.apps?.claudeCode, enabled: true },
+      },
+    })
+    try {
+      await runServer(
+        baseOptions({
+          createConfiguratorRuntime: () => Promise.resolve(registry),
+        }),
+      )
+    } finally {
+      writeConfig(original)
+    }
+
+    expect(connections).toEqual([
+      {
+        proxyPort: state.proxyPort,
+        controlPort: state.controlPort,
+      },
+    ])
+    expect(state.proxyPort).toBeGreaterThan(0)
+    expect(state.controlPort).toBe(0)
   })
 })
 

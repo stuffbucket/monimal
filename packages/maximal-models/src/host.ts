@@ -1,5 +1,6 @@
 /* eslint-disable max-lines */
 import type {
+  LocalModelControl,
   ProviderDiagnostic,
   ProviderDispatch,
   ProviderGateway,
@@ -204,6 +205,7 @@ class Generation {
   statuses(): ReadonlyArray<ProviderStatus> {
     const result = new Map<string, ProviderStatus>()
     for (const plugin of this.profile.plugins) {
+      if (plugin.kind === "model") continue
       const enabled =
         Object.hasOwn(this.activation, plugin.id)
         && this.activation[plugin.id].enabled
@@ -231,6 +233,7 @@ class Generation {
     for (const provider of this.runtime.listProviders()) {
       result.set(provider.id, {
         provider: provider.id,
+        displayName: provider.name,
         state: "available",
         operations,
         diagnostics: [],
@@ -398,6 +401,10 @@ export class DshHost implements ProviderGateway, AsyncDisposable {
 
   get gateway(): ProviderGateway {
     return this
+  }
+
+  get localModels(): LocalModelControl | undefined {
+    return this.#active?.runtime.localModels
   }
 
   getProviderGateway(): ProviderGateway {

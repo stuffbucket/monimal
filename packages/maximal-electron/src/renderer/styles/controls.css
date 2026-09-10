@@ -53,6 +53,12 @@ svg {
   border-radius: var(--radius-chip);
 }
 
+.input:focus {
+  border-color: var(--focus-ring-color);
+  outline: none;
+  box-shadow: 0 0 0 var(--focus-ring-width) var(--focus-ring-color);
+}
+
 /*
  * Disabled is deliberately not styled here.
  *

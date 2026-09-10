@@ -36,6 +36,7 @@ export interface UsageTokens {
 }
 
 export interface PersistedTokenUsageEvent {
+  api_key_id: string | null
   cache_creation_input_tokens: number
   cache_read_input_tokens: number
   created_at_ms: number
@@ -44,6 +45,7 @@ export interface PersistedTokenUsageEvent {
   input_tokens: number
   model: string
   output_tokens: number
+  project_id: string | null
   provider_name: string | null
   session_id: string
   source: TokenUsageSource
@@ -88,6 +90,7 @@ export interface TokenUsageProviderSummary extends TokenUsageTotals {
 }
 
 export interface TokenUsageEventRecord {
+  api_key_id: string | null
   cache_creation_input_tokens: number
   cache_read_input_tokens: number
   created_at_ms: number
@@ -97,6 +100,7 @@ export interface TokenUsageEventRecord {
   input_tokens: number
   model: string
   output_tokens: number
+  project_id: string | null
   provider_name: string | null
   session_id: string
   source: TokenUsageSource
@@ -257,9 +261,9 @@ export const TOKEN_USAGE_MIGRATIONS: Array<Migration> = [
   {
     // Forward-looking (spec §5): a nullable per-project attribution key so the
     // schema/filter/route exist BEFORE per-project tracking turns on. It will be
-    // populated later — from `api_key_id` first, then a client-supplied
-    // `workspace` header — never from the ephemeral, high-cardinality
-    // `session_id` (which would flood the rail). Existing rows predate it and
+    // populated later from explicit project/workspace evidence, never inferred
+    // from api_key_id or the ephemeral, high-cardinality session_id. Existing rows
+    // predate it and
     // stay NULL (unattributed), which is the correct "no project" reading.
     name: "add nullable project_id",
     up: (db) => {
@@ -278,6 +282,18 @@ export const TOKEN_USAGE_MIGRATIONS: Array<Migration> = [
       db.exec(`
         CREATE INDEX IF NOT EXISTS idx_token_usage_events_traffic_request_id
         ON token_usage_events(traffic_request_id)
+      `)
+    },
+  },
+  {
+    // Stable local credential identity used for attribution and future budgets.
+    // It is deliberately separate from project_id and never stores key material.
+    name: "attribute usage to API keys",
+    up: (db) => {
+      db.exec("ALTER TABLE token_usage_events ADD COLUMN api_key_id TEXT")
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_token_usage_events_api_key_id
+        ON token_usage_events(api_key_id)
       `)
     },
   },
@@ -350,6 +366,8 @@ async function writeTokenUsageEvent(
         trace_id,
         session_id,
         user_id,
+        api_key_id,
+        project_id,
         source,
         endpoint,
         provider_name,
@@ -362,7 +380,7 @@ async function writeTokenUsageEvent(
         total_nano_aiu,
         is_premium,
         traffic_request_id
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
   ).run(
     event.created_at_ms,
@@ -370,6 +388,8 @@ async function writeTokenUsageEvent(
     event.trace_id,
     event.session_id,
     event.user_id,
+    event.api_key_id,
+    event.project_id,
     event.source,
     event.endpoint,
     event.provider_name,
@@ -592,6 +612,7 @@ function usageEventFromRow(
   row: Record<string, unknown>,
 ): TokenUsageEventRecord {
   return {
+    api_key_id: nullableStringFromRow(row, "api_key_id"),
     cache_creation_input_tokens: numberFromRow(
       row,
       "cache_creation_input_tokens",
@@ -604,6 +625,7 @@ function usageEventFromRow(
     input_tokens: numberFromRow(row, "input_tokens"),
     model: stringFromRow(row, "model") || "unknown",
     output_tokens: numberFromRow(row, "output_tokens"),
+    project_id: nullableStringFromRow(row, "project_id"),
     provider_name: nullableStringFromRow(row, "provider_name"),
     session_id: stringFromRow(row, "session_id"),
     source: stringFromRow(row, "source") as TokenUsageSource,
@@ -754,6 +776,8 @@ export async function getTokenUsageEventsPage(input: {
       trace_id,
       session_id,
       user_id,
+      api_key_id,
+      project_id,
       source,
       endpoint,
       provider_name,

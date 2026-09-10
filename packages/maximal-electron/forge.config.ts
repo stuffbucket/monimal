@@ -1,4 +1,4 @@
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -7,7 +7,7 @@ import { VitePlugin } from '@electron-forge/plugin-vite';
 import type { ForgeConfig } from '@electron-forge/shared-types';
 import { FuseV1Options, FuseVersion } from '@electron/fuses';
 
-import { PACKAGE_FUSES, RUNTIME_ICONS, LLAMA_BACKENDS_VARIABLE, LLAMA_SOURCE_INPUTS, bundleIcon, externalClosure, hoistedDependencies, llamaPackagePlan, parseLlamaBackends, platformPackagePlan } from './scripts/package-contract.mjs';
+import { PACKAGE_FUSES, RUNTIME_ICONS, bundleIcon, externalClosure, hoistedDependencies, platformPackagePlan } from './scripts/package-contract.mjs';
 
 /**
  * The external native modules, and the packages npm hoisted out of them.
@@ -18,7 +18,7 @@ import { PACKAGE_FUSES, RUNTIME_ICONS, LLAMA_BACKENDS_VARIABLE, LLAMA_SOURCE_INP
  * would otherwise vanish from the package with everything still green. See
  * `hoistedDependencies`, and issue #133 for the load failure it fixes.
  */
-const EXTERNAL_MODULES = ['node-pty', 'node-llama-cpp'];
+const EXTERNAL_MODULES = ['node-pty'];
 
 const NODE_MODULES = path.resolve('node_modules');
 
@@ -120,11 +120,8 @@ for (const file of [BUNDLE_ICON, ...RUNTIME_ICONS]) {
  * `packagerConfig.ignore` selects by path prefix, so it can only keep a
  * dependency that has a top-level path — which is every one of them under a
  * flat `node_modules`, and none of them under pnpm. There a package's
- * dependencies are its *siblings* in `node_modules/.pnpm/<name>@<version>/
- * node_modules/`, so copying `node-llama-cpp` copies the library and none of
- * the twenty-odd packages it loads: the bundle came out with no
- * `@node-llama-cpp` scope at all, and the prune hook below reported it as a
- * missing prebuild rather than as a missing copy.
+ * dependencies are its siblings in `node_modules/.pnpm/<name>@<version>/
+ * node_modules/`, so keeping the root alone can omit runtime dependencies.
  *
  * So the closure is materialised by path rather than selected by prefix.
  * Anything the packager already placed is left alone, which is the flat case,
@@ -204,66 +201,12 @@ function prunePtyPrebuilds(buildPath: string, platform: string, arch: string): v
 }
 
 /**
- * Drop the llama.cpp backends this build cannot use, and the GPU ones it was
- * not asked for.
- *
- * `@node-llama-cpp` is a scope of one package per target and backend, and npm
- * installs by `os` and `cpu`, which are wider than a single build: a
- * `win32-x64` install carries `win-arm64` and 505 MB of CUDA. The plan is in
- * `scripts/package-contract.mjs`, which `scripts/verify-package.mjs` reads
- * too, so what is dropped here is what the check stops expecting. Issue #113.
- */
-function pruneLlamaBackends(buildPath: string, platform: string, arch: string): void {
-  const scope = path.join(buildPath, 'node_modules', '@node-llama-cpp');
-  if (!existsSync(scope)) {
-    throw new Error(`@node-llama-cpp has no prebuild packages at ${scope}.`);
-  }
-
-  const plan = llamaPackagePlan(
-    readdirSync(scope),
-    platform,
-    arch,
-    parseLlamaBackends(process.env[LLAMA_BACKENDS_VARIABLE]),
-  );
-
-  const kept = plan.filter((entry) => entry.keep);
-  if (kept.length === 0) {
-    throw new Error(
-      `@node-llama-cpp ships nothing usable by ${platform}-${arch}. ` +
-        `Found: ${plan.map((entry) => entry.name).join(', ')}.`,
-    );
-  }
-
-  for (const entry of plan) {
-    if (!entry.keep) rmSync(path.join(scope, entry.name), { recursive: true, force: true });
-  }
-
-  // A dropped GPU backend is a behaviour change for whoever installs this
-  // package, not an implementation detail, so the build says it out loud.
-  const dropped = plan.filter((entry) => !entry.keep);
-  if (dropped.length > 0) {
-    console.warn(
-      `@node-llama-cpp: kept ${kept.map((entry) => entry.name).join(', ')}; dropped ` +
-        `${dropped.map((entry) => `${entry.name} (${entry.reason})`).join(', ')}. ` +
-        `Set ${LLAMA_BACKENDS_VARIABLE} to keep a GPU backend.`,
-    );
-  }
-}
-
-/**
  * Drop every copied package this target cannot run.
  *
  * The two prune hooks above each know one scope by name. This one knows none:
  * it reads the `os` and `cpu` fields npm publishes and keeps what they admit,
  * so a package that ships one prebuilt binary per platform is handled the day
  * it enters the closure rather than the day someone notices.
- *
- * There was already a second instance. `@reflink/reflink` -- reached through
- * `ipull`, reached through `node-llama-cpp` -- declares eight platform
- * siblings as optional dependencies, and the installer places the one matching
- * the machine running the install. That machine is not the target, so a
- * `--platform=win32` build made on an Apple Silicon Mac copied
- * `@reflink/reflink-darwin-arm64`, a Mach-O `.node`, into a Windows bundle.
  *
  * Last of the four, so every hook that throws on a layout change reports
  * first, and this stays a backstop rather than removing what they came to
@@ -303,40 +246,13 @@ function prunePlatformPackages(buildPath: string, platform: string, arch: string
     rmSync(path.join(buildPath, entry.path), { recursive: true, force: true });
   }
 
-  // Said out loud for the same reason the llama.cpp backends are: a package
-  // that leaves the bundle is a behaviour change for whoever installs it, and
+  // A package that leaves the bundle is a behaviour change for whoever installs it, and
   // a required dependency dropped here would be visible in this line rather
   // than inferred from a crash.
   if (dropped.length > 0) {
     console.warn(
       `platform: dropped ${String(dropped.length)} of ${String(plan.length)} packed package(s) for ` +
         `${platform}-${arch}; ${dropped.map((entry) => `${entry.path} (${entry.reason})`).join(', ')}.`,
-    );
-  }
-}
-
-/**
- * Drop the llama.cpp source this build cannot compile.
- *
- * `LLAMA_SOURCE_INPUTS` holds the argument. It throws on a path that is not
- * there rather than skipping it, for the reason `prunePtyPrebuilds` does: a
- * rename upstream would otherwise ship the 33 MB again with the build still
- * green, and nobody looks at a bundle's size on purpose.
- */
-function pruneLlamaSource(buildPath: string): void {
-  for (const entry of LLAMA_SOURCE_INPUTS) {
-    const target = path.join(buildPath, entry);
-    if (!existsSync(target)) {
-      throw new Error(
-        `${entry} is not in the package. node-llama-cpp's layout has changed and ` +
-          'this build cannot tell what it is shipping.',
-      );
-    }
-    const { size } = statSync(target);
-    rmSync(target, { recursive: true, force: true });
-    console.warn(
-      `llama source: dropped ${entry} (${String(Math.round(size / 1e6))} MB); ` +
-        'this build sets `build: never`, so llama.cpp is never compiled here.',
     );
   }
 }
@@ -350,9 +266,8 @@ const config: ForgeConfig = {
      * Packager's own production-only walk, off.
      *
      * It reads `dependencies` to decide what survives, and this package
-     * declares none: a consumer importing `./host` would otherwise install
-     * `node-llama-cpp` for a file that imports `electron` alone (issue #31).
-     * The `ignore` predicate below is already an explicit keep-list, so it
+     * declares none. The `ignore` predicate below is already an explicit
+     * keep-list, so it
      * decides what reaches the package instead.
      */
     prune: false,
@@ -382,21 +297,14 @@ const config: ForgeConfig = {
      * Native code cannot be loaded from inside an asar, so it is unpacked
      * beside it. `OnlyLoadAppFromAsar` still applies to app code.
      *
-     * `*.node` alone is not enough. `node-llama-cpp` ships its llama.cpp
-     * backends as `.dylib` and `.so` files next to the addon, and those are
-     * `dlopen`ed at run time. Left inside the archive they fail to load, and
-     * the failure looks like a model that will not start rather than a
-     * packaging fault. Both native scopes are unpacked whole, because their
-     * own documentation says the directory layout is load-bearing.
-     *
-     * `node-pty` has the same shape. It `execvp`s `spawn-helper` beside
+     * `*.node` alone is not enough. `node-pty` `execvp`s `spawn-helper` beside
      * `pty.node`, at a path it rewrites from `app.asar` to
      * `app.asar.unpacked`, so a `*.node` glob leaves it in the archive and
      * every shell fails to start. Its whole prebuild tree is unpacked.
      */
     asar: {
       unpack:
-        '{**/*.node,**/node_modules/node-pty/prebuilds/**,**/node_modules/@node-llama-cpp/**,**/node_modules/node-llama-cpp/**}',
+        '{**/*.node,**/node_modules/node-pty/prebuilds/**}',
     },
 
     /**
@@ -411,11 +319,7 @@ const config: ForgeConfig = {
      * rather than fighting it. Keep it narrow: a wrong prefix silently ships
      * the whole `node_modules` tree.
      *
-     * `node-llama-cpp` keeps its prebuilt binaries in a separate scope, which
-     * is why a whole scope is kept rather than a single directory. Both it and
-     * `node-pty` carry every platform at once, and the two prune hooks below
-     * drop what this build cannot use.
-     */
+         */
     ignore: (file: string) => {
       if (!file) return false;
       if (file === '/package.json') return false;
@@ -428,10 +332,7 @@ const config: ForgeConfig = {
       const keep = [
         '/.vite',
         '/node_modules/node-pty',
-        '/node_modules/node-llama-cpp',
-        '/node_modules/@node-llama-cpp',
-        // Everything those two reach that npm hoisted out of them. Without
-        // this, `node-llama-cpp` cannot load at all in a packaged build.
+        // Everything the external module reaches that npm hoisted out of it.
         ...HOISTED.map((name) => `/node_modules/${name}`),
       ];
       return !keep.some(
@@ -460,8 +361,6 @@ const config: ForgeConfig = {
       // Before the prune hooks: they inspect directories this puts there.
       copyExternalClosure(buildPath);
       prunePtyPrebuilds(buildPath, platform, arch);
-      pruneLlamaBackends(buildPath, platform, arch);
-      pruneLlamaSource(buildPath);
       // Last: every hook above throws on a layout change, and this would
       // otherwise have removed what they came to inspect.
       prunePlatformPackages(buildPath, platform, arch);
@@ -479,14 +378,6 @@ const config: ForgeConfig = {
         {
           entry: 'src/main/index.ts',
           config: 'vite.main.config.ts',
-          target: 'main',
-        },
-        // The llama.cpp engine, forked as a `utilityProcess`. A separate
-        // bundle because it is a separate process; `target: 'main'` because
-        // it is Node, not a preload. Issue #133.
-        {
-          entry: 'src/main/llama-worker.ts',
-          config: 'vite.worker.config.ts',
           target: 'main',
         },
         {

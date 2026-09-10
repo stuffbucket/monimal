@@ -1,14 +1,9 @@
-import type {
-  AgentApproval,
-  AppVersions,
-  Preferences,
-  UpdateStatus,
-} from '../../shared/ipc.js';
+import type { AppVersions, Preferences, UpdateStatus } from '../../shared/ipc.js';
 import { bridge } from '../lib/bridge.js';
 import type { Item } from '../lib/data.js';
 import type { TerminalSession } from '../lib/terminal-transport.js';
 
-import { Button, Field, FormField, InspectorPanel, Select, Switch } from './Controls.js';
+import { Button, Field, InspectorPanel, Switch } from './Controls.js';
 
 function updateLabel(status: UpdateStatus): string {
   switch (status.state) {
@@ -80,6 +75,16 @@ export function Inspector({
               testId="pref-menubar"
             />
             <Switch
+              label="Quit when the last window closes"
+              checked={prefs.quitOnLastWindowClosed}
+              onChange={(next) => onPrefChange({ quitOnLastWindowClosed: next })}
+              testId="pref-quit-on-last-window"
+            />
+            <p className="card__sub card__sub--wrap">
+              Applies when the menu bar icon is off. Otherwise, Maximal asks
+              before it stops.
+            </p>
+            <Switch
               label="Dock badge"
               checked={prefs.dockBadge}
               onChange={(next) => onPrefChange({ dockBadge: next })}
@@ -91,35 +96,6 @@ export function Inspector({
               onChange={(next) => onPrefChange({ splash: next })}
               testId="pref-splash"
             />
-            <Switch
-              label="Agent tools"
-              checked={prefs.agentTools}
-              onChange={(next) => onPrefChange({ agentTools: next })}
-              testId="pref-agent-tools"
-            />
-            <p className="card__sub card__sub--wrap">
-              Lets the overlay agent read, write, and run shell commands in your
-              working directory.
-            </p>
-            {prefs.agentTools && (
-              <FormField label="Ask before running">
-                {(field) => (
-                  <Select
-                    {...field}
-                    value={prefs.agentApproval}
-                    onChange={(agentApproval: AgentApproval) =>
-                      onPrefChange({ agentApproval })
-                    }
-                    options={[
-                      { value: 'writes', label: 'Anything that changes files' },
-                      { value: 'all', label: 'Every tool' },
-                      { value: 'none', label: 'Never ask' },
-                    ]}
-                    testId="pref-agent-approval"
-                  />
-                )}
-              </FormField>
-            )}
             <Switch
               label="Light theme"
               checked={prefs.theme === 'light'}

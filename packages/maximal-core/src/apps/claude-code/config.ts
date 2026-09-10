@@ -3,16 +3,16 @@
  */
 
 import fs from "node:fs"
-import os from "node:os"
-import path from "node:path"
 
 import {
   apiKeyHelperCommand,
   isOwnedApiKeyHelper,
   isWritableApiKeyHelper,
 } from "~/lib/auth/api-key-helper"
+import { getClaudeCodeSettingsPath } from "~/lib/configurator-effects/claude-code-path"
 import { atomicWriteJson } from "~/lib/platform/atomic-json"
-import { assertIsolatedTestPath } from "~/lib/platform/test-isolation"
+
+export { getClaudeCodeSettingsPath } from "~/lib/configurator-effects/claude-code-path"
 
 /** The label Claude Code attributes its key under (Settings → API clients).
  *  Single-sourced: it is both the `api <client>` token written on disk and the
@@ -64,13 +64,6 @@ function readPriorSnapshot(
     [API_KEY_HELPER_KEY]:
       API_KEY_HELPER_KEY in s ? s[API_KEY_HELPER_KEY] : UNSET,
   }
-}
-
-export function getClaudeCodeSettingsPath(): string {
-  const override = process.env.CLAUDE_CONFIG_DIR?.trim()
-  assertIsolatedTestPath(override, "CLAUDE_CONFIG_DIR")
-  const configDir = override || path.join(os.homedir(), ".claude")
-  return path.join(configDir, "settings.json")
 }
 
 export function readClaudeCodeSettings(

@@ -31,7 +31,9 @@ Run workspace workflows from the repository root:
 | Package the desktop app | `pnpm package` |
 | Exercise every workspace packager | `pnpm package:all` |
 
-These root scripts are the supported workflow entry points. Use
+These root scripts are the supported workflow entry points. `pnpm dev` builds
+the client and its workspace dependencies before Electron starts, and remains
+attached until the app closes or you press Ctrl+C. Use
 `pnpm --filter <package> run <script>` for package-specific diagnostics and
 maintenance commands.
 

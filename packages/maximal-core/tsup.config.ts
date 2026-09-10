@@ -12,6 +12,7 @@ export default defineConfig({
     supervisor: "src/lib/live/supervisor.ts",
     "settings-types": "src/lib/config/settings-types.ts",
     "provider-host": "src/lib/provider-host.ts",
+    "configurator-host": "src/lib/configurator-host.ts",
   },
   outDir: "dist/lib",
   format: ["esm"],

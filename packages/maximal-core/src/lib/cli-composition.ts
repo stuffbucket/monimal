@@ -2,6 +2,7 @@ import type { CommandDef } from "citty"
 
 import { defineCommand, parseArgs, runMain } from "citty"
 
+import type { ConfiguratorRuntimeFactory } from "~/lib/configurator-host"
 import type { ProviderGatewayFactory } from "~/lib/provider-host-types"
 
 const cliArgs = {
@@ -28,6 +29,8 @@ const cliArgs = {
 } as const
 
 export interface CliCompositionOptions {
+  /** Statically linked first-party configurators. Standalone Core supplies none. */
+  createConfiguratorRuntime?: ConfiguratorRuntimeFactory
   /**
    * Lazy start-only provider boundary. Core invokes it only after validated
    * config explicitly selects DSH mode.
@@ -65,6 +68,7 @@ export async function createMain(
       start: () =>
         import("~/start").then((module) =>
           module.createStartCommand({
+            createConfiguratorRuntime: options.createConfiguratorRuntime,
             createProviderGateway: options.createProviderGateway,
           }),
         ),

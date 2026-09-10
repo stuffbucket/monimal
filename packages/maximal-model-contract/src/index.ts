@@ -39,6 +39,7 @@ export type ProviderStatusState = "available" | "disabled" | "unavailable"
 /** An immutable snapshot of one provider's externally observable state. */
 export interface ProviderStatus {
   readonly diagnostics: ReadonlyArray<ProviderDiagnostic>
+  readonly displayName?: string
   readonly operations: ReadonlyArray<ProviderOperation>
   readonly provider: string
   readonly state: ProviderStatusState
@@ -59,6 +60,79 @@ export type ProviderTopologyListener = (topology: ProviderTopology) => void
 /** An idempotent function that removes a topology listener. */
 export type ProviderUnsubscribe = () => void
 
+/** Controls whether a local model appears in provider model catalogs. */
+export type LocalModelPublication = "none" | "provider" | "aggregate"
+
+/** Provider-neutral input and output features required by a local model. */
+export interface LocalModelCapabilities {
+  readonly input: ReadonlyArray<string>
+  readonly output: ReadonlyArray<string>
+}
+
+/** Token limits advertised for a local model. */
+export interface LocalModelContextLimits {
+  readonly contextWindow: number
+  readonly maxOutputTokens?: number
+}
+
+/** Serializable provisioning state for a registered local model. */
+export type LocalModelState = "registered" | "provisioning" | "ready" | "failed"
+
+/** A serializable, path-free local-model catalog entry. */
+export interface LocalModelCatalogEntry {
+  readonly capabilities: LocalModelCapabilities
+  readonly context: LocalModelContextLimits
+  readonly displayName: string
+  readonly expectedBytes: number
+  readonly format: string
+  readonly key: string
+  readonly modelId: string
+  readonly publication: LocalModelPublication
+  readonly state: LocalModelState
+}
+
+/** An immutable local-model catalog snapshot. */
+export interface LocalModelCatalogSnapshot {
+  readonly models: ReadonlyArray<LocalModelCatalogEntry>
+  readonly revision: number
+}
+
+/** Serializable phases emitted while a local model is being provisioned. */
+export type LocalModelProvisionPhase =
+  "checking" | "downloading" | "verifying" | "committing"
+
+/** A serializable, path-free local-model provisioning update. */
+export interface LocalModelProvisionProgress {
+  readonly completedBytes: number
+  readonly modelKey: string
+  readonly phase: LocalModelProvisionPhase
+  readonly totalBytes: number
+}
+
+export type LocalModelCatalogListener = (
+  snapshot: LocalModelCatalogSnapshot,
+) => void
+export type LocalModelProgressListener = (
+  progress: LocalModelProvisionProgress,
+) => void
+
+/**
+ * Optional host-facing local-model control capability.
+ *
+ * Implementations publish deeply immutable snapshots and invoke `subscribe`
+ * synchronously with the current snapshot. Provisioning results and progress
+ * never contain filesystem paths or download sources.
+ */
+export interface LocalModelControl {
+  ensure(
+    modelKey: string,
+    signal: AbortSignal,
+    onProgress?: LocalModelProgressListener,
+  ): Promise<LocalModelCatalogEntry>
+  list(): LocalModelCatalogSnapshot
+  subscribe(listener: LocalModelCatalogListener): ProviderUnsubscribe
+}
+
 /**
  * The host-facing provider boundary.
  *
@@ -69,6 +143,8 @@ export type ProviderUnsubscribe = () => void
  * resolved, no subscribed listener may be called again.
  */
 export interface ProviderGateway {
+  /** Present only when the active provider host exposes local-model control. */
+  readonly localModels?: LocalModelControl | undefined
   dispatch(dispatch: ProviderDispatch): Promise<Response>
   dispose(): Promise<void>
   getStatus(provider: string): ProviderStatus | undefined

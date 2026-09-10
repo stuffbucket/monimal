@@ -129,11 +129,19 @@ const suites = Object.freeze({
     innerScript: "test:maximal-models:inner",
     rebuild: "maximal-models",
   },
+  "maximal-configurators": {
+    innerScript: "test:maximal-configurators:inner",
+    rebuild: "maximal-configurators",
+  },
+  connections: {
+    innerScript: "test:connections:inner",
+    rebuild: "connections",
+  },
   policy: { innerScript: "test:policy:inner", rebuild: "policy" },
 });
 
 const usage =
-  "Usage: pnpm run test:docker -- [--all] [--suite=workspace|maximal-core|maximal-models|policy] [--trace=off|tests|all]";
+  "Usage: pnpm run test:docker -- [--all] [--suite=workspace|maximal-core|maximal-models|maximal-configurators|connections|policy] [--trace=off|tests|all]";
 
 export function parseOptions(arguments_) {
   const options = arguments_[0] === "--" ? arguments_.slice(1) : arguments_;
@@ -383,6 +391,16 @@ export function gitMetadataMountArguments(root = repositoryRoot) {
   ];
 }
 
+export function suiteFixtureArguments(suite) {
+  if (suite !== "maximal-configurators") return [];
+  return [
+    "--tmpfs",
+    "/Applications:rw,uid=10001,gid=10001,mode=0755",
+    "--tmpfs",
+    "/opt/homebrew:rw,exec,uid=10001,gid=10001,mode=0755",
+  ];
+}
+
 export function turboCacheMountArguments(imageId) {
   const volumeName = turboCacheVolumeName(imageId);
   return [
@@ -444,6 +462,7 @@ export function runDockerArguments(imageId, options = {}) {
     "run",
     "--rm",
     ...containerBoundaryArguments(),
+    ...suiteFixtureArguments(suite),
     ...checkoutMountArguments(),
     ...gitMetadataMountArguments(),
     ...turboCacheMountArguments(imageId),

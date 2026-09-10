@@ -92,6 +92,9 @@ COPY --chown=maximal:maximal scripts/lockfile-shard-hosts.cjs scripts/lockfile-s
 COPY --chown=maximal:maximal packages/model-runtimes/anthropic/package.json packages/model-runtimes/anthropic/package.json
 COPY --chown=maximal:maximal packages/eslint-config/package.json packages/eslint-config/package.json
 COPY --chown=maximal:maximal packages/model-runtimes/llama-server/package.json packages/model-runtimes/llama-server/package.json
+COPY --chown=maximal:maximal packages/local-model-registry/package.json packages/local-model-registry/package.json
+COPY --chown=maximal:maximal packages/maximal-configurators/package.json packages/maximal-configurators/package.json
+COPY --chown=maximal:maximal packages/maximal-harness/package.json packages/maximal-harness/package.json
 COPY --chown=maximal:maximal packages/maximal-core/package.json packages/maximal-core/package.json
 COPY --chown=maximal:maximal packages/maximal-core/downstream/package.json packages/maximal-core/downstream/package.json
 COPY --chown=maximal:maximal packages/maximal-models/package.json packages/maximal-models/package.json
@@ -102,6 +105,7 @@ COPY --chown=maximal:maximal packages/maximal-model-contract/package.json packag
 COPY --chown=maximal:maximal packages/maximal/package.json packages/maximal/package.json
 COPY --chown=maximal:maximal packages/maximal/client/package.json packages/maximal/client/package.json
 COPY --chown=maximal:maximal packages/model-runtimes/omlx/package.json packages/model-runtimes/omlx/package.json
+COPY --chown=maximal:maximal packages/model-qwen3-0.6b-q8-gguf/package.json packages/model-qwen3-0.6b-q8-gguf/package.json
 
 USER maximal
 RUN --mount=type=cache,id=maximal-pnpm-${TARGETARCH},target=/workspace/.pnpm-store,uid=10001,gid=10001,sharing=locked \

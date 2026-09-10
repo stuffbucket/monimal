@@ -57,7 +57,6 @@ export default defineConfig({
       input: {
         index: resolve(root, 'index.html'),
         splash: resolve(root, 'splash.html'),
-        overlay: resolve(root, 'overlay.html'),
       },
     },
   },

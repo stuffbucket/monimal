@@ -17,6 +17,7 @@ import type {
   ModelsListResponse,
   ModelSummary,
 } from "~/lib/config/settings-types"
+import type { ConfiguratorRegistry } from "~/lib/configurator-host"
 import type { Model } from "~/services/copilot/get-models"
 
 import { getAllApps } from "~/apps/registry"
@@ -25,9 +26,17 @@ import {
   listAccounts,
   readDefaultRegistry,
 } from "~/lib/auth/github-token-store"
+import { buildConfiguratorAppsList } from "~/lib/configurator-app-compat"
 import { listActiveClients } from "~/lib/http/active-clients"
 import { getModelsLoadedAtMs, state } from "~/lib/runtime-state/state"
 import { getTokenUsageSummary } from "~/lib/token-usage"
+
+export interface ProviderCatalogueModel {
+  readonly id: string
+  readonly name: string
+  readonly provider: string
+  readonly providerName: string
+}
 
 /** The `/control/accounts` body, from maximal's on-disk registry. */
 export async function buildAccountsList(): Promise<AccountsListResponse> {
@@ -44,8 +53,21 @@ export async function buildAccountsList(): Promise<AccountsListResponse> {
 }
 
 /** The `/control/apps` body — every registered client app's live details. */
-export async function buildAppsList(): Promise<AppsListResponse> {
-  const apps = await Promise.all(getAllApps().map((app) => app.getDetails()))
+export async function buildAppsList(
+  configurators?: ConfiguratorRegistry,
+): Promise<AppsListResponse> {
+  const legacyApps = getAllApps()
+  if (configurators) {
+    const configured = await buildConfiguratorAppsList(configurators)
+    const configuredById = new Map(configured.apps.map((app) => [app.id, app]))
+    const apps = await Promise.all(
+      legacyApps.map((app) =>
+        Promise.resolve(configuredById.get(app.id) ?? app.getDetails()),
+      ),
+    )
+    return { apps }
+  }
+  const apps = await Promise.all(legacyApps.map((app) => app.getDetails()))
   return { apps }
 }
 
@@ -77,13 +99,40 @@ function toModelSummary(model: Model): ModelSummary {
   }
 }
 
-/** The `/control/models` body from the cached catalog, sorted for a stable UI. */
-export function buildModelsList(): ModelsListResponse {
+/** The `/control/models` body from cached Copilot and live provider catalogs. */
+export function buildModelsList(
+  providerModels: ReadonlyArray<ProviderCatalogueModel> = [],
+): ModelsListResponse {
   const models = (state.models?.data ?? []).map((model) =>
     toModelSummary(model),
   )
+  const providerModelKeys = new Set<string>()
+  for (const model of providerModels) {
+    const key = `${model.providerName}\u0000${model.id}`
+    if (providerModelKeys.has(key)) continue
+    providerModelKeys.add(key)
+    models.push({
+      id: model.id,
+      name: model.name,
+      vendor: model.providerName,
+      family: "",
+      type: "chat",
+      preview: false,
+      context_window_tokens: null,
+      max_output_tokens: null,
+      capabilities: {
+        vision: false,
+        tool_calls: false,
+        streaming: false,
+        reasoning: false,
+      },
+    })
+  }
   models.sort(
-    (a, b) => a.type.localeCompare(b.type) || a.name.localeCompare(b.name),
+    (a, b) =>
+      a.vendor.localeCompare(b.vendor)
+      || a.type.localeCompare(b.type)
+      || a.name.localeCompare(b.name),
   )
   const loadedAtMs = getModelsLoadedAtMs()
   return {
@@ -105,14 +154,17 @@ export interface ControlSnapshot {
   clients: { clients: ReturnType<typeof listActiveClients>; total: number }
 }
 
-export async function buildControlSnapshot(): Promise<ControlSnapshot> {
+export async function buildControlSnapshot(
+  configurators?: ConfiguratorRegistry,
+  providerModels: ReadonlyArray<ProviderCatalogueModel> = [],
+): Promise<ControlSnapshot> {
   const auth = getAuthStatus()
   const [accounts, apps, usage] = await Promise.all([
     buildAccountsList(),
-    buildAppsList(),
+    buildAppsList(configurators),
     getTokenUsageSummary("day"),
   ])
-  const models = buildModelsList()
+  const models = buildModelsList(providerModels)
   const clients = listActiveClients()
   return {
     auth,

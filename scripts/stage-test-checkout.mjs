@@ -19,6 +19,8 @@ const rebuildArguments = Object.freeze({
   workspace: workspaceRebuild,
   core: workspaceRebuild,
   "maximal-models": workspaceRebuild,
+  "maximal-configurators": workspaceRebuild,
+  connections: workspaceRebuild,
   policy: workspaceRebuild,
 });
 const buildArguments = Object.freeze({
@@ -34,6 +36,20 @@ const buildArguments = Object.freeze({
     "build",
     "--concurrency=1",
     "--filter=@stuffbucket/maximal-models...",
+  ],
+  "maximal-configurators": [
+    "run",
+    "build",
+    "--concurrency=1",
+    "--filter=@stuffbucket/maximal-configurators...",
+  ],
+  connections: [
+    "run",
+    "build",
+    "--concurrency=1",
+    "--filter=@stuffbucket/maximal-configurators...",
+    "--filter=@stuffbucket/maximal-core...",
+    "--filter=maximal-client...",
   ],
   policy: undefined,
 });
@@ -172,7 +188,7 @@ export function parseStageOptions(arguments_) {
     !command
   ) {
     throw new Error(
-      "Usage: stage-test-checkout.mjs --rebuild=workspace|core|maximal-models|policy -- <command> [arguments]",
+      "Usage: stage-test-checkout.mjs --rebuild=workspace|core|maximal-models|maximal-configurators|connections|policy -- <command> [arguments]",
     );
   }
   const rebuild = rebuildOption.slice("--rebuild=".length);

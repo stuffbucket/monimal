@@ -91,12 +91,11 @@ describe('peerRequirements', () => {
     expect(renderer.some((name) => name.startsWith('.'))).toBe(false);
   });
 
-  it('adds a package the entry requires and no import names', async () => {
+  it('has no requirement outside the current import graph', async () => {
     const requirements = await peerRequirements(root, EXPORTS);
 
-    // Nothing in the fixture imports react-dom, and a consumer still needs it.
-    expect(requirements.get('./renderer')).toContain('react-dom');
-    expect(REQUIRED_WITHOUT_IMPORT).toEqual([{ subpath: './renderer', name: 'react-dom' }]);
+    expect(requirements.get('./renderer')).not.toContain('react-dom');
+    expect(REQUIRED_WITHOUT_IMPORT).toEqual([]);
   });
 
   it('walks no asset target', async () => {
@@ -119,7 +118,6 @@ describe('peerRequirements', () => {
       '@radix-ui/react-tabs',
       'lucide-react',
       'react',
-      'react-dom',
       'yaml',
     ]);
   });
@@ -151,7 +149,7 @@ describe('peerRequirements', () => {
       },
     );
 
-    expect(requirements.get('./renderer')).toEqual(['lucide-react', 'react-dom']);
+    expect(requirements.get('./renderer')).toEqual(['lucide-react']);
     expect(reads.filter((file) => file === '/pkg/d/shared.js')).toHaveLength(1);
     expect(reads).toHaveLength(4);
   });

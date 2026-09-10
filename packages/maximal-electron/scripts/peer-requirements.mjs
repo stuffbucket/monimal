@@ -28,15 +28,8 @@ import { exportTargets, importedPackages, relativeImports } from './export-check
  * @property {string} detail What the check found, for one that did not pass.
  */
 
-/**
- * A package an entry point requires that no import of it reaches.
- *
- * A React component does not import a renderer, so nothing in `dist/renderer`
- * names `react-dom`, and a consumer mounting these components still needs one.
- * `scripts/peer-table.mjs` re-exports this and asserts each name is a declared
- * peer no entry point imports, so a name that becomes reachable has to leave.
- */
-export const REQUIRED_WITHOUT_IMPORT = [{ subpath: './renderer', name: 'react-dom' }];
+/** Packages an entry point requires that no import of them reaches. */
+export const REQUIRED_WITHOUT_IMPORT = [];
 
 /** A target that is an asset rather than a module to walk. */
 function isModuleTarget(target) {

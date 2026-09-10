@@ -41,9 +41,9 @@ arbitrary test paths.
 `dev`, `build`, and `start` all begin at `src/main.ts`, the package-owned
 composition entry. `dev` is a watched CLI runner, so it requires a CLI
 subcommand such as `start`. The composition invokes `@stuffbucket/maximal-core`'s
-public CLI and may supply the generic DSH provider host; routing and engine
-behavior remain in Core, and concrete providers remain external profile
-packages.
+public CLI and may supply the generic DSH provider host and built-in
+configurators; routing and engine behavior remain in Core, and concrete
+providers remain external profile packages.
 
 ## Electron client (`client/`)
 
@@ -53,10 +53,25 @@ low-level diagnostics for the client package:
 ```sh
 pnpm --filter maximal-client build:core  # Compile the maximal-core sidecar
 pnpm --filter maximal-client typecheck   # tsc --noEmit
+pnpm --filter maximal-client ui:preview  # Open the real Search UI with in-memory settings
+pnpm --filter maximal-client ui:check    # Check two browser widths and capture screenshots
 pnpm test                                 # Run isolated affected workspace tests
 pnpm --filter maximal-client start       # Launch without graph orchestration
 pnpm package                              # Package the Electron client via Turbo
 ```
+
+`ui:preview` and `ui:check` are renderer-only. They rebuild the shared renderer
+package, then use Vite against `ui-preview.html`. They do not launch Electron,
+compile or start the Core sidecar, read `window.maximal`, or bind the proxy port.
+The preview supplies an in-memory `SettingsCapabilities` implementation to the
+production `AppFrame`, `Settings`, and `SearchSection` components.
+
+`ui:check` starts Vite on an ephemeral loopback port and closes it after the
+run. It checks the heading hierarchy, provider count, tab order, horizontal
+overflow, compact scrolling, and keyboard focus ring in Chromium. It writes
+desktop and compact screenshots under `$TMPDIR/maximal-ui-check` for inspection.
+The third capture opens the Copilot disclosure at compact width and records the
+keyboard-focused provider-model dropdown.
 
 Bun compiles the composed `@stuffbucket/maximal-core` proxy into a sidecar
 binary. The client Vitest suite

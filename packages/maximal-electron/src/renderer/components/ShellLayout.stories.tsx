@@ -75,6 +75,7 @@ export const Default: StoryObj = {
      * phantom, so this story is not a duplicate of the one below.
      */
     const shell = measure(canvasElement);
+    await expect(canvasElement.querySelector('[role="tabpanel"]')).not.toHaveAttribute('tabindex');
     await expect(shell.top, 'no top slot was supplied').toBeNull();
     await expect(shell.panels.top, scope(shell)).toBeCloseTo(shell.titlebar.bottom + shell.gap, 0);
     await expect(shell.panels.height, scope(shell)).toBeCloseTo(
@@ -85,6 +86,24 @@ export const Default: StoryObj = {
     await expect(shell.statusbar.bottom, scope(shell)).toBeLessThanOrEqual(
       shell.content.bottom + 0.5,
     );
+  },
+};
+
+export const WithoutStatus: StoryObj = {
+  render: () => (
+    <ShellLayout
+      layoutId="shell-without-status-story"
+      tabs={[{ id: 'settings', title: 'Settings' }]}
+      activeTab="settings"
+      onSelectTab={() => undefined}
+      tabsLabel="Views"
+      left={() => <nav className="nav">Sections</nav>}
+      main={<div className="canvas">Settings</div>}
+      status={null}
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    await expect(canvasElement.querySelector('.statusbar')).toBeNull();
   },
 };
 

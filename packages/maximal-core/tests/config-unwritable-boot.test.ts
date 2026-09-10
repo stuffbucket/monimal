@@ -26,6 +26,7 @@ import {
   getConfig,
   mergeConfigWithDefaults,
   reloadConfigFromDisk,
+  updateConfig,
   writeConfig,
 } from "~/lib/config/config"
 import { PATHS } from "~/lib/platform/paths"
@@ -185,6 +186,34 @@ describe("config boot", () => {
     expect(config.smallModel).toBe("written")
     expect(config.extraPrompts?.["gpt-5.3-codex"]).toBeDefined()
     expect(getConfig()).toBe(config)
+  })
+
+  test("updateConfig mutates a fresh disk read instead of the stale cache", () => {
+    writeConfig({ smallModel: "cached" })
+    fs.writeFileSync(
+      CONFIG_PATH,
+      `${JSON.stringify(
+        {
+          smallModel: "external",
+          auth: { enforce: false },
+        },
+        null,
+        2,
+      )}\n`,
+      "utf8",
+    )
+
+    const config = updateConfig((current) => ({
+      ...current,
+      auth: { ...current.auth, enforce: true },
+    }))
+
+    expect(config.smallModel).toBe("external")
+    expect(config.auth?.enforce).toBe(true)
+    expect(JSON.parse(fs.readFileSync(CONFIG_PATH, "utf8"))).toMatchObject({
+      smallModel: "external",
+      auth: { enforce: true },
+    })
   })
 
   test("reads the user's settings instead of dying with a raw errno", () => {

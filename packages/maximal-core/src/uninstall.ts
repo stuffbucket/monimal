@@ -3,11 +3,10 @@
  * `maximal uninstall` — reverse of `setup`.
  *
  * Stops the running proxy (launchd / Windows scheduled task), removes the
- * on-disk binary, and reverts every app integration through the registry
- * (`getAllApps()` → each app's ownership-guarded `uninstall()`). Refuses to run
- * while any app is still enabled — naming them — unless `--force`, which
- * disables each app first, then uninstalls. Secrets are kept by default; pass
- * `--purge` to remove them.
+ * on-disk binary, and reverts pre-configurator app artifacts through the legacy
+ * registry. Refuses to run while any app is still enabled unless `--force`,
+ * which asks the verified running daemon to disconnect each app before the
+ * daemon is stopped. Secrets are kept by default; pass `--purge` to remove them.
  *
  * Spec: docs/spec/archive/internal-distribution-stream-b.md §B6.
  */
@@ -19,17 +18,18 @@ import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
 
-import type { ClientApp } from "./apps/index"
+import type { ClientApp } from "~/apps/index"
+import type { AppEntry } from "~/lib/config/settings-types"
+import type { LiveAppControlClient } from "~/lib/live/app-control-client"
 
-import { getAllApps } from "./apps/registry"
-import { PATHS } from "./lib/platform/paths"
+import { getAllApps } from "~/apps/registry"
+import { connectToLiveAppControl } from "~/lib/live/app-control-client"
+import { PATHS } from "~/lib/platform/paths"
 
-interface RunUninstallOptions {
+export interface RunUninstallOptions {
   purge: boolean
-  /** When true, uninstall even if apps are still enabled: disable each app
-   *  (idempotent) first, then run the registry revert sweep. Without it,
-   *  uninstall refuses while any app is enabled. Replaces the old
-   *  `--revert-claude` opt-in. */
+  /** When true, disconnect live integrations before uninstalling. A verified
+   *  daemon is required because only it may mutate configurator claims. */
   force: boolean
   unattended: boolean
   /** Accepted for compatibility with the shell's in-app uninstall, which
@@ -39,53 +39,108 @@ interface RunUninstallOptions {
   keepApp: boolean
 }
 
-export async function runUninstall(opts: RunUninstallOptions): Promise<void> {
+export type UninstallControlClient = LiveAppControlClient
+
+export interface RunUninstallDependencies {
+  connectControl(): Promise<UninstallControlClient | null>
+  enabledLegacyApps(): Array<ClientApp>
+  stopProxy(): void
+  removeStartupIntegration(): void
+  removeBinary(): void
+  revertLegacyAppIntegrations(): Promise<void>
+  maybePurgeSecrets(options: RunUninstallOptions): Promise<void>
+}
+
+const runUninstallDependencies: RunUninstallDependencies = {
+  connectControl: connectToLiveAppControl,
+  enabledLegacyApps: enabledApps,
+  stopProxy,
+  removeStartupIntegration,
+  removeBinary,
+  revertLegacyAppIntegrations,
+  maybePurgeSecrets,
+}
+
+export async function runUninstall(
+  opts: RunUninstallOptions,
+  dependencies: RunUninstallDependencies = runUninstallDependencies,
+): Promise<void> {
   consola.box("maximal uninstall")
 
-  // Precondition: refuse while any app still routes through the proxy, UNLESS
-  // --force. Uninstall removes maximal; it must not silently rip routing out
-  // from under an integration the user left switched ON. Name the enabled apps
-  // and fail with what to do. `--force` means "uninstall anyway": we disable
-  // each app first (step 4), so routing is cleaned up rather than orphaned.
-  // Checked via the registry's isEnabled(), so this needs no per-app knowledge.
-  const enabled = enabledApps()
+  // A short-lived uninstaller must never manufacture configurator ownership.
+  // Ask the verified live daemon for connection state and route every requested
+  // disconnect through that daemon before stopping it. With no live daemon, the
+  // old registry is read-only evidence for pre-configurator installations.
+  const control = await dependencies.connectControl()
+  const enabled =
+    control ?
+      (await control.listApps()).apps
+        .filter((app) => app.enabled)
+        .map((app) => ({ id: app.id, name: app.name }))
+    : dependencies.enabledLegacyApps().map((app) => ({
+        id: app.id,
+        name: app.name,
+      }))
+
   if (enabled.length > 0 && !opts.force) {
-    const names = enabled.map((a) => a.name).join(", ")
-    consola.error(`These apps are still routing through maximal: ${names}.`)
-    consola.info(
-      "Turn them off in Settings → Apps (or e.g. `maximal app claude-code"
-        + " --disable`), then re-run `maximal uninstall`. Or pass `--force` to"
-        + " disable them and uninstall in one step.",
-    )
+    refuseEnabledApps(enabled)
+  }
+  if (enabled.length > 0 && !control) {
+    const names = enabled.map((app) => app.name).join(", ")
     throw new Error(
-      `Refusing to uninstall while apps are enabled: ${names}. Disable them or pass --force.`,
+      `Cannot safely disconnect enabled apps without a running Maximal control plane: ${names}. Start maximal, then re-run with --force.`,
     )
+  }
+  if (control) {
+    for (const app of enabled) {
+      const disconnected = await control.setAppEnabled(app.id, false)
+      if (disconnected.enabled) {
+        throw new Error(
+          `Maximal did not disconnect ${app.name}; uninstall stopped.`,
+        )
+      }
+      consola.success(`Disconnected ${app.name}.`)
+    }
   }
 
   // 1. Stop the running proxy (best effort) -------------------------
   consola.info("Step 1/5: Stop the running proxy")
-  stopProxy()
+  dependencies.stopProxy()
 
   // 2. Remove launchd plist / Windows scheduled task ----------------
   consola.info("Step 2/5: Remove startup integration")
-  removeStartupIntegration()
+  dependencies.removeStartupIntegration()
 
   // 3. Remove the binary --------------------------------------------
   consola.info("Step 3/5: Remove the binary")
-  removeBinary()
+  dependencies.removeBinary()
 
-  // 4. Revert any residual app integrations ------------------------
-  // Registry-driven: each app reverts its own (ownership-guarded) config via the
-  // contract. With the precondition above every app is already disabled, so this
-  // is a defensive sweep.
-  consola.info("Step 4/5: Revert app integrations")
-  await revertAppIntegrations(enabled)
+  // 4. Revert pre-configurator leftovers ----------------------------
+  // Configurator-owned targets were restored by the daemon above. This sweep is
+  // retained only for older installs whose app-specific markers predate claims.
+  consola.info("Step 4/5: Revert legacy app integrations")
+  await dependencies.revertLegacyAppIntegrations()
 
   // 5. Optional: secrets --------------------------------------------
   consola.info("Step 5/5: Optional cleanup")
-  await maybePurgeSecrets(opts)
+  await dependencies.maybePurgeSecrets(opts)
 
   consola.box("Uninstall complete.")
+}
+
+function refuseEnabledApps(
+  enabled: ReadonlyArray<Pick<AppEntry, "name">>,
+): never {
+  const names = enabled.map((app) => app.name).join(", ")
+  consola.error(`These apps are still routing through maximal: ${names}.`)
+  consola.info(
+    "Turn them off in Connections (or e.g. `maximal app claude-code"
+      + " --disable`), then re-run `maximal uninstall`. Or pass `--force` to"
+      + " disconnect them through the running daemon before uninstalling.",
+  )
+  throw new Error(
+    `Refusing to uninstall while apps are enabled: ${names}. Disable them or pass --force.`,
+  )
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -203,35 +258,25 @@ function removeBinary(): void {
 }
 
 // ────────────────────────────────────────────────────────────────────
-// Step 4: disable + revert app integrations (registry).
+// Step 4: revert pre-configurator app artifacts (legacy registry).
 // ────────────────────────────────────────────────────────────────────
 
-/** Apps currently routing through the proxy, by the contract's `isEnabled()`.
- *  Drives both the precondition message and the `--force` disable pass — no
- *  per-app knowledge lives here. */
-export function enabledApps(): Array<ClientApp> {
-  return getAllApps().filter((app) => app.isEnabled())
+/** Read-only fallback for installations that predate daemon-owned claims. */
+export function enabledApps(
+  apps: ReadonlyArray<ClientApp> = getAllApps(),
+): Array<ClientApp> {
+  return apps.filter((app) => app.isEnabled())
 }
 
 /**
- * Revert every app's integration via the registry. `stillEnabled` are the apps
- * that were on at invocation (only non-empty under `--force`): we `disable()`
- * each first so routing is cleaned, not orphaned. Then every app's `uninstall()`
- * runs as an ownership-guarded sweep (idempotent — safe even for already-
- * disabled apps).
+ * Revert app-specific artifacts left by versions predating configurator claims.
+ * Live connection mutation belongs exclusively to the running daemon and must
+ * have completed before this compatibility sweep begins.
  */
-export async function revertAppIntegrations(
-  stillEnabled: ReadonlyArray<ClientApp>,
+export async function revertLegacyAppIntegrations(
+  apps: ReadonlyArray<ClientApp> = getAllApps(),
 ): Promise<void> {
-  for (const app of stillEnabled) {
-    try {
-      await app.disable()
-      consola.success(`  disabled ${app.name}`)
-    } catch (err) {
-      consola.warn(`  could not disable ${app.name}`, err)
-    }
-  }
-  for (const app of getAllApps()) {
+  for (const app of apps) {
     try {
       const result = await app.uninstall()
       for (const line of result.reverted) consola.success(`  ${line}`)

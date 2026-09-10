@@ -72,8 +72,42 @@ importers:
         specifier: ^10.9.1
         version: 10.9.1(jiti@2.7.0)(supports-color@8.1.1)
 
+  packages/local-model-registry:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: 3.18.2
+        version: 3.18.2
+      '@stuffbucket/maximal-model-contract':
+        specifier: workspace:*
+        version: link:../maximal-model-contract
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: 4.0.2
+        version: 4.0.2
+      '@stuffbucket/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@types/node':
+        specifier: ^26.4.0
+        version: 26.4.0
+      '@typescript/native':
+        specifier: npm:typescript@^7.0.2
+        version: typescript@7.0.2
+      eslint:
+        specifier: ^10.9.1
+        version: 10.9.1(jiti@2.7.0)(supports-color@8.1.1)
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(@typescript/typescript6@6.0.2)(jiti@2.7.0)(postcss@8.5.26)(supports-color@8.1.1)(yaml@2.9.0)
+      typescript:
+        specifier: npm:@typescript/typescript6@^6.0.2
+        version: '@typescript/typescript6@6.0.2'
+
   packages/maximal:
     dependencies:
+      '@stuffbucket/maximal-configurators':
+        specifier: workspace:*
+        version: link:../maximal-configurators
       '@stuffbucket/maximal-core':
         specifier: workspace:*
         version: link:../maximal-core
@@ -109,11 +143,42 @@ importers:
         specifier: npm:@typescript/typescript6@^6.0.2
         version: '@typescript/typescript6@6.0.2'
 
+  packages/maximal-configurators:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 4.0.2
+        version: 4.0.2
+      '@stuffbucket/maximal-core':
+        specifier: workspace:*
+        version: link:../maximal-core
+    devDependencies:
+      '@stuffbucket/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@types/node':
+        specifier: ^26.4.0
+        version: 26.4.0
+      '@typescript/native':
+        specifier: npm:typescript@^7.0.2
+        version: typescript@7.0.2
+      eslint:
+        specifier: ^10.9.1
+        version: 10.9.1(jiti@2.7.0)(supports-color@8.1.1)
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(@typescript/typescript6@6.0.2)(jiti@2.7.0)(postcss@8.5.26)(supports-color@8.1.1)(yaml@2.9.0)
+      typescript:
+        specifier: npm:@typescript/typescript6@^6.0.2
+        version: '@typescript/typescript6@6.0.2'
+
   packages/maximal-core:
     dependencies:
       '@hono/zod-openapi':
         specifier: 1.6.1
         version: 1.6.1(hono@4.13.5)(zod@4.5.4)
+      '@stuffbucket/maximal-harness':
+        specifier: workspace:*
+        version: link:../maximal-harness
       '@stuffbucket/maximal-model-contract':
         specifier: workspace:*
         version: link:../maximal-model-contract
@@ -138,6 +203,9 @@ importers:
       hono:
         specifier: ^4.13.5
         version: 4.13.5
+      proper-lockfile:
+        specifier: 4.1.2
+        version: 4.1.2
       proxy-from-env:
         specifier: ^2.1.0
         version: 2.1.0
@@ -162,7 +230,7 @@ importers:
     devDependencies:
       '@stryker-mutator/core':
         specifier: ^10.0.0
-        version: 10.0.0(@types/node@24.13.3)
+        version: 10.0.0(@types/node@26.4.0)
       '@stuffbucket/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
@@ -211,12 +279,6 @@ importers:
 
   packages/maximal-electron:
     devDependencies:
-      '@earendil-works/pi-agent-core':
-        specifier: 0.84.4
-        version: 0.84.4(supports-color@8.1.1)(ws@8.21.3)(zod@4.5.4)
-      '@earendil-works/pi-ai':
-        specifier: 0.84.4
-        version: 0.84.4(supports-color@8.1.1)(ws@8.21.3)(zod@4.5.4)
       '@electron-forge/cli':
         specifier: 7.11.2
         version: 7.11.2(bluebird@3.7.2)(csso@5.0.5)(encoding@0.1.13)(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.26)(supports-color@8.1.1)(uglify-js@3.19.3)
@@ -292,6 +354,18 @@ importers:
       '@vitejs/plugin-react':
         specifier: ^6.1.0
         version: 6.1.1(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))
+      '@wterm/dom':
+        specifier: 0.3.4
+        version: 0.3.4
+      '@wterm/ghostty':
+        specifier: 0.3.4
+        version: 0.3.4
+      '@xterm/addon-fit':
+        specifier: 0.11.0
+        version: 0.11.0
+      '@xterm/xterm':
+        specifier: 6.0.0
+        version: 6.0.0
       axe-core:
         specifier: 4.13.0
         version: 4.13.0
@@ -304,15 +378,9 @@ importers:
       fast-check:
         specifier: 4.9.0
         version: 4.9.0
-      ghostty-web:
-        specifier: 0.4.0
-        version: 0.4.0
       lucide-react:
         specifier: 1.38.0
         version: 1.38.0(react@19.2.8)
-      node-llama-cpp:
-        specifier: 3.20.0
-        version: 3.20.0(@typescript/typescript6@6.0.2)(supports-color@8.1.1)
       node-pty:
         specifier: 1.2.0-beta.15
         version: 1.2.0-beta.15
@@ -328,9 +396,6 @@ importers:
       storybook:
         specifier: 10.5.10
         version: 10.5.10(@types/react@19.2.18)(prettier@3.9.6)(react@19.2.8)
-      typebox:
-        specifier: 1.3.23
-        version: 1.3.23
       typescript:
         specifier: npm:@typescript/typescript6@^6.0.2
         version: '@typescript/typescript6@6.0.2'
@@ -343,6 +408,67 @@ importers:
       yaml:
         specifier: ^2.9.0
         version: 2.9.0
+
+  packages/maximal-harness:
+    dependencies:
+      '@earendil-works/pi-agent-core':
+        specifier: 0.84.4
+        version: 0.84.4(supports-color@8.1.1)(ws@8.21.3)(zod@4.5.4)
+      '@earendil-works/pi-ai':
+        specifier: 0.84.4
+        version: 0.84.4(supports-color@8.1.1)(ws@8.21.3)(zod@4.5.4)
+      typebox:
+        specifier: 1.3.23
+        version: 1.3.23
+    devDependencies:
+      '@stryker-mutator/core':
+        specifier: ^10.0.0
+        version: 10.0.0(@types/node@26.4.0)
+      '@stryker-mutator/vitest-runner':
+        specifier: ^10.0.0
+        version: 10.0.0(@stryker-mutator/core@10.0.0(@types/node@26.4.0))(vitest@4.1.11(@opentelemetry/api@1.9.0)(@types/node@26.4.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0)))
+      '@stuffbucket/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@stuffbucket/maximal-electron':
+        specifier: workspace:*
+        version: link:../maximal-electron
+      '@types/node':
+        specifier: ^26.4.0
+        version: 26.4.0
+      '@types/react':
+        specifier: ^19.2.17
+        version: 19.2.18
+      '@types/react-dom':
+        specifier: ^19.2.5
+        version: 19.2.5(@types/react@19.2.18)
+      '@typescript/native':
+        specifier: npm:typescript@^7.0.2
+        version: typescript@7.0.2
+      electron:
+        specifier: 44.1.0
+        version: 44.1.0(supports-color@8.1.1)
+      eslint:
+        specifier: ^10.9.1
+        version: 10.9.1(jiti@2.7.0)(supports-color@8.1.1)
+      node-llama-cpp:
+        specifier: 3.20.0
+        version: 3.20.0(@typescript/typescript6@6.0.2)(supports-color@8.1.1)
+      react:
+        specifier: ^19.2.8
+        version: 19.2.8
+      react-dom:
+        specifier: ^19.2.8
+        version: 19.2.8(react@19.2.8)
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(@typescript/typescript6@6.0.2)(jiti@2.7.0)(postcss@8.5.26)(supports-color@8.1.1)(yaml@2.9.0)
+      typescript:
+        specifier: npm:@typescript/typescript6@^6.0.2
+        version: '@typescript/typescript6@6.0.2'
+      vitest:
+        specifier: ^4.1.11
+        version: 4.1.11(@opentelemetry/api@1.9.0)(@types/node@26.4.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))
 
   packages/maximal-model-contract:
     devDependencies:
@@ -493,24 +619,45 @@ importers:
       '@radix-ui/react-visually-hidden':
         specifier: ^1.2.11
         version: 1.2.11(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@stuffbucket/local-model-registry':
+        specifier: workspace:*
+        version: link:../../local-model-registry
       '@stuffbucket/maximal-core':
         specifier: workspace:*
         version: link:../../maximal-core
       '@stuffbucket/maximal-electron':
         specifier: workspace:*
         version: link:../../maximal-electron
+      '@stuffbucket/maximal-harness':
+        specifier: workspace:*
+        version: link:../../maximal-harness
       '@stuffbucket/maximal-observability':
         specifier: workspace:*
         version: link:../../maximal-observability
       '@stuffbucket/maximal-observability-contract':
         specifier: workspace:*
         version: link:../../maximal-observability-contract
-      ghostty-web:
-        specifier: ^0.4.0
-        version: 0.4.0
+      '@wterm/dom':
+        specifier: 0.3.4
+        version: 0.3.4
+      '@wterm/ghostty':
+        specifier: 0.3.4
+        version: 0.3.4
+      '@xterm/addon-fit':
+        specifier: 0.11.0
+        version: 0.11.0
+      '@xterm/xterm':
+        specifier: 6.0.0
+        version: 6.0.0
       lucide-react:
         specifier: ^1.38.0
         version: 1.38.0(react@19.2.8)
+      node-llama-cpp:
+        specifier: 3.20.0
+        version: 3.20.0(@typescript/typescript6@6.0.2)(supports-color@8.1.1)
+      node-pty:
+        specifier: 1.2.0-beta.15
+        version: 1.2.0-beta.15
       react:
         specifier: ^19.2.8
         version: 19.2.8
@@ -539,6 +686,9 @@ importers:
       '@electron-forge/shared-types':
         specifier: 7.11.2
         version: 7.11.2(bluebird@3.7.2)(supports-color@8.1.1)
+      '@electron/asar':
+        specifier: ^4.3.0
+        version: 4.3.0
       '@electron/packager':
         specifier: ^20.3.0
         version: 20.3.0(supports-color@8.1.1)
@@ -594,6 +744,37 @@ importers:
         specifier: ^4.1.11
         version: 4.1.11(@opentelemetry/api@1.9.0)(@types/node@26.4.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))
 
+  packages/model-qwen3-0.6b-q8-gguf:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: 3.18.2
+        version: 3.18.2
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: 4.0.2
+        version: 4.0.2
+      '@stuffbucket/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@stuffbucket/local-model-registry':
+        specifier: workspace:*
+        version: link:../local-model-registry
+      '@types/node':
+        specifier: ^26.4.0
+        version: 26.4.0
+      '@typescript/native':
+        specifier: npm:typescript@^7.0.2
+        version: typescript@7.0.2
+      eslint:
+        specifier: ^10.9.1
+        version: 10.9.1(jiti@2.7.0)(supports-color@8.1.1)
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(@typescript/typescript6@6.0.2)(jiti@2.7.0)(postcss@8.5.26)(supports-color@8.1.1)(yaml@2.9.0)
+      typescript:
+        specifier: npm:@typescript/typescript6@^6.0.2
+        version: '@typescript/typescript6@6.0.2'
+
   packages/model-runtimes/anthropic:
     dependencies:
       '@deepseek-ai/schemastery':
@@ -638,10 +819,26 @@ importers:
         version: '@typescript/typescript6@6.0.2'
 
   packages/model-runtimes/llama-server:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: 3.18.2
+        version: 3.18.2
     devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: 4.0.2
+        version: 4.0.2
+      '@deepseek-ai/dsh-llm':
+        specifier: 0.1.0-rc.8
+        version: 0.1.0-rc.8(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-attachment@0.1.0-rc.8(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-brand@0.1.0-rc.8(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-invariants@0.1.0-rc.8(@deepseek-ai/cordis@4.0.2)))(@deepseek-ai/dsh-invariants@0.1.0-rc.8(@deepseek-ai/cordis@4.0.2)))(@deepseek-ai/dsh-brand@0.1.0-rc.8(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-invariants@0.1.0-rc.8(@deepseek-ai/cordis@4.0.2)))(@deepseek-ai/dsh-invariants@0.1.0-rc.8(@deepseek-ai/cordis@4.0.2))(@deepseek-ai/dsh-timeout@0.1.0-rc.8(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-invariants@0.1.0-rc.8(@deepseek-ai/cordis@4.0.2)))
       '@stuffbucket/eslint-config':
         specifier: workspace:*
         version: link:../../eslint-config
+      '@stuffbucket/local-model-registry':
+        specifier: workspace:*
+        version: link:../../local-model-registry
+      '@types/node':
+        specifier: ^26.4.0
+        version: 26.4.0
       '@typescript/native':
         specifier: npm:typescript@^7.0.2
         version: typescript@7.0.2
@@ -3935,9 +4132,24 @@ packages:
   '@webcontainer/env@1.1.1':
     resolution: {integrity: sha1-IwIbK7JL7+7vU9uomW0YhrcBZRU=}
 
+  '@wterm/core@0.3.4':
+    resolution: {integrity: sha1-OEL/3GqDS9Zgtg6nv9XUkkjrsYE=}
+
+  '@wterm/dom@0.3.4':
+    resolution: {integrity: sha1-cSN1e3MiIcyRzmW+uSYFs/i9PxE=}
+
+  '@wterm/ghostty@0.3.4':
+    resolution: {integrity: sha1-98kdgPP9WreckMeWXycQBGF+O94=}
+
   '@xmldom/xmldom@0.9.10':
     resolution: {integrity: sha1-oK1aJv6KqZYxCHBybhcEl392ne4=}
     engines: {node: '>=14.6'}
+
+  '@xterm/addon-fit@0.11.0':
+    resolution: {integrity: sha1-ukd4tp/MkESgYMIXa74HdlfXs34=}
+
+  '@xterm/xterm@6.0.0':
+    resolution: {integrity: sha1-k2N7Dy7jpwcYtXRqJ8nFBq8WdFs=}
 
   '@xtuc/ieee754@1.2.0':
     resolution: {integrity: sha1-7vAUoxRa5Hehy8AM0eVSM23Ot5A=}
@@ -5088,9 +5300,6 @@ packages:
 
   get-tsconfig@4.14.3:
     resolution: {integrity: sha1-e8yfOrX7bTCtCjAYmMhZ00Fk3Nk=}
-
-  ghostty-web@0.4.0:
-    resolution: {integrity: sha1-kC/y/AQjkrk2FBC0WIddOPu4CZ8=}
 
   git-hooks-list@4.2.1:
     resolution: {integrity: sha1-grOtEZ7C2optVyKL1o2OQyr8QYw=}
@@ -8958,15 +9167,6 @@ snapshots:
       ansi-escapes: 4.3.2
       yoctocolors-cjs: 2.1.3
 
-  '@inquirer/checkbox@5.2.1(@types/node@24.13.3)':
-    dependencies:
-      '@inquirer/ansi': 2.0.7
-      '@inquirer/core': 11.2.1(@types/node@24.13.3)
-      '@inquirer/figures': 2.0.7
-      '@inquirer/type': 4.0.7(@types/node@24.13.3)
-    optionalDependencies:
-      '@types/node': 24.13.3
-
   '@inquirer/checkbox@5.2.1(@types/node@26.4.0)':
     dependencies:
       '@inquirer/ansi': 2.0.7
@@ -8981,31 +9181,12 @@ snapshots:
       '@inquirer/core': 9.2.1
       '@inquirer/type': 2.0.0
 
-  '@inquirer/confirm@6.1.1(@types/node@24.13.3)':
-    dependencies:
-      '@inquirer/core': 11.2.1(@types/node@24.13.3)
-      '@inquirer/type': 4.0.7(@types/node@24.13.3)
-    optionalDependencies:
-      '@types/node': 24.13.3
-
   '@inquirer/confirm@6.1.1(@types/node@26.4.0)':
     dependencies:
       '@inquirer/core': 11.2.1(@types/node@26.4.0)
       '@inquirer/type': 4.0.7(@types/node@26.4.0)
     optionalDependencies:
       '@types/node': 26.4.0
-
-  '@inquirer/core@11.2.1(@types/node@24.13.3)':
-    dependencies:
-      '@inquirer/ansi': 2.0.7
-      '@inquirer/figures': 2.0.7
-      '@inquirer/type': 4.0.7(@types/node@24.13.3)
-      cli-width: 4.1.0
-      fast-wrap-ansi: 0.2.2
-      mute-stream: 3.0.0
-      signal-exit: 4.1.0
-    optionalDependencies:
-      '@types/node': 24.13.3
 
   '@inquirer/core@11.2.1(@types/node@26.4.0)':
     dependencies:
@@ -9040,14 +9221,6 @@ snapshots:
       '@inquirer/type': 2.0.0
       external-editor: 3.1.0
 
-  '@inquirer/editor@5.2.2(@types/node@24.13.3)':
-    dependencies:
-      '@inquirer/core': 11.2.1(@types/node@24.13.3)
-      '@inquirer/external-editor': 3.0.3(@types/node@24.13.3)
-      '@inquirer/type': 4.0.7(@types/node@24.13.3)
-    optionalDependencies:
-      '@types/node': 24.13.3
-
   '@inquirer/editor@5.2.2(@types/node@26.4.0)':
     dependencies:
       '@inquirer/core': 11.2.1(@types/node@26.4.0)
@@ -9062,26 +9235,12 @@ snapshots:
       '@inquirer/type': 2.0.0
       yoctocolors-cjs: 2.1.3
 
-  '@inquirer/expand@5.1.1(@types/node@24.13.3)':
-    dependencies:
-      '@inquirer/core': 11.2.1(@types/node@24.13.3)
-      '@inquirer/type': 4.0.7(@types/node@24.13.3)
-    optionalDependencies:
-      '@types/node': 24.13.3
-
   '@inquirer/expand@5.1.1(@types/node@26.4.0)':
     dependencies:
       '@inquirer/core': 11.2.1(@types/node@26.4.0)
       '@inquirer/type': 4.0.7(@types/node@26.4.0)
     optionalDependencies:
       '@types/node': 26.4.0
-
-  '@inquirer/external-editor@3.0.3(@types/node@24.13.3)':
-    dependencies:
-      chardet: 2.2.0
-      iconv-lite: 0.7.3
-    optionalDependencies:
-      '@types/node': 24.13.3
 
   '@inquirer/external-editor@3.0.3(@types/node@26.4.0)':
     dependencies:
@@ -9099,13 +9258,6 @@ snapshots:
       '@inquirer/core': 9.2.1
       '@inquirer/type': 2.0.0
 
-  '@inquirer/input@5.1.2(@types/node@24.13.3)':
-    dependencies:
-      '@inquirer/core': 11.2.1(@types/node@24.13.3)
-      '@inquirer/type': 4.0.7(@types/node@24.13.3)
-    optionalDependencies:
-      '@types/node': 24.13.3
-
   '@inquirer/input@5.1.2(@types/node@26.4.0)':
     dependencies:
       '@inquirer/core': 11.2.1(@types/node@26.4.0)
@@ -9117,13 +9269,6 @@ snapshots:
     dependencies:
       '@inquirer/core': 9.2.1
       '@inquirer/type': 2.0.0
-
-  '@inquirer/number@4.1.1(@types/node@24.13.3)':
-    dependencies:
-      '@inquirer/core': 11.2.1(@types/node@24.13.3)
-      '@inquirer/type': 4.0.7(@types/node@24.13.3)
-    optionalDependencies:
-      '@types/node': 24.13.3
 
   '@inquirer/number@4.1.1(@types/node@26.4.0)':
     dependencies:
@@ -9137,14 +9282,6 @@ snapshots:
       '@inquirer/core': 9.2.1
       '@inquirer/type': 2.0.0
       ansi-escapes: 4.3.2
-
-  '@inquirer/password@5.1.1(@types/node@24.13.3)':
-    dependencies:
-      '@inquirer/ansi': 2.0.7
-      '@inquirer/core': 11.2.1(@types/node@24.13.3)
-      '@inquirer/type': 4.0.7(@types/node@24.13.3)
-    optionalDependencies:
-      '@types/node': 24.13.3
 
   '@inquirer/password@5.1.1(@types/node@26.4.0)':
     dependencies:
@@ -9167,21 +9304,6 @@ snapshots:
       '@inquirer/search': 2.0.1
       '@inquirer/select': 3.0.1
 
-  '@inquirer/prompts@8.5.2(@types/node@24.13.3)':
-    dependencies:
-      '@inquirer/checkbox': 5.2.1(@types/node@24.13.3)
-      '@inquirer/confirm': 6.1.1(@types/node@24.13.3)
-      '@inquirer/editor': 5.2.2(@types/node@24.13.3)
-      '@inquirer/expand': 5.1.1(@types/node@24.13.3)
-      '@inquirer/input': 5.1.2(@types/node@24.13.3)
-      '@inquirer/number': 4.1.1(@types/node@24.13.3)
-      '@inquirer/password': 5.1.1(@types/node@24.13.3)
-      '@inquirer/rawlist': 5.3.1(@types/node@24.13.3)
-      '@inquirer/search': 4.2.1(@types/node@24.13.3)
-      '@inquirer/select': 5.2.1(@types/node@24.13.3)
-    optionalDependencies:
-      '@types/node': 24.13.3
-
   '@inquirer/prompts@8.5.2(@types/node@26.4.0)':
     dependencies:
       '@inquirer/checkbox': 5.2.1(@types/node@26.4.0)
@@ -9203,13 +9325,6 @@ snapshots:
       '@inquirer/type': 2.0.0
       yoctocolors-cjs: 2.1.3
 
-  '@inquirer/rawlist@5.3.1(@types/node@24.13.3)':
-    dependencies:
-      '@inquirer/core': 11.2.1(@types/node@24.13.3)
-      '@inquirer/type': 4.0.7(@types/node@24.13.3)
-    optionalDependencies:
-      '@types/node': 24.13.3
-
   '@inquirer/rawlist@5.3.1(@types/node@26.4.0)':
     dependencies:
       '@inquirer/core': 11.2.1(@types/node@26.4.0)
@@ -9223,14 +9338,6 @@ snapshots:
       '@inquirer/figures': 1.0.15
       '@inquirer/type': 2.0.0
       yoctocolors-cjs: 2.1.3
-
-  '@inquirer/search@4.2.1(@types/node@24.13.3)':
-    dependencies:
-      '@inquirer/core': 11.2.1(@types/node@24.13.3)
-      '@inquirer/figures': 2.0.7
-      '@inquirer/type': 4.0.7(@types/node@24.13.3)
-    optionalDependencies:
-      '@types/node': 24.13.3
 
   '@inquirer/search@4.2.1(@types/node@26.4.0)':
     dependencies:
@@ -9248,15 +9355,6 @@ snapshots:
       ansi-escapes: 4.3.2
       yoctocolors-cjs: 2.1.3
 
-  '@inquirer/select@5.2.1(@types/node@24.13.3)':
-    dependencies:
-      '@inquirer/ansi': 2.0.7
-      '@inquirer/core': 11.2.1(@types/node@24.13.3)
-      '@inquirer/figures': 2.0.7
-      '@inquirer/type': 4.0.7(@types/node@24.13.3)
-    optionalDependencies:
-      '@types/node': 24.13.3
-
   '@inquirer/select@5.2.1(@types/node@26.4.0)':
     dependencies:
       '@inquirer/ansi': 2.0.7
@@ -9273,10 +9371,6 @@ snapshots:
   '@inquirer/type@2.0.0':
     dependencies:
       mute-stream: 1.0.0
-
-  '@inquirer/type@4.0.7(@types/node@24.13.3)':
-    optionalDependencies:
-      '@types/node': 24.13.3
 
   '@inquirer/type@4.0.7(@types/node@26.4.0)':
     optionalDependencies:
@@ -10453,37 +10547,6 @@ snapshots:
       tslib: 2.8.1
       typed-inject: 5.0.0
 
-  '@stryker-mutator/core@10.0.0(@types/node@24.13.3)':
-    dependencies:
-      '@inquirer/prompts': 8.5.2(@types/node@24.13.3)
-      '@stryker-mutator/api': 10.0.0
-      '@stryker-mutator/instrumenter': 10.0.0
-      '@stryker-mutator/util': 10.0.0
-      ajv: 8.20.0
-      chalk: 5.6.2
-      commander: 14.0.3
-      diff-match-patch: 1.0.5
-      emoji-regex: 10.6.0
-      execa: 9.6.1
-      json-rpc-2.0: 1.7.1
-      lodash.groupby: 4.6.0
-      minimatch: 10.2.6
-      mutation-server-protocol: 0.4.1
-      mutation-testing-elements: 3.8.4
-      mutation-testing-metrics: 3.8.4
-      mutation-testing-report-schema: 3.8.4
-      npm-run-path: 6.0.0
-      progress: 2.0.3
-      rxjs: 7.8.2
-      semver: 7.8.5
-      source-map: 0.7.6
-      tree-kill: 1.2.2
-      tslib: 2.8.1
-      typed-inject: 5.0.0
-      typed-rest-client: 2.3.1
-    transitivePeerDependencies:
-      - '@types/node'
-
   '@stryker-mutator/core@10.0.0(@types/node@26.4.0)':
     dependencies:
       '@inquirer/prompts': 8.5.2(@types/node@26.4.0)
@@ -10677,7 +10740,7 @@ snapshots:
 
   '@types/proxy-from-env@1.0.4':
     dependencies:
-      '@types/node': 24.13.3
+      '@types/node': 26.4.0
 
   '@types/react-dom@19.2.5(@types/react@19.2.18)':
     dependencies:
@@ -11055,7 +11118,21 @@ snapshots:
 
   '@webcontainer/env@1.1.1': {}
 
+  '@wterm/core@0.3.4': {}
+
+  '@wterm/dom@0.3.4':
+    dependencies:
+      '@wterm/core': 0.3.4
+
+  '@wterm/ghostty@0.3.4':
+    dependencies:
+      '@wterm/core': 0.3.4
+
   '@xmldom/xmldom@0.9.10': {}
+
+  '@xterm/addon-fit@0.11.0': {}
+
+  '@xterm/xterm@6.0.0': {}
 
   '@xtuc/ieee754@1.2.0': {}
 
@@ -12258,8 +12335,6 @@ snapshots:
   get-tsconfig@4.14.3:
     dependencies:
       resolve-pkg-maps: 1.0.0
-
-  ghostty-web@0.4.0: {}
 
   git-hooks-list@4.2.1: {}
 

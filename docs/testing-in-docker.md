@@ -140,6 +140,8 @@ pnpm run test:docker
 pnpm run test:docker -- --all
 pnpm run test:docker -- --suite=maximal-core
 pnpm run test:docker -- --suite=maximal-models
+pnpm run test:docker -- --suite=maximal-configurators
+pnpm run test:docker -- --suite=connections
 pnpm run test:docker -- --suite=policy
 pnpm run test:docker -- --suite=maximal-core --trace=tests
 pnpm run test:docker -- --trace=all
@@ -150,12 +152,14 @@ pnpm run test:docker -- --trace=all
 with a focused suite. Focused suites run their complete fixed scope. The wrapper
 maps each accepted suite to one root-owned inner script:
 
-| Suite            | Root inner script           |
-| ---------------- | --------------------------- |
-| `workspace`      | `test:inner`                |
-| `maximal-core`   | `test:maximal-core:inner`   |
-| `maximal-models` | `test:maximal-models:inner` |
-| `policy`         | `test:policy:inner`         |
+| Suite                   | Root inner script                  |
+| ----------------------- | ---------------------------------- |
+| `workspace`             | `test:inner`                       |
+| `maximal-core`          | `test:maximal-core:inner`          |
+| `maximal-models`        | `test:maximal-models:inner`        |
+| `maximal-configurators` | `test:maximal-configurators:inner` |
+| `connections`           | `test:connections:inner`           |
+| `policy`                | `test:policy:inner`                |
 
 Each inner script checks the container marker before running. The Docker wrapper
 accepts the same three trace values as the native wrapper and does not forward an

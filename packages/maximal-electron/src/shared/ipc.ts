@@ -10,6 +10,39 @@
  * change this file.
  */
 
+import type {
+  PtyProjectionAttachRequest,
+  PtyProjectionRequest,
+  PtyProjectionResizeRequest,
+  PtyProjectionWriteRequest,
+  PtyResizeRequest,
+  PtySession,
+  PtySpawnRequest,
+  PtyStatus,
+  PtyWriteRequest,
+  TerminalDiscovery,
+  TerminalLaunchRequest,
+  TerminalLaunchResult,
+  TerminalProfileSummary,
+} from '../host/electron-terminal-contract.js';
+
+export type {
+  PtyProjectionAttachRequest,
+  PtyProjectionRequest,
+  PtyProjectionResizeRequest,
+  PtyProjectionWriteRequest,
+  PtyResizeRequest,
+  PtySession,
+  PtySpawnRequest,
+  PtyStatus,
+  PtyWriteRequest,
+  TerminalDiscovery,
+  TerminalLaunchRequest,
+  TerminalLaunchResult,
+  TerminalProfileSummary,
+  TerminalTargetSummary,
+} from '../host/electron-terminal-contract.js';
+
 /* ------------------------------------------------------------------ types */
 
 /** Runtime and platform versions reported by the main process. */
@@ -24,48 +57,16 @@ export interface AppVersions {
   packaged: boolean;
 }
 
-/**
- * When the overlay agent must ask before it runs a tool.
- *
- * `writes` is the default. Reading is free, and anything that can change the
- * machine asks. `none` restores the unattended behaviour, which is a real
- * choice for a trusted local model but should be a deliberate one.
- */
-export type AgentApproval = 'all' | 'writes' | 'none';
-
 /** User preferences that the main process owns and persists. */
 export interface Preferences {
   /** Show a menu bar (macOS) or tray (Windows and Linux) icon. */
   menuBarIcon: boolean;
+  /** Quit instead of asking when the last window closes without a menu bar icon. */
+  quitOnLastWindowClosed: boolean;
   /** Reflect unread count on the macOS dock badge. */
   dockBadge: boolean;
   /** Show the splash window at launch. */
   splash: boolean;
-  /**
-   * Accelerator that summons the floating overlay.
-   *
-   * Wiggle uses a double tap of Ctrl. Electron's `globalShortcut` cannot bind
-   * a bare modifier, so this is a normal accelerator. See `docs/roadmap.md`.
-   */
-  overlayHotkey: string;
-  /**
-   * Give the overlay agent read, write, edit, and bash tools.
-   *
-   * This hands a local model the working directory and a shell. That is the
-   * point of a coding agent, and it is also why it is a switch.
-   */
-  agentTools: boolean;
-  /** When the agent must ask before it runs a tool. */
-  agentApproval: AgentApproval;
-  /** Working directory for those tools. Empty means the home directory. */
-  agentCwd: string;
-  /**
-   * Toolsets the overlay agent may use, by id.
-   *
-   * Resolved when a run starts, so a change takes effect on the next summon
-   * rather than needing a restart. See `src/main/native/toolsets.ts`.
-   */
-  agentToolsets: string[];
   /** Theme preference. `system` follows the OS. */
   theme: 'system' | 'light' | 'dark';
   /**
@@ -96,55 +97,6 @@ export type UpdateStatus =
 
 /** Top-level views the left navigation can select. */
 export type ViewId = 'library' | 'recents' | 'drafts' | 'shared' | 'trash';
-
-/** Open a shell for one opaque terminal session. */
-export interface PtySpawnRequest {
-  id: string;
-  cols: number;
-  rows: number;
-}
-
-export interface PtyWriteRequest {
-  id: string;
-  data: string;
-}
-
-export interface PtyResizeRequest {
-  id: string;
-  cols: number;
-  rows: number;
-}
-
-/** A renderer-visible terminal profile, with no executable configuration. */
-export interface TerminalProfileSummary {
-  id: string;
-  label: string;
-  kind: 'local' | 'tmux-control' | 'docker' | 'podman' | 'lima' | 'multipass' | 'kubernetes' | 'wsl' | 'vagrant' | 'ssh' | 'tmux' | 'ssh-tmux';
-}
-
-export interface TerminalTargetSummary {
-  id: string;
-  profileId: string;
-  label: string;
-  state: 'available' | 'unavailable' | 'timed-out';
-}
-
-export interface TerminalDiscovery {
-  generation: number;
-  targets: TerminalTargetSummary[];
-}
-
-export interface TerminalLaunchRequest {
-  profileId: string;
-  targetId?: string;
-  cols: number;
-  rows: number;
-}
-
-export interface TerminalLaunchResult {
-  sessionId: string;
-  label: string;
-}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -186,6 +138,41 @@ export function isPtyResizeRequest(value: unknown): value is PtyResizeRequest {
     && isDimension(value.rows);
 }
 
+export function isPtyProjectionRequest(value: unknown): value is PtyProjectionRequest {
+  return isRecord(value)
+    && hasOnly(value, ['id', 'projectionId'])
+    && typeof value.id === 'string'
+    && typeof value.projectionId === 'string';
+}
+
+export function isPtyProjectionAttachRequest(value: unknown): value is PtyProjectionAttachRequest {
+  return isRecord(value)
+    && hasOnly(value, ['id', 'projectionId', 'cols', 'rows'])
+    && typeof value.id === 'string'
+    && typeof value.projectionId === 'string'
+    && isDimension(value.cols)
+    && isDimension(value.rows);
+}
+
+export function isPtyProjectionWriteRequest(value: unknown): value is PtyProjectionWriteRequest {
+  return isRecord(value)
+    && hasOnly(value, ['id', 'projectionId', 'epoch', 'data'])
+    && typeof value.id === 'string'
+    && typeof value.projectionId === 'string'
+    && isDimension(value.epoch)
+    && typeof value.data === 'string';
+}
+
+export function isPtyProjectionResizeRequest(value: unknown): value is PtyProjectionResizeRequest {
+  return isRecord(value)
+    && hasOnly(value, ['id', 'projectionId', 'epoch', 'cols', 'rows'])
+    && typeof value.id === 'string'
+    && typeof value.projectionId === 'string'
+    && isDimension(value.epoch)
+    && isDimension(value.cols)
+    && isDimension(value.rows);
+}
+
 export function isPtyAcknowledgement(value: unknown): value is { id: string; sequence: number } {
   return isRecord(value)
     && hasOnly(value, ['id', 'sequence'])
@@ -208,82 +195,6 @@ export function isTerminalLaunchRequest(value: unknown): value is TerminalLaunch
     && isDimension(value.rows);
 }
 
-/** A live shell, whether or not a terminal view is showing it. */
-export interface PtySession {
-  id: string;
-  cwd: string;
-  shell: string;
-  /** Milliseconds since the epoch. */
-  startedAt: number;
-}
-
-/** A terminal session was registered or its current process exited. */
-export type PtyStatus =
-  | { state: 'started'; session: PtySession }
-  | { state: 'exited'; id: string; exitCode: number };
-
-/* ------------------------------------------------------- overlay agent */
-
-/**
- * Local model backends. None needs an API key.
- *
- * `embedded` runs in this process through `node-llama-cpp`, so it is the only
- * one that is always available. The other two are preferred when present: a
- * proxy backed by a real subscription beats a small local model.
- */
-export type AgentProvider = 'maximal' | 'ollama' | 'embedded';
-
-export type ProviderStatus =
-  | { state: 'probing' }
-  | { state: 'ready'; provider: AgentProvider; model: string }
-  /** No proxy is running and the embedded model has not been fetched yet. */
-  | { state: 'needs-model'; model: string; approxMb: number }
-  | { state: 'unavailable'; reason: string };
-
-/** Progress of the one-time embedded model download. */
-export type ModelProgress =
-  | { state: 'absent' }
-  | { state: 'downloading'; received: number; total: number }
-  | { state: 'ready' }
-  | { state: 'error'; reason: string };
-
-export interface AskRequest {
-  prompt: string;
-}
-
-/** A run either started, or could not. Output arrives as events. */
-export type AskAccepted = { started: true } | { started: false; reason: string };
-
-/** Which tool the agent is running, and whether it finished cleanly. */
-export interface AgentToolEvent {
-  name: string;
-  phase: 'start' | 'end';
-  isError?: boolean;
-}
-
-export type AgentEnd = { ok: true } | { ok: false; error: string };
-
-/**
- * The agent wants to run a tool and is waiting for a decision.
- *
- * The run is blocked until `overlay:approve` arrives with this `id`, or until
- * the gate times out.
- */
-export interface AgentApprovalRequest {
-  id: string;
-  /** Tool name, such as `bash` or `write`. */
-  tool: string;
-  /** The command or path this call would act on, already truncated. */
-  summary: string;
-}
-
-export interface ApproveRequest {
-  id: string;
-  allow: boolean;
-  /** Allow every later call to this same tool, for this run only. */
-  remember: boolean;
-}
-
 /* --------------------------------------------------------------- requests */
 
 /**
@@ -301,7 +212,7 @@ export interface IpcContract {
   'shell:open-external': { request: { url: string }; response: void };
 
   // Terminal sessions. The shell runs in the main process; the renderer holds
-  // only the `ghostty-web` view. See src/main/native/pty.ts.
+  // only the xterm view. See src/main/native/pty.ts.
   'pty:spawn': { request: PtySpawnRequest; response: void };
   'pty:write': { request: PtyWriteRequest; response: void };
   'pty:resize': { request: PtyResizeRequest; response: void };
@@ -309,6 +220,11 @@ export interface IpcContract {
   'pty:kill': { request: { id: string }; response: void };
   /** Every live session for this window, so a detached one can be found again. */
   'pty:list': { request: void; response: PtySession[] };
+  'pty:projection-attach': { request: PtyProjectionAttachRequest; response: boolean };
+  'pty:projection-focus': { request: PtyProjectionAttachRequest; response: number | undefined };
+  'pty:projection-write': { request: PtyProjectionWriteRequest; response: boolean };
+  'pty:projection-resize': { request: PtyProjectionResizeRequest; response: boolean };
+  'pty:projection-detach': { request: PtyProjectionRequest; response: boolean };
   'pty:default-shell': { request: void; response: string };
 
   // App terminal launcher. These requests contain identifiers only; executable
@@ -317,22 +233,6 @@ export interface IpcContract {
   'terminal:discover': { request: void; response: TerminalDiscovery };
   'terminal:launch': { request: TerminalLaunchRequest; response: TerminalLaunchResult };
 
-  // The floating overlay. `overlay:hide` is how the card dismisses itself,
-  // because the renderer cannot close its own window.
-  'overlay:toggle': { request: void; response: void };
-  'overlay:hide': { request: void; response: void };
-  'overlay:provider': { request: void; response: ProviderStatus };
-  // Starts a run. The reply says only whether it started; the answer streams
-  // back as `agent:*` events.
-  'overlay:ask': { request: AskRequest; response: AskAccepted };
-  'overlay:abort': { request: void; response: void };
-  /** Answer a pending `agent:approval`. Unknown ids are ignored. */
-  'overlay:approve': { request: ApproveRequest; response: void };
-  /**
-   * Fetch the embedded model if it is missing. Returns the state at the time
-   * of the call; progress arrives as `model:progress` events.
-   */
-  'model:ensure': { request: void; response: ModelProgress };
 }
 
 export type IpcChannel = keyof IpcContract;
@@ -358,17 +258,15 @@ export const IPC_CHANNELS = [
   'pty:ack',
   'pty:kill',
   'pty:list',
+  'pty:projection-attach',
+  'pty:projection-focus',
+  'pty:projection-write',
+  'pty:projection-resize',
+  'pty:projection-detach',
   'pty:default-shell',
   'terminal:profiles',
   'terminal:discover',
   'terminal:launch',
-  'overlay:toggle',
-  'overlay:hide',
-  'overlay:provider',
-  'overlay:ask',
-  'overlay:abort',
-  'overlay:approve',
-  'model:ensure',
 ] as const;
 
 /* ----------------------------------------------------------------- events */
@@ -385,22 +283,12 @@ export interface IpcEvents {
   'prefs:changed': Preferences;
 
   /** A batch of terminal output for one opaque terminal session. */
-  'pty:data': { id: string; data: string; sequence?: number };
+  'pty:data': { id: string; data: string; sequence?: number; projectionId?: string };
   /** That terminal session's shell ended. */
-  'pty:exit': { id: string; exitCode: number };
+  'pty:exit': { id: string; exitCode: number; projectionId?: string };
   /** A terminal session started or its current process exited. */
   'pty:status': PtyStatus;
 
-  /** A chunk of the agent's answer. Append it; do not replace. */
-  'agent:delta': { text: string };
-  /** The agent started or finished a tool call. */
-  'agent:tool': AgentToolEvent;
-  /** The agent is blocked, waiting for permission to run a tool. */
-  'agent:approval': AgentApprovalRequest;
-  /** The run finished, cleanly or not. */
-  'agent:end': AgentEnd;
-  /** The embedded model download changed state. */
-  'model:progress': ModelProgress;
 }
 
 export type IpcEvent = keyof IpcEvents;
@@ -414,11 +302,6 @@ export const IPC_EVENTS = [
   'pty:data',
   'pty:exit',
   'pty:status',
-  'agent:delta',
-  'agent:tool',
-  'agent:approval',
-  'agent:end',
-  'model:progress',
 ] as const;
 
 /* ------------------------------------------------- exhaustiveness proofs */
@@ -463,13 +346,9 @@ export const BRIDGE_KEY = 'stuffbucket' as const;
 /** Defaults for a fresh profile. */
 export const DEFAULT_PREFERENCES: Preferences = {
   menuBarIcon: false,
+  quitOnLastWindowClosed: false,
   dockBadge: true,
   splash: true,
-  overlayHotkey: 'CommandOrControl+Shift+Space',
-  agentTools: true,
-  agentApproval: 'writes',
-  agentCwd: '',
-  agentToolsets: ['app'],
   theme: 'system',
   terminalDetach: false,
 };

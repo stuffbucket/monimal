@@ -7,20 +7,32 @@ import type {
   AppEntry,
   AppsListResponse,
   AuthStatus,
+  ConnectionAction,
+  ConnectionCredentialReveal,
+  ConnectionEntry,
+  ConnectionsListResponse,
+  ConnectorSettingField,
+  ConnectorSettingValue,
   DiagnosticsResponse,
   ModelsListResponse,
+  SearchSettingsResponse,
+  SearchSettingsUpdateRequest,
   TokenUsagePeriod,
   TokenUsageSummary,
 } from '@stuffbucket/maximal-core/settings-types'
 
 import type {
+  LocalModelCancelResult,
+  LocalModelCatalogSnapshot,
+  LocalModelEnsureResult,
+  LocalModelOperationEvent,
   MenuBarModeAttempt,
   MenuBarModeState,
 } from '../../shared/bridge-types'
 
 import type { MaximalBridge } from '../../preload'
 import {
-  isSettingsSectionId,
+  settingsSectionIdFrom,
   type SettingsSectionId,
 } from '../../shared/settings-sections'
 import { unwrapControlResult } from '../shared/control-error'
@@ -34,10 +46,22 @@ export type {
   AppEntry,
   AppsListResponse,
   AuthStatus,
+  ConnectionAction,
+  ConnectionCredentialReveal,
+  ConnectionEntry,
+  ConnectionsListResponse,
+  ConnectorSettingField,
+  ConnectorSettingValue,
   DiagnosticsResponse,
   MenuBarModeAttempt,
   MenuBarModeState,
   ModelsListResponse,
+  LocalModelCancelResult,
+  LocalModelCatalogSnapshot,
+  LocalModelEnsureResult,
+  LocalModelOperationEvent,
+  SearchSettingsResponse,
+  SearchSettingsUpdateRequest,
   TokenUsagePeriod,
   TokenUsageSummary,
 }
@@ -63,6 +87,11 @@ export interface SettingsCapabilities {
     cancelMenuBarOnly(attemptId: string): Promise<MenuBarModeState>
     disableMenuBarOnly(): Promise<MenuBarModeState>
   }
+  connections: {
+    list(): Promise<ConnectionsListResponse>
+    act(id: string, action: ConnectionAction): Promise<ConnectionEntry>
+    revealCredential(id: string): Promise<ConnectionCredentialReveal>
+  }
   apps: {
     list(): Promise<AppsListResponse>
     setEnabled(appId: AppEntry['id'], enabled: boolean): Promise<AppEntry>
@@ -82,6 +111,13 @@ export interface SettingsCapabilities {
     list(): Promise<ModelsListResponse>
     refresh(): Promise<ModelsListResponse>
   }
+  localModels: {
+    list(): Promise<LocalModelCatalogSnapshot>
+    ensure(modelKey: string): Promise<LocalModelEnsureResult>
+    cancel(operationId: string): Promise<LocalModelCancelResult>
+    openFolder(): Promise<void>
+    subscribe(listener: (event: LocalModelOperationEvent) => void): () => void
+  }
   usage: {
     get(period: TokenUsagePeriod): Promise<TokenUsageSummary>
   }
@@ -91,6 +127,10 @@ export interface SettingsCapabilities {
   }
   diagnostics: {
     get(): Promise<DiagnosticsResponse>
+  }
+  search: {
+    get(): Promise<SearchSettingsResponse>
+    update(input: SearchSettingsUpdateRequest): Promise<SearchSettingsResponse>
   }
   /**
    * The application menu asking for this surface.
@@ -200,6 +240,16 @@ export function createCoreSettingsCapabilities(): SettingsCapabilities {
       cancelMenuBarOnly: (attemptId) => bridge.menuBarMode.cancelEnable(attemptId),
       disableMenuBarOnly: () => bridge.menuBarMode.disable(),
     },
+    connections: {
+      list: async () =>
+        unwrapControlResult(await bridge.control.connectionsList()),
+      act: async (id, action) =>
+        unwrapControlResult(await bridge.control.connectionsAct(id, action)),
+      revealCredential: async (id) =>
+        unwrapControlResult(
+          await bridge.control.connectionsRevealCredential(id),
+        ),
+    },
     apps: {
       list: async () => unwrapControlResult(await bridge.control.appsList()),
       setEnabled: async (appId, enabled) =>
@@ -227,6 +277,15 @@ export function createCoreSettingsCapabilities(): SettingsCapabilities {
       refresh: async () =>
         unwrapControlResult(await bridge.control.modelsRefresh()),
     },
+    localModels: {
+      list: async () => unwrapControlResult(await bridge.localModels.list()),
+      ensure: async (modelKey) =>
+        unwrapControlResult(await bridge.localModels.ensure(modelKey)),
+      cancel: async (operationId) =>
+        unwrapControlResult(await bridge.localModels.cancel(operationId)),
+      openFolder: () => bridge.localModels.openFolder(),
+      subscribe: (listener) => bridge.localModels.onChange(listener),
+    },
     usage: {
       get: async (period) =>
         unwrapControlResult(await bridge.control.usageGet(period)),
@@ -236,19 +295,25 @@ export function createCoreSettingsCapabilities(): SettingsCapabilities {
       get: async () =>
         unwrapControlResult(await bridge.control.diagnosticsGet()),
     },
+    search: {
+      get: async () =>
+        unwrapControlResult(await bridge.control.searchSettingsGet()),
+      update: async (input) =>
+        unwrapControlResult(await bridge.control.searchSettingsUpdate(input)),
+    },
     // Subscribe before consuming the startup request. A menu request that lands
     // during this handshake is either delivered live or retained by main; it
     // cannot disappear between the two operations.
     onOpenRequest: (listener) => {
       const unsubscribe = bridge.onOpenSettings((sectionId) => {
-        listener(isSettingsSectionId(sectionId) ? sectionId : null)
+        listener(settingsSectionIdFrom(sectionId))
       })
       void bridge
         .pendingSettingsRequest()
         .then((request) => {
           if (request !== null) {
             listener(
-              isSettingsSectionId(request.sectionId) ? request.sectionId : null,
+              settingsSectionIdFrom(request.sectionId),
             )
           }
         })

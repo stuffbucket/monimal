@@ -36,6 +36,10 @@ export default [
     languageOptions: { globals: globals.node },
   },
   {
+    files: ["scripts/ui-check.mjs"],
+    languageOptions: { globals: globals.browser },
+  },
+  {
     files: ["src/**/*.ts", "src/**/*.tsx", "e2e/**/*.ts"],
     plugins: { "react-hooks": reactHooks },
     rules: {

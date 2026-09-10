@@ -21,6 +21,7 @@ import { PATHS } from "~/lib/platform/paths"
 import {
   clearSessionRunning,
   markSessionRunning,
+  readSessionMarker,
   staleSessionMarkerPresent,
 } from "~/lib/start/session-sentinel"
 
@@ -51,13 +52,10 @@ describe("session sentinel", () => {
   test("markSessionRunning writes a file at APP_DIR/session-running", () => {
     markSessionRunning()
     expect(fs.existsSync(sentinelPath())).toBe(true)
-    const body = JSON.parse(fs.readFileSync(sentinelPath(), "utf8")) as {
-      pid: number
-      started_at: string
-    }
-    expect(body.pid).toBe(process.pid)
-    expect(typeof body.started_at).toBe("string")
-    expect(Number.isNaN(Date.parse(body.started_at))).toBe(false)
+    const body = readSessionMarker()
+    expect(body?.pid).toBe(process.pid)
+    expect(body?.instance_id).toBeString()
+    expect(Number.isNaN(Date.parse(body?.started_at ?? ""))).toBe(false)
   })
 
   test("staleSessionMarkerPresent is true after markSessionRunning", () => {

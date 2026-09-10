@@ -27,6 +27,18 @@ const originOne = 'http://127.0.0.1:50001'
 const originTwo = 'http://127.0.0.1:50002'
 const authStatus = { state: 'unauthenticated' } as const
 const accounts = { accounts: [], active_key: null }
+const localModel = {
+  key: 'qwen',
+  modelId: 'qwen3-0.6b',
+  displayName: 'Qwen3 0.6B Q8',
+  format: 'gguf',
+  expectedBytes: 639_446_688,
+  publication: 'provider',
+  state: 'registered',
+  capabilities: { input: ['text'], output: ['text'] },
+  context: { contextWindow: 32_768, maxOutputTokens: 8_192 },
+} as const
+const localModelCatalogue = { models: [localModel], revision: 1 }
 const emptyPercentiles = {
   sampleCount: 0,
   p50Ms: null,
@@ -69,6 +81,41 @@ const emptyRequestPage = {
   nextCursor: null,
   hasMore: false,
 }
+const connectedClaudeCode = {
+  id: 'claude-code',
+  name: 'Claude Code',
+  status: 'connected',
+  allowed_actions: ['disconnect'],
+  detail: null,
+  credential: {
+    id: 'managed:claude-code',
+    label: 'Claude Code',
+    kind: 'managed',
+    enabled: true,
+  },
+  ownership: null,
+  recovery: null,
+} as const
+const connections = {
+  clients: [connectedClaudeCode],
+  manual_credentials: [],
+  require_known_keys: false,
+}
+const revealedCredential = {
+  id: 'managed:claude-code',
+  key: 'testkey123',
+}
+const searchSettings = {
+  manifest: {
+    id: 'search',
+    label: 'Search',
+    description: 'Search settings',
+    fields: [],
+    providers: [],
+  },
+  settings: {},
+  providers: {},
+}
 
 function discovery(overrides: Record<string, unknown> = {}): unknown {
   return {
@@ -84,6 +131,12 @@ function discovery(overrides: Record<string, unknown> = {}): unknown {
         'observability/overview',
         'observability/requests',
         'observability/request',
+        'connections/list',
+        'connections/act',
+        'connections/revealCredential',
+        'localModels/list',
+        'localModels/ensure',
+        'localModels/cancel',
         'subscriptions/listen',
       ],
       feed: true,
@@ -93,7 +146,10 @@ function discovery(overrides: Record<string, unknown> = {}): unknown {
   }
 }
 
-type TestControlState = ControlState & { traffic?: unknown }
+type TestControlState = ControlState & {
+  localModels?: unknown
+  traffic?: unknown
+}
 
 class FakeClient {
   readonly calls: Array<{ method: string; params?: unknown }> = []
@@ -155,6 +211,7 @@ function createHarness({ origins = [originOne], clients }: HarnessOptions) {
   let originIndex = 0
   let lifecycleListener: ((status: CoreStatus) => void) | null = null
   const onChange = vi.fn()
+  const onLocalModelEvent = vi.fn()
   const onTrafficInvalidation = vi.fn()
   const stopLifecycle = vi.fn()
   const logError = vi.fn()
@@ -173,6 +230,7 @@ function createHarness({ origins = [originOne], clients }: HarnessOptions) {
       return client
     },
     onChange,
+    onLocalModelEvent,
     onTrafficInvalidation,
     logError,
   })
@@ -180,6 +238,7 @@ function createHarness({ origins = [originOne], clients }: HarnessOptions) {
   return {
     session,
     onChange,
+    onLocalModelEvent,
     onTrafficInvalidation,
     stopLifecycle,
     logError,
@@ -210,6 +269,16 @@ function fullLiveClient(
     'observability/overview': emptyOverview,
     'observability/requests': emptyRequestPage,
     'observability/request': null,
+    'connections/list': connections,
+    'connections/act': connectedClaudeCode,
+    'connections/revealCredential': revealedCredential,
+    'localModels/list': localModelCatalogue,
+    'localModels/ensure': {
+      modelKey: 'qwen',
+      operationId: 'operation-1',
+      started: true,
+    },
+    'localModels/cancel': { operationId: 'operation-1', cancelled: true },
     ...overrides,
   })
 }
@@ -300,6 +369,34 @@ describe('named control operations', () => {
     await expect(
       harness.session.observabilityRequest({ requestId: 'req-1' }),
     ).resolves.toEqual({ ok: true, value: null })
+    await expect(harness.session.connectionsList()).resolves.toEqual({
+      ok: true,
+      value: connections,
+    })
+    await expect(
+      harness.session.connectionsAct('claude-code', 'disconnect'),
+    ).resolves.toEqual({ ok: true, value: connectedClaudeCode })
+    await expect(
+      harness.session.connectionsRevealCredential('managed:claude-code'),
+    ).resolves.toEqual({ ok: true, value: revealedCredential })
+    await expect(harness.session.localModelsList()).resolves.toEqual({
+      ok: true,
+      value: localModelCatalogue,
+    })
+    await expect(harness.session.localModelsEnsure('qwen')).resolves.toEqual({
+      ok: true,
+      value: {
+        modelKey: 'qwen',
+        operationId: 'operation-1',
+        started: true,
+      },
+    })
+    await expect(
+      harness.session.localModelsCancel('operation-1'),
+    ).resolves.toEqual({
+      ok: true,
+      value: { operationId: 'operation-1', cancelled: true },
+    })
 
     expect(live.calls).toEqual([
       { method: 'auth/status' },
@@ -314,6 +411,21 @@ describe('named control operations', () => {
       { method: 'observability/overview', params: overviewQuery },
       { method: 'observability/requests', params: requestsQuery },
       { method: 'observability/request', params: { requestId: 'req-1' } },
+      { method: 'connections/list' },
+      {
+        method: 'connections/act',
+        params: { id: 'claude-code', action: 'disconnect' },
+      },
+      {
+        method: 'connections/revealCredential',
+        params: { id: 'managed:claude-code' },
+      },
+      { method: 'localModels/list' },
+      { method: 'localModels/ensure', params: { modelKey: 'qwen' } },
+      {
+        method: 'localModels/cancel',
+        params: { operationId: 'operation-1' },
+      },
     ])
     expect(live.connected).toBe(1)
   })
@@ -355,7 +467,51 @@ describe('named control operations', () => {
         retryable: false,
       },
     })
+    await expect(harness.session.connectionsList()).resolves.toEqual({
+      ok: false,
+      error: {
+        reason: 'unsupported',
+        message: 'maximal-core does not advertise connections/list',
+        retryable: false,
+      },
+    })
     expect(live.calls).toEqual([])
+  })
+
+  it('validates search settings responses and forwards updates', async () => {
+    const discover = new FakeClient({
+      'server/discover': discovery({
+        capabilities: {
+          methods: [
+            'auth/status',
+            'auth/start',
+            'auth/signOut',
+            'subscriptions/listen',
+            'searchSettings/get',
+            'searchSettings/update',
+          ],
+          feed: true,
+        },
+      }),
+    })
+    const live = fullLiveClient({
+      'searchSettings/get': searchSettings,
+      'searchSettings/update': searchSettings,
+    })
+    const harness = createHarness({ clients: [discover, live] })
+    const update = { settings: { fallback: false } }
+
+    await expect(harness.session.searchSettingsGet()).resolves.toEqual({
+      ok: true,
+      value: searchSettings,
+    })
+    await expect(
+      harness.session.searchSettingsUpdate(update),
+    ).resolves.toEqual({ ok: true, value: searchSettings })
+    expect(live.calls).toEqual([
+      { method: 'searchSettings/get' },
+      { method: 'searchSettings/update', params: update },
+    ])
   })
 
   it('rejects invalid observability queries before a wire call', async () => {
@@ -380,6 +536,9 @@ describe('named control operations', () => {
     const live = fullLiveClient({
       'accounts/list': { accounts: 'invalid' },
       'observability/overview': { contractVersion: 1 },
+      'connections/list': { clients: 'invalid' },
+      'connections/act': { id: 'Claude Code' },
+      'connections/revealCredential': { id: 'key-1' },
     })
     const harness = createHarness({ clients: [discover, live] })
 
@@ -391,6 +550,22 @@ describe('named control operations', () => {
       harness.session.observabilityOverview(
         TrafficOverviewQuerySchema.parse({}),
       ),
+    ).resolves.toMatchObject({
+      ok: false,
+      error: { reason: 'internal', retryable: false },
+    })
+    await expect(harness.session.connectionsList()).resolves.toMatchObject({
+      ok: false,
+      error: { reason: 'internal', retryable: false },
+    })
+    await expect(
+      harness.session.connectionsAct('claude-code', 'connect'),
+    ).resolves.toMatchObject({
+      ok: false,
+      error: { reason: 'internal', retryable: false },
+    })
+    await expect(
+      harness.session.connectionsRevealCredential('key-1'),
     ).resolves.toMatchObject({
       ok: false,
       error: { reason: 'internal', retryable: false },
@@ -439,6 +614,39 @@ describe('control failures', () => {
         retryable: true,
       },
     })
+  })
+})
+
+describe('local model events', () => {
+  it('validates events and stops forwarding them on dispose', async () => {
+    const discover = new FakeClient({ 'server/discover': discovery() })
+    const live = fullLiveClient()
+    const harness = createHarness({ clients: [discover, live] })
+    const event = {
+      type: 'progress',
+      operationId: 'operation-1',
+      progress: {
+        modelKey: 'qwen',
+        phase: 'downloading',
+        completedBytes: 1024,
+        totalBytes: 4096,
+      },
+    }
+
+    await harness.session.authStatus()
+    live.emit({ localModels: event }, 'localModels')
+    live.emit({ localModels: { type: 'progress' } }, 'localModels')
+
+    expect(harness.onLocalModelEvent).toHaveBeenCalledOnce()
+    expect(harness.onLocalModelEvent).toHaveBeenCalledWith(event)
+    expect(harness.logError).toHaveBeenCalledOnce()
+
+    harness.session.dispose()
+    live.emitStale(
+      { localModels: { type: 'catalog', snapshot: localModelCatalogue } },
+      'localModels',
+    )
+    expect(harness.onLocalModelEvent).toHaveBeenCalledOnce()
   })
 })
 

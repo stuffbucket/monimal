@@ -26,17 +26,27 @@ function trayIconPath(): string {
     : join(app.getAppPath(), 'resources', 'tray', filename)
 }
 
-async function readPreference(): Promise<boolean> {
+async function readPreferences(): Promise<Record<string, unknown>> {
   try {
-    const raw = await readFile(preferencePath(), 'utf8')
-    return preferenceSchema.parse(JSON.parse(raw)).menuBarOnly
+    const parsed: unknown = JSON.parse(await readFile(preferencePath(), 'utf8'))
+    return typeof parsed === 'object' && parsed !== null
+      ? parsed as Record<string, unknown>
+      : {}
   } catch {
-    return false
+    return {}
   }
 }
 
+async function readPreference(): Promise<boolean> {
+  return preferenceSchema.parse(await readPreferences()).menuBarOnly
+}
+
 async function writePreference(menuBarOnly: boolean): Promise<void> {
-  await writeFile(preferencePath(), `${JSON.stringify({ menuBarOnly }, undefined, 2)}\n`)
+  const preferences = await readPreferences()
+  await writeFile(
+    preferencePath(),
+    `${JSON.stringify({ ...preferences, menuBarOnly }, undefined, 2)}\n`,
+  )
 }
 
 export class MenuBarModeController {

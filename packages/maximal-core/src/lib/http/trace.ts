@@ -13,6 +13,8 @@ export const traceIdMiddleware: MiddlewareHandler = async (c, next) => {
     userAgent: c.req.header("user-agent") || "",
     sessionAffinity: c.req.header("x-session-affinity"),
     parentSessionId: c.req.header("x-parent-session-id"),
+    apiKeyId: null,
+    apiKeyLabel: null,
   }
 
   await requestContext.run(context, async () => {

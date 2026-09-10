@@ -52,7 +52,16 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
  * keyboard model for issue #171 — a roving tabindex, an arrow-key
  * destination, and the guard that ignores a key from a control inside an
  * option — and every branch of it is reachable from the stories.
- */export const MUTANT_FLOOR = 2200;
+ *
+ * 2200 to 2292 is `TmuxProjectionBroker` from issue #108. It owns focus
+ * epochs, canonical geometry and projection lifecycle around tmux clients.
+ *
+ * 2292 to 2337 adds owner-loss cleanup to `TmuxProjectionBroker` and adds
+ * `TmuxProjectionHost`, which binds trusted commands to the broker.
+ *
+ * 2337 to 2463 adds application-scoped `TmuxProjectionOwners` and lets the
+ * trusted host terminate a reservation before its first projection attaches.
+ */export const MUTANT_FLOOR = 2463;
 
 /** The terminal subset measured when its two-phase runner was introduced. */
 export const TERMINAL_MUTANT_FLOOR = 2103;

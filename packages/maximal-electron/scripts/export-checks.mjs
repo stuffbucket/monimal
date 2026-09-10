@@ -140,6 +140,7 @@ export function missingTargets(root, exports) {
 /** The component surface `./renderer` promises a consumer. */
 export const RENDERER_SURFACE = [
   'ApiKeysDialog',
+  'AppFrame',
   'AppTogglesDialog',
   'Banner',
   'Button',
@@ -162,21 +163,30 @@ export const RENDERER_SURFACE = [
   'ModelCards',
   'NavRail',
   'Note',
+  'PartitionedSortableList',
   'RadioGroup',
   'Row',
   'SHELL_CONTENT',
   'SHELL_TERMINAL_PROPERTIES',
   'STATUS_LABELS',
+  'ScrollArea',
   'Select',
+  'SettingsDisclosure',
+  'SettingsDisclosureList',
   'SettingsPage',
   'SettingsSection',
   'ShellContentContext',
   'ShellContentProvider',
   'ShellLayout',
   'StatusChip',
+  'SurfaceRail',
+  'SurfaceRight',
+  'SurfaceStatus',
+  'SurfaceTop',
   'Switch',
   'TAB_EMPHASIS',
   'TAB_ICON_NAMES',
+  'TAB_TRANSFER_MIME',
   'TabBar',
   'Tag',
   'TerminalLauncher',
@@ -186,26 +196,38 @@ export const RENDERER_SURFACE = [
   'Textarea',
   'TitleBar',
   'Toolbar',
+  'UnsavedChangesDialog',
   'Usage',
   'ViewModeSwitch',
+  'WindowChrome',
   'adornmentLabel',
   'copyText',
   'createTerminalTransport',
+  'decodeTabTransfer',
   'detachedSessions',
+  'encodeTabTransfer',
   'fill',
   'getTabPanelId',
   'getTabTriggerId',
+  'moveTabBefore',
+  'newTerminalTab',
   'readTerminalTheme',
+  'removeTerminalPane',
+  'splitTerminalPane',
   'tabSlot',
+  'terminalDirectoryTitle',
+  'terminalPaneSessionIds',
+  'terminalProcessTitle',
+  'useDetachedTerminals',
   'useShellContent',
   'useShellTabs',
+  'useTabPanelId',
+  'useTabTriggerId',
   'useThemePreference',
 ];
 
 /** The names `./verify` exposes. `terminal-package.mjs` defines them. */
 export const VERIFY_SURFACE = [
-  'TERMINAL_CONTENT_SECURITY_POLICY',
-  'contentSecurityPolicyChecks',
   'terminalNativeFiles',
   'terminalPackageChecks',
   'terminalPrebuildDirectory',
@@ -338,9 +360,14 @@ const CONTRACTS = [
   /(?:^|\/)lib\/settings(?:\.js)?$/,
   /(?:^|\/)lib\/shell-root(?:\.js)?$/,
   /(?:^|\/)lib\/terminal-ack(?:\.js)?$/,
+  /(?:^|\/)lib\/terminal-emulator(?:\.js)?$/,
+  /(?:^|\/)lib\/terminal-pane(?:\.js)?$/,
+  /(?:^|\/)lib\/terminal-tab(?:\.js)?$/,
   /(?:^|\/)lib\/terminal-transport(?:\.js)?$/,
   /(?:^|\/)lib\/tab-adornment(?:\.js)?$/,
+  /(?:^|\/)lib\/tab-transfer(?:\.js)?$/,
   /(?:^|\/)lib\/terminal-sessions(?:\.js)?$/,
+  /(?:^|\/)lib\/useDetachedTerminals(?:\.js)?$/,
   /(?:^|\/)lib\/useShellTabs(?:\.js)?$/,
   /(?:^|\/)lib\/useThemePreference(?:\.js)?$/,
 ];
@@ -413,9 +440,10 @@ export function importedPackages(source) {
  * What a consumer installs, asked of one package directory.
  *
  * npm resolves dependencies per package, not per export, so one `dependencies`
- * entry reaches every consumer of every entry point. `./host` used to install
- * `node-llama-cpp`, `node-pty` and six Radix packages for a module that imports
- * `electron` alone. Issue #31.
+ * entry reaches every consumer of every entry point. `./host` imports only
+ * `electron`; the terminal entry points own `node-pty` and the renderer peers.
+ * Keeping them as optional peers prevents one surface from installing another's
+ * runtime.
  *
  * Optional peers are the only npm mechanism that installs nothing.
  * `optionalDependencies` install by default, and npm 7 and later auto-installs

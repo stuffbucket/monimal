@@ -11,7 +11,7 @@ import {
 /**
  * The terminal's theme.
  *
- * `ghostty-web` draws to a canvas, so it is the one surface in the shell that
+ * The emulator renders its own cells, so it is the one surface in the shell that
  * cannot inherit its colours from CSS. It used to carry three hard-coded hex
  * values, which were the dark palette. The terminal therefore stayed dark in
  * the light theme, and `docs/architecture.md`'s claim that no component holds
@@ -60,9 +60,7 @@ describe('terminalTheme', () => {
   });
 
   it('omits a token that does not resolve, rather than passing it through', () => {
-    // An unrecognised colour parses to black in `ghostty-web`, so an empty
-    // string would render black on black. Leaving the key out keeps the
-    // emulator's own default, which is legible.
+    // Leaving the key out keeps the emulator's own legible default.
     const theme = terminalTheme(() => '');
     expect(theme).toEqual({});
     expect('background' in theme).toBe(false);
@@ -100,12 +98,10 @@ describe('TERMINAL_TOKENS', () => {
     }
   });
 
-  it('names tokens whose values ghostty-web can actually parse', () => {
+  it('names tokens with stable literal colour values', () => {
     // The gap in the tripwire above. Proving a token exists says nothing about
-    // the syntax of its value, and `parseColorToHex` in `ghostty-web` accepts
-    // only `#rgb`, `#rrggbb`, and comma-separated `rgb(r, g, b)`. Anything
-    // else returns 0, so the terminal renders black on black rather than
-    // failing.
+    // the syntax of its value. Keep the exported shell contract on broadly
+    // supported literal forms rather than browser-dependent colour syntax.
     //
     // This is not hypothetical. `tokens.css` already uses the modern
     // space-separated form for `--accent-soft`, so a rewrite of these three in

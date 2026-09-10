@@ -47,6 +47,8 @@ writes `font-size: 13px` again.
 | Variable | Value | What it sets |
 | --- | --- | --- |
 | `--shell-control-lg` | `28px` | The tallest control height. |
+| `--shell-focus-ring-offset` | `2px` | Space between a control and its keyboard focus ring. |
+| `--shell-focus-ring-width` | `2px` | Keyboard focus ring width. |
 | `--shell-input-border` | `var(--shell-border-strong, var(--shell-border))` | The outline of a field. |
 | `--shell-leading-base` | `1.5` | Line height for a paragraph. |
 | `--shell-radius` | `6px` | A control corner. |
@@ -145,12 +147,11 @@ at all.
 
 ## Runtime
 
-`ghostty-web` draws to a canvas, inherits nothing from CSS, and takes literal
-colours at construction. `readTerminalTheme` resolves these through
-`SHELL_TERMINAL_PROPERTIES`, so no rule mentions them and grep over the CSS
-alone would miss them. A property that does not resolve is left out rather than
-passed through empty, because the emulator parses an unrecognised colour to
-black.
+xterm.js takes literal colours at construction. wterm receives the same values
+through its `--term-*` custom properties. `readTerminalTheme` resolves both
+paths through `SHELL_TERMINAL_PROPERTIES`. A property that does not resolve is
+left out rather than passed through empty, because terminal cores may parse an
+unrecognised colour to black.
 
 | Variable | Drawn by |
 | --- | --- |

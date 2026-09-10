@@ -47,6 +47,33 @@ const ProviderPluginSchema = z
   })
   .loose()
 
+const ConnectorSettingValueSchema = z.union([
+  z.boolean(),
+  z.number(),
+  z.string(),
+  z.array(z.string()),
+])
+
+const SearchProviderConfigSchema = z.object({
+  enabled: z.boolean().optional(),
+  settings: z
+    .record(z.string(), ConnectorSettingValueSchema.optional())
+    .optional(),
+})
+
+const SearchConnectorConfigSchema = z.object({
+  priority: z.array(z.string().min(1)).optional(),
+  fallback: z.boolean().optional(),
+  providers: z.record(z.string(), SearchProviderConfigSchema).optional(),
+  defaults: z
+    .object({
+      maxResults: z.number().int().min(1).max(100).optional(),
+      allowedDomains: z.array(z.string().min(1)).optional(),
+      blockedDomains: z.array(z.string().min(1)).optional(),
+    })
+    .optional(),
+})
+
 const ReasoningEffortSchema = z.enum([
   "none",
   "minimal",
@@ -62,10 +89,9 @@ const ReasoningEffortSchema = z.enum([
  * key can survive double-quoting / single-quoting in any shell without
  * escaping headaches: ASCII letters, digits, underscore, hyphen.
  *
- * Plus a single special form: the literal "*" wildcard (and only that —
- * no embedded glob) which the auth middleware honors as "accept any
- * non-empty bearer." Useful for the default "permit-all" entry the UI
- * seeds when the user first enables API-key auth.
+ * The literal "*" remains parseable only for compatibility with existing
+ * configuration. Authentication compares it as an ordinary exact key; new
+ * entries and rotations never create or advertise it.
  */
 export const API_KEY_VALUE_PATTERN = /^(?:\*|[\w-]{8,128})$/
 
@@ -75,6 +101,8 @@ const ApiKeyEntrySchema = z.object({
   key: z.string().regex(API_KEY_VALUE_PATTERN),
   enabled: z.boolean(),
   created_at: z.string(),
+  kind: z.enum(["managed", "manual"]).optional(),
+  configurator_id: z.string().min(1).optional(),
 })
 
 export const AppConfigSchema = z
@@ -112,6 +140,11 @@ export const AppConfigSchema = z
       })
       .optional(),
     providerPlugins: z.record(z.string(), ProviderPluginSchema).optional(),
+    connectors: z
+      .object({
+        search: SearchConnectorConfigSchema.optional(),
+      })
+      .optional(),
     extraPrompts: z.record(z.string(), z.string()).optional(),
     smallModel: z.string().optional(),
     responsesApiContextManagementModels: z.array(z.string()).optional(),

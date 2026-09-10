@@ -1,4 +1,10 @@
 import type {
+  LocalModelCancelResult,
+  LocalModelCatalogSnapshot,
+  LocalModelEnsureResult,
+  LocalModelOperationEvent,
+} from '@stuffbucket/maximal-core/control-contract'
+import type {
   AccountsListResponse,
   ApiKeyCreateRequest,
   ApiKeyEntry,
@@ -7,11 +13,26 @@ import type {
   AppEntry,
   AppsListResponse,
   AuthStatus,
+  ConnectionAction,
+  ConnectionCredentialReveal,
+  ConnectionEntry,
+  ConnectionsListResponse,
   DiagnosticsResponse,
   ModelsListResponse,
+  SearchSettingsResponse,
+  SearchSettingsUpdateRequest,
   TokenUsagePeriod,
   TokenUsageSummary,
 } from '@stuffbucket/maximal-core/settings-types'
+import type {
+  AgentApprovalRequest,
+  AgentEnd,
+  AgentToolEvent,
+  ApproveRequest,
+  AskAccepted,
+  ModelProgress,
+  ProviderStatus,
+} from '@stuffbucket/maximal-harness'
 import {
   TrafficInvalidationSchema,
   type TrafficInvalidation,
@@ -26,12 +47,27 @@ import { contextBridge, ipcRenderer } from 'electron'
 
 import { BRIDGE_CHANNELS } from '../shared/bridge-channels.js'
 import type {
+  TerminalDataMessage,
+  TerminalDiscovery,
+  TerminalExitMessage,
+  TerminalLaunchRequest,
+  TerminalLaunchResult,
+  TerminalProfileSummary,
+  TerminalSession,
+} from 'stuffbucket-electron/renderer'
+import type {
   ControlResult,
   LifecycleStatus,
   MenuBarModeAttempt,
   MenuBarModeState,
   PendingSettingsRequest,
 } from '../shared/bridge-types.js'
+
+function subscribe<T>(channel: string, listener: (value: T) => void): () => void {
+  const handler = (_event: unknown, value: T): void => listener(value)
+  ipcRenderer.on(channel, handler)
+  return () => ipcRenderer.off(channel, handler)
+}
 
 const bridge = {
   /** Base URL where `/v1` is served for external programs (to display/copy). */
@@ -62,6 +98,19 @@ const bridge = {
       ipcRenderer.invoke(BRIDGE_CHANNELS.logsLocation),
     reveal: (): Promise<void> => ipcRenderer.invoke(BRIDGE_CHANNELS.logsReveal),
   },
+  localModels: {
+    list: (): Promise<ControlResult<LocalModelCatalogSnapshot>> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.localModelsList),
+    ensure: (modelKey: string): Promise<ControlResult<LocalModelEnsureResult>> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.localModelsEnsure, modelKey),
+    cancel: (operationId: string): Promise<ControlResult<LocalModelCancelResult>> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.localModelsCancel, operationId),
+    openFolder: (): Promise<void> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.localModelsOpenFolder),
+    onChange: (
+      listener: (event: LocalModelOperationEvent) => void,
+    ): (() => void) => subscribe(BRIDGE_CHANNELS.localModelsChanged, listener),
+  },
   menuBarMode: {
     get: (): Promise<MenuBarModeState> =>
       ipcRenderer.invoke(BRIDGE_CHANNELS.menuBarModeGet),
@@ -73,6 +122,58 @@ const bridge = {
       ipcRenderer.invoke(BRIDGE_CHANNELS.menuBarModeCancelEnable, attemptId),
     disable: (): Promise<MenuBarModeState> =>
       ipcRenderer.invoke(BRIDGE_CHANNELS.menuBarModeDisable),
+  },
+  harness: {
+    hide: (): Promise<void> => ipcRenderer.invoke(BRIDGE_CHANNELS.harnessHide),
+    provider: (): Promise<ProviderStatus> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.harnessProvider),
+    ask: (prompt: string): Promise<AskAccepted> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.harnessAsk, { prompt }),
+    abort: (): Promise<void> => ipcRenderer.invoke(BRIDGE_CHANNELS.harnessAbort),
+    approve: (request: ApproveRequest): Promise<void> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.harnessApprove, request),
+    ensureModel: (): Promise<ModelProgress> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.harnessEnsureModel),
+    onDelta: (listener: (text: string) => void): (() => void) =>
+      subscribe<{ text: string }>(BRIDGE_CHANNELS.harnessDelta, ({ text }) => listener(text)),
+    onTool: (listener: (event: AgentToolEvent) => void): (() => void) =>
+      subscribe(BRIDGE_CHANNELS.harnessTool, listener),
+    onApproval: (listener: (request: AgentApprovalRequest) => void): (() => void) =>
+      subscribe(BRIDGE_CHANNELS.harnessApproval, listener),
+    onEnd: (listener: (result: AgentEnd) => void): (() => void) =>
+      subscribe(BRIDGE_CHANNELS.harnessEnd, listener),
+    onModelProgress: (listener: (progress: ModelProgress) => void): (() => void) =>
+      subscribe(BRIDGE_CHANNELS.harnessModelProgress, listener),
+  },
+  terminal: {
+    spawn: (request: { id: string; cols: number; rows: number; shell?: string; cwd?: string }): Promise<void> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.terminalSpawn, request),
+    write: (id: string, data: string): Promise<void> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.terminalWrite, { id, data }),
+    resize: (id: string, cols: number, rows: number): Promise<void> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.terminalResize, { id, cols, rows }),
+    acknowledge: (id: string, sequence: number): Promise<void> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.terminalAck, { id, sequence }),
+    terminate: (id: string): Promise<void> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.terminalTerminate, { id }),
+    list: (): Promise<TerminalSession[]> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.terminalList),
+    profiles: (): Promise<TerminalProfileSummary[]> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.terminalProfiles),
+    discover: (): Promise<TerminalDiscovery> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.terminalDiscover),
+    launch: (request: TerminalLaunchRequest): Promise<TerminalLaunchResult> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.terminalLaunch, request),
+    onData: (listener: (message: TerminalDataMessage) => void): (() => void) => {
+      const handler = (_event: unknown, message: TerminalDataMessage): void => listener(message)
+      ipcRenderer.on(BRIDGE_CHANNELS.terminalData, handler)
+      return () => ipcRenderer.off(BRIDGE_CHANNELS.terminalData, handler)
+    },
+    onExit: (listener: (message: TerminalExitMessage) => void): (() => void) => {
+      const handler = (_event: unknown, message: TerminalExitMessage): void => listener(message)
+      ipcRenderer.on(BRIDGE_CHANNELS.terminalExit, handler)
+      return () => ipcRenderer.off(BRIDGE_CHANNELS.terminalExit, handler)
+    },
   },
   /** The application menu asking for the Settings surface. The payload is a
    *  section id to scroll to, or null for the surface itself. */
@@ -112,6 +213,17 @@ const bridge = {
       query: TrafficRequestDetailQuery,
     ): Promise<ControlResult<TrafficRequestDetail | null>> =>
       ipcRenderer.invoke(BRIDGE_CHANNELS.observabilityRequest, query),
+    connectionsList: (): Promise<ControlResult<ConnectionsListResponse>> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.connectionsList),
+    connectionsAct: (
+      id: string,
+      action: ConnectionAction,
+    ): Promise<ControlResult<ConnectionEntry>> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.connectionsAct, id, action),
+    connectionsRevealCredential: (
+      id: string,
+    ): Promise<ControlResult<ConnectionCredentialReveal>> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.connectionsRevealCredential, id),
     appsList: (): Promise<ControlResult<AppsListResponse>> =>
       ipcRenderer.invoke(BRIDGE_CHANNELS.appsList),
     appsSetEnabled: (
@@ -146,6 +258,12 @@ const bridge = {
       ipcRenderer.invoke(BRIDGE_CHANNELS.usageGet, period),
     diagnosticsGet: (): Promise<ControlResult<DiagnosticsResponse>> =>
       ipcRenderer.invoke(BRIDGE_CHANNELS.diagnosticsGet),
+    searchSettingsGet: (): Promise<ControlResult<SearchSettingsResponse>> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.searchSettingsGet),
+    searchSettingsUpdate: (
+      input: SearchSettingsUpdateRequest,
+    ): Promise<ControlResult<SearchSettingsResponse>> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.searchSettingsUpdate, input),
     onChange: (listener: () => void): (() => void) => {
       const handler = (): void => {
         listener()

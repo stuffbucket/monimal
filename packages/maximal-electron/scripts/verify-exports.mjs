@@ -105,11 +105,14 @@ const publishedSheet = packageStylesheets().find(
   (sheet) => sheet.published === manifest.exports['./renderer/styles.css']?.replace(/^\.\//, ''),
 );
 const stylesheetSource = publishedSheet
-  ? (
+  ? [
+      ...publishedSheet.imports.map((specifier) => `@import '${specifier}';`),
+      ...(
       await Promise.all(
         publishedSheet.sources.map((source) => readFile(path.join(root, source), 'utf8')),
       )
-    ).join('\n')
+      ),
+    ].join('\n')
   : '';
 const stylesheetTarget = manifest.exports['./renderer/styles.css'];
 const shipped = existsSync(path.join(root, stylesheetTarget ?? ''))

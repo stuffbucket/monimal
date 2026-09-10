@@ -21,6 +21,14 @@ interface ControlSessionSpies {
   observabilityOverview: ReturnType<typeof vi.fn>
   observabilityRequests: ReturnType<typeof vi.fn>
   observabilityRequest: ReturnType<typeof vi.fn>
+  connectionsList: ReturnType<typeof vi.fn>
+  connectionsAct: ReturnType<typeof vi.fn>
+  connectionsRevealCredential: ReturnType<typeof vi.fn>
+  localModelsList: ReturnType<typeof vi.fn>
+  localModelsEnsure: ReturnType<typeof vi.fn>
+  localModelsCancel: ReturnType<typeof vi.fn>
+  searchSettingsGet: ReturnType<typeof vi.fn>
+  searchSettingsUpdate: ReturnType<typeof vi.fn>
   dispose: ReturnType<typeof vi.fn>
 }
 
@@ -34,6 +42,7 @@ const {
   onHeadersReceived,
   runShellMock,
   shellOpenExternal,
+  shellOpenPath,
   webContentsSend,
   windowState,
 } = vi.hoisted(() => {
@@ -78,6 +87,7 @@ const {
   }
   const fakeApp = {
     isPackaged: false,
+    commandLine: { hasSwitch: vi.fn(() => false) },
     whenReady: vi.fn(() => Promise.resolve()),
     quit: vi.fn(),
     getPath: vi.fn(() => '/tmp/maximal-client-test'),
@@ -111,6 +121,7 @@ const {
     onHeadersReceived: vi.fn(),
     runShellMock: vi.fn(() => fakeWindow),
     shellOpenExternal: vi.fn(() => Promise.resolve()),
+    shellOpenPath: vi.fn(() => Promise.resolve('')),
     webContentsSend,
     windowState,
   }
@@ -126,8 +137,21 @@ vi.mock('electron', () => ({
       webRequest: { onBeforeSendHeaders, onHeadersReceived },
     },
   },
-  shell: { openExternal: shellOpenExternal },
+  shell: { openExternal: shellOpenExternal, openPath: shellOpenPath },
 }))
+
+const { localModelsMkdir, resolveLocalModelsPathMock } = vi.hoisted(() => ({
+  localModelsMkdir: vi.fn(() => Promise.resolve()),
+  resolveLocalModelsPathMock: vi.fn(() => '/resolved/local/models'),
+}))
+
+vi.mock('node:fs/promises', () => ({ mkdir: localModelsMkdir }))
+
+vi.mock('@stuffbucket/local-model-registry', () => ({
+  resolveLocalModelsPath: resolveLocalModelsPathMock,
+}))
+
+vi.mock('node-pty', () => ({ spawn: vi.fn() }))
 
 vi.mock('./shell.js', () => ({ runShell: runShellMock }))
 
@@ -174,6 +198,34 @@ vi.mock('./core.js', () => ({
   onCoreStatus: onCoreStatusMock,
 }))
 
+const { showHarnessHostMock, startHarnessHostMock, stopHarnessHostMock } = vi.hoisted(() => ({
+  showHarnessHostMock: vi.fn(),
+  startHarnessHostMock: vi.fn(),
+  stopHarnessHostMock: vi.fn(() => Promise.resolve()),
+}))
+
+vi.mock('./harness-host.js', () => ({
+  showHarnessHost: showHarnessHostMock,
+  startHarnessHost: startHarnessHostMock,
+  stopHarnessHost: stopHarnessHostMock,
+}))
+
+const {
+  configureTerminalHostMock,
+  registerTerminalIpcMock,
+  stopTerminalHostMock,
+} = vi.hoisted(() => ({
+  configureTerminalHostMock: vi.fn(),
+  registerTerminalIpcMock: vi.fn(),
+  stopTerminalHostMock: vi.fn(),
+}))
+
+vi.mock('./terminal-host.js', () => ({
+  configureTerminalHost: configureTerminalHostMock,
+  registerTerminalIpc: registerTerminalIpcMock,
+  stopTerminalHost: stopTerminalHostMock,
+}))
+
 const { createControlSessionMock, disposeControlSessionMock } = vi.hoisted(
   () => {
     const disposeControlSessionMock = vi.fn()
@@ -181,6 +233,7 @@ const { createControlSessionMock, disposeControlSessionMock } = vi.hoisted(
       disposeControlSessionMock,
       createControlSessionMock: vi.fn((_options: {
         onChange(): void
+        onLocalModelEvent(event: unknown): void
         onTrafficInvalidation(invalidation: unknown): void
       }): ControlSessionSpies => ({
         authStatus: vi.fn(),
@@ -192,6 +245,14 @@ const { createControlSessionMock, disposeControlSessionMock } = vi.hoisted(
         observabilityOverview: vi.fn(),
         observabilityRequests: vi.fn(),
         observabilityRequest: vi.fn(),
+        connectionsList: vi.fn(),
+        connectionsAct: vi.fn(),
+        connectionsRevealCredential: vi.fn(),
+        localModelsList: vi.fn(),
+        localModelsEnsure: vi.fn(),
+        localModelsCancel: vi.fn(),
+        searchSettingsGet: vi.fn(),
+        searchSettingsUpdate: vi.fn(),
         dispose: disposeControlSessionMock,
       })),
     }
@@ -216,11 +277,44 @@ async function loadIndexOn(platform: NodeJS.Platform): Promise<void> {
   killCoreMock.mockClear()
   spawnCoreMock.mockClear()
   ipcMainHandle.mockClear()
+  showHarnessHostMock.mockClear()
+  startHarnessHostMock.mockClear()
+  stopHarnessHostMock.mockClear()
+  configureTerminalHostMock.mockClear()
+  registerTerminalIpcMock.mockClear()
+  stopTerminalHostMock.mockClear()
+  registerTerminalIpcMock.mockImplementation(() => {
+    for (const channel of [
+      BRIDGE_CHANNELS.terminalProfiles,
+      BRIDGE_CHANNELS.terminalDiscover,
+      BRIDGE_CHANNELS.terminalLaunch,
+      BRIDGE_CHANNELS.terminalSpawn,
+      BRIDGE_CHANNELS.terminalWrite,
+      BRIDGE_CHANNELS.terminalResize,
+      BRIDGE_CHANNELS.terminalTerminate,
+      BRIDGE_CHANNELS.terminalList,
+      BRIDGE_CHANNELS.terminalAck,
+    ]) ipcMainHandle(channel, vi.fn())
+  })
+  startHarnessHostMock.mockImplementation(() => {
+    for (const channel of [
+      BRIDGE_CHANNELS.harnessHide,
+      BRIDGE_CHANNELS.harnessProvider,
+      BRIDGE_CHANNELS.harnessAsk,
+      BRIDGE_CHANNELS.harnessAbort,
+      BRIDGE_CHANNELS.harnessApprove,
+      BRIDGE_CHANNELS.harnessEnsureModel,
+    ]) ipcMainHandle(channel, vi.fn())
+  })
   createControlSessionMock.mockClear()
   disposeControlSessionMock.mockClear()
   onBeforeSendHeaders.mockClear()
   onHeadersReceived.mockClear()
   shellOpenExternal.mockClear()
+  shellOpenPath.mockClear()
+  localModelsMkdir.mockClear()
+  resolveLocalModelsPathMock.mockClear()
+  fakeApp.commandLine.hasSwitch.mockReset().mockReturnValue(false)
   webContentsSend.mockClear()
   runShellMock.mockClear()
   installApplicationMenuMock.mockClear()
@@ -259,8 +353,16 @@ describe('closed IPC boundary', () => {
     expect(EVENT_CHANNELS).toEqual([
       BRIDGE_CHANNELS.lifecycleChanged,
       BRIDGE_CHANNELS.controlChanged,
+      BRIDGE_CHANNELS.localModelsChanged,
       BRIDGE_CHANNELS.menuOpenSettings,
       BRIDGE_CHANNELS.trafficInvalidated,
+      BRIDGE_CHANNELS.terminalData,
+      BRIDGE_CHANNELS.terminalExit,
+      BRIDGE_CHANNELS.harnessDelta,
+      BRIDGE_CHANNELS.harnessTool,
+      BRIDGE_CHANNELS.harnessApproval,
+      BRIDGE_CHANNELS.harnessEnd,
+      BRIDGE_CHANNELS.harnessModelProgress,
     ])
   })
 
@@ -312,6 +414,64 @@ describe('closed IPC boundary', () => {
     )
   })
 
+  it('routes connection channels through validated session methods', async () => {
+    await loadIndexOn('darwin')
+    const session = controlSessionSpies()
+    const handler = (channel: string) => {
+      const registration = ipcMainHandle.mock.calls.find(
+        ([registered]) => registered === channel,
+      )
+      if (!registration) throw new Error(`${channel} IPC was not registered`)
+      return registration[1]
+    }
+
+    await handler(BRIDGE_CHANNELS.connectionsList)({})
+    await handler(BRIDGE_CHANNELS.connectionsAct)(
+      {},
+      'claude-code',
+      'reconnect',
+    )
+    await handler(BRIDGE_CHANNELS.connectionsRevealCredential)(
+      {},
+      'managed:claude-code',
+    )
+
+    expect(session.connectionsList).toHaveBeenCalledOnce()
+    expect(session.connectionsAct).toHaveBeenCalledWith(
+      'claude-code',
+      'reconnect',
+    )
+    expect(session.connectionsRevealCredential).toHaveBeenCalledWith(
+      'managed:claude-code',
+    )
+  })
+
+  it('routes validated local model operations to named session methods', async () => {
+    await loadIndexOn('darwin')
+    const session = controlSessionSpies()
+    const handlerFor = (channel: string) => {
+      const registration = ipcMainHandle.mock.calls.find(
+        ([registered]) => registered === channel,
+      )
+      return registration?.[1] as (
+        event: unknown,
+        identifier?: unknown,
+      ) => unknown
+    }
+
+    await handlerFor(BRIDGE_CHANNELS.localModelsList)({})
+    await handlerFor(BRIDGE_CHANNELS.localModelsEnsure)({}, 'qwen')
+    await handlerFor(BRIDGE_CHANNELS.localModelsCancel)({}, 'operation-1')
+
+    expect(session.localModelsList).toHaveBeenCalledOnce()
+    expect(session.localModelsEnsure).toHaveBeenCalledWith('qwen')
+    expect(session.localModelsCancel).toHaveBeenCalledWith('operation-1')
+    expect(() =>
+      handlerFor(BRIDGE_CHANNELS.localModelsEnsure)({}, ''),
+    ).toThrow()
+    expect(session.localModelsEnsure).toHaveBeenCalledTimes(1)
+  })
+
   it.each([
     [
       BRIDGE_CHANNELS.observabilityOverview,
@@ -346,6 +506,50 @@ describe('closed IPC boundary', () => {
     },
   )
 
+  it('rejects malformed connection identifiers and actions before dispatch', async () => {
+    await loadIndexOn('darwin')
+    const session = controlSessionSpies()
+    const actRegistration = ipcMainHandle.mock.calls.find(
+      ([channel]) => channel === BRIDGE_CHANNELS.connectionsAct,
+    )
+    const revealRegistration = ipcMainHandle.mock.calls.find(
+      ([channel]) => channel === BRIDGE_CHANNELS.connectionsRevealCredential,
+    )
+    const actHandler = actRegistration?.[1] as (
+      event: unknown,
+      id: unknown,
+      action: unknown,
+    ) => unknown
+    const revealHandler = revealRegistration?.[1] as (
+      event: unknown,
+      id: unknown,
+    ) => unknown
+
+    expect(() => actHandler({}, 'Claude Code', 'connect')).toThrow()
+    expect(() => actHandler({}, 'claude-code', 'replace')).toThrow()
+    expect(() => revealHandler({}, '')).toThrow()
+    expect(session.connectionsAct).not.toHaveBeenCalled()
+    expect(session.connectionsRevealCredential).not.toHaveBeenCalled()
+  })
+
+  it('validates search settings updates before session dispatch', async () => {
+    await loadIndexOn('darwin')
+    const session = controlSessionSpies()
+    const registration = ipcMainHandle.mock.calls.find(
+      ([registered]) => registered === BRIDGE_CHANNELS.searchSettingsUpdate,
+    )
+    const handler = registration?.[1] as (
+      event: unknown,
+      input: unknown,
+    ) => unknown
+    const input = { settings: { fallback: false } }
+
+    handler({}, input)
+    expect(session.searchSettingsUpdate).toHaveBeenCalledWith(input)
+    expect(() => handler({}, { settings: [] })).toThrow()
+    expect(session.searchSettingsUpdate).toHaveBeenCalledTimes(1)
+  })
+
   it('does not install Electron webRequest header or CORS hooks', async () => {
     await loadIndexOn('darwin')
 
@@ -379,6 +583,17 @@ describe('closed IPC boundary', () => {
     createControlSessionMock.mock.calls[0]?.[0].onChange()
     expect(webContentsSend).toHaveBeenCalledWith(
       BRIDGE_CHANNELS.controlChanged,
+    )
+
+    const localModelEvent = {
+      type: 'catalog',
+      snapshot: { models: [], revision: 1 },
+    }
+    createControlSessionMock.mock.calls[0]?.[0]
+      .onLocalModelEvent(localModelEvent)
+    expect(webContentsSend).toHaveBeenCalledWith(
+      BRIDGE_CHANNELS.localModelsChanged,
+      localModelEvent,
     )
 
     const invalidation = {
@@ -424,6 +639,42 @@ describe('closed IPC boundary', () => {
     )
   })
 
+  it('opens only the main-owned local models directory', async () => {
+    await loadIndexOn('darwin')
+    const registration = ipcMainHandle.mock.calls.find(
+      ([channel]) => channel === BRIDGE_CHANNELS.localModelsOpenFolder,
+    )
+    const handler = registration?.[1] as (
+      event: unknown,
+      untrustedPath?: unknown,
+    ) => Promise<void>
+
+    await expect(handler({}, '/tmp/untrusted')).resolves.toBeUndefined()
+    expect(resolveLocalModelsPathMock).toHaveBeenCalledWith({
+      suiteDataRoot: undefined,
+    })
+    expect(localModelsMkdir).toHaveBeenCalledWith('/resolved/local/models', {
+      recursive: true,
+    })
+    expect(shellOpenPath).toHaveBeenCalledWith('/resolved/local/models')
+  })
+
+  it('isolates local models beneath an explicit user-data directory', async () => {
+    fakeApp.commandLine.hasSwitch.mockReturnValue(true)
+    await loadIndexOn('darwin')
+    fakeApp.commandLine.hasSwitch.mockReturnValue(true)
+    const registration = ipcMainHandle.mock.calls.find(
+      ([channel]) => channel === BRIDGE_CHANNELS.localModelsOpenFolder,
+    )
+    const handler = registration?.[1] as () => Promise<void>
+
+    await handler()
+
+    expect(resolveLocalModelsPathMock).toHaveBeenCalledWith({
+      suiteDataRoot: '/tmp/maximal-client-test/stuffbucket',
+    })
+  })
+
   it('uses the redacted lifecycle channel rather than the legacy channel', async () => {
     await loadIndexOn('darwin')
 
@@ -433,11 +684,11 @@ describe('closed IPC boundary', () => {
 })
 
 describe('window defaults', () => {
-  it('opens at a size that fits the application content', async () => {
+  it('opens wide enough for the three-panel Overview without horizontal scrolling', async () => {
     await loadIndexOn('darwin')
 
     expect(runShellMock).toHaveBeenCalledWith(
-      expect.objectContaining({ width: 1024, height: 768 }),
+      expect.objectContaining({ width: 1280, height: 768 }),
     )
   })
 })
@@ -504,6 +755,22 @@ describe('native Settings requests', () => {
   })
 })
 
+describe('native update requests', () => {
+  it('opens the latest product release from the application menu', async () => {
+    await loadIndexOn('darwin')
+    const callbacks = installApplicationMenuMock.mock.calls[0]?.[0] as
+      | { onCheckForUpdates?: () => void }
+      | undefined
+
+    callbacks?.onCheckForUpdates?.()
+    await Promise.resolve()
+
+    expect(shellOpenExternal).toHaveBeenCalledWith(
+      'https://github.com/stuffbucket/maximal/releases/latest',
+    )
+  })
+})
+
 describe('window-all-closed / before-quit', () => {
   it('on darwin keeps core alive on window close and disposes it on real quit', async () => {
     await loadIndexOn('darwin')
@@ -513,7 +780,7 @@ describe('window-all-closed / before-quit', () => {
     expect(disposeControlSessionMock).not.toHaveBeenCalled()
     expect(fakeApp.quit).not.toHaveBeenCalled()
 
-    fakeApp.emit('before-quit')
+    fakeApp.emit('before-quit', { preventDefault: vi.fn() })
     expect(disposeControlSessionMock).toHaveBeenCalledTimes(1)
     expect(killCoreMock).toHaveBeenCalledTimes(1)
   })
@@ -528,12 +795,34 @@ describe('window-all-closed / before-quit', () => {
     expect(fakeApp.quit).toHaveBeenCalledTimes(1)
   })
 
-  it('before-quit always disposes control and kills core', async () => {
+  it('defers the first quit until harness shutdown and does not recurse', async () => {
     await loadIndexOn('darwin')
+    let resolveShutdown: (() => void) | undefined
+    stopHarnessHostMock.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        resolveShutdown = resolve
+      }),
+    )
+    const first = { preventDefault: vi.fn() }
 
-    fakeApp.emit('before-quit')
+    fakeApp.emit('before-quit', first)
 
-    expect(disposeControlSessionMock).toHaveBeenCalledTimes(1)
-    expect(killCoreMock).toHaveBeenCalledTimes(1)
+    expect(first.preventDefault).toHaveBeenCalledOnce()
+    expect(stopHarnessHostMock).toHaveBeenCalledOnce()
+    expect(fakeApp.quit).not.toHaveBeenCalled()
+
+    resolveShutdown?.()
+    await vi.waitFor(() => {
+      expect(fakeApp.quit).toHaveBeenCalledOnce()
+    })
+
+    const second = { preventDefault: vi.fn() }
+    fakeApp.emit('before-quit', second)
+
+    expect(second.preventDefault).not.toHaveBeenCalled()
+    expect(stopHarnessHostMock).toHaveBeenCalledOnce()
+    expect(fakeApp.quit).toHaveBeenCalledOnce()
+    expect(disposeControlSessionMock).toHaveBeenCalledTimes(2)
+    expect(killCoreMock).toHaveBeenCalledTimes(2)
   })
 })

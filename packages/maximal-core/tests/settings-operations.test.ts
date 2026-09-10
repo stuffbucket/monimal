@@ -3,15 +3,23 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test"
 import type { ClientApp } from "~/apps"
 import type { AppConfig, ApiKeyEntry } from "~/lib/config/config"
 import type { AppEntry } from "~/lib/config/settings-types"
+import type {
+  ConfiguratorPlugin,
+  ConfiguratorRegistry,
+} from "~/lib/configurator-host"
 
 import { getConfig, writeConfig } from "~/lib/config/config"
 import {
+  actOnConnection,
   buildDiagnostics,
   createApiKey,
   listApiKeys,
+  listConnections,
   removeApiKey,
+  revealConnectionCredential,
   setApiKeyEnforcement,
   setAppEnabled,
+  setConfiguratorEnabled,
   SettingsOperationError,
   updateApiKey,
 } from "~/lib/config/settings-operations"
@@ -30,6 +38,15 @@ const secondKey: ApiKeyEntry = {
   key: "second-key",
   enabled: false,
   created_at: "2026-02-03T04:05:06.000Z",
+}
+const managedKey: ApiKeyEntry = {
+  id: "managed:claude-code",
+  label: "Claude Code",
+  key: "managed_key",
+  enabled: true,
+  created_at: "2026-03-04T05:06:07.000Z",
+  kind: "managed",
+  configurator_id: "claude-code",
 }
 
 let originalConfig: AppConfig
@@ -78,6 +95,20 @@ async function expectAsyncOperationError(
     kind: expected.kind,
     message: expected.message,
   })
+}
+
+async function expectRejects(
+  operation: () => Promise<unknown>,
+  pattern: RegExp,
+): Promise<void> {
+  let error: unknown
+  try {
+    await operation()
+  } catch (caught) {
+    error = caught
+  }
+  expect(error).toBeInstanceOf(Error)
+  expect((error as Error).message).toMatch(pattern)
 }
 
 beforeEach(() => {
@@ -146,9 +177,14 @@ describe("settings API-key operations", () => {
       {
         kind: "validation_error",
         message:
-          "Key must be 8–128 chars of letters, digits, underscore, or hyphen — or the literal '*' wildcard.",
+          "Key must be 8–128 chars of letters, digits, underscore, or hyphen.",
       },
     )
+    expectOperationError(() => createApiKey({ label: "Wildcard", key: "*" }), {
+      kind: "validation_error",
+      message:
+        "Key must be 8–128 chars of letters, digits, underscore, or hyphen.",
+    })
     expectOperationError(
       () => createApiKey({ label: "Duplicate", key: " first_key " }),
       { kind: "conflict", message: "Key already exists" },
@@ -191,7 +227,7 @@ describe("settings API-key operations", () => {
     expectOperationError(() => updateApiKey(firstKey.id, { key: "bad" }), {
       kind: "validation_error",
       message:
-        "Key must be 8–128 chars of letters, digits, underscore, or hyphen — or the literal '*' wildcard.",
+        "Key must be 8–128 chars of letters, digits, underscore, or hyphen.",
     })
     expectOperationError(
       () => updateApiKey(firstKey.id, { key: secondKey.key }),
@@ -210,6 +246,26 @@ describe("settings API-key operations", () => {
       message: "API key not found",
     })
     expect(listApiKeys().entries).toEqual([secondKey])
+  })
+
+  test("generic operations cannot mutate or remove managed keys", () => {
+    seedKeys([managedKey, firstKey])
+
+    for (const update of [
+      { label: "Renamed" },
+      { key: "replacement_key" },
+      { enabled: false },
+    ]) {
+      expectOperationError(() => updateApiKey(managedKey.id, update), {
+        kind: "validation_error",
+        message: "Managed API keys are controlled by their connection",
+      })
+    }
+    expectOperationError(() => removeApiKey(managedKey.id), {
+      kind: "validation_error",
+      message: "Managed API keys are controlled by their connection",
+    })
+    expect(listApiKeys().entries).toEqual([managedKey, firstKey])
   })
 
   test("missing auth state has consistent update and remove behavior", () => {
@@ -328,7 +384,231 @@ function appDependencies(
   }
 }
 
+function configuratorRegistry(
+  connection: ConfiguratorPlugin["connection"],
+): ConfiguratorRegistry {
+  const plugin: ConfiguratorPlugin = {
+    metadata: {
+      id: "claude-code",
+      name: "Claude Code",
+      targetId: "claude-code-settings",
+      credentialBinding: { kind: "bearer-env", name: "ANTHROPIC_AUTH_TOKEN" },
+    },
+    connection,
+    connect: connection,
+    reconnect: connection,
+    disconnect: connection,
+  }
+  return {
+    all: () => [plugin],
+    get: (id) => (id === plugin.metadata.id ? plugin : undefined),
+    dispose: () => Promise.resolve(),
+  }
+}
+
+describe("connection settings operations", () => {
+  test("lists client and credential metadata without returning key material", async () => {
+    seedKeys([managedKey, firstKey], true)
+    const registry = configuratorRegistry(() =>
+      Promise.resolve({
+        status: "changed-externally",
+        allowedActions: ["disconnect", "reconnect"],
+        detail: "A managed field changed outside Maximal.",
+        recovery: { preservedPaths: [["env", "ANTHROPIC_AUTH_TOKEN"]] },
+      }),
+    )
+
+    const result = await listConnections(registry)
+
+    expect(result).toEqual({
+      clients: [
+        {
+          id: "claude-code",
+          name: "Claude Code",
+          status: "changed-externally",
+          allowed_actions: ["disconnect", "reconnect"],
+          detail: "A managed field changed outside Maximal.",
+          credential: {
+            id: managedKey.id,
+            label: managedKey.label,
+            kind: "managed",
+            enabled: true,
+          },
+          ownership: null,
+          recovery: {
+            preserved_paths: [["env", "ANTHROPIC_AUTH_TOKEN"]],
+          },
+        },
+      ],
+      manual_credentials: [
+        {
+          id: firstKey.id,
+          label: firstKey.label,
+          kind: "manual",
+          enabled: true,
+        },
+      ],
+      require_known_keys: true,
+    })
+    expect(JSON.stringify(result)).not.toContain(managedKey.key)
+    expect(JSON.stringify(result)).not.toContain(firstKey.key)
+  })
+
+  test("reveals one credential only through the explicit operation", () => {
+    seedKeys([managedKey, firstKey])
+
+    expect(revealConnectionCredential(managedKey.id)).toEqual({
+      id: managedKey.id,
+      key: managedKey.key,
+    })
+    expectOperationError(() => revealConnectionCredential("missing"), {
+      kind: "not_found",
+      message: "Connection credential not found",
+    })
+  })
+
+  test("dispatches only the requested server-approved connection action", async () => {
+    const calls: Array<string> = []
+    const plugin = configuratorRegistry(() =>
+      Promise.resolve({ status: "available", allowedActions: ["connect"] }),
+    ).all()[0]
+    const registry: ConfiguratorRegistry = {
+      all: () => [plugin],
+      get: () => ({
+        ...plugin,
+        connect: () => {
+          calls.push("connect")
+          return Promise.resolve({
+            status: "connected",
+            allowedActions: ["disconnect"],
+          })
+        },
+        reconnect: () => {
+          calls.push("reconnect")
+          return Promise.resolve({
+            status: "connected",
+            allowedActions: ["disconnect"],
+          })
+        },
+        disconnect: () => {
+          calls.push("disconnect")
+          return Promise.resolve({
+            status: "available",
+            allowedActions: ["connect"],
+          })
+        },
+      }),
+      dispose: () => Promise.resolve(),
+    }
+
+    expect(
+      (await actOnConnection(registry, "claude-code", "connect")).status,
+    ).toBe("connected")
+    expect(
+      (await actOnConnection(registry, "claude-code", "reconnect")).status,
+    ).toBe("connected")
+    expect(
+      (await actOnConnection(registry, "claude-code", "disconnect")).status,
+    ).toBe("available")
+    expect(calls).toEqual(["connect", "reconnect", "disconnect"])
+  })
+
+  test("rejects unknown and unavailable configurators before invoking effects", async () => {
+    const registry = configuratorRegistry(() => {
+      throw new Error("connection effect must not run")
+    })
+
+    await expectAsyncOperationError(
+      () => actOnConnection(registry, "missing", "connect"),
+      {
+        kind: "validation_error",
+        message: "Connection cannot be configured",
+      },
+    )
+  })
+})
+
 describe("settings app operation", () => {
+  test("persists connect intent before the configurator can write credentials", async () => {
+    const intentsDuringConnect: Array<boolean | undefined> = []
+    const registry = configuratorRegistry(() => {
+      intentsDuringConnect.push(getConfig().apps?.claudeCode?.enabled)
+      return Promise.resolve({
+        status: "connected",
+        allowedActions: ["disconnect"],
+      })
+    })
+
+    const result = await setConfiguratorEnabled(registry, "claude-code", true)
+
+    expect(intentsDuringConnect).toEqual([true])
+    expect(result.enabled).toBe(true)
+    expect(getConfig().apps?.claudeCode?.enabled).toBe(true)
+  })
+
+  test("configurator collision rolls back write-ahead routing intent", async () => {
+    writeConfig({
+      ...getConfig(),
+      apps: { ...getConfig().apps, claudeCode: { enabled: false } },
+    })
+    const intentsDuringConnect: Array<boolean | undefined> = []
+    const registry = configuratorRegistry(() => {
+      intentsDuringConnect.push(getConfig().apps?.claudeCode?.enabled)
+      return Promise.resolve({
+        status: "owned-by-another-configurator",
+        allowedActions: [],
+      })
+    })
+
+    await expectAsyncOperationError(
+      () => setConfiguratorEnabled(registry, "claude-code", true),
+      {
+        kind: "conflict",
+        message: "Cannot connect Claude Code: owned by another configurator.",
+      },
+    )
+    expect(intentsDuringConnect).toEqual([true])
+    expect(getConfig().apps?.claudeCode?.enabled).toBe(false)
+  })
+
+  test("retains write-ahead intent when connect throws after effects may begin", async () => {
+    writeConfig({
+      ...getConfig(),
+      apps: { ...getConfig().apps, claudeCode: { enabled: false } },
+    })
+    const registry = configuratorRegistry(() => {
+      expect(getConfig().apps?.claudeCode?.enabled).toBe(true)
+      throw new Error("target write failed")
+    })
+
+    await expectRejects(
+      () => setConfiguratorEnabled(registry, "claude-code", true),
+      /target write failed/,
+    )
+    expect(getConfig().apps?.claudeCode?.enabled).toBe(true)
+  })
+
+  test("keeps connect intent unchanged until disconnect fully succeeds", async () => {
+    writeConfig({
+      ...getConfig(),
+      apps: { ...getConfig().apps, claudeCode: { enabled: true } },
+    })
+    const intentsDuringDisconnect: Array<boolean | undefined> = []
+    const registry = configuratorRegistry(() => {
+      intentsDuringDisconnect.push(getConfig().apps?.claudeCode?.enabled)
+      return Promise.resolve({
+        status: "available",
+        allowedActions: ["connect"],
+      })
+    })
+
+    const result = await setConfiguratorEnabled(registry, "claude-code", false)
+
+    expect(intentsDuringDisconnect).toEqual([true])
+    expect(result.enabled).toBe(false)
+    expect(getConfig().apps?.claudeCode?.enabled).toBe(false)
+  })
+
   test("default registry rejects its coming-soon app as non-configurable", async () => {
     await expectAsyncOperationError(() => setAppEnabled("copilot-cli", false), {
       kind: "validation_error",
@@ -480,13 +760,24 @@ describe("settings diagnostics operation", () => {
     expect(diagnostics.uptime_ms).toBeLessThanOrEqual(Math.ceil(after) + 1)
   })
 
-  test("uses the selected executor base as web-search detail", () => {
+  test("reports the configured web-search provider chain", () => {
+    const config = getConfig()
+    writeConfig({
+      ...config,
+      connectors: {
+        ...config.connectors,
+        search: {
+          priority: ["ollama", "copilot", "duckduckgo"],
+          fallback: true,
+        },
+      },
+    })
     process.env.OLLAMA_API_KEY = "diagnostics-test-key"
     const diagnostics = buildDiagnostics()
 
     expect(diagnostics.web_search).toEqual({
-      kind: "OllamaWebExecutor",
-      detail: "https://ollama.com/api",
+      kind: "SearchConnector",
+      detail: "providers: ollama -> copilot -> duckduckgo; fallback: enabled",
     })
   })
 })
