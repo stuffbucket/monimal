@@ -16,7 +16,23 @@ The Maximal guide and product documentation are available in the
 
 ## Development
 
-Repository setup, workspace commands, testing, packaging, and release guidance
-are documented in the developer documentation. See
-[`docs/testing-in-docker.md`](docs/testing-in-docker.md) for the test workflow
-and [RELEASING.md](RELEASING.md) for release procedures.
+Run workspace workflows from the repository root:
+
+| Task | Command |
+| --- | --- |
+| Run the desktop app | `pnpm dev` |
+| Run the headless server in watch mode | `pnpm dev:server` |
+| Build the workspace | `pnpm build` |
+| Run native build, type, and lint checks | `pnpm check:static` |
+| Run the complete gate | `pnpm check` |
+| Run isolated affected native tests | `pnpm test` |
+| Run the pinned Docker test graph | `pnpm run test:docker` |
+| Package the desktop app | `pnpm package` |
+| Exercise every workspace packager | `pnpm package:all` |
+
+These root scripts are the supported workflow entry points. Use
+`pnpm --filter <package> run <script>` for package-specific diagnostics and
+maintenance commands.
+
+See [`docs/testing-in-docker.md`](docs/testing-in-docker.md) for the test
+boundary and [RELEASING.md](RELEASING.md) for release procedures.

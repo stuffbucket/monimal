@@ -99,9 +99,7 @@ export type AnthropicUserContentBlock =
   | AnthropicToolResultBlock
 
 export type AnthropicAssistantContentBlock =
-  | AnthropicTextBlock
-  | AnthropicToolUseBlock
-  | AnthropicThinkingBlock
+  AnthropicTextBlock | AnthropicToolUseBlock | AnthropicThinkingBlock
 
 export interface AnthropicUserMessage {
   role: "user"

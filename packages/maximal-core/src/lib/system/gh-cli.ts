@@ -155,14 +155,12 @@ async function readGhAccounts(run: GhRunner): Promise<Array<GhAccount>> {
 export async function detectGhCli(
   run: GhRunner = defaultRunner,
 ): Promise<GhCliStatus> {
-  const version = await run(["--version"]).catch(
-    (): GhRunResult => ({
-      stdout: "",
-      stderr: "",
-      code: 1,
-      notFound: true,
-    }),
-  )
+  const version = await run(["--version"]).catch((): GhRunResult => ({
+    stdout: "",
+    stderr: "",
+    code: 1,
+    notFound: true,
+  }))
   if (version.notFound) {
     return { installed: false, version: null, accounts: [] }
   }
@@ -194,9 +192,12 @@ export async function getGhAccountToken(
     host,
     "--user",
     login,
-  ]).catch(
-    (): GhRunResult => ({ stdout: "", stderr: "", code: 1, notFound: true }),
-  )
+  ]).catch((): GhRunResult => ({
+    stdout: "",
+    stderr: "",
+    code: 1,
+    notFound: true,
+  }))
   if (result.notFound || result.code !== 0) return null
   const token = result.stdout.trim()
   return token || null

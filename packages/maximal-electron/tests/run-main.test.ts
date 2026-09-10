@@ -42,7 +42,7 @@ vi.mock('electron', () => ({
     constructor(options: unknown) {
       const window = new electron.FakeWindow();
       electron.created.push({ options, window });
-      return window as unknown as this;
+      return window;
     }
   },
   shell: { openExternal: vi.fn() },
@@ -134,8 +134,8 @@ describe('runMain', () => {
     expect(electron.created[0]?.options).toMatchObject({
       width: 900,
       height: 600,
-      webPreferences: expect.objectContaining({ sandbox: true }),
     });
+    expect(electron.created[0]?.options).toHaveProperty('webPreferences.sandbox', true);
     expect(context.currentWindow()).toBe(electron.created[0]?.window);
     expect(context.daemonUrl).toBeUndefined();
   });

@@ -42,6 +42,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+function isArray(value: unknown): value is unknown[] {
+  return Array.isArray(value);
+}
+
 /**
  * Pull the constant values out of an `anyOf` or `oneOf` of `const` members.
  *
@@ -49,7 +53,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * conversion would silently narrow what the tool accepts.
  */
 function constUnion(members: unknown): unknown[] | undefined {
-  if (!Array.isArray(members) || members.length === 0) return undefined;
+  if (!isArray(members) || members.length === 0) return undefined;
 
   const values: unknown[] = [];
   for (const member of members) {
@@ -70,7 +74,7 @@ function convertNode(node: unknown): GrammarSchema | undefined {
   };
 
   // A closed set of values, however it was spelled.
-  if (Array.isArray(schema.enum)) return described({ enum: [...schema.enum] });
+  if (isArray(schema.enum)) return described({ enum: [...schema.enum] });
   if ('const' in schema) return described({ enum: [schema.const] });
 
   const union = constUnion(schema.anyOf) ?? constUnion(schema.oneOf);

@@ -124,7 +124,7 @@ export const PerTabPanels: StoryObj = {
 
     await userEvent.click(canvas.getByRole('tab', { name: 'Runs' }));
     await userEvent.click(await canvas.findByRole('button', { name: 'Hide panel' }));
-    await expect((canvasElement.querySelector('#right') as HTMLElement | null)?.offsetWidth).toBe(0);
+    await expect(canvasElement.querySelector<HTMLElement>('#right')?.offsetWidth).toBe(0);
 
     await userEvent.click(canvas.getByRole('tab', { name: 'Settings' }));
     await expect(canvasElement.querySelector('#right')).toBeNull();
@@ -147,7 +147,7 @@ export const PerTabPanels: StoryObj = {
 
     await userEvent.click(canvas.getByRole('tab', { name: 'Runs' }));
     await canvas.findByRole('button', { name: 'Show panel' });
-    await expect((canvasElement.querySelector('#right') as HTMLElement | null)?.offsetWidth).toBe(0);
+    await expect(canvasElement.querySelector<HTMLElement>('#right')?.offsetWidth).toBe(0);
 
     await userEvent.click(canvas.getByRole('tab', { name: 'Dashboard' }));
     await canvas.findByRole('button', { name: 'Hide panel' });

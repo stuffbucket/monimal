@@ -196,10 +196,7 @@ interface SearchErrorOut {
 }
 
 export type ResultOutBlock =
-  | FetchResultBlock
-  | FetchErrorOut
-  | SearchResultBlock
-  | SearchErrorOut
+  FetchResultBlock | FetchErrorOut | SearchResultBlock | SearchErrorOut
 
 function encryptedContent(payload: object): string {
   return Buffer.from(JSON.stringify(payload), "utf8").toString("base64")

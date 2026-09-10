@@ -66,8 +66,8 @@ for (const asset of REQUIRED_TRAY_ASSETS) {
 class DevBundlePlugin extends PluginBase<Record<string, never>> {
   name = 'maximal-dev-bundle'
 
-  override async startLogic(_opts: StartOptions): Promise<string | false> {
-    return process.env.MAXIMAL_DEV_ELECTRON ?? false
+  override startLogic(_opts: StartOptions): Promise<string | false> {
+    return Promise.resolve(process.env.MAXIMAL_DEV_ELECTRON ?? false)
   }
 }
 

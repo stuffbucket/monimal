@@ -45,7 +45,7 @@ class TestResizeObserver implements ResizeObserver {
     this.callback(entries, this)
   }
 }
-globalThis.ResizeObserver = TestResizeObserver as unknown as typeof ResizeObserver
+globalThis.ResizeObserver = TestResizeObserver
 
 // jsdom reports every panel as zero-width, which makes the panel library reject
 // imperative collapse as impossible before AppFrame can observe the change.

@@ -25,11 +25,27 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { scopedChecks } from "../packages/maximal-electron/scripts/check-scope.mjs";
+import {
+  auditWorkspacePackages,
+  auditWorkspaceReferences,
+  pnpmWorkspacePaths,
+} from "./workspace-packages.mjs";
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const require = createRequire(path.join(ROOT, "noop.js"));
 
 const { check, summary } = scopedChecks();
+const WORKSPACE_MANIFESTS = pnpmWorkspacePaths(ROOT);
+const packageAudit = auditWorkspacePackages(ROOT, WORKSPACE_MANIFESTS);
+const packageIssues = [
+  ...packageAudit.issues,
+  ...auditWorkspaceReferences(ROOT, WORKSPACE_MANIFESTS),
+];
+for (const issue of packageIssues) console.error(`       ${issue}`);
+check(packageIssues.length === 0, "package onboarding contracts are complete", {
+  count: packageAudit.manifests.length,
+  of: "package manifests",
+});
 
 /** A package's manifest, or null when it is not installed. */
 function manifestAt(...segments) {
@@ -145,13 +161,16 @@ check(ptyLoads, `node-pty loads on this node ABI (${process.version})`, {
 });
 
 // 5. The `overrides` block moved out of package.json's `pnpm` field, which
-//    pnpm 11 ignores. @stuffbucket/eslint-config now declares prettier at
-//    3.8.3 directly, but the override still matters: it also pins the copies
-//    that arrive transitively, which a declaration cannot reach. 3.9.6
-//    reformats unions into lint errors across untouched files.
+//    pnpm 11 ignores. @stuffbucket/eslint-config declares prettier directly,
+//    but the override still matters: it also pins the copies that arrive
+//    transitively, which a declaration cannot reach. Compare the installed
+//    version to that declaration so an intentional formatter upgrade does not
+//    require another version fact here.
+const prettierVersion = manifestAt(ROOT, "packages/eslint-config")?.dependencies
+  ?.prettier;
 check(
   JSON.parse(readFileSync(require.resolve("prettier/package.json"), "utf8"))
-    .version === "3.8.3",
+    .version === prettierVersion,
   "the prettier override is in effect",
   { count: 1, of: "overrides" },
 );
@@ -186,19 +205,14 @@ check(
 );
 
 //    vite is the other one worth pinning globally: it is the bundler under the
-//    electron renderer, the client, and (through astro) the Pages site. All
-//    three install from the same workspace lockfile, so inspect their resolved
-//    package-local trees in the same way.
+//    electron renderer and client. Inspect their resolved package-local trees
+//    in the same way.
 const VITE_CONSUMERS = [
   ["packages/maximal-electron", null],
   ["packages/maximal/client", null],
   // The renderer surfaces run under Vitest's Vite pipeline. Resolve through
-  // Vitest for the same reason the site resolves through Astro below.
+  // Vitest because pnpm does not create a package-local Vite link here.
   ["packages/maximal-observability", "vitest"],
-  // The site gets Vite through Astro. Resolve from Astro's real installed
-  // manifest instead of requiring a package-local Vite link that pnpm does not
-  // create on a clean install.
-  ["packages/maximal/site", "astro"],
 ];
 const viteMajors = new Map();
 for (const [pkg, through] of VITE_CONSUMERS) {
@@ -478,13 +492,6 @@ check(
 // Asked of pnpm rather than hand-listed. A hardcoded copy of
 // pnpm-workspace.yaml's globs would leave a newly added package silently
 // uncovered by the one check meant to catch silent things.
-const WORKSPACE_MANIFESTS = JSON.parse(
-  execFileSync("pnpm", ["ls", "--recursive", "--depth", "-1", "--json"], {
-    cwd: ROOT,
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "ignore"],
-  }),
-).map((project) => path.relative(ROOT, project.path) || ".");
 // Splits that are meant. Empty is the goal: every entry here is a version of
 // the same dependency resolved twice, which the workspace exists to avoid.
 const DELIBERATE = new Map();

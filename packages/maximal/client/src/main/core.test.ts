@@ -21,8 +21,12 @@ vi.mock('electron', () => ({
 // `spawn`. Testing the restart/shutdown-race logic in `launchCore()` (M2,
 // M3) needs a controllable fake process rather than a real sidecar binary —
 // `spawnMock` is hoisted so the mock factory below can reference it.
-const { spawnMock } = vi.hoisted(() => ({ spawnMock: vi.fn() }))
-vi.mock('node:child_process', () => ({ spawn: (...args: unknown[]) => spawnMock(...args) }))
+const { spawnMock } = vi.hoisted(() => ({
+  spawnMock: vi.fn<(...args: unknown[]) => unknown>(),
+}))
+vi.mock('node:child_process', () => ({
+  spawn: (...args: unknown[]): unknown => spawnMock(...args),
+}))
 
 /** A minimal stand-in for Node's `ChildProcess`: an `EventEmitter` with a
  *  real `stdout`/`stderr` (`PassThrough`, so `awaitReadyLine`'s async-iterator

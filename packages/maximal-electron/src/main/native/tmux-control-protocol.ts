@@ -126,7 +126,7 @@ export class TmuxControlParser {
     if (line.startsWith('%extended-output ')) return this.output(line, true);
     const [notification, pane, extra] = line.split(' ');
     if ((notification === '%pause' || notification === '%continue') && typeof pane === 'string' && validTmuxPane(pane) && extra === undefined) {
-      return [{ type: notification.slice(1) as 'pause' | 'continue', pane: pane! }];
+      return [{ type: notification === '%pause' ? 'pause' : 'continue', pane }];
     }
     if (notification === '%exit' && (pane === undefined || decimal(pane)) && extra === undefined) {
       return [{ type: 'exit', code: Number(pane ?? 0) }];
@@ -185,7 +185,7 @@ export class TmuxControlParser {
     if (!metadataIsValid || !validTmuxPane(pane) || data === undefined) {
       return this.stop('malformed tmux output');
     }
-    return [{ type: 'output', pane: pane!, data }];
+    return [{ type: 'output', pane, data }];
   }
 
   private optionalNotification(line: string): boolean {

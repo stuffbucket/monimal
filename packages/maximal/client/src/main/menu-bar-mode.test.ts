@@ -21,14 +21,16 @@ const {
 } = vi.hoisted(() => {
   const dockHide = vi.fn(() => Promise.resolve())
   const dockShow = vi.fn(() => Promise.resolve())
+  const appState: {
+    isPackaged: boolean
+    dock: { hide: typeof dockHide; show: typeof dockShow } | undefined
+  } = {
+    isPackaged: false,
+    dock: { hide: dockHide, show: dockShow },
+  }
   return {
     appGetPath: vi.fn(() => '/profile'),
-    appState: {
-      isPackaged: false,
-      dock: { hide: dockHide, show: dockShow } as
-        | { hide: typeof dockHide; show: typeof dockShow }
-        | undefined,
-    },
+    appState,
     browserWindows: [] as Array<{ setSkipTaskbar: ReturnType<typeof vi.fn> }>,
     createFromPath: vi.fn(),
     dockHide,

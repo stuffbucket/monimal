@@ -59,9 +59,9 @@ export interface BridgeTransport {
 }
 
 export interface BridgeMethods {
-  openExternal(url: string): Promise<Envelope<void>>;
-  versions(): Promise<Envelope<unknown>>;
-  checkForUpdate(): Promise<Envelope<unknown>>;
+  readonly openExternal: (url: string) => Promise<Envelope<void>>;
+  readonly versions: () => Promise<Envelope<unknown>>;
+  readonly checkForUpdate: () => Promise<Envelope<unknown>>;
 }
 
 /**

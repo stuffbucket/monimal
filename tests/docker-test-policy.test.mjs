@@ -12,11 +12,6 @@ import {
   publishMutationReport,
   resolveMutationTargets,
 } from "../scripts/docker-mutate.mjs";
-import {
-  publishTurboBuildCache,
-  readTurboBuildGraph,
-  selectTurboCacheHashes,
-} from "../scripts/copy-turbo-build-cache.mjs";
 import { parseDockerWorkspaceOptions } from "../scripts/docker-workspace-test.mjs";
 import {
   buildDockerArguments,
@@ -53,12 +48,206 @@ import {
   parseTestOptions,
   turboTestArguments,
 } from "../scripts/test-workspace.mjs";
+import {
+  auditWorkspacePackages,
+  auditWorkspaceReferences,
+  discoverPackageManifests,
+  inferredTasks,
+  pnpmWorkspacePaths,
+} from "../scripts/workspace-packages.mjs";
 
 const root = path.resolve(import.meta.dirname, "..");
 
 function read(relativePath) {
   return fs.readFileSync(path.join(root, relativePath), "utf8");
 }
+
+function writeManifest(rootPath, packagePath, manifest) {
+  const directory = path.join(rootPath, packagePath);
+  fs.mkdirSync(directory, { recursive: true });
+  fs.writeFileSync(path.join(directory, "package.json"), JSON.stringify(manifest));
+}
+
+function createPackageFixture(prefix) {
+  const fixture = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  fs.writeFileSync(path.join(fixture, ".gitignore"), "dist/\nout/\n");
+  const initialized = spawnSync("git", ["init", "--quiet"], {
+    cwd: fixture,
+    encoding: "utf8",
+  });
+  assert.equal(initialized.status, 0, initialized.stderr);
+  return fixture;
+}
+
+test("package onboarding is dynamically discovered and fails closed", () => {
+  const fixture = createPackageFixture("monimal-packages-");
+  try {
+    writeManifest(fixture, "packages/library", {
+      name: "library",
+      scripts: Object.fromEntries(
+        ["build", "lint", "test", "typecheck"].map((task) => [task, task]),
+      ),
+    });
+    writeManifest(fixture, "packages/feature/nested", {
+      name: "nested",
+      scripts: {},
+    });
+    let audit = auditWorkspacePackages(fixture, ["packages/library"]);
+    assert.deepEqual(audit.issues, [
+      "packages/feature/nested is not included in the pnpm workspace",
+    ]);
+
+    writeManifest(fixture, "packages/feature/nested", {
+      name: "nested",
+      private: true,
+      monimal: {
+        workspace: false,
+        workspaceReason: "Independent fixture.",
+      },
+    });
+    audit = auditWorkspacePackages(fixture, ["packages/library"]);
+    assert.deepEqual(audit.issues, []);
+
+    audit = auditWorkspacePackages(fixture, [
+      "packages/library",
+      "packages/feature/nested",
+    ]);
+    assert.match(audit.issues[0], /workspace package but declares/);
+
+    writeManifest(fixture, "packages/library/dist/generated", {
+      name: "ignored-output",
+    });
+    assert.deepEqual(discoverPackageManifests(fixture), [
+      "packages/feature/nested",
+      "packages/library",
+    ]);
+
+    fs.rmSync(path.join(fixture, "packages/library/package.json"));
+    assert.deepEqual(discoverPackageManifests(fixture), [
+      "packages/feature/nested",
+    ]);
+    audit = auditWorkspacePackages(fixture, []);
+    assert.deepEqual(audit.issues, []);
+  } finally {
+    fs.rmSync(fixture, { recursive: true, force: true });
+  }
+});
+
+test("package tasks are inferred from independent manifest capabilities", () => {
+  assert.deepEqual(inferredTasks({}), ["build", "lint", "test", "typecheck"]);
+  assert.deepEqual(inferredTasks({ devDependencies: { electron: "1" } }), [
+    "build",
+    "lint",
+    "test",
+    "typecheck",
+    "package",
+    "start",
+  ]);
+  assert.deepEqual(inferredTasks({ bin: { cli: "dist/cli.js" } }), [
+    "build",
+    "lint",
+    "test",
+    "typecheck",
+    "dev",
+    "start",
+  ]);
+  assert.deepEqual(inferredTasks({ bin: {} }), [
+    "build",
+    "lint",
+    "test",
+    "typecheck",
+  ]);
+
+  const fixture = createPackageFixture("monimal-tasks-");
+  try {
+    writeManifest(fixture, "packages/desktop", {
+      name: "desktop",
+      devDependencies: { electron: "1" },
+      scripts: {},
+    });
+    const missing = auditWorkspacePackages(fixture, ["packages/desktop"]);
+    assert.deepEqual(missing.issues, [
+      "packages/desktop is missing inferred build script; add scripts.build",
+      "packages/desktop is missing inferred lint script; add scripts.lint",
+      "packages/desktop is missing inferred test script; add scripts.test",
+      "packages/desktop is missing inferred typecheck script; add scripts.typecheck",
+      "packages/desktop is missing inferred package script; add scripts.package",
+      "packages/desktop is missing inferred start script; add scripts.start",
+    ]);
+
+    writeManifest(fixture, "packages/desktop", {
+      name: "desktop",
+      devDependencies: { electron: "1" },
+      scripts: {
+        build: " ",
+        lint: "lint",
+        test: "test",
+        typecheck: "typecheck",
+        package: "package",
+        start: "start",
+      },
+      monimal: {
+        taskExemptions: {
+          test: "",
+          unknown: "No such required task.",
+        },
+      },
+    });
+    const bypasses = auditWorkspacePackages(fixture, ["packages/desktop"]);
+    assert.deepEqual(bypasses.issues, [
+      "packages/desktop exempts test without a reason",
+      "packages/desktop has stale unknown task exemption",
+      "packages/desktop is missing inferred build script; add scripts.build",
+    ]);
+  } finally {
+    fs.rmSync(fixture, { recursive: true, force: true });
+  }
+
+  const audit = auditWorkspacePackages(root, pnpmWorkspacePaths(root));
+  assert.deepEqual(audit.issues, []);
+});
+
+test("removed packages cannot retain root workflow or Turbo references", () => {
+  const fixture = createPackageFixture("monimal-references-");
+  try {
+    writeManifest(fixture, "packages/library", {
+      name: "library",
+      scripts: {
+        build: "build",
+        lint: "lint",
+        test: "test",
+        typecheck: "typecheck",
+      },
+    });
+    fs.writeFileSync(
+      path.join(fixture, "package.json"),
+      JSON.stringify({
+        scripts: {
+          dev: "turbo run dev --filter=removed-app",
+          check: "pnpm --filter library test",
+        },
+      }),
+    );
+    fs.writeFileSync(
+      path.join(fixture, "turbo.json"),
+      JSON.stringify({ tasks: { build: {}, "removed-app#build": {} } }),
+    );
+    assert.deepEqual(
+      auditWorkspaceReferences(fixture, ["packages/library"]),
+      [
+        "removed-app#build targets a package outside the pnpm workspace",
+        "scripts.dev filters a package outside the pnpm workspace: removed-app",
+      ],
+    );
+  } finally {
+    fs.rmSync(fixture, { recursive: true, force: true });
+  }
+
+  assert.deepEqual(
+    auditWorkspaceReferences(root, pnpmWorkspacePaths(root)),
+    [],
+  );
+});
 
 function runLockfileHostStrip(...arguments_) {
   return spawnSync(
@@ -181,8 +370,12 @@ test("the outer and fixed inner test scripts cannot recurse", () => {
     "pnpm --filter @stuffbucket/maximal-core run check:deep:host && pnpm run test:core",
   );
   assert.equal(
+    manifest.scripts["check:static"],
+    "turbo run build typecheck lint",
+  );
+  assert.equal(
     manifest.scripts.check,
-    "turbo run build typecheck lint && pnpm --filter @stuffbucket/maximal-core run check:deep:host && pnpm test",
+    "pnpm run check:static && pnpm --filter @stuffbucket/maximal-core run check:deep:host && pnpm test",
   );
   assert.equal(
     (manifest.scripts.check.match(/(?:^|&& )pnpm test(?: |$)/g) ?? []).length,
@@ -190,14 +383,14 @@ test("the outer and fixed inner test scripts cannot recurse", () => {
   );
   assert.doesNotMatch(manifest.scripts.check, /pnpm run check:core/);
   assert.deepEqual(turbo.tasks["maximal-client#build"].env, [
+    "MAXIMAL_CORE_OUT",
+    "MAXIMAL_CORE_REF",
     "MAXIMAL_CORE_TARGET",
     "MAXIMAL_GIT_SHA",
   ]);
-  for (const task of [turbo.tasks.build, turbo.tasks["maximal-site#build"]]) {
-    assert.ok(task.inputs.includes("!**/dist/**"));
-    assert.ok(task.inputs.includes("!**/.turbo/**"));
-    assert.ok(task.inputs.includes("!**/resources/bin/**"));
-  }
+  assert.ok(turbo.tasks.build.inputs.includes("!**/dist/**"));
+  assert.ok(turbo.tasks.build.inputs.includes("!**/.turbo/**"));
+  assert.ok(turbo.tasks.build.inputs.includes("!**/resources/bin/**"));
   assert.deepEqual(turbo.tasks.test.env, [
     "MAXIMAL_TEST_CONTAINER",
     "MAXIMAL_TEST_HOST",
@@ -220,8 +413,41 @@ test("the outer and fixed inner test scripts cannot recurse", () => {
   assert.equal(turbo.tasks.package.outputs, undefined);
 });
 
+test("root workflows select the intended package and task graphs", () => {
+  const manifest = JSON.parse(read("package.json"));
+  const client = JSON.parse(read("packages/maximal/client/package.json"));
+  const turbo = JSON.parse(read("turbo.json"));
+
+  assert.deepEqual(
+    {
+      dev: manifest.scripts.dev,
+      "dev:server": manifest.scripts["dev:server"],
+      package: manifest.scripts.package,
+      "package:all": manifest.scripts["package:all"],
+    },
+    {
+      dev: "turbo run dev --filter=maximal-client",
+      "dev:server":
+        "turbo run dev --filter=@stuffbucket/maximal -- start",
+      package: "turbo run package --filter=maximal-client",
+      "package:all": "turbo run package",
+    },
+  );
+  assert.equal(client.scripts.dev, "node scripts/start.mjs");
+  assert.equal(client.scripts.predev, "node scripts/gen-icon-png.mjs");
+  assert.deepEqual(turbo.tasks.transit.dependsOn, ["^transit"]);
+  assert.deepEqual(turbo.tasks.lint.dependsOn, ["transit", "^build"]);
+  assert.deepEqual(turbo.tasks.dev.dependsOn, ["^build"]);
+  assert.equal(turbo.tasks.dev.cache, false);
+  assert.equal(turbo.tasks.dev.persistent, true);
+  assert.deepEqual(turbo.tasks["maximal-client#dev"].dependsOn, ["build"]);
+  assert.equal(turbo.tasks["maximal-client#dev"].cache, false);
+  assert.equal(turbo.tasks["maximal-client#dev"].persistent, true);
+});
+
 test("required CI runs tests on its disposable runner and has one cache writer", () => {
   const workflow = read(".github/workflows/ci.yml");
+  const staticGate = "pnpm exec turbo run build typecheck lint";
   const hostGate =
     "pnpm --filter @stuffbucket/maximal-core run check:deep:host:after-workspace";
   const packageMechanics =
@@ -230,10 +456,13 @@ test("required CI runs tests on its disposable runner and has one cache writer",
     "LINK=packages/maximal/client/node_modules/@stuffbucket/maximal-core";
   const testGate =
     "pnpm run test:all -- --trace=${{ inputs.test_trace || 'off' }}";
+  const packageGate = "pnpm run package:all";
+  assert.equal(workflow.split(staticGate).length - 1, 1);
   assert.equal(workflow.split(hostGate).length - 1, 1);
   assert.equal(workflow.split(packageMechanics).length - 1, 1);
   assert.equal(workflow.split(sidecarProvenance).length - 1, 1);
   assert.equal(workflow.split(testGate).length - 1, 1);
+  assert.equal(workflow.split(packageGate).length - 1, 1);
   assert.equal(workflow.split("MONIMAL_PERF_MARKERS: 1").length - 1, 1);
   assert.equal(
     workflow.split("if: always() && steps.workspace-check-start.outcome == 'success'")
@@ -1014,126 +1243,6 @@ test("the macOS producer bootstraps pnpm from the committed locked artifact", ()
   assert.match(producer, /\[ "\$HAVE_PNPM" = "\$PNPM_VERSION" \]/);
 });
 
-test("Turbo replay cache selects only cacheable executable task hashes", () => {
-  const hash = "a".repeat(16);
-  const cacheable = {
-    hash,
-    command: "node build.mjs",
-    resolvedTaskDefinition: { cache: true },
-  };
-  assert.deepEqual(
-    selectTurboCacheHashes({
-      tasks: [
-        cacheable,
-        { ...cacheable },
-        {
-          hash: "not-selected",
-          command: "node build.mjs",
-          resolvedTaskDefinition: { cache: false },
-        },
-        {
-          hash: "not-selected",
-          command: "<NONEXISTENT>",
-          resolvedTaskDefinition: { cache: true },
-        },
-      ],
-    }),
-    [hash],
-  );
-  assert.throws(() => selectTurboCacheHashes({ tasks: [] }), /has no tasks/);
-  assert.throws(
-    () =>
-      selectTurboCacheHashes({
-        tasks: [{ ...cacheable, hash: "invalid" }],
-      }),
-    /Invalid Turbo task hash/,
-  );
-  assert.throws(
-    () => selectTurboCacheHashes({ tasks: [{ hash }] }),
-    /malformed task/,
-  );
-});
-
-test("Turbo build graph is read from a pre-build snapshot", () => {
-  const directory = fs.mkdtempSync(
-    path.join(os.tmpdir(), "monimal-turbo-graph-"),
-  );
-  const reportPath = path.join(directory, "graph.json");
-  const report = {
-    tasks: [
-      {
-        hash: "a".repeat(16),
-        command: "node build.mjs",
-        resolvedTaskDefinition: { cache: true },
-      },
-    ],
-  };
-
-  try {
-    fs.writeFileSync(reportPath, JSON.stringify(report));
-    assert.deepEqual(readTurboBuildGraph(reportPath), report);
-    fs.writeFileSync(reportPath, "not JSON");
-    assert.throws(() => readTurboBuildGraph(reportPath), /invalid JSON/);
-    fs.rmSync(reportPath);
-    assert.throws(() => readTurboBuildGraph(reportPath), /could not be read/);
-  } finally {
-    fs.rmSync(directory, { recursive: true, force: true });
-  }
-});
-
-test("Turbo replay cache publication is selective and transactional", () => {
-  const directory = fs.mkdtempSync(
-    path.join(os.tmpdir(), "monimal-turbo-cache-"),
-  );
-  const source = path.join(directory, "source");
-  const destination = path.join(directory, "destination");
-  const suffixes = [".tar.zst", "-meta.json", "-manifest.json"];
-  const hash = "b".repeat(16);
-  const staleHash = "c".repeat(16);
-  const report = {
-    tasks: [
-      {
-        hash,
-        command: "node build.mjs",
-        resolvedTaskDefinition: { cache: true },
-      },
-    ],
-  };
-
-  try {
-    fs.mkdirSync(source);
-    fs.mkdirSync(destination);
-    fs.writeFileSync(path.join(destination, "stale.txt"), "previous\n");
-    for (const suffix of suffixes) {
-      fs.writeFileSync(path.join(source, `${hash}${suffix}`), `${suffix}\n`);
-      fs.writeFileSync(
-        path.join(source, `${staleHash}${suffix}`),
-        `stale ${suffix}\n`,
-      );
-    }
-
-    assert.deepEqual(publishTurboBuildCache(report, source, destination), [
-      hash,
-    ]);
-    assert.deepEqual(
-      fs.readdirSync(destination).sort(),
-      suffixes.map((suffix) => `${hash}${suffix}`).sort(),
-    );
-
-    fs.rmSync(path.join(source, `${hash}-manifest.json`));
-    assert.throws(
-      () => publishTurboBuildCache(report, source, destination),
-      /Turbo cache artifact is missing/,
-    );
-    assert.deepEqual(
-      fs.readdirSync(destination).sort(),
-      [`${hash}.tar.zst`, `${hash}-meta.json`, `${hash}-manifest.json`].sort(),
-    );
-  } finally {
-    fs.rmSync(directory, { recursive: true, force: true });
-  }
-});
-
 test("the build context excludes local state but retains source fixtures", () => {
   const patterns = read(".dockerignore")
     .split(/\r?\n/)
@@ -1206,19 +1315,9 @@ test("the build context excludes local state but retains source fixtures", () =>
 
 test("the reusable Docker dependency image includes every workspace manifest", () => {
   const dockerfile = read("Dockerfile");
-  const manifests = [];
-  const visit = (directory) => {
-    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
-      if (entry.name === "node_modules") continue;
-      const absolute = path.join(directory, entry.name);
-      if (entry.isDirectory()) {
-        visit(absolute);
-      } else if (entry.name === "package.json") {
-        manifests.push(path.relative(root, absolute));
-      }
-    }
-  };
-  visit(path.join(root, "packages"));
+  const manifests = discoverPackageManifests(root).map(
+    (packagePath) => `${packagePath}/package.json`,
+  ).sort();
 
   const install = dockerfile.indexOf(
     "pnpm install --frozen-lockfile --ignore-scripts",
@@ -1230,6 +1329,12 @@ test("the reusable Docker dependency image includes every workspace manifest", (
     assert.ok(copy >= 0, `${manifest} is missing from the metadata layer`);
     assert.ok(copy < install, `${manifest} must be copied before the install`);
   }
+  const copiedManifests = [
+    ...dockerfile.matchAll(
+      /^COPY --chown=maximal:maximal (packages\/[^ ]+\/package\.json) \1$/gm,
+    ),
+  ].map((match) => match[1]).sort();
+  assert.deepEqual(copiedManifests, manifests);
   assert.ok(install >= 0);
   assert.match(
     dockerfile,
@@ -1238,7 +1343,7 @@ test("the reusable Docker dependency image includes every workspace manifest", (
   assert.doesNotMatch(dockerfile, /COPY --chown=maximal:maximal \. \./);
   assert.doesNotMatch(
     dockerfile,
-    /GIT_SHA|turbo run build|copy-turbo-build-cache/,
+    /GIT_SHA|turbo run build/,
   );
   const pnpmStoreMount =
     "--mount=type=cache,id=maximal-pnpm-${TARGETARCH},target=/workspace/.pnpm-store,uid=10001,gid=10001,sharing=locked";

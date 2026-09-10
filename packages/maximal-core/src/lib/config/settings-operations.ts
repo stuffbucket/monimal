@@ -33,9 +33,7 @@ import { BUILD_VERSION } from "~/lib/update/build-info"
 import { getGitVersion, shortSha } from "~/lib/update/version"
 
 export type SettingsOperationErrorKind =
-  | "conflict"
-  | "not_found"
-  | "validation_error"
+  "conflict" | "not_found" | "validation_error"
 
 export class SettingsOperationError extends Error {
   readonly kind: SettingsOperationErrorKind

@@ -67,14 +67,7 @@ export type ResponseIncludable =
 
 export interface Reasoning {
   effort?:
-    | "none"
-    | "minimal"
-    | "low"
-    | "medium"
-    | "high"
-    | "xhigh"
-    | "max"
-    | null
+    "none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max" | null
   summary?: "auto" | "concise" | "detailed" | null
 }
 
@@ -233,9 +226,7 @@ export interface ResponseOutputCompaction {
 }
 
 export type ResponseOutputContentBlock =
-  | ResponseOutputText
-  | ResponseOutputRefusal
-  | Record<string, unknown>
+  ResponseOutputText | ResponseOutputRefusal | Record<string, unknown>
 
 export interface ResponseOutputText {
   type: "output_text"

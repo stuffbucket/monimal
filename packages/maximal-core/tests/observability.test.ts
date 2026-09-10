@@ -280,10 +280,9 @@ describe("SQLite traffic observability", () => {
 
     const checked = new Database(dbPath)
     const orphan = checked
-      .query<
-        { count: number },
-        []
-      >("SELECT COUNT(*) AS count FROM traffic_request_lifecycle WHERE request_id = 'orphan'")
+      .query<{ count: number }, []>(
+        "SELECT COUNT(*) AS count FROM traffic_request_lifecycle WHERE request_id = 'orphan'",
+      )
       .get()
     expect(orphan?.count).toBe(0)
     checked.close()
@@ -889,10 +888,9 @@ describe("SQLite traffic observability", () => {
 
     const db = new Database(path.join(temporaryDirectory, "traffic.sqlite"))
     const lifecycle = db
-      .query<
-        { count: number },
-        [string]
-      >("SELECT COUNT(*) AS count FROM traffic_request_lifecycle WHERE request_id = ?")
+      .query<{ count: number }, [string]>(
+        "SELECT COUNT(*) AS count FROM traffic_request_lifecycle WHERE request_id = ?",
+      )
       .get("expired")
     expect(lifecycle?.count).toBe(0)
     expect(db.query("PRAGMA foreign_key_check").all()).toEqual([])

@@ -21,23 +21,14 @@
         "!research_log/**",
         "!.claude/**",
         "!.github/**"
-      ]
+        ],
+      "description": "Build package outputs after building workspace dependencies."
     },
     "maximal-client#build": {
       "dependsOn": ["^build"],
       "cache": false,
-      "env": ["MAXIMAL_CORE_TARGET", "MAXIMAL_GIT_SHA"]
-    },
-    "maximal-site#build": {
-      "dependsOn": ["^build"],
-      "outputs": ["dist/**"],
-      "inputs": [
-        "$TURBO_DEFAULT$",
-        "!**/dist/**",
-        "!**/.turbo/**",
-        "!**/resources/bin/**",
-        "$TURBO_ROOT$/packages/maximal/docs/guide/**"
-      ]
+      "env": ["MAXIMAL_CORE_OUT", "MAXIMAL_CORE_REF", "MAXIMAL_CORE_TARGET", "MAXIMAL_GIT_SHA"],
+      "description": "Compile the platform sidecar with checkout provenance."
     },
     "typecheck": {
       "dependsOn": ["^build"],
@@ -47,7 +38,8 @@
         "!research_log/**",
         "!.claude/**",
         "!.github/**"
-      ]
+      ],
+      "description": "Check package types against built workspace dependencies."
     },
     "test": {
       "dependsOn": ["^build"],
@@ -74,20 +66,23 @@
         "XDG_CONFIG_HOME",
         "XDG_DATA_HOME",
         "XDG_STATE_HOME"
-      ]
+      ],
+      "description": "Run package tests inside a root-managed isolated native or Docker environment."
     },
-    "topo": {
-      "dependsOn": ["^topo"]
+    "transit": {
+      "dependsOn": ["^transit"],
+      "description": "Propagate dependency changes without running package scripts."
     },
     "lint": {
-      "dependsOn": ["topo", "^build"],
+      "dependsOn": ["transit", "^build"],
       "outputs": [],
       "inputs": [
         "$TURBO_DEFAULT$",
         "!research_log/**",
         "!.claude/**",
         "!.github/**"
-      ]
+      ],
+      "description": "Lint packages against built dependencies while tracking dependency changes."
     },
     "package": {
       "dependsOn": ["build"],
@@ -97,11 +92,20 @@
         "!research_log/**",
         "!.claude/**",
         "!.github/**"
-      ]
+      ],
+      "description": "Create environment-dependent package artifacts."
     },
     "dev": {
+      "dependsOn": ["^build"],
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "description": "Build workspace dependencies, then run a package's interactive development process."
+    },
+    "maximal-client#dev": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "persistent": true,
+      "description": "Build the sidecar, then launch the Maximal desktop app."
     }
   }
 }

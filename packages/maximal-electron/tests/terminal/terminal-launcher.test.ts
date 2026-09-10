@@ -94,7 +94,11 @@ describe('terminal profiles', () => {
 
 describe('command discovery boundaries', () => {
   it('runs host-owned commands without a shell and reads only the requested SSH config bytes', async () => {
-    await expect(execFileRunner(process.execPath, ['--version'], { timeout: 2_000, maxBuffer: 64 * 1024 })).resolves.toEqual(expect.objectContaining({ stdout: expect.stringMatching(/^v\d+/) }));
+    const version = await execFileRunner(process.execPath, ['--version'], {
+      timeout: 2_000,
+      maxBuffer: 64 * 1024,
+    });
+    expect(version.stdout).toMatch(/^v\d+/);
     await expect(execFileRunner(process.execPath, ['-e', 'process.exit(7)'], { timeout: 2_000, maxBuffer: 64 * 1024 })).rejects.toMatchObject({ code: 7 });
     await expect(execFileRunner(process.execPath, ['-e', 'process.abort()'], { timeout: 2_000, maxBuffer: 64 * 1024 })).rejects.toMatchObject({ signal: 'SIGABRT' });
     await expect(execFileRunner(process.execPath, ['-e', 'setTimeout(() => undefined, 1000)'], { timeout: 10, maxBuffer: 64 * 1024 })).rejects.toMatchObject({ killed: true });
@@ -574,7 +578,7 @@ describe('TerminalLauncher', () => {
     expect(connector.launch(targets[0]!)).toEqual({ command: 'tmux', args: ['new-session', '-A', '-s', 'work'] });
     expect(connector.launch(targets.at(-1)!)).toEqual({ command: 'tmux', args: ['new-session', '-A', '-s', 'stuffbucket-0123456789abcdef0123456789abcdef'] });
     expect(() => connector.launch({ key: 'existing\u0000name; injected', label: 'bad' })).toThrow();
-    expect(() => new TmuxConnector(run, () => 'not-generated').discover()).rejects.toThrow();
+    await expect(new TmuxConnector(run, () => 'not-generated').discover()).rejects.toThrow();
   });
 
   it('keeps the generated tmux target key and label distinct', async () => {
