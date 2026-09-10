@@ -47,10 +47,6 @@ repository or imported commit:
   pnpm 11 reads neither of the latter for them and does not warn: the setting is
   simply ignored. `.npmrc` carries the registry and nothing else.
 - Do not commit `maximal-core/dist`. Its `build` generates it.
-- Keep `packages/maximal/site` inside `maximal`; copied scripts and frozen
-  workflow fixtures address it as `site/` relative to that package.
-- Keep `packages/maximal/site` in the root pnpm workspace. Otherwise the root
-  install, lockfile, Dependabot entry, and Turbo graph do not cover it.
 - Pin transitive tool versions. The root lockfile re-resolves everything to the
   newest semver-compatible version, so assume anything unpinned floats.
 - Do not wire `verify:workflow-health` into this repo's CI. It reads Actions
@@ -283,9 +279,9 @@ package provenance or publisher identity -- the proxy does that.
   `.npmrc` carries 7.3.5 and then 8.x, never 7.3.6, so the pinned version cannot
   be installed at all. Every dependent already accepts vite 8 as a peer, and
   `maximal/client` was on `^8.2.1` already.
-- `maximal/site`: added to the root pnpm workspace and root lockfile. Its Astro
-  build is package-manager-neutral; the separate Bun install, lockfile,
-  registry file, Dependabot entry, and CI path duplicated workspace machinery.
+- Removed `maximal/site` after the site moved to
+  `https://github.com/stuffbucket/maximal-site`; its build, dependency updates,
+  and release workflow are now owned by that repository.
 - Root: `pnpm.overrides` and `pnpm.onlyBuiltDependencies` moved out of
   `package.json` into `pnpm-workspace.yaml`, the latter renamed to `allowBuilds`
   and reshaped from a list to a map. Under pnpm 11 the old spellings are ignored

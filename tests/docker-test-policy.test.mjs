@@ -50,6 +50,7 @@ import {
 } from "../scripts/test-workspace.mjs";
 import {
   auditWorkspacePackages,
+  auditWorkspaceReferences,
   discoverPackageManifests,
   inferredTasks,
   pnpmWorkspacePaths,
@@ -125,6 +126,8 @@ test("package onboarding is dynamically discovered and fails closed", () => {
     assert.deepEqual(discoverPackageManifests(fixture), [
       "packages/feature/nested",
     ]);
+    audit = auditWorkspacePackages(fixture, []);
+    assert.deepEqual(audit.issues, []);
   } finally {
     fs.rmSync(fixture, { recursive: true, force: true });
   }
@@ -139,11 +142,6 @@ test("package tasks are inferred from independent manifest capabilities", () => 
     "typecheck",
     "package",
     "start",
-  ]);
-  assert.deepEqual(inferredTasks({ dependencies: { astro: "1" } }), [
-    "build",
-    "dev",
-    "test",
   ]);
   assert.deepEqual(inferredTasks({ bin: { cli: "dist/cli.js" } }), [
     "build",
@@ -207,6 +205,48 @@ test("package tasks are inferred from independent manifest capabilities", () => 
 
   const audit = auditWorkspacePackages(root, pnpmWorkspacePaths(root));
   assert.deepEqual(audit.issues, []);
+});
+
+test("removed packages cannot retain root workflow or Turbo references", () => {
+  const fixture = createPackageFixture("monimal-references-");
+  try {
+    writeManifest(fixture, "packages/library", {
+      name: "library",
+      scripts: {
+        build: "build",
+        lint: "lint",
+        test: "test",
+        typecheck: "typecheck",
+      },
+    });
+    fs.writeFileSync(
+      path.join(fixture, "package.json"),
+      JSON.stringify({
+        scripts: {
+          dev: "turbo run dev --filter=removed-app",
+          check: "pnpm --filter library test",
+        },
+      }),
+    );
+    fs.writeFileSync(
+      path.join(fixture, "turbo.json"),
+      JSON.stringify({ tasks: { build: {}, "removed-app#build": {} } }),
+    );
+    assert.deepEqual(
+      auditWorkspaceReferences(fixture, ["packages/library"]),
+      [
+        "removed-app#build targets a package outside the pnpm workspace",
+        "scripts.dev filters a package outside the pnpm workspace: removed-app",
+      ],
+    );
+  } finally {
+    fs.rmSync(fixture, { recursive: true, force: true });
+  }
+
+  assert.deepEqual(
+    auditWorkspaceReferences(root, pnpmWorkspacePaths(root)),
+    [],
+  );
 });
 
 function runLockfileHostStrip(...arguments_) {
@@ -348,11 +388,9 @@ test("the outer and fixed inner test scripts cannot recurse", () => {
     "MAXIMAL_CORE_TARGET",
     "MAXIMAL_GIT_SHA",
   ]);
-  for (const task of [turbo.tasks.build, turbo.tasks["maximal-site#build"]]) {
-    assert.ok(task.inputs.includes("!**/dist/**"));
-    assert.ok(task.inputs.includes("!**/.turbo/**"));
-    assert.ok(task.inputs.includes("!**/resources/bin/**"));
-  }
+  assert.ok(turbo.tasks.build.inputs.includes("!**/dist/**"));
+  assert.ok(turbo.tasks.build.inputs.includes("!**/.turbo/**"));
+  assert.ok(turbo.tasks.build.inputs.includes("!**/resources/bin/**"));
   assert.deepEqual(turbo.tasks.test.env, [
     "MAXIMAL_TEST_CONTAINER",
     "MAXIMAL_TEST_HOST",
@@ -384,7 +422,6 @@ test("root workflows select the intended package and task graphs", () => {
     {
       dev: manifest.scripts.dev,
       "dev:server": manifest.scripts["dev:server"],
-      "dev:site": manifest.scripts["dev:site"],
       package: manifest.scripts.package,
       "package:all": manifest.scripts["package:all"],
     },
@@ -392,7 +429,6 @@ test("root workflows select the intended package and task graphs", () => {
       dev: "turbo run dev --filter=maximal-client",
       "dev:server":
         "turbo run dev --filter=@stuffbucket/maximal -- start",
-      "dev:site": "turbo run dev --filter=maximal-site",
       package: "turbo run package --filter=maximal-client",
       "package:all": "turbo run package",
     },
@@ -1279,19 +1315,9 @@ test("the build context excludes local state but retains source fixtures", () =>
 
 test("the reusable Docker dependency image includes every workspace manifest", () => {
   const dockerfile = read("Dockerfile");
-  const manifests = [];
-  const visit = (directory) => {
-    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
-      if (entry.name === "node_modules") continue;
-      const absolute = path.join(directory, entry.name);
-      if (entry.isDirectory()) {
-        visit(absolute);
-      } else if (entry.name === "package.json") {
-        manifests.push(path.relative(root, absolute));
-      }
-    }
-  };
-  visit(path.join(root, "packages"));
+  const manifests = discoverPackageManifests(root).map(
+    (packagePath) => `${packagePath}/package.json`,
+  ).sort();
 
   const install = dockerfile.indexOf(
     "pnpm install --frozen-lockfile --ignore-scripts",
@@ -1303,6 +1329,12 @@ test("the reusable Docker dependency image includes every workspace manifest", (
     assert.ok(copy >= 0, `${manifest} is missing from the metadata layer`);
     assert.ok(copy < install, `${manifest} must be copied before the install`);
   }
+  const copiedManifests = [
+    ...dockerfile.matchAll(
+      /^COPY --chown=maximal:maximal (packages\/[^ ]+\/package\.json) \1$/gm,
+    ),
+  ].map((match) => match[1]).sort();
+  assert.deepEqual(copiedManifests, manifests);
   assert.ok(install >= 0);
   assert.match(
     dockerfile,

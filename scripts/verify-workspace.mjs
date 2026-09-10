@@ -27,6 +27,7 @@ import { fileURLToPath } from "node:url";
 import { scopedChecks } from "../packages/maximal-electron/scripts/check-scope.mjs";
 import {
   auditWorkspacePackages,
+  auditWorkspaceReferences,
   pnpmWorkspacePaths,
 } from "./workspace-packages.mjs";
 
@@ -36,8 +37,12 @@ const require = createRequire(path.join(ROOT, "noop.js"));
 const { check, summary } = scopedChecks();
 const WORKSPACE_MANIFESTS = pnpmWorkspacePaths(ROOT);
 const packageAudit = auditWorkspacePackages(ROOT, WORKSPACE_MANIFESTS);
-for (const issue of packageAudit.issues) console.error(`       ${issue}`);
-check(packageAudit.issues.length === 0, "package onboarding contracts are complete", {
+const packageIssues = [
+  ...packageAudit.issues,
+  ...auditWorkspaceReferences(ROOT, WORKSPACE_MANIFESTS),
+];
+for (const issue of packageIssues) console.error(`       ${issue}`);
+check(packageIssues.length === 0, "package onboarding contracts are complete", {
   count: packageAudit.manifests.length,
   of: "package manifests",
 });
@@ -200,19 +205,14 @@ check(
 );
 
 //    vite is the other one worth pinning globally: it is the bundler under the
-//    electron renderer, the client, and (through astro) the Pages site. All
-//    three install from the same workspace lockfile, so inspect their resolved
-//    package-local trees in the same way.
+//    electron renderer and client. Inspect their resolved package-local trees
+//    in the same way.
 const VITE_CONSUMERS = [
   ["packages/maximal-electron", null],
   ["packages/maximal/client", null],
   // The renderer surfaces run under Vitest's Vite pipeline. Resolve through
-  // Vitest for the same reason the site resolves through Astro below.
+  // Vitest because pnpm does not create a package-local Vite link here.
   ["packages/maximal-observability", "vitest"],
-  // The site gets Vite through Astro. Resolve from Astro's real installed
-  // manifest instead of requiring a package-local Vite link that pnpm does not
-  // create on a clean install.
-  ["packages/maximal/site", "astro"],
 ];
 const viteMajors = new Map();
 for (const [pkg, through] of VITE_CONSUMERS) {

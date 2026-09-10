@@ -22,7 +22,6 @@ Run workspace workflows from the repository root:
 | --- | --- |
 | Run the desktop app | `pnpm dev` |
 | Run the headless server in watch mode | `pnpm dev:server` |
-| Run the documentation site | `pnpm dev:site` |
 | Build the workspace | `pnpm build` |
 | Run native build, type, and lint checks | `pnpm check:static` |
 | Run the complete gate | `pnpm check` |
