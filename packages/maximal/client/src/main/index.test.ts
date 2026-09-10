@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
   BRIDGE_CHANNELS,
+  EVENT_CHANNELS,
   INVOKE_CHANNELS,
 } from '../shared/bridge-channels'
 
@@ -254,6 +255,15 @@ afterEach(() => {
 })
 
 describe('closed IPC boundary', () => {
+  it('names every renderer event channel in one closed allowlist', () => {
+    expect(EVENT_CHANNELS).toEqual([
+      BRIDGE_CHANNELS.lifecycleChanged,
+      BRIDGE_CHANNELS.controlChanged,
+      BRIDGE_CHANNELS.menuOpenSettings,
+      BRIDGE_CHANNELS.trafficInvalidated,
+    ])
+  })
+
   it('registers exactly the named invoke allowlist', async () => {
     await loadIndexOn('darwin')
 

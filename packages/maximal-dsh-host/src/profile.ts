@@ -106,11 +106,11 @@ export interface ResolvedPackage {
   readonly fingerprint: string
 }
 
-export interface ResolvedService extends ProfileService {
+interface ResolvedService extends ProfileService {
   readonly module: ResolvedPackage
 }
 
-export interface ResolvedPlugin extends ProfilePlugin {
+interface ResolvedPlugin extends ProfilePlugin {
   readonly module: ResolvedPackage
 }
 

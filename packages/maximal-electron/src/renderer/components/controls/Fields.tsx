@@ -283,7 +283,7 @@ const InFieldList = createContext(false);
  *
  * They travel with the component so exporting one ships the other.
  * `src/renderer/lib/component-styles.ts` says why. The `.field` grid itself is
- * in `structural.css` and unchanged — these are only what a description list
+ * in `shell-package-rules.css` and unchanged — these are only what a description list
  * needs on top of it.
  */
 const FIELD_LIST_STYLES = `

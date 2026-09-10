@@ -54,6 +54,7 @@
     "tsconfig.json"
   ],
   "scripts": {
+    "analyze": "bun scripts/analyze.ts",
     "build": "bun scripts/ops/build-bundle.ts && bun run build:lib",
     "build:lib": "tsup",
     "casts": "bun run scripts/find-casts.ts",
@@ -148,10 +149,10 @@
     "@types/winreg": "^1.2.36",
     "@typescript/native": "npm:typescript@^7.0.2",
     "bumpp": "^12.2.2",
-    "dependency-cruiser": "^18.2.0",
+    "dependency-cruiser": "18.2.0",
     "eslint": "^10.9.1",
-    "jscpd": "^5.1.1",
-    "knip": "^6.32.3",
+    "jscpd": "5.1.1",
+    "knip": "6.34.0",
     "lint-staged": "^17.3.0",
     "oxlint": "^1.80.0",
     "tsup": "^8.5.1",

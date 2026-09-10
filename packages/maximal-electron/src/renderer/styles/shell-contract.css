@@ -16,7 +16,7 @@
  * example is what stops that: a name here is a name somebody has actually had
  * to supply.
  *
- * The names left out are the ones `structural.css` reads with a fallback and
+ * The names left out are the ones `shell-package-rules.css` reads with a fallback and
  * the ones set at run time. `docs/shell-variables.md` says which are which.
  *
  * This file disappears when the stylesheets in this directory are renamed onto

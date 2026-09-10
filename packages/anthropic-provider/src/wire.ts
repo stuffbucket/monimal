@@ -31,7 +31,7 @@ export interface WireRequest {
   top_p?: number
 }
 
-export interface WireTool {
+interface WireTool {
   description: string
   input_schema: Record<string, unknown>
   name: string

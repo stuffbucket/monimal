@@ -26,6 +26,11 @@ import { fileURLToPath } from "node:url";
 
 import { scopedChecks } from "../packages/maximal-electron/scripts/check-scope.mjs";
 import {
+  packageRuleViolations,
+  readArchitecturePolicy,
+  readPackageGraph,
+} from "./architecture-graph.mjs";
+import {
   auditWorkspacePackages,
   auditWorkspaceReferences,
   pnpmWorkspacePaths,
@@ -303,107 +308,23 @@ check(
   { count: eslintVersions.size, of: "eslint consumers" },
 );
 
-// 7. The provider architecture is deliberately split across packages. Concrete
-//    adapters are profile-installed trusted code: compiling one into Core, the
-//    DSH host, or the Maximal composition root would defeat hot replacement.
-//    Check every declaration kind because a dev/peer edge can still make an
-//    undeclared architecture look valid in this publicly-hoisted workspace.
-function declaredDependencies(manifest) {
-  return new Set([
-    ...Object.keys(manifest?.dependencies ?? {}),
-    ...Object.keys(manifest?.devDependencies ?? {}),
-    ...Object.keys(manifest?.optionalDependencies ?? {}),
-    ...Object.keys(manifest?.peerDependencies ?? {}),
-  ]);
-}
-
-const providerManifests = new Map(
-  [
-    "packages/maximal-provider-contract",
-    "packages/maximal-core",
-    "packages/maximal-dsh-host",
-    "packages/maximal",
-    "packages/anthropic-provider",
-    "packages/omlx",
-  ].map((pkg) => [pkg, manifestAt(ROOT, pkg)]),
+// 7. Package-layer policy is data in architecture-analysis.json. This remains
+//    the workspace-verification owner for provider boundaries; `pnpm analyze`
+//    consumes the same graph and data for its package-cycle pass.
+const architecturePolicy = readArchitecturePolicy(ROOT);
+const architectureGraph = readPackageGraph(ROOT, architecturePolicy);
+const violations = packageRuleViolations(
+  architectureGraph,
+  architecturePolicy.packageRules,
 );
-const providerDeps = new Map(
-  [...providerManifests].map(([pkg, manifest]) => [
-    pkg,
-    declaredDependencies(manifest),
-  ]),
-);
-const concreteProviders = new Set([
-  "@stuffbucket/anthropic-provider",
-  "@stuffbucket/omlx",
-]);
-const dshRuntime = new Set([
-  "@deepseek-ai/cordis",
-  "@deepseek-ai/dsh-llm",
-  "@deepseek-ai/schemastery",
-]);
-const maximalPackages = new Set([
-  "@stuffbucket/maximal",
-  "@stuffbucket/maximal-core",
-  "@stuffbucket/maximal-dsh-host",
-  "@stuffbucket/maximal-provider-contract",
-]);
-const violations = [];
-
-for (const pkg of [
-  "packages/maximal-core",
-  "packages/maximal-dsh-host",
-  "packages/maximal",
-]) {
-  for (const dependency of concreteProviders) {
-    if (providerDeps.get(pkg)?.has(dependency))
-      violations.push(`${pkg} -> ${dependency}`);
-  }
-}
-for (const dependency of dshRuntime) {
-  if (providerDeps.get("packages/maximal-core")?.has(dependency)) {
-    violations.push(`packages/maximal-core -> ${dependency}`);
-  }
-  if (providerDeps.get("packages/maximal")?.has(dependency)) {
-    violations.push(`packages/maximal -> ${dependency}`);
-  }
-  if (providerDeps.get("packages/maximal-provider-contract")?.has(dependency)) {
-    violations.push(`packages/maximal-provider-contract -> ${dependency}`);
-  }
-}
-for (const pkg of ["packages/anthropic-provider", "packages/omlx"]) {
-  for (const dependency of maximalPackages) {
-    if (providerDeps.get(pkg)?.has(dependency))
-      violations.push(`${pkg} -> ${dependency}`);
-  }
-}
-for (const [pkg, dependencies] of [
-  ["packages/maximal-core", ["@stuffbucket/maximal-provider-contract"]],
-  ["packages/maximal-dsh-host", ["@stuffbucket/maximal-provider-contract"]],
-  [
-    "packages/maximal",
-    [
-      "@stuffbucket/maximal-core",
-      "@stuffbucket/maximal-dsh-host",
-      "@stuffbucket/maximal-provider-contract",
-    ],
-  ],
-]) {
-  for (const dependency of dependencies) {
-    if (!providerDeps.get(pkg)?.has(dependency)) {
-      violations.push(`${pkg} missing ${dependency}`);
-    }
-  }
-}
 if (violations.length > 0) {
   for (const violation of violations)
     console.error(`       forbidden provider edge: ${violation}`);
 }
 check(
-  [...providerManifests.values()].every((manifest) => manifest !== null) &&
-    violations.length === 0,
+  violations.length === 0,
   "provider package dependency boundaries are intact",
-  { count: providerManifests.size, of: "provider architecture manifests" },
+  { count: architectureGraph.packages.size, of: "architecture package manifests" },
 );
 
 // 8. No lockfile entry names a host, and every entry carries a digest.

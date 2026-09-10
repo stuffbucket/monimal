@@ -1,0 +1,28 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
+  "entry": [
+    "forge.config.ts",
+    "vite.*.config.ts",
+    "scripts/**/*.{mjs,ts}",
+    "e2e/**/*.ts",
+    "src/**/*.test.{ts,tsx}",
+    "src/main/index.ts",
+    "src/preload/index.ts",
+    "src/renderer/main.tsx"
+  ],
+  "project": [
+    "src/**/*.{ts,tsx}",
+    "scripts/**/*.{mjs,ts}",
+    "e2e/**/*.ts",
+    "*.{ts,mts}"
+  ],
+  // Electron Forge resolves its packager implementation as framework plumbing.
+  "ignoreDependencies": ["@electron/packager"],
+  "ignoreBinaries": [
+    // macOS image conversion used by the icon generation script.
+    "sips",
+    // Test-only binary relocation comparison.
+    "diff"
+  ],
+  "ignoreExportsUsedInFile": true
+}

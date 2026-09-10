@@ -26,11 +26,11 @@
     "THIRD-PARTY-LICENSE"
   ],
   "scripts": {
+    "analyze": "bun ../maximal-core/scripts/analyze.ts",
     "build": "bun scripts/build.ts",
-    "check:deep": "bun run check:fast && bun test && bun run knip",
+    "check:deep": "bun run check:fast && bun test",
     "check:fast": "bun run lint:fast && bun run typecheck && bun run lint:all",
     "dev": "bun run --watch ./src/main.ts",
-    "knip": "knip-bun",
     "lint": "eslint",
     "lint:all": "eslint .",
     "lint:fast": "oxlint",
@@ -64,7 +64,6 @@
     "@typescript/native": "npm:typescript@^7.0.2",
     "bumpp": "^12.2.2",
     "eslint": "^10.9.1",
-    "knip": "^6.32.3",
     "lint-staged": "^17.3.0",
     "oxlint": "^1.80.0",
     "typescript": "npm:@typescript/typescript6@^6.0.2"

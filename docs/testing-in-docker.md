@@ -162,6 +162,10 @@ accepts the same three trace values as the native wrapper and does not forward a
 ambient `MAXIMAL_TEST_TRACE`. Unknown values, duplicate selectors, positional
 arguments, and split selector forms fail closed.
 
+The Turbo test graph depends on the cacheable `analyze` task, so native and
+Docker test boundaries run architecture analysis once for the selected package
+scope.
+
 ### Image construction and reuse
 
 The image contains the pinned Node, Bun, and pnpm toolchains plus a script-free

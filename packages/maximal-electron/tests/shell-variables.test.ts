@@ -18,7 +18,7 @@ import { SHELL_TERMINAL_PROPERTIES } from '../src/renderer/lib/terminal-transpor
 /**
  * The `--shell-*` contract a consumer has to satisfy.
  *
- * `structural.css` reads custom properties the host defines and nothing
+ * `shell-package-rules.css` reads custom properties the host defines and nothing
  * published which ones, so `stuffbucket/maximal` guessed at the surface and
  * drifted five variables behind. Issue #93, and `docs/shell-variables.md`.
  *
@@ -144,6 +144,28 @@ describe('shellVariableContract', () => {
       runtimeProperties: ['--shell-terminal-cursor'],
     });
     expect(contract.runtime).toEqual(['--shell-terminal-cursor']);
+  });
+
+  it('calls declared values structural whichever other source reads them', () => {
+    const contract = shellVariableContract({
+      stylesheets: sheet([
+        ':root {',
+        '  --shell-required: 1px;',
+        '  --shell-fallback: 2px;',
+        '  --shell-runtime: 3px;',
+        '  --shell-not-structural!: 4px;',
+        '}',
+        'a { width: var(--shell-required); gap: var(--shell-fallback, 2px); }',
+      ].join('\n')),
+      runtimeProperties: ['--shell-runtime', '--shell-not-structural'],
+    });
+
+    expect(contract).toEqual({
+      required: [],
+      fallback: [],
+      structural: ['--shell-fallback', '--shell-required', '--shell-runtime'],
+      runtime: ['--shell-not-structural'],
+    });
   });
 });
 
@@ -359,8 +381,8 @@ describe('the published contract', () => {
     expect(exported.length).toBeGreaterThan(0);
     expect(packageStylesheets().map((entry) => entry.published).sort()).toEqual(exported);
     expect(packageStylesheets().flatMap((entry) => entry.sources)).toEqual([
-      'src/renderer/styles/structure.css',
-      'src/renderer/styles/structural.css',
+      'src/renderer/styles/shell-structural-tokens.css',
+      'src/renderer/styles/shell-package-rules.css',
     ]);
   });
 
@@ -390,7 +412,7 @@ describe('the published contract', () => {
     //
     // A shipped stylesheet takes part in the namespace one of two ways: it
     // declares structural tokens, or it reads them. Requiring a read of every
-    // sheet would reject `structure.css`, which is nothing but declarations;
+    // sheet would reject `shell-structural-tokens.css`, which is nothing but declarations;
     // requiring neither would let an empty file through, which is the hole this
     // exists to close.
     const stylesheets = shipped();

@@ -20,7 +20,7 @@ export type OmlxReplayBlock =
  * which is what lets a consumer reject replay state belonging to some other
  * adapter.
  */
-export interface OmlxReplayResponse {
+interface OmlxReplayResponse {
   readonly type: typeof ANTHROPIC_REPLAY_TYPE
 }
 

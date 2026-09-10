@@ -70,9 +70,9 @@
 .sb-shell .titlebar {
   display: flex;
   align-items: stretch;
-  gap: var(--shell-space-2, 8px);
+  gap: var(--shell-space-2);
   height: var(--shell-titlebar-height, 40px);
-  padding: 0 var(--shell-space-3, 12px) 0 var(--shell-space-2, 8px);
+  padding: 0 var(--shell-space-3) 0 var(--shell-space-2);
   flex: none;
   overflow: hidden;
   background: var(--shell-background);
@@ -84,7 +84,7 @@
 .sb-shell .titlebar__actions {
   display: flex;
   align-items: center;
-  gap: var(--shell-space-2, 8px);
+  gap: var(--shell-space-2);
   -webkit-app-region: no-drag;
 }
 
@@ -126,8 +126,8 @@
 .sb-shell .banner {
   display: flex;
   align-items: center;
-  gap: var(--shell-space-2, 8px);
-  padding: var(--shell-space-2, 8px) var(--shell-space-4, 16px);
+  gap: var(--shell-space-2);
+  padding: var(--shell-space-2) var(--shell-space-4);
   flex: none;
   color: var(--shell-status, var(--shell-text-muted));
   background: var(--shell-status-muted, var(--shell-active));
@@ -143,7 +143,7 @@
   height: var(--shell-control-height, 28px);
   padding: 0;
   border: 0;
-  border-radius: var(--shell-radius, 6px);
+  border-radius: var(--shell-radius);
   color: var(--shell-text-muted);
   background: transparent;
   cursor: pointer;
@@ -299,13 +299,13 @@
 .sb-shell .tab {
   display: inline-flex;
   align-items: center;
-  gap: var(--shell-space-2, 8px);
+  gap: var(--shell-space-2);
   min-width: 96px;
   max-width: 200px;
-  padding: 0 var(--shell-space-2, 8px) 0 var(--shell-space-3, 12px);
+  padding: 0 var(--shell-space-2) 0 var(--shell-space-3);
   color: var(--shell-text-subtle);
   white-space: nowrap;
-  border-radius: var(--shell-radius, 6px) var(--shell-radius, 6px) 0 0;
+  border-radius: var(--shell-radius) var(--shell-radius) 0 0;
   /* The emphasis marker is absolute inside the tab. */
   position: relative;
   transition:
@@ -385,7 +385,7 @@
   flex: none;
   align-self: center;
   color: var(--shell-text-subtle);
-  border-radius: var(--shell-radius, 6px);
+  border-radius: var(--shell-radius);
 }
 
 .sb-shell .tab__new {
@@ -397,7 +397,7 @@
   flex: none;
   align-self: center;
   color: var(--shell-text-subtle);
-  border-radius: var(--shell-radius, 6px);
+  border-radius: var(--shell-radius);
 }
 
 .sb-shell .tab__new:hover {
@@ -419,13 +419,13 @@
   bottom: 0;
   left: 0;
   width: 3px;
-  border-radius: var(--shell-radius, 6px) 0 0 0;
+  border-radius: var(--shell-radius) 0 0 0;
   background: var(--shell-warning, var(--shell-accent));
 }
 
 .sb-shell .tab[data-emphasis='busy'] .tab__emphasis {
   bottom: 5px;
-  left: var(--shell-space-3, 12px);
+  left: var(--shell-space-3);
   width: 34%;
   height: 2px;
   background: var(--shell-accent);
@@ -448,15 +448,15 @@
 .sb-shell .nav {
   display: flex;
   flex-direction: column;
-  gap: var(--shell-space-4, 16px);
-  padding: var(--shell-space-3, 12px) var(--shell-space-2, 8px);
+  gap: var(--shell-space-4);
+  padding: var(--shell-space-3) var(--shell-space-2);
   overflow-y: auto;
 }
 
 .sb-shell .nav__section {
   display: flex;
   flex-direction: column;
-  gap: var(--shell-space-1, 4px);
+  gap: var(--shell-space-1);
 }
 
 .sb-shell .nav__heading,
@@ -465,13 +465,13 @@
   align-items: center;
   width: 100%;
   text-align: left;
-  border-radius: var(--shell-radius, 6px);
+  border-radius: var(--shell-radius);
 }
 
 .sb-shell .nav__heading {
-  gap: var(--shell-space-1, 4px);
+  gap: var(--shell-space-1);
   height: var(--shell-nav-heading-height, 24px);
-  padding: var(--shell-space-1, 4px) var(--shell-space-2, 8px);
+  padding: var(--shell-space-1) var(--shell-space-2);
   color: var(--shell-text-subtle);
   font-size: 11px;
   font-weight: 600;
@@ -509,9 +509,9 @@
 }
 
 .sb-shell .nav__item {
-  gap: var(--shell-space-2, 8px);
+  gap: var(--shell-space-2);
   height: 30px;
-  padding: 0 var(--shell-space-2, 8px);
+  padding: 0 var(--shell-space-2);
   color: var(--shell-text-muted);
   transition: background 120ms ease-out;
 }
@@ -551,7 +551,7 @@
    stylesheet never did, which left a consumer's collapsed rail padded for a
    label that is no longer drawn. Issue #118. */
 .sb-shell .nav--collapsed {
-  padding: var(--shell-space-3, 12px) var(--shell-space-1, 4px);
+  padding: var(--shell-space-3) var(--shell-space-1);
 }
 
 .sb-shell .nav--collapsed .nav__item {
@@ -567,8 +567,8 @@
 .sb-shell .toolbar {
   display: flex;
   align-items: center;
-  gap: var(--shell-space-2, 8px);
-  padding: var(--shell-space-2, 8px) var(--shell-space-4, 16px);
+  gap: var(--shell-space-2);
+  padding: var(--shell-space-2) var(--shell-space-4);
   flex: none;
   border-bottom: 1px solid var(--shell-border);
 }
@@ -585,7 +585,7 @@
   padding: 2px;
   background: var(--shell-raised);
   border: 1px solid var(--shell-border);
-  border-radius: var(--shell-radius, 6px);
+  border-radius: var(--shell-radius);
 }
 
 /* The reset a consumer's document does not have. `controls.css` carries one
@@ -615,19 +615,19 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: var(--shell-space-4, 16px);
+  padding: var(--shell-space-4);
 }
 
 .sb-shell .grid {
   display: grid;
-  gap: var(--shell-space-3, 12px);
+  gap: var(--shell-space-3);
   grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
 }
 
 .sb-shell .list {
   display: flex;
   flex-direction: column;
-  gap: var(--shell-space-1, 4px);
+  gap: var(--shell-space-1);
 }
 
 /*
@@ -641,7 +641,7 @@
 .sb-shell .card {
   display: flex;
   flex-direction: column;
-  gap: var(--shell-space-2, 8px);
+  gap: var(--shell-space-2);
   padding: 0;
   overflow: hidden;
   color: inherit;
@@ -649,7 +649,7 @@
   text-align: left;
   background: var(--shell-raised);
   border: 1px solid var(--shell-border);
-  border-radius: var(--shell-radius-large, 8px);
+  border-radius: var(--shell-radius-large);
   cursor: pointer;
   transition:
     border-color 120ms ease-out,
@@ -680,7 +680,7 @@
   flex-direction: column;
   gap: 2px;
   min-width: 0;
-  padding: 0 var(--shell-space-3, 12px) var(--shell-space-3, 12px);
+  padding: 0 var(--shell-space-3) var(--shell-space-3);
 }
 
 .sb-shell .card__name {
@@ -713,15 +713,15 @@
 .sb-shell .row {
   display: flex;
   align-items: center;
-  gap: var(--shell-space-3, 12px);
+  gap: var(--shell-space-3);
   width: 100%;
   height: 30px;
-  padding: 0 var(--shell-space-3, 12px);
+  padding: 0 var(--shell-space-3);
   color: var(--shell-text-muted);
   font: inherit;
   text-align: left;
   border: 0;
-  border-radius: var(--shell-radius, 6px);
+  border-radius: var(--shell-radius);
   background: transparent;
   cursor: pointer;
 }
@@ -752,9 +752,9 @@
 .sb-shell .empty {
   display: grid;
   place-items: center;
-  gap: var(--shell-space-2, 8px);
+  gap: var(--shell-space-2);
   height: 100%;
-  padding: var(--shell-space-5, 24px);
+  padding: var(--shell-space-5);
   color: var(--shell-text-subtle);
   text-align: center;
 }
@@ -773,12 +773,12 @@
 .sb-shell .statusbar {
   display: flex;
   align-items: center;
-  gap: var(--shell-space-3, 12px);
+  gap: var(--shell-space-3);
   min-height: var(--shell-statusbar-height, 24px);
-  padding: var(--shell-space-1, 4px) var(--shell-space-3, 12px);
+  padding: var(--shell-space-1) var(--shell-space-3);
   flex: none;
   flex-wrap: wrap;
-  row-gap: var(--shell-space-1, 4px);
+  row-gap: var(--shell-space-1);
   color: var(--shell-text-subtle);
   border-top: 1px solid var(--shell-border);
   font-size: 11px;
@@ -799,7 +799,7 @@
 .sb-shell .chip {
   display: inline-flex;
   align-items: center;
-  padding: 2px var(--shell-space-2, 8px);
+  padding: 2px var(--shell-space-2);
   color: var(--shell-status, var(--shell-text-muted));
   background: var(--shell-status-muted, var(--shell-active));
   border-radius: 9999px;
@@ -809,7 +809,7 @@
 }
 
 .sb-shell .tooltip {
-  padding: var(--shell-space-1, 4px) var(--shell-space-2, 8px);
+  padding: var(--shell-space-1) var(--shell-space-2);
   color: var(--shell-text);
   background: var(--shell-raised);
   border: 1px solid var(--shell-border-strong, var(--shell-border));
@@ -843,9 +843,9 @@
 .sb-shell .inspector__header {
   display: flex;
   align-items: center;
-  gap: var(--shell-space-2, 8px);
+  gap: var(--shell-space-2);
   min-height: 36px;
-  padding: var(--shell-space-2, 8px) var(--shell-space-3, 12px);
+  padding: var(--shell-space-2) var(--shell-space-3);
   flex: none;
   border-bottom: 1px solid var(--shell-border);
 }
@@ -862,16 +862,16 @@
 .sb-shell .inspector__body {
   display: flex;
   flex-direction: column;
-  gap: var(--shell-space-4, 16px);
+  gap: var(--shell-space-4);
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: var(--shell-space-3, 12px);
+  padding: var(--shell-space-3);
 }
 
 .sb-shell .inspector__section {
   display: grid;
-  gap: var(--shell-space-2, 8px);
+  gap: var(--shell-space-2);
 }
 
 /* A chip is a pill, not a block. Without this the grid stretches it edge to
@@ -885,7 +885,7 @@
 .sb-shell .field {
   display: grid;
   align-items: center;
-  gap: var(--shell-space-2, 8px);
+  gap: var(--shell-space-2);
   grid-template-columns: 74px 1fr;
 }
 
@@ -904,7 +904,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--shell-space-3, 12px);
+  gap: var(--shell-space-3);
   width: 100%;
   padding: 0;
   color: var(--shell-text-muted);
@@ -965,15 +965,15 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--shell-space-1, 4px);
-  padding: 0 var(--shell-space-3, 12px);
+  gap: var(--shell-space-1);
+  padding: 0 var(--shell-space-3);
   color: var(--shell-text);
   font: inherit;
   font-weight: 500;
   white-space: nowrap;
   background: var(--shell-raised);
   border: 1px solid var(--shell-border-strong, var(--shell-border));
-  border-radius: var(--shell-radius, 6px);
+  border-radius: var(--shell-radius);
   cursor: pointer;
   transition: background 120ms ease-out;
 }
@@ -985,7 +985,7 @@
 
 .sb-shell .btn--sm {
   height: 22px;
-  padding: 0 var(--shell-space-2, 8px);
+  padding: 0 var(--shell-space-2);
   font-size: 11px;
 }
 
@@ -996,7 +996,7 @@
 
 .sb-shell .btn--lg {
   height: var(--shell-control-height, 28px);
-  padding: 0 var(--shell-space-4, 16px);
+  padding: 0 var(--shell-space-4);
   font-size: 14px;
 }
 
@@ -1047,13 +1047,13 @@
 .sb-shell .input {
   width: 100%;
   height: var(--shell-control-height, 28px);
-  padding: 0 var(--shell-space-2, 8px);
+  padding: 0 var(--shell-space-2);
   color: var(--shell-text);
   font: inherit;
   font-size: 13px;
   background: var(--shell-input-background, var(--shell-canvas));
-  border: 1px solid var(--shell-input-border, var(--shell-border-strong, var(--shell-border)));
-  border-radius: var(--shell-radius, 6px);
+  border: 1px solid var(--shell-input-border);
+  border-radius: var(--shell-radius);
 }
 
 .sb-shell .input::placeholder {
@@ -1070,19 +1070,19 @@
 
 .sb-shell .input--multiline {
   height: auto;
-  padding: var(--shell-space-2, 8px);
+  padding: var(--shell-space-2);
   line-height: 1.5;
   resize: vertical;
 }
 
 /* The native arrow needs room, and the platform draws it. */
 .sb-shell .input--select {
-  padding-right: var(--shell-space-1, 4px);
+  padding-right: var(--shell-space-1);
 }
 
 .sb-shell .form-field {
   display: grid;
-  gap: var(--shell-space-1, 4px);
+  gap: var(--shell-space-1);
 }
 
 .sb-shell .form-field__label {
@@ -1106,7 +1106,7 @@
 .sb-shell .radio {
   display: flex;
   align-items: center;
-  gap: var(--shell-space-2, 8px);
+  gap: var(--shell-space-2);
   font-size: 13px;
   cursor: pointer;
 }
@@ -1121,7 +1121,7 @@
 
 .sb-shell .radio-group {
   display: grid;
-  gap: var(--shell-space-2, 8px);
+  gap: var(--shell-space-2);
 }
 
 .sb-shell .radio__box {
@@ -1132,7 +1132,7 @@
   height: 15px;
   flex: none;
   background: var(--shell-input-background, var(--shell-canvas));
-  border: 1px solid var(--shell-input-border, var(--shell-border-strong, var(--shell-border)));
+  border: 1px solid var(--shell-input-border);
   border-radius: 9999px;
 }
 
@@ -1167,9 +1167,9 @@
   left: 50%;
   display: flex;
   flex-direction: column;
-  gap: var(--shell-space-3, 12px);
+  gap: var(--shell-space-3);
   width: min(520px, 90vw);
-  padding: var(--shell-space-4, 16px);
+  padding: var(--shell-space-4);
   background: var(--shell-raised);
   border: 1px solid var(--shell-border-strong, var(--shell-border));
   border-radius: var(--shell-radius-dialog, 14px);
@@ -1186,41 +1186,41 @@
 .sb-shell .terminal-launcher__search {
   display: flex;
   align-items: center;
-  gap: var(--shell-space-2, 8px);
+  gap: var(--shell-space-2);
 }
 
 .sb-shell .terminal-launcher__group {
   display: grid;
-  gap: var(--shell-space-2, 8px);
+  gap: var(--shell-space-2);
 }
 
 .sb-shell .terminal-launcher__choice {
   justify-content: flex-start;
-  gap: var(--shell-space-2, 8px);
+  gap: var(--shell-space-2);
 }
 
 .sb-shell .terminal-launcher__kind,
 .sb-shell .terminal-launcher__pending {
   margin-left: auto;
   color: var(--shell-text-muted);
-  font-size: var(--shell-text-xs, 0.6875rem);
+  font-size: var(--shell-text-xs);
 }
 
 .sb-shell .terminal-launcher__unavailable {
   border-top: 1px solid var(--shell-border);
-  padding-top: var(--shell-space-2, 8px);
+  padding-top: var(--shell-space-2);
   color: var(--shell-text-muted);
 }
 
 .sb-shell .terminal-launcher__unavailable summary {
   cursor: pointer;
-  font-size: var(--shell-text-sm, 0.8125rem);
+  font-size: var(--shell-text-sm);
 }
 
 .sb-shell .terminal-launcher__unavailable ul {
   display: grid;
-  gap: var(--shell-space-1, 4px);
-  margin: var(--shell-space-2, 8px) 0 0;
+  gap: var(--shell-space-1);
+  margin: var(--shell-space-2) 0 0;
   padding: 0;
   list-style: none;
 }
@@ -1228,25 +1228,25 @@
 .sb-shell .terminal-launcher__unavailable li {
   display: flex;
   justify-content: space-between;
-  gap: var(--shell-space-3, 12px);
-  font-size: var(--shell-text-xs, 0.6875rem);
+  gap: var(--shell-space-3);
+  font-size: var(--shell-text-xs);
 }
 
 .sb-shell .menu {
   min-width: 180px;
-  padding: var(--shell-space-1, 4px);
+  padding: var(--shell-space-1);
   background: var(--shell-raised);
   border: 1px solid var(--shell-border-strong, var(--shell-border));
-  border-radius: var(--shell-radius, 6px);
+  border-radius: var(--shell-radius);
   box-shadow: var(--shell-elevation, none);
 }
 
 .sb-shell .menu__item {
   display: flex;
   align-items: center;
-  gap: var(--shell-space-2, 8px);
+  gap: var(--shell-space-2);
   height: 30px;
-  padding: 0 var(--shell-space-2, 8px);
+  padding: 0 var(--shell-space-2);
   color: var(--shell-text-muted);
   font-size: 13px;
   border-radius: var(--shell-radius-small, 4px);
@@ -1276,8 +1276,8 @@
 
 .sb-shell .menu__header {
   display: block;
-  padding: var(--shell-space-2, 8px);
-  margin-bottom: var(--shell-space-1, 4px);
+  padding: var(--shell-space-2);
+  margin-bottom: var(--shell-space-1);
   border-bottom: 1px solid var(--shell-border);
 }
 
@@ -1364,9 +1364,9 @@
 
 .sb-shell .terminal-split__error {
   position: absolute;
-  inset: auto var(--shell-space-2, 8px) var(--shell-space-2, 8px) auto;
+  inset: auto var(--shell-space-2) var(--shell-space-2) auto;
   margin: 0;
-  padding: var(--shell-space-1, 4px) var(--shell-space-2, 8px);
+  padding: var(--shell-space-1) var(--shell-space-2);
   background: var(--shell-raised);
   color: var(--shell-text-muted);
 }
@@ -1375,7 +1375,7 @@
   flex: 1;
   min-width: 0;
   min-height: 0;
-  padding: var(--shell-space-2, 8px);
+  padding: var(--shell-space-2);
   overflow: hidden;
   background: var(--shell-terminal-background, var(--shell-canvas));
 }
@@ -1388,7 +1388,7 @@
   margin: auto;
   display: flex;
   align-items: center;
-  gap: var(--shell-space-2, 8px);
+  gap: var(--shell-space-2);
   color: var(--shell-text-muted);
 }
 
@@ -1404,12 +1404,12 @@
 .sb-shell .callout {
   display: flex;
   flex-direction: column;
-  gap: var(--shell-space-2, 8px);
-  padding: var(--shell-space-3, 12px);
+  gap: var(--shell-space-2);
+  padding: var(--shell-space-3);
   color: var(--shell-text);
   background: var(--shell-status-muted, var(--shell-active));
   border: 1px solid var(--shell-status, var(--shell-text-muted));
-  border-radius: var(--shell-radius-large, 8px);
+  border-radius: var(--shell-radius-large);
 }
 
 /* Primary text rather than subtle when no status is mapped. An 11px uppercase
@@ -1427,7 +1427,7 @@
 .sb-shell .callout__body {
   display: flex;
   flex-direction: column;
-  gap: var(--shell-space-2, 8px);
+  gap: var(--shell-space-2);
   min-width: 0;
   font-size: 13px;
 }
@@ -1437,7 +1437,7 @@
 .sb-shell .callout__actions {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--shell-space-2, 8px);
+  gap: var(--shell-space-2);
   justify-content: flex-end;
 }
 }

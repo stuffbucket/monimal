@@ -163,7 +163,7 @@ function referencedTokens(): string[] {
       // The `--shell-*` namespace is the public package's contract: a consumer
       // supplies those, README.md documents them, and
       // `tests/package-styles.test.ts` checks them. This used to skip
-      // `structural.css` by name, which holds only while there is one file on
+      // `shell-package-rules.css` by name, which holds only while there is one file on
       // each side. The namespace is the distinction, so classify the token.
       if (isPackageToken(token)) continue;
       if (!RUNTIME_ONLY.includes(token)) found.add(token);

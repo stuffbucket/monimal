@@ -16,7 +16,7 @@ on a white page.
 
 ## Two stylesheets, as a second toolbar switch
 
-`shell.css` is what this application draws with. `structural.css`, which
+`shell.css` is what this application draws with. `shell-package-rules.css`, which
 `scripts/copy-renderer-css.mjs` publishes as
 `@stuffbucket/maximal-electron/renderer/styles.css`, is the only CSS a consumer
 installs. They are not the same file: the shipped one declares no palette and
@@ -30,7 +30,7 @@ a toolbar global and a decorator that reads it.
 | Position | Loads | Root class |
 | --- | --- | --- |
 | Application | `shell.css`, which imports `controls.css` and `tokens.css` | none |
-| Package | `tokens.css`, `.storybook/consumer.css`, `structural.css` | `.sb-shell` on the story root |
+| Package | `tokens.css`, `.storybook/consumer.css`, `shell-package-rules.css` | `.sb-shell` on the story root |
 
 Three decisions are worth the words.
 
