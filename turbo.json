@@ -39,7 +39,7 @@
       "description": "Build package outputs after building workspace dependencies."
     },
     "maximal-client#build": {
-      "dependsOn": ["^build"],
+        "dependsOn": ["^build", "@stuffbucket/maximal-configurators#build"],
       "cache": false,
       "env": ["MAXIMAL_CORE_OUT", "MAXIMAL_CORE_REF", "MAXIMAL_CORE_TARGET", "MAXIMAL_GIT_SHA"],
       "description": "Compile the platform sidecar with checkout provenance."

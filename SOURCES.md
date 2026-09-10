@@ -269,6 +269,9 @@ package provenance or publisher identity -- the proxy does that.
   its gap list had no owner -- `docs/dev/client-architecture.md` listed four
   gaps without sequencing them. The README owns the sequence; that section now
   links to it rather than restating it.
+- `maximal-client#build` depends on the `maximal-configurators` build because
+  the sidecar bundles `maximal/src/main.ts` outside the client package's own
+  dependency graph.
 - `maximal/client`: was on `typescript ^7.0.2` with `@babel/eslint-parser` and
   no typescript-eslint. bb12eaf moved the workspace to one TypeScript, so it
   now lints through the type-aware recommended profile in
