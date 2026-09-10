@@ -130,7 +130,7 @@ export class OmlxAdapter extends LlmAdapter {
 
   providerInfo(provider: string): LlmProviderInfo {
     this.#instance(provider)
-    return { id: provider, name: `oMLX (${provider})` }
+    return { id: provider, name: "Local (oMLX)" }
   }
 
   async listModels(provider: string): Promise<ReadonlyArray<LlmModelInfo>> {

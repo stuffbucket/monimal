@@ -164,8 +164,8 @@ test("activates and disposes aliases under stock Cordis without residual routes"
   await fiber
 
   assert.deepEqual(ctx.llm.listProviders(), [
-    { id: "alpha", name: "oMLX (alpha)" },
-    { id: "beta", name: "oMLX (beta)" },
+    { id: "alpha", name: "Local (oMLX)" },
+    { id: "beta", name: "Local (oMLX)" },
   ])
 
   await fiber.dispose()
@@ -189,7 +189,7 @@ test("alias conflicts are atomic and preserve the first registration", async () 
     (error) => error.code === "DUPLICATE_ADAPTER",
   )
   assert.deepEqual(ctx.llm.listProviders(), [
-    { id: "shared", name: "oMLX (shared)" },
+    { id: "shared", name: "Local (oMLX)" },
   ])
 
   await conflicting.dispose()

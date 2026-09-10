@@ -231,6 +231,7 @@ class Generation {
     for (const provider of this.runtime.listProviders()) {
       result.set(provider.id, {
         provider: provider.id,
+        displayName: provider.name,
         state: "available",
         operations,
         diagnostics: [],

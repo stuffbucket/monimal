@@ -8,6 +8,7 @@ import consola from "consola"
 
 import type { AppConfig } from "~/lib/config/config"
 import type { FrameUsage } from "~/lib/http/untrusted-frame"
+import type { ProviderCatalogueModel } from "~/lib/live/resources"
 import type {
   ProviderGatewayFactory,
   ProviderHostConfigSnapshot,
@@ -39,6 +40,7 @@ export interface ProviderDispatchOptions {
 export interface ProviderDispatcher {
   dispatch(options: ProviderDispatchOptions): Promise<Response>
   dispose(): Promise<void>
+  listModels(): Promise<ReadonlyArray<ProviderCatalogueModel>>
   ready(): Promise<void>
   requiresGithubAuth(): boolean
 }
@@ -297,6 +299,61 @@ export function createProviderDispatcher(
         await configSource?.dispose()
       })()
       return disposePromise
+    },
+
+    async listModels() {
+      if (isLegacyMode()) return []
+      await activation
+      const activeGateway = staticGateway ?? factoryGateway
+      if (!activeGateway) return []
+
+      const statuses = activeGateway.gateway
+        .listStatuses()
+        .filter(
+          (status) =>
+            status.state === "available"
+            && status.operations.includes("models"),
+        )
+      const catalogues = await Promise.all(
+        statuses.map(
+          async (status): Promise<ReadonlyArray<ProviderCatalogueModel>> => {
+            const release = activeGateway.acquire()
+            try {
+              const response = await activeGateway.gateway.dispatch({
+                operation: "models",
+                provider: status.provider,
+                request: new Request("http://localhost/v1/models"),
+                signal: AbortSignal.timeout(5_000),
+              })
+              if (!response.ok) return []
+              const body = asRecord(await response.json())
+              if (!Array.isArray(body?.data)) return []
+              return body.data.flatMap(
+                (value): Array<ProviderCatalogueModel> => {
+                  const model = asRecord(value)
+                  if (typeof model?.id !== "string") return []
+                  return [
+                    {
+                      id: model.id,
+                      name:
+                        typeof model.display_name === "string" ?
+                          model.display_name
+                        : model.id,
+                      provider: status.provider,
+                      providerName: status.displayName ?? status.provider,
+                    },
+                  ]
+                },
+              )
+            } catch {
+              return []
+            } finally {
+              release()
+            }
+          },
+        ),
+      )
+      return catalogues.flat()
     },
 
     async ready() {

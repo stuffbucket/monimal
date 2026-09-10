@@ -44,6 +44,7 @@ import {
   buildAppsList,
   buildModelsList,
   type ControlSnapshot,
+  type ProviderCatalogueModel,
 } from "~/lib/live/resources"
 import { getControlHub } from "~/lib/live/service"
 import { streamSubscription } from "~/lib/live/stream-subscription"
@@ -72,6 +73,7 @@ export interface ControlRoutesOptions {
    * asserting on state owned by whatever else ran first in the same process.
    */
   listClients?: ClientRosterReader
+  listProviderModels?: () => Promise<ReadonlyArray<ProviderCatalogueModel>>
   trafficQueries?: TrafficQueryStore
 }
 
@@ -96,7 +98,11 @@ function registerEventStream(app: HonoApp, hub: HubAccessor): void {
 }
 
 /** Read endpoints — each mirrors a live topic and shares its type. */
-function registerReads(app: HonoApp, listClients: ClientRosterReader): void {
+function registerReads(
+  app: HonoApp,
+  listClients: ClientRosterReader,
+  listProviderModels: () => Promise<ReadonlyArray<ProviderCatalogueModel>>,
+): void {
   app.get("/auth", (c) => c.json(getAuthStatus()))
 
   app.get("/accounts", async (c) => {
@@ -115,7 +121,9 @@ function registerReads(app: HonoApp, listClients: ClientRosterReader): void {
     }
   })
 
-  app.get("/models", (c) => c.json(buildModelsList()))
+  app.get("/models", async (c) =>
+    c.json(buildModelsList(await listProviderModels())),
+  )
 
   app.get("/usage", async (c) => {
     try {
@@ -148,7 +156,10 @@ function registerReads(app: HonoApp, listClients: ClientRosterReader): void {
  * signing out; /rearm self-heals a session that degraded (OS wake / focus).
  * /models/refresh forces a catalog refetch.
  */
-function registerAuthActions(app: HonoApp): void {
+function registerAuthActions(
+  app: HonoApp,
+  listProviderModels: () => Promise<ReadonlyArray<ProviderCatalogueModel>>,
+): void {
   app.post("/auth/start", async (c) => {
     try {
       return c.json(await startDeviceFlow())
@@ -175,7 +186,7 @@ function registerAuthActions(app: HonoApp): void {
   app.post("/models/refresh", async (c) => {
     try {
       await cacheModels()
-      return c.json(buildModelsList())
+      return c.json(buildModelsList(await listProviderModels()))
     } catch (error) {
       return forwardError(c, error)
     }
@@ -289,9 +300,12 @@ function registerRpc(app: HonoApp, deps: ControlRpcDeps): void {
 export function createControlRoutes(options: ControlRoutesOptions = {}): Hono {
   const getRequestIp = options.getRequestIp ?? defaultGetRequestIp
   const listClients = options.listClients ?? listActiveClients
+  const listProviderModels =
+    options.listProviderModels ?? (() => Promise.resolve([]))
   // Resolved lazily so importing this module doesn't eagerly build the wired
   // hub (with its flush timer). Tests inject their own.
-  const hub: HubAccessor = () => options.hub ?? getControlHub()
+  const hub: HubAccessor = () =>
+    options.hub ?? getControlHub(listProviderModels)
   const app = new Hono()
 
   // Loopback gate for the whole surface.
@@ -303,8 +317,8 @@ export function createControlRoutes(options: ControlRoutesOptions = {}): Hono {
   })
 
   registerEventStream(app, hub)
-  registerReads(app, listClients)
-  registerAuthActions(app)
+  registerReads(app, listClients, listProviderModels)
+  registerAuthActions(app, listProviderModels)
   registerSettingsEndpoints(app)
   registerShellSignals(app)
   registerAccountActions(app, hub, new AsyncMutex())
@@ -312,6 +326,7 @@ export function createControlRoutes(options: ControlRoutesOptions = {}): Hono {
     hub,
     mutex: new AsyncMutex(),
     listClients,
+    listProviderModels,
     trafficQueries: options.trafficQueries ?? getDefaultTrafficObserver(),
   })
 
