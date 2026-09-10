@@ -1,3 +1,7 @@
+import {
+  BUNDLED_SEARCH_PROVIDER_IDS,
+  type SearchConnectorConfig,
+} from "@stuffbucket/maximal-harness"
 import consola from "consola"
 import fs from "node:fs"
 
@@ -41,6 +45,9 @@ export interface AppConfig {
       config?: unknown
     }
   >
+  connectors?: {
+    search?: SearchConnectorConfig
+  }
   extraPrompts?: Record<string, string>
   smallModel?: string
   responsesApiContextManagementModels?: Array<string>
@@ -214,6 +221,18 @@ const defaultConfig: AppConfig = {
     apiKeys: [],
   },
   providers: {},
+  connectors: {
+    search: {
+      priority: BUNDLED_SEARCH_PROVIDER_IDS,
+      fallback: true,
+      defaults: { maxResults: 5 },
+      providers: {
+        ollama: { enabled: true },
+        copilot: { enabled: true },
+        duckduckgo: { enabled: true },
+      },
+    },
+  },
   extraPrompts: {
     "gpt-5-mini": gpt5ExplorationPrompt,
     "gpt-5.3-codex": gpt5CommentaryPrompt,

@@ -4,6 +4,7 @@ import {
   HardDrive,
   Link2,
   ScrollText,
+  Search,
   SlidersHorizontal,
   Stethoscope,
   User,
@@ -23,6 +24,7 @@ import { GeneralSection } from './GeneralSection'
 import { LocalModelsSection } from './LocalModelsSection'
 import { LogsSection } from './LogsSection'
 import { ModelsSection } from './ModelsSection'
+import { SearchSection } from './SearchSection'
 import { UsageSection } from './UsageSection'
 
 type SectionPanel = ComponentType<{ capabilities: SettingsCapabilities }>
@@ -39,6 +41,7 @@ const SECTION_PARTS: Record<SettingsSectionId, SectionParts> = {
     Panel: GeneralSection,
   },
   'settings-connections-heading': { icon: Link2, Panel: ConnectionsSection },
+  'settings-search-heading': { icon: Search, Panel: SearchSection },
   'settings-models-heading': { icon: Cpu, Panel: ModelsSection },
   'settings-local-models-heading': {
     icon: HardDrive,

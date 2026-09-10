@@ -11,8 +11,12 @@ import type {
   ConnectionCredentialReveal,
   ConnectionEntry,
   ConnectionsListResponse,
+  ConnectorSettingField,
+  ConnectorSettingValue,
   DiagnosticsResponse,
   ModelsListResponse,
+  SearchSettingsResponse,
+  SearchSettingsUpdateRequest,
   TokenUsagePeriod,
   TokenUsageSummary,
 } from '@stuffbucket/maximal-core/settings-types'
@@ -46,6 +50,8 @@ export type {
   ConnectionCredentialReveal,
   ConnectionEntry,
   ConnectionsListResponse,
+  ConnectorSettingField,
+  ConnectorSettingValue,
   DiagnosticsResponse,
   MenuBarModeAttempt,
   MenuBarModeState,
@@ -54,6 +60,8 @@ export type {
   LocalModelCatalogSnapshot,
   LocalModelEnsureResult,
   LocalModelOperationEvent,
+  SearchSettingsResponse,
+  SearchSettingsUpdateRequest,
   TokenUsagePeriod,
   TokenUsageSummary,
 }
@@ -119,6 +127,10 @@ export interface SettingsCapabilities {
   }
   diagnostics: {
     get(): Promise<DiagnosticsResponse>
+  }
+  search: {
+    get(): Promise<SearchSettingsResponse>
+    update(input: SearchSettingsUpdateRequest): Promise<SearchSettingsResponse>
   }
   /**
    * The application menu asking for this surface.
@@ -282,6 +294,12 @@ export function createCoreSettingsCapabilities(): SettingsCapabilities {
     diagnostics: {
       get: async () =>
         unwrapControlResult(await bridge.control.diagnosticsGet()),
+    },
+    search: {
+      get: async () =>
+        unwrapControlResult(await bridge.control.searchSettingsGet()),
+      update: async (input) =>
+        unwrapControlResult(await bridge.control.searchSettingsUpdate(input)),
     },
     // Subscribe before consuming the startup request. A menu request that lands
     // during this handshake is either delivered live or retained by main; it

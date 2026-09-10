@@ -50,6 +50,7 @@ import { getConfig } from "~/lib/config/config"
 import {
   actOnConnection,
   buildDiagnostics,
+  buildSearchSettings,
   createApiKey,
   listApiKeys,
   listConnections,
@@ -60,6 +61,7 @@ import {
   setConfiguratorEnabled,
   SettingsOperationError,
   updateApiKey,
+  updateSearchSettings,
 } from "~/lib/config/settings-operations"
 import {
   ApiKeyCreateRequest,
@@ -69,6 +71,7 @@ import {
   AppSetEnabledRequest,
   ConnectionActionRequest,
   ConnectionCredentialIdRequest,
+  SearchSettingsUpdateRequest,
   TokenUsageRequest,
 } from "~/lib/config/settings-types"
 import { listActiveClients } from "~/lib/http/active-clients"
@@ -93,9 +96,11 @@ import { getUpdateStatus } from "~/lib/update/update-check"
 import { projectControlConfig } from "~/routes/control/config-projection"
 
 export interface ControlRpcOperationOverrides {
+  buildSearchSettings?: typeof buildSearchSettings
   createApiKey?: typeof createApiKey
   refreshModels?: typeof cacheModels
   setAppEnabled?: typeof setAppEnabled
+  updateSearchSettings?: typeof updateSearchSettings
 }
 
 export interface ControlRpcDeps {
@@ -197,6 +202,26 @@ function createConnectionActionRpc(
   }
 }
 
+function createSearchSettingsRpcMethods(
+  operations: ControlRpcOperationOverrides,
+): RpcRegistry {
+  const read = operations.buildSearchSettings ?? buildSearchSettings
+  const update = operations.updateSearchSettings ?? updateSearchSettings
+  return {
+    "searchSettings/get": () => read(),
+    "searchSettings/update": (params: unknown) =>
+      asRpcOperation(() =>
+        update(
+          parseParams(
+            SearchSettingsUpdateRequest,
+            params,
+            "Expected search connector settings update.",
+          ),
+        ),
+      ),
+  }
+}
+
 function createSettingsRpcMethods({
   configurators,
   hub,
@@ -214,6 +239,7 @@ function createSettingsRpcMethods({
   const readConnections = () => listConnections(configurators)
 
   return {
+    ...createSearchSettingsRpcMethods(operations),
     "connections/list": readConnections,
     "connections/act": createConnectionActionRpc(configurators, hub, readApps),
     "connections/revealCredential": (params: unknown) =>

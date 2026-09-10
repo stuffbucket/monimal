@@ -8,6 +8,7 @@ import {
   AppSetEnabledRequest,
   ConnectionActionRequest,
   ConnectionCredentialIdRequest,
+  SearchSettingsUpdateRequest,
   TokenUsagePeriod,
 } from '@stuffbucket/maximal-core/settings-types'
 import {
@@ -175,6 +176,14 @@ function registerIpc(
     session.usageGet(TokenUsagePeriod.parse(period)),
   )
   ipcMain.handle(BRIDGE_CHANNELS.diagnosticsGet, () => session.diagnosticsGet())
+  ipcMain.handle(BRIDGE_CHANNELS.searchSettingsGet, () =>
+    session.searchSettingsGet(),
+  )
+  ipcMain.handle(
+    BRIDGE_CHANNELS.searchSettingsUpdate,
+    (_event, input: unknown) =>
+      session.searchSettingsUpdate(SearchSettingsUpdateRequest.parse(input)),
+  )
   ipcMain.handle(BRIDGE_CHANNELS.logsLocation, () => join(coreHomePath(), 'logs'))
   ipcMain.handle(BRIDGE_CHANNELS.logsReveal, async () => {
     const error = await shell.openPath(join(coreHomePath(), 'logs'))

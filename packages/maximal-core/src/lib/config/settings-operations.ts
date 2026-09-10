@@ -1,7 +1,19 @@
+import {
+  buildSearchSettingsManifest,
+  copilotSearchProvider,
+  duckDuckGoSearchProvider,
+  ollamaSearchProvider,
+  type ConnectorSettingField,
+  type ConnectorSettingValue,
+  type SearchConnectorConfig,
+  type SearchProviderConfig,
+  type SearchProvider,
+} from "@stuffbucket/maximal-harness"
 import { randomUUID } from "node:crypto"
+import { z } from "zod"
 
-import type { AppEntry } from "~/lib/config/settings-types"
 import type {
+  AppEntry,
   ApiKeyCreateRequest as ApiKeyCreateRequestType,
   ApiKeyEntry,
   ApiKeysListResponse,
@@ -12,12 +24,15 @@ import type {
   ConnectionsListResponse,
   CopilotRefreshStatus,
   DiagnosticsResponse,
+  SearchSettingsResponse,
+  SearchSettingsUpdateRequest,
 } from "~/lib/config/settings-types"
 import type {
   ConfiguratorConnection,
   ConfiguratorPlugin,
   ConfiguratorRegistry,
 } from "~/lib/configurator-host"
+import type { Model } from "~/services/copilot/get-models"
 
 import { getApp } from "~/apps/registry"
 import { describeExecutor } from "~/debug"
@@ -28,13 +43,20 @@ import {
   getEnterpriseDomain,
   getGitHubApiBaseUrl,
 } from "~/lib/config/api-config"
-import { getConfig, updateConfig, writeConfig } from "~/lib/config/config"
+import {
+  type AppConfig,
+  getConfig,
+  updateConfig,
+  writeConfig,
+} from "~/lib/config/config"
 import { API_KEY_VALUE_PATTERN } from "~/lib/config/config-schema"
+import { SearchSettingsResponse as SearchSettingsResponseSchema } from "~/lib/config/settings-types"
 import {
   apiKeyToCredentialSummary,
   configuratorConnectionToAppEntry,
   configuratorConnectionToConnectionEntry,
 } from "~/lib/configurator-app-compat"
+import { shouldUseResponsesApi } from "~/lib/models/endpoint-selection"
 import { describeLaunchSource } from "~/lib/platform/cli-path"
 import {
   copilotRefreshHealth,
@@ -57,6 +79,338 @@ export class SettingsOperationError extends Error {
     this.name = "SettingsOperationError"
     this.kind = kind
   }
+}
+
+const unboundProvider = () => ({})
+const baseSearchProviders = [
+  ollamaSearchProvider(unboundProvider),
+  copilotSearchProvider(unboundProvider),
+  duckDuckGoSearchProvider(unboundProvider),
+]
+
+function searchProvidersForModels(models: ReadonlyArray<Model>) {
+  const modelOptions = models
+    .filter(
+      (model) => model.model_picker_enabled && shouldUseResponsesApi(model),
+    )
+    .map((model) => ({ label: model.name || model.id, value: model.id }))
+    .sort(
+      (left, right) =>
+        left.label.localeCompare(right.label)
+        || left.value.localeCompare(right.value),
+    )
+  return [
+    ollamaSearchProvider(unboundProvider),
+    modelOptions.length === 0 ?
+      copilotSearchProvider(unboundProvider)
+    : copilotSearchProvider(unboundProvider, modelOptions),
+    duckDuckGoSearchProvider(unboundProvider),
+  ]
+}
+
+interface SearchSettingsDependencies {
+  env: NodeJS.ProcessEnv
+  getConfig: typeof getConfig
+  getModels: () => ReadonlyArray<Model>
+  writeConfig: typeof writeConfig
+}
+
+const searchSettingsDependencies: SearchSettingsDependencies = {
+  env: process.env,
+  getConfig,
+  getModels: () => state.models?.data ?? [],
+  writeConfig,
+}
+
+export function buildSearchSettings(
+  config: AppConfig = getConfig(),
+  env: NodeJS.ProcessEnv = process.env,
+  models: ReadonlyArray<Model> = state.models?.data ?? [],
+): SearchSettingsResponse {
+  const searchProviders = searchProvidersForModels(models)
+  const searchManifest = buildSearchSettingsManifest(searchProviders)
+  const search = config.connectors?.search ?? {}
+  const defaults = search.defaults ?? {}
+  const settings: Record<string, ConnectorSettingValue> = {
+    priority: [...(search.priority ?? searchProviders.map(({ id }) => id))],
+    fallback: search.fallback ?? true,
+    maxResults: defaults.maxResults ?? 5,
+    allowedDomains: [...(defaults.allowedDomains ?? [])],
+    blockedDomains: [...(defaults.blockedDomains ?? [])],
+  }
+  const providers = Object.fromEntries(
+    searchProviders.map((provider) => {
+      const configured = search.providers?.[provider.id]
+      const configuredSettings = Object.fromEntries(
+        Object.entries(configured?.settings ?? {}).filter(
+          (entry): entry is [string, ConnectorSettingValue] =>
+            entry[1] !== undefined,
+        ),
+      )
+      const secretSources: Record<string, "environment" | "settings"> = {}
+      const secretKeys = new Set<string>()
+      for (const field of provider.settings ?? []) {
+        if (field.type !== "secret") continue
+        secretKeys.add(field.key)
+        if (typeof configuredSettings[field.key] === "string") {
+          secretSources[field.key] = "settings"
+        } else if (provider.id === "ollama" && env.OLLAMA_API_KEY) {
+          secretSources[field.key] = "environment"
+        }
+      }
+      const providerSettings = Object.fromEntries(
+        Object.entries(configuredSettings).filter(
+          ([key]) => !secretKeys.has(key),
+        ),
+      )
+      return [
+        provider.id,
+        {
+          enabled: configured?.enabled ?? true,
+          settings: providerSettings,
+          secret_sources: secretSources,
+        },
+      ]
+    }),
+  )
+  return SearchSettingsResponseSchema.parse({
+    manifest: searchManifest,
+    settings,
+    providers,
+  })
+}
+
+export function updateSearchSettings(
+  input: SearchSettingsUpdateRequest,
+  dependencies: SearchSettingsDependencies = searchSettingsDependencies,
+): SearchSettingsResponse {
+  const current = dependencies.getConfig()
+  const searchProviders = searchProvidersForModels(dependencies.getModels())
+  const searchManifest = buildSearchSettingsManifest(searchProviders)
+  const previous = current.connectors?.search ?? {}
+  const global = mergeGlobalSearchSettings(
+    previous,
+    input.settings,
+    searchManifest.fields,
+  )
+  const providers = mergeSearchProviders(previous.providers, input.providers, {
+    searchProviders,
+    env: dependencies.env,
+  })
+  const nextSearch = { ...previous, ...global, providers }
+  const saved = dependencies.writeConfig({
+    ...current,
+    connectors: { ...current.connectors, search: nextSearch },
+  })
+  return buildSearchSettings(saved, dependencies.env, dependencies.getModels())
+}
+
+function mergeGlobalSearchSettings(
+  previous: SearchConnectorConfig,
+  updates: SearchSettingsUpdateRequest["settings"],
+  fields: ReadonlyArray<ConnectorSettingField>,
+): Pick<SearchConnectorConfig, "priority" | "fallback" | "defaults"> {
+  let priority = previous.priority
+  let fallback = previous.fallback
+  const defaults = { ...previous.defaults }
+  for (const [key, value] of Object.entries(updates ?? {})) {
+    const field = fields.find((candidate) => candidate.key === key)
+    if (!field) invalidSearchSetting(`Unknown search setting: ${key}`)
+    validateSetting(field, value, `search.${key}`)
+    if (key === "priority" && Array.isArray(value)) {
+      validatePriority(value)
+      priority = value
+    } else if (key === "fallback" && typeof value === "boolean") {
+      fallback = value
+    } else if (key === "maxResults" && typeof value === "number") {
+      defaults.maxResults = value
+    } else if (key === "allowedDomains" && Array.isArray(value)) {
+      defaults.allowedDomains = value
+    } else if (key === "blockedDomains" && Array.isArray(value)) {
+      defaults.blockedDomains = value
+    }
+  }
+  return { priority, fallback, defaults }
+}
+
+function validatePriority(priority: Array<string>): void {
+  const known = new Set(baseSearchProviders.map(({ id }) => id))
+  if (new Set(priority).size !== priority.length)
+    invalidSearchSetting("Search provider priority contains duplicates")
+  const unknown = priority.find((id) => !known.has(id))
+  if (unknown) invalidSearchSetting(`Unknown search provider: ${unknown}`)
+}
+
+function mergeSearchProviders(
+  previous: SearchConnectorConfig["providers"],
+  updates: SearchSettingsUpdateRequest["providers"],
+  validation: {
+    searchProviders: ReadonlyArray<SearchProvider>
+    env: NodeJS.ProcessEnv
+  },
+): Record<string, SearchProviderConfig> {
+  const providers = { ...previous }
+  for (const [providerId, update] of Object.entries(updates ?? {})) {
+    const provider = validation.searchProviders.find(
+      ({ id }) => id === providerId,
+    )
+    if (!provider)
+      invalidSearchSetting(`Unknown search provider: ${providerId}`)
+    const configured = providers[providerId] ?? {}
+    const settings = mergeProviderSettings(
+      provider,
+      configured.settings,
+      update.settings,
+    )
+    const enabled = update.enabled ?? configured.enabled ?? true
+    if (enabled) validateEnabledProvider(provider, settings, validation.env)
+    providers[providerId] =
+      update.enabled === undefined ?
+        { ...configured, settings }
+      : { ...configured, enabled: update.enabled, settings }
+  }
+  return providers
+}
+
+function mergeProviderSettings(
+  provider: SearchProvider,
+  previous: SearchProviderConfig["settings"],
+  updates: NonNullable<
+    SearchSettingsUpdateRequest["providers"]
+  >[string]["settings"],
+): Record<string, ConnectorSettingValue | undefined> {
+  let settings = { ...previous }
+  for (const [key, value] of Object.entries(updates ?? {})) {
+    const field = provider.settings?.find((candidate) => candidate.key === key)
+    if (!field) invalidSearchSetting(`Unknown ${provider.id} setting: ${key}`)
+    if ((field.type === "secret" && value === "") || value === null) {
+      settings = Object.fromEntries(
+        Object.entries(settings).filter(([candidate]) => candidate !== key),
+      )
+      continue
+    }
+    validateSetting(field, value, `${provider.id}.${key}`)
+    settings[key] = value
+  }
+  return settings
+}
+
+function validateSetting(
+  field: ConnectorSettingField,
+  value: ConnectorSettingValue | null,
+  path: string,
+): void {
+  if (value === null) {
+    if (field.required) {
+      invalidSearchSetting(`${path}: ${field.label} is required.`)
+    }
+    return
+  }
+  if (field.required && Array.isArray(value) && value.length === 0) {
+    invalidSearchSetting(`${path}: ${field.label} is required.`)
+  }
+  const parsed = settingSchema(field).safeParse(value)
+  if (!parsed.success) {
+    invalidSearchSetting(
+      `${path}: ${parsed.error.issues[0]?.message ?? "Invalid value"}`,
+    )
+  }
+}
+
+function settingSchema(field: ConnectorSettingField): z.ZodType {
+  switch (field.type) {
+    case "boolean": {
+      return z.boolean({ error: `${field.label} must be on or off.` })
+    }
+    case "integer": {
+      let schema = z
+        .number({ error: `${field.label} must be a number.` })
+        .int({ error: `${field.label} must be a whole number.` })
+      if (field.min !== undefined) {
+        schema = schema.min(field.min, {
+          error: `${field.label} must be at least ${displayBound(field, field.min)}.`,
+        })
+      }
+      if (field.max !== undefined) {
+        schema = schema.max(field.max, {
+          error: `${field.label} must be at most ${displayBound(field, field.max)}.`,
+        })
+      }
+      return schema
+    }
+    case "string-list": {
+      return z.array(
+        z
+          .string({ error: `${field.label} entries must be text.` })
+          .trim()
+          .min(1, { error: `${field.label} entries cannot be empty.` }),
+        { error: `${field.label} must be a list.` },
+      )
+    }
+    case "select": {
+      return z
+        .string({ error: `${field.label} must be text.` })
+        .refine(
+          (candidate) => field.options.some(({ value }) => value === candidate),
+          { error: `Choose an available ${field.label.toLowerCase()}.` },
+        )
+    }
+    default: {
+      let schema = z.string({ error: `${field.label} must be text.` })
+      if (field.required) {
+        schema = schema.trim().min(1, { error: `${field.label} is required.` })
+      }
+      if (field.format === "url") {
+        return schema.refine(isHttpUrl, {
+          error: `${field.label} must be a valid HTTP or HTTPS URL.`,
+        })
+      }
+      return schema
+    }
+  }
+}
+
+function displayBound(field: ConnectorSettingField, value: number): string {
+  return field.unit === "seconds" ?
+      `${String(value / 1000)} seconds`
+    : String(value)
+}
+
+function isHttpUrl(candidate: string): boolean {
+  try {
+    const url = new URL(candidate)
+    return url.protocol === "http:" || url.protocol === "https:"
+  } catch {
+    return false
+  }
+}
+
+function validateEnabledProvider(
+  provider: SearchProvider,
+  settings: SearchProviderConfig["settings"],
+  env: NodeJS.ProcessEnv,
+): void {
+  for (const field of provider.settings ?? []) {
+    if (!field.required) continue
+    const environmentSecret =
+      provider.id === "ollama"
+      && field.key === "apiKey"
+      && Boolean(env.OLLAMA_API_KEY)
+    if (environmentSecret) continue
+    const value = settings?.[field.key] ?? field.default ?? null
+    try {
+      validateSetting(field, value, `${provider.id}.${field.key}`)
+    } catch (error) {
+      if (!(error instanceof SettingsOperationError)) throw error
+      invalidSearchSetting(
+        `${provider.label} cannot be enabled: ${error.message} ${field.emptyDescription ?? "Complete the required field."}`,
+      )
+    }
+  }
+}
+
+function invalidSearchSetting(message: string): never {
+  throw new SettingsOperationError(message, "validation_error")
 }
 
 export function listApiKeys(): ApiKeysListResponse {
@@ -419,7 +773,7 @@ export function buildDiagnostics(): DiagnosticsResponse {
   const git = getGitVersion()
   const launch = describeLaunchSource()
   const tokens = tokenPresence()
-  const executor = describeExecutor()
+  const executor = describeExecutor(process.env, getConfig())
   return {
     version: BUILD_VERSION,
     source_revision: git.sha ? shortSha(git.sha) : null,

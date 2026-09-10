@@ -74,13 +74,16 @@ export function Button({
  */
 export function IconButton({
   label,
+  tooltip,
   children,
   active,
   danger,
   testId,
+  className,
   ...rest
 }: {
   label: string;
+  tooltip?: string;
   children: ReactNode;
   active?: boolean;
   danger?: boolean;
@@ -94,7 +97,7 @@ export function IconButton({
         <button
           {...rest}
           type="button"
-          className={`icon-button${danger ? ' icon-button--danger' : ''}`}
+          className={`icon-button${danger ? ' icon-button--danger' : ''}${className ? ` ${className}` : ''}`}
           aria-label={label}
           data-active={active ? 'true' : undefined}
           data-testid={testId}
@@ -104,7 +107,7 @@ export function IconButton({
       </Tooltip.Trigger>
       <Tooltip.Portal container={container}>
         <Tooltip.Content className="tooltip" sideOffset={6}>
-          {label}
+          {tooltip ?? label}
         </Tooltip.Content>
       </Tooltip.Portal>
     </Tooltip.Root>

@@ -1,7 +1,9 @@
 import * as RadioGroupPrimitive from '@radix-ui/react-radio-group';
+import * as Tooltip from '@radix-ui/react-tooltip';
 import { createContext, useContext, useId, type ReactNode } from 'react';
 
 import { useComponentStyles } from '../../lib/component-styles.js';
+import { useShellPortalContainer } from './Overlays.js';
 
 /**
  * Form controls.
@@ -31,12 +33,14 @@ export interface FieldControl {
  */
 export function FormField({
   label,
+  labelAction,
   hint,
   error,
   children,
 }: {
   label: string;
-  hint?: string;
+  labelAction?: ReactNode;
+  hint?: ReactNode;
   error?: string;
   children: (field: FieldControl) => ReactNode;
 }) {
@@ -47,9 +51,12 @@ export function FormField({
 
   return (
     <div className="form-field">
-      <label className="form-field__label" htmlFor={id}>
-        {label}
-      </label>
+      <div className="form-field__label-row">
+        <label className="form-field__label" htmlFor={id}>
+          {label}
+        </label>
+        {labelAction}
+      </div>
       {children({
         id,
         'aria-describedby': describedBy,
@@ -77,6 +84,7 @@ export function TextInput({
   disabled,
   type = 'text',
   testId,
+  title,
   ...field
 }: {
   value: string;
@@ -85,6 +93,7 @@ export function TextInput({
   disabled?: boolean;
   type?: 'text' | 'search' | 'password';
   testId?: string;
+  title?: string;
 } & Partial<FieldControl>) {
   return (
     <input
@@ -93,6 +102,7 @@ export function TextInput({
       value={value}
       placeholder={placeholder}
       disabled={disabled}
+      title={title}
       onChange={(event) => onChange(event.target.value)}
       data-testid={testId}
       {...field}
@@ -107,6 +117,7 @@ export function Textarea({
   placeholder,
   disabled,
   rows = 3,
+  onBlur,
   onKeyDown,
   testId,
   ...field
@@ -116,6 +127,7 @@ export function Textarea({
   placeholder?: string;
   disabled?: boolean;
   rows?: number;
+  onBlur?: (event: React.FocusEvent<HTMLTextAreaElement>) => void;
   onKeyDown?: (event: React.KeyboardEvent<HTMLTextAreaElement>) => void;
   testId?: string;
 } & Partial<FieldControl>) {
@@ -127,6 +139,7 @@ export function Textarea({
       placeholder={placeholder}
       disabled={disabled}
       onChange={(event) => onChange(event.target.value)}
+      onBlur={onBlur}
       onKeyDown={onKeyDown}
       data-testid={testId}
       {...field}
@@ -240,32 +253,53 @@ export function RadioGroup<T extends string>({
 /** A labelled switch. Reads as a setting rather than as a form control. */
 export function Switch({
   label,
+  displayLabel,
+  tooltip,
   checked,
   onChange,
   disabled,
   testId,
+  className,
 }: {
   label: string;
+  displayLabel?: ReactNode;
+  tooltip?: ReactNode;
   checked: boolean;
   onChange: (next: boolean) => void;
   disabled?: boolean;
   testId?: string;
+  className?: string;
 }) {
-  return (
+  const container = useShellPortalContainer();
+  const control = (
     <button
       type="button"
-      className="switch"
+      className={`switch${className ? ` ${className}` : ''}`}
       role="switch"
+      aria-label={label}
       aria-checked={checked}
       disabled={disabled}
       onClick={() => onChange(!checked)}
       data-testid={testId}
     >
-      <span>{label}</span>
+      {displayLabel === undefined ? <span>{label}</span> : displayLabel}
       <span className="switch__track" data-on={checked}>
         <span className="switch__thumb" />
       </span>
     </button>
+  );
+
+  if (tooltip === undefined) return control;
+
+  return (
+    <Tooltip.Root>
+      <Tooltip.Trigger asChild>{control}</Tooltip.Trigger>
+      <Tooltip.Portal container={container}>
+        <Tooltip.Content className="tooltip" sideOffset={6}>
+          {tooltip}
+        </Tooltip.Content>
+      </Tooltip.Portal>
+    </Tooltip.Root>
   );
 }
 

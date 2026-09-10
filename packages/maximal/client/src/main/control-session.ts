@@ -41,6 +41,9 @@ import {
   type DiagnosticsResponse,
   ModelsListResponse as ModelsListResponseSchema,
   type ModelsListResponse,
+  SearchSettingsResponse as SearchSettingsResponseSchema,
+  type SearchSettingsResponse,
+  type SearchSettingsUpdateRequest,
   TokenUsageSummary as TokenUsageSummarySchema,
   type TokenUsagePeriod,
   type TokenUsageSummary,
@@ -97,6 +100,8 @@ type ControlMethod =
   | 'localModels/cancel'
   | 'usage/get'
   | 'diagnostics/get'
+  | 'searchSettings/get'
+  | 'searchSettings/update'
 
 interface ControlClientLike {
   call<T = unknown>(method: string, params?: unknown): Promise<T>
@@ -163,6 +168,10 @@ export interface ControlSession {
   localModelsCancel(operationId: string): Promise<ControlResult<LocalModelCancelResult>>
   usageGet(period: TokenUsagePeriod): Promise<ControlResult<TokenUsageSummary>>
   diagnosticsGet(): Promise<ControlResult<DiagnosticsResponse>>
+  searchSettingsGet(): Promise<ControlResult<SearchSettingsResponse>>
+  searchSettingsUpdate(
+    input: SearchSettingsUpdateRequest,
+  ): Promise<ControlResult<SearchSettingsResponse>>
   dispose(): void
 }
 
@@ -197,6 +206,8 @@ const optionalMethods = [
   'localModels/cancel',
   'usage/get',
   'diagnostics/get',
+  'searchSettings/get',
+  'searchSettings/update',
 ] as const
 
 const discoverySchema = z.object({
@@ -652,6 +663,14 @@ export function createControlSession(
       call('usage/get', parseWith(TokenUsageSummarySchema), { period }),
     diagnosticsGet: () =>
       call('diagnostics/get', parseWith(DiagnosticsResponseSchema)),
+    searchSettingsGet: () =>
+      call('searchSettings/get', parseWith(SearchSettingsResponseSchema)),
+    searchSettingsUpdate: (input) =>
+      call(
+        'searchSettings/update',
+        parseWith(SearchSettingsResponseSchema),
+        input,
+      ),
     dispose() {
       if (disposed) return
       disposed = true

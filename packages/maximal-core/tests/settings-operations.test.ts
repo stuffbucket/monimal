@@ -760,13 +760,24 @@ describe("settings diagnostics operation", () => {
     expect(diagnostics.uptime_ms).toBeLessThanOrEqual(Math.ceil(after) + 1)
   })
 
-  test("uses the selected executor base as web-search detail", () => {
+  test("reports the configured web-search provider chain", () => {
+    const config = getConfig()
+    writeConfig({
+      ...config,
+      connectors: {
+        ...config.connectors,
+        search: {
+          priority: ["ollama", "copilot", "duckduckgo"],
+          fallback: true,
+        },
+      },
+    })
     process.env.OLLAMA_API_KEY = "diagnostics-test-key"
     const diagnostics = buildDiagnostics()
 
     expect(diagnostics.web_search).toEqual({
-      kind: "OllamaWebExecutor",
-      detail: "https://ollama.com/api",
+      kind: "SearchConnector",
+      detail: "providers: ollama -> copilot -> duckduckgo; fallback: enabled",
     })
   })
 })

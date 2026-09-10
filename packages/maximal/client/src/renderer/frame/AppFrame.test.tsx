@@ -137,6 +137,25 @@ describe('AppFrame', () => {
     expect(shell.querySelector('.sb-shell.app .titlebar')).not.toBeNull()
   })
 
+  it('omits the empty status bar from Settings', () => {
+    const settings = renderFrame('settings', vi.fn(), <p>settings</p>)
+    expect(settings.querySelector('.statusbar')).toBeNull()
+
+    act(() => {
+      root?.render(
+        <AppFrame
+          tabs={PRODUCT_TABS}
+          activeTab="overview"
+          surface="overview"
+          onSelectTab={vi.fn()}
+        >
+          <p>overview</p>
+        </AppFrame>,
+      )
+    })
+    expect(settings.querySelector('.statusbar')).not.toBeNull()
+  })
+
   it('lists the product views as tabs, with the current view marked selected', () => {
     const shell = renderFrame('traffic', vi.fn(), <p>content</p>)
     const tabs = [...shell.querySelectorAll('[role="tab"]')]

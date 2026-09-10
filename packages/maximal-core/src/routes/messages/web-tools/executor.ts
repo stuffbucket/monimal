@@ -15,12 +15,22 @@
  *     search by scraping DuckDuckGo's server-rendered HTML.
  */
 
+import {
+  copilotSearchProvider,
+  createSearchConnector,
+  duckDuckGoSearchProvider,
+  ollamaSearchProvider,
+  type ConnectorSettings,
+  type SearchConnectorConfig,
+  type SearchProviderInstance,
+  type SearchResult as ConnectorSearchResult,
+} from "@stuffbucket/maximal-harness"
 import { randomUUID } from "node:crypto"
 import TurndownService from "turndown"
 
 import type { ResponsesPayload } from "~/services/copilot/create-responses"
 
-import { getSmallModel } from "~/lib/config/config"
+import { getConfig, getSmallModel } from "~/lib/config/config"
 import { shouldUseResponsesApi } from "~/lib/models/endpoint-selection"
 import { Cache } from "~/lib/runtime-state/cache"
 import { hasCopilotToken, state } from "~/lib/runtime-state/state"
@@ -77,6 +87,12 @@ export interface Executor {
   search(query: string, opts?: SearchOpts): Promise<SearchResult>
 }
 
+export interface InProcessFetchExecutorOpts {
+  searchUrl?: string
+  searchTimeoutMs?: number
+  maxResults?: number
+}
+
 // ────────────────────────────────────────────────────────────────────
 // In-process implementation.
 // ────────────────────────────────────────────────────────────────────
@@ -118,6 +134,16 @@ function isTextual(mediaType: string): boolean {
 }
 
 export class InProcessFetchExecutor implements Executor {
+  private readonly searchUrl: string
+  private readonly searchTimeoutMs: number
+  private readonly maxResults: number
+
+  constructor(opts: InProcessFetchExecutorOpts = {}) {
+    this.searchUrl = opts.searchUrl ?? DDG_HTML_SEARCH_URL
+    this.searchTimeoutMs = opts.searchTimeoutMs ?? SEARCH_TIMEOUT_MS
+    this.maxResults = opts.maxResults ?? DEFAULT_SEARCH_MAX_RESULTS
+  }
+
   async fetch(url: string, opts: FetchOpts = {}): Promise<FetchResult> {
     const maxChars = opts.maxChars ?? DEFAULT_MAX_CHARS
     const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS
@@ -175,10 +201,11 @@ export class InProcessFetchExecutor implements Executor {
   // no API key required, matching the no-key philosophy of fetch() above.
   // Configure OLLAMA_API_KEY for a real search API at better quality.
   search(query: string, opts: SearchOpts = {}): Promise<SearchResult> {
-    return ddgHtmlSearch(
-      withDomainOperators(query, opts),
-      opts.maxResults ?? DEFAULT_SEARCH_MAX_RESULTS,
-    )
+    return ddgHtmlSearch(withDomainOperators(query, opts), {
+      maxResults: opts.maxResults ?? this.maxResults,
+      searchUrl: this.searchUrl,
+      timeoutMs: this.searchTimeoutMs,
+    })
   }
 }
 
@@ -503,17 +530,23 @@ function withDomainOperators(query: string, opts: SearchOpts): string {
   return parts.join(" ")
 }
 
+interface DdgSearchOptions {
+  maxResults: number
+  searchUrl: string
+  timeoutMs: number
+}
+
 async function ddgHtmlSearch(
   query: string,
-  maxResults: number,
+  options: DdgSearchOptions,
 ): Promise<SearchResult> {
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), SEARCH_TIMEOUT_MS)
+  const timer = setTimeout(() => controller.abort(), options.timeoutMs)
 
   let response: Response
   try {
     response = await fetch(
-      `${DDG_HTML_SEARCH_URL}?q=${encodeURIComponent(query)}`,
+      `${options.searchUrl}?q=${encodeURIComponent(query)}`,
       {
         method: "GET",
         redirect: "follow",
@@ -544,7 +577,7 @@ async function ddgHtmlSearch(
     return { ok: false, code: "unavailable" }
   }
 
-  return { ok: true, items: parseDdgResults(html, maxResults) }
+  return { ok: true, items: parseDdgResults(html, options.maxResults) }
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -866,23 +899,124 @@ export function pickResponsesModel(
  * scoped to one request.
  */
 export function selectExecutor(): Executor {
-  const choice = chooseExecutor(process.env, {
-    responsesModel: resolveResponsesModel(),
-  })
-  switch (choice.kind) {
-    case "OllamaWebExecutor": {
-      return new OllamaWebExecutor({ apiKey: choice.apiKey })
-    }
-    case "CopilotResponsesExecutor": {
-      return new CopilotResponsesExecutor({ model: choice.model })
-    }
-    case "InProcessFetchExecutor": {
-      return new InProcessFetchExecutor()
-    }
-    default: {
-      throw new Error(
-        `unhandled executor kind: ${(choice as { kind: string }).kind}`,
-      )
-    }
+  return createConfiguredExecutor(
+    getConfig().connectors?.search,
+    process.env,
+    resolveResponsesModel(),
+  )
+}
+
+export function createConfiguredExecutor(
+  config: SearchConnectorConfig = {},
+  env: NodeJS.ProcessEnv = process.env,
+  automaticResponsesModel: string | undefined = resolveResponsesModel(),
+): Executor {
+  const connector = createSearchConnector(
+    [
+      ollamaSearchProvider((settings) => bindOllamaProvider(settings, env)),
+      copilotSearchProvider((settings) =>
+        bindCopilotProvider(settings, automaticResponsesModel),
+      ),
+      duckDuckGoSearchProvider(bindDuckDuckGoProvider),
+    ],
+    config,
+  )
+
+  return {
+    search: async (query, options = {}) => {
+      const result = await connector.search(query, options)
+      if (!result.ok) return result
+      return {
+        ok: true,
+        items: result.items.map((item) => ({
+          url: item.url,
+          title: item.title,
+          page_age: item.pageAge,
+        })),
+      }
+    },
+    fetch: (url, options) => connector.fetch(url, options),
   }
+}
+
+function bindOllamaProvider(
+  settings: ConnectorSettings,
+  env: NodeJS.ProcessEnv,
+): SearchProviderInstance {
+  const apiKey = stringSetting(settings, "apiKey") ?? env.OLLAMA_API_KEY
+  if (!apiKey) return { available: () => false }
+  const executor = new OllamaWebExecutor({
+    apiKey,
+    baseUrl: stringSetting(settings, "baseUrl"),
+    timeoutMs: numberSetting(settings, "timeoutMs"),
+  })
+  return bindExecutor(executor, numberSetting(settings, "maxResults"))
+}
+
+function bindCopilotProvider(
+  settings: ConnectorSettings,
+  automaticResponsesModel: string | undefined,
+): SearchProviderInstance {
+  const model = stringSetting(settings, "model") ?? automaticResponsesModel
+  if (!model) return { available: () => false }
+  const executor = new CopilotResponsesExecutor({ model })
+  return bindExecutor(executor, numberSetting(settings, "maxResults"))
+}
+
+function bindDuckDuckGoProvider(
+  settings: ConnectorSettings,
+): SearchProviderInstance {
+  const executor = new InProcessFetchExecutor({
+    searchUrl: stringSetting(settings, "searchUrl"),
+    searchTimeoutMs: numberSetting(settings, "timeoutMs"),
+    maxResults: numberSetting(settings, "maxResults"),
+  })
+  return bindExecutor(executor, numberSetting(settings, "maxResults"))
+}
+
+function bindExecutor(
+  executor: Executor,
+  configuredMaxResults: number | undefined,
+): SearchProviderInstance {
+  return {
+    search: async (query, options = {}) =>
+      toConnectorSearchResult(
+        await executor.search(query, {
+          maxResults: options.maxResults ?? configuredMaxResults,
+          allowedDomains:
+            options.allowedDomains ? [...options.allowedDomains] : undefined,
+          blockedDomains:
+            options.blockedDomains ? [...options.blockedDomains] : undefined,
+        }),
+      ),
+    fetch: (url, options) => executor.fetch(url, options),
+  }
+}
+
+function toConnectorSearchResult(result: SearchResult): ConnectorSearchResult {
+  if (!result.ok) return result
+  return {
+    ok: true,
+    items: result.items.map((item) => ({
+      url: item.url,
+      title: item.title,
+      pageAge: item.page_age,
+    })),
+  }
+}
+
+function stringSetting(
+  settings: ConnectorSettings,
+  key: string,
+): string | undefined {
+  const value = settings[key]
+  return typeof value === "string" && value.length > 0 ? value : undefined
+}
+
+function numberSetting(
+  settings: ConnectorSettings,
+  key: string,
+): number | undefined {
+  const value = settings[key]
+  return typeof value === "number" ? value : undefined
 }

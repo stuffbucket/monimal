@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 
 import { useComponentStyles } from '../../lib/component-styles.js';
+import { ScrollArea } from '../controls/ScrollArea.js';
 
 /**
  * The rules the settings frame draws itself with.
@@ -189,7 +190,7 @@ export function SettingsPage({
         {actions}
       </header>
 
-      <div className="settings__body">{children}</div>
+      <ScrollArea className="settings__body">{children}</ScrollArea>
     </div>
   );
 }

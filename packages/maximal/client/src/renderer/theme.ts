@@ -28,6 +28,8 @@
  */
 const THEME_CSS = `
 :root {
+   color-scheme: dark;
+
   /* Window chrome and side-panel surface. Matches the host window's own
      default background colour, so the Electron paint and this value agree
      before first paint. */
@@ -45,8 +47,12 @@ const THEME_CSS = `
   --shell-text-muted: #8a8a8a;
   --shell-text-subtle: #6a6a6a;
 
-  /* Dividers and quiet outlines. */
-  --shell-border: #2a2a2a;
+  /* Dividers and control outlines. The strong step is part of the renderer
+     contract and keeps inputs and scroll thumbs distinct from the canvas. */
+  --shell-border: #343943;
+  --shell-border-strong: #515a69;
+  --shell-input-background: #171a20;
+  --shell-border-hover: var(--shell-accent);
 
   /* Hover overlay, and the one step stronger the package uses for pressed
      or nested hover. */

@@ -10,6 +10,7 @@ import { SettingsOperationError } from "~/lib/config/settings-operations"
 import {
   AppsListResponse,
   ConnectionsListResponse,
+  SearchSettingsResponse,
 } from "~/lib/config/settings-types"
 import {
   CONTROL_UPSTREAM_ERROR,
@@ -143,6 +144,8 @@ describe("control /rpc — discovery", () => {
       "models/refresh",
       "usage/get",
       "diagnostics/get",
+      "searchSettings/get",
+      "searchSettings/update",
     ]
     for (const method of settingsMethods) expect(caps.methods).toContain(method)
   })
@@ -226,6 +229,11 @@ describe("control /rpc — params validation", () => {
         { period: "year" },
         "Expected optional { period: day | week | month }.",
       ],
+      [
+        "searchSettings/update",
+        { settings: [] },
+        "Expected search connector settings update.",
+      ],
     ] as const
 
     for (const [method, params, message] of cases) {
@@ -245,6 +253,75 @@ describe("control /rpc — params validation", () => {
 
     expect(body.error?.code).toBe(-32602)
     expect(body.error?.message).toContain("not found")
+  })
+})
+
+describe("control /rpc — search settings", () => {
+  test("descriptor validation errors remain legible parameter errors", async () => {
+    const { body } = await rpc("searchSettings/update", {
+      id: 1,
+      params: { settings: { fallback: "yes" } },
+    })
+
+    expect(body.error).toMatchObject({
+      code: JSON_RPC_INVALID_PARAMS,
+      message:
+        "search.fallback: Fall back after transient failures must be on or off.",
+    })
+  })
+
+  test("search settings methods expose and update the schema-driven contract", async () => {
+    const initial = (await rpc("searchSettings/get", { id: 1 })).body.result
+    expect(SearchSettingsResponse.safeParse(initial).success).toBe(true)
+    expect(initial?.manifest).toMatchObject({ id: "search" })
+
+    const updated = (
+      await rpc("searchSettings/update", {
+        id: 1,
+        params: {
+          settings: { fallback: false },
+          providers: { duckduckgo: { settings: { maxResults: 4 } } },
+        },
+      })
+    ).body.result
+    expect(SearchSettingsResponse.safeParse(updated).success).toBe(true)
+    expect(updated?.settings).toMatchObject({ fallback: false })
+    expect(updated?.providers).toMatchObject({
+      duckduckgo: { settings: { maxResults: 4 } },
+    })
+  })
+
+  test("search settings dispatcher uses injectable operations", async () => {
+    const snapshot = SearchSettingsResponse.parse({
+      manifest: {
+        id: "search",
+        label: "Search",
+        description: "Search settings",
+        fields: [],
+        providers: [],
+      },
+      settings: {},
+      providers: {},
+    })
+    let updates = 0
+    const custom = appWithOperations({
+      buildSearchSettings: () => snapshot,
+      updateSearchSettings: () => {
+        updates += 1
+        return snapshot
+      },
+    })
+    try {
+      expect(
+        (await rpcThrough(custom.app, "searchSettings/get")).result,
+      ).toEqual(snapshot)
+      expect(
+        (await rpcThrough(custom.app, "searchSettings/update", {})).result,
+      ).toEqual(snapshot)
+      expect(updates).toBe(1)
+    } finally {
+      custom.hub.dispose()
+    }
   })
 })
 

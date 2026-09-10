@@ -2,6 +2,7 @@ import type {
   AccountsListResponse,
   AuthStatus,
   ConnectionEntry,
+  SearchSettingsResponse,
   TokenUsagePeriod,
 } from '@stuffbucket/maximal-core/settings-types'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -46,6 +47,17 @@ const apiKeyEntry = {
   key: 'testkey123',
   enabled: true,
   created_at: '2026-09-08T12:00:00.000Z',
+}
+const searchSettings: SearchSettingsResponse = {
+  manifest: {
+    id: 'search',
+    label: 'Search',
+    description: 'Search settings',
+    fields: [],
+    providers: [],
+  },
+  settings: {},
+  providers: {},
 }
 
 function success<T>(value: T): ControlResult<T> {
@@ -190,6 +202,8 @@ function fakeBridge(): MaximalBridge {
           web_search: { kind: 'none', detail: null },
         }),
       ),
+      searchSettingsGet: vi.fn(async () => success(searchSettings)),
+      searchSettingsUpdate: vi.fn(async () => success(searchSettings)),
       onChange: vi.fn(() => () => {}),
       onTrafficInvalidation: vi.fn(() => () => {}),
     },
@@ -285,6 +299,10 @@ describe('createCoreSettingsCapabilities', () => {
     await expect(capabilities.diagnostics.get()).resolves.toMatchObject({
       launch_kind: 'dev',
     })
+    await expect(capabilities.search.get()).resolves.toEqual(searchSettings)
+    await expect(capabilities.search.update({ settings: {} })).resolves.toEqual(
+      searchSettings,
+    )
 
     expect(window.maximal.control.authSignOut).toHaveBeenCalledOnce()
     expect(window.maximal.control.accountsSwitch).toHaveBeenCalledWith(
@@ -316,6 +334,9 @@ describe('createCoreSettingsCapabilities', () => {
     )
     expect(window.maximal.control.apiKeysRemove).toHaveBeenCalledWith('key-1')
     expect(window.maximal.control.usageGet).toHaveBeenCalledWith('week')
+    expect(window.maximal.control.searchSettingsUpdate).toHaveBeenCalledWith({
+      settings: {},
+    })
 
     const onChange = vi.fn()
     capabilities.subscribe(onChange)

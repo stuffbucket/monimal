@@ -203,8 +203,14 @@
 .sb-shell .input:focus-visible,
 .sb-shell .checkbox__box:focus-visible,
 .sb-shell .radio__box:focus-visible {
-  outline: 2px solid var(--shell-focus, var(--shell-accent));
-  outline-offset: 2px;
+  outline: var(--shell-focus-ring-width) solid var(--shell-focus, var(--shell-accent));
+  outline-offset: var(--shell-focus-ring-offset);
+}
+
+.sb-shell .input:focus {
+  border-color: var(--shell-focus, var(--shell-accent));
+  outline: none;
+  box-shadow: 0 0 0 var(--shell-focus-ring-width) var(--shell-focus, var(--shell-accent));
 }
 
 .sb-shell .panels,
@@ -835,6 +841,8 @@
 }
 
 .sb-shell .tooltip {
+  box-sizing: border-box;
+  max-width: min(24rem, calc(100vw - 16px));
   padding: var(--shell-space-1) var(--shell-space-2);
   color: var(--shell-text);
   background: var(--shell-raised);
@@ -842,6 +850,8 @@
   border-radius: var(--shell-radius-small, 4px);
   box-shadow: var(--shell-elevation, none);
   font-size: 13px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
   user-select: none;
 }
 
@@ -1111,6 +1121,12 @@
   gap: var(--shell-space-1);
 }
 
+.sb-shell .form-field__label-row {
+  display: flex;
+  align-items: center;
+  gap: var(--shell-space-1);
+}
+
 .sb-shell .form-field__label {
   color: var(--shell-text-muted);
   font-size: 13px;
@@ -1201,6 +1217,31 @@
   border-radius: var(--shell-radius-dialog, 14px);
   box-shadow: var(--shell-elevation, none);
   transform: translate(-50%, -50%);
+}
+
+.sb-shell .unsaved-changes-dialog {
+  width: min(440px, 90vw);
+}
+
+.sb-shell .unsaved-changes-dialog__heading,
+.sb-shell .unsaved-changes-dialog__description {
+  margin: 0;
+}
+
+.sb-shell .unsaved-changes-dialog__heading {
+  font-size: var(--shell-text-lg);
+}
+
+.sb-shell .unsaved-changes-dialog__description {
+  color: var(--shell-text-muted);
+  line-height: 1.5;
+}
+
+.sb-shell .unsaved-changes-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--shell-space-2);
+  flex-wrap: wrap;
 }
 
 .sb-shell .terminal-launcher {

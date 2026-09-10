@@ -18,6 +18,10 @@ import { Terminal } from './terminal/Terminal'
 import { terminalTransport } from './terminal/transport'
 import { Traffic } from './traffic/Traffic'
 import { createObservabilitySource } from './traffic/source'
+import {
+  UnsavedChangesProvider,
+  useGuardedNavigation,
+} from './unsaved-changes'
 
 /**
  * Top-level composition.
@@ -60,6 +64,14 @@ function terminalTab(result: TerminalLaunchResult): AppTab {
 }
 
 export function App(): ReactElement {
+  return (
+    <UnsavedChangesProvider>
+      <AppContent />
+    </UnsavedChangesProvider>
+  )
+}
+
+function AppContent(): ReactElement {
   // Built once for the app's lifetime. Electron main owns sidecar replacement;
   // this adapter keeps one stable named-bridge subscription across restarts.
   // Recreating it per render would drop live subscriptions and defeat that.
@@ -72,16 +84,19 @@ export function App(): ReactElement {
   const [launcherOpen, setLauncherOpen] = useState(false)
   const [recentProfiles, setRecentProfiles] = useState<string[]>([])
   const [sectionRequest, setSectionRequest] = useState<SettingsSectionRequest | null>(null)
+  const requestNavigation = useGuardedNavigation()
 
   /* The application menu chooses the surface here and the section there. A new
      object keeps every request observable without a parallel counter. */
   useEffect(
     () =>
       settings.onOpenRequest((sectionId) => {
+        requestNavigation(() => {
         setActiveTab('settings')
-        setSectionRequest({ id: sectionId ?? DEFAULT_SETTINGS_SECTION_ID })
+          setSectionRequest({ id: sectionId ?? DEFAULT_SETTINGS_SECTION_ID })
+        })
       }),
-    [settings],
+    [requestNavigation, settings],
   )
 
   useEffect(() => {
@@ -192,7 +207,7 @@ export function App(): ReactElement {
         tabs={visibleTabs}
         activeTab={current?.id ?? 'settings'}
         surface={current?.kind ?? 'settings'}
-        onSelectTab={setActiveTab}
+        onSelectTab={(id) => requestNavigation(() => setActiveTab(id))}
         onCloseTab={signedOut ? undefined : closeTab}
         onNewTab={signedOut ? undefined : () => setLauncherOpen(true)}
         tabTransfer={signedOut ? undefined : {
@@ -216,7 +231,11 @@ export function App(): ReactElement {
           <Settings
             capabilities={settings}
             request={sectionRequest}
-            onBack={signedOut ? () => setActiveTab('overview') : undefined}
+            onBack={
+              signedOut
+                ? () => requestNavigation(() => setActiveTab('overview'))
+                : undefined
+            }
           />
         ) : null}
       </AppFrame>

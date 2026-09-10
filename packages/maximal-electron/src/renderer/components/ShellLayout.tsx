@@ -181,7 +181,6 @@ export function ShellLayout<T extends Tab>({
       role="tabpanel"
       id={getTabPanelId(tabIdBase, activeTab)}
       aria-labelledby={getTabTriggerId(tabIdBase, activeTab)}
-      tabIndex={0}
     >
       {main}
     </div>
@@ -292,7 +291,7 @@ export function ShellLayout<T extends Tab>({
                   </Panel>
                 </Group>
               )}
-              {status !== undefined && (
+              {status !== null && status !== undefined && (
                 <footer className="statusbar">
                   {status}
                   <span className="statusbar__grow" />
