@@ -54,14 +54,6 @@ const SHIPPED_STYLESHEET = 'src/renderer/styles/shell-package-rules.css';
  */
 const ALLOWED = [
   {
-    file: 'src/main/index.ts',
-    reason: 'the reference application owns its quit-confirmation copy.',
-  },
-  {
-    file: 'src/main/native/tray.ts',
-    reason: 'the reference application owns its tray label and behavior.',
-  },
-  {
     file: 'src/renderer/components/Inspector.tsx',
     reason: 'the reference application owns its settings copy.',
   },
