@@ -21,6 +21,7 @@ export function TitleBar<T extends Tab>({
   tabsLabel,
   newTabLabel,
   tabIcon,
+  tabTransfer,
 }: {
   leading?: ReactNode;
   actions?: ReactNode;
@@ -45,6 +46,7 @@ export function TitleBar<T extends Tab>({
         label={tabsLabel}
         newLabel={newTabLabel}
         icon={tabIcon}
+        transfer={tabTransfer}
       />
 
       {/* Empty space stays draggable, so the window still moves by its bar. */}

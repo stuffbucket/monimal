@@ -1,21 +1,28 @@
 // @vitest-environment jsdom
-import { act } from 'react';
+import { StrictMode, act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../src/renderer/components/TerminalView.js', () => ({
-  TerminalView: ({ id, focused, onSplit, onNavigateSplit }: {
+  TerminalView: ({ id, focused, focusIndicator, onExit, onSplit, onNavigateSplit }: {
     id: string;
     focused?: boolean;
+    focusIndicator?: boolean;
+    onExit?: (exitCode: number) => void;
     onSplit?: (direction: 'right') => void;
     onNavigateSplit?: (direction: 'next') => void;
   }) => (
     <button
       data-session-id={id}
       data-focused={focused || undefined}
+      data-focus-indicator={focusIndicator || undefined}
       onClick={() => onSplit?.('right')}
       onDoubleClick={() => onNavigateSplit?.('next')}
+      onContextMenu={(event) => {
+        event.preventDefault();
+        onExit?.(0);
+      }}
     />
   ),
 }));
@@ -30,6 +37,36 @@ globalThis.ResizeObserver = class {
 };
 
 describe('TerminalTabs attachments', () => {
+  it('keeps sessions through a StrictMode remount and terminates them on real unmount', async () => {
+    const terminate = vi.fn(async () => undefined);
+    const element = document.createElement('div');
+    const root = createRoot(element);
+
+    await act(async () => {
+      root.render(
+        <StrictMode>
+          <TerminalTabs
+            attachments={[{ id: 'tab-17', sessionId: 'session-4' }]}
+            activeId="tab-17"
+            transport={{
+              spawn: async () => undefined,
+              write: async () => undefined,
+              resize: async () => undefined,
+              terminate,
+              subscribe: () => () => undefined,
+            }}
+          />
+        </StrictMode>,
+      );
+    });
+
+    expect(terminate).not.toHaveBeenCalled();
+
+    await act(async () => root.unmount());
+    expect(terminate).toHaveBeenCalledOnce();
+    expect(terminate).toHaveBeenCalledWith('session-4');
+  });
+
   it('keeps renderer tab identity distinct from terminal session identity', () => {
     const markup = renderToStaticMarkup(
       <TerminalTabs
@@ -47,6 +84,7 @@ describe('TerminalTabs attachments', () => {
 
     expect(markup).toContain('data-session-id="session-4"');
     expect(markup).not.toContain('data-session-id="tab-17"');
+    expect(markup).not.toContain('data-focus-indicator');
   });
 
   it('inserts a trusted launched session into a resizable split', async () => {
@@ -82,6 +120,7 @@ describe('TerminalTabs attachments', () => {
     expect([...element.querySelectorAll('[data-session-id]')].map((node) =>
       node.getAttribute('data-session-id'))).toEqual(['session-4', 'session-5']);
     expect(element.querySelector('.terminal-split')).not.toBeNull();
+    expect(element.querySelectorAll('[data-focus-indicator="true"]')).toHaveLength(2);
     expect(onSessionsChange).toHaveBeenLastCalledWith('tab-17', ['session-4', 'session-5']);
     expect(terminate).not.toHaveBeenCalled();
 
@@ -133,6 +172,57 @@ describe('TerminalTabs attachments', () => {
     expect(element.querySelector('[role="alert"]')?.textContent).toBe(
       'Terminal split could not start.',
     );
+
+    await act(async () => root.unmount());
+  });
+
+  it('collapses an exited split and closes a tab when its final shell exits', async () => {
+    const onExit = vi.fn();
+    const onSessionsChange = vi.fn();
+    const element = document.createElement('div');
+    const root = createRoot(element);
+
+    await act(async () => {
+      root.render(
+        <TerminalTabs
+          attachments={[{ id: 'tab-17', sessionId: 'session-4' }]}
+          activeId="tab-17"
+          launchSplit={async () => ({ sessionId: 'session-5' })}
+          onExit={onExit}
+          onSessionsChange={onSessionsChange}
+          transport={{
+            spawn: async () => undefined,
+            write: async () => undefined,
+            resize: async () => undefined,
+            terminate: async () => undefined,
+            subscribe: () => () => undefined,
+          }}
+        />,
+      );
+    });
+
+    await act(async () => {
+      (element.querySelector('[data-session-id="session-4"]') as HTMLButtonElement).click();
+    });
+    await act(async () => {
+      element.querySelector('[data-session-id="session-5"]')?.dispatchEvent(
+        new MouseEvent('contextmenu', { bubbles: true }),
+      );
+    });
+
+    expect(element.querySelector('.terminal-split')).toBeNull();
+    expect(element.querySelector('[data-session-id="session-4"]')?.getAttribute(
+      'data-focused',
+    )).toBe('true');
+    expect(onSessionsChange).toHaveBeenLastCalledWith('tab-17', ['session-4']);
+    expect(onExit).not.toHaveBeenCalled();
+
+    await act(async () => {
+      element.querySelector('[data-session-id="session-4"]')?.dispatchEvent(
+        new MouseEvent('contextmenu', { bubbles: true }),
+      );
+    });
+    expect(onExit).toHaveBeenCalledWith('tab-17');
 
     await act(async () => root.unmount());
   });

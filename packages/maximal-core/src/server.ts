@@ -209,6 +209,7 @@ export function createServerApps(
   controlApp.route(
     "/control",
     createControlRoutes({
+      listProviderModels: () => providerDispatcher.listModels(),
       trafficQueries:
         options.trafficQueries
         ?? (isTrafficQueryStore(trafficObserver) ? trafficObserver : undefined),

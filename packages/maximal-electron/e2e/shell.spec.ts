@@ -159,6 +159,10 @@ scenario('tabs open and close', async () => {
   const before = await tabs.count();
 
   await window.click('[data-testid="tab-new"]');
+  await window.getByTestId('terminal-launcher').getByRole('button', {
+    name: 'Local',
+    exact: true,
+  }).click();
   await expect(tabs).toHaveCount(before + 1);
 
   await window.locator('.tab__close').last().click();
@@ -262,23 +266,48 @@ scenario('card name and subtitle sit on separate lines', async () => {
 
 /* --------------------------------------------------------------- terminal */
 
-scenario('a new tab opens a real Ghostty terminal', async () => {
+scenario('a new tab opens a real xterm terminal', async () => {
   const { window } = harness;
 
   await window.click('[data-testid="tab-new"]');
+  const launcher = window.getByTestId('terminal-launcher');
+  await launcher.getByRole('textbox', { name: 'Search terminal profiles' }).fill('');
+  await launcher.getByRole('button', {
+    name: 'Local',
+    exact: true,
+  }).click();
 
   const terminal = window.locator('[data-testid="terminal"]').last();
   await expect(terminal).toBeVisible({ timeout: 20_000 });
 
-  // ghostty-web renders to a canvas. Its presence proves `init()` resolved and
-  // the WebAssembly parser is live, not that a div exists.
-  const canvas = terminal.locator('canvas').first();
-  await expect(canvas).toBeVisible({ timeout: 20_000 });
+  const input = terminal.getByRole('textbox', { name: 'Terminal input' });
+  await expect(input).toBeVisible({ timeout: 20_000 });
 
-  const box = await canvas.boundingBox();
+  const box = await terminal.boundingBox();
   expect(box).not.toBeNull();
   expect(box!.width).toBeGreaterThan(0);
   expect(box!.height).toBeGreaterThan(0);
+
+  const frame = await terminal.evaluate((node) => {
+    const terminalBox = node.getBoundingClientRect();
+    const hostBox = node.parentElement!.getBoundingClientRect();
+    const style = getComputedStyle(node);
+    return {
+      insetTop: terminalBox.top - hostBox.top,
+      insetLeft: terminalBox.left - hostBox.left,
+      radius: style.borderRadius,
+      shadow: style.boxShadow,
+    };
+  });
+  expect(frame).toEqual({ insetTop: 8, insetLeft: 8, radius: '7px', shadow: 'none' });
+
+  await expect(window.locator('.statusbar')).toHaveCount(0);
+  const viewport = terminal.locator('.xterm-viewport');
+  await expect(viewport).toBeVisible();
+  expect(await viewport.evaluate((node) => getComputedStyle(node).backgroundColor)).toBe(
+    await terminal.evaluate((node) => getComputedStyle(node).backgroundColor),
+  );
+  await capture(window, path.join('test-results', 'terminal-surface.png'));
 });
 
 scenario('a terminal takes its colours from the design tokens', async () => {
@@ -289,46 +318,37 @@ scenario('a terminal takes its colours from the design tokens', async () => {
   // terminal dark in the light theme and made `docs/architecture.md`'s "no
   // component contains a hex value" false.
   //
-  // This samples the canvas rather than the theme object the emulator was
-  // handed. Only a pixel proves the colour reached the screen.
+  // This samples the rendered terminal surface rather than the theme object
+  // the emulator was handed.
   //
-  // A terminal keeps the scheme it opened in: the colours are baked into the
-  // WebAssembly terminal at construction, and the only supported way to
-  // rebuild it wipes the scrollback. So this opens a second terminal after
+  // A terminal keeps the scheme it opened in: the theme is set at construction.
+  // Rebuilding it would wipe the scrollback, so this opens a second terminal after
   // switching, rather than expecting the first to follow.
   const openTerminal = async () => {
     await window.click('[data-testid="tab-new"]');
+    await window.getByTestId('terminal-launcher').getByRole('button', {
+      name: 'Local',
+      exact: true,
+    }).click();
     const terminal = window.locator('[data-testid="terminal"]').last();
-    const canvas = terminal.locator('canvas').first();
-    await expect(canvas).toBeVisible({ timeout: 20_000 });
-    return canvas;
+    await expect(terminal.getByRole('textbox', { name: 'Terminal input' })).toBeVisible({
+      timeout: 20_000,
+    });
+    return terminal;
   };
 
-  // Mid-width and near the bottom. The prompt sits at the top left and the
-  // scrollbar hugs the right edge, so this stays background.
-  const background = (canvas: Locator) =>
-    canvas.evaluate((node) => {
-      const element = node as HTMLCanvasElement;
-      const context = element.getContext('2d', { willReadFrequently: true });
-      if (!context) return null;
-      const x = Math.floor(element.width / 2);
-      const y = element.height - 6;
-      return Array.from(context.getImageData(x, y, 1, 1).data.slice(0, 3));
-    });
+  const background = (terminal: Locator) =>
+    terminal.evaluate((node) => getComputedStyle(node).backgroundColor);
 
   const dark = await openTerminal();
   // `--bg-canvas`, dark: #101216.
-  await expect.poll(() => background(dark), { timeout: 20_000 }).toEqual([
-    16, 18, 22,
-  ]);
+  await expect.poll(() => background(dark), { timeout: 20_000 }).toBe('rgb(16, 18, 22)');
 
   try {
     await setTheme(window, 'light');
     const light = await openTerminal();
     // `--bg-canvas`, light: #eef0f4.
-    await expect.poll(() => background(light), { timeout: 20_000 }).toEqual([
-      238, 240, 244,
-    ]);
+    await expect.poll(() => background(light), { timeout: 20_000 }).toBe('rgb(238, 240, 244)');
   } finally {
     // A persisted preference, and the order of these scenarios is random.
     await setTheme(window, 'dark');
@@ -344,13 +364,13 @@ scenario('the terminal runs a command and shows its output', async () => {
   await launcher.getByRole('button', { name: 'Local', exact: true }).click();
 
   const terminal = window.locator('[data-testid="terminal"]').last();
-  await expect(terminal.locator('canvas').first()).toBeVisible({
+  await expect(terminal.getByRole('textbox', { name: 'Terminal input' })).toBeVisible({
     timeout: 20_000,
   });
   await terminal.click();
 
   // A marker unlikely to appear in a shell banner, so a match is real output.
-  await window.keyboard.type('echo GHOSTTY_OK_7391');
+  await window.keyboard.type('echo XTERM_OK_7391');
   await window.keyboard.press('Enter');
 
   // Read the emulator's own buffer. The renderer draws to a canvas, so there
@@ -361,10 +381,10 @@ scenario('the terminal runs a command and shows its output', async () => {
       () => terminalScreen(terminal),
       { timeout: 20_000, message: 'terminal never echoed the command output' },
     )
-    .toContain('GHOSTTY_OK_7391');
+    .toContain('XTERM_OK_7391');
 });
 
-scenario('Ghostty shortcuts create right and down terminal splits', async () => {
+scenario('terminal shortcuts create right and down splits', async () => {
   const { window } = harness;
 
   await window.click('[data-testid="tab-new"]');
@@ -387,6 +407,8 @@ scenario('Ghostty shortcuts create right and down terminal splits', async () => 
   expect(right).not.toBeNull();
   expect(right!.x).toBeGreaterThan(left!.x);
   expect(Math.abs(right!.y - left!.y)).toBeLessThan(10);
+  expect(right!.x - (left!.x + left!.width)).toBeGreaterThanOrEqual(8);
+  expect(right!.x - (left!.x + left!.width)).toBeLessThanOrEqual(10);
 
   await terminals.nth(1).click();
   await window.keyboard.press('Meta+Shift+d');
@@ -398,13 +420,15 @@ scenario('Ghostty shortcuts create right and down terminal splits', async () => 
   expect(lowerRight).not.toBeNull();
   expect(lowerRight!.y).toBeGreaterThan(upperRight!.y);
   expect(Math.abs(lowerRight!.x - upperRight!.x)).toBeLessThan(10);
+  expect(lowerRight!.y - (upperRight!.y + upperRight!.height)).toBeGreaterThanOrEqual(8);
+  expect(lowerRight!.y - (upperRight!.y + upperRight!.height)).toBeLessThanOrEqual(10);
 
   await window.keyboard.press('Meta+[');
   await expect.poll(() => terminals.evaluateAll((nodes) =>
-    nodes.findIndex((node) => node === document.activeElement))).toBe(1);
+    nodes.findIndex((node) => node.contains(document.activeElement)))).toBe(1);
   await window.keyboard.press('Meta+]');
   await expect.poll(() => terminals.evaluateAll((nodes) =>
-    nodes.findIndex((node) => node === document.activeElement))).toBe(2);
+    nodes.findIndex((node) => node.contains(document.activeElement)))).toBe(2);
 
   await capture(window, path.join('test-results', 'terminal-splits.png'));
 });

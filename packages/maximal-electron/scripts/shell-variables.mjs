@@ -65,6 +65,7 @@ export function packageStylesheets() {
         'src/renderer/styles/shell-structural-tokens.css',
         'src/renderer/styles/shell-package-rules.css',
       ],
+      imports: ['@wterm/dom/css', '@xterm/xterm/css/xterm.css'],
       published: 'dist/renderer/styles.css',
     },
   ];

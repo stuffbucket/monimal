@@ -15,6 +15,10 @@ import {
   IPC_CHANNELS,
   isPtyAcknowledgement,
   isPtyIdRequest,
+  isPtyProjectionAttachRequest,
+  isPtyProjectionRequest,
+  isPtyProjectionResizeRequest,
+  isPtyProjectionWriteRequest,
   isPtyResizeRequest,
   isPtySpawnRequest,
   isPtyWriteRequest,
@@ -39,15 +43,20 @@ import { ensureModel } from './native/llama.js';
 import { getPreferences, setPreferences } from './native/preferences.js';
 import {
   acknowledgePty,
+  attachPtyProjection,
   defaultShell,
+  detachPtyProjection,
+    focusPtyProjection,
+    resizePtyProjection,
   discoverTerminalTargets,
   killPty,
   launchTerminal,
   listTerminalProfiles,
   listPtys,
   resizePty,
-  spawnPty,
+  spawnReservedPty,
   writePty,
+  writePtyProjection,
 } from './native/pty.js';
 import { checkForUpdates } from './native/updates.js';
 import { hideOverlay, toggleOverlay } from './windows/overlay.js';
@@ -131,6 +140,27 @@ const handlers: IpcHandlers = {
 
   'pty:default-shell': () => defaultShell(),
 
+  'pty:projection-attach': (request, window) => {
+    if (!isPtyProjectionAttachRequest(request)) throw new Error('Invalid terminal projection attach request.');
+    return attachPtyProjection(window, request);
+  },
+  'pty:projection-focus': (request, window) => {
+    if (!isPtyProjectionAttachRequest(request)) throw new Error('Invalid terminal projection focus request.');
+    return focusPtyProjection(window, request);
+  },
+  'pty:projection-write': (request, window) => {
+    if (!isPtyProjectionWriteRequest(request)) throw new Error('Invalid terminal projection write request.');
+    return writePtyProjection(window, request);
+  },
+  'pty:projection-resize': (request, window) => {
+    if (!isPtyProjectionResizeRequest(request)) throw new Error('Invalid terminal projection resize request.');
+    return resizePtyProjection(window, request);
+  },
+  'pty:projection-detach': (request, window) => {
+    if (!isPtyProjectionRequest(request)) throw new Error('Invalid terminal projection detach request.');
+    return detachPtyProjection(window, request.id, request.projectionId);
+  },
+
   'terminal:profiles': (_request, window) => listTerminalProfiles(window),
   'terminal:discover': (_request, window) => discoverTerminalTargets(window),
   'terminal:launch': (request, window) => {
@@ -183,7 +213,7 @@ function terminalHostFor(event: IpcMainInvokeEvent): TerminalChannelHost {
   return {
     spawn: (request) => {
       if (!isPtySpawnRequest(request)) throw new Error('Invalid terminal spawn request.');
-      spawnPty(window, request);
+      spawnReservedPty(window, request);
     },
     write: (id, data) => {
       if (!isPtyWriteRequest({ id, data })) throw new Error('Invalid terminal write request.');

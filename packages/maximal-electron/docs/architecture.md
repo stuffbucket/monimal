@@ -50,6 +50,10 @@ The renderer never sees `ipcRenderer`.
 
 A three-panel layout, in the shape Figma uses.
 
+[`embedding.md`](embedding.md#renderer-ownership) owns the package-versus-consumer
+component placement rules and defines the roles of `ShellLayout`, `AppFrame`,
+and `WindowChrome`.
+
 | Region | Component | Behaviour |
 | --- | --- | --- |
 | Title bar | `TitleBar` | Draggable. Hosts the document tabs and the profile control. |
@@ -101,16 +105,24 @@ The functionality is ported from the parked Tauri shell in
 A tab holds the library grid, a settings surface, or a terminal. The `+`
 button opens a terminal.
 
-`ghostty-web` supplies the terminal. It is Ghostty's own virtual terminal
-implementation compiled to WebAssembly, with the xterm.js API on top. Coder
-built it for Mux, and it is MIT licensed.
+`TerminalView` selects xterm.js by default. Its `emulator` option can select
+wterm instead. `@wterm/dom` supplies the DOM renderer and input handling, and
+`@wterm/ghostty` supplies the libghostty virtual terminal compiled to
+WebAssembly. Both wterm packages are Apache-2.0 licensed.
+
+The optional `ghosttyWindow` value carries renderer-owned window adjustments:
+horizontal and vertical padding, balanced opposing edges, background opacity,
+and backdrop blur. It applies only when `emulator="ghostty"`; xterm geometry is
+unchanged.
 
 Native Ghostty owns windows and splits outside its virtual terminal. This shell
 therefore owns that layer: `TerminalView` consumes Command+D and
 Command+Shift+D, while `TerminalTabs` builds a resizable right or down split
 from a second host-launched Local session. An embedder that supplies no split
 launcher keeps those keys unconsumed. Command+[ and Command+] cycle split
-focus. Command+K, Command+A, Command+Home, and Command+End use the emulator's
+focus, and the active pane carries the focus ring. An exited pane collapses to
+its sibling; an exited final pane closes the terminal tab. Command+K, Command+A,
+Command+Home, and Command+End use the emulator's
 clear, select, and scroll actions. OSC 0 and OSC 2 title changes name a terminal
 tab; controls are removed and titles are bounded before the tab stores them.
 The PTY launch directory basename is the initial shell title.
@@ -118,7 +130,7 @@ The PTY launch directory basename is the initial shell title.
 `init()` is shared across terminal views. A rejected load clears that shared
 promise, and the view shows a retry action rather than leaving an empty canvas.
 Emulator resize events coalesce to the latest dimensions once per animation
-frame before crossing IPC. `ghostty-web` itself owns clipboard paste and IME
+frame before crossing IPC. The selected emulator owns clipboard paste and IME
 composition; the shell does not layer competing handlers over them.
 
 It parses and renders. It does not run a process. The shell lives in the main
@@ -193,6 +205,27 @@ existing terminal channel, so Ghostty excludes tmux status, copy, and choose
 interfaces. It has no SSH form. The client bounds protocol and output backlog
 and closes on a protocol failure; renderer acknowledgement does not currently
 drive tmux `pause-after` flow control.
+
+`TmuxProjectionBroker` is the reusable multi-client policy above ordinary tmux
+client PTYs. One logical session holds canonical columns and rows, zero or one
+focus owner, a monotonic focus epoch, and any number of projections. Each
+projection receives its own tmux-rendered VT stream. Only the projection that
+names the current focus epoch may write or resize. An accepted resize applies
+to every client PTY, so tmux receives one geometry regardless of renderer
+window size. Detaching or losing a projection kills only that tmux client.
+Explicit session termination kills every client and calls the consumer's tmux
+session terminator.
+
+The broker takes process creation and session termination as callbacks. A
+consumer may attach local tmux, SSH plus tmux, or another connector without
+putting command construction in the renderer. Tmux control mode stays on a
+separate host-only connection. `TmuxProjectionHost` retains the trusted attach
+and termination commands for the reference Electron host. The
+`pty:projection-*` channels carry opaque session and projection ids plus the
+focus epoch. Attach, focus, write, resize, and detach stay separate so stale
+input cannot become current merely by arriving later. Existing `pty:*` calls
+remain the compatibility path and drive the first projection of a tmux launch.
+
 The connector is mutation tested through `command-connectors.ts`. Command-backed
 sessions are ephemeral and non-reconnectable:
 closing their view terminates the command, and the application does not claim
@@ -216,7 +249,7 @@ Four details are load-bearing.
   writes per second. One message each would swamp the channel, so it coalesces
   on an 8 millisecond timer.
 - **Output has a bounded acknowledged window.** The shipped `pty:ack` channel
-  cumulatively confirms `pty:data.sequence` after `ghostty-web` finishes a
+  cumulatively confirms `pty:data.sequence` after the emulator finishes a
   write. `MAX_IN_FLIGHT_BYTES` bounds IPC output. A pausable pty stops at its
   high watermark and resumes at `RESUME_LOW_WATERMARK`; a non-pausable pty
   retains only the newest `MAX_PENDING_BYTES` tail and reports one loss notice.
@@ -228,10 +261,9 @@ Four details are load-bearing.
   terminal tab an opaque session id. IPC keeps the backward-compatible `id`
   field name for that session id. `pty:status` reports `started` after host
   registration and `exited` only for the current process generation.
-- **The content policy needs two additions.** `script-src` needs
-  `'wasm-unsafe-eval'`, and `connect-src` needs `data:`. `ghostty-web` inlines
-  its WebAssembly module as a data URL and fetches it at startup, so there is
-  no separate asset to serve.
+- **The content policy permits WebAssembly.** `script-src` needs
+  `'wasm-unsafe-eval'`. Vite emits wterm's `ghostty-vt.wasm` as a same-origin
+  package asset, so `connect-src 'self'` covers its startup fetch.
 
 ### Detaching a session from its view
 
@@ -262,7 +294,7 @@ Three things make that a detach rather than a leak.
   resizes that session and replays what it retained, rather than refusing.
 
 **What survives a detach is the process, not the screen.** The scrollback lives
-in the `ghostty-web` emulator, in the renderer, and it dies with the view. The
+in the selected emulator, in the renderer, and it dies with the view. The
 host keeps its own tail instead, bounded by `MAX_RETAINED_BYTES`, and a view
 that attaches is sent that and nothing older. A session whose output has run
 past the limit says so once, in the replay. `MAX_PENDING_BYTES` is a different
@@ -700,7 +732,7 @@ const checks = terminalPackageChecks({
   }),
   platform: process.platform,
   arch: process.arch,
-  contentSecurityPolicy: "script-src 'self' 'wasm-unsafe-eval'; connect-src 'self' data:",
+  contentSecurityPolicy: "script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'",
 });
 
 for (const { name, ok } of checks) if (!ok) throw new Error(name);
@@ -714,7 +746,7 @@ The first three checks it returns are floors. Point either list at the wrong
 directory and it is empty, and omit `contentSecurityPolicy` and there is no
 policy to measure; in each case every assertion over the missing input would
 otherwise report a pass. That is not hypothetical: the policy was optional and
-this repository's own caller supplied none, so the two `ghostty-web` grants
+this repository's own caller supplied none, so the WebAssembly grant
 above were never measured against a shipped document. Read the policy out of the
 HTML the build produced, as `scripts/verify-package.mjs` does, rather than
 restating it beside the call.
@@ -821,18 +853,18 @@ is silent: packager warns and ships the Electron default.
 
 **Run time** is what the developer sees, and what the tray needs. The main
 process loads `icon.png` for the dock and for the `BrowserWindow` icon, and the
-tray images for the menu bar. Those files ship beside `app.asar` rather than
-inside it, because they are read as files.
+coloured Tauri icon at 22pt or 44px retina for the menu bar and system tray.
+Those files ship beside `app.asar` rather than inside it, because they are read
+as files.
 
 `src/main/native/icons.ts` decides which directory that is and which file each
 platform takes, and imports no Electron, so both decisions are unit and mutation
-tested. `windowIconName`, `dockIconName` and `trayIconChoice` each read a
-`platform` argument rather than `process.platform`, so a run on any host answers
-for all three targets. `src/main/native/app-icon.ts` is the thin part that
-touches `nativeImage`, and `tests/app-icon.test.ts` mocks Electron to check the
-decision reaches it. Issue #49: before that, the taskbar icon and the
-full-colour tray image had only ever been selected on macOS, where neither is
-used.
+tested. `windowIconName`, `dockIconName` and `trayIconChoice` read their inputs
+rather than `process.platform`, so a run on any host answers for all three
+targets. The tray choice is deliberately the same coloured image everywhere;
+macOS must not tint it as a template. `src/main/native/app-icon.ts` is the thin
+part that touches `nativeImage`, and `tests/app-icon.test.ts` mocks Electron to
+check the decision reaches it.
 
 **A development run on macOS shows Electron's dock icon.** Packaging cannot
 change that, because there is no bundle. `app.dock.setIcon` is the only way to

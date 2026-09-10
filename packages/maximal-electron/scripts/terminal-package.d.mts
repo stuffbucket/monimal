@@ -17,23 +17,11 @@ export interface TerminalPackageInput {
   readonly unpackedFiles: readonly string[];
   readonly platform: string;
   readonly arch: string;
-  /**
-   * The policy the renderer document declares. Read it out of the shipped HTML
-   * rather than restating it: a copy passes while the shipped policy drops a
-   * grant. Omitting it fails a check rather than skipping two.
-   */
-  readonly contentSecurityPolicy?: string;
 }
-
-export declare const TERMINAL_CONTENT_SECURITY_POLICY: readonly {
-  readonly directive: string;
-  readonly source: string;
-}[];
 
 export declare function terminalPrebuildDirectory(platform: string, arch: string): string;
 /** Files that must arrive outside the archive, relative to the prebuild directory. */
 export declare function terminalNativeFiles(platform: string): string[];
-export declare function contentSecurityPolicyChecks(policy: string): TerminalPackageCheck[];
 export declare function terminalPackageChecks(
   input: TerminalPackageInput,
 ): TerminalPackageCheck[];

@@ -129,6 +129,8 @@ vi.mock('electron', () => ({
   shell: { openExternal: shellOpenExternal },
 }))
 
+vi.mock('node-pty', () => ({ spawn: vi.fn() }))
+
 vi.mock('./shell.js', () => ({ runShell: runShellMock }))
 
 vi.mock('./menu-bar-mode.js', () => ({
@@ -261,6 +263,8 @@ describe('closed IPC boundary', () => {
       BRIDGE_CHANNELS.controlChanged,
       BRIDGE_CHANNELS.menuOpenSettings,
       BRIDGE_CHANNELS.trafficInvalidated,
+      BRIDGE_CHANNELS.terminalData,
+      BRIDGE_CHANNELS.terminalExit,
     ])
   })
 
@@ -433,11 +437,11 @@ describe('closed IPC boundary', () => {
 })
 
 describe('window defaults', () => {
-  it('opens at a size that fits the application content', async () => {
+  it('opens wide enough for the three-panel Overview without horizontal scrolling', async () => {
     await loadIndexOn('darwin')
 
     expect(runShellMock).toHaveBeenCalledWith(
-      expect.objectContaining({ width: 1024, height: 768 }),
+      expect.objectContaining({ width: 1280, height: 768 }),
     )
   })
 })
@@ -501,6 +505,22 @@ describe('native Settings requests', () => {
     expect(runShellMock).toHaveBeenCalledTimes(2)
     expect(fakeWindow.focus).toHaveBeenCalledTimes(1)
     expect(pendingRequestHandler()()).toEqual({ sectionId: null })
+  })
+})
+
+describe('native update requests', () => {
+  it('opens the latest product release from the application menu', async () => {
+    await loadIndexOn('darwin')
+    const callbacks = installApplicationMenuMock.mock.calls[0]?.[0] as
+      | { onCheckForUpdates?: () => void }
+      | undefined
+
+    callbacks?.onCheckForUpdates?.()
+    await Promise.resolve()
+
+    expect(shellOpenExternal).toHaveBeenCalledWith(
+      'https://github.com/stuffbucket/maximal/releases/latest',
+    )
   })
 })
 

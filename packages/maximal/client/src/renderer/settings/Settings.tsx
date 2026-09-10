@@ -9,6 +9,7 @@ import {
 import { SurfaceRail, useTabPanelId } from '../frame/AppFrame'
 import type { SettingsCapabilities } from './capabilities'
 import { SETTINGS_SECTION_VIEWS } from './manifest'
+import { ModelProviderDisclosureState } from './ModelsSection'
 import { SectionRail } from './SectionRail'
 
 // The Settings surface. Composition only: `shared/settings-sections.ts` owns
@@ -75,7 +76,9 @@ export function Settings({
             <Button onClick={onBack}>Back to sign in</Button>
           </div>
         ) : null}
-        <CurrentPanel key={current} capabilities={capabilities} />
+        <ModelProviderDisclosureState>
+          <CurrentPanel key={current} capabilities={capabilities} />
+        </ModelProviderDisclosureState>
       </div>
     </>
   )
@@ -410,12 +413,64 @@ const SETTINGS_CSS = `
 }
 
 .settings-model-vendor-groups {
-  gap: var(--shell-space-5, 24px);
+  gap: var(--shell-space-2, 8px);
 }
 
-.settings-model-vendor,
-.settings-model-tables {
-  gap: var(--shell-space-3, 12px);
+.settings-model-vendor {
+  border-bottom: 1px solid var(--shell-border, #2a2a2a);
+}
+
+.settings-model-vendor__trigger {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--shell-space-2, 8px);
+  width: 100%;
+  min-height: 44px;
+  padding: var(--shell-space-2, 8px) 0;
+  border: 0;
+  color: var(--shell-text, #f5f5f5);
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.settings-model-vendor__trigger:hover {
+  color: var(--shell-accent, #5198a6);
+}
+
+.settings-model-vendor__trigger:focus-visible {
+  outline: 2px solid var(--shell-focus, var(--shell-accent, #5198a6));
+  outline-offset: 2px;
+}
+
+.settings-model-vendor__chevron {
+  transition: transform 120ms ease-out;
+}
+
+.settings-model-vendor__trigger[aria-expanded='false'] .settings-model-vendor__chevron {
+  transform: rotate(-90deg);
+}
+
+.settings-model-vendor__name {
+  overflow: hidden;
+  font-size: var(--shell-text-base, 0.875rem);
+  font-weight: var(--shell-weight-lg, 600);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-model-vendor__count {
+  color: var(--shell-text-muted, #8a8a8a);
+  font-size: var(--shell-text-sm, 0.8125rem);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-model-vendor__chevron {
+    transition: none;
+  }
 }
 
 .settings-metrics {
@@ -456,6 +511,15 @@ const SETTINGS_CSS = `
 
 .settings-table--models {
   min-width: 560px;
+  table-layout: fixed;
+}
+
+.settings-table__token-column {
+  width: 112px;
+}
+
+.settings-table__capability-column {
+  width: 152px;
 }
 
 .settings-table caption {
@@ -495,9 +559,22 @@ const SETTINGS_CSS = `
   gap: var(--shell-space-2, 8px);
 }
 
-.settings-table__capability {
+.settings-table__icon {
   display: inline-flex;
+  align-items: center;
+  justify-content: center;
   color: var(--shell-text-muted, #8a8a8a);
+}
+
+.settings-table__model-heading {
+  display: flex;
+  align-items: center;
+  gap: var(--shell-space-2, 8px);
+  min-width: 0;
+}
+
+.settings-table__model-heading .settings-table__icon {
+  flex: none;
 }
 
 .settings-table__model-name,

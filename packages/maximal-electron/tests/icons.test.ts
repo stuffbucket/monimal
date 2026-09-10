@@ -1,10 +1,13 @@
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
-import { bundleIcon } from '../scripts/package-contract.mjs';
+import { RUNTIME_ICONS, bundleIcon } from '../scripts/package-contract.mjs';
 import {
   APP_ICON,
   TRAY_ICON,
-  TRAY_TEMPLATE_ICON,
   dockIconName,
   iconDirectory,
   trayIconChoice,
@@ -60,11 +63,25 @@ describe('iconDirectory', () => {
 
 describe('icon names', () => {
   it('names the files the generator writes', () => {
-    expect([APP_ICON, TRAY_ICON, TRAY_TEMPLATE_ICON]).toEqual([
-      'icon.png',
-      'tray.png',
-      'trayTemplate.png',
+    expect([APP_ICON, TRAY_ICON]).toEqual(['icon.png', 'tray.png']);
+  });
+
+  it('ships the exact Maximal application and menu-bar icons', () => {
+    const icons = path.resolve(__dirname, '../build/icons');
+    const hashes = ['icon.png', 'icon.icns', 'icon.ico', 'tray.png', 'tray@2x.png'].map((name) =>
+      createHash('sha256')
+        .update(readFileSync(path.join(icons, name)))
+        .digest('hex'),
+    );
+
+    expect(hashes).toEqual([
+      '94eaf9c82d35b6a52a4040c9140731434a3e8e407106600a5760005b7fc7e11c',
+      'fa5bab40895459e33d49d39ae809d222d7a7cbd12ee6b8e5d59705803cf662b9',
+      'de5afc08a32087c506279a28b98238defcafc3c78b44ae07f063a3734c688da1',
+      '5a2776c21de25c32bc3778e55a7a95eb43f831ca965c6066cb3a23b40038366c',
+      '1c48ddd8931bf20c3ae5294555a41deb2d684158d5c149d2f38c12ec5075923e',
     ]);
+    expect(RUNTIME_ICONS).toEqual(['icon.png', 'tray.png', 'tray@2x.png']);
   });
 });
 
@@ -100,10 +117,10 @@ describe('dockIconName', () => {
 });
 
 describe('trayIconChoice', () => {
-  it('gives macOS the alpha-only image, and marks it a template', () => {
+  it('gives macOS the coloured Tauri image without system tinting', () => {
     expect(trayIconChoice('darwin')).toEqual({
-      name: TRAY_TEMPLATE_ICON,
-      template: true,
+      name: TRAY_ICON,
+      template: false,
     });
   });
 
@@ -117,7 +134,7 @@ describe('trayIconChoice', () => {
   it('never names a file outside the shipped set', () => {
     const names = PLATFORMS.map((platform) => trayIconChoice(platform).name);
     expect(names).toHaveLength(PLATFORMS.length);
-    for (const name of names) expect([TRAY_ICON, TRAY_TEMPLATE_ICON]).toContain(name);
+    for (const name of names) expect(name).toBe(TRAY_ICON);
   });
 });
 

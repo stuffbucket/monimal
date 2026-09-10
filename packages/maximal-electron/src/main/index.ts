@@ -2,7 +2,8 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { BrowserWindow, app, globalShortcut } from 'electron';
+import type { BrowserWindow } from 'electron';
+import { app, dialog, globalShortcut } from 'electron';
 
 import { RUN_MAIN_OPTIONS_VERSION, runMain } from '../host/run-main.js';
 import { registerIpcHandlers, sendEvent } from './ipc.js';
@@ -83,10 +84,6 @@ function setDockVisible(visible: boolean): void {
   if (visible && isE2EQuiet()) return;
   if (visible) void app.dock.show();
   else app.dock.hide();
-}
-
-function hasOpenWindow(): boolean {
-  return BrowserWindow.getAllWindows().some((window) => !window.isDestroyed());
 }
 
 /* ---------------------------------------------------------------- windows */
@@ -186,8 +183,8 @@ function bootstrap(): void {
   // reach a window. It has no Electron import of its own, and it addresses the
   // window that owns the session rather than whichever one is current.
   configurePty({
-    emit: (owner, id, data, sequence) => sendEvent(owner, 'pty:data', { id, data, sequence }),
-    onExit: (owner, id, exitCode) => sendEvent(owner, 'pty:exit', { id, exitCode }),
+    emit: (owner, id, data, sequence, projectionId) => sendEvent(owner, 'pty:data', { id, data, sequence, projectionId }),
+    onExit: (owner, id, exitCode, projectionId) => sendEvent(owner, 'pty:exit', { id, exitCode, projectionId }),
     onStatus: (owner, status) => sendEvent(owner, 'pty:status', status),
   });
 
@@ -215,11 +212,27 @@ function bootstrap(): void {
   onPreferencesChanged((next) => {
     setTrayEnabled(next.menuBarIcon, process.platform, activate);
     bindOverlayHotkey(next.overlayHotkey);
-    // Turning the menu bar icon off while no window is open would otherwise
-    // strand the application with no way to reach it.
-    if (!next.menuBarIcon && !hasOpenWindow()) activate();
     sendEvent(mainWindow, 'prefs:changed', next);
   });
+}
+
+async function shouldQuitAfterLastWindow(): Promise<boolean> {
+  const prefs = getPreferences();
+  if (prefs.menuBarIcon) return false;
+  if (prefs.quitOnLastWindowClosed) return true;
+
+  const result = await dialog.showMessageBox({
+    type: 'question',
+    title: `Stop ${app.name}?`,
+    message: `Stop ${app.name}?`,
+    detail:
+      `${app.name} and all of its processes will stop. Keep running leaves the application open without a window.`,
+    buttons: ['Keep Running', `Stop ${app.name}`],
+    defaultId: 0,
+    cancelId: 0,
+    noLink: true,
+  });
+  return result.response === 1;
 }
 
 /**
@@ -279,7 +292,7 @@ if (selfCheckRequested(process.argv)) {
     {
       version: RUN_MAIN_OPTIONS_VERSION,
       userDataDirectory,
-      keepRunningWithoutWindows: () => getPreferences().menuBarIcon,
+      shouldQuitAfterLastWindow,
       window: mainWindowOptions,
       onReady: (context) => {
         activate = context.activate;

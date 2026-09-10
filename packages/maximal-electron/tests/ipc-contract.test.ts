@@ -5,6 +5,10 @@ import {
   IPC_CHANNELS,
   IPC_EVENTS,
   isPtySpawnRequest,
+  isPtyProjectionAttachRequest,
+  isPtyProjectionRequest,
+  isPtyProjectionResizeRequest,
+  isPtyProjectionWriteRequest,
   isTerminalLaunchRequest,
   type IpcChannel,
   type IpcEvent,
@@ -53,7 +57,7 @@ describe('IPC contract', () => {
     // noticing this list is not. Update it in the same change.
     const channels: IpcChannel[] = [...IPC_CHANNELS];
     const events: IpcEvent[] = [...IPC_EVENTS];
-    expect(channels).toHaveLength(24);
+    expect(channels).toHaveLength(29);
     expect(events).toHaveLength(12);
   });
 
@@ -68,6 +72,11 @@ describe('IPC contract', () => {
       'pty:ack',
       'pty:kill',
       'pty:list',
+      'pty:projection-attach',
+      'pty:projection-focus',
+      'pty:projection-write',
+      'pty:projection-resize',
+      'pty:projection-detach',
       'pty:default-shell',
     ]);
   });
@@ -90,6 +99,17 @@ describe('IPC contract', () => {
     expect(isTerminalLaunchRequest({ profileId: 'local', cols: 80, rows: 24, cwd: '/' })).toBe(false);
   });
 
+  it('validates projection identity, focus epochs, and geometry exactly', () => {
+    expect(isPtyProjectionRequest({ id: 'session', projectionId: 'left' })).toBe(true);
+    expect(isPtyProjectionRequest({ id: 'session', projectionId: 'left', epoch: 1 })).toBe(false);
+    expect(isPtyProjectionAttachRequest({ id: 'session', projectionId: 'left', cols: 80, rows: 24 })).toBe(true);
+    expect(isPtyProjectionAttachRequest({ id: 'session', projectionId: 'left', cols: 0, rows: 24 })).toBe(false);
+    expect(isPtyProjectionWriteRequest({ id: 'session', projectionId: 'left', epoch: 1, data: 'ls\r' })).toBe(true);
+    expect(isPtyProjectionWriteRequest({ id: 'session', projectionId: 'left', epoch: 0, data: 'ls\r' })).toBe(false);
+    expect(isPtyProjectionResizeRequest({ id: 'session', projectionId: 'left', epoch: 2, cols: 100, rows: 40 })).toBe(true);
+    expect(isPtyProjectionResizeRequest({ id: 'session', projectionId: 'left', epoch: 2, cols: 100, rows: -1 })).toBe(false);
+  });
+
   it('whitelists terminal lifecycle status events', () => {
     expect(IPC_EVENTS).toContain('pty:status');
   });
@@ -99,6 +119,10 @@ describe('default preferences', () => {
   it('leaves the menu bar icon off', () => {
     // A document application should not claim a menu bar slot uninvited.
     expect(DEFAULT_PREFERENCES.menuBarIcon).toBe(false);
+  });
+
+  it('asks before quitting with the last window', () => {
+    expect(DEFAULT_PREFERENCES.quitOnLastWindowClosed).toBe(false);
   });
 
   it('follows the system theme', () => {

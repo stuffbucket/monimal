@@ -109,6 +109,11 @@
       ],
       "description": "Create environment-dependent package artifacts."
     },
+    "start": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "persistent": true
+    },
     "dev": {
       "dependsOn": ["^build"],
       "cache": false,

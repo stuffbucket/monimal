@@ -145,12 +145,11 @@ at all.
 
 ## Runtime
 
-`ghostty-web` draws to a canvas, inherits nothing from CSS, and takes literal
-colours at construction. `readTerminalTheme` resolves these through
-`SHELL_TERMINAL_PROPERTIES`, so no rule mentions them and grep over the CSS
-alone would miss them. A property that does not resolve is left out rather than
-passed through empty, because the emulator parses an unrecognised colour to
-black.
+xterm.js takes literal colours at construction. wterm receives the same values
+through its `--term-*` custom properties. `readTerminalTheme` resolves both
+paths through `SHELL_TERMINAL_PROPERTIES`. A property that does not resolve is
+left out rather than passed through empty, because terminal cores may parse an
+unrecognised colour to black.
 
 | Variable | Drawn by |
 | --- | --- |

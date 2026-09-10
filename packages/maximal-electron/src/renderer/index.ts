@@ -5,10 +5,21 @@ export {
   type NavRailSection,
 } from './components/NavRail.js';
 export {
+  AppFrame,
+  SurfaceRail,
+  SurfaceRight,
+  SurfaceStatus,
+  SurfaceTop,
+  useTabPanelId,
+  useTabTriggerId,
+  type AppFrameProps,
+} from './components/AppFrame.js';
+export {
   ShellLayout,
   type PanelSize,
   type PanelToggleSubscription,
   type ShellPanel,
+  type ShellLayoutProps,
 } from './components/ShellLayout.js';
 export {
   getTabPanelId,
@@ -16,7 +27,16 @@ export {
   TabBar,
   type Tab,
   type TabStripProps,
+  type TabTransferOptions,
 } from './components/TabBar.js';
+export {
+  decodeTabTransfer,
+  encodeTabTransfer,
+  moveTabBefore,
+  TAB_TRANSFER_MIME,
+  type TabDetachPosition,
+  type TabTransfer,
+} from './lib/tab-transfer.js';
 export {
   adornmentLabel,
   EMPHASIS_LABELS,
@@ -49,6 +69,10 @@ export {
 } from './components/TerminalView.js';
 export { TitleBar } from './components/TitleBar.js';
 export {
+  WindowChrome,
+  type WindowChromeProps,
+} from './components/WindowChrome.js';
+export {
   fill,
   SHELL_CONTENT,
   ShellContentContext,
@@ -63,6 +87,23 @@ export {
   type ShellUsageContent,
 } from './lib/content.js';
 export { LOREM_CONTENT } from './lib/content-lorem.js';
+export type {
+  GhosttyWindowAdjustment,
+  TerminalEmulatorKind,
+} from './lib/terminal-emulator.js';
+export {
+  newTerminalTab,
+  terminalDirectoryTitle,
+  terminalProcessTitle,
+  type TerminalShellTab,
+} from './lib/terminal-tab.js';
+export {
+  removeTerminalPane,
+  splitTerminalPane,
+  terminalPaneSessionIds,
+  type TerminalPane,
+  type TerminalSplitDirection,
+} from './lib/terminal-pane.js';
 export { detachedSessions } from './lib/terminal-sessions.js';
 export {
   createTerminalTransport,
@@ -141,6 +182,7 @@ export {
   Usage,
 } from './components/settings/index.js';
 export { useShellTabs } from './lib/useShellTabs.js';
+export { useDetachedTerminals } from './lib/useDetachedTerminals.js';
 export {
   useThemePreference,
   type ThemePreference,

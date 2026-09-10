@@ -91,7 +91,7 @@ test('records a demonstration of the shell', async () => {
         sequence({
           id: 'terminal',
           name: 'A real terminal in a tab',
-          note: 'Ghostty over a native pseudo terminal',
+          note: 'xterm over a native pseudo terminal',
           async drive({ shell }) {
             await shell.click('[data-testid="tab-new"]');
             const terminal = shell.locator('[data-testid="terminal"]').last();

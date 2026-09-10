@@ -10,6 +10,39 @@
  * change this file.
  */
 
+import type {
+  PtyProjectionAttachRequest,
+  PtyProjectionRequest,
+  PtyProjectionResizeRequest,
+  PtyProjectionWriteRequest,
+  PtyResizeRequest,
+  PtySession,
+  PtySpawnRequest,
+  PtyStatus,
+  PtyWriteRequest,
+  TerminalDiscovery,
+  TerminalLaunchRequest,
+  TerminalLaunchResult,
+  TerminalProfileSummary,
+} from '../host/electron-terminal-contract.js';
+
+export type {
+  PtyProjectionAttachRequest,
+  PtyProjectionRequest,
+  PtyProjectionResizeRequest,
+  PtyProjectionWriteRequest,
+  PtyResizeRequest,
+  PtySession,
+  PtySpawnRequest,
+  PtyStatus,
+  PtyWriteRequest,
+  TerminalDiscovery,
+  TerminalLaunchRequest,
+  TerminalLaunchResult,
+  TerminalProfileSummary,
+  TerminalTargetSummary,
+} from '../host/electron-terminal-contract.js';
+
 /* ------------------------------------------------------------------ types */
 
 /** Runtime and platform versions reported by the main process. */
@@ -37,6 +70,8 @@ export type AgentApproval = 'all' | 'writes' | 'none';
 export interface Preferences {
   /** Show a menu bar (macOS) or tray (Windows and Linux) icon. */
   menuBarIcon: boolean;
+  /** Quit instead of asking when the last window closes without a menu bar icon. */
+  quitOnLastWindowClosed: boolean;
   /** Reflect unread count on the macOS dock badge. */
   dockBadge: boolean;
   /** Show the splash window at launch. */
@@ -97,55 +132,6 @@ export type UpdateStatus =
 /** Top-level views the left navigation can select. */
 export type ViewId = 'library' | 'recents' | 'drafts' | 'shared' | 'trash';
 
-/** Open a shell for one opaque terminal session. */
-export interface PtySpawnRequest {
-  id: string;
-  cols: number;
-  rows: number;
-}
-
-export interface PtyWriteRequest {
-  id: string;
-  data: string;
-}
-
-export interface PtyResizeRequest {
-  id: string;
-  cols: number;
-  rows: number;
-}
-
-/** A renderer-visible terminal profile, with no executable configuration. */
-export interface TerminalProfileSummary {
-  id: string;
-  label: string;
-  kind: 'local' | 'tmux-control' | 'docker' | 'podman' | 'lima' | 'multipass' | 'kubernetes' | 'wsl' | 'vagrant' | 'ssh' | 'tmux' | 'ssh-tmux';
-}
-
-export interface TerminalTargetSummary {
-  id: string;
-  profileId: string;
-  label: string;
-  state: 'available' | 'unavailable' | 'timed-out';
-}
-
-export interface TerminalDiscovery {
-  generation: number;
-  targets: TerminalTargetSummary[];
-}
-
-export interface TerminalLaunchRequest {
-  profileId: string;
-  targetId?: string;
-  cols: number;
-  rows: number;
-}
-
-export interface TerminalLaunchResult {
-  sessionId: string;
-  label: string;
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -186,6 +172,41 @@ export function isPtyResizeRequest(value: unknown): value is PtyResizeRequest {
     && isDimension(value.rows);
 }
 
+export function isPtyProjectionRequest(value: unknown): value is PtyProjectionRequest {
+  return isRecord(value)
+    && hasOnly(value, ['id', 'projectionId'])
+    && typeof value.id === 'string'
+    && typeof value.projectionId === 'string';
+}
+
+export function isPtyProjectionAttachRequest(value: unknown): value is PtyProjectionAttachRequest {
+  return isRecord(value)
+    && hasOnly(value, ['id', 'projectionId', 'cols', 'rows'])
+    && typeof value.id === 'string'
+    && typeof value.projectionId === 'string'
+    && isDimension(value.cols)
+    && isDimension(value.rows);
+}
+
+export function isPtyProjectionWriteRequest(value: unknown): value is PtyProjectionWriteRequest {
+  return isRecord(value)
+    && hasOnly(value, ['id', 'projectionId', 'epoch', 'data'])
+    && typeof value.id === 'string'
+    && typeof value.projectionId === 'string'
+    && isDimension(value.epoch)
+    && typeof value.data === 'string';
+}
+
+export function isPtyProjectionResizeRequest(value: unknown): value is PtyProjectionResizeRequest {
+  return isRecord(value)
+    && hasOnly(value, ['id', 'projectionId', 'epoch', 'cols', 'rows'])
+    && typeof value.id === 'string'
+    && typeof value.projectionId === 'string'
+    && isDimension(value.epoch)
+    && isDimension(value.cols)
+    && isDimension(value.rows);
+}
+
 export function isPtyAcknowledgement(value: unknown): value is { id: string; sequence: number } {
   return isRecord(value)
     && hasOnly(value, ['id', 'sequence'])
@@ -207,20 +228,6 @@ export function isTerminalLaunchRequest(value: unknown): value is TerminalLaunch
     && isDimension(value.cols)
     && isDimension(value.rows);
 }
-
-/** A live shell, whether or not a terminal view is showing it. */
-export interface PtySession {
-  id: string;
-  cwd: string;
-  shell: string;
-  /** Milliseconds since the epoch. */
-  startedAt: number;
-}
-
-/** A terminal session was registered or its current process exited. */
-export type PtyStatus =
-  | { state: 'started'; session: PtySession }
-  | { state: 'exited'; id: string; exitCode: number };
 
 /* ------------------------------------------------------- overlay agent */
 
@@ -301,7 +308,7 @@ export interface IpcContract {
   'shell:open-external': { request: { url: string }; response: void };
 
   // Terminal sessions. The shell runs in the main process; the renderer holds
-  // only the `ghostty-web` view. See src/main/native/pty.ts.
+  // only the xterm view. See src/main/native/pty.ts.
   'pty:spawn': { request: PtySpawnRequest; response: void };
   'pty:write': { request: PtyWriteRequest; response: void };
   'pty:resize': { request: PtyResizeRequest; response: void };
@@ -309,6 +316,11 @@ export interface IpcContract {
   'pty:kill': { request: { id: string }; response: void };
   /** Every live session for this window, so a detached one can be found again. */
   'pty:list': { request: void; response: PtySession[] };
+  'pty:projection-attach': { request: PtyProjectionAttachRequest; response: boolean };
+  'pty:projection-focus': { request: PtyProjectionAttachRequest; response: number | undefined };
+  'pty:projection-write': { request: PtyProjectionWriteRequest; response: boolean };
+  'pty:projection-resize': { request: PtyProjectionResizeRequest; response: boolean };
+  'pty:projection-detach': { request: PtyProjectionRequest; response: boolean };
   'pty:default-shell': { request: void; response: string };
 
   // App terminal launcher. These requests contain identifiers only; executable
@@ -358,6 +370,11 @@ export const IPC_CHANNELS = [
   'pty:ack',
   'pty:kill',
   'pty:list',
+  'pty:projection-attach',
+  'pty:projection-focus',
+  'pty:projection-write',
+  'pty:projection-resize',
+  'pty:projection-detach',
   'pty:default-shell',
   'terminal:profiles',
   'terminal:discover',
@@ -385,9 +402,9 @@ export interface IpcEvents {
   'prefs:changed': Preferences;
 
   /** A batch of terminal output for one opaque terminal session. */
-  'pty:data': { id: string; data: string; sequence?: number };
+  'pty:data': { id: string; data: string; sequence?: number; projectionId?: string };
   /** That terminal session's shell ended. */
-  'pty:exit': { id: string; exitCode: number };
+  'pty:exit': { id: string; exitCode: number; projectionId?: string };
   /** A terminal session started or its current process exited. */
   'pty:status': PtyStatus;
 
@@ -463,6 +480,7 @@ export const BRIDGE_KEY = 'stuffbucket' as const;
 /** Defaults for a fresh profile. */
 export const DEFAULT_PREFERENCES: Preferences = {
   menuBarIcon: false,
+  quitOnLastWindowClosed: false,
   dockBadge: true,
   splash: true,
   overlayHotkey: 'CommandOrControl+Shift+Space',

@@ -313,12 +313,7 @@ describe('the peer table this repository ships', () => {
     expect([...rows.keys()].sort()).toEqual(entries);
   });
 
-  it('names one exception, which is a declared peer', async () => {
-    const manifest = JSON.parse(await readFile(path.join(ROOT, 'package.json'), 'utf8')) as {
-      peerDependencies: Record<string, string>;
-    };
-
-    expect(PEER_TABLE_EXCEPTIONS).toEqual([{ subpath: './renderer', name: 'react-dom' }]);
-    expect(Object.keys(manifest.peerDependencies)).toContain('react-dom');
+  it('needs no package outside the import graph', () => {
+    expect(PEER_TABLE_EXCEPTIONS).toEqual([]);
   });
 });

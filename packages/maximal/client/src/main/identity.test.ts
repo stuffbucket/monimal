@@ -15,9 +15,10 @@ import { SETTINGS_SECTIONS } from '../shared/settings-sections.js'
  * app could end up with no icon at all.
  */
 
-const { setName, setIcon, isPackaged, buildFromTemplate, setApplicationMenu, createFromPath, existsSync } =
+const { setName, showAboutPanel, setIcon, isPackaged, buildFromTemplate, setApplicationMenu, createFromPath, existsSync } =
   vi.hoisted(() => ({
     setName: vi.fn(),
+    showAboutPanel: vi.fn(),
     setIcon: vi.fn(),
     isPackaged: { value: false },
     buildFromTemplate: vi.fn((template: unknown) => template),
@@ -30,6 +31,7 @@ vi.mock('electron', () => ({
   app: {
     name: 'Maximal',
     setName,
+    showAboutPanel,
     get isPackaged() {
       return isPackaged.value
     },
@@ -59,6 +61,9 @@ describe('applyAppName', () => {
   })
 })
 
+const onDarwin = process.platform === 'darwin' ? it : it.skip
+const offDarwin = process.platform === 'darwin' ? it.skip : it
+
 describe('installApplicationMenu', () => {
   /*
    * The template's shape is platform-dependent, so asserting one shape
@@ -67,9 +72,6 @@ describe('installApplicationMenu', () => {
    * entry is File. Both contracts are worth stating, so each platform asserts
    * its own rather than skipping.
    */
-  const onDarwin = process.platform === 'darwin' ? it : it.skip
-  const offDarwin = process.platform === 'darwin' ? it.skip : it
-
   it('installs exactly one menu', () => {
     installApplicationMenu()
     expect(setApplicationMenu).toHaveBeenCalledTimes(1)
@@ -106,6 +108,7 @@ describe('installApplicationMenu', () => {
  */
 interface TemplateItem {
   label?: string
+  role?: string
   type?: string
   accelerator?: string
   enabled?: boolean
@@ -118,7 +121,10 @@ function template(): TemplateItem[] {
 }
 
 function settingsMenu(): TemplateItem[] {
-  return template().find((item) => item.label === 'Settings')?.submenu ?? []
+  const parent = process.platform === 'darwin'
+    ? template()[0]?.submenu
+    : template()
+  return parent?.find((item) => item.label === 'Settings')?.submenu ?? []
 }
 
 /** The `Settings…` item, wherever this platform puts it. */
@@ -132,17 +138,19 @@ function openItem(): TemplateItem | undefined {
 const sectionLabels = SETTINGS_SECTIONS.map(({ label }) => label)
 
 function sectionItems(): TemplateItem[] {
-  return settingsMenu().find((item) => item.label === 'Open Section')?.submenu ?? []
+  return process.platform === 'darwin'
+    ? settingsMenu()
+    : settingsMenu().find((item) => item.label === 'Open Section')?.submenu ?? []
 }
 
 describe('installApplicationMenu, Settings', () => {
-  it('offers Settings on the platform accelerator', () => {
+  offDarwin('offers Settings on the platform accelerator', () => {
     installApplicationMenu({ onOpenSettings: vi.fn() })
 
     expect(openItem()?.label).toBe('Settings…')
   })
 
-  it('asks for the surface itself, with no section singled out', () => {
+  offDarwin('asks for the surface itself, with no section singled out', () => {
     const onOpenSettings = vi.fn()
     installApplicationMenu({ onOpenSettings })
 
@@ -156,7 +164,11 @@ describe('installApplicationMenu, Settings', () => {
     // not render: the item would scroll to nothing.
     installApplicationMenu({ onOpenSettings: vi.fn() })
 
-    expect(settingsMenu().filter((item) => item.label === 'Open Section')).toHaveLength(1)
+    if (process.platform === 'darwin') {
+      expect(settingsMenu().some((item) => item.label === 'Open Section')).toBe(false)
+    } else {
+      expect(settingsMenu().filter((item) => item.label === 'Open Section')).toHaveLength(1)
+    }
     expect(sectionItems().map((item) => item.label)).toEqual(sectionLabels)
   })
 
@@ -171,14 +183,55 @@ describe('installApplicationMenu, Settings', () => {
     )
   })
 
-  it('disables both entry points when nothing is listening', () => {
+  it('disables every settings destination when nothing is listening', () => {
     // A menu item that reliably does nothing is worse than a visibly
     // unavailable one, and `installApplicationMenu()` is called with no
     // callbacks before a window exists.
     installApplicationMenu()
 
-    expect(openItem()?.enabled).toBe(false)
+    if (process.platform !== 'darwin') expect(openItem()?.enabled).toBe(false)
     expect(sectionItems().every((item) => item.enabled === false)).toBe(true)
+  })
+})
+
+describe('installApplicationMenu, macOS application menu', () => {
+  onDarwin('leads with clean product entries and no icons', () => {
+    installApplicationMenu({
+      onCheckForUpdates: vi.fn(),
+      onOpenSettings: vi.fn(),
+    })
+
+    const items = template()[0]?.submenu ?? []
+    expect(items.slice(0, 6).map(({ label, type }) => label ?? type)).toEqual([
+      'About Maximal',
+      'Check for Updates…',
+      'separator',
+      'Settings',
+      'Actions',
+      'separator',
+    ])
+    expect(items.slice(0, 6).every((item) => !('icon' in item))).toBe(true)
+    expect(items[0]?.role).toBeUndefined()
+    items[0]?.click?.()
+    expect(showAboutPanel).toHaveBeenCalledOnce()
+  })
+
+  onDarwin('routes update and action items through their owners', () => {
+    const onCheckForUpdates = vi.fn()
+    const onOpenSettings = vi.fn()
+    installApplicationMenu({ onCheckForUpdates, onOpenSettings })
+
+    const items = template()[0]?.submenu ?? []
+    items.find((item) => item.label === 'Check for Updates…')?.click?.()
+    const actions = items.find((item) => item.label === 'Actions')?.submenu ?? []
+    for (const item of actions) item.click?.()
+
+    expect(onCheckForUpdates).toHaveBeenCalledOnce()
+    expect(actions.map((item) => item.label)).toEqual(['Accounts', 'Apps'])
+    expect(onOpenSettings.mock.calls.flat()).toEqual([
+      'settings-account-heading',
+      'settings-apps-heading',
+    ])
   })
 })
 

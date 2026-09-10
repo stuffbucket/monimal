@@ -2,17 +2,21 @@ import { app, type BrowserWindow } from 'electron';
 
 import {
   TerminalHost,
+  TmuxProjectionOwners,
   type TerminalSession,
   type TerminalStatus,
 } from '../../host/terminal-host.js';
 import type {
+  PtyProjectionAttachRequest,
+  PtyProjectionResizeRequest,
+  PtyProjectionWriteRequest,
   PtySpawnRequest,
   PtyStatus,
   TerminalDiscovery,
   TerminalLaunchRequest,
   TerminalLaunchResult,
   TerminalProfileSummary,
-} from '../../shared/ipc.js';
+} from '../../host/electron-terminal-contract.js';
 import {
   TerminalLauncher,
   loadTerminalProfiles,
@@ -37,7 +41,7 @@ import { Owners } from './pty-session.js';
 /**
  * Pseudo-terminal sessions, one manager per window.
  *
- * The shell runs here, in the main process. The renderer holds a `ghostty-web`
+ * The shell runs here, in the main process. The renderer holds an xterm
  * terminal, which is a view and an input encoder, not a process host. Bytes
  * flow main to renderer as `pty:data` events, and renderer to main through the
  * `pty:write` channel.
@@ -51,8 +55,8 @@ import { Owners } from './pty-session.js';
  */
 
 /** Emit batched output, and the end of a session, to the owning window. */
-type Emit = (owner: BrowserWindow, id: string, chunk: string, sequence?: number) => void;
-type Exit = (owner: BrowserWindow, id: string, exitCode: number) => void;
+type Emit = (owner: BrowserWindow, id: string, chunk: string, sequence?: number, projectionId?: string) => void;
+type Exit = (owner: BrowserWindow, id: string, exitCode: number, projectionId?: string) => void;
 type Status = (owner: BrowserWindow, status: PtyStatus) => void;
 
 let emit: Emit = () => undefined;
@@ -131,6 +135,23 @@ const controlHosts = new Owners<BrowserWindow, Map<string, TmuxControlHost>>(
     for (const session of sessions.values()) session.close();
   },
 );
+const projectionEpochs = new WeakMap<BrowserWindow, Map<string, number>>();
+const projectionOwners = new WeakSet<BrowserWindow>();
+const projections = new TmuxProjectionOwners<BrowserWindow>({
+  homeDirectory: app.getPath('home'),
+  env: { TERM_PROGRAM: 'Stuffbucket' },
+  terminate: (command, args) => {
+    void execFileRunner(command, args, { timeout: 2_000, maxBuffer: 64 * 1024 }).catch(() => undefined);
+  },
+  emit: (owner, sessionId, projectionId, chunk) => emit(owner, sessionId, chunk, undefined, projectionId),
+  onExit: (owner, sessionId, projectionId, exitCode) => onExit(owner, sessionId, exitCode, projectionId),
+});
+
+function prepareProjectionOwner(owner: BrowserWindow): void {
+  if (projectionOwners.has(owner)) return;
+  projectionOwners.add(owner);
+  owner.once('closed', () => projections.release(owner));
+}
 
 function prepareLauncher(owner: BrowserWindow): void {
   loadTerminalProfiles(app.getPath('userData'));
@@ -150,14 +171,31 @@ function hostFor(owner: BrowserWindow | undefined): TerminalHost | undefined {
  * session, and an unreapable shell is a process the user cannot see and did
  * not ask to keep.
  */
-export function spawnPty(
+function spawn(
   owner: BrowserWindow | undefined,
   request: PtySpawnRequest,
+  requireReservation: boolean,
 ): void {
   if (!owner) return;
+  if (projections.has(request.id)) {
+    prepareProjectionOwner(owner);
+    projections.attach(owner, {
+      sessionId: request.id,
+      projectionId: request.id,
+      cols: request.cols,
+      rows: request.rows,
+    });
+    const epoch = projections.focus(owner, request.id, request.id, request.cols, request.rows);
+    if (epoch !== undefined) {
+      const epochs = projectionEpochs.get(owner) ?? new Map<string, number>();
+      epochs.set(request.id, epoch);
+      projectionEpochs.set(owner, epochs);
+    }
+    return;
+  }
   const reserved = launcher.take(owner, request.id);
   const host = hostFor(owner);
-  if (!reserved && !host?.list().some((session) => session.id === request.id)) {
+  if (requireReservation && !reserved && !host?.list().some((session) => session.id === request.id)) {
     throw new Error('Terminal session is not reserved for this window.');
   }
   (host ?? hosts.for(owner)).spawn(
@@ -165,6 +203,22 @@ export function spawnPty(
       ? { ...request, shell: reserved.command, cwd: reserved.cwd, args: reserved.args, env: reserved.env }
       : request,
   );
+}
+
+/** Open a terminal from a trusted embedder-owned request. */
+export function spawnPty(
+  owner: BrowserWindow | undefined,
+  request: PtySpawnRequest,
+): void {
+  spawn(owner, request, false);
+}
+
+/** Attach only to a session the reference launcher created for this window. */
+export function spawnReservedPty(
+  owner: BrowserWindow | undefined,
+  request: PtySpawnRequest,
+): void {
+  spawn(owner, request, true);
 }
 
 /** Renderer-visible summaries. Executable profile settings never leave main. */
@@ -200,6 +254,17 @@ export function launchTerminal(
     sessions.set(result.sessionId, host);
     return result;
   }
+  if (reserved.tmuxProjection) {
+    prepareProjectionOwner(owner);
+    projections.reserve(owner, result.sessionId, {
+      command: reserved.command,
+      args: reserved.args,
+      cwd: reserved.cwd,
+      env: reserved.env,
+      terminate: reserved.tmuxProjection.terminate,
+    });
+    return result;
+  }
   hosts.for(owner).spawn({
     id: result.sessionId,
     cols: request.cols,
@@ -217,6 +282,13 @@ export function writePty(
   id: string,
   data: string,
 ): void {
+  if (owner) {
+    const epoch = projectionEpochs.get(owner)?.get(id);
+    if (projections.has(id) && epoch !== undefined) {
+      projections.write(owner, id, id, epoch, data);
+      return;
+    }
+  }
   if (owner) controlHosts.get(owner)?.get(id)?.write(data);
   hostFor(owner)?.write(id, data);
 }
@@ -227,8 +299,91 @@ export function resizePty(
   cols: number,
   rows: number,
 ): void {
+  if (owner) {
+    const epoch = projectionEpochs.get(owner)?.get(id);
+    if (projections.has(id) && epoch !== undefined) {
+      projections.resize(owner, id, id, epoch, cols, rows);
+      return;
+    }
+  }
   if (owner) controlHosts.get(owner)?.get(id)?.resize(cols, rows);
   hostFor(owner)?.resize(id, cols, rows);
+}
+
+export function attachPtyProjection(
+  owner: BrowserWindow | undefined,
+  request: PtyProjectionAttachRequest,
+): boolean {
+  if (!owner) return false;
+  prepareProjectionOwner(owner);
+  return projections.attach(owner, {
+    sessionId: request.id,
+    projectionId: request.projectionId,
+    cols: request.cols,
+    rows: request.rows,
+  });
+}
+
+export function focusPtyProjection(
+  owner: BrowserWindow | undefined,
+  request: PtyProjectionAttachRequest,
+): number | undefined {
+  if (!owner) return undefined;
+  return projections.focus(
+    owner,
+    request.id,
+    request.projectionId,
+    request.cols,
+    request.rows,
+  );
+}
+
+export function writePtyProjection(
+  owner: BrowserWindow | undefined,
+  request: PtyProjectionWriteRequest,
+): boolean {
+  if (!owner) return false;
+  return projections.write(
+    owner,
+    request.id,
+    request.projectionId,
+    request.epoch,
+    request.data,
+  ) ?? false;
+}
+
+export function resizePtyProjection(
+  owner: BrowserWindow | undefined,
+  request: PtyProjectionResizeRequest,
+): boolean {
+  if (!owner) return false;
+  return projections.resize(
+    owner,
+    request.id,
+    request.projectionId,
+    request.epoch,
+    request.cols,
+    request.rows,
+  ) ?? false;
+}
+
+export function detachPtyProjection(
+  owner: BrowserWindow | undefined,
+  id: string,
+  projectionId: string,
+): boolean {
+  return owner ? projections.detach(owner, id, projectionId) : false;
+}
+
+/** Authorize one destination window to attach its next projection. */
+export function grantPtyProjection(
+  owner: BrowserWindow | undefined,
+  id: string,
+  recipient: BrowserWindow | undefined,
+): boolean {
+  if (!owner || !recipient) return false;
+  prepareProjectionOwner(recipient);
+  return projections.grant(owner, id, recipient);
 }
 
 /** Record renderer consumption of all output through this sequence. */
@@ -241,6 +396,10 @@ export function acknowledgePty(
 }
 
 export function killPty(owner: BrowserWindow | undefined, id: string): void {
+  if (owner && projections.terminate(owner, id)) {
+    projectionEpochs.get(owner)?.delete(id);
+    return;
+  }
   const control = owner ? controlHosts.get(owner)?.get(id) : undefined;
   if (control) {
     control.close();
@@ -259,4 +418,5 @@ export function listPtys(owner: BrowserWindow | undefined): TerminalSession[] {
 export function killAllPtys(): void {
   hosts.releaseAll();
   controlHosts.releaseAll();
+  projections.abandonAll();
 }

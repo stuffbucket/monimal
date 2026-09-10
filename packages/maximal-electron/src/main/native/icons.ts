@@ -13,16 +13,8 @@
 /** Full colour, used for the dock, the taskbar, and the window. */
 export const APP_ICON = 'icon.png';
 
-/** Full colour, for the Windows and Linux tray. */
+/** The coloured Tauri menu-bar icon, used without system tinting. */
 export const TRAY_ICON = 'tray.png';
-
-/**
- * Alpha only, for the macOS menu bar, which recolours it.
- *
- * `nativeImage` picks up a `@2x` variant beside this file on its own, so the
- * retina image is never named here and still has to be shipped.
- */
-export const TRAY_TEMPLATE_ICON = 'trayTemplate.png';
 
 export interface IconSource {
   /** `app.isPackaged`. */
@@ -70,13 +62,12 @@ export function dockIconName(platform: NodeJS.Platform): string | undefined {
 /**
  * The tray image, and whether the system recolours it.
  *
- * macOS wants an alpha-only template so the menu bar can invert it for a light
- * or dark bar. Windows and Linux draw the full-colour file as given.
+ * The retired Tauri shell used the same coloured icon on every platform.
+ * `nativeImage` picks up the `@2x` variant beside it on retina displays.
  */
-export function trayIconChoice(platform: NodeJS.Platform): {
+export function trayIconChoice(_platform: NodeJS.Platform): {
   name: string;
   template: boolean;
 } {
-  const template = platform === 'darwin';
-  return { name: template ? TRAY_TEMPLATE_ICON : TRAY_ICON, template };
+  return { name: TRAY_ICON, template: false };
 }

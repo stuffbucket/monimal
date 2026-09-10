@@ -1,3 +1,4 @@
+import * as Tooltip from '@radix-ui/react-tooltip'
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -90,10 +91,18 @@ function fakeCapabilities(list: () => Promise<ModelsListResponse>) {
   }
 }
 
+function modelsView(capabilities: SettingsCapabilities) {
+  return (
+    <Tooltip.Provider delayDuration={0}>
+      <ModelsSection capabilities={capabilities} />
+    </Tooltip.Provider>
+  )
+}
+
 async function renderModels(capabilities: SettingsCapabilities): Promise<HTMLElement> {
   if (root === null || container === null) throw new Error('test root not ready')
   await act(async () => {
-    root?.render(<ModelsSection capabilities={capabilities} />)
+    root?.render(modelsView(capabilities))
     await Promise.resolve()
   })
   return container
@@ -104,28 +113,26 @@ function tableRows(table: HTMLTableElement): HTMLTableRowElement[] {
 }
 
 describe('ModelsSection', () => {
-  it('groups models by vendor then type and labels a missing type', async () => {
+  it('groups models by provider and defaults every disclosure closed', async () => {
     const { capabilities } = fakeCapabilities(async () => catalogue)
     const surface = await renderModels(capabilities)
     const vendors = [...surface.querySelectorAll<HTMLElement>('.settings-model-vendor')]
     const regions = [...surface.querySelectorAll<HTMLElement>('[role="region"]')]
+    const triggers = [...surface.querySelectorAll<HTMLButtonElement>('.settings-model-vendor__trigger')]
 
     expect(
-      vendors.map((vendor) => vendor.querySelector('h2')?.textContent),
+      vendors.map((vendor) => vendor.querySelector('.settings-model-vendor__name')?.textContent),
     ).toEqual(['Anthropic', 'Example'])
+    expect(triggers.map((trigger) => trigger.getAttribute('aria-expanded'))).toEqual(['false', 'false'])
     expect(
-      regions.map((region) => region.querySelector('caption')?.textContent),
-    ).toEqual(['chat models (1)', 'Type not reported (1)', 'embeddings models (1)'])
-    expect(regions.map((region) => region.tabIndex)).toEqual([0, 0, 0])
-    const captionIds = regions.map((region) => region.querySelector('caption')?.id)
-    expect(regions.map((region) => region.getAttribute('aria-labelledby'))).toEqual(
-      captionIds,
-    )
-    expect(captionIds.every((id) => id !== undefined && id !== '')).toBe(true)
-    expect(new Set(captionIds).size).toBe(captionIds.length)
+      triggers.map((trigger) => trigger.querySelector('.settings-model-vendor__count')?.textContent?.trim()),
+    ).toEqual(['1 model', '2 models'])
+    expect(regions.map((region) => region.hidden)).toEqual([true, true])
+    expect(regions.map((region) => region.tabIndex)).toEqual([0, 0])
 
-    const vendorHeadings = vendors.map((vendor) => vendor.querySelector('h2'))
-    const vendorHeadingIds = vendorHeadings.map((heading) => heading?.id)
+    const vendorHeadingIds = vendors.map(
+      (vendor) => vendor.querySelector('.settings-model-vendor__name')?.id,
+    )
     expect(vendors.map((vendor) => vendor.getAttribute('aria-labelledby'))).toEqual(
       vendorHeadingIds,
     )
@@ -158,13 +165,11 @@ describe('ModelsSection', () => {
     const surface = await renderModels(capabilities)
 
     expect(
-      [...surface.querySelectorAll('.settings-model-vendor h2')].map(
+      [...surface.querySelectorAll('.settings-model-vendor__name')].map(
         (heading) => heading.textContent,
       ),
     ).toEqual(['Acme', 'Vendor not reported'])
-    expect(
-      [...surface.querySelectorAll('caption')].map((caption) => caption.textContent),
-    ).toEqual(['chat models (1)', 'Type not reported (1)'])
+    expect(surface.querySelectorAll('caption')).toHaveLength(0)
     expect(
       [...surface.querySelectorAll<HTMLElement>('.settings-table__number span')]
         .slice(0, 2)
@@ -219,11 +224,11 @@ describe('ModelsSection', () => {
     expect(surface.textContent?.toLowerCase()).not.toContain('byte')
   })
 
-  it('uses accessible icons for only the closed capability schema', async () => {
+  it('uses accessible icons with hover text for only the closed capability schema', async () => {
     const { capabilities } = fakeCapabilities(async () => catalogue)
     const surface = await renderModels(capabilities)
     const tables = [...surface.querySelectorAll<HTMLTableElement>('table')]
-    const firstIcons = [...tables[0].querySelectorAll<HTMLElement>('[role="img"]')]
+    const firstIcons = [...tables[0].querySelectorAll<HTMLElement>('.settings-table__capabilities [role="img"]')]
 
     expect(firstIcons.map((icon) => icon.getAttribute('aria-label'))).toEqual([
       'Vision',
@@ -231,22 +236,43 @@ describe('ModelsSection', () => {
       'Streaming',
       'Reasoning',
     ])
-    expect(firstIcons.map((icon) => icon.title)).toEqual([
-      'Vision',
-      'Tool calls',
-      'Streaming',
-      'Reasoning',
-    ])
-    expect(tables[1]?.querySelectorAll('[role="img"]')).toHaveLength(0)
-    expect(tables[1]?.querySelector('[title="No capabilities reported"]')).not.toBeNull()
+    expect(firstIcons.every((icon) => icon.title === '')).toBe(true)
+    vi.useFakeTimers()
+    const hover = new MouseEvent('pointermove', { bubbles: true })
+    Object.defineProperty(hover, 'pointerType', { value: 'mouse' })
+    firstIcons[0]?.dispatchEvent(hover)
+    await act(async () => vi.runAllTimersAsync())
+    expect(document.body.querySelector('.tooltip')?.textContent).toBe('Vision')
+    vi.useRealTimers()
+    const exampleRows = tableRows(tables[1])
+    expect(exampleRows[0]?.querySelectorAll('.settings-table__capabilities [role="img"]')).toHaveLength(0)
+    expect(exampleRows[0]?.querySelector('[title="No capabilities reported"]')).not.toBeNull()
     expect(
-      [...(tables[2]?.querySelectorAll<HTMLElement>('[role="img"]') ?? [])].map(
+      [...(exampleRows[1]?.querySelectorAll<HTMLElement>('.settings-table__capabilities [role="img"]') ?? [])].map(
         (icon) => icon.getAttribute('aria-label'),
       ),
     ).toEqual(['Streaming', 'Reasoning'])
     expect(surface.textContent).not.toContain('Vision')
     expect(surface.textContent).not.toContain('Audio')
     expect(surface.textContent).not.toContain('Voice')
+  })
+
+  it('keeps provider disclosure state across catalogue rerenders', async () => {
+    const initial = fakeCapabilities(async () => catalogue)
+    const surface = await renderModels(initial.capabilities)
+    const anthropic = surface.querySelector<HTMLButtonElement>('.settings-model-vendor__trigger')
+    if (anthropic === null) throw new Error('Anthropic disclosure was not rendered')
+
+    act(() => anthropic.click())
+    expect(anthropic.getAttribute('aria-expanded')).toBe('true')
+
+    await act(async () => {
+      root?.render(modelsView(initial.capabilities))
+      await Promise.resolve()
+    })
+    expect(
+      surface.querySelector('.settings-model-vendor__trigger')?.getAttribute('aria-expanded'),
+    ).toBe('true')
   })
 
   it('shows loading, empty, and error states', async () => {
@@ -269,7 +295,7 @@ describe('ModelsSection', () => {
       throw new Error('catalogue unavailable')
     })
     await act(async () => {
-      root?.render(<ModelsSection capabilities={failure.capabilities} />)
+      root?.render(modelsView(failure.capabilities))
       await Promise.resolve()
     })
     expect(surface.textContent).toContain('catalogue unavailable')
@@ -356,7 +382,7 @@ describe('ModelsSection', () => {
     const surface = await renderModels(initial.capabilities)
 
     await act(async () => {
-      root?.render(<ModelsSection capabilities={replacement.capabilities} />)
+      root?.render(modelsView(replacement.capabilities))
       await Promise.resolve()
     })
     const refresh = surface.querySelector<HTMLButtonElement>('button')

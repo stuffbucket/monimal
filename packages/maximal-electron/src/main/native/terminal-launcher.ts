@@ -2,14 +2,18 @@ import { randomUUID } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import type { CommandConnector, DiscoveredTarget } from './command-connectors.js';
+import type {
+  CommandConnector,
+  DiscoveredTarget,
+  TmuxProjectionLaunch,
+} from './command-connectors.js';
 import type {
   TerminalDiscovery,
   TerminalLaunchRequest,
   TerminalLaunchResult,
   TerminalProfileSummary,
   TerminalTargetSummary,
-} from '../../shared/ipc.js';
+} from '../../host/electron-terminal-contract.js';
 
 export interface TrustedTerminalLaunch {
   command: string;
@@ -17,6 +21,7 @@ export interface TrustedTerminalLaunch {
   cwd?: string;
   env?: Record<string, string>;
   tmuxControl?: true;
+  tmuxProjection?: TmuxProjectionLaunch;
 }
 
 export interface TerminalProfilesFile {

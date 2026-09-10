@@ -39,6 +39,7 @@ export type ProviderStatusState = "available" | "disabled" | "unavailable"
 /** An immutable snapshot of one provider's externally observable state. */
 export interface ProviderStatus {
   readonly diagnostics: ReadonlyArray<ProviderDiagnostic>
+  readonly displayName?: string
   readonly operations: ReadonlyArray<ProviderOperation>
   readonly provider: string
   readonly state: ProviderStatusState

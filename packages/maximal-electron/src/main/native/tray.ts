@@ -1,4 +1,4 @@
-import { Tray } from 'electron';
+import { app, Tray } from 'electron';
 
 import { trayIcon } from './app-icon.js';
 import { trayIconChoice } from './icons.js';
@@ -15,8 +15,8 @@ import { trayIconChoice } from './icons.js';
  * is a document window rather than an overlay, so it keeps a dock presence
  * while a window is open.
  *
- * macOS needs a `*Template` image, so the system recolours it for light and
- * dark menu bars. Windows and Linux need a full-colour image.
+ * The icon stays full-colour on every platform, with no context menu, and
+ * either primary click activates.
  */
 
 let tray: Tray | undefined;
@@ -37,10 +37,9 @@ export function setTrayEnabled(
   // An icon directory without a tray image gets no tray. An empty click target
   // carrying only a tooltip is worse than none. `trayIcon` says which file.
   if (!image) return;
-  if (choice.template) image.setTemplateImage(true);
 
   tray = new Tray(image);
-  tray.setToolTip('Stuffbucket');
+  tray.setToolTip(app.name);
 
   // No `setContextMenu`. A context menu would swallow the left click on
   // Windows and Linux, and the whole point of this icon is the click.

@@ -16,7 +16,8 @@
     "src/renderer/index.ts",
     "src/host/run-main.ts",
     "src/host/host-window.ts",
-    "src/host/terminal-host.ts"
+    "src/host/terminal-host.ts",
+    "src/host/electron-terminal.ts"
   ],
   "project": [
     "src/**/*.{ts,tsx}",

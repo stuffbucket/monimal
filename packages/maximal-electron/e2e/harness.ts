@@ -253,7 +253,7 @@ export async function resetShell({ app, window }: Harness): Promise<void> {
 /**
  * Everything a terminal has drawn, read from the emulator's own buffer.
  *
- * `ghostty-web` renders to a canvas, so there is no DOM text to assert on and a
+ * The emulator renders its terminal surface, so there is no DOM text to assert on and a
  * pixel comparison would prove nothing about what the terminal parsed. The
  * instance is exposed on the host element for exactly this.
  */

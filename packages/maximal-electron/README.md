@@ -18,7 +18,7 @@ Screenshot of the shell: `test-results/shell.png`, after `npm run stills`.
 | Framework | Electron 43 with Forge 7. |
 | Renderer | React 19 on Vite 7. |
 | Layout | Radix and `react-resizable-panels`. |
-| Terminal | `ghostty-web` over `node-pty`. |
+| Terminal | Configurable xterm.js or wterm with libghostty over `node-pty`; xterm.js is the default. |
 | Agent | pi coding agent, or an embedded model. |
 | Packaging | Forge `package` on macOS and Windows, verified in CI. |
 | Release | An npm tarball on a GitHub release. No installer. |
@@ -42,8 +42,8 @@ A document layout with an optional inspector:
 - A **collapsible left navigation** that reduces to an icon rail, with
   sections that collapse on their own.
 - **Document tabs in the title bar**, not in a row of their own.
-- **Real terminals in tabs.** The `+` button opens a shell, rendered by
-  Ghostty's own emulator compiled to WebAssembly.
+- **Real terminals in tabs.** The `+` button opens a shell rendered by the
+  configured xterm.js or wterm/libghostty engine.
 - A **floating overlay** running a coding agent, summoned by accelerator. It
   streams, uses tools, and asks before it touches anything. There is no API
   key, and nothing to install: it prefers a local proxy when one is running,
@@ -124,7 +124,8 @@ you use:
 | `@stuffbucket/maximal-electron/host` | `electron` |
 | `@stuffbucket/maximal-electron/preload` | `electron` |
 | `@stuffbucket/maximal-electron/host/terminal` | `node-pty` |
-| `@stuffbucket/maximal-electron/renderer` | `react`, `react-dom`, `ghostty-web`, `lucide-react`, `react-resizable-panels`, `@radix-ui/react-collapsible`, `@radix-ui/react-dialog`, `@radix-ui/react-dropdown-menu`, `@radix-ui/react-radio-group`, `@radix-ui/react-tabs`, `@radix-ui/react-tooltip`, `@radix-ui/react-visually-hidden` |
+| `@stuffbucket/maximal-electron/electron-terminal` | `electron`, `node-pty` |
+| `@stuffbucket/maximal-electron/renderer` | `react`, `react-dom`, `@xterm/xterm`, `@xterm/addon-fit`, `@wterm/dom`, `@wterm/ghostty`, `lucide-react`, `react-resizable-panels`, `@radix-ui/react-collapsible`, `@radix-ui/react-dialog`, `@radix-ui/react-dropdown-menu`, `@radix-ui/react-radio-group`, `@radix-ui/react-tabs`, `@radix-ui/react-tooltip`, `@radix-ui/react-visually-hidden` |
 | `@stuffbucket/maximal-electron/verify` | none |
 | `@stuffbucket/maximal-electron/verify/shell-variables` | none |
 | `@stuffbucket/maximal-electron/verify/peers` | none |
@@ -344,16 +345,17 @@ and verify that every export target appears in `npm pack`.
 ## Package the terminal
 
 `@stuffbucket/maximal-electron/host/terminal` and
-`@stuffbucket/maximal-electron/renderer` give a working terminal and leave two
-packaging traps behind.
+`@stuffbucket/maximal-electron/renderer` give a working terminal. `node-pty` is
+native: keep it out of the bundler, and unpack its whole prebuild directory
+rather than only `*.node`. On macOS the shell is started by `spawn-helper`,
+which has no extension and is executed from outside the archive.
 
-- `ghostty-web` inlines its WebAssembly as a data URL and fetches it at startup.
-  The content policy needs `'wasm-unsafe-eval'` in `script-src` and `data:` in
-  `connect-src`, or the terminal renders nothing.
-- `node-pty` is native. Keep it out of the bundler, and unpack its whole
-  prebuild directory rather than only `*.node`. On macOS the shell is started by
-  `spawn-helper`, which has no extension and is executed from outside the
-  archive.
+`TerminalView` and `TerminalTabs` accept `emulator="xterm"` or
+`emulator="ghostty"`. The default is `xterm`. The Ghostty option requires
+`'wasm-unsafe-eval'` in `script-src` and `data:` in `connect-src`.
+`ghosttyWindow` configures Ghostty-only window padding, balanced opposing
+edges, background opacity, and backdrop blur. Pixel values and opacity are
+bounded before they reach the host element; xterm ignores the option.
 
 The wire between the two halves is exported rather than hand-written.
 `createTerminalTransport` builds the renderer transport from your own `invoke`,
@@ -374,17 +376,16 @@ STUFFBUCKET_ICON_DIR=~/brand/icons npm run package
 STUFFBUCKET_ICON_DIR=~/brand/icons npm start
 ```
 
-The directory must carry all six names. `npm run icons` writes them, and honours
-the same variable, so it can seed a new set.
+The directory must carry all five names. `npm run icons` installs the canonical
+set there, and honours the same variable.
 
 | File | Used for |
 | --- | --- |
 | `icon.icns` | The macOS bundle icon. |
 | `icon.ico` | The Windows executable icon. |
 | `icon.png` | 512 square. Linux, the dock, the taskbar, and the window. |
-| `tray.png` | 32 square, full colour. The Windows and Linux tray. |
-| `trayTemplate.png` | 16 square, alpha only. The macOS menu bar. |
-| `trayTemplate@2x.png` | 32 square, alpha only. The same, on a retina display. |
+| `tray.png` | 22 square, full colour. The menu bar and system tray. |
+| `tray@2x.png` | 44 square, full colour. The same, on a retina display. |
 
 `forge.config.ts` reads the variable at build time and fails the build when a
 name is missing. `src/main/native/icons.ts` reads it again at run time, which is
@@ -464,9 +465,9 @@ Stated here rather than discovered later.
   user data directory. The package stays smaller and the model can be upgraded
   without a new build, but a first run with no network and no proxy cannot
   answer.
-- **Placeholder icons.** `scripts/gen-icons.mjs` draws them. Replace the output
-  with designer assets before a public release, or point
-  `STUFFBUCKET_ICON_DIR` at your own set.
+- **Canonical icons.** `scripts/gen-icons.mjs` installs the application and tray
+  assets. Point `STUFFBUCKET_ICON_DIR` at a complete replacement set to ship
+  another identity.
 
 ## Fork it
 

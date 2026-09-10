@@ -25,7 +25,10 @@ import type { ClientRosterReader } from "~/lib/http/active-clients"
 import type { RpcRegistry } from "~/lib/jsonrpc/dispatch"
 import type { ControlHub } from "~/lib/live/hub"
 import type { AsyncMutex } from "~/lib/live/mutex"
-import type { ControlSnapshot } from "~/lib/live/resources"
+import type {
+  ControlSnapshot,
+  ProviderCatalogueModel,
+} from "~/lib/live/resources"
 import type { TrafficQueryStore } from "~/lib/observability/store"
 
 import {
@@ -88,6 +91,7 @@ export interface ControlRpcOperationOverrides {
 
 export interface ControlRpcDeps {
   hub: () => ControlHub<ControlSnapshot>
+  listProviderModels?: () => Promise<ReadonlyArray<ProviderCatalogueModel>>
   mutex: AsyncMutex
   /** Injectable active-client roster; defaults to the process-global tracker.
    *  Mirrors `ControlRoutesOptions.listClients` so `GET /clients` and
@@ -155,6 +159,7 @@ async function asAsyncRpcOperation<T>(operation: () => Promise<T>): Promise<T> {
 
 function createSettingsRpcMethods({
   hub,
+  listProviderModels = () => Promise.resolve([]),
   operations = {},
 }: ControlRpcDeps): RpcRegistry {
   const createApiKeyOperation = operations.createApiKey ?? createApiKey
@@ -164,7 +169,7 @@ function createSettingsRpcMethods({
   return {
     "apps/list": () => buildAppsList(),
     "apiKeys/list": () => listApiKeys(),
-    "models/list": () => buildModelsList(),
+    "models/list": async () => buildModelsList(await listProviderModels()),
     "usage/get": (params: unknown) => {
       const { period } = parseParams(
         TokenUsageRequest,
@@ -176,7 +181,7 @@ function createSettingsRpcMethods({
     "diagnostics/get": () => buildDiagnostics(),
     "models/refresh": async () => {
       await refreshModels()
-      return buildModelsList()
+      return buildModelsList(await listProviderModels())
     },
     "apps/setEnabled": async (params: unknown) => {
       const { appId, enabled } = parseParams(
