@@ -47,6 +47,8 @@ writes `font-size: 13px` again.
 | Variable | Value | What it sets |
 | --- | --- | --- |
 | `--shell-control-lg` | `28px` | The tallest control height. |
+| `--shell-focus-ring-offset` | `2px` | Space between a control and its keyboard focus ring. |
+| `--shell-focus-ring-width` | `2px` | Keyboard focus ring width. |
 | `--shell-input-border` | `var(--shell-border-strong, var(--shell-border))` | The outline of a field. |
 | `--shell-leading-base` | `1.5` | Line height for a paragraph. |
 | `--shell-radius` | `6px` | A control corner. |

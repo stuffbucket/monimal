@@ -181,7 +181,6 @@ export function ShellLayout<T extends Tab>({
       role="tabpanel"
       id={getTabPanelId(tabIdBase, activeTab)}
       aria-labelledby={getTabTriggerId(tabIdBase, activeTab)}
-      tabIndex={0}
     >
       {main}
     </div>

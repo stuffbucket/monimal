@@ -47,6 +47,33 @@ const ProviderPluginSchema = z
   })
   .loose()
 
+const ConnectorSettingValueSchema = z.union([
+  z.boolean(),
+  z.number(),
+  z.string(),
+  z.array(z.string()),
+])
+
+const SearchProviderConfigSchema = z.object({
+  enabled: z.boolean().optional(),
+  settings: z
+    .record(z.string(), ConnectorSettingValueSchema.optional())
+    .optional(),
+})
+
+const SearchConnectorConfigSchema = z.object({
+  priority: z.array(z.string().min(1)).optional(),
+  fallback: z.boolean().optional(),
+  providers: z.record(z.string(), SearchProviderConfigSchema).optional(),
+  defaults: z
+    .object({
+      maxResults: z.number().int().min(1).max(100).optional(),
+      allowedDomains: z.array(z.string().min(1)).optional(),
+      blockedDomains: z.array(z.string().min(1)).optional(),
+    })
+    .optional(),
+})
+
 const ReasoningEffortSchema = z.enum([
   "none",
   "minimal",
@@ -113,6 +140,11 @@ export const AppConfigSchema = z
       })
       .optional(),
     providerPlugins: z.record(z.string(), ProviderPluginSchema).optional(),
+    connectors: z
+      .object({
+        search: SearchConnectorConfigSchema.optional(),
+      })
+      .optional(),
     extraPrompts: z.record(z.string(), z.string()).optional(),
     smallModel: z.string().optional(),
     responsesApiContextManagementModels: z.array(z.string()).optional(),

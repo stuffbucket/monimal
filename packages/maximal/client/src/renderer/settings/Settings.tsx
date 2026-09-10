@@ -1,6 +1,6 @@
 import { useState, type ReactElement } from 'react'
 
-import { Button } from 'stuffbucket-electron/renderer'
+import { Button, ScrollArea } from 'stuffbucket-electron/renderer'
 
 import {
   DEFAULT_SETTINGS_SECTION_ID,
@@ -70,7 +70,7 @@ export function Settings({
         )}
       </SurfaceRail>
 
-      <div className="settings-page" aria-labelledby={current}>
+      <ScrollArea className="settings-page" aria-labelledby={current}>
         {onBack ? (
           <div className="settings-page__back">
             <Button onClick={onBack}>Back to sign in</Button>
@@ -79,7 +79,7 @@ export function Settings({
         <ModelProviderDisclosureState>
           <CurrentPanel key={current} capabilities={capabilities} />
         </ModelProviderDisclosureState>
-      </div>
+      </ScrollArea>
     </>
   )
 }
@@ -185,6 +185,58 @@ const SETTINGS_CSS = `
 .settings-field {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
+  gap: var(--shell-space-2, 8px);
+}
+
+.settings-connector-form,
+.settings-connector-fields,
+.settings-connector-field {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.settings-connector-form {
+  gap: var(--shell-space-5, 24px);
+}
+
+.settings-connector-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: var(--shell-space-4, 16px);
+}
+
+.search-behavior {
+  display: flex;
+  flex-direction: column;
+  gap: var(--shell-space-4, 16px);
+  width: min(100%, 52rem);
+}
+
+.search-behavior__controls,
+.search-behavior__domains {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+  gap: var(--shell-space-4, 16px);
+  min-width: 0;
+}
+
+.search-behavior__controls {
+  align-items: start;
+  padding-bottom: var(--shell-space-4, 16px);
+  border-bottom: 1px solid var(--shell-border, #2a2a2a);
+}
+
+.search-behavior__field {
+  min-width: 0;
+}
+
+.search-behavior__controls .input {
+  max-width: 10rem;
+}
+
+.settings-connector-field {
   align-items: flex-start;
   gap: var(--shell-space-2, 8px);
 }
@@ -316,8 +368,9 @@ const SETTINGS_CSS = `
 
 .settings-section__subheading {
   margin: 0;
-  font-size: var(--shell-text-sm, 0.9em);
-  font-weight: 600;
+  color: var(--shell-text, #f5f5f5);
+  font-size: var(--shell-text-lg, 1.0625rem);
+  font-weight: var(--shell-weight-lg, 600);
 }
 
 .settings-advanced > summary {

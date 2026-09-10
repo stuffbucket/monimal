@@ -176,6 +176,9 @@ importers:
       '@hono/zod-openapi':
         specifier: 1.6.1
         version: 1.6.1(hono@4.13.5)(zod@4.5.4)
+      '@stuffbucket/maximal-harness':
+        specifier: workspace:*
+        version: link:../maximal-harness
       '@stuffbucket/maximal-model-contract':
         specifier: workspace:*
         version: link:../maximal-model-contract

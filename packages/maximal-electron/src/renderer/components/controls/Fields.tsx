@@ -240,28 +240,33 @@ export function RadioGroup<T extends string>({
 /** A labelled switch. Reads as a setting rather than as a form control. */
 export function Switch({
   label,
+  displayLabel,
   checked,
   onChange,
   disabled,
   testId,
+  className,
 }: {
   label: string;
+  displayLabel?: string;
   checked: boolean;
   onChange: (next: boolean) => void;
   disabled?: boolean;
   testId?: string;
+  className?: string;
 }) {
   return (
     <button
       type="button"
-      className="switch"
+      className={`switch${className ? ` ${className}` : ''}`}
       role="switch"
+      aria-label={label}
       aria-checked={checked}
       disabled={disabled}
       onClick={() => onChange(!checked)}
       data-testid={testId}
     >
-      <span>{label}</span>
+      <span>{displayLabel ?? label}</span>
       <span className="switch__track" data-on={checked}>
         <span className="switch__thumb" />
       </span>

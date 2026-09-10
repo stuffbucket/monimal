@@ -19,6 +19,8 @@ import type {
   ConnectionsListResponse,
   DiagnosticsResponse,
   ModelsListResponse,
+  SearchSettingsResponse,
+  SearchSettingsUpdateRequest,
   TokenUsagePeriod,
   TokenUsageSummary,
 } from '@stuffbucket/maximal-core/settings-types'
@@ -256,6 +258,12 @@ const bridge = {
       ipcRenderer.invoke(BRIDGE_CHANNELS.usageGet, period),
     diagnosticsGet: (): Promise<ControlResult<DiagnosticsResponse>> =>
       ipcRenderer.invoke(BRIDGE_CHANNELS.diagnosticsGet),
+    searchSettingsGet: (): Promise<ControlResult<SearchSettingsResponse>> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.searchSettingsGet),
+    searchSettingsUpdate: (
+      input: SearchSettingsUpdateRequest,
+    ): Promise<ControlResult<SearchSettingsResponse>> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.searchSettingsUpdate, input),
     onChange: (listener: () => void): (() => void) => {
       const handler = (): void => {
         listener()

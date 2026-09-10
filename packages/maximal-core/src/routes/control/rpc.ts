@@ -50,6 +50,7 @@ import { getConfig } from "~/lib/config/config"
 import {
   actOnConnection,
   buildDiagnostics,
+  buildSearchSettings,
   createApiKey,
   listApiKeys,
   listConnections,
@@ -60,6 +61,7 @@ import {
   setConfiguratorEnabled,
   SettingsOperationError,
   updateApiKey,
+  updateSearchSettings,
 } from "~/lib/config/settings-operations"
 import {
   ApiKeyCreateRequest,
@@ -69,6 +71,7 @@ import {
   AppSetEnabledRequest,
   ConnectionActionRequest,
   ConnectionCredentialIdRequest,
+  SearchSettingsUpdateRequest,
   TokenUsageRequest,
 } from "~/lib/config/settings-types"
 import { listActiveClients } from "~/lib/http/active-clients"
@@ -93,9 +96,11 @@ import { getUpdateStatus } from "~/lib/update/update-check"
 import { projectControlConfig } from "~/routes/control/config-projection"
 
 export interface ControlRpcOperationOverrides {
+  buildSearchSettings?: typeof buildSearchSettings
   createApiKey?: typeof createApiKey
   refreshModels?: typeof cacheModels
   setAppEnabled?: typeof setAppEnabled
+  updateSearchSettings?: typeof updateSearchSettings
 }
 
 export interface ControlRpcDeps {
@@ -204,6 +209,8 @@ function createSettingsRpcMethods({
   operations = {},
 }: ControlRpcDeps): RpcRegistry {
   const createApiKeyOperation = operations.createApiKey ?? createApiKey
+  const buildSearchSettingsOperation =
+    operations.buildSearchSettings ?? buildSearchSettings
   const refreshModels = operations.refreshModels ?? cacheModels
   const setAppEnabledOperation =
     operations.setAppEnabled
@@ -212,6 +219,8 @@ function createSettingsRpcMethods({
     : setAppEnabled)
   const readApps = () => buildAppsList(configurators)
   const readConnections = () => listConnections(configurators)
+  const updateSearchSettingsOperation =
+    operations.updateSearchSettings ?? updateSearchSettings
 
   return {
     "connections/list": readConnections,
@@ -237,6 +246,17 @@ function createSettingsRpcMethods({
       return getTokenUsageSummary(period)
     },
     "diagnostics/get": () => buildDiagnostics(),
+    "searchSettings/get": () => buildSearchSettingsOperation(),
+    "searchSettings/update": (params: unknown) =>
+      asRpcOperation(() =>
+        updateSearchSettingsOperation(
+          parseParams(
+            SearchSettingsUpdateRequest,
+            params,
+            "Expected search connector settings update.",
+          ),
+        ),
+      ),
     "models/refresh": async () => {
       await refreshModels()
       return buildModelsList(await listProviderModels())

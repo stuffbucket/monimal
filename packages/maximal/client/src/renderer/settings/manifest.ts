@@ -1,9 +1,12 @@
 import {
+  Blocks,
   ChartColumn,
   Cpu,
   HardDrive,
+  KeyRound,
   Link2,
   ScrollText,
+  Search,
   SlidersHorizontal,
   Stethoscope,
   User,
@@ -16,13 +19,17 @@ import {
   type SettingsSectionSpec,
 } from '../../shared/settings-sections'
 import { AccountSection } from './AccountSection'
+import { ApiKeysSection } from './ApiKeysSection'
+import { AppsSection } from './AppsSection'
 import type { SettingsCapabilities } from './capabilities'
 import { ConnectionsSection } from './ConnectionsSection'
 import { DiagnosticsSection } from './DiagnosticsSection'
+import { EndpointSection } from './EndpointSection'
 import { GeneralSection } from './GeneralSection'
 import { LocalModelsSection } from './LocalModelsSection'
 import { LogsSection } from './LogsSection'
 import { ModelsSection } from './ModelsSection'
+import { SearchSection } from './SearchSection'
 import { UsageSection } from './UsageSection'
 
 type SectionPanel = ComponentType<{ capabilities: SettingsCapabilities }>
@@ -39,6 +46,10 @@ const SECTION_PARTS: Record<SettingsSectionId, SectionParts> = {
     Panel: GeneralSection,
   },
   'settings-connections-heading': { icon: Link2, Panel: ConnectionsSection },
+  'settings-apps-heading': { icon: Blocks, Panel: AppsSection },
+  'settings-endpoint-heading': { icon: Link2, Panel: EndpointSection },
+  'settings-search-heading': { icon: Search, Panel: SearchSection },
+  'settings-api-keys-heading': { icon: KeyRound, Panel: ApiKeysSection },
   'settings-models-heading': { icon: Cpu, Panel: ModelsSection },
   'settings-local-models-heading': {
     icon: HardDrive,

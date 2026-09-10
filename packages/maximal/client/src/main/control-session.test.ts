@@ -105,6 +105,17 @@ const revealedCredential = {
   id: 'managed:claude-code',
   key: 'testkey123',
 }
+const searchSettings = {
+  manifest: {
+    id: 'search',
+    label: 'Search',
+    description: 'Search settings',
+    fields: [],
+    providers: [],
+  },
+  settings: {},
+  providers: {},
+}
 
 function discovery(overrides: Record<string, unknown> = {}): unknown {
   return {
@@ -465,6 +476,42 @@ describe('named control operations', () => {
       },
     })
     expect(live.calls).toEqual([])
+  })
+
+  it('validates search settings responses and forwards updates', async () => {
+    const discover = new FakeClient({
+      'server/discover': discovery({
+        capabilities: {
+          methods: [
+            'auth/status',
+            'auth/start',
+            'auth/signOut',
+            'subscriptions/listen',
+            'searchSettings/get',
+            'searchSettings/update',
+          ],
+          feed: true,
+        },
+      }),
+    })
+    const live = fullLiveClient({
+      'searchSettings/get': searchSettings,
+      'searchSettings/update': searchSettings,
+    })
+    const harness = createHarness({ clients: [discover, live] })
+    const update = { settings: { fallback: false } }
+
+    await expect(harness.session.searchSettingsGet()).resolves.toEqual({
+      ok: true,
+      value: searchSettings,
+    })
+    await expect(
+      harness.session.searchSettingsUpdate(update),
+    ).resolves.toEqual({ ok: true, value: searchSettings })
+    expect(live.calls).toEqual([
+      { method: 'searchSettings/get' },
+      { method: 'searchSettings/update', params: update },
+    ])
   })
 
   it('rejects invalid observability queries before a wire call', async () => {

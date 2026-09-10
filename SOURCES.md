@@ -18,7 +18,7 @@ repository or imported commit:
 | Package                                   | Purpose                                                                                   |
 | ----------------------------------------- | ----------------------------------------------------------------------------------------- |
 | `packages/local-model-registry`           | Provider-neutral local-model registration, provisioning, and runner claims.               |
-| `packages/maximal-harness`                | Transport-neutral local agent runtime, approval gate, worker, and renderer component.     |
+| `packages/maximal-harness`                | Transport-neutral local agent runtime, approval gate, search connectors, worker, and renderer component. |
 | `packages/maximal-model-contract`         | Runtime-neutral model gateway contract shared by Core and model orchestration.            |
 | `packages/maximal-models`                 | Model runtime discovery, lifecycle, reconciliation, and dispatch through DSH.             |
 | `packages/model-qwen3-0.6b-q8-gguf`       | Qwen3 0.6B Q8_0 GGUF artifact metadata and verified provisioning source.                  |

@@ -42,6 +42,8 @@ export {
   type ViewMode,
 } from './Layout.js';
 
+export { ScrollArea } from './ScrollArea.js';
+
 export { Dialog, Menu, type MenuItem } from './Overlays.js';
 
 export { Card, Row, type TileProps } from './Tile.js';

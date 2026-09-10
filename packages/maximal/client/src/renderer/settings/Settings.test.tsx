@@ -133,6 +133,20 @@ function fakeCapabilities(): SettingsCapabilities {
         web_search: { kind: 'none', detail: null },
       })),
     },
+    search: {
+      get: vi.fn(async () => ({
+        manifest: {
+          id: 'search' as const,
+          label: 'Search',
+          description: 'Search settings',
+          fields: [],
+          providers: [],
+        },
+        settings: {},
+        providers: {},
+      })),
+      update: vi.fn(),
+    },
     onOpenRequest: vi.fn(() => () => {}),
     openExternal: vi.fn(async () => {}),
   }
@@ -268,6 +282,7 @@ describe('Settings', () => {
     if (page === null) throw new Error('the Settings page did not render')
 
     expect(page.getAttribute('aria-labelledby')).toBe('settings-models-heading')
+    expect(page.classList.contains('scroll-area')).toBe(true)
     expect(document.getElementById('settings-models-heading')?.tagName).toBe('H1')
   })
 
@@ -280,6 +295,8 @@ describe('Settings', () => {
     expect(style).toBeInstanceOf(HTMLStyleElement)
     expect(style?.tagName).toBe('STYLE')
     expect(style?.textContent).toContain('.settings-page {')
+    expect(style?.textContent).toMatch(/\.settings-section__heading\s*{[^}]*--shell-text-xl/s)
+    expect(style?.textContent).toMatch(/\.settings-section__subheading\s*{[^}]*--shell-text-lg/s)
   })
 
   it('does not replace or duplicate an existing surface style element', async () => {

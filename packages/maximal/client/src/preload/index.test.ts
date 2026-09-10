@@ -74,6 +74,8 @@ describe('preload bridge allowlist', () => {
       'observabilityRequests',
       'onChange',
       'onTrafficInvalidation',
+      'searchSettingsGet',
+      'searchSettingsUpdate',
       'usageGet',
     ])
     expect(Object.keys(bridge.logs).sort()).toEqual(['location', 'reveal'])
@@ -153,6 +155,8 @@ describe('preload bridge allowlist', () => {
     await bridge.localModels.cancel('operation-1')
     await bridge.control.usageGet('week')
     await bridge.control.diagnosticsGet()
+    await bridge.control.searchSettingsGet()
+    await bridge.control.searchSettingsUpdate({ settings: { fallback: false } })
     await bridge.pendingSettingsRequest()
     await bridge.logs.location()
     await bridge.logs.reveal()
@@ -208,6 +212,8 @@ describe('preload bridge allowlist', () => {
       [BRIDGE_CHANNELS.localModelsCancel, 'operation-1'],
       [BRIDGE_CHANNELS.usageGet, 'week'],
       [BRIDGE_CHANNELS.diagnosticsGet],
+      [BRIDGE_CHANNELS.searchSettingsGet],
+      [BRIDGE_CHANNELS.searchSettingsUpdate, { settings: { fallback: false } }],
       [BRIDGE_CHANNELS.pendingSettingsRequest],
       [BRIDGE_CHANNELS.logsLocation],
       [BRIDGE_CHANNELS.logsReveal],

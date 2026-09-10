@@ -27,6 +27,8 @@ interface ControlSessionSpies {
   localModelsList: ReturnType<typeof vi.fn>
   localModelsEnsure: ReturnType<typeof vi.fn>
   localModelsCancel: ReturnType<typeof vi.fn>
+  searchSettingsGet: ReturnType<typeof vi.fn>
+  searchSettingsUpdate: ReturnType<typeof vi.fn>
   dispose: ReturnType<typeof vi.fn>
 }
 
@@ -249,6 +251,8 @@ const { createControlSessionMock, disposeControlSessionMock } = vi.hoisted(
         localModelsList: vi.fn(),
         localModelsEnsure: vi.fn(),
         localModelsCancel: vi.fn(),
+        searchSettingsGet: vi.fn(),
+        searchSettingsUpdate: vi.fn(),
         dispose: disposeControlSessionMock,
       })),
     }
@@ -526,6 +530,24 @@ describe('closed IPC boundary', () => {
     expect(() => revealHandler({}, '')).toThrow()
     expect(session.connectionsAct).not.toHaveBeenCalled()
     expect(session.connectionsRevealCredential).not.toHaveBeenCalled()
+  })
+
+  it('validates search settings updates before session dispatch', async () => {
+    await loadIndexOn('darwin')
+    const session = controlSessionSpies()
+    const registration = ipcMainHandle.mock.calls.find(
+      ([registered]) => registered === BRIDGE_CHANNELS.searchSettingsUpdate,
+    )
+    const handler = registration?.[1] as (
+      event: unknown,
+      input: unknown,
+    ) => unknown
+    const input = { settings: { fallback: false } }
+
+    handler({}, input)
+    expect(session.searchSettingsUpdate).toHaveBeenCalledWith(input)
+    expect(() => handler({}, { settings: [] })).toThrow()
+    expect(session.searchSettingsUpdate).toHaveBeenCalledTimes(1)
   })
 
   it('does not install Electron webRequest header or CORS hooks', async () => {

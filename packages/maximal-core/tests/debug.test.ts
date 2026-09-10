@@ -27,6 +27,26 @@ describe("describeExecutor", () => {
     const r = describeExecutor({ OLLAMA_API_KEY: sentinel })
     expect(JSON.stringify(r)).not.toContain(sentinel)
   })
+
+  it("describes the enabled configured provider chain and fallback", () => {
+    expect(
+      describeExecutor(
+        { OLLAMA_API_KEY: "secret-sentinel" },
+        {
+          connectors: {
+            search: {
+              priority: ["ollama", "copilot", "duckduckgo"],
+              fallback: false,
+              providers: { copilot: { enabled: false } },
+            },
+          },
+        },
+      ),
+    ).toEqual({
+      web_tools: "SearchConnector",
+      notes: "providers: ollama -> duckduckgo; fallback: disabled",
+    })
+  })
 })
 
 describe("secretStatus", () => {

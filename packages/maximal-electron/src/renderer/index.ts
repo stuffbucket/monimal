@@ -15,6 +15,11 @@ export {
   type AppFrameProps,
 } from './components/AppFrame.js';
 export {
+  PartitionedSortableList,
+  type PartitionedSortableItem,
+  type PartitionedSortableListProps,
+} from './components/PartitionedSortableList.js';
+export {
   ShellLayout,
   type PanelSize,
   type PanelToggleSubscription,
@@ -137,6 +142,7 @@ export {
   Note,
   RadioGroup,
   Row,
+  ScrollArea,
   Select,
   StatusChip,
   Switch,
@@ -177,6 +183,8 @@ export {
   copyText,
   Diagnostics,
   ModelCards,
+  SettingsDisclosure,
+  SettingsDisclosureList,
   SettingsPage,
   SettingsSection,
   Usage,

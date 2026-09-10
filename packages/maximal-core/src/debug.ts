@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { BUNDLED_SEARCH_PROVIDER_IDS } from "@stuffbucket/maximal-harness"
 import { defineCommand } from "citty"
 import consola from "consola"
 import os from "node:os"
@@ -134,7 +135,19 @@ export function secretStatus(
  *  diagnostic output. */
 export function describeExecutor(
   env: NodeJS.ProcessEnv = process.env,
+  config?: AppConfig,
 ): DebugInfo["executor"] {
+  const search = config?.connectors?.search
+  if (search) {
+    const priority = search.priority ?? BUNDLED_SEARCH_PROVIDER_IDS
+    const enabled = priority.filter(
+      (providerId) => search.providers?.[providerId]?.enabled !== false,
+    )
+    return {
+      web_tools: "SearchConnector",
+      notes: `providers: ${enabled.join(" -> ") || "none"}; fallback: ${search.fallback === false ? "disabled" : "enabled"}`,
+    }
+  }
   const choice = chooseExecutor(env, {
     responsesModel: resolveResponsesModel(),
   })
@@ -223,7 +236,7 @@ async function getDebugInfo(): Promise<DebugInfo> {
     },
     tokenExists,
     config: summarizeConfig(config),
-    executor: describeExecutor(),
+    executor: describeExecutor(process.env, config),
     secrets: collectSecretStatuses(config),
   }
 }

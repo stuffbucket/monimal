@@ -3,7 +3,7 @@
   "name": "@stuffbucket/maximal-harness",
   "version": "0.0.0",
   "private": true,
-  "description": "Composable local agent harness for Maximal desktop clients.",
+  "description": "Composable local agent and search connector harness for Maximal desktop clients.",
   "sideEffects": ["./dist/styles.css"],
   "type": "module",
   "monimal": {
@@ -16,6 +16,7 @@
     ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" },
     "./host": { "types": "./dist/host/index.d.ts", "import": "./dist/host/index.js" },
     "./renderer": { "types": "./dist/renderer/index.d.ts", "import": "./dist/renderer/index.js" },
+    "./search": { "types": "./dist/search.d.ts", "import": "./dist/search.js" },
     "./worker": { "types": "./dist/worker/index.d.ts", "import": "./dist/worker/index.js" },
     "./packaging": {
       "types": "./scripts/llama-packaging.d.mts",
@@ -37,7 +38,7 @@
     "docs/agent.md"
   ],
   "scripts": {
-    "build": "tsup src/index.ts src/host/index.ts src/renderer/index.ts src/worker/index.ts --format esm --dts --clean --target es2022 --external electron --external react --external react-dom --external node-llama-cpp --out-dir dist && cp src/styles.css dist/styles.css",
+    "build": "tsup src/index.ts src/host/index.ts src/renderer/index.ts src/worker/index.ts src/search.ts src/search/settings.ts src/search/providers/copilot.ts src/search/providers/duckduckgo.ts src/search/providers/ollama.ts --format esm --dts --clean --target es2022 --external electron --external react --external react-dom --external node-llama-cpp --out-dir dist && cp src/styles.css dist/styles.css",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "mutate": "stryker run stryker.config.mjs",
