@@ -41,15 +41,18 @@ vi.mock('../../src/host/terminal-host.js', () => ({
       options.emit('session', 'output', 7);
     }
   },
-  TmuxProjectionHost: class {
+  TmuxProjectionOwners: class {
     readonly sessions = new Set<string>();
-    readonly reserve = vi.fn((id: string) => this.sessions.add(id));
+    readonly reserve = vi.fn((_owner: unknown, id: string) => this.sessions.add(id));
     readonly has = vi.fn((id: string) => this.sessions.has(id));
     readonly attach = vi.fn(() => true);
     readonly focus = vi.fn(() => 1);
     readonly write = vi.fn(() => true);
     readonly resize = vi.fn(() => true);
-    readonly terminate = vi.fn((id: string) => this.sessions.delete(id));
+    readonly detach = vi.fn(() => true);
+    readonly grant = vi.fn(() => true);
+    readonly release = vi.fn();
+    readonly terminate = vi.fn((_owner: unknown, id: string) => this.sessions.delete(id));
     readonly abandonAll = vi.fn(() => this.sessions.clear());
     constructor() { state.projectionHosts.push(this); }
   },

@@ -104,6 +104,28 @@ describe('TmuxProjectionHost', () => {
     expect(host.has('two')).toBe(false);
   });
 
+  it('terminates a trusted reservation before its first projection attaches', () => {
+    const terminate = vi.fn();
+    const host = new TmuxProjectionHost({
+      homeDirectory: '/home/ada',
+      connector: { connect: () => processWire() },
+      terminate,
+      emit: vi.fn(),
+      onExit: vi.fn(),
+    });
+    host.reserve('work', {
+      command: 'tmux',
+      args: ['new-session', '-A', '-s', 'work'],
+      terminate: { command: 'tmux', args: ['kill-session', '-t', 'work'] },
+    });
+
+    expect(host.terminate('missing')).toBe(false);
+    expect(host.terminate('work')).toBe(true);
+    expect(terminate).toHaveBeenCalledWith('tmux', ['kill-session', '-t', 'work']);
+    expect(host.has('work')).toBe(false);
+    expect(host.terminate('work')).toBe(false);
+  });
+
   it('abandons projections without running trusted termination commands', () => {
     const process = processWire();
     const terminate = vi.fn();

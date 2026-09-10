@@ -74,7 +74,12 @@ export class TmuxProjectionHost {
   }
 
   terminate(sessionId: string): boolean {
-    return this.broker.terminate(sessionId);
+    const launch = this.launches.get(sessionId);
+    if (!launch) return false;
+    if (this.broker.terminate(sessionId)) return true;
+    this.launches.delete(sessionId);
+    this.options.terminate(launch.terminate.command, launch.terminate.args);
+    return true;
   }
 
   terminateAll(): void {

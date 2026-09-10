@@ -39,6 +39,10 @@ export {
   type TmuxProjectionHostOptions,
   type TmuxProjectionLaunch,
 } from './tmux-projection-host.js';
+export {
+  TmuxProjectionOwners,
+  type TmuxProjectionOwnersOptions,
+} from './tmux-projection-owners.js';
 
 /**
  * Pseudo-terminal sessions, for a consumer's main process.

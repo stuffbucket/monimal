@@ -17,6 +17,7 @@
     "src/host/terminal-connector.ts",
     "src/host/tmux-projection-broker.ts",
     "src/host/tmux-projection-host.ts",
+    "src/host/tmux-projection-owners.ts",
     "src/preload/capabilities.ts",
     "src/renderer/lib/data.ts",
     "src/renderer/lib/theme.ts",

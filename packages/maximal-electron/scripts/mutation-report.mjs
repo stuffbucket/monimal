@@ -58,7 +58,10 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
  *
  * 2292 to 2337 adds owner-loss cleanup to `TmuxProjectionBroker` and adds
  * `TmuxProjectionHost`, which binds trusted commands to the broker.
- */export const MUTANT_FLOOR = 2337;
+ *
+ * 2337 to 2463 adds application-scoped `TmuxProjectionOwners` and lets the
+ * trusted host terminate a reservation before its first projection attaches.
+ */export const MUTANT_FLOOR = 2463;
 
 /**
  * `// Stryker disable` suppressions, counted in mutants rather than comments

@@ -26,6 +26,21 @@ describe.skipIf(!ENABLED)('tmux projection integration', () => {
     expect(harness.geometry()).toEqual({ cols: 100, rows: 30 });
   });
 
+  it('fans one pane out to eight real client PTYs with one canonical geometry', async () => {
+    harness = new TmuxProjectionHarness();
+    const projectionIds = Array.from({ length: 8 }, (_, index) => `view-${String(index)}`);
+    for (const projectionId of projectionIds) expect(harness.attach(projectionId)).toBe(true);
+
+    const epoch = harness.focus(projectionIds[7]!, 132, 43);
+    expect(harness.write(projectionIds[7]!, epoch, "printf 'fanout-marker\\n'\r")).toBe(true);
+    await Promise.all(projectionIds.map((projectionId) => harness!.untilOutput(projectionId, 'fanout-marker')));
+
+    expect(harness.geometry()).toEqual({ cols: 132, rows: 43 });
+    for (const projectionId of projectionIds) {
+      expect(harness.output(projectionId)).toContain('fanout-marker');
+    }
+  });
+
   it('reattaches during output without stalling an unobserved peer', async () => {
     harness = new TmuxProjectionHarness();
     harness.attach('observer');

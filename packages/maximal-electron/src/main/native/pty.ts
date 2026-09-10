@@ -2,7 +2,7 @@ import { app, type BrowserWindow } from 'electron';
 
 import {
   TerminalHost,
-  TmuxProjectionHost,
+  TmuxProjectionOwners,
   type TerminalSession,
   type TerminalStatus,
 } from '../../host/terminal-host.js';
@@ -136,21 +136,22 @@ const controlHosts = new Owners<BrowserWindow, Map<string, TmuxControlHost>>(
   },
 );
 const projectionEpochs = new WeakMap<BrowserWindow, Map<string, number>>();
-const projectionHosts = new Owners<BrowserWindow, TmuxProjectionHost>(
-  (owner) => {
-    owner.once('closed', () => projectionHosts.release(owner));
-    return new TmuxProjectionHost({
-      homeDirectory: app.getPath('home'),
-      env: { TERM_PROGRAM: 'Stuffbucket' },
-      terminate: (command, args) => {
-        void execFileRunner(command, args, { timeout: 2_000, maxBuffer: 64 * 1024 }).catch(() => undefined);
-      },
-      emit: (sessionId, projectionId, chunk) => emit(owner, sessionId, chunk, undefined, projectionId),
-      onExit: (sessionId, projectionId, exitCode) => onExit(owner, sessionId, exitCode, projectionId),
-    });
+const projectionOwners = new WeakSet<BrowserWindow>();
+const projections = new TmuxProjectionOwners<BrowserWindow>({
+  homeDirectory: app.getPath('home'),
+  env: { TERM_PROGRAM: 'Stuffbucket' },
+  terminate: (command, args) => {
+    void execFileRunner(command, args, { timeout: 2_000, maxBuffer: 64 * 1024 }).catch(() => undefined);
   },
-  (host) => host.abandonAll(),
-);
+  emit: (owner, sessionId, projectionId, chunk) => emit(owner, sessionId, chunk, undefined, projectionId),
+  onExit: (owner, sessionId, projectionId, exitCode) => onExit(owner, sessionId, exitCode, projectionId),
+});
+
+function prepareProjectionOwner(owner: BrowserWindow): void {
+  if (projectionOwners.has(owner)) return;
+  projectionOwners.add(owner);
+  owner.once('closed', () => projections.release(owner));
+}
 
 function prepareLauncher(owner: BrowserWindow): void {
   loadTerminalProfiles(app.getPath('userData'));
@@ -176,15 +177,15 @@ function spawn(
   requireReservation: boolean,
 ): void {
   if (!owner) return;
-  const projectionHost = projectionHosts.get(owner);
-  if (projectionHost?.has(request.id)) {
-    projectionHost.attach({
+  if (projections.has(request.id)) {
+    prepareProjectionOwner(owner);
+    projections.attach(owner, {
       sessionId: request.id,
       projectionId: request.id,
       cols: request.cols,
       rows: request.rows,
     });
-    const epoch = projectionHost.focus(request.id, request.id, request.cols, request.rows);
+    const epoch = projections.focus(owner, request.id, request.id, request.cols, request.rows);
     if (epoch !== undefined) {
       const epochs = projectionEpochs.get(owner) ?? new Map<string, number>();
       epochs.set(request.id, epoch);
@@ -254,7 +255,8 @@ export function launchTerminal(
     return result;
   }
   if (reserved.tmuxProjection) {
-    projectionHosts.for(owner).reserve(result.sessionId, {
+    prepareProjectionOwner(owner);
+    projections.reserve(owner, result.sessionId, {
       command: reserved.command,
       args: reserved.args,
       cwd: reserved.cwd,
@@ -281,10 +283,9 @@ export function writePty(
   data: string,
 ): void {
   if (owner) {
-    const projectionHost = projectionHosts.get(owner);
     const epoch = projectionEpochs.get(owner)?.get(id);
-    if (projectionHost?.has(id) && epoch !== undefined) {
-      projectionHost.write(id, id, epoch, data);
+    if (projections.has(id) && epoch !== undefined) {
+      projections.write(owner, id, id, epoch, data);
       return;
     }
   }
@@ -299,10 +300,9 @@ export function resizePty(
   rows: number,
 ): void {
   if (owner) {
-    const projectionHost = projectionHosts.get(owner);
     const epoch = projectionEpochs.get(owner)?.get(id);
-    if (projectionHost?.has(id) && epoch !== undefined) {
-      projectionHost.resize(id, id, epoch, cols, rows);
+    if (projections.has(id) && epoch !== undefined) {
+      projections.resize(owner, id, id, epoch, cols, rows);
       return;
     }
   }
@@ -314,19 +314,23 @@ export function attachPtyProjection(
   owner: BrowserWindow | undefined,
   request: PtyProjectionAttachRequest,
 ): boolean {
-  return projectionHosts.get(owner!)?.attach({
+  if (!owner) return false;
+  prepareProjectionOwner(owner);
+  return projections.attach(owner, {
     sessionId: request.id,
     projectionId: request.projectionId,
     cols: request.cols,
     rows: request.rows,
-  }) ?? false;
+  });
 }
 
 export function focusPtyProjection(
   owner: BrowserWindow | undefined,
   request: PtyProjectionAttachRequest,
 ): number | undefined {
-  return projectionHosts.get(owner!)?.focus(
+  if (!owner) return undefined;
+  return projections.focus(
+    owner,
     request.id,
     request.projectionId,
     request.cols,
@@ -338,7 +342,9 @@ export function writePtyProjection(
   owner: BrowserWindow | undefined,
   request: PtyProjectionWriteRequest,
 ): boolean {
-  return projectionHosts.get(owner!)?.write(
+  if (!owner) return false;
+  return projections.write(
+    owner,
     request.id,
     request.projectionId,
     request.epoch,
@@ -350,7 +356,9 @@ export function resizePtyProjection(
   owner: BrowserWindow | undefined,
   request: PtyProjectionResizeRequest,
 ): boolean {
-  return projectionHosts.get(owner!)?.resize(
+  if (!owner) return false;
+  return projections.resize(
+    owner,
     request.id,
     request.projectionId,
     request.epoch,
@@ -364,7 +372,18 @@ export function detachPtyProjection(
   id: string,
   projectionId: string,
 ): boolean {
-  return projectionHosts.get(owner!)?.detach(id, projectionId) ?? false;
+  return owner ? projections.detach(owner, id, projectionId) : false;
+}
+
+/** Authorize one destination window to attach its next projection. */
+export function grantPtyProjection(
+  owner: BrowserWindow | undefined,
+  id: string,
+  recipient: BrowserWindow | undefined,
+): boolean {
+  if (!owner || !recipient) return false;
+  prepareProjectionOwner(recipient);
+  return projections.grant(owner, id, recipient);
 }
 
 /** Record renderer consumption of all output through this sequence. */
@@ -377,7 +396,7 @@ export function acknowledgePty(
 }
 
 export function killPty(owner: BrowserWindow | undefined, id: string): void {
-  if (owner && projectionHosts.get(owner)?.terminate(id)) {
+  if (owner && projections.terminate(owner, id)) {
     projectionEpochs.get(owner)?.delete(id);
     return;
   }
@@ -399,5 +418,5 @@ export function listPtys(owner: BrowserWindow | undefined): TerminalSession[] {
 export function killAllPtys(): void {
   hosts.releaseAll();
   controlHosts.releaseAll();
-  projectionHosts.releaseAll();
+  projections.abandonAll();
 }
