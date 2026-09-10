@@ -7,7 +7,6 @@
   "scripts": {
     "dev": "turbo run dev --filter=maximal-client",
     "dev:server": "turbo run dev --filter=@stuffbucket/maximal -- start",
-    "dev:site": "turbo run dev --filter=maximal-site",
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint",

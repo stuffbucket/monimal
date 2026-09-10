@@ -30,18 +30,6 @@
       "env": ["MAXIMAL_CORE_OUT", "MAXIMAL_CORE_REF", "MAXIMAL_CORE_TARGET", "MAXIMAL_GIT_SHA"],
       "description": "Compile the platform sidecar with checkout provenance."
     },
-    "maximal-site#build": {
-      "dependsOn": ["^build"],
-      "outputs": ["dist/**"],
-      "inputs": [
-        "$TURBO_DEFAULT$",
-        "!**/dist/**",
-        "!**/.turbo/**",
-        "!**/resources/bin/**",
-        "$TURBO_ROOT$/packages/maximal/docs/guide/**"
-        ],
-      "description": "Build the site from its package and the Maximal guide."
-    },
     "typecheck": {
       "dependsOn": ["^build"],
       "outputs": [],

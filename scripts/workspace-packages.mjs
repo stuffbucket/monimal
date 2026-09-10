@@ -47,7 +47,6 @@ export function inferredTasks(manifest) {
   if (dependencies.electron || dependencies["@electron-forge/cli"]) {
     return [...baseTasks, "package", "start"];
   }
-  if (dependencies.astro) return ["build", "dev", "test"];
   const hasBin =
     (typeof manifest.bin === "string" && Boolean(manifest.bin.trim())) ||
     (typeof manifest.bin === "object" &&
@@ -118,4 +117,39 @@ export function auditWorkspacePackages(root, workspacePaths) {
   }
 
   return { issues, manifests };
+}
+
+export function auditWorkspaceReferences(root, workspacePaths) {
+  const packageNames = new Set(
+    workspacePaths
+      .filter((packagePath) => packagePath !== ".")
+      .map((packagePath) =>
+        readManifest(path.join(root, packagePath, "package.json")).name,
+      ),
+  );
+  const manifest = readManifest(path.join(root, "package.json"));
+  const turbo = readManifest(path.join(root, "turbo.json"));
+  const issues = [];
+
+  for (const taskName of Object.keys(turbo.tasks ?? {})) {
+    const separator = taskName.indexOf("#");
+    if (separator < 0) continue;
+    const packageName = taskName.slice(0, separator);
+    if (!packageNames.has(packageName)) {
+      issues.push(`${taskName} targets a package outside the pnpm workspace`);
+    }
+  }
+
+  for (const [scriptName, script] of Object.entries(manifest.scripts ?? {})) {
+    for (const match of script.matchAll(/(?:^|\s)--filter(?:=|\s+)([^\s]+)/g)) {
+      const packageName = match[1];
+      if (!packageNames.has(packageName)) {
+        issues.push(
+          `scripts.${scriptName} filters a package outside the pnpm workspace: ${packageName}`,
+        );
+      }
+    }
+  }
+
+  return issues;
 }

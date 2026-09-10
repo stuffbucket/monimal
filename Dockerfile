@@ -100,7 +100,6 @@ COPY --chown=maximal:maximal packages/maximal-observability-contract/package.jso
 COPY --chown=maximal:maximal packages/maximal-provider-contract/package.json packages/maximal-provider-contract/package.json
 COPY --chown=maximal:maximal packages/maximal/package.json packages/maximal/package.json
 COPY --chown=maximal:maximal packages/maximal/client/package.json packages/maximal/client/package.json
-COPY --chown=maximal:maximal packages/maximal/site/package.json packages/maximal/site/package.json
 COPY --chown=maximal:maximal packages/omlx/package.json packages/omlx/package.json
 
 USER maximal

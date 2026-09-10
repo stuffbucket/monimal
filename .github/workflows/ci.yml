@@ -155,8 +155,7 @@ jobs:
         run: pnpm run verify:workspace
 
       # Build/typecheck/lint remain native and use normal graph parallelism. The
-      # sidecar build is intentionally uncached and executes on every run; the
-      # Astro site is a normal workspace build covered here too.
+      # sidecar build is intentionally uncached and executes on every run.
       - name: Start workspace check timer
         id: workspace-check-start
         run: |
