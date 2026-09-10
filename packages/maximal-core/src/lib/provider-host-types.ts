@@ -1,4 +1,4 @@
-import type { ProviderGateway } from "@stuffbucket/maximal-provider-contract"
+import type { ProviderGateway } from "@stuffbucket/maximal-model-contract"
 
 export interface ProviderPluginConfig {
   readonly enabled?: boolean

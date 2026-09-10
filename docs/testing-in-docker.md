@@ -94,13 +94,13 @@ home-state-free runs before admission to a parallel lane.
 The first experimental lane SHOULD be limited to:
 
 - `@stuffbucket/maximal-observability-contract`;
-- `@stuffbucket/maximal-provider-contract`;
+- `@stuffbucket/maximal-model-contract`;
 - `@stuffbucket/omlx`;
 - `@stuffbucket/anthropic-provider`;
 - `@stuffbucket/maximal-observability`.
 
-A parallel lane MUST NOT include Core, DSH host, or maximal until their port and
-user-state boundaries no longer overlap another package task.
+A parallel lane MUST NOT include Core, model orchestration, or maximal until
+their port and user-state boundaries no longer overlap another package task.
 
 ## Docker dependency boundary
 
@@ -139,7 +139,7 @@ network interface beyond loopback.
 pnpm run test:docker
 pnpm run test:docker -- --all
 pnpm run test:docker -- --suite=maximal-core
-pnpm run test:docker -- --suite=maximal-dsh-host
+pnpm run test:docker -- --suite=maximal-models
 pnpm run test:docker -- --suite=policy
 pnpm run test:docker -- --suite=maximal-core --trace=tests
 pnpm run test:docker -- --trace=all
@@ -150,12 +150,12 @@ pnpm run test:docker -- --trace=all
 with a focused suite. Focused suites run their complete fixed scope. The wrapper
 maps each accepted suite to one root-owned inner script:
 
-| Suite              | Root inner script             |
-| ------------------ | ----------------------------- |
-| `workspace`        | `test:inner`                  |
-| `maximal-core`     | `test:maximal-core:inner`     |
-| `maximal-dsh-host` | `test:maximal-dsh-host:inner` |
-| `policy`           | `test:policy:inner`           |
+| Suite            | Root inner script           |
+| ---------------- | --------------------------- |
+| `workspace`      | `test:inner`                |
+| `maximal-core`   | `test:maximal-core:inner`   |
+| `maximal-models` | `test:maximal-models:inner` |
+| `policy`         | `test:policy:inner`         |
 
 Each inner script checks the container marker before running. The Docker wrapper
 accepts the same three trace values as the native wrapper and does not forward an

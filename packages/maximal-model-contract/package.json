@@ -1,8 +1,8 @@
 {
-  "name": "@stuffbucket/maximal-provider-contract",
+  "name": "@stuffbucket/maximal-model-contract",
   "version": "0.0.0",
   "private": true,
-  "description": "Web-API contract shared by Maximal provider gateways and their consumers.",
+  "description": "Runtime-neutral model gateway contract shared by Maximal and model orchestration.",
   "sideEffects": false,
   "type": "module",
   "exports": {

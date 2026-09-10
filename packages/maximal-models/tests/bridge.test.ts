@@ -1,4 +1,4 @@
-import type { ProviderDispatch } from "@stuffbucket/maximal-provider-contract"
+import type { ProviderDispatch } from "@stuffbucket/maximal-model-contract"
 
 import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"

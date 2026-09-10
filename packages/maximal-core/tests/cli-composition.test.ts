@@ -1,4 +1,4 @@
-import type { ProviderGateway } from "@stuffbucket/maximal-provider-contract"
+import type { ProviderGateway } from "@stuffbucket/maximal-model-contract"
 import type { Resolvable } from "citty"
 
 import { describe, expect, test } from "bun:test"

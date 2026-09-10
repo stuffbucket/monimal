@@ -11,7 +11,7 @@
 // that has quietly lost its signature, and the first visible symptom is a
 // different provider rejecting the replayed history much later.
 
-import type { ProviderOperation } from "@stuffbucket/maximal-provider-contract"
+import type { ProviderOperation } from "@stuffbucket/maximal-model-contract"
 
 import assert from "node:assert/strict"
 import test from "node:test"

@@ -2,7 +2,7 @@ import type {
   ProviderDispatch,
   ProviderGateway,
   ProviderOperation,
-} from "@stuffbucket/maximal-provider-contract"
+} from "@stuffbucket/maximal-model-contract"
 
 import consola from "consola"
 

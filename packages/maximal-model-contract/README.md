@@ -1,8 +1,8 @@
-# @stuffbucket/maximal-provider-contract
+# @stuffbucket/maximal-model-contract
 
-A pure ESM TypeScript contract between Maximal hosts and provider gateways. The
+A pure ESM TypeScript contract between Maximal and model runtime gateways. The
 package contains types only and has no runtime dependency on Maximal, Cordis,
-DSH, or any provider implementation.
+DSH, model orchestration, or any concrete model runtime.
 
 ## Boundary
 
@@ -43,8 +43,8 @@ implementation concerns behind `ProviderGateway`.
 From the workspace root:
 
 ```sh
-pnpm --filter @stuffbucket/maximal-provider-contract run typecheck
-pnpm --filter @stuffbucket/maximal-provider-contract run lint
-pnpm --filter @stuffbucket/maximal-provider-contract run build
-pnpm --filter @stuffbucket/maximal-provider-contract run test
+pnpm --filter @stuffbucket/maximal-model-contract run typecheck
+pnpm --filter @stuffbucket/maximal-model-contract run lint
+pnpm --filter @stuffbucket/maximal-model-contract run build
+pnpm --filter @stuffbucket/maximal-model-contract run test
 ```

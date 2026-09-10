@@ -55,8 +55,8 @@
   },
   "dependencies": {
     "@stuffbucket/maximal-core": "workspace:*",
-    "@stuffbucket/maximal-dsh-host": "workspace:*",
-    "@stuffbucket/maximal-provider-contract": "workspace:*"
+    "@stuffbucket/maximal-models": "workspace:*",
+    "@stuffbucket/maximal-model-contract": "workspace:*"
   },
   "devDependencies": {
     "@stuffbucket/eslint-config": "workspace:*",
