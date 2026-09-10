@@ -18,6 +18,7 @@ import {
   checkoutMountArguments,
   containerBoundaryArguments,
   expectedImageLabels,
+  gitMetadataMountArguments,
   imageLabels,
   imageTagForArchitecture,
   innerScriptForSuite,
@@ -27,6 +28,10 @@ import {
   readToolPins,
   runDockerArguments,
   stagedCommandArguments,
+  turboCacheLabels,
+  turboCacheMountArguments,
+  turboCacheVolumeCreateArguments,
+  validatedTurboCacheVolumeName,
   validatedImageId,
 } from "../scripts/docker-test.mjs";
 import {
@@ -38,8 +43,10 @@ import {
 import {
   imageIsOldEnough,
   isManagedTestImage,
+  isManagedTurboCacheVolume,
   parsePruneOptions,
   selectRetainedImage,
+  volumeIsOldEnough,
 } from "../scripts/prune-test-images.mjs";
 import {
   affectedBase,
@@ -535,9 +542,15 @@ test("root automation schedules Docker and keeps CodeQL lean and pinned", () => 
     .join("\n");
 
   assert.match(dockerWorkflow, /^  schedule:\n    - cron: /m);
-  assert.match(
-    dockerWorkflow,
-    /run: node scripts\/docker-test\.mjs --suite=policy/,
+  assert.match(dockerWorkflow, /^  workflow_dispatch:\n    inputs:/m);
+  assert.doesNotMatch(dockerWorkflow, /^  (?:pull_request|push):/m);
+  assert.equal(
+    dockerWorkflow.split("node scripts/docker-test.mjs --suite=policy").length - 1,
+    1,
+  );
+  assert.equal(
+    dockerWorkflow.split("node scripts/docker-test.mjs --all").length - 1,
+    1,
   );
   assert.match(codeqlWorkflow, /languages: javascript-typescript/);
   assert.doesNotMatch(codeqlWorkflow, /security-and-quality/);
@@ -865,6 +878,23 @@ test("automatic image cleanup leaves a concurrency grace period", () => {
   const now = Date.parse("2026-09-08T12:30:00.000Z");
   assert.equal(imageIsOldEnough(image, 3_600_000, now), false);
   assert.equal(imageIsOldEnough(image, 1_800_000, now), true);
+
+  const imageId = `sha256:${"e".repeat(64)}`;
+  const volume = {
+    Name: `monimal-test-turbo-${"e".repeat(64)}`,
+    CreatedAt: "2026-09-08T12:00:00.000Z",
+    Labels: {
+      [turboCacheLabels.dependencyImage]: imageId,
+      [turboCacheLabels.purpose]: "turbo-cache",
+    },
+  };
+  assert.equal(isManagedTurboCacheVolume(volume), true);
+  assert.equal(volumeIsOldEnough(volume, 3_600_000, now), false);
+  assert.equal(volumeIsOldEnough(volume, 1_800_000, now), true);
+  assert.equal(
+    isManagedTurboCacheVolume({ ...volume, Name: "unrelated-cache" }),
+    false,
+  );
 });
 
 test("runtime arguments mount the checkout read-only behind the offline boundary", () => {
@@ -879,8 +909,38 @@ test("runtime arguments mount the checkout read-only behind the offline boundary
     "type=bind,source=/repo,target=/checkout,readonly",
   ]);
   const imageId = "sha256:" + "a".repeat(64);
+  assert.deepEqual(turboCacheMountArguments(imageId), [
+    "--mount",
+    `type=volume,source=monimal-test-turbo-${"a".repeat(64)},target=/workspace/.turbo`,
+  ]);
+  assert.deepEqual(turboCacheVolumeCreateArguments(imageId), [
+    "volume",
+    "create",
+    "--label",
+    `${turboCacheLabels.purpose}=turbo-cache`,
+    "--label",
+    `${turboCacheLabels.dependencyImage}=${imageId}`,
+    `monimal-test-turbo-${"a".repeat(64)}`,
+  ]);
+  const volume = {
+    Name: `monimal-test-turbo-${"a".repeat(64)}`,
+    Labels: {
+      [turboCacheLabels.dependencyImage]: imageId,
+      [turboCacheLabels.purpose]: "turbo-cache",
+    },
+  };
+  assert.equal(validatedTurboCacheVolumeName(volume, imageId), volume.Name);
+  assert.equal(
+    validatedTurboCacheVolumeName({ ...volume, Labels: {} }, imageId),
+    undefined,
+  );
+  assert.throws(
+    () => turboCacheMountArguments("monimal-test:dependencies-arm64"),
+    /Invalid Docker image ID/,
+  );
   const base = "b".repeat(40);
   const arguments_ = runDockerArguments(imageId, { base });
+  const gitMount = gitMetadataMountArguments(root);
   assert.deepEqual(arguments_, [
     "run",
     "--rm",
@@ -890,6 +950,9 @@ test("runtime arguments mount the checkout read-only behind the offline boundary
     "--security-opt=no-new-privileges",
     "--mount",
     `type=bind,source=${root},target=/checkout,readonly`,
+    ...gitMount,
+    "--mount",
+    `type=volume,source=monimal-test-turbo-${"a".repeat(64)},target=/workspace/.turbo`,
     imageId,
     "node",
     "/opt/monimal/stage-test-checkout.mjs",
@@ -925,6 +988,9 @@ test("mutation arguments use the same mounted dependency boundary", () => {
     "--security-opt=no-new-privileges",
     "--mount",
     `type=bind,source=${root},target=/checkout,readonly`,
+    ...gitMetadataMountArguments(root),
+    "--mount",
+    `type=volume,source=monimal-test-turbo-${"d".repeat(64)},target=/workspace/.turbo`,
     "--env",
     "MAXIMAL_MUTATION_LEDGER=/workspace/packages/maximal-core/reports/mutation/incomplete-runs.log",
     imageId,
@@ -1114,6 +1180,47 @@ test("checkout staging copies Git-visible source without host dependencies", () 
     ]);
   } finally {
     fs.rmSync(checkout, { recursive: true, force: true });
+    fs.rmSync(workspace, { recursive: true, force: true });
+  }
+});
+
+test("checkout staging gives a linked worktree a container-local Git root", () => {
+  const repository = fs.mkdtempSync(path.join(os.tmpdir(), "monimal-stage-repository-"));
+  const checkout = `${repository}-linked`;
+  const workspace = fs.mkdtempSync(path.join(os.tmpdir(), "monimal-stage-workspace-"));
+  const git = (cwd, ...arguments_) =>
+    spawnSync("git", arguments_, { cwd, encoding: "utf8" });
+  try {
+    assert.equal(git(repository, "init", "--quiet").status, 0);
+    assert.equal(git(repository, "config", "user.name", "Docker Policy Test").status, 0);
+    assert.equal(
+      git(repository, "config", "user.email", "docker-policy@example.invalid").status,
+      0,
+    );
+    fs.writeFileSync(path.join(repository, "tracked.txt"), "linked\n");
+    assert.equal(git(repository, "add", "tracked.txt").status, 0);
+    assert.equal(
+      git(repository, "commit", "--quiet", "--no-gpg-sign", "-m", "fixture").status,
+      0,
+    );
+    assert.equal(git(repository, "worktree", "add", "--quiet", checkout).status, 0);
+
+    assert.equal(stageCheckout({ checkout, workspace }), 1);
+    assert.equal(
+      git(workspace, "rev-parse", "--show-toplevel").stdout.trim(),
+      fs.realpathSync(workspace),
+    );
+    assert.equal(
+      git(workspace, "rev-parse", "HEAD").stdout.trim(),
+      git(checkout, "rev-parse", "HEAD").stdout.trim(),
+    );
+  } finally {
+    spawnSync("git", ["worktree", "remove", "--force", checkout], {
+      cwd: repository,
+      encoding: "utf8",
+    });
+    fs.rmSync(checkout, { recursive: true, force: true });
+    fs.rmSync(repository, { recursive: true, force: true });
     fs.rmSync(workspace, { recursive: true, force: true });
   }
 });
@@ -1413,6 +1520,7 @@ test("the image owns test homes and stages commands as non-root", () => {
   assert.match(dockerfile, /bun_sha.*sha256sum -c -/s);
   assert.match(dockerfile, /USER maximal/);
   assert.match(dockerfile, /MAXIMAL_TEST_CONTAINER=1/);
+  assert.match(dockerfile, /TURBO_CACHE_DIR=\/workspace\/\.turbo\/cache/);
   assert.match(dockerfile, /XDG_CONFIG_HOME=\/home\/maximal\/\.config/);
   assert.match(
     dockerfile,
