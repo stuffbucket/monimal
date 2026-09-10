@@ -135,6 +135,12 @@ async function createGhosttyEmulator(
   const handleKeyUp = (event: KeyboardEvent) => {
     if (event.key === suppressedKeyInput) suppressedKeyInput = undefined;
   };
+  const handleInput = (event: Event) => {
+    if (suppressedKeyInput === undefined) return;
+    event.stopPropagation();
+    if (event.target instanceof HTMLTextAreaElement) event.target.value = '';
+    suppressedKeyInput = undefined;
+  };
   const dataListeners = new Set<(data: string) => void>();
   const resizeListeners = new Set<(size: { cols: number; rows: number }) => void>();
   const titleListeners = new Set<(title: string) => void>();
@@ -184,14 +190,11 @@ async function createGhosttyEmulator(
       applyGhosttyWindow(host, theme, windowAdjustment);
       host.addEventListener('keydown', handleKeyEvent, { capture: true });
       host.addEventListener('keyup', handleKeyUp, { capture: true });
+      host.addEventListener('input', handleInput, { capture: true });
       terminal = new WTerm(host, {
         core,
         cursorBlink: true,
         onData: (data) => {
-          if (data === suppressedKeyInput) {
-            suppressedKeyInput = undefined;
-            return;
-          }
           dataListeners.forEach((listener) => listener(data));
         },
         onResize: (cols, rows) => resizeListeners.forEach((listener) => listener({ cols, rows })),
@@ -227,6 +230,7 @@ async function createGhosttyEmulator(
     dispose: () => {
       element?.removeEventListener('keydown', handleKeyEvent, { capture: true });
       element?.removeEventListener('keyup', handleKeyUp, { capture: true });
+      element?.removeEventListener('input', handleInput, { capture: true });
       terminal?.destroy();
     },
   };
