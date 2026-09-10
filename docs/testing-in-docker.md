@@ -9,7 +9,7 @@ The workflow has three tiers:
 | ---------------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------- |
 | Affected native        | `pnpm test`                                   | Fast default for a change in any checkout, including a linked worktree.                  |
 | Full or focused native | `pnpm test -- --all` or `pnpm test -- --core` | Complete workspace admission or a focused Core rerun in the same isolated host boundary. |
-| Pinned Docker          | `pnpm run test:docker`                        | Linux rerun with container-owned dependencies and toolchains, from the primary checkout. |
+| Pinned Docker          | `pnpm run test:docker`                        | Linux rerun with container-owned dependencies and toolchains from any checkout.          |
 
 Raw package test commands are inner scripts, not supported host entry points. In
 particular, do not run `bun test`, a package-local `test` script, or a test file
@@ -72,6 +72,17 @@ The aggregate gates remain native:
 
 Neither aggregate proves that the workspace also passes with the pinned Linux
 dependencies and toolchains.
+
+The Docker tier mounts the checkout read-only and stages its Git-visible files
+into each disposable container. The writable workspace, test home, and XDG
+state disappear with that container. A dependency-image-scoped Docker volume is
+mounted only at `/workspace/.turbo`, allowing Turbo to restore its declared
+Linux outputs on later runs without sharing `node_modules`, source files, or
+generated output directories with the host. Docker mounts linked-worktree Git
+metadata separately and read-only; a standalone clone is not required.
+The existing Docker cleanup retains the current image's cache volume and removes
+only strictly labeled stale cache volumes after the same concurrency grace
+period used for dependency images.
 
 ## Test graph parallelism
 
