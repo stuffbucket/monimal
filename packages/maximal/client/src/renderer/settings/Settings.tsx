@@ -74,7 +74,11 @@ export function Settings({
         )}
       </SurfaceRail>
 
-      <ScrollArea className="settings-page" aria-labelledby={current}>
+      <ScrollArea
+        className="settings-page"
+        surface="canvas"
+        aria-labelledby={current}
+      >
         {onBack ? (
           <div className="settings-page__back">
             <Button onClick={onBack}>Back to sign in</Button>

@@ -284,6 +284,7 @@ describe('Settings', () => {
 
     expect(page.getAttribute('aria-labelledby')).toBe('settings-models-heading')
     expect(page.classList.contains('scroll-area')).toBe(true)
+    expect(page.dataset.surface).toBe('canvas')
     expect(document.getElementById('settings-models-heading')?.tagName).toBe('H1')
   })
 
