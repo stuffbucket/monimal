@@ -16,7 +16,7 @@
     "dist"
   ],
   "scripts": {
-    "analyze": "bun ../maximal-core/scripts/analyze.ts",
+    "analyze": "bun ../../maximal-core/scripts/analyze.ts",
     "build": "tsup src/index.ts --format esm --dts --clean --target node24 --out-dir dist",
     "lint": "eslint",
     "test": "node --test tests/*.test.js",
