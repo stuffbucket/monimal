@@ -129,6 +129,8 @@ vi.mock('electron', () => ({
   shell: { openExternal: shellOpenExternal },
 }))
 
+vi.mock('node-pty', () => ({ spawn: vi.fn() }))
+
 vi.mock('./shell.js', () => ({ runShell: runShellMock }))
 
 vi.mock('./menu-bar-mode.js', () => ({
