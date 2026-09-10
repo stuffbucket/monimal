@@ -58,10 +58,10 @@ policy tests, workspace tests, cleanup, and the total run where each phase
 applies. The wrapper MUST NOT forward this control variable to package tests.
 
 `pnpm run test:all` and `pnpm run test:core` are fixed script aliases for the two
-explicit scopes. CI uses `pnpm run test:all`; the separate Docker policy workflow
-builds the pinned dependency image weekly and when its declared inputs change.
-GitHub-hosted runners use the same isolated native wrapper rather than an ambient
-marker.
+explicit scopes. CI uses `pnpm run test:all`; the separate pinned-Linux workflow
+runs the policy suite weekly and offers full or policy-only manual dispatch on a
+selected branch. GitHub-hosted pull-request runners use the same isolated native
+wrapper rather than nesting Docker or relying on an ambient marker.
 
 The aggregate gates remain native:
 
