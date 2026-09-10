@@ -52,7 +52,10 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
  * keyboard model for issue #171 — a roving tabindex, an arrow-key
  * destination, and the guard that ignores a key from a control inside an
  * option — and every branch of it is reachable from the stories.
- */export const MUTANT_FLOOR = 2200;
+ *
+ * 2200 to 2292 is `TmuxProjectionBroker` from issue #108. It owns focus
+ * epochs, canonical geometry and projection lifecycle around tmux clients.
+ */export const MUTANT_FLOOR = 2292;
 
 /**
  * `// Stryker disable` suppressions, counted in mutants rather than comments

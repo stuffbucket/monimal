@@ -425,6 +425,22 @@ describe('native Settings requests', () => {
   })
 })
 
+describe('native update requests', () => {
+  it('opens the latest product release from the application menu', async () => {
+    await loadIndexOn('darwin')
+    const callbacks = installApplicationMenuMock.mock.calls[0]?.[0] as
+      | { onCheckForUpdates?: () => void }
+      | undefined
+
+    callbacks?.onCheckForUpdates?.()
+    await Promise.resolve()
+
+    expect(shellOpenExternal).toHaveBeenCalledWith(
+      'https://github.com/stuffbucket/maximal/releases/latest',
+    )
+  })
+})
+
 describe('window-all-closed / before-quit', () => {
   it('on darwin keeps core alive on window close and disposes it on real quit', async () => {
     await loadIndexOn('darwin')

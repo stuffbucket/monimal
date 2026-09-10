@@ -28,6 +28,12 @@ export {
   type TerminalConnector,
   type TerminalProcess,
 } from './terminal-connector.js';
+export {
+  TmuxProjectionBroker,
+  type TmuxProjectionBrokerOptions,
+  type TmuxProjectionProcess,
+  type TmuxProjectionRequest,
+} from './tmux-projection-broker.js';
 
 /**
  * Pseudo-terminal sessions, for a consumer's main process.

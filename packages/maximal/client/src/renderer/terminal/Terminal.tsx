@@ -3,6 +3,7 @@ import {
   readTerminalTheme,
   SHELL_TERMINAL_PROPERTIES,
   TerminalTabs,
+  type GhosttyWindowAdjustment,
 } from 'stuffbucket-electron/renderer'
 
 import { terminalTransport } from './transport'
@@ -12,6 +13,14 @@ export interface TerminalTab {
   sessionId: string
   title: string
 }
+
+const GHOSTTY_WINDOW = {
+  paddingX: 8,
+  paddingY: 6,
+  balance: true,
+  opacity: 1,
+  blur: 0,
+} satisfies GhosttyWindowAdjustment
 
 function currentTheme() {
   const styles = getComputedStyle(document.documentElement)
@@ -41,6 +50,8 @@ export function Terminal({ tabs, activeId, onExit, onTitleChange }: {
       activeId={activeId}
       attachments={tabs}
       disposition="terminate"
+      emulator="ghostty"
+      ghosttyWindow={GHOSTTY_WINDOW}
       launchSplit={launchSplit}
       onExit={onExit}
       onTitleChange={onTitleChange}

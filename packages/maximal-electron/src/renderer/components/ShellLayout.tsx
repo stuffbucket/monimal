@@ -88,6 +88,27 @@ const PANEL_IDS: Record<'both' | 'left' | 'right' | 'neither', string[]> = {
  * and is the portal root the overlays mount into. Composing the smaller
  * exports without it means supplying all three yourself.
  */
+export type ShellLayoutProps<T extends Tab> = {
+  /** Namespaces persisted panel sizes and tab accessibility ids. */
+  layoutId: string;
+  /** Caller-owned content before the sidebar toggle. */
+  titleBarLeading?: ReactNode;
+  /** Caller-owned actions before the inspector toggle. */
+  titleBarActions?: ReactNode;
+  /** Optional host event adapter, such as an Electron menu subscription. */
+  subscribeToPanelToggles?: PanelToggleSubscription;
+  top?: ReactNode;
+  left?: (collapsed: boolean) => ReactNode;
+  main: ReactNode;
+  bottom?: ReactNode;
+  right?: ReactNode;
+  status?: ReactNode;
+  leftSize?: PanelSize;
+  rightSize?: PanelSize;
+  bottomSize?: PanelSize;
+} & Omit<TabStripProps<T>, 'tabIdBase'>;
+
+/** The low-level resizable shell geometry and tabbed document primitive. */
 export function ShellLayout<T extends Tab>({
   layoutId,
   tabs,
@@ -98,6 +119,7 @@ export function ShellLayout<T extends Tab>({
   tabsLabel,
   newTabLabel,
   tabIcon,
+  tabTransfer,
   titleBarLeading,
   titleBarActions,
   subscribeToPanelToggles,
@@ -110,37 +132,7 @@ export function ShellLayout<T extends Tab>({
   leftSize = LEFT,
   rightSize = RIGHT,
   bottomSize = BOTTOM,
-}: {
-  /** Namespaces the persisted panel sizes. Two shells must not share one. */
-  layoutId: string;
-  /** Caller-owned content before the sidebar toggle. */
-  titleBarLeading?: ReactNode;
-  /** Caller-owned actions before the inspector toggle. */
-  titleBarActions?: ReactNode;
-  /** Optional host event adapter, such as an Electron menu subscription. */
-  subscribeToPanelToggles?: PanelToggleSubscription;
-  /**
-   * Full width, under the title bar and over the panels. For anything that
-   * addresses the whole window rather than one panel: an offline banner, an
-   * update prompt, a failed-save notice.
-   */
-  top?: ReactNode;
-  left?: (collapsed: boolean) => ReactNode;
-  main: ReactNode;
-  /**
-   * Under `main`, in the same column, behind a draggable divider. For a
-   * secondary view of what `main` shows: logs, output, a console. Absent by
-   * default, and when absent the centre column is a plain panel rather than a
-   * group of one.
-   */
-  bottom?: ReactNode;
-  /** Optional inspector. Omit it to give the document the remaining width. */
-  right?: ReactNode;
-  status?: ReactNode;
-  leftSize?: PanelSize;
-  rightSize?: PanelSize;
-  bottomSize?: PanelSize;
-} & Omit<TabStripProps<T>, 'tabIdBase'>) {
+}: ShellLayoutProps<T>) {
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [rightCollapsed, setRightCollapsed] = useState(false);
   // State rather than a ref: a portal has to re-render once the element the
@@ -239,6 +231,7 @@ export function ShellLayout<T extends Tab>({
             tabsLabel={tabsLabel}
             newTabLabel={newTabLabel}
             tabIcon={tabIcon}
+            tabTransfer={tabTransfer}
           />
 
           {top}

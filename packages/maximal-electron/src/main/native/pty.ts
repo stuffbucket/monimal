@@ -34,7 +34,7 @@ import { Owners } from './pty-session.js';
 /**
  * Pseudo-terminal sessions, one manager per window.
  *
- * The shell runs here, in the main process. The renderer holds a `ghostty-web`
+ * The shell runs here, in the main process. The renderer holds an xterm
  * terminal, which is a view and an input encoder, not a process host. Bytes
  * flow main to renderer as `pty:data` events, and renderer to main through the
  * `pty:write` channel.

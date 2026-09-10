@@ -67,6 +67,7 @@ export function packageStylesheets() {
        * one at equal specificity.
        */
       sources: ['src/renderer/styles/structure.css', 'src/renderer/styles/structural.css'],
+      imports: ['@wterm/dom/css', '@xterm/xterm/css/xterm.css'],
       published: 'dist/renderer/styles.css',
     },
   ];

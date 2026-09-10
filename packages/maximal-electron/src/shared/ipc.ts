@@ -303,7 +303,7 @@ export interface IpcContract {
   'shell:open-external': { request: { url: string }; response: void };
 
   // Terminal sessions. The shell runs in the main process; the renderer holds
-  // only the `ghostty-web` view. See src/main/native/pty.ts.
+  // only the xterm view. See src/main/native/pty.ts.
   'pty:spawn': { request: PtySpawnRequest; response: void };
   'pty:write': { request: PtyWriteRequest; response: void };
   'pty:resize': { request: PtyResizeRequest; response: void };

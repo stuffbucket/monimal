@@ -102,14 +102,20 @@ async function pidOf(page: Page, terminal: Locator, marker: string): Promise<num
 
 /** The terminal a view is showing. There is only ever one in this scenario. */
 function terminalOf(page: Page): Locator {
-  return page.locator('[data-testid="terminal"]');
+  return page.locator('[data-testid="terminal"]:visible').last();
 }
 
 /** Open a terminal tab and wait for its shell to print something. */
 async function openTerminal(page: Page): Promise<Locator> {
   await page.click('[data-testid="tab-new"]');
+  await page.getByTestId('terminal-launcher').getByRole('button', {
+    name: 'Local',
+    exact: true,
+  }).click();
   const terminal = terminalOf(page);
-  await expect(terminal.locator('canvas').first()).toBeVisible({ timeout: 20_000 });
+  await expect(terminal.getByRole('textbox', { name: 'Terminal input' })).toBeVisible({
+    timeout: 20_000,
+  });
 
   // A shell that has printed nothing has not necessarily started, and writing
   // to a session the host does not hold yet is dropped.
@@ -131,7 +137,7 @@ async function openTerminal(page: Page): Promise<Locator> {
  */
 async function closeTerminalTab(page: Page): Promise<void> {
   await page.locator('.tab').filter({ hasText: TAB }).locator('.tab__close').click();
-  await expect(terminalOf(page)).toHaveCount(0);
+  await expect(page.locator('[data-testid="terminal"]:visible')).toHaveCount(0);
 }
 
 test('a tab close ends its shell, unless the shell is detached', async () => {

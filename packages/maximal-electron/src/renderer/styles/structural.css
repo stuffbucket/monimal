@@ -6,6 +6,24 @@
  */
 
 @layer sb-shell.base {
+.sb-shell .app-frame__slot,
+.sb-shell .app-frame__slot--contents {
+  display: contents;
+}
+
+.sb-shell .app-frame__slot--rail,
+.sb-shell .app-frame__slot--fill {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.sb-shell .window-chrome__panel {
+  flex: 1;
+  min-height: 0;
+}
+
 .sb-shell,
 .sb-shell *,
 .sb-shell *::before,
@@ -316,6 +334,14 @@
 .sb-shell .tab:hover {
   color: var(--shell-text-muted);
   background: var(--shell-hover);
+}
+
+.sb-shell .tab[draggable='true'] {
+  cursor: grab;
+}
+
+.sb-shell .tab[draggable='true']:active {
+  cursor: grabbing;
 }
 
 /* The selected tab's own fill, which is the canvas it opens onto until a host
@@ -1340,9 +1366,8 @@
 /*
  * Terminals.
  *
- * The emulator draws to a canvas and takes literal colours at construction, so
- * `--shell-terminal-*` is read by `readTerminalTheme` in JavaScript rather than
- * by any rule here. Those three are the only properties in this file with no
+ * `readTerminalTheme` resolves `--shell-terminal-*` in JavaScript for both
+ * emulator adapters. Those three are the only properties in this file with no
  * corresponding declaration.
  */
 .sb-shell .terminal-host {
@@ -1350,10 +1375,22 @@
   display: flex;
   flex: 1;
   min-height: 0;
+  padding: var(--shell-space-2, 8px);
 }
 
 .sb-shell .terminal-host[hidden] {
   display: none;
+}
+
+.sb-shell .terminal-host .wterm {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 13px;
+  padding: 0;
+  border-radius: 7px;
+  box-shadow: none;
 }
 
 .sb-shell .terminal-split {
@@ -1363,6 +1400,15 @@
   height: 100%;
   min-width: 0;
   min-height: 0;
+}
+
+.sb-shell .terminal-split > .resize-handle {
+  flex: 0 0 1px;
+  margin: 0 var(--shell-space-1, 4px);
+}
+
+.sb-shell .terminal-split > .resize-handle--horizontal {
+  margin: var(--shell-space-1, 4px) 0;
 }
 
 .sb-shell .terminal-split__panel {
@@ -1384,17 +1430,38 @@
   flex: 1;
   min-width: 0;
   min-height: 0;
-  padding: var(--shell-space-2, 8px);
+  padding: 0;
   overflow: hidden;
   background: var(--shell-terminal-background, var(--shell-canvas));
+  border-radius: 7px;
 }
 
-.sb-shell .terminal[data-focused='true'] {
-  box-shadow: inset 0 0 0 1px var(--shell-focus, var(--shell-accent));
+.sb-shell .terminal[data-focused='true'][data-focus-indicator='true'] {
+  box-shadow: inset 0 0 0 1px color-mix(
+    in srgb,
+    var(--shell-focus, var(--shell-accent)) 55%,
+    transparent
+  );
 }
 
 .sb-shell .terminal canvas {
   display: block;
+}
+
+.sb-shell .terminal .xterm-viewport {
+  background-color: var(--shell-terminal-background, var(--shell-canvas)) !important;
+}
+
+.sb-shell .terminal .xterm-viewport::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sb-shell .terminal .xterm-viewport::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sb-shell .terminal .xterm-viewport::-webkit-scrollbar-thumb {
+  background: var(--shell-border-strong, var(--shell-border));
 }
 
 .sb-shell .terminal__error {

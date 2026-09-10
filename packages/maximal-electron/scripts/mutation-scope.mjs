@@ -37,7 +37,8 @@ const RUNTIME_ONLY = [
   'react-dom',
   'react-resizable-panels',
   'lucide-react',
-  'ghostty-web',
+  '@xterm/',
+  '@wterm/',
   '@radix-ui/',
 ];
 

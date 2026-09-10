@@ -1,4 +1,4 @@
-import type { ITheme } from 'ghostty-web';
+import type { TerminalTheme } from './terminal-emulator.js';
 
 /**
  * What a terminal needs from its host, as a contract rather than an import.
@@ -209,20 +209,18 @@ export function createTerminalTransport<C extends string, E extends string>({
 /**
  * The colours the emulator needs, resolved from custom properties.
  *
- * `ghostty-web` renders to a canvas, so it inherits nothing from CSS and takes
- * literal strings. `read` returns a property's current value; taking it as a
+ * The emulator renders its own cells, so it takes literal colour strings.
+ * `read` returns a property's current value; taking it as a
  * parameter keeps this pure and lets a consumer resolve its own namespace.
  *
  * A property that does not resolve is left out rather than passed through
- * empty. `ghostty-web` parses an unrecognised colour to black, so an empty
- * string renders black on black; omitting the key keeps its own default, which
- * is legible.
+ * empty. Omitting the key keeps the emulator's legible default.
  */
 export function readTerminalTheme(
   read: (property: string) => string,
   properties: { background: string; foreground: string; cursor: string },
-): ITheme {
-  const theme: ITheme = {};
+): TerminalTheme {
+  const theme: TerminalTheme = {};
 
   const background = read(properties.background).trim();
   if (background) theme.background = background;

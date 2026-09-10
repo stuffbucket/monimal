@@ -9,8 +9,8 @@ is missing, so it does not drift out of step with them.
 
 ## Terminals
 
-Working. `coder/ghostty-web` in the renderer, `node-pty` in the main
-process. See `docs/architecture.md`.
+Working. Configurable xterm.js or wterm/libghostty in the renderer, with
+`node-pty` in the main process. See `docs/architecture.md`.
 
 - Verified on macOS only. The prebuilt pty covers Windows and Linux, but no one
   has run it there.
@@ -19,7 +19,9 @@ process. See `docs/architecture.md`.
   `tests/terminal/terminal-host.test.ts` and `e2e/terminal-window.spec.ts` skip on
   Windows.
 - No tab-level working directory. Every shell starts in the home directory.
-- No flow control. A process that floods output will still outrun the batcher.
+- `TmuxProjectionBroker` is exported and proven against two real tmux clients,
+  but the reference IPC contract does not yet carry projection identity or
+  focus epochs. Issue #108 owns that wiring.
 
 ## The overlay
 

@@ -345,24 +345,11 @@ describe('AppFrame', () => {
     expect(tabpanel?.contains(top)).toBe(false)
   })
 
-  it('installs its structural styles once across frame remounts', () => {
+  it('leaves structural styles to the renderer package', () => {
     document.getElementById('app-frame-styles')?.remove()
     renderFrame('overview', vi.fn(), <p>first frame</p>)
 
-    const styles = document.querySelectorAll('style#app-frame-styles')
-    expect(styles).toHaveLength(1)
-    expect(styles[0]?.tagName).toBe('STYLE')
-    expect(styles[0]?.textContent).toContain('.app-frame__slot--contents')
-    expect(styles[0]?.textContent).toContain('display: contents')
-    expect(styles[0]?.textContent).toContain('.app-frame__slot--rail')
-    expect(styles[0]?.textContent).toContain('flex-direction: column')
-
-    act(() => root?.unmount())
-    container?.remove()
-    root = null
-    container = null
-    renderFrame('overview', vi.fn(), <p>second frame</p>)
-    expect(document.querySelectorAll('style#app-frame-styles')).toHaveLength(1)
+    expect(document.querySelectorAll('style#app-frame-styles')).toHaveLength(0)
   })
 
   it('gives its hooks the ids of the frame\'s own tab elements', () => {

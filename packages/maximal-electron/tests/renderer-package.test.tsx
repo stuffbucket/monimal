@@ -61,7 +61,7 @@ describe('the renderer entry point', () => {
     expect('TERMINAL_TOKENS' in surface).toBe(false);
   });
 
-  it('names no custom property outside the --shell-* namespace', () => {
+  it('keeps third-party custom properties inside the terminal adapter', () => {
     /*
      * The general form of the assertion above. That one names two symbols, so
      * it catches the mistake that was made and not the next one: any module
@@ -86,11 +86,16 @@ describe('the renderer entry point', () => {
     expect(named.length).toBeGreaterThan(0);
 
     expect(
-      named
-        .filter((entry) => !entry.property.startsWith('--shell-'))
-        .map((entry) => `${entry.module}: ${entry.property}`)
-        .sort(),
-    ).toEqual([]);
+      [...new Set(
+        named
+          .filter((entry) => !entry.property.startsWith('--shell-'))
+          .map((entry) => `${entry.module}: ${entry.property}`),
+      )].sort(),
+    ).toEqual([
+      'lib/terminal-emulator: --term-bg',
+      'lib/terminal-emulator: --term-cursor',
+      'lib/terminal-emulator: --term-fg',
+    ]);
   });
 });
 

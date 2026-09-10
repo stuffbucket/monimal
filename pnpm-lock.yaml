@@ -384,6 +384,18 @@ importers:
       '@vitejs/plugin-react':
         specifier: ^6.1.0
         version: 6.1.1(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))
+      '@wterm/dom':
+        specifier: 0.3.4
+        version: 0.3.4
+      '@wterm/ghostty':
+        specifier: 0.3.4
+        version: 0.3.4
+      '@xterm/addon-fit':
+        specifier: 0.11.0
+        version: 0.11.0
+      '@xterm/xterm':
+        specifier: 6.0.0
+        version: 6.0.0
       electron:
         specifier: 44.1.0
         version: 44.1.0(supports-color@8.1.1)
@@ -393,9 +405,6 @@ importers:
       fast-check:
         specifier: 4.9.0
         version: 4.9.0
-      ghostty-web:
-        specifier: 0.4.0
-        version: 0.4.0
       lucide-react:
         specifier: 1.38.0
         version: 1.38.0(react@19.2.8)
@@ -563,9 +572,18 @@ importers:
       '@stuffbucket/maximal-observability-contract':
         specifier: workspace:*
         version: link:../../maximal-observability-contract
-      ghostty-web:
-        specifier: ^0.4.0
-        version: 0.4.0
+      '@wterm/dom':
+        specifier: 0.3.4
+        version: 0.3.4
+      '@wterm/ghostty':
+        specifier: 0.3.4
+        version: 0.3.4
+      '@xterm/addon-fit':
+        specifier: 0.11.0
+        version: 0.11.0
+      '@xterm/xterm':
+        specifier: 6.0.0
+        version: 6.0.0
       lucide-react:
         specifier: ^1.38.0
         version: 1.38.0(react@19.2.8)
@@ -4363,9 +4381,24 @@ packages:
   '@webcontainer/env@1.1.1':
     resolution: {integrity: sha1-IwIbK7JL7+7vU9uomW0YhrcBZRU=}
 
+  '@wterm/core@0.3.4':
+    resolution: {integrity: sha1-OEL/3GqDS9Zgtg6nv9XUkkjrsYE=}
+
+  '@wterm/dom@0.3.4':
+    resolution: {integrity: sha1-cSN1e3MiIcyRzmW+uSYFs/i9PxE=}
+
+  '@wterm/ghostty@0.3.4':
+    resolution: {integrity: sha1-98kdgPP9WreckMeWXycQBGF+O94=}
+
   '@xmldom/xmldom@0.9.10':
     resolution: {integrity: sha1-oK1aJv6KqZYxCHBybhcEl392ne4=}
     engines: {node: '>=14.6'}
+
+  '@xterm/addon-fit@0.11.0':
+    resolution: {integrity: sha1-ukd4tp/MkESgYMIXa74HdlfXs34=}
+
+  '@xterm/xterm@6.0.0':
+    resolution: {integrity: sha1-k2N7Dy7jpwcYtXRqJ8nFBq8WdFs=}
 
   '@xtuc/ieee754@1.2.0':
     resolution: {integrity: sha1-7vAUoxRa5Hehy8AM0eVSM23Ot5A=}
@@ -5666,9 +5699,6 @@ packages:
   get-tsconfig@5.0.0-beta.4:
     resolution: {integrity: sha1-SOHISRnRb9Ht/r0E6JWNqUKUXCU=}
     engines: {node: '>=20.20.0'}
-
-  ghostty-web@0.4.0:
-    resolution: {integrity: sha1-kC/y/AQjkrk2FBC0WIddOPu4CZ8=}
 
   git-hooks-list@4.2.1:
     resolution: {integrity: sha1-grOtEZ7C2optVyKL1o2OQyr8QYw=}
@@ -12619,7 +12649,21 @@ snapshots:
 
   '@webcontainer/env@1.1.1': {}
 
+  '@wterm/core@0.3.4': {}
+
+  '@wterm/dom@0.3.4':
+    dependencies:
+      '@wterm/core': 0.3.4
+
+  '@wterm/ghostty@0.3.4':
+    dependencies:
+      '@wterm/core': 0.3.4
+
   '@xmldom/xmldom@0.9.10': {}
+
+  '@xterm/addon-fit@0.11.0': {}
+
+  '@xterm/xterm@6.0.0': {}
 
   '@xtuc/ieee754@1.2.0': {}
 
@@ -14049,8 +14093,6 @@ snapshots:
   get-tsconfig@5.0.0-beta.4:
     dependencies:
       resolve-pkg-maps: 1.0.0
-
-  ghostty-web@0.4.0: {}
 
   git-hooks-list@4.2.1: {}
 
