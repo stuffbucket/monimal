@@ -68,7 +68,7 @@ RUN useradd --create-home --uid 10001 --shell /bin/bash maximal \
     /home/maximal/.local/share \
     /home/maximal/.local/state \
     /opt/monimal \
-    /workspace \
+    /workspace/.turbo \
   && chown -R maximal:maximal /home/maximal /workspace \
   && git config --system --add safe.directory /checkout \
   && git config --system --add safe.directory /workspace
@@ -81,6 +81,7 @@ ENV HOME=/home/maximal \
   ELECTRON_SKIP_BINARY_DOWNLOAD=1 \
   MAXIMAL_TEST_CONTAINER=1 \
   MAXIMAL_CORE_TARGET=bun \
+  TURBO_CACHE_DIR=/workspace/.turbo/cache \
   TURBO_TELEMETRY_DISABLED=1 \
   CI=1
 

@@ -3,12 +3,13 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
-  assertPrimaryCheckout,
   dockerBuilderName,
   dockerServerArchitecture,
   imageLabels,
   inspectDockerImage,
   reusableImageId,
+  turboCacheLabels,
+  turboCacheVolumeName,
 } from "./docker-test.mjs";
 
 const repositoryRoot = path.resolve(import.meta.dirname, "..");
@@ -65,6 +66,57 @@ export function imageIsOldEnough(image, minAgeMilliseconds, now = Date.now()) {
   return Number.isFinite(created) && now - created >= minAgeMilliseconds;
 }
 
+export function isManagedTurboCacheVolume(volume) {
+  const dependencyImage = volume?.Labels?.[turboCacheLabels.dependencyImage];
+  return (
+    /^sha256:[0-9a-f]{64}$/u.test(dependencyImage) &&
+    volume.Labels?.[turboCacheLabels.purpose] === "turbo-cache" &&
+    volume.Name === turboCacheVolumeName(dependencyImage)
+  );
+}
+
+export function volumeIsOldEnough(volume, minAgeMilliseconds, now = Date.now()) {
+  const created = Date.parse(volume.CreatedAt);
+  return Number.isFinite(created) && now - created >= minAgeMilliseconds;
+}
+
+function pruneTurboCacheVolumes(currentImageId, minAgeMilliseconds) {
+  const names = dockerOutput(
+    [
+      "volume",
+      "ls",
+      "--quiet",
+      "--filter",
+      `label=${turboCacheLabels.purpose}=turbo-cache`,
+    ],
+    "Docker Turbo cache volume listing",
+  )
+    .split("\n")
+    .filter(Boolean);
+  const retainedName = currentImageId
+    ? turboCacheVolumeName(currentImageId)
+    : undefined;
+
+  for (const name of names) {
+    const inspected = JSON.parse(
+      dockerOutput(["volume", "inspect", name], "Docker volume inspection"),
+    )[0];
+    if (!isManagedTurboCacheVolume(inspected)) continue;
+    if (name === retainedName) continue;
+    if (!volumeIsOldEnough(inspected, minAgeMilliseconds)) continue;
+    const containers = dockerOutput(
+      ["ps", "--all", "--quiet", "--filter", `volume=${name}`],
+      "Docker volume container lookup",
+    );
+    if (containers) {
+      console.error(`Keeping ${name}: referenced by container ${containers}`);
+      continue;
+    }
+    dockerOutput(["volume", "rm", name], "Docker Turbo cache volume removal");
+    console.error(`Removed stale Monimal Turbo cache volume ${name}`);
+  }
+}
+
 function pruneBuilderCache() {
   const inspect = spawnSync(
     "docker",
@@ -90,7 +142,6 @@ function pruneBuilderCache() {
 
 export function main(arguments_ = process.argv.slice(2)) {
   const { minAgeMilliseconds } = parsePruneOptions(arguments_);
-  assertPrimaryCheckout();
   const targetArch = dockerServerArchitecture();
   const ids = [
     ...new Set(
@@ -128,6 +179,7 @@ export function main(arguments_ = process.argv.slice(2)) {
   }
 
   if (retainedId) console.error(`Retained Monimal test image ${retainedId}`);
+  pruneTurboCacheVolumes(currentId, minAgeMilliseconds);
   pruneBuilderCache();
 }
 
