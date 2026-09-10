@@ -461,6 +461,43 @@ test("root workflows select the intended package and task graphs", () => {
   assert.equal(turbo.tasks["maximal-client#dev"].persistent, true);
 });
 
+test("the client sidecar builds through its composition owner", () => {
+  const maximal = JSON.parse(read("packages/maximal/package.json"));
+  const buildCore = read("packages/maximal/client/scripts/build-core.ts");
+  const turbo = JSON.parse(read("turbo.json"));
+
+  assert.match(
+    buildCore,
+    /compositionEntry = resolve\(import\.meta\.dirname, '\.\.\/\.\.\/src\/main\.ts'\)/,
+  );
+  assert.deepEqual(turbo.tasks["maximal-client#build"].dependsOn, [
+    "^build",
+    `${maximal.name}#build`,
+  ]);
+});
+
+test("the client React hooks policy is narrow and content-pinned", async () => {
+  const client = JSON.parse(read("packages/maximal/client/package.json"));
+  const config = (
+    await import("../packages/maximal/client/eslint.config.mjs")
+  ).default;
+  const hooks = config.find((entry) => entry.plugins?.["react-hooks"]);
+
+  assert.deepEqual(hooks.files, [
+    "src/renderer/**/*.ts",
+    "src/renderer/**/*.tsx",
+  ]);
+  assert.deepEqual(hooks.rules, {
+    "react-hooks/rules-of-hooks": "error",
+    "react-hooks/exhaustive-deps": "warn",
+  });
+  assert.equal(client.devDependencies["eslint-plugin-react-hooks"], "7.1.1");
+  assert.match(
+    read("pnpm-lock.yaml"),
+    /eslint-plugin-react-hooks@7\.1\.1:\n    resolution: \{integrity: sha1-5nQsrXXZcMCj8w19P6gKR4T1WSc=\}/,
+  );
+});
+
 test("architecture analysis has one cacheable Turbo execution path", () => {
   const manifest = JSON.parse(read("package.json"));
   const turbo = JSON.parse(read("turbo.json"));

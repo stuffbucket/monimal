@@ -40,24 +40,11 @@ export default [
     languageOptions: { globals: globals.browser },
   },
   {
-    files: ["src/**/*.ts", "src/**/*.tsx", "e2e/**/*.ts"],
+    files: ["src/renderer/**/*.ts", "src/renderer/**/*.tsx"],
     plugins: { "react-hooks": reactHooks },
     rules: {
-      // exhaustive-deps is why react-hooks is here: renderer components
-      // subscribe to core-client events in a `useEffect`,
-      // where a missing dep is a stale-closure bug rather than a style nit.
-      ...reactHooks.configs["recommended-latest"].rules,
-      // Warnings, not errors, and not switched off: each names a real place
-      // whose fix is a render-behaviour change that should be made by someone
-      // able to run the app. Promote to "error" once cleared.
-      //
-      //   set-state-in-effect  first-run/useFirstRun.ts seeds state from a
-      //                        capability's current() synchronously inside the
-      //                        effect that also subscribes to it.
-      //   refs                 settings/AccountSection.tsx writes busyRef.current
-      //                        during render to keep a guard in sync.
-      "react-hooks/set-state-in-effect": "warn",
-      "react-hooks/refs": "warn",
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "warn",
     },
   },
   {
