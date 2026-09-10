@@ -2,6 +2,7 @@ import path from 'node:path';
 
 import { expect, test } from '@playwright/test';
 import type { ElectronApplication, Locator, Page } from '@playwright/test';
+import type { BrowserWindow } from 'electron';
 
 import { closeApp } from '../harness.js';
 import { launchDemoApp, setTheme, type DemoHarness } from './launch.js';
@@ -63,11 +64,11 @@ async function summonOverlay(app: ElectronApplication, shell: Page): Promise<Pag
   // Inherit the shell's position, which a quiet run has already moved out of
   // the developer's way, and take a size that frames the card.
   const shellHandle = await app.browserWindow(shell);
-  const bounds = await shellHandle.evaluate((win) => win.getBounds());
+  const bounds = await shellHandle.evaluate((win: BrowserWindow) => win.getBounds());
   const overlayHandle = await app.browserWindow(overlay);
   await overlayHandle
     .evaluate(
-      (win, box) => {
+      (win: BrowserWindow, box) => {
         win.setBounds(box);
       },
       { x: bounds.x, y: bounds.y, width: OVERLAY_WIDTH, height: OVERLAY_HEIGHT },
@@ -129,7 +130,7 @@ function shellSequences(): SequenceDef[] {
       name: 'A fleet of coding agents',
       note: 'Seventeen runs across four projects, in one window',
       // Nothing to drive. The fade in is the reveal, and the hold is the shot.
-      drive: async () => undefined,
+      drive: () => Promise.resolve(),
     }),
 
     sequence({
@@ -287,7 +288,7 @@ function overlaySequences(harness: DemoHarness): SequenceDef[] {
         // Put the overlay away, so the hold is on the application alone.
         await overlay.keyboard.press('Escape');
         await harness.app.browserWindow(overlay).then((handle) =>
-          handle.evaluate((win) => {
+          handle.evaluate((win: BrowserWindow) => {
             win.hide();
           }),
         );
@@ -322,7 +323,7 @@ test('records the agent workflow', async () => {
     }
     // Summoning it here was only a probe. Hide it again, and let the scene
     // that wants it summon it for real.
-    await (await app.browserWindow(probe)).evaluate((win) => {
+    await (await app.browserWindow(probe)).evaluate((win: BrowserWindow) => {
       win.hide();
     });
 

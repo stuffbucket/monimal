@@ -98,13 +98,17 @@ export async function runMain(
     return context;
   }
 
-  app.on('window-all-closed', async () => {
+  app.on('window-all-closed', () => {
     const keepRunning = options.keepRunningWithoutWindows?.() ?? false;
-    const quitting = options.shouldQuitAfterLastWindow
-      ? await options.shouldQuitAfterLastWindow()
+    const decision = options.shouldQuitAfterLastWindow
+      ? options.shouldQuitAfterLastWindow()
       : quitsWithLastWindow(platform, keepRunning);
-    options.onWindowAllClosed?.(quitting);
-    if (quitting) app.quit();
+    const finish = (quitting: boolean): void => {
+      options.onWindowAllClosed?.(quitting);
+      if (quitting) app.quit();
+    };
+    if (typeof decision === 'boolean') finish(decision);
+    else void decision.then(finish);
   });
 
   let shuttingDown = false;

@@ -41,7 +41,7 @@ export interface Config {
   instances: Array<InstanceConfig>
 }
 
-export interface ResolvedModelDefaults {
+interface ResolvedModelDefaults {
   contextWindow?: number
   maxTokens: number
   reasoningEffort?: AnthropicReasoningEffort

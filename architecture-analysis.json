@@ -1,0 +1,119 @@
+{
+  "$schema": "./architecture-analysis.schema.json",
+  "packages": {
+    "@stuffbucket/anthropic-provider": {
+      "root": "packages/anthropic-provider",
+      "cycleEdges": [],
+      "duplicatePairs": []
+    },
+    "@stuffbucket/eslint-config": {
+      "root": "packages/eslint-config",
+      "cycleEdges": [],
+      "duplicatePairs": []
+    },
+    "@stuffbucket/llama-server": {
+      "root": "packages/llama-server",
+      "cycleEdges": [],
+      "duplicatePairs": []
+    },
+    "@stuffbucket/maximal": {
+      "root": "packages/maximal",
+      "cycleEdges": [],
+      "duplicatePairs": []
+    },
+    "@stuffbucket/maximal-core": {
+      "root": "packages/maximal-core",
+      "existingRatchets": true
+    },
+    "@stuffbucket/maximal-dsh-host": {
+      "root": "packages/maximal-dsh-host",
+      "cycleEdges": [],
+      "duplicatePairs": []
+    },
+    "@stuffbucket/maximal-electron": {
+      "root": "packages/maximal-electron",
+      "cycleEdges": [],
+      "duplicatePairs": []
+    },
+    "@stuffbucket/maximal-observability": {
+      "root": "packages/maximal-observability",
+      "cycleEdges": [],
+      "duplicatePairs": []
+    },
+    "@stuffbucket/maximal-observability-contract": {
+      "root": "packages/maximal-observability-contract",
+      "cycleEdges": [],
+      "duplicatePairs": []
+    },
+    "@stuffbucket/maximal-provider-contract": {
+      "root": "packages/maximal-provider-contract",
+      "cycleEdges": [],
+      "duplicatePairs": []
+    },
+    "maximal-client": {
+      "root": "packages/maximal/client",
+      "cycleEdges": [],
+      "duplicatePairs": []
+    },
+    "@stuffbucket/omlx": {
+      "root": "packages/omlx",
+      "cycleEdges": [],
+      "duplicatePairs": []
+    }
+  },
+  "packageRules": {
+    "deny": [
+      {
+        "from": [
+          "@stuffbucket/maximal-core",
+          "@stuffbucket/maximal-dsh-host",
+          "@stuffbucket/maximal"
+        ],
+        "to": ["@stuffbucket/anthropic-provider", "@stuffbucket/omlx"]
+      },
+      {
+        "from": [
+          "@stuffbucket/maximal-core",
+          "@stuffbucket/maximal",
+          "@stuffbucket/maximal-provider-contract"
+        ],
+        "to": [
+          "@deepseek-ai/cordis",
+          "@deepseek-ai/dsh-llm",
+          "@deepseek-ai/schemastery"
+        ]
+      },
+      {
+        "from": ["@stuffbucket/anthropic-provider", "@stuffbucket/omlx"],
+        "to": [
+          "@stuffbucket/maximal",
+          "@stuffbucket/maximal-core",
+          "@stuffbucket/maximal-dsh-host",
+          "@stuffbucket/maximal-provider-contract"
+        ]
+      },
+      {
+        "from": ["@stuffbucket/maximal-electron"],
+        "to": ["maximal-client", "@stuffbucket/maximal-core"]
+      }
+    ],
+    "require": [
+      {
+        "from": "@stuffbucket/maximal-core",
+        "to": ["@stuffbucket/maximal-provider-contract"]
+      },
+      {
+        "from": "@stuffbucket/maximal-dsh-host",
+        "to": ["@stuffbucket/maximal-provider-contract"]
+      },
+      {
+        "from": "@stuffbucket/maximal",
+        "to": [
+          "@stuffbucket/maximal-core",
+          "@stuffbucket/maximal-dsh-host",
+          "@stuffbucket/maximal-provider-contract"
+        ]
+      }
+    ]
+  }
+}

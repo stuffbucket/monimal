@@ -1,9 +1,28 @@
+import {
+  TrafficOverviewQuerySchema,
+  TrafficRequestDetailQuerySchema,
+  TrafficRequestListQuerySchema,
+} from '@stuffbucket/maximal-observability-contract'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
   BRIDGE_CHANNELS,
+  EVENT_CHANNELS,
   INVOKE_CHANNELS,
 } from '../shared/bridge-channels'
+
+interface ControlSessionSpies {
+  authStatus: ReturnType<typeof vi.fn>
+  authStart: ReturnType<typeof vi.fn>
+  authCancel: ReturnType<typeof vi.fn>
+  authSignOut: ReturnType<typeof vi.fn>
+  accountsList: ReturnType<typeof vi.fn>
+  accountsSwitch: ReturnType<typeof vi.fn>
+  observabilityOverview: ReturnType<typeof vi.fn>
+  observabilityRequests: ReturnType<typeof vi.fn>
+  observabilityRequest: ReturnType<typeof vi.fn>
+  dispose: ReturnType<typeof vi.fn>
+}
 
 const {
   browserWindows,
@@ -85,7 +104,9 @@ const {
     fakeApp,
     fakeWindow,
     installApplicationMenuMock: vi.fn(),
-    ipcMainHandle: vi.fn(),
+    ipcMainHandle: vi.fn<
+      (channel: string, handler: (...args: unknown[]) => unknown) => void
+    >(),
     onBeforeSendHeaders: vi.fn(),
     onHeadersReceived: vi.fn(),
     runShellMock: vi.fn(() => fakeWindow),
@@ -161,7 +182,7 @@ const { createControlSessionMock, disposeControlSessionMock } = vi.hoisted(
       createControlSessionMock: vi.fn((_options: {
         onChange(): void
         onTrafficInvalidation(invalidation: unknown): void
-      }) => ({
+      }): ControlSessionSpies => ({
         authStatus: vi.fn(),
         authStart: vi.fn(),
         authCancel: vi.fn(),
@@ -182,6 +203,14 @@ vi.mock('./control-session.js', () => ({
 }))
 
 /** Import a fresh copy of module-scope Electron lifecycle wiring per test. */
+function controlSessionSpies(): ControlSessionSpies {
+  const value: unknown = createControlSessionMock.mock.results[0]?.value
+  if (value === null || typeof value !== 'object') {
+    throw new Error('Control session was not created')
+  }
+  return value as ControlSessionSpies
+}
+
 async function loadIndexOn(platform: NodeJS.Platform): Promise<void> {
   vi.resetModules()
   killCoreMock.mockClear()
@@ -226,6 +255,17 @@ afterEach(() => {
 })
 
 describe('closed IPC boundary', () => {
+  it('names every renderer event channel in one closed allowlist', () => {
+    expect(EVENT_CHANNELS).toEqual([
+      BRIDGE_CHANNELS.lifecycleChanged,
+      BRIDGE_CHANNELS.controlChanged,
+      BRIDGE_CHANNELS.menuOpenSettings,
+      BRIDGE_CHANNELS.trafficInvalidated,
+      BRIDGE_CHANNELS.terminalData,
+      BRIDGE_CHANNELS.terminalExit,
+    ])
+  })
+
   it('registers exactly the named invoke allowlist', async () => {
     await loadIndexOn('darwin')
 
@@ -243,7 +283,7 @@ describe('closed IPC boundary', () => {
 
   it('routes each observability invoke channel to its named session method', async () => {
     await loadIndexOn('darwin')
-    const session = createControlSessionMock.mock.results[0]?.value
+    const session = controlSessionSpies()
     const overviewQuery = { filters: {}, tokenBucketMs: null }
     const requestsQuery = { filters: {}, cursor: null, limit: 50 }
     const requestQuery = { requestId: 'req-1' }
@@ -263,10 +303,50 @@ describe('closed IPC boundary', () => {
     await invoke(BRIDGE_CHANNELS.observabilityRequests, requestsQuery)
     await invoke(BRIDGE_CHANNELS.observabilityRequest, requestQuery)
 
-    expect(session.observabilityOverview).toHaveBeenCalledWith(overviewQuery)
-    expect(session.observabilityRequests).toHaveBeenCalledWith(requestsQuery)
-    expect(session.observabilityRequest).toHaveBeenCalledWith(requestQuery)
+    expect(session.observabilityOverview).toHaveBeenCalledWith(
+      TrafficOverviewQuerySchema.parse(overviewQuery),
+    )
+    expect(session.observabilityRequests).toHaveBeenCalledWith(
+      TrafficRequestListQuerySchema.parse(requestsQuery),
+    )
+    expect(session.observabilityRequest).toHaveBeenCalledWith(
+      TrafficRequestDetailQuerySchema.parse(requestQuery),
+    )
   })
+
+  it.each([
+    [
+      BRIDGE_CHANNELS.observabilityOverview,
+      'observabilityOverview',
+      { filters: {}, tokenBucketMs: null, unexpected: true },
+    ],
+    [
+      BRIDGE_CHANNELS.observabilityRequests,
+      'observabilityRequests',
+      { filters: {}, cursor: null, limit: 0 },
+    ],
+    [
+      BRIDGE_CHANNELS.observabilityRequest,
+      'observabilityRequest',
+      { requestId: '' },
+    ],
+  ] as const)(
+    'rejects malformed payloads on %s',
+    async (channel, method, payload) => {
+      await loadIndexOn('darwin')
+      const session = controlSessionSpies()
+      const registration = ipcMainHandle.mock.calls.find(
+        ([registered]) => registered === channel,
+      )
+      const handler = registration?.[1] as (
+        event: unknown,
+        query: unknown,
+      ) => unknown
+
+      expect(() => handler({}, payload)).toThrow()
+      expect(session[method]).not.toHaveBeenCalled()
+    },
+  )
 
   it('does not install Electron webRequest header or CORS hooks', async () => {
     await loadIndexOn('darwin')
@@ -327,7 +407,7 @@ describe('closed IPC boundary', () => {
     )
     const handler = registration?.[1] as (
       event: unknown,
-      url: string,
+      url: unknown,
     ) => Promise<void>
 
     await expect(handler({}, 'file:///Applications/Utilities/Terminal.app'))
@@ -335,10 +415,11 @@ describe('closed IPC boundary', () => {
     await expect(handler({}, 'not a URL')).rejects.toThrow(
       'External URL must be a valid HTTP(S) URL',
     )
+    expect(() => handler({}, false)).toThrow()
     expect(shellOpenExternal).not.toHaveBeenCalled()
 
     await expect(
-      handler({}, 'https://github.com/login/device'),
+      handler({}, ' \thttps://github.com/login/device\n'),
     ).resolves.toBeUndefined()
     expect(shellOpenExternal).toHaveBeenCalledWith(
       'https://github.com/login/device',
@@ -377,7 +458,7 @@ describe('native Settings requests', () => {
       ([channel]) => channel === BRIDGE_CHANNELS.pendingSettingsRequest,
     )
     if (!registration) throw new Error('Pending request IPC not registered')
-    return registration[1] as () => unknown
+    return registration[1]
   }
 
   it('delivers immediately to a live renderer after restoring and focusing its window', async () => {

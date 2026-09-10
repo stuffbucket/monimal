@@ -8,11 +8,12 @@ export default [
   // list.
   //
   // `level: 'recommended'` is where this package differs from the two service
-  // packages, which run `strict`. This app is clean under `recommended`;
-  // raising it is a refactor of the app, not a config change.
+  // packages, which run `strict`. Raising it is a separate refactor.
   ...typescript({
     tsconfigRootDir: import.meta.dirname,
     level: 'recommended',
+    architectureKind: 'electron',
+    typeChecked: true,
   }),
   {
     // Build and tooling scripts run in Node, outside the TypeScript program,
@@ -30,6 +31,15 @@ export default [
       },
     },
     rules: { 'no-console': 'off' },
+  },
+  {
+    files: ['tests/**/*.test.ts', 'tests/**/*.test.tsx', 'src/**/*.stories.tsx'],
+    rules: {
+      // Promise-shaped fakes implement asynchronous production contracts.
+      '@typescript-eslint/require-await': 'off',
+      // Vitest receives methods as values for assertions rather than invoking them.
+      '@typescript-eslint/unbound-method': 'off',
+    },
   },
   {
     // Runs browser code inside `page.evaluate`, so it needs both sets.
@@ -78,7 +88,7 @@ export default [
      * twenty of them second names for values already published, and five
      * exported surfaces that would have reached a consumer with no border and
      * no background at all. Every check ran green over it, because each one
-     * reads `structural.css` and the rules had moved out from under it.
+     * reads `shell-package-rules.css` and the rules had moved out from under it.
      *
      * `scripts/component-css.mjs` is the judgement;
      * `tests/component-styles.test.ts` runs the same call over every carried
@@ -137,6 +147,25 @@ export default [
         'error',
         {
           patterns: [
+            {
+              group: [
+                '@stuffbucket/*/src',
+                '@stuffbucket/*/src/**',
+                'stuffbucket-electron/src/**',
+              ],
+              message:
+                'Import another package through a declared public entry point, never its source tree.',
+            },
+            {
+              group: [
+                'maximal-client',
+                'maximal-client/**',
+                '@stuffbucket/maximal-core',
+                '@stuffbucket/maximal-core/**',
+              ],
+              message:
+                'The reusable Electron package must not depend on consumer or Maximal Core policy.',
+            },
             {
               group: ['**/e2e/**'],
               message:

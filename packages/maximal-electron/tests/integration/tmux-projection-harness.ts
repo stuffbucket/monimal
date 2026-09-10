@@ -29,7 +29,7 @@ export class TmuxProjectionHarness {
         cols,
         rows,
         cwd: homedir(),
-        env: { ...process.env, TERM: 'xterm-256color' } as Record<string, string>,
+        env: { ...process.env, TERM: 'xterm-256color' },
       }),
       terminateSession: () => {
         spawnSync('tmux', ['-L', this.socket, 'kill-session', '-t', this.sessionId]);

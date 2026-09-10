@@ -46,7 +46,7 @@ defaults:
 jobs:
   check:
     name: build / typecheck / lint / test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -155,15 +155,45 @@ jobs:
         run: pnpm run verify:workspace
 
       # Build/typecheck/lint remain native and use normal graph parallelism. The
-      # sidecar build is intentionally uncached and executes on every run; the
-      # Astro site is a normal workspace build covered here too.
+      # sidecar build is intentionally uncached and executes on every run.
+      - name: Start workspace check timer
+        id: workspace-check-start
+        run: |
+          echo "started_at=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
+          echo "started_epoch=$(date +%s)" >> "$GITHUB_OUTPUT"
+
       - name: Build, typecheck, and lint workspace
+        id: workspace-check
         run: pnpm exec turbo run build typecheck lint
 
-      # Core's host-only deep gate covers static policy, dependency, downstream,
-      # binding, and bundle checks. Its Bun tests run through the native wrapper below.
-      - name: Check Core host verification
-        run: pnpm --filter @stuffbucket/maximal-core run check:deep:host
+      - name: Record workspace check timing
+        if: always() && steps.workspace-check-start.outcome == 'success'
+        env:
+          OUTCOME: ${{ steps.workspace-check.outcome }}
+          STARTED_AT: ${{ steps.workspace-check-start.outputs.started_at }}
+          STARTED_EPOCH: ${{ steps.workspace-check-start.outputs.started_epoch }}
+        run: |
+          ended_at=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+          elapsed_seconds=$(($(date +%s) - STARTED_EPOCH))
+          status=failure
+          if [ "$OUTCOME" = success ]; then status=success; fi
+          echo "perf-marker phase=workspace-check-window started_at=$STARTED_AT ended_at=$ended_at elapsed_seconds=$elapsed_seconds status=$status"
+
+      # Turbo already covered Core's build and typecheck above. Retain both lint
+      # variants and the remaining host checks; Bun tests use the wrapper below.
+      - name: Check remaining Core host verification
+        run: |
+          SECONDS=0
+          started_at=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+          set +e
+          pnpm --filter @stuffbucket/maximal-core run check:deep:host:after-workspace
+          command_status=$?
+          set -e
+          ended_at=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+          status=failure
+          if [ "$command_status" -eq 0 ]; then status=success; fi
+          echo "perf-marker phase=core-host-after-workspace started_at=$started_at ended_at=$ended_at elapsed_seconds=$SECONDS status=$status"
+          exit "$command_status"
 
       # Build/install mechanics outside the normal package scripts. Release-time
       # checks that require a tag or packaged app remain out of the PR gate.
@@ -203,6 +233,8 @@ jobs:
       # the same isolated native wrapper used locally. Docker remains an explicit
       # final gate and is never built by ordinary CI.
       - name: Test workspace on disposable runner
+        env:
+          MONIMAL_PERF_MARKERS: 1
         run: pnpm run test:all -- --trace=${{ inputs.test_trace || 'off' }}
 
       # Pull requests can restore main's cache, but caches created under a PR
@@ -229,7 +261,7 @@ jobs:
   # to the first.
   package:
     name: electron package
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # Two Forge builds, not one.
     timeout-minutes: 45
     steps:
@@ -280,7 +312,7 @@ jobs:
       - name: Verify workspace installation
         run: pnpm run verify:workspace
 
-      - run: pnpm run package
+      - run: pnpm run package:all
 
       - name: Verify the client's packaged app
         run: |

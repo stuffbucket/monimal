@@ -16,8 +16,7 @@ import {
 
 export type ChatCompletionsStream = ReturnType<typeof events>
 export type CreateChatCompletionsReturn =
-  | ChatCompletionResponse
-  | ChatCompletionsStream
+  ChatCompletionResponse | ChatCompletionsStream
 
 export const createChatCompletions = async (
   payload: ChatCompletionsPayload,

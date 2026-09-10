@@ -1,0 +1,29 @@
+/* Canonical structural values inherited by package and carried component rules. */
+
+@layer sb-shell.base, sb-shell.components;
+
+@layer sb-shell.base {
+.sb-shell {
+  --shell-space-1: 4px;
+  --shell-space-2: 8px;
+  --shell-space-3: 12px;
+  --shell-space-4: 16px;
+  --shell-space-5: 24px;
+  --shell-radius: 6px;
+  --shell-radius-large: 8px;
+  --shell-input-border: var(--shell-border-strong, var(--shell-border));
+
+  --shell-text-xs: 0.6875rem;
+  --shell-text-sm: 0.8125rem;
+  --shell-text-base: 0.875rem;
+  --shell-text-md: 0.9375rem;
+  --shell-text-lg: 1.0625rem;
+  --shell-text-xl: 1.375rem;
+  --shell-weight-md: 500;
+  --shell-weight-lg: 600;
+  --shell-leading-base: 1.5;
+  --shell-tracking-caps: 0.04em;
+  --shell-radius-pill: 9999px;
+  --shell-control-lg: 28px;
+}
+}

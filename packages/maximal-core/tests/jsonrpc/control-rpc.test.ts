@@ -420,8 +420,7 @@ describe("control /rpc — settings", () => {
         params: period === undefined ? {} : { period },
       })
       const result = body.result as
-        | { period?: string; totals?: { request_count?: number } }
-        | undefined
+        { period?: string; totals?: { request_count?: number } } | undefined
       expect(result?.period).toBe(period ?? "day")
       expect(typeof result?.totals?.request_count).toBe("number")
     }

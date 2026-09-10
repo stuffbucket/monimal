@@ -15,13 +15,19 @@ export default [
     ignores: ["node_modules/**"],
     tsconfigRootDir: import.meta.dirname,
     level: "recommended",
-    // Type-aware rules are off here, deliberately. `tsc --noEmit` runs clean on
-    // this package and is the authority on type correctness; switching them on
-    // surfaces 38 findings (mostly require-await and unbound-method) in code
-    // that should be changed by someone able to run the app. Turning them on is
-    // its own change, not a side effect of unpinning TypeScript.
-    typeChecked: false,
+    architectureKind: "client",
+    typeChecked: true,
   }),
+  {
+    files: ["**/*.test.ts", "**/*.test.tsx"],
+    rules: {
+      // Promise-shaped mocks implement the production contract without doing
+      // asynchronous work of their own.
+      "@typescript-eslint/require-await": "off",
+      // Vitest matchers inspect method references without invoking them.
+      "@typescript-eslint/unbound-method": "off",
+    },
+  },
   {
     // Build scripts run under plain node, outside any tsconfig, so they get
     // node globals and nothing else. Without this every `process` and
@@ -81,6 +87,14 @@ export default [
             },
           ],
           patterns: [
+            {
+              group: [
+                "@stuffbucket/*/src",
+                "@stuffbucket/*/src/**",
+                "stuffbucket-electron/src/**",
+              ],
+              message: "Import another package through a declared public entry point, never its source tree.",
+            },
             {
               group: ["**/shared/bridge-channels", "**/shared/bridge-channels.*"],
               message: "IPC channel names are main/preload-only; use window.maximal through a capability adapter.",

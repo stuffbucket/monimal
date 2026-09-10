@@ -352,6 +352,34 @@ describe("this repository", () => {
     expect(expand(readScripts()).map((s) => s.name)).toContain("ci:check")
   })
 
+  test("the after-workspace gate omits only Turbo-proven typecheck and build leaves", () => {
+    const scripts = readScripts()
+    const complete = expand(scripts, "check:deep:host").map((step) => step.name)
+    const residual = expand(scripts, "check:deep:host:after-workspace").map((step) => step.name)
+
+    expect(scripts["check:deep:host"]).toContain("typecheck:downstream -- --no-build")
+    expect(scripts["check:deep:host:after-workspace"]).toContain(
+      "typecheck:downstream -- --no-build",
+    )
+    expect(residual).toEqual([
+      "preflight",
+      "lint:fast",
+      "lint:all",
+      "casts:check",
+      "knip",
+      "deps:check",
+      "dupes:check",
+      "ci:check",
+      "typecheck:downstream",
+    ])
+    const residualNames = new Set(residual)
+    expect(complete.filter((name) => !residualNames.has(name))).toEqual([
+      "typecheck",
+      "bun scripts/ops/build-bundle.ts",
+      "build:lib",
+    ])
+  })
+
   test("every exclusion carries a reason", () => {
     for (const entry of EXCLUDED) expect(entry.why.length).toBeGreaterThan(20)
   })

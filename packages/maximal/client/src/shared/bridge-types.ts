@@ -5,8 +5,8 @@ import type {
   TrafficOverviewQuery,
   TrafficRequestDetail,
   TrafficRequestDetailQuery,
+  TrafficRequestList,
   TrafficRequestListQuery,
-  TrafficRequestPage,
 } from '@stuffbucket/maximal-observability-contract'
 
 /** Sidecar lifecycle state that is safe to expose to the product renderer. */
@@ -51,7 +51,7 @@ export interface ObservabilityControlBridge {
   ): Promise<ControlResult<TrafficOverview>>
   observabilityRequests(
     query: TrafficRequestListQuery,
-  ): Promise<ControlResult<TrafficRequestPage>>
+  ): Promise<ControlResult<TrafficRequestList>>
   observabilityRequest(
     query: TrafficRequestDetailQuery,
   ): Promise<ControlResult<TrafficRequestDetail | null>>

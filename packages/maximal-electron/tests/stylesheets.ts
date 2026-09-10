@@ -10,11 +10,11 @@ import { packageStylesheets } from '../scripts/shell-variables.mjs';
  *
  * `src/renderer/styles/` holds both. The shell's own palette is checked by
  * `tests/contrast.test.ts` against `REQUIRED_TOKENS`; the public package's is
- * the `--shell-*` namespace that `structural.css` reads, `README.md` documents,
+ * the `--shell-*` namespace that `shell-package-rules.css` reads, `README.md` documents,
  * and `tests/package-styles.test.ts` checks.
  *
  * They used to be told apart by a filename: `contrast.test.ts` skipped
- * `structural.css`. That exclusion was added when `structural.css` arrived and
+ * `shell-package-rules.css`. That exclusion was added when `shell-package-rules.css` arrived and
  * broke the `REQUIRED_TOKENS` tripwire, and it holds only while there is one
  * file on each side. The namespace is the real distinction, so this module
  * classifies tokens and both tests share it.
@@ -50,7 +50,7 @@ export function stylesheets(): [string, string][] {
 /**
  * Every `var(--…)` a stylesheet reads, in source order and with repeats.
  *
- * Comments are stripped first, because a comment is prose. `structural.css`
+ * Comments are stripped first, because a comment is prose. `shell-package-rules.css`
  * explains why a rule reads one name by naming the other, and counting that as
  * a read reported `shell.css` — the application's stylesheet, in the
  * application's own namespace — as reading both namespaces at once, purely on
@@ -121,7 +121,7 @@ export function exportedModules(): [string, string][] {
 /**
  * Every rule an exported component carries in its own source.
  *
- * `structural.css` is a copy of rules authored elsewhere, and the checks in
+ * `shell-package-rules.css` is a copy of rules authored elsewhere, and the checks in
  * `tests/package-styles.test.ts` exist to catch the copy drifting. A component
  * that carries its own rules has no copy, so the rules have to be read out of
  * the component for those checks to still see them.
@@ -261,7 +261,7 @@ function declarationsByRule(css: string, root: string): Map<string, Set<string>>
  * What the package stylesheet is missing from the reference, rule by rule.
  *
  * Property names only. The values differ on every shared rule by design: the
- * reference carries a palette and `structural.css` reads the `--shell-*`
+ * reference carries a palette and `shell-package-rules.css` reads the `--shell-*`
  * namespace, so a comparison of values would fail everywhere and be deleted
  * rather than fixed. A name is the part that says whether the rule does
  * anything at all — `styledClasses` above reports a class as styled while the

@@ -4,8 +4,6 @@
 // lifecycle entry point local.
 import { createHostWindow, type HostWindowOptions } from 'stuffbucket-electron/host'
 
-export type ShellOptions = HostWindowOptions
-
 /**
  * Defaults `titleBarStyle` to `'hiddenInset'`.
  *

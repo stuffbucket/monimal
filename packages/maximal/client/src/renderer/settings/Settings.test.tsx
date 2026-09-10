@@ -1,6 +1,7 @@
 import type {
   AccountsListResponse,
   AuthStatus,
+  TokenUsagePeriod,
 } from '@stuffbucket/maximal-core/settings-types'
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
@@ -19,7 +20,7 @@ class NoopResizeObserver implements ResizeObserver {
   unobserve(): void {}
   disconnect(): void {}
 }
-globalThis.ResizeObserver = NoopResizeObserver as unknown as typeof ResizeObserver
+globalThis.ResizeObserver = NoopResizeObserver
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 
 const authStatus: AuthStatus = { state: 'unauthenticated' }
@@ -66,7 +67,7 @@ function fakeCapabilities(): SettingsCapabilities {
       refresh: vi.fn(async () => ({ models: [], count: 0, loaded_at: null })),
     },
     usage: {
-      get: vi.fn(async (period) => ({
+      get: vi.fn(async (period: TokenUsagePeriod) => ({
         period,
         range: { start_ms: 0, end_ms: 0, start_utc: '', end_utc: '' },
         totals: {

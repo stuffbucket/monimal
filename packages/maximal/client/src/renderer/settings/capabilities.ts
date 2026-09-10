@@ -1,6 +1,5 @@
 import type {
   AccountsListResponse,
-  AccountSummary,
   ApiKeyCreateRequest,
   ApiKeyEntry,
   ApiKeysListResponse,
@@ -28,7 +27,6 @@ import { unwrapControlResult } from '../shared/control-error'
 
 export type {
   AccountsListResponse,
-  AccountSummary,
   ApiKeyCreateRequest,
   ApiKeyEntry,
   ApiKeysListResponse,
@@ -118,8 +116,7 @@ export function createProxyUrlTracker(
 ): { current(): Promise<string> } {
   let seeded = false
   let value = ''
-  let hasError = false
-  let error: unknown
+  let error: Error | null = null
   let waiters: Array<{
     resolve(url: string): void
     reject(cause: unknown): void
@@ -128,8 +125,7 @@ export function createProxyUrlTracker(
   function setValue(url: string): void {
     seeded = true
     value = url
-    hasError = false
-    error = undefined
+    error = null
     const pending = waiters
     waiters = []
     for (const waiter of pending) waiter.resolve(url)
@@ -137,11 +133,13 @@ export function createProxyUrlTracker(
 
   function setError(cause: unknown): void {
     if (seeded) return
-    hasError = true
-    error = cause
+    error =
+      cause instanceof Error
+        ? cause
+        : new Error('Could not resolve the proxy URL', { cause })
     const pending = waiters
     waiters = []
-    for (const waiter of pending) waiter.reject(cause)
+    for (const waiter of pending) waiter.reject(error)
   }
 
   bridge.onCoreStatus((status) => {
@@ -158,7 +156,7 @@ export function createProxyUrlTracker(
   return {
     current: () => {
       if (seeded) return Promise.resolve(value)
-      if (hasError) return Promise.reject(error)
+      if (error !== null) return Promise.reject(error)
       return new Promise((resolve, reject) =>
         waiters.push({ resolve, reject }),
       )

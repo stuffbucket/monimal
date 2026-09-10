@@ -144,7 +144,7 @@ describe('ModelsSection', () => {
     const normalizedCatalogue: ModelsListResponse = {
       models: [
         {
-          ...catalogue.models[0]!,
+          ...catalogue.models[0],
           id: 'trimmed-model',
           vendor: '  Acme  ',
           type: '  chat  ',
@@ -152,7 +152,7 @@ describe('ModelsSection', () => {
           max_output_tokens: 1,
         },
         {
-          ...catalogue.models[1]!,
+          ...catalogue.models[1],
           id: 'unclassified-model',
           vendor: '   ',
           type: '   ',
@@ -228,7 +228,7 @@ describe('ModelsSection', () => {
     const { capabilities } = fakeCapabilities(async () => catalogue)
     const surface = await renderModels(capabilities)
     const tables = [...surface.querySelectorAll<HTMLTableElement>('table')]
-    const firstIcons = [...tables[0]!.querySelectorAll<HTMLElement>('.settings-table__capabilities [role="img"]')]
+    const firstIcons = [...tables[0].querySelectorAll<HTMLElement>('.settings-table__capabilities [role="img"]')]
 
     expect(firstIcons.map((icon) => icon.getAttribute('aria-label'))).toEqual([
       'Vision',
@@ -244,7 +244,7 @@ describe('ModelsSection', () => {
     await act(async () => vi.runAllTimersAsync())
     expect(document.body.querySelector('.tooltip')?.textContent).toBe('Vision')
     vi.useRealTimers()
-    const exampleRows = tableRows(tables[1]!)
+    const exampleRows = tableRows(tables[1])
     expect(exampleRows[0]?.querySelectorAll('.settings-table__capabilities [role="img"]')).toHaveLength(0)
     expect(exampleRows[0]?.querySelector('[title="No capabilities reported"]')).not.toBeNull()
     expect(
@@ -302,8 +302,8 @@ describe('ModelsSection', () => {
   })
 
   it('refreshes the catalogue and replaces the rendered rows', async () => {
-    const initial = { ...catalogue, models: [catalogue.models[0]!], count: 1 }
-    const refreshed = { ...catalogue, models: [catalogue.models[2]!], count: 1 }
+    const initial = { ...catalogue, models: [catalogue.models[0]], count: 1 }
+    const refreshed = { ...catalogue, models: [catalogue.models[2]], count: 1 }
     const { capabilities, models } = fakeCapabilities(async () => initial)
     models.refresh.mockResolvedValue(refreshed)
     const surface = await renderModels(capabilities)
@@ -374,7 +374,7 @@ describe('ModelsSection', () => {
     const initial = fakeCapabilities(async () => catalogue)
     const replacementCatalogue = {
       ...catalogue,
-      models: [catalogue.models[2]!],
+      models: [catalogue.models[2]],
       count: 1,
     }
     const replacement = fakeCapabilities(async () => replacementCatalogue)

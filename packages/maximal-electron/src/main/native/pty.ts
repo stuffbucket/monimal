@@ -12,14 +12,14 @@ import type {
   PtyProjectionWriteRequest,
   PtySpawnRequest,
   PtyStatus,
+  TerminalDiscovery,
+  TerminalLaunchRequest,
+  TerminalLaunchResult,
+  TerminalProfileSummary,
 } from '../../shared/ipc.js';
 import {
   TerminalLauncher,
   loadTerminalProfiles,
-  type TerminalDiscovery,
-  type TerminalLaunchRequest,
-  type TerminalLaunchResult,
-  type TerminalProfileSummary,
 } from './terminal-launcher.js';
 import {
   DockerConnector,

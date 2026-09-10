@@ -58,7 +58,7 @@ jobs:
     # are constrained below to commits on a released line.
     if: github.event_name == 'push' || github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     name: verify tag
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       actions: read
@@ -261,7 +261,7 @@ jobs:
   draft:
     name: draft release
     needs: verify
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: write
@@ -292,7 +292,7 @@ jobs:
   dispatch:
     name: dispatch macos-builder
     needs: [verify, draft]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     # This job needs NO access to this repository at all — only the PAT, whose
     # single power is starting a build on the builder.
@@ -326,7 +326,7 @@ jobs:
     name: await + verify dmg
     needs: [verify, draft, dispatch]
     if: needs.dispatch.outputs.dispatched == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # Builder time is 20-40 min (install, Electron download, turbo build,
     # inside-out sign, hdiutil) plus Apple's unbounded notary queue.
     timeout-minutes: 75

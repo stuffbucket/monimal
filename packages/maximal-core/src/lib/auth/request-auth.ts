@@ -240,8 +240,7 @@ export function createAuthMiddleware(
 }
 
 type AuthDecision =
-  | { allow: true; id: string | null; label: string | null }
-  | { allow: false }
+  { allow: true; id: string | null; label: string | null } | { allow: false }
 
 /**
  * Gate for routes that forward to the GitHub Copilot upstream. Orthogonal

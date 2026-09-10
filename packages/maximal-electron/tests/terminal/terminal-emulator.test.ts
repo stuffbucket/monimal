@@ -2,22 +2,29 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const xterm = vi.hoisted(() => ({
-  addon: undefined as unknown,
-  fit: vi.fn(),
-  keyHandler: undefined as ((event: KeyboardEvent) => boolean) | undefined,
-  options: undefined as unknown,
-}));
+const xterm = vi.hoisted(() => {
+  const addon: unknown = undefined;
+  const options: unknown = undefined;
+  return {
+    addon,
+    fit: vi.fn(),
+    keyHandler: undefined as ((event: KeyboardEvent) => boolean) | undefined,
+    options,
+  };
+});
 
-const ghostty = vi.hoisted(() => ({
-  core: { name: 'ghostty-core' },
-  coreOptions: undefined as unknown,
-  dataHandler: undefined as ((data: string) => void) | undefined,
-  destroy: vi.fn(),
-  init: vi.fn(async () => undefined),
-  options: undefined as unknown,
-  write: vi.fn(),
-}));
+const ghostty = vi.hoisted(() => {
+  const coreOptions: unknown = undefined;
+  return {
+    core: { name: 'ghostty-core' },
+    coreOptions,
+    dataHandler: undefined as ((data: string) => void) | undefined,
+    destroy: vi.fn(),
+    init: vi.fn(async () => undefined),
+    options: undefined as { onData?: (data: string) => void } | undefined,
+    write: vi.fn(),
+  };
+});
 
 vi.mock('@xterm/addon-fit', () => ({
   FitAddon: class {

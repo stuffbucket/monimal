@@ -39,8 +39,8 @@ export class TmuxProjectionHost {
         this.launches.delete(sessionId);
         this.options.terminate(launch.terminate.command, launch.terminate.args);
       },
-      emit: options.emit,
-      onExit: options.onExit,
+      emit: (sessionId, projectionId, chunk) => options.emit(sessionId, projectionId, chunk),
+      onExit: (sessionId, projectionId, exitCode) => options.onExit(sessionId, projectionId, exitCode),
     });
   }
 

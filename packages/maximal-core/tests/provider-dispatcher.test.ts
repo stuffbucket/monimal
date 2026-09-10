@@ -709,8 +709,7 @@ describe("provider rollout boundary", () => {
   test("drains an open response body before retiring a factory gateway", async () => {
     const source = new FakeConfigSource(configSnapshot("legacy"))
     let streamController:
-      | ReadableStreamDefaultController<Uint8Array>
-      | undefined
+      ReadableStreamDefaultController<Uint8Array> | undefined
     let cancelled: unknown
     const gateway = new FakeGateway(() =>
       Promise.resolve(
@@ -757,8 +756,7 @@ describe("provider rollout boundary", () => {
     const source = new FakeConfigSource(configSnapshot("legacy"))
     const encoder = new TextEncoder()
     let streamController:
-      | ReadableStreamDefaultController<Uint8Array>
-      | undefined
+      ReadableStreamDefaultController<Uint8Array> | undefined
     const gateway = new FakeGateway(() =>
       Promise.resolve(
         new Response(

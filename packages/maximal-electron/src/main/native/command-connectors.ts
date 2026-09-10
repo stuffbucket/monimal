@@ -121,12 +121,18 @@ function discoveryOptions(): { timeout: number; maxBuffer: number } {
 
 function parseJsonLines(output: string): unknown[] {
   if (output.length > DISCOVERY_MAX_BYTES) throw new Error('Command output exceeds the discovery limit.');
-  return output.split('\n').filter(Boolean).map((line) => JSON.parse(line));
+  const values: unknown[] = [];
+  for (const line of output.split('\n').filter(Boolean)) {
+    const value: unknown = JSON.parse(line);
+    values.push(value);
+  }
+  return values;
 }
 
 function parseJson(output: string): unknown {
   if (output.length > DISCOVERY_MAX_BYTES) throw new Error('Command output exceeds the discovery limit.');
-  return JSON.parse(output);
+  const value: unknown = JSON.parse(output);
+  return value;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -393,8 +399,8 @@ function validKubernetesContainer(value: unknown): value is string {
   return typeof value === 'string' && SAFE_KUBERNETES_CONTAINER.test(value);
 }
 
-function validKubernetesUid(value: unknown): boolean {
-  return SAFE_KUBERNETES_UID.test(value as string);
+function validKubernetesUid(value: unknown): value is string {
+  return typeof value === 'string' && SAFE_KUBERNETES_UID.test(value);
 }
 
 function label(value: unknown, fallback: string): string {

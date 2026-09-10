@@ -7,6 +7,7 @@ import {
   type Locator,
   type Page,
 } from '@playwright/test';
+import type { BrowserWindow } from 'electron';
 
 import type { Preferences, ProviderStatus } from '../src/shared/ipc.js';
 
@@ -210,8 +211,8 @@ export async function resetShell({ app, window }: Harness): Promise<void> {
     });
 
     const handle = await app.browserWindow(page);
-    if (await handle.evaluate((win) => win.isVisible())) {
-      await handle.evaluate((win) => {
+    if (await handle.evaluate((win: BrowserWindow) => win.isVisible())) {
+      await handle.evaluate((win: BrowserWindow) => {
         win.hide();
       });
     }

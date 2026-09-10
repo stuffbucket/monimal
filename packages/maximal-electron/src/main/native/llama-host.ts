@@ -59,7 +59,7 @@ interface Engine {
 }
 
 let child: Engine | undefined;
-let crashes: number[] = [];
+const crashes: number[] = [];
 let lastFailure = '';
 
 /**
@@ -267,12 +267,6 @@ export function stopEngine(): void {
   phase = 'not started';
   listeners.clear();
   running.process.kill();
-}
-
-/** For tests and for the packaged self check: forget the crash history. */
-export function resetEngineBudget(): void {
-  crashes = [];
-  lastFailure = '';
 }
 
 // Nothing outlives the application. `utilityProcess` children die with the

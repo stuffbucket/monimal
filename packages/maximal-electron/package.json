@@ -64,6 +64,7 @@
     "registry": "https://npm.pkg.github.com"
   },
   "scripts": {
+    "analyze": "bun ../maximal-core/scripts/analyze.ts",
     "start": "electron-forge start",
     "build:host": "node scripts/build-package.mjs --host",
     "build:renderer": "node scripts/build-package.mjs --renderer",
@@ -95,8 +96,8 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "record": "node scripts/record.mjs",
-    "mutate": "node scripts/mutation-scope.mjs && stryker run && node scripts/mutation-report.mjs",
-    "mutate:terminal": "stryker run stryker.terminal.conf.mjs",
+    "mutate": "node scripts/mutation-scope.mjs && stryker run && stryker run stryker.static.conf.mjs && node scripts/mutation-report.mjs",
+    "mutate:terminal": "stryker run stryker.terminal.conf.mjs && stryker run stryker.terminal-static.conf.mjs && node scripts/mutation-report.mjs --terminal",
     "compose": "node scripts/compose.mjs",
     "verify:docs": "node scripts/verify-docs.mjs",
     "stills": "node scripts/stills.mjs",
@@ -205,6 +206,7 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.5",
     "@vitejs/plugin-react": "^6.1.0",
+    "axe-core": "4.13.0",
     "electron": "44.1.0",
     "eslint": "^10.9.1",
     "fast-check": "4.9.0",

@@ -324,7 +324,7 @@ body {
   padding: var(--shell-space-3);
   border: 1px solid var(--demo-blocked);
   background: var(--demo-blocked-soft);
-  border-radius: var(--shell-radius-large, 8px);
+  border-radius: var(--shell-radius-large);
 }
 
 .sb-shell .approval__summary {
@@ -388,7 +388,7 @@ body {
   gap: var(--shell-space-1);
   padding: var(--shell-space-2) var(--shell-space-3);
   border: 1px solid var(--shell-border);
-  border-radius: var(--shell-radius-large, 8px);
+  border-radius: var(--shell-radius-large);
   background: var(--shell-raised);
   text-align: left;
   cursor: pointer;

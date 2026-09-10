@@ -1,16 +1,16 @@
 packages:
-  - "packages/*"
-  # Link the Electron app's local workspace dependencies.
-  - "packages/maximal/client"
-  # Include the nested Astro site in this lockfile.
-  - "packages/maximal/site"
+  - "packages/**"
+  - "!packages/maximal-core/downstream"
 
 # Warn about dependency drift before scripts without performing an implicit install.
 verifyDepsBeforeRun: warn
 
 # pnpm 11 reads workspace settings from this file.
 overrides:
-  prettier: 3.8.3
+  # Formatting runs as an ESLint error in the service packages. Changing this
+  # version is therefore a formatting migration, not an isolated dependency
+  # bump: reformat the affected packages in the same change.
+  prettier: 3.9.6
   # Security fix for transitive build tooling.
   tar: 7.5.22
   # Electron-maintained replacement for vulnerable extract-zip.

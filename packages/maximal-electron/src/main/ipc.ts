@@ -118,7 +118,6 @@ export function collectVersions(): AppVersions {
  * Only a safe scheme may leave the application. The guard lives in
  * `src/shared/urls.ts`, free of Electron imports, so it has direct unit tests.
  */
-export { isSafeExternalUrl } from '../shared/urls.js';
 
 const handlers: IpcHandlers = {
   'app:versions': () => collectVersions(),

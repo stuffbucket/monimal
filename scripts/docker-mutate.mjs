@@ -4,13 +4,16 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
-  assertPrimaryCheckout,
   checkoutMountArguments,
   containerBoundaryArguments,
   dockerServerArchitecture,
   ensureTestImage,
+  ensureTurboCacheVolume,
+  gitMetadataMountArguments,
+  pruneTestImages,
   readToolPins,
   stagedCommandArguments,
+  turboCacheMountArguments,
 } from "./docker-test.mjs";
 import { coreMutationTargets } from "./git-changes.mjs";
 
@@ -90,6 +93,8 @@ export function createMutationContainerArguments(imageId, options) {
     "create",
     ...containerBoundaryArguments(),
     ...checkoutMountArguments(),
+    ...gitMetadataMountArguments(),
+    ...turboCacheMountArguments(imageId),
     "--env",
     `MAXIMAL_MUTATION_LEDGER=${mutationLedgerContainerPath}`,
     imageId,
@@ -214,7 +219,6 @@ export function resolveMutationTargets(options) {
 
 export function main(arguments_ = process.argv.slice(2)) {
   const options = parseMutationOptions(arguments_);
-  assertPrimaryCheckout();
   const mutate = resolveMutationTargets(options);
   const targetArch = dockerServerArchitecture();
   const imageId = ensureTestImage({
@@ -222,6 +226,7 @@ export function main(arguments_ = process.argv.slice(2)) {
     pins: readToolPins(),
     targetArch,
   });
+  ensureTurboCacheVolume(imageId);
   let containerId;
 
   try {
@@ -254,6 +259,7 @@ export function main(arguments_ = process.argv.slice(2)) {
         capture: true,
       });
     }
+    pruneTestImages();
   }
 }
 

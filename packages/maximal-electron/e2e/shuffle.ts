@@ -66,7 +66,7 @@ export function createRegistry() {
   const scenarios: Scenario[] = [];
 
   return {
-    scenario(name: string, run: () => Promise<void>): void {
+    scenario(this: void, name: string, run: () => Promise<void>): void {
       scenarios.push({ name, run });
     },
 
@@ -79,7 +79,7 @@ export function createRegistry() {
      *
      * Set `E2E_SHUFFLE=0` to register in declaration order while debugging.
      */
-    registerShuffled(register: (name: string, run: () => Promise<void>) => void): number {
+    registerShuffled(this: void, register: (name: string, run: () => Promise<void>) => void): number {
       const seed = resolveSeed();
       const enabled = process.env['E2E_SHUFFLE'] !== '0';
       const order = enabled ? shuffle(scenarios, seed) : scenarios;

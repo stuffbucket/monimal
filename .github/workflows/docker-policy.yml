@@ -1,0 +1,48 @@
+name: Docker policy
+
+on:
+  schedule:
+    - cron: "31 7 * * 1"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Pinned Linux validation scope
+        type: choice
+        options: [full, policy]
+        default: full
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  TURBO_TELEMETRY_DISABLED: 1
+
+jobs:
+  policy:
+    name: pinned dependency image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+
+      # The host wrapper needs only Node. The image installs its own locked
+      # pnpm, Bun, dependencies and support tools before the offline test run.
+      # Scheduled runs prove the image boundary; manually dispatched runs
+      # default to the complete workspace graph on the selected branch.
+      - name: Build pinned image and run selected suite
+        env:
+          MODE: ${{ github.event_name == 'schedule' && 'policy' || inputs.mode }}
+        run: |
+          if [ "$MODE" = full ]; then
+            node scripts/docker-test.mjs --all
+          else
+            node scripts/docker-test.mjs --suite=policy
+          fi

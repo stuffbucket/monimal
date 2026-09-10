@@ -114,14 +114,13 @@ describe('TerminalHost connector', () => {
       env: { TERM: 'xterm-256color', COLORTERM: 'truecolor', TERM_PROGRAM: 'Test' },
     });
     expect(connected?.env['PATH']).toBe(process.env['PATH']);
-    expect(host.list()).toEqual([
-      {
-        id: 'one',
-        cwd: '/home/test',
-        shell: '/bin/test-shell',
-        startedAt: expect.any(Number),
-      },
-    ]);
+    const [session] = host.list();
+    expect(session).toMatchObject({
+      id: 'one',
+      cwd: '/home/test',
+      shell: '/bin/test-shell',
+    });
+    expect(typeof session?.startedAt).toBe('number');
 
     host.write('one', 'hello');
     host.resize('one', 0, 4);
@@ -381,9 +380,9 @@ describe.skipIf(!POSIX)('TerminalHost, per owner', () => {
 
     // The view goes away. Detach is the absence of a terminate, so nothing is
     // called here, and the session has to still be findable afterwards.
-    expect(host.list()).toEqual([
-      { id: 'kept', cwd: homedir(), shell: '/bin/sh', startedAt: expect.any(Number) },
-    ]);
+    const [session] = host.list();
+    expect(session).toMatchObject({ id: 'kept', cwd: homedir(), shell: '/bin/sh' });
+    expect(typeof session?.startedAt).toBe('number');
     expect(alive(pid)).toBe(true);
 
     output = '';
@@ -418,6 +417,13 @@ const CHANNELS: TerminalRequestChannels = {
   terminate: 'consumer/close',
   list: 'consumer/list',
 };
+const CHANNEL_NAMES = [
+  CHANNELS.spawn,
+  CHANNELS.write,
+  CHANNELS.resize,
+  CHANNELS.terminate,
+  CHANNELS.list,
+];
 
 /** An `ipcMain` that records rather than registers. */
 function fakeIpcMain() {
@@ -455,7 +461,7 @@ describe('registerTerminalChannels', () => {
     // The floor. A registration that answered nothing would satisfy every
     // assertion below by holding an empty map.
     expect(wire.handlers.size).toBe(Object.keys(CHANNELS).length);
-    expect([...wire.handlers.keys()].sort()).toEqual([...Object.values(CHANNELS)].sort());
+    expect([...wire.handlers.keys()].sort()).toEqual([...CHANNEL_NAMES].sort());
   });
 
   it('drives the manager from the request each channel carries', () => {
@@ -510,7 +516,7 @@ describe('registerTerminalChannels', () => {
     const { calls } = fakeHost();
     registerTerminalChannels(wire.ipcMain, () => undefined, { channels: CHANNELS });
 
-    for (const channel of Object.values(CHANNELS)) {
+    for (const channel of CHANNEL_NAMES) {
       expect(() => wire.invoke(channel, 'gone', { id: 'one', data: 'a' })).not.toThrow();
     }
 

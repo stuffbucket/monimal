@@ -98,7 +98,6 @@ export function createStartCommand(options: CreateStartCommandOptions = {}) {
     run({ args }) {
       const rateLimitRaw = args["rate-limit"]
       const rateLimit =
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
         rateLimitRaw === undefined ? undefined : (
           Number.parseInt(rateLimitRaw, 10)
         )

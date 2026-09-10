@@ -24,11 +24,7 @@ export function removeLegacyShimIfPresent(
 }
 
 export type ClaudeInstallSource =
-  | "homebrew"
-  | "npm-global"
-  | "local-bin"
-  | "claude-local"
-  | "path"
+  "homebrew" | "npm-global" | "local-bin" | "claude-local" | "path"
 
 export interface ClaudeInstall {
   path: string

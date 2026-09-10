@@ -69,7 +69,7 @@ describe('the renderer entry point', () => {
      * consumer a property their adapter never defines.
      *
      * The stylesheet half of this is `tests/package-styles.test.ts`, which
-     * holds `structural.css` to the same namespace. This is the JavaScript
+     * holds `shell-package-rules.css` to the same namespace. This is the JavaScript
      * half, and nothing covered it.
      */
     const modules = exportedModules();

@@ -8,10 +8,18 @@ import { affectedBase } from "./git-changes.mjs";
 
 const repositoryRoot = path.resolve(import.meta.dirname, "..");
 const dockerfile = path.join(repositoryRoot, "Dockerfile");
+const pruneScript = path.join(repositoryRoot, "scripts/prune-test-images.mjs");
 const stageScript = "/opt/monimal/stage-test-checkout.mjs";
+export const dockerBuilderName = "monimal-test";
+export const dockerBuildkitImage =
+  "moby/buildkit@sha256:28a898719c18a33f4e8000685287fa36fd0dd9560c6440227d3a732d79bb41d8";
 export const imageLabels = Object.freeze({
   architecture: "io.stuffbucket.monimal.architecture",
   mutation: "io.stuffbucket.monimal.mutation",
+  purpose: "io.stuffbucket.monimal.purpose",
+});
+export const turboCacheLabels = Object.freeze({
+  dependencyImage: "io.stuffbucket.monimal.dependency-image",
   purpose: "io.stuffbucket.monimal.purpose",
 });
 
@@ -26,14 +34,25 @@ function requireMatch(value, pattern, label) {
   return value;
 }
 
-function readPnpmChecksum(lock, platform) {
+function readToolPlatform(lock, tool, platform) {
   const escaped = platform.replaceAll("-", "\\-");
   const section = new RegExp(
-    `\\[tools\\.pnpm\\."platforms\\.${escaped}"\\]\\n` +
-      `checksum = "sha256:([0-9a-f]{64})"`,
+    `\\[tools\\.${tool}\\."platforms\\.${escaped}"\\]\\n` +
+      `checksum = "sha256:([0-9a-f]{64})"\\n` +
+      `url = "([^"]+)"`,
   );
   const match = lock.match(section);
-  if (!match?.[1]) throw new Error(`Missing pnpm checksum for ${platform}`);
+  if (!match?.[1] || !match[2]) {
+    throw new Error(`Missing ${tool} artifact for ${platform}`);
+  }
+  return { checksum: match[1], url: match[2] };
+}
+
+function readLockedToolVersion(lock, tool) {
+  const match = lock.match(
+    new RegExp(`\\[\\[tools\\.${tool}\\]\\]\\nversion = "(\\d+\\.\\d+\\.\\d+)"`),
+  );
+  if (!match?.[1]) throw new Error(`Missing ${tool} version in mise.lock`);
   return match[1];
 }
 
@@ -60,22 +79,43 @@ export function readToolPins(root = repositoryRoot) {
   );
   const pnpmVersion = pnpmMatch[1];
   const lock = readRequired(path.join(root, "mise.lock"));
-  const lockedVersion = lock.match(
-    /\[\[tools\.pnpm\]\]\nversion = "(\d+\.\d+\.\d+)"/,
-  )?.[1];
-  if (lockedVersion !== pnpmVersion) {
+  const nodeVersion = readLockedToolVersion(lock, "node");
+  if (nodeVersion.split(".")[0] !== nodeMajor) {
     throw new Error(
-      `mise.lock pnpm ${lockedVersion ?? "missing"} does not match` +
+      `mise.lock Node ${nodeVersion} does not match .nvmrc ${nodeMajor}`,
+    );
+  }
+  const lockedBunVersion = readLockedToolVersion(lock, "bun");
+  if (lockedBunVersion !== bunVersion) {
+    throw new Error(
+      `mise.lock Bun ${lockedBunVersion} does not match .bun-version ${bunVersion}`,
+    );
+  }
+  const lockedPnpmVersion = readLockedToolVersion(lock, "pnpm");
+  if (lockedPnpmVersion !== pnpmVersion) {
+    throw new Error(
+      `mise.lock pnpm ${lockedPnpmVersion} does not match` +
         ` package.json ${pnpmVersion}`,
     );
   }
+  const bunAmd64 = readToolPlatform(lock, "bun", "linux-x64");
+  const bunArm64 = readToolPlatform(lock, "bun", "linux-arm64");
+  const pnpmAmd64 = readToolPlatform(lock, "pnpm", "linux-x64");
+  const pnpmArm64 = readToolPlatform(lock, "pnpm", "linux-arm64");
 
   return {
     nodeMajor,
+    nodeVersion,
     bunVersion,
     pnpmVersion,
-    pnpmSha256Amd64: readPnpmChecksum(lock, "linux-x64"),
-    pnpmSha256Arm64: readPnpmChecksum(lock, "linux-arm64"),
+    bunUrlAmd64: bunAmd64.url,
+    bunUrlArm64: bunArm64.url,
+    bunSha256Amd64: bunAmd64.checksum,
+    bunSha256Arm64: bunArm64.checksum,
+    pnpmUrlAmd64: pnpmAmd64.url,
+    pnpmUrlArm64: pnpmArm64.url,
+    pnpmSha256Amd64: pnpmAmd64.checksum,
+    pnpmSha256Arm64: pnpmArm64.checksum,
   };
 }
 
@@ -213,7 +253,11 @@ export function buildDockerArguments({
   const imageTag = imageTagForArchitecture(targetArch);
   const labels = expectedImageLabels({ targetArch });
   const arguments_ = [
-    ...(cache === "gha" ? ["buildx", "build", "--load"] : ["build"]),
+    "buildx",
+    "build",
+    "--builder",
+    dockerBuilderName,
+    "--load",
     "--provenance=false",
     "--file",
     dockerfile,
@@ -230,9 +274,23 @@ export function buildDockerArguments({
     "--build-arg",
     `NODE_MAJOR=${pins.nodeMajor}`,
     "--build-arg",
+    `NODE_VERSION=${pins.nodeVersion}`,
+    "--build-arg",
     `BUN_VERSION=${pins.bunVersion}`,
     "--build-arg",
+    `BUN_URL_AMD64=${pins.bunUrlAmd64}`,
+    "--build-arg",
+    `BUN_URL_ARM64=${pins.bunUrlArm64}`,
+    "--build-arg",
+    `BUN_SHA256_AMD64=${pins.bunSha256Amd64}`,
+    "--build-arg",
+    `BUN_SHA256_ARM64=${pins.bunSha256Arm64}`,
+    "--build-arg",
     `PNPM_VERSION=${pins.pnpmVersion}`,
+    "--build-arg",
+    `PNPM_URL_AMD64=${pins.pnpmUrlAmd64}`,
+    "--build-arg",
+    `PNPM_URL_ARM64=${pins.pnpmUrlArm64}`,
     "--build-arg",
     `PNPM_SHA256_AMD64=${pins.pnpmSha256Amd64}`,
     "--build-arg",
@@ -253,6 +311,38 @@ export function buildDockerArguments({
   return arguments_;
 }
 
+export function ensureDockerBuilder() {
+  const inspect = () =>
+    spawnSync("docker", ["buildx", "inspect", dockerBuilderName], {
+      cwd: repositoryRoot,
+      encoding: "utf8",
+    });
+  if (inspect().status === 0) return;
+
+  const created = spawnSync(
+    "docker",
+    [
+      "buildx",
+      "create",
+      "--name",
+      dockerBuilderName,
+      "--driver",
+      "docker-container",
+      "--driver-opt",
+      `image=${dockerBuildkitImage}`,
+    ],
+    { cwd: repositoryRoot, stdio: "inherit" },
+  );
+  if (created.error) {
+    throw new Error(`Docker builder creation could not start: ${created.error.message}`);
+  }
+  if (created.status !== 0 && inspect().status !== 0) {
+    throw new Error(
+      `Docker builder creation failed with exit code ${created.status ?? "unknown"}`,
+    );
+  }
+}
+
 export function containerBoundaryArguments() {
   return [
     "--init",
@@ -267,6 +357,65 @@ export function checkoutMountArguments(root = repositoryRoot) {
     throw new Error("Docker checkout path cannot contain a comma");
   }
   return ["--mount", `type=bind,source=${root},target=/checkout,readonly`];
+}
+
+export function gitMetadataMountArguments(root = repositoryRoot) {
+  const gitDirectory = fs.realpathSync(
+    execFileSync("git", ["rev-parse", "--path-format=absolute", "--git-dir"], {
+      cwd: root,
+      encoding: "utf8",
+    }).trim(),
+  );
+  const commonDirectory = fs.realpathSync(
+    execFileSync(
+      "git",
+      ["rev-parse", "--path-format=absolute", "--git-common-dir"],
+      { cwd: root, encoding: "utf8" },
+    ).trim(),
+  );
+  if (gitDirectory === commonDirectory) return [];
+  if (commonDirectory.includes(",")) {
+    throw new Error("Docker Git metadata path cannot contain a comma");
+  }
+  return [
+    "--mount",
+    `type=bind,source=${commonDirectory},target=${commonDirectory},readonly`,
+  ];
+}
+
+export function turboCacheMountArguments(imageId) {
+  const volumeName = turboCacheVolumeName(imageId);
+  return [
+    "--mount",
+    `type=volume,source=${volumeName},target=/workspace/.turbo`,
+  ];
+}
+
+export function turboCacheVolumeName(imageId) {
+  requireMatch(imageId, /^sha256:[0-9a-f]{64}$/u, "Docker image ID");
+  const digest = imageId.slice("sha256:".length);
+  return `monimal-test-turbo-${digest}`;
+}
+
+export function turboCacheVolumeCreateArguments(imageId) {
+  return [
+    "volume",
+    "create",
+    "--label",
+    `${turboCacheLabels.purpose}=turbo-cache`,
+    "--label",
+    `${turboCacheLabels.dependencyImage}=${imageId}`,
+    turboCacheVolumeName(imageId),
+  ];
+}
+
+export function validatedTurboCacheVolumeName(volume, imageId) {
+  const expectedName = turboCacheVolumeName(imageId);
+  return volume?.Name === expectedName &&
+    volume.Labels?.[turboCacheLabels.purpose] === "turbo-cache" &&
+    volume.Labels?.[turboCacheLabels.dependencyImage] === imageId
+    ? expectedName
+    : undefined;
 }
 
 export function stagedCommandArguments(
@@ -296,6 +445,8 @@ export function runDockerArguments(imageId, options = {}) {
     "--rm",
     ...containerBoundaryArguments(),
     ...checkoutMountArguments(),
+    ...gitMetadataMountArguments(),
+    ...turboCacheMountArguments(imageId),
   ];
   if (trace !== "off") {
     arguments_.push(
@@ -335,6 +486,41 @@ function runDocker(arguments_, label) {
   }
 }
 
+export function ensureTurboCacheVolume(imageId) {
+  const name = turboCacheVolumeName(imageId);
+  runDocker(
+    turboCacheVolumeCreateArguments(imageId),
+    "Docker Turbo cache volume creation",
+  );
+  const result = spawnSync(
+    "docker",
+    ["volume", "inspect", "--format", "{{json .}}", name],
+    { cwd: repositoryRoot, encoding: "utf8" },
+  );
+  if (result.error || result.status !== 0 || !result.stdout?.trim()) {
+    throw new Error("Docker Turbo cache volume inspection failed");
+  }
+  const volume = JSON.parse(result.stdout.trim());
+  if (validatedTurboCacheVolumeName(volume, imageId) !== name) {
+    throw new Error("Docker Turbo cache volume metadata does not match its contract");
+  }
+  return name;
+}
+
+export function pruneTestImages() {
+  const result = spawnSync(process.execPath, [pruneScript, "--min-age=3600"], {
+    cwd: repositoryRoot,
+    stdio: "inherit",
+  });
+  if (result.error || result.status !== 0) {
+    console.error(
+      `Warning: stale Docker test image cleanup failed${
+        result.error ? `: ${result.error.message}` : ` with exit code ${result.status}`
+      }`,
+    );
+  }
+}
+
 export function reusableImageId({ targetArch }) {
   const tag = imageTagForArchitecture(targetArch);
   return validatedImageId(
@@ -344,6 +530,7 @@ export function reusableImageId({ targetArch }) {
 }
 
 export function ensureTestImage({ cache = "off", pins, targetArch }) {
+  ensureDockerBuilder();
   const before = reusableImageId({ targetArch });
   const iidDirectory = fs.mkdtempSync(
     path.join(os.tmpdir(), "maximal-test-iid-"),
@@ -359,7 +546,10 @@ export function ensureTestImage({ cache = "off", pins, targetArch }) {
       /^sha256:[0-9a-f]{64}$/u,
       "Docker image ID",
     );
-    const inspectedId = reusableImageId({ targetArch });
+    const inspectedId = validatedImageId(
+      inspectDockerImage(builtId),
+      expectedImageLabels({ targetArch }),
+    );
     if (inspectedId !== builtId) {
       throw new Error(
         "Built Docker image metadata does not match its contract",
@@ -428,7 +618,6 @@ export function assertPrimaryCheckout(root = repositoryRoot) {
 
 export function main(arguments_ = process.argv.slice(2)) {
   const options = parseOptions(arguments_);
-  assertPrimaryCheckout();
   const cache = process.env.MAXIMAL_DOCKER_CACHE || "off";
   const targetArch = dockerServerArchitecture();
   const imageId = ensureTestImage({
@@ -436,14 +625,19 @@ export function main(arguments_ = process.argv.slice(2)) {
     pins: readToolPins(),
     targetArch,
   });
+  ensureTurboCacheVolume(imageId);
   const base =
     options.suite === "workspace" && options.scope === "affected"
       ? affectedBase()
       : undefined;
-  runDocker(
-    runDockerArguments(imageId, { ...options, base }),
-    "Docker test container",
-  );
+  try {
+    runDocker(
+      runDockerArguments(imageId, { ...options, base }),
+      "Docker test container",
+    );
+  } finally {
+    pruneTestImages();
+  }
 }
 
 const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : "";

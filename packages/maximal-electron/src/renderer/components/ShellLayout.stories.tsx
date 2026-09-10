@@ -124,7 +124,7 @@ export const PerTabPanels: StoryObj = {
 
     await userEvent.click(canvas.getByRole('tab', { name: 'Runs' }));
     await userEvent.click(await canvas.findByRole('button', { name: 'Hide panel' }));
-    await expect((canvasElement.querySelector('#right') as HTMLElement | null)?.offsetWidth).toBe(0);
+    await expect(canvasElement.querySelector<HTMLElement>('#right')?.offsetWidth).toBe(0);
 
     await userEvent.click(canvas.getByRole('tab', { name: 'Settings' }));
     await expect(canvasElement.querySelector('#right')).toBeNull();
@@ -147,7 +147,7 @@ export const PerTabPanels: StoryObj = {
 
     await userEvent.click(canvas.getByRole('tab', { name: 'Runs' }));
     await canvas.findByRole('button', { name: 'Show panel' });
-    await expect((canvasElement.querySelector('#right') as HTMLElement | null)?.offsetWidth).toBe(0);
+    await expect(canvasElement.querySelector<HTMLElement>('#right')?.offsetWidth).toBe(0);
 
     await userEvent.click(canvas.getByRole('tab', { name: 'Dashboard' }));
     await canvas.findByRole('button', { name: 'Hide panel' });
@@ -347,7 +347,7 @@ function TopSlotShell() {
  * What this covers and what it does not. Storybook loads `shell.css`, so this
  * measures the reference stylesheet rather than the one the package ships;
  * `tests/package-styles.test.ts` is what carries the claim across to
- * `structural.css`, and it compares property names rather than values.
+ * `shell-package-rules.css`, and it compares property names rather than values.
  * `npm run storybook:check` is not in CI, so nothing runs this on a pull
  * request. See `docs/storybook.md`.
  */

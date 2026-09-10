@@ -67,7 +67,7 @@ function createXtermEmulator(theme?: TerminalTheme): TerminalEmulator {
     get cols() { return terminal.cols; },
     get rows() { return terminal.rows; },
     get buffer() { return terminal.buffer; },
-    open: async (element) => terminal.open(element),
+    open: (element) => Promise.resolve(terminal.open(element)),
     fit: () => fitAddon.fit(),
     focus: () => terminal.focus(),
     blur: () => terminal.blur(),

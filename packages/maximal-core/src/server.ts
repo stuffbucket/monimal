@@ -167,7 +167,7 @@ export interface CreateServerAppsOptions {
   providerConfigSource?: ProviderHostConfigSource
   providerGateway?: ProviderGateway
   readConfig?: () => AppConfig
-  requestShutdown?: (reason: string) => void
+  requestShutdown?: (reason: string) => Promise<void> | void
   trafficObserver?: TrafficObserver
   trafficQueries?: TrafficQueryStore
 }

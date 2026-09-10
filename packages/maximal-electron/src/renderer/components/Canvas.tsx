@@ -149,7 +149,7 @@ export function Canvas<T extends { id: string }>({
   // A click focuses the option it lands on, so this covers the pointer as well
   // as the keys below: the tab stop follows whatever the user last touched.
   function claimTabStop(event: FocusEvent<HTMLDivElement>) {
-    const index = optionsIn(list.current).indexOf(event.target as HTMLElement);
+    const index = optionsIn(list.current).indexOf(event.target);
     if (index >= 0) setFocused(index);
   }
 

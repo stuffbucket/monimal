@@ -34,7 +34,7 @@ describe('TmuxProjectionOwners', () => {
     const wires = owners.map(() => processWire());
     const pending = [...wires];
     const output: string[] = [];
-    const registry = new TmuxProjectionOwners({
+    const registry = new TmuxProjectionOwners<{ id: string }>({
       homeDirectory: '/home/ada',
       connector: { connect: () => pending.shift()!.process },
       terminate: vi.fn(),
@@ -67,7 +67,7 @@ describe('TmuxProjectionOwners', () => {
     const wires = [processWire(), processWire()];
     const pending = [...wires];
     const output: string[] = [];
-    const registry = new TmuxProjectionOwners({
+    const registry = new TmuxProjectionOwners<{ id: string }>({
       homeDirectory: '/home/ada',
       connector: { connect: () => pending.shift()!.process },
       terminate: vi.fn(),

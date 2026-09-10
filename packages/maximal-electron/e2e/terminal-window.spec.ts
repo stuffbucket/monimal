@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import type { BrowserWindow } from 'electron';
 
 import {
   closeApp,
@@ -92,7 +93,7 @@ test('closing a window reaps its shells and leaves the application running', asy
   });
 
   const handle = await app.browserWindow(window);
-  await handle.evaluate((target) => {
+  await handle.evaluate((target: BrowserWindow) => {
     target.close();
   });
 

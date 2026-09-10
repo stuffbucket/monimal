@@ -1,5 +1,6 @@
 import tseslint from "typescript-eslint"
 
+import { architecture } from "./architecture.js"
 import { base } from "./base.js"
 
 /**
@@ -42,6 +43,7 @@ export const UNTYPED_FILES = [
  *   typeChecked?: boolean,
  *   files?: Array<string>,
  *   globals?: Record<string, string>,
+ *   architectureKind?: "electron" | "client" | "service",
  * }} options
  * @returns {Array<import("eslint").Linter.Config>}
  */
@@ -52,6 +54,7 @@ export function typescript({
   typeChecked = level === "strict",
   files = TYPESCRIPT_FILES,
   globals = {},
+  architectureKind = "service",
 } = {}) {
   if (typeof tsconfigRootDir !== "string") {
     // Without this the parser falls back to process.cwd(), which is the
@@ -71,6 +74,8 @@ export function typescript({
 
   return [
     ...base({ ignores }),
+
+    ...architecture({ kind: architectureKind, root: tsconfigRootDir }),
 
     ...tseslint.configs[presetName],
 

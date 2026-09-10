@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import type { BrowserWindow } from 'electron';
 
 import {
   capture,
@@ -665,7 +666,7 @@ scenario('Tab and Shift+Tab stay inside the overlay dialog', async () => {
   const handle = await harness.app.browserWindow(overlay);
   await overlay.keyboard.press('Escape');
   await expect
-    .poll(() => handle.evaluate((win) => win.isVisible()), { timeout: 10_000 })
+    .poll(() => handle.evaluate((win: BrowserWindow) => win.isVisible()), { timeout: 10_000 })
     .toBe(false);
 
   await openOverlay();
@@ -699,7 +700,7 @@ scenario('the floating overlay summons and dismisses', async () => {
   const handle = await app.browserWindow(overlay);
 
   await expect
-    .poll(() => handle.evaluate((win) => win.isVisible()), { timeout: 10_000 })
+    .poll(() => handle.evaluate((win: BrowserWindow) => win.isVisible()), { timeout: 10_000 })
     .toBe(true);
 
   // The reference image is captured separately. It is a documentation
@@ -709,7 +710,7 @@ scenario('the floating overlay summons and dismisses', async () => {
   await overlay.keyboard.press('Escape');
 
   await expect
-    .poll(() => handle.evaluate((win) => win.isVisible()), { timeout: 10_000 })
+    .poll(() => handle.evaluate((win: BrowserWindow) => win.isVisible()), { timeout: 10_000 })
     .toBe(false);
 });
 
@@ -860,7 +861,7 @@ scenario('the overlay agent asks before it runs bash, and runs it when allowed',
     // the user could actually have seen the question.
     const handle = await harness.app.browserWindow(overlay);
     await expect
-      .poll(() => handle.evaluate((win) => win.isVisible()), { timeout: 10_000 })
+      .poll(() => handle.evaluate((win: BrowserWindow) => win.isVisible()), { timeout: 10_000 })
       .toBe(true);
 
     await overlay.click('[data-testid="overlay-allow"]');

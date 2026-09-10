@@ -178,7 +178,7 @@ const SETTINGS_CSS = `
 
 .settings-section__heading {
   margin: 0;
-  font-size: var(--shell-text-lg, 1.0625rem);
+  font-size: var(--shell-text-lg);
   font-weight: var(--shell-weight-lg, 600);
 }
 
@@ -305,22 +305,6 @@ const SETTINGS_CSS = `
   font-weight: 500;
   color: var(--maximal-success, #22c55e);
   white-space: nowrap;
-}
-
-.settings-connection-row {
-  display: flex;
-  align-items: center;
-  gap: var(--shell-space-2, 8px);
-  flex-wrap: wrap;
-}
-
-.settings-connection-row__value {
-  padding: var(--shell-space-2, 8px) var(--shell-space-3, 12px);
-  border-radius: var(--shell-radius-small, 4px);
-  background: var(--shell-hover, rgb(255 255 255 / 0.06));
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
-  font-size: var(--shell-text-sm, 0.9em);
-  user-select: all;
 }
 
 .settings-subsection {
