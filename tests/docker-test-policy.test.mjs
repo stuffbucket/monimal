@@ -48,12 +48,166 @@ import {
   parseTestOptions,
   turboTestArguments,
 } from "../scripts/test-workspace.mjs";
+import {
+  auditWorkspacePackages,
+  discoverPackageManifests,
+  inferredTasks,
+  pnpmWorkspacePaths,
+} from "../scripts/workspace-packages.mjs";
 
 const root = path.resolve(import.meta.dirname, "..");
 
 function read(relativePath) {
   return fs.readFileSync(path.join(root, relativePath), "utf8");
 }
+
+function writeManifest(rootPath, packagePath, manifest) {
+  const directory = path.join(rootPath, packagePath);
+  fs.mkdirSync(directory, { recursive: true });
+  fs.writeFileSync(path.join(directory, "package.json"), JSON.stringify(manifest));
+}
+
+function createPackageFixture(prefix) {
+  const fixture = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  fs.writeFileSync(path.join(fixture, ".gitignore"), "dist/\nout/\n");
+  const initialized = spawnSync("git", ["init", "--quiet"], {
+    cwd: fixture,
+    encoding: "utf8",
+  });
+  assert.equal(initialized.status, 0, initialized.stderr);
+  return fixture;
+}
+
+test("package onboarding is dynamically discovered and fails closed", () => {
+  const fixture = createPackageFixture("monimal-packages-");
+  try {
+    writeManifest(fixture, "packages/library", {
+      name: "library",
+      scripts: Object.fromEntries(
+        ["build", "lint", "test", "typecheck"].map((task) => [task, task]),
+      ),
+    });
+    writeManifest(fixture, "packages/feature/nested", {
+      name: "nested",
+      scripts: {},
+    });
+    let audit = auditWorkspacePackages(fixture, ["packages/library"]);
+    assert.deepEqual(audit.issues, [
+      "packages/feature/nested is not included in the pnpm workspace",
+    ]);
+
+    writeManifest(fixture, "packages/feature/nested", {
+      name: "nested",
+      private: true,
+      monimal: {
+        workspace: false,
+        workspaceReason: "Independent fixture.",
+      },
+    });
+    audit = auditWorkspacePackages(fixture, ["packages/library"]);
+    assert.deepEqual(audit.issues, []);
+
+    audit = auditWorkspacePackages(fixture, [
+      "packages/library",
+      "packages/feature/nested",
+    ]);
+    assert.match(audit.issues[0], /workspace package but declares/);
+
+    writeManifest(fixture, "packages/library/dist/generated", {
+      name: "ignored-output",
+    });
+    assert.deepEqual(discoverPackageManifests(fixture), [
+      "packages/feature/nested",
+      "packages/library",
+    ]);
+
+    fs.rmSync(path.join(fixture, "packages/library/package.json"));
+    assert.deepEqual(discoverPackageManifests(fixture), [
+      "packages/feature/nested",
+    ]);
+  } finally {
+    fs.rmSync(fixture, { recursive: true, force: true });
+  }
+});
+
+test("package tasks are inferred from independent manifest capabilities", () => {
+  assert.deepEqual(inferredTasks({}), ["build", "lint", "test", "typecheck"]);
+  assert.deepEqual(inferredTasks({ devDependencies: { electron: "1" } }), [
+    "build",
+    "lint",
+    "test",
+    "typecheck",
+    "package",
+    "start",
+  ]);
+  assert.deepEqual(inferredTasks({ dependencies: { astro: "1" } }), [
+    "build",
+    "dev",
+    "test",
+  ]);
+  assert.deepEqual(inferredTasks({ bin: { cli: "dist/cli.js" } }), [
+    "build",
+    "lint",
+    "test",
+    "typecheck",
+    "dev",
+    "start",
+  ]);
+  assert.deepEqual(inferredTasks({ bin: {} }), [
+    "build",
+    "lint",
+    "test",
+    "typecheck",
+  ]);
+
+  const fixture = createPackageFixture("monimal-tasks-");
+  try {
+    writeManifest(fixture, "packages/desktop", {
+      name: "desktop",
+      devDependencies: { electron: "1" },
+      scripts: {},
+    });
+    const missing = auditWorkspacePackages(fixture, ["packages/desktop"]);
+    assert.deepEqual(missing.issues, [
+      "packages/desktop is missing inferred build script; add scripts.build",
+      "packages/desktop is missing inferred lint script; add scripts.lint",
+      "packages/desktop is missing inferred test script; add scripts.test",
+      "packages/desktop is missing inferred typecheck script; add scripts.typecheck",
+      "packages/desktop is missing inferred package script; add scripts.package",
+      "packages/desktop is missing inferred start script; add scripts.start",
+    ]);
+
+    writeManifest(fixture, "packages/desktop", {
+      name: "desktop",
+      devDependencies: { electron: "1" },
+      scripts: {
+        build: " ",
+        lint: "lint",
+        test: "test",
+        typecheck: "typecheck",
+        package: "package",
+        start: "start",
+      },
+      monimal: {
+        taskExemptions: {
+          test: "",
+          unknown: "No such required task.",
+        },
+      },
+    });
+    const bypasses = auditWorkspacePackages(fixture, ["packages/desktop"]);
+    assert.deepEqual(bypasses.issues, [
+      "packages/desktop exempts test without a reason",
+      "packages/desktop has stale unknown task exemption",
+      "packages/desktop is missing inferred build script; add scripts.build",
+    ]);
+  } finally {
+    fs.rmSync(fixture, { recursive: true, force: true });
+  }
+
+  const audit = auditWorkspacePackages(root, pnpmWorkspacePaths(root));
+  assert.deepEqual(audit.issues, []);
+});
 
 function runLockfileHostStrip(...arguments_) {
   return spawnSync(

@@ -4,6 +4,13 @@
   "private": true,
   "type": "module",
   "description": "Shared ESLint 10 flat config for the monimal workspace.",
+  "monimal": {
+    "taskExemptions": {
+      "build": "Source JavaScript modules are the published configuration.",
+      "test": "Workspace consumer lint tasks exercise the shared configuration.",
+      "typecheck": "The source-only JavaScript configuration has no TypeScript surface."
+    }
+  },
   "exports": {
     "./base": "./base.js",
     "./typescript": "./typescript.js",

@@ -172,6 +172,9 @@ package provenance or publisher identity -- the proxy does that.
   Three entry points: `./base` (ignores + `js.configs.recommended`, used by
   the workspace packages), `./typescript` (adds typescript-eslint), `./service`
   (adds the quality plugins and prettier for service packages).
+- `maximal-core/downstream`: declares itself as an independently installed
+  compatibility fixture so the root package-onboarding audit does not treat it
+  as a missing nested workspace package.
 - Added `packages/maximal-provider-contract` as the side-effect-free HTTP
   gateway contract, `packages/maximal-dsh-host` as its trusted in-process DSH
   implementation, and `packages/anthropic-provider` as an independently
