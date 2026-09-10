@@ -50,6 +50,7 @@ import {
 } from "../scripts/test-workspace.mjs";
 import {
   auditWorkspacePackages,
+  discoverPackageManifests,
   inferredTasks,
   pnpmWorkspacePaths,
 } from "../scripts/workspace-packages.mjs";
@@ -66,8 +67,19 @@ function writeManifest(rootPath, packagePath, manifest) {
   fs.writeFileSync(path.join(directory, "package.json"), JSON.stringify(manifest));
 }
 
+function createPackageFixture(prefix) {
+  const fixture = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  fs.writeFileSync(path.join(fixture, ".gitignore"), "dist/\nout/\n");
+  const initialized = spawnSync("git", ["init", "--quiet"], {
+    cwd: fixture,
+    encoding: "utf8",
+  });
+  assert.equal(initialized.status, 0, initialized.stderr);
+  return fixture;
+}
+
 test("package onboarding is dynamically discovered and fails closed", () => {
-  const fixture = fs.mkdtempSync(path.join(os.tmpdir(), "monimal-packages-"));
+  const fixture = createPackageFixture("monimal-packages-");
   try {
     writeManifest(fixture, "packages/library", {
       name: "library",
@@ -86,6 +98,7 @@ test("package onboarding is dynamically discovered and fails closed", () => {
 
     writeManifest(fixture, "packages/feature/nested", {
       name: "nested",
+      private: true,
       monimal: {
         workspace: false,
         workspaceReason: "Independent fixture.",
@@ -99,15 +112,26 @@ test("package onboarding is dynamically discovered and fails closed", () => {
       "packages/feature/nested",
     ]);
     assert.match(audit.issues[0], /workspace package but declares/);
+
+    writeManifest(fixture, "packages/library/dist/generated", {
+      name: "ignored-output",
+    });
+    assert.deepEqual(discoverPackageManifests(fixture), [
+      "packages/feature/nested",
+      "packages/library",
+    ]);
+
+    fs.rmSync(path.join(fixture, "packages/library/package.json"));
+    assert.deepEqual(discoverPackageManifests(fixture), [
+      "packages/feature/nested",
+    ]);
   } finally {
     fs.rmSync(fixture, { recursive: true, force: true });
   }
 });
 
 test("package tasks are inferred from independent manifest capabilities", () => {
-  assert.deepEqual(inferredTasks({ monimal: { taskProfile: "config" } }), [
-    "lint",
-  ]);
+  assert.deepEqual(inferredTasks({}), ["build", "lint", "test", "typecheck"]);
   assert.deepEqual(inferredTasks({ devDependencies: { electron: "1" } }), [
     "build",
     "lint",
@@ -129,8 +153,14 @@ test("package tasks are inferred from independent manifest capabilities", () => 
     "dev",
     "start",
   ]);
+  assert.deepEqual(inferredTasks({ bin: {} }), [
+    "build",
+    "lint",
+    "test",
+    "typecheck",
+  ]);
 
-  const fixture = fs.mkdtempSync(path.join(os.tmpdir(), "monimal-tasks-"));
+  const fixture = createPackageFixture("monimal-tasks-");
   try {
     writeManifest(fixture, "packages/desktop", {
       name: "desktop",
@@ -145,6 +175,31 @@ test("package tasks are inferred from independent manifest capabilities", () => 
       "packages/desktop is missing inferred typecheck script; add scripts.typecheck",
       "packages/desktop is missing inferred package script; add scripts.package",
       "packages/desktop is missing inferred start script; add scripts.start",
+    ]);
+
+    writeManifest(fixture, "packages/desktop", {
+      name: "desktop",
+      devDependencies: { electron: "1" },
+      scripts: {
+        build: " ",
+        lint: "lint",
+        test: "test",
+        typecheck: "typecheck",
+        package: "package",
+        start: "start",
+      },
+      monimal: {
+        taskExemptions: {
+          test: "",
+          unknown: "No such required task.",
+        },
+      },
+    });
+    const bypasses = auditWorkspacePackages(fixture, ["packages/desktop"]);
+    assert.deepEqual(bypasses.issues, [
+      "packages/desktop exempts test without a reason",
+      "packages/desktop has stale unknown task exemption",
+      "packages/desktop is missing inferred build script; add scripts.build",
     ]);
   } finally {
     fs.rmSync(fixture, { recursive: true, force: true });

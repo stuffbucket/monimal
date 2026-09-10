@@ -9,19 +9,24 @@ function readManifest(filePath) {
 }
 
 export function discoverPackageManifests(root) {
-  const manifests = [];
-  const visit = (directory) => {
-    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
-      if (entry.name === "node_modules" || entry.name.startsWith(".")) continue;
-      const absolute = path.join(directory, entry.name);
-      if (entry.isDirectory()) visit(absolute);
-      else if (entry.name === "package.json") {
-        manifests.push(path.relative(root, path.dirname(absolute)));
-      }
-    }
-  };
-  visit(path.join(root, "packages"));
-  return manifests.sort();
+  return execFileSync(
+    "git",
+    [
+      "ls-files",
+      "--cached",
+      "--others",
+      "--exclude-standard",
+      "-z",
+      "--",
+      ":(glob)packages/**/package.json",
+    ],
+    { cwd: root, encoding: "utf8" },
+  )
+    .split("\0")
+    .filter(Boolean)
+    .filter((manifest) => fs.existsSync(path.join(root, manifest)))
+    .map((manifest) => path.dirname(manifest))
+    .sort();
 }
 
 export function pnpmWorkspacePaths(root) {
@@ -35,10 +40,6 @@ export function pnpmWorkspacePaths(root) {
 }
 
 export function inferredTasks(manifest) {
-  const profile = manifest.monimal?.taskProfile;
-  if (profile === "config") return ["lint"];
-  if (profile !== undefined) return [];
-
   const dependencies = {
     ...manifest.dependencies,
     ...manifest.devDependencies,
@@ -47,7 +48,12 @@ export function inferredTasks(manifest) {
     return [...baseTasks, "package", "start"];
   }
   if (dependencies.astro) return ["build", "dev", "test"];
-  if (manifest.bin) return [...baseTasks, "dev", "start"];
+  const hasBin =
+    (typeof manifest.bin === "string" && Boolean(manifest.bin.trim())) ||
+    (typeof manifest.bin === "object" &&
+      manifest.bin !== null &&
+      Object.keys(manifest.bin).length > 0);
+  if (hasBin) return [...baseTasks, "dev", "start"];
   return baseTasks;
 }
 
@@ -73,6 +79,9 @@ export function auditWorkspacePackages(root, workspacePaths) {
           `${packagePath} excludes itself from the workspace without monimal.workspaceReason`,
         );
       }
+      if (manifest.private !== true) {
+        issues.push(`${packagePath} excludes itself from the workspace but is not private`);
+      }
       continue;
     }
     if (!workspace.has(packagePath)) {
@@ -80,13 +89,27 @@ export function auditWorkspacePackages(root, workspacePaths) {
       continue;
     }
 
-    const profile = manifest.monimal?.taskProfile;
-    if (profile !== undefined && profile !== "config") {
-      issues.push(`${packagePath} declares unknown monimal.taskProfile ${JSON.stringify(profile)}`);
+    const requiredTasks = inferredTasks(manifest);
+    const exemptions = manifest.monimal?.taskExemptions ?? {};
+    if (
+      typeof exemptions !== "object" ||
+      exemptions === null ||
+      Array.isArray(exemptions)
+    ) {
+      issues.push(`${packagePath} has invalid monimal.taskExemptions`);
       continue;
     }
-    for (const task of inferredTasks(manifest)) {
-      if (typeof manifest.scripts?.[task] !== "string") {
+    for (const [task, reason] of Object.entries(exemptions)) {
+      if (!requiredTasks.includes(task)) {
+        issues.push(`${packagePath} has stale ${task} task exemption`);
+      } else if (typeof reason !== "string" || !reason.trim()) {
+        issues.push(`${packagePath} exempts ${task} without a reason`);
+      }
+    }
+    for (const task of requiredTasks) {
+      if (Object.hasOwn(exemptions, task)) continue;
+      const script = manifest.scripts?.[task];
+      if (typeof script !== "string" || !script.trim()) {
         issues.push(
           `${packagePath} is missing inferred ${task} script; add scripts.${task}`,
         );
