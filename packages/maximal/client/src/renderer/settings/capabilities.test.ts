@@ -1,6 +1,7 @@
 import type {
   AccountsListResponse,
   AuthStatus,
+  ConnectionEntry,
   TokenUsagePeriod,
 } from '@stuffbucket/maximal-core/settings-types'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -19,6 +20,16 @@ import {
 
 const authStatus: AuthStatus = { state: 'unauthenticated' }
 const accounts: AccountsListResponse = { accounts: [], active_key: null }
+const connectionEntry: ConnectionEntry = {
+  id: 'claude-code',
+  name: 'Claude Code',
+  status: 'connected',
+  allowed_actions: ['disconnect'],
+  detail: null,
+  credential: null,
+  ownership: null,
+  recovery: null,
+}
 const appEntry = {
   id: 'claude-code' as const,
   name: 'Claude Code',
@@ -113,6 +124,17 @@ function fakeBridge(): MaximalBridge {
       observabilityOverview: vi.fn(),
       observabilityRequests: vi.fn(),
       observabilityRequest: vi.fn(),
+      connectionsList: vi.fn(async () =>
+        success({
+          clients: [],
+          manual_credentials: [],
+          require_known_keys: false,
+        }),
+      ),
+      connectionsAct: vi.fn(async () => success(connectionEntry)),
+      connectionsRevealCredential: vi.fn(async () =>
+        success({ id: 'key-1', key: 'testkey123' }),
+      ),
       appsList: vi.fn(async () => success({ apps: [] })),
       appsSetEnabled: vi.fn(async () => success(appEntry)),
       apiKeysList: vi.fn(async () => success({ entries: [], enforcing: false })),
@@ -194,6 +216,17 @@ describe('createCoreSettingsCapabilities', () => {
     await expect(capabilities.connection.proxyUrl()).resolves.toBe(
       'http://127.0.0.1:4141',
     )
+    await expect(capabilities.connections.list()).resolves.toEqual({
+      clients: [],
+      manual_credentials: [],
+      require_known_keys: false,
+    })
+    await expect(
+      capabilities.connections.act('claude-code', 'connect'),
+    ).resolves.toMatchObject({ id: 'claude-code', status: 'connected' })
+    await expect(
+      capabilities.connections.revealCredential('key-1'),
+    ).resolves.toEqual({ id: 'key-1', key: 'testkey123' })
     await expect(capabilities.general.menuBarMode()).resolves.toEqual({
       enabled: false,
       pending: false,
@@ -266,6 +299,13 @@ describe('createCoreSettingsCapabilities', () => {
       'attempt-1',
     )
     expect(window.maximal.menuBarMode.disable).toHaveBeenCalledOnce()
+    expect(window.maximal.control.connectionsAct).toHaveBeenCalledWith(
+      'claude-code',
+      'connect',
+    )
+    expect(
+      window.maximal.control.connectionsRevealCredential,
+    ).toHaveBeenCalledWith('key-1')
     expect(window.maximal.control.appsSetEnabled).toHaveBeenCalledWith(
       'claude-code',
       true,
@@ -305,6 +345,31 @@ describe('createCoreSettingsCapabilities', () => {
         Number.POSITIVE_INFINITY,
     )
     expect(listener).toHaveBeenCalledWith('settings-models-heading')
+  })
+
+  it('maps legacy connection destinations from retained and live requests', async () => {
+    let liveRequest: (sectionId: string | null) => void = () => {
+      throw new Error('live listener was not installed')
+    }
+    window.maximal.onOpenSettings = vi.fn(
+      (listener: (sectionId: string | null) => void) => {
+        liveRequest = listener
+        return () => {}
+      },
+    )
+    window.maximal.pendingSettingsRequest = vi.fn(async () => ({
+      sectionId: 'settings-api-keys-heading',
+    }))
+    const listener = vi.fn()
+    const capabilities = createCoreSettingsCapabilities()
+
+    capabilities.onOpenRequest(listener)
+    await Promise.resolve()
+    await Promise.resolve()
+    liveRequest('settings-apps-heading')
+
+    expect(listener).toHaveBeenNthCalledWith(1, 'settings-connections-heading')
+    expect(listener).toHaveBeenNthCalledWith(2, 'settings-connections-heading')
   })
 
   it('keeps live Settings delivery usable when retained-request consumption fails', async () => {

@@ -23,6 +23,7 @@ repository or imported commit:
 | `packages/maximal-models`                 | Model runtime discovery, lifecycle, reconciliation, and dispatch through DSH.             |
 | `packages/model-qwen3-0.6b-q8-gguf`       | Qwen3 0.6B Q8_0 GGUF artifact metadata and verified provisioning source.                  |
 | `packages/maximal-observability-contract` | Runtime-neutral, versioned traffic-observability schemas and passive observer interfaces. |
+| `packages/maximal-configurators`          | Statically linked first-party client configurators using Core's capability host.          |
 | `packages/maximal-observability`          | Renderer-only traffic explorer components and source interface.                           |
 | `packages/model-runtimes/anthropic`       | Profile-installed adapter for Anthropic-compatible Messages APIs.                         |
 | `packages/model-runtimes/llama-server`    | Private descriptor scaffold for a llama.cpp HTTP model runtime.                           |
@@ -176,6 +177,10 @@ package provenance or publisher identity -- the proxy does that.
   Three entry points: `./base` (ignores + `js.configs.recommended`, used by
   the workspace packages), `./typescript` (adds typescript-eslint), `./service`
   (adds the quality plugins and prettier for service packages).
+- Added `packages/maximal-configurators` as the monorepo-native, statically
+  linked set of first-party client configurators. It depends only on Core's
+  capability-scoped `configurator-host` subpath. The package owns Cordis
+  registration; Core owns filesystem, process, credential, and network effects.
 - `maximal-core/downstream`: declares itself as an independently installed
   compatibility fixture so the root package-onboarding audit does not treat it
   as a missing nested workspace package.
@@ -264,6 +269,9 @@ package provenance or publisher identity -- the proxy does that.
   its gap list had no owner -- `docs/dev/client-architecture.md` listed four
   gaps without sequencing them. The README owns the sequence; that section now
   links to it rather than restating it.
+- `maximal-client#build` depends on the `maximal-configurators` build because
+  the sidecar bundles `maximal/src/main.ts` outside the client package's own
+  dependency graph.
 - `maximal/client`: was on `typescript ^7.0.2` with `@babel/eslint-parser` and
   no typescript-eslint. bb12eaf moved the workspace to one TypeScript, so it
   now lints through the type-aware recommended profile in

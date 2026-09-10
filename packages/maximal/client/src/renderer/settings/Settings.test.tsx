@@ -47,6 +47,15 @@ function fakeCapabilities(): SettingsCapabilities {
       cancelMenuBarOnly: vi.fn(async () => ({ enabled: false, pending: false })),
       disableMenuBarOnly: vi.fn(async () => ({ enabled: false, pending: false })),
     },
+    connections: {
+      list: vi.fn(async () => ({
+        clients: [],
+        manual_credentials: [],
+        require_known_keys: false,
+      })),
+      act: vi.fn(),
+      revealCredential: vi.fn(),
+    },
     apps: {
       list: vi.fn(async () => ({ apps: [] })),
       setEnabled: vi.fn(),
@@ -216,31 +225,31 @@ describe('Settings', () => {
   })
 
   it('selects a section requested while opening Settings', async () => {
-    const surface = await renderSettings({ id: 'settings-api-keys-heading' })
+    const surface = await renderSettings({ id: 'settings-connections-heading' })
 
-    expect(activeHeadingId(surface)).toBe('settings-api-keys-heading')
-    expect(selectedId(surface)).toBe('settings-api-keys-heading')
+    expect(activeHeadingId(surface)).toBe('settings-connections-heading')
+    expect(selectedId(surface)).toBe('settings-connections-heading')
   })
 
   it('adopts live and repeated native section requests', async () => {
-    const surface = await renderSettings({ id: 'settings-endpoint-heading' })
+    const surface = await renderSettings({ id: 'settings-connections-heading' })
     const models = surface.querySelector<HTMLButtonElement>(
       '[data-testid="settings-rail-settings-models-heading"]',
     )
     if (models === null) throw new Error('the Models rail entry did not render')
 
     await act(async () => models.click())
-    await rerender({ id: 'settings-endpoint-heading' })
-    expect(activeHeadingId(surface)).toBe('settings-endpoint-heading')
+    await rerender({ id: 'settings-connections-heading' })
+    expect(activeHeadingId(surface)).toBe('settings-connections-heading')
 
     await act(async () => models.click())
-    await rerender({ id: 'settings-endpoint-heading' })
-    expect(activeHeadingId(surface)).toBe('settings-endpoint-heading')
-    expect(selectedId(surface)).toBe('settings-endpoint-heading')
+    await rerender({ id: 'settings-connections-heading' })
+    expect(activeHeadingId(surface)).toBe('settings-connections-heading')
+    expect(selectedId(surface)).toBe('settings-connections-heading')
   })
 
   it('preserves the user selection when a native request is cleared', async () => {
-    const surface = await renderSettings({ id: 'settings-endpoint-heading' })
+    const surface = await renderSettings({ id: 'settings-connections-heading' })
     const models = surface.querySelector<HTMLButtonElement>(
       '[data-testid="settings-rail-settings-models-heading"]',
     )

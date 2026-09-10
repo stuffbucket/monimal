@@ -230,7 +230,7 @@ describe('installApplicationMenu, macOS application menu', () => {
     expect(actions.map((item) => item.label)).toEqual(['Accounts', 'Apps'])
     expect(onOpenSettings.mock.calls.flat()).toEqual([
       'settings-account-heading',
-      'settings-apps-heading',
+      'settings-connections-heading',
     ])
   })
 })

@@ -81,6 +81,30 @@ const emptyRequestPage = {
   nextCursor: null,
   hasMore: false,
 }
+const connectedClaudeCode = {
+  id: 'claude-code',
+  name: 'Claude Code',
+  status: 'connected',
+  allowed_actions: ['disconnect'],
+  detail: null,
+  credential: {
+    id: 'managed:claude-code',
+    label: 'Claude Code',
+    kind: 'managed',
+    enabled: true,
+  },
+  ownership: null,
+  recovery: null,
+} as const
+const connections = {
+  clients: [connectedClaudeCode],
+  manual_credentials: [],
+  require_known_keys: false,
+}
+const revealedCredential = {
+  id: 'managed:claude-code',
+  key: 'testkey123',
+}
 
 function discovery(overrides: Record<string, unknown> = {}): unknown {
   return {
@@ -96,6 +120,9 @@ function discovery(overrides: Record<string, unknown> = {}): unknown {
         'observability/overview',
         'observability/requests',
         'observability/request',
+        'connections/list',
+        'connections/act',
+        'connections/revealCredential',
         'localModels/list',
         'localModels/ensure',
         'localModels/cancel',
@@ -231,6 +258,9 @@ function fullLiveClient(
     'observability/overview': emptyOverview,
     'observability/requests': emptyRequestPage,
     'observability/request': null,
+    'connections/list': connections,
+    'connections/act': connectedClaudeCode,
+    'connections/revealCredential': revealedCredential,
     'localModels/list': localModelCatalogue,
     'localModels/ensure': {
       modelKey: 'qwen',
@@ -328,6 +358,16 @@ describe('named control operations', () => {
     await expect(
       harness.session.observabilityRequest({ requestId: 'req-1' }),
     ).resolves.toEqual({ ok: true, value: null })
+    await expect(harness.session.connectionsList()).resolves.toEqual({
+      ok: true,
+      value: connections,
+    })
+    await expect(
+      harness.session.connectionsAct('claude-code', 'disconnect'),
+    ).resolves.toEqual({ ok: true, value: connectedClaudeCode })
+    await expect(
+      harness.session.connectionsRevealCredential('managed:claude-code'),
+    ).resolves.toEqual({ ok: true, value: revealedCredential })
     await expect(harness.session.localModelsList()).resolves.toEqual({
       ok: true,
       value: localModelCatalogue,
@@ -360,6 +400,15 @@ describe('named control operations', () => {
       { method: 'observability/overview', params: overviewQuery },
       { method: 'observability/requests', params: requestsQuery },
       { method: 'observability/request', params: { requestId: 'req-1' } },
+      { method: 'connections/list' },
+      {
+        method: 'connections/act',
+        params: { id: 'claude-code', action: 'disconnect' },
+      },
+      {
+        method: 'connections/revealCredential',
+        params: { id: 'managed:claude-code' },
+      },
       { method: 'localModels/list' },
       { method: 'localModels/ensure', params: { modelKey: 'qwen' } },
       {
@@ -407,6 +456,14 @@ describe('named control operations', () => {
         retryable: false,
       },
     })
+    await expect(harness.session.connectionsList()).resolves.toEqual({
+      ok: false,
+      error: {
+        reason: 'unsupported',
+        message: 'maximal-core does not advertise connections/list',
+        retryable: false,
+      },
+    })
     expect(live.calls).toEqual([])
   })
 
@@ -432,6 +489,9 @@ describe('named control operations', () => {
     const live = fullLiveClient({
       'accounts/list': { accounts: 'invalid' },
       'observability/overview': { contractVersion: 1 },
+      'connections/list': { clients: 'invalid' },
+      'connections/act': { id: 'Claude Code' },
+      'connections/revealCredential': { id: 'key-1' },
     })
     const harness = createHarness({ clients: [discover, live] })
 
@@ -443,6 +503,22 @@ describe('named control operations', () => {
       harness.session.observabilityOverview(
         TrafficOverviewQuerySchema.parse({}),
       ),
+    ).resolves.toMatchObject({
+      ok: false,
+      error: { reason: 'internal', retryable: false },
+    })
+    await expect(harness.session.connectionsList()).resolves.toMatchObject({
+      ok: false,
+      error: { reason: 'internal', retryable: false },
+    })
+    await expect(
+      harness.session.connectionsAct('claude-code', 'connect'),
+    ).resolves.toMatchObject({
+      ok: false,
+      error: { reason: 'internal', retryable: false },
+    })
+    await expect(
+      harness.session.connectionsRevealCredential('key-1'),
     ).resolves.toMatchObject({
       ok: false,
       error: { reason: 'internal', retryable: false },

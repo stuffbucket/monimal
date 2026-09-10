@@ -21,6 +21,7 @@ import {
   TrafficRequestListSchema,
 } from "@stuffbucket/maximal-observability-contract"
 
+import type { ConfiguratorRegistry } from "~/lib/configurator-host"
 import type { ClientRosterReader } from "~/lib/http/active-clients"
 import type { RpcRegistry } from "~/lib/jsonrpc/dispatch"
 import type { ControlHub } from "~/lib/live/hub"
@@ -47,12 +48,16 @@ import {
 } from "~/lib/auth/github-token-store"
 import { getConfig } from "~/lib/config/config"
 import {
+  actOnConnection,
   buildDiagnostics,
   createApiKey,
   listApiKeys,
+  listConnections,
   removeApiKey,
+  revealConnectionCredential,
   setApiKeyEnforcement,
   setAppEnabled,
+  setConfiguratorEnabled,
   SettingsOperationError,
   updateApiKey,
 } from "~/lib/config/settings-operations"
@@ -62,6 +67,8 @@ import {
   ApiKeyIdRequest,
   ApiKeyUpdateRpcRequest,
   AppSetEnabledRequest,
+  ConnectionActionRequest,
+  ConnectionCredentialIdRequest,
   TokenUsageRequest,
 } from "~/lib/config/settings-types"
 import { listActiveClients } from "~/lib/http/active-clients"
@@ -83,6 +90,7 @@ import { emitQuitRequest, emitUpdateRequest } from "~/lib/start/boot-status"
 import { getTokenUsageSummary } from "~/lib/token-usage"
 import { BUILD_VERSION } from "~/lib/update/build-info"
 import { getUpdateStatus } from "~/lib/update/update-check"
+import { projectControlConfig } from "~/routes/control/config-projection"
 
 export interface ControlRpcOperationOverrides {
   createApiKey?: typeof createApiKey
@@ -91,6 +99,7 @@ export interface ControlRpcOperationOverrides {
 }
 
 export interface ControlRpcDeps {
+  configurators?: ConfiguratorRegistry
   hub: () => ControlHub<ControlSnapshot>
   listProviderModels?: () => Promise<ReadonlyArray<ProviderCatalogueModel>>
   mutex: AsyncMutex
@@ -166,17 +175,57 @@ async function asAsyncRpcOperation<T>(operation: () => Promise<T>): Promise<T> {
   }
 }
 
+function createConnectionActionRpc(
+  configurators: ConfiguratorRegistry | undefined,
+  hub: ControlRpcDeps["hub"],
+  readApps: () => ReturnType<typeof buildAppsList>,
+) {
+  return async (params: unknown) => {
+    const { id, action } = parseParams(
+      ConnectionActionRequest,
+      params,
+      "Expected { id, action: connect | disconnect | reconnect }.",
+    )
+    if (!configurators) {
+      throw new RpcParamsError("No configurators are registered.")
+    }
+    const connection = await asAsyncRpcOperation(() =>
+      actOnConnection(configurators, id, action),
+    )
+    hub().emit("apps", await readApps())
+    return connection
+  }
+}
+
 function createSettingsRpcMethods({
+  configurators,
   hub,
   listProviderModels = () => Promise.resolve([]),
   operations = {},
 }: ControlRpcDeps): RpcRegistry {
   const createApiKeyOperation = operations.createApiKey ?? createApiKey
   const refreshModels = operations.refreshModels ?? cacheModels
-  const setAppEnabledOperation = operations.setAppEnabled ?? setAppEnabled
+  const setAppEnabledOperation =
+    operations.setAppEnabled
+    ?? (configurators ?
+      (appId, enabled) => setConfiguratorEnabled(configurators, appId, enabled)
+    : setAppEnabled)
+  const readApps = () => buildAppsList(configurators)
+  const readConnections = () => listConnections(configurators)
 
   return {
-    "apps/list": () => buildAppsList(),
+    "connections/list": readConnections,
+    "connections/act": createConnectionActionRpc(configurators, hub, readApps),
+    "connections/revealCredential": (params: unknown) =>
+      asRpcOperation(() => {
+        const { id } = parseParams(
+          ConnectionCredentialIdRequest,
+          params,
+          "Expected { id } string.",
+        )
+        return revealConnectionCredential(id)
+      }),
+    "apps/list": readApps,
     "apiKeys/list": () => listApiKeys(),
     "models/list": async () => buildModelsList(await listProviderModels()),
     "usage/get": (params: unknown) => {
@@ -201,7 +250,7 @@ function createSettingsRpcMethods({
       const app = await asAsyncRpcOperation(() =>
         setAppEnabledOperation(appId, enabled),
       )
-      hub().emit("apps", await buildAppsList())
+      hub().emit("apps", await readApps())
       return app
     },
     "apiKeys/create": (params: unknown) =>
@@ -319,7 +368,7 @@ export function createControlRpcMethods(deps: ControlRpcDeps): RpcRegistry {
       const result = await trafficQueries.getRequest(query.requestId)
       return result === null ? null : TrafficRequestDetailSchema.parse(result)
     },
-    "config/get": () => getConfig(),
+    "config/get": () => projectControlConfig(getConfig()),
     "clients/list": () => {
       const clients = listClients()
       return { clients, total: clients.length }
@@ -388,7 +437,13 @@ export function createControlRpcMethods(deps: ControlRpcDeps): RpcRegistry {
         methods: [...Object.keys(registry), "server/discover"].sort(),
         feed: true,
       },
-      identity: { name: "maximal-core", version: BUILD_VERSION },
+      identity: {
+        name: "maximal-core",
+        version: BUILD_VERSION,
+        instanceId: state.instanceId,
+        pid: process.pid,
+        startedAt: new Date(state.startedAtMs).toISOString(),
+      },
       // Both bound ports (maximal-core#10). A host reaches the control plane on
       // an ephemeral port but must advertise `/v1` on the public one, and the
       // public one is not necessarily the requested 4141 — it falls back when

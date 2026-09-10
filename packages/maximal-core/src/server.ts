@@ -8,6 +8,7 @@ import { cors } from "hono/cors"
 import { logger } from "hono/logger"
 
 import type { AppConfig } from "~/lib/config/config"
+import type { ConfiguratorRegistry } from "~/lib/configurator-host"
 import type {
   ProviderGatewayFactory,
   ProviderHostConfigSource,
@@ -165,6 +166,7 @@ function applyCommonMiddleware(app: Hono): void {
 }
 
 export interface CreateServerAppsOptions {
+  configurators?: ConfiguratorRegistry
   createProviderGateway?: ProviderGatewayFactory
   providerConfigSource?: ProviderHostConfigSource
   providerGateway?: ProviderGateway
@@ -218,6 +220,7 @@ export function createServerApps(
   controlApp.route(
     "/control",
     createControlRoutes({
+      configurators: options.configurators,
       listProviderModels: () => providerDispatcher.listModels(),
       localModelOperations,
       trafficQueries:

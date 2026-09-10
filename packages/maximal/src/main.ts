@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 
+import { createBuiltinConfiguratorRuntime } from "@stuffbucket/maximal-configurators"
 import { runCli } from "@stuffbucket/maximal-core/provider-host"
 
 import {
@@ -13,6 +14,7 @@ export async function main(
   options: MaximalCompositionOptions = {},
 ): Promise<void> {
   await runCli({
+    createConfiguratorRuntime: createBuiltinConfiguratorRuntime,
     createProviderGateway: async (context) =>
       await createDshProviderGateway(context, options),
   })

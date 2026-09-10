@@ -8,6 +8,8 @@
  *   - tokenUsageEventBus recorded      → coalesced usage flush  (edge-only)
  */
 
+import type { ConfiguratorRegistry } from "~/lib/configurator-host"
+
 import { settingsEventBus } from "~/lib/config/settings-events"
 import { ControlHub } from "~/lib/live/hub"
 import {
@@ -29,13 +31,15 @@ let hub: ControlHub<ControlSnapshot> | null = null
 let teardown: Array<() => void> = []
 
 export function getControlHub(
+  configurators?: ConfiguratorRegistry,
   listProviderModels: () => Promise<
     ReadonlyArray<ProviderCatalogueModel>
   > = () => Promise.resolve([]),
 ): ControlHub<ControlSnapshot> {
   if (hub) return hub
   const created = new ControlHub<ControlSnapshot>({
-    buildSnapshot: async () => buildControlSnapshot(await listProviderModels()),
+    buildSnapshot: async () =>
+      buildControlSnapshot(configurators, await listProviderModels()),
     heartbeatMs: HEARTBEAT_MS,
   })
 

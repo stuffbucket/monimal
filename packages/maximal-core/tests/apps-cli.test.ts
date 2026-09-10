@@ -14,8 +14,10 @@ import type { ArgsDef, CommandDef } from "citty"
 
 import { describe, expect, test } from "bun:test"
 
+import type { AppControlClient } from "~/apps/cli"
+
 import { claudeDesktopCli } from "~/apps/claude-desktop/cli"
-import { apiCommand, appCommand } from "~/apps/cli"
+import { apiCommand, appCommand, createAppCommand } from "~/apps/cli"
 import { defineComingSoonApp } from "~/apps/coming-soon"
 import { getAllApps, getApp } from "~/apps/registry"
 import { apiKeyHelperCommand } from "~/lib/auth/api-key-helper"
@@ -43,6 +45,20 @@ async function argsOf(cmd: unknown): Promise<ArgsDef> {
   const typed = cmd as CommandDef
   const args = await resolveMaybe(typed.args)
   return args ?? {}
+}
+
+async function expectRejects(
+  operation: () => Promise<unknown>,
+  pattern: RegExp,
+): Promise<void> {
+  let error: unknown
+  try {
+    await operation()
+  } catch (caught) {
+    error = caught
+  }
+  expect(error).toBeInstanceOf(Error)
+  expect((error as Error).message).toMatch(pattern)
 }
 
 const APP_IDS = getAllApps().map((a) => a.id)
@@ -76,6 +92,57 @@ describe("maximal app command", () => {
     expect(args.disable.type).toBe("boolean")
     expect(args.force.type).toBe("boolean")
     expect(args.managed.type).toBe("boolean")
+  })
+
+  test("routes mutations through the live control plane", async () => {
+    const calls: Array<{ appId: string; enabled: boolean }> = []
+    const control: AppControlClient = {
+      listApps: () => Promise.resolve({ apps: [] }),
+      setAppEnabled: (appId, enabled) => {
+        calls.push({ appId, enabled })
+        return Promise.resolve({
+          id: appId,
+          name: "Claude Code",
+          kind: "config",
+          enabled,
+          status: "ready",
+          installs: [],
+          install: null,
+          conflict: null,
+        })
+      },
+    }
+    const command = createAppCommand({
+      connect: () => Promise.resolve(control),
+    })
+    const subs = await subCommands(command)
+    const run = (subs["claude-code"] as AnyCommand).run
+    if (!run) throw new Error("claude-code command has no run handler")
+
+    await (
+      run as (context: { args: Record<string, unknown> }) => Promise<void>
+    )({
+      args: { enable: true, disable: false },
+    })
+
+    expect(calls).toEqual([{ appId: "claude-code", enabled: true }])
+  })
+
+  test("refuses mutation when no live control plane owns the target", async () => {
+    const command = createAppCommand({
+      connect: () => Promise.resolve(null),
+    })
+    const subs = await subCommands(command)
+    const run = (subs["claude-code"] as AnyCommand).run
+    if (!run) throw new Error("claude-code command has no run handler")
+
+    await expectRejects(
+      () =>
+        (run as (context: { args: Record<string, unknown> }) => Promise<void>)({
+          args: { enable: true, disable: false },
+        }),
+      /Start maximal before changing a connection/,
+    )
   })
 })
 

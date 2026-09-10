@@ -1,41 +1,56 @@
 /**
- * Single atomic JSON writer shared by every app-config writer (Claude Code's
- * `settings.json`, Claude Desktop's 3P config, …).
+ * Atomic JSON replacement shared by Core and client configurators.
  *
- * Why this lives in `~/lib/` and not under one app: keeping two byte-for-byte
- * copies of a security-relevant write invited exactly the drift that #231
- * caught. Consolidating means neither app owns the other's behavior.
- *
- * Guarantees:
- *  - `mkdir -p` the parent dir.
- *  - Clear any stale `<file>.tmp` first (`unlink`, ignoring ENOENT). `unlink`
- *    removes the temp entry itself — including a planted symlink — WITHOUT
- *    following it to a target, so it is symlink-safe. Its real job is crash
- *    recovery: a write that died between open and rename leaves a stale
- *    regular temp behind, and this clears it so the next write self-heals
- *    instead of failing forever.
- *  - Open the temp with `O_WRONLY|O_CREAT|O_EXCL` @ mode 0o600. O_EXCL is the
- *    actual symlink guard: the kernel refuses to open through a symlink at the
- *    final path component and fails the create if anything already exists
- *    there. The EEXIST branch below is a concurrency/attack backstop (two
- *    writers racing the same temp) — rarely hit once the unlink has run, but
- *    kept for a clear message rather than a raw errno.
- *  - `write` + `fsync` + atomic `rename` into place.
+ * Each writer uses its own O_EXCL temporary file. Concurrent writers can never
+ * unlink, overwrite, or rename one another's in-flight temporary file. The
+ * destination's mode is preserved when it is a regular file; new files are
+ * owner-only. The file and containing directory are synced around the rename so
+ * a successful return means the replacement is durable on supported filesystems.
  */
 
+import { randomUUID } from "node:crypto"
 import fs from "node:fs"
 import path from "node:path"
 
 export interface AtomicWriteJsonOptions {
-  /** Human-readable context for the concurrency/symlink error message, e.g.
-   *  `"Claude Code settings"`. Defaults to `"file"`. */
+  /** Human-readable context for filesystem errors, e.g. Claude Code settings. */
   label?: string
 }
 
+function existingFileMode(filePath: string): number {
+  try {
+    const stat = fs.lstatSync(filePath)
+    return stat.isFile() ? stat.mode & 0o777 : 0o600
+  } catch (error: unknown) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      return 0o600
+    }
+    throw error
+  }
+}
+
+function syncDirectory(directory: string): void {
+  let descriptor: number | undefined
+  try {
+    descriptor = fs.openSync(directory, fs.constants.O_RDONLY)
+    fs.fsyncSync(descriptor)
+  } catch (error: unknown) {
+    if (
+      process.platform === "win32"
+      && error instanceof Error
+      && "code" in error
+      && (error.code === "EINVAL" || error.code === "EPERM")
+    ) {
+      return
+    }
+    throw error
+  } finally {
+    if (descriptor !== undefined) fs.closeSync(descriptor)
+  }
+}
+
 /**
- * Atomically write `value` as pretty-printed JSON (2-space indent, trailing
- * newline) to `filePath`. Clears a stale temp first (crash recovery) and
- * writes through a fresh O_EXCL temp (symlink-safe) before renaming into place.
+ * Atomically write `value` as pretty-printed JSON with a trailing newline.
  */
 export function atomicWriteJson(
   filePath: string,
@@ -43,40 +58,42 @@ export function atomicWriteJson(
   opts: AtomicWriteJsonOptions = {},
 ): void {
   const label = opts.label ?? "file"
-  fs.mkdirSync(path.dirname(filePath), { recursive: true })
-  const tmp = `${filePath}.tmp`
+  const directory = path.dirname(filePath)
+  fs.mkdirSync(directory, { recursive: true })
+
+  const mode = existingFileMode(filePath)
+  const temporaryPath = `${filePath}.tmp-${process.pid}-${randomUUID()}`
   const json = `${JSON.stringify(value, null, 2)}\n`
-  // Clear a stale temp (e.g. from a crashed prior write). unlink removes the
-  // entry itself without following a symlink, so this is symlink-safe; ENOENT
-  // (no stale temp) is the normal case.
+  let descriptor: number | undefined
+
   try {
-    fs.unlinkSync(tmp)
-  } catch (err: unknown) {
-    if (!(err instanceof Error) || !("code" in err) || err.code !== "ENOENT") {
-      throw err
-    }
-  }
-  let fd: number
-  try {
-    fd = fs.openSync(
-      tmp,
+    descriptor = fs.openSync(
+      temporaryPath,
       fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL,
-      0o600,
+      mode,
     )
-  } catch (err: unknown) {
-    if (err instanceof Error && "code" in err && err.code === "EEXIST") {
-      throw new Error(
-        `refusing to write ${label}: ${tmp} already exists (possible symlink attack); remove it and retry`,
-        { cause: err },
-      )
+    fs.fchmodSync(descriptor, mode)
+    fs.writeFileSync(descriptor, json)
+    fs.fsyncSync(descriptor)
+    fs.closeSync(descriptor)
+    descriptor = undefined
+    fs.renameSync(temporaryPath, filePath)
+    syncDirectory(directory)
+  } catch (error: unknown) {
+    if (descriptor !== undefined) fs.closeSync(descriptor)
+    try {
+      fs.unlinkSync(temporaryPath)
+    } catch (cleanupError: unknown) {
+      if (
+        !(cleanupError instanceof Error)
+        || !("code" in cleanupError)
+        || cleanupError.code !== "ENOENT"
+      ) {
+        throw new Error(`failed to clean up ${label} temporary file`, {
+          cause: cleanupError,
+        })
+      }
     }
-    throw err
+    throw error
   }
-  try {
-    fs.writeFileSync(fd, json)
-    fs.fsyncSync(fd)
-  } finally {
-    fs.closeSync(fd)
-  }
-  fs.renameSync(tmp, filePath)
 }

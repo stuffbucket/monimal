@@ -1,7 +1,7 @@
 import consola from "consola"
 
 import { ensureDefaultEndpointKey } from "~/lib/auth/api-key-helper"
-import { getConfig, writeConfig } from "~/lib/config/config"
+import { getConfig, updateConfig } from "~/lib/config/config"
 
 import {
   type ApiKeyHelperResolver,
@@ -21,12 +21,11 @@ export function claudeCodeRoutingIntended(): boolean {
  * (`claudeCodeRoutingIntended`) so the intent has a SINGLE owner: both the CLI
  * (`maximal app claude-code --enable/--disable`) and the Settings HTTP route
  * flow through `claudeCodeApp.enable()/disable()`, which call this — nothing
- * else writes the flag. Round-trips through `writeConfig` so the merge is
- * validated and the in-memory cache stays consistent.
+ * else writes the flag. The fresh-read transaction preserves concurrent
+ * changes from another Maximal process.
  */
 export function setClaudeCodeRoutingIntent(enabled: boolean): void {
-  const config = getConfig()
-  writeConfig({
+  updateConfig((config) => ({
     ...config,
     apps: {
       ...config.apps,
@@ -35,7 +34,7 @@ export function setClaudeCodeRoutingIntent(enabled: boolean): void {
         enabled,
       },
     },
-  })
+  }))
 }
 
 export function reconcileClaudeCodeOnBoot(

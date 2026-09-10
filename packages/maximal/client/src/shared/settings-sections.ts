@@ -17,7 +17,7 @@
  *
  * ## Why the ids look like heading ids
  *
- * Because they are. Each panel declares an `<h2 id>` for its own
+ * Because they are. Each panel declares an `<h1 id>` for its own
  * `aria-labelledby`, and the rail selects that panel. Reusing the id avoids a
  * second section key that could drift from the heading it names.
  *
@@ -38,9 +38,7 @@
 export const SETTINGS_SECTION_IDS = [
   'settings-account-heading',
   'settings-general-heading',
-  'settings-apps-heading',
-  'settings-endpoint-heading',
-  'settings-api-keys-heading',
+  'settings-connections-heading',
   'settings-models-heading',
   'settings-local-models-heading',
   'settings-usage-heading',
@@ -68,9 +66,7 @@ export interface SettingsSectionSpec {
 export const SETTINGS_SECTIONS: readonly SettingsSectionSpec[] = [
   { id: 'settings-account-heading', label: 'Account' },
   { id: 'settings-general-heading', label: 'General' },
-  { id: 'settings-apps-heading', label: 'Apps' },
-  { id: 'settings-endpoint-heading', label: 'Endpoint' },
-  { id: 'settings-api-keys-heading', label: 'API keys' },
+  { id: 'settings-connections-heading', label: 'Connections' },
   { id: 'settings-models-heading', label: 'Models' },
   { id: 'settings-local-models-heading', label: 'Local models' },
   { id: 'settings-usage-heading', label: 'Usage' },
@@ -91,4 +87,18 @@ export function isSettingsSectionId(value: unknown): value is SettingsSectionId 
     typeof value === 'string' &&
     (SETTINGS_SECTION_IDS as readonly string[]).includes(value)
   )
+}
+
+const LEGACY_CONNECTION_SECTION_IDS = new Set([
+  'settings-apps-heading',
+  'settings-endpoint-heading',
+  'settings-api-keys-heading',
+])
+
+/** Map one-cycle legacy section requests onto their consolidated destination. */
+export function settingsSectionIdFrom(value: unknown): SettingsSectionId | null {
+  if (typeof value === 'string' && LEGACY_CONNECTION_SECTION_IDS.has(value)) {
+    return 'settings-connections-heading'
+  }
+  return isSettingsSectionId(value) ? value : null
 }

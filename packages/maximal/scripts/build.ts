@@ -11,12 +11,10 @@ const FORBIDDEN_INPUT_MARKERS = [
   "/../omlx/",
   "/@stuffbucket/anthropic-provider/",
   "/@stuffbucket/omlx/",
-  "/@deepseek-ai/cordis/",
   "/@deepseek-ai/dsh-llm/",
   "/@deepseek-ai/schemastery/",
   "/@stuffbucket+anthropic-provider@",
   "/@stuffbucket+omlx@",
-  "/@deepseek-ai+cordis@",
   "/@deepseek-ai+dsh-llm@",
   "/@deepseek-ai+schemastery@",
 ] as const

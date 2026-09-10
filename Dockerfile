@@ -93,6 +93,7 @@ COPY --chown=maximal:maximal packages/model-runtimes/anthropic/package.json pack
 COPY --chown=maximal:maximal packages/eslint-config/package.json packages/eslint-config/package.json
 COPY --chown=maximal:maximal packages/model-runtimes/llama-server/package.json packages/model-runtimes/llama-server/package.json
 COPY --chown=maximal:maximal packages/local-model-registry/package.json packages/local-model-registry/package.json
+COPY --chown=maximal:maximal packages/maximal-configurators/package.json packages/maximal-configurators/package.json
 COPY --chown=maximal:maximal packages/maximal-harness/package.json packages/maximal-harness/package.json
 COPY --chown=maximal:maximal packages/maximal-core/package.json packages/maximal-core/package.json
 COPY --chown=maximal:maximal packages/maximal-core/downstream/package.json packages/maximal-core/downstream/package.json

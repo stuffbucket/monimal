@@ -18,6 +18,8 @@
     "test:docker": "node scripts/docker-test.mjs",
     "test:inner": "node scripts/docker-workspace-test.mjs",
     "test:maximal-core:inner": "node scripts/assert-test-container.mjs && pnpm --filter @stuffbucket/maximal-core test",
+    "test:maximal-configurators:inner": "node scripts/assert-test-container.mjs && pnpm --filter @stuffbucket/maximal-configurators test",
+    "test:connections:inner": "node scripts/assert-test-container.mjs && pnpm --filter @stuffbucket/maximal-configurators test && pnpm --filter @stuffbucket/maximal-core test && pnpm --filter maximal-client test",
     "test:maximal-models:inner": "node scripts/assert-test-container.mjs && pnpm --filter @stuffbucket/maximal-models test",
     "test:policy:inner": "node scripts/assert-test-container.mjs && node --test tests/docker-test-policy.test.mjs",
     "docker:prune:test-images": "node scripts/prune-test-images.mjs",

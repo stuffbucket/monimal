@@ -1,5 +1,6 @@
 import { defineCommand } from "citty"
 
+import type { ConfiguratorRuntimeFactory } from "~/lib/configurator-host"
 import type { ProviderGatewayFactory } from "~/lib/provider-host-types"
 
 import { parseAccountType } from "~/lib/auth/auth-types"
@@ -9,6 +10,7 @@ import type { RunServerOptions } from "./run-server"
 import { runServer } from "./run-server"
 
 interface CreateStartCommandOptions {
+  createConfiguratorRuntime?: ConfiguratorRuntimeFactory
   createProviderGateway?: ProviderGatewayFactory
   runServer?: (options: RunServerOptions) => Promise<void>
 }
@@ -115,6 +117,7 @@ export function createStartCommand(options: CreateStartCommandOptions = {}) {
         showToken: args["show-token"],
         proxyEnv: args["proxy-env"],
         replace: args.replace,
+        createConfiguratorRuntime: options.createConfiguratorRuntime,
         createProviderGateway: options.createProviderGateway,
       })
     },

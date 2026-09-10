@@ -306,4 +306,3 @@ describe('the packaged llama check', () => {
     expect(llamaCheckLine({ ok: false, reason: 'x' }).startsWith(LLAMA_CHECK_OK)).toBe(false);
   });
 });
-

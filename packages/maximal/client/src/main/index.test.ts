@@ -21,6 +21,9 @@ interface ControlSessionSpies {
   observabilityOverview: ReturnType<typeof vi.fn>
   observabilityRequests: ReturnType<typeof vi.fn>
   observabilityRequest: ReturnType<typeof vi.fn>
+  connectionsList: ReturnType<typeof vi.fn>
+  connectionsAct: ReturnType<typeof vi.fn>
+  connectionsRevealCredential: ReturnType<typeof vi.fn>
   localModelsList: ReturnType<typeof vi.fn>
   localModelsEnsure: ReturnType<typeof vi.fn>
   localModelsCancel: ReturnType<typeof vi.fn>
@@ -240,6 +243,9 @@ const { createControlSessionMock, disposeControlSessionMock } = vi.hoisted(
         observabilityOverview: vi.fn(),
         observabilityRequests: vi.fn(),
         observabilityRequest: vi.fn(),
+        connectionsList: vi.fn(),
+        connectionsAct: vi.fn(),
+        connectionsRevealCredential: vi.fn(),
         localModelsList: vi.fn(),
         localModelsEnsure: vi.fn(),
         localModelsCancel: vi.fn(),
@@ -404,6 +410,38 @@ describe('closed IPC boundary', () => {
     )
   })
 
+  it('routes connection channels through validated session methods', async () => {
+    await loadIndexOn('darwin')
+    const session = controlSessionSpies()
+    const handler = (channel: string) => {
+      const registration = ipcMainHandle.mock.calls.find(
+        ([registered]) => registered === channel,
+      )
+      if (!registration) throw new Error(`${channel} IPC was not registered`)
+      return registration[1]
+    }
+
+    await handler(BRIDGE_CHANNELS.connectionsList)({})
+    await handler(BRIDGE_CHANNELS.connectionsAct)(
+      {},
+      'claude-code',
+      'reconnect',
+    )
+    await handler(BRIDGE_CHANNELS.connectionsRevealCredential)(
+      {},
+      'managed:claude-code',
+    )
+
+    expect(session.connectionsList).toHaveBeenCalledOnce()
+    expect(session.connectionsAct).toHaveBeenCalledWith(
+      'claude-code',
+      'reconnect',
+    )
+    expect(session.connectionsRevealCredential).toHaveBeenCalledWith(
+      'managed:claude-code',
+    )
+  })
+
   it('routes validated local model operations to named session methods', async () => {
     await loadIndexOn('darwin')
     const session = controlSessionSpies()
@@ -463,6 +501,32 @@ describe('closed IPC boundary', () => {
       expect(session[method]).not.toHaveBeenCalled()
     },
   )
+
+  it('rejects malformed connection identifiers and actions before dispatch', async () => {
+    await loadIndexOn('darwin')
+    const session = controlSessionSpies()
+    const actRegistration = ipcMainHandle.mock.calls.find(
+      ([channel]) => channel === BRIDGE_CHANNELS.connectionsAct,
+    )
+    const revealRegistration = ipcMainHandle.mock.calls.find(
+      ([channel]) => channel === BRIDGE_CHANNELS.connectionsRevealCredential,
+    )
+    const actHandler = actRegistration?.[1] as (
+      event: unknown,
+      id: unknown,
+      action: unknown,
+    ) => unknown
+    const revealHandler = revealRegistration?.[1] as (
+      event: unknown,
+      id: unknown,
+    ) => unknown
+
+    expect(() => actHandler({}, 'Claude Code', 'connect')).toThrow()
+    expect(() => actHandler({}, 'claude-code', 'replace')).toThrow()
+    expect(() => revealHandler({}, '')).toThrow()
+    expect(session.connectionsAct).not.toHaveBeenCalled()
+    expect(session.connectionsRevealCredential).not.toHaveBeenCalled()
+  })
 
   it('does not install Electron webRequest header or CORS hooks', async () => {
     await loadIndexOn('darwin')

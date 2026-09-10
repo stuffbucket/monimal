@@ -13,6 +13,7 @@ import type { Context, Hono as HonoApp } from "hono"
 import { Hono } from "hono"
 import { z } from "zod"
 
+import type { ConfiguratorRegistry } from "~/lib/configurator-host"
 import type { ClientRosterReader } from "~/lib/http/active-clients"
 import type { TrafficQueryStore } from "~/lib/observability/store"
 
@@ -56,6 +57,7 @@ import { getUpdateStatus } from "~/lib/update/update-check"
 
 import type { ControlRpcDeps } from "./rpc"
 
+import { projectControlConfig } from "./config-projection"
 import { LocalModelOperations } from "./local-models"
 import { createControlRpcMethods, unsupportedVersion } from "./rpc"
 import { registerSettingsEndpoints } from "./settings-endpoints"
@@ -63,6 +65,8 @@ import { registerSettingsEndpoints } from "./settings-endpoints"
 type HubAccessor = () => ControlHub<ControlSnapshot>
 
 export interface ControlRoutesOptions {
+  /** Statically linked configurators activated by the server composition. */
+  configurators?: ConfiguratorRegistry
   /** Injectable request-IP reader (tests simulate loopback / non-loopback). */
   getRequestIp?: (c: Context) => string | null
   /** Injectable hub (tests pass a fresh one; default is the wired singleton). */
@@ -99,11 +103,16 @@ function registerEventStream(app: HonoApp, hub: HubAccessor): void {
   app.get("/events", (c) => streamSubscription(c, hub))
 }
 
+interface ReadRouteOptions {
+  configurators?: ConfiguratorRegistry
+  listClients: ClientRosterReader
+  listProviderModels: () => Promise<ReadonlyArray<ProviderCatalogueModel>>
+}
+
 /** Read endpoints — each mirrors a live topic and shares its type. */
 function registerReads(
   app: HonoApp,
-  listClients: ClientRosterReader,
-  listProviderModels: () => Promise<ReadonlyArray<ProviderCatalogueModel>>,
+  { configurators, listClients, listProviderModels }: ReadRouteOptions,
 ): void {
   app.get("/auth", (c) => c.json(getAuthStatus()))
 
@@ -117,7 +126,7 @@ function registerReads(
 
   app.get("/apps", async (c) => {
     try {
-      return c.json(await buildAppsList())
+      return c.json(await buildAppsList(configurators))
     } catch (error) {
       return forwardError(c, error)
     }
@@ -135,7 +144,7 @@ function registerReads(
     }
   })
 
-  app.get("/config", (c) => c.json(getConfig()))
+  app.get("/config", (c) => c.json(projectControlConfig(getConfig())))
 
   app.get("/clients", (c) => {
     const clients = listClients()
@@ -307,7 +316,7 @@ export function createControlRoutes(options: ControlRoutesOptions = {}): Hono {
   // Resolved lazily so importing this module doesn't eagerly build the wired
   // hub (with its flush timer). Tests inject their own.
   const hub: HubAccessor = () =>
-    options.hub ?? getControlHub(listProviderModels)
+    options.hub ?? getControlHub(options.configurators, listProviderModels)
   const localModelOperations =
     options.localModelOperations
     ?? new LocalModelOperations({ control: () => undefined, hub })
@@ -322,14 +331,19 @@ export function createControlRoutes(options: ControlRoutesOptions = {}): Hono {
   })
 
   registerEventStream(app, hub)
-  registerReads(app, listClients, listProviderModels)
+  registerReads(app, {
+    configurators: options.configurators,
+    listClients,
+    listProviderModels,
+  })
   registerAuthActions(app, listProviderModels)
-  registerSettingsEndpoints(app)
+  registerSettingsEndpoints(app, undefined, options.configurators)
   registerShellSignals(app)
   registerAccountActions(app, hub, new AsyncMutex())
   registerRpc(app, {
     hub,
     mutex: new AsyncMutex(),
+    configurators: options.configurators,
     listClients,
     listProviderModels,
     localModels: localModelOperations,

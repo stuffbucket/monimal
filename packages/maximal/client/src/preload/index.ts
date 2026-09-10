@@ -13,6 +13,10 @@ import type {
   AppEntry,
   AppsListResponse,
   AuthStatus,
+  ConnectionAction,
+  ConnectionCredentialReveal,
+  ConnectionEntry,
+  ConnectionsListResponse,
   DiagnosticsResponse,
   ModelsListResponse,
   TokenUsagePeriod,
@@ -207,6 +211,17 @@ const bridge = {
       query: TrafficRequestDetailQuery,
     ): Promise<ControlResult<TrafficRequestDetail | null>> =>
       ipcRenderer.invoke(BRIDGE_CHANNELS.observabilityRequest, query),
+    connectionsList: (): Promise<ControlResult<ConnectionsListResponse>> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.connectionsList),
+    connectionsAct: (
+      id: string,
+      action: ConnectionAction,
+    ): Promise<ControlResult<ConnectionEntry>> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.connectionsAct, id, action),
+    connectionsRevealCredential: (
+      id: string,
+    ): Promise<ControlResult<ConnectionCredentialReveal>> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.connectionsRevealCredential, id),
     appsList: (): Promise<ControlResult<AppsListResponse>> =>
       ipcRenderer.invoke(BRIDGE_CHANNELS.appsList),
     appsSetEnabled: (

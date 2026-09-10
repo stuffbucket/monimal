@@ -140,7 +140,7 @@ export function installApplicationMenu(callbacks: MenuCallbacks = {}): void {
     {
       label: 'Apps',
       enabled: onOpenSettings !== undefined,
-      click: openSettings('settings-apps-heading'),
+      click: openSettings('settings-connections-heading'),
     },
   ]
   const settingsSubmenu: MenuItemConstructorOptions[] = [

@@ -352,6 +352,9 @@ test("the outer and fixed inner test scripts cannot recurse", () => {
       "test:maximal-core:inner": manifest.scripts["test:maximal-core:inner"],
       "test:maximal-models:inner":
         manifest.scripts["test:maximal-models:inner"],
+      "test:maximal-configurators:inner":
+        manifest.scripts["test:maximal-configurators:inner"],
+      "test:connections:inner": manifest.scripts["test:connections:inner"],
       "test:policy:inner": manifest.scripts["test:policy:inner"],
       "mutate:core:inner": manifest.scripts["mutate:core:inner"],
     },
@@ -361,6 +364,10 @@ test("the outer and fixed inner test scripts cannot recurse", () => {
         "node scripts/assert-test-container.mjs && pnpm --filter @stuffbucket/maximal-core test",
       "test:maximal-models:inner":
         "node scripts/assert-test-container.mjs && pnpm --filter @stuffbucket/maximal-models test",
+      "test:maximal-configurators:inner":
+        "node scripts/assert-test-container.mjs && pnpm --filter @stuffbucket/maximal-configurators test",
+      "test:connections:inner":
+        "node scripts/assert-test-container.mjs && pnpm --filter @stuffbucket/maximal-configurators test && pnpm --filter @stuffbucket/maximal-core test && pnpm --filter maximal-client test",
       "test:policy:inner":
         "node scripts/assert-test-container.mjs && node --test tests/docker-test-policy.test.mjs",
       "mutate:core:inner":
@@ -1293,14 +1300,21 @@ test("suite and trace selectors are closed and do not forward arguments", () => 
 test("each suite selects one fixed root-owned inner script", () => {
   assert.deepEqual(
     Object.fromEntries(
-      ["workspace", "maximal-core", "maximal-models", "policy"].map(
-        (suite) => [suite, innerScriptForSuite(suite)],
-      ),
+      [
+        "workspace",
+        "maximal-core",
+        "maximal-models",
+        "maximal-configurators",
+        "connections",
+        "policy",
+      ].map((suite) => [suite, innerScriptForSuite(suite)]),
     ),
     {
       workspace: "test:inner",
       "maximal-core": "test:maximal-core:inner",
       "maximal-models": "test:maximal-models:inner",
+      "maximal-configurators": "test:maximal-configurators:inner",
+      connections: "test:connections:inner",
       policy: "test:policy:inner",
     },
   );
