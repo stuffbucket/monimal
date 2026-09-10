@@ -513,9 +513,15 @@ test("root automation schedules Docker and keeps CodeQL lean and pinned", () => 
     .join("\n");
 
   assert.match(dockerWorkflow, /^  schedule:\n    - cron: /m);
-  assert.match(
-    dockerWorkflow,
-    /run: node scripts\/docker-test\.mjs --suite=policy/,
+  assert.match(dockerWorkflow, /^  workflow_dispatch:\n    inputs:/m);
+  assert.doesNotMatch(dockerWorkflow, /^  (?:pull_request|push):/m);
+  assert.equal(
+    dockerWorkflow.split("node scripts/docker-test.mjs --suite=policy").length - 1,
+    1,
+  );
+  assert.equal(
+    dockerWorkflow.split("node scripts/docker-test.mjs --all").length - 1,
+    1,
   );
   assert.match(codeqlWorkflow, /languages: javascript-typescript/);
   assert.doesNotMatch(codeqlWorkflow, /security-and-quality/);
