@@ -24,6 +24,7 @@ const {
 })
 
 vi.mock('stuffbucket-electron/renderer', () => ({
+  UnsavedChangesDialog: () => null,
   TerminalLauncher: ({ open, onLaunched }: {
     open: boolean
     onLaunched: (result: { sessionId: string; label: string }) => void

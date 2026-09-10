@@ -17,6 +17,7 @@ async function layout(page) {
     const root = document.documentElement
     const settings = document.querySelector('.settings-page')
     const tabpanel = document.querySelector('[role="tabpanel"]')
+    const scrollArea = document.querySelector('.scroll-area')
     const providerRows = [...document.querySelectorAll('.partitioned-sortable__item')]
     const enabledFlags = providerRows.map((row) => row.getAttribute('data-enabled') === 'true')
     const firstDisabled = enabledFlags.indexOf(false)
@@ -25,6 +26,12 @@ async function layout(page) {
     if (!(settings instanceof HTMLElement)) {
       throw new Error('The Settings page did not render.')
     }
+    if (!(scrollArea instanceof HTMLElement)) {
+      throw new Error('The Settings scroll area did not render.')
+    }
+    const scrollAreaStyle = getComputedStyle(scrollArea)
+    const scrollThumbStyle = getComputedStyle(scrollArea, '::-webkit-scrollbar-thumb')
+    const scrollTrackStyle = getComputedStyle(scrollArea, '::-webkit-scrollbar-track')
     return {
       h1Count: document.querySelectorAll('h1').length,
       sectionHeadings: [...document.querySelectorAll('h2')].map(
@@ -45,10 +52,62 @@ async function layout(page) {
       viewportOverflowX: root.scrollWidth - root.clientWidth,
       settingsOverflowX: settings.scrollWidth - settings.clientWidth,
       settingsScrolls: settings.scrollHeight > settings.clientHeight,
+      scrollbarColorScheme: scrollAreaStyle.colorScheme,
+      scrollbarColor: scrollAreaStyle.scrollbarColor,
+      scrollbarThumbBackground: scrollThumbStyle.backgroundColor,
+      scrollbarTrackBackground: scrollTrackStyle.backgroundColor,
       tabpanelTabIndex: tabpanel?.getAttribute('tabindex') ?? null,
       hasCoreBridge: 'maximal' in window,
     }
   })
+}
+
+async function providerFieldLayout(page, providerId, fullFieldId) {
+  return page.evaluate(
+    ({ providerId: id, fullFieldId: fullId }) => {
+      const fullInput = document.querySelector(
+        `[data-testid="search-setting-${id}-${fullId}"]`,
+      )
+      const timeout = document.querySelector(
+        `[data-testid="search-setting-${id}-timeoutMs"]`,
+      )
+      const maxResults = document.querySelector(
+        `[data-testid="search-setting-${id}-maxResults"]`,
+      )
+      const row = fullInput?.closest('.partitioned-sortable__item')
+      const fields = row?.querySelector('.settings-connector-fields')
+      const label = row?.querySelector('.partitioned-sortable__content')
+      const fullField = fullInput?.closest('.settings-connector-field')
+      const timeoutField = timeout?.closest('.settings-connector-field')
+      const maxResultsField = maxResults?.closest('.settings-connector-field')
+      if (
+        !(fullInput instanceof HTMLInputElement)
+        || !(timeout instanceof HTMLInputElement)
+        || !(maxResults instanceof HTMLInputElement)
+        || !(fields instanceof HTMLElement)
+        || !(label instanceof HTMLElement)
+        || !(fullField instanceof HTMLElement)
+        || !(timeoutField instanceof HTMLElement)
+        || !(maxResultsField instanceof HTMLElement)
+      ) {
+        throw new Error(`Provider ${id} fields did not render.`)
+      }
+      return {
+        detailsLeft: fields.getBoundingClientRect().left,
+        labelLeft: label.getBoundingClientRect().left,
+        fullFieldTop: fullField.getBoundingClientRect().top,
+        fullFieldWidth: fullField.getBoundingClientRect().width,
+        fieldsWidth: fields.getBoundingClientRect().width,
+        timeoutTop: timeoutField.getBoundingClientRect().top,
+        maxResultsTop: maxResultsField.getBoundingClientRect().top,
+        timeoutValue: timeout.value,
+        timeoutMin: timeout.min,
+        timeoutMax: timeout.max,
+        fullFieldDisabled: fullInput.disabled,
+      }
+    },
+    { providerId, fullFieldId },
+  )
 }
 
 const server = await createServer({
@@ -89,6 +148,16 @@ try {
   check(desktop.settingsOverflowX === 0, `Desktop Settings content overflows by ${desktop.settingsOverflowX}px.`)
   check(desktop.tabpanelTabIndex === null, 'The non-interactive tabpanel is in the tab order.')
   check(!desktop.hasCoreBridge, 'The renderer-only preview unexpectedly has a Core bridge.')
+  check(desktop.scrollbarColorScheme === 'dark', 'The native scrollbar did not inherit the dark host scheme.')
+  check(desktop.scrollbarColor === 'auto', 'The scroll area overrides the native scrollbar colour.')
+  check(
+    desktop.scrollbarThumbBackground === 'rgba(0, 0, 0, 0)',
+    'The scroll area overrides the native scrollbar thumb.',
+  )
+  check(
+    desktop.scrollbarTrackBackground === 'rgba(0, 0, 0, 0)',
+    'The scroll area overrides the native scrollbar track.',
+  )
 
   for (const [name, tooltip] of [
     ['Move Ollama hosted search down', 'Move down'],
@@ -103,8 +172,59 @@ try {
     await visibleTooltip.waitFor({ state: 'hidden' })
   }
 
+  for (const [name, state] of [
+    ['Disable Ollama hosted search', 'Enabled'],
+    ['Enable DuckDuckGo fallback', 'Disabled'],
+  ]) {
+    const toggle = page.getByRole('switch', { name })
+    await toggle.hover()
+    const visibleTooltip = page.locator('.tooltip').filter({ hasText: state })
+    await visibleTooltip.waitFor()
+    await page.keyboard.press('Escape')
+    await visibleTooltip.waitFor({ state: 'hidden' })
+  }
+
+  await page.getByRole('button', { name: 'Configure Ollama hosted search' }).click()
+  const ollamaFields = await providerFieldLayout(page, 'ollama', 'baseUrl')
+  const ollamaApiKey = await providerFieldLayout(page, 'ollama', 'apiKey')
+  check(
+    Math.abs(ollamaFields.detailsLeft - ollamaFields.labelLeft) <= 1,
+    'Ollama controls do not align with the provider label.',
+  )
+  check(
+    ollamaFields.fullFieldWidth >= ollamaFields.fieldsWidth - 1,
+    'Ollama Base URL does not span the provider field grid.',
+  )
+  check(
+    ollamaApiKey.fullFieldWidth >= ollamaApiKey.fieldsWidth - 1,
+    'Ollama API key does not span the provider field grid.',
+  )
+  check(
+    Math.abs(ollamaApiKey.fullFieldTop - ollamaFields.fullFieldTop) > 1,
+    'Ollama API key and Base URL share a row.',
+  )
+  check(
+    Math.abs(ollamaFields.timeoutTop - ollamaFields.maxResultsTop) <= 1,
+    'Ollama Timeout and provider result limit are not on the same row.',
+  )
+  check(ollamaFields.timeoutValue === '300', 'Ollama Timeout is not displayed as 300 seconds.')
+  check(ollamaFields.timeoutMin === '1', 'Ollama Timeout minimum is not displayed in seconds.')
+  check(ollamaFields.timeoutMax === '600', 'Ollama Timeout maximum is not displayed in seconds.')
+
   const desktopPath = join(outputDirectory, 'search-settings-desktop.png')
   await page.screenshot({ path: desktopPath })
+
+  await page.getByRole('button', { name: 'Configure DuckDuckGo fallback' }).click()
+  const duckDuckGoFields = await providerFieldLayout(page, 'duckduckgo', 'searchUrl')
+  check(
+    duckDuckGoFields.fullFieldWidth >= duckDuckGoFields.fieldsWidth - 1,
+    'DuckDuckGo Search URL does not span the provider field grid.',
+  )
+  check(
+    Math.abs(duckDuckGoFields.timeoutTop - duckDuckGoFields.maxResultsTop) <= 1,
+    'DuckDuckGo Timeout and provider result limit are not on the same row.',
+  )
+  check(!duckDuckGoFields.fullFieldDisabled, 'Disabled provider fields are not editable.')
 
   await page.setViewportSize({ width: 520, height: 720 })
   await page.locator('.settings-page').evaluate((element) => {

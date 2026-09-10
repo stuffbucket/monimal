@@ -58,6 +58,10 @@ interface SettingFieldBase {
   readonly label: string
   readonly description?: string
   readonly required?: boolean
+  readonly format?: "url"
+  readonly unit?: "seconds"
+  readonly layout?: "full"
+  readonly emptyDescription?: string
 }
 
 export type ConnectorSettingField =
@@ -112,10 +116,21 @@ export interface SearchProviderConfig {
 export interface SearchConnectorConfig {
   /** Provider ids in fallback order. Omitted providers are not considered. */
   readonly priority?: ReadonlyArray<string>
-  /** Continue after transient provider failures. Defaults to true. */
+  /**
+   * Continue after `unavailable` or `too_many_requests`. A failed provider is
+   * skipped for 30 seconds, then becomes eligible in its configured order.
+   * Defaults to true.
+   */
   readonly fallback?: boolean
   readonly providers?: Readonly<Record<string, SearchProviderConfig>>
   readonly defaults?: SearchOptions
+}
+
+export interface SearchConnectorRuntimeOptions {
+  /** How long a transiently failing provider is skipped before priority resumes. */
+  readonly transientFailureCooldownMs?: number
+  /** Monotonic-enough wall clock used to evaluate cooldowns. */
+  readonly now?: () => number
 }
 
 export interface SearchConnector {
@@ -129,9 +144,19 @@ const TRANSIENT_ERRORS = new Set<SearchErrorCode | FetchErrorCode>([
   "unavailable",
 ])
 
+export const DEFAULT_TRANSIENT_FAILURE_COOLDOWN_MS = 30_000
+
+/** Whether a provider failure is safe to retry through another provider. */
+export function isTransientProviderFailure(
+  code: SearchErrorCode | FetchErrorCode,
+): boolean {
+  return TRANSIENT_ERRORS.has(code)
+}
+
 export function createSearchConnector(
   providers: ReadonlyArray<SearchProvider>,
   config: SearchConnectorConfig = {},
+  runtime: SearchConnectorRuntimeOptions = {},
 ): SearchConnector {
   const registered = new Map<string, SearchProvider>()
   for (const provider of providers) {
@@ -143,7 +168,32 @@ export function createSearchConnector(
 
   const priority = config.priority ?? providers.map((provider) => provider.id)
   const fallback = config.fallback ?? true
+  const transientFailureCooldownMs = Math.max(
+    0,
+    runtime.transientFailureCooldownMs ?? DEFAULT_TRANSIENT_FAILURE_COOLDOWN_MS,
+  )
+  const now = runtime.now ?? Date.now
   const instances = new Map<string, SearchProviderInstance>()
+  const retryAfter = new Map<string, number>()
+
+  const coolingDown = (providerId: string): boolean => {
+    const deadline = retryAfter.get(providerId)
+    if (deadline === undefined) return false
+    if (now() < deadline) return true
+    retryAfter.delete(providerId)
+    return false
+  }
+
+  const recordResult = (
+    providerId: string,
+    result: SearchResult | FetchResult,
+  ): void => {
+    if (!result.ok && isTransientProviderFailure(result.code)) {
+      retryAfter.set(providerId, now() + transientFailureCooldownMs)
+    } else {
+      retryAfter.delete(providerId)
+    }
+  }
 
   const candidates = (capability: SearchCapability) =>
     priority.flatMap((id) => {
@@ -158,10 +208,12 @@ export function createSearchConnector(
       }
       let instance = instances.get(id)
       if (!instance) {
-        instance = provider.create(providerConfig?.settings ?? {})
+        instance = provider.create(
+          applySettingDefaults(provider.settings, providerConfig?.settings),
+        )
         instances.set(id, instance)
       }
-      return [instance]
+      return [{ id, instance }]
     })
 
   return {
@@ -169,27 +221,46 @@ export function createSearchConnector(
     search: async (query, options = {}) => {
       const effectiveOptions = mergeSearchOptions(config.defaults, options)
       let lastFailure: SearchResult = { ok: false, code: "unavailable" }
-      for (const provider of candidates("search")) {
+      for (const { id, instance: provider } of candidates("search")) {
+        if (fallback && coolingDown(id)) continue
         if (!(await isAvailable(provider)) || !provider.search) continue
         const result = await provider.search(query, effectiveOptions)
+        recordResult(id, result)
         if (result.ok) return applyDomainPolicy(result, effectiveOptions)
         lastFailure = result
-        if (!fallback || !TRANSIENT_ERRORS.has(result.code)) return result
+        if (!fallback || !isTransientProviderFailure(result.code)) return result
       }
       return lastFailure
     },
     fetch: async (url, options = {}) => {
       let lastFailure: FetchResult = { ok: false, code: "unavailable" }
-      for (const provider of candidates("fetch")) {
+      for (const { id, instance: provider } of candidates("fetch")) {
+        if (fallback && coolingDown(id)) continue
         if (!(await isAvailable(provider)) || !provider.fetch) continue
         const result = await provider.fetch(url, options)
+        recordResult(id, result)
         if (result.ok) return result
         lastFailure = result
-        if (!fallback || !TRANSIENT_ERRORS.has(result.code)) return result
+        if (!fallback || !isTransientProviderFailure(result.code)) return result
       }
       return lastFailure
     },
   }
+}
+
+function applySettingDefaults(
+  fields: ReadonlyArray<ConnectorSettingField> | undefined,
+  configured: ConnectorSettings | undefined,
+): ConnectorSettings {
+  const settings: Record<string, ConnectorSettingValue | undefined> = {
+    ...configured,
+  }
+  for (const field of fields ?? []) {
+    if (settings[field.key] === undefined && field.default !== undefined) {
+      settings[field.key] = field.default
+    }
+  }
+  return settings
 }
 
 async function isAvailable(provider: SearchProviderInstance): Promise<boolean> {

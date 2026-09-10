@@ -291,7 +291,7 @@ export function ShellLayout<T extends Tab>({
                   </Panel>
                 </Group>
               )}
-              {status !== undefined && (
+              {status !== null && status !== undefined && (
                 <footer className="statusbar">
                   {status}
                   <span className="statusbar__grow" />

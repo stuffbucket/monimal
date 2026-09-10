@@ -265,7 +265,8 @@ describe("control /rpc — search settings", () => {
 
     expect(body.error).toMatchObject({
       code: JSON_RPC_INVALID_PARAMS,
-      message: "Invalid value for search.fallback",
+      message:
+        "search.fallback: Fall back after transient failures must be on or off.",
     })
   })
 

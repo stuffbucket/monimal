@@ -1,8 +1,18 @@
-import { useEffect, useState, type FormEvent, type ReactElement } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+  type ReactElement,
+  type ReactNode,
+} from 'react'
+import { Info } from 'lucide-react'
 
 import {
   Button,
   FormField,
+  IconButton,
   Note,
   PartitionedSortableList,
   Select,
@@ -20,7 +30,17 @@ import type {
   SearchSettingsUpdateRequest,
   SettingsCapabilities,
 } from './capabilities'
+import { useUnsavedChangesController } from '../unsaved-changes'
 import { describeError } from './format'
+import {
+  displayedInteger,
+  displayedIntegerBound,
+  formatStringList,
+  parseStringList,
+  persistedInteger,
+  settingFieldError,
+  textSettingUpdate,
+} from './search-field-state'
 
 interface SearchSectionProps {
   capabilities: SettingsCapabilities
@@ -33,6 +53,9 @@ interface SettingControlProps {
   disabled: boolean
   secretSource?: 'environment' | 'settings'
   clearing?: boolean
+  error?: string
+  labelAction?: ReactNode
+  tooltip?: ReactNode
   onChange: (value: ConnectorSettingValue | null) => void
 }
 
@@ -62,7 +85,7 @@ function fieldHint({
   secretSource,
   clearing,
 }: Pick<SettingControlProps, 'field' | 'secretSource' | 'clearing'>): string | undefined {
-  const details = [field.description]
+  const details = [field.description, field.emptyDescription]
   if (secretSource === 'environment') {
     details.push('Provided by the environment until you save an override.')
   } else if (secretSource === 'settings') {
@@ -77,6 +100,74 @@ function sameItems(left: readonly string[], right: readonly string[]): boolean {
     && left.every((item, index) => item === right[index])
 }
 
+function providerEnabled(
+  snapshot: SearchSettingsResponse,
+  updates: SearchSettingsUpdateRequest,
+  providerId: string,
+): boolean {
+  return updates.providers?.[providerId]?.enabled
+    ?? snapshot.providers[providerId]?.enabled
+    ?? true
+}
+
+function providerFieldError(
+  snapshot: SearchSettingsResponse,
+  updates: SearchSettingsUpdateRequest,
+  providerId: string,
+  field: ConnectorSettingField,
+): string | undefined {
+  const configured = snapshot.providers[providerId] ?? {
+    enabled: true,
+    settings: {},
+    secret_sources: {},
+  }
+  const settingUpdates = updates.providers?.[providerId]?.settings
+  return settingFieldError(
+    field,
+    fieldValue(field, configured.settings, settingUpdates),
+    {
+      secretSource: configured.secret_sources[field.key],
+      overridden:
+        settingUpdates !== undefined && Object.hasOwn(settingUpdates, field.key),
+    },
+  )
+}
+
+function providerRequiredError(
+  snapshot: SearchSettingsResponse,
+  updates: SearchSettingsUpdateRequest,
+  providerId: string,
+): string | undefined {
+  const provider = snapshot.manifest.providers.find(({ id }) => id === providerId)
+  return provider?.settings
+    ?.filter(({ required }) => required)
+    .map((field) => providerFieldError(snapshot, updates, providerId, field))
+    .find((message) => message !== undefined)
+}
+
+function hasBlockingValidationError(
+  snapshot: SearchSettingsResponse,
+  updates: SearchSettingsUpdateRequest,
+): boolean {
+  const invalidGlobal = snapshot.manifest.fields.some((field) =>
+    settingFieldError(field, fieldValue(field, snapshot.settings, updates.settings)),
+  )
+  if (invalidGlobal) return true
+
+  return snapshot.manifest.providers.some((provider) =>
+    (provider.settings ?? []).some((field) => {
+      const settings = updates.providers?.[provider.id]?.settings
+      const changed = settings !== undefined && Object.hasOwn(settings, field.key)
+      return Boolean(
+        (providerEnabled(snapshot, updates, provider.id) || changed)
+        && providerFieldError(snapshot, updates, provider.id, field),
+      )
+    }),
+  )
+}
+
+const INCOMPLETE_PROVIDER_DISABLE_DELAY_MS = 1200
+
 function SettingControl({
   field,
   testId,
@@ -84,6 +175,9 @@ function SettingControl({
   disabled,
   secretSource,
   clearing = false,
+  error,
+  labelAction,
+  tooltip,
   onChange,
 }: SettingControlProps): ReactElement {
   const hint = fieldHint({ field, secretSource, clearing })
@@ -92,6 +186,17 @@ function SettingControl({
       <div className="settings-field">
         <Switch
           label={field.label}
+          displayLabel={
+            tooltip === undefined
+              ? undefined
+              : (
+                  <span className="search-behavior__switch-label">
+                    {field.label}
+                    <Info size={13} aria-hidden="true" />
+                  </span>
+                )
+          }
+          tooltip={tooltip}
           checked={value === true}
           disabled={disabled}
           onChange={onChange}
@@ -103,7 +208,12 @@ function SettingControl({
   }
 
   return (
-    <FormField label={field.label} hint={hint}>
+    <FormField
+      label={field.label}
+      labelAction={labelAction}
+      hint={hint}
+      error={error}
+    >
       {(control) => {
         if (field.type === 'integer') {
           return (
@@ -111,34 +221,28 @@ function SettingControl({
               {...control}
               className="input"
               type="number"
-              value={typeof value === 'number' ? value : ''}
-              min={field.min}
-              max={field.max}
+              value={displayedInteger(field, value)}
+              min={displayedIntegerBound(field, field.min)}
+              max={displayedIntegerBound(field, field.max)}
+              step={1}
               disabled={disabled}
+              title={error}
               data-testid={testId}
               onChange={(event) => {
                 const next = event.target.value
-                onChange(next === '' ? null : Number(next))
+                onChange(persistedInteger(field, next))
               }}
             />
           )
         }
         if (field.type === 'string-list') {
           return (
-            <Textarea
-              {...control}
-              value={Array.isArray(value) ? value.join('\n') : ''}
-              rows={3}
+            <StringListControl
+              control={control}
+              value={Array.isArray(value) ? value : []}
               disabled={disabled}
               testId={testId}
-              onChange={(next) =>
-                onChange(
-                  next
-                    .split('\n')
-                    .map((item) => item.trim())
-                    .filter(Boolean),
-                )
-              }
+              onChange={onChange}
             />
           )
         }
@@ -161,14 +265,67 @@ function SettingControl({
             type={field.type === 'secret' ? 'password' : 'text'}
             placeholder={field.placeholder}
             disabled={disabled}
+            title={error}
             testId={testId}
-            onChange={onChange}
+            onChange={(next) => onChange(textSettingUpdate(field, next))}
           />
         )
       }}
     </FormField>
   )
 }
+
+function StringListControl({
+  control,
+  value,
+  disabled,
+  testId,
+  onChange,
+}: {
+  control: {
+    id: string
+    'aria-describedby': string | undefined
+    'aria-invalid': boolean | undefined
+  }
+  value: readonly string[]
+  disabled: boolean
+  testId: string
+  onChange: (value: ConnectorSettingValue | null) => void
+}): ReactElement {
+  const [text, setText] = useState(() => formatStringList(value))
+  const [previousValue, setPreviousValue] = useState(value)
+  if (previousValue !== value) {
+    setPreviousValue(value)
+    if (!sameItems(parseStringList(text), value)) {
+      setText(formatStringList(value))
+    }
+  }
+
+  return (
+    <Textarea
+      {...control}
+      value={text}
+      rows={3}
+      disabled={disabled}
+      testId={testId}
+      onChange={(next) => {
+        setText(next)
+        onChange(parseStringList(next))
+      }}
+      onBlur={() => setText(formatStringList(parseStringList(text)))}
+    />
+  )
+}
+
+const DOMAIN_HELP: Record<string, string> = {
+  allowedDomains:
+    'When this list has entries, search results must come from one of these domains. Subdomains are included, and a request can narrow the list further. Leave it empty to allow any domain that is not blocked.',
+  blockedDomains:
+    'Results from these domains are removed from every provider. Subdomains are included, and this list still applies when a request supplies its own filters. If a domain appears in both lists, blocked wins.',
+}
+
+const FALLBACK_HELP =
+  'On a timeout, network or server error, or rate limit, Maximal tries the next provider. The failed provider is skipped for 30 seconds, then returns to its normal place in the order.'
 
 export function SearchSection({
   capabilities,
@@ -192,6 +349,41 @@ export function SearchSection({
       active = false
     }
   }, [capabilities])
+
+  const incompleteEnabledProviderIds = snapshot === null
+    ? []
+    : snapshot.manifest.providers
+      .filter(
+        ({ id }) =>
+          providerEnabled(snapshot, updates, id)
+          && providerRequiredError(snapshot, updates, id) !== undefined,
+      )
+      .map(({ id }) => id)
+  const incompleteProviders = snapshot === null
+    ? []
+    : snapshot.manifest.providers.flatMap((provider) => {
+      const message = providerRequiredError(snapshot, updates, provider.id)
+      return message === undefined ? [] : [{ provider, message }]
+    })
+  const incompleteProviderKey = incompleteEnabledProviderIds.join('\0')
+
+  useEffect(() => {
+    if (snapshot === null || incompleteProviderKey === '') return undefined
+    const providerIds = incompleteProviderKey.split('\0')
+    const timeout = globalThis.setTimeout(() => {
+      setUpdates((previous) => {
+        const providers = { ...previous.providers }
+        for (const providerId of providerIds) {
+          providers[providerId] = {
+            ...providers[providerId],
+            enabled: false,
+          }
+        }
+        return { ...previous, providers }
+      })
+    }, INCOMPLETE_PROVIDER_DISABLE_DELAY_MS)
+    return () => globalThis.clearTimeout(timeout)
+  }, [incompleteProviderKey, snapshot])
 
   const setGlobal = (
     key: string,
@@ -261,20 +453,41 @@ export function SearchSection({
   const hasUpdates =
     Object.keys(updates.settings ?? {}).length > 0
     || Object.keys(updates.providers ?? {}).length > 0
+  const blockingValidationError = snapshot !== null
+    && hasBlockingValidationError(snapshot, updates)
 
-  const save = async (event: FormEvent): Promise<void> => {
-    event.preventDefault()
-    if (!hasUpdates) return
+  const saveChanges = useCallback(async (): Promise<boolean> => {
+    if (!hasUpdates) return true
+    if (blockingValidationError) return false
     setBusy(true)
     setError(null)
     try {
       setSnapshot(await capabilities.search.update(updates))
       setUpdates({})
+      return true
     } catch (cause) {
       setError(describeError(cause))
+      return false
     } finally {
       setBusy(false)
     }
+  }, [blockingValidationError, capabilities, hasUpdates, updates])
+
+  const discardChanges = useCallback(() => setUpdates({}), [])
+  const unsavedChanges = useMemo(
+    () => ({
+      hasChanges: () => hasUpdates,
+      canSave: () => !busy && !blockingValidationError,
+      save: saveChanges,
+      discard: discardChanges,
+    }),
+    [blockingValidationError, busy, discardChanges, hasUpdates, saveChanges],
+  )
+  useUnsavedChangesController(unsavedChanges)
+
+  const save = (event: FormEvent): void => {
+    event.preventDefault()
+    void saveChanges()
   }
 
   return (
@@ -290,8 +503,22 @@ export function SearchSection({
       {snapshot === null ? (
         <Note live="polite">Loading search settings…</Note>
       ) : (
-        <form className="settings-connector-form" onSubmit={(event) => void save(event)}>
+        <form className="settings-connector-form" onSubmit={save}>
           <Note>{snapshot.manifest.description}</Note>
+          {incompleteProviders.map(({ provider, message }) => (
+            <Note
+              key={provider.id}
+              status="needs-approval"
+              live="assertive"
+              testId={`search-provider-required-${provider.id}`}
+            >
+              {provider.label}{' '}
+              {providerEnabled(snapshot, updates, provider.id)
+                ? 'will be disabled unless its required information is completed'
+                : 'cannot be enabled until its required information is completed'}
+              : {message}
+            </Note>
+          ))}
           <SettingsSection
             title="Provider order"
             description="Set fallback priority, availability, and provider options."
@@ -314,11 +541,23 @@ export function SearchSection({
                 return (leftIndex < 0 ? Number.MAX_SAFE_INTEGER : leftIndex)
                   - (rightIndex < 0 ? Number.MAX_SAFE_INTEGER : rightIndex)
               })
-              const items = providers.map((provider) => ({
-                id: provider.id,
-                label: provider.label,
-                description: provider.description,
-              }))
+              const items = providers.map((provider) => {
+                const requiredError = providerRequiredError(
+                  snapshot,
+                  updates,
+                  provider.id,
+                )
+                return {
+                  id: provider.id,
+                  label: provider.label,
+                  description: provider.description,
+                  toggleDisabled: requiredError !== undefined,
+                  toggleTooltip:
+                    requiredError === undefined
+                      ? undefined
+                      : `Unavailable: ${requiredError}`,
+                }
+              })
               const enabledItems = items.filter(({ id }) =>
                 updates.providers?.[id]?.enabled
                 ?? snapshot.providers[id]?.enabled
@@ -332,8 +571,9 @@ export function SearchSection({
                   enabledItems={enabledItems}
                   disabledItems={disabledItems}
                   disabled={busy}
+                  requestedExpandedItemId={incompleteEnabledProviderIds[0]}
                   onChange={setProviderLayout}
-                  renderDetails={(item, enabled) => {
+                  renderDetails={(item) => {
                     const provider = snapshot.manifest.providers.find(
                       ({ id }) => id === item.id,
                     )
@@ -349,19 +589,31 @@ export function SearchSection({
                         {(provider.settings ?? []).map((field) => {
                           const source = configured.secret_sources[field.key]
                           const pending = providerUpdate?.settings?.[field.key]
+                          const value = fieldValue(
+                            field,
+                            configured.settings,
+                            providerUpdate?.settings,
+                          )
+                          const validationError = settingFieldError(field, value, {
+                            secretSource: source,
+                            overridden:
+                              providerUpdate?.settings !== undefined
+                              && Object.hasOwn(providerUpdate.settings, field.key),
+                          })
                           return (
-                            <div className="settings-connector-field" key={field.key}>
+                            <div
+                              className="settings-connector-field"
+                              data-layout={field.layout}
+                              key={field.key}
+                            >
                               <SettingControl
                                 field={field}
                                 testId={`search-setting-${provider.id}-${field.key}`}
-                                value={fieldValue(
-                                  field,
-                                  configured.settings,
-                                  providerUpdate?.settings,
-                                )}
-                                disabled={busy || !enabled}
+                                value={value}
+                                disabled={busy}
                                 secretSource={source}
                                 clearing={pending === null}
+                                error={validationError}
                                 onChange={(value) =>
                                   setProviderSetting(provider.id, field.key, value)
                                 }
@@ -369,7 +621,7 @@ export function SearchSection({
                               {field.type === 'secret' && source === 'settings' ? (
                                 <Button
                                   onClick={() => setProviderSetting(provider.id, field.key, null)}
-                                  disabled={busy || !enabled}
+                                  disabled={busy}
                                 >
                                   Clear stored value
                                 </Button>
@@ -383,28 +635,36 @@ export function SearchSection({
                 />
               )
             })()}
+            {snapshot.manifest.fields
+              .filter((field) => field.key === 'fallback')
+              .map((field) => (
+                <SettingControl
+                  key={field.key}
+                  field={field}
+                  testId={`search-setting-global-${field.key}`}
+                  value={fieldValue(field, snapshot.settings, updates.settings)}
+                  disabled={busy}
+                  error={settingFieldError(
+                    field,
+                    fieldValue(field, snapshot.settings, updates.settings),
+                  )}
+                  tooltip={FALLBACK_HELP}
+                  onChange={(value) => setGlobal(field.key, value)}
+                />
+              ))}
           </SettingsSection>
 
-          <SettingsSection title="Search behavior">
+          <SettingsSection
+            title="Domain filtering"
+            description="Allow only selected sites or remove unwanted sites from every provider's results."
+          >
             <div className="search-behavior">
-              <div className="search-behavior__controls">
-                {snapshot.manifest.fields
-                  .filter((field) => field.key !== 'priority' && field.type !== 'string-list')
-                  .map((field) => (
-                    <div className="search-behavior__field" key={field.key}>
-                      <SettingControl
-                        field={field}
-                        testId={`search-setting-global-${field.key}`}
-                        value={fieldValue(field, snapshot.settings, updates.settings)}
-                        disabled={busy}
-                        onChange={(value) => setGlobal(field.key, value)}
-                      />
-                    </div>
-                  ))}
-              </div>
               <div className="search-behavior__domains">
                 {snapshot.manifest.fields
-                  .filter((field) => field.key !== 'priority' && field.type === 'string-list')
+                  .filter(
+                    (field) =>
+                      field.key === 'allowedDomains' || field.key === 'blockedDomains',
+                  )
                   .map((field) => (
                     <div className="search-behavior__field" key={field.key}>
                       <SettingControl
@@ -412,6 +672,19 @@ export function SearchSection({
                         testId={`search-setting-global-${field.key}`}
                         value={fieldValue(field, snapshot.settings, updates.settings)}
                         disabled={busy}
+                        error={settingFieldError(
+                          field,
+                          fieldValue(field, snapshot.settings, updates.settings),
+                        )}
+                        labelAction={
+                          <IconButton
+                            label={`About ${field.label.toLowerCase()}`}
+                            tooltip={DOMAIN_HELP[field.key]}
+                            className="search-behavior__help"
+                          >
+                            <Info size={13} />
+                          </IconButton>
+                        }
                         onChange={(value) => setGlobal(field.key, value)}
                       />
                     </div>
@@ -421,16 +694,29 @@ export function SearchSection({
           </SettingsSection>
 
           <div className="settings-section__actions">
-            <Button type="submit" variant="primary" disabled={busy || !hasUpdates}>
-              {busy ? 'Saving…' : 'Save changes'}
-            </Button>
-            <Button
-              type="button"
-              disabled={busy || !hasUpdates}
-              onClick={() => setUpdates({})}
-            >
-              Reset changes
-            </Button>
+            <span className="settings-section__save-note">
+              Changes take effect after you save.
+            </span>
+            <div className="settings-section__action-buttons">
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={
+                  busy
+                  || !hasUpdates
+                  || blockingValidationError
+                }
+              >
+                {busy ? 'Saving…' : 'Save changes'}
+              </Button>
+              <Button
+                type="button"
+                disabled={busy || !hasUpdates}
+                onClick={discardChanges}
+              >
+                Reset changes
+              </Button>
+            </div>
           </div>
         </form>
       )}

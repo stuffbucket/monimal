@@ -3,6 +3,7 @@ import { test } from "vitest"
 
 import {
   createSearchConnector,
+  isTransientProviderFailure,
   type SearchProvider,
   type SearchResult,
 } from "../src/search.js"
@@ -10,6 +11,8 @@ import {
   copilotSearchProvider,
   DEFAULT_COPILOT_SEARCH_MODEL,
 } from "../src/search/providers/copilot.js"
+import { duckDuckGoSearchProvider } from "../src/search/providers/duckduckgo.js"
+import { ollamaSearchProvider } from "../src/search/providers/ollama.js"
 
 function provider(
   id: string,
@@ -64,6 +67,46 @@ void test("does not fall back after a request error", async () => {
     code: "invalid_input",
   })
   assert.deepEqual(calls, ["first"])
+})
+
+void test("defines unavailable and rate limiting as transient failures", () => {
+  assert.equal(isTransientProviderFailure("unavailable"), true)
+  assert.equal(isTransientProviderFailure("too_many_requests"), true)
+  assert.equal(isTransientProviderFailure("invalid_input"), false)
+  assert.equal(isTransientProviderFailure("query_too_long"), false)
+})
+
+void test("cools down transient failures and then restores provider priority", async () => {
+  const calls: Array<string> = []
+  let now = 1_000
+  let primaryResult: SearchResult = { ok: false, code: "unavailable" }
+  const connector = createSearchConnector(
+    [
+      {
+        id: "primary",
+        label: "Primary",
+        capabilities: ["search"],
+        create: () => ({
+          search: () => {
+            calls.push("primary")
+            return Promise.resolve(primaryResult)
+          },
+        }),
+      },
+      provider("fallback", calls, { ok: true, items: [] }),
+    ],
+    { priority: ["primary", "fallback"] },
+    { now: () => now },
+  )
+
+  await connector.search("first")
+  await connector.search("during cooldown")
+  assert.deepEqual(calls, ["primary", "fallback", "fallback"])
+
+  now += 30_000
+  primaryResult = { ok: true, items: [] }
+  await connector.search("after cooldown")
+  assert.deepEqual(calls, ["primary", "fallback", "fallback", "primary"])
 })
 
 void test("applies configured domain and result limits", async () => {
@@ -164,6 +207,46 @@ void test("keeps one provider instance across search and fetch", async () => {
   assert.equal(creations, 1)
 })
 
+void test("binds provider descriptor defaults with configured overrides", async () => {
+  let settings: Readonly<Record<string, unknown>> | undefined
+  const connector = createSearchConnector(
+    [
+      {
+        id: "configured",
+        label: "Configured",
+        capabilities: ["search"],
+        settings: [
+          {
+            key: "timeoutMs",
+            type: "integer",
+            label: "Timeout (s)",
+            default: 300_000,
+          },
+          {
+            key: "maxResults",
+            type: "integer",
+            label: "Provider result limit",
+            default: 5,
+          },
+        ],
+        create: (boundSettings) => {
+          settings = boundSettings
+          return { search: () => Promise.resolve({ ok: true, items: [] }) }
+        },
+      },
+    ],
+    {
+      providers: {
+        configured: { settings: { maxResults: 8 } },
+      },
+    },
+  )
+
+  await connector.search("query")
+
+  assert.deepEqual(settings, { timeoutMs: 300_000, maxResults: 8 })
+})
+
 void test("describes the Copilot broker model as a model-backed select", () => {
   const provider = copilotSearchProvider(
     () => ({}),
@@ -185,4 +268,40 @@ void test("describes the Copilot broker model as a model-backed select", () => {
       { label: "GPT-5.6 Sol", value: "gpt-5.6-sol" },
     ],
   })
+})
+
+void test("describes provider URL and timeout controls for the settings UI", () => {
+  const ollama = ollamaSearchProvider(() => ({}))
+  const duckDuckGo = duckDuckGoSearchProvider(() => ({}))
+  assert.ok(ollama.settings)
+  assert.ok(duckDuckGo.settings)
+
+  assert.deepEqual(
+    ollama.settings.map((field) => field.key),
+    ["apiKey", "baseUrl", "timeoutMs", "maxResults"],
+  )
+  assert.deepEqual(
+    ollama.settings.find(({ key }) => key === "apiKey"),
+    {
+      key: "apiKey",
+      type: "secret",
+      label: "API key",
+      description: "Overrides OLLAMA_API_KEY when set.",
+      required: true,
+      layout: "full",
+      emptyDescription: "Enter an Ollama API key or set OLLAMA_API_KEY.",
+    },
+  )
+  for (const settings of [ollama.settings, duckDuckGo.settings]) {
+    const timeout = settings.find(({ key }) => key === "timeoutMs")
+    assert.ok(timeout)
+    assert.equal(timeout.label, "Timeout (s)")
+    assert.equal(timeout.default, 30_000)
+    assert.equal(timeout.unit, "seconds")
+    assert.equal(timeout.emptyDescription, "Uses 30 seconds when empty.")
+  }
+  assert.equal(
+    duckDuckGo.settings.find(({ key }) => key === "searchUrl")?.layout,
+    "full",
+  )
 })

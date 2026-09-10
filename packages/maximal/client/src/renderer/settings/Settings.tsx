@@ -7,6 +7,7 @@ import {
   type SettingsSectionId,
 } from '../../shared/settings-sections'
 import { SurfaceRail, useTabPanelId } from '../frame/AppFrame'
+import { useGuardedNavigation } from '../unsaved-changes'
 import type { SettingsCapabilities } from './capabilities'
 import { SETTINGS_SECTION_VIEWS } from './manifest'
 import { ModelProviderDisclosureState } from './ModelsSection'
@@ -48,6 +49,7 @@ export function Settings({
     request?.id ?? DEFAULT_SETTINGS_SECTION_ID,
   )
   const [seenRequest, setSeenRequest] = useState(request)
+  const requestNavigation = useGuardedNavigation()
 
   if (request !== seenRequest) {
     setSeenRequest(request)
@@ -64,7 +66,9 @@ export function Settings({
             sections={SETTINGS_SECTION_VIEWS}
             current={current}
             controls={panelId}
-            onSelect={setCurrent}
+            onSelect={(next) => {
+              if (next !== current) requestNavigation(() => setCurrent(next))
+            }}
             collapsed={collapsed}
           />
         )}
@@ -214,7 +218,6 @@ const SETTINGS_CSS = `
   width: min(100%, 52rem);
 }
 
-.search-behavior__controls,
 .search-behavior__domains {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
@@ -222,23 +225,41 @@ const SETTINGS_CSS = `
   min-width: 0;
 }
 
-.search-behavior__controls {
-  align-items: start;
-  padding-bottom: var(--shell-space-4, 16px);
-  border-bottom: 1px solid var(--shell-border, #2a2a2a);
-}
-
 .search-behavior__field {
   min-width: 0;
 }
 
-.search-behavior__controls .input {
-  max-width: 10rem;
+.search-behavior__help {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+}
+
+.search-behavior__switch-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--shell-space-1, 4px);
+}
+
+.settings-section__save-note {
+  flex: 1 1 14rem;
+  color: var(--shell-text-subtle, #6a6a6a);
+  font-size: var(--shell-text-sm, 0.8125rem);
+}
+
+.settings-section__action-buttons {
+  display: flex;
+  gap: var(--shell-space-2, 8px);
+  margin-left: auto;
 }
 
 .settings-connector-field {
   align-items: flex-start;
   gap: var(--shell-space-2, 8px);
+}
+
+.settings-connector-field[data-layout='full'] {
+  grid-column: 1 / -1;
 }
 
 .settings-details {

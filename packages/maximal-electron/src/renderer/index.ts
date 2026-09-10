@@ -150,6 +150,7 @@ export {
   TextInput,
   Textarea,
   Toolbar,
+  UnsavedChangesDialog,
   ViewModeSwitch,
   type ButtonSize,
   type ButtonVariant,

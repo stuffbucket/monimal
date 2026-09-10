@@ -37,6 +37,41 @@ function model(
   }
 }
 
+test("search settings present provider defaults and display metadata", () => {
+  const response = buildSearchSettings({}, {}, [])
+  const ollama = response.manifest.providers.find(({ id }) => id === "ollama")
+  const duckDuckGo = response.manifest.providers.find(
+    ({ id }) => id === "duckduckgo",
+  )
+
+  expect(ollama?.settings).toMatchObject([
+    { key: "apiKey", required: true, layout: "full" },
+    {
+      key: "baseUrl",
+      required: true,
+      format: "url",
+      layout: "full",
+    },
+    {
+      key: "timeoutMs",
+      label: "Timeout (s)",
+      default: 30_000,
+      unit: "seconds",
+    },
+    { key: "maxResults", default: 5 },
+  ])
+  expect(duckDuckGo?.settings).toMatchObject([
+    { key: "searchUrl", format: "url", layout: "full" },
+    {
+      key: "timeoutMs",
+      label: "Timeout (s)",
+      default: 30_000,
+      unit: "seconds",
+    },
+    { key: "maxResults", default: 5 },
+  ])
+})
+
 describe("search settings operations", () => {
   test("offers available Copilot Responses models with gpt-5-mini as default", () => {
     const response = buildSearchSettings({}, {}, [
@@ -113,7 +148,76 @@ describe("search settings operations", () => {
           writeConfig: (next) => next,
         },
       ),
-    ).toThrow(SettingsOperationError)
+    ).toThrow("duckduckgo.timeoutMs: Timeout (s) must be at least 1 seconds.")
+
+    expect(() =>
+      updateSearchSettings(
+        {
+          providers: {
+            duckduckgo: { settings: { searchUrl: "ftp://example.com" } },
+          },
+        },
+        {
+          env: {},
+          getConfig: () => current,
+          getModels: () => [],
+          writeConfig: (next) => next,
+        },
+      ),
+    ).toThrow("Search URL must be a valid HTTP or HTTPS URL.")
+
+    expect(() =>
+      updateSearchSettings(
+        { settings: { priority: [] } },
+        {
+          env: {},
+          getConfig: () => current,
+          getModels: () => [],
+          writeConfig: (next) => next,
+        },
+      ),
+    ).toThrow("search.priority: Provider priority is required.")
+
+    expect(() =>
+      updateSearchSettings(
+        { settings: { blockedDomains: ["   "] } },
+        {
+          env: {},
+          getConfig: () => current,
+          getModels: () => [],
+          writeConfig: (next) => next,
+        },
+      ),
+    ).toThrow("Blocked domains entries cannot be empty.")
+  })
+})
+
+describe("search provider settings operations", () => {
+  test("requires effective Ollama credentials before enabling the provider", () => {
+    const dependencies = {
+      env: {},
+      getConfig: () => ({
+        connectors: { search: { providers: { ollama: { enabled: false } } } },
+      }),
+      getModels: () => [],
+      writeConfig: (next: AppConfig) => next,
+    }
+
+    expect(() =>
+      updateSearchSettings(
+        { providers: { ollama: { enabled: true } } },
+        dependencies,
+      ),
+    ).toThrow(
+      /Ollama hosted search cannot be enabled: ollama\.apiKey: API key is required\..*OLLAMA_API_KEY/u,
+    )
+
+    expect(() =>
+      updateSearchSettings(
+        { providers: { ollama: { enabled: true } } },
+        { ...dependencies, env: { OLLAMA_API_KEY: "environment-secret" } },
+      ),
+    ).not.toThrow()
   })
 
   test("clears secrets and preserves unrelated configuration", () => {

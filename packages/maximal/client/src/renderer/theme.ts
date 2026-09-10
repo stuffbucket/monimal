@@ -28,6 +28,8 @@
  */
 const THEME_CSS = `
 :root {
+   color-scheme: dark;
+
   /* Window chrome and side-panel surface. Matches the host window's own
      default background colour, so the Electron paint and this value agree
      before first paint. */

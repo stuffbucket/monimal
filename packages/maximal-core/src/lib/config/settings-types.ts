@@ -113,6 +113,10 @@ const ConnectorSettingFieldBase = {
   label: z.string(),
   description: z.string().optional(),
   required: z.boolean().optional(),
+  format: z.literal("url").optional(),
+  unit: z.literal("seconds").optional(),
+  layout: z.literal("full").optional(),
+  emptyDescription: z.string().optional(),
 }
 
 export const ConnectorSettingField = z.discriminatedUnion("type", [

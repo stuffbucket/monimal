@@ -10,6 +10,7 @@ import {
   type SearchProvider,
 } from "@stuffbucket/maximal-harness"
 import { randomUUID } from "node:crypto"
+import { z } from "zod"
 
 import type { Model } from "~/services/copilot/get-models"
 
@@ -193,11 +194,10 @@ export function updateSearchSettings(
     input.settings,
     searchManifest.fields,
   )
-  const providers = mergeSearchProviders(
-    previous.providers,
-    input.providers,
+  const providers = mergeSearchProviders(previous.providers, input.providers, {
     searchProviders,
-  )
+    env: dependencies.env,
+  })
   const nextSearch = { ...previous, ...global, providers }
   const saved = dependencies.writeConfig({
     ...current,
@@ -245,11 +245,16 @@ function validatePriority(priority: Array<string>): void {
 function mergeSearchProviders(
   previous: SearchConnectorConfig["providers"],
   updates: SearchSettingsUpdateRequest["providers"],
-  searchProviders: ReadonlyArray<SearchProvider>,
+  validation: {
+    searchProviders: ReadonlyArray<SearchProvider>
+    env: NodeJS.ProcessEnv
+  },
 ): Record<string, SearchProviderConfig> {
   const providers = { ...previous }
   for (const [providerId, update] of Object.entries(updates ?? {})) {
-    const provider = searchProviders.find(({ id }) => id === providerId)
+    const provider = validation.searchProviders.find(
+      ({ id }) => id === providerId,
+    )
     if (!provider)
       invalidSearchSetting(`Unknown search provider: ${providerId}`)
     const configured = providers[providerId] ?? {}
@@ -258,6 +263,8 @@ function mergeSearchProviders(
       configured.settings,
       update.settings,
     )
+    const enabled = update.enabled ?? configured.enabled ?? true
+    if (enabled) validateEnabledProvider(provider, settings, validation.env)
     providers[providerId] =
       update.enabled === undefined ?
         { ...configured, settings }
@@ -295,39 +302,112 @@ function validateSetting(
   path: string,
 ): void {
   if (value === null) {
-    if (field.required) invalidSearchSetting(`${path} is required`)
+    if (field.required) {
+      invalidSearchSetting(`${path}: ${field.label} is required.`)
+    }
     return
   }
-  let valid: boolean
+  if (field.required && Array.isArray(value) && value.length === 0) {
+    invalidSearchSetting(`${path}: ${field.label} is required.`)
+  }
+  const parsed = settingSchema(field).safeParse(value)
+  if (!parsed.success) {
+    invalidSearchSetting(
+      `${path}: ${parsed.error.issues[0]?.message ?? "Invalid value"}`,
+    )
+  }
+}
+
+function settingSchema(field: ConnectorSettingField): z.ZodType {
   switch (field.type) {
     case "boolean": {
-      valid = typeof value === "boolean"
-      break
+      return z.boolean({ error: `${field.label} must be on or off.` })
     }
     case "integer": {
-      valid =
-        typeof value === "number"
-        && Number.isInteger(value)
-        && (field.min === undefined || value >= field.min)
-        && (field.max === undefined || value <= field.max)
-      break
+      let schema = z
+        .number({ error: `${field.label} must be a number.` })
+        .int({ error: `${field.label} must be a whole number.` })
+      if (field.min !== undefined) {
+        schema = schema.min(field.min, {
+          error: `${field.label} must be at least ${displayBound(field, field.min)}.`,
+        })
+      }
+      if (field.max !== undefined) {
+        schema = schema.max(field.max, {
+          error: `${field.label} must be at most ${displayBound(field, field.max)}.`,
+        })
+      }
+      return schema
     }
     case "string-list": {
-      valid =
-        Array.isArray(value) && value.every((item) => typeof item === "string")
-      break
+      return z.array(
+        z
+          .string({ error: `${field.label} entries must be text.` })
+          .trim()
+          .min(1, { error: `${field.label} entries cannot be empty.` }),
+        { error: `${field.label} must be a list.` },
+      )
     }
     case "select": {
-      valid =
-        typeof value === "string"
-        && field.options.some((option) => option.value === value)
-      break
+      return z
+        .string({ error: `${field.label} must be text.` })
+        .refine(
+          (candidate) => field.options.some(({ value }) => value === candidate),
+          { error: `Choose an available ${field.label.toLowerCase()}.` },
+        )
     }
     default: {
-      valid = typeof value === "string"
+      let schema = z.string({ error: `${field.label} must be text.` })
+      if (field.required) {
+        schema = schema.trim().min(1, { error: `${field.label} is required.` })
+      }
+      if (field.format === "url") {
+        return schema.refine(isHttpUrl, {
+          error: `${field.label} must be a valid HTTP or HTTPS URL.`,
+        })
+      }
+      return schema
     }
   }
-  if (!valid) invalidSearchSetting(`Invalid value for ${path}`)
+}
+
+function displayBound(field: ConnectorSettingField, value: number): string {
+  return field.unit === "seconds" ?
+      `${String(value / 1000)} seconds`
+    : String(value)
+}
+
+function isHttpUrl(candidate: string): boolean {
+  try {
+    const url = new URL(candidate)
+    return url.protocol === "http:" || url.protocol === "https:"
+  } catch {
+    return false
+  }
+}
+
+function validateEnabledProvider(
+  provider: SearchProvider,
+  settings: SearchProviderConfig["settings"],
+  env: NodeJS.ProcessEnv,
+): void {
+  for (const field of provider.settings ?? []) {
+    if (!field.required) continue
+    const environmentSecret =
+      provider.id === "ollama"
+      && field.key === "apiKey"
+      && Boolean(env.OLLAMA_API_KEY)
+    if (environmentSecret) continue
+    const value = settings?.[field.key] ?? field.default ?? null
+    try {
+      validateSetting(field, value, `${provider.id}.${field.key}`)
+    } catch (error) {
+      if (!(error instanceof SettingsOperationError)) throw error
+      invalidSearchSetting(
+        `${provider.label} cannot be enabled: ${error.message}. ${field.emptyDescription ?? "Complete the required field."}`,
+      )
+    }
+  }
 }
 
 function invalidSearchSetting(message: string): never {

@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useId,
   useState,
   type DragEvent,
@@ -21,12 +22,15 @@ export interface PartitionedSortableItem {
   id: string;
   label: string;
   description?: string;
+  toggleDisabled?: boolean;
+  toggleTooltip?: ReactNode;
 }
 
 export interface PartitionedSortableListProps {
   enabledItems: readonly PartitionedSortableItem[];
   disabledItems: readonly PartitionedSortableItem[];
   disabled?: boolean;
+  requestedExpandedItemId?: string | null;
   renderDetails?: (item: PartitionedSortableItem, enabled: boolean) => ReactNode;
   onChange: (
     enabledItems: PartitionedSortableItem[],
@@ -56,6 +60,7 @@ function moveItem(
 const STYLES = `
 .sb-shell .partitioned-sortable {
   --shell-partitioned-sortable-drag-opacity: 0.5;
+  --shell-partitioned-sortable-grip-width: 16px;
   min-width: 0;
 }
 .sb-shell .partitioned-sortable__list {
@@ -141,11 +146,16 @@ const STYLES = `
 }
 .sb-shell .partitioned-sortable__toggle.switch {
   width: auto;
-  gap: var(--shell-space-2);
-  font-size: var(--shell-text-sm);
 }
 .sb-shell .partitioned-sortable__details {
-  padding: var(--shell-space-3) var(--shell-space-3) var(--shell-space-4);
+  padding:
+    var(--shell-space-3)
+    var(--shell-space-3)
+    var(--shell-space-4)
+    calc(
+      var(--shell-space-2) + var(--shell-partitioned-sortable-grip-width) + var(--shell-space-2) +
+      var(--shell-control-lg) + var(--shell-space-2)
+    );
   border-top: 1px solid var(--shell-border);
 }
 .sb-shell .partitioned-sortable__empty {
@@ -167,6 +177,7 @@ export function PartitionedSortableList({
   enabledItems,
   disabledItems,
   disabled = false,
+  requestedExpandedItemId,
   renderDetails,
   onChange,
 }: PartitionedSortableListProps): ReactElement {
@@ -175,6 +186,12 @@ export function PartitionedSortableList({
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (requestedExpandedItemId !== undefined && requestedExpandedItemId !== null) {
+      setExpandedId(requestedExpandedItemId);
+    }
+  }, [requestedExpandedItemId]);
 
   const move = (
     item: PartitionedSortableItem,
@@ -259,6 +276,7 @@ export function PartitionedSortableList({
               className="partitioned-sortable__row"
               data-has-details={renderDetails ? 'true' : undefined}
             >
+            <GripVertical aria-hidden="true" className="partitioned-sortable__grip" size={16} />
             {renderDetails ? (
               <IconButton
                 className="partitioned-sortable__action partitioned-sortable__disclosure"
@@ -272,7 +290,6 @@ export function PartitionedSortableList({
                 <ChevronRight aria-hidden="true" size={15} />
               </IconButton>
             ) : null}
-            <GripVertical aria-hidden="true" className="partitioned-sortable__grip" size={16} />
             <div className="partitioned-sortable__content">
               <span className="partitioned-sortable__label">{item.label}</span>
               {item.description ? (
@@ -300,10 +317,11 @@ export function PartitionedSortableList({
               </IconButton>
               <Switch
                 label={`${partition === 'enabled' ? 'Disable' : 'Enable'} ${item.label}`}
-                displayLabel={enabled ? 'Enabled' : 'Disabled'}
+                displayLabel={null}
+                tooltip={item.toggleTooltip ?? (enabled ? 'Enabled' : 'Disabled')}
                 className="partitioned-sortable__toggle"
                 checked={enabled}
-                disabled={disabled}
+                disabled={disabled || item.toggleDisabled}
                 onChange={(nextEnabled) =>
                   move(
                     item,

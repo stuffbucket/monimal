@@ -89,6 +89,24 @@ export const Default: StoryObj = {
   },
 };
 
+export const WithoutStatus: StoryObj = {
+  render: () => (
+    <ShellLayout
+      layoutId="shell-without-status-story"
+      tabs={[{ id: 'settings', title: 'Settings' }]}
+      activeTab="settings"
+      onSelectTab={() => undefined}
+      tabsLabel="Views"
+      left={() => <nav className="nav">Sections</nav>}
+      main={<div className="canvas">Settings</div>}
+      status={null}
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    await expect(canvasElement.querySelector('.statusbar')).toBeNull();
+  },
+};
+
 const PANEL_TABS = [
   { id: 'dashboard', title: 'Dashboard' },
   { id: 'runs', title: 'Runs' },

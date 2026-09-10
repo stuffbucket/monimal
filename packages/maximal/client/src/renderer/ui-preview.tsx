@@ -8,22 +8,25 @@ import 'stuffbucket-electron/renderer/styles.css'
 import { AppFrame, PRODUCT_TABS } from './frame/AppFrame'
 import { Settings } from './settings/Settings'
 import { createPreviewSettingsCapabilities } from './settings/ui-preview-capabilities'
+import { UnsavedChangesProvider } from './unsaved-changes'
 
 const capabilities = createPreviewSettingsCapabilities()
 
 function SearchSettingsPreview(): ReactElement {
   return (
-    <AppFrame
-      tabs={PRODUCT_TABS}
-      activeTab="settings"
-      surface="settings"
-      onSelectTab={() => undefined}
-    >
-      <Settings
-        capabilities={capabilities}
-        request={{ id: 'settings-search-heading' }}
-      />
-    </AppFrame>
+    <UnsavedChangesProvider>
+      <AppFrame
+        tabs={PRODUCT_TABS}
+        activeTab="settings"
+        surface="settings"
+        onSelectTab={() => undefined}
+      >
+        <Settings
+          capabilities={capabilities}
+          request={{ id: 'settings-search-heading' }}
+        />
+      </AppFrame>
+    </UnsavedChangesProvider>
   )
 }
 

@@ -195,6 +195,7 @@ export const RENDERER_SURFACE = [
   'Textarea',
   'TitleBar',
   'Toolbar',
+  'UnsavedChangesDialog',
   'Usage',
   'ViewModeSwitch',
   'WindowChrome',

@@ -62,7 +62,7 @@ export function AppFrame({
       newTabLabel="New terminal"
       withLeft={surface !== 'terminal'}
       withRight={surface === 'overview' || surface === 'traffic'}
-      withStatus={surface !== 'terminal'}
+      withStatus={surface !== 'terminal' && surface !== 'settings'}
     >
       {children}
     </PackageAppFrame>
