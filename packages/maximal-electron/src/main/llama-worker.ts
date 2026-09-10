@@ -25,6 +25,7 @@ import type { EngineEvent, EngineRequest } from './native/llama-protocol.js';
  */
 
 type EsmImport = (specifier: string) => Promise<Record<string, unknown>>;
+// eslint-disable-next-line @typescript-eslint/no-implied-eval -- Rollup must not rewrite this dynamic import.
 const esmImport = new Function('s', 'return import(s)') as unknown as EsmImport;
 
 function post(event: EngineEvent): void {
@@ -261,7 +262,7 @@ async function run(request: Extract<EngineRequest, { kind: 'run' }>): Promise<vo
     const defineFunction = nlc.defineChatSessionFunction as (
       definition: Record<string, unknown>,
     ) => unknown;
-    const LlamaChatSession = nlc.LlamaChatSession as unknown as ChatSessionCtor;
+    const LlamaChatSession = nlc.LlamaChatSession as ChatSessionCtor;
 
     const context = await opened.createContext({ contextSize: request.contextSize });
 

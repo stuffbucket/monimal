@@ -83,10 +83,6 @@ export const TYPESCRIPT_RULES = {
     "error",
     { ignoreArrowShorthand: true },
   ],
-  "@typescript-eslint/no-misused-promises": [
-    "error",
-    { checksVoidReturn: false },
-  ],
   "@typescript-eslint/no-unnecessary-condition": [
     "error",
     { allowConstantLoopConditions: true },

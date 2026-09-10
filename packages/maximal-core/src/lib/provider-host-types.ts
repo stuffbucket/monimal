@@ -27,10 +27,7 @@ export interface ProviderCompatibilityConfig {
 }
 
 export type ProviderHostConfigFailureReason =
-  | "parse"
-  | "read"
-  | "unknown"
-  | "validation"
+  "parse" | "read" | "unknown" | "validation"
 
 export type ProviderHostConfigStatus =
   | { readonly state: "ready" }

@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import type { BrowserWindow } from 'electron';
 
 import { closeApp, launchApp, resetShell, type Harness } from '../harness.js';
 import { record, sequence } from './recorder.js';
@@ -127,10 +128,10 @@ test('records a demonstration of the shell', async () => {
             // Match the shell's shape, and inherit its position, which a quiet
             // run has already moved out of the user's way.
             const shellHandle = await application.browserWindow(shell);
-            const bounds = await shellHandle.evaluate((win) => win.getBounds());
+            const bounds = await shellHandle.evaluate((win: BrowserWindow) => win.getBounds());
             const overlayHandle = await application.browserWindow(overlay);
             await overlayHandle
-              .evaluate((win, box) => {
+              .evaluate((win: BrowserWindow, box) => {
                 win.setBounds(box);
               }, bounds)
               .catch(() => undefined);

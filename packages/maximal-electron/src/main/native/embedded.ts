@@ -119,7 +119,7 @@ async function serveToolCall(
   try {
     const result = await entry.tool.execute(
       `${name}-${String(Date.now())}`,
-      args as never,
+      args,
       run.signal,
     );
     run.onTool(name, 'end');

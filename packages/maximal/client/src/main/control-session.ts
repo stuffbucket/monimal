@@ -193,6 +193,10 @@ const apiKeyRemoveResultSchema = z.object({
   id: z.string(),
 })
 
+function parseWith<T>(schema: z.ZodType<T>): (input: unknown) => T {
+  return (input) => schema.parse(input)
+}
+
 class SessionFailure extends Error {
   constructor(
     readonly reason: ControlFailure['reason'],
@@ -329,7 +333,7 @@ export function createControlSession(
 
       dependencies.onChange()
       if (topic === 'snapshot') trafficRevision = null
-      const traffic = Reflect.get(state, 'traffic') as unknown
+      const traffic: unknown = Reflect.get(state, 'traffic')
       if (traffic === undefined) {
         if (topic === 'snapshot') {
           dependencies.onTrafficInvalidation({
@@ -452,13 +456,13 @@ export function createControlSession(
   })
 
   return {
-    authStatus: () => call('auth/status', AuthStatusSchema.parse),
-    authStart: () => call('auth/start', AuthStatusSchema.parse),
-    authCancel: () => call('auth/cancel', AuthStatusSchema.parse),
+    authStatus: () => call('auth/status', parseWith(AuthStatusSchema)),
+    authStart: () => call('auth/start', parseWith(AuthStatusSchema)),
+    authCancel: () => call('auth/cancel', parseWith(AuthStatusSchema)),
     authSignOut: () =>
       call('auth/signOut', () => null),
     accountsList: () =>
-      call('accounts/list', AccountsListResponseSchema.parse),
+      call('accounts/list', parseWith(AccountsListResponseSchema)),
     accountsSwitch: (key) =>
       call('accounts/switch', (input) => {
         accountsSwitchResultSchema.parse(input)
@@ -467,16 +471,16 @@ export function createControlSession(
     observabilityOverview: (query) =>
       call(
         'observability/overview',
-        TrafficOverviewSchema.parse,
+        parseWith(TrafficOverviewSchema),
         query,
-        TrafficOverviewQuerySchema.parse,
+        parseWith(TrafficOverviewQuerySchema),
       ),
     observabilityRequests: (query) =>
       call(
         'observability/requests',
-        TrafficRequestPageSchema.parse,
+        parseWith(TrafficRequestPageSchema),
         query,
-        TrafficRequestListQuerySchema.parse,
+        parseWith(TrafficRequestListQuerySchema),
       ),
     observabilityRequest: (query) =>
       call(
@@ -484,29 +488,33 @@ export function createControlSession(
         (input) =>
           input === null ? null : TrafficRequestDetailSchema.parse(input),
         query,
-        TrafficRequestDetailQuerySchema.parse,
+        parseWith(TrafficRequestDetailQuerySchema),
       ),
-    appsList: () => call('apps/list', AppsListResponseSchema.parse),
+    appsList: () => call('apps/list', parseWith(AppsListResponseSchema)),
     appsSetEnabled: (appId, enabled) =>
-      call('apps/setEnabled', AppEntrySchema.parse, { appId, enabled }),
-    apiKeysList: () => call('apiKeys/list', ApiKeysListResponseSchema.parse),
+      call('apps/setEnabled', parseWith(AppEntrySchema), { appId, enabled }),
+    apiKeysList: () =>
+      call('apiKeys/list', parseWith(ApiKeysListResponseSchema)),
     apiKeysCreate: (input) =>
-      call('apiKeys/create', ApiKeyEntrySchema.parse, input),
+      call('apiKeys/create', parseWith(ApiKeyEntrySchema), input),
     apiKeysUpdate: (id, update) =>
-      call('apiKeys/update', ApiKeyEntrySchema.parse, { id, update }),
+      call('apiKeys/update', parseWith(ApiKeyEntrySchema), { id, update }),
     apiKeysRemove: (id) =>
       call('apiKeys/remove', (input) => {
         apiKeyRemoveResultSchema.parse(input)
         return null
       }, { id }),
     apiKeysSetEnforcement: (enforcing) =>
-      call('apiKeys/setEnforcement', ApiKeysListResponseSchema.parse, { enforcing }),
-    modelsList: () => call('models/list', ModelsListResponseSchema.parse),
-    modelsRefresh: () => call('models/refresh', ModelsListResponseSchema.parse),
+      call('apiKeys/setEnforcement', parseWith(ApiKeysListResponseSchema), {
+        enforcing,
+      }),
+    modelsList: () => call('models/list', parseWith(ModelsListResponseSchema)),
+    modelsRefresh: () =>
+      call('models/refresh', parseWith(ModelsListResponseSchema)),
     usageGet: (period) =>
-      call('usage/get', TokenUsageSummarySchema.parse, { period }),
+      call('usage/get', parseWith(TokenUsageSummarySchema), { period }),
     diagnosticsGet: () =>
-      call('diagnostics/get', DiagnosticsResponseSchema.parse),
+      call('diagnostics/get', parseWith(DiagnosticsResponseSchema)),
     dispose() {
       if (disposed) return
       disposed = true

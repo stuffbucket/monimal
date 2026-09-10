@@ -221,9 +221,7 @@ interface ServerToolUseBlock {
 }
 
 type SynthesizedBlock =
-  | AnthropicAssistantContentBlock
-  | ServerToolUseBlock
-  | ResultOutBlock
+  AnthropicAssistantContentBlock | ServerToolUseBlock | ResultOutBlock
 
 function buildServerToolUse(tu: AnthropicToolUseBlock): ServerToolUseBlock {
   return {

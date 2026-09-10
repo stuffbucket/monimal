@@ -1,6 +1,7 @@
 import type {
   AccountsListResponse,
   AuthStatus,
+  TokenUsagePeriod,
 } from '@stuffbucket/maximal-core/settings-types'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -90,7 +91,7 @@ function fakeBridge(): MaximalBridge {
       modelsRefresh: vi.fn(async () =>
         success({ models: [], count: 0, loaded_at: null }),
       ),
-      usageGet: vi.fn(async (period) =>
+      usageGet: vi.fn(async (period: TokenUsagePeriod) =>
         success({
           period,
           range: { start_ms: 0, end_ms: 0, start_utc: '', end_utc: '' },
@@ -254,10 +255,12 @@ describe('createCoreSettingsCapabilities', () => {
     let liveRequest: (sectionId: string | null) => void = () => {
       throw new Error('live listener was not installed')
     }
-    window.maximal.onOpenSettings = vi.fn((listener) => {
-      liveRequest = listener
-      return () => {}
-    })
+    window.maximal.onOpenSettings = vi.fn(
+      (listener: (sectionId: string | null) => void) => {
+        liveRequest = listener
+        return () => {}
+      },
+    )
     window.maximal.pendingSettingsRequest = vi.fn(async () => {
       throw new Error('renderer was reloading')
     })

@@ -10,8 +10,7 @@ import type {
 } from "@stuffbucket/maximal-observability-contract"
 
 export type ObservabilityRead<T> =
-  | { status: "ready"; data: T }
-  | { status: "unsupported"; message: string }
+  { status: "ready"; data: T } | { status: "unsupported"; message: string }
 
 export interface ObservabilitySource {
   readOverview(

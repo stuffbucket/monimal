@@ -74,7 +74,7 @@ function fakeLifecycleBridge(
   return {
     bridge: {
       getCoreStatus: vi.fn(() => seed),
-      onCoreStatus: vi.fn((listener) => {
+      onCoreStatus: vi.fn((listener: (status: LifecycleStatus) => void) => {
         listeners.add(listener)
         return () => listeners.delete(listener)
       }),

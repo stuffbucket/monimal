@@ -150,7 +150,7 @@ describe('the rule that reports those findings in the editor', () => {
     const linter = new Linter();
     return linter
       .verify(code, {
-        plugins: { shell: shell as never },
+        plugins: { shell: shell },
         rules: { 'shell/design-tokens': 'error' },
       })
       .map((message) => message.messageId ?? '');

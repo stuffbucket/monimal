@@ -6,10 +6,10 @@ import {
   AppSetEnabledRequest,
   TokenUsagePeriod,
 } from '@stuffbucket/maximal-core/settings-types'
-import type {
-  TrafficOverviewQuery,
-  TrafficRequestDetailQuery,
-  TrafficRequestListQuery,
+import {
+  TrafficOverviewQuerySchema,
+  TrafficRequestDetailQuerySchema,
+  TrafficRequestListQuerySchema,
 } from '@stuffbucket/maximal-observability-contract'
 
 import { app, BrowserWindow, ipcMain, shell } from 'electron'
@@ -43,7 +43,8 @@ let menuBarMode: MenuBarModeController | null = null
 
 const nonEmptyString = z.string().min(1)
 
-function openExternalUrl(url: string): Promise<void> {
+function openExternalUrl(input: unknown): Promise<void> {
+  const url = nonEmptyString.parse(input)
   let parsed: URL
   try {
     parsed = new URL(url)
@@ -53,7 +54,7 @@ function openExternalUrl(url: string): Promise<void> {
   if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
     return Promise.reject(new Error('External URL must use HTTP or HTTPS'))
   }
-  return shell.openExternal(url)
+  return shell.openExternal(parsed.href)
 }
 
 function registerIpc(
@@ -64,7 +65,7 @@ function registerIpc(
     toLifecycleStatus(currentCoreStatus()),
   )
   ipcMain.handle(BRIDGE_CHANNELS.proxyUrl, () => awaitProxyUrl())
-  ipcMain.handle(BRIDGE_CHANNELS.openExternal, (_event, url: string) =>
+  ipcMain.handle(BRIDGE_CHANNELS.openExternal, (_event, url: unknown) =>
     openExternalUrl(url),
   )
   ipcMain.handle(BRIDGE_CHANNELS.authStatus, () => session.authStatus())
@@ -77,18 +78,18 @@ function registerIpc(
   )
   ipcMain.handle(
     BRIDGE_CHANNELS.observabilityOverview,
-    (_event, query: TrafficOverviewQuery) =>
-      session.observabilityOverview(query),
+    (_event, query: unknown) =>
+      session.observabilityOverview(TrafficOverviewQuerySchema.parse(query)),
   )
   ipcMain.handle(
     BRIDGE_CHANNELS.observabilityRequests,
-    (_event, query: TrafficRequestListQuery) =>
-      session.observabilityRequests(query),
+    (_event, query: unknown) =>
+      session.observabilityRequests(TrafficRequestListQuerySchema.parse(query)),
   )
   ipcMain.handle(
     BRIDGE_CHANNELS.observabilityRequest,
-    (_event, query: TrafficRequestDetailQuery) =>
-      session.observabilityRequest(query),
+    (_event, query: unknown) =>
+      session.observabilityRequest(TrafficRequestDetailQuerySchema.parse(query)),
   )
   ipcMain.handle(BRIDGE_CHANNELS.appsList, () => session.appsList())
   ipcMain.handle(

@@ -91,20 +91,22 @@ const CREDENTIAL_HEADER_NAMES: ReadonlySet<string> = new Set([
  * can only enumerate spellings.
  */
 export type NonCredentialHeaders = Record<string, string> & {
-  [K in
-    | "api-key"
-    | "API-Key"
-    | "Api-Key"
-    | "authorization"
-    | "Authorization"
-    | "AUTHORIZATION"
-    | "cookie"
-    | "Cookie"
-    | "proxy-authorization"
-    | "Proxy-Authorization"
-    | "x-api-key"
-    | "X-API-KEY"
-    | "X-Api-Key"]?: CredentialHeaderNotSupported
+  [
+    K in
+      | "api-key"
+      | "API-Key"
+      | "Api-Key"
+      | "authorization"
+      | "Authorization"
+      | "AUTHORIZATION"
+      | "cookie"
+      | "Cookie"
+      | "proxy-authorization"
+      | "Proxy-Authorization"
+      | "x-api-key"
+      | "X-API-KEY"
+      | "X-Api-Key"
+  ]?: CredentialHeaderNotSupported
 }
 
 /**

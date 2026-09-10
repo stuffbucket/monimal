@@ -61,7 +61,7 @@ function invoke(page: Page, channel: string, payload?: unknown): Promise<unknown
           };
         }
       ).stuffbucket;
-      return api?.invoke(name as string, body);
+      return api?.invoke(name, body);
     },
     [channel, payload] as const,
   );

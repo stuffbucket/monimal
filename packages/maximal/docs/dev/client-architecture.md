@@ -168,10 +168,8 @@ tree-shaking.
 - Vitest separates Node/main tests from jsdom/renderer tests. Main, preload,
   lifecycle mapping, control generations, error transport, capability
   adapters, and UI behavior are covered.
-- ESLint enforces React hooks, basic syntax rules, and the renderer import
-  boundary. typescript-eslint runs at `recommended` with `typeChecked: false`;
-  switching type-aware rules on is step 4 of
-  [`../../client/README.md`](../../client/README.md).
+- ESLint enforces React hooks, type-aware recommended TypeScript rules, and the
+  renderer import boundary.
 - TypeScript validates the complete main/preload/renderer contract.
 - Packaged Playwright tests launch a relocated copy outside the repository's
   dependency tree. They verify sidecar readiness, the exact deep preload API,
