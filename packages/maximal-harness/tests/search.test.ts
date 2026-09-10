@@ -286,6 +286,7 @@ void test("describes provider URL and timeout controls for the settings UI", () 
       key: "apiKey",
       type: "secret",
       label: "API key",
+      placeholder: "Paste your Ollama API key",
       description: "Use an Ollama API key to authorize hosted search.",
       helpLink: {
         label: "Create or manage an API key",
@@ -294,6 +295,24 @@ void test("describes provider URL and timeout controls for the settings UI", () 
       required: true,
       layout: "full",
       emptyDescription: "Enter an Ollama API key below.",
+    },
+  )
+  assert.deepEqual(
+    ollama.settings.find(({ key }) => key === "baseUrl"),
+    {
+      key: "baseUrl",
+      type: "string",
+      label: "Base URL",
+      default: "https://ollama.com/api",
+      placeholder: "https://ollama.com/api",
+      required: true,
+      format: "url",
+      validation: {
+        url: { protocols: ["https:"], pathname: "/api" },
+        message: "Base URL must be an HTTPS origin followed by /api.",
+      },
+      layout: "full",
+      emptyDescription: "Uses https://ollama.com/api when empty.",
     },
   )
   for (const settings of [ollama.settings, duckDuckGo.settings]) {

@@ -62,6 +62,7 @@ import {
   SettingsOperationError,
   updateApiKey,
   updateSearchSettings,
+  validateSearchProvider,
 } from "~/lib/config/settings-operations"
 import {
   ApiKeyCreateRequest,
@@ -71,6 +72,7 @@ import {
   AppSetEnabledRequest,
   ConnectionActionRequest,
   ConnectionCredentialIdRequest,
+  SearchProviderValidationRequest,
   SearchSettingsUpdateRequest,
   TokenUsageRequest,
 } from "~/lib/config/settings-types"
@@ -101,6 +103,7 @@ export interface ControlRpcOperationOverrides {
   refreshModels?: typeof cacheModels
   setAppEnabled?: typeof setAppEnabled
   updateSearchSettings?: typeof updateSearchSettings
+  validateSearchProvider?: typeof validateSearchProvider
 }
 
 export interface ControlRpcDeps {
@@ -207,6 +210,7 @@ function createSearchSettingsRpcMethods(
 ): RpcRegistry {
   const read = operations.buildSearchSettings ?? buildSearchSettings
   const update = operations.updateSearchSettings ?? updateSearchSettings
+  const validate = operations.validateSearchProvider ?? validateSearchProvider
   return {
     "searchSettings/get": () => read(),
     "searchSettings/update": (params: unknown) =>
@@ -216,6 +220,16 @@ function createSearchSettingsRpcMethods(
             SearchSettingsUpdateRequest,
             params,
             "Expected search connector settings update.",
+          ),
+        ),
+      ),
+    "searchSettings/validateProvider": (params: unknown) =>
+      asAsyncRpcOperation(() =>
+        validate(
+          parseParams(
+            SearchProviderValidationRequest,
+            params,
+            "Expected search provider validation request.",
           ),
         ),
       ),

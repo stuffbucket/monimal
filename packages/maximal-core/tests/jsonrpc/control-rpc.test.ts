@@ -146,6 +146,7 @@ describe("control /rpc — discovery", () => {
       "diagnostics/get",
       "searchSettings/get",
       "searchSettings/update",
+      "searchSettings/validateProvider",
     ]
     for (const method of settingsMethods) expect(caps.methods).toContain(method)
   })
@@ -234,6 +235,11 @@ describe("control /rpc — params validation", () => {
         { settings: [] },
         "Expected search connector settings update.",
       ],
+      [
+        "searchSettings/validateProvider",
+        { providerId: "" },
+        "Expected search provider validation request.",
+      ],
     ] as const
 
     for (const [method, params, message] of cases) {
@@ -304,11 +310,16 @@ describe("control /rpc — search settings", () => {
       providers: {},
     })
     let updates = 0
+    let validations = 0
     const custom = appWithOperations({
       buildSearchSettings: () => snapshot,
       updateSearchSettings: () => {
         updates += 1
         return snapshot
+      },
+      validateSearchProvider: () => {
+        validations += 1
+        return Promise.resolve({ status: "valid", fieldErrors: {} } as const)
       },
     })
     try {
@@ -318,7 +329,15 @@ describe("control /rpc — search settings", () => {
       expect(
         (await rpcThrough(custom.app, "searchSettings/update", {})).result,
       ).toEqual(snapshot)
+      expect(
+        (
+          await rpcThrough(custom.app, "searchSettings/validateProvider", {
+            providerId: "ollama",
+          })
+        ).result,
+      ).toEqual({ status: "valid", fieldErrors: {} })
       expect(updates).toBe(1)
+      expect(validations).toBe(1)
     } finally {
       custom.hub.dispose()
     }

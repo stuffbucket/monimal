@@ -10,7 +10,6 @@ import {
   type SearchProvider,
 } from "@stuffbucket/maximal-harness"
 import { randomUUID } from "node:crypto"
-import { z } from "zod"
 
 import type {
   AppEntry,
@@ -24,6 +23,8 @@ import type {
   ConnectionsListResponse,
   CopilotRefreshStatus,
   DiagnosticsResponse,
+  SearchProviderValidationRequest,
+  SearchProviderValidationResponse,
   SearchSettingsResponse,
   SearchSettingsUpdateRequest,
 } from "~/lib/config/settings-types"
@@ -50,12 +51,21 @@ import {
   writeConfig,
 } from "~/lib/config/config"
 import { API_KEY_VALUE_PATTERN } from "~/lib/config/config-schema"
+import {
+  probeSearchProvider,
+  type SearchProviderRequest,
+} from "~/lib/config/search-provider-probe"
+import {
+  enabledProviderError,
+  searchSettingError,
+} from "~/lib/config/search-setting-validation"
 import { SearchSettingsResponse as SearchSettingsResponseSchema } from "~/lib/config/settings-types"
 import {
   apiKeyToCredentialSummary,
   configuratorConnectionToAppEntry,
   configuratorConnectionToConnectionEntry,
 } from "~/lib/configurator-app-compat"
+import { sendProviderRequest } from "~/lib/http/send-request"
 import { shouldUseResponsesApi } from "~/lib/models/endpoint-selection"
 import { describeLaunchSource } from "~/lib/platform/cli-path"
 import {
@@ -166,7 +176,10 @@ export function buildSearchSettings(
       return [
         provider.id,
         {
-          enabled: configured?.enabled ?? true,
+          enabled:
+            (configured?.enabled ?? true)
+            && enabledProviderError(provider, configured?.settings, env)
+              === undefined,
           settings: providerSettings,
           secret_sources: secretSources,
         },
@@ -203,6 +216,47 @@ export function updateSearchSettings(
     connectors: { ...current.connectors, search: nextSearch },
   })
   return buildSearchSettings(saved, dependencies.env, dependencies.getModels())
+}
+
+interface SearchProviderValidationDependencies {
+  env: NodeJS.ProcessEnv
+  request: SearchProviderRequest
+  getConfig: typeof getConfig
+  getModels: () => ReadonlyArray<Model>
+}
+
+const searchProviderValidationDependencies: SearchProviderValidationDependencies =
+  {
+    env: process.env,
+    request: sendProviderRequest,
+    getConfig,
+    getModels: () => state.models?.data ?? [],
+  }
+
+export async function validateSearchProvider(
+  input: SearchProviderValidationRequest,
+  dependencies: SearchProviderValidationDependencies = searchProviderValidationDependencies,
+): Promise<SearchProviderValidationResponse> {
+  const provider = searchProvidersForModels(dependencies.getModels()).find(
+    ({ id }) => id === input.providerId,
+  )
+  if (!provider)
+    invalidSearchSetting(`Unknown search provider: ${input.providerId}`)
+
+  const configured =
+    dependencies.getConfig().connectors?.search?.providers?.[provider.id]
+  const settings = mergeProviderSettings(
+    provider,
+    configured?.settings,
+    input.settings,
+  )
+  validateEnabledProvider(provider, settings, dependencies.env)
+  return probeSearchProvider({
+    provider,
+    settings,
+    env: dependencies.env,
+    request: dependencies.request,
+  })
 }
 
 function mergeGlobalSearchSettings(
@@ -300,89 +354,8 @@ function validateSetting(
   value: ConnectorSettingValue | null,
   path: string,
 ): void {
-  if (value === null) {
-    if (field.required) {
-      invalidSearchSetting(`${path}: ${field.label} is required.`)
-    }
-    return
-  }
-  if (field.required && Array.isArray(value) && value.length === 0) {
-    invalidSearchSetting(`${path}: ${field.label} is required.`)
-  }
-  const parsed = settingSchema(field).safeParse(value)
-  if (!parsed.success) {
-    invalidSearchSetting(
-      `${path}: ${parsed.error.issues[0]?.message ?? "Invalid value"}`,
-    )
-  }
-}
-
-function settingSchema(field: ConnectorSettingField): z.ZodType {
-  switch (field.type) {
-    case "boolean": {
-      return z.boolean({ error: `${field.label} must be on or off.` })
-    }
-    case "integer": {
-      let schema = z
-        .number({ error: `${field.label} must be a number.` })
-        .int({ error: `${field.label} must be a whole number.` })
-      if (field.min !== undefined) {
-        schema = schema.min(field.min, {
-          error: `${field.label} must be at least ${displayBound(field, field.min)}.`,
-        })
-      }
-      if (field.max !== undefined) {
-        schema = schema.max(field.max, {
-          error: `${field.label} must be at most ${displayBound(field, field.max)}.`,
-        })
-      }
-      return schema
-    }
-    case "string-list": {
-      return z.array(
-        z
-          .string({ error: `${field.label} entries must be text.` })
-          .trim()
-          .min(1, { error: `${field.label} entries cannot be empty.` }),
-        { error: `${field.label} must be a list.` },
-      )
-    }
-    case "select": {
-      return z
-        .string({ error: `${field.label} must be text.` })
-        .refine(
-          (candidate) => field.options.some(({ value }) => value === candidate),
-          { error: `Choose an available ${field.label.toLowerCase()}.` },
-        )
-    }
-    default: {
-      let schema = z.string({ error: `${field.label} must be text.` })
-      if (field.required) {
-        schema = schema.trim().min(1, { error: `${field.label} is required.` })
-      }
-      if (field.format === "url") {
-        return schema.refine(isHttpUrl, {
-          error: `${field.label} must be a valid HTTP or HTTPS URL.`,
-        })
-      }
-      return schema
-    }
-  }
-}
-
-function displayBound(field: ConnectorSettingField, value: number): string {
-  return field.unit === "seconds" ?
-      `${String(value / 1000)} seconds`
-    : String(value)
-}
-
-function isHttpUrl(candidate: string): boolean {
-  try {
-    const url = new URL(candidate)
-    return url.protocol === "http:" || url.protocol === "https:"
-  } catch {
-    return false
-  }
+  const error = searchSettingError(field, value, path)
+  if (error !== undefined) invalidSearchSetting(error)
 }
 
 function validateEnabledProvider(
@@ -390,23 +363,8 @@ function validateEnabledProvider(
   settings: SearchProviderConfig["settings"],
   env: NodeJS.ProcessEnv,
 ): void {
-  for (const field of provider.settings ?? []) {
-    if (!field.required) continue
-    const environmentSecret =
-      provider.id === "ollama"
-      && field.key === "apiKey"
-      && Boolean(env.OLLAMA_API_KEY)
-    if (environmentSecret) continue
-    const value = settings?.[field.key] ?? field.default ?? null
-    try {
-      validateSetting(field, value, `${provider.id}.${field.key}`)
-    } catch (error) {
-      if (!(error instanceof SettingsOperationError)) throw error
-      invalidSearchSetting(
-        `${provider.label} cannot be enabled: ${error.message} ${field.emptyDescription ?? "Complete the required field."}`,
-      )
-    }
-  }
+  const error = enabledProviderError(provider, settings, env)
+  if (error !== undefined) invalidSearchSetting(error)
 }
 
 function invalidSearchSetting(message: string): never {

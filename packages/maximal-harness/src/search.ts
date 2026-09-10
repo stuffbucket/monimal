@@ -66,6 +66,13 @@ interface SettingFieldBase {
   readonly unit?: "seconds"
   readonly layout?: "full"
   readonly emptyDescription?: string
+  readonly validation?: {
+    readonly url: {
+      readonly protocols: ReadonlyArray<"http:" | "https:">
+      readonly pathname: string
+    }
+    readonly message: string
+  }
 }
 
 export type ConnectorSettingField =
@@ -103,6 +110,13 @@ export interface SearchProvider {
   readonly description?: string
   readonly capabilities: ReadonlyArray<SearchCapability>
   readonly settings?: ReadonlyArray<ConnectorSettingField>
+  readonly credentialProbe?: {
+    readonly secretKey: string
+    readonly baseUrlKey: string
+    readonly environmentVariable?: string
+    readonly path: string
+    readonly body: Readonly<Record<string, ConnectorSettingValue>>
+  }
   create(settings: ConnectorSettings): SearchProviderInstance
 }
 

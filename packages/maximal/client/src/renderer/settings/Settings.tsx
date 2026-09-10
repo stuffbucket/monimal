@@ -121,6 +121,7 @@ const SETTINGS_CSS = `
   overflow-y: auto;
   padding: var(--shell-space-4, 16px);
   color: var(--shell-text, #f5f5f5);
+  font-size: var(--shell-text-base, 0.875rem);
 }
 
 .settings-page__back {
@@ -137,6 +138,8 @@ const SETTINGS_CSS = `
   padding: var(--shell-space-2, 8px);
   min-height: 0;
   overflow-y: auto;
+  font-size: var(--shell-text-base, 0.875rem);
+  line-height: var(--shell-leading-base, 1.5);
 }
 
 .settings-rail__link {
@@ -146,8 +149,9 @@ const SETTINGS_CSS = `
   appearance: none;
   border: 0;
   border-radius: var(--shell-radius, 6px);
-  padding: var(--shell-space-2, 8px);
-  color: var(--shell-text-muted, #8a8a8a);
+  min-height: 40px;
+  padding: 0 var(--shell-space-2, 8px);
+  color: var(--shell-text-muted, #a0a8b4);
   background: transparent;
   font: inherit;
   text-align: left;
@@ -182,8 +186,9 @@ const SETTINGS_CSS = `
 
 .settings-section__heading {
   margin: 0;
-  font-size: var(--shell-text-lg);
+  font-size: var(--shell-text-xl, 1.375rem);
   font-weight: var(--shell-weight-lg, 600);
+  line-height: 1.25;
 }
 
 .settings-field {
@@ -209,6 +214,10 @@ const SETTINGS_CSS = `
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
   gap: var(--shell-space-4, 16px);
+}
+
+.search-provider-order__fallback {
+  margin-inline: calc(var(--shell-space-4, 16px) + 2px);
 }
 
 .search-behavior {
@@ -241,18 +250,6 @@ const SETTINGS_CSS = `
   gap: var(--shell-space-1, 4px);
 }
 
-.settings-section__save-note {
-  flex: 1 1 14rem;
-  color: var(--shell-text-subtle, #6a6a6a);
-  font-size: var(--shell-text-sm, 0.8125rem);
-}
-
-.settings-section__action-buttons {
-  display: flex;
-  gap: var(--shell-space-2, 8px);
-  margin-left: auto;
-}
-
 .settings-connector-field {
   align-items: flex-start;
   gap: var(--shell-space-2, 8px);
@@ -279,7 +276,7 @@ const SETTINGS_CSS = `
   margin: 0;
   min-width: 9em;
   font-size: var(--shell-text-sm, 0.9em);
-  color: var(--shell-text-subtle, #6a6a6a);
+  color: var(--shell-text-subtle, #8f97a2);
 }
 
 .settings-details__row dd {
@@ -363,7 +360,7 @@ const SETTINGS_CSS = `
 
 .settings-accounts-list__meta {
   font-size: var(--shell-text-sm, 0.8125rem);
-  color: var(--shell-text-subtle, #6a6a6a);
+  color: var(--shell-text-subtle, #8f97a2);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -457,7 +454,7 @@ const SETTINGS_CSS = `
 
 .settings-list__meta,
 .settings-list__detail {
-  color: var(--shell-text-subtle, #6a6a6a);
+  color: var(--shell-text-subtle, #8f97a2);
   font-size: var(--shell-text-sm, 0.9em);
 }
 
@@ -601,7 +598,7 @@ const SETTINGS_CSS = `
 }
 
 .settings-metrics dt {
-  color: var(--shell-text-subtle, #6a6a6a);
+  color: var(--shell-text-subtle, #8f97a2);
   font-size: var(--shell-text-sm, 0.9em);
 }
 

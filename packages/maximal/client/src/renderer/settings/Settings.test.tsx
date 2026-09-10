@@ -146,6 +146,7 @@ function fakeCapabilities(): SettingsCapabilities {
         providers: {},
       })),
       update: vi.fn(),
+      validateProvider: vi.fn(async () => ({ status: 'valid' as const, fieldErrors: {} })),
     },
     onOpenRequest: vi.fn(() => () => {}),
     openExternal: vi.fn(async () => {}),
@@ -295,7 +296,7 @@ describe('Settings', () => {
     expect(style).toBeInstanceOf(HTMLStyleElement)
     expect(style?.tagName).toBe('STYLE')
     expect(style?.textContent).toContain('.settings-page {')
-    expect(style?.textContent).toMatch(/\.settings-section__heading\s*{[^}]*--shell-text-lg/s)
+    expect(style?.textContent).toMatch(/\.settings-section__heading\s*{[^}]*--shell-text-xl/s)
     expect(style?.textContent).toMatch(/\.settings-section__subheading\s*{[^}]*--shell-text-lg/s)
   })
 

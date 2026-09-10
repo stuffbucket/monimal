@@ -8,6 +8,7 @@ import {
   AppSetEnabledRequest,
   ConnectionActionRequest,
   ConnectionCredentialIdRequest,
+  SearchProviderValidationRequest,
   SearchSettingsUpdateRequest,
   TokenUsagePeriod,
 } from '@stuffbucket/maximal-core/settings-types'
@@ -183,6 +184,11 @@ function registerIpc(
     BRIDGE_CHANNELS.searchSettingsUpdate,
     (_event, input: unknown) =>
       session.searchSettingsUpdate(SearchSettingsUpdateRequest.parse(input)),
+  )
+  ipcMain.handle(
+    BRIDGE_CHANNELS.searchProviderValidate,
+    (_event, input: unknown) =>
+      session.searchProviderValidate(SearchProviderValidationRequest.parse(input)),
   )
   ipcMain.handle(BRIDGE_CHANNELS.logsLocation, () => join(coreHomePath(), 'logs'))
   ipcMain.handle(BRIDGE_CHANNELS.logsReveal, async () => {

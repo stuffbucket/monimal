@@ -3,7 +3,6 @@ import {
   useEffect,
   useMemo,
   useState,
-  type FormEvent,
   type ReactElement,
   type ReactNode,
 } from 'react'
@@ -44,6 +43,11 @@ import {
 
 interface SearchSectionProps {
   capabilities: SettingsCapabilities
+}
+
+interface ProviderCheckState {
+  fieldErrors: Record<string, string>
+  message?: string
 }
 
 interface SettingControlProps {
@@ -143,18 +147,6 @@ function providerFieldError(
   )
 }
 
-function providerRequiredError(
-  snapshot: SearchSettingsResponse,
-  updates: SearchSettingsUpdateRequest,
-  providerId: string,
-): string | undefined {
-  const provider = snapshot.manifest.providers.find(({ id }) => id === providerId)
-  return provider?.settings
-    ?.filter(({ required }) => required)
-    .map((field) => providerFieldError(snapshot, updates, providerId, field))
-    .find((message) => message !== undefined)
-}
-
 function providerValidationError(
   snapshot: SearchSettingsResponse,
   updates: SearchSettingsUpdateRequest,
@@ -186,8 +178,6 @@ function hasBlockingValidationError(
     }),
   )
 }
-
-const INCOMPLETE_PROVIDER_DISABLE_DELAY_MS = 1200
 
 function SettingControl({
   field,
@@ -284,6 +274,7 @@ function SettingControl({
             {...control}
             value={typeof value === 'string' ? value : ''}
             type={field.type === 'secret' ? 'password' : 'text'}
+            revealLabel={field.label}
             placeholder={field.placeholder}
             disabled={disabled}
             title={error}
@@ -355,6 +346,7 @@ export function SearchSection({
   const [updates, setUpdates] = useState<SearchSettingsUpdateRequest>({})
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [providerChecks, setProviderChecks] = useState<Record<string, ProviderCheckState>>({})
 
   useEffect(() => {
     let active = true
@@ -370,35 +362,6 @@ export function SearchSection({
       active = false
     }
   }, [capabilities])
-
-  const incompleteEnabledProviderIds = snapshot === null
-    ? []
-    : snapshot.manifest.providers
-      .filter(
-        ({ id }) =>
-          providerEnabled(snapshot, updates, id)
-          && providerRequiredError(snapshot, updates, id) !== undefined,
-      )
-      .map(({ id }) => id)
-  const incompleteProviderKey = incompleteEnabledProviderIds.join('\0')
-
-  useEffect(() => {
-    if (snapshot === null || incompleteProviderKey === '') return undefined
-    const providerIds = incompleteProviderKey.split('\0')
-    const timeout = globalThis.setTimeout(() => {
-      setUpdates((previous) => {
-        const providers = { ...previous.providers }
-        for (const providerId of providerIds) {
-          providers[providerId] = {
-            ...providers[providerId],
-            enabled: false,
-          }
-        }
-        return { ...previous, providers }
-      })
-    }, INCOMPLETE_PROVIDER_DISABLE_DELAY_MS)
-    return () => globalThis.clearTimeout(timeout)
-  }, [incompleteProviderKey, snapshot])
 
   const setGlobal = (
     key: string,
@@ -450,6 +413,12 @@ export function SearchSection({
     key: string,
     value: ConnectorSettingValue | null,
   ): void => {
+    setProviderChecks((previous) => {
+      if (previous[providerId] === undefined) return previous
+      const next = { ...previous }
+      delete next[providerId]
+      return next
+    })
     setUpdates((previous) => ({
       ...previous,
       providers: {
@@ -465,11 +434,53 @@ export function SearchSection({
     }))
   }
 
+  const validateProviderForEnable = useCallback(async (
+    providerId: string,
+  ): Promise<boolean> => {
+    try {
+      const settings = updates.providers?.[providerId]?.settings
+      const result = await capabilities.search.validateProvider({
+        providerId,
+        ...(settings === undefined ? {} : { settings }),
+      })
+      if (result.status === 'valid') {
+        setProviderChecks((previous) => {
+          const next = { ...previous }
+          delete next[providerId]
+          return next
+        })
+        return true
+      }
+      setProviderChecks((previous) => ({
+        ...previous,
+        [providerId]: {
+          fieldErrors: result.fieldErrors,
+          ...(result.message === undefined ? {} : { message: result.message }),
+        },
+      }))
+      return false
+    } catch (cause) {
+      setProviderChecks((previous) => ({
+        ...previous,
+        [providerId]: {
+          fieldErrors: {},
+          message: describeError(cause),
+        },
+      }))
+      return false
+    }
+  }, [capabilities, updates])
+
   const hasUpdates =
     Object.keys(updates.settings ?? {}).length > 0
     || Object.keys(updates.providers ?? {}).length > 0
   const blockingValidationError = snapshot !== null
-    && hasBlockingValidationError(snapshot, updates)
+    && (
+      hasBlockingValidationError(snapshot, updates)
+      || Object.values(providerChecks).some(
+        ({ fieldErrors }) => Object.keys(fieldErrors).length > 0,
+      )
+    )
 
   const saveChanges = useCallback(async (): Promise<boolean> => {
     if (!hasUpdates) return true
@@ -477,8 +488,22 @@ export function SearchSection({
     setBusy(true)
     setError(null)
     try {
+      if (snapshot !== null) {
+        const changedEnabledProviderIds = Object.entries(updates.providers ?? {})
+          .filter(
+            ([providerId, update]) =>
+              update.settings !== undefined
+              && Object.keys(update.settings).length > 0
+              && providerEnabled(snapshot, updates, providerId),
+          )
+          .map(([providerId]) => providerId)
+        for (const providerId of changedEnabledProviderIds) {
+          if (!await validateProviderForEnable(providerId)) return false
+        }
+      }
       setSnapshot(await capabilities.search.update(updates))
       setUpdates({})
+      setProviderChecks({})
       return true
     } catch (cause) {
       setError(describeError(cause))
@@ -486,9 +511,19 @@ export function SearchSection({
     } finally {
       setBusy(false)
     }
-  }, [blockingValidationError, capabilities, hasUpdates, updates])
+  }, [
+    blockingValidationError,
+    capabilities,
+    hasUpdates,
+    snapshot,
+    updates,
+    validateProviderForEnable,
+  ])
 
-  const discardChanges = useCallback(() => setUpdates({}), [])
+  const discardChanges = useCallback(() => {
+    setUpdates({})
+    setProviderChecks({})
+  }, [])
   const unsavedChanges = useMemo(
     () => ({
       hasChanges: () => hasUpdates,
@@ -499,11 +534,6 @@ export function SearchSection({
     [blockingValidationError, busy, discardChanges, hasUpdates, saveChanges],
   )
   useUnsavedChangesController(unsavedChanges)
-
-  const save = (event: FormEvent): void => {
-    event.preventDefault()
-    void saveChanges()
-  }
 
   return (
     <section className="settings-section" aria-labelledby="settings-search-heading">
@@ -518,7 +548,7 @@ export function SearchSection({
       {snapshot === null ? (
         <Note live="polite">Loading search settings…</Note>
       ) : (
-        <form className="settings-connector-form" onSubmit={save}>
+        <div className="settings-connector-form">
           <Note>{snapshot.manifest.description}</Note>
           <SettingsSection
             title="Provider order"
@@ -543,16 +573,20 @@ export function SearchSection({
                   - (rightIndex < 0 ? Number.MAX_SAFE_INTEGER : rightIndex)
               })
               const items = providers.map((provider) => {
-                const validationError = providerValidationError(
+                const localValidationError = providerValidationError(
                   snapshot,
                   updates,
                   provider.id,
                 )
+                const remoteValidation = providerChecks[provider.id]
+                const validationError = localValidationError
+                  ?? Object.values(remoteValidation?.fieldErrors ?? {})[0]
                 return {
                   id: provider.id,
                   label: provider.label,
                   description: provider.description,
                   toggleBlocked: validationError !== undefined,
+                  beforeEnable: () => validateProviderForEnable(provider.id),
                   toggleTooltip:
                     validationError === undefined
                       ? undefined
@@ -572,7 +606,6 @@ export function SearchSection({
                   enabledItems={enabledItems}
                   disabledItems={disabledItems}
                   disabled={busy}
-                  requestedExpandedItemId={incompleteEnabledProviderIds[0]}
                   onChange={setProviderLayout}
                   renderDetails={(item) => {
                     const provider = snapshot.manifest.providers.find(
@@ -585,8 +618,14 @@ export function SearchSection({
                       secret_sources: {},
                     }
                     const providerUpdate = updates.providers?.[provider.id]
+                    const remoteValidation = providerChecks[provider.id]
                     return (
                       <div className="settings-connector-fields">
+                        {remoteValidation?.message ? (
+                          <Note status="failed" live="assertive">
+                            {remoteValidation.message}
+                          </Note>
+                        ) : null}
                         {(provider.settings ?? []).map((field) => {
                           const source = configured.secret_sources[field.key]
                           const pending = providerUpdate?.settings?.[field.key]
@@ -595,12 +634,13 @@ export function SearchSection({
                             configured.settings,
                             providerUpdate?.settings,
                           )
-                          const validationError = settingFieldError(field, value, {
-                            secretSource: source,
-                            overridden:
-                              providerUpdate?.settings !== undefined
-                              && Object.hasOwn(providerUpdate.settings, field.key),
-                          })
+                          const validationError = remoteValidation?.fieldErrors[field.key]
+                            ?? settingFieldError(field, value, {
+                              secretSource: source,
+                              overridden:
+                                providerUpdate?.settings !== undefined
+                                && Object.hasOwn(providerUpdate.settings, field.key),
+                            })
                           return (
                             <div
                               className="settings-connector-field"
@@ -639,19 +679,20 @@ export function SearchSection({
             {snapshot.manifest.fields
               .filter((field) => field.key === 'fallback')
               .map((field) => (
-                <SettingControl
-                  key={field.key}
-                  field={field}
-                  testId={`search-setting-global-${field.key}`}
-                  value={fieldValue(field, snapshot.settings, updates.settings)}
-                  disabled={busy}
-                  error={settingFieldError(
-                    field,
-                    fieldValue(field, snapshot.settings, updates.settings),
-                  )}
-                  tooltip={FALLBACK_HELP}
-                  onChange={(value) => setGlobal(field.key, value)}
-                />
+                <div className="search-provider-order__fallback" key={field.key}>
+                  <SettingControl
+                    field={field}
+                    testId={`search-setting-global-${field.key}`}
+                    value={fieldValue(field, snapshot.settings, updates.settings)}
+                    disabled={busy}
+                    error={settingFieldError(
+                      field,
+                      fieldValue(field, snapshot.settings, updates.settings),
+                    )}
+                    tooltip={FALLBACK_HELP}
+                    onChange={(value) => setGlobal(field.key, value)}
+                  />
+                </div>
               ))}
           </SettingsSection>
 
@@ -693,33 +734,7 @@ export function SearchSection({
               </div>
             </div>
           </SettingsSection>
-
-          <div className="settings-section__actions">
-            <span className="settings-section__save-note">
-              Changes take effect after you save.
-            </span>
-            <div className="settings-section__action-buttons">
-              <Button
-                type="submit"
-                variant="primary"
-                disabled={
-                  busy
-                  || !hasUpdates
-                  || blockingValidationError
-                }
-              >
-                {busy ? 'Saving…' : 'Save changes'}
-              </Button>
-              <Button
-                type="button"
-                disabled={busy || !hasUpdates}
-                onClick={discardChanges}
-              >
-                Reset changes
-              </Button>
-            </div>
-          </div>
-        </form>
+        </div>
       )}
     </section>
   )

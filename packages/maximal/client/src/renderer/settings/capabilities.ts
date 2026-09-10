@@ -17,6 +17,8 @@ import type {
   ModelsListResponse,
   SearchSettingsResponse,
   SearchSettingsUpdateRequest,
+  SearchProviderValidationRequest,
+  SearchProviderValidationResponse,
   TokenUsagePeriod,
   TokenUsageSummary,
 } from '@stuffbucket/maximal-core/settings-types'
@@ -60,6 +62,8 @@ export type {
   LocalModelCatalogSnapshot,
   LocalModelEnsureResult,
   LocalModelOperationEvent,
+  SearchProviderValidationRequest,
+  SearchProviderValidationResponse,
   SearchSettingsResponse,
   SearchSettingsUpdateRequest,
   TokenUsagePeriod,
@@ -131,6 +135,9 @@ export interface SettingsCapabilities {
   search: {
     get(): Promise<SearchSettingsResponse>
     update(input: SearchSettingsUpdateRequest): Promise<SearchSettingsResponse>
+    validateProvider(
+      input: SearchProviderValidationRequest,
+    ): Promise<SearchProviderValidationResponse>
   }
   /**
    * The application menu asking for this surface.
@@ -300,6 +307,8 @@ export function createCoreSettingsCapabilities(): SettingsCapabilities {
         unwrapControlResult(await bridge.control.searchSettingsGet()),
       update: async (input) =>
         unwrapControlResult(await bridge.control.searchSettingsUpdate(input)),
+      validateProvider: async (input) =>
+        unwrapControlResult(await bridge.control.searchProviderValidate(input)),
     },
     // Subscribe before consuming the startup request. A menu request that lands
     // during this handshake is either delivered live or retained by main; it

@@ -41,6 +41,9 @@ import {
   type DiagnosticsResponse,
   ModelsListResponse as ModelsListResponseSchema,
   type ModelsListResponse,
+  type SearchProviderValidationRequest,
+  SearchProviderValidationResponse as SearchProviderValidationResponseSchema,
+  type SearchProviderValidationResponse,
   SearchSettingsResponse as SearchSettingsResponseSchema,
   type SearchSettingsResponse,
   type SearchSettingsUpdateRequest,
@@ -102,6 +105,7 @@ type ControlMethod =
   | 'diagnostics/get'
   | 'searchSettings/get'
   | 'searchSettings/update'
+  | 'searchSettings/validateProvider'
 
 interface ControlClientLike {
   call<T = unknown>(method: string, params?: unknown): Promise<T>
@@ -172,6 +176,9 @@ export interface ControlSession {
   searchSettingsUpdate(
     input: SearchSettingsUpdateRequest,
   ): Promise<ControlResult<SearchSettingsResponse>>
+  searchProviderValidate(
+    input: SearchProviderValidationRequest,
+  ): Promise<ControlResult<SearchProviderValidationResponse>>
   dispose(): void
 }
 
@@ -208,6 +215,7 @@ const optionalMethods = [
   'diagnostics/get',
   'searchSettings/get',
   'searchSettings/update',
+  'searchSettings/validateProvider',
 ] as const
 
 const discoverySchema = z.object({
@@ -669,6 +677,12 @@ export function createControlSession(
       call(
         'searchSettings/update',
         parseWith(SearchSettingsResponseSchema),
+        input,
+      ),
+    searchProviderValidate: (input) =>
+      call(
+        'searchSettings/validateProvider',
+        parseWith(SearchProviderValidationResponseSchema),
         input,
       ),
     dispose() {

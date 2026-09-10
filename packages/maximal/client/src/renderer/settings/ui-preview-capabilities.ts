@@ -1,5 +1,6 @@
 import type {
   ConnectorSettingValue,
+  SearchProviderValidationResponse,
   SearchSettingsResponse,
   SearchSettingsUpdateRequest,
   SettingsCapabilities,
@@ -49,6 +50,7 @@ const initialSearchSettings: SearchSettingsResponse = {
             key: 'apiKey',
             type: 'secret',
             label: 'API key',
+            placeholder: 'Paste your Ollama API key',
             description: 'Use an Ollama API key to authorize hosted search.',
             helpLink: {
               label: 'Create or manage an API key',
@@ -63,8 +65,13 @@ const initialSearchSettings: SearchSettingsResponse = {
             type: 'string',
             label: 'Base URL',
             default: 'https://ollama.com/api',
+            placeholder: 'https://ollama.com/api',
             required: true,
             format: 'url',
+            validation: {
+              url: { protocols: ['https:'], pathname: '/api' },
+              message: 'Base URL must be an HTTPS origin followed by /api.',
+            },
             layout: 'full',
             emptyDescription: 'Uses https://ollama.com/api when empty.',
           },
@@ -285,6 +292,18 @@ export function createPreviewSettingsCapabilities(): SettingsCapabilities {
       update: (update) => {
         snapshot = updateSnapshot(snapshot, update)
         return Promise.resolve(cloneSnapshot(snapshot))
+      },
+      validateProvider: ({ settings }): Promise<SearchProviderValidationResponse> => {
+        const result: SearchProviderValidationResponse =
+          settings?.apiKey === 'rejected-key'
+            ? {
+                status: 'invalid',
+                fieldErrors: {
+                  apiKey: 'API key was rejected by Ollama hosted search.',
+                },
+              }
+            : { status: 'valid', fieldErrors: {} }
+        return Promise.resolve(result)
       },
     },
     onOpenRequest: () => () => undefined,

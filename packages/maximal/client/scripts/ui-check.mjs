@@ -111,7 +111,7 @@ async function providerFieldLayout(page, providerId, fullFieldId) {
 }
 
 const server = await createServer({
-  configFile: resolve(packageDirectory, 'vite.renderer.config.ts'),
+  configFile: resolve(packageDirectory, 'vite.renderer.config.mts'),
   clearScreen: false,
   server: {
     host: '127.0.0.1',
@@ -200,7 +200,6 @@ try {
     'Ollama is enabled without its required API key.',
   )
 
-  await page.waitForTimeout(1_500)
   const expandedOllamaDisclosure = page.getByRole('button', {
     name: 'Collapse Ollama hosted search',
   })
@@ -215,6 +214,30 @@ try {
     await ollamaKeyLink.getAttribute('href') === 'https://ollama.com/settings/keys',
     'The Ollama API key help link is missing or incorrect.',
   )
+  const ollamaKeyInput = page.getByTestId('search-setting-ollama-apiKey')
+  check(
+    await ollamaKeyInput.getAttribute('placeholder') === 'Paste your Ollama API key',
+    'The Ollama API key placeholder is missing or incorrect.',
+  )
+  await page.getByRole('button', { name: 'Show API key' }).click()
+  check(
+    await ollamaKeyInput.getAttribute('type') === 'text',
+    'The Ollama API key reveal action did not expose the input value.',
+  )
+  await page.getByRole('button', { name: 'Hide API key' }).click()
+  check(
+    await ollamaKeyInput.getAttribute('type') === 'password',
+    'The Ollama API key hide action did not mask the input value.',
+  )
+  await ollamaKeyInput.fill('rejected-key')
+  await ollamaToggle.click()
+  check(
+    await ollamaToggle.getAttribute('aria-checked') === 'false',
+    'Ollama is enabled after the API key is rejected.',
+  )
+  await page
+    .getByText('API key was rejected by Ollama hosted search.', { exact: true })
+    .waitFor()
   const ollamaFields = await providerFieldLayout(page, 'ollama', 'baseUrl')
   const ollamaApiKey = await providerFieldLayout(page, 'ollama', 'apiKey')
   check(
