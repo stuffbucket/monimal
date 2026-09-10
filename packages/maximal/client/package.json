@@ -15,10 +15,12 @@
     "mutate": "stryker run",
     "test": "vitest run",
     "test:run": "vitest run",
+    "dev": "node scripts/start.mjs",
     "start": "node scripts/start.mjs",
     "package": "electron-forge package",
     "e2e": "playwright test",
     "icons": "node scripts/gen-icon-png.mjs",
+    "predev": "node scripts/gen-icon-png.mjs",
     "prestart": "node scripts/gen-icon-png.mjs",
     "prepackage": "node scripts/gen-icon-png.mjs"
   },

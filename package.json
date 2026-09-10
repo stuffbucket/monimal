@@ -5,8 +5,13 @@
   "description": "Monorepo spike: maximal, maximal-core and maximal-electron in one pnpm workspace, driven by Turborepo.",
   "packageManager": "pnpm@11.25.0",
   "scripts": {
+    "dev": "turbo run dev --filter=maximal-client",
+    "dev:server": "turbo run dev --filter=@stuffbucket/maximal -- start",
+    "dev:site": "turbo run dev --filter=maximal-site",
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
+    "lint": "turbo run lint",
+    "check:static": "turbo run build typecheck lint",
     "test": "node scripts/test-workspace.mjs",
     "test:all": "node scripts/test-workspace.mjs --all",
     "test:core": "node scripts/test-workspace.mjs --core",
@@ -15,14 +20,14 @@
     "test:maximal-core:inner": "node scripts/assert-test-container.mjs && pnpm --filter @stuffbucket/maximal-core test",
     "test:maximal-dsh-host:inner": "node scripts/assert-test-container.mjs && pnpm --filter @stuffbucket/maximal-dsh-host test",
     "test:policy:inner": "node scripts/assert-test-container.mjs && node --test tests/docker-test-policy.test.mjs",
-    "lint": "turbo run lint",
     "docker:prune:test-images": "node scripts/prune-test-images.mjs",
     "mutate:core": "node scripts/docker-mutate.mjs",
     "mutate:core:inner": "node scripts/assert-test-container.mjs && pnpm --filter @stuffbucket/maximal-core exec stryker run",
     "verify:workspace": "node scripts/verify-workspace.mjs",
     "check:core": "pnpm --filter @stuffbucket/maximal-core run check:deep:host && pnpm run test:core",
-    "check": "turbo run build typecheck lint && pnpm --filter @stuffbucket/maximal-core run check:deep:host && pnpm test",
-    "package": "turbo run package"
+    "check": "pnpm run check:static && pnpm --filter @stuffbucket/maximal-core run check:deep:host && pnpm test",
+    "package": "turbo run package --filter=maximal-client",
+    "package:all": "turbo run package"
   },
   "devDependencies": {
     "turbo": "^2.10.12"
