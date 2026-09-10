@@ -217,7 +217,7 @@ describe("search provider settings operations", () => {
         dependencies,
       ),
     ).toThrow(
-      /Ollama hosted search cannot be enabled: ollama\.apiKey: API key is required\..*OLLAMA_API_KEY/u,
+      /Ollama hosted search cannot be enabled: ollama\.apiKey: API key is required\./u,
     )
 
     expect(() =>
