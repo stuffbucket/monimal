@@ -16,17 +16,31 @@ The Maximal guide and product documentation are available in the
 
 ## Development
 
-Run the desktop client from the repository root:
+Run workspace workflows from the repository root:
 
-```bash
-pnpm start
-```
+| Task | Command |
+| --- | --- |
+| Run the desktop app | `pnpm dev` |
+| Run the headless server in watch mode | `pnpm dev:server` |
+| Analyze package architecture | `pnpm analyze` |
+| Build the workspace | `pnpm build` |
+| Run native build, type, and lint checks | `pnpm check:static` |
+| Run the complete gate | `pnpm check` |
+| Run isolated affected native tests | `pnpm test` |
+| Run the pinned Docker test graph | `pnpm run test:docker` |
+| Package the desktop app | `pnpm package` |
+| Exercise every workspace packager | `pnpm package:all` |
 
-Turborepo builds the client and its workspace dependencies before Electron
-starts. The command remains attached to the development process until the app
-closes or you press Ctrl+C.
+These root scripts are the supported workflow entry points. `pnpm dev` builds
+the client and its workspace dependencies before Electron starts, and remains
+attached until the app closes or you press Ctrl+C. Use
+`pnpm --filter <package> run <script>` for package-specific diagnostics and
+maintenance commands.
 
-Repository setup, workspace commands, testing, packaging, and release guidance
-are documented in the developer documentation. See
-[`docs/testing-in-docker.md`](docs/testing-in-docker.md) for the test workflow
-and [RELEASING.md](RELEASING.md) for release procedures.
+See [`docs/testing-in-docker.md`](docs/testing-in-docker.md) for the test
+boundary and [RELEASING.md](RELEASING.md) for release procedures.
+
+`pnpm analyze` runs the Turbo-cached package architecture graph: Knip
+reachability and dependency hygiene, dependency-cruiser package/source cycle
+checks, and the jscpd cross-file production clone ratchet. Import boundaries
+run as part of `pnpm lint` through the shared ESLint profile.

@@ -347,7 +347,7 @@ function TopSlotShell() {
  * What this covers and what it does not. Storybook loads `shell.css`, so this
  * measures the reference stylesheet rather than the one the package ships;
  * `tests/package-styles.test.ts` is what carries the claim across to
- * `structural.css`, and it compares property names rather than values.
+ * `shell-package-rules.css`, and it compares property names rather than values.
  * `npm run storybook:check` is not in CI, so nothing runs this on a pull
  * request. See `docs/storybook.md`.
  */

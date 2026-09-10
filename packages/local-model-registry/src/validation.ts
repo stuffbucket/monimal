@@ -2,7 +2,7 @@ import type {
   LocalModelCapabilities,
   LocalModelContextLimits,
   LocalModelPublication,
-} from "@stuffbucket/maximal-provider-contract"
+} from "@stuffbucket/maximal-model-contract"
 
 import type { LocalModelManifest, LocalModelRunnerDescriptor } from "./types.ts"
 

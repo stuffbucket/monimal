@@ -328,7 +328,9 @@ export function App() {
         </>
       }
       subscribeToPanelToggles={subscribeToPanelToggles}
-      status={<span>{selected ? selected.name : 'No selection'}</span>}
+      status={current?.kind === 'terminal'
+        ? undefined
+        : <span>{selected ? selected.name : 'No selection'}</span>}
       left={(collapsed) => (
         <LeftNav view={view} collapsed={collapsed} onSelect={goToView} />
       )}

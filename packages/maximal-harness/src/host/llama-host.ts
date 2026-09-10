@@ -57,7 +57,7 @@ interface Engine {
 }
 
 let child: Engine | undefined;
-let crashes: number[] = [];
+const crashes: number[] = [];
 let lastFailure = '';
 let workerPath: string | undefined;
 
@@ -270,7 +270,6 @@ export function stopEngine(): void {
 
 /** For tests and for the packaged self check: forget the crash history. */
 export function resetEngineBudget(): void {
-  crashes = [];
+  crashes.length = 0;
   lastFailure = '';
 }
-

@@ -45,12 +45,17 @@ vi.mock('../../src/main/native/preferences.js', () => ({
   setPreferences: vi.fn(),
 }));
 vi.mock('../../src/main/native/pty.js', () => ({
+  attachPtyProjection: vi.fn(),
   defaultShell: vi.fn(),
+  detachPtyProjection: vi.fn(),
+  focusPtyProjection: vi.fn(),
   killPty: vi.fn(),
   listPtys: vi.fn(() => []),
   resizePty: vi.fn(),
-  spawnPty: vi.fn(),
+  resizePtyProjection: vi.fn(),
+  spawnReservedPty: vi.fn(),
   writePty: vi.fn(),
+  writePtyProjection: vi.fn(),
 }));
 vi.mock('../../src/main/native/updates.js', () => ({ checkForUpdates: vi.fn() }));
 const main = await import('../../src/main/ipc.js');

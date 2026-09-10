@@ -1,5 +1,7 @@
+import * as Tooltip from '@radix-ui/react-tooltip'
 import {
   BrainCircuit,
+  ChevronDown,
   CircleHelp,
   Database,
   Eye,
@@ -8,7 +10,16 @@ import {
   Wrench,
   type LucideIcon,
 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState, type ReactElement } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactElement,
+  type ReactNode,
+} from 'react'
 
 import { Button, Note } from 'stuffbucket-electron/renderer'
 
@@ -28,6 +39,27 @@ type ModelCapability = keyof ModelSummary['capabilities']
 interface VendorGroup {
   vendor: string
   models: ModelSummary[]
+}
+
+interface ModelProviderDisclosureValue {
+  open: Readonly<Record<string, boolean>>
+  toggle(vendor: string): void
+}
+
+const ModelProviderDisclosureContext = createContext<ModelProviderDisclosureValue | null>(null)
+
+export function ModelProviderDisclosureState({ children }: { children: ReactNode }): ReactElement {
+  const [open, setOpen] = useState<Record<string, boolean>>({})
+  const value = useMemo<ModelProviderDisclosureValue>(() => ({
+    open,
+    toggle: (vendor) => setOpen((current) => ({ ...current, [vendor]: !(current[vendor] ?? false) })),
+  }), [open])
+
+  return (
+    <ModelProviderDisclosureContext.Provider value={value}>
+      {children}
+    </ModelProviderDisclosureContext.Provider>
+  )
 }
 
 function formatExactNumber(value: number): string {
@@ -50,11 +82,47 @@ const CAPABILITY_DETAILS = {
 
 const CAPABILITY_KEYS = Object.keys(CAPABILITY_DETAILS) as ModelCapability[]
 
+function HoverIcon({ label, Icon }: { label: string; Icon: LucideIcon }): ReactElement {
+  return (
+    <Tooltip.Root>
+      <Tooltip.Trigger asChild>
+        <span className="settings-table__icon" role="img" aria-label={label}>
+          <Icon size={16} aria-hidden="true" />
+        </span>
+      </Tooltip.Trigger>
+      <Tooltip.Portal>
+        <Tooltip.Content className="tooltip" sideOffset={6}>
+          {label}
+        </Tooltip.Content>
+      </Tooltip.Portal>
+    </Tooltip.Root>
+  )
+}
+
 const MODEL_TYPE_DETAILS: Readonly<
   Record<string, { label: string; Icon: LucideIcon }>
 > = {
   chat: { label: 'Chat', Icon: MessageSquareText },
   embeddings: { label: 'Embeddings', Icon: Database },
+}
+
+function ModelTypeIcon({ model }: { model: ModelSummary }): ReactElement {
+  const type = model.type.trim()
+  const details = MODEL_TYPE_DETAILS[type.toLowerCase()]
+  const label = details?.label ?? (type || 'Type not reported')
+  const Icon = details?.Icon ?? CircleHelp
+  const description = `${label} model type`
+
+  return (
+    <span
+      className="settings-table__type"
+      role="img"
+      aria-label={description}
+      title={description}
+    >
+      <Icon size={16} aria-hidden="true" />
+    </span>
+  )
 }
 
 function TokenCount({ value }: { value: number | null }): ReactElement {
@@ -88,37 +156,8 @@ function CapabilityIcons({ model }: { model: ModelSummary }): ReactElement {
     <span className="settings-table__capabilities">
       {capabilities.map((key) => {
         const { label, Icon } = CAPABILITY_DETAILS[key]
-        return (
-          <span
-            key={key}
-            className="settings-table__capability"
-            role="img"
-            aria-label={label}
-            title={label}
-          >
-            <Icon size={16} aria-hidden="true" />
-          </span>
-        )
+        return <HoverIcon key={key} label={label} Icon={Icon} />
       })}
-    </span>
-  )
-}
-
-function ModelTypeIcon({ model }: { model: ModelSummary }): ReactElement {
-  const type = model.type.trim()
-  const details = MODEL_TYPE_DETAILS[type.toLowerCase()]
-  const label = details?.label ?? (type || 'Type not reported')
-  const Icon = details?.Icon ?? CircleHelp
-  const description = `${label} model type`
-
-  return (
-    <span
-      className="settings-table__type"
-      role="img"
-      aria-label={description}
-      title={description}
-    >
-      <Icon size={16} aria-hidden="true" />
     </span>
   )
 }
@@ -132,16 +171,15 @@ function groupModels(models: ModelSummary[]): VendorGroup[] {
     vendors.set(vendor, group)
   }
 
-  return [...vendors].map(([vendor, groupedModels]) => ({
-    vendor,
-    models: groupedModels,
-  }))
+  return [...vendors].map(([vendor, groupedModels]) => ({ vendor, models: groupedModels }))
 }
 
 export function ModelsSection({ capabilities }: ModelsSectionProps): ReactElement {
   const [catalogue, setCatalogue] = useState<ModelsListResponse | null>(null)
   const [refreshing, setRefreshing] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const sharedDisclosure = useContext(ModelProviderDisclosureContext)
+  const [localOpen, setLocalOpen] = useState<Record<string, boolean>>({})
 
   const load = useCallback(async () => {
     setRefreshing(true)
@@ -208,26 +246,46 @@ export function ModelsSection({ capabilities }: ModelsSectionProps): ReactElemen
         <div className="settings-model-vendor-groups">
           {groups.map(({ vendor, models }, vendorIndex) => {
             const vendorHeadingId = `settings-model-vendor-${String(vendorIndex)}`
+            const isOpen = sharedDisclosure?.open[vendor] ?? localOpen[vendor] ?? false
+            const toggle = () => {
+              if (sharedDisclosure) sharedDisclosure.toggle(vendor)
+              else setLocalOpen((current) => ({ ...current, [vendor]: !isOpen }))
+            }
             return (
               <section
                 key={vendor}
                 className="settings-model-vendor"
                 aria-labelledby={vendorHeadingId}
               >
-                <h2 id={vendorHeadingId} className="settings-section__subheading">
-                  {vendor}
-                </h2>
-                <div className="settings-model-tables">
-                  <div
-                    className="settings-table-wrap settings-table-wrap--models"
-                    role="region"
-                    aria-labelledby={vendorHeadingId}
-                    tabIndex={0}
-                  >
-                    <table
-                      className="settings-table settings-table--models"
-                      aria-labelledby={vendorHeadingId}
-                    >
+                <button
+                  type="button"
+                  className="settings-model-vendor__trigger"
+                  aria-expanded={isOpen}
+                  aria-controls={`${vendorHeadingId}-models`}
+                  onClick={toggle}
+                >
+                  <ChevronDown className="settings-model-vendor__chevron" size={16} aria-hidden="true" />
+                  <span id={vendorHeadingId} className="settings-model-vendor__name">{vendor}</span>
+                  <span className="settings-model-vendor__count">
+                    {models.length} {models.length === 1 ? 'model' : 'models'}
+                  </span>
+                </button>
+                <div
+                  id={`${vendorHeadingId}-models`}
+                  className="settings-table-wrap settings-table-wrap--models"
+                  role="region"
+                  aria-label={`${vendor} models`}
+                  tabIndex={0}
+                  hidden={!isOpen}
+                >
+                    <table className="settings-table settings-table--models">
+                      <colgroup>
+                        <col className="settings-table__model-column" />
+                        <col className="settings-table__type-column" />
+                        <col className="settings-table__token-column" />
+                        <col className="settings-table__token-column" />
+                        <col className="settings-table__capability-column" />
+                      </colgroup>
                       <thead>
                         <tr>
                           <th scope="col">Model</th>
@@ -260,7 +318,6 @@ export function ModelsSection({ capabilities }: ModelsSectionProps): ReactElemen
                         ))}
                       </tbody>
                     </table>
-                  </div>
                 </div>
               </section>
             )

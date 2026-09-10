@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
   BRIDGE_CHANNELS,
+  EVENT_CHANNELS,
   INVOKE_CHANNELS,
 } from '../shared/bridge-channels'
 
@@ -144,6 +145,8 @@ vi.mock('node:fs/promises', () => ({ mkdir: localModelsMkdir }))
 vi.mock('@stuffbucket/local-model-registry', () => ({
   resolveLocalModelsPath: resolveLocalModelsPathMock,
 }))
+
+vi.mock('node-pty', () => ({ spawn: vi.fn() }))
 
 vi.mock('./shell.js', () => ({ runShell: runShellMock }))
 
@@ -336,6 +339,23 @@ afterEach(() => {
 })
 
 describe('closed IPC boundary', () => {
+  it('names every renderer event channel in one closed allowlist', () => {
+    expect(EVENT_CHANNELS).toEqual([
+      BRIDGE_CHANNELS.lifecycleChanged,
+      BRIDGE_CHANNELS.controlChanged,
+      BRIDGE_CHANNELS.localModelsChanged,
+      BRIDGE_CHANNELS.menuOpenSettings,
+      BRIDGE_CHANNELS.trafficInvalidated,
+      BRIDGE_CHANNELS.terminalData,
+      BRIDGE_CHANNELS.terminalExit,
+      BRIDGE_CHANNELS.harnessDelta,
+      BRIDGE_CHANNELS.harnessTool,
+      BRIDGE_CHANNELS.harnessApproval,
+      BRIDGE_CHANNELS.harnessEnd,
+      BRIDGE_CHANNELS.harnessModelProgress,
+    ])
+  })
+
   it('registers exactly the named invoke allowlist', async () => {
     await loadIndexOn('darwin')
 
@@ -646,6 +666,22 @@ describe('native Settings requests', () => {
     expect(runShellMock).toHaveBeenCalledTimes(2)
     expect(fakeWindow.focus).toHaveBeenCalledTimes(1)
     expect(pendingRequestHandler()()).toEqual({ sectionId: null })
+  })
+})
+
+describe('native update requests', () => {
+  it('opens the latest product release from the application menu', async () => {
+    await loadIndexOn('darwin')
+    const callbacks = installApplicationMenuMock.mock.calls[0]?.[0] as
+      | { onCheckForUpdates?: () => void }
+      | undefined
+
+    callbacks?.onCheckForUpdates?.()
+    await Promise.resolve()
+
+    expect(shellOpenExternal).toHaveBeenCalledWith(
+      'https://github.com/stuffbucket/maximal/releases/latest',
+    )
   })
 })
 

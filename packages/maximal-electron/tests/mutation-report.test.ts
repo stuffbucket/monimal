@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { summarize } from '../scripts/mutation-report.mjs';
+import { summarize, verifyStaticRun } from '../scripts/mutation-report.mjs';
 
 /**
  * What the score does not say.
@@ -123,5 +123,42 @@ describe('summarize', () => {
     const scope = summarize({ files: {}, testFiles: {} });
     expect(scope.total).toBe(0);
     expect(scope.knownTests).toBe(0);
+  });
+});
+
+describe('verifyStaticRun', () => {
+  const mutant = (status: string, extra: object = {}) =>
+    report([{ status, static: true, replacement: 'false', ...extra }]);
+
+  it('requires a nonempty canonical static scope', () => {
+    expect(verifyStaticRun(report([]), report([])).failures).toContain(
+      'The static mutation scope is empty.',
+    );
+  });
+
+  it('reports a canonical static mutant missing from the static run', () => {
+    expect(verifyStaticRun(mutant('Ignored'), report([])).failures[0]).toContain(
+      'ended in Missing',
+    );
+  });
+
+  it('reports a static-run mutant absent from the canonical report', () => {
+    const dynamic = mutant('Ignored');
+    const extra = report([
+      { status: 'Killed', static: true, replacement: 'true', killedBy: ['t1'] },
+    ]);
+    expect(verifyStaticRun(dynamic, extra).failures).toEqual(
+      expect.arrayContaining([expect.stringContaining('unknown mutant')]),
+    );
+  });
+
+  it('reports a static mutant that survived', () => {
+    expect(verifyStaticRun(mutant('Ignored'), mutant('Survived')).failures).toEqual(
+      expect.arrayContaining([expect.stringContaining('ended in Survived')]),
+    );
+  });
+
+  it('accepts the same static signature when the fresh process kills it', () => {
+    expect(verifyStaticRun(mutant('Ignored'), mutant('Killed')).failures).toEqual([]);
   });
 });

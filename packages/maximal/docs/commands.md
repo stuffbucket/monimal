@@ -5,7 +5,7 @@ owns native isolation, affected/full scopes, and the Docker final gate.
 
 ```sh
 bun install          # Install dependencies
-bun run dev          # Dev mode with watch
+bun run dev -- start # Run the server from source with watch
 bun run build        # Build to dist/ (native Bun import attributes)
 bun run start        # Production start (NODE_ENV=production)
 
@@ -39,26 +39,33 @@ wrapper or Docker boundary has admitted them. The wrappers do not forward
 arbitrary test paths.
 
 `dev`, `build`, and `start` all begin at `src/main.ts`, the package-owned
-composition entry. It invokes `@stuffbucket/maximal-core`'s public CLI and may
-supply the generic DSH provider host; routing and engine behavior remain in
-Core, and concrete providers remain external profile packages.
+composition entry. `dev` is a watched CLI runner, so it requires a CLI
+subcommand such as `start`. The composition invokes `@stuffbucket/maximal-core`'s
+public CLI and may supply the generic DSH provider host; routing and engine
+behavior remain in Core, and concrete providers remain external profile
+packages.
 
 ## Electron client (`client/`)
 
-`client/` is a package in the root pnpm workspace. Run its commands from the
-monorepo root:
+`client/` is a package in the root pnpm workspace. Its filtered commands are
+low-level diagnostics for the client package:
 
 ```sh
-pnpm install                              # Install the workspace
 pnpm --filter maximal-client build:core  # Compile the maximal-core sidecar
 pnpm --filter maximal-client typecheck   # tsc --noEmit
 pnpm test                                 # Run isolated affected workspace tests
-pnpm --filter maximal-client start       # electron-forge start
+pnpm --filter maximal-client start       # Launch without graph orchestration
 pnpm package                              # Package the Electron client via Turbo
 ```
 
-Bun is invoked internally by `build:core` to compile the composed
-`@stuffbucket/maximal-core` proxy into a sidecar binary. The client Vitest suite
+Bun compiles the composed `@stuffbucket/maximal-core` proxy into a sidecar
+binary. The client Vitest suite
 belongs to the root Turbo graph and must be entered through the isolated root
 wrapper. CI runs the full native graph; the mountless Docker graph is the
 separate final gate defined by the workflow owner linked above.
+
+`MAXIMAL_CORE_REF` overrides the provenance ref embedded in a sidecar build.
+`MAXIMAL_CORE_OUT` overrides its output path. A relative output path resolves
+from `packages/maximal/client`; an absolute path remains absolute. The desktop
+app launches the default `resources/bin/maximal-core` path, so a custom output
+is for build diagnostics rather than `pnpm dev`.

@@ -263,7 +263,12 @@ void app.whenReady().then(async () => {
   menuBarMode = nativeMode
   await nativeMode.initialize()
 
-  installApplicationMenu({ onOpenSettings: openSettings })
+  installApplicationMenu({
+    onCheckForUpdates: () => {
+      void openExternalUrl('https://github.com/stuffbucket/maximal/releases/latest')
+    },
+    onOpenSettings: openSettings,
+  })
 
   controlSession = createControlSession({
     onChange: () => broadcast(BRIDGE_CHANNELS.controlChanged),

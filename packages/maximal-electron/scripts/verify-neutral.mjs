@@ -44,7 +44,7 @@ const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const manifest = JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
 
 /** The stylesheet ships from here; `copy-renderer-css.mjs` moves it. */
-const SHIPPED_STYLESHEET = 'src/renderer/styles/structural.css';
+const SHIPPED_STYLESHEET = 'src/renderer/styles/shell-package-rules.css';
 
 /**
  * Files that name the application this shell was extracted from, and are not

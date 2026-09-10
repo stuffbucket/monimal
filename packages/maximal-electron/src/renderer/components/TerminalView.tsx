@@ -1,7 +1,12 @@
-import { FitAddon, Terminal as GhosttyTerminal, init } from 'ghostty-web';
-import type { ITheme } from 'ghostty-web';
 import { useEffect, useRef, useState } from 'react';
 
+import {
+  createTerminalEmulator,
+  type GhosttyWindowAdjustment,
+  type TerminalEmulator,
+  type TerminalEmulatorKind,
+  type TerminalTheme,
+} from '../lib/terminal-emulator.js';
 import type {
   DetachableTerminalTransport,
   TerminalDescriptor,
@@ -27,27 +32,19 @@ import {
  * `disposition`.
  */
 
-/** `init()` is shared, so several tabs opening at once await one load. */
-let wasmReady: Promise<void> | undefined;
-function ensureWasm(): Promise<void> {
-  if (wasmReady === undefined) {
-    const loading = init().catch((error: unknown) => {
-      if (wasmReady === loading) wasmReady = undefined;
-      throw error;
-    });
-    wasmReady = loading;
-  }
-  return wasmReady;
-}
-
 /** The host element carries the terminal instance, for end-to-end tests. */
-export type TerminalHost = HTMLDivElement & { __terminal?: GhosttyTerminal };
+export type TerminalHost = HTMLDivElement & { __terminal?: TerminalEmulator };
 
 interface TerminalViewCommonProps extends TerminalDescriptor {
+  /** Terminal engine. The default is `xterm`. */
+  emulator?: TerminalEmulatorKind;
+  /** Window geometry and background effects applied only by the Ghostty adapter. */
+  ghosttyWindow?: GhosttyWindowAdjustment;
   /** Literal colours. Resolve with `readTerminalTheme`. */
-  theme?: ITheme;
+  theme?: TerminalTheme;
   testId?: string;
   focused?: boolean;
+  focusIndicator?: boolean;
   onFocus?: () => void;
   onSplit?: (direction: TerminalSplitDirection) => void;
   onNavigateSplit?: (direction: 'previous' | 'next') => void;
@@ -73,7 +70,7 @@ export type TerminalViewProps = TerminalViewCommonProps &
   );
 
 /**
- * One terminal, drawn by `ghostty-web` into a canvas.
+ * One terminal, drawn by the configured emulator.
  *
  * It takes a transport rather than reaching for a bridge, which is what keeps
  * this package free of any particular IPC contract: build one with
@@ -88,9 +85,12 @@ export function TerminalView({
   ariaLabel = 'Terminal',
   transport,
   disposition = 'terminate',
+  emulator = 'xterm',
+  ghosttyWindow,
   theme,
   testId = 'terminal',
   focused = false,
+  focusIndicator = false,
   onFocus,
   onSplit,
   onNavigateSplit,
@@ -98,12 +98,12 @@ export function TerminalView({
   onTitleChange,
 }: TerminalViewProps) {
   const host = useRef<HTMLDivElement>(null);
-  const terminal = useRef<GhosttyTerminal | undefined>(undefined);
+  const terminal = useRef<TerminalEmulator | undefined>(undefined);
   const lifecycle = useRef({ id, generation: 0 });
   const callbacks = useRef({ onSplit, onNavigateSplit, onExit, onTitleChange });
   const shouldFocus = useRef(focused);
-  const [wasmFailed, setWasmFailed] = useState(false);
-  const [wasmAttempt, setWasmAttempt] = useState(0);
+  const [startFailed, setStartFailed] = useState(false);
+  const [startAttempt, setStartAttempt] = useState(0);
   callbacks.current = { onSplit, onNavigateSplit, onExit, onTitleChange };
   shouldFocus.current = focused;
 
@@ -122,7 +122,7 @@ export function TerminalView({
     lifecycle.current = { id, generation };
 
     let disposed = false;
-    let term: GhosttyTerminal | undefined;
+    let term: TerminalEmulator | undefined;
     let unsubscribe: (() => void) | undefined;
     let cleanupObserver: (() => void) | undefined;
     const acknowledgements = new TerminalAcknowledgements(
@@ -138,27 +138,25 @@ export function TerminalView({
       animationFrameScheduler,
     );
 
-    void ensureWasm().then(() => {
-      // The view can unmount while the WebAssembly module loads.
+    void Promise.resolve().then(async () => {
       if (disposed || !host.current) return;
 
-      term = new GhosttyTerminal({
-        fontSize: 13,
-        fontFamily:
-          'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
-        ...(theme ? { theme } : {}),
-      });
-
-      const fit = new FitAddon();
-      term.loadAddon(fit);
-      term.open(host.current);
-      fit.fit();
+      term = await createTerminalEmulator(emulator, theme, ghosttyWindow);
+      if (disposed || !host.current) {
+        term.dispose();
+        return;
+      }
+      await term.open(host.current);
+      if (disposed || !host.current) {
+        term.dispose();
+        return;
+      }
+      term.fit();
       terminal.current = term;
       if (shouldFocus.current) term.focus();
       else term.blur();
 
-      // The emulator draws to a canvas, so there is no text in the DOM to
-      // assert on. Exposing the instance lets a test read the real buffer.
+      // The buffer is the stable assertion surface across canvas and DOM renderers.
       (host.current as TerminalHost).__terminal = term;
 
       term.onData((data) => {
@@ -169,10 +167,12 @@ export function TerminalView({
         resizes.update(cols, rows);
       });
 
-      term.attachCustomKeyEventHandler((event) => {
+      term.onKeyEvent((event) => {
         if (event.type !== 'keydown' || !event.metaKey) return false;
         const key = event.key.toLowerCase();
         if (key === 'd' && callbacks.current.onSplit) {
+          event.preventDefault();
+          event.stopPropagation();
           callbacks.current.onSplit(event.shiftKey ? 'down' : 'right');
           return true;
         }
@@ -224,7 +224,7 @@ export function TerminalView({
       // The panel group resizes the host without a window resize, so a
       // ResizeObserver is the only reliable trigger.
       const observer = new ResizeObserver(() => {
-        if (!disposed) fit.fit();
+        if (!disposed) term?.fit();
       });
       observer.observe(element);
       cleanupObserver = () => observer.disconnect();
@@ -238,7 +238,7 @@ export function TerminalView({
       if (terminal.current === term) terminal.current = undefined;
       term?.dispose();
       term = undefined;
-      setWasmFailed(true);
+      setStartFailed(true);
     });
 
     return () => {
@@ -256,7 +256,7 @@ export function TerminalView({
       if (terminal.current === term) terminal.current = undefined;
       term?.dispose();
     };
-  }, [id, wasmAttempt]);
+  }, [id, startAttempt]);
 
   useEffect(() => {
     if (focused) terminal.current?.focus();
@@ -268,20 +268,21 @@ export function TerminalView({
       className="terminal"
       data-testid={testId}
       data-focused={focused || undefined}
+      data-focus-indicator={focusIndicator || undefined}
       role="group"
       aria-label={ariaLabel}
       ref={host}
       onFocus={onFocus}
       onPointerDown={onFocus}
     >
-      {wasmFailed && (
+      {startFailed && (
         <div className="terminal__error" role="alert">
           <span>Terminal could not start.</span>
           <button
             type="button"
             onClick={() => {
-              setWasmFailed(false);
-              setWasmAttempt((attempt) => attempt + 1);
+              setStartFailed(false);
+              setStartAttempt((attempt) => attempt + 1);
             }}
           >
             Retry

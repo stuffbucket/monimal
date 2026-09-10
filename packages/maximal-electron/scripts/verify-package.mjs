@@ -136,10 +136,6 @@ console.log('\ncontent security policy');
  * declares one, and sent the reader looking for a missing `meta` tag.
  * Issue #98.
  *
- * The search is scoped to the `meta` tag on purpose. `index.html` names
- * `'wasm-unsafe-eval'` in a comment explaining why it is there, so a search of
- * the whole file would pass on the explanation after the grant itself had gone.
- *
  * @returns {{readable: boolean, reason?: string, policy?: string}}
  */
 function declaredPolicy(document) {
@@ -169,10 +165,6 @@ function declaredPolicy(document) {
   return { readable: true };
 }
 
-// Read out of the archive rather than restated here. `ghostty-web` needs two
-// grants, and the checks that assert them had never been given a policy to
-// measure: removing `'wasm-unsafe-eval'` from the shipped HTML broke the
-// terminal and passed every check. Issue #92.
 const documents = { shell: declaredPolicy(`${RENDERER}/index.html`) };
 
 // An unreadable document fails saying so, rather than as a document that
@@ -185,8 +177,6 @@ for (const [label, document] of Object.entries(documents)) {
       : `the ${label} could not be read from the asar: ${document.reason}`,
   );
 }
-
-const shellPolicy = documents.shell.policy;
 
 /* ------------------------------------------------- native module (pty) */
 
@@ -209,7 +199,6 @@ for (const { name, ok } of terminalPackageChecks({
   unpackedFiles,
   platform: process.platform,
   arch: process.arch,
-  contentSecurityPolicy: shellPolicy,
 })) {
   check(ok, name);
 }

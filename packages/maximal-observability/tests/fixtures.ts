@@ -3,13 +3,13 @@ import type {
   TrafficInvalidationListener,
   TrafficOverview,
   TrafficRequestDetail,
-  TrafficRequestPage,
+  TrafficRequestList,
   TrafficRequestSummary,
 } from "@stuffbucket/maximal-observability-contract"
 
 import type { ObservabilitySource } from "../src/source.ts"
 
-export const REQUEST: TrafficRequestSummary = {
+const REQUEST: TrafficRequestSummary = {
   identity: {
     requestId: "req-1",
     traceId: "trace-1",
@@ -187,14 +187,14 @@ export const OVERVIEW: TrafficOverview = {
   },
 }
 
-export const PAGE: TrafficRequestPage = {
+const PAGE: TrafficRequestList = {
   contractVersion: 1,
   items: [REQUEST],
   nextCursor: null,
   hasMore: false,
 }
 
-export const DETAIL: TrafficRequestDetail = {
+const DETAIL: TrafficRequestDetail = {
   contractVersion: 1,
   request: REQUEST,
   lifecycle: [

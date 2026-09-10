@@ -21,8 +21,8 @@ import { componentStyles } from './stylesheets.js';
  *   short names `tokens.css` authors, and `shell-contract.css` was generated
  *   from that same list, so the application defined exactly the vocabulary it
  *   read and a consumer defined none of it;
- * - `structure.css` is the only file that gives the structural ramp values,
- *   a consumer gets it as half of `dist/renderer/styles.css`, and this
+ * - `shell-structural-tokens.css` is the only structural value owner. A
+ *   consumer gets it as half of `dist/renderer/styles.css`, and this
  *   application built its own stylesheet and never loaded it — so every
  *   carried rule's padding, radius, type size and weight was invalid at
  *   computed-value time. A model card in the running application had

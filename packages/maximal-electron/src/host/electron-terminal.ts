@@ -3,6 +3,7 @@ export {
   configurePty,
   defaultShell,
   discoverTerminalTargets,
+  grantPtyProjection,
   killAllPtys,
   killPty,
   launchTerminal,

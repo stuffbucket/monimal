@@ -29,7 +29,7 @@
   },
   "dependencies": {
     "@deepseek-ai/schemastery": "3.18.2",
-    "@stuffbucket/maximal-provider-contract": "workspace:*"
+    "@stuffbucket/maximal-model-contract": "workspace:*"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.2",

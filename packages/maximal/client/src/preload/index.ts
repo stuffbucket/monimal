@@ -34,8 +34,8 @@ import {
   type TrafficOverviewQuery,
   type TrafficRequestDetail,
   type TrafficRequestDetailQuery,
+  type TrafficRequestList,
   type TrafficRequestListQuery,
-  type TrafficRequestPage,
 } from '@stuffbucket/maximal-observability-contract'
 import { contextBridge, ipcRenderer } from 'electron'
 
@@ -201,7 +201,7 @@ const bridge = {
       ipcRenderer.invoke(BRIDGE_CHANNELS.observabilityOverview, query),
     observabilityRequests: (
       query: TrafficRequestListQuery,
-    ): Promise<ControlResult<TrafficRequestPage>> =>
+    ): Promise<ControlResult<TrafficRequestList>> =>
       ipcRenderer.invoke(BRIDGE_CHANNELS.observabilityRequests, query),
     observabilityRequest: (
       query: TrafficRequestDetailQuery,

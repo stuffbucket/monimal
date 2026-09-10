@@ -10,7 +10,7 @@ import type {
   ProviderStatus,
   ProviderTopologyListener,
   ProviderUnsubscribe,
-} from "@stuffbucket/maximal-provider-contract"
+} from "@stuffbucket/maximal-model-contract"
 
 import {
   ProfileValidationError,
@@ -20,7 +20,7 @@ import {
   type DshHostOptions,
   type DshHostReconcileInput,
   type DshHostReconcileResult,
-} from "@stuffbucket/maximal-dsh-host"
+} from "@stuffbucket/maximal-models"
 
 interface AnthropicCompatibilityInstance {
   readonly adjustInputTokens?: boolean

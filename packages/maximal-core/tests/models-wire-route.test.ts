@@ -9,7 +9,7 @@
  * strict client (Claude Desktop's picker) reject the list and render empty.
  */
 
-import type { LocalModelControl } from "@stuffbucket/maximal-provider-contract"
+import type { LocalModelControl } from "@stuffbucket/maximal-model-contract"
 
 import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test"
 import { Hono } from "hono"

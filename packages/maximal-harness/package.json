@@ -6,6 +6,12 @@
   "description": "Composable local agent harness for Maximal desktop clients.",
   "sideEffects": ["./dist/styles.css"],
   "type": "module",
+  "monimal": {
+    "taskExemptions": {
+      "package": "The consuming desktop host owns application packaging.",
+      "start": "The consuming desktop host owns the application lifecycle."
+    }
+  },
   "exports": {
     ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" },
     "./host": { "types": "./dist/host/index.d.ts", "import": "./dist/host/index.js" },

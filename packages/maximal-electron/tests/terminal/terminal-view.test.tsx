@@ -15,33 +15,31 @@ const ghostty = vi.hoisted(() => ({
   subscription: undefined as ((event: { type: 'exit'; exitCode: number }) => void) | undefined,
 }));
 
-vi.mock('ghostty-web', () => ({
-  init: vi.fn(async () => undefined),
-  FitAddon: class {
-    fit(): void {}
-  },
-  Terminal: class {
-    readonly cols = 80;
-    readonly rows = 24;
-    loadAddon(): void {}
-    open(): void {}
-    onData(): void {}
-    onResize(): void {}
-    attachCustomKeyEventHandler(handler: (event: KeyboardEvent) => boolean): void {
+vi.mock('../../src/renderer/lib/terminal-emulator.js', () => ({
+  createTerminalEmulator: () => ({
+    cols: 80,
+    rows: 24,
+    buffer: { active: {} },
+    open(): void {},
+    fit(): void {},
+    onData(): { dispose(): void } { return { dispose() {} }; },
+    onResize(): { dispose(): void } { return { dispose() {} }; },
+    onKeyEvent(handler: (event: KeyboardEvent) => boolean): void {
       ghostty.keyHandler = handler;
-    }
-    clear(): void { ghostty.clear(); }
-    selectAll(): void { ghostty.selectAll(); }
-    scrollToTop(): void { ghostty.scrollToTop(); }
-    scrollToBottom(): void { ghostty.scrollToBottom(); }
-    focus(): void { ghostty.focus(); }
-    blur(): void { ghostty.blur(); }
-    onTitleChange(handler: (title: string) => void): void {
+    },
+    clear(): void { ghostty.clear(); },
+    selectAll(): void { ghostty.selectAll(); },
+    scrollToTop(): void { ghostty.scrollToTop(); },
+    scrollToBottom(): void { ghostty.scrollToBottom(); },
+    focus(): void { ghostty.focus(); },
+    blur(): void { ghostty.blur(); },
+    onTitleChange(handler: (title: string) => void): { dispose(): void } {
       ghostty.titleHandler = handler;
-    }
-    write(): void {}
-    dispose(): void {}
-  },
+      return { dispose() {} };
+    },
+    write(): void {},
+    dispose(): void {},
+  }),
 }));
 
 import { TerminalView } from '../../src/renderer/components/TerminalView.js';
@@ -85,8 +83,8 @@ describe('TerminalView lifecycle', () => {
     expect(terminate).toHaveBeenCalledWith('session-1');
   });
 
-  it('maps Ghostty split shortcuts and forwards terminal titles', async () => {
-    const onSplit = vi.fn();
+  it('maps terminal split shortcuts and forwards terminal titles', async () => {
+    const onSplit = vi.fn((_direction: 'right' | 'down') => undefined);
     const onNavigateSplit = vi.fn();
     const onTitleChange = vi.fn();
     const transport = {
@@ -111,7 +109,11 @@ describe('TerminalView lifecycle', () => {
     });
 
     expect(ghostty.keyHandler?.(new KeyboardEvent('keydown', { key: 'd' }))).toBe(false);
-    expect(ghostty.keyHandler?.(new KeyboardEvent('keydown', { key: 'd', metaKey: true }))).toBe(true);
+    const splitRight = new KeyboardEvent('keydown', { key: 'd', metaKey: true, cancelable: true });
+    onSplit.mockImplementationOnce(() => {
+      expect(splitRight.defaultPrevented).toBe(true);
+    });
+    expect(ghostty.keyHandler?.(splitRight)).toBe(true);
     expect(ghostty.keyHandler?.(new KeyboardEvent('keydown', { key: 'D', metaKey: true, shiftKey: true }))).toBe(true);
     expect(ghostty.keyHandler?.(new KeyboardEvent('keyup', { key: 'd', metaKey: true }))).toBe(false);
     expect(onSplit.mock.calls).toEqual([['right'], ['down']]);

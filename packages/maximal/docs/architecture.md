@@ -22,8 +22,7 @@ acquire routes, provider implementations, or engine policy.
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `src/`                   | Packaging composition only: invokes Core's real CLI and supplies a lazy, contract-shaped provider gateway. Concrete providers never live here.                                             |
 | `client/`                | Electron 43 + React 19 + TypeScript + Vite desktop app. Compiles the same composition into its `maximal-core` sidecar via `client/scripts/build-core.ts`.                                  |
-| `site/`                  | Astro website, deployed to GitHub Pages. **Deploys are currently frozen** — see _Site and Pages_ below.                                                                                    |
-| `scripts/`               | Release and packaging tooling: `sync-homebrew-formula.ts`, `write-updates-manifest.ts`, `sbom.ts`, `secret-scan.sh`, plus `scripts/dev/verify-build.ts`.                                   |
+| `scripts/`               | Release and packaging tooling: `sync-homebrew-formula.ts`, `sbom.ts`, `secret-scan.sh`, plus `scripts/dev/verify-build.ts`.                                                                |
 | `build/`                 | Distribution templates — `build/homebrew/` and `build/macos/`.                                                                                                                             |
 | `tests/`                 | Tests for the packaging and distribution surface only (manifests, the Homebrew formula renderer, the macOS installer template, `verify-build`). The root Turbo graph owns their execution. |
 | `i18n/`                  | Translation catalogs (`i18n/catalogs/`) and their parity checks. See [`i18n/README.md`](../i18n/README.md).                                                                                |
@@ -73,15 +72,8 @@ The Tauri menu-bar shell that previously filled this role was retired in #442;
 
 ## Site and Pages
 
-`site/` builds to `site/dist` and publishes to GitHub Pages via
-`.github/workflows/deploy-pages.yml`, the only workflow with a path to Pages.
-
-**Automatic deploys are frozen** as of #447. The `push` trigger is commented out
-_and_ the workflow is disabled at the Actions level, so neither a push nor a
-`workflow_dispatch` will run it. Resuming requires both: restore the `push:`
-block and `gh workflow enable deploy-pages.yml`. The file says so at the top.
-Note that the trigger's paths filter covers the workflow file itself, so the
-commit that restores it will itself deploy.
+The website, update-manifest endpoints, and Pages deployment are owned by
+[`stuffbucket/maximal-site`](https://github.com/stuffbucket/maximal-site).
 
 ## Parallel-agent convention
 

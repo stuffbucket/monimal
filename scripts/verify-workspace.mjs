@@ -25,11 +25,32 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { scopedChecks } from "../packages/maximal-electron/scripts/check-scope.mjs";
+import {
+  packageRuleViolations,
+  readArchitecturePolicy,
+  readPackageGraph,
+} from "./architecture-graph.mjs";
+import {
+  auditWorkspacePackages,
+  auditWorkspaceReferences,
+  pnpmWorkspacePaths,
+} from "./workspace-packages.mjs";
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const require = createRequire(path.join(ROOT, "noop.js"));
 
 const { check, summary } = scopedChecks();
+const WORKSPACE_MANIFESTS = pnpmWorkspacePaths(ROOT);
+const packageAudit = auditWorkspacePackages(ROOT, WORKSPACE_MANIFESTS);
+const packageIssues = [
+  ...packageAudit.issues,
+  ...auditWorkspaceReferences(ROOT, WORKSPACE_MANIFESTS),
+];
+for (const issue of packageIssues) console.error(`       ${issue}`);
+check(packageIssues.length === 0, "package onboarding contracts are complete", {
+  count: packageAudit.manifests.length,
+  of: "package manifests",
+});
 
 /** A package's manifest, or null when it is not installed. */
 function manifestAt(...segments) {
@@ -82,7 +103,6 @@ const typescriptVersions = new Set(
     "packages/maximal",
     "packages/maximal-core",
     "packages/maximal-electron",
-    "packages/maximal-harness",
     "packages/maximal-observability-contract",
     "packages/maximal-observability",
     "packages/maximal/client",
@@ -190,19 +210,14 @@ check(
 );
 
 //    vite is the other one worth pinning globally: it is the bundler under the
-//    electron renderer, the client, and (through astro) the Pages site. All
-//    three install from the same workspace lockfile, so inspect their resolved
-//    package-local trees in the same way.
+//    electron renderer and client. Inspect their resolved package-local trees
+//    in the same way.
 const VITE_CONSUMERS = [
   ["packages/maximal-electron", null],
   ["packages/maximal/client", null],
   // The renderer surfaces run under Vitest's Vite pipeline. Resolve through
-  // Vitest for the same reason the site resolves through Astro below.
+  // Vitest because pnpm does not create a package-local Vite link here.
   ["packages/maximal-observability", "vitest"],
-  // The site gets Vite through Astro. Resolve from Astro's real installed
-  // manifest instead of requiring a package-local Vite link that pnpm does not
-  // create on a clean install.
-  ["packages/maximal/site", "astro"],
 ];
 const viteMajors = new Map();
 for (const [pkg, through] of VITE_CONSUMERS) {
@@ -254,21 +269,18 @@ check(
 //    a mistyped path drops a package out of the comparison silently, and a
 //    comparison over only a subset passes for the wrong reason.
 const ESLINT_CONSUMERS = [
-  "packages/anthropic-provider",
+  "packages/model-runtimes/anthropic",
   "packages/eslint-config",
-  "packages/llama-server",
-  "packages/local-model-registry",
+  "packages/model-runtimes/llama-server",
   "packages/maximal-core",
-  "packages/maximal-dsh-host",
-  "packages/maximal-provider-contract",
+  "packages/maximal-models",
+  "packages/maximal-model-contract",
   "packages/maximal",
   "packages/maximal-electron",
-  "packages/maximal-harness",
   "packages/maximal-observability-contract",
   "packages/maximal-observability",
   "packages/maximal/client",
-  "packages/model-qwen3-0.6b-q8-gguf",
-  "packages/omlx",
+  "packages/model-runtimes/omlx",
 ];
 const eslintVersions = new Map();
 for (const pkg of ESLINT_CONSUMERS) {
@@ -296,123 +308,23 @@ check(
   { count: eslintVersions.size, of: "eslint consumers" },
 );
 
-// 7. The provider architecture is deliberately split across packages. Concrete
-//    adapters are profile-installed trusted code: compiling one into Core, the
-//    DSH host, or the Maximal composition root would defeat hot replacement.
-//    Check every declaration kind because a dev/peer edge can still make an
-//    undeclared architecture look valid in this publicly-hoisted workspace.
-function declaredDependencies(manifest) {
-  return new Set([
-    ...Object.keys(manifest?.dependencies ?? {}),
-    ...Object.keys(manifest?.devDependencies ?? {}),
-    ...Object.keys(manifest?.optionalDependencies ?? {}),
-    ...Object.keys(manifest?.peerDependencies ?? {}),
-  ]);
-}
-
-const providerManifests = new Map(
-  [
-    "packages/maximal-provider-contract",
-    "packages/maximal-core",
-    "packages/maximal-dsh-host",
-    "packages/maximal",
-    "packages/anthropic-provider",
-    "packages/llama-server",
-    "packages/local-model-registry",
-    "packages/model-qwen3-0.6b-q8-gguf",
-    "packages/omlx",
-  ].map((pkg) => [pkg, manifestAt(ROOT, pkg)]),
+// 7. Package-layer policy is data in architecture-analysis.json. This remains
+//    the workspace-verification owner for provider boundaries; `pnpm analyze`
+//    consumes the same graph and data for its package-cycle pass.
+const architecturePolicy = readArchitecturePolicy(ROOT);
+const architectureGraph = readPackageGraph(ROOT, architecturePolicy);
+const violations = packageRuleViolations(
+  architectureGraph,
+  architecturePolicy.packageRules,
 );
-const providerDeps = new Map(
-  [...providerManifests].map(([pkg, manifest]) => [
-    pkg,
-    declaredDependencies(manifest),
-  ]),
-);
-const externalProfilePlugins = new Set([
-  "@stuffbucket/anthropic-provider",
-  "@stuffbucket/llama-server",
-  "@stuffbucket/local-model-registry",
-  "@stuffbucket/model-qwen3-0.6b-q8-gguf",
-  "@stuffbucket/omlx",
-]);
-const dshRuntime = new Set([
-  "@deepseek-ai/cordis",
-  "@deepseek-ai/dsh-llm",
-  "@deepseek-ai/schemastery",
-]);
-const maximalPackages = new Set([
-  "@stuffbucket/maximal",
-  "@stuffbucket/maximal-core",
-  "@stuffbucket/maximal-dsh-host",
-  "@stuffbucket/maximal-provider-contract",
-]);
-const violations = [];
-
-for (const pkg of [
-  "packages/maximal-provider-contract",
-  "packages/maximal-core",
-  "packages/maximal-dsh-host",
-  "packages/maximal",
-]) {
-  for (const dependency of externalProfilePlugins) {
-    if (providerDeps.get(pkg)?.has(dependency))
-      violations.push(`${pkg} -> ${dependency}`);
-  }
-}
-for (const dependency of dshRuntime) {
-  if (providerDeps.get("packages/maximal-core")?.has(dependency)) {
-    violations.push(`packages/maximal-core -> ${dependency}`);
-  }
-  if (providerDeps.get("packages/maximal")?.has(dependency)) {
-    violations.push(`packages/maximal -> ${dependency}`);
-  }
-  if (providerDeps.get("packages/maximal-provider-contract")?.has(dependency)) {
-    violations.push(`packages/maximal-provider-contract -> ${dependency}`);
-  }
-}
-for (const pkg of ["packages/anthropic-provider", "packages/omlx"]) {
-  for (const dependency of maximalPackages) {
-    if (providerDeps.get(pkg)?.has(dependency))
-      violations.push(`${pkg} -> ${dependency}`);
-  }
-}
-for (const [pkg, dependencies] of [
-  ["packages/maximal-core", ["@stuffbucket/maximal-provider-contract"]],
-  ["packages/maximal-dsh-host", ["@stuffbucket/maximal-provider-contract"]],
-  [
-    "packages/maximal",
-    [
-      "@stuffbucket/maximal-core",
-      "@stuffbucket/maximal-dsh-host",
-      "@stuffbucket/maximal-provider-contract",
-    ],
-  ],
-  [
-    "packages/local-model-registry",
-    ["@stuffbucket/maximal-provider-contract"],
-  ],
-  [
-    "packages/model-qwen3-0.6b-q8-gguf",
-    ["@stuffbucket/local-model-registry"],
-  ],
-  ["packages/llama-server", ["@stuffbucket/local-model-registry"]],
-]) {
-  for (const dependency of dependencies) {
-    if (!providerDeps.get(pkg)?.has(dependency)) {
-      violations.push(`${pkg} missing ${dependency}`);
-    }
-  }
-}
 if (violations.length > 0) {
   for (const violation of violations)
     console.error(`       forbidden provider edge: ${violation}`);
 }
 check(
-  [...providerManifests.values()].every((manifest) => manifest !== null) &&
-    violations.length === 0,
+  violations.length === 0,
   "provider package dependency boundaries are intact",
-  { count: providerManifests.size, of: "provider architecture manifests" },
+  { count: architectureGraph.packages.size, of: "architecture package manifests" },
 );
 
 // 8. No lockfile entry names a host, and every entry carries a digest.
@@ -501,13 +413,6 @@ check(
 // Asked of pnpm rather than hand-listed. A hardcoded copy of
 // pnpm-workspace.yaml's globs would leave a newly added package silently
 // uncovered by the one check meant to catch silent things.
-const WORKSPACE_MANIFESTS = JSON.parse(
-  execFileSync("pnpm", ["ls", "--recursive", "--depth", "-1", "--json"], {
-    cwd: ROOT,
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "ignore"],
-  }),
-).map((project) => path.relative(ROOT, project.path) || ".");
 // Splits that are meant. Empty is the goal: every entry here is a version of
 // the same dependency resolved twice, which the workspace exists to avoid.
 const DELIBERATE = new Map();

@@ -8,8 +8,8 @@ describe("provider bundle boundary", () => {
       assertGenericProviderBundle({
         inputs: {
           "../maximal-core/dist/cli.js": {},
-          "../maximal-provider-contract/dist/index.js": {},
-          "../maximal-dsh-host/dist/index.js": {},
+          "../maximal-model-contract/dist/index.js": {},
+          "../maximal-models/dist/index.js": {},
           "src/main.ts": {},
         },
       }),
@@ -22,8 +22,8 @@ describe("provider bundle boundary", () => {
     "../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.1/node_modules/@deepseek-ai/cordis/lib/index.js",
     "../../node_modules/.pnpm/@deepseek-ai+dsh-llm@0.1.0-rc.6/node_modules/@deepseek-ai/dsh-llm/lib/index.js",
     "../../node_modules/.pnpm/@deepseek-ai+schemastery@3.18.1/node_modules/@deepseek-ai/schemastery/lib/index.js",
-    "../../packages/omlx/dist/index.js",
-    "../../packages/anthropic-provider/dist/index.js",
+    "../../packages/model-runtimes/omlx/dist/index.js",
+    "../../packages/model-runtimes/anthropic/dist/index.js",
     "../omlx/dist/index.js",
     "../anthropic-provider/dist/index.js",
   ])("rejects external runtime input %s", (input) => {

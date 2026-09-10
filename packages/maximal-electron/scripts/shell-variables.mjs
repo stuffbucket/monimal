@@ -1,8 +1,8 @@
 /**
  * The `--shell-*` contract, derived from the stylesheets rather than declared.
  *
- * `structural.css` ships no palette. It reads custom properties the host
- * defines, and nothing published which ones, so `stuffbucket/maximal`
+ * `shell-package-rules.css` ships no palette. It reads custom properties the
+ * host defines, and nothing published which ones, so `stuffbucket/maximal`
  * hand-maintained a guess and drifted seven variables behind. Issue #93, and
  * `docs/shell-variables.md` for the contract itself.
  *
@@ -60,13 +60,12 @@ export const SHELL_NAMESPACE = '--shell-';
 export function packageStylesheets() {
   return [
     {
-      /*
-       * Concatenated in order. `structure.css` declares the structural tokens
-       * and must precede the rules that read them, so a consumer who overrides
-       * one still wins: a later declaration in the same file beats an earlier
-       * one at equal specificity.
-       */
-      sources: ['src/renderer/styles/structure.css', 'src/renderer/styles/structural.css'],
+      // Values precede rules so both linked CSS and carried rules inherit them.
+      sources: [
+        'src/renderer/styles/shell-structural-tokens.css',
+        'src/renderer/styles/shell-package-rules.css',
+      ],
+      imports: ['@wterm/dom/css', '@xterm/xterm/css/xterm.css'],
       published: 'dist/renderer/styles.css',
     },
   ];
@@ -125,7 +124,7 @@ export function shellVariableContract(input) {
    * A name a shipped stylesheet declares with a value is one a consumer never
    * has to supply, so reporting it as `required` sends them to define
    * something that already has an answer. `--shell-radius-large` is read bare
-   * and declared in `structure.css`; before this it was published as
+   * and declared in `shell-structural-tokens.css`; before this it was published as
    * `required` and `README.md`'s table is the list of what a consumer must
    * define.
    */
@@ -157,7 +156,7 @@ export function shellVariableContract(input) {
  * @returns {string[]}
  */
 function declaredIn(css) {
-  return [...css.matchAll(/^\s*(--shell-[a-z0-9-]+)\s*:/gm)].map((match) => match[1] ?? '');
+  return [...css.matchAll(/^\s*(--shell-[a-z0-9-]+)\s*:/gm)].map((match) => match[1]);
 }
 
 /** The whole contract as one list of name and kind, in name order. */

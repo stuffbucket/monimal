@@ -77,7 +77,7 @@ export const demoTerminalTransport: DetachableTerminalTransport =
 /**
  * The emulator's colours, resolved from the fixture's own `--shell-*` block.
  *
- * `ghostty-web` draws to a canvas and inherits nothing from CSS, so the three
+ * The emulator renders its own cells and inherits nothing from CSS, so the three
  * runtime properties in `docs/shell-variables.md` are read here rather than by
  * a rule. `demo.css` declares them on `:root`, which is why this reads the
  * document element and not the shell container.

@@ -3,7 +3,7 @@ import path from "node:path"
 import * as ts from "typescript"
 
 const ALLOWED_PROVIDER_HOST_PACKAGE =
-  "@stuffbucket/maximal-provider-contract"
+  "@stuffbucket/maximal-model-contract"
 const DEPENDENCY_FIELDS = [
   "dependencies",
   "devDependencies",
@@ -27,7 +27,7 @@ const forbiddenProviderHostSpecifier = (specifier: string): boolean => {
   const normalized = specifier.toLowerCase()
   return (
     normalized.includes("anthropic-provider")
-    || normalized.includes("maximal-dsh-host")
+    || normalized.includes("maximal-models")
     || /(?:^|[/@._-])(?:cordis|dsh|omlx)(?:$|[/@._-])/u.test(normalized)
   )
 }

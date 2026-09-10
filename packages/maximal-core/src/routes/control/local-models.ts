@@ -4,7 +4,7 @@ import type {
   LocalModelControl,
   LocalModelProvisionProgress,
   ProviderUnsubscribe,
-} from "@stuffbucket/maximal-provider-contract"
+} from "@stuffbucket/maximal-model-contract"
 
 import { randomUUID } from "node:crypto"
 

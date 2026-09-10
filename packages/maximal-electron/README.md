@@ -18,7 +18,7 @@ Screenshot of the shell: `test-results/shell.png`, after `npm run stills`.
 | Framework | Electron 43 with Forge 7. |
 | Renderer | React 19 on Vite 7. |
 | Layout | Radix and `react-resizable-panels`. |
-| Terminal | `ghostty-web` over `node-pty`. |
+| Terminal | Configurable xterm.js or wterm with libghostty over `node-pty`; xterm.js is the default. |
 | Packaging | Forge `package` on macOS and Windows, verified in CI. |
 | Release | An npm tarball on a GitHub release. No installer. |
 | Tests | Vitest and Playwright. |
@@ -41,8 +41,8 @@ A document layout with an optional inspector:
 - A **collapsible left navigation** that reduces to an icon rail, with
   sections that collapse on their own.
 - **Document tabs in the title bar**, not in a row of their own.
-- **Real terminals in tabs.** The `+` button opens a shell, rendered by
-  Ghostty's own emulator compiled to WebAssembly.
+- **Real terminals in tabs.** The `+` button opens a shell rendered by the
+  configured xterm.js or wterm/libghostty engine.
 - A **grid and list canvas** with selection.
 - An optional **collapsible right inspector** for documents that have secondary
   properties to show.
@@ -121,7 +121,7 @@ you use:
 | `@stuffbucket/maximal-electron/host/terminal` | `node-pty` |
 | `@stuffbucket/maximal-electron/electron-terminal` | `electron`, `node-pty` |
 | `@stuffbucket/maximal-electron/electron-panel` | `electron` |
-| `@stuffbucket/maximal-electron/renderer` | `react`, `react-dom`, `ghostty-web`, `lucide-react`, `react-resizable-panels`, `@radix-ui/react-collapsible`, `@radix-ui/react-dialog`, `@radix-ui/react-dropdown-menu`, `@radix-ui/react-radio-group`, `@radix-ui/react-tabs`, `@radix-ui/react-tooltip`, `@radix-ui/react-visually-hidden` |
+| `@stuffbucket/maximal-electron/renderer` | `react`, `react-dom`, `@xterm/xterm`, `@xterm/addon-fit`, `@wterm/dom`, `@wterm/ghostty`, `lucide-react`, `react-resizable-panels`, `@radix-ui/react-collapsible`, `@radix-ui/react-dialog`, `@radix-ui/react-dropdown-menu`, `@radix-ui/react-radio-group`, `@radix-ui/react-tabs`, `@radix-ui/react-tooltip`, `@radix-ui/react-visually-hidden` |
 | `@stuffbucket/maximal-electron/verify` | none |
 | `@stuffbucket/maximal-electron/verify/shell-variables` | none |
 | `@stuffbucket/maximal-electron/verify/peers` | none |
@@ -341,16 +341,17 @@ and verify that every export target appears in `npm pack`.
 ## Package the terminal
 
 `@stuffbucket/maximal-electron/host/terminal` and
-`@stuffbucket/maximal-electron/renderer` give a working terminal and leave two
-packaging traps behind.
+`@stuffbucket/maximal-electron/renderer` give a working terminal. `node-pty` is
+native: keep it out of the bundler, and unpack its whole prebuild directory
+rather than only `*.node`. On macOS the shell is started by `spawn-helper`,
+which has no extension and is executed from outside the archive.
 
-- `ghostty-web` inlines its WebAssembly as a data URL and fetches it at startup.
-  The content policy needs `'wasm-unsafe-eval'` in `script-src` and `data:` in
-  `connect-src`, or the terminal renders nothing.
-- `node-pty` is native. Keep it out of the bundler, and unpack its whole
-  prebuild directory rather than only `*.node`. On macOS the shell is started by
-  `spawn-helper`, which has no extension and is executed from outside the
-  archive.
+`TerminalView` and `TerminalTabs` accept `emulator="xterm"` or
+`emulator="ghostty"`. The default is `xterm`. The Ghostty option requires
+`'wasm-unsafe-eval'` in `script-src` and `data:` in `connect-src`.
+`ghosttyWindow` configures Ghostty-only window padding, balanced opposing
+edges, background opacity, and backdrop blur. Pixel values and opacity are
+bounded before they reach the host element; xterm ignores the option.
 
 The wire between the two halves is exported rather than hand-written.
 `createTerminalTransport` builds the renderer transport from your own `invoke`,

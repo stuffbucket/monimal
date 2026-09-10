@@ -1,11 +1,21 @@
-import type { ITheme } from 'ghostty-web';
 import { Group, Panel, Separator } from 'react-resizable-panels';
 import { useEffect, useRef, useState } from 'react';
 
 import type {
+  GhosttyWindowAdjustment,
+  TerminalEmulatorKind,
+  TerminalTheme,
+} from '../lib/terminal-emulator.js';
+import type {
   DetachableTerminalTransport,
   TerminalTransport,
 } from '../lib/terminal-transport.js';
+import {
+  removeTerminalPane,
+  splitTerminalPane,
+  terminalPaneSessionIds,
+  type TerminalPane,
+} from '../lib/terminal-pane.js';
 import { TerminalView } from './TerminalView.js';
 
 /**
@@ -19,9 +29,11 @@ import { TerminalView } from './TerminalView.js';
  */
 interface TerminalTabsCommonProps {
   activeId: string;
+  emulator?: TerminalEmulatorKind;
+  ghosttyWindow?: GhosttyWindowAdjustment;
   /** Overrides the login shell. A capture fixture passes an impersonal one. */
   shell?: string;
-  theme?: ITheme;
+  theme?: TerminalTheme;
   launchSplit?: () => Promise<{ sessionId: string }>;
   onExit?: (tabId: string) => void;
   onSessionsChange?: (tabId: string, sessionIds: string[]) => void;
@@ -44,51 +56,12 @@ export type TerminalTabsProps = TerminalTabsCommonProps & TerminalTabsAttachment
     | { disposition: 'detach'; transport: DetachableTerminalTransport }
   );
 
-type TerminalPane =
-  | { sessionId: string }
-  | {
-      direction: 'right' | 'down';
-      first: TerminalPane;
-      second: TerminalPane;
-    };
-
-function splitPane(
-  pane: TerminalPane,
-  targetId: string,
-  direction: 'right' | 'down',
-  sessionId: string,
-): TerminalPane {
-  if ('sessionId' in pane) {
-    return pane.sessionId === targetId
-      ? { direction, first: pane, second: { sessionId } }
-      : pane;
-  }
-  return {
-    ...pane,
-    first: splitPane(pane.first, targetId, direction, sessionId),
-    second: splitPane(pane.second, targetId, direction, sessionId),
-  };
-}
-
-function paneSessionIds(pane: TerminalPane): string[] {
-  return 'sessionId' in pane
-    ? [pane.sessionId]
-    : [...paneSessionIds(pane.first), ...paneSessionIds(pane.second)];
-}
-
-function removePane(pane: TerminalPane, sessionId: string): TerminalPane | undefined {
-  if ('sessionId' in pane) return pane.sessionId === sessionId ? undefined : pane;
-  const first = removePane(pane.first, sessionId);
-  const second = removePane(pane.second, sessionId);
-  if (!first) return second;
-  if (!second) return first;
-  return { ...pane, first, second };
-}
-
 interface TerminalAttachmentViewProps {
   attachment: TerminalAttachment;
+  emulator?: TerminalEmulatorKind;
+  ghosttyWindow?: GhosttyWindowAdjustment;
   shell?: string;
-  theme?: ITheme;
+  theme?: TerminalTheme;
   launchSplit?: () => Promise<{ sessionId: string }>;
   onExit?: (tabId: string) => void;
   onSessionsChange?: (tabId: string, sessionIds: string[]) => void;
@@ -100,6 +73,8 @@ interface TerminalAttachmentViewProps {
 
 function TerminalAttachmentView({
   attachment,
+  emulator,
+  ghosttyWindow,
   shell,
   theme,
   launchSplit,
@@ -110,24 +85,31 @@ function TerminalAttachmentView({
 }: TerminalAttachmentViewProps) {
   const [pane, setPane] = useState<TerminalPane>({ sessionId: attachment.sessionId });
   const paneRef = useRef(pane);
+  const mountGeneration = useRef(0);
   const [focusedId, setFocusedId] = useState(attachment.sessionId);
   const splitPending = useRef(false);
   const [splitFailed, setSplitFailed] = useState(false);
   paneRef.current = pane;
 
-  useEffect(() => () => {
-    if (session.disposition !== 'terminate') return;
-    for (const sessionId of paneSessionIds(paneRef.current)) {
-      void session.transport.terminate(sessionId);
-    }
+  useEffect(() => {
+    const generation = mountGeneration.current + 1;
+    mountGeneration.current = generation;
+    return () => {
+      if (session.disposition !== 'terminate') return;
+      const sessionIds = terminalPaneSessionIds(paneRef.current);
+      queueMicrotask(() => {
+        if (mountGeneration.current !== generation) return;
+        for (const sessionId of sessionIds) void session.transport.terminate(sessionId);
+      });
+    };
   }, [session.disposition, session.transport]);
 
   useEffect(() => {
-    onSessionsChange?.(attachment.id, paneSessionIds(pane));
+    onSessionsChange?.(attachment.id, terminalPaneSessionIds(pane));
   }, [attachment.id, onSessionsChange, pane]);
 
   function navigateSplit(fromId: string, direction: 'previous' | 'next'): void {
-    const ids = paneSessionIds(pane);
+    const ids = terminalPaneSessionIds(pane);
     if (ids.length < 2) return;
     const index = ids.indexOf(fromId);
     const offset = direction === 'previous' ? -1 : 1;
@@ -135,12 +117,12 @@ function TerminalAttachmentView({
   }
 
   function exitPane(sessionId: string): void {
-    const remaining = removePane(paneRef.current, sessionId);
+    const remaining = removeTerminalPane(paneRef.current, sessionId);
     if (!remaining) {
       onExit?.(attachment.id);
       return;
     }
-    const ids = paneSessionIds(remaining);
+    const ids = terminalPaneSessionIds(remaining);
     setPane(remaining);
     if (focusedId === sessionId) setFocusedId(ids[0]!);
   }
@@ -151,11 +133,14 @@ function TerminalAttachmentView({
       return (
         <TerminalView
           id={sessionId}
+          emulator={emulator}
+          ghosttyWindow={ghosttyWindow}
           shell={shell}
           theme={theme}
           disposition="preserve"
           transport={session.transport}
           focused={focusedId === sessionId}
+          focusIndicator={terminalPaneSessionIds(pane).length > 1}
           onFocus={() => setFocusedId(sessionId)}
           onExit={() => exitPane(sessionId)}
           onSplit={launchSplit ? (direction) => {
@@ -164,7 +149,7 @@ function TerminalAttachmentView({
             setSplitFailed(false);
             void launchSplit()
               .then((result) => {
-                setPane((existing) => splitPane(existing, sessionId, direction, result.sessionId));
+                setPane((existing) => splitTerminalPane(existing, sessionId, direction, result.sessionId));
                 setFocusedId(result.sessionId);
               })
               .catch(() => setSplitFailed(true))
@@ -172,7 +157,7 @@ function TerminalAttachmentView({
                 splitPending.current = false;
               });
           } : undefined}
-          onNavigateSplit={paneSessionIds(pane).length > 1
+          onNavigateSplit={terminalPaneSessionIds(pane).length > 1
             ? (direction) => navigateSplit(sessionId, direction)
             : undefined}
           onTitleChange={(title) => {
@@ -225,6 +210,8 @@ function TerminalAttachmentView({
 export function TerminalTabs(props: TerminalTabsProps) {
   const {
     activeId,
+    emulator,
+    ghosttyWindow,
     shell,
     theme,
     launchSplit,
@@ -244,6 +231,8 @@ export function TerminalTabs(props: TerminalTabsProps) {
         <div key={attachment.id} className="terminal-host" hidden={attachment.id !== activeId}>
           <TerminalAttachmentView
             attachment={attachment}
+            emulator={emulator}
+            ghosttyWindow={ghosttyWindow}
             shell={shell}
             theme={theme}
             launchSplit={launchSplit}

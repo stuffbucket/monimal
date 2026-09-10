@@ -2,37 +2,18 @@ import { randomUUID } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import type { CommandConnector, DiscoveredTarget } from './command-connectors.js';
-
-export interface TerminalProfileSummary {
-  id: string;
-  label: string;
-  kind: 'local' | 'tmux-control' | 'docker' | 'podman' | 'lima' | 'multipass' | 'kubernetes' | 'wsl' | 'vagrant' | 'ssh' | 'tmux' | 'ssh-tmux';
-}
-
-export interface TerminalTargetSummary {
-  id: string;
-  profileId: string;
-  label: string;
-  state: 'available' | 'unavailable' | 'timed-out';
-}
-
-export interface TerminalDiscovery {
-  generation: number;
-  targets: TerminalTargetSummary[];
-}
-
-export interface TerminalLaunchRequest {
-  profileId: string;
-  targetId?: string;
-  cols: number;
-  rows: number;
-}
-
-export interface TerminalLaunchResult {
-  sessionId: string;
-  label: string;
-}
+import type {
+  CommandConnector,
+  DiscoveredTarget,
+  TmuxProjectionLaunch,
+} from './command-connectors.js';
+import type {
+  TerminalDiscovery,
+  TerminalLaunchRequest,
+  TerminalLaunchResult,
+  TerminalProfileSummary,
+  TerminalTargetSummary,
+} from '../../host/electron-terminal-contract.js';
 
 export interface TrustedTerminalLaunch {
   command: string;
@@ -40,6 +21,7 @@ export interface TrustedTerminalLaunch {
   cwd?: string;
   env?: Record<string, string>;
   tmuxControl?: true;
+  tmuxProjection?: TmuxProjectionLaunch;
 }
 
 export interface TerminalProfilesFile {

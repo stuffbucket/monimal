@@ -5,7 +5,6 @@ import {
 } from '@stuffbucket/maximal-core/client'
 import {
   CONTROL_ERROR_REASONS,
-  type ControlErrorReason,
   type LocalModelCancelResult,
   type LocalModelCatalogEntry,
   type LocalModelCatalogSnapshot,
@@ -51,10 +50,10 @@ import {
   TrafficRequestDetailSchema,
   type TrafficRequestDetail,
   type TrafficRequestDetailQuery,
+  type TrafficRequestList,
   TrafficRequestListQuerySchema,
-  TrafficRequestPageSchema,
+  TrafficRequestListSchema,
   type TrafficRequestListQuery,
-  type TrafficRequestPage,
 } from '@stuffbucket/maximal-observability-contract'
 import { z } from 'zod'
 
@@ -128,7 +127,7 @@ export interface ControlSession {
   ): Promise<ControlResult<TrafficOverview>>
   observabilityRequests(
     query: TrafficRequestListQuery,
-  ): Promise<ControlResult<TrafficRequestPage>>
+  ): Promise<ControlResult<TrafficRequestList>>
   observabilityRequest(
     query: TrafficRequestDetailQuery,
   ): Promise<ControlResult<TrafficRequestDetail | null>>
@@ -571,7 +570,7 @@ export function createControlSession(
     observabilityRequests: (query) =>
       call(
         'observability/requests',
-        parseWith(TrafficRequestPageSchema),
+        parseWith(TrafficRequestListSchema),
         query,
         parseWith(TrafficRequestListQuerySchema),
       ),
@@ -634,4 +633,4 @@ export function createControlSession(
   }
 }
 
-export type { AuthStatus, AccountsListResponse, ControlErrorReason }
+export type { AuthStatus, AccountsListResponse }

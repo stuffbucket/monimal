@@ -18,6 +18,7 @@ import {
   checkoutMountArguments,
   containerBoundaryArguments,
   expectedImageLabels,
+  gitMetadataMountArguments,
   imageLabels,
   imageTagForArchitecture,
   innerScriptForSuite,
@@ -27,6 +28,10 @@ import {
   readToolPins,
   runDockerArguments,
   stagedCommandArguments,
+  turboCacheLabels,
+  turboCacheMountArguments,
+  turboCacheVolumeCreateArguments,
+  validatedTurboCacheVolumeName,
   validatedImageId,
 } from "../scripts/docker-test.mjs";
 import {
@@ -37,8 +42,11 @@ import {
 } from "../scripts/stage-test-checkout.mjs";
 import {
   imageIsOldEnough,
+  isManagedTestImage,
+  isManagedTurboCacheVolume,
   parsePruneOptions,
   selectRetainedImage,
+  volumeIsOldEnough,
 } from "../scripts/prune-test-images.mjs";
 import {
   affectedBase,
@@ -48,12 +56,206 @@ import {
   parseTestOptions,
   turboTestArguments,
 } from "../scripts/test-workspace.mjs";
+import {
+  auditWorkspacePackages,
+  auditWorkspaceReferences,
+  discoverPackageManifests,
+  inferredTasks,
+  pnpmWorkspacePaths,
+} from "../scripts/workspace-packages.mjs";
 
 const root = path.resolve(import.meta.dirname, "..");
 
 function read(relativePath) {
   return fs.readFileSync(path.join(root, relativePath), "utf8");
 }
+
+function writeManifest(rootPath, packagePath, manifest) {
+  const directory = path.join(rootPath, packagePath);
+  fs.mkdirSync(directory, { recursive: true });
+  fs.writeFileSync(path.join(directory, "package.json"), JSON.stringify(manifest));
+}
+
+function createPackageFixture(prefix) {
+  const fixture = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  fs.writeFileSync(path.join(fixture, ".gitignore"), "dist/\nout/\n");
+  const initialized = spawnSync("git", ["init", "--quiet"], {
+    cwd: fixture,
+    encoding: "utf8",
+  });
+  assert.equal(initialized.status, 0, initialized.stderr);
+  return fixture;
+}
+
+test("package onboarding is dynamically discovered and fails closed", () => {
+  const fixture = createPackageFixture("monimal-packages-");
+  try {
+    writeManifest(fixture, "packages/library", {
+      name: "library",
+      scripts: Object.fromEntries(
+        ["build", "lint", "test", "typecheck"].map((task) => [task, task]),
+      ),
+    });
+    writeManifest(fixture, "packages/feature/nested", {
+      name: "nested",
+      scripts: {},
+    });
+    let audit = auditWorkspacePackages(fixture, ["packages/library"]);
+    assert.deepEqual(audit.issues, [
+      "packages/feature/nested is not included in the pnpm workspace",
+    ]);
+
+    writeManifest(fixture, "packages/feature/nested", {
+      name: "nested",
+      private: true,
+      monimal: {
+        workspace: false,
+        workspaceReason: "Independent fixture.",
+      },
+    });
+    audit = auditWorkspacePackages(fixture, ["packages/library"]);
+    assert.deepEqual(audit.issues, []);
+
+    audit = auditWorkspacePackages(fixture, [
+      "packages/library",
+      "packages/feature/nested",
+    ]);
+    assert.match(audit.issues[0], /workspace package but declares/);
+
+    writeManifest(fixture, "packages/library/dist/generated", {
+      name: "ignored-output",
+    });
+    assert.deepEqual(discoverPackageManifests(fixture), [
+      "packages/feature/nested",
+      "packages/library",
+    ]);
+
+    fs.rmSync(path.join(fixture, "packages/library/package.json"));
+    assert.deepEqual(discoverPackageManifests(fixture), [
+      "packages/feature/nested",
+    ]);
+    audit = auditWorkspacePackages(fixture, []);
+    assert.deepEqual(audit.issues, []);
+  } finally {
+    fs.rmSync(fixture, { recursive: true, force: true });
+  }
+});
+
+test("package tasks are inferred from independent manifest capabilities", () => {
+  assert.deepEqual(inferredTasks({}), ["build", "lint", "test", "typecheck"]);
+  assert.deepEqual(inferredTasks({ devDependencies: { electron: "1" } }), [
+    "build",
+    "lint",
+    "test",
+    "typecheck",
+    "package",
+    "start",
+  ]);
+  assert.deepEqual(inferredTasks({ bin: { cli: "dist/cli.js" } }), [
+    "build",
+    "lint",
+    "test",
+    "typecheck",
+    "dev",
+    "start",
+  ]);
+  assert.deepEqual(inferredTasks({ bin: {} }), [
+    "build",
+    "lint",
+    "test",
+    "typecheck",
+  ]);
+
+  const fixture = createPackageFixture("monimal-tasks-");
+  try {
+    writeManifest(fixture, "packages/desktop", {
+      name: "desktop",
+      devDependencies: { electron: "1" },
+      scripts: {},
+    });
+    const missing = auditWorkspacePackages(fixture, ["packages/desktop"]);
+    assert.deepEqual(missing.issues, [
+      "packages/desktop is missing inferred build script; add scripts.build",
+      "packages/desktop is missing inferred lint script; add scripts.lint",
+      "packages/desktop is missing inferred test script; add scripts.test",
+      "packages/desktop is missing inferred typecheck script; add scripts.typecheck",
+      "packages/desktop is missing inferred package script; add scripts.package",
+      "packages/desktop is missing inferred start script; add scripts.start",
+    ]);
+
+    writeManifest(fixture, "packages/desktop", {
+      name: "desktop",
+      devDependencies: { electron: "1" },
+      scripts: {
+        build: " ",
+        lint: "lint",
+        test: "test",
+        typecheck: "typecheck",
+        package: "package",
+        start: "start",
+      },
+      monimal: {
+        taskExemptions: {
+          test: "",
+          unknown: "No such required task.",
+        },
+      },
+    });
+    const bypasses = auditWorkspacePackages(fixture, ["packages/desktop"]);
+    assert.deepEqual(bypasses.issues, [
+      "packages/desktop exempts test without a reason",
+      "packages/desktop has stale unknown task exemption",
+      "packages/desktop is missing inferred build script; add scripts.build",
+    ]);
+  } finally {
+    fs.rmSync(fixture, { recursive: true, force: true });
+  }
+
+  const audit = auditWorkspacePackages(root, pnpmWorkspacePaths(root));
+  assert.deepEqual(audit.issues, []);
+});
+
+test("removed packages cannot retain root workflow or Turbo references", () => {
+  const fixture = createPackageFixture("monimal-references-");
+  try {
+    writeManifest(fixture, "packages/library", {
+      name: "library",
+      scripts: {
+        build: "build",
+        lint: "lint",
+        test: "test",
+        typecheck: "typecheck",
+      },
+    });
+    fs.writeFileSync(
+      path.join(fixture, "package.json"),
+      JSON.stringify({
+        scripts: {
+          dev: "turbo run dev --filter=removed-app",
+          check: "pnpm --filter library test",
+        },
+      }),
+    );
+    fs.writeFileSync(
+      path.join(fixture, "turbo.json"),
+      JSON.stringify({ tasks: { build: {}, "removed-app#build": {} } }),
+    );
+    assert.deepEqual(
+      auditWorkspaceReferences(fixture, ["packages/library"]),
+      [
+        "removed-app#build targets a package outside the pnpm workspace",
+        "scripts.dev filters a package outside the pnpm workspace: removed-app",
+      ],
+    );
+  } finally {
+    fs.rmSync(fixture, { recursive: true, force: true });
+  }
+
+  assert.deepEqual(
+    auditWorkspaceReferences(root, pnpmWorkspacePaths(root)),
+    [],
+  );
+});
 
 function runLockfileHostStrip(...arguments_) {
   return spawnSync(
@@ -148,8 +350,8 @@ test("the outer and fixed inner test scripts cannot recurse", () => {
     {
       "test:inner": manifest.scripts["test:inner"],
       "test:maximal-core:inner": manifest.scripts["test:maximal-core:inner"],
-      "test:maximal-dsh-host:inner":
-        manifest.scripts["test:maximal-dsh-host:inner"],
+      "test:maximal-models:inner":
+        manifest.scripts["test:maximal-models:inner"],
       "test:policy:inner": manifest.scripts["test:policy:inner"],
       "mutate:core:inner": manifest.scripts["mutate:core:inner"],
     },
@@ -157,8 +359,8 @@ test("the outer and fixed inner test scripts cannot recurse", () => {
       "test:inner": "node scripts/docker-workspace-test.mjs",
       "test:maximal-core:inner":
         "node scripts/assert-test-container.mjs && pnpm --filter @stuffbucket/maximal-core test",
-      "test:maximal-dsh-host:inner":
-        "node scripts/assert-test-container.mjs && pnpm --filter @stuffbucket/maximal-dsh-host test",
+      "test:maximal-models:inner":
+        "node scripts/assert-test-container.mjs && pnpm --filter @stuffbucket/maximal-models test",
       "test:policy:inner":
         "node scripts/assert-test-container.mjs && node --test tests/docker-test-policy.test.mjs",
       "mutate:core:inner":
@@ -176,8 +378,12 @@ test("the outer and fixed inner test scripts cannot recurse", () => {
     "pnpm --filter @stuffbucket/maximal-core run check:deep:host && pnpm run test:core",
   );
   assert.equal(
+    manifest.scripts["check:static"],
+    "turbo run build typecheck lint",
+  );
+  assert.equal(
     manifest.scripts.check,
-    "turbo run build typecheck lint && pnpm --filter @stuffbucket/maximal-core run check:deep:host && pnpm test",
+    "pnpm run check:static && pnpm --filter @stuffbucket/maximal-core run check:deep:host && pnpm test",
   );
   assert.equal(
     (manifest.scripts.check.match(/(?:^|&& )pnpm test(?: |$)/g) ?? []).length,
@@ -185,14 +391,14 @@ test("the outer and fixed inner test scripts cannot recurse", () => {
   );
   assert.doesNotMatch(manifest.scripts.check, /pnpm run check:core/);
   assert.deepEqual(turbo.tasks["maximal-client#build"].env, [
+    "MAXIMAL_CORE_OUT",
+    "MAXIMAL_CORE_REF",
     "MAXIMAL_CORE_TARGET",
     "MAXIMAL_GIT_SHA",
   ]);
-  for (const task of [turbo.tasks.build, turbo.tasks["maximal-site#build"]]) {
-    assert.ok(task.inputs.includes("!**/dist/**"));
-    assert.ok(task.inputs.includes("!**/.turbo/**"));
-    assert.ok(task.inputs.includes("!**/resources/bin/**"));
-  }
+  assert.ok(turbo.tasks.build.inputs.includes("!**/dist/**"));
+  assert.ok(turbo.tasks.build.inputs.includes("!**/.turbo/**"));
+  assert.ok(turbo.tasks.build.inputs.includes("!**/resources/bin/**"));
   assert.deepEqual(turbo.tasks.test.env, [
     "MAXIMAL_TEST_CONTAINER",
     "MAXIMAL_TEST_HOST",
@@ -215,8 +421,70 @@ test("the outer and fixed inner test scripts cannot recurse", () => {
   assert.equal(turbo.tasks.package.outputs, undefined);
 });
 
-test("required CI runs tests on its disposable runner and has one cache writer", () => {
+test("root workflows select the intended package and task graphs", () => {
+  const manifest = JSON.parse(read("package.json"));
+  const client = JSON.parse(read("packages/maximal/client/package.json"));
+  const turbo = JSON.parse(read("turbo.json"));
+
+  assert.deepEqual(
+    {
+      dev: manifest.scripts.dev,
+      "dev:server": manifest.scripts["dev:server"],
+      package: manifest.scripts.package,
+      "package:all": manifest.scripts["package:all"],
+    },
+    {
+      dev: "turbo run dev --filter=maximal-client",
+      "dev:server":
+        "turbo run dev --filter=@stuffbucket/maximal -- start",
+      package: "turbo run package --filter=maximal-client",
+      "package:all": "turbo run package",
+    },
+  );
+  assert.equal(client.scripts.dev, "node scripts/start.mjs");
+  assert.equal(client.scripts.predev, "node scripts/gen-icon-png.mjs");
+  assert.deepEqual(turbo.tasks.transit.dependsOn, ["^transit"]);
+  assert.deepEqual(turbo.tasks.lint.dependsOn, ["transit", "^build"]);
+  assert.deepEqual(turbo.tasks.dev.dependsOn, ["^build"]);
+  assert.equal(turbo.tasks.dev.cache, false);
+  assert.equal(turbo.tasks.dev.persistent, true);
+  assert.deepEqual(turbo.tasks["maximal-client#dev"].dependsOn, ["build"]);
+  assert.equal(turbo.tasks["maximal-client#dev"].cache, false);
+  assert.equal(turbo.tasks["maximal-client#dev"].persistent, true);
+});
+
+test("architecture analysis has one cacheable Turbo execution path", () => {
+  const manifest = JSON.parse(read("package.json"));
+  const turbo = JSON.parse(read("turbo.json"));
   const workflow = read(".github/workflows/ci.yml");
+
+  assert.equal(manifest.scripts.analyze, "turbo run analyze");
+  assert.doesNotMatch(manifest.scripts.check, /pnpm (?:run )?analyze/);
+  assert.equal(
+    turbo.tasks.test.dependsOn.filter((dependency) => dependency === "analyze")
+      .length,
+    1,
+  );
+  assert.deepEqual(turbo.tasks.analyze, {
+    outputs: [],
+    inputs: [
+      "$TURBO_DEFAULT$",
+      "$TURBO_ROOT$/architecture-analysis.json",
+      "$TURBO_ROOT$/architecture-analysis.schema.json",
+      "$TURBO_ROOT$/packages/maximal-core/scripts/analysis/**",
+      "$TURBO_ROOT$/packages/maximal-core/scripts/analyze.ts",
+      "$TURBO_ROOT$/scripts/architecture-graph.mjs",
+      "!research_log/**",
+      "!.claude/**",
+      "!.github/**",
+    ],
+  });
+  assert.doesNotMatch(workflow, /\b(?:knip|jscpd|dependency-cruiser)\b/);
+});
+
+test("required CI runs native checks before Docker and has one cache writer", () => {
+  const workflow = read(".github/workflows/ci.yml");
+  const staticGate = "pnpm exec turbo run build typecheck lint";
   const hostGate =
     "pnpm --filter @stuffbucket/maximal-core run check:deep:host:after-workspace";
   const packageMechanics =
@@ -225,10 +493,13 @@ test("required CI runs tests on its disposable runner and has one cache writer",
     "LINK=packages/maximal/client/node_modules/@stuffbucket/maximal-core";
   const testGate =
     "pnpm run test:all -- --trace=${{ inputs.test_trace || 'off' }}";
+  const packageGate = "pnpm run package:all";
+  assert.equal(workflow.split(staticGate).length - 1, 1);
   assert.equal(workflow.split(hostGate).length - 1, 1);
   assert.equal(workflow.split(packageMechanics).length - 1, 1);
   assert.equal(workflow.split(sidecarProvenance).length - 1, 1);
   assert.equal(workflow.split(testGate).length - 1, 1);
+  assert.equal(workflow.split(packageGate).length - 1, 1);
   assert.equal(workflow.split("MONIMAL_PERF_MARKERS: 1").length - 1, 1);
   assert.equal(
     workflow.split("if: always() && steps.workspace-check-start.outcome == 'success'")
@@ -271,9 +542,15 @@ test("root automation schedules Docker and keeps CodeQL lean and pinned", () => 
     .join("\n");
 
   assert.match(dockerWorkflow, /^  schedule:\n    - cron: /m);
-  assert.match(
-    dockerWorkflow,
-    /run: node scripts\/docker-test\.mjs --suite=policy/,
+  assert.match(dockerWorkflow, /^  workflow_dispatch:\n    inputs:/m);
+  assert.doesNotMatch(dockerWorkflow, /^  (?:pull_request|push):/m);
+  assert.equal(
+    dockerWorkflow.split("node scripts/docker-test.mjs --suite=policy").length - 1,
+    1,
+  );
+  assert.equal(
+    dockerWorkflow.split("node scripts/docker-test.mjs --all").length - 1,
+    1,
   );
   assert.match(codeqlWorkflow, /languages: javascript-typescript/);
   assert.doesNotMatch(codeqlWorkflow, /security-and-quality/);
@@ -557,12 +834,26 @@ test("Docker image validation and retention require reusable Stryker metadata", 
     Created: "2026-09-02T00:00:00Z",
     Config: {
       Labels: {
+        [imageLabels.architecture]: "amd64",
         [imageLabels.purpose]: "workspace-test",
         [imageLabels.mutation]: "stryker",
       },
     },
   };
   assert.equal(validatedImageId(exact, labels), exactId);
+  assert.equal(isManagedTestImage(exact), true);
+  assert.equal(
+    isManagedTestImage({
+      ...exact,
+      Config: {
+        Labels: {
+          [imageLabels.purpose]: "workspace-test",
+          [imageLabels.mutation]: "stryker",
+        },
+      },
+    }),
+    false,
+  );
   assert.equal(
     validatedImageId({ ...exact, Architecture: "amd64" }, labels),
     undefined,
@@ -587,6 +878,23 @@ test("automatic image cleanup leaves a concurrency grace period", () => {
   const now = Date.parse("2026-09-08T12:30:00.000Z");
   assert.equal(imageIsOldEnough(image, 3_600_000, now), false);
   assert.equal(imageIsOldEnough(image, 1_800_000, now), true);
+
+  const imageId = `sha256:${"e".repeat(64)}`;
+  const volume = {
+    Name: `monimal-test-turbo-${"e".repeat(64)}`,
+    CreatedAt: "2026-09-08T12:00:00.000Z",
+    Labels: {
+      [turboCacheLabels.dependencyImage]: imageId,
+      [turboCacheLabels.purpose]: "turbo-cache",
+    },
+  };
+  assert.equal(isManagedTurboCacheVolume(volume), true);
+  assert.equal(volumeIsOldEnough(volume, 3_600_000, now), false);
+  assert.equal(volumeIsOldEnough(volume, 1_800_000, now), true);
+  assert.equal(
+    isManagedTurboCacheVolume({ ...volume, Name: "unrelated-cache" }),
+    false,
+  );
 });
 
 test("runtime arguments mount the checkout read-only behind the offline boundary", () => {
@@ -601,8 +909,38 @@ test("runtime arguments mount the checkout read-only behind the offline boundary
     "type=bind,source=/repo,target=/checkout,readonly",
   ]);
   const imageId = "sha256:" + "a".repeat(64);
+  assert.deepEqual(turboCacheMountArguments(imageId), [
+    "--mount",
+    `type=volume,source=monimal-test-turbo-${"a".repeat(64)},target=/workspace/.turbo`,
+  ]);
+  assert.deepEqual(turboCacheVolumeCreateArguments(imageId), [
+    "volume",
+    "create",
+    "--label",
+    `${turboCacheLabels.purpose}=turbo-cache`,
+    "--label",
+    `${turboCacheLabels.dependencyImage}=${imageId}`,
+    `monimal-test-turbo-${"a".repeat(64)}`,
+  ]);
+  const volume = {
+    Name: `monimal-test-turbo-${"a".repeat(64)}`,
+    Labels: {
+      [turboCacheLabels.dependencyImage]: imageId,
+      [turboCacheLabels.purpose]: "turbo-cache",
+    },
+  };
+  assert.equal(validatedTurboCacheVolumeName(volume, imageId), volume.Name);
+  assert.equal(
+    validatedTurboCacheVolumeName({ ...volume, Labels: {} }, imageId),
+    undefined,
+  );
+  assert.throws(
+    () => turboCacheMountArguments("monimal-test:dependencies-arm64"),
+    /Invalid Docker image ID/,
+  );
   const base = "b".repeat(40);
   const arguments_ = runDockerArguments(imageId, { base });
+  const gitMount = gitMetadataMountArguments(root);
   assert.deepEqual(arguments_, [
     "run",
     "--rm",
@@ -612,6 +950,9 @@ test("runtime arguments mount the checkout read-only behind the offline boundary
     "--security-opt=no-new-privileges",
     "--mount",
     `type=bind,source=${root},target=/checkout,readonly`,
+    ...gitMount,
+    "--mount",
+    `type=volume,source=monimal-test-turbo-${"a".repeat(64)},target=/workspace/.turbo`,
     imageId,
     "node",
     "/opt/monimal/stage-test-checkout.mjs",
@@ -647,6 +988,9 @@ test("mutation arguments use the same mounted dependency boundary", () => {
     "--security-opt=no-new-privileges",
     "--mount",
     `type=bind,source=${root},target=/checkout,readonly`,
+    ...gitMetadataMountArguments(root),
+    "--mount",
+    `type=volume,source=monimal-test-turbo-${"d".repeat(64)},target=/workspace/.turbo`,
     "--env",
     "MAXIMAL_MUTATION_LEDGER=/workspace/packages/maximal-core/reports/mutation/incomplete-runs.log",
     imageId,
@@ -840,6 +1184,47 @@ test("checkout staging copies Git-visible source without host dependencies", () 
   }
 });
 
+test("checkout staging gives a linked worktree a container-local Git root", () => {
+  const repository = fs.mkdtempSync(path.join(os.tmpdir(), "monimal-stage-repository-"));
+  const checkout = `${repository}-linked`;
+  const workspace = fs.mkdtempSync(path.join(os.tmpdir(), "monimal-stage-workspace-"));
+  const git = (cwd, ...arguments_) =>
+    spawnSync("git", arguments_, { cwd, encoding: "utf8" });
+  try {
+    assert.equal(git(repository, "init", "--quiet").status, 0);
+    assert.equal(git(repository, "config", "user.name", "Docker Policy Test").status, 0);
+    assert.equal(
+      git(repository, "config", "user.email", "docker-policy@example.invalid").status,
+      0,
+    );
+    fs.writeFileSync(path.join(repository, "tracked.txt"), "linked\n");
+    assert.equal(git(repository, "add", "tracked.txt").status, 0);
+    assert.equal(
+      git(repository, "commit", "--quiet", "--no-gpg-sign", "-m", "fixture").status,
+      0,
+    );
+    assert.equal(git(repository, "worktree", "add", "--quiet", checkout).status, 0);
+
+    assert.equal(stageCheckout({ checkout, workspace }), 1);
+    assert.equal(
+      git(workspace, "rev-parse", "--show-toplevel").stdout.trim(),
+      fs.realpathSync(workspace),
+    );
+    assert.equal(
+      git(workspace, "rev-parse", "HEAD").stdout.trim(),
+      git(checkout, "rev-parse", "HEAD").stdout.trim(),
+    );
+  } finally {
+    spawnSync("git", ["worktree", "remove", "--force", checkout], {
+      cwd: repository,
+      encoding: "utf8",
+    });
+    fs.rmSync(checkout, { recursive: true, force: true });
+    fs.rmSync(repository, { recursive: true, force: true });
+    fs.rmSync(workspace, { recursive: true, force: true });
+  }
+});
+
 test("the Docker workspace runner accepts only one affected Turbo filter", () => {
   const filter = `--filter=...[${"a".repeat(40)}]`;
   assert.deepEqual(parseDockerWorkspaceOptions([]), []);
@@ -876,8 +1261,8 @@ test("suite and trace selectors are closed and do not forward arguments", () => 
     trace: "off",
   });
   assert.deepEqual(
-    parseOptions(["--", "--trace=all", "--suite=maximal-dsh-host"]),
-    { scope: "affected", suite: "maximal-dsh-host", trace: "all" },
+    parseOptions(["--", "--trace=all", "--suite=maximal-models"]),
+    { scope: "affected", suite: "maximal-models", trace: "all" },
   );
   assert.equal(parseTrace(["--trace=tests"]), "tests");
   assert.throws(() => parseOptions(["--suite=other"]), /Invalid test suite/);
@@ -908,14 +1293,14 @@ test("suite and trace selectors are closed and do not forward arguments", () => 
 test("each suite selects one fixed root-owned inner script", () => {
   assert.deepEqual(
     Object.fromEntries(
-      ["workspace", "maximal-core", "maximal-dsh-host", "policy"].map(
+      ["workspace", "maximal-core", "maximal-models", "policy"].map(
         (suite) => [suite, innerScriptForSuite(suite)],
       ),
     ),
     {
       workspace: "test:inner",
       "maximal-core": "test:maximal-core:inner",
-      "maximal-dsh-host": "test:maximal-dsh-host:inner",
+      "maximal-models": "test:maximal-models:inner",
       policy: "test:policy:inner",
     },
   );
@@ -1081,19 +1466,9 @@ test("the build context excludes local state but retains source fixtures", () =>
 
 test("the reusable Docker dependency image includes every workspace manifest", () => {
   const dockerfile = read("Dockerfile");
-  const manifests = [];
-  const visit = (directory) => {
-    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
-      if (entry.name === "node_modules") continue;
-      const absolute = path.join(directory, entry.name);
-      if (entry.isDirectory()) {
-        visit(absolute);
-      } else if (entry.name === "package.json") {
-        manifests.push(path.relative(root, absolute));
-      }
-    }
-  };
-  visit(path.join(root, "packages"));
+  const manifests = discoverPackageManifests(root).map(
+    (packagePath) => `${packagePath}/package.json`,
+  ).sort();
 
   const install = dockerfile.indexOf(
     "pnpm install --frozen-lockfile --ignore-scripts",
@@ -1105,6 +1480,12 @@ test("the reusable Docker dependency image includes every workspace manifest", (
     assert.ok(copy >= 0, `${manifest} is missing from the metadata layer`);
     assert.ok(copy < install, `${manifest} must be copied before the install`);
   }
+  const copiedManifests = [
+    ...dockerfile.matchAll(
+      /^COPY --chown=maximal:maximal (packages\/[^ ]+\/package\.json) \1$/gm,
+    ),
+  ].map((match) => match[1]).sort();
+  assert.deepEqual(copiedManifests, manifests);
   assert.ok(install >= 0);
   assert.match(
     dockerfile,
@@ -1139,6 +1520,7 @@ test("the image owns test homes and stages commands as non-root", () => {
   assert.match(dockerfile, /bun_sha.*sha256sum -c -/s);
   assert.match(dockerfile, /USER maximal/);
   assert.match(dockerfile, /MAXIMAL_TEST_CONTAINER=1/);
+  assert.match(dockerfile, /TURBO_CACHE_DIR=\/workspace\/\.turbo\/cache/);
   assert.match(dockerfile, /XDG_CONFIG_HOME=\/home\/maximal\/\.config/);
   assert.match(
     dockerfile,
@@ -1177,7 +1559,8 @@ test("mutation prepares the dependency image and pruning stays label-scoped", ()
     mutation,
     /requireReusableImage|sourceDigest|test:docker/,
   );
-  assert.match(prune, /label=\$\{imageLabels\.purpose\}=workspace-test/);
+  assert.match(prune, /"image", "ls", "--all", "--quiet", "--no-trunc"/);
+  assert.match(prune, /\.filter\(isManagedTestImage\)/);
   assert.match(prune, /"--builder",\s*dockerBuilderName/);
   assert.match(prune, /"--max-used-space",\s*"8gb"/);
   assert.match(prune, /"--reserved-space",\s*"2gb"/);

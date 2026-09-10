@@ -22,7 +22,7 @@ const STANDALONE_ATTRIBUTE = 'data-sb-shell-portal-root';
 /**
  * Publishes the element a portalled surface mounts into.
  *
- * Every rule in the shipped `structural.css` is scoped under `.sb-shell`, and
+ * Every rule in the shipped `shell-package-rules.css` is scoped under `.sb-shell`, and
  * a Radix portal defaults to `document.body`, which is outside it. `ShellLayout`
  * owns that class, so it supplies the element here.
  */

@@ -27,23 +27,31 @@ still works.
 
 `tests/terminal/` owns the terminal unit-test boundary. `npm run test:terminal`
 runs that directory alone. `npm run mutate:terminal` derives terminal source
-files from the canonical `mutate` list and limits Stryker to those tests. Both
-commands fail when their scope is empty.
+files from the canonical `mutate` list and limits Stryker to those tests. Its
+Vitest phase measures runtime mutants. A command-runner phase then derives the
+static initializer ranges from that report and starts Vitest with each mutant
+already active. The report check requires both scopes and joins them into one
+100 percent result. Both commands fail when their scope is empty.
 
 ## Mutation testing
 
-`pnpm --filter @stuffbucket/maximal-electron run mutate` reports what the tests
-actually catch, which coverage does not.
-**It breaks below 100.** It is three commands, and the two either side of
-Stryker exist because a percentage on its own is a weak claim: it says nothing
-about how many mutants there were, which files produced them, or what did the
-killing.
+`npm run mutate` reports what the tests actually catch, which coverage does not.
+**It breaks below 100.** The commands around Stryker exist because a percentage
+on its own is a weak claim: it says nothing about how many mutants there were,
+which files produced them, or what did the killing.
 
-| Step                          | What it decides                                          |
-| ----------------------------- | -------------------------------------------------------- |
-| `scripts/mutation-scope.mjs`  | Which modules Stryker should sweep, from a criterion     |
-| `stryker run`                 | The score, against `break: 100`                          |
+| Step | What it decides |
+| --- | --- |
+| `scripts/mutation-scope.mjs` | Which modules Stryker should sweep, from a criterion |
+| `stryker run` | Runtime mutants, against `break: 100` |
+| `stryker run stryker.static.conf.mjs` | Static initializers, active before Vitest imports them |
 | `scripts/mutation-report.mjs` | Whether the run measured what it claims to have measured |
+
+The static command runner omits the freshness, screenshot, and shuffle unit
+tests. They import only helpers under `e2e/`, which Stryker ignores and does not
+copy into its sandbox. The command runner reports its suite as one aggregate,
+so kill attribution comes from the Vitest phase; the report joiner separately
+requires every static mutant to fail that aggregate in a fresh process.
 
 A surviving mutant is a real gap. It found one here: `src/renderer/lib/data.ts`
 scored 0 with 77 untouched mutants, because it had no unit tests at all.
@@ -87,7 +95,7 @@ Three things move Stryker's denominator without moving its percentage, and
 So the check asserts the shape of the run: every kill names a test that
 reported, every file on the list produced at least one mutant, the total is at
 or above `MUTANT_FLOOR`, and nothing ended in `RuntimeError`, `NoCoverage` or a
-timeout. `IGNORED_CEILING` holds the suppression count, so a fourth
+timeout. `IGNORED_CEILING` holds the suppression count, so a third
 `// Stryker disable` has to be added on purpose.
 
 Raise `MUTANT_FLOOR` when the count rises. A fall is the defect it exists to
@@ -107,11 +115,11 @@ catch-all is not acceptable**:
    `noUncheckedIndexedAccess` forces a fallback on every index read, and a
    fallback that can never run is dead code that reads as untested. `cycle` in
    `data.ts` and `firstLine` in `ffmpeg.ts` both exist to remove one. Prefer
-   this to a suppression.
+  this to a suppression.
 3. **A deliberately-retained equivalent, with a written proof** over the
    reachable input domain. Use `// Stryker disable next-line <Mutator>: why`,
-   and state the evidence, not the conclusion. There are three in the
-   repository. Read them before you write a fourth, and raise
+  and state the evidence, not the conclusion. There are two in the repository.
+  Read them before you write a third, and raise
    `IGNORED_CEILING`.
 
 The rule comes from `stuffbucket/maximal-core`'s testing strategy, which states

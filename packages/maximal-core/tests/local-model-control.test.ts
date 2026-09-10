@@ -3,7 +3,7 @@ import type {
   LocalModelCatalogListener,
   LocalModelControl,
   LocalModelProgressListener,
-} from "@stuffbucket/maximal-provider-contract"
+} from "@stuffbucket/maximal-model-contract"
 
 import { describe, expect, test } from "bun:test"
 

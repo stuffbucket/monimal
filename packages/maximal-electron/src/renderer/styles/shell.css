@@ -1,28 +1,26 @@
-/*
- * The structural ramp, which this application is a consumer of.
- *
- * Not decoration and not a duplicate. The rules a component carries read
- * `--shell-space-3`, `--shell-radius-large`, `--shell-text-sm` and fifteen
- * more, and `structure.css` is the only file that gives those names values.
- * A consumer gets it because it is half of `dist/renderer/styles.css`; this
- * application builds its own stylesheet and so got none of it, which meant
- * every carried rule's padding, radius, type size and weight was an undefined
- * custom property with no fallback — invalid at computed-value time, so zero
- * rather than wrong. Measured in the running application: a model card with
- * `border-radius: 0px` and `padding: 0px`, through 106 stories that render and
- * pass axe.
- *
- * `tests/reference-consumer.test.ts` is what now says this line may not be
- * removed: it holds every name a carried rule reads against what this
- * application actually defines.
- *
- * First, so the `@layer` statement inside it establishes layer order ahead of
- * every rule that depends on it.
- */
-@import './structure.css';
+/* Carried component rules inherit the same structural values as package CSS. */
+@import './shell-structural-tokens.css';
 @import './controls.css';
 
 @layer sb-shell.base {
+.sb-shell .app-frame__slot,
+.sb-shell .app-frame__slot--contents {
+  display: contents;
+}
+
+.sb-shell .app-frame__slot--rail,
+.sb-shell .app-frame__slot--fill {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.sb-shell .window-chrome__panel {
+  flex: 1;
+  min-height: 0;
+}
+
 *,
 *::before,
 *::after {
@@ -50,7 +48,7 @@ body {
 /*
  * A column rather than a grid. `ShellLayout`'s `top` slot renders no element
  * when it is empty and any number of them when it is not, and a track list has
- * to know that count. `structural.css` carries the same rule and the same
+ * to know that count. `shell-package-rules.css` carries the same rule and the same
  * reason.
  */
 .app {
@@ -794,10 +792,22 @@ body {
   flex: 1;
   min-height: 0;
   display: flex;
+  padding: var(--space-2);
 }
 
 .terminal-host[hidden] {
   display: none;
+}
+
+.terminal-host .wterm {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 13px;
+  padding: 0;
+  border-radius: 7px;
+  box-shadow: none;
 }
 
 .terminal-split {
@@ -807,6 +817,15 @@ body {
   height: 100%;
   min-width: 0;
   min-height: 0;
+}
+
+.terminal-split > .resize-handle {
+  flex: 0 0 1px;
+  margin: 0 var(--space-1);
+}
+
+.terminal-split > .resize-handle--horizontal {
+  margin: var(--space-1) 0;
 }
 
 .terminal-split__panel {
@@ -828,17 +847,34 @@ body {
   flex: 1;
   min-height: 0;
   min-width: 0;
-  padding: var(--space-2);
+  padding: 0;
   background: var(--bg-canvas);
+  border-radius: 7px;
   overflow: hidden;
 }
 
-.terminal[data-focused='true'] {
-  box-shadow: inset 0 0 0 1px var(--accent);
+.terminal[data-focused='true'][data-focus-indicator='true'] {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent);
 }
 
 .terminal canvas {
   display: block;
+}
+
+.terminal .xterm-viewport {
+  background-color: var(--bg-canvas) !important;
+}
+
+.terminal .xterm-viewport::-webkit-scrollbar {
+  width: 6px;
+}
+
+.terminal .xterm-viewport::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.terminal .xterm-viewport::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
 }
 
 .terminal__error {

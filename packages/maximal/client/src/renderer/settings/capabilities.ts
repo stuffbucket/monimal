@@ -1,6 +1,5 @@
 import type {
   AccountsListResponse,
-  AccountSummary,
   ApiKeyCreateRequest,
   ApiKeyEntry,
   ApiKeysListResponse,
@@ -32,7 +31,6 @@ import { unwrapControlResult } from '../shared/control-error'
 
 export type {
   AccountsListResponse,
-  AccountSummary,
   ApiKeyCreateRequest,
   ApiKeyEntry,
   ApiKeysListResponse,

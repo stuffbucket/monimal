@@ -13,7 +13,7 @@ import type {
   LocalModelCatalogEntry,
   LocalModelCatalogSnapshot,
   LocalModelProvisionProgress,
-} from "@stuffbucket/maximal-provider-contract"
+} from "@stuffbucket/maximal-model-contract"
 
 import type { AuthStatus as AuthStatusUnion } from "~/lib/config/settings-types"
 
@@ -21,7 +21,7 @@ export type {
   LocalModelCatalogEntry,
   LocalModelCatalogSnapshot,
   LocalModelProvisionProgress,
-} from "@stuffbucket/maximal-provider-contract"
+} from "@stuffbucket/maximal-model-contract"
 
 export interface LocalModelEnsureResult {
   readonly modelKey: string

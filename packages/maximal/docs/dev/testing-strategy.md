@@ -21,16 +21,14 @@ maximal composes three things it mostly does not implement:
 So the interesting tests are mostly *other repositories'*. What remains here
 tests the seams and the things maximal genuinely owns.
 
-## The three suites
+## The two suites
 
 | Suite | Runner | Scope |
 | --- | --- | --- |
-| root `tests/` | `bun test` | Release and packaging scripts: manifest hydration, the homebrew formula sync, the updates manifest, the macOS installer template, build verification |
+| root `tests/` | `bun test` | Release and packaging scripts: the homebrew formula sync, the macOS installer template, build verification |
 | `client/` | `vitest` (+ Playwright for e2e) | The Electron client: renderer surfaces, the preload seam, and the `--shell-*` contract against the installed shell package |
-| `site/` | `bun test` | The Astro site, including the Tauri updater manifest builder |
 
-Each is a separate install root and runs independently. There is no aggregate
-command that runs all three.
+Each is a separate install root and runs independently.
 
 ## What is worth knowing about each
 
@@ -47,17 +45,14 @@ exists because a hand-maintained adapter previously drifted to 27 dead names
 and 7 unset required ones with nothing noticing — the result still rendered a
 plausible shell. Do not hand-edit the variable list; regenerate it.
 
-**Site.** `tauri-updater-manifest.test.ts` guards the update feed that
-already-installed Tauri apps still poll. The Tauri shell is retired but its
-users are not, so this suite outlives the shell deliberately.
-
 ## Gates
 
 `bun run check:fast` is lint, typecheck and lint:all. `bun run check:deep`
-adds `bun test` and `knip`. Client and site gates run from their own roots.
+adds `bun test` and `knip`. The client gate runs from its own root.
 
-CI runs these per root; see `.github/workflows/ci.yml`, `client-ci.yml` and
-`site-ci.yml`.
+CI runs these per root; see `.github/workflows/ci.yml` and `client-ci.yml`.
+The site and its tests are owned by
+[`stuffbucket/maximal-site`](https://github.com/stuffbucket/maximal-site).
 
 ## Known weaknesses
 

@@ -5,7 +5,7 @@ import type {
   ProviderStatus,
   ProviderTopologyListener,
   ProviderUnsubscribe,
-} from "@stuffbucket/maximal-provider-contract"
+} from "@stuffbucket/maximal-model-contract"
 
 import { afterEach, beforeEach, describe, expect, test } from "bun:test"
 
@@ -28,13 +28,16 @@ class FakeGateway implements ProviderGateway {
   disposeCalls = 0
   response: (dispatch: ProviderDispatch) => Promise<Response>
   private readonly onDispose: () => Promise<void>
+  private readonly statuses: ReadonlyArray<ProviderStatus>
 
   constructor(
     response: (dispatch: ProviderDispatch) => Promise<Response>,
     onDispose: () => Promise<void> = () => Promise.resolve(),
+    statuses: ReadonlyArray<ProviderStatus> = [],
   ) {
     this.response = response
     this.onDispose = onDispose
+    this.statuses = statuses
   }
 
   async dispatch(dispatch: ProviderDispatch): Promise<Response> {
@@ -52,7 +55,7 @@ class FakeGateway implements ProviderGateway {
   }
 
   listStatuses(): ReadonlyArray<ProviderStatus> {
-    return []
+    return this.statuses
   }
 
   subscribe(_listener: ProviderTopologyListener): ProviderUnsubscribe {
@@ -131,6 +134,80 @@ afterEach(() => {
 // DSH dispatch cases share route setup, gateway fakes, and usage fixtures.
 // eslint-disable-next-line max-lines-per-function
 describe("DSH provider dispatch", () => {
+  test("lists models only from available providers with non-empty catalogues", async () => {
+    const statuses: ReadonlyArray<ProviderStatus> = [
+      {
+        provider: "local",
+        displayName: "Local (oMLX)",
+        state: "available",
+        operations: ["messages", "models"],
+        diagnostics: [],
+      },
+      {
+        provider: "unavailable",
+        state: "unavailable",
+        operations: ["models"],
+        diagnostics: [],
+      },
+      {
+        provider: "messages-only",
+        state: "available",
+        operations: ["messages"],
+        diagnostics: [],
+      },
+      {
+        provider: "empty",
+        state: "available",
+        operations: ["models"],
+        diagnostics: [],
+      },
+      {
+        provider: "failed",
+        state: "available",
+        operations: ["models"],
+        diagnostics: [],
+      },
+    ]
+    const gateway = new FakeGateway(
+      (dispatch) => {
+        if (dispatch.provider === "local") {
+          return Promise.resolve(
+            Response.json({
+              data: [
+                { id: "mlx-community/Qwen3-8B", display_name: "Qwen 3 8B" },
+              ],
+            }),
+          )
+        }
+        if (dispatch.provider === "failed") {
+          return Promise.reject(new Error("runtime unavailable"))
+        }
+        return Promise.resolve(Response.json({ data: [] }))
+      },
+      undefined,
+      statuses,
+    )
+    const dispatcher = createProviderDispatcher({
+      gateway,
+      readConfig: dshConfig,
+    })
+
+    expect(await dispatcher.listModels()).toEqual([
+      {
+        id: "mlx-community/Qwen3-8B",
+        name: "Qwen 3 8B",
+        provider: "local",
+        providerName: "Local (oMLX)",
+      },
+    ])
+    expect(gateway.dispatches.map(({ provider }) => provider).sort()).toEqual([
+      "empty",
+      "failed",
+      "local",
+    ])
+    await dispatcher.dispose()
+  })
+
   test("dispatches raw messages requests and preserves JSON usage accounting", async () => {
     let requestBody = ""
     const gateway = new FakeGateway(async (dispatch) => {

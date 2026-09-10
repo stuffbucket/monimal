@@ -86,11 +86,6 @@ export function isModelPresent(): boolean {
 
 let inFlight: Promise<ModelProgress> | undefined;
 
-/** Stop a download in progress. The partial file is left for a later resume. */
-export function cancelModelDownload(): void {
-  if (inFlight) send({ kind: 'cancel-download' });
-}
-
 /**
  * Fetch the model if it is missing.
  *

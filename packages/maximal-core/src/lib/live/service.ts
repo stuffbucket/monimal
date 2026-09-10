@@ -13,6 +13,7 @@ import { ControlHub } from "~/lib/live/hub"
 import {
   buildControlSnapshot,
   type ControlSnapshot,
+  type ProviderCatalogueModel,
 } from "~/lib/live/resources"
 import { setDefaultTrafficInvalidationListener } from "~/lib/observability/store"
 import { getTokenUsageSummary, onTokenUsageRecorded } from "~/lib/token-usage"
@@ -27,10 +28,14 @@ const HEARTBEAT_MS = 15_000
 let hub: ControlHub<ControlSnapshot> | null = null
 let teardown: Array<() => void> = []
 
-export function getControlHub(): ControlHub<ControlSnapshot> {
+export function getControlHub(
+  listProviderModels: () => Promise<
+    ReadonlyArray<ProviderCatalogueModel>
+  > = () => Promise.resolve([]),
+): ControlHub<ControlSnapshot> {
   if (hub) return hub
   const created = new ControlHub<ControlSnapshot>({
-    buildSnapshot: buildControlSnapshot,
+    buildSnapshot: async () => buildControlSnapshot(await listProviderModels()),
     heartbeatMs: HEARTBEAT_MS,
   })
 

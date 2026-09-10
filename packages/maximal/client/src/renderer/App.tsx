@@ -1,6 +1,11 @@
 import { ObservabilityProvider } from '@stuffbucket/maximal-observability'
 import { useCallback, useEffect, useMemo, useState, type ReactElement } from 'react'
-import { TerminalLauncher, type TerminalLaunchResult } from 'stuffbucket-electron/renderer'
+import {
+  TerminalLauncher,
+  moveTabBefore,
+  terminalProcessTitle,
+  type TerminalLaunchResult,
+} from 'stuffbucket-electron/renderer'
 
 import { DEFAULT_SETTINGS_SECTION_ID } from '../shared/settings-sections'
 import { WindowChrome } from './chrome/WindowChrome'
@@ -52,17 +57,6 @@ function terminalTab(result: TerminalLaunchResult): AppTab {
     kind: 'terminal',
     sessionId: result.sessionId,
   }
-}
-
-function terminalTitle(title: string): string {
-  return [...title]
-    .filter((character) => {
-      const codePoint = character.codePointAt(0) ?? 0
-      return codePoint >= 32 && codePoint !== 127 && !(codePoint >= 128 && codePoint <= 159)
-    })
-    .join('')
-    .trim()
-    .slice(0, 160)
 }
 
 export function App(): ReactElement {
@@ -152,9 +146,18 @@ export function App(): ReactElement {
   }, [])
 
   const updateTerminalTitle = useCallback((id: string, title: string) => {
-    const nextTitle = terminalTitle(title)
+    const nextTitle = terminalProcessTitle(title)
     if (nextTitle === '') return
     setTabs((current) => current.map((tab) => tab.id === id ? { ...tab, title: nextTitle } : tab))
+  }, [])
+
+  const moveTerminalTab = useCallback((id: string, beforeId?: string) => {
+    setTabs((current) => {
+      const source = current.find((tab) => tab.id === id)
+      const target = current.find((tab) => tab.id === beforeId)
+      if (source?.kind !== 'terminal' || (target && target.kind !== 'terminal')) return current
+      return moveTabBefore(current, id, beforeId)
+    })
   }, [])
 
   // `null` means "not answered yet" and is deliberately NOT treated as signed
@@ -192,6 +195,12 @@ export function App(): ReactElement {
         onSelectTab={setActiveTab}
         onCloseTab={signedOut ? undefined : closeTab}
         onNewTab={signedOut ? undefined : () => setLauncherOpen(true)}
+        tabTransfer={signedOut ? undefined : {
+          frameId: 'maximal-main',
+          canDrag: (tab) => tab.kind === 'terminal',
+          canDropBefore: (tab) => tab === undefined || tab.kind === 'terminal',
+          onMoveTab: moveTerminalTab,
+        }}
       >
         {!signedOut && current?.kind === 'overview' ? <Overview /> : null}
         {!signedOut && current?.kind === 'traffic' ? <Traffic /> : null}

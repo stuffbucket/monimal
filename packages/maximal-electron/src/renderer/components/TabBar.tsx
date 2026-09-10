@@ -1,7 +1,14 @@
 import * as Tabs from '@radix-ui/react-tabs';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { FileText, Folder, Plus, Settings, SquareTerminal, X } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState, type ComponentType } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ComponentType,
+  type DragEvent,
+} from 'react';
 
 import {
   adornmentLabel,
@@ -9,6 +16,13 @@ import {
   type TabAdornment,
   type TabIconName,
 } from '../lib/tab-adornment.js';
+import {
+  decodeTabTransfer,
+  encodeTabTransfer,
+  TAB_TRANSFER_MIME,
+  type TabDetachPosition,
+  type TabTransfer,
+} from '../lib/tab-transfer.js';
 
 /**
  * One tab. What it tabs is the caller's business.
@@ -54,6 +68,17 @@ export interface TabStripProps<T extends Tab> {
   newTabLabel?: string;
   /** A component for the slot, overriding whatever `tab.icon` names. */
   tabIcon?: (tab: T) => ComponentType<{ size?: number }> | undefined;
+  tabTransfer?: TabTransferOptions<T>;
+}
+
+export interface TabTransferOptions<T extends Tab> {
+  /** Stable identity for this frame or standalone window. */
+  frameId: string;
+  canDrag?: (tab: T) => boolean;
+  canDropBefore?: (tab?: T) => boolean;
+  onMoveTab?: (tabId: string, beforeTabId?: string) => void;
+  onReceiveTab?: (transfer: TabTransfer, beforeTabId?: string) => void;
+  onDetachTab?: (transfer: TabTransfer, position: TabDetachPosition) => void;
 }
 
 function safeIdPart(value: string) {
@@ -141,6 +166,7 @@ export function TabBar<T extends Tab>({
   onClose,
   onNew,
   icon,
+  transfer,
   label = 'Open documents',
   newLabel = 'New tab',
 }: {
@@ -152,6 +178,7 @@ export function TabBar<T extends Tab>({
   onNew?: () => void;
   /** A component for the slot, overriding whatever `tab.icon` names. */
   icon?: (tab: T) => ComponentType<{ size?: number }> | undefined;
+  transfer?: TabTransferOptions<T>;
   label?: string;
   newLabel?: string;
 }) {
@@ -161,6 +188,39 @@ export function TabBar<T extends Tab>({
   // rather than repeating the condition.
   const closeTab = tabs.length > 1 ? onClose : undefined;
   const closeActiveTab = activeItem?.closable === false ? undefined : closeTab;
+
+  function readTransfer(event: DragEvent): TabTransfer | undefined {
+    return decodeTabTransfer(event.dataTransfer.getData(TAB_TRANSFER_MIME));
+  }
+
+  function dropTab(event: DragEvent, before?: T): void {
+    const payload = readTransfer(event);
+    if (!payload || !transfer) return;
+    if (transfer.canDropBefore?.(before) === false) {
+      event.stopPropagation();
+      return;
+    }
+    const sameFrame = payload.sourceFrameId === transfer.frameId;
+    if (sameFrame ? !transfer.onMoveTab : !transfer.onReceiveTab) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.dataTransfer.dropEffect = 'move';
+    if (sameFrame) {
+      transfer.onMoveTab!(payload.tabId, before?.id);
+    } else {
+      transfer.onReceiveTab!(payload, before?.id);
+    }
+  }
+
+  function allowTabDrop(event: DragEvent, before?: T): void {
+    if (!transfer || ![...event.dataTransfer.types].includes(TAB_TRANSFER_MIME)) return;
+    if (transfer.canDropBefore?.(before) === false) {
+      event.stopPropagation();
+      return;
+    }
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+  }
 
   /*
    * Which trigger to focus once the caller has dropped a tab.
@@ -199,7 +259,12 @@ export function TabBar<T extends Tab>({
       className="tabs"
       activationMode="manual"
     >
-      <Tabs.List className="tabbar" aria-label={label}>
+      <Tabs.List
+        className="tabbar"
+        aria-label={label}
+        onDragOver={(event) => allowTabDrop(event)}
+        onDrop={(event) => dropTab(event)}
+      >
         {tabs.map((tab, index) => {
           const closeThisTab = tab.closable === false ? undefined : closeTab;
           const Custom = icon?.(tab);
@@ -223,6 +288,28 @@ export function TabBar<T extends Tab>({
                 tab.id === active ? getTabPanelId(tabIdBase, tab.id) : undefined
               }
               aria-keyshortcuts={closeThisTab ? 'Delete' : undefined}
+              draggable={transfer !== undefined && (transfer.canDrag?.(tab) ?? true)}
+              onDragStart={(event) => {
+                if (!transfer) return;
+                const payload: TabTransfer = {
+                  version: 1,
+                  sourceFrameId: transfer.frameId,
+                  tabId: tab.id,
+                };
+                event.dataTransfer.effectAllowed = 'move';
+                event.dataTransfer.setData(TAB_TRANSFER_MIME, encodeTabTransfer(payload));
+              }}
+              onDragOver={(event) => allowTabDrop(event, tab)}
+              onDrop={(event) => dropTab(event, tab)}
+              onDragEnd={(event) => {
+                if (!transfer?.onDetachTab || event.dataTransfer.dropEffect !== 'none') return;
+                const element = document.elementFromPoint(event.clientX, event.clientY);
+                if (element?.closest('.sb-shell')) return;
+                transfer.onDetachTab(
+                  { version: 1, sourceFrameId: transfer.frameId, tabId: tab.id },
+                  { screenX: event.screenX, screenY: event.screenY },
+                );
+              }}
               onKeyDown={(event) => {
                 if (!closeThisTab) return;
                 // The key macOS prints as "delete" sends Backspace, so both
