@@ -25,6 +25,7 @@ export interface PartitionedSortableItem {
   toggleDisabled?: boolean;
   toggleBlocked?: boolean;
   toggleTooltip?: ReactNode;
+  beforeEnable?: () => boolean | Promise<boolean>;
 }
 
 export interface PartitionedSortableListProps {
@@ -189,6 +190,7 @@ export function PartitionedSortableList({
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [pendingEnableId, setPendingEnableId] = useState<string | null>(null);
 
   useEffect(() => {
     if (requestedExpandedItemId !== undefined && requestedExpandedItemId !== null) {
@@ -225,6 +227,28 @@ export function PartitionedSortableList({
     const source = enabledItems.some(({ id }) => id === itemId) ? 'enabled' : 'disabled';
     if (item !== undefined && source === target) move(item, target, targetIndex);
     setDraggedId(null);
+  };
+
+  const enable = async (item: PartitionedSortableItem): Promise<void> => {
+    if (item.toggleBlocked) {
+      setExpandedId(item.id);
+      setAnnouncement(`${item.label} needs valid settings before it can be enabled.`);
+      return;
+    }
+    setPendingEnableId(item.id);
+    try {
+      if (await item.beforeEnable?.() === false) {
+        setExpandedId(item.id);
+        setAnnouncement(`${item.label} could not be enabled with these settings.`);
+        return;
+      }
+      move(item, 'enabled', enabledItems.length);
+    } catch {
+      setExpandedId(item.id);
+      setAnnouncement(`${item.label} settings could not be validated.`);
+    } finally {
+      setPendingEnableId(null);
+    }
   };
 
   const items = [
@@ -321,21 +345,18 @@ export function PartitionedSortableList({
               <Switch
                 label={`${partition === 'enabled' ? 'Disable' : 'Enable'} ${item.label}`}
                 displayLabel={null}
-                tooltip={item.toggleTooltip ?? (enabled ? 'Enabled' : 'Disabled')}
+                tooltip={pendingEnableId === item.id
+                  ? 'Validating settings…'
+                  : item.toggleTooltip ?? (enabled ? 'Enabled' : 'Disabled')}
                 className="partitioned-sortable__toggle"
                 checked={enabled}
-                disabled={disabled || item.toggleDisabled}
+                disabled={disabled || item.toggleDisabled || pendingEnableId === item.id}
                 onChange={(nextEnabled) => {
-                  if (nextEnabled && item.toggleBlocked) {
-                    setExpandedId(item.id);
-                    setAnnouncement(`${item.label} needs valid settings before it can be enabled.`);
+                  if (nextEnabled) {
+                    void enable(item);
                     return;
                   }
-                  move(
-                    item,
-                    nextEnabled ? 'enabled' : 'disabled',
-                    nextEnabled ? enabledItems.length : disabledItems.length,
-                  );
+                  move(item, 'disabled', disabledItems.length);
                 }}
               />
             </div>

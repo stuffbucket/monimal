@@ -284,11 +284,10 @@
   min-width: 0;
   overflow-x: auto;
   scrollbar-width: none;
-  /* Chrome, not content. The strip sits a notch below body size, with the
-     tracking opened to keep small text legible and the weight reserved for the
-     active tab. */
-  font-size: 13px;
-  letter-spacing: 0.005em;
+  /* Chrome uses the same reading size as controls; weight and the selected
+     surface distinguish the active tab without shrinking its label. */
+  font-size: var(--shell-text-base);
+  letter-spacing: 0;
 }
 
 .sb-shell .tabbar::-webkit-scrollbar {
@@ -1086,7 +1085,7 @@
   padding: 0 var(--shell-space-2);
   color: var(--shell-text);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--shell-text-base);
   background: var(--shell-input-background, var(--shell-canvas));
   border: 1px solid var(--shell-input-border);
   border-radius: var(--shell-radius);
@@ -1094,6 +1093,22 @@
 
 .sb-shell .input::placeholder {
   color: var(--shell-text-subtle);
+}
+
+.sb-shell .input-shell {
+  position: relative;
+  width: 100%;
+}
+
+.sb-shell .input-shell .input {
+  padding-right: calc(var(--shell-control-lg) + var(--shell-space-1));
+}
+
+.sb-shell .input-shell__action {
+  position: absolute;
+  top: 50%;
+  right: 2px;
+  transform: translateY(-50%);
 }
 
 .sb-shell .input:hover:not(:disabled) {
@@ -1129,19 +1144,19 @@
 
 .sb-shell .form-field__label {
   color: var(--shell-text-muted);
-  font-size: 13px;
+  font-size: var(--shell-text-base);
 }
 
 .sb-shell .form-field__hint {
   margin: 0;
   color: var(--shell-text-subtle);
-  font-size: 11px;
+  font-size: var(--shell-text-sm);
 }
 
 .sb-shell .form-field__error {
   margin: 0;
   color: var(--shell-invalid, var(--shell-danger, var(--shell-hover)));
-  font-size: 11px;
+  font-size: var(--shell-text-sm);
 }
 
 .sb-shell .checkbox,
@@ -1149,7 +1164,7 @@
   display: flex;
   align-items: center;
   gap: var(--shell-space-2);
-  font-size: 13px;
+  font-size: var(--shell-text-base);
   cursor: pointer;
 }
 
@@ -1223,17 +1238,23 @@
   width: min(440px, 90vw);
 }
 
-.sb-shell .unsaved-changes-dialog__heading,
-.sb-shell .unsaved-changes-dialog__description {
+.sb-shell .dialog__heading,
+.sb-shell .dialog__description {
   margin: 0;
 }
 
-.sb-shell .unsaved-changes-dialog__heading {
+.sb-shell .dialog__heading {
   font-size: var(--shell-text-lg);
 }
 
-.sb-shell .unsaved-changes-dialog__description {
+.sb-shell .dialog__description {
   color: var(--shell-text-muted);
+  line-height: 1.5;
+}
+
+.sb-shell .unsaved-changes-dialog__error {
+  margin: 0;
+  color: var(--shell-invalid, var(--shell-danger, var(--shell-text)));
   line-height: 1.5;
 }
 

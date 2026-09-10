@@ -205,7 +205,7 @@ svg {
   background: var(--bg-input);
   color: var(--text-primary);
   font: inherit;
-  font-size: var(--text-sm);
+  font-size: var(--text-base);
 }
 
 .input::placeholder {
@@ -232,6 +232,22 @@ svg {
   padding-right: var(--space-1);
 }
 
+.input-shell {
+  position: relative;
+  width: 100%;
+}
+
+.input-shell .input {
+  padding-right: calc(var(--control-lg) + var(--space-1));
+}
+
+.input-shell__action {
+  position: absolute;
+  top: 50%;
+  right: 2px;
+  transform: translateY(-50%);
+}
+
 /* ------------------------------------------------------------- form field */
 
 .form-field {
@@ -240,19 +256,19 @@ svg {
 }
 
 .form-field__label {
-  font-size: var(--text-sm);
+  font-size: var(--text-base);
   color: var(--text-secondary);
 }
 
 .form-field__hint {
   margin: 0;
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
   color: var(--text-muted);
 }
 
 .form-field__error {
   margin: 0;
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
   color: var(--text-invalid);
 }
 
@@ -263,7 +279,7 @@ svg {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  font-size: var(--text-sm);
+  font-size: var(--text-base);
   cursor: pointer;
 }
 
