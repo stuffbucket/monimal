@@ -1,6 +1,11 @@
-import { describe, expect, it } from "bun:test"
+import { afterEach, beforeEach, describe, expect, it } from "bun:test"
 
 import { describeExecutor, secretStatus } from "~/debug"
+import { installConnectorPlugins } from "~/lib/config/connector-plugins"
+import { createBuiltinSearchConnectorPlugin } from "~/routes/messages/web-tools/executor"
+
+beforeEach(() => installConnectorPlugins([]))
+afterEach(() => installConnectorPlugins([]))
 
 describe("describeExecutor", () => {
   it("picks OllamaWebExecutor when OLLAMA_API_KEY is non-empty", () => {
@@ -29,6 +34,7 @@ describe("describeExecutor", () => {
   })
 
   it("describes the enabled configured provider chain and fallback", () => {
+    installConnectorPlugins([createBuiltinSearchConnectorPlugin()])
     expect(
       describeExecutor(
         { OLLAMA_API_KEY: "secret-sentinel" },

@@ -7,6 +7,10 @@ export type {
 } from "~/lib/cli-composition"
 export { createMain, runCli } from "~/lib/cli-composition"
 export type {
+  ConnectorPlugin,
+  ConnectorPluginFactory,
+} from "~/lib/config/connector-plugins"
+export type {
   ProviderCompatibilityConfig,
   ProviderCompatibilityModelConfig,
   ProviderGatewayFactory,

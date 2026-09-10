@@ -1,18 +1,11 @@
 import type { ConnectorSettingField, SearchProvider } from "../search.js"
 
-export const BUNDLED_SEARCH_PROVIDER_IDS = [
-  "ollama",
-  "copilot",
-  "duckduckgo",
-] as const
-
 export const SEARCH_CONNECTOR_SETTINGS: ReadonlyArray<ConnectorSettingField> = [
   {
     key: "priority",
     type: "string-list",
     label: "Provider priority",
     description: "Provider ids in the order Maximal should try them.",
-    default: BUNDLED_SEARCH_PROVIDER_IDS,
     required: true,
   },
   {
@@ -60,11 +53,16 @@ export interface SearchSettingsManifest {
 export function buildSearchSettingsManifest(
   providers: ReadonlyArray<SearchProvider>,
 ): SearchSettingsManifest {
+  const fields = SEARCH_CONNECTOR_SETTINGS.map((field) =>
+    field.key === "priority" && field.type === "string-list" ?
+      { ...field, default: providers.map(({ id }) => id) }
+    : field,
+  )
   return {
     id: "search",
     label: "Search",
     description: "Configure web search providers and fallback order.",
-    fields: SEARCH_CONNECTOR_SETTINGS,
+    fields,
     providers: providers.map((provider) => ({
       id: provider.id,
       label: provider.label,

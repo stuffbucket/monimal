@@ -1,11 +1,10 @@
 import {
   buildSearchSettingsManifest,
-  copilotSearchProvider,
-  duckDuckGoSearchProvider,
-  ollamaSearchProvider,
+  isSearchConnectorPlugin,
   type ConnectorSettingField,
   type ConnectorSettingValue,
   type SearchConnectorConfig,
+  type SearchConnectorPlugin,
   type SearchProviderConfig,
   type SearchProvider,
 } from "@stuffbucket/maximal-harness"
@@ -32,7 +31,6 @@ import type {
   ConfiguratorPlugin,
   ConfiguratorRegistry,
 } from "~/lib/configurator-host"
-import type { Model } from "~/services/copilot/get-models"
 
 import { getApp } from "~/apps/registry"
 import { describeExecutor } from "~/debug"
@@ -50,13 +48,16 @@ import {
   writeConfig,
 } from "~/lib/config/config"
 import { API_KEY_VALUE_PATTERN } from "~/lib/config/config-schema"
+import {
+  connectorPlugin,
+  parseConnectorConfig,
+} from "~/lib/config/connector-plugins"
 import { SearchSettingsResponse as SearchSettingsResponseSchema } from "~/lib/config/settings-types"
 import {
   apiKeyToCredentialSummary,
   configuratorConnectionToAppEntry,
   configuratorConnectionToConnectionEntry,
 } from "~/lib/configurator-app-compat"
-import { shouldUseResponsesApi } from "~/lib/models/endpoint-selection"
 import { describeLaunchSource } from "~/lib/platform/cli-path"
 import {
   copilotRefreshHealth,
@@ -81,55 +82,36 @@ export class SettingsOperationError extends Error {
   }
 }
 
-const unboundProvider = () => ({})
-const baseSearchProviders = [
-  ollamaSearchProvider(unboundProvider),
-  copilotSearchProvider(unboundProvider),
-  duckDuckGoSearchProvider(unboundProvider),
-]
-
-function searchProvidersForModels(models: ReadonlyArray<Model>) {
-  const modelOptions = models
-    .filter(
-      (model) => model.model_picker_enabled && shouldUseResponsesApi(model),
+function installedSearchPlugin(): SearchConnectorPlugin {
+  const plugin = connectorPlugin("search", isSearchConnectorPlugin)
+  if (!plugin) {
+    throw new SettingsOperationError(
+      "Search connector plugin is not installed",
+      "not_found",
     )
-    .map((model) => ({ label: model.name || model.id, value: model.id }))
-    .sort(
-      (left, right) =>
-        left.label.localeCompare(right.label)
-        || left.value.localeCompare(right.value),
-    )
-  return [
-    ollamaSearchProvider(unboundProvider),
-    modelOptions.length === 0 ?
-      copilotSearchProvider(unboundProvider)
-    : copilotSearchProvider(unboundProvider, modelOptions),
-    duckDuckGoSearchProvider(unboundProvider),
-  ]
+  }
+  return plugin
 }
 
 interface SearchSettingsDependencies {
-  env: NodeJS.ProcessEnv
   getConfig: typeof getConfig
-  getModels: () => ReadonlyArray<Model>
+  getPlugin: () => SearchConnectorPlugin
   writeConfig: typeof writeConfig
 }
 
 const searchSettingsDependencies: SearchSettingsDependencies = {
-  env: process.env,
   getConfig,
-  getModels: () => state.models?.data ?? [],
+  getPlugin: installedSearchPlugin,
   writeConfig,
 }
 
 export function buildSearchSettings(
   config: AppConfig = getConfig(),
-  env: NodeJS.ProcessEnv = process.env,
-  models: ReadonlyArray<Model> = state.models?.data ?? [],
+  plugin: SearchConnectorPlugin = installedSearchPlugin(),
 ): SearchSettingsResponse {
-  const searchProviders = searchProvidersForModels(models)
+  const searchProviders = plugin.providers()
   const searchManifest = buildSearchSettingsManifest(searchProviders)
-  const search = config.connectors?.search ?? {}
+  const search = parseConnectorConfig(plugin, config.connectors)
   const defaults = search.defaults ?? {}
   const settings: Record<string, ConnectorSettingValue> = {
     priority: [...(search.priority ?? searchProviders.map(({ id }) => id))],
@@ -154,8 +136,12 @@ export function buildSearchSettings(
         secretKeys.add(field.key)
         if (typeof configuredSettings[field.key] === "string") {
           secretSources[field.key] = "settings"
-        } else if (provider.id === "ollama" && env.OLLAMA_API_KEY) {
-          secretSources[field.key] = "environment"
+        } else {
+          const source = provider.secretSource?.(
+            field.key,
+            configuredSettings[field.key],
+          )
+          if (source) secretSources[field.key] = source
         }
       }
       const providerSettings = Object.fromEntries(
@@ -185,9 +171,10 @@ export function updateSearchSettings(
   dependencies: SearchSettingsDependencies = searchSettingsDependencies,
 ): SearchSettingsResponse {
   const current = dependencies.getConfig()
-  const searchProviders = searchProvidersForModels(dependencies.getModels())
+  const plugin = dependencies.getPlugin()
+  const searchProviders = plugin.providers()
   const searchManifest = buildSearchSettingsManifest(searchProviders)
-  const previous = current.connectors?.search ?? {}
+  const previous = parseConnectorConfig(plugin, current.connectors)
   const global = mergeGlobalSearchSettings(
     previous,
     input.settings,
@@ -195,14 +182,13 @@ export function updateSearchSettings(
   )
   const providers = mergeSearchProviders(previous.providers, input.providers, {
     searchProviders,
-    env: dependencies.env,
   })
   const nextSearch = { ...previous, ...global, providers }
   const saved = dependencies.writeConfig({
     ...current,
-    connectors: { ...current.connectors, search: nextSearch },
+    connectors: { ...current.connectors, [plugin.id]: nextSearch },
   })
-  return buildSearchSettings(saved, dependencies.env, dependencies.getModels())
+  return buildSearchSettings(saved, plugin)
 }
 
 function mergeGlobalSearchSettings(
@@ -218,7 +204,7 @@ function mergeGlobalSearchSettings(
     if (!field) invalidSearchSetting(`Unknown search setting: ${key}`)
     validateSetting(field, value, `search.${key}`)
     if (key === "priority" && Array.isArray(value)) {
-      validatePriority(value)
+      validatePriority(value, fields)
       priority = value
     } else if (key === "fallback" && typeof value === "boolean") {
       fallback = value
@@ -233,8 +219,14 @@ function mergeGlobalSearchSettings(
   return { priority, fallback, defaults }
 }
 
-function validatePriority(priority: Array<string>): void {
-  const known = new Set(baseSearchProviders.map(({ id }) => id))
+function validatePriority(
+  priority: Array<string>,
+  fields: ReadonlyArray<ConnectorSettingField>,
+): void {
+  const priorityField = fields.find(({ key }) => key === "priority")
+  const known = new Set(
+    priorityField?.type === "string-list" ? priorityField.default : [],
+  )
   if (new Set(priority).size !== priority.length)
     invalidSearchSetting("Search provider priority contains duplicates")
   const unknown = priority.find((id) => !known.has(id))
@@ -246,7 +238,6 @@ function mergeSearchProviders(
   updates: SearchSettingsUpdateRequest["providers"],
   validation: {
     searchProviders: ReadonlyArray<SearchProvider>
-    env: NodeJS.ProcessEnv
   },
 ): Record<string, SearchProviderConfig> {
   const providers = { ...previous }
@@ -263,7 +254,7 @@ function mergeSearchProviders(
       update.settings,
     )
     const enabled = update.enabled ?? configured.enabled ?? true
-    if (enabled) validateEnabledProvider(provider, settings, validation.env)
+    if (enabled) validateEnabledProvider(provider, settings)
     providers[providerId] =
       update.enabled === undefined ?
         { ...configured, settings }
@@ -388,16 +379,12 @@ function isHttpUrl(candidate: string): boolean {
 function validateEnabledProvider(
   provider: SearchProvider,
   settings: SearchProviderConfig["settings"],
-  env: NodeJS.ProcessEnv,
 ): void {
   for (const field of provider.settings ?? []) {
     if (!field.required) continue
-    const environmentSecret =
-      provider.id === "ollama"
-      && field.key === "apiKey"
-      && Boolean(env.OLLAMA_API_KEY)
-    if (environmentSecret) continue
-    const value = settings?.[field.key] ?? field.default ?? null
+    const configured = settings?.[field.key] ?? field.default
+    const value =
+      provider.effectiveSetting?.(field.key, configured) ?? configured ?? null
     try {
       validateSetting(field, value, `${provider.id}.${field.key}`)
     } catch (error) {

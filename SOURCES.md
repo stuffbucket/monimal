@@ -181,6 +181,12 @@ package provenance or publisher identity -- the proxy does that.
   linked set of first-party client configurators. It depends only on Core's
   capability-scoped `configurator-host` subpath. The package owns Cordis
   registration; Core owns filesystem, process, credential, and network effects.
+- Added runtime-injected connector configuration across `packages/maximal-core`
+  and `packages/maximal`. Core preserves connector payloads as opaque records
+  and delegates their validation to host-installed Standard Schema plugins
+  before config merge. Maximal injects the first-party Search connector;
+  Search provider descriptors own concrete provider IDs, settings, defaults,
+  and environment-secret resolution.
 - `maximal-core/downstream`: declares itself as an independently installed
   compatibility fixture so the root package-onboarding audit does not treat it
   as a missing nested workspace package.

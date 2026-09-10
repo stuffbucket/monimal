@@ -9,6 +9,7 @@ import type {
 } from "~/lib/configurator-host"
 
 import { getConfig, writeConfig } from "~/lib/config/config"
+import { installConnectorPlugins } from "~/lib/config/connector-plugins"
 import {
   actOnConnection,
   buildDiagnostics,
@@ -24,6 +25,7 @@ import {
   updateApiKey,
 } from "~/lib/config/settings-operations"
 import { state } from "~/lib/runtime-state/state"
+import { createBuiltinSearchConnectorPlugin } from "~/routes/messages/web-tools/executor"
 
 const firstKey: ApiKeyEntry = {
   id: "key-one",
@@ -112,12 +114,14 @@ async function expectRejects(
 }
 
 beforeEach(() => {
+  installConnectorPlugins([])
   originalConfig = structuredClone(getConfig())
   originalOllamaApiKey = process.env.OLLAMA_API_KEY
   originalTokenExpiry = state.copilotTokenExpiresAtMs
 })
 
 afterEach(() => {
+  installConnectorPlugins([])
   writeConfig(originalConfig)
   if (originalOllamaApiKey === undefined) delete process.env.OLLAMA_API_KEY
   else process.env.OLLAMA_API_KEY = originalOllamaApiKey
@@ -773,6 +777,7 @@ describe("settings diagnostics operation", () => {
       },
     })
     process.env.OLLAMA_API_KEY = "diagnostics-test-key"
+    installConnectorPlugins([createBuiltinSearchConnectorPlugin()])
     const diagnostics = buildDiagnostics()
 
     expect(diagnostics.web_search).toEqual({

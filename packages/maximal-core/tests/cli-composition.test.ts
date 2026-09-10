@@ -3,6 +3,7 @@ import type { Resolvable } from "citty"
 
 import { describe, expect, test } from "bun:test"
 
+import type { ConnectorPluginFactory } from "~/lib/config/connector-plugins"
 import type { ProviderGatewayFactory } from "~/lib/provider-host-types"
 import type { RunServerOptions } from "~/lib/start/run-server"
 
@@ -15,6 +16,7 @@ const resolve = async <T>(value: Resolvable<T>): Promise<T> =>
   : await value
 
 const gateway = {} as ProviderGateway
+const createConnectorPlugins: ConnectorPluginFactory = () => []
 const staticGatewayFactory: ProviderGatewayFactory = () => gateway
 
 describe("public CLI composition", () => {
@@ -52,6 +54,7 @@ describe("public CLI composition", () => {
     const createProviderGateway = staticGatewayFactory
     let received: RunServerOptions | undefined
     const command = createStartCommand({
+      createConnectorPlugins,
       createProviderGateway,
       runServer: (options) => {
         received = options
@@ -88,6 +91,7 @@ describe("public CLI composition", () => {
       rawArgs: ["start"],
     })
 
+    expect(received?.createConnectorPlugins).toBe(createConnectorPlugins)
     expect(received?.createProviderGateway).toBe(createProviderGateway)
     expect(received?.port).toBe(4141)
   })

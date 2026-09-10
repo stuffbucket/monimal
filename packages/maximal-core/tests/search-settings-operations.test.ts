@@ -3,11 +3,13 @@ import { describe, expect, test } from "bun:test"
 import type { AppConfig } from "~/lib/config/config"
 import type { Model } from "~/services/copilot/get-models"
 
+import { parseConnectorConfig } from "~/lib/config/connector-plugins"
 import {
   buildSearchSettings,
   SettingsOperationError,
   updateSearchSettings,
 } from "~/lib/config/settings-operations"
+import { createBuiltinSearchConnectorPlugin } from "~/routes/messages/web-tools/executor"
 
 function model(
   id: string,
@@ -38,7 +40,7 @@ function model(
 }
 
 test("search settings present provider defaults and display metadata", () => {
-  const response = buildSearchSettings({}, {}, [])
+  const response = buildSearchSettings({}, createBuiltinSearchConnectorPlugin())
   const ollama = response.manifest.providers.find(({ id }) => id === "ollama")
   const duckDuckGo = response.manifest.providers.find(
     ({ id }) => id === "duckduckgo",
@@ -82,17 +84,22 @@ test("search settings present provider defaults and display metadata", () => {
 
 describe("search settings operations", () => {
   test("offers available Copilot Responses models with gpt-5-mini as default", () => {
-    const response = buildSearchSettings({}, {}, [
-      model("gpt-5.6-sol", "GPT-5.6 Sol", { endpoints: ["/responses"] }),
-      model("gpt-5-mini", "GPT-5 mini", { endpoints: ["/responses"] }),
-      model("chat-only", "Chat only", {
-        endpoints: ["/chat/completions"],
+    const response = buildSearchSettings(
+      {},
+      createBuiltinSearchConnectorPlugin({
+        models: () => [
+          model("gpt-5.6-sol", "GPT-5.6 Sol", { endpoints: ["/responses"] }),
+          model("gpt-5-mini", "GPT-5 mini", { endpoints: ["/responses"] }),
+          model("chat-only", "Chat only", {
+            endpoints: ["/chat/completions"],
+          }),
+          model("hidden", "Hidden", {
+            endpoints: ["/responses"],
+            modelPickerEnabled: false,
+          }),
+        ],
       }),
-      model("hidden", "Hidden", {
-        endpoints: ["/responses"],
-        modelPickerEnabled: false,
-      }),
-    ])
+    )
     const copilot = response.manifest.providers.find(
       (provider) => provider.id === "copilot",
     )
@@ -114,6 +121,9 @@ describe("search settings operations", () => {
   })
 
   test("redacts secrets and reports their effective source", () => {
+    const plugin = createBuiltinSearchConnectorPlugin({
+      env: { OLLAMA_API_KEY: "environment-secret" },
+    })
     const fromSettings = buildSearchSettings(
       {
         connectors: {
@@ -124,7 +134,7 @@ describe("search settings operations", () => {
           },
         },
       },
-      { OLLAMA_API_KEY: "environment-secret" },
+      plugin,
     )
 
     expect(fromSettings.providers.ollama.settings.apiKey).toBeUndefined()
@@ -132,12 +142,7 @@ describe("search settings operations", () => {
     expect(JSON.stringify(fromSettings)).not.toContain("saved-secret")
     expect(JSON.stringify(fromSettings)).not.toContain("environment-secret")
 
-    const fromEnvironment = buildSearchSettings(
-      {},
-      {
-        OLLAMA_API_KEY: "environment-secret",
-      },
-    )
+    const fromEnvironment = buildSearchSettings({}, plugin)
     expect(fromEnvironment.providers.ollama.secret_sources.apiKey).toBe(
       "environment",
     )
@@ -145,14 +150,14 @@ describe("search settings operations", () => {
 
   test("validates values from provider descriptors", () => {
     const current: AppConfig = {}
+    const plugin = createBuiltinSearchConnectorPlugin()
 
     expect(() =>
       updateSearchSettings(
         { providers: { duckduckgo: { settings: { timeoutMs: 999 } } } },
         {
-          env: {},
           getConfig: () => current,
-          getModels: () => [],
+          getPlugin: () => plugin,
           writeConfig: (next) => next,
         },
       ),
@@ -166,9 +171,8 @@ describe("search settings operations", () => {
           },
         },
         {
-          env: {},
           getConfig: () => current,
-          getModels: () => [],
+          getPlugin: () => plugin,
           writeConfig: (next) => next,
         },
       ),
@@ -178,9 +182,8 @@ describe("search settings operations", () => {
       updateSearchSettings(
         { settings: { priority: [] } },
         {
-          env: {},
           getConfig: () => current,
-          getModels: () => [],
+          getPlugin: () => plugin,
           writeConfig: (next) => next,
         },
       ),
@@ -190,9 +193,8 @@ describe("search settings operations", () => {
       updateSearchSettings(
         { settings: { blockedDomains: ["   "] } },
         {
-          env: {},
           getConfig: () => current,
-          getModels: () => [],
+          getPlugin: () => plugin,
           writeConfig: (next) => next,
         },
       ),
@@ -202,12 +204,12 @@ describe("search settings operations", () => {
 
 describe("search provider settings operations", () => {
   test("requires effective Ollama credentials before enabling the provider", () => {
+    const plugin = createBuiltinSearchConnectorPlugin({ env: {} })
     const dependencies = {
-      env: {},
       getConfig: () => ({
         connectors: { search: { providers: { ollama: { enabled: false } } } },
       }),
-      getModels: () => [],
+      getPlugin: () => plugin,
       writeConfig: (next: AppConfig) => next,
     }
 
@@ -223,12 +225,21 @@ describe("search provider settings operations", () => {
     expect(() =>
       updateSearchSettings(
         { providers: { ollama: { enabled: true } } },
-        { ...dependencies, env: { OLLAMA_API_KEY: "environment-secret" } },
+        {
+          ...dependencies,
+          getPlugin: () =>
+            createBuiltinSearchConnectorPlugin({
+              env: { OLLAMA_API_KEY: "environment-secret" },
+            }),
+        },
       ),
     ).not.toThrow()
   })
 
   test("clears secrets and preserves unrelated configuration", () => {
+    const plugin = createBuiltinSearchConnectorPlugin({
+      env: { OLLAMA_API_KEY: "environment-secret" },
+    })
     let persisted: AppConfig = {
       smallModel: "gpt-5-mini",
       connectors: {
@@ -256,9 +267,8 @@ describe("search provider settings operations", () => {
         },
       },
       {
-        env: { OLLAMA_API_KEY: "environment-secret" },
         getConfig: () => persisted,
-        getModels: () => [],
+        getPlugin: () => plugin,
         writeConfig: (next) => {
           persisted = next
           return next
@@ -279,8 +289,8 @@ describe("search provider settings operations", () => {
         },
       },
     })
-    const ollamaSettings =
-      persisted.connectors?.search?.providers?.ollama.settings
+    const ollamaSettings = parseConnectorConfig(plugin, persisted.connectors)
+      .providers?.ollama.settings
     expect(ollamaSettings?.apiKey).toBeUndefined()
     expect(response.providers.ollama.secret_sources.apiKey).toBe("environment")
   })
@@ -294,10 +304,10 @@ describe("search provider settings operations", () => {
         endpoints: ["/chat/completions"],
       }),
     ]
+    const plugin = createBuiltinSearchConnectorPlugin({ models: () => models })
     const dependencies = {
-      env: {},
       getConfig: () => persisted,
-      getModels: () => models,
+      getPlugin: () => plugin,
       writeConfig: (next: AppConfig) => {
         persisted = next
         return next
@@ -309,7 +319,8 @@ describe("search provider settings operations", () => {
       dependencies,
     )
     expect(
-      persisted.connectors?.search?.providers?.copilot.settings?.model,
+      parseConnectorConfig(plugin, persisted.connectors).providers?.copilot
+        .settings?.model,
     ).toBe("gpt-5.6-sol")
     expect(() =>
       updateSearchSettings(

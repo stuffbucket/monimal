@@ -6,6 +6,7 @@ import type { ControlSnapshot } from "~/lib/live/resources"
 import type { ControlRpcOperationOverrides } from "~/routes/control/rpc"
 
 import { writeConfig } from "~/lib/config/config"
+import { installConnectorPlugins } from "~/lib/config/connector-plugins"
 import { SettingsOperationError } from "~/lib/config/settings-operations"
 import {
   AppsListResponse,
@@ -27,13 +28,16 @@ import { stopControlHub } from "~/lib/live/service"
 import { state } from "~/lib/runtime-state/state"
 import { createControlRoutes } from "~/routes/control/route"
 import { createControlRpcMethods } from "~/routes/control/rpc"
+import { createBuiltinSearchConnectorPlugin } from "~/routes/messages/web-tools/executor"
 
 beforeEach(() => {
+  installConnectorPlugins([createBuiltinSearchConnectorPlugin()])
   state.models = undefined
   writeConfig({})
 })
 
 afterEach(() => {
+  installConnectorPlugins([])
   stopControlHub()
   state.models = undefined
   writeConfig({})
