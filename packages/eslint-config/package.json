@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "description": "Shared ESLint 10 flat config for the monimal workspace.",
+  "monimal": {
+    "taskProfile": "config"
+  },
   "exports": {
     "./base": "./base.js",
     "./typescript": "./typescript.js",

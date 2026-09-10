@@ -25,11 +25,22 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { scopedChecks } from "../packages/maximal-electron/scripts/check-scope.mjs";
+import {
+  auditWorkspacePackages,
+  pnpmWorkspacePaths,
+} from "./workspace-packages.mjs";
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const require = createRequire(path.join(ROOT, "noop.js"));
 
 const { check, summary } = scopedChecks();
+const WORKSPACE_MANIFESTS = pnpmWorkspacePaths(ROOT);
+const packageAudit = auditWorkspacePackages(ROOT, WORKSPACE_MANIFESTS);
+for (const issue of packageAudit.issues) console.error(`       ${issue}`);
+check(packageAudit.issues.length === 0, "package onboarding contracts are complete", {
+  count: packageAudit.manifests.length,
+  of: "package manifests",
+});
 
 /** A package's manifest, or null when it is not installed. */
 function manifestAt(...segments) {
@@ -481,13 +492,6 @@ check(
 // Asked of pnpm rather than hand-listed. A hardcoded copy of
 // pnpm-workspace.yaml's globs would leave a newly added package silently
 // uncovered by the one check meant to catch silent things.
-const WORKSPACE_MANIFESTS = JSON.parse(
-  execFileSync("pnpm", ["ls", "--recursive", "--depth", "-1", "--json"], {
-    cwd: ROOT,
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "ignore"],
-  }),
-).map((project) => path.relative(ROOT, project.path) || ".");
 // Splits that are meant. Empty is the goal: every entry here is a version of
 // the same dependency resolved twice, which the workspace exists to avoid.
 const DELIBERATE = new Map();
