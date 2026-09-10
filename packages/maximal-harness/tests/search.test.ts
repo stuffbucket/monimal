@@ -13,6 +13,7 @@ import {
 } from "../src/search/providers/copilot.js"
 import { duckDuckGoSearchProvider } from "../src/search/providers/duckduckgo.js"
 import { ollamaSearchProvider } from "../src/search/providers/ollama.js"
+import { buildSearchSettingsManifest } from "../src/search/settings.js"
 
 function provider(
   id: string,
@@ -50,6 +51,25 @@ void test("uses configured priority and falls back after transient errors", asyn
     items: [{ url: "https://example.com/result", title: "Result" }],
   })
   assert.deepEqual(calls, ["first", "second"])
+})
+
+void test("derives settings priority from the providers installed at runtime", () => {
+  const manifest = buildSearchSettingsManifest([
+    provider("custom-first", [], { ok: true, items: [] }),
+    provider("custom-second", [], { ok: true, items: [] }),
+  ])
+
+  assert.deepEqual(
+    manifest.fields.find(({ key }) => key === "priority"),
+    {
+      key: "priority",
+      type: "string-list",
+      label: "Provider priority",
+      description: "Provider ids in the order Maximal should try them.",
+      default: ["custom-first", "custom-second"],
+      required: true,
+    },
+  )
 })
 
 void test("does not fall back after a request error", async () => {
