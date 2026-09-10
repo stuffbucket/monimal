@@ -9,7 +9,54 @@
  *
  * Published as `@stuffbucket/maximal-core/control-contract`.
  */
+import type {
+  LocalModelCatalogEntry,
+  LocalModelCatalogSnapshot,
+  LocalModelProvisionProgress,
+} from "@stuffbucket/maximal-provider-contract"
+
 import type { AuthStatus as AuthStatusUnion } from "~/lib/config/settings-types"
+
+export type {
+  LocalModelCatalogEntry,
+  LocalModelCatalogSnapshot,
+  LocalModelProvisionProgress,
+} from "@stuffbucket/maximal-provider-contract"
+
+export interface LocalModelEnsureResult {
+  readonly modelKey: string
+  readonly operationId: string
+  readonly started: boolean
+}
+
+export interface LocalModelCancelResult {
+  readonly cancelled: boolean
+  readonly operationId: string
+}
+
+export type LocalModelOperationEvent =
+  | {
+      readonly type: "catalog"
+      readonly snapshot: LocalModelCatalogSnapshot
+    }
+  | {
+      readonly type: "progress"
+      readonly operationId: string
+      readonly progress: LocalModelProvisionProgress
+    }
+  | {
+      readonly type: "completed"
+      readonly operationId: string
+      readonly model: LocalModelCatalogEntry
+    }
+  | {
+      readonly type: "cancelled" | "failed"
+      readonly operationId: string
+      readonly error: {
+        readonly message: string
+        readonly retryable: boolean
+      }
+    }
 
 /**
  * The `auth/status` result — ADR-0006's discriminated union, re-exported so a

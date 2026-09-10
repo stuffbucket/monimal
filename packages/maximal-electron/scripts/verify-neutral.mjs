@@ -54,14 +54,20 @@ const SHIPPED_STYLESHEET = 'src/renderer/styles/structural.css';
  */
 const ALLOWED = [
   {
-    file: 'src/main/native/agent.ts',
-    reason:
-      'the reference application discovers a provider on localhost. Issue #22 injects the origin instead.',
+    file: 'src/main/index.ts',
+    reason: 'the reference application owns its quit-confirmation copy.',
   },
   {
-    file: 'src/shared/ipc.ts',
-    reason:
-      'AgentProvider names that provider chain. Removed with the runMain seam in issue #22.',
+    file: 'src/main/native/tray.ts',
+    reason: 'the reference application owns its tray label and behavior.',
+  },
+  {
+    file: 'src/renderer/components/Inspector.tsx',
+    reason: 'the reference application owns its settings copy.',
+  },
+  {
+    file: 'README.md',
+    reason: 'the reference application documents its own icon fixture.',
   },
 ];
 

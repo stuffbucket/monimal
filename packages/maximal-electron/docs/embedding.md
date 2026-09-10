@@ -113,8 +113,8 @@ where the dumps land and what covers them.
 
 `beforeShutdown` returning a promise defers the quit until it settles, and the
 quit that follows does not run it again. Returning nothing lets the quit
-through untouched. This shell has an embedded model that aborts the process if
-its worker outlives the Node environment; `docs/agent.md` has that account.
+through untouched. A consumer uses this seam when native work must settle
+before Electron tears down the Node environment.
 
 `discoverDaemonUrl` is deliberately blunt about what it hands back: a
 normalized absolute URL with no trailing slash, on `context.daemonUrl`. How it

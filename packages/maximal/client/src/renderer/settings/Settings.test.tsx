@@ -66,6 +66,20 @@ function fakeCapabilities(): SettingsCapabilities {
       list: vi.fn(async () => ({ models: [], count: 0, loaded_at: null })),
       refresh: vi.fn(async () => ({ models: [], count: 0, loaded_at: null })),
     },
+    localModels: {
+      list: vi.fn(async () => ({ models: [], revision: 0 })),
+      ensure: vi.fn(async (modelKey: string) => ({
+        modelKey,
+        operationId: 'operation-1',
+        started: true,
+      })),
+      cancel: vi.fn(async (operationId: string) => ({
+        operationId,
+        cancelled: true,
+      })),
+      openFolder: vi.fn(async () => {}),
+      subscribe: vi.fn(() => () => {}),
+    },
     usage: {
       get: vi.fn(async (period: TokenUsagePeriod) => ({
         period,

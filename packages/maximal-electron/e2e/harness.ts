@@ -7,9 +7,7 @@ import {
   type Locator,
   type Page,
 } from '@playwright/test';
-import type { BrowserWindow } from 'electron';
-
-import type { Preferences, ProviderStatus } from '../src/shared/ipc.js';
+import type { Preferences } from '../src/shared/ipc.js';
 
 import { inspectCapture } from './screenshot.js';
 
@@ -22,9 +20,7 @@ const ROOT = path.resolve(__dirname, '..');
  * `page.screenshot` captures the operating system surface. macOS stops giving
  * a window frames once another application fully occludes it, so that call
  * hangs until its timeout rather than returning a stale image. It reproduced
- * against the overlay under seed 587000642, and it is latent in every other
- * screenshot here: whether it fires depends on what happens to be in front of
- * the test run.
+ * when another window occludes the test run.
  *
  * Capturing through the debugger instead reads the renderer's own compositor,
  * which does not care what is in front. The fallback keeps a working capture
@@ -130,8 +126,6 @@ export async function launchApp(env: Record<string, string> = {}): Promise<Harne
       // Keep the profile out of the real user data directory, so a test run
       // never clobbers a developer's preferences.
       STUFFBUCKET_E2E: '1',
-      // Last, so a spec that pins a backend wins over whatever the developer
-      // has exported. `e2e/model-server.ts` is the caller that needs it.
       ...env,
     },
   });
@@ -154,9 +148,7 @@ export async function launchApp(env: Record<string, string> = {}): Promise<Harne
  *
  * `app.close()` on its own hides a whole class of fault. The application can
  * abort during teardown and Playwright still reports every test as passed,
- * because the assertions already ran. That happened here: the embedded model
- * crashed on quit through four consecutive green runs, and the only evidence
- * was in the operating system's crash reports.
+ * because the assertions already ran.
  *
  * A signal means the process died rather than exited. That is a defect even
  * when everything before it passed.
@@ -190,34 +182,7 @@ export async function closeApp(
  * Call this from `beforeEach`. It is deliberately tolerant: a control that is
  * already in the wanted state, or missing entirely, is not an error.
  */
-export async function resetShell({ app, window }: Harness): Promise<void> {
-  // Dismiss the overlay if a previous test left it up. It covers the screen,
-  // so every later click would land on the scrim.
-  for (const page of app.windows()) {
-    if (page.isClosed() || !page.url().includes('overlay')) continue;
-
-    // Abort first. A run parked on an unanswered approval keeps the agent
-    // busy, and hiding the window does not settle it, so the next test that
-    // asks anything would be told the agent is still working.
-    await page.evaluate(() => {
-      // `window` is shadowed by the Playwright page in this file, so the
-      // bridge has to be reached through `globalThis`.
-      const api = (
-        globalThis as unknown as {
-          stuffbucket?: { invoke: (channel: string) => Promise<unknown> };
-        }
-      ).stuffbucket;
-      return api?.invoke('overlay:abort');
-    });
-
-    const handle = await app.browserWindow(page);
-    if (await handle.evaluate((win: BrowserWindow) => win.isVisible())) {
-      await handle.evaluate((win: BrowserWindow) => {
-        win.hide();
-      });
-    }
-  }
-
+export async function resetShell({ window }: Harness): Promise<void> {
   // `bringToFront` activates the real window, which pulls the user's keyboard
   // out of whatever they are doing, once per scenario. Playwright dispatches
   // clicks and keys through the debugger, so it is only needed when someone is
@@ -307,44 +272,9 @@ export async function setTheme(
 }
 
 /**
- * The agent backend, read from the contract.
- *
- * Every agent scenario needs the same answer: which backend is the application
- * about to use? Matching substrings against the overlay's status line cannot
- * give it. The guards that did looked for `Waiting` and `No local model`, and
- * `providerLabel` in `src/renderer/overlay.tsx` produces neither, so they never
- * fired: on a runner with no backend the status read "<model> is not downloaded
- * yet", every guard passed through, and four scenarios failed on a timeout
- * instead of skipping.
- *
- * The scenarios assert on this rather than skipping on it. The scripted backend
- * in `e2e/model-server.ts` is started by the spec, so a run talking to something
- * else is a defect rather than a machine without a model.
- *
- * `ProviderStatus` is already a discriminated union in the IPC contract. Asking
- * for it directly cannot drift when the copy is reworded, and the compiler
- * checks the states.
- */
-export async function providerStatus(page: Page): Promise<ProviderStatus> {
-  const status = await page.evaluate(() => {
-    const api = (
-      globalThis as unknown as {
-        stuffbucket?: { invoke: (channel: string) => Promise<unknown> };
-      }
-    ).stuffbucket;
-    return api?.invoke('overlay:provider');
-  });
-
-  return (status as ProviderStatus | undefined) ?? { state: 'unavailable', reason: 'no bridge' };
-}
-
-/**
  * Set preferences through the bridge, the way the shell does.
  *
- * The agent scenarios depend on `agentTools`, `agentApproval`, and
- * `agentToolsets`, all of which persist. These specs run in a random order
- * against one profile, so a scenario states what it needs rather than assuming
- * the defaults survived.
+ * Scenarios set persisted preferences explicitly rather than relying on order.
  */
 export async function setPrefs(page: Page, patch: Partial<Preferences>): Promise<Preferences> {
   const next = await page.evaluate((value) => {

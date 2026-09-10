@@ -13,6 +13,7 @@ export default defineConfig({
     // workspace link here, not a published install.
     dedupe: [
       '@stuffbucket/maximal-electron',
+      '@stuffbucket/maximal-harness',
       '@stuffbucket/maximal-observability',
       'react',
       'react-dom',
@@ -29,5 +30,11 @@ export default defineConfig({
   build: {
     outDir: resolve(import.meta.dirname, '.vite/renderer/main_window'),
     emptyOutDir: true,
+    rollupOptions: {
+      input: {
+        index: resolve(import.meta.dirname, 'src/renderer/index.html'),
+        overlay: resolve(import.meta.dirname, 'src/renderer/overlay.html'),
+      },
+    },
   },
 })

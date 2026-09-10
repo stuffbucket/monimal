@@ -2,6 +2,8 @@ import assert from "node:assert/strict"
 import test from "node:test"
 
 import type {
+  LocalModelCatalogSnapshot,
+  LocalModelProvisionProgress,
   ProviderDiagnostic,
   ProviderDiagnosticCode,
   ProviderDispatch,
@@ -231,6 +233,34 @@ void test("subscriptions publish immediately, unsubscribe, and stop on disposal"
     /gateway disposed/,
   )
   assert.equal(callsAfterDispose, 1)
+})
+
+void test("local-model boundary values are path-free JSON data", () => {
+  const snapshot: LocalModelCatalogSnapshot = {
+    models: [
+      {
+        capabilities: { input: ["text"], output: ["text"] },
+        context: { contextWindow: 2048, maxOutputTokens: 512 },
+        displayName: "Fixture",
+        expectedBytes: 1024,
+        format: "gguf",
+        key: "fixture",
+        modelId: "fixture/model",
+        publication: "aggregate",
+        state: "provisioning",
+      },
+    ],
+    revision: 3,
+  }
+  const progress: LocalModelProvisionProgress = {
+    completedBytes: 512,
+    modelKey: "fixture",
+    phase: "downloading",
+    totalBytes: 1024,
+  }
+  const encoded = JSON.stringify({ progress, snapshot })
+  assert.deepEqual(JSON.parse(encoded), { progress, snapshot })
+  assert.doesNotMatch(encoded, /path|source|url/iu)
 })
 
 void test("dispatch preserves streaming responses and caller cancellation", async () => {

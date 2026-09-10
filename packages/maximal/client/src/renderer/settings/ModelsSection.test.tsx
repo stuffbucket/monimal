@@ -104,7 +104,7 @@ function tableRows(table: HTMLTableElement): HTMLTableRowElement[] {
 }
 
 describe('ModelsSection', () => {
-  it('groups models by vendor then type and labels a missing type', async () => {
+  it('groups models by vendor without visible per-type headings', async () => {
     const { capabilities } = fakeCapabilities(async () => catalogue)
     const surface = await renderModels(capabilities)
     const vendors = [...surface.querySelectorAll<HTMLElement>('.settings-model-vendor')]
@@ -113,20 +113,17 @@ describe('ModelsSection', () => {
     expect(
       vendors.map((vendor) => vendor.querySelector('h2')?.textContent),
     ).toEqual(['Anthropic', 'Example'])
-    expect(
-      regions.map((region) => region.querySelector('caption')?.textContent),
-    ).toEqual(['chat models (1)', 'Type not reported (1)', 'embeddings models (1)'])
-    expect(regions.map((region) => region.tabIndex)).toEqual([0, 0, 0])
-    const captionIds = regions.map((region) => region.querySelector('caption')?.id)
-    expect(regions.map((region) => region.getAttribute('aria-labelledby'))).toEqual(
-      captionIds,
-    )
-    expect(captionIds.every((id) => id !== undefined && id !== '')).toBe(true)
-    expect(new Set(captionIds).size).toBe(captionIds.length)
+    expect(regions.map((region) => region.tabIndex)).toEqual([0, 0])
+    expect(surface.querySelectorAll('caption')).toHaveLength(0)
+    expect(surface.textContent).not.toContain('chat models')
+    expect(surface.textContent).not.toContain('embeddings models')
 
     const vendorHeadings = vendors.map((vendor) => vendor.querySelector('h2'))
     const vendorHeadingIds = vendorHeadings.map((heading) => heading?.id)
     expect(vendors.map((vendor) => vendor.getAttribute('aria-labelledby'))).toEqual(
+      vendorHeadingIds,
+    )
+    expect(regions.map((region) => region.getAttribute('aria-labelledby'))).toEqual(
       vendorHeadingIds,
     )
     expect(vendorHeadingIds.every((id) => id !== undefined && id !== '')).toBe(true)
@@ -162,9 +159,17 @@ describe('ModelsSection', () => {
         (heading) => heading.textContent,
       ),
     ).toEqual(['Acme', 'Vendor not reported'])
-    expect(
-      [...surface.querySelectorAll('caption')].map((caption) => caption.textContent),
-    ).toEqual(['chat models (1)', 'Type not reported (1)'])
+    const typeIcons = [
+      ...surface.querySelectorAll<HTMLElement>('.settings-table__type'),
+    ]
+    expect(typeIcons.map((icon) => icon.getAttribute('aria-label'))).toEqual([
+      'Chat model type',
+      'Type not reported model type',
+    ])
+    expect(typeIcons.map((icon) => icon.title)).toEqual([
+      'Chat model type',
+      'Type not reported model type',
+    ])
     expect(
       [...surface.querySelectorAll<HTMLElement>('.settings-table__number span')]
         .slice(0, 2)
@@ -181,10 +186,10 @@ describe('ModelsSection', () => {
 
     expect(
       [...chatTable.querySelectorAll('thead th')].map((heading) => heading.textContent),
-    ).toEqual(['Model', 'Context', 'Max output', 'Capabilities'])
+    ).toEqual(['Model', 'Type', 'Context', 'Max output', 'Capabilities'])
     expect(
       [...chatTable.querySelectorAll('thead th')].map((heading) => heading.getAttribute('scope')),
-    ).toEqual(Array.from({ length: 4 }, () => 'col'))
+    ).toEqual(Array.from({ length: 5 }, () => 'col'))
 
     const ids = [...surface.querySelectorAll('tbody code')].map((code) => code.textContent)
     expect(ids).toEqual(['claude-opus-5', 'mystery-chat', 'embed-one'])
@@ -223,7 +228,9 @@ describe('ModelsSection', () => {
     const { capabilities } = fakeCapabilities(async () => catalogue)
     const surface = await renderModels(capabilities)
     const tables = [...surface.querySelectorAll<HTMLTableElement>('table')]
-    const firstIcons = [...tables[0].querySelectorAll<HTMLElement>('[role="img"]')]
+    const firstIcons = [
+      ...tables[0].querySelectorAll<HTMLElement>('.settings-table__capability'),
+    ]
 
     expect(firstIcons.map((icon) => icon.getAttribute('aria-label'))).toEqual([
       'Vision',
@@ -237,12 +244,13 @@ describe('ModelsSection', () => {
       'Streaming',
       'Reasoning',
     ])
-    expect(tables[1]?.querySelectorAll('[role="img"]')).toHaveLength(0)
     expect(tables[1]?.querySelector('[title="No capabilities reported"]')).not.toBeNull()
     expect(
-      [...(tables[2]?.querySelectorAll<HTMLElement>('[role="img"]') ?? [])].map(
-        (icon) => icon.getAttribute('aria-label'),
-      ),
+      [
+        ...(tables[1]?.querySelectorAll<HTMLElement>(
+          '.settings-table__capability',
+        ) ?? []),
+      ].map((icon) => icon.getAttribute('aria-label')),
     ).toEqual(['Streaming', 'Reasoning'])
     expect(surface.textContent).not.toContain('Vision')
     expect(surface.textContent).not.toContain('Audio')

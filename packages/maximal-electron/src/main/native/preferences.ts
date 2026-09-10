@@ -35,31 +35,6 @@ function coerce(raw: unknown): Preferences {
         : DEFAULT_PREFERENCES.dockBadge,
     splash:
       typeof input.splash === 'boolean' ? input.splash : DEFAULT_PREFERENCES.splash,
-    overlayHotkey:
-      typeof input.overlayHotkey === 'string' && input.overlayHotkey.length > 0
-        ? input.overlayHotkey
-        : DEFAULT_PREFERENCES.overlayHotkey,
-    agentTools:
-      typeof input.agentTools === 'boolean'
-        ? input.agentTools
-        : DEFAULT_PREFERENCES.agentTools,
-    // An allow-list, not a cast. A corrupt or hand-edited file must not be
-    // able to land on `none` and silently turn the approval gate off.
-    agentApproval:
-      input.agentApproval === 'all' ||
-      input.agentApproval === 'writes' ||
-      input.agentApproval === 'none'
-        ? input.agentApproval
-        : DEFAULT_PREFERENCES.agentApproval,
-    agentCwd:
-      typeof input.agentCwd === 'string'
-        ? input.agentCwd
-        : DEFAULT_PREFERENCES.agentCwd,
-    // Ids only, and strings only. A malformed entry here would reach the
-    // toolset registry, which skips what it does not recognise.
-    agentToolsets: Array.isArray(input.agentToolsets)
-      ? input.agentToolsets.filter((id): id is string => typeof id === 'string')
-      : [...DEFAULT_PREFERENCES.agentToolsets],
     theme:
       input.theme === 'light' || input.theme === 'dark' || input.theme === 'system'
         ? input.theme

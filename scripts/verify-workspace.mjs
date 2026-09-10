@@ -82,6 +82,7 @@ const typescriptVersions = new Set(
     "packages/maximal",
     "packages/maximal-core",
     "packages/maximal-electron",
+    "packages/maximal-harness",
     "packages/maximal-observability-contract",
     "packages/maximal-observability",
     "packages/maximal/client",
@@ -256,14 +257,17 @@ const ESLINT_CONSUMERS = [
   "packages/anthropic-provider",
   "packages/eslint-config",
   "packages/llama-server",
+  "packages/local-model-registry",
   "packages/maximal-core",
   "packages/maximal-dsh-host",
   "packages/maximal-provider-contract",
   "packages/maximal",
   "packages/maximal-electron",
+  "packages/maximal-harness",
   "packages/maximal-observability-contract",
   "packages/maximal-observability",
   "packages/maximal/client",
+  "packages/model-qwen3-0.6b-q8-gguf",
   "packages/omlx",
 ];
 const eslintVersions = new Map();
@@ -313,6 +317,9 @@ const providerManifests = new Map(
     "packages/maximal-dsh-host",
     "packages/maximal",
     "packages/anthropic-provider",
+    "packages/llama-server",
+    "packages/local-model-registry",
+    "packages/model-qwen3-0.6b-q8-gguf",
     "packages/omlx",
   ].map((pkg) => [pkg, manifestAt(ROOT, pkg)]),
 );
@@ -322,8 +329,11 @@ const providerDeps = new Map(
     declaredDependencies(manifest),
   ]),
 );
-const concreteProviders = new Set([
+const externalProfilePlugins = new Set([
   "@stuffbucket/anthropic-provider",
+  "@stuffbucket/llama-server",
+  "@stuffbucket/local-model-registry",
+  "@stuffbucket/model-qwen3-0.6b-q8-gguf",
   "@stuffbucket/omlx",
 ]);
 const dshRuntime = new Set([
@@ -340,11 +350,12 @@ const maximalPackages = new Set([
 const violations = [];
 
 for (const pkg of [
+  "packages/maximal-provider-contract",
   "packages/maximal-core",
   "packages/maximal-dsh-host",
   "packages/maximal",
 ]) {
-  for (const dependency of concreteProviders) {
+  for (const dependency of externalProfilePlugins) {
     if (providerDeps.get(pkg)?.has(dependency))
       violations.push(`${pkg} -> ${dependency}`);
   }
@@ -377,6 +388,15 @@ for (const [pkg, dependencies] of [
       "@stuffbucket/maximal-provider-contract",
     ],
   ],
+  [
+    "packages/local-model-registry",
+    ["@stuffbucket/maximal-provider-contract"],
+  ],
+  [
+    "packages/model-qwen3-0.6b-q8-gguf",
+    ["@stuffbucket/local-model-registry"],
+  ],
+  ["packages/llama-server", ["@stuffbucket/local-model-registry"]],
 ]) {
   for (const dependency of dependencies) {
     if (!providerDeps.get(pkg)?.has(dependency)) {

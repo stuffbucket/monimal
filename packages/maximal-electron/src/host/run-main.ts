@@ -96,13 +96,17 @@ export async function runMain(
     return context;
   }
 
-  app.on('window-all-closed', async () => {
+  async function handleWindowAllClosed(): Promise<void> {
     const keepRunning = options.keepRunningWithoutWindows?.() ?? false;
     const quitting = options.shouldQuitAfterLastWindow
       ? await options.shouldQuitAfterLastWindow()
       : quitsWithLastWindow(platform, keepRunning);
     options.onWindowAllClosed?.(quitting);
     if (quitting) app.quit();
+  }
+
+  app.on('window-all-closed', () => {
+    void handleWindowAllClosed();
   });
 
   let shuttingDown = false;

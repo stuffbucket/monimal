@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stuffbucket.dev/schemas/llama-server-runtime-lock.schema.json",
+  "title": "llama.cpp runtime lock",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "releases"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "releases": {
+      "type": "object",
+      "propertyNames": { "pattern": "^[a-z0-9][a-z0-9._-]*$" },
+      "additionalProperties": { "$ref": "#/$defs/release" }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-fA-F0-9]{64}$"
+    },
+    "release": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "url",
+        "artifactSha256",
+        "executableSha256",
+        "format"
+      ],
+      "properties": {
+        "version": { "type": "string", "minLength": 1, "pattern": "^\\S+$" },
+        "url": { "type": "string", "format": "uri", "pattern": "^https://" },
+        "artifactSha256": { "$ref": "#/$defs/sha256" },
+        "executableSha256": { "$ref": "#/$defs/sha256" },
+        "format": { "enum": ["executable", "archive"] },
+        "executablePath": { "type": "string", "minLength": 1 }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "format": { "const": "archive" } } },
+          "then": { "required": ["executablePath"] },
+          "else": { "not": { "required": ["executablePath"] } }
+        }
+      ]
+    }
+  }
+}

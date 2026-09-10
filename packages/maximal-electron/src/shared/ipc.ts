@@ -24,15 +24,6 @@ export interface AppVersions {
   packaged: boolean;
 }
 
-/**
- * When the overlay agent must ask before it runs a tool.
- *
- * `writes` is the default. Reading is free, and anything that can change the
- * machine asks. `none` restores the unattended behaviour, which is a real
- * choice for a trusted local model but should be a deliberate one.
- */
-export type AgentApproval = 'all' | 'writes' | 'none';
-
 /** User preferences that the main process owns and persists. */
 export interface Preferences {
   /** Show a menu bar (macOS) or tray (Windows and Linux) icon. */
@@ -43,31 +34,6 @@ export interface Preferences {
   dockBadge: boolean;
   /** Show the splash window at launch. */
   splash: boolean;
-  /**
-   * Accelerator that summons the floating overlay.
-   *
-   * Wiggle uses a double tap of Ctrl. Electron's `globalShortcut` cannot bind
-   * a bare modifier, so this is a normal accelerator. See `docs/roadmap.md`.
-   */
-  overlayHotkey: string;
-  /**
-   * Give the overlay agent read, write, edit, and bash tools.
-   *
-   * This hands a local model the working directory and a shell. That is the
-   * point of a coding agent, and it is also why it is a switch.
-   */
-  agentTools: boolean;
-  /** When the agent must ask before it runs a tool. */
-  agentApproval: AgentApproval;
-  /** Working directory for those tools. Empty means the home directory. */
-  agentCwd: string;
-  /**
-   * Toolsets the overlay agent may use, by id.
-   *
-   * Resolved when a run starts, so a change takes effect on the next summon
-   * rather than needing a restart. See `src/main/native/toolsets.ts`.
-   */
-  agentToolsets: string[];
   /** Theme preference. `system` follows the OS. */
   theme: 'system' | 'light' | 'dark';
   /**
@@ -224,68 +190,6 @@ export type PtyStatus =
   | { state: 'started'; session: PtySession }
   | { state: 'exited'; id: string; exitCode: number };
 
-/* ------------------------------------------------------- overlay agent */
-
-/**
- * Local model backends. None needs an API key.
- *
- * `embedded` runs in this process through `node-llama-cpp`, so it is the only
- * one that is always available. The other two are preferred when present: a
- * proxy backed by a real subscription beats a small local model.
- */
-export type AgentProvider = 'maximal' | 'ollama' | 'embedded';
-
-export type ProviderStatus =
-  | { state: 'probing' }
-  | { state: 'ready'; provider: AgentProvider; model: string }
-  /** No proxy is running and the embedded model has not been fetched yet. */
-  | { state: 'needs-model'; model: string; approxMb: number }
-  | { state: 'unavailable'; reason: string };
-
-/** Progress of the one-time embedded model download. */
-export type ModelProgress =
-  | { state: 'absent' }
-  | { state: 'downloading'; received: number; total: number }
-  | { state: 'ready' }
-  | { state: 'error'; reason: string };
-
-export interface AskRequest {
-  prompt: string;
-}
-
-/** A run either started, or could not. Output arrives as events. */
-export type AskAccepted = { started: true } | { started: false; reason: string };
-
-/** Which tool the agent is running, and whether it finished cleanly. */
-export interface AgentToolEvent {
-  name: string;
-  phase: 'start' | 'end';
-  isError?: boolean;
-}
-
-export type AgentEnd = { ok: true } | { ok: false; error: string };
-
-/**
- * The agent wants to run a tool and is waiting for a decision.
- *
- * The run is blocked until `overlay:approve` arrives with this `id`, or until
- * the gate times out.
- */
-export interface AgentApprovalRequest {
-  id: string;
-  /** Tool name, such as `bash` or `write`. */
-  tool: string;
-  /** The command or path this call would act on, already truncated. */
-  summary: string;
-}
-
-export interface ApproveRequest {
-  id: string;
-  allow: boolean;
-  /** Allow every later call to this same tool, for this run only. */
-  remember: boolean;
-}
-
 /* --------------------------------------------------------------- requests */
 
 /**
@@ -319,22 +223,6 @@ export interface IpcContract {
   'terminal:discover': { request: void; response: TerminalDiscovery };
   'terminal:launch': { request: TerminalLaunchRequest; response: TerminalLaunchResult };
 
-  // The floating overlay. `overlay:hide` is how the card dismisses itself,
-  // because the renderer cannot close its own window.
-  'overlay:toggle': { request: void; response: void };
-  'overlay:hide': { request: void; response: void };
-  'overlay:provider': { request: void; response: ProviderStatus };
-  // Starts a run. The reply says only whether it started; the answer streams
-  // back as `agent:*` events.
-  'overlay:ask': { request: AskRequest; response: AskAccepted };
-  'overlay:abort': { request: void; response: void };
-  /** Answer a pending `agent:approval`. Unknown ids are ignored. */
-  'overlay:approve': { request: ApproveRequest; response: void };
-  /**
-   * Fetch the embedded model if it is missing. Returns the state at the time
-   * of the call; progress arrives as `model:progress` events.
-   */
-  'model:ensure': { request: void; response: ModelProgress };
 }
 
 export type IpcChannel = keyof IpcContract;
@@ -364,13 +252,6 @@ export const IPC_CHANNELS = [
   'terminal:profiles',
   'terminal:discover',
   'terminal:launch',
-  'overlay:toggle',
-  'overlay:hide',
-  'overlay:provider',
-  'overlay:ask',
-  'overlay:abort',
-  'overlay:approve',
-  'model:ensure',
 ] as const;
 
 /* ----------------------------------------------------------------- events */
@@ -393,16 +274,6 @@ export interface IpcEvents {
   /** A terminal session started or its current process exited. */
   'pty:status': PtyStatus;
 
-  /** A chunk of the agent's answer. Append it; do not replace. */
-  'agent:delta': { text: string };
-  /** The agent started or finished a tool call. */
-  'agent:tool': AgentToolEvent;
-  /** The agent is blocked, waiting for permission to run a tool. */
-  'agent:approval': AgentApprovalRequest;
-  /** The run finished, cleanly or not. */
-  'agent:end': AgentEnd;
-  /** The embedded model download changed state. */
-  'model:progress': ModelProgress;
 }
 
 export type IpcEvent = keyof IpcEvents;
@@ -416,11 +287,6 @@ export const IPC_EVENTS = [
   'pty:data',
   'pty:exit',
   'pty:status',
-  'agent:delta',
-  'agent:tool',
-  'agent:approval',
-  'agent:end',
-  'model:progress',
 ] as const;
 
 /* ------------------------------------------------- exhaustiveness proofs */
@@ -468,11 +334,6 @@ export const DEFAULT_PREFERENCES: Preferences = {
   quitOnLastWindowClosed: false,
   dockBadge: true,
   splash: true,
-  overlayHotkey: 'CommandOrControl+Shift+Space',
-  agentTools: true,
-  agentApproval: 'writes',
-  agentCwd: '',
-  agentToolsets: ['app'],
   theme: 'system',
   terminalDetach: false,
 };

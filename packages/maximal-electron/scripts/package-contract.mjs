@@ -56,146 +56,6 @@ export function bundleIcon(platform) {
   return 'icon.png';
 }
 
-/* -------------------------------------------------- llama.cpp prebuilds */
-
-/**
- * Which `@node-llama-cpp` prebuild packages a build may ship.
- *
- * `forge.config.ts` deletes the rest during `packageAfterCopy`, and
- * `scripts/verify-package.mjs` derives its per-library expectation from the
- * same plan, so the two cannot disagree about what a package should hold.
- *
- * The scope carries one package per target and backend. npm selects them by
- * the `os` and `cpu` fields alone, and several declare `cpu: ["arm64", "x64"]`
- * so one host can build for the other, so a `win32-x64` install also gets
- * `win-arm64` and a `linux-x64` install also gets `linux-arm64`. Neither can
- * ever load: `node-llama-cpp` resolves a package from `process.arch` at run
- * time. Issue #113.
- */
-
-/** Package name prefix for a Forge platform. `mas` is a darwin build. */
-const LLAMA_PLATFORM = { darwin: 'mac', mas: 'mac', win32: 'win', linux: 'linux' };
-
-/**
- * Backends dropped unless the build asks for them.
- *
- * Each ships a discrete-GPU runtime of its own: on `win32-x64`, cuda is 505 MB
- * across two packages and vulkan is 94 MB, against 45 MB for the CPU package
- * the same build falls back to. `metal` is deliberately absent — it is the only
- * `mac-arm64` package, so dropping it would leave that target with no llama.cpp
- * at all rather than with a slower one.
- */
-export const OPTIONAL_LLAMA_BACKENDS = ['cuda', 'vulkan'];
-
-/** The variable that puts an optional backend back. */
-export const LLAMA_BACKENDS_VARIABLE = 'STUFFBUCKET_LLAMA_BACKENDS';
-
-/**
- * Read the opt-in list.
- *
- * An unknown name throws. Ignoring it would ship a CPU-only package to someone
- * who wrote `CUDA` and believes otherwise, and nothing later in the build says
- * a word about it.
- *
- * @param {string | undefined} value
- * @returns {string[]}
- */
-export function parseLlamaBackends(value) {
-  const wanted = (value ?? '')
-    .split(',')
-    .map((name) => name.trim())
-    .filter(Boolean);
-  if (wanted.includes('all')) return [...OPTIONAL_LLAMA_BACKENDS];
-
-  const unknown = wanted.filter((name) => !OPTIONAL_LLAMA_BACKENDS.includes(name));
-  if (unknown.length > 0) {
-    throw new Error(
-      `${LLAMA_BACKENDS_VARIABLE} names ${unknown.join(', ')}. ` +
-        `Valid names are ${OPTIONAL_LLAMA_BACKENDS.join(', ')}, or all.`,
-    );
-  }
-  return wanted;
-}
-
-/**
- * Split a package name into the target it builds for.
- *
- * The shape is `<os>-<arch>[-<backend>]`, with a trailing `-ext` marking a
- * package that extends a backend rather than one of its own:
- * `win-x64-cuda-ext` holds the fallback `ggml-cuda.dll` that
- * `win-x64-cuda` falls back to, and `node-llama-cpp` reaches it only through
- * the cuda branch. So `-ext` belongs to the backend before it.
- *
- * @param {string} name
- * @returns {{os: string, arch: string, backend: string}}
- */
-export function parseLlamaPackage(name) {
-  const [os, arch, ...rest] = name.split('-');
-  if (!os || !arch) {
-    throw new Error(
-      `@node-llama-cpp/${name} is not named <os>-<arch>[-<backend>]. ` +
-        'The scope layout has changed and this build cannot tell what it ships.',
-    );
-  }
-  const backend = (rest.at(-1) === 'ext' ? rest.slice(0, -1) : rest).join('-');
-  return { os, arch, backend };
-}
-
-/**
- * @typedef {object} LlamaPackageDecision
- * @property {string} name
- * @property {boolean} keep
- * @property {string} reason
- */
-
-/**
- * Decide, for every installed package, whether this build ships it.
- *
- * Returns a decision per package rather than a keep-set, so the caller can say
- * what it dropped and why. Sorted, so the build log and the check read alike.
- *
- * @param {readonly string[]} present
- * @param {string} platform
- * @param {string} arch
- * @param {readonly string[]} backends
- * @returns {LlamaPackageDecision[]}
- */
-export function llamaPackagePlan(present, platform, arch, backends) {
-  const os = LLAMA_PLATFORM[platform];
-  if (os === undefined) {
-    throw new Error(`No @node-llama-cpp package name is known for platform ${platform}.`);
-  }
-
-  const arches = new Set(arch === 'universal' ? ['x64', 'arm64'] : [arch]);
-  const enabled = new Set(backends);
-
-  return [...present].sort().map((name) => {
-    const target = parseLlamaPackage(name);
-    if (target.os !== os) {
-      return { name, keep: false, reason: `builds for ${target.os}, not ${os}` };
-    }
-    if (!arches.has(target.arch)) {
-      return {
-        name,
-        keep: false,
-        reason: `builds for ${target.arch}, not ${[...arches].join(' or ')}`,
-      };
-    }
-    if (OPTIONAL_LLAMA_BACKENDS.includes(target.backend) && !enabled.has(target.backend)) {
-      return {
-        name,
-        keep: false,
-        reason: `the ${target.backend} backend is not in ${LLAMA_BACKENDS_VARIABLE}`,
-      };
-    }
-    return {
-      name,
-      keep: true,
-      reason: target.backend === '' ? 'the CPU build for this target' : `the ${target.backend} backend`,
-    };
-  });
-}
-
 /* ------------------------------------------------ platform-locked packages */
 
 /**
@@ -263,7 +123,6 @@ export function admitsTarget(list, value) {
  * `@reflink/reflink-darwin-arm64` -- a Mach-O `.node` -- into a Windows
  * bundle, where the only thing that could happen is a load failure.
  *
- * `llamaPackagePlan` is the same rule written for one scope, by parsing names.
  * This reads the fields npm publishes, so it needs no knowledge of any
  * package: it caught `@reflink/reflink-*` on the day it was written, which was
  * the second instance of a shape that had already cost issue #113.
@@ -309,37 +168,6 @@ function describe(list) {
   return (typeof list === 'string' ? [list] : list).join(', ');
 }
 
-/* ------------------------------------------------ building from source */
-
-/**
- * What `node-llama-cpp` reads only when it compiles llama.cpp itself.
- *
- * It cannot, here. `defaultBuildOption` in `dist/bindings/getLlama.js` is
- * `"never"` when `process.versions.electron` is set, and
- * `src/main/llama-worker.ts` passes `build: 'never'` on top of that rather
- * than inheriting it. With `build === "never"`, `canBuild` is false and
- * `getLlama` throws `NoBinaryFoundError` before it reaches either the clone or
- * the compile.
- *
- * So the input to those two is dead weight, and it is not small: the git
- * bundle is 33 MB of a 352 MB application -- 9% of what a user downloads, to
- * carry a copy of the llama.cpp source that this build has no compiler for.
- *
- * `llama/gitRelease.bundle` and nothing else under `llama/`. The rest of that
- * directory is 300 KB, and `llama/grammars` is read at RUN time
- * (`dist/utils/getGrammarsFolder.js`), so dropping the directory would take a
- * runtime input with it.
- *
- * The compiler tooling those paths also pull in -- `cmake-js`,
- * `node-addon-api`, and the twenty-odd packages they reach -- is another
- * 5.4 MB and is deliberately still shipped. Removing a dependency EDGE
- * re-runs placement over a different graph, and 23 of the remaining packages
- * change position when it does. Issue #133 was a bundle that could not be
- * imported at all because placement moved, so 14% more saving is not worth
- * paying that twice. This file is one file.
- */
-export const LLAMA_SOURCE_INPUTS = ['node_modules/node-llama-cpp/llama/gitRelease.bundle'];
-
 /* ------------------------------------------- external module dependencies */
 
 /**
@@ -347,12 +175,8 @@ export const LLAMA_SOURCE_INPUTS = ['node_modules/node-llama-cpp/llama/gitReleas
  *
  * `packagerConfig.prune` is off and the keep-list names directories, so a
  * dependency of a kept module that npm hoisted to the top level never reached
- * the package. `node-llama-cpp` reaches `universalify` that way, through its
- * own nested `fs-extra`, and the packaged library therefore failed to load
- * with `Cannot find module 'universalify'`. Nothing saw it: `verify:package`
- * reads names out of the archive listing, `smoke:packaged` only opened a
- * shell, and `e2e/embedded.spec.ts` drives the unpackaged tree where every
- * hoisted package is still there. Issue #133.
+ * the package. The closure derives those placements instead of assuming a flat
+ * install.
  *
  * Derived rather than listed, because a hand-list is the same defect one
  * upgrade later. Resolution follows Node's: nested first, then up the tree, so
@@ -446,11 +270,8 @@ export function externalClosure(io, nodeModules, roots, options = {}) {
    * This is the half the first attempt got wrong, and it was the whole point.
    * That version kept a `name -> directory` map, so when two packages in the
    * closure needed different versions of the same dependency, one silently
-   * won. Sixteen names in this repository's closure resolve to more than one
-   * version — `string-width` to three — and flattening them produced a
-   * `node_modules` where `restore-cursor` was handed the `signal-exit` that
-   * has no `onExit` export, so `node-llama-cpp` could not be imported at all.
-   * That is the failure issue #133 exists for, reintroduced by the fix for it.
+   * won. A native dependency closure may contain two versions of one package,
+   * so placement cannot be keyed only by package name.
    *
    * So placement follows npm's rule rather than a map: a package goes to the
    * top level when nothing else of that name is there, and nests under the
@@ -492,18 +313,9 @@ export function externalClosure(io, nodeModules, roots, options = {}) {
     }
 
     /*
-     * Optional dependencies, which is how every package that ships prebuilt
-     * binaries distributes them: `node-llama-cpp` declares fourteen
-     * `@node-llama-cpp/*` platform builds and the installer places the one
-     * that matches. Absent is the normal case, so a miss is skipped rather
-     * than thrown on — the opposite of the rule above, and the reason they are
-     * walked separately.
-     *
-     * This walked none of them and got away with it, because under a flat
-     * install the platform build is hoisted to the top level and
-     * `packagerConfig.ignore` keeps the whole `@node-llama-cpp` scope by
-     * prefix without the closure ever mentioning it. Under pnpm there is no
-     * top-level path to keep, so the bundle came out with no scope at all.
+     * Optional dependencies commonly carry platform prebuilds. Absent is the
+     * normal case, so a miss is skipped rather than thrown on — the opposite
+     * of the rule above, and the reason they are walked separately.
      */
     for (const dependency of Object.keys(json.optionalDependencies ?? {})) {
       const target = resolve(dir, dependency);

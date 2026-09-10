@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Profile validation stays centralized at this trust boundary. */
 import { createHash } from "node:crypto"
 import { readFile, readdir, realpath, stat } from "node:fs/promises"
 import { createRequire } from "node:module"
@@ -30,14 +31,17 @@ export interface ProfileService {
   readonly config?: unknown
 }
 
+export type ProfilePluginKind = "model" | "provider" | "runner"
+
 export interface ProfilePlugin {
   readonly id: string
+  readonly kind: ProfilePluginKind
   readonly package: string
   readonly providers?: ReadonlyArray<string>
 }
 
 export interface ExternalProfileDocument {
-  readonly schemaVersion: 1
+  readonly schemaVersion: 1 | 2
   readonly runtime: {
     readonly cordis: string
     readonly llm: string
@@ -206,20 +210,48 @@ function parseService(value: unknown, index: number): ProfileService {
   })
 }
 
-function parsePlugin(value: unknown, index: number): ProfilePlugin {
+function pluginKind(
+  value: unknown,
+  index: number,
+  schemaVersion: 1 | 2,
+): ProfilePluginKind {
+  if (schemaVersion === 1) return "provider"
+  if (value !== "model" && value !== "provider" && value !== "runner") {
+    throw profileValidationFailure(
+      "profile-invalid",
+      `providers.json plugins[${index}].kind must be model, provider, or runner.`,
+    )
+  }
+  return value
+}
+
+function parsePlugin(
+  value: unknown,
+  index: number,
+  schemaVersion: 1 | 2,
+): ProfilePlugin {
   const entry = object(value, `providers.json plugins[${index}]`)
   assertOnlyKeys(
     entry,
-    ["id", "package", "providers"],
+    schemaVersion === 1 ?
+      ["id", "package", "providers"]
+    : ["id", "kind", "package", "providers"],
     `providers.json plugins[${index}]`,
   )
   const id = identifier(entry.id, `providers.json plugins[${index}].id`)
+  const kind = pluginKind(entry.kind, index, schemaVersion)
   const pkg = packageName(
     entry.package,
     `providers.json plugins[${index}].package`,
   )
   let providers: Array<string> | undefined
   if (entry.providers !== undefined) {
+    if (kind === "model") {
+      throw profileValidationFailure(
+        "profile-invalid",
+        `providers.json plugins[${index}].providers is not valid for a model plugin.`,
+      )
+    }
     if (!Array.isArray(entry.providers) || entry.providers.length === 0) {
       throw profileValidationFailure(
         "profile-invalid",
@@ -241,6 +273,7 @@ function parsePlugin(value: unknown, index: number): ProfilePlugin {
   }
   return Object.freeze({
     id,
+    kind,
     package: pkg,
     ...(providers === undefined ? {} : { providers: Object.freeze(providers) }),
   })
@@ -253,11 +286,12 @@ function parseDocument(raw: unknown): ExternalProfileDocument {
     ["schemaVersion", "runtime", "services", "plugins"],
     "providers.json",
   )
-  if (document.schemaVersion !== 1)
+  if (document.schemaVersion !== 1 && document.schemaVersion !== 2)
     throw profileValidationFailure(
       "profile-invalid",
-      "providers.json schemaVersion must be 1.",
+      "providers.json schemaVersion must be 1 or 2.",
     )
+  const schemaVersion = document.schemaVersion
   const runtime = object(document.runtime, "providers.json runtime")
   assertOnlyKeys(runtime, ["cordis", "llm"], "providers.json runtime")
   const cordis = packageName(runtime.cordis, "providers.json runtime.cordis")
@@ -281,7 +315,7 @@ function parseDocument(raw: unknown): ExternalProfileDocument {
     parseService(service, index),
   )
   const plugins = document.plugins.map((plugin, index) =>
-    parsePlugin(plugin, index),
+    parsePlugin(plugin, index, schemaVersion),
   )
   const ids = new Set<string>()
   for (const entry of [...services, ...plugins]) {
@@ -294,6 +328,7 @@ function parseDocument(raw: unknown): ExternalProfileDocument {
   }
   const expectedProviders = new Set<string>()
   for (const plugin of plugins) {
+    if (plugin.kind === "model") continue
     for (const provider of plugin.providers ?? [plugin.id]) {
       if (expectedProviders.has(provider))
         throw profileValidationFailure(
@@ -304,7 +339,7 @@ function parseDocument(raw: unknown): ExternalProfileDocument {
     }
   }
   return Object.freeze({
-    schemaVersion: 1,
+    schemaVersion,
     runtime: Object.freeze({ cordis, llm }),
     services: Object.freeze(services),
     plugins: Object.freeze(plugins),

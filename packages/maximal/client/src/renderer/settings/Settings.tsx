@@ -434,6 +434,29 @@ const SETTINGS_CSS = `
   gap: var(--shell-space-3, 12px);
 }
 
+.settings-model-tables {
+  box-sizing: border-box;
+  width: calc(100% - var(--shell-space-5, 24px));
+  margin-inline-start: var(--shell-space-5, 24px);
+  padding-inline-start: var(--shell-space-3, 12px);
+  border-inline-start: 1px solid var(--shell-border, #2a2a2a);
+}
+
+.settings-local-model__row {
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.settings-local-model__content {
+  flex: 1 1 20rem;
+}
+
+.settings-local-model__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--shell-space-2, 8px);
+}
+
 .settings-metrics {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
@@ -511,7 +534,8 @@ const SETTINGS_CSS = `
   gap: var(--shell-space-2, 8px);
 }
 
-.settings-table__capability {
+.settings-table__capability,
+.settings-table__type {
   display: inline-flex;
   color: var(--shell-text-muted, #8a8a8a);
 }

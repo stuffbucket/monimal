@@ -1,4 +1,10 @@
 import type {
+  LocalModelCancelResult,
+  LocalModelCatalogSnapshot,
+  LocalModelEnsureResult,
+  LocalModelOperationEvent,
+} from '@stuffbucket/maximal-core/control-contract'
+import type {
   AccountsListResponse,
   ApiKeyCreateRequest,
   ApiKeyEntry,
@@ -12,6 +18,15 @@ import type {
   TokenUsagePeriod,
   TokenUsageSummary,
 } from '@stuffbucket/maximal-core/settings-types'
+import type {
+  AgentApprovalRequest,
+  AgentEnd,
+  AgentToolEvent,
+  ApproveRequest,
+  AskAccepted,
+  ModelProgress,
+  ProviderStatus,
+} from '@stuffbucket/maximal-harness'
 import {
   TrafficInvalidationSchema,
   type TrafficInvalidation,
@@ -42,6 +57,12 @@ import type {
   PendingSettingsRequest,
 } from '../shared/bridge-types.js'
 
+function subscribe<T>(channel: string, listener: (value: T) => void): () => void {
+  const handler = (_event: unknown, value: T): void => listener(value)
+  ipcRenderer.on(channel, handler)
+  return () => ipcRenderer.off(channel, handler)
+}
+
 const bridge = {
   /** Base URL where `/v1` is served for external programs (to display/copy). */
   getProxyUrl: (): Promise<string> =>
@@ -71,6 +92,19 @@ const bridge = {
       ipcRenderer.invoke(BRIDGE_CHANNELS.logsLocation),
     reveal: (): Promise<void> => ipcRenderer.invoke(BRIDGE_CHANNELS.logsReveal),
   },
+  localModels: {
+    list: (): Promise<ControlResult<LocalModelCatalogSnapshot>> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.localModelsList),
+    ensure: (modelKey: string): Promise<ControlResult<LocalModelEnsureResult>> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.localModelsEnsure, modelKey),
+    cancel: (operationId: string): Promise<ControlResult<LocalModelCancelResult>> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.localModelsCancel, operationId),
+    openFolder: (): Promise<void> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.localModelsOpenFolder),
+    onChange: (
+      listener: (event: LocalModelOperationEvent) => void,
+    ): (() => void) => subscribe(BRIDGE_CHANNELS.localModelsChanged, listener),
+  },
   menuBarMode: {
     get: (): Promise<MenuBarModeState> =>
       ipcRenderer.invoke(BRIDGE_CHANNELS.menuBarModeGet),
@@ -82,6 +116,28 @@ const bridge = {
       ipcRenderer.invoke(BRIDGE_CHANNELS.menuBarModeCancelEnable, attemptId),
     disable: (): Promise<MenuBarModeState> =>
       ipcRenderer.invoke(BRIDGE_CHANNELS.menuBarModeDisable),
+  },
+  harness: {
+    hide: (): Promise<void> => ipcRenderer.invoke(BRIDGE_CHANNELS.harnessHide),
+    provider: (): Promise<ProviderStatus> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.harnessProvider),
+    ask: (prompt: string): Promise<AskAccepted> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.harnessAsk, { prompt }),
+    abort: (): Promise<void> => ipcRenderer.invoke(BRIDGE_CHANNELS.harnessAbort),
+    approve: (request: ApproveRequest): Promise<void> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.harnessApprove, request),
+    ensureModel: (): Promise<ModelProgress> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.harnessEnsureModel),
+    onDelta: (listener: (text: string) => void): (() => void) =>
+      subscribe<{ text: string }>(BRIDGE_CHANNELS.harnessDelta, ({ text }) => listener(text)),
+    onTool: (listener: (event: AgentToolEvent) => void): (() => void) =>
+      subscribe(BRIDGE_CHANNELS.harnessTool, listener),
+    onApproval: (listener: (request: AgentApprovalRequest) => void): (() => void) =>
+      subscribe(BRIDGE_CHANNELS.harnessApproval, listener),
+    onEnd: (listener: (result: AgentEnd) => void): (() => void) =>
+      subscribe(BRIDGE_CHANNELS.harnessEnd, listener),
+    onModelProgress: (listener: (progress: ModelProgress) => void): (() => void) =>
+      subscribe(BRIDGE_CHANNELS.harnessModelProgress, listener),
   },
   terminal: {
     spawn: (request: { id: string; cols: number; rows: number; shell?: string; cwd?: string }): Promise<void> =>

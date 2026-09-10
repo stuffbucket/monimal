@@ -300,7 +300,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/electron
-          key: electron-${{ runner.os }}-${{ hashFiles('packages/maximal/client/package.json', 'packages/maximal-electron/package.json') }}
+          key: electron-${{ runner.os }}-${{ hashFiles('packages/maximal/client/package.json', 'packages/maximal-electron/package.json', 'packages/maximal-harness/package.json') }}
           restore-keys: electron-${{ runner.os }}-
 
       # Same reason as the check job: a lockfile can arrive host-pinned, and

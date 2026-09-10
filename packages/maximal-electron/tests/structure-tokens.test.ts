@@ -142,7 +142,7 @@ describe('the structural tokens', () => {
         (match) => match[1] ?? '',
       ),
     );
-    for (const file of ['controls.css', 'shell.css', 'overlay.css']) {
+    for (const file of ['controls.css', 'shell.css']) {
       const css = readFileSync(new URL(file, STYLES), 'utf8');
       for (const match of css.matchAll(/var\(\s*(--shell-[a-z0-9-]+)/g)) read.add(match[1] ?? '');
     }

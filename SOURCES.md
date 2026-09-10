@@ -17,6 +17,9 @@ repository or imported commit:
 
 | Package                                   | Purpose                                                                                   |
 | ----------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `packages/maximal-harness`                | Transport-neutral local agent runtime, approval gate, worker, and renderer component.      |
+| `packages/local-model-registry`           | Provider-neutral local-model registration, provisioning, and runner claims.                |
+| `packages/model-qwen3-0.6b-q8-gguf`       | Qwen3 0.6B Q8_0 GGUF artifact metadata and verified provisioning source.                   |
 | `packages/maximal-observability-contract` | Runtime-neutral, versioned traffic-observability schemas and passive observer interfaces. |
 | `packages/maximal-observability`          | Renderer-only traffic explorer components and source interface.                           |
 
@@ -187,8 +190,10 @@ package provenance or publisher identity -- the proxy does that.
   stock Cordis/DSH adapter for an independently running oMLX HTTP server. Cordis
   and DSH are exact peers of external provider packages and are loaded from a
   user-managed profile rather than compiled into Maximal. `packages/llama-server`
-  remains a private descriptor scaffold and is deliberately separate from
-  `maximal-electron`'s embedded `node-llama-cpp` utility process.
+  is an activation-gated Cordis/DSH runner for a private standalone llama.cpp
+  process. Packaging fails until its runtime lock contains an authoritative
+  entry for the target. It remains separate from the client's transitional
+  embedded `node-llama-cpp` utility process.
 - Pin rule SETS, not just plugin versions, when a plugin major moves. The
   replaced preset enumerated 83 unicorn rules against unicorn 60; ESLint 10
   needs unicorn >= 73, whose `recommended` turns on 227 more. Taking

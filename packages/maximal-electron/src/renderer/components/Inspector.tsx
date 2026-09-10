@@ -1,14 +1,9 @@
-import type {
-  AgentApproval,
-  AppVersions,
-  Preferences,
-  UpdateStatus,
-} from '../../shared/ipc.js';
+import type { AppVersions, Preferences, UpdateStatus } from '../../shared/ipc.js';
 import { bridge } from '../lib/bridge.js';
 import type { Item } from '../lib/data.js';
 import type { TerminalSession } from '../lib/terminal-transport.js';
 
-import { Button, Field, FormField, InspectorPanel, Select, Switch } from './Controls.js';
+import { Button, Field, InspectorPanel, Switch } from './Controls.js';
 
 function updateLabel(status: UpdateStatus): string {
   switch (status.state) {
@@ -101,35 +96,6 @@ export function Inspector({
               onChange={(next) => onPrefChange({ splash: next })}
               testId="pref-splash"
             />
-            <Switch
-              label="Agent tools"
-              checked={prefs.agentTools}
-              onChange={(next) => onPrefChange({ agentTools: next })}
-              testId="pref-agent-tools"
-            />
-            <p className="card__sub card__sub--wrap">
-              Lets the overlay agent read, write, and run shell commands in your
-              working directory.
-            </p>
-            {prefs.agentTools && (
-              <FormField label="Ask before running">
-                {(field) => (
-                  <Select
-                    {...field}
-                    value={prefs.agentApproval}
-                    onChange={(agentApproval: AgentApproval) =>
-                      onPrefChange({ agentApproval })
-                    }
-                    options={[
-                      { value: 'writes', label: 'Anything that changes files' },
-                      { value: 'all', label: 'Every tool' },
-                      { value: 'none', label: 'Never ask' },
-                    ]}
-                    testId="pref-agent-approval"
-                  />
-                )}
-              </FormField>
-            )}
             <Switch
               label="Light theme"
               checked={prefs.theme === 'light'}

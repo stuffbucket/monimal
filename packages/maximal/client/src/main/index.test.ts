@@ -20,6 +20,9 @@ interface ControlSessionSpies {
   observabilityOverview: ReturnType<typeof vi.fn>
   observabilityRequests: ReturnType<typeof vi.fn>
   observabilityRequest: ReturnType<typeof vi.fn>
+  localModelsList: ReturnType<typeof vi.fn>
+  localModelsEnsure: ReturnType<typeof vi.fn>
+  localModelsCancel: ReturnType<typeof vi.fn>
   dispose: ReturnType<typeof vi.fn>
 }
 
@@ -33,6 +36,7 @@ const {
   onHeadersReceived,
   runShellMock,
   shellOpenExternal,
+  shellOpenPath,
   webContentsSend,
   windowState,
 } = vi.hoisted(() => {
@@ -77,6 +81,7 @@ const {
   }
   const fakeApp = {
     isPackaged: false,
+    commandLine: { hasSwitch: vi.fn(() => false) },
     whenReady: vi.fn(() => Promise.resolve()),
     quit: vi.fn(),
     getPath: vi.fn(() => '/tmp/maximal-client-test'),
@@ -110,6 +115,7 @@ const {
     onHeadersReceived: vi.fn(),
     runShellMock: vi.fn(() => fakeWindow),
     shellOpenExternal: vi.fn(() => Promise.resolve()),
+    shellOpenPath: vi.fn(() => Promise.resolve('')),
     webContentsSend,
     windowState,
   }
@@ -125,7 +131,18 @@ vi.mock('electron', () => ({
       webRequest: { onBeforeSendHeaders, onHeadersReceived },
     },
   },
-  shell: { openExternal: shellOpenExternal },
+  shell: { openExternal: shellOpenExternal, openPath: shellOpenPath },
+}))
+
+const { localModelsMkdir, resolveLocalModelsPathMock } = vi.hoisted(() => ({
+  localModelsMkdir: vi.fn(() => Promise.resolve()),
+  resolveLocalModelsPathMock: vi.fn(() => '/resolved/local/models'),
+}))
+
+vi.mock('node:fs/promises', () => ({ mkdir: localModelsMkdir }))
+
+vi.mock('@stuffbucket/local-model-registry', () => ({
+  resolveLocalModelsPath: resolveLocalModelsPathMock,
 }))
 
 vi.mock('./shell.js', () => ({ runShell: runShellMock }))
@@ -173,6 +190,34 @@ vi.mock('./core.js', () => ({
   onCoreStatus: onCoreStatusMock,
 }))
 
+const { showHarnessHostMock, startHarnessHostMock, stopHarnessHostMock } = vi.hoisted(() => ({
+  showHarnessHostMock: vi.fn(),
+  startHarnessHostMock: vi.fn(),
+  stopHarnessHostMock: vi.fn(() => Promise.resolve()),
+}))
+
+vi.mock('./harness-host.js', () => ({
+  showHarnessHost: showHarnessHostMock,
+  startHarnessHost: startHarnessHostMock,
+  stopHarnessHost: stopHarnessHostMock,
+}))
+
+const {
+  configureTerminalHostMock,
+  registerTerminalIpcMock,
+  stopTerminalHostMock,
+} = vi.hoisted(() => ({
+  configureTerminalHostMock: vi.fn(),
+  registerTerminalIpcMock: vi.fn(),
+  stopTerminalHostMock: vi.fn(),
+}))
+
+vi.mock('./terminal-host.js', () => ({
+  configureTerminalHost: configureTerminalHostMock,
+  registerTerminalIpc: registerTerminalIpcMock,
+  stopTerminalHost: stopTerminalHostMock,
+}))
+
 const { createControlSessionMock, disposeControlSessionMock } = vi.hoisted(
   () => {
     const disposeControlSessionMock = vi.fn()
@@ -180,6 +225,7 @@ const { createControlSessionMock, disposeControlSessionMock } = vi.hoisted(
       disposeControlSessionMock,
       createControlSessionMock: vi.fn((_options: {
         onChange(): void
+        onLocalModelEvent(event: unknown): void
         onTrafficInvalidation(invalidation: unknown): void
       }): ControlSessionSpies => ({
         authStatus: vi.fn(),
@@ -191,6 +237,9 @@ const { createControlSessionMock, disposeControlSessionMock } = vi.hoisted(
         observabilityOverview: vi.fn(),
         observabilityRequests: vi.fn(),
         observabilityRequest: vi.fn(),
+        localModelsList: vi.fn(),
+        localModelsEnsure: vi.fn(),
+        localModelsCancel: vi.fn(),
         dispose: disposeControlSessionMock,
       })),
     }
@@ -215,11 +264,44 @@ async function loadIndexOn(platform: NodeJS.Platform): Promise<void> {
   killCoreMock.mockClear()
   spawnCoreMock.mockClear()
   ipcMainHandle.mockClear()
+  showHarnessHostMock.mockClear()
+  startHarnessHostMock.mockClear()
+  stopHarnessHostMock.mockClear()
+  configureTerminalHostMock.mockClear()
+  registerTerminalIpcMock.mockClear()
+  stopTerminalHostMock.mockClear()
+  registerTerminalIpcMock.mockImplementation(() => {
+    for (const channel of [
+      BRIDGE_CHANNELS.terminalProfiles,
+      BRIDGE_CHANNELS.terminalDiscover,
+      BRIDGE_CHANNELS.terminalLaunch,
+      BRIDGE_CHANNELS.terminalSpawn,
+      BRIDGE_CHANNELS.terminalWrite,
+      BRIDGE_CHANNELS.terminalResize,
+      BRIDGE_CHANNELS.terminalTerminate,
+      BRIDGE_CHANNELS.terminalList,
+      BRIDGE_CHANNELS.terminalAck,
+    ]) ipcMainHandle(channel, vi.fn())
+  })
+  startHarnessHostMock.mockImplementation(() => {
+    for (const channel of [
+      BRIDGE_CHANNELS.harnessHide,
+      BRIDGE_CHANNELS.harnessProvider,
+      BRIDGE_CHANNELS.harnessAsk,
+      BRIDGE_CHANNELS.harnessAbort,
+      BRIDGE_CHANNELS.harnessApprove,
+      BRIDGE_CHANNELS.harnessEnsureModel,
+    ]) ipcMainHandle(channel, vi.fn())
+  })
   createControlSessionMock.mockClear()
   disposeControlSessionMock.mockClear()
   onBeforeSendHeaders.mockClear()
   onHeadersReceived.mockClear()
   shellOpenExternal.mockClear()
+  shellOpenPath.mockClear()
+  localModelsMkdir.mockClear()
+  resolveLocalModelsPathMock.mockClear()
+  fakeApp.commandLine.hasSwitch.mockReset().mockReturnValue(false)
   webContentsSend.mockClear()
   runShellMock.mockClear()
   installApplicationMenuMock.mockClear()
@@ -302,6 +384,32 @@ describe('closed IPC boundary', () => {
     )
   })
 
+  it('routes validated local model operations to named session methods', async () => {
+    await loadIndexOn('darwin')
+    const session = controlSessionSpies()
+    const handlerFor = (channel: string) => {
+      const registration = ipcMainHandle.mock.calls.find(
+        ([registered]) => registered === channel,
+      )
+      return registration?.[1] as (
+        event: unknown,
+        identifier?: unknown,
+      ) => unknown
+    }
+
+    await handlerFor(BRIDGE_CHANNELS.localModelsList)({})
+    await handlerFor(BRIDGE_CHANNELS.localModelsEnsure)({}, 'qwen')
+    await handlerFor(BRIDGE_CHANNELS.localModelsCancel)({}, 'operation-1')
+
+    expect(session.localModelsList).toHaveBeenCalledOnce()
+    expect(session.localModelsEnsure).toHaveBeenCalledWith('qwen')
+    expect(session.localModelsCancel).toHaveBeenCalledWith('operation-1')
+    expect(() =>
+      handlerFor(BRIDGE_CHANNELS.localModelsEnsure)({}, ''),
+    ).toThrow()
+    expect(session.localModelsEnsure).toHaveBeenCalledTimes(1)
+  })
+
   it.each([
     [
       BRIDGE_CHANNELS.observabilityOverview,
@@ -371,6 +479,17 @@ describe('closed IPC boundary', () => {
       BRIDGE_CHANNELS.controlChanged,
     )
 
+    const localModelEvent = {
+      type: 'catalog',
+      snapshot: { models: [], revision: 1 },
+    }
+    createControlSessionMock.mock.calls[0]?.[0]
+      .onLocalModelEvent(localModelEvent)
+    expect(webContentsSend).toHaveBeenCalledWith(
+      BRIDGE_CHANNELS.localModelsChanged,
+      localModelEvent,
+    )
+
     const invalidation = {
       contractVersion: 1,
       revision: 2,
@@ -412,6 +531,42 @@ describe('closed IPC boundary', () => {
     expect(shellOpenExternal).toHaveBeenCalledWith(
       'https://github.com/login/device',
     )
+  })
+
+  it('opens only the main-owned local models directory', async () => {
+    await loadIndexOn('darwin')
+    const registration = ipcMainHandle.mock.calls.find(
+      ([channel]) => channel === BRIDGE_CHANNELS.localModelsOpenFolder,
+    )
+    const handler = registration?.[1] as (
+      event: unknown,
+      untrustedPath?: unknown,
+    ) => Promise<void>
+
+    await expect(handler({}, '/tmp/untrusted')).resolves.toBeUndefined()
+    expect(resolveLocalModelsPathMock).toHaveBeenCalledWith({
+      suiteDataRoot: undefined,
+    })
+    expect(localModelsMkdir).toHaveBeenCalledWith('/resolved/local/models', {
+      recursive: true,
+    })
+    expect(shellOpenPath).toHaveBeenCalledWith('/resolved/local/models')
+  })
+
+  it('isolates local models beneath an explicit user-data directory', async () => {
+    fakeApp.commandLine.hasSwitch.mockReturnValue(true)
+    await loadIndexOn('darwin')
+    fakeApp.commandLine.hasSwitch.mockReturnValue(true)
+    const registration = ipcMainHandle.mock.calls.find(
+      ([channel]) => channel === BRIDGE_CHANNELS.localModelsOpenFolder,
+    )
+    const handler = registration?.[1] as () => Promise<void>
+
+    await handler()
+
+    expect(resolveLocalModelsPathMock).toHaveBeenCalledWith({
+      suiteDataRoot: '/tmp/maximal-client-test/stuffbucket',
+    })
   })
 
   it('uses the redacted lifecycle channel rather than the legacy channel', async () => {
@@ -503,7 +658,7 @@ describe('window-all-closed / before-quit', () => {
     expect(disposeControlSessionMock).not.toHaveBeenCalled()
     expect(fakeApp.quit).not.toHaveBeenCalled()
 
-    fakeApp.emit('before-quit')
+    fakeApp.emit('before-quit', { preventDefault: vi.fn() })
     expect(disposeControlSessionMock).toHaveBeenCalledTimes(1)
     expect(killCoreMock).toHaveBeenCalledTimes(1)
   })
@@ -518,12 +673,34 @@ describe('window-all-closed / before-quit', () => {
     expect(fakeApp.quit).toHaveBeenCalledTimes(1)
   })
 
-  it('before-quit always disposes control and kills core', async () => {
+  it('defers the first quit until harness shutdown and does not recurse', async () => {
     await loadIndexOn('darwin')
+    let resolveShutdown: (() => void) | undefined
+    stopHarnessHostMock.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        resolveShutdown = resolve
+      }),
+    )
+    const first = { preventDefault: vi.fn() }
 
-    fakeApp.emit('before-quit')
+    fakeApp.emit('before-quit', first)
 
-    expect(disposeControlSessionMock).toHaveBeenCalledTimes(1)
-    expect(killCoreMock).toHaveBeenCalledTimes(1)
+    expect(first.preventDefault).toHaveBeenCalledOnce()
+    expect(stopHarnessHostMock).toHaveBeenCalledOnce()
+    expect(fakeApp.quit).not.toHaveBeenCalled()
+
+    resolveShutdown?.()
+    await vi.waitFor(() => {
+      expect(fakeApp.quit).toHaveBeenCalledOnce()
+    })
+
+    const second = { preventDefault: vi.fn() }
+    fakeApp.emit('before-quit', second)
+
+    expect(second.preventDefault).not.toHaveBeenCalled()
+    expect(stopHarnessHostMock).toHaveBeenCalledOnce()
+    expect(fakeApp.quit).toHaveBeenCalledOnce()
+    expect(disposeControlSessionMock).toHaveBeenCalledTimes(2)
+    expect(killCoreMock).toHaveBeenCalledTimes(2)
   })
 })

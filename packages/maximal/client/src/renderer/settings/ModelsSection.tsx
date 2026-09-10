@@ -1,4 +1,13 @@
-import { BrainCircuit, Eye, Radio, Wrench, type LucideIcon } from 'lucide-react'
+import {
+  BrainCircuit,
+  CircleHelp,
+  Database,
+  Eye,
+  MessageSquareText,
+  Radio,
+  Wrench,
+  type LucideIcon,
+} from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState, type ReactElement } from 'react'
 
 import { Button, Note } from 'stuffbucket-electron/renderer'
@@ -16,14 +25,9 @@ interface ModelsSectionProps {
 type ModelSummary = ModelsListResponse['models'][number]
 type ModelCapability = keyof ModelSummary['capabilities']
 
-interface ModelTypeGroup {
-  type: string
-  models: ModelSummary[]
-}
-
 interface VendorGroup {
   vendor: string
-  types: ModelTypeGroup[]
+  models: ModelSummary[]
 }
 
 function formatExactNumber(value: number): string {
@@ -45,6 +49,13 @@ const CAPABILITY_DETAILS = {
 } satisfies Record<ModelCapability, { label: string; Icon: LucideIcon }>
 
 const CAPABILITY_KEYS = Object.keys(CAPABILITY_DETAILS) as ModelCapability[]
+
+const MODEL_TYPE_DETAILS: Readonly<
+  Record<string, { label: string; Icon: LucideIcon }>
+> = {
+  chat: { label: 'Chat', Icon: MessageSquareText },
+  embeddings: { label: 'Embeddings', Icon: Database },
+}
 
 function TokenCount({ value }: { value: number | null }): ReactElement {
   if (value === null) {
@@ -93,31 +104,38 @@ function CapabilityIcons({ model }: { model: ModelSummary }): ReactElement {
   )
 }
 
-function groupModels(models: ModelSummary[]): VendorGroup[] {
-  const vendors = new Map<string, Map<string, ModelSummary[]>>()
-  for (const model of models) {
-    const vendor = model.vendor.trim() || 'Vendor not reported'
-    const type = model.type.trim()
-    const types = vendors.get(vendor) ?? new Map<string, ModelSummary[]>()
-    const group = types.get(type) ?? []
-    group.push(model)
-    types.set(type, group)
-    vendors.set(vendor, types)
-  }
+function ModelTypeIcon({ model }: { model: ModelSummary }): ReactElement {
+  const type = model.type.trim()
+  const details = MODEL_TYPE_DETAILS[type.toLowerCase()]
+  const label = details?.label ?? (type || 'Type not reported')
+  const Icon = details?.Icon ?? CircleHelp
+  const description = `${label} model type`
 
-  return [...vendors].map(([vendor, types]) => ({
-    vendor,
-    types: [...types].map(([type, groupedModels]) => ({
-      type,
-      models: groupedModels,
-    })),
-  }))
+  return (
+    <span
+      className="settings-table__type"
+      role="img"
+      aria-label={description}
+      title={description}
+    >
+      <Icon size={16} aria-hidden="true" />
+    </span>
+  )
 }
 
-function typeCaption(type: string, count: number): string {
-  return type === ''
-    ? `Type not reported (${String(count)})`
-    : `${type} models (${String(count)})`
+function groupModels(models: ModelSummary[]): VendorGroup[] {
+  const vendors = new Map<string, ModelSummary[]>()
+  for (const model of models) {
+    const vendor = model.vendor.trim() || 'Vendor not reported'
+    const group = vendors.get(vendor) ?? []
+    group.push(model)
+    vendors.set(vendor, group)
+  }
+
+  return [...vendors].map(([vendor, groupedModels]) => ({
+    vendor,
+    models: groupedModels,
+  }))
 }
 
 export function ModelsSection({ capabilities }: ModelsSectionProps): ReactElement {
@@ -188,7 +206,7 @@ export function ModelsSection({ capabilities }: ModelsSectionProps): ReactElemen
         <Note>No models are available yet.</Note>
       ) : (
         <div className="settings-model-vendor-groups">
-          {groups.map(({ vendor, types }, vendorIndex) => {
+          {groups.map(({ vendor, models }, vendorIndex) => {
             const vendorHeadingId = `settings-model-vendor-${String(vendorIndex)}`
             return (
               <section
@@ -200,50 +218,49 @@ export function ModelsSection({ capabilities }: ModelsSectionProps): ReactElemen
                   {vendor}
                 </h2>
                 <div className="settings-model-tables">
-                  {types.map(({ type, models }, typeIndex) => {
-                    const caption = typeCaption(type, models.length)
-                    const captionId = `${vendorHeadingId}-type-${String(typeIndex)}`
-                    return (
-                      <div
-                        key={type}
-                        className="settings-table-wrap settings-table-wrap--models"
-                        role="region"
-                        aria-labelledby={captionId}
-                        tabIndex={0}
-                      >
-                        <table className="settings-table settings-table--models">
-                          <caption id={captionId}>{caption}</caption>
-                          <thead>
-                            <tr>
-                              <th scope="col">Model</th>
-                              <th scope="col" className="settings-table__number">Context</th>
-                              <th scope="col" className="settings-table__number">Max output</th>
-                              <th scope="col">Capabilities</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {models.map((model) => (
-                              <tr key={model.id}>
-                                <th scope="row">
-                                  <span className="settings-table__model-name">{model.name}</span>
-                                  <code>{model.id}</code>
-                                </th>
-                                <td className="settings-table__number">
-                                  <TokenCount value={model.context_window_tokens} />
-                                </td>
-                                <td className="settings-table__number">
-                                  <TokenCount value={model.max_output_tokens} />
-                                </td>
-                                <td>
-                                  <CapabilityIcons model={model} />
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )
-                  })}
+                  <div
+                    className="settings-table-wrap settings-table-wrap--models"
+                    role="region"
+                    aria-labelledby={vendorHeadingId}
+                    tabIndex={0}
+                  >
+                    <table
+                      className="settings-table settings-table--models"
+                      aria-labelledby={vendorHeadingId}
+                    >
+                      <thead>
+                        <tr>
+                          <th scope="col">Model</th>
+                          <th scope="col">Type</th>
+                          <th scope="col" className="settings-table__number">Context</th>
+                          <th scope="col" className="settings-table__number">Max output</th>
+                          <th scope="col">Capabilities</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {models.map((model) => (
+                          <tr key={model.id}>
+                            <th scope="row">
+                              <span className="settings-table__model-name">{model.name}</span>
+                              <code>{model.id}</code>
+                            </th>
+                            <td>
+                              <ModelTypeIcon model={model} />
+                            </td>
+                            <td className="settings-table__number">
+                              <TokenCount value={model.context_window_tokens} />
+                            </td>
+                            <td className="settings-table__number">
+                              <TokenCount value={model.max_output_tokens} />
+                            </td>
+                            <td>
+                              <CapabilityIcons model={model} />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </section>
             )

@@ -23,7 +23,9 @@ export interface RunningApp {
  * isolated `--user-data-dir` so it never touches a real user profile or
  * collides with a dev instance already running on this machine.
  */
-export async function launchPackagedApp(): Promise<RunningApp> {
+export async function launchPackagedApp(
+  env: Readonly<Record<string, string>> = {},
+): Promise<RunningApp> {
   const { appPath, root: appRoot } = relocatePackagedApp()
   const userDataDir = mkdtempSync(join(tmpdir(), 'maximal-e2e-userdata-'))
   const executablePath = join(appPath, 'Contents/MacOS/Maximal')
@@ -33,9 +35,15 @@ export async function launchPackagedApp(): Promise<RunningApp> {
     for (const line of chunk.toString().split('\n')) lines.push(line)
   }
 
+  const inherited = Object.fromEntries(
+    Object.entries(process.env).filter(
+      (entry): entry is [string, string] => typeof entry[1] === 'string',
+    ),
+  )
   const app = await electron.launch({
     executablePath,
     args: [`--user-data-dir=${userDataDir}`],
+    env: { ...inherited, ...env },
   })
   const proc = app.process()
   proc.stdout?.on('data', recordLines)

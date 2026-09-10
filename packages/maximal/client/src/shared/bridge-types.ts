@@ -1,4 +1,19 @@
-import type { ControlErrorReason } from '@stuffbucket/maximal-core/control-contract'
+import type {
+  ControlErrorReason,
+  LocalModelCancelResult,
+  LocalModelCatalogEntry,
+  LocalModelCatalogSnapshot,
+  LocalModelEnsureResult,
+  LocalModelOperationEvent,
+} from '@stuffbucket/maximal-core/control-contract'
+
+export type {
+  LocalModelCancelResult,
+  LocalModelCatalogEntry,
+  LocalModelCatalogSnapshot,
+  LocalModelEnsureResult,
+  LocalModelOperationEvent,
+}
 import type {
   TrafficInvalidationListener,
   TrafficOverview,

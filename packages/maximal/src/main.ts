@@ -2,10 +2,20 @@
 
 import { runCli } from "@stuffbucket/maximal-core/provider-host"
 
-import { createDshProviderGateway } from "./provider-gateway"
+import {
+  createDshProviderGateway,
+  type DshProviderGatewayComposition,
+} from "./provider-gateway"
 
-export async function main(): Promise<void> {
-  await runCli({ createProviderGateway: createDshProviderGateway })
+export type MaximalCompositionOptions = DshProviderGatewayComposition
+
+export async function main(
+  options: MaximalCompositionOptions = {},
+): Promise<void> {
+  await runCli({
+    createProviderGateway: async (context) =>
+      await createDshProviderGateway(context, options),
+  })
 }
 
 if (import.meta.main) await main()

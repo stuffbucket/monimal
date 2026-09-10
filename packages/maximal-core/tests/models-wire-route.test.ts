@@ -9,13 +9,15 @@
  * strict client (Claude Desktop's picker) reject the list and render empty.
  */
 
+import type { LocalModelControl } from "@stuffbucket/maximal-provider-contract"
+
 import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test"
 import { Hono } from "hono"
 
 import type { Model } from "~/services/copilot/get-models"
 
 import { setModels } from "~/lib/runtime-state/state"
-import { modelRoutes } from "~/routes/models/route"
+import { createModelRoutes, modelRoutes } from "~/routes/models/route"
 
 // Stub the network layer so the route's on-demand prime (primeModelsCache →
 // cacheModels → getModels) never hits the real network. It rejects: the prime
@@ -87,6 +89,34 @@ function buildApp() {
   const app = new Hono()
   app.route("/v1/models", modelRoutes)
   return app
+}
+
+function buildLocalApp(control: LocalModelControl): Hono {
+  const app = new Hono()
+  app.route("/v1/models", createModelRoutes({ localModels: () => control }))
+  return app
+}
+
+const noop = (): void => undefined
+
+const localModelControl = (
+  models: ReturnType<LocalModelControl["list"]>["models"],
+): LocalModelControl => ({
+  ensure: () => Promise.reject(new Error("unused")),
+  list: () => ({ models, revision: 1 }),
+  subscribe: () => noop,
+})
+
+const localModel = {
+  capabilities: { input: ["text", "image"], output: ["json", "reasoning"] },
+  context: { contextWindow: 8192, maxOutputTokens: 2048 },
+  displayName: "Local Fixture",
+  expectedBytes: 100,
+  format: "gguf",
+  key: "fixture",
+  modelId: "local/fixture",
+  publication: "aggregate" as const,
+  state: "ready" as const,
 }
 
 interface Entry {
@@ -185,5 +215,67 @@ describe("GET /v1/models — empty-catalog on-demand recovery", () => {
     expect(res.status).toBe(200)
     const body = (await res.json()) as { data?: Array<unknown> }
     expect(body.data ?? []).toEqual([])
+  })
+})
+
+describe("GET /v1/models — local model publication", () => {
+  test("adds only ready aggregate models in both protocol shapes", async () => {
+    const unsafeReady = { ...localModel, runnerPath: "/private/runner" }
+    const control = localModelControl([
+      unsafeReady,
+      { ...localModel, key: "provider", publication: "provider" },
+      { ...localModel, key: "pending", state: "registered" },
+    ])
+    const app = buildLocalApp(control)
+
+    const openAi = (await (await app.request("/v1/models")).json()) as {
+      data: Array<Entry>
+    }
+    expect(openAi.data.find(({ id }) => id === "local/fixture")).toEqual({
+      created: 0,
+      id: "local/fixture",
+      object: "model",
+      owned_by: "local",
+    })
+    expect(JSON.stringify(openAi)).not.toContain("private")
+
+    const anthropic = (await (
+      await app.request("/v1/models", {
+        headers: { "anthropic-version": "2023-06-01" },
+      })
+    ).json()) as { data: Array<Entry> }
+    expect(
+      anthropic.data.find(({ id }) => id === "local/fixture"),
+    ).toMatchObject({
+      capabilities: {
+        image_input: { supported: true },
+        pdf_input: { supported: false },
+        structured_outputs: { supported: true },
+        thinking: { supported: true },
+      },
+      display_name: "Local Fixture",
+      id: "local/fixture",
+      max_input_tokens: 8192,
+      max_tokens: 2048,
+      type: "model",
+    })
+  })
+
+  test("fails closed when any aggregate model IDs conflict", async () => {
+    const localConflict = {
+      ...localModel,
+      modelId: "claude-opus-4-6-20260301",
+    }
+    const response = await buildLocalApp(
+      localModelControl([localConflict]),
+    ).request("/v1/models")
+
+    expect(response.status).toBe(409)
+    expect(await response.json()).toEqual({
+      error: {
+        message: "Model catalog contains conflicting model IDs.",
+        type: "model_catalog_conflict",
+      },
+    })
   })
 })

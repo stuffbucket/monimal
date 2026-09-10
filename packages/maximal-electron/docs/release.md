@@ -298,5 +298,4 @@ Deliberately not built. Each is a small, contained addition.
 - **Windows Authenticode.** Deferred organisation-wide. See `docs/signing.md`.
 - **Universal macOS binaries.** Not built here, and untried. `prunePtyPrebuilds`
   in `forge.config.ts` already accepts `universal` and keeps both node-pty
-  prebuilds, and `pruneLlamaBackends` keeps both llama.cpp packages, so the
-  native-module side of it is done.
+  prebuilds, so the native-module side of it is done.

@@ -28,14 +28,6 @@ import {
 } from '../shared/ipc.js';
 
 import { setBadgeCount, showNotification } from './native/notifications.js';
-import {
-  abortAgent,
-  discoverProvider,
-  isAgentBusy,
-  resolveApproval,
-  runAgent,
-} from './native/agent.js';
-import { ensureModel } from './native/llama.js';
 import { getPreferences, setPreferences } from './native/preferences.js';
 import {
   acknowledgePty,
@@ -50,7 +42,6 @@ import {
   writePty,
 } from './native/pty.js';
 import { checkForUpdates } from './native/updates.js';
-import { hideOverlay, toggleOverlay } from './windows/overlay.js';
 import { isSafeExternalUrl } from '../shared/urls.js';
 
 /** A handler for one channel. Types come from the contract, so it cannot drift. */
@@ -139,37 +130,6 @@ const handlers: IpcHandlers = {
     return launchTerminal(window, request);
   },
 
-  'overlay:toggle': () => toggleOverlay(),
-
-  'overlay:hide': () => hideOverlay(),
-
-  'overlay:provider': () => discoverProvider(),
-
-  'overlay:abort': () => abortAgent(),
-
-  'overlay:approve': (request) => resolveApproval(request),
-
-  'overlay:ask': (request, window) => {
-    if (isAgentBusy()) {
-      return { started: false, reason: 'Already working on the previous request.' };
-    }
-
-    // Deliberately not awaited. The reply says only that the run started; the
-    // answer streams back as `agent:*` events, so the renderer is not blocked
-    // for the length of a model call.
-    void runAgent(request.prompt, {
-      onDelta: (text) => sendEvent(window, 'agent:delta', { text }),
-      onTool: (name, phase, isError) =>
-        sendEvent(window, 'agent:tool', { name, phase, isError }),
-      onApproval: (approval) => sendEvent(window, 'agent:approval', approval),
-      onEnd: (result) => sendEvent(window, 'agent:end', result),
-    });
-
-    return { started: true };
-  },
-
-  'model:ensure': (_request, window) =>
-    ensureModel((progress) => sendEvent(window, 'model:progress', progress)),
 };
 
 /**
