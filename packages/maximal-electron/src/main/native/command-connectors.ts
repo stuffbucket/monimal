@@ -31,11 +31,21 @@ export interface DiscoveredTarget {
   label: string;
 }
 
+export interface TmuxProjectionLaunch {
+  terminate: { command: string; args: string[] };
+}
+
+export interface CommandLaunch {
+  command: string;
+  args: string[];
+  tmuxProjection?: TmuxProjectionLaunch;
+}
+
 export interface CommandConnector {
   readonly id: 'docker' | 'podman' | 'lima' | 'multipass' | 'kubernetes' | 'wsl' | 'vagrant' | 'ssh' | 'tmux' | 'ssh-tmux';
   readonly label: string;
   discover(): Promise<DiscoveredTarget[]>;
-  launch(target: DiscoveredTarget): { command: string; args: string[] };
+  launch(target: DiscoveredTarget): CommandLaunch;
 }
 
 const MAX_CONTEXTS = 32;
@@ -309,12 +319,19 @@ export class TmuxConnector implements CommandConnector {
     return targets;
   }
 
-  launch(target: DiscoveredTarget): { command: string; args: string[] } {
+  launch(target: DiscoveredTarget): CommandLaunch {
     const fields = targetFields(target.key, TARGET_FIELDS.tmux);
     if (!fields || (fields[0] === 'new' && !validGeneratedTmuxName(fields[1]))) {
       throw new Error('Invalid tmux target.');
     }
-    return { command: 'tmux', args: ['new-session', '-A', '-s', fields[1]!] };
+    const sessionName = fields[1]!;
+    return {
+      command: 'tmux',
+      args: ['new-session', '-A', '-s', sessionName],
+      tmuxProjection: {
+        terminate: { command: 'tmux', args: ['kill-session', '-t', sessionName] },
+      },
+    };
   }
 }
 
@@ -351,12 +368,20 @@ export class SshTmuxConnector implements CommandConnector {
     return targets;
   }
 
-  launch(target: DiscoveredTarget): { command: string; args: string[] } {
+  launch(target: DiscoveredTarget): CommandLaunch {
     const fields = targetFields(target.key, TARGET_FIELDS.sshTmux);
     if (!fields || (fields[1] === 'new' && !validGeneratedTmuxName(fields[2]))) {
       throw new Error('Invalid SSH tmux target.');
     }
-    return { command: 'ssh', args: ['-tt', fields[0]!, 'tmux', 'new-session', '-A', '-s', fields[2]!] };
+    const alias = fields[0]!;
+    const sessionName = fields[2]!;
+    return {
+      command: 'ssh',
+      args: ['-tt', alias, 'tmux', 'new-session', '-A', '-s', sessionName],
+      tmuxProjection: {
+        terminate: { command: 'ssh', args: [alias, 'tmux', 'kill-session', '-t', sessionName] },
+      },
+    };
   }
 }
 

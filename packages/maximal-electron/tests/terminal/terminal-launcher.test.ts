@@ -147,8 +147,16 @@ describe('command discovery boundaries', () => {
     [new VagrantConnector(async () => ({ stdout: '' })), '11111111-1111-1111-1111-111111111111\u0000machine\u0000provider\u0000/projects/machine', { command: 'vagrant', args: ['ssh', '11111111-1111-1111-1111-111111111111'] }],
     [new KubernetesConnector(async () => ({ stdout: '' })), 'context\u0000namespace\u0000pod\u000011111111-1111-1111-1111-111111111111\u0000container', { command: 'kubectl', args: ['--context', 'context', '--namespace', 'namespace', 'exec', '-it', 'pod', '-c', 'container', '--', '/bin/sh'] }],
     [new SshConnector('/home/ada', () => ''), 'work', { command: 'ssh', args: ['-tt', 'work'] }],
-    [new TmuxConnector(async () => ({ stdout: '' }), () => 'stuffbucket-0123456789abcdef0123456789abcdef'), 'existing\u0000session', { command: 'tmux', args: ['new-session', '-A', '-s', 'session'] }],
-    [new SshTmuxConnector('/home/ada', () => '', async () => ({ stdout: '' }), () => 'stuffbucket-0123456789abcdef0123456789abcdef'), 'work\u0000existing\u0000session', { command: 'ssh', args: ['-tt', 'work', 'tmux', 'new-session', '-A', '-s', 'session'] }],
+    [new TmuxConnector(async () => ({ stdout: '' }), () => 'stuffbucket-0123456789abcdef0123456789abcdef'), 'existing\u0000session', {
+      command: 'tmux',
+      args: ['new-session', '-A', '-s', 'session'],
+      tmuxProjection: { terminate: { command: 'tmux', args: ['kill-session', '-t', 'session'] } },
+    }],
+    [new SshTmuxConnector('/home/ada', () => '', async () => ({ stdout: '' }), () => 'stuffbucket-0123456789abcdef0123456789abcdef'), 'work\u0000existing\u0000session', {
+      command: 'ssh',
+      args: ['-tt', 'work', 'tmux', 'new-session', '-A', '-s', 'session'],
+      tmuxProjection: { terminate: { command: 'ssh', args: ['work', 'tmux', 'kill-session', '-t', 'session'] } },
+    }],
   ] as const)('builds exact argv for %p', (connector, key, expected) => {
     expect(connector.launch({ key, label: 'trusted' })).toEqual(expected);
   });
@@ -571,8 +579,21 @@ describe('TerminalLauncher', () => {
     expect(targets).toHaveLength(129);
     expect(targets[0]).toEqual({ key: 'existing\u0000work', label: 'Tmux session 1' });
     expect(targets.at(-1)).toEqual({ key: 'new\u0000stuffbucket-0123456789abcdef0123456789abcdef', label: 'New tmux session' });
-    expect(connector.launch(targets[0]!)).toEqual({ command: 'tmux', args: ['new-session', '-A', '-s', 'work'] });
-    expect(connector.launch(targets.at(-1)!)).toEqual({ command: 'tmux', args: ['new-session', '-A', '-s', 'stuffbucket-0123456789abcdef0123456789abcdef'] });
+    expect(connector.launch(targets[0]!)).toEqual({
+      command: 'tmux',
+      args: ['new-session', '-A', '-s', 'work'],
+      tmuxProjection: { terminate: { command: 'tmux', args: ['kill-session', '-t', 'work'] } },
+    });
+    expect(connector.launch(targets.at(-1)!)).toEqual({
+      command: 'tmux',
+      args: ['new-session', '-A', '-s', 'stuffbucket-0123456789abcdef0123456789abcdef'],
+      tmuxProjection: {
+        terminate: {
+          command: 'tmux',
+          args: ['kill-session', '-t', 'stuffbucket-0123456789abcdef0123456789abcdef'],
+        },
+      },
+    });
     expect(() => connector.launch({ key: 'existing\u0000name; injected', label: 'bad' })).toThrow();
     expect(() => new TmuxConnector(run, () => 'not-generated').discover()).rejects.toThrow();
   });
@@ -612,8 +633,20 @@ describe('TerminalLauncher', () => {
     expect(targets.some((target) => target.key === `work\u0000existing\u0000remote-work`)).toBe(true);
     expect(targets.some((target) => target.key === `host-0\u0000new\u0000${name}`)).toBe(true);
     expect(targets.some((target) => target.key.startsWith('broken\u0000'))).toBe(false);
-    expect(connector.launch({ key: `work\u0000existing\u0000remote-work`, label: 'Tmux session 1' })).toEqual({ command: 'ssh', args: ['-tt', 'work', 'tmux', 'new-session', '-A', '-s', 'remote-work'] });
-    expect(connector.launch({ key: `work\u0000new\u0000${name}`, label: 'New tmux session' })).toEqual({ command: 'ssh', args: ['-tt', 'work', 'tmux', 'new-session', '-A', '-s', name] });
+    expect(connector.launch({ key: `work\u0000existing\u0000remote-work`, label: 'Tmux session 1' })).toEqual({
+      command: 'ssh',
+      args: ['-tt', 'work', 'tmux', 'new-session', '-A', '-s', 'remote-work'],
+      tmuxProjection: {
+        terminate: { command: 'ssh', args: ['work', 'tmux', 'kill-session', '-t', 'remote-work'] },
+      },
+    });
+    expect(connector.launch({ key: `work\u0000new\u0000${name}`, label: 'New tmux session' })).toEqual({
+      command: 'ssh',
+      args: ['-tt', 'work', 'tmux', 'new-session', '-A', '-s', name],
+      tmuxProjection: {
+        terminate: { command: 'ssh', args: ['work', 'tmux', 'kill-session', '-t', name] },
+      },
+    });
     expect(() => connector.launch({ key: `work;bad\u0000new\u0000${name}`, label: 'bad' })).toThrow();
   });
 

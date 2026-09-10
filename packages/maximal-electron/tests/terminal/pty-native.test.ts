@@ -7,6 +7,16 @@ const state = vi.hoisted(() => ({
     acknowledge: ReturnType<typeof vi.fn>;
   }>,
   throwOnSpawn: false,
+  projectionHosts: [] as Array<{
+    reserve: ReturnType<typeof vi.fn>;
+    attach: ReturnType<typeof vi.fn>;
+    focus: ReturnType<typeof vi.fn>;
+    write: ReturnType<typeof vi.fn>;
+    resize: ReturnType<typeof vi.fn>;
+    terminate: ReturnType<typeof vi.fn>;
+    abandonAll: ReturnType<typeof vi.fn>;
+    sessions: Set<string>;
+  }>,
 }));
 
 vi.mock('electron', () => ({
@@ -31,6 +41,18 @@ vi.mock('../../src/host/terminal-host.js', () => ({
       options.emit('session', 'output', 7);
     }
   },
+  TmuxProjectionHost: class {
+    readonly sessions = new Set<string>();
+    readonly reserve = vi.fn((id: string) => this.sessions.add(id));
+    readonly has = vi.fn((id: string) => this.sessions.has(id));
+    readonly attach = vi.fn(() => true);
+    readonly focus = vi.fn(() => 1);
+    readonly write = vi.fn(() => true);
+    readonly resize = vi.fn(() => true);
+    readonly terminate = vi.fn((id: string) => this.sessions.delete(id));
+    readonly abandonAll = vi.fn(() => this.sessions.clear());
+    constructor() { state.projectionHosts.push(this); }
+  },
 }));
 
 const pty = await import('../../src/main/native/pty.js');
@@ -45,12 +67,23 @@ describe('native pty adapter', () => {
     const window = owner();
     pty.configurePty({ emit, onExit: vi.fn(), onStatus: vi.fn() });
 
-    expect(() => pty.spawnPty(owner(), { id: 'unreserved', cols: 80, rows: 24 })).toThrow('not reserved');
+    expect(() => pty.spawnReservedPty(owner(), { id: 'unreserved', cols: 80, rows: 24 })).toThrow('not reserved');
     pty.launchTerminal(window, { profileId: 'local', cols: 80, rows: 24 });
     pty.acknowledgePty(window, 'session', 7);
 
     expect(emit).toHaveBeenCalledWith(expect.anything(), 'session', 'output', 7);
     expect(state.hosts.at(-1)?.acknowledge).toHaveBeenCalledWith('session', 7);
+  });
+
+  it('opens an unreserved session for a trusted embedder', () => {
+    const window = owner();
+
+    expect(() => pty.spawnPty(window, { id: 'embedder-session', cols: 80, rows: 24 })).not.toThrow();
+    expect(state.hosts.at(-1)?.spawn).toHaveBeenLastCalledWith({
+      id: 'embedder-session',
+      cols: 80,
+      rows: 24,
+    });
   });
 
   it('attaches a view to a session launched for the same owner', () => {
@@ -73,7 +106,7 @@ describe('native pty adapter', () => {
     const window = owner();
 
     expect(() => pty.launchTerminal(window, { profileId: 'local', cols: 80, rows: 24 })).toThrow('connector failed');
-    expect(() => pty.spawnPty(window, { id: 'unknown', cols: 80, rows: 24 })).toThrow('not reserved');
+    expect(() => pty.spawnReservedPty(window, { id: 'unknown', cols: 80, rows: 24 })).toThrow('not reserved');
 
     state.throwOnSpawn = false;
   });

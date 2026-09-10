@@ -117,6 +117,29 @@ export interface PtyResizeRequest {
   rows: number;
 }
 
+export interface PtyProjectionRequest {
+  id: string;
+  projectionId: string;
+}
+
+export interface PtyProjectionAttachRequest extends PtyProjectionRequest {
+  cols: number;
+  rows: number;
+}
+
+export interface PtyProjectionControlRequest extends PtyProjectionRequest {
+  epoch: number;
+}
+
+export interface PtyProjectionWriteRequest extends PtyProjectionControlRequest {
+  data: string;
+}
+
+export interface PtyProjectionResizeRequest extends PtyProjectionControlRequest {
+  cols: number;
+  rows: number;
+}
+
 /** A renderer-visible terminal profile, with no executable configuration. */
 export interface TerminalProfileSummary {
   id: string;
@@ -184,6 +207,41 @@ export function isPtyResizeRequest(value: unknown): value is PtyResizeRequest {
   return isRecord(value)
     && hasOnly(value, ['id', 'cols', 'rows'])
     && typeof value.id === 'string'
+    && isDimension(value.cols)
+    && isDimension(value.rows);
+}
+
+export function isPtyProjectionRequest(value: unknown): value is PtyProjectionRequest {
+  return isRecord(value)
+    && hasOnly(value, ['id', 'projectionId'])
+    && typeof value.id === 'string'
+    && typeof value.projectionId === 'string';
+}
+
+export function isPtyProjectionAttachRequest(value: unknown): value is PtyProjectionAttachRequest {
+  return isRecord(value)
+    && hasOnly(value, ['id', 'projectionId', 'cols', 'rows'])
+    && typeof value.id === 'string'
+    && typeof value.projectionId === 'string'
+    && isDimension(value.cols)
+    && isDimension(value.rows);
+}
+
+export function isPtyProjectionWriteRequest(value: unknown): value is PtyProjectionWriteRequest {
+  return isRecord(value)
+    && hasOnly(value, ['id', 'projectionId', 'epoch', 'data'])
+    && typeof value.id === 'string'
+    && typeof value.projectionId === 'string'
+    && isDimension(value.epoch)
+    && typeof value.data === 'string';
+}
+
+export function isPtyProjectionResizeRequest(value: unknown): value is PtyProjectionResizeRequest {
+  return isRecord(value)
+    && hasOnly(value, ['id', 'projectionId', 'epoch', 'cols', 'rows'])
+    && typeof value.id === 'string'
+    && typeof value.projectionId === 'string'
+    && isDimension(value.epoch)
     && isDimension(value.cols)
     && isDimension(value.rows);
 }
@@ -311,6 +369,11 @@ export interface IpcContract {
   'pty:kill': { request: { id: string }; response: void };
   /** Every live session for this window, so a detached one can be found again. */
   'pty:list': { request: void; response: PtySession[] };
+  'pty:projection-attach': { request: PtyProjectionAttachRequest; response: boolean };
+  'pty:projection-focus': { request: PtyProjectionAttachRequest; response: number | undefined };
+  'pty:projection-write': { request: PtyProjectionWriteRequest; response: boolean };
+  'pty:projection-resize': { request: PtyProjectionResizeRequest; response: boolean };
+  'pty:projection-detach': { request: PtyProjectionRequest; response: boolean };
   'pty:default-shell': { request: void; response: string };
 
   // App terminal launcher. These requests contain identifiers only; executable
@@ -360,6 +423,11 @@ export const IPC_CHANNELS = [
   'pty:ack',
   'pty:kill',
   'pty:list',
+  'pty:projection-attach',
+  'pty:projection-focus',
+  'pty:projection-write',
+  'pty:projection-resize',
+  'pty:projection-detach',
   'pty:default-shell',
   'terminal:profiles',
   'terminal:discover',
@@ -387,9 +455,9 @@ export interface IpcEvents {
   'prefs:changed': Preferences;
 
   /** A batch of terminal output for one opaque terminal session. */
-  'pty:data': { id: string; data: string; sequence?: number };
+  'pty:data': { id: string; data: string; sequence?: number; projectionId?: string };
   /** That terminal session's shell ended. */
-  'pty:exit': { id: string; exitCode: number };
+  'pty:exit': { id: string; exitCode: number; projectionId?: string };
   /** A terminal session started or its current process exited. */
   'pty:status': PtyStatus;
 

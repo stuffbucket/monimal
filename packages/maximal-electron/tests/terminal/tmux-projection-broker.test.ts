@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   TmuxProjectionBroker,
@@ -167,5 +167,22 @@ describe('TmuxProjectionBroker', () => {
     owner.exit(0);
     broker.attach({ sessionId: 'work', projectionId: 'owner', cols: 80, rows: 24 });
     expect(broker.focus('work', 'owner', 80, 24)).toBe(3);
+  });
+
+  it('abandons client projections without terminating the tmux session', () => {
+    const wire = processWire();
+    const terminateSession = vi.fn();
+    const broker = new TmuxProjectionBroker({
+      attach: () => wire.process,
+      terminateSession,
+      emit: () => undefined,
+      onExit: () => undefined,
+    });
+    broker.attach({ sessionId: 'work', projectionId: 'left', cols: 80, rows: 24 });
+
+    expect(broker.abandon('work')).toBe(true);
+    expect(wire.calls).toEqual(['kill']);
+    expect(terminateSession).not.toHaveBeenCalled();
+    expect(broker.abandon('work')).toBe(false);
   });
 });

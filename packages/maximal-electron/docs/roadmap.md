@@ -19,9 +19,10 @@ Working. Configurable xterm.js or wterm/libghostty in the renderer, with
   `tests/terminal/terminal-host.test.ts` and `e2e/terminal-window.spec.ts` skip on
   Windows.
 - No tab-level working directory. Every shell starts in the home directory.
-- `TmuxProjectionBroker` is exported and proven against two real tmux clients,
-  but the reference IPC contract does not yet carry projection identity or
-  focus epochs. Issue #108 owns that wiring.
+- `TmuxProjectionBroker` and `TmuxProjectionHost` are exported and proven
+  against fake and real tmux clients. The reference IPC contract carries
+  projection identity and focus epochs. A renderer command for duplicating a
+  terminal view remains outside issue #108.
 
 ## The overlay
 

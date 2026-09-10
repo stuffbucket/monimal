@@ -121,6 +121,14 @@ export class TmuxProjectionBroker {
     return true;
   }
 
+  abandon(sessionId: string): boolean {
+    const session = this.sessions.get(sessionId);
+    if (!session) return false;
+    this.sessions.delete(sessionId);
+    for (const projection of session.projections.values()) projection.process.kill();
+    return true;
+  }
+
   geometry(sessionId: string): { cols: number; rows: number } | undefined {
     const session = this.sessions.get(sessionId);
     return session ? { cols: session.cols, rows: session.rows } : undefined;

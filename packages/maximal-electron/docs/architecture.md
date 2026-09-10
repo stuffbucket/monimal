@@ -219,9 +219,12 @@ session terminator.
 The broker takes process creation and session termination as callbacks. A
 consumer may attach local tmux, SSH plus tmux, or another connector without
 putting command construction in the renderer. Tmux control mode stays on a
-separate host-only connection. The reference Electron IPC contract does not
-yet carry projection identity or focus epochs, so its existing tmux profiles
-still attach one client per terminal view. Issue #108 owns that wiring.
+separate host-only connection. `TmuxProjectionHost` retains the trusted attach
+and termination commands for the reference Electron host. The
+`pty:projection-*` channels carry opaque session and projection ids plus the
+focus epoch. Attach, focus, write, resize, and detach stay separate so stale
+input cannot become current merely by arriving later. Existing `pty:*` calls
+remain the compatibility path and drive the first projection of a tmux launch.
 
 The connector is mutation tested through `command-connectors.ts`. Command-backed
 sessions are ephemeral and non-reconnectable:

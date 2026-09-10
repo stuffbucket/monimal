@@ -1,68 +1,76 @@
-import { randomBytes } from 'node:crypto';
-import { execFileSync, spawnSync } from 'node:child_process';
-import { homedir } from 'node:os';
+import { afterEach, describe, expect, it } from 'vitest';
 
-import { describe, expect, it } from 'vitest';
-
-import {
-  LocalPtyConnector,
-  TmuxProjectionBroker,
-} from '../../src/host/terminal-host.js';
+import { TmuxProjectionHarness } from './tmux-projection-harness.js';
 
 const ENABLED = process.env['RUN_TMUX_INTEGRATION'] === '1' && process.platform !== 'win32';
 
-async function until(predicate: () => boolean): Promise<void> {
-  const deadline = Date.now() + 5_000;
-  while (!predicate()) {
-    if (Date.now() >= deadline) throw new Error('Timed out waiting for tmux output.');
-    await new Promise((resolve) => setTimeout(resolve, 20));
-  }
-}
-
 describe.skipIf(!ENABLED)('tmux projection integration', () => {
+  let harness: TmuxProjectionHarness | undefined;
+
+  afterEach(() => harness?.close());
+
   it('keeps one pane alive across two real client PTYs and one detach', async () => {
-    const socket = `stuffbucket-test-${String(process.pid)}-${randomBytes(4).toString('hex')}`;
-    const sessionId = 'shared';
-    const output = new Map<string, string>();
-    const connector = new LocalPtyConnector();
+    harness = new TmuxProjectionHarness();
+    expect(harness.attach('left')).toBe(true);
+    const leftEpoch = harness.focus('left');
+    expect(harness.write('left', leftEpoch, "printf 'first-marker\n'\r")).toBe(true);
+    await harness.untilOutput('left', 'first-marker');
 
-    execFileSync('tmux', ['-L', socket, 'new-session', '-d', '-s', sessionId]);
-    try {
-      const broker = new TmuxProjectionBroker({
-        attach: ({ cols, rows }) => connector.connect({
-          command: 'tmux',
-          args: ['-L', socket, 'attach-session', '-t', sessionId],
-          name: 'xterm-256color',
-          cols,
-          rows,
-          cwd: homedir(),
-          env: { ...process.env, TERM: 'xterm-256color' } as Record<string, string>,
-        }),
-        terminateSession: () => {
-          spawnSync('tmux', ['-L', socket, 'kill-session', '-t', sessionId]);
-        },
-        emit: (_sessionId, projectionId, chunk) => {
-          output.set(projectionId, (output.get(projectionId) ?? '') + chunk);
-        },
-        onExit: () => undefined,
-      });
+    expect(harness.attach('right', 120, 40)).toBe(true);
+    await harness.untilOutput('right', 'first-marker');
+    const rightEpoch = harness.focus('right', 100, 30);
+    expect(harness.detach('left')).toBe(true);
+    expect(harness.write('right', rightEpoch, "printf 'second-marker\n'\r")).toBe(true);
+    await harness.untilOutput('right', 'second-marker');
 
-      expect(broker.attach({ sessionId, projectionId: 'left', cols: 80, rows: 24 })).toBe(true);
-      const leftEpoch = broker.focus(sessionId, 'left', 80, 24)!;
-      expect(broker.write(sessionId, 'left', leftEpoch, "printf 'first-marker\\n'\r")).toBe(true);
-      await until(() => output.get('left')?.includes('first-marker') === true);
+    expect(harness.geometry()).toEqual({ cols: 100, rows: 30 });
+  });
 
-      expect(broker.attach({ sessionId, projectionId: 'right', cols: 120, rows: 40 })).toBe(true);
-      await until(() => output.get('right')?.includes('first-marker') === true);
-      const rightEpoch = broker.focus(sessionId, 'right', 100, 30)!;
-      expect(broker.detach(sessionId, 'left')).toBe(true);
-      expect(broker.write(sessionId, 'right', rightEpoch, "printf 'second-marker\\n'\r")).toBe(true);
-      await until(() => output.get('right')?.includes('second-marker') === true);
+  it('reattaches during output without stalling an unobserved peer', async () => {
+    harness = new TmuxProjectionHarness();
+    harness.attach('observer');
+    harness.attach('writer');
+    const epoch = harness.focus('writer');
+    harness.write('writer', epoch, "i=1; while [ $i -le 30 ]; do printf 'stream-%02d\\n' $i; i=$((i+1)); sleep 0.03; done\r");
+    await harness.untilOutput('writer', 'stream-05');
 
-      expect(broker.geometry(sessionId)).toEqual({ cols: 100, rows: 30 });
-      expect(broker.terminate(sessionId)).toBe(true);
-    } finally {
-      spawnSync('tmux', ['-L', socket, 'kill-server']);
-    }
+    expect(harness.detach('observer')).toBe(true);
+    expect(harness.attach('observer')).toBe(true);
+    await harness.untilOutput('observer', 'stream-30');
+    await harness.untilOutput('writer', 'stream-30');
+  });
+
+  it('delivers output before shell exit to every attached projection', async () => {
+    harness = new TmuxProjectionHarness();
+    harness.attach('left');
+    harness.attach('right');
+    const epoch = harness.focus('left');
+    harness.write('left', epoch, "printf 'before-exit\\n'; exit\r");
+
+    await harness.untilOutput('left', 'before-exit');
+    await harness.untilOutput('right', 'before-exit');
+    await harness.untilExit('left');
+    await harness.untilExit('right');
+    expect(harness.exitCode('left')).toBe(0);
+    expect(harness.exitCode('right')).toBe(0);
+  });
+
+  it('preserves Unicode cell width, alternate screen, queries, and passthrough bytes', async () => {
+    harness = new TmuxProjectionHarness();
+    harness.attach('left');
+    harness.attach('right');
+    const epoch = harness.focus('left');
+    harness.write('left', epoch, "printf '\\033[2J\\033[H界X\\033[6n\\033[?1049hALT-界\\033Ptmux;\\033\\033]52;c;cGFzc3Rocm91Z2g=\\007\\033\\\\'; sleep 2\r");
+
+    await harness.untilPane('#{alternate_on}', '1');
+    await harness.untilOutput('left', 'ALT-界');
+    await harness.untilOutput('right', 'ALT-界');
+    await harness.untilOutput('left', 'cGFzc3Rocm91Z2g=');
+    expect(harness.output('left')).toMatch(/\^\[\[\d+;\d+R/);
+
+    harness.write('left', epoch, '\x03');
+    harness.write('left', epoch, "printf '\\033[?1049l\\033[2J\\033[H界X'; sleep 2\r");
+    await harness.untilPane('#{alternate_on}', '0');
+    await harness.untilPane('#{cursor_x}', '3');
   });
 });

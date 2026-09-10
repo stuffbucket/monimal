@@ -55,7 +55,10 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
  *
  * 2200 to 2292 is `TmuxProjectionBroker` from issue #108. It owns focus
  * epochs, canonical geometry and projection lifecycle around tmux clients.
- */export const MUTANT_FLOOR = 2292;
+ *
+ * 2292 to 2337 adds owner-loss cleanup to `TmuxProjectionBroker` and adds
+ * `TmuxProjectionHost`, which binds trusted commands to the broker.
+ */export const MUTANT_FLOOR = 2337;
 
 /**
  * `// Stryker disable` suppressions, counted in mutants rather than comments

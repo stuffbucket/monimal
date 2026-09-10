@@ -183,8 +183,8 @@ function bootstrap(): void {
   // reach a window. It has no Electron import of its own, and it addresses the
   // window that owns the session rather than whichever one is current.
   configurePty({
-    emit: (owner, id, data, sequence) => sendEvent(owner, 'pty:data', { id, data, sequence }),
-    onExit: (owner, id, exitCode) => sendEvent(owner, 'pty:exit', { id, exitCode }),
+    emit: (owner, id, data, sequence, projectionId) => sendEvent(owner, 'pty:data', { id, data, sequence, projectionId }),
+    onExit: (owner, id, exitCode, projectionId) => sendEvent(owner, 'pty:exit', { id, exitCode, projectionId }),
     onStatus: (owner, status) => sendEvent(owner, 'pty:status', status),
   });
 
