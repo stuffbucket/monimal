@@ -1,6 +1,7 @@
 import path from 'node:path';
 
 import type { ElectronApplication, Page } from '@playwright/test';
+import type { BrowserWindow } from 'electron';
 
 import { clearCaption, renderCard, type CaptionPlacement } from './caption.js';
 import { OUTPUT_HEIGHT, OUTPUT_WIDTH, OUTPUT_FPS, SETTLE_SECONDS } from './edit.js';
@@ -115,7 +116,7 @@ async function resizeShell(
   // Keep the position. A quiet run has already moved the window out of the
   // user's way, and putting it back would hijack the desktop for a minute.
   await handle.evaluate(
-    (win, size) => {
+    (win: BrowserWindow, size) => {
       const bounds = win.getBounds();
       win.setBounds({ x: bounds.x, y: bounds.y, ...size });
     },

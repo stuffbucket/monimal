@@ -12,11 +12,6 @@ import {
   publishMutationReport,
   resolveMutationTargets,
 } from "../scripts/docker-mutate.mjs";
-import {
-  publishTurboBuildCache,
-  readTurboBuildGraph,
-  selectTurboCacheHashes,
-} from "../scripts/copy-turbo-build-cache.mjs";
 import { parseDockerWorkspaceOptions } from "../scripts/docker-workspace-test.mjs";
 import {
   buildDockerArguments,
@@ -1014,126 +1009,6 @@ test("the macOS producer bootstraps pnpm from the committed locked artifact", ()
   assert.match(producer, /\[ "\$HAVE_PNPM" = "\$PNPM_VERSION" \]/);
 });
 
-test("Turbo replay cache selects only cacheable executable task hashes", () => {
-  const hash = "a".repeat(16);
-  const cacheable = {
-    hash,
-    command: "node build.mjs",
-    resolvedTaskDefinition: { cache: true },
-  };
-  assert.deepEqual(
-    selectTurboCacheHashes({
-      tasks: [
-        cacheable,
-        { ...cacheable },
-        {
-          hash: "not-selected",
-          command: "node build.mjs",
-          resolvedTaskDefinition: { cache: false },
-        },
-        {
-          hash: "not-selected",
-          command: "<NONEXISTENT>",
-          resolvedTaskDefinition: { cache: true },
-        },
-      ],
-    }),
-    [hash],
-  );
-  assert.throws(() => selectTurboCacheHashes({ tasks: [] }), /has no tasks/);
-  assert.throws(
-    () =>
-      selectTurboCacheHashes({
-        tasks: [{ ...cacheable, hash: "invalid" }],
-      }),
-    /Invalid Turbo task hash/,
-  );
-  assert.throws(
-    () => selectTurboCacheHashes({ tasks: [{ hash }] }),
-    /malformed task/,
-  );
-});
-
-test("Turbo build graph is read from a pre-build snapshot", () => {
-  const directory = fs.mkdtempSync(
-    path.join(os.tmpdir(), "monimal-turbo-graph-"),
-  );
-  const reportPath = path.join(directory, "graph.json");
-  const report = {
-    tasks: [
-      {
-        hash: "a".repeat(16),
-        command: "node build.mjs",
-        resolvedTaskDefinition: { cache: true },
-      },
-    ],
-  };
-
-  try {
-    fs.writeFileSync(reportPath, JSON.stringify(report));
-    assert.deepEqual(readTurboBuildGraph(reportPath), report);
-    fs.writeFileSync(reportPath, "not JSON");
-    assert.throws(() => readTurboBuildGraph(reportPath), /invalid JSON/);
-    fs.rmSync(reportPath);
-    assert.throws(() => readTurboBuildGraph(reportPath), /could not be read/);
-  } finally {
-    fs.rmSync(directory, { recursive: true, force: true });
-  }
-});
-
-test("Turbo replay cache publication is selective and transactional", () => {
-  const directory = fs.mkdtempSync(
-    path.join(os.tmpdir(), "monimal-turbo-cache-"),
-  );
-  const source = path.join(directory, "source");
-  const destination = path.join(directory, "destination");
-  const suffixes = [".tar.zst", "-meta.json", "-manifest.json"];
-  const hash = "b".repeat(16);
-  const staleHash = "c".repeat(16);
-  const report = {
-    tasks: [
-      {
-        hash,
-        command: "node build.mjs",
-        resolvedTaskDefinition: { cache: true },
-      },
-    ],
-  };
-
-  try {
-    fs.mkdirSync(source);
-    fs.mkdirSync(destination);
-    fs.writeFileSync(path.join(destination, "stale.txt"), "previous\n");
-    for (const suffix of suffixes) {
-      fs.writeFileSync(path.join(source, `${hash}${suffix}`), `${suffix}\n`);
-      fs.writeFileSync(
-        path.join(source, `${staleHash}${suffix}`),
-        `stale ${suffix}\n`,
-      );
-    }
-
-    assert.deepEqual(publishTurboBuildCache(report, source, destination), [
-      hash,
-    ]);
-    assert.deepEqual(
-      fs.readdirSync(destination).sort(),
-      suffixes.map((suffix) => `${hash}${suffix}`).sort(),
-    );
-
-    fs.rmSync(path.join(source, `${hash}-manifest.json`));
-    assert.throws(
-      () => publishTurboBuildCache(report, source, destination),
-      /Turbo cache artifact is missing/,
-    );
-    assert.deepEqual(
-      fs.readdirSync(destination).sort(),
-      [`${hash}.tar.zst`, `${hash}-meta.json`, `${hash}-manifest.json`].sort(),
-    );
-  } finally {
-    fs.rmSync(directory, { recursive: true, force: true });
-  }
-});
-
 test("the build context excludes local state but retains source fixtures", () => {
   const patterns = read(".dockerignore")
     .split(/\r?\n/)
@@ -1238,7 +1113,7 @@ test("the reusable Docker dependency image includes every workspace manifest", (
   assert.doesNotMatch(dockerfile, /COPY --chown=maximal:maximal \. \./);
   assert.doesNotMatch(
     dockerfile,
-    /GIT_SHA|turbo run build|copy-turbo-build-cache/,
+    /GIT_SHA|turbo run build/,
   );
   const pnpmStoreMount =
     "--mount=type=cache,id=maximal-pnpm-${TARGETARCH},target=/workspace/.pnpm-store,uid=10001,gid=10001,sharing=locked";

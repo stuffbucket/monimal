@@ -242,7 +242,10 @@ function textStream(text: string): string {
 
 async function listen(): Promise<Endpoint> {
   const requests: Endpoint["requests"] = []
-  const server = http.createServer(async (request, response) => {
+  const handleRequest = async (
+    request: http.IncomingMessage,
+    response: http.ServerResponse,
+  ): Promise<void> => {
     if (request.method === "GET" && request.url === "/v1/models") {
       requests.push({
         authorization: request.headers.authorization,
@@ -277,6 +280,15 @@ async function listen(): Promise<Endpoint> {
     }
     response.writeHead(404)
     response.end()
+  }
+  const server = http.createServer((request, response) => {
+    void handleRequest(request, response).catch((error: unknown) => {
+      response.destroy(
+        error instanceof Error ? error : (
+          new TypeError("The oMLX fixture request failed.")
+        ),
+      )
+    })
   })
   server.listen(0, "127.0.0.1")
   await once(server, "listening")

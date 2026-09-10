@@ -145,13 +145,16 @@ check(ptyLoads, `node-pty loads on this node ABI (${process.version})`, {
 });
 
 // 5. The `overrides` block moved out of package.json's `pnpm` field, which
-//    pnpm 11 ignores. @stuffbucket/eslint-config now declares prettier at
-//    3.8.3 directly, but the override still matters: it also pins the copies
-//    that arrive transitively, which a declaration cannot reach. 3.9.6
-//    reformats unions into lint errors across untouched files.
+//    pnpm 11 ignores. @stuffbucket/eslint-config declares prettier directly,
+//    but the override still matters: it also pins the copies that arrive
+//    transitively, which a declaration cannot reach. Compare the installed
+//    version to that declaration so an intentional formatter upgrade does not
+//    require another version fact here.
+const prettierVersion = manifestAt(ROOT, "packages/eslint-config")?.dependencies
+  ?.prettier;
 check(
   JSON.parse(readFileSync(require.resolve("prettier/package.json"), "utf8"))
-    .version === "3.8.3",
+    .version === prettierVersion,
   "the prettier override is in effect",
   { count: 1, of: "overrides" },
 );

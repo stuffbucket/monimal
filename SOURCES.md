@@ -247,9 +247,8 @@ package provenance or publisher identity -- the proxy does that.
   links to it rather than restating it.
 - `maximal/client`: was on `typescript ^7.0.2` with `@babel/eslint-parser` and
   no typescript-eslint. bb12eaf moved the workspace to one TypeScript, so it
-  now lints through `@stuffbucket/eslint-config/typescript` like every other
-  package. Type-aware rules stay off pending 38 findings; that is a scoped
-  task, not a blocked upgrade, and it is step 4 of `client/README.md`.
+  now lints through the type-aware recommended profile in
+  `@stuffbucket/eslint-config/typescript`.
 - `maximal/client` and `maximal-electron`: renamed `vitest.config.ts` to
   `vitest.config.mts`. Both packages are CommonJS at their package boundary,
   while their Vitest configs use ESM syntax; the explicit extension keeps Vite
@@ -271,13 +270,6 @@ package provenance or publisher identity -- the proxy does that.
   a fixed 1300ms against a 1s flush interval and unlinked its own log file,
   which strands the cached `WriteStream` in `platform/logger.ts` on a deleted
   inode. Both tests then failed on every re-run in the same process.
-- `maximal-core`: `@hono/zod-openapi` pinned to `1.5.0`. 1.5.2 changes an
-  inferred type and fails `tests/setup-status-openapi.test.ts`.
-- Root: `prettier` pinned to `3.8.3` via `overrides` in `pnpm-workspace.yaml`.
-  3.9.6 reformats unions and turns untouched files into lint errors.
-  `@stuffbucket/eslint-config` declares it at that exact version, so overrides
-  is no longer the only lever; it stays because it also pins the copies that
-  arrive transitively, which a declaration cannot reach.
 - `maximal` and `maximal-core`: git hooks taken off the install path and
   `simple-git-hooks` dropped. Two packages installing competing hooks into one
   `.git` is wrong.
@@ -288,17 +280,9 @@ package provenance or publisher identity -- the proxy does that.
   `.npmrc` carries 7.3.5 and then 8.x, never 7.3.6, so the pinned version cannot
   be installed at all. Every dependent already accepts vite 8 as a peer, and
   `maximal/client` was on `^8.2.1` already.
-- `maximal/site`: `astro` and `@astrojs/markdown-remark` moved from `^7.2.2` to
-  `^7.2.1`. The registry's newest Astro is 7.2.1, so this walks back the
-  Dependabot bump in 33c4a5f for as long as that gap persists.
 - `maximal/site`: added to the root pnpm workspace and root lockfile. Its Astro
   build is package-manager-neutral; the separate Bun install, lockfile,
   registry file, Dependabot entry, and CI path duplicated workspace machinery.
-- Root: `packageManager` moved to `pnpm@11.17.0`, and `mise.toml` / `mise.lock`
-  pin the same version locally so pnpm never has to switch versions to satisfy
-  the field. mise verifies GitHub artifact attestations and records a per-
-  platform checksum, which is the only content pin available here: the registry
-  publishes no signatures, no attestations, and only a SHA-1 shasum.
 - Root: `pnpm.overrides` and `pnpm.onlyBuiltDependencies` moved out of
   `package.json` into `pnpm-workspace.yaml`, the latter renamed to `allowBuilds`
   and reshaped from a list to a map. Under pnpm 11 the old spellings are ignored
@@ -314,9 +298,9 @@ package provenance or publisher identity -- the proxy does that.
   subdependency (`blockExoticSubdeps`, on by default). The committed lockfile
   is grandfathered, so installs worked while every re-resolution failed — which
   would have hit the first dependabot PR rather than anything a human ran.
-- `maximal-electron`: dropped its `packageManager` field. It pinned pnpm
-  10.20.0 against the root's 11.17.0, and a second declaration implies a pinning
-  that is not in effect.
+- `maximal-electron`: dropped its `packageManager` field. The root owns the
+  workspace package-manager version; a second declaration implies a pin that is
+  not in effect.
 - All packages: `engines.node` moved to `>=24` and `.nvmrc` to 24, replacing 22.
   24 is Active LTS where 26 is still Current, and it clears the floor ESLint 10
   will need (`^20.19 || ^22.13 || >=24`) if that ever unblocks. `maximal/client`
@@ -349,6 +333,3 @@ cleared; the Deviations section records what replaced it.
 `node_modules`, build output, `reports`, `.claude/worktrees`, per-package
 lockfiles, and maximal-electron's recorded demo media. The `.json` files under
 `demo/` are kept — `tests/docs-claims.test.ts` references them.
-
-The Tauri shell and `maximal/src` are absent because upstream deleted them
-(maximal#442), not because the copy excluded them.

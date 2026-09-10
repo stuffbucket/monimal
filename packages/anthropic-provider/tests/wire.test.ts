@@ -36,8 +36,7 @@ test("sends exact Messages requests and both supported auth forms", async () => 
       requests.push({
         accept: request.headers.accept,
         anthropicVersion: request.headers["anthropic-version"] as
-          | string
-          | undefined,
+          string | undefined,
         authorization: request.headers.authorization,
         body: await readJson(request),
         contentType: request.headers["content-type"],

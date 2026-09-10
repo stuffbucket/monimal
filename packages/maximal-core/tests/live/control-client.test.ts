@@ -15,7 +15,7 @@ import { createControlRoutes } from "~/routes/control/route"
 // fetch-based client exercises the actual HTTP + SSE path end to end.
 function serve(hub: ControlHub<ControlSnapshot>): {
   baseUrl: string
-  stop: () => void
+  stop: () => Promise<void>
 } {
   const app = new Hono()
   app.route(
@@ -38,9 +38,9 @@ function snapshotHub(
   })
 }
 
-const teardowns: Array<() => void> = []
-afterEach(() => {
-  for (const t of teardowns.splice(0)) t()
+const teardowns: Array<() => Promise<void> | void> = []
+afterEach(async () => {
+  for (const teardown of teardowns.splice(0)) await teardown()
 })
 
 /** Resolve once a state satisfying `pred` is observed. */
@@ -66,7 +66,7 @@ describe("ControlClient", () => {
     teardowns.push(() => {
       client.close()
       hub.dispose()
-      stop()
+      return stop()
     })
 
     const seeded = waitForState(client, (s) => s.auth !== undefined)
@@ -83,7 +83,7 @@ describe("ControlClient", () => {
     teardowns.push(() => {
       client.close()
       hub.dispose()
-      stop()
+      return stop()
     })
 
     void client.connect()
@@ -109,7 +109,7 @@ describe("ControlClient", () => {
     const client = new ControlClient({ baseUrl })
     teardowns.push(() => {
       hub.dispose()
-      stop()
+      return stop()
     })
 
     expect(await client.getAuth()).toHaveProperty("state")
@@ -167,7 +167,7 @@ describe("ControlClient protocol version header", () => {
     const client = new ControlClient({ baseUrl })
     teardowns.push(() => {
       hub.dispose()
-      stop()
+      return stop()
     })
 
     // A stamp the server rejects would come back as `unsupported_version`

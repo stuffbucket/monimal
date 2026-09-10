@@ -191,7 +191,7 @@ describe('the rule that reports copy in the editor', () => {
     const linter = new Linter();
     return linter
       .verify(code, {
-        plugins: { shell: shell as never },
+        plugins: { shell: shell },
         rules: { 'shell/content': 'error' },
         languageOptions: { parserOptions: { ecmaFeatures: { jsx: true } } },
       })
