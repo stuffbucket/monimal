@@ -22,9 +22,9 @@ is far quicker.
 ```bash
 npm run package                     # the recorder drives .vite/, not the package
 npm run record                      # capture and cut every timeline
-npm run record -- --grep workflow   # one of them
+npm run record -- --grep pipeline-check   # one of them
 
-npm run compose -- workflow         # re-cut from frames already captured
+npm run compose -- pipeline-check         # re-cut from frames already captured
 ```
 
 **Reach for `compose` first.** Changing a hold, an order, a freeze, or a card is
@@ -74,8 +74,8 @@ Five rules, in the order they catch people:
    which survives the next capture being slower.
 3. **Do not lower a pacing constant to fit.** Cut a clip instead.
    `MIN_HOLD_SECONDS` is 5 because 2.5 read as a slideshow.
-4. **Move the card to the top** when the page draws along its bottom edge. The
-   overlay does. Pass `caption: 'top'`.
+4. **Move the card to the top** when the page draws along its bottom edge.
+   Pass `caption: 'top'`.
 5. **Set `target`** when the sequence records a window other than the shell. It
    runs before the clock starts, so setup stays out of the video.
 
@@ -83,8 +83,8 @@ Five rules, in the order they catch people:
 
 Copy an existing `*.demo.ts`. Keep three things:
 
-- `launchDemoApp()` from `./launch.js`, so the theme and the profile start from
-  a known state.
+- A launch helper that sets a known state: `launchApp()` for the product shell,
+  or `launchDemoApp()` from `./launch.js` when the timeline needs the fixture.
 - `closeApp(harness)` from `../harness.js`, **not** `app.close()`. A crash
   during teardown lands after the last frame, and a plain close reports a clean
   recording over a process that aborted.
@@ -112,7 +112,7 @@ codec. That is not enough on its own.
 **Watch the result.** Or pull frames at the moments that matter:
 
 ```bash
-ffmpeg -ss 44 -i demo/stuffbucket-workflow.mp4 -frames:v 1 /tmp/at-44.png
+ffmpeg -ss 20 -i demo/pipeline-check.mp4 -frames:v 1 /tmp/at-20.png
 ```
 
 A green run with a video that shows the wrong thing is the failure mode here.

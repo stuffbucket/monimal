@@ -20,10 +20,8 @@ import { packageStylesheets } from '../scripts/shell-variables.mjs';
  * That is the mechanism behind the twenty-nine divergent
  * `var(--shell-*, literal)` sites measured in `packages/maximal/client`.
  *
- * So a colour falls back to a `var()`, and a size falls back to a number. The
- * second half is not an oversight: `structure.css` ships the structural ramp
- * with values on purpose, because a consumer is not expected to define a
- * spacing scale, and a literal is what "ships with a value" means.
+ * Structural sizes do not appear here. `shell-structural-tokens.css` owns their
+ * values, and package rules inherit them without a second fallback value.
  */
 
 /** The one colour that is not the palette's, and the reason. */
@@ -81,17 +79,6 @@ describe('what a shipped rule falls back to', () => {
   });
 
   it('names no colour at all', () => {
-    /*
-     * The package's central claim, as one assertion. `structure.css` shipped
-     * `--shell-input-border: var(--shell-border-strong, var(--shell-border,
-     * #2a2a2a))` — one transcribed swatch, three levels down a fallback chain,
-     * in the file added to end exactly this. It rendered correctly here and
-     * drew a grey border for any consumer whose palette had none.
-     *
-     * The inner fallback was also pointless: `--shell-border` is a required
-     * token, so a consumer defines it or nothing in the stylesheet has a
-     * border anyway.
-     */
     const comments = /\/\*[\s\S]*?\*\//g;
     expect(css.replaceAll(comments, '').match(/#[0-9a-f]{3,8}\b/gi) ?? []).toEqual([]);
   });
@@ -119,7 +106,7 @@ describe('what a shipped rule falls back to', () => {
      * one rule. A consumer is not expected to define a spacing ramp or a
      * corner radius, so those ship with numbers — and a size that fell back to
      * a `var()` would be a size with no value anywhere, which is the defect
-     * its sibling `structure-tokens.test.ts` exists for.
+     * its sibling `shell-structural-tokens.test.ts` exists for.
      */
     const structural = [...found].filter(
       ([, value]) => /^\d/.test(value) || value === 'none' || value === 'fixed',

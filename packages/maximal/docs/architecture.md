@@ -13,17 +13,17 @@ this document deliberately does not mirror it, because the mirrored copy drifted
 badly enough to be worse than no copy at all.
 
 `src/` was removed in #442 and now contains only the composition that joins
-Core's public startup seam to the optional generic DSH provider host. It must not
-acquire routes, provider implementations, or engine policy.
+Core's public startup seam to the optional generic DSH provider host and the
+statically linked first-party configurator runtime. It must not acquire routes,
+provider implementations, or engine policy.
 
 ## What lives where
 
 | Path                     | Purpose                                                                                                                                                                                    |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `src/`                   | Packaging composition only: invokes Core's real CLI and supplies a lazy, contract-shaped provider gateway. Concrete providers never live here.                                             |
+| `src/`                   | Packaging composition only: invokes Core's real CLI and supplies a lazy, contract-shaped provider gateway plus the built-in configurator runtime. Concrete providers never live here.     |
 | `client/`                | Electron 43 + React 19 + TypeScript + Vite desktop app. Compiles the same composition into its `maximal-core` sidecar via `client/scripts/build-core.ts`.                                  |
-| `site/`                  | Astro website, deployed to GitHub Pages. **Deploys are currently frozen** — see _Site and Pages_ below.                                                                                    |
-| `scripts/`               | Release and packaging tooling: `sync-homebrew-formula.ts`, `write-updates-manifest.ts`, `sbom.ts`, `secret-scan.sh`, plus `scripts/dev/verify-build.ts`.                                   |
+| `scripts/`               | Release and packaging tooling: `sync-homebrew-formula.ts`, `sbom.ts`, `secret-scan.sh`, plus `scripts/dev/verify-build.ts`.                                                                |
 | `build/`                 | Distribution templates — `build/homebrew/` and `build/macos/`.                                                                                                                             |
 | `tests/`                 | Tests for the packaging and distribution surface only (manifests, the Homebrew formula renderer, the macOS installer template, `verify-build`). The root Turbo graph owns their execution. |
 | `i18n/`                  | Translation catalogs (`i18n/catalogs/`) and their parity checks. See [`i18n/README.md`](../i18n/README.md).                                                                                |
@@ -42,14 +42,15 @@ The build starts at the package-owned composition entry:
 bun build src/main.ts --target=bun --outdir dist
 ```
 
-The composition invokes Core's public CLI unchanged and supplies only a
-provider-gateway factory. `dev` and `start` run the same source entry directly;
-`prepack` runs `build`.
+The composition invokes Core's public CLI unchanged and supplies a
+provider-gateway factory plus the built-in configurator runtime. `dev` and
+`start` run the same source entry directly; `prepack` runs `build`.
 
-The generic DSH host and provider contract may be compiled into the artifact.
-Cordis, the DSH runtime, service plugins, and concrete adapters remain external
-profile dependencies. Package-boundary and bundle-metafile checks fail if oMLX,
-the external Anthropic adapter, or fixture-provider code enters the CLI.
+The generic DSH host, provider contract, and configurator-owned Cordis runtime
+may be compiled into the artifact. The DSH runtime, service plugins, and
+concrete adapters remain external profile dependencies. Package-boundary and
+bundle-metafile checks fail if oMLX, the external Anthropic adapter, or
+fixture-provider code enters the CLI.
 
 `client/scripts/build-core.ts` compiles this same entry into the sidecar while
 retaining the historical `resources/bin/maximal-core` filename and Core build
@@ -73,15 +74,8 @@ The Tauri menu-bar shell that previously filled this role was retired in #442;
 
 ## Site and Pages
 
-`site/` builds to `site/dist` and publishes to GitHub Pages via
-`.github/workflows/deploy-pages.yml`, the only workflow with a path to Pages.
-
-**Automatic deploys are frozen** as of #447. The `push` trigger is commented out
-_and_ the workflow is disabled at the Actions level, so neither a push nor a
-`workflow_dispatch` will run it. Resuming requires both: restore the `push:`
-block and `gh workflow enable deploy-pages.yml`. The file says so at the top.
-Note that the trigger's paths filter covers the workflow file itself, so the
-commit that restores it will itself deploy.
+The website, update-manifest endpoints, and Pages deployment are owned by
+[`stuffbucket/maximal-site`](https://github.com/stuffbucket/maximal-site).
 
 ## Parallel-agent convention
 

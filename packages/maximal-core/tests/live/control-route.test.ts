@@ -1,11 +1,15 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test"
 
 import type { ActiveClient } from "~/lib/http/active-clients"
-import type { ControlSnapshot } from "~/lib/live/resources"
+import type {
+  ControlSnapshot,
+  ProviderCatalogueModel,
+} from "~/lib/live/resources"
 
 import { frameEnvelopeSchema, type FrameEnvelope } from "~/lib/live/contract"
 import { ControlHub } from "~/lib/live/hub"
 import { stopControlHub } from "~/lib/live/service"
+import { state } from "~/lib/runtime-state/state"
 import {
   __resetUpdateCheckDepsForTests,
   __setUpdateCheckDepsForTests,
@@ -18,6 +22,7 @@ import { createControlRoutes } from "~/routes/control/route"
 // whether a sibling had already warmed the module-level cache. Pin the seam the
 // update-check suite already owns so the route test is offline and hermetic.
 beforeEach(() => {
+  state.models = undefined
   __resetUpdateCheckDepsForTests()
   __setUpdateCheckDepsForTests({
     fetch: () => Promise.reject(new Error("offline (control-route test)")),
@@ -27,6 +32,7 @@ beforeEach(() => {
 afterEach(() => {
   // Safety: tear down the wired singleton if any test reached the default hub.
   stopControlHub()
+  state.models = undefined
   __resetUpdateCheckDepsForTests()
 })
 
@@ -35,6 +41,7 @@ function makeApp(
     ip?: string
     hub?: ControlHub<ControlSnapshot>
     clients?: Array<ActiveClient>
+    providerModels?: ReadonlyArray<ProviderCatalogueModel>
   } = {},
 ): ReturnType<typeof createControlRoutes> {
   return createControlRoutes({
@@ -44,6 +51,7 @@ function makeApp(
     // to; injecting it keeps this file's assertions about what the route does,
     // not about what ran before it in the same worker.
     listClients: () => opts.clients ?? [],
+    listProviderModels: () => Promise.resolve(opts.providerModels ?? []),
   })
 }
 
@@ -58,6 +66,32 @@ describe("control route — loopback gate", () => {
   })
 })
 
+test("GET /models includes configured providers with discovered models", async () => {
+  const res = await makeApp({
+    providerModels: [
+      {
+        id: "mlx-community/Qwen3-8B",
+        name: "Qwen 3 8B",
+        provider: "local",
+        providerName: "Local (oMLX)",
+      },
+    ],
+  }).request("/models")
+
+  expect(res.status).toBe(200)
+  expect(await res.json()).toMatchObject({
+    models: [
+      {
+        id: "mlx-community/Qwen3-8B",
+        name: "Qwen 3 8B",
+        vendor: "Local (oMLX)",
+        type: "chat",
+        context_window_tokens: null,
+        max_output_tokens: null,
+      },
+    ],
+  })
+})
 describe("control route — reads", () => {
   test("GET /auth returns the auth status", async () => {
     const res = await makeApp().request("/auth")

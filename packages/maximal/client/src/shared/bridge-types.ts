@@ -1,12 +1,27 @@
-import type { ControlErrorReason } from '@stuffbucket/maximal-core/control-contract'
+import type {
+  ControlErrorReason,
+  LocalModelCancelResult,
+  LocalModelCatalogEntry,
+  LocalModelCatalogSnapshot,
+  LocalModelEnsureResult,
+  LocalModelOperationEvent,
+} from '@stuffbucket/maximal-core/control-contract'
+
+export type {
+  LocalModelCancelResult,
+  LocalModelCatalogEntry,
+  LocalModelCatalogSnapshot,
+  LocalModelEnsureResult,
+  LocalModelOperationEvent,
+}
 import type {
   TrafficInvalidationListener,
   TrafficOverview,
   TrafficOverviewQuery,
   TrafficRequestDetail,
   TrafficRequestDetailQuery,
+  TrafficRequestList,
   TrafficRequestListQuery,
-  TrafficRequestPage,
 } from '@stuffbucket/maximal-observability-contract'
 
 /** Sidecar lifecycle state that is safe to expose to the product renderer. */
@@ -51,7 +66,7 @@ export interface ObservabilityControlBridge {
   ): Promise<ControlResult<TrafficOverview>>
   observabilityRequests(
     query: TrafficRequestListQuery,
-  ): Promise<ControlResult<TrafficRequestPage>>
+  ): Promise<ControlResult<TrafficRequestList>>
   observabilityRequest(
     query: TrafficRequestDetailQuery,
   ): Promise<ControlResult<TrafficRequestDetail | null>>

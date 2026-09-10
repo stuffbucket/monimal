@@ -31,6 +31,13 @@ import { listActiveClients } from "~/lib/http/active-clients"
 import { getModelsLoadedAtMs, state } from "~/lib/runtime-state/state"
 import { getTokenUsageSummary } from "~/lib/token-usage"
 
+export interface ProviderCatalogueModel {
+  readonly id: string
+  readonly name: string
+  readonly provider: string
+  readonly providerName: string
+}
+
 /** The `/control/accounts` body, from maximal's on-disk registry. */
 export async function buildAccountsList(): Promise<AccountsListResponse> {
   const reg = await readDefaultRegistry()
@@ -92,13 +99,40 @@ function toModelSummary(model: Model): ModelSummary {
   }
 }
 
-/** The `/control/models` body from the cached catalog, sorted for a stable UI. */
-export function buildModelsList(): ModelsListResponse {
+/** The `/control/models` body from cached Copilot and live provider catalogs. */
+export function buildModelsList(
+  providerModels: ReadonlyArray<ProviderCatalogueModel> = [],
+): ModelsListResponse {
   const models = (state.models?.data ?? []).map((model) =>
     toModelSummary(model),
   )
+  const providerModelKeys = new Set<string>()
+  for (const model of providerModels) {
+    const key = `${model.providerName}\u0000${model.id}`
+    if (providerModelKeys.has(key)) continue
+    providerModelKeys.add(key)
+    models.push({
+      id: model.id,
+      name: model.name,
+      vendor: model.providerName,
+      family: "",
+      type: "chat",
+      preview: false,
+      context_window_tokens: null,
+      max_output_tokens: null,
+      capabilities: {
+        vision: false,
+        tool_calls: false,
+        streaming: false,
+        reasoning: false,
+      },
+    })
+  }
   models.sort(
-    (a, b) => a.type.localeCompare(b.type) || a.name.localeCompare(b.name),
+    (a, b) =>
+      a.vendor.localeCompare(b.vendor)
+      || a.type.localeCompare(b.type)
+      || a.name.localeCompare(b.name),
   )
   const loadedAtMs = getModelsLoadedAtMs()
   return {
@@ -122,6 +156,7 @@ export interface ControlSnapshot {
 
 export async function buildControlSnapshot(
   configurators?: ConfiguratorRegistry,
+  providerModels: ReadonlyArray<ProviderCatalogueModel> = [],
 ): Promise<ControlSnapshot> {
   const auth = getAuthStatus()
   const [accounts, apps, usage] = await Promise.all([
@@ -129,7 +164,7 @@ export async function buildControlSnapshot(
     buildAppsList(configurators),
     getTokenUsageSummary("day"),
   ])
-  const models = buildModelsList()
+  const models = buildModelsList(providerModels)
   const clients = listActiveClients()
   return {
     auth,

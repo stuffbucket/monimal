@@ -5,16 +5,11 @@ import { admitsTarget, platformPackagePlan } from '../scripts/package-contract.m
 /**
  * Which copied packages a build can actually run.
  *
- * `llamaPackagePlan` answers this for one scope by parsing its names. This
- * answers it for every package by reading the `os` and `cpu` fields npm
- * publishes, which is what makes it reach the ones nobody thought to name:
- * `@reflink/reflink-darwin-arm64` arrives three optional dependencies below
- * anything this package imports -- `node-llama-cpp` -> `ipull` ->
- * `@reflink/reflink` -- and a build for another platform copied it in.
- *
- * `forge.config.ts` deletes what the plan drops and `scripts/verify-package.mjs`
- * asserts nothing packed was dropped, both off this function. A wrong answer
- * here is invisible in both, which is why the answer is tested here.
+ * `forge.config.ts` copies the `node-pty` runtime closure, then this plan reads
+ * every copied package's published `os` and `cpu` fields. The build deletes what
+ * the plan drops and `scripts/verify-package.mjs` asserts nothing packed was
+ * dropped, both off this function. A wrong answer here is invisible in both,
+ * which is why the answer is tested here.
  */
 
 const keepsOf = (plan: { path: string; keep: boolean }[]) =>
@@ -23,8 +18,12 @@ const keepsOf = (plan: { path: string; keep: boolean }[]) =>
 const dropsOf = (plan: { path: string; keep: boolean }[]) =>
   plan.filter((entry) => !entry.keep).map((entry) => entry.path);
 
-/** The shape that motivated this: one sibling per target, installed by host. */
-const REFLINK = { path: 'node_modules/@reflink/reflink-darwin-arm64', os: ['darwin'], cpu: ['arm64'] };
+/** One platform-native package from a sibling-per-target publication. */
+const PLATFORM_NATIVE = {
+  path: 'node_modules/example-native-darwin-arm64',
+  os: ['darwin'],
+  cpu: ['arm64'],
+};
 
 /** A package with no constraints at all, which is nearly all of the closure. */
 const PLAIN = { path: 'node_modules/tar' };
@@ -85,12 +84,12 @@ describe('platformPackagePlan', () => {
   });
 
   it('keeps a platform package on the target it builds for', () => {
-    expect(keepsOf(platformPackagePlan([REFLINK], 'darwin', 'arm64'))).toEqual([REFLINK.path]);
+    expect(keepsOf(platformPackagePlan([PLATFORM_NATIVE], 'darwin', 'arm64'))).toEqual([PLATFORM_NATIVE.path]);
   });
 
   it('drops it on another operating system', () => {
-    const plan = platformPackagePlan([REFLINK], 'win32', 'x64');
-    expect(dropsOf(plan)).toEqual([REFLINK.path]);
+    const plan = platformPackagePlan([PLATFORM_NATIVE], 'win32', 'x64');
+    expect(dropsOf(plan)).toEqual([PLATFORM_NATIVE.path]);
     expect(plan[0]?.reason).toBe('declares os darwin, not win32');
   });
 
@@ -101,8 +100,8 @@ describe('platformPackagePlan', () => {
    * one.
    */
   it('drops it on another architecture of the same operating system', () => {
-    const plan = platformPackagePlan([REFLINK], 'darwin', 'x64');
-    expect(dropsOf(plan)).toEqual([REFLINK.path]);
+    const plan = platformPackagePlan([PLATFORM_NATIVE], 'darwin', 'x64');
+    expect(dropsOf(plan)).toEqual([PLATFORM_NATIVE.path]);
     expect(plan[0]?.reason).toBe('declares cpu arm64, not x64');
   });
 
@@ -112,7 +111,7 @@ describe('platformPackagePlan', () => {
    * cleanly and ships an application with no native modules in it.
    */
   it('treats mas as darwin', () => {
-    expect(keepsOf(platformPackagePlan([REFLINK], 'mas', 'arm64'))).toEqual([REFLINK.path]);
+    expect(keepsOf(platformPackagePlan([PLATFORM_NATIVE], 'mas', 'arm64'))).toEqual([PLATFORM_NATIVE.path]);
   });
 
   /*
@@ -121,16 +120,20 @@ describe('platformPackagePlan', () => {
    * arch drops both halves' native code.
    */
   it('keeps a package either slice of a universal build needs', () => {
-    const x64Only = { path: 'node_modules/@reflink/reflink-darwin-x64', os: ['darwin'], cpu: ['x64'] };
-    expect(keepsOf(platformPackagePlan([REFLINK, x64Only], 'darwin', 'universal'))).toEqual([
-      REFLINK.path,
+    const x64Only = {
+      path: 'node_modules/example-native-darwin-x64',
+      os: ['darwin'],
+      cpu: ['x64'],
+    };
+    expect(keepsOf(platformPackagePlan([PLATFORM_NATIVE, x64Only], 'darwin', 'universal'))).toEqual([
+      PLATFORM_NATIVE.path,
       x64Only.path,
     ]);
   });
 
   it('still drops another operating system from a universal build', () => {
     const windows = {
-      path: 'node_modules/@reflink/reflink-win32-x64-msvc',
+      path: 'node_modules/example-native-win32-x64',
       os: ['win32'],
       cpu: ['x64'],
     };

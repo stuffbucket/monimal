@@ -30,11 +30,6 @@ export function startCrashReports(): void {
   if (earlier !== undefined) console.error(earlier);
 }
 
-/** Where the dumps are, for anything that needs to name it. */
-export function crashReportDirectory(): string {
-  return artifacts.directory;
-}
-
 /**
  * Reveal the directory.
  *

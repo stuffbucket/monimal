@@ -75,6 +75,8 @@ export function applyDockIcon(): void {
  * `main/index.ts` decides that the answer is a broadcast on a named channel.
  */
 export interface MenuCallbacks {
+  /** Ask the application's update owner to check for a new release. */
+  onCheckForUpdates?: () => void
   /**
    * Show Settings.
    *
@@ -96,21 +98,18 @@ export interface MenuCallbacks {
  * carry the platform's expected accelerators and behaviour, so Edit and Window
  * work without this file reimplementing copy, paste, or minimize.
  *
- * ## Settings, in two places
+ * ## Settings by platform
  *
- * Both are the platform's own convention rather than a choice. macOS puts a
- * `Settings…` item in the application submenu on `Cmd-,`, above Services, and
- * a user looks for it there before anywhere else. Elsewhere there is no
- * application submenu to put it in, so it leads the Settings menu instead.
- *
- * The `Settings` menu itself lists the sections, and the list is
- * `shared/settings-sections.ts` — the same array the surface renders from, so
- * a menu entry cannot name a section that is not there. It sits after View and
- * before Window, where a menu about the application's own state belongs.
+ * macOS groups product commands in the application submenu. Settings is a
+ * flyout there, alongside an Actions flyout for the frequent Account and Apps
+ * destinations. Elsewhere Settings remains its own top-level menu with the
+ * platform accelerator. Both section lists come from
+ * `shared/settings-sections.ts`, the same array the surface renders from, so a
+ * menu entry cannot name a section that is not there.
  */
 export function installApplicationMenu(callbacks: MenuCallbacks = {}): void {
   const isMac = process.platform === 'darwin'
-  const { onOpenSettings } = callbacks
+  const { onCheckForUpdates, onOpenSettings } = callbacks
 
   const openSettings = (sectionId: SettingsSectionId | null) => () => {
     onOpenSettings?.(sectionId)
@@ -132,6 +131,18 @@ export function installApplicationMenu(callbacks: MenuCallbacks = {}): void {
       click: openSettings(id),
     }),
   )
+  const actionsSubmenu: MenuItemConstructorOptions[] = [
+    {
+      label: 'Accounts',
+      enabled: onOpenSettings !== undefined,
+      click: openSettings('settings-account-heading'),
+    },
+    {
+      label: 'Apps',
+      enabled: onOpenSettings !== undefined,
+      click: openSettings('settings-connections-heading'),
+    },
+  ]
   const settingsSubmenu: MenuItemConstructorOptions[] = [
     ...(isMac
       ? []
@@ -145,9 +156,20 @@ export function installApplicationMenu(callbacks: MenuCallbacks = {}): void {
           {
             label: app.name,
             submenu: [
-              { role: 'about' },
+              {
+                label: `About ${app.name}`,
+                click: () => app.showAboutPanel(),
+              },
+              {
+                label: 'Check for Updates…',
+                // No release feed exists yet. Keep the command honest until an
+                // updater owner supplies the callback.
+                enabled: onCheckForUpdates !== undefined,
+                click: () => onCheckForUpdates?.(),
+              },
               { type: 'separator' },
-              settingsItem,
+              { label: 'Settings', submenu: sectionItems },
+              { label: 'Actions', submenu: actionsSubmenu },
               { type: 'separator' },
               { role: 'services' },
               { type: 'separator' },
@@ -166,10 +188,9 @@ export function installApplicationMenu(callbacks: MenuCallbacks = {}): void {
     },
     { role: 'editMenu' },
     { role: 'viewMenu' },
-    {
-      label: 'Settings',
-      submenu: settingsSubmenu,
-    },
+    ...(!isMac
+      ? [{ label: 'Settings', submenu: settingsSubmenu } satisfies MenuItemConstructorOptions]
+      : []),
     { role: 'windowMenu' },
     {
       role: 'help',

@@ -1,5 +1,7 @@
+import { mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 
+import { resolveLocalModelsPath } from '@stuffbucket/local-model-registry'
 import {
   ApiKeyCreateRequest,
   ApiKeyUpdateRequest,
@@ -13,7 +15,6 @@ import {
   TrafficRequestDetailQuerySchema,
   TrafficRequestListQuerySchema,
 } from '@stuffbucket/maximal-observability-contract'
-
 import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import { z } from 'zod'
 
@@ -33,6 +34,12 @@ import { applyAppName, applyDockIcon, installApplicationMenu } from './identity.
 import { toLifecycleStatus } from './lifecycle-status.js'
 import { MenuBarModeController } from './menu-bar-mode.js'
 import { runShell } from './shell.js'
+import {
+  showHarnessHost,
+  startHarnessHost,
+  stopHarnessHost,
+} from './harness-host.js'
+import { configureTerminalHost, registerTerminalIpc, stopTerminalHost } from './terminal-host.js'
 
 // Before `whenReady`, not inside it: `app.name` is read when the default menu
 // and the About panel are built, so setting it later leaves both stale.
@@ -44,6 +51,7 @@ let pendingSettingsRequest: PendingSettingsRequest | null = null
 let menuBarMode: MenuBarModeController | null = null
 
 const nonEmptyString = z.string().min(1)
+const localModelIdentifier = z.string().min(1).max(200)
 
 function openExternalUrl(input: unknown): Promise<void> {
   const url = nonEmptyString.parse(input)
@@ -57,6 +65,20 @@ function openExternalUrl(input: unknown): Promise<void> {
     return Promise.reject(new Error('External URL must use HTTP or HTTPS'))
   }
   return shell.openExternal(parsed.href)
+}
+
+function localModelsDirectory(): string {
+  const suiteDataRoot = app.commandLine.hasSwitch('user-data-dir')
+    ? join(app.getPath('userData'), 'stuffbucket')
+    : undefined
+  return resolveLocalModelsPath({ suiteDataRoot })
+}
+
+async function openLocalModelsDirectory(): Promise<void> {
+  const directory = localModelsDirectory()
+  await mkdir(directory, { recursive: true })
+  const error = await shell.openPath(directory)
+  if (error) throw new Error(error)
 }
 
 function registerIpc(
@@ -140,6 +162,15 @@ function registerIpc(
   )
   ipcMain.handle(BRIDGE_CHANNELS.modelsList, () => session.modelsList())
   ipcMain.handle(BRIDGE_CHANNELS.modelsRefresh, () => session.modelsRefresh())
+  ipcMain.handle(BRIDGE_CHANNELS.localModelsList, () => session.localModelsList())
+  ipcMain.handle(BRIDGE_CHANNELS.localModelsEnsure, (_event, modelKey: unknown) =>
+    session.localModelsEnsure(localModelIdentifier.parse(modelKey)),
+  )
+  ipcMain.handle(
+    BRIDGE_CHANNELS.localModelsCancel,
+    (_event, operationId: unknown) =>
+      session.localModelsCancel(localModelIdentifier.parse(operationId)),
+  )
   ipcMain.handle(BRIDGE_CHANNELS.usageGet, (_event, period: unknown) =>
     session.usageGet(TokenUsagePeriod.parse(period)),
   )
@@ -149,6 +180,10 @@ function registerIpc(
     const error = await shell.openPath(join(coreHomePath(), 'logs'))
     if (error) throw new Error(error)
   })
+  ipcMain.handle(
+    BRIDGE_CHANNELS.localModelsOpenFolder,
+    openLocalModelsDirectory,
+  )
   ipcMain.handle(BRIDGE_CHANNELS.pendingSettingsRequest, () => {
     const request = pendingSettingsRequest
     pendingSettingsRequest = null
@@ -167,6 +202,7 @@ function registerIpc(
       mode.cancelEnable(nonEmptyString.parse(attemptId)),
   )
   ipcMain.handle(BRIDGE_CHANNELS.menuBarModeDisable, () => mode.disable())
+  registerTerminalIpc()
 }
 
 function broadcast(channel: string, payload?: unknown): void {
@@ -205,7 +241,7 @@ function createWindow(): BrowserWindow {
   const win = runShell({
     preloadPath: join(__dirname, 'preload.js'),
     title: 'Maximal',
-    width: 1024,
+    width: 1280,
     height: 768,
     loadRenderer,
   })
@@ -246,14 +282,23 @@ void app.whenReady().then(async () => {
   menuBarMode = nativeMode
   await nativeMode.initialize()
 
-  installApplicationMenu({ onOpenSettings: openSettings })
+  installApplicationMenu({
+    onCheckForUpdates: () => {
+      void openExternalUrl('https://github.com/stuffbucket/maximal/releases/latest')
+    },
+    onOpenSettings: openSettings,
+  })
 
   controlSession = createControlSession({
     onChange: () => broadcast(BRIDGE_CHANNELS.controlChanged),
+    onLocalModelEvent: (event) =>
+      broadcast(BRIDGE_CHANNELS.localModelsChanged, event),
     onTrafficInvalidation: (invalidation) =>
       broadcast(BRIDGE_CHANNELS.trafficInvalidated, invalidation),
   })
+  configureTerminalHost()
   registerIpc(controlSession, nativeMode)
+  startHarnessHost()
 
   onCoreStatus((status) => {
     if (status.phase === 'ready') {
@@ -266,6 +311,7 @@ void app.whenReady().then(async () => {
 
   // Window first, then core, so the renderer can narrate a slow sidecar boot.
   createWindow()
+  if (process.env.STUFFBUCKET_HARNESS_START_OPEN === '1') showHarnessHost()
   app.on('activate', () => {
     activateWindow()
   })
@@ -288,8 +334,23 @@ app.on('window-all-closed', () => {
   app.quit()
 })
 
-app.on('before-quit', () => {
+let harnessStopped = false
+let harnessShutdown: Promise<void> | undefined
+
+app.on('before-quit', (event) => {
   menuBarMode?.dispose()
   controlSession?.dispose()
   killCore()
+  stopTerminalHost()
+
+  if (harnessStopped) return
+  event.preventDefault()
+  harnessShutdown ??= stopHarnessHost()
+    .catch((error: unknown) => {
+      console.error('[maximal-client] harness failed to stop:', error)
+    })
+    .finally(() => {
+      harnessStopped = true
+      app.quit()
+    })
 })

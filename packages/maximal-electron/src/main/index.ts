@@ -2,14 +2,14 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { BrowserWindow, app, globalShortcut } from 'electron';
+import type { BrowserWindow } from 'electron';
+import { app, dialog } from 'electron';
 
 import { RUN_MAIN_OPTIONS_VERSION, runMain } from '../host/run-main.js';
 import { registerIpcHandlers, sendEvent } from './ipc.js';
 import { focusWindow, installApplicationMenu } from './native/menu.js';
 import { applyDockIcon } from './native/app-icon.js';
 import { clearBadge } from './native/notifications.js';
-import { isAgentBusy, shutdownAgent } from './native/agent.js';
 import {
   getPreferences,
   isDemo,
@@ -20,14 +20,11 @@ import {
 } from './native/preferences.js';
 import { configurePty, killAllPtys } from './native/pty.js';
 import { showCrashReports, startCrashReports } from './native/crash-reports.js';
-import { llamaCheckRequested } from './native/llama-protocol.js';
 import { selfCheckRequested } from './native/self-check.js';
-import { runLlamaCheck } from './llama-check.js';
 import { runSelfCheck } from './self-check.js';
 import { destroyTray, setTrayEnabled } from './native/tray.js';
 import { checkForUpdates } from './native/updates.js';
 import { mainWindowOptions } from './windows/main-window.js';
-import { destroyOverlay, toggleOverlay } from './windows/overlay.js';
 import { closeSplashWindow, createSplashWindow } from './windows/splash.js';
 
 /*
@@ -85,10 +82,6 @@ function setDockVisible(visible: boolean): void {
   else app.dock.hide();
 }
 
-function hasOpenWindow(): boolean {
-  return BrowserWindow.getAllWindows().some((window) => !window.isDestroyed());
-}
-
 /* ---------------------------------------------------------------- windows */
 
 /**
@@ -130,39 +123,6 @@ function wireWindow(window: BrowserWindow): void {
   });
 }
 
-/* --------------------------------------------------------------- overlay */
-
-let boundHotkey: string | undefined;
-
-/**
- * Bind the summon accelerator.
- *
- * `globalShortcut.register` returns false when another application already
- * owns the combination. Report that rather than leaving the user with a key
- * that silently does nothing.
- */
-function bindOverlayHotkey(accelerator: string): void {
-  if (boundHotkey === accelerator) return;
-
-  if (boundHotkey) globalShortcut.unregister(boundHotkey);
-  boundHotkey = undefined;
-
-  if (!accelerator) return;
-
-  try {
-    if (globalShortcut.register(accelerator, toggleOverlay)) {
-      boundHotkey = accelerator;
-    } else {
-      console.error(
-        `Overlay hotkey "${accelerator}" is already taken by another application.`,
-      );
-    }
-  } catch (error) {
-    // An malformed accelerator throws rather than returning false.
-    console.error(`Overlay hotkey "${accelerator}" is not valid:`, error);
-  }
-}
-
 /* --------------------------------------------------------------- updates */
 
 async function runUpdateCheck(): Promise<void> {
@@ -186,8 +146,8 @@ function bootstrap(): void {
   // reach a window. It has no Electron import of its own, and it addresses the
   // window that owns the session rather than whichever one is current.
   configurePty({
-    emit: (owner, id, data, sequence) => sendEvent(owner, 'pty:data', { id, data, sequence }),
-    onExit: (owner, id, exitCode) => sendEvent(owner, 'pty:exit', { id, exitCode }),
+    emit: (owner, id, data, sequence, projectionId) => sendEvent(owner, 'pty:data', { id, data, sequence, projectionId }),
+    onExit: (owner, id, exitCode, projectionId) => sendEvent(owner, 'pty:exit', { id, exitCode, projectionId }),
     onStatus: (owner, status) => sendEvent(owner, 'pty:status', status),
   });
 
@@ -208,43 +168,38 @@ function bootstrap(): void {
   // The tray is a plain click target: it activates the application.
   setTrayEnabled(prefs.menuBarIcon, process.platform, activate);
 
-  bindOverlayHotkey(prefs.overlayHotkey);
-
   // Preferences are the single source of truth, so react to a change from any
   // origin rather than only from the settings panel.
   onPreferencesChanged((next) => {
     setTrayEnabled(next.menuBarIcon, process.platform, activate);
-    bindOverlayHotkey(next.overlayHotkey);
-    // Turning the menu bar icon off while no window is open would otherwise
-    // strand the application with no way to reach it.
-    if (!next.menuBarIcon && !hasOpenWindow()) activate();
     sendEvent(mainWindow, 'prefs:changed', next);
   });
 }
 
-/**
- * Release everything the application owns.
- *
- * The embedded model runs native work on a worker thread. If the Node
- * environment is torn down while any of it is outstanding, the addon completes
- * into an environment that no longer exists, calls `ThrowAsJavaScriptException`
- * against it, and the process aborts inside ggml's terminate handler.
- *
- * Returning the promise is what defers the quit rather than firing cleanup and
- * hoping. The crash lands after the last assertion of a test, so the suite
- * stayed green through four consecutive runs of it.
- */
-function shutdown(): Promise<void> | undefined {
-  // Kill every shell first. A surviving child would outlive the application.
+async function shouldQuitAfterLastWindow(): Promise<boolean> {
+  const prefs = getPreferences();
+  if (prefs.menuBarIcon) return false;
+  if (prefs.quitOnLastWindowClosed) return true;
+
+  const result = await dialog.showMessageBox({
+    type: 'question',
+    title: `Stop ${app.name}?`,
+    message: `Stop ${app.name}?`,
+    detail:
+      `${app.name} and all of its processes will stop. Keep running leaves the application open without a window.`,
+    buttons: ['Keep Running', `Stop ${app.name}`],
+    defaultId: 0,
+    cancelId: 0,
+    noLink: true,
+  });
+  return result.response === 1;
+}
+
+function shutdown(): void {
   killAllPtys();
-  globalShortcut.unregisterAll();
-  destroyOverlay();
   clearBadge();
   destroyTray();
   closeSplashWindow();
-
-  if (!isAgentBusy()) return undefined;
-  return shutdownAgent();
 }
 
 /* ------------------------------------------------------------- lifecycle */
@@ -269,17 +224,13 @@ if (selfCheckRequested(process.argv)) {
    * which is a green run of a check that launched nothing. Issue #89.
    */
   runSelfCheck(process.argv);
-} else if (llamaCheckRequested(process.argv)) {
-  // The other half of the same idea: load the packaged llama.cpp out of
-  // process and survive it aborting. Issue #133.
-  runLlamaCheck();
 } else {
   void runMain(
     { app },
     {
       version: RUN_MAIN_OPTIONS_VERSION,
       userDataDirectory,
-      keepRunningWithoutWindows: () => getPreferences().menuBarIcon,
+      shouldQuitAfterLastWindow,
       window: mainWindowOptions,
       onReady: (context) => {
         activate = context.activate;

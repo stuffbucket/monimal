@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    // tsup injects `baseUrl` when it generates declarations, and TypeScript 6
+    // errors on it because TypeScript 7 drops it. This config does not set
+    // baseUrl itself, so this silences a deprecation we do not own. Remove it
+    // once tsup stops emitting baseUrl.
+    "ignoreDeprecations": "6.0",
+    "target": "ESNext",
+    "lib": ["ESNext"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "allowImportingTsExtensions": true,
+    "moduleDetection": "force",
+    "types": ["node"],
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    "noEmit": true,
+    "incremental": true,
+    "tsBuildInfoFile": "./node_modules/.cache/tsc/tsconfig.tsbuildinfo",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

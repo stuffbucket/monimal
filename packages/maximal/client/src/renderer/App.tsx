@@ -1,13 +1,21 @@
 import { ObservabilityProvider } from '@stuffbucket/maximal-observability'
-import { useEffect, useMemo, useState, type ReactElement } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactElement } from 'react'
+import {
+  TerminalLauncher,
+  moveTabBefore,
+  terminalProcessTitle,
+  type TerminalLaunchResult,
+} from 'stuffbucket-electron/renderer'
 
 import { DEFAULT_SETTINGS_SECTION_ID } from '../shared/settings-sections'
 import { WindowChrome } from './chrome/WindowChrome'
 import { FirstRun } from './first-run/FirstRun'
-import { AppFrame, type View } from './frame/AppFrame'
+import { AppFrame, PRODUCT_TABS, type AppTab } from './frame/AppFrame'
 import { Overview } from './overview/Overview'
 import { Settings, type SettingsSectionRequest } from './settings/Settings'
 import { createCoreSettingsCapabilities } from './settings/capabilities'
+import { Terminal } from './terminal/Terminal'
+import { terminalTransport } from './terminal/transport'
 import { Traffic } from './traffic/Traffic'
 import { createObservabilitySource } from './traffic/source'
 
@@ -41,6 +49,16 @@ import { createObservabilitySource } from './traffic/source'
  *  first-run screen with no route back in. */
 const POLL_MS = 3_000
 
+function terminalTab(result: TerminalLaunchResult): AppTab {
+  return {
+    id: `terminal:${result.sessionId}`,
+    title: result.label,
+    icon: 'terminal',
+    kind: 'terminal',
+    sessionId: result.sessionId,
+  }
+}
+
 export function App(): ReactElement {
   // Built once for the app's lifetime. Electron main owns sidecar replacement;
   // this adapter keeps one stable named-bridge subscription across restarts.
@@ -49,7 +67,10 @@ export function App(): ReactElement {
   const observability = useMemo(() => createObservabilitySource(), [])
 
   const [authenticated, setAuthenticated] = useState<boolean | null>(null)
-  const [view, setView] = useState<View>('overview')
+  const [tabs, setTabs] = useState<AppTab[]>(PRODUCT_TABS)
+  const [activeTab, setActiveTab] = useState('overview')
+  const [launcherOpen, setLauncherOpen] = useState(false)
+  const [recentProfiles, setRecentProfiles] = useState<string[]>([])
   const [sectionRequest, setSectionRequest] = useState<SettingsSectionRequest | null>(null)
 
   /* The application menu chooses the surface here and the section there. A new
@@ -57,7 +78,7 @@ export function App(): ReactElement {
   useEffect(
     () =>
       settings.onOpenRequest((sectionId) => {
-        setView('settings')
+        setActiveTab('settings')
         setSectionRequest({ id: sectionId ?? DEFAULT_SETTINGS_SECTION_ID })
       }),
     [settings],
@@ -88,13 +109,64 @@ export function App(): ReactElement {
     }
   }, [settings])
 
+  useEffect(() => {
+    if (authenticated !== true) return
+    void terminalTransport.list().then((sessions) => {
+      setTabs((current) => {
+        const known = new Set(current.flatMap((tab) => tab.sessionId ?? []))
+        const restored = sessions
+          .filter((session) => !known.has(session.id))
+          .map((session) => terminalTab({
+            sessionId: session.id,
+            label: session.shell.split('/').at(-1) ?? 'Terminal',
+          }))
+        return restored.length === 0 ? current : [...current, ...restored]
+      })
+    })
+  }, [authenticated])
+
+  const onTerminalLaunched = useCallback((result: TerminalLaunchResult) => {
+    const tab = terminalTab(result)
+    setTabs((current) => current.some((candidate) => candidate.id === tab.id)
+      ? current
+      : [...current, tab])
+    setActiveTab(tab.id)
+  }, [])
+
+  const closeTab = useCallback((id: string) => {
+    setTabs((current) => {
+      const index = current.findIndex((tab) => tab.id === id)
+      if (index < 0 || current[index]?.kind !== 'terminal') return current
+      const next = current.filter((tab) => tab.id !== id)
+      setActiveTab((active) => active === id
+        ? (next[index] ?? next[index - 1] ?? PRODUCT_TABS[0])?.id ?? 'overview'
+        : active)
+      return next
+    })
+  }, [])
+
+  const updateTerminalTitle = useCallback((id: string, title: string) => {
+    const nextTitle = terminalProcessTitle(title)
+    if (nextTitle === '') return
+    setTabs((current) => current.map((tab) => tab.id === id ? { ...tab, title: nextTitle } : tab))
+  }, [])
+
+  const moveTerminalTab = useCallback((id: string, beforeId?: string) => {
+    setTabs((current) => {
+      const source = current.find((tab) => tab.id === id)
+      const target = current.find((tab) => tab.id === beforeId)
+      if (source?.kind !== 'terminal' || (target && target.kind !== 'terminal')) return current
+      return moveTabBefore(current, id, beforeId)
+    })
+  }, [])
+
   // `null` means "not answered yet" and is deliberately NOT treated as signed
   // out: first-run handles both the pre-auth and the still-booting cases, so
   // rendering it while the answer is unknown is correct rather than a fallback.
   // Wrapped, not bare. First run needs a frame for the same reason every other
   // surface does — without one the window has no drag region and cannot be
   // moved, and this is the screen a new user meets first.
-  if (authenticated !== true && view !== 'settings')
+  if (authenticated !== true && activeTab !== 'settings')
     return (
       <WindowChrome>
         <FirstRun />
@@ -107,23 +179,65 @@ export function App(): ReactElement {
    * surfaces mounted would keep their work running out of view.
    */
   const signedOut = authenticated !== true
+  const visibleTabs = signedOut ? PRODUCT_TABS.filter((tab) => tab.kind === 'settings') : tabs
+  const current = visibleTabs.find((tab) => tab.id === activeTab) ?? visibleTabs[0]
+  const terminalTabs = tabs.flatMap((tab) =>
+    tab.kind === 'terminal' && tab.sessionId
+      ? [{ id: tab.id, sessionId: tab.sessionId, title: tab.title }]
+      : [],
+  )
   return (
     <ObservabilityProvider source={observability}>
       <AppFrame
-        view={view}
-        onSelectView={setView}
-        availableViews={signedOut ? ['settings'] : undefined}
+        tabs={visibleTabs}
+        activeTab={current?.id ?? 'settings'}
+        surface={current?.kind ?? 'settings'}
+        onSelectTab={setActiveTab}
+        onCloseTab={signedOut ? undefined : closeTab}
+        onNewTab={signedOut ? undefined : () => setLauncherOpen(true)}
+        tabTransfer={signedOut ? undefined : {
+          frameId: 'maximal-main',
+          canDrag: (tab) => tab.kind === 'terminal',
+          canDropBefore: (tab) => tab === undefined || tab.kind === 'terminal',
+          onMoveTab: moveTerminalTab,
+        }}
       >
-        {!signedOut && view === 'overview' ? <Overview /> : null}
-        {!signedOut && view === 'traffic' ? <Traffic /> : null}
-        {view === 'settings' ? (
+        {!signedOut && current?.kind === 'overview' ? <Overview /> : null}
+        {!signedOut && current?.kind === 'traffic' ? <Traffic /> : null}
+        {!signedOut && terminalTabs.length > 0 ? (
+          <Terminal
+            tabs={terminalTabs}
+            activeId={current?.id ?? ''}
+            onExit={closeTab}
+            onTitleChange={updateTerminalTitle}
+          />
+        ) : null}
+        {current?.kind === 'settings' ? (
           <Settings
             capabilities={settings}
             request={sectionRequest}
-            onBack={signedOut ? () => setView('overview') : undefined}
+            onBack={signedOut ? () => setActiveTab('overview') : undefined}
           />
         ) : null}
       </AppFrame>
+      {!signedOut ? (
+        <TerminalLauncher
+          open={launcherOpen}
+          onOpenChange={setLauncherOpen}
+          profiles={window.maximal.terminal.profiles}
+          discover={window.maximal.terminal.discover}
+          launch={async (request) => {
+            const result = await window.maximal.terminal.launch(request)
+            setRecentProfiles((currentProfiles) => [
+              request.profileId,
+              ...currentProfiles.filter((id) => id !== request.profileId),
+            ].slice(0, 4))
+            return result
+          }}
+          onLaunched={onTerminalLaunched}
+          recentProfileIds={recentProfiles}
+        />
+      ) : null}
     </ObservabilityProvider>
   )
 }

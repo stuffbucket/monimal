@@ -28,6 +28,66 @@ and bundles them itself, so its own externals, its own Electron version, and
 its own tree shaking apply. `npm run verify:exports` proves each target exists,
 that `npm pack` includes it, and that `./main` declares the names below.
 
+## Renderer ownership
+
+A component whose behavior is reusable across consumers SHOULD be exposed
+through `./renderer` when it has more than one consumer or replaces duplicated
+interaction, accessibility, or layout mechanics. A component MAY remain local
+when it has one use and moving it would only enlarge the public API.
+
+A component on the public `./renderer` surface SHOULD be describable and tested
+without reference-application or consumer-specific vocabulary, routes,
+services, or policy. A public package component MUST own its accessibility
+wiring, interaction state, and structural CSS. It MUST NOT name a consumer
+route, product surface, IPC channel, service, or palette token.
+
+A consumer MUST own product vocabulary, route and tab catalogs, capability and
+transport adapters, side effects, and the policy that chooses optional regions.
+A consumer adapter SHOULD only bind those values and callbacks to package
+components. Repeated portal, focus, resize, or ARIA mechanics MUST move into the
+package instead of being copied between consumers.
+
+`ShellLayout` is the low-level panel geometry and tabbed document primitive.
+`AppFrame` adds portal-backed surface slots and active-tab context without
+choosing which regions exist. `WindowChrome` supplies draggable chrome for a
+single document without navigation. Consumers choose among those components;
+they MUST NOT fork their mechanics to encode product policy.
+
+## Moving tabs between windows
+
+`TabBar`, `ShellLayout`, and `AppFrame` accept `tabTransfer`. The package owns
+the drag gesture and its versioned identity payload. A same-frame drop calls
+`onMoveTab`; `moveTabBefore` applies that order to controlled tab state. A drop
+from another frame calls `onReceiveTab`. Releasing an unaccepted drag outside
+the shell calls `onDetachTab` with screen coordinates.
+
+The payload identifies a tab and its source frame. It does not serialize tab
+content. A consumer MUST keep document and terminal ownership in its host,
+create the native window from `onDetachTab`, and atomically move ownership when
+`onReceiveTab` accepts a drop. The receiving renderer MUST NOT attach a terminal
+until the host has removed it from the source frame.
+
+```tsx
+<AppFrame
+  {...frame}
+  tabTransfer={{
+    frameId,
+    canDrag: (tab) => tab.closable !== false,
+    onMoveTab: (tabId, beforeTabId) =>
+      setTabs((tabs) => moveTabBefore(tabs, tabId, beforeTabId)),
+    onDetachTab: (transfer, position) => host.detachTab(transfer, position),
+    onReceiveTab: (transfer, beforeTabId) =>
+      host.receiveTab(transfer, frameId, beforeTabId),
+  }}
+>
+  {document}
+</AppFrame>
+```
+
+The same transfer identity can later name a whole terminal pane tree. The
+public `TerminalPane` functions split, remove, and enumerate sessions without
+choosing how a consumer persists or displays that tree.
+
 ## `runMain(runtime, options)`
 
 `runMain` is `./host` plus a lifecycle. It owns the profile directory, the
@@ -89,6 +149,7 @@ second launch. `runMain` opens a replacement window when none is left, and
 | `singleInstance` | `true` | Take the single instance lock |
 | `collectCrashDumps` | `false` | Write a local minidump for every process the shell owns |
 | `keepRunningWithoutWindows` | `() => false` | Survive the last window on every platform |
+| `shouldQuitAfterLastWindow` | platform policy | Decide whether the last window quits, including after user confirmation |
 | `discoverDaemonUrl` | none | An origin to resolve before the first window |
 | `onReady` | none | After discovery, before the first window |
 | `onActivate` | none | Every activation, with the surviving window |
@@ -99,6 +160,8 @@ second launch. `runMain` opens a replacement window when none is left, and
 `keepRunningWithoutWindows` is a callback rather than a value because the
 answer changes while the application runs: this shell reads a preference the
 user can toggle. macOS keeps an application alive without windows regardless.
+`shouldQuitAfterLastWindow` takes precedence when supplied. It may return a
+promise so an application can wait for a native confirmation dialog.
 
 `collectCrashDumps` is off by default and needs `runtime.crashReporter` when it
 is on, or `runMain` throws rather than starting nothing in silence. A crash
@@ -110,8 +173,8 @@ where the dumps land and what covers them.
 
 `beforeShutdown` returning a promise defers the quit until it settles, and the
 quit that follows does not run it again. Returning nothing lets the quit
-through untouched. This shell has an embedded model that aborts the process if
-its worker outlives the Node environment; `docs/agent.md` has that account.
+through untouched. A consumer uses this seam when native work must settle
+before Electron tears down the Node environment.
 
 `discoverDaemonUrl` is deliberately blunt about what it hands back: a
 normalized absolute URL with no trailing slash, on `context.daemonUrl`. How it
@@ -124,7 +187,8 @@ the message can name the callback, rather than as a blank window.
 runs before the shell acts. An application that reacts to the last window
 closing — this one pulls its dock icon out — therefore never recomputes the
 policy and never depends on where its own listener sits in the order. It
-observes; `keepRunningWithoutWindows` is what changes the answer.
+observes; `keepRunningWithoutWindows` changes the answer unless
+`shouldQuitAfterLastWindow` supplies it instead.
 
 ## Registering your own handlers
 
@@ -787,3 +851,46 @@ can drift from the one this repository runs: it is the one this repository
 runs. Neither half imports the other, and neither may, so
 `tests/terminal/terminal-channels.test.ts` is the check that duplication owes: it drives
 both halves and asserts they name the same set.
+
+### Brokering tmux projections
+
+`TmuxProjectionBroker` from `./host/terminal` coordinates several ordinary
+tmux client PTYs around one tmux-owned pane. It does not construct commands.
+The consumer's `attach` callback chooses whether each client runs locally,
+through SSH, or through another connector. The renderer receives only the
+client PTY's VT stream.
+
+```ts
+import {
+  LocalPtyConnector,
+  TmuxProjectionBroker,
+} from '@stuffbucket/maximal-electron/host/terminal';
+
+const connector = new LocalPtyConnector();
+const broker = new TmuxProjectionBroker({
+  attach: ({ sessionId, cols, rows }) => connector.connect({
+    command: 'tmux',
+    args: ['attach-session', '-t', sessionId],
+    name: 'xterm-256color',
+    cols,
+    rows,
+    cwd: process.env['HOME'] ?? '/',
+    env: { ...process.env, TERM: 'xterm-256color' } as Record<string, string>,
+  }),
+  terminateSession: (sessionId) => terminateTrustedTmuxSession(sessionId),
+  emit: (sessionId, projectionId, chunk) =>
+    sendProjectionOutput(sessionId, projectionId, chunk),
+  onExit: (sessionId, projectionId, exitCode) =>
+    reportProjectionExit(sessionId, projectionId, exitCode),
+});
+```
+
+`attach` registers a projection without granting input. `focus` returns the
+new focus epoch. `write` and `resize` accept only that projection and epoch;
+an operation delayed across a focus transfer returns `false`. `detach` kills
+one client process and leaves the tmux pane alive. `terminate` kills every
+client and invokes `terminateSession`.
+
+Tmux command arguments and session names remain trusted host state. A renderer
+must not supply either. Tmux control mode uses another host-only process; its
+records do not share the projection data stream.

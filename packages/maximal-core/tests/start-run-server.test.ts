@@ -15,7 +15,7 @@
  * dependency runServer pulls in. The mocks form a "test harness
  * runServer": deterministic, fast, no listeners leaked.
  */
-import type { ProviderGateway } from "@stuffbucket/maximal-provider-contract"
+import type { ProviderGateway } from "@stuffbucket/maximal-model-contract"
 
 import {
   afterAll,

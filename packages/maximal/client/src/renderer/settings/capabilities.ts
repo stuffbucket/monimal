@@ -1,6 +1,5 @@
 import type {
   AccountsListResponse,
-  AccountSummary,
   ApiKeyCreateRequest,
   ApiKeyEntry,
   ApiKeysListResponse,
@@ -19,6 +18,10 @@ import type {
 } from '@stuffbucket/maximal-core/settings-types'
 
 import type {
+  LocalModelCancelResult,
+  LocalModelCatalogSnapshot,
+  LocalModelEnsureResult,
+  LocalModelOperationEvent,
   MenuBarModeAttempt,
   MenuBarModeState,
 } from '../../shared/bridge-types'
@@ -32,7 +35,6 @@ import { unwrapControlResult } from '../shared/control-error'
 
 export type {
   AccountsListResponse,
-  AccountSummary,
   ApiKeyCreateRequest,
   ApiKeyEntry,
   ApiKeysListResponse,
@@ -48,6 +50,10 @@ export type {
   MenuBarModeAttempt,
   MenuBarModeState,
   ModelsListResponse,
+  LocalModelCancelResult,
+  LocalModelCatalogSnapshot,
+  LocalModelEnsureResult,
+  LocalModelOperationEvent,
   TokenUsagePeriod,
   TokenUsageSummary,
 }
@@ -96,6 +102,13 @@ export interface SettingsCapabilities {
   models: {
     list(): Promise<ModelsListResponse>
     refresh(): Promise<ModelsListResponse>
+  }
+  localModels: {
+    list(): Promise<LocalModelCatalogSnapshot>
+    ensure(modelKey: string): Promise<LocalModelEnsureResult>
+    cancel(operationId: string): Promise<LocalModelCancelResult>
+    openFolder(): Promise<void>
+    subscribe(listener: (event: LocalModelOperationEvent) => void): () => void
   }
   usage: {
     get(period: TokenUsagePeriod): Promise<TokenUsageSummary>
@@ -251,6 +264,15 @@ export function createCoreSettingsCapabilities(): SettingsCapabilities {
       list: async () => unwrapControlResult(await bridge.control.modelsList()),
       refresh: async () =>
         unwrapControlResult(await bridge.control.modelsRefresh()),
+    },
+    localModels: {
+      list: async () => unwrapControlResult(await bridge.localModels.list()),
+      ensure: async (modelKey) =>
+        unwrapControlResult(await bridge.localModels.ensure(modelKey)),
+      cancel: async (operationId) =>
+        unwrapControlResult(await bridge.localModels.cancel(operationId)),
+      openFolder: () => bridge.localModels.openFolder(),
+      subscribe: (listener) => bridge.localModels.onChange(listener),
     },
     usage: {
       get: async (period) =>

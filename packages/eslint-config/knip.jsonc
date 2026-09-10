@@ -1,0 +1,18 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
+  "entry": [
+    "architecture.js",
+    "base.js",
+    "service.js",
+    "typescript.js",
+    "eslint.config.js",
+    "tests/**/*.test.mjs"
+  ],
+  "project": ["*.js", "tests/**/*.mjs"],
+  // Prettier loads this named plugin from service.js configuration data.
+  "ignoreDependencies": ["prettier-plugin-packagejson"],
+  "ignoreIssues": {
+    // Each public profile intentionally offers the same function as named and default exports.
+    "{architecture,base,service,typescript}.js": ["duplicates"]
+  }
+}

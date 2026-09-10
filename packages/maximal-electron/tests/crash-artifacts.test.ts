@@ -16,9 +16,8 @@ import {
  * The behaviour these tests pin was measured on Electron 43 before it was
  * written: with the reporter started, a `utilityProcess` abort leaves a
  * `.dmp` under `<userData>/Crashpad`, and with the start suppressed the
- * directory does not exist at all. `scripts/verify-crash-artifact.mjs` is what
- * re-establishes that against a packaged build; this file covers the decisions
- * around it. Issue #134.
+ * directory does not exist at all. This file covers the decisions around it.
+ * Issue #134.
  */
 
 const made: string[] = [];

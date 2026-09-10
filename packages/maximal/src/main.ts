@@ -3,12 +3,20 @@
 import { createBuiltinConfiguratorRuntime } from "@stuffbucket/maximal-configurators"
 import { runCli } from "@stuffbucket/maximal-core/provider-host"
 
-import { createDshProviderGateway } from "./provider-gateway"
+import {
+  createDshProviderGateway,
+  type DshProviderGatewayComposition,
+} from "./provider-gateway"
 
-export async function main(): Promise<void> {
+export type MaximalCompositionOptions = DshProviderGatewayComposition
+
+export async function main(
+  options: MaximalCompositionOptions = {},
+): Promise<void> {
   await runCli({
     createConfiguratorRuntime: createBuiltinConfiguratorRuntime,
-    createProviderGateway: createDshProviderGateway,
+    createProviderGateway: async (context) =>
+      await createDshProviderGateway(context, options),
   })
 }
 

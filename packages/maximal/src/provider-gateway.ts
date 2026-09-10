@@ -4,12 +4,13 @@ import type {
   ProviderHostConfigSnapshot,
 } from "@stuffbucket/maximal-core/provider-host"
 import type {
+  LocalModelControl,
   ProviderDispatch,
   ProviderGateway,
   ProviderStatus,
   ProviderTopologyListener,
   ProviderUnsubscribe,
-} from "@stuffbucket/maximal-provider-contract"
+} from "@stuffbucket/maximal-model-contract"
 
 import {
   ProfileValidationError,
@@ -19,7 +20,7 @@ import {
   type DshHostOptions,
   type DshHostReconcileInput,
   type DshHostReconcileResult,
-} from "@stuffbucket/maximal-dsh-host"
+} from "@stuffbucket/maximal-models"
 
 interface AnthropicCompatibilityInstance {
   readonly adjustInputTokens?: boolean
@@ -37,13 +38,23 @@ interface ReconciliableGateway extends ProviderGateway {
 
 type StartHost = (options: DshHostOptions) => Promise<ReconciliableGateway>
 
-export interface DshProviderGatewayDependencies {
+export interface DshProviderGatewayComposition {
+  readonly defaultActivation?: ActivationSnapshot | ActivationSource
+  readonly defaultProfileDirectory?: string
+}
+
+export interface DshProviderGatewayDependencies extends DshProviderGatewayComposition {
   readonly startHost?: StartHost
 }
 
-function profileDirectory(snapshot: ProviderHostConfigSnapshot): string {
+function profileDirectory(
+  snapshot: ProviderHostConfigSnapshot,
+  defaultProfileDirectory: string | undefined,
+): string {
   return (
-    snapshot.providerHost.profileDirectory ?? snapshot.defaultProfileDirectory
+    snapshot.providerHost.profileDirectory
+    ?? defaultProfileDirectory
+    ?? snapshot.defaultProfileDirectory
   )
 }
 
@@ -123,15 +134,47 @@ export function buildProviderActivation(
   return activation
 }
 
+function isActivationSource(
+  value: ActivationSnapshot | ActivationSource,
+): value is ActivationSource {
+  return "snapshot" in value && typeof value.snapshot === "function"
+}
+
+async function defaultActivationSnapshot(
+  value: ActivationSnapshot | ActivationSource | undefined,
+): Promise<ActivationSnapshot> {
+  if (value === undefined) return {}
+  return isActivationSource(value) ? await value.snapshot() : value
+}
+
 function activationSource(
   snapshot: ProviderHostConfigSnapshot,
+  defaultActivation: ActivationSnapshot | ActivationSource | undefined,
 ): ActivationSource {
-  return { snapshot: () => buildProviderActivation(snapshot) }
+  const source =
+    defaultActivation !== undefined && isActivationSource(defaultActivation) ?
+      defaultActivation
+    : undefined
+  return {
+    async snapshot() {
+      return {
+        ...(await defaultActivationSnapshot(defaultActivation)),
+        ...buildProviderActivation(snapshot),
+      }
+    },
+    ...(source?.subscribe === undefined ?
+      {}
+    : {
+        subscribe: (listener) =>
+          source.subscribe?.(listener) ?? (() => undefined),
+      }),
+  }
 }
 
 class ManagedDshGateway implements ProviderGateway {
   readonly #host: ReconciliableGateway
   readonly #source: ProviderGatewayFactoryContext["configSource"]
+  readonly #composition: DshProviderGatewayComposition
   readonly #unsubscribe: () => void
   #disposed = false
   #disposePromise: Promise<void> | undefined
@@ -140,12 +183,18 @@ class ManagedDshGateway implements ProviderGateway {
   constructor(
     host: ReconciliableGateway,
     source: ProviderGatewayFactoryContext["configSource"],
+    composition: DshProviderGatewayComposition,
   ) {
     this.#host = host
     this.#source = source
+    this.#composition = composition
     this.#unsubscribe = source.subscribe((snapshot) => {
       this.#enqueue(snapshot)
     })
+  }
+
+  get localModels(): LocalModelControl | undefined {
+    return this.#host.localModels
   }
 
   async synchronize(initial: ProviderHostConfigSnapshot): Promise<void> {
@@ -160,8 +209,14 @@ class ManagedDshGateway implements ProviderGateway {
       if (this.#disposed) return
       try {
         await this.#host.reconcile({
-          activation: activationSource(snapshot),
-          profileDirectory: profileDirectory(snapshot),
+          activation: activationSource(
+            snapshot,
+            this.#composition.defaultActivation,
+          ),
+          profileDirectory: profileDirectory(
+            snapshot,
+            this.#composition.defaultProfileDirectory,
+          ),
         })
       } catch {
         // DshHost converts candidate failures into bounded topology diagnostics.
@@ -206,11 +261,21 @@ export async function createDshProviderGateway(
 ): Promise<ProviderGateway> {
   const startHost: StartHost = dependencies.startHost ?? startDshHost
   const host = await startHost({
-    activation: activationSource(context.config),
-    profileDirectory: profileDirectory(context.config),
+    activation: activationSource(
+      context.config,
+      dependencies.defaultActivation,
+    ),
+    profileDirectory: profileDirectory(
+      context.config,
+      dependencies.defaultProfileDirectory,
+    ),
   })
   try {
-    const gateway = new ManagedDshGateway(host, context.configSource)
+    const gateway = new ManagedDshGateway(
+      host,
+      context.configSource,
+      dependencies,
+    )
     await gateway.synchronize(context.config)
     return gateway
   } catch (error) {

@@ -1,8 +1,8 @@
-import type { ITheme, Terminal as GhosttyTerminal } from 'ghostty-web';
 import type { ReactNode } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect } from 'storybook/test';
 
+import type { TerminalEmulator, TerminalTheme } from '../lib/terminal-emulator.js';
 import type {
   DetachableTerminalTransport,
   TerminalDescriptor,
@@ -19,10 +19,8 @@ import { TerminalView, type TerminalHost } from './TerminalView.js';
  * or an IPC bridge — it takes a `TerminalTransport` as a value — so a story
  * writes five methods and every one of them is a line over a canned buffer.
  *
- * **The emulator is real here.** `ghostty-web` carries its WebAssembly module
- * as a `data:` URL inside its own bundle, so `init()` needs no asset route from
- * Vite, no static file and no network. What these stories draw is the parser,
- * the renderer and the canvas the application draws.
+ * **The emulator is real here.** What these stories draw is xterm's parser,
+ * renderer and terminal surface.
  *
  * **There is no text in the DOM.** The emulator paints a `<canvas>`, so nothing
  * in these stories is reachable by `getByText`, and each `play` reads the
@@ -107,13 +105,13 @@ export function cannedTransport(
  * afterwards is a no-op that logs a warning. `Light` is a separate story for
  * that reason, and it is not a duplicate of `Default`.
  */
-export const DARK: ITheme = {
+export const DARK: TerminalTheme = {
   background: '#101216',
   foreground: '#e6e8ec',
   cursor: '#6ea8fe',
 };
 
-const LIGHT: ITheme = {
+const LIGHT: TerminalTheme = {
   background: '#eef0f4',
   foreground: '#12141a',
   cursor: '#2563eb',
@@ -144,7 +142,7 @@ export function hostFor(canvasElement: HTMLElement, testId: string): TerminalHos
  * pass — the defect `.claude/skills/write-a-check/SKILL.md` catalogues, in its
  * browser form.
  */
-export async function terminalOf(host: TerminalHost): Promise<GhosttyTerminal> {
+export async function terminalOf(host: TerminalHost): Promise<TerminalEmulator> {
   const deadline = Date.now() + 10_000;
   while (!host.__terminal) {
     if (Date.now() > deadline) {
@@ -156,7 +154,7 @@ export async function terminalOf(host: TerminalHost): Promise<GhosttyTerminal> {
 }
 
 /** Every row the parser has produced, as text. */
-export function bufferText(term: GhosttyTerminal): string {
+export function bufferText(term: TerminalEmulator): string {
   const buffer = term.buffer.active;
   const lines: string[] = [];
   for (let row = 0; row < buffer.length; row += 1) {
@@ -200,7 +198,7 @@ export async function bufferContaining(
  */
 type TerminalViewArgs = TerminalDescriptor & {
   transport: TerminalTransport;
-  theme?: ITheme;
+  theme?: TerminalTheme;
   testId?: string;
 };
 

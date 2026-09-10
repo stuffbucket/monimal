@@ -17,9 +17,17 @@ repository or imported commit:
 
 | Package                                   | Purpose                                                                                   |
 | ----------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `packages/local-model-registry`           | Provider-neutral local-model registration, provisioning, and runner claims.               |
+| `packages/maximal-harness`                | Transport-neutral local agent runtime, approval gate, worker, and renderer component.     |
+| `packages/maximal-model-contract`         | Runtime-neutral model gateway contract shared by Core and model orchestration.            |
+| `packages/maximal-models`                 | Model runtime discovery, lifecycle, reconciliation, and dispatch through DSH.             |
+| `packages/model-qwen3-0.6b-q8-gguf`       | Qwen3 0.6B Q8_0 GGUF artifact metadata and verified provisioning source.                  |
 | `packages/maximal-observability-contract` | Runtime-neutral, versioned traffic-observability schemas and passive observer interfaces. |
 | `packages/maximal-configurators`          | Statically linked first-party client configurators using Core's capability host.          |
 | `packages/maximal-observability`          | Renderer-only traffic explorer components and source interface.                           |
+| `packages/model-runtimes/anthropic`       | Profile-installed adapter for Anthropic-compatible Messages APIs.                         |
+| `packages/model-runtimes/llama-server`    | Private descriptor scaffold for a llama.cpp HTTP model runtime.                           |
+| `packages/model-runtimes/omlx`            | Profile-installed adapter for an independently running oMLX model runtime.                |
 
 ## Rules
 
@@ -48,10 +56,6 @@ repository or imported commit:
   pnpm 11 reads neither of the latter for them and does not warn: the setting is
   simply ignored. `.npmrc` carries the registry and nothing else.
 - Do not commit `maximal-core/dist`. Its `build` generates it.
-- Keep `packages/maximal/site` inside `maximal`; copied scripts and frozen
-  workflow fixtures address it as `site/` relative to that package.
-- Keep `packages/maximal/site` in the root pnpm workspace. Otherwise the root
-  install, lockfile, Dependabot entry, and Turbo graph do not cover it.
 - Pin transitive tool versions. The root lockfile re-resolves everything to the
   newest semver-compatible version, so assume anything unpinned floats.
 - Do not wire `verify:workflow-health` into this repo's CI. It reads Actions
@@ -177,23 +181,29 @@ package provenance or publisher identity -- the proxy does that.
   linked set of first-party client configurators. It depends only on Core's
   capability-scoped `configurator-host` subpath. The package owns Cordis
   registration; Core owns filesystem, process, credential, and network effects.
-- Added `packages/maximal-provider-contract` as the side-effect-free HTTP
-  gateway contract, `packages/maximal-dsh-host` as its trusted in-process DSH
-  implementation, and `packages/anthropic-provider` as an independently
-  installable stock Cordis/DSH adapter. Maximal Core consumes only the contract;
-  the packaging composition may consume the host; neither depends on a concrete
-  provider plugin.
+- `maximal-core/downstream`: declares itself as an independently installed
+  compatibility fixture so the root package-onboarding audit does not treat it
+  as a missing nested workspace package.
+- Added `packages/maximal-model-contract` as the side-effect-free model gateway
+  contract and `packages/maximal-models` as its trusted in-process DSH
+  orchestration. Maximal Core consumes only the contract; the packaging
+  composition may consume orchestration; neither depends on a concrete model
+  runtime adapter. Concrete adapters live under `packages/model-runtimes` and
+  retain independent package identities for profile installation.
 - Added the monorepo-native `packages/maximal-observability-contract` for the
   versioned, runtime-neutral traffic contract and passive observer seam, and
   `packages/maximal-observability` for renderer-only traffic surfaces. The UI
   package depends on the contract; the contract depends on neither Core nor a
   UI, database, transport, or desktop runtime.
-- Replaced the private `packages/omlx` descriptor scaffold with a publishable
+- Replaced the private `packages/model-runtimes/omlx` descriptor scaffold with a publishable
   stock Cordis/DSH adapter for an independently running oMLX HTTP server. Cordis
-  and DSH are exact peers of external provider packages and are loaded from a
-  user-managed profile rather than compiled into Maximal. `packages/llama-server`
-  remains a private descriptor scaffold and is deliberately separate from
-  `maximal-electron`'s embedded `node-llama-cpp` utility process.
+  and DSH are exact peers of external model runtime packages and are loaded from
+  a user-managed profile rather than compiled into Maximal.
+  `packages/model-runtimes/llama-server` is an activation-gated Cordis/DSH
+  runner for a private standalone llama.cpp process. Packaging fails until its
+  runtime lock contains an authoritative entry for the target. It remains
+  separate from the client's transitional embedded `node-llama-cpp` utility
+  process.
 - Pin rule SETS, not just plugin versions, when a plugin major moves. The
   replaced preset enumerated 83 unicorn rules against unicorn 60; ESLint 10
   needs unicorn >= 73, whose `recommended` turns on 227 more. Taking
@@ -207,6 +217,15 @@ package provenance or publisher identity -- the proxy does that.
   package.json" silently stopped all three manifests being linted at all --
   invisible in the findings, which stayed at zero, and visible only in the
   linted-file count. Attach `ignores` to the objects that carry rules.
+- Added a Turbo-cached `analyze` task across every workspace package. Maximal
+  Core owns the exact Knip, dependency-cruiser, and jscpd versions and the
+  shared runner; its pre-existing cycle-edge and duplicate-pair ratchets call
+  extracted shared primitives. `architecture-analysis.json` owns package
+  coverage, package-layer rules, and non-Core baselines. The existing workspace
+  verifier consumes the same layer data for its authoritative provider-edge
+  check. The shared ESLint package owns the exact
+  `eslint-plugin-boundaries` version and composes its architecture profile into
+  the existing TypeScript lint pass.
 
 - `maximal` and `maximal/client`: git pins on `@stuffbucket/maximal-core`
   rewritten to `workspace:*`. Load-bearing — maximal's `build`, `dev` and
@@ -236,7 +255,7 @@ package provenance or publisher identity -- the proxy does that.
   `Unexpected token 'S'` for anyone who ran it locally; it also rewrote
   `pnpm-lock.yaml` on its way out, which is the lockfile hazard above reached
   through a read-only check.
-- `maximal-electron`: `src/main/llama-worker.ts` passes `build: 'never'` to
+- `maximal/client`: `src/main/llama-worker.ts` passes `build: 'never'` to
   `getLlama()`, and packaging drops
   `node-llama-cpp/llama/gitRelease.bundle` -- 33 MB of llama.cpp source for a
   compile that cannot run in an Electron bundle. Upstream already defaults the
@@ -285,9 +304,9 @@ package provenance or publisher identity -- the proxy does that.
   `.npmrc` carries 7.3.5 and then 8.x, never 7.3.6, so the pinned version cannot
   be installed at all. Every dependent already accepts vite 8 as a peer, and
   `maximal/client` was on `^8.2.1` already.
-- `maximal/site`: added to the root pnpm workspace and root lockfile. Its Astro
-  build is package-manager-neutral; the separate Bun install, lockfile,
-  registry file, Dependabot entry, and CI path duplicated workspace machinery.
+- Removed `maximal/site` after the site moved to
+  `https://github.com/stuffbucket/maximal-site`; its build, dependency updates,
+  and release workflow are now owned by that repository.
 - Root: `pnpm.overrides` and `pnpm.onlyBuiltDependencies` moved out of
   `package.json` into `pnpm-workspace.yaml`, the latter renamed to `allowBuilds`
   and reshaped from a list to a map. Under pnpm 11 the old spellings are ignored

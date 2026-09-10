@@ -12,6 +12,7 @@ export default [
   ...typescript({
     tsconfigRootDir: import.meta.dirname,
     level: 'recommended',
+    architectureKind: 'electron',
     typeChecked: true,
   }),
   {
@@ -87,7 +88,7 @@ export default [
      * twenty of them second names for values already published, and five
      * exported surfaces that would have reached a consumer with no border and
      * no background at all. Every check ran green over it, because each one
-     * reads `structural.css` and the rules had moved out from under it.
+     * reads `shell-package-rules.css` and the rules had moved out from under it.
      *
      * `scripts/component-css.mjs` is the judgement;
      * `tests/component-styles.test.ts` runs the same call over every carried
@@ -146,6 +147,25 @@ export default [
         'error',
         {
           patterns: [
+            {
+              group: [
+                '@stuffbucket/*/src',
+                '@stuffbucket/*/src/**',
+                'stuffbucket-electron/src/**',
+              ],
+              message:
+                'Import another package through a declared public entry point, never its source tree.',
+            },
+            {
+              group: [
+                'maximal-client',
+                'maximal-client/**',
+                '@stuffbucket/maximal-core',
+                '@stuffbucket/maximal-core/**',
+              ],
+              message:
+                'The reusable Electron package must not depend on consumer or Maximal Core policy.',
+            },
             {
               group: ['**/e2e/**'],
               message:

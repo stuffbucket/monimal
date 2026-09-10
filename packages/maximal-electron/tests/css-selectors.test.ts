@@ -14,7 +14,7 @@ import {
  *
  * Its predecessor recognised a selector by the shape of the line it sat on, so
  * every shape it did not recognise went unjudged. These fixtures are the shapes
- * issue #51 names, plus the constructs `structural.css` already uses, so a
+ * issue #51 names, plus the constructs `shell-package-rules.css` already uses, so a
  * parser that silently stops seeing one of them fails here rather than in the
  * check that depends on it.
  */
@@ -56,7 +56,7 @@ describe('reading selectors out of a stylesheet', () => {
       [],
     );
     // The percentage form, and a comma-separated offset list. `sb-tab-busy` in
-    // `structural.css` names its resting position at both ends, so `0%, 100%`
+    // `shell-package-rules.css` names its resting position at both ends, so `0%, 100%`
     // is the shape the package stylesheet actually ships.
     expect(
       selectors('@keyframes x {\n  0%,\n  100% { top: 0; }\n\n  50% { top: 1px; }\n}'),

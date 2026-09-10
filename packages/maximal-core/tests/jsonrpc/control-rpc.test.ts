@@ -23,15 +23,18 @@ import {
 import { ControlHub } from "~/lib/live/hub"
 import { AsyncMutex } from "~/lib/live/mutex"
 import { stopControlHub } from "~/lib/live/service"
+import { state } from "~/lib/runtime-state/state"
 import { createControlRoutes } from "~/routes/control/route"
 import { createControlRpcMethods } from "~/routes/control/rpc"
 
 beforeEach(() => {
+  state.models = undefined
   writeConfig({})
 })
 
 afterEach(() => {
   stopControlHub()
+  state.models = undefined
   writeConfig({})
 })
 
@@ -473,13 +476,69 @@ describe("control /rpc — settings operations", () => {
   })
 })
 
+describe("control /rpc — provider models", () => {
+  test("models/list includes discovered provider models", async () => {
+    const providerApp = createControlRoutes({
+      getRequestIp: () => "127.0.0.1",
+      listProviderModels: () =>
+        Promise.resolve([
+          {
+            id: "mlx-community/Qwen3-8B",
+            name: "Qwen 3 8B",
+            provider: "local",
+            providerName: "Local (oMLX)",
+          },
+        ]),
+    })
+
+    const body = await rpcThrough(providerApp, "models/list")
+
+    expect(body.result?.models).toEqual([
+      expect.objectContaining({
+        id: "mlx-community/Qwen3-8B",
+        vendor: "Local (oMLX)",
+        type: "chat",
+      }),
+    ])
+  })
+
+  test("control snapshots include discovered provider models", async () => {
+    const providerApp = createControlRoutes({
+      getRequestIp: () => "127.0.0.1",
+      listProviderModels: () =>
+        Promise.resolve([
+          {
+            id: "mlx-community/Qwen3-8B",
+            name: "Qwen 3 8B",
+            provider: "local",
+            providerName: "Local (oMLX)",
+          },
+        ]),
+    })
+
+    const { block } = await listen(providerApp)
+    const dataLine =
+      block.split("\n").find((line) => line.startsWith("data:")) ?? ""
+    const frame = JSON.parse(dataLine.slice("data:".length).trim()) as {
+      params?: { snapshot?: ControlSnapshot }
+    }
+
+    expect(frame.params?.snapshot?.models.models).toEqual([
+      expect.objectContaining({
+        id: "mlx-community/Qwen3-8B",
+        vendor: "Local (oMLX)",
+      }),
+    ])
+  })
+})
+
 /** Open `subscriptions/listen` and read its first SSE block. */
-async function listen(): Promise<{
+async function listen(target: Hono = app()): Promise<{
   status: number
   ctype: string
   block: string
 }> {
-  const res = await app().request("/rpc", {
+  const res = await target.request("/rpc", {
     method: "POST",
     headers: {
       "content-type": "application/json",

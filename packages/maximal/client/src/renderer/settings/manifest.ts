@@ -1,6 +1,7 @@
 import {
   ChartColumn,
   Cpu,
+  HardDrive,
   Link2,
   ScrollText,
   SlidersHorizontal,
@@ -19,6 +20,7 @@ import type { SettingsCapabilities } from './capabilities'
 import { ConnectionsSection } from './ConnectionsSection'
 import { DiagnosticsSection } from './DiagnosticsSection'
 import { GeneralSection } from './GeneralSection'
+import { LocalModelsSection } from './LocalModelsSection'
 import { LogsSection } from './LogsSection'
 import { ModelsSection } from './ModelsSection'
 import { UsageSection } from './UsageSection'
@@ -38,6 +40,10 @@ const SECTION_PARTS: Record<SettingsSectionId, SectionParts> = {
   },
   'settings-connections-heading': { icon: Link2, Panel: ConnectionsSection },
   'settings-models-heading': { icon: Cpu, Panel: ModelsSection },
+  'settings-local-models-heading': {
+    icon: HardDrive,
+    Panel: LocalModelsSection,
+  },
   'settings-usage-heading': { icon: ChartColumn, Panel: UsageSection },
   'settings-logs-heading': { icon: ScrollText, Panel: LogsSection },
   'settings-diagnostics-heading': {

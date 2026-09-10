@@ -18,7 +18,7 @@ const workspaceRebuild = ["rebuild", "--recursive", "--pending"];
 const rebuildArguments = Object.freeze({
   workspace: workspaceRebuild,
   core: workspaceRebuild,
-  "maximal-dsh-host": workspaceRebuild,
+  "maximal-models": workspaceRebuild,
   "maximal-configurators": workspaceRebuild,
   connections: workspaceRebuild,
   policy: workspaceRebuild,
@@ -31,11 +31,11 @@ const buildArguments = Object.freeze({
     "--concurrency=1",
     "--filter=@stuffbucket/maximal-core...",
   ],
-  "maximal-dsh-host": [
+  "maximal-models": [
     "run",
     "build",
     "--concurrency=1",
-    "--filter=@stuffbucket/maximal-dsh-host...",
+    "--filter=@stuffbucket/maximal-models...",
   ],
   "maximal-configurators": [
     "run",
@@ -107,6 +107,35 @@ function targetPath(root, relativePath) {
   return target;
 }
 
+function stageGitMetadata(checkout, workspace) {
+  const checkoutGit = path.join(checkout, ".git");
+  const workspaceGit = path.join(workspace, ".git");
+  const stat = fs.statSync(checkoutGit, { throwIfNoEntry: false });
+  if (!stat?.isDirectory() && !stat?.isFile()) {
+    throw new Error("The checkout does not have Git metadata");
+  }
+  fs.rmSync(workspaceGit, { force: true, recursive: true });
+  if (stat.isDirectory()) {
+    fs.symlinkSync(checkoutGit, workspaceGit, "dir");
+    return;
+  }
+
+  const sourceGitDirectory = gitOutput(
+    ["rev-parse", "--path-format=absolute", "--git-dir"],
+    checkout,
+  ).trim();
+  const commonDirectory = gitOutput(
+    ["rev-parse", "--path-format=absolute", "--git-common-dir"],
+    checkout,
+  ).trim();
+  const stagedGitDirectory = path.join(workspace, ".git-worktree");
+  fs.rmSync(stagedGitDirectory, { force: true, recursive: true });
+  fs.cpSync(sourceGitDirectory, stagedGitDirectory, { recursive: true });
+  fs.writeFileSync(path.join(stagedGitDirectory, "commondir"), `${commonDirectory}\n`);
+  fs.writeFileSync(path.join(stagedGitDirectory, "gitdir"), `${workspaceGit}\n`);
+  fs.writeFileSync(workspaceGit, `gitdir: ${stagedGitDirectory}\n`);
+}
+
 export function stageCheckout({
   checkout = checkoutRoot,
   workspace = workspaceRoot,
@@ -131,18 +160,7 @@ export function stageCheckout({
     count += 1;
   }
   if (count === 0) throw new Error("The checkout has no files to stage");
-
-  const gitDirectory = path.join(checkout, ".git");
-  if (!fs.statSync(gitDirectory, { throwIfNoEntry: false })?.isDirectory()) {
-    throw new Error("The checkout does not have a primary Git directory");
-  }
-  const stagedGitDirectory = path.join(workspace, ".git");
-  fs.rmSync(stagedGitDirectory, { force: true, recursive: true });
-  fs.symlinkSync(
-    gitDirectory,
-    stagedGitDirectory,
-    process.platform === "win32" ? "junction" : "dir",
-  );
+  stageGitMetadata(checkout, workspace);
   return count;
 }
 
@@ -170,7 +188,7 @@ export function parseStageOptions(arguments_) {
     !command
   ) {
     throw new Error(
-      "Usage: stage-test-checkout.mjs --rebuild=workspace|core|maximal-dsh-host|maximal-configurators|connections|policy -- <command> [arguments]",
+      "Usage: stage-test-checkout.mjs --rebuild=workspace|core|maximal-models|maximal-configurators|connections|policy -- <command> [arguments]",
     );
   }
   const rebuild = rebuildOption.slice("--rebuild=".length);

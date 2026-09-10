@@ -177,26 +177,8 @@ bun run render-formula --org stuffbucket --version X.Y.Z \
 
 ## 6. Announce
 
-The marketing site (`site/`) reads the published `updates/manifest.json`
-(built from `site/src/lib/updates-manifest.ts`) to hydrate its download
-buttons — no manual update needed there.
-
-**Re-running a failed Pages deploy — dispatch fresh, never re-run failed jobs.**
-If a `deploy-pages.yml` run fails at the deploy step, trigger a brand-new run:
-
-```sh
-gh workflow run deploy-pages.yml --ref main
-```
-
-Do **not** use `gh run rerun <id> --failed` / the UI "re-run failed jobs" button
-on a Pages deploy. `actions/deploy-pages` refuses to deploy a run that has more
-than one artifact named `github-pages`, and a re-run re-uploads the artifact
-without removing the prior copy — so each re-run drives the count 1→2→3 and fails
-harder (issue #239). The workflow now deletes any stale `github-pages` artifact
-before upload to keep re-runs safe, but a fresh dispatch is still the clean,
-guaranteed-single-artifact path. (The specific error, "Multiple artifacts named
-github-pages", is only visible in the run's **Annotations** — the deploy step's
-generic "Deployment failed, try again later" can mask it.)
+The marketing site and its Pages deployment are owned by
+[`stuffbucket/maximal-site`](https://github.com/stuffbucket/maximal-site).
 
 Internal wiki post / chat announcement is outside this runbook.
 

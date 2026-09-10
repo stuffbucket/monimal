@@ -6,5 +6,9 @@
   "type": "module",
   "dependencies": {
     "@stuffbucket/maximal-core": "file:.."
+  },
+  "monimal": {
+    "workspace": false,
+    "workspaceReason": "Downstream compatibility fixture installed independently from the monorepo workspace."
   }
 }

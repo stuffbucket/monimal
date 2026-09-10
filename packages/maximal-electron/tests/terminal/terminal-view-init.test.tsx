@@ -4,32 +4,35 @@ import { createRoot } from 'react-dom/client';
 import { describe, expect, it, vi } from 'vitest';
 
 const ghostty = vi.hoisted(() => ({
-  init: vi.fn()
-    .mockRejectedValueOnce(new Error('WASM unavailable'))
+  create: vi.fn(),
+  kind: undefined as string | undefined,
+  open: vi.fn()
+    .mockRejectedValueOnce(new Error('emulator unavailable'))
     .mockResolvedValue(undefined),
-  open: vi.fn(),
 }));
 
-vi.mock('ghostty-web', () => ({
-  init: ghostty.init,
-  FitAddon: class {
-    fit(): void {}
-  },
-  Terminal: class {
-    readonly cols = 80;
-    readonly rows = 24;
-    loadAddon(): void {}
-    open(): void {
-      ghostty.open();
-    }
-    focus(): void {}
-    onData(): void {}
-    onResize(): void {}
-    attachCustomKeyEventHandler(): void {}
-    onTitleChange(): void {}
-    write(): void {}
-    dispose(): void {}
-  },
+vi.mock('../../src/renderer/lib/terminal-emulator.js', () => ({
+  createTerminalEmulator: ghostty.create
+    .mockImplementation((kind: string) => {
+      ghostty.kind = kind;
+      return ({
+    cols: 80,
+    rows: 24,
+    buffer: { active: {} },
+    async open(): Promise<void> {
+      await ghostty.open();
+    },
+    fit(): void {},
+    focus(): void {},
+    blur(): void {},
+    onData(): { dispose(): void } { return { dispose() {} }; },
+    onResize(): { dispose(): void } { return { dispose() {} }; },
+    onKeyEvent(): void {},
+    onTitleChange(): { dispose(): void } { return { dispose() {} }; },
+    write(): void {},
+    dispose(): void {},
+      });
+    }),
 }));
 
 import { TerminalView } from '../../src/renderer/components/TerminalView.js';
@@ -42,7 +45,7 @@ globalThis.ResizeObserver = class {
 };
 
 describe('TerminalView initialization', () => {
-  it('reports a failed shared WASM load and retries from a clean promise', async () => {
+  it('reports a failed emulator start and retries with a new instance', async () => {
     const transport = {
       spawn: vi.fn(async () => undefined),
       write: vi.fn(async () => undefined),
@@ -54,7 +57,7 @@ describe('TerminalView initialization', () => {
     const root = createRoot(element);
 
     await act(async () => {
-      root.render(<TerminalView id="session-1" transport={transport} />);
+      root.render(<TerminalView id="session-1" emulator="ghostty" transport={transport} />);
     });
 
     expect(element.querySelector('[role="alert"]')?.textContent).toContain(
@@ -66,8 +69,9 @@ describe('TerminalView initialization', () => {
       (element.querySelector('button') as HTMLButtonElement).click();
     });
 
-    expect(ghostty.init).toHaveBeenCalledTimes(2);
-    expect(ghostty.open).toHaveBeenCalledOnce();
+    expect(ghostty.create).toHaveBeenCalledTimes(2);
+    expect(ghostty.kind).toBe('ghostty');
+    expect(ghostty.open).toHaveBeenCalledTimes(2);
     expect(transport.spawn).toHaveBeenCalledOnce();
     expect(element.querySelector('[role="alert"]')).toBeNull();
     expect(transport.terminate).not.toHaveBeenCalled();

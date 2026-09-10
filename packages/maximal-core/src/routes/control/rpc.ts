@@ -26,8 +26,12 @@ import type { ClientRosterReader } from "~/lib/http/active-clients"
 import type { RpcRegistry } from "~/lib/jsonrpc/dispatch"
 import type { ControlHub } from "~/lib/live/hub"
 import type { AsyncMutex } from "~/lib/live/mutex"
-import type { ControlSnapshot } from "~/lib/live/resources"
+import type {
+  ControlSnapshot,
+  ProviderCatalogueModel,
+} from "~/lib/live/resources"
 import type { TrafficQueryStore } from "~/lib/observability/store"
+import type { LocalModelOperations } from "~/routes/control/local-models"
 
 import {
   cancelDeviceFlow,
@@ -97,11 +101,13 @@ export interface ControlRpcOperationOverrides {
 export interface ControlRpcDeps {
   configurators?: ConfiguratorRegistry
   hub: () => ControlHub<ControlSnapshot>
+  listProviderModels?: () => Promise<ReadonlyArray<ProviderCatalogueModel>>
   mutex: AsyncMutex
   /** Injectable active-client roster; defaults to the process-global tracker.
    *  Mirrors `ControlRoutesOptions.listClients` so `GET /clients` and
    *  `clients/list` cannot answer from different state. */
   listClients?: ClientRosterReader
+  localModels?: LocalModelOperations
   trafficQueries?: TrafficQueryStore
   /** Narrow operation seams for dispatcher-level tests. Production uses the real
    *  shared settings operations when an override is absent. */
@@ -122,12 +128,19 @@ function parseObservabilityParams<T>(
   return parsed.data
 }
 
-function keyFromParams(params: unknown): string {
-  const key = (params as { key?: unknown } | null | undefined)?.key
-  if (typeof key !== "string" || !key) {
-    throw new RpcParamsError("Expected { key } string.")
+function stringParam(params: unknown, key: string, expected: string): string {
+  const value =
+    params !== null && typeof params === "object" ?
+      (params as Record<string, unknown>)[key]
+    : undefined
+  if (typeof value !== "string" || value.length === 0 || value.length > 200) {
+    throw new RpcParamsError(expected)
   }
-  return key
+  return value
+}
+
+function keyFromParams(params: unknown): string {
+  return stringParam(params, "key", "Expected { key } string.")
 }
 
 function parseParams<T>(
@@ -187,6 +200,7 @@ function createConnectionActionRpc(
 function createSettingsRpcMethods({
   configurators,
   hub,
+  listProviderModels = () => Promise.resolve([]),
   operations = {},
 }: ControlRpcDeps): RpcRegistry {
   const createApiKeyOperation = operations.createApiKey ?? createApiKey
@@ -213,7 +227,7 @@ function createSettingsRpcMethods({
       }),
     "apps/list": readApps,
     "apiKeys/list": () => listApiKeys(),
-    "models/list": () => buildModelsList(),
+    "models/list": async () => buildModelsList(await listProviderModels()),
     "usage/get": (params: unknown) => {
       const { period } = parseParams(
         TokenUsageRequest,
@@ -225,7 +239,7 @@ function createSettingsRpcMethods({
     "diagnostics/get": () => buildDiagnostics(),
     "models/refresh": async () => {
       await refreshModels()
-      return buildModelsList()
+      return buildModelsList(await listProviderModels())
     },
     "apps/setEnabled": async (params: unknown) => {
       const { appId, enabled } = parseParams(
@@ -284,6 +298,23 @@ function createSettingsRpcMethods({
  * distinction is carried in the result rather than a status, because clients
  * discriminate on the payload and never on HTTP (ADR-0023).
  */
+function createLocalModelRpcMethods(
+  operations: LocalModelOperations | undefined,
+): RpcRegistry {
+  if (operations === undefined) return {}
+  return {
+    "localModels/list": () => operations.list(),
+    "localModels/ensure": (params: unknown) =>
+      operations.ensure(
+        stringParam(params, "modelKey", "Expected { modelKey } string."),
+      ),
+    "localModels/cancel": (params: unknown) =>
+      operations.cancel(
+        stringParam(params, "operationId", "Expected { operationId } string."),
+      ),
+  }
+}
+
 function relayToShell(emit: () => boolean, verb: "quitting" | "upgrading") {
   return () =>
     emit() ?
@@ -308,6 +339,7 @@ export function createControlRpcMethods(deps: ControlRpcDeps): RpcRegistry {
   const registry: RpcRegistry = {
     health: () => ({ ok: true, version: BUILD_VERSION }),
     ...createSettingsRpcMethods(deps),
+    ...createLocalModelRpcMethods(deps.localModels),
 
     // Reads. Each mirrors a live feed topic and shares its builder, so a
     // snapshot read and a pushed update can never describe different shapes.

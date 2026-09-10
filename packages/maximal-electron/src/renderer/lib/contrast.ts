@@ -27,7 +27,6 @@
 /** The ratio normal text must reach. Large text may use `AA_LARGE`. */
 export const AA_NORMAL = 4.5;
 /** 18pt, or 14pt bold. Nothing in this shell qualifies at present. */
-export const AA_LARGE = 3;
 /**
  * WCAG 2.2 SC 1.4.11. For a shape that carries meaning and holds no text: a
  * status dot, a tab's emphasis marker, the accent along a selected tab.

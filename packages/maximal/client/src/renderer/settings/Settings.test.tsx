@@ -11,7 +11,7 @@ import {
   DEFAULT_SETTINGS_SECTION_ID,
   SETTINGS_SECTIONS,
 } from '../../shared/settings-sections'
-import { AppFrame } from '../frame/AppFrame'
+import { AppFrame, PRODUCT_TABS } from '../frame/AppFrame'
 import type { SettingsCapabilities } from './capabilities'
 import { Settings, type SettingsSectionRequest } from './Settings'
 
@@ -74,6 +74,20 @@ function fakeCapabilities(): SettingsCapabilities {
     models: {
       list: vi.fn(async () => ({ models: [], count: 0, loaded_at: null })),
       refresh: vi.fn(async () => ({ models: [], count: 0, loaded_at: null })),
+    },
+    localModels: {
+      list: vi.fn(async () => ({ models: [], revision: 0 })),
+      ensure: vi.fn(async (modelKey: string) => ({
+        modelKey,
+        operationId: 'operation-1',
+        started: true,
+      })),
+      cancel: vi.fn(async (operationId: string) => ({
+        operationId,
+        cancelled: true,
+      })),
+      openFolder: vi.fn(async () => {}),
+      subscribe: vi.fn(() => () => {}),
     },
     usage: {
       get: vi.fn(async (period: TokenUsagePeriod) => ({
@@ -138,7 +152,7 @@ async function renderSettings(request?: SettingsSectionRequest): Promise<HTMLEle
 async function rerender(request?: SettingsSectionRequest): Promise<void> {
   await act(async () => {
     root?.render(
-      <AppFrame view="settings" onSelectView={vi.fn()}>
+      <AppFrame tabs={PRODUCT_TABS} activeTab="settings" surface="settings" onSelectTab={vi.fn()}>
         <Settings capabilities={fakeCapabilities()} request={request ?? null} />
       </AppFrame>,
     )

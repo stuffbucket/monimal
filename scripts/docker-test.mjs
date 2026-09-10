@@ -18,6 +18,10 @@ export const imageLabels = Object.freeze({
   mutation: "io.stuffbucket.monimal.mutation",
   purpose: "io.stuffbucket.monimal.purpose",
 });
+export const turboCacheLabels = Object.freeze({
+  dependencyImage: "io.stuffbucket.monimal.dependency-image",
+  purpose: "io.stuffbucket.monimal.purpose",
+});
 
 function readRequired(filePath) {
   const value = fs.readFileSync(filePath, "utf8").trim();
@@ -121,9 +125,9 @@ const suites = Object.freeze({
     innerScript: "test:maximal-core:inner",
     rebuild: "core",
   },
-  "maximal-dsh-host": {
-    innerScript: "test:maximal-dsh-host:inner",
-    rebuild: "maximal-dsh-host",
+  "maximal-models": {
+    innerScript: "test:maximal-models:inner",
+    rebuild: "maximal-models",
   },
   "maximal-configurators": {
     innerScript: "test:maximal-configurators:inner",
@@ -137,7 +141,7 @@ const suites = Object.freeze({
 });
 
 const usage =
-  "Usage: pnpm run test:docker -- [--all] [--suite=workspace|maximal-core|maximal-dsh-host|maximal-configurators|connections|policy] [--trace=off|tests|all]";
+  "Usage: pnpm run test:docker -- [--all] [--suite=workspace|maximal-core|maximal-models|maximal-configurators|connections|policy] [--trace=off|tests|all]";
 
 export function parseOptions(arguments_) {
   const options = arguments_[0] === "--" ? arguments_.slice(1) : arguments_;
@@ -363,6 +367,65 @@ export function checkoutMountArguments(root = repositoryRoot) {
   return ["--mount", `type=bind,source=${root},target=/checkout,readonly`];
 }
 
+export function gitMetadataMountArguments(root = repositoryRoot) {
+  const gitDirectory = fs.realpathSync(
+    execFileSync("git", ["rev-parse", "--path-format=absolute", "--git-dir"], {
+      cwd: root,
+      encoding: "utf8",
+    }).trim(),
+  );
+  const commonDirectory = fs.realpathSync(
+    execFileSync(
+      "git",
+      ["rev-parse", "--path-format=absolute", "--git-common-dir"],
+      { cwd: root, encoding: "utf8" },
+    ).trim(),
+  );
+  if (gitDirectory === commonDirectory) return [];
+  if (commonDirectory.includes(",")) {
+    throw new Error("Docker Git metadata path cannot contain a comma");
+  }
+  return [
+    "--mount",
+    `type=bind,source=${commonDirectory},target=${commonDirectory},readonly`,
+  ];
+}
+
+export function turboCacheMountArguments(imageId) {
+  const volumeName = turboCacheVolumeName(imageId);
+  return [
+    "--mount",
+    `type=volume,source=${volumeName},target=/workspace/.turbo`,
+  ];
+}
+
+export function turboCacheVolumeName(imageId) {
+  requireMatch(imageId, /^sha256:[0-9a-f]{64}$/u, "Docker image ID");
+  const digest = imageId.slice("sha256:".length);
+  return `monimal-test-turbo-${digest}`;
+}
+
+export function turboCacheVolumeCreateArguments(imageId) {
+  return [
+    "volume",
+    "create",
+    "--label",
+    `${turboCacheLabels.purpose}=turbo-cache`,
+    "--label",
+    `${turboCacheLabels.dependencyImage}=${imageId}`,
+    turboCacheVolumeName(imageId),
+  ];
+}
+
+export function validatedTurboCacheVolumeName(volume, imageId) {
+  const expectedName = turboCacheVolumeName(imageId);
+  return volume?.Name === expectedName &&
+    volume.Labels?.[turboCacheLabels.purpose] === "turbo-cache" &&
+    volume.Labels?.[turboCacheLabels.dependencyImage] === imageId
+    ? expectedName
+    : undefined;
+}
+
 export function stagedCommandArguments(
   rebuild,
   command,
@@ -390,6 +453,8 @@ export function runDockerArguments(imageId, options = {}) {
     "--rm",
     ...containerBoundaryArguments(),
     ...checkoutMountArguments(),
+    ...gitMetadataMountArguments(),
+    ...turboCacheMountArguments(imageId),
   ];
   if (trace !== "off") {
     arguments_.push(
@@ -427,6 +492,27 @@ function runDocker(arguments_, label) {
       `${label} failed with exit code ${result.status ?? "unknown"}`,
     );
   }
+}
+
+export function ensureTurboCacheVolume(imageId) {
+  const name = turboCacheVolumeName(imageId);
+  runDocker(
+    turboCacheVolumeCreateArguments(imageId),
+    "Docker Turbo cache volume creation",
+  );
+  const result = spawnSync(
+    "docker",
+    ["volume", "inspect", "--format", "{{json .}}", name],
+    { cwd: repositoryRoot, encoding: "utf8" },
+  );
+  if (result.error || result.status !== 0 || !result.stdout?.trim()) {
+    throw new Error("Docker Turbo cache volume inspection failed");
+  }
+  const volume = JSON.parse(result.stdout.trim());
+  if (validatedTurboCacheVolumeName(volume, imageId) !== name) {
+    throw new Error("Docker Turbo cache volume metadata does not match its contract");
+  }
+  return name;
 }
 
 export function pruneTestImages() {
@@ -540,7 +626,6 @@ export function assertPrimaryCheckout(root = repositoryRoot) {
 
 export function main(arguments_ = process.argv.slice(2)) {
   const options = parseOptions(arguments_);
-  assertPrimaryCheckout();
   const cache = process.env.MAXIMAL_DOCKER_CACHE || "off";
   const targetArch = dockerServerArchitecture();
   const imageId = ensureTestImage({
@@ -548,6 +633,7 @@ export function main(arguments_ = process.argv.slice(2)) {
     pins: readToolPins(),
     targetArch,
   });
+  ensureTurboCacheVolume(imageId);
   const base =
     options.suite === "workspace" && options.scope === "affected"
       ? affectedBase()

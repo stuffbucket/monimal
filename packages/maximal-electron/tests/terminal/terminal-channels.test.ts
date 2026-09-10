@@ -36,14 +36,6 @@ vi.mock('electron', () => ({
   },
 }));
 
-vi.mock('../../src/main/native/agent.js', () => ({
-  abortAgent: vi.fn(),
-  discoverProvider: vi.fn(),
-  isAgentBusy: vi.fn(),
-  resolveApproval: vi.fn(),
-  runAgent: vi.fn(),
-}));
-vi.mock('../../src/main/native/llama.js', () => ({ ensureModel: vi.fn() }));
 vi.mock('../../src/main/native/notifications.js', () => ({
   setBadgeCount: vi.fn(),
   showNotification: vi.fn(),
@@ -53,19 +45,19 @@ vi.mock('../../src/main/native/preferences.js', () => ({
   setPreferences: vi.fn(),
 }));
 vi.mock('../../src/main/native/pty.js', () => ({
+  attachPtyProjection: vi.fn(),
   defaultShell: vi.fn(),
+  detachPtyProjection: vi.fn(),
+  focusPtyProjection: vi.fn(),
   killPty: vi.fn(),
   listPtys: vi.fn(() => []),
   resizePty: vi.fn(),
-  spawnPty: vi.fn(),
+  resizePtyProjection: vi.fn(),
+  spawnReservedPty: vi.fn(),
   writePty: vi.fn(),
+  writePtyProjection: vi.fn(),
 }));
 vi.mock('../../src/main/native/updates.js', () => ({ checkForUpdates: vi.fn() }));
-vi.mock('../../src/main/windows/overlay.js', () => ({
-  hideOverlay: vi.fn(),
-  toggleOverlay: vi.fn(),
-}));
-
 const main = await import('../../src/main/ipc.js');
 
 /* --------------------------------------------------- the renderer half */

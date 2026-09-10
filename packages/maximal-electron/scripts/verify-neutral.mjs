@@ -44,7 +44,7 @@ const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const manifest = JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
 
 /** The stylesheet ships from here; `copy-renderer-css.mjs` moves it. */
-const SHIPPED_STYLESHEET = 'src/renderer/styles/structural.css';
+const SHIPPED_STYLESHEET = 'src/renderer/styles/shell-package-rules.css';
 
 /**
  * Files that name the application this shell was extracted from, and are not
@@ -54,14 +54,12 @@ const SHIPPED_STYLESHEET = 'src/renderer/styles/structural.css';
  */
 const ALLOWED = [
   {
-    file: 'src/main/native/agent.ts',
-    reason:
-      'the reference application discovers a provider on localhost. Issue #22 injects the origin instead.',
+    file: 'src/renderer/components/Inspector.tsx',
+    reason: 'the reference application owns its settings copy.',
   },
   {
-    file: 'src/shared/ipc.ts',
-    reason:
-      'AgentProvider names that provider chain. Removed with the runMain seam in issue #22.',
+    file: 'README.md',
+    reason: 'the reference application documents its own icon fixture.',
   },
 ];
 

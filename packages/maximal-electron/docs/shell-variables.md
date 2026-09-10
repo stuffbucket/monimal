@@ -30,7 +30,7 @@ Issue #93.
 | `required` | `var(--shell-x)` in at least one rule | nothing: a transparent surface or an inherited colour |
 | `fallback` | only ever `var(--shell-x, …)` | the fallback in the table |
 | `runtime` | resolved by JavaScript, in no rule | the emulator's own default |
-| `structural` | declared by `structure.css`, read by any rule | never unset; this package ships the value |
+| `structural` | declared by `shell-structural-tokens.css`, read by any rule | never unset; this package ships the value |
 
 The kind is a property of the CSS, not a judgement. A `fallback` variable that
 gains a rule with no fallback becomes `required`, and the check fails until the
@@ -38,8 +38,8 @@ table says so.
 
 ## Structural
 
-`structure.css` declares these with values, so a consumer never has to supply
-one and never has to know they exist. They are not a knob set: reaching for a
+`shell-structural-tokens.css` declares these with values, so a consumer never
+has to supply one or know it exists. They are not a knob set: reaching for a
 spacing token means writing layout CSS, which is what the components exist to
 make unnecessary. What they are for is that no rule — ours or a consumer's —
 writes `font-size: 13px` again.
@@ -47,7 +47,7 @@ writes `font-size: 13px` again.
 | Variable | Value | What it sets |
 | --- | --- | --- |
 | `--shell-control-lg` | `28px` | The tallest control height. |
-| `--shell-input-border` | `var(--shell-border-strong, var(--shell-border, #2a2a2a))` | The outline of a field. |
+| `--shell-input-border` | `var(--shell-border-strong, var(--shell-border))` | The outline of a field. |
 | `--shell-leading-base` | `1.5` | Line height for a paragraph. |
 | `--shell-radius` | `6px` | A control corner. |
 | `--shell-radius-large` | `8px` | A card corner. |
@@ -67,23 +67,10 @@ writes `font-size: 13px` again.
 | `--shell-weight-lg` | `600` | A heading. |
 | `--shell-weight-md` | `500` | A label that carries emphasis. |
 
-Two groups. The first nine the published stylesheet already read, but only as
-an inline fallback on each use — `var(--shell-radius, 6px)`. That works for a
-rule that spells the fallback out and fails for one that does not, and the
-rules a component carries do not: a bare `var(--shell-radius-large)` is not a
-smaller radius, it is a square corner. Declaring them once is what makes a bare
-read safe, and `tests/structure-tokens.test.ts` holds each value to the
-fallback the stylesheet still spells out.
-
-The rest the published stylesheet has no name for at all. The rules a component
-carries set type, and `--shell-font` is one shorthand: one size, one weight,
-one leading. A settings surface draws six sizes and three weights.
-
-The first version of this file declared thirty-eight, built by prefixing the
-short names `tokens.css` authors. Twenty were a second name for something
-already published — `--shell-radius-card` beside `--shell-radius-large` — and
-nothing read either. The tests now fail on a declared name nothing reads, and
-on a value that disagrees with the stylesheet's own fallback.
+Package rules and carried component rules inherit these names without inline
+fallback values. `tests/shell-structural-tokens.test.ts` holds concrete values
+to their reference token lineage, rejects a second value in package rules, and
+rejects a structural token that nothing reads.
 
 ## Required
 
@@ -158,12 +145,11 @@ at all.
 
 ## Runtime
 
-`ghostty-web` draws to a canvas, inherits nothing from CSS, and takes literal
-colours at construction. `readTerminalTheme` resolves these through
-`SHELL_TERMINAL_PROPERTIES`, so no rule mentions them and grep over the CSS
-alone would miss them. A property that does not resolve is left out rather than
-passed through empty, because the emulator parses an unrecognised colour to
-black.
+xterm.js takes literal colours at construction. wterm receives the same values
+through its `--term-*` custom properties. `readTerminalTheme` resolves both
+paths through `SHELL_TERMINAL_PROPERTIES`. A property that does not resolve is
+left out rather than passed through empty, because terminal cores may parse an
+unrecognised colour to black.
 
 | Variable | Drawn by |
 | --- | --- |
@@ -180,7 +166,7 @@ carry its own rules in its own source and inject them the first time it renders
 — `src/renderer/lib/component-styles.ts` is the mechanism, and the settings
 surfaces are the components that use it.
 
-That exists because `structural.css` is a hand-maintained copy of rules
+That exists because `shell-package-rules.css` is a hand-maintained copy of rules
 authored in `controls.css`, and a copy drifts. `tests/package-styles.test.ts`
 was written to catch that drift and its header records twenty selectors that
 had already gone, including a primary button that stopped changing colour on
@@ -335,7 +321,7 @@ check is the thing a consumer cannot write for themselves.
 the property it sets, where it is visible to anyone reading that rule. A
 separate layer would restate them, and the two would drift. The eleven
 `required` variables are the ones with no default — and they are a palette. A
-default palette is what `structural.css` deliberately does not ship;
+default palette is what `shell-package-rules.css` deliberately does not ship;
 `tests/package-styles.test.ts` asserts the file declares no token of its own for
 exactly that reason.
 

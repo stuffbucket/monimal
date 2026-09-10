@@ -28,6 +28,14 @@
       "types": "./dist/host/terminal-host.d.ts",
       "default": "./dist/host/terminal-host.js"
     },
+    "./electron-terminal": {
+      "types": "./dist/host/electron-terminal.d.ts",
+      "default": "./dist/host/electron-terminal.js"
+    },
+    "./electron-panel": {
+      "types": "./dist/host/electron-panel.d.ts",
+      "default": "./dist/host/electron-panel.js"
+    },
     "./verify": {
       "types": "./scripts/terminal-package.d.mts",
       "default": "./scripts/terminal-package.mjs"
@@ -60,6 +68,7 @@
     "registry": "https://npm.pkg.github.com"
   },
   "scripts": {
+    "analyze": "bun ../maximal-core/scripts/analyze.ts",
     "start": "electron-forge start",
     "build:host": "node scripts/build-package.mjs --host",
     "build:renderer": "node scripts/build-package.mjs --renderer",
@@ -72,7 +81,6 @@
     "package": "electron-forge package",
     "icons": "node scripts/gen-icons.mjs",
     "verify:package": "node scripts/verify-package.mjs",
-    "verify:crash-artifact": "node scripts/verify-crash-artifact.mjs",
     "verify:electron-cache": "node scripts/verify-electron-cache.mjs",
     "smoke:packaged": "node scripts/smoke-packaged.mjs",
     "verify:exports": "node scripts/verify-exports.mjs",
@@ -91,8 +99,8 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "record": "node scripts/record.mjs",
-    "mutate": "node scripts/mutation-scope.mjs && stryker run && node scripts/mutation-report.mjs",
-    "mutate:terminal": "stryker run stryker.terminal.conf.mjs",
+    "mutate": "node scripts/mutation-scope.mjs && stryker run && stryker run stryker.static.conf.mjs && node scripts/mutation-report.mjs",
+    "mutate:terminal": "stryker run stryker.terminal.conf.mjs && stryker run stryker.terminal-static.conf.mjs && node scripts/mutation-report.mjs --terminal",
     "compose": "node scripts/compose.mjs",
     "verify:docs": "node scripts/verify-docs.mjs",
     "stills": "node scripts/stills.mjs",
@@ -110,8 +118,11 @@
     "@radix-ui/react-tabs": "^1.1.21",
     "@radix-ui/react-tooltip": "^1.2.16",
     "@radix-ui/react-visually-hidden": "^1.2.11",
+    "@wterm/dom": "^0.3.4",
+    "@wterm/ghostty": "^0.3.4",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^6.0.0",
     "electron": ">=30.0.0",
-    "ghostty-web": "^0.4.0",
     "lucide-react": "^1.27.0",
     "node-pty": ">=1.2.0-beta.14",
     "react": ">=18.0.0 <20.0.0",
@@ -140,10 +151,19 @@
     "@radix-ui/react-visually-hidden": {
       "optional": true
     },
+    "@wterm/dom": {
+      "optional": true
+    },
+    "@wterm/ghostty": {
+      "optional": true
+    },
     "electron": {
       "optional": true
     },
-    "ghostty-web": {
+    "@xterm/addon-fit": {
+      "optional": true
+    },
+    "@xterm/xterm": {
       "optional": true
     },
     "lucide-react": {
@@ -163,8 +183,6 @@
     }
   },
   "devDependencies": {
-    "@earendil-works/pi-agent-core": "0.84.4",
-    "@earendil-works/pi-ai": "0.84.4",
     "@electron-forge/cli": "7.11.2",
     "@electron-forge/plugin-fuses": "7.11.2",
     "@electron-forge/plugin-vite": "7.11.2",
@@ -189,18 +207,20 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.5",
     "@vitejs/plugin-react": "^6.1.0",
+    "axe-core": "4.13.0",
     "electron": "44.1.0",
     "eslint": "^10.9.1",
     "fast-check": "4.9.0",
-    "ghostty-web": "0.4.0",
+    "@wterm/dom": "0.3.4",
+    "@wterm/ghostty": "0.3.4",
+    "@xterm/addon-fit": "0.11.0",
+    "@xterm/xterm": "6.0.0",
     "lucide-react": "1.38.0",
-    "node-llama-cpp": "3.20.0",
     "node-pty": "1.2.0-beta.15",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-resizable-panels": "4.12.3",
     "storybook": "10.5.10",
-    "typebox": "1.3.23",
     "@typescript/native": "npm:typescript@^7.0.2",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "vite": "^8.2.2",

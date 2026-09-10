@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { once } from 'node:events';
 
 /** Detect ffmpeg/ffprobe and suggest an install command when they are missing. */
 
@@ -68,36 +69,23 @@ export function missingMessage(missing: ToolName[], platform: string): string {
 }
 
 /** Ask one candidate for its version. */
-function askVersion(command: string, timeoutMs: number): Promise<string | undefined> {
-  return new Promise((resolve) => {
-    let child;
-    try {
-      child = spawn(command, ['-version'], { stdio: ['ignore', 'pipe', 'ignore'] });
-    } catch {
-      resolve(undefined);
-      return;
-    }
-
-    let out = '';
-
-    const done = (value: string | undefined): void => {
-      clearTimeout(timer);
-      resolve(value);
-    };
-
-    const timer = setTimeout(() => {
-      child.kill();
-      done(undefined);
-    }, timeoutMs);
-    timer.unref();
-
-    child.stdout.on('data', (chunk: Buffer) => (out += chunk.toString()));
-    child.on('error', () => done(undefined));
-    child.on('close', (code) => {
-      if (code !== 0) return done(undefined);
-      done(firstLine(out));
+async function askVersion(command: string, timeoutMs: number): Promise<string | undefined> {
+  let child;
+  try {
+    child = spawn(command, ['-version'], {
+      signal: AbortSignal.timeout(timeoutMs),
+      stdio: ['ignore', 'pipe', 'ignore'],
     });
-  });
+  } catch {
+    return undefined;
+  }
+  let out = '';
+  child.stdout.on('data', (chunk: Buffer) => (out += chunk.toString()));
+
+  const closed = await once(child, 'close').catch(() => null);
+  if (closed === null) return undefined;
+  const code: unknown = closed[0];
+  return code === 0 ? firstLine(out) : undefined;
 }
 
 /** Trim the first line of some output. */
