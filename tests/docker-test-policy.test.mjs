@@ -350,8 +350,8 @@ test("the outer and fixed inner test scripts cannot recurse", () => {
     {
       "test:inner": manifest.scripts["test:inner"],
       "test:maximal-core:inner": manifest.scripts["test:maximal-core:inner"],
-      "test:maximal-dsh-host:inner":
-        manifest.scripts["test:maximal-dsh-host:inner"],
+      "test:maximal-models:inner":
+        manifest.scripts["test:maximal-models:inner"],
       "test:policy:inner": manifest.scripts["test:policy:inner"],
       "mutate:core:inner": manifest.scripts["mutate:core:inner"],
     },
@@ -359,8 +359,8 @@ test("the outer and fixed inner test scripts cannot recurse", () => {
       "test:inner": "node scripts/docker-workspace-test.mjs",
       "test:maximal-core:inner":
         "node scripts/assert-test-container.mjs && pnpm --filter @stuffbucket/maximal-core test",
-      "test:maximal-dsh-host:inner":
-        "node scripts/assert-test-container.mjs && pnpm --filter @stuffbucket/maximal-dsh-host test",
+      "test:maximal-models:inner":
+        "node scripts/assert-test-container.mjs && pnpm --filter @stuffbucket/maximal-models test",
       "test:policy:inner":
         "node scripts/assert-test-container.mjs && node --test tests/docker-test-policy.test.mjs",
       "mutate:core:inner":
@@ -1261,8 +1261,8 @@ test("suite and trace selectors are closed and do not forward arguments", () => 
     trace: "off",
   });
   assert.deepEqual(
-    parseOptions(["--", "--trace=all", "--suite=maximal-dsh-host"]),
-    { scope: "affected", suite: "maximal-dsh-host", trace: "all" },
+    parseOptions(["--", "--trace=all", "--suite=maximal-models"]),
+    { scope: "affected", suite: "maximal-models", trace: "all" },
   );
   assert.equal(parseTrace(["--trace=tests"]), "tests");
   assert.throws(() => parseOptions(["--suite=other"]), /Invalid test suite/);
@@ -1293,14 +1293,14 @@ test("suite and trace selectors are closed and do not forward arguments", () => 
 test("each suite selects one fixed root-owned inner script", () => {
   assert.deepEqual(
     Object.fromEntries(
-      ["workspace", "maximal-core", "maximal-dsh-host", "policy"].map(
+      ["workspace", "maximal-core", "maximal-models", "policy"].map(
         (suite) => [suite, innerScriptForSuite(suite)],
       ),
     ),
     {
       workspace: "test:inner",
       "maximal-core": "test:maximal-core:inner",
-      "maximal-dsh-host": "test:maximal-dsh-host:inner",
+      "maximal-models": "test:maximal-models:inner",
       policy: "test:policy:inner",
     },
   );

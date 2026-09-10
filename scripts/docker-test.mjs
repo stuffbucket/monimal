@@ -125,15 +125,15 @@ const suites = Object.freeze({
     innerScript: "test:maximal-core:inner",
     rebuild: "core",
   },
-  "maximal-dsh-host": {
-    innerScript: "test:maximal-dsh-host:inner",
-    rebuild: "maximal-dsh-host",
+  "maximal-models": {
+    innerScript: "test:maximal-models:inner",
+    rebuild: "maximal-models",
   },
   policy: { innerScript: "test:policy:inner", rebuild: "policy" },
 });
 
 const usage =
-  "Usage: pnpm run test:docker -- [--all] [--suite=workspace|maximal-core|maximal-dsh-host|policy] [--trace=off|tests|all]";
+  "Usage: pnpm run test:docker -- [--all] [--suite=workspace|maximal-core|maximal-models|policy] [--trace=off|tests|all]";
 
 export function parseOptions(arguments_) {
   const options = arguments_[0] === "--" ? arguments_.slice(1) : arguments_;

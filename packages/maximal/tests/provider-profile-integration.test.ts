@@ -6,7 +6,7 @@ import type {
   ProviderDispatch,
   ProviderGateway,
   ProviderOperation,
-} from "@stuffbucket/maximal-provider-contract"
+} from "@stuffbucket/maximal-model-contract"
 
 import { afterEach, describe, expect, test } from "bun:test"
 import { once } from "node:events"
@@ -79,7 +79,7 @@ function packageRoot(name: string): string {
  * resolved, so hardcoding them here turns any dependency bump into a failure
  * that names neither the package nor the version. Derive them from the same
  * resolution `packageRoot` already uses. See the twin helper in
- * `packages/maximal-dsh-host/tests/fixture.ts`.
+ * `packages/maximal-models/tests/fixture.ts`.
  */
 function packageVersion(name: string): string {
   const manifest: unknown = require(`${name}/package.json`)
@@ -108,7 +108,9 @@ async function materializeOmlx(nodeModules: string): Promise<void> {
   const outdir = join(packageDirectory, "dist")
   await mkdir(outdir, { recursive: true })
   const result = await Bun.build({
-    entrypoints: [resolve(import.meta.dirname, "../../omlx/src/index.ts")],
+    entrypoints: [
+      resolve(import.meta.dirname, "../../model-runtimes/omlx/src/index.ts"),
+    ],
     format: "esm",
     outdir,
     packages: "external",

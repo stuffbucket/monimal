@@ -1,5 +1,5 @@
+import type { ProviderGateway } from "@stuffbucket/maximal-model-contract"
 import type { TrafficObserver } from "@stuffbucket/maximal-observability-contract"
-import type { ProviderGateway } from "@stuffbucket/maximal-provider-contract"
 import type { MiddlewareHandler } from "hono"
 
 import consola from "consola"

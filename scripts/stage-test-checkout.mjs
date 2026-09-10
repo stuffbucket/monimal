@@ -18,7 +18,7 @@ const workspaceRebuild = ["rebuild", "--recursive", "--pending"];
 const rebuildArguments = Object.freeze({
   workspace: workspaceRebuild,
   core: workspaceRebuild,
-  "maximal-dsh-host": workspaceRebuild,
+  "maximal-models": workspaceRebuild,
   policy: workspaceRebuild,
 });
 const buildArguments = Object.freeze({
@@ -29,11 +29,11 @@ const buildArguments = Object.freeze({
     "--concurrency=1",
     "--filter=@stuffbucket/maximal-core...",
   ],
-  "maximal-dsh-host": [
+  "maximal-models": [
     "run",
     "build",
     "--concurrency=1",
-    "--filter=@stuffbucket/maximal-dsh-host...",
+    "--filter=@stuffbucket/maximal-models...",
   ],
   policy: undefined,
 });
@@ -172,7 +172,7 @@ export function parseStageOptions(arguments_) {
     !command
   ) {
     throw new Error(
-      "Usage: stage-test-checkout.mjs --rebuild=workspace|core|maximal-dsh-host|policy -- <command> [arguments]",
+      "Usage: stage-test-checkout.mjs --rebuild=workspace|core|maximal-models|policy -- <command> [arguments]",
     );
   }
   const rebuild = rebuildOption.slice("--rebuild=".length);

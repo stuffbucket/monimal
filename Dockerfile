@@ -89,19 +89,19 @@ WORKDIR /workspace
 
 COPY --chown=maximal:maximal package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc .pnpmfile.cjs ./
 COPY --chown=maximal:maximal scripts/lockfile-shard-hosts.cjs scripts/lockfile-shard-hosts.cjs
-COPY --chown=maximal:maximal packages/anthropic-provider/package.json packages/anthropic-provider/package.json
+COPY --chown=maximal:maximal packages/model-runtimes/anthropic/package.json packages/model-runtimes/anthropic/package.json
 COPY --chown=maximal:maximal packages/eslint-config/package.json packages/eslint-config/package.json
-COPY --chown=maximal:maximal packages/llama-server/package.json packages/llama-server/package.json
+COPY --chown=maximal:maximal packages/model-runtimes/llama-server/package.json packages/model-runtimes/llama-server/package.json
 COPY --chown=maximal:maximal packages/maximal-core/package.json packages/maximal-core/package.json
 COPY --chown=maximal:maximal packages/maximal-core/downstream/package.json packages/maximal-core/downstream/package.json
-COPY --chown=maximal:maximal packages/maximal-dsh-host/package.json packages/maximal-dsh-host/package.json
+COPY --chown=maximal:maximal packages/maximal-models/package.json packages/maximal-models/package.json
 COPY --chown=maximal:maximal packages/maximal-electron/package.json packages/maximal-electron/package.json
 COPY --chown=maximal:maximal packages/maximal-observability/package.json packages/maximal-observability/package.json
 COPY --chown=maximal:maximal packages/maximal-observability-contract/package.json packages/maximal-observability-contract/package.json
-COPY --chown=maximal:maximal packages/maximal-provider-contract/package.json packages/maximal-provider-contract/package.json
+COPY --chown=maximal:maximal packages/maximal-model-contract/package.json packages/maximal-model-contract/package.json
 COPY --chown=maximal:maximal packages/maximal/package.json packages/maximal/package.json
 COPY --chown=maximal:maximal packages/maximal/client/package.json packages/maximal/client/package.json
-COPY --chown=maximal:maximal packages/omlx/package.json packages/omlx/package.json
+COPY --chown=maximal:maximal packages/model-runtimes/omlx/package.json packages/model-runtimes/omlx/package.json
 
 USER maximal
 RUN --mount=type=cache,id=maximal-pnpm-${TARGETARCH},target=/workspace/.pnpm-store,uid=10001,gid=10001,sharing=locked \
