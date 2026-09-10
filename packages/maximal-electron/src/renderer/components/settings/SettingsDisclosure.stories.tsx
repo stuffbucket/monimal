@@ -32,8 +32,8 @@ function ProviderSettings() {
             </FormField>
           </SettingsDisclosure>
           <SettingsDisclosure
-            title="GitHub Copilot search"
-            description="Broker search through a model served by Copilot Responses."
+            title="Brokered model search"
+            description="Broker search through a remotely served model."
             meta="Enabled"
           >
             <FormField label="Model">
