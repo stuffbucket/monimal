@@ -79,6 +79,7 @@ export const DEFERRED = new Map([
   ['scripts/verify-tag.mjs', 125],
   ['scripts/verify-workflow-health.mjs', 125],
   ['scripts/workflow-health.mjs', 125],
+  ['src/host/electron-terminal-contract.ts', 125],
   ['src/host/terminal-host.ts', 125],
   ['src/main/native/updates.ts', 125],
   ['src/renderer/lib/content-lorem.ts', 125],

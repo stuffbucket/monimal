@@ -86,7 +86,7 @@ export function Inspector({
               testId="pref-quit-on-last-window"
             />
             <p className="card__sub card__sub--wrap">
-              Applies when the menu bar icon is off. Otherwise, Maximal asks
+              Applies when the menu bar icon is off. Otherwise, the application asks
               before it stops.
             </p>
             <Switch

@@ -376,8 +376,8 @@ STUFFBUCKET_ICON_DIR=~/brand/icons npm run package
 STUFFBUCKET_ICON_DIR=~/brand/icons npm start
 ```
 
-The directory must carry all five names. `npm run icons` installs Maximal's
-canonical set there, and honours the same variable.
+The directory must carry all five names. `npm run icons` installs the canonical
+set there, and honours the same variable.
 
 | File | Used for |
 | --- | --- |
@@ -465,9 +465,9 @@ Stated here rather than discovered later.
   user data directory. The package stays smaller and the model can be upgraded
   without a new build, but a first run with no network and no proxy cannot
   answer.
-- **Maximal icons.** `scripts/gen-icons.mjs` installs the canonical application
-  and tray assets retired with the Tauri shell. Point `STUFFBUCKET_ICON_DIR` at
-  a complete replacement set to ship another identity.
+- **Canonical icons.** `scripts/gen-icons.mjs` installs the application and tray
+  assets. Point `STUFFBUCKET_ICON_DIR` at a complete replacement set to ship
+  another identity.
 
 ## Fork it
 

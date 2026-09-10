@@ -1,4 +1,4 @@
-import { Tray } from 'electron';
+import { app, Tray } from 'electron';
 
 import { trayIcon } from './app-icon.js';
 import { trayIconChoice } from './icons.js';
@@ -15,8 +15,8 @@ import { trayIconChoice } from './icons.js';
  * is a document window rather than an overlay, so it keeps a dock presence
  * while a window is open.
  *
- * The icon and click behavior match Maximal's retired Tauri shell: a coloured
- * mark on every platform, no context menu, and either primary click activates.
+ * The icon stays full-colour on every platform, with no context menu, and
+ * either primary click activates.
  */
 
 let tray: Tray | undefined;
@@ -39,7 +39,7 @@ export function setTrayEnabled(
   if (!image) return;
 
   tray = new Tray(image);
-  tray.setToolTip('Maximal');
+  tray.setToolTip(app.name);
 
   // No `setContextMenu`. A context menu would swallow the left click on
   // Windows and Linux, and the whole point of this icon is the click.

@@ -223,11 +223,11 @@ async function shouldQuitAfterLastWindow(): Promise<boolean> {
 
   const result = await dialog.showMessageBox({
     type: 'question',
-    title: 'Stop Maximal?',
-    message: 'Stop Maximal?',
+    title: `Stop ${app.name}?`,
+    message: `Stop ${app.name}?`,
     detail:
-      'Maximal and all of its processes will stop. Keep running leaves the application open without a window.',
-    buttons: ['Keep Running', 'Stop Maximal'],
+      `${app.name} and all of its processes will stop. Keep running leaves the application open without a window.`,
+    buttons: ['Keep Running', `Stop ${app.name}`],
     defaultId: 0,
     cancelId: 0,
     noLink: true,

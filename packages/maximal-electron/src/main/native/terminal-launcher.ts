@@ -13,7 +13,7 @@ import type {
   TerminalLaunchResult,
   TerminalProfileSummary,
   TerminalTargetSummary,
-} from '../../shared/ipc.js';
+} from '../../host/electron-terminal-contract.js';
 
 export interface TrustedTerminalLaunch {
   command: string;

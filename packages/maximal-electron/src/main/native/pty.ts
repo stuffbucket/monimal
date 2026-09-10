@@ -16,7 +16,7 @@ import type {
   TerminalLaunchRequest,
   TerminalLaunchResult,
   TerminalProfileSummary,
-} from '../../shared/ipc.js';
+} from '../../host/electron-terminal-contract.js';
 import {
   TerminalLauncher,
   loadTerminalProfiles,
