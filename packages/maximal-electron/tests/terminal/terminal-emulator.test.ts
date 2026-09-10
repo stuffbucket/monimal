@@ -93,14 +93,22 @@ describe('terminal emulator adapter', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('owns xterm construction and fit behavior', async () => {
-    const emulator = await createTerminalEmulator('xterm', { background: '#101216' });
+    const emulator = await createTerminalEmulator('xterm', {
+      background: '#101216',
+      foreground: '#e6e8ec',
+    });
 
     expect(xterm.options).toMatchObject({
       cursorBlink: true,
       fontSize: 13,
-      theme: { background: '#101216' },
+      minimumContrastRatio: 4.5,
+      theme: { background: '#101216', foreground: '#e6e8ec' },
     });
     expect(xterm.addon).toBeDefined();
+    const host = document.createElement('div');
+    await emulator.open(host);
+    expect(host.style.backgroundColor).toBe('rgb(16, 18, 22)');
+    expect(host.style.color).toBe('rgb(230, 232, 236)');
     emulator.fit();
     expect(xterm.fit).toHaveBeenCalledOnce();
   });

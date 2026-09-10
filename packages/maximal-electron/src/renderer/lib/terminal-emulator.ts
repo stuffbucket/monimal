@@ -58,6 +58,7 @@ function createXtermEmulator(theme?: TerminalTheme): TerminalEmulator {
     cursorBlink: true,
     fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
     fontSize: 13,
+    minimumContrastRatio: 4.5,
     ...(theme ? { theme } : {}),
   });
   const fitAddon = new FitAddon();
@@ -67,7 +68,11 @@ function createXtermEmulator(theme?: TerminalTheme): TerminalEmulator {
     get cols() { return terminal.cols; },
     get rows() { return terminal.rows; },
     get buffer() { return terminal.buffer; },
-    open: (element) => Promise.resolve(terminal.open(element)),
+    open: (element) => {
+      if (theme?.foreground) element.style.color = theme.foreground;
+      if (theme?.background) element.style.backgroundColor = theme.background;
+      return Promise.resolve(terminal.open(element));
+    },
     fit: () => fitAddon.fit(),
     focus: () => terminal.focus(),
     blur: () => terminal.blur(),
