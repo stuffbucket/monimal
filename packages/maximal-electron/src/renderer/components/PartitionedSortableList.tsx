@@ -174,6 +174,8 @@ const STYLES = `
   white-space: nowrap; border: 0;
 }
 `;
+
+/** Renders reorderable enabled and disabled item partitions with optional details. */
 export function PartitionedSortableList({
   enabledItems,
   disabledItems,
