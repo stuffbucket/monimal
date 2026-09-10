@@ -16,11 +16,11 @@ describe('assertOptionsVersion', () => {
 
   it('names both versions when a call site passes another', () => {
     expect(() => {
-      assertOptionsVersion(2);
-    }).toThrow('runMain options are version 1, and this call passed 2.');
+      assertOptionsVersion(3);
+    }).toThrow('runMain options are version 2, and this call passed 3.');
     expect(() => {
       assertOptionsVersion(0);
-    }).toThrow('runMain options are version 1, and this call passed 0.');
+    }).toThrow('runMain options are version 2, and this call passed 0.');
   });
 });
 

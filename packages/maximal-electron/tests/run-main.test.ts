@@ -101,10 +101,10 @@ describe('runMain', () => {
 
     await expect(
       runMain(runtime, {
-        version: 2 as typeof RUN_MAIN_OPTIONS_VERSION,
+        version: 3 as typeof RUN_MAIN_OPTIONS_VERSION,
         window: () => windowOptions,
       }),
-    ).rejects.toThrow('runMain options are version 1, and this call passed 2.');
+    ).rejects.toThrow('runMain options are version 2, and this call passed 3.');
     expect(electron.created).toHaveLength(0);
   });
 
@@ -138,6 +138,11 @@ describe('runMain', () => {
     });
     expect(context.currentWindow()).toBe(electron.created[0]?.window);
     expect(context.daemonUrl).toBeUndefined();
+
+    const additional = context.openWindow();
+    expect(additional).toBe(electron.created[1]?.window);
+    expect(order).toEqual(['ready', 'window', 'created', 'window', 'created']);
+    expect(electron.created[1]?.options).toMatchObject({ width: 900, height: 600 });
   });
 
   it('leaves the profile alone when the consumer names none', async () => {

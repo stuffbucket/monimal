@@ -68,15 +68,17 @@ export async function runMain(
     daemonUrl: undefined,
     currentWindow: () => (window?.isDestroyed() === false ? window : undefined),
     activate,
+    openWindow,
   };
 
-  function openWindow(): void {
+  function openWindow(): BrowserWindow {
     const created = createHostWindow(options.window(context));
     window = created;
     created.on('closed', () => {
       if (window === created) window = undefined;
     });
     options.onWindowCreated?.(created);
+    return created;
   }
 
   function activate(): void {

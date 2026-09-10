@@ -9,7 +9,7 @@ import type { HostWindowOptions } from './host-window.js';
  * later contract refuses an older call site instead of reading a field that
  * moved. See `docs/embedding.md`.
  */
-export const RUN_MAIN_OPTIONS_VERSION = 1;
+export const RUN_MAIN_OPTIONS_VERSION = 2;
 
 /** What every callback receives, and what `runMain` resolves to. */
 export interface MainContext {
@@ -19,6 +19,8 @@ export interface MainContext {
   currentWindow: () => BrowserWindow | undefined;
   /** Bring the application forward, opening a window if none is left. */
   activate: () => void;
+  /** Open an additional application window through the normal lifecycle. */
+  openWindow: () => BrowserWindow;
 }
 
 /**
