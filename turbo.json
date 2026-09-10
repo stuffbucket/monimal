@@ -120,6 +120,12 @@
       "persistent": true,
       "description": "Build workspace dependencies, then run a package's interactive development process."
     },
+    "dev:terminal": {
+      "dependsOn": ["^build"],
+      "cache": false,
+      "persistent": true,
+      "description": "Launch the focused Electron terminal development lab."
+    },
     "maximal-client#dev": {
       "dependsOn": ["build"],
       "cache": false,

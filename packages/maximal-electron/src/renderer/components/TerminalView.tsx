@@ -43,12 +43,14 @@ interface TerminalViewCommonProps extends TerminalDescriptor {
   /** Literal colours. Resolve with `readTerminalTheme`. */
   theme?: TerminalTheme;
   testId?: string;
-  focused?: boolean;
+  /** Increasing token for explicit split-navigation focus requests. */
+  focusRequest?: number;
   focusIndicator?: boolean;
   onFocus?: () => void;
   onSplit?: (direction: TerminalSplitDirection) => void;
   onNavigateSplit?: (direction: 'previous' | 'next') => void;
   onExit?: (exitCode: number) => void;
+  onError?: (error: unknown) => void;
   onTitleChange?: (title: string) => void;
 }
 
@@ -89,23 +91,26 @@ export function TerminalView({
   ghosttyWindow,
   theme,
   testId = 'terminal',
-  focused = false,
+  focusRequest = 0,
   focusIndicator = false,
   onFocus,
   onSplit,
   onNavigateSplit,
   onExit,
+  onError,
   onTitleChange,
 }: TerminalViewProps) {
   const host = useRef<HTMLDivElement>(null);
   const terminal = useRef<TerminalEmulator | undefined>(undefined);
   const lifecycle = useRef({ id, generation: 0 });
-  const callbacks = useRef({ onSplit, onNavigateSplit, onExit, onTitleChange });
-  const shouldFocus = useRef(focused);
+  const callbacks = useRef({ onSplit, onNavigateSplit, onExit, onError, onTitleChange });
+  const pendingFocusRequest = useRef(focusRequest);
+  const handledFocusRequest = useRef(0);
   const [startFailed, setStartFailed] = useState(false);
   const [startAttempt, setStartAttempt] = useState(0);
-  callbacks.current = { onSplit, onNavigateSplit, onExit, onTitleChange };
-  shouldFocus.current = focused;
+  const [hasFocus, setHasFocus] = useState(false);
+  callbacks.current = { onSplit, onNavigateSplit, onExit, onError, onTitleChange };
+  pendingFocusRequest.current = focusRequest;
 
   // The disposition is read at cleanup rather than at mount, so a caller that
   // changes it while a session runs gets the current answer.
@@ -122,18 +127,38 @@ export function TerminalView({
     lifecycle.current = { id, generation };
 
     let disposed = false;
+    let failed = false;
+    let spawnAttempted = false;
     let term: TerminalEmulator | undefined;
     let unsubscribe: (() => void) | undefined;
     let cleanupObserver: (() => void) | undefined;
+    const reportFailure = (error?: unknown): void => {
+      if (disposed || failed) return;
+      failed = true;
+      callbacks.current.onError?.(error);
+      cleanupObserver?.();
+      cleanupObserver = undefined;
+      unsubscribe?.();
+      unsubscribe = undefined;
+      if (terminal.current === term) terminal.current = undefined;
+      term?.dispose();
+      term = undefined;
+      setStartFailed(true);
+      if (spawnAttempted) void transport.terminate(id).catch(() => undefined);
+    };
     const acknowledgements = new TerminalAcknowledgements(
       (sequence) => {
-        if (!disposed) void transport.ack?.(id, sequence);
+        if (disposed || failed) return;
+        const acknowledgement = transport.ack?.(id, sequence);
+        if (acknowledgement) void acknowledgement.catch(reportFailure);
       },
       animationFrameScheduler,
     );
     const resizes = new TerminalResizes(
       (cols, rows) => {
-        if (!disposed) void transport.resize(id, cols, rows);
+        if (!disposed && !failed) {
+          void transport.resize(id, cols, rows).catch(reportFailure);
+        }
       },
       animationFrameScheduler,
     );
@@ -153,14 +178,18 @@ export function TerminalView({
       }
       term.fit();
       terminal.current = term;
-      if (shouldFocus.current) term.focus();
-      else term.blur();
+      if (pendingFocusRequest.current > handledFocusRequest.current) {
+        handledFocusRequest.current = pendingFocusRequest.current;
+        term.focus();
+      }
 
       // The buffer is the stable assertion surface across canvas and DOM renderers.
       (host.current as TerminalHost).__terminal = term;
 
       term.onData((data) => {
-        if (!disposed) void transport.write(id, data);
+        if (!disposed && !failed) {
+          void transport.write(id, data).catch(reportFailure);
+        }
       });
 
       term.onResize(({ cols, rows }) => {
@@ -204,6 +233,7 @@ export function TerminalView({
       });
 
       unsubscribe = transport.subscribe(id, (event) => {
+        if (failed) return;
         if (event.type === 'data') {
           term?.write(event.data, () => {
             if (event.sequence !== undefined) acknowledgements.consume(event.sequence);
@@ -219,7 +249,8 @@ export function TerminalView({
         }
       });
 
-      const attached = transport.spawn({ id, cwd, shell, cols: term.cols, rows: term.rows });
+        spawnAttempted = true;
+        await transport.spawn({ id, cwd, shell, cols: term.cols, rows: term.rows });
 
       // The panel group resizes the host without a window resize, so a
       // ResizeObserver is the only reliable trigger.
@@ -228,18 +259,7 @@ export function TerminalView({
       });
       observer.observe(element);
       cleanupObserver = () => observer.disconnect();
-      return attached;
-    }).catch(() => {
-      if (disposed) return;
-      cleanupObserver?.();
-      cleanupObserver = undefined;
-      unsubscribe?.();
-      unsubscribe = undefined;
-      if (terminal.current === term) terminal.current = undefined;
-      term?.dispose();
-      term = undefined;
-      setStartFailed(true);
-    });
+    }).catch(reportFailure);
 
     return () => {
       disposed = true;
@@ -251,28 +271,52 @@ export function TerminalView({
       queueMicrotask(() => {
         const current = lifecycle.current;
         const remountedSameSession = current.generation !== generation && current.id === id;
-        if (!remountedSameSession && disposition === 'terminate') void transport.terminate(id);
+        if (!remountedSameSession && disposition === 'terminate') {
+          void transport.terminate(id).catch(() => undefined);
+        }
       });
       if (terminal.current === term) terminal.current = undefined;
       term?.dispose();
     };
-  }, [id, startAttempt]);
+  }, [emulator, id, startAttempt]);
 
   useEffect(() => {
-    if (focused) terminal.current?.focus();
-    else terminal.current?.blur();
-  }, [focused]);
+    if (focusRequest <= handledFocusRequest.current || !terminal.current) return;
+    handledFocusRequest.current = focusRequest;
+    terminal.current.focus();
+  }, [focusRequest]);
+
+  useEffect(() => {
+    const restoreWindowFocus = () => {
+      setHasFocus(Boolean(host.current?.contains(document.activeElement)));
+    };
+    const relinquishWindowFocus = () => setHasFocus(false);
+    window.addEventListener('focus', restoreWindowFocus);
+    window.addEventListener('blur', relinquishWindowFocus);
+    return () => {
+      window.removeEventListener('focus', restoreWindowFocus);
+      window.removeEventListener('blur', relinquishWindowFocus);
+    };
+  }, []);
 
   return (
     <div
       className="terminal"
       data-testid={testId}
-      data-focused={focused || undefined}
+      data-focused={hasFocus || undefined}
       data-focus-indicator={focusIndicator || undefined}
       role="group"
       aria-label={ariaLabel}
       ref={host}
-      onFocus={onFocus}
+      onFocus={() => {
+        setHasFocus(true);
+        onFocus?.();
+      }}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) {
+          setHasFocus(false);
+        }
+      }}
       onPointerDown={onFocus}
     >
       {startFailed && (

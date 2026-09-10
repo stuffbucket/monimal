@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import type { BrowserWindow } from 'electron';
-import { app, dialog } from 'electron';
+import { app, dialog, screen } from 'electron';
 
 import { RUN_MAIN_OPTIONS_VERSION, runMain } from '../host/run-main.js';
 import { registerIpcHandlers, sendEvent } from './ipc.js';
@@ -21,6 +21,11 @@ import {
 import { configurePty, killAllPtys } from './native/pty.js';
 import { showCrashReports, startCrashReports } from './native/crash-reports.js';
 import { selfCheckRequested } from './native/self-check.js';
+import {
+  isTerminalLab,
+  restoreTerminalLabWindowBounds,
+  saveTerminalLabWindowState,
+} from './native/terminal-lab.js';
 import { runSelfCheck } from './self-check.js';
 import { destroyTray, setTrayEnabled } from './native/tray.js';
 import { checkForUpdates } from './native/updates.js';
@@ -46,6 +51,7 @@ import { closeSplashWindow, createSplashWindow } from './windows/splash.js';
  */
 function profileDirectory(): string | undefined {
   if (isE2E()) return mkdtempSync(path.join(tmpdir(), 'stuffbucket-e2e-'));
+  if (isTerminalLab()) return `${app.getPath('userData')}-terminal-lab`;
   if (isDemo()) return `${app.getPath('userData')}-demo`;
   return undefined;
 }
@@ -105,6 +111,30 @@ function onActivate(window: BrowserWindow | undefined): void {
 
 function wireWindow(window: BrowserWindow): void {
   mainWindow = window;
+
+  if (isTerminalLab() && !isE2E()) {
+    const appPath = app.getAppPath();
+    let saveTimer: ReturnType<typeof setTimeout> | undefined;
+    const saveWindowState = () => {
+      const currentBounds = window.getBounds();
+      saveTerminalLabWindowState(
+        appPath,
+        screen.getDisplayMatching(currentBounds),
+        currentBounds,
+      );
+    };
+    const scheduleWindowStateSave = () => {
+      if (saveTimer) clearTimeout(saveTimer);
+      saveTimer = setTimeout(saveWindowState, 100);
+      saveTimer.unref();
+    };
+    window.on('move', scheduleWindowStateSave);
+    window.on('resize', scheduleWindowStateSave);
+    window.on('close', () => {
+      if (saveTimer) clearTimeout(saveTimer);
+      saveWindowState();
+    });
+  }
 
   window.once('ready-to-show', () => {
     closeSplashWindow();
@@ -231,7 +261,11 @@ if (selfCheckRequested(process.argv)) {
       version: RUN_MAIN_OPTIONS_VERSION,
       userDataDirectory,
       shouldQuitAfterLastWindow,
-      window: mainWindowOptions,
+      window: () => mainWindowOptions(
+        isTerminalLab() && !isE2E()
+          ? restoreTerminalLabWindowBounds(app.getAppPath(), screen.getAllDisplays())
+          : undefined,
+      ),
       onReady: (context) => {
         activate = context.activate;
         if (getPreferences().splash) createSplashWindow();

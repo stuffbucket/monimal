@@ -16,12 +16,12 @@ const xterm = vi.hoisted(() => {
 const ghostty = vi.hoisted(() => {
   const coreOptions: unknown = undefined;
   return {
-    core: { name: 'ghostty-core' },
+    core: { name: 'ghostty-core', dispose: vi.fn() },
     coreOptions,
     dataHandler: undefined as ((data: string) => void) | undefined,
     destroy: vi.fn(),
     init: vi.fn(async () => undefined),
-    options: undefined as { onData?: (data: string) => void } | undefined,
+    options: undefined as { onData?: (data: string) => void; onTitle?: (title: string) => void } | undefined,
     textarea: undefined as HTMLTextAreaElement | undefined,
     write: vi.fn(),
   };
@@ -142,10 +142,11 @@ describe('terminal emulator adapter', () => {
     ghostty.dataHandler?.('\x04');
     ghostty.textarea?.dispatchEvent(unhandled);
 
-    expect(ghostty.coreOptions).toEqual({
-      foregroundColor: '#eef0f4',
-      backgroundColor: '#101216',
-    });
+    const coreOptions = ghostty.coreOptions as Record<string, unknown>;
+    expect(coreOptions['wasmPath']).toBeTypeOf('string');
+    expect(coreOptions['wasmPath']).toMatch(/^data:application\/wasm;base64,/);
+    expect(coreOptions['foregroundColor']).toBe('#eef0f4');
+    expect(coreOptions['backgroundColor']).toBe('#101216');
     expect(ghostty.init).toHaveBeenCalledOnce();
     expect(ghostty.options).toMatchObject({
       core: ghostty.core,
@@ -168,5 +169,21 @@ describe('terminal emulator adapter', () => {
     expect(ghostty.write).toHaveBeenCalledWith('\x1b[2J\x1b[H');
     emulator.dispose();
     expect(ghostty.destroy).toHaveBeenCalledOnce();
+    expect(ghostty.core.dispose).toHaveBeenCalledOnce();
+  });
+
+  it('projects bounded top-level OSC titles across writes', async () => {
+    const emulator = await createTerminalEmulator('ghostty');
+    const onTitle = vi.fn();
+    emulator.onTitleChange(onTitle);
+    await emulator.open(document.createElement('div'));
+
+    emulator.write('\x1b]0;Ghost');
+    emulator.write('ty title\x1b\\');
+    emulator.write('\x1b_Ptmux;\x1b\x1b]2;nested\x1b\x1b\\\x1b\\');
+    emulator.write(`\x1b]2;${'x'.repeat(4_097)}\x07`);
+
+    expect(onTitle).toHaveBeenCalledOnce();
+    expect(onTitle).toHaveBeenCalledWith('Ghostty title');
   });
 });

@@ -355,11 +355,11 @@ importers:
         specifier: ^6.1.0
         version: 6.1.1(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))
       '@wterm/dom':
-        specifier: 0.3.4
-        version: 0.3.4
+        specifier: 0.4.1
+        version: 0.4.1
       '@wterm/ghostty':
-        specifier: 0.3.4
-        version: 0.3.4
+        specifier: 0.4.1
+        version: 0.4.1
       '@xterm/addon-fit':
         specifier: 0.11.0
         version: 0.11.0
@@ -638,11 +638,11 @@ importers:
         specifier: workspace:*
         version: link:../../maximal-observability-contract
       '@wterm/dom':
-        specifier: 0.3.4
-        version: 0.3.4
+        specifier: 0.4.1
+        version: 0.4.1
       '@wterm/ghostty':
-        specifier: 0.3.4
-        version: 0.3.4
+        specifier: 0.4.1
+        version: 0.4.1
       '@xterm/addon-fit':
         specifier: 0.11.0
         version: 0.11.0
@@ -4137,14 +4137,14 @@ packages:
   '@webcontainer/env@1.1.1':
     resolution: {integrity: sha1-IwIbK7JL7+7vU9uomW0YhrcBZRU=}
 
-  '@wterm/core@0.3.4':
-    resolution: {integrity: sha1-OEL/3GqDS9Zgtg6nv9XUkkjrsYE=}
+  '@wterm/core@0.4.1':
+    resolution: {integrity: sha1-vvv3sB5FnXDErgqd5n0FtyiOYok=}
 
-  '@wterm/dom@0.3.4':
-    resolution: {integrity: sha1-cSN1e3MiIcyRzmW+uSYFs/i9PxE=}
+  '@wterm/dom@0.4.1':
+    resolution: {integrity: sha1-XZrCSS21GtyVJjULFWEnOFROygo=}
 
-  '@wterm/ghostty@0.3.4':
-    resolution: {integrity: sha1-98kdgPP9WreckMeWXycQBGF+O94=}
+  '@wterm/ghostty@0.4.1':
+    resolution: {integrity: sha1-/M5AfUi4VFqGzZxvydjf4E4SucI=}
 
   '@xmldom/xmldom@0.9.10':
     resolution: {integrity: sha1-oK1aJv6KqZYxCHBybhcEl392ne4=}
@@ -11138,15 +11138,15 @@ snapshots:
 
   '@webcontainer/env@1.1.1': {}
 
-  '@wterm/core@0.3.4': {}
+  '@wterm/core@0.4.1': {}
 
-  '@wterm/dom@0.3.4':
+  '@wterm/dom@0.4.1':
     dependencies:
-      '@wterm/core': 0.3.4
+      '@wterm/core': 0.4.1
 
-  '@wterm/ghostty@0.3.4':
+  '@wterm/ghostty@0.4.1':
     dependencies:
-      '@wterm/core': 0.3.4
+      '@wterm/core': 0.4.1
 
   '@xmldom/xmldom@0.9.10': {}
 

@@ -20,6 +20,8 @@ export interface HostWindowOptions {
    */
   bridge?: BridgeDeclaration;
   title: string;
+  x?: number;
+  y?: number;
   width: number;
   height: number;
   minWidth?: number;
@@ -57,6 +59,8 @@ export interface HostWindowOptions {
  */
 export function createHostWindow(options: HostWindowOptions): BrowserWindow {
   const window = new BrowserWindow({
+    x: options.x,
+    y: options.y,
     width: options.width,
     height: options.height,
     minWidth: options.minWidth,

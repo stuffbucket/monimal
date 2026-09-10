@@ -3,6 +3,9 @@ import { Terminal } from '@xterm/xterm';
 import type { ITheme } from '@xterm/xterm';
 import { WTerm } from '@wterm/dom';
 import { GhosttyCore } from '@wterm/ghostty';
+import ghosttyWasmUrl from '@wterm/ghostty/ghostty-vt.wasm?url&inline';
+
+import { OscTitleObserver } from './osc-title.js';
 
 export type TerminalTheme = ITheme;
 export type TerminalEmulatorKind = 'xterm' | 'ghostty';
@@ -124,6 +127,7 @@ async function createGhosttyEmulator(
   windowAdjustment?: GhosttyWindowAdjustment,
 ): Promise<TerminalEmulator> {
   const core = await GhosttyCore.load({
+    wasmPath: ghosttyWasmUrl,
     ...(theme?.foreground ? { foregroundColor: theme.foreground } : {}),
     ...(theme?.background ? { backgroundColor: theme.background } : {}),
   });
@@ -149,6 +153,13 @@ async function createGhosttyEmulator(
   const dataListeners = new Set<(data: string) => void>();
   const resizeListeners = new Set<(size: { cols: number; rows: number }) => void>();
   const titleListeners = new Set<(title: string) => void>();
+  let lastTitle: string | undefined;
+  const emitTitle = (title: string) => {
+    if (title === lastTitle) return;
+    lastTitle = title;
+    titleListeners.forEach((listener) => listener(title));
+  };
+  const titleObserver = new OscTitleObserver(emitTitle);
 
   const activeBuffer = (): TerminalBuffer => {
     const bridge = terminal?.bridge;
@@ -203,7 +214,7 @@ async function createGhosttyEmulator(
           dataListeners.forEach((listener) => listener(data));
         },
         onResize: (cols, rows) => resizeListeners.forEach((listener) => listener({ cols, rows })),
-        onTitle: (title) => titleListeners.forEach((listener) => listener(title)),
+        onTitle: emitTitle,
       });
       await terminal.init();
     },
@@ -218,6 +229,7 @@ async function createGhosttyEmulator(
     onKeyEvent: (listener) => { keyListener = listener; },
     onTitleChange: (listener) => disposeListener(titleListeners, listener),
     write: (data, callback) => {
+      titleObserver.write(data);
       terminal?.write(data);
       if (callback) requestAnimationFrame(callback);
     },
@@ -237,6 +249,7 @@ async function createGhosttyEmulator(
       element?.removeEventListener('keyup', handleKeyUp, { capture: true });
       element?.removeEventListener('input', handleInput, { capture: true });
       terminal?.destroy();
+      core.dispose();
     },
   };
 }

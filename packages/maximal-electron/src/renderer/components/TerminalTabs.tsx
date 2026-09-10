@@ -87,6 +87,7 @@ function TerminalAttachmentView({
   const paneRef = useRef(pane);
   const mountGeneration = useRef(0);
   const [focusedId, setFocusedId] = useState(attachment.sessionId);
+  const [focusRequest, setFocusRequest] = useState({ sessionId: '', generation: 0 });
   const splitPending = useRef(false);
   const [splitFailed, setSplitFailed] = useState(false);
   paneRef.current = pane;
@@ -108,12 +109,20 @@ function TerminalAttachmentView({
     onSessionsChange?.(attachment.id, terminalPaneSessionIds(pane));
   }, [attachment.id, onSessionsChange, pane]);
 
+  function requestPaneFocus(sessionId: string): void {
+    setFocusedId(sessionId);
+    setFocusRequest((current) => ({
+      sessionId,
+      generation: current.generation + 1,
+    }));
+  }
+
   function navigateSplit(fromId: string, direction: 'previous' | 'next'): void {
     const ids = terminalPaneSessionIds(pane);
     if (ids.length < 2) return;
     const index = ids.indexOf(fromId);
     const offset = direction === 'previous' ? -1 : 1;
-    setFocusedId(ids[(index + offset + ids.length) % ids.length] ?? fromId);
+    requestPaneFocus(ids[(index + offset + ids.length) % ids.length] ?? fromId);
   }
 
   function exitPane(sessionId: string): void {
@@ -124,7 +133,7 @@ function TerminalAttachmentView({
     }
     const ids = terminalPaneSessionIds(remaining);
     setPane(remaining);
-    if (focusedId === sessionId) setFocusedId(ids[0]!);
+    if (focusedId === sessionId) requestPaneFocus(ids[0]!);
   }
 
   function renderPane(current: TerminalPane, path: string): React.ReactNode {
@@ -139,7 +148,7 @@ function TerminalAttachmentView({
           theme={theme}
           disposition="preserve"
           transport={session.transport}
-          focused={focusedId === sessionId}
+          focusRequest={focusRequest.sessionId === sessionId ? focusRequest.generation : 0}
           focusIndicator={terminalPaneSessionIds(pane).length > 1}
           onFocus={() => setFocusedId(sessionId)}
           onExit={() => exitPane(sessionId)}
@@ -150,7 +159,7 @@ function TerminalAttachmentView({
             void launchSplit()
               .then((result) => {
                 setPane((existing) => splitTerminalPane(existing, sessionId, direction, result.sessionId));
-                setFocusedId(result.sessionId);
+                requestPaneFocus(result.sessionId);
               })
               .catch(() => setSplitFailed(true))
               .finally(() => {

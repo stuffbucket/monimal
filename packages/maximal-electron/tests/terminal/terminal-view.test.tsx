@@ -1,7 +1,11 @@
 // @vitest-environment jsdom
 import { StrictMode, act } from 'react';
 import { createRoot } from 'react-dom/client';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const terminalWrites = vi.hoisted(() => [] as string[]);
+const emulatorKinds = vi.hoisted(() => [] as string[]);
+const emulatorDisposals = vi.hoisted(() => [] as string[]);
 
 const ghostty = vi.hoisted(() => ({
   keyHandler: undefined as ((event: KeyboardEvent) => boolean) | undefined,
@@ -16,7 +20,9 @@ const ghostty = vi.hoisted(() => ({
 }));
 
 vi.mock('../../src/renderer/lib/terminal-emulator.js', () => ({
-  createTerminalEmulator: () => ({
+  createTerminalEmulator: (kind = 'xterm') => {
+    emulatorKinds.push(kind);
+    return {
     cols: 80,
     rows: 24,
     buffer: { active: {} },
@@ -37,9 +43,10 @@ vi.mock('../../src/renderer/lib/terminal-emulator.js', () => ({
       ghostty.titleHandler = handler;
       return { dispose() {} };
     },
-    write(): void {},
-    dispose(): void {},
-  }),
+    write(data: string): void { terminalWrites.push(data); },
+    dispose(): void { emulatorDisposals.push(kind); },
+    };
+  },
 }));
 
 import { TerminalView } from '../../src/renderer/components/TerminalView.js';
@@ -52,6 +59,40 @@ globalThis.ResizeObserver = class {
 };
 
 describe('TerminalView lifecycle', () => {
+  beforeEach(() => {
+    terminalWrites.length = 0;
+    emulatorKinds.length = 0;
+    emulatorDisposals.length = 0;
+    ghostty.focus.mockClear();
+    ghostty.blur.mockClear();
+  });
+
+  it('replaces the emulator without terminating the live session', async () => {
+    const terminate = vi.fn(async () => undefined);
+    const transport = {
+      spawn: vi.fn(async () => undefined),
+      write: vi.fn(async () => undefined),
+      resize: vi.fn(async () => undefined),
+      terminate,
+      subscribe: vi.fn(() => () => undefined),
+    };
+    const root = createRoot(document.createElement('div'));
+
+    await act(async () => {
+      root.render(<TerminalView id="session-1" emulator="ghostty" transport={transport} />);
+    });
+    await act(async () => {
+      root.render(<TerminalView id="session-1" emulator="xterm" transport={transport} />);
+    });
+
+    expect(emulatorKinds).toEqual(['ghostty', 'xterm']);
+    expect(emulatorDisposals).toEqual(['ghostty']);
+    expect(terminate).not.toHaveBeenCalled();
+
+    await act(async () => root.unmount());
+    expect(terminate).toHaveBeenCalledWith('session-1');
+  });
+
   it('keeps the session through a StrictMode remount and terminates it on real unmount', async () => {
     const terminate = vi.fn(async () => undefined);
     const transport = {
@@ -137,7 +178,7 @@ describe('TerminalView lifecycle', () => {
     await act(async () => root.unmount());
   });
 
-  it('focuses an active pane and forwards process exit', async () => {
+  it('consumes an explicit focus request and follows real focus state', async () => {
     const onExit = vi.fn();
     const transport = {
       spawn: vi.fn(async () => undefined),
@@ -150,23 +191,47 @@ describe('TerminalView lifecycle', () => {
       }),
     };
     const element = document.createElement('div');
+    document.body.append(element);
     const root = createRoot(element);
 
     await act(async () => {
       root.render(
-        <TerminalView id="session-1" focused onExit={onExit} transport={transport} />,
+        <TerminalView id="session-1" focusRequest={1} onExit={onExit} transport={transport} />,
       );
     });
     expect(ghostty.focus).toHaveBeenCalled();
+    expect(element.querySelector('.terminal')?.hasAttribute('data-focused')).toBe(false);
+
+    const terminalElement = element.querySelector('.terminal')!;
+    const input = document.createElement('input');
+    terminalElement.append(input);
+    await act(async () => input.focus());
     expect(element.querySelector('.terminal')?.getAttribute('data-focused')).toBe('true');
+
+    await act(async () => window.dispatchEvent(new Event('blur')));
+    expect(element.querySelector('.terminal')?.hasAttribute('data-focused')).toBe(false);
+
+    await act(async () => window.dispatchEvent(new Event('focus')));
+    expect(element.querySelector('.terminal')?.getAttribute('data-focused')).toBe('true');
+
+    await act(async () => {
+      element.querySelector('.terminal')?.dispatchEvent(
+        new FocusEvent('focusout', {
+          bubbles: true,
+          relatedTarget: document.createElement('button'),
+        }),
+      );
+    });
+    expect(element.querySelector('.terminal')?.hasAttribute('data-focused')).toBe(false);
 
     await act(async () => ghostty.subscription?.({ type: 'exit', exitCode: 7 }));
     expect(onExit).toHaveBeenCalledWith(7);
 
     await act(async () => root.unmount());
+    element.remove();
   });
 
-  it('blurs an inactive pane and claims focus on pointer down', async () => {
+  it('claims pane selection on pointer down without forcing emulator focus', async () => {
     const onFocus = vi.fn();
     const transport = {
       spawn: vi.fn(async () => undefined),
@@ -180,15 +245,39 @@ describe('TerminalView lifecycle', () => {
 
     await act(async () => {
       root.render(
-        <TerminalView id="session-1" focused={false} onFocus={onFocus} transport={transport} />,
+        <TerminalView id="session-1" onFocus={onFocus} transport={transport} />,
       );
     });
-    expect(ghostty.blur).toHaveBeenCalled();
+    expect(ghostty.focus).not.toHaveBeenCalled();
+    expect(ghostty.blur).not.toHaveBeenCalled();
 
     element.querySelector('.terminal')?.dispatchEvent(
       new PointerEvent('pointerdown', { bubbles: true }),
     );
     expect(onFocus).toHaveBeenCalledOnce();
+
+    await act(async () => root.unmount());
+  });
+
+  it('reports a rejected terminal spawn inside the terminal', async () => {
+    const transport = {
+      spawn: vi.fn(async () => Promise.reject(new Error('not reserved'))),
+      write: vi.fn(async () => undefined),
+      resize: vi.fn(async () => undefined),
+      terminate: vi.fn(async () => undefined),
+      subscribe: vi.fn(() => () => undefined),
+    };
+    const element = document.createElement('div');
+    const root = createRoot(element);
+
+    await act(async () => {
+      root.render(<TerminalView id="session-1" transport={transport} />);
+    });
+
+    expect(element.querySelector('[role="alert"]')?.textContent).toContain(
+      'Terminal could not start.',
+    );
+    expect(transport.terminate).toHaveBeenCalledWith('session-1');
 
     await act(async () => root.unmount());
   });

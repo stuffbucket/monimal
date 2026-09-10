@@ -328,6 +328,7 @@ const config: ForgeConfig = {
       // recording tools can drive it, and dropped here so a user never
       // installs it. `scripts/verify-package.mjs` asserts it is absent.
       if (file.startsWith('/.vite/renderer/demo_window')) return true;
+      if (file.startsWith('/.vite/renderer/terminal_lab_window')) return true;
 
       const keep = [
         '/.vite',
@@ -394,6 +395,7 @@ const config: ForgeConfig = {
         ...(process.env.STUFFBUCKET_SKIP_FIXTURE
           ? []
           : [{ name: 'demo_window', config: 'vite.demo.config.ts' }]),
+        { name: 'terminal_lab_window', config: 'vite.terminal-lab.config.ts' },
       ],
     }),
     // Fuses harden the packaged binary. Changing any value here invalidates an
