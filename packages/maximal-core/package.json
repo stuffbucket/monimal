@@ -102,6 +102,7 @@
     "scan:secrets": "trufflehog filesystem . --no-verification --fail --results=verified,unknown,unverified --no-update --exclude-paths .trufflehog-exclude",
     "start": "NODE_ENV=production bun run ./src/main.ts",
     "test": "bun test",
+    "test:configurator-harness": "bun test tests/configurator-install-discovery.test.ts",
     "test:mutation": "bun scripts/dev/run-mutation-tests.ts",
     "test:ops": "cd scripts/ops && bun test",
     "test:winvm": "cd scripts/dev/win11 && bun test",

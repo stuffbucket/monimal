@@ -28,11 +28,12 @@ import {
   readToolPins,
   runDockerArguments,
   stagedCommandArguments,
+  suiteFixtureArguments,
   turboCacheLabels,
   turboCacheMountArguments,
   turboCacheVolumeCreateArguments,
-  validatedTurboCacheVolumeName,
   validatedImageId,
+  validatedTurboCacheVolumeName,
 } from "../scripts/docker-test.mjs";
 import {
   parseStageOptions,
@@ -365,7 +366,7 @@ test("the outer and fixed inner test scripts cannot recurse", () => {
       "test:maximal-models:inner":
         "node scripts/assert-test-container.mjs && pnpm --filter @stuffbucket/maximal-models test",
       "test:maximal-configurators:inner":
-        "node scripts/assert-test-container.mjs && pnpm --filter @stuffbucket/maximal-configurators test",
+        "node scripts/assert-test-container.mjs && pnpm --filter @stuffbucket/maximal-configurators test && pnpm --filter @stuffbucket/maximal-core run test:configurator-harness",
       "test:connections:inner":
         "node scripts/assert-test-container.mjs && pnpm --filter @stuffbucket/maximal-configurators test && pnpm --filter @stuffbucket/maximal-core test && pnpm --filter maximal-client test",
       "test:policy:inner":
@@ -1338,6 +1339,41 @@ test("each suite selects one fixed root-owned inner script", () => {
   assert.ok(arguments_.includes("MAXIMAL_TEST_TRACE=1"));
 });
 
+test("only the configurator suite receives disposable system install roots", () => {
+  assert.deepEqual(suiteFixtureArguments("workspace"), []);
+  assert.deepEqual(suiteFixtureArguments("maximal-configurators"), [
+    "--tmpfs",
+    "/Applications:rw,uid=10001,gid=10001,mode=0755",
+    "--tmpfs",
+    "/opt/homebrew:rw,exec,uid=10001,gid=10001,mode=0755",
+  ]);
+
+  const joined = runDockerArguments("sha256:" + "b".repeat(64), {
+    suite: "maximal-configurators",
+  }).join(" ");
+  assert.match(joined, /--tmpfs \/Applications:/);
+  assert.match(joined, /--tmpfs \/opt\/homebrew:/);
+  assert.deepEqual(
+    runDockerArguments("sha256:" + "b".repeat(64), {
+      suite: "maximal-configurators",
+    }).slice(0, 12),
+    [
+      "run",
+      "--rm",
+      "--init",
+      "--network=none",
+      "--cap-drop=ALL",
+      "--security-opt=no-new-privileges",
+      "--tmpfs",
+      "/Applications:rw,uid=10001,gid=10001,mode=0755",
+      "--tmpfs",
+      "/opt/homebrew:rw,exec,uid=10001,gid=10001,mode=0755",
+      "--mount",
+      `type=bind,source=${root},target=/checkout,readonly`,
+    ],
+  );
+});
+
 test("tool pins and Docker artifacts come from their owner files", () => {
   const pins = readToolPins(root);
   const manifest = JSON.parse(read("package.json"));
@@ -1536,6 +1572,7 @@ test("the image owns test homes and stages commands as non-root", () => {
   assert.match(dockerfile, /MAXIMAL_TEST_CONTAINER=1/);
   assert.match(dockerfile, /TURBO_CACHE_DIR=\/workspace\/\.turbo\/cache/);
   assert.match(dockerfile, /XDG_CONFIG_HOME=\/home\/maximal\/\.config/);
+  assert.match(dockerfile, /\/workspace\/\.turbo/);
   assert.match(
     dockerfile,
     /git config --system --add safe\.directory \/checkout/,
