@@ -1,8 +1,10 @@
 import * as RadioGroupPrimitive from '@radix-ui/react-radio-group';
 import * as Tooltip from '@radix-ui/react-tooltip';
-import { createContext, useContext, useId, type ReactNode } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
+import { createContext, useContext, useId, useState, type ReactNode } from 'react';
 
 import { useComponentStyles } from '../../lib/component-styles.js';
+import { IconButton } from './Button.js';
 import { useShellPortalContainer } from './Overlays.js';
 
 /**
@@ -85,6 +87,7 @@ export function TextInput({
   type = 'text',
   testId,
   title,
+  revealLabel = 'value',
   ...field
 }: {
   value: string;
@@ -94,11 +97,14 @@ export function TextInput({
   type?: 'text' | 'search' | 'password';
   testId?: string;
   title?: string;
+  revealLabel?: string;
 } & Partial<FieldControl>) {
-  return (
+  const [revealed, setRevealed] = useState(false);
+  const secret = type === 'password';
+  const input = (
     <input
       className="input"
-      type={type}
+      type={secret && revealed ? 'text' : type}
       value={value}
       placeholder={placeholder}
       disabled={disabled}
@@ -107,6 +113,23 @@ export function TextInput({
       data-testid={testId}
       {...field}
     />
+  );
+
+  if (!secret) return input;
+
+  return (
+    <div className="input-shell">
+      {input}
+      <IconButton
+        className="input-shell__action"
+        label={`${revealed ? 'Hide' : 'Show'} ${revealLabel}`}
+        tooltip={`${revealed ? 'Hide' : 'Show'} ${revealLabel}`}
+        disabled={disabled}
+        onClick={() => setRevealed((current) => !current)}
+      >
+        {revealed ? <EyeOff aria-hidden="true" size={14} /> : <Eye aria-hidden="true" size={14} />}
+      </IconButton>
+    </div>
   );
 }
 

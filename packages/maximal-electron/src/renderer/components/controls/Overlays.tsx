@@ -1,7 +1,7 @@
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
-import { useContext, type ComponentType, type ReactNode } from 'react';
+import { useContext, useRef, type ComponentType, type ReactNode } from 'react';
 
 import { SHELL_ROOT_CLASS, ShellRoot } from '../../lib/shell-root.js';
 
@@ -77,8 +77,8 @@ export function useShellPortalContainer(): HTMLElement | undefined {
 /**
  * A modal dialog.
  *
- * `title` and `description` are the accessible name and description, and both
- * are always hidden visually — draw the heading you want inside `children`.
+ * `title` and `description` are the accessible name and description. They are
+ * visually hidden unless their corresponding `show*` option is enabled.
  *
  * It portals, so it mounts outside whatever element carries `.sb-shell` unless
  * a root is in scope. `ShellLayout` provides one; without it the component
@@ -98,13 +98,16 @@ export function Dialog({
   onKeyDown,
   onPointerDownOutside,
   onOpenAutoFocus,
+  onCloseAutoFocus,
+  showTitle = false,
+  showDescription = false,
   testId,
 }: {
   open: boolean;
   onOpenChange?: (open: boolean) => void;
-  /** The accessible name. Always hidden visually; draw your own heading. */
+  /** The accessible name. Hidden visually unless `showTitle` is true. */
   title: string;
-  /** The accessible description. Hidden visually on the same terms. */
+  /** The accessible description. Hidden visually unless `showDescription` is true. */
   description?: string;
   children: ReactNode;
   /** Overridable so a document with its own card styles can keep them. */
@@ -116,9 +119,13 @@ export function Dialog({
   onKeyDown?: (event: React.KeyboardEvent) => void;
   onPointerDownOutside?: (event: Event) => void;
   onOpenAutoFocus?: (event: Event) => void;
+  onCloseAutoFocus?: (event: Event) => void;
+  showTitle?: boolean;
+  showDescription?: boolean;
   testId?: string;
 }) {
   const container = useShellPortalContainer();
+  const returnFocus = useRef<HTMLElement | null>(null);
 
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange} modal={modal}>
@@ -130,15 +137,37 @@ export function Dialog({
           onEscapeKeyDown={onEscapeKeyDown}
           onKeyDown={onKeyDown}
           onPointerDownOutside={onPointerDownOutside}
-          onOpenAutoFocus={onOpenAutoFocus}
+          onOpenAutoFocus={(event) => {
+            const activeElement = (container?.ownerDocument ?? document).activeElement;
+            returnFocus.current = activeElement instanceof HTMLElement ? activeElement : null;
+            onOpenAutoFocus?.(event);
+          }}
+          onCloseAutoFocus={(event) => {
+            onCloseAutoFocus?.(event);
+            if (!event.defaultPrevented && returnFocus.current !== null) {
+              event.preventDefault();
+              returnFocus.current.focus();
+            }
+            returnFocus.current = null;
+          }}
         >
-          <VisuallyHidden asChild>
-            <DialogPrimitive.Title>{title}</DialogPrimitive.Title>
-          </VisuallyHidden>
-          {description && (
+          {showTitle ? (
+            <DialogPrimitive.Title className="dialog__heading">{title}</DialogPrimitive.Title>
+          ) : (
             <VisuallyHidden asChild>
-              <DialogPrimitive.Description>{description}</DialogPrimitive.Description>
+              <DialogPrimitive.Title>{title}</DialogPrimitive.Title>
             </VisuallyHidden>
+          )}
+          {description && (
+            showDescription ? (
+              <DialogPrimitive.Description className="dialog__description">
+                {description}
+              </DialogPrimitive.Description>
+            ) : (
+              <VisuallyHidden asChild>
+                <DialogPrimitive.Description>{description}</DialogPrimitive.Description>
+              </VisuallyHidden>
+            )
           )}
           {children}
         </DialogPrimitive.Content>

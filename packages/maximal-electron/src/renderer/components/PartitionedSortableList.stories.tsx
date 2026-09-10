@@ -84,27 +84,27 @@ export const Default: Story = {
 export const AttentionRequired: Story = {
   render: () => (
     <PartitionedSortableList
-      enabledItems={[
+      enabledItems={[]}
+      disabledItems={[
         {
           id: 'remote',
           label: 'Remote search',
           description: 'Search through a hosted provider.',
-          toggleDisabled: true,
+          toggleBlocked: true,
           toggleTooltip: 'Unavailable until required settings are complete.',
         },
       ]}
-      disabledItems={[]}
-      requestedExpandedItemId="remote"
       renderDetails={() => <p>API key is required.</p>}
       onChange={() => undefined}
     />
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('switch', { name: 'Enable Remote search' }));
     await expect(await canvas.findByText('API key is required.')).toBeVisible();
     await expect(
-      canvas.getByRole('switch', { name: 'Disable Remote search' }),
-    ).toBeDisabled();
+      canvas.getByRole('switch', { name: 'Enable Remote search' }),
+    ).toHaveAttribute('aria-checked', 'false');
     await expect(
       canvas.getByRole('button', { name: 'Collapse Remote search' }),
     ).toHaveAttribute('aria-expanded', 'true');
