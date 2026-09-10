@@ -52,6 +52,13 @@ describe('OSC title observer', () => {
     expect(emit.mock.calls).toEqual([['after-invalid'], ['after-repeat']]);
   });
 
+  it('does not treat an OSC introducer tail as valid after an unrelated escape', () => {
+    const emit = observe(`${ESC}x]0;not-a-title${BEL}${ESC}]0;recovered${BEL}`);
+
+    expect(emit).toHaveBeenCalledOnce();
+    expect(emit).toHaveBeenCalledWith('recovered');
+  });
+
   it.each([
     ['DCS', `${ESC}P`],
     ['SOS', `${ESC}X`],
@@ -96,6 +103,26 @@ describe('OSC title observer', () => {
     expect(emit).toHaveBeenCalledWith('recovered');
   });
 
+  it('returns to an ignored string after a false escape terminator', () => {
+    const emit = observe(
+      `${C1_DCS}${ESC}x\\${ESC}]0;still-ignored${BEL}`,
+      `${ESC}]2;recovered${BEL}`,
+    );
+
+    expect(emit).toHaveBeenCalledOnce();
+    expect(emit).toHaveBeenCalledWith('recovered');
+  });
+
+  it('keeps repeated escapes pending until an ignored string terminator', () => {
+    const emit = observe(
+      `${C1_DCS}${ESC}${ESC}\\`,
+      `${ESC}]0;recovered${BEL}`,
+    );
+
+    expect(emit).toHaveBeenCalledOnce();
+    expect(emit).toHaveBeenCalledWith('recovered');
+  });
+
   it.each([
     ['BEL', BEL],
     ['C1 ST', C1_ST],
@@ -118,6 +145,16 @@ describe('OSC title observer', () => {
 
     expect(emit).toHaveBeenCalledOnce();
     expect(emit).toHaveBeenCalledWith('recovered');
+  });
+
+  it('accepts C1 ST after an OSC escape in normal and discard modes', () => {
+    const emit = observe(
+      `${ESC}]0;c1-title${ESC}${C1_ST}`,
+      `${ESC}]0;${'x'.repeat(4_095)}${ESC}${C1_ST}`,
+      `${ESC}]2;recovered${BEL}`,
+    );
+
+    expect(emit.mock.calls).toEqual([['c1-title'], ['recovered']]);
   });
 
   it('consumes a false OSC escape pair without losing the surrounding payload', () => {

@@ -619,6 +619,29 @@ describe('TerminalLauncher', () => {
     });
   });
 
+  it.each([
+    ['tmux 2.4\n', false],
+    [' tmux 3.4 \n', true],
+    ['tmux 4.0\n', true],
+    ['not tmux\n', false],
+  ])('derives hyperlink advertisement from tmux version %j', async (version, supportsHyperlinks) => {
+    const run = vi.fn<CommandRunner>().mockResolvedValueOnce({ stdout: version }).mockResolvedValueOnce({ stdout: 'work\n' });
+    const connector = new TmuxConnector(run);
+    const [target] = await connector.discover();
+
+    expect(connector.launch(target!).args).toEqual([
+      ...(supportsHyperlinks ? ['-T', 'hyperlinks'] : []),
+      'new-session', '-A', '-s', 'work',
+    ]);
+  });
+
+  it('defaults to hyperlink advertisement before discovery', () => {
+    const connector = new TmuxConnector(async () => ({ stdout: '' }));
+
+    expect(connector.launch({ key: 'existing\u0000work', label: 'Tmux session 1' }).args)
+      .toEqual(['-T', 'hyperlinks', 'new-session', '-A', '-s', 'work']);
+  });
+
   it('keeps the generated tmux target key and label distinct', async () => {
     const generated = 'stuffbucket-0123456789abcdef0123456789abcdef';
     const connector = new TmuxConnector(async () => ({ stdout: '' }), () => generated);
@@ -677,6 +700,24 @@ describe('TerminalLauncher', () => {
       '-tt', 'host-1', 'tmux', 'new-session', '-A', '-s', 'remote-work',
     ]);
     expect(() => connector.launch({ key: `work;bad\u0000new\u0000${name}`, label: 'bad' })).toThrow();
+  });
+
+  it('removes a remote alias from the legacy set after tmux is upgraded', async () => {
+    const name = 'stuffbucket-0123456789abcdef0123456789abcdef';
+    let version = 'tmux 3.3a\n';
+    const run = vi.fn<CommandRunner>().mockImplementation(async (_command, args) => (
+      args[3] === 'tmux -V' ? { stdout: version } : { stdout: 'work\n' }
+    ));
+    const connector = new SshTmuxConnector('/home/ada', () => 'Host work', run, () => name);
+
+    let target = (await connector.discover()).find((candidate) => candidate.key.includes('\u0000existing\u0000'))!;
+    expect(connector.launch(target).args).toEqual(['-tt', 'work', 'tmux', 'new-session', '-A', '-s', 'work']);
+
+    version = 'tmux 3.4\n';
+    target = (await connector.discover()).find((candidate) => candidate.key.includes('\u0000existing\u0000'))!;
+    expect(connector.launch(target).args).toEqual([
+      '-tt', 'work', 'tmux', '-T', 'hyperlinks', 'new-session', '-A', '-s', 'work',
+    ]);
   });
 
   it('keeps tmux target IDs opaque and owner- and generation-scoped', async () => {

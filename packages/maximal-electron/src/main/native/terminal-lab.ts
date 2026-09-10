@@ -14,14 +14,14 @@ interface TerminalLabWindowState {
 }
 
 function rectangle(value: unknown): value is Rectangle {
-  if (typeof value !== 'object' || value === null) return false;
+  if (value === null || value === undefined) return false;
   const record = value as Record<string, unknown>;
   return ['x', 'y', 'width', 'height'].every((key) =>
     Number.isFinite(record[key]) && Number(record[key]) >= (key === 'width' || key === 'height' ? 1 : -Infinity));
 }
 
 function windowState(value: unknown): value is TerminalLabWindowState {
-  if (typeof value !== 'object' || value === null) return false;
+  if (value === null || value === undefined) return false;
   const record = value as Record<string, unknown>;
   return Number.isFinite(record['displayId']) &&
     rectangle(record['displayWorkArea']) && rectangle(record['bounds']);
@@ -42,7 +42,9 @@ export function restoreTerminalLabWindowBounds(
   if (displays.length === 0) return undefined;
   let state: unknown;
   try {
+    // Stryker disable next-line StringLiteral: Node treats an empty encoding as utf8.
     state = JSON.parse(readFileSync(terminalLabWindowStatePath(appPath), 'utf8'));
+  // Stryker disable next-line BlockStatement: leaving state undefined also fails windowState below.
   } catch {
     return undefined;
   }
@@ -72,6 +74,7 @@ export function saveTerminalLabWindowState(
     displayWorkArea: display.workArea,
     bounds,
   };
+  // Stryker disable next-line StringLiteral: Node treats an empty encoding as utf8.
   writeFileSync(terminalLabWindowStatePath(appPath), `${JSON.stringify(state)}\n`, 'utf8');
 }
 

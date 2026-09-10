@@ -74,4 +74,59 @@ describe('terminal lab launch boundary', () => {
     expect(restoreTerminalLabWindowBounds(appPath, [display(1, 0, 0, 1280, 720)]))
       .toEqual({ x: 0, y: 0, width: 1280, height: 720 });
   });
+
+  it('returns no bounds without displays, readable JSON, or a valid state object', () => {
+    const appPath = mkdtempSync(path.join(tmpdir(), 'terminal-lab-invalid-'));
+    expect(restoreTerminalLabWindowBounds(appPath, [])).toBeUndefined();
+    expect(restoreTerminalLabWindowBounds(appPath, [display(1, 0, 0, 1280, 720)])).toBeUndefined();
+
+    writeFileSync(terminalLabWindowStatePath(appPath), JSON.stringify({
+      displayId: 1,
+      displayWorkArea: { x: 0, y: 0, width: 100, height: 100 },
+      bounds: { x: 0, y: 0, width: 50, height: 50 },
+    }));
+    expect(restoreTerminalLabWindowBounds(appPath, [])).toBeUndefined();
+
+    writeFileSync(terminalLabWindowStatePath(appPath), '{');
+    expect(restoreTerminalLabWindowBounds(appPath, [display(1, 0, 0, 1280, 720)])).toBeUndefined();
+
+    for (const state of [
+      null,
+      true,
+      {},
+      { displayId: '1', displayWorkArea: { x: 0, y: 0, width: 100, height: 100 }, bounds: { x: 0, y: 0, width: 50, height: 50 } },
+      { displayId: 1, displayWorkArea: null, bounds: { x: 0, y: 0, width: 50, height: 50 } },
+      { displayId: 1, displayWorkArea: { x: 0, y: 0, width: 100, height: 100 }, bounds: null },
+      { displayId: 1, displayWorkArea: { x: 0, y: 0, width: 0, height: 100 }, bounds: { x: 0, y: 0, width: 50, height: 50 } },
+      { displayId: 1, displayWorkArea: { x: 0, y: 0, width: 100, height: 0 }, bounds: { x: 0, y: 0, width: 50, height: 50 } },
+      { displayId: 1, displayWorkArea: { x: 0, y: 0, width: 100, height: 100 }, bounds: { x: 0, y: 0, width: 50, height: Number.NaN } },
+    ]) {
+      writeFileSync(terminalLabWindowStatePath(appPath), JSON.stringify(state));
+      expect(restoreTerminalLabWindowBounds(appPath, [display(1, 0, 0, 1280, 720)])).toBeUndefined();
+    }
+  });
+
+  it('restores independent negative horizontal and vertical monitor offsets', () => {
+    const appPath = mkdtempSync(path.join(tmpdir(), 'terminal-lab-offset-'));
+    writeFileSync(terminalLabWindowStatePath(appPath), JSON.stringify({
+      displayId: 7,
+      displayWorkArea: { x: 1000, y: 500, width: 1600, height: 1000 },
+      bounds: { x: 1120, y: 650, width: 900, height: 700 },
+    }));
+
+    expect(restoreTerminalLabWindowBounds(appPath, [display(7, -1600, -1000, 1600, 1000)]))
+      .toEqual({ x: -1480, y: -850, width: 900, height: 700 });
+  });
+
+  it('accepts the minimum one-pixel persisted rectangles', () => {
+    const appPath = mkdtempSync(path.join(tmpdir(), 'terminal-lab-minimum-'));
+    writeFileSync(terminalLabWindowStatePath(appPath), JSON.stringify({
+      displayId: 1,
+      displayWorkArea: { x: 0, y: 0, width: 1, height: 1 },
+      bounds: { x: 0, y: 0, width: 1, height: 1 },
+    }));
+
+    expect(restoreTerminalLabWindowBounds(appPath, [display(1, 0, 0, 1, 1)]))
+      .toEqual({ x: 0, y: 0, width: 1, height: 1 });
+  });
 });

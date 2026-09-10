@@ -20,6 +20,7 @@ const MAX_PAYLOAD = 4_096;
 
 export class OscTitleObserver {
   private state: ParserState = 'ground';
+  // Stryker disable next-line StringLiteral: startOsc clears this before payload can be observed.
   private payload = '';
 
   constructor(private readonly emit: (title: string) => void) {}
@@ -38,6 +39,7 @@ export class OscTitleObserver {
 
     if (this.state === 'escape') {
       if (character === ']') this.startOsc();
+      // Stryker disable next-line StringLiteral: an unknown state follows the same discard path until termination.
       else if (['P', 'X', '^', '_'].includes(character)) this.state = 'string';
       else this.state = character === ESC ? 'escape' : 'ground';
       return;
@@ -51,12 +53,14 @@ export class OscTitleObserver {
 
     if (this.state === 'string-escape') {
       if (character === '\\' || character === C1_ST) this.state = 'ground';
+      // Stryker disable next-line StringLiteral: an unknown state follows the same discard path until termination.
       else this.state = character === ESC ? 'string-escape' : 'string';
       return;
     }
 
     if (this.state === 'osc-escape' || this.state === 'osc-discard-escape') {
       if (character === '\\' || character === C1_ST) this.finishOsc();
+      // Stryker disable next-line StringLiteral: an unknown state remains non-emitting and terminates identically.
       else this.state = this.state === 'osc-escape' ? 'osc' : 'osc-discard';
       return;
     }
@@ -65,6 +69,7 @@ export class OscTitleObserver {
       this.finishOsc();
     } else if (character === ESC) {
       this.state = this.state === 'osc' ? 'osc-escape' : 'osc-discard-escape';
+    // Stryker disable next-line ConditionalExpression: appending while discarding cannot affect finishOsc output.
     } else if (this.state === 'osc') {
       if (this.payload.length + character.length <= MAX_PAYLOAD) this.payload += character;
       else this.state = 'osc-discard';
@@ -79,9 +84,11 @@ export class OscTitleObserver {
   private finishOsc(): void {
     if (this.state !== 'osc-discard' && this.state !== 'osc-discard-escape') {
       const separator = this.payload.indexOf(';');
+      // Stryker disable next-line ConditionalExpression,EqualityOperator,StringLiteral: every missing-separator value is a non-title command.
       const command = separator < 0 ? '' : this.payload.slice(0, separator);
       if (command === '0' || command === '2') this.emit(this.payload.slice(separator + 1));
     }
+    // Stryker disable next-line StringLiteral: startOsc clears this before the next observable payload.
     this.payload = '';
     this.state = 'ground';
   }
