@@ -255,6 +255,11 @@ export function createPreviewSettingsCapabilities(): SettingsCapabilities {
       cancelMenuBarOnly: unavailable,
       disableMenuBarOnly: unavailable,
     },
+    connections: {
+      list: unavailable,
+      act: unavailable,
+      revealCredential: unavailable,
+    },
     apps: { list: unavailable, setEnabled: unavailable },
     connection: { proxyUrl: unavailable },
     apiKeys: {

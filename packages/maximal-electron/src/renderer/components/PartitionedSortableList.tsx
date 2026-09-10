@@ -23,6 +23,7 @@ export interface PartitionedSortableItem {
   label: string;
   description?: string;
   toggleDisabled?: boolean;
+  toggleBlocked?: boolean;
   toggleTooltip?: ReactNode;
 }
 
@@ -322,13 +323,18 @@ export function PartitionedSortableList({
                 className="partitioned-sortable__toggle"
                 checked={enabled}
                 disabled={disabled || item.toggleDisabled}
-                onChange={(nextEnabled) =>
+                onChange={(nextEnabled) => {
+                  if (nextEnabled && item.toggleBlocked) {
+                    setExpandedId(item.id);
+                    setAnnouncement(`${item.label} needs valid settings before it can be enabled.`);
+                    return;
+                  }
                   move(
                     item,
                     nextEnabled ? 'enabled' : 'disabled',
                     nextEnabled ? enabledItems.length : disabledItems.length,
-                  )
-                }
+                  );
+                }}
               />
             </div>
             </div>

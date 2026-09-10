@@ -12,8 +12,6 @@ import {
 import { randomUUID } from "node:crypto"
 import { z } from "zod"
 
-import type { Model } from "~/services/copilot/get-models"
-
 import type {
   AppEntry,
   ApiKeyCreateRequest as ApiKeyCreateRequestType,
@@ -34,6 +32,7 @@ import type {
   ConfiguratorPlugin,
   ConfiguratorRegistry,
 } from "~/lib/configurator-host"
+import type { Model } from "~/services/copilot/get-models"
 
 import { getApp } from "~/apps/registry"
 import { describeExecutor } from "~/debug"
@@ -404,7 +403,7 @@ function validateEnabledProvider(
     } catch (error) {
       if (!(error instanceof SettingsOperationError)) throw error
       invalidSearchSetting(
-        `${provider.label} cannot be enabled: ${error.message}. ${field.emptyDescription ?? "Complete the required field."}`,
+        `${provider.label} cannot be enabled: ${error.message} ${field.emptyDescription ?? "Complete the required field."}`,
       )
     }
   }

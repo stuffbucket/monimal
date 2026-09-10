@@ -316,7 +316,7 @@ describe('SearchSection', () => {
     })
   })
 
-  it('opens, explains, and delays disabling an incomplete enabled provider', async () => {
+  it('opens and delays disabling an incomplete enabled provider', async () => {
     vi.useFakeTimers()
     const { capabilities, search } = fakeCapabilities(incompleteSnapshot())
     const surface = await renderSearch(capabilities)
@@ -330,15 +330,8 @@ describe('SearchSection', () => {
     expect(surface.textContent).toContain(
       'Token is required. Enter a provider token.',
     )
-    const requiredAlert = control<HTMLElement>(
-      surface,
-      'search-provider-required-example',
-    )
-    expect(requiredAlert.getAttribute('role')).toBe('alert')
-    expect(requiredAlert.textContent).toContain(
-      'Example provider will be disabled unless its required information is completed',
-    )
-    expect(disable?.disabled).toBe(true)
+    expect(surface.querySelector('[data-testid="search-provider-required-example"]')).toBeNull()
+    expect(disable?.disabled).toBe(false)
 
     await act(async () => vi.advanceTimersByTime(1200))
 
@@ -346,16 +339,35 @@ describe('SearchSection', () => {
       '[aria-label="Enable Example provider"]',
     )
     expect(enable?.getAttribute('aria-checked')).toBe('false')
-    expect(enable?.disabled).toBe(true)
-    expect(requiredAlert.textContent).toContain(
-      'Example provider cannot be enabled until its required information is completed',
-    )
+    expect(enable?.disabled).toBe(false)
     expect(token.disabled).toBe(false)
     await act(async () => button(surface, 'Save changes').click())
     expect(search.update).toHaveBeenCalledWith({
       providers: { example: { enabled: false } },
     })
     vi.useRealTimers()
+  })
+
+  it('opens a disabled provider instead of enabling it when settings are invalid', async () => {
+    const response = incompleteSnapshot()
+    response.providers.example.enabled = false
+    const { capabilities, search } = fakeCapabilities(response)
+    const surface = await renderSearch(capabilities)
+    const enable = surface.querySelector<HTMLButtonElement>(
+      '[aria-label="Enable Example provider"]',
+    )
+
+    expect(surface.querySelector('[data-testid="search-setting-example-token"]')).toBeNull()
+    expect(surface.querySelector('[data-testid="search-provider-required-example"]')).toBeNull()
+    expect(enable?.disabled).toBe(false)
+
+    await act(async () => enable?.click())
+
+    expect(enable?.getAttribute('aria-checked')).toBe('false')
+    expect(control(surface, 'search-setting-example-token')).toBeInstanceOf(
+      HTMLInputElement,
+    )
+    expect(search.update).not.toHaveBeenCalled()
   })
 
   it('keeps an enabled provider active when requirements are completed in time', async () => {

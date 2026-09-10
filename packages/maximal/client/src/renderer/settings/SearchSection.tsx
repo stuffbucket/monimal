@@ -155,6 +155,17 @@ function providerRequiredError(
     .find((message) => message !== undefined)
 }
 
+function providerValidationError(
+  snapshot: SearchSettingsResponse,
+  updates: SearchSettingsUpdateRequest,
+  providerId: string,
+): string | undefined {
+  const provider = snapshot.manifest.providers.find(({ id }) => id === providerId)
+  return provider?.settings
+    ?.map((field) => providerFieldError(snapshot, updates, providerId, field))
+    .find((message) => message !== undefined)
+}
+
 function hasBlockingValidationError(
   snapshot: SearchSettingsResponse,
   updates: SearchSettingsUpdateRequest,
@@ -369,12 +380,6 @@ export function SearchSection({
           && providerRequiredError(snapshot, updates, id) !== undefined,
       )
       .map(({ id }) => id)
-  const incompleteProviders = snapshot === null
-    ? []
-    : snapshot.manifest.providers.flatMap((provider) => {
-      const message = providerRequiredError(snapshot, updates, provider.id)
-      return message === undefined ? [] : [{ provider, message }]
-    })
   const incompleteProviderKey = incompleteEnabledProviderIds.join('\0')
 
   useEffect(() => {
@@ -515,20 +520,6 @@ export function SearchSection({
       ) : (
         <form className="settings-connector-form" onSubmit={save}>
           <Note>{snapshot.manifest.description}</Note>
-          {incompleteProviders.map(({ provider, message }) => (
-            <Note
-              key={provider.id}
-              status="needs-approval"
-              live="assertive"
-              testId={`search-provider-required-${provider.id}`}
-            >
-              {provider.label}{' '}
-              {providerEnabled(snapshot, updates, provider.id)
-                ? 'will be disabled unless its required information is completed'
-                : 'cannot be enabled until its required information is completed'}
-              : {message}
-            </Note>
-          ))}
           <SettingsSection
             title="Provider order"
             description="Set fallback priority, availability, and provider options."
@@ -552,7 +543,7 @@ export function SearchSection({
                   - (rightIndex < 0 ? Number.MAX_SAFE_INTEGER : rightIndex)
               })
               const items = providers.map((provider) => {
-                const requiredError = providerRequiredError(
+                const validationError = providerValidationError(
                   snapshot,
                   updates,
                   provider.id,
@@ -561,11 +552,11 @@ export function SearchSection({
                   id: provider.id,
                   label: provider.label,
                   description: provider.description,
-                  toggleDisabled: requiredError !== undefined,
+                  toggleBlocked: validationError !== undefined,
                   toggleTooltip:
-                    requiredError === undefined
+                    validationError === undefined
                       ? undefined
-                      : `Unavailable: ${requiredError}`,
+                      : `Unavailable: ${validationError}`,
                 }
               })
               const enabledItems = items.filter(({ id }) =>

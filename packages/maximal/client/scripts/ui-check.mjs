@@ -188,24 +188,18 @@ try {
     await visibleTooltip.waitFor({ state: 'hidden' })
   }
 
-  const ollamaRequiredAlert = page.getByTestId('search-provider-required-ollama')
   check(
-    (await ollamaRequiredAlert.textContent())?.includes(
-      'Ollama hosted search cannot be enabled until its required information is completed: API key is required.',
-    ),
-    'The missing Ollama API key alert is absent or unclear.',
+    await page.getByTestId('search-provider-required-ollama').count() === 0,
+    'A disabled Ollama provider displays a redundant warning.',
   )
   const ollamaToggle = page.getByRole('switch', { name: 'Enable Ollama hosted search' })
-  check(await ollamaToggle.isDisabled(), 'Ollama can be enabled without its required API key.')
+  check(!(await ollamaToggle.isDisabled()), 'The invalid Ollama enable control is not actionable.')
+  await ollamaToggle.click()
   check(
     await ollamaToggle.getAttribute('aria-checked') === 'false',
     'Ollama is enabled without its required API key.',
   )
 
-  const ollamaDisclosure = page.getByRole('button', {
-    name: 'Configure Ollama hosted search',
-  })
-  await ollamaDisclosure.click()
   await page.waitForTimeout(1_500)
   const expandedOllamaDisclosure = page.getByRole('button', {
     name: 'Collapse Ollama hosted search',

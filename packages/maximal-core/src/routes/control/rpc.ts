@@ -202,6 +202,26 @@ function createConnectionActionRpc(
   }
 }
 
+function createSearchSettingsRpcMethods(
+  operations: ControlRpcOperationOverrides,
+): RpcRegistry {
+  const read = operations.buildSearchSettings ?? buildSearchSettings
+  const update = operations.updateSearchSettings ?? updateSearchSettings
+  return {
+    "searchSettings/get": () => read(),
+    "searchSettings/update": (params: unknown) =>
+      asRpcOperation(() =>
+        update(
+          parseParams(
+            SearchSettingsUpdateRequest,
+            params,
+            "Expected search connector settings update.",
+          ),
+        ),
+      ),
+  }
+}
+
 function createSettingsRpcMethods({
   configurators,
   hub,
@@ -209,8 +229,6 @@ function createSettingsRpcMethods({
   operations = {},
 }: ControlRpcDeps): RpcRegistry {
   const createApiKeyOperation = operations.createApiKey ?? createApiKey
-  const buildSearchSettingsOperation =
-    operations.buildSearchSettings ?? buildSearchSettings
   const refreshModels = operations.refreshModels ?? cacheModels
   const setAppEnabledOperation =
     operations.setAppEnabled
@@ -219,10 +237,9 @@ function createSettingsRpcMethods({
     : setAppEnabled)
   const readApps = () => buildAppsList(configurators)
   const readConnections = () => listConnections(configurators)
-  const updateSearchSettingsOperation =
-    operations.updateSearchSettings ?? updateSearchSettings
 
   return {
+    ...createSearchSettingsRpcMethods(operations),
     "connections/list": readConnections,
     "connections/act": createConnectionActionRpc(configurators, hub, readApps),
     "connections/revealCredential": (params: unknown) =>
@@ -246,17 +263,6 @@ function createSettingsRpcMethods({
       return getTokenUsageSummary(period)
     },
     "diagnostics/get": () => buildDiagnostics(),
-    "searchSettings/get": () => buildSearchSettingsOperation(),
-    "searchSettings/update": (params: unknown) =>
-      asRpcOperation(() =>
-        updateSearchSettingsOperation(
-          parseParams(
-            SearchSettingsUpdateRequest,
-            params,
-            "Expected search connector settings update.",
-          ),
-        ),
-      ),
     "models/refresh": async () => {
       await refreshModels()
       return buildModelsList(await listProviderModels())
