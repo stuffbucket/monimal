@@ -124,8 +124,8 @@
   },
   "dependencies": {
     "@hono/zod-openapi": "1.6.1",
+    "@stuffbucket/maximal-model-contract": "workspace:*",
     "@stuffbucket/maximal-observability-contract": "workspace:*",
-    "@stuffbucket/maximal-provider-contract": "workspace:*",
     "citty": "^0.2.2",
     "clipboardy": "^5.0.0",
     "consola": "^3.4.2",

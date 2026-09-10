@@ -8,7 +8,7 @@
  * claude-code-flow.ts) so this file reads as a checklist.
  */
 
-import type { ProviderGateway } from "@stuffbucket/maximal-provider-contract"
+import type { ProviderGateway } from "@stuffbucket/maximal-model-contract"
 
 import consola from "consola"
 import { serve } from "srvx"

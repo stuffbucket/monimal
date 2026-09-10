@@ -1,8 +1,8 @@
 {
-  "name": "@stuffbucket/llama-server",
+  "name": "@stuffbucket/maximal-model-contract",
   "version": "0.0.0",
   "private": true,
-  "description": "Scaffold for the llama.cpp HTTP server adapter.",
+  "description": "Runtime-neutral model gateway contract shared by Maximal and model orchestration.",
   "sideEffects": false,
   "type": "module",
   "exports": {
@@ -19,11 +19,12 @@
     "analyze": "bun ../maximal-core/scripts/analyze.ts",
     "build": "tsup src/index.ts --format esm --dts --clean --target node24 --out-dir dist",
     "lint": "eslint",
-    "test": "node --test tests/*.test.js",
+    "test": "node --test tests/*.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@stuffbucket/eslint-config": "workspace:*",
+    "@types/node": "^26.4.0",
     "@typescript/native": "npm:typescript@^7.0.2",
     "eslint": "^10.9.1",
     "tsup": "^8.5.1",

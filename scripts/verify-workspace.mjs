@@ -269,18 +269,18 @@ check(
 //    a mistyped path drops a package out of the comparison silently, and a
 //    comparison over only a subset passes for the wrong reason.
 const ESLINT_CONSUMERS = [
-  "packages/anthropic-provider",
+  "packages/model-runtimes/anthropic",
   "packages/eslint-config",
-  "packages/llama-server",
+  "packages/model-runtimes/llama-server",
   "packages/maximal-core",
-  "packages/maximal-dsh-host",
-  "packages/maximal-provider-contract",
+  "packages/maximal-models",
+  "packages/maximal-model-contract",
   "packages/maximal",
   "packages/maximal-electron",
   "packages/maximal-observability-contract",
   "packages/maximal-observability",
   "packages/maximal/client",
-  "packages/omlx",
+  "packages/model-runtimes/omlx",
 ];
 const eslintVersions = new Map();
 for (const pkg of ESLINT_CONSUMERS) {
