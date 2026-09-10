@@ -20,8 +20,8 @@
  * Contrast (WCAG 2.1) for the pairs that carry meaning:
  *   --shell-text on --shell-background          16.29:1
  *   --shell-text on --shell-canvas              15.13:1
- *   --shell-text-muted on --shell-background     5.14:1
- *   --shell-text-subtle on --shell-background    3.28:1  (sub-AA; quiet text only)
+ *   --shell-text-muted on --shell-background     7.40:1
+ *   --shell-text-subtle on --shell-background    6.02:1
  *   --shell-accent on --shell-background         5.41:1
  *   --shell-accent-contrast on --shell-accent    5.41:1  (primary actions)
  *   --shell-accent on --shell-accent-muted       4.61:1  (selected nav text)
@@ -44,8 +44,8 @@ const THEME_CSS = `
 
   /* Foreground scale. */
   --shell-text: #f5f5f5;
-  --shell-text-muted: #8a8a8a;
-  --shell-text-subtle: #6a6a6a;
+   --shell-text-muted: #a0a8b4;
+   --shell-text-subtle: #8f97a2;
 
   /* Dividers and control outlines. The strong step is part of the renderer
      contract and keeps inputs and scroll thumbs distinct from the canvas. */
@@ -82,7 +82,9 @@ const THEME_CSS = `
      application wants: the frame is the root element, it has no siblings to
      overlay, and being fixed is what frees it from depending on a height
      chain through html/body/#root. */
-  --shell-font: 400 15px/1.5 system-ui, sans-serif;
+   --shell-font:
+      400 1rem/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui,
+      sans-serif;
 
   /* Status colours, centralized here so surfaces do not each hardcode them.
      The first two are the package's names, supplied as any consumer supplies

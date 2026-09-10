@@ -50,12 +50,36 @@ function settingSchema(field: ConnectorSettingField): z.ZodType {
         })
       }
       if (field.format === 'url') {
-        return schema.refine(isHttpUrl, {
+        schema = schema.refine(isHttpUrl, {
           error: `${field.label} must be a valid HTTP or HTTPS URL.`,
         })
       }
+      if (field.validation !== undefined) {
+        schema = schema.refine(
+          (candidate) => matchesUrlShape(candidate, field.validation?.url),
+          field.validation.message,
+        )
+      }
       return schema
     }
+  }
+}
+
+function matchesUrlShape(
+  candidate: string,
+  shape: { protocols: readonly string[]; pathname: string } | undefined,
+): boolean {
+  if (shape === undefined) return true
+  try {
+    const url = new URL(candidate)
+    return shape.protocols.includes(url.protocol)
+      && url.pathname === shape.pathname
+      && url.search === ''
+      && url.hash === ''
+      && url.username === ''
+      && url.password === ''
+  } catch {
+    return false
   }
 }
 

@@ -22,14 +22,15 @@
  * `no-restricted-syntax` rule (see `eslint.config.js`). See ADR-0001.
  */
 
-import type { ResolvedProviderConfig } from "~/lib/config/config"
-
 import {
   copilotBaseUrl,
   getGitHubApiBaseUrl,
   isOpencodeOauthApp,
 } from "~/lib/config/api-config"
-import { getAnthropicApiKey } from "~/lib/config/config"
+import {
+  getAnthropicApiKey,
+  type ResolvedProviderConfig,
+} from "~/lib/config/config"
 import { HTTPError } from "~/lib/errors/error"
 import { state } from "~/lib/runtime-state/state"
 
@@ -47,6 +48,11 @@ export interface SendRequestInit extends Omit<RequestInit, "headers"> {
    * change which credential the host selects.
    */
   githubToken?: string
+}
+
+export interface ProviderCredential {
+  apiKey: string
+  authType: "authorization" | "x-api-key"
 }
 
 /**
@@ -115,7 +121,7 @@ function attachHostAuth(
 
 /** Attach a config-selected passthrough provider's credential (see module doc). */
 function attachProviderAuth(
-  providerConfig: ResolvedProviderConfig,
+  providerConfig: ProviderCredential,
   headers: Headers,
 ): void {
   if (providerConfig.authType === "authorization") {
@@ -177,7 +183,7 @@ export async function sendRequest(
  * which provider this is.
  */
 export async function sendProviderRequest(
-  providerConfig: ResolvedProviderConfig,
+  providerConfig: ProviderCredential | ResolvedProviderConfig,
   url: string,
   init: SendRequestInit = {},
 ): Promise<Response> {

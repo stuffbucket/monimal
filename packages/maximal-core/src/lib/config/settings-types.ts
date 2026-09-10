@@ -123,6 +123,15 @@ const ConnectorSettingFieldBase = {
   unit: z.literal("seconds").optional(),
   layout: z.literal("full").optional(),
   emptyDescription: z.string().optional(),
+  validation: z
+    .object({
+      url: z.object({
+        protocols: z.array(z.enum(["http:", "https:"])).min(1),
+        pathname: z.string().startsWith("/"),
+      }),
+      message: z.string(),
+    })
+    .optional(),
 }
 
 export const ConnectorSettingField = z.discriminatedUnion("type", [
@@ -208,6 +217,23 @@ export const SearchSettingsUpdateRequest = z.object({
 })
 export type SearchSettingsUpdateRequest = z.infer<
   typeof SearchSettingsUpdateRequest
+>
+
+export const SearchProviderValidationRequest = z.object({
+  providerId: z.string().min(1),
+  settings: z.record(z.string(), ConnectorSettingValue.nullable()).optional(),
+})
+export type SearchProviderValidationRequest = z.infer<
+  typeof SearchProviderValidationRequest
+>
+
+export const SearchProviderValidationResponse = z.object({
+  status: z.enum(["valid", "invalid", "unavailable"]),
+  fieldErrors: z.record(z.string(), z.string()),
+  message: z.string().optional(),
+})
+export type SearchProviderValidationResponse = z.infer<
+  typeof SearchProviderValidationResponse
 >
 
 /** The upstream Copilot service the proxy is talking to — hosts/URLs only, no

@@ -7,6 +7,7 @@ import {
   buildSearchSettings,
   SettingsOperationError,
   updateSearchSettings,
+  validateSearchProvider,
 } from "~/lib/config/settings-operations"
 
 function model(
@@ -78,6 +79,19 @@ test("search settings present provider defaults and display metadata", () => {
     },
     { key: "maxResults", default: 5 },
   ])
+  expect(response.providers.ollama.enabled).toBe(false)
+  expect(response.providers.copilot.enabled).toBe(true)
+  expect(response.providers.duckduckgo.enabled).toBe(true)
+})
+
+test("search settings enable Ollama immediately when its required key is available", () => {
+  const response = buildSearchSettings(
+    {},
+    { OLLAMA_API_KEY: "environment-secret" },
+    [],
+  )
+
+  expect(response.providers.ollama.enabled).toBe(true)
 })
 
 describe("search settings operations", () => {
@@ -176,6 +190,22 @@ describe("search settings operations", () => {
 
     expect(() =>
       updateSearchSettings(
+        {
+          providers: {
+            ollama: { settings: { baseUrl: "https://ollama.com" } },
+          },
+        },
+        {
+          env: {},
+          getConfig: () => current,
+          getModels: () => [],
+          writeConfig: (next) => next,
+        },
+      ),
+    ).toThrow("Base URL must be an HTTPS origin followed by /api.")
+
+    expect(() =>
+      updateSearchSettings(
         { settings: { priority: [] } },
         {
           env: {},
@@ -201,6 +231,79 @@ describe("search settings operations", () => {
 })
 
 describe("search provider settings operations", () => {
+  test.each([
+    [200, "valid", {}],
+    [
+      401,
+      "invalid",
+      { apiKey: "API key was rejected by Ollama hosted search." },
+    ],
+    [
+      403,
+      "invalid",
+      { apiKey: "API key was rejected by Ollama hosted search." },
+    ],
+    [404, "invalid", { baseUrl: "Base URL does not expose /web_search." }],
+  ] as const)(
+    "validates Ollama credentials without exposing them (HTTP %i)",
+    async (status, expectedStatus, fieldErrors) => {
+      const apiKey = "never-return-this-secret"
+      let request: { url: string; apiKey: string; authType: string } | undefined
+      const result = await validateSearchProvider(
+        {
+          providerId: "ollama",
+          settings: { apiKey, baseUrl: "https://ollama.test/api" },
+        },
+        {
+          env: {},
+          getConfig: () => ({}),
+          getModels: () => [],
+          request: (credential, url) => {
+            request = {
+              url,
+              apiKey: credential.apiKey,
+              authType: credential.authType,
+            }
+            return Promise.resolve(new Response(null, { status }))
+          },
+        },
+      )
+
+      expect(request).toEqual({
+        url: "https://ollama.test/api/web_search",
+        apiKey,
+        authType: "authorization",
+      })
+      expect(result).toMatchObject({ status: expectedStatus, fieldErrors })
+      expect(JSON.stringify(result)).not.toContain(apiKey)
+    },
+  )
+
+  test("reports an unreachable provider separately from rejected credentials", async () => {
+    const result = await validateSearchProvider(
+      {
+        providerId: "ollama",
+        settings: {
+          apiKey: "never-return-this-secret",
+          baseUrl: "https://ollama.test/api",
+        },
+      },
+      {
+        env: {},
+        getConfig: () => ({}),
+        getModels: () => [],
+        request: () => Promise.reject(new Error("network down")),
+      },
+    )
+
+    expect(result).toEqual({
+      status: "unavailable",
+      fieldErrors: {},
+      message:
+        "Ollama hosted search could not be reached to verify these settings.",
+    })
+  })
+
   test("requires effective Ollama credentials before enabling the provider", () => {
     const dependencies = {
       env: {},
@@ -239,7 +342,7 @@ describe("search provider settings operations", () => {
               enabled: true,
               settings: {
                 apiKey: "saved-secret",
-                baseUrl: "https://ollama.test",
+                baseUrl: "https://ollama.test/api",
               },
             },
             duckduckgo: { settings: { maxResults: 3 } },
@@ -273,7 +376,7 @@ describe("search provider settings operations", () => {
           fallback: false,
           defaults: { maxResults: 8 },
           providers: {
-            ollama: { settings: { baseUrl: "https://ollama.test" } },
+            ollama: { settings: { baseUrl: "https://ollama.test/api" } },
             duckduckgo: { settings: { maxResults: 3 } },
           },
         },

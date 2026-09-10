@@ -21,6 +21,8 @@ import type {
   ModelsListResponse,
   SearchSettingsResponse,
   SearchSettingsUpdateRequest,
+  SearchProviderValidationRequest,
+  SearchProviderValidationResponse,
   TokenUsagePeriod,
   TokenUsageSummary,
 } from '@stuffbucket/maximal-core/settings-types'
@@ -264,6 +266,10 @@ const bridge = {
       input: SearchSettingsUpdateRequest,
     ): Promise<ControlResult<SearchSettingsResponse>> =>
       ipcRenderer.invoke(BRIDGE_CHANNELS.searchSettingsUpdate, input),
+    searchProviderValidate: (
+      input: SearchProviderValidationRequest,
+    ): Promise<ControlResult<SearchProviderValidationResponse>> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.searchProviderValidate, input),
     onChange: (listener: () => void): (() => void) => {
       const handler = (): void => {
         listener()

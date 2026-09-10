@@ -321,7 +321,7 @@ const config: ForgeConfig = {
         { entry: 'src/main/llama-worker.ts', config: 'vite.worker.config.mts', target: 'main' },
         { entry: 'src/preload/index.ts', config: 'vite.preload.config.ts', target: 'preload' },
       ],
-      renderer: [{ name: 'main_window', config: 'vite.renderer.config.ts' }],
+      renderer: [{ name: 'main_window', config: 'vite.renderer.config.mts' }],
     }),
   ],
 }

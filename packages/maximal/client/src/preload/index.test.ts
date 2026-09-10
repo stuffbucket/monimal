@@ -74,6 +74,7 @@ describe('preload bridge allowlist', () => {
       'observabilityRequests',
       'onChange',
       'onTrafficInvalidation',
+      'searchProviderValidate',
       'searchSettingsGet',
       'searchSettingsUpdate',
       'usageGet',
@@ -157,6 +158,10 @@ describe('preload bridge allowlist', () => {
     await bridge.control.diagnosticsGet()
     await bridge.control.searchSettingsGet()
     await bridge.control.searchSettingsUpdate({ settings: { fallback: false } })
+    await bridge.control.searchProviderValidate({
+      providerId: 'ollama',
+      settings: { apiKey: 'test-key' },
+    })
     await bridge.pendingSettingsRequest()
     await bridge.logs.location()
     await bridge.logs.reveal()
@@ -214,6 +219,10 @@ describe('preload bridge allowlist', () => {
       [BRIDGE_CHANNELS.diagnosticsGet],
       [BRIDGE_CHANNELS.searchSettingsGet],
       [BRIDGE_CHANNELS.searchSettingsUpdate, { settings: { fallback: false } }],
+      [
+        BRIDGE_CHANNELS.searchProviderValidate,
+        { providerId: 'ollama', settings: { apiKey: 'test-key' } },
+      ],
       [BRIDGE_CHANNELS.pendingSettingsRequest],
       [BRIDGE_CHANNELS.logsLocation],
       [BRIDGE_CHANNELS.logsReveal],

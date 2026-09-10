@@ -204,6 +204,9 @@ function fakeBridge(): MaximalBridge {
       ),
       searchSettingsGet: vi.fn(async () => success(searchSettings)),
       searchSettingsUpdate: vi.fn(async () => success(searchSettings)),
+      searchProviderValidate: vi.fn(async () =>
+        success({ status: 'valid' as const, fieldErrors: {} }),
+      ),
       onChange: vi.fn(() => () => {}),
       onTrafficInvalidation: vi.fn(() => () => {}),
     },
@@ -303,6 +306,9 @@ describe('createCoreSettingsCapabilities', () => {
     await expect(capabilities.search.update({ settings: {} })).resolves.toEqual(
       searchSettings,
     )
+    await expect(
+      capabilities.search.validateProvider({ providerId: 'ollama' }),
+    ).resolves.toEqual({ status: 'valid', fieldErrors: {} })
 
     expect(window.maximal.control.authSignOut).toHaveBeenCalledOnce()
     expect(window.maximal.control.accountsSwitch).toHaveBeenCalledWith(
@@ -336,6 +342,9 @@ describe('createCoreSettingsCapabilities', () => {
     expect(window.maximal.control.usageGet).toHaveBeenCalledWith('week')
     expect(window.maximal.control.searchSettingsUpdate).toHaveBeenCalledWith({
       settings: {},
+    })
+    expect(window.maximal.control.searchProviderValidate).toHaveBeenCalledWith({
+      providerId: 'ollama',
     })
 
     const onChange = vi.fn()
