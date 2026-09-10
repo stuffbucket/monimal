@@ -176,8 +176,12 @@ test("the outer and fixed inner test scripts cannot recurse", () => {
     "pnpm --filter @stuffbucket/maximal-core run check:deep:host && pnpm run test:core",
   );
   assert.equal(
+    manifest.scripts["check:static"],
+    "turbo run build typecheck lint",
+  );
+  assert.equal(
     manifest.scripts.check,
-    "turbo run build typecheck lint && pnpm --filter @stuffbucket/maximal-core run check:deep:host && pnpm test",
+    "pnpm run check:static && pnpm --filter @stuffbucket/maximal-core run check:deep:host && pnpm test",
   );
   assert.equal(
     (manifest.scripts.check.match(/(?:^|&& )pnpm test(?: |$)/g) ?? []).length,
@@ -185,6 +189,8 @@ test("the outer and fixed inner test scripts cannot recurse", () => {
   );
   assert.doesNotMatch(manifest.scripts.check, /pnpm run check:core/);
   assert.deepEqual(turbo.tasks["maximal-client#build"].env, [
+    "MAXIMAL_CORE_OUT",
+    "MAXIMAL_CORE_REF",
     "MAXIMAL_CORE_TARGET",
     "MAXIMAL_GIT_SHA",
   ]);
@@ -215,8 +221,43 @@ test("the outer and fixed inner test scripts cannot recurse", () => {
   assert.equal(turbo.tasks.package.outputs, undefined);
 });
 
+test("root workflows select the intended package and task graphs", () => {
+  const manifest = JSON.parse(read("package.json"));
+  const client = JSON.parse(read("packages/maximal/client/package.json"));
+  const turbo = JSON.parse(read("turbo.json"));
+
+  assert.deepEqual(
+    {
+      dev: manifest.scripts.dev,
+      "dev:server": manifest.scripts["dev:server"],
+      "dev:site": manifest.scripts["dev:site"],
+      package: manifest.scripts.package,
+      "package:all": manifest.scripts["package:all"],
+    },
+    {
+      dev: "turbo run dev --filter=maximal-client",
+      "dev:server":
+        "turbo run dev --filter=@stuffbucket/maximal -- start",
+      "dev:site": "turbo run dev --filter=maximal-site",
+      package: "turbo run package --filter=maximal-client",
+      "package:all": "turbo run package",
+    },
+  );
+  assert.equal(client.scripts.dev, "node scripts/start.mjs");
+  assert.equal(client.scripts.predev, "node scripts/gen-icon-png.mjs");
+  assert.deepEqual(turbo.tasks.transit.dependsOn, ["^transit"]);
+  assert.deepEqual(turbo.tasks.lint.dependsOn, ["transit", "^build"]);
+  assert.deepEqual(turbo.tasks.dev.dependsOn, ["^build"]);
+  assert.equal(turbo.tasks.dev.cache, false);
+  assert.equal(turbo.tasks.dev.persistent, true);
+  assert.deepEqual(turbo.tasks["maximal-client#dev"].dependsOn, ["build"]);
+  assert.equal(turbo.tasks["maximal-client#dev"].cache, false);
+  assert.equal(turbo.tasks["maximal-client#dev"].persistent, true);
+});
+
 test("required CI runs tests on its disposable runner and has one cache writer", () => {
   const workflow = read(".github/workflows/ci.yml");
+  const staticGate = "pnpm exec turbo run build typecheck lint";
   const hostGate =
     "pnpm --filter @stuffbucket/maximal-core run check:deep:host:after-workspace";
   const packageMechanics =
@@ -225,10 +266,13 @@ test("required CI runs tests on its disposable runner and has one cache writer",
     "LINK=packages/maximal/client/node_modules/@stuffbucket/maximal-core";
   const testGate =
     "pnpm run test:all -- --trace=${{ inputs.test_trace || 'off' }}";
+  const packageGate = "pnpm run package:all";
+  assert.equal(workflow.split(staticGate).length - 1, 1);
   assert.equal(workflow.split(hostGate).length - 1, 1);
   assert.equal(workflow.split(packageMechanics).length - 1, 1);
   assert.equal(workflow.split(sidecarProvenance).length - 1, 1);
   assert.equal(workflow.split(testGate).length - 1, 1);
+  assert.equal(workflow.split(packageGate).length - 1, 1);
   assert.equal(workflow.split("MONIMAL_PERF_MARKERS: 1").length - 1, 1);
   assert.equal(
     workflow.split("if: always() && steps.workspace-check-start.outcome == 'success'")

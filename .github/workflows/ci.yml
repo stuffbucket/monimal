@@ -313,7 +313,7 @@ jobs:
       - name: Verify workspace installation
         run: pnpm run verify:workspace
 
-      - run: pnpm run package
+      - run: pnpm run package:all
 
       - name: Verify the client's packaged app
         run: |
