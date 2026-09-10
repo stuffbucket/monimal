@@ -37,6 +37,7 @@ import {
 } from "../scripts/stage-test-checkout.mjs";
 import {
   imageIsOldEnough,
+  isManagedTestImage,
   parsePruneOptions,
   selectRetainedImage,
 } from "../scripts/prune-test-images.mjs";
@@ -791,12 +792,26 @@ test("Docker image validation and retention require reusable Stryker metadata", 
     Created: "2026-09-02T00:00:00Z",
     Config: {
       Labels: {
+        [imageLabels.architecture]: "amd64",
         [imageLabels.purpose]: "workspace-test",
         [imageLabels.mutation]: "stryker",
       },
     },
   };
   assert.equal(validatedImageId(exact, labels), exactId);
+  assert.equal(isManagedTestImage(exact), true);
+  assert.equal(
+    isManagedTestImage({
+      ...exact,
+      Config: {
+        Labels: {
+          [imageLabels.purpose]: "workspace-test",
+          [imageLabels.mutation]: "stryker",
+        },
+      },
+    }),
+    false,
+  );
   assert.equal(
     validatedImageId({ ...exact, Architecture: "amd64" }, labels),
     undefined,
@@ -1407,7 +1422,8 @@ test("mutation prepares the dependency image and pruning stays label-scoped", ()
     mutation,
     /requireReusableImage|sourceDigest|test:docker/,
   );
-  assert.match(prune, /label=\$\{imageLabels\.purpose\}=workspace-test/);
+  assert.match(prune, /"image", "ls", "--all", "--quiet", "--no-trunc"/);
+  assert.match(prune, /\.filter\(isManagedTestImage\)/);
   assert.match(prune, /"--builder",\s*dockerBuilderName/);
   assert.match(prune, /"--max-used-space",\s*"8gb"/);
   assert.match(prune, /"--reserved-space",\s*"2gb"/);

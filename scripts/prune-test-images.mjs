@@ -33,15 +33,20 @@ export function selectRetainedImage(images, currentId) {
   if (currentId && images.some((image) => image.Id === currentId))
     return currentId;
   return images
-    .filter(
-      (image) =>
-        /^sha256:[0-9a-f]{64}$/u.test(image.Id) &&
-        image.Config?.Labels?.[imageLabels.purpose] === "workspace-test" &&
-        image.Config?.Labels?.[imageLabels.mutation] === "stryker",
-    )
+    .filter(isManagedTestImage)
     .sort(
       (left, right) => Date.parse(right.Created) - Date.parse(left.Created),
     )[0]?.Id;
+}
+
+export function isManagedTestImage(image) {
+  const architecture = image?.Config?.Labels?.[imageLabels.architecture];
+  return (
+    /^sha256:[0-9a-f]{64}$/u.test(image?.Id) &&
+    (architecture === "amd64" || architecture === "arm64") &&
+    image.Config?.Labels?.[imageLabels.purpose] === "workspace-test" &&
+    image.Config?.Labels?.[imageLabels.mutation] === "stryker"
+  );
 }
 
 export function parsePruneOptions(arguments_) {
@@ -89,22 +94,19 @@ export function main(arguments_ = process.argv.slice(2)) {
   const targetArch = dockerServerArchitecture();
   const ids = [
     ...new Set(
+      // Containerd-backed stores may omit dangling manifests from a
+      // label-filtered listing, so enforce ownership after inspection.
       dockerOutput(
-        [
-          "image",
-          "ls",
-          "--quiet",
-          "--no-trunc",
-          "--filter",
-          `label=${imageLabels.purpose}=workspace-test`,
-        ],
+        ["image", "ls", "--all", "--quiet", "--no-trunc"],
         "Docker image listing",
       )
         .split("\n")
         .filter(Boolean),
     ),
   ];
-  const images = ids.map((id) => inspectDockerImage(id)).filter(Boolean);
+  const images = ids
+    .map((id) => inspectDockerImage(id))
+    .filter(isManagedTestImage);
   const currentId = reusableImageId({ targetArch });
   const retainedId = selectRetainedImage(images, currentId);
 
