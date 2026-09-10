@@ -249,14 +249,8 @@ export function App() {
   const surface = current === undefined ? undefined : tabSurface(current.kind);
 
   function renderMain() {
-    if (surface !== undefined) {
-      return (
-        <SettingsSurfaceView surface={surface} settings={settings} versions={versions} />
-      );
-    }
-
-    if (current?.kind === 'terminal') {
-      return (
+    return (
+      <>
         <TerminalTabs
           attachments={terminalAttachments}
           activeId={activeTab}
@@ -267,36 +261,39 @@ export function App() {
           onSessionsChange={updateAttachedSessions}
           onTitleChange={updateTerminalTitle}
         />
-      );
-    }
-
-    return (
-      <>
-        <Toolbar title={VIEW_LABELS[view]} mode={mode} onModeChange={setMode} />
-        <Canvas
-          items={items}
-          mode={mode}
-          selectedId={selectedId}
-          empty={<EmptyState icon={FileText} message="Nothing here yet." />}
-          renderCard={(item, isSelected) => (
-            <Card selected={isSelected} onSelect={() => setSelectedId(item.id)}>
-              <span className="card__thumb">{icon(item)}</span>
-              <span className="card__meta">
-                <span className="card__name">{item.name}</span>
-                <span className="card__sub">Edited {item.updated}</span>
-              </span>
-            </Card>
-          )}
-          renderRow={(item, isSelected) => (
-            <Row selected={isSelected} onSelect={() => setSelectedId(item.id)}>
-              {icon(item, 14)}
-              <span className="row__name">{item.name}</span>
-              <span className="row__sub">{item.author}</span>
-              <span className="row__sub">{item.updated}</span>
-              <span className="row__sub">{item.size}</span>
-            </Row>
-          )}
-        />
+        {surface !== undefined
+          ? <SettingsSurfaceView surface={surface} settings={settings} versions={versions} />
+          : current?.kind === 'terminal'
+            ? null
+            : (
+              <>
+                <Toolbar title={VIEW_LABELS[view]} mode={mode} onModeChange={setMode} />
+                <Canvas
+                  items={items}
+                  mode={mode}
+                  selectedId={selectedId}
+                  empty={<EmptyState icon={FileText} message="Nothing here yet." />}
+                  renderCard={(item, isSelected) => (
+                    <Card selected={isSelected} onSelect={() => setSelectedId(item.id)}>
+                      <span className="card__thumb">{icon(item)}</span>
+                      <span className="card__meta">
+                        <span className="card__name">{item.name}</span>
+                        <span className="card__sub">Edited {item.updated}</span>
+                      </span>
+                    </Card>
+                  )}
+                  renderRow={(item, isSelected) => (
+                    <Row selected={isSelected} onSelect={() => setSelectedId(item.id)}>
+                      {icon(item, 14)}
+                      <span className="row__name">{item.name}</span>
+                      <span className="row__sub">{item.author}</span>
+                      <span className="row__sub">{item.updated}</span>
+                      <span className="row__sub">{item.size}</span>
+                    </Row>
+                  )}
+                />
+              </>
+            )}
       </>
     );
   }

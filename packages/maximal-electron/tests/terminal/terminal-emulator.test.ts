@@ -22,6 +22,7 @@ const ghostty = vi.hoisted(() => {
     destroy: vi.fn(),
     init: vi.fn(async () => undefined),
     options: undefined as { onData?: (data: string) => void } | undefined,
+    textarea: undefined as HTMLTextAreaElement | undefined,
     write: vi.fn(),
   };
 });
@@ -72,8 +73,12 @@ vi.mock('@wterm/dom', () => ({
     readonly rows = 24;
     readonly bridge = null;
     constructor(_host: HTMLElement, options: { onData?: (data: string) => void }) {
+      const textarea = document.createElement('textarea');
+      textarea.addEventListener('input', () => options.onData?.(textarea.value));
+      _host.appendChild(textarea);
       ghostty.options = options;
       ghostty.dataHandler = options.onData;
+      ghostty.textarea = textarea;
     }
     async init(): Promise<void> { await ghostty.init(); }
     focus(): void {}
@@ -122,10 +127,12 @@ describe('terminal emulator adapter', () => {
 
     const handled = new KeyboardEvent('keydown', { key: 'd', cancelable: true });
     const unhandled = new KeyboardEvent('keydown', { key: 'x', cancelable: true });
-    host.dispatchEvent(handled);
-    ghostty.dataHandler?.('d');
-    ghostty.dataHandler?.('x');
-    host.dispatchEvent(unhandled);
+    ghostty.textarea?.dispatchEvent(handled);
+    if (ghostty.textarea) ghostty.textarea.value = '\x04';
+    ghostty.textarea?.dispatchEvent(new InputEvent('input', { bubbles: true }));
+    expect(onData).not.toHaveBeenCalled();
+    ghostty.dataHandler?.('\x04');
+    ghostty.textarea?.dispatchEvent(unhandled);
 
     expect(ghostty.coreOptions).toEqual({
       foregroundColor: '#eef0f4',
@@ -147,7 +154,7 @@ describe('terminal emulator adapter', () => {
     expect(handled.defaultPrevented).toBe(true);
     expect(unhandled.defaultPrevented).toBe(false);
     expect(onData).toHaveBeenCalledOnce();
-    expect(onData).toHaveBeenCalledWith('x');
+    expect(onData).toHaveBeenCalledWith('\x04');
 
     emulator.clear();
     expect(ghostty.write).toHaveBeenCalledWith('\x1b[2J\x1b[H');
