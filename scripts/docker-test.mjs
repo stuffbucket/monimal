@@ -391,6 +391,16 @@ export function gitMetadataMountArguments(root = repositoryRoot) {
   ];
 }
 
+export function suiteFixtureArguments(suite) {
+  if (suite !== "maximal-configurators") return [];
+  return [
+    "--tmpfs",
+    "/Applications:rw,uid=10001,gid=10001,mode=0755",
+    "--tmpfs",
+    "/opt/homebrew:rw,exec,uid=10001,gid=10001,mode=0755",
+  ];
+}
+
 export function turboCacheMountArguments(imageId) {
   const volumeName = turboCacheVolumeName(imageId);
   return [
@@ -452,6 +462,7 @@ export function runDockerArguments(imageId, options = {}) {
     "run",
     "--rm",
     ...containerBoundaryArguments(),
+    ...suiteFixtureArguments(suite),
     ...checkoutMountArguments(),
     ...gitMetadataMountArguments(),
     ...turboCacheMountArguments(imageId),
