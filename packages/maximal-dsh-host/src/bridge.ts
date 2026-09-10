@@ -856,7 +856,7 @@ function failureError(failure: LlmFailure): GatewayError {
   )
 }
 
-export function errorResponse(error: unknown): Response {
+function errorResponse(error: unknown): Response {
   let mapped: GatewayError
   if (error instanceof StreamFailure) mapped = failureError(error.failure)
   else if (error instanceof GatewayError) mapped = error

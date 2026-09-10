@@ -10,6 +10,20 @@
     ".bun-version"
   ],
   "tasks": {
+    "analyze": {
+      "outputs": [],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/architecture-analysis.json",
+        "$TURBO_ROOT$/architecture-analysis.schema.json",
+        "$TURBO_ROOT$/packages/maximal-core/scripts/analysis/**",
+        "$TURBO_ROOT$/packages/maximal-core/scripts/analyze.ts",
+        "$TURBO_ROOT$/scripts/architecture-graph.mjs",
+        "!research_log/**",
+        "!.claude/**",
+        "!.github/**"
+      ]
+    },
     "build": {
       "dependsOn": ["^build"],
       "outputs": ["dist/**"],
@@ -42,7 +56,7 @@
       "description": "Check package types against built workspace dependencies."
     },
     "test": {
-      "dependsOn": ["^build"],
+      "dependsOn": ["analyze", "^build"],
       "inputs": [
         "$TURBO_DEFAULT$",
         "!research_log/**",

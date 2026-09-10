@@ -89,8 +89,15 @@
  *
  * When the list reaches zero, delete it and this ratchet with it.
  */
-import os from "node:os"
 import path from "node:path"
+
+import {
+  crossFilePairs,
+  describeClone,
+  detectDuplicates,
+  type JscpdReport,
+} from "./analysis/duplicates"
+import { ratchetChanges } from "./analysis/ratchet"
 
 const ROOT = path.resolve(import.meta.dir, "..")
 const CONFIG = path.join(ROOT, ".jscpd.json")
@@ -110,30 +117,6 @@ const KNOWN_DUPLICATE_PAIRS = [
 ]
 // --- END KNOWN DUPLICATE PAIRS ---
 
-interface CloneFile {
-  name: string
-  start: number
-  end: number
-}
-interface Clone {
-  firstFile: CloneFile
-  secondFile: CloneFile
-  lines: number
-  tokens: number
-}
-interface JscpdReport {
-  duplicates: Clone[]
-  statistics: {
-    total: {
-      clones: number
-      duplicatedLines: number
-      lines: number
-      percentage: number
-      sources: number
-    }
-  }
-}
-
 /**
  * Run jscpd and read its JSON report.
  *
@@ -148,65 +131,16 @@ interface JscpdReport {
  * relativized against ROOT here instead, which is well-defined.
  */
 async function detect(paths: string[]): Promise<JscpdReport> {
-  // `os.tmpdir()`, not `$TMPDIR ?? "/tmp"`: Windows sets neither, and this
-  // runs there through `check:deep`.
-  const out = path.join(os.tmpdir(), `jscpd-${process.pid}-${Date.now()}`)
-  const entry = path.join(ROOT, "node_modules/jscpd/run-jscpd.js")
-  const proc = Bun.spawn(
-    [
-      process.execPath,
-      entry,
-      ...paths,
-      "--config",
-      CONFIG,
-      "--absolute",
-      "--no-colors",
-      "--reporters",
-      "json",
-      "--output",
-      out,
-    ],
-    { cwd: ROOT, stdout: "pipe", stderr: "pipe" },
-  )
-  const [, stderr] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-  ])
-  await proc.exited
-
-  const file = Bun.file(path.join(out, "jscpd-report.json"))
-  if (!(await file.exists())) {
-    console.error("✖ jscpd did not produce a report.")
-    if (stderr.trim()) console.error(stderr.trim())
+  try {
+    return await detectDuplicates({ root: ROOT, paths, config: CONFIG })
+  } catch (error) {
+    console.error(`✖ ${String(error)}`)
     process.exit(1)
   }
-  const parsed = (await file.json()) as JscpdReport
-  if (!Array.isArray(parsed.duplicates)) {
-    console.error("✖ jscpd report had no `duplicates` array.")
-    process.exit(1)
-  }
-  return parsed
 }
 
 const rel = (absolute: string): string =>
   path.relative(ROOT, absolute).replaceAll(path.sep, "/")
-
-/** The unordered pair of files a clone spans, sorted so the key is canonical. */
-const pairId = (a: string, b: string): string =>
-  [a, b].sort((x, y) => x.localeCompare(y)).join(" <-> ")
-
-/** Cross-file pairs only, mapped to the clones that produced them. */
-function crossFilePairs(report: JscpdReport): Map<string, Clone[]> {
-  const pairs = new Map<string, Clone[]>()
-  for (const clone of report.duplicates) {
-    const a = rel(clone.firstFile.name)
-    const b = rel(clone.secondFile.name)
-    if (a === b) continue
-    const id = pairId(a, b)
-    pairs.set(id, [...(pairs.get(id) ?? []), clone])
-  }
-  return pairs
-}
 
 async function writeKnown(pairs: string[]): Promise<void> {
   const self = import.meta.path
@@ -223,16 +157,6 @@ async function writeKnown(pairs: string[]): Promise<void> {
   await Bun.write(self, next)
 }
 
-const describeClone = (clone: Clone): string => {
-  const a = rel(clone.firstFile.name)
-  const b = rel(clone.secondFile.name)
-  return (
-    `${a}:${clone.firstFile.start}-${clone.firstFile.end}` +
-    `  ==  ${b}:${clone.secondFile.start}-${clone.secondFile.end}` +
-    `  (${clone.lines} lines, ${clone.tokens} tokens)`
-  )
-}
-
 if (LIST) {
   const report = await detect(REPORTED_PATHS)
   const stats = report.statistics.total
@@ -242,7 +166,7 @@ if (LIST) {
       `(${stats.percentage.toFixed(2)}%), at min-tokens 50.\n`,
   )
 
-  const pairs = crossFilePairs(report)
+  const pairs = crossFilePairs(report, ROOT)
   const gated = [...pairs.keys()].filter((id) =>
     GATED_PATHS.some((dir) => id.split(" <-> ").every((f) => f.startsWith(`${dir}/`))),
   )
@@ -251,7 +175,7 @@ if (LIST) {
     (a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]),
   )) {
     console.log(`${gated.includes(id) ? "GATE" : "    "}  ${id}  ×${clones.length}`)
-    for (const clone of clones) console.log(`        ${describeClone(clone)}`)
+    for (const clone of clones) console.log(`        ${describeClone(clone, ROOT)}`)
   }
 
   const intra = report.duplicates.filter(
@@ -272,11 +196,9 @@ if (LIST) {
 }
 
 const report = await detect(GATED_PATHS)
-const pairs = crossFilePairs(report)
+const pairs = crossFilePairs(report, ROOT)
 const current = [...pairs.keys()].sort((a, b) => a.localeCompare(b))
-const known = new Set(KNOWN_DUPLICATE_PAIRS)
-const added = current.filter((pair) => !known.has(pair))
-const gone = KNOWN_DUPLICATE_PAIRS.filter((pair) => !pairs.has(pair))
+const { added, gone } = ratchetChanges(current, KNOWN_DUPLICATE_PAIRS)
 
 if (UPDATE) {
   if (added.length > 0) {
@@ -287,7 +209,7 @@ if (UPDATE) {
     for (const pair of added) {
       console.error(`  + ${pair}`)
       for (const clone of pairs.get(pair) ?? []) {
-        console.error(`      ${describeClone(clone)}`)
+        console.error(`      ${describeClone(clone, ROOT)}`)
       }
     }
     process.exit(1)
@@ -311,7 +233,7 @@ if (added.length > 0) {
   for (const pair of added) {
     console.error(`  + ${pair}`)
     for (const clone of pairs.get(pair) ?? []) {
-      console.error(`      ${describeClone(clone)}`)
+      console.error(`      ${describeClone(clone, ROOT)}`)
     }
   }
   console.error(

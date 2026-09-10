@@ -15,6 +15,7 @@ export default [
     ignores: ["node_modules/**"],
     tsconfigRootDir: import.meta.dirname,
     level: "recommended",
+    architectureKind: "client",
     typeChecked: true,
   }),
   {
@@ -86,6 +87,14 @@ export default [
             },
           ],
           patterns: [
+            {
+              group: [
+                "@stuffbucket/*/src",
+                "@stuffbucket/*/src/**",
+                "stuffbucket-electron/src/**",
+              ],
+              message: "Import another package through a declared public entry point, never its source tree.",
+            },
             {
               group: ["**/shared/bridge-channels", "**/shared/bridge-channels.*"],
               message: "IPC channel names are main/preload-only; use window.maximal through a capability adapter.",

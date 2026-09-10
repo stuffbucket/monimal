@@ -1,0 +1,45 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
+  "entry": [
+    "forge.config.ts",
+    "vite.*.config.ts",
+    "scripts/**/*.{mjs,ts}",
+    "e2e/**/*.ts",
+    "tests/**/*.test.ts",
+    "src/**/*.stories.{ts,tsx}",
+    "src/main/index.ts",
+    "src/main/llama-worker.ts",
+    "src/preload/index.ts",
+    "src/preload/bridge.ts",
+    "src/renderer/main.tsx",
+    "src/renderer/overlay-entry.tsx",
+    "src/renderer/index.ts",
+    "src/host/run-main.ts",
+    "src/host/host-window.ts",
+    "src/host/terminal-host.ts"
+  ],
+  "project": [
+    "src/**/*.{ts,tsx}",
+    "scripts/**/*.{mjs,mts,ts}",
+    "e2e/**/*.{ts,tsx}",
+    "tests/**/*.ts",
+    "*.{ts,mts}"
+  ],
+  // Vite builds this private reference application fixture from a separate root.
+  "ignoreFiles": [
+    "scripts/**/*.d.mts",
+    "e2e/fixtures/demo-shell/**"
+  ],
+  "ignoreDependencies": [
+    // Loaded only inside the separately bundled Electron utility process.
+    "node-llama-cpp"
+  ],
+  "stryker": {
+    "config": ["stryker.conf.json", "stryker.terminal.conf.mjs"]
+  },
+  "ignoreIssues": {
+    // Semantic flow-control aliases intentionally share threshold values.
+    "src/main/native/pty-session.ts": ["duplicates"]
+  },
+  "ignoreExportsUsedInFile": true
+}

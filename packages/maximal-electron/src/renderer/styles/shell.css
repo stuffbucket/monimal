@@ -1,25 +1,5 @@
-/*
- * The structural ramp, which this application is a consumer of.
- *
- * Not decoration and not a duplicate. The rules a component carries read
- * `--shell-space-3`, `--shell-radius-large`, `--shell-text-sm` and fifteen
- * more, and `structure.css` is the only file that gives those names values.
- * A consumer gets it because it is half of `dist/renderer/styles.css`; this
- * application builds its own stylesheet and so got none of it, which meant
- * every carried rule's padding, radius, type size and weight was an undefined
- * custom property with no fallback — invalid at computed-value time, so zero
- * rather than wrong. Measured in the running application: a model card with
- * `border-radius: 0px` and `padding: 0px`, through 106 stories that render and
- * pass axe.
- *
- * `tests/reference-consumer.test.ts` is what now says this line may not be
- * removed: it holds every name a carried rule reads against what this
- * application actually defines.
- *
- * First, so the `@layer` statement inside it establishes layer order ahead of
- * every rule that depends on it.
- */
-@import './structure.css';
+/* Carried component rules inherit the same structural values as package CSS. */
+@import './shell-structural-tokens.css';
 @import './controls.css';
 
 @layer sb-shell.base {
@@ -50,7 +30,7 @@ body {
 /*
  * A column rather than a grid. `ShellLayout`'s `top` slot renders no element
  * when it is empty and any number of them when it is not, and a track list has
- * to know that count. `structural.css` carries the same rule and the same
+ * to know that count. `shell-package-rules.css` carries the same rule and the same
  * reason.
  */
 .app {

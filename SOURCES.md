@@ -201,6 +201,15 @@ package provenance or publisher identity -- the proxy does that.
   package.json" silently stopped all three manifests being linted at all --
   invisible in the findings, which stayed at zero, and visible only in the
   linted-file count. Attach `ignores` to the objects that carry rules.
+- Added a Turbo-cached `analyze` task across every workspace package. Maximal
+  Core owns the exact Knip, dependency-cruiser, and jscpd versions and the
+  shared runner; its pre-existing cycle-edge and duplicate-pair ratchets call
+  extracted shared primitives. `architecture-analysis.json` owns package
+  coverage, package-layer rules, and non-Core baselines. The existing workspace
+  verifier consumes the same layer data for its authoritative provider-edge
+  check. The shared ESLint package owns the exact
+  `eslint-plugin-boundaries` version and composes its architecture profile into
+  the existing TypeScript lint pass.
 
 - `maximal` and `maximal/client`: git pins on `@stuffbucket/maximal-core`
   rewritten to `workspace:*`. Load-bearing — maximal's `build`, `dev` and

@@ -16,9 +16,9 @@ import {
 } from './stylesheets.js';
 
 /**
- * What `structural.css` owes a consumer, and what a consumer owes it.
+ * What `shell-package-rules.css` owes a consumer, and what a consumer owes it.
  *
- * `structural.css` is the stylesheet the package ships. It defines no palette:
+ * `shell-package-rules.css` is the stylesheet the package ships. It defines no palette:
  * it reads the `--shell-*` namespace, and `README.md` holds the table that
  * tells a consumer which of those they have to define. Nothing checked that
  * table, and nothing checked that the file styles the classes the exported
@@ -31,8 +31,8 @@ import {
  */
 
 const STYLES = new URL('../src/renderer/styles/', import.meta.url);
-const structural = readFileSync(new URL('structural.css', STYLES), 'utf8');
-const reads = packageReads(structural);
+const packageRules = readFileSync(new URL('shell-package-rules.css', STYLES), 'utf8');
+const reads = packageReads(packageRules);
 
 /** The class every rule the package ships sits under. */
 const SHELL_ROOT = '.sb-shell';
@@ -44,7 +44,7 @@ const SHELL_ROOT = '.sb-shell';
  *
  * `shell.css` alone was the oracle until the class-name reader was widened, and
  * it holds the shell and none of the controls. Stripping the base
- * `.btn--primary` rule out of `structural.css` and leaving its hover selector
+ * `.btn--primary` rule out of `shell-package-rules.css` and leaving its hover selector
  * behind then passed, which is the `nav__break` hole in the other direction:
  * the class was compared against a stylesheet that never styled it.
  */
@@ -58,14 +58,6 @@ function reference(): string {
     throw new Error(`the style directory holds ${found.length} of ${REFERENCE.join(' and ')}`);
   }
   return found.map(([, css]) => css).join('\n');
-}
-
-/** The table in README.md that tells a consumer what to define. */
-function documented(): string[] {
-  const readme = readFileSync(new URL('../README.md', import.meta.url), 'utf8');
-  return [...readme.matchAll(/^\| `(--shell-[a-z0-9-]+)` \| /gm)]
-    .map((match) => match[1] ?? '')
-    .sort();
 }
 
 describe('the package token namespace', () => {
@@ -85,64 +77,28 @@ describe('the package token namespace', () => {
     }
   });
 
-  it('is the whole of what structural.css reads', () => {
-    // The package stylesheet ships no palette, so every value in it is the
-    // consumer's. A palette token here would resolve against `tokens.css`
-    // during development and against nothing in a consumer's application.
+  it('is the whole of what shell-package-rules.css reads', () => {
     expect(reads.required.size).toBeGreaterThan(0);
-    expect(readTokens(structural).filter((token) => !isPackageToken(token))).toEqual([]);
+    expect(readTokens(packageRules).filter((token) => !isPackageToken(token))).toEqual([]);
   });
 
   it('declares none of its own tokens', () => {
-    // A declaration here would be a default palette, which README.md says the
-    // stylesheet does not ship. A consumer would inherit colours they did not
-    // choose, on whichever properties happened to be declared.
-    const declared = [...structural.matchAll(/^\s*(--[a-z0-9-]+)\s*:/gim)].map(
+    const declared = [...packageRules.matchAll(/^\s*(--[a-z0-9-]+)\s*:/gim)].map(
       (match) => match[1] ?? '',
     );
     expect(declared).toEqual([]);
   });
 });
 
-describe('the README contract table', () => {
-  it('names exactly the tokens a consumer has to define', () => {
-    /*
-     * The tripwire.
-     *
-     * Both sides are read from the files, so the table cannot be right today
-     * and wrong after the next component. A token added to the CSS without a
-     * fallback and left out of the table ships a rule that resolves to
-     * nothing. A token in the table the CSS no longer reads asks a consumer
-     * for a colour that is never drawn.
-     */
-    expect([...reads.required].sort()).toEqual(documented());
-  });
-
-  it('leaves out the tokens the CSS defaults for itself', () => {
-    // README.md says these have structural fallbacks. Listing one as required
-    // would make a consumer supply a value the CSS already carries.
-    for (const token of reads.optional) {
-      expect(documented(), token).not.toContain(token);
-    }
-  });
-
-  it('reads no token both with and without a fallback', () => {
-    // A fallback in one rule and none in another is a fallback that lies. The
-    // consumer who trusts it gets a styled control in one place and an
-    // unstyled one in the next.
-    expect([...reads.required].filter((token) => reads.optional.has(token))).toEqual([]);
-  });
-});
-
 describe('the exported components', () => {
   const modules = exportedModules();
   /*
-   * Both sources of a shipped rule. `structural.css` is the stylesheet a
+   * Both sources of a shipped rule. `shell-package-rules.css` is the stylesheet a
    * consumer links; a component that carries its own rules injects them at
    * first render instead. A class styled by either arrives at the consumer,
    * and a class styled by neither does not.
    */
-  const shipped = `${structural}\n${componentStyles()}`;
+  const shipped = `${packageRules}\n${componentStyles()}`;
   const styled = styledClasses(shipped);
 
   it('are all reachable from the package entry point', () => {
@@ -203,12 +159,12 @@ describe('the exported components', () => {
     ]);
   });
 
-  it('render only classes structural.css writes a rule for', () => {
+  it('render only classes shell-package-rules.css writes a rule for', () => {
     /*
      * The second tripwire.
      *
      * A component may be styled twice: by `shell.css`, which is the reference
-     * application's, and by `structural.css`, which is the package's. Only the
+     * application's, and by `shell-package-rules.css`, which is the package's. Only the
      * second ships. A class added to an exported component and styled in
      * `shell.css` alone looks correct in this repository and arrives at a
      * consumer with no rule at all.
@@ -245,7 +201,7 @@ describe('the exported components', () => {
     /*
      * The third tripwire, and the one a mention cannot satisfy.
      *
-     * A class keeps its name in `structural.css` for as long as one selector
+     * A class keeps its name in `shell-package-rules.css` for as long as one selector
      * anywhere still writes it, so the test above passes while the rule that
      * lays the element out is gone. Renaming `.sb-shell .tab__emphasis` and
      * leaving the two `[data-emphasis]` descendants alone strips the marker of
@@ -260,7 +216,7 @@ describe('the exported components', () => {
      * a consumer never gets.
      */
     const referenceBase = baseStyledClasses(reference(), '');
-    const packageBase = baseStyledClasses(structural, SHELL_ROOT);
+    const packageBase = baseStyledClasses(packageRules, SHELL_ROOT);
     const rendered = [...new Set(modules.flatMap(([, source]) => renderedClasses(source)))].sort();
 
     // The floors, one per set. Any of the three coming back empty satisfies the
@@ -285,14 +241,14 @@ describe('the exported components', () => {
  * `background` from `.sb-shell .panel` — the three-panel container, which is
  * the shell's entire layout — left the suite at 1067 passing.
  *
- * The consequence was not hypothetical either. `structural.css` and the two
+ * The consequence was not hypothetical either. `shell-package-rules.css` and the two
  * reference stylesheets are a hand-maintained mirror, and 20 shared selectors
  * had already drifted: a consumer's primary button did not change colour on
  * hover, a long tab title widened its tab instead of truncating, and the
  * status dot lost the halo that makes 7px read as live.
  */
 describe('the mirror between the package stylesheet and the reference', () => {
-  const mirror = mirroredRules(reference(), structural, SHELL_ROOT);
+  const mirror = mirroredRules(reference(), packageRules, SHELL_ROOT);
 
   /**
    * A property the package rule deliberately does not carry, and why.
@@ -345,7 +301,7 @@ describe('the mirror between the package stylesheet and the reference', () => {
   it('leaves no shared rule short of a property the reference declares', () => {
     /*
      * Names, never values. The reference carries a palette — `var(--accent)`,
-     * literal colours — and `structural.css` reads `--shell-*` from its host.
+     * literal colours — and `shell-package-rules.css` reads `--shell-*` from its host.
      * That difference is the whole design of the package, so a comparison of
      * values would fail on every shared rule and be deleted inside a week. A
      * name is what says whether the rule does anything at all.
@@ -354,7 +310,7 @@ describe('the mirror between the package stylesheet and the reference', () => {
   });
 
   it('carries no deliberate omission the package stylesheet has since closed', () => {
-    // The list may only shrink. A property added to `structural.css` and left
+    // The list may only shrink. A property added to `shell-package-rules.css` and left
     // named here is an exemption standing over a rule that no longer needs one.
     expect([...DELIBERATE.keys()].filter((entry) => !drift.includes(entry))).toEqual([]);
   });

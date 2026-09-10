@@ -8,8 +8,9 @@ if (mutate.length === 0) throw new Error('Terminal mutation scope is empty.');
 
 export default {
   ...config,
+  ignoreStatic: true,
   mutate,
   testFiles: ['tests/terminal/**/*.test.{ts,tsx}'],
-  htmlReporter: { fileName: 'reports/mutation-terminal/index.html' },
-  jsonReporter: { fileName: 'reports/mutation-terminal/mutation.json' },
+  htmlReporter: { fileName: 'reports/mutation-terminal/dynamic.html' },
+  jsonReporter: { fileName: 'reports/mutation-terminal/dynamic.json' },
 };

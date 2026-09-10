@@ -54,21 +54,71 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
  * option — and every branch of it is reachable from the stories.
  */export const MUTANT_FLOOR = 2200;
 
+/** The terminal subset measured when its two-phase runner was introduced. */
+export const TERMINAL_MUTANT_FLOOR = 2103;
+
 /**
  * `// Stryker disable` suppressions, counted in mutants rather than comments
  * because one comment covers every mutant on its line.
  *
- * Three comments, in `contrast.ts`, `grammar.ts` and `ffmpeg.ts`. An ignored
- * mutant is outside the score, so a fourth must raise this number on purpose.
- * `docs/testing.md` says to read the existing three before writing another.
+ * Two comments, in `contrast.ts` and `grammar.ts`, suppress five mutants. An
+ * ignored mutant is outside the score, so another must raise this on purpose.
+ * `docs/testing.md` says to read the existing two before writing another.
  */
-export const IGNORED_CEILING = 6;
+export const IGNORED_CEILING = 5;
 
 /**
  * Statuses that take a mutant out of the denominator without failing the run.
  * `break: 100` says nothing about any of them.
  */
 const OUTSIDE_THE_SCORE = ['RuntimeError', 'CompileError', 'NoCoverage', 'Ignored'];
+
+const entriesIn = (report) =>
+  Object.entries(report.files ?? {}).flatMap(([file, entry]) =>
+    (entry.mutants ?? []).map((mutant) => ({ file, mutant })),
+  );
+
+const signature = ({ file, mutant }) =>
+  JSON.stringify([file, mutant.mutatorName, mutant.location, mutant.replacement]);
+
+export function verifyStaticRun(dynamicReport, staticReport) {
+  const dynamicEntries = entriesIn(dynamicReport);
+  const staticEntries = entriesIn(staticReport);
+  const dynamicSignatures = new Set(dynamicEntries.map(signature));
+  const staticResults = new Map(
+    staticEntries.map((entry) => [signature(entry), entry.mutant.status]),
+  );
+  const canonicalStatic = dynamicEntries.filter(({ mutant }) => mutant.static === true);
+  const failures = [];
+
+  if (canonicalStatic.length === 0) failures.push('The static mutation scope is empty.');
+  for (const entry of canonicalStatic) {
+    const status = staticResults.get(signature(entry));
+    if (status !== 'Killed') {
+      failures.push(
+        `${entry.file}:${entry.mutant.location.start.line} static mutant ended in ${status ?? 'Missing'}.`,
+      );
+    }
+  }
+  for (const entry of staticEntries) {
+    if (!dynamicSignatures.has(signature(entry))) {
+      failures.push(
+        `${entry.file}:${entry.mutant.location.start.line} static run produced an unknown mutant.`,
+      );
+    }
+    if (entry.mutant.status !== 'Killed') {
+      failures.push(
+        `${entry.file}:${entry.mutant.location.start.line} static run ended in ${entry.mutant.status}.`,
+      );
+    }
+  }
+
+  return {
+    canonicalStatic: canonicalStatic.length,
+    exercised: staticEntries.length,
+    failures,
+  };
+}
 
 export function readReport(file) {
   return JSON.parse(readFileSync(file, 'utf8'));
@@ -123,7 +173,10 @@ export function summarize(report) {
 }
 
 function main() {
-  const file = path.resolve(root, process.argv[2] ?? 'reports/mutation/mutation.json');
+  const terminal = process.argv.includes('--terminal');
+  const reportArgument = process.argv.slice(2).find((argument) => !argument.startsWith('--'));
+  const reportDirectory = terminal ? 'reports/mutation-terminal' : 'reports/mutation';
+  const file = path.resolve(root, reportArgument ?? `${reportDirectory}/${terminal ? 'dynamic' : 'mutation'}.json`);
   if (!existsSync(file)) {
     console.error(`No mutation report at ${path.relative(root, file)}. Run npm run mutate first.`);
     process.exit(1);
@@ -131,7 +184,15 @@ function main() {
 
   const report = readReport(file);
   const scope = summarize(report);
-  const listed = JSON.parse(readFileSync(path.join(root, 'stryker.conf.json'), 'utf8')).mutate ?? [];
+  const canonicalStatic = entriesIn(report).filter(({ mutant }) => mutant.static === true);
+  const deferredStatic = entriesIn(report).filter(
+    ({ mutant }) => mutant.status === 'Ignored' && mutant.static === true,
+  );
+  const configured = JSON.parse(readFileSync(path.join(root, 'stryker.conf.json'), 'utf8')).mutate ?? [];
+  const listed = terminal
+    ? configured.filter((entry) => /(?:terminal|pty|tmux|command-connectors)/.test(entry))
+    : configured;
+  const mutantFloor = terminal ? TERMINAL_MUTANT_FLOOR : MUTANT_FLOOR;
   const failures = [];
 
   const counted = (status) => scope.statuses.get(status) ?? 0;
@@ -147,9 +208,9 @@ function main() {
   // from "there was nothing to look at".
   if (scope.total === 0) failures.push('The report contains no mutants at all.');
   if (scope.knownTests === 0) failures.push('The report names no tests, so no kill can be attributed.');
-  if (scope.total < MUTANT_FLOOR) {
+  if (scope.total < mutantFloor) {
     failures.push(
-      `${scope.total} mutants is below the floor of ${MUTANT_FLOOR}. Something left the mutate list.`,
+      `${scope.total} mutants is below the floor of ${mutantFloor}. Something left the mutate list.`,
     );
   }
   for (const entry of listed) {
@@ -162,8 +223,9 @@ function main() {
   for (const status of OUTSIDE_THE_SCORE) {
     const count = counted(status);
     if (status === 'Ignored') {
-      if (count > IGNORED_CEILING) {
-        failures.push(`${count} ignored mutants, above the declared ${IGNORED_CEILING}. A suppression was added.`);
+      const suppressed = count - deferredStatic.length;
+      if (suppressed > IGNORED_CEILING) {
+        failures.push(`${suppressed} suppressed mutants, above the declared ${IGNORED_CEILING}. A suppression was added.`);
       }
       continue;
     }
@@ -173,6 +235,22 @@ function main() {
   // A timeout kills without anything asserting anything. Stryker scores it as
   // a kill, so it is the one status that inflates the headline silently.
   if (counted('Timeout') > 0) failures.push(`${counted('Timeout')} mutants timed out. A timeout is not an assertion.`);
+
+  if (canonicalStatic.length === 0) {
+    failures.push('The static mutation scope is empty.');
+  } else {
+    const staticFile = path.resolve(root, `${reportDirectory}/static.json`);
+    if (!existsSync(staticFile)) {
+      failures.push('No static mutation report. Run npm run mutate first.');
+    } else {
+      const staticRun = verifyStaticRun(report, readReport(staticFile));
+      failures.push(...staticRun.failures);
+      console.log(
+        `  ${staticRun.canonicalStatic} static mutants verified in a fresh process ` +
+          `(${staticRun.exercised} mutants exercised)`,
+      );
+    }
+  }
 
   if (failures.length > 0) {
     for (const failure of failures) console.error(`  ${failure}`);

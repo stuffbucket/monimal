@@ -446,7 +446,36 @@ test("root workflows select the intended package and task graphs", () => {
   assert.equal(turbo.tasks["maximal-client#dev"].persistent, true);
 });
 
-test("required CI runs tests on its disposable runner and has one cache writer", () => {
+test("architecture analysis has one cacheable Turbo execution path", () => {
+  const manifest = JSON.parse(read("package.json"));
+  const turbo = JSON.parse(read("turbo.json"));
+  const workflow = read(".github/workflows/ci.yml");
+
+  assert.equal(manifest.scripts.analyze, "turbo run analyze");
+  assert.doesNotMatch(manifest.scripts.check, /pnpm (?:run )?analyze/);
+  assert.equal(
+    turbo.tasks.test.dependsOn.filter((dependency) => dependency === "analyze")
+      .length,
+    1,
+  );
+  assert.deepEqual(turbo.tasks.analyze, {
+    outputs: [],
+    inputs: [
+      "$TURBO_DEFAULT$",
+      "$TURBO_ROOT$/architecture-analysis.json",
+      "$TURBO_ROOT$/architecture-analysis.schema.json",
+      "$TURBO_ROOT$/packages/maximal-core/scripts/analysis/**",
+      "$TURBO_ROOT$/packages/maximal-core/scripts/analyze.ts",
+      "$TURBO_ROOT$/scripts/architecture-graph.mjs",
+      "!research_log/**",
+      "!.claude/**",
+      "!.github/**",
+    ],
+  });
+  assert.doesNotMatch(workflow, /\b(?:knip|jscpd|dependency-cruiser)\b/);
+});
+
+test("required CI runs native checks before Docker and has one cache writer", () => {
   const workflow = read(".github/workflows/ci.yml");
   const staticGate = "pnpm exec turbo run build typecheck lint";
   const hostGate =

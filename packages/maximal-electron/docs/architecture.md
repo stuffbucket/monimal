@@ -677,7 +677,7 @@ Four exports, and they are deliberately separate.
 | --- | --- |
 | `./renderer` | `TerminalView` and `TerminalTabs`, the `TerminalTransport` contract, `createTerminalTransport` which builds one, and `readTerminalTheme`. |
 | `./host/terminal` | `TerminalHost`, the pty manager, and `registerTerminalChannels`, which answers a consumer's channels from one. |
-| `./renderer/styles.css` | `structural.css`, which carries the terminal rules. |
+| `./renderer/styles.css` | `shell-package-rules.css`, which carries the terminal rules. |
 | `./verify` | The packaging assertions, as a function to run against a consumer's own build. |
 
 ### Verifying a consumer's own package

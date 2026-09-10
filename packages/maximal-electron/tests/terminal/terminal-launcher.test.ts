@@ -88,7 +88,9 @@ describe('terminal profiles', () => {
   it('creates a missing profile directory and persists the safe default', () => {
     const directory = join(mkdtempSync(join(tmpdir(), 'terminal-profiles-parent-')), 'nested');
     expect(loadTerminalProfiles(directory)).toEqual({ version: 7 });
-    expect(JSON.parse(readFileSync(join(directory, 'terminal-profiles.json'), 'utf8'))).toEqual({ version: 7 });
+    expect(readFileSync(join(directory, 'terminal-profiles.json'), 'utf8')).toBe(
+      '{\n  "version": 7\n}\n',
+    );
   });
 });
 
@@ -833,6 +835,22 @@ describe('TerminalLauncher', () => {
     expect(run).toHaveBeenNthCalledWith(2, 'kubectl', ['--context', 'development', 'get', 'pods', '--all-namespaces', '-o', 'json'], { timeout: 2_000, maxBuffer: 64 * 1024 });
     expect(targets).toHaveLength(2);
     expect(connector.launch(targets[0]!)).toEqual({ command: 'kubectl', args: ['--context', 'development', '--namespace', 'apps', 'exec', '-it', 'web', '-c', 'web', '--', '/bin/sh'] });
+  });
+
+  it('rejects non-string Kubernetes UIDs before their textual validator can coerce them', async () => {
+    const run = vi.fn<CommandRunner>()
+      .mockResolvedValueOnce({ stdout: 'development\n' })
+      .mockResolvedValueOnce({ stdout: JSON.stringify({ items: [{
+        metadata: {
+          namespace: 'apps',
+          name: 'web',
+          uid: ['11111111-1111-1111-1111-111111111111'],
+        },
+        status: { phase: 'Running' },
+        spec: { containers: [{ name: 'web' }] },
+      }] }) });
+
+    await expect(new KubernetesConnector(run).discover()).resolves.toEqual([]);
   });
 
   it('caps and rejects malformed Kubernetes discovery while keeping targets opaque and owner-scoped', async () => {
