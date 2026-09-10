@@ -165,7 +165,7 @@ jobs:
 
       - name: Build, typecheck, and lint workspace
         id: workspace-check
-        run: pnpm run check:static
+        run: pnpm exec turbo run build typecheck lint
 
       - name: Record workspace check timing
         if: always() && steps.workspace-check-start.outcome == 'success'
@@ -313,7 +313,7 @@ jobs:
       - name: Verify workspace installation
         run: pnpm run verify:workspace
 
-      - run: pnpm run package
+      - run: pnpm run package:all
 
       - name: Verify the client's packaged app
         run: |

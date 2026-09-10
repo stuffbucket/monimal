@@ -257,6 +257,7 @@ test("root workflows select the intended package and task graphs", () => {
 
 test("required CI runs tests on its disposable runner and has one cache writer", () => {
   const workflow = read(".github/workflows/ci.yml");
+  const staticGate = "pnpm exec turbo run build typecheck lint";
   const hostGate =
     "pnpm --filter @stuffbucket/maximal-core run check:deep:host:after-workspace";
   const packageMechanics =
@@ -265,10 +266,13 @@ test("required CI runs tests on its disposable runner and has one cache writer",
     "LINK=packages/maximal/client/node_modules/@stuffbucket/maximal-core";
   const testGate =
     "pnpm run test:all -- --trace=${{ inputs.test_trace || 'off' }}";
+  const packageGate = "pnpm run package:all";
+  assert.equal(workflow.split(staticGate).length - 1, 1);
   assert.equal(workflow.split(hostGate).length - 1, 1);
   assert.equal(workflow.split(packageMechanics).length - 1, 1);
   assert.equal(workflow.split(sidecarProvenance).length - 1, 1);
   assert.equal(workflow.split(testGate).length - 1, 1);
+  assert.equal(workflow.split(packageGate).length - 1, 1);
   assert.equal(workflow.split("MONIMAL_PERF_MARKERS: 1").length - 1, 1);
   assert.equal(
     workflow.split("if: always() && steps.workspace-check-start.outcome == 'success'")
