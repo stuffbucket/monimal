@@ -2,6 +2,7 @@ import {
   Blocks,
   ChartColumn,
   Cpu,
+  HardDrive,
   KeyRound,
   Link2,
   ScrollText,
@@ -23,6 +24,7 @@ import type { SettingsCapabilities } from './capabilities'
 import { DiagnosticsSection } from './DiagnosticsSection'
 import { EndpointSection } from './EndpointSection'
 import { GeneralSection } from './GeneralSection'
+import { LocalModelsSection } from './LocalModelsSection'
 import { LogsSection } from './LogsSection'
 import { ModelsSection } from './ModelsSection'
 import { UsageSection } from './UsageSection'
@@ -44,6 +46,10 @@ const SECTION_PARTS: Record<SettingsSectionId, SectionParts> = {
   'settings-endpoint-heading': { icon: Link2, Panel: EndpointSection },
   'settings-api-keys-heading': { icon: KeyRound, Panel: ApiKeysSection },
   'settings-models-heading': { icon: Cpu, Panel: ModelsSection },
+  'settings-local-models-heading': {
+    icon: HardDrive,
+    Panel: LocalModelsSection,
+  },
   'settings-usage-heading': { icon: ChartColumn, Panel: UsageSection },
   'settings-logs-heading': { icon: ScrollText, Panel: LogsSection },
   'settings-diagnostics-heading': {

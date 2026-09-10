@@ -56,6 +56,7 @@ import { getUpdateStatus } from "~/lib/update/update-check"
 
 import type { ControlRpcDeps } from "./rpc"
 
+import { LocalModelOperations } from "./local-models"
 import { createControlRpcMethods, unsupportedVersion } from "./rpc"
 import { registerSettingsEndpoints } from "./settings-endpoints"
 
@@ -74,6 +75,7 @@ export interface ControlRoutesOptions {
    */
   listClients?: ClientRosterReader
   listProviderModels?: () => Promise<ReadonlyArray<ProviderCatalogueModel>>
+  localModelOperations?: LocalModelOperations
   trafficQueries?: TrafficQueryStore
 }
 
@@ -306,6 +308,9 @@ export function createControlRoutes(options: ControlRoutesOptions = {}): Hono {
   // hub (with its flush timer). Tests inject their own.
   const hub: HubAccessor = () =>
     options.hub ?? getControlHub(listProviderModels)
+  const localModelOperations =
+    options.localModelOperations
+    ?? new LocalModelOperations({ control: () => undefined, hub })
   const app = new Hono()
 
   // Loopback gate for the whole surface.
@@ -327,6 +332,7 @@ export function createControlRoutes(options: ControlRoutesOptions = {}): Hono {
     mutex: new AsyncMutex(),
     listClients,
     listProviderModels,
+    localModels: localModelOperations,
     trafficQueries: options.trafficQueries ?? getDefaultTrafficObserver(),
   })
 

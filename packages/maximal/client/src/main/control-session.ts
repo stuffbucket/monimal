@@ -5,6 +5,11 @@ import {
 } from '@stuffbucket/maximal-core/client'
 import {
   CONTROL_ERROR_REASONS,
+  type LocalModelCancelResult,
+  type LocalModelCatalogEntry,
+  type LocalModelCatalogSnapshot,
+  type LocalModelEnsureResult,
+  type LocalModelOperationEvent,
 } from '@stuffbucket/maximal-core/control-contract'
 import {
   SUPPORTED_PROTOCOL_VERSION,
@@ -77,6 +82,9 @@ type ControlMethod =
   | 'apiKeys/setEnforcement'
   | 'models/list'
   | 'models/refresh'
+  | 'localModels/list'
+  | 'localModels/ensure'
+  | 'localModels/cancel'
   | 'usage/get'
   | 'diagnostics/get'
 
@@ -102,6 +110,7 @@ interface ControlSessionDependencies {
   onLifecycle(listener: (status: CoreStatus) => void): () => void
   createClient(origin: string): ControlClientLike
   onChange(): void
+  onLocalModelEvent(event: LocalModelOperationEvent): void
   onTrafficInvalidation(invalidation: TrafficInvalidation): void
   logError(message: string, error: unknown): void
 }
@@ -131,6 +140,9 @@ export interface ControlSession {
   apiKeysSetEnforcement(enforcing: boolean): Promise<ControlResult<ApiKeysListResponse>>
   modelsList(): Promise<ControlResult<ModelsListResponse>>
   modelsRefresh(): Promise<ControlResult<ModelsListResponse>>
+  localModelsList(): Promise<ControlResult<LocalModelCatalogSnapshot>>
+  localModelsEnsure(modelKey: string): Promise<ControlResult<LocalModelEnsureResult>>
+  localModelsCancel(operationId: string): Promise<ControlResult<LocalModelCancelResult>>
   usageGet(period: TokenUsagePeriod): Promise<ControlResult<TokenUsageSummary>>
   diagnosticsGet(): Promise<ControlResult<DiagnosticsResponse>>
   dispose(): void
@@ -159,6 +171,9 @@ const optionalMethods = [
   'apiKeys/setEnforcement',
   'models/list',
   'models/refresh',
+  'localModels/list',
+  'localModels/ensure',
+  'localModels/cancel',
   'usage/get',
   'diagnostics/get',
 ] as const
@@ -191,6 +206,70 @@ const apiKeyRemoveResultSchema = z.object({
   ok: z.literal(true),
   id: z.string(),
 })
+
+const localModelCatalogEntrySchema: z.ZodType<LocalModelCatalogEntry> = z.object({
+  capabilities: z.object({
+    input: z.array(z.string()),
+    output: z.array(z.string()),
+  }),
+  context: z.object({
+    contextWindow: z.number().int().nonnegative(),
+    maxOutputTokens: z.number().int().nonnegative().optional(),
+  }),
+  displayName: z.string(),
+  expectedBytes: z.number().int().nonnegative(),
+  format: z.string(),
+  key: z.string(),
+  modelId: z.string(),
+  publication: z.enum(['none', 'provider', 'aggregate']),
+  state: z.enum(['registered', 'provisioning', 'ready', 'failed']),
+})
+
+const localModelCatalogSnapshotSchema: z.ZodType<LocalModelCatalogSnapshot> = z.object({
+  models: z.array(localModelCatalogEntrySchema),
+  revision: z.number().int().nonnegative(),
+})
+
+const localModelEnsureResultSchema: z.ZodType<LocalModelEnsureResult> = z.object({
+  modelKey: z.string(),
+  operationId: z.string(),
+  started: z.boolean(),
+})
+
+const localModelCancelResultSchema: z.ZodType<LocalModelCancelResult> = z.object({
+  cancelled: z.boolean(),
+  operationId: z.string(),
+})
+
+const localModelOperationEventSchema: z.ZodType<LocalModelOperationEvent> = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('catalog'),
+    snapshot: localModelCatalogSnapshotSchema,
+  }),
+  z.object({
+    type: z.literal('progress'),
+    operationId: z.string(),
+    progress: z.object({
+      completedBytes: z.number().int().nonnegative(),
+      modelKey: z.string(),
+      phase: z.enum(['checking', 'downloading', 'verifying', 'committing']),
+      totalBytes: z.number().int().nonnegative(),
+    }),
+  }),
+  z.object({
+    type: z.literal('completed'),
+    operationId: z.string(),
+    model: localModelCatalogEntrySchema,
+  }),
+  z.object({
+    type: z.enum(['cancelled', 'failed']),
+    operationId: z.string(),
+    error: z.object({
+      message: z.string(),
+      retryable: z.boolean(),
+    }),
+  }),
+])
 
 function parseWith<T>(schema: z.ZodType<T>): (input: unknown) => T {
   return (input) => schema.parse(input)
@@ -280,6 +359,7 @@ export function createControlSession(
     onLifecycle: onCoreStatus,
     createClient: (origin) => new ControlClient({ baseUrl: origin }),
     logError: (message, error) => console.error(message, error),
+    onLocalModelEvent: () => {},
     ...options,
   }
 
@@ -331,6 +411,19 @@ export function createControlSession(
       if (topic === null || disposed || generation !== nextGeneration) return
 
       dependencies.onChange()
+      if (topic === 'localModels') {
+        const event = localModelOperationEventSchema.safeParse(
+          Reflect.get(state, 'localModels'),
+        )
+        if (event.success) dependencies.onLocalModelEvent(event.data)
+        else {
+          dependencies.logError(
+            '[maximal-client] invalid local model event:',
+            event.error,
+          )
+        }
+        return
+      }
       if (topic === 'snapshot') trafficRevision = null
       const traffic: unknown = Reflect.get(state, 'traffic')
       if (traffic === undefined) {
@@ -510,6 +603,20 @@ export function createControlSession(
     modelsList: () => call('models/list', parseWith(ModelsListResponseSchema)),
     modelsRefresh: () =>
       call('models/refresh', parseWith(ModelsListResponseSchema)),
+    localModelsList: () =>
+      call('localModels/list', parseWith(localModelCatalogSnapshotSchema)),
+    localModelsEnsure: (modelKey) =>
+      call(
+        'localModels/ensure',
+        parseWith(localModelEnsureResultSchema),
+        { modelKey },
+      ),
+    localModelsCancel: (operationId) =>
+      call(
+        'localModels/cancel',
+        parseWith(localModelCancelResultSchema),
+        { operationId },
+      ),
     usageGet: (period) =>
       call('usage/get', parseWith(TokenUsageSummarySchema), { period }),
     diagnosticsGet: () =>

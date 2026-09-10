@@ -1,10 +1,11 @@
 import * as Tooltip from '@radix-ui/react-tooltip'
 import {
-  Binary,
   BrainCircuit,
   ChevronDown,
+  CircleHelp,
+  Database,
   Eye,
-  MessageSquare,
+  MessageSquareText,
   Radio,
   Wrench,
   type LucideIcon,
@@ -98,10 +99,30 @@ function HoverIcon({ label, Icon }: { label: string; Icon: LucideIcon }): ReactE
   )
 }
 
-function ModelTypeIcon({ type }: { type: string }): ReactElement {
-  const normalized = type.trim().toLowerCase()
-  const label = normalized === '' ? 'Model type not reported' : `${type} model`
-  return <HoverIcon label={label} Icon={normalized === 'chat' ? MessageSquare : Binary} />
+const MODEL_TYPE_DETAILS: Readonly<
+  Record<string, { label: string; Icon: LucideIcon }>
+> = {
+  chat: { label: 'Chat', Icon: MessageSquareText },
+  embeddings: { label: 'Embeddings', Icon: Database },
+}
+
+function ModelTypeIcon({ model }: { model: ModelSummary }): ReactElement {
+  const type = model.type.trim()
+  const details = MODEL_TYPE_DETAILS[type.toLowerCase()]
+  const label = details?.label ?? (type || 'Type not reported')
+  const Icon = details?.Icon ?? CircleHelp
+  const description = `${label} model type`
+
+  return (
+    <span
+      className="settings-table__type"
+      role="img"
+      aria-label={description}
+      title={description}
+    >
+      <Icon size={16} aria-hidden="true" />
+    </span>
+  )
 }
 
 function TokenCount({ value }: { value: number | null }): ReactElement {
@@ -260,6 +281,7 @@ export function ModelsSection({ capabilities }: ModelsSectionProps): ReactElemen
                     <table className="settings-table settings-table--models">
                       <colgroup>
                         <col className="settings-table__model-column" />
+                        <col className="settings-table__type-column" />
                         <col className="settings-table__token-column" />
                         <col className="settings-table__token-column" />
                         <col className="settings-table__capability-column" />
@@ -267,6 +289,7 @@ export function ModelsSection({ capabilities }: ModelsSectionProps): ReactElemen
                       <thead>
                         <tr>
                           <th scope="col">Model</th>
+                          <th scope="col">Type</th>
                           <th scope="col" className="settings-table__number">Context</th>
                           <th scope="col" className="settings-table__number">Max output</th>
                           <th scope="col">Capabilities</th>
@@ -276,12 +299,12 @@ export function ModelsSection({ capabilities }: ModelsSectionProps): ReactElemen
                         {models.map((model) => (
                           <tr key={model.id}>
                             <th scope="row">
-                              <span className="settings-table__model-heading">
-                                <span className="settings-table__model-name">{model.name}</span>
-                                <ModelTypeIcon type={model.type} />
-                              </span>
+                              <span className="settings-table__model-name">{model.name}</span>
                               <code>{model.id}</code>
                             </th>
+                            <td>
+                              <ModelTypeIcon model={model} />
+                            </td>
                             <td className="settings-table__number">
                               <TokenCount value={model.context_window_tokens} />
                             </td>

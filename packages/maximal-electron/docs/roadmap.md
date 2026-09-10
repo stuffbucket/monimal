@@ -2,10 +2,8 @@
 
 Work that is scoped but not built.
 
-The design of what already works lives elsewhere: `docs/architecture.md` for
-the shell, the terminal, and the windows, and `AGENTS.md` for the overlay
-agent, the provider chain, and the approval gate. This file only records what
-is missing, so it does not drift out of step with them.
+The design of what already works lives in `docs/architecture.md`. This file
+only records what is missing, so it does not drift out of step with it.
 
 ## Terminals
 
@@ -23,36 +21,6 @@ Working. Configurable xterm.js or wterm/libghostty in the renderer, with
   against fake and real tmux clients. The reference IPC contract carries
   projection identity and focus epochs. A renderer command for duplicating a
   terminal view remains outside issue #108.
-
-## The overlay
-
-Working. Summon with the accelerator, or the sparkle button in the title bar.
-
-**The summon is an accelerator, not a double tap of Ctrl.** `globalShortcut`
-cannot bind a bare modifier, so it cannot see a double tap. That needs a native
-monitor: either a small addon around `NSEvent.addGlobalMonitorForEvents`, or
-`uiohook-napi`. Both need the Accessibility permission on macOS, which the
-application must request and explain.
-
-The accelerator exists so the feature is usable and testable before that lands.
-It is a preference, so the native monitor can replace it without a redesign.
-
-## The agent
-
-Working, with tools, streaming, and an approval gate. See `AGENTS.md`.
-
-- **No conversation.** Each summon starts a fresh transcript. `pi-agent-core`
-  has session storage; wiring it is the next step.
-- **No skills or compaction.** `pi-agent-core` ships both.
-- **The prompt shows arguments, not effects.** An `edit` call names the file,
-  not the diff. Reviewing a change needs the diff.
-
-## Sequencing
-
-1. Conversation history across summons.
-2. A diff view in the approval prompt for `edit` and `write`.
-3. The double-tap Ctrl monitor, which needs a permission prompt.
-4. Windows and Linux verification for the terminal and the overlay.
 
 ## Measured, and not done
 

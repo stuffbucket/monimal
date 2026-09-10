@@ -170,6 +170,17 @@ describe('ModelsSection', () => {
       ),
     ).toEqual(['Acme', 'Vendor not reported'])
     expect(surface.querySelectorAll('caption')).toHaveLength(0)
+    const typeIcons = [
+      ...surface.querySelectorAll<HTMLElement>('.settings-table__type'),
+    ]
+    expect(typeIcons.map((icon) => icon.getAttribute('aria-label'))).toEqual([
+      'Chat model type',
+      'Type not reported model type',
+    ])
+    expect(typeIcons.map((icon) => icon.title)).toEqual([
+      'Chat model type',
+      'Type not reported model type',
+    ])
     expect(
       [...surface.querySelectorAll<HTMLElement>('.settings-table__number span')]
         .slice(0, 2)
@@ -186,10 +197,10 @@ describe('ModelsSection', () => {
 
     expect(
       [...chatTable.querySelectorAll('thead th')].map((heading) => heading.textContent),
-    ).toEqual(['Model', 'Context', 'Max output', 'Capabilities'])
+    ).toEqual(['Model', 'Type', 'Context', 'Max output', 'Capabilities'])
     expect(
       [...chatTable.querySelectorAll('thead th')].map((heading) => heading.getAttribute('scope')),
-    ).toEqual(Array.from({ length: 4 }, () => 'col'))
+    ).toEqual(Array.from({ length: 5 }, () => 'col'))
 
     const ids = [...surface.querySelectorAll('tbody code')].map((code) => code.textContent)
     expect(ids).toEqual(['claude-opus-5', 'mystery-chat', 'embed-one'])

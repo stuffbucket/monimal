@@ -67,7 +67,6 @@ export const DEFERRED = new Map([
   ['scripts/stills.mjs', 125],
   ['scripts/storybook-check.mjs', 125],
   ['scripts/tag-history.mjs', 125],
-  ['scripts/verify-crash-artifact.mjs', 125],
   ['scripts/verify-docs.mjs', 125],
   ['scripts/verify-electron-cache.mjs', 125],
   ['scripts/verify-exports.mjs', 125],
@@ -135,35 +134,6 @@ export function valueImports(source, fileName) {
   return found;
 }
 
-/**
- * Does this file run as an Electron `utilityProcess`?
- *
- * `process.parentPort` exists in a utility process and nowhere else, so a file
- * that reads it needs an Electron runtime exactly as much as one that imports
- * `electron`. The criterion cannot see that through imports, because the
- * binding arrives on the global `process`. `src/main/llama-worker.ts` is the
- * worked example. Issue #133.
- */
-export function usesParentPort(source, fileName) {
-  const sourceFile = ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, true);
-  let found = false;
-
-  const walkNode = (node) => {
-    if (
-      ts.isPropertyAccessExpression(node) &&
-      ts.isIdentifier(node.expression) &&
-      node.expression.text === 'process' &&
-      node.name.text === 'parentPort'
-    ) {
-      found = true;
-    }
-    node.forEachChild(walkNode);
-  };
-
-  walkNode(sourceFile);
-  return found;
-}
-
 function resolveRelative(fromRelative, specifier) {
   const base = path.resolve(root, path.dirname(fromRelative), specifier);
   const bases = specifier.endsWith('.js') ? [base, base.slice(0, -3)] : [base];
@@ -193,7 +163,6 @@ function outOfReach(relative, cache, visiting) {
   if (relative.endsWith('.tsx') || relative.endsWith('.jsx')) reason = 'JSX';
   if (!reason) {
     const source = readFileSync(path.join(root, relative), 'utf8');
-    if (usesParentPort(source, relative)) reason = 'utilityProcess';
     for (const specifier of reason ? [] : valueImports(source, relative)) {
       const runtime = RUNTIME_ONLY.find((name) =>
         name.endsWith('/') ? specifier.startsWith(name) : specifier === name || specifier.startsWith(`${name}/`),

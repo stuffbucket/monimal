@@ -9,6 +9,7 @@ import type {
 import { frameEnvelopeSchema, type FrameEnvelope } from "~/lib/live/contract"
 import { ControlHub } from "~/lib/live/hub"
 import { stopControlHub } from "~/lib/live/service"
+import { state } from "~/lib/runtime-state/state"
 import {
   __resetUpdateCheckDepsForTests,
   __setUpdateCheckDepsForTests,
@@ -21,6 +22,7 @@ import { createControlRoutes } from "~/routes/control/route"
 // whether a sibling had already warmed the module-level cache. Pin the seam the
 // update-check suite already owns so the route test is offline and hermetic.
 beforeEach(() => {
+  state.models = undefined
   __resetUpdateCheckDepsForTests()
   __setUpdateCheckDepsForTests({
     fetch: () => Promise.reject(new Error("offline (control-route test)")),
@@ -30,6 +32,7 @@ beforeEach(() => {
 afterEach(() => {
   // Safety: tear down the wired singleton if any test reached the default hub.
   stopControlHub()
+  state.models = undefined
   __resetUpdateCheckDepsForTests()
 })
 

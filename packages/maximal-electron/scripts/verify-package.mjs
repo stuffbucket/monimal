@@ -22,14 +22,10 @@ import { listPackage, extractFile } from '@electron/asar';
 import { FuseV1Options, getCurrentFuseWire } from '@electron/fuses';
 
 import {
-  LLAMA_BACKENDS_VARIABLE,
-  LLAMA_SOURCE_INPUTS,
   PACKAGE_FUSES,
   RUNTIME_ICONS,
   externalClosure,
   hoistedDependencies,
-  llamaPackagePlan,
-  parseLlamaBackends,
   platformPackagePlan,
 } from './package-contract.mjs';
 import { terminalPackageChecks } from './terminal-package.mjs';
@@ -100,12 +96,8 @@ const RENDERER = '/.vite/renderer/main_window';
 
 check(listing.includes('/.vite/build/main.js'), 'main bundle is packed');
 check(listing.includes('/.vite/build/preload.js'), 'preload bundle is packed');
-// `native/llama-host.ts` forks this from `__dirname`, so it has to sit beside
-// the main bundle. Absent, every embedded run fails at the fork. Issue #133.
-check(listing.includes('/.vite/build/llama-worker.js'), 'llama engine bundle is packed');
 check(listing.includes(`${RENDERER}/index.html`), 'renderer shell is packed');
 check(listing.includes(`${RENDERER}/splash.html`), 'splash window is packed');
-check(listing.includes(`${RENDERER}/overlay.html`), 'overlay window is packed');
 check(
   listing.some(
     (entry) => entry.startsWith(`${RENDERER}/assets/index-`) && entry.endsWith('.css'),
@@ -173,10 +165,7 @@ function declaredPolicy(document) {
   return { readable: true };
 }
 
-const documents = {
-  shell: declaredPolicy(`${RENDERER}/index.html`),
-  overlay: declaredPolicy(`${RENDERER}/overlay.html`),
-};
+const documents = { shell: declaredPolicy(`${RENDERER}/index.html`) };
 
 // An unreadable document fails saying so, rather than as a document that
 // declares nothing. Both are failures; only one of them is true.
@@ -188,15 +177,6 @@ for (const [label, document] of Object.entries(documents)) {
       : `the ${label} could not be read from the asar: ${document.reason}`,
   );
 }
-
-// The overlay hosts the same terminal. Its own comment says "Same policy as the
-// shell", which is a claim until something reads both. A document that was not
-// read fails above, with the reason.
-check(
-  documents.overlay.policy !== undefined &&
-    documents.overlay.policy === documents.shell.policy,
-  'the shell and the overlay declare one policy',
-);
 
 /* ------------------------------------------------- native module (pty) */
 
@@ -223,86 +203,24 @@ for (const { name, ok } of terminalPackageChecks({
   check(ok, name);
 }
 
-check(
-  listing.some((entry) => entry.includes('node_modules/node-llama-cpp/')),
-  'node-llama-cpp is packed',
-);
-
-/**
- * Unpacked files whose name matches a simple `*` glob.
- *
- * This used to shell out to `find`. On Windows that name resolves to
- * `System32\find.exe`, which searches for a string inside files and takes
- * unrelated arguments, so these checks reported a packaging fault that was
- * really a portability one. Reading the directory needs no subprocess and
- * behaves the same everywhere.
- */
-const findUnpacked = (pattern) => {
-  const expression = pattern
-    .split('*')
-    .map((part) => part.replace(/[.+?^${}()|[\]\\]/g, '\\$&'))
-    .join('.*');
-  const matches = new RegExp(`^${expression}$`);
-  return unpackedFiles.filter((entry) => matches.test(path.basename(entry)));
+const EXTERNAL_MODULES = ['node-pty'];
+const IO = {
+  basename: (target) => path.basename(target),
+  realpath: (target) => {
+    try {
+      return realpathSync(target);
+    } catch {
+      return target;
+    }
+  },
+  sep: path.sep,
+  join: (...parts) => path.join(...parts),
+  readPackageJson: (dir) => {
+    const file = path.join(dir, 'package.json');
+    return existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : undefined;
+  },
 };
 
-check(
-  findUnpacked('*.node').some((entry) => entry.includes('node-llama-cpp')),
-  'the llama.cpp addon is unpacked',
-);
-
-// llama.cpp ships its backends as shared libraries beside the addon, and
-// `dlopen` cannot reach into an asar. An `unpack` glob of only `*.node` leaves
-// these inside the archive: the package builds, the app starts, and the model
-// fails to load with an error that reads like a bad model file rather than a
-// packaging fault.
-//
-// The expectation is derived rather than restated, because the set is platform
-// specific in both name and size. It is derived through the plan
-// `forge.config.ts` prunes with, not from the whole installed scope: npm
-// selects by `os` and `cpu`, which puts `win-arm64` and 505 MB of CUDA on a
-// `win32-x64` host that ships neither. Issue #113.
-//
-// Compared by path inside the scope, never by file name. Windows ships
-// `ggml-base.dll` in four directories, so a name-keyed comparison reports the
-// CUDA backend as present because the CPU one is — the same widened scope this
-// script exists to catch.
-const LIBRARY_EXTENSIONS = ['.dylib', '.so', '.dll'];
-const EXTERNAL_MODULES = ['node-pty', 'node-llama-cpp'];
-
-/**
- * The two native modules, and everything they reach.
- *
- * The keep-list names directories, so a dependency that landed at the top
- * level was silently absent and `node-llama-cpp` could not load in any
- * packaged build. Derived from the installed tree by `hoistedDependencies`, so
- * this checks the same set `forge.config.ts` kept rather than a second list.
- * Issue #133.
- */
-const IO = {
-    basename: (target) => path.basename(target),
-    realpath: (target) => {
-      // A package directory is usually a symlink under pnpm, and its
-      // dependencies sit beside its real location rather than beside the link.
-      try {
-        return realpathSync(target);
-      } catch {
-        return target;
-      }
-    },
-    sep: path.sep,
-    join: (...parts) => path.join(...parts),
-    readPackageJson: (dir) => {
-      const file = path.join(dir, 'package.json');
-      return existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : undefined;
-    },
-  };
-
-/*
- * The highest directory resolution may reach: the workspace root, found rather
- * than assumed. pnpm keeps the real files above this package and npm below it,
- * so an unbounded walk climbs into whatever encloses the checkout.
- */
 const workspaceRoot = (() => {
   let dir = ROOT;
   for (;;) {
@@ -316,142 +234,6 @@ const workspaceRoot = (() => {
 const RESOLUTION = { boundary: workspaceRoot };
 const hoisted = hoistedDependencies(IO, path.join(ROOT, 'node_modules'), EXTERNAL_MODULES, RESOLUTION);
 const CLOSURE = externalClosure(IO, path.join(ROOT, 'node_modules'), EXTERNAL_MODULES, RESOLUTION);
-
-const LLAMA_SCOPE = 'node_modules/@node-llama-cpp';
-
-/*
- * Where the prebuild scope really is.
- *
- * `<root>/node_modules/@node-llama-cpp` is where a flat install puts it and
- * where nothing puts it under pnpm: the platform build is an optional
- * dependency of `node-llama-cpp` and lives beside it in the store. Reading the
- * assumed path found nothing, and every check below then reported the packaged
- * scope as full of strays — the expectation was empty, not the archive.
- *
- * `externalClosure` already resolves each one, so the directory it found is
- * the directory to read.
- */
-const scopeEntries = CLOSURE.filter(({ name }) => name.startsWith('@node-llama-cpp/'));
-const llamaScopeDir = (name) =>
-  scopeEntries.find((entry) => entry.name === `@node-llama-cpp/${name}`)?.dir ??
-  path.join(ROOT, LLAMA_SCOPE, name);
-const installed = scopeEntries.map(({ name }) => name.slice('@node-llama-cpp/'.length));
-
-// The first floor. With no scope installed the plan is empty, every loop below
-// runs zero times, and the run is green over a package with no llama.cpp in it.
-check(installed.length > 0, 'the dependency installs llama.cpp prebuild packages');
-
-const plan =
-  installed.length > 0
-    ? llamaPackagePlan(
-        installed,
-        process.platform,
-        process.arch,
-        parseLlamaBackends(process.env[LLAMA_BACKENDS_VARIABLE]),
-      )
-    : [];
-const kept = plan.filter((entry) => entry.keep).map((entry) => entry.name);
-const dropped = plan.filter((entry) => !entry.keep);
-
-console.log(
-  `  ${String(plan.length)} prebuild package(s) installed, ${String(kept.length)} shipped: ` +
-    `${kept.join(', ') || 'none'}`,
-);
-for (const entry of dropped) {
-  console.log(`  dropped ${entry.name}: ${entry.reason}`);
-}
-
-// The second floor. A plan that keeps nothing is a package with no llama.cpp
-// backend at all, which every per-file check below would report as clean.
-check(kept.length > 0, 'the plan keeps a llama.cpp prebuild package for this target');
-
-const shippedLibraries = kept.flatMap((name) =>
-  readdirSync(llamaScopeDir(name), { recursive: true, encoding: 'utf8' })
-    .map((entry) => entry.split(path.sep).join('/'))
-    .filter((entry) => LIBRARY_EXTENSIONS.includes(path.extname(entry)))
-    .map((entry) => `${name}/${entry}`),
-);
-
-// The third floor. An empty expectation asserts nothing, which is the shape
-// this replaced: two globs flat-mapped into one non-empty assertion, where
-// losing all seven `libggml*` still passed on the two `libllama*`. Issue #92.
-check(shippedLibraries.length > 0, 'the shipped packages carry llama.cpp shared libraries');
-console.log(`  ${String(shippedLibraries.length)} shared librar(ies) expected in the package`);
-
-const unpackedPaths = new Set(unpackedFiles);
-for (const library of shippedLibraries) {
-  check(unpackedPaths.has(`${LLAMA_SCOPE}/${library}`), `${library} is unpacked`);
-}
-
-// The other half, and the one the per-file checks cannot make: nothing under
-// the scope belongs to a package the plan dropped. Without it a prune that
-// silently did nothing still passes, because every kept library is present
-// either way.
-//
-// One assertion over the whole scope rather than one per dropped package,
-// because a target may legitimately drop none: `mac-arm64` installs a single
-// package. The entry count beneath it is the floor, so a scope that vanished
-// from the package fails rather than passing with no strays.
-const scopePrefix = `${LLAMA_SCOPE}/`;
-const shippedScopeEntries = unpackedFiles.filter((entry) => entry.startsWith(scopePrefix));
-check(shippedScopeEntries.length > 0, 'the package carries the @node-llama-cpp scope');
-
-const keptNames = new Set(kept);
-const strays = shippedScopeEntries.filter(
-  (entry) => !keptNames.has(entry.slice(scopePrefix.length).split('/')[0]),
-);
-check(
-  strays.length === 0,
-  strays.length === 0
-    ? `all ${String(shippedScopeEntries.length)} scope entries belong to a shipped package`
-    : `${String(strays.length)} scope entr(ies) belong to a dropped package, first ${strays[0]}`,
-);
-
-
-/*
- * The llama.cpp source is not in the package, and the option that makes that
- * safe is.
- *
- * Two halves of one argument, so neither can be changed alone. The build drops
- * `llama/gitRelease.bundle` because `getLlama` is asked for `build: 'never'`
- * and therefore never clones or compiles; if that option went away, the
- * application would ask for a build whose 33 MB of input this hook had already
- * deleted, and the failure would arrive at run time on a user's machine.
- *
- * The option is read off the BUILT worker, not off `src/`. What ships is what
- * matters, and the two are a bundler apart.
- */
-console.log('\nllama.cpp source');
-
-const packedSet = new Set(listing.map((entry) => entry.replace(/^\//, '')));
-const unpackedSet = new Set(unpackedFiles);
-for (const entry of LLAMA_SOURCE_INPUTS) {
-  check(
-    !packedSet.has(entry) && !unpackedSet.has(entry),
-    `${entry} is not in the package`,
-  );
-}
-
-const worker = (() => {
-  const built = listing
-    .map((entry) => entry.replace(/^\//, ''))
-    .filter((entry) => /^\.vite\/build\/.*llama.*\.js$/.test(entry));
-  // The floor. A pattern that matched nothing would report the option present
-  // by reading no file at all -- and this file has been renamed once already.
-  check(built.length === 1, `one built llama worker was found, at ${built[0] ?? 'nowhere'}`);
-  if (built.length !== 1) return '';
-  return extractFile(asar, path.join(...built[0].split('/'))).toString('utf8');
-})();
-
-/*
- * Backticks are in the character class deliberately. The bundler emits
- * `{build:`never`}` -- a template literal -- and a pattern that accepted only
- * quotes failed against a worker that was correct.
- */
-check(
-  /build\s*:\s*["'`]never["'`]/.test(worker),
-  'the built worker asks getLlama for build: never',
-);
 
 // The floor. With an empty closure every assertion below runs zero times, and
 // the run is green over a package that cannot load the library at all.
@@ -491,8 +273,8 @@ const listedPaths = new Set(listing.map((entry) => entry.replace(/^\//, '')));
  * `packageAfterCopy` drops a package whose own `os` or `cpu` excludes the
  * build's platform, so the closure is the set that was COPIED and not the set
  * that ships. Expecting all of it here would fail a build that pruned
- * correctly, which is the same drift `llamaPackagePlan` above exists to avoid:
- * what the build drops is what this stops expecting, from one function.
+ * correctly. The build and verifier derive target compatibility from the same
+ * function.
  */
 const platformPlan = platformPackagePlan(
   CLOSURE.map(({ dir, path: placement }) => {
@@ -507,31 +289,8 @@ for (const entry of platformDropped) {
   console.log(`  dropped ${entry.path}: ${entry.reason}`);
 }
 
-/*
- * And minus the llama.cpp backends `pruneLlamaBackends` drops, which is not
- * the same set.
- *
- * Two rules drop things and only one of them is about the platform. A
- * `linux-x64` build installs six `@node-llama-cpp` packages: `linux-arm64` and
- * `linux-armv7l` go for the architecture, and `linux-x64-cuda`,
- * `linux-x64-cuda-ext` and `linux-x64-vulkan` go because they are GPU runtimes
- * nobody asked for -- 505 MB of CUDA that declares exactly this platform and
- * architecture. The platform plan keeps all three of those, correctly, and the
- * backend plan drops them.
- *
- * This check never saw it. macOS installs ONE package for this target, so the
- * expectation and the archive agreed on every developer machine, and the first
- * Linux run of `verify:package` reported five placements missing from a bundle
- * that was right.
- */
-const droppedLlamaPaths = new Set(
-  dropped.map((entry) => `${LLAMA_SCOPE}/${entry.name}`),
-);
-
 const expected = new Set(
-  platformPlan
-    .filter((entry) => entry.keep && !droppedLlamaPaths.has(entry.path))
-    .map((entry) => entry.path),
+  platformPlan.filter((entry) => entry.keep).map((entry) => entry.path),
 );
 const unplaced = CLOSURE.filter(
   ({ path: placement }) => expected.has(placement) && !listedPaths.has(placement),
@@ -551,11 +310,8 @@ check(
  * archive rather than off the closure, so a package the copy placed and the
  * closure does not name is judged too.
  *
- * `@reflink/reflink-darwin-arm64` is why this exists. It reaches the closure
- * through `ipull` through `node-llama-cpp`, declares `"os": ["darwin"]`, and a
- * `--platform=win32` build made on a Mac shipped it -- a Mach-O `.node` in a
- * Windows bundle, three optional dependencies down from anything this package
- * imports.
+ * A transitive prebuild can match the build host instead of the target, so the
+ * archive itself must be checked after pruning.
  */
 const packedManifests = listing
   .map((entry) => entry.replace(/^\//, ''))
@@ -581,23 +337,6 @@ check(
   foreign.length === 0
     ? `all ${String(packedPlan.length)} packed package(s) run on ${process.platform}-${process.arch}`
     : `${String(foreign.length)} packed package(s) cannot run here, first ${foreign[0]?.path ?? ''} (${foreign[0]?.reason ?? ''})`,
-);
-
-/*
- * And the nested ones are really nested.
- *
- * Sixteen names in this closure resolve to more than one version. Flattening
- * them by name produced a `node_modules` where `restore-cursor` got the
- * `signal-exit` with no `onExit` export and `node-llama-cpp` could not be
- * imported at all — issue #133's failure, reintroduced by the fix for it and
- * caught by nothing. If the closure ever stops nesting, this says so.
- */
-const nested = CLOSURE.filter(({ path: placement }) => placement.split('node_modules/').length > 2);
-check(
-  nested.length > 0,
-  nested.length > 0
-    ? `${String(nested.length)} closure placement(s) nest under the package that asked for them`
-    : 'nothing nests: every closure entry claims the top level, which a tree with two versions of one name cannot',
 );
 
 /* ---------------------------------------------------------------- icons */

@@ -337,11 +337,9 @@ terminal. `forge.config.ts` now supplies its own `ignore`, and
 `scripts/verify-package.mjs` asserts the module is present.
 
 That `ignore` is the whole filter, because `packagerConfig.prune` is `false`.
-Packager's own walk keeps `dependencies` and drops the rest, and this package
-declares no runtime dependencies at all — a consumer importing `./host` would
-otherwise install `node-llama-cpp` for a module that imports `electron` alone.
-A new external native module therefore goes in `devDependencies`, and reaches
-the package through the keep-list rather than through `dependencies`.
+Packager's own walk keeps `dependencies` and drops the rest, while this package
+declares no runtime dependencies. An external native module therefore goes in
+`devDependencies` and reaches the reference package through the keep-list.
 
 `*.node` is not the whole of it. On macOS `node-pty` `execvp`s `spawn-helper`,
 which sits beside `pty.node` and has no extension, at a path it rewrites from
@@ -373,343 +371,26 @@ Every runtime dependency is pinned to an exact version. `^1.2.0-beta.14`
 admitted every later beta on a prerelease line, plus every 1.x release.
 `tests/package-exports.test.ts` holds that rule.
 
-## What llama.cpp backend the package ships
-
-`node-llama-cpp` keeps its prebuilt binaries in the `@node-llama-cpp` scope,
-one package per target and backend, named `<os>-<arch>[-<backend>]`. npm
-selects them by the `os` and `cpu` fields alone, and those are wider than one
-build. Several packages declare `cpu: ["arm64", "x64"]` so that one host can
-build for the other, so a `win32-x64` install also receives `win-arm64` and a
-`linux-x64` install also receives `linux-arm64`. Neither can ever load:
-`node-llama-cpp` resolves a package from `process.arch` at run time.
-
-`pruneLlamaBackends` in `forge.config.ts` drops what the target cannot use. The
-plan is `llamaPackagePlan` in `scripts/package-contract.mjs`, which
-`scripts/verify-package.mjs` reads as well, so the packages the build deletes
-are the packages the check stops expecting.
-
-**A GPU backend is dropped unless the build asks for it.** On `win32-x64` that
-is 505 MB of CUDA across two packages and 94 MB of Vulkan, against 45 MB for
-the CPU package. `linux-x64` is the same shape and 630 MB. The application
-ships no weights and its embedded model is Qwen3 0.6B, a floor under the
-provider chain rather than the performance path, so nine tenths of the packaged
-application existed to accelerate the smallest thing it runs.
-
-The consequence is real and is the reason this is a stated behaviour rather
-than a size fix: **a machine with a CUDA GPU runs the embedded model on its
-CPU.** `node-llama-cpp` logs the fallback and carries on. To ship the backend,
-set `STUFFBUCKET_LLAMA_BACKENDS` when packaging:
-
-```bash
-STUFFBUCKET_LLAMA_BACKENDS=cuda npm run package
-STUFFBUCKET_LLAMA_BACKENDS=cuda,vulkan npm run package
-STUFFBUCKET_LLAMA_BACKENDS=all npm run package
-```
-
-A name the list does not know throws rather than being ignored, because the
-failure it prevents is a CPU-only package built by someone who wrote `CUDA` and
-believes otherwise. `cuda` keeps both `win-x64-cuda` and `win-x64-cuda-ext`:
-the `-ext` package holds a fallback `ggml-cuda.dll` reachable only through the
-cuda branch of the resolver, so it travels with that backend or not at all.
-
-`metal` is not on the optional list. `mac-arm64-metal` is the only `mac-arm64`
-package, so dropping it would leave that target with no llama.cpp rather than
-with a slower one.
-
-A cross-platform `npm run package -- --platform=<other>` now fails instead of
-building, because npm installed only the host's prebuild packages and the plan
-keeps none of them. Before this, `--platform=linux` on a mac produced a Linux
-package whose only llama.cpp backend was 12 MB of macOS `.dylib` files, and
-nothing said so. CI packages natively on each runner, so no job changes.
-
-`e2e/embedded.spec.ts` drives the embedded provider against the unpackaged
-build and the repository's own `node_modules`, which is the tree before the
-prune. What exercises the packaged tree is below.
-
-## Why llama.cpp runs in its own process
-
-A native abort is not a JavaScript exception. A corrupt GGUF, an out-of-memory,
-or an unsupported quantisation ends in `abort()` or a fault, and no `try` sees
-it. With the engine in the main process, that took every window and every
-terminal session with it.
-
-It is reproducible. Truncate the weights file underneath the live mapping and
-llama.cpp reads past the end of it: the process dies of `SIGBUS` with no
-JavaScript error, no `exit` event, and nothing written to disk. Issue #133.
-
-So `src/main/llama-worker.ts` is the only file in the repository that loads
-`node-llama-cpp`, and it runs as an Electron `utilityProcess`. The two things
-that must stay shared survive the boundary: a tool call becomes a message the
-main process answers, so the approval gate is still the one gate, and a token
-is posted as it is produced, so nothing accumulates a response.
-
-**One loading path, not two.** The download moved with the engine, even though
-it is ordinary JavaScript, because a second place that imports the library is a
-second place that can die.
-
-`native/llama-host.ts` supervises. When the engine goes, every outstanding
-operation ends with a sentence naming the fault, and the next request starts a
-new engine — **on demand, never on a timer, and at most three times a minute**.
-A silent restart loop is worse than a crash: past the budget the engine reports
-that it will not start again until the application restarts.
-
-What it costs, measured on an M-series mac:
-
-| | |
-| --- | --- |
-| Fork to `spawn` | 2 ms |
-| Idle child before llama.cpp loads | 70 MB |
-| First `getLlama()` on a cold Metal shader cache | 9.3 s |
-| `getLlama()` warm | 0.4 s |
-| Resident after the weights load | ~1.0 GB, in the child rather than in main |
-
-The last row is the real trade: the same gigabyte, held somewhere the operating
-system can reclaim by killing one process.
-
-## What exercises the packaged llama.cpp
-
-`npm run smoke:packaged` now launches the installed binary with
-`--self-check=llama`, on both packaging hosts. The application forks its engine,
-makes it load `node-llama-cpp` out of `app.asar.unpacked` through a
-`utilityProcess`, and then makes it fault in native code. A pass needs both
-halves: the library resolved from the child, and the main process outlived the
-fault well enough to print a line about it. A negative control moves the
-`@node-llama-cpp` scope aside and requires the same run to fail by reporting the
-engine.
-
-### It is launched from outside this repository
-
-`out/` sits inside the checkout, so a package started in place resolves modules
-one directory above itself and reaches the repository's own `node_modules`.
-That is 600 MB the build never ships. On `win32-x64` it is where the engine
-found the vulkan prebuild `pruneLlamaBackends` prunes, and the `#113` negative
-control found it too — the control moves the scope **inside** the package, not
-the one above it, so both runs took a branch no user's install can take.
-
-`scripts/packaged-app.mjs` copies the package to a temporary directory first,
-and both `smoke:packaged` and `verify:crash-artifact` launch it from there.
-`nodeModulesAbove` states the property as two assertions rather than as an
-intention: that something is above `out/`, which is the premise and fails at
-zero, and that nothing is above the copy.
-
-A copy rather than a move, because `verify:package` reads `out/` and
-`verify:crash-artifact` runs after `smoke:packaged` on the same build.
-
-**On `darwin-arm64` this changes nothing, which was worth measuring.** With the
-scope moved aside the in-place run already failed with `NoBinaryFoundError`, so
-resolution was not escaping the package there;
-`detectBestComputeLayersAvailable` short-circuits to `["metal"]` and never
-reaches the branch that walks up. `device=metal` and `loadMs` are the same
-either way once the Metal shader cache is warm — 206 ms relocated against
-231 ms in place. The first run from each temporary directory pays a cold cache
-and costs about 9.4 s, which is inside the 60 s `engineCheckTimeoutMs` allows.
-
-**The fault name is pinned per platform, from a run rather than from a table.**
-macOS reports a signal death as the bare signal number, so `SIGSEGV` is
-asserted by name against 11. Windows reports the status code, so
-`access violation` is asserted against `0xC0000005`. The assertion that holds
-everywhere is that the supervisor named it as a fault: a code
-`llama-protocol.ts` cannot name reads as "exited with code N", which fails the
-check and puts the number in the log to be pinned. That is how #154 pinned 134,
-and how #156 found out what 134 was.
-
-**On Windows the code depends on the crash reporter being up.** The same
-`process.crash()` reports `0xC0000005` with Crashpad's handler installed and
-`native fault 0xffff7003` without it, measured by suppressing
-`startCrashReports()` on a `windows-latest` run. So a `0xffff7003` in a report
-means the reporter was not running, and is not a fault worth naming in the
-table.
-
-## The embedded engine was gated off on Windows, and is not any more
-
-From #144 until #149 `embeddedEngineStatus` reported the provider unavailable
-on `win32`, because the packaged self check waited out its whole limit there,
-twice, including with the `@node-llama-cpp` scope moved aside where it should
-fail in milliseconds. A spinner forever is worse than a legible error, so
-`discoverProvider` fell through and a Windows user read a sentence.
-
-**What produced that was where the check ran, not the platform.** Both runs
-launched `out/Stuffbucket-win32-x64` in place, inside this repository, and both
-reached a vulkan prebuild in the repository's own `node_modules` that the build
-prunes. Launched from a copy with nothing above it, the packaged binary names a
-device. The gate is gone, and `embeddedEngineStatus` with it.
-
-**It is not `getLlama()` either.** #144 read the absent 30 s import bound as
-proof that the module graph had loaded and the engine call was what stopped.
-That reading was wrong. Building the environment one rung at a time on
-`windows-latest`, `getLlama()` returns and names a device every time:
-
-| Where | What came back |
-| --- | --- |
-| Bare node, no Electron | `gpu=false` in 583 ms |
-| An Electron main process | `gpu=false` in 438 ms |
-| An Electron `utilityProcess` | `gpu=false` in 440 ms |
-| The same two, against the packaged `node-llama-cpp` tree | `gpu=false` in 458 ms |
-| `.vite/build/llama-worker.js` forked as a `utilityProcess` | `device=cpu loadMs=877` |
-| The same bundle read out of `app.asar` | `device=cpu loadMs=943` |
-| The same, from a package copied outside this repository | `device=cpu loadMs=647` |
-
-The last three are the application's own engine, driven the way
-`src/main/native/llama-host.ts` drives it.
-
-**What Windows does that macOS does not is fork a process.**
-`getShouldTestBinaryBeforeLoading` in `node-llama-cpp` is `false` on macOS for
-every binary and `true` on Windows for any prebuilt binary whose backend is not
-`false`. `windows-latest` has `vulkan-1.dll`, so the engine tries a vulkan
-prebuild first and tests it before loading. `testBindingBinary` runs that test
-by forking `process.execPath` — and the packaged binary, told to run a script,
-loads `app.asar` instead and answers nothing:
-
-```
-[fuse-fork] Stuffbucket.exe running .../node-llama-cpp/dist/bindings/utils/testBindingBinary.js
-  with ELECTRON_RUN_AS_NODE=1 after 20015 ms -> HUNG: nothing in 20 s
-```
-
-The same file under `node` answers `{"type":"ready"}` in 376 ms.
-`testBindingBinary` waits five minutes for that answer, and
-`engineCheckTimeoutMs` gives up at three, which is the timeout #149 opens with.
-
-**And a build ships no vulkan prebuild.** `pruneLlamaBackends` keeps only
-`@node-llama-cpp/win-x64`. The engine found one anyway because `out/` sits
-inside this repository, so the resolution walked one directory above the package
-into `node_modules`. The last row of the table is the same package copied to a
-temporary directory, where nothing is above it: no test, no fork, and llama.cpp
-loaded. Moving the `@node-llama-cpp` scope aside inside the package did not
-move that copy, which is why the `#113` negative control hung for exactly as
-long as the real run. Both checks now launch from a copy, as above.
-
-The rung nothing had run was `--self-check=llama` inside `Stuffbucket.exe`,
-which the gate short-circuited. `smoke:packaged` runs it now, from a copy of
-the package outside this repository, and asserts the same four things it
-asserts on macOS: that the engine named a device, that the main process
-outlived the fault, that it named a fault rather than a bare exit code, and
-that the `#113` control fails by reporting a library that would not load.
-
-**The half that is upstream is untouched.** A build that ships a GPU backend —
-`STUFFBUCKET_LLAMA_BACKENDS=vulkan` or `cuda` — still takes the fork, on a real
-machine and not only in CI, and still waits five minutes for an answer.
-`testBindingBinary` assumes a fork of `process.execPath` yields a node process,
-which is false for any Electron application with the recommended fuses burned.
-The default build does not ship such a backend, so it does not reach that path.
-`engineCheckTimeoutMs` keeps its 180 s ceiling on Windows for the same reason.
-
-### What the diagnosis cost, and what actually found it
-
-Three explanations were proposed for the Windows hang and all three were wrong:
-a slow `getLlama()`, a `spawn` event that never fires, and a request that never
-arrived. What moved each step forward was not a theory but making the check
-report what it did rather than that it passed:
-
-| Added | What it settled |
-| --- | --- |
-| `phase` | The child had started, so it was not a fork or resolution failure |
-| `released-by` | The queue flushed, and on which signal |
-| `queued` | Nothing was left held, so delivery was not the problem |
-| `ack` | The child read the request, which moved the fault past the boundary |
-| `loadMs` | 256 ms on macOS, so slowness was never a plausible cause |
-
-Two of those found bugs in the instrumentation itself before they found
-anything about Windows: `released-by=nothing` on a run that plainly worked,
-because the record was already cleared by the time the reporter read it. A
-green check that says only "ok" would have hidden both.
-
-That check found a defect on its first run. `packagerConfig.prune` is off and
-the keep-list names directories, so a dependency npm hoisted out of
-`node-llama-cpp` never reached the package: the library failed to load with
-`Cannot find module 'universalify'` in every build ever made. `verify:package`
-read names out of the archive listing, `smoke:packaged` only opened a shell, and
-`e2e/embedded.spec.ts` drives the unpackaged tree where the hoisted packages are
-all still there. `hoistedDependencies` in `scripts/package-contract.mjs` derives
-the closure from the installed tree, `forge.config.ts` keeps it, and
-`verify-package.mjs` asserts it arrived — 64 packages and 13 MB on
-`darwin-arm64`. Issue #133.
-
 ## Crash artifacts
 
-`crashReporter.start({ uploadToServer: false })` runs before anything else in
-`src/main/index.ts`, above the branch that dispatches the self checks, because
-those are the runs that crash on purpose. Nothing is uploaded: there is no
-`submitURL`, no service, and no credential. Issue #134.
+The reference application starts `crashReporter` with uploads disabled.
+`runMain` leaves collection off unless a consumer sets `collectCrashDumps` and
+supplies the reporter through `MainRuntime`.
 
-**Where the dumps land.** `app.getPath('crashDumps')`, which is
-`<userData>/Crashpad`. On macOS the database holds `settings.dat` and the
-directories `pending/`, `completed/`, `new/` and `attachments/`, and a dump
-arrives as `pending/<uuid>.dmp` at 570 KB to 815 KB. On Windows it is
-`%APPDATA%\<product>\Crashpad`, read off a packaged `windows-latest` run, and
-the engine's dump is 34 MB. `host/crash-artifacts.ts` scans it recursively
-rather than by name, because those names are Crashpad's and differ by platform.
-
-**The call is what produces the artifact, not Electron on its own.** With the
-start suppressed and everything else unchanged, the same crash left no file and
-no directory — not an empty database, an absent one. That was measured on
-Electron 43 before any of this was written.
-
-| Process | Covered | Established by |
-| --- | --- | --- |
-| `utilityProcess` (the engine), macOS | yes | `npm run verify:crash-artifact` on a packaged build |
-| `utilityProcess` (the engine), Windows | yes | `npm run verify:crash-artifact` on a packaged build. Issue #156 |
-| Renderer | yes | A `forcefullyCrashRenderer` run on Electron 43. No check drives it |
-| Main | yes | A `process.crash()` run on Electron 43. No check drives it |
-
-The `utilityProcess` is the one worth checking. Since #144 the application
-survives a native fault in the engine, so that crash now leaves nothing behind
-except a sentence that scrolls away. The other two end the process, which is at
-least visible.
-
-**What a developer can do with the file.** Not much on its own: a minidump
-needs a symbol-aware reader, and this repository publishes no symbols. What it
-buys is that the fault is recorded at all, with a time and a process, so a
-report of "it crashed and carried on" has something attached to it. The Help
-menu has **Show Crash Reports**, which opens the directory, because a user
-attaching the file to an issue is the only route it has while nothing is
-uploaded.
-
-**Nothing prunes the database.** Crashpad's own retention is what bounds it.
-
-### What proves it
-
-`npm run verify:crash-artifact` launches the packaged binary twice, each into a
-throwaway profile given by `--user-data-dir`, and from a copy of the package
-outside this repository for the reason above. The first run is
-`--self-check=terminal`: it starts the reporter, crashes nothing, and must
-leave a database with no dump in it. The second is `--self-check=llama` —
-#144's crash, not a new one — which forks the engine, loads the packaged
-llama.cpp, and calls `process.crash()` in it. That run must leave a dump where
-the first left none, on both packaging hosts.
-
-Both platforms crash now. #149's Windows gate is retired, so a run that does
-not report the engine loading and dying is a defect rather than a disposition,
-and the check demands that on both packaging hosts.
-
-**`process.abort()` was the wrong instrument, and that is what #156 was.** Node
-defines `ABORT_NO_BACKTRACE()` as `_exit(134)` on Windows rather than as
-`abort()`, so the engine's `process.abort()` never faulted there: it exited
-cleanly with Node's own abort exit code. Nothing raised an exception, so
-Crashpad had nothing to record, and the coverage table said **no** for a
-platform whose reporter was working the whole time. The 134 in `faultName` is
-that exit code, not a signal and not an NTSTATUS.
-
-Electron's `process.crash()` writes through a null pointer, which faults on
-every platform — SIGSEGV on macOS, `STATUS_ACCESS_VIOLATION` on Windows — and
-`shell/services/node/node_service.cc` binds it into the utility process as well
-as the main one. The engine uses it, and both platforms leave a dump.
-
-**A native `abort()` from inside a loaded library is still not covered on
-Windows**, and no check here can cover it: it is
-[electron#36862](https://github.com/electron/electron/issues/36862), confirmed
-upstream and open. So a fault in ggml is recorded and an assertion failure
-inside it may not be. That is a narrower gap than #156 described, and it is
-upstream rather than here.
+`host/crash-artifacts.ts` asks Electron for the `crashDumps` directory and scans
+it recursively because Crashpad's layout differs by platform. The Help menu
+opens that directory when collection is enabled. Nothing uploads the files.
 
 ## The terminal a consumer gets
 
-Four exports, and they are deliberately separate.
+Five exports, and they are deliberately separate.
 
 | Export | What it is |
 | --- | --- |
 | `./renderer` | `TerminalView` and `TerminalTabs`, the `TerminalTransport` contract, `createTerminalTransport` which builds one, and `readTerminalTheme`. |
-| `./host/terminal` | `TerminalHost`, the pty manager, and `registerTerminalChannels`, which answers a consumer's channels from one. |
-| `./renderer/styles.css` | `shell-package-rules.css`, which carries the terminal rules. |
+| `./host/terminal` | `TerminalHost`, its `node-pty` connector, and `registerTerminalChannels`, which answers a consumer's channels from one. |
+| `./electron-terminal` | The reference application's Electron IPC and terminal-launcher adapter. |
+| `./renderer/styles.css` | `shell-structural-tokens.css` and `shell-package-rules.css`, which carry the terminal rules. |
 | `./verify` | The packaging assertions, as a function to run against a consumer's own build. |
 
 ### Verifying a consumer's own package
@@ -810,35 +491,18 @@ contrast. An unreadable pair is never counted as a pass.
 | Dock badge | `native/notifications.ts` | The renderer reports a count; the main process decides whether to show it. |
 | Preferences | `native/preferences.ts` | One JSON file under `userData`. |
 | Updates | `native/updates.ts` | Returns `unsupported`. See `docs/release.md`. |
-| Overlay | `windows/overlay.ts` | Non-activating panel on the cursor's display. |
-| Agent | `native/agent.ts` | Ranks backends, then runs one. No API key. |
-| Embedded model | `native/llama.ts` | Where the weights live, and the download. Loads nothing itself. |
-| Embedded run | `native/embedded.ts` | The main-process half of a turn: the gate and the sink. |
-| Engine supervisor | `native/llama-host.ts` | Forks the engine process, and turns its death into a sentence. |
-| Engine wire | `native/llama-protocol.ts` | The messages and the crash policy. Pure, and mutation tested. |
+| Electron panel | `host/electron-panel.ts` | Reusable transparent panel mechanics; the consumer owns content and policy. |
 | Crash artifacts | `native/crash-reports.ts`, `host/crash-artifacts.ts` | Starts Crashpad, finds the dumps, opens the directory. Resolution is pure and mutation tested. |
-| Engine process | `llama-worker.ts` | The only file that loads `node-llama-cpp`. Runs as a `utilityProcess`. |
-| Tool approval | `native/approval.ts` | Decides what the agent must ask about. Pure, and mutation tested. |
-| Toolsets | `native/toolsets.ts` | Named groups of tools. Each tool declares its own risk, so the gate cannot go stale. |
-| Schema bridge | `native/grammar.ts` | Translates tool schemas for llama.cpp. Pure, and mutation tested. |
 
 The menu and the tray both route through `sendEvent`, so the React shell stays
 the single owner of view state.
 
-### The overlay window
+### The Electron panel
 
-`windows/overlay.ts` builds a `BrowserWindow` with `type: 'panel'`, held above
-full-screen applications by `setAlwaysOnTop(true, 'screen-saver')`, and placed
-on the display `getDisplayNearestPoint` returns for the cursor. A preference
-holds the accelerator that summons it.
-
-Two behaviours are deliberate.
-
-- **It does not hide on blur.** The window covers the display, so a click
-  outside the card already lands on the scrim. A blur handler on top of that
-  makes the card vanish whenever a notification takes focus.
-- **`showInactive`, then `focus`.** That pair puts the panel on screen and
-  gives it key input without activating this application.
+`host/electron-panel.ts` owns only `BrowserWindow` and display mechanics. The
+consumer supplies the preload path, renderer loader, bounds, stacking policy,
+and focus policy. The export keeps hardened web preferences and supports warm
+hide/reuse plus explicit destruction.
 
 ### The application icon
 
@@ -892,8 +556,8 @@ builds into `src/renderer/.vite/`, where the package never finds it.
 
 The capture fixture is a second renderer entry rather than a branch inside the
 first. It used to be a subtree of `src/renderer/` chosen at mount time by a
-query parameter, which meant a fleet of fake agent runs shipped inside the
-application a user installs. `forge.config.ts` excludes its output, and
+query parameter, which meant sample run data shipped inside the application a
+user installs. `forge.config.ts` excludes its output, and
 `npm run verify:package` fails if it ever returns.
 
 ## Testing
@@ -914,11 +578,10 @@ Reference screenshots go through `capture` in `e2e/harness.ts`, not
 then blocks until its timeout instead of returning. `capture` reads the
 renderer through the debugger. So it does not depend on what is in front.
 
-A run also keeps off the developer's screen. The overlay is built to sit above
-full-screen applications and take the keyboard, which is correct in production
-and hostile during eighteen scenarios. Under `STUFFBUCKET_E2E` the windows move
-off the side of the display instead. They still show, still report visible, and
-still lay out identically. `STUFFBUCKET_E2E_VISIBLE=1` puts them back.
+A run also keeps off the developer's screen. Under `STUFFBUCKET_E2E` the
+windows move off the side of the display instead. They still show, still report
+visible, and still lay out identically. `STUFFBUCKET_E2E_VISIBLE=1` puts them
+back.
 
 Moving them is deliberate. Making them transparent works too, and it stops the
 compositor producing content. The images came out blank while the suite stayed

@@ -4,6 +4,7 @@ import type {
   LlmProviderInfo,
   StreamChunk,
 } from "@deepseek-ai/dsh-llm"
+import type { LocalModelControl } from "@stuffbucket/maximal-model-contract"
 
 import type {
   ActivationSnapshot,
@@ -75,6 +76,7 @@ interface GenuinePluginModule {
 }
 
 export interface CordisRuntimeFacade {
+  readonly localModels?: LocalModelControl | undefined
   listProviders(): ReadonlyArray<LlmProviderInfo>
   listModels(provider: string): Promise<ReadonlyArray<LlmModelInfo>>
   stream(options: GenerateOptions): AsyncIterable<StreamChunk>
@@ -215,7 +217,26 @@ function assertDependencies(
   }
 }
 
+function localModelControl(value: unknown): LocalModelControl | undefined {
+  if (value === undefined) return undefined
+  if (
+    value === null
+    || typeof value !== "object"
+    || typeof (value as { readonly ensure?: unknown }).ensure !== "function"
+    || typeof (value as { readonly list?: unknown }).list !== "function"
+    || typeof (value as { readonly subscribe?: unknown }).subscribe
+      !== "function"
+  ) {
+    throw profileValidationFailure(
+      "profile-invalid",
+      "The localModels service does not expose local-model control.",
+    )
+  }
+  return value as LocalModelControl
+}
+
 class RuntimeAggregate implements CordisRuntimeFacade {
+  readonly localModels: LocalModelControl | undefined
   readonly #context: ContextLike
   readonly #llm: LlmRuntimeLike
   readonly #disposers: Array<() => void | Promise<void>>
@@ -229,6 +250,7 @@ class RuntimeAggregate implements CordisRuntimeFacade {
     this.#context = context
     this.#llm = llm
     this.#disposers = disposers
+    this.localModels = localModelControl(context.get("localModels"))
   }
 
   listProviders(): ReadonlyArray<LlmProviderInfo> {

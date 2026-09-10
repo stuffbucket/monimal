@@ -17,8 +17,11 @@ repository or imported commit:
 
 | Package                                   | Purpose                                                                                   |
 | ----------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `packages/local-model-registry`           | Provider-neutral local-model registration, provisioning, and runner claims.               |
+| `packages/maximal-harness`                | Transport-neutral local agent runtime, approval gate, worker, and renderer component.     |
 | `packages/maximal-model-contract`         | Runtime-neutral model gateway contract shared by Core and model orchestration.            |
 | `packages/maximal-models`                 | Model runtime discovery, lifecycle, reconciliation, and dispatch through DSH.             |
+| `packages/model-qwen3-0.6b-q8-gguf`       | Qwen3 0.6B Q8_0 GGUF artifact metadata and verified provisioning source.                  |
 | `packages/maximal-observability-contract` | Runtime-neutral, versioned traffic-observability schemas and passive observer interfaces. |
 | `packages/maximal-observability`          | Renderer-only traffic explorer components and source interface.                           |
 | `packages/model-runtimes/anthropic`       | Profile-installed adapter for Anthropic-compatible Messages APIs.                         |
@@ -191,9 +194,11 @@ package provenance or publisher identity -- the proxy does that.
   stock Cordis/DSH adapter for an independently running oMLX HTTP server. Cordis
   and DSH are exact peers of external model runtime packages and are loaded from
   a user-managed profile rather than compiled into Maximal.
-  `packages/model-runtimes/llama-server` remains a private descriptor scaffold
-  and is deliberately separate from `maximal-electron`'s embedded
-  `node-llama-cpp` utility process.
+  `packages/model-runtimes/llama-server` is an activation-gated Cordis/DSH
+  runner for a private standalone llama.cpp process. Packaging fails until its
+  runtime lock contains an authoritative entry for the target. It remains
+  separate from the client's transitional embedded `node-llama-cpp` utility
+  process.
 - Pin rule SETS, not just plugin versions, when a plugin major moves. The
   replaced preset enumerated 83 unicorn rules against unicorn 60; ESLint 10
   needs unicorn >= 73, whose `recommended` turns on 227 more. Taking
@@ -245,7 +250,7 @@ package provenance or publisher identity -- the proxy does that.
   `Unexpected token 'S'` for anyone who ran it locally; it also rewrote
   `pnpm-lock.yaml` on its way out, which is the lockfile hazard above reached
   through a read-only check.
-- `maximal-electron`: `src/main/llama-worker.ts` passes `build: 'never'` to
+- `maximal/client`: `src/main/llama-worker.ts` passes `build: 'never'` to
   `getLlama()`, and packaging drops
   `node-llama-cpp/llama/gitRelease.bundle` -- 33 MB of llama.cpp source for a
   compile that cannot run in an Electron bundle. Upstream already defaults the

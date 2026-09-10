@@ -19,7 +19,6 @@ Screenshot of the shell: `test-results/shell.png`, after `npm run stills`.
 | Renderer | React 19 on Vite 7. |
 | Layout | Radix and `react-resizable-panels`. |
 | Terminal | Configurable xterm.js or wterm with libghostty over `node-pty`; xterm.js is the default. |
-| Agent | pi coding agent, or an embedded model. |
 | Packaging | Forge `package` on macOS and Windows, verified in CI. |
 | Release | An npm tarball on a GitHub release. No installer. |
 | Tests | Vitest and Playwright. |
@@ -44,10 +43,6 @@ A document layout with an optional inspector:
 - **Document tabs in the title bar**, not in a row of their own.
 - **Real terminals in tabs.** The `+` button opens a shell rendered by the
   configured xterm.js or wterm/libghostty engine.
-- A **floating overlay** running a coding agent, summoned by accelerator. It
-  streams, uses tools, and asks before it touches anything. There is no API
-  key, and nothing to install: it prefers a local proxy when one is running,
-  and otherwise runs a small model inside the application.
 - A **grid and list canvas** with selection.
 - An optional **collapsible right inspector** for documents that have secondary
   properties to show.
@@ -125,6 +120,7 @@ you use:
 | `@stuffbucket/maximal-electron/preload` | `electron` |
 | `@stuffbucket/maximal-electron/host/terminal` | `node-pty` |
 | `@stuffbucket/maximal-electron/electron-terminal` | `electron`, `node-pty` |
+| `@stuffbucket/maximal-electron/electron-panel` | `electron` |
 | `@stuffbucket/maximal-electron/renderer` | `react`, `react-dom`, `@xterm/xterm`, `@xterm/addon-fit`, `@wterm/dom`, `@wterm/ghostty`, `lucide-react`, `react-resizable-panels`, `@radix-ui/react-collapsible`, `@radix-ui/react-dialog`, `@radix-ui/react-dropdown-menu`, `@radix-ui/react-radio-group`, `@radix-ui/react-tabs`, `@radix-ui/react-tooltip`, `@radix-ui/react-visually-hidden` |
 | `@stuffbucket/maximal-electron/verify` | none |
 | `@stuffbucket/maximal-electron/verify/shell-variables` | none |
@@ -376,8 +372,8 @@ STUFFBUCKET_ICON_DIR=~/brand/icons npm run package
 STUFFBUCKET_ICON_DIR=~/brand/icons npm start
 ```
 
-The directory must carry all five names. `npm run icons` installs the canonical
-set there, and honours the same variable.
+The directory must carry all five names. `npm run icons` installs Maximal's
+canonical set there, and honours the same variable.
 
 | File | Used for |
 | --- | --- |
@@ -413,9 +409,8 @@ npm run compose -- workflow     # re-cut, without touching the app
 ```
 
 Nothing in the output is a mock. The window is the window `npm start` opens,
-the terminal runs a real shell, and the overlay talks to a real model through
-the real approval gate. So a change that breaks the interface breaks the
-recording, and a demo cannot quietly go stale.
+and the terminal runs a real shell. A change that breaks the interface breaks
+the recording, so a demo cannot quietly go stale.
 
 Recording is two steps. **Capture** drives the application and keeps every
 frame. **Compose** cuts those frames into a video. An edit file says what plays,
@@ -455,19 +450,9 @@ Stated here rather than discovered later.
 - **No auto-update.** There is no delivered artifact for an updater to replace.
 - **Nothing is signed.** macOS Gatekeeper refuses an unsigned bundle it did not
   build, and Windows SmartScreen warns on first run.
-- **The overlay agent has shell access when tools are on.** That is what makes
-  it a coding agent. It asks before it runs anything that can change the
-  machine, and the "Ask before running" setting controls how much it asks.
-  Turn the tools off entirely with the "Agent tools" switch.
-- **The summon accelerator is not a double tap of Ctrl.** Electron cannot bind
-  a bare modifier without a native monitor.
-- **The concierge model downloads on first use.** About 610 MB, once, into the
-  user data directory. The package stays smaller and the model can be upgraded
-  without a new build, but a first run with no network and no proxy cannot
-  answer.
-- **Canonical icons.** `scripts/gen-icons.mjs` installs the application and tray
-  assets. Point `STUFFBUCKET_ICON_DIR` at a complete replacement set to ship
-  another identity.
+- **Maximal icons.** `scripts/gen-icons.mjs` installs the canonical application
+  and tray assets retired with the Tauri shell. Point `STUFFBUCKET_ICON_DIR` at
+  a complete replacement set to ship another identity.
 
 ## Fork it
 

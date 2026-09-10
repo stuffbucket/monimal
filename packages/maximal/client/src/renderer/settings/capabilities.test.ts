@@ -59,12 +59,36 @@ function fakeBridge(): MaximalBridge {
       location: vi.fn(async () => '/tmp/maximal/logs'),
       reveal: vi.fn(async () => {}),
     },
+    localModels: {
+      list: vi.fn(async () => success({ models: [], revision: 0 })),
+      ensure: vi.fn(async (modelKey: string) =>
+        success({ modelKey, operationId: 'operation-1', started: true }),
+      ),
+      cancel: vi.fn(async (operationId: string) =>
+        success({ operationId, cancelled: true }),
+      ),
+      openFolder: vi.fn(async () => {}),
+      onChange: vi.fn(() => () => {}),
+    },
     menuBarMode: {
       get: vi.fn(async () => ({ enabled: false, pending: false })),
       beginEnable: vi.fn(async () => ({ attemptId: 'attempt-1', deadlineMs: 1 })),
       confirmEnable: vi.fn(async () => ({ enabled: true, pending: false })),
       cancelEnable: vi.fn(async () => ({ enabled: false, pending: false })),
       disable: vi.fn(async () => ({ enabled: false, pending: false })),
+    },
+    harness: {
+      hide: vi.fn(async () => {}),
+      provider: vi.fn(async () => ({ state: 'probing' as const })),
+      ask: vi.fn(async () => ({ started: true as const })),
+      abort: vi.fn(async () => {}),
+      approve: vi.fn(async () => {}),
+      ensureModel: vi.fn(async () => ({ state: 'absent' as const })),
+      onDelta: vi.fn(() => () => {}),
+      onTool: vi.fn(() => () => {}),
+      onApproval: vi.fn(() => () => {}),
+      onEnd: vi.fn(() => () => {}),
+      onModelProgress: vi.fn(() => () => {}),
     },
     terminal: {
       spawn: vi.fn(async () => {}),
@@ -201,6 +225,25 @@ describe('createCoreSettingsCapabilities', () => {
     ).resolves.toEqual({ entries: [], enforcing: true })
     await expect(capabilities.models.list()).resolves.toMatchObject({ count: 0 })
     await expect(capabilities.models.refresh()).resolves.toMatchObject({ count: 0 })
+    await expect(capabilities.localModels.list()).resolves.toEqual({
+      models: [],
+      revision: 0,
+    })
+    await expect(capabilities.localModels.ensure('qwen')).resolves.toEqual({
+      modelKey: 'qwen',
+      operationId: 'operation-1',
+      started: true,
+    })
+    await expect(capabilities.localModels.cancel('operation-1')).resolves.toEqual({
+      operationId: 'operation-1',
+      cancelled: true,
+    })
+    await expect(capabilities.localModels.openFolder()).resolves.toBeUndefined()
+    const onLocalModelChange = vi.fn()
+    capabilities.localModels.subscribe(onLocalModelChange)
+    expect(window.maximal.localModels.onChange).toHaveBeenCalledWith(
+      onLocalModelChange,
+    )
     await expect(capabilities.usage.get('week')).resolves.toMatchObject({
       period: 'week',
     })

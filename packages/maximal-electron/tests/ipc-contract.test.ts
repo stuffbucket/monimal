@@ -57,8 +57,8 @@ describe('IPC contract', () => {
     // noticing this list is not. Update it in the same change.
     const channels: IpcChannel[] = [...IPC_CHANNELS];
     const events: IpcEvent[] = [...IPC_EVENTS];
-    expect(channels).toHaveLength(29);
-    expect(events).toHaveLength(12);
+    expect(channels).toHaveLength(22);
+    expect(events).toHaveLength(7);
   });
 
   it('keeps the terminal channels together', () => {
@@ -134,12 +134,5 @@ describe('default preferences', () => {
     // is a choice. Flipping this default would leak a shell for anyone who
     // relies on a tab close ending one.
     expect(DEFAULT_PREFERENCES.terminalDetach).toBe(false);
-  });
-
-  it('ships a summon accelerator', () => {
-    // An empty accelerator would leave the overlay unreachable, because there
-    // is no other entry point to it.
-    expect(DEFAULT_PREFERENCES.overlayHotkey.length).toBeGreaterThan(0);
-    expect(DEFAULT_PREFERENCES.overlayHotkey).toContain('+');
   });
 });

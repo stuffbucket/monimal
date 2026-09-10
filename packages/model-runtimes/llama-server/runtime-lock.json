@@ -1,0 +1,5 @@
+{
+  "$schema": "./runtime-lock.schema.json",
+  "schemaVersion": 1,
+  "releases": {}
+}

@@ -20,15 +20,18 @@ import {
 import { ControlHub } from "~/lib/live/hub"
 import { AsyncMutex } from "~/lib/live/mutex"
 import { stopControlHub } from "~/lib/live/service"
+import { state } from "~/lib/runtime-state/state"
 import { createControlRoutes } from "~/routes/control/route"
 import { createControlRpcMethods } from "~/routes/control/rpc"
 
 beforeEach(() => {
+  state.models = undefined
   writeConfig({})
 })
 
 afterEach(() => {
   stopControlHub()
+  state.models = undefined
   writeConfig({})
 })
 

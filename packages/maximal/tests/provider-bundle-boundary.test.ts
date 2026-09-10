@@ -8,7 +8,7 @@ describe("provider bundle boundary", () => {
       assertGenericProviderBundle({
         inputs: {
           "../maximal-core/dist/cli.js": {},
-          "../maximal-provider-contract/dist/index.js": {},
+          "../maximal-model-contract/dist/index.js": {},
           "../maximal-models/dist/index.js": {},
           "src/main.ts": {},
         },

@@ -1,4 +1,4 @@
-import { Component, FileText, Play, Sparkles, SquareTerminal } from 'lucide-react';
+import { Component, FileText, Play, SquareTerminal } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState, type ComponentType } from 'react';
 
 import type { AppVersions, TerminalLaunchRequest, UpdateStatus, ViewId } from '../shared/ipc.js';
@@ -7,7 +7,6 @@ import { Canvas } from './components/Canvas.js';
 import {
   Card,
   EmptyState,
-  IconButton,
   Row,
   Toolbar,
   type ViewMode,
@@ -316,13 +315,6 @@ export function App() {
       tabIcon={(tab) => TAB_ICONS[tab.kind]}
       titleBarActions={
         <>
-          <IconButton
-            label="Ask (summon overlay)"
-            onClick={() => void bridge.invoke('overlay:toggle')}
-            testId="toggle-overlay"
-          >
-            <Sparkles size={15} />
-          </IconButton>
           <Profile
             account={account}
             onOpen={openSurface}

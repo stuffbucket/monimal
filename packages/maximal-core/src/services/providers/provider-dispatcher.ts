@@ -1,4 +1,5 @@
 import type {
+  LocalModelControl,
   ProviderDispatch,
   ProviderGateway,
   ProviderOperation,
@@ -41,11 +42,13 @@ export interface ProviderDispatcher {
   dispatch(options: ProviderDispatchOptions): Promise<Response>
   dispose(): Promise<void>
   listModels(): Promise<ReadonlyArray<ProviderCatalogueModel>>
+  localModels(): LocalModelControl | undefined
   ready(): Promise<void>
   requiresGithubAuth(): boolean
 }
 
 export interface CreateProviderDispatcherOptions {
+  beforeDispose?: () => Promise<void> | void
   configSource?: ProviderHostConfigSource
   gateway?: ProviderGateway
   gatewayFactory?: ProviderGatewayFactory
@@ -290,6 +293,11 @@ export function createProviderDispatcher(
         generation += 1
         queuedActivation = undefined
         unsubscribeConfig?.()
+        try {
+          await options.beforeDispose?.()
+        } catch (error) {
+          consola.error("Provider pre-disposal cleanup failed", error)
+        }
         await activation
         const currentFactory = factoryGateway
         factoryGateway = undefined
@@ -354,6 +362,11 @@ export function createProviderDispatcher(
         ),
       )
       return catalogues.flat()
+    },
+
+    localModels() {
+      if (isLegacyMode()) return undefined
+      return (staticGateway ?? factoryGateway)?.gateway.localModels
     },
 
     async ready() {

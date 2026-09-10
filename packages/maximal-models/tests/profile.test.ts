@@ -47,6 +47,96 @@ async function isReadable(path: string): Promise<boolean> {
   }
 }
 
+void test("providers.json v1 normalizes plugins to provider kind", async () => {
+  const fixture = await createFixtureProfile()
+  const profile = await resolveExternalProfile(fixture.directory)
+  assert.equal(profile.document.schemaVersion, 1)
+  assert.equal(profile.plugins[0]?.kind, "provider")
+})
+
+void test("providers.json v2 requires and preserves plugin kinds", async () => {
+  const fixture = await createFixtureProfile()
+  await fixture.writeProviders({
+    schemaVersion: 2,
+    runtime: { cordis: "@deepseek-ai/cordis", llm: "@deepseek-ai/dsh-llm" },
+    services: [],
+    plugins: [
+      { id: "model", kind: "model", package: "fixture-provider" },
+      {
+        id: "runner",
+        kind: "runner",
+        package: "fixture-provider",
+        providers: ["local"],
+      },
+    ],
+  })
+  const profile = await resolveExternalProfile(fixture.directory)
+  assert.deepEqual(
+    profile.plugins.map(({ id, kind }) => ({ id, kind })),
+    [
+      { id: "model", kind: "model" },
+      { id: "runner", kind: "runner" },
+    ],
+  )
+
+  await fixture.writeProviders({
+    schemaVersion: 2,
+    runtime: { cordis: "@deepseek-ai/cordis", llm: "@deepseek-ai/dsh-llm" },
+    services: [],
+    plugins: [{ id: "fixture", package: "fixture-provider" }],
+  })
+  await assert.rejects(
+    resolveExternalProfile(fixture.directory),
+    /kind must be/,
+  )
+
+  await fixture.writeProviders({
+    schemaVersion: 2,
+    runtime: { cordis: "@deepseek-ai/cordis", llm: "@deepseek-ai/dsh-llm" },
+    services: [],
+    plugins: [
+      {
+        id: "model",
+        kind: "model",
+        package: "fixture-provider",
+        providers: ["must-not-be-declared"],
+      },
+    ],
+  })
+  await assert.rejects(
+    resolveExternalProfile(fixture.directory),
+    /not valid for a model plugin/,
+  )
+})
+
+void test("v2 model plugins declare no expected provider status", async () => {
+  const fixture = await createFixtureProfile()
+  await fixture.writeProviders({
+    schemaVersion: 2,
+    runtime: { cordis: "@deepseek-ai/cordis", llm: "@deepseek-ai/dsh-llm" },
+    services: [],
+    plugins: [
+      { id: "catalog", kind: "model", package: "fixture-provider" },
+      {
+        id: "runner",
+        kind: "runner",
+        package: "fixture-provider",
+        providers: ["local"],
+      },
+    ],
+  })
+  const host = await startDshHost({
+    profileDirectory: fixture.directory,
+    activation: {
+      catalog: { enabled: false },
+      runner: { enabled: false },
+    },
+  })
+  assert.equal(host.getStatus("catalog"), undefined)
+  assert.equal(host.getStatus("local")?.state, "disabled")
+  await host.dispose()
+})
+
 void test("profile accepts only declared bare exact dependencies", async () => {
   const fixture = await createFixtureProfile()
   await fixture.writeProviders({

@@ -435,9 +435,10 @@ export function importedPackages(source) {
  * What a consumer installs, asked of one package directory.
  *
  * npm resolves dependencies per package, not per export, so one `dependencies`
- * entry reaches every consumer of every entry point. `./host` used to install
- * `node-llama-cpp`, `node-pty` and six Radix packages for a module that imports
- * `electron` alone. Issue #31.
+ * entry reaches every consumer of every entry point. `./host` imports only
+ * `electron`; the terminal entry points own `node-pty` and the renderer peers.
+ * Keeping them as optional peers prevents one surface from installing another's
+ * runtime.
  *
  * Optional peers are the only npm mechanism that installs nothing.
  * `optionalDependencies` install by default, and npm 7 and later auto-installs

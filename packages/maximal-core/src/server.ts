@@ -23,6 +23,7 @@ import {
   requireGithubAuth,
 } from "./lib/auth/request-auth"
 import { traceIdMiddleware } from "./lib/http/trace"
+import { getControlHub } from "./lib/live/service"
 import { staleRefreshMiddleware } from "./lib/models/refresh-models"
 import {
   createTrafficObservationMiddleware,
@@ -38,12 +39,13 @@ import { buildStatus } from "./lib/runtime-state/status"
 import { BUILD_VERSION } from "./lib/update/build-info"
 import { requireSupportedBuild } from "./lib/update/version-gate"
 import { completionRoutes } from "./routes/chat-completions/route"
+import { LocalModelOperations } from "./routes/control/local-models"
 import { createControlRoutes } from "./routes/control/route"
 import { debugRoutes } from "./routes/debug/route"
 import { embeddingRoutes } from "./routes/embeddings/route"
 import { createInternalRoutes } from "./routes/internal/route"
 import { messageRoutes } from "./routes/messages/route"
-import { modelRoutes } from "./routes/models/route"
+import { createModelRoutes } from "./routes/models/route"
 import { productApiRoutes } from "./routes/product-api"
 import { createProviderMessageRoutes } from "./routes/provider/messages/route"
 import { createProviderModelRoutes } from "./routes/provider/models/route"
@@ -195,12 +197,19 @@ export function createServerApps(
   const publicApp = new Hono()
   const controlApp = new Hono()
   const trafficObserver = options.trafficObserver ?? getDefaultTrafficObserver()
+  const localModelLifecycle: { operations?: LocalModelOperations } = {}
   const providerDispatcher = createProviderDispatcher({
+    beforeDispose: () => localModelLifecycle.operations?.dispose(),
     configSource: options.providerConfigSource,
     gateway: options.providerGateway,
     gatewayFactory: options.createProviderGateway,
     readConfig: options.readConfig,
   })
+  const localModelOperations = new LocalModelOperations({
+    control: () => providerDispatcher.localModels(),
+    hub: getControlHub,
+  })
+  localModelLifecycle.operations = localModelOperations
 
   applyCommonMiddleware(publicApp)
   applyCommonMiddleware(controlApp)
@@ -210,6 +219,7 @@ export function createServerApps(
     "/control",
     createControlRoutes({
       listProviderModels: () => providerDispatcher.listModels(),
+      localModelOperations,
       trafficQueries:
         options.trafficQueries
         ?? (isTrafficQueryStore(trafficObserver) ? trafficObserver : undefined),
@@ -260,6 +270,9 @@ export function createServerApps(
     publicApp.use(path, observeTraffic)
   }
 
+  const modelRoutes = createModelRoutes({
+    localModels: () => providerDispatcher.localModels(),
+  })
   publicApp.route("/chat/completions", completionRoutes)
   publicApp.route("/models", modelRoutes)
   publicApp.route("/embeddings", embeddingRoutes)
