@@ -99,7 +99,6 @@ COPY --chown=maximal:maximal packages/maximal-core/package.json packages/maximal
 COPY --chown=maximal:maximal packages/maximal-core/downstream/package.json packages/maximal-core/downstream/package.json
 COPY --chown=maximal:maximal packages/maximal-models/package.json packages/maximal-models/package.json
 COPY --chown=maximal:maximal packages/maximal-electron/package.json packages/maximal-electron/package.json
-COPY --chown=maximal:maximal packages/maximal-harness/package.json packages/maximal-harness/package.json
 COPY --chown=maximal:maximal packages/maximal-observability/package.json packages/maximal-observability/package.json
 COPY --chown=maximal:maximal packages/maximal-observability-contract/package.json packages/maximal-observability-contract/package.json
 COPY --chown=maximal:maximal packages/maximal-model-contract/package.json packages/maximal-model-contract/package.json

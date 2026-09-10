@@ -296,9 +296,9 @@ void test("describes provider URL and timeout controls for the settings UI", () 
     const timeout = settings.find(({ key }) => key === "timeoutMs")
     assert.ok(timeout)
     assert.equal(timeout.label, "Timeout (s)")
-    assert.equal(timeout.default, 30_000)
+    assert.equal(timeout.default, 300_000)
     assert.equal(timeout.unit, "seconds")
-    assert.equal(timeout.emptyDescription, "Uses 30 seconds when empty.")
+    assert.equal(timeout.emptyDescription, "Uses 300 seconds when empty.")
   }
   assert.equal(
     duckDuckGo.settings.find(({ key }) => key === "searchUrl")?.layout,

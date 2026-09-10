@@ -113,7 +113,12 @@ async function providerFieldLayout(page, providerId, fullFieldId) {
 const server = await createServer({
   configFile: resolve(packageDirectory, 'vite.renderer.config.ts'),
   clearScreen: false,
-  server: { host: '127.0.0.1', port: 0, strictPort: false },
+  server: {
+    host: '127.0.0.1',
+    hmr: false,
+    port: 0,
+    strictPort: false,
+  },
 })
 
 let browser
@@ -135,7 +140,7 @@ try {
   const desktop = await layout(page)
   check(desktop.h1Count === 1, `Expected one primary heading; found ${desktop.h1Count}.`)
   check(
-    desktop.sectionHeadings.join('|') === 'Provider order|Search behavior',
+    desktop.sectionHeadings.join('|') === 'Provider order|Domain filtering',
     `Unexpected section hierarchy: ${desktop.sectionHeadings.join(', ')}`,
   )
   check(desktop.providerCount === 3, `Expected three provider rows; found ${desktop.providerCount}.`)
@@ -173,7 +178,6 @@ try {
   }
 
   for (const [name, state] of [
-    ['Disable Ollama hosted search', 'Enabled'],
     ['Enable DuckDuckGo fallback', 'Disabled'],
   ]) {
     const toggle = page.getByRole('switch', { name })
@@ -184,7 +188,32 @@ try {
     await visibleTooltip.waitFor({ state: 'hidden' })
   }
 
-  await page.getByRole('button', { name: 'Configure Ollama hosted search' }).click()
+  const ollamaRequiredAlert = page.getByTestId('search-provider-required-ollama')
+  check(
+    (await ollamaRequiredAlert.textContent())?.includes(
+      'Ollama hosted search cannot be enabled until its required information is completed: API key is required.',
+    ),
+    'The missing Ollama API key alert is absent or unclear.',
+  )
+  const ollamaToggle = page.getByRole('switch', { name: 'Enable Ollama hosted search' })
+  check(await ollamaToggle.isDisabled(), 'Ollama can be enabled without its required API key.')
+  check(
+    await ollamaToggle.getAttribute('aria-checked') === 'false',
+    'Ollama is enabled without its required API key.',
+  )
+
+  const ollamaDisclosure = page.getByRole('button', {
+    name: 'Configure Ollama hosted search',
+  })
+  await ollamaDisclosure.click()
+  await page.waitForTimeout(1_500)
+  const expandedOllamaDisclosure = page.getByRole('button', {
+    name: 'Collapse Ollama hosted search',
+  })
+  check(
+    await expandedOllamaDisclosure.getAttribute('aria-expanded') === 'true',
+    'The Ollama disclosure closed without user input.',
+  )
   const ollamaFields = await providerFieldLayout(page, 'ollama', 'baseUrl')
   const ollamaApiKey = await providerFieldLayout(page, 'ollama', 'apiKey')
   check(

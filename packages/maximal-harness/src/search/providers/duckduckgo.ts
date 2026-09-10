@@ -29,11 +29,11 @@ export function duckDuckGoSearchProvider(
         key: "timeoutMs",
         type: "integer",
         label: "Timeout (s)",
-        default: 30_000,
+        default: 300_000,
         min: 1_000,
         max: 600_000,
         unit: "seconds",
-        emptyDescription: "Uses 30 seconds when empty.",
+        emptyDescription: "Uses 300 seconds when empty.",
       },
       {
         key: "maxResults",

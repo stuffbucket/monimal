@@ -55,7 +55,7 @@ test("search settings present provider defaults and display metadata", () => {
     {
       key: "timeoutMs",
       label: "Timeout (s)",
-      default: 30_000,
+      default: 300_000,
       unit: "seconds",
     },
     { key: "maxResults", default: 5 },
@@ -65,7 +65,7 @@ test("search settings present provider defaults and display metadata", () => {
     {
       key: "timeoutMs",
       label: "Timeout (s)",
-      default: 30_000,
+      default: 300_000,
       unit: "seconds",
     },
     { key: "maxResults", default: 5 },

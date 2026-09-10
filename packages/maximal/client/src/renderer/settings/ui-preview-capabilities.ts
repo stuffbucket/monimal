@@ -68,11 +68,11 @@ const initialSearchSettings: SearchSettingsResponse = {
             key: 'timeoutMs',
             type: 'integer',
             label: 'Timeout (s)',
-            default: 30_000,
+            default: 300_000,
             min: 1_000,
             max: 600_000,
             unit: 'seconds',
-            emptyDescription: 'Uses 30 seconds when empty.',
+            emptyDescription: 'Uses 300 seconds when empty.',
           },
           {
             key: 'maxResults',
@@ -134,11 +134,11 @@ const initialSearchSettings: SearchSettingsResponse = {
             key: 'timeoutMs',
             type: 'integer',
             label: 'Timeout (s)',
-            default: 30_000,
+            default: 300_000,
             min: 1_000,
             max: 600_000,
             unit: 'seconds',
-            emptyDescription: 'Uses 30 seconds when empty.',
+            emptyDescription: 'Uses 300 seconds when empty.',
           },
           {
             key: 'maxResults',
@@ -161,13 +161,13 @@ const initialSearchSettings: SearchSettingsResponse = {
   },
   providers: {
     ollama: {
-      enabled: true,
+      enabled: false,
       settings: {
         baseUrl: 'https://ollama.com/api',
-        timeoutMs: 30_000,
+        timeoutMs: 300_000,
         maxResults: 5,
       },
-      secret_sources: { apiKey: 'environment' },
+      secret_sources: {},
     },
     copilot: {
       enabled: true,
@@ -178,7 +178,7 @@ const initialSearchSettings: SearchSettingsResponse = {
       enabled: false,
       settings: {
         searchUrl: 'https://html.duckduckgo.com/html/',
-        timeoutMs: 30_000,
+        timeoutMs: 300_000,
         maxResults: 5,
       },
       secret_sources: {},
