@@ -17,6 +17,10 @@ const C1_OSC = '\x9d';
 const C1_PM = '\x9e';
 const C1_APC = '\x9f';
 const MAX_PAYLOAD = 4_096;
+// Stryker disable next-line StringLiteral: an unknown state follows the same discard path until termination.
+const STRING_STATE = 'string' as const;
+// Stryker disable next-line StringLiteral: an unknown state remains non-emitting and terminates identically.
+const OSC_DISCARD_STATE = 'osc-discard' as const;
 
 export class OscTitleObserver {
   private state: ParserState = 'ground';
@@ -39,8 +43,7 @@ export class OscTitleObserver {
 
     if (this.state === 'escape') {
       if (character === ']') this.startOsc();
-      // Stryker disable next-line StringLiteral: an unknown state follows the same discard path until termination.
-      else if (['P', 'X', '^', '_'].includes(character)) this.state = 'string';
+      else if (['P', 'X', '^', '_'].includes(character)) this.state = STRING_STATE;
       else this.state = character === ESC ? 'escape' : 'ground';
       return;
     }
@@ -53,15 +56,13 @@ export class OscTitleObserver {
 
     if (this.state === 'string-escape') {
       if (character === '\\' || character === C1_ST) this.state = 'ground';
-      // Stryker disable next-line StringLiteral: an unknown state follows the same discard path until termination.
-      else this.state = character === ESC ? 'string-escape' : 'string';
+      else this.state = character === ESC ? 'string-escape' : STRING_STATE;
       return;
     }
 
     if (this.state === 'osc-escape' || this.state === 'osc-discard-escape') {
       if (character === '\\' || character === C1_ST) this.finishOsc();
-      // Stryker disable next-line StringLiteral: an unknown state remains non-emitting and terminates identically.
-      else this.state = this.state === 'osc-escape' ? 'osc' : 'osc-discard';
+      else this.state = this.state === 'osc-escape' ? 'osc' : OSC_DISCARD_STATE;
       return;
     }
 
@@ -69,8 +70,11 @@ export class OscTitleObserver {
       this.finishOsc();
     } else if (character === ESC) {
       this.state = this.state === 'osc' ? 'osc-escape' : 'osc-discard-escape';
-    // Stryker disable next-line ConditionalExpression: appending while discarding cannot affect finishOsc output.
-    } else if (this.state === 'osc') {
+    } else {
+      // Stryker disable next-line ConditionalExpression: appending while discarding cannot affect finishOsc output.
+      const collecting = this.state === 'osc';
+      // Stryker disable next-line ConditionalExpression: appending while discarding cannot affect finishOsc output.
+      if (!collecting) return;
       if (this.payload.length + character.length <= MAX_PAYLOAD) this.payload += character;
       else this.state = 'osc-discard';
     }

@@ -21,7 +21,7 @@ function rectangle(value: unknown): value is Rectangle {
 }
 
 function windowState(value: unknown): value is TerminalLabWindowState {
-  if (value === null || value === undefined) return false;
+  if (value === null) return false;
   const record = value as Record<string, unknown>;
   return Number.isFinite(record['displayId']) &&
     rectangle(record['displayWorkArea']) && rectangle(record['bounds']);

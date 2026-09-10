@@ -94,6 +94,7 @@ describe('terminal lab launch boundary', () => {
       null,
       true,
       {},
+      { displayId: 1 },
       { displayId: '1', displayWorkArea: { x: 0, y: 0, width: 100, height: 100 }, bounds: { x: 0, y: 0, width: 50, height: 50 } },
       { displayId: 1, displayWorkArea: null, bounds: { x: 0, y: 0, width: 50, height: 50 } },
       { displayId: 1, displayWorkArea: { x: 0, y: 0, width: 100, height: 100 }, bounds: null },
