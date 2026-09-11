@@ -50,16 +50,13 @@ function hex(value: string): Rgb {
   }
 }
 
-function composite(value: string, background: Rgb): Rgb {
-  const match = /^rgb\((\d+) (\d+) (\d+) \/ ([\d.]+)\)$/.exec(value)
-  if (match === null) throw new Error(`${value} is not an rgb colour with alpha`)
-  const alpha = Number(match[4])
-  const channel = (foreground: number, behind: number) =>
-    Math.round(foreground * alpha + behind * (1 - alpha))
+function blend(foreground: Rgb, background: Rgb, alpha: number): Rgb {
+  const channel = (front: number, behind: number) =>
+    Math.round(front * alpha + behind * (1 - alpha))
   return {
-    red: channel(Number(match[1]), background.red),
-    green: channel(Number(match[2]), background.green),
-    blue: channel(Number(match[3]), background.blue),
+    red: channel(foreground.red, background.red),
+    green: channel(foreground.green, background.green),
+    blue: channel(foreground.blue, background.blue),
   }
 }
 
@@ -107,7 +104,7 @@ describe('switch non-text contrast', () => {
       return found
     }
     const canvas = hex(value('--shell-canvas'))
-    const offTrack = composite(value('--shell-active'), canvas)
+    const offTrack = blend(hex(value('--shell-text-muted')), canvas, 0.2)
     const accent = hex(value('--shell-accent'))
 
     const relationships = [

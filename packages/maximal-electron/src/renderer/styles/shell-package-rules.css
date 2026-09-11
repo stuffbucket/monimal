@@ -963,7 +963,7 @@
   flex: none;
   border: 1px solid var(--shell-text-muted);
   border-radius: 9999px;
-  background: var(--shell-active);
+  background: color-mix(in srgb, var(--shell-text-muted) 20%, transparent);
   transition:
     background 120ms ease-out,
     border-color 120ms ease-out;
