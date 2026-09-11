@@ -72,9 +72,7 @@ export function ConnectionsSection({
   const [error, setError] = useState<string | null>(null)
 
   const refresh = useCallback(
-    async (showProgress: boolean) => {
-      if (showProgress) setRefreshing(true)
-      setError(null)
+    async () => {
       try {
         const [nextProxyUrl, nextConnections] = await Promise.all([
           capabilities.connection.proxyUrl(),
@@ -83,22 +81,28 @@ export function ConnectionsSection({
         if (!mounted.current) return
         setProxyUrl(nextProxyUrl)
         setConnections(nextConnections)
+        setError(null)
       } catch (cause) {
         if (mounted.current) setError(describeError(cause))
-      } finally {
-        if (mounted.current && showProgress) setRefreshing(false)
       }
     },
     [capabilities],
   )
 
   useEffect(() => {
+    let cancelled = false
     mounted.current = true
-    void refresh(true)
+    queueMicrotask(() => {
+      if (cancelled) return
+      void refresh().finally(() => {
+        if (!cancelled && mounted.current) setRefreshing(false)
+      })
+    })
     const unsubscribe = capabilities.subscribe(() => {
-      void refresh(false)
+      void refresh()
     })
     return () => {
+      cancelled = true
       mounted.current = false
       unsubscribe()
     }
@@ -221,7 +225,13 @@ export function ConnectionsSection({
       <div className="settings-section__actions">
         <Button
           size="sm"
-          onClick={() => void refresh(true)}
+          onClick={() => {
+            setRefreshing(true)
+            setError(null)
+            void refresh().finally(() => {
+              if (mounted.current) setRefreshing(false)
+            })
+          }}
           disabled={busy}
         >
           {refreshing ? 'Scanning…' : 'Rescan'}

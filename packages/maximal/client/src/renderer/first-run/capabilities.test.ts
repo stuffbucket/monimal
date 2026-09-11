@@ -92,6 +92,7 @@ describe('createCoreLifecycleCapability', () => {
     const lifecycle = createCoreLifecycleCapability(bridge)
     const onChange = vi.fn()
     const unsubscribe = lifecycle.subscribe(onChange)
+    const unsubscribeSecond = lifecycle.subscribe(vi.fn())
 
     expect(listenerCount()).toBe(1)
     emit({ phase: 'boot-status', message: 'Downloading model index…' })
@@ -114,30 +115,36 @@ describe('createCoreLifecycleCapability', () => {
     expect(crashed).not.toHaveProperty('attempt')
 
     unsubscribe()
+  expect(listenerCount()).toBe(1)
+  unsubscribeSecond()
     for (let index = 0; index < 5; index += 1) {
       lifecycle.subscribe(vi.fn())()
     }
-    expect(listenerCount()).toBe(1)
+    expect(listenerCount()).toBe(0)
   })
 
-  it('delivers the current phase immediately to a late subscriber', () => {
+  it('exposes the current phase to a late subscriber without a synchronous callback', () => {
     const { bridge, emit } = fakeLifecycleBridge()
     const lifecycle = createCoreLifecycleCapability(bridge)
+    const unsubscribe = lifecycle.subscribe(vi.fn())
     emit({
       phase: 'ready',
       proxyUrl: 'http://127.0.0.1:4141',
       pid: 99,
     })
+    unsubscribe()
 
     const onChange = vi.fn()
     lifecycle.subscribe(onChange)
-    expect(onChange).toHaveBeenCalledWith({ phase: 'ready' })
+    expect(lifecycle.current()).toEqual({ phase: 'ready' })
+    expect(onChange).not.toHaveBeenCalled()
   })
 
   it('does not let a late seed overwrite a newer live transition', async () => {
     const seed = deferred<LifecycleStatus>()
     const { bridge, emit } = fakeLifecycleBridge(seed.promise)
     const lifecycle = createCoreLifecycleCapability(bridge)
+    lifecycle.subscribe(vi.fn())
 
     emit({
       phase: 'ready',
@@ -151,12 +158,15 @@ describe('createCoreLifecycleCapability', () => {
     expect(lifecycle.current()).toEqual({ phase: 'ready' })
   })
 
-  it('disposes its one app bridge listener', () => {
+  it('connects lazily and releases its bridge listener after the last subscriber', () => {
     const { bridge, listenerCount } = fakeLifecycleBridge()
     const lifecycle = createCoreLifecycleCapability(bridge)
+    expect(listenerCount()).toBe(0)
+
+    const unsubscribe = lifecycle.subscribe(vi.fn())
     expect(listenerCount()).toBe(1)
 
-    lifecycle.dispose()
+    unsubscribe()
     expect(listenerCount()).toBe(0)
   })
 })
