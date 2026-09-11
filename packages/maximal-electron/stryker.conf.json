@@ -37,6 +37,7 @@
     "src/main/native/self-check.ts",
     "src/renderer/lib/terminal-tab.ts",
     "src/renderer/lib/terminal-pane.ts",
+    "src/renderer/lib/terminal-workspace.ts",
     "src/renderer/lib/terminal-sessions.ts",
     "src/renderer/lib/terminal-ack.ts",
     "src/renderer/lib/osc-title.ts",
