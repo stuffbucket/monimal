@@ -12,7 +12,7 @@ const initialSearchSettings: SearchSettingsResponse = {
   manifest: {
     id: 'search',
     label: 'Search',
-    description: 'Configure web search providers and fallback order.',
+    description: 'Configure search providers for the web and other information sources.',
     fields: [
       {
         key: 'priority',

@@ -63,7 +63,7 @@ export function buildSearchSettingsManifest(
   return {
     id: "search",
     label: "Search",
-    description: "Configure web search providers and fallback order.",
+    description: "Configure web search providers and other information sources.",
     fields: SEARCH_CONNECTOR_SETTINGS,
     providers: providers.map((provider) => ({
       id: provider.id,
