@@ -128,7 +128,7 @@
     ]
   },
   "dependencies": {
-    "@hono/zod-openapi": "1.6.1",
+    "@hono/zod-openapi": "1.6.2",
     "@stuffbucket/maximal-harness": "workspace:*",
     "@stuffbucket/maximal-model-contract": "workspace:*",
     "@stuffbucket/maximal-observability-contract": "workspace:*",
@@ -155,13 +155,13 @@
     "@types/turndown": "^5.0.6",
     "@types/winreg": "^1.2.36",
     "@typescript/native": "npm:typescript@^7.0.2",
-    "bumpp": "^12.2.2",
+    "bumpp": "^12.3.0",
     "dependency-cruiser": "18.2.0",
     "eslint": "^10.9.1",
-    "jscpd": "5.1.1",
+    "jscpd": "5.1.2",
     "knip": "6.34.0",
     "lint-staged": "^17.3.0",
-    "oxlint": "^1.80.0",
+    "oxlint": "^1.81.0",
     "tsup": "^8.5.1",
     "typescript": "npm:@typescript/typescript6@^6.0.2"
   },
