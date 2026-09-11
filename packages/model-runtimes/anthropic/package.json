@@ -39,7 +39,7 @@
     "@deepseek-ai/dsh-llm": "0.1.0-rc.8",
     "@deepseek-ai/dsh-timeout": "0.1.0-rc.8",
     "@stuffbucket/eslint-config": "workspace:*",
-    "@types/node": "^26.4.0",
+    "@types/node": "^26.4.1",
     "@typescript/native": "npm:typescript@^7.0.2",
     "eslint": "^10.9.1",
     "tsup": "^8.5.1",
