@@ -47,6 +47,7 @@
     "typecheck": {
       "dependsOn": ["^build"],
       "outputs": [],
+      "passThroughEnv": ["MONIMAL_WORKSPACE_TASK"],
       "inputs": [
         "$TURBO_DEFAULT$",
         "!research_log/**",
@@ -90,6 +91,7 @@
     "lint": {
       "dependsOn": ["transit", "^build"],
       "outputs": [],
+      "passThroughEnv": ["MONIMAL_WORKSPACE_TASK"],
       "inputs": [
         "$TURBO_DEFAULT$",
         "!research_log/**",
