@@ -306,8 +306,8 @@ package provenance or publisher identity -- the proxy does that.
   bootstrap and its published manifest keeps the same CLI path.
 - `maximal/client`: direct `typecheck` and `lint` scripts re-enter their Turbo
   tasks through `scripts/run-workspace-task.mjs`. Turbo invocations run the
-  inner tools directly, so package checks cannot skip their `^build` edges or
-  recurse.
+  package-owned `typecheck:inner` and `lint:inner` scripts, so package checks
+  cannot skip their `^build` edges or recurse.
 - `maximal-electron`: added `typebox`. `maximal/client`: added `@types/node` and
   `@electron/packager`. All three are imported but never declared, and npm's
   flat `node_modules` used to supply them. Real bugs upstream.

@@ -461,10 +461,12 @@ test("root workflows select the intended package and task graphs", () => {
     client.scripts.typecheck,
     "node ../../../scripts/run-workspace-task.mjs typecheck",
   );
+  assert.equal(client.scripts["typecheck:inner"], "tsc --noEmit");
   assert.equal(
     client.scripts.lint,
     "node ../../../scripts/run-workspace-task.mjs lint",
   );
+  assert.equal(client.scripts["lint:inner"], "eslint .");
   assert.deepEqual(turbo.tasks.transit.dependsOn, ["^transit"]);
   assert.deepEqual(turbo.tasks.lint.dependsOn, ["transit", "^build"]);
   assert.deepEqual(turbo.tasks.lint.passThroughEnv, [
@@ -517,8 +519,8 @@ test("direct client checks re-enter the workspace task graph", () => {
     rootDirectory: "/repo",
   });
   assert.deepEqual(inner, {
-    arguments: ["."],
-    command: "eslint",
+    arguments: ["run", "lint:inner"],
+    command: "/pnpm.cjs",
     cwd: "/repo/packages/maximal/client",
     shell: process.platform === "win32",
   });

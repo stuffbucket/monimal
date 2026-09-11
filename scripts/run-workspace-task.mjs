@@ -5,10 +5,7 @@ import { fileURLToPath } from "node:url";
 
 const repositoryRoot = path.resolve(import.meta.dirname, "..");
 const workspaceTaskEnvironment = "MONIMAL_WORKSPACE_TASK";
-const innerCommands = new Map([
-  ["lint", ["eslint", "."]],
-  ["typecheck", ["tsc", "--noEmit"]],
-]);
+const supportedTasks = new Set(["lint", "typecheck"]);
 
 export function workspaceTaskPlan({
   arguments_,
@@ -18,26 +15,25 @@ export function workspaceTaskPlan({
   packageName,
   rootDirectory,
 }) {
-  if (arguments_.length !== 1 || !innerCommands.has(arguments_[0])) {
+  if (arguments_.length !== 1 || !supportedTasks.has(arguments_[0])) {
     throw new Error("Usage: run-workspace-task.mjs <lint|typecheck>");
   }
 
   const task = arguments_[0];
+  if (!packageManagerPath) {
+    throw new Error("The package manager path is unavailable; run this task through pnpm.");
+  }
+
   if (
     environment.TURBO_HASH ||
     environment[workspaceTaskEnvironment] === task
   ) {
-    const [command, ...commandArguments] = innerCommands.get(task);
     return {
-      arguments: commandArguments,
-      command,
+      arguments: ["run", `${task}:inner`],
+      command: packageManagerPath,
       cwd: packageDirectory,
       shell: process.platform === "win32",
     };
-  }
-
-  if (!packageManagerPath) {
-    throw new Error("The package manager path is unavailable; run this task through pnpm.");
   }
 
   return {
