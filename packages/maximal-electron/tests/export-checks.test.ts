@@ -70,6 +70,7 @@ describe('reExportedNames', () => {
 
 describe('isGeneric', () => {
   it('allows the pure terminal scheduler without allowing application libraries', () => {
+    expect(isGeneric('dist/renderer/lib/osc-title.js')).toBe(true);
     expect(isGeneric('dist/renderer/lib/terminal-ack.js')).toBe(true);
     expect(isGeneric('dist/renderer/lib/bridge-terminal.js')).toBe(false);
   });
