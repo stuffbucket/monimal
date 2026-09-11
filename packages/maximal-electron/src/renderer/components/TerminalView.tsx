@@ -49,6 +49,7 @@ interface TerminalViewCommonProps extends TerminalDescriptor {
   /** Increasing token for explicit split-navigation focus requests. */
   focusRequest?: number;
   focusIndicator?: boolean;
+  focusOwner?: boolean;
   onFocus?: () => void;
   onSplit?: (direction: TerminalSplitDirection) => void;
   onNavigateSplit?: (direction: 'previous' | 'next') => void;
@@ -97,6 +98,7 @@ export function TerminalView({
   testId = 'terminal',
   focusRequest = 0,
   focusIndicator = false,
+  focusOwner,
   onFocus,
   onSplit,
   onNavigateSplit,
@@ -302,6 +304,10 @@ export function TerminalView({
       window.removeEventListener('blur', relinquishWindowFocus);
     };
   }, []);
+
+  useEffect(() => {
+    if (focusOwner === false) setHasFocus(false);
+  }, [focusOwner]);
 
   return (
     <div

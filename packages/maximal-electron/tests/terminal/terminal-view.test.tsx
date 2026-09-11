@@ -245,6 +245,19 @@ describe('TerminalView lifecycle', () => {
     expect(element.querySelector('.terminal')?.getAttribute('data-focused')).toBe('true');
 
     await act(async () => {
+      root.render(
+        <TerminalView
+          id="session-1"
+          focusOwner={false}
+          focusRequest={1}
+          onExit={onExit}
+          transport={transport}
+        />,
+      );
+    });
+    expect(element.querySelector('.terminal')?.hasAttribute('data-focused')).toBe(false);
+
+    await act(async () => {
       element.querySelector('.terminal')?.dispatchEvent(
         new FocusEvent('focusout', {
           bubbles: true,

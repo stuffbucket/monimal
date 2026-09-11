@@ -197,6 +197,7 @@ function TerminalAttachmentView({
           transport={session.transport}
           focusRequest={focusRequest === viewId ? focusGeneration.current : 0}
           focusIndicator={viewIds.length > 1}
+          focusOwner={document.focusedViewId === viewId}
           onFocus={() => setWorkspace((current) => focusTerminalView(current, documentId, viewId))}
           onExit={() => exitPane(viewId)}
           onSplit={launchSplit ? (direction) => {
