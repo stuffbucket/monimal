@@ -85,7 +85,7 @@ function Panel({ children }: { children: ReactNode }) {
  * one throws rather than becoming an assertion against `undefined`.
  */
 function hostAt(canvasElement: HTMLElement, index: number): TerminalHost {
-  const found = canvasElement.querySelectorAll<TerminalHost>('.terminal-host > .terminal');
+  const found = canvasElement.querySelectorAll<TerminalHost>('.terminal-host .terminal');
   const host = found[index];
   if (!host) {
     throw new Error(
