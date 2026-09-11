@@ -3,6 +3,9 @@ import { Terminal } from '@xterm/xterm';
 import type { ITheme } from '@xterm/xterm';
 import { WTerm } from '@wterm/dom';
 import { GhosttyCore } from '@wterm/ghostty';
+import ghosttyWasmUrl from '@wterm/ghostty/ghostty-vt.wasm?url&inline';
+
+import { OscTitleObserver } from './osc-title.js';
 
 export type TerminalTheme = ITheme;
 export type TerminalEmulatorKind = 'xterm' | 'ghostty';
@@ -119,11 +122,40 @@ function applyGhosttyWindow(
   host.dataset.ghosttyPaddingBalance = String(adjustment.balance ?? false);
 }
 
+function fitGhosttyTerminal(host: HTMLElement, terminal: WTerm): void {
+  const style = getComputedStyle(host);
+  const width = host.clientWidth
+    - (parseFloat(style.paddingLeft) || 0)
+    - (parseFloat(style.paddingRight) || 0);
+  const height = host.clientHeight
+    - (parseFloat(style.paddingTop) || 0)
+    - (parseFloat(style.paddingBottom) || 0);
+  if (width <= 0 || height <= 0) return;
+
+  const row = document.createElement('div');
+  row.className = 'term-row';
+  row.style.visibility = 'hidden';
+  row.style.position = 'absolute';
+  const probe = document.createElement('span');
+  probe.textContent = 'W';
+  row.appendChild(probe);
+  host.appendChild(row);
+  const charWidth = probe.getBoundingClientRect().width;
+  const rowHeight = row.getBoundingClientRect().height;
+  row.remove();
+  if (charWidth <= 0 || rowHeight <= 0) return;
+
+  const cols = Math.max(1, Math.floor(width / charWidth));
+  const rows = Math.max(1, Math.floor(height / rowHeight));
+  if (cols !== terminal.cols || rows !== terminal.rows) terminal.resize(cols, rows);
+}
+
 async function createGhosttyEmulator(
   theme?: TerminalTheme,
   windowAdjustment?: GhosttyWindowAdjustment,
 ): Promise<TerminalEmulator> {
   const core = await GhosttyCore.load({
+    wasmPath: ghosttyWasmUrl,
     ...(theme?.foreground ? { foregroundColor: theme.foreground } : {}),
     ...(theme?.background ? { backgroundColor: theme.background } : {}),
   });
@@ -149,6 +181,13 @@ async function createGhosttyEmulator(
   const dataListeners = new Set<(data: string) => void>();
   const resizeListeners = new Set<(size: { cols: number; rows: number }) => void>();
   const titleListeners = new Set<(title: string) => void>();
+  let lastTitle: string | undefined;
+  const emitTitle = (title: string) => {
+    if (title === lastTitle) return;
+    lastTitle = title;
+    titleListeners.forEach((listener) => listener(title));
+  };
+  const titleObserver = new OscTitleObserver(emitTitle);
 
   const activeBuffer = (): TerminalBuffer => {
     const bridge = terminal?.bridge;
@@ -189,6 +228,7 @@ async function createGhosttyEmulator(
     get buffer() { return { active: activeBuffer() }; },
     open: async (host) => {
       element = host;
+      const initialHeight = host.style.height;
       if (theme?.foreground) host.style.setProperty('--term-fg', theme.foreground);
       if (theme?.background && !windowAdjustment) host.style.setProperty('--term-bg', theme.background);
       if (theme?.cursor) host.style.setProperty('--term-cursor', theme.cursor);
@@ -197,17 +237,25 @@ async function createGhosttyEmulator(
       host.addEventListener('keyup', handleKeyUp, { capture: true });
       host.addEventListener('input', handleInput, { capture: true });
       terminal = new WTerm(host, {
+        autoResize: false,
         core,
         cursorBlink: true,
         onData: (data) => {
           dataListeners.forEach((listener) => listener(data));
         },
         onResize: (cols, rows) => resizeListeners.forEach((listener) => listener({ cols, rows })),
-        onTitle: (title) => titleListeners.forEach((listener) => listener(title)),
+        onTitle: emitTitle,
       });
-      await terminal.init();
+      try {
+        await terminal.init();
+      }
+      finally {
+        host.style.height = initialHeight;
+      }
     },
-    fit: () => {},
+    fit: () => {
+      if (element && terminal) fitGhosttyTerminal(element, terminal);
+    },
     focus: () => terminal?.focus(),
     blur: () => {
       element?.querySelector('textarea')?.blur();
@@ -218,6 +266,7 @@ async function createGhosttyEmulator(
     onKeyEvent: (listener) => { keyListener = listener; },
     onTitleChange: (listener) => disposeListener(titleListeners, listener),
     write: (data, callback) => {
+      titleObserver.write(data);
       terminal?.write(data);
       if (callback) requestAnimationFrame(callback);
     },
@@ -237,6 +286,7 @@ async function createGhosttyEmulator(
       element?.removeEventListener('keyup', handleKeyUp, { capture: true });
       element?.removeEventListener('input', handleInput, { capture: true });
       terminal?.destroy();
+      core.dispose();
     },
   };
 }

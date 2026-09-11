@@ -2,20 +2,12 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <!--
-      The renderer is sandboxed and context-isolated, so this policy is the
-      second layer, not the only one.
-
-      'unsafe-inline' for styles is required by Radix and the terminal engines.
-      The optional Ghostty backend instantiates a packaged WebAssembly asset,
-      so it also needs 'wasm-unsafe-eval'.
-    -->
     <meta
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' data:"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Stuffbucket</title>
+    <title>Terminal Lab</title>
   </head>
   <body>
     <div id="root"></div>

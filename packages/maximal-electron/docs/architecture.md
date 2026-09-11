@@ -110,6 +110,11 @@ wterm instead. `@wterm/dom` supplies the DOM renderer and input handling, and
 `@wterm/ghostty` supplies the libghostty virtual terminal compiled to
 WebAssembly. Both wterm packages are Apache-2.0 licensed.
 
+Ghostty renders bounded direct Kitty PNG, RGB, and RGBA images. It does not
+render SIXEL, iTerm2 images, animations, indirect media, or persistent images.
+Kitty graphics inside tmux require the user's pane-level `allow-passthrough`
+setting; this shell does not mutate an existing tmux session's options.
+
 The optional `ghosttyWindow` value carries renderer-owned window adjustments:
 horizontal and vertical padding, balanced opposing edges, background opacity,
 and backdrop blur. It applies only when `emulator="ghostty"`; xterm geometry is
@@ -185,15 +190,17 @@ entries, `Include`, and every option are ignored. Alias target ids are opaque;
 the main process validates the cached alias again and launches exactly
 `ssh -tt alias`. System OpenSSH retains all configuration and authentication.
 Tmux is available locally on macOS and Linux and through SSH on every SSH
-platform. Its fixed bounded discovery command is `tmux list-sessions -F
-'#{session_name}'`; the SSH form runs that exact remote command against at most
-16 strict aliases. A missing tmux server still exposes one host-generated New
+platform. Discovery reads `tmux -V` before the fixed bounded `tmux list-sessions
+-F '#{session_name}'` command; the SSH form runs those exact remote commands
+against at most 16 strict aliases. A missing tmux server still exposes one host-generated New
 target, named `stuffbucket-` plus 32 lowercase hexadecimal characters; a
 missing binary is unavailable. Existing session names and SSH aliases remain in
 the owner- and generation-scoped main-process target cache. The renderer sees
 only neutral `Tmux session N` or `New tmux session` labels and opaque ids.
-Launches use exactly `tmux new-session -A -s NAME` or `ssh -tt ALIAS tmux
-new-session -A -s NAME`; no renderer value becomes command text. Closing a
+Tmux 3.4 and newer launches use `tmux -T hyperlinks new-session -A -s NAME` or
+`ssh -tt ALIAS tmux -T hyperlinks new-session -A -s NAME`; older clients omit
+the unsupported feature flag. Both renderer emulators support OSC 8 links, and
+no renderer value becomes command text. Closing a
 terminal, its owner window, or the app kills only the local tmux or SSH client
 PTY. The tmux server and session survive, while renderer scrollback and an SSH
 connection do not. Multiple windows may attach to an existing tmux session;

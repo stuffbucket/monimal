@@ -67,7 +67,7 @@ describe('package exports', () => {
     const manifest = JSON.parse(
       await readFile(path.join(ROOT, 'package.json'), 'utf8'),
     ) as PackageManifest;
-    const mainConfig = await readFile(path.join(ROOT, 'vite.main.config.ts'), 'utf8');
+    const mainConfig = await readFile(path.join(ROOT, 'vite.main.config.mts'), 'utf8');
 
     // The externals arrive as real files rather than bundled, so they are
     // shipped whether or not an export imports them.

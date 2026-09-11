@@ -63,6 +63,8 @@ describe('createHostWindow', () => {
     createHostWindow({
       preloadPath: '/absolute/preload.js',
       title: 'Consumer',
+      x: -1100,
+      y: 75,
       width: 1200,
       height: 800,
       minWidth: 720,
@@ -77,6 +79,8 @@ describe('createHostWindow', () => {
 
     expect(electron.constructorOptions).toEqual([
       expect.objectContaining({
+        x: -1100,
+        y: 75,
         width: 1200,
         height: 800,
         minWidth: 720,

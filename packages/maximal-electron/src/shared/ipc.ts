@@ -98,6 +98,8 @@ export type UpdateStatus =
 /** Top-level views the left navigation can select. */
 export type ViewId = 'library' | 'recents' | 'drafts' | 'shared' | 'trash';
 
+export const MAX_PTY_DIMENSION = 32_767;
+export const MAX_PTY_WRITE_BYTES = 1_000_000;
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -107,6 +109,13 @@ function hasOnly(value: Record<string, unknown>, keys: readonly string[]): boole
 }
 
 function isDimension(value: unknown): value is number {
+  return typeof value === 'number'
+    && Number.isSafeInteger(value)
+    && value > 0
+    && value <= MAX_PTY_DIMENSION;
+}
+
+function isPositiveInteger(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
 }
 
@@ -114,11 +123,17 @@ function isTerminalIdentifier(value: unknown): value is string {
   return typeof value === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(value);
 }
 
+function isTerminalData(value: unknown): value is string {
+  return typeof value === 'string'
+    && value.length <= MAX_PTY_WRITE_BYTES
+    && new TextEncoder().encode(value).byteLength <= MAX_PTY_WRITE_BYTES;
+}
+
 /** Runtime validation for this application's untrusted terminal IPC payloads. */
 export function isPtySpawnRequest(value: unknown): value is PtySpawnRequest {
   return isRecord(value)
     && hasOnly(value, ['id', 'cols', 'rows'])
-    && typeof value.id === 'string'
+    && isTerminalIdentifier(value.id)
     && isDimension(value.cols)
     && isDimension(value.rows);
 }
@@ -126,14 +141,14 @@ export function isPtySpawnRequest(value: unknown): value is PtySpawnRequest {
 export function isPtyWriteRequest(value: unknown): value is PtyWriteRequest {
   return isRecord(value)
     && hasOnly(value, ['id', 'data'])
-    && typeof value.id === 'string'
-    && typeof value.data === 'string';
+    && isTerminalIdentifier(value.id)
+    && isTerminalData(value.data);
 }
 
 export function isPtyResizeRequest(value: unknown): value is PtyResizeRequest {
   return isRecord(value)
     && hasOnly(value, ['id', 'cols', 'rows'])
-    && typeof value.id === 'string'
+    && isTerminalIdentifier(value.id)
     && isDimension(value.cols)
     && isDimension(value.rows);
 }
@@ -141,15 +156,15 @@ export function isPtyResizeRequest(value: unknown): value is PtyResizeRequest {
 export function isPtyProjectionRequest(value: unknown): value is PtyProjectionRequest {
   return isRecord(value)
     && hasOnly(value, ['id', 'projectionId'])
-    && typeof value.id === 'string'
-    && typeof value.projectionId === 'string';
+    && isTerminalIdentifier(value.id)
+    && isTerminalIdentifier(value.projectionId);
 }
 
 export function isPtyProjectionAttachRequest(value: unknown): value is PtyProjectionAttachRequest {
   return isRecord(value)
     && hasOnly(value, ['id', 'projectionId', 'cols', 'rows'])
-    && typeof value.id === 'string'
-    && typeof value.projectionId === 'string'
+    && isTerminalIdentifier(value.id)
+    && isTerminalIdentifier(value.projectionId)
     && isDimension(value.cols)
     && isDimension(value.rows);
 }
@@ -157,18 +172,18 @@ export function isPtyProjectionAttachRequest(value: unknown): value is PtyProjec
 export function isPtyProjectionWriteRequest(value: unknown): value is PtyProjectionWriteRequest {
   return isRecord(value)
     && hasOnly(value, ['id', 'projectionId', 'epoch', 'data'])
-    && typeof value.id === 'string'
-    && typeof value.projectionId === 'string'
-    && isDimension(value.epoch)
-    && typeof value.data === 'string';
+    && isTerminalIdentifier(value.id)
+    && isTerminalIdentifier(value.projectionId)
+    && isPositiveInteger(value.epoch)
+    && isTerminalData(value.data);
 }
 
 export function isPtyProjectionResizeRequest(value: unknown): value is PtyProjectionResizeRequest {
   return isRecord(value)
     && hasOnly(value, ['id', 'projectionId', 'epoch', 'cols', 'rows'])
-    && typeof value.id === 'string'
-    && typeof value.projectionId === 'string'
-    && isDimension(value.epoch)
+    && isTerminalIdentifier(value.id)
+    && isTerminalIdentifier(value.projectionId)
+    && isPositiveInteger(value.epoch)
     && isDimension(value.cols)
     && isDimension(value.rows);
 }
@@ -176,14 +191,14 @@ export function isPtyProjectionResizeRequest(value: unknown): value is PtyProjec
 export function isPtyAcknowledgement(value: unknown): value is { id: string; sequence: number } {
   return isRecord(value)
     && hasOnly(value, ['id', 'sequence'])
-    && typeof value.id === 'string'
+    && isTerminalIdentifier(value.id)
     && typeof value.sequence === 'number'
     && Number.isSafeInteger(value.sequence)
     && value.sequence > 0;
 }
 
 export function isPtyIdRequest(value: unknown): value is { id: string } {
-  return isRecord(value) && hasOnly(value, ['id']) && typeof value.id === 'string';
+  return isRecord(value) && hasOnly(value, ['id']) && isTerminalIdentifier(value.id);
 }
 
 export function isTerminalLaunchRequest(value: unknown): value is TerminalLaunchRequest {

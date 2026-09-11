@@ -4,11 +4,17 @@ import {
   DEFAULT_PREFERENCES,
   IPC_CHANNELS,
   IPC_EVENTS,
+  MAX_PTY_DIMENSION,
+  MAX_PTY_WRITE_BYTES,
+  isPtyAcknowledgement,
+  isPtyIdRequest,
+  isPtyResizeRequest,
   isPtySpawnRequest,
   isPtyProjectionAttachRequest,
   isPtyProjectionRequest,
   isPtyProjectionResizeRequest,
   isPtyProjectionWriteRequest,
+  isPtyWriteRequest,
   isTerminalLaunchRequest,
   type IpcChannel,
   type IpcEvent,
@@ -106,8 +112,35 @@ describe('IPC contract', () => {
     expect(isPtyProjectionAttachRequest({ id: 'session', projectionId: 'left', cols: 0, rows: 24 })).toBe(false);
     expect(isPtyProjectionWriteRequest({ id: 'session', projectionId: 'left', epoch: 1, data: 'ls\r' })).toBe(true);
     expect(isPtyProjectionWriteRequest({ id: 'session', projectionId: 'left', epoch: 0, data: 'ls\r' })).toBe(false);
+    expect(isPtyProjectionWriteRequest({ id: 'session', projectionId: 'left', epoch: MAX_PTY_DIMENSION + 1, data: 'ls\r' })).toBe(true);
     expect(isPtyProjectionResizeRequest({ id: 'session', projectionId: 'left', epoch: 2, cols: 100, rows: 40 })).toBe(true);
     expect(isPtyProjectionResizeRequest({ id: 'session', projectionId: 'left', epoch: 2, cols: 100, rows: -1 })).toBe(false);
+  });
+
+  it('rejects malformed terminal identifiers on every session channel', () => {
+    const invalidId = '../another-window';
+    expect(isPtySpawnRequest({ id: invalidId, cols: 80, rows: 24 })).toBe(false);
+    expect(isPtyWriteRequest({ id: invalidId, data: 'input' })).toBe(false);
+    expect(isPtyResizeRequest({ id: invalidId, cols: 80, rows: 24 })).toBe(false);
+    expect(isPtyAcknowledgement({ id: invalidId, sequence: 1 })).toBe(false);
+    expect(isPtyIdRequest({ id: invalidId })).toBe(false);
+    expect(isPtyProjectionRequest({ id: invalidId, projectionId: 'left' })).toBe(false);
+    expect(isPtyProjectionAttachRequest({ id: 'session', projectionId: invalidId, cols: 80, rows: 24 })).toBe(false);
+    expect(isPtyProjectionWriteRequest({ id: 'session', projectionId: invalidId, epoch: 1, data: 'input' })).toBe(false);
+    expect(isPtyProjectionResizeRequest({ id: 'session', projectionId: invalidId, epoch: 1, cols: 80, rows: 24 })).toBe(false);
+  });
+
+  it('rejects terminal dimensions that native PTY implementations cannot represent', () => {
+    expect(isPtySpawnRequest({ id: 'session', cols: MAX_PTY_DIMENSION, rows: 24 })).toBe(true);
+    expect(isPtySpawnRequest({ id: 'session', cols: MAX_PTY_DIMENSION + 1, rows: 24 })).toBe(false);
+    expect(isPtyResizeRequest({ id: 'session', cols: 80, rows: MAX_PTY_DIMENSION + 1 })).toBe(false);
+  });
+
+  it('rejects terminal writes above the bounded IPC payload', () => {
+    expect(isPtyWriteRequest({ id: 'session', data: 'a'.repeat(MAX_PTY_WRITE_BYTES) })).toBe(true);
+    expect(isPtyWriteRequest({ id: 'session', data: 'a'.repeat(MAX_PTY_WRITE_BYTES + 1) })).toBe(false);
+    expect(isPtyWriteRequest({ id: 'session', data: '\u{1F642}'.repeat(MAX_PTY_WRITE_BYTES / 2) })).toBe(false);
+    expect(isPtyProjectionWriteRequest({ id: 'session', projectionId: 'left', epoch: 1, data: 'a'.repeat(MAX_PTY_WRITE_BYTES + 1) })).toBe(false);
   });
 
   it('whitelists terminal lifecycle status events', () => {

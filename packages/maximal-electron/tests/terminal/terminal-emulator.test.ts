@@ -16,12 +16,13 @@ const xterm = vi.hoisted(() => {
 const ghostty = vi.hoisted(() => {
   const coreOptions: unknown = undefined;
   return {
-    core: { name: 'ghostty-core' },
+    core: { name: 'ghostty-core', dispose: vi.fn() },
     coreOptions,
     dataHandler: undefined as ((data: string) => void) | undefined,
     destroy: vi.fn(),
     init: vi.fn(async () => undefined),
-    options: undefined as { onData?: (data: string) => void } | undefined,
+    options: undefined as { onData?: (data: string) => void; onTitle?: (title: string) => void } | undefined,
+    resize: vi.fn(),
     textarea: undefined as HTMLTextAreaElement | undefined,
     write: vi.fn(),
   };
@@ -82,6 +83,9 @@ vi.mock('@wterm/dom', () => ({
     }
     async init(): Promise<void> { await ghostty.init(); }
     focus(): void {}
+    resize(cols: number, rows: number): void {
+      ghostty.resize(cols, rows);
+    }
     write(data: string): void { ghostty.write(data); }
     destroy(): void { ghostty.destroy(); }
   },
@@ -142,12 +146,14 @@ describe('terminal emulator adapter', () => {
     ghostty.dataHandler?.('\x04');
     ghostty.textarea?.dispatchEvent(unhandled);
 
-    expect(ghostty.coreOptions).toEqual({
-      foregroundColor: '#eef0f4',
-      backgroundColor: '#101216',
-    });
+    const coreOptions = ghostty.coreOptions as Record<string, unknown>;
+    expect(coreOptions['wasmPath']).toBeTypeOf('string');
+    expect(coreOptions['wasmPath']).toMatch(/^data:application\/wasm;base64,/);
+    expect(coreOptions['foregroundColor']).toBe('#eef0f4');
+    expect(coreOptions['backgroundColor']).toBe('#101216');
     expect(ghostty.init).toHaveBeenCalledOnce();
     expect(ghostty.options).toMatchObject({
+      autoResize: false,
       core: ghostty.core,
       cursorBlink: true,
     });
@@ -164,9 +170,49 @@ describe('terminal emulator adapter', () => {
     expect(onData).toHaveBeenCalledOnce();
     expect(onData).toHaveBeenCalledWith('\x04');
 
+    emulator.fit();
+    expect(ghostty.resize).not.toHaveBeenCalled();
+    Object.defineProperties(host, {
+      clientHeight: { configurable: true, value: 360 },
+      clientWidth: { configurable: true, value: 800 },
+    });
+    const bounds = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockImplementation(function (this: HTMLElement) {
+        return {
+          bottom: 18,
+          height: this.classList.contains('term-row') ? 18 : 0,
+          left: 0,
+          right: this instanceof HTMLSpanElement ? 8 : 0,
+          toJSON: () => ({}),
+          top: 0,
+          width: this instanceof HTMLSpanElement ? 8 : 0,
+          x: 0,
+          y: 0,
+        };
+      });
+    emulator.fit();
+    expect(ghostty.resize).toHaveBeenCalledWith(98, 19);
+    bounds.mockRestore();
+
     emulator.clear();
     expect(ghostty.write).toHaveBeenCalledWith('\x1b[2J\x1b[H');
     emulator.dispose();
     expect(ghostty.destroy).toHaveBeenCalledOnce();
+    expect(ghostty.core.dispose).toHaveBeenCalledOnce();
+  });
+
+  it('projects bounded top-level OSC titles across writes', async () => {
+    const emulator = await createTerminalEmulator('ghostty');
+    const onTitle = vi.fn();
+    emulator.onTitleChange(onTitle);
+    await emulator.open(document.createElement('div'));
+
+    emulator.write('\x1b]0;Ghost');
+    emulator.write('ty title\x1b\\');
+    emulator.write('\x1b_Ptmux;\x1b\x1b]2;nested\x1b\x1b\\\x1b\\');
+    emulator.write(`\x1b]2;${'x'.repeat(4_097)}\x07`);
+
+    expect(onTitle).toHaveBeenCalledOnce();
+    expect(onTitle).toHaveBeenCalledWith('Ghostty title');
   });
 });

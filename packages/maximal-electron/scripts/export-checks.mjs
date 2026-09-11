@@ -359,6 +359,7 @@ const CONTRACTS = [
   /(?:^|\/)lib\/content(?:-lorem)?(?:\.js)?$/,
   /(?:^|\/)lib\/settings(?:\.js)?$/,
   /(?:^|\/)lib\/shell-root(?:\.js)?$/,
+  /(?:^|\/)lib\/osc-title(?:\.js)?$/,
   /(?:^|\/)lib\/terminal-ack(?:\.js)?$/,
   /(?:^|\/)lib\/terminal-emulator(?:\.js)?$/,
   /(?:^|\/)lib\/terminal-pane(?:\.js)?$/,

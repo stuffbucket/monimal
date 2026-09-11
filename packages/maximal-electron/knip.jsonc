@@ -2,7 +2,7 @@
   "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
   "entry": [
     "forge.config.ts",
-    "vite.*.config.ts",
+    "vite.*.config.{ts,mts}",
     "scripts/**/*.{mjs,ts}",
     "e2e/**/*.ts",
     "tests/**/*.test.ts",
@@ -14,6 +14,7 @@
     "src/renderer/main.tsx",
     "src/renderer/overlay-entry.tsx",
     "src/renderer/index.ts",
+    "src/terminal-lab/main.tsx",
     "src/host/run-main.ts",
     "src/host/host-window.ts",
     "src/host/terminal-host.ts",

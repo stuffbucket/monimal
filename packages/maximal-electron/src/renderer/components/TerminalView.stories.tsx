@@ -71,7 +71,7 @@ export function cannedTransport(
     spawn({ id, cwd = '~/work/shell', shell = '/bin/zsh' }) {
       live.set(id, { id, cwd, shell, startedAt: Date.now() });
       const listener = listeners.get(id);
-      listener?.({ type: 'data', data: output });
+      if (output !== '') listener?.({ type: 'data', data: output });
       if (exitCode !== undefined) listener?.({ type: 'exit', exitCode });
       return Promise.resolve();
     },

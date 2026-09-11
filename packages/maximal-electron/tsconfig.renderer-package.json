@@ -10,7 +10,7 @@
     "moduleResolution": "bundler",
     "types": ["node"]
   },
-  "include": ["src/renderer/index.ts"],
+  "include": ["src/renderer/index.ts", "src/renderer/**/*.d.ts"],
   "exclude": [
     "node_modules",
     "out",

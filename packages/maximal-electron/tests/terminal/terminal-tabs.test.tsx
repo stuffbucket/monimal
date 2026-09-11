@@ -5,9 +5,9 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../src/renderer/components/TerminalView.js', () => ({
-  TerminalView: ({ id, focused, focusIndicator, onExit, onSplit, onNavigateSplit }: {
+  TerminalView: ({ id, focusRequest, focusIndicator, onExit, onSplit, onNavigateSplit }: {
     id: string;
-    focused?: boolean;
+    focusRequest?: number;
     focusIndicator?: boolean;
     onExit?: (exitCode: number) => void;
     onSplit?: (direction: 'right') => void;
@@ -15,7 +15,7 @@ vi.mock('../../src/renderer/components/TerminalView.js', () => ({
   }) => (
     <button
       data-session-id={id}
-      data-focused={focused || undefined}
+      data-focus-request={focusRequest || undefined}
       data-focus-indicator={focusIndicator || undefined}
       onClick={() => onSplit?.('right')}
       onDoubleClick={() => onNavigateSplit?.('next')}
@@ -129,8 +129,8 @@ describe('TerminalTabs attachments', () => {
         .dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
     });
     expect(element.querySelector('[data-session-id="session-4"]')?.getAttribute(
-      'data-focused',
-    )).toBe('true');
+      'data-focus-request',
+    )).toBe('2');
 
     await act(async () => root.unmount());
     expect(terminate.mock.calls).toEqual([['session-4'], ['session-5']]);
@@ -212,8 +212,8 @@ describe('TerminalTabs attachments', () => {
 
     expect(element.querySelector('.terminal-split')).toBeNull();
     expect(element.querySelector('[data-session-id="session-4"]')?.getAttribute(
-      'data-focused',
-    )).toBe('true');
+      'data-focus-request',
+    )).toBe('2');
     expect(onSessionsChange).toHaveBeenLastCalledWith('tab-17', ['session-4']);
     expect(onExit).not.toHaveBeenCalled();
 

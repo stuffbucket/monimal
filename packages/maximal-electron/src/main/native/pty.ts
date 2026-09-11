@@ -35,6 +35,7 @@ import {
   WslConnector,
 } from './command-connectors.js';
 import { TmuxControlHost } from './tmux-control-host.js';
+import { isTerminalLab, terminalLabLaunch } from './terminal-lab.js';
 
 import { Owners } from './pty-session.js';
 
@@ -112,6 +113,7 @@ const hosts = new Owners<BrowserWindow, TerminalHost>(
 );
 
 const launcher = new TerminalLauncher<BrowserWindow>({
+  localLaunch: isTerminalLab() ? terminalLabLaunch(app.getAppPath()) : undefined,
   connectors: [
     new DockerConnector(execFileRunner),
     new PodmanConnector(execFileRunner),
