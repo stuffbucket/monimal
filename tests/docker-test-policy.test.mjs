@@ -64,6 +64,8 @@ import {
   inferredTasks,
   pnpmWorkspacePaths,
 } from "../scripts/workspace-packages.mjs";
+import { prepareCoreWorkspaceBin } from "../scripts/prepare-workspace.mjs";
+import { workspaceTaskPlan } from "../scripts/run-workspace-task.mjs";
 
 const root = path.resolve(import.meta.dirname, "..");
 
@@ -451,14 +453,97 @@ test("root workflows select the intended package and task graphs", () => {
   );
   assert.equal(client.scripts.dev, "node scripts/start.mjs");
   assert.equal(client.scripts.predev, "node scripts/gen-icon-png.mjs");
+  assert.equal(
+    manifest.scripts["pnpm:devPreinstall"],
+    "node scripts/prepare-workspace.mjs",
+  );
+  assert.equal(
+    client.scripts.typecheck,
+    "node ../../../scripts/run-workspace-task.mjs typecheck",
+  );
+  assert.equal(client.scripts["typecheck:inner"], "tsc --noEmit");
+  assert.equal(
+    client.scripts.lint,
+    "node ../../../scripts/run-workspace-task.mjs lint",
+  );
+  assert.equal(client.scripts["lint:inner"], "eslint .");
   assert.deepEqual(turbo.tasks.transit.dependsOn, ["^transit"]);
   assert.deepEqual(turbo.tasks.lint.dependsOn, ["transit", "^build"]);
+  assert.deepEqual(turbo.tasks.lint.passThroughEnv, [
+    "MONIMAL_WORKSPACE_TASK",
+  ]);
+  assert.deepEqual(turbo.tasks.typecheck.passThroughEnv, [
+    "MONIMAL_WORKSPACE_TASK",
+  ]);
   assert.deepEqual(turbo.tasks.dev.dependsOn, ["^build"]);
   assert.equal(turbo.tasks.dev.cache, false);
   assert.equal(turbo.tasks.dev.persistent, true);
   assert.deepEqual(turbo.tasks["maximal-client#dev"].dependsOn, ["build"]);
   assert.equal(turbo.tasks["maximal-client#dev"].cache, false);
   assert.equal(turbo.tasks["maximal-client#dev"].persistent, true);
+});
+
+test("direct client checks re-enter the workspace task graph", () => {
+  const direct = workspaceTaskPlan({
+    arguments_: ["typecheck"],
+    environment: {},
+    packageDirectory: "/repo/packages/maximal/client",
+    packageManagerPath: "/pnpm.cjs",
+    packageName: "maximal-client",
+    rootDirectory: "/repo",
+  });
+  assert.deepEqual(direct, {
+    arguments: [
+      "--dir",
+      "/repo",
+      "exec",
+      "turbo",
+      "run",
+      "typecheck",
+      "--filter=maximal-client",
+    ],
+    command: "/pnpm.cjs",
+    cwd: "/repo",
+    environment: {
+      MONIMAL_WORKSPACE_TASK: "typecheck",
+    },
+    shell: false,
+  });
+
+  const inner = workspaceTaskPlan({
+    arguments_: ["lint"],
+    environment: { TURBO_HASH: "task-hash" },
+    packageDirectory: "/repo/packages/maximal/client",
+    packageManagerPath: "/pnpm.cjs",
+    packageName: "maximal-client",
+    rootDirectory: "/repo",
+  });
+  assert.deepEqual(inner, {
+    arguments: ["run", "lint:inner"],
+    command: "/pnpm.cjs",
+    cwd: "/repo/packages/maximal/client",
+    shell: process.platform === "win32",
+  });
+  assert.throws(
+    () => workspaceTaskPlan({ ...direct, arguments_: ["test"] }),
+    /Usage: run-workspace-task\.mjs <lint\|typecheck>/,
+  );
+});
+
+test("pnpm prepares a functional workspace Core bin before linking", async () => {
+  const fixture = fs.mkdtempSync(path.join(os.tmpdir(), "monimal-preinstall-"));
+  const binPath = path.join(fixture, "packages/maximal-core/dist/main.js");
+
+  assert.equal(prepareCoreWorkspaceBin(fixture), true);
+  assert.equal(
+    fs.readFileSync(binPath, "utf8"),
+    '#!/usr/bin/env bun\nawait import("../src/main.ts");\n',
+  );
+  assert.equal(fs.statSync(binPath).mode & 0o111, 0o111);
+
+  fs.writeFileSync(binPath, "built output");
+  assert.equal(prepareCoreWorkspaceBin(fixture), false);
+  assert.equal(fs.readFileSync(binPath, "utf8"), "built output");
 });
 
 test("the client sidecar builds through its composition owner", () => {

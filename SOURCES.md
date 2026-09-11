@@ -300,6 +300,14 @@ package provenance or publisher identity -- the proxy does that.
 - `maximal` and `maximal-core`: git hooks taken off the install path and
   `simple-git-hooks` dropped. Two packages installing competing hooks into one
   `.git` is wrong.
+- Root: `pnpm:devPreinstall` creates a functional Bun bootstrap at
+  `maximal-core`'s ignored `dist/main.js` only when that file is absent. pnpm
+  links workspace bins before normal builds, while Core's build replaces the
+  bootstrap and its published manifest keeps the same CLI path.
+- `maximal/client`: direct `typecheck` and `lint` scripts re-enter their Turbo
+  tasks through `scripts/run-workspace-task.mjs`. Turbo invocations run the
+  package-owned `typecheck:inner` and `lint:inner` scripts, so package checks
+  cannot skip their `^build` edges or recurse.
 - `maximal-electron`: added `typebox`. `maximal/client`: added `@types/node` and
   `@electron/packager`. All three are imported but never declared, and npm's
   flat `node_modules` used to supply them. Real bugs upstream.
