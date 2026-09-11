@@ -2,6 +2,7 @@
 
 import { createBuiltinConfiguratorRuntime } from "@stuffbucket/maximal-configurators"
 import { runCli } from "@stuffbucket/maximal-core/provider-host"
+import { createBuiltinConnectorPlugins } from "@stuffbucket/maximal-core/search-connector"
 
 import {
   createDshProviderGateway,
@@ -15,6 +16,7 @@ export async function main(
 ): Promise<void> {
   await runCli({
     createConfiguratorRuntime: createBuiltinConfiguratorRuntime,
+    createConnectorPlugins: createBuiltinConnectorPlugins,
     createProviderGateway: async (context) =>
       await createDshProviderGateway(context, options),
   })

@@ -8,6 +8,7 @@ export const OLLAMA_SEARCH_PROVIDER_ID = "ollama"
 
 export function ollamaSearchProvider(
   bind: (settings: ConnectorSettings) => SearchProviderInstance,
+  environmentApiKey?: string,
 ): SearchProvider {
   return {
     id: OLLAMA_SEARCH_PROVIDER_ID,
@@ -71,6 +72,12 @@ export function ollamaSearchProvider(
       path: "/web_search",
       body: { query: "maximal credential validation", max_results: 1 },
     },
+    effectiveSetting: (key, configured) =>
+      key === "apiKey" ? (configured ?? environmentApiKey) : configured,
+    secretSource: (key, configured) =>
+      key === "apiKey" && configured === undefined && environmentApiKey ?
+        "environment"
+      : undefined,
     create: bind,
   }
 }

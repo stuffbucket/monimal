@@ -53,6 +53,26 @@ export type ConnectorSettings = Readonly<
   Record<string, ConnectorSettingValue | undefined>
 >
 
+export interface ConnectorConfigIssue {
+  readonly path?: ReadonlyArray<PropertyKey>
+  readonly message: string
+}
+
+export interface ConnectorConfigSchema<T> {
+  readonly "~standard": {
+    readonly version: 1
+    readonly vendor: string
+    validate(
+      value: unknown,
+    ): { readonly value: T } | { readonly issues: ReadonlyArray<ConnectorConfigIssue> }
+  }
+}
+
+export interface ConnectorPlugin<TConfig = unknown> {
+  readonly id: string
+  readonly Config: ConnectorConfigSchema<TConfig>
+}
+
 interface SettingFieldBase {
   readonly key: string
   readonly label: string
@@ -117,6 +137,14 @@ export interface SearchProvider {
     readonly path: string
     readonly body: Readonly<Record<string, ConnectorSettingValue>>
   }
+  effectiveSetting?(
+    key: string,
+    configured: ConnectorSettingValue | undefined,
+  ): ConnectorSettingValue | undefined
+  secretSource?(
+    key: string,
+    configured: ConnectorSettingValue | undefined,
+  ): "environment" | undefined
   create(settings: ConnectorSettings): SearchProviderInstance
 }
 
@@ -142,6 +170,148 @@ export interface SearchConnectorConfig {
   readonly fallback?: boolean
   readonly providers?: Readonly<Record<string, SearchProviderConfig>>
   readonly defaults?: SearchOptions
+}
+
+export interface SearchConnectorPlugin
+  extends ConnectorPlugin<SearchConnectorConfig> {
+  readonly id: "search"
+  providers(): ReadonlyArray<SearchProvider>
+}
+
+export function isSearchConnectorPlugin(
+  plugin: ConnectorPlugin,
+): plugin is SearchConnectorPlugin {
+  return (
+    plugin.id === "search"
+    && "providers" in plugin
+    && typeof plugin.providers === "function"
+  )
+}
+
+const configIssue = (
+  path: ReadonlyArray<PropertyKey>,
+  message: string,
+): { readonly issues: ReadonlyArray<ConnectorConfigIssue> } => ({
+  issues: [{ path, message }],
+})
+
+function configObject(
+  value: unknown,
+): Record<string, unknown> | null {
+  return value !== null && typeof value === "object" && !Array.isArray(value) ?
+      (value as Record<string, unknown>)
+    : null
+}
+
+function settingValue(value: unknown): value is ConnectorSettingValue {
+  return (
+    typeof value === "boolean"
+    || typeof value === "number"
+    || typeof value === "string"
+    || (Array.isArray(value)
+      && value.every((entry) => typeof entry === "string"))
+  )
+}
+
+/** Standard Schema owned by the Search connector plugin, not by Core config. */
+export const SearchConnectorConfigSchema: ConnectorConfigSchema<SearchConnectorConfig> = {
+  "~standard": {
+    version: 1,
+    vendor: "stuffbucket",
+    validate(value) {
+      if (value === undefined) return { value: {} }
+      const root = configObject(value)
+      if (root === null) return configIssue([], "Expected an object")
+
+      if (
+        root.priority !== undefined
+        && (!Array.isArray(root.priority)
+          || root.priority.some(
+            (entry) => typeof entry !== "string" || entry.length === 0,
+          ))
+      ) {
+        return configIssue(["priority"], "Expected an array of provider ids")
+      }
+      if (root.fallback !== undefined && typeof root.fallback !== "boolean") {
+        return configIssue(["fallback"], "Expected a boolean")
+      }
+
+      if (root.defaults !== undefined) {
+        const defaults = configObject(root.defaults)
+        if (defaults === null)
+          return configIssue(["defaults"], "Expected an object")
+        if (
+          defaults.maxResults !== undefined
+          && (typeof defaults.maxResults !== "number"
+            || !Number.isInteger(defaults.maxResults)
+            || defaults.maxResults < 1
+            || defaults.maxResults > 100)
+        ) {
+          return configIssue(
+            ["defaults", "maxResults"],
+            "Expected an integer between 1 and 100",
+          )
+        }
+        for (const key of ["allowedDomains", "blockedDomains"] as const) {
+          const domains = defaults[key]
+          if (
+            domains !== undefined
+            && (!Array.isArray(domains)
+              || domains.some(
+                (entry) => typeof entry !== "string" || entry.length === 0,
+              ))
+          ) {
+            return configIssue(
+              ["defaults", key],
+              "Expected an array of non-empty domains",
+            )
+          }
+        }
+      }
+
+      if (root.providers !== undefined) {
+        const providers = configObject(root.providers)
+        if (providers === null)
+          return configIssue(["providers"], "Expected an object")
+        for (const [providerId, providerValue] of Object.entries(providers)) {
+          const provider = configObject(providerValue)
+          if (provider === null) {
+            return configIssue(
+              ["providers", providerId],
+              "Expected an object",
+            )
+          }
+          if (
+            provider.enabled !== undefined
+            && typeof provider.enabled !== "boolean"
+          ) {
+            return configIssue(
+              ["providers", providerId, "enabled"],
+              "Expected a boolean",
+            )
+          }
+          if (provider.settings === undefined) continue
+          const settings = configObject(provider.settings)
+          if (settings === null) {
+            return configIssue(
+              ["providers", providerId, "settings"],
+              "Expected an object",
+            )
+          }
+          for (const [key, setting] of Object.entries(settings)) {
+            if (setting !== undefined && !settingValue(setting)) {
+              return configIssue(
+                ["providers", providerId, "settings", key],
+                "Expected a connector setting value",
+              )
+            }
+          }
+        }
+      }
+
+      return { value: root }
+    },
+  },
 }
 
 export interface SearchConnectorRuntimeOptions {

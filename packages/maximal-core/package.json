@@ -40,6 +40,10 @@
       "types": "./dist/lib/provider-host.d.ts",
       "import": "./dist/lib/provider-host.js"
     },
+    "./search-connector": {
+      "types": "./dist/lib/search-connector.d.ts",
+      "import": "./dist/lib/search-connector.js"
+    },
     "./settings-types": {
       "types": "./dist/lib/settings-types.d.ts",
       "import": "./dist/lib/settings-types.js"

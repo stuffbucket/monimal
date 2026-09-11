@@ -27,16 +27,12 @@ export function searchSettingError(
 export function enabledProviderError(
   provider: SearchProvider,
   settings: SearchProviderConfig["settings"],
-  env: NodeJS.ProcessEnv,
 ): string | undefined {
   for (const field of provider.settings ?? []) {
     if (!field.required) continue
-    const environmentSecret =
-      provider.id === "ollama"
-      && field.key === "apiKey"
-      && Boolean(env.OLLAMA_API_KEY)
-    if (environmentSecret) continue
-    const value = settings?.[field.key] ?? field.default ?? null
+    const configured = settings?.[field.key] ?? field.default
+    const value =
+      provider.effectiveSetting?.(field.key, configured) ?? configured ?? null
     const error = searchSettingError(
       field,
       value,

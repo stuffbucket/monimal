@@ -1,10 +1,15 @@
-import { describe, expect, it } from "bun:test"
+import { SearchConnectorConfigSchema } from "@stuffbucket/maximal-harness"
+import { afterEach, beforeEach, describe, expect, it } from "bun:test"
 
 import {
   ConfigValidationError,
   detectUnknownKeys,
   validateAppConfig,
 } from "~/lib/config/config-schema"
+import { installConnectorPlugins } from "~/lib/config/connector-plugins"
+
+beforeEach(() => installConnectorPlugins([]))
+afterEach(() => installConnectorPlugins([]))
 
 describe("validateAppConfig", () => {
   it("accepts an empty config", () => {
@@ -52,26 +57,14 @@ describe("validateAppConfig", () => {
     expect(validateAppConfig(config)).toEqual(config)
   })
 
-  it("accepts search connector priority, defaults, and provider settings", () => {
+  it("preserves opaque runtime connector config", () => {
     const config = {
       connectors: {
         search: {
-          priority: ["ollama", "copilot", "duckduckgo"],
-          fallback: true,
-          defaults: {
-            maxResults: 8,
-            allowedDomains: ["example.com"],
-            blockedDomains: ["private.example.com"],
-          },
-          providers: {
-            ollama: {
-              enabled: true,
-              settings: {
-                apiKey: "configured-secret",
-                timeoutMs: 20_000,
-              },
-            },
-          },
+          pluginOwned: { nested: [1, "two", { three: true }] },
+        },
+        futureConnector: {
+          arbitrary: null,
         },
       },
     }
@@ -79,17 +72,15 @@ describe("validateAppConfig", () => {
     expect(validateAppConfig(config)).toEqual(config)
   })
 
-  it("rejects malformed search connector settings with their key path", () => {
-    let thrown: ConfigValidationError | null = null
-    try {
+  it("delegates installed connector payloads to their plugin schema", () => {
+    installConnectorPlugins([
+      { id: "search", Config: SearchConnectorConfigSchema },
+    ])
+    expect(() =>
       validateAppConfig({
         connectors: { search: { defaults: { maxResults: 0 } } },
-      })
-    } catch (e) {
-      if (e instanceof ConfigValidationError) thrown = e
-    }
-
-    expect(thrown?.issues[0].path).toBe("connectors.search.defaults.maxResults")
+      }),
+    ).toThrow("connectors.search.defaults.maxResults")
   })
 
   it("accepts 'max' reasoning effort (GPT-5.6 ladder top)", () => {

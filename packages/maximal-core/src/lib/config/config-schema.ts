@@ -20,6 +20,8 @@ import { z } from "zod"
 
 import type { AppConfig } from "~/lib/config/config"
 
+import { connectorConfigIssues } from "~/lib/config/connector-plugins"
+
 const ProviderAuthTypeSchema = z.enum(["authorization", "x-api-key"])
 
 const ModelConfigSchema = z.object({
@@ -46,33 +48,6 @@ const ProviderPluginSchema = z
     config: z.unknown().optional(),
   })
   .loose()
-
-const ConnectorSettingValueSchema = z.union([
-  z.boolean(),
-  z.number(),
-  z.string(),
-  z.array(z.string()),
-])
-
-const SearchProviderConfigSchema = z.object({
-  enabled: z.boolean().optional(),
-  settings: z
-    .record(z.string(), ConnectorSettingValueSchema.optional())
-    .optional(),
-})
-
-const SearchConnectorConfigSchema = z.object({
-  priority: z.array(z.string().min(1)).optional(),
-  fallback: z.boolean().optional(),
-  providers: z.record(z.string(), SearchProviderConfigSchema).optional(),
-  defaults: z
-    .object({
-      maxResults: z.number().int().min(1).max(100).optional(),
-      allowedDomains: z.array(z.string().min(1)).optional(),
-      blockedDomains: z.array(z.string().min(1)).optional(),
-    })
-    .optional(),
-})
 
 const ReasoningEffortSchema = z.enum([
   "none",
@@ -140,11 +115,9 @@ export const AppConfigSchema = z
       })
       .optional(),
     providerPlugins: z.record(z.string(), ProviderPluginSchema).optional(),
-    connectors: z
-      .object({
-        search: SearchConnectorConfigSchema.optional(),
-      })
-      .optional(),
+    // Connector payloads belong to runtime-injected connector plugins. Core
+    // preserves them here; the owning plugin validates its own schema.
+    connectors: z.record(z.string(), z.unknown()).optional(),
     extraPrompts: z.record(z.string(), z.string()).optional(),
     smallModel: z.string().optional(),
     responsesApiContextManagementModels: z.array(z.string()).optional(),
@@ -229,6 +202,15 @@ export function validateAppConfig(raw: unknown): AppConfig {
       message: i.message,
     }))
     throw new ConfigValidationError(issues)
+  }
+  const connectorIssues = connectorConfigIssues(result.data.connectors)
+  if (connectorIssues.length > 0) {
+    throw new ConfigValidationError(
+      connectorIssues.map((issue) => ({
+        path: issue.path?.map(String).join(".") ?? "connectors",
+        message: issue.message,
+      })),
+    )
   }
   return result.data
 }
