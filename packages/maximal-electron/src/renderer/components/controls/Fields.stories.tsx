@@ -129,6 +129,12 @@ export const AllControls: StoryObj = {
         <Checkbox label="Disabled" checked={false} onChange={() => undefined} disabled />
 
         <Switch label="Dock badge" checked={on} onChange={setOn} />
+        <Switch
+          label="Menu bar only"
+          layout="compact"
+          checked={on}
+          onChange={setOn}
+        />
 
         {/* Not a form control despite the name it has always had: it renders
             what something is, not somewhere to change it. */}

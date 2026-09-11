@@ -217,18 +217,8 @@ export function ConnectionsSection({
   const busy = refreshing || busyAction !== null
 
   return (
-    <section
-      className="settings-section"
-      aria-labelledby="settings-connections-heading"
-      aria-busy={busy}
-    >
-      <div className="settings-section__title-row">
-        <h1
-          id="settings-connections-heading"
-          className="settings-section__heading"
-        >
-          Connections
-        </h1>
+    <section className="settings-section" aria-busy={busy}>
+      <div className="settings-section__actions">
         <Button
           size="sm"
           onClick={() => void refresh(true)}

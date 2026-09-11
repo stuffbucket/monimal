@@ -72,23 +72,18 @@ export function DiagnosticsSection({
     : []
 
   return (
-    <section className="settings-section" aria-labelledby="settings-diagnostics-heading">
-      <div className="settings-section__title-row">
-        <h1 id="settings-diagnostics-heading" className="settings-section__heading">
-          Diagnostics
-        </h1>
-        <div className="settings-section__actions">
-          {report ? (
-            <CopyButton
-              text={JSON.stringify(report, undefined, 2)}
-              label="Copy report"
-              about="the diagnostics report"
-            />
-          ) : null}
-          <Button size="sm" onClick={() => void refresh()} disabled={loading}>
-            {loading ? 'Refreshing…' : 'Refresh'}
-          </Button>
-        </div>
+    <section className="settings-section">
+      <div className="settings-section__actions">
+        {report ? (
+          <CopyButton
+            text={JSON.stringify(report, undefined, 2)}
+            label="Copy report"
+            about="the diagnostics report"
+          />
+        ) : null}
+        <Button size="sm" onClick={() => void refresh()} disabled={loading}>
+          {loading ? 'Refreshing…' : 'Refresh'}
+        </Button>
       </div>
       <Note>
         This report includes runtime status and credential presence, never

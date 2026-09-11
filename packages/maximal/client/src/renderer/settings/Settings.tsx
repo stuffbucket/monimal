@@ -15,8 +15,9 @@ import { SectionRail } from './SectionRail'
 
 // The Settings surface. Composition only: `shared/settings-sections.ts` owns
 // which sections exist, joined to their icons and panels in `./manifest`.
-// Each section owns its primary heading and its own
-// data lifecycle against `SettingsCapabilities`. Building the capabilities
+// Each section owns its own data lifecycle against `SettingsCapabilities`.
+// The selected manifest label names the shared page rather than being repeated
+// as a heading inside it. Building the capabilities
 // instance via `createCoreSettingsCapabilities` is deliberately somebody
 // else's decision. The window frame is too: it belongs to ../frame/AppFrame,
 // and this surface reaches the parts of it that are its own through that
@@ -56,7 +57,8 @@ export function Settings({
     if (request !== null) setCurrent(request.id)
   }
 
-  const CurrentPanel = SETTINGS_SECTION_VIEWS.find(({ id }) => id === current)!.Panel
+  const currentView = SETTINGS_SECTION_VIEWS.find(({ id }) => id === current)!
+  const CurrentPanel = currentView.Panel
 
   return (
     <>
@@ -77,7 +79,7 @@ export function Settings({
       <ScrollArea
         className="settings-page"
         surface="canvas"
-        aria-labelledby={current}
+        aria-label={currentView.label}
       >
         {onBack ? (
           <div className="settings-page__back">
@@ -186,13 +188,6 @@ const SETTINGS_CSS = `
   flex-direction: column;
   gap: var(--shell-space-3, 12px);
   min-width: 0;
-}
-
-.settings-section__heading {
-  margin: 0;
-  font-size: var(--shell-text-xl, 1.375rem);
-  font-weight: var(--shell-weight-lg, 600);
-  line-height: 1.25;
 }
 
 .settings-field {
@@ -407,7 +402,6 @@ const SETTINGS_CSS = `
   outline-offset: 2px;
 }
 
-.settings-section__title-row,
 .settings-section__actions,
 .settings-copy-value,
 .settings-dialog__actions,
@@ -418,8 +412,9 @@ const SETTINGS_CSS = `
   flex-wrap: wrap;
 }
 
-.settings-section__title-row {
-  justify-content: space-between;
+.settings-section__actions,
+.settings-periods {
+  justify-content: flex-end;
 }
 
 .settings-dialog__heading {

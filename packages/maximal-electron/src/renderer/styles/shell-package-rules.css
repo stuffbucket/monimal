@@ -950,17 +950,27 @@
   cursor: pointer;
 }
 
+.sb-shell .switch[data-layout='compact'] {
+  justify-content: flex-start;
+  width: fit-content;
+}
+
 .sb-shell .switch__track {
   position: relative;
+  box-sizing: border-box;
   width: 30px;
   height: 18px;
   flex: none;
+  border: 1px solid var(--shell-text-muted);
   border-radius: 9999px;
   background: var(--shell-active);
-  transition: background 120ms ease-out;
+  transition:
+    background 120ms ease-out,
+    border-color 120ms ease-out;
 }
 
 .sb-shell .switch__track[data-on='true'] {
+  border-color: var(--shell-accent);
   background: var(--shell-accent);
 }
 
@@ -974,11 +984,12 @@
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: var(--shell-accent-contrast, var(--shell-text));
+  background: var(--shell-text);
   transition: transform 120ms ease-out;
 }
 
 .sb-shell .switch__track[data-on='true'] .switch__thumb {
+  background: var(--shell-accent-contrast, var(--shell-background));
   transform: translateX(12px);
 }
 

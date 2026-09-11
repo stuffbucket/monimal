@@ -102,11 +102,7 @@ export function AccountSection({ capabilities }: AccountSectionProps): ReactElem
   )
 
   return (
-    <section className="settings-section" aria-labelledby="settings-account-heading">
-      <h1 id="settings-account-heading" className="settings-section__heading">
-        Account
-      </h1>
-
+    <section className="settings-section">
       {/* `live="assertive"` is the whole of what the hand-written note spelled
           as role="alert" plus aria-live: a failed action needs to interrupt,
           not queue quietly behind whatever the user is doing next. */}

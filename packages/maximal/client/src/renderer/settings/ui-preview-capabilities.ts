@@ -1,5 +1,7 @@
 import type {
   ConnectorSettingValue,
+  MenuBarModeAttempt,
+  MenuBarModeState,
   SearchProviderValidationResponse,
   SearchSettingsResponse,
   SearchSettingsUpdateRequest,
@@ -245,6 +247,18 @@ function unavailable(): Promise<never> {
 
 export function createPreviewSettingsCapabilities(): SettingsCapabilities {
   let snapshot = cloneSnapshot(initialSearchSettings)
+  let menuBarEnabled = false
+  let menuBarAttempt: MenuBarModeAttempt | null = null
+  let menuBarAttemptSequence = 0
+  const menuBarState = (): MenuBarModeState => ({
+    enabled: menuBarEnabled,
+    pending: menuBarAttempt !== null,
+  })
+  const requireMenuBarAttempt = (attemptId: string): void => {
+    if (menuBarAttempt?.attemptId !== attemptId) {
+      throw new Error('Menu-bar-only confirmation is no longer active')
+    }
+  }
   return {
     kind: 'main-bridge',
     subscribe: () => () => undefined,
@@ -256,11 +270,33 @@ export function createPreviewSettingsCapabilities(): SettingsCapabilities {
     },
     accounts: { list: unavailable, switchTo: unavailable },
     general: {
-      menuBarMode: unavailable,
-      beginMenuBarOnly: unavailable,
-      confirmMenuBarOnly: unavailable,
-      cancelMenuBarOnly: unavailable,
-      disableMenuBarOnly: unavailable,
+      menuBarMode: () => Promise.resolve(menuBarState()),
+      beginMenuBarOnly: () => {
+        menuBarEnabled = true
+        menuBarAttempt = {
+          attemptId: `preview-menu-bar-${String(++menuBarAttemptSequence)}`,
+          deadlineMs: Date.now() + 15_000,
+        }
+        return Promise.resolve(menuBarAttempt)
+      },
+      confirmMenuBarOnly: (attemptId) =>
+        Promise.resolve().then(() => {
+          requireMenuBarAttempt(attemptId)
+          menuBarAttempt = null
+          return menuBarState()
+        }),
+      cancelMenuBarOnly: (attemptId) =>
+        Promise.resolve().then(() => {
+          requireMenuBarAttempt(attemptId)
+          menuBarEnabled = false
+          menuBarAttempt = null
+          return menuBarState()
+        }),
+      disableMenuBarOnly: () => {
+        menuBarEnabled = false
+        menuBarAttempt = null
+        return Promise.resolve(menuBarState())
+      },
     },
     connections: {
       list: unavailable,

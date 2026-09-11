@@ -95,7 +95,7 @@ describe('LocalModelsSection', () => {
     const { capabilities, localModels } = fakeCapabilities()
     const surface = await renderLocalModels(capabilities)
 
-    expect(surface.querySelector('h1')?.id).toBe('settings-local-models-heading')
+    expect(surface.querySelector('h1')).toBeNull()
     expect(surface.textContent).toContain('Qwen3 0.6B Q8')
     expect(surface.textContent).toContain('qwen3-0.6b')
     expect(surface.textContent).toContain('GGUF')

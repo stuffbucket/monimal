@@ -180,17 +180,8 @@ export function LocalModelsSection({
   )
 
   return (
-    <section
-      className="settings-section"
-      aria-labelledby="settings-local-models-heading"
-    >
-      <div className="settings-section__title-row">
-        <h1
-          id="settings-local-models-heading"
-          className="settings-section__heading"
-        >
-          Local models
-        </h1>
+    <section className="settings-section">
+      <div className="settings-section__actions">
         <Button size="sm" onClick={() => void openFolder()}>
           Open models folder
         </Button>
