@@ -49,9 +49,8 @@ export type BootPhase =
 
 export interface CoreLifecycleCapability {
   readonly kind: 'live'
-  current(): BootPhase
-  subscribe(onChange: (phase: BootPhase) => void): () => void
-  dispose(): void
+  readonly current: () => BootPhase
+  readonly subscribe: (onChange: (phase: BootPhase) => void) => () => void
 }
 
 function toBootPhase(status: LifecycleStatus): BootPhase {
@@ -81,40 +80,51 @@ export function createCoreLifecycleCapability(
   bridge: Pick<MaximalBridge, 'onCoreStatus' | 'getCoreStatus'>,
 ): CoreLifecycleCapability {
   let phase: BootPhase = { phase: 'starting' }
-  let seeded = false
   const listeners = new Set<(phase: BootPhase) => void>()
+  let unsubscribeBridge: (() => void) | null = null
+  let generation = 0
 
   function apply(status: LifecycleStatus): void {
-    seeded = true
     phase = toBootPhase(status)
     for (const listener of listeners) listener(phase)
   }
 
-  const unsubscribeBridge = bridge.onCoreStatus(apply)
-
-  void bridge
-    .getCoreStatus()
-    .then((status) => {
-      if (!seeded) apply(status)
+  function connect(): void {
+    const activeGeneration = ++generation
+    let receivedLiveStatus = false
+    unsubscribeBridge = bridge.onCoreStatus((status) => {
+      receivedLiveStatus = true
+      apply(status)
     })
-    .catch((error: unknown) => {
-      if (!seeded) {
-        apply({
-          phase: 'failed',
-          reason: error instanceof Error ? error.message : String(error),
-        })
-      }
-    })
+    void bridge
+      .getCoreStatus()
+      .then((status) => {
+        if (generation === activeGeneration && !receivedLiveStatus) apply(status)
+      })
+      .catch((error: unknown) => {
+        if (generation === activeGeneration && !receivedLiveStatus) {
+          apply({
+            phase: 'failed',
+            reason: error instanceof Error ? error.message : String(error),
+          })
+        }
+      })
+  }
 
   return {
     kind: 'live',
     current: () => phase,
-    dispose: unsubscribeBridge,
     subscribe(onChange) {
+      const shouldConnect = listeners.size === 0
       listeners.add(onChange)
-      onChange(phase)
+      if (shouldConnect) connect()
       return () => {
         listeners.delete(onChange)
+        if (listeners.size === 0) {
+          generation += 1
+          unsubscribeBridge?.()
+          unsubscribeBridge = null
+        }
       }
     },
   }
@@ -124,7 +134,6 @@ export interface FirstRunCapabilities {
   readonly kind: 'main-bridge'
   auth: AuthCapability
   lifecycle: CoreLifecycleCapability
-  dispose(): void
 }
 
 /** The single adapter in first-run that is allowed to touch `window.maximal`. */
@@ -135,8 +144,5 @@ export function createFirstRunCapabilities(): FirstRunCapabilities {
     kind: 'main-bridge',
     auth,
     lifecycle,
-    dispose() {
-      lifecycle.dispose()
-    },
   }
 }

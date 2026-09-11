@@ -46,6 +46,7 @@ export default [
       "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "warn",
       "react-hooks/refs": "error",
+      "react-hooks/set-state-in-effect": "error",
     },
   },
   {
