@@ -3,9 +3,9 @@ import { resolve } from 'node:path';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
-import { MAIN_RENDERER_CACHE } from './vite.cache-paths.js';
+import { MAIN_RENDERER_CACHE } from './vite.cache-paths.mjs';
 
-const root = resolve(__dirname, 'src/renderer');
+const root = resolve(import.meta.dirname, 'src/renderer');
 
 // Renderer.
 //
@@ -50,7 +50,7 @@ export default defineConfig({
    */
   resolve: { preserveSymlinks: false },
   build: {
-    outDir: resolve(__dirname, '.vite/renderer/main_window'),
+    outDir: resolve(import.meta.dirname, '.vite/renderer/main_window'),
     emptyOutDir: true,
     sourcemap: true,
     rollupOptions: {

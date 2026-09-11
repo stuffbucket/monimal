@@ -22,6 +22,7 @@ const ghostty = vi.hoisted(() => {
     destroy: vi.fn(),
     init: vi.fn(async () => undefined),
     options: undefined as { onData?: (data: string) => void; onTitle?: (title: string) => void } | undefined,
+    resize: vi.fn(),
     textarea: undefined as HTMLTextAreaElement | undefined,
     write: vi.fn(),
   };
@@ -82,6 +83,9 @@ vi.mock('@wterm/dom', () => ({
     }
     async init(): Promise<void> { await ghostty.init(); }
     focus(): void {}
+    resize(cols: number, rows: number): void {
+      ghostty.resize(cols, rows);
+    }
     write(data: string): void { ghostty.write(data); }
     destroy(): void { ghostty.destroy(); }
   },
@@ -149,6 +153,7 @@ describe('terminal emulator adapter', () => {
     expect(coreOptions['backgroundColor']).toBe('#101216');
     expect(ghostty.init).toHaveBeenCalledOnce();
     expect(ghostty.options).toMatchObject({
+      autoResize: false,
       core: ghostty.core,
       cursorBlink: true,
     });
@@ -164,6 +169,30 @@ describe('terminal emulator adapter', () => {
     expect(unhandled.defaultPrevented).toBe(false);
     expect(onData).toHaveBeenCalledOnce();
     expect(onData).toHaveBeenCalledWith('\x04');
+
+    emulator.fit();
+    expect(ghostty.resize).not.toHaveBeenCalled();
+    Object.defineProperties(host, {
+      clientHeight: { configurable: true, value: 360 },
+      clientWidth: { configurable: true, value: 800 },
+    });
+    const bounds = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockImplementation(function (this: HTMLElement) {
+        return {
+          bottom: 18,
+          height: this.classList.contains('term-row') ? 18 : 0,
+          left: 0,
+          right: this instanceof HTMLSpanElement ? 8 : 0,
+          toJSON: () => ({}),
+          top: 0,
+          width: this instanceof HTMLSpanElement ? 8 : 0,
+          x: 0,
+          y: 0,
+        };
+      });
+    emulator.fit();
+    expect(ghostty.resize).toHaveBeenCalledWith(98, 19);
+    bounds.mockRestore();
 
     emulator.clear();
     expect(ghostty.write).toHaveBeenCalledWith('\x1b[2J\x1b[H');

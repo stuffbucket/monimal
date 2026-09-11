@@ -85,11 +85,13 @@ test('drives production terminal tabs, splits, tooltips, and emulators', async (
   await expect.poll(() => terminalScreen(terminal)).toContain('title Integration Smoke');
   const integrationTab = harness.window.getByRole('tab', { name: 'Integration Smoke' });
   await expect(integrationTab).toHaveAttribute('data-state', 'active');
+  const integrationTabById = harness.window.locator(`#${await integrationTab.getAttribute('id')}`);
 
   await harness.window.getByRole('button', { name: 'New terminal tab' }).click();
   await expect(harness.window.getByRole('tab')).toHaveCount(3);
   const fixtureTab = harness.window.getByRole('tab', { name: 'Maximal Terminal Lab' });
   await expect(fixtureTab).toHaveAttribute('data-state', 'active');
+  const fixtureTabById = harness.window.locator(`#${await fixtureTab.getAttribute('id')}`);
   await expect.poll(() => terminalScreen(terminal)).toContain('Maximal Terminal Lab');
   await expect(fixtureTab).toHaveText('Maximal Terminal Lab');
 
@@ -136,6 +138,8 @@ test('drives production terminal tabs, splits, tooltips, and emulators', async (
     'Integration Smoke',
   ]);
 
+  await integrationTab.click();
+  await expect(integrationTab).toHaveAttribute('data-state', 'active');
   await terminal.click();
   await harness.window.keyboard.press('Meta+d');
   await expect(harness.window.locator('.terminal-split')).toBeVisible();
@@ -146,6 +150,45 @@ test('drives production terminal tabs, splits, tooltips, and emulators', async (
   await expect.poll(() => terminal.first().evaluate((element) =>
     element.contains(document.activeElement))).toBe(true);
   await expect(harness.window.locator('.terminal:visible[data-focused="true"]')).toHaveCount(1);
+  await harness.window.keyboard.type('split-first-marker');
+  await harness.window.keyboard.press('Enter');
+  await expect.poll(() => terminalScreen(terminal.first())).toContain('split-first-marker');
+  await harness.window.keyboard.press('Meta+]');
+  await harness.window.keyboard.type('split-second-marker');
+  await harness.window.keyboard.press('Enter');
+  await expect.poll(() => terminalScreen(terminal.last())).toContain('split-second-marker');
+
+  await fixtureTabById.click();
+  await harness.window.waitForTimeout(2_000);
+  await integrationTabById.click();
+  await expect(terminal).toHaveCount(2);
+  await expect.poll(() => terminalScreen(terminal.first())).toContain('split-first-marker');
+  await expect.poll(() => terminalScreen(terminal.last())).toContain('split-second-marker');
+  await expect(terminal.first().locator('.xterm-rows')).toContainText('split-first-marker');
+  await expect(terminal.last().locator('.xterm-rows')).toContainText('split-second-marker');
+
+  await harness.window.getByRole('button', { name: 'Ghostty' }).click();
+  await expect(terminal).toHaveCount(2);
+  await terminal.first().click();
+  await harness.window.keyboard.type('ghostty-first-marker');
+  await harness.window.keyboard.press('Enter');
+  await terminal.last().click();
+  await harness.window.keyboard.type('ghostty-second-marker');
+  await harness.window.keyboard.press('Enter');
+  await expect.poll(() => terminalScreen(terminal.first())).toContain('ghostty-first-marker');
+  await expect.poll(() => terminalScreen(terminal.last())).toContain('ghostty-second-marker');
+
+  for (let cycle = 0; cycle < 3; cycle += 1) {
+    await fixtureTabById.click();
+    await harness.window.waitForTimeout(5_000);
+    await integrationTabById.click();
+    await expect(terminal).toHaveCount(2);
+    await expect.poll(() => terminalScreen(terminal.first())).toContain('ghostty-first-marker');
+    await expect.poll(() => terminalScreen(terminal.last())).toContain('ghostty-second-marker');
+    await expect(terminal.first().locator('.term-grid')).toContainText('ghostty-first-marker');
+    await expect(terminal.last().locator('.term-grid')).toContainText('ghostty-second-marker');
+  }
+
   await harness.window.getByRole('button', { name: 'xterm.js' }).click();
   await expect(harness.window.locator('.terminal:visible[data-focused="true"]')).toHaveCount(0);
   const xtermScrollers = await harness.window.locator(
@@ -175,5 +218,6 @@ test('drives production terminal tabs, splits, tooltips, and emulators', async (
 
   await harness.window.getByRole('button', { name: 'Close active terminal' }).click();
   await expect(harness.window.getByRole('tab')).toHaveCount(2);
-  await expect(integrationTab).toHaveAttribute('data-state', 'active');
+  await expect(integrationTabById).toHaveCount(0);
+  await expect(fixtureTabById).toHaveAttribute('data-state', 'active');
 });

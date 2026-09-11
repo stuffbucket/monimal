@@ -2,7 +2,7 @@
   "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
   "entry": [
     "forge.config.ts",
-    "vite.*.config.ts",
+    "vite.*.config.{ts,mts}",
     "scripts/**/*.{mjs,ts}",
     "e2e/**/*.ts",
     "tests/**/*.test.ts",

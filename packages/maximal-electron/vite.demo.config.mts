@@ -4,10 +4,10 @@ import { resolve } from 'node:path';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
-import { newestMtime } from './e2e/freshness.js';
-import { DEMO_RENDERER_CACHE } from './vite.cache-paths.js';
+import { newestMtime } from './e2e/freshness.mjs';
+import { DEMO_RENDERER_CACHE } from './vite.cache-paths.mjs';
 
-const root = resolve(__dirname, 'e2e/fixtures/demo-shell');
+const root = resolve(import.meta.dirname, 'e2e/fixtures/demo-shell');
 
 /**
  * Refuse to build the fixture against a stale or missing `dist/`.
@@ -24,7 +24,7 @@ const root = resolve(__dirname, 'e2e/fixtures/demo-shell');
  * command and mean different things.
  */
 function requireFreshPackage(): void {
-  const entry = resolve(__dirname, 'dist/renderer/index.js');
+  const entry = resolve(import.meta.dirname, 'dist/renderer/index.js');
 
   let built: number;
   try {
@@ -37,7 +37,7 @@ function requireFreshPackage(): void {
     );
   }
 
-  const source = newestMtime(resolve(__dirname, 'src/renderer'));
+  const source = newestMtime(resolve(import.meta.dirname, 'src/renderer'));
   if (source === undefined || source <= built) return;
 
   const behind = Math.round((source - built) / 1000);
@@ -59,7 +59,7 @@ function requireFreshPackage(): void {
 // is what makes it a consumer rather than an insider. `npm run
 // verify:fixture-imports` fails if one stops doing so.
 //
-// `outDir` is absolute for the same reason `vite.renderer.config.ts` needs it:
+// `outDir` is absolute for the same reason `vite.renderer.config.mts` needs it:
 // Forge's default is relative to the root it sets, so overriding `root` sends
 // the output to `e2e/fixtures/demo-shell/.vite/...` and it never reaches the
 // build. `emptyOutDir` is explicit because Vite will not clear a directory
@@ -73,7 +73,7 @@ export default defineConfig(() => {
     plugins: [react()],
     resolve: { preserveSymlinks: false },
     build: {
-      outDir: resolve(__dirname, '.vite/renderer/demo_window'),
+      outDir: resolve(import.meta.dirname, '.vite/renderer/demo_window'),
       emptyOutDir: true,
       sourcemap: true,
       rollupOptions: {

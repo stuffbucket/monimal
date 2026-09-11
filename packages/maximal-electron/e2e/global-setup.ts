@@ -1,7 +1,7 @@
 import { statSync } from 'node:fs';
 import path from 'node:path';
 
-import { newestMtime } from './freshness.js';
+import { newestMtime } from './freshness.mjs';
 
 /**
  * Global end-to-end setup.

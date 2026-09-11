@@ -6,7 +6,7 @@ import {
   DEMO_RENDERER_CACHE,
   MAIN_RENDERER_CACHE,
   TERMINAL_LAB_RENDERER_CACHE,
-} from '../vite.cache-paths.js';
+} from '../vite.cache-paths.mjs';
 
 describe('renderer Vite caches', () => {
   it('isolates concurrently running renderer optimizers', () => {

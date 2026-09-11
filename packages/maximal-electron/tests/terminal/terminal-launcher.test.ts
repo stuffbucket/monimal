@@ -623,6 +623,9 @@ describe('TerminalLauncher', () => {
     ['tmux 2.4\n', false],
     [' tmux 3.4 \n', true],
     ['tmux 4.0\n', true],
+    ['tmux 13.4\n', true],
+    ['tmux 3.14\n', true],
+    ['prefix tmux 3.4\n', false],
     ['not tmux\n', false],
   ])('derives hyperlink advertisement from tmux version %j', async (version, supportsHyperlinks) => {
     const run = vi.fn<CommandRunner>().mockResolvedValueOnce({ stdout: version }).mockResolvedValueOnce({ stdout: 'work\n' });

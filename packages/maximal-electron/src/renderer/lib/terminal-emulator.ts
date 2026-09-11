@@ -122,6 +122,34 @@ function applyGhosttyWindow(
   host.dataset.ghosttyPaddingBalance = String(adjustment.balance ?? false);
 }
 
+function fitGhosttyTerminal(host: HTMLElement, terminal: WTerm): void {
+  const style = getComputedStyle(host);
+  const width = host.clientWidth
+    - (parseFloat(style.paddingLeft) || 0)
+    - (parseFloat(style.paddingRight) || 0);
+  const height = host.clientHeight
+    - (parseFloat(style.paddingTop) || 0)
+    - (parseFloat(style.paddingBottom) || 0);
+  if (width <= 0 || height <= 0) return;
+
+  const row = document.createElement('div');
+  row.className = 'term-row';
+  row.style.visibility = 'hidden';
+  row.style.position = 'absolute';
+  const probe = document.createElement('span');
+  probe.textContent = 'W';
+  row.appendChild(probe);
+  host.appendChild(row);
+  const charWidth = probe.getBoundingClientRect().width;
+  const rowHeight = row.getBoundingClientRect().height;
+  row.remove();
+  if (charWidth <= 0 || rowHeight <= 0) return;
+
+  const cols = Math.max(1, Math.floor(width / charWidth));
+  const rows = Math.max(1, Math.floor(height / rowHeight));
+  if (cols !== terminal.cols || rows !== terminal.rows) terminal.resize(cols, rows);
+}
+
 async function createGhosttyEmulator(
   theme?: TerminalTheme,
   windowAdjustment?: GhosttyWindowAdjustment,
@@ -200,6 +228,7 @@ async function createGhosttyEmulator(
     get buffer() { return { active: activeBuffer() }; },
     open: async (host) => {
       element = host;
+      const initialHeight = host.style.height;
       if (theme?.foreground) host.style.setProperty('--term-fg', theme.foreground);
       if (theme?.background && !windowAdjustment) host.style.setProperty('--term-bg', theme.background);
       if (theme?.cursor) host.style.setProperty('--term-cursor', theme.cursor);
@@ -208,6 +237,7 @@ async function createGhosttyEmulator(
       host.addEventListener('keyup', handleKeyUp, { capture: true });
       host.addEventListener('input', handleInput, { capture: true });
       terminal = new WTerm(host, {
+        autoResize: false,
         core,
         cursorBlink: true,
         onData: (data) => {
@@ -216,9 +246,16 @@ async function createGhosttyEmulator(
         onResize: (cols, rows) => resizeListeners.forEach((listener) => listener({ cols, rows })),
         onTitle: emitTitle,
       });
-      await terminal.init();
+      try {
+        await terminal.init();
+      }
+      finally {
+        host.style.height = initialHeight;
+      }
     },
-    fit: () => {},
+    fit: () => {
+      if (element && terminal) fitGhosttyTerminal(element, terminal);
+    },
     focus: () => terminal?.focus(),
     blur: () => {
       element?.querySelector('textarea')?.blur();

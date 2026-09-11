@@ -103,6 +103,16 @@ describe('OSC title observer', () => {
     expect(emit).toHaveBeenCalledWith('recovered');
   });
 
+  it('does not treat a raw backslash as an ignored string terminator', () => {
+    const emit = observe(
+      `${C1_DCS}\\${ESC}]0;still-ignored${BEL}`,
+      `${ESC}]2;recovered${BEL}`,
+    );
+
+    expect(emit).toHaveBeenCalledOnce();
+    expect(emit).toHaveBeenCalledWith('recovered');
+  });
+
   it('returns to an ignored string after a false escape terminator', () => {
     const emit = observe(
       `${C1_DCS}${ESC}x\\${ESC}]0;still-ignored${BEL}`,
@@ -147,6 +157,20 @@ describe('OSC title observer', () => {
     expect(emit).toHaveBeenCalledWith('recovered');
   });
 
+  it.each([
+    ['ordinary data', `q${ESC}]0;still-discarded${BEL}`],
+    ['a false escape terminator', `q\\${ESC}]0;still-discarded${BEL}`],
+    ['an escaped ordinary byte', `${ESC}q${ESC}]0;still-discarded${BEL}`],
+  ])('does not end oversized discard mode on %s', (_name, discardedTail) => {
+    const emit = observe(
+      `${ESC}]0;${'x'.repeat(4_095)}${discardedTail}`,
+      `${ESC}]2;recovered${BEL}`,
+    );
+
+    expect(emit).toHaveBeenCalledOnce();
+    expect(emit).toHaveBeenCalledWith('recovered');
+  });
+
   it('accepts C1 ST after an OSC escape in normal and discard modes', () => {
     const emit = observe(
       `${ESC}]0;c1-title${ESC}${C1_ST}`,
@@ -173,5 +197,12 @@ describe('OSC title observer', () => {
     );
 
     expect(emit.mock.calls).toEqual([[exactTitle], ['recovered']]);
+  });
+
+  it('does not infer a title command when the OSC payload has no separator', () => {
+    const emit = observe(`${ESC}]0x${BEL}${ESC}]2;recovered${BEL}`);
+
+    expect(emit).toHaveBeenCalledOnce();
+    expect(emit).toHaveBeenCalledWith('recovered');
   });
 });

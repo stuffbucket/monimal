@@ -1,12 +1,13 @@
-type ParserState =
-  | 'ground'
-  | 'escape'
-  | 'osc'
-  | 'osc-escape'
-  | 'osc-discard'
-  | 'osc-discard-escape'
-  | 'string'
-  | 'string-escape';
+enum ParserState {
+  Ground,
+  Escape,
+  Osc,
+  OscEscape,
+  OscDiscard,
+  OscDiscardEscape,
+  String,
+  StringEscape,
+}
 
 const ESC = '\x1b';
 const BEL = '\x07';
@@ -17,15 +18,10 @@ const C1_OSC = '\x9d';
 const C1_PM = '\x9e';
 const C1_APC = '\x9f';
 const MAX_PAYLOAD = 4_096;
-// Stryker disable next-line StringLiteral: an unknown state follows the same discard path until termination.
-const STRING_STATE = 'string' as const;
-// Stryker disable next-line StringLiteral: an unknown state remains non-emitting and terminates identically.
-const OSC_DISCARD_STATE = 'osc-discard' as const;
 
 export class OscTitleObserver {
-  private state: ParserState = 'ground';
-  // Stryker disable next-line StringLiteral: startOsc clears this before payload can be observed.
-  private payload = '';
+  private state = ParserState.Ground;
+  private payload!: string;
 
   constructor(private readonly emit: (title: string) => void) {}
 
@@ -34,66 +30,72 @@ export class OscTitleObserver {
   }
 
   private accept(character: string): void {
-    if (this.state === 'ground') {
-      if (character === ESC) this.state = 'escape';
+    if (this.state === ParserState.Ground) {
+      if (character === ESC) this.state = ParserState.Escape;
       else if (character === C1_OSC) this.startOsc();
-      else if ([C1_DCS, C1_SOS, C1_PM, C1_APC].includes(character)) this.state = 'string';
+      else if ([C1_DCS, C1_SOS, C1_PM, C1_APC].includes(character)) this.state = ParserState.String;
       return;
     }
 
-    if (this.state === 'escape') {
+    if (this.state === ParserState.Escape) {
       if (character === ']') this.startOsc();
-      else if (['P', 'X', '^', '_'].includes(character)) this.state = STRING_STATE;
-      else this.state = character === ESC ? 'escape' : 'ground';
+      else if (['P', 'X', '^', '_'].includes(character)) this.state = ParserState.String;
+      else this.state = character === ESC ? ParserState.Escape : ParserState.Ground;
       return;
     }
 
-    if (this.state === 'string') {
-      if (character === C1_ST || character === BEL) this.state = 'ground';
-      else if (character === ESC) this.state = 'string-escape';
+    if (this.state === ParserState.String) {
+      if (character === C1_ST || character === BEL) this.state = ParserState.Ground;
+      else if (character === ESC) this.state = ParserState.StringEscape;
       return;
     }
 
-    if (this.state === 'string-escape') {
-      if (character === '\\' || character === C1_ST) this.state = 'ground';
-      else this.state = character === ESC ? 'string-escape' : STRING_STATE;
+    if (this.state === ParserState.StringEscape) {
+      if (character === '\\' || character === C1_ST) this.state = ParserState.Ground;
+      else this.state = character === ESC ? ParserState.StringEscape : ParserState.String;
       return;
     }
 
-    if (this.state === 'osc-escape' || this.state === 'osc-discard-escape') {
+    if (this.state === ParserState.OscEscape) {
       if (character === '\\' || character === C1_ST) this.finishOsc();
-      else this.state = this.state === 'osc-escape' ? 'osc' : OSC_DISCARD_STATE;
+      else this.state = ParserState.Osc;
       return;
     }
 
-    if (character === BEL || character === C1_ST) {
-      this.finishOsc();
-    } else if (character === ESC) {
-      this.state = this.state === 'osc' ? 'osc-escape' : 'osc-discard-escape';
-    } else {
-      // Stryker disable next-line ConditionalExpression: appending while discarding cannot affect finishOsc output.
-      const collecting = this.state === 'osc';
-      // Stryker disable next-line ConditionalExpression: appending while discarding cannot affect finishOsc output.
-      if (!collecting) return;
-      if (this.payload.length + character.length <= MAX_PAYLOAD) this.payload += character;
-      else this.state = 'osc-discard';
+    if (this.state === ParserState.Osc) {
+      if (character === BEL || character === C1_ST) this.finishOsc();
+      else if (character === ESC) this.state = ParserState.OscEscape;
+      else {
+        if (this.payload.length + character.length <= MAX_PAYLOAD) this.payload += character;
+        else this.state = ParserState.OscDiscard;
+      }
+      return;
     }
+
+    if (this.state === ParserState.OscDiscard) {
+      if (character === BEL || character === C1_ST) this.finishOsc();
+      else if (character === ESC) this.state = ParserState.OscDiscardEscape;
+      return;
+    }
+
+    if (character === '\\' || character === C1_ST) this.finishOsc();
+    else this.state = ParserState.OscDiscard;
   }
 
   private startOsc(): void {
     this.payload = '';
-    this.state = 'osc';
+    this.state = ParserState.Osc;
   }
 
   private finishOsc(): void {
-    if (this.state !== 'osc-discard' && this.state !== 'osc-discard-escape') {
+    if (this.state !== ParserState.OscDiscard && this.state !== ParserState.OscDiscardEscape) {
       const separator = this.payload.indexOf(';');
-      // Stryker disable next-line ConditionalExpression,EqualityOperator,StringLiteral: every missing-separator value is a non-title command.
-      const command = separator < 0 ? '' : this.payload.slice(0, separator);
-      if (command === '0' || command === '2') this.emit(this.payload.slice(separator + 1));
+      // Stryker disable next-line EqualityOperator: separator 0 always yields an empty, non-emitting command.
+      if (separator > 0) {
+        const command = this.payload.slice(0, separator);
+        if (command === '0' || command === '2') this.emit(this.payload.slice(separator + 1));
+      }
     }
-    // Stryker disable next-line StringLiteral: startOsc clears this before the next observable payload.
-    this.payload = '';
-    this.state = 'ground';
+    this.state = ParserState.Ground;
   }
 }
