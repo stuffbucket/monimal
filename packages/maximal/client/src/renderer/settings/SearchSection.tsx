@@ -536,10 +536,7 @@ export function SearchSection({
   useUnsavedChangesController(unsavedChanges)
 
   return (
-    <section className="settings-section" aria-labelledby="settings-search-heading">
-      <h1 id="settings-search-heading" className="settings-section__heading">
-        Search
-      </h1>
+    <section className="settings-section">
       {error ? (
         <Note status="failed" live="assertive">
           {error}

@@ -217,11 +217,8 @@ export function ModelsSection({ capabilities }: ModelsSectionProps): ReactElemen
   )
 
   return (
-    <section className="settings-section" aria-labelledby="settings-models-heading">
-      <div className="settings-section__title-row">
-        <h1 id="settings-models-heading" className="settings-section__heading">
-          Models
-        </h1>
+    <section className="settings-section">
+      <div className="settings-section__actions">
         <Button
           variant="primary"
           size="sm"

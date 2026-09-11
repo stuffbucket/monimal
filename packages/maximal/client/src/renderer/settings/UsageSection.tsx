@@ -56,12 +56,8 @@ export function UsageSection({ capabilities }: UsageSectionProps): ReactElement 
   }, [capabilities, period])
 
   return (
-    <section className="settings-section" aria-labelledby="settings-usage-heading">
-      <div className="settings-section__title-row">
-        <h1 id="settings-usage-heading" className="settings-section__heading">
-          Usage
-        </h1>
-        <div className="settings-periods" aria-label="Usage period">
+    <section className="settings-section">
+      <div className="settings-periods" aria-label="Usage period">
           {PERIODS.map((value) => (
             <Button
               key={value}
@@ -76,7 +72,6 @@ export function UsageSection({ capabilities }: UsageSectionProps): ReactElement 
               {value[0]?.toUpperCase()}{value.slice(1)}
             </Button>
           ))}
-        </div>
       </div>
       {error ? (
         <div className="settings-field">

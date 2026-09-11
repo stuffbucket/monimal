@@ -144,8 +144,7 @@ describe('ConnectionsSection', () => {
     const { capabilities, apiKeys } = fakeCapabilities()
     const surface = await renderConnections(capabilities)
 
-    expect(surface.querySelectorAll('h1')).toHaveLength(1)
-    expect(surface.querySelector('h1')?.textContent).toBe('Connections')
+    expect(surface.querySelector('h1')).toBeNull()
     expect(surface.textContent).toContain('http://127.0.0.1:4173')
     expect(surface.textContent).toContain('http://127.0.0.1:4173/v1')
     expect(surface.textContent).toContain('Claude Code')

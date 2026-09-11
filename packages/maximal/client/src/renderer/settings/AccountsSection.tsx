@@ -67,15 +67,11 @@ export function AccountsSection({
   return (
     <Root
       className={embedded ? 'settings-subsection' : 'settings-section'}
-      {...(embedded ? {} : { 'aria-labelledby': 'settings-accounts-heading' })}
+      {...(embedded ? {} : { 'aria-label': 'Accounts' })}
     >
       {embedded ? (
         <h2 className="settings-section__subheading">Saved accounts</h2>
-      ) : (
-        <h1 id="settings-accounts-heading" className="settings-section__heading">
-          Accounts
-        </h1>
-      )}
+      ) : null}
 
       {/* Retry is an action, not navigation, so it is a Button and it sits
           beside the message rather than underlined inside it. `settings-field`

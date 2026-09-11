@@ -278,6 +278,7 @@ export function Switch({
   label,
   displayLabel,
   tooltip,
+  layout = 'spread',
   checked,
   onChange,
   disabled,
@@ -287,6 +288,7 @@ export function Switch({
   label: string;
   displayLabel?: ReactNode;
   tooltip?: ReactNode;
+  layout?: 'spread' | 'compact';
   checked: boolean;
   onChange: (next: boolean) => void;
   disabled?: boolean;
@@ -301,6 +303,7 @@ export function Switch({
       role="switch"
       aria-label={label}
       aria-checked={checked}
+      data-layout={layout}
       disabled={disabled}
       onClick={() => onChange(!checked)}
       data-testid={testId}

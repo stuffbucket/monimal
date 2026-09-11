@@ -248,7 +248,7 @@ describe('SearchSection', () => {
         ?.getAttribute('aria-checked'),
     ).toBe('true')
     expect(surface.textContent).not.toContain('Enabled')
-    expect(surface.querySelector('h1')?.textContent).toBe('Search')
+    expect(surface.querySelector('h1')).toBeNull()
     expect(
       [...surface.querySelectorAll('h2')].map((heading) => heading.textContent),
     ).toEqual(['Provider order', 'Domain filtering'])

@@ -69,6 +69,16 @@ function button(label: string): HTMLButtonElement {
 }
 
 describe('GeneralSection menu-bar-only confirmation', () => {
+  it('presents the control as an Appearance setting', async () => {
+    const { capabilities } = fakeCapabilities()
+    const surface = await renderGeneral(capabilities)
+
+    expect(surface.querySelector('h1')).toBeNull()
+    expect(surface.querySelector('h2')?.textContent).toBe('Desktop presence')
+    expect(switchControl(surface).getAttribute('role')).toBe('switch')
+    expect(switchControl(surface).getAttribute('data-layout')).toBe('compact')
+  })
+
   it('counts down and closes when main reaches its automatic rollback deadline', async () => {
     const { capabilities } = fakeCapabilities()
     const surface = await renderGeneral(capabilities)
