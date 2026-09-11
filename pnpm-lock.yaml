@@ -284,7 +284,7 @@ importers:
         version: 7.11.2(bluebird@3.7.2)(csso@5.0.5)(encoding@0.1.13)(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.26)(supports-color@8.1.1)(uglify-js@3.19.3)
       '@electron-forge/plugin-fuses':
         specifier: 7.11.2
-        version: 7.11.2(@electron/fuses@1.8.0)(bluebird@3.7.2)(supports-color@8.1.1)
+        version: 7.11.2(@electron/fuses@2.1.3)(bluebird@3.7.2)(supports-color@8.1.1)
       '@electron-forge/plugin-vite':
         specifier: 7.11.2
         version: 7.11.2(bluebird@3.7.2)(supports-color@8.1.1)
@@ -295,8 +295,8 @@ importers:
         specifier: ^4.3.0
         version: 4.3.0
       '@electron/fuses':
-        specifier: ^1.8.0
-        version: 1.8.0
+        specifier: ^2.1.3
+        version: 2.1.3
       '@playwright/test':
         specifier: ^1.62.0
         version: 1.62.1
@@ -1463,8 +1463,9 @@ packages:
     engines: {node: '>=22.12.0'}
     hasBin: true
 
-  '@electron/fuses@1.8.0':
-    resolution: {integrity: sha1-rTTTzEcDsSWLg/aYmRcFLPwUkKA=}
+  '@electron/fuses@2.1.3':
+    resolution: {integrity: sha1-mmOgq4jalDNBez1aOpVIfkYUiNY=}
+    engines: {node: '>=22.12.0'}
     hasBin: true
 
   '@electron/get@3.1.0':
@@ -8645,11 +8646,11 @@ snapshots:
       - bluebird
       - supports-color
 
-  '@electron-forge/plugin-fuses@7.11.2(@electron/fuses@1.8.0)(bluebird@3.7.2)(supports-color@8.1.1)':
+  '@electron-forge/plugin-fuses@7.11.2(@electron/fuses@2.1.3)(bluebird@3.7.2)(supports-color@8.1.1)':
     dependencies:
       '@electron-forge/plugin-base': 7.11.2(bluebird@3.7.2)(supports-color@8.1.1)
       '@electron-forge/shared-types': 7.11.2(bluebird@3.7.2)(supports-color@8.1.1)
-      '@electron/fuses': 1.8.0
+      '@electron/fuses': 2.1.3
     transitivePeerDependencies:
       - bluebird
       - supports-color
@@ -8764,11 +8765,7 @@ snapshots:
       glob: 13.0.6
       minimatch: 10.2.6
 
-  '@electron/fuses@1.8.0':
-    dependencies:
-      chalk: 4.1.2
-      fs-extra: 9.1.0
-      minimist: 1.2.8
+  '@electron/fuses@2.1.3': {}
 
   '@electron/get@3.1.0(supports-color@8.1.1)':
     dependencies:
