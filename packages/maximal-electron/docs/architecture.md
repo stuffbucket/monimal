@@ -132,16 +132,17 @@ clear, select, and scroll actions. OSC 0 and OSC 2 title changes name a terminal
 tab; controls are removed and titles are bounded before the tab stores them.
 The PTY launch directory basename is the initial shell title.
 
-`terminal-workspace.ts` defines the renderer aggregate for the next terminal
-composition boundary. A terminal document owns one pane tree and its logical
+`terminal-workspace.ts` defines the renderer aggregate for terminal composition.
+A terminal document owns one pane tree and its logical
 focus. Pane leaves reference branded view identities. A view references one
 session and may reference one backend projection. A session may have any number
 of views and projections, but one backend projection belongs to at most one live
 view because its focus and resize epoch identify one control endpoint. The
 aggregate owns split, close, focus, and document docking as immutable operations.
-It owns no emulator, DOM node, Electron object, or process lifetime. Existing
-`TerminalTabs` composition still uses the earlier session-leaf model; migration
-to this aggregate is a separate change.
+It owns no emulator, DOM node, Electron object, or process lifetime.
+`TerminalTabs` uses one aggregate per attached document and keeps each emulator
+mounted in a portal keyed by its view identity. Pane-tree changes move those
+portal nodes without remounting the emulator or losing its buffer.
 
 `init()` is shared across terminal views. A rejected load clears that shared
 promise, and the view shows a retry action rather than leaving an empty canvas.

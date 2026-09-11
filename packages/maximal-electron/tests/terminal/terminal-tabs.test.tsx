@@ -1,30 +1,45 @@
 // @vitest-environment jsdom
-import { StrictMode, act } from 'react';
+import { StrictMode, act, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
+const terminalLifecycle = vi.hoisted(() => ({
+  mounted: vi.fn(),
+  unmounted: vi.fn(),
+}));
+
 vi.mock('../../src/renderer/components/TerminalView.js', () => ({
-  TerminalView: ({ id, focusRequest, focusIndicator, onExit, onSplit, onNavigateSplit }: {
+  TerminalView: ({ id, viewId, focusRequest, focusIndicator, onExit, onSplit, onNavigateSplit }: {
     id: string;
+    viewId?: string;
     focusRequest?: number;
     focusIndicator?: boolean;
     onExit?: (exitCode: number) => void;
     onSplit?: (direction: 'right') => void;
     onNavigateSplit?: (direction: 'next') => void;
-  }) => (
-    <button
-      data-session-id={id}
-      data-focus-request={focusRequest || undefined}
-      data-focus-indicator={focusIndicator || undefined}
-      onClick={() => onSplit?.('right')}
-      onDoubleClick={() => onNavigateSplit?.('next')}
-      onContextMenu={(event) => {
-        event.preventDefault();
-        onExit?.(0);
-      }}
-    />
-  ),
+  }) => {
+    useEffect(() => {
+      terminalLifecycle.mounted(viewId ?? id);
+      return () => {
+        terminalLifecycle.unmounted(viewId ?? id);
+      };
+    }, [id, viewId]);
+    return (
+      <button
+        data-session-id={id}
+        data-view-id={viewId}
+        data-focus-request={focusRequest || undefined}
+        data-focus-indicator={focusIndicator || undefined}
+        onClick={() => onSplit?.('right')}
+        onDoubleClick={() => onNavigateSplit?.('next')}
+        onContextMenu={(event) => {
+          event.preventDefault();
+          onExit?.(0);
+        }}
+      />
+    );
+  },
 }));
 
 import { TerminalTabs } from '../../src/renderer/components/TerminalTabs.js';
@@ -88,6 +103,8 @@ describe('TerminalTabs attachments', () => {
   });
 
   it('inserts a trusted launched session into a resizable split', async () => {
+    terminalLifecycle.mounted.mockClear();
+    terminalLifecycle.unmounted.mockClear();
     const launchSplit = vi.fn(async () => ({ sessionId: 'session-5' }));
     const onSessionsChange = vi.fn();
     const terminate = vi.fn(async () => undefined);
@@ -123,6 +140,9 @@ describe('TerminalTabs attachments', () => {
     expect(element.querySelectorAll('[data-focus-indicator="true"]')).toHaveLength(2);
     expect(onSessionsChange).toHaveBeenLastCalledWith('tab-17', ['session-4', 'session-5']);
     expect(terminate).not.toHaveBeenCalled();
+    expect([...element.querySelectorAll('[data-view-id]')].map((node) =>
+      node.getAttribute('data-view-id'))).toEqual(['tab-17:view:0', 'tab-17:view:1']);
+    expect(terminalLifecycle.unmounted).not.toHaveBeenCalled();
 
     await act(async () => {
       (element.querySelector('[data-session-id="session-5"]') as HTMLButtonElement)
@@ -177,6 +197,8 @@ describe('TerminalTabs attachments', () => {
   });
 
   it('collapses an exited split and closes a tab when its final shell exits', async () => {
+    terminalLifecycle.mounted.mockClear();
+    terminalLifecycle.unmounted.mockClear();
     const onExit = vi.fn();
     const onSessionsChange = vi.fn();
     const element = document.createElement('div');
@@ -216,6 +238,8 @@ describe('TerminalTabs attachments', () => {
     )).toBe('2');
     expect(onSessionsChange).toHaveBeenLastCalledWith('tab-17', ['session-4']);
     expect(onExit).not.toHaveBeenCalled();
+    expect(terminalLifecycle.unmounted).toHaveBeenCalledWith('tab-17:view:1');
+    expect(terminalLifecycle.unmounted).not.toHaveBeenCalledWith('tab-17:view:0');
 
     await act(async () => {
       element.querySelector('[data-session-id="session-4"]')?.dispatchEvent(

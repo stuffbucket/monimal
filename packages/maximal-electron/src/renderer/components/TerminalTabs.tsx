@@ -1,5 +1,5 @@
-import { Group, Panel, Separator } from 'react-resizable-panels';
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 import type {
   GhosttyWindowAdjustment,
@@ -11,11 +11,17 @@ import type {
   TerminalTransport,
 } from '../lib/terminal-transport.js';
 import {
-  removeTerminalPane,
-  splitTerminalPane,
-  terminalPaneSessionIds,
-  type TerminalPane,
-} from '../lib/terminal-pane.js';
+  closeTerminalView,
+  createTerminalWorkspace,
+  focusTerminalView,
+  splitTerminalView,
+  terminalDocumentId,
+  terminalPaneViewIds,
+  terminalSessionId,
+  terminalViewId,
+  type TerminalViewId,
+} from '../lib/terminal-workspace.js';
+import { TerminalWorkspaceLayout } from '../lib/terminal-workspace-layout.js';
 import { TerminalView } from './TerminalView.js';
 
 /**
@@ -83,21 +89,55 @@ function TerminalAttachmentView({
   onTitleChange,
   session,
 }: TerminalAttachmentViewProps) {
-  const [pane, setPane] = useState<TerminalPane>({ sessionId: attachment.sessionId });
-  const paneRef = useRef(pane);
+  const documentId = terminalDocumentId(attachment.id);
+  const initialViewId = terminalViewId(`${attachment.id}:view:0`);
+  const [workspace, setWorkspace] = useState(() => createTerminalWorkspace({
+    documents: [{
+      id: documentId,
+      title: attachment.id,
+      root: { kind: 'leaf', viewId: initialViewId },
+      focusedViewId: initialViewId,
+    }],
+    views: [{
+      id: initialViewId,
+      sessionId: terminalSessionId(attachment.sessionId),
+    }],
+  }));
+  const workspaceRef = useRef(workspace);
   const mountGeneration = useRef(0);
-  const [focusedId, setFocusedId] = useState(attachment.sessionId);
-  const [focusRequest, setFocusRequest] = useState({ sessionId: '', generation: 0 });
+  const nextView = useRef(1);
+  const portalNodes = useRef(new Map<TerminalViewId, HTMLDivElement>());
+  const [portalsReady, setPortalsReady] = useState(false);
+  const [focusRequest, setFocusRequest] = useState<TerminalViewId>();
+  const focusGeneration = useRef(0);
   const splitPending = useRef(false);
   const [splitFailed, setSplitFailed] = useState(false);
-  paneRef.current = pane;
+  workspaceRef.current = workspace;
+  const document = workspace.documents.get(documentId)!;
+
+  function sessionId(viewId: TerminalViewId) {
+    return workspace.views.get(viewId)!.sessionId;
+  }
+
+  function portalNode(viewId: TerminalViewId): HTMLDivElement | undefined {
+    if (!portalsReady) return undefined;
+    let node = portalNodes.current.get(viewId);
+    if (!node) {
+      node = globalThis.document.createElement('div');
+      node.className = 'terminal-pane-portal';
+      portalNodes.current.set(viewId, node);
+    }
+    return node;
+  }
 
   useEffect(() => {
+    setPortalsReady(true);
     const generation = mountGeneration.current + 1;
     mountGeneration.current = generation;
     return () => {
       if (session.disposition !== 'terminate') return;
-      const sessionIds = terminalPaneSessionIds(paneRef.current);
+      const current = workspaceRef.current;
+      const sessionIds = new Set([...current.views.values()].map((view) => view.sessionId));
       queueMicrotask(() => {
         if (mountGeneration.current !== generation) return;
         for (const sessionId of sessionIds) void session.transport.terminate(sessionId);
@@ -106,102 +146,103 @@ function TerminalAttachmentView({
   }, [session.disposition, session.transport]);
 
   useEffect(() => {
-    onSessionsChange?.(attachment.id, terminalPaneSessionIds(pane));
-  }, [attachment.id, onSessionsChange, pane]);
+    onSessionsChange?.(
+      attachment.id,
+      terminalPaneViewIds(document.root).map((viewId) => workspace.views.get(viewId)!.sessionId),
+    );
+  }, [attachment.id, document.root, onSessionsChange, workspace.views]);
 
-  function requestPaneFocus(sessionId: string): void {
-    setFocusedId(sessionId);
-    setFocusRequest((current) => ({
-      sessionId,
-      generation: current.generation + 1,
-    }));
+  function requestPaneFocus(viewId: TerminalViewId): void {
+    setWorkspace((current) => focusTerminalView(current, documentId, viewId));
+    focusGeneration.current += 1;
+    setFocusRequest(viewId);
   }
 
-  function navigateSplit(fromId: string, direction: 'previous' | 'next'): void {
-    const ids = terminalPaneSessionIds(pane);
-    if (ids.length < 2) return;
-    const index = ids.indexOf(fromId);
+  function navigateSplit(fromId: TerminalViewId, direction: 'previous' | 'next'): void {
+    const viewIds = terminalPaneViewIds(document.root);
+    if (viewIds.length < 2) return;
+    const index = viewIds.indexOf(fromId);
     const offset = direction === 'previous' ? -1 : 1;
-    requestPaneFocus(ids[(index + offset + ids.length) % ids.length] ?? fromId);
+    requestPaneFocus(viewIds[(index + offset + viewIds.length) % viewIds.length] ?? fromId);
   }
 
-  function exitPane(sessionId: string): void {
-    const remaining = removeTerminalPane(paneRef.current, sessionId);
-    if (!remaining) {
+  function exitPane(viewId: TerminalViewId): void {
+    const current = workspaceRef.current;
+    const next = closeTerminalView(current, documentId, viewId);
+    if (!next.documents.has(documentId)) {
       onExit?.(attachment.id);
       return;
     }
-    const ids = terminalPaneSessionIds(remaining);
-    setPane(remaining);
-    if (focusedId === sessionId) requestPaneFocus(ids[0]!);
+    setWorkspace(next);
+    if (current.documents.get(documentId)?.focusedViewId === viewId) {
+      focusGeneration.current += 1;
+      setFocusRequest(next.documents.get(documentId)?.focusedViewId);
+    }
   }
 
-  function renderPane(current: TerminalPane, path: string): React.ReactNode {
-    if ('sessionId' in current) {
-      const sessionId = current.sessionId;
-      return (
+  function renderTerminal(viewId: TerminalViewId) {
+    const view = workspace.views.get(viewId)!;
+    const node = portalNode(viewId);
+    if (!node) return null;
+    const viewIds = terminalPaneViewIds(document.root);
+    return createPortal(
         <TerminalView
-          id={sessionId}
+          id={view.sessionId}
+          viewId={viewId}
           emulator={emulator}
           ghosttyWindow={ghosttyWindow}
           shell={shell}
           theme={theme}
           disposition="preserve"
           transport={session.transport}
-          focusRequest={focusRequest.sessionId === sessionId ? focusRequest.generation : 0}
-          focusIndicator={terminalPaneSessionIds(pane).length > 1}
-          onFocus={() => setFocusedId(sessionId)}
-          onExit={() => exitPane(sessionId)}
+          focusRequest={focusRequest === viewId ? focusGeneration.current : 0}
+          focusIndicator={viewIds.length > 1}
+          onFocus={() => setWorkspace((current) => focusTerminalView(current, documentId, viewId))}
+          onExit={() => exitPane(viewId)}
           onSplit={launchSplit ? (direction) => {
             if (splitPending.current) return;
             splitPending.current = true;
             setSplitFailed(false);
             void launchSplit()
               .then((result) => {
-                setPane((existing) => splitTerminalPane(existing, sessionId, direction, result.sessionId));
-                requestPaneFocus(result.sessionId);
+                const splitViewId = terminalViewId(`${attachment.id}:view:${String(nextView.current)}`);
+                nextView.current += 1;
+                setWorkspace((current) => splitTerminalView(
+                  current,
+                  documentId,
+                  viewId,
+                  direction,
+                  { id: splitViewId, sessionId: terminalSessionId(result.sessionId) },
+                ));
+                focusGeneration.current += 1;
+                setFocusRequest(splitViewId);
               })
               .catch(() => setSplitFailed(true))
               .finally(() => {
                 splitPending.current = false;
               });
           } : undefined}
-          onNavigateSplit={terminalPaneSessionIds(pane).length > 1
-            ? (direction) => navigateSplit(sessionId, direction)
+          onNavigateSplit={viewIds.length > 1
+            ? (direction) => navigateSplit(viewId, direction)
             : undefined}
           onTitleChange={(title) => {
-            if (focusedId === sessionId) onTitleChange?.(attachment.id, title);
+            if (document.focusedViewId === viewId) onTitleChange?.(attachment.id, title);
           }}
-        />
-      );
-    }
-
-    const orientation = current.direction === 'right' ? 'horizontal' : 'vertical';
-    return (
-      <Group
-        orientation={orientation}
-        className="terminal-split"
-        defaultLayout={{ [`${path}-first`]: 50, [`${path}-second`]: 50 }}
-        resizeTargetMinimumSize={{ coarse: 20, fine: 9 }}
-      >
-        <Panel className="terminal-split__panel" id={`${path}-first`} minSize="10%">
-          {renderPane(current.first, `${path}-first`)}
-        </Panel>
-        <Separator
-          className={orientation === 'vertical'
-            ? 'resize-handle resize-handle--horizontal'
-            : 'resize-handle'}
-        />
-        <Panel className="terminal-split__panel" id={`${path}-second`} minSize="10%">
-          {renderPane(current.second, `${path}-second`)}
-        </Panel>
-      </Group>
+        />,
+        node,
+        viewId,
     );
   }
 
   return (
     <>
-      {renderPane(pane, attachment.id)}
+      <TerminalWorkspaceLayout
+        pane={document.root}
+        path={attachment.id}
+        portalNode={portalNode}
+        sessionId={sessionId}
+      />
+      {portalsReady && terminalPaneViewIds(document.root).map(renderTerminal)}
       {splitFailed && <p className="terminal-split__error" role="alert">Terminal split could not start.</p>}
     </>
   );

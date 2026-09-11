@@ -17,6 +17,7 @@ import {
   TerminalAcknowledgements,
   TerminalResizes,
 } from '../lib/terminal-ack.js';
+import type { TerminalViewId } from '../lib/terminal-workspace.js';
 
 /**
  * A real terminal, driven by an injected transport.
@@ -36,6 +37,8 @@ import {
 export type TerminalHost = HTMLDivElement & { __terminal?: TerminalEmulator };
 
 interface TerminalViewCommonProps extends TerminalDescriptor {
+  /** Renderer identity. Transport operations remain addressed by `id`. */
+  viewId?: TerminalViewId;
   /** Terminal engine. The default is `xterm`. */
   emulator?: TerminalEmulatorKind;
   /** Window geometry and background effects applied only by the Ghostty adapter. */
@@ -82,6 +85,7 @@ export type TerminalViewProps = TerminalViewCommonProps &
  */
 export function TerminalView({
   id,
+  viewId,
   cwd,
   shell,
   ariaLabel = 'Terminal',
@@ -303,6 +307,7 @@ export function TerminalView({
     <div
       className="terminal"
       data-testid={testId}
+      data-view-id={viewId}
       data-focused={hasFocus || undefined}
       data-focus-indicator={focusIndicator || undefined}
       role="group"

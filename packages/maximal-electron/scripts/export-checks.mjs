@@ -378,6 +378,7 @@ const CONTRACTS = [
   /(?:^|\/)lib\/terminal-tab(?:\.js)?$/,
   /(?:^|\/)lib\/terminal-transport(?:\.js)?$/,
   /(?:^|\/)lib\/terminal-workspace(?:\.js)?$/,
+  /(?:^|\/)lib\/terminal-workspace-layout(?:\.js)?$/,
   /(?:^|\/)lib\/tab-adornment(?:\.js)?$/,
   /(?:^|\/)lib\/tab-transfer(?:\.js)?$/,
   /(?:^|\/)lib\/terminal-sessions(?:\.js)?$/,

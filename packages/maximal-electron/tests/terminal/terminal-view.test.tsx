@@ -50,6 +50,7 @@ vi.mock('../../src/renderer/lib/terminal-emulator.js', () => ({
 }));
 
 import { TerminalView } from '../../src/renderer/components/TerminalView.js';
+import { terminalViewId } from '../../src/renderer/lib/terminal-workspace.js';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 globalThis.ResizeObserver = class {
@@ -122,6 +123,35 @@ describe('TerminalView lifecycle', () => {
 
     expect(terminate).toHaveBeenCalledOnce();
     expect(terminate).toHaveBeenCalledWith('session-1');
+  });
+
+  it('keeps renderer identity out of session transport addressing', async () => {
+    const transport = {
+      spawn: vi.fn(async () => undefined),
+      write: vi.fn(async () => undefined),
+      resize: vi.fn(async () => undefined),
+      terminate: vi.fn(async () => undefined),
+      subscribe: vi.fn(() => () => undefined),
+    };
+    const element = document.createElement('div');
+    const root = createRoot(element);
+
+    await act(async () => {
+      root.render(
+        <TerminalView
+          id="session-1"
+          viewId={terminalViewId('view-7')}
+          transport={transport}
+        />,
+      );
+    });
+
+    expect(element.querySelector('.terminal')?.getAttribute('data-view-id')).toBe('view-7');
+    expect(transport.subscribe).toHaveBeenCalledWith('session-1', expect.any(Function));
+    expect(transport.spawn).toHaveBeenCalledWith(expect.objectContaining({ id: 'session-1' }));
+
+    await act(async () => root.unmount());
+    expect(transport.terminate).toHaveBeenCalledWith('session-1');
   });
 
   it('maps terminal split shortcuts and forwards terminal titles', async () => {
