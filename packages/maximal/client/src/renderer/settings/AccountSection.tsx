@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactElement } from 'react'
+import { useCallback, useEffect, useEffectEvent, useState, type ReactElement } from 'react'
 
 import { Button, Note } from 'stuffbucket-electron/renderer'
 
@@ -28,8 +28,7 @@ export function AccountSection({ capabilities }: AccountSectionProps): ReactElem
   const [status, setStatus] = useState<AuthStatus | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const busyRef = useRef(busy)
-  busyRef.current = busy
+  const isBusy = useEffectEvent(() => busy)
 
   // One effect owns the whole read lifetime: the first read, every later
   // push, the poll fallback, and teardown.
@@ -40,7 +39,7 @@ export function AccountSection({ capabilities }: AccountSectionProps): ReactElem
       // A refresh racing an in-flight action (sign-in/out, cancel) would
       // render a status the action is about to supersede anyway; skip it
       // rather than flicker.
-      if (busyRef.current) return
+      if (isBusy()) return
       try {
         const next = await capabilities.account.status()
         if (!settled) {

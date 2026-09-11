@@ -575,6 +575,7 @@ test("the client React hooks policy is narrow and content-pinned", async () => {
   assert.deepEqual(hooks.rules, {
     "react-hooks/rules-of-hooks": "error",
     "react-hooks/exhaustive-deps": "warn",
+    "react-hooks/refs": "error",
   });
   assert.equal(client.devDependencies["eslint-plugin-react-hooks"], "7.1.1");
   assert.match(
