@@ -10,11 +10,19 @@ export function ContextWindowLab(): ReactElement {
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(
     null,
   )
+  const [theme, setTheme] = useState<"dark" | "light">("dark")
   const session =
     sessions.find(({ id }) => id === selectedSessionId) ?? sessions[0]
 
   return (
-    <div className="lab-shell sb-shell">
+    <div className="lab-shell sb-shell" data-theme={theme}>
+      <button
+        type="button"
+        onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+        style={{ marginBlockEnd: "1rem" }}
+      >
+        Switch to {theme === "dark" ? "light" : "dark"} mode
+      </button>
       <InspectorPanel title="Context window">
         {session ?
           <ContextWindowSessionPanel

@@ -30,6 +30,31 @@ const THEME_CSS = `
   --shell-warning: #eab308;
 }
 
+/* Light-mode override, toggled by setting \`data-theme="light"\` on any
+   ancestor element (the lab toggles it on its own root \`div\`). Values
+   mirror \`packages/maximal-electron\`'s \`tokens.css\` light block so
+   the lab exercises the same palette a real light-themed host would
+   supply, not just the dark one above. */
+[data-theme='light'] {
+  color-scheme: light;
+  --shell-background: #ffffff;
+  --shell-canvas: #eef0f4;
+  --shell-raised: #ffffff;
+  --shell-text: #12141a;
+  --shell-text-muted: #545c68;
+  --shell-text-subtle: #656d78;
+  --shell-border: #e3e6eb;
+  --shell-border-strong: #ccd2da;
+  --shell-input-background: #ffffff;
+  --shell-hover: #eceef2;
+  --shell-active: #e2e6ec;
+  --shell-accent: #2563eb;
+  --shell-accent-contrast: #ffffff;
+  --shell-accent-muted: rgb(37 99 235 / 0.1);
+  --shell-danger: #c0272b;
+  --shell-warning: #a9691b;
+}
+
 html,
 body,
 #root {
@@ -49,6 +74,8 @@ body {
   height: 100%;
   padding: var(--shell-space-4, 1rem);
   box-sizing: border-box;
+  color: var(--shell-text);
+  background: var(--shell-background);
 }
 `
 
