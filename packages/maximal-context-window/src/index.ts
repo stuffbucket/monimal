@@ -1,8 +1,11 @@
 export {
-  CONTEXT_CELL_COUNT,
-  type ContextCells,
+  CONTEXT_GRID_CELL_COUNT,
+  CONTEXT_GRID_COLUMNS,
+  type ContextGrid,
+  type ContextGridCategory,
+  type ContextGridSegment,
   type ContextSession,
-  deriveContextCells,
+  deriveContextGrid,
   deriveContextSessions,
 } from "./context-window.ts"
 export { ContextWindowSessionPanel } from "./ContextWindowSessionPanel.tsx"

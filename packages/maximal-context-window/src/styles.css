@@ -1,90 +1,196 @@
 .mcw-panel {
   display: grid;
-  gap: var(--shell-space-4);
+  gap: var(--shell-space-3, 0.75rem);
 }
 
+/* Capacity summary: model + window sizes + a single fill bar whose color
+   escalates as usage approaches capacity. */
+
+.mcw-capacity {
+  display: grid;
+  gap: var(--shell-space-1, 0.25rem);
+}
+
+.mcw-capacity-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--shell-space-2, 0.5rem);
+  font-size: var(--shell-text-xs);
+}
+
+.mcw-capacity-model {
+  overflow: hidden;
+  color: var(--shell-text);
+  font-weight: var(--shell-weight-lg);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mcw-capacity-windows {
+  flex-shrink: 0;
+  color: var(--shell-text-muted);
+}
+
+.mcw-capacity-bar {
+  overflow: hidden;
+  height: 0.5rem;
+  border: 1px solid var(--shell-border-strong, var(--shell-border));
+  border-radius: var(--shell-radius-small, 0.25rem);
+  background: var(--shell-background);
+}
+
+.mcw-capacity-fill {
+  height: 100%;
+  background: var(--shell-accent);
+  transition: width 0.2s ease-out;
+}
+
+.mcw-capacity-fill[data-level="medium"] {
+  background: var(--shell-warning);
+}
+
+.mcw-capacity-fill[data-level="high"] {
+  background: var(--shell-danger);
+}
+
+.mcw-capacity-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--shell-space-2, 0.5rem);
+  color: var(--shell-text-muted);
+  font-size: var(--shell-text-xs);
+}
+
+/* Turn picker */
+
+.mcw-turn-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--shell-space-1, 0.25rem);
+}
+
+.mcw-turn-picker-button {
+  border: 1px solid var(--shell-border);
+  border-radius: var(--shell-radius-small, 0.25rem);
+  background: var(--shell-canvas);
+  color: var(--shell-text-muted);
+  font-size: var(--shell-text-xs);
+  cursor: pointer;
+  padding-block: var(--shell-space-1, 0.25rem);
+  padding-inline: var(--shell-space-2, 0.5rem);
+}
+
+.mcw-turn-picker-button:hover {
+  background: var(--shell-hover);
+  color: var(--shell-text);
+}
+
+.mcw-turn-picker-button[aria-pressed="true"] {
+  border-color: var(--shell-accent);
+  background: var(--shell-accent-muted, var(--shell-active));
+  color: var(--shell-text);
+}
+
+/* Context window grid: one large map of cells representing the full context
+   window for the selected turn, filled in the order it actually fills. */
+
 .mcw-map {
-  padding-block-start: var(--shell-space-3);
+  padding-block-start: var(--shell-space-3, 0.75rem);
   border-block-start: 1px solid var(--shell-border);
 }
 
 .mcw-map h3 {
-  margin: 0;
-  font-size: var(--shell-text-sm);
-  font-weight: var(--shell-weight-lg);
-}
-
-.mcw-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--shell-space-2);
-  margin: var(--shell-space-2) 0;
+  margin: 0 0 var(--shell-space-2, 0.5rem);
   color: var(--shell-text-muted);
   font-size: var(--shell-text-xs);
+  font-weight: var(--shell-weight-md);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
-.mcw-legend code {
-  color: var(--shell-text);
-}
-
-.mcw-turns {
+.mcw-grid {
   display: grid;
-  gap: var(--shell-space-3);
+  grid-auto-rows: 0.5rem;
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid var(--shell-border-strong, var(--shell-border));
+  border-radius: var(--shell-radius-small, 0.25rem);
+  background: var(--shell-border);
+  padding: 1px;
 }
 
-.mcw-turn {
+.mcw-cell {
   min-width: 0;
 }
 
-.mcw-turn-heading {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--shell-space-2);
-  color: var(--shell-text-muted);
-  font-size: var(--shell-text-xs);
-}
-
-.mcw-turn-heading span {
-  color: var(--shell-text);
-  font-weight: var(--shell-weight-md);
-}
-
-.mcw-cells {
-  display: grid;
-  grid-template-columns: repeat(32, minmax(0, 1fr));
-  margin-block: var(--shell-space-1);
-  overflow: hidden;
-  border: 1px solid var(--shell-border-strong, var(--shell-border));
-  border-radius: var(--shell-radius-small);
-  background: var(--shell-background);
-  font-family: var(--shell-font-mono);
-  font-size: var(--shell-text-xs);
-  line-height: 1.5;
-  text-align: center;
-}
-
-.mcw-cell--input {
-  color: var(--shell-accent-contrast, var(--shell-text));
+.mcw-cell--cached {
   background: var(--shell-accent);
 }
 
+.mcw-cell--created {
+  background: color-mix(in srgb, var(--shell-accent) 50%, var(--shell-canvas));
+}
+
+.mcw-cell--input {
+  background: var(--shell-warning);
+}
+
 .mcw-cell--output {
-  color: var(--shell-text);
-  background: var(--shell-active);
+  background: var(--shell-danger);
 }
 
-.mcw-cell--available {
-  color: var(--shell-text-subtle);
+.mcw-cell--reserved {
+  background: color-mix(in srgb, var(--shell-danger) 35%, var(--shell-canvas));
 }
 
-.mcw-turn-counts,
-.mcw-unavailable {
-  color: var(--shell-text-muted);
+.mcw-cell--free {
+  background: var(--shell-canvas);
+}
+
+.mcw-legend {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: var(--shell-space-1, 0.25rem) var(--shell-space-3, 0.75rem);
+  margin: var(--shell-space-2, 0.5rem) 0 0;
+  padding: 0;
+  list-style: none;
   font-size: var(--shell-text-xs);
 }
 
+.mcw-legend-item {
+  display: flex;
+  align-items: center;
+  gap: var(--shell-space-1, 0.25rem);
+  min-width: 0;
+}
+
+.mcw-legend-swatch {
+  flex-shrink: 0;
+  width: 0.625rem;
+  height: 0.625rem;
+  border: 1px solid var(--shell-border);
+  border-radius: 2px;
+}
+
+.mcw-legend-label {
+  overflow: hidden;
+  flex: 1 1 auto;
+  color: var(--shell-text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mcw-legend-value {
+  flex-shrink: 0;
+  color: var(--shell-text);
+  font-variant-numeric: tabular-nums;
+}
+
 .mcw-unavailable {
-  margin: var(--shell-space-1) 0;
+  margin: var(--shell-space-1, 0.25rem) 0;
+  color: var(--shell-text-muted);
+  font-size: var(--shell-text-xs);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -96,8 +202,9 @@
 }
 
 @media (forced-colors: active) {
-  .mcw-cell--input,
-  .mcw-cell--output {
+  .mcw-capacity-bar,
+  .mcw-cell,
+  .mcw-legend-swatch {
     border: 1px solid CanvasText;
     forced-color-adjust: none;
   }

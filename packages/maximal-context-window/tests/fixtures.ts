@@ -1,5 +1,15 @@
 import type { TrafficRequestSummary } from "@stuffbucket/maximal-observability-contract"
 
+export const TOKENS: NonNullable<TrafficRequestSummary["tokens"]> = {
+  inputTokens: 90,
+  outputTokens: 80,
+  cacheReadInputTokens: 20,
+  cacheCreationInputTokens: 10,
+  reasoningTokens: 0,
+  totalTokens: 200,
+  totalNanoAiu: 0,
+}
+
 export const REQUEST: TrafficRequestSummary = {
   identity: {
     requestId: "req-1",
@@ -39,15 +49,7 @@ export const REQUEST: TrafficRequestSummary = {
     requestedModel: "claude-sonnet",
     resolvedModel: "claude-sonnet",
   },
-  tokens: {
-    inputTokens: 90,
-    outputTokens: 80,
-    cacheReadInputTokens: 20,
-    cacheCreationInputTokens: 10,
-    reasoningTokens: 0,
-    totalTokens: 200,
-    totalNanoAiu: 0,
-  },
+  tokens: TOKENS,
   context: {
     messageCount: 4,
     toolDefinitionCount: 2,

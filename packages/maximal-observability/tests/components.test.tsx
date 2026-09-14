@@ -78,10 +78,10 @@ describe("observability components", () => {
     expect(container.textContent).toContain("Context window")
     expect(container.textContent).toContain("session-1")
     expect(container.textContent).toContain("claude-sonnet")
-    expect(container.textContent).toContain("0.1%")
+    expect(container.textContent).toContain("2.1% full")
     expect(
-      container.querySelector(".mcw-cells")?.getAttribute("aria-label"),
-    ).toContain("120 input tokens")
+      container.querySelector(".mcw-grid")?.getAttribute("aria-label"),
+    ).toContain("Input: 90 tokens")
     expect(source.overviewReads).toBe(1)
     expect(source.requestReads).toBe(1)
 
