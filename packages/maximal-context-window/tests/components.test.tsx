@@ -153,6 +153,13 @@ describe("ContextWindowSessionPanel", () => {
       ".mcw-cell-half.mcw-cell--system:not([data-cached])",
     )
     expect(uncachedSystemHalves.length).toBe(0)
+
+    // Each half-cell carries a hover title naming its own category, token
+    // count, and cache status -- a mouse-hover detail the grid's single
+    // whole-grid aria-label can't convey per piece.
+    expect(cachedHalves[0]?.getAttribute("title")).toBe(
+      "System prompt: 1,000 tokens (cached)",
+    )
   })
 
   it("passes axe with no violations", async () => {

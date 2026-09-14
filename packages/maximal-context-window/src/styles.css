@@ -193,39 +193,43 @@
    `tools` is mixed in OKLCH going the *long* way around the wheel (from
    blue, away from red rather than toward it), which lands on green. The
    four structural categories then read as four unrelated hues - blue,
-   green, amber, red - rather than a gradient. */
+   green, amber, red - rather than a gradient. Each is then muted a step
+   toward canvas (a "jewel tone": deep and slightly desaturated, closer to
+   sapphire/emerald/topaz/garnet than a flat, saturated UI accent color) so
+   they read as a related family of small, structural markers rather than
+   four different loud alerts. */
 
 .mcw-cell--system {
-  background-color: var(--shell-accent);
+  /* Sapphire. */
+  background-color: color-mix(in srgb, var(--shell-accent) 82%, var(--shell-canvas) 18%);
 }
 
 .mcw-cell--tools {
-  /* Blue, rotated the long way around the wheel (away from red): green. */
+  /* Blue, rotated the long way around the wheel (away from red): emerald. */
   background-color: color-mix(
-    in oklch longer hue,
-    var(--shell-accent) 50%,
-    var(--shell-danger) 50%
+    in srgb,
+    color-mix(in oklch longer hue, var(--shell-accent) 50%, var(--shell-danger) 50%) 82%,
+    var(--shell-canvas) 18%
   );
 }
 
 .mcw-cell--mcp {
-  background-color: var(--shell-warning);
+  /* Topaz. */
+  background-color: color-mix(in srgb, var(--shell-warning) 82%, var(--shell-canvas) 18%);
 }
 
 .mcw-cell--skills {
-  background-color: var(--shell-danger);
+  /* Garnet. */
+  background-color: color-mix(in srgb, var(--shell-danger) 82%, var(--shell-canvas) 18%);
 }
 
-/* User input is a light tint of the accent (blue) hue: distinguished from
-   the saturated system-prompt blue by lightness (pastel vs. solid) rather
-   than by hue, since it is the largest span of conversational content and
-   should read as calm/background, not compete with the structural
-   categories for attention. Mixed toward the light neutral text color
-   (not the dark canvas) so it actually reads as a brighter, paler blue
-   rather than a darker, muddier one. Output/reserved-output below reuse
-   the danger (red) hue at reduced strength for the same reason - large
-   solid spans read as less intense than the small structural swatches
-   that share their hue. */
+/* User input and output are the two large, conversational spans -- what
+   was sent versus what came back -- so they are built from the same
+   recipe (the category's anchor hue mixed toward the light neutral text
+   color, for a pale, muted jewel tone) with only the hue swapped: input
+   is a pale sapphire, output a pale garnet. Sharing one recipe is what
+   makes them read as a coordinated pair rather than two unrelated colors
+   that happen to sit next to each other in the grid. */
 .mcw-cell--userInput {
   background-color: color-mix(in srgb, var(--shell-accent) 55%, var(--shell-text) 45%);
 }
@@ -239,13 +243,14 @@
 }
 
 .mcw-cell--output {
-  background-color: color-mix(in srgb, var(--shell-danger) 65%, var(--shell-canvas) 35%);
+  background-color: color-mix(in srgb, var(--shell-danger) 55%, var(--shell-text) 45%);
 }
 
 /* Reserved output is capacity set aside for a future response, not content
    that was actually sent or received, so it is rendered as a dotted texture
-   over a dimmer danger hue rather than a plain lighter shade that could be
-   mistaken for a smaller amount of actual output. */
+   over a dimmer, darker garnet (not output's pale one) rather than a plain
+   lighter shade that could be mistaken for a smaller amount of actual
+   output. */
 .mcw-cell--reserved {
   background-color: color-mix(in srgb, var(--shell-danger) 30%, var(--shell-canvas) 70%);
   background-image: radial-gradient(

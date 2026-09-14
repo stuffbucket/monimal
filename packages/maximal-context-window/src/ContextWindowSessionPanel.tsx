@@ -59,6 +59,21 @@ function cachedThenNew(
   ].filter((part) => part.tokens > 0)
 }
 
+/** Hover text for one rendered piece (a grid cell half, turn-bar segment,
+ * or legend swatch part). The grid and turn bar are each already
+ * accessibly labeled as a whole via their `aria-label`, so this is a
+ * mouse-hover convenience -- it tells a sighted user which category and
+ * how many tokens *this specific piece* represents, since a single cell
+ * or segment can't show that on its own the way the legend's text can. */
+function pieceTitle(piece: {
+  category: ContextGridCategory
+  cached: boolean
+  tokens: number
+}): string {
+  const cachedNote = piece.cached ? " (cached)" : ""
+  return `${CATEGORY_LABELS[piece.category]}: ${formatCount(piece.tokens)} tokens${cachedNote}`
+}
+
 export function ContextWindowSessionPanel({
   session,
   sessionIds,
@@ -307,6 +322,7 @@ function TurnCompositionBar({
               key={`${segment.category}-${part.cached ? "cached" : "new"}`}
               className={`mcw-turn-bar-segment mcw-cell--${segment.category}`}
               data-cached={part.cached || undefined}
+              title={pieceTitle({ category: segment.category, ...part })}
               style={{ flexGrow: part.tokens / composition.totalTokens }}
             />
           )),
@@ -361,10 +377,12 @@ function ContextGridView({
             <span
               className={`mcw-cell-half mcw-cell--${cell.left.category}`}
               data-cached={cell.left.cached || undefined}
+              title={pieceTitle(cell.left)}
             />
             <span
               className={`mcw-cell-half mcw-cell--${cell.right.category}`}
               data-cached={cell.right.cached || undefined}
+              title={pieceTitle(cell.right)}
             />
           </span>
         ))}
@@ -380,6 +398,7 @@ function ContextGridView({
                     key={part.cached ? "cached" : "new"}
                     className={`mcw-legend-swatch-part mcw-cell--${segment.category}`}
                     data-cached={part.cached || undefined}
+                    title={pieceTitle({ category: segment.category, ...part })}
                     style={{ flexGrow: part.tokens }}
                   />
                 ))}
