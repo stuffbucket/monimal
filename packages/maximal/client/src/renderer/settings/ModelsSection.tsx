@@ -5,8 +5,10 @@ import {
   CircleHelp,
   Database,
   Eye,
+  Image,
   MessageSquareText,
   Radio,
+  Video,
   Wrench,
   type LucideIcon,
 } from 'lucide-react'
@@ -75,6 +77,8 @@ function formatCompactNumber(value: number): string {
 
 const CAPABILITY_DETAILS = {
   vision: { label: 'Vision', Icon: Eye },
+  image_generation: { label: 'Image generation', Icon: Image },
+  video_generation: { label: 'Video generation', Icon: Video },
   tool_calls: { label: 'Tool calls', Icon: Wrench },
   streaming: { label: 'Streaming', Icon: Radio },
   reasoning: { label: 'Reasoning', Icon: BrainCircuit },
@@ -104,6 +108,8 @@ const MODEL_TYPE_DETAILS: Readonly<
 > = {
   chat: { label: 'Chat', Icon: MessageSquareText },
   embeddings: { label: 'Embeddings', Icon: Database },
+  image: { label: 'Image', Icon: Image },
+  video: { label: 'Video', Icon: Video },
 }
 
 function ModelTypeIcon({ model }: { model: ModelSummary }): ReactElement {
@@ -125,10 +131,17 @@ function ModelTypeIcon({ model }: { model: ModelSummary }): ReactElement {
   )
 }
 
-function TokenCount({ value }: { value: number | null }): ReactElement {
+function TokenCount({
+  value,
+  notApplicable = false,
+}: {
+  value: number | null
+  notApplicable?: boolean
+}): ReactElement {
   if (value === null) {
+    const label = notApplicable ? 'Not applicable' : 'Not reported'
     return (
-      <span title="Not reported" aria-label="Not reported">
+      <span title={label} aria-label={label}>
         —
       </span>
     )
@@ -303,10 +316,16 @@ export function ModelsSection({ capabilities }: ModelsSectionProps): ReactElemen
                               <ModelTypeIcon model={model} />
                             </td>
                             <td className="settings-table__number">
-                              <TokenCount value={model.context_window_tokens} />
+                              <TokenCount
+                                value={model.context_window_tokens}
+                                notApplicable={model.type === 'image' || model.type === 'video'}
+                              />
                             </td>
                             <td className="settings-table__number">
-                              <TokenCount value={model.max_output_tokens} />
+                              <TokenCount
+                                value={model.max_output_tokens}
+                                notApplicable={model.type === 'image' || model.type === 'video'}
+                              />
                             </td>
                             <td>
                               <CapabilityIcons model={model} />

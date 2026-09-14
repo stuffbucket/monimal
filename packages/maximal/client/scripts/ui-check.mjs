@@ -15,7 +15,7 @@ function check(condition, message) {
 async function layout(page) {
   return page.evaluate(() => {
     const root = document.documentElement
-    const settings = document.querySelector('.settings-page')
+    const settings = document.querySelector('.settings__body')
     const tabpanel = document.querySelector('[role="tabpanel"]')
     const scrollArea = document.querySelector('.scroll-area')
     const providerRows = [...document.querySelectorAll('.partitioned-sortable__item')]
@@ -24,7 +24,7 @@ async function layout(page) {
     const disabledRow = providerRows.find((row) => row.getAttribute('data-enabled') === 'false')
     const enabledRow = providerRows.find((row) => row.getAttribute('data-enabled') === 'true')
     if (!(settings instanceof HTMLElement)) {
-      throw new Error('The Settings page did not render.')
+      throw new Error('The Settings body did not render.')
     }
     if (!(scrollArea instanceof HTMLElement)) {
       throw new Error('The Settings scroll area did not render.')
@@ -280,7 +280,7 @@ try {
   check(!duckDuckGoFields.fullFieldDisabled, 'Disabled provider fields are not editable.')
 
   await page.setViewportSize({ width: 520, height: 720 })
-  await page.locator('.settings-page').evaluate((element) => {
+  await page.locator('.settings__body').evaluate((element) => {
     element.scrollTop = 0
   })
   const compact = await layout(page)

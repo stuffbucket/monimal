@@ -131,6 +131,7 @@ describe("control /rpc — discovery", () => {
     // The account methods are composed in at route level, not in the static
     // registry — discovery must still advertise them or a client can't find them.
     expect(caps.methods).toContain("auth/status")
+    expect(caps.methods).toContain("ollamaAccounts/list")
     expect(caps.methods).toContain("accounts/switch")
     expect(caps.methods).toContain("health")
     const settingsMethods = [

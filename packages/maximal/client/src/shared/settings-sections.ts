@@ -17,9 +17,9 @@
  *
  * ## Why the ids look like heading ids
  *
- * Because they are. Each panel declares an `<h1 id>` for its own
- * `aria-labelledby`, and the rail selects that panel. Reusing the id avoids a
- * second section key that could drift from the heading it names.
+ * They originally identified panel-owned headings. The Settings page now owns
+ * its single `<h1>` and uses the selected entry's label, while these stable ids
+ * continue to identify navigation destinations and native menu requests.
  *
  *
  * Every section remains visible against every supported Core version. A method
@@ -51,7 +51,7 @@ export type SettingsSectionId = (typeof SETTINGS_SECTION_IDS)[number]
 export const DEFAULT_SETTINGS_SECTION_ID = SETTINGS_SECTION_IDS[0]
 
 export interface SettingsSectionSpec {
-  /** The section's `<h2>` id and navigation identity. */
+  /** Stable navigation and native-menu identity. */
   id: SettingsSectionId
   /**
    * What the section is called, in the rail and in the application menu.

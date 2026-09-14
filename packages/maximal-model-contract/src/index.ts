@@ -1,5 +1,11 @@
 /** An HTTP operation a provider can serve through the gateway. */
-export type ProviderOperation = "messages" | "count-tokens" | "models"
+export type ProviderOperation =
+  | "messages"
+  | "chat-completions"
+  | "responses"
+  | "embeddings"
+  | "count-tokens"
+  | "models"
 
 /**
  * One provider-bound Web API exchange.

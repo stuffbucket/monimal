@@ -121,9 +121,13 @@ function attachHostAuth(
 
 /** Attach a config-selected passthrough provider's credential (see module doc). */
 function attachProviderAuth(
-  providerConfig: ProviderCredential,
+  providerConfig: {
+    apiKey?: string
+    authType: "authorization" | "x-api-key"
+  },
   headers: Headers,
 ): void {
+  if (!providerConfig.apiKey) return
   if (providerConfig.authType === "authorization") {
     headers.set("authorization", `Bearer ${providerConfig.apiKey}`)
   } else {

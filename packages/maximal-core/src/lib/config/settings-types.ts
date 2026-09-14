@@ -310,6 +310,8 @@ export type UpdateStatusResponse = z.infer<typeof UpdateStatusResponse>
  *  can render a compact flag row without knowing Copilot's schema. */
 export const ModelCapabilityFlags = z.object({
   vision: z.boolean(),
+  image_generation: z.boolean(),
+  video_generation: z.boolean(),
   tool_calls: z.boolean(),
   streaming: z.boolean(),
   /** Reasoning / extended-thinking support (adaptive_thinking or a
@@ -515,6 +517,41 @@ export const AccountsListResponse = z.object({
   active_key: z.string().nullable(),
 })
 export type AccountsListResponse = z.infer<typeof AccountsListResponse>
+
+export const OllamaAccountSummary = z.object({
+  type: z.literal("ollama"),
+  provider: z.string(),
+  endpoint: z.string(),
+  scope: z.enum(["localhost", "remote"]),
+  account_state: z.enum(["unauthenticated", "authenticated"]),
+  availability: z.enum(["available", "unavailable"]),
+  model_count: z.number().int().nonnegative().nullable(),
+})
+export type OllamaAccountSummary = z.infer<typeof OllamaAccountSummary>
+
+export const OllamaAccountsListResponse = z.object({
+  accounts: z.array(OllamaAccountSummary),
+})
+export type OllamaAccountsListResponse = z.infer<
+  typeof OllamaAccountsListResponse
+>
+
+export const OllamaSettingsResponse = z.object({
+  has_api_key: z.boolean(),
+  credential_source: z.enum(["environment", "file", "none"]),
+  local_enabled: z.boolean(),
+  prefer_local_models: z.boolean(),
+})
+export type OllamaSettingsResponse = z.infer<typeof OllamaSettingsResponse>
+
+export const OllamaSettingsUpdateRequest = z.object({
+  api_key: z.string().max(4096).optional(),
+  local_enabled: z.boolean().optional(),
+  prefer_local_models: z.boolean().optional(),
+})
+export type OllamaSettingsUpdateRequest = z.infer<
+  typeof OllamaSettingsUpdateRequest
+>
 
 /**
  * An API-key entry as managed by Settings → API clients. The key value

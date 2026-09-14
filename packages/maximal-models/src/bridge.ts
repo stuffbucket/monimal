@@ -1451,6 +1451,17 @@ export async function dispatchRuntime(
           ),
         )
       }
+      case "chat-completions":
+      case "responses":
+      case "embeddings": {
+        return errorResponse(
+          new GatewayError(
+            501,
+            "invalid_request_error",
+            `The ${dispatch.operation} operation is not supported by this runtime.`,
+          ),
+        )
+      }
       default: {
         throw new GatewayError(
           400,
