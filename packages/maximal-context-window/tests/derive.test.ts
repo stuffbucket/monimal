@@ -282,6 +282,88 @@ describe("deriveContextGrid: explicit input segments", () => {
     ])
   })
 
+  it("keeps two adjacent small categories separately visible rather than merging one into the other", () => {
+    // mcp (700) and skills (500) each fall short of a half-cell (1,000) on
+    // their own, but merging them together -- as chunking-by-threshold
+    // alone would -- makes skills disappear into mcp's category entirely.
+    // Each must round up and render on its own instead.
+    const inputSegments: Array<ContextInputSegment> = [
+      { category: "mcp", tokens: 700, cachedTokens: 700 },
+      { category: "skills", tokens: 500, cachedTokens: 500 },
+      { category: "userInput", tokens: 800, cachedTokens: 0 },
+    ]
+    const request = {
+      ...REQUEST,
+      tokens: {
+        ...TOKENS,
+        cacheReadInputTokens: 1_200,
+        cacheCreationInputTokens: 0,
+        inputTokens: 1_200,
+        outputTokens: 0,
+      },
+      context: {
+        ...REQUEST.context,
+        contextWindowTokens: 2_000,
+        requestedMaxOutputTokens: 0,
+      },
+    }
+    const grid = deriveContextGrid({
+      request,
+      cellTokens: 2_000,
+      inputSegments,
+    })
+    expect(grid?.cells).toEqual([
+      {
+        left: { category: "mcp", cached: true, tokens: 1_000 },
+        right: { category: "skills", cached: true, tokens: 1_000 },
+      },
+      {
+        left: { category: "userInput", cached: false, tokens: 1_000 },
+        right: { category: "free", cached: false, tokens: 0 },
+      },
+    ])
+  })
+
+  it("gives a category more than one box once it clears more than one half-cell's worth", () => {
+    // 1,400 tokens is 1.4 half-cells (1,000 each, the default cell's
+    // half-width); rounding to the nearest whole half would compress it
+    // into the same single box as a 900-token category, so it must round
+    // up to two boxes instead.
+    const inputSegments: Array<ContextInputSegment> = [
+      { category: "tools", tokens: 1_400, cachedTokens: 1_400 },
+      { category: "userInput", tokens: 600, cachedTokens: 0 },
+    ]
+    const request = {
+      ...REQUEST,
+      tokens: {
+        ...TOKENS,
+        cacheReadInputTokens: 1_400,
+        cacheCreationInputTokens: 0,
+        inputTokens: 600,
+        outputTokens: 0,
+      },
+      context: {
+        ...REQUEST.context,
+        contextWindowTokens: 2_000,
+        requestedMaxOutputTokens: 0,
+      },
+    }
+    const grid = deriveContextGrid({
+      request,
+      inputSegments,
+    })
+    expect(grid?.cells).toEqual([
+      {
+        left: { category: "tools", cached: true, tokens: 700 },
+        right: { category: "tools", cached: true, tokens: 700 },
+      },
+      {
+        left: { category: "userInput", cached: false, tokens: 1_000 },
+        right: { category: "free", cached: false, tokens: 0 },
+      },
+    ])
+  })
+
   it("scales a supplied breakdown to reconcile with the request's actually reported totals", () => {
     const inputSegments: Array<ContextInputSegment> = [
       { category: "system", tokens: 1, cachedTokens: 1 },

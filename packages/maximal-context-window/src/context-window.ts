@@ -276,14 +276,17 @@ function boundedPieces(
 }
 
 /**
- * Groups fill-order pieces into visual chunks: a piece with at least a
- * half-cell (`minTokens`) of its own becomes its own chunk; smaller pieces
- * accumulate with whichever pieces follow until they reach roughly a
- * half-cell, so a handful of tiny categories -- or a tiny cached/new split
- * within one category -- don't each demand their own sliver. The chunk is
- * tagged with its largest contributor's category and cache state for
- * rendering; this is a rendering approximation, not a precise accounting --
- * `segments` on the returned grid carries the true per-category totals.
+ * Groups fill-order pieces into visual chunks. Pieces of different
+ * categories are never merged with each other, even when both are smaller
+ * than a half-cell -- doing so would let a small category (a few hundred
+ * tokens of skills, say) disappear entirely into whichever unrelated
+ * category happened to be adjacent in fill order, rather than getting its
+ * own (rounded-up) sliver. Within one category, consecutive pieces (a
+ * cached/new split, typically) accumulate until they clear `minTokens`
+ * (roughly a half-cell) before starting a new chunk, so a handful of tiny
+ * same-category slivers don't each demand their own box; a piece that
+ * already clears `minTokens` on its own still gets its own chunk, keeping
+ * a real cached/new boundary visible rather than blending it away.
  */
 function chunkPieces(
   pieces: Array<ContextGridPiece>,
@@ -292,7 +295,7 @@ function chunkPieces(
   const chunks: Array<ContextGridPiece> = []
   let pending: Array<ContextGridPiece> = []
 
-  const flush = () => {
+  const flushPending = () => {
     if (pending.length === 0) return
     const tokens = pending.reduce((sum, piece) => sum + piece.tokens, 0)
     const dominant = pending.toSorted((a, b) => b.tokens - a.tokens)[0]
@@ -307,18 +310,27 @@ function chunkPieces(
 
   for (const piece of pieces) {
     if (piece.tokens <= 0) continue
+    // A category change always starts a fresh chunk: never let one
+    // category's leftover accumulation absorb a different category.
+    if (pending.length > 0 && pending[0]?.category !== piece.category)
+      flushPending()
     pending.push(piece)
     const pendingTokens = pending.reduce((sum, entry) => sum + entry.tokens, 0)
-    if (pendingTokens >= minTokens) flush()
+    if (pendingTokens >= minTokens) flushPending()
   }
-  flush()
+  flushPending()
 
   return chunks
 }
 
 /**
  * Splits a chunk's (possibly rounded-up) visual token weight into ~1k
- * halves, each carrying the chunk's category and cache state.
+ * halves, each carrying the chunk's category and cache state. Rounds the
+ * count *up* (not to the nearest whole half) so a category that clears a
+ * half-cell's worth by any amount claims the next box rather than being
+ * compressed into the same single box as a category half its size -- a
+ * 1,400-token category should visibly take up more room than a 900-token
+ * one, not read as the same one box.
  */
 function halvesFor(
   piece: {
@@ -330,7 +342,7 @@ function halvesFor(
 ): Array<ContextGridHalf> {
   const { category, cached, visualTokens } = piece
   if (visualTokens <= 0) return []
-  const count = Math.max(1, Math.round(visualTokens / halfTokens))
+  const count = Math.max(1, Math.ceil(visualTokens / halfTokens))
   const halves: Array<ContextGridHalf> = []
   let remaining = visualTokens
   for (let index = 0; index < count; index += 1) {
