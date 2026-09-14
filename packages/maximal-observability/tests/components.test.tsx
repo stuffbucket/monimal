@@ -75,6 +75,13 @@ describe("observability components", () => {
     expect(container.querySelectorAll("h1")).toHaveLength(1)
     expect(container.textContent).toContain("Traffic flow")
     expect(container.textContent).toContain("Token volume")
+    expect(container.textContent).toContain("Context window")
+    expect(container.textContent).toContain("session-1")
+    expect(container.textContent).toContain("claude-sonnet")
+    expect(container.textContent).toContain("0.1%")
+    expect(
+      container.querySelector(".mo-context-cells")?.getAttribute("aria-label"),
+    ).toContain("120 input tokens")
     expect(source.overviewReads).toBe(1)
     expect(source.requestReads).toBe(1)
 
