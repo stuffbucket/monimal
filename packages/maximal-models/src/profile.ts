@@ -132,6 +132,14 @@ const BARE_PACKAGE = /^(?:@[a-z0-9][\w.~-]*\/)?[a-z0-9][\w.~-]*$/i
 const EXACT_VERSION =
   /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[0-9A-Z-]+(?:\.[0-9A-Z-]+)*)?(?:\+[0-9A-Z-]+(?:\.[0-9A-Z-]+)*)?$/i
 
+function exactDependencyVersion(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined
+  if (EXACT_VERSION.test(value)) return value
+  if (!value.startsWith("workspace:")) return undefined
+  const exact = value.slice("workspace:".length)
+  return EXACT_VERSION.test(exact) ? exact : undefined
+}
+
 function object(value: unknown, label: string): Record<string, unknown> {
   if (value === null || typeof value !== "object" || Array.isArray(value)) {
     throw profileValidationFailure(
@@ -764,14 +772,17 @@ export async function resolveExternalProfile(
     packageManifest.dependencies,
     "Profile package.json dependencies",
   )
+  const exactDependencies = new Map<string, string>()
   for (const [name, version] of Object.entries(dependencies)) {
     packageName(name, `Profile dependency "${name}"`)
-    if (typeof version !== "string" || !EXACT_VERSION.test(version)) {
+    const exact = exactDependencyVersion(version)
+    if (exact === undefined) {
       throw profileValidationFailure(
         "profile-invalid",
         `Profile dependency "${name}" must use an exact semantic version.`,
       )
     }
+    exactDependencies.set(name, exact)
   }
   const providersFile = await stableFile(
     join(directory, "providers.json"),
@@ -798,7 +809,7 @@ export async function resolveExternalProfile(
   await Promise.all(
     [...referenced].map(async (name) => {
       const dependency = await resolvePackage(packageFile.path, name)
-      if (dependencies[name] !== dependency.version) {
+      if (exactDependencies.get(name) !== dependency.version) {
         throw profileValidationFailure(
           "profile-invalid",
           `Direct dependency "${name}" does not match its declared exact version.`,

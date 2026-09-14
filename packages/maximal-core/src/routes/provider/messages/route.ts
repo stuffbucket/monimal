@@ -16,7 +16,8 @@ export function createProviderMessageRoutes(
   routes.post("/", async (c) => {
     try {
       return await dispatcher.dispatch({
-        legacy: async () => await handleProviderMessages(c),
+        legacy: async () =>
+          await handleProviderMessages(c, c.req.param("provider") ?? ""),
         operation: "messages",
         provider: c.req.param("provider") ?? "",
         request: c.req.raw,

@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { Avatar, Profile } from '../src/renderer/components/Profile.js';
 import { Diagnostics } from '../src/renderer/components/settings/Diagnostics.js';
 import { ModelCards } from '../src/renderer/components/settings/ModelCards.js';
+import { SettingsDisclosure } from '../src/renderer/components/settings/SettingsDisclosure.js';
 import { Usage } from '../src/renderer/components/settings/Usage.js';
 import type { Account } from '../src/renderer/lib/account.js';
 import { sampleUsage, SAMPLE_MODELS } from '../src/renderer/lib/sample-settings.js';
@@ -89,6 +90,21 @@ describe('ModelCards', () => {
     expect(markup).toContain('200K');
     expect(markup).toContain('Reasoning');
     expect(markup).toContain('Updated 1m ago');
+  });
+
+  describe('SettingsDisclosure', () => {
+    it('keeps header actions outside the disclosure summary', () => {
+      const markup = renderToStaticMarkup(
+        <SettingsDisclosure
+          title="Ollama"
+          action={<button type="button">Enabled</button>}
+        >
+          Details
+        </SettingsDisclosure>,
+      );
+
+      expect(markup.indexOf('</summary>')).toBeLessThan(markup.indexOf('Enabled'));
+    });
   });
 
   it('says the catalogue was never pulled rather than showing an age', () => {

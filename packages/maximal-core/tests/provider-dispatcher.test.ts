@@ -131,6 +131,24 @@ afterEach(() => {
   clearTokenTrio()
 })
 
+describe("legacy provider authentication", () => {
+  test("does not require GitHub auth for Ollama providers", async () => {
+    const dispatcher = createProviderDispatcher({
+      readConfig: () => ({
+        providers: {
+          local: { type: "ollama" },
+          hosted: { type: "anthropic" },
+        },
+      }),
+    })
+
+    expect(dispatcher.requiresGithubAuth("local")).toBe(false)
+    expect(dispatcher.requiresGithubAuth("hosted")).toBe(true)
+    expect(dispatcher.requiresGithubAuth("unknown")).toBe(true)
+    await dispatcher.dispose()
+  })
+})
+
 // DSH dispatch cases share route setup, gateway fakes, and usage fixtures.
 // eslint-disable-next-line max-lines-per-function
 describe("DSH provider dispatch", () => {

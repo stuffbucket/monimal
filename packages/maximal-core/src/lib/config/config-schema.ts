@@ -108,6 +108,11 @@ export const AppConfigSchema = z
       })
       .optional(),
     providers: z.record(z.string(), ProviderConfigSchema).optional(),
+    ollama: z
+      .object({
+        preferLocalModels: z.boolean().optional(),
+      })
+      .optional(),
     providerHost: z
       .object({
         mode: z.enum(["legacy", "dsh"]).optional(),

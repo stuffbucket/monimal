@@ -19,6 +19,7 @@
  */
 
 import consola from "consola"
+import { randomUUID } from "node:crypto"
 import fs from "node:fs"
 import path from "node:path"
 
@@ -171,6 +172,55 @@ export function ensureSecretsDir(dir: string = SECRETS_DIR): void {
     fs.mkdirSync(dir, { recursive: true, mode: SAFE_DIR_MODE })
   } catch {
     /* best effort — caller will see ENOENT or EACCES on read */
+  }
+}
+
+export function writeSecret(
+  fileName: string,
+  value: string,
+  dir: string = SECRETS_DIR,
+): void {
+  ensureSecretsDir(dir)
+  const file = path.join(dir, fileName)
+  const temporary = `${file}.tmp-${process.pid}-${randomUUID()}`
+  let descriptor: number | undefined
+  try {
+    descriptor = fs.openSync(
+      temporary,
+      fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL,
+      SAFE_FILE_MODE,
+    )
+    fs.fchmodSync(descriptor, SAFE_FILE_MODE)
+    fs.writeFileSync(descriptor, `${value}\n`, "utf8")
+    fs.fsyncSync(descriptor)
+    fs.closeSync(descriptor)
+    descriptor = undefined
+    fs.renameSync(temporary, file)
+  } catch (error) {
+    if (descriptor !== undefined) fs.closeSync(descriptor)
+    try {
+      fs.unlinkSync(temporary)
+    } catch {
+      // Preserve the original write failure.
+    }
+    throw error
+  }
+}
+
+export function removeSecret(
+  fileName: string,
+  dir: string = SECRETS_DIR,
+): void {
+  try {
+    fs.unlinkSync(path.join(dir, fileName))
+  } catch (error) {
+    if (
+      !(error instanceof Error)
+      || !("code" in error)
+      || error.code !== "ENOENT"
+    ) {
+      throw error
+    }
   }
 }
 

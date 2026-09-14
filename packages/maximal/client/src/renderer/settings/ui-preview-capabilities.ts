@@ -269,6 +269,25 @@ export function createPreviewSettingsCapabilities(): SettingsCapabilities {
       signOut: unavailable,
     },
     accounts: { list: unavailable, switchTo: unavailable },
+    ollamaAccounts: { list: unavailable },
+    ollamaSettings: { get: unavailable, update: unavailable },
+    ollamaRuntime: {
+      status: () =>
+        Promise.resolve({
+          installation: 'application',
+          installed: true,
+          running: true,
+          can_launch: true,
+          can_manage: true,
+          application_path: '/Applications/Ollama.app',
+          server_configuration_path: '~/.ollama/server.json',
+          desktop_settings_path: '~/Library/Application Support/Ollama/db.sqlite',
+          endpoint: 'http://127.0.0.1:11434',
+          context_length: 4096,
+        }),
+      launch: unavailable,
+      updateContextLength: unavailable,
+    },
     general: {
       menuBarMode: () => Promise.resolve(menuBarState()),
       beginMenuBarOnly: () => {
@@ -302,6 +321,7 @@ export function createPreviewSettingsCapabilities(): SettingsCapabilities {
       list: unavailable,
       act: unavailable,
       revealCredential: unavailable,
+      installations: unavailable,
     },
     apps: { list: unavailable, setEnabled: unavailable },
     connection: { proxyUrl: unavailable },

@@ -92,6 +92,53 @@ test("GET /models includes configured providers with discovered models", async (
     ],
   })
 })
+
+test("GET /models represents declared media generation capabilities", async () => {
+  const res = await makeApp({
+    providerModels: [
+      {
+        capabilities: ["image"],
+        id: "x/z-image-turbo:latest",
+        name: "x/z-image-turbo:latest",
+        provider: "ollama",
+        providerName: "Ollama",
+      },
+      {
+        capabilities: ["video"],
+        id: "example/video",
+        name: "Example Video",
+        provider: "ollama",
+        providerName: "Ollama",
+      },
+    ],
+  }).request("/models")
+
+  expect(res.status).toBe(200)
+  expect(await res.json()).toMatchObject({
+    models: [
+      {
+        id: "x/z-image-turbo:latest",
+        type: "image",
+        context_window_tokens: null,
+        max_output_tokens: null,
+        capabilities: {
+          image_generation: true,
+          video_generation: false,
+        },
+      },
+      {
+        id: "example/video",
+        type: "video",
+        context_window_tokens: null,
+        max_output_tokens: null,
+        capabilities: {
+          image_generation: false,
+          video_generation: true,
+        },
+      },
+    ],
+  })
+})
 describe("control route — reads", () => {
   test("GET /auth returns the auth status", async () => {
     const res = await makeApp().request("/auth")

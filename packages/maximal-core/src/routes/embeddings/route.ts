@@ -1,4 +1,4 @@
-import { Hono } from "hono"
+import { Hono, type Context } from "hono"
 
 import { forwardError } from "~/lib/errors/error"
 import { createCopilotTokenUsageRecorder } from "~/lib/token-usage"
@@ -7,15 +7,13 @@ import {
   type EmbeddingRequest,
 } from "~/services/copilot/create-embeddings"
 
-export const embeddingRoutes = new Hono()
-
-embeddingRoutes.post("/", async (c) => {
+export async function handleEmbeddings(c: Context): Promise<Response> {
   try {
-    const paylod = await c.req.json<EmbeddingRequest>()
-    const response = await createEmbeddings(paylod)
+    const payload = await c.req.json<EmbeddingRequest>()
+    const response = await createEmbeddings(payload)
     const recordUsage = createCopilotTokenUsageRecorder({
       endpoint: "embeddings",
-      model: paylod.model,
+      model: payload.model,
     })
 
     recordUsage({
@@ -27,4 +25,7 @@ embeddingRoutes.post("/", async (c) => {
   } catch (error) {
     return await forwardError(c, error)
   }
-})
+}
+
+export const embeddingRoutes = new Hono()
+embeddingRoutes.post("/", handleEmbeddings)
