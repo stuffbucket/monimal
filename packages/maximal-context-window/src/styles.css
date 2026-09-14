@@ -216,19 +216,24 @@
   background-color: var(--shell-danger);
 }
 
-/* User input and output/reserved-output reuse the amber/red hues (there are
-   only three to go around), but at reduced strength, both so they read as
-   less intense/saturated and so a large solid span of conversation content
-   doesn't visually collide with the small structural swatches that share
-   its hue. */
+/* User input is a light tint of the accent (blue) hue: distinguished from
+   the saturated system-prompt blue by lightness (pastel vs. solid) rather
+   than by hue, since it is the largest span of conversational content and
+   should read as calm/background, not compete with the structural
+   categories for attention. Mixed toward the light neutral text color
+   (not the dark canvas) so it actually reads as a brighter, paler blue
+   rather than a darker, muddier one. Output/reserved-output below reuse
+   the danger (red) hue at reduced strength for the same reason - large
+   solid spans read as less intense than the small structural swatches
+   that share their hue. */
 .mcw-cell--userInput {
-  background-color: color-mix(in srgb, var(--shell-warning) 65%, var(--shell-canvas) 35%);
+  background-color: color-mix(in srgb, var(--shell-accent) 55%, var(--shell-text) 45%);
 }
 
 /* "Other" is the honest fallback used whenever a real request can't be
    attributed to a specific category (telemetry only reports whole-request
    totals). It gets its own neutral hue, distinct from every attributed
-   category, rather than reusing the user-input amber. */
+   category. */
 .mcw-cell--other {
   background-color: color-mix(in srgb, var(--shell-text) 40%, var(--shell-canvas));
 }
@@ -257,16 +262,18 @@
 
 /* Cached content is an attribute of a category, not a category of its own:
    a hard, tight checker (in the spirit of classic ASCII/ANSI dithered
-   shading blocks) punches out of whichever category's color it belongs to,
-   so a category's position in the window stays legible whether or not it
-   happened to be cached this turn. The checker squares are fully opaque
-   (the app's own canvas color, not a translucent overlay) so the contrast
-   against every category color is large and predictable rather than
-   depending on how two translucent layers happen to blend. `conic-gradient`
-   with axis-aligned quadrants guarantees true squares instead of the
-   diagonal-gradient technique, which produces diamond/paisley shapes at
-   these sizes. A small, fixed pixel tile keeps the dither tight regardless
-   of how wide the element it is applied to happens to be. */
+   shading blocks, like the U+2592 "medium shade" glyph) punches out of
+   whichever category's color it belongs to, so a category's position in
+   the window stays legible whether or not it happened to be cached this
+   turn. The checker squares are fully opaque (the app's own canvas color,
+   not a translucent overlay) so the contrast against every category color
+   is large and predictable rather than depending on how two translucent
+   layers happen to blend. `conic-gradient` with axis-aligned quadrants
+   guarantees true squares instead of the diagonal-gradient technique,
+   which produces diamond/paisley shapes at these sizes. A small, fixed
+   pixel tile keeps the dither tight regardless of how wide the element it
+   is applied to happens to be; 2px matches the fine grain of a terminal
+   shade glyph rather than a coarser, more visible checkerboard. */
 
 .mcw-cell-half[data-cached="true"],
 .mcw-turn-bar-segment[data-cached="true"],
@@ -277,7 +284,7 @@
     var(--shell-canvas) 180deg 270deg,
     transparent 270deg 360deg
   );
-  background-size: 4px 4px;
+  background-size: 2px 2px;
 }
 
 .mcw-legend {
