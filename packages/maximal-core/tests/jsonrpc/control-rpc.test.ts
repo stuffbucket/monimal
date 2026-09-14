@@ -465,6 +465,7 @@ describe("control /rpc — settings operations", () => {
       installs: [],
       install: null,
       conflict: null,
+      health: { ok: true, issue: null },
     }
     let received: [AppEntry["id"], boolean] | undefined
     const custom = appWithOperations({

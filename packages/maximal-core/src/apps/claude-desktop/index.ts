@@ -1,5 +1,7 @@
 import type { AppEntry } from "~/lib/config/settings-types"
 
+import { getConfig } from "~/lib/config/config"
+
 import type { AppUninstallResult, ClientApp } from "../index"
 
 import { claudeDesktopCli } from "./cli"
@@ -9,6 +11,23 @@ import {
   revertConfigLibraryProfile,
 } from "./config"
 import { claudeAppInstalled } from "./detect"
+
+/** Durable routing intent, mirroring `claudeCodeRoutingIntended` — persisted
+ *  by `setAppEnabled` (see `settings-operations.ts`), read here so `getDetails`
+ *  can tell "routing is off" apart from "routing is on but the profile got
+ *  removed/altered outside of maximal" (e.g. the user reset Claude Desktop's
+ *  config, or another tool touched it). Only the latter is a health problem —
+ *  there is nothing to have drifted if the user never asked for this. */
+function claudeDesktopRoutingIntended(): boolean {
+  return getConfig().apps?.claudeDesktop?.enabled === true
+}
+
+function checkClaudeDesktopHealth(): AppEntry["health"] {
+  if (!claudeDesktopRoutingIntended()) return { ok: true, issue: null }
+  return isConfigLibraryApplied() ?
+      { ok: true, issue: null }
+    : { ok: false, issue: "not-applied" }
+}
 
 export const claudeDesktopApp: ClientApp = {
   id: "claude-desktop",
@@ -32,6 +51,7 @@ export const claudeDesktopApp: ClientApp = {
       installs: [],
       install: null,
       conflict: null,
+      health: checkClaudeDesktopHealth(),
     })
   },
 

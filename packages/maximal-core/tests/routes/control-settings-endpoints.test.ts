@@ -53,6 +53,7 @@ function appEntry(id: AppEntry["id"], enabled: boolean): AppEntry {
     installs: [],
     install: null,
     conflict: null,
+    health: { ok: true, issue: null },
   }
 }
 

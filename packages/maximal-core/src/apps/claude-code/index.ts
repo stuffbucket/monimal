@@ -1,20 +1,20 @@
 import type { AppEntry } from "~/lib/config/settings-types"
 
-import { ensureDefaultEndpointKey } from "~/lib/auth/api-key-helper"
-
 import type { AppUninstallResult, ClientApp } from "../index"
 
 import {
-  type ApiKeyHelperResolver,
+  type ClaudeCodeApiKeyResolver,
+  checkApiKeyHealth,
   isProxyBaseUrlConfigured,
   applyProxyBaseUrl,
   revertProxyBaseUrl,
   getClaudeCodeSettingsPath,
   HELPER_LABEL,
-  resolveApiKeyHelperCommand,
+  resolveClaudeCodeApiKey,
 } from "./config"
 import { detectClaudeInstalls } from "./detect"
 import {
+  claudeCodeRoutingIntended,
   reconcileClaudeCodeOnBoot,
   reconcileClaudeCodeOnShutdown,
   setClaudeCodeRoutingIntent,
@@ -24,14 +24,13 @@ const CLAUDE_CODE_INSTALL_COMMAND =
   "curl -fsSL https://claude.ai/install.sh | sh"
 
 export interface ClaudeCodeAppOptions {
-  resolveApiKeyHelper?: ApiKeyHelperResolver
+  resolveApiKey?: ClaudeCodeApiKeyResolver
 }
 
 export function createClaudeCodeApp(
   options: ClaudeCodeAppOptions = {},
 ): ClientApp {
-  const resolveApiKeyHelper =
-    options.resolveApiKeyHelper ?? resolveApiKeyHelperCommand
+  const resolveApiKey = options.resolveApiKey ?? resolveClaudeCodeApiKey
 
   return {
     id: "claude-code",
@@ -46,6 +45,12 @@ export function createClaudeCodeApp(
 
     getDetails(conflict: AppEntry["conflict"] = null): Promise<AppEntry> {
       const installs = detectClaudeInstalls()
+      // Only meaningful while routing is intended: if the user turned it off,
+      // there is nothing to have drifted out of sync.
+      const health =
+        claudeCodeRoutingIntended() ?
+          checkApiKeyHealth(undefined, resolveApiKey)
+        : { ok: true, issue: null }
       return Promise.resolve({
         id: "claude-code",
         name: "Claude Code",
@@ -62,16 +67,17 @@ export function createClaudeCodeApp(
             { method: "curl", command: CLAUDE_CODE_INSTALL_COMMAND }
           : null,
         conflict,
+        health,
       })
     },
 
     enable() {
-      const result = applyProxyBaseUrl(undefined, resolveApiKeyHelper)
+      const result = applyProxyBaseUrl(undefined, resolveApiKey)
       const conflict =
         (
           result.skippedReason === "foreign-base-url"
           || result.skippedReason === "foreign-api-key-helper"
-          || result.skippedReason === "invalid-api-key-helper"
+          || result.skippedReason === "invalid-api-key"
         ) ?
           result.skippedReason
         : null
@@ -82,9 +88,6 @@ export function createClaudeCodeApp(
       // Persist the durable routing intent so boot/shutdown self-heal runs for
       // all callers (CLI + Settings UI), not just the HTTP path.
       setClaudeCodeRoutingIntent(true)
-      // The settings write succeeded (or was already current), so it is now safe
-      // to guarantee the helper can resolve a key.
-      ensureDefaultEndpointKey()
       return Promise.resolve({ success: true, conflict: null })
     },
 
@@ -111,7 +114,7 @@ export function createClaudeCodeApp(
     },
 
     onBoot() {
-      reconcileClaudeCodeOnBoot(undefined, undefined, resolveApiKeyHelper)
+      reconcileClaudeCodeOnBoot(undefined, undefined, resolveApiKey)
       return Promise.resolve()
     },
 

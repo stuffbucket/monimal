@@ -40,6 +40,7 @@ const appEntry = {
   installs: [],
   install: null,
   conflict: null,
+  health: { ok: true, issue: null },
 }
 const apiKeyEntry = {
   id: 'key-1',
