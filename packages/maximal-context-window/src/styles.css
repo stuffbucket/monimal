@@ -1,6 +1,10 @@
+@import "@stuffbucket/maximal-data-visualization/styles.css";
+
 .mcw-panel {
   display: grid;
   gap: var(--shell-space-3, 0.75rem);
+  color: var(--shell-text);
+  font: var(--shell-font);
 }
 
 /* Capacity summary: model + window sizes + a single fill bar whose color
@@ -13,6 +17,7 @@
 
 .mcw-capacity-heading {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
   gap: var(--shell-space-2, 0.5rem);
@@ -28,30 +33,9 @@
 }
 
 .mcw-capacity-windows {
-  flex-shrink: 0;
+  min-width: 0;
   color: var(--shell-text-muted);
-}
-
-.mcw-capacity-bar {
-  overflow: hidden;
-  height: 0.5rem;
-  border: 1px solid var(--shell-border-strong, var(--shell-border));
-  border-radius: var(--shell-radius-small, 0.25rem);
-  background: var(--shell-background);
-}
-
-.mcw-capacity-fill {
-  height: 100%;
-  background: var(--shell-accent);
-  transition: width 0.2s ease-out;
-}
-
-.mcw-capacity-fill[data-level="medium"] {
-  background: var(--shell-warning);
-}
-
-.mcw-capacity-fill[data-level="high"] {
-  background: var(--shell-danger);
+  overflow-wrap: anywhere;
 }
 
 .mcw-capacity-footer {
@@ -181,69 +165,32 @@
     color-mix(in srgb, var(--shell-canvas) 80%, transparent);
 }
 
-/* Content categories (parts of a turn's input), in the order they
-   typically appear in a real context window: system prompt, tool
-   definitions, MCP definitions, skills, then the user-facing conversation.
-   The shell contract exposes only three hue-bearing colors (accent/blue,
-   warning/amber, danger/red) plus neutrals. Blending two of them in sRGB
-   (a straight channel average) always cuts across the "short way" of the
-   color wheel, landing on a muddy in-between (violet, tan, orange) that
-   sits close to its neighbors instead of a genuinely distinct hue. To get
-   a fourth, well-separated hue without introducing a new literal color,
-   `tools` is mixed in OKLCH going the *long* way around the wheel (from
-   blue, away from red rather than toward it), which lands on green. The
-   four structural categories then read as four unrelated hues - blue,
-   green, amber, red - rather than a gradient. Each is then muted a step
-   toward canvas (a "jewel tone": deep and slightly desaturated, closer to
-   sapphire/emerald/topaz/garnet than a flat, saturated UI accent color) so
-   they read as a related family of small, structural markers rather than
-   four different loud alerts. */
-
 .mcw-cell--system {
-  /* Sapphire. */
-  background-color: color-mix(in srgb, var(--shell-accent) 82%, var(--shell-canvas) 18%);
+  background-color: var(--data-viz-series-5);
 }
 
 .mcw-cell--tools {
-  /* Blue, rotated the long way around the wheel (away from red): emerald. */
-  background-color: color-mix(
-    in srgb,
-    color-mix(in oklch longer hue, var(--shell-accent) 50%, var(--shell-danger) 50%) 82%,
-    var(--shell-canvas) 18%
-  );
+  background-color: var(--data-viz-series-2);
 }
 
 .mcw-cell--mcp {
-  /* Topaz. */
-  background-color: color-mix(in srgb, var(--shell-warning) 82%, var(--shell-canvas) 18%);
+  background-color: var(--data-viz-series-3);
 }
 
 .mcw-cell--skills {
-  /* Garnet. */
-  background-color: color-mix(in srgb, var(--shell-danger) 82%, var(--shell-canvas) 18%);
+  background-color: var(--data-viz-series-6);
 }
 
-/* User input and output are the two large, conversational spans -- what
-   was sent versus what came back -- so they are built from the same
-   recipe (the category's anchor hue mixed toward the light neutral text
-   color, for a pale, muted jewel tone) with only the hue swapped: input
-   is a pale sapphire, output a pale garnet. Sharing one recipe is what
-   makes them read as a coordinated pair rather than two unrelated colors
-   that happen to sit next to each other in the grid. */
 .mcw-cell--userInput {
-  background-color: color-mix(in srgb, var(--shell-accent) 55%, var(--shell-text) 45%);
+  background-color: var(--data-viz-series-1);
 }
 
-/* "Other" is the honest fallback used whenever a real request can't be
-   attributed to a specific category (telemetry only reports whole-request
-   totals). It gets its own neutral hue, distinct from every attributed
-   category. */
 .mcw-cell--other {
-  background-color: color-mix(in srgb, var(--shell-text) 40%, var(--shell-canvas));
+  background-color: var(--data-viz-series-8);
 }
 
 .mcw-cell--output {
-  background-color: color-mix(in srgb, var(--shell-danger) 55%, var(--shell-text) 45%);
+  background-color: var(--data-viz-series-4);
 }
 
 /* Reserved output is capacity set aside for a future response, not content
@@ -252,7 +199,7 @@
    lighter shade that could be mistaken for a smaller amount of actual
    output. */
 .mcw-cell--reserved {
-  background-color: color-mix(in srgb, var(--shell-danger) 30%, var(--shell-canvas) 70%);
+  background-color: var(--data-viz-series-7);
   background-image: radial-gradient(
     color-mix(in srgb, var(--shell-canvas) 75%, transparent) 32%,
     transparent 32%
@@ -297,22 +244,9 @@
   grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
   gap: var(--shell-space-1, 0.25rem) var(--shell-space-3, 0.75rem);
   margin: var(--shell-space-2, 0.5rem) 0 0;
-  padding: 0;
-  list-style: none;
-  font-size: var(--shell-text-xs);
 }
 
-.mcw-legend-item {
-  display: flex;
-  align-items: center;
-  gap: var(--shell-space-1, 0.25rem);
-  min-width: 0;
-}
-
-.mcw-legend-swatch {
-  display: flex;
-  flex-shrink: 0;
-  overflow: hidden;
+.mcw-legend .data-viz-legend-swatch {
   width: 0.625rem;
   height: 0.625rem;
   border: 1px solid var(--shell-border);
@@ -325,46 +259,22 @@
   height: 100%;
 }
 
-.mcw-legend-label {
+.mcw-legend .data-viz-legend-label {
   overflow: hidden;
   flex: 1 1 auto;
-  color: var(--shell-text-muted);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.mcw-legend-value {
+.mcw-legend .data-viz-legend-value {
   flex-shrink: 0;
   color: var(--shell-text);
-  font-variant-numeric: tabular-nums;
 }
 
 .mcw-unavailable {
   margin: var(--shell-space-1, 0.25rem) 0;
   color: var(--shell-text-muted);
   font-size: var(--shell-text-xs);
-}
-
-/* Per-piece hover tooltip: positioned by viewport coordinates (JS-measured
-   and viewport-clamped `top`/`left`, set as inline style) rather than a
-   CSS-anchored `::after` or the browser's native `title` attribute, since
-   the grid and turn bar both clip their contents (`overflow: hidden`) and
-   would clip an element-anchored tooltip the moment it tried to escape
-   its own cell. A single `position: fixed` element rendered once at the
-   panel level sits above everything and is unaffected by those ancestors'
-   overflow. */
-.mcw-tooltip {
-  position: fixed;
-  z-index: 20;
-  padding: var(--shell-space-1, 0.25rem) var(--shell-space-2, 0.5rem);
-  border: 1px solid var(--shell-border-strong, var(--shell-border));
-  border-radius: var(--shell-radius-small, 0.25rem);
-  background: var(--shell-raised);
-  color: var(--shell-text);
-  font-size: var(--shell-text-xs);
-  white-space: nowrap;
-  pointer-events: none;
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--shell-text) 35%, transparent);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -376,10 +286,10 @@
 }
 
 @media (forced-colors: active) {
-  .mcw-capacity-bar,
+  .data-viz-meter,
   .mcw-cell-half,
   .mcw-turn-bar-segment,
-  .mcw-legend-swatch,
+  .data-viz-legend-swatch,
   .mcw-legend-swatch-part {
     border: 1px solid CanvasText;
     forced-color-adjust: none;

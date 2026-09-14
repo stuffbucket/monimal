@@ -28,6 +28,14 @@ const THEME_CSS = `
     sans-serif;
   --shell-danger: #ef4444;
   --shell-warning: #eab308;
+  --data-viz-series-1: #64b5c4;
+  --data-viz-series-2: #77b96f;
+  --data-viz-series-3: #d0a24c;
+  --data-viz-series-4: #d27a8b;
+  --data-viz-series-5: #789ee8;
+  --data-viz-series-6: #b58ad6;
+  --data-viz-series-7: #d8835f;
+  --data-viz-series-8: #84919f;
 }
 
 /* Light-mode override, toggled by setting \`data-theme="light"\` on any
@@ -53,6 +61,14 @@ const THEME_CSS = `
   --shell-accent-muted: rgb(37 99 235 / 0.1);
   --shell-danger: #c0272b;
   --shell-warning: #a9691b;
+  --data-viz-series-1: #176b78;
+  --data-viz-series-2: #397a33;
+  --data-viz-series-3: #8a5d00;
+  --data-viz-series-4: #9e3653;
+  --data-viz-series-5: #345fba;
+  --data-viz-series-6: #74449a;
+  --data-viz-series-7: #a64d28;
+  --data-viz-series-8: #53606e;
 }
 
 html,

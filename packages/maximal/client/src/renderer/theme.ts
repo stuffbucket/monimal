@@ -97,9 +97,52 @@ const THEME_CSS = `
   --shell-warning: #eab308;
   --maximal-success: #22c55e;
 
+  /* Data visualizations need categorical distinctions beyond the semantic
+     status palette. Feature packages consume these ordered series tokens;
+     the host owns their light/dark values so charts remain coordinated with
+     the surrounding application rather than inventing local colors. */
+  --data-viz-series-1: #64b5c4;
+  --data-viz-series-2: #77b96f;
+  --data-viz-series-3: #d0a24c;
+  --data-viz-series-4: #d27a8b;
+  --data-viz-series-5: #789ee8;
+  --data-viz-series-6: #b58ad6;
+  --data-viz-series-7: #d8835f;
+  --data-viz-series-8: #84919f;
+
    --shell-terminal-background: #111317;
    --maximal-terminal-foreground: #f5f5f5;
    --maximal-terminal-cursor: #5198a6;
+}
+
+[data-theme='light'] {
+  color-scheme: light;
+  --shell-background: #ffffff;
+  --shell-canvas: #eef0f4;
+  --shell-raised: #ffffff;
+  --shell-text: #12141a;
+  --shell-text-muted: #545c68;
+  --shell-text-subtle: #656d78;
+  --shell-border: #e3e6eb;
+  --shell-border-strong: #ccd2da;
+  --shell-input-background: #ffffff;
+  --shell-hover: #eceef2;
+  --shell-active: #e2e6ec;
+  --shell-accent: #2563eb;
+  --shell-accent-contrast: #ffffff;
+  --shell-accent-muted: rgb(37 99 235 / 0.1);
+  --shell-focus: var(--shell-accent);
+  --shell-danger: #c0272b;
+  --shell-warning: #a9691b;
+  --maximal-success: #257a3e;
+  --data-viz-series-1: #176b78;
+  --data-viz-series-2: #397a33;
+  --data-viz-series-3: #8a5d00;
+  --data-viz-series-4: #9e3653;
+  --data-viz-series-5: #345fba;
+  --data-viz-series-6: #74449a;
+  --data-viz-series-7: #a64d28;
+  --data-viz-series-8: #53606e;
 }
 
 /*

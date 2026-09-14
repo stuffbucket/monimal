@@ -56,7 +56,7 @@ describe("ContextWindowSessionPanel", () => {
     expect(container.textContent).toContain("claude-sonnet")
     expect(container.textContent).toContain("2.1% full")
     expect(
-      container.querySelector(".mcw-capacity-bar")?.getAttribute("aria-label"),
+      container.querySelector(".data-viz-meter")?.getAttribute("aria-label"),
     ).toContain("2.1% full")
     expect(
       container.querySelector(".mcw-grid")?.getAttribute("aria-label"),
@@ -167,7 +167,7 @@ describe("ContextWindowSessionPanel", () => {
         new MouseEvent("mouseover", { bubbles: true }),
       )
     })
-    expect(container.querySelector(".mcw-tooltip")?.textContent).toBe(
+    expect(container.querySelector(".data-viz-tooltip")?.textContent).toBe(
       "System prompt: 1,000 tokens (cached)",
     )
 
@@ -176,7 +176,7 @@ describe("ContextWindowSessionPanel", () => {
         new MouseEvent("mouseout", { bubbles: true }),
       )
     })
-    expect(container.querySelector(".mcw-tooltip")).toBeNull()
+    expect(container.querySelector(".data-viz-tooltip")).toBeNull()
   })
 
   it("passes axe with no violations", async () => {

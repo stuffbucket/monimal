@@ -6,7 +6,9 @@ window was spent on input versus output tokens, alongside the model name,
 context/input/output window sizes, and percent full.
 
 This is a renderer-only consumer, like `@stuffbucket/maximal-observability`
-which it is designed to be composed into. It reads
+which it is designed to be composed into. Shared chart structure, typography,
+tooltips, and categorical palette tokens come from
+`@stuffbucket/maximal-data-visualization`. It reads
 `@stuffbucket/maximal-observability-contract` traffic types and does not
 connect to Maximal Core, Electron IPC, or any transport itself; a host derives
 sessions from its own `TrafficRequestSummary` list with `deriveContextSessions`

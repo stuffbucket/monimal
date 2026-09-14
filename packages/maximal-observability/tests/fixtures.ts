@@ -9,7 +9,7 @@ import type {
 
 import type { ObservabilitySource } from "../src/source.ts"
 
-export const REQUEST: TrafficRequestSummary = {
+const REQUEST: TrafficRequestSummary = {
   identity: {
     requestId: "req-1",
     traceId: "trace-1",

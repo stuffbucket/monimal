@@ -1,5 +1,11 @@
+import {
+  DataVizLegend,
+  DataVizMeter,
+  DataVizTooltip,
+  useDataVizTooltip,
+} from "@stuffbucket/maximal-data-visualization"
 import { FormField, Select } from "@stuffbucket/maximal-electron/renderer"
-import { useLayoutEffect, useRef, useState } from "react"
+import { useState } from "react"
 
 import {
   deriveContextGrid,
@@ -74,78 +80,6 @@ function pieceTitle(piece: {
   return `${CATEGORY_LABELS[piece.category]}: ${formatCount(piece.tokens)} tokens${cachedNote}`
 }
 
-interface HoverTooltipState {
-  text: string
-  /** The vertical top and horizontal center of the hovered element, in
-   * viewport coordinates -- where the tooltip would point to before
-   * clamping it to stay on-screen. */
-  anchorTop: number
-  anchorCenter: number
-}
-
-/** A single tooltip, positioned by viewport coordinates rather than
- * relying on the browser's native `title` attribute. The grid and turn
- * bar both clip their contents (`overflow: hidden`, so a fixed number of
- * rows/segments never bleeds past their rounded border), which would
- * clip a CSS-only tooltip anchored to the hovered element itself; a single
- * `position: fixed` tooltip rendered once at the panel level, outside
- * those clipped containers, is not affected by their overflow and stays
- * fully visible near the cursor. */
-function useHoverTooltip() {
-  const [tooltip, setTooltip] = useState<HoverTooltipState | null>(null)
-  const show = (event: { currentTarget: HTMLElement }, text: string) => {
-    const rect = event.currentTarget.getBoundingClientRect()
-    setTooltip({
-      text,
-      anchorTop: rect.top,
-      anchorCenter: rect.left + rect.width / 2,
-    })
-  }
-  const hide = () => {
-    setTooltip(null)
-  }
-  return { tooltip, show, hide }
-}
-
-/** Renders just above its anchor point, clamped to stay fully within the
- * viewport -- measured after mount (rather than guessed from the text
- * length), since a right-panel host can place the grid close enough to
- * either edge that a naively centered tooltip would run off-screen, as it
- * did for the leftmost column before this clamping was added. */
-function HoverTooltip({ text, anchorTop, anchorCenter }: HoverTooltipState) {
-  const ref = useRef<HTMLDivElement>(null)
-  const [position, setPosition] = useState({
-    top: anchorTop,
-    left: anchorCenter,
-  })
-
-  useLayoutEffect(() => {
-    const node = ref.current
-    if (!node) return
-    const { width, height } = node.getBoundingClientRect()
-    const margin = 4
-    const gap = 6
-    setPosition({
-      left: Math.min(
-        Math.max(anchorCenter - width / 2, margin),
-        window.innerWidth - width - margin,
-      ),
-      top: Math.max(anchorTop - height - gap, margin),
-    })
-  }, [text, anchorTop, anchorCenter])
-
-  return (
-    <div
-      ref={ref}
-      className="mcw-tooltip"
-      role="tooltip"
-      style={{ top: position.top, left: position.left }}
-    >
-      {text}
-    </div>
-  )
-}
-
 export function ContextWindowSessionPanel({
   session,
   sessionIds,
@@ -164,7 +98,7 @@ export function ContextWindowSessionPanel({
     ((turn: Turn) => Array<ContextInputSegment> | undefined) | undefined
 }) {
   return (
-    <div className="mcw-panel">
+    <div className="mcw-panel data-viz-root">
       <FormField label="Session">
         {(field) => (
           <Select
@@ -195,7 +129,7 @@ function ContextWindowTurns({
   const [selectedIndex, setSelectedIndex] = useState(
     Math.max(0, session.turns.length - 1),
   )
-  const { tooltip, show, hide } = useHoverTooltip()
+  const { tooltip, show, hide } = useDataVizTooltip()
   const turn = session.turns[selectedIndex] ?? session.turns.at(-1)
   if (!turn) return null
   const inputSegments = inputSegmentsFor?.(turn)
@@ -224,7 +158,7 @@ function ContextWindowTurns({
         onHoverPiece={show}
         onHoverEnd={hide}
       />
-      {tooltip && <HoverTooltip {...tooltip} />}
+      {tooltip && <DataVizTooltip {...tooltip} />}
     </>
   )
 }
@@ -233,6 +167,14 @@ function capacityLevel(percent: number): "low" | "medium" | "high" {
   if (percent >= 85) return "high"
   if (percent >= 60) return "medium"
   return "low"
+}
+
+function capacityTone(
+  level: "low" | "medium" | "high",
+): "accent" | "warning" | "danger" {
+  if (level === "high") return "danger"
+  if (level === "medium") return "warning"
+  return "accent"
 }
 
 interface CapacitySummary {
@@ -321,13 +263,11 @@ function ContextCapacitySummary({
           {formatTokensCompact(outputWindow)}
         </span>
       </div>
-      <div className="mcw-capacity-bar" role="img" aria-label={summaryLabel}>
-        <div
-          className="mcw-capacity-fill"
-          data-level={level}
-          style={{ width: `${String(percent)}%` }}
-        />
-      </div>
+      <DataVizMeter
+        ariaLabel={summaryLabel}
+        percent={percent}
+        tone={capacityTone(level)}
+      />
       <div className="mcw-capacity-footer">
         <span>{formatPercent(usedRatio)} full</span>
         <span>
@@ -491,38 +431,37 @@ function ContextGridView({
           </span>
         ))}
       </div>
-      <ul className="mcw-legend">
-        {grid.segments
+      <DataVizLegend
+        ariaLabel="Context window legend"
+        className="mcw-legend"
+        items={grid.segments
           .filter((segment) => segment.tokens > 0)
-          .map((segment) => (
-            <li key={segment.category} className="mcw-legend-item">
-              <span className="mcw-legend-swatch" aria-hidden="true">
-                {cachedThenNew(segment).map((part) => (
-                  <span
-                    key={part.cached ? "cached" : "new"}
-                    className={`mcw-legend-swatch-part mcw-cell--${segment.category}`}
-                    data-cached={part.cached || undefined}
-                    onMouseEnter={(event) => {
-                      onHoverPiece(
-                        event,
-                        pieceTitle({ category: segment.category, ...part }),
-                      )
-                    }}
-                    onMouseLeave={onHoverEnd}
-                    style={{ flexGrow: part.tokens }}
-                  />
-                ))}
-              </span>
-              <span className="mcw-legend-label">
-                {CATEGORY_LABELS[segment.category]}
-              </span>
-              <span className="mcw-legend-value">
+          .map((segment) => ({
+            id: segment.category,
+            label: CATEGORY_LABELS[segment.category],
+            value: (
+              <>
                 {formatTokensCompact(segment.tokens)} (
                 {formatPercent(segment.tokens / grid.contextWindowTokens)})
-              </span>
-            </li>
-          ))}
-      </ul>
+              </>
+            ),
+            swatch: cachedThenNew(segment).map((part) => (
+              <span
+                key={part.cached ? "cached" : "new"}
+                className={`mcw-legend-swatch-part mcw-cell--${segment.category}`}
+                data-cached={part.cached || undefined}
+                onMouseEnter={(event) => {
+                  onHoverPiece(
+                    event,
+                    pieceTitle({ category: segment.category, ...part }),
+                  )
+                }}
+                onMouseLeave={onHoverEnd}
+                style={{ flexGrow: part.tokens }}
+              />
+            )),
+          }))}
+      />
     </section>
   )
 }

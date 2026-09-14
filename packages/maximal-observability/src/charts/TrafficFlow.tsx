@@ -1,5 +1,9 @@
 import type { TrafficFlow } from "@stuffbucket/maximal-observability-contract"
 
+import {
+  ChartViewport,
+  DataVizSegmentedControl,
+} from "@stuffbucket/maximal-data-visualization"
 import { useId, useState } from "react"
 
 import { deriveDisplayFlow, scaleLinear, type FlowMeasure } from "../derive.ts"
@@ -39,33 +43,22 @@ export function TrafficFlowChart({ flow }: { flow: TrafficFlow }) {
             Requests move from client to route, provider, model, and outcome.
           </p>
         </div>
-        <div
-          className="mo-segmented"
-          role="group"
-          aria-label="Traffic flow measure"
-        >
-          <button
-            type="button"
-            aria-pressed={measure === "requests"}
-            onClick={() => setMeasure("requests")}
-          >
-            Requests
-          </button>
-          <button
-            type="button"
-            aria-pressed={measure === "tokens"}
-            onClick={() => setMeasure("tokens")}
-          >
-            Tokens
-          </button>
-        </div>
+        <DataVizSegmentedControl
+          ariaLabel="Traffic flow measure"
+          value={measure}
+          options={[
+            { value: "requests", label: "Requests" },
+            { value: "tokens", label: "Tokens" },
+          ]}
+          onChange={setMeasure}
+        />
       </header>
       {display.nodes.length === 0 ?
         <p className="mo-state">No flow data is available for these filters.</p>
       : <>
-          <div className="mo-chart-scroll">
+          <ChartViewport>
             <svg
-              className="mo-flow-chart"
+              className="mo-flow-chart data-viz-chart"
               viewBox={`0 0 792 ${String(height)}`}
               role="img"
               aria-labelledby={`${titleId} ${descriptionId}`}
@@ -93,7 +86,11 @@ export function TrafficFlowChart({ flow }: { flow: TrafficFlow }) {
                 )
               })}
               {display.nodes.map((node) => (
-                <g key={node.id} className="mo-flow-node" tabIndex={0}>
+                <g
+                  key={node.id}
+                  className="mo-flow-node data-viz-focusable"
+                  tabIndex={0}
+                >
                   <title>{`${KIND_LABELS[node.kind]} ${node.label}: ${formatCount(nodeValue(node, measure))} ${measure}`}</title>
                   <rect
                     x={node.x}
@@ -118,7 +115,7 @@ export function TrafficFlowChart({ flow }: { flow: TrafficFlow }) {
                 </text>
               ))}
             </svg>
-          </div>
+          </ChartViewport>
           <div className="mo-table-scroll">
             <table>
               <caption>Traffic flow connections by {measure}</caption>
