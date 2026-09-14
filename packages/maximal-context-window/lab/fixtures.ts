@@ -1,31 +1,61 @@
 import type { TrafficRequestSummary } from "@stuffbucket/maximal-observability-contract"
 
+import type { ContextInputSegment } from "../src/context-window.ts"
+
 const CONTEXT_WINDOW_TOKENS = 200_000
 const REQUESTED_MAX_OUTPUT_TOKENS = 8_192
+
+/**
+ * Sums a turn's input segments into the whole-request token counters the
+ * observability contract actually reports, so the fixture's detailed
+ * breakdown (which a real backend cannot report) and the totals a real
+ * backend *would* report never disagree with each other.
+ */
+function tokensFromSegments(
+  segments: Array<ContextInputSegment>,
+  outputTokens: number,
+): NonNullable<TrafficRequestSummary["tokens"]> {
+  const cacheReadInputTokens = segments.reduce(
+    (sum, segment) => sum + segment.cachedTokens,
+    0,
+  )
+  const inputTokens = segments.reduce(
+    (sum, segment) => sum + (segment.tokens - segment.cachedTokens),
+    0,
+  )
+  return {
+    inputTokens,
+    outputTokens,
+    cacheReadInputTokens,
+    cacheCreationInputTokens: 0,
+    reasoningTokens: 0,
+    totalTokens: inputTokens + cacheReadInputTokens + outputTokens,
+    totalNanoAiu: 0,
+  }
+}
 
 function turn({
   index,
   sessionId,
   minutesAgo,
-  inputTokens,
+  segments,
   outputTokens,
-  cacheReadInputTokens,
-  cacheCreationInputTokens,
   model,
 }: {
   index: number
   sessionId: string
   minutesAgo: number
-  inputTokens: number
+  segments: Array<ContextInputSegment>
   outputTokens: number
-  cacheReadInputTokens: number
-  cacheCreationInputTokens: number
   model: string
-}): TrafficRequestSummary {
+}): { request: TrafficRequestSummary; segments: Array<ContextInputSegment> } {
   const acceptedAt = new Date(Date.now() - minutesAgo * 60_000).toISOString()
+  const tokens = tokensFromSegments(segments, outputTokens)
   const usedTokens =
-    inputTokens + cacheReadInputTokens + cacheCreationInputTokens
-  return {
+    tokens.inputTokens
+    + tokens.cacheReadInputTokens
+    + tokens.cacheCreationInputTokens
+  const request: TrafficRequestSummary = {
     identity: {
       requestId: `req-${sessionId}-${String(index)}`,
       traceId: `trace-${sessionId}-${String(index)}`,
@@ -68,15 +98,7 @@ function turn({
       requestedModel: model,
       resolvedModel: model,
     },
-    tokens: {
-      inputTokens,
-      outputTokens,
-      cacheReadInputTokens,
-      cacheCreationInputTokens,
-      reasoningTokens: 0,
-      totalTokens: inputTokens + outputTokens,
-      totalNanoAiu: 0,
-    },
+    tokens,
     context: {
       messageCount: 2 + index * 3,
       toolDefinitionCount: 6,
@@ -89,99 +111,173 @@ function turn({
     response: { stopReason: "end_turn", toolUseCount: index % 3 },
     error: null,
   }
+  return { request, segments }
 }
 
-// A long-running session that escalates from a small opening turn toward the
-// context window's limit, the way an agentic coding session accumulates
-// history across many tool calls.
-const LONG_SESSION: Array<TrafficRequestSummary> = [
-  turn({
-    index: 1,
-    sessionId: "session-long-running",
+// A long-running agentic coding session. The system prompt, tool
+// definitions, MCP definitions, and skills are a stable prefix: uncached on
+// the first turn (a cold cache), then fully cached on every turn after.
+// The user-facing conversation grows every turn; only its newest slice is
+// ever uncached, since the model has already seen (and cached) the rest.
+const STATIC_PREFIX = { system: 900, tools: 1_400, mcp: 700, skills: 500 }
+
+function staticPrefixSegments(cached: boolean): Array<ContextInputSegment> {
+  return [
+    {
+      category: "system",
+      tokens: STATIC_PREFIX.system,
+      cachedTokens: cached ? STATIC_PREFIX.system : 0,
+    },
+    {
+      category: "tools",
+      tokens: STATIC_PREFIX.tools,
+      cachedTokens: cached ? STATIC_PREFIX.tools : 0,
+    },
+    {
+      category: "mcp",
+      tokens: STATIC_PREFIX.mcp,
+      cachedTokens: cached ? STATIC_PREFIX.mcp : 0,
+    },
+    {
+      category: "skills",
+      tokens: STATIC_PREFIX.skills,
+      cachedTokens: cached ? STATIC_PREFIX.skills : 0,
+    },
+  ]
+}
+
+const LONG_SESSION_TURNS: Array<{
+  minutesAgo: number
+  userInputTokens: number
+  userInputCachedTokens: number
+  outputTokens: number
+}> = [
+  {
     minutesAgo: 42,
-    inputTokens: 1_200,
+    userInputTokens: 800,
+    userInputCachedTokens: 0,
     outputTokens: 600,
-    cacheReadInputTokens: 0,
-    cacheCreationInputTokens: 1_200,
-    model: "claude-sonnet-4.5",
-  }),
-  turn({
-    index: 2,
-    sessionId: "session-long-running",
+  },
+  {
     minutesAgo: 37,
-    inputTokens: 3_400,
+    userInputTokens: 2_200,
+    userInputCachedTokens: 800,
     outputTokens: 1_100,
-    cacheReadInputTokens: 1_200,
-    cacheCreationInputTokens: 2_200,
-    model: "claude-sonnet-4.5",
-  }),
-  turn({
-    index: 3,
-    sessionId: "session-long-running",
+  },
+  {
     minutesAgo: 30,
-    inputTokens: 9_800,
+    userInputTokens: 7_500,
+    userInputCachedTokens: 2_200,
     outputTokens: 2_400,
-    cacheReadInputTokens: 4_600,
-    cacheCreationInputTokens: 5_200,
-    model: "claude-sonnet-4.5",
-  }),
-  turn({
-    index: 4,
-    sessionId: "session-long-running",
+  },
+  {
     minutesAgo: 21,
-    inputTokens: 26_000,
+    userInputTokens: 22_000,
+    userInputCachedTokens: 7_500,
     outputTokens: 4_800,
-    cacheReadInputTokens: 12_000,
-    cacheCreationInputTokens: 14_000,
-    model: "claude-sonnet-4.5",
-  }),
-  turn({
-    index: 5,
-    sessionId: "session-long-running",
+  },
+  {
     minutesAgo: 9,
-    inputTokens: 50_000,
+    userInputTokens: 55_000,
+    userInputCachedTokens: 22_000,
     outputTokens: 7_200,
-    cacheReadInputTokens: 30_000,
-    cacheCreationInputTokens: 20_000,
-    model: "claude-sonnet-4.5",
-  }),
-  turn({
-    index: 6,
-    sessionId: "session-long-running",
+  },
+  {
     minutesAgo: 1,
-    inputTokens: 70_000,
+    userInputTokens: 95_000,
+    userInputCachedTokens: 55_000,
     outputTokens: 8_000,
-    cacheReadInputTokens: 50_000,
-    cacheCreationInputTokens: 30_000,
+  },
+]
+
+const LONG_SESSION = LONG_SESSION_TURNS.map((data, position) => {
+  const index = position + 1
+  return turn({
+    index,
+    sessionId: "session-long-running",
+    minutesAgo: data.minutesAgo,
+    segments: [
+      ...staticPrefixSegments(index > 1),
+      {
+        category: "userInput",
+        tokens: data.userInputTokens,
+        cachedTokens: data.userInputCachedTokens,
+      },
+    ],
+    outputTokens: data.outputTokens,
     model: "claude-sonnet-4.5",
-  }),
-]
+  })
+})
 
-// A short, lightweight session using a smaller model, shown for contrast.
-const SHORT_SESSION: Array<TrafficRequestSummary> = [
-  turn({
-    index: 1,
-    sessionId: "session-quick-question",
+// A short, lightweight session using a smaller model and no MCP servers or
+// skills, shown for contrast.
+const SHORT_SESSION_TURNS: Array<{
+  minutesAgo: number
+  userInputTokens: number
+  userInputCachedTokens: number
+  outputTokens: number
+}> = [
+  {
     minutesAgo: 5,
-    inputTokens: 800,
+    userInputTokens: 300,
+    userInputCachedTokens: 0,
     outputTokens: 240,
-    cacheReadInputTokens: 0,
-    cacheCreationInputTokens: 0,
-    model: "claude-haiku-4.5",
-  }),
-  turn({
-    index: 2,
-    sessionId: "session-quick-question",
+  },
+  {
     minutesAgo: 4,
-    inputTokens: 1_400,
+    userInputTokens: 900,
+    userInputCachedTokens: 300,
     outputTokens: 320,
-    cacheReadInputTokens: 800,
-    cacheCreationInputTokens: 0,
-    model: "claude-haiku-4.5",
-  }),
+  },
 ]
 
-export const LAB_REQUESTS: Array<TrafficRequestSummary> = [
-  ...LONG_SESSION,
-  ...SHORT_SESSION,
-]
+const SHORT_STATIC_PREFIX = { system: 300, tools: 200 }
+
+const SHORT_SESSION = SHORT_SESSION_TURNS.map((data, position) => {
+  const index = position + 1
+  const cached = index > 1
+  return turn({
+    index,
+    sessionId: "session-quick-question",
+    minutesAgo: data.minutesAgo,
+    segments: [
+      {
+        category: "system",
+        tokens: SHORT_STATIC_PREFIX.system,
+        cachedTokens: cached ? SHORT_STATIC_PREFIX.system : 0,
+      },
+      {
+        category: "tools",
+        tokens: SHORT_STATIC_PREFIX.tools,
+        cachedTokens: cached ? SHORT_STATIC_PREFIX.tools : 0,
+      },
+      {
+        category: "userInput",
+        tokens: data.userInputTokens,
+        cachedTokens: data.userInputCachedTokens,
+      },
+    ],
+    outputTokens: data.outputTokens,
+    model: "claude-haiku-4.5",
+  })
+})
+
+const LAB_TURNS = [...LONG_SESSION, ...SHORT_SESSION]
+
+export const LAB_REQUESTS: Array<TrafficRequestSummary> = LAB_TURNS.map(
+  ({ request }) => request,
+)
+
+/** The detailed input breakdown behind each lab request, keyed by request
+ * id -- stands in for a source that can attribute its own prompt, which
+ * the observability contract itself cannot do. See
+ * `ContextWindowSessionPanel`'s `inputSegmentsFor` prop. */
+export const LAB_INPUT_SEGMENTS: Map<
+  string,
+  Array<ContextInputSegment>
+> = new Map(
+  LAB_TURNS.map(({ request, segments }) => [
+    request.identity.requestId,
+    segments,
+  ]),
+)

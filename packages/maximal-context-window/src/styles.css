@@ -169,28 +169,103 @@
   min-width: 0;
 }
 
-.mcw-cell--cached {
-  background: var(--shell-accent);
+/* A hairline separates the two halves of a cell (and adjacent segments in
+   the turn bar / legend) so a boundary between categories stays visible
+   even when their fill colors are close in hue, instead of reading as one
+   undifferentiated block. */
+
+.mcw-cell-half + .mcw-cell-half,
+.mcw-turn-bar-segment + .mcw-turn-bar-segment,
+.mcw-legend-swatch-part + .mcw-legend-swatch-part {
+  border-inline-start: 1px solid
+    color-mix(in srgb, var(--shell-canvas) 80%, transparent);
 }
 
-.mcw-cell--created {
-  background: color-mix(in srgb, var(--shell-accent) 50%, var(--shell-canvas));
+/* Content categories (parts of a turn's input), in the order they
+   typically appear in a real context window: system prompt, tool
+   definitions, MCP definitions, skills, then the user-facing conversation.
+   Each category gets a genuinely different hue (mixed from a different pair
+   of the published accent/warning/danger/text colors) rather than a
+   lighter/darker tint of the same hue as its neighbor, so adjacent
+   "structural" categories stay distinguishable at a glance instead of
+   collapsing into one indistinct blue. Colors are derived with color-mix()
+   rather than new literal colors. */
+
+.mcw-cell--system {
+  background-color: var(--shell-accent);
 }
 
-.mcw-cell--input {
-  background: var(--shell-warning);
+.mcw-cell--tools {
+  /* Blue toward the app's foreground: a cooler, desaturated slate. */
+  background-color: color-mix(in srgb, var(--shell-accent) 55%, var(--shell-text));
+}
+
+.mcw-cell--mcp {
+  /* Blue toward amber: a teal/green-leaning hue. */
+  background-color: color-mix(in srgb, var(--shell-accent) 55%, var(--shell-warning));
+}
+
+.mcw-cell--skills {
+  /* Blue toward red: a violet-leaning hue. */
+  background-color: color-mix(in srgb, var(--shell-accent) 55%, var(--shell-danger));
+}
+
+.mcw-cell--userInput {
+  background-color: var(--shell-warning);
+}
+
+/* "Other" is the honest fallback used whenever a real request can't be
+   attributed to a specific category (telemetry only reports whole-request
+   totals). It gets its own neutral hue, distinct from every attributed
+   category, rather than reusing the user-input amber. */
+.mcw-cell--other {
+  background-color: color-mix(in srgb, var(--shell-text) 40%, var(--shell-canvas));
 }
 
 .mcw-cell--output {
-  background: var(--shell-danger);
+  background-color: var(--shell-danger);
 }
 
+/* Reserved output is capacity set aside for a future response, not content
+   that was actually sent or received, so it is rendered as a dotted texture
+   over the danger hue rather than a plain lighter shade that could be
+   mistaken for a smaller amount of actual output. */
 .mcw-cell--reserved {
-  background: color-mix(in srgb, var(--shell-danger) 35%, var(--shell-canvas));
+  background-color: color-mix(in srgb, var(--shell-danger) 40%, var(--shell-canvas));
+  background-image: radial-gradient(
+    color-mix(in srgb, var(--shell-canvas) 75%, transparent) 32%,
+    transparent 32%
+  );
+  background-size: 4px 4px;
 }
 
 .mcw-cell--free {
-  background: var(--shell-canvas);
+  background-color: var(--shell-canvas);
+}
+
+/* Cached content is an attribute of a category, not a category of its own:
+   a hard, tight checker (in the spirit of classic ASCII/ANSI dithered
+   shading blocks) punches out of whichever category's color it belongs to,
+   so a category's position in the window stays legible whether or not it
+   happened to be cached this turn. The checker squares are fully opaque
+   (the app's own canvas color, not a translucent overlay) so the contrast
+   against every category color is large and predictable rather than
+   depending on how two translucent layers happen to blend. `conic-gradient`
+   with axis-aligned quadrants guarantees true squares instead of the
+   diagonal-gradient technique, which produces diamond/paisley shapes at
+   these sizes. A small, fixed pixel tile keeps the dither tight regardless
+   of how wide the element it is applied to happens to be. */
+
+.mcw-cell-half[data-cached="true"],
+.mcw-turn-bar-segment[data-cached="true"],
+.mcw-legend-swatch-part[data-cached="true"] {
+  background-image: conic-gradient(
+    var(--shell-canvas) 0deg 90deg,
+    transparent 90deg 180deg,
+    var(--shell-canvas) 180deg 270deg,
+    transparent 270deg 360deg
+  );
+  background-size: 4px 4px;
 }
 
 .mcw-legend {
@@ -211,11 +286,19 @@
 }
 
 .mcw-legend-swatch {
+  display: flex;
   flex-shrink: 0;
+  overflow: hidden;
   width: 0.625rem;
   height: 0.625rem;
   border: 1px solid var(--shell-border);
   border-radius: 2px;
+}
+
+.mcw-legend-swatch-part {
+  flex-shrink: 0;
+  min-width: 1px;
+  height: 100%;
 }
 
 .mcw-legend-label {
@@ -250,7 +333,8 @@
   .mcw-capacity-bar,
   .mcw-cell-half,
   .mcw-turn-bar-segment,
-  .mcw-legend-swatch {
+  .mcw-legend-swatch,
+  .mcw-legend-swatch-part {
     border: 1px solid CanvasText;
     forced-color-adjust: none;
   }

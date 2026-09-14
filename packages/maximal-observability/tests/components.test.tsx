@@ -81,7 +81,7 @@ describe("observability components", () => {
     expect(container.textContent).toContain("2.1% full")
     expect(
       container.querySelector(".mcw-grid")?.getAttribute("aria-label"),
-    ).toContain("Input: 90 tokens")
+    ).toContain("Other content: 120 tokens, 20 cached")
     expect(source.overviewReads).toBe(1)
     expect(source.requestReads).toBe(1)
 

@@ -6,6 +6,8 @@ import {
   deriveTurnComposition,
   type ContextGrid,
   type ContextGridCategory,
+  type ContextGridSegment,
+  type ContextInputSegment,
   type ContextSession,
   type TurnComposition,
 } from "./context-window.ts"
@@ -19,22 +21,60 @@ import {
 type Turn = ContextSession["turns"][number]
 
 const CATEGORY_LABELS: Record<ContextGridCategory, string> = {
-  cached: "Cached context",
-  created: "New context",
-  input: "Input",
+  system: "System prompt",
+  tools: "Tool definitions",
+  mcp: "MCP definitions",
+  skills: "Skills",
+  userInput: "User input",
+  other: "Other content",
   output: "Output",
   reserved: "Reserved output",
   free: "Free space",
+}
+
+/** Describes a segment's tokens for an aria-label, noting the cached
+ * portion as an attribute of the category rather than a category of its
+ * own. */
+function segmentDescription(segment: {
+  category: ContextGridCategory
+  tokens: number
+  cachedTokens: number
+}): string {
+  const cachedNote =
+    segment.cachedTokens > 0 ?
+      `, ${formatCount(segment.cachedTokens)} cached`
+    : ""
+  return `${CATEGORY_LABELS[segment.category]}: ${formatCount(segment.tokens)} tokens${cachedNote}`
+}
+
+/** Splits a segment's tokens into its cached and new (freshly processed)
+ * parts, in that order -- cached content is the earlier, already
+ * -processed part of a category, so it renders first within it. */
+function cachedThenNew(
+  segment: ContextGridSegment,
+): Array<{ cached: boolean; tokens: number }> {
+  return [
+    { cached: true, tokens: segment.cachedTokens },
+    { cached: false, tokens: segment.tokens - segment.cachedTokens },
+  ].filter((part) => part.tokens > 0)
 }
 
 export function ContextWindowSessionPanel({
   session,
   sessionIds,
   onSelectSession,
+  inputSegmentsFor,
 }: {
   session: ContextSession
   sessionIds: Array<string>
   onSelectSession: (sessionId: string) => void
+  /** Breaks a turn's input down into explicit content categories (system,
+   * tools, MCP, skills, user input) when the caller can attribute its own
+   * prompt. Omit to fall back to a single, honestly undifferentiated
+   * "other" bucket -- the observability contract does not report this
+   * breakdown for real traffic. */
+  inputSegmentsFor?:
+    ((turn: Turn) => Array<ContextInputSegment> | undefined) | undefined
 }) {
   return (
     <div className="mcw-panel">
@@ -48,19 +88,31 @@ export function ContextWindowSessionPanel({
           />
         )}
       </FormField>
-      <ContextWindowTurns key={session.id} session={session} />
+      <ContextWindowTurns
+        key={session.id}
+        session={session}
+        inputSegmentsFor={inputSegmentsFor}
+      />
     </div>
   )
 }
 
-function ContextWindowTurns({ session }: { session: ContextSession }) {
+function ContextWindowTurns({
+  session,
+  inputSegmentsFor,
+}: {
+  session: ContextSession
+  inputSegmentsFor?:
+    ((turn: Turn) => Array<ContextInputSegment> | undefined) | undefined
+}) {
   const [selectedIndex, setSelectedIndex] = useState(
     Math.max(0, session.turns.length - 1),
   )
   const turn = session.turns[selectedIndex] ?? session.turns.at(-1)
   if (!turn) return null
-  const grid = deriveContextGrid({ request: turn })
-  const composition = deriveTurnComposition(turn)
+  const inputSegments = inputSegmentsFor?.(turn)
+  const grid = deriveContextGrid({ request: turn, inputSegments })
+  const composition = deriveTurnComposition(turn, inputSegments)
 
   return (
     <>
@@ -224,7 +276,9 @@ function TurnPicker({
 /**
  * This turn's own token composition, scaled to itself rather than to the
  * context window, so a small turn stays legible instead of vanishing
- * against the full-window grid below.
+ * against the full-window grid below. Each category renders as one
+ * contiguous colored span, with its cached portion (if any) textured
+ * rather than given a different color.
  */
 function TurnCompositionBar({
   turn,
@@ -236,10 +290,7 @@ function TurnCompositionBar({
   if (!composition) return null
 
   const summaryLabel = composition.segments
-    .map(
-      (segment) =>
-        `${CATEGORY_LABELS[segment.category]}: ${formatCount(segment.tokens)} tokens`,
-    )
+    .map((segment) => segmentDescription(segment))
     .join(", ")
 
   return (
@@ -250,13 +301,16 @@ function TurnCompositionBar({
         role="img"
         aria-label={`This turn's own tokens: ${summaryLabel}`}
       >
-        {composition.segments.map((segment) => (
-          <span
-            key={segment.category}
-            className={`mcw-turn-bar-segment mcw-cell--${segment.category}`}
-            style={{ flexGrow: segment.tokens / composition.totalTokens }}
-          />
-        ))}
+        {composition.segments.flatMap((segment) =>
+          cachedThenNew(segment).map((part) => (
+            <span
+              key={`${segment.category}-${part.cached ? "cached" : "new"}`}
+              className={`mcw-turn-bar-segment mcw-cell--${segment.category}`}
+              data-cached={part.cached || undefined}
+              style={{ flexGrow: part.tokens / composition.totalTokens }}
+            />
+          )),
+        )}
       </div>
       <span className="mcw-turn-bar-total">
         {formatTokensCompact(composition.totalTokens)} tokens ·{" "}
@@ -283,10 +337,7 @@ function ContextGridView({
 
   const summaryLabel = grid.segments
     .filter((segment) => segment.tokens > 0)
-    .map(
-      (segment) =>
-        `${CATEGORY_LABELS[segment.category]}: ${formatCount(segment.tokens)} tokens`,
-    )
+    .map((segment) => segmentDescription(segment))
     .join(", ")
 
   return (
@@ -307,29 +358,41 @@ function ContextGridView({
       >
         {grid.cells.map((cell, index) => (
           <span key={index} className="mcw-cell" aria-hidden="true">
-            <span className={`mcw-cell-half mcw-cell--${cell.left.category}`} />
+            <span
+              className={`mcw-cell-half mcw-cell--${cell.left.category}`}
+              data-cached={cell.left.cached || undefined}
+            />
             <span
               className={`mcw-cell-half mcw-cell--${cell.right.category}`}
+              data-cached={cell.right.cached || undefined}
             />
           </span>
         ))}
       </div>
       <ul className="mcw-legend">
-        {grid.segments.map((segment) => (
-          <li key={segment.category} className="mcw-legend-item">
-            <span
-              className={`mcw-legend-swatch mcw-cell--${segment.category}`}
-              aria-hidden="true"
-            />
-            <span className="mcw-legend-label">
-              {CATEGORY_LABELS[segment.category]}
-            </span>
-            <span className="mcw-legend-value">
-              {formatTokensCompact(segment.tokens)} (
-              {formatPercent(segment.tokens / grid.contextWindowTokens)})
-            </span>
-          </li>
-        ))}
+        {grid.segments
+          .filter((segment) => segment.tokens > 0)
+          .map((segment) => (
+            <li key={segment.category} className="mcw-legend-item">
+              <span className="mcw-legend-swatch" aria-hidden="true">
+                {cachedThenNew(segment).map((part) => (
+                  <span
+                    key={part.cached ? "cached" : "new"}
+                    className={`mcw-legend-swatch-part mcw-cell--${segment.category}`}
+                    data-cached={part.cached || undefined}
+                    style={{ flexGrow: part.tokens }}
+                  />
+                ))}
+              </span>
+              <span className="mcw-legend-label">
+                {CATEGORY_LABELS[segment.category]}
+              </span>
+              <span className="mcw-legend-value">
+                {formatTokensCompact(segment.tokens)} (
+                {formatPercent(segment.tokens / grid.contextWindowTokens)})
+              </span>
+            </li>
+          ))}
       </ul>
     </section>
   )

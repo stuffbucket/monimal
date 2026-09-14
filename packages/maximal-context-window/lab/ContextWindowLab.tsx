@@ -3,7 +3,7 @@ import { useState, type ReactElement } from "react"
 
 import { deriveContextSessions } from "../src/context-window.ts"
 import { ContextWindowSessionPanel } from "../src/ContextWindowSessionPanel.tsx"
-import { LAB_REQUESTS } from "./fixtures.ts"
+import { LAB_INPUT_SEGMENTS, LAB_REQUESTS } from "./fixtures.ts"
 
 export function ContextWindowLab(): ReactElement {
   const sessions = deriveContextSessions(LAB_REQUESTS)
@@ -21,6 +21,9 @@ export function ContextWindowLab(): ReactElement {
             session={session}
             sessionIds={sessions.map(({ id }) => id)}
             onSelectSession={setSelectedSessionId}
+            inputSegmentsFor={(turn) =>
+              LAB_INPUT_SEGMENTS.get(turn.identity.requestId)
+            }
           />
         : <p>No fixture sessions available.</p>}
       </InspectorPanel>
