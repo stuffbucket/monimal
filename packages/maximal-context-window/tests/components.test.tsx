@@ -154,12 +154,29 @@ describe("ContextWindowSessionPanel", () => {
     )
     expect(uncachedSystemHalves.length).toBe(0)
 
-    // Each half-cell carries a hover title naming its own category, token
+    // Hovering a half-cell shows a tooltip naming its own category, token
     // count, and cache status -- a mouse-hover detail the grid's single
-    // whole-grid aria-label can't convey per piece.
-    expect(cachedHalves[0]?.getAttribute("title")).toBe(
+    // whole-grid aria-label can't convey per piece. The tooltip is a
+    // rendered element (not the native `title` attribute), so it must be
+    // triggered like a real hover would.
+    const firstCachedHalf = cachedHalves[0]
+    if (!(firstCachedHalf instanceof HTMLElement))
+      throw new Error("Expected cached half-cell element")
+    act(() => {
+      firstCachedHalf.dispatchEvent(
+        new MouseEvent("mouseover", { bubbles: true }),
+      )
+    })
+    expect(container.querySelector(".mcw-tooltip")?.textContent).toBe(
       "System prompt: 1,000 tokens (cached)",
     )
+
+    act(() => {
+      firstCachedHalf.dispatchEvent(
+        new MouseEvent("mouseout", { bubbles: true }),
+      )
+    })
+    expect(container.querySelector(".mcw-tooltip")).toBeNull()
   })
 
   it("passes axe with no violations", async () => {

@@ -1,5 +1,5 @@
 import { FormField, Select } from "@stuffbucket/maximal-electron/renderer"
-import { useState } from "react"
+import { useLayoutEffect, useRef, useState } from "react"
 
 import {
   deriveContextGrid,
@@ -74,6 +74,78 @@ function pieceTitle(piece: {
   return `${CATEGORY_LABELS[piece.category]}: ${formatCount(piece.tokens)} tokens${cachedNote}`
 }
 
+interface HoverTooltipState {
+  text: string
+  /** The vertical top and horizontal center of the hovered element, in
+   * viewport coordinates -- where the tooltip would point to before
+   * clamping it to stay on-screen. */
+  anchorTop: number
+  anchorCenter: number
+}
+
+/** A single tooltip, positioned by viewport coordinates rather than
+ * relying on the browser's native `title` attribute. The grid and turn
+ * bar both clip their contents (`overflow: hidden`, so a fixed number of
+ * rows/segments never bleeds past their rounded border), which would
+ * clip a CSS-only tooltip anchored to the hovered element itself; a single
+ * `position: fixed` tooltip rendered once at the panel level, outside
+ * those clipped containers, is not affected by their overflow and stays
+ * fully visible near the cursor. */
+function useHoverTooltip() {
+  const [tooltip, setTooltip] = useState<HoverTooltipState | null>(null)
+  const show = (event: { currentTarget: HTMLElement }, text: string) => {
+    const rect = event.currentTarget.getBoundingClientRect()
+    setTooltip({
+      text,
+      anchorTop: rect.top,
+      anchorCenter: rect.left + rect.width / 2,
+    })
+  }
+  const hide = () => {
+    setTooltip(null)
+  }
+  return { tooltip, show, hide }
+}
+
+/** Renders just above its anchor point, clamped to stay fully within the
+ * viewport -- measured after mount (rather than guessed from the text
+ * length), since a right-panel host can place the grid close enough to
+ * either edge that a naively centered tooltip would run off-screen, as it
+ * did for the leftmost column before this clamping was added. */
+function HoverTooltip({ text, anchorTop, anchorCenter }: HoverTooltipState) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [position, setPosition] = useState({
+    top: anchorTop,
+    left: anchorCenter,
+  })
+
+  useLayoutEffect(() => {
+    const node = ref.current
+    if (!node) return
+    const { width, height } = node.getBoundingClientRect()
+    const margin = 4
+    const gap = 6
+    setPosition({
+      left: Math.min(
+        Math.max(anchorCenter - width / 2, margin),
+        window.innerWidth - width - margin,
+      ),
+      top: Math.max(anchorTop - height - gap, margin),
+    })
+  }, [text, anchorTop, anchorCenter])
+
+  return (
+    <div
+      ref={ref}
+      className="mcw-tooltip"
+      role="tooltip"
+      style={{ top: position.top, left: position.left }}
+    >
+      {text}
+    </div>
+  )
+}
+
 export function ContextWindowSessionPanel({
   session,
   sessionIds,
@@ -123,6 +195,7 @@ function ContextWindowTurns({
   const [selectedIndex, setSelectedIndex] = useState(
     Math.max(0, session.turns.length - 1),
   )
+  const { tooltip, show, hide } = useHoverTooltip()
   const turn = session.turns[selectedIndex] ?? session.turns.at(-1)
   if (!turn) return null
   const inputSegments = inputSegmentsFor?.(turn)
@@ -139,8 +212,19 @@ function ContextWindowTurns({
           onSelect={setSelectedIndex}
         />
       )}
-      <TurnCompositionBar turn={turn} composition={composition} />
-      <ContextGridView turn={turn} grid={grid} />
+      <TurnCompositionBar
+        turn={turn}
+        composition={composition}
+        onHoverPiece={show}
+        onHoverEnd={hide}
+      />
+      <ContextGridView
+        turn={turn}
+        grid={grid}
+        onHoverPiece={show}
+        onHoverEnd={hide}
+      />
+      {tooltip && <HoverTooltip {...tooltip} />}
     </>
   )
 }
@@ -298,9 +382,13 @@ function TurnPicker({
 function TurnCompositionBar({
   turn,
   composition,
+  onHoverPiece,
+  onHoverEnd,
 }: {
   turn: Turn
   composition: TurnComposition | null
+  onHoverPiece: (event: { currentTarget: HTMLElement }, text: string) => void
+  onHoverEnd: () => void
 }) {
   if (!composition) return null
 
@@ -322,7 +410,13 @@ function TurnCompositionBar({
               key={`${segment.category}-${part.cached ? "cached" : "new"}`}
               className={`mcw-turn-bar-segment mcw-cell--${segment.category}`}
               data-cached={part.cached || undefined}
-              title={pieceTitle({ category: segment.category, ...part })}
+              onMouseEnter={(event) => {
+                onHoverPiece(
+                  event,
+                  pieceTitle({ category: segment.category, ...part }),
+                )
+              }}
+              onMouseLeave={onHoverEnd}
               style={{ flexGrow: part.tokens / composition.totalTokens }}
             />
           )),
@@ -339,9 +433,13 @@ function TurnCompositionBar({
 function ContextGridView({
   turn,
   grid,
+  onHoverPiece,
+  onHoverEnd,
 }: {
   turn: Turn
   grid: ContextGrid | null
+  onHoverPiece: (event: { currentTarget: HTMLElement }, text: string) => void
+  onHoverEnd: () => void
 }) {
   if (!grid) {
     return (
@@ -377,12 +475,18 @@ function ContextGridView({
             <span
               className={`mcw-cell-half mcw-cell--${cell.left.category}`}
               data-cached={cell.left.cached || undefined}
-              title={pieceTitle(cell.left)}
+              onMouseEnter={(event) => {
+                onHoverPiece(event, pieceTitle(cell.left))
+              }}
+              onMouseLeave={onHoverEnd}
             />
             <span
               className={`mcw-cell-half mcw-cell--${cell.right.category}`}
               data-cached={cell.right.cached || undefined}
-              title={pieceTitle(cell.right)}
+              onMouseEnter={(event) => {
+                onHoverPiece(event, pieceTitle(cell.right))
+              }}
+              onMouseLeave={onHoverEnd}
             />
           </span>
         ))}
@@ -398,7 +502,13 @@ function ContextGridView({
                     key={part.cached ? "cached" : "new"}
                     className={`mcw-legend-swatch-part mcw-cell--${segment.category}`}
                     data-cached={part.cached || undefined}
-                    title={pieceTitle({ category: segment.category, ...part })}
+                    onMouseEnter={(event) => {
+                      onHoverPiece(
+                        event,
+                        pieceTitle({ category: segment.category, ...part }),
+                      )
+                    }}
+                    onMouseLeave={onHoverEnd}
                     style={{ flexGrow: part.tokens }}
                   />
                 ))}

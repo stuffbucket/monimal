@@ -345,6 +345,28 @@
   font-size: var(--shell-text-xs);
 }
 
+/* Per-piece hover tooltip: positioned by viewport coordinates (JS-measured
+   and viewport-clamped `top`/`left`, set as inline style) rather than a
+   CSS-anchored `::after` or the browser's native `title` attribute, since
+   the grid and turn bar both clip their contents (`overflow: hidden`) and
+   would clip an element-anchored tooltip the moment it tried to escape
+   its own cell. A single `position: fixed` element rendered once at the
+   panel level sits above everything and is unaffected by those ancestors'
+   overflow. */
+.mcw-tooltip {
+  position: fixed;
+  z-index: 20;
+  padding: var(--shell-space-1, 0.25rem) var(--shell-space-2, 0.5rem);
+  border: 1px solid var(--shell-border-strong, var(--shell-border));
+  border-radius: var(--shell-radius-small, 0.25rem);
+  background: var(--shell-raised);
+  color: var(--shell-text);
+  font-size: var(--shell-text-xs);
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--shell-text) 35%, transparent);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .mcw-panel * {
     animation: none !important;
