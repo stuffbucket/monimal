@@ -160,6 +160,14 @@ through `registerTerminalChannels` and `src/renderer/lib/bridge-terminal.ts`
 builds its transport through `createTerminalTransport`. `docs/embedding.md`
 holds the consumer's call of both.
 
+The tab strip uses a versioned drag payload (`tab-transfer.ts`) for immutable
+same-window reordering and cross-window identity. Moving a live terminal must
+reparent its `TerminalHost` session rather than call `pty:spawn` again:
+`TerminalHost.transfer` changes the event sink and retains the process,
+scrollback, and flow-control state. Window creation and IPC code MUST use that
+operation for undocking/redocking; closing a detached window then follows the
+normal owner cleanup path.
+
 The application also owns a separate launcher path. `terminal:profiles`,
 `terminal:discover`, and `terminal:launch` accept only opaque identifiers and
 dimensions. `terminal-launcher.ts` repairs versioned `terminal-profiles.json`
@@ -257,9 +265,12 @@ term.write -> `pty:ack` channel                 -> shell
 
 Four details are load-bearing.
 
-- **A session belongs to a window.** `pty.ts` holds one `TerminalHost` per
-  `BrowserWindow` and reaps it on `closed`, so a window that goes away takes
-  its shells with it and cannot reach another window's. Quit reaps every one.
+- **A session belongs to one window at a time.** `pty.ts` holds one
+  `TerminalHost` per `BrowserWindow` and reaps it on `closed`, so a window that
+  goes away takes its remaining shells with it and cannot reach another
+  window's. Undocking uses `TerminalHost.transfer` to move the live session
+  and its output sink before the old tab is removed; it never restarts the
+  process. Quit reaps every one.
   A request that arrives with no window is refused: nothing would reap it.
   A detached session is reaped the same way; detach is a view's lifetime, not
   a window's.
@@ -279,6 +290,44 @@ Four details are load-bearing.
   terminal tab an opaque session id. IPC keeps the backward-compatible `id`
   field name for that session id. `pty:status` reports `started` after host
   registration and `exited` only for the current process generation.
+- **Session metadata has an injected no-op facade.** `native/session-metadata.ts`
+  defines the metadata record, provider contract, and facade used at terminal
+  window transfer boundaries. The default provider deliberately performs no
+  storage or I/O; an application may inject persistence later without changing
+  PTY ownership or renderer behavior.
+- **Shared sessions use a projection backend contract.** `host/terminal-session-backend.ts`
+  defines attach, focus, write, resize, detach, and geometry independently of
+  the backend. The tmux broker implements it today: tmux remains the canonical
+  screen and scrollback for multi-view sessions, while direct local PTYs
+  additionally support one caller-invoked mirror mechanism, described below,
+  for the single "copy this tab into another window" case.
+- **A direct local PTY can be mirrored to a second window.** "Copy into New
+  Window" does not spawn a second process or wrap the shell in tmux: `pty.ts`
+  tracks the session's real owner in `sessionOwner` and registers the new
+  window as a mirror. `TerminalHost.mirror` adds the window to the session's
+  observer set, replays the retained buffer to it immediately, and every
+  subsequent chunk and exit notification broadcasts to owner and mirrors
+  alike. A mirror's `pty:write`/`pty:resize` calls resolve the current real
+  owner before delegating, so they keep working even if the owning window
+  later undocks the tab elsewhere; the mirror set lives on the `Session`
+  object itself, so an ownership transfer carries it along with no extra
+  rewiring. A mirror window closing detaches only its own subscription; the
+  owner and any other mirrors are unaffected.
+- **A mirrored session's real PTY reconciles to the smallest live viewer.**
+  Only one real process backs a mirrored session, so it can only have one
+  real size. `pty.ts` tracks each live viewer's last-known size and, once a
+  session has more than one viewer, resizes the real PTY to the minimum
+  cols/rows across all of them on every `pty:resize` request rather than
+  letting whichever window resized most recently silently win. The
+  resulting authoritative size broadcasts to every viewer via `pty:size`,
+  and each renderer clamps its own emulator grid to it (guarding against a
+  resize feedback loop) so no window is left rendering a stale grid against
+  a byte stream sized for a different one. A single-viewer session is
+  unaffected and resizes directly as before.
+- **Window transfer moves a tab's session group.** A split tab serializes its
+  validated pane tree and session ids in the drag/IPC payload. The main process
+  transfers every live session in that tree, and the destination reconstructs
+  the same split rather than silently reducing it to the root terminal.
 - **The content policy permits WebAssembly.** `script-src` needs
   `'wasm-unsafe-eval'`. Vite emits wterm's `ghostty-vt.wasm` as a same-origin
   package asset, so `connect-src 'self'` covers its startup fetch.

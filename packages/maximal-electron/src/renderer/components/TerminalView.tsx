@@ -132,6 +132,12 @@ export function TerminalView({
     let term: TerminalEmulator | undefined;
     let unsubscribe: (() => void) | undefined;
     let cleanupObserver: (() => void) | undefined;
+    // Set right before a `pty:size` event clamps the local grid, and cleared
+    // once consumed. `TerminalResizes` coalesces every `onResize`, including
+    // the one that clamp causes, so this tells that callback the resize was
+    // an echo of a size the host already knows about rather than a fresh
+    // measurement to send back.
+    let clampedRemoteSize: { cols: number; rows: number } | undefined;
     const reportFailure = (error?: unknown): void => {
       if (disposed || failed) return;
       failed = true;
@@ -156,9 +162,12 @@ export function TerminalView({
     );
     const resizes = new TerminalResizes(
       (cols, rows) => {
-        if (!disposed && !failed) {
-          void transport.resize(id, cols, rows).catch(reportFailure);
+        if (disposed || failed) return;
+        if (clampedRemoteSize && clampedRemoteSize.cols === cols && clampedRemoteSize.rows === rows) {
+          clampedRemoteSize = undefined;
+          return;
         }
+        void transport.resize(id, cols, rows).catch(reportFailure);
       },
       animationFrameScheduler,
     );
@@ -239,6 +248,16 @@ export function TerminalView({
             if (event.sequence !== undefined) acknowledgements.consume(event.sequence);
           });
         }
+        else if (event.type === 'size') {
+          // The host resized the real PTY to the smallest live viewer of a
+          // shared session. Clamping the local grid to match keeps this view
+          // from rendering a byte stream that now assumes different
+          // dimensions than the ones its own container fit to.
+          if (term && (term.cols !== event.cols || term.rows !== event.rows)) {
+            clampedRemoteSize = { cols: event.cols, rows: event.rows };
+            term.resize(event.cols, event.rows);
+          }
+        }
         else if (callbacks.current.onExit) {
           callbacks.current.onExit(event.exitCode);
         }
@@ -303,6 +322,7 @@ export function TerminalView({
     <div
       className="terminal"
       data-testid={testId}
+      data-session-id={id}
       data-focused={hasFocus || undefined}
       data-focus-indicator={focusIndicator || undefined}
       role="group"

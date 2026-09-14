@@ -1,13 +1,12 @@
 import type { TerminalProcess } from './terminal-connector.js';
+import type {
+  TerminalSessionBackend,
+  TerminalSessionProjectionRequest,
+} from './terminal-session-backend.js';
 
 export type TmuxProjectionProcess = TerminalProcess;
 
-export interface TmuxProjectionRequest {
-  sessionId: string;
-  projectionId: string;
-  cols: number;
-  rows: number;
-}
+export type TmuxProjectionRequest = TerminalSessionProjectionRequest;
 
 export interface TmuxProjectionBrokerOptions {
   attach(request: TmuxProjectionRequest): TmuxProjectionProcess;
@@ -33,7 +32,7 @@ function dimension(value: number): number {
 }
 
 /** Coordinates ordinary tmux client PTYs around one server-owned pane. */
-export class TmuxProjectionBroker {
+export class TmuxProjectionBroker implements TerminalSessionBackend {
   private readonly sessions = new Map<string, Session>();
 
   constructor(private readonly options: TmuxProjectionBrokerOptions) {}

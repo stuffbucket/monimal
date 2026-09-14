@@ -28,6 +28,7 @@ vi.mock('../../src/renderer/lib/terminal-emulator.js', () => ({
     buffer: { active: {} },
     open(): void {},
     fit(): void {},
+    resize(): void {},
     onData(): { dispose(): void } { return { dispose() {} }; },
     onResize(): { dispose(): void } { return { dispose() {} }; },
     onKeyEvent(handler: (event: KeyboardEvent) => boolean): void {

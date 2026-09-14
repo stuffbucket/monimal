@@ -16,6 +16,7 @@ import {
   readSshConfig,
   VagrantConnector,
   WslConnector,
+  type CommandConnector,
   type CommandRunner,
 } from '../../src/main/native/command-connectors.js';
 import {
@@ -321,6 +322,48 @@ describe('TerminalLauncher', () => {
     await expect(new TerminalLauncher<object>().discover({})).resolves.toEqual({
       generation: 1,
       targets: [{ id: 'local', profileId: 'local', label: 'This computer', state: 'available' }],
+    });
+  });
+
+  it('discovers independent connectors concurrently and keeps profile order', async () => {
+    let releaseSlow!: (targets: { key: string; label: string }[]) => void;
+    const slowResult = new Promise<{ key: string; label: string }[]>((resolve) => {
+      releaseSlow = resolve;
+    });
+    let fastStarted = false;
+    const slow: CommandConnector = {
+      id: 'docker',
+      label: 'Docker',
+      discover: () => slowResult,
+      launch: () => ({ command: 'docker', args: [] }),
+    };
+    const fast: CommandConnector = {
+      id: 'podman',
+      label: 'Podman',
+      discover: async () => {
+        fastStarted = true;
+        return [{ key: 'fast', label: 'Fast' }];
+      },
+      launch: () => ({ command: 'podman', args: [] }),
+    };
+    const ids = ['slow-id', 'fast-id'];
+    const launcher = new TerminalLauncher<object>({
+      connectors: [slow, fast],
+      createId: () => ids.shift()!,
+      platform: 'linux',
+    });
+
+    const discovery = launcher.discover({});
+    await vi.waitFor(() => { expect(fastStarted).toBe(true); });
+    releaseSlow([{ key: 'slow', label: 'Slow' }]);
+
+    await expect(discovery).resolves.toEqual({
+      generation: 1,
+      targets: [
+        { id: 'local', profileId: 'local', label: 'This computer', state: 'available' },
+        { id: 'slow-id', profileId: 'docker', label: 'Slow', state: 'available' },
+        { id: 'fast-id', profileId: 'podman', label: 'Fast', state: 'available' },
+      ],
     });
   });
 

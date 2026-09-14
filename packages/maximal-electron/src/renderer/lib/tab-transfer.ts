@@ -5,6 +5,9 @@ export interface TabTransfer {
   version: 1;
   sourceFrameId: string;
   tabId: string;
+  sessionId?: string;
+  pane?: TerminalPane;
+  title?: string;
 }
 
 export interface TabDetachPosition {
@@ -32,6 +35,13 @@ export function decodeTabTransfer(value: string): TabTransfer | undefined {
       version: 1,
       sourceFrameId: candidate.sourceFrameId,
       tabId: candidate.tabId,
+      ...(typeof candidate.sessionId === 'string' && candidate.sessionId !== ''
+        ? { sessionId: candidate.sessionId }
+        : {}),
+      ...(isTerminalPane(candidate.pane) ? { pane: candidate.pane } : {}),
+      ...(typeof candidate.title === 'string' && candidate.title !== ''
+        ? { title: candidate.title }
+        : {}),
     };
   }
   // Stryker disable next-line BlockStatement: invalid JSON and this return both yield undefined.
@@ -59,3 +69,4 @@ export function moveTabBefore<T extends { id: string }>(
     ...remaining.slice(targetIndex),
   ];
 }
+import { isTerminalPane, type TerminalPane } from './terminal-pane.js';

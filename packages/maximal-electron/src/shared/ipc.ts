@@ -85,6 +85,40 @@ export interface NotifyRequest {
   /** Bounce the dock (macOS) or flash the taskbar (Windows). */
   urgent?: boolean;
 }
+export interface TerminalWindowTitleRequest {
+  title: string;
+}
+export interface TerminalUndockRequest {
+  id: string;
+  cols: number;
+  rows: number;
+  x: number;
+  y: number;
+  title: string;
+  sessionIds?: string[];
+  pane?: TerminalPaneLayout;
+}
+/** Same shape as an undock: it opens a window the same way. Only main's handling differs. */
+export type TerminalCopyRequest = TerminalUndockRequest;
+export interface TerminalRedockRequest {
+  id: string;
+  cols: number;
+  rows: number;
+  sourceFrameId: string;
+  targetFrameId: string;
+  title: string;
+  sessionIds?: string[];
+  pane?: TerminalPaneLayout;
+}
+
+export type TerminalPaneLayout =
+  | { sessionId: string }
+  | { direction: 'right' | 'down'; first: TerminalPaneLayout; second: TerminalPaneLayout };
+
+export interface TerminalPaneSyncRequest {
+  id: string;
+  pane: TerminalPaneLayout;
+}
 
 /** Result of an update check. This build has no update channel; see docs. */
 export type UpdateStatus =
@@ -210,6 +244,70 @@ export function isTerminalLaunchRequest(value: unknown): value is TerminalLaunch
     && isDimension(value.rows);
 }
 
+export function isTerminalWindowTitleRequest(value: unknown): value is TerminalWindowTitleRequest {
+  return isRecord(value)
+    && hasOnly(value, ['title'])
+    && typeof value.title === 'string'
+    && value.title.length <= 256;
+}
+
+export function isTerminalUndockRequest(value: unknown): value is TerminalUndockRequest {
+  return isRecord(value)
+    && hasOnly(value, ['id', 'cols', 'rows', 'x', 'y', 'title', 'sessionIds', 'pane'])
+    && isTerminalIdentifier(value.id)
+    && isDimension(value.cols)
+    && isDimension(value.rows)
+    && Number.isSafeInteger(value.x)
+    && Number.isSafeInteger(value.y)
+    && typeof value.title === 'string'
+    && value.title.length <= 256
+    && isOptionalTransferLayout(value);
+}
+
+export function isTerminalRedockRequest(value: unknown): value is TerminalRedockRequest {
+  return isRecord(value)
+    && hasOnly(value, [
+      'id', 'cols', 'rows', 'sourceFrameId', 'targetFrameId', 'title', 'sessionIds', 'pane',
+    ])
+    && isTerminalIdentifier(value.id)
+    && isDimension(value.cols)
+    && isDimension(value.rows)
+    && typeof value.sourceFrameId === 'string'
+    && value.sourceFrameId !== ''
+    && typeof value.targetFrameId === 'string'
+    && value.targetFrameId !== ''
+    && typeof value.title === 'string'
+    && value.title.length <= 256
+    && isOptionalTransferLayout(value);
+}
+
+function isTerminalPaneLayout(value: unknown, depth = 0): value is TerminalPaneLayout {
+  if (depth > 32 || !isRecord(value)) return false;
+  if (value.sessionId !== undefined) {
+    return hasOnly(value, ['sessionId']) && isTerminalIdentifier(value.sessionId);
+  }
+
+  return hasOnly(value, ['direction', 'first', 'second'])
+    && (value.direction === 'right' || value.direction === 'down')
+    && isTerminalPaneLayout(value.first, depth + 1)
+    && isTerminalPaneLayout(value.second, depth + 1);
+}
+
+export function isTerminalPaneSyncRequest(value: unknown): value is TerminalPaneSyncRequest {
+  return isRecord(value)
+    && hasOnly(value, ['id', 'pane'])
+    && isTerminalIdentifier(value.id)
+    && isTerminalPaneLayout(value.pane);
+}
+
+function isOptionalTransferLayout(value: Record<string, unknown>): boolean {
+  return (value.sessionIds === undefined
+    || (Array.isArray(value.sessionIds)
+      && value.sessionIds.length > 0
+      && value.sessionIds.every(isTerminalIdentifier)))
+    && (value.pane === undefined || isTerminalPaneLayout(value.pane));
+}
+
 /* --------------------------------------------------------------- requests */
 
 /**
@@ -225,6 +323,12 @@ export interface IpcContract {
   'dock:set-badge': { request: { count: number }; response: void };
   'update:check': { request: void; response: UpdateStatus };
   'shell:open-external': { request: { url: string }; response: void };
+  'terminal:frame-id': { request: void; response: string };
+  'terminal:window-title': { request: TerminalWindowTitleRequest; response: void };
+  'terminal:undock': { request: TerminalUndockRequest; response: boolean };
+  'terminal:copy': { request: TerminalCopyRequest; response: boolean };
+  'terminal:redock': { request: TerminalRedockRequest; response: boolean };
+  'terminal:pane-sync': { request: TerminalPaneSyncRequest; response: void };
 
   // Terminal sessions. The shell runs in the main process; the renderer holds
   // only the xterm view. See src/main/native/pty.ts.
@@ -267,6 +371,12 @@ export const IPC_CHANNELS = [
   'dock:set-badge',
   'update:check',
   'shell:open-external',
+  'terminal:frame-id',
+  'terminal:window-title',
+  'terminal:undock',
+  'terminal:copy',
+  'terminal:redock',
+  'terminal:pane-sync',
   'pty:spawn',
   'pty:write',
   'pty:resize',
@@ -303,6 +413,17 @@ export interface IpcEvents {
   'pty:exit': { id: string; exitCode: number; projectionId?: string };
   /** A terminal session started or its current process exited. */
   'pty:status': PtyStatus;
+  /**
+   * The authoritative size a mirrored direct-PTY session is now running at.
+   * Only fires once a session has more than one live viewer (an owner and at
+   * least one "Copy into New Window" mirror): the real PTY has one size, so
+   * every viewer must be told the size the smallest of them can show, the
+   * same way a second tmux client is fit to the pane rather than shown a
+   * mismatched grid.
+   */
+  'pty:size': { id: string; cols: number; rows: number };
+  'terminal:tab-redocked': { id: string; title: string; pane?: TerminalPaneLayout };
+  'terminal:pane-changed': TerminalPaneSyncRequest;
 
 }
 
@@ -317,6 +438,9 @@ export const IPC_EVENTS = [
   'pty:data',
   'pty:exit',
   'pty:status',
+  'pty:size',
+  'terminal:tab-redocked',
+  'terminal:pane-changed',
 ] as const;
 
 /* ------------------------------------------------- exhaustiveness proofs */

@@ -32,7 +32,8 @@ export interface TerminalDescriptor {
 /** Output, or the end of it. */
 export type TerminalEvent =
   | { type: 'data'; data: string; sequence?: number }
-  | { type: 'exit'; exitCode: number };
+  | { type: 'exit'; exitCode: number }
+  | { type: 'size'; cols: number; rows: number };
 
 /**
  * What unmounting a view does to its session.
@@ -110,6 +111,13 @@ export interface TerminalChannels<
   ack?: C;
   data: E;
   exit: E;
+  /**
+   * Optional: the authoritative size a shared session settled on. Only a host
+   * that can mirror one session into several views (this application's "Copy
+   * into New Window") sends this; a host with one viewer per session has
+   * nothing to reconcile and can leave it undeclared.
+   */
+  size?: E;
 }
 
 /** What a host sends on the `data` channel. */
@@ -123,6 +131,13 @@ export interface TerminalDataMessage {
 export interface TerminalExitMessage {
   id: string;
   exitCode: number;
+}
+
+/** What a host sends on the `size` channel. */
+export interface TerminalSizeMessage {
+  id: string;
+  cols: number;
+  rows: number;
 }
 
 export interface TerminalTransportOptions<
@@ -198,9 +213,19 @@ export function createTerminalTransport<C extends string, E extends string>({
         }
       });
 
+      const onSize = channels.size
+        ? on(channels.size, (payload) => {
+            const message = payload as TerminalSizeMessage;
+            if (message.id === id) {
+              listener({ type: 'size', cols: message.cols, rows: message.rows });
+            }
+          })
+        : undefined;
+
       return () => {
         onData();
         onExit();
+        onSize?.();
       };
     },
   };

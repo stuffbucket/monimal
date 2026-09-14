@@ -55,6 +55,29 @@ describe.skipIf(!ENABLED)('tmux projection integration', () => {
     await harness.untilOutput('writer', 'stream-30');
   });
 
+  it('delivers every numbered output marker to every projection', async () => {
+    harness = new TmuxProjectionHarness();
+    harness.attach('left');
+    harness.attach('right');
+    const epoch = harness.focus('left');
+    expect(
+      harness.write(
+        'left',
+        epoch,
+        "i=1; while [ $i -le 120 ]; do printf 'exact-marker-%03d\\n' $i; i=$((i+1)); sleep 0.01; done\r",
+      ),
+    ).toBe(true);
+
+    await harness.untilOutput('left', 'exact-marker-120');
+    await harness.untilOutput('right', 'exact-marker-120');
+
+    for (let index = 1; index <= 120; index += 1) {
+      const marker = `exact-marker-${String(index).padStart(3, '0')}`;
+      expect(harness.output('left')).toContain(marker);
+      expect(harness.output('right')).toContain(marker);
+    }
+  });
+
   it('delivers output before shell exit to every attached projection', async () => {
     harness = new TmuxProjectionHarness();
     harness.attach('left');

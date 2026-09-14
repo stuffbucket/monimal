@@ -130,18 +130,18 @@ describe('the terminal channels', () => {
     expect(new Set(names)).toEqual(new Set(called));
   });
 
-  it('reaches six request channels and two events', () => {
+  it('reaches six request channels and three events', () => {
     // A transport that used one name for two operations would pass the set
     // comparison above, because a set does not count.
     expect(called).toHaveLength(6);
     expect(new Set(called).size).toBe(called.length);
-    expect(subscribed).toHaveLength(2);
+    expect(subscribed).toHaveLength(3);
     expect(new Set(subscribed).size).toBe(subscribed.length);
   });
 
   it('names only channels and events this shell declares', () => {
     const names = [...called, ...subscribed];
-    expect(names).toHaveLength(8);
+    expect(names).toHaveLength(9);
     expect(called.filter((channel) => !IPC_CHANNELS.includes(channel as never))).toEqual([]);
     expect(subscribed.filter((event) => !IPC_EVENTS.includes(event as never))).toEqual([]);
   });

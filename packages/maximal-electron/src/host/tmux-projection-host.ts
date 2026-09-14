@@ -6,6 +6,7 @@ import {
   TmuxProjectionBroker,
   type TmuxProjectionRequest,
 } from './tmux-projection-broker.js';
+import type { TerminalSessionBackend } from './terminal-session-backend.js';
 
 export interface TmuxProjectionLaunch {
   command: string;
@@ -27,7 +28,7 @@ export interface TmuxProjectionHostOptions {
 /** Binds trusted tmux commands to projection lifecycle policy. */
 export class TmuxProjectionHost {
   private readonly launches = new Map<string, TmuxProjectionLaunch>();
-  private readonly broker: TmuxProjectionBroker;
+  private readonly broker: TerminalSessionBackend;
   private readonly connector: TerminalConnector;
 
   constructor(private readonly options: TmuxProjectionHostOptions) {

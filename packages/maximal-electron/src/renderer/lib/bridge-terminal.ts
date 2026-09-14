@@ -30,6 +30,7 @@ export const TERMINAL_CHANNELS: TerminalChannels<IpcChannel, IpcEvent> = {
   list: 'pty:list',
   data: 'pty:data',
   exit: 'pty:exit',
+  size: 'pty:size',
 };
 
 /**
