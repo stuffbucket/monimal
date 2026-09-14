@@ -1,0 +1,297 @@
+@import "@stuffbucket/maximal-data-visualization/styles.css";
+
+.mcw-panel {
+  display: grid;
+  gap: var(--shell-space-3, 0.75rem);
+  color: var(--shell-text);
+  font: var(--shell-font);
+}
+
+/* Capacity summary: model + window sizes + a single fill bar whose color
+   escalates as usage approaches capacity. */
+
+.mcw-capacity {
+  display: grid;
+  gap: var(--shell-space-1, 0.25rem);
+}
+
+.mcw-capacity-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--shell-space-2, 0.5rem);
+  font-size: var(--shell-text-xs);
+}
+
+.mcw-capacity-model {
+  overflow: hidden;
+  color: var(--shell-text);
+  font-weight: var(--shell-weight-lg);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mcw-capacity-windows {
+  min-width: 0;
+  color: var(--shell-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.mcw-capacity-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--shell-space-2, 0.5rem);
+  color: var(--shell-text-muted);
+  font-size: var(--shell-text-xs);
+}
+
+/* Turn picker */
+
+.mcw-turn-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--shell-space-1, 0.25rem);
+}
+
+.mcw-turn-picker-button {
+  border: 1px solid var(--shell-border);
+  border-radius: var(--shell-radius-small, 0.25rem);
+  background: var(--shell-canvas);
+  color: var(--shell-text-muted);
+  font-size: var(--shell-text-xs);
+  cursor: pointer;
+  padding-block: var(--shell-space-1, 0.25rem);
+  padding-inline: var(--shell-space-2, 0.5rem);
+}
+
+.mcw-turn-picker-button:hover {
+  background: var(--shell-hover);
+  color: var(--shell-text);
+}
+
+.mcw-turn-picker-button[aria-pressed="true"] {
+  border-color: var(--shell-accent);
+  background: var(--shell-accent-muted, var(--shell-active));
+  color: var(--shell-text);
+}
+
+/* This-turn composition: a single proportional bar, always full width,
+   scaled to the turn's own tokens rather than the context window, so a
+   small turn stays legible. */
+
+.mcw-turn-bar {
+  display: grid;
+  gap: var(--shell-space-1, 0.25rem);
+}
+
+.mcw-turn-bar h3 {
+  margin: 0;
+  color: var(--shell-text-muted);
+  font-size: var(--shell-text-xs);
+  font-weight: var(--shell-weight-md);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.mcw-turn-bar-track {
+  display: flex;
+  overflow: hidden;
+  height: 0.85rem;
+  border: 1px solid var(--shell-border-strong, var(--shell-border));
+  border-radius: var(--shell-radius-small, 0.25rem);
+}
+
+.mcw-turn-bar-segment {
+  flex-shrink: 0;
+  min-width: 2px;
+  height: 100%;
+}
+
+.mcw-turn-bar-total {
+  color: var(--shell-text-muted);
+  font-size: var(--shell-text-xs);
+}
+
+/* Context window grid: one large map of cells representing the full context
+   window for the selected turn, filled in the order it actually fills. */
+
+.mcw-map {
+  padding-block-start: var(--shell-space-3, 0.75rem);
+  border-block-start: 1px solid var(--shell-border);
+}
+
+.mcw-map h3 {
+  margin: 0 0 var(--shell-space-2, 0.5rem);
+  color: var(--shell-text-muted);
+  font-size: var(--shell-text-xs);
+  font-weight: var(--shell-weight-md);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.mcw-grid {
+  display: grid;
+  grid-auto-rows: 0.85rem;
+  gap: 2px;
+  overflow: hidden;
+  border: 1px solid var(--shell-border-strong, var(--shell-border));
+  border-radius: var(--shell-radius-small, 0.25rem);
+  background: var(--shell-border);
+  padding: 2px;
+}
+
+.mcw-cell {
+  display: flex;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 1px;
+}
+
+.mcw-cell-half {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* A hairline separates the two halves of a cell (and adjacent segments in
+   the turn bar / legend) so a boundary between categories stays visible
+   even when their fill colors are close in hue, instead of reading as one
+   undifferentiated block. */
+
+.mcw-cell-half + .mcw-cell-half,
+.mcw-turn-bar-segment + .mcw-turn-bar-segment,
+.mcw-legend-swatch-part + .mcw-legend-swatch-part {
+  border-inline-start: 1px solid
+    color-mix(in srgb, var(--shell-canvas) 80%, transparent);
+}
+
+.mcw-cell--system {
+  background-color: var(--data-viz-series-5);
+}
+
+.mcw-cell--tools {
+  background-color: var(--data-viz-series-2);
+}
+
+.mcw-cell--mcp {
+  background-color: var(--data-viz-series-3);
+}
+
+.mcw-cell--skills {
+  background-color: var(--data-viz-series-6);
+}
+
+.mcw-cell--userInput {
+  background-color: var(--data-viz-series-1);
+}
+
+.mcw-cell--other {
+  background-color: var(--data-viz-series-8);
+}
+
+.mcw-cell--output {
+  background-color: var(--data-viz-series-4);
+}
+
+/* Reserved output is capacity set aside for a future response, not content
+   that was actually sent or received, so it is rendered as a dotted texture
+   over a dimmer, darker garnet (not output's pale one) rather than a plain
+   lighter shade that could be mistaken for a smaller amount of actual
+   output. */
+.mcw-cell--reserved {
+  background-color: var(--data-viz-series-7);
+  background-image: radial-gradient(
+    color-mix(in srgb, var(--shell-canvas) 75%, transparent) 32%,
+    transparent 32%
+  );
+  background-size: 4px 4px;
+}
+
+
+.mcw-cell--free {
+  background-color: var(--shell-canvas);
+}
+
+/* Cached content is an attribute of a category, not a category of its own:
+   a hard, tight checker (in the spirit of classic ASCII/ANSI dithered
+   shading blocks, like the U+2592 "medium shade" glyph) punches out of
+   whichever category's color it belongs to, so a category's position in
+   the window stays legible whether or not it happened to be cached this
+   turn. The checker squares are fully opaque (the app's own canvas color,
+   not a translucent overlay) so the contrast against every category color
+   is large and predictable rather than depending on how two translucent
+   layers happen to blend. `conic-gradient` with axis-aligned quadrants
+   guarantees true squares instead of the diagonal-gradient technique,
+   which produces diamond/paisley shapes at these sizes. A small, fixed
+   pixel tile keeps the dither tight regardless of how wide the element it
+   is applied to happens to be; 2px matches the fine grain of a terminal
+   shade glyph rather than a coarser, more visible checkerboard. */
+
+.mcw-cell-half[data-cached="true"],
+.mcw-turn-bar-segment[data-cached="true"],
+.mcw-legend-swatch-part[data-cached="true"] {
+  background-image: conic-gradient(
+    var(--shell-canvas) 0deg 90deg,
+    transparent 90deg 180deg,
+    var(--shell-canvas) 180deg 270deg,
+    transparent 270deg 360deg
+  );
+  background-size: 2px 2px;
+}
+
+.mcw-legend {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: var(--shell-space-1, 0.25rem) var(--shell-space-3, 0.75rem);
+  margin: var(--shell-space-2, 0.5rem) 0 0;
+}
+
+.mcw-legend .data-viz-legend-swatch {
+  width: 0.625rem;
+  height: 0.625rem;
+  border: 1px solid var(--shell-border);
+  border-radius: 2px;
+}
+
+.mcw-legend-swatch-part {
+  flex-shrink: 0;
+  min-width: 1px;
+  height: 100%;
+}
+
+.mcw-legend .data-viz-legend-label {
+  overflow: hidden;
+  flex: 1 1 auto;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mcw-legend .data-viz-legend-value {
+  flex-shrink: 0;
+  color: var(--shell-text);
+}
+
+.mcw-unavailable {
+  margin: var(--shell-space-1, 0.25rem) 0;
+  color: var(--shell-text-muted);
+  font-size: var(--shell-text-xs);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mcw-panel * {
+    animation: none !important;
+    scroll-behavior: auto !important;
+    transition: none !important;
+  }
+}
+
+@media (forced-colors: active) {
+  .data-viz-meter,
+  .mcw-cell-half,
+  .mcw-turn-bar-segment,
+  .data-viz-legend-swatch,
+  .mcw-legend-swatch-part {
+    border: 1px solid CanvasText;
+    forced-color-adjust: none;
+  }
+}

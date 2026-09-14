@@ -1,9 +1,9 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "name": "@stuffbucket/maximal-observability",
+  "name": "@stuffbucket/maximal-data-visualization",
   "version": "0.0.0",
   "private": true,
-  "description": "Composable renderer-only traffic observability surfaces for Maximal.",
+  "description": "Renderer-only data visualization primitives for Maximal surfaces.",
   "sideEffects": [
     "./dist/styles.css"
   ],
@@ -21,20 +21,13 @@
   ],
   "scripts": {
     "analyze": "bun ../maximal-core/scripts/analyze.ts",
-    "build": "tsup src/index.ts --format esm --dts --clean --target es2022 --external react --external @stuffbucket/maximal-data-visualization --external @stuffbucket/maximal-electron --external @stuffbucket/maximal-observability-contract --external @stuffbucket/maximal-context-window --out-dir dist && cp src/styles.css dist/styles.css",
+    "build": "tsup src/index.ts --format esm --dts --clean --target es2022 --external react --out-dir dist && cp src/styles.css dist/styles.css",
     "lint": "eslint",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": {
-    "@stuffbucket/maximal-context-window": "workspace:*",
-    "@stuffbucket/maximal-data-visualization": "workspace:*",
-    "@stuffbucket/maximal-observability-contract": "workspace:*"
-  },
   "devDependencies": {
     "@stuffbucket/eslint-config": "workspace:*",
-    "@stuffbucket/maximal-electron": "workspace:*",
-    "@types/node": "^26.4.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.5",
     "@typescript/native": "npm:typescript@^7.0.2",
@@ -48,7 +41,6 @@
     "vitest": "^4.1.11"
   },
   "peerDependencies": {
-    "@stuffbucket/maximal-electron": "^0.0.9",
     "react": ">=18.0.0 <20.0.0"
   },
   "engines": {
