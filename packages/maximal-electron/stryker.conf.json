@@ -32,6 +32,7 @@
     "src/renderer/lib/account.ts",
     "src/renderer/lib/settings.ts",
     "src/main/native/pty-session.ts",
+    "src/main/native/pty-window-groups.ts",
     "src/main/native/tmux-control-protocol.ts",
     "src/main/native/tmux-control-host.ts",
     "src/main/native/terminal-lab.ts",

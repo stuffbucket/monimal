@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto';
+import type { TmuxProjectionMetadata } from '../../host/tmux-projection-host.js';
 import { execFile } from 'node:child_process';
 import { closeSync, openSync, readSync } from 'node:fs';
 import { join } from 'node:path';
@@ -31,15 +32,13 @@ export interface DiscoveredTarget {
   label: string;
 }
 
-export interface TmuxProjectionLaunch {
-  terminate: { command: string; args: string[] };
-}
-
 export interface CommandLaunch {
   command: string;
   args: string[];
-  tmuxProjection?: TmuxProjectionLaunch;
+  tmuxProjection?: TmuxProjectionMetadata;
 }
+
+export type TmuxProjectionLaunch = TmuxProjectionMetadata;
 
 export interface CommandConnector {
   readonly id: 'docker' | 'podman' | 'lima' | 'multipass' | 'kubernetes' | 'wsl' | 'vagrant' | 'ssh' | 'tmux' | 'ssh-tmux';
@@ -351,7 +350,11 @@ export class TmuxConnector implements CommandConnector {
       command: 'tmux',
       args: [...tmuxClientFeatureArgs(this.supportsHyperlinks), 'new-session', '-A', '-s', sessionName],
       tmuxProjection: {
-        terminate: { command: 'tmux', args: ['kill-session', '-t', sessionName] },
+        ownership: fields[0] === 'new' ? 'created' : 'existing',
+        geometry: { transport: 'local', sessionName },
+        ...(fields[0] === 'new'
+          ? { terminate: { command: 'tmux', args: ['kill-session', '-t', sessionName] } }
+          : {}),
       },
     };
   }
@@ -405,7 +408,11 @@ export class SshTmuxConnector implements CommandConnector {
       command: 'ssh',
       args: ['-tt', alias, 'tmux', ...tmuxClientFeatureArgs(!this.legacyAliases.has(alias)), 'new-session', '-A', '-s', sessionName],
       tmuxProjection: {
-        terminate: { command: 'ssh', args: [alias, 'tmux', 'kill-session', '-t', sessionName] },
+        ownership: fields[1] === 'new' ? 'created' : 'existing',
+        geometry: { transport: 'ssh', alias, sessionName },
+        ...(fields[1] === 'new'
+          ? { terminate: { command: 'ssh', args: [alias, 'tmux', 'kill-session', '-t', sessionName] } }
+          : {}),
       },
     };
   }

@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { BrowserWindow } from 'electron';
 
 /**
  * "Copy into New Window" gives one real PTY two or more live viewers. Each
@@ -27,6 +28,7 @@ const state = vi.hoisted(() => ({
   hosts: new Map<unknown, {
     spawn: ReturnType<typeof vi.fn>;
     list: ReturnType<typeof vi.fn>;
+    write: ReturnType<typeof vi.fn>;
     resize: ReturnType<typeof vi.fn>;
     has: ReturnType<typeof vi.fn>;
     mirror: ReturnType<typeof vi.fn>;
@@ -86,16 +88,30 @@ vi.mock('../../src/host/terminal-host.js', () => ({
 const pty = await import('../../src/main/native/pty.js');
 
 /** A window stand-in with just what `pty.ts` needs from a `BrowserWindow`. */
-function window() {
-  return { once: vi.fn(), isDestroyed: () => false } as never;
+let nextWindowId = 1;
+type TestWindow = BrowserWindow & { setContentSize: ReturnType<typeof vi.fn> };
+function window(width = 800, height = 600): TestWindow {
+  let size = [width, height];
+  return {
+    id: nextWindowId++,
+    once: vi.fn(),
+    isDestroyed: () => false,
+    isResizable: () => true,
+    getContentSize: () => size,
+    setContentSize: vi.fn((nextWidth: number, nextHeight: number) => {
+      size = [nextWidth, nextHeight];
+    }),
+  } as unknown as TestWindow;
 }
 
 function hostFor(): {
   spawn: ReturnType<typeof vi.fn>;
+  write: ReturnType<typeof vi.fn>;
   resize: ReturnType<typeof vi.fn>;
   has: ReturnType<typeof vi.fn>;
   mirror: ReturnType<typeof vi.fn>;
   transfer: ReturnType<typeof vi.fn>;
+  terminateAll: ReturnType<typeof vi.fn>;
 } {
   // Every window gets its own `TerminalHost` instance from the `Owners`
   // factory the first time it is used; this returns the most recently
@@ -173,7 +189,7 @@ describe('shared-session resize reconciliation', () => {
     expect(sizes).toHaveBeenCalledWith(recipient, 'shared-min', 60, 20);
   });
 
-  it('shares a new split with every viewer, including a copy made from a copy', () => {
+  it('keeps original and copied viewers as flat siblings of the canonical owner', () => {
     const panes = vi.fn();
     pty.configurePty({
       emit: vi.fn(),
@@ -184,14 +200,28 @@ describe('shared-session resize reconciliation', () => {
     });
     const owner = window();
     pty.spawnPty(owner, { id: 'shared-pane', cols: 80, rows: 24 });
+    const unauthorized = window();
+    expect(() => pty.spawnPty(unauthorized, {
+      id: 'shared-pane',
+      cols: 80,
+      rows: 24,
+    })).toThrow('not authorized');
 
     const firstCopy = window();
     expect(pty.copyPty(owner, firstCopy, { id: 'shared-pane', cols: 80, rows: 24 })).toBe(true);
     pty.spawnPty(firstCopy, { id: 'shared-pane', cols: 80, rows: 24 });
 
     const secondCopy = window();
-    expect(pty.copyPty(firstCopy, secondCopy, { id: 'shared-pane', cols: 80, rows: 24 })).toBe(true);
+    expect(pty.copyPty(owner, secondCopy, { id: 'shared-pane', cols: 80, rows: 24 })).toBe(true);
     pty.spawnPty(secondCopy, { id: 'shared-pane', cols: 80, rows: 24 });
+
+    const copiedViaSibling = window();
+    expect(pty.copyPty(firstCopy, copiedViaSibling, {
+      id: 'shared-pane',
+      cols: 80,
+      rows: 24,
+    })).toBe(true);
+    pty.spawnPty(copiedViaSibling, { id: 'shared-pane', cols: 80, rows: 24 });
 
     const pane = {
       direction: 'right' as const,
@@ -203,104 +233,66 @@ describe('shared-session resize reconciliation', () => {
 
     pty.spawnPty(firstCopy, { id: 'shared-pane-split', cols: 80, rows: 24 });
     const splitHost = hostFor();
-    expect(panes).toHaveBeenCalledWith(owner, 'shared-pane', pane);
-    expect(panes).toHaveBeenCalledWith(firstCopy, 'shared-pane', pane);
-    expect(panes).toHaveBeenCalledWith(secondCopy, 'shared-pane', pane);
+    expect(panes).toHaveBeenCalledWith(owner, 'shared-pane', pane, 1, String(firstCopy.id));
+    expect(panes).toHaveBeenCalledWith(firstCopy, 'shared-pane', pane, 1, String(firstCopy.id));
+    expect(panes).toHaveBeenCalledWith(secondCopy, 'shared-pane', pane, 1, String(firstCopy.id));
+    expect(panes).toHaveBeenCalledWith(
+      copiedViaSibling,
+      'shared-pane',
+      pane,
+      1,
+      String(firstCopy.id),
+    );
 
     pty.spawnPty(owner, { id: 'shared-pane-split', cols: 80, rows: 24 });
     pty.spawnPty(secondCopy, { id: 'shared-pane-split', cols: 80, rows: 24 });
-    expect(splitHost.mirror).toHaveBeenCalledTimes(2);
+    pty.spawnPty(copiedViaSibling, { id: 'shared-pane-split', cols: 80, rows: 24 });
+    expect(splitHost.mirror).toHaveBeenCalledTimes(3);
+
+    const rootHost = [...state.hosts.values()].at(-2)!;
+    for (const viewer of [owner, firstCopy, secondCopy, copiedViaSibling]) {
+      pty.writePty(viewer, 'shared-pane', 'root-input');
+      pty.writePty(viewer, 'shared-pane-split', 'split-input');
+    }
+    expect(rootHost.write).toHaveBeenCalledTimes(4);
+    expect(splitHost.write).toHaveBeenCalledTimes(4);
+
+    const closeHooks = (firstCopy.once as unknown as ReturnType<typeof vi.fn>).mock.calls as
+      Array<[event: string, listener: () => void]>;
+    const closeFirstCopy = closeHooks.find(([event]) => event === 'closed')?.[1];
+    expect(closeFirstCopy).toBeTypeOf('function');
+    closeFirstCopy?.();
+    pty.writePty(copiedViaSibling, 'shared-pane', 'after-sibling-close');
+    expect(rootHost.write).toHaveBeenLastCalledWith('shared-pane', 'after-sibling-close');
   });
 
-  it("best-effort resizes the other viewer's own window to match, using the requestor's own measured cell size", async () => {
+  it("synchronizes the other viewer's whole physical window without measuring a split leaf", () => {
     const sizes = vi.fn();
     pty.configurePty({ emit: vi.fn(), onExit: vi.fn(), onStatus: vi.fn(), onSize: sizes });
-
-    // The requestor (the window whose live resize is authoritative) reports
-    // its own container rect: 1200x800 for a 120x40 grid, so 10px/col and
-    // 20px/row. Its own chrome is zero (content size equals its rect).
-    const ownerExecuteJavaScriptInIsolatedWorld = vi.fn().mockResolvedValue({ width: 1200, height: 800 });
-    const owner = {
-      once: vi.fn(),
-      isDestroyed: () => false,
-      webContents: { executeJavaScriptInIsolatedWorld: ownerExecuteJavaScriptInIsolatedWorld },
-      getContentSize: () => [1200, 800],
-    } as never;
+    const owner = window(1200, 800);
     pty.spawnPty(owner, { id: 'shared-match', cols: 80, rows: 24 });
 
-    const recipientExecuteJavaScriptInIsolatedWorld = vi.fn().mockResolvedValue({ width: 800, height: 480 });
-    const setContentSize = vi.fn();
-    const recipient = {
-      once: vi.fn(),
-      isDestroyed: () => false,
-      webContents: { executeJavaScriptInIsolatedWorld: recipientExecuteJavaScriptInIsolatedWorld },
-      getContentSize: () => [820, 500],
-      setContentSize,
-    } as never;
+    const recipient = window(820, 500);
     pty.copyPty(owner, recipient, { id: 'shared-match', cols: 80, rows: 24 });
     pty.spawnPty(recipient, { id: 'shared-match', cols: 80, rows: 24 });
 
     pty.resizePty(owner, 'shared-match', 120, 40);
 
-    // The physical resize is fire-and-forget, behind an isolated-world
-    // measurement round trip (not `executeJavaScript()`, which this app's
-    // CSP would block) on both the requestor and the recipient.
-    await vi.waitFor(() => { expect(setContentSize).toHaveBeenCalled(); });
-
-    for (const call of [ownerExecuteJavaScriptInIsolatedWorld, recipientExecuteJavaScriptInIsolatedWorld]) {
-      expect(call).toHaveBeenCalled();
-      const [worldId, scripts] = call.mock.calls[0] as [number, Array<{ code: string }>];
-      expect(typeof worldId).toBe('number');
-      expect(scripts[0]?.code).toContain('shared-match');
-    }
-    // Recipient's own rect (800x480) implies its own chrome is
-    // (820-800, 500-480) = (20, 20). Applying the requestor's cell size
-    // (10px/col, 20px/row) to the target grid (120x40) plus that chrome
-    // gives (1200+20, 800+20) = (1220, 820).
-    expect(setContentSize).toHaveBeenCalledWith(1220, 820);
+    expect(recipient.setContentSize).toHaveBeenCalledWith(1200, 800);
   });
 
-  it("still resizes the other viewer's window when its own grid already matches the target", async () => {
-    // Regression test: the synchronous `pty:size` clamp broadcast and the
-    // async physical-resize measurement race, so the recipient's own grid
-    // (and thus a cell size derived from *its own* rect ÷ its own grid) can
-    // already equal the target by the time this measurement resolves. Using
-    // the requestor's cell size instead of the recipient's own means that
-    // race can no longer hide a real size mismatch.
+  it("still reconciles physical windows when the canonical grid is unchanged", () => {
     const sizes = vi.fn();
     pty.configurePty({ emit: vi.fn(), onExit: vi.fn(), onStatus: vi.fn(), onSize: sizes });
-
-    const ownerExecuteJavaScriptInIsolatedWorld = vi.fn().mockResolvedValue({ width: 1200, height: 800 });
-    const owner = {
-      once: vi.fn(),
-      isDestroyed: () => false,
-      webContents: { executeJavaScriptInIsolatedWorld: ownerExecuteJavaScriptInIsolatedWorld },
-      getContentSize: () => [1200, 800],
-    } as never;
+    const owner = window(1200, 800);
     pty.spawnPty(owner, { id: 'shared-race', cols: 80, rows: 24 });
 
-    // The recipient's own container rect is still genuinely smaller (864x480
-    // for a 120x40 grid -- 7.2px/col, 12px/row), even though its own grid,
-    // read from a self-derived cell size, would look like it already matches.
-    const recipientExecuteJavaScriptInIsolatedWorld = vi.fn().mockResolvedValue({ width: 864, height: 480 });
-    const setContentSize = vi.fn();
-    const recipient = {
-      once: vi.fn(),
-      isDestroyed: () => false,
-      webContents: { executeJavaScriptInIsolatedWorld: recipientExecuteJavaScriptInIsolatedWorld },
-      getContentSize: () => [880, 560],
-      setContentSize,
-    } as never;
+    const recipient = window(880, 560);
     pty.copyPty(owner, recipient, { id: 'shared-race', cols: 80, rows: 24 });
     pty.spawnPty(recipient, { id: 'shared-race', cols: 80, rows: 24 });
 
-    pty.resizePty(owner, 'shared-race', 120, 40);
-
-    // Chrome is (880-864, 560-480) = (16, 80). Requestor's cell size is
-    // 1200/120 = 10px/col, 800/40 = 20px/row. Target is
-    // (120*10+16, 40*20+80) = (1216, 880), well past the recipient's
-    // current (880, 560), so the resize must still happen.
-    await vi.waitFor(() => { expect(setContentSize).toHaveBeenCalledWith(1216, 880); });
+    pty.resizePty(owner, 'shared-race', 80, 24);
+    expect(recipient.setContentSize).toHaveBeenCalledWith(1200, 800);
   });
 
   it('restores the remaining viewer to its own size once a mirror detaches', () => {
@@ -348,5 +340,71 @@ describe('shared-session resize reconciliation', () => {
     expect(destinationHost.resize).toHaveBeenLastCalledWith('shared-move', 70, 30);
     expect(sizes).toHaveBeenCalledWith(destination, 'shared-move', 70, 30);
     expect(sizes).toHaveBeenCalledWith(recipient, 'shared-move', 70, 30);
+  });
+
+  it('promotes the oldest copy and keeps sibling-origin copies flat after promotion', () => {
+    let closeOwner: (() => void) | undefined;
+    const owner = {
+      ...window(),
+      once: vi.fn((event: string, callback: () => void) => {
+        if (event === 'closed') closeOwner = callback;
+      }),
+    } as unknown as TestWindow;
+    pty.configurePty({ emit: vi.fn(), onExit: vi.fn(), onStatus: vi.fn(), onSize: vi.fn() });
+    pty.spawnPty(owner, { id: 'shared-owner-close', cols: 80, rows: 24 });
+    const sourceHost = hostFor();
+    const firstCopyCloseHandlers: Array<() => void> = [];
+    const firstCopy = {
+      ...window(),
+      once: vi.fn((event: string, callback: () => void) => {
+        if (event === 'closed') firstCopyCloseHandlers.push(callback);
+      }),
+    } as unknown as TestWindow;
+    expect(pty.copyPty(owner, firstCopy, {
+      id: 'shared-owner-close',
+      cols: 80,
+      rows: 24,
+    })).toBe(true);
+    pty.spawnPty(firstCopy, { id: 'shared-owner-close', cols: 80, rows: 24 });
+    const secondCopy = window();
+    expect(pty.copyPty(owner, secondCopy, {
+      id: 'shared-owner-close',
+      cols: 80,
+      rows: 24,
+    })).toBe(true);
+    pty.spawnPty(secondCopy, { id: 'shared-owner-close', cols: 80, rows: 24 });
+
+    closeOwner?.();
+    const firstCopyHost = hostFor();
+    pty.writePty(firstCopy, 'shared-owner-close', 'after-owner-close');
+
+    expect(sourceHost.transfer).toHaveBeenCalledOnce();
+    expect(firstCopyHost.write).toHaveBeenCalledWith('shared-owner-close', 'after-owner-close');
+    expect(sourceHost.terminateAll).toHaveBeenCalledOnce();
+
+    const copiedAfterPromotion = window();
+    expect(pty.copyPty(secondCopy, copiedAfterPromotion, {
+      id: 'shared-owner-close',
+      cols: 80,
+      rows: 24,
+    })).toBe(true);
+    pty.spawnPty(copiedAfterPromotion, {
+      id: 'shared-owner-close',
+      cols: 80,
+      rows: 24,
+    });
+    expect(firstCopyHost.mirror).toHaveBeenCalledWith(
+      'shared-owner-close',
+      expect.any(Object),
+    );
+
+    for (const closeFirstCopy of firstCopyCloseHandlers) closeFirstCopy();
+    const secondCopyHost = hostFor();
+    expect(firstCopyHost.transfer).toHaveBeenCalledOnce();
+    pty.writePty(copiedAfterPromotion, 'shared-owner-close', 'after-oldest-close');
+    expect(secondCopyHost.write).toHaveBeenCalledWith(
+      'shared-owner-close',
+      'after-oldest-close',
+    );
   });
 });

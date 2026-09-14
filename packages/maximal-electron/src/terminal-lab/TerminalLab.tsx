@@ -88,6 +88,7 @@ export function TerminalLab() {
   const tabsRef = useRef(tabs);
   tabsRef.current = tabs;
   const panesRef = useRef(new Map<string, TerminalPane>());
+  const paneRevisionsRef = useRef(new Map<string, number>());
   const closeTerminalTab = useCallback((id: string) => {
     if (detachedSessionId && tabsRef.current.length === 1) {
       window.close();
@@ -187,12 +188,14 @@ export function TerminalLab() {
     return unsubscribe;
   }, [setActiveTab, setTabs]);
 
-  useBridgeEvent('terminal:pane-changed', ({ id, pane }) => {
+  useBridgeEvent('terminal:pane-changed', ({ id, pane, revision }) => {
     if (!isTerminalPane(pane)) return;
     const tab = tabsRef.current.find((candidate) =>
       isTerminalTab(candidate) && candidate.sessionId === id);
     if (!tab) return;
+    if (revision <= (paneRevisionsRef.current.get(tab.id) ?? 0)) return;
     panesRef.current.set(tab.id, pane);
+    paneRevisionsRef.current.set(tab.id, revision);
     setTabs((existing) => [...existing]);
   });
 
@@ -444,13 +447,14 @@ export function TerminalLab() {
             onPaneChange={(tabId, pane) => {
               const previous = panesRef.current.get(tabId);
               panesRef.current.set(tabId, pane);
-              if (!previous || previous === pane) return;
+              if (previous === pane) return;
               const tab = tabsRef.current.find((candidate) => candidate.id === tabId);
               if (!isTerminalTab(tab)) return;
               void bridge.invoke('terminal:pane-sync', { id: tab.sessionId, pane });
             }}
             initialPane={detachedPane}
             initialPanes={panesRef.current}
+            paneRevisions={paneRevisionsRef.current}
             onTitleChange={updateTerminalTitle}
           />
         </main>

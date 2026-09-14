@@ -132,16 +132,17 @@ clear, select, and scroll actions. OSC 0 and OSC 2 title changes name a terminal
 tab; controls are removed and titles are bounded before the tab stores them.
 The PTY launch directory basename is the initial shell title.
 
-`terminal-workspace.ts` defines the renderer aggregate for the next terminal
-composition boundary. A terminal document owns one pane tree and its logical
-focus. Pane leaves reference branded view identities. A view references one
-session and may reference one backend projection. A session may have any number
-of views and projections, but one backend projection belongs to at most one live
-view because its focus and resize epoch identify one control endpoint. The
-aggregate owns split, close, focus, and document docking as immutable operations.
-It owns no emulator, DOM node, Electron object, or process lifetime. Existing
-`TerminalTabs` composition still uses the earlier session-leaf model; migration
-to this aggregate is a separate change.
+`terminal-workspace.ts` defines the renderer aggregate for terminal composition.
+A terminal document owns one pane tree and its logical focus. Pane leaves
+reference branded view identities. A view references one session and may
+reference one backend projection. A session may have any number of views and
+projections, but one backend projection belongs to at most one live view because
+its focus and resize epoch identify one control endpoint. The aggregate owns
+split, close, focus, and document docking as immutable operations. It owns no
+emulator, DOM node, Electron object, or process lifetime. `TerminalTabs` still
+renders its compatible session-leaf shape, but applies main-process pane
+revisions as observations: only local split/close commands emit a pane change,
+and an older revision can neither replace nor echo newer document state.
 
 `init()` is shared across terminal views. A rejected load clears that shared
 promise, and the view shows a retry action rather than leaving an empty canvas.
@@ -239,8 +240,9 @@ projection receives its own tmux-rendered VT stream. Only the projection that
 names the current focus epoch may write or resize. An accepted resize applies
 to every client PTY, so tmux receives one geometry regardless of renderer
 window size. Detaching or losing a projection kills only that tmux client.
-Explicit session termination kills every client and calls the consumer's tmux
-session terminator.
+Explicit session termination kills every client, but calls the tmux session
+terminator only for a session the application created. Attaching to an existing
+user session never grants permission to kill that server session.
 
 The broker takes process creation and session termination as callbacks. A
 consumer may attach local tmux, SSH plus tmux, or another connector without
@@ -249,8 +251,11 @@ separate host-only connection. `TmuxProjectionHost` retains the trusted attach
 and termination commands for the reference Electron host. The
 `pty:projection-*` channels carry opaque session and projection ids plus the
 focus epoch. Attach, focus, write, resize, and detach stay separate so stale
-input cannot become current merely by arriving later. Existing `pty:*` calls
-remain the compatibility path and drive the first projection of a tmux launch.
+input cannot become current merely by arriving later. The application renderer
+allocates one projection id per mounted view, uses the returned epoch for every
+write and resize, filters output by projection id, and detaches that projection
+when the view closes. Existing `pty:*` calls remain a main-process compatibility
+path rather than the renderer's projection control path.
 
 The connector is mutation tested through `command-connectors.ts`. Command-backed
 sessions are ephemeral and non-reconnectable:
@@ -265,12 +270,12 @@ term.write -> `pty:ack` channel                 -> shell
 
 Four details are load-bearing.
 
-- **A session belongs to one window at a time.** `pty.ts` holds one
-  `TerminalHost` per `BrowserWindow` and reaps it on `closed`, so a window that
-  goes away takes its remaining shells with it and cannot reach another
-  window's. Undocking uses `TerminalHost.transfer` to move the live session
-  and its output sink before the old tab is removed; it never restarts the
-  process. Quit reaps every one.
+- **A session has one process owner at a time.** `pty.ts` holds one
+  `TerminalHost` per `BrowserWindow`. Closing an unshared owner reaps its
+  sessions. Closing the owner of a shared session first transfers the live
+  process and output sink to a surviving authorized viewer; it never restarts
+  the process. Undocking uses the same `TerminalHost.transfer` primitive. Quit
+  reaps every host.
   A request that arrives with no window is refused: nothing would reap it.
   A detached session is reaped the same way; detach is a view's lifetime, not
   a window's.
@@ -307,23 +312,36 @@ Four details are load-bearing.
   window as a mirror. `TerminalHost.mirror` adds the window to the session's
   observer set, replays the retained buffer to it immediately, and every
   subsequent chunk and exit notification broadcasts to owner and mirrors
-  alike. A mirror's `pty:write`/`pty:resize` calls resolve the current real
-  owner before delegating, so they keep working even if the owning window
-  later undocks the tab elsewhere; the mirror set lives on the `Session`
-  object itself, so an ownership transfer carries it along with no extra
-  rewiring. A mirror window closing detaches only its own subscription; the
-  owner and any other mirrors are unaffected.
-- **A mirrored session's real PTY reconciles to the smallest live viewer.**
-  Only one real process backs a mirrored session, so it can only have one
-  real size. `pty.ts` tracks each live viewer's last-known size and, once a
-  session has more than one viewer, resizes the real PTY to the minimum
-  cols/rows across all of them on every `pty:resize` request rather than
-  letting whichever window resized most recently silently win. The
-  resulting authoritative size broadcasts to every viewer via `pty:size`,
-  and each renderer clamps its own emulator grid to it (guarding against a
-  resize feedback loop) so no window is left rendering a stale grid against
-  a byte stream sized for a different one. A single-viewer session is
-  unaffected and resizes directly as before.
+  alike. The topology is flat: copying from either the owner or any mirror
+  resolves the current `sessionOwner` and attaches the destination directly
+  to that canonical session; a mirror never forwards to or owns another
+  mirror. A mirror's `pty:write`/`pty:resize` calls likewise resolve the
+  current real owner before delegating, so they keep working even if the
+  owning window later undocks the tab elsewhere; the mirror set lives on the
+  `Session` object itself, so an ownership transfer carries every surviving
+  sibling along with no extra rewiring. Main assigns each group member a
+  strictly increasing creation index using the wall clock or the previous
+  index plus one, whichever is greater. When the owner closes, the attached
+  surviving sibling with the smallest index becomes the new owner; active
+  native-window focus does not affect that lifecycle decision. A mirror
+  window closing detaches only its own subscription; the owner and any other
+  mirrors are unaffected.
+- **A mirrored session has one canonical PTY grid and one window-group
+  controller.** Attach/detach reconciliation uses the smallest live grid.
+  During a user resize, that viewer's grid becomes authoritative and broadcasts
+  through `pty:size`; the controller copies the root document window's physical
+  content size to other resizable Electron viewers. Split leaves retain their
+  own PTY grids and never independently resize the OS window. Applied physical
+  geometry is tagged and consumed across every split leaf, so its
+  `ResizeObserver` reports cannot become new user intent. Non-resizable and
+  projection-backed clients retain their capability-specific geometry policy.
+  Font cell metrics stay fixed: native content/pane bounds are changed, each
+  emulator fits those real bounds, and the resulting columns and rows resize
+  the PTY and deliver normal reflow/SIGWINCH behavior. The controller does not
+  synthesize convergence with padding, clipping, transforms, or text scaling.
+  Tmux projections request manual server geometry and publish only the geometry
+  tmux confirms; a rejected local or SSH geometry command is reported visibly
+  to every attached projection instead of pretending it converged.
 - **Window transfer moves a tab's session group.** A split tab serializes its
   validated pane tree and session ids in the drag/IPC payload. The main process
   transfers every live session in that tree, and the destination reconstructs
@@ -348,9 +366,9 @@ into a detached session.
 
 Three things make that a detach rather than a leak.
 
-- **It still has an owner.** `TerminalHost.terminateAll` covers every session
-  it holds, so closing the window and quitting reap a detached shell exactly as
-  they reap an attached one.
+- **It still has an owner.** `TerminalHost.terminateAll` covers every unshared
+  session it holds. A shared session transfers to a surviving viewer when its
+  owner closes; quitting still reaps every host.
 - **It can be found.** `TerminalHost.list` returns every live session, and the
   `pty:list` channel carries that to the renderer. Nothing signals a detach,
   because a detach is the absence of a terminate, so the set of detached

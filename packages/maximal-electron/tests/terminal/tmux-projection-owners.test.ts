@@ -25,10 +25,52 @@ function processWire() {
 const launch = {
   command: 'tmux',
   args: ['attach-session', '-t', 'work'],
+  ownership: 'created' as const,
+  geometry: { transport: 'local' as const, sessionName: 'work' },
   terminate: { command: 'tmux', args: ['kill-session', '-t', 'work'] },
 };
 
 describe('TmuxProjectionOwners', () => {
+  it('reports server-confirmed geometry and rejected geometry to every attached owner', async () => {
+    const first = { id: 'first' };
+    const second = { id: 'second' };
+    const pending = [processWire(), processWire()];
+    const geometry = vi.fn();
+    const geometryError = vi.fn();
+    const command = vi.fn()
+      .mockResolvedValueOnce({ stdout: 'latest\n' })
+      .mockResolvedValueOnce({ stdout: '101x31\n' })
+      .mockRejectedValueOnce(new Error('remote resize refused'));
+    const registry = new TmuxProjectionOwners({
+      homeDirectory: '/home/ada',
+      command,
+      connector: { connect: () => pending.shift()!.process },
+      terminate: vi.fn(),
+      emit: vi.fn(),
+      onExit: vi.fn(),
+      onGeometry: geometry,
+      onGeometryError: geometryError,
+    });
+    registry.reserve(first, 'work', launch);
+    registry.attach(first, { sessionId: 'work', projectionId: 'left', cols: 80, rows: 24 });
+    registry.grant(first, 'work', second);
+    registry.attach(second, { sessionId: 'work', projectionId: 'right', cols: 80, rows: 24 });
+
+    const firstEpoch = registry.focus(first, 'work', 'left', 100, 30)!;
+    await vi.waitFor(() => expect(geometry).toHaveBeenCalledTimes(2));
+    expect(geometry.mock.calls).toEqual([
+      [first, 'work', 'left', 101, 31],
+      [second, 'work', 'right', 101, 31],
+    ]);
+
+    registry.resize(first, 'work', 'left', firstEpoch, 120, 40);
+    await vi.waitFor(() => expect(geometryError).toHaveBeenCalledTimes(2));
+    expect(geometryError.mock.calls).toEqual([
+      [first, 'work', 'left', expect.objectContaining({ message: 'remote resize refused' })],
+      [second, 'work', 'right', expect.objectContaining({ message: 'remote resize refused' })],
+    ]);
+  });
+
   it('fans one session out to N isolated owners and releases only one owner', () => {
     const owners = Array.from({ length: 4 }, (_, index) => ({ id: `window-${String(index)}` }));
     const wires = owners.map(() => processWire());
@@ -36,6 +78,7 @@ describe('TmuxProjectionOwners', () => {
     const output: string[] = [];
     const registry = new TmuxProjectionOwners<{ id: string }>({
       homeDirectory: '/home/ada',
+      command: async () => ({ stdout: 'latest\n' }),
       connector: { connect: () => pending.shift()!.process },
       terminate: vi.fn(),
       emit: (owner, sessionId, projectionId, chunk) => output.push(`${owner.id}:${sessionId}:${projectionId}:${chunk}`),
@@ -69,6 +112,7 @@ describe('TmuxProjectionOwners', () => {
     const output: string[] = [];
     const registry = new TmuxProjectionOwners<{ id: string }>({
       homeDirectory: '/home/ada',
+      command: async () => ({ stdout: 'latest\n' }),
       connector: { connect: () => pending.shift()!.process },
       terminate: vi.fn(),
       emit: (owner, _sessionId, projectionId, chunk) => output.push(`${owner.id}:${projectionId}:${chunk}`),
@@ -92,6 +136,7 @@ describe('TmuxProjectionOwners', () => {
     const wire = processWire();
     const registry = new TmuxProjectionOwners({
       homeDirectory: '/home/ada',
+      command: async () => ({ stdout: 'latest\n' }),
       connector: { connect: () => wire.process },
       terminate: vi.fn(),
       emit: vi.fn(),
@@ -112,15 +157,16 @@ describe('TmuxProjectionOwners', () => {
     expect(registry.detach(owner, 'work', 'left')).toBe(false);
   });
 
-  it('requires and consumes grants while allowing an attached owner to delegate', () => {
+  it('requires and consumes grants without allowing an attached owner to delegate', () => {
     const creator = { id: 'creator' };
     const recipient = { id: 'recipient' };
     const delegate = { id: 'delegate' };
     const stranger = { id: 'stranger' };
-    const pending = [processWire(), processWire(), processWire()];
+    const pending = [processWire(), processWire()];
     const connect = vi.fn(() => pending.shift()!.process);
     const registry = new TmuxProjectionOwners({
       homeDirectory: '/home/ada',
+      command: async () => ({ stdout: 'latest\n' }),
       connector: { connect },
       terminate: vi.fn(),
       emit: vi.fn(),
@@ -133,10 +179,10 @@ describe('TmuxProjectionOwners', () => {
     expect(registry.grant(creator, 'work', recipient)).toBe(true);
     expect(registry.attach(recipient, { sessionId: 'work', projectionId: 'recipient', cols: 80, rows: 24 })).toBe(true);
     expect(registry.attach(recipient, { sessionId: 'work', projectionId: 'second', cols: 80, rows: 24 })).toBe(false);
-    expect(registry.grant(recipient, 'work', delegate)).toBe(true);
-    expect(registry.attach(delegate, { sessionId: 'work', projectionId: 'delegate', cols: 80, rows: 24 })).toBe(true);
+    expect(registry.grant(recipient, 'work', delegate)).toBe(false);
+    expect(registry.attach(delegate, { sessionId: 'work', projectionId: 'delegate', cols: 80, rows: 24 })).toBe(false);
     expect(registry.attach(creator, { sessionId: 'work', projectionId: 'creator', cols: 80, rows: 24 })).toBe(false);
-    expect(connect).toHaveBeenCalledTimes(3);
+    expect(connect).toHaveBeenCalledTimes(2);
     expect(registry.focus(creator, 'work', 'creator', 80, 24)).toBe(1);
   });
 
@@ -145,6 +191,7 @@ describe('TmuxProjectionOwners', () => {
     const recipient = { id: 'recipient' };
     const registry = new TmuxProjectionOwners({
       homeDirectory: '/home/ada',
+      command: async () => ({ stdout: 'latest\n' }),
       connector: { connect: () => { throw new Error('connect failed'); } },
       terminate: vi.fn(),
       emit: vi.fn(),
@@ -168,6 +215,7 @@ describe('TmuxProjectionOwners', () => {
     const exited = vi.fn();
     const registry = new TmuxProjectionOwners({
       homeDirectory: '/home/ada',
+      command: async () => ({ stdout: 'latest\n' }),
       connector: { connect: () => wire.process },
       terminate: vi.fn(),
       emit: output,
@@ -196,6 +244,7 @@ describe('TmuxProjectionOwners', () => {
     const terminate = vi.fn();
     const registry = new TmuxProjectionOwners({
       homeDirectory: '/home/ada',
+      command: async () => ({ stdout: 'latest\n' }),
       connector: { connect: () => pending.shift()!.process },
       terminate,
       emit: vi.fn(),
@@ -207,7 +256,8 @@ describe('TmuxProjectionOwners', () => {
     registry.attach(recipient, { sessionId: 'work', projectionId: 'right', cols: 80, rows: 24 });
 
     expect(registry.terminate(stranger, 'work')).toBe(false);
-    expect(registry.terminate(recipient, 'work')).toBe(true);
+    expect(registry.terminate(recipient, 'work')).toBe(false);
+    expect(registry.terminate(creator, 'work')).toBe(true);
     expect(terminate).toHaveBeenCalledWith('tmux', ['kill-session', '-t', 'work']);
     expect(registry.has('work')).toBe(false);
     expect(registry.focus(creator, 'work', 'left', 80, 24)).toBeUndefined();
@@ -227,6 +277,7 @@ describe('TmuxProjectionOwners', () => {
     const terminate = vi.fn();
     const registry = new TmuxProjectionOwners({
       homeDirectory: '/home/ada',
+      command: async () => ({ stdout: 'latest\n' }),
       connector: { connect: () => wire.process },
       terminate,
       emit: vi.fn(),
@@ -252,6 +303,7 @@ describe('TmuxProjectionOwners', () => {
     const pending = [processWire(), processWire()];
     const registry = new TmuxProjectionOwners({
       homeDirectory: '/home/ada',
+      command: async () => ({ stdout: 'latest\n' }),
       connector: { connect: () => pending.shift()!.process },
       terminate: vi.fn(),
       emit: vi.fn(),
@@ -276,6 +328,7 @@ describe('TmuxProjectionOwners', () => {
     const terminate = vi.fn();
     const registry = new TmuxProjectionOwners({
       homeDirectory: '/home/ada',
+      command: async () => ({ stdout: 'latest\n' }),
       connector: { connect: () => wire.process },
       terminate,
       emit: vi.fn(),
@@ -309,6 +362,7 @@ describe('TmuxProjectionOwners', () => {
     const pending = [processWire(), processWire()];
     const registry = new TmuxProjectionOwners({
       homeDirectory: '/home/ada',
+      command: async () => ({ stdout: 'latest\n' }),
       connector: { connect: () => pending.shift()!.process },
       terminate: vi.fn(),
       emit: vi.fn(),

@@ -157,12 +157,18 @@ describe('command discovery boundaries', () => {
     [new TmuxConnector(async () => ({ stdout: '' }), () => 'stuffbucket-0123456789abcdef0123456789abcdef'), 'existing\u0000session', {
       command: 'tmux',
       args: ['-T', 'hyperlinks', 'new-session', '-A', '-s', 'session'],
-      tmuxProjection: { terminate: { command: 'tmux', args: ['kill-session', '-t', 'session'] } },
+      tmuxProjection: {
+        ownership: 'existing',
+        geometry: { transport: 'local', sessionName: 'session' },
+      },
     }],
     [new SshTmuxConnector('/home/ada', () => '', async () => ({ stdout: '' }), () => 'stuffbucket-0123456789abcdef0123456789abcdef'), 'work\u0000existing\u0000session', {
       command: 'ssh',
       args: ['-tt', 'work', 'tmux', '-T', 'hyperlinks', 'new-session', '-A', '-s', 'session'],
-      tmuxProjection: { terminate: { command: 'ssh', args: ['work', 'tmux', 'kill-session', '-t', 'session'] } },
+      tmuxProjection: {
+        ownership: 'existing',
+        geometry: { transport: 'ssh', alias: 'work', sessionName: 'session' },
+      },
     }],
   ] as const)('builds exact argv for %p', (connector, key, expected) => {
     expect(connector.launch({ key, label: 'trusted' })).toEqual(expected);
@@ -635,12 +641,20 @@ describe('TerminalLauncher', () => {
     expect(connector.launch(targets[0]!)).toEqual({
       command: 'tmux',
       args: ['-T', 'hyperlinks', 'new-session', '-A', '-s', 'work'],
-      tmuxProjection: { terminate: { command: 'tmux', args: ['kill-session', '-t', 'work'] } },
+      tmuxProjection: {
+        ownership: 'existing',
+        geometry: { transport: 'local', sessionName: 'work' },
+      },
     });
     expect(connector.launch(targets.at(-1)!)).toEqual({
       command: 'tmux',
       args: ['-T', 'hyperlinks', 'new-session', '-A', '-s', 'stuffbucket-0123456789abcdef0123456789abcdef'],
       tmuxProjection: {
+        ownership: 'created',
+        geometry: {
+          transport: 'local',
+          sessionName: 'stuffbucket-0123456789abcdef0123456789abcdef',
+        },
         terminate: {
           command: 'tmux',
           args: ['kill-session', '-t', 'stuffbucket-0123456789abcdef0123456789abcdef'],
@@ -658,7 +672,10 @@ describe('TerminalLauncher', () => {
     expect(connector.launch(target!)).toEqual({
       command: 'tmux',
       args: ['new-session', '-A', '-s', 'work'],
-      tmuxProjection: { terminate: { command: 'tmux', args: ['kill-session', '-t', 'work'] } },
+      tmuxProjection: {
+        ownership: 'existing',
+        geometry: { transport: 'local', sessionName: 'work' },
+      },
     });
   });
 
@@ -732,13 +749,16 @@ describe('TerminalLauncher', () => {
       command: 'ssh',
       args: ['-tt', 'work', 'tmux', '-T', 'hyperlinks', 'new-session', '-A', '-s', 'remote-work'],
       tmuxProjection: {
-        terminate: { command: 'ssh', args: ['work', 'tmux', 'kill-session', '-t', 'remote-work'] },
+        ownership: 'existing',
+        geometry: { transport: 'ssh', alias: 'work', sessionName: 'remote-work' },
       },
     });
     expect(connector.launch({ key: `work\u0000new\u0000${name}`, label: 'New tmux session' })).toEqual({
       command: 'ssh',
       args: ['-tt', 'work', 'tmux', '-T', 'hyperlinks', 'new-session', '-A', '-s', name],
       tmuxProjection: {
+        ownership: 'created',
+        geometry: { transport: 'ssh', alias: 'work', sessionName: name },
         terminate: { command: 'ssh', args: ['work', 'tmux', 'kill-session', '-t', name] },
       },
     });

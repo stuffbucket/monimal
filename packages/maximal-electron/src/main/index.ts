@@ -260,8 +260,10 @@ function bootstrap(): void {
     emit: (owner, id, data, sequence, projectionId) => sendEvent(owner, 'pty:data', { id, data, sequence, projectionId }),
     onExit: (owner, id, exitCode, projectionId) => sendEvent(owner, 'pty:exit', { id, exitCode, projectionId }),
     onStatus: (owner, status) => sendEvent(owner, 'pty:status', status),
-    onSize: (window, id, cols, rows) => sendEvent(window, 'pty:size', { id, cols, rows }),
-    onPane: (window, id, pane) => sendEvent(window, 'terminal:pane-changed', { id, pane }),
+    onSize: (window, id, cols, rows, projectionId) =>
+      sendEvent(window, 'pty:size', { id, cols, rows, projectionId }),
+    onPane: (window, id, pane, revision, origin) =>
+      sendEvent(window, 'terminal:pane-changed', { id, pane, revision, origin }),
   });
 
   installApplicationMenu({

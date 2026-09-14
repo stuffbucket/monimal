@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const terminalWrites = vi.hoisted(() => [] as string[]);
 const emulatorKinds = vi.hoisted(() => [] as string[]);
 const emulatorDisposals = vi.hoisted(() => [] as string[]);
+let documentFocused = true;
 
 const ghostty = vi.hoisted(() => ({
   keyHandler: undefined as ((event: KeyboardEvent) => boolean) | undefined,
@@ -16,6 +17,7 @@ const ghostty = vi.hoisted(() => ({
   scrollToBottom: vi.fn(),
   focus: vi.fn(),
   blur: vi.fn(),
+  resizeHandler: undefined as ((size: { cols: number; rows: number }) => void) | undefined,
   subscription: undefined as ((event: { type: 'exit'; exitCode: number }) => void) | undefined,
 }));
 
@@ -30,7 +32,10 @@ vi.mock('../../src/renderer/lib/terminal-emulator.js', () => ({
     fit(): void {},
     resize(): void {},
     onData(): { dispose(): void } { return { dispose() {} }; },
-    onResize(): { dispose(): void } { return { dispose() {} }; },
+    onResize(handler: (size: { cols: number; rows: number }) => void): { dispose(): void } {
+      ghostty.resizeHandler = handler;
+      return { dispose() {} };
+    },
     onKeyEvent(handler: (event: KeyboardEvent) => boolean): void {
       ghostty.keyHandler = handler;
     },
@@ -58,14 +63,17 @@ globalThis.ResizeObserver = class {
   disconnect(): void {}
   unobserve(): void {}
 };
+vi.spyOn(document, 'hasFocus').mockImplementation(() => documentFocused);
 
 describe('TerminalView lifecycle', () => {
   beforeEach(() => {
+    documentFocused = true;
     terminalWrites.length = 0;
     emulatorKinds.length = 0;
     emulatorDisposals.length = 0;
     ghostty.focus.mockClear();
     ghostty.blur.mockClear();
+    ghostty.resizeHandler = undefined;
   });
 
   it('replaces the emulator without terminating the live session', async () => {
@@ -209,11 +217,15 @@ describe('TerminalView lifecycle', () => {
     await act(async () => input.focus());
     expect(element.querySelector('.terminal')?.getAttribute('data-focused')).toBe('true');
 
+    documentFocused = false;
     await act(async () => window.dispatchEvent(new Event('blur')));
     expect(element.querySelector('.terminal')?.hasAttribute('data-focused')).toBe(false);
+    expect(ghostty.blur).toHaveBeenCalled();
 
+    documentFocused = true;
     await act(async () => window.dispatchEvent(new Event('focus')));
     expect(element.querySelector('.terminal')?.getAttribute('data-focused')).toBe('true');
+    expect(ghostty.focus).toHaveBeenCalledTimes(2);
 
     await act(async () => {
       element.querySelector('.terminal')?.dispatchEvent(
@@ -232,8 +244,59 @@ describe('TerminalView lifecycle', () => {
     element.remove();
   });
 
-  it('claims pane selection on pointer down without forcing emulator focus', async () => {
-    const onFocus = vi.fn();
+  it('gates selected-pane focus, leases, and geometry on native window focus', async () => {
+    documentFocused = false;
+    const focus = vi.fn(async () => undefined);
+    const resize = vi.fn(async () => undefined);
+    const transport = {
+      spawn: vi.fn(async () => undefined),
+      focus,
+      write: vi.fn(async () => undefined),
+      resize,
+      terminate: vi.fn(async () => undefined),
+      subscribe: vi.fn(() => () => undefined),
+    };
+    const element = document.createElement('div');
+    document.body.append(element);
+    const root = createRoot(element);
+
+    await act(async () => {
+      root.render(<TerminalView id="session-1" focused transport={transport} />);
+    });
+    expect(ghostty.focus).not.toHaveBeenCalled();
+    expect(ghostty.blur).toHaveBeenCalledOnce();
+    expect(focus).not.toHaveBeenCalled();
+
+    await act(async () => {
+      ghostty.resizeHandler?.({ cols: 100, rows: 40 });
+    });
+    expect(resize).not.toHaveBeenCalled();
+
+    await act(async () => {
+      root.render(<TerminalView id="session-1" focused={false} transport={transport} />);
+    });
+    await act(async () => {
+      root.render(<TerminalView id="session-1" focused transport={transport} />);
+    });
+    expect(ghostty.focus).not.toHaveBeenCalled();
+    expect(focus).not.toHaveBeenCalled();
+
+    documentFocused = true;
+    await act(async () => window.dispatchEvent(new Event('focus')));
+    expect(ghostty.focus).toHaveBeenCalledOnce();
+    expect(focus).toHaveBeenCalledWith('session-1', 80, 24);
+
+    documentFocused = false;
+    await act(async () => window.dispatchEvent(new Event('blur')));
+    expect(ghostty.blur).toHaveBeenCalledTimes(4);
+    expect(element.querySelector('.terminal')?.hasAttribute('data-focused')).toBe(false);
+
+    await act(async () => root.unmount());
+    element.remove();
+  });
+
+  it('claims pane selection and focuses its emulator on pointer down', async () => {
+    const onActivate = vi.fn();
     const transport = {
       spawn: vi.fn(async () => undefined),
       write: vi.fn(async () => undefined),
@@ -246,7 +309,7 @@ describe('TerminalView lifecycle', () => {
 
     await act(async () => {
       root.render(
-        <TerminalView id="session-1" onFocus={onFocus} transport={transport} />,
+        <TerminalView id="session-1" onActivate={onActivate} transport={transport} />,
       );
     });
     expect(ghostty.focus).not.toHaveBeenCalled();
@@ -255,7 +318,8 @@ describe('TerminalView lifecycle', () => {
     element.querySelector('.terminal')?.dispatchEvent(
       new PointerEvent('pointerdown', { bubbles: true }),
     );
-    expect(onFocus).toHaveBeenCalledOnce();
+    expect(onActivate).toHaveBeenCalledOnce();
+    expect(ghostty.focus).toHaveBeenCalledOnce();
 
     await act(async () => root.unmount());
   });

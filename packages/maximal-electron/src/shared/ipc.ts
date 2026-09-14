@@ -120,6 +120,13 @@ export interface TerminalPaneSyncRequest {
   pane: TerminalPaneLayout;
 }
 
+export interface TerminalPaneChangedEvent extends TerminalPaneSyncRequest {
+  /** Monotonic main-process document revision. */
+  revision: number;
+  /** BrowserWindow id that authored this revision. */
+  origin: string;
+}
+
 /** Result of an update check. This build has no update channel; see docs. */
 export type UpdateStatus =
   | { state: 'idle' }
@@ -421,9 +428,9 @@ export interface IpcEvents {
    * same way a second tmux client is fit to the pane rather than shown a
    * mismatched grid.
    */
-  'pty:size': { id: string; cols: number; rows: number };
+  'pty:size': { id: string; cols: number; rows: number; projectionId?: string };
   'terminal:tab-redocked': { id: string; title: string; pane?: TerminalPaneLayout };
-  'terminal:pane-changed': TerminalPaneSyncRequest;
+  'terminal:pane-changed': TerminalPaneChangedEvent;
 
 }
 

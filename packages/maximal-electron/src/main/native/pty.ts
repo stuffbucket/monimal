@@ -40,6 +40,7 @@ import { clampTerminalGrid } from '../../shared/terminal-grid.js';
 import type { TerminalPaneLayout } from '../../shared/ipc.js';
 
 import { Owners } from './pty-session.js';
+import { TerminalWindowGroups } from './pty-window-groups.js';
 
 /**
  * Pseudo-terminal sessions, one manager per window.
@@ -62,8 +63,20 @@ type Emit = (owner: BrowserWindow, id: string, chunk: string, sequence?: number,
 type Exit = (owner: BrowserWindow, id: string, exitCode: number, projectionId?: string) => void;
 type Status = (owner: BrowserWindow, status: PtyStatus) => void;
 /** Tell one window the authoritative size a mirrored session settled on. */
-type Size = (window: BrowserWindow, id: string, cols: number, rows: number) => void;
-type Pane = (window: BrowserWindow, id: string, pane: TerminalPaneLayout) => void;
+type Size = (
+  window: BrowserWindow,
+  id: string,
+  cols: number,
+  rows: number,
+  projectionId?: string,
+) => void;
+type Pane = (
+  window: BrowserWindow,
+  id: string,
+  pane: TerminalPaneLayout,
+  revision: number,
+  origin: string,
+) => void;
 
 let emit: Emit = () => undefined;
 let onExit: Exit = () => undefined;
@@ -95,13 +108,8 @@ export function defaultShell(): string {
 
 const hosts = new Owners<BrowserWindow, TerminalHost>(
   (owner) => {
-    // A destroyed window can no longer be asked to clean up, so its own
-    // destruction is what ends its sessions.
     owner.once('closed', () => {
-      for (const [id, sessionOwnerWindow] of sessionOwner) {
-        if (sessionOwnerWindow === owner) sessionOwner.delete(id);
-      }
-      hosts.release(owner);
+      releasePtyOwner(owner);
     });
 
     return new TerminalHost({
@@ -157,11 +165,25 @@ const projectionOwners = new WeakSet<BrowserWindow>();
 const projections = new TmuxProjectionOwners<BrowserWindow>({
   homeDirectory: app.getPath('home'),
   env: { TERM_PROGRAM: 'Stuffbucket' },
+  command: (command, args) =>
+    execFileRunner(command, args, { timeout: 5_000, maxBuffer: 64 * 1024 }),
   terminate: (command, args) => {
     void execFileRunner(command, args, { timeout: 2_000, maxBuffer: 64 * 1024 }).catch(() => undefined);
   },
   emit: (owner, sessionId, projectionId, chunk) => emit(owner, sessionId, chunk, undefined, projectionId),
   onExit: (owner, sessionId, projectionId, exitCode) => onExit(owner, sessionId, exitCode, projectionId),
+  onGeometry: (owner, sessionId, projectionId, cols, rows) =>
+    onSize(owner, sessionId, cols, rows, projectionId),
+  onGeometryError: (owner, sessionId, projectionId, error) => {
+    const message = error instanceof Error ? error.message : String(error);
+    emit(
+      owner,
+      sessionId,
+      `\r\n\x1b[31m[terminal geometry rejected: ${message}]\x1b[0m\r\n`,
+      undefined,
+      projectionId,
+    );
+  },
 });
 
 function prepareProjectionOwner(owner: BrowserWindow): void {
@@ -203,18 +225,54 @@ function isMirrorWindow(window: BrowserWindow, id: string): boolean {
   return mirrorIds.get(window)?.has(id) ?? false;
 }
 
-/** The window actually holding the process, following a mirror to its owner. */
+/** Resolves every sibling directly to the canonical process owner; mirrors never form chains. */
 function realOwnerOf(window: BrowserWindow, id: string): BrowserWindow | undefined {
   return isMirrorWindow(window, id) ? sessionOwner.get(id) : window;
 }
 
-function detachMirror(id: string, recipient: BrowserWindow): void {
+/**
+ * Keeps a shared process alive when its current owner window closes by moving
+ * ownership to a live declared viewer. A session with no remaining viewer
+ * retains the normal owner-scoped termination policy.
+ */
+function releasePtyOwner(owner: BrowserWindow): void {
+  const source = hostFor(owner);
+  for (const [id, sessionOwnerWindow] of [...sessionOwner]) {
+    if (sessionOwnerWindow !== owner) continue;
+    const attachedMirrors = mirrorDetachers.get(id);
+    const recipient = windowGroups.oldestViewer(
+      id,
+      (candidate) => attachedMirrors?.has(candidate) === true && !candidate.isDestroyed(),
+    );
+    if (!recipient || !source) {
+      sessionOwner.delete(id);
+      continue;
+    }
+    const grid = windowGroups.viewers(id)?.get(recipient)
+      ?? windowGroups.canonical(id)?.grid
+      ?? { cols: 80, rows: 24 };
+    detachMirror(id, recipient, true);
+    const destination = hosts.for(recipient);
+    if (source.transfer(id, destination, { id, ...grid })) {
+      sessionOwner.set(id, recipient);
+      windowGroups.removeViewer(id, owner);
+      trackViewerSize(id, recipient, grid.cols, grid.rows);
+      reconcileSharedSize(id, recipient);
+    } else {
+      sessionOwner.delete(id);
+    }
+  }
+  windowGroups.removeWindow(owner);
+  hosts.release(owner);
+}
+
+function detachMirror(id: string, recipient: BrowserWindow, preserveViewer = false): void {
   const bySession = mirrorDetachers.get(id);
   bySession?.get(recipient)?.();
   bySession?.delete(recipient);
   if (bySession && bySession.size === 0) mirrorDetachers.delete(id);
   mirrorIds.get(recipient)?.delete(id);
-  forgetViewerSize(id, recipient);
+  if (!preserveViewer) forgetViewerSize(id, recipient);
 }
 
 function forgetMirrorWindow(window: BrowserWindow): void {
@@ -223,272 +281,59 @@ function forgetMirrorWindow(window: BrowserWindow): void {
   for (const id of [...ids]) detachMirror(id, window);
   mirrorIds.delete(window);
   for (const viewers of paneSessionViewers.values()) viewers.delete(window);
+  for (const document of paneDocuments.values()) document.viewers.delete(window);
 }
 
-/*
- * A shared session has exactly one real PTY but as many windows watching it
- * as it has viewers (its owner plus every mirror). `viewerSizes` remembers
- * each viewer's last-requested size; `appliedSize` remembers what the real
- * PTY was last resized to, so a viewer joining or resizing does not force a
- * redundant `resize()` call when nothing actually changed.
- *
- * When a viewer joins or leaves, there is no single window the user is
- * actively resizing, so the safe default is the smallest live viewer (tmux's
- * own "smallest client wins" rule for a shared session), which never grows a
- * window past what every other viewer can already show.
- *
- * When a *live* viewer resizes, though, taking the smallest would silently
- * revert the very action the user just took -- shrinking the window they
- * were dragging back to whatever the other, untouched window happens to be.
- * `resizePty()` passes that viewer as `requestor` instead: its own size
- * becomes authoritative, the real PTY follows it, and every *other* viewer is
- * asked (`matchWindowToGrid`, best-effort) to physically resize its own
- * window to match, rather than being left at its old size with its
- * emulator's grid merely clamped inside it. `pty:size` still broadcasts to
- * every viewer regardless, so one that cannot be physically resized (or
- * whose resize has not landed yet) still keeps its grid correct.
- */
-const viewerSizes = new Map<string, Map<BrowserWindow, { cols: number; rows: number }>>();
-const appliedSize = new Map<string, { cols: number; rows: number }>();
+const windowGroups = new TerminalWindowGroups<BrowserWindow>(
+  (window) => window.isResizable() ? 'native-window' : 'unavailable',
+);
 const pendingPaneSyncs = new Map<string, {
   requestor: BrowserWindow;
   pane: TerminalPaneLayout;
 }>();
+const paneDocuments = new Map<string, {
+  pane: TerminalPaneLayout;
+  revision: number;
+  origin: string;
+  viewers: Set<BrowserWindow>;
+}>();
 
-/**
- * The grid `matchWindowToGrid` is physically resizing a window *to*, keyed
- * by session and window, recorded the moment the resize is issued rather
- * than after it lands.
- *
- * Physically resizing a window's OS content area is itself observed by
- * that window's own renderer (its `ResizeObserver` reacts to the new pixel
- * size) and reported back through the very same `resizePty` a genuine
- * user-driven resize uses. Without distinguishing the two, that echo would
- * look like a fresh, independently authoritative resize from that window,
- * scheduling another reconcile that could physically resize the others
- * again -- including back toward this window's *old* size if their own
- * echoes race back first -- an oscillation that never settles because each
- * round trip clears the debounce window before the next one arrives.
- * Recognizing "this resize came back reporting exactly the grid we just
- * asked this window to reach" lets `resizePty` treat it as confirmation,
- * not a new request.
- */
-const expectedGridAfterMatch = new Map<string, Map<BrowserWindow, { cols: number; rows: number }>>();
-
-/**
- * When several windows resize a shared session at nearly the same moment
- * (for example three OS-level `setSize` calls issued back to back), each
- * arrives as its own `resizePty` call. Reconciling every one immediately
- * would make each requestor's call briefly authoritative and physically
- * resize the others to match it, only for the next requestor's call (or
- * the ResizeObserver echo from that very physical resize) to immediately
- * overwrite it again -- an oscillation that can outlast the caller's
- * patience. Coalescing to the last requestor seen within a short quiet
- * window, the same way the renderer already coalesces its own resizes to
- * one per frame (see `TerminalResizes`), settles on a single authoritative
- * size per burst instead.
- */
-const RECONCILE_DEBOUNCE_MS = 60;
-const pendingReconciles = new Map<string, { realOwner: BrowserWindow; requestor: BrowserWindow; timer: NodeJS.Timeout }>();
-
-function scheduleReconcile(id: string, realOwner: BrowserWindow, requestor: BrowserWindow): void {
-  const pending = pendingReconciles.get(id);
-  if (pending) clearTimeout(pending.timer);
-  const timer = setTimeout(() => {
-    pendingReconciles.delete(id);
-    reconcileSharedSize(id, realOwner, requestor);
-  }, RECONCILE_DEBOUNCE_MS);
-  pendingReconciles.set(id, { realOwner, requestor, timer });
-}
-
-function trackViewerSize(id: string, window: BrowserWindow, cols: number, rows: number): void {
-  const sizes = viewerSizes.get(id) ?? new Map<BrowserWindow, { cols: number; rows: number }>();
-  sizes.set(window, clampTerminalGrid(cols, rows));
-  viewerSizes.set(id, sizes);
-}
-
-function smallestOf(sizes: Map<BrowserWindow, { cols: number; rows: number }>): { cols: number; rows: number } {
-  let cols = Infinity;
-  let rows = Infinity;
-  for (const size of sizes.values()) {
-    cols = Math.min(cols, size.cols);
-    rows = Math.min(rows, size.rows);
-  }
-  return { cols, rows };
+function trackViewerSize(id: string, window: BrowserWindow, cols: number, rows: number): boolean {
+  return windowGroups.observe(id, window, cols, rows);
 }
 
 /**
- * Narrows an isolated-world measurement result to the shape this module's
- * measurement helpers expect, since that call is typed `Promise<any>`
- * regardless of what the injected script actually returns.
+ * Reconciles one PTY grid while the window-group controller separately applies
+ * physical geometry once per document. Copy viewers share the canonical grid;
+ * tmux/SSH projections keep their own explicit capability contracts.
  */
-function asRect(value: unknown): { width: number; height: number } | undefined {
-  if (typeof value !== 'object' || value === null) return undefined;
-  const { width, height } = value as Record<string, unknown>;
-  if (typeof width !== 'number' || typeof height !== 'number') return undefined;
-  return { width, height };
-}
-
-/**
- * Measures `id`'s terminal container's own current CSS pixel size inside
- * `window`, run in an isolated world rather than through
- * `executeJavaScript()`, because this app's renderers ship a `script-src`
- * CSP with no `'unsafe-eval'`: an isolated world is a separate script realm
- * from the page's own, so it is not subject to the page's CSP, while still
- * sharing the same DOM the page renders into. `getBoundingClientRect()` is
- * native DOM state (not a JS expando like the emulator instance stashed on
- * the element), so it reads correctly across worlds.
- *
- * Any failure -- a destroyed window, an unmounted or hidden terminal (for
- * example a background tab in a multi-tab window) -- resolves to
- * `undefined`; callers treat that as "give up on this window".
- */
-const MEASUREMENT_WORLD_ID = 918_273;
-
-async function measureContainerRect(
-  window: BrowserWindow, id: string,
-): Promise<{ width: number; height: number } | undefined> {
-  if (window.isDestroyed()) return undefined;
-  const code = `(() => {
-    const el = document.querySelector('[data-session-id="' + ${JSON.stringify(id)} + '"]');
-    if (!el) return null;
-    const rect = el.getBoundingClientRect();
-    return { width: rect.width, height: rect.height };
-  })()`;
-  try {
-    const raw: unknown = await window.webContents.executeJavaScriptInIsolatedWorld(MEASUREMENT_WORLD_ID, [{ code }]);
-    return window.isDestroyed() ? undefined : asRect(raw);
-  } catch {
-    return undefined;
-  }
-}
-
-/**
- * Best-effort: physically resizes `window` so its terminal container
- * reaches `cols`/`rows` exactly, using a cell size measured from a
- * different, already-known-good window (`cellWidth`/`cellHeight`, from the
- * live viewer whose resize is authoritative) rather than from `window`
- * itself.
- *
- * That distinction matters: `reconcileSharedSize` also broadcasts a
- * synchronous `pty:size` clamp to every viewer, including this one, and
- * that clamp is what the renderer actually applies its own grid from. By
- * the time this async measurement resolves, `window`'s own grid may
- * already equal the target one -- which would make a cell size derived
- * from `window`'s own (rect ÷ grid) trivially self-consistent (rect ÷
- * already-target-grid always reproduces a "no resize needed" answer)
- * even when `window` is still the wrong physical size. Using the
- * requestor's cell size instead avoids that trap.
- *
- * `window`'s own rect is still measured, once, to compute its chrome (the
- * part of its content area the terminal container doesn't cover -- tab
- * strip, borders, and so on), which is assumed fixed-size and carried over
- * unchanged to the new content size.
- */
-async function matchWindowToGrid(
-  window: BrowserWindow, id: string, cols: number, rows: number, cellWidth: number, cellHeight: number,
-  requestorChrome?: { chromeWidth: number; chromeHeight: number; contentWidth: number; contentHeight: number },
-): Promise<void> {
-  const rect = await measureContainerRect(window, id);
-  if (!rect || window.isDestroyed()) return;
-  const [currentWidth = 0, currentHeight = 0] = window.getContentSize();
-  const chromeWidth = currentWidth - rect.width;
-  const chromeHeight = currentHeight - rect.height;
-  let targetWidth = Math.round(cols * cellWidth + chromeWidth);
-  let targetHeight = Math.round(rows * cellHeight + chromeHeight);
-  // When this window's own chrome (tab strip, borders, and so on) is
-  // effectively the same size as the requestor's, copy the requestor's own
-  // physical content size verbatim instead of recomputing a target from
-  // (possibly slightly noisy) independent rect measurements. Two windows
-  // that are otherwise structurally identical should land on *exactly* the
-  // same pixel size, not one that merely rounds to the same grid -- small
-  // float/measurement drift between windows can otherwise leave them a few
-  // pixels apart even though their cols/rows already agree.
-  if (
-    requestorChrome
-    && Math.abs(chromeWidth - requestorChrome.chromeWidth) <= 2
-    && Math.abs(chromeHeight - requestorChrome.chromeHeight) <= 2
-  ) {
-    targetWidth = requestorChrome.contentWidth;
-    targetHeight = requestorChrome.contentHeight;
-  }
-  if (Math.abs(targetWidth - currentWidth) <= 1 && Math.abs(targetHeight - currentHeight) <= 1) return;
-  const expected = expectedGridAfterMatch.get(id) ?? new Map<BrowserWindow, { cols: number; rows: number }>();
-  expected.set(window, { cols, rows });
-  expectedGridAfterMatch.set(id, expected);
-  window.setContentSize(Math.max(200, targetWidth), Math.max(150, targetHeight));
-}
-
-/**
- * Resizes the real PTY and tells every viewer.
- *
- * With no `requestor` (a viewer joining or leaving), the authoritative size
- * is the smallest live viewer. With one (a live viewer's own resize), that
- * viewer's own size is authoritative instead, and every other viewer is
- * asked to physically grow or shrink to match it, using the requestor's own
- * measured cell size (see `matchWindowToGrid`'s doc comment for why it must
- * be the requestor's, not each viewer's own).
- */
-function reconcileSharedSize(id: string, realOwner: BrowserWindow, requestor?: BrowserWindow): void {
-  const sizes = viewerSizes.get(id);
-  if (!sizes || sizes.size === 0) return;
-  const { cols, rows } = (requestor && sizes.get(requestor)) || smallestOf(sizes);
-  if (!Number.isFinite(cols) || !Number.isFinite(rows)) return;
-  const last = appliedSize.get(id);
-  if (last?.cols === cols && last?.rows === rows) return;
-  appliedSize.set(id, { cols, rows });
-  hostFor(realOwner)?.resize(id, cols, rows);
-  for (const [window] of sizes) {
-    if (!window.isDestroyed()) onSize(window, id, cols, rows);
-  }
-  if (requestor && !requestor.isDestroyed()) {
-    void (async () => {
-      const rect = await measureContainerRect(requestor, id);
-      if (!rect) return;
-      const cellWidth = rect.width / cols;
-      const cellHeight = rect.height / rows;
-      if (!Number.isFinite(cellWidth) || !Number.isFinite(cellHeight) || cellWidth <= 0 || cellHeight <= 0) return;
-      const [requestorContentWidth = 0, requestorContentHeight = 0] = requestor.getContentSize();
-      const requestorChrome = {
-        chromeWidth: requestorContentWidth - rect.width,
-        chromeHeight: requestorContentHeight - rect.height,
-        contentWidth: requestorContentWidth,
-        contentHeight: requestorContentHeight,
-      };
-      for (const [window] of sizes) {
-        if (window === requestor || window.isDestroyed()) continue;
-        void matchWindowToGrid(window, id, cols, rows, cellWidth, cellHeight, requestorChrome);
-      }
-    })();
-  }
+function reconcileSharedSize(
+  id: string,
+  realOwner: BrowserWindow,
+  requestor?: BrowserWindow,
+  cause: 'attach' | 'detach' | 'user' = requestor ? 'user' : 'attach',
+): void {
+  windowGroups.reconcile(id, cause, ({ cols, rows }) => {
+    hostFor(realOwner)?.resize(id, cols, rows);
+    for (const [window] of windowGroups.viewers(id) ?? []) {
+      if (!window.isDestroyed()) onSize(window, id, cols, rows);
+    }
+  }, requestor);
 }
 
 /** Drops one viewer's size entry, restoring the rest once it is gone. */
 function forgetViewerSize(id: string, window: BrowserWindow): void {
-  const sizes = viewerSizes.get(id);
-  if (!sizes || !sizes.delete(window)) return;
-  expectedGridAfterMatch.get(id)?.delete(window);
-  if (sizes.size === 0) {
-    viewerSizes.delete(id);
-    appliedSize.delete(id);
-    return;
-  }
+  if (!windowGroups.removeViewer(id, window)) return;
   const realOwner = sessionOwner.get(id);
-  if (realOwner) reconcileSharedSize(id, realOwner);
+  if (realOwner) reconcileSharedSize(id, realOwner, undefined, 'detach');
 }
 
 /** Drops every size-tracking entry for a session that has fully exited. */
 function forgetSessionSize(id: string): void {
-  viewerSizes.delete(id);
-  appliedSize.delete(id);
+  windowGroups.removeSession(id);
   pendingPaneSyncs.delete(id);
   paneSessionViewers.delete(id);
-  expectedGridAfterMatch.delete(id);
-  const pending = pendingReconciles.get(id);
-  if (pending) {
-    clearTimeout(pending.timer);
-    pendingReconciles.delete(id);
-  }
+  paneDocuments.delete(id);
 }
 
 function paneSessionIds(pane: TerminalPaneLayout): string[] {
@@ -499,7 +344,7 @@ function paneSessionIds(pane: TerminalPaneLayout): string[] {
 
 function flushPendingPaneSyncs(): void {
   for (const [id, pending] of pendingPaneSyncs) {
-    const viewers = viewerSizes.get(id);
+    const viewers = windowGroups.viewers(id);
     if (!viewers || viewers.size < 2) {
       pendingPaneSyncs.delete(id);
       continue;
@@ -509,6 +354,7 @@ function flushPendingPaneSyncs(): void {
       return owner && hostFor(owner)?.has(sessionId) ? { sessionId, owner } : undefined;
     });
     if (sessions.some((session) => session === undefined)) continue;
+    windowGroups.setDocument(id, paneSessionIds(pending.pane));
     for (const session of sessions) {
       if (!session) continue;
       paneSessionViewers.set(session.sessionId, new Set(viewers.keys()));
@@ -518,11 +364,29 @@ function flushPendingPaneSyncs(): void {
         }
       }
     }
+    const document = {
+      pane: pending.pane,
+      revision: (paneDocuments.get(id)?.revision ?? 0) + 1,
+      origin: String(pending.requestor.id),
+      viewers: new Set(viewers.keys()),
+    };
+    paneDocuments.set(id, document);
     for (const [viewer] of viewers) {
-      if (!viewer.isDestroyed()) onPane(viewer, id, pending.pane);
+      if (!viewer.isDestroyed()) {
+        onPane(viewer, id, document.pane, document.revision, document.origin);
+      }
+
     }
     pendingPaneSyncs.delete(id);
   }
+}
+
+function isAuthorizedPaneViewer(window: BrowserWindow, sessionId: string): boolean {
+  if (paneSessionViewers.get(sessionId)?.has(window)) return true;
+  for (const document of paneDocuments.values()) {
+    if (document.viewers.has(window) && paneSessionIds(document.pane).includes(sessionId)) return true;
+  }
+  return false;
 }
 
 /** Marks `recipient` as a copy-viewer of `owner`'s session, attached lazily. */
@@ -553,7 +417,7 @@ function attachMirror(owner: BrowserWindow, recipient: BrowserWindow, request: P
   bySession.set(recipient, detach);
   mirrorDetachers.set(request.id, bySession);
   trackViewerSize(request.id, recipient, request.cols, request.rows);
-  if ((viewerSizes.get(request.id)?.size ?? 0) > 1) reconcileSharedSize(request.id, owner);
+  if ((windowGroups.viewers(request.id)?.size ?? 0) > 1) reconcileSharedSize(request.id, owner);
 }
 
 /**
@@ -595,7 +459,10 @@ function spawn(
     return;
   }
   const paneOwner = sessionOwner.get(request.id);
-  if (paneOwner && paneOwner !== owner && paneSessionViewers.get(request.id)?.has(owner)) {
+  if (paneOwner && paneOwner !== owner) {
+    if (!isAuthorizedPaneViewer(owner, request.id)) {
+      throw new Error(`Terminal session ${request.id} is not authorized for this window.`);
+    }
     registerMirror(paneOwner, owner, request.id);
     attachMirror(paneOwner, owner, request);
     return;
@@ -603,7 +470,7 @@ function spawn(
   const reserved = launcher.take(owner, request.id);
   const host = hostFor(owner);
   if (requireReservation && !reserved && !host?.list().some((session) => session.id === request.id)) {
-    throw new Error('Terminal session is not reserved for this window.');
+    throw new Error(`Terminal session ${request.id} is not reserved for this window.`);
   }
   (host ?? hosts.for(owner)).spawn(
     reserved
@@ -644,18 +511,15 @@ export function transferPty(
   const request = cols === rawRequest.cols && rows === rawRequest.rows
     ? rawRequest
     : { ...rawRequest, cols, rows };
-  if (isMirrorWindow(recipient, request.id)) detachMirror(request.id, recipient);
+  const recipientWasMirror = isMirrorWindow(recipient, request.id);
   const source = hostFor(realOwner);
   const destination = hosts.for(recipient);
   const moved = source?.transfer(request.id, destination, request) ?? false;
   if (moved) {
+    if (recipientWasMirror) detachMirror(request.id, recipient, true);
     sessionOwner.set(request.id, recipient);
-    viewerSizes.get(request.id)?.delete(realOwner);
+    windowGroups.removeViewer(request.id, realOwner);
     trackViewerSize(request.id, recipient, request.cols, request.rows);
-    // `TerminalHost.transfer()` already resized the process to `request`,
-    // bypassing `appliedSize`; forcing a fresh reconcile keeps that cache
-    // (and any other viewer still watching this session) honest.
-    appliedSize.delete(request.id);
     reconcileSharedSize(request.id, recipient);
   }
   return moved;
@@ -676,6 +540,7 @@ export function copyPty(
   if (!owner || !recipient || owner === recipient) return false;
   const realOwner = realOwnerOf(owner, request.id);
   if (!realOwner || !hostFor(realOwner)?.has(request.id)) return false;
+  windowGroups.registerViewer(request.id, recipient);
   registerMirror(realOwner, recipient, request.id);
   return true;
 }
@@ -685,7 +550,7 @@ export function syncPtyPane(
   id: string,
   pane: TerminalPaneLayout,
 ): void {
-  if (!owner || !viewerSizes.get(id)?.has(owner)) return;
+  if (!owner || !windowGroups.hasViewer(id, owner)) return;
   pendingPaneSyncs.set(id, { requestor: owner, pane });
   flushPendingPaneSyncs();
 }
@@ -730,6 +595,8 @@ export function launchTerminal(
       args: reserved.args,
       cwd: reserved.cwd,
       env: reserved.env,
+      ownership: reserved.tmuxProjection.ownership,
+      geometry: reserved.tmuxProjection.geometry,
       terminate: reserved.tmuxProjection.terminate,
     });
     return result;
@@ -782,36 +649,15 @@ export function resizePty(
   }
   if (owner) controlHosts.get(owner)?.get(id)?.resize(cols, rows);
   const realOwner = owner ? realOwnerOf(owner, id) : owner;
-  if (owner) trackViewerSize(id, owner, cols, rows);
-  if (owner) {
-    const expected = expectedGridAfterMatch.get(id);
-    const expectedForOwner = expected?.get(owner);
-    if (expectedForOwner) expected?.delete(owner);
-    if (
-      expectedForOwner
-      && Math.abs(expectedForOwner.cols - cols) <= 1
-      && Math.abs(expectedForOwner.rows - rows) <= 1
-    ) {
-      // This is the `ResizeObserver` echo of a physical resize this module
-      // itself just issued (see `expectedGridAfterMatch`'s doc comment),
-      // confirming it landed rather than reporting a fresh, independently
-      // authoritative resize from `owner`. Reconciling again from here
-      // would let that echo become the new authoritative source and
-      // physically resize the others yet again, an oscillation that never
-      // settles. The comparison is off-by-one tolerant: a window's own
-      // font/cell-size measurement can legitimately round to a grid one
-      // column or row off from the exact target pixel size we asked for,
-      // and treating that near-miss as a brand-new authoritative resize
-      // (rather than the echo it actually is) is what let each window's
-      // slightly different measurement noise keep nominating a new
-      // "requestor" forever, sliding the whole group's target size around
-      // instead of settling on one.
-      return;
-    }
+  const appliedEcho = owner ? trackViewerSize(id, owner, cols, rows) : false;
+  if (appliedEcho && owner) {
+    const canonical = windowGroups.canonical(id);
+    if (canonical) onSize(owner, id, canonical.grid.cols, canonical.grid.rows);
+    return;
   }
-  const sizes = viewerSizes.get(id);
+  const sizes = windowGroups.viewers(id);
   if (sizes && sizes.size > 1 && realOwner && owner) {
-    scheduleReconcile(id, realOwner, owner);
+    reconcileSharedSize(id, realOwner, owner);
     return;
   }
   hostFor(realOwner)?.resize(id, cols, rows);

@@ -5,6 +5,7 @@ import { homedir } from 'node:os';
 import {
   LocalPtyConnector,
   TmuxProjectionBroker,
+  type TerminalProcess,
 } from '../../src/host/terminal-host.js';
 
 const WAIT_MS = 5_000;
@@ -16,6 +17,7 @@ export class TmuxProjectionHarness {
   private readonly exitsByProjection = new Map<string, number>();
   private readonly connector = new LocalPtyConnector();
   private readonly broker: TmuxProjectionBroker;
+  private readonly externalClients: TerminalProcess[] = [];
 
   constructor() {
     execFileSync('tmux', ['-L', this.socket, 'new-session', '-d', '-s', this.sessionId, '/bin/sh']);
@@ -31,6 +33,26 @@ export class TmuxProjectionHarness {
         cwd: homedir(),
         env: { ...process.env, TERM: 'xterm-256color' },
       }),
+      applyGeometry: (_sessionId, cols, rows) => {
+        const stdout = execFileSync('tmux', [
+          '-L', this.socket,
+          'set-option', '-w', '-t', this.sessionId, 'window-size', 'manual',
+          ';',
+          'resize-window', '-t', this.sessionId, '-x', String(cols), '-y', String(rows),
+          ';',
+          'display-message', '-p', '-t', this.sessionId,
+          '#{window_width}x#{window_height}',
+        ], { encoding: 'utf8' }).trim();
+        const [actualCols, actualRows] = stdout.split('x').map(Number);
+        if (!actualCols || !actualRows) throw new Error(`Invalid tmux geometry: ${stdout}`);
+        return Promise.resolve({ cols: actualCols, rows: actualRows });
+      },
+      releaseGeometry: () => {
+        spawnSync('tmux', [
+          '-L', this.socket, 'set-option', '-w', '-t', this.sessionId, 'window-size', 'latest',
+        ]);
+        return Promise.resolve();
+      },
       terminateSession: () => {
         spawnSync('tmux', ['-L', this.socket, 'kill-session', '-t', this.sessionId]);
       },
@@ -42,6 +64,10 @@ export class TmuxProjectionHarness {
       },
       onExit: (_sessionId, projectionId, exitCode) => {
         this.exitsByProjection.set(projectionId, exitCode);
+      },
+      onGeometry: () => undefined,
+      onGeometryError: (_sessionId, error) => {
+        throw error;
       },
     });
   }
@@ -76,10 +102,34 @@ export class TmuxProjectionHarness {
     return this.broker.geometry(this.sessionId);
   }
 
+  settleGeometry(): Promise<{ cols: number; rows: number } | undefined> {
+    return this.broker.settleGeometry(this.sessionId);
+  }
+
+  attachExternal(cols: number, rows: number): void {
+    this.externalClients.push(this.connector.connect({
+      command: 'tmux',
+      args: ['-L', this.socket, 'attach-session', '-t', this.sessionId],
+      name: 'xterm-256color',
+      cols,
+      rows,
+      cwd: homedir(),
+      env: { ...process.env, TERM: 'xterm-256color' },
+    }));
+  }
+
   pane(format: string): string {
     return execFileSync(
       'tmux',
       ['-L', this.socket, 'display-message', '-p', '-t', this.sessionId, format],
+      { encoding: 'utf8' },
+    ).trim();
+  }
+
+  windowOption(name: string): string {
+    return execFileSync(
+      'tmux',
+      ['-L', this.socket, 'show-options', '-wv', '-t', this.sessionId, name],
       { encoding: 'utf8' },
     ).trim();
   }
@@ -97,6 +147,7 @@ export class TmuxProjectionHarness {
   }
 
   close(): void {
+    for (const client of this.externalClients) client.kill();
     spawnSync('tmux', ['-L', this.socket, 'kill-server']);
   }
 

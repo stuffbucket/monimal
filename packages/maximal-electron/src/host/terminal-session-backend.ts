@@ -34,3 +34,8 @@ export interface TerminalSessionProjectionRequest {
   cols: number;
   rows: number;
 }
+
+export interface TerminalGeometryEvents {
+  onGeometry?(sessionId: string, cols: number, rows: number): void;
+  onGeometryError?(sessionId: string, error: unknown): void;
+}

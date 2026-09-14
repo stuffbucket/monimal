@@ -69,6 +69,51 @@ function flowHost(pausable = true) {
 const POSIX = process.platform !== 'win32';
 
 describe('TerminalHost connector', () => {
+  it('keeps mirror replay and live output attached across owner transfer', async () => {
+    let dataListener: (data: string) => void = () => {};
+    let connects = 0;
+    const process: TerminalProcess = {
+      onData: (listener) => { dataListener = listener; },
+      onExit: () => undefined,
+      write: () => undefined,
+      resize: () => undefined,
+      kill: () => undefined,
+    };
+    const source = new TerminalHost({
+      homeDirectory: '/home/test',
+      defaultShell: '/bin/sh',
+      connector: { connect: () => {
+        connects += 1;
+        return process;
+      } },
+      flushMs: 0,
+      emit: () => undefined,
+      onExit: () => undefined,
+    });
+    const destination = new TerminalHost({
+      homeDirectory: '/home/test',
+      defaultShell: '/bin/sh',
+      connector: { connect: () => { throw new Error('must not reconnect'); } },
+      flushMs: 0,
+      emit: () => undefined,
+      onExit: () => undefined,
+    });
+    const mirrorOutput: string[] = [];
+
+    source.spawn({ id: 'one', cols: 80, rows: 24 });
+    dataListener('before transfer');
+    source.mirror('one', {
+      onData: (chunk) => mirrorOutput.push(chunk),
+      onExit: () => undefined,
+    });
+    expect(mirrorOutput).toEqual(['before transfer']);
+    expect(source.transfer('one', destination, { id: 'one', cols: 100, rows: 30 })).toBe(true);
+    source.terminateAll();
+    dataListener(' after transfer');
+    expect(connects).toBe(1);
+    expect(mirrorOutput).toEqual(['before transfer', ' after transfer']);
+  });
+
   it('transfers a live process and routes retained and later output to the destination', async () => {
     let dataListener: (data: string) => void = () => {};
     let exitListener: (event: { exitCode: number }) => void = () => {};

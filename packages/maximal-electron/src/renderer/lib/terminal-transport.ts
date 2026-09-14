@@ -63,6 +63,8 @@ export interface TerminalTransport {
    * attaching is how a view returns to a shell it left running.
    */
   spawn(descriptor: TerminalDescriptor & { cols: number; rows: number }): Promise<void>;
+  /** Optional focus lease for backends with independently controlled views. */
+  focus?(id: string, cols: number, rows: number): Promise<void>;
   write(id: string, data: string): Promise<void>;
   resize(id: string, cols: number, rows: number): Promise<void>;
   terminate(id: string): Promise<void>;

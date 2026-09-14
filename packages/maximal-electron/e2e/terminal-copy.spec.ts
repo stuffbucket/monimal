@@ -15,6 +15,14 @@ test.beforeAll(async () => {
     args: ['--terminal-lab'],
     readySelector: '.terminal-lab',
   });
+  // Shared GUI runners can deliver the user's physical keystrokes to Electron.
+  // Keep native focus outside the test app; CDP input and simulated renderer
+  // focus still exercise the terminal paths asserted below.
+  await harness.app.evaluate(({ app, BrowserWindow }) => {
+    const isolateNativeInput = (window: BrowserWindow) => window.setFocusable(false);
+    for (const window of BrowserWindow.getAllWindows()) isolateNativeInput(window);
+    app.on('browser-window-created', (_event, window) => isolateNativeInput(window));
+  });
   harness.app.process().stdout?.on('data', (d) => process.stdout.write(`[app] ${d}`));
   harness.app.process().stderr?.on('data', (d) => process.stdout.write(`[app:err] ${d}`));
 });
@@ -37,13 +45,34 @@ function terminalGrid(terminal: Locator): Promise<{ cols: number; rows: number }
   });
 }
 
+/** True only when this emulator owns the page's actual DOM input focus. */
+function terminalOwnsDomFocus(terminal: Locator): Promise<boolean> {
+  return terminal.evaluate((node) => node.contains(document.activeElement));
+}
+
+/**
+ * Electron Playwright does not transfer macOS application focus between its
+ * pages. Dispatch the same renderer events a native transfer produces, then
+ * use a real terminal click so the assertion still reads actual DOM focus.
+ */
+async function transferWindowFocus(
+  target: Page,
+  terminal: Locator,
+  backgrounds: readonly Page[],
+): Promise<void> {
+  await Promise.all(backgrounds.map((page) =>
+    page.evaluate(() => window.dispatchEvent(new Event('blur')))));
+  await target.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await terminal.click();
+}
+
 test('copies a live terminal into a new window, keeping both live, then recovers on drop-back', async () => {
   const source = harness.window;
   const terminal = terminalOf(source);
   await expect.poll(() => terminalScreen(terminal)).toContain('Maximal Terminal Lab');
 
   const terminalTab = source.getByRole('tab').nth(1);
-  await terminal.click();
+  await transferWindowFocus(source, terminal, []);
   await source.keyboard.type('flood 60 25');
   await source.keyboard.press('Enter');
   await expect.poll(() => terminalScreen(terminal), { timeout: 20_000 }).toMatch(
@@ -76,15 +105,15 @@ test('copies a live terminal into a new window, keeping both live, then recovers
   );
 
   // Both windows observe the same live PTY: new output reaches both.
-  await copiedTerminal.click();
+  await transferWindowFocus(copied, copiedTerminal, [source]);
   await copied.keyboard.type('echo mirrored-output-check');
   await copied.keyboard.press('Enter');
   await expect.poll(() => terminalScreen(copiedTerminal)).toContain('mirrored-output-check');
   await expect.poll(() => terminalScreen(terminal)).toContain('mirrored-output-check');
 
-  const thirdWindow = copied.context().waitForEvent('page');
-  await copied.getByRole('tab').first().click({ button: 'right' });
-  const copyAgainItem = copied.getByTestId('menu-copy-to-new-window');
+  const thirdWindow = source.context().waitForEvent('page');
+  await terminalTab.click({ button: 'right' });
+  const copyAgainItem = source.getByTestId('menu-copy-to-new-window');
   await expect(copyAgainItem).toBeEnabled();
   await copyAgainItem.click();
   const copiedAgain = await thirdWindow;
@@ -93,6 +122,39 @@ test('copies a live terminal into a new window, keeping both live, then recovers
   await expect.poll(() => terminalScreen(copiedAgainTerminal), { timeout: 20_000 }).toContain(
     'mirrored-output-check',
   );
+  const sourceWindowHandle = await harness.app.browserWindow(source);
+  const copiedWindowHandle = await harness.app.browserWindow(copied);
+  const copiedAgainWindowHandle = await harness.app.browserWindow(copiedAgain);
+
+  await transferWindowFocus(copiedAgain, copiedAgainTerminal, [source, copied]);
+  await expect.poll(() => terminalOwnsDomFocus(copiedAgainTerminal)).toBe(true);
+  await expect.poll(() => terminalOwnsDomFocus(terminal)).toBe(false);
+  await expect.poll(() => terminalOwnsDomFocus(copiedTerminal)).toBe(false);
+
+  await transferWindowFocus(source, terminal, [copied, copiedAgain]);
+  await expect.poll(() => terminalOwnsDomFocus(terminal)).toBe(true);
+  await expect.poll(() => terminalOwnsDomFocus(copiedTerminal)).toBe(false);
+  await expect.poll(() => terminalOwnsDomFocus(copiedAgainTerminal)).toBe(false);
+  await source.keyboard.type('focus-original-shared-check');
+  await source.keyboard.press('Enter');
+  for (const view of [terminal, copiedTerminal, copiedAgainTerminal]) {
+    await expect.poll(() => terminalScreen(view)).toContain('focus-original-shared-check');
+  }
+
+  await transferWindowFocus(copied, copiedTerminal, [source, copiedAgain]);
+  await expect.poll(() => terminalOwnsDomFocus(copiedTerminal)).toBe(true);
+  await expect.poll(() => terminalOwnsDomFocus(terminal)).toBe(false);
+  await expect.poll(() => terminalOwnsDomFocus(copiedAgainTerminal)).toBe(false);
+  await copied.keyboard.type('focus-copy-shared-check');
+  await copied.keyboard.press('Enter');
+  for (const view of [terminal, copiedTerminal, copiedAgainTerminal]) {
+    await expect.poll(() => terminalScreen(view)).toContain('focus-copy-shared-check');
+  }
+
+  await transferWindowFocus(copiedAgain, copiedAgainTerminal, [source, copied]);
+  await expect.poll(() => terminalOwnsDomFocus(copiedAgainTerminal)).toBe(true);
+  await expect.poll(() => terminalOwnsDomFocus(terminal)).toBe(false);
+  await expect.poll(() => terminalOwnsDomFocus(copiedTerminal)).toBe(false);
   await copiedAgainTerminal.click();
   await copiedAgain.keyboard.type('echo second-copy-output-check');
   await copiedAgain.keyboard.press('Enter');
@@ -100,16 +162,41 @@ test('copies a live terminal into a new window, keeping both live, then recovers
   await expect.poll(() => terminalScreen(copiedTerminal)).toContain('second-copy-output-check');
   await expect.poll(() => terminalScreen(copiedAgainTerminal)).toContain('second-copy-output-check');
 
-  await copiedAgain.keyboard.press('Meta+d');
-  for (const page of [source, copied, copiedAgain]) {
+  const fourthWindow = copied.context().waitForEvent('page');
+  await copied.getByRole('tab').first().click({ button: 'right' });
+  const copyViaSiblingItem = copied.getByTestId('menu-copy-to-new-window');
+  await expect(copyViaSiblingItem).toBeEnabled();
+  await copyViaSiblingItem.click();
+  const copiedViaSibling = await fourthWindow;
+  await copiedViaSibling.waitForSelector('.terminal-lab');
+  const copiedViaSiblingTerminal = terminalOf(copiedViaSibling);
+  const copiedViaSiblingWindowHandle = await harness.app.browserWindow(copiedViaSibling);
+  await expect.poll(
+    () => terminalScreen(copiedViaSiblingTerminal),
+    { timeout: 20_000 },
+  ).toContain('second-copy-output-check');
+  await transferWindowFocus(
+    copiedViaSibling,
+    copiedViaSiblingTerminal,
+    [source, copied, copiedAgain],
+  );
+  await copiedViaSibling.keyboard.type('sibling-copy-shared-check');
+  await copiedViaSibling.keyboard.press('Enter');
+  for (const view of [terminal, copiedTerminal, copiedAgainTerminal, copiedViaSiblingTerminal]) {
+    await expect.poll(() => terminalScreen(view)).toContain('sibling-copy-shared-check');
+  }
+
+  await copiedViaSibling.keyboard.press('Meta+d');
+  for (const page of [source, copied, copiedAgain, copiedViaSibling]) {
     await expect(page.locator('[data-testid="terminal"]:visible')).toHaveCount(2);
   }
-  const copiedAgainSplit = copiedAgain.locator('[data-testid="terminal"][data-focused]');
-  await expect(copiedAgainSplit).toBeVisible();
-  await copiedAgainSplit.click();
-  await copiedAgain.keyboard.type('split-shared-output-check');
-  await copiedAgain.keyboard.press('Enter');
-  for (const page of [source, copied, copiedAgain]) {
+  const copiedViaSiblingSplit =
+    copiedViaSibling.locator('[data-testid="terminal"][data-focused]');
+  await expect(copiedViaSiblingSplit).toBeVisible();
+  await copiedViaSiblingSplit.click();
+  await copiedViaSibling.keyboard.type('split-shared-output-check');
+  await copiedViaSibling.keyboard.press('Enter');
+  for (const page of [source, copied, copiedAgain, copiedViaSibling]) {
     await expect.poll(() => terminalScreen(
       page.locator('[data-testid="terminal"]:visible').nth(1),
     )).toContain('split-shared-output-check');
@@ -122,24 +209,28 @@ test('copies a live terminal into a new window, keeping both live, then recovers
   // viewer's own OS window is physically resized to match it -- so this
   // should converge on one grid *and* one physical window size, not just an
   // internal grid clamped inside windows still sized differently.
-  const sourceWindowHandle = await harness.app.browserWindow(source);
-  const copiedWindowHandle = await harness.app.browserWindow(copied);
-  const copiedAgainWindowHandle = await harness.app.browserWindow(copiedAgain);
   await sourceWindowHandle.evaluate((window: BrowserWindow) => window.setSize(1100, 760));
   await copiedWindowHandle.evaluate((window: BrowserWindow) => window.setSize(760, 520));
   await copiedAgainWindowHandle.evaluate((window: BrowserWindow) => window.setSize(900, 640));
+  await copiedViaSiblingWindowHandle.evaluate(
+    (window: BrowserWindow) => window.setSize(820, 580),
+  );
 
   await expect.poll(() => terminalGrid(terminal)).not.toEqual({ cols: 0, rows: 0 });
   await expect.poll(() => terminalGrid(copiedTerminal)).not.toEqual({ cols: 0, rows: 0 });
   await expect.poll(() => terminalGrid(copiedAgainTerminal)).not.toEqual({ cols: 0, rows: 0 });
+  await expect.poll(() => terminalGrid(copiedViaSiblingTerminal)).not.toEqual({ cols: 0, rows: 0 });
   await expect.poll(async () => {
-    const [sourceGrid, copiedGrid, copiedAgainGrid] = await Promise.all([
+    const [sourceGrid, copiedGrid, copiedAgainGrid, copiedViaSiblingGrid] = await Promise.all([
       terminalGrid(terminal),
       terminalGrid(copiedTerminal),
       terminalGrid(copiedAgainTerminal),
+      terminalGrid(copiedViaSiblingTerminal),
     ]);
     return sourceGrid.cols === copiedGrid.cols && sourceGrid.rows === copiedGrid.rows
       && sourceGrid.cols === copiedAgainGrid.cols && sourceGrid.rows === copiedAgainGrid.rows
+      && sourceGrid.cols === copiedViaSiblingGrid.cols
+      && sourceGrid.rows === copiedViaSiblingGrid.rows
       ? sourceGrid
       : undefined;
   }, { timeout: 20_000, message: 'the mirrored windows never converged on one grid size' })
@@ -149,18 +240,22 @@ test('copies a live terminal into a new window, keeping both live, then recovers
   // was resolved by physically resizing one window to match the other, not
   // merely by clamping a smaller grid inside a window still sized bigger.
   await expect.poll(async () => {
-    const [sourceSize, copiedSize, copiedAgainSize] = await Promise.all([
+    const [sourceSize, copiedSize, copiedAgainSize, copiedViaSiblingSize] = await Promise.all([
       sourceWindowHandle.evaluate((window: BrowserWindow) => window.getContentSize()),
       copiedWindowHandle.evaluate((window: BrowserWindow) => window.getContentSize()),
       copiedAgainWindowHandle.evaluate((window: BrowserWindow) => window.getContentSize()),
+      copiedViaSiblingWindowHandle.evaluate((window: BrowserWindow) => window.getContentSize()),
     ]);
     const [sourceWidth = 0, sourceHeight = 0] = sourceSize;
     const [copiedWidth = 0, copiedHeight = 0] = copiedSize;
     const [copiedAgainWidth = 0, copiedAgainHeight = 0] = copiedAgainSize;
+    const [copiedViaSiblingWidth = 0, copiedViaSiblingHeight = 0] = copiedViaSiblingSize;
     return Math.abs(sourceWidth - copiedWidth) <= 2
       && Math.abs(sourceHeight - copiedHeight) <= 2
       && Math.abs(sourceWidth - copiedAgainWidth) <= 2
-      && Math.abs(sourceHeight - copiedAgainHeight) <= 2;
+      && Math.abs(sourceHeight - copiedAgainHeight) <= 2
+      && Math.abs(sourceWidth - copiedViaSiblingWidth) <= 2
+      && Math.abs(sourceHeight - copiedViaSiblingHeight) <= 2;
   }, { timeout: 20_000, message: 'the windows never converged on one physical size' })
     .toBe(true);
 
@@ -175,15 +270,27 @@ test('copies a live terminal into a new window, keeping both live, then recovers
   await expect.poll(() => terminalScreen(copiedAgainTerminal)).toMatch(
     /line 0001 of 0060[\s\S]*line 0060 of 0060/,
   );
+  await expect.poll(() => terminalScreen(copiedViaSiblingTerminal)).toMatch(
+    /line 0001 of 0060[\s\S]*line 0060 of 0060/,
+  );
 
   // Both mirrors are still live after resizing: writing in either still
   // reaches both, with the grid they settled on.
-  await terminal.click();
+  await transferWindowFocus(source, terminal, [copied, copiedAgain, copiedViaSibling]);
   await source.keyboard.type('echo post-resize-sync-check');
   await source.keyboard.press('Enter');
   await expect.poll(() => terminalScreen(terminal)).toContain('post-resize-sync-check');
   await expect.poll(() => terminalScreen(copiedTerminal)).toContain('post-resize-sync-check');
   await expect.poll(() => terminalScreen(copiedAgainTerminal)).toContain('post-resize-sync-check');
+  await expect.poll(() => terminalScreen(copiedViaSiblingTerminal))
+    .toContain('post-resize-sync-check');
+
+  const copiedViaSiblingClosed = copiedViaSibling.waitForEvent('close');
+  await copiedViaSibling.getByRole('tab').first().click({ button: 'right' });
+  const closeCopiedViaSibling = copiedViaSibling.getByTestId('menu-close');
+  await expect(closeCopiedViaSibling).toBeEnabled();
+  await closeCopiedViaSibling.click();
+  await copiedViaSiblingClosed;
 
   const copiedAgainClosed = copiedAgain.waitForEvent('close');
   await copiedAgain.getByRole('tab').first().click({ button: 'right' });
