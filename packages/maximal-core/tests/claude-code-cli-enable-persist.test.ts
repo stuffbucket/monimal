@@ -28,10 +28,9 @@ if (!claudeConfigDir) {
   throw new Error("The container test preload did not set CLAUDE_CONFIG_DIR.")
 }
 const SETTINGS = path.join(claudeConfigDir, "settings.json")
-const TEST_HELPER =
-  '"/Applications/Maximal.app/Contents/MacOS/maximal" api claude-code'
+const TEST_KEY = "mxl_test-key-value"
 const claudeCodeApp = createClaudeCodeApp({
-  resolveApiKeyHelper: () => TEST_HELPER,
+  resolveApiKey: () => TEST_KEY,
 })
 
 beforeEach(() => {
@@ -80,24 +79,28 @@ describe("claude-code CLI enable/disable persists routing intent (#229)", () => 
     expect(apps?.claudeDesktop?.enabled).toBe(true)
   })
 
-  test("enable() mints a default endpoint key so the apiKeyHelper resolves", async () => {
+  test("enable() mints a default endpoint key so the resolved API key works", async () => {
+    // Use the real default resolver here (not the fixed TEST_KEY stub) since
+    // this test exercises `ensureDefaultEndpointKey`'s minting behavior.
+    const mintingApp = createClaudeCodeApp()
     // Fresh config: no key at all — `maximal api claude-code` would otherwise
     // exit key-less and break the client.
     expect(getConfig().auth?.apiKeyEntries ?? []).toHaveLength(0)
     expect(resolveApiKey("claude-code").ok).toBe(false)
 
-    await claudeCodeApp.enable()
+    await mintingApp.enable()
 
     const entries = getConfig().auth?.apiKeyEntries ?? []
     expect(entries).toHaveLength(1)
     expect(entries[0]?.label).toBe("Default")
     expect(entries[0]?.enabled).toBe(true)
-    // The helper now resolves the freshly-minted default endpoint key.
+    // The default resolver now resolves the freshly-minted default endpoint key.
     const resolved = resolveApiKey("claude-code")
     expect(resolved).toMatchObject({ ok: true, source: "default" })
   })
 
   test("enable() does not mint a second key when one already exists", async () => {
+    const mintingApp = createClaudeCodeApp()
     writeConfig({
       auth: {
         apiKeyEntries: [
@@ -112,16 +115,16 @@ describe("claude-code CLI enable/disable persists routing intent (#229)", () => 
       },
     })
 
-    await claudeCodeApp.enable()
+    await mintingApp.enable()
 
     const entries = getConfig().auth?.apiKeyEntries ?? []
     expect(entries).toHaveLength(1)
     expect(entries[0]?.key).toBe("mxl_existing")
   })
 
-  test("invalid helper leaves settings, routing intent, and keys untouched", async () => {
+  test("invalid key resolution leaves settings, routing intent, and keys untouched", async () => {
     const invalidApp = createClaudeCodeApp({
-      resolveApiKeyHelper: () => null,
+      resolveApiKey: () => null,
     })
     writeConfig({ apps: { claudeDesktop: { enabled: true } } })
 
@@ -129,11 +132,44 @@ describe("claude-code CLI enable/disable persists routing intent (#229)", () => 
 
     expect(result).toEqual({
       success: false,
-      conflict: "invalid-api-key-helper",
+      conflict: "invalid-api-key",
     })
     expect(fs.existsSync(SETTINGS)).toBe(false)
     expect(getConfig().apps?.claudeCode?.enabled).not.toBe(true)
     expect(getConfig().apps?.claudeDesktop?.enabled).toBe(true)
     expect(getConfig().auth?.apiKeyEntries ?? []).toHaveLength(0)
+  })
+
+  test("getDetails().health stays healthy through routing intent off, on, and re-applied", async () => {
+    // Routing intent off: nothing to have drifted, so health is reported ok
+    // even though settings.json has never been touched.
+    expect((await claudeCodeApp.getDetails()).health).toEqual({
+      ok: true,
+      issue: null,
+    })
+
+    await claudeCodeApp.enable()
+    expect((await claudeCodeApp.getDetails()).health).toEqual({
+      ok: true,
+      issue: null,
+    })
+
+    // A key rotation while enabled: settings.json now carries a stale value
+    // until the next enable()/boot. getDetails() surfaces that as unhealthy —
+    // this is exactly the gap the Settings UI's "Fix" affordance addresses.
+    const rotatedApp = createClaudeCodeApp({
+      resolveApiKey: () => "mxl_rotated-value",
+    })
+    expect((await rotatedApp.getDetails()).health).toEqual({
+      ok: false,
+      issue: "out-of-sync",
+    })
+
+    // Re-running enable() (the "Fix" action) re-syncs it.
+    await rotatedApp.enable()
+    expect((await rotatedApp.getDetails()).health).toEqual({
+      ok: true,
+      issue: null,
+    })
   })
 })

@@ -11,6 +11,7 @@ import {
   ApiKeysDialog,
   Button,
   CopyButton,
+  Dialog,
   Note,
   Switch,
   type ApiClient,
@@ -18,6 +19,8 @@ import {
 
 import type {
   ApiKeysListResponse,
+  AppEntry,
+  AppsListResponse,
   ConnectionAction,
   ConnectionEntry,
   ConnectionsListResponse,
@@ -46,6 +49,28 @@ const ACTION_LABELS: Record<ConnectionAction, string> = {
   reconnect: 'Reconnect',
 }
 
+/** Human copy for `AppEntry.health.issue` — what drifted, in terms the user
+ *  can act on without opening a settings file themselves. */
+const HEALTH_ISSUE_COPY: Record<
+  NonNullable<AppEntry['health']['issue']>,
+  string
+> = {
+  'out-of-sync':
+    'Its configured API key no longer matches the one Maximal expects — likely from a key rotation since it was last enabled.',
+  'not-applied':
+    "It's set to route through Maximal, but its configuration is missing or was changed outside of Maximal.",
+  'foreign-base-url':
+    'Its configuration points at a different address than Maximal manages.',
+  'foreign-api-key-helper':
+    'A custom API key command is configured; Maximal is leaving it alone.',
+  'invalid-api-key':
+    'Maximal could not resolve an API key to configure it with.',
+}
+
+function configuredApps(list: AppsListResponse | null): AppEntry[] {
+  return (list?.apps ?? []).filter((app) => app.kind === 'config')
+}
+
 function manualClients(list: ApiKeysListResponse | null): ApiClient[] {
   return (list?.entries ?? [])
     .filter((entry) => entry.kind !== 'managed')
@@ -64,6 +89,8 @@ export function ConnectionsSection({
   const [proxyUrl, setProxyUrl] = useState<string | null>(null)
   const [connections, setConnections] =
     useState<ConnectionsListResponse | null>(null)
+  const [apps, setApps] = useState<AppsListResponse | null>(null)
+  const [fixTarget, setFixTarget] = useState<AppEntry | null>(null)
   const [manualKeys, setManualKeys] = useState<ApiKeysListResponse | null>(null)
   const [keysOpen, setKeysOpen] = useState(false)
   const [revealed, setRevealed] = useState<Record<string, string>>({})
@@ -74,13 +101,15 @@ export function ConnectionsSection({
   const refresh = useCallback(
     async () => {
       try {
-        const [nextProxyUrl, nextConnections] = await Promise.all([
+        const [nextProxyUrl, nextConnections, nextApps] = await Promise.all([
           capabilities.connection.proxyUrl(),
           capabilities.connections.list(),
+          capabilities.apps.list(),
         ])
         if (!mounted.current) return
         setProxyUrl(nextProxyUrl)
         setConnections(nextConnections)
+        setApps(nextApps)
         setError(null)
       } catch (cause) {
         if (mounted.current) setError(describeError(cause))
@@ -216,7 +245,41 @@ export function ConnectionsSection({
     [capabilities],
   )
 
+  // Re-runs the same apply this app's toggle already performs — safe to call
+  // again because it self-heals (re-syncs a rotated key, re-applies a missing
+  // profile) and is a no-op when nothing has actually drifted. Never runs
+  // without the user confirming in the dialog below.
+  const fixApp = useCallback(
+    async (app: AppEntry) => {
+      setBusyAction(`fix:${app.id}`)
+      setError(null)
+      try {
+        const updated = await capabilities.apps.setEnabled(app.id, true)
+        if (!mounted.current) return
+        setApps((current) =>
+          current === null ? current : (
+            {
+              ...current,
+              apps: current.apps.map((entry) =>
+                entry.id === updated.id ? updated : entry,
+              ),
+            }
+          ),
+        )
+      } catch (cause) {
+        if (mounted.current) setError(describeError(cause))
+      } finally {
+        if (mounted.current) {
+          setBusyAction(null)
+          setFixTarget(null)
+        }
+      }
+    },
+    [capabilities],
+  )
+
   const clients = useMemo(() => manualClients(manualKeys), [manualKeys])
+  const appEntries = useMemo(() => configuredApps(apps), [apps])
   const openAiUrl = proxyUrl === null ? null : `${proxyUrl}/v1`
   const busy = refreshing || busyAction !== null
 
@@ -381,6 +444,55 @@ export function ConnectionsSection({
       </div>
 
       <div className="settings-subsection">
+        <h2 className="settings-section__subheading">App integrations</h2>
+        <Note>
+          Claude Code and Claude Desktop route through Maximal by configuring
+          their own settings files directly.
+        </Note>
+        {apps === null ? (
+          <Note live="polite">Checking app integrations…</Note>
+        ) : appEntries.length === 0 ? (
+          <Note>No app integrations were detected.</Note>
+        ) : (
+          <ul className="settings-list">
+            {appEntries.map((app) => (
+              <li key={app.id} className="settings-list__row">
+                <div className="settings-list__content">
+                  <strong>{app.name}</strong>
+                  <span className="settings-list__meta">
+                    {app.status === 'not-installed' ?
+                      'Not installed'
+                    : app.enabled ?
+                      'Routing through Maximal'
+                    : 'Not enabled'}
+                  </span>
+                  {!app.health.ok && app.health.issue ?
+                    <Note status="failed" live="assertive">
+                      {HEALTH_ISSUE_COPY[app.health.issue]}
+                    </Note>
+                  : null}
+                </div>
+                {!app.health.ok ?
+                  <div className="settings-section__actions">
+                    <Button
+                      size="sm"
+                      disabled={busy}
+                      onClick={() => setFixTarget(app)}
+                      testId={`app-${app.id}-fix`}
+                    >
+                      {busyAction === `fix:${app.id}` ?
+                        'Fixing…'
+                      : 'Fix settings…'}
+                    </Button>
+                  </div>
+                : null}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="settings-subsection">
         <h2 className="settings-section__subheading">Manual clients</h2>
         <Note>
           Create named credentials for scripts and clients Maximal cannot configure.
@@ -448,6 +560,45 @@ export function ConnectionsSection({
           })
         }
       />
+
+      <Dialog
+        open={fixTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setFixTarget(null)
+        }}
+        title={
+          fixTarget ? `Fix ${fixTarget.name} settings?` : 'Fix app settings?'
+        }
+        description="Re-applies Maximal's configuration for this app."
+        testId="app-fix-confirmation"
+      >
+        {fixTarget ? (
+          <>
+            <h2 className="settings-dialog__heading">
+              Fix {fixTarget.name} settings?
+            </h2>
+            <p>
+              {fixTarget.health.issue ?
+                HEALTH_ISSUE_COPY[fixTarget.health.issue]
+              : null}{' '}
+              Maximal will re-apply its configuration for {fixTarget.name},
+              overwriting only the fields it manages.
+            </p>
+            <div className="settings-dialog__actions">
+              <Button onClick={() => setFixTarget(null)} disabled={busy}>
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                onClick={() => void fixApp(fixTarget)}
+                disabled={busy}
+              >
+                Fix settings
+              </Button>
+            </div>
+          </>
+        ) : null}
+      </Dialog>
     </section>
   )
 }

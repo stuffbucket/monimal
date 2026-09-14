@@ -1,5 +1,7 @@
 import type {
   ApiKeyEntry,
+  AppEntry,
+  AppsListResponse,
   ConnectionEntry,
   ConnectionsListResponse,
 } from '@stuffbucket/maximal-core/settings-types'
@@ -55,6 +57,34 @@ const connectionList: ConnectionsListResponse = {
   require_known_keys: false,
 }
 
+const healthyClaudeCode: AppEntry = {
+  id: 'claude-code',
+  name: 'Claude Code CLI',
+  kind: 'config',
+  enabled: true,
+  status: 'ready',
+  installs: [],
+  install: null,
+  conflict: null,
+  health: { ok: true, issue: null },
+}
+
+const unhealthyClaudeDesktop: AppEntry = {
+  id: 'claude-desktop',
+  name: 'Claude Desktop',
+  kind: 'config',
+  enabled: true,
+  status: 'ready',
+  installs: [],
+  install: null,
+  conflict: null,
+  health: { ok: false, issue: 'not-applied' },
+}
+
+const appsList: AppsListResponse = {
+  apps: [healthyClaudeCode, unhealthyClaudeDesktop],
+}
+
 function fakeCapabilities() {
   const connections = {
     list: vi.fn(async () => connectionList),
@@ -83,16 +113,25 @@ function fakeCapabilities() {
       enforcing,
     })),
   }
+  const apps = {
+    list: vi.fn(async () => appsList),
+    setEnabled: vi.fn(async (id: AppEntry['id']) => ({
+      ...unhealthyClaudeDesktop,
+      id,
+      health: { ok: true, issue: null } as const,
+    })),
+  }
   const capabilities = {
     connection: {
       proxyUrl: vi.fn(async () => 'http://127.0.0.1:4173'),
     },
     connections,
     apiKeys,
+    apps,
     subscribe: vi.fn(() => () => {}),
   } as unknown as SettingsCapabilities
 
-  return { capabilities, connections, apiKeys }
+  return { capabilities, connections, apiKeys, apps }
 }
 
 let root: Root | null = null
@@ -192,5 +231,47 @@ describe('ConnectionsSection', () => {
     await act(async () => control(surface, 'api-key-enforcement').click())
 
     expect(apiKeys.setEnforcement).toHaveBeenCalledWith(true)
+  })
+
+  it('shows a health notice and a fix control only for an unhealthy app', async () => {
+    const { capabilities } = fakeCapabilities()
+    const surface = await renderConnections(capabilities)
+
+    expect(surface.textContent).toContain('Claude Code CLI')
+    expect(surface.textContent).toContain('Claude Desktop')
+    expect(surface.textContent).toContain(
+      "It's set to route through Maximal, but its configuration is missing or was changed outside of Maximal.",
+    )
+    expect(control(surface, 'app-claude-desktop-fix')).not.toBeNull()
+    expect(
+      surface.querySelector('[data-testid="app-claude-code-fix"]'),
+    ).toBeNull()
+  })
+
+  it('requires confirmation before fixing an unhealthy app', async () => {
+    const { capabilities, apps } = fakeCapabilities()
+    const surface = await renderConnections(capabilities)
+
+    await act(async () => control(surface, 'app-claude-desktop-fix').click())
+
+    expect(apps.setEnabled).not.toHaveBeenCalled()
+    expect(document.body.textContent).toContain('Fix Claude Desktop settings?')
+
+    await act(async () => button(document.body, 'Fix settings').click())
+
+    expect(apps.setEnabled).toHaveBeenCalledWith('claude-desktop', true)
+  })
+
+  it('cancelling the fix dialog leaves the app unchanged', async () => {
+    const { capabilities, apps } = fakeCapabilities()
+    const surface = await renderConnections(capabilities)
+
+    await act(async () => control(surface, 'app-claude-desktop-fix').click())
+    await act(async () => button(document.body, 'Cancel').click())
+
+    expect(apps.setEnabled).not.toHaveBeenCalled()
+    expect(document.body.textContent).not.toContain(
+      'Fix Claude Desktop settings?',
+    )
   })
 })

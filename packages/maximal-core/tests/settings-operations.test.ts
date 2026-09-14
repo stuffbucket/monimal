@@ -360,6 +360,7 @@ function makeFakeApp(options: FakeAppOptions = {}): {
         installs: [],
         install: null,
         conflict,
+        health: { ok: true, issue: null },
       })
     },
     uninstall: () => Promise.resolve({ reverted: [] }),

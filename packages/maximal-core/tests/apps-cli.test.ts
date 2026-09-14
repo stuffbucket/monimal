@@ -109,6 +109,7 @@ describe("maximal app command", () => {
           installs: [],
           install: null,
           conflict: null,
+          health: { ok: true, issue: null },
         })
       },
     }
@@ -208,6 +209,7 @@ describe("defineComingSoonApp", () => {
       installs: [],
       install: null,
       conflict: null,
+      health: { ok: true, issue: null },
     })
   })
 })

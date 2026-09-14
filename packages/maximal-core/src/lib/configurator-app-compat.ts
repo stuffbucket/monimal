@@ -90,6 +90,8 @@ export function configuratorConnectionToAppEntry(
     installs: [],
     install: null,
     conflict: null,
+    // Legacy configurators have no passive drift check of their own.
+    health: { ok: true, issue: null },
   }
 }
 
