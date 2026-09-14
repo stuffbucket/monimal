@@ -128,6 +128,12 @@
       "persistent": true,
       "description": "Launch the focused Electron terminal development lab."
     },
+    "dev:context": {
+      "dependsOn": ["^build"],
+      "cache": false,
+      "persistent": true,
+      "description": "Launch the focused context-window visualization development lab."
+    },
     "maximal-client#dev": {
       "dependsOn": ["build"],
       "cache": false,

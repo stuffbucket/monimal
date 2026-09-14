@@ -3,16 +3,12 @@ import type { TrafficFlowNode } from "@stuffbucket/maximal-observability-contrac
 import { describe, expect, it } from "vitest"
 
 import {
-  deriveContextCells,
-  deriveContextSessions,
-} from "../src/context-window.ts"
-import {
   deriveDisplayFlow,
   deriveTokenStacks,
   scaleLinear,
 } from "../src/derive.ts"
 import { formatBytes, formatCount, formatDuration } from "../src/format.ts"
-import { OVERVIEW, REQUEST } from "./fixtures.ts"
+import { OVERVIEW } from "./fixtures.ts"
 
 describe("observability derivation", () => {
   it("bounds flow categories and combines omitted edges", () => {
@@ -69,47 +65,5 @@ describe("observability derivation", () => {
     expect(formatDuration(1_500)).toBe("1.5 s")
     expect(formatBytes(2_048)).toBe("2.0 KB")
     expect(formatCount(12_000)).not.toBe("12000")
-  })
-
-  it("groups context turns by session and bounds their cells", () => {
-    const request = {
-      ...REQUEST,
-      identity: { ...REQUEST.identity, sessionId: "session-a" },
-    }
-    const sessions = deriveContextSessions([request])
-    expect(sessions).toHaveLength(1)
-    expect(sessions[0]?.id).toBe("session-a")
-    expect(
-      deriveContextCells({
-        inputTokens: 90,
-        outputTokens: 10,
-        contextWindowTokens: 100,
-        cellCount: 10,
-      }),
-    ).toEqual({
-      input: 9,
-      output: 1,
-      available: 0,
-    })
-    expect(
-      deriveContextCells({
-        inputTokens: 1,
-        outputTokens: 1,
-        contextWindowTokens: 1_000,
-        cellCount: 10,
-      }),
-    ).toEqual({
-      input: 1,
-      output: 1,
-      available: 8,
-    })
-    expect(
-      deriveContextCells({
-        inputTokens: 1,
-        outputTokens: 1,
-        contextWindowTokens: 0,
-        cellCount: 10,
-      }),
-    ).toBeNull()
   })
 })

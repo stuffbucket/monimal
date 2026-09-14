@@ -80,7 +80,7 @@ describe("observability components", () => {
     expect(container.textContent).toContain("claude-sonnet")
     expect(container.textContent).toContain("0.1%")
     expect(
-      container.querySelector(".mo-context-cells")?.getAttribute("aria-label"),
+      container.querySelector(".mcw-cells")?.getAttribute("aria-label"),
     ).toContain("120 input tokens")
     expect(source.overviewReads).toBe(1)
     expect(source.requestReads).toBe(1)

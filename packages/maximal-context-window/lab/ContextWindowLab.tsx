@@ -1,0 +1,29 @@
+import { InspectorPanel } from "@stuffbucket/maximal-electron/renderer"
+import { useState, type ReactElement } from "react"
+
+import { deriveContextSessions } from "../src/context-window.ts"
+import { ContextWindowSessionPanel } from "../src/ContextWindowSessionPanel.tsx"
+import { LAB_REQUESTS } from "./fixtures.ts"
+
+export function ContextWindowLab(): ReactElement {
+  const sessions = deriveContextSessions(LAB_REQUESTS)
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(
+    null,
+  )
+  const session =
+    sessions.find(({ id }) => id === selectedSessionId) ?? sessions[0]
+
+  return (
+    <div className="lab-shell sb-shell">
+      <InspectorPanel title="Context window">
+        {session ?
+          <ContextWindowSessionPanel
+            session={session}
+            sessionIds={sessions.map(({ id }) => id)}
+            onSelectSession={setSelectedSessionId}
+          />
+        : <p>No fixture sessions available.</p>}
+      </InspectorPanel>
+    </div>
+  )
+}

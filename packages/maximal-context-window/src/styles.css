@@ -1,0 +1,104 @@
+.mcw-panel {
+  display: grid;
+  gap: var(--shell-space-4);
+}
+
+.mcw-map {
+  padding-block-start: var(--shell-space-3);
+  border-block-start: 1px solid var(--shell-border);
+}
+
+.mcw-map h3 {
+  margin: 0;
+  font-size: var(--shell-text-sm);
+  font-weight: var(--shell-weight-lg);
+}
+
+.mcw-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--shell-space-2);
+  margin: var(--shell-space-2) 0;
+  color: var(--shell-text-muted);
+  font-size: var(--shell-text-xs);
+}
+
+.mcw-legend code {
+  color: var(--shell-text);
+}
+
+.mcw-turns {
+  display: grid;
+  gap: var(--shell-space-3);
+}
+
+.mcw-turn {
+  min-width: 0;
+}
+
+.mcw-turn-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--shell-space-2);
+  color: var(--shell-text-muted);
+  font-size: var(--shell-text-xs);
+}
+
+.mcw-turn-heading span {
+  color: var(--shell-text);
+  font-weight: var(--shell-weight-md);
+}
+
+.mcw-cells {
+  display: grid;
+  grid-template-columns: repeat(32, minmax(0, 1fr));
+  margin-block: var(--shell-space-1);
+  overflow: hidden;
+  border: 1px solid var(--shell-border-strong, var(--shell-border));
+  border-radius: var(--shell-radius-small);
+  background: var(--shell-background);
+  font-family: var(--shell-font-mono);
+  font-size: var(--shell-text-xs);
+  line-height: 1.5;
+  text-align: center;
+}
+
+.mcw-cell--input {
+  color: var(--shell-accent-contrast, var(--shell-text));
+  background: var(--shell-accent);
+}
+
+.mcw-cell--output {
+  color: var(--shell-text);
+  background: var(--shell-active);
+}
+
+.mcw-cell--available {
+  color: var(--shell-text-subtle);
+}
+
+.mcw-turn-counts,
+.mcw-unavailable {
+  color: var(--shell-text-muted);
+  font-size: var(--shell-text-xs);
+}
+
+.mcw-unavailable {
+  margin: var(--shell-space-1) 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mcw-panel * {
+    animation: none !important;
+    scroll-behavior: auto !important;
+    transition: none !important;
+  }
+}
+
+@media (forced-colors: active) {
+  .mcw-cell--input,
+  .mcw-cell--output {
+    border: 1px solid CanvasText;
+    forced-color-adjust: none;
+  }
+}
