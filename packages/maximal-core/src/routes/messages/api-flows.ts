@@ -455,7 +455,9 @@ const getMetadataSessionId = (
  * outcome decided by whether the garbage happened to be valid JSON. Every
  * sibling reader in this codebase skips and continues; so does this one.
  */
-const readChatCompletionFrame = (data: string): ChatCompletionChunk | null => {
+export const readChatCompletionFrame = (
+  data: string,
+): ChatCompletionChunk | null => {
   try {
     // Read only through `translateChunkToAnthropicEvents` and
     // `normalizeOpenAIUsage`, both total over a malformed frame.

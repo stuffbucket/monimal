@@ -10,7 +10,7 @@ import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
 
-import { readSecret } from "~/lib/auth/secrets"
+import { readSecret, removeSecret, writeSecret } from "~/lib/auth/secrets"
 
 // XDG-style fixture root outside the repo so nothing here can be
 // `git add`-ed. Deliberately NOT os.tmpdir(): CodeQL's
@@ -39,7 +39,7 @@ afterEach(() => {
   }
 })
 
-function writeSecret(name: string, value: string, mode: number): string {
+function writeFixture(name: string, value: string, mode: number): string {
   const filePath = path.join(secretsDir, name)
   fs.writeFileSync(filePath, value, { mode })
   fs.chmodSync(filePath, mode) // explicit chmod — writeFileSync mode honors umask
@@ -74,7 +74,7 @@ const itWindowsMode = it.skipIf(process.platform !== "win32")
 
 describe("readSecret", () => {
   it("returns env source when env var is set, even if file exists", () => {
-    writeSecret("ollama", "from-file", 0o600)
+    writeFixture("ollama", "from-file", 0o600)
     const r = readSecret({
       envVar: "OLLAMA_API_KEY",
       fileName: "ollama",
@@ -86,7 +86,7 @@ describe("readSecret", () => {
   })
 
   it("returns file source when env is unset and file is mode 0600", () => {
-    writeSecret("ollama", "secret-from-file\n", 0o600)
+    writeFixture("ollama", "secret-from-file\n", 0o600)
     const r = readSecret({
       envVar: "OLLAMA_API_KEY",
       fileName: "ollama",
@@ -109,7 +109,7 @@ describe("readSecret", () => {
   })
 
   itPosixMode("refuses to load a file with mode broader than 0600", () => {
-    writeSecret("ollama", "should-not-load", 0o644)
+    writeFixture("ollama", "should-not-load", 0o644)
     const r = readSecret({
       envVar: "OLLAMA_API_KEY",
       fileName: "ollama",
@@ -130,7 +130,7 @@ describe("readSecret", () => {
       // value LOADS pins the deliberate win32 branch of `modeIsOwnerOnly` — and
       // is the regression guard for the bug this replaced, where the same
       // comparison made every secrets file unreadable on Windows.
-      writeSecret("ollama", "loads-on-windows", 0o644)
+      writeFixture("ollama", "loads-on-windows", 0o644)
       const r = readSecret({
         envVar: "OLLAMA_API_KEY",
         fileName: "ollama",
@@ -143,7 +143,7 @@ describe("readSecret", () => {
   )
 
   it("treats empty file as unset", () => {
-    writeSecret("ollama", "", 0o600)
+    writeFixture("ollama", "", 0o600)
     const r = readSecret({
       envVar: "OLLAMA_API_KEY",
       fileName: "ollama",
@@ -154,7 +154,7 @@ describe("readSecret", () => {
   })
 
   it("treats empty-string env value as unset and falls back to file", () => {
-    writeSecret("ollama", "from-file", 0o600)
+    writeFixture("ollama", "from-file", 0o600)
     const r = readSecret({
       envVar: "OLLAMA_API_KEY",
       fileName: "ollama",
@@ -166,7 +166,7 @@ describe("readSecret", () => {
   })
 
   it("strips trailing whitespace from file contents", () => {
-    writeSecret("ollama", "  spaced-and-newlined  \n\n", 0o600)
+    writeFixture("ollama", "  spaced-and-newlined  \n\n", 0o600)
     const r = readSecret({
       envVar: "OLLAMA_API_KEY",
       fileName: "ollama",
@@ -174,5 +174,30 @@ describe("readSecret", () => {
       dir: secretsDir,
     })
     expect(r.value).toBe("spaced-and-newlined")
+  })
+})
+
+describe("secret mutation", () => {
+  it("writes an owner-only secret that readSecret can load", () => {
+    writeSecret("ollama", "cloud-key", secretsDir)
+    const result = readSecret({
+      envVar: "OLLAMA_API_KEY",
+      fileName: "ollama",
+      env: {},
+      dir: secretsDir,
+    })
+    expect(result).toEqual({ value: "cloud-key", source: "file" })
+    if (process.platform !== "win32") {
+      expect(fs.statSync(path.join(secretsDir, "ollama")).mode & 0o777).toBe(
+        0o600,
+      )
+    }
+  })
+
+  it("removes a saved secret and tolerates repeated removal", () => {
+    writeSecret("ollama", "cloud-key", secretsDir)
+    removeSecret("ollama", secretsDir)
+    removeSecret("ollama", secretsDir)
+    expect(fs.existsSync(path.join(secretsDir, "ollama"))).toBe(false)
   })
 })

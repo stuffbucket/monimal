@@ -97,6 +97,28 @@ function buildLocalApp(control: LocalModelControl): Hono {
   return app
 }
 
+function buildProviderApp() {
+  const app = new Hono()
+  app.route(
+    "/v1/models",
+    createModelRoutes({
+      providerModels: () =>
+        Promise.resolve([
+          {
+            capabilities: ["completion", "tools", "vision", "thinking"],
+            contextWindowTokens: 32_768,
+            family: "qwen3",
+            id: "qwen3:8b",
+            name: "Qwen 3 8B",
+            provider: "ollama",
+            providerName: "Ollama",
+          },
+        ]),
+    }),
+  )
+  return app
+}
+
 const noop = (): void => undefined
 
 const localModelControl = (
@@ -141,6 +163,40 @@ describe("GET /v1/models — OpenAI default (no protocol signal)", () => {
     expect(entry.object).toBe("model")
     expect(entry.owned_by).toBe("anthropic")
     for (const leaked of LEAK_VECTORS) expect(entry[leaked]).toBeUndefined()
+  })
+
+  test("includes provider models with their routing provider as owner", async () => {
+    const res = await buildProviderApp().request("/v1/models")
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as { data: Array<Entry> }
+    expect(body.data).toContainEqual({
+      id: "qwen3:8b",
+      object: "model",
+      created: 0,
+      owned_by: "ollama",
+    })
+  })
+
+  test("publishes Ollama details in the Anthropic model shape", async () => {
+    const response = await buildProviderApp().request("/v1/models", {
+      headers: { "anthropic-version": "2023-06-01" },
+    })
+
+    expect(response.status).toBe(200)
+    const body = (await response.json()) as { data: Array<Entry> }
+    expect(body.data).toContainEqual({
+      capabilities: {
+        image_input: { supported: true },
+        pdf_input: { supported: false },
+        structured_outputs: { supported: true },
+        thinking: { supported: true },
+      },
+      created_at: new Date(0).toISOString(),
+      display_name: "Qwen 3 8B",
+      id: "qwen3:8b",
+      max_input_tokens: 32_768,
+      type: "model",
+    })
   })
 
   test("an openai/* user-agent still gets OpenAI shape", async () => {

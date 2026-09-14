@@ -54,6 +54,7 @@ import { cacheModels } from "~/lib/platform/utils"
 import { emitQuitRequest, emitUpdateRequest } from "~/lib/start/boot-status"
 import { getTokenUsageSummary } from "~/lib/token-usage"
 import { getUpdateStatus } from "~/lib/update/update-check"
+import { listOllamaAccounts } from "~/services/providers/ollama-accounts"
 
 import type { ControlRpcDeps } from "./rpc"
 
@@ -119,6 +120,14 @@ function registerReads(
   app.get("/accounts", async (c) => {
     try {
       return c.json(await buildAccountsList())
+    } catch (error) {
+      return forwardError(c, error)
+    }
+  })
+
+  app.get("/ollama/accounts", async (c) => {
+    try {
+      return c.json(await listOllamaAccounts())
     } catch (error) {
       return forwardError(c, error)
     }
