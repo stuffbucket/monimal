@@ -70,7 +70,7 @@ export function AccountsSection({
       {...(embedded ? {} : { 'aria-label': 'Accounts' })}
     >
       {embedded ? (
-        <h2 className="settings-section__subheading">Saved accounts</h2>
+        <h3 className="settings-section__subheading">Saved accounts</h3>
       ) : null}
 
       {/* Retry is an action, not navigation, so it is a Button and it sits

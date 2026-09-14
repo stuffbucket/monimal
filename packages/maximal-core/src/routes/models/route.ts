@@ -5,6 +5,8 @@ import type {
 
 import { Hono } from "hono"
 
+import type { ProviderCatalogueModel } from "~/lib/live/resources"
+
 import { isVariantId } from "~/lib/models/anthropic-id-rewrite"
 import { primeModelsCache } from "~/lib/models/refresh-models"
 import { modelsCached, state } from "~/lib/runtime-state/state"
@@ -23,6 +25,7 @@ const EPOCH_ISO = new Date(0).toISOString()
 
 export interface ModelRoutesOptions {
   localModels?: () => LocalModelControl | undefined
+  providerModels?: () => Promise<ReadonlyArray<ProviderCatalogueModel>>
 }
 
 function aggregateLocalModels(
@@ -77,6 +80,37 @@ function localAnthropicModel(model: LocalModelCatalogEntry): AnthropicModel {
   }
 }
 
+function providerOpenAiModel(model: ProviderCatalogueModel): OpenAiModel {
+  return {
+    id: model.id,
+    object: "model",
+    created: 0,
+    owned_by: model.provider,
+  }
+}
+
+function providerAnthropicModel(model: ProviderCatalogueModel): AnthropicModel {
+  const capabilities = new Set(model.capabilities)
+  return {
+    id: model.id,
+    type: "model",
+    display_name: model.name,
+    created_at: EPOCH_ISO,
+    max_input_tokens: model.contextWindowTokens,
+    capabilities:
+      model.capabilities ?
+        {
+          image_input: { supported: capabilities.has("vision") },
+          pdf_input: { supported: false },
+          structured_outputs: {
+            supported: capabilities.has("completion"),
+          },
+          thinking: { supported: capabilities.has("thinking") },
+        }
+      : undefined,
+  }
+}
+
 class ModelCatalogConflictError extends Error {}
 
 function mergeById<T extends { readonly id: string }>(
@@ -96,26 +130,28 @@ function mergeById<T extends { readonly id: string }>(
 function openAiAggregate(
   models: Parameters<typeof openAiModelList>[0],
   local: ReadonlyArray<LocalModelCatalogEntry>,
+  providers: ReadonlyArray<ProviderCatalogueModel>,
 ): OpenAiModelList {
   const upstream = openAiModelList(models)
   return {
     ...upstream,
-    data: mergeById(
-      upstream.data,
-      local.map((model) => localOpenAiModel(model)),
-    ),
+    data: mergeById(upstream.data, [
+      ...local.map((model) => localOpenAiModel(model)),
+      ...providers.map((model) => providerOpenAiModel(model)),
+    ]),
   }
 }
 
 function anthropicAggregate(
   models: Parameters<typeof anthropicModelList>[0],
   local: ReadonlyArray<LocalModelCatalogEntry>,
+  providers: ReadonlyArray<ProviderCatalogueModel>,
 ): AnthropicModelList {
   const upstream = anthropicModelList(models)
-  const data = mergeById(
-    upstream.data,
-    local.map((model) => localAnthropicModel(model)),
-  )
+  const data = mergeById(upstream.data, [
+    ...local.map((model) => localAnthropicModel(model)),
+    ...providers.map((model) => providerAnthropicModel(model)),
+  ])
   return {
     ...upstream,
     data,
@@ -136,7 +172,7 @@ export function createModelRoutes(options: ModelRoutesOptions = {}): Hono {
     // hard-depend on the catalog, and it self-heals on the next request/activity
     // via the stale-refresh middleware. `modelsCached() === 0` (not `!state.models`)
     // so a primed-but-empty cache is retried too.
-    if (modelsCached() === 0) {
+    if (state.githubToken && modelsCached() === 0) {
       await primeModelsCache()
     }
 
@@ -157,10 +193,11 @@ export function createModelRoutes(options: ModelRoutesOptions = {}): Hono {
     // (`wire-models.ts`) so no raw Copilot field (billing, policy, …) leaks.
     try {
       const local = aggregateLocalModels(options.localModels?.())
+      const providers = (await options.providerModels?.()) ?? []
       return c.json(
         prefersAnthropicModels(c.req.raw.headers) ?
-          anthropicAggregate(models, local)
-        : openAiAggregate(models, local),
+          anthropicAggregate(models, local, providers)
+        : openAiAggregate(models, local, providers),
       )
     } catch (error) {
       if (!(error instanceof ModelCatalogConflictError)) throw error

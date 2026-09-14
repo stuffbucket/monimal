@@ -8,6 +8,7 @@ const SETTINGS_DISCLOSURE_STYLES = `
   border-top: 1px solid var(--shell-border-strong, var(--shell-border));
 }
 .sb-shell .settings-disclosure {
+  position: relative;
   border-bottom: 1px solid var(--shell-border-strong, var(--shell-border));
 }
 .sb-shell .settings-disclosure__summary {
@@ -20,6 +21,9 @@ const SETTINGS_DISCLOSURE_STYLES = `
   cursor: pointer;
 }
 .sb-shell .settings-disclosure__summary::-webkit-details-marker { display: none; }
+.sb-shell .settings-disclosure__summary--with-action {
+  padding-right: calc(var(--shell-control-lg) + var(--shell-space-4));
+}
 .sb-shell .settings-disclosure__summary:hover,
 .sb-shell .settings-disclosure[open] .settings-disclosure__summary {
   background: var(--shell-hover);
@@ -58,6 +62,12 @@ const SETTINGS_DISCLOSURE_STYLES = `
   white-space: nowrap;
 }
 .sb-shell .settings-disclosure__meta { white-space: nowrap; }
+.sb-shell .settings-disclosure__action {
+  position: absolute;
+  top: var(--shell-space-2);
+  right: var(--shell-space-2);
+  z-index: 1;
+}
 .sb-shell .settings-disclosure__body {
   padding: var(--shell-space-3) var(--shell-space-2) var(--shell-space-4)
     calc(var(--shell-control-lg) + var(--shell-space-2));
@@ -79,18 +89,24 @@ export function SettingsDisclosure({
   title,
   description,
   meta,
+  action,
   children,
 }: {
   title: string;
   description?: string;
   meta?: ReactNode;
+  action?: ReactNode;
   children: ReactNode;
 }): ReactElement {
   useComponentStyles('settings-disclosure', SETTINGS_DISCLOSURE_STYLES);
 
   return (
     <details className="settings-disclosure">
-      <summary className="settings-disclosure__summary">
+      <summary
+        className={`settings-disclosure__summary${
+          action ? ' settings-disclosure__summary--with-action' : ''
+        }`}
+      >
         <ChevronRight className="settings-disclosure__chevron" aria-hidden="true" size={16} />
         <span className="settings-disclosure__content">
           <h3 className="settings-disclosure__title">{title}</h3>
@@ -98,8 +114,11 @@ export function SettingsDisclosure({
             <span className="settings-disclosure__description">{description}</span>
           ) : null}
         </span>
-        {meta ? <span className="settings-disclosure__meta">{meta}</span> : null}
+        {!action && meta ? (
+          <span className="settings-disclosure__meta">{meta}</span>
+        ) : null}
       </summary>
+      {action ? <div className="settings-disclosure__action">{action}</div> : null}
       <div className="settings-disclosure__body">{children}</div>
     </details>
   );

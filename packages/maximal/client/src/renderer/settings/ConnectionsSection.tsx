@@ -11,7 +11,11 @@ import {
   ApiKeysDialog,
   Button,
   CopyButton,
+  Field,
+  FieldList,
   Note,
+  SettingsDisclosure,
+  SettingsDisclosureList,
   Switch,
   type ApiClient,
 } from 'stuffbucket-electron/renderer'
@@ -21,6 +25,7 @@ import type {
   ConnectionAction,
   ConnectionEntry,
   ConnectionsListResponse,
+  ClientInstallation,
   SettingsCapabilities,
 } from './capabilities'
 import { describeError } from './format'
@@ -38,12 +43,6 @@ const STATUS_LABELS: Record<ConnectionEntry['status'], string> = {
   'changed-externally': 'Changed externally',
   'stale-recovery-required': 'Stale connection needs recovery',
   'recovery-required': 'Recovery required',
-}
-
-const ACTION_LABELS: Record<ConnectionAction, string> = {
-  connect: 'Connect',
-  disconnect: 'Disconnect',
-  reconnect: 'Reconnect',
 }
 
 function manualClients(list: ApiKeysListResponse | null): ApiClient[] {
@@ -64,6 +63,8 @@ export function ConnectionsSection({
   const [proxyUrl, setProxyUrl] = useState<string | null>(null)
   const [connections, setConnections] =
     useState<ConnectionsListResponse | null>(null)
+  const [installations, setInstallations] =
+    useState<ReadonlyMap<string, ClientInstallation>>(new Map())
   const [manualKeys, setManualKeys] = useState<ApiKeysListResponse | null>(null)
   const [keysOpen, setKeysOpen] = useState(false)
   const [revealed, setRevealed] = useState<Record<string, string>>({})
@@ -74,13 +75,17 @@ export function ConnectionsSection({
   const refresh = useCallback(
     async () => {
       try {
-        const [nextProxyUrl, nextConnections] = await Promise.all([
+        const [nextProxyUrl, nextConnections, nextInstallations] = await Promise.all([
           capabilities.connection.proxyUrl(),
           capabilities.connections.list(),
+          capabilities.connections.installations(),
         ])
         if (!mounted.current) return
         setProxyUrl(nextProxyUrl)
         setConnections(nextConnections)
+        setInstallations(
+          new Map(nextInstallations.map((installation) => [installation.id, installation])),
+        )
         setError(null)
       } catch (cause) {
         if (mounted.current) setError(describeError(cause))
@@ -288,95 +293,147 @@ export function ConnectionsSection({
         ) : connections.clients.length === 0 ? (
           <Note>No supported clients were detected.</Note>
         ) : (
-          <ul className="settings-list">
+          <SettingsDisclosureList>
             {connections.clients.map((connection) => {
               const credential = connection.credential
               const revealedKey = credential ? revealed[credential.id] : undefined
+              const installation = installations.get(connection.id)
+              const configurationPath =
+                connection.ownership?.target_path
+                ?? installation?.configuration_path
+                ?? null
+              const checked = connection.status === 'connected'
+              const toggleAction =
+                checked
+                  ? connection.allowed_actions.includes('disconnect')
+                    ? 'disconnect'
+                    : null
+                  : connection.allowed_actions.includes('connect')
+                    ? 'connect'
+                    : connection.allowed_actions.includes('reconnect')
+                      ? 'reconnect'
+                      : null
               return (
-                <li key={connection.id} className="settings-list__row">
-                  <div className="settings-list__content">
-                    <strong>{connection.name}</strong>
-                    <span className="settings-list__meta">
-                      {STATUS_LABELS[connection.status]}
-                    </span>
-                    {connection.detail ? (
-                      <span className="settings-list__detail">
-                        {connection.detail}
-                      </span>
-                    ) : null}
+                <SettingsDisclosure
+                  key={connection.id}
+                  title={connection.name}
+                  description={STATUS_LABELS[connection.status]}
+                  action={
+                    <Switch
+                      label={`${checked ? 'Disable' : 'Enable'} ${connection.name}`}
+                      displayLabel={null}
+                      tooltip={checked ? 'Enabled' : 'Disabled'}
+                      layout="compact"
+                      checked={checked}
+                      disabled={busy || toggleAction === null}
+                      testId={`connection-${connection.id}-toggle`}
+                      onChange={() => {
+                        if (toggleAction !== null) void act(connection, toggleAction)
+                      }}
+                    />
+                  }
+                >
+                  <FieldList>
+                    <Field
+                      label="Client"
+                      value={
+                        installation?.client_path ? (
+                          <>
+                            <code>{installation.client_path}</code>
+                            <CopyButton
+                              text={installation.client_path}
+                              about={`the ${connection.name} client path`}
+                            />
+                          </>
+                        ) : (
+                          'Not detected'
+                        )
+                      }
+                    />
+                    <Field
+                      label="Configuration"
+                      value={
+                        configurationPath ? (
+                          <>
+                            <code>{configurationPath}</code>
+                            <CopyButton
+                              text={configurationPath}
+                              about={`the ${connection.name} configuration path`}
+                            />
+                          </>
+                        ) : (
+                          'Not available'
+                        )
+                      }
+                    />
                     {connection.ownership ? (
-                      <span className="settings-list__detail">
-                        Owner: {connection.ownership.configurator_id}, process{' '}
-                        {connection.ownership.pid}
-                      </span>
-                    ) : null}
-                    {connection.recovery?.preserved_paths.length ? (
-                      <span className="settings-list__detail">
-                        Preserved {connection.recovery.preserved_paths.length}{' '}
-                        externally changed field
-                        {connection.recovery.preserved_paths.length === 1 ? '' : 's'}.
-                      </span>
+                      <Field
+                        label="Owner"
+                        value={`${connection.ownership.configurator_id}, process ${connection.ownership.pid}`}
+                      />
                     ) : null}
                     {credential ? (
-                      <div className="settings-connection-row">
-                        <span className="settings-list__meta">
-                          Managed credential · {credential.enabled ? 'Enabled' : 'Disabled'}
-                        </span>
-                        {revealedKey === undefined ? (
-                          <Button
-                            size="sm"
-                            disabled={busy}
-                            onClick={() => void revealCredential(connection)}
-                          >
-                            {busyAction === `reveal:${credential.id}`
-                              ? 'Revealing…'
-                              : 'Reveal'}
-                          </Button>
-                        ) : (
+                      <Field
+                        label="Credential"
+                        value={
                           <>
-                            <code className="settings-connection-row__value">
-                              {revealedKey}
-                            </code>
-                            <CopyButton
-                              text={revealedKey}
-                              about={`the ${connection.name} credential`}
-                            />
-                            <Button
-                              size="sm"
-                              onClick={() =>
-                                setRevealed((current) => {
-                                  const next = { ...current }
-                                  delete next[credential.id]
-                                  return next
-                                })
-                              }
-                            >
-                              Hide
-                            </Button>
+                            <span>
+                              Managed · {credential.enabled ? 'Enabled' : 'Disabled'}
+                            </span>
+                            {revealedKey === undefined ? (
+                              <Button
+                                size="sm"
+                                disabled={busy}
+                                onClick={() => void revealCredential(connection)}
+                              >
+                                {busyAction === `reveal:${credential.id}`
+                                  ? 'Revealing…'
+                                  : 'Reveal'}
+                              </Button>
+                            ) : (
+                              <>
+                                <code>{revealedKey}</code>
+                                <CopyButton
+                                  text={revealedKey}
+                                  about={`the ${connection.name} credential`}
+                                />
+                                <Button
+                                  size="sm"
+                                  onClick={() =>
+                                    setRevealed((current) => {
+                                      const next = { ...current }
+                                      delete next[credential.id]
+                                      return next
+                                    })
+                                  }
+                                >
+                                  Hide
+                                </Button>
+                              </>
+                            )}
                           </>
-                        )}
-                      </div>
+                        }
+                      />
                     ) : null}
+                  </FieldList>
+                  <div className="settings-list__content">
+                      {connection.detail ? (
+                        <span className="settings-list__detail">
+                          {connection.detail}
+                        </span>
+                      ) : null}
+                      {connection.recovery?.preserved_paths.length ? (
+                        <span className="settings-list__detail">
+                          Preserved {connection.recovery.preserved_paths.length}{' '}
+                          externally changed field
+                          {connection.recovery.preserved_paths.length === 1 ? '' : 's'}.
+                        </span>
+                      ) : null}
                   </div>
-                  <div className="settings-section__actions">
-                    {connection.allowed_actions.map((action) => (
-                      <Button
-                        key={action}
-                        size="sm"
-                        disabled={busy}
-                        onClick={() => void act(connection, action)}
-                        testId={`connection-${connection.id}-${action}`}
-                      >
-                        {busyAction === `${connection.id}:${action}`
-                          ? `${ACTION_LABELS[action]}ing…`
-                          : ACTION_LABELS[action]}
-                      </Button>
-                    ))}
-                  </div>
-                </li>
+                </SettingsDisclosure>
               )
             })}
-          </ul>
+          </SettingsDisclosureList>
         )}
       </div>
 

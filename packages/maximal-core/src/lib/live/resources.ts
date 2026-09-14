@@ -32,10 +32,26 @@ import { getModelsLoadedAtMs, state } from "~/lib/runtime-state/state"
 import { getTokenUsageSummary } from "~/lib/token-usage"
 
 export interface ProviderCatalogueModel {
+  readonly capabilities?: ReadonlyArray<string>
+  readonly contextWindowTokens?: number
+  readonly family?: string
   readonly id: string
   readonly name: string
   readonly provider: string
   readonly providerName: string
+}
+
+function providerModelType(capabilities: ReadonlySet<string>): string {
+  if (capabilities.has("embedding") && !capabilities.has("completion")) {
+    return "embeddings"
+  }
+  if (capabilities.has("video") && !capabilities.has("completion")) {
+    return "video"
+  }
+  if (capabilities.has("image") && !capabilities.has("completion")) {
+    return "image"
+  }
+  return "chat"
 }
 
 /** The `/control/accounts` body, from maximal's on-disk registry. */
@@ -90,6 +106,8 @@ function toModelSummary(model: Model): ModelSummary {
     max_output_tokens: limits.max_output_tokens ?? null,
     capabilities: {
       vision: supports.vision ?? false,
+      image_generation: false,
+      video_generation: false,
       tool_calls: supports.tool_calls ?? false,
       streaming: supports.streaming ?? false,
       reasoning:
@@ -111,20 +129,26 @@ export function buildModelsList(
     const key = `${model.providerName}\u0000${model.id}`
     if (providerModelKeys.has(key)) continue
     providerModelKeys.add(key)
+    const capabilities = new Set(model.capabilities)
+    const supportsCompletion = capabilities.has("completion")
+    const supportsImageGeneration = capabilities.has("image")
+    const supportsVideoGeneration = capabilities.has("video")
     models.push({
       id: model.id,
       name: model.name,
       vendor: model.providerName,
-      family: "",
-      type: "chat",
+      family: model.family ?? "",
+      type: providerModelType(capabilities),
       preview: false,
-      context_window_tokens: null,
+      context_window_tokens: model.contextWindowTokens ?? null,
       max_output_tokens: null,
       capabilities: {
-        vision: false,
-        tool_calls: false,
-        streaming: false,
-        reasoning: false,
+        vision: capabilities.has("vision"),
+        image_generation: supportsImageGeneration,
+        video_generation: supportsVideoGeneration,
+        tool_calls: capabilities.has("tools"),
+        streaming: supportsCompletion,
+        reasoning: capabilities.has("thinking"),
       },
     })
   }

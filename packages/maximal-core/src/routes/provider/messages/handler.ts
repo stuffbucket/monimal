@@ -3,16 +3,18 @@ import type { Context } from "hono"
 import { events } from "fetch-event-stream"
 import { streamSSE } from "hono/streaming"
 
+import type { ResolvedProviderConfig } from "~/lib/config/config"
 import type {
   AnthropicMessagesPayload,
   AnthropicResponse,
+  AnthropicStreamState,
   AnthropicStreamEventData,
 } from "~/lib/models/anthropic-types"
+import type {
+  ChatCompletionResponse,
+  ChatCompletionsPayload,
+} from "~/services/copilot/create-chat-completions"
 
-import {
-  getProviderConfig,
-  type ResolvedProviderConfig,
-} from "~/lib/config/config"
 import { HTTPError } from "~/lib/errors/error"
 import {
   asRecord,
@@ -25,27 +27,30 @@ import {
   createProviderTokenUsageRecorder,
   mergeAnthropicUsage,
   normalizeAnthropicUsage,
+  normalizeOpenAIUsage,
   type UsageTokens,
 } from "~/lib/token-usage"
+import { readChatCompletionFrame } from "~/routes/messages/api-flows"
+import {
+  translateToAnthropic,
+  translateToOpenAI,
+} from "~/routes/messages/non-stream-translation"
 import { stripUnsupportedTopLevelAnthropicFields } from "~/routes/messages/preprocess"
+import { emitStreamError } from "~/routes/messages/stream-error"
+import { translateChunkToAnthropicEvents } from "~/routes/messages/stream-translation"
 import { forwardProviderMessages } from "~/services/providers/anthropic-proxy"
+import { forwardOllamaMessages } from "~/services/providers/ollama-proxy"
+
+import { providerConfigOrError } from "../provider-config"
 
 const logger = createHandlerLogger("provider-messages-handler")
 
-export async function handleProviderMessages(c: Context): Promise<Response> {
-  const provider = c.req.param("provider") ?? ""
-  const providerConfig = getProviderConfig(provider)
-  if (!providerConfig) {
-    return c.json(
-      {
-        error: {
-          message: `Provider '${provider}' not found or disabled`,
-          type: "invalid_request_error",
-        },
-      },
-      404,
-    )
-  }
+export async function handleProviderMessages(
+  c: Context,
+  provider: string,
+): Promise<Response> {
+  const providerConfig = providerConfigOrError(c, provider)
+  if (providerConfig instanceof Response) return providerConfig
 
   try {
     const payload = await c.req.json<AnthropicMessagesPayload>()
@@ -57,6 +62,14 @@ export async function handleProviderMessages(c: Context): Promise<Response> {
     payload.top_k ??= modelConfig?.topK
 
     debugJson(logger, "provider.messages.request", { payload, provider })
+
+    if (providerConfig.type === "ollama") {
+      return await handleOllamaMessages(c, {
+        payload,
+        provider,
+        providerConfig,
+      })
+    }
 
     const upstreamResponse = await forwardProviderMessages(
       providerConfig,
@@ -97,6 +110,94 @@ export async function handleProviderMessages(c: Context): Promise<Response> {
     })
     throw error
   }
+}
+
+export async function handleOllamaMessages(
+  c: Context,
+  options: {
+    payload: AnthropicMessagesPayload
+    provider: string
+    providerConfig: Extract<ResolvedProviderConfig, { type: "ollama" }>
+  },
+): Promise<Response> {
+  const { payload, provider, providerConfig } = options
+  const upstreamResponse = await forwardOllamaMessages({
+    providerConfig,
+    payload: createOllamaChatPayload(payload),
+    requestHeaders: c.req.raw.headers,
+    signal: c.req.raw.signal,
+  })
+  if (!upstreamResponse.ok) {
+    throw new HTTPError("Ollama failed to create responses", upstreamResponse)
+  }
+
+  if (payload.stream) {
+    return streamOllamaMessages(c, {
+      payload,
+      provider,
+      upstreamResponse,
+    })
+  }
+
+  const response = (await upstreamResponse.json()) as ChatCompletionResponse
+  const recordUsage = createProviderMessagesUsageRecorder(payload, provider)
+  recordUsage(normalizeOpenAIUsage(response.usage))
+  return c.json(translateToAnthropic(response))
+}
+
+export function createOllamaChatPayload(
+  payload: AnthropicMessagesPayload,
+): ChatCompletionsPayload {
+  const translated = translateToOpenAI(payload, null)
+  delete translated.thinking_budget
+  if (translated.stream) {
+    translated.stream_options = { include_usage: true }
+  }
+  return translated
+}
+
+function streamOllamaMessages(
+  c: Context,
+  options: {
+    payload: AnthropicMessagesPayload
+    provider: string
+    upstreamResponse: Response
+  },
+): Response {
+  const { payload, provider, upstreamResponse } = options
+  const recordUsage = createProviderMessagesUsageRecorder(payload, provider)
+  return streamSSE(c, async (stream) => {
+    let usage: UsageTokens = {}
+    const state: AnthropicStreamState = {
+      messageStartSent: false,
+      contentBlockIndex: 0,
+      contentBlockOpen: false,
+      toolCalls: {},
+      thinkingBlockOpen: false,
+    }
+    try {
+      for await (const frame of events(upstreamResponse)) {
+        if (!frame.data || frame.data === "[DONE]") continue
+        const chunk = readChatCompletionFrame(frame.data)
+        if (chunk === null) continue
+        if (asRecord(chunk)?.usage) {
+          usage = normalizeOpenAIUsage(readUsage(chunk))
+        }
+        for (const event of translateChunkToAnthropicEvents(chunk, state)) {
+          await stream.writeSSE({
+            event: event.type,
+            data: JSON.stringify(event),
+          })
+        }
+      }
+    } catch (error) {
+      await emitStreamError(stream, logger, {
+        error,
+        flow: "chat_completions",
+      })
+    }
+    recordUsage(usage)
+  })
 }
 
 const streamProviderMessages = ({

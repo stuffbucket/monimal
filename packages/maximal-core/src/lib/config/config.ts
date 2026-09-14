@@ -30,6 +30,10 @@ export interface AppConfig {
     enforce?: boolean
   }
   providers?: Record<string, ProviderConfig>
+  ollama?: {
+    /** Prefer localhost when Ollama local and cloud advertise the same model. */
+    preferLocalModels?: boolean
+  }
   providerHost?: {
     mode?: "legacy" | "dsh"
     profileDirectory?: string
@@ -174,14 +178,35 @@ export interface ProviderConfig {
   adjustInputTokens?: boolean
 }
 
-export interface ResolvedProviderConfig {
+interface ResolvedProviderConfigBase {
   name: string
-  type: "anthropic"
   baseUrl: string
-  apiKey: string
   authType: ProviderAuthType
   models?: Record<string, ModelConfig>
   adjustInputTokens?: boolean
+}
+
+export interface ResolvedAnthropicProviderConfig extends ResolvedProviderConfigBase {
+  type: "anthropic"
+  apiKey: string
+}
+
+export interface ResolvedOllamaProviderConfig extends ResolvedProviderConfigBase {
+  type: "ollama"
+  apiKey?: string
+}
+
+export type ResolvedProviderConfig =
+  ResolvedAnthropicProviderConfig | ResolvedOllamaProviderConfig
+
+export const DEFAULT_OLLAMA_BASE_URL = "http://127.0.0.1:11434"
+export const DEFAULT_OLLAMA_CLOUD_BASE_URL = "https://ollama.com"
+
+function defaultOllamaBaseUrl(providerName: string): string {
+  if (providerName !== "ollama") return DEFAULT_OLLAMA_BASE_URL
+  const host = process.env.OLLAMA_HOST?.trim()
+  if (!host) return DEFAULT_OLLAMA_BASE_URL
+  return /^https?:\/\//u.test(host) ? host : `http://${host}`
 }
 
 const gpt5ExplorationPrompt = `## Exploration and reading files
@@ -534,6 +559,22 @@ export function normalizeProviderBaseUrl(url: string): string {
   return url.trim().replace(/\/+$/u, "")
 }
 
+function providerCommon(
+  providerName: string,
+  provider: ProviderConfig,
+  resolved: {
+    baseUrl: string
+    authType: ProviderAuthType
+  },
+): ResolvedProviderConfigBase {
+  return {
+    name: providerName,
+    ...resolved,
+    models: provider.models,
+    adjustInputTokens: provider.adjustInputTokens,
+  }
+}
+
 function resolveProviderAuthType(
   providerName: string,
   authType: string | undefined,
@@ -552,14 +593,63 @@ function resolveProviderAuthType(
   return "x-api-key"
 }
 
-export function getProviderConfig(name: string): ResolvedProviderConfig | null {
+function resolveOllamaProvider(
+  providerName: string,
+  provider: ProviderConfig,
+): ResolvedOllamaProviderConfig | null {
+  const baseUrl = normalizeProviderBaseUrl(
+    provider.baseUrl ?? defaultOllamaBaseUrl(providerName),
+  )
+  if (!baseUrl) {
+    consola.warn(`Provider ${providerName} is enabled but missing baseUrl`)
+    return null
+  }
+  const apiKey = provider.apiKey?.trim()
+  return {
+    ...providerCommon(providerName, provider, {
+      baseUrl,
+      authType: "authorization",
+    }),
+    type: "ollama",
+    ...(apiKey ? { apiKey } : {}),
+  }
+}
+
+function resolveAnthropicProvider(
+  providerName: string,
+  provider: ProviderConfig,
+): ResolvedAnthropicProviderConfig | null {
+  const baseUrl = normalizeProviderBaseUrl(provider.baseUrl ?? "")
+  const apiKey = provider.apiKey?.trim() ?? ""
+  if (!baseUrl || !apiKey) {
+    consola.warn(
+      `Provider ${providerName} is enabled but missing baseUrl or apiKey`,
+    )
+    return null
+  }
+  return {
+    ...providerCommon(providerName, provider, {
+      baseUrl,
+      authType: resolveProviderAuthType(providerName, provider.authType),
+    }),
+    type: "anthropic",
+    apiKey,
+  }
+}
+
+export function resolveProviderConfig(
+  config: AppConfig,
+  name: string,
+): ResolvedProviderConfig | null {
   const providerName = name.trim()
   if (!providerName) {
     return null
   }
 
-  const config = getConfig()
-  const provider = config.providers?.[providerName]
+  const configuredProvider = config.providers?.[providerName]
+  const provider =
+    configuredProvider
+    ?? (providerName === "ollama" ? { type: "ollama" } : undefined)
   if (!provider) {
     return null
   }
@@ -569,32 +659,42 @@ export function getProviderConfig(name: string): ResolvedProviderConfig | null {
   }
 
   const type = provider.type ?? "anthropic"
-  if (type !== "anthropic") {
+  if (type !== "anthropic" && type !== "ollama") {
     consola.warn(
-      `Provider ${providerName} is ignored because only anthropic type is supported`,
+      `Provider ${providerName} is ignored because type '${type}' is unsupported`,
     )
     return null
   }
+  return type === "ollama" ?
+      resolveOllamaProvider(providerName, provider)
+    : resolveAnthropicProvider(providerName, provider)
+}
 
-  const baseUrl = normalizeProviderBaseUrl(provider.baseUrl ?? "")
-  const apiKey = (provider.apiKey ?? "").trim()
-  const authType = resolveProviderAuthType(providerName, provider.authType)
-  if (!baseUrl || !apiKey) {
-    consola.warn(
-      `Provider ${providerName} is enabled but missing baseUrl or apiKey`,
-    )
-    return null
-  }
-
-  return {
-    name: providerName,
-    type,
-    baseUrl,
-    apiKey,
-    authType,
-    models: provider.models,
-    adjustInputTokens: provider.adjustInputTokens,
-  }
+export function getProviderConfig(name: string): ResolvedProviderConfig | null {
+  const config = getConfig()
+  const apiKey = process.env.OLLAMA_API_KEY?.trim()
+  const resolved =
+    (
+      name === "ollama-cloud"
+      && config.providers?.[name] === undefined
+      && apiKey
+    ) ?
+      resolveProviderConfig(
+        {
+          ...config,
+          providers: {
+            ...config.providers,
+            [name]: {
+              type: "ollama",
+              baseUrl: DEFAULT_OLLAMA_CLOUD_BASE_URL,
+            },
+          },
+        },
+        name,
+      )
+    : resolveProviderConfig(config, name)
+  if (resolved?.type !== "ollama") return resolved
+  return apiKey ? { ...resolved, apiKey } : resolved
 }
 
 export function isMessagesApiEnabled(): boolean {

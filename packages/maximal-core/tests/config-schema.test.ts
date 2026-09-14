@@ -36,6 +36,18 @@ describe("validateAppConfig", () => {
     expect(validateAppConfig(config)).toEqual(config)
   })
 
+  it("accepts an Ollama compatibility provider without credentials", () => {
+    const config = {
+      providers: {
+        ollama: {
+          type: "ollama",
+          enabled: true,
+        },
+      },
+    }
+    expect(validateAppConfig(config)).toEqual(config)
+  })
+
   it("preserves opaque provider plugin config", () => {
     const config = {
       providerHost: {

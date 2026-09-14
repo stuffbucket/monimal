@@ -11,11 +11,6 @@
       "cycleEdges": [],
       "duplicatePairs": []
     },
-    "@stuffbucket/llama-server": {
-      "root": "packages/model-runtimes/llama-server",
-      "cycleEdges": [],
-      "duplicatePairs": []
-    },
     "@stuffbucket/maximal": {
       "root": "packages/maximal",
       "cycleEdges": [],

@@ -18,6 +18,9 @@ interface ControlSessionSpies {
   authSignOut: ReturnType<typeof vi.fn>
   accountsList: ReturnType<typeof vi.fn>
   accountsSwitch: ReturnType<typeof vi.fn>
+  ollamaAccountsList: ReturnType<typeof vi.fn>
+  ollamaSettingsGet: ReturnType<typeof vi.fn>
+  ollamaSettingsUpdate: ReturnType<typeof vi.fn>
   observabilityOverview: ReturnType<typeof vi.fn>
   observabilityRequests: ReturnType<typeof vi.fn>
   observabilityRequest: ReturnType<typeof vi.fn>
@@ -146,10 +149,51 @@ const { localModelsMkdir, resolveLocalModelsPathMock } = vi.hoisted(() => ({
   resolveLocalModelsPathMock: vi.fn(() => '/resolved/local/models'),
 }))
 
-vi.mock('node:fs/promises', () => ({ mkdir: localModelsMkdir }))
+const {
+  getOllamaRuntimeStatusMock,
+  launchOllamaMock,
+  updateOllamaContextLengthMock,
+} = vi.hoisted(() => ({
+  getOllamaRuntimeStatusMock: vi.fn(async () => ({
+    installation: 'application',
+    installed: true,
+    running: true,
+    can_launch: true,
+    can_manage: true,
+    application_path: '/Applications/Ollama.app',
+    server_configuration_path: '/Users/test/.ollama/server.json',
+    desktop_settings_path: '/Users/test/Ollama/db.sqlite',
+    endpoint: 'http://127.0.0.1:11434',
+    context_length: 4096,
+  })),
+  launchOllamaMock: vi.fn(async () => ({
+    installation: 'application',
+    installed: true,
+    running: true,
+    can_launch: true,
+    can_manage: true,
+    application_path: '/Applications/Ollama.app',
+    server_configuration_path: '/Users/test/.ollama/server.json',
+    desktop_settings_path: '/Users/test/Ollama/db.sqlite',
+    endpoint: 'http://127.0.0.1:11434',
+    context_length: 4096,
+  })),
+  updateOllamaContextLengthMock: vi.fn(),
+}))
+
+vi.mock('node:fs/promises', () => ({
+  access: vi.fn(() => Promise.reject(new Error('not found'))),
+  mkdir: localModelsMkdir,
+}))
 
 vi.mock('@stuffbucket/local-model-registry', () => ({
   resolveLocalModelsPath: resolveLocalModelsPathMock,
+}))
+
+vi.mock('./ollama-runtime.js', () => ({
+  getOllamaRuntimeStatus: getOllamaRuntimeStatusMock,
+  launchOllama: launchOllamaMock,
+  updateOllamaContextLength: updateOllamaContextLengthMock,
 }))
 
 vi.mock('node-pty', () => ({ spawn: vi.fn() }))
@@ -243,6 +287,9 @@ const { createControlSessionMock, disposeControlSessionMock } = vi.hoisted(
         authSignOut: vi.fn(),
         accountsList: vi.fn(),
         accountsSwitch: vi.fn(),
+        ollamaAccountsList: vi.fn(),
+        ollamaSettingsGet: vi.fn(),
+        ollamaSettingsUpdate: vi.fn(),
         observabilityOverview: vi.fn(),
         observabilityRequests: vi.fn(),
         observabilityRequest: vi.fn(),
@@ -692,6 +739,28 @@ describe('closed IPC boundary', () => {
     expect(resolveLocalModelsPathMock).toHaveBeenCalledWith({
       suiteDataRoot: '/tmp/maximal-client-test/stuffbucket',
     })
+  })
+
+  it('routes Ollama runtime operations through the native bridge', async () => {
+    await loadIndexOn('darwin')
+    const handlerFor = (channel: string) => {
+      const registration = ipcMainHandle.mock.calls.find(
+        ([registered]) => registered === channel,
+      )
+      if (!registration) throw new Error(`${channel} IPC was not registered`)
+      return registration[1]
+    }
+
+    await handlerFor(BRIDGE_CHANNELS.ollamaRuntimeStatus)({})
+    await handlerFor(BRIDGE_CHANNELS.ollamaRuntimeLaunch)({})
+    await handlerFor(BRIDGE_CHANNELS.ollamaRuntimeUpdateContext)({}, 8192)
+
+    expect(getOllamaRuntimeStatusMock).toHaveBeenCalledOnce()
+    expect(launchOllamaMock).toHaveBeenCalledOnce()
+    expect(updateOllamaContextLengthMock).toHaveBeenCalledWith(8192)
+    expect(() =>
+      handlerFor(BRIDGE_CHANNELS.ollamaRuntimeUpdateContext)({}, '8192'),
+    ).toThrow()
   })
 
   it('uses the redacted lifecycle channel rather than the legacy channel', async () => {

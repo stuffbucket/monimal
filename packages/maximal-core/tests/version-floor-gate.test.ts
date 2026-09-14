@@ -386,6 +386,10 @@ describe("the two network knobs are separate promises", () => {
       ...original,
       checkUpdates: false,
       enforceVersionFloor: false,
+      providers: {
+        ...original.providers,
+        ollama: { type: "ollama", enabled: false },
+      },
     })
 
     await getUpdateStatus(true)
@@ -394,8 +398,7 @@ describe("the two network knobs are separate promises", () => {
     await settle()
 
     expect(calls).toBe(0)
-    // Unchanged pre-#7 behaviour: no GitHub token in the test process.
-    expect(res.status).toBe(401)
+    expect(res.status).toBe(200)
   })
 
   test("both default to on", () => {
@@ -505,21 +508,19 @@ describe("the proxy path refuses a retired build", () => {
 })
 
 describe("at or above the floor there is no effect at all", () => {
-  test("a supported build reaches the auth gate untouched", async () => {
+  test("a supported build reaches the public model catalog", async () => {
     await warmManifest(
       manifestBody({ version: "0.9.0", min: "0.6.1" }),
       "0.6.1",
     )
     const res = await publicApp.request("/v1/models")
-    // Unchanged pre-#7 behaviour: no GitHub token in the test process.
-    expect(res.status).toBe(401)
-    expect(await res.json()).toMatchObject({ error: "not_authenticated" })
+    expect(res.status).toBe(200)
   })
 
   test("a manifest with no floor is a no-op", async () => {
     await warmManifest(manifestBody({ version: "0.9.0" }), "0.0.1")
     const res = await publicApp.request("/v1/models")
-    expect(res.status).toBe(401)
+    expect(res.status).toBe(200)
   })
 
   test("an unreachable manifest is a no-op (fail-open on the request path)", async () => {
@@ -528,9 +529,7 @@ describe("at or above the floor there is no effect at all", () => {
       currentVersion: "0.0.1",
     })
     await getUpdateStatus(true)
-
     const res = await publicApp.request("/v1/models")
-    expect(res.status).toBe(401)
-    expect(await res.json()).toMatchObject({ error: "not_authenticated" })
+    expect(res.status).toBe(200)
   })
 })

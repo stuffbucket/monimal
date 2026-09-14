@@ -1,14 +1,28 @@
 import { useCallback, useEffect, useState, type ReactElement } from 'react'
+import { ChevronRight } from 'lucide-react'
 
-import { Button, Note } from 'stuffbucket-electron/renderer'
+import {
+  Button,
+  CopyButton,
+  Field,
+  FieldList,
+  FormField,
+  Note,
+  SettingsDisclosure,
+  SettingsDisclosureList,
+  Switch,
+} from 'stuffbucket-electron/renderer'
 
 import type {
   LocalModelCatalogEntry,
   LocalModelCatalogSnapshot,
   LocalModelOperationEvent,
+  OllamaRuntimeStatus,
 } from '../../shared/bridge-types'
 import type { SettingsCapabilities } from './capabilities'
+import type { OllamaSettingsResponse } from './capabilities'
 import { describeError } from './format'
+import { useSettingsNavigation } from './navigation'
 
 interface LocalModelsSectionProps {
   capabilities: SettingsCapabilities
@@ -69,8 +83,16 @@ export function LocalModelsSection({
   capabilities,
 }: LocalModelsSectionProps): ReactElement {
   const [catalogue, setCatalogue] = useState<LocalModelCatalogSnapshot | null>(null)
+  const [ollamaSettings, setOllamaSettings] =
+    useState<OllamaSettingsResponse | null>(null)
+  const [ollamaRuntime, setOllamaRuntime] =
+    useState<OllamaRuntimeStatus | null>(null)
+  const [launchingOllama, setLaunchingOllama] = useState(false)
+  const [savingContextLength, setSavingContextLength] = useState(false)
+  const [contextLength, setContextLength] = useState('')
   const [operations, setOperations] = useState<Record<string, ActiveOperation>>({})
   const [error, setError] = useState<string | null>(null)
+  const navigate = useSettingsNavigation()
 
   const refresh = useCallback(async () => {
     try {
@@ -123,10 +145,20 @@ export function LocalModelsSection({
       },
     )
 
-    void capabilities.localModels
-      .list()
-      .then((snapshot) => {
-        if (active) setCatalogue(snapshot)
+    void Promise.all([
+      capabilities.localModels.list(),
+      capabilities.ollamaSettings.get(),
+      capabilities.ollamaRuntime.status(),
+    ])
+      .then(([snapshot, settings, runtime]) => {
+        if (active) {
+          setCatalogue(snapshot)
+          setOllamaSettings(settings)
+          setOllamaRuntime(runtime)
+          setContextLength(
+            runtime.context_length === null ? '' : String(runtime.context_length),
+          )
+        }
       })
       .catch((cause: unknown) => {
         if (active) setError(describeError(cause))
@@ -137,6 +169,16 @@ export function LocalModelsSection({
       unsubscribe()
     }
   }, [capabilities, refresh])
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      void capabilities.ollamaRuntime
+        .status()
+        .then(setOllamaRuntime)
+        .catch((cause: unknown) => setError(describeError(cause)))
+    }, 5000)
+    return () => window.clearInterval(interval)
+  }, [capabilities])
 
   const openFolder = useCallback(async () => {
     setError(null)
@@ -179,80 +221,341 @@ export function LocalModelsSection({
     [capabilities],
   )
 
+  const updateOllamaPreference = useCallback(
+    async (preferLocalModels: boolean) => {
+      setError(null)
+      try {
+        setOllamaSettings(
+          await capabilities.ollamaSettings.update({
+            prefer_local_models: preferLocalModels,
+          }),
+        )
+      } catch (cause) {
+        setError(describeError(cause))
+      }
+    },
+    [capabilities],
+  )
+
+  const updateOllamaEnabled = useCallback(
+    async (localEnabled: boolean) => {
+      setError(null)
+      try {
+        setOllamaSettings(
+          await capabilities.ollamaSettings.update({
+            local_enabled: localEnabled,
+          }),
+        )
+      } catch (cause) {
+        setError(describeError(cause))
+      }
+    },
+    [capabilities],
+  )
+
+  const launchOllama = useCallback(async () => {
+    setLaunchingOllama(true)
+    setError(null)
+    try {
+      setOllamaRuntime(await capabilities.ollamaRuntime.launch())
+    } catch (cause) {
+      setError(describeError(cause))
+    } finally {
+      setLaunchingOllama(false)
+    }
+  }, [capabilities])
+
+  const saveContextLength = useCallback(async () => {
+    const value = Number(contextLength)
+    if (!Number.isSafeInteger(value)) {
+      setError('Context length must be a whole number.')
+      return
+    }
+    setSavingContextLength(true)
+    setError(null)
+    try {
+      const runtime = await capabilities.ollamaRuntime.updateContextLength(value)
+      setOllamaRuntime(runtime)
+      setContextLength(
+        runtime.context_length === null ? '' : String(runtime.context_length),
+      )
+    } catch (cause) {
+      setError(describeError(cause))
+    } finally {
+      setSavingContextLength(false)
+    }
+  }, [capabilities, contextLength])
+
+  const ollamaStatus =
+    ollamaRuntime === null ? 'Checking installation…'
+    : ollamaRuntime.running ? 'Running'
+    : ollamaRuntime.installed ? 'Installed, not running'
+    : 'Not installed'
+
   return (
     <section className="settings-section">
-      <div className="settings-section__actions">
-        <Button size="sm" onClick={() => void openFolder()}>
-          Open models folder
-        </Button>
-      </div>
-      <Note>
-        Model files stay on this device until you remove them from the models
-        folder.
-      </Note>
       {error ? (
         <Note status="failed" live="assertive">
           {error}
         </Note>
       ) : null}
-      {catalogue === null ? (
-        <Note live="polite">Loading local models…</Note>
-      ) : catalogue.models.length === 0 ? (
-        <Note>No local models are configured.</Note>
-      ) : (
-        <ul className="settings-list">
-          {catalogue.models.map((model) => {
-            const operation = operations[model.key]
-            const progress = operation === undefined ? null : progressLabel(operation)
-            const canEnsure =
-              operation === undefined &&
-              (model.state === 'registered' || model.state === 'failed')
-            return (
-              <li
-                key={model.key}
-                className="settings-list__row settings-local-model__row"
+
+      <div className="settings-subsection">
+        <h2 className="settings-section__subheading">Ollama</h2>
+        <SettingsDisclosureList>
+          <SettingsDisclosure
+            title="Ollama runtime"
+            description={ollamaStatus}
+            action={
+              <Switch
+                label={`${
+                  ollamaSettings?.local_enabled === false ? 'Enable' : 'Disable'
+                } local Ollama provider`}
+                displayLabel={null}
+                tooltip={
+                  ollamaSettings?.local_enabled === false ? 'Disabled' : 'Enabled'
+                }
+                layout="compact"
+                checked={ollamaSettings?.local_enabled ?? true}
+                disabled={ollamaSettings === null}
+                testId="local-models-ollama-enabled"
+                onChange={(enabled) => void updateOllamaEnabled(enabled)}
+              />
+            }
+          >
+            <FieldList>
+              <Field
+                label="Application"
+                value={
+                  ollamaRuntime?.application_path ? (
+                    <>
+                      <code>{ollamaRuntime.application_path}</code>
+                      <CopyButton
+                        text={ollamaRuntime.application_path}
+                        about="the Ollama application path"
+                      />
+                    </>
+                  ) : (
+                    'Not detected'
+                  )
+                }
+              />
+              <Field
+                label="Endpoint"
+                value={
+                  ollamaRuntime ? (
+                    <>
+                      <code>{ollamaRuntime.endpoint}</code>
+                      <CopyButton
+                        text={ollamaRuntime.endpoint}
+                        about="the Ollama endpoint"
+                      />
+                    </>
+                  ) : (
+                    'Checking…'
+                  )
+                }
+              />
+              <Field
+                label="Server configuration"
+                value={
+                  ollamaRuntime ? (
+                    <>
+                      <code>{ollamaRuntime.server_configuration_path}</code>
+                      <CopyButton
+                        text={ollamaRuntime.server_configuration_path}
+                        about="the Ollama server configuration path"
+                      />
+                    </>
+                  ) : (
+                    'Checking…'
+                  )
+                }
+              />
+              <Field
+                label="Desktop settings"
+                value={
+                  ollamaRuntime?.desktop_settings_path ? (
+                    <>
+                      <code>{ollamaRuntime.desktop_settings_path}</code>
+                      <CopyButton
+                        text={ollamaRuntime.desktop_settings_path}
+                        about="the Ollama desktop settings path"
+                      />
+                    </>
+                  ) : (
+                    'Not available'
+                  )
+                }
+              />
+            </FieldList>
+            {ollamaRuntime !== null && ollamaRuntime.context_length !== null ? (
+              <FormField
+                label="Context window"
+                hint="Ollama applies this setting to newly loaded models. Larger values use more memory."
               >
-                <div className="settings-list__content settings-local-model__content">
-                  <strong>{model.displayName}</strong>
-                  <code>{model.modelId}</code>
-                  <span className="settings-list__meta">
-                    {model.format.toUpperCase()} · {formatBytes(model.expectedBytes)} ·{' '}
-                    {model.state}
-                  </span>
+                {(control) => (
+                  <div className="settings__row settings__row--bottom">
+                    <input
+                      {...control}
+                      className="input"
+                      type="number"
+                      min={512}
+                      step={512}
+                      value={contextLength}
+                      disabled={savingContextLength}
+                      onChange={(event) => setContextLength(event.target.value)}
+                    />
+                    <Button
+                      size="sm"
+                      disabled={savingContextLength}
+                      onClick={() => void saveContextLength()}
+                    >
+                      {savingContextLength ? 'Saving…' : 'Save'}
+                    </Button>
+                  </div>
+                )}
+              </FormField>
+            ) : null}
+            <div className="settings-field">
+              {ollamaRuntime?.installed ? (
+                <span className="settings-list__detail">
+                  Detected the Ollama{' '}
+                  {ollamaRuntime.installation === 'application'
+                    ? 'desktop app'
+                    : 'command-line tool'}.
+                </span>
+              ) : ollamaRuntime === null ? null : (
+                <span className="settings-list__detail">
+                  Ollama may still be available on another device or endpoint.
+                </span>
+              )}
+            </div>
+              {ollamaSettings ? (
+                <div className="settings-field">
+                  <Switch
+                    label="Prefer local Ollama models"
+                    checked={ollamaSettings.prefer_local_models}
+                    onChange={(next) => void updateOllamaPreference(next)}
+                    testId="local-models-prefer-ollama-local"
+                  />
                   <span className="settings-list__detail">
-                    {publicationLabel(model)}
+                    When Ollama offers the same model locally and in the cloud,
+                    use the local copy first.
                   </span>
-                  {progress ? (
-                    <span className="settings-list__detail" aria-live="polite">
-                      {progress}
+                </div>
+              ) : null}
+              <div className="settings-section__actions">
+                <Button
+                  size="sm"
+                  onClick={() => navigate('settings-account-heading')}
+                >
+                  Edit account…
+                </Button>
+                {ollamaRuntime?.can_launch ? (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    disabled={launchingOllama}
+                    onClick={() => void launchOllama()}
+                  >
+                    {launchingOllama
+                      ? 'Opening…'
+                      : ollamaRuntime.can_manage
+                        ? 'Open Ollama'
+                        : 'Start Ollama'}
+                  </Button>
+                ) : ollamaRuntime?.installed === false ? (
+                  <Button
+                    size="sm"
+                    onClick={() =>
+                      void capabilities.openExternal('https://ollama.com/download')
+                    }
+                  >
+                    Get Ollama
+                  </Button>
+                ) : null}
+              </div>
+          </SettingsDisclosure>
+        </SettingsDisclosureList>
+      </div>
+
+      <div className="settings-subsection">
+        <h2 className="settings-section__subheading">Models hosted by Maximal</h2>
+        <Note>
+          Bundled providers store their model files on this device until you
+          remove them from the models folder.
+        </Note>
+        <div className="settings-section__actions">
+          <Button size="sm" onClick={() => void openFolder()}>
+            Open models folder
+          </Button>
+        </div>
+        {catalogue === null ? (
+          <Note live="polite">Loading local models…</Note>
+        ) : catalogue.models.length === 0 ? (
+          <Note>No bundled local models are configured.</Note>
+        ) : (
+          <div className="settings-disclosure-list">
+            {catalogue.models.map((model) => {
+              const operation = operations[model.key]
+              const progress = operation === undefined ? null : progressLabel(operation)
+              const canEnsure =
+                operation === undefined &&
+                (model.state === 'registered' || model.state === 'failed')
+              return (
+                <details key={model.key} className="settings-disclosure-card">
+                  <summary>
+                    <ChevronRight
+                      className="settings-disclosure-card__chevron"
+                      size={16}
+                      aria-hidden="true"
+                    />
+                    <span className="settings-disclosure-card__summary">
+                      <strong>{model.displayName}</strong>
+                      <span className="settings-list__meta">{model.state}</span>
                     </span>
-                  ) : null}
-                </div>
-                <div className="settings-local-model__actions">
-                  {operation !== undefined ? (
-                    <Button
-                      size="sm"
-                      onClick={() =>
-                        void cancel(model.key, operation.operationId)
-                      }
-                    >
-                      Cancel
-                    </Button>
-                  ) : canEnsure ? (
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      onClick={() => void ensure(model.key)}
-                    >
-                      Download
-                    </Button>
-                  ) : null}
-                </div>
-              </li>
-            )
-          })}
-        </ul>
-      )}
+                  </summary>
+                  <div className="settings-disclosure-card__body">
+                    <code>{model.modelId}</code>
+                    <span className="settings-list__meta">
+                      {model.format.toUpperCase()} · {formatBytes(model.expectedBytes)}
+                    </span>
+                    <span className="settings-list__detail">
+                      {publicationLabel(model)}
+                    </span>
+                    {progress ? (
+                      <span className="settings-list__detail" aria-live="polite">
+                        {progress}
+                      </span>
+                    ) : null}
+                    <div className="settings-section__actions">
+                      {operation !== undefined ? (
+                        <Button
+                          size="sm"
+                          onClick={() =>
+                            void cancel(model.key, operation.operationId)
+                          }
+                        >
+                          Cancel
+                        </Button>
+                      ) : canEnsure ? (
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={() => void ensure(model.key)}
+                        >
+                          Download
+                        </Button>
+                      ) : null}
+                    </div>
+                  </div>
+                </details>
+              )
+            })}
+          </div>
+        )}
+      </div>
     </section>
   )
 }

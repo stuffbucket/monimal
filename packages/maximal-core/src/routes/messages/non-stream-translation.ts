@@ -39,9 +39,13 @@ type MappableContentBlock =
 // Payload translation
 export function translateToOpenAI(
   payload: AnthropicMessagesPayload,
+  selectedModel?: Model | null,
 ): ChatCompletionsPayload {
   const modelId = payload.model
-  const model = state.models?.data.find((m) => m.id === modelId)
+  const model =
+    selectedModel === undefined ?
+      state.models?.data.find((m) => m.id === modelId)
+    : (selectedModel ?? undefined)
   const thinkingBudget = getThinkingBudget(payload, model)
   return {
     model: modelId,

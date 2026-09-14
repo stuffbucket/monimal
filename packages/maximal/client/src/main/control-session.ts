@@ -41,6 +41,12 @@ import {
   type DiagnosticsResponse,
   ModelsListResponse as ModelsListResponseSchema,
   type ModelsListResponse,
+  OllamaAccountsListResponse as OllamaAccountsListResponseSchema,
+  type OllamaAccountsListResponse,
+  OllamaSettingsResponse as OllamaSettingsResponseSchema,
+  type OllamaSettingsResponse,
+  OllamaSettingsUpdateRequest as OllamaSettingsUpdateRequestSchema,
+  type OllamaSettingsUpdateRequest,
   type SearchProviderValidationRequest,
   SearchProviderValidationResponse as SearchProviderValidationResponseSchema,
   type SearchProviderValidationResponse,
@@ -83,6 +89,9 @@ type ControlMethod =
   | 'auth/signOut'
   | 'accounts/list'
   | 'accounts/switch'
+  | 'ollamaAccounts/list'
+  | 'ollamaSettings/get'
+  | 'ollamaSettings/update'
   | 'observability/overview'
   | 'observability/requests'
   | 'observability/request'
@@ -141,6 +150,11 @@ export interface ControlSession {
   authSignOut(): Promise<ControlResult<null>>
   accountsList(): Promise<ControlResult<AccountsListResponse>>
   accountsSwitch(key: string): Promise<ControlResult<null>>
+  ollamaAccountsList(): Promise<ControlResult<OllamaAccountsListResponse>>
+  ollamaSettingsGet(): Promise<ControlResult<OllamaSettingsResponse>>
+  ollamaSettingsUpdate(
+    input: OllamaSettingsUpdateRequest,
+  ): Promise<ControlResult<OllamaSettingsResponse>>
   observabilityOverview(
     query: TrafficOverviewQuery,
   ): Promise<ControlResult<TrafficOverview>>
@@ -193,6 +207,9 @@ const optionalMethods = [
   'auth/cancel',
   'accounts/list',
   'accounts/switch',
+  'ollamaAccounts/list',
+  'ollamaSettings/get',
+  'ollamaSettings/update',
   'observability/overview',
   'observability/requests',
   'observability/request',
@@ -600,6 +617,20 @@ export function createControlSession(
         accountsSwitchResultSchema.parse(input)
         return null
       }, { key }),
+    ollamaAccountsList: () =>
+      call(
+        'ollamaAccounts/list',
+        parseWith(OllamaAccountsListResponseSchema),
+      ),
+    ollamaSettingsGet: () =>
+      call('ollamaSettings/get', parseWith(OllamaSettingsResponseSchema)),
+    ollamaSettingsUpdate: (input) =>
+      call(
+        'ollamaSettings/update',
+        parseWith(OllamaSettingsResponseSchema),
+        input,
+        parseWith(OllamaSettingsUpdateRequestSchema),
+      ),
     observabilityOverview: (query) =>
       call(
         'observability/overview',

@@ -28,7 +28,6 @@ repository or imported commit:
 | `packages/maximal-observability`          | Renderer-only traffic explorer components and source interface.                           |
 | `packages/maximal-context-window`         | Renderer-only context-window derivation and visualization components.                      |
 | `packages/model-runtimes/anthropic`       | Profile-installed adapter for Anthropic-compatible Messages APIs.                         |
-| `packages/model-runtimes/llama-server`    | Private descriptor scaffold for a llama.cpp HTTP model runtime.                           |
 | `packages/model-runtimes/omlx`            | Profile-installed adapter for an independently running oMLX model runtime.                |
 
 ## Rules
@@ -207,11 +206,6 @@ package provenance or publisher identity -- the proxy does that.
   stock Cordis/DSH adapter for an independently running oMLX HTTP server. Cordis
   and DSH are exact peers of external model runtime packages and are loaded from
   a user-managed profile rather than compiled into Maximal.
-  `packages/model-runtimes/llama-server` is an activation-gated Cordis/DSH
-  runner for a private standalone llama.cpp process. Packaging fails until its
-  runtime lock contains an authoritative entry for the target. It remains
-  separate from the client's transitional embedded `node-llama-cpp` utility
-  process.
 - Pin rule SETS, not just plugin versions, when a plugin major moves. The
   replaced preset enumerated 83 unicorn rules against unicorn 60; ESLint 10
   needs unicorn >= 73, whose `recommended` turns on 227 more. Taking

@@ -3,6 +3,7 @@ import type {
   ConnectionEntry,
   ConnectionsListResponse,
 } from '@stuffbucket/maximal-core/settings-types'
+import { TooltipProvider } from '@radix-ui/react-tooltip'
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -69,6 +70,13 @@ function fakeCapabilities() {
       id,
       key: 'managed-secret-value',
     })),
+    installations: vi.fn(async () => [
+        {
+          id: 'claude-code',
+          client_path: '/usr/local/bin/claude',
+          configuration_path: '/home/maximal/.claude/settings.json',
+        },
+      ]),
   }
   const apiKeys = {
     list: vi.fn(async () => ({
@@ -117,7 +125,11 @@ async function renderConnections(
 ): Promise<HTMLElement> {
   if (root === null || container === null) throw new Error('test root not ready')
   await act(async () => {
-    root?.render(<ConnectionsSection capabilities={capabilities} />)
+    root?.render(
+      <TooltipProvider>
+        <ConnectionsSection capabilities={capabilities} />
+      </TooltipProvider>,
+    )
     await Promise.resolve()
   })
   return container
@@ -149,10 +161,17 @@ describe('ConnectionsSection', () => {
     expect(surface.textContent).toContain('http://127.0.0.1:4173/v1')
     expect(surface.textContent).toContain('Claude Code')
     expect(surface.textContent).toContain('Connected')
-    expect(surface.textContent).toContain('Managed credential · Enabled')
+    expect(surface.textContent).toContain('Managed · Enabled')
     expect(surface.textContent).toContain('1 credential')
     expect(surface.textContent).toContain('Require known keys')
     expect(surface.textContent).toContain('anonymous local requests are allowed')
+    expect(surface.querySelectorAll('.settings-disclosure')).toHaveLength(1)
+    expect(
+      surface.querySelector('.settings-disclosure > summary')?.textContent,
+    ).toContain('Claude Code')
+    expect(surface.querySelector('.settings-disclosure')?.hasAttribute('open')).toBe(
+      false,
+    )
     expect(surface.textContent).not.toContain('managed-secret-value')
     expect(surface.textContent).not.toContain(manualKey.key)
     expect(apiKeys.list).not.toHaveBeenCalled()
@@ -161,6 +180,11 @@ describe('ConnectionsSection', () => {
   it('reveals a managed credential only after an explicit action', async () => {
     const { capabilities, connections } = fakeCapabilities()
     const surface = await renderConnections(capabilities)
+
+    const card = surface.querySelector<HTMLDetailsElement>('.settings-disclosure')
+    if (card === null) throw new Error('connection disclosure was not rendered')
+    act(() => card.querySelector('summary')?.click())
+    expect(card.open).toBe(true)
 
     await act(async () => button(surface, 'Reveal').click())
 
@@ -175,14 +199,16 @@ describe('ConnectionsSection', () => {
     const surface = await renderConnections(capabilities)
 
     await act(async () =>
-      control(surface, 'connection-claude-code-disconnect').click(),
+      control(surface, 'connection-claude-code-toggle').click(),
     )
 
     expect(connections.act).toHaveBeenCalledWith('claude-code', 'disconnect')
     expect(surface.textContent).toContain('Available')
     expect(
-      surface.querySelector('[data-testid="connection-claude-code-connect"]'),
-    ).not.toBeNull()
+      surface
+        .querySelector('[data-testid="connection-claude-code-toggle"]')
+        ?.getAttribute('aria-checked'),
+    ).toBe('false')
   })
 
   it('changes protected mode through the advanced control', async () => {
