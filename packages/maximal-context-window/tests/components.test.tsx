@@ -59,6 +59,11 @@ describe("ContextWindowSessionPanel", () => {
     expect(
       container.querySelector(".mcw-grid")?.getAttribute("aria-label"),
     ).toContain("Input: 90 tokens")
+    expect(
+      container
+        .querySelector(".mcw-turn-bar-track")
+        ?.getAttribute("aria-label"),
+    ).toContain("Input: 90 tokens")
   })
 
   it("switches the displayed turn when a turn picker button is pressed", () => {

@@ -2,11 +2,12 @@ import { FormField, Select } from "@stuffbucket/maximal-electron/renderer"
 import { useState } from "react"
 
 import {
-  CONTEXT_GRID_COLUMNS,
   deriveContextGrid,
+  deriveTurnComposition,
   type ContextGrid,
   type ContextGridCategory,
   type ContextSession,
+  type TurnComposition,
 } from "./context-window.ts"
 import {
   formatCount,
@@ -59,6 +60,7 @@ function ContextWindowTurns({ session }: { session: ContextSession }) {
   const turn = session.turns[selectedIndex] ?? session.turns.at(-1)
   if (!turn) return null
   const grid = deriveContextGrid({ request: turn })
+  const composition = deriveTurnComposition(turn)
 
   return (
     <>
@@ -70,6 +72,7 @@ function ContextWindowTurns({ session }: { session: ContextSession }) {
           onSelect={setSelectedIndex}
         />
       )}
+      <TurnCompositionBar turn={turn} composition={composition} />
       <ContextGridView turn={turn} grid={grid} />
     </>
   )
@@ -218,6 +221,51 @@ function TurnPicker({
   )
 }
 
+/**
+ * This turn's own token composition, scaled to itself rather than to the
+ * context window, so a small turn stays legible instead of vanishing
+ * against the full-window grid below.
+ */
+function TurnCompositionBar({
+  turn,
+  composition,
+}: {
+  turn: Turn
+  composition: TurnComposition | null
+}) {
+  if (!composition) return null
+
+  const summaryLabel = composition.segments
+    .map(
+      (segment) =>
+        `${CATEGORY_LABELS[segment.category]}: ${formatCount(segment.tokens)} tokens`,
+    )
+    .join(", ")
+
+  return (
+    <div className="mcw-turn-bar">
+      <h3>This turn</h3>
+      <div
+        className="mcw-turn-bar-track"
+        role="img"
+        aria-label={`This turn's own tokens: ${summaryLabel}`}
+      >
+        {composition.segments.map((segment) => (
+          <span
+            key={segment.category}
+            className={`mcw-turn-bar-segment mcw-cell--${segment.category}`}
+            style={{ flexGrow: segment.tokens / composition.totalTokens }}
+          />
+        ))}
+      </div>
+      <span className="mcw-turn-bar-total">
+        {formatTokensCompact(composition.totalTokens)} tokens ·{" "}
+        {formatTimestamp(turn.timing.acceptedAt)}
+      </span>
+    </div>
+  )
+}
+
 function ContextGridView({
   turn,
   grid,
@@ -233,7 +281,6 @@ function ContextGridView({
     )
   }
 
-  const cellCategories = flattenSegments(grid)
   const summaryLabel = grid.segments
     .filter((segment) => segment.tokens > 0)
     .map(
@@ -255,15 +302,16 @@ function ContextGridView({
         role="img"
         aria-label={`Context window contents: ${summaryLabel}`}
         style={{
-          gridTemplateColumns: `repeat(${String(CONTEXT_GRID_COLUMNS)}, 1fr)`,
+          gridTemplateColumns: `repeat(${String(grid.columns)}, 1fr)`,
         }}
       >
-        {cellCategories.map((category, index) => (
-          <span
-            key={index}
-            className={`mcw-cell mcw-cell--${category}`}
-            aria-hidden="true"
-          />
+        {grid.cells.map((cell, index) => (
+          <span key={index} className="mcw-cell" aria-hidden="true">
+            <span className={`mcw-cell-half mcw-cell--${cell.left.category}`} />
+            <span
+              className={`mcw-cell-half mcw-cell--${cell.right.category}`}
+            />
+          </span>
         ))}
       </div>
       <ul className="mcw-legend">
@@ -285,14 +333,4 @@ function ContextGridView({
       </ul>
     </section>
   )
-}
-
-function flattenSegments(grid: ContextGrid): Array<ContextGridCategory> {
-  const categories: Array<ContextGridCategory> = []
-  for (const segment of grid.segments) {
-    for (let index = 0; index < segment.cells; index += 1) {
-      categories.push(segment.category)
-    }
-  }
-  return categories
 }

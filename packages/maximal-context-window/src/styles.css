@@ -92,6 +92,43 @@
   color: var(--shell-text);
 }
 
+/* This-turn composition: a single proportional bar, always full width,
+   scaled to the turn's own tokens rather than the context window, so a
+   small turn stays legible. */
+
+.mcw-turn-bar {
+  display: grid;
+  gap: var(--shell-space-1, 0.25rem);
+}
+
+.mcw-turn-bar h3 {
+  margin: 0;
+  color: var(--shell-text-muted);
+  font-size: var(--shell-text-xs);
+  font-weight: var(--shell-weight-md);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.mcw-turn-bar-track {
+  display: flex;
+  overflow: hidden;
+  height: 0.85rem;
+  border: 1px solid var(--shell-border-strong, var(--shell-border));
+  border-radius: var(--shell-radius-small, 0.25rem);
+}
+
+.mcw-turn-bar-segment {
+  flex-shrink: 0;
+  min-width: 2px;
+  height: 100%;
+}
+
+.mcw-turn-bar-total {
+  color: var(--shell-text-muted);
+  font-size: var(--shell-text-xs);
+}
+
 /* Context window grid: one large map of cells representing the full context
    window for the selected turn, filled in the order it actually fills. */
 
@@ -111,16 +148,24 @@
 
 .mcw-grid {
   display: grid;
-  grid-auto-rows: 0.5rem;
-  gap: 1px;
+  grid-auto-rows: 0.85rem;
+  gap: 2px;
   overflow: hidden;
   border: 1px solid var(--shell-border-strong, var(--shell-border));
   border-radius: var(--shell-radius-small, 0.25rem);
   background: var(--shell-border);
-  padding: 1px;
+  padding: 2px;
 }
 
 .mcw-cell {
+  display: flex;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 1px;
+}
+
+.mcw-cell-half {
+  flex: 1 1 0;
   min-width: 0;
 }
 
@@ -203,7 +248,8 @@
 
 @media (forced-colors: active) {
   .mcw-capacity-bar,
-  .mcw-cell,
+  .mcw-cell-half,
+  .mcw-turn-bar-segment,
   .mcw-legend-swatch {
     border: 1px solid CanvasText;
     forced-color-adjust: none;
