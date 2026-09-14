@@ -184,34 +184,45 @@
 /* Content categories (parts of a turn's input), in the order they
    typically appear in a real context window: system prompt, tool
    definitions, MCP definitions, skills, then the user-facing conversation.
-   Each category gets a genuinely different hue (mixed from a different pair
-   of the published accent/warning/danger/text colors) rather than a
-   lighter/darker tint of the same hue as its neighbor, so adjacent
-   "structural" categories stay distinguishable at a glance instead of
-   collapsing into one indistinct blue. Colors are derived with color-mix()
-   rather than new literal colors. */
+   The shell contract exposes only three hue-bearing colors (accent/blue,
+   warning/amber, danger/red) plus neutrals. Blending two of them in sRGB
+   (a straight channel average) always cuts across the "short way" of the
+   color wheel, landing on a muddy in-between (violet, tan, orange) that
+   sits close to its neighbors instead of a genuinely distinct hue. To get
+   a fourth, well-separated hue without introducing a new literal color,
+   `tools` is mixed in OKLCH going the *long* way around the wheel (from
+   blue, away from red rather than toward it), which lands on green. The
+   four structural categories then read as four unrelated hues - blue,
+   green, amber, red - rather than a gradient. */
 
 .mcw-cell--system {
   background-color: var(--shell-accent);
 }
 
 .mcw-cell--tools {
-  /* Blue toward the app's foreground: a cooler, desaturated slate. */
-  background-color: color-mix(in srgb, var(--shell-accent) 55%, var(--shell-text));
+  /* Blue, rotated the long way around the wheel (away from red): green. */
+  background-color: color-mix(
+    in oklch longer hue,
+    var(--shell-accent) 50%,
+    var(--shell-danger) 50%
+  );
 }
 
 .mcw-cell--mcp {
-  /* Blue toward amber: a teal/green-leaning hue. */
-  background-color: color-mix(in srgb, var(--shell-accent) 55%, var(--shell-warning));
+  background-color: var(--shell-warning);
 }
 
 .mcw-cell--skills {
-  /* Blue toward red: a violet-leaning hue. */
-  background-color: color-mix(in srgb, var(--shell-accent) 55%, var(--shell-danger));
+  background-color: var(--shell-danger);
 }
 
+/* User input and output/reserved-output reuse the amber/red hues (there are
+   only three to go around), but at reduced strength, both so they read as
+   less intense/saturated and so a large solid span of conversation content
+   doesn't visually collide with the small structural swatches that share
+   its hue. */
 .mcw-cell--userInput {
-  background-color: var(--shell-warning);
+  background-color: color-mix(in srgb, var(--shell-warning) 65%, var(--shell-canvas) 35%);
 }
 
 /* "Other" is the honest fallback used whenever a real request can't be
@@ -223,21 +234,22 @@
 }
 
 .mcw-cell--output {
-  background-color: var(--shell-danger);
+  background-color: color-mix(in srgb, var(--shell-danger) 65%, var(--shell-canvas) 35%);
 }
 
 /* Reserved output is capacity set aside for a future response, not content
    that was actually sent or received, so it is rendered as a dotted texture
-   over the danger hue rather than a plain lighter shade that could be
+   over a dimmer danger hue rather than a plain lighter shade that could be
    mistaken for a smaller amount of actual output. */
 .mcw-cell--reserved {
-  background-color: color-mix(in srgb, var(--shell-danger) 40%, var(--shell-canvas));
+  background-color: color-mix(in srgb, var(--shell-danger) 30%, var(--shell-canvas) 70%);
   background-image: radial-gradient(
     color-mix(in srgb, var(--shell-canvas) 75%, transparent) 32%,
     transparent 32%
   );
   background-size: 4px 4px;
 }
+
 
 .mcw-cell--free {
   background-color: var(--shell-canvas);
