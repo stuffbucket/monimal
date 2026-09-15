@@ -37,6 +37,10 @@ interface TerminalTabsCommonProps {
   launchSplit?: () => Promise<{ sessionId: string }>;
   onExit?: (tabId: string) => void;
   onSessionsChange?: (tabId: string, sessionIds: string[]) => void;
+  onPaneChange?: (tabId: string, pane: TerminalPane, baseRevision: number) => void;
+  initialPane?: TerminalPane;
+  initialPanes?: ReadonlyMap<string, TerminalPane>;
+  paneRevisions?: ReadonlyMap<string, number>;
   onTitleChange?: (tabId: string, title: string) => void;
 }
 
@@ -65,6 +69,9 @@ interface TerminalAttachmentViewProps {
   launchSplit?: () => Promise<{ sessionId: string }>;
   onExit?: (tabId: string) => void;
   onSessionsChange?: (tabId: string, sessionIds: string[]) => void;
+  onPaneChange?: (tabId: string, pane: TerminalPane, baseRevision: number) => void;
+  initialPane?: TerminalPane;
+  initialPaneRevision?: number;
   onTitleChange?: (tabId: string, title: string) => void;
   session:
     | { disposition: 'terminate'; transport: TerminalTransport }
@@ -80,16 +87,37 @@ function TerminalAttachmentView({
   launchSplit,
   onExit,
   onSessionsChange,
+  onPaneChange,
+  initialPane,
+  initialPaneRevision = 0,
   onTitleChange,
   session,
 }: TerminalAttachmentViewProps) {
-  const [pane, setPane] = useState<TerminalPane>({ sessionId: attachment.sessionId });
+  const [paneState, setPaneState] = useState(() => ({
+    pane: initialPane ?? { sessionId: attachment.sessionId },
+    revision: initialPaneRevision,
+  }));
+  const pane = paneState.pane;
   const paneRef = useRef(pane);
+  const paneRevisionRef = useRef(paneState.revision);
+  const callbacks = useRef({ onPaneChange, onSessionsChange });
   const mountGeneration = useRef(0);
   const [focusedId, setFocusedId] = useState(attachment.sessionId);
+  const [focusRequest, setFocusRequest] = useState({ sessionId: '', generation: 0 });
   const splitPending = useRef(false);
   const [splitFailed, setSplitFailed] = useState(false);
   paneRef.current = pane;
+  paneRevisionRef.current = paneState.revision;
+  callbacks.current = { onPaneChange, onSessionsChange };
+
+  useEffect(() => {
+    if (!initialPane) return;
+    setPaneState((current) =>
+      initialPaneRevision > current.revision
+        ? { pane: initialPane, revision: initialPaneRevision }
+        : current,
+    );
+  }, [initialPane, initialPaneRevision]);
 
   useEffect(() => {
     const generation = mountGeneration.current + 1;
@@ -105,15 +133,31 @@ function TerminalAttachmentView({
   }, [session.disposition, session.transport]);
 
   useEffect(() => {
-    onSessionsChange?.(attachment.id, terminalPaneSessionIds(pane));
-  }, [attachment.id, onSessionsChange, pane]);
+    callbacks.current.onSessionsChange?.(attachment.id, terminalPaneSessionIds(pane));
+  }, [attachment.id, pane]);
+
+  function commitPane(update: (current: TerminalPane) => TerminalPane): void {
+    const pane = update(paneRef.current);
+    const revision = paneRevisionRef.current;
+    paneRef.current = pane;
+    setPaneState({ pane, revision });
+    callbacks.current.onPaneChange?.(attachment.id, pane, revision);
+  }
+
+  function requestPaneFocus(sessionId: string): void {
+    setFocusedId(sessionId);
+    setFocusRequest((current) => ({
+      sessionId,
+      generation: current.generation + 1,
+    }));
+  }
 
   function navigateSplit(fromId: string, direction: 'previous' | 'next'): void {
     const ids = terminalPaneSessionIds(pane);
     if (ids.length < 2) return;
     const index = ids.indexOf(fromId);
     const offset = direction === 'previous' ? -1 : 1;
-    setFocusedId(ids[(index + offset + ids.length) % ids.length] ?? fromId);
+    requestPaneFocus(ids[(index + offset + ids.length) % ids.length] ?? fromId);
   }
 
   function exitPane(sessionId: string): void {
@@ -123,8 +167,8 @@ function TerminalAttachmentView({
       return;
     }
     const ids = terminalPaneSessionIds(remaining);
-    setPane(remaining);
-    if (focusedId === sessionId) setFocusedId(ids[0]!);
+    commitPane(() => remaining);
+    if (focusedId === sessionId) requestPaneFocus(ids[0]!);
   }
 
   function renderPane(current: TerminalPane, path: string): React.ReactNode {
@@ -139,9 +183,10 @@ function TerminalAttachmentView({
           theme={theme}
           disposition="preserve"
           transport={session.transport}
+          focusRequest={focusRequest.sessionId === sessionId ? focusRequest.generation : 0}
           focused={focusedId === sessionId}
           focusIndicator={terminalPaneSessionIds(pane).length > 1}
-          onFocus={() => setFocusedId(sessionId)}
+          onActivate={() => setFocusedId(sessionId)}
           onExit={() => exitPane(sessionId)}
           onSplit={launchSplit ? (direction) => {
             if (splitPending.current) return;
@@ -149,8 +194,9 @@ function TerminalAttachmentView({
             setSplitFailed(false);
             void launchSplit()
               .then((result) => {
-                setPane((existing) => splitTerminalPane(existing, sessionId, direction, result.sessionId));
-                setFocusedId(result.sessionId);
+                commitPane((existing) =>
+                  splitTerminalPane(existing, sessionId, direction, result.sessionId));
+                requestPaneFocus(result.sessionId);
               })
               .catch(() => setSplitFailed(true))
               .finally(() => {
@@ -217,7 +263,11 @@ export function TerminalTabs(props: TerminalTabsProps) {
     launchSplit,
     onExit,
     onSessionsChange,
+    onPaneChange,
     onTitleChange,
+    initialPane,
+    initialPanes,
+    paneRevisions,
   } = props;
   const attachments = props.attachments ?? props.ids.map((id) => ({ id, sessionId: id }));
   const session =
@@ -238,6 +288,9 @@ export function TerminalTabs(props: TerminalTabsProps) {
             launchSplit={launchSplit}
             onExit={onExit}
             onSessionsChange={onSessionsChange}
+            onPaneChange={onPaneChange}
+            initialPane={initialPanes?.get(attachment.id) ?? initialPane}
+            initialPaneRevision={paneRevisions?.get(attachment.id)}
             onTitleChange={onTitleChange}
             session={session}
           />

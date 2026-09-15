@@ -489,6 +489,7 @@ describe('named control operations', () => {
             'subscriptions/listen',
             'searchSettings/get',
             'searchSettings/update',
+            'searchSettings/validateProvider',
           ],
           feed: true,
         },
@@ -497,6 +498,10 @@ describe('named control operations', () => {
     const live = fullLiveClient({
       'searchSettings/get': searchSettings,
       'searchSettings/update': searchSettings,
+      'searchSettings/validateProvider': {
+        status: 'invalid',
+        fieldErrors: { apiKey: 'API key was rejected.' },
+      },
     })
     const harness = createHarness({ clients: [discover, live] })
     const update = { settings: { fallback: false } }
@@ -508,9 +513,22 @@ describe('named control operations', () => {
     await expect(
       harness.session.searchSettingsUpdate(update),
     ).resolves.toEqual({ ok: true, value: searchSettings })
+    await expect(
+      harness.session.searchProviderValidate({ providerId: 'ollama' }),
+    ).resolves.toEqual({
+      ok: true,
+      value: {
+        status: 'invalid',
+        fieldErrors: { apiKey: 'API key was rejected.' },
+      },
+    })
     expect(live.calls).toEqual([
       { method: 'searchSettings/get' },
       { method: 'searchSettings/update', params: update },
+      {
+        method: 'searchSettings/validateProvider',
+        params: { providerId: 'ollama' },
+      },
     ])
   })
 

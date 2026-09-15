@@ -312,7 +312,7 @@ const config: ForgeConfig = {
      *
      * Forge's Vite plugin normally sets this to "keep only `/.vite`", because
      * it assumes every dependency is bundled. That assumption breaks for a
-     * native module: `node-pty` stays external (see `vite.main.config.ts`), so
+    * native module: `node-pty` stays external (see `vite.main.config.mts`), so
      * it has to be copied in as real files.
      *
      * The plugin defers to an `ignore` set here, so this replaces its default
@@ -328,6 +328,7 @@ const config: ForgeConfig = {
       // recording tools can drive it, and dropped here so a user never
       // installs it. `scripts/verify-package.mjs` asserts it is absent.
       if (file.startsWith('/.vite/renderer/demo_window')) return true;
+      if (file.startsWith('/.vite/renderer/terminal_lab_window')) return true;
 
       const keep = [
         '/.vite',
@@ -377,23 +378,24 @@ const config: ForgeConfig = {
       build: [
         {
           entry: 'src/main/index.ts',
-          config: 'vite.main.config.ts',
+          config: 'vite.main.config.mts',
           target: 'main',
         },
         {
           entry: 'src/preload/index.ts',
-          config: 'vite.preload.config.ts',
+          config: 'vite.preload.config.mts',
           target: 'preload',
         },
       ],
       renderer: [
-        { name: 'main_window', config: 'vite.renderer.config.ts' },
+        { name: 'main_window', config: 'vite.renderer.config.mts' },
         // The capture fixture. Built alongside, excluded from the package by
         // the `ignore` predicate above. `STUFFBUCKET_SKIP_FIXTURE` drops it
         // where nothing drives it; see docs/testing.md.
         ...(process.env.STUFFBUCKET_SKIP_FIXTURE
           ? []
-          : [{ name: 'demo_window', config: 'vite.demo.config.ts' }]),
+          : [{ name: 'demo_window', config: 'vite.demo.config.mts' }]),
+        { name: 'terminal_lab_window', config: 'vite.terminal-lab.config.mts' },
       ],
     }),
     // Fuses harden the packaged binary. Changing any value here invalidates an

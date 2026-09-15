@@ -43,6 +43,10 @@ export {
   TmuxProjectionOwners,
   type TmuxProjectionOwnersOptions,
 } from './tmux-projection-owners.js';
+export type {
+  TerminalSessionBackend,
+  TerminalSessionProjectionRequest,
+} from './terminal-session-backend.js';
 
 /**
  * Pseudo-terminal sessions, for a consumer's main process.
@@ -101,6 +105,7 @@ export interface TerminalHostOptions extends TerminalHostHandlers {
 }
 
 interface Session {
+  owner: TerminalHost;
   process: TerminalProcess;
   pending: Buffered;
   retained: Retained;
@@ -113,6 +118,22 @@ interface Session {
   inFlightBytes: number;
   paused: boolean;
   exitCode: number | undefined;
+  /**
+   * Extra observers of an already-live session, for a "Copy to New Window"
+   * view rather than the owning one.
+   *
+   * A mirror follows the session object across a `transfer()`, so moving the
+   * owning window does not drop a copy watching from elsewhere. It bypasses
+   * flush batching and flow control: a copy is a second pair of eyes, not
+   * something the process should pause for.
+   */
+  mirrors: Set<SessionMirror>;
+}
+
+/** A secondary observer attached with `TerminalHost.mirror()`. */
+export interface SessionMirror {
+  onData: (chunk: string) => void;
+  onExit: (exitCode: number) => void;
 }
 
 /**
@@ -212,6 +233,7 @@ export class TerminalHost {
     });
 
     const session: Session = {
+      owner: this,
       process: terminalProcess,
       pending: emptyBuffer(),
       retained: emptyRetained(),
@@ -224,6 +246,7 @@ export class TerminalHost {
       inFlightBytes: 0,
       paused: false,
       exitCode: undefined,
+      mirrors: new Set(),
     };
     this.sessions.set(request.id, session);
     this.options.onStatus?.({ state: 'started', session: { ...session.summary } });
@@ -231,22 +254,67 @@ export class TerminalHost {
     terminalProcess.onData((data) => {
       append(session.pending, data);
       retain(session.retained, data);
-      this.schedule(request.id, session);
+      session.owner.schedule(request.id, session);
+      for (const mirror of session.mirrors) mirror.onData(data);
     });
 
     terminalProcess.onExit(({ exitCode }) => {
-      this.flush(request.id, session);
+      session.owner.flush(request.id, session);
       // A killed session's exit can arrive after the id was reused. Acting on
       // it then would delete the live session and silence a running shell.
       if (!this.generations.isCurrent(request.id, generation)) return;
       session.exitCode = exitCode;
-      this.finishExit(request.id, session);
+      session.owner.finishExit(request.id, session);
+      for (const mirror of session.mirrors) mirror.onExit(exitCode);
     });
+  }
+
+  /** Whether this owner currently holds the live process for a session. */
+  has(id: string): boolean {
+    return this.sessions.has(id);
+  }
+
+  /**
+   * Attach an additional observer to an already-live session, without moving
+   * ownership or restarting the process.
+   *
+   * The retained tail replays to the observer immediately, the same as a
+   * fresh `attach()` would see. Returns a function that detaches it, or
+   * `undefined` if this owner does not hold the session.
+   */
+  mirror(id: string, observer: SessionMirror): (() => void) | undefined {
+    const session = this.sessions.get(id);
+    if (!session) return undefined;
+    session.mirrors.add(observer);
+    const text = replay(session.retained);
+    if (text !== '') observer.onData(text);
+    return () => {
+      session.mirrors.delete(observer);
+    };
   }
 
   /** Every session this owner holds, whether or not a view is showing one. */
   list(): TerminalSession[] {
     return [...this.sessions.values()].map((session) => ({ ...session.summary }));
+  }
+
+  /**
+   * Move a live session to another window host without recreating its process.
+   * The process callbacks follow the session, so output and exit events are
+   * delivered by the destination host after the move.
+   */
+  transfer(id: string, destination: TerminalHost, request: SpawnOptions): boolean {
+    const session = this.sessions.get(id);
+    if (!session || destination.sessions.has(id)) return false;
+    if (session.timer) clearTimeout(session.timer);
+    this.sessions.delete(id);
+    session.pending = emptyBuffer();
+    session.owner = destination;
+    session.generation = destination.generations.next(id);
+    destination.sessions.set(id, session);
+    session.process.resize(Math.max(1, request.cols), Math.max(1, request.rows));
+    destination.finishExit(id, session);
+    return true;
   }
 
   write(id: string, data: string): void {
@@ -265,6 +333,8 @@ export class TerminalHost {
     if (session.timer) clearTimeout(session.timer);
     this.generations.release(id, session.generation);
     this.sessions.delete(id);
+    for (const mirror of session.mirrors) mirror.onExit(session.exitCode ?? 0);
+    session.mirrors.clear();
     try {
       session.process.kill();
     } catch {
@@ -315,7 +385,7 @@ export class TerminalHost {
 
   private flush(id: string, session: Session): void {
     session.timer = undefined;
-    if (this.options.flowControl && session.inFlightBytes >= MAX_IN_FLIGHT_BYTES) return;
+    if (session.owner.options.flowControl && session.inFlightBytes >= MAX_IN_FLIGHT_BYTES) return;
     const { text, dropped } = drain(session.pending);
     if (text === '' && dropped === 0) return;
     let output = text;
@@ -323,26 +393,26 @@ export class TerminalHost {
       const notice = `\r\n\x1b[2m[${String(dropped)} characters dropped: output outran the display]\x1b[0m\r\n`;
       output = notice + text.slice(Math.max(0, text.length - (MAX_IN_FLIGHT_BYTES - notice.length)));
     }
-    if (!this.options.flowControl) {
-      this.options.emit(id, output);
+    if (!session.owner.options.flowControl) {
+      session.owner.options.emit(id, output);
       return;
     }
     const sequence = session.nextSequence++;
     session.inFlight.set(sequence, output.length);
     session.inFlightBytes += output.length;
-    this.options.emit(id, output, sequence);
-    this.updatePause(session);
+    session.owner.options.emit(id, output, sequence);
+    session.owner.updatePause(session);
   }
 
   private schedule(id: string, session: Session): void {
     if (session.timer) return;
     session.timer = setTimeout(() => {
       this.flush(id, session);
-    }, this.options.flushMs);
+    }, session.owner.options.flushMs);
   }
 
   private updatePause(session: Session): void {
-    if (!this.options.flowControl) return;
+    if (!session.owner.options.flowControl) return;
     if (!session.paused && session.inFlightBytes >= PAUSE_HIGH_WATERMARK) {
       session.process.pause?.();
       session.paused = true;
@@ -359,8 +429,8 @@ export class TerminalHost {
     }
     if (!this.generations.release(id, session.generation)) return;
     this.sessions.delete(id);
-    this.options.onExit(id, session.exitCode);
-    this.options.onStatus?.({ state: 'exited', id, exitCode: session.exitCode });
+    session.owner.options.onExit(id, session.exitCode);
+    session.owner.options.onStatus?.({ state: 'exited', id, exitCode: session.exitCode });
   }
 }
 

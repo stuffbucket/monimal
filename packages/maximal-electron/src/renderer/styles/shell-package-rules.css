@@ -284,11 +284,10 @@
   min-width: 0;
   overflow-x: auto;
   scrollbar-width: none;
-  /* Chrome, not content. The strip sits a notch below body size, with the
-     tracking opened to keep small text legible and the weight reserved for the
-     active tab. */
-  font-size: 13px;
-  letter-spacing: 0.005em;
+  /* Chrome uses the same reading size as controls; weight and the selected
+     surface distinguish the active tab without shrinking its label. */
+  font-size: var(--shell-text-base);
+  letter-spacing: 0;
 }
 
 .sb-shell .tabbar::-webkit-scrollbar {
@@ -951,17 +950,27 @@
   cursor: pointer;
 }
 
+.sb-shell .switch[data-layout='compact'] {
+  justify-content: flex-start;
+  width: fit-content;
+}
+
 .sb-shell .switch__track {
   position: relative;
+  box-sizing: border-box;
   width: 30px;
   height: 18px;
   flex: none;
+  border: 1px solid var(--shell-text-muted);
   border-radius: 9999px;
-  background: var(--shell-active);
-  transition: background 120ms ease-out;
+  background: color-mix(in srgb, var(--shell-text-muted) 20%, transparent);
+  transition:
+    background 120ms ease-out,
+    border-color 120ms ease-out;
 }
 
 .sb-shell .switch__track[data-on='true'] {
+  border-color: var(--shell-accent);
   background: var(--shell-accent);
 }
 
@@ -975,11 +984,12 @@
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: var(--shell-accent-contrast, var(--shell-text));
+  background: var(--shell-text);
   transition: transform 120ms ease-out;
 }
 
 .sb-shell .switch__track[data-on='true'] .switch__thumb {
+  background: var(--shell-accent-contrast, var(--shell-background));
   transform: translateX(12px);
 }
 
@@ -1086,7 +1096,7 @@
   padding: 0 var(--shell-space-2);
   color: var(--shell-text);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--shell-text-base);
   background: var(--shell-input-background, var(--shell-canvas));
   border: 1px solid var(--shell-input-border);
   border-radius: var(--shell-radius);
@@ -1094,6 +1104,22 @@
 
 .sb-shell .input::placeholder {
   color: var(--shell-text-subtle);
+}
+
+.sb-shell .input-shell {
+  position: relative;
+  width: 100%;
+}
+
+.sb-shell .input-shell .input {
+  padding-right: calc(var(--shell-control-lg) + var(--shell-space-1));
+}
+
+.sb-shell .input-shell__action {
+  position: absolute;
+  top: 50%;
+  right: 2px;
+  transform: translateY(-50%);
 }
 
 .sb-shell .input:hover:not(:disabled) {
@@ -1129,19 +1155,19 @@
 
 .sb-shell .form-field__label {
   color: var(--shell-text-muted);
-  font-size: 13px;
+  font-size: var(--shell-text-base);
 }
 
 .sb-shell .form-field__hint {
   margin: 0;
   color: var(--shell-text-subtle);
-  font-size: 11px;
+  font-size: var(--shell-text-sm);
 }
 
 .sb-shell .form-field__error {
   margin: 0;
   color: var(--shell-invalid, var(--shell-danger, var(--shell-hover)));
-  font-size: 11px;
+  font-size: var(--shell-text-sm);
 }
 
 .sb-shell .checkbox,
@@ -1149,7 +1175,7 @@
   display: flex;
   align-items: center;
   gap: var(--shell-space-2);
-  font-size: 13px;
+  font-size: var(--shell-text-base);
   cursor: pointer;
 }
 
@@ -1223,17 +1249,23 @@
   width: min(440px, 90vw);
 }
 
-.sb-shell .unsaved-changes-dialog__heading,
-.sb-shell .unsaved-changes-dialog__description {
+.sb-shell .dialog__heading,
+.sb-shell .dialog__description {
   margin: 0;
 }
 
-.sb-shell .unsaved-changes-dialog__heading {
+.sb-shell .dialog__heading {
   font-size: var(--shell-text-lg);
 }
 
-.sb-shell .unsaved-changes-dialog__description {
+.sb-shell .dialog__description {
   color: var(--shell-text-muted);
+  line-height: 1.5;
+}
+
+.sb-shell .unsaved-changes-dialog__error {
+  margin: 0;
+  color: var(--shell-invalid, var(--shell-danger, var(--shell-text)));
   line-height: 1.5;
 }
 
@@ -1300,12 +1332,14 @@
 }
 
 .sb-shell .menu {
-  min-width: 180px;
+  min-width: 220px;
   padding: var(--shell-space-1);
   background: var(--shell-raised);
   border: 1px solid var(--shell-border-strong, var(--shell-border));
   border-radius: var(--shell-radius);
   box-shadow: var(--shell-elevation, none);
+  /* Above the drag-region dismiss catcher, which shares its portal. */
+  z-index: 41;
 }
 
 .sb-shell .menu__item {
@@ -1321,6 +1355,22 @@
      on an item the pointer has left. */
   outline: none;
   cursor: pointer;
+}
+
+.sb-shell .menu__item-label {
+  flex: 1;
+}
+
+.sb-shell .menu__item-shortcut {
+  color: var(--shell-text-muted);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+
+.sb-shell .menu__separator {
+  height: 1px;
+  margin: var(--shell-space-1) 0;
+  background: var(--shell-border);
 }
 
 .sb-shell .menu__item[data-highlighted] {
@@ -1415,6 +1465,7 @@
   position: relative;
   display: flex;
   flex: 1;
+  min-width: 0;
   min-height: 0;
   padding: var(--shell-space-2);
 }

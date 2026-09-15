@@ -19,9 +19,12 @@ import {
   copilotSearchProvider,
   createSearchConnector,
   duckDuckGoSearchProvider,
+  isSearchConnectorPlugin,
   ollamaSearchProvider,
+  SearchConnectorConfigSchema,
   type ConnectorSettings,
   type SearchConnectorConfig,
+  type SearchConnectorPlugin,
   type SearchProviderInstance,
   type SearchResult as ConnectorSearchResult,
 } from "@stuffbucket/maximal-harness"
@@ -29,8 +32,13 @@ import { randomUUID } from "node:crypto"
 import TurndownService from "turndown"
 
 import type { ResponsesPayload } from "~/services/copilot/create-responses"
+import type { Model } from "~/services/copilot/get-models"
 
 import { getConfig, getSmallModel } from "~/lib/config/config"
+import {
+  connectorPlugin,
+  parseConnectorConfig,
+} from "~/lib/config/connector-plugins"
 import { shouldUseResponsesApi } from "~/lib/models/endpoint-selection"
 import { Cache } from "~/lib/runtime-state/cache"
 import { hasCopilotToken, state } from "~/lib/runtime-state/state"
@@ -899,11 +907,31 @@ export function pickResponsesModel(
  * scoped to one request.
  */
 export function selectExecutor(): Executor {
-  return createConfiguredExecutor(
-    getConfig().connectors?.search,
-    process.env,
-    resolveResponsesModel(),
-  )
+  const plugin = connectorPlugin("search", isSearchConnectorPlugin)
+  if (plugin) {
+    return createSearchExecutor(
+      plugin,
+      parseConnectorConfig(plugin, getConfig().connectors),
+    )
+  }
+
+  const choice = chooseExecutor(process.env, {
+    responsesModel: resolveResponsesModel(),
+  })
+  switch (choice.kind) {
+    case "OllamaWebExecutor": {
+      return new OllamaWebExecutor({ apiKey: choice.apiKey })
+    }
+    case "CopilotResponsesExecutor": {
+      return new CopilotResponsesExecutor({ model: choice.model })
+    }
+    case "InProcessFetchExecutor": {
+      return new InProcessFetchExecutor()
+    }
+    default: {
+      throw new Error("Unsupported executor")
+    }
+  }
 }
 
 export function createConfiguredExecutor(
@@ -911,16 +939,65 @@ export function createConfiguredExecutor(
   env: NodeJS.ProcessEnv = process.env,
   automaticResponsesModel: string | undefined = resolveResponsesModel(),
 ): Executor {
-  const connector = createSearchConnector(
-    [
-      ollamaSearchProvider((settings) => bindOllamaProvider(settings, env)),
-      copilotSearchProvider((settings) =>
-        bindCopilotProvider(settings, automaticResponsesModel),
-      ),
-      duckDuckGoSearchProvider(bindDuckDuckGoProvider),
-    ],
+  return createSearchExecutor(
+    createBuiltinSearchConnectorPlugin({
+      env,
+      responsesModel: () => automaticResponsesModel,
+    }),
     config,
   )
+}
+
+interface BuiltinSearchConnectorPluginOptions {
+  readonly env?: NodeJS.ProcessEnv
+  readonly models?: () => ReadonlyArray<Model>
+  readonly responsesModel?: () => string | undefined
+}
+
+export function createBuiltinSearchConnectorPlugin(
+  options: BuiltinSearchConnectorPluginOptions = {},
+): SearchConnectorPlugin {
+  const env = options.env ?? process.env
+  const models = options.models ?? (() => state.models?.data ?? [])
+  const responsesModel = options.responsesModel ?? resolveResponsesModel
+  return {
+    id: "search",
+    Config: SearchConnectorConfigSchema,
+    providers: () => {
+      const modelOptions = models()
+        .filter(
+          (model) => model.model_picker_enabled && shouldUseResponsesApi(model),
+        )
+        .map((model) => ({ label: model.name || model.id, value: model.id }))
+        .sort(
+          (left, right) =>
+            left.label.localeCompare(right.label)
+            || left.value.localeCompare(right.value),
+        )
+      return [
+        ollamaSearchProvider(
+          (settings) => bindOllamaProvider(settings, env),
+          env.OLLAMA_API_KEY,
+        ),
+        modelOptions.length === 0 ?
+          copilotSearchProvider((settings) =>
+            bindCopilotProvider(settings, responsesModel()),
+          )
+        : copilotSearchProvider(
+            (settings) => bindCopilotProvider(settings, responsesModel()),
+            modelOptions,
+          ),
+        duckDuckGoSearchProvider(bindDuckDuckGoProvider),
+      ]
+    },
+  }
+}
+
+function createSearchExecutor(
+  plugin: SearchConnectorPlugin,
+  config: SearchConnectorConfig,
+): Executor {
+  const connector = createSearchConnector(plugin.providers(), config)
 
   return {
     search: async (query, options = {}) => {

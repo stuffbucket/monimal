@@ -3,6 +3,9 @@ import { Terminal } from '@xterm/xterm';
 import type { ITheme } from '@xterm/xterm';
 import { WTerm } from '@wterm/dom';
 import { GhosttyCore } from '@wterm/ghostty';
+import ghosttyWasmUrl from '@wterm/ghostty/ghostty-vt.wasm?url&inline';
+
+import { OscTitleObserver } from './osc-title.js';
 
 export type TerminalTheme = ITheme;
 export type TerminalEmulatorKind = 'xterm' | 'ghostty';
@@ -39,6 +42,8 @@ export interface TerminalEmulator {
   readonly buffer: { readonly active: TerminalBuffer };
   open(element: HTMLElement): Promise<void>;
   fit(): void;
+  /** Sets the grid directly, bypassing container measurement. See `fit()`. */
+  resize(cols: number, rows: number): void;
   focus(): void;
   blur(): void;
   onData(listener: (data: string) => void): TerminalDisposable;
@@ -58,6 +63,11 @@ function createXtermEmulator(theme?: TerminalTheme): TerminalEmulator {
     cursorBlink: true,
     fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
     fontSize: 13,
+    minimumContrastRatio: 4.5,
+    // Lets a shell-side diagnostic (`CSI 18 t`) confirm the emulator's own
+    // rendered grid matches what the OS and the PTY report for it. The other
+    // window-report queries stay off; they read or move the OS window itself.
+    windowOptions: { getWinSizeChars: true },
     ...(theme ? { theme } : {}),
   });
   const fitAddon = new FitAddon();
@@ -67,8 +77,21 @@ function createXtermEmulator(theme?: TerminalTheme): TerminalEmulator {
     get cols() { return terminal.cols; },
     get rows() { return terminal.rows; },
     get buffer() { return terminal.buffer; },
-    open: (element) => Promise.resolve(terminal.open(element)),
-    fit: () => fitAddon.fit(),
+    open: (element) => {
+      if (theme?.foreground) element.style.color = theme.foreground;
+      if (theme?.background) element.style.backgroundColor = theme.background;
+      return Promise.resolve(terminal.open(element));
+    },
+    fit: () => {
+      const proposed = fitAddon.proposeDimensions();
+      if (!proposed) return;
+      const { cols, rows } = clampTerminalGrid(proposed.cols, proposed.rows);
+      if (cols !== terminal.cols || rows !== terminal.rows) terminal.resize(cols, rows);
+    },
+    resize: (cols, rows) => {
+      const clamped = clampTerminalGrid(cols, rows);
+      terminal.resize(clamped.cols, clamped.rows);
+    },
     focus: () => terminal.focus(),
     blur: () => terminal.blur(),
     onData: (listener) => terminal.onData(listener),
@@ -88,6 +111,12 @@ function createXtermEmulator(theme?: TerminalTheme): TerminalEmulator {
 
 function bounded(value: number | undefined, fallback: number, maximum: number): number {
   return Number.isFinite(value) ? Math.min(maximum, Math.max(0, value!)) : fallback;
+}
+
+function clampTerminalGrid(cols: number, rows: number): { cols: number; rows: number } {
+  const clamp = (value: number, maximum: number) =>
+    Math.max(1, Math.min(maximum, Math.floor(value)));
+  return { cols: clamp(cols, 256), rows: clamp(rows, 128) };
 }
 
 function applyGhosttyWindow(
@@ -114,11 +143,39 @@ function applyGhosttyWindow(
   host.dataset.ghosttyPaddingBalance = String(adjustment.balance ?? false);
 }
 
+function fitGhosttyTerminal(host: HTMLElement, terminal: WTerm): void {
+  const style = getComputedStyle(host);
+  const width = host.clientWidth
+    - (parseFloat(style.paddingLeft) || 0)
+    - (parseFloat(style.paddingRight) || 0);
+  const height = host.clientHeight
+    - (parseFloat(style.paddingTop) || 0)
+    - (parseFloat(style.paddingBottom) || 0);
+  if (width <= 0 || height <= 0) return;
+
+  const row = document.createElement('div');
+  row.className = 'term-row';
+  row.style.visibility = 'hidden';
+  row.style.position = 'absolute';
+  const probe = document.createElement('span');
+  probe.textContent = 'W';
+  row.appendChild(probe);
+  host.appendChild(row);
+  const charWidth = probe.getBoundingClientRect().width;
+  const rowHeight = row.getBoundingClientRect().height;
+  row.remove();
+  if (charWidth <= 0 || rowHeight <= 0) return;
+
+  const { cols, rows } = clampTerminalGrid(width / charWidth, height / rowHeight);
+  if (cols !== terminal.cols || rows !== terminal.rows) terminal.resize(cols, rows);
+}
+
 async function createGhosttyEmulator(
   theme?: TerminalTheme,
   windowAdjustment?: GhosttyWindowAdjustment,
 ): Promise<TerminalEmulator> {
   const core = await GhosttyCore.load({
+    wasmPath: ghosttyWasmUrl,
     ...(theme?.foreground ? { foregroundColor: theme.foreground } : {}),
     ...(theme?.background ? { backgroundColor: theme.background } : {}),
   });
@@ -135,9 +192,22 @@ async function createGhosttyEmulator(
   const handleKeyUp = (event: KeyboardEvent) => {
     if (event.key === suppressedKeyInput) suppressedKeyInput = undefined;
   };
+  const handleInput = (event: Event) => {
+    if (suppressedKeyInput === undefined) return;
+    event.stopPropagation();
+    if (event.target instanceof HTMLTextAreaElement) event.target.value = '';
+    suppressedKeyInput = undefined;
+  };
   const dataListeners = new Set<(data: string) => void>();
   const resizeListeners = new Set<(size: { cols: number; rows: number }) => void>();
   const titleListeners = new Set<(title: string) => void>();
+  let lastTitle: string | undefined;
+  const emitTitle = (title: string) => {
+    if (title === lastTitle) return;
+    lastTitle = title;
+    titleListeners.forEach((listener) => listener(title));
+  };
+  const titleObserver = new OscTitleObserver(emitTitle);
 
   const activeBuffer = (): TerminalBuffer => {
     const bridge = terminal?.bridge;
@@ -178,28 +248,38 @@ async function createGhosttyEmulator(
     get buffer() { return { active: activeBuffer() }; },
     open: async (host) => {
       element = host;
+      const initialHeight = host.style.height;
       if (theme?.foreground) host.style.setProperty('--term-fg', theme.foreground);
       if (theme?.background && !windowAdjustment) host.style.setProperty('--term-bg', theme.background);
       if (theme?.cursor) host.style.setProperty('--term-cursor', theme.cursor);
       applyGhosttyWindow(host, theme, windowAdjustment);
       host.addEventListener('keydown', handleKeyEvent, { capture: true });
       host.addEventListener('keyup', handleKeyUp, { capture: true });
+      host.addEventListener('input', handleInput, { capture: true });
       terminal = new WTerm(host, {
+        autoResize: false,
         core,
         cursorBlink: true,
         onData: (data) => {
-          if (data === suppressedKeyInput) {
-            suppressedKeyInput = undefined;
-            return;
-          }
           dataListeners.forEach((listener) => listener(data));
         },
         onResize: (cols, rows) => resizeListeners.forEach((listener) => listener({ cols, rows })),
-        onTitle: (title) => titleListeners.forEach((listener) => listener(title)),
+        onTitle: emitTitle,
       });
-      await terminal.init();
+      try {
+        await terminal.init();
+      }
+      finally {
+        host.style.height = initialHeight;
+      }
     },
-    fit: () => {},
+    fit: () => {
+      if (element && terminal) fitGhosttyTerminal(element, terminal);
+    },
+    resize: (cols, rows) => {
+      const clamped = clampTerminalGrid(cols, rows);
+      terminal?.resize(clamped.cols, clamped.rows);
+    },
     focus: () => terminal?.focus(),
     blur: () => {
       element?.querySelector('textarea')?.blur();
@@ -210,6 +290,7 @@ async function createGhosttyEmulator(
     onKeyEvent: (listener) => { keyListener = listener; },
     onTitleChange: (listener) => disposeListener(titleListeners, listener),
     write: (data, callback) => {
+      titleObserver.write(data);
       terminal?.write(data);
       if (callback) requestAnimationFrame(callback);
     },
@@ -227,7 +308,9 @@ async function createGhosttyEmulator(
     dispose: () => {
       element?.removeEventListener('keydown', handleKeyEvent, { capture: true });
       element?.removeEventListener('keyup', handleKeyUp, { capture: true });
+      element?.removeEventListener('input', handleInput, { capture: true });
       terminal?.destroy();
+      core.dispose();
     },
   };
 }

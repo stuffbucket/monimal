@@ -36,6 +36,7 @@ beforeEach(() => {
 describe('preload bridge allowlist', () => {
   it('exposes exactly the documented deep key set', () => {
     expect(Object.keys(bridge).sort()).toEqual([
+      'clientInstallations',
       'control',
       'getCoreStatus',
       'getProxyUrl',
@@ -43,6 +44,7 @@ describe('preload bridge allowlist', () => {
       'localModels',
       'logs',
       'menuBarMode',
+      'ollamaRuntime',
       'onCoreStatus',
       'onOpenSettings',
       'openExternal',
@@ -72,8 +74,12 @@ describe('preload bridge allowlist', () => {
       'observabilityOverview',
       'observabilityRequest',
       'observabilityRequests',
+      'ollamaAccountsList',
+      'ollamaSettingsGet',
+      'ollamaSettingsUpdate',
       'onChange',
       'onTrafficInvalidation',
+      'searchProviderValidate',
       'searchSettingsGet',
       'searchSettingsUpdate',
       'usageGet',
@@ -85,6 +91,11 @@ describe('preload bridge allowlist', () => {
       'list',
       'onChange',
       'openFolder',
+    ])
+    expect(Object.keys(bridge.ollamaRuntime).sort()).toEqual([
+      'launch',
+      'status',
+      'updateContextLength',
     ])
     expect(Object.keys(bridge.harness).sort()).toEqual([
       'abort',
@@ -135,6 +146,11 @@ describe('preload bridge allowlist', () => {
     await bridge.control.authSignOut()
     await bridge.control.accountsList()
     await bridge.control.accountsSwitch('github.com:octocat')
+    await bridge.control.ollamaAccountsList()
+    await bridge.control.ollamaSettingsGet()
+    await bridge.control.ollamaSettingsUpdate({
+      prefer_local_models: false,
+    })
     await bridge.control.observabilityOverview(overviewQuery)
     await bridge.control.observabilityRequests(requestsQuery)
     await bridge.control.observabilityRequest({ requestId: 'req-1' })
@@ -157,10 +173,18 @@ describe('preload bridge allowlist', () => {
     await bridge.control.diagnosticsGet()
     await bridge.control.searchSettingsGet()
     await bridge.control.searchSettingsUpdate({ settings: { fallback: false } })
+    await bridge.control.searchProviderValidate({
+      providerId: 'ollama',
+      settings: { apiKey: 'test-key' },
+    })
     await bridge.pendingSettingsRequest()
     await bridge.logs.location()
     await bridge.logs.reveal()
     await bridge.localModels.openFolder()
+    await bridge.ollamaRuntime.status()
+    await bridge.ollamaRuntime.launch()
+    await bridge.ollamaRuntime.updateContextLength(8192)
+    await bridge.clientInstallations.list()
     await bridge.menuBarMode.get()
     await bridge.menuBarMode.beginEnable()
     await bridge.menuBarMode.confirmEnable('attempt-1')
@@ -192,6 +216,12 @@ describe('preload bridge allowlist', () => {
       [BRIDGE_CHANNELS.authSignOut],
       [BRIDGE_CHANNELS.accountsList],
       [BRIDGE_CHANNELS.accountsSwitch, 'github.com:octocat'],
+      [BRIDGE_CHANNELS.ollamaAccountsList],
+      [BRIDGE_CHANNELS.ollamaSettingsGet],
+      [
+        BRIDGE_CHANNELS.ollamaSettingsUpdate,
+        { prefer_local_models: false },
+      ],
       [BRIDGE_CHANNELS.observabilityOverview, overviewQuery],
       [BRIDGE_CHANNELS.observabilityRequests, requestsQuery],
       [BRIDGE_CHANNELS.observabilityRequest, { requestId: 'req-1' }],
@@ -214,10 +244,18 @@ describe('preload bridge allowlist', () => {
       [BRIDGE_CHANNELS.diagnosticsGet],
       [BRIDGE_CHANNELS.searchSettingsGet],
       [BRIDGE_CHANNELS.searchSettingsUpdate, { settings: { fallback: false } }],
+      [
+        BRIDGE_CHANNELS.searchProviderValidate,
+        { providerId: 'ollama', settings: { apiKey: 'test-key' } },
+      ],
       [BRIDGE_CHANNELS.pendingSettingsRequest],
       [BRIDGE_CHANNELS.logsLocation],
       [BRIDGE_CHANNELS.logsReveal],
       [BRIDGE_CHANNELS.localModelsOpenFolder],
+      [BRIDGE_CHANNELS.ollamaRuntimeStatus],
+      [BRIDGE_CHANNELS.ollamaRuntimeLaunch],
+      [BRIDGE_CHANNELS.ollamaRuntimeUpdateContext, 8192],
+      [BRIDGE_CHANNELS.clientInstallationsList],
       [BRIDGE_CHANNELS.menuBarModeGet],
       [BRIDGE_CHANNELS.menuBarModeBeginEnable],
       [BRIDGE_CHANNELS.menuBarModeConfirmEnable, 'attempt-1'],

@@ -6,6 +6,7 @@ import type { ControlSnapshot } from "~/lib/live/resources"
 import type { ControlRpcOperationOverrides } from "~/routes/control/rpc"
 
 import { writeConfig } from "~/lib/config/config"
+import { installConnectorPlugins } from "~/lib/config/connector-plugins"
 import { SettingsOperationError } from "~/lib/config/settings-operations"
 import {
   AppsListResponse,
@@ -27,13 +28,16 @@ import { stopControlHub } from "~/lib/live/service"
 import { state } from "~/lib/runtime-state/state"
 import { createControlRoutes } from "~/routes/control/route"
 import { createControlRpcMethods } from "~/routes/control/rpc"
+import { createBuiltinSearchConnectorPlugin } from "~/routes/messages/web-tools/executor"
 
 beforeEach(() => {
+  installConnectorPlugins([createBuiltinSearchConnectorPlugin()])
   state.models = undefined
   writeConfig({})
 })
 
 afterEach(() => {
+  installConnectorPlugins([])
   stopControlHub()
   state.models = undefined
   writeConfig({})
@@ -127,6 +131,7 @@ describe("control /rpc — discovery", () => {
     // The account methods are composed in at route level, not in the static
     // registry — discovery must still advertise them or a client can't find them.
     expect(caps.methods).toContain("auth/status")
+    expect(caps.methods).toContain("ollamaAccounts/list")
     expect(caps.methods).toContain("accounts/switch")
     expect(caps.methods).toContain("health")
     const settingsMethods = [
@@ -146,6 +151,7 @@ describe("control /rpc — discovery", () => {
       "diagnostics/get",
       "searchSettings/get",
       "searchSettings/update",
+      "searchSettings/validateProvider",
     ]
     for (const method of settingsMethods) expect(caps.methods).toContain(method)
   })
@@ -234,6 +240,11 @@ describe("control /rpc — params validation", () => {
         { settings: [] },
         "Expected search connector settings update.",
       ],
+      [
+        "searchSettings/validateProvider",
+        { providerId: "" },
+        "Expected search provider validation request.",
+      ],
     ] as const
 
     for (const [method, params, message] of cases) {
@@ -304,11 +315,16 @@ describe("control /rpc — search settings", () => {
       providers: {},
     })
     let updates = 0
+    let validations = 0
     const custom = appWithOperations({
       buildSearchSettings: () => snapshot,
       updateSearchSettings: () => {
         updates += 1
         return snapshot
+      },
+      validateSearchProvider: () => {
+        validations += 1
+        return Promise.resolve({ status: "valid", fieldErrors: {} } as const)
       },
     })
     try {
@@ -318,7 +334,15 @@ describe("control /rpc — search settings", () => {
       expect(
         (await rpcThrough(custom.app, "searchSettings/update", {})).result,
       ).toEqual(snapshot)
+      expect(
+        (
+          await rpcThrough(custom.app, "searchSettings/validateProvider", {
+            providerId: "ollama",
+          })
+        ).result,
+      ).toEqual({ status: "valid", fieldErrors: {} })
       expect(updates).toBe(1)
+      expect(validations).toBe(1)
     } finally {
       custom.hub.dispose()
     }
@@ -441,6 +465,7 @@ describe("control /rpc — settings operations", () => {
       installs: [],
       install: null,
       conflict: null,
+      health: { ok: true, issue: null },
     }
     let received: [AppEntry["id"], boolean] | undefined
     const custom = appWithOperations({

@@ -336,6 +336,15 @@ function getDefaultEndpointApiKey(config: AppConfig): string | null {
 }
 
 /**
+ * Prefix on every key maximal mints (see {@link generateApiKeyValue}). Real
+ * Anthropic keys never carry it, so it also doubles as an ownership signature:
+ * a config app can recognize "a value maximal itself generated" from the
+ * value alone, without a lookup — see `getApiKeyOwnership` in
+ * `apps/claude-code/config.ts`.
+ */
+export const MANAGED_API_KEY_PREFIX = "mxl_"
+
+/**
  * Generate a random API-key value: `mxl_` + 24 bytes base64url (32 chars).
  * base64url is [A-Za-z0-9_-], so the result already satisfies
  * `API_KEY_VALUE_PATTERN`. The `mxl_` prefix makes an accidental commit
@@ -343,7 +352,7 @@ function getDefaultEndpointApiKey(config: AppConfig): string | null {
  * auto-minted default endpoint key (see `ensureDefaultEndpointKey`).
  */
 export function generateApiKeyValue(): string {
-  return `mxl_${randomBytes(24).toString("base64url")}`
+  return `${MANAGED_API_KEY_PREFIX}${randomBytes(24).toString("base64url")}`
 }
 
 export interface ManagedApiKeyDeps {

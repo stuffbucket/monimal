@@ -12,3 +12,5 @@
  */
 declare const DEMO_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
 declare const DEMO_WINDOW_VITE_NAME: string;
+declare const TERMINAL_LAB_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
+declare const TERMINAL_LAB_WINDOW_VITE_NAME: string;

@@ -9,7 +9,6 @@
     "src/main/index.ts",
     "src/main/llama-worker.ts",
     "src/preload/index.ts",
-    "src/renderer/main.tsx",
     "src/renderer/overlay-entry.tsx",
     "src/renderer/ui-preview.tsx"
   ],

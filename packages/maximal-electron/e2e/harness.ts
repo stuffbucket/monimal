@@ -94,6 +94,11 @@ export interface Harness {
   window: Page;
 }
 
+interface LaunchOptions {
+  args?: string[];
+  readySelector?: string;
+}
+
 /**
  * Find the shell window.
  *
@@ -116,10 +121,13 @@ async function shellWindow(app: ElectronApplication): Promise<Page> {
   throw new Error('No shell window appeared within 30 seconds.');
 }
 
-export async function launchApp(env: Record<string, string> = {}): Promise<Harness> {
+export async function launchApp(
+  env: Record<string, string> = {},
+  options: LaunchOptions = {},
+): Promise<Harness> {
   const app = await electron.launch({
     // Resolve Electron from the project, and point it at the built bundles.
-    args: [ROOT],
+    args: [ROOT, ...(options.args ?? [])],
     cwd: ROOT,
     env: {
       ...process.env,
@@ -131,7 +139,9 @@ export async function launchApp(env: Record<string, string> = {}): Promise<Harne
   });
 
   const window = await shellWindow(app);
-  await window.waitForSelector('[data-testid="titlebar"]', { timeout: 30_000 });
+  await window.waitForSelector(options.readySelector ?? '[data-testid="titlebar"]', {
+    timeout: 30_000,
+  });
 
   // Determinism, per maximal's ui-layout-verification skill: no motion, so a
   // screenshot or a measured width never races an animation.

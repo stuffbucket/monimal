@@ -271,7 +271,6 @@ check(
 const ESLINT_CONSUMERS = [
   "packages/model-runtimes/anthropic",
   "packages/eslint-config",
-  "packages/model-runtimes/llama-server",
   "packages/maximal-configurators",
   "packages/maximal-core",
   "packages/maximal-models",

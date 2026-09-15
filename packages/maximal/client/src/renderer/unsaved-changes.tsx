@@ -44,6 +44,7 @@ export function UnsavedChangesProvider({
   const controller = useRef<UnsavedChangesController | null>(null)
   const [pending, setPending] = useState<PendingNavigation | null>(null)
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   const register = useCallback((next: UnsavedChangesController) => {
     controller.current = next
@@ -58,6 +59,7 @@ export function UnsavedChangesProvider({
       proceed()
       return
     }
+    setSaveError(null)
     setPending({ controller: current, proceed })
   }, [])
 
@@ -66,16 +68,28 @@ export function UnsavedChangesProvider({
   const save = async (): Promise<void> => {
     if (pending === null) return
     setSaving(true)
-    const saved = await pending.controller.save()
-    setSaving(false)
-    setPending(null)
-    if (saved) pending.proceed()
+    setSaveError(null)
+    try {
+      const saved = await pending.controller.save()
+      setPending(null)
+      if (saved) pending.proceed()
+    } catch {
+      setSaveError('Changes could not be saved. Try again or discard them.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const discard = (): void => {
     if (pending === null) return
     pending.controller.discard()
     pending.proceed()
+    setSaveError(null)
+    setPending(null)
+  }
+
+  const cancel = (): void => {
+    setSaveError(null)
     setPending(null)
   }
 
@@ -86,9 +100,10 @@ export function UnsavedChangesProvider({
         open={pending !== null}
         saving={saving}
         saveDisabled={pending !== null && !pending.controller.canSave()}
+        error={saveError}
         onSave={() => void save()}
         onDiscard={discard}
-        onCancel={() => setPending(null)}
+        onCancel={cancel}
       />
     </UnsavedChangesContext.Provider>
   )

@@ -4,12 +4,22 @@ import {
   DEFAULT_PREFERENCES,
   IPC_CHANNELS,
   IPC_EVENTS,
+  MAX_PTY_DIMENSION,
+  MAX_PTY_WRITE_BYTES,
+  isPtyAcknowledgement,
+  isPtyIdRequest,
+  isPtyResizeRequest,
   isPtySpawnRequest,
   isPtyProjectionAttachRequest,
   isPtyProjectionRequest,
   isPtyProjectionResizeRequest,
   isPtyProjectionWriteRequest,
+  isPtyWriteRequest,
   isTerminalLaunchRequest,
+  isTerminalPaneSyncRequest,
+  isTerminalUndockRequest,
+  isTerminalRedockRequest,
+  isTerminalWindowTitleRequest,
   type IpcChannel,
   type IpcEvent,
 } from '../src/shared/ipc.js';
@@ -57,8 +67,8 @@ describe('IPC contract', () => {
     // noticing this list is not. Update it in the same change.
     const channels: IpcChannel[] = [...IPC_CHANNELS];
     const events: IpcEvent[] = [...IPC_EVENTS];
-    expect(channels).toHaveLength(22);
-    expect(events).toHaveLength(7);
+    expect(channels).toHaveLength(28);
+    expect(events).toHaveLength(10);
   });
 
   it('keeps the terminal channels together', () => {
@@ -89,6 +99,42 @@ describe('IPC contract', () => {
     expect(Object.keys(request)).not.toContain('args');
   });
 
+  it('validates tab move requests without accepting renderer-owned process settings', () => {
+    const undock = { id: 'session', cols: 80, rows: 24, x: 10, y: 20, title: 'Terminal' };
+    expect(isTerminalUndockRequest(undock)).toBe(true);
+    expect(isTerminalUndockRequest({ ...undock, shell: '/bin/sh' })).toBe(false);
+    expect(isTerminalRedockRequest({
+      id: 'session',
+      cols: 80,
+      rows: 24,
+      sourceFrameId: '13',
+      targetFrameId: '12',
+      title: 'Terminal',
+    })).toBe(true);
+    expect(isTerminalRedockRequest({
+      id: 'session',
+      cols: 80,
+      rows: 24,
+      sourceFrameId: '13',
+      targetFrameId: '',
+      title: 'Terminal',
+    })).toBe(false);
+    expect(isTerminalWindowTitleRequest({ title: 'Focused terminal' })).toBe(true);
+    expect(isTerminalWindowTitleRequest({ title: 'x'.repeat(257) })).toBe(false);
+    expect(isTerminalPaneSyncRequest({
+      id: 'session',
+      pane: {
+        direction: 'right',
+        first: { sessionId: 'session' },
+        second: { sessionId: 'split' },
+      },
+    })).toBe(true);
+    expect(isTerminalPaneSyncRequest({
+      id: 'session',
+      pane: { sessionId: '../unsafe' },
+    })).toBe(false);
+  });
+
   it('rejects executable configuration and malformed dimensions at the terminal boundary', () => {
     expect(isPtySpawnRequest({ id: 'session', cols: 80, rows: 24 })).toBe(true);
     expect(isPtySpawnRequest({ id: 'session', cols: 80, rows: 24, shell: '/bin/sh' })).toBe(false);
@@ -106,12 +152,43 @@ describe('IPC contract', () => {
     expect(isPtyProjectionAttachRequest({ id: 'session', projectionId: 'left', cols: 0, rows: 24 })).toBe(false);
     expect(isPtyProjectionWriteRequest({ id: 'session', projectionId: 'left', epoch: 1, data: 'ls\r' })).toBe(true);
     expect(isPtyProjectionWriteRequest({ id: 'session', projectionId: 'left', epoch: 0, data: 'ls\r' })).toBe(false);
+    expect(isPtyProjectionWriteRequest({ id: 'session', projectionId: 'left', epoch: MAX_PTY_DIMENSION + 1, data: 'ls\r' })).toBe(true);
     expect(isPtyProjectionResizeRequest({ id: 'session', projectionId: 'left', epoch: 2, cols: 100, rows: 40 })).toBe(true);
     expect(isPtyProjectionResizeRequest({ id: 'session', projectionId: 'left', epoch: 2, cols: 100, rows: -1 })).toBe(false);
   });
 
+  it('rejects malformed terminal identifiers on every session channel', () => {
+    const invalidId = '../another-window';
+    expect(isPtySpawnRequest({ id: invalidId, cols: 80, rows: 24 })).toBe(false);
+    expect(isPtyWriteRequest({ id: invalidId, data: 'input' })).toBe(false);
+    expect(isPtyResizeRequest({ id: invalidId, cols: 80, rows: 24 })).toBe(false);
+    expect(isPtyAcknowledgement({ id: invalidId, sequence: 1 })).toBe(false);
+    expect(isPtyIdRequest({ id: invalidId })).toBe(false);
+    expect(isPtyProjectionRequest({ id: invalidId, projectionId: 'left' })).toBe(false);
+    expect(isPtyProjectionAttachRequest({ id: 'session', projectionId: invalidId, cols: 80, rows: 24 })).toBe(false);
+    expect(isPtyProjectionWriteRequest({ id: 'session', projectionId: invalidId, epoch: 1, data: 'input' })).toBe(false);
+    expect(isPtyProjectionResizeRequest({ id: 'session', projectionId: invalidId, epoch: 1, cols: 80, rows: 24 })).toBe(false);
+  });
+
+  it('rejects terminal dimensions that native PTY implementations cannot represent', () => {
+    expect(isPtySpawnRequest({ id: 'session', cols: MAX_PTY_DIMENSION, rows: 24 })).toBe(true);
+    expect(isPtySpawnRequest({ id: 'session', cols: MAX_PTY_DIMENSION + 1, rows: 24 })).toBe(false);
+    expect(isPtyResizeRequest({ id: 'session', cols: 80, rows: MAX_PTY_DIMENSION + 1 })).toBe(false);
+  });
+
+  it('rejects terminal writes above the bounded IPC payload', () => {
+    expect(isPtyWriteRequest({ id: 'session', data: 'a'.repeat(MAX_PTY_WRITE_BYTES) })).toBe(true);
+    expect(isPtyWriteRequest({ id: 'session', data: 'a'.repeat(MAX_PTY_WRITE_BYTES + 1) })).toBe(false);
+    expect(isPtyWriteRequest({ id: 'session', data: '\u{1F642}'.repeat(MAX_PTY_WRITE_BYTES / 2) })).toBe(false);
+    expect(isPtyProjectionWriteRequest({ id: 'session', projectionId: 'left', epoch: 1, data: 'a'.repeat(MAX_PTY_WRITE_BYTES + 1) })).toBe(false);
+  });
+
   it('whitelists terminal lifecycle status events', () => {
     expect(IPC_EVENTS).toContain('pty:status');
+  });
+
+  it('whitelists the shared-session size reconciliation event', () => {
+    expect(IPC_EVENTS).toContain('pty:size');
   });
 });
 

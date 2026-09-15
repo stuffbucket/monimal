@@ -46,6 +46,16 @@ describe('the help menu', () => {
     expect(helpItems().length).toBeGreaterThan(0);
   });
 
+  describe('the window menu', () => {
+    it("uses Electron's native window list on macOS", () => {
+      const template = buildApplicationMenu({
+        ...callbacks,
+      }) as unknown as MenuItemConstructorOptions[];
+      if (process.platform !== 'darwin') return;
+      expect(template.find((item) => item.role === 'windowMenu')).toBeDefined();
+    });
+  });
+
   it('offers the crash reports when something writes them', () => {
     // The only route a local minidump has while nothing is uploaded: a user
     // opens the directory and attaches the file. Issue #134.

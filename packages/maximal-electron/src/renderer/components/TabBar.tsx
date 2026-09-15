@@ -1,14 +1,18 @@
 import * as Tabs from '@radix-ui/react-tabs';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { FileText, Folder, Plus, Settings, SquareTerminal, X } from 'lucide-react';
 import {
+  Fragment,
   useCallback,
   useEffect,
   useRef,
   useState,
   type ComponentType,
+  type CSSProperties,
   type DragEvent,
 } from 'react';
+import { createPortal } from 'react-dom';
 
 import {
   adornmentLabel,
@@ -23,6 +27,7 @@ import {
   type TabDetachPosition,
   type TabTransfer,
 } from '../lib/tab-transfer.js';
+import { useShellPortalContainer } from './controls/Overlays.js';
 
 /**
  * One tab. What it tabs is the caller's business.
@@ -79,6 +84,19 @@ export interface TabTransferOptions<T extends Tab> {
   onMoveTab?: (tabId: string, beforeTabId?: string) => void;
   onReceiveTab?: (transfer: TabTransfer, beforeTabId?: string) => void;
   onDetachTab?: (transfer: TabTransfer, position: TabDetachPosition) => void;
+  getTransfer?: (tab: T) => Pick<TabTransfer, 'sessionId' | 'pane' | 'title'> | undefined;
+  contextMenu?: (tab: T) => TabContextMenuItem[];
+}
+
+export interface TabContextMenuItem {
+  id: string;
+  label: string;
+  onSelect: () => void;
+  disabled?: boolean;
+  /** A visual hint only; nothing in the tab strip binds the key itself. */
+  shortcut?: string;
+  /** Opens a visual gap above this item, for grouping unrelated actions. */
+  separatorBefore?: boolean;
 }
 
 function safeIdPart(value: string) {
@@ -188,6 +206,25 @@ export function TabBar<T extends Tab>({
   // rather than repeating the condition.
   const closeTab = tabs.length > 1 ? onClose : undefined;
   const closeActiveTab = activeItem?.closable === false ? undefined : closeTab;
+  const portalContainer = useShellPortalContainer();
+  const [contextMenu, setContextMenu] = useState<{
+    tab: T;
+    x: number;
+    y: number;
+  }>();
+  const root = useRef<HTMLDivElement>(null);
+  const dragDropHandled = useRef(false);
+
+  useEffect(() => {
+    const titlebar = root.current?.closest<HTMLElement>('.titlebar');
+    if (!contextMenu || !titlebar) return;
+    const previous = titlebar.style.getPropertyValue('-webkit-app-region');
+    titlebar.style.setProperty('-webkit-app-region', 'no-drag');
+    return () => {
+      if (previous) titlebar.style.setProperty('-webkit-app-region', previous);
+      else titlebar.style.removeProperty('-webkit-app-region');
+    };
+  }, [contextMenu]);
 
   function readTransfer(event: DragEvent): TabTransfer | undefined {
     return decodeTabTransfer(event.dataTransfer.getData(TAB_TRANSFER_MIME));
@@ -205,6 +242,7 @@ export function TabBar<T extends Tab>({
     event.preventDefault();
     event.stopPropagation();
     event.dataTransfer.dropEffect = 'move';
+    dragDropHandled.current = true;
     if (sameFrame) {
       transfer.onMoveTab!(payload.tabId, before?.id);
     } else {
@@ -253,12 +291,14 @@ export function TabBar<T extends Tab>({
   };
 
   return (
-    <Tabs.Root
-      value={active}
-      onValueChange={onSelect}
-      className="tabs"
-      activationMode="manual"
-    >
+    <>
+      <Tabs.Root
+        ref={root}
+        value={active}
+        onValueChange={onSelect}
+        className="tabs"
+        activationMode="manual"
+      >
       <Tabs.List
         className="tabbar"
         aria-label={label}
@@ -289,12 +329,20 @@ export function TabBar<T extends Tab>({
               }
               aria-keyshortcuts={closeThisTab ? 'Delete' : undefined}
               draggable={transfer !== undefined && (transfer.canDrag?.(tab) ?? true)}
+              onContextMenu={(event) => {
+                const items = transfer?.contextMenu?.(tab);
+                if (!items?.length) return;
+                event.preventDefault();
+                setContextMenu({ tab, x: event.clientX, y: event.clientY });
+              }}
               onDragStart={(event) => {
                 if (!transfer) return;
+                dragDropHandled.current = false;
                 const payload: TabTransfer = {
                   version: 1,
                   sourceFrameId: transfer.frameId,
                   tabId: tab.id,
+                  ...transfer.getTransfer?.(tab),
                 };
                 event.dataTransfer.effectAllowed = 'move';
                 event.dataTransfer.setData(TAB_TRANSFER_MIME, encodeTabTransfer(payload));
@@ -302,11 +350,20 @@ export function TabBar<T extends Tab>({
               onDragOver={(event) => allowTabDrop(event, tab)}
               onDrop={(event) => dropTab(event, tab)}
               onDragEnd={(event) => {
+                if (dragDropHandled.current) {
+                  dragDropHandled.current = false;
+                  return;
+                }
                 if (!transfer?.onDetachTab || event.dataTransfer.dropEffect !== 'none') return;
                 const element = document.elementFromPoint(event.clientX, event.clientY);
                 if (element?.closest('.sb-shell')) return;
                 transfer.onDetachTab(
-                  { version: 1, sourceFrameId: transfer.frameId, tabId: tab.id },
+                  {
+                    version: 1,
+                    sourceFrameId: transfer.frameId,
+                    tabId: tab.id,
+                    ...transfer.getTransfer?.(tab),
+                  },
                   { screenX: event.screenX, screenY: event.screenY },
                 );
               }}
@@ -344,7 +401,7 @@ export function TabBar<T extends Tab>({
           );
         })}
       </Tabs.List>
-      {closeActiveTab && activeItem && (
+        {closeActiveTab && activeItem && (
         <button
           type="button"
           className="tab__close-keyboard"
@@ -354,7 +411,7 @@ export function TabBar<T extends Tab>({
           <X size={12} />
         </button>
       )}
-      {onNew && (
+        {onNew && (
         <button
           type="button"
           className="tab__new"
@@ -364,7 +421,68 @@ export function TabBar<T extends Tab>({
         >
           <Plus size={14} />
         </button>
+        )}
+      </Tabs.Root>
+      {contextMenu && createPortal(
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 40,
+            WebkitAppRegion: 'no-drag',
+          } as CSSProperties}
+          onPointerDown={() => setContextMenu(undefined)}
+        />,
+        portalContainer ?? document.body,
       )}
-    </Tabs.Root>
+      <DropdownMenu.Root
+        open={contextMenu !== undefined}
+        onOpenChange={(open) => {
+          if (!open) setContextMenu(undefined);
+        }}
+      >
+        {contextMenu && (
+          <DropdownMenu.Trigger
+            asChild
+          >
+            <span
+              aria-hidden="true"
+              style={{
+                position: 'fixed',
+                left: contextMenu.x,
+                top: contextMenu.y,
+                width: 1,
+                height: 1,
+              }}
+            />
+          </DropdownMenu.Trigger>
+        )}
+        <DropdownMenu.Portal container={portalContainer}>
+          <DropdownMenu.Content
+            className="menu"
+            side="bottom"
+            align="start"
+            sideOffset={4}
+            data-testid="tab-context-menu"
+          >
+            {contextMenu && transfer?.contextMenu?.(contextMenu.tab).map((item) => (
+              <Fragment key={item.id}>
+                {item.separatorBefore && <DropdownMenu.Separator className="menu__separator" />}
+                <DropdownMenu.Item
+                  className="menu__item"
+                  disabled={item.disabled}
+                  onSelect={item.onSelect}
+                  data-testid={`menu-${item.id}`}
+                >
+                  <span className="menu__item-label">{item.label}</span>
+                  {item.shortcut && <span className="menu__item-shortcut">{item.shortcut}</span>}
+                </DropdownMenu.Item>
+              </Fragment>
+            ))}
+          </DropdownMenu.Content>
+        </DropdownMenu.Portal>
+      </DropdownMenu.Root>
+    </>
   );
 }

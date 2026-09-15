@@ -30,6 +30,10 @@ import {
   getConfig,
   mergeConfigWithDefaults,
 } from "~/lib/config/config"
+import {
+  installConnectorPlugins,
+  type ConnectorPluginFactory,
+} from "~/lib/config/connector-plugins"
 import { createProviderHostConfigSource } from "~/lib/config/provider-host-source"
 import { createConfiguratorHost } from "~/lib/configurator-host-runtime"
 import { currentRuntimeIdentity } from "~/lib/host-config/runtime-identity"
@@ -115,6 +119,12 @@ function activateConfiguratorRuntime(
     : Promise.resolve(emptyConfiguratorRegistry())
 }
 
+async function installHostConnectorPlugins(
+  factory: ConnectorPluginFactory | undefined,
+): Promise<void> {
+  installConnectorPlugins(factory ? await factory() : [])
+}
+
 export interface RunServerOptions {
   port: number
   verbose: boolean
@@ -135,6 +145,8 @@ export interface RunServerOptions {
   controlPort?: number
   /** Statically linked first-party configurators. Omit for standalone Core. */
   createConfiguratorRuntime?: ConfiguratorRuntimeFactory
+  /** Host-owned connector plugins installed before configuration is parsed. */
+  createConnectorPlugins?: ConnectorPluginFactory
   /** Optional prebuilt provider boundary. Omit for standalone legacy mode. */
   providerGateway?: ProviderGateway
   /**
@@ -172,6 +184,8 @@ export async function runServer(options: RunServerOptions): Promise<void> {
     emitBootStatus(`Taking over port ${options.port}…`)
     await maybeEvictRunning(options.port)
   }
+
+  await installHostConnectorPlugins(options.createConnectorPlugins)
 
   // Ensure config is merged with defaults at startup. Ahead of the port
   // decision because that decision now reads `server.portPolicy` from it.

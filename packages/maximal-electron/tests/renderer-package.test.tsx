@@ -100,6 +100,23 @@ describe('the renderer entry point', () => {
 });
 
 describe('packaged renderer components', () => {
+  it('renders compact switches without changing the default layout', () => {
+    const compact = renderToStaticMarkup(
+      <surface.Switch
+        label="Menu bar only"
+        layout="compact"
+        checked={false}
+        onChange={vi.fn()}
+      />,
+    );
+    const spread = renderToStaticMarkup(
+      <surface.Switch label="Dock badge" checked onChange={vi.fn()} />,
+    );
+
+    expect(compact).toContain('data-layout="compact"');
+    expect(spread).toContain('data-layout="spread"');
+  });
+
   it('renders injected titlebar regions with their accessible labels', () => {
     const markup = renderToStaticMarkup(
       <Tooltip.Provider>

@@ -40,6 +40,7 @@ const appEntry = {
   installs: [],
   install: null,
   conflict: null,
+  health: { ok: true, issue: null },
 }
 const apiKeyEntry = {
   id: 'key-1',
@@ -93,6 +94,36 @@ function fakeBridge(): MaximalBridge {
       openFolder: vi.fn(async () => {}),
       onChange: vi.fn(() => () => {}),
     },
+    ollamaRuntime: {
+      status: vi.fn(async () => ({
+        installation: 'none' as const,
+        installed: false,
+        running: false,
+        can_launch: false,
+        can_manage: false,
+        application_path: null,
+        server_configuration_path: '/home/test/.ollama/server.json',
+        desktop_settings_path: null,
+        endpoint: 'http://127.0.0.1:11434',
+        context_length: null,
+      })),
+      launch: vi.fn(async () => ({
+        installation: 'application' as const,
+        installed: true,
+        running: true,
+        can_launch: true,
+        can_manage: true,
+        application_path: '/Applications/Ollama.app',
+        server_configuration_path: '/home/test/.ollama/server.json',
+        desktop_settings_path: '/home/test/Ollama/db.sqlite',
+        endpoint: 'http://127.0.0.1:11434',
+        context_length: 4096,
+      })),
+      updateContextLength: vi.fn(),
+    },
+    clientInstallations: {
+      list: vi.fn(async () => []),
+    },
     menuBarMode: {
       get: vi.fn(async () => ({ enabled: false, pending: false })),
       beginEnable: vi.fn(async () => ({ attemptId: 'attempt-1', deadlineMs: 1 })),
@@ -133,6 +164,23 @@ function fakeBridge(): MaximalBridge {
       authSignOut: vi.fn(async () => success(null)),
       accountsList: vi.fn(async () => success(accounts)),
       accountsSwitch: vi.fn(async () => success(null)),
+      ollamaAccountsList: vi.fn(async () => success({ accounts: [] })),
+      ollamaSettingsGet: vi.fn(async () =>
+        success({
+          has_api_key: false,
+          credential_source: 'none' as const,
+          local_enabled: true,
+          prefer_local_models: true,
+        }),
+      ),
+      ollamaSettingsUpdate: vi.fn(async () =>
+        success({
+          has_api_key: true,
+          credential_source: 'file' as const,
+          local_enabled: true,
+          prefer_local_models: true,
+        }),
+      ),
       observabilityOverview: vi.fn(),
       observabilityRequests: vi.fn(),
       observabilityRequest: vi.fn(),
@@ -204,6 +252,9 @@ function fakeBridge(): MaximalBridge {
       ),
       searchSettingsGet: vi.fn(async () => success(searchSettings)),
       searchSettingsUpdate: vi.fn(async () => success(searchSettings)),
+      searchProviderValidate: vi.fn(async () =>
+        success({ status: 'valid' as const, fieldErrors: {} }),
+      ),
       onChange: vi.fn(() => () => {}),
       onTrafficInvalidation: vi.fn(() => () => {}),
     },
@@ -303,6 +354,9 @@ describe('createCoreSettingsCapabilities', () => {
     await expect(capabilities.search.update({ settings: {} })).resolves.toEqual(
       searchSettings,
     )
+    await expect(
+      capabilities.search.validateProvider({ providerId: 'ollama' }),
+    ).resolves.toEqual({ status: 'valid', fieldErrors: {} })
 
     expect(window.maximal.control.authSignOut).toHaveBeenCalledOnce()
     expect(window.maximal.control.accountsSwitch).toHaveBeenCalledWith(
@@ -336,6 +390,9 @@ describe('createCoreSettingsCapabilities', () => {
     expect(window.maximal.control.usageGet).toHaveBeenCalledWith('week')
     expect(window.maximal.control.searchSettingsUpdate).toHaveBeenCalledWith({
       settings: {},
+    })
+    expect(window.maximal.control.searchProviderValidate).toHaveBeenCalledWith({
+      providerId: 'ollama',
     })
 
     const onChange = vi.fn()

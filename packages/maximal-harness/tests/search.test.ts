@@ -13,6 +13,7 @@ import {
 } from "../src/search/providers/copilot.js"
 import { duckDuckGoSearchProvider } from "../src/search/providers/duckduckgo.js"
 import { ollamaSearchProvider } from "../src/search/providers/ollama.js"
+import { buildSearchSettingsManifest } from "../src/search/settings.js"
 
 function provider(
   id: string,
@@ -50,6 +51,25 @@ void test("uses configured priority and falls back after transient errors", asyn
     items: [{ url: "https://example.com/result", title: "Result" }],
   })
   assert.deepEqual(calls, ["first", "second"])
+})
+
+void test("derives settings priority from the providers installed at runtime", () => {
+  const manifest = buildSearchSettingsManifest([
+    provider("custom-first", [], { ok: true, items: [] }),
+    provider("custom-second", [], { ok: true, items: [] }),
+  ])
+
+  assert.deepEqual(
+    manifest.fields.find(({ key }) => key === "priority"),
+    {
+      key: "priority",
+      type: "string-list",
+      label: "Provider priority",
+      description: "Provider ids in the order Maximal should try them.",
+      default: ["custom-first", "custom-second"],
+      required: true,
+    },
+  )
 })
 
 void test("does not fall back after a request error", async () => {
@@ -286,6 +306,7 @@ void test("describes provider URL and timeout controls for the settings UI", () 
       key: "apiKey",
       type: "secret",
       label: "API key",
+      placeholder: "Paste your Ollama API key",
       description: "Use an Ollama API key to authorize hosted search.",
       helpLink: {
         label: "Create or manage an API key",
@@ -294,6 +315,24 @@ void test("describes provider URL and timeout controls for the settings UI", () 
       required: true,
       layout: "full",
       emptyDescription: "Enter an Ollama API key below.",
+    },
+  )
+  assert.deepEqual(
+    ollama.settings.find(({ key }) => key === "baseUrl"),
+    {
+      key: "baseUrl",
+      type: "string",
+      label: "Base URL",
+      default: "https://ollama.com/api",
+      placeholder: "https://ollama.com/api",
+      required: true,
+      format: "url",
+      validation: {
+        url: { protocols: ["https:"], pathname: "/api" },
+        message: "Base URL must be an HTTPS origin followed by /api.",
+      },
+      layout: "full",
+      emptyDescription: "Uses https://ollama.com/api when empty.",
     },
   )
   for (const settings of [ollama.settings, duckDuckGo.settings]) {

@@ -85,6 +85,47 @@ export interface NotifyRequest {
   /** Bounce the dock (macOS) or flash the taskbar (Windows). */
   urgent?: boolean;
 }
+export interface TerminalWindowTitleRequest {
+  title: string;
+}
+export interface TerminalUndockRequest {
+  id: string;
+  cols: number;
+  rows: number;
+  x: number;
+  y: number;
+  title: string;
+  sessionIds?: string[];
+  pane?: TerminalPaneLayout;
+}
+/** Same shape as an undock: it opens a window the same way. Only main's handling differs. */
+export type TerminalCopyRequest = TerminalUndockRequest;
+export interface TerminalRedockRequest {
+  id: string;
+  cols: number;
+  rows: number;
+  sourceFrameId: string;
+  targetFrameId: string;
+  title: string;
+  sessionIds?: string[];
+  pane?: TerminalPaneLayout;
+}
+
+export type TerminalPaneLayout =
+  | { sessionId: string }
+  | { direction: 'right' | 'down'; first: TerminalPaneLayout; second: TerminalPaneLayout };
+
+export interface TerminalPaneSyncRequest {
+  id: string;
+  pane: TerminalPaneLayout;
+}
+
+export interface TerminalPaneChangedEvent extends TerminalPaneSyncRequest {
+  /** Monotonic main-process document revision. */
+  revision: number;
+  /** BrowserWindow id that authored this revision. */
+  origin: string;
+}
 
 /** Result of an update check. This build has no update channel; see docs. */
 export type UpdateStatus =
@@ -98,6 +139,8 @@ export type UpdateStatus =
 /** Top-level views the left navigation can select. */
 export type ViewId = 'library' | 'recents' | 'drafts' | 'shared' | 'trash';
 
+export const MAX_PTY_DIMENSION = 32_767;
+export const MAX_PTY_WRITE_BYTES = 1_000_000;
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -107,6 +150,13 @@ function hasOnly(value: Record<string, unknown>, keys: readonly string[]): boole
 }
 
 function isDimension(value: unknown): value is number {
+  return typeof value === 'number'
+    && Number.isSafeInteger(value)
+    && value > 0
+    && value <= MAX_PTY_DIMENSION;
+}
+
+function isPositiveInteger(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
 }
 
@@ -114,11 +164,17 @@ function isTerminalIdentifier(value: unknown): value is string {
   return typeof value === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(value);
 }
 
+function isTerminalData(value: unknown): value is string {
+  return typeof value === 'string'
+    && value.length <= MAX_PTY_WRITE_BYTES
+    && new TextEncoder().encode(value).byteLength <= MAX_PTY_WRITE_BYTES;
+}
+
 /** Runtime validation for this application's untrusted terminal IPC payloads. */
 export function isPtySpawnRequest(value: unknown): value is PtySpawnRequest {
   return isRecord(value)
     && hasOnly(value, ['id', 'cols', 'rows'])
-    && typeof value.id === 'string'
+    && isTerminalIdentifier(value.id)
     && isDimension(value.cols)
     && isDimension(value.rows);
 }
@@ -126,14 +182,14 @@ export function isPtySpawnRequest(value: unknown): value is PtySpawnRequest {
 export function isPtyWriteRequest(value: unknown): value is PtyWriteRequest {
   return isRecord(value)
     && hasOnly(value, ['id', 'data'])
-    && typeof value.id === 'string'
-    && typeof value.data === 'string';
+    && isTerminalIdentifier(value.id)
+    && isTerminalData(value.data);
 }
 
 export function isPtyResizeRequest(value: unknown): value is PtyResizeRequest {
   return isRecord(value)
     && hasOnly(value, ['id', 'cols', 'rows'])
-    && typeof value.id === 'string'
+    && isTerminalIdentifier(value.id)
     && isDimension(value.cols)
     && isDimension(value.rows);
 }
@@ -141,15 +197,15 @@ export function isPtyResizeRequest(value: unknown): value is PtyResizeRequest {
 export function isPtyProjectionRequest(value: unknown): value is PtyProjectionRequest {
   return isRecord(value)
     && hasOnly(value, ['id', 'projectionId'])
-    && typeof value.id === 'string'
-    && typeof value.projectionId === 'string';
+    && isTerminalIdentifier(value.id)
+    && isTerminalIdentifier(value.projectionId);
 }
 
 export function isPtyProjectionAttachRequest(value: unknown): value is PtyProjectionAttachRequest {
   return isRecord(value)
     && hasOnly(value, ['id', 'projectionId', 'cols', 'rows'])
-    && typeof value.id === 'string'
-    && typeof value.projectionId === 'string'
+    && isTerminalIdentifier(value.id)
+    && isTerminalIdentifier(value.projectionId)
     && isDimension(value.cols)
     && isDimension(value.rows);
 }
@@ -157,18 +213,18 @@ export function isPtyProjectionAttachRequest(value: unknown): value is PtyProjec
 export function isPtyProjectionWriteRequest(value: unknown): value is PtyProjectionWriteRequest {
   return isRecord(value)
     && hasOnly(value, ['id', 'projectionId', 'epoch', 'data'])
-    && typeof value.id === 'string'
-    && typeof value.projectionId === 'string'
-    && isDimension(value.epoch)
-    && typeof value.data === 'string';
+    && isTerminalIdentifier(value.id)
+    && isTerminalIdentifier(value.projectionId)
+    && isPositiveInteger(value.epoch)
+    && isTerminalData(value.data);
 }
 
 export function isPtyProjectionResizeRequest(value: unknown): value is PtyProjectionResizeRequest {
   return isRecord(value)
     && hasOnly(value, ['id', 'projectionId', 'epoch', 'cols', 'rows'])
-    && typeof value.id === 'string'
-    && typeof value.projectionId === 'string'
-    && isDimension(value.epoch)
+    && isTerminalIdentifier(value.id)
+    && isTerminalIdentifier(value.projectionId)
+    && isPositiveInteger(value.epoch)
     && isDimension(value.cols)
     && isDimension(value.rows);
 }
@@ -176,14 +232,14 @@ export function isPtyProjectionResizeRequest(value: unknown): value is PtyProjec
 export function isPtyAcknowledgement(value: unknown): value is { id: string; sequence: number } {
   return isRecord(value)
     && hasOnly(value, ['id', 'sequence'])
-    && typeof value.id === 'string'
+    && isTerminalIdentifier(value.id)
     && typeof value.sequence === 'number'
     && Number.isSafeInteger(value.sequence)
     && value.sequence > 0;
 }
 
 export function isPtyIdRequest(value: unknown): value is { id: string } {
-  return isRecord(value) && hasOnly(value, ['id']) && typeof value.id === 'string';
+  return isRecord(value) && hasOnly(value, ['id']) && isTerminalIdentifier(value.id);
 }
 
 export function isTerminalLaunchRequest(value: unknown): value is TerminalLaunchRequest {
@@ -193,6 +249,70 @@ export function isTerminalLaunchRequest(value: unknown): value is TerminalLaunch
     && (value.targetId === undefined || isTerminalIdentifier(value.targetId))
     && isDimension(value.cols)
     && isDimension(value.rows);
+}
+
+export function isTerminalWindowTitleRequest(value: unknown): value is TerminalWindowTitleRequest {
+  return isRecord(value)
+    && hasOnly(value, ['title'])
+    && typeof value.title === 'string'
+    && value.title.length <= 256;
+}
+
+export function isTerminalUndockRequest(value: unknown): value is TerminalUndockRequest {
+  return isRecord(value)
+    && hasOnly(value, ['id', 'cols', 'rows', 'x', 'y', 'title', 'sessionIds', 'pane'])
+    && isTerminalIdentifier(value.id)
+    && isDimension(value.cols)
+    && isDimension(value.rows)
+    && Number.isSafeInteger(value.x)
+    && Number.isSafeInteger(value.y)
+    && typeof value.title === 'string'
+    && value.title.length <= 256
+    && isOptionalTransferLayout(value);
+}
+
+export function isTerminalRedockRequest(value: unknown): value is TerminalRedockRequest {
+  return isRecord(value)
+    && hasOnly(value, [
+      'id', 'cols', 'rows', 'sourceFrameId', 'targetFrameId', 'title', 'sessionIds', 'pane',
+    ])
+    && isTerminalIdentifier(value.id)
+    && isDimension(value.cols)
+    && isDimension(value.rows)
+    && typeof value.sourceFrameId === 'string'
+    && value.sourceFrameId !== ''
+    && typeof value.targetFrameId === 'string'
+    && value.targetFrameId !== ''
+    && typeof value.title === 'string'
+    && value.title.length <= 256
+    && isOptionalTransferLayout(value);
+}
+
+function isTerminalPaneLayout(value: unknown, depth = 0): value is TerminalPaneLayout {
+  if (depth > 32 || !isRecord(value)) return false;
+  if (value.sessionId !== undefined) {
+    return hasOnly(value, ['sessionId']) && isTerminalIdentifier(value.sessionId);
+  }
+
+  return hasOnly(value, ['direction', 'first', 'second'])
+    && (value.direction === 'right' || value.direction === 'down')
+    && isTerminalPaneLayout(value.first, depth + 1)
+    && isTerminalPaneLayout(value.second, depth + 1);
+}
+
+export function isTerminalPaneSyncRequest(value: unknown): value is TerminalPaneSyncRequest {
+  return isRecord(value)
+    && hasOnly(value, ['id', 'pane'])
+    && isTerminalIdentifier(value.id)
+    && isTerminalPaneLayout(value.pane);
+}
+
+function isOptionalTransferLayout(value: Record<string, unknown>): boolean {
+  return (value.sessionIds === undefined
+    || (Array.isArray(value.sessionIds)
+      && value.sessionIds.length > 0
+      && value.sessionIds.every(isTerminalIdentifier)))
+    && (value.pane === undefined || isTerminalPaneLayout(value.pane));
 }
 
 /* --------------------------------------------------------------- requests */
@@ -210,6 +330,12 @@ export interface IpcContract {
   'dock:set-badge': { request: { count: number }; response: void };
   'update:check': { request: void; response: UpdateStatus };
   'shell:open-external': { request: { url: string }; response: void };
+  'terminal:frame-id': { request: void; response: string };
+  'terminal:window-title': { request: TerminalWindowTitleRequest; response: void };
+  'terminal:undock': { request: TerminalUndockRequest; response: boolean };
+  'terminal:copy': { request: TerminalCopyRequest; response: boolean };
+  'terminal:redock': { request: TerminalRedockRequest; response: boolean };
+  'terminal:pane-sync': { request: TerminalPaneSyncRequest; response: void };
 
   // Terminal sessions. The shell runs in the main process; the renderer holds
   // only the xterm view. See src/main/native/pty.ts.
@@ -252,6 +378,12 @@ export const IPC_CHANNELS = [
   'dock:set-badge',
   'update:check',
   'shell:open-external',
+  'terminal:frame-id',
+  'terminal:window-title',
+  'terminal:undock',
+  'terminal:copy',
+  'terminal:redock',
+  'terminal:pane-sync',
   'pty:spawn',
   'pty:write',
   'pty:resize',
@@ -288,6 +420,17 @@ export interface IpcEvents {
   'pty:exit': { id: string; exitCode: number; projectionId?: string };
   /** A terminal session started or its current process exited. */
   'pty:status': PtyStatus;
+  /**
+   * The authoritative size a mirrored direct-PTY session is now running at.
+   * Only fires once a session has more than one live viewer (an owner and at
+   * least one "Copy into New Window" mirror): the real PTY has one size, so
+   * every viewer must be told the size the smallest of them can show, the
+   * same way a second tmux client is fit to the pane rather than shown a
+   * mismatched grid.
+   */
+  'pty:size': { id: string; cols: number; rows: number; projectionId?: string };
+  'terminal:tab-redocked': { id: string; title: string; pane?: TerminalPaneLayout };
+  'terminal:pane-changed': TerminalPaneChangedEvent;
 
 }
 
@@ -302,6 +445,9 @@ export const IPC_EVENTS = [
   'pty:data',
   'pty:exit',
   'pty:status',
+  'pty:size',
+  'terminal:tab-redocked',
+  'terminal:pane-changed',
 ] as const;
 
 /* ------------------------------------------------- exhaustiveness proofs */

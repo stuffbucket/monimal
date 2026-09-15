@@ -1,6 +1,6 @@
 import { useState, type ReactElement } from 'react'
 
-import { Button, ScrollArea } from 'stuffbucket-electron/renderer'
+import { Button, SettingsPage } from 'stuffbucket-electron/renderer'
 
 import {
   DEFAULT_SETTINGS_SECTION_ID,
@@ -11,13 +11,14 @@ import { useGuardedNavigation } from '../unsaved-changes'
 import type { SettingsCapabilities } from './capabilities'
 import { SETTINGS_SECTION_VIEWS } from './manifest'
 import { ModelProviderDisclosureState } from './ModelsSection'
+import { SettingsNavigationProvider } from './navigation'
 import { SectionRail } from './SectionRail'
 
 // The Settings surface. Composition only: `shared/settings-sections.ts` owns
 // which sections exist, joined to their icons and panels in `./manifest`.
-// Each section owns its primary heading and its own
-// data lifecycle against `SettingsCapabilities`. Building the capabilities
-// instance via `createCoreSettingsCapabilities` is deliberately somebody
+// Each section owns its own data lifecycle against `SettingsCapabilities`.
+// The selected manifest label names the shared SettingsPage heading. Building
+// the capabilities instance via `createCoreSettingsCapabilities` is deliberately somebody
 // else's decision. The window frame is too: it belongs to ../frame/AppFrame,
 // and this surface reaches the parts of it that are its own through that
 // module's slots.
@@ -56,7 +57,8 @@ export function Settings({
     if (request !== null) setCurrent(request.id)
   }
 
-  const CurrentPanel = SETTINGS_SECTION_VIEWS.find(({ id }) => id === current)!.Panel
+  const currentView = SETTINGS_SECTION_VIEWS.find(({ id }) => id === current)!
+  const CurrentPanel = currentView.Panel
 
   return (
     <>
@@ -74,16 +76,20 @@ export function Settings({
         )}
       </SurfaceRail>
 
-      <ScrollArea className="settings-page" aria-labelledby={current}>
-        {onBack ? (
-          <div className="settings-page__back">
-            <Button onClick={onBack}>Back to sign in</Button>
-          </div>
-        ) : null}
-        <ModelProviderDisclosureState>
-          <CurrentPanel key={current} capabilities={capabilities} />
-        </ModelProviderDisclosureState>
-      </ScrollArea>
+      <SettingsPage
+        title={currentView.label}
+        actions={onBack ? <Button onClick={onBack}>Back to sign in</Button> : undefined}
+      >
+        <SettingsNavigationProvider
+          value={(next) => {
+            if (next !== current) requestNavigation(() => setCurrent(next))
+          }}
+        >
+          <ModelProviderDisclosureState>
+            <CurrentPanel key={current} capabilities={capabilities} />
+          </ModelProviderDisclosureState>
+        </SettingsNavigationProvider>
+      </SettingsPage>
     </>
   )
 }
@@ -92,7 +98,7 @@ export function Settings({
 //
 // Injected once on import, guarded by element id so HMR reloads don't pile up
 // duplicate <style> tags. What is left here is this surface's own layout — the
-// page column, the rail, the section rhythm, the device-code and accounts
+// rail, section rhythm, disclosure cards, device-code and accounts
 // blocks. The controls inside them are the package's (`Note`, `Button`,
 // `CopyButton`), and they ship their own rules, so `.settings-note` and
 // `.settings-button` are gone rather than renamed. No component in this
@@ -100,34 +106,9 @@ export function Settings({
 // check for drift. Values read the `--shell-*` contract with fallbacks, so a
 // host that defines no theme still renders something legible.
 //
-// The page block is `settings-page`, not `settings`, and must stay that way.
-// The package's `SettingsPage` styles `.sb-shell .settings` as a header-plus-
-// scrolling-body frame, and `.sb-shell .settings__heading` as a grid wrapper
-// around a title and a description — both at specificity (0,2,0) against the
-// bare classes here at (0,1,0), so the package won silently. This surface is
-// neither of those things: it is a padded content column with an `h1` in it.
-// `settings-page` also follows the convention every other block below already
-// uses, and leaves the package's namespace alone.
+// SettingsPage owns the H1, divider, and scrolling body. These rules only
+// style Maximal-specific content inside that shared frame.
 const SETTINGS_CSS = `
-.settings-page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--shell-space-5, 24px);
-  box-sizing: border-box;
-  width: 100%;
-  height: 100%;
-  min-width: 0;
-  min-height: 0;
-  overflow-y: auto;
-  padding: var(--shell-space-4, 16px);
-  color: var(--shell-text, #f5f5f5);
-}
-
-.settings-page__back {
-  display: flex;
-  justify-content: flex-end;
-}
-
 /* The rail. Its own rules rather than the shell's .nav class, which belongs to
    NavRail and carries a selection model this rail does not have. */
 .settings-rail {
@@ -137,6 +118,8 @@ const SETTINGS_CSS = `
   padding: var(--shell-space-2, 8px);
   min-height: 0;
   overflow-y: auto;
+  font-size: var(--shell-text-base, 0.875rem);
+  line-height: var(--shell-leading-base, 1.5);
 }
 
 .settings-rail__link {
@@ -146,8 +129,9 @@ const SETTINGS_CSS = `
   appearance: none;
   border: 0;
   border-radius: var(--shell-radius, 6px);
-  padding: var(--shell-space-2, 8px);
-  color: var(--shell-text-muted, #8a8a8a);
+  min-height: 40px;
+  padding: 0 var(--shell-space-2, 8px);
+  color: var(--shell-text-muted, #a0a8b4);
   background: transparent;
   font: inherit;
   text-align: left;
@@ -180,10 +164,9 @@ const SETTINGS_CSS = `
   min-width: 0;
 }
 
-.settings-section__heading {
-  margin: 0;
-  font-size: var(--shell-text-lg);
-  font-weight: var(--shell-weight-lg, 600);
+.sb-shell .settings__section > :not(.settings__section-title):not(.settings__description),
+.settings-subsection > :not(.settings-section__subheading) {
+  margin-inline-start: var(--shell-space-4, 16px);
 }
 
 .settings-field {
@@ -209,6 +192,10 @@ const SETTINGS_CSS = `
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
   gap: var(--shell-space-4, 16px);
+}
+
+.search-provider-order__fallback {
+  margin-inline: calc(var(--shell-space-4, 16px) + 2px);
 }
 
 .search-behavior {
@@ -241,18 +228,6 @@ const SETTINGS_CSS = `
   gap: var(--shell-space-1, 4px);
 }
 
-.settings-section__save-note {
-  flex: 1 1 14rem;
-  color: var(--shell-text-subtle, #6a6a6a);
-  font-size: var(--shell-text-sm, 0.8125rem);
-}
-
-.settings-section__action-buttons {
-  display: flex;
-  gap: var(--shell-space-2, 8px);
-  margin-left: auto;
-}
-
 .settings-connector-field {
   align-items: flex-start;
   gap: var(--shell-space-2, 8px);
@@ -279,7 +254,7 @@ const SETTINGS_CSS = `
   margin: 0;
   min-width: 9em;
   font-size: var(--shell-text-sm, 0.9em);
-  color: var(--shell-text-subtle, #6a6a6a);
+  color: var(--shell-text-subtle, #8f97a2);
 }
 
 .settings-details__row dd {
@@ -363,7 +338,7 @@ const SETTINGS_CSS = `
 
 .settings-accounts-list__meta {
   font-size: var(--shell-text-sm, 0.8125rem);
-  color: var(--shell-text-subtle, #6a6a6a);
+  color: var(--shell-text-subtle, #8f97a2);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -394,6 +369,79 @@ const SETTINGS_CSS = `
   font-weight: var(--shell-weight-lg, 600);
 }
 
+.settings-disclosure-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--shell-space-1, 4px);
+  margin: 0;
+  padding: var(--shell-space-2, 8px);
+  border: 1px solid var(--shell-border-strong, var(--shell-border, #2a2a2a));
+  border-radius: var(--shell-radius, 6px);
+  list-style: none;
+}
+
+.settings-disclosure-card {
+  border: 1px solid transparent;
+  border-radius: var(--shell-radius, 6px);
+  background: var(--shell-hover, rgb(255 255 255 / 0.06));
+}
+
+.settings-disclosure-card > summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--shell-space-2, 8px);
+  min-height: var(--shell-control-lg, 36px);
+  padding: var(--shell-space-2, 8px);
+  cursor: pointer;
+  list-style: none;
+}
+
+.settings-disclosure-card > summary::-webkit-details-marker {
+  display: none;
+}
+
+.settings-disclosure-card > summary:focus-visible {
+  outline: 2px solid var(--shell-focus, var(--shell-accent, #5198a6));
+  outline-offset: 2px;
+}
+
+.settings-disclosure-card__chevron {
+  color: var(--shell-text-muted, #a0a8b4);
+  transition: transform 120ms ease-out;
+}
+
+.settings-disclosure-card[open] .settings-disclosure-card__chevron {
+  transform: rotate(90deg);
+}
+
+.settings-disclosure-card__summary,
+.settings-disclosure-card__body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.settings-disclosure-card__summary {
+  gap: 2px;
+}
+
+.settings-disclosure-card__body {
+  gap: var(--shell-space-2, 8px);
+  padding:
+    var(--shell-space-3, 12px)
+    var(--shell-space-3, 12px)
+    var(--shell-space-4, 16px)
+    calc(var(--shell-space-2, 8px) + 16px + var(--shell-space-2, 8px));
+  border-top: 1px solid var(--shell-border, #2a2a2a);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-disclosure-card__chevron {
+    transition: none;
+  }
+}
+
 .settings-advanced > summary {
   width: fit-content;
   font-size: var(--shell-text-sm, 0.9em);
@@ -406,7 +454,6 @@ const SETTINGS_CSS = `
   outline-offset: 2px;
 }
 
-.settings-section__title-row,
 .settings-section__actions,
 .settings-copy-value,
 .settings-dialog__actions,
@@ -417,8 +464,9 @@ const SETTINGS_CSS = `
   flex-wrap: wrap;
 }
 
-.settings-section__title-row {
-  justify-content: space-between;
+.settings-section__actions,
+.settings-periods {
+  justify-content: flex-end;
 }
 
 .settings-dialog__heading {
@@ -457,7 +505,7 @@ const SETTINGS_CSS = `
 
 .settings-list__meta,
 .settings-list__detail {
-  color: var(--shell-text-subtle, #6a6a6a);
+  color: var(--shell-text-subtle, #8f97a2);
   font-size: var(--shell-text-sm, 0.9em);
 }
 
@@ -601,7 +649,7 @@ const SETTINGS_CSS = `
 }
 
 .settings-metrics dt {
-  color: var(--shell-text-subtle, #6a6a6a);
+  color: var(--shell-text-subtle, #8f97a2);
   font-size: var(--shell-text-sm, 0.9em);
 }
 

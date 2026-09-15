@@ -19,14 +19,15 @@ repository or imported commit:
 | ----------------------------------------- | ----------------------------------------------------------------------------------------- |
 | `packages/local-model-registry`           | Provider-neutral local-model registration, provisioning, and runner claims.               |
 | `packages/maximal-harness`                | Transport-neutral local agent runtime, approval gate, search connectors, worker, and renderer component. |
+| `packages/maximal-data-visualization`     | Renderer-only chart primitives, categorical palette contract, and shared visualization interaction styles. |
 | `packages/maximal-model-contract`         | Runtime-neutral model gateway contract shared by Core and model orchestration.            |
 | `packages/maximal-models`                 | Model runtime discovery, lifecycle, reconciliation, and dispatch through DSH.             |
 | `packages/model-qwen3-0.6b-q8-gguf`       | Qwen3 0.6B Q8_0 GGUF artifact metadata and verified provisioning source.                  |
 | `packages/maximal-observability-contract` | Runtime-neutral, versioned traffic-observability schemas and passive observer interfaces. |
 | `packages/maximal-configurators`          | Statically linked first-party client configurators using Core's capability host.          |
 | `packages/maximal-observability`          | Renderer-only traffic explorer components and source interface.                           |
+| `packages/maximal-context-window`         | Renderer-only context-window derivation and visualization components.                      |
 | `packages/model-runtimes/anthropic`       | Profile-installed adapter for Anthropic-compatible Messages APIs.                         |
-| `packages/model-runtimes/llama-server`    | Private descriptor scaffold for a llama.cpp HTTP model runtime.                           |
 | `packages/model-runtimes/omlx`            | Profile-installed adapter for an independently running oMLX model runtime.                |
 
 ## Rules
@@ -181,6 +182,12 @@ package provenance or publisher identity -- the proxy does that.
   linked set of first-party client configurators. It depends only on Core's
   capability-scoped `configurator-host` subpath. The package owns Cordis
   registration; Core owns filesystem, process, credential, and network effects.
+- Added runtime-injected connector configuration across `packages/maximal-core`
+  and `packages/maximal`. Core preserves connector payloads as opaque records
+  and delegates their validation to host-installed Standard Schema plugins
+  before config merge. Maximal injects the first-party Search connector;
+  Search provider descriptors own concrete provider IDs, settings, defaults,
+  and environment-secret resolution.
 - `maximal-core/downstream`: declares itself as an independently installed
   compatibility fixture so the root package-onboarding audit does not treat it
   as a missing nested workspace package.
@@ -199,11 +206,6 @@ package provenance or publisher identity -- the proxy does that.
   stock Cordis/DSH adapter for an independently running oMLX HTTP server. Cordis
   and DSH are exact peers of external model runtime packages and are loaded from
   a user-managed profile rather than compiled into Maximal.
-  `packages/model-runtimes/llama-server` is an activation-gated Cordis/DSH
-  runner for a private standalone llama.cpp process. Packaging fails until its
-  runtime lock contains an authoritative entry for the target. It remains
-  separate from the client's transitional embedded `node-llama-cpp` utility
-  process.
 - Pin rule SETS, not just plugin versions, when a plugin major moves. The
   replaced preset enumerated 83 unicorn rules against unicorn 60; ESLint 10
   needs unicorn >= 73, whose `recommended` turns on 227 more. Taking
@@ -244,6 +246,10 @@ package provenance or publisher identity -- the proxy does that.
   `build:package`, same reason.
 - `maximal-electron`: every `npm run` replaced with `pnpm run`. npm does not
   recognise the config pnpm exports and warned four times per invocation.
+- `maximal-electron`: terminal copies use a main-owned revisioned pane document
+  and window-group geometry controller. Local Electron viewers share one PTY
+  grid and synchronized physical content size without applying the policy to
+  non-resizable or projection-backed clients.
 - `maximal-electron`: the nested `pnpm run` taken back out of the build hooks.
   `build:package` and the four `pre*` hooks that called it are now
   `node scripts/build-package.mjs`, which invokes `tsc` at its installed path
@@ -300,6 +306,14 @@ package provenance or publisher identity -- the proxy does that.
 - `maximal` and `maximal-core`: git hooks taken off the install path and
   `simple-git-hooks` dropped. Two packages installing competing hooks into one
   `.git` is wrong.
+- Root: `pnpm:devPreinstall` creates a functional Bun bootstrap at
+  `maximal-core`'s ignored `dist/main.js` only when that file is absent. pnpm
+  links workspace bins before normal builds, while Core's build replaces the
+  bootstrap and its published manifest keeps the same CLI path.
+- `maximal/client`: direct `typecheck` and `lint` scripts re-enter their Turbo
+  tasks through `scripts/run-workspace-task.mjs`. Turbo invocations run the
+  package-owned `typecheck:inner` and `lint:inner` scripts, so package checks
+  cannot skip their `^build` edges or recurse.
 - `maximal-electron`: added `typebox`. `maximal/client`: added `@types/node` and
   `@electron/packager`. All three are imported but never declared, and npm's
   flat `node_modules` used to supply them. Real bugs upstream.

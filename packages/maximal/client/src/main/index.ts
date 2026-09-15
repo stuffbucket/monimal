@@ -8,6 +8,8 @@ import {
   AppSetEnabledRequest,
   ConnectionActionRequest,
   ConnectionCredentialIdRequest,
+  OllamaSettingsUpdateRequest,
+  SearchProviderValidationRequest,
   SearchSettingsUpdateRequest,
   TokenUsagePeriod,
 } from '@stuffbucket/maximal-core/settings-types'
@@ -32,8 +34,14 @@ import {
   spawnCore,
 } from './core.js'
 import { applyAppName, applyDockIcon, installApplicationMenu } from './identity.js'
+import { listClientInstallations } from './client-installations.js'
 import { toLifecycleStatus } from './lifecycle-status.js'
 import { MenuBarModeController } from './menu-bar-mode.js'
+import {
+  getOllamaRuntimeStatus,
+  launchOllama,
+  updateOllamaContextLength,
+} from './ollama-runtime.js'
 import { runShell } from './shell.js'
 import {
   showHarnessHost,
@@ -101,6 +109,15 @@ function registerIpc(
   ipcMain.handle(BRIDGE_CHANNELS.accountsSwitch, (_event, key: unknown) =>
     session.accountsSwitch(nonEmptyString.parse(key)),
   )
+  ipcMain.handle(BRIDGE_CHANNELS.ollamaAccountsList, () =>
+    session.ollamaAccountsList(),
+  )
+  ipcMain.handle(BRIDGE_CHANNELS.ollamaSettingsGet, () =>
+    session.ollamaSettingsGet(),
+  )
+  ipcMain.handle(BRIDGE_CHANNELS.ollamaSettingsUpdate, (_event, input: unknown) =>
+    session.ollamaSettingsUpdate(OllamaSettingsUpdateRequest.parse(input)),
+  )
   ipcMain.handle(
     BRIDGE_CHANNELS.observabilityOverview,
     (_event, query: unknown) =>
@@ -132,6 +149,9 @@ function registerIpc(
       const input = ConnectionCredentialIdRequest.parse({ id })
       return session.connectionsRevealCredential(input.id)
     },
+  )
+  ipcMain.handle(BRIDGE_CHANNELS.clientInstallationsList, () =>
+    listClientInstallations(),
   )
   ipcMain.handle(BRIDGE_CHANNELS.appsList, () => session.appsList())
   ipcMain.handle(
@@ -184,6 +204,11 @@ function registerIpc(
     (_event, input: unknown) =>
       session.searchSettingsUpdate(SearchSettingsUpdateRequest.parse(input)),
   )
+  ipcMain.handle(
+    BRIDGE_CHANNELS.searchProviderValidate,
+    (_event, input: unknown) =>
+      session.searchProviderValidate(SearchProviderValidationRequest.parse(input)),
+  )
   ipcMain.handle(BRIDGE_CHANNELS.logsLocation, () => join(coreHomePath(), 'logs'))
   ipcMain.handle(BRIDGE_CHANNELS.logsReveal, async () => {
     const error = await shell.openPath(join(coreHomePath(), 'logs'))
@@ -192,6 +217,15 @@ function registerIpc(
   ipcMain.handle(
     BRIDGE_CHANNELS.localModelsOpenFolder,
     openLocalModelsDirectory,
+  )
+  ipcMain.handle(BRIDGE_CHANNELS.ollamaRuntimeStatus, () =>
+    getOllamaRuntimeStatus(),
+  )
+  ipcMain.handle(BRIDGE_CHANNELS.ollamaRuntimeLaunch, () => launchOllama())
+  ipcMain.handle(
+    BRIDGE_CHANNELS.ollamaRuntimeUpdateContext,
+    (_event, value: unknown) =>
+      updateOllamaContextLength(z.number().int().parse(value)),
   )
   ipcMain.handle(BRIDGE_CHANNELS.pendingSettingsRequest, () => {
     const request = pendingSettingsRequest

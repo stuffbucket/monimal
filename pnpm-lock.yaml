@@ -171,6 +171,64 @@ importers:
         specifier: npm:@typescript/typescript6@^6.0.2
         version: '@typescript/typescript6@6.0.2'
 
+  packages/maximal-context-window:
+    dependencies:
+      '@stuffbucket/maximal-data-visualization':
+        specifier: workspace:*
+        version: link:../maximal-data-visualization
+      '@stuffbucket/maximal-observability-contract':
+        specifier: workspace:*
+        version: link:../maximal-observability-contract
+    devDependencies:
+      '@stuffbucket/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@stuffbucket/maximal-electron':
+        specifier: workspace:*
+        version: link:../maximal-electron
+      '@types/node':
+        specifier: ^26.4.0
+        version: 26.4.0
+      '@types/react':
+        specifier: ^19.2.17
+        version: 19.2.18
+      '@types/react-dom':
+        specifier: ^19.2.5
+        version: 19.2.5(@types/react@19.2.18)
+      '@typescript/native':
+        specifier: npm:typescript@^7.0.2
+        version: typescript@7.0.2
+      '@vitejs/plugin-react':
+        specifier: ^6.1.0
+        version: 6.1.1(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))
+      axe-core:
+        specifier: ^4.13.0
+        version: 4.13.0
+      eslint:
+        specifier: ^10.9.1
+        version: 10.9.1(jiti@2.7.0)(supports-color@8.1.1)
+      jsdom:
+        specifier: ^30.0.1
+        version: 30.0.1
+      react:
+        specifier: ^19.2.8
+        version: 19.2.8
+      react-dom:
+        specifier: ^19.2.8
+        version: 19.2.8(react@19.2.8)
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(@typescript/typescript6@6.0.2)(jiti@2.7.0)(postcss@8.5.26)(supports-color@8.1.1)(yaml@2.9.0)
+      typescript:
+        specifier: npm:@typescript/typescript6@^6.0.2
+        version: '@typescript/typescript6@6.0.2'
+      vite:
+        specifier: ^8.2.2
+        version: 8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0)
+      vitest:
+        specifier: ^4.1.11
+        version: 4.1.11(@opentelemetry/api@1.9.0)(@types/node@26.4.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))
+
   packages/maximal-core:
     dependencies:
       '@hono/zod-openapi':
@@ -277,6 +335,45 @@ importers:
         specifier: npm:@typescript/typescript6@^6.0.2
         version: '@typescript/typescript6@6.0.2'
 
+  packages/maximal-data-visualization:
+    devDependencies:
+      '@stuffbucket/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@types/react':
+        specifier: ^19.2.17
+        version: 19.2.18
+      '@types/react-dom':
+        specifier: ^19.2.5
+        version: 19.2.5(@types/react@19.2.18)
+      '@typescript/native':
+        specifier: npm:typescript@^7.0.2
+        version: typescript@7.0.2
+      axe-core:
+        specifier: ^4.13.0
+        version: 4.13.0
+      eslint:
+        specifier: ^10.9.1
+        version: 10.9.1(jiti@2.7.0)(supports-color@8.1.1)
+      jsdom:
+        specifier: ^30.0.1
+        version: 30.0.1
+      react:
+        specifier: ^19.2.8
+        version: 19.2.8
+      react-dom:
+        specifier: ^19.2.8
+        version: 19.2.8(react@19.2.8)
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(@typescript/typescript6@6.0.2)(jiti@2.7.0)(postcss@8.5.26)(supports-color@8.1.1)(yaml@2.9.0)
+      typescript:
+        specifier: npm:@typescript/typescript6@^6.0.2
+        version: '@typescript/typescript6@6.0.2'
+      vitest:
+        specifier: ^4.1.11
+        version: 4.1.11(@opentelemetry/api@1.9.0)(@types/node@26.4.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))
+
   packages/maximal-electron:
     devDependencies:
       '@electron-forge/cli':
@@ -284,7 +381,7 @@ importers:
         version: 7.11.2(bluebird@3.7.2)(csso@5.0.5)(encoding@0.1.13)(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.26)(supports-color@8.1.1)(uglify-js@3.19.3)
       '@electron-forge/plugin-fuses':
         specifier: 7.11.2
-        version: 7.11.2(@electron/fuses@1.8.0)(bluebird@3.7.2)(supports-color@8.1.1)
+        version: 7.11.2(@electron/fuses@2.1.3)(bluebird@3.7.2)(supports-color@8.1.1)
       '@electron-forge/plugin-vite':
         specifier: 7.11.2
         version: 7.11.2(bluebird@3.7.2)(supports-color@8.1.1)
@@ -295,8 +392,8 @@ importers:
         specifier: ^4.3.0
         version: 4.3.0
       '@electron/fuses':
-        specifier: ^1.8.0
-        version: 1.8.0
+        specifier: ^2.1.3
+        version: 2.1.3
       '@playwright/test':
         specifier: ^1.62.0
         version: 1.62.1
@@ -355,11 +452,11 @@ importers:
         specifier: ^6.1.0
         version: 6.1.1(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))
       '@wterm/dom':
-        specifier: 0.3.4
-        version: 0.3.4
+        specifier: 0.4.1
+        version: 0.4.1
       '@wterm/ghostty':
-        specifier: 0.3.4
-        version: 0.3.4
+        specifier: 0.4.1
+        version: 0.4.1
       '@xterm/addon-fit':
         specifier: 0.11.0
         version: 0.11.0
@@ -524,6 +621,12 @@ importers:
 
   packages/maximal-observability:
     dependencies:
+      '@stuffbucket/maximal-context-window':
+        specifier: workspace:*
+        version: link:../maximal-context-window
+      '@stuffbucket/maximal-data-visualization':
+        specifier: workspace:*
+        version: link:../maximal-data-visualization
       '@stuffbucket/maximal-observability-contract':
         specifier: workspace:*
         version: link:../maximal-observability-contract
@@ -638,11 +741,11 @@ importers:
         specifier: workspace:*
         version: link:../../maximal-observability-contract
       '@wterm/dom':
-        specifier: 0.3.4
-        version: 0.3.4
+        specifier: 0.4.1
+        version: 0.4.1
       '@wterm/ghostty':
-        specifier: 0.3.4
-        version: 0.3.4
+        specifier: 0.4.1
+        version: 0.4.1
       '@xterm/addon-fit':
         specifier: 0.11.0
         version: 0.11.0
@@ -726,7 +829,7 @@ importers:
         specifier: ^10.9.1
         version: 10.9.1(jiti@2.7.0)(supports-color@8.1.1)
       eslint-plugin-react-hooks:
-        specifier: ^7.1.1
+        specifier: 7.1.1
         version: 7.1.1(eslint@10.9.1(jiti@2.7.0)(supports-color@8.1.1))(supports-color@8.1.1)
       globals:
         specifier: ^17.11.0
@@ -802,40 +905,6 @@ importers:
       '@stuffbucket/eslint-config':
         specifier: workspace:*
         version: link:../../eslint-config
-      '@types/node':
-        specifier: ^26.4.0
-        version: 26.4.0
-      '@typescript/native':
-        specifier: npm:typescript@^7.0.2
-        version: typescript@7.0.2
-      eslint:
-        specifier: ^10.9.1
-        version: 10.9.1(jiti@2.7.0)(supports-color@8.1.1)
-      tsup:
-        specifier: ^8.5.1
-        version: 8.5.1(@typescript/typescript6@6.0.2)(jiti@2.7.0)(postcss@8.5.26)(supports-color@8.1.1)(yaml@2.9.0)
-      typescript:
-        specifier: npm:@typescript/typescript6@^6.0.2
-        version: '@typescript/typescript6@6.0.2'
-
-  packages/model-runtimes/llama-server:
-    dependencies:
-      '@deepseek-ai/schemastery':
-        specifier: 3.18.2
-        version: 3.18.2
-    devDependencies:
-      '@deepseek-ai/cordis':
-        specifier: 4.0.2
-        version: 4.0.2
-      '@deepseek-ai/dsh-llm':
-        specifier: 0.1.0-rc.8
-        version: 0.1.0-rc.8(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-attachment@0.1.0-rc.8(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-brand@0.1.0-rc.8(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-invariants@0.1.0-rc.8(@deepseek-ai/cordis@4.0.2)))(@deepseek-ai/dsh-invariants@0.1.0-rc.8(@deepseek-ai/cordis@4.0.2)))(@deepseek-ai/dsh-brand@0.1.0-rc.8(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-invariants@0.1.0-rc.8(@deepseek-ai/cordis@4.0.2)))(@deepseek-ai/dsh-invariants@0.1.0-rc.8(@deepseek-ai/cordis@4.0.2))(@deepseek-ai/dsh-timeout@0.1.0-rc.8(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-invariants@0.1.0-rc.8(@deepseek-ai/cordis@4.0.2)))
-      '@stuffbucket/eslint-config':
-        specifier: workspace:*
-        version: link:../../eslint-config
-      '@stuffbucket/local-model-registry':
-        specifier: workspace:*
-        version: link:../../local-model-registry
       '@types/node':
         specifier: ^26.4.0
         version: 26.4.0
@@ -1458,8 +1527,9 @@ packages:
     engines: {node: '>=22.12.0'}
     hasBin: true
 
-  '@electron/fuses@1.8.0':
-    resolution: {integrity: sha1-rTTTzEcDsSWLg/aYmRcFLPwUkKA=}
+  '@electron/fuses@2.1.3':
+    resolution: {integrity: sha1-mmOgq4jalDNBez1aOpVIfkYUiNY=}
+    engines: {node: '>=22.12.0'}
     hasBin: true
 
   '@electron/get@3.1.0':
@@ -4132,14 +4202,14 @@ packages:
   '@webcontainer/env@1.1.1':
     resolution: {integrity: sha1-IwIbK7JL7+7vU9uomW0YhrcBZRU=}
 
-  '@wterm/core@0.3.4':
-    resolution: {integrity: sha1-OEL/3GqDS9Zgtg6nv9XUkkjrsYE=}
+  '@wterm/core@0.4.1':
+    resolution: {integrity: sha1-vvv3sB5FnXDErgqd5n0FtyiOYok=}
 
-  '@wterm/dom@0.3.4':
-    resolution: {integrity: sha1-cSN1e3MiIcyRzmW+uSYFs/i9PxE=}
+  '@wterm/dom@0.4.1':
+    resolution: {integrity: sha1-XZrCSS21GtyVJjULFWEnOFROygo=}
 
-  '@wterm/ghostty@0.3.4':
-    resolution: {integrity: sha1-98kdgPP9WreckMeWXycQBGF+O94=}
+  '@wterm/ghostty@0.4.1':
+    resolution: {integrity: sha1-/M5AfUi4VFqGzZxvydjf4E4SucI=}
 
   '@xmldom/xmldom@0.9.10':
     resolution: {integrity: sha1-oK1aJv6KqZYxCHBybhcEl392ne4=}
@@ -8625,11 +8695,11 @@ snapshots:
       - bluebird
       - supports-color
 
-  '@electron-forge/plugin-fuses@7.11.2(@electron/fuses@1.8.0)(bluebird@3.7.2)(supports-color@8.1.1)':
+  '@electron-forge/plugin-fuses@7.11.2(@electron/fuses@2.1.3)(bluebird@3.7.2)(supports-color@8.1.1)':
     dependencies:
       '@electron-forge/plugin-base': 7.11.2(bluebird@3.7.2)(supports-color@8.1.1)
       '@electron-forge/shared-types': 7.11.2(bluebird@3.7.2)(supports-color@8.1.1)
-      '@electron/fuses': 1.8.0
+      '@electron/fuses': 2.1.3
     transitivePeerDependencies:
       - bluebird
       - supports-color
@@ -8744,11 +8814,7 @@ snapshots:
       glob: 13.0.6
       minimatch: 10.2.6
 
-  '@electron/fuses@1.8.0':
-    dependencies:
-      chalk: 4.1.2
-      fs-extra: 9.1.0
-      minimist: 1.2.8
+  '@electron/fuses@2.1.3': {}
 
   '@electron/get@3.1.0(supports-color@8.1.1)':
     dependencies:
@@ -11118,15 +11184,15 @@ snapshots:
 
   '@webcontainer/env@1.1.1': {}
 
-  '@wterm/core@0.3.4': {}
+  '@wterm/core@0.4.1': {}
 
-  '@wterm/dom@0.3.4':
+  '@wterm/dom@0.4.1':
     dependencies:
-      '@wterm/core': 0.3.4
+      '@wterm/core': 0.4.1
 
-  '@wterm/ghostty@0.3.4':
+  '@wterm/ghostty@0.4.1':
     dependencies:
-      '@wterm/core': 0.3.4
+      '@wterm/core': 0.4.1
 
   '@xmldom/xmldom@0.9.10': {}
 
@@ -14637,7 +14703,7 @@ snapshots:
   vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0):
     dependencies:
       lightningcss: 1.33.0
-      picomatch: 4.0.5
+      picomatch: 4.0.7
       postcss: 8.5.26
       rolldown: 1.2.6
       tinyglobby: 0.2.17
@@ -14663,7 +14729,7 @@ snapshots:
       magic-string: 0.30.21
       obug: 2.1.4
       pathe: 2.0.3
-      picomatch: 4.0.5
+      picomatch: 4.0.7
       std-env: 4.2.0
       tinybench: 2.9.0
       tinyexec: 1.3.0

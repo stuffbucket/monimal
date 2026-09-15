@@ -8,6 +8,7 @@ export const OLLAMA_SEARCH_PROVIDER_ID = "ollama"
 
 export function ollamaSearchProvider(
   bind: (settings: ConnectorSettings) => SearchProviderInstance,
+  environmentApiKey?: string,
 ): SearchProvider {
   return {
     id: OLLAMA_SEARCH_PROVIDER_ID,
@@ -19,6 +20,7 @@ export function ollamaSearchProvider(
         key: "apiKey",
         type: "secret",
         label: "API key",
+        placeholder: "Paste your Ollama API key",
         description: "Use an Ollama API key to authorize hosted search.",
         helpLink: {
           label: "Create or manage an API key",
@@ -33,8 +35,13 @@ export function ollamaSearchProvider(
         type: "string",
         label: "Base URL",
         default: "https://ollama.com/api",
+        placeholder: "https://ollama.com/api",
         required: true,
         format: "url",
+        validation: {
+          url: { protocols: ["https:"], pathname: "/api" },
+          message: "Base URL must be an HTTPS origin followed by /api.",
+        },
         layout: "full",
         emptyDescription: "Uses https://ollama.com/api when empty.",
       },
@@ -58,6 +65,19 @@ export function ollamaSearchProvider(
         emptyDescription: "Uses 5 results when empty.",
       },
     ],
+    credentialProbe: {
+      secretKey: "apiKey",
+      baseUrlKey: "baseUrl",
+      environmentVariable: "OLLAMA_API_KEY",
+      path: "/web_search",
+      body: { query: "maximal credential validation", max_results: 1 },
+    },
+    effectiveSetting: (key, configured) =>
+      key === "apiKey" ? (configured ?? environmentApiKey) : configured,
+    secretSource: (key, configured) =>
+      key === "apiKey" && configured === undefined && environmentApiKey ?
+        "environment"
+      : undefined,
     create: bind,
   }
 }

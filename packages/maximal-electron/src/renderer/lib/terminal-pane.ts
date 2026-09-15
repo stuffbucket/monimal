@@ -8,6 +8,17 @@ export type TerminalPane =
       second: TerminalPane;
     };
 
+export function isTerminalPane(value: unknown): value is TerminalPane {
+  if (typeof value !== 'object' || value === null) return false;
+  if ('sessionId' in value) {
+    return typeof value.sessionId === 'string' && value.sessionId !== '';
+  }
+  if (!('direction' in value) || !('first' in value) || !('second' in value)) return false;
+  return (value.direction === 'right' || value.direction === 'down')
+    && isTerminalPane(value.first)
+    && isTerminalPane(value.second);
+}
+
   /** Replaces one terminal leaf with an ordered split. */
 export function splitTerminalPane(
   pane: TerminalPane,

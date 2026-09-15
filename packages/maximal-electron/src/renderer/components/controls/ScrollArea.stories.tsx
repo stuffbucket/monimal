@@ -13,8 +13,9 @@ const meta = {
       </div>
     ),
   ],
-  render: () => (
+  render: (args) => (
     <ScrollArea
+      {...args}
       role="region"
       aria-label="Scrollable settings"
       style={{ maxHeight: 'calc(var(--shell-control-lg) * 5)' }}
@@ -38,6 +39,26 @@ export const Native: Story = {
 
     await expect(area.scrollHeight).toBeGreaterThan(area.clientHeight);
     await expect(style.colorScheme).toBe('dark');
+    await expect(style.scrollbarColor).toBe('auto');
+    await expect(thumb.backgroundColor).toBe('rgba(0, 0, 0, 0)');
+    await expect(track.backgroundColor).toBe('rgba(0, 0, 0, 0)');
+  },
+};
+
+export const CanvasSurface: Story = {
+  args: { surface: 'canvas' },
+  play: async ({ canvasElement }) => {
+    const area = within(canvasElement).getByRole('region', { name: 'Scrollable settings' });
+    const style = getComputedStyle(area);
+    const thumb = getComputedStyle(area, '::-webkit-scrollbar-thumb');
+    const track = getComputedStyle(area, '::-webkit-scrollbar-track');
+    const reference = canvasElement.ownerDocument.createElement('div');
+    reference.style.background = 'var(--shell-canvas)';
+    canvasElement.append(reference);
+    const canvasBackground = getComputedStyle(reference).backgroundColor;
+    reference.remove();
+
+    await expect(style.backgroundColor).toBe(canvasBackground);
     await expect(style.scrollbarColor).toBe('auto');
     await expect(thumb.backgroundColor).toBe('rgba(0, 0, 0, 0)');
     await expect(track.backgroundColor).toBe('rgba(0, 0, 0, 0)');

@@ -17,7 +17,11 @@ import type {
 } from "~/lib/provider-host-types"
 import type { UsageTokens } from "~/lib/token-usage"
 
-import { getConfig } from "~/lib/config/config"
+import {
+  getConfig,
+  getProviderConfig,
+  resolveProviderConfig,
+} from "~/lib/config/config"
 import {
   asRecord,
   readNestedUsage,
@@ -29,6 +33,8 @@ import {
   mergeAnthropicUsage,
   normalizeAnthropicUsage,
 } from "~/lib/token-usage"
+import { forwardProviderModels } from "~/services/providers/anthropic-proxy"
+import { enrichOllamaModels } from "~/services/providers/ollama-models"
 
 export interface ProviderDispatchOptions {
   legacy: () => Promise<Response>
@@ -44,7 +50,7 @@ export interface ProviderDispatcher {
   listModels(): Promise<ReadonlyArray<ProviderCatalogueModel>>
   localModels(): LocalModelControl | undefined
   ready(): Promise<void>
-  requiresGithubAuth(): boolean
+  requiresGithubAuth(provider?: string): boolean
 }
 
 export interface CreateProviderDispatcherOptions {
@@ -131,6 +137,7 @@ export function createProviderDispatcher(
   const configSource = options.configSource
   const gatewayFactory = options.gatewayFactory
   const readConfig = options.readConfig ?? getConfig
+  const usesDefaultConfig = options.readConfig === undefined
   const staticGateway =
     options.gateway ? managedGateway(options.gateway) : undefined
   let factoryGateway: ManagedGateway | undefined
@@ -138,6 +145,63 @@ export function createProviderDispatcher(
   let queuedActivation: ProviderHostConfigSnapshot | undefined
   let disposePromise: Promise<void> | undefined
   let disposed = false
+
+  async function listLegacyModels(): Promise<
+    ReadonlyArray<ProviderCatalogueModel>
+  > {
+    const config = readConfig()
+    const providers = config.providers ?? {}
+    const names = new Set(Object.keys(providers))
+    if (!("ollama" in providers) || providers.ollama.enabled !== false) {
+      names.add("ollama")
+    }
+    if (usesDefaultConfig && process.env.OLLAMA_API_KEY?.trim()) {
+      names.add("ollama-cloud")
+    }
+    const catalogues = await Promise.all(
+      [...names].map(async (name): Promise<Array<ProviderCatalogueModel>> => {
+        const provider =
+          usesDefaultConfig ?
+            getProviderConfig(name)
+          : resolveProviderConfig(config, name)
+        if (!provider) return []
+        try {
+          const response = await forwardProviderModels(provider, new Headers())
+          if (!response.ok) return []
+          const body = asRecord(await response.json())
+          if (!Array.isArray(body?.data)) return []
+          const models = body.data.flatMap(
+            (value): Array<ProviderCatalogueModel> => {
+              const model = asRecord(value)
+              if (typeof model?.id !== "string") return []
+              const displayName =
+                typeof model.display_name === "string" ?
+                  model.display_name
+                : undefined
+              const modelName =
+                typeof model.name === "string" ?
+                  model.name
+                : (displayName ?? model.id)
+              return [
+                {
+                  id: model.id,
+                  name: modelName,
+                  provider: name,
+                  providerName: name,
+                },
+              ]
+            },
+          )
+          return provider.type === "ollama" ?
+              [...(await enrichOllamaModels(provider, models))]
+            : models
+        } catch {
+          return []
+        }
+      }),
+    )
+    return catalogues.flat()
+  }
   let generation = 0
   const transitionDisposals = new Set<Promise<void>>()
 
@@ -310,7 +374,7 @@ export function createProviderDispatcher(
     },
 
     async listModels() {
-      if (isLegacyMode()) return []
+      if (isLegacyMode()) return await listLegacyModels()
       await activation
       const activeGateway = staticGateway ?? factoryGateway
       if (!activeGateway) return []
@@ -373,8 +437,12 @@ export function createProviderDispatcher(
       await initialActivation
     },
 
-    requiresGithubAuth() {
-      return isLegacyMode()
+    requiresGithubAuth(provider) {
+      if (!isLegacyMode()) return false
+      if (provider === undefined) return true
+      return (
+        (readConfig().providers?.[provider]?.type ?? "anthropic") !== "ollama"
+      )
     },
   }
 }

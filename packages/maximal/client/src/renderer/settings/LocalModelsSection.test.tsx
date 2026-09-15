@@ -1,5 +1,6 @@
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
+import { TooltipProvider } from '@radix-ui/react-tooltip'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type {
@@ -64,10 +65,50 @@ function fakeCapabilities(initial: LocalModelCatalogSnapshot = catalogue) {
       return () => {}
     }),
   }
+  const ollamaRuntime = {
+    status: vi.fn(async () => ({
+      installation: 'application' as const,
+      installed: true,
+      running: false,
+      can_launch: true,
+      can_manage: true,
+      application_path: '/Applications/Ollama.app',
+      server_configuration_path: '/Users/test/.ollama/server.json',
+      desktop_settings_path: '/Users/test/Ollama/db.sqlite',
+      endpoint: 'http://127.0.0.1:11434',
+      context_length: 4096,
+    })),
+    launch: vi.fn(async () => ({
+      installation: 'application' as const,
+      installed: true,
+      running: true,
+      can_launch: true,
+      can_manage: true,
+      application_path: '/Applications/Ollama.app',
+      server_configuration_path: '/Users/test/.ollama/server.json',
+      desktop_settings_path: '/Users/test/Ollama/db.sqlite',
+      endpoint: 'http://127.0.0.1:11434',
+      context_length: 4096,
+    })),
+    updateContextLength: vi.fn(),
+  }
   return {
-    capabilities: { localModels } as unknown as SettingsCapabilities,
+    capabilities: {
+      localModels,
+      ollamaRuntime,
+      ollamaSettings: {
+        get: vi.fn(async () => ({
+          has_api_key: false,
+          credential_source: 'none' as const,
+          local_enabled: true,
+          prefer_local_models: true,
+        })),
+        update: vi.fn(),
+      },
+    } as unknown as SettingsCapabilities,
     emit: (event: LocalModelOperationEvent) => listener(event),
     localModels,
+    ollamaRuntime,
   }
 }
 
@@ -76,7 +117,11 @@ async function renderLocalModels(
 ): Promise<HTMLElement> {
   if (root === null || container === null) throw new Error('test root not ready')
   await act(async () => {
-    root?.render(<LocalModelsSection capabilities={capabilities} />)
+    root?.render(
+      <TooltipProvider>
+        <LocalModelsSection capabilities={capabilities} />
+      </TooltipProvider>,
+    )
     await Promise.resolve()
   })
   return container
@@ -95,12 +140,14 @@ describe('LocalModelsSection', () => {
     const { capabilities, localModels } = fakeCapabilities()
     const surface = await renderLocalModels(capabilities)
 
-    expect(surface.querySelector('h1')?.id).toBe('settings-local-models-heading')
+    expect(surface.querySelector('h1')).toBeNull()
     expect(surface.textContent).toContain('Qwen3 0.6B Q8')
     expect(surface.textContent).toContain('qwen3-0.6b')
     expect(surface.textContent).toContain('GGUF')
     expect(surface.textContent).toContain('registered')
     expect(surface.textContent).toContain('Published by its configured provider')
+    expect(surface.textContent).toContain('Installed, not running')
+    expect(surface.textContent).toContain('Models hosted by Maximal')
     expect(surface.textContent).not.toContain('/models/')
 
     await act(async () => button(surface, 'Open models folder').click())
@@ -156,7 +203,7 @@ describe('LocalModelsSection', () => {
         snapshot: { models: [], revision: 2 },
       })
     })
-    expect(surface.textContent).toContain('No local models are configured.')
+    expect(surface.textContent).toContain('No bundled local models are configured.')
   })
 
   it('surfaces provisioning and folder failures', async () => {
@@ -176,5 +223,15 @@ describe('LocalModelsSection', () => {
       await Promise.resolve()
     })
     expect(surface.textContent).toContain('download rejected')
+  })
+
+  it('opens an installed Ollama desktop app and refreshes its process status', async () => {
+    const { capabilities, ollamaRuntime } = fakeCapabilities()
+    const surface = await renderLocalModels(capabilities)
+
+    await act(async () => button(surface, 'Open Ollama').click())
+
+    expect(ollamaRuntime.launch).toHaveBeenCalledOnce()
+    expect(surface.textContent).toContain('Running')
   })
 })

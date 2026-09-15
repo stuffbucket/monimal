@@ -113,6 +113,10 @@ check(
   !listing.some((entry) => entry.includes('/renderer/demo_window')),
   'capture fixture is not packed',
 );
+check(
+  !listing.some((entry) => entry.includes('/renderer/terminal_lab_window')),
+  'terminal lab is not packed',
+);
 
 // Stories live beside the components they cover, inside `src/`. Nothing
 // imports them, so Vite should never reach one from an entry point. This is

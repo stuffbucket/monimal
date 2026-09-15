@@ -61,6 +61,73 @@ afterEach(() => {
 });
 
 describe('tab drag gestures', () => {
+  it('opens the tab context menu and invokes its selected command', async () => {
+    const onRename = vi.fn();
+    const { element, root } = await renderStrip({
+      frameId: 'main',
+      contextMenu: (tab) => [{
+        id: 'rename',
+        label: `Rename ${tab.title}`,
+        onSelect: onRename,
+      }],
+    });
+    const tab = element.querySelector('[role="tab"]')!;
+
+    await act(async () => {
+      tab.dispatchEvent(new MouseEvent('contextmenu', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 40,
+        clientY: 60,
+      }));
+    });
+
+    const menuItem = document.querySelector<HTMLElement>('[data-testid="menu-rename"]');
+    expect(menuItem?.textContent).toBe('Rename One');
+    await act(async () => {
+      menuItem?.click();
+    });
+    expect(onRename).toHaveBeenCalledOnce();
+
+    await act(async () => root.unmount());
+  });
+
+  it('shows a shortcut hint and a separator without them being part of the label', async () => {
+    const onClose = vi.fn();
+    const { element, root } = await renderStrip({
+      frameId: 'main',
+      contextMenu: () => [
+        { id: 'copy-to-new-window', label: 'Copy into New Window', shortcut: '⌘K O', onSelect: () => undefined },
+        { id: 'close', label: 'Close', shortcut: '⌘W', separatorBefore: true, onSelect: onClose },
+      ],
+    });
+    const tab = element.querySelector('[role="tab"]')!;
+
+    await act(async () => {
+      tab.dispatchEvent(new MouseEvent('contextmenu', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 40,
+        clientY: 60,
+      }));
+    });
+
+    const copyItem = document.querySelector<HTMLElement>('[data-testid="menu-copy-to-new-window"]');
+    expect(copyItem?.querySelector('.menu__item-label')?.textContent).toBe('Copy into New Window');
+    expect(copyItem?.querySelector('.menu__item-shortcut')?.textContent).toBe('⌘K O');
+
+    const closeItem = document.querySelector<HTMLElement>('[data-testid="menu-close"]');
+    expect(closeItem?.querySelector('.menu__item-shortcut')?.textContent).toBe('⌘W');
+    expect(document.querySelector('.menu__separator')).not.toBeNull();
+
+    await act(async () => {
+      closeItem?.click();
+    });
+    expect(onClose).toHaveBeenCalledOnce();
+
+    await act(async () => root.unmount());
+  });
+
   it('writes identity on drag and reports a same-frame move before the drop target', async () => {
     const onMoveTab = vi.fn();
     const { element, root } = await renderStrip({ frameId: 'main', onMoveTab });

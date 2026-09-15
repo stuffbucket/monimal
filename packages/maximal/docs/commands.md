@@ -53,7 +53,7 @@ low-level diagnostics for the client package:
 ```sh
 pnpm --filter maximal-client build:core  # Compile the maximal-core sidecar
 pnpm --filter maximal-client typecheck   # tsc --noEmit
-pnpm --filter maximal-client ui:preview  # Open the real Search UI with in-memory settings
+pnpm --filter maximal-client ui:preview  # Open the real Settings UI with in-memory capabilities
 pnpm --filter maximal-client ui:check    # Check two browser widths and capture screenshots
 pnpm test                                 # Run isolated affected workspace tests
 pnpm --filter maximal-client start       # Launch without graph orchestration

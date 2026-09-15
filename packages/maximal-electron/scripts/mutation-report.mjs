@@ -61,10 +61,13 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
  *
  * 2337 to 2463 adds application-scoped `TmuxProjectionOwners` and lets the
  * trusted host terminate a reservation before its first projection attaches.
- */export const MUTANT_FLOOR = 2463;
+ *
+ * 2463 to 2657 adds the pure terminal workspace aggregate: branded identities,
+ * ownership validation, split, focus, close and document docking operations.
+ */export const MUTANT_FLOOR = 2657;
 
 /** The terminal subset measured when its two-phase runner was introduced. */
-export const TERMINAL_MUTANT_FLOOR = 2103;
+export const TERMINAL_MUTANT_FLOOR = 2297;
 
 /**
  * `// Stryker disable` suppressions, counted in mutants rather than comments

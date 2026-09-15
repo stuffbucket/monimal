@@ -52,7 +52,7 @@ const discover = async () => ({
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 describe('TerminalLauncher', () => {
-  it('shows only a stable loading state until discovery settles', async () => {
+  it('shows Local as soon as profiles load while target discovery continues', async () => {
     let resolveProfiles!: (value: RendererTerminalProfileSummary[]) => void;
     let resolveDiscovery!: (value: RendererTerminalDiscovery) => void;
     const pendingProfiles = new Promise<RendererTerminalProfileSummary[]>((resolve) => { resolveProfiles = resolve; });
@@ -67,10 +67,16 @@ describe('TerminalLauncher', () => {
     expect(document.body.textContent).not.toContain('has no running targets');
     await act(async () => {
       resolveProfiles(await profiles());
-      resolveDiscovery(await discover());
     });
     expect(document.body.textContent).not.toContain('Loading terminal profiles...');
     expect(document.body.textContent).toContain('Local');
+    expect(document.body.textContent).toContain('Checking SSH, tmux, containers, and virtual machines...');
+    expect(document.body.textContent).not.toContain('unavailable profiles');
+    await act(async () => {
+      resolveDiscovery(await discover());
+    });
+    expect(document.body.textContent).not.toContain('Checking SSH, tmux, containers, and virtual machines...');
+    expect(document.body.textContent).toContain('desktop: web');
     const tmuxControl = [...document.body.querySelectorAll('button')]
       .find((button) => button.textContent?.includes('Tmux Control'));
     expect(tmuxControl).toBeDefined();

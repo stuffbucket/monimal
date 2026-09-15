@@ -19,8 +19,13 @@ import type {
   ConnectionsListResponse,
   DiagnosticsResponse,
   ModelsListResponse,
+  OllamaAccountsListResponse,
+  OllamaSettingsResponse,
+  OllamaSettingsUpdateRequest,
   SearchSettingsResponse,
   SearchSettingsUpdateRequest,
+  SearchProviderValidationRequest,
+  SearchProviderValidationResponse,
   TokenUsagePeriod,
   TokenUsageSummary,
 } from '@stuffbucket/maximal-core/settings-types'
@@ -57,9 +62,11 @@ import type {
 } from 'stuffbucket-electron/renderer'
 import type {
   ControlResult,
+  ClientInstallation,
   LifecycleStatus,
   MenuBarModeAttempt,
   MenuBarModeState,
+  OllamaRuntimeStatus,
   PendingSettingsRequest,
 } from '../shared/bridge-types.js'
 
@@ -110,6 +117,18 @@ const bridge = {
     onChange: (
       listener: (event: LocalModelOperationEvent) => void,
     ): (() => void) => subscribe(BRIDGE_CHANNELS.localModelsChanged, listener),
+  },
+  ollamaRuntime: {
+    status: (): Promise<OllamaRuntimeStatus> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.ollamaRuntimeStatus),
+    launch: (): Promise<OllamaRuntimeStatus> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.ollamaRuntimeLaunch),
+    updateContextLength: (value: number): Promise<OllamaRuntimeStatus> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.ollamaRuntimeUpdateContext, value),
+  },
+  clientInstallations: {
+    list: (): Promise<ClientInstallation[]> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.clientInstallationsList),
   },
   menuBarMode: {
     get: (): Promise<MenuBarModeState> =>
@@ -201,6 +220,15 @@ const bridge = {
       ipcRenderer.invoke(BRIDGE_CHANNELS.accountsList),
     accountsSwitch: (key: string): Promise<ControlResult<null>> =>
       ipcRenderer.invoke(BRIDGE_CHANNELS.accountsSwitch, key),
+    ollamaAccountsList: (): Promise<
+      ControlResult<OllamaAccountsListResponse>
+    > => ipcRenderer.invoke(BRIDGE_CHANNELS.ollamaAccountsList),
+    ollamaSettingsGet: (): Promise<ControlResult<OllamaSettingsResponse>> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.ollamaSettingsGet),
+    ollamaSettingsUpdate: (
+      input: OllamaSettingsUpdateRequest,
+    ): Promise<ControlResult<OllamaSettingsResponse>> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.ollamaSettingsUpdate, input),
     observabilityOverview: (
       query: TrafficOverviewQuery,
     ): Promise<ControlResult<TrafficOverview>> =>
@@ -264,6 +292,10 @@ const bridge = {
       input: SearchSettingsUpdateRequest,
     ): Promise<ControlResult<SearchSettingsResponse>> =>
       ipcRenderer.invoke(BRIDGE_CHANNELS.searchSettingsUpdate, input),
+    searchProviderValidate: (
+      input: SearchProviderValidationRequest,
+    ): Promise<ControlResult<SearchProviderValidationResponse>> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.searchProviderValidate, input),
     onChange: (listener: () => void): (() => void) => {
       const handler = (): void => {
         listener()

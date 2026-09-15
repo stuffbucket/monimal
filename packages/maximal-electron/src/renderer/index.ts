@@ -109,6 +109,32 @@ export {
   type TerminalPane,
   type TerminalSplitDirection,
 } from './lib/terminal-pane.js';
+export {
+  assertTerminalWorkspace,
+  closeTerminalView,
+  createTerminalWorkspace,
+  dockTerminalDocument,
+  focusTerminalView,
+  splitTerminalView,
+  terminalDocumentId,
+  terminalPaneViewIds,
+  terminalProjectionId,
+  terminalSessionId,
+  terminalViewId,
+  terminalWorkspaceIssues,
+  type TerminalDockEdge,
+  type TerminalDocument,
+  type TerminalDocumentId,
+  type TerminalPane as TerminalWorkspacePane,
+  type TerminalProjectionId,
+  type TerminalProjectionRecord,
+  type TerminalSessionId,
+  type TerminalSplitDirection as TerminalWorkspaceSplitDirection,
+  type TerminalViewId,
+  type TerminalViewRecord,
+  type TerminalWorkspace,
+  type TerminalWorkspaceInput,
+} from './lib/terminal-workspace.js';
 export { detachedSessions } from './lib/terminal-sessions.js';
 export {
   createTerminalTransport,

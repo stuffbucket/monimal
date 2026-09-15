@@ -21,6 +21,8 @@ const catalogue: ModelsListResponse = {
       max_output_tokens: 128_000,
       capabilities: {
         vision: true,
+        image_generation: false,
+        video_generation: false,
         tool_calls: true,
         streaming: true,
         reasoning: true,
@@ -37,6 +39,8 @@ const catalogue: ModelsListResponse = {
       max_output_tokens: null,
       capabilities: {
         vision: false,
+        image_generation: false,
+        video_generation: false,
         tool_calls: false,
         streaming: false,
         reasoning: false,
@@ -53,6 +57,8 @@ const catalogue: ModelsListResponse = {
       max_output_tokens: null,
       capabilities: {
         vision: false,
+        image_generation: false,
+        video_generation: false,
         tool_calls: false,
         streaming: true,
         reasoning: true,
@@ -266,6 +272,53 @@ describe('ModelsSection', () => {
     expect(surface.textContent).not.toContain('Vision')
     expect(surface.textContent).not.toContain('Audio')
     expect(surface.textContent).not.toContain('Voice')
+  })
+
+  it('renders image models with generation capability and non-token limits', async () => {
+    const imageCatalogue: ModelsListResponse = {
+      models: [
+        {
+          id: 'x/z-image-turbo:latest',
+          name: 'x/z-image-turbo:latest',
+          vendor: 'Ollama',
+          family: '',
+          type: 'image',
+          preview: false,
+          context_window_tokens: null,
+          max_output_tokens: null,
+          capabilities: {
+            vision: false,
+            image_generation: true,
+            video_generation: false,
+            tool_calls: false,
+            streaming: false,
+            reasoning: false,
+          },
+        },
+      ],
+      count: 1,
+      loaded_at: null,
+    }
+    const { capabilities } = fakeCapabilities(async () => imageCatalogue)
+    const surface = await renderModels(capabilities)
+    const typeIcon = surface.querySelector<HTMLElement>('.settings-table__type')
+    const limits = [
+      ...surface.querySelectorAll<HTMLElement>('.settings-table__number span'),
+    ]
+    const capabilityIcons = [
+      ...surface.querySelectorAll<HTMLElement>(
+        '.settings-table__capabilities [role="img"]',
+      ),
+    ]
+
+    expect(typeIcon?.getAttribute('aria-label')).toBe('Image model type')
+    expect(limits.map((limit) => limit.getAttribute('aria-label'))).toEqual([
+      'Not applicable',
+      'Not applicable',
+    ])
+    expect(capabilityIcons.map((icon) => icon.getAttribute('aria-label'))).toEqual([
+      'Image generation',
+    ])
   })
 
   it('keeps provider disclosure state across catalogue rerenders', async () => {

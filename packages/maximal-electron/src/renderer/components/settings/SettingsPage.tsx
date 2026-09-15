@@ -60,7 +60,7 @@ export const SETTINGS_STYLES = `
 
 .sb-shell .settings__description {
   margin: 0;
-  font-size: var(--shell-text-sm);
+  font-size: var(--shell-text-base);
   line-height: var(--shell-leading-base);
   color: var(--shell-text-subtle);
   max-width: var(--shell-settings-measure);

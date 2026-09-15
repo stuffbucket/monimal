@@ -5,8 +5,9 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../src/renderer/components/TerminalView.js', () => ({
-  TerminalView: ({ id, focused, focusIndicator, onExit, onSplit, onNavigateSplit }: {
+  TerminalView: ({ id, focusRequest, focused, focusIndicator, onExit, onSplit, onNavigateSplit }: {
     id: string;
+    focusRequest?: number;
     focused?: boolean;
     focusIndicator?: boolean;
     onExit?: (exitCode: number) => void;
@@ -15,6 +16,7 @@ vi.mock('../../src/renderer/components/TerminalView.js', () => ({
   }) => (
     <button
       data-session-id={id}
+      data-focus-request={focusRequest || undefined}
       data-focused={focused || undefined}
       data-focus-indicator={focusIndicator || undefined}
       onClick={() => onSplit?.('right')}
@@ -37,6 +39,47 @@ globalThis.ResizeObserver = class {
 };
 
 describe('TerminalTabs attachments', () => {
+  it('applies newer remote pane revisions without echoing them or accepting stale state', async () => {
+    const onPaneChange = vi.fn();
+    const element = document.createElement('div');
+    const root = createRoot(element);
+    const transport = {
+      spawn: async () => undefined,
+      write: async () => undefined,
+      resize: async () => undefined,
+      terminate: async () => undefined,
+      subscribe: () => () => undefined,
+    };
+    const render = (pane: { sessionId: string } | {
+      direction: 'right';
+      first: { sessionId: string };
+      second: { sessionId: string };
+    }, revision: number) => (
+      <TerminalTabs
+        attachments={[{ id: 'tab-17', sessionId: 'session-4' }]}
+        activeId="tab-17"
+        initialPanes={new Map([['tab-17', pane]])}
+        paneRevisions={new Map([['tab-17', revision]])}
+        onPaneChange={onPaneChange}
+        transport={transport}
+      />
+    );
+
+    await act(async () => root.render(render({ sessionId: 'session-4' }, 1)));
+    await act(async () => root.render(render({
+      direction: 'right',
+      first: { sessionId: 'session-4' },
+      second: { sessionId: 'session-5' },
+    }, 2)));
+    expect(element.querySelectorAll('[data-session-id]')).toHaveLength(2);
+    expect(onPaneChange).not.toHaveBeenCalled();
+
+    await act(async () => root.render(render({ sessionId: 'session-4' }, 1)));
+    expect(element.querySelectorAll('[data-session-id]')).toHaveLength(2);
+    expect(onPaneChange).not.toHaveBeenCalled();
+    await act(async () => root.unmount());
+  });
+
   it('keeps sessions through a StrictMode remount and terminates them on real unmount', async () => {
     const terminate = vi.fn(async () => undefined);
     const element = document.createElement('div');
@@ -121,6 +164,12 @@ describe('TerminalTabs attachments', () => {
       node.getAttribute('data-session-id'))).toEqual(['session-4', 'session-5']);
     expect(element.querySelector('.terminal-split')).not.toBeNull();
     expect(element.querySelectorAll('[data-focus-indicator="true"]')).toHaveLength(2);
+    expect(element.querySelector('[data-session-id="session-5"]')?.getAttribute(
+      'data-focused',
+    )).toBe('true');
+    expect(element.querySelector('[data-session-id="session-4"]')?.getAttribute(
+      'data-focused',
+    )).toBeNull();
     expect(onSessionsChange).toHaveBeenLastCalledWith('tab-17', ['session-4', 'session-5']);
     expect(terminate).not.toHaveBeenCalled();
 
@@ -129,8 +178,8 @@ describe('TerminalTabs attachments', () => {
         .dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
     });
     expect(element.querySelector('[data-session-id="session-4"]')?.getAttribute(
-      'data-focused',
-    )).toBe('true');
+      'data-focus-request',
+    )).toBe('2');
 
     await act(async () => root.unmount());
     expect(terminate.mock.calls).toEqual([['session-4'], ['session-5']]);
@@ -212,8 +261,8 @@ describe('TerminalTabs attachments', () => {
 
     expect(element.querySelector('.terminal-split')).toBeNull();
     expect(element.querySelector('[data-session-id="session-4"]')?.getAttribute(
-      'data-focused',
-    )).toBe('true');
+      'data-focus-request',
+    )).toBe('2');
     expect(onSessionsChange).toHaveBeenLastCalledWith('tab-17', ['session-4']);
     expect(onExit).not.toHaveBeenCalled();
 

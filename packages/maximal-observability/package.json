@@ -21,12 +21,14 @@
   ],
   "scripts": {
     "analyze": "bun ../maximal-core/scripts/analyze.ts",
-    "build": "tsup src/index.ts --format esm --dts --clean --target es2022 --external react --external @stuffbucket/maximal-electron --external @stuffbucket/maximal-observability-contract --out-dir dist && cp src/styles.css dist/styles.css",
+    "build": "tsup src/index.ts --format esm --dts --clean --target es2022 --external react --external @stuffbucket/maximal-data-visualization --external @stuffbucket/maximal-electron --external @stuffbucket/maximal-observability-contract --external @stuffbucket/maximal-context-window --out-dir dist && cp src/styles.css dist/styles.css",
     "lint": "eslint",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@stuffbucket/maximal-context-window": "workspace:*",
+    "@stuffbucket/maximal-data-visualization": "workspace:*",
     "@stuffbucket/maximal-observability-contract": "workspace:*"
   },
   "devDependencies": {

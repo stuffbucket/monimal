@@ -25,6 +25,53 @@ function definedThemeVariables(): Set<string> {
   )
 }
 
+interface Rgb {
+  red: number
+  green: number
+  blue: number
+}
+
+function themeValues(): Map<string, string> {
+  const source = readFileSync(resolve(process.cwd(), 'src/renderer/theme.ts'), 'utf8')
+  return new Map(
+    [...source.matchAll(/^\s*(--shell-[a-z0-9-]+)\s*:\s*([^;]+);/gm)].map(
+      (match) => [match[1] ?? '', (match[2] ?? '').trim()],
+    ),
+  )
+}
+
+function hex(value: string): Rgb {
+  const match = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(value)
+  if (match === null) throw new Error(`${value} is not an opaque hex colour`)
+  return {
+    red: Number.parseInt(match[1] ?? '', 16),
+    green: Number.parseInt(match[2] ?? '', 16),
+    blue: Number.parseInt(match[3] ?? '', 16),
+  }
+}
+
+function blend(foreground: Rgb, background: Rgb, alpha: number): Rgb {
+  const channel = (front: number, behind: number) =>
+    Math.round(front * alpha + behind * (1 - alpha))
+  return {
+    red: channel(foreground.red, background.red),
+    green: channel(foreground.green, background.green),
+    blue: channel(foreground.blue, background.blue),
+  }
+}
+
+function contrast(first: Rgb, second: Rgb): number {
+  const luminance = ({ red, green, blue }: Rgb) => {
+    const channel = (value: number) => {
+      const scaled = value / 255
+      return scaled <= 0.04045 ? scaled / 12.92 : ((scaled + 0.055) / 1.055) ** 2.4
+    }
+    return 0.2126 * channel(red) + 0.7152 * channel(green) + 0.0722 * channel(blue)
+  }
+  const values = [luminance(first), luminance(second)]
+  return (Math.max(...values) + 0.05) / (Math.min(...values) + 0.05)
+}
+
 describe('the stuffbucket-electron shell variable contract', () => {
   it('derives a non-empty contract from the installed package', () => {
     expect(SHELL_STYLES.length, `${SHELL_STYLES_PATH} resolved but was empty`).toBeGreaterThan(0)
@@ -45,6 +92,32 @@ describe('the stuffbucket-electron shell variable contract', () => {
       missing,
       `theme.ts does not define required variables from ${SHELL_STYLES_PATH}: ${missing.join(', ')}`,
     ).toEqual([])
+  })
+})
+
+describe('switch non-text contrast', () => {
+  it('keeps both states and their boundaries above 3:1 on the canvas', () => {
+    const values = themeValues()
+    const value = (name: string) => {
+      const found = values.get(name)
+      if (found === undefined) throw new Error(`${name} is not defined by the theme`)
+      return found
+    }
+    const canvas = hex(value('--shell-canvas'))
+    const offTrack = blend(hex(value('--shell-text-muted')), canvas, 0.2)
+    const accent = hex(value('--shell-accent'))
+
+    const relationships = [
+      ['off track boundary', hex(value('--shell-text-muted')), canvas],
+      ['off thumb', hex(value('--shell-text')), offTrack],
+      ['on track', accent, canvas],
+      ['on thumb', hex(value('--shell-accent-contrast')), accent],
+      ['on and off states', accent, offTrack],
+    ] as const
+
+    for (const [name, foreground, background] of relationships) {
+      expect(contrast(foreground, background), name).toBeGreaterThanOrEqual(3)
+    }
   })
 })
 

@@ -62,6 +62,7 @@ import {
   SettingsOperationError,
   updateApiKey,
   updateSearchSettings,
+  validateSearchProvider,
 } from "~/lib/config/settings-operations"
 import {
   ApiKeyCreateRequest,
@@ -71,6 +72,8 @@ import {
   AppSetEnabledRequest,
   ConnectionActionRequest,
   ConnectionCredentialIdRequest,
+  OllamaSettingsUpdateRequest,
+  SearchProviderValidationRequest,
   SearchSettingsUpdateRequest,
   TokenUsageRequest,
 } from "~/lib/config/settings-types"
@@ -94,6 +97,11 @@ import { getTokenUsageSummary } from "~/lib/token-usage"
 import { BUILD_VERSION } from "~/lib/update/build-info"
 import { getUpdateStatus } from "~/lib/update/update-check"
 import { projectControlConfig } from "~/routes/control/config-projection"
+import { listOllamaAccounts } from "~/services/providers/ollama-accounts"
+import {
+  getOllamaSettings,
+  updateOllamaSettings,
+} from "~/services/providers/ollama-settings"
 
 export interface ControlRpcOperationOverrides {
   buildSearchSettings?: typeof buildSearchSettings
@@ -101,6 +109,7 @@ export interface ControlRpcOperationOverrides {
   refreshModels?: typeof cacheModels
   setAppEnabled?: typeof setAppEnabled
   updateSearchSettings?: typeof updateSearchSettings
+  validateSearchProvider?: typeof validateSearchProvider
 }
 
 export interface ControlRpcDeps {
@@ -207,6 +216,7 @@ function createSearchSettingsRpcMethods(
 ): RpcRegistry {
   const read = operations.buildSearchSettings ?? buildSearchSettings
   const update = operations.updateSearchSettings ?? updateSearchSettings
+  const validate = operations.validateSearchProvider ?? validateSearchProvider
   return {
     "searchSettings/get": () => read(),
     "searchSettings/update": (params: unknown) =>
@@ -216,6 +226,32 @@ function createSearchSettingsRpcMethods(
             SearchSettingsUpdateRequest,
             params,
             "Expected search connector settings update.",
+          ),
+        ),
+      ),
+    "searchSettings/validateProvider": (params: unknown) =>
+      asAsyncRpcOperation(() =>
+        validate(
+          parseParams(
+            SearchProviderValidationRequest,
+            params,
+            "Expected search provider validation request.",
+          ),
+        ),
+      ),
+  }
+}
+
+function createOllamaSettingsRpcMethods(): RpcRegistry {
+  return {
+    "ollamaSettings/get": () => getOllamaSettings(),
+    "ollamaSettings/update": (params: unknown) =>
+      asAsyncRpcOperation(() =>
+        updateOllamaSettings(
+          parseParams(
+            OllamaSettingsUpdateRequest,
+            params,
+            "Expected an Ollama settings update.",
           ),
         ),
       ),
@@ -240,6 +276,7 @@ function createSettingsRpcMethods({
 
   return {
     ...createSearchSettingsRpcMethods(operations),
+    ...createOllamaSettingsRpcMethods(),
     "connections/list": readConnections,
     "connections/act": createConnectionActionRpc(configurators, hub, readApps),
     "connections/revealCredential": (params: unknown) =>
@@ -371,6 +408,7 @@ export function createControlRpcMethods(deps: ControlRpcDeps): RpcRegistry {
     // snapshot read and a pushed update can never describe different shapes.
     "auth/status": () => getAuthStatus(),
     "accounts/list": () => buildAccountsList(),
+    "ollamaAccounts/list": () => listOllamaAccounts(),
     "observability/overview": async (params: unknown) => {
       const query = parseObservabilityParams(TrafficOverviewQuerySchema, params)
       return TrafficOverviewSchema.parse(

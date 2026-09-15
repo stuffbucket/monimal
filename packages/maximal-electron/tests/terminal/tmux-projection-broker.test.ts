@@ -24,6 +24,15 @@ function processWire() {
   };
 }
 
+function geometryPolicy() {
+  return {
+    applyGeometry: async (_sessionId: string, cols: number, rows: number) => ({ cols, rows }),
+    releaseGeometry: async () => undefined,
+    onGeometry: () => undefined,
+    onGeometryError: () => undefined,
+  };
+}
+
 describe('TmuxProjectionBroker', () => {
   it('converges projections on one focus owner and canonical geometry', () => {
     const wires = [processWire(), processWire()];
@@ -32,6 +41,7 @@ describe('TmuxProjectionBroker', () => {
     const output: string[] = [];
     const exits: string[] = [];
     const broker = new TmuxProjectionBroker({
+      ...geometryPolicy(),
       attach: ({ sessionId, projectionId, cols, rows }) => {
         attached.push(`${sessionId}:${projectionId}:${String(cols)}x${String(rows)}`);
         return wires[attached.length - 1]!.process;
@@ -79,13 +89,14 @@ describe('TmuxProjectionBroker', () => {
     expect(broker.terminate('work')).toBe(false);
   });
 
-  it('rejects absent and stale owners and permits a projection identity to be reused', () => {
+  it('rejects absent and stale owners and permits a projection identity to be reused', async () => {
     const first = processWire();
     const second = processWire();
     const processes = [first.process, second.process];
     const exits: string[] = [];
     const output: string[] = [];
     const broker = new TmuxProjectionBroker({
+      ...geometryPolicy(),
       attach: () => processes.shift()!,
       terminateSession: () => undefined,
       emit: (_sessionId, _projectionId, chunk) => output.push(chunk),
@@ -99,11 +110,13 @@ describe('TmuxProjectionBroker', () => {
 
     expect(broker.attach({ sessionId: 'work', projectionId: 'left', cols: 0, rows: -1 })).toBe(true);
     expect(broker.attach({ sessionId: 'work', projectionId: 'left', cols: 80, rows: 24 })).toBe(false);
-    expect(broker.geometry('work')).toEqual({ cols: 1, rows: 1 });
+    expect(broker.geometry('work')).toBeUndefined();
     expect(broker.focus('work', 'missing', 80, 24)).toBeUndefined();
     expect(broker.detach('work', 'missing')).toBe(false);
 
     const epoch = broker.focus('work', 'left', 0, 0)!;
+    await broker.settleGeometry('work');
+    expect(broker.geometry('work')).toEqual({ cols: 1, rows: 1 });
     expect(first.calls).toEqual(['resize:1x1']);
     expect(broker.write('work', 'other', epoch, 'wrong owner')).toBe(false);
     expect(broker.write('work', 'left', epoch + 1, 'wrong epoch')).toBe(false);
@@ -126,6 +139,7 @@ describe('TmuxProjectionBroker', () => {
     const replacement = processWire();
     const processes = [left.process, right.process, replacement.process];
     const broker = new TmuxProjectionBroker({
+      ...geometryPolicy(),
       attach: () => processes.shift()!,
       terminateSession: () => undefined,
       emit: () => undefined,
@@ -151,6 +165,7 @@ describe('TmuxProjectionBroker', () => {
     const replacement = processWire();
     const processes = [observer.process, owner.process, replacement.process];
     const broker = new TmuxProjectionBroker({
+      ...geometryPolicy(),
       attach: () => processes.shift()!,
       terminateSession: () => undefined,
       emit: () => undefined,
@@ -173,6 +188,7 @@ describe('TmuxProjectionBroker', () => {
     const wire = processWire();
     const terminateSession = vi.fn();
     const broker = new TmuxProjectionBroker({
+      ...geometryPolicy(),
       attach: () => wire.process,
       terminateSession,
       emit: () => undefined,
@@ -184,5 +200,29 @@ describe('TmuxProjectionBroker', () => {
     expect(wire.calls).toEqual(['kill']);
     expect(terminateSession).not.toHaveBeenCalled();
     expect(broker.abandon('work')).toBe(false);
+  });
+
+  it('publishes and applies only geometry confirmed by the tmux server', async () => {
+    const wire = processWire();
+    const onGeometry = vi.fn();
+    const broker = new TmuxProjectionBroker({
+      attach: () => wire.process,
+      applyGeometry: async () => ({ cols: 79, rows: 23 }),
+      releaseGeometry: async () => undefined,
+      terminateSession: () => undefined,
+      emit: () => undefined,
+      onExit: () => undefined,
+      onGeometry,
+      onGeometryError: () => undefined,
+    });
+    broker.attach({ sessionId: 'work', projectionId: 'left', cols: 80, rows: 24 });
+
+    broker.focus('work', 'left', 100, 30);
+    expect(broker.geometry('work')).toBeUndefined();
+    await broker.settleGeometry('work');
+
+    expect(broker.geometry('work')).toEqual({ cols: 79, rows: 23 });
+    expect(wire.calls).toEqual(['resize:100x30', 'resize:79x23']);
+    expect(onGeometry).toHaveBeenCalledWith('work', 79, 23);
   });
 });

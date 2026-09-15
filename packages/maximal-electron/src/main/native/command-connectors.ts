@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto';
+import type { TmuxProjectionMetadata } from '../../host/tmux-projection-host.js';
 import { execFile } from 'node:child_process';
 import { closeSync, openSync, readSync } from 'node:fs';
 import { join } from 'node:path';
@@ -31,15 +32,13 @@ export interface DiscoveredTarget {
   label: string;
 }
 
-export interface TmuxProjectionLaunch {
-  terminate: { command: string; args: string[] };
-}
-
 export interface CommandLaunch {
   command: string;
   args: string[];
-  tmuxProjection?: TmuxProjectionLaunch;
+  tmuxProjection?: TmuxProjectionMetadata;
 }
+
+export type TmuxProjectionLaunch = TmuxProjectionMetadata;
 
 export interface CommandConnector {
   readonly id: 'docker' | 'podman' | 'lima' | 'multipass' | 'kubernetes' | 'wsl' | 'vagrant' | 'ssh' | 'tmux' | 'ssh-tmux';
@@ -74,6 +73,8 @@ const SAFE_VAGRANT_PROVIDER = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/;
 const SAFE_POSIX_VAGRANT_DIRECTORY = /^(?:\/[A-Za-z0-9._, -]+)+(?:\/)?$/;
 const SAFE_VAGRANT_DIRECTORY_SEGMENT = /^[A-Za-z0-9._, -]+$/;
 const NEW_TMUX_TARGET_LABEL = ['New', 'tmux', 'session'].join(' ');
+const TMUX_CLIENT_FEATURES = 'hyperlinks';
+const TMUX_HYPERLINK_VERSION = /^tmux (\d+)\.(\d+)/;
 
 interface DockerContainer {
   ID?: unknown;
@@ -256,6 +257,18 @@ function isNoTmuxServer(error: unknown): boolean {
   return (error as { code?: unknown }).code === 1;
 }
 
+function tmuxSupportsHyperlinks(version: string): boolean {
+  const match = TMUX_HYPERLINK_VERSION.exec(version.trim());
+  if (!match) return false;
+  const major = Number(match[1]);
+  const minor = Number(match[2]);
+  return major > 3 || (major === 3 && minor >= 4);
+}
+
+function tmuxClientFeatureArgs(supportsHyperlinks: boolean): string[] {
+  return supportsHyperlinks ? ['-T', TMUX_CLIENT_FEATURES] : [];
+}
+
 /** Read the fixed user SSH config through a bounded, host-owned dependency. */
 export type SshConfigReader = (filename: string, maxBytes: number) => string;
 
@@ -308,10 +321,12 @@ export class SshConnector implements CommandConnector {
 export class TmuxConnector implements CommandConnector {
   readonly id = 'tmux' as const;
   readonly label = 'Tmux';
+  private supportsHyperlinks = true;
 
   constructor(private readonly run: CommandRunner, private readonly createName: () => string = generatedTmuxName) {}
 
   async discover(): Promise<DiscoveredTarget[]> {
+    this.supportsHyperlinks = tmuxSupportsHyperlinks((await this.run('tmux', ['-V'], discoveryOptions())).stdout);
     let sessions: string[] = [];
     try {
       sessions = parseTmuxSessions((await this.run('tmux', ['list-sessions', '-F', '#{session_name}'], discoveryOptions())).stdout);
@@ -333,9 +348,13 @@ export class TmuxConnector implements CommandConnector {
     const sessionName = fields[1]!;
     return {
       command: 'tmux',
-      args: ['new-session', '-A', '-s', sessionName],
+      args: [...tmuxClientFeatureArgs(this.supportsHyperlinks), 'new-session', '-A', '-s', sessionName],
       tmuxProjection: {
-        terminate: { command: 'tmux', args: ['kill-session', '-t', sessionName] },
+        ownership: fields[0] === 'new' ? 'created' : 'existing',
+        geometry: { transport: 'local', sessionName },
+        ...(fields[0] === 'new'
+          ? { terminate: { command: 'tmux', args: ['kill-session', '-t', sessionName] } }
+          : {}),
       },
     };
   }
@@ -346,6 +365,7 @@ export class SshTmuxConnector implements CommandConnector {
   readonly id = 'ssh-tmux' as const;
   readonly label = 'SSH + Tmux';
   private readonly filename: string;
+  private readonly legacyAliases = new Set<string>();
 
   constructor(
     homeDirectory: string,
@@ -362,6 +382,9 @@ export class SshTmuxConnector implements CommandConnector {
     for (const alias of aliases) {
       let sessions: string[] = [];
       try {
+        const version = (await this.run('ssh', ['-o', 'BatchMode=yes', alias, 'tmux -V'], discoveryOptions())).stdout;
+        if (tmuxSupportsHyperlinks(version)) this.legacyAliases.delete(alias);
+        else this.legacyAliases.add(alias);
         sessions = parseTmuxSessions((await this.run('ssh', ['-o', 'BatchMode=yes', alias, "tmux list-sessions -F '#{session_name}'"], discoveryOptions())).stdout);
       } catch (error) {
         if (!isNoTmuxServer(error)) continue;
@@ -383,9 +406,13 @@ export class SshTmuxConnector implements CommandConnector {
     const sessionName = fields[2]!;
     return {
       command: 'ssh',
-      args: ['-tt', alias, 'tmux', 'new-session', '-A', '-s', sessionName],
+      args: ['-tt', alias, 'tmux', ...tmuxClientFeatureArgs(!this.legacyAliases.has(alias)), 'new-session', '-A', '-s', sessionName],
       tmuxProjection: {
-        terminate: { command: 'ssh', args: [alias, 'tmux', 'kill-session', '-t', sessionName] },
+        ownership: fields[1] === 'new' ? 'created' : 'existing',
+        geometry: { transport: 'ssh', alias, sessionName },
+        ...(fields[1] === 'new'
+          ? { terminate: { command: 'ssh', args: [alias, 'tmux', 'kill-session', '-t', sessionName] } }
+          : {}),
       },
     };
   }

@@ -6,6 +6,7 @@ export function UnsavedChangesDialog({
   open,
   saving = false,
   saveDisabled = false,
+  error,
   onSave,
   onDiscard,
   onCancel,
@@ -13,6 +14,7 @@ export function UnsavedChangesDialog({
   open: boolean;
   saving?: boolean;
   saveDisabled?: boolean;
+  error?: string | null;
   onSave: () => void;
   onDiscard: () => void;
   onCancel: () => void;
@@ -24,7 +26,9 @@ export function UnsavedChangesDialog({
         if (!next && !saving) onCancel();
       }}
       title="Save changes before leaving?"
-      description="Choose whether to save or discard your changes before leaving this page."
+      description="You have unsaved changes. Save them now, or discard them and continue."
+      showTitle
+      showDescription
       className="dialog unsaved-changes-dialog"
       testId="unsaved-changes-dialog"
       onEscapeKeyDown={(event) => {
@@ -34,10 +38,7 @@ export function UnsavedChangesDialog({
         if (saving) event.preventDefault();
       }}
     >
-      <h2 className="unsaved-changes-dialog__heading">Save changes before leaving?</h2>
-      <p className="unsaved-changes-dialog__description">
-        You have unsaved changes. Save them now, or discard them and continue.
-      </p>
+      {error && <p className="unsaved-changes-dialog__error" role="alert">{error}</p>}
       <div className="unsaved-changes-dialog__actions">
         <Button onClick={onCancel} disabled={saving}>Cancel</Button>
         <Button variant="danger" onClick={onDiscard} disabled={saving}>Discard changes</Button>

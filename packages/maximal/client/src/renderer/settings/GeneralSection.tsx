@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useState, type ReactElement } from 'react'
 
-import { Button, Dialog, Note, Switch } from 'stuffbucket-electron/renderer'
+import {
+  Button,
+  Dialog,
+  Note,
+  SettingsSection,
+  Switch,
+} from 'stuffbucket-electron/renderer'
 
 import type {
   MenuBarModeAttempt,
@@ -112,30 +118,35 @@ export function GeneralSection({
   }, [attempt, capabilities])
 
   return (
-    <section className="settings-section" aria-labelledby="settings-general-heading">
-      <h1 id="settings-general-heading" className="settings-section__heading">
-        General
-      </h1>
+    <section className="settings-section">
       {error ? (
         <Note status="failed" live="assertive">
           {error}
         </Note>
       ) : null}
-      {state === null ? (
-        <Note live="polite">Loading desktop app preferences…</Note>
-      ) : (
-        <Switch
-          label="Show Maximal in the menu bar only"
-          checked={state.enabled}
-          disabled={busy || state.pending}
-          onChange={(next) => void changeMode(next)}
-          testId="menu-bar-only-switch"
-        />
-      )}
-      <Note>
-        When enabled, use the Maximal icon in the menu bar to reopen the desktop
-        app. Dock and taskbar presence is the default.
-      </Note>
+      <SettingsSection
+        title="Desktop presence"
+        description="Choose where Maximal remains available when its window is closed."
+      >
+        {state === null ? (
+          <Note live="polite">Loading desktop app preferences…</Note>
+        ) : (
+          <div className="settings-field">
+            <Switch
+              label="Show Maximal in the menu bar only"
+              layout="compact"
+              checked={state.enabled}
+              disabled={busy || state.pending}
+              onChange={(next) => void changeMode(next)}
+              testId="menu-bar-only-switch"
+            />
+            <span className="settings-list__detail">
+              Use the Maximal icon to reopen the desktop app. Dock and taskbar
+              presence is the default.
+            </span>
+          </div>
+        )}
+      </SettingsSection>
 
       <Dialog
         open={attempt !== null}

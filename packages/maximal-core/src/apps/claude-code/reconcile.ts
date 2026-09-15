@@ -1,13 +1,12 @@
 import consola from "consola"
 
-import { ensureDefaultEndpointKey } from "~/lib/auth/api-key-helper"
 import { getConfig, updateConfig } from "~/lib/config/config"
 
 import {
-  type ApiKeyHelperResolver,
+  type ClaudeCodeApiKeyResolver,
   applyProxyBaseUrl,
   getClaudeCodeSettingsPath,
-  resolveApiKeyHelperCommand,
+  resolveClaudeCodeApiKey,
   revertProxyBaseUrl,
 } from "./config"
 
@@ -40,11 +39,11 @@ export function setClaudeCodeRoutingIntent(enabled: boolean): void {
 export function reconcileClaudeCodeOnBoot(
   intended: boolean = claudeCodeRoutingIntended(),
   filePath: string = getClaudeCodeSettingsPath(),
-  resolveApiKeyHelper: ApiKeyHelperResolver = resolveApiKeyHelperCommand,
+  resolveApiKey: ClaudeCodeApiKeyResolver = resolveClaudeCodeApiKey,
 ): void {
   if (!intended) return
   try {
-    const result = applyProxyBaseUrl(filePath, resolveApiKeyHelper)
+    const result = applyProxyBaseUrl(filePath, resolveApiKey)
     if (result.wrote) {
       consola.info(
         "claude-code: re-applied proxy base URL on boot (routing intent is on)",
@@ -65,18 +64,15 @@ export function reconcileClaudeCodeOnBoot(
           )
           return
         }
-        case "invalid-api-key-helper": {
+        case "invalid-api-key": {
           consola.warn(
-            "claude-code: routing intent is on, but this maximal invocation cannot"
-              + " provide a safe apiKeyHelper — left settings untouched",
+            "claude-code: routing intent is on, but no API key could be resolved"
+              + " — left settings untouched",
           )
           return
         }
         // No default
       }
-    // Applying succeeded or the settings were already current. Only now may boot
-    // mint the default endpoint key that the helper resolves.
-    ensureDefaultEndpointKey()
   } catch (err) {
     consola.warn("claude-code: failed to reconcile base URL on boot", err)
   }
