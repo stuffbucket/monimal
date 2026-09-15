@@ -20,7 +20,12 @@ import { isTerminalLab } from '../native/terminal-lab.js';
  * here: a quiet test run parks the window off screen first, and bounds have to
  * be set before it shows.
  */
-export function mainWindowOptions(bounds?: Rectangle): HostWindowOptions {
+export function mainWindowOptions(
+  bounds?: Rectangle,
+  terminalSessionId?: string,
+  terminalTitle?: string,
+  terminalPane?: unknown,
+): HostWindowOptions {
   return {
     preloadPath: path.join(__dirname, 'preload.js'),
     // `checkForUpdate` is deliberately absent. This build has no update
@@ -50,13 +55,18 @@ export function mainWindowOptions(bounds?: Rectangle): HostWindowOptions {
         }),
     trafficLightPosition: { x: 14, y: 13 },
     showWhenReady: false,
-    loadRenderer,
+    loadRenderer: (window) => loadRenderer(window, terminalSessionId, terminalTitle, terminalPane),
   };
 }
 
-function loadRenderer(window: BrowserWindow): void {
+function loadRenderer(
+  window: BrowserWindow,
+  terminalSessionId?: string,
+  terminalTitle?: string,
+  terminalPane?: unknown,
+): void {
   if (isTerminalLab()) {
-    loadTerminalLab(window);
+    loadTerminalLab(window, terminalSessionId, terminalTitle, terminalPane);
     return;
   }
   if (isDemo()) {
@@ -77,9 +87,19 @@ function loadRenderer(window: BrowserWindow): void {
   );
 }
 
-function loadTerminalLab(window: BrowserWindow): void {
+function loadTerminalLab(
+  window: BrowserWindow,
+  terminalSessionId?: string,
+  terminalTitle?: string,
+  terminalPane?: unknown,
+): void {
+  const query = new URLSearchParams();
+  if (terminalSessionId) query.set('sessionId', terminalSessionId);
+  if (terminalTitle) query.set('title', terminalTitle);
+  if (terminalPane) query.set('pane', JSON.stringify(terminalPane));
+  const search = query.toString() === '' ? '' : `?${query.toString()}`;
   if (TERMINAL_LAB_WINDOW_VITE_DEV_SERVER_URL) {
-    void window.loadURL(TERMINAL_LAB_WINDOW_VITE_DEV_SERVER_URL);
+    void window.loadURL(`${TERMINAL_LAB_WINDOW_VITE_DEV_SERVER_URL}${search}`);
     window.webContents.openDevTools({ mode: 'detach' });
     return;
   }
@@ -93,7 +113,7 @@ function loadTerminalLab(window: BrowserWindow): void {
       'The terminal lab renderer is not in this build. Run it from the repository root with `pnpm dev:terminal`.',
     );
   }
-  void window.loadFile(page);
+  void window.loadFile(page, search === '' ? undefined : { search });
 }
 
 /**

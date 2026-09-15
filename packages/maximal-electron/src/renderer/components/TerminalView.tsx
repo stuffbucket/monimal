@@ -45,7 +45,11 @@ interface TerminalViewCommonProps extends TerminalDescriptor {
   testId?: string;
   /** Increasing token for explicit split-navigation focus requests. */
   focusRequest?: number;
+  /** Parent-owned focus identity when this view is one leaf of a split. */
+  focused?: boolean;
   focusIndicator?: boolean;
+  /** User pointer activation, distinct from emulator-driven focus changes. */
+  onActivate?: () => void;
   onFocus?: () => void;
   onSplit?: (direction: TerminalSplitDirection) => void;
   onNavigateSplit?: (direction: 'previous' | 'next') => void;
@@ -92,7 +96,9 @@ export function TerminalView({
   theme,
   testId = 'terminal',
   focusRequest = 0,
+  focused,
   focusIndicator = false,
+  onActivate,
   onFocus,
   onSplit,
   onNavigateSplit,
@@ -105,17 +111,38 @@ export function TerminalView({
   const lifecycle = useRef({ id, generation: 0 });
   const callbacks = useRef({ onSplit, onNavigateSplit, onExit, onError, onTitleChange });
   const pendingFocusRequest = useRef(focusRequest);
+  const requestedFocus = useRef(focused);
+  const [nativeFocused, setNativeFocused] = useState(() => document.hasFocus());
+  const nativeWindowFocused = useRef(nativeFocused);
+  const programmaticFocus = useRef(false);
   const handledFocusRequest = useRef(0);
   const [startFailed, setStartFailed] = useState(false);
   const [startAttempt, setStartAttempt] = useState(0);
   const [hasFocus, setHasFocus] = useState(false);
   callbacks.current = { onSplit, onNavigateSplit, onExit, onError, onTitleChange };
   pendingFocusRequest.current = focusRequest;
+  requestedFocus.current = focused;
 
   // The disposition is read at cleanup rather than at mount, so a caller that
   // changes it while a session runs gets the current answer.
   const onUnmount = useRef(disposition);
   onUnmount.current = disposition;
+  const focusTransport = (): void => {
+    const term = terminal.current;
+    if (!term) return;
+    const focusedTransport = transport.focus?.(id, term.cols, term.rows);
+    if (focusedTransport) void focusedTransport.catch((error) => callbacks.current.onError?.(error));
+  };
+  const focusEmulator = (renewLease: boolean): void => {
+    if (!terminal.current || !nativeWindowFocused.current) return;
+    programmaticFocus.current = true;
+    try {
+      terminal.current.focus();
+    } finally {
+      programmaticFocus.current = false;
+    }
+    if (renewLease) focusTransport();
+  };
 
   // `id` identifies the session for this view's lifetime. Re-running this
   // effect would orphan a shell, so the descriptor fields read at spawn time
@@ -132,6 +159,12 @@ export function TerminalView({
     let term: TerminalEmulator | undefined;
     let unsubscribe: (() => void) | undefined;
     let cleanupObserver: (() => void) | undefined;
+    // Set right before a `pty:size` event clamps the local grid, and cleared
+    // once consumed. `TerminalResizes` coalesces every `onResize`, including
+    // the one that clamp causes, so this tells that callback the resize was
+    // an echo of a size the host already knows about rather than a fresh
+    // measurement to send back.
+    let clampedRemoteSize: { cols: number; rows: number } | undefined;
     const reportFailure = (error?: unknown): void => {
       if (disposed || failed) return;
       failed = true;
@@ -156,9 +189,20 @@ export function TerminalView({
     );
     const resizes = new TerminalResizes(
       (cols, rows) => {
-        if (!disposed && !failed) {
-          void transport.resize(id, cols, rows).catch(reportFailure);
+        if (disposed || failed) return;
+        if (
+          !nativeWindowFocused.current
+          || requestedFocus.current === false
+          || (
+            requestedFocus.current === undefined
+            && !host.current?.contains(document.activeElement)
+          )
+        ) return;
+        if (clampedRemoteSize && clampedRemoteSize.cols === cols && clampedRemoteSize.rows === rows) {
+          clampedRemoteSize = undefined;
+          return;
         }
+        void transport.resize(id, cols, rows).catch(reportFailure);
       },
       animationFrameScheduler,
     );
@@ -178,9 +222,17 @@ export function TerminalView({
       }
       term.fit();
       terminal.current = term;
-      if (pendingFocusRequest.current > handledFocusRequest.current) {
+      const windowFocused = document.hasFocus();
+      nativeWindowFocused.current = windowFocused;
+      setNativeFocused(windowFocused);
+      if (!nativeWindowFocused.current || requestedFocus.current === false) {
+        term.blur();
+      } else if (
+        requestedFocus.current === true
+        || pendingFocusRequest.current > handledFocusRequest.current
+      ) {
         handledFocusRequest.current = pendingFocusRequest.current;
-        term.focus();
+        focusEmulator(requestedFocus.current === true);
       }
 
       // The buffer is the stable assertion surface across canvas and DOM renderers.
@@ -239,6 +291,16 @@ export function TerminalView({
             if (event.sequence !== undefined) acknowledgements.consume(event.sequence);
           });
         }
+        else if (event.type === 'size') {
+          // The host resized the real PTY to the smallest live viewer of a
+          // shared session. Clamping the local grid to match keeps this view
+          // from rendering a byte stream that now assumes different
+          // dimensions than the ones its own container fit to.
+          if (term && (term.cols !== event.cols || term.rows !== event.rows)) {
+            clampedRemoteSize = { cols: event.cols, rows: event.rows };
+            term.resize(event.cols, event.rows);
+          }
+        }
         else if (callbacks.current.onExit) {
           callbacks.current.onExit(event.exitCode);
         }
@@ -249,8 +311,8 @@ export function TerminalView({
         }
       });
 
-        spawnAttempted = true;
-        await transport.spawn({ id, cwd, shell, cols: term.cols, rows: term.rows });
+      spawnAttempted = true;
+      await transport.spawn({ id, cwd, shell, cols: term.cols, rows: term.rows });
 
       // The panel group resizes the host without a window resize, so a
       // ResizeObserver is the only reliable trigger.
@@ -281,16 +343,33 @@ export function TerminalView({
   }, [emulator, id, startAttempt]);
 
   useEffect(() => {
-    if (focusRequest <= handledFocusRequest.current || !terminal.current) return;
-    handledFocusRequest.current = focusRequest;
-    terminal.current.focus();
-  }, [focusRequest]);
+    if (!terminal.current) return;
+    if (!nativeWindowFocused.current || focused === false) {
+      terminal.current.blur();
+      setHasFocus(false);
+      return;
+    }
+    if (focused === true || focusRequest > handledFocusRequest.current) {
+      handledFocusRequest.current = focusRequest;
+      focusEmulator(focused === true);
+    }
+  }, [focusRequest, focused]);
 
   useEffect(() => {
     const restoreWindowFocus = () => {
+      nativeWindowFocused.current = true;
+      setNativeFocused(true);
+      if (requestedFocus.current !== false) {
+        focusEmulator(true);
+      }
       setHasFocus(Boolean(host.current?.contains(document.activeElement)));
     };
-    const relinquishWindowFocus = () => setHasFocus(false);
+    const relinquishWindowFocus = () => {
+      nativeWindowFocused.current = false;
+      setNativeFocused(false);
+      terminal.current?.blur();
+      setHasFocus(false);
+    };
     window.addEventListener('focus', restoreWindowFocus);
     window.addEventListener('blur', relinquishWindowFocus);
     return () => {
@@ -303,13 +382,19 @@ export function TerminalView({
     <div
       className="terminal"
       data-testid={testId}
-      data-focused={hasFocus || undefined}
+      data-session-id={id}
+      data-focused={(nativeFocused && (focused ?? hasFocus)) || undefined}
       data-focus-indicator={focusIndicator || undefined}
       role="group"
       aria-label={ariaLabel}
       ref={host}
       onFocus={() => {
-        setHasFocus(true);
+        setHasFocus(nativeWindowFocused.current);
+        if (
+          nativeWindowFocused.current
+          && focused === undefined
+          && !programmaticFocus.current
+        ) focusTransport();
         onFocus?.();
       }}
       onBlur={(event) => {
@@ -317,7 +402,10 @@ export function TerminalView({
           setHasFocus(false);
         }
       }}
-      onPointerDown={onFocus}
+      onPointerDownCapture={() => {
+        focusEmulator(focused === true);
+        onActivate?.();
+      }}
     >
       {startFailed && (
         <div className="terminal__error" role="alert">

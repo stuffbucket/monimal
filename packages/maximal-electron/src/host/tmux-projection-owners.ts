@@ -6,9 +6,11 @@ import {
 import type { TmuxProjectionRequest } from './tmux-projection-broker.js';
 
 export interface TmuxProjectionOwnersOptions<Owner>
-  extends Omit<TmuxProjectionHostOptions, 'emit' | 'onExit'> {
+  extends Omit<TmuxProjectionHostOptions, 'emit' | 'onExit' | 'onGeometry' | 'onGeometryError'> {
   emit(owner: Owner, sessionId: string, projectionId: string, chunk: string): void;
   onExit(owner: Owner, sessionId: string, projectionId: string, exitCode: number): void;
+  onGeometry?(owner: Owner, sessionId: string, projectionId: string, cols: number, rows: number): void;
+  onGeometryError?(owner: Owner, sessionId: string, projectionId: string, error: unknown): void;
 }
 
 function projectionKey(sessionId: string, projectionId: string): string {
@@ -35,6 +37,16 @@ export class TmuxProjectionOwners<Owner> {
         this.projectionOwners.delete(key);
         options.onExit(owner, sessionId, projectionId, exitCode);
       },
+      onGeometry: (sessionId, cols, rows) => {
+        for (const [projectionId, owner] of this.sessionProjections(sessionId)) {
+          options.onGeometry?.(owner, sessionId, projectionId, cols, rows);
+        }
+      },
+      onGeometryError: (sessionId, error) => {
+        for (const [projectionId, owner] of this.sessionProjections(sessionId)) {
+          options.onGeometryError?.(owner, sessionId, projectionId, error);
+        }
+      },
     });
   }
 
@@ -48,9 +60,7 @@ export class TmuxProjectionOwners<Owner> {
   }
 
   grant(owner: Owner, sessionId: string, recipient: Owner): boolean {
-    if (this.sessionOwners.get(sessionId) !== owner && !this.hasProjection(owner, sessionId)) {
-      return false;
-    }
+    if (this.sessionOwners.get(sessionId) !== owner) return false;
     const recipients = this.grants.get(sessionId) ?? new Set<Owner>();
     recipients.add(recipient);
     this.grants.set(sessionId, recipients);
@@ -65,7 +75,10 @@ export class TmuxProjectionOwners<Owner> {
     if (this.projectionOwners.has(key)) return false;
     this.projectionOwners.set(key, owner);
     try {
-      this.host.attach(request);
+      if (!this.host.attach(request)) {
+        this.projectionOwners.delete(key);
+        return false;
+      }
       return true;
     } catch (error) {
       this.projectionOwners.delete(key);
@@ -96,9 +109,7 @@ export class TmuxProjectionOwners<Owner> {
   }
 
   terminate(owner: Owner, sessionId: string): boolean {
-    if (this.sessionOwners.get(sessionId) !== owner && !this.hasProjection(owner, sessionId)) {
-      return false;
-    }
+    if (this.sessionOwners.get(sessionId) !== owner) return false;
     this.clearSession(sessionId);
     return this.host.terminate(sessionId);
   }
@@ -125,9 +136,11 @@ export class TmuxProjectionOwners<Owner> {
     return this.projectionOwners.get(projectionKey(sessionId, projectionId)) === owner;
   }
 
-  private hasProjection(owner: Owner, sessionId: string): boolean {
+  private sessionProjections(sessionId: string): Array<[string, Owner]> {
     const prefix = `${sessionId}\u0000`;
-    return [...this.projectionOwners].some(([key, candidate]) => candidate === owner && key.startsWith(prefix));
+    return [...this.projectionOwners.entries()].flatMap(([key, owner]) =>
+      key.startsWith(prefix) ? [[key.slice(prefix.length), owner]] : [],
+    );
   }
 
   private clearSession(sessionId: string): void {

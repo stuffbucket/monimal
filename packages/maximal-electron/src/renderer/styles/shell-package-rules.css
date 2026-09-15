@@ -1332,12 +1332,14 @@
 }
 
 .sb-shell .menu {
-  min-width: 180px;
+  min-width: 220px;
   padding: var(--shell-space-1);
   background: var(--shell-raised);
   border: 1px solid var(--shell-border-strong, var(--shell-border));
   border-radius: var(--shell-radius);
   box-shadow: var(--shell-elevation, none);
+  /* Above the drag-region dismiss catcher, which shares its portal. */
+  z-index: 41;
 }
 
 .sb-shell .menu__item {
@@ -1353,6 +1355,22 @@
      on an item the pointer has left. */
   outline: none;
   cursor: pointer;
+}
+
+.sb-shell .menu__item-label {
+  flex: 1;
+}
+
+.sb-shell .menu__item-shortcut {
+  color: var(--shell-text-muted);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+
+.sb-shell .menu__separator {
+  height: 1px;
+  margin: var(--shell-space-1) 0;
+  background: var(--shell-border);
 }
 
 .sb-shell .menu__item[data-highlighted] {

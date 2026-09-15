@@ -7,9 +7,10 @@ const xterm = vi.hoisted(() => {
   const options: unknown = undefined;
   return {
     addon,
-    fit: vi.fn(),
     keyHandler: undefined as ((event: KeyboardEvent) => boolean) | undefined,
     options,
+    proposeDimensions: vi.fn((): { cols: number; rows: number } | undefined => ({ cols: 80, rows: 24 })),
+    resize: vi.fn(),
   };
 });
 
@@ -30,7 +31,7 @@ const ghostty = vi.hoisted(() => {
 
 vi.mock('@xterm/addon-fit', () => ({
   FitAddon: class {
-    fit(): void { xterm.fit(); }
+    proposeDimensions(): { cols: number; rows: number } | undefined { return xterm.proposeDimensions(); }
   },
 }));
 
@@ -50,6 +51,7 @@ vi.mock('@xterm/xterm', () => ({
       xterm.keyHandler = handler;
     }
     onTitleChange(): { dispose(): void } { return { dispose() {} }; }
+    resize(cols: number, rows: number): void { xterm.resize(cols, rows); }
     write(): void {}
     clear(): void {}
     selectAll(): void {}
@@ -114,7 +116,21 @@ describe('terminal emulator adapter', () => {
     expect(host.style.backgroundColor).toBe('rgb(16, 18, 22)');
     expect(host.style.color).toBe('rgb(230, 232, 236)');
     emulator.fit();
-    expect(xterm.fit).toHaveBeenCalledOnce();
+    expect(xterm.proposeDimensions).toHaveBeenCalledOnce();
+    // The proposed 80x24 already matches the mock terminal's own cols/rows,
+    // so fit() has nothing to apply.
+    expect(xterm.resize).not.toHaveBeenCalled();
+
+    xterm.proposeDimensions.mockReturnValueOnce({ cols: 120, rows: 40 });
+    emulator.fit();
+    expect(xterm.resize).toHaveBeenCalledWith(120, 40);
+
+    xterm.proposeDimensions.mockReturnValueOnce(undefined);
+    emulator.fit();
+    expect(xterm.resize).toHaveBeenCalledTimes(1);
+
+    emulator.resize(1000, 1000);
+    expect(xterm.resize).toHaveBeenLastCalledWith(256, 128);
   });
 
   it('normalizes handled key events to xterm prevent-default semantics', async () => {

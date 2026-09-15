@@ -246,6 +246,10 @@ package provenance or publisher identity -- the proxy does that.
   `build:package`, same reason.
 - `maximal-electron`: every `npm run` replaced with `pnpm run`. npm does not
   recognise the config pnpm exports and warned four times per invocation.
+- `maximal-electron`: terminal copies use a main-owned revisioned pane document
+  and window-group geometry controller. Local Electron viewers share one PTY
+  grid and synchronized physical content size without applying the policy to
+  non-resizable or projection-backed clients.
 - `maximal-electron`: the nested `pnpm run` taken back out of the build hooks.
   `build:package` and the four `pre*` hooks that called it are now
   `node scripts/build-package.mjs`, which invokes `tsc` at its installed path

@@ -23,12 +23,19 @@ import {
   isPtySpawnRequest,
   isPtyWriteRequest,
   isTerminalLaunchRequest,
+  isTerminalPaneSyncRequest,
+  isTerminalWindowTitleRequest,
+  isTerminalUndockRequest,
+  isTerminalRedockRequest,
   type AppVersions,
   type IpcChannel,
   type IpcEvent,
   type IpcEventPayload,
   type IpcRequest,
   type IpcResponse,
+  type TerminalCopyRequest,
+  type TerminalRedockRequest,
+  type TerminalUndockRequest,
 } from '../shared/ipc.js';
 
 import { setBadgeCount, showNotification } from './native/notifications.js';
@@ -46,12 +53,31 @@ import {
   listTerminalProfiles,
   listPtys,
   resizePty,
+  syncPtyPane,
   spawnReservedPty,
   writePty,
   writePtyProjection,
 } from './native/pty.js';
 import { checkForUpdates } from './native/updates.js';
 import { isSafeExternalUrl } from '../shared/urls.js';
+
+interface TerminalWindowActions {
+  frameId: (window: BrowserWindow | undefined) => string;
+  undock: (owner: BrowserWindow | undefined, request: TerminalUndockRequest) => boolean;
+  copy: (owner: BrowserWindow | undefined, request: TerminalCopyRequest) => boolean;
+  redock: (owner: BrowserWindow | undefined, request: TerminalRedockRequest) => boolean;
+}
+
+let terminalWindowActions: TerminalWindowActions = {
+  frameId: (window) => String(window?.id ?? ''),
+  undock: () => false,
+  copy: () => false,
+  redock: () => false,
+};
+
+export function configureTerminalWindowActions(actions: TerminalWindowActions): void {
+  terminalWindowActions = actions;
+}
 
 /** A handler for one channel. Types come from the contract, so it cannot drift. */
 type IpcHandler<C extends IpcChannel> = (
@@ -127,6 +153,30 @@ const handlers: IpcHandlers = {
       throw new Error(`Refused to open unsafe URL: ${request.url}`);
     }
     void shell.openExternal(request.url);
+  },
+  'terminal:frame-id': (_request, window) => terminalWindowActions.frameId(window),
+  'terminal:window-title': (request, window) => {
+    if (!isTerminalWindowTitleRequest(request)) {
+      throw new Error('Invalid terminal window title request.');
+    }
+    if (!window) return;
+    window.setTitle(request.title);
+  },
+  'terminal:undock': (request, window) => {
+    if (!isTerminalUndockRequest(request)) throw new Error('Invalid terminal undock request.');
+    return terminalWindowActions.undock(window, request);
+  },
+  'terminal:copy': (request, window) => {
+    if (!isTerminalUndockRequest(request)) throw new Error('Invalid terminal copy request.');
+    return terminalWindowActions.copy(window, request);
+  },
+  'terminal:redock': (request, window) => {
+    if (!isTerminalRedockRequest(request)) throw new Error('Invalid terminal redock request.');
+    return terminalWindowActions.redock(window, request);
+  },
+  'terminal:pane-sync': (request, window) => {
+    if (!isTerminalPaneSyncRequest(request)) throw new Error('Invalid terminal pane sync request.');
+    syncPtyPane(window, request.id, request.pane);
   },
 
   'pty:default-shell': () => defaultShell(),
