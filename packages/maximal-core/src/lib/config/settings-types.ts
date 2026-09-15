@@ -310,6 +310,8 @@ export type UpdateStatusResponse = z.infer<typeof UpdateStatusResponse>
  *  can render a compact flag row without knowing Copilot's schema. */
 export const ModelCapabilityFlags = z.object({
   vision: z.boolean(),
+  image_generation: z.boolean(),
+  video_generation: z.boolean(),
   tool_calls: z.boolean(),
   streaming: z.boolean(),
   /** Reasoning / extended-thinking support (adaptive_thinking or a
@@ -516,6 +518,41 @@ export const AccountsListResponse = z.object({
 })
 export type AccountsListResponse = z.infer<typeof AccountsListResponse>
 
+export const OllamaAccountSummary = z.object({
+  type: z.literal("ollama"),
+  provider: z.string(),
+  endpoint: z.string(),
+  scope: z.enum(["localhost", "remote"]),
+  account_state: z.enum(["unauthenticated", "authenticated"]),
+  availability: z.enum(["available", "unavailable"]),
+  model_count: z.number().int().nonnegative().nullable(),
+})
+export type OllamaAccountSummary = z.infer<typeof OllamaAccountSummary>
+
+export const OllamaAccountsListResponse = z.object({
+  accounts: z.array(OllamaAccountSummary),
+})
+export type OllamaAccountsListResponse = z.infer<
+  typeof OllamaAccountsListResponse
+>
+
+export const OllamaSettingsResponse = z.object({
+  has_api_key: z.boolean(),
+  credential_source: z.enum(["environment", "file", "none"]),
+  local_enabled: z.boolean(),
+  prefer_local_models: z.boolean(),
+})
+export type OllamaSettingsResponse = z.infer<typeof OllamaSettingsResponse>
+
+export const OllamaSettingsUpdateRequest = z.object({
+  api_key: z.string().max(4096).optional(),
+  local_enabled: z.boolean().optional(),
+  prefer_local_models: z.boolean().optional(),
+})
+export type OllamaSettingsUpdateRequest = z.infer<
+  typeof OllamaSettingsUpdateRequest
+>
+
 /**
  * An API-key entry as managed by Settings → API clients. The key value
  * is returned in full to the local Settings UI — the endpoint is
@@ -596,6 +633,31 @@ export const AppInstallHint = z.object({
 })
 export type AppInstallHint = z.infer<typeof AppInstallHint>
 
+/** Why a passive health check found the app's on-disk config drifted from
+ *  what it should be right now. Distinct from `AppEntry.conflict`: `conflict`
+ *  is scoped to the outcome of the LAST `enable()` attempt, while `health` is
+ *  a live, ongoing check — it can go unhealthy between enable attempts (e.g. a
+ *  key rotation while routing stays "enabled") with nothing having been
+ *  attempted at all. */
+export const AppHealthIssue = z.enum([
+  "foreign-base-url",
+  "foreign-api-key-helper",
+  "invalid-api-key",
+  "out-of-sync",
+  "not-applied",
+])
+export type AppHealthIssue = z.infer<typeof AppHealthIssue>
+
+/** Passive "is this app's config still correct right now" check, recomputed
+ *  every time `getDetails` is called. `ok: false` is what the Settings UI
+ *  uses to show a "needs attention" notice; fixing it is always a manual,
+ *  user-confirmed action (re-running `enable()`), never automatic. */
+export const AppHealth = z.object({
+  ok: z.boolean(),
+  issue: AppHealthIssue.nullable(),
+})
+export type AppHealth = z.infer<typeof AppHealth>
+
 export const AppEntry = z.object({
   id: z.enum(["claude-code", "claude-desktop", "copilot-cli"]),
   name: z.string(),
@@ -608,12 +670,11 @@ export const AppEntry = z.object({
   /** Non-null when enabling was refused because the app's config has a setting
    *  we don't own, or this invocation cannot produce a safe helper command. */
   conflict: z
-    .enum([
-      "foreign-base-url",
-      "foreign-api-key-helper",
-      "invalid-api-key-helper",
-    ])
+    .enum(["foreign-base-url", "foreign-api-key-helper", "invalid-api-key"])
     .nullable(),
+  /** Live drift check — see `AppHealth`. Always `{ ok: true, issue: null }`
+   *  for apps with no drift risk (not enabled, or nothing dynamic to drift). */
+  health: AppHealth,
 })
 export type AppEntry = z.infer<typeof AppEntry>
 

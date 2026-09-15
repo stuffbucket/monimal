@@ -70,9 +70,9 @@ export interface AnthropicModel {
   type: "model"
   display_name: string
   created_at: string
-  max_input_tokens: number
-  max_tokens: number
-  capabilities: {
+  max_input_tokens?: number
+  max_tokens?: number
+  capabilities?: {
     image_input: CapabilitySupport
     pdf_input: CapabilitySupport
     structured_outputs: CapabilitySupport

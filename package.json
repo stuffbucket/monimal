@@ -9,6 +9,7 @@
     "analyze": "turbo run analyze",
     "dev": "turbo run dev --filter=maximal-client",
     "dev:terminal": "turbo run dev:terminal --filter=@stuffbucket/maximal-electron",
+    "dev:context": "turbo run dev:context --filter=@stuffbucket/maximal-context-window",
     "dev:server": "turbo run dev --filter=@stuffbucket/maximal -- start",
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",

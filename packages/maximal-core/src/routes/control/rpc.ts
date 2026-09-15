@@ -72,6 +72,7 @@ import {
   AppSetEnabledRequest,
   ConnectionActionRequest,
   ConnectionCredentialIdRequest,
+  OllamaSettingsUpdateRequest,
   SearchProviderValidationRequest,
   SearchSettingsUpdateRequest,
   TokenUsageRequest,
@@ -96,6 +97,11 @@ import { getTokenUsageSummary } from "~/lib/token-usage"
 import { BUILD_VERSION } from "~/lib/update/build-info"
 import { getUpdateStatus } from "~/lib/update/update-check"
 import { projectControlConfig } from "~/routes/control/config-projection"
+import { listOllamaAccounts } from "~/services/providers/ollama-accounts"
+import {
+  getOllamaSettings,
+  updateOllamaSettings,
+} from "~/services/providers/ollama-settings"
 
 export interface ControlRpcOperationOverrides {
   buildSearchSettings?: typeof buildSearchSettings
@@ -236,6 +242,22 @@ function createSearchSettingsRpcMethods(
   }
 }
 
+function createOllamaSettingsRpcMethods(): RpcRegistry {
+  return {
+    "ollamaSettings/get": () => getOllamaSettings(),
+    "ollamaSettings/update": (params: unknown) =>
+      asAsyncRpcOperation(() =>
+        updateOllamaSettings(
+          parseParams(
+            OllamaSettingsUpdateRequest,
+            params,
+            "Expected an Ollama settings update.",
+          ),
+        ),
+      ),
+  }
+}
+
 function createSettingsRpcMethods({
   configurators,
   hub,
@@ -254,6 +276,7 @@ function createSettingsRpcMethods({
 
   return {
     ...createSearchSettingsRpcMethods(operations),
+    ...createOllamaSettingsRpcMethods(),
     "connections/list": readConnections,
     "connections/act": createConnectionActionRpc(configurators, hub, readApps),
     "connections/revealCredential": (params: unknown) =>
@@ -385,6 +408,7 @@ export function createControlRpcMethods(deps: ControlRpcDeps): RpcRegistry {
     // snapshot read and a pushed update can never describe different shapes.
     "auth/status": () => getAuthStatus(),
     "accounts/list": () => buildAccountsList(),
+    "ollamaAccounts/list": () => listOllamaAccounts(),
     "observability/overview": async (params: unknown) => {
       const query = parseObservabilityParams(TrafficOverviewQuerySchema, params)
       return TrafficOverviewSchema.parse(

@@ -132,6 +132,7 @@ describe("legacy app compatibility for configurators", () => {
           installs: [],
           install: null,
           conflict: null,
+          health: { ok: true, issue: null },
         },
         {
           id: "copilot-cli",
@@ -142,6 +143,7 @@ describe("legacy app compatibility for configurators", () => {
           installs: [],
           install: null,
           conflict: null,
+          health: { ok: true, issue: null },
         },
       ],
     })

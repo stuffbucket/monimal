@@ -13,7 +13,7 @@ const REQUEST: TrafficRequestSummary = {
   identity: {
     requestId: "req-1",
     traceId: "trace-1",
-    sessionId: null,
+    sessionId: "session-1",
     parentRequestId: null,
     clientRequestId: null,
   },

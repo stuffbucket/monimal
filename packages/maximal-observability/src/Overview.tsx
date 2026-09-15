@@ -1,10 +1,13 @@
 import {
+  ContextWindowSessionPanel,
+  deriveContextSessions,
+} from "@stuffbucket/maximal-context-window"
+import {
   Button,
-  Field,
-  FieldList,
   InspectorPanel,
   StatusChip,
 } from "@stuffbucket/maximal-electron/renderer"
+import { useState } from "react"
 
 import { TokenSeriesChart } from "./charts/TokenSeries.tsx"
 import { TrafficFlowChart } from "./charts/TrafficFlow.tsx"
@@ -94,47 +97,45 @@ export function OverviewMain() {
 }
 
 export function OverviewInspector() {
-  const { overview } = useObservability()
+  const { requestItems, requests } = useObservability()
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(
+    null,
+  )
+  const sessions = deriveContextSessions(requestItems)
+  const session =
+    sessions.find(({ id }) => id === selectedSessionId) ?? sessions[0]
+
   return (
-    <aside className="mo-inspector" aria-label="Overview details">
-      <InspectorPanel title="Overview details">
-        {overview.status === "ready" || overview.status === "empty" ?
-          <FieldList>
-            <Field
-              label="Range begins"
-              value={formatTimestamp(overview.data.range.from)}
-            />
-            <Field
-              label="Range ends"
-              value={formatTimestamp(overview.data.range.to)}
-            />
-            <Field
-              label="Queue p95"
-              value={formatDuration(overview.data.latency.queue.p95Ms)}
-            />
-            <Field
-              label="First response p95"
-              value={formatDuration(
-                overview.data.latency.timeToFirstResponse.p95Ms,
-              )}
-            />
-            <Field
-              label="Total p99"
-              value={formatDuration(overview.data.latency.total.p99Ms)}
-            />
-            <Field
-              label="Failed"
-              value={formatCount(overview.data.totals.failed)}
-            />
-            <Field
-              label="Cancelled"
-              value={formatCount(overview.data.totals.cancelled)}
-            />
-          </FieldList>
-        : <p className="mo-state">
-            Details appear when the overview is available.
+    <aside className="mo-inspector" aria-label="Context window">
+      <InspectorPanel title="Context window">
+        {requests.status === "loading" && (
+          <p className="mo-state" role="status" aria-live="polite">
+            Loading session context…
           </p>
-        }
+        )}
+        {requests.status === "error" && (
+          <p className="mo-state" role="alert">
+            Session context could not be loaded. {requests.message}
+          </p>
+        )}
+        {requests.status === "unsupported" && (
+          <p className="mo-state">
+            Session context is not supported. {requests.message}
+          </p>
+        )}
+        {(requests.status === "ready" || requests.status === "empty")
+          && !session && (
+            <p className="mo-state">
+              No session-scoped traffic is available for these filters.
+            </p>
+          )}
+        {session && (
+          <ContextWindowSessionPanel
+            session={session}
+            sessionIds={sessions.map(({ id }) => id)}
+            onSelectSession={setSelectedSessionId}
+          />
+        )}
       </InspectorPanel>
     </aside>
   )

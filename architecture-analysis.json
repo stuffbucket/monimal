@@ -11,11 +11,6 @@
       "cycleEdges": [],
       "duplicatePairs": []
     },
-    "@stuffbucket/llama-server": {
-      "root": "packages/model-runtimes/llama-server",
-      "cycleEdges": [],
-      "duplicatePairs": []
-    },
     "@stuffbucket/maximal": {
       "root": "packages/maximal",
       "cycleEdges": [],
@@ -32,6 +27,16 @@
     },
     "@stuffbucket/maximal-electron": {
       "root": "packages/maximal-electron",
+      "cycleEdges": [],
+      "duplicatePairs": []
+    },
+    "@stuffbucket/maximal-data-visualization": {
+      "root": "packages/maximal-data-visualization",
+      "cycleEdges": [],
+      "duplicatePairs": []
+    },
+    "@stuffbucket/maximal-context-window": {
+      "root": "packages/maximal-context-window",
       "cycleEdges": [],
       "duplicatePairs": []
     },
@@ -94,7 +99,33 @@
       },
       {
         "from": ["@stuffbucket/maximal-electron"],
-        "to": ["maximal-client", "@stuffbucket/maximal-core"]
+        "to": [
+          "maximal-client",
+          "@stuffbucket/maximal-core",
+          "@stuffbucket/maximal-data-visualization",
+          "@stuffbucket/maximal-context-window",
+          "@stuffbucket/maximal-observability"
+        ]
+      },
+      {
+        "from": ["@stuffbucket/maximal-data-visualization"],
+        "to": [
+          "maximal-client",
+          "@stuffbucket/maximal",
+          "@stuffbucket/maximal-core",
+          "@stuffbucket/maximal-context-window",
+          "@stuffbucket/maximal-observability",
+          "@stuffbucket/maximal-observability-contract"
+        ]
+      },
+      {
+        "from": ["@stuffbucket/maximal-context-window"],
+        "to": [
+          "maximal-client",
+          "@stuffbucket/maximal",
+          "@stuffbucket/maximal-core",
+          "@stuffbucket/maximal-observability"
+        ]
       }
     ],
     "require": [
