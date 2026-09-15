@@ -63,26 +63,40 @@ export function TerminalLauncher({
   const [targets, setTargets] = useState<TerminalTargetSummary[]>([]);
   const [query, setQuery] = useState('');
   const [error, setError] = useState<string>();
+  const [discoveryError, setDiscoveryError] = useState<string>();
   const [pending, setPending] = useState<string>();
-  const [loading, setLoading] = useState(false);
+  const [loadingProfiles, setLoadingProfiles] = useState(false);
+  const [discovering, setDiscovering] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     let current = true;
     setError(undefined);
+    setDiscoveryError(undefined);
     setQuery('');
-    setLoading(true);
-    void Promise.all([profiles(), discover()])
-      .then(([nextProfiles, result]) => {
-        if (!current) return;
-        setItems(nextProfiles);
-        setTargets(result.targets);
+    setItems([]);
+    setTargets([]);
+    setLoadingProfiles(true);
+    setDiscovering(true);
+    void profiles()
+      .then((nextProfiles) => {
+        if (current) setItems(nextProfiles);
       })
       .catch(() => {
         if (current) setError('Terminal profiles are unavailable.');
       })
       .finally(() => {
-        if (current) setLoading(false);
+        if (current) setLoadingProfiles(false);
+      });
+    void discover()
+      .then((result) => {
+        if (current) setTargets(result.targets);
+      })
+      .catch(() => {
+        if (current) setDiscoveryError('Remote and runtime targets could not be discovered.');
+      })
+      .finally(() => {
+        if (current) setDiscovering(false);
       });
     return () => {
       current = false;
@@ -157,7 +171,7 @@ export function TerminalLauncher({
       open={open}
       onOpenChange={onOpenChange}
       title="Open terminal"
-      description="Choose a terminal profile."
+      description="Open a local terminal or connect to a discovered target."
       className="dialog terminal-launcher"
       testId="terminal-launcher"
     >
@@ -176,15 +190,17 @@ export function TerminalLauncher({
           placeholder="Search terminals"
         />
       </form>
-      {loading
+      {loadingProfiles
         ? <p>Loading terminal profiles...</p>
         : <>
             {error && <p role="alert">{error}</p>}
+            {discovering && <p role="status">Checking SSH, tmux, containers, and virtual machines...</p>}
+            {discoveryError && <p role="alert">{discoveryError}</p>}
             {!error && items.length === 0 && <p>No terminal profiles are available.</p>}
             {group('Recent', recent)}
             {group('Available', available)}
-            {!error && choices.length === 0 && unavailable.length === 0 && <p>No matching terminals.</p>}
-            {unavailable.length > 0 && (
+            {!error && !discovering && choices.length === 0 && unavailable.length === 0 && <p>No matching terminals.</p>}
+            {!discovering && unavailable.length > 0 && (
               <details className="terminal-launcher__unavailable" open={query.length > 0 || undefined}>
                 <summary>{unavailable.length} unavailable {unavailable.length === 1 ? 'profile' : 'profiles'}</summary>
                 <ul>

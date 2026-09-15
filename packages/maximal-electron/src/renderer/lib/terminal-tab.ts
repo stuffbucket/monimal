@@ -9,6 +9,7 @@ export interface TerminalShellTab {
   title: string;
   kind: 'terminal';
   sessionId: string;
+  customTitle?: boolean;
 }
 
 function nextOrdinal(existing: readonly ExistingTab[]): number {

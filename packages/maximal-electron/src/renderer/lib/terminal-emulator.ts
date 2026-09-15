@@ -42,6 +42,8 @@ export interface TerminalEmulator {
   readonly buffer: { readonly active: TerminalBuffer };
   open(element: HTMLElement): Promise<void>;
   fit(): void;
+  /** Sets the grid directly, bypassing container measurement. See `fit()`. */
+  resize(cols: number, rows: number): void;
   focus(): void;
   blur(): void;
   onData(listener: (data: string) => void): TerminalDisposable;
@@ -62,6 +64,10 @@ function createXtermEmulator(theme?: TerminalTheme): TerminalEmulator {
     fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
     fontSize: 13,
     minimumContrastRatio: 4.5,
+    // Lets a shell-side diagnostic (`CSI 18 t`) confirm the emulator's own
+    // rendered grid matches what the OS and the PTY report for it. The other
+    // window-report queries stay off; they read or move the OS window itself.
+    windowOptions: { getWinSizeChars: true },
     ...(theme ? { theme } : {}),
   });
   const fitAddon = new FitAddon();
@@ -76,7 +82,16 @@ function createXtermEmulator(theme?: TerminalTheme): TerminalEmulator {
       if (theme?.background) element.style.backgroundColor = theme.background;
       return Promise.resolve(terminal.open(element));
     },
-    fit: () => fitAddon.fit(),
+    fit: () => {
+      const proposed = fitAddon.proposeDimensions();
+      if (!proposed) return;
+      const { cols, rows } = clampTerminalGrid(proposed.cols, proposed.rows);
+      if (cols !== terminal.cols || rows !== terminal.rows) terminal.resize(cols, rows);
+    },
+    resize: (cols, rows) => {
+      const clamped = clampTerminalGrid(cols, rows);
+      terminal.resize(clamped.cols, clamped.rows);
+    },
     focus: () => terminal.focus(),
     blur: () => terminal.blur(),
     onData: (listener) => terminal.onData(listener),
@@ -96,6 +111,12 @@ function createXtermEmulator(theme?: TerminalTheme): TerminalEmulator {
 
 function bounded(value: number | undefined, fallback: number, maximum: number): number {
   return Number.isFinite(value) ? Math.min(maximum, Math.max(0, value!)) : fallback;
+}
+
+function clampTerminalGrid(cols: number, rows: number): { cols: number; rows: number } {
+  const clamp = (value: number, maximum: number) =>
+    Math.max(1, Math.min(maximum, Math.floor(value)));
+  return { cols: clamp(cols, 256), rows: clamp(rows, 128) };
 }
 
 function applyGhosttyWindow(
@@ -145,8 +166,7 @@ function fitGhosttyTerminal(host: HTMLElement, terminal: WTerm): void {
   row.remove();
   if (charWidth <= 0 || rowHeight <= 0) return;
 
-  const cols = Math.max(1, Math.floor(width / charWidth));
-  const rows = Math.max(1, Math.floor(height / rowHeight));
+  const { cols, rows } = clampTerminalGrid(width / charWidth, height / rowHeight);
   if (cols !== terminal.cols || rows !== terminal.rows) terminal.resize(cols, rows);
 }
 
@@ -255,6 +275,10 @@ async function createGhosttyEmulator(
     },
     fit: () => {
       if (element && terminal) fitGhosttyTerminal(element, terminal);
+    },
+    resize: (cols, rows) => {
+      const clamped = clampTerminalGrid(cols, rows);
+      terminal?.resize(clamped.cols, clamped.rows);
     },
     focus: () => terminal?.focus(),
     blur: () => {

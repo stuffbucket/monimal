@@ -16,6 +16,10 @@ import {
   isPtyProjectionWriteRequest,
   isPtyWriteRequest,
   isTerminalLaunchRequest,
+  isTerminalPaneSyncRequest,
+  isTerminalUndockRequest,
+  isTerminalRedockRequest,
+  isTerminalWindowTitleRequest,
   type IpcChannel,
   type IpcEvent,
 } from '../src/shared/ipc.js';
@@ -63,8 +67,8 @@ describe('IPC contract', () => {
     // noticing this list is not. Update it in the same change.
     const channels: IpcChannel[] = [...IPC_CHANNELS];
     const events: IpcEvent[] = [...IPC_EVENTS];
-    expect(channels).toHaveLength(22);
-    expect(events).toHaveLength(7);
+    expect(channels).toHaveLength(28);
+    expect(events).toHaveLength(10);
   });
 
   it('keeps the terminal channels together', () => {
@@ -93,6 +97,42 @@ describe('IPC contract', () => {
     expect(Object.keys(request)).not.toContain('cwd');
     expect(Object.keys(request)).not.toContain('env');
     expect(Object.keys(request)).not.toContain('args');
+  });
+
+  it('validates tab move requests without accepting renderer-owned process settings', () => {
+    const undock = { id: 'session', cols: 80, rows: 24, x: 10, y: 20, title: 'Terminal' };
+    expect(isTerminalUndockRequest(undock)).toBe(true);
+    expect(isTerminalUndockRequest({ ...undock, shell: '/bin/sh' })).toBe(false);
+    expect(isTerminalRedockRequest({
+      id: 'session',
+      cols: 80,
+      rows: 24,
+      sourceFrameId: '13',
+      targetFrameId: '12',
+      title: 'Terminal',
+    })).toBe(true);
+    expect(isTerminalRedockRequest({
+      id: 'session',
+      cols: 80,
+      rows: 24,
+      sourceFrameId: '13',
+      targetFrameId: '',
+      title: 'Terminal',
+    })).toBe(false);
+    expect(isTerminalWindowTitleRequest({ title: 'Focused terminal' })).toBe(true);
+    expect(isTerminalWindowTitleRequest({ title: 'x'.repeat(257) })).toBe(false);
+    expect(isTerminalPaneSyncRequest({
+      id: 'session',
+      pane: {
+        direction: 'right',
+        first: { sessionId: 'session' },
+        second: { sessionId: 'split' },
+      },
+    })).toBe(true);
+    expect(isTerminalPaneSyncRequest({
+      id: 'session',
+      pane: { sessionId: '../unsafe' },
+    })).toBe(false);
   });
 
   it('rejects executable configuration and malformed dimensions at the terminal boundary', () => {
@@ -145,6 +185,10 @@ describe('IPC contract', () => {
 
   it('whitelists terminal lifecycle status events', () => {
     expect(IPC_EVENTS).toContain('pty:status');
+  });
+
+  it('whitelists the shared-session size reconciliation event', () => {
+    expect(IPC_EVENTS).toContain('pty:size');
   });
 });
 

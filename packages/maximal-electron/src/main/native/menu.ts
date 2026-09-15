@@ -138,17 +138,12 @@ export function buildApplicationMenu(callbacks: MenuCallbacks): Menu {
       ],
     },
     { label: 'View', submenu: viewItems(callbacks) },
-    {
-      label: 'Window',
-      submenu: isMac
-        ? [
-            { role: 'minimize' },
-            { role: 'zoom' },
-            { type: 'separator' },
-            { role: 'front' },
-          ]
-        : [{ role: 'minimize' }, { role: 'zoom' }, { role: 'close' }],
-    },
+    isMac
+      ? { role: 'windowMenu' }
+      : {
+          label: 'Window',
+          submenu: [{ role: 'minimize' }, { role: 'zoom' }, { role: 'close' }],
+        },
     {
       role: 'help',
       submenu: [
