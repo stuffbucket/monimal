@@ -20,6 +20,7 @@
  */
 
 import fs from "node:fs/promises"
+import { z } from "zod"
 
 import { PATHS } from "~/lib/platform/paths"
 
@@ -184,6 +185,34 @@ export interface AccountRegistry {
   priority?: Array<AccountKey>
   accounts: Record<AccountKey, AccountRecord>
 }
+
+const accountRecordSchema = z.looseObject({
+  login: z.string(),
+  host: z.string(),
+  token: z.string(),
+  tokenType: z.enum(["ghu_", "gho_", "unknown"]),
+  addedVia: z.enum(["device-code", "gh-cli", "migration"]),
+  obtainedAt: z.string(),
+  needsReauth: z.boolean().optional(),
+  lastError: z
+    .object({
+      status: z.number().nullable(),
+      message: z.string(),
+      at: z.string(),
+    })
+    .nullable()
+    .optional(),
+  refreshToken: z.string().nullable().optional(),
+  accessTokenExpiresAt: z.number().nullable().optional(),
+  refreshTokenExpiresAt: z.number().nullable().optional(),
+})
+
+const accountRegistrySchema = z.object({
+  schemaVersion: z.literal(2),
+  activeKey: z.string().nullable().default(null),
+  priority: z.array(z.string()).optional(),
+  accounts: z.record(z.string(), accountRecordSchema),
+})
 
 export function accountKey(login: string, host: string): AccountKey {
   return `${login}@${host}`
@@ -355,26 +384,8 @@ export async function readRegistry(filePath: string): Promise<AccountRegistry> {
   const trimmed = raw.trim()
   if (!trimmed) return emptyRegistry()
   try {
-    const parsed = JSON.parse(trimmed) as Record<string, unknown>
-    if (
-      parsed.schemaVersion === 2
-      && typeof parsed.accounts === "object"
-      && parsed.accounts !== null
-    ) {
-      return {
-        schemaVersion: 2,
-        activeKey:
-          typeof parsed.activeKey === "string" ? parsed.activeKey : null,
-        ...(Array.isArray(parsed.priority) ?
-          {
-            priority: parsed.priority.filter(
-              (key): key is string => typeof key === "string",
-            ),
-          }
-        : {}),
-        accounts: parsed.accounts as Record<AccountKey, AccountRecord>,
-      }
-    }
+    const parsed = accountRegistrySchema.safeParse(JSON.parse(trimmed))
+    if (parsed.success) return parsed.data
   } catch {
     /* fall through to empty */
   }
