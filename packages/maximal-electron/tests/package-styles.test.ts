@@ -158,6 +158,7 @@ describe('the exported components', () => {
       'components/controls/Overlays: 2',
       'components/controls/ScrollArea: 1',
       'components/controls/Tile: 1',
+      'components/settings/SettingsDisclosure: 1',
     ]);
   });
 

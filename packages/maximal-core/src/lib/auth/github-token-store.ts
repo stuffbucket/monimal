@@ -20,6 +20,7 @@
  */
 
 import fs from "node:fs/promises"
+import { z } from "zod"
 
 import { PATHS } from "~/lib/platform/paths"
 
@@ -181,8 +182,37 @@ export type AccountKey = string
 export interface AccountRegistry {
   schemaVersion: 2
   activeKey: AccountKey | null
+  priority?: Array<AccountKey>
   accounts: Record<AccountKey, AccountRecord>
 }
+
+const accountRecordSchema = z.looseObject({
+  login: z.string(),
+  host: z.string(),
+  token: z.string(),
+  tokenType: z.enum(["ghu_", "gho_", "unknown"]),
+  addedVia: z.enum(["device-code", "gh-cli", "migration"]),
+  obtainedAt: z.string(),
+  needsReauth: z.boolean().optional(),
+  lastError: z
+    .object({
+      status: z.number().nullable(),
+      message: z.string(),
+      at: z.string(),
+    })
+    .nullable()
+    .optional(),
+  refreshToken: z.string().nullable().optional(),
+  accessTokenExpiresAt: z.number().nullable().optional(),
+  refreshTokenExpiresAt: z.number().nullable().optional(),
+})
+
+const accountRegistrySchema = z.object({
+  schemaVersion: z.literal(2),
+  activeKey: z.string().nullable().default(null),
+  priority: z.array(z.string()).optional(),
+  accounts: z.record(z.string(), accountRecordSchema),
+})
 
 export function accountKey(login: string, host: string): AccountKey {
   return `${login}@${host}`
@@ -310,11 +340,35 @@ export function getActiveRecord(reg: AccountRegistry): AccountRecord | null {
 export function listAccounts(
   reg: AccountRegistry,
 ): Array<AccountRecord & { key: AccountKey; active: boolean }> {
-  return Object.entries(reg.accounts).map(([key, rec]) => ({
-    ...rec,
-    key,
-    active: key === reg.activeKey,
-  }))
+  const currentPriority = reg.priority ?? []
+  const keys = [
+    ...currentPriority,
+    ...Object.keys(reg.accounts).filter(
+      (key) => !currentPriority.includes(key),
+    ),
+  ]
+  return keys.flatMap((key) => {
+    if (!(key in reg.accounts)) return []
+    const rec = reg.accounts[key]
+    return [{ ...rec, key, active: key === reg.activeKey }]
+  })
+}
+
+export function setAccountPriority(
+  reg: AccountRegistry,
+  priority: Array<AccountKey>,
+): AccountRegistry {
+  const known = new Set(Object.keys(reg.accounts))
+  const ordered = priority.filter(
+    (key, index) => known.has(key) && priority.indexOf(key) === index,
+  )
+  return {
+    ...reg,
+    priority: [
+      ...ordered,
+      ...Object.keys(reg.accounts).filter((key) => !ordered.includes(key)),
+    ],
+  }
 }
 
 /** Read the registry, tolerating absence/corruption by returning empty. Never
@@ -330,18 +384,8 @@ export async function readRegistry(filePath: string): Promise<AccountRegistry> {
   const trimmed = raw.trim()
   if (!trimmed) return emptyRegistry()
   try {
-    const parsed = JSON.parse(trimmed) as Partial<AccountRegistry>
-    if (
-      parsed.schemaVersion === 2
-      && parsed.accounts
-      && typeof parsed.accounts === "object"
-    ) {
-      return {
-        schemaVersion: 2,
-        activeKey: parsed.activeKey ?? null,
-        accounts: parsed.accounts,
-      }
-    }
+    const parsed = accountRegistrySchema.safeParse(JSON.parse(trimmed))
+    if (parsed.success) return parsed.data
   } catch {
     /* fall through to empty */
   }

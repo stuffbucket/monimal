@@ -59,8 +59,13 @@ async function validateApiKey(apiKey: string): Promise<void> {
   try {
     response = await sendProviderRequest(
       provider,
-      `${provider.baseUrl}/api/ps`,
-      { method: "GET", signal: AbortSignal.timeout(5_000) },
+      `${provider.baseUrl}/api/chat`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: "{}",
+        signal: AbortSignal.timeout(5_000),
+      },
     )
   } catch (error) {
     throw new SettingsOperationError(
@@ -68,14 +73,13 @@ async function validateApiKey(apiKey: string): Promise<void> {
       "validation_error",
     )
   }
-  if (!response.ok) {
-    throw new SettingsOperationError(
-      response.status === 401 || response.status === 403 ?
-        "Ollama rejected this API key."
-      : `Ollama API-key validation returned HTTP ${response.status}.`,
-      "validation_error",
-    )
-  }
+  if (response.ok || response.status === 400) return
+  throw new SettingsOperationError(
+    response.status === 401 || response.status === 403 ?
+      "Ollama rejected this API key."
+    : `Ollama API-key validation returned HTTP ${response.status}.`,
+    "validation_error",
+  )
 }
 
 export async function updateOllamaSettings(

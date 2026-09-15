@@ -1,7 +1,14 @@
 import * as RadioGroupPrimitive from '@radix-ui/react-radio-group';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { Eye, EyeOff } from 'lucide-react';
-import { createContext, useContext, useId, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useId,
+  useState,
+  type FocusEvent,
+  type ReactNode,
+} from 'react';
 
 import { useComponentStyles } from '../../lib/component-styles.js';
 import { IconButton } from './Button.js';
@@ -88,6 +95,7 @@ export function TextInput({
   testId,
   title,
   revealLabel = 'value',
+  onBlur,
   ...field
 }: {
   value: string;
@@ -98,6 +106,7 @@ export function TextInput({
   testId?: string;
   title?: string;
   revealLabel?: string;
+  onBlur?: (event: FocusEvent<HTMLInputElement>) => void;
 } & Partial<FieldControl>) {
   const [revealed, setRevealed] = useState(false);
   const secret = type === 'password';
@@ -110,6 +119,7 @@ export function TextInput({
       disabled={disabled}
       title={title}
       onChange={(event) => onChange(event.target.value)}
+      onBlur={onBlur}
       data-testid={testId}
       {...field}
     />
@@ -278,7 +288,7 @@ export function Switch({
   label,
   displayLabel,
   tooltip,
-  layout = 'spread',
+  layout = 'compact',
   checked,
   onChange,
   disabled,
@@ -296,6 +306,13 @@ export function Switch({
   className?: string;
 }) {
   const container = useShellPortalContainer();
+  const renderedLabel =
+    displayLabel === undefined ? <span>{label}</span> : displayLabel;
+  const track = (
+    <span className="switch__track" data-on={checked}>
+      <span className="switch__thumb" />
+    </span>
+  );
   const control = (
     <button
       type="button"
@@ -308,10 +325,8 @@ export function Switch({
       onClick={() => onChange(!checked)}
       data-testid={testId}
     >
-      {displayLabel === undefined ? <span>{label}</span> : displayLabel}
-      <span className="switch__track" data-on={checked}>
-        <span className="switch__thumb" />
-      </span>
+      {layout === 'compact' ? track : renderedLabel}
+      {layout === 'compact' ? renderedLabel : track}
     </button>
   );
 

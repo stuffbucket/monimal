@@ -119,6 +119,8 @@ export interface ShellModelsContent {
   preview: string;
   context: string;
   maxOutput: string;
+  model: string;
+  capabilities: string;
   /** The heading over each group, keyed by the kind the provider reports. */
   kinds: Record<string, string>;
 }
@@ -266,6 +268,8 @@ export const SHELL_CONTENT: ShellContent = {
     preview: 'Preview',
     context: 'Context',
     maxOutput: 'Max out',
+    model: 'Model',
+    capabilities: 'Capabilities',
     kinds: { chat: 'Chat models', embeddings: 'Embeddings' },
   },
   apiKeys: {

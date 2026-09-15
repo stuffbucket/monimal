@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState, type ReactElement } from 'react'
-import { ChevronRight } from 'lucide-react'
 
 import {
   Button,
@@ -8,8 +7,9 @@ import {
   FieldList,
   FormField,
   Note,
-  SettingsDisclosure,
-  SettingsDisclosureList,
+  SettingsGroup,
+  SettingsItem,
+  SettingsSection,
   Switch,
 } from 'stuffbucket-electron/renderer'
 
@@ -296,17 +296,22 @@ export function LocalModelsSection({
     <section className="settings-section">
       {error ? (
         <Note status="failed" live="assertive">
-          {error}
+          <div>
+            <strong>Local model action failed</strong>
+            <div>{error}</div>
+          </div>
+          <Button size="sm" onClick={() => setError(null)}>
+            Dismiss
+          </Button>
         </Note>
       ) : null}
 
-      <div className="settings-subsection">
-        <h2 className="settings-section__subheading">Ollama</h2>
-        <SettingsDisclosureList>
-          <SettingsDisclosure
+      <SettingsSection title="Ollama">
+        <SettingsGroup>
+          <SettingsItem
             title="Ollama runtime"
             description={ollamaStatus}
-            action={
+            control={
               <Switch
                 label={`${
                   ollamaSettings?.local_enabled === false ? 'Enable' : 'Disable'
@@ -395,7 +400,7 @@ export function LocalModelsSection({
                 hint="Ollama applies this setting to newly loaded models. Larger values use more memory."
               >
                 {(control) => (
-                  <div className="settings__row settings__row--bottom">
+                  <div className="settings__row">
                     <input
                       {...control}
                       className="input"
@@ -431,21 +436,26 @@ export function LocalModelsSection({
                 </span>
               )}
             </div>
-              {ollamaSettings ? (
-                <div className="settings-field">
-                  <Switch
-                    label="Prefer local Ollama models"
-                    checked={ollamaSettings.prefer_local_models}
-                    onChange={(next) => void updateOllamaPreference(next)}
-                    testId="local-models-prefer-ollama-local"
-                  />
-                  <span className="settings-list__detail">
-                    When Ollama offers the same model locally and in the cloud,
-                    use the local copy first.
-                  </span>
-                </div>
-              ) : null}
-              <div className="settings-section__actions">
+          </SettingsItem>
+          {ollamaSettings ? (
+            <SettingsItem
+              title="Prefer local Ollama models"
+              description="When Ollama offers the same model locally and in the cloud, use the local copy first."
+              control={
+                <Switch
+                  label="Prefer local Ollama models"
+                  displayLabel={null}
+                  checked={ollamaSettings.prefer_local_models}
+                  onChange={(next) => void updateOllamaPreference(next)}
+                  testId="local-models-prefer-ollama-local"
+                />
+              }
+            />
+          ) : null}
+          <SettingsItem
+            title="Ollama actions"
+            actions={
+              <>
                 <Button
                   size="sm"
                   onClick={() => navigate('settings-account-heading')}
@@ -475,28 +485,22 @@ export function LocalModelsSection({
                     Get Ollama
                   </Button>
                 ) : null}
-              </div>
-          </SettingsDisclosure>
-        </SettingsDisclosureList>
-      </div>
+              </>
+            }
+          />
+        </SettingsGroup>
+      </SettingsSection>
 
-      <div className="settings-subsection">
-        <h2 className="settings-section__subheading">Models hosted by Maximal</h2>
-        <Note>
-          Bundled providers store their model files on this device until you
-          remove them from the models folder.
-        </Note>
-        <div className="settings-section__actions">
-          <Button size="sm" onClick={() => void openFolder()}>
-            Open models folder
-          </Button>
-        </div>
+      <SettingsSection
+        title="Models hosted by Maximal"
+        description="Bundled providers store their model files on this device until you remove them from the models folder."
+      >
         {catalogue === null ? (
           <Note live="polite">Loading local models…</Note>
         ) : catalogue.models.length === 0 ? (
           <Note>No bundled local models are configured.</Note>
         ) : (
-          <div className="settings-disclosure-list">
+          <SettingsGroup>
             {catalogue.models.map((model) => {
               const operation = operations[model.key]
               const progress = operation === undefined ? null : progressLabel(operation)
@@ -504,19 +508,25 @@ export function LocalModelsSection({
                 operation === undefined &&
                 (model.state === 'registered' || model.state === 'failed')
               return (
-                <details key={model.key} className="settings-disclosure-card">
-                  <summary>
-                    <ChevronRight
-                      className="settings-disclosure-card__chevron"
-                      size={16}
-                      aria-hidden="true"
-                    />
-                    <span className="settings-disclosure-card__summary">
-                      <strong>{model.displayName}</strong>
-                      <span className="settings-list__meta">{model.state}</span>
-                    </span>
-                  </summary>
-                  <div className="settings-disclosure-card__body">
+                <SettingsItem
+                  key={model.key}
+                  title={model.displayName}
+                  description={model.state}
+                  actions={
+                    operation !== undefined ? (
+                      <Button
+                        size="sm"
+                        onClick={() => void cancel(model.key, operation.operationId)}
+                      >
+                        Cancel
+                      </Button>
+                    ) : canEnsure ? (
+                      <Button variant="primary" size="sm" onClick={() => void ensure(model.key)}>
+                        Download
+                      </Button>
+                    ) : undefined
+                  }
+                >
                     <code>{model.modelId}</code>
                     <span className="settings-list__meta">
                       {model.format.toUpperCase()} · {formatBytes(model.expectedBytes)}
@@ -529,33 +539,15 @@ export function LocalModelsSection({
                         {progress}
                       </span>
                     ) : null}
-                    <div className="settings-section__actions">
-                      {operation !== undefined ? (
-                        <Button
-                          size="sm"
-                          onClick={() =>
-                            void cancel(model.key, operation.operationId)
-                          }
-                        >
-                          Cancel
-                        </Button>
-                      ) : canEnsure ? (
-                        <Button
-                          variant="primary"
-                          size="sm"
-                          onClick={() => void ensure(model.key)}
-                        >
-                          Download
-                        </Button>
-                      ) : null}
-                    </div>
-                  </div>
-                </details>
+                </SettingsItem>
               )
             })}
-          </div>
+          </SettingsGroup>
         )}
-      </div>
+        <Button size="sm" onClick={() => void openFolder()}>
+          Open models folder
+        </Button>
+      </SettingsSection>
     </section>
   )
 }

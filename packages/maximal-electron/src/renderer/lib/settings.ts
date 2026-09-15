@@ -28,6 +28,8 @@ export const NO_VALUE = '—';
 /** What a model can do. Only the true ones are shown. */
 export interface ModelCapabilities {
   vision: boolean;
+  imageGeneration?: boolean;
+  videoGeneration?: boolean;
   toolCalls: boolean;
   streaming: boolean;
   reasoning: boolean;
@@ -45,6 +47,10 @@ export interface ModelCard {
   name: string;
   /** Groups the catalogue: `chat`, `embeddings`, whatever a provider reports. */
   kind: string;
+  /** Provider name used to give the card a restrained brand tint. */
+  provider?: string;
+  /** Local models use the neutral card treatment. */
+  local?: boolean;
   preview?: boolean;
   contextWindowTokens?: number;
   maxOutputTokens?: number;
@@ -53,6 +59,8 @@ export interface ModelCard {
 
 const CAPABILITY_LABELS: [keyof ModelCapabilities, string][] = [
   ['vision', 'Vision'],
+  ['imageGeneration', 'Image generation'],
+  ['videoGeneration', 'Video generation'],
   ['toolCalls', 'Tools'],
   ['streaming', 'Streaming'],
   ['reasoning', 'Reasoning'],

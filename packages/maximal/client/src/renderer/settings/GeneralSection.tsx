@@ -4,6 +4,8 @@ import {
   Button,
   Dialog,
   Note,
+  SettingsGroup,
+  SettingsItem,
   SettingsSection,
   Switch,
 } from 'stuffbucket-electron/renderer'
@@ -131,20 +133,22 @@ export function GeneralSection({
         {state === null ? (
           <Note live="polite">Loading desktop app preferences…</Note>
         ) : (
-          <div className="settings-field">
-            <Switch
-              label="Show Maximal in the menu bar only"
-              layout="compact"
-              checked={state.enabled}
-              disabled={busy || state.pending}
-              onChange={(next) => void changeMode(next)}
-              testId="menu-bar-only-switch"
+          <SettingsGroup>
+            <SettingsItem
+              title="Show Maximal in the menu bar only"
+              description="Use the Maximal icon to reopen the desktop app. Dock and taskbar presence is the default."
+              control={
+                <Switch
+                  label="Show Maximal in the menu bar only"
+                  displayLabel={null}
+                  checked={state.enabled}
+                  disabled={busy || state.pending}
+                  onChange={(next) => void changeMode(next)}
+                  testId="menu-bar-only-switch"
+                />
+              }
             />
-            <span className="settings-list__detail">
-              Use the Maximal icon to reopen the desktop app. Dock and taskbar
-              presence is the default.
-            </span>
-          </div>
+          </SettingsGroup>
         )}
       </SettingsSection>
 

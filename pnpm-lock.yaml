@@ -843,6 +843,9 @@ importers:
       vite:
         specifier: ^8.2.2
         version: 8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0)
+      vite-plugin-react-click-to-component:
+        specifier: 4.2.3
+        version: 4.2.3(react@19.2.8)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))
       vitest:
         specifier: ^4.1.11
         version: 4.1.11(@opentelemetry/api@1.9.0)(@types/node@26.4.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))
@@ -7583,6 +7586,12 @@ packages:
   verkit@0.3.2:
     resolution: {integrity: sha1-BRHqYzEFUbYqIMAQqoIDUMXDUMY=}
     engines: {node: '>=18.12.0'}
+
+  vite-plugin-react-click-to-component@4.2.3:
+    resolution: {integrity: sha1-yh236BIwbY5IvF0/4auKSu+5erg=}
+    peerDependencies:
+      react: ^18.3.1 || ^19.0.0
+      vite: ^7 || ^8
 
   vite@8.2.2:
     resolution: {integrity: sha1-OZrvrTZWFFFFvhENE3oH6lu1UBQ=}
@@ -14677,6 +14686,11 @@ snapshots:
   validate-npm-package-name@7.0.2: {}
 
   verkit@0.3.2: {}
+
+  vite-plugin-react-click-to-component@4.2.3(react@19.2.8)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0)):
+    dependencies:
+      react: 19.2.8
+      vite: 8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0)
 
   vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0):
     dependencies:

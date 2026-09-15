@@ -53,6 +53,7 @@ describe('preload bridge allowlist', () => {
     ])
     expect(Object.keys(bridge.control).sort()).toEqual([
       'accountsList',
+      'accountsReorder',
       'accountsSwitch',
       'apiKeysCreate',
       'apiKeysList',

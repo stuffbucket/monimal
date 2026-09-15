@@ -408,8 +408,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 26px;
+  width: var(--shell-control-lg);
+  height: var(--shell-control-md);
   margin: 0;
   overflow: visible;
   clip: auto;
@@ -423,8 +423,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 26px;
+  width: var(--shell-control-lg);
+  height: var(--shell-control-md);
   flex: none;
   align-self: center;
   color: var(--shell-text-subtle);
@@ -541,7 +541,7 @@
 
 .sb-shell .nav__item {
   gap: var(--shell-space-2);
-  height: 30px;
+  height: var(--shell-row-height);
   padding: 0 var(--shell-space-2);
   color: var(--shell-text-muted);
   transition: background 120ms ease-out;
@@ -626,8 +626,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 22px;
+  width: var(--shell-control-md);
+  height: var(--shell-control-sm);
   padding: 0;
   color: var(--shell-text-subtle);
   font: inherit;
@@ -746,7 +746,7 @@
   align-items: center;
   gap: var(--shell-space-3);
   width: 100%;
-  height: 30px;
+  height: var(--shell-row-height);
   padding: 0 var(--shell-space-3);
   color: var(--shell-text-muted);
   font: inherit;
@@ -938,9 +938,9 @@
 .sb-shell .switch {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: var(--shell-space-3);
-  width: 100%;
+  width: fit-content;
   padding: 0;
   color: var(--shell-text-muted);
   font: inherit;
@@ -950,16 +950,16 @@
   cursor: pointer;
 }
 
-.sb-shell .switch[data-layout='compact'] {
-  justify-content: flex-start;
-  width: fit-content;
+.sb-shell .switch[data-layout='spread'] {
+  justify-content: space-between;
+  width: 100%;
 }
 
 .sb-shell .switch__track {
   position: relative;
   box-sizing: border-box;
-  width: 30px;
-  height: 18px;
+  width: var(--shell-control-lg);
+  height: calc(var(--shell-control-sm) - var(--shell-space-1));
   flex: none;
   border: 1px solid var(--shell-text-muted);
   border-radius: 9999px;
@@ -981,8 +981,8 @@
   position: absolute;
   top: 2px;
   left: 2px;
-  width: 14px;
-  height: 14px;
+  width: calc(var(--shell-control-sm) - var(--shell-space-2));
+  height: calc(var(--shell-control-sm) - var(--shell-space-2));
   border-radius: 50%;
   background: var(--shell-text);
   transition: transform 120ms ease-out;
@@ -990,7 +990,7 @@
 
 .sb-shell .switch__track[data-on='true'] .switch__thumb {
   background: var(--shell-accent-contrast, var(--shell-background));
-  transform: translateX(12px);
+  transform: translateX(var(--shell-space-3));
 }
 
 /*
@@ -1030,18 +1030,18 @@
 }
 
 .sb-shell .btn--sm {
-  height: 22px;
+  height: var(--shell-control-sm);
   padding: 0 var(--shell-space-2);
   font-size: 11px;
 }
 
 .sb-shell .btn--md {
-  height: 26px;
+  height: var(--shell-control-md);
   font-size: 13px;
 }
 
 .sb-shell .btn--lg {
-  height: var(--shell-control-height, 28px);
+  height: var(--shell-control-lg);
   padding: 0 var(--shell-space-4);
   font-size: 14px;
 }
@@ -1346,7 +1346,7 @@
   display: flex;
   align-items: center;
   gap: var(--shell-space-2);
-  height: 30px;
+  height: var(--shell-row-height);
   padding: 0 var(--shell-space-2);
   color: var(--shell-text-muted);
   font-size: 13px;

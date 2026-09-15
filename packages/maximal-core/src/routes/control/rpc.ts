@@ -44,6 +44,7 @@ import { activateAccountLive } from "~/lib/auth/auth-recovery"
 import {
   readDefaultRegistry,
   removeAccount,
+  setAccountPriority,
   writeDefaultRegistry,
 } from "~/lib/auth/github-token-store"
 import { getConfig } from "~/lib/config/config"
@@ -385,6 +386,48 @@ function relayToShell(emit: () => boolean, verb: "quitting" | "upgrading") {
     : { ok: false, reason: "no_supervising_shell" as const }
 }
 
+function createAccountRpcMethods(
+  mutex: AsyncMutex,
+  hub: () => ControlHub<ControlSnapshot>,
+): RpcRegistry {
+  return {
+    "accounts/list": () => buildAccountsList(),
+    "accounts/reorder": (params: unknown) =>
+      mutex.runExclusive(async () => {
+        const raw = params as { priority?: unknown } | null | undefined
+        const rawPriority = raw?.priority
+        const priority =
+          Array.isArray(rawPriority) ?
+            rawPriority.filter((key): key is string => typeof key === "string")
+          : []
+        const reg = await readDefaultRegistry()
+        await writeDefaultRegistry(setAccountPriority(reg, priority))
+        hub().emit("accounts", await buildAccountsList())
+        return { ok: true }
+      }),
+    "accounts/switch": (params: unknown) =>
+      mutex.runExclusive(async () => {
+        const key = keyFromParams(params)
+        const result = await activateAccountLive(key)
+        if (!result.ok) throw new RpcParamsError(result.message)
+        hub().emit("accounts", await buildAccountsList())
+        return { ok: true, key }
+      }),
+    "accounts/remove": (params: unknown) =>
+      mutex.runExclusive(async () => {
+        const key = keyFromParams(params)
+        const reg = await readDefaultRegistry()
+        if (!(key in reg.accounts)) {
+          throw new RpcParamsError(`No account ${key}.`)
+        }
+        const wasActive = reg.activeKey === key
+        await writeDefaultRegistry(removeAccount(reg, key))
+        hub().emit("accounts", await buildAccountsList())
+        return { ok: true, key, was_active: wasActive }
+      }),
+  }
+}
+
 /**
  * Build the full method registry.
  *
@@ -403,11 +446,11 @@ export function createControlRpcMethods(deps: ControlRpcDeps): RpcRegistry {
     health: () => ({ ok: true, version: BUILD_VERSION }),
     ...createSettingsRpcMethods(deps),
     ...createLocalModelRpcMethods(deps.localModels),
+    ...createAccountRpcMethods(mutex, hub),
 
     // Reads. Each mirrors a live feed topic and shares its builder, so a
     // snapshot read and a pushed update can never describe different shapes.
     "auth/status": () => getAuthStatus(),
-    "accounts/list": () => buildAccountsList(),
     "ollamaAccounts/list": () => listOllamaAccounts(),
     "observability/overview": async (params: unknown) => {
       const query = parseObservabilityParams(TrafficOverviewQuerySchema, params)
@@ -451,30 +494,6 @@ export function createControlRpcMethods(deps: ControlRpcDeps): RpcRegistry {
       await signOut()
       return { ok: true }
     },
-
-    // Account mutations, serialized through the same mutex the REST routes use
-    // so an RPC switch and a REST switch can never interleave.
-    "accounts/switch": (params: unknown) =>
-      mutex.runExclusive(async () => {
-        const key = keyFromParams(params)
-        const result = await activateAccountLive(key)
-        if (!result.ok) throw new RpcParamsError(result.message)
-        hub().emit("accounts", await buildAccountsList())
-        return { ok: true, key }
-      }),
-
-    "accounts/remove": (params: unknown) =>
-      mutex.runExclusive(async () => {
-        const key = keyFromParams(params)
-        const reg = await readDefaultRegistry()
-        if (!(key in reg.accounts)) {
-          throw new RpcParamsError(`No account ${key}.`)
-        }
-        const wasActive = reg.activeKey === key
-        await writeDefaultRegistry(removeAccount(reg, key))
-        hub().emit("accounts", await buildAccountsList())
-        return { ok: true, key, was_active: wasActive }
-      }),
 
     /**
      * Long-lived push stream. The response IS the subscription: a snapshot

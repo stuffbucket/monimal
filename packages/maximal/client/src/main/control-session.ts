@@ -89,6 +89,7 @@ type ControlMethod =
   | 'auth/signOut'
   | 'accounts/list'
   | 'accounts/switch'
+  | 'accounts/reorder'
   | 'ollamaAccounts/list'
   | 'ollamaSettings/get'
   | 'ollamaSettings/update'
@@ -150,6 +151,7 @@ export interface ControlSession {
   authSignOut(): Promise<ControlResult<null>>
   accountsList(): Promise<ControlResult<AccountsListResponse>>
   accountsSwitch(key: string): Promise<ControlResult<null>>
+  accountsReorder(priority: string[]): Promise<ControlResult<null>>
   ollamaAccountsList(): Promise<ControlResult<OllamaAccountsListResponse>>
   ollamaSettingsGet(): Promise<ControlResult<OllamaSettingsResponse>>
   ollamaSettingsUpdate(
@@ -207,6 +209,7 @@ const optionalMethods = [
   'auth/cancel',
   'accounts/list',
   'accounts/switch',
+  'accounts/reorder',
   'ollamaAccounts/list',
   'ollamaSettings/get',
   'ollamaSettings/update',
@@ -617,6 +620,11 @@ export function createControlSession(
         accountsSwitchResultSchema.parse(input)
         return null
       }, { key }),
+    accountsReorder: (priority) =>
+      call('accounts/reorder', (input) => {
+        accountsSwitchResultSchema.parse(input)
+        return null
+      }, { priority }),
     ollamaAccountsList: () =>
       call(
         'ollamaAccounts/list',

@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useEffectEvent, useState, type ReactElement } from 'react'
 
-import { Button, Note } from 'stuffbucket-electron/renderer'
+import {
+  Button,
+  Field,
+  FieldList,
+  Note,
+  SettingsGroup,
+  SettingsItem,
+  SettingsSection,
+} from 'stuffbucket-electron/renderer'
 
 import { displayAccountLogin } from '../shared/account-login'
 import type { AuthStatus, SettingsCapabilities } from './capabilities'
@@ -9,7 +17,7 @@ import { DeviceCodePanel } from './DeviceCodePanel'
 import { describeError, formatTimestamp } from './format'
 import { OllamaAccountsSection } from './OllamaAccountsSection'
 
-// The Account section: who's signed in, sign in via GitHub's device flow,
+// The Accounts section: who's signed in, sign in via GitHub's device flow,
 // sign out. Written entirely against `SettingsCapabilities` — see
 // capabilities.ts for why no component here imports `ControlClient` or
 // touches `window.maximal` directly.
@@ -103,93 +111,98 @@ export function AccountSection({ capabilities }: AccountSectionProps): ReactElem
 
   return (
     <section className="settings-section">
-      <div className="settings-subsection">
-        <h2 className="settings-section__subheading">GitHub Copilot</h2>
-        {/* `live="assertive"` is the whole of what the hand-written note spelled
-            as role="alert" plus aria-live: a failed action needs to interrupt,
-            not queue quietly behind whatever the user is doing next. */}
-        {error ? (
-          <Note status="failed" live="assertive">
-            {error}
-          </Note>
-        ) : null}
-
-        {status === null ? (
-          <Note live="polite">Loading account status…</Note>
-        ) : status.state === 'unauthenticated' ? (
-          <div className="settings-field">
-            <Note>Not signed in.</Note>
-            {status.last_upstream_rejection ? (
-              <Note status="needs-approval">{status.last_upstream_rejection.message}</Note>
+      <SettingsSection title="GitHub Copilot">
+        <SettingsGroup>
+          <SettingsItem
+            title="GitHub account"
+            description={
+              status?.state === 'authenticated'
+                ? 'Connected to GitHub Copilot.'
+                : 'Authorizes Maximal to use GitHub Copilot.'
+            }
+            actions={
+              status?.state === 'unauthenticated' ? (
+                <Button variant="primary" size="sm" onClick={handleStart} disabled={busy}>
+                  {busy ? 'Starting…' : 'Sign in with GitHub'}
+                </Button>
+              ) : status?.state === 'authenticated' ? (
+                <Button size="sm" onClick={handleSignOut} disabled={busy}>
+                  {busy ? 'Signing out…' : 'Sign out'}
+                </Button>
+              ) : status?.state === 'error' ? (
+                <Button variant="primary" onClick={handleStart} disabled={busy}>
+                  {busy ? 'Starting…' : 'Try again'}
+                </Button>
+              ) : undefined
+            }
+          >
+            {error ? (
+              <Note status="failed" live="assertive">
+                {error}
+              </Note>
             ) : null}
-            <Button variant="primary" onClick={handleStart} disabled={busy}>
-              {busy ? 'Starting…' : 'Sign in with GitHub'}
-            </Button>
-          </div>
-        ) : status.state === 'device_code_issued' || status.state === 'polling' ? (
-          <DeviceCodePanel
-            status={status}
-            busy={busy}
-            onOpenVerification={() => handleOpenVerification(status.verification_uri)}
-            onCancel={handleCancel}
-            onRequestNewCode={handleStart}
-          />
-        ) : status.state === 'authenticated' ? (
-          <div className="settings-field">
-            <dl className="settings-details">
-              <div className="settings-details__row">
-                <dt>Signed in as</dt>
-                <dd>{displayAccountLogin(status.account_login)}</dd>
-              </div>
-              {status.account_type ? (
-                <div className="settings-details__row">
-                  <dt>Plan</dt>
-                  <dd>{status.account_type}</dd>
-                </div>
-              ) : null}
-              {status.connected_since ? (
-                <div className="settings-details__row">
-                  <dt>Connected since</dt>
-                  <dd>{formatTimestamp(status.connected_since)}</dd>
-                </div>
-              ) : null}
-            </dl>
-            {status.last_upstream_rejection ? (
-              <Note status="needs-approval">{status.last_upstream_rejection.message}</Note>
-            ) : null}
-            <Button onClick={handleSignOut} disabled={busy}>
-              {busy ? 'Signing out…' : 'Sign out'}
-            </Button>
-          </div>
-        ) : (
-          // status.state === 'error'
-          <div className="settings-field">
-            <Note status="failed" live="assertive">
-              {status.error}
-              {status.remediation_url ? (
-                <>
-                  {' '}
-                  {/* Stays a link, not a Button: it navigates to a remediation
-                      URL from inside a sentence, which is what
-                      `.settings-link-button` draws and what `Button` is not. */}
-                  <button
-                    type="button"
-                    className="settings-link-button"
-                    onClick={() => handleOpenVerification(status.remediation_url ?? '')}
-                  >
-                    Learn more
-                  </button>
-                </>
-              ) : null}
-            </Note>
-            <Button variant="primary" onClick={handleStart} disabled={busy}>
-              {busy ? 'Starting…' : 'Try again'}
-            </Button>
-          </div>
-        )}
-
-        <AccountsSection capabilities={capabilities} embedded />
-      </div>
+            {status === null ? (
+              <Note live="polite">Loading account status…</Note>
+            ) : status.state === 'unauthenticated' ? (
+              <>
+                <Note>Not signed in.</Note>
+                {status.last_upstream_rejection ? (
+                  <Note status="needs-approval">{status.last_upstream_rejection.message}</Note>
+                ) : null}
+              </>
+            ) : status.state === 'device_code_issued' || status.state === 'polling' ? (
+              <DeviceCodePanel
+                status={status}
+                busy={busy}
+                onOpenVerification={() => handleOpenVerification(status.verification_uri)}
+                onCancel={handleCancel}
+                onRequestNewCode={handleStart}
+              />
+            ) : status.state === 'authenticated' ? (
+              <>
+                <FieldList>
+                  <Field
+                    label="Signed in as"
+                    value={displayAccountLogin(status.account_login)}
+                  />
+                  {status.account_type ? (
+                    <Field label="Plan" value={status.account_type} />
+                  ) : null}
+                  {status.connected_since ? (
+                    <Field
+                      label="Connected since"
+                      value={formatTimestamp(status.connected_since)}
+                    />
+                  ) : null}
+                </FieldList>
+                {status.last_upstream_rejection ? (
+                  <Note status="needs-approval">{status.last_upstream_rejection.message}</Note>
+                ) : null}
+              </>
+            ) : (
+              // status.state === 'error'
+              <>
+                <Note status="failed" live="assertive">
+                  {status.error}
+                  {status.remediation_url ? (
+                    <>
+                      {' '}
+                      <button
+                        type="button"
+                        className="settings-link-button"
+                        onClick={() => handleOpenVerification(status.remediation_url ?? '')}
+                      >
+                        Learn more
+                      </button>
+                    </>
+                  ) : null}
+                </Note>
+              </>
+            )}
+          </SettingsItem>
+        </SettingsGroup>
+        <AccountsSection capabilities={capabilities} />
+      </SettingsSection>
       <OllamaAccountsSection capabilities={capabilities} />
     </section>
   )

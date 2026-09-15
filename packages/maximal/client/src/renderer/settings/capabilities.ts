@@ -93,6 +93,7 @@ export interface SettingsCapabilities {
   accounts: {
     list(): Promise<AccountsListResponse>
     switchTo(key: string): Promise<void>
+    reorder(priority: string[]): Promise<void>
   }
   ollamaAccounts: {
     list(): Promise<OllamaAccountsListResponse>
@@ -261,6 +262,9 @@ export function createCoreSettingsCapabilities(): SettingsCapabilities {
         unwrapControlResult(await bridge.control.accountsList()),
       switchTo: async (key) => {
         unwrapControlResult(await bridge.control.accountsSwitch(key))
+      },
+      reorder: async (priority) => {
+        unwrapControlResult(await bridge.control.accountsReorder(priority))
       },
     },
     ollamaAccounts: {

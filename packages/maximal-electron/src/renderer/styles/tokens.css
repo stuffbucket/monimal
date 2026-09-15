@@ -61,7 +61,7 @@
   /* ---- Sizing ---- */
   --size-titlebar: 40px;
   --size-tabbar: 36px;
-  --size-row: 30px;
+  --size-row: 32px;
   --size-icon: 16px;
 
   /*
@@ -71,9 +71,9 @@
    * sizes for a reason. These describe what the shell already does; they were
    * hardcoded in five places before they had names.
    */
-  --control-sm: 22px;
-  --control-md: 26px;
-  --control-lg: 28px;
+  --control-sm: 24px;
+  --control-md: 28px;
+  --control-lg: 32px;
 
   /*
    * ---- Tabs ----

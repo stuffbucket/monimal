@@ -80,6 +80,7 @@
     "jsdom": "^30.0.1",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "vite": "^8.2.2",
+    "vite-plugin-react-click-to-component": "4.2.3",
     "vitest": "^4.1.11"
   },
   "engines": {

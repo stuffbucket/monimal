@@ -1,9 +1,18 @@
-import { useEffect, useState, type ReactElement } from 'react'
+import {
+  useEffect,
+  useState,
+  type FocusEvent,
+  type ReactElement,
+} from 'react'
 
 import {
   Button,
+  Dialog,
   FormField,
   Note,
+  SettingsGroup,
+  SettingsItem,
+  SettingsSection,
   Switch,
   TextInput,
 } from 'stuffbucket-electron/renderer'
@@ -16,6 +25,7 @@ import type {
 import { describeError } from './format'
 
 const POLL_MS = 5000
+const MIN_OLLAMA_KEY_LENGTH = 8
 
 interface OllamaAccountsSectionProps {
   capabilities: SettingsCapabilities
@@ -41,8 +51,12 @@ export function OllamaAccountsSection({
   const [list, setList] = useState<OllamaAccountsListResponse | null>(null)
   const [settings, setSettings] = useState<OllamaSettingsResponse | null>(null)
   const [apiKey, setApiKey] = useState('')
+  const [apiKeyDirty, setApiKeyDirty] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [dialogError, setDialogError] = useState<string | null>(null)
   const [keyError, setKeyError] = useState<string | null>(null)
+  const [keyMessage, setKeyMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -84,14 +98,85 @@ export function OllamaAccountsSection({
     }
   }
 
-  const saveApiKey = async () => {
-    setSaving(true)
+  const updateApiKeyInput = (next: string) => {
+    setApiKey(next)
+    setApiKeyDirty(true)
     setKeyError(null)
+    setKeyMessage(null)
+    setDialogError(null)
+  }
+
+  const handleBlur = (event: FocusEvent<HTMLInputElement>) => {
+    const nextTarget = event.relatedTarget as HTMLElement | null
+    if (nextTarget && event.currentTarget.parentElement?.contains(nextTarget)) {
+      return
+    }
+    if (!apiKeyDirty) return
+    const candidate = apiKey.trim()
+    if (candidate.length === 0) {
+      setApiKey('')
+      setApiKeyDirty(false)
+      return
+    }
+    setConfirmOpen(true)
+    setDialogError(null)
+  }
+
+  const handleDiscard = () => {
+    setApiKey('')
+    setApiKeyDirty(false)
+    setConfirmOpen(false)
+    setDialogError(null)
+  }
+
+  const handleConfirmSave = async () => {
+    const candidate = apiKey.trim()
+    if (candidate.length < MIN_OLLAMA_KEY_LENGTH) {
+      setDialogError('API key is too short to be valid.')
+      return
+    }
+
+    setSaving(true)
+    setDialogError(null)
     try {
-      const next = await capabilities.ollamaSettings.update({ api_key: apiKey })
+      const next = await capabilities.ollamaSettings.update({
+        api_key: candidate,
+      })
       setSettings(next)
       setApiKey('')
-      setList(await capabilities.ollamaAccounts.list())
+      setApiKeyDirty(false)
+      setConfirmOpen(false)
+      setKeyError(null)
+      setKeyMessage('Ollama API key verified and saved.')
+      try {
+        setList(await capabilities.ollamaAccounts.list())
+      } catch (cause) {
+        setError(describeError(cause))
+      }
+    } catch (cause) {
+      setDialogError(describeError(cause))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleRemoveSavedKey = async () => {
+    setSaving(true)
+    setKeyError(null)
+    setKeyMessage(null)
+    try {
+      const next = await capabilities.ollamaSettings.update({
+        api_key: '',
+      })
+      setSettings(next)
+      setApiKey('')
+      setApiKeyDirty(false)
+      setKeyMessage('Saved API key removed.')
+      try {
+        setList(await capabilities.ollamaAccounts.list())
+      } catch (cause) {
+        setError(describeError(cause))
+      }
     } catch (cause) {
       setKeyError(describeError(cause))
     } finally {
@@ -100,67 +185,113 @@ export function OllamaAccountsSection({
   }
 
   return (
-    <div className="settings-subsection">
-      <h2 className="settings-section__subheading">Ollama</h2>
+    <SettingsSection title="Ollama">
       {settings ? (
-        <>
-          <div className="settings-field">
-            <Switch
-              label="Prefer local Ollama models"
-              checked={settings.prefer_local_models}
-              disabled={saving}
-              onChange={(next) => void updatePreference(next)}
-              testId="ollama-prefer-local"
-            />
-            <span className="settings-list__detail">
-              When local and cloud advertise the same model, use the local copy
-              first.
-            </span>
-          </div>
-          <FormField
-            label="Ollama API key"
-            hint={
+        <SettingsGroup>
+          <SettingsItem
+            title="Ollama Cloud API"
+            description={
               settings.has_api_key
                 ? `A key is configured from ${settings.credential_source}. Enter a replacement, or leave empty to stop using the saved cloud key.`
-                : 'Optional. Leave empty to use localhost only.'
+                : 'Use an API key with an Ollama cloud subscription, or use Ollama on this machine with or without a key.'
             }
-            error={keyError ?? undefined}
-            labelAction={
-              <Button
-                size="sm"
-                onClick={() =>
-                  void capabilities.openExternal(
-                    'https://ollama.com/settings/keys',
-                  )
-                }
-              >
-                Create API key
-              </Button>
+            actions={
+              settings.has_api_key ? (
+                <Button
+                  size="sm"
+                  onClick={() => void handleRemoveSavedKey()}
+                  disabled={saving}
+                >
+                  Remove saved key
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  onClick={() =>
+          void capabilities.openExternal(
+            'https://ollama.com/settings/keys',
+          )
+                  }
+                >
+                  Create API key
+                </Button>
+              )
             }
           >
-            {(control) => (
-              <div className="settings-section__actions">
-                <TextInput
-                  {...control}
-                  value={apiKey}
-                  type="password"
-                  revealLabel="Ollama API key"
-                  disabled={saving}
-                  title={keyError ?? undefined}
-                  testId="ollama-api-key"
-                  onChange={setApiKey}
-                />
-                <Button
-                  variant="primary"
-                  disabled={saving}
-                  onClick={() => void saveApiKey()}
-                >
-                  {saving ? 'Validating…' : 'Save'}
-                </Button>
-              </div>
-            )}
-          </FormField>
-        </>
+            <FormField
+              label="Ollama API key"
+              hint={
+                keyMessage ? (
+                  <span aria-live="polite">{keyMessage}</span>
+                ) : undefined
+              }
+              error={keyError ?? undefined}
+            >
+              {(control) => (
+                <span className="settings-credential-field">
+                  <TextInput
+                    {...control}
+                    value={apiKey}
+                    type="password"
+                    placeholder="Enter an Ollama API key to use Ollama Cloud models."
+                    revealLabel="Ollama API key"
+                    disabled={saving}
+                    title={keyError ?? undefined}
+                    testId="ollama-api-key"
+                    onChange={updateApiKeyInput}
+                    onBlur={handleBlur}
+                  />
+                </span>
+              )}
+            </FormField>
+          </SettingsItem>
+
+          <Dialog
+            open={confirmOpen}
+            onOpenChange={(next) => {
+              if (!next && !saving) handleDiscard()
+            }}
+            title="Update Ollama API key?"
+            description="Would you like to verify and save this API key to your Ollama configuration?"
+            showTitle
+            showDescription
+            className="dialog unsaved-changes-dialog"
+            testId="ollama-key-dialog"
+          >
+            {dialogError ? (
+              <p className="unsaved-changes-dialog__error" role="alert">
+                {dialogError}
+              </p>
+            ) : null}
+            <div className="unsaved-changes-dialog__actions">
+              <Button onClick={handleDiscard} disabled={saving}>
+                No, discard
+              </Button>
+              <Button
+                variant="primary"
+                onClick={() => void handleConfirmSave()}
+                disabled={saving}
+              >
+                {saving ? 'Verifying…' : 'Yes, update key'}
+              </Button>
+            </div>
+          </Dialog>
+
+          <SettingsItem
+            title="Prefer local Ollama models"
+            description="When local and cloud advertise the same model, use the local copy first."
+            control={
+              <Switch
+                label="Prefer local Ollama models"
+                displayLabel={null}
+                checked={settings.prefer_local_models}
+                disabled={saving}
+                onChange={(next) => void updatePreference(next)}
+                testId="ollama-prefer-local"
+              />
+            }
+          />
+        </SettingsGroup>
       ) : null}
       {error ? (
         <Note status="failed" live="assertive">
@@ -171,27 +302,23 @@ export function OllamaAccountsSection({
       ) : list.accounts.length === 0 ? (
         <Note>Ollama is disabled in the provider configuration.</Note>
       ) : (
-        <ul className="settings-accounts-list">
+        <SettingsGroup>
           {list.accounts.map((account) => (
-            <li key={account.provider} className="settings-accounts-list__row">
-              <div className="settings-accounts-list__identity">
-                <span className="settings-accounts-list__login">
-                  {account.provider}
-                </span>
-                <span className="settings-accounts-list__meta">
-                  {accountDescription(account)}
-                </span>
-                <span className="settings-accounts-list__meta">
-                  {account.endpoint} · {account.availability}
-                  {account.model_count === null
-                    ? ''
-                    : ` · ${account.model_count} ${account.model_count === 1 ? 'model' : 'models'}`}
-                </span>
-              </div>
-            </li>
+            <SettingsItem
+              key={account.provider}
+              title={account.provider}
+              description={accountDescription(account)}
+            >
+              <span className="settings-list__detail">
+                {account.endpoint} · {account.availability}
+                {account.model_count === null
+                  ? ''
+                  : ` · ${account.model_count} ${account.model_count === 1 ? 'model' : 'models'}`}
+              </span>
+            </SettingsItem>
           ))}
-        </ul>
+        </SettingsGroup>
       )}
-    </div>
+    </SettingsSection>
   )
 }

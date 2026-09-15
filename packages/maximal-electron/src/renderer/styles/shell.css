@@ -994,16 +994,16 @@ body {
 .switch {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: var(--space-3);
   font-size: var(--text-base);
   color: var(--text-secondary);
-  width: 100%;
+  width: fit-content;
 }
 
-.switch[data-layout='compact'] {
-  justify-content: flex-start;
-  width: fit-content;
+.switch[data-layout='spread'] {
+  justify-content: space-between;
+  width: 100%;
 }
 
 .switch__track {

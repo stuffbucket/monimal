@@ -56,10 +56,9 @@ const manifestBody = (o: {
     },
   })
 
-/** Let a fire-and-forget refresh settle. The pinned fetch resolves on the
- *  microtask queue, so one macrotask turn is enough. */
-const settle = (): Promise<void> =>
-  new Promise((resolve) => setTimeout(resolve, 0))
+/** Let a fire-and-forget refresh settle. */
+const settle = (ms = 50): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms))
 
 /**
  * Warm the module cache from a pinned manifest, as if the background refresh

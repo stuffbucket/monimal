@@ -75,6 +75,10 @@ describe('GeneralSection menu-bar-only confirmation', () => {
 
     expect(surface.querySelector('h1')).toBeNull()
     expect(surface.querySelector('h2')?.textContent).toBe('Desktop presence')
+    expect(surface.querySelector('.settings__group')).not.toBeNull()
+    expect(surface.querySelector('.settings__item-title')?.textContent).toBe(
+      'Show Maximal in the menu bar only',
+    )
     expect(switchControl(surface).getAttribute('role')).toBe('switch')
     expect(switchControl(surface).getAttribute('data-layout')).toBe('compact')
   })

@@ -40,6 +40,7 @@ function fakeCapabilities(): SettingsCapabilities {
     accounts: {
       list: vi.fn(async () => accountsList),
       switchTo: vi.fn(async () => {}),
+      reorder: vi.fn(async () => {}),
     },
     ollamaAccounts: {
       list: vi.fn(async () => ollamaAccountsList),
@@ -236,8 +237,26 @@ describe('Settings', () => {
   it('renders only the default section at first', async () => {
     const surface = await renderSettings()
 
-    expect(activePageLabel(surface)).toBe('Account')
+    expect(activePageLabel(surface)).toBe('Accounts')
     expect(selectedId(surface)).toBe(DEFAULT_SETTINGS_SECTION_ID)
+  })
+
+  it('places the Connections rescan action in the shared header', async () => {
+    const surface = await renderSettings()
+    const connections = surface.querySelector<HTMLButtonElement>(
+      '[data-testid="settings-rail-settings-connections-heading"]',
+    )
+    if (connections === null) throw new Error('the Connections rail item is missing')
+
+    await act(async () => connections.click())
+
+    const header = surface.querySelector<HTMLElement>('.settings__header')
+    if (header === null) throw new Error('the Settings header is missing')
+    const rescan = [...header.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Rescan',
+    )
+    expect(rescan).toBeDefined()
+    expect(rescan?.classList.contains('btn--primary')).toBe(true)
   })
 
   it('selects every manifest destination into the same tabpanel', async () => {
@@ -261,9 +280,9 @@ describe('Settings', () => {
   it('uses the selected section label as the single content heading', async () => {
     const surface = await renderSettings()
 
-    expect(activePageLabel(surface)).toBe('Account')
+    expect(activePageLabel(surface)).toBe('Accounts')
     expect(surface.querySelector('.settings > .settings__header h1')?.textContent).toBe(
-      'Account',
+      'Accounts',
     )
     expect(surface.textContent).not.toContain('On this page')
     expect(surface.querySelector('#settings-heading')).toBeNull()
@@ -306,7 +325,7 @@ describe('Settings', () => {
     await act(async () => models.click())
     await rerender()
 
-    expect(activePageLabel(surface)).toBe('Models')
+    expect(activePageLabel(surface)).toBe('Cloud Models')
     expect(selectedId(surface)).toBe('settings-models-heading')
   })
 
@@ -315,7 +334,7 @@ describe('Settings', () => {
     const page = surface.querySelector<HTMLElement>('.settings')
     if (page === null) throw new Error('the Settings page did not render')
 
-    expect(page.querySelector('h1')?.textContent).toBe('Models')
+    expect(page.querySelector('h1')?.textContent).toBe('Cloud Models')
     expect(page.querySelectorAll('h1')).toHaveLength(1)
     expect(page.querySelector('.settings__header')).not.toBeNull()
     expect(page.querySelector('.settings__body.scroll-area')).not.toBeNull()

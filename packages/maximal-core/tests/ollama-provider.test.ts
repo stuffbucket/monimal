@@ -55,8 +55,24 @@ describe("Ollama account settings", () => {
 
   test("accepts a validated API key and allows an empty value to remove it", async () => {
     delete process.env.OLLAMA_API_KEY
-    globalThis.fetch = ((_input, _init) =>
-      Promise.resolve(Response.json({ data: [] }))) as typeof fetch
+    globalThis.fetch = ((input, init) => {
+      let url: string
+      if (typeof input === "string") url = input
+      else if (input instanceof URL) url = input.href
+      else url = input.url
+      expect(url).toBe("https://ollama.com/api/chat")
+      expect(init?.method).toBe("POST")
+      expect(init?.body).toBe("{}")
+      expect(new Headers(init?.headers).get("content-type")).toBe(
+        "application/json",
+      )
+      expect(new Headers(init?.headers).get("authorization")).toBe(
+        "Bearer valid-key",
+      )
+      return Promise.resolve(
+        Response.json({ error: "model is required" }, { status: 400 }),
+      )
+    }) as typeof fetch
 
     const saved = await updateOllamaSettings({ api_key: "valid-key" })
     expect(saved).toMatchObject({
