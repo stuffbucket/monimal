@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   isSettingsSectionId,
+  settingsSectionIdFrom,
   SETTINGS_SECTION_IDS,
   SETTINGS_SECTIONS,
 } from './settings-sections'
@@ -32,5 +33,22 @@ describe('isSettingsSectionId', () => {
     expect(isSettingsSectionId('settings-language-heading')).toBe(false)
     expect(isSettingsSectionId(undefined)).toBe(false)
     expect(isSettingsSectionId(7)).toBe(false)
+  })
+})
+
+describe('settingsSectionIdFrom', () => {
+  it.each([
+    'settings-apps-heading',
+    'settings-endpoint-heading',
+    'settings-api-keys-heading',
+  ])('maps the legacy %s destination to Connections', (legacyId) => {
+    expect(settingsSectionIdFrom(legacyId)).toBe('settings-connections-heading')
+  })
+
+  it('preserves current destinations and rejects unknown values', () => {
+    expect(settingsSectionIdFrom('settings-models-heading')).toBe(
+      'settings-models-heading',
+    )
+    expect(settingsSectionIdFrom('settings-language-heading')).toBeNull()
   })
 })

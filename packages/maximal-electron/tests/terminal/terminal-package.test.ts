@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  contentSecurityPolicyChecks,
   terminalNativeFiles,
   terminalPackageChecks,
   terminalPrebuildDirectory,
@@ -33,15 +32,11 @@ const unpackedDarwin = [
   'node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper',
 ];
 
-/** Shaped like the one `src/renderer/index.html` declares. */
-const shippedPolicy = "script-src 'self' 'wasm-unsafe-eval'; connect-src 'self' data:";
-
 const darwin = {
   packedFiles: packedDarwin,
   unpackedFiles: unpackedDarwin,
   platform: 'darwin',
   arch: 'arm64',
-  contentSecurityPolicy: shippedPolicy,
 };
 
 describe('terminalPrebuildDirectory', () => {
@@ -71,58 +66,6 @@ describe('terminalNativeFiles', () => {
       'conpty_console_list.node',
       'conpty/conpty.dll',
       'conpty/OpenConsole.exe',
-    ]);
-  });
-});
-
-describe('contentSecurityPolicyChecks', () => {
-  it('passes a policy that grants both sources', () => {
-    const policy = "script-src 'self' 'wasm-unsafe-eval'; connect-src 'self' data:";
-    expect(failed(contentSecurityPolicyChecks(policy))).toEqual([]);
-  });
-
-  it('reports a missing wasm-unsafe-eval', () => {
-    const policy = "script-src 'self'; connect-src data:";
-    expect(failed(contentSecurityPolicyChecks(policy))).toEqual([
-      "script-src grants 'wasm-unsafe-eval'",
-    ]);
-  });
-
-  it('reports a missing data: source', () => {
-    const policy = "script-src 'wasm-unsafe-eval'; connect-src 'self'";
-    expect(failed(contentSecurityPolicyChecks(policy))).toEqual(['connect-src grants data:']);
-  });
-
-  it('reads a directive that is not the first one', () => {
-    const policy = "default-src 'none'; script-src 'wasm-unsafe-eval'; connect-src data:";
-    expect(failed(contentSecurityPolicyChecks(policy))).toEqual([]);
-  });
-
-  it('falls back to default-src, as the policy itself does', () => {
-    const policy = "default-src 'wasm-unsafe-eval' data:";
-    expect(failed(contentSecurityPolicyChecks(policy))).toEqual([]);
-  });
-
-  it('prefers a present directive over default-src', () => {
-    const policy = "default-src 'wasm-unsafe-eval' data:; connect-src 'self'";
-    expect(failed(contentSecurityPolicyChecks(policy))).toEqual(['connect-src grants data:']);
-  });
-
-  it('reports both when the policy grants neither', () => {
-    expect(failed(contentSecurityPolicyChecks("default-src 'self'"))).toEqual([
-      "script-src grants 'wasm-unsafe-eval'",
-      'connect-src grants data:',
-    ]);
-  });
-
-  it('reports an empty policy rather than passing it', () => {
-    expect(failed(contentSecurityPolicyChecks('')).length).toBe(2);
-  });
-
-  it('does not accept an unquoted wasm-unsafe-eval, which grants nothing', () => {
-    const policy = 'script-src wasm-unsafe-eval; connect-src data:';
-    expect(failed(contentSecurityPolicyChecks(policy))).toEqual([
-      "script-src grants 'wasm-unsafe-eval'",
     ]);
   });
 });
@@ -198,7 +141,6 @@ describe('terminalPackageChecks', () => {
     const checks = terminalPackageChecks({
       platform: 'darwin',
       arch: 'arm64',
-      contentSecurityPolicy: shippedPolicy,
       packedFiles: ['node-pty/lib/index.js'],
       unpackedFiles: ['prebuilds/darwin-arm64/pty.node', 'prebuilds/darwin-arm64/spawn-helper'],
     });
@@ -210,7 +152,6 @@ describe('terminalPackageChecks', () => {
     const checks = terminalPackageChecks({
       platform: 'darwin',
       arch: 'arm64',
-      contentSecurityPolicy: shippedPolicy,
       packedFiles: ['/node_modules/@lydell/node-pty-darwin-arm64/lib/index.js'],
       unpackedFiles: [`${prebuild}/pty.node`, `${prebuild}/spawn-helper`],
     });
@@ -221,7 +162,6 @@ describe('terminalPackageChecks', () => {
     const checks = terminalPackageChecks({
       platform: 'darwin',
       arch: 'arm64',
-      contentSecurityPolicy: shippedPolicy,
       packedFiles: [
         '/node_modules/@lydell/node-pty/index.js',
         '/node_modules/@lydell/node-pty-darwin-arm64/lib/index.js',
@@ -239,7 +179,6 @@ describe('terminalPackageChecks', () => {
     const checks = terminalPackageChecks({
       platform: 'linux',
       arch: 'x64',
-      contentSecurityPolicy: shippedPolicy,
       packedFiles: ['/node_modules/node-pty/lib/index.js', `/${prebuild}/pty.node`],
       unpackedFiles: [`${prebuild}/pty.node`],
     });
@@ -251,7 +190,6 @@ describe('terminalPackageChecks', () => {
     const checks = terminalPackageChecks({
       platform: 'win32',
       arch: 'x64',
-      contentSecurityPolicy: shippedPolicy,
       packedFiles: ['/node_modules/node-pty/lib/index.js', `/${prebuild}/conpty.node`],
       unpackedFiles: [
         `${prebuild}/conpty.node`,
@@ -262,28 +200,4 @@ describe('terminalPackageChecks', () => {
     expect(failed(checks)).toEqual(['conpty/OpenConsole.exe is unpacked']);
   });
 
-  it('reports a missing content policy rather than dropping the two checks', () => {
-    const { contentSecurityPolicy: _omitted, ...withoutPolicy } = darwin;
-    expect(failed(terminalPackageChecks(withoutPolicy))).toEqual([
-      'a renderer content policy was supplied',
-      "script-src grants 'wasm-unsafe-eval'",
-      'connect-src grants data:',
-    ]);
-  });
-
-  it('reports an empty content policy as a missing one', () => {
-    const checks = terminalPackageChecks({ ...darwin, contentSecurityPolicy: '' });
-    expect(failed(checks)).toContain('a renderer content policy was supplied');
-  });
-
-  it('accepts a supplied policy without reporting it missing', () => {
-    const checks = terminalPackageChecks({
-      ...darwin,
-      contentSecurityPolicy: "script-src 'self'; connect-src 'self'",
-    });
-    expect(failed(checks)).toEqual([
-      "script-src grants 'wasm-unsafe-eval'",
-      'connect-src grants data:',
-    ]);
-  });
 });

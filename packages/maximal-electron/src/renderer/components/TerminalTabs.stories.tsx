@@ -1,8 +1,8 @@
-import type { ITheme } from 'ghostty-web';
 import { useState, type ReactNode } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, within } from 'storybook/test';
 
+import type { TerminalTheme } from '../lib/terminal-emulator.js';
 import type { TerminalTransport } from '../lib/terminal-transport.js';
 import { TabBar, getTabPanelId, getTabTriggerId, type Tab } from './TabBar.js';
 import { TerminalTabs } from './TerminalTabs.js';
@@ -64,7 +64,7 @@ interface TerminalTabsArgs {
   ids: string[];
   activeId: string;
   shell?: string;
-  theme?: ITheme;
+  theme?: TerminalTheme;
   transport: TerminalTransport;
 }
 

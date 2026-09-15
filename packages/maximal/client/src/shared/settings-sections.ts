@@ -17,9 +17,9 @@
  *
  * ## Why the ids look like heading ids
  *
- * Because they are. Each panel declares an `<h2 id>` for its own
- * `aria-labelledby`, and the rail selects that panel. Reusing the id avoids a
- * second section key that could drift from the heading it names.
+ * They originally identified panel-owned headings. The Settings page now owns
+ * its single `<h1>` and uses the selected entry's label, while these stable ids
+ * continue to identify navigation destinations and native menu requests.
  *
  *
  * Every section remains visible against every supported Core version. A method
@@ -38,10 +38,10 @@
 export const SETTINGS_SECTION_IDS = [
   'settings-account-heading',
   'settings-general-heading',
-  'settings-apps-heading',
-  'settings-endpoint-heading',
-  'settings-api-keys-heading',
+  'settings-connections-heading',
+  'settings-search-heading',
   'settings-models-heading',
+  'settings-local-models-heading',
   'settings-usage-heading',
   'settings-logs-heading',
   'settings-diagnostics-heading',
@@ -51,7 +51,7 @@ export type SettingsSectionId = (typeof SETTINGS_SECTION_IDS)[number]
 export const DEFAULT_SETTINGS_SECTION_ID = SETTINGS_SECTION_IDS[0]
 
 export interface SettingsSectionSpec {
-  /** The section's `<h2>` id and navigation identity. */
+  /** Stable navigation and native-menu identity. */
   id: SettingsSectionId
   /**
    * What the section is called, in the rail and in the application menu.
@@ -66,11 +66,11 @@ export interface SettingsSectionSpec {
  *  between independently-registered contributors, and there is one list. */
 export const SETTINGS_SECTIONS: readonly SettingsSectionSpec[] = [
   { id: 'settings-account-heading', label: 'Account' },
-  { id: 'settings-general-heading', label: 'General' },
-  { id: 'settings-apps-heading', label: 'Apps' },
-  { id: 'settings-endpoint-heading', label: 'Endpoint' },
-  { id: 'settings-api-keys-heading', label: 'API keys' },
+  { id: 'settings-general-heading', label: 'Appearance' },
+  { id: 'settings-connections-heading', label: 'Connections' },
+  { id: 'settings-search-heading', label: 'Search' },
   { id: 'settings-models-heading', label: 'Models' },
+  { id: 'settings-local-models-heading', label: 'Local models' },
   { id: 'settings-usage-heading', label: 'Usage' },
   { id: 'settings-logs-heading', label: 'Logs' },
   { id: 'settings-diagnostics-heading', label: 'Diagnostics' },
@@ -89,4 +89,18 @@ export function isSettingsSectionId(value: unknown): value is SettingsSectionId 
     typeof value === 'string' &&
     (SETTINGS_SECTION_IDS as readonly string[]).includes(value)
   )
+}
+
+const LEGACY_CONNECTION_SECTION_IDS = new Set([
+  'settings-apps-heading',
+  'settings-endpoint-heading',
+  'settings-api-keys-heading',
+])
+
+/** Map one-cycle legacy section requests onto their consolidated destination. */
+export function settingsSectionIdFrom(value: unknown): SettingsSectionId | null {
+  if (typeof value === 'string' && LEGACY_CONNECTION_SECTION_IDS.has(value)) {
+    return 'settings-connections-heading'
+  }
+  return isSettingsSectionId(value) ? value : null
 }

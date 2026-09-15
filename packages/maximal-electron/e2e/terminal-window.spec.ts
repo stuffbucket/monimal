@@ -46,8 +46,14 @@ test('closing a window reaps its shells and leaves the application running', asy
   const { app, window } = harness;
 
   await window.click('[data-testid="tab-new"]');
+  await window.getByTestId('terminal-launcher').getByRole('button', {
+    name: 'Local',
+    exact: true,
+  }).click();
   const terminal = window.locator('[data-testid="terminal"]').last();
-  await expect(terminal.locator('canvas').first()).toBeVisible({ timeout: 20_000 });
+  await expect(terminal.getByRole('textbox', { name: 'Terminal input' })).toBeVisible({
+    timeout: 20_000,
+  });
   await terminal.click();
 
   await window.keyboard.type('echo SHELL_PID:$$');

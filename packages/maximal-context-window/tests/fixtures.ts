@@ -1,0 +1,64 @@
+import type { TrafficRequestSummary } from "@stuffbucket/maximal-observability-contract"
+
+export const TOKENS: NonNullable<TrafficRequestSummary["tokens"]> = {
+  inputTokens: 90,
+  outputTokens: 80,
+  cacheReadInputTokens: 20,
+  cacheCreationInputTokens: 10,
+  reasoningTokens: 0,
+  totalTokens: 200,
+  totalNanoAiu: 0,
+}
+
+export const REQUEST: TrafficRequestSummary = {
+  identity: {
+    requestId: "req-1",
+    traceId: "trace-1",
+    sessionId: "session-1",
+    parentRequestId: null,
+    clientRequestId: null,
+  },
+  state: "completed",
+  outcome: "succeeded",
+  timing: {
+    acceptedAt: "2026-09-07T20:00:00.000Z",
+    dispatchStartedAt: "2026-09-07T20:00:00.010Z",
+    firstResponseAt: "2026-09-07T20:00:00.100Z",
+    completedAt: "2026-09-07T20:00:01.000Z",
+    queueMs: 10,
+    timeToFirstResponseMs: 100,
+    durationMs: 1_000,
+  },
+  route: { method: "POST", path: "/v1/messages", operation: "messages.create" },
+  attribution: {
+    source: "sdk",
+    client: "Claude Code",
+    project: "monimal",
+    provider: "copilot",
+    model: "claude-sonnet",
+    parentSessionId: null,
+    subagent: null,
+    compactType: null,
+  },
+  dispatch: {
+    attemptCount: 1,
+    retryCount: 0,
+    statusCode: 200,
+    streamed: true,
+    upstreamRequestId: "up-1",
+    requestedModel: "claude-sonnet",
+    resolvedModel: "claude-sonnet",
+  },
+  tokens: TOKENS,
+  context: {
+    messageCount: 4,
+    toolDefinitionCount: 2,
+    contextWindowTokens: 200_000,
+    requestedMaxOutputTokens: 4_096,
+    usedTokens: 120,
+    usedRatio: 0.0006,
+  },
+  size: { requestBytes: 2_048, responseBytes: 4_096, responseChunks: 8 },
+  response: { stopReason: "end_turn", toolUseCount: 0 },
+  error: null,
+}

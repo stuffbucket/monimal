@@ -2,14 +2,18 @@ import { randomUUID } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import type { CommandConnector, DiscoveredTarget } from './command-connectors.js';
+import type {
+  CommandConnector,
+  DiscoveredTarget,
+  TmuxProjectionLaunch,
+} from './command-connectors.js';
 import type {
   TerminalDiscovery,
   TerminalLaunchRequest,
   TerminalLaunchResult,
   TerminalProfileSummary,
   TerminalTargetSummary,
-} from '../../shared/ipc.js';
+} from '../../host/electron-terminal-contract.js';
 
 export interface TrustedTerminalLaunch {
   command: string;
@@ -17,6 +21,7 @@ export interface TrustedTerminalLaunch {
   cwd?: string;
   env?: Record<string, string>;
   tmuxControl?: true;
+  tmuxProjection?: TmuxProjectionLaunch;
 }
 
 export interface TerminalProfilesFile {
@@ -187,17 +192,44 @@ export class TerminalLauncher<Owner> {
     const generation = ++this.generation;
     this.targetsOwner = owner;
     const targets: TerminalTargetSummary[] = [LOCAL_TARGET];
-    for (const connector of this.connectors) {
-      if (!this.profiles().some((profile) => profile.id === connector.id)) continue;
-      try {
-        for (const target of await connector.discover()) {
-          const id = (this.options.createId ?? randomUUID)();
-          this.targets.set(id, { generation, profileId: connector.id, target });
-          targets.push({ id, profileId: connector.id, label: target.label, state: 'available' });
+    const profileIds = new Set(this.profiles().map((profile) => profile.id));
+    const results: ({
+      connector: CommandConnector;
+      discovered: DiscoveredTarget[];
+    } | {
+      connector: CommandConnector;
+      state: TerminalTargetSummary['state'];
+    })[] = await Promise.all(this.connectors
+      .filter((connector) => profileIds.has(connector.id))
+      .map(async (connector) => {
+        try {
+          return { connector, discovered: await connector.discover() };
+        } catch (error) {
+          const state: TerminalTargetSummary['state'] = (error as NodeJS.ErrnoException).code === 'ETIMEDOUT'
+            ? 'timed-out'
+            : 'unavailable';
+          return { connector, state };
         }
-      } catch (error) {
-        const state = (error as NodeJS.ErrnoException).code === 'ETIMEDOUT' ? 'timed-out' : 'unavailable';
-        targets.push({ id: `${connector.id}-${state}`, profileId: connector.id, label: connector.label, state });
+      }));
+    for (const result of results) {
+      if ('discovered' in result) {
+        for (const target of result.discovered) {
+          const id = (this.options.createId ?? randomUUID)();
+          this.targets.set(id, { generation, profileId: result.connector.id, target });
+          targets.push({
+            id,
+            profileId: result.connector.id,
+            label: target.label,
+            state: 'available',
+          });
+        }
+      } else {
+        targets.push({
+          id: `${result.connector.id}-${result.state}`,
+          profileId: result.connector.id,
+          label: result.connector.label,
+          state: result.state,
+        });
       }
     }
     return { generation, targets };

@@ -101,10 +101,10 @@ describe('runMain', () => {
 
     await expect(
       runMain(runtime, {
-        version: 2 as typeof RUN_MAIN_OPTIONS_VERSION,
+        version: 3 as typeof RUN_MAIN_OPTIONS_VERSION,
         window: () => windowOptions,
       }),
-    ).rejects.toThrow('runMain options are version 1, and this call passed 2.');
+    ).rejects.toThrow('runMain options are version 2, and this call passed 3.');
     expect(electron.created).toHaveLength(0);
   });
 
@@ -138,6 +138,11 @@ describe('runMain', () => {
     expect(electron.created[0]?.options).toHaveProperty('webPreferences.sandbox', true);
     expect(context.currentWindow()).toBe(electron.created[0]?.window);
     expect(context.daemonUrl).toBeUndefined();
+
+    const additional = context.openWindow();
+    expect(additional).toBe(electron.created[1]?.window);
+    expect(order).toEqual(['ready', 'window', 'created', 'window', 'created']);
+    expect(electron.created[1]?.options).toMatchObject({ width: 900, height: 600 });
   });
 
   it('leaves the profile alone when the consumer names none', async () => {
@@ -274,6 +279,42 @@ describe('runMain', () => {
 
     app.emit('window-all-closed');
     expect(app.quit).toHaveBeenCalledOnce();
+  });
+
+  it('waits for the consumer to decide whether the last window should quit', async () => {
+    const { app, runtime } = fakeApp();
+    let decide = (_quitting: boolean) => undefined as void;
+    const decision = new Promise<boolean>((resolve) => {
+      decide = resolve;
+    });
+
+    await runMain(runtime, {
+      version: RUN_MAIN_OPTIONS_VERSION,
+      window: () => windowOptions,
+      shouldQuitAfterLastWindow: () => decision,
+    });
+
+    app.emit('window-all-closed');
+    expect(app.quit).not.toHaveBeenCalled();
+
+    decide(true);
+    await decision;
+    await Promise.resolve();
+    expect(app.quit).toHaveBeenCalledOnce();
+  });
+
+  it('stays alive when the consumer declines to quit with the last window', async () => {
+    const { app, runtime } = fakeApp();
+
+    await runMain(runtime, {
+      version: RUN_MAIN_OPTIONS_VERSION,
+      window: () => windowOptions,
+      shouldQuitAfterLastWindow: () => false,
+    });
+
+    app.emit('window-all-closed');
+    await Promise.resolve();
+    expect(app.quit).not.toHaveBeenCalled();
   });
 
   it('defers the quit until pending shutdown work settles, then lets it through', async () => {

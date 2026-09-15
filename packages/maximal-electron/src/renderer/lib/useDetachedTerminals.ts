@@ -19,12 +19,13 @@ export function useDetachedTerminals(
   attachedIds: readonly string[],
 ): { detached: TerminalSession[]; refresh: () => void } {
   const [detached, setDetached] = useState<TerminalSession[]>([]);
+  const attachedIdsValue = JSON.stringify(attachedIds);
 
   const refresh = useCallback(() => {
     void transport.list().then((sessions) => {
-      setDetached(detachedSessions(sessions, attachedIds));
+      setDetached(detachedSessions(sessions, JSON.parse(attachedIdsValue) as string[]));
     });
-  }, [transport, attachedIds]);
+  }, [transport, attachedIdsValue]);
 
   useEffect(refresh, [refresh]);
 

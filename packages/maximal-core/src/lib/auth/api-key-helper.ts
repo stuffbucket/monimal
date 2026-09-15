@@ -20,7 +20,7 @@ import {
   LEGACY_HELPER_FLAG,
 } from "~/lib/auth/api-key-helper-tokens"
 import { normalizeApiKeys } from "~/lib/auth/request-auth"
-import { getConfig, writeConfig } from "~/lib/config/config"
+import { getConfig, updateConfig, writeConfig } from "~/lib/config/config"
 
 export type ApiKeyHelperResult =
   | { ok: true; key: string; source: "app" | "default" }
@@ -336,6 +336,15 @@ function getDefaultEndpointApiKey(config: AppConfig): string | null {
 }
 
 /**
+ * Prefix on every key maximal mints (see {@link generateApiKeyValue}). Real
+ * Anthropic keys never carry it, so it also doubles as an ownership signature:
+ * a config app can recognize "a value maximal itself generated" from the
+ * value alone, without a lookup — see `getApiKeyOwnership` in
+ * `apps/claude-code/config.ts`.
+ */
+export const MANAGED_API_KEY_PREFIX = "mxl_"
+
+/**
  * Generate a random API-key value: `mxl_` + 24 bytes base64url (32 chars).
  * base64url is [A-Za-z0-9_-], so the result already satisfies
  * `API_KEY_VALUE_PATTERN`. The `mxl_` prefix makes an accidental commit
@@ -343,7 +352,81 @@ function getDefaultEndpointApiKey(config: AppConfig): string | null {
  * auto-minted default endpoint key (see `ensureDefaultEndpointKey`).
  */
 export function generateApiKeyValue(): string {
-  return `mxl_${randomBytes(24).toString("base64url")}`
+  return `${MANAGED_API_KEY_PREFIX}${randomBytes(24).toString("base64url")}`
+}
+
+export interface ManagedApiKeyDeps {
+  update?: (mutator: (config: AppConfig) => AppConfig) => AppConfig
+  mintKey?: () => string
+  now?: () => string
+}
+
+/** Create or re-enable one stable credential owned by a configurator. */
+export function ensureManagedApiKey(
+  configuratorId: string,
+  label: string,
+  deps: ManagedApiKeyDeps = {},
+): ApiKeyEntry {
+  const stableId = `managed:${configuratorId}`
+  const update = deps.update ?? updateConfig
+  let resolved: ApiKeyEntry | undefined
+  update((config) => {
+    const entries = config.auth?.apiKeyEntries ?? []
+    const index = entries.findIndex(
+      (entry) =>
+        entry.kind === "managed" && entry.configurator_id === configuratorId,
+    )
+    if (index !== -1) {
+      const current = entries[index]
+      resolved = { ...current, label, enabled: true }
+      const next = [...entries]
+      next[index] = resolved
+      return { ...config, auth: { ...config.auth, apiKeyEntries: next } }
+    }
+    if (entries.some((entry) => entry.id === stableId)) {
+      throw new Error(`API key id is already in use: ${stableId}`)
+    }
+    const created: ApiKeyEntry = {
+      id: stableId,
+      label,
+      key: (deps.mintKey ?? generateApiKeyValue)(),
+      enabled: true,
+      created_at: (deps.now ?? (() => new Date().toISOString()))(),
+      kind: "managed",
+      configurator_id: configuratorId,
+    }
+    resolved = created
+    return {
+      ...config,
+      auth: {
+        ...config.auth,
+        apiKeyEntries: [...entries, created],
+      },
+    }
+  })
+  if (!resolved)
+    throw new Error("Managed API key update did not produce a value")
+  return resolved
+}
+
+/** Disable a configurator credential after its target is disconnected. */
+export function disableManagedApiKey(
+  configuratorId: string,
+  update: (
+    mutator: (config: AppConfig) => AppConfig,
+  ) => AppConfig = updateConfig,
+): void {
+  update((config) => {
+    const entries = config.auth?.apiKeyEntries ?? []
+    const index = entries.findIndex(
+      (entry) =>
+        entry.kind === "managed" && entry.configurator_id === configuratorId,
+    )
+    if (index === -1 || !entries[index]?.enabled) return config
+    const next = [...entries]
+    next[index] = { ...entries[index], enabled: false }
+    return { ...config, auth: { ...config.auth, apiKeyEntries: next } }
+  })
 }
 
 /** Injectable seams for {@link ensureDefaultEndpointKey} — real config/FS by
@@ -351,6 +434,7 @@ export function generateApiKeyValue(): string {
 export interface EnsureDefaultKeyDeps {
   read?: () => AppConfig
   write?: (config: AppConfig) => void
+  update?: (mutator: (config: AppConfig) => AppConfig) => AppConfig
   mintKey?: () => string
   newId?: () => string
   now?: () => string
@@ -375,29 +459,41 @@ export interface EnsureDefaultKeyDeps {
 export function ensureDefaultEndpointKey(
   deps: EnsureDefaultKeyDeps = {},
 ): void {
-  const read = deps.read ?? getConfig
-  const write = deps.write ?? writeConfig
   const mintKey = deps.mintKey ?? generateApiKeyValue
   const newId = deps.newId ?? randomUUID
   const now = deps.now ?? (() => new Date().toISOString())
-
-  const config = read()
-  if (getDefaultEndpointApiKey(config) !== null) return
-
-  const entry: ApiKeyEntry = {
-    id: newId(),
-    label: "Default",
-    key: mintKey(),
-    enabled: true,
-    created_at: now(),
+  const addDefault = (config: AppConfig): AppConfig => {
+    if (getDefaultEndpointApiKey(config) !== null) return config
+    const entry: ApiKeyEntry = {
+      id: newId(),
+      label: "Default",
+      key: mintKey(),
+      enabled: true,
+      created_at: now(),
+    }
+    return {
+      ...config,
+      auth: {
+        ...config.auth,
+        apiKeyEntries: [...(config.auth?.apiKeyEntries ?? []), entry],
+      },
+    }
   }
-  write({
-    ...config,
-    auth: {
-      ...config.auth,
-      apiKeyEntries: [...(config.auth?.apiKeyEntries ?? []), entry],
-    },
-  })
+
+  if (deps.update) {
+    deps.update(addDefault)
+    return
+  }
+  if (!deps.read && !deps.write) {
+    updateConfig(addDefault)
+    return
+  }
+
+  const read = deps.read ?? getConfig
+  const write = deps.write ?? writeConfig
+  const config = read()
+  const next = addDefault(config)
+  if (next !== config) write(next)
 }
 
 /**

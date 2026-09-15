@@ -5,18 +5,16 @@ import fs from "node:fs/promises"
 import path from "node:path"
 
 const FORBIDDEN_INPUT_MARKERS = [
-  "/packages/anthropic-provider/",
-  "/packages/omlx/",
+  "/packages/model-runtimes/anthropic/",
+  "/packages/model-runtimes/omlx/",
   "/../anthropic-provider/",
   "/../omlx/",
   "/@stuffbucket/anthropic-provider/",
   "/@stuffbucket/omlx/",
-  "/@deepseek-ai/cordis/",
   "/@deepseek-ai/dsh-llm/",
   "/@deepseek-ai/schemastery/",
   "/@stuffbucket+anthropic-provider@",
   "/@stuffbucket+omlx@",
-  "/@deepseek-ai+cordis@",
   "/@deepseek-ai+dsh-llm@",
   "/@deepseek-ai+schemastery@",
 ] as const

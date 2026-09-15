@@ -4,7 +4,6 @@ import { Hono } from "hono"
 
 import type { ProviderDispatcher } from "~/services/providers/provider-dispatcher"
 
-import { getProviderConfig } from "~/lib/config/config"
 import { forwardError } from "~/lib/errors/error"
 import { createHandlerLogger } from "~/lib/platform/logger"
 import {
@@ -12,6 +11,8 @@ import {
   forwardProviderModels,
 } from "~/services/providers/anthropic-proxy"
 import { createProviderDispatcher } from "~/services/providers/provider-dispatcher"
+
+import { providerConfigOrError } from "../provider-config"
 
 const logger = createHandlerLogger("provider-models-handler")
 
@@ -47,18 +48,8 @@ async function handleLegacyProviderModels(
   c: Context,
   provider: string,
 ): Promise<Response> {
-  const providerConfig = getProviderConfig(provider)
-  if (!providerConfig) {
-    return c.json(
-      {
-        error: {
-          message: `Provider '${provider}' not found or disabled`,
-          type: "invalid_request_error",
-        },
-      },
-      404,
-    )
-  }
+  const providerConfig = providerConfigOrError(c, provider)
+  if (providerConfig instanceof Response) return providerConfig
 
   const upstreamResponse = await forwardProviderModels(
     providerConfig,

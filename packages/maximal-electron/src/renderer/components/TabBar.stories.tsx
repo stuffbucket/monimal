@@ -4,6 +4,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, within } from 'storybook/test';
 
 import { getTabPanelId, getTabTriggerId, TabBar, type Tab } from './TabBar.js';
+import { moveTabBefore } from '../lib/tab-transfer.js';
 
 /**
  * The tab strip, at the widths where its rules actually show.
@@ -56,6 +57,7 @@ function Strip({
   active: initial,
   label = 'Open documents',
   icon,
+  draggable = false,
 }: {
   tabs: Tab[];
   width: number;
@@ -65,6 +67,7 @@ function Strip({
   label?: string;
   /** The caller-supplied override. Most strips let `tab.icon` decide. */
   icon?: (tab: Tab) => ComponentType<{ size?: number }> | undefined;
+  draggable?: boolean;
 }) {
   const [open, setOpen] = useState(tabs);
   const [active, setActive] = useState(initial ?? tabs[0]?.id ?? '');
@@ -100,6 +103,11 @@ function Strip({
           onNew={() => undefined}
           icon={icon}
           label={label}
+          transfer={draggable ? {
+            frameId: idBase,
+            onMoveTab: (tabId, beforeTabId) => setOpen((current) =>
+              moveTabBefore(current, tabId, beforeTabId)),
+          } : undefined}
         />
         <span className="titlebar__grow" />
       </div>
@@ -146,6 +154,11 @@ type Story = StoryObj<typeof meta>;
 
 /** Room for everything. The separators are the only thing dividing them. */
 export const Default: Story = {};
+
+/** Tabs can be dragged before another tab or onto the strip's trailing space. */
+export const Reorder: Story = {
+  render: () => <Strip tabs={SHORT} width={640} draggable />,
+};
 
 /**
  * The keyboard contract, which a screenshot cannot show.

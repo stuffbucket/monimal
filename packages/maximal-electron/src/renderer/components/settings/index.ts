@@ -18,4 +18,8 @@ export { CopyButton, copyText } from './CopyButton.js';
 export { Diagnostics } from './Diagnostics.js';
 export { ModelCards } from './ModelCards.js';
 export { SettingsPage, SettingsSection } from './SettingsPage.js';
+export {
+	SettingsDisclosure,
+	SettingsDisclosureList,
+} from './SettingsDisclosure.js';
 export { Usage } from './Usage.js';

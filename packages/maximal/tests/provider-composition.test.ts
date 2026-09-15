@@ -7,14 +7,14 @@ import type {
   ProviderStatus,
   ProviderTopology,
   ProviderTopologyListener,
-} from "@stuffbucket/maximal-provider-contract"
+} from "@stuffbucket/maximal-model-contract"
 
 import {
   ProfileValidationError,
   type DshHostOptions,
   type DshHostReconcileInput,
   type DshHostReconcileResult,
-} from "@stuffbucket/maximal-dsh-host"
+} from "@stuffbucket/maximal-models"
 import { describe, expect, test } from "bun:test"
 
 import {

@@ -6,6 +6,8 @@ import {
   detectUnknownKeys,
   validateAppConfig,
 } from "~/lib/config/config-schema"
+import { withHostConfigLockSync } from "~/lib/host-config/lock"
+import { atomicWriteJson } from "~/lib/platform/atomic-json"
 import { PATHS } from "~/lib/platform/paths"
 
 export interface ApiKeyEntry {
@@ -14,6 +16,8 @@ export interface ApiKeyEntry {
   key: string
   enabled: boolean
   created_at: string
+  kind?: "managed" | "manual"
+  configurator_id?: string
 }
 
 export interface AppConfig {
@@ -26,6 +30,10 @@ export interface AppConfig {
     enforce?: boolean
   }
   providers?: Record<string, ProviderConfig>
+  ollama?: {
+    /** Prefer localhost when Ollama local and cloud advertise the same model. */
+    preferLocalModels?: boolean
+  }
   providerHost?: {
     mode?: "legacy" | "dsh"
     profileDirectory?: string
@@ -37,6 +45,8 @@ export interface AppConfig {
       config?: unknown
     }
   >
+  /** Runtime plugin configuration, keyed by plugin id and opaque to Core. */
+  connectors?: Record<string, unknown>
   extraPrompts?: Record<string, string>
   smallModel?: string
   responsesApiContextManagementModels?: Array<string>
@@ -168,14 +178,35 @@ export interface ProviderConfig {
   adjustInputTokens?: boolean
 }
 
-export interface ResolvedProviderConfig {
+interface ResolvedProviderConfigBase {
   name: string
-  type: "anthropic"
   baseUrl: string
-  apiKey: string
   authType: ProviderAuthType
   models?: Record<string, ModelConfig>
   adjustInputTokens?: boolean
+}
+
+export interface ResolvedAnthropicProviderConfig extends ResolvedProviderConfigBase {
+  type: "anthropic"
+  apiKey: string
+}
+
+export interface ResolvedOllamaProviderConfig extends ResolvedProviderConfigBase {
+  type: "ollama"
+  apiKey?: string
+}
+
+export type ResolvedProviderConfig =
+  ResolvedAnthropicProviderConfig | ResolvedOllamaProviderConfig
+
+export const DEFAULT_OLLAMA_BASE_URL = "http://127.0.0.1:11434"
+export const DEFAULT_OLLAMA_CLOUD_BASE_URL = "https://ollama.com"
+
+function defaultOllamaBaseUrl(providerName: string): string {
+  if (providerName !== "ollama") return DEFAULT_OLLAMA_BASE_URL
+  const host = process.env.OLLAMA_HOST?.trim()
+  if (!host) return DEFAULT_OLLAMA_BASE_URL
+  return /^https?:\/\//u.test(host) ? host : `http://${host}`
 }
 
 const gpt5ExplorationPrompt = `## Exploration and reading files
@@ -276,27 +307,24 @@ export function subscribeConfig(
  */
 function ensureConfigFile(): void {
   try {
-    fs.accessSync(PATHS.CONFIG_PATH, fs.constants.R_OK | fs.constants.W_OK)
+    fs.accessSync(PATHS.CONFIG_PATH, fs.constants.R_OK)
+    return
   } catch {
-    try {
-      fs.mkdirSync(PATHS.APP_DIR, { recursive: true })
-      fs.writeFileSync(
-        PATHS.CONFIG_PATH,
-        `${JSON.stringify(defaultConfig, null, 2)}\n`,
-        "utf8",
-      )
-    } catch (error) {
-      consola.warn(
-        `Couldn't create ${PATHS.CONFIG_PATH}; continuing with whatever is on disk`,
-        error,
-      )
-      return
-    }
-    try {
-      fs.chmodSync(PATHS.CONFIG_PATH, 0o600)
-    } catch {
-      return
-    }
+    // A present but unreadable file belongs to the user. The read path below
+    // reports that failure; seeding must never replace it merely because its
+    // permissions reject this process.
+    if (fs.existsSync(PATHS.CONFIG_PATH)) return
+  }
+
+  try {
+    atomicWriteJson(PATHS.CONFIG_PATH, defaultConfig, {
+      label: "Maximal configuration",
+    })
+  } catch (error) {
+    consola.warn(
+      `Couldn't create ${PATHS.CONFIG_PATH}; continuing with whatever is on disk`,
+      error,
+    )
   }
 }
 
@@ -328,11 +356,9 @@ function readConfigFromDisk(mode: ConfigReadMode = "startup"): AppConfig {
   if (!raw.trim()) {
     if (mode === "reload") throw new ConfigReloadError("parse")
     try {
-      fs.writeFileSync(
-        PATHS.CONFIG_PATH,
-        `${JSON.stringify(defaultConfig, null, 2)}\n`,
-        "utf8",
-      )
+      atomicWriteJson(PATHS.CONFIG_PATH, defaultConfig, {
+        label: "Maximal configuration",
+      })
     } catch (error) {
       consola.error("Failed to seed empty config file, using defaults", error)
     }
@@ -435,32 +461,35 @@ export function __resetConfigCacheForTests(): void {
   cachedConfig = null
 }
 
-/**
- * Persist a new config to disk, replacing the in-memory cache.
- *
- * Re-validates against `AppConfigSchema` before writing — if the caller
- * passes a malformed shape, this throws `ConfigValidationError` and
- * does NOT touch disk. The write is atomic-by-replace (write to a
- * sibling then rename), so a crash mid-write can't leave a partial
- * JSON file in place.
- *
- * Callers that mutate config (e.g. the Settings API) should always
- * round-trip through this: read with `getConfig()`, mutate a copy,
- * call `writeConfig(next)`. The next `getConfiguredApiKeys()` /
- * `getConfig()` will reflect the write immediately.
- */
-export function writeConfig(next: AppConfig): AppConfig {
+const configLockTarget = `${PATHS.CONFIG_PATH}.write-lock`
+
+function writeConfigUnlocked(next: AppConfig): AppConfig {
   const validated = validateAppConfig(next)
-  fs.mkdirSync(PATHS.APP_DIR, { recursive: true })
-  const tmpPath = `${PATHS.CONFIG_PATH}.tmp-${process.pid}`
-  fs.writeFileSync(tmpPath, `${JSON.stringify(validated, null, 2)}\n`, "utf8")
-  try {
-    fs.chmodSync(tmpPath, 0o600)
-  } catch {
-    // chmod failure is non-fatal — Windows and some shared FS don't
-    // honor mode bits. The data write still went through.
-  }
-  fs.renameSync(tmpPath, PATHS.CONFIG_PATH)
+  atomicWriteJson(PATHS.CONFIG_PATH, validated, {
+    label: "Maximal configuration",
+  })
+  return validated
+}
+
+/** Persist a complete validated config while serializing Maximal writers. */
+export function writeConfig(next: AppConfig): AppConfig {
+  const validated = withHostConfigLockSync(configLockTarget, () =>
+    writeConfigUnlocked(next),
+  )
+  return adoptConfig(validated)
+}
+
+/**
+ * Fresh-read, mutate, validate, and atomically replace config.json under one
+ * per-home lock. Mutators must return a new value and must not perform effects.
+ */
+export function updateConfig(
+  mutator: (current: AppConfig) => AppConfig,
+): AppConfig {
+  const validated = withHostConfigLockSync(configLockTarget, () => {
+    const current = readConfigFromDisk()
+    return writeConfigUnlocked(mutator(current))
+  })
   return adoptConfig(validated)
 }
 
@@ -530,6 +559,22 @@ export function normalizeProviderBaseUrl(url: string): string {
   return url.trim().replace(/\/+$/u, "")
 }
 
+function providerCommon(
+  providerName: string,
+  provider: ProviderConfig,
+  resolved: {
+    baseUrl: string
+    authType: ProviderAuthType
+  },
+): ResolvedProviderConfigBase {
+  return {
+    name: providerName,
+    ...resolved,
+    models: provider.models,
+    adjustInputTokens: provider.adjustInputTokens,
+  }
+}
+
 function resolveProviderAuthType(
   providerName: string,
   authType: string | undefined,
@@ -548,14 +593,63 @@ function resolveProviderAuthType(
   return "x-api-key"
 }
 
-export function getProviderConfig(name: string): ResolvedProviderConfig | null {
+function resolveOllamaProvider(
+  providerName: string,
+  provider: ProviderConfig,
+): ResolvedOllamaProviderConfig | null {
+  const baseUrl = normalizeProviderBaseUrl(
+    provider.baseUrl ?? defaultOllamaBaseUrl(providerName),
+  )
+  if (!baseUrl) {
+    consola.warn(`Provider ${providerName} is enabled but missing baseUrl`)
+    return null
+  }
+  const apiKey = provider.apiKey?.trim()
+  return {
+    ...providerCommon(providerName, provider, {
+      baseUrl,
+      authType: "authorization",
+    }),
+    type: "ollama",
+    ...(apiKey ? { apiKey } : {}),
+  }
+}
+
+function resolveAnthropicProvider(
+  providerName: string,
+  provider: ProviderConfig,
+): ResolvedAnthropicProviderConfig | null {
+  const baseUrl = normalizeProviderBaseUrl(provider.baseUrl ?? "")
+  const apiKey = provider.apiKey?.trim() ?? ""
+  if (!baseUrl || !apiKey) {
+    consola.warn(
+      `Provider ${providerName} is enabled but missing baseUrl or apiKey`,
+    )
+    return null
+  }
+  return {
+    ...providerCommon(providerName, provider, {
+      baseUrl,
+      authType: resolveProviderAuthType(providerName, provider.authType),
+    }),
+    type: "anthropic",
+    apiKey,
+  }
+}
+
+export function resolveProviderConfig(
+  config: AppConfig,
+  name: string,
+): ResolvedProviderConfig | null {
   const providerName = name.trim()
   if (!providerName) {
     return null
   }
 
-  const config = getConfig()
-  const provider = config.providers?.[providerName]
+  const configuredProvider = config.providers?.[providerName]
+  const provider =
+    configuredProvider
+    ?? (providerName === "ollama" ? { type: "ollama" } : undefined)
   if (!provider) {
     return null
   }
@@ -565,32 +659,42 @@ export function getProviderConfig(name: string): ResolvedProviderConfig | null {
   }
 
   const type = provider.type ?? "anthropic"
-  if (type !== "anthropic") {
+  if (type !== "anthropic" && type !== "ollama") {
     consola.warn(
-      `Provider ${providerName} is ignored because only anthropic type is supported`,
+      `Provider ${providerName} is ignored because type '${type}' is unsupported`,
     )
     return null
   }
+  return type === "ollama" ?
+      resolveOllamaProvider(providerName, provider)
+    : resolveAnthropicProvider(providerName, provider)
+}
 
-  const baseUrl = normalizeProviderBaseUrl(provider.baseUrl ?? "")
-  const apiKey = (provider.apiKey ?? "").trim()
-  const authType = resolveProviderAuthType(providerName, provider.authType)
-  if (!baseUrl || !apiKey) {
-    consola.warn(
-      `Provider ${providerName} is enabled but missing baseUrl or apiKey`,
-    )
-    return null
-  }
-
-  return {
-    name: providerName,
-    type,
-    baseUrl,
-    apiKey,
-    authType,
-    models: provider.models,
-    adjustInputTokens: provider.adjustInputTokens,
-  }
+export function getProviderConfig(name: string): ResolvedProviderConfig | null {
+  const config = getConfig()
+  const apiKey = process.env.OLLAMA_API_KEY?.trim()
+  const resolved =
+    (
+      name === "ollama-cloud"
+      && config.providers?.[name] === undefined
+      && apiKey
+    ) ?
+      resolveProviderConfig(
+        {
+          ...config,
+          providers: {
+            ...config.providers,
+            [name]: {
+              type: "ollama",
+              baseUrl: DEFAULT_OLLAMA_CLOUD_BASE_URL,
+            },
+          },
+        },
+        name,
+      )
+    : resolveProviderConfig(config, name)
+  if (resolved?.type !== "ollama") return resolved
+  return apiKey ? { ...resolved, apiKey } : resolved
 }
 
 export function isMessagesApiEnabled(): boolean {

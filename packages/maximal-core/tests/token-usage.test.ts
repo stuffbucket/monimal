@@ -56,6 +56,8 @@ describe("token usage storage", () => {
         startTime: Date.now(),
         traceId: "trace-123",
         userAgent: "test",
+        apiKeyId: "managed:claude-code",
+        apiKeyLabel: "Claude Code",
       },
       () => {
         recordTokenUsageEvent({
@@ -74,6 +76,8 @@ describe("token usage storage", () => {
     expect(row.trace_id).toBe("trace-123")
     expect(row.session_id).toBe("opencode-session")
     expect(row.user_id).toBe("copilot-login")
+    expect(row.api_key_id).toBe("managed:claude-code")
+    expect(row.project_id).toBeNull()
     expect(row.total_tokens).toBe(15)
   })
 

@@ -1,6 +1,8 @@
 import type {
   AccountsListResponse,
   AuthStatus,
+  ConnectionEntry,
+  SearchSettingsResponse,
   TokenUsagePeriod,
 } from '@stuffbucket/maximal-core/settings-types'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -19,6 +21,16 @@ import {
 
 const authStatus: AuthStatus = { state: 'unauthenticated' }
 const accounts: AccountsListResponse = { accounts: [], active_key: null }
+const connectionEntry: ConnectionEntry = {
+  id: 'claude-code',
+  name: 'Claude Code',
+  status: 'connected',
+  allowed_actions: ['disconnect'],
+  detail: null,
+  credential: null,
+  ownership: null,
+  recovery: null,
+}
 const appEntry = {
   id: 'claude-code' as const,
   name: 'Claude Code',
@@ -28,6 +40,7 @@ const appEntry = {
   installs: [],
   install: null,
   conflict: null,
+  health: { ok: true, issue: null },
 }
 const apiKeyEntry = {
   id: 'key-1',
@@ -35,6 +48,17 @@ const apiKeyEntry = {
   key: 'testkey123',
   enabled: true,
   created_at: '2026-09-08T12:00:00.000Z',
+}
+const searchSettings: SearchSettingsResponse = {
+  manifest: {
+    id: 'search',
+    label: 'Search',
+    description: 'Search settings',
+    fields: [],
+    providers: [],
+  },
+  settings: {},
+  providers: {},
 }
 
 function success<T>(value: T): ControlResult<T> {
@@ -59,12 +83,79 @@ function fakeBridge(): MaximalBridge {
       location: vi.fn(async () => '/tmp/maximal/logs'),
       reveal: vi.fn(async () => {}),
     },
+    localModels: {
+      list: vi.fn(async () => success({ models: [], revision: 0 })),
+      ensure: vi.fn(async (modelKey: string) =>
+        success({ modelKey, operationId: 'operation-1', started: true }),
+      ),
+      cancel: vi.fn(async (operationId: string) =>
+        success({ operationId, cancelled: true }),
+      ),
+      openFolder: vi.fn(async () => {}),
+      onChange: vi.fn(() => () => {}),
+    },
+    ollamaRuntime: {
+      status: vi.fn(async () => ({
+        installation: 'none' as const,
+        installed: false,
+        running: false,
+        can_launch: false,
+        can_manage: false,
+        application_path: null,
+        server_configuration_path: '/home/test/.ollama/server.json',
+        desktop_settings_path: null,
+        endpoint: 'http://127.0.0.1:11434',
+        context_length: null,
+      })),
+      launch: vi.fn(async () => ({
+        installation: 'application' as const,
+        installed: true,
+        running: true,
+        can_launch: true,
+        can_manage: true,
+        application_path: '/Applications/Ollama.app',
+        server_configuration_path: '/home/test/.ollama/server.json',
+        desktop_settings_path: '/home/test/Ollama/db.sqlite',
+        endpoint: 'http://127.0.0.1:11434',
+        context_length: 4096,
+      })),
+      updateContextLength: vi.fn(),
+    },
+    clientInstallations: {
+      list: vi.fn(async () => []),
+    },
     menuBarMode: {
       get: vi.fn(async () => ({ enabled: false, pending: false })),
       beginEnable: vi.fn(async () => ({ attemptId: 'attempt-1', deadlineMs: 1 })),
       confirmEnable: vi.fn(async () => ({ enabled: true, pending: false })),
       cancelEnable: vi.fn(async () => ({ enabled: false, pending: false })),
       disable: vi.fn(async () => ({ enabled: false, pending: false })),
+    },
+    harness: {
+      hide: vi.fn(async () => {}),
+      provider: vi.fn(async () => ({ state: 'probing' as const })),
+      ask: vi.fn(async () => ({ started: true as const })),
+      abort: vi.fn(async () => {}),
+      approve: vi.fn(async () => {}),
+      ensureModel: vi.fn(async () => ({ state: 'absent' as const })),
+      onDelta: vi.fn(() => () => {}),
+      onTool: vi.fn(() => () => {}),
+      onApproval: vi.fn(() => () => {}),
+      onEnd: vi.fn(() => () => {}),
+      onModelProgress: vi.fn(() => () => {}),
+    },
+    terminal: {
+      spawn: vi.fn(async () => {}),
+      write: vi.fn(async () => {}),
+      resize: vi.fn(async () => {}),
+      acknowledge: vi.fn(async () => {}),
+      terminate: vi.fn(async () => {}),
+      list: vi.fn(async () => []),
+      profiles: vi.fn(async () => []),
+      discover: vi.fn(async () => ({ generation: 0, targets: [] })),
+      launch: vi.fn(),
+      onData: vi.fn(() => () => {}),
+      onExit: vi.fn(() => () => {}),
     },
     control: {
       authStatus: vi.fn(async () => success(authStatus)),
@@ -73,9 +164,37 @@ function fakeBridge(): MaximalBridge {
       authSignOut: vi.fn(async () => success(null)),
       accountsList: vi.fn(async () => success(accounts)),
       accountsSwitch: vi.fn(async () => success(null)),
+      ollamaAccountsList: vi.fn(async () => success({ accounts: [] })),
+      ollamaSettingsGet: vi.fn(async () =>
+        success({
+          has_api_key: false,
+          credential_source: 'none' as const,
+          local_enabled: true,
+          prefer_local_models: true,
+        }),
+      ),
+      ollamaSettingsUpdate: vi.fn(async () =>
+        success({
+          has_api_key: true,
+          credential_source: 'file' as const,
+          local_enabled: true,
+          prefer_local_models: true,
+        }),
+      ),
       observabilityOverview: vi.fn(),
       observabilityRequests: vi.fn(),
       observabilityRequest: vi.fn(),
+      connectionsList: vi.fn(async () =>
+        success({
+          clients: [],
+          manual_credentials: [],
+          require_known_keys: false,
+        }),
+      ),
+      connectionsAct: vi.fn(async () => success(connectionEntry)),
+      connectionsRevealCredential: vi.fn(async () =>
+        success({ id: 'key-1', key: 'testkey123' }),
+      ),
       appsList: vi.fn(async () => success({ apps: [] })),
       appsSetEnabled: vi.fn(async () => success(appEntry)),
       apiKeysList: vi.fn(async () => success({ entries: [], enforcing: false })),
@@ -131,6 +250,11 @@ function fakeBridge(): MaximalBridge {
           web_search: { kind: 'none', detail: null },
         }),
       ),
+      searchSettingsGet: vi.fn(async () => success(searchSettings)),
+      searchSettingsUpdate: vi.fn(async () => success(searchSettings)),
+      searchProviderValidate: vi.fn(async () =>
+        success({ status: 'valid' as const, fieldErrors: {} }),
+      ),
       onChange: vi.fn(() => () => {}),
       onTrafficInvalidation: vi.fn(() => () => {}),
     },
@@ -157,6 +281,17 @@ describe('createCoreSettingsCapabilities', () => {
     await expect(capabilities.connection.proxyUrl()).resolves.toBe(
       'http://127.0.0.1:4141',
     )
+    await expect(capabilities.connections.list()).resolves.toEqual({
+      clients: [],
+      manual_credentials: [],
+      require_known_keys: false,
+    })
+    await expect(
+      capabilities.connections.act('claude-code', 'connect'),
+    ).resolves.toMatchObject({ id: 'claude-code', status: 'connected' })
+    await expect(
+      capabilities.connections.revealCredential('key-1'),
+    ).resolves.toEqual({ id: 'key-1', key: 'testkey123' })
     await expect(capabilities.general.menuBarMode()).resolves.toEqual({
       enabled: false,
       pending: false,
@@ -188,6 +323,25 @@ describe('createCoreSettingsCapabilities', () => {
     ).resolves.toEqual({ entries: [], enforcing: true })
     await expect(capabilities.models.list()).resolves.toMatchObject({ count: 0 })
     await expect(capabilities.models.refresh()).resolves.toMatchObject({ count: 0 })
+    await expect(capabilities.localModels.list()).resolves.toEqual({
+      models: [],
+      revision: 0,
+    })
+    await expect(capabilities.localModels.ensure('qwen')).resolves.toEqual({
+      modelKey: 'qwen',
+      operationId: 'operation-1',
+      started: true,
+    })
+    await expect(capabilities.localModels.cancel('operation-1')).resolves.toEqual({
+      operationId: 'operation-1',
+      cancelled: true,
+    })
+    await expect(capabilities.localModels.openFolder()).resolves.toBeUndefined()
+    const onLocalModelChange = vi.fn()
+    capabilities.localModels.subscribe(onLocalModelChange)
+    expect(window.maximal.localModels.onChange).toHaveBeenCalledWith(
+      onLocalModelChange,
+    )
     await expect(capabilities.usage.get('week')).resolves.toMatchObject({
       period: 'week',
     })
@@ -196,6 +350,13 @@ describe('createCoreSettingsCapabilities', () => {
     await expect(capabilities.diagnostics.get()).resolves.toMatchObject({
       launch_kind: 'dev',
     })
+    await expect(capabilities.search.get()).resolves.toEqual(searchSettings)
+    await expect(capabilities.search.update({ settings: {} })).resolves.toEqual(
+      searchSettings,
+    )
+    await expect(
+      capabilities.search.validateProvider({ providerId: 'ollama' }),
+    ).resolves.toEqual({ status: 'valid', fieldErrors: {} })
 
     expect(window.maximal.control.authSignOut).toHaveBeenCalledOnce()
     expect(window.maximal.control.accountsSwitch).toHaveBeenCalledWith(
@@ -210,6 +371,13 @@ describe('createCoreSettingsCapabilities', () => {
       'attempt-1',
     )
     expect(window.maximal.menuBarMode.disable).toHaveBeenCalledOnce()
+    expect(window.maximal.control.connectionsAct).toHaveBeenCalledWith(
+      'claude-code',
+      'connect',
+    )
+    expect(
+      window.maximal.control.connectionsRevealCredential,
+    ).toHaveBeenCalledWith('key-1')
     expect(window.maximal.control.appsSetEnabled).toHaveBeenCalledWith(
       'claude-code',
       true,
@@ -220,6 +388,12 @@ describe('createCoreSettingsCapabilities', () => {
     )
     expect(window.maximal.control.apiKeysRemove).toHaveBeenCalledWith('key-1')
     expect(window.maximal.control.usageGet).toHaveBeenCalledWith('week')
+    expect(window.maximal.control.searchSettingsUpdate).toHaveBeenCalledWith({
+      settings: {},
+    })
+    expect(window.maximal.control.searchProviderValidate).toHaveBeenCalledWith({
+      providerId: 'ollama',
+    })
 
     const onChange = vi.fn()
     capabilities.subscribe(onChange)
@@ -249,6 +423,31 @@ describe('createCoreSettingsCapabilities', () => {
         Number.POSITIVE_INFINITY,
     )
     expect(listener).toHaveBeenCalledWith('settings-models-heading')
+  })
+
+  it('maps legacy connection destinations from retained and live requests', async () => {
+    let liveRequest: (sectionId: string | null) => void = () => {
+      throw new Error('live listener was not installed')
+    }
+    window.maximal.onOpenSettings = vi.fn(
+      (listener: (sectionId: string | null) => void) => {
+        liveRequest = listener
+        return () => {}
+      },
+    )
+    window.maximal.pendingSettingsRequest = vi.fn(async () => ({
+      sectionId: 'settings-api-keys-heading',
+    }))
+    const listener = vi.fn()
+    const capabilities = createCoreSettingsCapabilities()
+
+    capabilities.onOpenRequest(listener)
+    await Promise.resolve()
+    await Promise.resolve()
+    liveRequest('settings-apps-heading')
+
+    expect(listener).toHaveBeenNthCalledWith(1, 'settings-connections-heading')
+    expect(listener).toHaveBeenNthCalledWith(2, 'settings-connections-heading')
   })
 
   it('keeps live Settings delivery usable when retained-request consumption fails', async () => {

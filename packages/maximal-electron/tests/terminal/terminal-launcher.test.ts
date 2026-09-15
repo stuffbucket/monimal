@@ -16,6 +16,7 @@ import {
   readSshConfig,
   VagrantConnector,
   WslConnector,
+  type CommandConnector,
   type CommandRunner,
 } from '../../src/main/native/command-connectors.js';
 import {
@@ -153,8 +154,22 @@ describe('command discovery boundaries', () => {
     [new VagrantConnector(async () => ({ stdout: '' })), '11111111-1111-1111-1111-111111111111\u0000machine\u0000provider\u0000/projects/machine', { command: 'vagrant', args: ['ssh', '11111111-1111-1111-1111-111111111111'] }],
     [new KubernetesConnector(async () => ({ stdout: '' })), 'context\u0000namespace\u0000pod\u000011111111-1111-1111-1111-111111111111\u0000container', { command: 'kubectl', args: ['--context', 'context', '--namespace', 'namespace', 'exec', '-it', 'pod', '-c', 'container', '--', '/bin/sh'] }],
     [new SshConnector('/home/ada', () => ''), 'work', { command: 'ssh', args: ['-tt', 'work'] }],
-    [new TmuxConnector(async () => ({ stdout: '' }), () => 'stuffbucket-0123456789abcdef0123456789abcdef'), 'existing\u0000session', { command: 'tmux', args: ['new-session', '-A', '-s', 'session'] }],
-    [new SshTmuxConnector('/home/ada', () => '', async () => ({ stdout: '' }), () => 'stuffbucket-0123456789abcdef0123456789abcdef'), 'work\u0000existing\u0000session', { command: 'ssh', args: ['-tt', 'work', 'tmux', 'new-session', '-A', '-s', 'session'] }],
+    [new TmuxConnector(async () => ({ stdout: '' }), () => 'stuffbucket-0123456789abcdef0123456789abcdef'), 'existing\u0000session', {
+      command: 'tmux',
+      args: ['-T', 'hyperlinks', 'new-session', '-A', '-s', 'session'],
+      tmuxProjection: {
+        ownership: 'existing',
+        geometry: { transport: 'local', sessionName: 'session' },
+      },
+    }],
+    [new SshTmuxConnector('/home/ada', () => '', async () => ({ stdout: '' }), () => 'stuffbucket-0123456789abcdef0123456789abcdef'), 'work\u0000existing\u0000session', {
+      command: 'ssh',
+      args: ['-tt', 'work', 'tmux', '-T', 'hyperlinks', 'new-session', '-A', '-s', 'session'],
+      tmuxProjection: {
+        ownership: 'existing',
+        geometry: { transport: 'ssh', alias: 'work', sessionName: 'session' },
+      },
+    }],
   ] as const)('builds exact argv for %p', (connector, key, expected) => {
     expect(connector.launch({ key, label: 'trusted' })).toEqual(expected);
   });
@@ -313,6 +328,48 @@ describe('TerminalLauncher', () => {
     await expect(new TerminalLauncher<object>().discover({})).resolves.toEqual({
       generation: 1,
       targets: [{ id: 'local', profileId: 'local', label: 'This computer', state: 'available' }],
+    });
+  });
+
+  it('discovers independent connectors concurrently and keeps profile order', async () => {
+    let releaseSlow!: (targets: { key: string; label: string }[]) => void;
+    const slowResult = new Promise<{ key: string; label: string }[]>((resolve) => {
+      releaseSlow = resolve;
+    });
+    let fastStarted = false;
+    const slow: CommandConnector = {
+      id: 'docker',
+      label: 'Docker',
+      discover: () => slowResult,
+      launch: () => ({ command: 'docker', args: [] }),
+    };
+    const fast: CommandConnector = {
+      id: 'podman',
+      label: 'Podman',
+      discover: async () => {
+        fastStarted = true;
+        return [{ key: 'fast', label: 'Fast' }];
+      },
+      launch: () => ({ command: 'podman', args: [] }),
+    };
+    const ids = ['slow-id', 'fast-id'];
+    const launcher = new TerminalLauncher<object>({
+      connectors: [slow, fast],
+      createId: () => ids.shift()!,
+      platform: 'linux',
+    });
+
+    const discovery = launcher.discover({});
+    await vi.waitFor(() => { expect(fastStarted).toBe(true); });
+    releaseSlow([{ key: 'slow', label: 'Slow' }]);
+
+    await expect(discovery).resolves.toEqual({
+      generation: 1,
+      targets: [
+        { id: 'local', profileId: 'local', label: 'This computer', state: 'available' },
+        { id: 'slow-id', profileId: 'docker', label: 'Slow', state: 'available' },
+        { id: 'fast-id', profileId: 'podman', label: 'Fast', state: 'available' },
+      ],
     });
   });
 
@@ -565,22 +622,87 @@ describe('TerminalLauncher', () => {
   });
 
   it('discovers bounded local tmux sessions plus a generated New target with exact argv', async () => {
-    const run = vi.fn<CommandRunner>().mockResolvedValue({ stdout: [
+    const sessions = [
       'work',
       'unsafe; touch nope',
       'work',
       ...Array.from({ length: 129 }, (_value, index) => `session-${index}`),
-    ].join('\n') });
+    ].join('\n');
+    const run = vi.fn<CommandRunner>().mockImplementation(async (_command, args) => ({
+      stdout: args[0] === '-V' ? 'tmux 3.7b\n' : sessions,
+    }));
     const connector = new TmuxConnector(run, () => 'stuffbucket-0123456789abcdef0123456789abcdef');
     const targets = await connector.discover();
-    expect(run).toHaveBeenCalledWith('tmux', ['list-sessions', '-F', '#{session_name}'], { timeout: 2_000, maxBuffer: 64 * 1024 });
+    expect(run).toHaveBeenNthCalledWith(1, 'tmux', ['-V'], { timeout: 2_000, maxBuffer: 64 * 1024 });
+    expect(run).toHaveBeenNthCalledWith(2, 'tmux', ['list-sessions', '-F', '#{session_name}'], { timeout: 2_000, maxBuffer: 64 * 1024 });
     expect(targets).toHaveLength(129);
     expect(targets[0]).toEqual({ key: 'existing\u0000work', label: 'Tmux session 1' });
     expect(targets.at(-1)).toEqual({ key: 'new\u0000stuffbucket-0123456789abcdef0123456789abcdef', label: 'New tmux session' });
-    expect(connector.launch(targets[0]!)).toEqual({ command: 'tmux', args: ['new-session', '-A', '-s', 'work'] });
-    expect(connector.launch(targets.at(-1)!)).toEqual({ command: 'tmux', args: ['new-session', '-A', '-s', 'stuffbucket-0123456789abcdef0123456789abcdef'] });
+    expect(connector.launch(targets[0]!)).toEqual({
+      command: 'tmux',
+      args: ['-T', 'hyperlinks', 'new-session', '-A', '-s', 'work'],
+      tmuxProjection: {
+        ownership: 'existing',
+        geometry: { transport: 'local', sessionName: 'work' },
+      },
+    });
+    expect(connector.launch(targets.at(-1)!)).toEqual({
+      command: 'tmux',
+      args: ['-T', 'hyperlinks', 'new-session', '-A', '-s', 'stuffbucket-0123456789abcdef0123456789abcdef'],
+      tmuxProjection: {
+        ownership: 'created',
+        geometry: {
+          transport: 'local',
+          sessionName: 'stuffbucket-0123456789abcdef0123456789abcdef',
+        },
+        terminate: {
+          command: 'tmux',
+          args: ['kill-session', '-t', 'stuffbucket-0123456789abcdef0123456789abcdef'],
+        },
+      },
+    });
     expect(() => connector.launch({ key: 'existing\u0000name; injected', label: 'bad' })).toThrow();
     await expect(new TmuxConnector(run, () => 'not-generated').discover()).rejects.toThrow();
+  });
+
+  it('omits hyperlink advertisement for tmux versions that cannot implement OSC 8', async () => {
+    const run = vi.fn<CommandRunner>().mockResolvedValueOnce({ stdout: 'tmux 3.3a\n' }).mockResolvedValueOnce({ stdout: 'work\n' });
+    const connector = new TmuxConnector(run);
+    const [target] = await connector.discover();
+    expect(connector.launch(target!)).toEqual({
+      command: 'tmux',
+      args: ['new-session', '-A', '-s', 'work'],
+      tmuxProjection: {
+        ownership: 'existing',
+        geometry: { transport: 'local', sessionName: 'work' },
+      },
+    });
+  });
+
+  it.each([
+    ['tmux 2.4\n', false],
+    [' tmux 3.4 \n', true],
+    ['tmux 4.0\n', true],
+    ['tmux 13.4\n', true],
+    ['tmux 3.14\n', true],
+    ['prefix tmux 3.4\n', false],
+    ['not tmux\n', false],
+  ])('derives hyperlink advertisement from tmux version %j', async (version, supportsHyperlinks) => {
+    const run = vi.fn<CommandRunner>().mockResolvedValueOnce({ stdout: version }).mockResolvedValueOnce({ stdout: 'work\n' });
+    const connector = new TmuxConnector(run);
+    const [target] = await connector.discover();
+
+    expect(connector.launch(target!).args).toEqual([
+      ...(supportsHyperlinks ? ['-T', 'hyperlinks'] : []),
+      'new-session', '-A', '-s', 'work',
+    ]);
+  });
+
+  it('defaults to hyperlink advertisement before discovery', () => {
+    const connector = new TmuxConnector(async () => ({ stdout: '' }));
+
+    expect(connector.launch({ key: 'existing\u0000work', label: 'Tmux session 1' }).args)
+      .toEqual(['-T', 'hyperlinks', 'new-session', '-A', '-s', 'work']);
   });
 
   it('keeps the generated tmux target key and label distinct', async () => {
@@ -591,7 +713,10 @@ describe('TerminalLauncher', () => {
 
   it('keeps tmux New available without a server, but marks a missing tmux binary unavailable', async () => {
     const noServer = Object.assign(new Error('no server'), { code: 1 });
-    const connector = new TmuxConnector(async () => { throw noServer; }, () => 'stuffbucket-0123456789abcdef0123456789abcdef');
+    const connector = new TmuxConnector(async (_command, args) => {
+      if (args[0] === '-V') return { stdout: 'tmux 3.7b\n' };
+      throw noServer;
+    }, () => 'stuffbucket-0123456789abcdef0123456789abcdef');
     await expect(connector.discover()).resolves.toEqual([{ key: 'new\u0000stuffbucket-0123456789abcdef0123456789abcdef', label: 'New tmux session' }]);
     const missing = Object.assign(new Error('missing'), { code: 'ENOENT' });
     const launcher = new TerminalLauncher<object>({ connectors: [new TmuxConnector(async () => { throw missing; })], platform: 'linux' });
@@ -606,21 +731,59 @@ describe('TerminalLauncher', () => {
     const reader = vi.fn().mockReturnValue(['Host work', 'Host broken', 'Host unsafe;alias', ...Array.from({ length: 20 }, (_value, index) => `Host host-${index}`)].join('\n'));
     const noServer = Object.assign(new Error('no server'), { code: 1 });
     const run = vi.fn<CommandRunner>().mockImplementation(async (_command, args) => {
+      if (args[3] === 'tmux -V') return { stdout: args[2] === 'host-1' ? 'tmux 3.3a\n' : 'tmux 3.7b\n' };
       if (args[2] === 'broken') throw new Error('unreachable');
       if (args[2] === 'host-0') throw noServer;
       return { stdout: 'remote-work\ninvalid name\n' };
     });
     const connector = new SshTmuxConnector('/home/ada', reader, run, () => name);
     const targets = await connector.discover();
-    expect(run).toHaveBeenCalledTimes(16);
-    expect(run).toHaveBeenNthCalledWith(1, 'ssh', ['-o', 'BatchMode=yes', 'work', "tmux list-sessions -F '#{session_name}'"], { timeout: 2_000, maxBuffer: 64 * 1024 });
+    expect(run).toHaveBeenCalledTimes(32);
+    expect(run).toHaveBeenNthCalledWith(1, 'ssh', ['-o', 'BatchMode=yes', 'work', 'tmux -V'], { timeout: 2_000, maxBuffer: 64 * 1024 });
+    expect(run).toHaveBeenNthCalledWith(2, 'ssh', ['-o', 'BatchMode=yes', 'work', "tmux list-sessions -F '#{session_name}'"], { timeout: 2_000, maxBuffer: 64 * 1024 });
     expect(targets).not.toContainEqual(expect.objectContaining({ label: 'work' }));
     expect(targets.some((target) => target.key === `work\u0000existing\u0000remote-work`)).toBe(true);
     expect(targets.some((target) => target.key === `host-0\u0000new\u0000${name}`)).toBe(true);
     expect(targets.some((target) => target.key.startsWith('broken\u0000'))).toBe(false);
-    expect(connector.launch({ key: `work\u0000existing\u0000remote-work`, label: 'Tmux session 1' })).toEqual({ command: 'ssh', args: ['-tt', 'work', 'tmux', 'new-session', '-A', '-s', 'remote-work'] });
-    expect(connector.launch({ key: `work\u0000new\u0000${name}`, label: 'New tmux session' })).toEqual({ command: 'ssh', args: ['-tt', 'work', 'tmux', 'new-session', '-A', '-s', name] });
+    expect(connector.launch({ key: `work\u0000existing\u0000remote-work`, label: 'Tmux session 1' })).toEqual({
+      command: 'ssh',
+      args: ['-tt', 'work', 'tmux', '-T', 'hyperlinks', 'new-session', '-A', '-s', 'remote-work'],
+      tmuxProjection: {
+        ownership: 'existing',
+        geometry: { transport: 'ssh', alias: 'work', sessionName: 'remote-work' },
+      },
+    });
+    expect(connector.launch({ key: `work\u0000new\u0000${name}`, label: 'New tmux session' })).toEqual({
+      command: 'ssh',
+      args: ['-tt', 'work', 'tmux', '-T', 'hyperlinks', 'new-session', '-A', '-s', name],
+      tmuxProjection: {
+        ownership: 'created',
+        geometry: { transport: 'ssh', alias: 'work', sessionName: name },
+        terminate: { command: 'ssh', args: ['work', 'tmux', 'kill-session', '-t', name] },
+      },
+    });
+    expect(connector.launch({ key: `host-1\u0000existing\u0000remote-work`, label: 'Tmux session 1' }).args).toEqual([
+      '-tt', 'host-1', 'tmux', 'new-session', '-A', '-s', 'remote-work',
+    ]);
     expect(() => connector.launch({ key: `work;bad\u0000new\u0000${name}`, label: 'bad' })).toThrow();
+  });
+
+  it('removes a remote alias from the legacy set after tmux is upgraded', async () => {
+    const name = 'stuffbucket-0123456789abcdef0123456789abcdef';
+    let version = 'tmux 3.3a\n';
+    const run = vi.fn<CommandRunner>().mockImplementation(async (_command, args) => (
+      args[3] === 'tmux -V' ? { stdout: version } : { stdout: 'work\n' }
+    ));
+    const connector = new SshTmuxConnector('/home/ada', () => 'Host work', run, () => name);
+
+    let target = (await connector.discover()).find((candidate) => candidate.key.includes('\u0000existing\u0000'))!;
+    expect(connector.launch(target).args).toEqual(['-tt', 'work', 'tmux', 'new-session', '-A', '-s', 'work']);
+
+    version = 'tmux 3.4\n';
+    target = (await connector.discover()).find((candidate) => candidate.key.includes('\u0000existing\u0000'))!;
+    expect(connector.launch(target).args).toEqual([
+      '-tt', 'work', 'tmux', '-T', 'hyperlinks', 'new-session', '-A', '-s', 'work',
+    ]);
   });
 
   it('keeps tmux target IDs opaque and owner- and generation-scoped', async () => {
@@ -1007,6 +1170,7 @@ describe('TerminalLauncher', () => {
     const generated = 'stuffbucket-0123456789abcdef0123456789abcdef';
     const noServer = Object.assign(new Error('no server'), { code: 1 });
     const run = vi.fn<CommandRunner>().mockImplementation(async (_command, args) => {
+      if (args[3] === 'tmux -V') return { stdout: 'tmux 3.7b\n' };
       if (args[2] === 'empty') throw noServer;
       if (args[2] === 'broken') throw new Error('unavailable');
       return { stdout: 'team\ninvalid;\n' };
@@ -1017,7 +1181,8 @@ describe('TerminalLauncher', () => {
       { key: `work\u0000new\u0000${generated}`, label: 'New tmux session' },
       { key: `empty\u0000new\u0000${generated}`, label: 'New tmux session' },
     ]);
-    expect(run).toHaveBeenNthCalledWith(1, 'ssh', ['-o', 'BatchMode=yes', 'work', "tmux list-sessions -F '#{session_name}'"], { timeout: 2_000, maxBuffer: 64 * 1024 });
+    expect(run).toHaveBeenNthCalledWith(1, 'ssh', ['-o', 'BatchMode=yes', 'work', 'tmux -V'], { timeout: 2_000, maxBuffer: 64 * 1024 });
+    expect(run).toHaveBeenNthCalledWith(2, 'ssh', ['-o', 'BatchMode=yes', 'work', "tmux list-sessions -F '#{session_name}'"], { timeout: 2_000, maxBuffer: 64 * 1024 });
     for (const key of [`work\u0000new\u0000${generated}x`, `work;\u0000existing\u0000team`, 'work\u0000other\u0000team']) {
       expect(() => connector.launch({ key, label: 'untrusted' })).toThrow('Invalid SSH tmux target.');
     }

@@ -11,6 +11,8 @@
   --shell-space-5: 24px;
   --shell-radius: 6px;
   --shell-radius-large: 8px;
+  --shell-focus-ring-width: 2px;
+  --shell-focus-ring-offset: 2px;
   --shell-input-border: var(--shell-border-strong, var(--shell-border));
 
   --shell-text-xs: 0.6875rem;

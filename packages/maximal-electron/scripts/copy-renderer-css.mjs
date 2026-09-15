@@ -19,5 +19,6 @@ for (const sheet of packageStylesheets()) {
   const parts = await Promise.all(
     sheet.sources.map((source) => readFile(path.join(root, source), 'utf8')),
   );
-  await writeFile(target, parts.join('\n'));
+  const imports = sheet.imports.map((specifier) => `@import '${specifier}';`);
+  await writeFile(target, [...imports, ...parts].join('\n'));
 }

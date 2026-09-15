@@ -64,6 +64,11 @@ export interface State {
    */
   proxyPort: number
 
+  /** Random identity for this exact process boot, never reused after restart. */
+  instanceId: string
+  /** Wall-clock start time paired with instanceId for persisted owner claims. */
+  startedAtMs: number
+
   /**
    * Set by the desktop shell at sidecar spawn (env var MAXIMAL_SHELL_KEY).
    * When a request carries this exact key, auth always succeeds — even
@@ -156,6 +161,8 @@ export const state: State = {
   // the CLI's own defaults (src/lib/start/cli.ts).
   controlPort: 4141,
   proxyPort: 4141,
+  instanceId: randomUUID(),
+  startedAtMs: Date.now(),
   vsCodeDeviceId: randomUUID(),
   shellApiKey: process.env.MAXIMAL_SHELL_KEY?.trim() || undefined,
 }

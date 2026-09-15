@@ -7,20 +7,39 @@ import type {
   AppEntry,
   AppsListResponse,
   AuthStatus,
+  ConnectionAction,
+  ConnectionCredentialReveal,
+  ConnectionEntry,
+  ConnectionsListResponse,
+  ConnectorSettingField,
+  ConnectorSettingValue,
   DiagnosticsResponse,
   ModelsListResponse,
+  OllamaAccountsListResponse,
+  OllamaSettingsResponse,
+  OllamaSettingsUpdateRequest,
+  SearchSettingsResponse,
+  SearchSettingsUpdateRequest,
+  SearchProviderValidationRequest,
+  SearchProviderValidationResponse,
   TokenUsagePeriod,
   TokenUsageSummary,
 } from '@stuffbucket/maximal-core/settings-types'
 
 import type {
+  ClientInstallation,
+  LocalModelCancelResult,
+  LocalModelCatalogSnapshot,
+  LocalModelEnsureResult,
+  LocalModelOperationEvent,
   MenuBarModeAttempt,
   MenuBarModeState,
+  OllamaRuntimeStatus,
 } from '../../shared/bridge-types'
 
 import type { MaximalBridge } from '../../preload'
 import {
-  isSettingsSectionId,
+  settingsSectionIdFrom,
   type SettingsSectionId,
 } from '../../shared/settings-sections'
 import { unwrapControlResult } from '../shared/control-error'
@@ -34,10 +53,29 @@ export type {
   AppEntry,
   AppsListResponse,
   AuthStatus,
+  ConnectionAction,
+  ConnectionCredentialReveal,
+  ConnectionEntry,
+  ConnectionsListResponse,
+  ConnectorSettingField,
+  ConnectorSettingValue,
+  ClientInstallation,
   DiagnosticsResponse,
   MenuBarModeAttempt,
   MenuBarModeState,
   ModelsListResponse,
+  OllamaAccountsListResponse,
+  OllamaSettingsResponse,
+  OllamaSettingsUpdateRequest,
+  LocalModelCancelResult,
+  LocalModelCatalogSnapshot,
+  LocalModelEnsureResult,
+  LocalModelOperationEvent,
+  OllamaRuntimeStatus,
+  SearchProviderValidationRequest,
+  SearchProviderValidationResponse,
+  SearchSettingsResponse,
+  SearchSettingsUpdateRequest,
   TokenUsagePeriod,
   TokenUsageSummary,
 }
@@ -56,12 +94,25 @@ export interface SettingsCapabilities {
     list(): Promise<AccountsListResponse>
     switchTo(key: string): Promise<void>
   }
+  ollamaAccounts: {
+    list(): Promise<OllamaAccountsListResponse>
+  }
+  ollamaSettings: {
+    get(): Promise<OllamaSettingsResponse>
+    update(input: OllamaSettingsUpdateRequest): Promise<OllamaSettingsResponse>
+  }
   general: {
     menuBarMode(): Promise<MenuBarModeState>
     beginMenuBarOnly(): Promise<MenuBarModeAttempt>
     confirmMenuBarOnly(attemptId: string): Promise<MenuBarModeState>
     cancelMenuBarOnly(attemptId: string): Promise<MenuBarModeState>
     disableMenuBarOnly(): Promise<MenuBarModeState>
+  }
+  connections: {
+    list(): Promise<ConnectionsListResponse>
+    act(id: string, action: ConnectionAction): Promise<ConnectionEntry>
+    revealCredential(id: string): Promise<ConnectionCredentialReveal>
+    installations(): Promise<ClientInstallation[]>
   }
   apps: {
     list(): Promise<AppsListResponse>
@@ -82,6 +133,18 @@ export interface SettingsCapabilities {
     list(): Promise<ModelsListResponse>
     refresh(): Promise<ModelsListResponse>
   }
+  localModels: {
+    list(): Promise<LocalModelCatalogSnapshot>
+    ensure(modelKey: string): Promise<LocalModelEnsureResult>
+    cancel(operationId: string): Promise<LocalModelCancelResult>
+    openFolder(): Promise<void>
+    subscribe(listener: (event: LocalModelOperationEvent) => void): () => void
+  }
+  ollamaRuntime: {
+    status(): Promise<OllamaRuntimeStatus>
+    launch(): Promise<OllamaRuntimeStatus>
+    updateContextLength(value: number): Promise<OllamaRuntimeStatus>
+  }
   usage: {
     get(period: TokenUsagePeriod): Promise<TokenUsageSummary>
   }
@@ -91,6 +154,13 @@ export interface SettingsCapabilities {
   }
   diagnostics: {
     get(): Promise<DiagnosticsResponse>
+  }
+  search: {
+    get(): Promise<SearchSettingsResponse>
+    update(input: SearchSettingsUpdateRequest): Promise<SearchSettingsResponse>
+    validateProvider(
+      input: SearchProviderValidationRequest,
+    ): Promise<SearchProviderValidationResponse>
   }
   /**
    * The application menu asking for this surface.
@@ -193,12 +263,33 @@ export function createCoreSettingsCapabilities(): SettingsCapabilities {
         unwrapControlResult(await bridge.control.accountsSwitch(key))
       },
     },
+    ollamaAccounts: {
+      list: async () =>
+        unwrapControlResult(await bridge.control.ollamaAccountsList()),
+    },
+    ollamaSettings: {
+      get: async () =>
+        unwrapControlResult(await bridge.control.ollamaSettingsGet()),
+      update: async (input) =>
+        unwrapControlResult(await bridge.control.ollamaSettingsUpdate(input)),
+    },
     general: {
       menuBarMode: () => bridge.menuBarMode.get(),
       beginMenuBarOnly: () => bridge.menuBarMode.beginEnable(),
       confirmMenuBarOnly: (attemptId) => bridge.menuBarMode.confirmEnable(attemptId),
       cancelMenuBarOnly: (attemptId) => bridge.menuBarMode.cancelEnable(attemptId),
       disableMenuBarOnly: () => bridge.menuBarMode.disable(),
+    },
+    connections: {
+      list: async () =>
+        unwrapControlResult(await bridge.control.connectionsList()),
+      act: async (id, action) =>
+        unwrapControlResult(await bridge.control.connectionsAct(id, action)),
+      revealCredential: async (id) =>
+        unwrapControlResult(
+          await bridge.control.connectionsRevealCredential(id),
+        ),
+      installations: () => bridge.clientInstallations.list(),
     },
     apps: {
       list: async () => unwrapControlResult(await bridge.control.appsList()),
@@ -227,6 +318,16 @@ export function createCoreSettingsCapabilities(): SettingsCapabilities {
       refresh: async () =>
         unwrapControlResult(await bridge.control.modelsRefresh()),
     },
+    localModels: {
+      list: async () => unwrapControlResult(await bridge.localModels.list()),
+      ensure: async (modelKey) =>
+        unwrapControlResult(await bridge.localModels.ensure(modelKey)),
+      cancel: async (operationId) =>
+        unwrapControlResult(await bridge.localModels.cancel(operationId)),
+      openFolder: () => bridge.localModels.openFolder(),
+      subscribe: (listener) => bridge.localModels.onChange(listener),
+    },
+    ollamaRuntime: bridge.ollamaRuntime,
     usage: {
       get: async (period) =>
         unwrapControlResult(await bridge.control.usageGet(period)),
@@ -236,19 +337,27 @@ export function createCoreSettingsCapabilities(): SettingsCapabilities {
       get: async () =>
         unwrapControlResult(await bridge.control.diagnosticsGet()),
     },
+    search: {
+      get: async () =>
+        unwrapControlResult(await bridge.control.searchSettingsGet()),
+      update: async (input) =>
+        unwrapControlResult(await bridge.control.searchSettingsUpdate(input)),
+      validateProvider: async (input) =>
+        unwrapControlResult(await bridge.control.searchProviderValidate(input)),
+    },
     // Subscribe before consuming the startup request. A menu request that lands
     // during this handshake is either delivered live or retained by main; it
     // cannot disappear between the two operations.
     onOpenRequest: (listener) => {
       const unsubscribe = bridge.onOpenSettings((sectionId) => {
-        listener(isSettingsSectionId(sectionId) ? sectionId : null)
+        listener(settingsSectionIdFrom(sectionId))
       })
       void bridge
         .pendingSettingsRequest()
         .then((request) => {
           if (request !== null) {
             listener(
-              isSettingsSectionId(request.sectionId) ? request.sectionId : null,
+              settingsSectionIdFrom(request.sectionId),
             )
           }
         })

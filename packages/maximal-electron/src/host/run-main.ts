@@ -68,15 +68,17 @@ export async function runMain(
     daemonUrl: undefined,
     currentWindow: () => (window?.isDestroyed() === false ? window : undefined),
     activate,
+    openWindow,
   };
 
-  function openWindow(): void {
+  function openWindow(): BrowserWindow {
     const created = createHostWindow(options.window(context));
     window = created;
     created.on('closed', () => {
       if (window === created) window = undefined;
     });
     options.onWindowCreated?.(created);
+    return created;
   }
 
   function activate(): void {
@@ -98,9 +100,15 @@ export async function runMain(
 
   app.on('window-all-closed', () => {
     const keepRunning = options.keepRunningWithoutWindows?.() ?? false;
-    const quitting = quitsWithLastWindow(platform, keepRunning);
-    options.onWindowAllClosed?.(quitting);
-    if (quitting) app.quit();
+    const decision = options.shouldQuitAfterLastWindow
+      ? options.shouldQuitAfterLastWindow()
+      : quitsWithLastWindow(platform, keepRunning);
+    const finish = (quitting: boolean): void => {
+      options.onWindowAllClosed?.(quitting);
+      if (quitting) app.quit();
+    };
+    if (typeof decision === 'boolean') finish(decision);
+    else void decision.then(finish);
   });
 
   let shuttingDown = false;

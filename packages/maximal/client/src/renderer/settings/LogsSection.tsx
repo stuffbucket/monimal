@@ -42,10 +42,7 @@ export function LogsSection({ capabilities }: LogsSectionProps): ReactElement {
   }, [capabilities])
 
   return (
-    <section className="settings-section" aria-labelledby="settings-logs-heading">
-      <h1 id="settings-logs-heading" className="settings-section__heading">
-        Logs
-      </h1>
+    <section className="settings-section">
       <Note>Open the folder containing maximal-core logs.</Note>
       {error ? (
         <Note status="failed" live="assertive">

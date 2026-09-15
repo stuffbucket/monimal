@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 
 import { cleanupPackagedApp, launchPackagedApp, type RunningApp, waitForLine } from './support/launch'
+import { SCRIPTED_ANSWER, SCRIPTED_MODEL, startScriptedModel, type ScriptedModel } from './support/model-server'
 import { findProcessesContaining } from './support/process-search'
 import { assertContrastAtLeast, assertFocusOutlineResolves, assertNoVerticalOverlap, assertWithinWindow } from './support/visual-invariants'
 
@@ -20,10 +21,23 @@ import { assertContrastAtLeast, assertFocusOutlineResolves, assertNoVerticalOver
  */
 
 let running: RunningApp
+let model: ScriptedModel
 
 test.beforeAll(async () => {
-  running = await launchPackagedApp()
+  model = await startScriptedModel()
+  running = await launchPackagedApp({
+    STUFFBUCKET_HARNESS_START_OPEN: '1',
+    STUFFBUCKET_PROVIDER: 'maximal',
+    STUFFBUCKET_PROVIDER_URL: model.baseUrl,
+  })
 })
+
+async function mainWindow(): Promise<Page> {
+  await running.app.firstWindow()
+  const page = running.app.windows().find((candidate) => !candidate.url().includes('overlay'))
+  if (!page) throw new Error('The packaged main window did not open.')
+  return page
+}
 
 test.afterAll(async () => {
   // The last test in this file already closes the app itself (to assert
@@ -36,6 +50,7 @@ test.afterAll(async () => {
     // already closed
   }
   if (running) cleanupPackagedApp(running)
+  if (model) await model.stop()
 })
 
 test('launches from a relocated copy and the sidecar reaches ready', async () => {
@@ -46,7 +61,7 @@ test('launches from a relocated copy and the sidecar reaches ready', async () =>
 })
 
 test('window opens with exactly one non-empty primary heading', async () => {
-  const window = await running.app.firstWindow()
+  const window = await mainWindow()
   const headings = window.locator('h1')
 
   // Which surface is showing depends on auth and sidecar state, so the
@@ -77,15 +92,17 @@ test('window opens with exactly one non-empty primary heading', async () => {
     height: document.documentElement.clientHeight,
   }))
   expect(frameBox, 'the frame should have a layout box at all').not.toBeNull()
+  expect(viewport.width, 'the Overview canvas needs the wide three-panel window').toBeGreaterThanOrEqual(1279)
   expect(frameBox!.height).toBeGreaterThanOrEqual(viewport.height - 1)
   expect(frameBox!.width).toBeGreaterThanOrEqual(viewport.width - 1)
 })
 
 test('packaged preload exposes only the closed named bridge', async () => {
-  const page = await running.app.firstWindow()
+  const page = await mainWindow()
   const exposed = await page.evaluate(() => ({
     topLevel: Object.keys(window.maximal).sort(),
     control: Object.keys(window.maximal.control).sort(),
+    harness: Object.keys(window.maximal.harness).sort(),
     hasCoreOrigin: 'getCoreOrigin' in window.maximal,
     hasWindowRequire: 'require' in window,
   }))
@@ -95,12 +112,15 @@ test('packaged preload exposes only the closed named bridge', async () => {
       'control',
       'getCoreStatus',
       'getProxyUrl',
+      'harness',
+      'localModels',
       'logs',
       'menuBarMode',
       'onCoreStatus',
       'onOpenSettings',
       'openExternal',
       'pendingSettingsRequest',
+      'terminal',
     ],
     control: [
       'accountsList',
@@ -126,13 +146,126 @@ test('packaged preload exposes only the closed named bridge', async () => {
       'onTrafficInvalidation',
       'usageGet',
     ],
+    harness: [
+      'abort',
+      'approve',
+      'ask',
+      'ensureModel',
+      'hide',
+      'onApproval',
+      'onDelta',
+      'onEnd',
+      'onModelProgress',
+      'onTool',
+      'provider',
+    ],
     hasCoreOrigin: false,
     hasWindowRequire: false,
   })
 })
 
+test('packaged harness opens focused, resolves its theme, and streams an answer', async () => {
+  const overlay = running.app.windows().find((page) => page.url().includes('overlay'))
+  if (!overlay) throw new Error('The startup summon did not create the overlay window.')
+
+  const card = overlay.locator('[data-testid="overlay-card"]')
+  const input = overlay.locator('[data-testid="overlay-input"]')
+  await expect(card).toBeVisible()
+  await expect(input).toBeFocused()
+  await expect(overlay.locator('[data-testid="overlay-status"]')).toHaveText(
+    `maximal · ${SCRIPTED_MODEL}`,
+  )
+
+  const style = await card.evaluate((element) => {
+    const computed = getComputedStyle(element)
+    return {
+      background: computed.backgroundColor,
+      paddingTop: computed.paddingTop,
+      raised: computed.getPropertyValue('--shell-raised').trim(),
+    }
+  })
+  expect(style.raised).not.toBe('')
+  expect(style.background).not.toBe('rgba(0, 0, 0, 0)')
+  expect(style.paddingTop).not.toBe('0px')
+
+  await overlay.evaluate(() => {
+    const state = window as typeof window & {
+      harnessStreamObserver?: MutationObserver
+      harnessStreamStates?: string[]
+    }
+    state.harnessStreamStates = []
+    state.harnessStreamObserver = new MutationObserver(() => {
+      const text = document.querySelector('[data-testid="overlay-answer"]')?.textContent ?? ''
+      if (text && state.harnessStreamStates?.at(-1) !== text) {
+        state.harnessStreamStates?.push(text)
+      }
+    })
+    state.harnessStreamObserver.observe(document.body, {
+      childList: true,
+      characterData: true,
+      subtree: true,
+    })
+  })
+
+  const prompt = 'Reply with the packaged harness marker.'
+  await input.fill(prompt)
+  await input.press('Enter')
+  await expect(overlay.locator('[data-testid="overlay-answer"]')).toHaveText(
+    SCRIPTED_ANSWER,
+  )
+  const streamed = await overlay.evaluate(() => {
+    const state = window as typeof window & {
+      harnessStreamObserver?: MutationObserver
+      harnessStreamStates?: string[]
+    }
+    state.harnessStreamObserver?.disconnect()
+    return state.harnessStreamStates ?? []
+  })
+  expect(new Set(streamed).size).toBeGreaterThan(1)
+  expect(model.requests).toContainEqual({
+    path: '/v1/messages',
+    prompt,
+    model: SCRIPTED_MODEL,
+    stream: true,
+  })
+
+  await overlay.keyboard.press('Escape')
+})
+
+test('packaged terminal bridge launches and terminates a native shell', async () => {
+  const page = await mainWindow()
+  const result = await page.evaluate(async () => {
+    const profiles = await window.maximal.terminal.profiles()
+    const launched = await window.maximal.terminal.launch({
+      profileId: 'local',
+      cols: 80,
+      rows: 24,
+    })
+    let output = ''
+    const complete = new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('terminal produced no output')), 10_000)
+      const unsubscribe = window.maximal.terminal.onData((message) => {
+        if (message.id !== launched.sessionId) return
+        output += message.data
+        if (!output.includes('MAXIMAL_TERMINAL_READY')) return
+        clearTimeout(timeout)
+        unsubscribe()
+        resolve()
+      })
+    })
+    await window.maximal.terminal.spawn({ id: launched.sessionId, cols: 80, rows: 24 })
+    await window.maximal.terminal.write(launched.sessionId, "printf 'MAXIMAL_TERMINAL_READY\\n'\r")
+    await complete
+    await window.maximal.terminal.terminate(launched.sessionId)
+    return { hasLocal: profiles.some((profile) => profile.id === 'local'), output }
+  })
+
+  expect(result.hasLocal).toBe(true)
+  expect(result.output).toContain('MAXIMAL_TERMINAL_READY')
+})
+
 test('native Settings flyout opens every restored section in the packaged UI', async () => {
-  const page = await running.app.firstWindow()
+  const page = await mainWindow()
   const nativeLabels = await running.app.evaluate(({ BrowserWindow, Menu }) => {
     const settings = Menu.getApplicationMenu()?.items.find(
       (item) => item.label === 'Settings',
@@ -157,10 +290,9 @@ test('native Settings flyout opens every restored section in the packaged UI', a
   expect(nativeLabels).toEqual([
     'Account',
     'General',
-    'Apps',
-    'Endpoint',
-    'API keys',
+    'Connections',
     'Models',
+    'Local models',
     'Usage',
     'Logs',
     'Diagnostics',
@@ -181,6 +313,156 @@ test('native Settings flyout opens every restored section in the packaged UI', a
 
   await expect(page.locator('#right')).toHaveCount(0)
   await expect(page.locator('[data-testid="toggle-right"]')).toHaveCount(0)
+})
+
+test('model settings preserve hierarchy and semantics at narrow widths', async (_fixtures, testInfo) => {
+  const page = await mainWindow()
+  const originalSize = await running.app.evaluate(({ BrowserWindow }) => {
+    const window = BrowserWindow.getAllWindows().find(
+      (candidate) => !candidate.webContents.getURL().includes('overlay'),
+    )
+    if (!window) throw new Error('The packaged main window did not open.')
+    const [width, height] = window.getContentSize()
+    return { width, height }
+  })
+  const resize = async (width: number): Promise<void> => {
+    await running.app.evaluate(({ BrowserWindow }, size) => {
+      const window = BrowserWindow.getAllWindows().find(
+        (candidate) => !candidate.webContents.getURL().includes('overlay'),
+      )
+      window?.setContentSize(size.width, size.height)
+    }, { width, height: originalSize.height })
+    await page.waitForFunction((expected) => window.innerWidth === expected, width)
+  }
+
+  await running.app.evaluate(({ ipcMain }) => {
+    const catalogue = {
+      models: [
+        {
+          id: 'claude-opus-5',
+          name: 'Claude Opus 5',
+          vendor: 'Anthropic',
+          family: 'claude',
+          type: 'chat',
+          preview: false,
+          context_window_tokens: 1_000_000,
+          max_output_tokens: 128_000,
+          capabilities: {
+            vision: true,
+            tool_calls: true,
+            streaming: true,
+            reasoning: true,
+          },
+        },
+        {
+          id: 'embed-one',
+          name: 'Embed One',
+          vendor: 'Example',
+          family: 'embed',
+          type: 'embeddings',
+          preview: false,
+          context_window_tokens: 8_192,
+          max_output_tokens: null,
+          capabilities: {
+            vision: false,
+            tool_calls: false,
+            streaming: true,
+            reasoning: false,
+          },
+        },
+      ],
+      count: 2,
+      loaded_at: null,
+    }
+    const localCatalogue = {
+      revision: 1,
+      models: [
+        {
+          key: 'qwen3-0.6b-q8-gguf',
+          modelId: 'qwen3-0.6b',
+          displayName: 'Qwen3 0.6B Q8',
+          format: 'gguf',
+          expectedBytes: 639_446_688,
+          publication: 'provider',
+          state: 'registered',
+          capabilities: { input: ['text'], output: ['text'] },
+          context: { contextWindow: 32_768, maxOutputTokens: 8_192 },
+        },
+      ],
+    }
+    for (const channel of [
+      'maximal:control/models-list',
+      'maximal:control/models-refresh',
+    ]) {
+      ipcMain.removeHandler(channel)
+      ipcMain.handle(channel, () => ({ ok: true, value: catalogue }))
+    }
+    ipcMain.removeHandler('maximal:control/local-models-list')
+    ipcMain.handle('maximal:control/local-models-list', () => ({
+      ok: true,
+      value: localCatalogue,
+    }))
+  })
+
+  try {
+    await resize(1280)
+    await page.locator('[data-testid="settings-rail-settings-models-heading"]').click()
+    await expect(page.locator('h1')).toHaveText('Models')
+
+    const vendor = page.locator('.settings-model-vendor').first()
+    const heading = vendor.locator('h2')
+    const tables = vendor.locator('.settings-model-tables')
+    const typeHeader = vendor.locator('th', { hasText: /^Type$/ })
+    const typeIcons = vendor.locator('[role="img"][aria-label$=" model type"]')
+
+    await expect(vendor).toBeVisible()
+    await expect(typeHeader).toBeVisible()
+    await expect(typeIcons.first()).toBeVisible()
+    await expect(page.getByText(/^(Chat|Embeddings) models$/i)).toHaveCount(0)
+    await expect(typeIcons.first()).toHaveAttribute('title', / model type$/)
+
+    const headingBox = await heading.boundingBox()
+    const tablesBox = await tables.boundingBox()
+    expect(headingBox).not.toBeNull()
+    expect(tablesBox).not.toBeNull()
+    expect(tablesBox!.x).toBeGreaterThanOrEqual(headingBox!.x + 24)
+    await page.screenshot({ path: testInfo.outputPath('models-settings.png') })
+
+    await resize(700)
+    const overflow = await page.evaluate(() => ({
+      bodyClient: document.body.clientWidth,
+      bodyScroll: document.body.scrollWidth,
+      tableClient:
+        document.querySelector<HTMLElement>('.settings-table-wrap--models')
+          ?.clientWidth ?? 0,
+      tableScroll:
+        document.querySelector<HTMLElement>('.settings-table-wrap--models')
+          ?.scrollWidth ?? 0,
+    }))
+    expect(overflow.bodyScroll).toBeLessThanOrEqual(overflow.bodyClient)
+    expect(overflow.tableScroll).toBeGreaterThan(overflow.tableClient)
+    await page.screenshot({
+      path: testInfo.outputPath('models-settings-narrow.png'),
+    })
+
+    await page
+      .locator('[data-testid="settings-rail-settings-local-models-heading"]')
+      .click()
+    await expect(page.locator('h1')).toHaveText('Local models')
+    await expect(page.getByText('Qwen3 0.6B Q8')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Open models folder' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Delete' })).toHaveCount(0)
+    const localOverflow = await page.evaluate(() => ({
+      client: document.body.clientWidth,
+      scroll: document.body.scrollWidth,
+    }))
+    expect(localOverflow.scroll).toBeLessThanOrEqual(localOverflow.client)
+    await page.screenshot({
+      path: testInfo.outputPath('local-models-settings-narrow.png'),
+    })
+  } finally {
+    await resize(originalSize.width)
+  }
 })
 
 test('renderer window is hardened: contextIsolation, no nodeIntegration, sandboxed', async () => {
@@ -250,7 +532,7 @@ test('chrome text is not near-invisible against its background', async () => {
   // values, which is near-black text on a near-black window at roughly 1.1:1 —
   // legible in the DOM, invisible on screen. First-run's controls read the same
   // chain, so either set of targets exercises it.
-  const window = await running.app.firstWindow()
+  const window = await mainWindow()
   // The panel toggle, not the frame root: first-run mounts a `.sb-shell.app`
   // too, so only the toggle — which the three-panel shell alone renders —
   // identifies the signed-in chrome these branches select between.
@@ -296,7 +578,7 @@ test("a focused chrome control's outline actually resolves", async () => {
   // which merely copied that rule shape. It now targets the package's `.btn`,
   // because first run composes `Button` — so both branches exercise the real
   // `.btn:focus-visible`, which is what this test was always about.
-  const window = await running.app.firstWindow()
+  const window = await mainWindow()
   // The panel toggle, not the frame root: first-run mounts a `.sb-shell.app`
   // too, so only the toggle — which the three-panel shell alone renders —
   // identifies the signed-in chrome these branches select between.
@@ -315,7 +597,7 @@ test("a focused chrome control's outline actually resolves", async () => {
 })
 
 test('Settings rail entries do not overlap vertically', async () => {
-  const window = await running.app.firstWindow()
+  const window = await mainWindow()
   await running.app.evaluate(({ BrowserWindow, Menu }) => {
     const settings = Menu.getApplicationMenu()?.items.find(
       (item) => item.label === 'Settings',
@@ -351,7 +633,7 @@ test('status bar text is not clipped at the window edge', async () => {
   // height is fixed rather than a floor, the wrapped line escapes the box in
   // both directions: up over the document content, and down past the window's
   // bottom edge. First-run has nothing comparable, so this skips signed out.
-  const window = await running.app.firstWindow()
+  const window = await mainWindow()
   // The Traffic tab specifically: first-run's frame has a tab strip of its own, so
   // the presence of a tab does not mean the view tabs this test drives exist.
   if (!(await probeVisible(window, '.sb-shell.app .tab:has-text("Traffic")'))) {
@@ -376,6 +658,61 @@ test('status bar text is not clipped at the window edge', async () => {
     [window.locator('.tabpanel'), window.locator('.sb-shell.app .statusbar')],
     'tabpanel vs statusbar',
   )
+})
+
+test('packaged llama worker loads native code and can crash without taking down the app', async () => {
+  test.setTimeout(120_000)
+
+  const result = await running.app.evaluate(
+    ({ app, utilityProcess }, workerRelative) =>
+      new Promise<{ code: number; device?: string; loadMs?: number; error?: string }>(
+        (resolve) => {
+          const worker = utilityProcess.fork(
+            `${app.getAppPath()}/${workerRelative}`,
+            [],
+            { serviceName: 'llama-e2e', stdio: 'pipe' },
+          )
+          let device: string | undefined
+          let loadMs: number | undefined
+          const timer = setTimeout(() => {
+            worker.kill()
+            resolve({ code: 0, error: 'The llama worker did not answer in 90 seconds.' })
+          }, 90_000)
+
+          worker.on('message', (message: unknown) => {
+            const event = message as {
+              kind?: string
+              id?: string
+              device?: string
+              ms?: number
+              reason?: string
+            }
+            if (event.kind === 'hello') {
+              worker.postMessage({ kind: 'probe', id: 'packaged-e2e' })
+            } else if (event.kind === 'loaded' && event.id === 'packaged-e2e') {
+              device = event.device
+              loadMs = event.ms
+              worker.postMessage({ kind: 'crash-on-purpose' })
+            } else if (event.kind === 'failed' && event.id === 'packaged-e2e') {
+              clearTimeout(timer)
+              worker.kill()
+              resolve({ code: 0, error: event.reason })
+            }
+          })
+          worker.on('exit', (code) => {
+            clearTimeout(timer)
+            resolve({ code, device, loadMs })
+          })
+        },
+      ),
+    '.vite/build/llama-worker.js',
+  )
+
+  expect(result.error).toBeUndefined()
+  expect(result.device).toMatch(/^(cpu|metal|cuda|vulkan)$/)
+  expect(result.loadMs).toBeGreaterThanOrEqual(0)
+  expect(result.code).not.toBe(0)
+  await expect(running.app.firstWindow()).resolves.toBeDefined()
 })
 
 test('exits cleanly without orphaning the sidecar process', async () => {

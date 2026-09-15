@@ -153,8 +153,10 @@ describe('the exported components', () => {
 
     expect(opaque).toEqual([
       'components/Canvas: 1',
-      'components/controls/Button: 1',
+      'components/controls/Button: 2',
+      'components/controls/Fields: 1',
       'components/controls/Overlays: 2',
+      'components/controls/ScrollArea: 1',
       'components/controls/Tile: 1',
     ]);
   });

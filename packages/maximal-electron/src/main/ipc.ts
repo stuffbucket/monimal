@@ -15,43 +15,69 @@ import {
   IPC_CHANNELS,
   isPtyAcknowledgement,
   isPtyIdRequest,
+  isPtyProjectionAttachRequest,
+  isPtyProjectionRequest,
+  isPtyProjectionResizeRequest,
+  isPtyProjectionWriteRequest,
   isPtyResizeRequest,
   isPtySpawnRequest,
   isPtyWriteRequest,
   isTerminalLaunchRequest,
+  isTerminalPaneSyncRequest,
+  isTerminalWindowTitleRequest,
+  isTerminalUndockRequest,
+  isTerminalRedockRequest,
   type AppVersions,
   type IpcChannel,
   type IpcEvent,
   type IpcEventPayload,
   type IpcRequest,
   type IpcResponse,
+  type TerminalCopyRequest,
+  type TerminalRedockRequest,
+  type TerminalUndockRequest,
 } from '../shared/ipc.js';
 
 import { setBadgeCount, showNotification } from './native/notifications.js';
-import {
-  abortAgent,
-  discoverProvider,
-  isAgentBusy,
-  resolveApproval,
-  runAgent,
-} from './native/agent.js';
-import { ensureModel } from './native/llama.js';
 import { getPreferences, setPreferences } from './native/preferences.js';
 import {
   acknowledgePty,
+  attachPtyProjection,
   defaultShell,
+  detachPtyProjection,
+    focusPtyProjection,
+    resizePtyProjection,
   discoverTerminalTargets,
   killPty,
   launchTerminal,
   listTerminalProfiles,
   listPtys,
   resizePty,
-  spawnPty,
+  syncPtyPane,
+  spawnReservedPty,
   writePty,
+  writePtyProjection,
 } from './native/pty.js';
 import { checkForUpdates } from './native/updates.js';
-import { hideOverlay, toggleOverlay } from './windows/overlay.js';
 import { isSafeExternalUrl } from '../shared/urls.js';
+
+interface TerminalWindowActions {
+  frameId: (window: BrowserWindow | undefined) => string;
+  undock: (owner: BrowserWindow | undefined, request: TerminalUndockRequest) => boolean;
+  copy: (owner: BrowserWindow | undefined, request: TerminalCopyRequest) => boolean;
+  redock: (owner: BrowserWindow | undefined, request: TerminalRedockRequest) => boolean;
+}
+
+let terminalWindowActions: TerminalWindowActions = {
+  frameId: (window) => String(window?.id ?? ''),
+  undock: () => false,
+  copy: () => false,
+  redock: () => false,
+};
+
+export function configureTerminalWindowActions(actions: TerminalWindowActions): void {
+  terminalWindowActions = actions;
+}
 
 /** A handler for one channel. Types come from the contract, so it cannot drift. */
 type IpcHandler<C extends IpcChannel> = (
@@ -128,8 +154,53 @@ const handlers: IpcHandlers = {
     }
     void shell.openExternal(request.url);
   },
+  'terminal:frame-id': (_request, window) => terminalWindowActions.frameId(window),
+  'terminal:window-title': (request, window) => {
+    if (!isTerminalWindowTitleRequest(request)) {
+      throw new Error('Invalid terminal window title request.');
+    }
+    if (!window) return;
+    window.setTitle(request.title);
+  },
+  'terminal:undock': (request, window) => {
+    if (!isTerminalUndockRequest(request)) throw new Error('Invalid terminal undock request.');
+    return terminalWindowActions.undock(window, request);
+  },
+  'terminal:copy': (request, window) => {
+    if (!isTerminalUndockRequest(request)) throw new Error('Invalid terminal copy request.');
+    return terminalWindowActions.copy(window, request);
+  },
+  'terminal:redock': (request, window) => {
+    if (!isTerminalRedockRequest(request)) throw new Error('Invalid terminal redock request.');
+    return terminalWindowActions.redock(window, request);
+  },
+  'terminal:pane-sync': (request, window) => {
+    if (!isTerminalPaneSyncRequest(request)) throw new Error('Invalid terminal pane sync request.');
+    syncPtyPane(window, request.id, request.pane);
+  },
 
   'pty:default-shell': () => defaultShell(),
+
+  'pty:projection-attach': (request, window) => {
+    if (!isPtyProjectionAttachRequest(request)) throw new Error('Invalid terminal projection attach request.');
+    return attachPtyProjection(window, request);
+  },
+  'pty:projection-focus': (request, window) => {
+    if (!isPtyProjectionAttachRequest(request)) throw new Error('Invalid terminal projection focus request.');
+    return focusPtyProjection(window, request);
+  },
+  'pty:projection-write': (request, window) => {
+    if (!isPtyProjectionWriteRequest(request)) throw new Error('Invalid terminal projection write request.');
+    return writePtyProjection(window, request);
+  },
+  'pty:projection-resize': (request, window) => {
+    if (!isPtyProjectionResizeRequest(request)) throw new Error('Invalid terminal projection resize request.');
+    return resizePtyProjection(window, request);
+  },
+  'pty:projection-detach': (request, window) => {
+    if (!isPtyProjectionRequest(request)) throw new Error('Invalid terminal projection detach request.');
+    return detachPtyProjection(window, request.id, request.projectionId);
+  },
 
   'terminal:profiles': (_request, window) => listTerminalProfiles(window),
   'terminal:discover': (_request, window) => discoverTerminalTargets(window),
@@ -138,37 +209,6 @@ const handlers: IpcHandlers = {
     return launchTerminal(window, request);
   },
 
-  'overlay:toggle': () => toggleOverlay(),
-
-  'overlay:hide': () => hideOverlay(),
-
-  'overlay:provider': () => discoverProvider(),
-
-  'overlay:abort': () => abortAgent(),
-
-  'overlay:approve': (request) => resolveApproval(request),
-
-  'overlay:ask': (request, window) => {
-    if (isAgentBusy()) {
-      return { started: false, reason: 'Already working on the previous request.' };
-    }
-
-    // Deliberately not awaited. The reply says only that the run started; the
-    // answer streams back as `agent:*` events, so the renderer is not blocked
-    // for the length of a model call.
-    void runAgent(request.prompt, {
-      onDelta: (text) => sendEvent(window, 'agent:delta', { text }),
-      onTool: (name, phase, isError) =>
-        sendEvent(window, 'agent:tool', { name, phase, isError }),
-      onApproval: (approval) => sendEvent(window, 'agent:approval', approval),
-      onEnd: (result) => sendEvent(window, 'agent:end', result),
-    });
-
-    return { started: true };
-  },
-
-  'model:ensure': (_request, window) =>
-    ensureModel((progress) => sendEvent(window, 'model:progress', progress)),
 };
 
 /**
@@ -183,7 +223,7 @@ function terminalHostFor(event: IpcMainInvokeEvent): TerminalChannelHost {
   return {
     spawn: (request) => {
       if (!isPtySpawnRequest(request)) throw new Error('Invalid terminal spawn request.');
-      spawnPty(window, request);
+      spawnReservedPty(window, request);
     },
     write: (id, data) => {
       if (!isPtyWriteRequest({ id, data })) throw new Error('Invalid terminal write request.');

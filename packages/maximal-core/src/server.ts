@@ -1,5 +1,5 @@
+import type { ProviderGateway } from "@stuffbucket/maximal-model-contract"
 import type { TrafficObserver } from "@stuffbucket/maximal-observability-contract"
-import type { ProviderGateway } from "@stuffbucket/maximal-provider-contract"
 import type { MiddlewareHandler } from "hono"
 
 import consola from "consola"
@@ -8,6 +8,7 @@ import { cors } from "hono/cors"
 import { logger } from "hono/logger"
 
 import type { AppConfig } from "~/lib/config/config"
+import type { ConfiguratorRegistry } from "~/lib/configurator-host"
 import type {
   ProviderGatewayFactory,
   ProviderHostConfigSource,
@@ -22,7 +23,10 @@ import {
   createAuthMiddleware,
   requireGithubAuth,
 } from "./lib/auth/request-auth"
+import { getConfig } from "./lib/config/config"
+import { forwardError } from "./lib/errors/error"
 import { traceIdMiddleware } from "./lib/http/trace"
+import { getControlHub } from "./lib/live/service"
 import { staleRefreshMiddleware } from "./lib/models/refresh-models"
 import {
   createTrafficObservationMiddleware,
@@ -37,19 +41,24 @@ import { getModelsLoadedAtMs, state } from "./lib/runtime-state/state"
 import { buildStatus } from "./lib/runtime-state/status"
 import { BUILD_VERSION } from "./lib/update/build-info"
 import { requireSupportedBuild } from "./lib/update/version-gate"
-import { completionRoutes } from "./routes/chat-completions/route"
+import { handleCompletion as handleChatCompletion } from "./routes/chat-completions/handler"
+import { LocalModelOperations } from "./routes/control/local-models"
 import { createControlRoutes } from "./routes/control/route"
 import { debugRoutes } from "./routes/debug/route"
-import { embeddingRoutes } from "./routes/embeddings/route"
+import { handleEmbeddings } from "./routes/embeddings/route"
 import { createInternalRoutes } from "./routes/internal/route"
-import { messageRoutes } from "./routes/messages/route"
-import { modelRoutes } from "./routes/models/route"
+import { createMessageRoutes } from "./routes/messages/route"
+import { createModelRoutedRoute } from "./routes/model-routed-route"
+import { createModelRoutes } from "./routes/models/route"
 import { productApiRoutes } from "./routes/product-api"
 import { createProviderMessageRoutes } from "./routes/provider/messages/route"
 import { createProviderModelRoutes } from "./routes/provider/models/route"
-import { responsesRoutes } from "./routes/responses/route"
+import { createProviderOpenAiRoute } from "./routes/provider/openai-route"
+import { handleResponses } from "./routes/responses/handler"
 import { tokenUsageRoute } from "./routes/token-usage/route"
 import { usageRoute } from "./routes/usage/route"
+import { readRequestedModel } from "./services/providers/model-request"
+import { ProviderModelRouter } from "./services/providers/model-router"
 import { createProviderDispatcher } from "./services/providers/provider-dispatcher"
 
 /**
@@ -163,6 +172,7 @@ function applyCommonMiddleware(app: Hono): void {
 }
 
 export interface CreateServerAppsOptions {
+  configurators?: ConfiguratorRegistry
   createProviderGateway?: ProviderGatewayFactory
   providerConfigSource?: ProviderHostConfigSource
   providerGateway?: ProviderGateway
@@ -182,6 +192,95 @@ function isTrafficQueryStore(
   )
 }
 
+function createModelAwareGithubAuth(
+  modelRouter: ProviderModelRouter,
+): MiddlewareHandler {
+  return async (c, next) => {
+    try {
+      const model = await readRequestedModel(c.req.raw)
+      if (model === undefined) return await requireGithubAuth(c, next)
+      const route = await modelRouter.resolve(model)
+      if (route.kind === "provider") {
+        await next()
+        return
+      }
+    } catch (error) {
+      return await forwardError(c, error)
+    }
+    return await requireGithubAuth(c, next)
+  }
+}
+
+function applyPublicAuth(
+  app: Hono,
+  providerDispatcher: ProviderDispatcher,
+  providerModelRouter: ProviderModelRouter,
+): void {
+  app.use("/:provider/v1/*", requireSupportedBuild)
+  const requireConfiguredProviderAuth: MiddlewareHandler = async (c, next) => {
+    if (providerDispatcher.requiresGithubAuth(c.req.param("provider"))) {
+      return await requireGithubAuth(c, next)
+    }
+    await next()
+  }
+  app.use("/:provider/v1/*", requireConfiguredProviderAuth)
+
+  const githubUpstreamRoutes = ["/v1/messages/*"]
+  for (const path of githubUpstreamRoutes) {
+    app.use(path, requireSupportedBuild)
+    app.use(path, requireGithubAuth)
+  }
+  for (const path of ["/models", "/models/*", "/v1/models", "/v1/models/*"]) {
+    app.use(path, requireSupportedBuild)
+  }
+  const modelRoutedPaths = [
+    "/chat/completions",
+    "/embeddings",
+    "/responses",
+    "/v1/chat/completions",
+    "/v1/embeddings",
+    "/v1/messages",
+    "/v1/responses",
+  ]
+  for (const path of modelRoutedPaths) {
+    app.use(path, requireSupportedBuild)
+    app.use(path, createModelAwareGithubAuth(providerModelRouter))
+  }
+}
+
+function mountInferenceRoutes(
+  app: Hono,
+  dispatcher: ProviderDispatcher,
+  modelRouter: ProviderModelRouter,
+): void {
+  const routes = {
+    chat: createModelRoutedRoute({
+      dispatcher,
+      modelRouter,
+      operation: "chat-completions",
+      copilot: handleChatCompletion,
+    }),
+    embeddings: createModelRoutedRoute({
+      dispatcher,
+      modelRouter,
+      operation: "embeddings",
+      copilot: handleEmbeddings,
+    }),
+    responses: createModelRoutedRoute({
+      dispatcher,
+      modelRouter,
+      operation: "responses",
+      copilot: handleResponses,
+    }),
+  }
+  app.route("/chat/completions", routes.chat)
+  app.route("/embeddings", routes.embeddings)
+  app.route("/responses", routes.responses)
+  app.route("/v1/chat/completions", routes.chat)
+  app.route("/v1/embeddings", routes.embeddings)
+  app.route("/v1/responses", routes.responses)
+}
+
 export interface ServerApps {
   controlApp: Hono
   providerDispatcher: ProviderDispatcher
@@ -195,12 +294,24 @@ export function createServerApps(
   const publicApp = new Hono()
   const controlApp = new Hono()
   const trafficObserver = options.trafficObserver ?? getDefaultTrafficObserver()
+  const localModelLifecycle: { operations?: LocalModelOperations } = {}
   const providerDispatcher = createProviderDispatcher({
+    beforeDispose: () => localModelLifecycle.operations?.dispose(),
     configSource: options.providerConfigSource,
     gateway: options.providerGateway,
     gatewayFactory: options.createProviderGateway,
     readConfig: options.readConfig,
   })
+  const providerModelRouter = new ProviderModelRouter(
+    providerDispatcher,
+    Date.now,
+    () => (options.readConfig ?? getConfig)().ollama?.preferLocalModels ?? true,
+  )
+  const localModelOperations = new LocalModelOperations({
+    control: () => providerDispatcher.localModels(),
+    hub: getControlHub,
+  })
+  localModelLifecycle.operations = localModelOperations
 
   applyCommonMiddleware(publicApp)
   applyCommonMiddleware(controlApp)
@@ -209,6 +320,9 @@ export function createServerApps(
   controlApp.route(
     "/control",
     createControlRoutes({
+      configurators: options.configurators,
+      listProviderModels: () => providerModelRouter.listAdvertisedModels(),
+      localModelOperations,
       trafficQueries:
         options.trafficQueries
         ?? (isTrafficQueryStore(trafficObserver) ? trafficObserver : undefined),
@@ -225,52 +339,28 @@ export function createServerApps(
   )
   publicApp.route("/", productApiRoutes)
 
-  /** Every provider mode keeps the common build floor. GitHub authentication is
-   * mode-dependent and is delegated to the dispatcher so no middleware or route
-   * has to know the rollout values. */
-  publicApp.use("/:provider/v1/*", requireSupportedBuild)
-  const requireConfiguredProviderAuth: MiddlewareHandler = async (c, next) => {
-    if (providerDispatcher.requiresGithubAuth()) {
-      return await requireGithubAuth(c, next)
-    }
-    await next()
-  }
-  publicApp.use("/:provider/v1/*", requireConfiguredProviderAuth)
-
-  const githubUpstreamRoutes = [
-    "/chat/completions",
-    "/chat/completions/*",
-    "/models",
-    "/models/*",
-    "/embeddings",
-    "/embeddings/*",
-    "/responses",
-    "/responses/*",
-    "/v1/*",
-  ]
-
-  for (const path of githubUpstreamRoutes) {
-    publicApp.use(path, requireSupportedBuild)
-    publicApp.use(path, requireGithubAuth)
-  }
+  applyPublicAuth(publicApp, providerDispatcher, providerModelRouter)
 
   const observeTraffic = createTrafficObservationMiddleware(trafficObserver)
   for (const path of observedInferencePaths()) {
     publicApp.use(path, observeTraffic)
   }
 
-  publicApp.route("/chat/completions", completionRoutes)
+  const modelRoutes = createModelRoutes({
+    localModels: () => providerDispatcher.localModels(),
+    providerModels: () => providerModelRouter.listAdvertisedModels(),
+  })
+  const messageRoutes = createMessageRoutes({
+    dispatcher: providerDispatcher,
+    modelRouter: providerModelRouter,
+  })
+  mountInferenceRoutes(publicApp, providerDispatcher, providerModelRouter)
   publicApp.route("/models", modelRoutes)
-  publicApp.route("/embeddings", embeddingRoutes)
   publicApp.route("/usage", usageRoute)
   publicApp.route("/token-usage", tokenUsageRoute)
-  publicApp.route("/responses", responsesRoutes)
 
   // Compatibility with tools that expect v1/ prefix
-  publicApp.route("/v1/chat/completions", completionRoutes)
   publicApp.route("/v1/models", modelRoutes)
-  publicApp.route("/v1/embeddings", embeddingRoutes)
-  publicApp.route("/v1/responses", responsesRoutes)
 
   // Anthropic compatible endpoints
   publicApp.route("/v1/messages", messageRoutes)
@@ -283,6 +373,18 @@ export function createServerApps(
   publicApp.route(
     "/:provider/v1/models",
     createProviderModelRoutes(providerDispatcher),
+  )
+  publicApp.route(
+    "/:provider/v1/chat/completions",
+    createProviderOpenAiRoute(providerDispatcher, "chat-completions"),
+  )
+  publicApp.route(
+    "/:provider/v1/responses",
+    createProviderOpenAiRoute(providerDispatcher, "responses"),
+  )
+  publicApp.route(
+    "/:provider/v1/embeddings",
+    createProviderOpenAiRoute(providerDispatcher, "embeddings"),
   )
 
   return { controlApp, providerDispatcher, publicApp }

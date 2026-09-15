@@ -153,7 +153,10 @@ describe('a portalled subtree', () => {
       new RegExp(`className="${SHELL_ROOT}[\\s"]`).test(source),
     );
 
-    expect(roots.map(([name]) => name)).toEqual(['components/ShellLayout']);
+    expect(roots.map(([name]) => name).sort()).toEqual([
+      'components/ShellLayout',
+      'components/WindowChrome',
+    ]);
     expect(
       roots.filter(([, source]) => !source.includes('<ShellPortalRoot')).map(([name]) => name),
     ).toEqual([]);

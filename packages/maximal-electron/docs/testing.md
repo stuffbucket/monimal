@@ -208,54 +208,6 @@ The check runs before `whenReady` and opens no window, so it needs no window
 server and no signed binary. `package (macos-latest)` and
 `package (windows-latest)` both run it.
 
-### The second self check: llama.cpp out of process
-
-`--self-check=llama` launches the same binary again. It forks the engine as a
-`utilityProcess`, makes it load `node-llama-cpp` out of `app.asar.unpacked`,
-and then makes it fault in native code. A pass needs both halves: the library
-resolved from the child, and the main process outlived the fault well enough to
-print a line. `src/main/native/llama-protocol.ts` holds the strings and
-`tests/llama-protocol.test.ts` pairs them with the driver's copy, as the
-terminal half does. Issue #133.
-
-**Unlike the terminal check, this one waits for `whenReady`**, because
-`utilityProcess.fork` throws before the app is ready. It still takes no single
-instance lock, so the wait costs only the ready event.
-
-Its negative control moves the `@node-llama-cpp` scope aside and requires the
-same launch to fail. Failing is not enough on its own: the control asserts the
-failure names `did not load llama.cpp`, which is the branch reached only after
-the engine started. Without that, an engine that never forked at all produced
-the same two green lines — the "failed for the wrong reason" case at the end of
-`.claude/skills/write-a-check/SKILL.md`, caught by re-running the break rather
-than by reading the code.
-
-The fault name is pinned per platform, and both have now been seen. `SIGSEGV`
-is asserted by name on macOS, against the bare signal number Electron reports;
-`access violation` is asserted on Windows, against the status code. What is
-asserted on both is that the supervisor recognised a fault at all: a code
-`llama-protocol.ts` cannot name reads as "exited with code N" and fails the
-check with the number in the log.
-
-The engine faults with Electron's `process.crash()` rather than with
-`process.abort()`. Node defines `ABORT_NO_BACKTRACE()` as `_exit(134)` on
-Windows, so an abort there is a clean exit that no crash handler sees, and the
-Windows half of `verify:crash-artifact` was measuring a process that had not
-crashed. Issue #156.
-
-This is the first thing in the repository ever to load the packaged llama.cpp.
-It failed on its first run, and `docs/architecture.md` records what it found.
-
-What it leaves uncovered: no window, no renderer, and no IPC. It proves a shell
-spawns inside the package, not that anything renders. It says nothing about the
-linux package, nothing about a signed or notarised bundle, and on Windows
-nothing about an installed tree, because this repository ships no installer.
-Run it on the package Forge produces, which on macOS carries an ad-hoc
-signature that `codesign --verify` already rejects because packager rewrites
-`Info.plist` afterwards. Signing happens later, in stuffbucket/macos-runner,
-and moving a file inside a bundle that has been signed properly would break its
-seal.
-
 ## User interface changes
 
 Green unit tests are necessary but not sufficient for a layout change.
@@ -267,63 +219,8 @@ shipped past a green suite.
 
 Use `capture` from `e2e/harness.ts` rather than `page.screenshot`. macOS stops
 giving an occluded window frames. The plain call then hangs until its timeout.
-That reproduced against the overlay under seed 587000642. `capture` reads the
-renderer through the debugger, which does not care what is in front.
-
-### A declared focus trap is not a walked one
-
-`role="dialog"`, `aria-modal`, and an inert background declare a modal to
-assistive technology. None of them enforces one, and axe reports no violation
-against a dialog focus escapes from on the third Tab press, because it reads
-the declaration. A `.click()` proves less again: `inert` blocks a real pointer
-and a real key without blocking a programmatic call.
-
-So the overlay has two scenarios rather than one. The first reads the
-attributes. The second presses Tab past the end of the card, then Shift+Tab,
-and reads `document.activeElement` after every press — not a `focusin`
-listener, because focus leaving an untrapped dialog lands on `document.body`
-and that fires no `focusin` at all. It counts what Tab can reach before it
-walks, and fails on zero: a trap over an empty card is an empty scope. See
-#131.
-
-### The agent scenarios script the model
-
-Four scenarios drive the overlay's agent: the theme concierge in
-`e2e/concierge.spec.ts`, and the answer, the approval gate, and Escape's
-ordering in `e2e/shell.spec.ts`. All four needed a model, so all four skipped in
-CI, which has none. Every green run in this repository's history was green
-without the approval gate having been exercised once. That is #25, and it is the
-same defect as an empty scope: a suite that reads as broader than it is.
-
-`e2e/model-server.ts` supplies the model. It is an HTTP server on a loopback
-port that speaks the two endpoints discovery uses for Ollama, and the spec
-points the application at it with `STUFFBUCKET_PROVIDER=ollama` and
-`STUFFBUCKET_PROVIDER_URL`. `docs/agent.md` holds what those two can and cannot
-do; the short version is that neither goes near the gate.
-
-Everything downstream of the token stream is real: pi-ai's HTTP client and SSE
-parsing, pi-agent-core's tool loop, `beforeToolCall`, the risk classification in
-`approval.ts`, the IPC events, and the card. Only the generator is scripted.
-
-Three rules come with it.
-
-- **A scripted reply cannot prove a tool ran.** The server chooses what comes
-  back, so an assertion that the answer contains a marker passes with the shell
-  never touched. Both bash scenarios write a file in a temporary directory
-  through `tee` and assert against the filesystem: present after an allow,
-  absent after a deny, and absent while the question is still on screen. That
-  last one is what fails if a gate ever shows its card after starting the
-  command.
-- **Assert which backend answered.** `requireScriptedBackend` compares the full
-  `ProviderStatus` against the scripted model's distinctive name, so a real
-  Ollama on a developer's machine cannot satisfy the scenario by accident, and a
-  run that reached no backend fails rather than passing over nothing.
-- **The script matches the prompt with a regular expression.** It covers the
-  plumbing and the gate. It says nothing about whether a real model picks the
-  right tool out of a natural request, and nothing automated covers that on a
-  runner with no model. `e2e/embedded.spec.ts` is the one scenario that asks a
-  real model to choose, and it needs weights, so it stays out of the default
-  suite.
+`capture` reads the renderer through the debugger, which does not care what
+is in front.
 
 ### A still is not an oracle
 
@@ -354,9 +251,9 @@ human to look at afterwards.
 
 ## The suite stays off the screen
 
-A run drives a real application on the developer's desktop. Left alone, the
-overlay paints over their full-screen editor and takes the keyboard, once per
-scenario. So a test run parks its windows off the side of the display.
+A run drives a real application on the developer's desktop. Left alone, its
+windows cover work and take focus. A test run therefore parks them off the side
+of the display.
 
 - `isE2EQuiet` and `quietBounds` in `src/main/native/preferences.ts` decide
   this. Quiet is the default. `STUFFBUCKET_E2E_VISIBLE=1` shows a run.
@@ -385,20 +282,6 @@ both are outside `playwright.config.ts` and outside CI.
 
 So the suite that runs constantly does not need to be seen. If it is visible on
 your desktop, that is a leak worth fixing rather than a requirement.
-
-### The overlay is the worst of it
-
-Everything that makes the overlay good at being an overlay makes it hostile to
-the machine running the suite. It sits above full screen applications, follows
-the user across spaces, covers the whole display, and takes key input. A run
-then flashes over whatever the user is doing and pulls focus out of their
-editor, once per scenario.
-
-None of that is needed to test it. Playwright dispatches input through the
-debugger rather than the window server, and `capture` reads the renderer rather
-than the screen. So `applyStacking` in `src/main/windows/overlay.ts` quiets it
-under `STUFFBUCKET_E2E`: the window still shows, still reports visible, and
-still lays out exactly as it does in production.
 
 ## Three directories say "demo"
 
@@ -489,10 +372,10 @@ alternatives.
   reaches a private, undocumented API, and some of those commands need System
   Integrity Protection turned off. That is not a foundation for a test suite.
 - **A container or a Linux virtual machine tests the wrong platform.** Every
-  option available here runs a Linux guest only. The overlay's non-activating
-  panel, the dock, and the packaging assertions are all macOS behaviour a Linux
-  guest cannot exercise at all, so this trades "off the desktop" for "untested
-  on the platform most of the native code targets".
+  option available here runs a Linux guest only. The dock and the packaging
+  assertions are macOS behaviour a Linux guest cannot exercise, so this trades
+  "off the desktop" for "untested on the platform most of the native code
+  targets".
 - **A virtual display driver changes nothing that matters.** It adds a monitor
   inside the session the developer is already logged into. It is a fancier
   version of `quietBounds`, at the cost of a third-party dependency, and it

@@ -4,21 +4,10 @@
  * (`writeClaudeCodeSettings`) and Claude Desktop (`applyConfigLibraryProfile`)
  * — is BOTH symlink-safe AND crash-recoverable.
  *
- * Two properties matter here, and the initial #231 fix got them backwards:
- *
- *  - O_EXCL is the real symlink guard: the kernel refuses to open THROUGH a
- *    symlink at the final path component. A regular stale `<file>.tmp` (left
- *    by a write that crashed between open and rename) is NOT an attack — it is
- *    a benign artifact, and the writer must self-heal by clearing it and
- *    succeeding, not hard-fail forever with a misleading "symlink attack".
- *
- *  - `unlink` clears that stale temp WITHOUT following a symlink to its target,
- *    so it is itself symlink-safe: a planted symlink temp is removed (not
- *    followed/clobbered), and the real write lands at the intended path.
- *
- * So the honest tests below assert crash-recovery (stale regular/symlink temp
- * is cleared, write succeeds at the intended path, symlink's target untouched)
- * rather than asserting the write throws on a pre-existing temp.
+ * Every attempt now uses a writer-unique O_EXCL temporary file. A writer never
+ * clears a shared temp name, because that entry could belong to another live
+ * writer. Legacy fixed-name temps are harmless and remain untouched. Tests also
+ * cover owner-only creation and mode preservation across replacement.
  */
 
 import { afterEach, beforeEach, describe, expect, it } from "bun:test"
@@ -72,29 +61,41 @@ describe("atomicWriteJson (shared helper)", () => {
     expect(JSON.parse(fs.readFileSync(file, "utf8"))).toEqual({ ok: true })
   })
 
-  it("self-heals a stale REGULAR <file>.tmp (crash recovery): clears it and writes", () => {
+  it("ignores a stale legacy temp instead of unlinking another writer's file", () => {
     const file = path.join(dir, "out.json")
-    // A prior write crashed between open and rename, leaving a stale temp.
-    fs.writeFileSync(`${file}.tmp`, "stale garbage from a crashed write")
+    const legacyTemporaryFile = `${file}.tmp`
+    fs.writeFileSync(legacyTemporaryFile, "possibly owned by another writer")
+
     atomicWriteJson(file, { a: 1 })
+
     expect(JSON.parse(fs.readFileSync(file, "utf8"))).toEqual({ a: 1 })
     expectOwnerOnlyFile(file)
-    expect(fs.existsSync(`${file}.tmp`)).toBe(false)
+    expect(fs.readFileSync(legacyTemporaryFile, "utf8")).toBe(
+      "possibly owned by another writer",
+    )
   })
 
-  it("clears a stale SYMLINK <file>.tmp without following it; target untouched", () => {
+  it("does not follow or unlink a legacy symlink temp", () => {
     const file = path.join(dir, "out.json")
     const victim = path.join(dir, "victim.txt")
     fs.writeFileSync(victim, "precious")
-    // Plant a symlink at the temp path pointing at a file we must NOT clobber.
     fs.symlinkSync(victim, `${file}.tmp`)
+
     atomicWriteJson(file, { a: 1 })
-    // Real write landed at the intended path…
+
     expect(JSON.parse(fs.readFileSync(file, "utf8"))).toEqual({ a: 1 })
-    // …the symlink's target was never followed or overwritten…
     expect(fs.readFileSync(victim, "utf8")).toBe("precious")
-    // …and the temp is gone.
-    expect(fs.existsSync(`${file}.tmp`)).toBe(false)
+    expect(fs.lstatSync(`${file}.tmp`).isSymbolicLink()).toBe(true)
+  })
+
+  it("preserves an existing regular file's mode", () => {
+    if (process.platform === "win32") return
+    const file = path.join(dir, "out.json")
+    fs.writeFileSync(file, "{}\n", { mode: 0o640 })
+
+    atomicWriteJson(file, { a: 1 })
+
+    expect(fs.statSync(file).mode & 0o777).toBe(0o640)
   })
 })
 
@@ -107,15 +108,15 @@ describe("writeClaudeCodeSettings — atomic write (#231)", () => {
     expect(fs.existsSync(`${file}.tmp`)).toBe(false)
   })
 
-  it("self-heals over a stale regular <file>.tmp (crash recovery)", () => {
+  it("ignores a stale legacy <file>.tmp", () => {
     const file = path.join(dir, "settings.json")
     fs.writeFileSync(`${file}.tmp`, "stale")
     writeClaudeCodeSettings(file, { foo: "bar" })
     expect(JSON.parse(fs.readFileSync(file, "utf8"))).toEqual({ foo: "bar" })
-    expect(fs.existsSync(`${file}.tmp`)).toBe(false)
+    expect(fs.existsSync(`${file}.tmp`)).toBe(true)
   })
 
-  it("clears a planted symlink temp without clobbering its target", () => {
+  it("ignores a planted legacy symlink temp without clobbering its target", () => {
     const file = path.join(dir, "settings.json")
     const victim = path.join(dir, "victim.txt")
     fs.writeFileSync(victim, "precious")
@@ -135,17 +136,18 @@ describe("Claude Desktop config writer — atomic write (#231)", () => {
     expectOwnerOnlyFile(topPath)
   })
 
-  it("self-heals over a stale _meta.json.tmp (crash recovery)", () => {
+  it("ignores a stale legacy _meta.json.tmp", () => {
     const libDir = path.join(getClaude3pDir(dir), "configLibrary")
     fs.mkdirSync(libDir, { recursive: true })
-    // Stale temp from a crashed prior apply on the _meta.json write path.
     fs.writeFileSync(path.join(libDir, "_meta.json.tmp"), "stale")
     const result = applyConfigLibraryProfile(dir)
     expect(result.wrote).toBe(true)
     const raw = fs.readFileSync(path.join(libDir, "_meta.json"), "utf8")
     const meta = JSON.parse(raw) as Record<string, unknown>
     expect(meta.appliedId).toBe(result.profileId)
-    expect(fs.existsSync(path.join(libDir, "_meta.json.tmp"))).toBe(false)
+    expect(fs.readFileSync(path.join(libDir, "_meta.json.tmp"), "utf8")).toBe(
+      "stale",
+    )
   })
 
   it("clears a planted symlink at a profile temp without clobbering its target", () => {

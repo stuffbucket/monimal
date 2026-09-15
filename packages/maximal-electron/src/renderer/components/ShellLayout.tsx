@@ -1,11 +1,14 @@
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { PanelLeft, PanelRight } from 'lucide-react';
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import {
   Group,
+  type Layout,
+  type LayoutChangedMeta,
   Panel,
   Separator,
   useDefaultLayout,
+  useGroupRef,
   usePanelRef,
 } from 'react-resizable-panels';
 
@@ -68,8 +71,12 @@ const LEFT: PanelSize = {
 };
 const RIGHT: PanelSize = { default: '22', min: '16', max: '36', collapsed: '0' };
 const BOTTOM: PanelSize = { default: '30', min: '10', max: '70', collapsed: '0' };
-const PANELS_WITH_RIGHT = ['left', 'main', 'right'];
-const PANELS_WITHOUT_RIGHT = ['left', 'main'];
+const PANEL_IDS: Record<'both' | 'left' | 'right' | 'neither', string[]> = {
+  both: ['left', 'main', 'right'],
+  left: ['left', 'main'],
+  right: ['main', 'right'],
+  neither: ['main'],
+};
 
 /**
  * The application frame, with the tab strip in the title bar.
@@ -84,6 +91,27 @@ const PANELS_WITHOUT_RIGHT = ['left', 'main'];
  * and is the portal root the overlays mount into. Composing the smaller
  * exports without it means supplying all three yourself.
  */
+export type ShellLayoutProps<T extends Tab> = {
+  /** Namespaces persisted panel sizes and tab accessibility ids. */
+  layoutId: string;
+  /** Caller-owned content before the sidebar toggle. */
+  titleBarLeading?: ReactNode;
+  /** Caller-owned actions before the inspector toggle. */
+  titleBarActions?: ReactNode;
+  /** Optional host event adapter, such as an Electron menu subscription. */
+  subscribeToPanelToggles?: PanelToggleSubscription;
+  top?: ReactNode;
+  left?: (collapsed: boolean) => ReactNode;
+  main: ReactNode;
+  bottom?: ReactNode;
+  right?: ReactNode;
+  status?: ReactNode;
+  leftSize?: PanelSize;
+  rightSize?: PanelSize;
+  bottomSize?: PanelSize;
+} & Omit<TabStripProps<T>, 'tabIdBase'>;
+
+/** The low-level resizable shell geometry and tabbed document primitive. */
 export function ShellLayout<T extends Tab>({
   layoutId,
   tabs,
@@ -94,6 +122,7 @@ export function ShellLayout<T extends Tab>({
   tabsLabel,
   newTabLabel,
   tabIcon,
+  tabTransfer,
   titleBarLeading,
   titleBarActions,
   subscribeToPanelToggles,
@@ -106,54 +135,28 @@ export function ShellLayout<T extends Tab>({
   leftSize = LEFT,
   rightSize = RIGHT,
   bottomSize = BOTTOM,
-}: {
-  /** Namespaces the persisted panel sizes. Two shells must not share one. */
-  layoutId: string;
-  /** Caller-owned content before the sidebar toggle. */
-  titleBarLeading?: ReactNode;
-  /** Caller-owned actions before the inspector toggle. */
-  titleBarActions?: ReactNode;
-  /** Optional host event adapter, such as an Electron menu subscription. */
-  subscribeToPanelToggles?: PanelToggleSubscription;
-  /**
-   * Full width, under the title bar and over the panels. For anything that
-   * addresses the whole window rather than one panel: an offline banner, an
-   * update prompt, a failed-save notice.
-   */
-  top?: ReactNode;
-  left: (collapsed: boolean) => ReactNode;
-  main: ReactNode;
-  /**
-   * Under `main`, in the same column, behind a draggable divider. For a
-   * secondary view of what `main` shows: logs, output, a console. Absent by
-   * default, and when absent the centre column is a plain panel rather than a
-   * group of one.
-   */
-  bottom?: ReactNode;
-  /** Optional inspector. Omit it to give the document the remaining width. */
-  right?: ReactNode;
-  status: ReactNode;
-  leftSize?: PanelSize;
-  rightSize?: PanelSize;
-  bottomSize?: PanelSize;
-} & Omit<TabStripProps<T>, 'tabIdBase'>) {
+}: ShellLayoutProps<T>) {
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [rightCollapsed, setRightCollapsed] = useState(false);
   // State rather than a ref: a portal has to re-render once the element the
   // shell class sits on exists.
   const [root, setRoot] = useState<HTMLDivElement | null>(null);
   const tabIdBase = `${layoutId}-documents`;
+  const hasLeft = left !== undefined;
   const hasRight = right !== undefined;
+  const documentStructure = hasRight ? 'with-right' : 'without-right';
 
   const leftPanel = usePanelRef();
   const rightPanel = usePanelRef();
   const bottomPanel = usePanelRef();
+  const documentGroup = useGroupRef();
+  const initialDocumentLayouts = useRef(new Map<string, Record<string, number>>());
 
   // Each document restores its own geometry. The panel list also separates an
   // inspector-free layout from one that owns the right panel.
   const layout = useDefaultLayout({
     id: `${layoutId}:tab:${encodeURIComponent(activeTab)}`,
-    panelIds: hasRight ? PANELS_WITH_RIGHT : PANELS_WITHOUT_RIGHT,
+    panelIds: PANEL_IDS[hasLeft ? (hasRight ? 'both' : 'left') : (hasRight ? 'right' : 'neither')],
   });
 
   // A second, independent layout for the centre column's split. Only created
@@ -162,6 +165,20 @@ export function ShellLayout<T extends Tab>({
     id: `${layoutId}-column`,
     panelIds: ['main', 'bottom'],
   });
+
+  useLayoutEffect(() => {
+    const group = documentGroup.current;
+    if (!group) return;
+    const nextLayout = layout.defaultLayout ?? initialDocumentLayouts.current.get(documentStructure);
+    if (nextLayout) group.setLayout(nextLayout);
+  }, [activeTab, documentGroup, documentStructure, layout.defaultLayout]);
+
+  const onDocumentLayoutChanged = useCallback((nextLayout: Layout, meta: LayoutChangedMeta) => {
+    if (!initialDocumentLayouts.current.has(documentStructure)) {
+      initialDocumentLayouts.current.set(documentStructure, { ...nextLayout });
+    }
+    layout.onLayoutChanged(nextLayout, meta);
+  }, [documentStructure, layout]);
 
   const togglePanel = useCallback(
     (panel: ShellPanel) => {
@@ -184,7 +201,6 @@ export function ShellLayout<T extends Tab>({
       role="tabpanel"
       id={getTabPanelId(tabIdBase, activeTab)}
       aria-labelledby={getTabTriggerId(tabIdBase, activeTab)}
-      tabIndex={0}
     >
       {main}
     </div>
@@ -199,14 +215,16 @@ export function ShellLayout<T extends Tab>({
             leading={
               <>
                 {titleBarLeading}
-                <IconButton
-                  label={leftCollapsed ? 'Show sidebar' : 'Hide sidebar'}
-                  onClick={() => togglePanel('left')}
-                  active={!leftCollapsed}
-                  testId="toggle-left"
-                >
-                  <PanelLeft size={15} />
-                </IconButton>
+                {hasLeft && (
+                  <IconButton
+                    label={leftCollapsed ? 'Show sidebar' : 'Hide sidebar'}
+                    onClick={() => togglePanel('left')}
+                    active={!leftCollapsed}
+                    testId="toggle-left"
+                  >
+                    <PanelLeft size={15} />
+                  </IconButton>
+                )}
               </>
             }
             actions={
@@ -232,34 +250,39 @@ export function ShellLayout<T extends Tab>({
             tabsLabel={tabsLabel}
             newTabLabel={newTabLabel}
             tabIcon={tabIcon}
+            tabTransfer={tabTransfer}
           />
 
           {top}
 
           <Group
-            key={`${activeTab}:${hasRight ? 'with-right' : 'without-right'}`}
+            key={documentStructure}
+            groupRef={documentGroup}
             orientation="horizontal"
             className="panels"
             defaultLayout={layout.defaultLayout}
-            onLayoutChanged={layout.onLayoutChanged}
+            onLayoutChanged={onDocumentLayoutChanged}
           >
-            <Panel
-              id="left"
-              panelRef={leftPanel}
-              defaultSize={leftSize.default}
-              minSize={leftSize.min}
-              maxSize={leftSize.max}
-              collapsible
-              collapsedSize={leftSize.collapsed}
-              onResize={() =>
-                setLeftCollapsed(leftPanel.current?.isCollapsed() ?? false)
-              }
-              className="panel"
-            >
-              {left(leftCollapsed)}
-            </Panel>
-
-            <Separator className="resize-handle" />
+            {hasLeft && (
+              <>
+                <Panel
+                  id="left"
+                  panelRef={leftPanel}
+                  defaultSize={leftSize.default}
+                  minSize={leftSize.min}
+                  maxSize={leftSize.max}
+                  collapsible
+                  collapsedSize={leftSize.collapsed}
+                  onResize={() =>
+                    setLeftCollapsed(leftPanel.current?.isCollapsed() ?? false)
+                  }
+                  className="panel"
+                >
+                  {left(leftCollapsed)}
+                </Panel>
+                <Separator className="resize-handle" />
+              </>
+            )}
 
             <Panel id="main" minSize="30" className="panel panel--canvas">
               {bottom === undefined ? (
@@ -289,10 +312,12 @@ export function ShellLayout<T extends Tab>({
                   </Panel>
                 </Group>
               )}
-              <footer className="statusbar">
-                {status}
-                <span className="statusbar__grow" />
-              </footer>
+              {status !== null && status !== undefined && (
+                <footer className="statusbar">
+                  {status}
+                  <span className="statusbar__grow" />
+                </footer>
+              )}
             </Panel>
 
             {hasRight && (

@@ -36,14 +36,6 @@ vi.mock('electron', () => ({
   },
 }));
 
-vi.mock('../../src/main/native/agent.js', () => ({
-  abortAgent: vi.fn(),
-  discoverProvider: vi.fn(),
-  isAgentBusy: vi.fn(),
-  resolveApproval: vi.fn(),
-  runAgent: vi.fn(),
-}));
-vi.mock('../../src/main/native/llama.js', () => ({ ensureModel: vi.fn() }));
 vi.mock('../../src/main/native/notifications.js', () => ({
   setBadgeCount: vi.fn(),
   showNotification: vi.fn(),
@@ -53,36 +45,51 @@ vi.mock('../../src/main/native/preferences.js', () => ({
   setPreferences: vi.fn(),
 }));
 vi.mock('../../src/main/native/pty.js', () => ({
+  attachPtyProjection: vi.fn(),
   defaultShell: vi.fn(),
+  detachPtyProjection: vi.fn(),
+  focusPtyProjection: vi.fn(),
   killPty: vi.fn(),
   listPtys: vi.fn(() => []),
   resizePty: vi.fn(),
-  spawnPty: vi.fn(),
+  resizePtyProjection: vi.fn(),
+  spawnReservedPty: vi.fn(),
   writePty: vi.fn(),
+  writePtyProjection: vi.fn(),
 }));
 vi.mock('../../src/main/native/updates.js', () => ({ checkForUpdates: vi.fn() }));
-vi.mock('../../src/main/windows/overlay.js', () => ({
-  hideOverlay: vi.fn(),
-  toggleOverlay: vi.fn(),
-}));
-
 const main = await import('../../src/main/ipc.js');
 
 /* --------------------------------------------------- the renderer half */
 
 const called: string[] = [];
 const subscribed: string[] = [];
+const requests: Array<{ channel: string; request: unknown }> = [];
+const listeners = new Map<string, (payload: unknown) => void>();
+let resolveCancelledAttach: ((attached: boolean) => void) | undefined;
 
 // The bridge the preload would expose, in place before the module that reads
 // it loads. `bridgeTerminalTransport` is then the shipped object, not a copy
 // of it built from the same map.
 (globalThis as Record<string, unknown>)[BRIDGE_KEY] = {
-  invoke: (channel: string) => {
+  invoke: (channel: string, request: unknown) => {
     called.push(channel);
+    requests.push({ channel, request });
+    if (channel === 'pty:projection-attach') {
+      if ((request as { id: string }).id === 'cancelled') {
+        return new Promise<boolean>((resolve) => {
+          resolveCancelledAttach = resolve;
+        });
+      }
+      return Promise.resolve((request as { id: string }).id === 'projected');
+    }
+    if (channel === 'pty:projection-focus') return Promise.resolve(7);
+    if (channel.startsWith('pty:projection-')) return Promise.resolve(true);
     return Promise.resolve([]);
   },
-  on: (event: string) => {
+  on: (event: string, listener: (payload: unknown) => void) => {
     subscribed.push(event);
+    listeners.set(event, listener);
     return () => undefined;
   },
 };
@@ -98,6 +105,8 @@ await bridgeTerminalTransport.terminate('one');
 await bridgeTerminalTransport.list();
 await bridgeTerminalTransport.ack?.('one', 1);
 bridgeTerminalTransport.subscribe('one', () => undefined);
+const initialCalls = [...called];
+const initialSubscriptions = [...subscribed];
 
 /* ------------------------------------------------------- the main half */
 
@@ -128,30 +137,31 @@ function answered(): string[] {
 describe('the terminal channels', () => {
   it('calls and answers the same set', () => {
     const names = answered();
+    const genericCalls = initialCalls.filter((channel) => channel !== 'pty:projection-attach');
 
     // The floors. Either half reaching no channel would agree with an empty
     // set, which is the failure this file exists to make visible.
-    expect(called.length).toBeGreaterThan(0);
+    expect(initialCalls.length).toBeGreaterThan(0);
     expect(names.length).toBeGreaterThan(0);
 
-    expect(names).toHaveLength(called.length);
-    expect(new Set(names)).toEqual(new Set(called));
+    expect(names).toHaveLength(genericCalls.length);
+    expect(new Set(names)).toEqual(new Set(genericCalls));
   });
 
-  it('reaches six request channels and two events', () => {
+  it('reaches the projection probe, six generic request channels, and three events', () => {
     // A transport that used one name for two operations would pass the set
     // comparison above, because a set does not count.
-    expect(called).toHaveLength(6);
-    expect(new Set(called).size).toBe(called.length);
-    expect(subscribed).toHaveLength(2);
-    expect(new Set(subscribed).size).toBe(subscribed.length);
+    expect(initialCalls).toHaveLength(7);
+    expect(new Set(initialCalls).size).toBe(initialCalls.length);
+    expect(initialSubscriptions).toHaveLength(3);
+    expect(new Set(initialSubscriptions).size).toBe(initialSubscriptions.length);
   });
 
   it('names only channels and events this shell declares', () => {
-    const names = [...called, ...subscribed];
-    expect(names).toHaveLength(8);
-    expect(called.filter((channel) => !IPC_CHANNELS.includes(channel as never))).toEqual([]);
-    expect(subscribed.filter((event) => !IPC_EVENTS.includes(event as never))).toEqual([]);
+    const names = [...initialCalls, ...initialSubscriptions];
+    expect(names).toHaveLength(10);
+    expect(initialCalls.filter((channel) => !IPC_CHANNELS.includes(channel as never))).toEqual([]);
+    expect(initialSubscriptions.filter((event) => !IPC_EVENTS.includes(event as never))).toEqual([]);
   });
 
   it('registers every channel the contract declares, once', () => {
@@ -163,8 +173,96 @@ describe('the terminal channels', () => {
 
     expect(recorded.registered.length).toBeGreaterThan(0);
     expect([...recorded.registered].sort()).toEqual([...IPC_CHANNELS].sort());
-    expect(recorded.registered.filter((channel) => called.includes(channel)).sort()).toEqual(
-      [...called].sort(),
-    );
+    const applicationTerminalRequests = [
+      'pty:spawn',
+      'pty:write',
+      'pty:resize',
+      'pty:ack',
+      'pty:kill',
+      'pty:list',
+      'pty:projection-attach',
+      'pty:projection-focus',
+      'pty:projection-write',
+      'pty:projection-resize',
+      'pty:projection-detach',
+    ];
+    for (const channel of applicationTerminalRequests) {
+      expect(recorded.registered.filter((registered) => registered === channel)).toHaveLength(1);
+    }
+  });
+
+  it('uses explicit projection identity and epochs without mixing streams', async () => {
+    const events: unknown[] = [];
+    const unsubscribe = bridgeTerminalTransport.subscribe('projected', (event) => events.push(event));
+
+    await bridgeTerminalTransport.spawn({ id: 'projected', cols: 80, rows: 24 });
+    const attach = requests.find(({ channel, request }) =>
+      channel === 'pty:projection-attach' && (request as { id?: string }).id === 'projected');
+    const projectionId = (attach?.request as { projectionId?: string }).projectionId;
+    expect(projectionId).toMatch(/^projection-/);
+
+    await bridgeTerminalTransport.focus?.('projected', 90, 30);
+    await bridgeTerminalTransport.write('projected', 'echo projected\r');
+    await bridgeTerminalTransport.resize('projected', 100, 40);
+    expect(requests).toContainEqual({
+      channel: 'pty:projection-focus',
+      request: {
+        id: 'projected',
+        projectionId,
+        cols: 90,
+        rows: 30,
+      },
+    });
+    expect(requests).toContainEqual({
+      channel: 'pty:projection-write',
+      request: {
+        id: 'projected',
+        projectionId,
+        epoch: 7,
+        data: 'echo projected\r',
+      },
+    });
+    expect(requests).toContainEqual({
+      channel: 'pty:projection-resize',
+      request: {
+        id: 'projected',
+        projectionId,
+        epoch: 7,
+        cols: 100,
+        rows: 40,
+      },
+    });
+
+    listeners.get('pty:data')?.({
+      id: 'projected',
+      projectionId: 'projection-other',
+      data: 'wrong',
+    });
+    listeners.get('pty:data')?.({ id: 'projected', projectionId, data: 'right' });
+    expect(events).toEqual([{ type: 'data', data: 'right', sequence: undefined }]);
+
+    await bridgeTerminalTransport.terminate('projected');
+    expect(requests.at(-1)).toEqual({
+      channel: 'pty:projection-detach',
+      request: { id: 'projected', projectionId },
+    });
+    expect(requests.some(({ channel, request }) =>
+      channel === 'pty:kill' && (request as { id?: string }).id === 'projected')).toBe(false);
+    unsubscribe();
+  });
+
+  it('does not spawn an unreserved local session after a pending probe is cancelled', async () => {
+    const spawning = bridgeTerminalTransport.spawn({ id: 'cancelled', cols: 80, rows: 24 });
+    const terminating = bridgeTerminalTransport.terminate('cancelled');
+
+    resolveCancelledAttach?.(false);
+    await Promise.all([spawning, terminating]);
+
+    expect(requests.some(({ channel, request }) =>
+      channel === 'pty:spawn' && (request as { id?: string }).id === 'cancelled')).toBe(false);
+    expect(requests).toContainEqual({
+      channel: 'pty:kill',
+      request: { id: 'cancelled' },
+    });
   });
 });

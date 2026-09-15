@@ -14,7 +14,7 @@
  * Then re-cut as often as you like:
  *
  *   npm run compose                 every edit that has a take
- *   npm run compose -- workflow     one of them
+ *   npm run compose -- pipeline-check     one of them
  *
  * `ffmpeg` and `ffprobe` have to be installed. `src/main/native/ffmpeg.ts`
  * owns that search and says what to do when they are missing.

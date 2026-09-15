@@ -13,14 +13,15 @@ this document deliberately does not mirror it, because the mirrored copy drifted
 badly enough to be worse than no copy at all.
 
 `src/` was removed in #442 and now contains only the composition that joins
-Core's public startup seam to the optional generic DSH provider host. It must not
-acquire routes, provider implementations, or engine policy.
+Core's public startup seam to the optional generic DSH provider host and the
+statically linked first-party configurator runtime. It must not acquire routes,
+provider implementations, or engine policy.
 
 ## What lives where
 
 | Path                     | Purpose                                                                                                                                                                                    |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `src/`                   | Packaging composition only: invokes Core's real CLI and supplies a lazy, contract-shaped provider gateway. Concrete providers never live here.                                             |
+| `src/`                   | Packaging composition only: invokes Core's real CLI and supplies a lazy, contract-shaped provider gateway plus the built-in configurator runtime. Concrete providers never live here.     |
 | `client/`                | Electron 43 + React 19 + TypeScript + Vite desktop app. Compiles the same composition into its `maximal-core` sidecar via `client/scripts/build-core.ts`.                                  |
 | `scripts/`               | Release and packaging tooling: `sync-homebrew-formula.ts`, `sbom.ts`, `secret-scan.sh`, plus `scripts/dev/verify-build.ts`.                                                                |
 | `build/`                 | Distribution templates — `build/homebrew/` and `build/macos/`.                                                                                                                             |
@@ -41,14 +42,15 @@ The build starts at the package-owned composition entry:
 bun build src/main.ts --target=bun --outdir dist
 ```
 
-The composition invokes Core's public CLI unchanged and supplies only a
-provider-gateway factory. `dev` and `start` run the same source entry directly;
-`prepack` runs `build`.
+The composition invokes Core's public CLI unchanged and supplies a
+provider-gateway factory plus the built-in configurator runtime. `dev` and
+`start` run the same source entry directly; `prepack` runs `build`.
 
-The generic DSH host and provider contract may be compiled into the artifact.
-Cordis, the DSH runtime, service plugins, and concrete adapters remain external
-profile dependencies. Package-boundary and bundle-metafile checks fail if oMLX,
-the external Anthropic adapter, or fixture-provider code enters the CLI.
+The generic DSH host, provider contract, and configurator-owned Cordis runtime
+may be compiled into the artifact. The DSH runtime, service plugins, and
+concrete adapters remain external profile dependencies. Package-boundary and
+bundle-metafile checks fail if oMLX, the external Anthropic adapter, or
+fixture-provider code enters the CLI.
 
 `client/scripts/build-core.ts` compiles this same entry into the sidecar while
 retaining the historical `resources/bin/maximal-core` filename and Core build

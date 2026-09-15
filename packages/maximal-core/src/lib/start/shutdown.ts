@@ -1,26 +1,16 @@
 /**
  * Shutdown plumbing: SIGTERM / SIGINT handlers + an `exit`-event
- * safety-net reverter + optional parent-death watchdog. The desktop
- * shell spawns the sidecar with MAXIMAL_SIDECAR_PARENT_PID so the
- * sidecar self-terminates if the shell crashes without sending
- * SIGTERM. Drain order, including the Claude Code revert step, is
- * documented inline in initiateShutdown().
- *
- * Coverage matrix for the Claude Code base-URL revert:
- *   - SIGTERM / SIGINT          → initiateShutdown ✓
- *   - process.exit(n) anywhere  → `exit` event safety net ✓
- *   - uncaught exception        → `exit` event safety net ✓
- *   - shell parent died         → parent-pid watchdog → initiateShutdown ✓
- *   - SIGKILL / OS-level kill   → ✗ no userspace runs. Sentinel-based
- *                                  warning on next boot (run-server.ts)
- *                                  diagnoses but can't auto-recover.
+ * safety net + optional parent-death watchdog. The desktop shell spawns
+ * the sidecar with MAXIMAL_SIDECAR_PARENT_PID so the sidecar self-terminates
+ * if the shell crashes without sending SIGTERM. Async configurator disposal
+ * runs during the normal drain; abrupt exits leave liveness-checked claims for
+ * the next Maximal process to recover.
  */
 
 import type { serve } from "srvx"
 
 import consola from "consola"
 
-import { reconcileClaudeCodeOnShutdown } from "~/apps/claude-code/reconcile"
 import { removePidfile } from "~/lib/platform/replace-running"
 
 import { clearSessionRunning } from "./session-sentinel"
@@ -29,24 +19,30 @@ import { clearSessionRunning } from "./session-sentinel"
 // (or being delivered twice) doesn't double-stop the server.
 let shuttingDown = false
 
-/** Stop the HTTP server, then exit 0. Capped at ~2.5s by an unref'd
- *  watchdog timer so a hung close() can't keep the process alive. */
+/** Test-only: reset the process-lifetime shutdown latch. @internal */
+export function __resetShutdownStateForTests(): void {
+  shuttingDown = false
+}
+
+export interface ShutdownHooks {
+  /** Restore configured clients while the proxy is still reachable. */
+  beforeClose?: () => Promise<void>
+  /** Dispose providers after no new requests can enter. */
+  afterClose?: () => Promise<void>
+}
+
+/** Restore configured clients, stop the HTTP servers, then exit 0. Capped at
+ *  ~2.5s by an unref'd watchdog so a hung lifecycle step cannot keep the
+ *  process alive. */
 export async function initiateShutdown(
   servers: Array<ReturnType<typeof serve>>,
   reason: string,
-  disposeProviderGateway?: () => Promise<void>,
+  hooks: ShutdownHooks = {},
 ): Promise<void> {
   if (shuttingDown) return
   shuttingDown = true
 
   consola.info(`shutdown: ${reason}, draining`)
-
-  // Take Claude Code off the proxy before we stop accepting connections,
-  // so `claude` isn't stranded over a dead base URL. Ownership-guarded and
-  // intent-gated (no-op when routing is off); the intent flag persists, so
-  // the next boot re-applies it. Synchronous + best-effort — a slow/failed
-  // file write must not delay or block the drain.
-  reconcileClaudeCodeOnShutdown()
 
   // Fail-safe: if close() hangs, hard-exit after 2.5s. .unref() so the
   // timer itself never holds the loop open in the happy path.
@@ -55,6 +51,12 @@ export async function initiateShutdown(
     process.exit(1)
   }, 2500)
   watchdog.unref()
+
+  try {
+    await hooks.beforeClose?.()
+  } catch (error) {
+    consola.warn("shutdown: pre-close disposal threw", error)
+  }
 
   // Close every listener. Since maximal-core#10 there are two (public /v1 and
   // the private control plane); one left open would keep the port held and make
@@ -69,9 +71,9 @@ export async function initiateShutdown(
   }
 
   try {
-    await disposeProviderGateway?.()
+    await hooks.afterClose?.()
   } catch (error) {
-    consola.warn("shutdown: provider gateway disposal threw", error)
+    consola.warn("shutdown: post-close disposal threw", error)
   }
 
   // Pidfile is a hint, not a lock — best-effort cleanup.
@@ -89,39 +91,28 @@ export async function initiateShutdown(
  *  watchdog. The watchdog only runs when MAXIMAL_SIDECAR_PARENT_PID
  *  is set (desktop shell spawn); bare CLI users own their own lifecycle.
  *
- *  The `exit` listener is a last-chance synchronous reverter for the
- *  Claude Code base URL. Node fires `exit` on:
- *    - any process.exit(n) call (from anywhere in the codebase)
- *    - the default-throw behaviour of unhandledRejection
- *    - an uncaughtException reaching the top-level handler
- *  …none of which currently route through initiateShutdown(). The
- *  reverter is idempotent (no-op when the URL is absent or foreign),
- *  so it's safe even when initiateShutdown ALSO runs first. */
+ *  The synchronous `exit` listener can clear only the diagnostic session
+ *  marker. It deliberately leaves target claims intact: the next Maximal
+ *  process verifies the recorded runtime identity and performs conditional
+ *  stale-owner recovery. */
 export function installShutdownHandlers(
   servers: Array<ReturnType<typeof serve>>,
-  disposeProviderGateway?: () => Promise<void>,
+  hooks: ShutdownHooks = {},
 ): void {
   process.on("SIGTERM", () => {
-    void initiateShutdown(servers, "received SIGTERM", disposeProviderGateway)
+    void initiateShutdown(servers, "received SIGTERM", hooks)
   })
   process.on("SIGINT", () => {
-    void initiateShutdown(servers, "received SIGINT", disposeProviderGateway)
+    void initiateShutdown(servers, "received SIGINT", hooks)
   })
 
-  // Safety net: synchronous revert on any Node-controlled exit path,
-  // including process.exit() and uncaughtException. Doesn't run on
-  // SIGKILL or OS-level termination — those need an external watchdog
-  // (the boot-time stale-session warning surfaces them after the fact).
+  // Exit handlers cannot await configurator disposal. Leave any target claim
+  // intact so the next Maximal can verify liveness and recover it safely.
   process.on("exit", () => {
-    try {
-      reconcileClaudeCodeOnShutdown()
-    } catch {
-      // exit handlers can't throw — and we're exiting anyway.
-    }
     try {
       clearSessionRunning()
     } catch {
-      // same — best-effort.
+      // Exit handlers cannot throw — and we're exiting anyway.
     }
   })
 
@@ -138,11 +129,7 @@ export function installShutdownHandlers(
       } catch {
         clearInterval(interval)
         consola.warn(`shutdown: parent ${parentPid} gone`)
-        void initiateShutdown(
-          servers,
-          `parent ${parentPid} exited`,
-          disposeProviderGateway,
-        )
+        void initiateShutdown(servers, `parent ${parentPid} exited`, hooks)
       }
     }, 3000)
     interval.unref()

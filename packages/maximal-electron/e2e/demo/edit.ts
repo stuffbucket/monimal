@@ -71,13 +71,7 @@ export interface Clip {
   to?: string;
   /** `false` hides the card. An object moves it. Default is as captured. */
   card?: false | { placement: CaptionPlacement };
-  /**
-   * Tolerate a sequence the take does not hold.
-   *
-   * Some sequences only exist under the right conditions. The workflow
-   * timeline skips its overlay scenes when no local model is running, rather
-   * than faking them, so an edit that names them has to survive their absence.
-   */
+  /** Tolerate a sequence the take does not hold. */
   optional?: boolean;
 }
 

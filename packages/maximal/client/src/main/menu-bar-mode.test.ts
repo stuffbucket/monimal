@@ -204,6 +204,25 @@ describe('MenuBarModeController', () => {
     expect(dockShow).not.toHaveBeenCalled()
   })
 
+  it('preserves harness policy fields when menu-bar mode is persisted', async () => {
+    readFile.mockResolvedValue(
+      JSON.stringify({
+        agentApproval: 'all',
+        agentTools: false,
+        agentToolsets: ['app'],
+      }),
+    )
+    const controller = new MenuBarModeController(vi.fn())
+    const attempt = controller.beginEnable()
+
+    await controller.confirmEnable(attempt.attemptId)
+
+    expect(writeFile).toHaveBeenCalledWith(
+      '/profile/preferences.json',
+      '{\n  "agentApproval": "all",\n  "agentTools": false,\n  "agentToolsets": [\n    "app"\n  ],\n  "menuBarOnly": true\n}\n',
+    )
+  })
+
   it('restores launcher presence when confirmation cannot be persisted', async () => {
     writeFile.mockRejectedValue(new Error('disk full'))
     const controller = new MenuBarModeController(vi.fn())
@@ -309,6 +328,7 @@ describe('MenuBarModeController', () => {
     const attempt = controller.beginEnable()
 
     const confirmation = controller.confirmEnable(attempt.attemptId)
+    await Promise.resolve()
     await Promise.resolve()
     controller.cancelPending()
     resolveWrite()

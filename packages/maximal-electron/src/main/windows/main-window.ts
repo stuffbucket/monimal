@@ -1,11 +1,12 @@
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 
-import type { BrowserWindow } from 'electron';
+import type { BrowserWindow, Rectangle } from 'electron';
 
 import type { HostWindowOptions } from '../../host/host-window.js';
 import { windowIcon } from '../native/app-icon.js';
 import { isDemo } from '../native/preferences.js';
+import { isTerminalLab } from '../native/terminal-lab.js';
 
 /**
  * The main application window, as options for the shell's own host window.
@@ -19,7 +20,12 @@ import { isDemo } from '../native/preferences.js';
  * here: a quiet test run parks the window off screen first, and bounds have to
  * be set before it shows.
  */
-export function mainWindowOptions(): HostWindowOptions {
+export function mainWindowOptions(
+  bounds?: Rectangle,
+  terminalSessionId?: string,
+  terminalTitle?: string,
+  terminalPane?: unknown,
+): HostWindowOptions {
   return {
     preloadPath: path.join(__dirname, 'preload.js'),
     // `checkForUpdate` is deliberately absent. This build has no update
@@ -27,8 +33,9 @@ export function mainWindowOptions(): HostWindowOptions {
     // capability that is present and useless is what feature detection is for.
     bridge: { capabilities: ['openExternal', 'versions'] },
     title: 'Stuffbucket',
-    width: 1280,
-    height: 820,
+    ...(bounds ? { x: bounds.x, y: bounds.y } : {}),
+    width: bounds?.width ?? 1280,
+    height: bounds?.height ?? 820,
     minWidth: 880,
     minHeight: 560,
     backgroundColor: '#16181d',
@@ -48,11 +55,20 @@ export function mainWindowOptions(): HostWindowOptions {
         }),
     trafficLightPosition: { x: 14, y: 13 },
     showWhenReady: false,
-    loadRenderer,
+    loadRenderer: (window) => loadRenderer(window, terminalSessionId, terminalTitle, terminalPane),
   };
 }
 
-function loadRenderer(window: BrowserWindow): void {
+function loadRenderer(
+  window: BrowserWindow,
+  terminalSessionId?: string,
+  terminalTitle?: string,
+  terminalPane?: unknown,
+): void {
+  if (isTerminalLab()) {
+    loadTerminalLab(window, terminalSessionId, terminalTitle, terminalPane);
+    return;
+  }
   if (isDemo()) {
     loadDemoShell(window);
     return;
@@ -69,6 +85,35 @@ function loadRenderer(window: BrowserWindow): void {
   void window.loadFile(
     path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
   );
+}
+
+function loadTerminalLab(
+  window: BrowserWindow,
+  terminalSessionId?: string,
+  terminalTitle?: string,
+  terminalPane?: unknown,
+): void {
+  const query = new URLSearchParams();
+  if (terminalSessionId) query.set('sessionId', terminalSessionId);
+  if (terminalTitle) query.set('title', terminalTitle);
+  if (terminalPane) query.set('pane', JSON.stringify(terminalPane));
+  const search = query.toString() === '' ? '' : `?${query.toString()}`;
+  if (TERMINAL_LAB_WINDOW_VITE_DEV_SERVER_URL) {
+    void window.loadURL(`${TERMINAL_LAB_WINDOW_VITE_DEV_SERVER_URL}${search}`);
+    window.webContents.openDevTools({ mode: 'detach' });
+    return;
+  }
+
+  const page = path.join(
+    __dirname,
+    `../renderer/${TERMINAL_LAB_WINDOW_VITE_NAME}/index.html`,
+  );
+  if (!existsSync(page)) {
+    throw new Error(
+      'The terminal lab renderer is not in this build. Run it from the repository root with `pnpm dev:terminal`.',
+    );
+  }
+  void window.loadFile(page, search === '' ? undefined : { search });
 }
 
 /**

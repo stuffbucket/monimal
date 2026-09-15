@@ -150,7 +150,7 @@ function annotateTrafficDispatch({
       at,
       attribution: {
         source: null,
-        client: null,
+        client: boundedIdentifier(store.apiKeyLabel),
         project: null,
         provider: null,
         model: resolvedModel,

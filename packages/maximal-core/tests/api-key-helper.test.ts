@@ -4,7 +4,9 @@ import type { ApiKeyEntry, AppConfig } from "~/lib/config/config"
 
 import {
   apiKeyHelperCommand,
+  disableManagedApiKey,
   ensureDefaultEndpointKey,
+  ensureManagedApiKey,
   generateApiKeyValue,
   isOwnedApiKeyHelper,
   isWritableApiKeyHelper,
@@ -54,6 +56,26 @@ function ensureKeyHarness(initial: AppConfig) {
     now: () => "2026-07-20T00:00:00.000Z",
   }
   return { deps, writes, get: () => current }
+}
+
+function managedKeyHarness(initial: AppConfig) {
+  let current = initial
+  const writes: Array<AppConfig> = []
+  const update = (mutator: (config: AppConfig) => AppConfig): AppConfig => {
+    current = mutator(current)
+    writes.push(current)
+    return current
+  }
+  return {
+    deps: {
+      update,
+      mintKey: () => "mxl_managed",
+      now: () => "2026-07-20T00:00:00.000Z",
+    },
+    update,
+    writes,
+    get: () => current,
+  }
 }
 
 describe("apiKeyHelperCommand", () => {
@@ -311,6 +333,99 @@ describe("isOwnedApiKeyHelper", () => {
   test("rejects non-string input", () => {
     expect(isOwnedApiKeyHelper(undefined, "claude-code")).toBe(false)
     expect(isOwnedApiKeyHelper(42, "claude-code")).toBe(false)
+  })
+})
+
+describe("managed configurator API keys", () => {
+  test("mints one stable managed key without changing manual entries", () => {
+    const manual = entry({ id: "manual", kind: "manual" })
+    const harness = managedKeyHarness(config({ apiKeyEntries: [manual] }))
+
+    const created = ensureManagedApiKey(
+      "claude-code",
+      "Claude Code",
+      harness.deps,
+    )
+
+    expect(created).toEqual({
+      id: "managed:claude-code",
+      label: "Claude Code",
+      key: "mxl_managed",
+      enabled: true,
+      created_at: "2026-07-20T00:00:00.000Z",
+      kind: "managed",
+      configurator_id: "claude-code",
+    })
+    expect(harness.get().auth?.apiKeyEntries).toEqual([manual, created])
+  })
+
+  test("reuses and re-enables the configurator's existing key", () => {
+    const existing = entry({
+      id: "managed:claude-code",
+      label: "Old label",
+      key: "mxl_existing",
+      enabled: false,
+      kind: "managed",
+      configurator_id: "claude-code",
+    })
+    const harness = managedKeyHarness(config({ apiKeyEntries: [existing] }))
+
+    const resolved = ensureManagedApiKey(
+      "claude-code",
+      "Claude Code",
+      harness.deps,
+    )
+
+    expect(resolved).toEqual({
+      ...existing,
+      label: "Claude Code",
+      enabled: true,
+    })
+    expect(resolved.key).toBe("mxl_existing")
+  })
+
+  test("refuses to reuse a manual entry with the stable managed id", () => {
+    const harness = managedKeyHarness(
+      config({
+        apiKeyEntries: [entry({ id: "managed:claude-code", kind: "manual" })],
+      }),
+    )
+
+    expect(() =>
+      ensureManagedApiKey("claude-code", "Claude Code", harness.deps),
+    ).toThrow("API key id is already in use: managed:claude-code")
+  })
+
+  test("disables only the matching managed key", () => {
+    const managed = entry({
+      id: "managed:claude-code",
+      label: "Claude Code",
+      key: "mxl_existing",
+      kind: "managed",
+      configurator_id: "claude-code",
+    })
+    const manual = entry({ id: "manual", kind: "manual" })
+    const harness = managedKeyHarness(
+      config({
+        apiKeyEntries: [managed, manual],
+      }),
+    )
+
+    disableManagedApiKey("claude-code", harness.update)
+
+    expect(harness.get().auth?.apiKeyEntries).toEqual([
+      { ...managed, enabled: false },
+      manual,
+    ])
+  })
+
+  test("disabling an absent managed key preserves the config value", () => {
+    const initial = config({ apiKeyEntries: [entry({ kind: "manual" })] })
+    const harness = managedKeyHarness(initial)
+
+    disableManagedApiKey("claude-code", harness.update)
+
+    expect(harness.get()).toBe(initial)
   })
 })
 

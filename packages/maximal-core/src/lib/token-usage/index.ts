@@ -109,7 +109,9 @@ function toPersistedEvent(
   }
 
   const now = new Date()
+  const context = requestContext.getStore()
   return {
+    api_key_id: context?.apiKeyId ?? null,
     cache_creation_input_tokens: normalizeToken(
       input.cache_creation_input_tokens,
     ),
@@ -120,6 +122,7 @@ function toPersistedEvent(
     input_tokens: normalizeToken(input.input_tokens),
     model: input.model.trim() || "unknown",
     output_tokens: normalizeToken(input.output_tokens),
+    project_id: null,
     provider_name: input.providerName?.trim() || null,
     session_id: resolveTokenUsageSessionId(
       input.sessionId,
@@ -226,7 +229,7 @@ function annotateTrafficObservation(input: TokenUsageEventInput): void {
       at,
       attribution: {
         source: input.source,
-        client: null,
+        client: boundedTrafficIdentifier(store.apiKeyLabel),
         project: null,
         provider:
           input.source === "provider" ?

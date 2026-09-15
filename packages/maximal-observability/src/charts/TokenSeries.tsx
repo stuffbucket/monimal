@@ -1,5 +1,9 @@
 import type { TrafficTokenSeries } from "@stuffbucket/maximal-observability-contract"
 
+import {
+  ChartViewport,
+  DataVizLegend,
+} from "@stuffbucket/maximal-data-visualization"
 import { useId } from "react"
 
 import { deriveTokenStacks, scaleLinear } from "../derive.ts"
@@ -39,22 +43,24 @@ export function TokenSeriesChart({ series }: { series: TrafficTokenSeries }) {
           </p>
         </div>
       </header>
-      <ul className="mo-legend" aria-label="Token series legend">
-        {SERIES.map(({ key, label }, index) => (
-          <li key={key}>
-            <span className={`mo-legend-mark mo-series-${String(index)}`} />
-            {label}
-          </li>
-        ))}
-      </ul>
+      <DataVizLegend
+        ariaLabel="Token series legend"
+        items={SERIES.map(({ key, label }, index) => ({
+          id: key,
+          label,
+          swatch: (
+            <span className={`mo-legend-mark mo-series-${String(index + 1)}`} />
+          ),
+        }))}
+      />
       {stacks.length === 0 ?
         <p className="mo-state">
           No token activity is available for these filters.
         </p>
       : <>
-          <div className="mo-chart-scroll">
+          <ChartViewport>
             <svg
-              className="mo-token-chart"
+              className="mo-token-chart data-viz-chart"
               viewBox="0 0 720 190"
               role="img"
               aria-labelledby={`${titleId} ${descriptionId}`}
@@ -79,14 +85,14 @@ export function TokenSeriesChart({ series }: { series: TrafficTokenSeries }) {
               {[0, 0.5, 1].map((fraction) => (
                 <g key={fraction}>
                   <line
-                    className="mo-grid-line"
+                    className="data-viz-grid-line"
                     x1="32"
                     x2="712"
                     y1={12 + plotHeight * fraction}
                     y2={12 + plotHeight * fraction}
                   />
                   <text
-                    className="mo-axis-label"
+                    className="data-viz-axis-label"
                     x="0"
                     y={16 + plotHeight * fraction}
                   >
@@ -98,7 +104,11 @@ export function TokenSeriesChart({ series }: { series: TrafficTokenSeries }) {
                 let offset = 0
                 const x = 32 + stackIndex * gap + (gap - barWidth) / 2
                 return (
-                  <g key={stack.start} tabIndex={0}>
+                  <g
+                    key={stack.start}
+                    className="data-viz-focusable"
+                    tabIndex={0}
+                  >
                     <title>{`${formatTimestamp(stack.start)}: ${formatCount(stack.total)} total tokens`}</title>
                     {stack.values.map((value, seriesIndex) => {
                       const segmentHeight = scaleLinear(
@@ -111,7 +121,7 @@ export function TokenSeriesChart({ series }: { series: TrafficTokenSeries }) {
                       return (
                         <rect
                           key={SERIES[seriesIndex]?.key}
-                          className={`mo-token-segment mo-series-${String(seriesIndex)}`}
+                          className={`mo-token-segment mo-series-${String(seriesIndex + 1)}`}
                           x={x}
                           y={y}
                           width={barWidth}
@@ -127,7 +137,7 @@ export function TokenSeriesChart({ series }: { series: TrafficTokenSeries }) {
                 )
               })}
             </svg>
-          </div>
+          </ChartViewport>
           <div className="mo-table-scroll">
             <table>
               <caption>Token counts by time bucket</caption>

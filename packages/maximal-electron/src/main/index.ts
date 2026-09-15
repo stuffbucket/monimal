@@ -2,14 +2,13 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { BrowserWindow, app, globalShortcut } from 'electron';
+import { app, dialog, screen, BrowserWindow, type BrowserWindow as BrowserWindowType } from 'electron';
 
 import { RUN_MAIN_OPTIONS_VERSION, runMain } from '../host/run-main.js';
-import { registerIpcHandlers, sendEvent } from './ipc.js';
+import { configureTerminalWindowActions, registerIpcHandlers, sendEvent } from './ipc.js';
 import { focusWindow, installApplicationMenu } from './native/menu.js';
 import { applyDockIcon } from './native/app-icon.js';
 import { clearBadge } from './native/notifications.js';
-import { isAgentBusy, shutdownAgent } from './native/agent.js';
 import {
   getPreferences,
   isDemo,
@@ -18,17 +17,21 @@ import {
   onPreferencesChanged,
   quietBounds,
 } from './native/preferences.js';
-import { configurePty, killAllPtys } from './native/pty.js';
+import { configurePty, copyPty, killAllPtys, transferPty } from './native/pty.js';
+import { createHostWindow } from '../host/host-window.js';
 import { showCrashReports, startCrashReports } from './native/crash-reports.js';
-import { llamaCheckRequested } from './native/llama-protocol.js';
 import { selfCheckRequested } from './native/self-check.js';
-import { runLlamaCheck } from './llama-check.js';
+import {
+  isTerminalLab,
+  restoreTerminalLabWindowBounds,
+  saveTerminalLabWindowState,
+} from './native/terminal-lab.js';
 import { runSelfCheck } from './self-check.js';
 import { destroyTray, setTrayEnabled } from './native/tray.js';
 import { checkForUpdates } from './native/updates.js';
 import { mainWindowOptions } from './windows/main-window.js';
-import { destroyOverlay, toggleOverlay } from './windows/overlay.js';
 import { closeSplashWindow, createSplashWindow } from './windows/splash.js';
+import { createTerminalSessionMetadataStore } from './native/session-metadata.js';
 
 /*
  * Pick the profile before anything else touches it.
@@ -49,11 +52,12 @@ import { closeSplashWindow, createSplashWindow } from './windows/splash.js';
  */
 function profileDirectory(): string | undefined {
   if (isE2E()) return mkdtempSync(path.join(tmpdir(), 'stuffbucket-e2e-'));
+  if (isTerminalLab()) return `${app.getPath('userData')}-terminal-lab`;
   if (isDemo()) return `${app.getPath('userData')}-demo`;
   return undefined;
 }
 
-let mainWindow: BrowserWindow | undefined;
+let mainWindow: BrowserWindowType | undefined;
 let activate: () => void = () => undefined;
 
 /* ------------------------------------------------------------ dock state */
@@ -85,10 +89,6 @@ function setDockVisible(visible: boolean): void {
   else app.dock.hide();
 }
 
-function hasOpenWindow(): boolean {
-  return BrowserWindow.getAllWindows().some((window) => !window.isDestroyed());
-}
-
 /* ---------------------------------------------------------------- windows */
 
 /**
@@ -101,7 +101,7 @@ function hasOpenWindow(): boolean {
  */
 let focusNextWindow = false;
 
-function onActivate(window: BrowserWindow | undefined): void {
+function onActivate(window: BrowserWindowType | undefined): void {
   setDockVisible(true);
   if (window) {
     focusWindow(window);
@@ -110,8 +110,32 @@ function onActivate(window: BrowserWindow | undefined): void {
   focusNextWindow = true;
 }
 
-function wireWindow(window: BrowserWindow): void {
+function wireWindow(window: BrowserWindowType): void {
   mainWindow = window;
+
+  if (isTerminalLab() && !isE2E()) {
+    const appPath = app.getAppPath();
+    let saveTimer: ReturnType<typeof setTimeout> | undefined;
+    const saveWindowState = () => {
+      const currentBounds = window.getBounds();
+      saveTerminalLabWindowState(
+        appPath,
+        screen.getDisplayMatching(currentBounds),
+        currentBounds,
+      );
+    };
+    const scheduleWindowStateSave = () => {
+      if (saveTimer) clearTimeout(saveTimer);
+      saveTimer = setTimeout(saveWindowState, 100);
+      saveTimer.unref();
+    };
+    window.on('move', scheduleWindowStateSave);
+    window.on('resize', scheduleWindowStateSave);
+    window.on('close', () => {
+      if (saveTimer) clearTimeout(saveTimer);
+      saveWindowState();
+    });
+  }
 
   window.once('ready-to-show', () => {
     closeSplashWindow();
@@ -130,39 +154,6 @@ function wireWindow(window: BrowserWindow): void {
   });
 }
 
-/* --------------------------------------------------------------- overlay */
-
-let boundHotkey: string | undefined;
-
-/**
- * Bind the summon accelerator.
- *
- * `globalShortcut.register` returns false when another application already
- * owns the combination. Report that rather than leaving the user with a key
- * that silently does nothing.
- */
-function bindOverlayHotkey(accelerator: string): void {
-  if (boundHotkey === accelerator) return;
-
-  if (boundHotkey) globalShortcut.unregister(boundHotkey);
-  boundHotkey = undefined;
-
-  if (!accelerator) return;
-
-  try {
-    if (globalShortcut.register(accelerator, toggleOverlay)) {
-      boundHotkey = accelerator;
-    } else {
-      console.error(
-        `Overlay hotkey "${accelerator}" is already taken by another application.`,
-      );
-    }
-  } catch (error) {
-    // An malformed accelerator throws rather than returning false.
-    console.error(`Overlay hotkey "${accelerator}" is not valid:`, error);
-  }
-}
-
 /* --------------------------------------------------------------- updates */
 
 async function runUpdateCheck(): Promise<void> {
@@ -174,21 +165,105 @@ async function runUpdateCheck(): Promise<void> {
 
 function bootstrap(): void {
   const prefs = getPreferences();
+  const sessionMetadata = createTerminalSessionMetadataStore();
 
   // An unpackaged run shows Electron's own dock icon until this call. A
   // packaged build already carries the bundle icon; this keeps the two the
   // same when `STUFFBUCKET_ICON_DIR` overrides it.
   applyDockIcon(process.platform);
 
+  configureTerminalWindowActions({
+    frameId: (window) => String(window?.id ?? ''),
+    undock: (owner, request) => {
+      if (!owner) return false;
+      const detached = createHostWindow(mainWindowOptions(
+        { x: request.x, y: request.y, width: 1000, height: 700 },
+        request.id,
+        request.title,
+        request.pane,
+      ));
+      const ids = request.sessionIds ?? [request.id];
+      const moved = ids.every((id) => transferPty(owner, detached, {
+        id,
+        cols: request.cols,
+        rows: request.rows,
+      }));
+      if (!moved) {
+        detached.close();
+      } else {
+        sessionMetadata.remember({
+          sessionId: request.id,
+          title: request.title,
+          frameId: String(detached.id),
+          bounds: detached.getBounds(),
+        });
+        detached.once('ready-to-show', () => {
+          detached.show();
+          focusWindow(detached);
+        });
+      }
+      return moved;
+    },
+    copy: (owner, request) => {
+      if (!owner) return false;
+      const detached = createHostWindow(mainWindowOptions(
+        { x: request.x, y: request.y, width: 1000, height: 700 },
+        request.id,
+        request.title,
+        request.pane,
+      ));
+      const ids = request.sessionIds ?? [request.id];
+      const copied = ids.every((id) => copyPty(owner, detached, {
+        id,
+        cols: request.cols,
+        rows: request.rows,
+      }));
+      if (!copied) {
+        detached.close();
+      } else {
+        detached.once('ready-to-show', () => {
+          detached.show();
+          focusWindow(detached);
+        });
+      }
+      return copied;
+    },
+    redock: (owner, request) => {
+      if (!owner) return false;
+      const source = BrowserWindow.fromId(Number(request.sourceFrameId));
+      const target = BrowserWindow.fromId(Number(request.targetFrameId));
+      if (!source || !target) return false;
+      const ids = request.sessionIds ?? [request.id];
+      const moved = ids.every((id) => transferPty(source, target, {
+        id,
+        cols: request.cols,
+        rows: request.rows,
+      }));
+      if (moved) {
+        sendEvent(target, 'terminal:tab-redocked', {
+          id: request.id,
+          title: request.title,
+          ...(request.pane ? { pane: request.pane } : {}),
+        });
+        sessionMetadata.forget(request.id);
+        source.close();
+      }
+      return moved;
+    },
+  });
   registerIpcHandlers();
 
   // Terminal output is pushed, not polled, so the pty layer needs a way to
   // reach a window. It has no Electron import of its own, and it addresses the
   // window that owns the session rather than whichever one is current.
   configurePty({
-    emit: (owner, id, data, sequence) => sendEvent(owner, 'pty:data', { id, data, sequence }),
-    onExit: (owner, id, exitCode) => sendEvent(owner, 'pty:exit', { id, exitCode }),
+    emit: (owner, id, data, sequence, projectionId) => sendEvent(owner, 'pty:data', { id, data, sequence, projectionId }),
+    onExit: (owner, id, exitCode, projectionId) => sendEvent(owner, 'pty:exit', { id, exitCode, projectionId }),
     onStatus: (owner, status) => sendEvent(owner, 'pty:status', status),
+    onSize: (window, id, cols, rows, projectionId) =>
+      sendEvent(window, 'pty:size', { id, cols, rows, projectionId }),
+    onPane: (window, id, pane, revision, origin) =>
+      sendEvent(window, 'terminal:pane-changed', { id, pane, revision, origin }),
   });
 
   installApplicationMenu({
@@ -208,43 +283,38 @@ function bootstrap(): void {
   // The tray is a plain click target: it activates the application.
   setTrayEnabled(prefs.menuBarIcon, process.platform, activate);
 
-  bindOverlayHotkey(prefs.overlayHotkey);
-
   // Preferences are the single source of truth, so react to a change from any
   // origin rather than only from the settings panel.
   onPreferencesChanged((next) => {
     setTrayEnabled(next.menuBarIcon, process.platform, activate);
-    bindOverlayHotkey(next.overlayHotkey);
-    // Turning the menu bar icon off while no window is open would otherwise
-    // strand the application with no way to reach it.
-    if (!next.menuBarIcon && !hasOpenWindow()) activate();
     sendEvent(mainWindow, 'prefs:changed', next);
   });
 }
 
-/**
- * Release everything the application owns.
- *
- * The embedded model runs native work on a worker thread. If the Node
- * environment is torn down while any of it is outstanding, the addon completes
- * into an environment that no longer exists, calls `ThrowAsJavaScriptException`
- * against it, and the process aborts inside ggml's terminate handler.
- *
- * Returning the promise is what defers the quit rather than firing cleanup and
- * hoping. The crash lands after the last assertion of a test, so the suite
- * stayed green through four consecutive runs of it.
- */
-function shutdown(): Promise<void> | undefined {
-  // Kill every shell first. A surviving child would outlive the application.
+async function shouldQuitAfterLastWindow(): Promise<boolean> {
+  const prefs = getPreferences();
+  if (prefs.menuBarIcon) return false;
+  if (prefs.quitOnLastWindowClosed) return true;
+
+  const result = await dialog.showMessageBox({
+    type: 'question',
+    title: `Stop ${app.name}?`,
+    message: `Stop ${app.name}?`,
+    detail:
+      `${app.name} and all of its processes will stop. Keep running leaves the application open without a window.`,
+    buttons: ['Keep Running', `Stop ${app.name}`],
+    defaultId: 0,
+    cancelId: 0,
+    noLink: true,
+  });
+  return result.response === 1;
+}
+
+function shutdown(): void {
   killAllPtys();
-  globalShortcut.unregisterAll();
-  destroyOverlay();
   clearBadge();
   destroyTray();
   closeSplashWindow();
-
-  if (!isAgentBusy()) return undefined;
-  return shutdownAgent();
 }
 
 /* ------------------------------------------------------------- lifecycle */
@@ -269,18 +339,18 @@ if (selfCheckRequested(process.argv)) {
    * which is a green run of a check that launched nothing. Issue #89.
    */
   runSelfCheck(process.argv);
-} else if (llamaCheckRequested(process.argv)) {
-  // The other half of the same idea: load the packaged llama.cpp out of
-  // process and survive it aborting. Issue #133.
-  runLlamaCheck();
 } else {
   void runMain(
     { app },
     {
       version: RUN_MAIN_OPTIONS_VERSION,
       userDataDirectory,
-      keepRunningWithoutWindows: () => getPreferences().menuBarIcon,
-      window: mainWindowOptions,
+      shouldQuitAfterLastWindow,
+      window: () => mainWindowOptions(
+        isTerminalLab() && !isE2E()
+          ? restoreTerminalLabWindowBounds(app.getAppPath(), screen.getAllDisplays())
+          : undefined,
+      ),
       onReady: (context) => {
         activate = context.activate;
         if (getPreferences().splash) createSplashWindow();

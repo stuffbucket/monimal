@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 
 import { useComponentStyles } from '../../lib/component-styles.js';
+import { ScrollArea } from '../controls/ScrollArea.js';
 
 /**
  * The rules the settings frame draws itself with.
@@ -59,7 +60,7 @@ export const SETTINGS_STYLES = `
 
 .sb-shell .settings__description {
   margin: 0;
-  font-size: var(--shell-text-sm);
+  font-size: var(--shell-text-base);
   line-height: var(--shell-leading-base);
   color: var(--shell-text-subtle);
   max-width: var(--shell-settings-measure);
@@ -189,7 +190,7 @@ export function SettingsPage({
         {actions}
       </header>
 
-      <div className="settings__body">{children}</div>
+      <ScrollArea className="settings__body">{children}</ScrollArea>
     </div>
   );
 }

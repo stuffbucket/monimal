@@ -33,6 +33,7 @@ The tiered native and Docker test workflow is documented only in
 ## Dependencies
 
 - Use `pnpm` in package scripts.
+- The desktop client MUST be launched from the repository root with `pnpm dev`.
 - Workflows MUST pin dependencies rather than resolve registry or toolchain
   versions, which may be mutated without notice.
 - Dependency registry and SBOM protections MUST be enforced in

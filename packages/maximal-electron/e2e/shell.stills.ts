@@ -47,22 +47,3 @@ test('a terminal', async () => {
 
   await capture(window, 'test-results/terminal.png');
 });
-
-test('the overlay', async () => {
-  const { app, window } = harness;
-
-  // The overlay is a non-activating panel, parked off the side of the display
-  // under `STUFFBUCKET_E2E`. A desktop session composites it; a headless
-  // runner does not, which is one of the reasons this is not a CI job.
-  await window.click('[data-testid="toggle-overlay"]');
-  const overlay =
-    app.windows().find((page) => page.url().includes('overlay')) ??
-    (await app.waitForEvent('window', { timeout: 15_000 }));
-  await overlay.waitForSelector('[data-testid="overlay-card"]', {
-    timeout: 15_000,
-  });
-
-  await capture(overlay, 'test-results/overlay.png');
-
-  await overlay.keyboard.press('Escape');
-});

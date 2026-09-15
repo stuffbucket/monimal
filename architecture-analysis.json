@@ -2,17 +2,12 @@
   "$schema": "./architecture-analysis.schema.json",
   "packages": {
     "@stuffbucket/anthropic-provider": {
-      "root": "packages/anthropic-provider",
+      "root": "packages/model-runtimes/anthropic",
       "cycleEdges": [],
       "duplicatePairs": []
     },
     "@stuffbucket/eslint-config": {
       "root": "packages/eslint-config",
-      "cycleEdges": [],
-      "duplicatePairs": []
-    },
-    "@stuffbucket/llama-server": {
-      "root": "packages/llama-server",
       "cycleEdges": [],
       "duplicatePairs": []
     },
@@ -25,13 +20,23 @@
       "root": "packages/maximal-core",
       "existingRatchets": true
     },
-    "@stuffbucket/maximal-dsh-host": {
-      "root": "packages/maximal-dsh-host",
+    "@stuffbucket/maximal-models": {
+      "root": "packages/maximal-models",
       "cycleEdges": [],
       "duplicatePairs": []
     },
     "@stuffbucket/maximal-electron": {
       "root": "packages/maximal-electron",
+      "cycleEdges": [],
+      "duplicatePairs": []
+    },
+    "@stuffbucket/maximal-data-visualization": {
+      "root": "packages/maximal-data-visualization",
+      "cycleEdges": [],
+      "duplicatePairs": []
+    },
+    "@stuffbucket/maximal-context-window": {
+      "root": "packages/maximal-context-window",
       "cycleEdges": [],
       "duplicatePairs": []
     },
@@ -45,8 +50,8 @@
       "cycleEdges": [],
       "duplicatePairs": []
     },
-    "@stuffbucket/maximal-provider-contract": {
-      "root": "packages/maximal-provider-contract",
+    "@stuffbucket/maximal-model-contract": {
+      "root": "packages/maximal-model-contract",
       "cycleEdges": [],
       "duplicatePairs": []
     },
@@ -56,7 +61,7 @@
       "duplicatePairs": []
     },
     "@stuffbucket/omlx": {
-      "root": "packages/omlx",
+      "root": "packages/model-runtimes/omlx",
       "cycleEdges": [],
       "duplicatePairs": []
     }
@@ -66,7 +71,7 @@
       {
         "from": [
           "@stuffbucket/maximal-core",
-          "@stuffbucket/maximal-dsh-host",
+          "@stuffbucket/maximal-models",
           "@stuffbucket/maximal"
         ],
         "to": ["@stuffbucket/anthropic-provider", "@stuffbucket/omlx"]
@@ -75,7 +80,7 @@
         "from": [
           "@stuffbucket/maximal-core",
           "@stuffbucket/maximal",
-          "@stuffbucket/maximal-provider-contract"
+          "@stuffbucket/maximal-model-contract"
         ],
         "to": [
           "@deepseek-ai/cordis",
@@ -88,30 +93,56 @@
         "to": [
           "@stuffbucket/maximal",
           "@stuffbucket/maximal-core",
-          "@stuffbucket/maximal-dsh-host",
-          "@stuffbucket/maximal-provider-contract"
+          "@stuffbucket/maximal-models",
+          "@stuffbucket/maximal-model-contract"
         ]
       },
       {
         "from": ["@stuffbucket/maximal-electron"],
-        "to": ["maximal-client", "@stuffbucket/maximal-core"]
+        "to": [
+          "maximal-client",
+          "@stuffbucket/maximal-core",
+          "@stuffbucket/maximal-data-visualization",
+          "@stuffbucket/maximal-context-window",
+          "@stuffbucket/maximal-observability"
+        ]
+      },
+      {
+        "from": ["@stuffbucket/maximal-data-visualization"],
+        "to": [
+          "maximal-client",
+          "@stuffbucket/maximal",
+          "@stuffbucket/maximal-core",
+          "@stuffbucket/maximal-context-window",
+          "@stuffbucket/maximal-observability",
+          "@stuffbucket/maximal-observability-contract"
+        ]
+      },
+      {
+        "from": ["@stuffbucket/maximal-context-window"],
+        "to": [
+          "maximal-client",
+          "@stuffbucket/maximal",
+          "@stuffbucket/maximal-core",
+          "@stuffbucket/maximal-observability"
+        ]
       }
     ],
     "require": [
       {
         "from": "@stuffbucket/maximal-core",
-        "to": ["@stuffbucket/maximal-provider-contract"]
+        "to": ["@stuffbucket/maximal-model-contract"]
       },
       {
-        "from": "@stuffbucket/maximal-dsh-host",
-        "to": ["@stuffbucket/maximal-provider-contract"]
+        "from": "@stuffbucket/maximal-models",
+        "to": ["@stuffbucket/maximal-model-contract"]
       },
       {
         "from": "@stuffbucket/maximal",
         "to": [
           "@stuffbucket/maximal-core",
-          "@stuffbucket/maximal-dsh-host",
-          "@stuffbucket/maximal-provider-contract"
+          "@stuffbucket/maximal-models",
+          "@stuffbucket/maximal-model-contract"
         ]
       }
     ]

@@ -20,6 +20,8 @@ import { z } from "zod"
 
 import type { AppConfig } from "~/lib/config/config"
 
+import { connectorConfigIssues } from "~/lib/config/connector-plugins"
+
 const ProviderAuthTypeSchema = z.enum(["authorization", "x-api-key"])
 
 const ModelConfigSchema = z.object({
@@ -62,10 +64,9 @@ const ReasoningEffortSchema = z.enum([
  * key can survive double-quoting / single-quoting in any shell without
  * escaping headaches: ASCII letters, digits, underscore, hyphen.
  *
- * Plus a single special form: the literal "*" wildcard (and only that —
- * no embedded glob) which the auth middleware honors as "accept any
- * non-empty bearer." Useful for the default "permit-all" entry the UI
- * seeds when the user first enables API-key auth.
+ * The literal "*" remains parseable only for compatibility with existing
+ * configuration. Authentication compares it as an ordinary exact key; new
+ * entries and rotations never create or advertise it.
  */
 export const API_KEY_VALUE_PATTERN = /^(?:\*|[\w-]{8,128})$/
 
@@ -75,6 +76,8 @@ const ApiKeyEntrySchema = z.object({
   key: z.string().regex(API_KEY_VALUE_PATTERN),
   enabled: z.boolean(),
   created_at: z.string(),
+  kind: z.enum(["managed", "manual"]).optional(),
+  configurator_id: z.string().min(1).optional(),
 })
 
 export const AppConfigSchema = z
@@ -105,6 +108,11 @@ export const AppConfigSchema = z
       })
       .optional(),
     providers: z.record(z.string(), ProviderConfigSchema).optional(),
+    ollama: z
+      .object({
+        preferLocalModels: z.boolean().optional(),
+      })
+      .optional(),
     providerHost: z
       .object({
         mode: z.enum(["legacy", "dsh"]).optional(),
@@ -112,6 +120,9 @@ export const AppConfigSchema = z
       })
       .optional(),
     providerPlugins: z.record(z.string(), ProviderPluginSchema).optional(),
+    // Connector payloads belong to runtime-injected connector plugins. Core
+    // preserves them here; the owning plugin validates its own schema.
+    connectors: z.record(z.string(), z.unknown()).optional(),
     extraPrompts: z.record(z.string(), z.string()).optional(),
     smallModel: z.string().optional(),
     responsesApiContextManagementModels: z.array(z.string()).optional(),
@@ -196,6 +207,15 @@ export function validateAppConfig(raw: unknown): AppConfig {
       message: i.message,
     }))
     throw new ConfigValidationError(issues)
+  }
+  const connectorIssues = connectorConfigIssues(result.data.connectors)
+  if (connectorIssues.length > 0) {
+    throw new ConfigValidationError(
+      connectorIssues.map((issue) => ({
+        path: issue.path?.map(String).join(".") ?? "connectors",
+        message: issue.message,
+      })),
+    )
   }
   return result.data
 }
