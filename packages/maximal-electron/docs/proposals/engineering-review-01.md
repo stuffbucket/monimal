@@ -30,7 +30,7 @@ an assertion that it looked at more than nothing.
 `tests/package-styles.test.ts`, with `tests/stylesheets.ts` shared with
 `tests/contrast.test.ts`.
 
-`structural.css` is the stylesheet a consumer installs. It defines no palette:
+`shell-package-rules.css` is the stylesheet a consumer installs. It defines no palette:
 it reads the `--shell-*` namespace, and `README.md` holds the table that tells
 a consumer which of those they must define. Nothing checked that table, and
 nothing checked that the file styles the classes the exported components
@@ -48,7 +48,7 @@ so `IconButton` with `danger` set drew a plain icon button. Both are fixed
 here, with fallbacks so a consumer who names no danger colour is no worse off
 than before.
 
-`tests/contrast.test.ts` no longer skips `structural.css` by name. It
+`tests/contrast.test.ts` no longer skips `shell-package-rules.css` by name. It
 classifies tokens by namespace, which is the distinction the filename was
 standing in for, and a new assertion states that no stylesheet reads both
 namespaces. That is what makes the partition total rather than incidental.
@@ -123,7 +123,7 @@ Filed as issue #52.
 
 | Issue | Milestone | What |
 | --- | --- | --- |
-| #51 | v0.0.2 | `structural.css` can ship an unscoped selector past the check meant to stop it |
+| #51 | v0.0.2 | `shell-package-rules.css` can ship an unscoped selector past the check meant to stop it |
 | #52 | v0.0.1 | CI never runs against the state a merge produces |
 | #53 | v0.0.1 | `CONTRAST_PAIRS` is hand-maintained, so a new pair is unchecked |
 

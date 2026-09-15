@@ -2,8 +2,8 @@ import type {
   TrafficOverview,
   TrafficRequestDetail,
   TrafficRequestFilters,
+  TrafficRequestList,
   TrafficRequestOutcome,
-  TrafficRequestPage,
   TrafficRequestSummary,
 } from "@stuffbucket/maximal-observability-contract"
 
@@ -38,7 +38,7 @@ export interface ObservabilityContextValue {
   timePreset: TimePreset
   live: boolean
   overview: Loadable<TrafficOverview>
-  requests: Loadable<TrafficRequestPage>
+  requests: Loadable<TrafficRequestList>
   requestItems: Array<TrafficRequestSummary>
   detail: Loadable<TrafficRequestDetail> | null
   selectedRequestId: string | null
@@ -126,7 +126,7 @@ export function ObservabilityProvider({
   const [overview, setOverview] = useState<Loadable<TrafficOverview>>({
     status: "loading",
   })
-  const [requests, setRequests] = useState<Loadable<TrafficRequestPage>>({
+  const [requests, setRequests] = useState<Loadable<TrafficRequestList>>({
     status: "loading",
   })
   const [requestItems, setRequestItems] = useState<

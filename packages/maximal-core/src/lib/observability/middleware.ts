@@ -115,7 +115,9 @@ function normalizedRequest(
   return {
     attribution: {
       source: provider === "copilot" ? "copilot" : "provider",
-      client: normalizedClient(store?.userAgent ?? ""),
+      client:
+        boundedIdentifier(store?.apiKeyLabel)
+        ?? normalizedClient(store?.userAgent ?? ""),
       project: null,
       provider,
       model,

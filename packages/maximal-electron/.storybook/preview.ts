@@ -37,7 +37,7 @@ const withTheme: Decorator = (Story, context) => {
  * Stylesheet, as a toolbar switch.
  *
  * A story drawn by `shell.css` is a story drawn the way this application draws
- * it. The file a consumer installs is `structural.css`: no palette, and every
+ * it. The file a consumer installs is `shell-package-rules.css`: no palette, and every
  * rule under `.sb-shell`. Two defects lived in that gap — a portalled surface
  * that no shipped rule could reach, and status colours the package cannot
  * draw — and both were invisible here, because an unscoped stylesheet with a
@@ -86,7 +86,7 @@ const preview: Preview = {
         icon: 'paintbrush',
         items: [
           { value: SHELL_MODES[0], title: 'Application (shell.css)' },
-          { value: SHELL_MODES[1], title: 'Package (structural.css)' },
+          { value: SHELL_MODES[1], title: 'Package (shell-package-rules.css)' },
         ],
         dynamicTitle: true,
       },

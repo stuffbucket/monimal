@@ -1,7 +1,18 @@
 import * as Tabs from '@radix-ui/react-tabs';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { FileText, Folder, Plus, Settings, SquareTerminal, X } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState, type ComponentType } from 'react';
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ComponentType,
+  type CSSProperties,
+  type DragEvent,
+} from 'react';
+import { createPortal } from 'react-dom';
 
 import {
   adornmentLabel,
@@ -9,6 +20,14 @@ import {
   type TabAdornment,
   type TabIconName,
 } from '../lib/tab-adornment.js';
+import {
+  decodeTabTransfer,
+  encodeTabTransfer,
+  TAB_TRANSFER_MIME,
+  type TabDetachPosition,
+  type TabTransfer,
+} from '../lib/tab-transfer.js';
+import { useShellPortalContainer } from './controls/Overlays.js';
 
 /**
  * One tab. What it tabs is the caller's business.
@@ -24,6 +43,7 @@ import {
 export interface Tab extends TabAdornment {
   id: string;
   title: string;
+  closable?: boolean;
 }
 
 /** The glyph behind each name in `TAB_ICON_NAMES`. */
@@ -53,6 +73,30 @@ export interface TabStripProps<T extends Tab> {
   newTabLabel?: string;
   /** A component for the slot, overriding whatever `tab.icon` names. */
   tabIcon?: (tab: T) => ComponentType<{ size?: number }> | undefined;
+  tabTransfer?: TabTransferOptions<T>;
+}
+
+export interface TabTransferOptions<T extends Tab> {
+  /** Stable identity for this frame or standalone window. */
+  frameId: string;
+  canDrag?: (tab: T) => boolean;
+  canDropBefore?: (tab?: T) => boolean;
+  onMoveTab?: (tabId: string, beforeTabId?: string) => void;
+  onReceiveTab?: (transfer: TabTransfer, beforeTabId?: string) => void;
+  onDetachTab?: (transfer: TabTransfer, position: TabDetachPosition) => void;
+  getTransfer?: (tab: T) => Pick<TabTransfer, 'sessionId' | 'pane' | 'title'> | undefined;
+  contextMenu?: (tab: T) => TabContextMenuItem[];
+}
+
+export interface TabContextMenuItem {
+  id: string;
+  label: string;
+  onSelect: () => void;
+  disabled?: boolean;
+  /** A visual hint only; nothing in the tab strip binds the key itself. */
+  shortcut?: string;
+  /** Opens a visual gap above this item, for grouping unrelated actions. */
+  separatorBefore?: boolean;
 }
 
 function safeIdPart(value: string) {
@@ -140,6 +184,7 @@ export function TabBar<T extends Tab>({
   onClose,
   onNew,
   icon,
+  transfer,
   label = 'Open documents',
   newLabel = 'New tab',
 }: {
@@ -151,6 +196,7 @@ export function TabBar<T extends Tab>({
   onNew?: () => void;
   /** A component for the slot, overriding whatever `tab.icon` names. */
   icon?: (tab: T) => ComponentType<{ size?: number }> | undefined;
+  transfer?: TabTransferOptions<T>;
   label?: string;
   newLabel?: string;
 }) {
@@ -159,6 +205,60 @@ export function TabBar<T extends Tab>({
   // Closing the last tab is refused, so every close affordance hangs off this
   // rather than repeating the condition.
   const closeTab = tabs.length > 1 ? onClose : undefined;
+  const closeActiveTab = activeItem?.closable === false ? undefined : closeTab;
+  const portalContainer = useShellPortalContainer();
+  const [contextMenu, setContextMenu] = useState<{
+    tab: T;
+    x: number;
+    y: number;
+  }>();
+  const root = useRef<HTMLDivElement>(null);
+  const dragDropHandled = useRef(false);
+
+  useEffect(() => {
+    const titlebar = root.current?.closest<HTMLElement>('.titlebar');
+    if (!contextMenu || !titlebar) return;
+    const previous = titlebar.style.getPropertyValue('-webkit-app-region');
+    titlebar.style.setProperty('-webkit-app-region', 'no-drag');
+    return () => {
+      if (previous) titlebar.style.setProperty('-webkit-app-region', previous);
+      else titlebar.style.removeProperty('-webkit-app-region');
+    };
+  }, [contextMenu]);
+
+  function readTransfer(event: DragEvent): TabTransfer | undefined {
+    return decodeTabTransfer(event.dataTransfer.getData(TAB_TRANSFER_MIME));
+  }
+
+  function dropTab(event: DragEvent, before?: T): void {
+    const payload = readTransfer(event);
+    if (!payload || !transfer) return;
+    if (transfer.canDropBefore?.(before) === false) {
+      event.stopPropagation();
+      return;
+    }
+    const sameFrame = payload.sourceFrameId === transfer.frameId;
+    if (sameFrame ? !transfer.onMoveTab : !transfer.onReceiveTab) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.dataTransfer.dropEffect = 'move';
+    dragDropHandled.current = true;
+    if (sameFrame) {
+      transfer.onMoveTab!(payload.tabId, before?.id);
+    } else {
+      transfer.onReceiveTab!(payload, before?.id);
+    }
+  }
+
+  function allowTabDrop(event: DragEvent, before?: T): void {
+    if (!transfer || ![...event.dataTransfer.types].includes(TAB_TRANSFER_MIME)) return;
+    if (transfer.canDropBefore?.(before) === false) {
+      event.stopPropagation();
+      return;
+    }
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+  }
 
   /*
    * Which trigger to focus once the caller has dropped a tab.
@@ -191,14 +291,22 @@ export function TabBar<T extends Tab>({
   };
 
   return (
-    <Tabs.Root
-      value={active}
-      onValueChange={onSelect}
-      className="tabs"
-      activationMode="manual"
-    >
-      <Tabs.List className="tabbar" aria-label={label}>
+    <>
+      <Tabs.Root
+        ref={root}
+        value={active}
+        onValueChange={onSelect}
+        className="tabs"
+        activationMode="manual"
+      >
+      <Tabs.List
+        className="tabbar"
+        aria-label={label}
+        onDragOver={(event) => allowTabDrop(event)}
+        onDrop={(event) => dropTab(event)}
+      >
         {tabs.map((tab, index) => {
+          const closeThisTab = tab.closable === false ? undefined : closeTab;
           const Custom = icon?.(tab);
           const slot = tabSlot(tab, Custom !== undefined);
           const Named = tab.icon === undefined ? undefined : TAB_ICON_GLYPHS[tab.icon];
@@ -219,9 +327,48 @@ export function TabBar<T extends Tab>({
               aria-controls={
                 tab.id === active ? getTabPanelId(tabIdBase, tab.id) : undefined
               }
-              aria-keyshortcuts={closeTab ? 'Delete' : undefined}
+              aria-keyshortcuts={closeThisTab ? 'Delete' : undefined}
+              draggable={transfer !== undefined && (transfer.canDrag?.(tab) ?? true)}
+              onContextMenu={(event) => {
+                const items = transfer?.contextMenu?.(tab);
+                if (!items?.length) return;
+                event.preventDefault();
+                setContextMenu({ tab, x: event.clientX, y: event.clientY });
+              }}
+              onDragStart={(event) => {
+                if (!transfer) return;
+                dragDropHandled.current = false;
+                const payload: TabTransfer = {
+                  version: 1,
+                  sourceFrameId: transfer.frameId,
+                  tabId: tab.id,
+                  ...transfer.getTransfer?.(tab),
+                };
+                event.dataTransfer.effectAllowed = 'move';
+                event.dataTransfer.setData(TAB_TRANSFER_MIME, encodeTabTransfer(payload));
+              }}
+              onDragOver={(event) => allowTabDrop(event, tab)}
+              onDrop={(event) => dropTab(event, tab)}
+              onDragEnd={(event) => {
+                if (dragDropHandled.current) {
+                  dragDropHandled.current = false;
+                  return;
+                }
+                if (!transfer?.onDetachTab || event.dataTransfer.dropEffect !== 'none') return;
+                const element = document.elementFromPoint(event.clientX, event.clientY);
+                if (element?.closest('.sb-shell')) return;
+                transfer.onDetachTab(
+                  {
+                    version: 1,
+                    sourceFrameId: transfer.frameId,
+                    tabId: tab.id,
+                    ...transfer.getTransfer?.(tab),
+                  },
+                  { screenX: event.screenX, screenY: event.screenY },
+                );
+              }}
               onKeyDown={(event) => {
-                if (!closeTab) return;
+                if (!closeThisTab) return;
                 // The key macOS prints as "delete" sends Backspace, so both
                 // close. Neither has a default action worth keeping on a tab.
                 if (event.key !== 'Delete' && event.key !== 'Backspace') return;
@@ -237,14 +384,14 @@ export function TabBar<T extends Tab>({
               <TabLabel title={tab.title} />
               {/* After the label, so the tab reads "Terminal 1, Working". */}
               {words !== undefined && <VisuallyHidden>{words}</VisuallyHidden>}
-              {closeTab && (
+              {closeThisTab && (
                 <span
                   aria-hidden="true"
                   className="tab__close"
                   onPointerDown={(event) => {
                     event.stopPropagation();
                     event.preventDefault();
-                    closeTab(tab.id);
+                    closeThisTab(tab.id);
                   }}
                 >
                   <X size={12} />
@@ -254,7 +401,7 @@ export function TabBar<T extends Tab>({
           );
         })}
       </Tabs.List>
-      {closeTab && activeItem && (
+        {closeActiveTab && activeItem && (
         <button
           type="button"
           className="tab__close-keyboard"
@@ -264,7 +411,7 @@ export function TabBar<T extends Tab>({
           <X size={12} />
         </button>
       )}
-      {onNew && (
+        {onNew && (
         <button
           type="button"
           className="tab__new"
@@ -274,7 +421,68 @@ export function TabBar<T extends Tab>({
         >
           <Plus size={14} />
         </button>
+        )}
+      </Tabs.Root>
+      {contextMenu && createPortal(
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 40,
+            WebkitAppRegion: 'no-drag',
+          } as CSSProperties}
+          onPointerDown={() => setContextMenu(undefined)}
+        />,
+        portalContainer ?? document.body,
       )}
-    </Tabs.Root>
+      <DropdownMenu.Root
+        open={contextMenu !== undefined}
+        onOpenChange={(open) => {
+          if (!open) setContextMenu(undefined);
+        }}
+      >
+        {contextMenu && (
+          <DropdownMenu.Trigger
+            asChild
+          >
+            <span
+              aria-hidden="true"
+              style={{
+                position: 'fixed',
+                left: contextMenu.x,
+                top: contextMenu.y,
+                width: 1,
+                height: 1,
+              }}
+            />
+          </DropdownMenu.Trigger>
+        )}
+        <DropdownMenu.Portal container={portalContainer}>
+          <DropdownMenu.Content
+            className="menu"
+            side="bottom"
+            align="start"
+            sideOffset={4}
+            data-testid="tab-context-menu"
+          >
+            {contextMenu && transfer?.contextMenu?.(contextMenu.tab).map((item) => (
+              <Fragment key={item.id}>
+                {item.separatorBefore && <DropdownMenu.Separator className="menu__separator" />}
+                <DropdownMenu.Item
+                  className="menu__item"
+                  disabled={item.disabled}
+                  onSelect={item.onSelect}
+                  data-testid={`menu-${item.id}`}
+                >
+                  <span className="menu__item-label">{item.label}</span>
+                  {item.shortcut && <span className="menu__item-shortcut">{item.shortcut}</span>}
+                </DropdownMenu.Item>
+              </Fragment>
+            ))}
+          </DropdownMenu.Content>
+        </DropdownMenu.Portal>
+      </DropdownMenu.Root>
+    </>
   );
 }

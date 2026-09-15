@@ -6,7 +6,7 @@ import { exportedModules } from './stylesheets.js';
 /**
  * Where a portalled subtree lands.
  *
- * `structural.css` is the only stylesheet the package ships, and every selector
+ * `shell-package-rules.css` is the only stylesheet the package ships, and every selector
  * in it is scoped under `.sb-shell`. A Radix portal with no `container`
  * resolves to `document.body`, which is outside that element, so the modal, the
  * scrim, the menu and the tooltip arrive at a consumer with no rule at all.
@@ -153,7 +153,10 @@ describe('a portalled subtree', () => {
       new RegExp(`className="${SHELL_ROOT}[\\s"]`).test(source),
     );
 
-    expect(roots.map(([name]) => name)).toEqual(['components/ShellLayout']);
+    expect(roots.map(([name]) => name).sort()).toEqual([
+      'components/ShellLayout',
+      'components/WindowChrome',
+    ]);
     expect(
       roots.filter(([, source]) => !source.includes('<ShellPortalRoot')).map(([name]) => name),
     ).toEqual([]);

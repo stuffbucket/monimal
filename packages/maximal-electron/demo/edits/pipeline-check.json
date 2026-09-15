@@ -21,10 +21,6 @@
     {
       "seq": "terminal",
       "hold": 8
-    },
-    {
-      "seq": "overlay",
-      "hold": 8
     }
   ]
 }

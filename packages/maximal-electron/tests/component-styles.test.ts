@@ -45,6 +45,57 @@ const styles = componentStyles();
 /** The contract a consumer actually defines. */
 const contract = { published: new Set(publishedTokens()) };
 
+describe('componentCssFindings', () => {
+  it('reports ordered source positions and message data across one stylesheet', () => {
+    const css = [
+      '/* #bad 19px',
+      '   stays prose */',
+      '.loose, ,',
+      '  .second-loose,',
+      '  .sb-shell .good {',
+      '  color: #abc;',
+      '  background: rgb(1 2 3);',
+      '  border-color: hsl(1 2 3);',
+      '  padding: 13px;',
+      '  margin: .5rem;',
+      '  inset: 0;',
+      '  grid-template-columns: minmax(calc(100% - 12rem), var(--shell-track));',
+      '  width: var(--shell-width, calc(100% - 14px) solid calc(100% - 15px));',
+      '  --foreign   : 17px;',
+      '  --shell-text   : red;',
+      '  gap: var(  --foreign-read);',
+      '  outline: var(--shell-unknown);',
+      '}.also-loose { color: var(--shell-text); }',
+    ].join('\n');
+    const index = (text: string): number => css.indexOf(text);
+
+    expect(componentCssFindings(css, {
+      published: new Set(['--shell-text', '--shell-track', '--shell-width']),
+    })).toEqual([
+      { id: 'unscoped', index: index('.loose'), length: 6, text: '.loose', data: { selector: '.loose' } },
+      { id: 'unscoped', index: index('.second-loose'), length: 13, text: '.second-loose', data: { selector: '.second-loose' } },
+      { id: 'colour', index: index('#abc'), length: 4, text: '#abc', data: {} },
+      { id: 'colour', index: index('rgb('), length: 4, text: 'rgb(', data: {} },
+      { id: 'colour', index: index('hsl('), length: 4, text: 'hsl(', data: {} },
+      { id: 'length', index: index('13px'), length: 4, text: '13px', data: { literal: '13px' } },
+      { id: 'length', index: index('.5rem'), length: 5, text: '.5rem', data: { literal: '.5rem' } },
+      { id: 'foreign', index: index('--foreign'), length: 9, text: '--foreign', data: { name: '--foreign' } },
+      { id: 'redundant', index: index('--shell-text'), length: 12, text: '--shell-text', data: { name: '--shell-text' } },
+      { id: 'foreign-read', index: index('--foreign-read'), length: 14, text: '--foreign-read', data: { name: '--foreign-read' } },
+      { id: 'unknown', index: index('--shell-unknown'), length: 15, text: '--shell-unknown', data: { name: '--shell-unknown' } },
+      { id: 'unscoped', index: index('.also-loose'), length: 11, text: '.also-loose', data: { selector: '.also-loose' } },
+    ]);
+    expect(declaredTokens(css)).toEqual(['--foreign', '--shell-text']);
+    expect(readTokens(css)).toEqual([
+      '--shell-track',
+      '--shell-width',
+      '--foreign-read',
+      '--shell-unknown',
+      '--shell-text',
+    ]);
+  });
+});
+
 describe('the rules a component carries', () => {
   it('are read at all', () => {
     // The floor. A reader that matched nothing would report every check below
@@ -99,7 +150,7 @@ describe('the rules a component carries', () => {
      * error, because a custom property nobody reads is not an error.
      *
      * Read across the carried rules and the shipped stylesheets together: a
-     * component may declare a token that `structural.css` is the one to read.
+     * component may declare a token that `shell-package-rules.css` is the one to read.
      */
     const everything = [styles, ...publishedSources()].join('\n');
     const read = new Set(readTokens(everything));
@@ -132,7 +183,7 @@ describe('the rules a component carries', () => {
 
 /** The text of every stylesheet the package ships. */
 function publishedSources(): string[] {
-  return [...new Set(['src/renderer/styles/structure.css', 'src/renderer/styles/structural.css'])].map(
+  return [...new Set(['src/renderer/styles/shell-structural-tokens.css', 'src/renderer/styles/shell-package-rules.css'])].map(
     (source) => readFileSync(new URL(`../${source}`, import.meta.url), 'utf8'),
   );
 }
@@ -169,6 +220,7 @@ describe('the rule that reports those findings in the editor', () => {
       'unknown',
       'unscoped',
     ]);
+    expect(Object.values(COMPONENT_CSS_MESSAGES).every((message) => message.length > 40)).toBe(true);
   });
 
   it('reports each kind of mistake where it is written', () => {

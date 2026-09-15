@@ -12,6 +12,7 @@ build/Release/
 
 # test / tooling artifacts
 coverage/
+.stryker-tmp/
 playwright-report/
 test-results/
 storybook-static/

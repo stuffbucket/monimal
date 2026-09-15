@@ -9,6 +9,7 @@ export interface TerminalShellTab {
   title: string;
   kind: 'terminal';
   sessionId: string;
+  customTitle?: boolean;
 }
 
 function nextOrdinal(existing: readonly ExistingTab[]): number {
@@ -36,12 +37,14 @@ function nextTitle(existing: readonly ExistingTab[], label: string): string {
   return highest === 0 ? label : `${label} ${String(highest + 1)}`;
 }
 
+/** Returns the final directory segment for an idle terminal title. */
 export function terminalDirectoryTitle(cwd: string): string {
   const withoutTrailingSeparators = cwd.replace(/[\\/]+$/, '');
   const segments = withoutTrailingSeparators.split(/[\\/]/);
   return segments.at(-1) || cwd;
 }
 
+/** Removes controls and bounds a process-supplied terminal title. */
 export function terminalProcessTitle(title: string): string {
   const printable = [...title]
     .filter((character) => {
@@ -53,6 +56,7 @@ export function terminalProcessTitle(title: string): string {
   return [...printable].slice(0, 160).join('');
 }
 
+/** Creates the next numbered reference tab without reusing closed identities. */
 export function newTerminalTab(
   existing: readonly ExistingTab[],
   sessionId?: string,

@@ -6,8 +6,13 @@ import type { ControlSnapshot } from "~/lib/live/resources"
 import type { ControlRpcOperationOverrides } from "~/routes/control/rpc"
 
 import { writeConfig } from "~/lib/config/config"
+import { installConnectorPlugins } from "~/lib/config/connector-plugins"
 import { SettingsOperationError } from "~/lib/config/settings-operations"
-import { AppsListResponse } from "~/lib/config/settings-types"
+import {
+  AppsListResponse,
+  ConnectionsListResponse,
+  SearchSettingsResponse,
+} from "~/lib/config/settings-types"
 import {
   CONTROL_UPSTREAM_ERROR,
   JSON_RPC_INVALID_PARAMS,
@@ -20,15 +25,21 @@ import {
 import { ControlHub } from "~/lib/live/hub"
 import { AsyncMutex } from "~/lib/live/mutex"
 import { stopControlHub } from "~/lib/live/service"
+import { state } from "~/lib/runtime-state/state"
 import { createControlRoutes } from "~/routes/control/route"
 import { createControlRpcMethods } from "~/routes/control/rpc"
+import { createBuiltinSearchConnectorPlugin } from "~/routes/messages/web-tools/executor"
 
 beforeEach(() => {
+  installConnectorPlugins([createBuiltinSearchConnectorPlugin()])
+  state.models = undefined
   writeConfig({})
 })
 
 afterEach(() => {
+  installConnectorPlugins([])
   stopControlHub()
+  state.models = undefined
   writeConfig({})
 })
 
@@ -120,9 +131,13 @@ describe("control /rpc — discovery", () => {
     // The account methods are composed in at route level, not in the static
     // registry — discovery must still advertise them or a client can't find them.
     expect(caps.methods).toContain("auth/status")
+    expect(caps.methods).toContain("ollamaAccounts/list")
     expect(caps.methods).toContain("accounts/switch")
     expect(caps.methods).toContain("health")
     const settingsMethods = [
+      "connections/list",
+      "connections/act",
+      "connections/revealCredential",
       "apps/list",
       "apps/setEnabled",
       "apiKeys/list",
@@ -134,6 +149,9 @@ describe("control /rpc — discovery", () => {
       "models/refresh",
       "usage/get",
       "diagnostics/get",
+      "searchSettings/get",
+      "searchSettings/update",
+      "searchSettings/validateProvider",
     ]
     for (const method of settingsMethods) expect(caps.methods).toContain(method)
   })
@@ -190,6 +208,12 @@ describe("control /rpc — params validation", () => {
   test("settings methods reject malformed parameters with their contracts", async () => {
     const cases = [
       [
+        "connections/act",
+        { id: "Claude Code", action: "connect" },
+        "Expected { id, action: connect | disconnect | reconnect }.",
+      ],
+      ["connections/revealCredential", { id: "" }, "Expected { id } string."],
+      [
         "apps/setEnabled",
         { appId: "unknown", enabled: true },
         "Expected { appId, enabled } for a configurable app.",
@@ -210,6 +234,16 @@ describe("control /rpc — params validation", () => {
         "usage/get",
         { period: "year" },
         "Expected optional { period: day | week | month }.",
+      ],
+      [
+        "searchSettings/update",
+        { settings: [] },
+        "Expected search connector settings update.",
+      ],
+      [
+        "searchSettings/validateProvider",
+        { providerId: "" },
+        "Expected search provider validation request.",
       ],
     ] as const
 
@@ -233,8 +267,98 @@ describe("control /rpc — params validation", () => {
   })
 })
 
+describe("control /rpc — search settings", () => {
+  test("descriptor validation errors remain legible parameter errors", async () => {
+    const { body } = await rpc("searchSettings/update", {
+      id: 1,
+      params: { settings: { fallback: "yes" } },
+    })
+
+    expect(body.error).toMatchObject({
+      code: JSON_RPC_INVALID_PARAMS,
+      message:
+        "search.fallback: Fall back after transient failures must be on or off.",
+    })
+  })
+
+  test("search settings methods expose and update the schema-driven contract", async () => {
+    const initial = (await rpc("searchSettings/get", { id: 1 })).body.result
+    expect(SearchSettingsResponse.safeParse(initial).success).toBe(true)
+    expect(initial?.manifest).toMatchObject({ id: "search" })
+
+    const updated = (
+      await rpc("searchSettings/update", {
+        id: 1,
+        params: {
+          settings: { fallback: false },
+          providers: { duckduckgo: { settings: { maxResults: 4 } } },
+        },
+      })
+    ).body.result
+    expect(SearchSettingsResponse.safeParse(updated).success).toBe(true)
+    expect(updated?.settings).toMatchObject({ fallback: false })
+    expect(updated?.providers).toMatchObject({
+      duckduckgo: { settings: { maxResults: 4 } },
+    })
+  })
+
+  test("search settings dispatcher uses injectable operations", async () => {
+    const snapshot = SearchSettingsResponse.parse({
+      manifest: {
+        id: "search",
+        label: "Search",
+        description: "Search settings",
+        fields: [],
+        providers: [],
+      },
+      settings: {},
+      providers: {},
+    })
+    let updates = 0
+    let validations = 0
+    const custom = appWithOperations({
+      buildSearchSettings: () => snapshot,
+      updateSearchSettings: () => {
+        updates += 1
+        return snapshot
+      },
+      validateSearchProvider: () => {
+        validations += 1
+        return Promise.resolve({ status: "valid", fieldErrors: {} } as const)
+      },
+    })
+    try {
+      expect(
+        (await rpcThrough(custom.app, "searchSettings/get")).result,
+      ).toEqual(snapshot)
+      expect(
+        (await rpcThrough(custom.app, "searchSettings/update", {})).result,
+      ).toEqual(snapshot)
+      expect(
+        (
+          await rpcThrough(custom.app, "searchSettings/validateProvider", {
+            providerId: "ollama",
+          })
+        ).result,
+      ).toEqual({ status: "valid", fieldErrors: {} })
+      expect(updates).toBe(1)
+      expect(validations).toBe(1)
+    } finally {
+      custom.hub.dispose()
+    }
+  })
+})
+
 describe("control /rpc — settings", () => {
   test("list methods return concrete settings snapshots", async () => {
+    const connections = (await rpc("connections/list", { id: 1 })).body.result
+    expect(ConnectionsListResponse.safeParse(connections).success).toBe(true)
+    expect(connections).toEqual({
+      clients: [],
+      manual_credentials: [],
+      require_known_keys: false,
+    })
+
     const apps = (await rpc("apps/list", { id: 1 })).body.result
     expect(AppsListResponse.safeParse(apps).success).toBe(true)
 
@@ -261,6 +385,15 @@ describe("control /rpc — settings", () => {
     })
     expect(typeof created?.id).toBe("string")
     const id = created?.id as string
+
+    expect(
+      (
+        await rpc("connections/revealCredential", {
+          id: 1,
+          params: { id },
+        })
+      ).body.result,
+    ).toEqual({ id, key: "rpc-test-key" })
 
     expect((await rpc("apiKeys/list", { id: 1 })).body.result).toMatchObject({
       entries: [{ id, key: "rpc-test-key" }],
@@ -298,7 +431,9 @@ describe("control /rpc — settings", () => {
       enforcing: true,
     })
   })
+})
 
+describe("control /rpc — settings operations", () => {
   test("models/refresh invokes the refresh operation before returning models", async () => {
     let refreshes = 0
     const custom = appWithOperations({
@@ -330,6 +465,7 @@ describe("control /rpc — settings", () => {
       installs: [],
       install: null,
       conflict: null,
+      health: { ok: true, issue: null },
     }
     let received: [AppEntry["id"], boolean] | undefined
     const custom = appWithOperations({
@@ -442,13 +578,69 @@ describe("control /rpc — settings", () => {
   })
 })
 
+describe("control /rpc — provider models", () => {
+  test("models/list includes discovered provider models", async () => {
+    const providerApp = createControlRoutes({
+      getRequestIp: () => "127.0.0.1",
+      listProviderModels: () =>
+        Promise.resolve([
+          {
+            id: "mlx-community/Qwen3-8B",
+            name: "Qwen 3 8B",
+            provider: "local",
+            providerName: "Local (oMLX)",
+          },
+        ]),
+    })
+
+    const body = await rpcThrough(providerApp, "models/list")
+
+    expect(body.result?.models).toEqual([
+      expect.objectContaining({
+        id: "mlx-community/Qwen3-8B",
+        vendor: "Local (oMLX)",
+        type: "chat",
+      }),
+    ])
+  })
+
+  test("control snapshots include discovered provider models", async () => {
+    const providerApp = createControlRoutes({
+      getRequestIp: () => "127.0.0.1",
+      listProviderModels: () =>
+        Promise.resolve([
+          {
+            id: "mlx-community/Qwen3-8B",
+            name: "Qwen 3 8B",
+            provider: "local",
+            providerName: "Local (oMLX)",
+          },
+        ]),
+    })
+
+    const { block } = await listen(providerApp)
+    const dataLine =
+      block.split("\n").find((line) => line.startsWith("data:")) ?? ""
+    const frame = JSON.parse(dataLine.slice("data:".length).trim()) as {
+      params?: { snapshot?: ControlSnapshot }
+    }
+
+    expect(frame.params?.snapshot?.models.models).toEqual([
+      expect.objectContaining({
+        id: "mlx-community/Qwen3-8B",
+        vendor: "Local (oMLX)",
+      }),
+    ])
+  })
+})
+
 /** Open `subscriptions/listen` and read its first SSE block. */
-async function listen(): Promise<{
+async function listen(target: Hono = app()): Promise<{
   status: number
   ctype: string
   block: string
 }> {
-  const res = await app().request("/rpc", {
+  const res = await target.request("/rpc", {
     method: "POST",
     headers: {
       "content-type": "application/json",

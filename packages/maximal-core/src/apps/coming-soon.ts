@@ -44,6 +44,7 @@ export function defineComingSoonApp(spec: {
         installs: [],
         install: null,
         conflict: null,
+        health: { ok: true, issue: null },
       }),
     enable: () => Promise.resolve({ success: false }),
     disable: () => Promise.resolve({ success: true }),

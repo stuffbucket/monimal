@@ -35,6 +35,7 @@ export const CONTROL_TOPICS = [
   "accounts",
   "apps",
   "models",
+  "localModels",
   "clients",
   "usage",
   "traffic",

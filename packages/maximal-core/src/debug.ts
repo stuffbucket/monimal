@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { isSearchConnectorPlugin } from "@stuffbucket/maximal-harness"
 import { defineCommand } from "citty"
 import consola from "consola"
 import os from "node:os"
@@ -11,6 +12,10 @@ import {
   DEFAULT_LOG_RETENTION_DAYS,
   getConfig,
 } from "./lib/config/config"
+import {
+  connectorPlugin,
+  parseConnectorConfig,
+} from "./lib/config/connector-plugins"
 import { PATHS } from "./lib/platform/paths"
 import { getGitVersion, shortSha } from "./lib/update/version"
 import {
@@ -134,7 +139,20 @@ export function secretStatus(
  *  diagnostic output. */
 export function describeExecutor(
   env: NodeJS.ProcessEnv = process.env,
+  config?: AppConfig,
 ): DebugInfo["executor"] {
+  const plugin = connectorPlugin("search", isSearchConnectorPlugin)
+  if (plugin) {
+    const search = parseConnectorConfig(plugin, config?.connectors)
+    const priority = search.priority ?? plugin.providers().map(({ id }) => id)
+    const enabled = priority.filter(
+      (providerId) => search.providers?.[providerId]?.enabled !== false,
+    )
+    return {
+      web_tools: "SearchConnector",
+      notes: `providers: ${enabled.join(" -> ") || "none"}; fallback: ${search.fallback === false ? "disabled" : "enabled"}`,
+    }
+  }
   const choice = chooseExecutor(env, {
     responsesModel: resolveResponsesModel(),
   })
@@ -223,7 +241,7 @@ async function getDebugInfo(): Promise<DebugInfo> {
     },
     tokenExists,
     config: summarizeConfig(config),
-    executor: describeExecutor(),
+    executor: describeExecutor(process.env, config),
     secrets: collectSecretStatuses(config),
   }
 }

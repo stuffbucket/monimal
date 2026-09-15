@@ -1,0 +1,234 @@
+// @vitest-environment jsdom
+
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const xterm = vi.hoisted(() => {
+  const addon: unknown = undefined;
+  const options: unknown = undefined;
+  return {
+    addon,
+    keyHandler: undefined as ((event: KeyboardEvent) => boolean) | undefined,
+    options,
+    proposeDimensions: vi.fn((): { cols: number; rows: number } | undefined => ({ cols: 80, rows: 24 })),
+    resize: vi.fn(),
+  };
+});
+
+const ghostty = vi.hoisted(() => {
+  const coreOptions: unknown = undefined;
+  return {
+    core: { name: 'ghostty-core', dispose: vi.fn() },
+    coreOptions,
+    dataHandler: undefined as ((data: string) => void) | undefined,
+    destroy: vi.fn(),
+    init: vi.fn(async () => undefined),
+    options: undefined as { onData?: (data: string) => void; onTitle?: (title: string) => void } | undefined,
+    resize: vi.fn(),
+    textarea: undefined as HTMLTextAreaElement | undefined,
+    write: vi.fn(),
+  };
+});
+
+vi.mock('@xterm/addon-fit', () => ({
+  FitAddon: class {
+    proposeDimensions(): { cols: number; rows: number } | undefined { return xterm.proposeDimensions(); }
+  },
+}));
+
+vi.mock('@xterm/xterm', () => ({
+  Terminal: class {
+    readonly cols = 80;
+    readonly rows = 24;
+    readonly buffer = { active: {} };
+    constructor(options: unknown) { xterm.options = options; }
+    loadAddon(addon: unknown): void { xterm.addon = addon; }
+    open(): void {}
+    focus(): void {}
+    blur(): void {}
+    onData(): { dispose(): void } { return { dispose() {} }; }
+    onResize(): { dispose(): void } { return { dispose() {} }; }
+    attachCustomKeyEventHandler(handler: (event: KeyboardEvent) => boolean): void {
+      xterm.keyHandler = handler;
+    }
+    onTitleChange(): { dispose(): void } { return { dispose() {} }; }
+    resize(cols: number, rows: number): void { xterm.resize(cols, rows); }
+    write(): void {}
+    clear(): void {}
+    selectAll(): void {}
+    scrollToTop(): void {}
+    scrollToBottom(): void {}
+    dispose(): void {}
+  },
+}));
+
+vi.mock('@wterm/ghostty', () => ({
+  GhosttyCore: class {
+    static async load(options: unknown): Promise<unknown> {
+      ghostty.coreOptions = options;
+      return ghostty.core;
+    }
+  },
+}));
+
+vi.mock('@wterm/dom', () => ({
+  WTerm: class {
+    readonly cols = 80;
+    readonly rows = 24;
+    readonly bridge = null;
+    constructor(_host: HTMLElement, options: { onData?: (data: string) => void }) {
+      const textarea = document.createElement('textarea');
+      textarea.addEventListener('input', () => options.onData?.(textarea.value));
+      _host.appendChild(textarea);
+      ghostty.options = options;
+      ghostty.dataHandler = options.onData;
+      ghostty.textarea = textarea;
+    }
+    async init(): Promise<void> { await ghostty.init(); }
+    focus(): void {}
+    resize(cols: number, rows: number): void {
+      ghostty.resize(cols, rows);
+    }
+    write(data: string): void { ghostty.write(data); }
+    destroy(): void { ghostty.destroy(); }
+  },
+}));
+
+import { createTerminalEmulator } from '../../src/renderer/lib/terminal-emulator.js';
+
+describe('terminal emulator adapter', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('owns xterm construction and fit behavior', async () => {
+    const emulator = await createTerminalEmulator('xterm', {
+      background: '#101216',
+      foreground: '#e6e8ec',
+    });
+
+    expect(xterm.options).toMatchObject({
+      cursorBlink: true,
+      fontSize: 13,
+      minimumContrastRatio: 4.5,
+      theme: { background: '#101216', foreground: '#e6e8ec' },
+    });
+    expect(xterm.addon).toBeDefined();
+    const host = document.createElement('div');
+    await emulator.open(host);
+    expect(host.style.backgroundColor).toBe('rgb(16, 18, 22)');
+    expect(host.style.color).toBe('rgb(230, 232, 236)');
+    emulator.fit();
+    expect(xterm.proposeDimensions).toHaveBeenCalledOnce();
+    // The proposed 80x24 already matches the mock terminal's own cols/rows,
+    // so fit() has nothing to apply.
+    expect(xterm.resize).not.toHaveBeenCalled();
+
+    xterm.proposeDimensions.mockReturnValueOnce({ cols: 120, rows: 40 });
+    emulator.fit();
+    expect(xterm.resize).toHaveBeenCalledWith(120, 40);
+
+    xterm.proposeDimensions.mockReturnValueOnce(undefined);
+    emulator.fit();
+    expect(xterm.resize).toHaveBeenCalledTimes(1);
+
+    emulator.resize(1000, 1000);
+    expect(xterm.resize).toHaveBeenLastCalledWith(256, 128);
+  });
+
+  it('normalizes handled key events to xterm prevent-default semantics', async () => {
+    const emulator = await createTerminalEmulator();
+    emulator.onKeyEvent((event) => event.key === 'd');
+
+    expect(xterm.keyHandler?.({ key: 'd' } as KeyboardEvent)).toBe(false);
+    expect(xterm.keyHandler?.({ key: 'x' } as KeyboardEvent)).toBe(true);
+  });
+
+  it('loads Ghostty into wterm when selected', async () => {
+    const emulator = await createTerminalEmulator(
+      'ghostty',
+      { foreground: '#eef0f4', background: '#101216' },
+      { paddingX: 8, paddingY: 6, balance: true, opacity: 0.8, blur: 4 },
+    );
+    emulator.onKeyEvent((event) => event.key === 'd');
+    const onData = vi.fn();
+    emulator.onData(onData);
+    const host = document.createElement('div');
+    await emulator.open(host);
+
+    const handled = new KeyboardEvent('keydown', { key: 'd', cancelable: true });
+    const unhandled = new KeyboardEvent('keydown', { key: 'x', cancelable: true });
+    ghostty.textarea?.dispatchEvent(handled);
+    if (ghostty.textarea) ghostty.textarea.value = '\x04';
+    ghostty.textarea?.dispatchEvent(new InputEvent('input', { bubbles: true }));
+    expect(onData).not.toHaveBeenCalled();
+    ghostty.dataHandler?.('\x04');
+    ghostty.textarea?.dispatchEvent(unhandled);
+
+    const coreOptions = ghostty.coreOptions as Record<string, unknown>;
+    expect(coreOptions['wasmPath']).toBeTypeOf('string');
+    expect(coreOptions['wasmPath']).toMatch(/^data:application\/wasm;base64,/);
+    expect(coreOptions['foregroundColor']).toBe('#eef0f4');
+    expect(coreOptions['backgroundColor']).toBe('#101216');
+    expect(ghostty.init).toHaveBeenCalledOnce();
+    expect(ghostty.options).toMatchObject({
+      autoResize: false,
+      core: ghostty.core,
+      cursorBlink: true,
+    });
+    expect(host.style.getPropertyValue('--term-fg')).toBe('#eef0f4');
+    expect(host.style.getPropertyValue('--term-bg')).toBe(
+      'color-mix(in srgb, #101216 80%, transparent)',
+    );
+    expect(host.style.padding).toBe('6px 8px');
+    expect(host.style.boxSizing).toBe('border-box');
+    expect(host.style.backdropFilter).toBe('blur(4px)');
+    expect(host.dataset.ghosttyPaddingBalance).toBe('true');
+    expect(handled.defaultPrevented).toBe(true);
+    expect(unhandled.defaultPrevented).toBe(false);
+    expect(onData).toHaveBeenCalledOnce();
+    expect(onData).toHaveBeenCalledWith('\x04');
+
+    emulator.fit();
+    expect(ghostty.resize).not.toHaveBeenCalled();
+    Object.defineProperties(host, {
+      clientHeight: { configurable: true, value: 360 },
+      clientWidth: { configurable: true, value: 800 },
+    });
+    const bounds = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockImplementation(function (this: HTMLElement) {
+        return {
+          bottom: 18,
+          height: this.classList.contains('term-row') ? 18 : 0,
+          left: 0,
+          right: this instanceof HTMLSpanElement ? 8 : 0,
+          toJSON: () => ({}),
+          top: 0,
+          width: this instanceof HTMLSpanElement ? 8 : 0,
+          x: 0,
+          y: 0,
+        };
+      });
+    emulator.fit();
+    expect(ghostty.resize).toHaveBeenCalledWith(98, 19);
+    bounds.mockRestore();
+
+    emulator.clear();
+    expect(ghostty.write).toHaveBeenCalledWith('\x1b[2J\x1b[H');
+    emulator.dispose();
+    expect(ghostty.destroy).toHaveBeenCalledOnce();
+    expect(ghostty.core.dispose).toHaveBeenCalledOnce();
+  });
+
+  it('projects bounded top-level OSC titles across writes', async () => {
+    const emulator = await createTerminalEmulator('ghostty');
+    const onTitle = vi.fn();
+    emulator.onTitleChange(onTitle);
+    await emulator.open(document.createElement('div'));
+
+    emulator.write('\x1b]0;Ghost');
+    emulator.write('ty title\x1b\\');
+    emulator.write('\x1b_Ptmux;\x1b\x1b]2;nested\x1b\x1b\\\x1b\\');
+    emulator.write(`\x1b]2;${'x'.repeat(4_097)}\x07`);
+
+    expect(onTitle).toHaveBeenCalledOnce();
+    expect(onTitle).toHaveBeenCalledWith('Ghostty title');
+  });
+});

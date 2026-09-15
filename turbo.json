@@ -10,6 +10,20 @@
     ".bun-version"
   ],
   "tasks": {
+    "analyze": {
+      "outputs": [],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/architecture-analysis.json",
+        "$TURBO_ROOT$/architecture-analysis.schema.json",
+        "$TURBO_ROOT$/packages/maximal-core/scripts/analysis/**",
+        "$TURBO_ROOT$/packages/maximal-core/scripts/analyze.ts",
+        "$TURBO_ROOT$/scripts/architecture-graph.mjs",
+        "!research_log/**",
+        "!.claude/**",
+        "!.github/**"
+      ]
+    },
     "build": {
       "dependsOn": ["^build"],
       "outputs": ["dist/**"],
@@ -25,14 +39,15 @@
       "description": "Build package outputs after building workspace dependencies."
     },
     "maximal-client#build": {
-      "dependsOn": ["^build"],
+      "dependsOn": ["^build", "@stuffbucket/maximal#build"],
       "cache": false,
       "env": ["MAXIMAL_CORE_OUT", "MAXIMAL_CORE_REF", "MAXIMAL_CORE_TARGET", "MAXIMAL_GIT_SHA"],
-      "description": "Compile the platform sidecar with checkout provenance."
+      "description": "Build the Maximal composition owner and client dependencies before compiling the platform sidecar."
     },
     "typecheck": {
       "dependsOn": ["^build"],
       "outputs": [],
+      "passThroughEnv": ["MONIMAL_WORKSPACE_TASK"],
       "inputs": [
         "$TURBO_DEFAULT$",
         "!research_log/**",
@@ -42,7 +57,7 @@
       "description": "Check package types against built workspace dependencies."
     },
     "test": {
-      "dependsOn": ["^build"],
+      "dependsOn": ["analyze", "^build"],
       "inputs": [
         "$TURBO_DEFAULT$",
         "!research_log/**",
@@ -76,6 +91,7 @@
     "lint": {
       "dependsOn": ["transit", "^build"],
       "outputs": [],
+      "passThroughEnv": ["MONIMAL_WORKSPACE_TASK"],
       "inputs": [
         "$TURBO_DEFAULT$",
         "!research_log/**",
@@ -95,11 +111,28 @@
       ],
       "description": "Create environment-dependent package artifacts."
     },
+    "start": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "persistent": true
+    },
     "dev": {
       "dependsOn": ["^build"],
       "cache": false,
       "persistent": true,
       "description": "Build workspace dependencies, then run a package's interactive development process."
+    },
+    "dev:terminal": {
+      "dependsOn": ["^build"],
+      "cache": false,
+      "persistent": true,
+      "description": "Launch the focused Electron terminal development lab."
+    },
+    "dev:context": {
+      "dependsOn": ["^build"],
+      "cache": false,
+      "persistent": true,
+      "description": "Launch the focused context-window visualization development lab."
     },
     "maximal-client#dev": {
       "dependsOn": ["build"],

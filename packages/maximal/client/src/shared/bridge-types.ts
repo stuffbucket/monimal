@@ -1,12 +1,27 @@
-import type { ControlErrorReason } from '@stuffbucket/maximal-core/control-contract'
+import type {
+  ControlErrorReason,
+  LocalModelCancelResult,
+  LocalModelCatalogEntry,
+  LocalModelCatalogSnapshot,
+  LocalModelEnsureResult,
+  LocalModelOperationEvent,
+} from '@stuffbucket/maximal-core/control-contract'
+
+export type {
+  LocalModelCancelResult,
+  LocalModelCatalogEntry,
+  LocalModelCatalogSnapshot,
+  LocalModelEnsureResult,
+  LocalModelOperationEvent,
+}
 import type {
   TrafficInvalidationListener,
   TrafficOverview,
   TrafficOverviewQuery,
   TrafficRequestDetail,
   TrafficRequestDetailQuery,
+  TrafficRequestList,
   TrafficRequestListQuery,
-  TrafficRequestPage,
 } from '@stuffbucket/maximal-observability-contract'
 
 /** Sidecar lifecycle state that is safe to expose to the product renderer. */
@@ -51,7 +66,7 @@ export interface ObservabilityControlBridge {
   ): Promise<ControlResult<TrafficOverview>>
   observabilityRequests(
     query: TrafficRequestListQuery,
-  ): Promise<ControlResult<TrafficRequestPage>>
+  ): Promise<ControlResult<TrafficRequestList>>
   observabilityRequest(
     query: TrafficRequestDetailQuery,
   ): Promise<ControlResult<TrafficRequestDetail | null>>
@@ -70,4 +85,23 @@ export interface MenuBarModeState {
 export interface MenuBarModeAttempt {
   attemptId: string
   deadlineMs: number
+}
+
+export interface OllamaRuntimeStatus {
+  installation: 'application' | 'cli' | 'none'
+  installed: boolean
+  running: boolean
+  can_launch: boolean
+  can_manage: boolean
+  application_path: string | null
+  server_configuration_path: string
+  desktop_settings_path: string | null
+  endpoint: string
+  context_length: number | null
+}
+
+export interface ClientInstallation {
+  id: string
+  client_path: string | null
+  configuration_path: string | null
 }

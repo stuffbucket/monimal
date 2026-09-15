@@ -5,7 +5,7 @@ import type {
 
 export const timestamp = "2026-09-07T12:00:00.000Z"
 
-export const emptyTokens: TrafficTokenMetadata = {
+const emptyTokens: TrafficTokenMetadata = {
   inputTokens: 0,
   outputTokens: 0,
   cacheReadInputTokens: 0,

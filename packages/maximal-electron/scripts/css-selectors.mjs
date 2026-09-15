@@ -161,7 +161,7 @@ function splitDeclarations(body) {
  * Every property name a declaration body sets, in source order and with
  * repeats.
  *
- * Names only. A value is deliberately not returned: `structural.css` reads the
+ * Names only. A value is deliberately not returned: `shell-package-rules.css` reads the
  * `--shell-*` namespace where the reference stylesheets carry a palette, so
  * every shared rule differs in its values by design.
  */

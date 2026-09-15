@@ -22,6 +22,7 @@ Run workspace workflows from the repository root:
 | --- | --- |
 | Run the desktop app | `pnpm dev` |
 | Run the headless server in watch mode | `pnpm dev:server` |
+| Analyze package architecture | `pnpm analyze` |
 | Build the workspace | `pnpm build` |
 | Run native build, type, and lint checks | `pnpm check:static` |
 | Run the complete gate | `pnpm check` |
@@ -30,9 +31,16 @@ Run workspace workflows from the repository root:
 | Package the desktop app | `pnpm package` |
 | Exercise every workspace packager | `pnpm package:all` |
 
-These root scripts are the supported workflow entry points. Use
+These root scripts are the supported workflow entry points. `pnpm dev` builds
+the client and its workspace dependencies before Electron starts, and remains
+attached until the app closes or you press Ctrl+C. Use
 `pnpm --filter <package> run <script>` for package-specific diagnostics and
 maintenance commands.
 
 See [`docs/testing-in-docker.md`](docs/testing-in-docker.md) for the test
 boundary and [RELEASING.md](RELEASING.md) for release procedures.
+
+`pnpm analyze` runs the Turbo-cached package architecture graph: Knip
+reachability and dependency hygiene, dependency-cruiser package/source cycle
+checks, and the jscpd cross-file production clone ratchet. Import boundaries
+run as part of `pnpm lint` through the shared ESLint profile.

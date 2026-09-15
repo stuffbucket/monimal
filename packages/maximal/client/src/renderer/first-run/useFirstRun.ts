@@ -1,10 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 
 import {
   createFirstRunCapabilities,
   type AuthCapability,
   type AuthStatus,
-  type BootPhase,
 } from './capabilities'
 import { deriveFirstRunPhase, type ActionError, type FirstRunPhase } from './model'
 
@@ -54,27 +53,21 @@ export interface UseFirstRunResult {
  * signed in from a previous run — rather than assuming a fresh start.
  */
 export function useFirstRun(): UseFirstRunResult {
-  const [boot, setBoot] = useState<BootPhase>({ phase: 'starting' })
+  const [capabilities] = useState(createFirstRunCapabilities)
+  const boot = useSyncExternalStore(
+    capabilities.lifecycle.subscribe,
+    capabilities.lifecycle.current,
+    capabilities.lifecycle.current,
+  )
   const [status, setStatus] = useState<AuthStatus | null>(null)
   const [actionError, setActionError] = useState<ActionError | null>(null)
   const [busy, setBusy] = useState(false)
   const [nowMs, setNowMs] = useState(() => Date.now())
 
-  const authRef = useRef<AuthCapability | null>(null)
-
   useEffect(() => {
     let cancelled = false
     let unsubAuth = () => {}
-    let unsubLifecycle = () => {}
     let poll: ReturnType<typeof setInterval> | null = null
-
-    const capabilities = createFirstRunCapabilities()
-    authRef.current = capabilities.auth
-
-    setBoot(capabilities.lifecycle.current())
-    unsubLifecycle = capabilities.lifecycle.subscribe((next) => {
-      if (!cancelled) setBoot(next)
-    })
 
     const refresh = async () => {
       try {
@@ -101,14 +94,9 @@ export function useFirstRun(): UseFirstRunResult {
     return () => {
       cancelled = true
       unsubAuth()
-      unsubLifecycle()
       if (poll) clearInterval(poll)
-      // Tears down both bridge listeners this mount's capability bundle
-      // registered. Without it, every mount — including every sign-out, which
-      // remounts `FirstRun` — leaks a fresh pair that nothing removes.
-      capabilities.dispose()
     }
-  }, [])
+  }, [capabilities])
 
   // Tick the clock while a device code is live so client-side expiry
   // (`deriveFirstRunPhase`'s `remainingMs <= 0` check) fires on its own,
@@ -125,8 +113,8 @@ export function useFirstRun(): UseFirstRunResult {
   )
 
   function runAction(action: (auth: AuthCapability) => Promise<AuthStatus | void>) {
-    const auth = authRef.current
-    if (!auth || busy) return
+    const auth = capabilities.auth
+    if (busy) return
     setBusy(true)
     setActionError(null)
     void action(auth)
@@ -150,7 +138,7 @@ export function useFirstRun(): UseFirstRunResult {
         return auth.status()
       }),
     openVerificationUrl: (url: string) => {
-      void authRef.current?.openExternal(url)
+      void capabilities.auth.openExternal(url)
     },
   }
 }

@@ -1,41 +1,15 @@
 name: Docker policy
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - .bun-version
-      - .dockerignore
-      - .npmrc
-      - .pnpmfile.cjs
-      - .nvmrc
-      - Dockerfile
-      - mise.lock
-      - package.json
-      - packages/**/package.json
-      - pnpm-lock.yaml
-      - pnpm-workspace.yaml
-      - scripts/**
-      - tests/docker-test-policy.test.mjs
-  push:
-    branches: [main]
-    paths:
-      - .bun-version
-      - .dockerignore
-      - .npmrc
-      - .pnpmfile.cjs
-      - .nvmrc
-      - Dockerfile
-      - mise.lock
-      - package.json
-      - packages/**/package.json
-      - pnpm-lock.yaml
-      - pnpm-workspace.yaml
-      - scripts/**
-      - tests/docker-test-policy.test.mjs
   schedule:
     - cron: "31 7 * * 1"
   workflow_dispatch:
+    inputs:
+      mode:
+        description: Pinned Linux validation scope
+        type: choice
+        options: [full, policy]
+        default: full
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -61,5 +35,14 @@ jobs:
 
       # The host wrapper needs only Node. The image installs its own locked
       # pnpm, Bun, dependencies and support tools before the offline test run.
-      - name: Build pinned image and run policy suite
-        run: node scripts/docker-test.mjs --suite=policy
+      # Scheduled runs prove the image boundary; manually dispatched runs
+      # default to the complete workspace graph on the selected branch.
+      - name: Build pinned image and run selected suite
+        env:
+          MODE: ${{ github.event_name == 'schedule' && 'policy' || inputs.mode }}
+        run: |
+          if [ "$MODE" = full ]; then
+            node scripts/docker-test.mjs --all
+          else
+            node scripts/docker-test.mjs --suite=policy
+          fi

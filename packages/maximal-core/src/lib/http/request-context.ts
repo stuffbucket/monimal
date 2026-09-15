@@ -11,6 +11,9 @@ export interface RequestContext {
   userAgent: string
   sessionAffinity: string | undefined
   parentSessionId: string | undefined
+  /** Stable configured credential identity; never the key material itself. */
+  apiKeyId?: string | null
+  apiKeyLabel?: string | null
   trafficObservation?: TrafficObservationHandle
   trafficRequestId?: string
   trafficTokens?: TrafficTokenMetadata

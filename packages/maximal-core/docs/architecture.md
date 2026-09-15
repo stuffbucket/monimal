@@ -87,6 +87,53 @@ Mounted routers: `/_debug`, `/_internal`, `/control`, product-API
 aliases, `/v1/messages`, and the provider-scoped `/:provider/v1/messages`
 and `/:provider/v1/models`.
 
+In legacy provider mode, the canonical `ollama` provider exists implicitly and
+exposes the local service through provider-qualified routes. Its base URL
+uses `OLLAMA_HOST` when set and otherwise defaults to
+`http://127.0.0.1:11434`; `providers.ollama.enabled: false` disables it
+explicitly. Additional `providers.<name>.type: "ollama"` entries may specify a
+remote endpoint, and a configured `apiKey` is sent as bearer authentication for
+an account-backed service. When an Ollama API key is present, Core also
+discovers `https://ollama.com` as `ollama-cloud`. Ordinary `/v1/messages`
+requests and the OpenAI-compatible `/v1/chat/completions`, `/v1/responses`, and
+`/v1/embeddings` requests route from the advertised model catalogue. Their
+unprefixed compatibility aliases use the same resolver. OpenAI-compatible
+provider requests are relayed without protocol translation; `/v1/messages`
+translates Anthropic requests and responses. A duplicate advertised by local
+and cloud Ollama follows `ollama.preferLocalModels` (default `true`); duplicates
+across unrelated providers remain conflicts and require a provider-qualified
+route.
+
+The aggregate model catalogue is shared across these API surfaces. Ollama's
+bulk `/v1/models` response omits capabilities, so Core enriches each Ollama
+entry from `/api/show` with the model's declared capabilities, family, and
+context length. Detail requests are bounded to four concurrent calls and a
+five-second timeout; a failed detail request leaves that model available with
+unknown capabilities. The control model list uses this metadata for model type, vision input, image
+generation, video generation, tool-calling, streaming, and reasoning flags.
+Image- and video-only models have no token context or maximum output limit; the
+desktop reports those fields as not applicable rather than unknown. The
+Anthropic model shape publishes the capabilities it can represent. Ollama
+remains authoritative when a selected model rejects an operation.
+
+At runtime, `OLLAMA_API_KEY` takes precedence over `providers.*.apiKey`.
+Bootstrap loads the owner-only `secrets/ollama` file into that environment
+slot, so desktop-managed Ollama credentials can reuse Core's existing secret
+file without placing the key in `config.json`.
+The desktop settings operation validates a non-empty key against the cloud
+models endpoint before atomically replacing that file with mode `0600`. An
+empty value removes the saved key and disables cloud discovery.
+
+The control plane reports Ollama separately from GitHub identities through
+`ollamaAccounts/list` and `GET /control/ollama/accounts`. Each entry identifies
+its provider name, endpoint, local or remote scope, authentication state,
+availability, and discovered model count. If no Ollama provider is configured,
+Core reports an implicit unauthenticated localhost entry and probes the default
+endpoint. `ollamaSettings/get` and `ollamaSettings/update` expose only key
+presence/source, local-provider enablement, and the local/cloud preference;
+they never return the key.
+This status does not change Copilot account recovery.
+
 ## Model routing
 
 `src/lib/models/models.ts` normalizes Claude model IDs via regex patterns

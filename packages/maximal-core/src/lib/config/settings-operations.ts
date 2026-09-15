@@ -1,14 +1,37 @@
+import {
+  buildSearchSettingsManifest,
+  isSearchConnectorPlugin,
+  type ConnectorSettingField,
+  type ConnectorSettingValue,
+  type SearchConnectorConfig,
+  type SearchConnectorPlugin,
+  type SearchProviderConfig,
+  type SearchProvider,
+} from "@stuffbucket/maximal-harness"
 import { randomUUID } from "node:crypto"
 
-import type { AppEntry } from "~/lib/config/settings-types"
 import type {
+  AppEntry,
   ApiKeyCreateRequest as ApiKeyCreateRequestType,
   ApiKeyEntry,
   ApiKeysListResponse,
   ApiKeyUpdateRequest as ApiKeyUpdateRequestType,
+  ConnectionAction,
+  ConnectionCredentialReveal,
+  ConnectionEntry,
+  ConnectionsListResponse,
   CopilotRefreshStatus,
   DiagnosticsResponse,
+  SearchProviderValidationRequest,
+  SearchProviderValidationResponse,
+  SearchSettingsResponse,
+  SearchSettingsUpdateRequest,
 } from "~/lib/config/settings-types"
+import type {
+  ConfiguratorConnection,
+  ConfiguratorPlugin,
+  ConfiguratorRegistry,
+} from "~/lib/configurator-host"
 
 import { getApp } from "~/apps/registry"
 import { describeExecutor } from "~/debug"
@@ -19,8 +42,32 @@ import {
   getEnterpriseDomain,
   getGitHubApiBaseUrl,
 } from "~/lib/config/api-config"
-import { getConfig, writeConfig } from "~/lib/config/config"
+import {
+  type AppConfig,
+  getConfig,
+  updateConfig,
+  writeConfig,
+} from "~/lib/config/config"
 import { API_KEY_VALUE_PATTERN } from "~/lib/config/config-schema"
+import {
+  connectorPlugin,
+  parseConnectorConfig,
+} from "~/lib/config/connector-plugins"
+import {
+  probeSearchProvider,
+  type SearchProviderRequest,
+} from "~/lib/config/search-provider-probe"
+import {
+  enabledProviderError,
+  searchSettingError,
+} from "~/lib/config/search-setting-validation"
+import { SearchSettingsResponse as SearchSettingsResponseSchema } from "~/lib/config/settings-types"
+import {
+  apiKeyToCredentialSummary,
+  configuratorConnectionToAppEntry,
+  configuratorConnectionToConnectionEntry,
+} from "~/lib/configurator-app-compat"
+import { sendProviderRequest } from "~/lib/http/send-request"
 import { describeLaunchSource } from "~/lib/platform/cli-path"
 import {
   copilotRefreshHealth,
@@ -45,6 +92,276 @@ export class SettingsOperationError extends Error {
   }
 }
 
+function installedSearchPlugin(): SearchConnectorPlugin {
+  const plugin = connectorPlugin("search", isSearchConnectorPlugin)
+  if (!plugin) {
+    throw new SettingsOperationError(
+      "Search connector plugin is not installed",
+      "not_found",
+    )
+  }
+  return plugin
+}
+
+interface SearchSettingsDependencies {
+  getConfig: typeof getConfig
+  getPlugin: () => SearchConnectorPlugin
+  writeConfig: typeof writeConfig
+}
+
+const searchSettingsDependencies: SearchSettingsDependencies = {
+  getConfig,
+  getPlugin: installedSearchPlugin,
+  writeConfig,
+}
+
+export function buildSearchSettings(
+  config: AppConfig = getConfig(),
+  plugin: SearchConnectorPlugin = installedSearchPlugin(),
+): SearchSettingsResponse {
+  const searchProviders = plugin.providers()
+  const searchManifest = buildSearchSettingsManifest(searchProviders)
+  const search = parseConnectorConfig(plugin, config.connectors)
+  const defaults = search.defaults ?? {}
+  const settings: Record<string, ConnectorSettingValue> = {
+    priority: [...(search.priority ?? searchProviders.map(({ id }) => id))],
+    fallback: search.fallback ?? true,
+    maxResults: defaults.maxResults ?? 5,
+    allowedDomains: [...(defaults.allowedDomains ?? [])],
+    blockedDomains: [...(defaults.blockedDomains ?? [])],
+  }
+  const providers = Object.fromEntries(
+    searchProviders.map((provider) => {
+      const configured = search.providers?.[provider.id]
+      const configuredSettings = Object.fromEntries(
+        Object.entries(configured?.settings ?? {}).filter(
+          (entry): entry is [string, ConnectorSettingValue] =>
+            entry[1] !== undefined,
+        ),
+      )
+      const secretSources: Record<string, "environment" | "settings"> = {}
+      const secretKeys = new Set<string>()
+      for (const field of provider.settings ?? []) {
+        if (field.type !== "secret") continue
+        secretKeys.add(field.key)
+        if (typeof configuredSettings[field.key] === "string") {
+          secretSources[field.key] = "settings"
+        } else {
+          const source = provider.secretSource?.(
+            field.key,
+            configuredSettings[field.key],
+          )
+          if (source) secretSources[field.key] = source
+        }
+      }
+      const providerSettings = Object.fromEntries(
+        Object.entries(configuredSettings).filter(
+          ([key]) => !secretKeys.has(key),
+        ),
+      )
+      return [
+        provider.id,
+        {
+          enabled:
+            (configured?.enabled ?? true)
+            && enabledProviderError(provider, configured?.settings)
+              === undefined,
+          settings: providerSettings,
+          secret_sources: secretSources,
+        },
+      ]
+    }),
+  )
+  return SearchSettingsResponseSchema.parse({
+    manifest: searchManifest,
+    settings,
+    providers,
+  })
+}
+
+export function updateSearchSettings(
+  input: SearchSettingsUpdateRequest,
+  dependencies: SearchSettingsDependencies = searchSettingsDependencies,
+): SearchSettingsResponse {
+  const current = dependencies.getConfig()
+  const plugin = dependencies.getPlugin()
+  const searchProviders = plugin.providers()
+  const searchManifest = buildSearchSettingsManifest(searchProviders)
+  const previous = parseConnectorConfig(plugin, current.connectors)
+  const global = mergeGlobalSearchSettings(
+    previous,
+    input.settings,
+    searchManifest.fields,
+  )
+  const providers = mergeSearchProviders(previous.providers, input.providers, {
+    searchProviders,
+  })
+  const nextSearch = { ...previous, ...global, providers }
+  const saved = dependencies.writeConfig({
+    ...current,
+    connectors: { ...current.connectors, [plugin.id]: nextSearch },
+  })
+  return buildSearchSettings(saved, plugin)
+}
+
+interface SearchProviderValidationDependencies {
+  env: NodeJS.ProcessEnv
+  request: SearchProviderRequest
+  getConfig: typeof getConfig
+  getPlugin: () => SearchConnectorPlugin
+}
+
+const searchProviderValidationDependencies: SearchProviderValidationDependencies =
+  {
+    env: process.env,
+    request: sendProviderRequest,
+    getConfig,
+    getPlugin: installedSearchPlugin,
+  }
+
+export async function validateSearchProvider(
+  input: SearchProviderValidationRequest,
+  dependencies: SearchProviderValidationDependencies = searchProviderValidationDependencies,
+): Promise<SearchProviderValidationResponse> {
+  const plugin = dependencies.getPlugin()
+  const provider = plugin.providers().find(({ id }) => id === input.providerId)
+  if (!provider)
+    invalidSearchSetting(`Unknown search provider: ${input.providerId}`)
+
+  const configured = parseConnectorConfig(
+    plugin,
+    dependencies.getConfig().connectors,
+  ).providers?.[provider.id]
+  const settings = mergeProviderSettings(
+    provider,
+    configured?.settings,
+    input.settings,
+  )
+  validateEnabledProvider(provider, settings)
+  return probeSearchProvider({
+    provider,
+    settings,
+    env: dependencies.env,
+    request: dependencies.request,
+  })
+}
+
+function mergeGlobalSearchSettings(
+  previous: SearchConnectorConfig,
+  updates: SearchSettingsUpdateRequest["settings"],
+  fields: ReadonlyArray<ConnectorSettingField>,
+): Pick<SearchConnectorConfig, "priority" | "fallback" | "defaults"> {
+  let priority = previous.priority
+  let fallback = previous.fallback
+  const defaults = { ...previous.defaults }
+  for (const [key, value] of Object.entries(updates ?? {})) {
+    const field = fields.find((candidate) => candidate.key === key)
+    if (!field) invalidSearchSetting(`Unknown search setting: ${key}`)
+    validateSetting(field, value, `search.${key}`)
+    if (key === "priority" && Array.isArray(value)) {
+      validatePriority(value, fields)
+      priority = value
+    } else if (key === "fallback" && typeof value === "boolean") {
+      fallback = value
+    } else if (key === "maxResults" && typeof value === "number") {
+      defaults.maxResults = value
+    } else if (key === "allowedDomains" && Array.isArray(value)) {
+      defaults.allowedDomains = value
+    } else if (key === "blockedDomains" && Array.isArray(value)) {
+      defaults.blockedDomains = value
+    }
+  }
+  return { priority, fallback, defaults }
+}
+
+function validatePriority(
+  priority: Array<string>,
+  fields: ReadonlyArray<ConnectorSettingField>,
+): void {
+  const priorityField = fields.find(({ key }) => key === "priority")
+  const known = new Set(
+    priorityField?.type === "string-list" ? priorityField.default : [],
+  )
+  if (new Set(priority).size !== priority.length)
+    invalidSearchSetting("Search provider priority contains duplicates")
+  const unknown = priority.find((id) => !known.has(id))
+  if (unknown) invalidSearchSetting(`Unknown search provider: ${unknown}`)
+}
+
+function mergeSearchProviders(
+  previous: SearchConnectorConfig["providers"],
+  updates: SearchSettingsUpdateRequest["providers"],
+  validation: {
+    searchProviders: ReadonlyArray<SearchProvider>
+  },
+): Record<string, SearchProviderConfig> {
+  const providers = { ...previous }
+  for (const [providerId, update] of Object.entries(updates ?? {})) {
+    const provider = validation.searchProviders.find(
+      ({ id }) => id === providerId,
+    )
+    if (!provider)
+      invalidSearchSetting(`Unknown search provider: ${providerId}`)
+    const configured = providers[providerId] ?? {}
+    const settings = mergeProviderSettings(
+      provider,
+      configured.settings,
+      update.settings,
+    )
+    const enabled = update.enabled ?? configured.enabled ?? true
+    if (enabled) validateEnabledProvider(provider, settings)
+    providers[providerId] =
+      update.enabled === undefined ?
+        { ...configured, settings }
+      : { ...configured, enabled: update.enabled, settings }
+  }
+  return providers
+}
+
+function mergeProviderSettings(
+  provider: SearchProvider,
+  previous: SearchProviderConfig["settings"],
+  updates: NonNullable<
+    SearchSettingsUpdateRequest["providers"]
+  >[string]["settings"],
+): Record<string, ConnectorSettingValue | undefined> {
+  let settings = { ...previous }
+  for (const [key, value] of Object.entries(updates ?? {})) {
+    const field = provider.settings?.find((candidate) => candidate.key === key)
+    if (!field) invalidSearchSetting(`Unknown ${provider.id} setting: ${key}`)
+    if ((field.type === "secret" && value === "") || value === null) {
+      settings = Object.fromEntries(
+        Object.entries(settings).filter(([candidate]) => candidate !== key),
+      )
+      continue
+    }
+    validateSetting(field, value, `${provider.id}.${key}`)
+    settings[key] = value
+  }
+  return settings
+}
+
+function validateSetting(
+  field: ConnectorSettingField,
+  value: ConnectorSettingValue | null,
+  path: string,
+): void {
+  const error = searchSettingError(field, value, path)
+  if (error !== undefined) invalidSearchSetting(error)
+}
+
+function validateEnabledProvider(
+  provider: SearchProvider,
+  settings: SearchProviderConfig["settings"],
+): void {
+  const error = enabledProviderError(provider, settings)
+  if (error !== undefined) invalidSearchSetting(error)
+}
+
+function invalidSearchSetting(message: string): never {
+  throw new SettingsOperationError(message, "validation_error")
+}
+
 export function listApiKeys(): ApiKeysListResponse {
   const config = getConfig()
   return {
@@ -53,16 +370,54 @@ export function listApiKeys(): ApiKeysListResponse {
   }
 }
 
-function persistApiKeyEntries(entries: Array<ApiKeyEntry>): void {
+export async function listConnections(
+  registry?: ConfiguratorRegistry,
+): Promise<ConnectionsListResponse> {
   const config = getConfig()
-  writeConfig({ ...config, auth: { ...config.auth, apiKeyEntries: entries } })
+  const credentials = config.auth?.apiKeyEntries ?? []
+  const clients = await Promise.all(
+    (registry?.all() ?? []).map(async (plugin) => {
+      const credential = credentials.find(
+        (entry) =>
+          entry.kind === "managed"
+          && entry.configurator_id === plugin.metadata.id,
+      )
+      return configuratorConnectionToConnectionEntry(
+        plugin,
+        await plugin.connection(),
+        credential,
+      )
+    }),
+  )
+  return {
+    clients,
+    manual_credentials: credentials
+      .filter((entry) => entry.kind !== "managed")
+      .map((entry) => apiKeyToCredentialSummary(entry)),
+    require_known_keys: config.auth?.enforce === true,
+  }
+}
+
+export function revealConnectionCredential(
+  id: string,
+): ConnectionCredentialReveal {
+  const entry = getConfig().auth?.apiKeyEntries?.find(
+    (candidate) => candidate.id === id,
+  )
+  if (!entry) {
+    throw new SettingsOperationError(
+      "Connection credential not found",
+      "not_found",
+    )
+  }
+  return { id: entry.id, key: entry.key }
 }
 
 function validApiKey(candidate: string): string {
   const key = candidate.trim()
-  if (!API_KEY_VALUE_PATTERN.test(key)) {
+  if (key === "*" || !API_KEY_VALUE_PATTERN.test(key)) {
     throw new SettingsOperationError(
-      "Key must be 8–128 chars of letters, digits, underscore, or hyphen — or the literal '*' wildcard.",
+      "Key must be 8–128 chars of letters, digits, underscore, or hyphen.",
       "validation_error",
     )
   }
@@ -71,18 +426,24 @@ function validApiKey(candidate: string): string {
 
 export function createApiKey(input: ApiKeyCreateRequestType): ApiKeyEntry {
   const key = validApiKey(input.key ?? generateApiKeyValue())
-  const existing = getConfig().auth?.apiKeyEntries ?? []
-  if (existing.some((entry) => entry.key === key)) {
-    throw new SettingsOperationError("Key already exists", "conflict")
-  }
   const entry: ApiKeyEntry = {
     id: randomUUID(),
     label: input.label.trim(),
     key,
     enabled: input.enabled ?? true,
     created_at: new Date().toISOString(),
+    kind: "manual",
   }
-  persistApiKeyEntries([...existing, entry])
+  updateConfig((config) => {
+    const entries = config.auth?.apiKeyEntries ?? []
+    if (entries.some((candidate) => candidate.key === key)) {
+      throw new SettingsOperationError("Key already exists", "conflict")
+    }
+    return {
+      ...config,
+      auth: { ...config.auth, apiKeyEntries: [...entries, entry] },
+    }
+  })
   return entry
 }
 
@@ -90,57 +451,88 @@ export function updateApiKey(
   id: string,
   input: ApiKeyUpdateRequestType,
 ): ApiKeyEntry {
-  const entries = listApiKeys().entries
-  const index = entries.findIndex((entry) => entry.id === id)
-  if (index === -1) {
-    throw new SettingsOperationError("API key not found", "not_found")
-  }
-  const current = entries[index]
-  const key = input.key === undefined ? current.key : validApiKey(input.key)
-  if (
-    entries.some(
-      (entry, entryIndex) => entryIndex !== index && entry.key === key,
-    )
-  ) {
-    throw new SettingsOperationError("Key already exists", "conflict")
-  }
-  const updated: ApiKeyEntry = {
-    ...current,
-    label: input.label?.trim() ?? current.label,
-    key,
-    enabled: input.enabled ?? current.enabled,
-  }
-  const next = [...entries]
-  next[index] = updated
-  persistApiKeyEntries(next)
+  let updated: ApiKeyEntry | undefined
+  updateConfig((config) => {
+    const entries = config.auth?.apiKeyEntries ?? []
+    const index = entries.findIndex((entry) => entry.id === id)
+    if (index === -1) {
+      throw new SettingsOperationError("API key not found", "not_found")
+    }
+    const current = entries[index]
+    if (
+      current.kind === "managed"
+      && (input.label !== undefined
+        || input.key !== undefined
+        || input.enabled !== undefined)
+    ) {
+      throw new SettingsOperationError(
+        "Managed API keys are controlled by their connection",
+        "validation_error",
+      )
+    }
+    const key = input.key === undefined ? current.key : validApiKey(input.key)
+    if (
+      entries.some(
+        (entry, entryIndex) => entryIndex !== index && entry.key === key,
+      )
+    ) {
+      throw new SettingsOperationError("Key already exists", "conflict")
+    }
+    updated = {
+      ...current,
+      label: input.label?.trim() ?? current.label,
+      key,
+      enabled: input.enabled ?? current.enabled,
+    }
+    const next = [...entries]
+    next[index] = updated
+    return { ...config, auth: { ...config.auth, apiKeyEntries: next } }
+  })
+  if (!updated) throw new Error("API key update did not produce a value")
   return updated
 }
 
 export function removeApiKey(id: string): void {
-  const entries = listApiKeys().entries
-  const next = entries.filter((entry) => entry.id !== id)
-  if (next.length === entries.length) {
-    throw new SettingsOperationError("API key not found", "not_found")
-  }
-  persistApiKeyEntries(next)
+  updateConfig((config) => {
+    const entries = config.auth?.apiKeyEntries ?? []
+    const entry = entries.find((candidate) => candidate.id === id)
+    if (!entry) {
+      throw new SettingsOperationError("API key not found", "not_found")
+    }
+    if (entry.kind === "managed") {
+      throw new SettingsOperationError(
+        "Managed API keys are controlled by their connection",
+        "validation_error",
+      )
+    }
+    const next = entries.filter((candidate) => candidate.id !== id)
+    return { ...config, auth: { ...config.auth, apiKeyEntries: next } }
+  })
 }
 
 export function setApiKeyEnforcement(enforcing: boolean): ApiKeysListResponse {
-  const config = getConfig()
-  writeConfig({ ...config, auth: { ...config.auth, enforce: enforcing } })
-  return listApiKeys()
+  const config = updateConfig((current) => ({
+    ...current,
+    auth: { ...current.auth, enforce: enforcing },
+  }))
+  return {
+    entries: config.auth?.apiKeyEntries ?? [],
+    enforcing: config.auth?.enforce === true,
+  }
 }
 
 interface AppOperationDependencies {
   getApp: typeof getApp
   getConfig: typeof getConfig
   writeConfig: typeof writeConfig
+  updateConfig?: typeof updateConfig
 }
 
 const appOperationDependencies: AppOperationDependencies = {
   getApp,
   getConfig,
   writeConfig,
+  updateConfig,
 }
 
 export async function setAppEnabled(
@@ -169,8 +561,7 @@ export async function setAppEnabled(
     await app.disable()
   }
   if (appId === "claude-desktop") {
-    const config = dependencies.getConfig()
-    dependencies.writeConfig({
+    const applyIntent = (config: ReturnType<typeof getConfig>) => ({
       ...config,
       apps: {
         ...config.apps,
@@ -180,8 +571,136 @@ export async function setAppEnabled(
         },
       },
     })
+    if (dependencies.updateConfig) {
+      dependencies.updateConfig(applyIntent)
+    } else {
+      dependencies.writeConfig(applyIntent(dependencies.getConfig()))
+    }
   }
   return app.getDetails(conflict)
+}
+
+function configuratorIntentKey(
+  configuratorId: string,
+): "claudeCode" | "claudeDesktop" | undefined {
+  if (configuratorId === "claude-code") return "claudeCode"
+  if (configuratorId === "claude-desktop") return "claudeDesktop"
+  return undefined
+}
+
+function persistConfiguratorIntent(
+  configuratorId: string,
+  enabled: boolean | undefined,
+): boolean | undefined {
+  const configKey = configuratorIntentKey(configuratorId)
+  if (!configKey) return undefined
+  let previous: boolean | undefined
+  updateConfig((config) => {
+    previous = config.apps?.[configKey]?.enabled
+    return {
+      ...config,
+      apps: {
+        ...config.apps,
+        [configKey]: {
+          ...config.apps?.[configKey],
+          enabled,
+        },
+      },
+    }
+  })
+  return previous
+}
+
+function invokeConnectionAction(
+  plugin: ConfiguratorPlugin,
+  action: ConnectionAction,
+): Promise<ConfiguratorConnection> {
+  if (action === "connect") return plugin.connect()
+  if (action === "reconnect") return plugin.reconnect()
+  return plugin.disconnect()
+}
+
+async function applyConnectionAction(
+  registry: ConfiguratorRegistry,
+  configuratorId: string,
+  action: ConnectionAction,
+): Promise<{
+  plugin: ConfiguratorPlugin
+  connection: ConfiguratorConnection
+}> {
+  const plugin = registry.get(configuratorId)
+  if (!plugin || plugin.metadata.availability === "coming-soon") {
+    throw new SettingsOperationError(
+      "Connection cannot be configured",
+      "validation_error",
+    )
+  }
+
+  const connecting = action === "connect" || action === "reconnect"
+  // Connection intent is write-ahead: if the daemon stops after enabling a
+  // managed credential but before committing the target claim, boot
+  // reconciliation safely retries the same desired connection. Disconnect
+  // keeps the previous true intent until target restoration and credential
+  // disable both succeed.
+  const previousIntent =
+    connecting ? persistConfiguratorIntent(configuratorId, true) : undefined
+  // A thrown connect or reconnect can occur after the managed credential was
+  // durably enabled but before the target journal was committed. Keep the true
+  // intent in that case. Structured refusals occur before writes and may safely
+  // restore the prior intent below.
+  const connection = await invokeConnectionAction(plugin, action)
+  const succeeded =
+    connecting ?
+      connection.status === "connected"
+    : connection.status === "available" || connection.status === "not-installed"
+  if (!succeeded) {
+    if (connecting) persistConfiguratorIntent(configuratorId, previousIntent)
+    const detail = connection.detail ?? connection.status.replaceAll("-", " ")
+    throw new SettingsOperationError(
+      `Cannot ${action} ${plugin.metadata.name}: ${detail}.`,
+      "conflict",
+    )
+  }
+
+  if (action === "disconnect") persistConfiguratorIntent(configuratorId, false)
+  return { plugin, connection }
+}
+
+export async function actOnConnection(
+  registry: ConfiguratorRegistry,
+  configuratorId: string,
+  action: ConnectionAction,
+): Promise<ConnectionEntry> {
+  const { plugin, connection } = await applyConnectionAction(
+    registry,
+    configuratorId,
+    action,
+  )
+  const credential = getConfig().auth?.apiKeyEntries?.find(
+    (entry) =>
+      entry.kind === "managed" && entry.configurator_id === plugin.metadata.id,
+  )
+  return configuratorConnectionToConnectionEntry(plugin, connection, credential)
+}
+
+export async function setConfiguratorEnabled(
+  registry: ConfiguratorRegistry,
+  appId: AppEntry["id"],
+  enabled: boolean,
+): Promise<AppEntry> {
+  const { plugin, connection } = await applyConnectionAction(
+    registry,
+    appId,
+    enabled ? "connect" : "disconnect",
+  )
+  const entry = configuratorConnectionToAppEntry(plugin, connection)
+  if (!entry) {
+    throw new SettingsOperationError(
+      "App cannot be configured",
+      "validation_error",
+    )
+  }
+  return entry
 }
 
 const isoOrNull = (ms: number | null | undefined): string | null =>
@@ -203,7 +722,7 @@ export function buildDiagnostics(): DiagnosticsResponse {
   const git = getGitVersion()
   const launch = describeLaunchSource()
   const tokens = tokenPresence()
-  const executor = describeExecutor()
+  const executor = describeExecutor(process.env, getConfig())
   return {
     version: BUILD_VERSION,
     source_revision: git.sha ? shortSha(git.sha) : null,

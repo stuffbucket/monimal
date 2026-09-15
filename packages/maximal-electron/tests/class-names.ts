@@ -16,7 +16,7 @@ import {
  * nothing else. It was blind to a ternary, to a class array joined at run time,
  * to a default parameter value and to a local variable, which is four of the
  * forms this repository uses. `.btn*` and `.dialog*` shipped with no rule in
- * `structural.css` and the check written to catch that reported clean.
+ * `shell-package-rules.css` and the check written to catch that reported clean.
  *
  * Widening a text matcher by matching more strings trades one false report for
  * another. A matcher that scrapes every literal collects test ids, ARIA roles

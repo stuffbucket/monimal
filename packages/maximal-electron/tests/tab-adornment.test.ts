@@ -116,7 +116,7 @@ describe('the stylesheets draw every emphasis', () => {
    *
    * An emphasis with no rule renders as nothing at all — a signal the caller
    * asked for and the user never sees. Both stylesheets are checked, because
-   * `shell.css` is this application's and `structural.css` is the one a
+   * `shell.css` is this application's and `shell-package-rules.css` is the one a
    * consumer imports, and a treatment landing in only the first is the defect
    * `tests/package-styles.test.ts` was written for.
    */
@@ -127,12 +127,12 @@ describe('the stylesheets draw every emphasis', () => {
     // styled, which is the empty-scope false pass this repository keeps hitting.
     const names = files.map(([name]) => name);
     expect(names).toContain('shell.css');
-    expect(names).toContain('structural.css');
+    expect(names).toContain('shell-package-rules.css');
     expect(TAB_EMPHASIS.length).toBeGreaterThan(0);
   });
 
   it('has a rule for each, in both', () => {
-    for (const name of ['shell.css', 'structural.css']) {
+    for (const name of ['shell.css', 'shell-package-rules.css']) {
       const [, css] = files.find(([file]) => file === name) ?? ['', ''];
       for (const emphasis of TAB_EMPHASIS) {
         expect(css, `${name} draws ${emphasis}`).toContain(`[data-emphasis='${emphasis}']`);
@@ -147,6 +147,8 @@ describe('the stylesheets draw every emphasis', () => {
     const parked = files.filter(([, css]) =>
       /@keyframes\s+[\w-]*busy\s*\{\s*0%,\s*100%\s*\{/i.test(css),
     );
-    expect(parked.map(([name]) => name).sort()).toEqual(['shell.css', 'structural.css']);
+    expect(parked.map(([name]) => name).sort()).toEqual(
+      ['shell.css', 'shell-package-rules.css'].sort(),
+    );
   });
 });

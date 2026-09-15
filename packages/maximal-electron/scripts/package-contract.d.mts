@@ -16,31 +16,6 @@ export declare const RUNTIME_ICONS: readonly string[];
 
 export declare function bundleIcon(platform: string): string;
 
-export declare const OPTIONAL_LLAMA_BACKENDS: readonly string[];
-
-export declare const LLAMA_BACKENDS_VARIABLE: string;
-
-export declare function parseLlamaBackends(value: string | undefined): string[];
-
-export declare function parseLlamaPackage(name: string): {
-  os: string;
-  arch: string;
-  backend: string;
-};
-
-export interface LlamaPackageDecision {
-  name: string;
-  keep: boolean;
-  reason: string;
-}
-
-export declare function llamaPackagePlan(
-  present: readonly string[],
-  platform: string,
-  arch: string,
-  backends: readonly string[],
-): LlamaPackageDecision[];
-
 export declare function admitsTarget(
   list: readonly string[] | string | undefined,
   value: string,
@@ -63,8 +38,6 @@ export declare function platformPackagePlan(
   platform: string,
   arch: string,
 ): PlatformPackageDecision[];
-
-export declare const LLAMA_SOURCE_INPUTS: readonly string[];
 
 export interface PackageContractIo {
   readPackageJson: (dir: string) =>

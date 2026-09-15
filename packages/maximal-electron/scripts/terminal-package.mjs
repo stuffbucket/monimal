@@ -26,7 +26,6 @@
  * @property {readonly string[]} unpackedFiles
  * @property {string} platform
  * @property {string} arch
- * @property {string} [contentSecurityPolicy]
  */
 
 /** Prebuild directory `node-pty` looks in. `mas` is a darwin build. */
@@ -54,38 +53,6 @@ export function terminalNativeFiles(platform) {
     : ['pty.node'];
 }
 
-/** The two grants `ghostty-web` needs, each with the directive that governs it. */
-export const TERMINAL_CONTENT_SECURITY_POLICY = [
-  { directive: 'script-src', source: "'wasm-unsafe-eval'" },
-  { directive: 'connect-src', source: 'data:' },
-];
-
-/**
- * Whether a directive grants a source, falling back to `default-src` as the
- * policy itself does. A directive that is present grants only what it lists.
- */
-function grants(policy, directive, source) {
-  let fallback;
-  for (const part of policy.split(';')) {
-    const [name, ...sources] = part.split(/\s/).filter(Boolean);
-    if (name === directive) return sources.includes(source);
-    if (name === 'default-src') fallback = sources.includes(source);
-  }
-  return fallback ?? false;
-}
-
-/**
- * `ghostty-web` inlines its WebAssembly as a data URL and fetches it at
- * startup. Without both sources the terminal renders nothing and the only
- * symptom is a console message.
- */
-export function contentSecurityPolicyChecks(policy) {
-  return TERMINAL_CONTENT_SECURITY_POLICY.map(({ directive, source }) => ({
-    name: `${directive} grants ${source}`,
-    ok: grants(policy, directive, source),
-  }));
-}
-
 /** Prebuild directory names any listed path passes through. */
 function prebuildDirectories(files) {
   const found = new Set();
@@ -101,18 +68,14 @@ function prebuildDirectories(files) {
  * @returns {TerminalPackageCheck[]}
  */
 export function terminalPackageChecks(input) {
-  const { packedFiles, unpackedFiles, platform, arch, contentSecurityPolicy } = input;
+  const { packedFiles, unpackedFiles, platform, arch } = input;
   const directory = terminalPrebuildDirectory(platform, arch);
-  const policy = contentSecurityPolicy ?? '';
 
-  // The floor. Point either list at the wrong directory and it is empty, and
-  // supply no policy and there is nothing to measure. In each case every
-  // assertion over the missing input would otherwise report a pass, which is
-  // what an optional policy did here for as long as it existed. Issue #92.
+  // The floor. Point either list at the wrong directory and it is empty. Every
+  // assertion over the missing input would otherwise report a pass.
   const checks = [
     { name: 'the archive listing is not empty', ok: packedFiles.length > 0 },
     { name: 'the unpacked listing is not empty', ok: unpackedFiles.length > 0 },
-    { name: 'a renderer content policy was supplied', ok: policy !== '' },
   ];
 
   checks.push({
@@ -136,8 +99,6 @@ export function terminalPackageChecks(input) {
     name: `only the ${directory} prebuild is present`,
     ok: directories.size > 0 && [...directories].every((entry) => entry === directory),
   });
-
-  checks.push(...contentSecurityPolicyChecks(policy));
 
   return checks;
 }

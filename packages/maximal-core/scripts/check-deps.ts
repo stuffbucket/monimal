@@ -63,6 +63,13 @@
  */
 import path from "node:path"
 
+import {
+  cruise,
+  cycleComponents,
+  cycleEdges,
+  type CruiseResult,
+} from "./analysis/cycles"
+import { ratchetChanges } from "./analysis/ratchet"
 import { checkProviderHostBoundary } from "./provider-host-boundary"
 
 const ROOT = path.resolve(import.meta.dir, "..")
@@ -142,121 +149,16 @@ const KNOWN_CYCLE_EDGES = [
 ]
 // --- END KNOWN CYCLE EDGES ---
 
-interface CycleStep {
-  name: string
-}
-interface Dependency {
-  resolved: string
-  circular?: boolean
-  cycle?: CycleStep[]
-}
-interface CruisedModule {
-  source: string
-  dependencies: Dependency[]
-}
-interface Violation {
-  from: string
-  to: string
-  rule: { name: string; severity: string }
-}
-interface CruiseResult {
-  modules: CruisedModule[]
-  summary: {
-    violations: Violation[]
-    totalCruised: number
-    totalDependenciesCruised: number
-  }
-}
-
 /** Run depcruise via its own entry point rather than the `.bin` shim, which is
  *  a `.cmd` on Windows and not spawnable the same way. */
-async function cruise(): Promise<CruiseResult> {
-  const entry = path.join(
-    ROOT,
-    "node_modules/dependency-cruiser/bin/dependency-cruise.mjs",
-  )
-  const proc = Bun.spawn(
-    [
-      process.execPath,
-      entry,
-      "--config",
-      CONFIG,
-      "--output-type",
-      "json",
-      ...CRUISE_PATHS,
-    ],
-    { cwd: ROOT, stdout: "pipe", stderr: "pipe" },
-  )
-  const [stdout, stderr] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-  ])
-  await proc.exited
-  // depcruise's exit code encodes violation counts, so it is not a usable
-  // success signal here; parseable output of the expected shape is.
+async function cruiseCore(): Promise<CruiseResult> {
   try {
-    const parsed: unknown = JSON.parse(stdout)
-    const result = parsed as CruiseResult
-    if (!Array.isArray(result.modules)) throw new Error("no `modules` array")
-    return result
+    return await cruise({ root: ROOT, paths: CRUISE_PATHS, config: CONFIG })
   } catch (error) {
     console.error("✖ dependency-cruiser did not produce a usable report.")
-    if (stderr.trim()) console.error(stderr.trim())
     console.error(String(error))
     process.exit(1)
   }
-}
-
-const edgeId = (from: string, to: string): string => `${from} -> ${to}`
-
-/** Every dependency edge whose endpoints share a strongly connected component,
- *  i.e. every import that closes a cycle. Deduplicated: a module can declare the
- *  same target twice (a value import and a type-only one). */
-function cycleEdges(result: CruiseResult): Map<string, string[]> {
-  const edges = new Map<string, string[]>()
-  for (const module of result.modules) {
-    for (const dep of module.dependencies) {
-      if (!dep.circular) continue
-      const id = edgeId(module.source, dep.resolved)
-      if (edges.has(id)) continue
-      // `cycle` is one witness path back to `module.source`; it is context for a
-      // failure message, never part of the identity (see the header).
-      edges.set(id, [module.source, ...(dep.cycle ?? []).map((s) => s.name)])
-    }
-  }
-  return edges
-}
-
-/** Group modules into connected components over the cycle edges. Two modules are
- *  connected by cycle edges iff they are in the same strongly connected
- *  component, so this is the SCC partition. */
-function components(ids: string[]): string[][] {
-  const parent = new Map<string, string>()
-  const find = (x: string): string => {
-    let root = parent.get(x) ?? x
-    while (root !== (parent.get(root) ?? root)) root = parent.get(root) ?? root
-    parent.set(x, root)
-    return root
-  }
-  const union = (a: string, b: string): void => {
-    const [ra, rb] = [find(a), find(b)]
-    if (ra !== rb) parent.set(ra, rb)
-  }
-  for (const id of ids) {
-    const [from, to] = id.split(" -> ")
-    if (!from || !to) continue
-    parent.set(from, parent.get(from) ?? from)
-    parent.set(to, parent.get(to) ?? to)
-    union(from, to)
-  }
-  const groups = new Map<string, string[]>()
-  for (const node of parent.keys()) {
-    const root = find(node)
-    groups.set(root, [...(groups.get(root) ?? []), node])
-  }
-  return [...groups.values()]
-    .map((g) => g.sort())
-    .sort((a, b) => b.length - a.length || (a[0] ?? "").localeCompare(b[0] ?? ""))
 }
 
 async function writeKnown(edges: string[]): Promise<void> {
@@ -281,15 +183,13 @@ for (const violation of providerBoundaryViolations) {
   )
 }
 
-const result = await cruise()
+const result = await cruiseCore()
 const edges = cycleEdges(result)
 const current = [...edges.keys()].sort()
-const known = new Set(KNOWN_CYCLE_EDGES)
-const added = current.filter((edge) => !known.has(edge))
-const gone = KNOWN_CYCLE_EDGES.filter((edge) => !edges.has(edge))
+const { added, gone } = ratchetChanges(current, KNOWN_CYCLE_EDGES)
 
 if (LIST) {
-  const groups = components(current)
+  const groups = cycleComponents(current)
   console.log(
     `${current.length} cycle edge(s) over ${groups.reduce((n, g) => n + g.length, 0)} module(s), in ${groups.length} strongly connected component(s):\n`,
   )

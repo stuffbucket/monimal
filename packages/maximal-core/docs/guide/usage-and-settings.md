@@ -6,7 +6,9 @@ New here? Start with [Install maximal](./install.md) and [Get started](./overvie
 
 ## Account
 
-Where you connect your GitHub Copilot plan — a signed-in account is what makes everything work, because maximal runs your tools on the models in that plan.
+Where you connect model services. GitHub Copilot keeps its existing sign-in,
+recovery, and saved-account controls. Ollama appears as a separate service
+account.
 
 You can sign in three ways:
 
@@ -15,6 +17,33 @@ You can sign in three ways:
 - **From the terminal** — run `maximal auth` if you installed the CLI.
 
 You can keep several accounts and quick-switch between them; switching restarts maximal into the chosen account. Signing out or removing an account only forgets maximal's own saved token — it never touches your `gh` login or your GitHub browser session.
+
+Ollama does not require an account for local use. When no Ollama account or
+endpoint is configured, maximal checks `OLLAMA_HOST` or
+`http://127.0.0.1:11434` and marks the service as unauthenticated and local.
+The Local Models switch controls whether maximal includes this provider in
+discovery and routing; it does not start or stop Ollama. The section reports
+whether Ollama is available and how many models it exposes. A configured bearer credential is
+shown only as an authenticated state; the credential itself is never returned
+to the desktop app. The optional API-key field links to Ollama's key-management
+page and validates a non-empty key before saving it. Leave it empty to use only
+localhost. When the same model is available locally and from Ollama Cloud, the
+“Prefer local Ollama models” switch shown in both Account and Local Models
+settings selects the route; local is preferred by default.
+
+The Local Models disclosure reports the detected application or CLI, effective
+endpoint, server configuration, and desktop settings paths. On supported
+Ollama desktop installations, its context-window control updates the desktop
+setting used by newly loaded models. Reloading a model or restarting Ollama may
+be required, and larger context windows consume more memory.
+
+Ollama models use the same catalogue-based routing on Anthropic
+`/v1/messages` and OpenAI-compatible `/v1/chat/completions`, `/v1/responses`,
+and `/v1/embeddings`. Not every Ollama model supports every operation; for
+example, an ordinary chat model may reject an embeddings request. Maximal
+loads Ollama's declared model capabilities from `/api/show`, exposes the
+capability fields supported by each Maximal API shape, and preserves Ollama's
+provider error if a selected model rejects an operation.
 
 A couple of things to know:
 

@@ -26,8 +26,12 @@ import type { ArgsDef, CommandDef } from "citty"
 import { defineCommand } from "citty"
 import consola from "consola"
 
+import type { AppEntry } from "~/lib/config/settings-types"
+import type { LiveAppControlClient } from "~/lib/live/app-control-client"
+
 import { runApiKeyHelper } from "~/lib/auth/api-key-helper"
 import { HELPER_SUBCOMMAND } from "~/lib/auth/api-key-helper-tokens"
+import { connectToLiveAppControl } from "~/lib/live/app-control-client"
 
 import type { AppCliOp, ClientApp } from "./index"
 
@@ -35,6 +39,16 @@ import { getAllApps } from "./registry"
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches citty's SubCommandsDef = Record<string, Resolvable<CommandDef<any>>>
 type AnyCommand = CommandDef<any>
+
+export type AppControlClient = LiveAppControlClient
+
+export interface AppCommandDependencies {
+  connect(): Promise<AppControlClient | null>
+}
+
+const appCommandDependencies: AppCommandDependencies = {
+  connect: connectToLiveAppControl,
+}
 
 /** Shared status/enable/disable flags every `app <client>` command carries. */
 const APP_OP_ARGS = {
@@ -58,13 +72,14 @@ function selectOp(args: Record<string, unknown>): AppCliOp {
   return "status"
 }
 
-async function showStatus(app: ClientApp): Promise<void> {
-  const details = await app.getDetails()
+function printStatus(details: AppEntry): void {
   consola.info(`${details.name} (${details.id})`)
   consola.info(`  status:  ${details.status}`)
   consola.info(`  routing: ${details.enabled ? "enabled" : "disabled"}`)
-  for (const i of details.installs) {
-    consola.info(`  install: ${i.path}${i.version ? ` (${i.version})` : ""}`)
+  for (const install of details.installs) {
+    consola.info(
+      `  install: ${install.path}${install.version ? ` (${install.version})` : ""}`,
+    )
   }
   if (details.conflict) {
     consola.warn(`  conflict: ${details.conflict}`)
@@ -74,52 +89,73 @@ async function showStatus(app: ClientApp): Promise<void> {
   }
 }
 
-async function enableApp(app: ClientApp): Promise<void> {
-  const result = await app.enable()
-  if (result.conflict) {
-    const detail =
-      result.conflict === "invalid-api-key-helper" ?
-        "this maximal invocation cannot provide a safe apiKeyHelper."
-      : `a ${result.conflict} is already set. Remove it first if you want proxy routing.`
-    consola.warn(`Left ${app.name} untouched: ${detail}`)
+async function showStatus(
+  app: ClientApp,
+  control: AppControlClient | null,
+): Promise<void> {
+  if (!control) {
+    printStatus(await app.getDetails())
     return
   }
-  if (result.success) {
-    consola.success(`Pointed ${app.name} at the local proxy.`)
-  } else {
-    consola.warn(`Could not enable ${app.name}.`)
-  }
+  const response = await control.listApps()
+  const details = response.apps.find((candidate) => candidate.id === app.id)
+  printStatus(details ?? (await app.getDetails()))
 }
 
-async function disableApp(app: ClientApp): Promise<void> {
-  const result = await app.disable()
-  if (result.success) {
-    consola.success(`Removed proxy routing for ${app.name}.`)
-  } else {
-    consola.info(`${app.name} wasn't routed by us; nothing to do.`)
-  }
+function requireControl(
+  control: AppControlClient | null,
+): asserts control is AppControlClient {
+  if (control) return
+  throw new Error(
+    "No running Maximal control plane was found. Start maximal before changing a connection.",
+  )
+}
+
+async function enableApp(
+  app: ClientApp,
+  control: AppControlClient | null,
+): Promise<void> {
+  requireControl(control)
+  await control.setAppEnabled(app.id, true)
+  consola.success(`Pointed ${app.name} at the local proxy.`)
+}
+
+async function disableApp(
+  app: ClientApp,
+  control: AppControlClient | null,
+): Promise<void> {
+  requireControl(control)
+  await control.setAppEnabled(app.id, false)
+  consola.success(`Removed proxy routing for ${app.name}.`)
 }
 
 async function runAppOp(
   app: ClientApp,
   args: Record<string, unknown>,
+  dependencies: AppCommandDependencies,
 ): Promise<void> {
   const op = selectOp(args)
-  // Give the app first crack (extra flags / bespoke handling — e.g. a
-  // coming-soon app intercepts enable/disable here). If it fully handled the
-  // op, we're done; otherwise fall through to the generic path.
-  if (app.cli?.handle) {
+  // Coming-soon placeholders and the explicit Desktop MDM export do not claim a
+  // live target. Every actual connect/disconnect goes through the daemon.
+  if (
+    app.cli?.handle
+    && (app.kind === "coming-soon" || args.managed === true)
+  ) {
     const handled = await app.cli.handle(op, args)
     if (handled) return
   }
-  if (op === "enable") return enableApp(app)
-  if (op === "disable") return disableApp(app)
-  return showStatus(app)
+  const control = await dependencies.connect()
+  if (op === "enable") return enableApp(app, control)
+  if (op === "disable") return disableApp(app, control)
+  return showStatus(app, control)
 }
 
 /** One `maximal app <client>` subcommand, merging the shared op flags with any
  *  extras the app declares. */
-function appClientCommand(app: ClientApp): AnyCommand {
+function appClientCommand(
+  app: ClientApp,
+  dependencies: AppCommandDependencies,
+): AnyCommand {
   return defineCommand({
     meta: {
       name: app.id,
@@ -127,7 +163,7 @@ function appClientCommand(app: ClientApp): AnyCommand {
     },
     args: { ...APP_OP_ARGS, ...app.cli?.extraArgs },
     async run({ args }) {
-      await runAppOp(app, args)
+      await runAppOp(app, args, dependencies)
     },
   })
 }
@@ -156,16 +192,24 @@ function clientSubcommands(
   return subs
 }
 
-export const appCommand: AnyCommand = defineCommand({
-  meta: {
-    name: "app",
-    description:
-      "Configure or inspect a client integration: `maximal app <client>`"
-      + " (no flag shows status; --enable/--disable to change it). `list` for"
-      + " the available clients.",
-  },
-  subCommands: clientSubcommands(appClientCommand),
-})
+export function createAppCommand(
+  dependencies: AppCommandDependencies = appCommandDependencies,
+): AnyCommand {
+  return defineCommand({
+    meta: {
+      name: "app",
+      description:
+        "Configure or inspect a client integration: `maximal app <client>`"
+        + " (no flag shows status; --enable/--disable to change it). `list` for"
+        + " the available clients.",
+    },
+    subCommands: clientSubcommands((app) =>
+      appClientCommand(app, dependencies),
+    ),
+  })
+}
+
+export const appCommand: AnyCommand = createAppCommand()
 
 /** `maximal api <client>` — print the API key that client should present to the
  *  proxy, resolved by the SAME core as `--apiKeyHelper <label>` using the app's

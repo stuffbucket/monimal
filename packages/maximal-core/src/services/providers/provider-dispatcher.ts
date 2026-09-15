@@ -1,13 +1,15 @@
 import type {
+  LocalModelControl,
   ProviderDispatch,
   ProviderGateway,
   ProviderOperation,
-} from "@stuffbucket/maximal-provider-contract"
+} from "@stuffbucket/maximal-model-contract"
 
 import consola from "consola"
 
 import type { AppConfig } from "~/lib/config/config"
 import type { FrameUsage } from "~/lib/http/untrusted-frame"
+import type { ProviderCatalogueModel } from "~/lib/live/resources"
 import type {
   ProviderGatewayFactory,
   ProviderHostConfigSnapshot,
@@ -15,7 +17,11 @@ import type {
 } from "~/lib/provider-host-types"
 import type { UsageTokens } from "~/lib/token-usage"
 
-import { getConfig } from "~/lib/config/config"
+import {
+  getConfig,
+  getProviderConfig,
+  resolveProviderConfig,
+} from "~/lib/config/config"
 import {
   asRecord,
   readNestedUsage,
@@ -27,6 +33,8 @@ import {
   mergeAnthropicUsage,
   normalizeAnthropicUsage,
 } from "~/lib/token-usage"
+import { forwardProviderModels } from "~/services/providers/anthropic-proxy"
+import { enrichOllamaModels } from "~/services/providers/ollama-models"
 
 export interface ProviderDispatchOptions {
   legacy: () => Promise<Response>
@@ -39,11 +47,14 @@ export interface ProviderDispatchOptions {
 export interface ProviderDispatcher {
   dispatch(options: ProviderDispatchOptions): Promise<Response>
   dispose(): Promise<void>
+  listModels(): Promise<ReadonlyArray<ProviderCatalogueModel>>
+  localModels(): LocalModelControl | undefined
   ready(): Promise<void>
-  requiresGithubAuth(): boolean
+  requiresGithubAuth(provider?: string): boolean
 }
 
 export interface CreateProviderDispatcherOptions {
+  beforeDispose?: () => Promise<void> | void
   configSource?: ProviderHostConfigSource
   gateway?: ProviderGateway
   gatewayFactory?: ProviderGatewayFactory
@@ -126,6 +137,7 @@ export function createProviderDispatcher(
   const configSource = options.configSource
   const gatewayFactory = options.gatewayFactory
   const readConfig = options.readConfig ?? getConfig
+  const usesDefaultConfig = options.readConfig === undefined
   const staticGateway =
     options.gateway ? managedGateway(options.gateway) : undefined
   let factoryGateway: ManagedGateway | undefined
@@ -133,6 +145,63 @@ export function createProviderDispatcher(
   let queuedActivation: ProviderHostConfigSnapshot | undefined
   let disposePromise: Promise<void> | undefined
   let disposed = false
+
+  async function listLegacyModels(): Promise<
+    ReadonlyArray<ProviderCatalogueModel>
+  > {
+    const config = readConfig()
+    const providers = config.providers ?? {}
+    const names = new Set(Object.keys(providers))
+    if (!("ollama" in providers) || providers.ollama.enabled !== false) {
+      names.add("ollama")
+    }
+    if (usesDefaultConfig && process.env.OLLAMA_API_KEY?.trim()) {
+      names.add("ollama-cloud")
+    }
+    const catalogues = await Promise.all(
+      [...names].map(async (name): Promise<Array<ProviderCatalogueModel>> => {
+        const provider =
+          usesDefaultConfig ?
+            getProviderConfig(name)
+          : resolveProviderConfig(config, name)
+        if (!provider) return []
+        try {
+          const response = await forwardProviderModels(provider, new Headers())
+          if (!response.ok) return []
+          const body = asRecord(await response.json())
+          if (!Array.isArray(body?.data)) return []
+          const models = body.data.flatMap(
+            (value): Array<ProviderCatalogueModel> => {
+              const model = asRecord(value)
+              if (typeof model?.id !== "string") return []
+              const displayName =
+                typeof model.display_name === "string" ?
+                  model.display_name
+                : undefined
+              const modelName =
+                typeof model.name === "string" ?
+                  model.name
+                : (displayName ?? model.id)
+              return [
+                {
+                  id: model.id,
+                  name: modelName,
+                  provider: name,
+                  providerName: name,
+                },
+              ]
+            },
+          )
+          return provider.type === "ollama" ?
+              [...(await enrichOllamaModels(provider, models))]
+            : models
+        } catch {
+          return []
+        }
+      }),
+    )
+    return catalogues.flat()
+  }
   let generation = 0
   const transitionDisposals = new Set<Promise<void>>()
 
@@ -288,6 +357,11 @@ export function createProviderDispatcher(
         generation += 1
         queuedActivation = undefined
         unsubscribeConfig?.()
+        try {
+          await options.beforeDispose?.()
+        } catch (error) {
+          consola.error("Provider pre-disposal cleanup failed", error)
+        }
         await activation
         const currentFactory = factoryGateway
         factoryGateway = undefined
@@ -299,12 +373,76 @@ export function createProviderDispatcher(
       return disposePromise
     },
 
+    async listModels() {
+      if (isLegacyMode()) return await listLegacyModels()
+      await activation
+      const activeGateway = staticGateway ?? factoryGateway
+      if (!activeGateway) return []
+
+      const statuses = activeGateway.gateway
+        .listStatuses()
+        .filter(
+          (status) =>
+            status.state === "available"
+            && status.operations.includes("models"),
+        )
+      const catalogues = await Promise.all(
+        statuses.map(
+          async (status): Promise<ReadonlyArray<ProviderCatalogueModel>> => {
+            const release = activeGateway.acquire()
+            try {
+              const response = await activeGateway.gateway.dispatch({
+                operation: "models",
+                provider: status.provider,
+                request: new Request("http://localhost/v1/models"),
+                signal: AbortSignal.timeout(5_000),
+              })
+              if (!response.ok) return []
+              const body = asRecord(await response.json())
+              if (!Array.isArray(body?.data)) return []
+              return body.data.flatMap(
+                (value): Array<ProviderCatalogueModel> => {
+                  const model = asRecord(value)
+                  if (typeof model?.id !== "string") return []
+                  return [
+                    {
+                      id: model.id,
+                      name:
+                        typeof model.display_name === "string" ?
+                          model.display_name
+                        : model.id,
+                      provider: status.provider,
+                      providerName: status.displayName ?? status.provider,
+                    },
+                  ]
+                },
+              )
+            } catch {
+              return []
+            } finally {
+              release()
+            }
+          },
+        ),
+      )
+      return catalogues.flat()
+    },
+
+    localModels() {
+      if (isLegacyMode()) return undefined
+      return (staticGateway ?? factoryGateway)?.gateway.localModels
+    },
+
     async ready() {
       await initialActivation
     },
 
-    requiresGithubAuth() {
-      return isLegacyMode()
+    requiresGithubAuth(provider) {
+      if (!isLegacyMode()) return false
+      if (provider === undefined) return true
+      return (
+        (readConfig().providers?.[provider]?.type ?? "anthropic") !== "ollama"
+      )
     },
   }
 }

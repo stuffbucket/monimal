@@ -13,6 +13,8 @@ import type { Context, Hono as HonoApp } from "hono"
 
 import { z } from "zod"
 
+import type { ConfiguratorRegistry } from "~/lib/configurator-host"
+
 import { preflightCopilotError } from "~/lib/auth/copilot-preflight"
 import {
   addAccountToDefaultRegistry,
@@ -25,6 +27,7 @@ import {
   removeApiKey,
   setApiKeyEnforcement,
   setAppEnabled,
+  setConfiguratorEnabled,
   SettingsOperationError,
   updateApiKey,
 } from "~/lib/config/settings-operations"
@@ -229,7 +232,17 @@ function registerGh(app: HonoApp, deps: SettingsEndpointDeps): void {
   })
 }
 
-function registerAppToggles(app: HonoApp, deps: SettingsEndpointDeps): void {
+function registerAppToggles(
+  app: HonoApp,
+  deps: SettingsEndpointDeps,
+  configurators?: ConfiguratorRegistry,
+): void {
+  const setEnabled =
+    configurators ?
+      (appId: "claude-code" | "claude-desktop", enabled: boolean) =>
+        setConfiguratorEnabled(configurators, appId, enabled)
+    : deps.setAppEnabled
+
   app.post("/apps/claude-code/toggle", async (c) => {
     try {
       const parsed = ClaudeCodeToggleRequest.safeParse(
@@ -241,9 +254,7 @@ function registerAppToggles(app: HonoApp, deps: SettingsEndpointDeps): void {
           400,
         )
       }
-      return c.json(
-        await deps.setAppEnabled("claude-code", parsed.data.enabled),
-      )
+      return c.json(await setEnabled("claude-code", parsed.data.enabled))
     } catch (error) {
       return settingsOperationError(c, error)
     }
@@ -260,9 +271,7 @@ function registerAppToggles(app: HonoApp, deps: SettingsEndpointDeps): void {
           400,
         )
       }
-      return c.json(
-        await deps.setAppEnabled("claude-desktop", parsed.data.enabled),
-      )
+      return c.json(await setEnabled("claude-desktop", parsed.data.enabled))
     } catch (error) {
       return settingsOperationError(c, error)
     }
@@ -277,11 +286,12 @@ function registerDiagnostics(app: HonoApp, deps: SettingsEndpointDeps): void {
 export function registerSettingsEndpoints(
   app: HonoApp,
   deps: SettingsEndpointDeps = defaultDeps,
+  configurators?: ConfiguratorRegistry,
 ): void {
   registerApiKeyReads(app, deps)
   registerApiKeyCreate(app, deps)
   registerApiKeyMutations(app, deps)
   registerGh(app, deps)
-  registerAppToggles(app, deps)
+  registerAppToggles(app, deps, configurators)
   registerDiagnostics(app, deps)
 }

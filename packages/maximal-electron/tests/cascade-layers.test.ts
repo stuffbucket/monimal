@@ -119,7 +119,7 @@ describe('the order of those layers', () => {
   });
 
   it('puts a carried rule after the sheet it refines', () => {
-    // `structural.css` lays out `.settings`; `SettingsPage` carries the rules
+    // `shell-package-rules.css` lays out `.settings`; `SettingsPage` carries the rules
     // for `.settings__section`. Reversing them would give the sheet the last
     // word over the component that ships with it.
     const order = SHELL_STYLE_LAYERS.split(',').map((name) => name.trim());

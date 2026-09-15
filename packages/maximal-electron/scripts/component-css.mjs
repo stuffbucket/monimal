@@ -30,16 +30,19 @@ export const SHELL_NAMESPACE = '--shell-';
  * Lengths that are not design decisions.
  *
  * A hairline is the thinnest line a border can be, and every stylesheet in
- * this repository writes it out. `100%` and `0` are the extremes of a box
- * rather than points on a scale. Nothing else gets in.
+ * this repository writes it out. `100%` is the extreme of a box rather than a
+ * point on a scale. Bare `0` has no unit and never reaches this set.
  */
-const STRUCTURAL_LITERALS = new Set(['0', '1px', '100%']);
+const STRUCTURAL_LITERALS = new Set(['1px', '100%']);
 
 /** Anything that names a colour outright. */
 const COLOUR = /#[0-9a-f]{3,8}\b|\b(?:rgba?|hsla?|oklch|oklab|lab|lch|color-mix)\(/gi;
 
 /** A number with a unit, which is a point on some scale a theme should own. */
-const LENGTH = /(?<![\w.-])(\d*\.?\d+(?:px|rem|em|ch|vw|vh|vmin|vmax|%))/g;
+const LENGTH = new RegExp(
+  String.raw`(?<![\w.-])(\d*\.?\d+(?:px|rem|em|ch|vw|vh|vmin|vmax|%))`,
+  'g',
+);
 
 /**
  * Track sizing, which is composition rather than a value.
@@ -85,12 +88,12 @@ export function withoutComments(css) {
 
 /** Every custom property the text declares a value for. */
 export function declaredTokens(css) {
-  return [...withoutComments(css).matchAll(DECLARATION)].map((match) => match[1] ?? '');
+  return [...withoutComments(css).matchAll(DECLARATION)].map((match) => match[1]);
 }
 
 /** Every custom property the text reads through `var()`. */
 export function readTokens(css) {
-  return [...withoutComments(css).matchAll(READ)].map((match) => match[1] ?? '');
+  return [...withoutComments(css).matchAll(READ)].map((match) => match[1]);
 }
 
 /**
@@ -106,10 +109,10 @@ function selectorsWithOffsets(css) {
   const found = [];
 
   for (const match of withoutComments(css).matchAll(/(^|[};])([^{};@]+)\{/g)) {
-    const prefix = (match[1] ?? '').length;
+    const prefix = match[1].length;
     let cursor = match.index + prefix;
 
-    for (const part of (match[2] ?? '').split(',')) {
+    for (const part of match[2].split(',')) {
       const lead = part.length - part.trimStart().length;
       const text = part.trim();
       if (text.length > 0) found.push({ text, index: cursor + lead, length: text.length });
@@ -150,14 +153,14 @@ export function componentCssFindings(css, contract) {
    */
   const values = mask(mask(mask(bare, DECLARATION_VALUE), VAR_CALL), TRACK_FUNCTION);
   for (const match of values.matchAll(LENGTH)) {
-    const literal = match[1] ?? '';
+    const literal = match[1];
     if (STRUCTURAL_LITERALS.has(literal)) continue;
     add('length', match.index, literal.length, literal, { literal });
   }
 
   const declared = new Set();
   for (const match of bare.matchAll(DECLARATION)) {
-    const name = match[1] ?? '';
+    const name = match[1];
     declared.add(name);
 
     if (!name.startsWith(SHELL_NAMESPACE)) {
@@ -166,7 +169,7 @@ export function componentCssFindings(css, contract) {
     }
 
     /*
-     * The twenty-name case. `structure.css` once declared `--shell-radius-input`
+     * The twenty-name case. `shell-structural-tokens.css` once declared `--shell-radius-input`
      * beside a published `--shell-radius`, and `--shell-text-primary` beside a
      * published `--shell-text`: a second vocabulary for things that already had
      * a name, which no consumer defines and no shipped rule reads.
@@ -177,7 +180,7 @@ export function componentCssFindings(css, contract) {
   }
 
   for (const match of bare.matchAll(READ)) {
-    const name = match[1] ?? '';
+    const name = match[1];
     const offset = match[0].length - name.length;
     if (!name.startsWith(SHELL_NAMESPACE)) {
       add('foreign-read', match.index + offset, name.length, name, { name });
@@ -196,7 +199,7 @@ export function componentCssFindings(css, contract) {
   }
 
   for (const selector of selectorsWithOffsets(css)) {
-    if (selector.text.startsWith('@') || selector.text.startsWith('.sb-shell')) continue;
+    if (selector.text.startsWith('.sb-shell')) continue;
     add('unscoped', selector.index, selector.length, selector.text, { selector: selector.text });
   }
 
@@ -208,7 +211,7 @@ export const COMPONENT_CSS_MESSAGES = {
   colour:
     'A carried rule names no colour. This package ships no palette — read a `--shell-*` token and let the consumer supply the value.',
   length:
-    '`{{literal}}` is a design decision in a place no theme can reach. Read a token from `structure.css`, or declare one for geometry this component owns.',
+    '`{{literal}}` is a design decision in a place no theme can reach. Read a token from `shell-structural-tokens.css`, or declare one for geometry this component owns.',
   foreign:
     '`{{name}}` is outside the published namespace. A custom property this package writes is `--shell-*`, or a consumer cannot find it to override.',
   'foreign-read':

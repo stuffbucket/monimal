@@ -1,20 +1,14 @@
 /**
  * Where the packaged application is, and where a driver launches it from.
  *
- * `out/` sits inside this repository, so a package launched in place resolves
- * modules one directory above itself and reaches the repository's own
- * `node_modules`. On Windows that is where `node-llama-cpp` found the vulkan
- * prebuild `pruneLlamaBackends` prunes and the build never ships, so both the
- * packaged self check and its negative control took a branch no user can take.
- * Issue #149.
+ * `out/` sits inside this repository, so a package launched in place can reach
+ * the repository's own `node_modules`. That would let the terminal load a
+ * `node-pty` file the package does not carry.
  *
- * A package that only works because the repository is above it is not the
- * package a user installs, so every driver that launches the artifact copies it
- * somewhere with nothing above it first. `nodeModulesAbove` is what states that
- * as an assertion rather than as an intention.
- *
- * A copy rather than a move: `verify:crash-artifact` runs after
- * `smoke:packaged` on the same build, and `verify:package` reads `out/`.
+ * The packaged terminal check copies the artifact somewhere with nothing above
+ * it first. `nodeModulesAbove` states that isolation as an assertion rather
+ * than as an intention. The helper copies rather than moves because
+ * `verify:package` still reads `out/`.
  */
 
 import { cpSync, mkdtempSync, readdirSync, rmSync } from 'node:fs';

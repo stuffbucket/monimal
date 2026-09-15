@@ -1,4 +1,4 @@
-import type { ITheme } from 'ghostty-web';
+import type { TerminalTheme } from './terminal-emulator.js';
 
 /**
  * What a terminal needs from its host, as a contract rather than an import.
@@ -32,7 +32,8 @@ export interface TerminalDescriptor {
 /** Output, or the end of it. */
 export type TerminalEvent =
   | { type: 'data'; data: string; sequence?: number }
-  | { type: 'exit'; exitCode: number };
+  | { type: 'exit'; exitCode: number }
+  | { type: 'size'; cols: number; rows: number };
 
 /**
  * What unmounting a view does to its session.
@@ -62,6 +63,8 @@ export interface TerminalTransport {
    * attaching is how a view returns to a shell it left running.
    */
   spawn(descriptor: TerminalDescriptor & { cols: number; rows: number }): Promise<void>;
+  /** Optional focus lease for backends with independently controlled views. */
+  focus?(id: string, cols: number, rows: number): Promise<void>;
   write(id: string, data: string): Promise<void>;
   resize(id: string, cols: number, rows: number): Promise<void>;
   terminate(id: string): Promise<void>;
@@ -110,6 +113,13 @@ export interface TerminalChannels<
   ack?: C;
   data: E;
   exit: E;
+  /**
+   * Optional: the authoritative size a shared session settled on. Only a host
+   * that can mirror one session into several views (this application's "Copy
+   * into New Window") sends this; a host with one viewer per session has
+   * nothing to reconcile and can leave it undeclared.
+   */
+  size?: E;
 }
 
 /** What a host sends on the `data` channel. */
@@ -123,6 +133,13 @@ export interface TerminalDataMessage {
 export interface TerminalExitMessage {
   id: string;
   exitCode: number;
+}
+
+/** What a host sends on the `size` channel. */
+export interface TerminalSizeMessage {
+  id: string;
+  cols: number;
+  rows: number;
 }
 
 export interface TerminalTransportOptions<
@@ -198,9 +215,19 @@ export function createTerminalTransport<C extends string, E extends string>({
         }
       });
 
+      const onSize = channels.size
+        ? on(channels.size, (payload) => {
+            const message = payload as TerminalSizeMessage;
+            if (message.id === id) {
+              listener({ type: 'size', cols: message.cols, rows: message.rows });
+            }
+          })
+        : undefined;
+
       return () => {
         onData();
         onExit();
+        onSize?.();
       };
     },
   };
@@ -209,20 +236,18 @@ export function createTerminalTransport<C extends string, E extends string>({
 /**
  * The colours the emulator needs, resolved from custom properties.
  *
- * `ghostty-web` renders to a canvas, so it inherits nothing from CSS and takes
- * literal strings. `read` returns a property's current value; taking it as a
+ * The emulator renders its own cells, so it takes literal colour strings.
+ * `read` returns a property's current value; taking it as a
  * parameter keeps this pure and lets a consumer resolve its own namespace.
  *
  * A property that does not resolve is left out rather than passed through
- * empty. `ghostty-web` parses an unrecognised colour to black, so an empty
- * string renders black on black; omitting the key keeps its own default, which
- * is legible.
+ * empty. Omitting the key keeps the emulator's legible default.
  */
 export function readTerminalTheme(
   read: (property: string) => string,
   properties: { background: string; foreground: string; cursor: string },
-): ITheme {
-  const theme: ITheme = {};
+): TerminalTheme {
+  const theme: TerminalTheme = {};
 
   const background = read(properties.background).trim();
   if (background) theme.background = background;

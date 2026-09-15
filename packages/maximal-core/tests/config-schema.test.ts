@@ -1,10 +1,15 @@
-import { describe, expect, it } from "bun:test"
+import { SearchConnectorConfigSchema } from "@stuffbucket/maximal-harness"
+import { afterEach, beforeEach, describe, expect, it } from "bun:test"
 
 import {
   ConfigValidationError,
   detectUnknownKeys,
   validateAppConfig,
 } from "~/lib/config/config-schema"
+import { installConnectorPlugins } from "~/lib/config/connector-plugins"
+
+beforeEach(() => installConnectorPlugins([]))
+afterEach(() => installConnectorPlugins([]))
 
 describe("validateAppConfig", () => {
   it("accepts an empty config", () => {
@@ -31,6 +36,18 @@ describe("validateAppConfig", () => {
     expect(validateAppConfig(config)).toEqual(config)
   })
 
+  it("accepts an Ollama compatibility provider without credentials", () => {
+    const config = {
+      providers: {
+        ollama: {
+          type: "ollama",
+          enabled: true,
+        },
+      },
+    }
+    expect(validateAppConfig(config)).toEqual(config)
+  })
+
   it("preserves opaque provider plugin config", () => {
     const config = {
       providerHost: {
@@ -50,6 +67,32 @@ describe("validateAppConfig", () => {
     }
 
     expect(validateAppConfig(config)).toEqual(config)
+  })
+
+  it("preserves opaque runtime connector config", () => {
+    const config = {
+      connectors: {
+        search: {
+          pluginOwned: { nested: [1, "two", { three: true }] },
+        },
+        futureConnector: {
+          arbitrary: null,
+        },
+      },
+    }
+
+    expect(validateAppConfig(config)).toEqual(config)
+  })
+
+  it("delegates installed connector payloads to their plugin schema", () => {
+    installConnectorPlugins([
+      { id: "search", Config: SearchConnectorConfigSchema },
+    ])
+    expect(() =>
+      validateAppConfig({
+        connectors: { search: { defaults: { maxResults: 0 } } },
+      }),
+    ).toThrow("connectors.search.defaults.maxResults")
   })
 
   it("accepts 'max' reasoning effort (GPT-5.6 ladder top)", () => {

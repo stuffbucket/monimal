@@ -1,0 +1,298 @@
+@import '@stuffbucket/maximal-electron/renderer/styles.css';
+
+/*
+ * The floating overlay.
+ *
+ * The window is transparent and full screen. The dim and the mh-card are drawn
+ * here rather than natively, which is the split stuffbucket/wiggle uses.
+ */
+
+@layer sb-shell.base {
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  background: transparent;
+  overflow: hidden;
+}
+
+.mh-overlay-body {
+  font:
+    var(--shell-font);
+  color: var(--shell-text);
+  -webkit-font-smoothing: antialiased;
+  /* The whole surface is a dismiss target, so no text selection anywhere. */
+  user-select: none;
+  cursor: default;
+}
+
+.mh-scrim {
+  position: fixed;
+  inset: 0;
+  background: var(--shell-scrim, color-mix(in srgb, var(--shell-text) 34%, transparent));
+  animation: mh-scrim-in 140ms ease-out;
+}
+
+/*
+ * The mh-card places itself.
+ *
+ * It used to be a flex child of `.mh-scrim`. Radix portals the dialog content as
+ * a sibling of the overlay rather than a descendant, so the mh-scrim can no
+ * longer position it. Same result, stated directly: wiggle drops the mh-card near
+ * the bottom of the focused monitor.
+ */
+.mh-card {
+  position: fixed;
+  bottom: 18vh;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(680px, 82vw);
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  gap: var(--shell-space-3, 12px);
+  padding: var(--shell-space-4, 16px);
+  border-radius: var(--shell-radius-large, 8px);
+  background: var(--shell-raised);
+  border: 1px solid var(--shell-border);
+  box-shadow: var(--shell-elevation, none);
+  animation: mh-card-in 180ms ease-out;
+}
+
+.mh-card__input {
+  flex: 0 0 auto;
+  width: 100%;
+  resize: none;
+  padding: var(--shell-space-3, 12px);
+  border-radius: var(--shell-radius, 6px);
+  border: 1px solid var(--shell-border);
+  background: var(--shell-background);
+  color: var(--shell-text);
+  font: inherit;
+  user-select: text;
+  cursor: text;
+}
+
+.mh-card__input:hover:not(:disabled) {
+  border-color: var(--shell-accent);
+}
+
+.mh-card__input::placeholder {
+  color: var(--shell-text-muted);
+}
+
+
+
+.mh-card__answer {
+  min-height: 0;
+  max-height: 40vh;
+  overflow-y: auto;
+  padding: var(--shell-space-3, 12px);
+  border-radius: var(--shell-radius, 6px);
+  background: var(--shell-canvas);
+  border: 1px solid var(--shell-border);
+  font-family: ui-monospace, monospace;
+  font-size: var(--shell-text-sm, 0.8125rem);
+  white-space: pre-wrap;
+  user-select: text;
+  cursor: text;
+}
+
+.mh-card__error {
+  display: block;
+  margin-top: var(--shell-space-2, 8px);
+  color: var(--shell-danger);
+}
+
+/*
+ * The mh-approval prompt.
+ *
+ * This is the one place the mh-card asks for something rather than reporting.
+ * It sits directly above the footer, so the question and the key hint that
+ * answers it are next to each other.
+ */
+.mh-approval {
+  display: flex;
+  flex-direction: column;
+  gap: var(--shell-space-2, 8px);
+  padding: var(--shell-space-3, 12px);
+  border-radius: var(--shell-radius, 6px);
+  background: var(--shell-canvas);
+  /* Warm border, because this is the one blocking state in the mh-card. */
+  border: 1px solid var(--shell-warning);
+}
+
+.mh-approval__head {
+  font-size: var(--shell-text-sm, 0.8125rem);
+}
+
+.mh-approval__tool {
+  font-family: ui-monospace, monospace;
+  color: var(--shell-accent);
+}
+
+.mh-approval__summary {
+  margin: 0;
+  max-height: 20vh;
+  overflow-y: auto;
+  font-family: ui-monospace, monospace;
+  font-size: var(--shell-text-xs, 0.6875rem);
+  /* A long command wraps rather than scrolling sideways. A decision cannot be
+     made from the first 60 characters of a pipeline. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+  cursor: text;
+}
+
+.mh-approval__actions {
+  display: flex;
+  gap: var(--shell-space-2, 8px);
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.mh-approval__button {
+  padding: var(--shell-space-1, 4px) var(--shell-space-3, 12px);
+  border-radius: var(--shell-radius, 6px);
+  border: 1px solid var(--shell-border);
+  background: var(--shell-raised);
+  color: var(--shell-text);
+  font: inherit;
+  font-size: var(--shell-text-xs, 0.6875rem);
+}
+
+.mh-approval__button:hover {
+  border-color: var(--shell-accent);
+}
+
+.mh-approval__button--primary {
+  background: var(--shell-accent);
+  border-color: var(--shell-accent);
+  color: var(--shell-accent-contrast);
+}
+
+/*
+ * First-run model download.
+ *
+ * Shown only when no proxy is running and the embedded weights are missing.
+ * It states the size before asking, because a third of a gigabyte is not a
+ * thing to start without saying so.
+ */
+.mh-setup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--shell-space-2, 8px);
+  padding: var(--shell-space-3, 12px);
+  border-radius: var(--shell-radius, 6px);
+  background: var(--shell-canvas);
+  border: 1px solid var(--shell-border);
+}
+
+.mh-setup__head {
+  font-size: var(--shell-text-sm, 0.8125rem);
+}
+
+.mh-setup__body {
+  margin: 0;
+  font-size: var(--shell-text-xs, 0.6875rem);
+  color: var(--shell-text-muted);
+}
+
+.mh-setup__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.mh-setup__progress {
+  position: relative;
+  height: 1.25rem;
+  border-radius: var(--shell-radius, 6px);
+  background: var(--shell-active);
+  overflow: hidden;
+}
+
+.mh-setup__bar {
+  height: 100%;
+  background: var(--shell-accent-muted);
+  border-right: 2px solid var(--shell-accent);
+  transition: width 120ms ease-out;
+}
+
+.mh-setup__figure {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--shell-text-xs, 0.6875rem);
+  font-variant-numeric: tabular-nums;
+}
+
+.mh-card__footer {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--shell-space-3, 12px);
+  font-size: var(--shell-text-xs, 0.6875rem);
+}
+
+.mh-card__status {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mh-card__status--ready {
+  color: var(--shell-status, var(--shell-text));
+}
+
+.mh-card__status--probing {
+  color: var(--shell-text-muted);
+}
+
+.mh-card__status--unavailable {
+  color: var(--shell-danger);
+  /* The reason can be a full sentence, so let it wrap rather than truncate. */
+  white-space: normal;
+}
+
+.mh-card__hint {
+  color: var(--shell-text-muted);
+  flex: none;
+}
+
+@keyframes mh-scrim-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* The mh-card is centred by `translateX(-50%)`, so the animation has to carry
+   that through or it jumps sideways on the first frame. */
+@keyframes mh-card-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 10px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mh-scrim,
+  .mh-card {
+    animation: none;
+  }
+}
+}

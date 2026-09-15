@@ -1,39 +1,18 @@
 /**
- * Crash-detection sentinel for the Claude Code routing lifecycle.
+ * Crash-detection sentinel for configured client connections.
  *
- * Background: maximal writes `env.ANTHROPIC_BASE_URL` into
- * `~/.claude/settings.json` while running (so `claude` invocations
- * route through the proxy). The reverse is performed by
- * `reconcileClaudeCodeOnShutdown`. If the process dies by SIGKILL,
- * OS-level termination, or a power loss, no userspace runs — the
- * base URL is left behind, and the user's next `claude` invocation
- * hits `localhost:4141` with nothing listening, producing
- * "connection refused" errors.
- *
- * This module provides a small evidence trail across maximal
- * restarts:
- *
- *   - On boot (after Claude Code routing has been re-applied), call
- *     `markSessionRunning()` to write a sentinel file.
- *   - On graceful shutdown (initiateShutdown / `exit` event), call
- *     `clearSessionRunning()` to delete it.
- *   - On the NEXT boot, call `detectStaleSession()`. If the sentinel
- *     exists and the Claude Code base URL is currently still ours,
- *     the previous run died ungracefully — log a clear warning so the
- *     user can correlate the symptom they likely just experienced
- *     ("`claude` was broken") with the cause.
- *
- * This doesn't auto-recover the inter-session window — only an
- * external watchdog (launchd, the desktop shell observing sidecar
- * death) can do that without the sidecar's cooperation. But it
- * diagnoses the symptom on the next run instead of leaving the user
- * confused.
+ * The target owner sidecar is the authoritative recovery evidence. This marker
+ * only distinguishes a graceful shutdown from an abrupt process or machine
+ * exit so startup can explain why a configured client may have pointed at an
+ * unavailable proxy between sessions.
  */
 
 import fs from "node:fs"
 import path from "node:path"
 
+import { atomicWriteJson } from "~/lib/platform/atomic-json"
 import { PATHS } from "~/lib/platform/paths"
+import { state } from "~/lib/runtime-state/state"
 
 const SENTINEL_FILENAME = "session-running"
 
@@ -41,20 +20,53 @@ function sentinelPath(): string {
   return path.join(PATHS.APP_DIR, SENTINEL_FILENAME)
 }
 
+export interface SessionMarker {
+  pid: number
+  instance_id: string
+  started_at: string
+}
+
 /** Write the sentinel file. Idempotent (overwrites). Best-effort —
  *  a failed write here must not abort boot. */
 export function markSessionRunning(): void {
   try {
-    fs.mkdirSync(PATHS.APP_DIR, { recursive: true })
-    fs.writeFileSync(
+    atomicWriteJson(
       sentinelPath(),
-      JSON.stringify({
+      {
         pid: process.pid,
-        started_at: new Date().toISOString(),
-      }),
+        instance_id: state.instanceId,
+        started_at: new Date(state.startedAtMs).toISOString(),
+      } satisfies SessionMarker,
+      { label: "Maximal session marker" },
     )
   } catch {
     /* best-effort */
+  }
+}
+
+/** Read a marker written by this or an older version. Invalid evidence is null. */
+export function readSessionMarker(): SessionMarker | null {
+  try {
+    const parsed: unknown = JSON.parse(fs.readFileSync(sentinelPath(), "utf8"))
+    if (
+      typeof parsed !== "object"
+      || parsed === null
+      || !("pid" in parsed)
+      || typeof parsed.pid !== "number"
+      || !("instance_id" in parsed)
+      || typeof parsed.instance_id !== "string"
+      || !("started_at" in parsed)
+      || typeof parsed.started_at !== "string"
+    ) {
+      return null
+    }
+    return {
+      pid: parsed.pid,
+      instance_id: parsed.instance_id,
+      started_at: parsed.started_at,
+    }
+  } catch {
+    return null
   }
 }
 

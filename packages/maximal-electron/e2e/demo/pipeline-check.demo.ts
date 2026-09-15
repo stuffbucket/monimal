@@ -1,6 +1,4 @@
 import { expect, test } from '@playwright/test';
-import type { BrowserWindow } from 'electron';
-
 import { closeApp, launchApp, resetShell, type Harness } from '../harness.js';
 import { record, sequence } from './recorder.js';
 
@@ -91,7 +89,7 @@ test('records a demonstration of the shell', async () => {
         sequence({
           id: 'terminal',
           name: 'A real terminal in a tab',
-          note: 'Ghostty over a native pseudo terminal',
+          note: 'xterm over a native pseudo terminal',
           async drive({ shell }) {
             await shell.click('[data-testid="tab-new"]');
             const terminal = shell.locator('[data-testid="terminal"]').last();
@@ -108,64 +106,6 @@ test('records a demonstration of the shell', async () => {
             await shell.waitForTimeout(900);
             await shell.keyboard.type('uname -sm', { delay: 70 });
             await shell.keyboard.press('Enter');
-          },
-        }),
-
-        sequence({
-          id: 'overlay',
-          name: 'Ask, without leaving the app',
-          note: 'A floating overlay, summoned over anything',
-          caption: 'top',
-          async target({ app: application, shell }) {
-            await shell.click('[data-testid="toggle-overlay"]');
-            const overlay =
-              application.windows().find((page) => page.url().includes('overlay')) ??
-              (await application.waitForEvent('window', { timeout: 20_000 }));
-            await overlay.waitForSelector('[data-testid="overlay-card"]', {
-              timeout: 20_000,
-            });
-
-            // Match the shell's shape, and inherit its position, which a quiet
-            // run has already moved out of the user's way.
-            const shellHandle = await application.browserWindow(shell);
-            const bounds = await shellHandle.evaluate((win: BrowserWindow) => win.getBounds());
-            const overlayHandle = await application.browserWindow(overlay);
-            await overlayHandle
-              .evaluate((win: BrowserWindow, box) => {
-                win.setBounds(box);
-              }, bounds)
-              .catch(() => undefined);
-
-            await overlay.waitForTimeout(500);
-            return overlay;
-          },
-          async drive({ app: application }) {
-            const overlay = application
-              .windows()
-              .find((page) => page.url().includes('overlay'));
-            if (!overlay) throw new Error('The overlay window went away.');
-
-            await overlay.click('[data-testid="overlay-input"]');
-            await overlay.keyboard.type(
-              'In one sentence, what does an Electron main process do?',
-              { delay: 45 },
-            );
-
-            // Send only when something is actually listening. A contributor
-            // with no local model still gets a video, ending on the typed
-            // question and the status line that explains why.
-            const status =
-              (await overlay
-                .locator('[data-testid="overlay-status"]')
-                .textContent()) ?? '';
-            if (status.includes('Waiting') || status.includes('No local model')) {
-              return;
-            }
-
-            await overlay.keyboard.press('Enter');
-            // A fixed watch rather than an assertion. The recording must not
-            // fail because a local model was slow.
-            await overlay.waitForTimeout(7_000);
           },
         }),
       ],

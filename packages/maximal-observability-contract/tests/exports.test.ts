@@ -8,6 +8,7 @@ void test("public runtime exports contain only contract constants and schemas", 
 
   assert.ok(exports.includes("TRAFFIC_OBSERVABILITY_CONTRACT_VERSION"))
   assert.ok(exports.includes("TrafficRequestListSchema"))
+  assert.ok(exports.includes("TrafficRequestPageSchema"))
   assert.ok(exports.includes("TrafficRequestDetailSchema"))
   assert.ok(exports.includes("TrafficOverviewSchema"))
   assert.ok(exports.includes("TrafficInvalidationSchema"))

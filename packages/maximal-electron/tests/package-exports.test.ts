@@ -67,7 +67,7 @@ describe('package exports', () => {
     const manifest = JSON.parse(
       await readFile(path.join(ROOT, 'package.json'), 'utf8'),
     ) as PackageManifest;
-    const mainConfig = await readFile(path.join(ROOT, 'vite.main.config.ts'), 'utf8');
+    const mainConfig = await readFile(path.join(ROOT, 'vite.main.config.mts'), 'utf8');
 
     // The externals arrive as real files rather than bundled, so they are
     // shipped whether or not an export imports them.
@@ -124,7 +124,7 @@ describe('package exports', () => {
 
   it('makes every injected titlebar region non-draggable', async () => {
     const stylesheet = await readFile(
-      path.join(ROOT, 'src/renderer/styles/structural.css'),
+      path.join(ROOT, 'src/renderer/styles/shell-package-rules.css'),
       'utf8',
     );
 
@@ -148,7 +148,7 @@ describe('package exports', () => {
    */
   it('scopes every exported structural selector to the shell root', async () => {
     const stylesheet = await readFile(
-      path.join(ROOT, 'src/renderer/styles/structural.css'),
+      path.join(ROOT, 'src/renderer/styles/shell-package-rules.css'),
       'utf8',
     );
     const parsed = selectors(stylesheet);

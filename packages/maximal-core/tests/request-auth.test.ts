@@ -13,6 +13,8 @@ import {
   normalizeApiKeys,
   requireGithubAuth,
 } from "../src/lib/auth/request-auth"
+import { requestContext } from "../src/lib/http/request-context"
+import { traceIdMiddleware } from "../src/lib/http/trace"
 import { state } from "../src/lib/runtime-state/state"
 
 function buildApp(opts: {
@@ -188,6 +190,79 @@ describe("createAuthMiddleware key matching", () => {
       headers: { "x-api-key": "other" },
     })
     expect(res.status).toBe(401)
+  })
+
+  test("implements the open and protected access matrix", async () => {
+    const cases = [
+      ["open missing", false, null, 200, null, null],
+      ["open unknown", false, "unknown-secret", 200, null, null],
+      ["open disabled", false, "disabled-secret", 200, null, null],
+      [
+        "open known",
+        false,
+        "literal-secret",
+        200,
+        "managed:claude-code",
+        "Claude Code",
+      ],
+      ["protected missing", true, null, 401, null, null],
+      ["protected unknown", true, "unknown-secret", 401, null, null],
+      ["protected disabled", true, "disabled-secret", 401, null, null],
+      [
+        "protected known",
+        true,
+        "literal-secret",
+        200,
+        "managed:claude-code",
+        "Claude Code",
+      ],
+    ] as const
+
+    for (const [
+      name,
+      enforcing,
+      requestKey,
+      expectedStatus,
+      expectedId,
+      expectedLabel,
+    ] of cases) {
+      const app = new Hono()
+      app.use(traceIdMiddleware)
+      app.use(
+        "*",
+        createAuthMiddleware({
+          getApiKeys: () => ["literal-secret"],
+          findApiKeyEntry: (key) =>
+            key === "literal-secret" ?
+              { id: "managed:claude-code", label: "Claude Code" }
+            : null,
+          isEnforcing: () => enforcing,
+          getRequestIp: () => "127.0.0.1",
+        }),
+      )
+      app.post("/v1/messages", (c) => {
+        const context = requestContext.getStore()
+        return c.json({
+          apiKeyId: context?.apiKeyId ?? null,
+          apiKeyLabel: context?.apiKeyLabel ?? null,
+        })
+      })
+
+      const response = await app.request("/v1/messages", {
+        method: "POST",
+        ...(requestKey ?
+          { headers: { authorization: `Bearer ${requestKey}` } }
+        : {}),
+      })
+
+      expect(response.status, name).toBe(expectedStatus)
+      if (expectedStatus === 200) {
+        expect(await response.json(), name).toEqual({
+          apiKeyId: expectedId,
+          apiKeyLabel: expectedLabel,
+        })
+      }
+    }
   })
 })
 

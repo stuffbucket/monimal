@@ -11,10 +11,9 @@ import {
 /**
  * The colours the emulator is handed.
  *
- * `ghostty-web` parses an unrecognised colour to black, so a property that
- * resolves to nothing must be left out rather than passed through empty:
- * passing it through renders black on black. That is the behaviour these
- * tests exist for, and nothing asserted it before.
+ * A property that resolves to nothing must be left out rather than passed
+ * through empty, so the emulator retains its legible default. That is the
+ * behaviour these tests exist for.
  */
 
 const properties = SHELL_TERMINAL_PROPERTIES;

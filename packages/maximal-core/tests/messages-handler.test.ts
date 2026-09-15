@@ -210,6 +210,8 @@ describe("messages handler orchestration", () => {
         traceId: "trace-observation",
         startTime: Date.now(),
         userAgent: "test",
+        apiKeyId: "managed:claude-code",
+        apiKeyLabel: "Claude Code",
         sessionAffinity: undefined,
         parentSessionId: undefined,
         trafficObservation: {
@@ -252,6 +254,7 @@ describe("messages handler orchestration", () => {
     expect(response.status).toBe(200)
     expect(dispatches.at(-1)).toMatchObject({
       attribution: {
+        client: "Claude Code",
         model: "messages-model",
         parentSessionId: "parent-session",
         subagent: true,

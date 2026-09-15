@@ -4,7 +4,7 @@ import path from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { newestMtime } from '../e2e/freshness.js';
+import { newestMtime } from '../e2e/freshness.mjs';
 
 /**
  * The build-freshness walk.

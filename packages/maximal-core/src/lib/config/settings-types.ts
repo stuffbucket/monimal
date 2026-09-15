@@ -100,6 +100,142 @@ export const WebSearchStatus = z.object({
 })
 export type WebSearchStatus = z.infer<typeof WebSearchStatus>
 
+export const ConnectorSettingValue = z.union([
+  z.boolean(),
+  z.number(),
+  z.string(),
+  z.array(z.string()),
+])
+export type ConnectorSettingValue = z.infer<typeof ConnectorSettingValue>
+
+const ConnectorSettingFieldBase = {
+  key: z.string(),
+  label: z.string(),
+  description: z.string().optional(),
+  helpLink: z
+    .object({
+      label: z.string(),
+      url: z.url(),
+    })
+    .optional(),
+  required: z.boolean().optional(),
+  format: z.literal("url").optional(),
+  unit: z.literal("seconds").optional(),
+  layout: z.literal("full").optional(),
+  emptyDescription: z.string().optional(),
+  validation: z
+    .object({
+      url: z.object({
+        protocols: z.array(z.enum(["http:", "https:"])).min(1),
+        pathname: z.string().startsWith("/"),
+      }),
+      message: z.string(),
+    })
+    .optional(),
+}
+
+export const ConnectorSettingField = z.discriminatedUnion("type", [
+  z.object({
+    ...ConnectorSettingFieldBase,
+    type: z.literal("boolean"),
+    default: z.boolean().optional(),
+  }),
+  z.object({
+    ...ConnectorSettingFieldBase,
+    type: z.literal("integer"),
+    default: z.number().optional(),
+    min: z.number().optional(),
+    max: z.number().optional(),
+  }),
+  z.object({
+    ...ConnectorSettingFieldBase,
+    type: z.literal("secret"),
+    default: z.string().optional(),
+    placeholder: z.string().optional(),
+  }),
+  z.object({
+    ...ConnectorSettingFieldBase,
+    type: z.literal("string"),
+    default: z.string().optional(),
+    placeholder: z.string().optional(),
+  }),
+  z.object({
+    ...ConnectorSettingFieldBase,
+    type: z.literal("string-list"),
+    default: z.array(z.string()).optional(),
+  }),
+  z.object({
+    ...ConnectorSettingFieldBase,
+    type: z.literal("select"),
+    default: z.string().optional(),
+    options: z.array(z.object({ label: z.string(), value: z.string() })),
+  }),
+])
+export type ConnectorSettingField = z.infer<typeof ConnectorSettingField>
+
+export const SearchSettingsResponse = z.object({
+  manifest: z.object({
+    id: z.literal("search"),
+    label: z.string(),
+    description: z.string(),
+    fields: z.array(ConnectorSettingField),
+    providers: z.array(
+      z.object({
+        id: z.string(),
+        label: z.string(),
+        description: z.string().optional(),
+        capabilities: z.array(z.enum(["search", "fetch"])),
+        settings: z.array(ConnectorSettingField).optional(),
+      }),
+    ),
+  }),
+  settings: z.record(z.string(), ConnectorSettingValue),
+  providers: z.record(
+    z.string(),
+    z.object({
+      enabled: z.boolean(),
+      settings: z.record(z.string(), ConnectorSettingValue),
+      secret_sources: z.record(z.string(), z.enum(["environment", "settings"])),
+    }),
+  ),
+})
+export type SearchSettingsResponse = z.infer<typeof SearchSettingsResponse>
+
+export const SearchSettingsUpdateRequest = z.object({
+  settings: z.record(z.string(), ConnectorSettingValue.nullable()).optional(),
+  providers: z
+    .record(
+      z.string(),
+      z.object({
+        enabled: z.boolean().optional(),
+        settings: z
+          .record(z.string(), ConnectorSettingValue.nullable())
+          .optional(),
+      }),
+    )
+    .optional(),
+})
+export type SearchSettingsUpdateRequest = z.infer<
+  typeof SearchSettingsUpdateRequest
+>
+
+export const SearchProviderValidationRequest = z.object({
+  providerId: z.string().min(1),
+  settings: z.record(z.string(), ConnectorSettingValue.nullable()).optional(),
+})
+export type SearchProviderValidationRequest = z.infer<
+  typeof SearchProviderValidationRequest
+>
+
+export const SearchProviderValidationResponse = z.object({
+  status: z.enum(["valid", "invalid", "unavailable"]),
+  fieldErrors: z.record(z.string(), z.string()),
+  message: z.string().optional(),
+})
+export type SearchProviderValidationResponse = z.infer<
+  typeof SearchProviderValidationResponse
+>
+
 /** The upstream Copilot service the proxy is talking to — hosts/URLs only, no
  *  secrets (consistent with the "presence, never values" rule above). All are
  *  resolved from the live request-path config in `~/lib/config/api-config`, so
@@ -174,6 +310,8 @@ export type UpdateStatusResponse = z.infer<typeof UpdateStatusResponse>
  *  can render a compact flag row without knowing Copilot's schema. */
 export const ModelCapabilityFlags = z.object({
   vision: z.boolean(),
+  image_generation: z.boolean(),
+  video_generation: z.boolean(),
   tool_calls: z.boolean(),
   streaming: z.boolean(),
   /** Reasoning / extended-thinking support (adaptive_thinking or a
@@ -380,6 +518,41 @@ export const AccountsListResponse = z.object({
 })
 export type AccountsListResponse = z.infer<typeof AccountsListResponse>
 
+export const OllamaAccountSummary = z.object({
+  type: z.literal("ollama"),
+  provider: z.string(),
+  endpoint: z.string(),
+  scope: z.enum(["localhost", "remote"]),
+  account_state: z.enum(["unauthenticated", "authenticated"]),
+  availability: z.enum(["available", "unavailable"]),
+  model_count: z.number().int().nonnegative().nullable(),
+})
+export type OllamaAccountSummary = z.infer<typeof OllamaAccountSummary>
+
+export const OllamaAccountsListResponse = z.object({
+  accounts: z.array(OllamaAccountSummary),
+})
+export type OllamaAccountsListResponse = z.infer<
+  typeof OllamaAccountsListResponse
+>
+
+export const OllamaSettingsResponse = z.object({
+  has_api_key: z.boolean(),
+  credential_source: z.enum(["environment", "file", "none"]),
+  local_enabled: z.boolean(),
+  prefer_local_models: z.boolean(),
+})
+export type OllamaSettingsResponse = z.infer<typeof OllamaSettingsResponse>
+
+export const OllamaSettingsUpdateRequest = z.object({
+  api_key: z.string().max(4096).optional(),
+  local_enabled: z.boolean().optional(),
+  prefer_local_models: z.boolean().optional(),
+})
+export type OllamaSettingsUpdateRequest = z.infer<
+  typeof OllamaSettingsUpdateRequest
+>
+
 /**
  * An API-key entry as managed by Settings → API clients. The key value
  * is returned in full to the local Settings UI — the endpoint is
@@ -395,6 +568,8 @@ export const ApiKeyEntry = z.object({
   key: z.string(),
   enabled: z.boolean(),
   created_at: z.string(),
+  kind: z.enum(["managed", "manual"]).optional(),
+  configurator_id: z.string().optional(),
 })
 export type ApiKeyEntry = z.infer<typeof ApiKeyEntry>
 
@@ -458,6 +633,31 @@ export const AppInstallHint = z.object({
 })
 export type AppInstallHint = z.infer<typeof AppInstallHint>
 
+/** Why a passive health check found the app's on-disk config drifted from
+ *  what it should be right now. Distinct from `AppEntry.conflict`: `conflict`
+ *  is scoped to the outcome of the LAST `enable()` attempt, while `health` is
+ *  a live, ongoing check — it can go unhealthy between enable attempts (e.g. a
+ *  key rotation while routing stays "enabled") with nothing having been
+ *  attempted at all. */
+export const AppHealthIssue = z.enum([
+  "foreign-base-url",
+  "foreign-api-key-helper",
+  "invalid-api-key",
+  "out-of-sync",
+  "not-applied",
+])
+export type AppHealthIssue = z.infer<typeof AppHealthIssue>
+
+/** Passive "is this app's config still correct right now" check, recomputed
+ *  every time `getDetails` is called. `ok: false` is what the Settings UI
+ *  uses to show a "needs attention" notice; fixing it is always a manual,
+ *  user-confirmed action (re-running `enable()`), never automatic. */
+export const AppHealth = z.object({
+  ok: z.boolean(),
+  issue: AppHealthIssue.nullable(),
+})
+export type AppHealth = z.infer<typeof AppHealth>
+
 export const AppEntry = z.object({
   id: z.enum(["claude-code", "claude-desktop", "copilot-cli"]),
   name: z.string(),
@@ -470,12 +670,11 @@ export const AppEntry = z.object({
   /** Non-null when enabling was refused because the app's config has a setting
    *  we don't own, or this invocation cannot produce a safe helper command. */
   conflict: z
-    .enum([
-      "foreign-base-url",
-      "foreign-api-key-helper",
-      "invalid-api-key-helper",
-    ])
+    .enum(["foreign-base-url", "foreign-api-key-helper", "invalid-api-key"])
     .nullable(),
+  /** Live drift check — see `AppHealth`. Always `{ ok: true, issue: null }`
+   *  for apps with no drift risk (not enabled, or nothing dynamic to drift). */
+  health: AppHealth,
 })
 export type AppEntry = z.infer<typeof AppEntry>
 
@@ -517,6 +716,86 @@ export type ApiKeyUpdateRpcRequest = z.infer<typeof ApiKeyUpdateRpcRequest>
 
 export const ApiKeyEnforcementRequest = z.object({ enforcing: z.boolean() })
 export type ApiKeyEnforcementRequest = z.infer<typeof ApiKeyEnforcementRequest>
+
+const ConfiguratorId = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/u)
+
+export const ConnectionAction = z.enum(["connect", "disconnect", "reconnect"])
+export type ConnectionAction = z.infer<typeof ConnectionAction>
+
+export const ConnectionStatus = z.enum([
+  "available",
+  "not-installed",
+  "coming-soon",
+  "connected",
+  "owned-by-another-configurator",
+  "changed-externally",
+  "stale-recovery-required",
+  "recovery-required",
+])
+export type ConnectionStatus = z.infer<typeof ConnectionStatus>
+
+export const ConnectionCredentialSummary = z.object({
+  id: z.string(),
+  label: z.string(),
+  kind: z.enum(["managed", "manual"]),
+  enabled: z.boolean(),
+})
+export type ConnectionCredentialSummary = z.infer<
+  typeof ConnectionCredentialSummary
+>
+
+export const ConnectionOwnership = z.object({
+  configurator_id: ConfiguratorId,
+  target_path: z.string(),
+  pid: z.number().int().positive(),
+  started_at: z.string(),
+})
+export type ConnectionOwnership = z.infer<typeof ConnectionOwnership>
+
+export const ConnectionRecovery = z.object({
+  preserved_paths: z.array(z.array(z.string())),
+})
+export type ConnectionRecovery = z.infer<typeof ConnectionRecovery>
+
+export const ConnectionEntry = z.object({
+  id: ConfiguratorId,
+  name: z.string(),
+  status: ConnectionStatus,
+  allowed_actions: z.array(ConnectionAction),
+  detail: z.string().nullable(),
+  credential: ConnectionCredentialSummary.nullable(),
+  ownership: ConnectionOwnership.nullable(),
+  recovery: ConnectionRecovery.nullable(),
+})
+export type ConnectionEntry = z.infer<typeof ConnectionEntry>
+
+export const ConnectionsListResponse = z.object({
+  clients: z.array(ConnectionEntry),
+  manual_credentials: z.array(ConnectionCredentialSummary),
+  require_known_keys: z.boolean(),
+})
+export type ConnectionsListResponse = z.infer<typeof ConnectionsListResponse>
+
+export const ConnectionActionRequest = z.object({
+  id: ConfiguratorId,
+  action: ConnectionAction,
+})
+export type ConnectionActionRequest = z.infer<typeof ConnectionActionRequest>
+
+export const ConnectionCredentialIdRequest = z.object({
+  id: z.string().min(1),
+})
+export type ConnectionCredentialIdRequest = z.infer<
+  typeof ConnectionCredentialIdRequest
+>
+
+export const ConnectionCredentialReveal = z.object({
+  id: z.string(),
+  key: z.string(),
+})
+export type ConnectionCredentialReveal = z.infer<
+  typeof ConnectionCredentialReveal
+>
 
 export const TokenUsagePeriod = z.enum({
   day: "day",

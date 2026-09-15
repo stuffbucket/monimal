@@ -1,7 +1,7 @@
 /*
  * The host half of the `--shell-*` contract, as a consumer writes it.
  *
- * `structural.css` ships no palette, so under the package mode something has
+ * `shell-package-rules.css` ships no palette, so under the package mode something has
  * to define the contract or every surface draws nothing. This file is that
  * definition, and it is modelled on the one worked consumer this repository
  * already has: `e2e/fixtures/demo-shell/demo.css`.

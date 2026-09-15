@@ -18,6 +18,7 @@ import {
   checkoutMountArguments,
   containerBoundaryArguments,
   expectedImageLabels,
+  gitMetadataMountArguments,
   imageLabels,
   imageTagForArchitecture,
   innerScriptForSuite,
@@ -27,7 +28,12 @@ import {
   readToolPins,
   runDockerArguments,
   stagedCommandArguments,
+  suiteFixtureArguments,
+  turboCacheLabels,
+  turboCacheMountArguments,
+  turboCacheVolumeCreateArguments,
   validatedImageId,
+  validatedTurboCacheVolumeName,
 } from "../scripts/docker-test.mjs";
 import {
   parseStageOptions,
@@ -37,8 +43,11 @@ import {
 } from "../scripts/stage-test-checkout.mjs";
 import {
   imageIsOldEnough,
+  isManagedTestImage,
+  isManagedTurboCacheVolume,
   parsePruneOptions,
   selectRetainedImage,
+  volumeIsOldEnough,
 } from "../scripts/prune-test-images.mjs";
 import {
   affectedBase,
@@ -55,6 +64,8 @@ import {
   inferredTasks,
   pnpmWorkspacePaths,
 } from "../scripts/workspace-packages.mjs";
+import { prepareCoreWorkspaceBin } from "../scripts/prepare-workspace.mjs";
+import { workspaceTaskPlan } from "../scripts/run-workspace-task.mjs";
 
 const root = path.resolve(import.meta.dirname, "..");
 
@@ -342,8 +353,11 @@ test("the outer and fixed inner test scripts cannot recurse", () => {
     {
       "test:inner": manifest.scripts["test:inner"],
       "test:maximal-core:inner": manifest.scripts["test:maximal-core:inner"],
-      "test:maximal-dsh-host:inner":
-        manifest.scripts["test:maximal-dsh-host:inner"],
+      "test:maximal-models:inner":
+        manifest.scripts["test:maximal-models:inner"],
+      "test:maximal-configurators:inner":
+        manifest.scripts["test:maximal-configurators:inner"],
+      "test:connections:inner": manifest.scripts["test:connections:inner"],
       "test:policy:inner": manifest.scripts["test:policy:inner"],
       "mutate:core:inner": manifest.scripts["mutate:core:inner"],
     },
@@ -351,8 +365,12 @@ test("the outer and fixed inner test scripts cannot recurse", () => {
       "test:inner": "node scripts/docker-workspace-test.mjs",
       "test:maximal-core:inner":
         "node scripts/assert-test-container.mjs && pnpm --filter @stuffbucket/maximal-core test",
-      "test:maximal-dsh-host:inner":
-        "node scripts/assert-test-container.mjs && pnpm --filter @stuffbucket/maximal-dsh-host test",
+      "test:maximal-models:inner":
+        "node scripts/assert-test-container.mjs && pnpm --filter @stuffbucket/maximal-models test",
+      "test:maximal-configurators:inner":
+        "node scripts/assert-test-container.mjs && pnpm --filter @stuffbucket/maximal-configurators test && pnpm --filter @stuffbucket/maximal-core run test:configurator-harness",
+      "test:connections:inner":
+        "node scripts/assert-test-container.mjs && pnpm --filter @stuffbucket/maximal-configurators test && pnpm --filter @stuffbucket/maximal-core test && pnpm --filter maximal-client test",
       "test:policy:inner":
         "node scripts/assert-test-container.mjs && node --test tests/docker-test-policy.test.mjs",
       "mutate:core:inner":
@@ -435,8 +453,28 @@ test("root workflows select the intended package and task graphs", () => {
   );
   assert.equal(client.scripts.dev, "node scripts/start.mjs");
   assert.equal(client.scripts.predev, "node scripts/gen-icon-png.mjs");
+  assert.equal(
+    manifest.scripts["pnpm:devPreinstall"],
+    "node scripts/prepare-workspace.mjs",
+  );
+  assert.equal(
+    client.scripts.typecheck,
+    "node ../../../scripts/run-workspace-task.mjs typecheck",
+  );
+  assert.equal(client.scripts["typecheck:inner"], "tsc --noEmit");
+  assert.equal(
+    client.scripts.lint,
+    "node ../../../scripts/run-workspace-task.mjs lint",
+  );
+  assert.equal(client.scripts["lint:inner"], "eslint .");
   assert.deepEqual(turbo.tasks.transit.dependsOn, ["^transit"]);
   assert.deepEqual(turbo.tasks.lint.dependsOn, ["transit", "^build"]);
+  assert.deepEqual(turbo.tasks.lint.passThroughEnv, [
+    "MONIMAL_WORKSPACE_TASK",
+  ]);
+  assert.deepEqual(turbo.tasks.typecheck.passThroughEnv, [
+    "MONIMAL_WORKSPACE_TASK",
+  ]);
   assert.deepEqual(turbo.tasks.dev.dependsOn, ["^build"]);
   assert.equal(turbo.tasks.dev.cache, false);
   assert.equal(turbo.tasks.dev.persistent, true);
@@ -445,7 +483,138 @@ test("root workflows select the intended package and task graphs", () => {
   assert.equal(turbo.tasks["maximal-client#dev"].persistent, true);
 });
 
-test("required CI runs tests on its disposable runner and has one cache writer", () => {
+test("direct client checks re-enter the workspace task graph", () => {
+  const direct = workspaceTaskPlan({
+    arguments_: ["typecheck"],
+    environment: {},
+    packageDirectory: "/repo/packages/maximal/client",
+    packageManagerPath: "/pnpm.cjs",
+    packageName: "maximal-client",
+    rootDirectory: "/repo",
+  });
+  assert.deepEqual(direct, {
+    arguments: [
+      "--dir",
+      "/repo",
+      "exec",
+      "turbo",
+      "run",
+      "typecheck",
+      "--filter=maximal-client",
+    ],
+    command: "/pnpm.cjs",
+    cwd: "/repo",
+    environment: {
+      MONIMAL_WORKSPACE_TASK: "typecheck",
+    },
+    shell: false,
+  });
+
+  const inner = workspaceTaskPlan({
+    arguments_: ["lint"],
+    environment: { TURBO_HASH: "task-hash" },
+    packageDirectory: "/repo/packages/maximal/client",
+    packageManagerPath: "/pnpm.cjs",
+    packageName: "maximal-client",
+    rootDirectory: "/repo",
+  });
+  assert.deepEqual(inner, {
+    arguments: ["run", "lint:inner"],
+    command: "/pnpm.cjs",
+    cwd: "/repo/packages/maximal/client",
+    shell: process.platform === "win32",
+  });
+  assert.throws(
+    () => workspaceTaskPlan({ ...direct, arguments_: ["test"] }),
+    /Usage: run-workspace-task\.mjs <lint\|typecheck>/,
+  );
+});
+
+test("pnpm prepares a functional workspace Core bin before linking", async () => {
+  const fixture = fs.mkdtempSync(path.join(os.tmpdir(), "monimal-preinstall-"));
+  const binPath = path.join(fixture, "packages/maximal-core/dist/main.js");
+
+  assert.equal(prepareCoreWorkspaceBin(fixture), true);
+  assert.equal(
+    fs.readFileSync(binPath, "utf8"),
+    '#!/usr/bin/env bun\nawait import("../src/main.ts");\n',
+  );
+  assert.equal(fs.statSync(binPath).mode & 0o111, 0o111);
+
+  fs.writeFileSync(binPath, "built output");
+  assert.equal(prepareCoreWorkspaceBin(fixture), false);
+  assert.equal(fs.readFileSync(binPath, "utf8"), "built output");
+});
+
+test("the client sidecar builds through its composition owner", () => {
+  const maximal = JSON.parse(read("packages/maximal/package.json"));
+  const buildCore = read("packages/maximal/client/scripts/build-core.ts");
+  const turbo = JSON.parse(read("turbo.json"));
+
+  assert.match(
+    buildCore,
+    /compositionEntry = resolve\(import\.meta\.dirname, '\.\.\/\.\.\/src\/main\.ts'\)/,
+  );
+  assert.deepEqual(turbo.tasks["maximal-client#build"].dependsOn, [
+    "^build",
+    `${maximal.name}#build`,
+  ]);
+});
+
+test("the client React hooks policy is narrow and content-pinned", async () => {
+  const client = JSON.parse(read("packages/maximal/client/package.json"));
+  const config = (
+    await import("../packages/maximal/client/eslint.config.mjs")
+  ).default;
+  const hooks = config.find((entry) => entry.plugins?.["react-hooks"]);
+
+  assert.deepEqual(hooks.files, [
+    "src/renderer/**/*.ts",
+    "src/renderer/**/*.tsx",
+  ]);
+  assert.deepEqual(hooks.rules, {
+    "react-hooks/rules-of-hooks": "error",
+    "react-hooks/exhaustive-deps": "warn",
+    "react-hooks/refs": "error",
+    "react-hooks/set-state-in-effect": "error",
+  });
+  assert.equal(client.devDependencies["eslint-plugin-react-hooks"], "7.1.1");
+  assert.match(
+    read("pnpm-lock.yaml"),
+    /eslint-plugin-react-hooks@7\.1\.1:\n    resolution: \{integrity: sha1-5nQsrXXZcMCj8w19P6gKR4T1WSc=\}/,
+  );
+});
+
+test("architecture analysis has one cacheable Turbo execution path", () => {
+  const manifest = JSON.parse(read("package.json"));
+  const turbo = JSON.parse(read("turbo.json"));
+  const workflow = read(".github/workflows/ci.yml");
+
+  assert.equal(manifest.scripts.analyze, "turbo run analyze");
+  assert.doesNotMatch(manifest.scripts.check, /pnpm (?:run )?analyze/);
+  assert.equal(
+    turbo.tasks.test.dependsOn.filter((dependency) => dependency === "analyze")
+      .length,
+    1,
+  );
+  assert.deepEqual(turbo.tasks.analyze, {
+    outputs: [],
+    inputs: [
+      "$TURBO_DEFAULT$",
+      "$TURBO_ROOT$/architecture-analysis.json",
+      "$TURBO_ROOT$/architecture-analysis.schema.json",
+      "$TURBO_ROOT$/packages/maximal-core/scripts/analysis/**",
+      "$TURBO_ROOT$/packages/maximal-core/scripts/analyze.ts",
+      "$TURBO_ROOT$/scripts/architecture-graph.mjs",
+      "!research_log/**",
+      "!.claude/**",
+      "!.github/**",
+    ],
+  });
+  assert.doesNotMatch(workflow, /\b(?:knip|jscpd|dependency-cruiser)\b/);
+});
+
+test("required CI runs native checks before Docker and has one cache writer", () => {
   const workflow = read(".github/workflows/ci.yml");
   const staticGate = "pnpm exec turbo run build typecheck lint";
   const hostGate =
@@ -505,9 +674,15 @@ test("root automation schedules Docker and keeps CodeQL lean and pinned", () => 
     .join("\n");
 
   assert.match(dockerWorkflow, /^  schedule:\n    - cron: /m);
-  assert.match(
-    dockerWorkflow,
-    /run: node scripts\/docker-test\.mjs --suite=policy/,
+  assert.match(dockerWorkflow, /^  workflow_dispatch:\n    inputs:/m);
+  assert.doesNotMatch(dockerWorkflow, /^  (?:pull_request|push):/m);
+  assert.equal(
+    dockerWorkflow.split("node scripts/docker-test.mjs --suite=policy").length - 1,
+    1,
+  );
+  assert.equal(
+    dockerWorkflow.split("node scripts/docker-test.mjs --all").length - 1,
+    1,
   );
   assert.match(codeqlWorkflow, /languages: javascript-typescript/);
   assert.doesNotMatch(codeqlWorkflow, /security-and-quality/);
@@ -791,12 +966,26 @@ test("Docker image validation and retention require reusable Stryker metadata", 
     Created: "2026-09-02T00:00:00Z",
     Config: {
       Labels: {
+        [imageLabels.architecture]: "amd64",
         [imageLabels.purpose]: "workspace-test",
         [imageLabels.mutation]: "stryker",
       },
     },
   };
   assert.equal(validatedImageId(exact, labels), exactId);
+  assert.equal(isManagedTestImage(exact), true);
+  assert.equal(
+    isManagedTestImage({
+      ...exact,
+      Config: {
+        Labels: {
+          [imageLabels.purpose]: "workspace-test",
+          [imageLabels.mutation]: "stryker",
+        },
+      },
+    }),
+    false,
+  );
   assert.equal(
     validatedImageId({ ...exact, Architecture: "amd64" }, labels),
     undefined,
@@ -821,6 +1010,23 @@ test("automatic image cleanup leaves a concurrency grace period", () => {
   const now = Date.parse("2026-09-08T12:30:00.000Z");
   assert.equal(imageIsOldEnough(image, 3_600_000, now), false);
   assert.equal(imageIsOldEnough(image, 1_800_000, now), true);
+
+  const imageId = `sha256:${"e".repeat(64)}`;
+  const volume = {
+    Name: `monimal-test-turbo-${"e".repeat(64)}`,
+    CreatedAt: "2026-09-08T12:00:00.000Z",
+    Labels: {
+      [turboCacheLabels.dependencyImage]: imageId,
+      [turboCacheLabels.purpose]: "turbo-cache",
+    },
+  };
+  assert.equal(isManagedTurboCacheVolume(volume), true);
+  assert.equal(volumeIsOldEnough(volume, 3_600_000, now), false);
+  assert.equal(volumeIsOldEnough(volume, 1_800_000, now), true);
+  assert.equal(
+    isManagedTurboCacheVolume({ ...volume, Name: "unrelated-cache" }),
+    false,
+  );
 });
 
 test("runtime arguments mount the checkout read-only behind the offline boundary", () => {
@@ -835,8 +1041,38 @@ test("runtime arguments mount the checkout read-only behind the offline boundary
     "type=bind,source=/repo,target=/checkout,readonly",
   ]);
   const imageId = "sha256:" + "a".repeat(64);
+  assert.deepEqual(turboCacheMountArguments(imageId), [
+    "--mount",
+    `type=volume,source=monimal-test-turbo-${"a".repeat(64)},target=/workspace/.turbo`,
+  ]);
+  assert.deepEqual(turboCacheVolumeCreateArguments(imageId), [
+    "volume",
+    "create",
+    "--label",
+    `${turboCacheLabels.purpose}=turbo-cache`,
+    "--label",
+    `${turboCacheLabels.dependencyImage}=${imageId}`,
+    `monimal-test-turbo-${"a".repeat(64)}`,
+  ]);
+  const volume = {
+    Name: `monimal-test-turbo-${"a".repeat(64)}`,
+    Labels: {
+      [turboCacheLabels.dependencyImage]: imageId,
+      [turboCacheLabels.purpose]: "turbo-cache",
+    },
+  };
+  assert.equal(validatedTurboCacheVolumeName(volume, imageId), volume.Name);
+  assert.equal(
+    validatedTurboCacheVolumeName({ ...volume, Labels: {} }, imageId),
+    undefined,
+  );
+  assert.throws(
+    () => turboCacheMountArguments("monimal-test:dependencies-arm64"),
+    /Invalid Docker image ID/,
+  );
   const base = "b".repeat(40);
   const arguments_ = runDockerArguments(imageId, { base });
+  const gitMount = gitMetadataMountArguments(root);
   assert.deepEqual(arguments_, [
     "run",
     "--rm",
@@ -846,6 +1082,9 @@ test("runtime arguments mount the checkout read-only behind the offline boundary
     "--security-opt=no-new-privileges",
     "--mount",
     `type=bind,source=${root},target=/checkout,readonly`,
+    ...gitMount,
+    "--mount",
+    `type=volume,source=monimal-test-turbo-${"a".repeat(64)},target=/workspace/.turbo`,
     imageId,
     "node",
     "/opt/monimal/stage-test-checkout.mjs",
@@ -881,6 +1120,9 @@ test("mutation arguments use the same mounted dependency boundary", () => {
     "--security-opt=no-new-privileges",
     "--mount",
     `type=bind,source=${root},target=/checkout,readonly`,
+    ...gitMetadataMountArguments(root),
+    "--mount",
+    `type=volume,source=monimal-test-turbo-${"d".repeat(64)},target=/workspace/.turbo`,
     "--env",
     "MAXIMAL_MUTATION_LEDGER=/workspace/packages/maximal-core/reports/mutation/incomplete-runs.log",
     imageId,
@@ -1074,6 +1316,47 @@ test("checkout staging copies Git-visible source without host dependencies", () 
   }
 });
 
+test("checkout staging gives a linked worktree a container-local Git root", () => {
+  const repository = fs.mkdtempSync(path.join(os.tmpdir(), "monimal-stage-repository-"));
+  const checkout = `${repository}-linked`;
+  const workspace = fs.mkdtempSync(path.join(os.tmpdir(), "monimal-stage-workspace-"));
+  const git = (cwd, ...arguments_) =>
+    spawnSync("git", arguments_, { cwd, encoding: "utf8" });
+  try {
+    assert.equal(git(repository, "init", "--quiet").status, 0);
+    assert.equal(git(repository, "config", "user.name", "Docker Policy Test").status, 0);
+    assert.equal(
+      git(repository, "config", "user.email", "docker-policy@example.invalid").status,
+      0,
+    );
+    fs.writeFileSync(path.join(repository, "tracked.txt"), "linked\n");
+    assert.equal(git(repository, "add", "tracked.txt").status, 0);
+    assert.equal(
+      git(repository, "commit", "--quiet", "--no-gpg-sign", "-m", "fixture").status,
+      0,
+    );
+    assert.equal(git(repository, "worktree", "add", "--quiet", checkout).status, 0);
+
+    assert.equal(stageCheckout({ checkout, workspace }), 1);
+    assert.equal(
+      git(workspace, "rev-parse", "--show-toplevel").stdout.trim(),
+      fs.realpathSync(workspace),
+    );
+    assert.equal(
+      git(workspace, "rev-parse", "HEAD").stdout.trim(),
+      git(checkout, "rev-parse", "HEAD").stdout.trim(),
+    );
+  } finally {
+    spawnSync("git", ["worktree", "remove", "--force", checkout], {
+      cwd: repository,
+      encoding: "utf8",
+    });
+    fs.rmSync(checkout, { recursive: true, force: true });
+    fs.rmSync(repository, { recursive: true, force: true });
+    fs.rmSync(workspace, { recursive: true, force: true });
+  }
+});
+
 test("the Docker workspace runner accepts only one affected Turbo filter", () => {
   const filter = `--filter=...[${"a".repeat(40)}]`;
   assert.deepEqual(parseDockerWorkspaceOptions([]), []);
@@ -1110,8 +1393,8 @@ test("suite and trace selectors are closed and do not forward arguments", () => 
     trace: "off",
   });
   assert.deepEqual(
-    parseOptions(["--", "--trace=all", "--suite=maximal-dsh-host"]),
-    { scope: "affected", suite: "maximal-dsh-host", trace: "all" },
+    parseOptions(["--", "--trace=all", "--suite=maximal-models"]),
+    { scope: "affected", suite: "maximal-models", trace: "all" },
   );
   assert.equal(parseTrace(["--trace=tests"]), "tests");
   assert.throws(() => parseOptions(["--suite=other"]), /Invalid test suite/);
@@ -1142,14 +1425,21 @@ test("suite and trace selectors are closed and do not forward arguments", () => 
 test("each suite selects one fixed root-owned inner script", () => {
   assert.deepEqual(
     Object.fromEntries(
-      ["workspace", "maximal-core", "maximal-dsh-host", "policy"].map(
-        (suite) => [suite, innerScriptForSuite(suite)],
-      ),
+      [
+        "workspace",
+        "maximal-core",
+        "maximal-models",
+        "maximal-configurators",
+        "connections",
+        "policy",
+      ].map((suite) => [suite, innerScriptForSuite(suite)]),
     ),
     {
       workspace: "test:inner",
       "maximal-core": "test:maximal-core:inner",
-      "maximal-dsh-host": "test:maximal-dsh-host:inner",
+      "maximal-models": "test:maximal-models:inner",
+      "maximal-configurators": "test:maximal-configurators:inner",
+      connections: "test:connections:inner",
       policy: "test:policy:inner",
     },
   );
@@ -1171,6 +1461,41 @@ test("each suite selects one fixed root-owned inner script", () => {
     "test:maximal-core:inner",
   ]);
   assert.ok(arguments_.includes("MAXIMAL_TEST_TRACE=1"));
+});
+
+test("only the configurator suite receives disposable system install roots", () => {
+  assert.deepEqual(suiteFixtureArguments("workspace"), []);
+  assert.deepEqual(suiteFixtureArguments("maximal-configurators"), [
+    "--tmpfs",
+    "/Applications:rw,uid=10001,gid=10001,mode=0755",
+    "--tmpfs",
+    "/opt/homebrew:rw,exec,uid=10001,gid=10001,mode=0755",
+  ]);
+
+  const joined = runDockerArguments("sha256:" + "b".repeat(64), {
+    suite: "maximal-configurators",
+  }).join(" ");
+  assert.match(joined, /--tmpfs \/Applications:/);
+  assert.match(joined, /--tmpfs \/opt\/homebrew:/);
+  assert.deepEqual(
+    runDockerArguments("sha256:" + "b".repeat(64), {
+      suite: "maximal-configurators",
+    }).slice(0, 12),
+    [
+      "run",
+      "--rm",
+      "--init",
+      "--network=none",
+      "--cap-drop=ALL",
+      "--security-opt=no-new-privileges",
+      "--tmpfs",
+      "/Applications:rw,uid=10001,gid=10001,mode=0755",
+      "--tmpfs",
+      "/opt/homebrew:rw,exec,uid=10001,gid=10001,mode=0755",
+      "--mount",
+      `type=bind,source=${root},target=/checkout,readonly`,
+    ],
+  );
 });
 
 test("tool pins and Docker artifacts come from their owner files", () => {
@@ -1369,7 +1694,9 @@ test("the image owns test homes and stages commands as non-root", () => {
   assert.match(dockerfile, /bun_sha.*sha256sum -c -/s);
   assert.match(dockerfile, /USER maximal/);
   assert.match(dockerfile, /MAXIMAL_TEST_CONTAINER=1/);
+  assert.match(dockerfile, /TURBO_CACHE_DIR=\/workspace\/\.turbo\/cache/);
   assert.match(dockerfile, /XDG_CONFIG_HOME=\/home\/maximal\/\.config/);
+  assert.match(dockerfile, /\/workspace\/\.turbo/);
   assert.match(
     dockerfile,
     /git config --system --add safe\.directory \/checkout/,
@@ -1407,7 +1734,8 @@ test("mutation prepares the dependency image and pruning stays label-scoped", ()
     mutation,
     /requireReusableImage|sourceDigest|test:docker/,
   );
-  assert.match(prune, /label=\$\{imageLabels\.purpose\}=workspace-test/);
+  assert.match(prune, /"image", "ls", "--all", "--quiet", "--no-trunc"/);
+  assert.match(prune, /\.filter\(isManagedTestImage\)/);
   assert.match(prune, /"--builder",\s*dockerBuilderName/);
   assert.match(prune, /"--max-used-space",\s*"8gb"/);
   assert.match(prune, /"--reserved-space",\s*"2gb"/);

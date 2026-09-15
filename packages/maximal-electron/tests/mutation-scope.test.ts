@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFERRED,
   mutationScope,
-  usesParentPort,
   valueImports,
 } from '../scripts/mutation-scope.mjs';
 
@@ -77,25 +76,6 @@ describe('valueImports', () => {
   });
 });
 
-describe('usesParentPort', () => {
-  /**
-   * A utility process entry needs an Electron runtime as much as a main
-   * process module does, and the criterion cannot see it through imports: the
-   * binding arrives on the global `process`. Issue #133.
-   */
-  it('finds the binding a utility process entry reads', () => {
-    expect(usesParentPort('process.parentPort.postMessage(1);', 'a.ts')).toBe(true);
-    expect(usesParentPort("process.parentPort.on('message', f);", 'a.ts')).toBe(true);
-  });
-
-  it('is false for a file that never touches it', () => {
-    expect(usesParentPort('process.exit(0);', 'a.ts')).toBe(false);
-    expect(usesParentPort('const parentPort = 1;', 'a.ts')).toBe(false);
-    expect(usesParentPort('other.parentPort.postMessage(1);', 'a.ts')).toBe(false);
-    expect(usesParentPort("const s = 'process.parentPort';", 'a.ts')).toBe(false);
-  });
-});
-
 describe('mutationScope', () => {
   const scope = mutationScope();
 
@@ -123,13 +103,6 @@ describe('mutationScope', () => {
 
   it('rejects a React component', () => {
     expect(scope.eligible).not.toContain('src/renderer/App.tsx');
-  });
-
-  it('rejects a utility process entry', () => {
-    const worker = scope.outOfScope.find(
-      (entry) => entry.file === 'src/main/llama-worker.ts',
-    );
-    expect(worker?.reason).toBe('utilityProcess');
   });
 
   it('rejects a module that reaches electron through another module', () => {

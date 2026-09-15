@@ -1,4 +1,5 @@
 import { base } from "./base.js"
+import { architecture } from "./architecture.js"
 
 // This package lints under `./base` rather than `./service`, and that is not
 // an oversight: `./service` runs typescript-eslint, and there is no
@@ -10,4 +11,4 @@ import { base } from "./base.js"
 // one place where a typo survives: an unused import or a shadowed binding
 // here would not fail anywhere, it would quietly change which rules the
 // workspace enforces.
-export default [...base()]
+export default [...base(), ...architecture({ root: import.meta.dirname })]

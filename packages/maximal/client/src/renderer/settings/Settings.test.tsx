@@ -11,7 +11,7 @@ import {
   DEFAULT_SETTINGS_SECTION_ID,
   SETTINGS_SECTIONS,
 } from '../../shared/settings-sections'
-import { AppFrame } from '../frame/AppFrame'
+import { AppFrame, PRODUCT_TABS } from '../frame/AppFrame'
 import type { SettingsCapabilities } from './capabilities'
 import { Settings, type SettingsSectionRequest } from './Settings'
 
@@ -25,6 +25,7 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 
 const authStatus: AuthStatus = { state: 'unauthenticated' }
 const accountsList: AccountsListResponse = { accounts: [], active_key: null }
+const ollamaAccountsList = { accounts: [] }
 
 function fakeCapabilities(): SettingsCapabilities {
   return {
@@ -40,12 +41,50 @@ function fakeCapabilities(): SettingsCapabilities {
       list: vi.fn(async () => accountsList),
       switchTo: vi.fn(async () => {}),
     },
+    ollamaAccounts: {
+      list: vi.fn(async () => ollamaAccountsList),
+    },
+    ollamaSettings: {
+      get: vi.fn(async () => ({
+        has_api_key: false,
+        credential_source: 'none' as const,
+        local_enabled: true,
+        prefer_local_models: true,
+      })),
+      update: vi.fn(),
+    },
+    ollamaRuntime: {
+      status: vi.fn(async () => ({
+        installation: 'none' as const,
+        installed: false,
+        running: false,
+        can_launch: false,
+        can_manage: false,
+        application_path: null,
+        server_configuration_path: '/home/test/.ollama/server.json',
+        desktop_settings_path: null,
+        endpoint: 'http://127.0.0.1:11434',
+        context_length: null,
+      })),
+      launch: vi.fn(),
+      updateContextLength: vi.fn(),
+    },
     general: {
       menuBarMode: vi.fn(async () => ({ enabled: false, pending: false })),
       beginMenuBarOnly: vi.fn(async () => ({ attemptId: 'attempt-1', deadlineMs: 1 })),
       confirmMenuBarOnly: vi.fn(async () => ({ enabled: true, pending: false })),
       cancelMenuBarOnly: vi.fn(async () => ({ enabled: false, pending: false })),
       disableMenuBarOnly: vi.fn(async () => ({ enabled: false, pending: false })),
+    },
+    connections: {
+      list: vi.fn(async () => ({
+        clients: [],
+        manual_credentials: [],
+        require_known_keys: false,
+      })),
+      act: vi.fn(),
+      revealCredential: vi.fn(),
+      installations: vi.fn(async () => []),
     },
     apps: {
       list: vi.fn(async () => ({ apps: [] })),
@@ -65,6 +104,20 @@ function fakeCapabilities(): SettingsCapabilities {
     models: {
       list: vi.fn(async () => ({ models: [], count: 0, loaded_at: null })),
       refresh: vi.fn(async () => ({ models: [], count: 0, loaded_at: null })),
+    },
+    localModels: {
+      list: vi.fn(async () => ({ models: [], revision: 0 })),
+      ensure: vi.fn(async (modelKey: string) => ({
+        modelKey,
+        operationId: 'operation-1',
+        started: true,
+      })),
+      cancel: vi.fn(async (operationId: string) => ({
+        operationId,
+        cancelled: true,
+      })),
+      openFolder: vi.fn(async () => {}),
+      subscribe: vi.fn(() => () => {}),
     },
     usage: {
       get: vi.fn(async (period: TokenUsagePeriod) => ({
@@ -110,6 +163,21 @@ function fakeCapabilities(): SettingsCapabilities {
         web_search: { kind: 'none', detail: null },
       })),
     },
+    search: {
+      get: vi.fn(async () => ({
+        manifest: {
+          id: 'search' as const,
+          label: 'Search',
+          description: 'Search settings',
+          fields: [],
+          providers: [],
+        },
+        settings: {},
+        providers: {},
+      })),
+      update: vi.fn(),
+      validateProvider: vi.fn(async () => ({ status: 'valid' as const, fieldErrors: {} })),
+    },
     onOpenRequest: vi.fn(() => () => {}),
     openExternal: vi.fn(async () => {}),
   }
@@ -129,7 +197,7 @@ async function renderSettings(request?: SettingsSectionRequest): Promise<HTMLEle
 async function rerender(request?: SettingsSectionRequest): Promise<void> {
   await act(async () => {
     root?.render(
-      <AppFrame view="settings" onSelectView={vi.fn()}>
+      <AppFrame tabs={PRODUCT_TABS} activeTab="settings" surface="settings" onSelectTab={vi.fn()}>
         <Settings capabilities={fakeCapabilities()} request={request ?? null} />
       </AppFrame>,
     )
@@ -142,10 +210,10 @@ function selectedId(surface: HTMLElement): string | undefined {
   return selected[0]?.getAttribute('data-testid')?.replace('settings-rail-', '')
 }
 
-function activeHeadingId(surface: HTMLElement): string | undefined {
-  const headings = surface.querySelectorAll('.settings-page h1[id]')
-  expect(headings).toHaveLength(1)
-  return headings[0]?.id
+function activePageLabel(surface: HTMLElement): string | null {
+  const heading = surface.querySelector('.settings > .settings__header h1')
+  expect(heading).not.toBeNull()
+  return heading?.textContent ?? null
 }
 
 afterEach(() => {
@@ -168,7 +236,7 @@ describe('Settings', () => {
   it('renders only the default section at first', async () => {
     const surface = await renderSettings()
 
-    expect(activeHeadingId(surface)).toBe(DEFAULT_SETTINGS_SECTION_ID)
+    expect(activePageLabel(surface)).toBe('Account')
     expect(selectedId(surface)).toBe(DEFAULT_SETTINGS_SECTION_ID)
   })
 
@@ -177,23 +245,26 @@ describe('Settings', () => {
     const tabpanel = surface.querySelector<HTMLElement>('.tabpanel')
     if (tabpanel === null) throw new Error('the Settings tabpanel did not render')
 
-    for (const { id } of SETTINGS_SECTIONS) {
+    for (const { id, label } of SETTINGS_SECTIONS) {
       const button = surface.querySelector<HTMLButtonElement>(`[data-testid="settings-rail-${id}"]`)
       if (button === null) throw new Error(`the Settings rail omitted ${id}`)
       expect(button.getAttribute('aria-controls')).toBe(tabpanel.id)
 
       await act(async () => button.click())
 
-      expect(activeHeadingId(surface)).toBe(id)
+      expect(activePageLabel(surface)).toBe(label)
       expect(selectedId(surface)).toBe(id)
+      expect(surface.querySelectorAll('.settings > .settings__header h1')).toHaveLength(1)
     }
   })
 
-  it('renders only the selected section as the primary heading', async () => {
+  it('uses the selected section label as the single content heading', async () => {
     const surface = await renderSettings()
 
-    const primaryHeading = surface.querySelector('.settings-page h1')
-    expect(primaryHeading?.textContent).toBe('Account')
+    expect(activePageLabel(surface)).toBe('Account')
+    expect(surface.querySelector('.settings > .settings__header h1')?.textContent).toBe(
+      'Account',
+    )
     expect(surface.textContent).not.toContain('On this page')
     expect(surface.querySelector('#settings-heading')).toBeNull()
     expect(surface.querySelector('nav.settings-rail')?.getAttribute('aria-label')).toBe(
@@ -202,31 +273,31 @@ describe('Settings', () => {
   })
 
   it('selects a section requested while opening Settings', async () => {
-    const surface = await renderSettings({ id: 'settings-api-keys-heading' })
+    const surface = await renderSettings({ id: 'settings-connections-heading' })
 
-    expect(activeHeadingId(surface)).toBe('settings-api-keys-heading')
-    expect(selectedId(surface)).toBe('settings-api-keys-heading')
+    expect(activePageLabel(surface)).toBe('Connections')
+    expect(selectedId(surface)).toBe('settings-connections-heading')
   })
 
   it('adopts live and repeated native section requests', async () => {
-    const surface = await renderSettings({ id: 'settings-endpoint-heading' })
+    const surface = await renderSettings({ id: 'settings-connections-heading' })
     const models = surface.querySelector<HTMLButtonElement>(
       '[data-testid="settings-rail-settings-models-heading"]',
     )
     if (models === null) throw new Error('the Models rail entry did not render')
 
     await act(async () => models.click())
-    await rerender({ id: 'settings-endpoint-heading' })
-    expect(activeHeadingId(surface)).toBe('settings-endpoint-heading')
+    await rerender({ id: 'settings-connections-heading' })
+    expect(activePageLabel(surface)).toBe('Connections')
 
     await act(async () => models.click())
-    await rerender({ id: 'settings-endpoint-heading' })
-    expect(activeHeadingId(surface)).toBe('settings-endpoint-heading')
-    expect(selectedId(surface)).toBe('settings-endpoint-heading')
+    await rerender({ id: 'settings-connections-heading' })
+    expect(activePageLabel(surface)).toBe('Connections')
+    expect(selectedId(surface)).toBe('settings-connections-heading')
   })
 
   it('preserves the user selection when a native request is cleared', async () => {
-    const surface = await renderSettings({ id: 'settings-endpoint-heading' })
+    const surface = await renderSettings({ id: 'settings-connections-heading' })
     const models = surface.querySelector<HTMLButtonElement>(
       '[data-testid="settings-rail-settings-models-heading"]',
     )
@@ -235,17 +306,19 @@ describe('Settings', () => {
     await act(async () => models.click())
     await rerender()
 
-    expect(activeHeadingId(surface)).toBe('settings-models-heading')
+    expect(activePageLabel(surface)).toBe('Models')
     expect(selectedId(surface)).toBe('settings-models-heading')
   })
 
-  it('labels the Settings page with the selected section heading', async () => {
+  it('labels the Settings page with the selected manifest label', async () => {
     const surface = await renderSettings({ id: 'settings-models-heading' })
-    const page = surface.querySelector<HTMLElement>('.settings-page')
+    const page = surface.querySelector<HTMLElement>('.settings')
     if (page === null) throw new Error('the Settings page did not render')
 
-    expect(page.getAttribute('aria-labelledby')).toBe('settings-models-heading')
-    expect(document.getElementById('settings-models-heading')?.tagName).toBe('H1')
+    expect(page.querySelector('h1')?.textContent).toBe('Models')
+    expect(page.querySelectorAll('h1')).toHaveLength(1)
+    expect(page.querySelector('.settings__header')).not.toBeNull()
+    expect(page.querySelector('.settings__body.scroll-area')).not.toBeNull()
   })
 
   it('injects its surface styles when no style element exists', async () => {
@@ -256,7 +329,9 @@ describe('Settings', () => {
     const style = document.getElementById('settings-styles')
     expect(style).toBeInstanceOf(HTMLStyleElement)
     expect(style?.tagName).toBe('STYLE')
-    expect(style?.textContent).toContain('.settings-page {')
+    expect(style?.textContent).toContain('.settings-disclosure-list {')
+    expect(style?.textContent).not.toContain('.settings-section__heading')
+    expect(style?.textContent).toMatch(/\.settings-section__subheading\s*{[^}]*--shell-text-lg/s)
   })
 
   it('does not replace or duplicate an existing surface style element', async () => {

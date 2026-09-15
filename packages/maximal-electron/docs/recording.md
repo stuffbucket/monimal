@@ -3,23 +3,22 @@
 This repository can drive itself and record the result. The output is an mp4
 that plays anywhere, cut from real frames of the real application.
 
-Nothing here is a mock. The window in the video is the window `npm start`
-opens. The terminal in it runs a real shell. The overlay in it talks to a real
-model through the real approval gate.
+The recorder drives the same built renderer that `npm start` opens. A terminal
+in the recording runs a real shell.
 
 ```bash
 npm run package        # the recorder drives the built bundles
 npm run record         # every timeline
-npm run record -- --grep workflow
+npm run record -- --grep pipeline-check
 ```
 
 Output lands in `demo/`.
 
 ## Why this exists
 
-A reference template has to show what it is. A screenshot cannot show an agent
-taking a turn, and a hand-made screen capture goes stale the moment the
-interface moves.
+A reference template has to show what it is. A screenshot cannot show an
+interaction over time, and a hand-made screen capture goes stale the moment
+the interface moves.
 
 A recorded timeline does not go stale. It is code, it runs in continuous
 integration terms, and a change that breaks the interface breaks the recording.
@@ -79,20 +78,19 @@ keeps the rest unchanged, rewrites those two, and writes its own
 
 ```bash
 npm run compose                 every edit that has a take
-npm run compose -- workflow     one of them
+npm run compose -- pipeline-check     one of them
 ```
 
 An edit is JSON:
 
 ```jsonc
 {
-  "take": "workflow",
-  "output": "demo/stuffbucket-workflow.mp4",
+  "take": "pipeline-check",
+  "output": "demo/pipeline-check.mp4",
   "clips": [
-    { "seq": "fleet", "hold": 7 },
-    { "seq": "inspector", "hold": 8, "freezeAt": "approval-shown" },
-    { "seq": "terminal", "hold": 10, "card": false },
-    { "seq": "repaints", "hold": 11, "optional": true }
+    { "seq": "shell", "hold": 7 },
+    { "seq": "navigation", "hold": 6 },
+    { "seq": "terminal", "hold": 8, "card": false }
   ]
 }
 ```
@@ -114,8 +112,8 @@ A **mark** is a named instant a sequence chose to remember. `drive` gets
 `mark(label)`, and an edit freezes on the name:
 
 ```ts
-await expect(shell.locator('[data-testid="approval"]')).toBeVisible();
-mark('approval-shown');
+await expect(shell.locator('[data-testid="view-list"]')).toBeVisible();
+mark('list-visible');
 ```
 
 Freezing by name rather than by second stays correct when the next capture
@@ -268,9 +266,8 @@ Then try again. Set FFMPEG and FFPROBE if they are somewhere unusual.
 Three rules behind that message:
 
 - **Nothing is downloaded or installed on the user's behalf.** An encoder is an
-  executable, not data. Fetching one after install is a different risk class
-  from fetching model weights, which `llama.ts` does. A truncated model fails
-  loudly on load. A substituted binary does not.
+  executable, not data. Downloading one on demand changes the application's
+  trust boundary.
 - **One command, not a menu.** Somebody blocked on this wants a line to paste.
 - **Say that the fix is to run it again.** Without it the reader has to guess
   whether the application is now in a broken state.
@@ -290,10 +287,9 @@ instead of the product's.
 `npm run verify:package` fails if it ever appears. The fixture is reachable from
 a checkout and not from an installed application.
 
-Nothing else in the application behaves differently. The terminal, the overlay,
-the agent, and the approval gate are all the production code paths, and the
-chrome around them is the product's own `ShellLayout`, `NavRail`, and
-`TerminalTabs` rather than a copy.
+Nothing else in the application behaves differently. The terminal and the
+chrome around the fixture use the product's own `ShellLayout`, `NavRail`, and
+`TerminalTabs`; only the displayed run data belongs to the fixture.
 
 ## Cards
 

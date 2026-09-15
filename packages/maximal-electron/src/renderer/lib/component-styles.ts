@@ -5,7 +5,7 @@ import { ShellRoot } from './shell-root.js';
 /**
  * A component's rules, carried by the component.
  *
- * `structural.css` is a hand-maintained copy of rules authored in
+ * `shell-package-rules.css` is a hand-maintained copy of rules authored in
  * `controls.css`, and `tests/package-styles.test.ts` exists to catch the copy
  * drifting — its header records twenty selectors that already had, including a
  * primary button that stopped changing colour on hover. The copy exists because
@@ -17,8 +17,8 @@ import { ShellRoot } from './shell-root.js';
  * imitating.
  *
  * What may appear in one of these strings is rules. Values belong to the token
- * layer: `structure.css` ships the structural ramp with values and `README.md`
- * holds the palette a consumer defines, so a literal here is a design decision
+ * layer: `shell-structural-tokens.css` owns the structural ramp and `README.md`
+ * holds the palette a consumer defines. A literal here is a design decision
  * made somewhere no theme can reach it. `scripts/component-css.mjs` is that
  * judgement, delivered twice — by `eslint/shell.mjs` at the character
  * as it is typed, and by `tests/component-styles.test.ts` over every carried

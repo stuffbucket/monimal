@@ -21,12 +21,17 @@ import {
   TrafficRequestListSchema,
 } from "@stuffbucket/maximal-observability-contract"
 
+import type { ConfiguratorRegistry } from "~/lib/configurator-host"
 import type { ClientRosterReader } from "~/lib/http/active-clients"
 import type { RpcRegistry } from "~/lib/jsonrpc/dispatch"
 import type { ControlHub } from "~/lib/live/hub"
 import type { AsyncMutex } from "~/lib/live/mutex"
-import type { ControlSnapshot } from "~/lib/live/resources"
+import type {
+  ControlSnapshot,
+  ProviderCatalogueModel,
+} from "~/lib/live/resources"
 import type { TrafficQueryStore } from "~/lib/observability/store"
+import type { LocalModelOperations } from "~/routes/control/local-models"
 
 import {
   cancelDeviceFlow,
@@ -43,14 +48,21 @@ import {
 } from "~/lib/auth/github-token-store"
 import { getConfig } from "~/lib/config/config"
 import {
+  actOnConnection,
   buildDiagnostics,
+  buildSearchSettings,
   createApiKey,
   listApiKeys,
+  listConnections,
   removeApiKey,
+  revealConnectionCredential,
   setApiKeyEnforcement,
   setAppEnabled,
+  setConfiguratorEnabled,
   SettingsOperationError,
   updateApiKey,
+  updateSearchSettings,
+  validateSearchProvider,
 } from "~/lib/config/settings-operations"
 import {
   ApiKeyCreateRequest,
@@ -58,6 +70,11 @@ import {
   ApiKeyIdRequest,
   ApiKeyUpdateRpcRequest,
   AppSetEnabledRequest,
+  ConnectionActionRequest,
+  ConnectionCredentialIdRequest,
+  OllamaSettingsUpdateRequest,
+  SearchProviderValidationRequest,
+  SearchSettingsUpdateRequest,
   TokenUsageRequest,
 } from "~/lib/config/settings-types"
 import { listActiveClients } from "~/lib/http/active-clients"
@@ -79,20 +96,32 @@ import { emitQuitRequest, emitUpdateRequest } from "~/lib/start/boot-status"
 import { getTokenUsageSummary } from "~/lib/token-usage"
 import { BUILD_VERSION } from "~/lib/update/build-info"
 import { getUpdateStatus } from "~/lib/update/update-check"
+import { projectControlConfig } from "~/routes/control/config-projection"
+import { listOllamaAccounts } from "~/services/providers/ollama-accounts"
+import {
+  getOllamaSettings,
+  updateOllamaSettings,
+} from "~/services/providers/ollama-settings"
 
 export interface ControlRpcOperationOverrides {
+  buildSearchSettings?: typeof buildSearchSettings
   createApiKey?: typeof createApiKey
   refreshModels?: typeof cacheModels
   setAppEnabled?: typeof setAppEnabled
+  updateSearchSettings?: typeof updateSearchSettings
+  validateSearchProvider?: typeof validateSearchProvider
 }
 
 export interface ControlRpcDeps {
+  configurators?: ConfiguratorRegistry
   hub: () => ControlHub<ControlSnapshot>
+  listProviderModels?: () => Promise<ReadonlyArray<ProviderCatalogueModel>>
   mutex: AsyncMutex
   /** Injectable active-client roster; defaults to the process-global tracker.
    *  Mirrors `ControlRoutesOptions.listClients` so `GET /clients` and
    *  `clients/list` cannot answer from different state. */
   listClients?: ClientRosterReader
+  localModels?: LocalModelOperations
   trafficQueries?: TrafficQueryStore
   /** Narrow operation seams for dispatcher-level tests. Production uses the real
    *  shared settings operations when an override is absent. */
@@ -113,12 +142,19 @@ function parseObservabilityParams<T>(
   return parsed.data
 }
 
-function keyFromParams(params: unknown): string {
-  const key = (params as { key?: unknown } | null | undefined)?.key
-  if (typeof key !== "string" || !key) {
-    throw new RpcParamsError("Expected { key } string.")
+function stringParam(params: unknown, key: string, expected: string): string {
+  const value =
+    params !== null && typeof params === "object" ?
+      (params as Record<string, unknown>)[key]
+    : undefined
+  if (typeof value !== "string" || value.length === 0 || value.length > 200) {
+    throw new RpcParamsError(expected)
   }
-  return key
+  return value
+}
+
+function keyFromParams(params: unknown): string {
+  return stringParam(params, "key", "Expected { key } string.")
 }
 
 function parseParams<T>(
@@ -153,18 +189,108 @@ async function asAsyncRpcOperation<T>(operation: () => Promise<T>): Promise<T> {
   }
 }
 
+function createConnectionActionRpc(
+  configurators: ConfiguratorRegistry | undefined,
+  hub: ControlRpcDeps["hub"],
+  readApps: () => ReturnType<typeof buildAppsList>,
+) {
+  return async (params: unknown) => {
+    const { id, action } = parseParams(
+      ConnectionActionRequest,
+      params,
+      "Expected { id, action: connect | disconnect | reconnect }.",
+    )
+    if (!configurators) {
+      throw new RpcParamsError("No configurators are registered.")
+    }
+    const connection = await asAsyncRpcOperation(() =>
+      actOnConnection(configurators, id, action),
+    )
+    hub().emit("apps", await readApps())
+    return connection
+  }
+}
+
+function createSearchSettingsRpcMethods(
+  operations: ControlRpcOperationOverrides,
+): RpcRegistry {
+  const read = operations.buildSearchSettings ?? buildSearchSettings
+  const update = operations.updateSearchSettings ?? updateSearchSettings
+  const validate = operations.validateSearchProvider ?? validateSearchProvider
+  return {
+    "searchSettings/get": () => read(),
+    "searchSettings/update": (params: unknown) =>
+      asRpcOperation(() =>
+        update(
+          parseParams(
+            SearchSettingsUpdateRequest,
+            params,
+            "Expected search connector settings update.",
+          ),
+        ),
+      ),
+    "searchSettings/validateProvider": (params: unknown) =>
+      asAsyncRpcOperation(() =>
+        validate(
+          parseParams(
+            SearchProviderValidationRequest,
+            params,
+            "Expected search provider validation request.",
+          ),
+        ),
+      ),
+  }
+}
+
+function createOllamaSettingsRpcMethods(): RpcRegistry {
+  return {
+    "ollamaSettings/get": () => getOllamaSettings(),
+    "ollamaSettings/update": (params: unknown) =>
+      asAsyncRpcOperation(() =>
+        updateOllamaSettings(
+          parseParams(
+            OllamaSettingsUpdateRequest,
+            params,
+            "Expected an Ollama settings update.",
+          ),
+        ),
+      ),
+  }
+}
+
 function createSettingsRpcMethods({
+  configurators,
   hub,
+  listProviderModels = () => Promise.resolve([]),
   operations = {},
 }: ControlRpcDeps): RpcRegistry {
   const createApiKeyOperation = operations.createApiKey ?? createApiKey
   const refreshModels = operations.refreshModels ?? cacheModels
-  const setAppEnabledOperation = operations.setAppEnabled ?? setAppEnabled
+  const setAppEnabledOperation =
+    operations.setAppEnabled
+    ?? (configurators ?
+      (appId, enabled) => setConfiguratorEnabled(configurators, appId, enabled)
+    : setAppEnabled)
+  const readApps = () => buildAppsList(configurators)
+  const readConnections = () => listConnections(configurators)
 
   return {
-    "apps/list": () => buildAppsList(),
+    ...createSearchSettingsRpcMethods(operations),
+    ...createOllamaSettingsRpcMethods(),
+    "connections/list": readConnections,
+    "connections/act": createConnectionActionRpc(configurators, hub, readApps),
+    "connections/revealCredential": (params: unknown) =>
+      asRpcOperation(() => {
+        const { id } = parseParams(
+          ConnectionCredentialIdRequest,
+          params,
+          "Expected { id } string.",
+        )
+        return revealConnectionCredential(id)
+      }),
+    "apps/list": readApps,
     "apiKeys/list": () => listApiKeys(),
-    "models/list": () => buildModelsList(),
+    "models/list": async () => buildModelsList(await listProviderModels()),
     "usage/get": (params: unknown) => {
       const { period } = parseParams(
         TokenUsageRequest,
@@ -176,7 +302,7 @@ function createSettingsRpcMethods({
     "diagnostics/get": () => buildDiagnostics(),
     "models/refresh": async () => {
       await refreshModels()
-      return buildModelsList()
+      return buildModelsList(await listProviderModels())
     },
     "apps/setEnabled": async (params: unknown) => {
       const { appId, enabled } = parseParams(
@@ -187,7 +313,7 @@ function createSettingsRpcMethods({
       const app = await asAsyncRpcOperation(() =>
         setAppEnabledOperation(appId, enabled),
       )
-      hub().emit("apps", await buildAppsList())
+      hub().emit("apps", await readApps())
       return app
     },
     "apiKeys/create": (params: unknown) =>
@@ -235,6 +361,23 @@ function createSettingsRpcMethods({
  * distinction is carried in the result rather than a status, because clients
  * discriminate on the payload and never on HTTP (ADR-0023).
  */
+function createLocalModelRpcMethods(
+  operations: LocalModelOperations | undefined,
+): RpcRegistry {
+  if (operations === undefined) return {}
+  return {
+    "localModels/list": () => operations.list(),
+    "localModels/ensure": (params: unknown) =>
+      operations.ensure(
+        stringParam(params, "modelKey", "Expected { modelKey } string."),
+      ),
+    "localModels/cancel": (params: unknown) =>
+      operations.cancel(
+        stringParam(params, "operationId", "Expected { operationId } string."),
+      ),
+  }
+}
+
 function relayToShell(emit: () => boolean, verb: "quitting" | "upgrading") {
   return () =>
     emit() ?
@@ -259,11 +402,13 @@ export function createControlRpcMethods(deps: ControlRpcDeps): RpcRegistry {
   const registry: RpcRegistry = {
     health: () => ({ ok: true, version: BUILD_VERSION }),
     ...createSettingsRpcMethods(deps),
+    ...createLocalModelRpcMethods(deps.localModels),
 
     // Reads. Each mirrors a live feed topic and shares its builder, so a
     // snapshot read and a pushed update can never describe different shapes.
     "auth/status": () => getAuthStatus(),
     "accounts/list": () => buildAccountsList(),
+    "ollamaAccounts/list": () => listOllamaAccounts(),
     "observability/overview": async (params: unknown) => {
       const query = parseObservabilityParams(TrafficOverviewQuerySchema, params)
       return TrafficOverviewSchema.parse(
@@ -287,7 +432,7 @@ export function createControlRpcMethods(deps: ControlRpcDeps): RpcRegistry {
       const result = await trafficQueries.getRequest(query.requestId)
       return result === null ? null : TrafficRequestDetailSchema.parse(result)
     },
-    "config/get": () => getConfig(),
+    "config/get": () => projectControlConfig(getConfig()),
     "clients/list": () => {
       const clients = listClients()
       return { clients, total: clients.length }
@@ -356,7 +501,13 @@ export function createControlRpcMethods(deps: ControlRpcDeps): RpcRegistry {
         methods: [...Object.keys(registry), "server/discover"].sort(),
         feed: true,
       },
-      identity: { name: "maximal-core", version: BUILD_VERSION },
+      identity: {
+        name: "maximal-core",
+        version: BUILD_VERSION,
+        instanceId: state.instanceId,
+        pid: process.pid,
+        startedAt: new Date(state.startedAtMs).toISOString(),
+      },
       // Both bound ports (maximal-core#10). A host reaches the control plane on
       // an ephemeral port but must advertise `/v1` on the public one, and the
       // public one is not necessarily the requested 4141 — it falls back when

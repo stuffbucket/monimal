@@ -1681,6 +1681,37 @@ describe("traffic inference middleware", () => {
     expect(JSON.stringify(capture.starts)).not.toContain("private-client-value")
   })
 
+  test("prefers the known API-key label over user-agent inference", async () => {
+    const capture = new CaptureObserver()
+    const app = new Hono()
+    app.use(traceIdMiddleware)
+    app.use("*", async (_c, next) => {
+      const context = requestContext.getStore()
+      if (context) {
+        context.apiKeyId = "managed:claude-code"
+        context.apiKeyLabel = "Claude Code"
+      }
+      await next()
+    })
+    app.use("*", createTrafficObservationMiddleware(capture))
+    app.all("*", (c) => c.text("ok"))
+
+    const response = await app.request("/v1/messages", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "user-agent": "private-client-value",
+      },
+      body: JSON.stringify({ model: "claude-test", messages: [] }),
+    })
+
+    expect(response.status).toBe(200)
+    expect(
+      capture.handles[0]?.dispatchObservations[1]?.attribution.client,
+    ).toBe("Claude Code")
+    expect(JSON.stringify(capture.starts)).not.toContain("private-client-value")
+  })
+
   test("uses valid fallback limits and attributes parent sessions", async () => {
     const capture = new CaptureObserver()
     const app = new Hono()

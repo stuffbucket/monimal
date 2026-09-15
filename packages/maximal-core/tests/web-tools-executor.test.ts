@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from "bun:test"
 import {
   chooseExecutor,
   CopilotResponsesExecutor,
+  createConfiguredExecutor,
   harvestResponsesHits,
   InProcessFetchExecutor,
   pickResponsesModel,
@@ -261,6 +262,58 @@ describe("chooseExecutor — precedence", () => {
     if (choice.kind !== "InProcessFetchExecutor") return
     expect(choice.notes).toContain("DuckDuckGo")
     expect(choice.notes).toContain("OLLAMA_API_KEY")
+  })
+})
+
+describe("configured search connector", () => {
+  it("falls through unavailable providers to DuckDuckGo", async () => {
+    const urls: Array<string> = []
+    mockFetchCapturing(new Response(DDG_FIXTURE, { status: 200 }), urls)
+    const executor = createConfiguredExecutor(
+      {
+        priority: ["ollama", "copilot", "duckduckgo"],
+        providers: {
+          ollama: { enabled: true },
+          copilot: { enabled: true },
+          duckduckgo: { enabled: true },
+        },
+      },
+      {},
+      undefined,
+    )
+
+    const result = await executor.search("weather")
+
+    expect(result.ok).toBe(true)
+    expect(urls).toHaveLength(1)
+    expect(urls[0]).toStartWith("https://html.duckduckgo.com/html/")
+  })
+
+  it("binds provider URL and result limit from settings", async () => {
+    const urls: Array<string> = []
+    mockFetchCapturing(new Response(DDG_FIXTURE, { status: 200 }), urls)
+    const executor = createConfiguredExecutor(
+      {
+        priority: ["duckduckgo"],
+        providers: {
+          duckduckgo: {
+            settings: {
+              searchUrl: "https://search.example.test/query",
+              maxResults: 1,
+            },
+          },
+        },
+      },
+      {},
+      undefined,
+    )
+
+    const result = await executor.search("weather")
+
+    expect(urls[0]).toStartWith("https://search.example.test/query?")
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.items).toHaveLength(1)
   })
 })
 

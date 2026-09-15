@@ -1,4 +1,4 @@
-import { Component, FileText, Play, Sparkles, SquareTerminal } from 'lucide-react';
+import { Component, FileText, Play, SquareTerminal } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState, type ComponentType } from 'react';
 
 import type { AppVersions, TerminalLaunchRequest, UpdateStatus, ViewId } from '../shared/ipc.js';
@@ -7,7 +7,6 @@ import { Canvas } from './components/Canvas.js';
 import {
   Card,
   EmptyState,
-  IconButton,
   Row,
   Toolbar,
   type ViewMode,
@@ -250,14 +249,8 @@ export function App() {
   const surface = current === undefined ? undefined : tabSurface(current.kind);
 
   function renderMain() {
-    if (surface !== undefined) {
-      return (
-        <SettingsSurfaceView surface={surface} settings={settings} versions={versions} />
-      );
-    }
-
-    if (current?.kind === 'terminal') {
-      return (
+    return (
+      <>
         <TerminalTabs
           attachments={terminalAttachments}
           activeId={activeTab}
@@ -268,36 +261,39 @@ export function App() {
           onSessionsChange={updateAttachedSessions}
           onTitleChange={updateTerminalTitle}
         />
-      );
-    }
-
-    return (
-      <>
-        <Toolbar title={VIEW_LABELS[view]} mode={mode} onModeChange={setMode} />
-        <Canvas
-          items={items}
-          mode={mode}
-          selectedId={selectedId}
-          empty={<EmptyState icon={FileText} message="Nothing here yet." />}
-          renderCard={(item, isSelected) => (
-            <Card selected={isSelected} onSelect={() => setSelectedId(item.id)}>
-              <span className="card__thumb">{icon(item)}</span>
-              <span className="card__meta">
-                <span className="card__name">{item.name}</span>
-                <span className="card__sub">Edited {item.updated}</span>
-              </span>
-            </Card>
-          )}
-          renderRow={(item, isSelected) => (
-            <Row selected={isSelected} onSelect={() => setSelectedId(item.id)}>
-              {icon(item, 14)}
-              <span className="row__name">{item.name}</span>
-              <span className="row__sub">{item.author}</span>
-              <span className="row__sub">{item.updated}</span>
-              <span className="row__sub">{item.size}</span>
-            </Row>
-          )}
-        />
+        {surface !== undefined
+          ? <SettingsSurfaceView surface={surface} settings={settings} versions={versions} />
+          : current?.kind === 'terminal'
+            ? null
+            : (
+              <>
+                <Toolbar title={VIEW_LABELS[view]} mode={mode} onModeChange={setMode} />
+                <Canvas
+                  items={items}
+                  mode={mode}
+                  selectedId={selectedId}
+                  empty={<EmptyState icon={FileText} message="Nothing here yet." />}
+                  renderCard={(item, isSelected) => (
+                    <Card selected={isSelected} onSelect={() => setSelectedId(item.id)}>
+                      <span className="card__thumb">{icon(item)}</span>
+                      <span className="card__meta">
+                        <span className="card__name">{item.name}</span>
+                        <span className="card__sub">Edited {item.updated}</span>
+                      </span>
+                    </Card>
+                  )}
+                  renderRow={(item, isSelected) => (
+                    <Row selected={isSelected} onSelect={() => setSelectedId(item.id)}>
+                      {icon(item, 14)}
+                      <span className="row__name">{item.name}</span>
+                      <span className="row__sub">{item.author}</span>
+                      <span className="row__sub">{item.updated}</span>
+                      <span className="row__sub">{item.size}</span>
+                    </Row>
+                  )}
+                />
+              </>
+            )}
       </>
     );
   }
@@ -316,13 +312,6 @@ export function App() {
       tabIcon={(tab) => TAB_ICONS[tab.kind]}
       titleBarActions={
         <>
-          <IconButton
-            label="Ask (summon overlay)"
-            onClick={() => void bridge.invoke('overlay:toggle')}
-            testId="toggle-overlay"
-          >
-            <Sparkles size={15} />
-          </IconButton>
           <Profile
             account={account}
             onOpen={openSurface}
@@ -336,7 +325,9 @@ export function App() {
         </>
       }
       subscribeToPanelToggles={subscribeToPanelToggles}
-      status={<span>{selected ? selected.name : 'No selection'}</span>}
+      status={current?.kind === 'terminal'
+        ? undefined
+        : <span>{selected ? selected.name : 'No selection'}</span>}
       left={(collapsed) => (
         <LeftNav view={view} collapsed={collapsed} onSelect={goToView} />
       )}
