@@ -160,6 +160,7 @@ export const RENDERER_SURFACE = [
   'InspectorPanel',
   'LOREM_CONTENT',
   'Menu',
+  'ModelCardGrid',
   'ModelCards',
   'NavRail',
   'Note',
