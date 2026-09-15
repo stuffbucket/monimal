@@ -268,7 +268,7 @@ export function createPreviewSettingsCapabilities(): SettingsCapabilities {
       cancel: unavailable,
       signOut: unavailable,
     },
-    accounts: { list: unavailable, switchTo: unavailable },
+    accounts: { list: unavailable, switchTo: unavailable, reorder: unavailable },
     ollamaAccounts: { list: unavailable },
     ollamaSettings: { get: unavailable, update: unavailable },
     ollamaRuntime: {

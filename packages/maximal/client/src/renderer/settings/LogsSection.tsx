@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useState, type ReactElement } from 'react'
 
-import { Button, CopyButton, Note } from 'stuffbucket-electron/renderer'
+import {
+  Button,
+  CopyButton,
+  Note,
+  SettingsGroup,
+  SettingsItem,
+  SettingsSection,
+} from 'stuffbucket-electron/renderer'
 
 import type { SettingsCapabilities } from './capabilities'
 import { describeError } from './format'
@@ -43,23 +50,33 @@ export function LogsSection({ capabilities }: LogsSectionProps): ReactElement {
 
   return (
     <section className="settings-section">
-      <Note>Open the folder containing maximal-core logs.</Note>
-      {error ? (
-        <Note status="failed" live="assertive">
-          {error}
-        </Note>
-      ) : null}
-      {location === null ? (
-        <Note live="polite">Loading log location…</Note>
-      ) : (
-        <div className="settings-copy-value">
-          <code>{location}</code>
-          <CopyButton text={location} about="the log folder path" />
-          <Button onClick={() => void reveal()} disabled={revealing}>
-            {revealing ? 'Opening…' : 'Reveal logs'}
-          </Button>
-        </div>
-      )}
+      <SettingsSection
+        title="Log files"
+        description="Open the folder containing maximal-core logs."
+      >
+        <SettingsGroup>
+          <SettingsItem
+            title="Log folder"
+            description={location ?? 'Loading log location…'}
+            actions={
+              location ? (
+                <>
+                  <CopyButton text={location} about="the log folder path" />
+                  <Button size="sm" onClick={() => void reveal()} disabled={revealing}>
+                    {revealing ? 'Opening…' : 'Reveal logs'}
+                  </Button>
+                </>
+              ) : undefined
+            }
+          >
+            {error ? (
+              <Note status="failed" live="assertive">
+                {error}
+              </Note>
+            ) : null}
+          </SettingsItem>
+        </SettingsGroup>
+      </SettingsSection>
     </section>
   )
 }

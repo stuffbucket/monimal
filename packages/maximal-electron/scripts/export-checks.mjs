@@ -174,6 +174,8 @@ export const RENDERER_SURFACE = [
   'SettingsDisclosure',
   'SettingsDisclosureList',
   'SettingsPage',
+  'SettingsGroup',
+  'SettingsItem',
   'SettingsSection',
   'ShellContentContext',
   'ShellContentProvider',

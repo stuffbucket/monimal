@@ -15,8 +15,9 @@ import {
   Field,
   FieldList,
   Note,
-  SettingsDisclosure,
-  SettingsDisclosureList,
+  SettingsGroup,
+  SettingsItem,
+  SettingsSection,
   Switch,
   type ApiClient,
 } from 'stuffbucket-electron/renderer'
@@ -32,6 +33,7 @@ import type {
   SettingsCapabilities,
 } from './capabilities'
 import { describeError } from './format'
+import { useSettingsHeaderActions } from './header-actions'
 
 interface ConnectionsSectionProps {
   capabilities: SettingsCapabilities
@@ -84,6 +86,7 @@ function manualClients(list: ApiKeysListResponse | null): ApiClient[] {
 export function ConnectionsSection({
   capabilities,
 }: ConnectionsSectionProps): ReactElement {
+  const { hasHeader, setActions: setHeaderActions } = useSettingsHeaderActions()
   const mounted = useRef(true)
   const [proxyUrl, setProxyUrl] = useState<string | null>(null)
   const [connections, setConnections] =
@@ -293,25 +296,34 @@ export function ConnectionsSection({
   const openAiUrl = proxyUrl === null ? null : `${proxyUrl}/v1`
   const busy = refreshing || busyAction !== null
 
+  const rescan = useCallback(() => {
+    setRefreshing(true)
+    setError(null)
+    void refresh().finally(() => {
+      if (mounted.current) setRefreshing(false)
+    })
+  }, [refresh])
+
+  useEffect(() => {
+    setHeaderActions(
+      <Button size="sm" variant="primary" onClick={rescan} disabled={busy}>
+        {refreshing ? 'Scanning…' : 'Rescan'}
+      </Button>,
+    )
+    return () => setHeaderActions(null)
+  }, [busy, refreshing, rescan, setHeaderActions])
+
   return (
     <section className="settings-section" aria-busy={busy}>
-      <div className="settings-section__actions">
-        <Button
-          size="sm"
-          onClick={() => {
-            setRefreshing(true)
-            setError(null)
-            void refresh().finally(() => {
-              if (mounted.current) setRefreshing(false)
-            })
-          }}
-          disabled={busy}
-        >
-          {refreshing ? 'Scanning…' : 'Rescan'}
-        </Button>
-      </div>
+      {!hasHeader ? (
+        <div className="settings-section__actions">
+          <Button size="sm" variant="primary" onClick={rescan} disabled={busy}>
+            {refreshing ? 'Scanning…' : 'Rescan'}
+          </Button>
+        </div>
+      ) : null}
       <Note>
-        Connect developer tools to Maximal and identify their local traffic.
+        Connect tools to Maximal and identify their local traffic.
       </Note>
 
       {error ? (
@@ -320,48 +332,55 @@ export function ConnectionsSection({
         </Note>
       ) : null}
 
-      <div className="settings-subsection">
-        <h2 className="settings-section__subheading">Local addresses</h2>
+      <SettingsSection title="Local addresses">
         {proxyUrl === null || openAiUrl === null ? (
           <Note live="polite">Loading connection details…</Note>
         ) : (
-          <dl className="settings-details">
-            <div className="settings-details__row">
-              <dt>Anthropic base</dt>
-              <dd className="settings-copy-value">
+          <FieldList>
+            <Field
+              label="Anthropic base"
+              value={
+                <>
                 <code>{proxyUrl}</code>
                 <CopyButton
                   text={proxyUrl}
                   about="the Anthropic base address"
                 />
-              </dd>
-            </div>
-            <div className="settings-details__row">
-              <dt>OpenAI base</dt>
-              <dd className="settings-copy-value">
+                </>
+              }
+            />
+            <Field
+              label="OpenAI base"
+              value={
+                <>
                 <code>{openAiUrl}</code>
                 <CopyButton text={openAiUrl} about="the OpenAI base address" />
-              </dd>
-            </div>
-            <div className="settings-details__row">
-              <dt>Routes</dt>
-              <dd>
+                </>
+              }
+            />
+            <Field
+              label="Routes"
+              value={
+                <>
                 <code>/v1/messages</code>, <code>/v1/chat/completions</code>,{' '}
                 <code>/v1/models</code>
-              </dd>
-            </div>
-          </dl>
+                </>
+              }
+            />
+          </FieldList>
         )}
-      </div>
+      </SettingsSection>
 
-      <div className="settings-subsection">
-        <h2 className="settings-section__subheading">Configured clients</h2>
+      <SettingsSection
+        title="Managed clients"
+        description="Tools that Maximal can configure and manage."
+      >
         {connections === null ? (
           <Note live="polite">Scanning for supported clients…</Note>
         ) : connections.clients.length === 0 ? (
           <Note>No supported clients were detected.</Note>
         ) : (
-          <SettingsDisclosureList>
+          <SettingsGroup>
             {connections.clients.map((connection) => {
               const credential = connection.credential
               const revealedKey = credential ? revealed[credential.id] : undefined
@@ -382,15 +401,19 @@ export function ConnectionsSection({
                       ? 'reconnect'
                       : null
               return (
-                <SettingsDisclosure
+                <SettingsItem
                   key={connection.id}
                   title={connection.name}
                   description={STATUS_LABELS[connection.status]}
-                  action={
+                  control={
                     <Switch
-                      label={`${checked ? 'Disable' : 'Enable'} ${connection.name}`}
+                      label={`Maximal manages ${connection.name}`}
                       displayLabel={null}
-                      tooltip={checked ? 'Enabled' : 'Disabled'}
+                      tooltip={
+                        checked
+                          ? `${connection.name} is managed by Maximal`
+                          : `${connection.name} is not managed by Maximal`
+                      }
                       layout="compact"
                       checked={checked}
                       disabled={busy || toggleAction === null}
@@ -498,44 +521,36 @@ export function ConnectionsSection({
                         </span>
                       ) : null}
                   </div>
-                </SettingsDisclosure>
+                </SettingsItem>
               )
             })}
-          </SettingsDisclosureList>
+          </SettingsGroup>
         )}
-      </div>
+      </SettingsSection>
 
-      <div className="settings-subsection">
-        <h2 className="settings-section__subheading">App integrations</h2>
-        <Note>
-          Claude Code and Claude Desktop route through Maximal by configuring
-          their own settings files directly.
-        </Note>
+      <SettingsSection
+        title="App integrations"
+        description="Claude Code and Claude Desktop route through Maximal by configuring their own settings files directly."
+      >
         {apps === null ? (
           <Note live="polite">Checking app integrations…</Note>
         ) : appEntries.length === 0 ? (
           <Note>No app integrations were detected.</Note>
         ) : (
-          <ul className="settings-list">
+          <SettingsGroup layout="grid">
             {appEntries.map((app) => (
-              <li key={app.id} className="settings-list__row">
-                <div className="settings-list__content">
-                  <strong>{app.name}</strong>
-                  <span className="settings-list__meta">
-                    {app.status === 'not-installed' ?
-                      'Not installed'
-                    : app.enabled ?
-                      'Routing through Maximal'
-                    : 'Not enabled'}
-                  </span>
-                  {!app.health.ok && app.health.issue ?
-                    <Note status="failed" live="assertive">
-                      {HEALTH_ISSUE_COPY[app.health.issue]}
-                    </Note>
-                  : null}
-                </div>
-                {!app.health.ok ?
-                  <div className="settings-section__actions">
+              <SettingsItem
+                key={app.id}
+                title={app.name}
+                description={
+                  app.status === 'not-installed' ?
+                    'Not installed'
+                  : app.enabled ?
+                    'Routing through Maximal'
+                  : 'Not enabled'
+                }
+                actions={
+                  !app.health.ok ? (
                     <Button
                       size="sm"
                       disabled={busy}
@@ -546,58 +561,71 @@ export function ConnectionsSection({
                         'Fixing…'
                       : 'Fix settings…'}
                     </Button>
-                  </div>
-                : null}
-              </li>
+                  ) : undefined
+                }
+              >
+                {!app.health.ok && app.health.issue ? (
+                  <Note status="failed" live="assertive">
+                    {HEALTH_ISSUE_COPY[app.health.issue]}
+                  </Note>
+                ) : (
+                  <Note>Configuration is up to date.</Note>
+                )}
+              </SettingsItem>
             ))}
-          </ul>
+          </SettingsGroup>
         )}
-      </div>
+      </SettingsSection>
 
-      <div className="settings-subsection">
-        <h2 className="settings-section__subheading">Manual clients</h2>
-        <Note>
-          Create named credentials for scripts and clients Maximal cannot configure.
-        </Note>
+      <SettingsSection
+        title="Manual clients"
+        description="Create named credentials for scripts and clients Maximal cannot configure."
+      >
         {connections === null ? (
           <Note live="polite">Loading credentials…</Note>
         ) : (
-          <div className="settings-field">
-            <span className="settings-list__meta">
-              {connections.manual_credentials.length}{' '}
-              {connections.manual_credentials.length === 1
-                ? 'credential'
-                : 'credentials'}
-            </span>
-            <Button onClick={() => void openManualKeys()} disabled={busy}>
-              {busyAction === 'manual-keys'
-                ? 'Loading credentials…'
-                : 'Manage credentials…'}
-            </Button>
-          </div>
+          <SettingsGroup>
+            <SettingsItem
+              title="Credentials"
+              description={`${connections.manual_credentials.length} ${
+                connections.manual_credentials.length === 1
+                  ? 'credential'
+                  : 'credentials'
+              }`}
+              actions={
+                <Button onClick={() => void openManualKeys()} disabled={busy}>
+                  {busyAction === 'manual-keys'
+                    ? 'Loading credentials…'
+                    : 'Manage credentials…'}
+                </Button>
+              }
+            />
+          </SettingsGroup>
         )}
-      </div>
+      </SettingsSection>
 
-      <details className="settings-subsection settings-advanced">
-        <summary>Advanced</summary>
+      <SettingsSection title="Advanced">
         {connections === null ? (
           <Note live="polite">Loading access policy…</Note>
         ) : (
-          <div className="settings-field">
-            <Switch
-              label="Require known keys"
-              checked={connections.require_known_keys}
-              disabled={busy}
-              onChange={(enforcing) => void setEnforcement(enforcing)}
-              testId="api-key-enforcement"
+          <SettingsGroup>
+            <SettingsItem
+              title="Require known keys"
+              description="When off, anonymous local requests are allowed. Requests carrying a known enabled key are still attributed to that client."
+              control={
+                <Switch
+                  label="Require known keys"
+                  displayLabel={null}
+                  checked={connections.require_known_keys}
+                  disabled={busy}
+                  onChange={(enforcing) => void setEnforcement(enforcing)}
+                  testId="api-key-enforcement"
+                />
+              }
             />
-            <Note>
-              When off, anonymous local requests are allowed. Requests carrying a
-              known enabled key are still attributed to that client.
-            </Note>
-          </div>
+          </SettingsGroup>
         )}
-      </details>
+      </SettingsSection>
 
       <ApiKeysDialog
         open={keysOpen}

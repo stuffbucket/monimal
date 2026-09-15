@@ -100,21 +100,68 @@ describe('the renderer entry point', () => {
 });
 
 describe('packaged renderer components', () => {
-  it('renders compact switches without changing the default layout', () => {
-    const compact = renderToStaticMarkup(
+  it('groups settings page actions beside the title register', () => {
+    const markup = renderToStaticMarkup(
+      <surface.SettingsPage
+        title="Connections"
+        actions={<surface.Button size="sm">Rescan</surface.Button>}
+      >
+        Settings
+      </surface.SettingsPage>,
+    );
+
+    expect(markup).toContain('class="settings__title">Connections</h1>');
+    expect(markup).toContain('class="settings__actions">');
+    expect(markup).toMatch(/settings__actions"><button[^>]*>Rescan<\/button>/);
+  });
+
+  it('renders settings groups as neutral rows with controls and actions', () => {
+    const markup = renderToStaticMarkup(
+      <surface.SettingsGroup>
+        <surface.SettingsItem
+          title="Knowledge base"
+          description="Use indexed documentation when answering."
+          control={(
+            <surface.Switch
+              label="Use knowledge base"
+              displayLabel={null}
+              checked
+              onChange={vi.fn()}
+            />
+          )}
+          actions={<surface.Button>Configure</surface.Button>}
+        />
+      </surface.SettingsGroup>,
+    );
+
+    expect(markup).toContain('class="settings__group"');
+    expect(markup).toContain('class="settings__item"');
+    expect(markup).toContain('data-has-control="true"');
+    expect(markup).toContain('Knowledge base');
+    expect(markup).not.toContain('role="group"');
+  });
+
+  it('renders compact switches by default with the track before the label', () => {
+    const spread = renderToStaticMarkup(
       <surface.Switch
         label="Menu bar only"
-        layout="compact"
+        layout="spread"
         checked={false}
         onChange={vi.fn()}
       />,
     );
-    const spread = renderToStaticMarkup(
+    const compact = renderToStaticMarkup(
       <surface.Switch label="Dock badge" checked onChange={vi.fn()} />,
     );
 
     expect(compact).toContain('data-layout="compact"');
     expect(spread).toContain('data-layout="spread"');
+    expect(compact.indexOf('switch__track')).toBeLessThan(
+      compact.indexOf('<span>Dock badge</span>'),
+    );
+    expect(spread.indexOf('<span>Menu bar only</span>')).toBeLessThan(
+      spread.indexOf('switch__track'),
+    );
   });
 
   it('renders injected titlebar regions with their accessible labels', () => {

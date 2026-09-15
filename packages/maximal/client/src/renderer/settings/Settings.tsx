@@ -1,4 +1,4 @@
-import { useState, type ReactElement } from 'react'
+import { useState, type ReactElement, type ReactNode } from 'react'
 
 import { Button, SettingsPage } from 'stuffbucket-electron/renderer'
 
@@ -10,9 +10,9 @@ import { SurfaceRail, useTabPanelId } from '../frame/AppFrame'
 import { useGuardedNavigation } from '../unsaved-changes'
 import type { SettingsCapabilities } from './capabilities'
 import { SETTINGS_SECTION_VIEWS } from './manifest'
-import { ModelProviderDisclosureState } from './ModelsSection'
 import { SettingsNavigationProvider } from './navigation'
 import { SectionRail } from './SectionRail'
+import { SettingsHeaderActionsProvider } from './header-actions'
 
 // The Settings surface. Composition only: `shared/settings-sections.ts` owns
 // which sections exist, joined to their icons and panels in `./manifest`.
@@ -50,6 +50,7 @@ export function Settings({
     request?.id ?? DEFAULT_SETTINGS_SECTION_ID,
   )
   const [seenRequest, setSeenRequest] = useState(request)
+  const [headerActions, setHeaderActions] = useState<ReactNode>(null)
   const requestNavigation = useGuardedNavigation()
 
   if (request !== seenRequest) {
@@ -78,17 +79,26 @@ export function Settings({
 
       <SettingsPage
         title={currentView.label}
-        actions={onBack ? <Button onClick={onBack}>Back to sign in</Button> : undefined}
+        actions={
+          onBack || headerActions ? (
+            <>
+              {onBack ? <Button onClick={onBack}>Back to sign in</Button> : null}
+              {headerActions}
+            </>
+          ) : undefined
+        }
       >
-        <SettingsNavigationProvider
-          value={(next) => {
-            if (next !== current) requestNavigation(() => setCurrent(next))
-          }}
+        <SettingsHeaderActionsProvider
+          value={{ hasHeader: true, setActions: setHeaderActions }}
         >
-          <ModelProviderDisclosureState>
+          <SettingsNavigationProvider
+            value={(next) => {
+              if (next !== current) requestNavigation(() => setCurrent(next))
+            }}
+          >
             <CurrentPanel key={current} capabilities={capabilities} />
-          </ModelProviderDisclosureState>
-        </SettingsNavigationProvider>
+          </SettingsNavigationProvider>
+        </SettingsHeaderActionsProvider>
       </SettingsPage>
     </>
   )
@@ -167,13 +177,6 @@ const SETTINGS_CSS = `
 .sb-shell .settings__section > :not(.settings__section-title):not(.settings__description),
 .settings-subsection > :not(.settings-section__subheading) {
   margin-inline-start: var(--shell-space-4, 16px);
-}
-
-.settings-field {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--shell-space-2, 8px);
 }
 
 .settings-connector-form,
@@ -306,55 +309,6 @@ const SETTINGS_CSS = `
   gap: var(--shell-space-2, 8px);
 }
 
-.settings-accounts-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--shell-space-2, 8px);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.settings-accounts-list__row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--shell-space-3, 12px);
-  padding: var(--shell-space-2, 8px) 0;
-}
-
-.settings-accounts-list__identity {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.settings-accounts-list__login {
-  font-size: var(--shell-text-sm, 0.9em);
-  font-weight: 600;
-  color: var(--shell-text, #f5f5f5);
-}
-
-.settings-accounts-list__meta {
-  font-size: var(--shell-text-sm, 0.8125rem);
-  color: var(--shell-text-subtle, #8f97a2);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.settings-accounts-list__active-badge {
-  flex: none;
-  padding: 2px var(--shell-space-2, 8px);
-  border: 1px solid var(--shell-border, #2a2a2a);
-  border-radius: var(--shell-radius-small, 4px);
-  font-size: var(--shell-text-sm, 0.8125rem);
-  font-weight: 500;
-  color: var(--maximal-success, #22c55e);
-  white-space: nowrap;
-}
-
 .settings-subsection {
   display: flex;
   flex-direction: column;
@@ -469,6 +423,19 @@ const SETTINGS_CSS = `
   justify-content: flex-end;
 }
 
+.settings-credential-field {
+  display: flex;
+  align-items: center;
+  width: min(100%, 32rem);
+  gap: var(--shell-space-2, 8px);
+  flex-wrap: wrap;
+}
+
+.settings-credential-field .input-shell {
+  min-width: min(100%, 16rem);
+  flex: 1;
+}
+
 .settings-dialog__heading {
   margin: 0;
   font-size: 1.1em;
@@ -536,83 +503,6 @@ const SETTINGS_CSS = `
 .settings-table-wrap:focus-visible {
   outline: 2px solid var(--shell-focus, var(--shell-accent, #5198a6));
   outline-offset: 2px;
-}
-
-.settings-model-vendor-groups,
-.settings-model-vendor,
-.settings-model-tables {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.settings-model-vendor-groups {
-  gap: var(--shell-space-2, 8px);
-}
-
-.settings-model-vendor {
-  border-bottom: 1px solid var(--shell-border, #2a2a2a);
-}
-
-.settings-model-vendor__trigger {
-  display: grid;
-  grid-template-columns: 16px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--shell-space-2, 8px);
-  width: 100%;
-  min-height: 44px;
-  padding: var(--shell-space-2, 8px) 0;
-  border: 0;
-  color: var(--shell-text, #f5f5f5);
-  background: transparent;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.settings-model-vendor__trigger:hover {
-  color: var(--shell-accent, #5198a6);
-}
-
-.settings-model-vendor__trigger:focus-visible {
-  outline: 2px solid var(--shell-focus, var(--shell-accent, #5198a6));
-  outline-offset: 2px;
-}
-
-.settings-model-vendor__chevron {
-  transition: transform 120ms ease-out;
-}
-
-.settings-model-vendor__trigger[aria-expanded='false'] .settings-model-vendor__chevron {
-  transform: rotate(-90deg);
-}
-
-.settings-model-vendor__name {
-  overflow: hidden;
-  font-size: var(--shell-text-base, 0.875rem);
-  font-weight: var(--shell-weight-lg, 600);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.settings-model-vendor__count {
-  color: var(--shell-text-muted, #8a8a8a);
-  font-size: var(--shell-text-sm, 0.8125rem);
-  font-variant-numeric: tabular-nums;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .settings-model-vendor__chevron {
-    transition: none;
-  }
-}
-
-.settings-model-vendor .settings-table-wrap--models {
-  box-sizing: border-box;
-  width: calc(100% - var(--shell-space-5, 24px));
-  margin-inline-start: var(--shell-space-5, 24px);
-  padding-inline-start: var(--shell-space-3, 12px);
-  border-inline-start: 1px solid var(--shell-border, #2a2a2a);
 }
 
 .settings-local-model__row {

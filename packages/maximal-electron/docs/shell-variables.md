@@ -44,9 +44,14 @@ spacing token means writing layout CSS, which is what the components exist to
 make unnecessary. What they are for is that no rule — ours or a consumer's —
 writes `font-size: 13px` again.
 
+Spacing, control heights, and row heights use a 4px layout grid. Borders,
+focus rings, type, and optical details are not spacing increments.
+
 | Variable | Value | What it sets |
 | --- | --- | --- |
-| `--shell-control-lg` | `28px` | The tallest control height. |
+| `--shell-control-sm` | `24px` | A compact control height. |
+| `--shell-control-md` | `28px` | The default control height. |
+| `--shell-control-lg` | `32px` | The tallest control height. |
 | `--shell-focus-ring-offset` | `2px` | Space between a control and its keyboard focus ring. |
 | `--shell-focus-ring-width` | `2px` | Keyboard focus ring width. |
 | `--shell-input-border` | `var(--shell-border-strong, var(--shell-border))` | The outline of a field. |
@@ -54,6 +59,7 @@ writes `font-size: 13px` again.
 | `--shell-radius` | `6px` | A control corner. |
 | `--shell-radius-large` | `8px` | A card corner. |
 | `--shell-radius-pill` | `9999px` | A fully rounded control. |
+| `--shell-row-height` | `32px` | A compact navigation, menu, or list row. |
 | `--shell-space-1` | `4px` | The tightest gap. |
 | `--shell-space-2` | `8px` | A gap inside a control. |
 | `--shell-space-3` | `12px` | A gap between controls. |

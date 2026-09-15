@@ -77,11 +77,19 @@ const SETTINGS_DISCLOSURE_STYLES = `
 /** A divided list of progressive-disclosure rows in a settings section. */
 export function SettingsDisclosureList({
   children,
+  className,
 }: {
   children: ReactNode;
+  className?: string;
 }): ReactElement {
   useComponentStyles('settings-disclosure', SETTINGS_DISCLOSURE_STYLES);
-  return <div className="settings-disclosure-list">{children}</div>;
+  return (
+    <div
+      className={`settings-disclosure-list${className ? ` ${className}` : ''}`}
+    >
+      {children}
+    </div>
+  );
 }
 
 /** A compact settings row that reveals its controls without becoming a card. */

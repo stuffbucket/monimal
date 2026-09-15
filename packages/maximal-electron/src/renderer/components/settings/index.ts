@@ -16,8 +16,13 @@ export { ApiKeysDialog } from './ApiKeysDialog.js';
 export { AppTogglesDialog } from './AppTogglesDialog.js';
 export { CopyButton, copyText } from './CopyButton.js';
 export { Diagnostics } from './Diagnostics.js';
-export { ModelCards } from './ModelCards.js';
-export { SettingsPage, SettingsSection } from './SettingsPage.js';
+export { ModelCardGrid, ModelCards } from './ModelCards.js';
+export {
+	SettingsGroup,
+	SettingsItem,
+	SettingsPage,
+	SettingsSection,
+} from './SettingsPage.js';
 export {
 	SettingsDisclosure,
 	SettingsDisclosureList,

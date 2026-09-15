@@ -1,6 +1,15 @@
 import { useCallback, useEffect, useState, type ReactElement } from 'react'
 
-import { Button, CopyButton, Note } from 'stuffbucket-electron/renderer'
+import {
+  Button,
+  CopyButton,
+  Field,
+  FieldList,
+  Note,
+  SettingsGroup,
+  SettingsItem,
+  SettingsSection,
+} from 'stuffbucket-electron/renderer'
 
 import type {
   DiagnosticsResponse,
@@ -73,38 +82,43 @@ export function DiagnosticsSection({
 
   return (
     <section className="settings-section">
-      <div className="settings-section__actions">
-        {report ? (
-          <CopyButton
-            text={JSON.stringify(report, undefined, 2)}
-            label="Copy report"
-            about="the diagnostics report"
-          />
-        ) : null}
-        <Button size="sm" onClick={() => void refresh()} disabled={loading}>
-          {loading ? 'Refreshing…' : 'Refresh'}
-        </Button>
-      </div>
-      <Note>
-        This report includes runtime status and credential presence, never
-        credential values.
-      </Note>
-      {error ? (
-        <Note status="failed" live="assertive">
-          {error}
-        </Note>
-      ) : report === null ? (
-        <Note live="polite">Loading diagnostics…</Note>
-      ) : (
-        <dl className="settings-details">
-          {rows.map(([label, value]) => (
-            <div key={label} className="settings-details__row">
-              <dt>{label}</dt>
-              <dd>{present(value)}</dd>
-            </div>
-          ))}
-        </dl>
-      )}
+      <SettingsSection
+        title="Runtime diagnostics"
+        description="This report includes runtime status and credential presence, never credential values."
+      >
+        <SettingsGroup>
+          <SettingsItem
+            title="Diagnostic report"
+            description={report ? 'Current runtime information.' : 'Loading diagnostics…'}
+            actions={
+              <>
+                {report ? (
+                  <CopyButton
+                    text={JSON.stringify(report, undefined, 2)}
+                    label="Copy report"
+                    about="the diagnostics report"
+                  />
+                ) : null}
+                <Button size="sm" onClick={() => void refresh()} disabled={loading}>
+                  {loading ? 'Refreshing…' : 'Refresh'}
+                </Button>
+              </>
+            }
+          >
+            {error ? (
+              <Note status="failed" live="assertive">
+                {error}
+              </Note>
+            ) : report ? (
+              <FieldList>
+                {rows.map(([label, value]) => (
+                  <Field key={label} label={label} value={present(value)} />
+                ))}
+              </FieldList>
+            ) : null}
+          </SettingsItem>
+        </SettingsGroup>
+      </SettingsSection>
     </section>
   )
 }

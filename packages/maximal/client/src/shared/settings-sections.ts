@@ -65,11 +65,11 @@ export interface SettingsSectionSpec {
 /** Array order is rendered order. No `order` field: that buys tie-breaking
  *  between independently-registered contributors, and there is one list. */
 export const SETTINGS_SECTIONS: readonly SettingsSectionSpec[] = [
-  { id: 'settings-account-heading', label: 'Account' },
+  { id: 'settings-account-heading', label: 'Accounts' },
   { id: 'settings-general-heading', label: 'Appearance' },
   { id: 'settings-connections-heading', label: 'Connections' },
   { id: 'settings-search-heading', label: 'Search' },
-  { id: 'settings-models-heading', label: 'Models' },
+  { id: 'settings-models-heading', label: 'Cloud Models' },
   { id: 'settings-local-models-heading', label: 'Local models' },
   { id: 'settings-usage-heading', label: 'Usage' },
   { id: 'settings-logs-heading', label: 'Logs' },

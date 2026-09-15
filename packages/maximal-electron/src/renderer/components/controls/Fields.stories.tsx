@@ -131,7 +131,7 @@ export const AllControls: StoryObj = {
         <Switch label="Dock badge" checked={on} onChange={setOn} />
         <Switch
           label="Menu bar only"
-          layout="compact"
+          layout="spread"
           checked={on}
           onChange={setOn}
         />

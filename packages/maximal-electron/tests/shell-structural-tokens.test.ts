@@ -42,6 +42,7 @@ const AUTHORED = new Map(
 const REFERENCE_NAMES = new Map([
   ['radius', 'radius-input'],
   ['radius-large', 'radius-card'],
+  ['row-height', 'size-row'],
 ]);
 
 function referenceValue(bare: string): string | undefined {
@@ -75,6 +76,17 @@ describe('the structural tokens', () => {
     // token with no value would silently become the consumer's problem, and
     // nothing in README.md tells them to solve it.
     expect(declared.filter(({ value }) => value.length === 0).map(({ name }) => name)).toEqual([]);
+  });
+
+  it('keep spacing, control heights, and rows on the four pixel grid', () => {
+    const layoutToken = /^--shell-(?:space-\d+|control-(?:sm|md|lg)|row-height)$/;
+    const offGrid = declared
+      .filter(({ name }) => layoutToken.test(name))
+      .map(({ name, value }) => ({ name, value, pixels: /^(\d+)px$/.exec(value)?.[1] }))
+      .filter(({ pixels }) => pixels === undefined || Number(pixels) % 4 !== 0)
+      .map(({ name, value }) => `${name}: ${value}`);
+
+    expect(offGrid).toEqual([]);
   });
 
   it('are the only value owner for every token they declare', () => {

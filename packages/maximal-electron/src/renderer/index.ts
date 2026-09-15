@@ -209,10 +209,13 @@ export {
   CopyButton,
   copyText,
   Diagnostics,
+  ModelCardGrid,
   ModelCards,
   SettingsDisclosure,
   SettingsDisclosureList,
   SettingsPage,
+  SettingsGroup,
+  SettingsItem,
   SettingsSection,
   Usage,
 } from './components/settings/index.js';

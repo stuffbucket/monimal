@@ -164,6 +164,7 @@ function fakeBridge(): MaximalBridge {
       authSignOut: vi.fn(async () => success(null)),
       accountsList: vi.fn(async () => success(accounts)),
       accountsSwitch: vi.fn(async () => success(null)),
+      accountsReorder: vi.fn(async () => success(null)),
       ollamaAccountsList: vi.fn(async () => success({ accounts: [] })),
       ollamaSettingsGet: vi.fn(async () =>
         success({

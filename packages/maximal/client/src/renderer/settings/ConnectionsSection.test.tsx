@@ -169,7 +169,15 @@ async function renderConnections(
         <ConnectionsSection capabilities={capabilities} />
       </TooltipProvider>,
     )
-    await Promise.resolve()
+  })
+  await vi.waitFor(async () => {
+    await act(async () => {})
+    if (
+      !container?.textContent.includes('Require known keys')
+      || !container.textContent.includes('Claude Desktop')
+    ) {
+      throw new Error('connection and app data have not finished loading')
+    }
   })
   return container
 }
@@ -204,12 +212,12 @@ describe('ConnectionsSection', () => {
     expect(surface.textContent).toContain('1 credential')
     expect(surface.textContent).toContain('Require known keys')
     expect(surface.textContent).toContain('anonymous local requests are allowed')
-    expect(surface.querySelectorAll('.settings-disclosure')).toHaveLength(1)
+    expect(surface.querySelectorAll('.settings__group')).toHaveLength(4)
+    expect(surface.querySelectorAll('.settings__item')).toHaveLength(5)
     expect(
-      surface.querySelector('.settings-disclosure > summary')?.textContent,
-    ).toContain('Claude Code')
-    expect(surface.querySelector('.settings-disclosure')?.hasAttribute('open')).toBe(
-      false,
+      surface.querySelector('.settings__item-title')?.textContent,
+    ).toContain(
+      'Claude Code',
     )
     expect(surface.textContent).not.toContain('managed-secret-value')
     expect(surface.textContent).not.toContain(manualKey.key)
@@ -219,11 +227,6 @@ describe('ConnectionsSection', () => {
   it('reveals a managed credential only after an explicit action', async () => {
     const { capabilities, connections } = fakeCapabilities()
     const surface = await renderConnections(capabilities)
-
-    const card = surface.querySelector<HTMLDetailsElement>('.settings-disclosure')
-    if (card === null) throw new Error('connection disclosure was not rendered')
-    act(() => card.querySelector('summary')?.click())
-    expect(card.open).toBe(true)
 
     await act(async () => button(surface, 'Reveal').click())
 

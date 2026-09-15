@@ -181,6 +181,7 @@ export type AccountKey = string
 export interface AccountRegistry {
   schemaVersion: 2
   activeKey: AccountKey | null
+  priority?: Array<AccountKey>
   accounts: Record<AccountKey, AccountRecord>
 }
 
@@ -310,11 +311,35 @@ export function getActiveRecord(reg: AccountRegistry): AccountRecord | null {
 export function listAccounts(
   reg: AccountRegistry,
 ): Array<AccountRecord & { key: AccountKey; active: boolean }> {
-  return Object.entries(reg.accounts).map(([key, rec]) => ({
-    ...rec,
-    key,
-    active: key === reg.activeKey,
-  }))
+  const currentPriority = reg.priority ?? []
+  const keys = [
+    ...currentPriority,
+    ...Object.keys(reg.accounts).filter(
+      (key) => !currentPriority.includes(key),
+    ),
+  ]
+  return keys.flatMap((key) => {
+    if (!(key in reg.accounts)) return []
+    const rec = reg.accounts[key]
+    return [{ ...rec, key, active: key === reg.activeKey }]
+  })
+}
+
+export function setAccountPriority(
+  reg: AccountRegistry,
+  priority: Array<AccountKey>,
+): AccountRegistry {
+  const known = new Set(Object.keys(reg.accounts))
+  const ordered = priority.filter(
+    (key, index) => known.has(key) && priority.indexOf(key) === index,
+  )
+  return {
+    ...reg,
+    priority: [
+      ...ordered,
+      ...Object.keys(reg.accounts).filter((key) => !ordered.includes(key)),
+    ],
+  }
 }
 
 /** Read the registry, tolerating absence/corruption by returning empty. Never
@@ -330,16 +355,24 @@ export async function readRegistry(filePath: string): Promise<AccountRegistry> {
   const trimmed = raw.trim()
   if (!trimmed) return emptyRegistry()
   try {
-    const parsed = JSON.parse(trimmed) as Partial<AccountRegistry>
+    const parsed = JSON.parse(trimmed) as Record<string, unknown>
     if (
       parsed.schemaVersion === 2
-      && parsed.accounts
       && typeof parsed.accounts === "object"
+      && parsed.accounts !== null
     ) {
       return {
         schemaVersion: 2,
-        activeKey: parsed.activeKey ?? null,
-        accounts: parsed.accounts,
+        activeKey:
+          typeof parsed.activeKey === "string" ? parsed.activeKey : null,
+        ...(Array.isArray(parsed.priority) ?
+          {
+            priority: parsed.priority.filter(
+              (key): key is string => typeof key === "string",
+            ),
+          }
+        : {}),
+        accounts: parsed.accounts as Record<AccountKey, AccountRecord>,
       }
     }
   } catch {

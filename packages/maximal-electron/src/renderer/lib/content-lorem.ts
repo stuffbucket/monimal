@@ -81,6 +81,8 @@ export const LOREM_CONTENT: ShellContent = {
     preview: 'Laborum',
     context: 'Perspiciatis',
     maxOutput: 'Unde omnis',
+    model: 'Laboris',
+    capabilities: 'Voluptatem',
     kinds: { chat: 'Iste natus', embeddings: 'Voluptatem' },
   },
   apiKeys: {

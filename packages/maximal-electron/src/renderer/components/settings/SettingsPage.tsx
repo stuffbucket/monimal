@@ -47,6 +47,13 @@ export const SETTINGS_STYLES = `
   min-width: 0;
 }
 
+.sb-shell .settings__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--shell-space-2);
+  min-height: var(--shell-control-md);
+}
+
 .sb-shell .settings__grow {
   flex: 1;
 }
@@ -54,6 +61,7 @@ export const SETTINGS_STYLES = `
 .sb-shell .settings__title {
   font-size: var(--shell-text-xl);
   font-weight: var(--shell-weight-lg);
+  line-height: var(--shell-control-md);
   color: var(--shell-text);
   margin: 0;
 }
@@ -92,6 +100,95 @@ export const SETTINGS_STYLES = `
   display: grid;
   gap: var(--shell-space-3);
   align-content: start;
+}
+
+.sb-shell .settings__group {
+  overflow: hidden;
+  border-radius: var(--shell-radius);
+  background: var(--shell-raised);
+}
+
+.sb-shell .settings__group[data-layout='grid'] {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  gap: var(--shell-space-2);
+  overflow: visible;
+  background: transparent;
+}
+
+.sb-shell .settings__group[data-layout='grid'] .settings__item {
+  border-radius: var(--shell-radius);
+  background: var(--shell-raised);
+}
+
+.sb-shell .settings__group[data-layout='grid'] .settings__item + .settings__item {
+  border-top: 0;
+}
+
+.sb-shell .settings__item {
+  padding: var(--shell-space-3);
+}
+
+.sb-shell .settings__item + .settings__item {
+  border-top: 1px solid var(--shell-border-strong, var(--shell-border));
+}
+
+.sb-shell .settings__item-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--shell-space-2);
+}
+
+.sb-shell .settings__item-summary[data-has-control='true'] {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+}
+
+.sb-shell .settings__item-control {
+  display: flex;
+  align-items: center;
+  align-self: start;
+  height: calc(var(--shell-text-base) * var(--shell-leading-base));
+  min-height: 0;
+}
+
+.sb-shell .settings__item-actions {
+  display: flex;
+  align-items: center;
+  min-height: var(--shell-control-lg);
+  gap: var(--shell-space-2);
+  justify-content: flex-end;
+}
+
+.sb-shell .settings__item-copy {
+  display: grid;
+  gap: var(--shell-space-1);
+  min-width: 0;
+}
+
+.sb-shell .settings__item-title {
+  color: var(--shell-text);
+  font-size: var(--shell-text-base);
+  font-weight: var(--shell-weight-lg);
+  line-height: var(--shell-leading-base);
+}
+
+.sb-shell .settings__item-description {
+  margin: 0;
+  color: var(--shell-text-subtle);
+  font-size: var(--shell-text-sm);
+  line-height: var(--shell-leading-base);
+}
+
+.sb-shell .settings__item-body {
+  display: grid;
+  gap: var(--shell-space-2);
+  margin-top: var(--shell-space-3);
+}
+
+.sb-shell .settings__item[data-has-control='true'] .settings__item-body {
+  margin-inline-start: calc(var(--shell-control-lg) + var(--shell-space-2));
 }
 
 .sb-shell .settings__section-title {
@@ -187,7 +284,9 @@ export function SettingsPage({
           )}
         </div>
         <span className="settings__grow" />
-        {actions}
+        {actions !== undefined ? (
+          <div className="settings__actions">{actions}</div>
+        ) : null}
       </header>
 
       <ScrollArea className="settings__body">{children}</ScrollArea>
@@ -220,5 +319,77 @@ export function SettingsSection({
       )}
       {children}
     </section>
+  );
+}
+
+/** A visually bounded set of related settings rows without additional landmark semantics. */
+export function SettingsGroup({
+  children,
+  layout = 'list',
+  testId,
+}: {
+  children: ReactNode;
+  layout?: 'list' | 'grid';
+  testId?: string;
+}) {
+  useComponentStyles('settings-page', SETTINGS_STYLES);
+
+  return (
+    <div
+      className="settings__group"
+      data-layout={layout}
+      data-testid={testId}
+    >
+      {children}
+    </div>
+  );
+}
+
+/** One setting with optional leading control, actions, description, and details. */
+export function SettingsItem({
+  title,
+  description,
+  control,
+  actions,
+  children,
+  testId,
+}: {
+  title: ReactNode;
+  description?: ReactNode;
+  control?: ReactNode;
+  actions?: ReactNode;
+  children?: ReactNode;
+  testId?: string;
+}) {
+  useComponentStyles('settings-page', SETTINGS_STYLES);
+  const hasControl = control !== undefined;
+
+  return (
+    <div
+      className="settings__item"
+      data-has-control={hasControl ? 'true' : undefined}
+      data-testid={testId}
+    >
+      <div
+        className="settings__item-summary"
+        data-has-control={hasControl ? 'true' : undefined}
+      >
+        {hasControl ? (
+          <div className="settings__item-control">{control}</div>
+        ) : null}
+        <div className="settings__item-copy">
+          <span className="settings__item-title">{title}</span>
+          {description !== undefined ? (
+            <p className="settings__item-description">{description}</p>
+          ) : null}
+        </div>
+        {actions !== undefined ? (
+          <div className="settings__item-actions">{actions}</div>
+        ) : null}
+      </div>
+      {children !== undefined ? (
+        <div className="settings__item-body">{children}</div>
+      ) : null}
+    </div>
   );
 }

@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useState, type ReactElement } from 'react'
 
-import { Button, Note } from 'stuffbucket-electron/renderer'
+import {
+  Button,
+  Note,
+  SettingsGroup,
+  SettingsItem,
+  SettingsSection,
+} from 'stuffbucket-electron/renderer'
 
 import type {
   SettingsCapabilities,
@@ -57,44 +63,62 @@ export function UsageSection({ capabilities }: UsageSectionProps): ReactElement 
 
   return (
     <section className="settings-section">
-      <div className="settings-periods" aria-label="Usage period">
-          {PERIODS.map((value) => (
-            <Button
-              key={value}
-              size="sm"
-              aria-pressed={period === value}
-              onClick={() => {
-                setLoading(true)
-                setError(null)
-                setPeriod(value)
-              }}
-            >
-              {value[0]?.toUpperCase()}{value.slice(1)}
-            </Button>
-          ))}
-      </div>
-      {error ? (
-        <div className="settings-field">
-          <Note status="failed" live="assertive">
-            {error}
-          </Note>
-          <Button onClick={() => void load()}>Try again</Button>
-        </div>
-      ) : loading && summary === null ? (
-        <Note live="polite">Loading measured usage…</Note>
-      ) : summary === null ? (
-        <Note>Usage is unavailable.</Note>
-      ) : (
-        <>
-          <dl className="settings-metrics">
-            <div><dt>Requests</dt><dd>{formatNumber(summary.totals.request_count)}</dd></div>
-            <div><dt>Input tokens</dt><dd>{formatNumber(summary.totals.input_tokens)}</dd></div>
-            <div><dt>Output tokens</dt><dd>{formatNumber(summary.totals.output_tokens)}</dd></div>
-            <div><dt>Total tokens</dt><dd>{formatNumber(summary.totals.total_tokens)}</dd></div>
-          </dl>
-          {summary.totals.request_count === 0 ? (
-            <Note>No measured requests in this period.</Note>
-          ) : null}
+      <SettingsSection
+        title="Measured usage"
+        description="Usage recorded by Maximal for the selected period."
+      >
+        <SettingsGroup>
+          <SettingsItem
+            title="Usage period"
+            actions={
+              <div className="settings-periods" aria-label="Usage period">
+                {PERIODS.map((value) => (
+                  <Button
+                    key={value}
+                    size="sm"
+                    aria-pressed={period === value}
+                    onClick={() => {
+                      setLoading(true)
+                      setError(null)
+                      setPeriod(value)
+                    }}
+                  >
+                    {value[0]?.toUpperCase()}{value.slice(1)}
+                  </Button>
+                ))}
+              </div>
+            }
+          >
+            {error ? (
+              <>
+                <Note status="failed" live="assertive">
+                  {error}
+                </Note>
+                <Button size="sm" onClick={() => void load()}>
+                  Try again
+                </Button>
+              </>
+            ) : loading && summary === null ? (
+              <Note live="polite">Loading measured usage…</Note>
+            ) : summary === null ? (
+              <Note>Usage is unavailable.</Note>
+            ) : (
+              <>
+                <dl className="settings-metrics">
+                  <div><dt>Requests</dt><dd>{formatNumber(summary.totals.request_count)}</dd></div>
+                  <div><dt>Input tokens</dt><dd>{formatNumber(summary.totals.input_tokens)}</dd></div>
+                  <div><dt>Output tokens</dt><dd>{formatNumber(summary.totals.output_tokens)}</dd></div>
+                  <div><dt>Total tokens</dt><dd>{formatNumber(summary.totals.total_tokens)}</dd></div>
+                </dl>
+                {summary.totals.request_count === 0 ? (
+                  <Note>No measured requests in this period.</Note>
+                ) : null}
+              </>
+            )}
+          </SettingsItem>
+        </SettingsGroup>
+        {summary ? (
+          <>
           <div className="settings-table-wrap" role="region" aria-label="Usage by model" tabIndex={0}>
             <table className="settings-table">
               <caption>Usage by model</caption>
@@ -117,8 +141,9 @@ export function UsageSection({ capabilities }: UsageSectionProps): ReactElement 
               </tbody>
             </table>
           </div>
-        </>
-      )}
+          </>
+        ) : null}
+      </SettingsSection>
     </section>
   )
 }

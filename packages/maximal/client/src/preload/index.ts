@@ -220,6 +220,8 @@ const bridge = {
       ipcRenderer.invoke(BRIDGE_CHANNELS.accountsList),
     accountsSwitch: (key: string): Promise<ControlResult<null>> =>
       ipcRenderer.invoke(BRIDGE_CHANNELS.accountsSwitch, key),
+    accountsReorder: (priority: string[]): Promise<ControlResult<null>> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.accountsReorder, priority),
     ollamaAccountsList: (): Promise<
       ControlResult<OllamaAccountsListResponse>
     > => ipcRenderer.invoke(BRIDGE_CHANNELS.ollamaAccountsList),

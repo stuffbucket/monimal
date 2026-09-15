@@ -26,6 +26,9 @@
   --shell-leading-base: 1.5;
   --shell-tracking-caps: 0.04em;
   --shell-radius-pill: 9999px;
-  --shell-control-lg: 28px;
+  --shell-control-sm: 24px;
+  --shell-control-md: 28px;
+  --shell-control-lg: 32px;
+  --shell-row-height: 32px;
 }
 }
