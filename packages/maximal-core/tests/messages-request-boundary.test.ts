@@ -18,13 +18,32 @@
  * "Spread syntax requires ...iterable not be null or undefined" → another 500.
  */
 
-import { describe, expect, test } from "bun:test"
+import { afterEach, beforeEach, describe, expect, test } from "bun:test"
 import { Hono } from "hono"
 
+import { state } from "~/lib/runtime-state/state"
 import { messageRoutes } from "~/routes/messages/route"
 
 const app = new Hono()
 app.route("/v1/messages", messageRoutes)
+
+const originalRateLimit = {
+  rateLimitSeconds: state.rateLimitSeconds,
+  rateLimitWait: state.rateLimitWait,
+  lastRequestTimestamp: state.lastRequestTimestamp,
+}
+
+beforeEach(() => {
+  state.rateLimitSeconds = undefined
+  state.rateLimitWait = false
+  state.lastRequestTimestamp = undefined
+})
+
+afterEach(() => {
+  state.rateLimitSeconds = originalRateLimit.rateLimitSeconds
+  state.rateLimitWait = originalRateLimit.rateLimitWait
+  state.lastRequestTimestamp = originalRateLimit.lastRequestTimestamp
+})
 
 const post = (body: string) =>
   app.request("/v1/messages", {
@@ -72,6 +91,13 @@ describe("/v1/messages rejects a malformed body with 400, not 500", () => {
     const res = await post(JSON.stringify({ model: "m" }))
     const body = (await res.json()) as { error?: { type?: string } }
     expect(body.error?.type).toBe("invalid_request_error")
+  })
+
+  test("malformed bodies consume the configured rate limit", async () => {
+    state.rateLimitSeconds = 60
+
+    expect((await post("null")).status).toBe(400)
+    expect((await post("null")).status).toBe(429)
   })
 })
 

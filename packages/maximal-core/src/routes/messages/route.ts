@@ -3,6 +3,8 @@ import { Hono } from "hono"
 import type { ProviderDispatcher } from "~/services/providers/provider-dispatcher"
 
 import { forwardError } from "~/lib/errors/error"
+import { checkRateLimit } from "~/lib/http/rate-limit"
+import { state } from "~/lib/runtime-state/state"
 import { handleProviderMessages } from "~/routes/provider/messages/handler"
 import { ProviderModelRouter } from "~/services/providers/model-router"
 import { createProviderDispatcher } from "~/services/providers/provider-dispatcher"
@@ -24,6 +26,7 @@ export function createMessageRoutes(options: MessageRoutesOptions): Hono {
 
   routes.post("/", async (c) => {
     try {
+      await checkRateLimit(state)
       const payload = await readMessagesPayload(c.req.raw)
       if (!payload) return invalidRequest(c)
       const model =

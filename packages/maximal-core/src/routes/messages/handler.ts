@@ -254,7 +254,10 @@ export async function handleCompletion(
   deps: HandleCompletionDeps = defaultDeps,
   payload?: AnthropicMessagesPayload,
 ) {
-  await checkRateLimit(state)
+  // The route checks before parsing so malformed bodies consume the same rate
+  // budget as valid ones. Direct handler callers have no pre-parsed payload and
+  // therefore still enforce the boundary here.
+  if (!payload) await checkRateLimit(state)
 
   const anthropicPayload = payload ?? (await readMessagesPayload(c.req.raw))
   if (!anthropicPayload) return invalidRequest(c)
