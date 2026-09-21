@@ -258,6 +258,26 @@ export const CopilotServiceStatus = z.object({
 })
 export type CopilotServiceStatus = z.infer<typeof CopilotServiceStatus>
 
+export const ContextManagementDiagnostics = z.object({
+  advertised: z.array(
+    z.object({
+      model: z.string(),
+      support: z.boolean(),
+    }),
+  ),
+  observed_rejections: z.array(
+    z.object({
+      model: z.string(),
+      strategy: z.string(),
+      rejected_at: z.string(),
+    }),
+  ),
+  cache_policy: z.literal("rejections-only-no-expiry"),
+})
+export type ContextManagementDiagnostics = z.infer<
+  typeof ContextManagementDiagnostics
+>
+
 export const DiagnosticsResponse = z.object({
   version: z.string(),
   source_revision: z.string().nullable(),
@@ -284,6 +304,7 @@ export const DiagnosticsResponse = z.object({
    *  it, so a newer UI talking to an older running proxy must tolerate its
    *  absence rather than assume it. The current backend always populates it. */
   copilot_service: CopilotServiceStatus.optional(),
+  context_management: ContextManagementDiagnostics.optional(),
 })
 export type DiagnosticsResponse = z.infer<typeof DiagnosticsResponse>
 

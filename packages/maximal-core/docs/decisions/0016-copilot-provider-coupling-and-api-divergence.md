@@ -247,6 +247,24 @@ The ≤4-breakpoint cap in §2 is unchanged: `stripCacheControl` still sanitizes
 without enforcing the cap or reordering. Everything else in *The divergences*
 was re-read and still describes the code.
 
+## Amendment (2026-09-21): context-management negotiation
+
+The Messages path MUST treat `supports.context_editing: false` as unsupported,
+MUST treat absent metadata as unknown, and MUST optimistically forward the
+first real request when support is unknown. It MUST NOT issue a synthetic
+probe.
+
+An explicit `400` response that identifies `context_management` MUST record a
+rejection scoped by account, Copilot host, exact model ID, and canonicalized
+full edit configuration. The cache MUST contain only rejections and MUST NOT
+expire by time. The failed request MUST retry exactly once without the body
+field and without the `context-management-2025-06-27` beta token. Unrelated
+beta tokens and unrelated errors MUST remain unchanged.
+
+Authenticated diagnostics MUST expose advertised support separately from
+observed rejections and MUST NOT expose the account identity used by the cache
+key. This behavior MUST remain in the Copilot service boundary.
+
 ## Sources
 
 Primary GitHub / Microsoft sources, all confirmed against the cited code:

@@ -36,6 +36,13 @@ export function setClaudeCodeRoutingIntent(enabled: boolean): void {
   }))
 }
 
+export function reconcileClaudeCodeAfterApiKeyMutation(
+  intended: boolean = claudeCodeRoutingIntended(),
+): void {
+  if (!intended) return
+  reconcileClaudeCodeOnBoot(true)
+}
+
 export function reconcileClaudeCodeOnBoot(
   intended: boolean = claudeCodeRoutingIntended(),
   filePath: string = getClaudeCodeSettingsPath(),

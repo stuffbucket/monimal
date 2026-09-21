@@ -267,6 +267,20 @@ package provenance or publisher identity -- the proxy does that.
   compile that cannot run in an Electron bundle. Upstream already defaults the
   option that way inside Electron; stating it makes the packaging decision rest
   on this application's choice rather than on a default that could change.
+- `maximal-core`: Claude Code routing writes a stable
+  `managed:claude-code` credential as a static `ANTHROPIC_API_KEY` and
+  reconciles owned settings after API-key mutations. It MUST NOT restore
+  upstream's per-request `apiKeyHelper` command. Foreign base URLs and helpers
+  remain untouched.
+- `maximal-core`: Copilot `context_management` uses metadata plus real-request
+  evidence only. Explicit metadata `false` suppresses forwarding; unknown
+  support is attempted; only explicit context-specific `400` rejections are
+  cached, without TTL, by account, host, exact model, and normalized full edit
+  configuration. Diagnostics omit account identity.
+- `maximal-core`: recognized Claude Code requests omit only the exact
+  `{ type: "advisor_20260301", name: "advisor" }` provider declaration.
+  Non-Claude clients and near-match declarations retain their semantics, and
+  the web-tools path preserves non-web tool discriminators.
 - `maximal-electron`: dropped `pnpm.onlyBuiltDependencies`. It duplicated the
   root list, which is the only one pnpm honours.
 - `maximal-electron`: deleted its `.npmrc`. Its only line set

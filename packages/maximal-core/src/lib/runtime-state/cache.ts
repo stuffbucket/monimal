@@ -110,6 +110,10 @@ export class Cache<K, V> {
     return this.store.has(key)
   }
 
+  values(): Array<V> {
+    return [...this.store.values()]
+  }
+
   clear(): void {
     this.store.clear()
   }

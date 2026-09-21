@@ -116,6 +116,88 @@ afterEach(() => {
 
 // eslint-disable-next-line max-lines-per-function
 describe("messages handler orchestration", () => {
+  test.each(["claude-cli/2.1.278", "ClAuDe-CoDe/2.1.278"])(
+    "removes the exact advisor declaration for %s",
+    async (userAgent) => {
+      selectedModel = {
+        id: "messages-model",
+        supported_endpoints: ["/v1/messages"],
+      }
+      const advisor = {
+        type: "advisor_20260301",
+        name: "advisor",
+        input_schema: { type: "object" },
+      }
+      const sameName = {
+        type: "custom",
+        name: "advisor",
+        input_schema: { type: "object" },
+      }
+      const sameType = {
+        type: "advisor_20260301",
+        name: "custom",
+        input_schema: { type: "object" },
+      }
+
+      const response = await createApp().request("/", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "user-agent": userAgent,
+        },
+        body: JSON.stringify(
+          createPayload({
+            tools: [
+              advisor,
+              sameName,
+              sameType,
+            ] as AnthropicMessagesPayload["tools"],
+          }),
+        ),
+      })
+
+      expect(response.status).toBe(200)
+      const [, forwardedPayload] = handleWithMessagesApi.mock.calls[0]
+      expect(forwardedPayload.tools).toEqual([sameName, sameType])
+    },
+  )
+
+  test.each([
+    "anthropic-typescript/0.70.0",
+    "wrapper claude-code/2.1.278",
+    undefined,
+  ])(
+    "preserves the advisor declaration for non-Claude-Code client %s",
+    async (userAgent) => {
+      selectedModel = {
+        id: "messages-model",
+        supported_endpoints: ["/v1/messages"],
+      }
+      const advisor = {
+        type: "advisor_20260301",
+        name: "advisor",
+        input_schema: { type: "object" },
+      }
+
+      const response = await createApp().request("/", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          ...(userAgent ? { "user-agent": userAgent } : {}),
+        },
+        body: JSON.stringify(
+          createPayload({
+            tools: [advisor] as AnthropicMessagesPayload["tools"],
+          }),
+        ),
+      })
+
+      expect(response.status).toBe(200)
+      const [, forwardedPayload] = handleWithMessagesApi.mock.calls[0]
+      expect(forwardedPayload.tools).toEqual([advisor])
+    },
+  )
+
   test("removes executeCode and rewrites getDiagnostics before forwarding tools", async () => {
     selectedModel = {
       id: "messages-model",

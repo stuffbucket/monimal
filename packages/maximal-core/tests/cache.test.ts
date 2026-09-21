@@ -65,6 +65,18 @@ describe("Cache", () => {
     expect(c.metrics().hits).toBe(1)
   })
 
+  it("returns a snapshot of cached values", () => {
+    const c = new Cache<string, number>({ name: "t7", max: 5, transient: true })
+    c.set("a", 1)
+    c.set("b", 2)
+
+    const values = c.values()
+    c.set("c", 3)
+
+    expect(values).toEqual([1, 2])
+    expect(c.values()).toEqual([1, 2, 3])
+  })
+
   it("transient caches are excluded from allCacheMetrics()", () => {
     const before = allCacheMetrics().length
     const t = new Cache<string, number>({

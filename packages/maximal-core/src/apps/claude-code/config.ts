@@ -5,10 +5,9 @@
 import fs from "node:fs"
 
 import {
-  ensureDefaultEndpointKey,
+  ensureManagedApiKey,
   isOwnedApiKeyHelper,
   MANAGED_API_KEY_PREFIX,
-  resolveApiKey,
 } from "~/lib/auth/api-key-helper"
 import { getClaudeCodeSettingsPath } from "~/lib/configurator-effects/claude-code-path"
 import { atomicWriteJson } from "~/lib/platform/atomic-json"
@@ -33,14 +32,12 @@ export type ClaudeCodeApiKeyResolver = () => string | null
  * renamed worktree) surfaces mid-session as an opaque failure. A static value
  * has no such runtime dependency on maximal's location.
  *
- * `ensureDefaultEndpointKey` runs first so the very first `enable()` — before
- * any key has ever been configured — still resolves to a real value instead
- * of failing with "no default endpoint API key is configured".
+ * The stable managed credential is selected directly rather than through the
+ * generic label matcher, so unrelated manual key creation, rotation, or
+ * removal cannot silently change the credential Claude Code sends.
  */
 export function resolveClaudeCodeApiKey(): string | null {
-  ensureDefaultEndpointKey()
-  const result = resolveApiKey(HELPER_LABEL)
-  return result.ok ? result.key : null
+  return ensureManagedApiKey("claude-code", "Claude Code").key
 }
 
 /** Legacy top-level field an older maximal wrote; retained here only so apply
@@ -371,7 +368,7 @@ export function applyProxyBaseUrl(
   }
 
   // Ownership checks passed; resolve the key to write. The default resolver
-  // (`resolveClaudeCodeApiKey`) guarantees a default endpoint key exists first,
+  // (`resolveClaudeCodeApiKey`) guarantees a managed Claude Code key exists,
   // so the very first enable (before any key has ever been configured) still
   // has something to resolve.
   const apiKey = resolveKey()

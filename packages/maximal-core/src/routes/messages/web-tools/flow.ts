@@ -166,7 +166,7 @@ export async function handleWithWebToolsAgent(args: WebToolsFlowArgs) {
     } catch (error) {
       await emitStreamError(stream, options.logger, {
         error,
-        flow: "chat_completions",
+        flow: "web_tools",
       })
     }
   })
