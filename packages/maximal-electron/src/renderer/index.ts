@@ -122,6 +122,7 @@ export {
   terminalSessionId,
   terminalViewId,
   terminalWorkspaceIssues,
+  undockTerminalDocument,
   type TerminalDockEdge,
   type TerminalDocument,
   type TerminalDocumentId,

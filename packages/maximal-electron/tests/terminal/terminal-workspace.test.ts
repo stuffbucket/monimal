@@ -13,6 +13,7 @@ import {
   terminalSessionId,
   terminalViewId,
   terminalWorkspaceIssues,
+  undockTerminalDocument,
   type TerminalDocument,
   type TerminalDockEdge,
   type TerminalPane,
@@ -96,6 +97,147 @@ describe('terminal workspace', () => {
       .toEqual([views[0]!.id, views[2]!.id, views[3]!.id]);
     expect(target.focusedViewId).toBe(views[2]!.id);
     expect(terminalWorkspaceIssues(workspace)).toEqual([]);
+  });
+
+  it('docks and undocks a complete document subtree', () => {
+    const views = ['source-a', 'source-b', 'target'].map(localView);
+    let workspace = createTerminalWorkspace({
+      documents: [document('source', views[0]!), document('target', views[2]!)],
+      views: [views[0]!, views[2]!],
+    });
+    workspace = splitTerminalView(
+      workspace,
+      terminalDocumentId('source'),
+      views[0]!.id,
+      'down',
+      views[1]!,
+    );
+    workspace = dockTerminalDocument(
+      workspace,
+      terminalDocumentId('source'),
+      terminalDocumentId('target'),
+      'left',
+    );
+    workspace = undockTerminalDocument(
+      workspace,
+      terminalDocumentId('target'),
+      { id: terminalDocumentId('source'), title: 'Source' },
+      new Set([views[0]!.id, views[1]!.id]),
+    );
+
+    expect(terminalPaneViewIds(
+      workspace.documents.get(terminalDocumentId('source'))!.root,
+    )).toEqual([views[0]!.id, views[1]!.id]);
+    expect(terminalPaneViewIds(
+      workspace.documents.get(terminalDocumentId('target'))!.root,
+    )).toEqual([views[2]!.id]);
+    expect(workspace.documents.get(terminalDocumentId('source'))?.focusedViewId)
+      .toBe(views[1]!.id);
+    expect(workspace.documents.get(terminalDocumentId('target'))?.focusedViewId)
+      .toBe(views[2]!.id);
+    expect(terminalWorkspaceIssues(workspace)).toEqual([]);
+  });
+
+  it.each([
+    { focusedViewIndex: 1, targetFocusIndex: 0 },
+    { focusedViewIndex: 2, targetFocusIndex: 2 },
+  ])(
+    'undocks a nested right-hand leaf with focus on view $focusedViewIndex',
+    ({ focusedViewIndex, targetFocusIndex }) => {
+      const views = ['a', 'b', 'c'].map(localView);
+      let workspace = createTerminalWorkspace({
+        documents: [document('target', views[0]!)],
+        views: [views[0]!],
+      });
+      workspace = splitTerminalView(
+        workspace,
+        terminalDocumentId('target'),
+        views[0]!.id,
+        'right',
+        views[1]!,
+      );
+      workspace = splitTerminalView(
+        workspace,
+        terminalDocumentId('target'),
+        views[1]!.id,
+        'right',
+        views[2]!,
+      );
+      workspace = focusTerminalView(
+        workspace,
+        terminalDocumentId('target'),
+        views[focusedViewIndex]!.id,
+      );
+      workspace = undockTerminalDocument(
+        workspace,
+        terminalDocumentId('target'),
+        { id: terminalDocumentId('source'), title: 'Source' },
+        new Set([views[1]!.id]),
+      );
+
+      expect(terminalPaneViewIds(
+        workspace.documents.get(terminalDocumentId('target'))!.root,
+      )).toEqual([views[0]!.id, views[2]!.id]);
+      expect(workspace.documents.get(terminalDocumentId('target'))?.focusedViewId)
+        .toBe(views[targetFocusIndex]!.id);
+      expect(workspace.documents.get(terminalDocumentId('source'))?.focusedViewId)
+        .toBe(views[1]!.id);
+      expect(terminalWorkspaceIssues(workspace)).toEqual([]);
+    },
+  );
+
+  it('rejects undocking empty, disconnected, complete, and duplicate document selections', () => {
+    const views = ['a', 'b', 'c'].map(localView);
+    let workspace = createTerminalWorkspace({
+      documents: [document('target', views[0]!)],
+      views: [views[0]!],
+    });
+    workspace = splitTerminalView(
+      workspace,
+      terminalDocumentId('target'),
+      views[0]!.id,
+      'right',
+      views[1]!,
+    );
+    workspace = splitTerminalView(
+      workspace,
+      terminalDocumentId('target'),
+      views[1]!.id,
+      'right',
+      views[2]!,
+    );
+    const source = { id: terminalDocumentId('source'), title: 'Source' };
+
+    expect(() => undockTerminalDocument(
+      workspace,
+      terminalDocumentId('target'),
+      source,
+      new Set(),
+    )).toThrow('must contain a view');
+    expect(() => undockTerminalDocument(
+      workspace,
+      terminalDocumentId('target'),
+      source,
+      new Set([views[0]!.id, views[2]!.id]),
+    )).toThrow('exact pane subtree');
+    expect(() => undockTerminalDocument(
+      workspace,
+      terminalDocumentId('target'),
+      source,
+      new Set(views.map((entry) => entry.id)),
+    )).toThrow('exact pane subtree');
+    expect(() => undockTerminalDocument(
+      workspace,
+      terminalDocumentId('target'),
+      { id: terminalDocumentId('target'), title: 'Duplicate' },
+      new Set([views[2]!.id]),
+    )).toThrow('already exists');
+    expect(() => undockTerminalDocument(
+      workspace,
+      terminalDocumentId('missing'),
+      source,
+      new Set([views[2]!.id]),
+    )).toThrow('does not exist');
   });
 
   it('rejects closing a view outside the selected document', () => {
