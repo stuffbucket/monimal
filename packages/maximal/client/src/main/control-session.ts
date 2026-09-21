@@ -89,6 +89,7 @@ type ControlMethod =
   | 'auth/signOut'
   | 'accounts/list'
   | 'accounts/switch'
+  | 'accounts/setEnabled'
   | 'accounts/reorder'
   | 'ollamaAccounts/list'
   | 'ollamaSettings/get'
@@ -151,6 +152,7 @@ export interface ControlSession {
   authSignOut(): Promise<ControlResult<null>>
   accountsList(): Promise<ControlResult<AccountsListResponse>>
   accountsSwitch(key: string): Promise<ControlResult<null>>
+  accountsSetEnabled(key: string, enabled: boolean): Promise<ControlResult<null>>
   accountsReorder(priority: string[]): Promise<ControlResult<null>>
   ollamaAccountsList(): Promise<ControlResult<OllamaAccountsListResponse>>
   ollamaSettingsGet(): Promise<ControlResult<OllamaSettingsResponse>>
@@ -209,6 +211,7 @@ const optionalMethods = [
   'auth/cancel',
   'accounts/list',
   'accounts/switch',
+  'accounts/setEnabled',
   'accounts/reorder',
   'ollamaAccounts/list',
   'ollamaSettings/get',
@@ -260,6 +263,10 @@ const controlErrorDataSchema = z.object({
 const accountsSwitchResultSchema = z.object({
   ok: z.literal(true),
   key: z.string(),
+})
+
+const accountSetEnabledResultSchema = accountsSwitchResultSchema.extend({
+  enabled: z.boolean(),
 })
 
 const apiKeyRemoveResultSchema = z.object({
@@ -620,6 +627,11 @@ export function createControlSession(
         accountsSwitchResultSchema.parse(input)
         return null
       }, { key }),
+    accountsSetEnabled: (key, enabled) =>
+      call('accounts/setEnabled', (input) => {
+        accountSetEnabledResultSchema.parse(input)
+        return null
+      }, { key, enabled }),
     accountsReorder: (priority) =>
       call('accounts/reorder', (input) => {
         accountsSwitchResultSchema.parse(input)

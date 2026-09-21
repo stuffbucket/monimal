@@ -6,6 +6,13 @@ import type {
   ProviderCatalogueModel,
 } from "~/lib/live/resources"
 
+import {
+  addAndActivate,
+  emptyRegistry,
+  readDefaultRegistry,
+  setAccountEnabled,
+  writeDefaultRegistry,
+} from "~/lib/auth/github-token-store"
 import { frameEnvelopeSchema, type FrameEnvelope } from "~/lib/live/contract"
 import { ControlHub } from "~/lib/live/hub"
 import { stopControlHub } from "~/lib/live/service"
@@ -15,6 +22,12 @@ import {
   __setUpdateCheckDepsForTests,
 } from "~/lib/update/update-check"
 import { createControlRoutes } from "~/routes/control/route"
+
+import {
+  makeTestAccount,
+  resetDefaultTestRegistry,
+  testAccountKey,
+} from "../helpers/account-fixtures"
 
 // `GET /update-status` calls getUpdateStatus(), whose default fetch hits the
 // real release manifest on the public CDN. That made this file's assertion
@@ -216,6 +229,48 @@ describe("control route — actions", () => {
     })
     expect(res.status).toBe(400)
     hub.dispose()
+  })
+
+  test("POST /accounts/set-enabled validates and updates a saved account", async () => {
+    await resetDefaultTestRegistry()
+    let registry = addAndActivate(emptyRegistry(), makeTestAccount("alice"))
+    registry = addAndActivate(registry, makeTestAccount("bob"))
+    registry = setAccountEnabled(registry, testAccountKey("alice"), false)
+    await writeDefaultRegistry(registry)
+    const hub = new ControlHub<ControlSnapshot>({
+      buildSnapshot: () =>
+        Promise.resolve({ marker: "x" } as unknown as ControlSnapshot),
+    })
+
+    try {
+      const invalid = await makeApp({ hub }).request("/accounts/set-enabled", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ key: testAccountKey("alice") }),
+      })
+      expect(invalid.status).toBe(400)
+
+      const res = await makeApp({ hub }).request("/accounts/set-enabled", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          key: testAccountKey("alice"),
+          enabled: true,
+        }),
+      })
+      expect(res.status).toBe(200)
+      expect(await res.json()).toEqual({
+        ok: true,
+        key: testAccountKey("alice"),
+        enabled: true,
+      })
+      expect(
+        (await readDefaultRegistry()).accounts[testAccountKey("alice")].enabled,
+      ).toBe(true)
+    } finally {
+      hub.dispose()
+      await resetDefaultTestRegistry()
+    }
   })
 })
 

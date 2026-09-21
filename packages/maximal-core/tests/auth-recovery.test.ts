@@ -19,12 +19,14 @@ import {
   __setAuthRecoveryDepsForTests,
   activateAccountLive,
   attemptAutoRecovery,
+  setAccountEnabledLive,
 } from "~/lib/auth/auth-recovery"
 import {
   addAndActivate,
   emptyRegistry,
   markNeedsReauth,
   readDefaultRegistry,
+  setAccountEnabled,
   writeDefaultRegistry,
 } from "~/lib/auth/github-token-store"
 import { CopilotAuthFatalError } from "~/lib/errors/error"
@@ -136,6 +138,22 @@ describe("attemptAutoRecovery", () => {
     expect(getAuthStatus().state).not.toBe("authenticated")
   })
 
+  test("never recovers onto a disabled account", async () => {
+    let reg = addAndActivate(emptyRegistry(), rec("bob"))
+    reg = setAccountEnabled(reg, key("bob"), false)
+    reg = addAndActivate(reg, rec("alice"))
+    reg = markNeedsReauth(reg, key("alice"), ERR)
+    await writeDefaultRegistry(reg)
+
+    const ok = await attemptAutoRecovery()
+
+    expect(ok).toBe(false)
+    expect(harness.setupSawToken).toBeUndefined()
+    expect((await readDefaultRegistry()).accounts[key("bob")].enabled).toBe(
+      false,
+    )
+  })
+
   test("flags a candidate that FAILS preflight and recovers onto the next good one", async () => {
     let reg = addAndActivate(emptyRegistry(), rec("bob"))
     reg = addAndActivate(reg, rec("carol"))
@@ -182,6 +200,39 @@ describe("attemptAutoRecovery", () => {
     // The recorded reason is the thrown mint error (not an empty payload).
     expect(after.accounts[key("bob")].lastError?.message).toBe("mint 401")
     expect(after.activeKey).toBe(key("carol"))
+  })
+})
+
+describe("setAccountEnabledLive", () => {
+  test("disables the active account by signing out without deleting it", async () => {
+    await writeDefaultRegistry(addAndActivate(emptyRegistry(), rec("alice")))
+    state.githubToken = token("alice")
+    state.copilotToken = "tid=maximal-test-only-copilot;exp=4102444800"
+    state.userName = login("alice")
+    markSignedIn(login("alice"))
+
+    const result = await setAccountEnabledLive(key("alice"), false)
+
+    expect(result).toEqual({ ok: true })
+    expect(getAuthStatus().state).toBe("unauthenticated")
+    expect(state.githubToken).toBeUndefined()
+    const registry = await readDefaultRegistry()
+    expect(registry.activeKey).toBeNull()
+    expect(registry.accounts[key("alice")].enabled).toBe(false)
+    expect(registry.accounts[key("alice")].token).toBe(token("alice"))
+  })
+
+  test("returns 404 without changing the registry for an unknown account", async () => {
+    const before = addAndActivate(emptyRegistry(), rec("alice"))
+    await writeDefaultRegistry(before)
+
+    const result = await setAccountEnabledLive(
+      "maximal-test-only-ghost@github.example.invalid",
+      false,
+    )
+
+    expect(result).toMatchObject({ ok: false, status: 404 })
+    expect(await readDefaultRegistry()).toEqual(before)
   })
 })
 

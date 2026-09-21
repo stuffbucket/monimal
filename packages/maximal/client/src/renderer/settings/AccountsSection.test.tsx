@@ -42,6 +42,7 @@ function fakeCapabilities(initialAccounts?: AccountsListResponse) {
         added_via: 'device-code',
         obtained_at: '2025-01-01T00:00:00Z',
         active: true,
+        enabled: true,
       },
       {
         key: 'enterprise-user@ghe.example.com',
@@ -50,6 +51,7 @@ function fakeCapabilities(initialAccounts?: AccountsListResponse) {
         added_via: 'gh-cli',
         obtained_at: '2025-01-02T00:00:00Z',
         active: false,
+        enabled: true,
       },
       {
         key: 'local-ollama@127.0.0.1:11434',
@@ -58,6 +60,7 @@ function fakeCapabilities(initialAccounts?: AccountsListResponse) {
         added_via: 'migration',
         obtained_at: '2025-01-03T00:00:00Z',
         active: false,
+        enabled: true,
       },
     ],
     active_key: 'octocat@github.com',
@@ -67,10 +70,21 @@ function fakeCapabilities(initialAccounts?: AccountsListResponse) {
     list: vi.fn(async () => accountsData),
     switchTo: vi.fn(async (key: string) => {
       accountsData.active_key = key
-      accountsData.accounts = accountsData.accounts.map((a) => ({
-        ...a,
-        active: a.key === key,
+      accountsData.accounts = accountsData.accounts.map((account) => ({
+        ...account,
+        active: account.key === key,
+        enabled: account.key === key ? true : account.enabled,
       }))
+    }),
+    setEnabled: vi.fn(async (key: string, enabled: boolean) => {
+      accountsData.accounts = accountsData.accounts.map((account) => ({
+        ...account,
+        enabled: account.key === key ? enabled : account.enabled,
+        active: account.key === key && !enabled ? false : account.active,
+      }))
+      if (!enabled && accountsData.active_key === key) {
+        accountsData.active_key = null
+      }
     }),
     reorder: vi.fn(async (keys: string[]) => {
       const reordered = keys
@@ -252,6 +266,52 @@ describe('AccountsSection UI & Actions', () => {
     expect(accounts.switchTo).toHaveBeenCalledWith('enterprise-user@ghe.example.com')
   })
 
+  it('disables a saved account without removing its card', async () => {
+    const { capabilities, accounts } = fakeCapabilities()
+    const surface = await renderSection(capabilities)
+    const toggle = surface.querySelector<HTMLButtonElement>(
+      '[data-testid="account-enabled-enterprise-user@ghe.example.com"]',
+    )
+
+    expect(toggle?.getAttribute('aria-checked')).toBe('true')
+    await act(async () => {
+      toggle?.click()
+      await Promise.resolve()
+    })
+
+    expect(accounts.setEnabled).toHaveBeenCalledWith(
+      'enterprise-user@ghe.example.com',
+      false,
+    )
+    expect(
+      surface.querySelector('[data-testid="account-card-enterprise-user"]'),
+    ).not.toBeNull()
+    expect(toggle?.getAttribute('aria-checked')).toBe('false')
+    expect(surface.textContent).toContain('Disabled')
+  })
+
+  it('does not offer a disabled account as a switch target', async () => {
+    const disabled: AccountsListResponse = {
+      accounts: [
+        {
+          key: 'disabled@github.com',
+          login: 'disabled',
+          host: 'github.com',
+          added_via: 'device-code',
+          obtained_at: '2025-01-01T00:00:00Z',
+          active: false,
+          enabled: false,
+        },
+      ],
+      active_key: null,
+    }
+    const { capabilities } = fakeCapabilities(disabled)
+    const surface = await renderSection(capabilities)
+
+    expect(surface.textContent).toContain('Disabled')
+    expect(surface.textContent).not.toContain('Switch to account')
+  })
+
   it('reorders accounts with up and down buttons', async () => {
     const { capabilities, accounts } = fakeCapabilities()
     const surface = await renderSection(capabilities)
@@ -290,6 +350,7 @@ describe('AccountsSection UI & Actions', () => {
           added_via: 'device-code',
           obtained_at: '2025-01-01T00:00:00Z',
           active: true,
+          enabled: true,
         },
       ],
       active_key: 'single@github.com',

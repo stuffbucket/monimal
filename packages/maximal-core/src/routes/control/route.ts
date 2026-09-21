@@ -24,7 +24,10 @@ import {
   signOut,
   startDeviceFlow,
 } from "~/lib/auth/auth-controller"
-import { activateAccountLive } from "~/lib/auth/auth-recovery"
+import {
+  activateAccountLive,
+  setAccountEnabledLive,
+} from "~/lib/auth/auth-recovery"
 import {
   readDefaultRegistry,
   removeAccount,
@@ -32,6 +35,7 @@ import {
 } from "~/lib/auth/github-token-store"
 import { defaultGetRequestIp, isLoopbackAddress } from "~/lib/auth/request-auth"
 import { getConfig } from "~/lib/config/config"
+import { AccountSetEnabledRequest } from "~/lib/config/settings-types"
 import { forwardError } from "~/lib/errors/error"
 import { listActiveClients } from "~/lib/http/active-clients"
 import { createRpcHandler } from "~/lib/jsonrpc/dispatch"
@@ -254,6 +258,31 @@ function registerAccountActions(
         }
         hub().emit("accounts", await buildAccountsList())
         return c.json({ ok: true, key })
+      } catch (error) {
+        return forwardError(c, error)
+      }
+    }),
+  )
+
+  app.post("/accounts/set-enabled", (c) =>
+    mutex.runExclusive(async () => {
+      try {
+        const parsed = AccountSetEnabledRequest.safeParse(
+          await c.req.json().catch(() => null),
+        )
+        if (!parsed.success) {
+          return c.json(
+            { error: { message: "Expected { key, enabled }." } },
+            400,
+          )
+        }
+        const { key, enabled } = parsed.data
+        const result = await setAccountEnabledLive(key, enabled)
+        if (!result.ok) {
+          return c.json({ error: { message: result.message } }, result.status)
+        }
+        hub().emit("accounts", await buildAccountsList())
+        return c.json({ ok: true, key, enabled })
       } catch (error) {
         return forwardError(c, error)
       }

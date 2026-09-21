@@ -12,7 +12,12 @@ import { UnsavedChangesProvider } from './unsaved-changes'
 
 const capabilities = createPreviewSettingsCapabilities()
 
-function SearchSettingsPreview(): ReactElement {
+function SettingsPreview(): ReactElement {
+  const section = new URLSearchParams(window.location.search).get('section')
+  const request = section === 'accounts'
+    ? { id: 'settings-account-heading' as const }
+    : { id: 'settings-search-heading' as const }
+
   return (
     <UnsavedChangesProvider>
       <AppFrame
@@ -21,10 +26,7 @@ function SearchSettingsPreview(): ReactElement {
         surface="settings"
         onSelectTab={() => undefined}
       >
-        <Settings
-          capabilities={capabilities}
-          request={{ id: 'settings-search-heading' }}
-        />
+        <Settings capabilities={capabilities} request={request} />
       </AppFrame>
     </UnsavedChangesProvider>
   )
@@ -34,7 +36,7 @@ const root = document.getElementById('root')
 if (root !== null) {
   createRoot(root).render(
     <StrictMode>
-      <SearchSettingsPreview />
+      <SettingsPreview />
     </StrictMode>,
   )
 }

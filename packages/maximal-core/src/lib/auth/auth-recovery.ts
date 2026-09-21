@@ -22,13 +22,15 @@
 
 import type { AccountRecord } from "~/lib/auth/github-token-store"
 
-import { markSignedIn } from "~/lib/auth/auth-controller"
+import { markSignedIn, signOut } from "~/lib/auth/auth-controller"
 import { preflightCopilotError } from "~/lib/auth/copilot-preflight"
 import {
   activateAndClearNeedsReauthInDefaultRegistry,
   listAccounts,
   markNeedsReauthInDefaultRegistry,
   readDefaultRegistry,
+  setAccountEnabled,
+  writeDefaultRegistry,
 } from "~/lib/auth/github-token-store"
 import { setupCopilotToken, stopCopilotRefreshLoop } from "~/lib/auth/token"
 import { emitAuthChanged } from "~/lib/config/settings-events"
@@ -152,6 +154,30 @@ export async function activateAccountLive(
   }
 }
 
+/** Save an account's availability without deleting its credential. Disabling
+ * the live account signs out first so in-memory credentials and refresh state
+ * are cleared before the persisted record becomes unavailable. */
+export async function setAccountEnabledLive(
+  accountKeyToUpdate: string,
+  enabled: boolean,
+): Promise<{ ok: true } | { ok: false; status: 404; message: string }> {
+  const registry = await readDefaultRegistry()
+  if (!(accountKeyToUpdate in registry.accounts)) {
+    return {
+      ok: false,
+      status: 404,
+      message: `No account ${accountKeyToUpdate}.`,
+    }
+  }
+
+  if (!enabled && registry.activeKey === accountKeyToUpdate) await signOut()
+  const current = await readDefaultRegistry()
+  await writeDefaultRegistry(
+    setAccountEnabled(current, accountKeyToUpdate, enabled),
+  )
+  return { ok: true }
+}
+
 /**
  * Try to recover onto a known-good account. Iterates every account that isn't
  * the just-failed active one and isn't already flagged `needsReauth`, preflights
@@ -162,7 +188,7 @@ export async function activateAccountLive(
 export async function attemptAutoRecovery(): Promise<boolean> {
   const reg = await readDefaultRegistry()
   const candidates = listAccounts(reg).filter(
-    (a) => !a.active && !a.needsReauth,
+    (account) => account.enabled && !account.active && !account.needsReauth,
   )
 
   for (const cand of candidates) {

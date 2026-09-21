@@ -1,4 +1,5 @@
 import type {
+  AccountsListResponse,
   ConnectorSettingValue,
   MenuBarModeAttempt,
   MenuBarModeState,
@@ -7,6 +8,30 @@ import type {
   SearchSettingsUpdateRequest,
   SettingsCapabilities,
 } from './capabilities'
+
+const initialAccountsList: AccountsListResponse = {
+  accounts: [
+    {
+      key: 'octocat@github.com',
+      login: 'octocat',
+      host: 'github.com',
+      added_via: 'device-code',
+      obtained_at: '2026-09-01T12:00:00Z',
+      active: true,
+      enabled: true,
+    },
+    {
+      key: 'enterprise-user@ghe.example.com',
+      login: 'enterprise-user',
+      host: 'ghe.example.com',
+      added_via: 'gh-cli',
+      obtained_at: '2026-09-02T12:00:00Z',
+      active: false,
+      enabled: false,
+    },
+  ],
+  active_key: 'octocat@github.com',
+}
 
 const initialSearchSettings: SearchSettingsResponse = {
   manifest: {
@@ -199,6 +224,13 @@ const initialSearchSettings: SearchSettingsResponse = {
   },
 }
 
+function cloneAccountsList(list: AccountsListResponse): AccountsListResponse {
+  return {
+    accounts: list.accounts.map((account) => ({ ...account })),
+    active_key: list.active_key,
+  }
+}
+
 function cloneSnapshot(snapshot: SearchSettingsResponse): SearchSettingsResponse {
   return structuredClone(snapshot)
 }
@@ -246,6 +278,7 @@ function unavailable(): Promise<never> {
 }
 
 export function createPreviewSettingsCapabilities(): SettingsCapabilities {
+  let accountList = cloneAccountsList(initialAccountsList)
   let snapshot = cloneSnapshot(initialSearchSettings)
   let menuBarEnabled = false
   let menuBarAttempt: MenuBarModeAttempt | null = null
@@ -268,7 +301,47 @@ export function createPreviewSettingsCapabilities(): SettingsCapabilities {
       cancel: unavailable,
       signOut: unavailable,
     },
-    accounts: { list: unavailable, switchTo: unavailable, reorder: unavailable },
+    accounts: {
+      list: () => Promise.resolve(cloneAccountsList(accountList)),
+      switchTo: (key) => {
+        accountList = {
+          accounts: accountList.accounts.map((account) => ({
+            ...account,
+            active: account.key === key,
+            enabled: account.key === key ? true : account.enabled,
+          })),
+          active_key: key,
+        }
+        return Promise.resolve()
+      },
+      setEnabled: (key, enabled) => {
+        accountList = {
+          accounts: accountList.accounts.map((account) => ({
+            ...account,
+            active: account.key === key && !enabled ? false : account.active,
+            enabled: account.key === key ? enabled : account.enabled,
+          })),
+          active_key:
+            accountList.active_key === key && !enabled
+              ? null
+              : accountList.active_key,
+        }
+        return Promise.resolve()
+      },
+      reorder: (keys) => {
+        const accountsByKey = new Map(
+          accountList.accounts.map((account) => [account.key, account]),
+        )
+        accountList = {
+          ...accountList,
+          accounts: keys.flatMap((key) => {
+            const account = accountsByKey.get(key)
+            return account ? [account] : []
+          }),
+        }
+        return Promise.resolve()
+      },
+    },
     ollamaAccounts: { list: unavailable },
     ollamaSettings: { get: unavailable, update: unavailable },
     ollamaRuntime: {

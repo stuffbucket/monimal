@@ -149,6 +149,8 @@ export interface AccountRecord {
   tokenType: TokenType
   addedVia: AddedVia
   obtainedAt: string
+  /** Disabled accounts stay saved but cannot provide credentials to services. */
+  enabled?: boolean
   /**
    * Set when this account's credential was rejected by Copilot (401/403).
    * The record + token are RETAINED, never deleted — destroying a credential
@@ -193,6 +195,7 @@ const accountRecordSchema = z.looseObject({
   tokenType: z.enum(["ghu_", "gho_", "unknown"]),
   addedVia: z.enum(["device-code", "gh-cli", "migration"]),
   obtainedAt: z.string(),
+  enabled: z.boolean().optional(),
   needsReauth: z.boolean().optional(),
   lastError: z
     .object({
@@ -265,7 +268,30 @@ export function setActive(
   key: AccountKey,
 ): AccountRegistry {
   if (!(key in reg.accounts)) return reg
-  return { ...reg, activeKey: key }
+  return {
+    ...reg,
+    activeKey: key,
+    accounts: {
+      ...reg.accounts,
+      [key]: { ...reg.accounts[key], enabled: true },
+    },
+  }
+}
+
+export function setAccountEnabled(
+  reg: AccountRegistry,
+  key: AccountKey,
+  enabled: boolean,
+): AccountRegistry {
+  if (!(key in reg.accounts)) return reg
+  return {
+    ...reg,
+    activeKey: !enabled && reg.activeKey === key ? null : reg.activeKey,
+    accounts: {
+      ...reg.accounts,
+      [key]: { ...reg.accounts[key], enabled },
+    },
+  }
 }
 
 /** Drop an account. If it was active, `activeKey` falls back to null (caller
@@ -333,13 +359,16 @@ export function clearNeedsReauth(
 }
 
 export function getActiveRecord(reg: AccountRegistry): AccountRecord | null {
-  if (!reg.activeKey) return null
-  return reg.accounts[reg.activeKey] ?? null
+  if (!reg.activeKey || !(reg.activeKey in reg.accounts)) return null
+  const account = reg.accounts[reg.activeKey]
+  return account.enabled === false ? null : account
 }
 
 export function listAccounts(
   reg: AccountRegistry,
-): Array<AccountRecord & { key: AccountKey; active: boolean }> {
+): Array<
+  AccountRecord & { key: AccountKey; active: boolean; enabled: boolean }
+> {
   const currentPriority = reg.priority ?? []
   const keys = [
     ...currentPriority,
@@ -350,7 +379,14 @@ export function listAccounts(
   return keys.flatMap((key) => {
     if (!(key in reg.accounts)) return []
     const rec = reg.accounts[key]
-    return [{ ...rec, key, active: key === reg.activeKey }]
+    return [
+      {
+        ...rec,
+        key,
+        active: key === reg.activeKey,
+        enabled: rec.enabled !== false,
+      },
+    ]
   })
 }
 
@@ -536,7 +572,8 @@ export async function activateAndClearNeedsReauthInDefaultRegistry(
  */
 export const readDefaultRecord =
   async (): Promise<GitHubTokenRecord | null> => {
-    const active = getActiveRecord(await readDefaultRegistry())
+    const registry = await readDefaultRegistry()
+    const active = getActiveRecord(registry)
     if (active) {
       return {
         schemaVersion: 1,
@@ -546,5 +583,6 @@ export const readDefaultRecord =
         obtainedAt: active.obtainedAt,
       }
     }
+    if (Object.keys(registry.accounts).length > 0) return null
     return readGitHubTokenRecord(PATHS.GITHUB_TOKEN_PATH)
   }

@@ -127,6 +127,7 @@ function discovery(overrides: Record<string, unknown> = {}): unknown {
         'auth/cancel',
         'auth/signOut',
         'accounts/list',
+        'accounts/setEnabled',
         'accounts/switch',
         'observability/overview',
         'observability/requests',
@@ -266,6 +267,11 @@ function fullLiveClient(
     'auth/signOut': { ok: true },
     'accounts/list': accounts,
     'accounts/switch': { ok: true, key: 'github.com:octocat' },
+    'accounts/setEnabled': {
+      ok: true,
+      key: 'github.com:octocat',
+      enabled: false,
+    },
     'observability/overview': emptyOverview,
     'observability/requests': emptyRequestPage,
     'observability/request': null,
@@ -361,6 +367,9 @@ describe('named control operations', () => {
       harness.session.accountsSwitch('github.com:octocat'),
     ).resolves.toEqual({ ok: true, value: null })
     await expect(
+      harness.session.accountsSetEnabled('github.com:octocat', false),
+    ).resolves.toEqual({ ok: true, value: null })
+    await expect(
       harness.session.observabilityOverview(overviewQuery),
     ).resolves.toEqual({ ok: true, value: emptyOverview })
     await expect(
@@ -407,6 +416,10 @@ describe('named control operations', () => {
       {
         method: 'accounts/switch',
         params: { key: 'github.com:octocat' },
+      },
+      {
+        method: 'accounts/setEnabled',
+        params: { key: 'github.com:octocat', enabled: false },
       },
       { method: 'observability/overview', params: overviewQuery },
       { method: 'observability/requests', params: requestsQuery },

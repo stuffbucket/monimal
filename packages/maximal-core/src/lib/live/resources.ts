@@ -64,6 +64,7 @@ export async function buildAccountsList(): Promise<AccountsListResponse> {
     added_via: account.addedVia,
     obtained_at: account.obtainedAt,
     active: account.active,
+    enabled: account.enabled,
   }))
   return { accounts, active_key: reg.activeKey }
 }

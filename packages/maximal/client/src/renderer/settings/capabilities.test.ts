@@ -164,6 +164,7 @@ function fakeBridge(): MaximalBridge {
       authSignOut: vi.fn(async () => success(null)),
       accountsList: vi.fn(async () => success(accounts)),
       accountsSwitch: vi.fn(async () => success(null)),
+      accountsSetEnabled: vi.fn(async () => success(null)),
       accountsReorder: vi.fn(async () => success(null)),
       ollamaAccountsList: vi.fn(async () => success({ accounts: [] })),
       ollamaSettingsGet: vi.fn(async () =>
@@ -279,6 +280,9 @@ describe('createCoreSettingsCapabilities', () => {
     await expect(
       capabilities.accounts.switchTo('github.com:octocat'),
     ).resolves.toBeUndefined()
+    await expect(
+      capabilities.accounts.setEnabled('github.com:octocat', false),
+    ).resolves.toBeUndefined()
     await expect(capabilities.connection.proxyUrl()).resolves.toBe(
       'http://127.0.0.1:4141',
     )
@@ -362,6 +366,10 @@ describe('createCoreSettingsCapabilities', () => {
     expect(window.maximal.control.authSignOut).toHaveBeenCalledOnce()
     expect(window.maximal.control.accountsSwitch).toHaveBeenCalledWith(
       'github.com:octocat',
+    )
+    expect(window.maximal.control.accountsSetEnabled).toHaveBeenCalledWith(
+      'github.com:octocat',
+      false,
     )
     expect(window.maximal.menuBarMode.get).toHaveBeenCalledOnce()
     expect(window.maximal.menuBarMode.beginEnable).toHaveBeenCalledOnce()

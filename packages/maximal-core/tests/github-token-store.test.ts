@@ -23,6 +23,7 @@ import {
   readGitHubTokenRecord,
   readRegistry,
   removeAccount,
+  setAccountEnabled,
   setActive,
   writeGitHubTokenRecord,
   writeRegistry,
@@ -189,6 +190,63 @@ describe("registry — pure ops", () => {
     ).toBe(testAccountKey("alice"))
     expect(setActive(reg, testAccountKey("alice")).activeKey).toBe(
       testAccountKey("alice"),
+    )
+  })
+
+  it("disables an account without deleting it or exposing its credential", () => {
+    const active = addAndActivate(emptyRegistry(), rec("alice"))
+    const disabled = setAccountEnabled(active, testAccountKey("alice"), false)
+
+    expect(disabled.accounts[testAccountKey("alice")].enabled).toBe(false)
+    expect(disabled.accounts[testAccountKey("alice")].token).toBe(
+      testAccountToken("alice"),
+    )
+    expect(disabled.activeKey).toBeNull()
+    expect(getActiveRecord(disabled)).toBeNull()
+    expect(listAccounts(disabled)[0]?.enabled).toBe(false)
+  })
+
+  it("does not expose a disabled credential through a stale active pointer", () => {
+    const registry = addAndActivate(emptyRegistry(), rec("alice"))
+    const key = testAccountKey("alice")
+    expect(
+      getActiveRecord({
+        ...registry,
+        accounts: {
+          ...registry.accounts,
+          [key]: { ...registry.accounts[key], enabled: false },
+        },
+      }),
+    ).toBeNull()
+  })
+
+  it("treats legacy accounts as enabled", () => {
+    const legacy = addAndActivate(emptyRegistry(), rec("alice"))
+    expect(legacy.accounts[testAccountKey("alice")].enabled).toBeUndefined()
+    expect(listAccounts(legacy)[0]?.enabled).toBe(true)
+    expect(getActiveRecord(legacy)?.login).toBe(testAccountLogin("alice"))
+  })
+
+  it("activating a disabled account enables it again", () => {
+    const active = addAndActivate(emptyRegistry(), rec("alice"))
+    const disabled = setAccountEnabled(active, testAccountKey("alice"), false)
+    const reactivated = setActive(disabled, testAccountKey("alice"))
+
+    expect(reactivated.activeKey).toBe(testAccountKey("alice"))
+    expect(reactivated.accounts[testAccountKey("alice")].enabled).toBe(true)
+    expect(getActiveRecord(reactivated)?.login).toBe(testAccountLogin("alice"))
+  })
+
+  it("preserves account priority while toggling availability", () => {
+    let registry = addAndActivate(emptyRegistry(), rec("alice"))
+    registry = addAndActivate(registry, rec("bob"))
+    const priority = [testAccountKey("bob"), testAccountKey("alice")]
+    registry = { ...registry, priority }
+
+    const disabled = setAccountEnabled(registry, testAccountKey("alice"), false)
+    expect(disabled.priority).toEqual(priority)
+    expect(listAccounts(disabled).map((account) => account.key)).toEqual(
+      priority,
     )
   })
 

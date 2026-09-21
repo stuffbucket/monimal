@@ -62,6 +62,33 @@ async function layout(page) {
   })
 }
 
+async function accountLayout(page) {
+  return page.evaluate(() => {
+    const root = document.documentElement
+    const settings = document.querySelector('.settings__body')
+    const cards = [...document.querySelectorAll('.account-person-card')]
+    if (!(settings instanceof HTMLElement)) {
+      throw new Error('The Settings body did not render.')
+    }
+    return {
+      accountCount: cards.length,
+      switchCount: document.querySelectorAll('.account-person-card [role="switch"]').length,
+      disabledCount: cards.filter(
+        (card) => card.getAttribute('data-enabled') === 'false',
+      ).length,
+      activeCount: cards.filter(
+        (card) => card.getAttribute('data-active') === 'true',
+      ).length,
+      cardOverflowX: Math.max(
+        0,
+        ...cards.map((card) => card.scrollWidth - card.clientWidth),
+      ),
+      viewportOverflowX: root.scrollWidth - root.clientWidth,
+      settingsOverflowX: settings.scrollWidth - settings.clientWidth,
+    }
+  })
+}
+
 async function providerFieldLayout(page, providerId, fullFieldId) {
   return page.evaluate(
     ({ providerId: id, fullFieldId: fullId }) => {
@@ -309,12 +336,61 @@ try {
 
   const providerPath = join(outputDirectory, 'search-settings-compact-copilot.png')
   await page.screenshot({ path: providerPath })
+
+  await page.setViewportSize({ width: 1280, height: 800 })
+  await page.goto(
+    `http://127.0.0.1:${address.port}/ui-preview.html?section=accounts`,
+    { waitUntil: 'networkidle' },
+  )
+  await page.getByRole('heading', { level: 1, name: 'Accounts' }).waitFor()
+  const desktopAccounts = await accountLayout(page)
+  check(desktopAccounts.accountCount === 2, 'The Accounts preview did not render both saved accounts.')
+  check(desktopAccounts.switchCount === 2, 'Each saved account does not have an availability switch.')
+  check(desktopAccounts.disabledCount === 1, 'The disabled saved account is not visibly retained.')
+  check(desktopAccounts.activeCount === 1, 'The active saved account is not identified once.')
+  check(desktopAccounts.viewportOverflowX === 0, 'Desktop Accounts overflows the viewport.')
+  check(desktopAccounts.settingsOverflowX === 0, 'Desktop Accounts overflows Settings.')
+  check(desktopAccounts.cardOverflowX === 0, 'A desktop account card overflows its bounds.')
+  check(
+    await page.getByRole('button', { name: 'Switch to account' }).count() === 0,
+    'A disabled account is offered as a switch target.',
+  )
+  const disabledAccount = page.getByRole('switch', { name: 'Allow enterprise-user' })
+  check(
+    await disabledAccount.getAttribute('aria-checked') === 'false',
+    'The disabled account availability switch is checked.',
+  )
+  const accountsDesktopPath = join(outputDirectory, 'accounts-settings-desktop.png')
+  await page.screenshot({ path: accountsDesktopPath })
+
+  await page.setViewportSize({ width: 520, height: 720 })
+  const compactAccounts = await accountLayout(page)
+  check(compactAccounts.viewportOverflowX === 0, 'Compact Accounts overflows the viewport.')
+  check(compactAccounts.settingsOverflowX === 0, 'Compact Accounts overflows Settings.')
+  check(compactAccounts.cardOverflowX === 0, 'A compact account card overflows its bounds.')
+  const accountsCompactPath = join(outputDirectory, 'accounts-settings-compact.png')
+  await page.screenshot({ path: accountsCompactPath })
+
+  await disabledAccount.click()
+  await page
+    .locator('[data-testid="account-card-enterprise-user"][data-enabled="true"]')
+    .waitFor()
+  check(
+    await disabledAccount.getAttribute('aria-checked') === 'true',
+    'Re-enabling the disabled account did not update its availability switch.',
+  )
+  check(
+    await page.getByRole('button', { name: 'Switch to account' }).count() === 1,
+    'Re-enabling the disabled account did not offer it as a switch target.',
+  )
   check(pageErrors.length === 0, `The preview raised browser errors: ${pageErrors.join('; ')}`)
 
-  console.log('UI check: 2 viewports, 3 captures, 2 sections, 3 providers, 0 browser errors.')
-  console.log(`Desktop: ${desktopPath}`)
-  console.log(`Compact: ${compactPath}`)
-  console.log(`Compact Copilot: ${providerPath}`)
+  console.log('UI check: 2 viewports, 5 captures, 3 sections, 3 providers, 2 accounts, 0 browser errors.')
+  console.log(`Search desktop: ${desktopPath}`)
+  console.log(`Search compact: ${compactPath}`)
+  console.log(`Search compact Copilot: ${providerPath}`)
+  console.log(`Accounts desktop: ${accountsDesktopPath}`)
+  console.log(`Accounts compact: ${accountsCompactPath}`)
 } finally {
   await browser?.close()
   await server.close()
