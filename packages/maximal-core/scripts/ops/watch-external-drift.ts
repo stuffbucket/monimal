@@ -146,6 +146,13 @@ export const HEADER_PINS: ReadonlyArray<HeaderPinSpec> = [
     describe:
       "GitHub REST API version we send on the Copilot token-exchange endpoint (x-github-api-version header).",
   },
+  {
+    id: "copilotApiVersion",
+    file: "src/lib/config/api-config.ts",
+    pattern: /const COPILOT_API_VERSION = "([\d-]+)"/u,
+    describe:
+      "Copilot CAPI version we send on inference requests (x-github-api-version header).",
+  },
 ]
 
 /**
@@ -158,6 +165,8 @@ const HEADER_PIN_CHANGELOGS: Record<string, string> = {
     "https://docs.github.com/en/rest/about-the-rest-api/api-versions",
   githubApiVersionToken:
     "https://docs.github.com/en/rest/about-the-rest-api/api-versions",
+  copilotApiVersion:
+    "https://github.com/microsoft/vscode-copilot-chat/releases",
 }
 
 /** Extract a pin's current value from its source file text. Pure. */
@@ -295,6 +304,7 @@ interface Baseline {
   anthropicVersion: string
   githubApiVersionUser: string
   githubApiVersionToken: string
+  copilotApiVersion: string
 }
 
 export async function runAllWatches(): Promise<Array<WatchResult>> {

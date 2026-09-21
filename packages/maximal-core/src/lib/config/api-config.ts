@@ -251,7 +251,7 @@ const OPENCODE_SEMVER = "1.18.15"
 const OPENCODE_VERSION = `opencode/${OPENCODE_SEMVER}`
 const OPENCODE_LLM_USER_AGENT = `opencode/${OPENCODE_SEMVER} ai-sdk/provider-utils/4.0.23 runtime/bun/1.3.14, opencode/${OPENCODE_SEMVER}`
 
-const COPILOT_VERSION = "0.46.0"
+const COPILOT_VERSION = "0.48.1"
 const EDITOR_PLUGIN_VERSION = `copilot-chat/${COPILOT_VERSION}`
 const USER_AGENT = `GitHubCopilotChat/${COPILOT_VERSION}`
 // Single source of truth for the impersonated Claude Code agent version. It
@@ -259,7 +259,7 @@ const USER_AGENT = `GitHubCopilotChat/${COPILOT_VERSION}`
 // so the drift watcher's `--fix` path bumps this one constant and the copy
 // follows. A raw literal half-updates: that is exactly how 2.1.208 shipped
 // against a frozen agent-sdk/0.2.112. Same shape as OPENCODE_SEMVER above.
-const CLAUDE_AGENT_SEMVER = "2.1.226"
+const CLAUDE_AGENT_SEMVER = "2.1.278"
 // The agent-sdk release that ships claude-code X.Y.N carries the SAME patch N
 // and declares `claudeCodeVersion: "X.Y.N"` in its package.json (verified for
 // 0.2.81/2.1.81, 0.2.98/2.1.98, 0.2.112/2.1.112, 0.3.223/2.1.223). The MINOR
@@ -270,7 +270,7 @@ const CLAUDE_AGENT_SDK_MINOR = "0.3"
 const CLAUDE_AGENT_SDK_SEMVER = `${CLAUDE_AGENT_SDK_MINOR}.${CLAUDE_AGENT_SEMVER.split(".")[2]}`
 const CLAUDE_AGENT_USER_AGENT = `vscode_claude_code/${CLAUDE_AGENT_SEMVER} (external, sdk-ts, agent-sdk/${CLAUDE_AGENT_SDK_SEMVER})`
 
-const API_VERSION = "2025-10-01"
+const COPILOT_API_VERSION = "2026-08-01"
 
 export const copilotBaseUrl = (state: State): CopilotHost => {
   // Precedence, highest first. The two config-driven overrides INTENTIONALLY
@@ -396,7 +396,7 @@ const githubCopilotHeaders = (
     "editor-plugin-version": EDITOR_PLUGIN_VERSION,
     "user-agent": USER_AGENT,
     "openai-intent": "conversation-agent",
-    "x-github-api-version": API_VERSION,
+    "x-github-api-version": COPILOT_API_VERSION,
     "x-request-id": requestIdValue,
     "x-vscode-user-agent-library-version": "electron-fetch",
     "x-agent-task-id": requestIdValue,
