@@ -1,11 +1,45 @@
 import type { Context } from "hono"
 
-import { expect, test } from "bun:test"
+import { afterEach, beforeEach, describe, expect, test } from "bun:test"
 import { createHash, randomUUID } from "node:crypto"
 
 import type { AnthropicMessagesPayload } from "~/lib/models/anthropic-types"
+import type { Model } from "~/services/copilot/get-models"
 
-import { getRootSessionId, getUUID } from "../src/lib/platform/utils"
+import { getConfig, writeConfig } from "~/lib/config/config"
+import { state } from "~/lib/runtime-state/state"
+
+import {
+  cacheModels,
+  cacheVSCodeVersion,
+  getRootSessionId,
+  getUUID,
+} from "../src/lib/platform/utils"
+
+function catalogModel(
+  id: string,
+  modelPickerEnabled: boolean,
+  type: string,
+): Model {
+  return {
+    id,
+    name: id,
+    object: "model",
+    vendor: "test",
+    version: "1",
+    preview: false,
+    model_picker_enabled: modelPickerEnabled,
+    supported_endpoints: [],
+    capabilities: {
+      family: "test",
+      type,
+      tokenizer: "test",
+      object: "model_capabilities",
+      limits: {},
+      supports: {},
+    },
+  }
+}
 
 const jsonStyleUserId = JSON.stringify({
   device_id: "3f4a1b7c8d9e0f1234567890abcdef1234567890abcdef1234567890abcdef12",
@@ -20,6 +54,57 @@ const getLegacyUUID = (content: string): string => {
   const hash32 = createHash("sha256").update(content).digest("hex").slice(0, 32)
   return `${hash32.slice(0, 8)}-${hash32.slice(8, 12)}-${hash32.slice(12, 16)}-${hash32.slice(16, 20)}-${hash32.slice(20)}`
 }
+
+describe("cacheVSCodeVersion", () => {
+  const originalConfig = structuredClone(getConfig())
+  const originalVersion = state.vsCodeVersion
+
+  beforeEach(() => {
+    writeConfig({ ...originalConfig, editorVersion: undefined })
+    state.vsCodeVersion = undefined
+  })
+
+  afterEach(() => {
+    writeConfig(originalConfig)
+    state.vsCodeVersion = originalVersion
+  })
+
+  test("uses the pinned fallback when no editor version is configured", async () => {
+    await cacheVSCodeVersion()
+
+    expect(state.vsCodeVersion).toBe("1.138.0")
+  })
+})
+
+describe("cacheModels", () => {
+  const originalModels = state.models
+
+  beforeEach(() => {
+    state.models = originalModels
+  })
+
+  afterEach(() => {
+    state.models = originalModels
+  })
+
+  test("keeps picker models and hidden embedding models", async () => {
+    await cacheModels(() =>
+      Promise.resolve({
+        object: "list",
+        data: [
+          catalogModel("picker-chat", true, "chat"),
+          catalogModel("hidden-embedding", false, "embeddings"),
+          catalogModel("hidden-chat", false, "chat"),
+        ],
+      }),
+    )
+
+    expect(state.models?.data.map((model) => model.id)).toEqual([
+      "picker-chat",
+      "hidden-embedding",
+    ])
+  })
+})
 
 test("getUUID returns a deterministic standards-compliant UUIDv4", () => {
   const uuid = getUUID("hello world")

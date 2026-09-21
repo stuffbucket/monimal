@@ -3,13 +3,18 @@ import { Hono } from "hono"
 import type { ProviderDispatcher } from "~/services/providers/provider-dispatcher"
 
 import { forwardError } from "~/lib/errors/error"
+import { checkRateLimit } from "~/lib/http/rate-limit"
+import { state } from "~/lib/runtime-state/state"
 import { handleProviderMessages } from "~/routes/provider/messages/handler"
-import { readRequestedModel } from "~/services/providers/model-request"
 import { ProviderModelRouter } from "~/services/providers/model-router"
 import { createProviderDispatcher } from "~/services/providers/provider-dispatcher"
 
 import { handleCountTokens } from "./count-tokens-handler"
-import { handleCompletion } from "./handler"
+import {
+  handleCompletion,
+  invalidRequest,
+  readMessagesPayload,
+} from "./handler"
 
 export interface MessageRoutesOptions {
   dispatcher: ProviderDispatcher
@@ -21,8 +26,14 @@ export function createMessageRoutes(options: MessageRoutesOptions): Hono {
 
   routes.post("/", async (c) => {
     try {
-      const model = await readRequestedModel(c.req.raw)
-      if (model === undefined) return await handleCompletion(c)
+      await checkRateLimit(state)
+      const payload = await readMessagesPayload(c.req.raw)
+      if (!payload) return invalidRequest(c)
+      const model =
+        typeof payload.model === "string" ? payload.model : undefined
+      if (model === undefined) {
+        return await handleCompletion(c, undefined, payload)
+      }
       const route = await options.modelRouter.resolve(model)
       if (route.kind === "provider") {
         return await options.dispatcher.dispatch({
@@ -33,7 +44,7 @@ export function createMessageRoutes(options: MessageRoutesOptions): Hono {
           signal: c.req.raw.signal,
         })
       }
-      return await handleCompletion(c)
+      return await handleCompletion(c, undefined, payload)
     } catch (error) {
       return await forwardError(c, error)
     }

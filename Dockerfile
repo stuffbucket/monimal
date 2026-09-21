@@ -80,6 +80,7 @@ ENV HOME=/home/maximal \
   XDG_STATE_HOME=/home/maximal/.local/state \
   ELECTRON_SKIP_BINARY_DOWNLOAD=1 \
   MAXIMAL_TEST_CONTAINER=1 \
+  MAXIMAL_TEST_ROOT=/home/maximal \
   MAXIMAL_CORE_TARGET=bun \
   TURBO_CACHE_DIR=/workspace/.turbo/cache \
   TURBO_TELEMETRY_DISABLED=1 \

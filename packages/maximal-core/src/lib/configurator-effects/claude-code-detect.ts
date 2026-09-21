@@ -39,6 +39,7 @@ export interface DetectOptions {
   npmPrefix?: string | null
   readVersion?: (binPath: string) => string | null
   platform?: NodeJS.Platform
+  homebrewDirs?: Array<string>
 }
 
 function claudeBasenames(platform: NodeJS.Platform): Array<string> {
@@ -247,9 +248,12 @@ export function detectClaudeInstalls(
 
   const probeDirs: Array<{ dir: string; origin: ClaudeInstallSource }> = []
   if (!isWin) {
+    const homebrewDirs = options.homebrewDirs ?? [
+      "/opt/homebrew/bin",
+      "/usr/local/bin",
+    ]
     probeDirs.push(
-      { dir: "/opt/homebrew/bin", origin: "homebrew" },
-      { dir: "/usr/local/bin", origin: "homebrew" },
+      ...homebrewDirs.map((dir) => ({ dir, origin: "homebrew" as const })),
     )
   }
   probeDirs.push(

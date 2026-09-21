@@ -1,6 +1,7 @@
 import { afterEach, expect, test } from "bun:test"
 
 import {
+  copilotHeaders,
   prepareForCompact,
   prepareMessageProxyHeaders,
 } from "../src/lib/config/api-config"
@@ -8,6 +9,7 @@ import {
   COMPACT_AUTO_CONTINUE,
   COMPACT_REQUEST,
 } from "../src/lib/models/compact"
+import { state } from "../src/lib/runtime-state/state"
 
 const originalOauthApp = process.env.COPILOT_API_OAUTH_APP
 
@@ -32,7 +34,7 @@ test("prepareMessageProxyHeaders applies message proxy headers by default", () =
   expect(headers["x-interaction-type"]).toBe("messages-proxy")
   expect(headers["openai-intent"]).toBe("messages-proxy")
   expect(headers["user-agent"]).toBe(
-    "vscode_claude_code/2.1.226 (external, sdk-ts, agent-sdk/0.3.226)",
+    "vscode_claude_code/2.1.278 (external, sdk-ts, agent-sdk/0.3.278)",
   )
   expect(headers["x-request-id"]).toBeDefined()
   expect(headers["x-agent-task-id"]).toBe(headers["x-request-id"])
@@ -52,6 +54,14 @@ test("prepareMessageProxyHeaders leaves opencode headers untouched", () => {
     "Openai-Intent": "conversation-edits",
     "User-Agent": "opencode/1.0.0",
   })
+})
+
+test("Copilot traffic uses the pinned API version", () => {
+  delete process.env.COPILOT_API_OAUTH_APP
+
+  expect(copilotHeaders(state, "request-id")["x-github-api-version"]).toBe(
+    "2026-08-01",
+  )
 })
 
 test("prepareForCompact marks compact traffic as agent initiated", () => {

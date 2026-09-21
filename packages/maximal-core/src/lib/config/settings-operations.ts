@@ -33,6 +33,7 @@ import type {
   ConfiguratorRegistry,
 } from "~/lib/configurator-host"
 
+import { reconcileClaudeCodeAfterApiKeyMutation } from "~/apps/claude-code/reconcile"
 import { getApp } from "~/apps/registry"
 import { describeExecutor } from "~/debug"
 import { generateApiKeyValue } from "~/lib/auth/api-key-helper"
@@ -78,6 +79,7 @@ import {
 } from "~/lib/runtime-state/state"
 import { BUILD_VERSION } from "~/lib/update/build-info"
 import { getGitVersion, shortSha } from "~/lib/update/version"
+import { listContextManagementRejections } from "~/services/copilot/context-management-capabilities"
 
 export type SettingsOperationErrorKind =
   "conflict" | "not_found" | "validation_error"
@@ -444,6 +446,7 @@ export function createApiKey(input: ApiKeyCreateRequestType): ApiKeyEntry {
       auth: { ...config.auth, apiKeyEntries: [...entries, entry] },
     }
   })
+  reconcileClaudeCodeAfterApiKeyMutation()
   return entry
 }
 
@@ -489,6 +492,7 @@ export function updateApiKey(
     return { ...config, auth: { ...config.auth, apiKeyEntries: next } }
   })
   if (!updated) throw new Error("API key update did not produce a value")
+  reconcileClaudeCodeAfterApiKeyMutation()
   return updated
 }
 
@@ -508,6 +512,7 @@ export function removeApiKey(id: string): void {
     const next = entries.filter((candidate) => candidate.id !== id)
     return { ...config, auth: { ...config.auth, apiKeyEntries: next } }
   })
+  reconcileClaudeCodeAfterApiKeyMutation()
 }
 
 export function setApiKeyEnforcement(enforcing: boolean): ApiKeysListResponse {
@@ -757,5 +762,29 @@ export function buildDiagnostics(): DiagnosticsResponse {
       enterprise_domain: getEnterpriseDomain(),
       discovered_upstream: state.copilotApiUrl ?? null,
     },
+    context_management: buildContextManagementDiagnostics(),
+  }
+}
+
+function buildContextManagementDiagnostics(): NonNullable<
+  DiagnosticsResponse["context_management"]
+> {
+  const account = state.userName ?? "unknown"
+  const host = copilotBaseUrl(state)
+  const advertised = (state.models?.data ?? []).flatMap((model) => {
+    const support = model.capabilities.supports.context_editing
+    return typeof support === "boolean" ? [{ model: model.id, support }] : []
+  })
+  const observedRejections = listContextManagementRejections()
+    .filter((entry) => entry.account === account && entry.host === host)
+    .map((entry) => ({
+      model: entry.model,
+      strategy: entry.strategy,
+      rejected_at: entry.rejectedAt,
+    }))
+  return {
+    advertised,
+    observed_rejections: observedRejections,
+    cache_policy: "rejections-only-no-expiry",
   }
 }

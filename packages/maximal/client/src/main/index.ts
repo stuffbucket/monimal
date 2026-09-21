@@ -109,6 +109,14 @@ function registerIpc(
   ipcMain.handle(BRIDGE_CHANNELS.accountsSwitch, (_event, key: unknown) =>
     session.accountsSwitch(nonEmptyString.parse(key)),
   )
+  ipcMain.handle(
+    BRIDGE_CHANNELS.accountsSetEnabled,
+    (_event, key: unknown, enabled: unknown) =>
+      session.accountsSetEnabled(
+        nonEmptyString.parse(key),
+        z.boolean().parse(enabled),
+      ),
+  )
   ipcMain.handle(BRIDGE_CHANNELS.accountsReorder, (_event, priority: unknown) =>
     session.accountsReorder(z.array(nonEmptyString).parse(priority)),
   )

@@ -127,6 +127,7 @@ function discovery(overrides: Record<string, unknown> = {}): unknown {
         'auth/cancel',
         'auth/signOut',
         'accounts/list',
+        'accounts/setEnabled',
         'accounts/switch',
         'observability/overview',
         'observability/requests',
@@ -266,6 +267,11 @@ function fullLiveClient(
     'auth/signOut': { ok: true },
     'accounts/list': accounts,
     'accounts/switch': { ok: true, key: 'github.com:octocat' },
+    'accounts/setEnabled': {
+      ok: true,
+      key: 'github.com:octocat',
+      enabled: false,
+    },
     'observability/overview': emptyOverview,
     'observability/requests': emptyRequestPage,
     'observability/request': null,
@@ -361,6 +367,9 @@ describe('named control operations', () => {
       harness.session.accountsSwitch('github.com:octocat'),
     ).resolves.toEqual({ ok: true, value: null })
     await expect(
+      harness.session.accountsSetEnabled('github.com:octocat', false),
+    ).resolves.toEqual({ ok: true, value: null })
+    await expect(
       harness.session.observabilityOverview(overviewQuery),
     ).resolves.toEqual({ ok: true, value: emptyOverview })
     await expect(
@@ -408,6 +417,10 @@ describe('named control operations', () => {
         method: 'accounts/switch',
         params: { key: 'github.com:octocat' },
       },
+      {
+        method: 'accounts/setEnabled',
+        params: { key: 'github.com:octocat', enabled: false },
+      },
       { method: 'observability/overview', params: overviewQuery },
       { method: 'observability/requests', params: requestsQuery },
       { method: 'observability/request', params: { requestId: 'req-1' } },
@@ -428,6 +441,34 @@ describe('named control operations', () => {
       },
     ])
     expect(live.connected).toBe(1)
+  })
+
+  it('defaults accounts from older Core versions to enabled', async () => {
+    const discover = new FakeClient({ 'server/discover': discovery() })
+    const live = fullLiveClient({
+      'accounts/list': {
+        accounts: [
+          {
+            key: 'octocat@github.com',
+            login: 'octocat',
+            host: 'github.com',
+            added_via: 'device-code',
+            obtained_at: '2026-09-01T12:00:00Z',
+            active: true,
+          },
+        ],
+        active_key: 'octocat@github.com',
+      },
+    })
+    const harness = createHarness({ clients: [discover, live] })
+
+    await expect(harness.session.accountsList()).resolves.toEqual({
+      ok: true,
+      value: {
+        accounts: [expect.objectContaining({ enabled: true })],
+        active_key: 'octocat@github.com',
+      },
+    })
   })
 
   it('returns unsupported for an absent optional method without a wire call', async () => {

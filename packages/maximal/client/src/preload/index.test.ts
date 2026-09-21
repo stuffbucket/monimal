@@ -54,6 +54,7 @@ describe('preload bridge allowlist', () => {
     expect(Object.keys(bridge.control).sort()).toEqual([
       'accountsList',
       'accountsReorder',
+      'accountsSetEnabled',
       'accountsSwitch',
       'apiKeysCreate',
       'apiKeysList',
@@ -147,6 +148,7 @@ describe('preload bridge allowlist', () => {
     await bridge.control.authSignOut()
     await bridge.control.accountsList()
     await bridge.control.accountsSwitch('github.com:octocat')
+    await bridge.control.accountsSetEnabled('github.com:octocat', false)
     await bridge.control.ollamaAccountsList()
     await bridge.control.ollamaSettingsGet()
     await bridge.control.ollamaSettingsUpdate({
@@ -217,6 +219,7 @@ describe('preload bridge allowlist', () => {
       [BRIDGE_CHANNELS.authSignOut],
       [BRIDGE_CHANNELS.accountsList],
       [BRIDGE_CHANNELS.accountsSwitch, 'github.com:octocat'],
+      [BRIDGE_CHANNELS.accountsSetEnabled, 'github.com:octocat', false],
       [BRIDGE_CHANNELS.ollamaAccountsList],
       [BRIDGE_CHANNELS.ollamaSettingsGet],
       [

@@ -450,6 +450,12 @@ export class ControlClient {
   switchAccount(key: string): Promise<unknown> {
     return this.request("/accounts/switch", { method: "POST", body: { key } })
   }
+  setAccountEnabled(key: string, enabled: boolean): Promise<unknown> {
+    return this.request("/accounts/set-enabled", {
+      method: "POST",
+      body: { key, enabled },
+    })
+  }
   removeAccount(key: string): Promise<unknown> {
     return this.request("/accounts/remove", { method: "POST", body: { key } })
   }

@@ -23,7 +23,7 @@
  * several chances to hit one.
  */
 
-import { describe, expect, test } from "bun:test"
+import { describe, expect, spyOn, test } from "bun:test"
 import consola from "consola"
 import { Hono } from "hono"
 
@@ -50,6 +50,11 @@ const options = {
   requestId: "req_web_tools_error",
   logger: consola.create({ level: 0 }),
 }
+
+const silentLog = Object.assign(
+  (_message: unknown, ..._args: Array<unknown>) => undefined,
+  { raw: (..._args: Array<unknown>) => undefined },
+)
 
 /** One SSE `event:` name per frame, in wire order. */
 function eventNames(body: string): Array<string> {
@@ -106,14 +111,22 @@ const textDelta = (text: string) => ({
 
 describe("web-tools streaming flow — mid-stream failure", () => {
   test("emits an error event when the first upstream turn is rejected", async () => {
-    const res = await runFlow(rejectingUpstream("HTTP 500 upstream"))
-    const body = await res.text()
+    const error = spyOn(options.logger, "error").mockImplementation(silentLog)
+    try {
+      const res = await runFlow(rejectingUpstream("HTTP 500 upstream"))
+      const body = await res.text()
 
-    // The client was already committed to a 200 SSE response, so the failure
-    // can only be reported in-band.
-    expect(res.status).toBe(200)
-    expect(eventNames(body)).toContain("error")
-    expect(body).toContain("HTTP 500 upstream")
+      // The client was already committed to a 200 SSE response, so the failure
+      // can only be reported in-band.
+      expect(res.status).toBe(200)
+      expect(eventNames(body)).toContain("error")
+      expect(body).toContain("HTTP 500 upstream")
+      expect(error).toHaveBeenCalledWith(
+        "Upstream web_tools stream failed mid-flight: HTTP 500 upstream",
+      )
+    } finally {
+      error.mockRestore()
+    }
   })
 
   test("emits an error event when the stream resets after content", async () => {

@@ -40,7 +40,10 @@ import {
   signOut,
   startDeviceFlow,
 } from "~/lib/auth/auth-controller"
-import { activateAccountLive } from "~/lib/auth/auth-recovery"
+import {
+  activateAccountLive,
+  setAccountEnabledLive,
+} from "~/lib/auth/auth-recovery"
 import {
   readDefaultRegistry,
   removeAccount,
@@ -66,6 +69,7 @@ import {
   validateSearchProvider,
 } from "~/lib/config/settings-operations"
 import {
+  AccountSetEnabledRequest,
   ApiKeyCreateRequest,
   ApiKeyEnforcementRequest,
   ApiKeyIdRequest,
@@ -412,6 +416,18 @@ function createAccountRpcMethods(
         if (!result.ok) throw new RpcParamsError(result.message)
         hub().emit("accounts", await buildAccountsList())
         return { ok: true, key }
+      }),
+    "accounts/setEnabled": (params: unknown) =>
+      mutex.runExclusive(async () => {
+        const { key, enabled } = parseParams(
+          AccountSetEnabledRequest,
+          params,
+          "Expected { key, enabled }.",
+        )
+        const result = await setAccountEnabledLive(key, enabled)
+        if (!result.ok) throw new RpcParamsError(result.message)
+        hub().emit("accounts", await buildAccountsList())
+        return { ok: true, key, enabled }
       }),
     "accounts/remove": (params: unknown) =>
       mutex.runExclusive(async () => {

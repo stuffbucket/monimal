@@ -13,15 +13,20 @@
  * forward-persisting hazard — see apps-cli.test.ts).
  */
 
-import { afterAll, beforeEach, describe, expect, test } from "bun:test"
+import { afterEach, beforeEach, describe, expect, test } from "bun:test"
 import fs from "node:fs"
 import path from "node:path"
 
 import { createClaudeCodeApp } from "~/apps/claude-code"
-import { isProxyBaseUrlConfigured } from "~/apps/claude-code/config"
+import {
+  isProxyBaseUrlConfigured,
+  PROXY_BASE_URL,
+  readClaudeCodeSettings,
+} from "~/apps/claude-code/config"
 import { claudeCodeRoutingIntended } from "~/apps/claude-code/reconcile"
 import { resolveApiKey } from "~/lib/auth/api-key-helper"
 import { getConfig, writeConfig } from "~/lib/config/config"
+import { createApiKey, removeApiKey } from "~/lib/config/settings-operations"
 
 const claudeConfigDir = process.env.CLAUDE_CONFIG_DIR
 if (!claudeConfigDir) {
@@ -39,7 +44,8 @@ beforeEach(() => {
   writeConfig({})
 })
 
-afterAll(() => {
+afterEach(() => {
+  fs.rmSync(SETTINGS, { force: true })
   writeConfig({})
 })
 
@@ -79,12 +85,8 @@ describe("claude-code CLI enable/disable persists routing intent (#229)", () => 
     expect(apps?.claudeDesktop?.enabled).toBe(true)
   })
 
-  test("enable() mints a default endpoint key so the resolved API key works", async () => {
-    // Use the real default resolver here (not the fixed TEST_KEY stub) since
-    // this test exercises `ensureDefaultEndpointKey`'s minting behavior.
+  test("enable() mints and selects a managed Claude Code key", async () => {
     const mintingApp = createClaudeCodeApp()
-    // Fresh config: no key at all — `maximal api claude-code` would otherwise
-    // exit key-less and break the client.
     expect(getConfig().auth?.apiKeyEntries ?? []).toHaveLength(0)
     expect(resolveApiKey("claude-code").ok).toBe(false)
 
@@ -92,14 +94,18 @@ describe("claude-code CLI enable/disable persists routing intent (#229)", () => 
 
     const entries = getConfig().auth?.apiKeyEntries ?? []
     expect(entries).toHaveLength(1)
-    expect(entries[0]?.label).toBe("Default")
+    expect(entries[0]).toMatchObject({
+      id: "managed:claude-code",
+      label: "Claude Code",
+      kind: "managed",
+      configurator_id: "claude-code",
+    })
     expect(entries[0]?.enabled).toBe(true)
-    // The default resolver now resolves the freshly-minted default endpoint key.
     const resolved = resolveApiKey("claude-code")
-    expect(resolved).toMatchObject({ ok: true, source: "default" })
+    expect(resolved).toMatchObject({ ok: true, source: "app" })
   })
 
-  test("enable() does not mint a second key when one already exists", async () => {
+  test("enable() preserves unrelated manual keys", async () => {
     const mintingApp = createClaudeCodeApp()
     writeConfig({
       auth: {
@@ -118,8 +124,96 @@ describe("claude-code CLI enable/disable persists routing intent (#229)", () => 
     await mintingApp.enable()
 
     const entries = getConfig().auth?.apiKeyEntries ?? []
-    expect(entries).toHaveLength(1)
-    expect(entries[0]?.key).toBe("mxl_existing")
+    expect(entries).toHaveLength(2)
+    expect(entries.find((entry) => entry.id === "x")).toMatchObject({
+      id: "x",
+      key: "mxl_existing",
+    })
+    expect(
+      entries.find((entry) => entry.id === "managed:claude-code"),
+    ).toMatchObject({
+      id: "managed:claude-code",
+      kind: "managed",
+    })
+  })
+
+  test("an API-key mutation migrates an enabled integration to its managed key", () => {
+    writeConfig({
+      apps: { claudeCode: { enabled: true } },
+      auth: {
+        apiKeyEntries: [
+          {
+            id: "legacy-selected",
+            label: "Claude Code",
+            key: "mxl_legacy-selected",
+            enabled: true,
+            created_at: "2026-01-01T00:00:00.000Z",
+          },
+        ],
+      },
+    })
+    fs.writeFileSync(
+      SETTINGS,
+      JSON.stringify({
+        env: {
+          ANTHROPIC_BASE_URL: PROXY_BASE_URL,
+          ANTHROPIC_API_KEY: "mxl_legacy-selected",
+        },
+      }),
+    )
+
+    createApiKey({ label: "Other client", key: "mxl_other-client" })
+
+    const managed = getConfig().auth?.apiKeyEntries?.find(
+      (entry) => entry.id === "managed:claude-code",
+    )
+    const env = readClaudeCodeSettings(SETTINGS).env as Record<string, unknown>
+    expect(managed).toBeDefined()
+    expect(env.ANTHROPIC_API_KEY).toBe(managed?.key)
+    expect(env.ANTHROPIC_BASE_URL).toBe(PROXY_BASE_URL)
+  })
+
+  test("API-key removal reconciles an enabled integration", () => {
+    writeConfig({
+      apps: { claudeCode: { enabled: true } },
+      auth: {
+        apiKeyEntries: [
+          {
+            id: "legacy-selected",
+            label: "Claude Code",
+            key: "mxl_legacy-selected",
+            enabled: true,
+            created_at: "2026-01-01T00:00:00.000Z",
+          },
+          {
+            id: "remove-me",
+            label: "Other client",
+            key: "mxl_remove-me",
+            enabled: true,
+            created_at: "2026-01-01T00:00:00.000Z",
+          },
+        ],
+      },
+    })
+    fs.writeFileSync(
+      SETTINGS,
+      JSON.stringify({
+        env: {
+          ANTHROPIC_BASE_URL: PROXY_BASE_URL,
+          ANTHROPIC_API_KEY: "mxl_legacy-selected",
+        },
+      }),
+    )
+
+    removeApiKey("remove-me")
+
+    const managed = getConfig().auth?.apiKeyEntries?.find(
+      (entry) => entry.id === "managed:claude-code",
+    )
+    const env = readClaudeCodeSettings(SETTINGS).env as Record<string, unknown>
+    expect(managed).toBeDefined()
+    expect(env.ANTHROPIC_API_KEY).toBe(managed?.key)
+    expect(env.ANTHROPIC_BASE_URL).toBe(PROXY_BASE_URL)
   })
 
   test("invalid key resolution leaves settings, routing intent, and keys untouched", async () => {
@@ -154,9 +248,9 @@ describe("claude-code CLI enable/disable persists routing intent (#229)", () => 
       issue: null,
     })
 
-    // A key rotation while enabled: settings.json now carries a stale value
-    // until the next enable()/boot. getDetails() surfaces that as unhealthy —
-    // this is exactly the gap the Settings UI's "Fix" affordance addresses.
+    // An externally changed resolver value can still make settings stale.
+    // Settings API mutations reconcile immediately; this injected seam models
+    // state changed outside that owned path.
     const rotatedApp = createClaudeCodeApp({
       resolveApiKey: () => "mxl_rotated-value",
     })

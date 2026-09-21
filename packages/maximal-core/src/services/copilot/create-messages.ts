@@ -18,6 +18,12 @@ import type { CopilotCallOptions } from "./upstream-request"
 
 import { messagesInitiator } from "./agent-initiator"
 import {
+  contextManagementStrategy,
+  hasContextManagementRejection,
+  recordContextManagementRejection,
+  type ContextManagementScope,
+} from "./context-management-capabilities"
+import {
   buildCopilotHeaders,
   finishUpstreamResponse,
   requireCopilotToken,
@@ -28,11 +34,144 @@ export type CreateMessagesReturn = AnthropicResponse | MessagesStream
 
 const INTERLEAVED_THINKING_BETA = "interleaved-thinking-2025-05-14"
 const ADVANCED_TOOL_USE_BETA = "advanced-tool-use-2025-11-20"
+const CONTEXT_MANAGEMENT_BETA = "context-management-2025-06-27"
 const allowedAnthropicBetas = new Set([
   INTERLEAVED_THINKING_BETA,
-  "context-management-2025-06-27",
+  CONTEXT_MANAGEMENT_BETA,
   ADVANCED_TOOL_USE_BETA,
 ])
+
+const parseAllowedAnthropicBetas = (header: string): Array<string> =>
+  header
+    .split(",")
+    .map((item) => item.trim())
+    .filter((item) => allowedAnthropicBetas.has(item))
+
+const serializeAnthropicBetas = (betas: Array<string>): string | undefined =>
+  betas.length === 0 ? undefined : betas.join(",")
+
+const withoutContextManagementBeta = (header: string): string | undefined =>
+  serializeAnthropicBetas(
+    parseAllowedAnthropicBetas(header).filter(
+      (item) => item !== CONTEXT_MANAGEMENT_BETA,
+    ),
+  )
+
+const withoutContextManagement = (
+  payload: AnthropicMessagesPayload,
+): AnthropicMessagesPayload => {
+  const { context_management: _contextManagement, ...rest } = payload
+  return rest
+}
+
+const isContextManagementRejection = async (
+  response: Response,
+): Promise<boolean> => {
+  if (response.status !== 400) return false
+  return /context[_-]management/iu.test(await response.clone().text())
+}
+
+interface ContextCompatibility {
+  capabilityScope: ContextManagementScope | null
+  allowContextFallback: boolean
+  omitContextManagement: boolean
+  requestPayload: AnthropicMessagesPayload
+}
+
+const buildContextManagementScope = (
+  payload: AnthropicMessagesPayload,
+  baseUrl: string,
+  strategy: string,
+): ContextManagementScope | null =>
+  state.userName ?
+    {
+      account: state.userName,
+      host: baseUrl,
+      model: payload.model,
+      strategy,
+    }
+  : null
+
+const resolveContextCompatibility = (
+  payload: AnthropicMessagesPayload,
+  baseUrl: string,
+): ContextCompatibility => {
+  const strategy = contextManagementStrategy(payload.context_management)
+  if (strategy === null) {
+    return {
+      capabilityScope: null,
+      allowContextFallback: false,
+      omitContextManagement: false,
+      requestPayload: payload,
+    }
+  }
+  const capabilityScope = buildContextManagementScope(
+    payload,
+    baseUrl,
+    strategy,
+  )
+  const advertisedSupport = state.models?.data.find(
+    (model) => model.id === payload.model,
+  )?.capabilities.supports.context_editing
+  const omitContextManagement =
+    advertisedSupport === false
+    || (capabilityScope !== null
+      && hasContextManagementRejection(capabilityScope))
+  return {
+    capabilityScope,
+    allowContextFallback: true,
+    omitContextManagement,
+    requestPayload:
+      omitContextManagement ? withoutContextManagement(payload) : payload,
+  }
+}
+
+interface ContextFallbackRequest {
+  requestUrl: string
+  headers: Record<string, string>
+  payload: AnthropicMessagesPayload
+  requestPayload: AnthropicMessagesPayload
+  capabilityScope: ContextManagementScope | null
+  allowContextFallback: boolean
+  omitContextManagement: boolean
+}
+
+const sendWithContextFallback = async ({
+  requestUrl,
+  headers,
+  payload,
+  requestPayload,
+  capabilityScope,
+  allowContextFallback,
+  omitContextManagement,
+}: ContextFallbackRequest): Promise<Response> => {
+  const response = await sendRequest(requestUrl, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(requestPayload),
+  })
+  if (
+    !allowContextFallback
+    || omitContextManagement
+    || !(await isContextManagementRejection(response))
+  ) {
+    return response
+  }
+
+  if (capabilityScope) recordContextManagementRejection(capabilityScope)
+  consola.warn("Copilot rejected context_management; retrying once without it")
+  const retryHeaders = { ...headers }
+  const currentBeta = retryHeaders["anthropic-beta"]
+  const retryBeta =
+    currentBeta ? withoutContextManagementBeta(currentBeta) : undefined
+  if (retryBeta) retryHeaders["anthropic-beta"] = retryBeta
+  else delete retryHeaders["anthropic-beta"]
+  return sendRequest(requestUrl, {
+    method: "POST",
+    headers: retryHeaders,
+    body: JSON.stringify(withoutContextManagement(payload)),
+  })
+}
 
 const buildAnthropicBetaHeader = (
   anthropicBetaHeader: string | undefined,
@@ -41,17 +180,9 @@ const buildAnthropicBetaHeader = (
   const isAdaptiveThinking = thinking?.type === "adaptive"
 
   if (anthropicBetaHeader) {
-    const filteredBeta = anthropicBetaHeader
-      .split(",")
-      .map((item) => item.trim())
-      .filter((item) => item.length > 0)
-      .filter((item) => allowedAnthropicBetas.has(item))
-
-    if (filteredBeta.length > 0) {
-      return filteredBeta.join(",")
-    }
-
-    return undefined
+    return serializeAnthropicBetas(
+      parseAllowedAnthropicBetas(anthropicBetaHeader),
+    )
   }
 
   if (thinking?.budget_tokens && !isAdaptiveThinking) {
@@ -68,7 +199,15 @@ export const createMessages = async (
 ): Promise<CreateMessagesReturn> => {
   requireCopilotToken()
 
-  const enableVision = payload.messages.some((message) => {
+  const baseUrl = copilotBaseUrl(state)
+  const {
+    capabilityScope,
+    allowContextFallback,
+    omitContextManagement,
+    requestPayload,
+  } = resolveContextCompatibility(payload, baseUrl)
+
+  const enableVision = requestPayload.messages.some((message) => {
     if (!Array.isArray(message.content)) return false
     return message.content.some(
       (block) =>
@@ -82,11 +221,11 @@ export const createMessages = async (
   const headers = buildCopilotHeaders(state, {
     ...options,
     vision: enableVision,
-    initiator: messagesInitiator(payload),
+    initiator: messagesInitiator(requestPayload),
   })
 
   const { safetyIdentifier, sessionId } = parseUserIdMetadata(
-    payload.metadata?.user_id,
+    requestPayload.metadata?.user_id,
   )
   // from claude code
   // claude-opus-4.8 WAF rejects the Claude-Code user-agent unless
@@ -96,30 +235,37 @@ export const createMessages = async (
   if (
     safetyIdentifier
     && sessionId
-    && !payload.model.startsWith("claude-opus-4.8")
+    && !requestPayload.model.startsWith("claude-opus-4.8")
   ) {
     prepareMessageProxyHeaders(headers)
   }
 
   // align with vscode copilot extension anthropic-beta
   const anthropicBeta = buildAnthropicBetaHeader(
-    anthropicBetaHeader,
-    payload.thinking,
+    omitContextManagement && anthropicBetaHeader ?
+      withoutContextManagementBeta(anthropicBetaHeader)
+    : anthropicBetaHeader,
+    requestPayload.thinking,
   )
   if (anthropicBeta) {
     headers["anthropic-beta"] = anthropicBeta
   }
 
-  consola.log(`<-- model: ${payload.model}`)
+  consola.log(`<-- model: ${requestPayload.model}`)
 
-  const response = await sendRequest(`${copilotBaseUrl(state)}/v1/messages`, {
-    method: "POST",
+  const requestUrl = `${baseUrl}/v1/messages`
+  const response = await sendWithContextFallback({
+    requestUrl,
     headers,
-    body: JSON.stringify(payload),
+    payload,
+    requestPayload,
+    capabilityScope,
+    allowContextFallback,
+    omitContextManagement,
   })
 
   return finishUpstreamResponse<AnthropicResponse>(response, {
-    stream: Boolean(payload.stream),
+    stream: Boolean(requestPayload.stream),
     errorMessage: "Failed to create messages",
   })
 }

@@ -154,6 +154,42 @@ function removeLeaf(pane: TerminalPane, targetId: TerminalViewId): TerminalPane 
   return { ...pane, first, second };
 }
 
+interface ExtractedPane {
+  remaining?: TerminalPane;
+  extracted: TerminalPane;
+}
+
+function extractPane(
+  pane: TerminalPane,
+  viewIds: ReadonlySet<TerminalViewId>,
+): ExtractedPane | undefined {
+  const paneViewIds = terminalPaneViewIds(pane);
+  if (
+    paneViewIds.length === viewIds.size
+    && paneViewIds.every((viewId) => viewIds.has(viewId))
+  ) {
+    return { extracted: pane };
+  }
+  if (pane.kind === 'leaf') return undefined;
+  const first = extractPane(pane.first, viewIds);
+  if (first) {
+    return {
+      remaining: first.remaining
+        ? { ...pane, first: first.remaining }
+        : pane.second,
+      extracted: first.extracted,
+    };
+  }
+  const second = extractPane(pane.second, viewIds);
+  if (!second) return undefined;
+  return {
+    remaining: second.remaining
+      ? { ...pane, second: second.remaining }
+      : pane.first,
+    extracted: second.extracted,
+  };
+}
+
 /** Adds an independent view beside one pane leaf and focuses the new view. */
 export function splitTerminalView(
   workspace: TerminalWorkspace,
@@ -245,6 +281,48 @@ export function dockTerminalDocument(
     ...target,
     root,
     focusedViewId: source.focusedViewId ?? target.focusedViewId,
+  });
+  return { ...workspace, documents };
+}
+
+/** Extracts one exact pane subtree into a separate terminal document. */
+export function undockTerminalDocument(
+  workspace: TerminalWorkspace,
+  targetId: TerminalDocumentId,
+  source: Pick<TerminalDocument, 'id' | 'title'>,
+  sourceViewIds: ReadonlySet<TerminalViewId>,
+): TerminalWorkspace {
+  if (workspace.documents.has(source.id)) {
+    throw new Error(`Terminal document ${source.id} already exists.`);
+  }
+  const target = workspace.documents.get(targetId);
+  if (!target) throw new Error(`Terminal document ${targetId} does not exist.`);
+  if (sourceViewIds.size === 0) {
+    throw new Error('An undocked terminal document must contain a view.');
+  }
+  const extraction = extractPane(target.root, sourceViewIds);
+  if (!extraction?.remaining) {
+    throw new Error('Undocked terminal views must form one exact pane subtree.');
+  }
+  const { remaining, extracted } = extraction;
+  const extractedViewIds = terminalPaneViewIds(extracted);
+  const remainingViewIds = terminalPaneViewIds(remaining);
+  const documents = new Map(workspace.documents);
+  documents.set(targetId, {
+    ...target,
+    root: remaining,
+    focusedViewId:
+      target.focusedViewId && remainingViewIds.includes(target.focusedViewId)
+        ? target.focusedViewId
+        : remainingViewIds[0],
+  });
+  documents.set(source.id, {
+    ...source,
+    root: extracted,
+    focusedViewId:
+      target.focusedViewId && extractedViewIds.includes(target.focusedViewId)
+        ? target.focusedViewId
+        : extractedViewIds[0],
   });
   return { ...workspace, documents };
 }

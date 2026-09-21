@@ -40,6 +40,7 @@ function fakeCapabilities(): SettingsCapabilities {
     accounts: {
       list: vi.fn(async () => accountsList),
       switchTo: vi.fn(async () => {}),
+      setEnabled: vi.fn(async () => {}),
       reorder: vi.fn(async () => {}),
     },
     ollamaAccounts: {

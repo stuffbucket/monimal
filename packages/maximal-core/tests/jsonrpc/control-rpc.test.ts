@@ -5,6 +5,13 @@ import type { AppEntry } from "~/lib/config/settings-types"
 import type { ControlSnapshot } from "~/lib/live/resources"
 import type { ControlRpcOperationOverrides } from "~/routes/control/rpc"
 
+import {
+  addAndActivate,
+  emptyRegistry,
+  readDefaultRegistry,
+  setAccountEnabled,
+  writeDefaultRegistry,
+} from "~/lib/auth/github-token-store"
 import { writeConfig } from "~/lib/config/config"
 import { installConnectorPlugins } from "~/lib/config/connector-plugins"
 import { SettingsOperationError } from "~/lib/config/settings-operations"
@@ -29,6 +36,12 @@ import { state } from "~/lib/runtime-state/state"
 import { createControlRoutes } from "~/routes/control/route"
 import { createControlRpcMethods } from "~/routes/control/rpc"
 import { createBuiltinSearchConnectorPlugin } from "~/routes/messages/web-tools/executor"
+
+import {
+  makeTestAccount,
+  resetDefaultTestRegistry,
+  testAccountKey,
+} from "../helpers/account-fixtures"
 
 beforeEach(() => {
   installConnectorPlugins([createBuiltinSearchConnectorPlugin()])
@@ -133,6 +146,7 @@ describe("control /rpc — discovery", () => {
     expect(caps.methods).toContain("auth/status")
     expect(caps.methods).toContain("ollamaAccounts/list")
     expect(caps.methods).toContain("accounts/switch")
+    expect(caps.methods).toContain("accounts/setEnabled")
     expect(caps.methods).toContain("health")
     const settingsMethods = [
       "connections/list",
@@ -205,6 +219,21 @@ describe("control /rpc — params validation", () => {
     expect(body.error?.message).toContain("key")
   })
 
+  test("accounts/setEnabled requires a key and boolean", async () => {
+    const missingEnabled = await rpc("accounts/setEnabled", {
+      id: 1,
+      params: { key: testAccountKey("alice") },
+    })
+    expect(missingEnabled.body.error?.code).toBe(-32602)
+    expect(missingEnabled.body.error?.message).toContain("enabled")
+
+    const invalidKey = await rpc("accounts/setEnabled", {
+      id: 2,
+      params: { key: "", enabled: false },
+    })
+    expect(invalidKey.body.error?.code).toBe(-32602)
+  })
+
   test("settings methods reject malformed parameters with their contracts", async () => {
     const cases = [
       [
@@ -264,6 +293,33 @@ describe("control /rpc — params validation", () => {
 
     expect(body.error?.code).toBe(-32602)
     expect(body.error?.message).toContain("not found")
+  })
+})
+
+describe("control /rpc — accounts", () => {
+  test("accounts/setEnabled updates a saved account", async () => {
+    await resetDefaultTestRegistry()
+    let registry = addAndActivate(emptyRegistry(), makeTestAccount("alice"))
+    registry = addAndActivate(registry, makeTestAccount("bob"))
+    registry = setAccountEnabled(registry, testAccountKey("alice"), false)
+    await writeDefaultRegistry(registry)
+
+    try {
+      const { body } = await rpc("accounts/setEnabled", {
+        id: 1,
+        params: { key: testAccountKey("alice"), enabled: true },
+      })
+      expect(body.result).toEqual({
+        ok: true,
+        key: testAccountKey("alice"),
+        enabled: true,
+      })
+      expect(
+        (await readDefaultRegistry()).accounts[testAccountKey("alice")].enabled,
+      ).toBe(true)
+    } finally {
+      await resetDefaultTestRegistry()
+    }
   })
 })
 

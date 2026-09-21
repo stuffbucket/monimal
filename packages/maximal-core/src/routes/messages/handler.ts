@@ -41,6 +41,7 @@ import {
   getCompactType,
   mergeToolResultForClaude,
   sanitizeIdeTools,
+  stripUnsupportedClaudeCodeTools,
   stripUnsupportedTopLevelAnthropicFields,
   stripToolReferenceTurnBoundary,
 } from "./preprocess"
@@ -69,17 +70,20 @@ const MessagesRequestShape = z
 /** The inbound body when it satisfies {@link MessagesRequestShape}, else `null`.
  *  A body that isn't JSON at all lands in the same `null` — `c.req.json()`
  *  throws on an empty or truncated body, and that is a client error too. */
-const readMessagesPayload = async (
-  c: Context,
+export const readMessagesPayload = async (
+  request: Request,
 ): Promise<AnthropicMessagesPayload | null> => {
-  const body: unknown = await c.req.json().catch(() => null)
+  const body: unknown = await request
+    .clone()
+    .json()
+    .catch(() => null)
   if (!MessagesRequestShape.safeParse(body).success) return null
   // Checked immediately above: an object carrying a `messages` array is the
   // whole structural precondition of the pipeline.
   return body as AnthropicMessagesPayload
 }
 
-const invalidRequest = (c: Context) =>
+export const invalidRequest = (c: Context) =>
   c.json(
     {
       error: {
@@ -249,10 +253,14 @@ function respondIfWarmup(
 export async function handleCompletion(
   c: Context,
   deps: HandleCompletionDeps = defaultDeps,
+  payload?: AnthropicMessagesPayload,
 ) {
-  await checkRateLimit(state)
+  // The route checks before parsing so malformed bodies consume the same rate
+  // budget as valid ones. Direct handler callers have no pre-parsed payload and
+  // therefore still enforce the boundary here.
+  if (!payload) await checkRateLimit(state)
 
-  const anthropicPayload = await readMessagesPayload(c)
+  const anthropicPayload = payload ?? (await readMessagesPayload(c.req.raw))
   if (!anthropicPayload) return invalidRequest(c)
   stripUnsupportedTopLevelAnthropicFields(anthropicPayload)
   debugJson(logger, "Anthropic request payload:", anthropicPayload)
@@ -260,6 +268,7 @@ export async function handleCompletion(
   anthropicPayload.model = resolveCopilotModel(c, anthropicPayload)
 
   sanitizeIdeTools(anthropicPayload)
+  stripUnsupportedClaudeCodeTools(anthropicPayload, c.req.header("user-agent"))
 
   // Detect Anthropic-server-side web tools (web_search_20250305,
   // web_fetch_20250910). Copilot rejects these tool types; the agent

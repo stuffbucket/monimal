@@ -9,6 +9,7 @@ import type { AnthropicMessagesPayload } from "~/lib/models/anthropic-types"
 import { getVSCodeDeviceId } from "~/lib/auth/deviceid"
 import { getConfig } from "~/lib/config/config"
 import { setModels, state } from "~/lib/runtime-state/state"
+import { clearContextManagementRejections } from "~/services/copilot/context-management-capabilities"
 import { getModels } from "~/services/copilot/get-models"
 
 export const sleep = (ms: number) =>
@@ -44,8 +45,11 @@ export const abortableSleep = (
 export const isNullish = (value: unknown): value is null | undefined =>
   value === null || value === undefined
 
-export async function cacheModels(): Promise<void> {
-  const models = await getModels()
+export async function cacheModels(
+  fetchModels: typeof getModels = getModels,
+): Promise<void> {
+  const models = await fetchModels()
+  clearContextManagementRejections()
   setModels({
     ...models,
     data: models.data.filter(
@@ -56,7 +60,7 @@ export async function cacheModels(): Promise<void> {
 }
 
 export const cacheVSCodeVersion = (): Promise<void> => {
-  const response = getConfig().editorVersion ?? "1.124.0"
+  const response = getConfig().editorVersion ?? "1.138.0"
   state.vsCodeVersion = response
 
   consola.info(`Using VSCode version: ${response}`)

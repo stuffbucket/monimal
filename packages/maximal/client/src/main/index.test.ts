@@ -18,6 +18,7 @@ interface ControlSessionSpies {
   authSignOut: ReturnType<typeof vi.fn>
   accountsList: ReturnType<typeof vi.fn>
   accountsSwitch: ReturnType<typeof vi.fn>
+  accountsSetEnabled: ReturnType<typeof vi.fn>
   ollamaAccountsList: ReturnType<typeof vi.fn>
   ollamaSettingsGet: ReturnType<typeof vi.fn>
   ollamaSettingsUpdate: ReturnType<typeof vi.fn>
@@ -287,6 +288,7 @@ const { createControlSessionMock, disposeControlSessionMock } = vi.hoisted(
         authSignOut: vi.fn(),
         accountsList: vi.fn(),
         accountsSwitch: vi.fn(),
+        accountsSetEnabled: vi.fn(),
         ollamaAccountsList: vi.fn(),
         ollamaSettingsGet: vi.fn(),
         ollamaSettingsUpdate: vi.fn(),
@@ -493,6 +495,28 @@ describe('closed IPC boundary', () => {
     expect(session.connectionsRevealCredential).toHaveBeenCalledWith(
       'managed:claude-code',
     )
+  })
+
+  it('validates account availability before session dispatch', async () => {
+    await loadIndexOn('darwin')
+    const session = controlSessionSpies()
+    const registration = ipcMainHandle.mock.calls.find(
+      ([channel]) => channel === BRIDGE_CHANNELS.accountsSetEnabled,
+    )
+    const handler = registration?.[1] as (
+      event: unknown,
+      key: unknown,
+      enabled: unknown,
+    ) => unknown
+
+    handler({}, 'github.com:octocat', false)
+    expect(session.accountsSetEnabled).toHaveBeenCalledWith(
+      'github.com:octocat',
+      false,
+    )
+    expect(() => handler({}, '', false)).toThrow()
+    expect(() => handler({}, 'github.com:octocat', 'false')).toThrow()
+    expect(session.accountsSetEnabled).toHaveBeenCalledTimes(1)
   })
 
   it('routes validated local model operations to named session methods', async () => {

@@ -52,7 +52,10 @@ import {
   markActiveNeedsReauthInDefaultRegistry as defaultMarkActiveNeedsReauth,
   readDefaultRegistry,
 } from "~/lib/auth/github-token-store"
-import { setupCopilotToken, stopCopilotRefreshLoop } from "~/lib/auth/token"
+import {
+  setupCopilotToken,
+  stopCopilotRefreshLoop as defaultStopCopilotRefreshLoop,
+} from "~/lib/auth/token"
 import {
   emitAuthChanged,
   registerAuthStatusProjector,
@@ -94,6 +97,7 @@ let markActiveNeedsReauth: typeof defaultMarkActiveNeedsReauth =
 // Renew the active account's GitHub token from its stored refresh token.
 // DI'd so rearm's renewal path is testable without a real refresh grant.
 let renewGithubToken: () => Promise<boolean> = defaultRenewGithubToken
+let stopCopilotRefreshLoop: () => void = defaultStopCopilotRefreshLoop
 
 export interface AuthControllerTestDeps {
   pollAccessToken?: typeof defaultPollAccessToken
@@ -101,6 +105,7 @@ export interface AuthControllerTestDeps {
   deactivateActiveAccount?: typeof defaultDeactivateActive
   markActiveNeedsReauth?: typeof defaultMarkActiveNeedsReauth
   renewGithubToken?: () => Promise<boolean>
+  stopCopilotRefreshLoop?: () => void
 }
 
 /** @internal test seam */
@@ -122,6 +127,9 @@ export function __setAuthControllerDepsForTests(
   if (overrides.renewGithubToken !== undefined) {
     renewGithubToken = overrides.renewGithubToken
   }
+  if (overrides.stopCopilotRefreshLoop !== undefined) {
+    stopCopilotRefreshLoop = overrides.stopCopilotRefreshLoop
+  }
 }
 
 function resetAuthControllerDeps(): void {
@@ -130,6 +138,7 @@ function resetAuthControllerDeps(): void {
   deactivateActiveAccount = defaultDeactivateActive
   markActiveNeedsReauth = defaultMarkActiveNeedsReauth
   renewGithubToken = defaultRenewGithubToken
+  stopCopilotRefreshLoop = defaultStopCopilotRefreshLoop
 }
 
 /**
@@ -653,8 +662,9 @@ export async function signOut(): Promise<void> {
   if (flow) {
     flow.abort.abort()
   }
-  // Stop any background online-retry — there's no credential to mint with once
-  // we sign out, and it must not resurrect a token after the wipe below.
+  // Stop every background token producer before wiping state so neither a
+  // scheduled retry nor an in-flight refresh can resurrect the signed-out token.
+  stopCopilotRefreshLoop()
   stopCopilotOnlineRetry()
   clearTokenTrio()
   // A signed-out session has no upstream activity to surface a banner

@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
+import { assertTestContainer } from "../scripts/assert-test-container.mjs";
 import {
   createMutationContainerArguments,
   inspectMutationReport,
@@ -68,6 +69,36 @@ import { prepareCoreWorkspaceBin } from "../scripts/prepare-workspace.mjs";
 import { workspaceTaskPlan } from "../scripts/run-workspace-task.mjs";
 
 const root = path.resolve(import.meta.dirname, "..");
+
+const containerEnvironment = {
+  MAXIMAL_TEST_CONTAINER: "1",
+  MAXIMAL_TEST_ROOT: "/home/maximal",
+  HOME: "/home/maximal",
+  XDG_CACHE_HOME: "/home/maximal/.cache",
+  XDG_CONFIG_HOME: "/home/maximal/.config",
+  XDG_DATA_HOME: "/home/maximal/.local/share",
+  XDG_STATE_HOME: "/home/maximal/.local/state",
+};
+
+function runContainerPreflight(environment) {
+  return spawnSync(process.execPath, ["scripts/assert-test-container.mjs"], {
+    cwd: root,
+    encoding: "utf8",
+    env: environment,
+  });
+}
+
+function safeContainerBoundary(overrides = {}) {
+  return {
+    environment: containerEnvironment,
+    existsSync: () => false,
+    getuid: () => 10001,
+    networkInterfaces: () => ({
+      lo: [{ address: "127.0.0.1", family: "IPv4", internal: true }],
+    }),
+    ...overrides,
+  };
+}
 
 function read(relativePath) {
   return fs.readFileSync(path.join(root, relativePath), "utf8");
@@ -1029,6 +1060,51 @@ test("automatic image cleanup leaves a concurrency grace period", () => {
   );
 });
 
+test("container preflight validates the isolated root and ambient host boundary", () => {
+  assert.doesNotThrow(() => assertTestContainer(safeContainerBoundary()));
+
+  for (const name of [
+    "ANTHROPIC_AUTH_TOKEN",
+    "ANTHROPIC_BASE_URL",
+    "MAXIMAL_SHELL_KEY",
+    "OPENAI_BASE_URL",
+  ]) {
+    assert.throws(
+      () => assertTestContainer(safeContainerBoundary({
+        environment: { ...containerEnvironment, [name]: "inherited" },
+      })),
+      new RegExp(name),
+    );
+  }
+
+  assert.throws(
+    () => assertTestContainer(safeContainerBoundary({ existsSync: () => true })),
+    /docker\.sock/,
+  );
+  assert.throws(
+    () => assertTestContainer(safeContainerBoundary({
+      networkInterfaces: () => ({
+        eth0: [{ address: "172.18.0.2", family: "IPv4", internal: false }],
+      }),
+    })),
+    /non-loopback interfaces eth0/,
+  );
+
+  const badRoot = runContainerPreflight({
+    ...containerEnvironment,
+    MAXIMAL_TEST_ROOT: "/tmp",
+  });
+  assert.notEqual(badRoot.status, 0);
+  assert.match(badRoot.stderr, /MAXIMAL_TEST_ROOT must be \/home\/maximal/);
+
+  const inheritedCredential = runContainerPreflight({
+    ...containerEnvironment,
+    ANTHROPIC_AUTH_TOKEN: "inherited",
+  });
+  assert.notEqual(inheritedCredential.status, 0);
+  assert.match(inheritedCredential.stderr, /ANTHROPIC_AUTH_TOKEN/);
+});
+
 test("runtime arguments mount the checkout read-only behind the offline boundary", () => {
   assert.deepEqual(containerBoundaryArguments(), [
     "--init",
@@ -1694,6 +1770,7 @@ test("the image owns test homes and stages commands as non-root", () => {
   assert.match(dockerfile, /bun_sha.*sha256sum -c -/s);
   assert.match(dockerfile, /USER maximal/);
   assert.match(dockerfile, /MAXIMAL_TEST_CONTAINER=1/);
+  assert.match(dockerfile, /MAXIMAL_TEST_ROOT=\/home\/maximal/);
   assert.match(dockerfile, /TURBO_CACHE_DIR=\/workspace\/\.turbo\/cache/);
   assert.match(dockerfile, /XDG_CONFIG_HOME=\/home\/maximal\/\.config/);
   assert.match(dockerfile, /\/workspace\/\.turbo/);

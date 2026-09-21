@@ -113,6 +113,22 @@ describe("ControlClient", () => {
     })
 
     expect(await client.getAuth()).toHaveProperty("state")
+    const response = await client.setAccountEnabled(
+      "maximal-test-only-missing@github.example.invalid",
+      false,
+    )
+    if (
+      typeof response !== "object"
+      || response === null
+      || !("error" in response)
+      || typeof response.error !== "object"
+      || response.error === null
+      || !("message" in response.error)
+      || typeof response.error.message !== "string"
+    ) {
+      throw new Error("Expected an account error response.")
+    }
+    expect(response.error.message).toContain("No account")
     // No supervising shell in the test process → quit reports 409's body.
     expect(await client.quit()).toEqual({
       ok: false,

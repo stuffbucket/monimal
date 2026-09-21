@@ -93,6 +93,7 @@ export interface SettingsCapabilities {
   accounts: {
     list(): Promise<AccountsListResponse>
     switchTo(key: string): Promise<void>
+    setEnabled(key: string, enabled: boolean): Promise<void>
     reorder(priority: string[]): Promise<void>
   }
   ollamaAccounts: {
@@ -262,6 +263,11 @@ export function createCoreSettingsCapabilities(): SettingsCapabilities {
         unwrapControlResult(await bridge.control.accountsList()),
       switchTo: async (key) => {
         unwrapControlResult(await bridge.control.accountsSwitch(key))
+      },
+      setEnabled: async (key, enabled) => {
+        unwrapControlResult(
+          await bridge.control.accountsSetEnabled(key, enabled),
+        )
       },
       reorder: async (priority) => {
         unwrapControlResult(await bridge.control.accountsReorder(priority))

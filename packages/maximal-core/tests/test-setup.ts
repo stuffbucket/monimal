@@ -11,7 +11,6 @@
 import { afterEach, beforeEach, mock } from "bun:test"
 import consola from "consola"
 import fs from "node:fs"
-import os from "node:os"
 import path from "node:path"
 
 const TEST_CONTAINER_ENV = "MAXIMAL_TEST_CONTAINER"
@@ -40,34 +39,39 @@ function isInside(root: string, candidate: string): boolean {
   )
 }
 
-let testParent = os.tmpdir()
+const rootValue = process.env[TEST_ROOT_ENV]
+if (!rootValue || !path.isAbsolute(rootValue) || !fs.existsSync(rootValue)) {
+  throw new Error(
+    `Refusing to run Maximal tests outside an isolated test environment.`
+      + ` Run \`pnpm test\` instead of invoking \`bun test\` directly.`,
+  )
+}
+
+const testParent = fs.realpathSync(rootValue)
+if (!fs.statSync(testParent).isDirectory()) {
+  throw new Error(`${TEST_ROOT_ENV} must identify an existing directory.`)
+}
+
 if (process.env[TEST_CONTAINER_ENV] !== "1") {
-  const rootValue = process.env[TEST_ROOT_ENV]
-  if (
-    process.env[TEST_HOST_ENV] !== "1"
-    || !rootValue
-    || !path.isAbsolute(rootValue)
-  ) {
+  if (process.env[TEST_HOST_ENV] !== "1") {
     throw new Error(
       `Refusing to run Maximal tests outside an isolated test environment.`
         + ` Run \`pnpm test\` instead of invoking \`bun test\` directly.`,
     )
   }
 
-  const root = fs.realpathSync(rootValue)
   for (const name of isolatedPathVariables) {
     const value = process.env[name]
     if (
       !value
       || !path.isAbsolute(value)
-      || !isInside(root, fs.realpathSync(value))
+      || !isInside(testParent, fs.realpathSync(value))
     ) {
       throw new Error(
         `Refusing native tests: ${name} must be inside ${TEST_ROOT_ENV}.`,
       )
     }
   }
-  testParent = root
 }
 
 const testRoot = fs.mkdtempSync(path.join(testParent, "maximal-tests-"))

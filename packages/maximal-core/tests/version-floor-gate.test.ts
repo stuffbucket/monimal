@@ -252,6 +252,30 @@ describe("checkVersionFloor", () => {
     expect(UPDATE_MANIFEST_TIMEOUT_MS).toBe(2000)
   })
 
+  test("reset abandons a refresh that is already in flight", async () => {
+    let resolveOld: ((response: Response) => void) | undefined
+    __setUpdateCheckDepsForTests({
+      fetch: () =>
+        new Promise((resolve) => {
+          resolveOld = resolve
+        }),
+      currentVersion: "0.6.0",
+    })
+    checkVersionFloor()
+
+    __resetUpdateCheckDepsForTests()
+    await warmManifest(
+      manifestBody({ version: "0.9.0", min: "0.6.1" }),
+      "0.6.0",
+    )
+    resolveOld?.(
+      new Response(manifestBody({ version: "0.9.0" }), { status: 200 }),
+    )
+    await settle()
+
+    expect(checkVersionFloor().retired).toBe(true)
+  })
+
   test("a cold read kicks exactly one background refresh, not one per call", async () => {
     let calls = 0
     __setUpdateCheckDepsForTests({
