@@ -443,6 +443,34 @@ describe('named control operations', () => {
     expect(live.connected).toBe(1)
   })
 
+  it('defaults accounts from older Core versions to enabled', async () => {
+    const discover = new FakeClient({ 'server/discover': discovery() })
+    const live = fullLiveClient({
+      'accounts/list': {
+        accounts: [
+          {
+            key: 'octocat@github.com',
+            login: 'octocat',
+            host: 'github.com',
+            added_via: 'device-code',
+            obtained_at: '2026-09-01T12:00:00Z',
+            active: true,
+          },
+        ],
+        active_key: 'octocat@github.com',
+      },
+    })
+    const harness = createHarness({ clients: [discover, live] })
+
+    await expect(harness.session.accountsList()).resolves.toEqual({
+      ok: true,
+      value: {
+        accounts: [expect.objectContaining({ enabled: true })],
+        active_key: 'octocat@github.com',
+      },
+    })
+  })
+
   it('returns unsupported for an absent optional method without a wire call', async () => {
     const discover = new FakeClient({
       'server/discover': discovery({

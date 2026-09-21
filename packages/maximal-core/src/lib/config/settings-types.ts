@@ -509,8 +509,8 @@ export const AccountSummary = z.object({
   obtained_at: z.string(),
   /** Whether this is the account the proxy is (or will boot) signed in as. */
   active: z.boolean(),
-  /** Whether services may use this saved account. */
-  enabled: z.boolean(),
+  /** Whether services may use this saved account. Older Cores omit the field. */
+  enabled: z.boolean().default(true),
 })
 export type AccountSummary = z.infer<typeof AccountSummary>
 
