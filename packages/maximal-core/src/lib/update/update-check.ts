@@ -125,6 +125,7 @@ export function __resetUpdateCheckDepsForTests(): void {
   cache = null
   lastError = null
   inFlight = null
+  refreshGeneration++
   nextAttemptAtMs = 0
 }
 
@@ -145,6 +146,8 @@ let cache: { atMs: number; facts: ManifestFacts } | null = null
 let lastError: string | null = null
 /** Single-flight guard: a burst of proxy requests must produce one fetch. */
 let inFlight: Promise<void> | null = null
+/** Invalidates refreshes abandoned through the test reset seam. */
+let refreshGeneration = 0
 /** Earliest clock time at which an unforced refresh may be attempted. */
 let nextAttemptAtMs = 0
 
@@ -257,11 +260,13 @@ export function parseManifest(
  * `lastError` records why.
  */
 async function refreshManifest(): Promise<void> {
+  const generation = refreshGeneration
   try {
     const res = await fetchImpl(MANIFEST_URL, {
       headers: { "user-agent": "maximal" },
       signal: AbortSignal.timeout(UPDATE_MANIFEST_TIMEOUT_MS),
     })
+    if (generation !== refreshGeneration) return
     if (!res.ok) {
       // Transient CDN/network blip, or a manifest not yet deployed.
       lastError = `manifest fetch returned HTTP ${res.status}`
@@ -269,14 +274,14 @@ async function refreshManifest(): Promise<void> {
       return
     }
     const facts = parseManifest(await res.text())
-    // Single-threaded module, and `ensureManifest`'s single-flight guard means
-    // there is never a concurrent writer, so these post-await writes are safe.
+    if (generation !== refreshGeneration) return
     lastError =
       facts.latest === null ?
         "manifest had no usable version for this channel"
       : null
     cache = { atMs: nowMs(), facts }
   } catch (err) {
+    if (generation !== refreshGeneration) return
     lastError =
       err instanceof Error ?
         `network error: ${err.message}`
