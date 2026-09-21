@@ -74,8 +74,9 @@ Neither aggregate proves that the workspace also passes with the pinned Linux
 dependencies and toolchains.
 
 The Docker tier mounts the checkout read-only and stages its Git-visible files
-into each disposable container. The writable workspace, test home, and XDG
-state disappear with that container. A dependency-image-scoped Docker volume is
+into each disposable container. `MAXIMAL_TEST_ROOT` identifies the existing
+container-owned root beneath which suites create every temporary test home. The
+writable workspace, test home, and XDG state disappear with that container. A dependency-image-scoped Docker volume is
 mounted only at `/workspace/.turbo`, allowing Turbo to restore its declared
 Linux outputs on later runs without sharing `node_modules`, source files, or
 generated output directories with the host. Docker mounts linked-worktree Git

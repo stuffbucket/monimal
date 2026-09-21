@@ -50,6 +50,7 @@ function detect(
     env: {
       HOME: home,
       LOCALAPPDATA: path.join(home, "AppData", "Local"),
+      MAXIMAL_CONFIGURATOR_TEST_SYSTEM_ROOT: root,
       PATH: "/usr/bin:/bin",
       ...environment,
     },
@@ -154,7 +155,7 @@ containerDescribe("configurator installation discovery container", () => {
       ).toEqual([])
       fs.rmSync(pathBin, { recursive: true })
 
-      const homebrewClaude = "/opt/homebrew/bin/claude"
+      const homebrewClaude = path.join(root, "opt", "homebrew", "bin", "claude")
       executable(homebrewClaude, "5.6.7")
       expect(detect(root, "claude-code")).toEqual([
         {
@@ -184,7 +185,6 @@ containerDescribe("configurator installation discovery container", () => {
         }),
       ).toBe(true)
     } finally {
-      fs.rmSync("/opt/homebrew/bin/claude", { force: true })
       fs.rmSync(root, { recursive: true, force: true })
     }
   })
@@ -194,11 +194,12 @@ containerDescribe("configurator installation discovery container", () => {
       path.join(process.env.MAXIMAL_TEST_ROOT ?? os.tmpdir(), "discovery-"),
     )
     const environment = { MAXIMAL_CONFIGURATOR_TEST_PLATFORM: "darwin" }
+    const darwinApp = path.join(root, "Applications", "Claude.app")
     try {
       expect(detect(root, "claude-desktop", environment)).toBe(false)
-      fs.mkdirSync("/Applications/Claude.app", { recursive: true })
+      fs.mkdirSync(darwinApp, { recursive: true })
       expect(detect(root, "claude-desktop", environment)).toBe(true)
-      fs.rmSync("/Applications/Claude.app", { recursive: true })
+      fs.rmSync(darwinApp, { recursive: true })
 
       const localAppData = path.join(root, "home", "AppData", "Local")
       const windows = { MAXIMAL_CONFIGURATOR_TEST_PLATFORM: "win32" }
@@ -243,7 +244,6 @@ containerDescribe("configurator installation discovery container", () => {
       )
       expect(detect(root, "claude-desktop", windows)).toBe(true)
     } finally {
-      fs.rmSync("/Applications/Claude.app", { recursive: true, force: true })
       fs.rmSync(root, { recursive: true, force: true })
     }
   })

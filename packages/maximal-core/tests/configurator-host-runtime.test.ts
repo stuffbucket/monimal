@@ -158,7 +158,11 @@ describe("configurator host runtime", () => {
       },
       claudeDesktopInstalled: () => {
         detectorCalls.push("claude-desktop")
-        return claudeAppInstalled("win32", desktopHome, localAppData)
+        return claudeAppInstalled({
+          platform: "win32",
+          home: desktopHome,
+          localAppData,
+        })
       },
       copilotCliInstalled: () => {
         detectorCalls.push("copilot-cli")

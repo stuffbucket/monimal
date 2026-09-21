@@ -27,13 +27,22 @@ function isInside(root: string, candidate: string): boolean {
   )
 }
 
+const rootValue = process.env[testRootEnv]
+if (!rootValue || !path.isAbsolute(rootValue) || !fs.existsSync(rootValue)) {
+  throw new Error(
+    "Refusing to run Maximal tests outside an isolated test environment."
+      + " Run `pnpm test` from the monorepo root instead of invoking"
+      + " `bun test` directly.",
+  )
+}
+
+const root = fs.realpathSync(rootValue)
+if (!fs.statSync(root).isDirectory()) {
+  throw new Error(`${testRootEnv} must identify an existing directory.`)
+}
+
 if (process.env[testContainerEnv] !== "1") {
-  const rootValue = process.env[testRootEnv]
-  if (
-    process.env[testHostEnv] !== "1"
-    || !rootValue
-    || !path.isAbsolute(rootValue)
-  ) {
+  if (process.env[testHostEnv] !== "1") {
     throw new Error(
       "Refusing to run Maximal tests outside an isolated test environment."
         + " Run `pnpm test` from the monorepo root instead of invoking"
@@ -41,7 +50,6 @@ if (process.env[testContainerEnv] !== "1") {
     )
   }
 
-  const root = fs.realpathSync(rootValue)
   for (const name of isolatedPathVariables) {
     const value = process.env[name]
     if (

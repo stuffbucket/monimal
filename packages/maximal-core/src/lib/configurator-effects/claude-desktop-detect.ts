@@ -7,12 +7,20 @@ const CLAUDE_APP_PATH = "/Applications/Claude.app"
 /**
  * Candidate Claude Desktop install locations to probe, per platform.
  */
+interface ClaudeAppDetectionOptions {
+  platform?: NodeJS.Platform
+  home?: string
+  localAppData?: string
+  darwinAppPath?: string
+}
+
 export function claudeAppCandidates(
-  platform: NodeJS.Platform = process.platform,
-  home: string = os.homedir(),
-  localAppData: string = windowsLocalAppData(home),
+  options: ClaudeAppDetectionOptions = {},
 ): Array<string> {
-  if (platform === "darwin") return [CLAUDE_APP_PATH]
+  const platform = options.platform ?? process.platform
+  const home = options.home ?? os.homedir()
+  const localAppData = options.localAppData ?? windowsLocalAppData(home)
+  if (platform === "darwin") return [options.darwinAppPath ?? CLAUDE_APP_PATH]
   if (platform === "win32") {
     return [
       path.join(localAppData, "AnthropicClaude"),
@@ -54,11 +62,12 @@ export function windowsMsixClaudeInstalled(
  * other platform we can't tell, so return true (don't block).
  */
 export function claudeAppInstalled(
-  platform: NodeJS.Platform = process.platform,
-  home: string = os.homedir(),
-  localAppData: string = windowsLocalAppData(home),
+  options: ClaudeAppDetectionOptions = {},
 ): boolean {
-  const candidates = claudeAppCandidates(platform, home, localAppData)
+  const platform = options.platform ?? process.platform
+  const home = options.home ?? os.homedir()
+  const localAppData = options.localAppData ?? windowsLocalAppData(home)
+  const candidates = claudeAppCandidates(options)
   if (candidates.length === 0) return true
   const hasCandidate = candidates.some((p) => {
     try {
