@@ -233,6 +233,7 @@ export const RENDERER_SURFACE = [
   'terminalSessionId',
   'terminalViewId',
   'terminalWorkspaceIssues',
+  'undockTerminalDocument',
   'useDetachedTerminals',
   'useShellContent',
   'useShellTabs',
