@@ -154,6 +154,8 @@ export interface SearchProviderInstance {
   fetch?(url: string, options?: FetchOptions): Promise<FetchResult>
 }
 
+export { settingValueError } from "./search/setting-validation.js"
+
 export interface SearchProviderConfig {
   readonly enabled?: boolean
   readonly settings?: ConnectorSettings
