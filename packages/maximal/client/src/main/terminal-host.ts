@@ -166,7 +166,7 @@ export function configureTerminalHost(): void {
       owner.webContents.send(BRIDGE_CHANNELS.terminalExit, { id, exitCode })
     },
     onStatus: () => undefined,
-    onPane: (owner, id, pane, revision, origin) => {
+    onPane: (owner, id, pane, revision, origin: string) => {
       if (!owner || owner.isDestroyed() || owner.webContents.isDestroyed()) return
       owner.webContents.send(BRIDGE_CHANNELS.terminalPaneChanged, {
         id,
