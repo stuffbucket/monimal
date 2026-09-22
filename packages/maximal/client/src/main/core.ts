@@ -179,6 +179,7 @@ function attachLineLogger(stdout: NonNullable<ChildProcess['stdout']>): void {
 let intentionalShutdown = false
 let restartAttempts = 0
 let restartTimer: ReturnType<typeof setTimeout> | null = null
+let shutdownPromise: Promise<void> | null = null
 
 function clearRestartTimer(): void {
   if (restartTimer) {
@@ -373,6 +374,7 @@ async function launchCore(): Promise<{ controlOrigin: string; proxyUrl: string; 
  *  internally from here on — a caller only needs to await the first start. */
 export async function spawnCore(): Promise<{ controlOrigin: string; proxyUrl: string; port: number; pid: number }> {
   intentionalShutdown = false
+  shutdownPromise = null
   restartAttempts = 0
   clearRestartTimer()
   clearStabilityTimer()
@@ -400,13 +402,21 @@ export async function spawnCore(): Promise<{ controlOrigin: string; proxyUrl: st
   }
 }
 
-export function killCore(): void {
+export function killCore(): Promise<void> {
   intentionalShutdown = true
   clearRestartTimer()
   clearStabilityTimer()
-  if (child && !child.killed) child.kill('SIGTERM')
+  const proc = child
   child = null
   controlBase = ''
   proxyBase = ''
   emitStatus({ phase: 'stopped' })
+  if (!proc) return shutdownPromise ?? Promise.resolve()
+  if (shutdownPromise) return shutdownPromise
+
+  shutdownPromise = new Promise<void>((resolve) => {
+    proc.once('exit', () => resolve())
+  })
+  if (!proc.killed) proc.kill('SIGTERM')
+  return shutdownPromise
 }

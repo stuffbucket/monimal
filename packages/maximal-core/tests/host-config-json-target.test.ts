@@ -9,8 +9,10 @@ import type { RuntimeIdentity } from "~/lib/host-config/types"
 import {
   connectJsonTarget,
   disconnectJsonTarget,
+  inspectJsonTarget,
   reconnectJsonTarget,
 } from "~/lib/host-config/json-target"
+import { withHostConfigLock } from "~/lib/host-config/lock"
 
 let directory: string
 let targetPath: string
@@ -237,6 +239,131 @@ describe("JSON target ownership", () => {
         ANTHROPIC_AUTH_TOKEN: "external-token",
       },
     })
+  })
+})
+
+describe("JSON target lock contention", () => {
+  it("disconnects an unclaimed target without waiting for the target lock", async () => {
+    let releaseLock!: () => void
+    const lockReleased = new Promise<void>((resolve) => {
+      releaseLock = resolve
+    })
+    let lockAcquired!: () => void
+    const acquired = new Promise<void>((resolve) => {
+      lockAcquired = resolve
+    })
+    const holding = withHostConfigLock(
+      path.join(sidecarDirectory, "target.lock"),
+      async () => {
+        lockAcquired()
+        await lockReleased
+      },
+    )
+    await acquired
+
+    let status: string | undefined
+    const disconnecting = disconnectJsonTarget({
+      targetPath,
+      sidecarDirectory,
+      configuratorId: "claude-code",
+      runtime: identity("two"),
+    }).then((result) => {
+      status = result.status
+    })
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(status).toBe("not-connected")
+
+    releaseLock()
+    await Promise.all([holding, disconnecting])
+  })
+
+  it("reports an unclaimed target without waiting for the target lock", async () => {
+    let releaseLock!: () => void
+    const lockReleased = new Promise<void>((resolve) => {
+      releaseLock = resolve
+    })
+    let lockAcquired!: () => void
+    const acquired = new Promise<void>((resolve) => {
+      lockAcquired = resolve
+    })
+    const holding = withHostConfigLock(
+      path.join(sidecarDirectory, "target.lock"),
+      async () => {
+        lockAcquired()
+        await lockReleased
+      },
+    )
+    await acquired
+
+    let status: string | undefined
+    const inspecting = inspectJsonTarget({
+      targetPath,
+      sidecarDirectory,
+      configuratorId: "claude-code",
+      runtime: identity("two"),
+      probeRuntime: () => Promise.resolve(true),
+    }).then((result) => {
+      status = result.status
+    })
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(status).toBe("available")
+
+    releaseLock()
+    await Promise.all([holding, inspecting])
+  })
+
+  it("probes a foreign owner without waiting for the target lock", async () => {
+    const owner = identity("one")
+    const options = {
+      targetPath,
+      sidecarDirectory,
+      configuratorId: "claude-code",
+      runtime: owner,
+      probeRuntime: () => Promise.resolve(true),
+      fields: [
+        {
+          path: ["env", "ANTHROPIC_BASE_URL"],
+          value: "http://127.0.0.1:41501",
+        },
+      ],
+    }
+    await connectJsonTarget(options)
+
+    let releaseLock!: () => void
+    const lockReleased = new Promise<void>((resolve) => {
+      releaseLock = resolve
+    })
+    let lockAcquired!: () => void
+    const acquired = new Promise<void>((resolve) => {
+      lockAcquired = resolve
+    })
+    const holding = withHostConfigLock(
+      path.join(sidecarDirectory, "target.lock"),
+      async () => {
+        lockAcquired()
+        await lockReleased
+      },
+    )
+    await acquired
+
+    let probeStarted = false
+    const competing = inspectJsonTarget({
+      targetPath,
+      sidecarDirectory,
+      configuratorId: "claude-code",
+      runtime: identity("two"),
+      probeRuntime: () => {
+        probeStarted = true
+        return Promise.resolve(true)
+      },
+    })
+    expect(probeStarted).toBeTrue()
+    releaseLock()
+
+    expect((await competing).status).toBe("owned-by-another-configurator")
+    await holding
   })
 })
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import type { ConnectorSettingField } from './capabilities'
+import type { ConnectorSettingField } from '../capabilities'
 import {
   displayedInteger,
   displayedIntegerBound,

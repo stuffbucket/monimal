@@ -1,3 +1,4 @@
+import * as Tooltip from '@radix-ui/react-tooltip'
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -135,7 +136,11 @@ function fakeCapabilities(): SettingsCapabilities {
 async function renderDiagnostics(capabilities: SettingsCapabilities): Promise<HTMLElement> {
   if (root === null || container === null) throw new Error('test root not ready')
   await act(async () => {
-    root?.render(<DiagnosticsSection capabilities={capabilities} />)
+    root?.render(
+      <Tooltip.Provider>
+        <DiagnosticsSection capabilities={capabilities} />
+      </Tooltip.Provider>,
+    )
     await Promise.resolve()
   })
   return container

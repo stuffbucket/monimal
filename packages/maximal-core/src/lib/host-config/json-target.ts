@@ -26,6 +26,10 @@ import {
   activeOwnershipConflict,
   connectOwnership,
   disconnectClaim,
+  disconnectUnlocked,
+  inspectClaimOwnership,
+  inspectUnlockedOwnership,
+  resolveInspection,
   validateConfiguratorId,
 } from "~/lib/host-config/ownership"
 import { atomicWriteJson } from "~/lib/platform/atomic-json"
@@ -334,26 +338,38 @@ export async function inspectJsonTarget(
   const paths = sidecarPaths(options.targetPath, options.sidecarDirectory)
   ensureSidecarDirectory(paths.directory)
 
-  return withHostConfigLock(paths.lock, async () => {
-    const document = readJsonObject(options.targetPath)
-    if (
-      !recoverJournal({
-        paths,
-        targetPath: options.targetPath,
-        document,
-      })
-    ) {
-      return { status: "recovery-required" }
-    }
-    const claim = readClaim(paths.claim)
-    if (!claim) return { status: "available" }
-    const ownershipConflict = await activeOwnershipConflict(claim, options)
-    if (ownershipConflict) return ownershipConflict
-    if (!managedFieldsMatch(document, claim.fields)) {
-      return { status: "changed-externally", claim }
-    }
-    return { status: "connected", claim }
-  })
+  const claim = readClaim(paths.claim)
+  const recoveryPending = fs.existsSync(paths.journal)
+  const unlocked = await inspectUnlockedOwnership(
+    claim,
+    recoveryPending,
+    options,
+  )
+  if (unlocked) return unlocked
+
+  const inspected = await withHostConfigLock<InspectTargetResult | TargetClaim>(
+    paths.lock,
+    () => {
+      const document = readJsonObject(options.targetPath)
+      if (
+        !recoverJournal({
+          paths,
+          targetPath: options.targetPath,
+          document,
+        })
+      ) {
+        return { status: "recovery-required" }
+      }
+      const ownership = inspectClaimOwnership(readClaim(paths.claim), options)
+      if ("result" in ownership) return ownership.result
+      const { claim } = ownership
+      if (!managedFieldsMatch(document, claim.fields)) {
+        return { status: "changed-externally", claim }
+      }
+      return { status: "connected", claim }
+    },
+  )
+  return resolveInspection(inspected, options)
 }
 
 /** Claim and patch one JSON target. All Maximal writers share the sidecar lock. */
@@ -493,6 +509,12 @@ export async function disconnectJsonTarget(
   validateConfiguratorId(options.configuratorId)
   const paths = sidecarPaths(options.targetPath, options.sidecarDirectory)
   ensureSidecarDirectory(paths.directory)
+
+  const unlocked = disconnectUnlocked(
+    readClaim(paths.claim),
+    fs.existsSync(paths.journal),
+  )
+  if (unlocked) return unlocked
 
   return withHostConfigLock(paths.lock, () => {
     const document = readJsonObject(options.targetPath)

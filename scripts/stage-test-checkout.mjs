@@ -164,6 +164,22 @@ export function stageCheckout({
   return count;
 }
 
+const mutationIncrementalRelativePath =
+  "packages/maximal-core/reports/mutation/incremental.json";
+
+/** Restores Stryker's own incremental cache so it (not us) decides which mutants to re-run. */
+export function seedMutationIncremental(
+  checkout = checkoutRoot,
+  workspace = workspaceRoot,
+) {
+  const source = targetPath(checkout, mutationIncrementalRelativePath);
+  if (!fs.statSync(source, { throwIfNoEntry: false })?.isFile()) return false;
+  const destination = targetPath(workspace, mutationIncrementalRelativePath);
+  fs.mkdirSync(path.dirname(destination), { recursive: true });
+  fs.copyFileSync(source, destination);
+  return true;
+}
+
 function run(command, arguments_, environment, label) {
   const result = spawnSync(command, arguments_, {
     cwd: workspaceRoot,
@@ -201,6 +217,9 @@ export function parseStageOptions(arguments_) {
 export function main(arguments_ = process.argv.slice(2)) {
   const options = parseStageOptions(arguments_);
   stageCheckout();
+  if (process.env.MAXIMAL_MUTATION_INCREMENTAL_SEED === "1") {
+    seedMutationIncremental();
+  }
   const environment = {
     ...process.env,
     MAXIMAL_GIT_SHA: gitOutput(["rev-parse", "HEAD"], checkoutRoot).trim(),

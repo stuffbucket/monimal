@@ -10,7 +10,7 @@ import { Switch } from '../controls/Fields.js';
 import { Banner, EmptyState, Tag } from '../controls/Layout.js';
 import { Dialog } from '../controls/Overlays.js';
 
-import { CopyButton } from './CopyButton.js';
+import { CopyButton } from '../CopyButton.js';
 import { SETTINGS_STYLES } from './SettingsPage.js';
 
 /**

@@ -315,7 +315,8 @@ test('native Settings flyout opens every restored section in the packaged UI', a
   await expect(page.locator('[data-testid="toggle-right"]')).toHaveCount(0)
 })
 
-test('model settings preserve hierarchy and semantics at narrow widths', async (_fixtures, testInfo) => {
+test('model settings preserve hierarchy and semantics at narrow widths', async () => {
+  const testInfo = test.info()
   const page = await mainWindow()
   const originalSize = await running.app.evaluate(({ BrowserWindow }) => {
     const window = BrowserWindow.getAllWindows().find(

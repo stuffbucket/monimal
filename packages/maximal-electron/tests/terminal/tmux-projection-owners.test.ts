@@ -41,7 +41,7 @@ function projectionRegistry(
   wire: ReturnType<typeof processWire>,
   events: Partial<Pick<TmuxProjectionOwnersOptions<TestOwner>, 'emit' | 'onExit'>> = {},
 ): TmuxProjectionOwners<TestOwner> {
-  return new TmuxProjectionOwners({
+  return new TmuxProjectionOwners<TestOwner>({
     homeDirectory: '/home/ada',
     command: successfulCommand,
     connector: { connect: () => wire.process },

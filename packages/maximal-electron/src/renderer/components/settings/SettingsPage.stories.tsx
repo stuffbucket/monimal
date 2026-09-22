@@ -2,8 +2,8 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, within } from 'storybook/test';
 
 import { Button } from '../controls/Button.js';
+import { CopyButton } from '../CopyButton.js';
 
-import { CopyButton } from './CopyButton.js';
 import { SettingsPage, SettingsSection } from './SettingsPage.js';
 
 /**
@@ -46,7 +46,7 @@ export const Bare: Story = {
   args: { description: undefined, actions: undefined },
 };
 
-/** The button says what happened, next to the thing it happened to. */
+/** The tooltip confirms what happened without adding text beside the icon. */
 export const Copy: StoryObj = {
   name: 'CopyButton',
   render: () => <CopyButton text="http://127.0.0.1:4141" />,

@@ -94,9 +94,23 @@ describe('core lifecycle status (no sidecar spawned)', () => {
     expect(seen).toEqual([{ phase: 'stopped' }])
   })
 
+  it('waits for the sidecar process to exit after signaling shutdown', async () => {
+    const { spawnCore, killCore } = await freshCore()
+    const proc = new FakeChildProcess()
+    spawnMock.mockReturnValueOnce(proc)
+
+    const spawning = spawnCore()
+    writeReadyLine(proc, { controlPort: 5000, proxyPort: 6000 })
+    await spawning
+
+    const stopping = killCore()
+    await expect(stopping).resolves.toBeUndefined()
+    expect(proc.killed).toBe(true)
+  })
+
   it('rejects origin reads made after the sidecar has already stopped', async () => {
     const { awaitControlOrigin, awaitProxyUrl, killCore } = await freshCore()
-    killCore()
+    void killCore()
 
     await expect(awaitControlOrigin()).rejects.toThrow(
       'maximal-core was stopped before it became available',
@@ -125,7 +139,7 @@ describe('core lifecycle status (no sidecar spawned)', () => {
     const unsubscribe = onCoreStatus((status) => seen.push(status))
     unsubscribe()
 
-    killCore()
+    void killCore()
 
     expect(seen).toEqual([])
   })
@@ -146,7 +160,7 @@ describe('launchCore ready-vs-shutdown race', () => {
     // exact moment `killCore()` runs, before `launchCore()` gets a chance to
     // resume and check anything.
     writeReadyLine(proc, { controlPort: 5000, proxyPort: 6000 })
-    killCore()
+    void killCore()
 
     // killCore() already published "stopped" — the assertion that matters is
     // that nothing later overwrites it with a "ready" for a process that is

@@ -72,6 +72,9 @@ const {
     show: vi.fn(() => {
       windowState.visible = true
     }),
+    hide: vi.fn(() => {
+      windowState.visible = false
+    }),
     focus: vi.fn(),
     close: vi.fn(),
     setSkipTaskbar: vi.fn(),
@@ -98,8 +101,10 @@ const {
     commandLine: { hasSwitch: vi.fn(() => false) },
     whenReady: vi.fn(() => Promise.resolve()),
     quit: vi.fn(),
+    exit: vi.fn(),
     getPath: vi.fn(() => '/tmp/maximal-client-test'),
     getAppPath: vi.fn(() => '/tmp/maximal-client-test'),
+    setPath: vi.fn(),
     on(event: string, listener: (...args: unknown[]) => void) {
       if (!listeners.has(event)) listeners.set(event, new Set())
       listeners.get(event)?.add(listener)
@@ -232,7 +237,7 @@ vi.mock('./identity.js', () => ({
 }))
 
 const { killCoreMock, spawnCoreMock, onCoreStatusMock } = vi.hoisted(() => ({
-  killCoreMock: vi.fn(),
+  killCoreMock: vi.fn(() => Promise.resolve()),
   spawnCoreMock: vi.fn(() =>
     Promise.resolve({ controlOrigin: '', proxyUrl: '', port: 0, pid: 0 }),
   ),
@@ -1001,6 +1006,15 @@ describe('native update requests', () => {
 })
 
 describe('window-all-closed / before-quit', () => {
+  it('isolates development user data by checkout', async () => {
+    await loadIndexOn('darwin')
+
+    expect(fakeApp.setPath).toHaveBeenCalledWith(
+      'userData',
+      expect.stringMatching(/^\/tmp\/maximal-client-test-[0-9a-f]{8}$/),
+    )
+  })
+
   it('on darwin keeps core alive on window close and disposes it on real quit', async () => {
     await loadIndexOn('darwin')
 
@@ -1024,12 +1038,18 @@ describe('window-all-closed / before-quit', () => {
     expect(fakeApp.quit).toHaveBeenCalledTimes(1)
   })
 
-  it('defers the first quit until harness shutdown and does not recurse', async () => {
+  it('defers process exit until harness and Core shutdown', async () => {
     await loadIndexOn('darwin')
     let resolveShutdown: (() => void) | undefined
+    let resolveCoreShutdown: (() => void) | undefined
     stopHarnessHostMock.mockReturnValueOnce(
       new Promise<void>((resolve) => {
         resolveShutdown = resolve
+      }),
+    )
+    killCoreMock.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        resolveCoreShutdown = resolve
       }),
     )
     const first = { preventDefault: vi.fn() }
@@ -1037,12 +1057,17 @@ describe('window-all-closed / before-quit', () => {
     fakeApp.emit('before-quit', first)
 
     expect(first.preventDefault).toHaveBeenCalledOnce()
+    expect(fakeWindow.hide).toHaveBeenCalledOnce()
     expect(stopHarnessHostMock).toHaveBeenCalledOnce()
     expect(fakeApp.quit).not.toHaveBeenCalled()
 
     resolveShutdown?.()
+    await Promise.resolve()
+    expect(fakeApp.exit).not.toHaveBeenCalled()
+
+    resolveCoreShutdown?.()
     await vi.waitFor(() => {
-      expect(fakeApp.quit).toHaveBeenCalledOnce()
+      expect(fakeApp.exit).toHaveBeenCalledWith(0)
     })
 
     const second = { preventDefault: vi.fn() }
@@ -1050,8 +1075,8 @@ describe('window-all-closed / before-quit', () => {
 
     expect(second.preventDefault).not.toHaveBeenCalled()
     expect(stopHarnessHostMock).toHaveBeenCalledOnce()
-    expect(fakeApp.quit).toHaveBeenCalledOnce()
-    expect(disposeControlSessionMock).toHaveBeenCalledTimes(2)
-    expect(killCoreMock).toHaveBeenCalledTimes(2)
+    expect(fakeApp.exit).toHaveBeenCalledOnce()
+    expect(disposeControlSessionMock).toHaveBeenCalledOnce()
+    expect(killCoreMock).toHaveBeenCalledOnce()
   })
 })

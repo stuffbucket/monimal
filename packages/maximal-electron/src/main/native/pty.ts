@@ -4,14 +4,12 @@ import {
   TerminalHost,
   TmuxProjectionOwners,
   type TerminalSession,
-  type TerminalStatus,
 } from '../../host/terminal-host.js';
 import type {
   PtyProjectionAttachRequest,
   PtyProjectionResizeRequest,
   PtyProjectionWriteRequest,
   PtySpawnRequest,
-  PtyStatus,
   TerminalDiscovery,
   TerminalLaunchRequest,
   TerminalLaunchResult,
@@ -40,6 +38,7 @@ import { clampTerminalGrid } from '../../shared/terminal-grid.js';
 import type { TerminalPaneLayout } from '../../shared/ipc.js';
 
 import { Owners } from './pty-session.js';
+import type { PtyHandlers } from './pty-handlers.js';
 import { TerminalWindowGroups } from './pty-window-groups.js';
 
 /**
@@ -58,44 +57,18 @@ import { TerminalWindowGroups } from './pty-window-groups.js';
  * session starts, and where its output goes.
  */
 
-/** Emit batched output, and the end of a session, to the owning window. */
-type Emit = (owner: BrowserWindow, id: string, chunk: string, sequence?: number, projectionId?: string) => void;
-type Exit = (owner: BrowserWindow, id: string, exitCode: number, projectionId?: string) => void;
-type Status = (owner: BrowserWindow, status: PtyStatus) => void;
-/** Tell one window the authoritative size a mirrored session settled on. */
-type Size = (
-  window: BrowserWindow,
-  id: string,
-  cols: number,
-  rows: number,
-  projectionId?: string,
-) => void;
-type Pane = (
-  window: BrowserWindow,
-  id: string,
-  pane: TerminalPaneLayout,
-  revision: number,
-  origin: string,
-) => void;
+let emit: PtyHandlers['emit'] = () => undefined;
+let onExit: PtyHandlers['onExit'] = () => undefined;
+let onStatus: PtyHandlers['onStatus'] = () => undefined;
+let onSize: NonNullable<PtyHandlers['onSize']> = () => undefined;
+let onPane: NonNullable<PtyHandlers['onPane']> = () => undefined;
 
-let emit: Emit = () => undefined;
-let onExit: Exit = () => undefined;
-let onStatus: Status = () => undefined;
-let onSize: Size = () => undefined;
-let onPane: Pane = () => undefined;
-
-export function configurePty(
-  handlers: { emit: Emit; onExit: Exit; onStatus: Status; onSize?: Size; onPane?: Pane },
-): void {
+export function configurePty(handlers: PtyHandlers): void {
   emit = handlers.emit;
   onExit = handlers.onExit;
   onStatus = handlers.onStatus;
   onSize = handlers.onSize ?? (() => undefined);
   onPane = handlers.onPane ?? (() => undefined);
-}
-
-function ptyStatus(status: TerminalStatus): PtyStatus {
-  return status;
 }
 
 /** The user's login shell, or a sane default for the platform. */
@@ -126,7 +99,7 @@ const hosts = new Owners<BrowserWindow, TerminalHost>(
         onExit(owner, id, exitCode);
       },
       onStatus: (status) => {
-        onStatus(owner, ptyStatus(status));
+        onStatus(owner, status);
       },
     });
   },

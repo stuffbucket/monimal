@@ -12,7 +12,7 @@ import type {
   SearchSettingsResponse,
   SettingsCapabilities,
 } from './capabilities'
-import { describeError } from './format'
+import { describeError } from '../shared/errors'
 
 interface DiagnosticsSectionProps {
   capabilities: SettingsCapabilities
@@ -113,6 +113,43 @@ function copyReport(snapshot: DiagnosticsSnapshot): string {
   }, undefined, 2)
 }
 
+function diagnosticsRows(
+  snapshot: DiagnosticsSnapshot,
+): Array<[string, string | number | boolean | null]> {
+  return [
+    ['Version', snapshot.diagnostics.version],
+    ['Revision', snapshot.diagnostics.source_revision],
+    ['Source branch', snapshot.diagnostics.source_branch],
+    ['Launch kind', snapshot.diagnostics.launch_kind],
+    ['Launch path', snapshot.diagnostics.launch_path],
+    ['Process ID', snapshot.diagnostics.pid],
+    ['Uptime', formatUptime(snapshot.diagnostics.uptime_ms)],
+    ['Account type', snapshot.diagnostics.account_type],
+    ['Models', modelSummary(snapshot.models)],
+    ['Configured apps', snapshot.apps.apps.map((app) => (
+      `${app.name}: ${app.enabled ? 'enabled' : app.status}`
+    )).join('; ') || 'None'],
+    ['Client connections', snapshot.connections.clients.map((client) => (
+      `${client.name}: ${client.status}`
+    )).join('; ') || 'None'],
+    ['Known API keys required', snapshot.connections.require_known_keys],
+    ['Search providers', configuredSearchProviders(snapshot.search)],
+    ['Search configuration', configuredSearchSettings(snapshot.search)],
+    ['Web search mode', snapshot.diagnostics.web_search.kind],
+    ['Web search detail', snapshot.diagnostics.web_search.detail],
+    ['GitHub token present', snapshot.diagnostics.tokens.github_token_present],
+    ['Copilot token present', snapshot.diagnostics.tokens.copilot_token_present],
+    ['Copilot refresh health', snapshot.diagnostics.copilot_refresh?.health ?? null],
+    ['Refresh failures', snapshot.diagnostics.copilot_refresh?.consecutive_failures ?? null],
+    ['Rate-limit interval (seconds)', snapshot.diagnostics.rate_limit.interval_seconds],
+    ['Wait when throttled', snapshot.diagnostics.rate_limit.wait_when_throttled],
+    ['Copilot upstream', snapshot.diagnostics.copilot_service?.upstream_host ?? null],
+    ['GitHub API base URL', snapshot.diagnostics.copilot_service?.github_api_base_url ?? null],
+    ['Copilot token endpoint', snapshot.diagnostics.copilot_service?.token_endpoint ?? null],
+    ['Enterprise domain', snapshot.diagnostics.copilot_service?.enterprise_domain ?? null],
+  ]
+}
+
 export function DiagnosticsSection({
   capabilities,
 }: DiagnosticsSectionProps): ReactElement {
@@ -163,40 +200,7 @@ export function DiagnosticsSection({
     }
   }, [loadSnapshot])
 
-  const rows: Array<[string, string | number | boolean | null]> = snapshot
-    ? [
-        ['Version', snapshot.diagnostics.version],
-        ['Revision', snapshot.diagnostics.source_revision],
-        ['Source branch', snapshot.diagnostics.source_branch],
-        ['Launch kind', snapshot.diagnostics.launch_kind],
-        ['Launch path', snapshot.diagnostics.launch_path],
-        ['Process ID', snapshot.diagnostics.pid],
-        ['Uptime', formatUptime(snapshot.diagnostics.uptime_ms)],
-        ['Account type', snapshot.diagnostics.account_type],
-        ['Models', modelSummary(snapshot.models)],
-        ['Configured apps', snapshot.apps.apps.map((app) => (
-          `${app.name}: ${app.enabled ? 'enabled' : app.status}`
-        )).join('; ') || 'None'],
-        ['Client connections', snapshot.connections.clients.map((client) => (
-          `${client.name}: ${client.status}`
-        )).join('; ') || 'None'],
-        ['Known API keys required', snapshot.connections.require_known_keys],
-        ['Search providers', configuredSearchProviders(snapshot.search)],
-        ['Search configuration', configuredSearchSettings(snapshot.search)],
-        ['Web search mode', snapshot.diagnostics.web_search.kind],
-        ['Web search detail', snapshot.diagnostics.web_search.detail],
-        ['GitHub token present', snapshot.diagnostics.tokens.github_token_present],
-        ['Copilot token present', snapshot.diagnostics.tokens.copilot_token_present],
-        ['Copilot refresh health', snapshot.diagnostics.copilot_refresh?.health ?? null],
-        ['Refresh failures', snapshot.diagnostics.copilot_refresh?.consecutive_failures ?? null],
-        ['Rate-limit interval (seconds)', snapshot.diagnostics.rate_limit.interval_seconds],
-        ['Wait when throttled', snapshot.diagnostics.rate_limit.wait_when_throttled],
-        ['Copilot upstream', snapshot.diagnostics.copilot_service?.upstream_host ?? null],
-        ['GitHub API base URL', snapshot.diagnostics.copilot_service?.github_api_base_url ?? null],
-        ['Copilot token endpoint', snapshot.diagnostics.copilot_service?.token_endpoint ?? null],
-        ['Enterprise domain', snapshot.diagnostics.copilot_service?.enterprise_domain ?? null],
-      ]
-    : []
+  const rows = snapshot ? diagnosticsRows(snapshot) : []
 
   return (
     <section className="settings-section">

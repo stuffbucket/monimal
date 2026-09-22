@@ -1,9 +1,9 @@
-export { Canvas, type CanvasViewMode } from './components/Canvas.js';
+export { Canvas, type CanvasViewMode } from "./components/Canvas.js";
 export {
   NavRail,
   type NavRailEntry,
   type NavRailSection,
-} from './components/NavRail.js';
+} from "./components/NavRail.js";
 export {
   AppFrame,
   SurfaceRail,
@@ -13,19 +13,19 @@ export {
   useTabPanelId,
   useTabTriggerId,
   type AppFrameProps,
-} from './components/AppFrame.js';
+} from "./components/AppFrame.js";
 export {
   PartitionedSortableList,
   type PartitionedSortableItem,
   type PartitionedSortableListProps,
-} from './components/PartitionedSortableList.js';
+} from "./components/PartitionedSortableList.js";
 export {
   ShellLayout,
   type PanelSize,
   type PanelToggleSubscription,
   type ShellPanel,
   type ShellLayoutProps,
-} from './components/ShellLayout.js';
+} from "./components/ShellLayout.js";
 export {
   getTabPanelId,
   getTabTriggerId,
@@ -33,7 +33,7 @@ export {
   type Tab,
   type TabStripProps,
   type TabTransferOptions,
-} from './components/TabBar.js';
+} from "./components/TabBar.js";
 export {
   decodeTabTransfer,
   encodeTabTransfer,
@@ -41,7 +41,7 @@ export {
   TAB_TRANSFER_MIME,
   type TabDetachPosition,
   type TabTransfer,
-} from './lib/tab-transfer.js';
+} from "./lib/tab-transfer.js";
 export {
   adornmentLabel,
   EMPHASIS_LABELS,
@@ -53,11 +53,11 @@ export {
   type TabEmphasis,
   type TabIconName,
   type TabSlot,
-} from './lib/tab-adornment.js';
+} from "./lib/tab-adornment.js";
 export {
   TerminalTabs,
   type TerminalTabsProps,
-} from './components/TerminalTabs.js';
+} from "./components/TerminalTabs.js";
 export {
   TerminalLauncher,
   type TerminalDiscovery,
@@ -66,17 +66,17 @@ export {
   type TerminalLauncherProps,
   type TerminalProfileSummary,
   type TerminalTargetSummary,
-} from './components/TerminalLauncher.js';
+} from "./components/TerminalLauncher.js";
 export {
   TerminalView,
   type TerminalHost,
   type TerminalViewProps,
-} from './components/TerminalView.js';
-export { TitleBar } from './components/TitleBar.js';
+} from "./components/TerminalView.js";
+export { TitleBar } from "./components/TitleBar.js";
 export {
   WindowChrome,
   type WindowChromeProps,
-} from './components/WindowChrome.js';
+} from "./components/WindowChrome.js";
 export {
   fill,
   SHELL_CONTENT,
@@ -90,18 +90,18 @@ export {
   type ShellDiagnosticsContent,
   type ShellModelsContent,
   type ShellUsageContent,
-} from './lib/content.js';
-export { LOREM_CONTENT } from './lib/content-lorem.js';
+} from "./lib/content.js";
+export { LOREM_CONTENT } from "./lib/content-lorem.js";
 export type {
   GhosttyWindowAdjustment,
   TerminalEmulatorKind,
-} from './lib/terminal-emulator.js';
+} from "./lib/terminal-emulator.js";
 export {
   newTerminalTab,
   terminalDirectoryTitle,
   terminalProcessTitle,
   type TerminalShellTab,
-} from './lib/terminal-tab.js';
+} from "./lib/terminal-tab.js";
 export {
   isTerminalPane,
   removeTerminalPane,
@@ -109,7 +109,7 @@ export {
   terminalPaneSessionIds,
   type TerminalPane,
   type TerminalSplitDirection,
-} from './lib/terminal-pane.js';
+} from "./lib/terminal-pane.js";
 export {
   assertTerminalWorkspace,
   closeTerminalView,
@@ -136,8 +136,8 @@ export {
   type TerminalViewRecord,
   type TerminalWorkspace,
   type TerminalWorkspaceInput,
-} from './lib/terminal-workspace.js';
-export { detachedSessions } from './lib/terminal-sessions.js';
+} from "./lib/terminal-workspace.js";
+export { detachedSessions } from "./lib/terminal-sessions.js";
 export {
   createTerminalTransport,
   readTerminalTheme,
@@ -152,7 +152,7 @@ export {
   type TerminalSession,
   type TerminalTransport,
   type TerminalTransportOptions,
-} from './lib/terminal-transport.js';
+} from "./lib/terminal-transport.js";
 export {
   Banner,
   Button,
@@ -187,7 +187,7 @@ export {
   type Option,
   type TileProps,
   type ViewMode,
-} from './components/controls/index.js';
+} from "./components/controls/index.js";
 export {
   type ApiClient,
   type AppIntegration,
@@ -204,12 +204,10 @@ export {
   type UsagePeriod,
   type UsageReport,
   type UsageTotals,
-} from './lib/settings.js';
+} from "./lib/settings.js";
 export {
   ApiKeysDialog,
   AppTogglesDialog,
-  CopyButton,
-  copyText,
   Diagnostics,
   ModelCardGrid,
   ModelCards,
@@ -220,10 +218,11 @@ export {
   SettingsItem,
   SettingsSection,
   Usage,
-} from './components/settings/index.js';
-export { useShellTabs } from './lib/useShellTabs.js';
-export { useDetachedTerminals } from './lib/useDetachedTerminals.js';
+} from "./components/settings/index.js";
+export { CopyButton, copyText } from "./components/CopyButton.js";
+export { useShellTabs } from "./lib/useShellTabs.js";
+export { useDetachedTerminals } from "./lib/useDetachedTerminals.js";
 export {
   useThemePreference,
   type ThemePreference,
-} from './lib/useThemePreference.js';
+} from "./lib/useThemePreference.js";
