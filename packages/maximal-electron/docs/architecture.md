@@ -426,14 +426,6 @@ Packager's own walk keeps `dependencies` and drops the rest, while this package
 declares no runtime dependencies. An external native module therefore goes in
 `devDependencies` and reaches the reference package through the keep-list.
 
-`*.node` is not the whole of it. On macOS `node-pty` `execvp`s `spawn-helper`,
-which sits beside `pty.node` and has no extension, at a path it rewrites from
-`app.asar` to `app.asar.unpacked`. An `unpack` glob of only `*.node` leaves the
-helper inside the archive and every shell fails to start with
-`posix_spawn failed`. The whole prebuild tree is unpacked instead. Windows needs
-the same treatment for `conpty.dll` and `OpenConsole.exe`, which `conpty.node`
-loads.
-
 **The package comes from Microsoft.** `@lydell/node-pty` repackages the same
 published tarball — the binaries and the seven files in the package's `lib`
 directory hash identically — and adds a single maintainer with no continuous
