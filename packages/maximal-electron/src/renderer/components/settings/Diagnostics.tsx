@@ -9,8 +9,8 @@ import {
 import { Button } from '../controls/Button.js';
 import { Field, FieldList } from '../controls/Fields.js';
 import { EmptyState, StatusChip } from '../controls/Layout.js';
+import { CopyButton } from '../CopyButton.js';
 
-import { CopyButton } from './CopyButton.js';
 import { SettingsPage, SettingsSection } from './SettingsPage.js';
 
 /**

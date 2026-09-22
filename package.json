@@ -28,13 +28,16 @@
     "docker:prune:test-images": "node scripts/prune-test-images.mjs",
     "mutate:core": "node scripts/docker-mutate.mjs",
     "mutate:core:inner": "node scripts/assert-test-container.mjs && pnpm --filter @stuffbucket/maximal-core exec stryker run",
+    "check:file-sizes": "node scripts/check-file-sizes.mjs",
+    "check:cross-package-duplicates": "node scripts/check-cross-package-duplicates.mjs",
     "verify:workspace": "node scripts/verify-workspace.mjs",
     "check:core": "pnpm --filter @stuffbucket/maximal-core run check:deep:host && pnpm run test:core",
-    "check": "pnpm run check:static && pnpm --filter @stuffbucket/maximal-core run check:deep:host && pnpm test",
+    "check": "pnpm run check:static && pnpm run check:cross-package-duplicates && pnpm --filter @stuffbucket/maximal-core run check:deep:host && pnpm test",
     "package": "turbo run package --filter=maximal-client",
     "package:all": "turbo run package"
   },
   "devDependencies": {
+    "jsinspect-plus": "3.1.3",
     "turbo": "^2.10.12"
   },
   "engines": {

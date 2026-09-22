@@ -109,7 +109,7 @@ export function exportedModules(): [string, string][] {
     found.push([base, text]);
 
     const directory = path.posix.dirname(base);
-    for (const match of text.matchAll(/from\s*'(\.[^']+)'/g)) {
+    for (const match of text.matchAll(/from\s*["'](\.[^"']+)["']/g)) {
       const target = match[1];
       if (target !== undefined) pending.push(path.posix.join(directory, target));
     }

@@ -26,3 +26,17 @@ export function deriveExpiry(expiresAtIso: string | undefined, now: number = Dat
   const remainingMs = expiresAtMs - now
   return { remainingMs: Math.max(0, remainingMs), expired: remainingMs <= 0 }
 }
+
+/** Whole minutes remaining until `expiresAtIso`, floored, never negative. An
+ *  unparseable or absent value reads as already expired. `now` is injectable
+ *  so a caller can recompute on a timer deterministically. */
+export function minutesRemaining(expiresAtIso: string, now: number = Date.now()): number {
+  return Math.floor(deriveExpiry(expiresAtIso, now).remainingMs / 60_000)
+}
+
+/** True once `expiresAtIso` has passed, or is absent/unparseable. Lets the
+ *  device-code panel show "expired" without waiting for the next round trip
+ *  to collapse the state. */
+export function hasExpired(expiresAtIso: string, now: number = Date.now()): boolean {
+  return deriveExpiry(expiresAtIso, now).expired
+}

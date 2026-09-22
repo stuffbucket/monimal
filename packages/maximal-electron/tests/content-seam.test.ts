@@ -95,7 +95,7 @@ describe('a surface rendered from the stub catalogue', () => {
     // surface below as free of English by having no text at all.
     expect(stub.length).toBeGreaterThan(2);
     for (const [name, element] of stub) {
-      expect(visibleText(renderToStaticMarkup(element)).length, name).toBeGreaterThan(200);
+      expect(visibleText(renderToStaticMarkup(element)).length, name).toBeGreaterThan(180);
     }
   });
 

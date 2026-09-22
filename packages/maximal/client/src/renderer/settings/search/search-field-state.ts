@@ -3,7 +3,7 @@ import { settingValueError } from '@stuffbucket/maximal-harness'
 import type {
   ConnectorSettingField,
   ConnectorSettingValue,
-} from './capabilities'
+} from '../capabilities'
 
 interface SettingValidationContext {
   overridden?: boolean

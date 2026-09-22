@@ -100,6 +100,19 @@ describe('the renderer entry point', () => {
 });
 
 describe('packaged renderer components', () => {
+  it('renders copy as a tooltip-labelled icon without button pill text', () => {
+    const markup = renderToStaticMarkup(
+      <Tooltip.Provider>
+        <surface.CopyButton text="value" about="the endpoint" />
+      </Tooltip.Provider>,
+    );
+
+    expect(markup).toContain('class="icon-button"');
+    expect(markup).toContain('aria-label="Copy the endpoint"');
+    expect(markup).not.toContain('class="btn');
+    expect(markup).not.toMatch(/>Copy the endpoint<\/button>/);
+  });
+
   it('groups settings page actions beside the title register', () => {
     const markup = renderToStaticMarkup(
       <surface.SettingsPage

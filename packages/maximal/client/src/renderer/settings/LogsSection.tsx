@@ -10,7 +10,7 @@ import {
 } from 'stuffbucket-electron/renderer'
 
 import type { SettingsCapabilities } from './capabilities'
-import { describeError } from './format'
+import { describeError } from '../shared/errors'
 
 interface LogsSectionProps {
   capabilities: SettingsCapabilities

@@ -12,19 +12,18 @@
  * when the task is done.
  */
 
-export { ApiKeysDialog } from './ApiKeysDialog.js';
-export { AppTogglesDialog } from './AppTogglesDialog.js';
-export { CopyButton, copyText } from './CopyButton.js';
-export { Diagnostics } from './Diagnostics.js';
-export { ModelCardGrid, ModelCards } from './ModelCards.js';
+export { ApiKeysDialog } from "./ApiKeysDialog.js";
+export { AppTogglesDialog } from "./AppTogglesDialog.js";
+export { Diagnostics } from "./Diagnostics.js";
+export { ModelCardGrid, ModelCards } from "./ModelCards.js";
 export {
-	SettingsGroup,
-	SettingsItem,
-	SettingsPage,
-	SettingsSection,
-} from './SettingsPage.js';
+  SettingsGroup,
+  SettingsItem,
+  SettingsPage,
+  SettingsSection,
+} from "./SettingsPage.js";
 export {
-	SettingsDisclosure,
-	SettingsDisclosureList,
-} from './SettingsDisclosure.js';
-export { Usage } from './Usage.js';
+  SettingsDisclosure,
+  SettingsDisclosureList,
+} from "./SettingsDisclosure.js";
+export { Usage } from "./Usage.js";

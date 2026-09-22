@@ -38,6 +38,7 @@ import {
 } from "../scripts/docker-test.mjs";
 import {
   parseStageOptions,
+  seedMutationIncremental,
   shouldStagePath,
   stageCheckout,
   validateCheckoutPath,
@@ -424,7 +425,7 @@ test("the outer and fixed inner test scripts cannot recurse", () => {
   );
   assert.equal(
     manifest.scripts.check,
-    "pnpm run check:static && pnpm --filter @stuffbucket/maximal-core run check:deep:host && pnpm test",
+    "pnpm run check:static && pnpm run check:cross-package-duplicates && pnpm --filter @stuffbucket/maximal-core run check:deep:host && pnpm test",
   );
   assert.equal(
     (manifest.scripts.check.match(/(?:^|&& )pnpm test(?: |$)/g) ?? []).length,
@@ -605,7 +606,7 @@ test("the client React hooks policy is narrow and content-pinned", async () => {
   ]);
   assert.deepEqual(hooks.rules, {
     "react-hooks/rules-of-hooks": "error",
-    "react-hooks/exhaustive-deps": "warn",
+    "react-hooks/exhaustive-deps": "error",
     "react-hooks/refs": "error",
     "react-hooks/set-state-in-effect": "error",
   });
@@ -1217,12 +1218,25 @@ test("mutation arguments use the same mounted dependency boundary", () => {
   const joined = arguments_.join(" ");
   assert.match(joined, /target=\/checkout,readonly/);
   assert.doesNotMatch(joined, /--env-file|docker\.sock|--network=host/);
+
+  const incremental = createMutationContainerArguments(imageId, {
+    ...options,
+    incremental: true,
+  });
+  assert.deepEqual(incremental, [
+    ...arguments_.slice(0, arguments_.indexOf(imageId)),
+    "--env",
+    "MAXIMAL_MUTATION_INCREMENTAL_SEED=1",
+    ...arguments_.slice(arguments_.indexOf(imageId)),
+    "--incremental",
+  ]);
 });
 
 test("mutation selectors validate affected, explicit, and full source scopes", () => {
   assert.deepEqual(parseMutationOptions([]), {
     all: false,
     concurrency: undefined,
+    incremental: false,
     mutate: undefined,
   });
   const explicit = parseMutationOptions([
@@ -1233,10 +1247,21 @@ test("mutation selectors validate affected, explicit, and full source scopes", (
   assert.deepEqual(explicit, {
     all: false,
     concurrency: 4,
+    incremental: false,
     mutate:
       "src/lib/observability/query.ts:43-65,src/lib/observability/schema.ts",
   });
   const all = parseMutationOptions(["--all"]);
+  const incremental = parseMutationOptions([
+    "--incremental",
+    "--concurrency=8",
+  ]);
+  assert.deepEqual(incremental, {
+    all: false,
+    concurrency: 8,
+    incremental: true,
+    mutate: undefined,
+  });
   assert.equal(resolveMutationTargets(explicit), explicit.mutate);
   assert.equal(resolveMutationTargets(all), "src/**/*.ts");
   for (const option of [
@@ -1263,9 +1288,51 @@ test("mutation selectors validate affected, explicit, and full source scopes", (
     /Duplicate --mutate/,
   );
   assert.throws(
+    () => parseMutationOptions(["--incremental", "--incremental"]),
+    /Duplicate --incremental/,
+  );
+  assert.throws(
     () => parseMutationOptions(["--concurrency=4", "--concurrency=10"]),
     /Duplicate --concurrency/,
   );
+});
+
+test("the mutation incremental cache is restored from the read-only checkout, not staged source", () => {
+  const fixture = fs.mkdtempSync(
+    path.join(os.tmpdir(), "monimal-mutation-incremental-"),
+  );
+  try {
+    const checkout = path.join(fixture, "checkout");
+    const workspace = path.join(fixture, "workspace");
+    fs.mkdirSync(checkout, { recursive: true });
+    fs.mkdirSync(workspace, { recursive: true });
+
+    assert.equal(seedMutationIncremental(checkout, workspace), false);
+
+    const incrementalDirectory = path.join(
+      checkout,
+      "packages/maximal-core/reports/mutation",
+    );
+    fs.mkdirSync(incrementalDirectory, { recursive: true });
+    fs.writeFileSync(
+      path.join(incrementalDirectory, "incremental.json"),
+      '{"schemaVersion":"1"}',
+    );
+
+    assert.equal(seedMutationIncremental(checkout, workspace), true);
+    assert.equal(
+      fs.readFileSync(
+        path.join(
+          workspace,
+          "packages/maximal-core/reports/mutation/incremental.json",
+        ),
+        "utf8",
+      ),
+      '{"schemaVersion":"1"}',
+    );
+  } finally {
+    fs.rmSync(fixture, { recursive: true, force: true });
+  }
 });
 
 test("mutation reports replace the prior report only after validation", () => {

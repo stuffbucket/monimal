@@ -233,6 +233,7 @@ directly; no preceding Docker test is required.
 pnpm run mutate:core
 pnpm run mutate:core -- --mutate=src/routes/messages/utils.ts:40-57 --concurrency=4
 pnpm run mutate:core -- --all
+pnpm run mutate:core -- --incremental
 ```
 
 The default compares the current checkout with the `origin/main` merge base. It
@@ -243,9 +244,18 @@ lines changed, the command fails closed instead of expanding to all source.
 
 `--mutate` completely overrides the derived source targets. `--all` is mutually
 exclusive with that override and deliberately selects the expensive
-`src/**/*.ts` sweep. These options narrow only the code Stryker mutates. Every
-selected mutant still runs Core's complete mutation-safe test command because the
-command runner has no safe test-to-mutant coverage map.
+`src/**/*.ts` sweep. These two options narrow only the code Stryker mutates.
+Every selected mutant still runs Core's complete mutation-safe test command
+because the command runner has no safe test-to-mutant coverage map.
+
+`--incremental` is a separate, combinable axis: it passes Stryker's own
+`--incremental` flag through to `stryker run`, so Stryker decides which mutants
+it can skip because their prior result is still valid, rather than us
+re-deriving a target list ourselves. Stryker's incremental cache
+(`reports/mutation/incremental.json`) is restored into the fresh disposable
+container from the read-only `/checkout` mount before the run and republished
+afterward, so it persists across separate `mutate:core` invocations despite
+each one running in a throwaway container.
 
 The mutation wrapper uses the same read-only checkout mount and runtime isolation
 flags. It uses `docker create`, `start --attach`, `cp`, and `rm --force` because

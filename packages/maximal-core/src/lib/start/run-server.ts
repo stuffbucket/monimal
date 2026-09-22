@@ -405,6 +405,7 @@ async function bindListeners({
       fetch: apps.publicApp.fetch,
       port: proxyPort,
       bun: { idleTimeout: 0 },
+      gracefulShutdown: false,
     })
     listeners.push(proxyServer)
     const controlServer = serveImpl({
@@ -412,6 +413,7 @@ async function bindListeners({
       port: controlPort,
       hostname: "127.0.0.1",
       bun: { idleTimeout: 0 },
+      gracefulShutdown: false,
     })
     listeners.push(controlServer)
     return { proxyServer, controlServer, providerDispatcher }

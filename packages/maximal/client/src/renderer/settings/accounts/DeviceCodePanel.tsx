@@ -2,8 +2,8 @@ import { useEffect, useState, type ReactElement } from 'react'
 
 import { Button, Note } from 'stuffbucket-electron/renderer'
 
-import { spellOutCode } from '../shared/device-code'
-import { hasExpired, minutesRemaining } from './format'
+import { spellOutCode } from '../../shared/device-code'
+import { hasExpired, minutesRemaining } from '../../shared/expiry'
 
 // The device-code panel: the code, the verification link, and the two ways
 // out (finish on GitHub, or cancel). Presentational + a small local timer for
