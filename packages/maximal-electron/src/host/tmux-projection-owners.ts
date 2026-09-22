@@ -28,13 +28,15 @@ export class TmuxProjectionOwners<Owner> {
     this.host = new TmuxProjectionHost({
       ...options,
       emit: (sessionId, projectionId, chunk) => {
-        const owner = this.projectionOwners.get(projectionKey(sessionId, projectionId))!;
+        const owner = this.projectionOwners.get(projectionKey(sessionId, projectionId));
+        if (owner === undefined) return;
         options.emit(owner, sessionId, projectionId, chunk);
       },
       onExit: (sessionId, projectionId, exitCode) => {
         const key = projectionKey(sessionId, projectionId);
-        const owner = this.projectionOwners.get(key)!;
+        const owner = this.projectionOwners.get(key);
         this.projectionOwners.delete(key);
+        if (owner === undefined) return;
         options.onExit(owner, sessionId, projectionId, exitCode);
       },
       onGeometry: (sessionId, cols, rows) => {

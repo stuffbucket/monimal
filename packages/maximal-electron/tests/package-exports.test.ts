@@ -11,6 +11,10 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 /** The class every rule in the package stylesheet has to sit under. */
 const SHELL_ROOT = '.sb-shell';
 
+function readShellPackageStyles(): Promise<string> {
+  return readFile(path.join(ROOT, 'src/renderer/styles/shell-package-rules.css'), 'utf8');
+}
+
 interface PackageManifest {
   exports: Record<string, unknown>;
   scripts: Record<string, string>;
@@ -123,14 +127,18 @@ describe('package exports', () => {
   });
 
   it('makes every injected titlebar region non-draggable', async () => {
-    const stylesheet = await readFile(
-      path.join(ROOT, 'src/renderer/styles/shell-package-rules.css'),
-      'utf8',
-    );
+    const stylesheet = await readShellPackageStyles();
 
     expect(stylesheet).toMatch(
       /\.sb-shell \.titlebar__leading,\s*\.sb-shell \.titlebar__actions\s*\{[^}]*-webkit-app-region:\s*no-drag;/s,
     );
+  });
+
+  it('keeps draggable tabs on the ordinary arrow cursor', async () => {
+    const stylesheet = await readShellPackageStyles();
+
+    expect(stylesheet).toMatch(/\.sb-shell \.tab\s*\{[^}]*cursor:\s*default;/s);
+    expect(stylesheet).not.toMatch(/\.tab\[draggable=['"]true['"]\][^{]*\{[^}]*cursor:/s);
   });
 
   /*

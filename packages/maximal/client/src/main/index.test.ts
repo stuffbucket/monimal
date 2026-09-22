@@ -3,7 +3,7 @@ import {
   TrafficRequestDetailQuerySchema,
   TrafficRequestListQuerySchema,
 } from '@stuffbucket/maximal-observability-contract'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   BRIDGE_CHANNELS,
@@ -48,6 +48,7 @@ const {
   runShellMock,
   shellOpenExternal,
   shellOpenPath,
+  showMessageBox,
   webContentsSend,
   windowState,
 } = vi.hoisted(() => {
@@ -72,6 +73,7 @@ const {
       windowState.visible = true
     }),
     focus: vi.fn(),
+    close: vi.fn(),
     setSkipTaskbar: vi.fn(),
     on: vi.fn((event: string, listener: (...args: unknown[]) => void) => {
       windowListeners.set(event, listener)
@@ -82,6 +84,7 @@ const {
     webContents: {
       isLoading: () => windowState.loading,
       send: webContentsSend,
+      reload: vi.fn(),
       on: vi.fn((event: string, listener: (...args: unknown[]) => void) => {
         webContentsListeners.set(event, listener)
       }),
@@ -127,6 +130,7 @@ const {
     runShellMock: vi.fn(() => fakeWindow),
     shellOpenExternal: vi.fn(() => Promise.resolve()),
     shellOpenPath: vi.fn(() => Promise.resolve('')),
+    showMessageBox: vi.fn(() => Promise.resolve({ response: 0 })),
     webContentsSend,
     windowState,
   }
@@ -135,6 +139,7 @@ const {
 vi.mock('electron', () => ({
   app: fakeApp,
   BrowserWindow: { getAllWindows: () => browserWindows },
+  dialog: { showMessageBox },
   ipcMain: { handle: ipcMainHandle },
   // Keep spies available to prove index.ts never installs the old shim.
   session: {
@@ -389,7 +394,11 @@ async function loadIndexOn(platform: NodeJS.Platform): Promise<void> {
   fakeWindow.restore.mockClear()
   fakeWindow.show.mockClear()
   fakeWindow.focus.mockClear()
+  fakeWindow.close.mockClear()
+  fakeWindow.webContents.reload.mockClear()
   fakeWindow.setSkipTaskbar.mockClear()
+  showMessageBox.mockClear()
+  showMessageBox.mockResolvedValue({ response: 0 })
   browserWindows.length = 0
   windowState.destroyed = false
   windowState.loading = false
@@ -821,6 +830,95 @@ describe('window defaults', () => {
     expect(runShellMock).toHaveBeenCalledWith(
       expect.objectContaining({ width: 1280, height: 768 }),
     )
+  })
+})
+
+describe('renderer recovery', () => {
+  function emitRendererExit(reason: string, exitCode: number): void {
+    fakeWindow.webContents.emit('render-process-gone', {}, { reason, exitCode })
+  }
+
+  function expectNoRecovery(): void {
+    expect(fakeWindow.webContents.reload).not.toHaveBeenCalled()
+    expect(showMessageBox).not.toHaveBeenCalled()
+  }
+
+  async function expectReloadPrompt(buttons: string[]): Promise<void> {
+    await vi.waitFor(() => {
+      expect(fakeWindow.webContents.reload).toHaveBeenCalledOnce()
+    })
+    expect(showMessageBox).toHaveBeenCalledWith(
+      fakeWindow,
+      expect.objectContaining({ buttons }),
+    )
+  }
+
+  beforeEach(async () => {
+    await loadIndexOn('darwin')
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('automatically reloads the first renderer process failure', () => {
+    emitRendererExit('crashed', 1)
+
+    expect(fakeWindow.webContents.reload).toHaveBeenCalledOnce()
+    expect(showMessageBox).not.toHaveBeenCalled()
+  })
+
+  it('does not recover a renderer that exited normally with its window', () => {
+    emitRendererExit('clean-exit', 0)
+
+    expectNoRecovery()
+  })
+
+  it('does not recover a renderer killed while its window intentionally closes', () => {
+    fakeWindow.emit('close')
+    emitRendererExit('killed', 15)
+    fakeWindow.webContents.emit('unresponsive')
+
+    expectNoRecovery()
+  })
+
+  it('offers to close a window that crashes again during recovery', async () => {
+    showMessageBox.mockResolvedValueOnce({ response: 1 })
+
+    emitRendererExit('crashed', 1)
+    emitRendererExit('crashed', 1)
+    await vi.waitFor(() => {
+      expect(fakeWindow.close).toHaveBeenCalledOnce()
+    })
+
+    await expectReloadPrompt(['Reload Window', 'Close Window'])
+  })
+
+  it('offers reload instead of requiring an application restart when unresponsive', async () => {
+    fakeWindow.webContents.emit('unresponsive')
+
+    await expectReloadPrompt(['Reload Window', 'Wait'])
+  })
+
+  it('offers reload after a main renderer load failure', async () => {
+    fakeWindow.webContents.emit(
+      'did-fail-load',
+      {},
+      -102,
+      'Connection refused',
+      'http://localhost:5173',
+      true,
+    )
+
+    await expectReloadPrompt(['Reload Window', 'Close Window'])
+  })
+
+  it('does not recover a renderer while the application is quitting', () => {
+    fakeApp.emit('before-quit', { preventDefault: vi.fn() })
+    emitRendererExit('clean-exit', 0)
+
+    expectNoRecovery()
   })
 })
 

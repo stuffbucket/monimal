@@ -157,18 +157,24 @@ export function registerTerminalIpc(): void {
 
 export function configureTerminalHost(): void {
   configurePty({
-    emit: (owner, id, data, sequence) =>
-      owner.webContents.send(BRIDGE_CHANNELS.terminalData, { id, data, sequence }),
-    onExit: (owner, id, exitCode) =>
-      owner.webContents.send(BRIDGE_CHANNELS.terminalExit, { id, exitCode }),
+    emit: (owner, id, data, sequence) => {
+      if (!owner || owner.isDestroyed() || owner.webContents.isDestroyed()) return
+      owner.webContents.send(BRIDGE_CHANNELS.terminalData, { id, data, sequence })
+    },
+    onExit: (owner, id, exitCode) => {
+      if (!owner || owner.isDestroyed() || owner.webContents.isDestroyed()) return
+      owner.webContents.send(BRIDGE_CHANNELS.terminalExit, { id, exitCode })
+    },
     onStatus: () => undefined,
-    onPane: (owner, id, pane, revision, origin) =>
+    onPane: (owner, id, pane, revision, origin) => {
+      if (!owner || owner.isDestroyed() || owner.webContents.isDestroyed()) return
       owner.webContents.send(BRIDGE_CHANNELS.terminalPaneChanged, {
         id,
         pane,
         revision,
         origin,
-      }),
+      })
+    },
   })
 }
 

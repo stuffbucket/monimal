@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   TmuxProjectionOwners,
   type TerminalProcess,
+  type TmuxProjectionOwnersOptions,
 } from '../../src/host/terminal-host.js';
 
 function processWire() {
@@ -29,6 +30,26 @@ const launch = {
   geometry: { transport: 'local' as const, sessionName: 'work' },
   terminate: { command: 'tmux', args: ['kill-session', '-t', 'work'] },
 };
+
+interface TestOwner {
+  id: string;
+}
+
+const successfulCommand = async () => ({ stdout: 'latest\n' });
+
+function projectionRegistry(
+  wire: ReturnType<typeof processWire>,
+  events: Partial<Pick<TmuxProjectionOwnersOptions<TestOwner>, 'emit' | 'onExit'>> = {},
+): TmuxProjectionOwners<TestOwner> {
+  return new TmuxProjectionOwners({
+    homeDirectory: '/home/ada',
+    command: successfulCommand,
+    connector: { connect: () => wire.process },
+    terminate: vi.fn(),
+    emit: events.emit ?? vi.fn(),
+    onExit: events.onExit ?? vi.fn(),
+  });
+}
 
 describe('TmuxProjectionOwners', () => {
   it('reports server-confirmed geometry and rejected geometry to every attached owner', async () => {
@@ -128,6 +149,25 @@ describe('TmuxProjectionOwners', () => {
     wires[0]?.data('left-output');
     wires[1]?.data('right-output');
     expect(output).toEqual(['first:left:left-output', 'second:right:right-output']);
+  });
+
+  it('drops projection events after their owner mapping has been released', () => {
+    const owner = { id: 'owner' };
+    const wire = processWire();
+    const events = { emit: vi.fn(), onExit: vi.fn() };
+    const registry = projectionRegistry(wire, events);
+    registry.reserve(owner, 'work', launch);
+    registry.attach(owner, { sessionId: 'work', projectionId: 'view', cols: 80, rows: 24 });
+
+    const state = registry as unknown as {
+      projectionOwners: Map<string, { id: string }>;
+    };
+    state.projectionOwners.clear();
+
+    expect(() => wire.data('late output')).not.toThrow();
+    expect(() => wire.exit(0)).not.toThrow();
+    expect(events.emit).not.toHaveBeenCalled();
+    expect(events.onExit).not.toHaveBeenCalled();
   });
 
   it('forwards controls only for the current projection owner and epoch', () => {

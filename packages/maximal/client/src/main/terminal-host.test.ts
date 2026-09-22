@@ -4,12 +4,14 @@ import type { BrowserWindow } from 'electron'
 import { BRIDGE_CHANNELS } from '../shared/bridge-channels'
 
 const {
+  configurePty,
   copyPty,
   grantPtyProjection,
   ipcHandlers,
   transferPty,
   transferPtyProjection,
 } = vi.hoisted(() => ({
+  configurePty: vi.fn(),
   copyPty: vi.fn(),
   grantPtyProjection: vi.fn(),
   ipcHandlers: new Map<string, (...args: unknown[]) => unknown>(),
@@ -17,7 +19,14 @@ const {
   transferPtyProjection: vi.fn(),
 }))
 
-const owner = { id: 1, webContents: {} } as BrowserWindow
+const owner = {
+  id: 1,
+  isDestroyed: vi.fn(() => false),
+  webContents: {
+    isDestroyed: vi.fn(() => false),
+    send: vi.fn(),
+  },
+} as unknown as BrowserWindow
 const recipient = { id: 2, webContents: {} } as BrowserWindow
 
 vi.mock('electron', () => ({
@@ -33,7 +42,7 @@ vi.mock('electron', () => ({
 
 vi.mock('stuffbucket-electron/electron-terminal', () => ({
   acknowledgePty: vi.fn(),
-  configurePty: vi.fn(),
+  configurePty,
   copyPty,
   discoverTerminalTargets: vi.fn(),
   grantPtyProjection,
@@ -55,6 +64,7 @@ vi.mock('stuffbucket-electron/host/terminal', () => ({
 }))
 
 const {
+  configureTerminalHost,
   configureTerminalWindowActions,
   copyTerminalSessions,
   moveTerminalSessions,
@@ -118,6 +128,22 @@ describe('terminal host window actions', () => {
       id: 'split',
       cols: 120,
       rows: 40,
+    })
+  })
+
+  describe('terminal host event delivery', () => {
+    it('drops late events after their window owner has been released', () => {
+      configureTerminalHost()
+      const handlers = configurePty.mock.calls.at(-1)?.[0] as {
+        emit(owner: BrowserWindow | undefined, id: string, data: string): void
+        onExit(owner: BrowserWindow | undefined, id: string, exitCode: number): void
+        onPane(owner: BrowserWindow | undefined, id: string, pane: unknown, revision: number, origin: string): void
+      }
+
+      expect(() => handlers.emit(undefined, 'session', 'late output')).not.toThrow()
+      expect(() => handlers.onExit(undefined, 'session', 0)).not.toThrow()
+      expect(() => handlers.onPane(undefined, 'session', {}, 1, 'late')).not.toThrow()
+      expect(owner.webContents.send).not.toHaveBeenCalled()
     })
   })
 
