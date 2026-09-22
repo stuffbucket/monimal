@@ -30,6 +30,44 @@ body {
   background: var(--shell-background);
   font: var(--shell-font);
 }
+
+.renderer-failure {
+  display: grid;
+  min-height: 100%;
+  place-items: center;
+  padding: 32px;
+  box-sizing: border-box;
+}
+
+.renderer-failure__panel {
+  width: min(520px, 100%);
+}
+
+.renderer-failure__panel h1 {
+  margin: 0 0 12px;
+  font-size: 20px;
+}
+
+.renderer-failure__panel p {
+  margin: 0 0 20px;
+  color: var(--shell-text-muted);
+  line-height: 1.5;
+}
+
+.renderer-failure__panel button {
+  padding: 8px 14px;
+  color: var(--shell-accent-contrast);
+  background: var(--shell-accent);
+  border: 0;
+  border-radius: var(--shell-radius);
+  font: inherit;
+  cursor: pointer;
+}
+
+.renderer-failure__panel button:focus-visible {
+  outline: 2px solid var(--shell-focus);
+  outline-offset: 2px;
+}
 `
 
 const BASE_STYLE_ID = 'maximal-base'

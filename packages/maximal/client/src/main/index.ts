@@ -19,7 +19,7 @@ import {
   TrafficRequestDetailQuerySchema,
   TrafficRequestListQuerySchema,
 } from '@stuffbucket/maximal-observability-contract'
-import { app, BrowserWindow, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import { z } from 'zod'
 
 import { BRIDGE_CHANNELS } from '../shared/bridge-channels.js'
@@ -80,6 +80,7 @@ let controlSession: ControlSession | null = null
 let mainWindow: BrowserWindow | null = null
 let pendingSettingsRequest: PendingSettingsRequest | null = null
 let menuBarMode: MenuBarModeController | null = null
+let quitting = false
 
 const nonEmptyString = z.string().min(1)
 const localModelIdentifier = z.string().min(1).max(200)
@@ -322,6 +323,98 @@ function focusWindow(win: BrowserWindow): void {
   win.focus()
 }
 
+function installRendererRecovery(win: BrowserWindow): void {
+  let closing = false
+  let recoveryPromptOpen = false
+  let lastAutomaticReload = 0
+
+  win.on('close', () => {
+    closing = true
+  })
+
+  const promptReload = (
+    message: string,
+    detail: string,
+    secondaryLabel: string,
+    secondaryAction: () => void = () => undefined,
+  ): void => {
+    if (quitting || closing || win.isDestroyed() || recoveryPromptOpen) return
+    recoveryPromptOpen = true
+    void dialog.showMessageBox(win, {
+      type: 'warning',
+      buttons: ['Reload Window', secondaryLabel],
+      defaultId: 0,
+      cancelId: 1,
+      message,
+      detail,
+    }).then(({ response }) => {
+      recoveryPromptOpen = false
+      if (quitting || closing || win.isDestroyed()) return
+      if (response === 0) win.webContents.reload()
+      else secondaryAction()
+    }).catch((error: unknown) => {
+      recoveryPromptOpen = false
+      console.error('[maximal-client] renderer recovery prompt failed:', error)
+    })
+  }
+
+  win.webContents.on('render-process-gone', (_event, details) => {
+    menuBarMode?.cancelPending()
+    if (details.reason === 'clean-exit') return
+    console.error('[maximal-client] renderer process exited:', details)
+    if (quitting || closing || win.isDestroyed()) return
+
+    const now = Date.now()
+    if (now - lastAutomaticReload >= 30_000) {
+      lastAutomaticReload = now
+      win.webContents.reload()
+      return
+    }
+
+    promptReload(
+      'This window stopped unexpectedly',
+      'Maximal already tried to restore it once. You can reload it again or close only this window.',
+      'Close Window',
+      () => win.close(),
+    )
+  })
+
+  win.webContents.on('unresponsive', () => {
+    if (quitting || closing || win.isDestroyed()) return
+    console.error('[maximal-client] renderer became unresponsive')
+    promptReload(
+      'This window is not responding',
+      'Reloading reconnects the view to terminal processes that are still running.',
+      'Wait',
+    )
+  })
+
+  win.webContents.on(
+    'did-fail-load',
+    (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+      if (quitting || closing || win.isDestroyed() || !isMainFrame || errorCode === -3) return
+      console.error('[maximal-client] renderer failed to load:', {
+        errorCode,
+        errorDescription,
+        validatedURL,
+      })
+      promptReload(
+        'This window could not be loaded',
+        'Reload the window to try again without restarting the entire application.',
+        'Close Window',
+        () => win.close(),
+      )
+    },
+  )
+
+  win.webContents.on('console-message', (details) => {
+    if (details.level !== 'error') return
+    console.error(
+      `[maximal-client] renderer console: ${details.message} (${details.sourceId}:${String(details.lineNumber)})`,
+    )
+  })
+}
+
 function createWindow(): BrowserWindow {
   const win = runShell({
     preloadPath: join(__dirname, 'preload.js'),
@@ -336,6 +429,7 @@ function createWindow(): BrowserWindow {
     menuBarMode?.cancelPending()
     if (mainWindow === win) mainWindow = null
   })
+  installRendererRecovery(win)
   return win
 }
 
@@ -350,6 +444,7 @@ function createTerminalWindow(request: TerminalWindowRequest): BrowserWindow {
     showWhenReady: false,
     loadRenderer: (win) => loadRenderer(win, request),
   })
+  installRendererRecovery(win)
   return win
 }
 
@@ -485,6 +580,7 @@ let harnessStopped = false
 let harnessShutdown: Promise<void> | undefined
 
 app.on('before-quit', (event) => {
+  quitting = true
   if (harnessStopped) return
   event.preventDefault()
   if (mainWindow?.isDestroyed() === false) mainWindow.hide()

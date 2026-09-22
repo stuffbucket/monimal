@@ -1,6 +1,6 @@
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { PanelLeft, PanelRight } from 'lucide-react';
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import {
   Group,
   type Layout,
@@ -8,7 +8,6 @@ import {
   Panel,
   Separator,
   useDefaultLayout,
-  useGroupRef,
   usePanelRef,
 } from 'react-resizable-panels';
 
@@ -78,6 +77,15 @@ const PANEL_IDS: Record<'both' | 'left' | 'right' | 'neither', string[]> = {
   neither: ['main'],
 };
 
+function layoutForPanels(layout: Layout | undefined, panelIds: string[]): Layout | undefined {
+  if (layout === undefined) return undefined;
+  const layoutIds = Object.keys(layout);
+  return layoutIds.length === panelIds.length
+    && panelIds.every((panelId) => Object.hasOwn(layout, panelId))
+    ? layout
+    : undefined;
+}
+
 /**
  * The application frame, with the tab strip in the title bar.
  *
@@ -144,20 +152,23 @@ export function ShellLayout<T extends Tab>({
   const tabIdBase = `${layoutId}-documents`;
   const hasLeft = left !== undefined;
   const hasRight = right !== undefined;
-  const documentStructure = hasRight ? 'with-right' : 'without-right';
+  const documentStructure = hasLeft
+    ? (hasRight ? 'both' : 'left')
+    : (hasRight ? 'right' : 'neither');
 
   const leftPanel = usePanelRef();
   const rightPanel = usePanelRef();
   const bottomPanel = usePanelRef();
-  const documentGroup = useGroupRef();
-  const initialDocumentLayouts = useRef(new Map<string, Record<string, number>>());
+  const documentPanelIds = PANEL_IDS[documentStructure];
+  const documentLayoutId = `${layoutId}:tab:${encodeURIComponent(activeTab)}:${documentStructure}`;
 
   // Each document restores its own geometry. The panel list also separates an
   // inspector-free layout from one that owns the right panel.
   const layout = useDefaultLayout({
-    id: `${layoutId}:tab:${encodeURIComponent(activeTab)}`,
-    panelIds: PANEL_IDS[hasLeft ? (hasRight ? 'both' : 'left') : (hasRight ? 'right' : 'neither')],
+    id: documentLayoutId,
+    panelIds: documentPanelIds,
   });
+  const defaultDocumentLayout = layoutForPanels(layout.defaultLayout, documentPanelIds);
 
   // A second, independent layout for the centre column's split. Only created
   // when there is something to split.
@@ -166,19 +177,11 @@ export function ShellLayout<T extends Tab>({
     panelIds: ['main', 'bottom'],
   });
 
-  useLayoutEffect(() => {
-    const group = documentGroup.current;
-    if (!group) return;
-    const nextLayout = layout.defaultLayout ?? initialDocumentLayouts.current.get(documentStructure);
-    if (nextLayout) group.setLayout(nextLayout);
-  }, [activeTab, documentGroup, documentStructure, layout.defaultLayout]);
-
   const onDocumentLayoutChanged = useCallback((nextLayout: Layout, meta: LayoutChangedMeta) => {
-    if (!initialDocumentLayouts.current.has(documentStructure)) {
-      initialDocumentLayouts.current.set(documentStructure, { ...nextLayout });
-    }
-    layout.onLayoutChanged(nextLayout, meta);
-  }, [documentStructure, layout]);
+    const validLayout = layoutForPanels(nextLayout, documentPanelIds);
+    if (validLayout === undefined) return;
+    layout.onLayoutChanged(validLayout, meta);
+  }, [documentPanelIds, layout]);
 
   const togglePanel = useCallback(
     (panel: ShellPanel) => {
@@ -256,11 +259,10 @@ export function ShellLayout<T extends Tab>({
           {top}
 
           <Group
-            key={documentStructure}
-            groupRef={documentGroup}
+            key={documentLayoutId}
             orientation="horizontal"
             className="panels"
-            defaultLayout={layout.defaultLayout}
+            defaultLayout={defaultDocumentLayout}
             onLayoutChanged={onDocumentLayoutChanged}
           >
             {hasLeft && (

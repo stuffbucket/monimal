@@ -10,12 +10,15 @@ import 'stuffbucket-electron/renderer/styles.css'
 import '@stuffbucket/maximal-observability/styles.css'
 
 import { App } from './App'
+import { RendererErrorBoundary } from './RendererErrorBoundary'
 
 const root = document.getElementById('root')
 if (root) {
   createRoot(root).render(
     <StrictMode>
-      <App />
+      <RendererErrorBoundary>
+        <App />
+      </RendererErrorBoundary>
     </StrictMode>,
   )
 }
