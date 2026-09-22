@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import { settingValueError } from '@stuffbucket/maximal-harness'
 
 import type {
   ConnectorSettingField,
@@ -10,98 +10,10 @@ interface SettingValidationContext {
   secretSource?: 'environment' | 'settings'
 }
 
-function settingSchema(field: ConnectorSettingField): z.ZodType {
-  switch (field.type) {
-    case 'boolean':
-      return z.boolean({ error: `${field.label} must be on or off.` })
-    case 'integer': {
-      let schema = z
-        .number({ error: `${field.label} must be a number.` })
-        .int({ error: `${field.label} must be a whole number.` })
-      if (field.min !== undefined) {
-        schema = schema.min(field.min, {
-          error: `${field.label} must be at least ${displayBound(field, field.min)}.`,
-        })
-      }
-      if (field.max !== undefined) {
-        schema = schema.max(field.max, {
-          error: `${field.label} must be at most ${displayBound(field, field.max)}.`,
-        })
-      }
-      return schema
-    }
-    case 'string-list':
-      return z.array(
-        z.string().trim().min(1, {
-          error: `${field.label} entries cannot be empty.`,
-        }),
-        { error: `${field.label} must be a list.` },
-      )
-    case 'select':
-      return z.string().refine(
-        (candidate) => field.options.some(({ value }) => value === candidate),
-        { error: `Choose an available ${field.label.toLowerCase()}.` },
-      )
-    default: {
-      let schema = z.string({ error: `${field.label} must be text.` })
-      if (field.required) {
-        schema = schema.trim().min(1, {
-          error: `${field.label} is required.`,
-        })
-      }
-      if (field.format === 'url') {
-        schema = schema.refine(isHttpUrl, {
-          error: `${field.label} must be a valid HTTP or HTTPS URL.`,
-        })
-      }
-      if (field.validation !== undefined) {
-        schema = schema.refine(
-          (candidate) => matchesUrlShape(candidate, field.validation?.url),
-          field.validation.message,
-        )
-      }
-      return schema
-    }
-  }
-}
-
-function matchesUrlShape(
-  candidate: string,
-  shape: { protocols: readonly string[]; pathname: string } | undefined,
-): boolean {
-  if (shape === undefined) return true
-  try {
-    const url = new URL(candidate)
-    return shape.protocols.includes(url.protocol)
-      && url.pathname === shape.pathname
-      && url.search === ''
-      && url.hash === ''
-      && url.username === ''
-      && url.password === ''
-  } catch {
-    return false
-  }
-}
-
-function isHttpUrl(candidate: string): boolean {
-  try {
-    const url = new URL(candidate)
-    return url.protocol === 'http:' || url.protocol === 'https:'
-  } catch {
-    return false
-  }
-}
-
 function isEmpty(value: ConnectorSettingValue): boolean {
   return typeof value === 'string'
     ? value.trim() === ''
     : Array.isArray(value) && value.length === 0
-}
-
-function displayBound(field: ConnectorSettingField, value: number): string {
-  return field.unit === 'seconds'
-    ? `${String(value / 1000)} seconds`
-    : String(value)
 }
 
 export function settingFieldError(
@@ -116,18 +28,12 @@ export function settingFieldError(
   ) {
     return undefined
   }
-  if (field.required && isEmpty(value)) {
-    const message = `${field.label} is required.`
-    return field.emptyDescription
+  const message = settingValueError(field, value)
+  return message === undefined ? undefined : (
+    field.emptyDescription && isEmpty(value)
       ? `${message} ${field.emptyDescription}`
       : message
-  }
-  const parsed = settingSchema(field).safeParse(value)
-  if (parsed.success) return undefined
-  const message = parsed.error.issues[0]?.message ?? `Invalid ${field.label}.`
-  return field.emptyDescription && isEmpty(value)
-    ? `${message} ${field.emptyDescription}`
-    : message
+  )
 }
 
 export function displayedInteger(
