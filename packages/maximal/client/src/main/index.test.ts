@@ -258,16 +258,25 @@ vi.mock('./harness-host.js', () => ({
 
 const {
   configureTerminalHostMock,
+  configureTerminalWindowActionsMock,
+  copyTerminalSessionsMock,
+  moveTerminalSessionsMock,
   registerTerminalIpcMock,
   stopTerminalHostMock,
 } = vi.hoisted(() => ({
   configureTerminalHostMock: vi.fn(),
+  configureTerminalWindowActionsMock: vi.fn(),
+  copyTerminalSessionsMock: vi.fn(() => true),
+  moveTerminalSessionsMock: vi.fn(() => true),
   registerTerminalIpcMock: vi.fn(),
   stopTerminalHostMock: vi.fn(),
 }))
 
 vi.mock('./terminal-host.js', () => ({
   configureTerminalHost: configureTerminalHostMock,
+  configureTerminalWindowActions: configureTerminalWindowActionsMock,
+  copyTerminalSessions: copyTerminalSessionsMock,
+  moveTerminalSessions: moveTerminalSessionsMock,
   registerTerminalIpc: registerTerminalIpcMock,
   stopTerminalHost: stopTerminalHostMock,
 }))
@@ -332,6 +341,9 @@ async function loadIndexOn(platform: NodeJS.Platform): Promise<void> {
   startHarnessHostMock.mockClear()
   stopHarnessHostMock.mockClear()
   configureTerminalHostMock.mockClear()
+  configureTerminalWindowActionsMock.mockClear()
+  copyTerminalSessionsMock.mockClear()
+  moveTerminalSessionsMock.mockClear()
   registerTerminalIpcMock.mockClear()
   stopTerminalHostMock.mockClear()
   registerTerminalIpcMock.mockImplementation(() => {
@@ -339,6 +351,11 @@ async function loadIndexOn(platform: NodeJS.Platform): Promise<void> {
       BRIDGE_CHANNELS.terminalProfiles,
       BRIDGE_CHANNELS.terminalDiscover,
       BRIDGE_CHANNELS.terminalLaunch,
+      BRIDGE_CHANNELS.terminalFrameId,
+      BRIDGE_CHANNELS.terminalUndock,
+      BRIDGE_CHANNELS.terminalCopy,
+      BRIDGE_CHANNELS.terminalRedock,
+      BRIDGE_CHANNELS.terminalPaneSync,
       BRIDGE_CHANNELS.terminalSpawn,
       BRIDGE_CHANNELS.terminalWrite,
       BRIDGE_CHANNELS.terminalResize,
@@ -409,6 +426,8 @@ describe('closed IPC boundary', () => {
       BRIDGE_CHANNELS.trafficInvalidated,
       BRIDGE_CHANNELS.terminalData,
       BRIDGE_CHANNELS.terminalExit,
+      BRIDGE_CHANNELS.terminalTabRedocked,
+      BRIDGE_CHANNELS.terminalPaneChanged,
       BRIDGE_CHANNELS.harnessDelta,
       BRIDGE_CHANNELS.harnessTool,
       BRIDGE_CHANNELS.harnessApproval,

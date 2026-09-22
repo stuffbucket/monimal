@@ -207,11 +207,7 @@
   outline-offset: var(--shell-focus-ring-offset);
 }
 
-.sb-shell .input:focus {
-  border-color: var(--shell-focus, var(--shell-accent));
-  outline: none;
-  box-shadow: 0 0 0 var(--shell-focus-ring-width) var(--shell-focus, var(--shell-accent));
-}
+
 
 .sb-shell .panels,
 .sb-shell .column {
@@ -935,76 +931,10 @@
   overflow-wrap: anywhere;
 }
 
-.sb-shell .switch {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: var(--shell-space-3);
-  width: fit-content;
-  padding: 0;
-  color: var(--shell-text-muted);
-  font: inherit;
-  text-align: left;
-  border: 0;
-  background: transparent;
-  cursor: pointer;
-}
-
-.sb-shell .switch[data-layout='spread'] {
-  justify-content: space-between;
-  width: 100%;
-}
-
-.sb-shell .switch__track {
-  position: relative;
-  box-sizing: border-box;
-  width: var(--shell-control-lg);
-  height: calc(var(--shell-control-sm) - var(--shell-space-1));
-  flex: none;
-  border: 1px solid var(--shell-text-muted);
-  border-radius: 9999px;
-  background: color-mix(in srgb, var(--shell-text-muted) 20%, transparent);
-  transition:
-    background 120ms ease-out,
-    border-color 120ms ease-out;
-}
-
-.sb-shell .switch__track[data-on='true'] {
-  border-color: var(--shell-accent);
-  background: var(--shell-accent);
-}
-
-/* The thumb sits on the accent when the switch is on and on a neutral fill
-   when it is off, so its own colour falls back to the shell's text rather than
-   to a literal white. */
-.sb-shell .switch__thumb {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: calc(var(--shell-control-sm) - var(--shell-space-2));
-  height: calc(var(--shell-control-sm) - var(--shell-space-2));
-  border-radius: 50%;
-  background: var(--shell-text);
-  transition: transform 120ms ease-out;
-}
-
-.sb-shell .switch__track[data-on='true'] .switch__thumb {
-  background: var(--shell-accent-contrast, var(--shell-background));
-  transform: translateX(var(--shell-space-3));
-}
-
 /*
- * Form controls, and the buttons and overlays beside them.
- *
- * `controls.css` styles these for the three documents this repository renders
- * and ships to nobody. A consumer importing `TextInput`, `Select`, `Checkbox`,
- * `RadioGroup`, `Button`, `Dialog` or `Menu` received markup with no rule at
- * all, which is the defect `components/controls/index.ts` names: a shell meant
- * to be depended on cannot hand a consumer a text field they have to write
- * themselves.
- *
- * Disabled is styled on the control classes rather than through a blanket
- * attribute selector, for the reason `controls.css` records.
+ * Buttons and overlays still carried by the base stylesheet. Form controls
+ * travel with `Fields.tsx`; component ownership removes their former mirror
+ * here and in `controls.css`.
  */
 
 .sb-shell .btn {
@@ -1081,138 +1011,9 @@
   border-color: var(--shell-danger, var(--shell-hover));
 }
 
-.sb-shell .btn:disabled,
-.sb-shell .input:disabled,
-.sb-shell .switch:disabled,
-.sb-shell .checkbox__box:disabled,
-.sb-shell .radio-group[data-disabled] {
+.sb-shell .btn:disabled {
   opacity: var(--shell-disabled-opacity, 0.5);
   cursor: not-allowed;
-}
-
-.sb-shell .input {
-  width: 100%;
-  height: var(--shell-control-height, 28px);
-  padding: 0 var(--shell-space-2);
-  color: var(--shell-text);
-  font: inherit;
-  font-size: var(--shell-text-base);
-  background: var(--shell-input-background, var(--shell-canvas));
-  border: 1px solid var(--shell-input-border);
-  border-radius: var(--shell-radius);
-}
-
-.sb-shell .input::placeholder {
-  color: var(--shell-text-subtle);
-}
-
-.sb-shell .input-shell {
-  position: relative;
-  width: 100%;
-}
-
-.sb-shell .input-shell .input {
-  padding-right: calc(var(--shell-control-lg) + var(--shell-space-1));
-}
-
-.sb-shell .input-shell__action {
-  position: absolute;
-  top: 50%;
-  right: 2px;
-  transform: translateY(-50%);
-}
-
-.sb-shell .input:hover:not(:disabled) {
-  border-color: var(--shell-border-hover, var(--shell-accent));
-}
-
-.sb-shell .input[aria-invalid='true'] {
-  border-color: var(--shell-invalid, var(--shell-danger, var(--shell-hover)));
-}
-
-.sb-shell .input--multiline {
-  height: auto;
-  padding: var(--shell-space-2);
-  line-height: 1.5;
-  resize: vertical;
-}
-
-/* The native arrow needs room, and the platform draws it. */
-.sb-shell .input--select {
-  padding-right: var(--shell-space-1);
-}
-
-.sb-shell .form-field {
-  display: grid;
-  gap: var(--shell-space-1);
-}
-
-.sb-shell .form-field__label-row {
-  display: flex;
-  align-items: center;
-  gap: var(--shell-space-1);
-}
-
-.sb-shell .form-field__label {
-  color: var(--shell-text-muted);
-  font-size: var(--shell-text-base);
-}
-
-.sb-shell .form-field__hint {
-  margin: 0;
-  color: var(--shell-text-subtle);
-  font-size: var(--shell-text-sm);
-}
-
-.sb-shell .form-field__error {
-  margin: 0;
-  color: var(--shell-invalid, var(--shell-danger, var(--shell-hover)));
-  font-size: var(--shell-text-sm);
-}
-
-.sb-shell .checkbox,
-.sb-shell .radio {
-  display: flex;
-  align-items: center;
-  gap: var(--shell-space-2);
-  font-size: var(--shell-text-base);
-  cursor: pointer;
-}
-
-.sb-shell .checkbox__box {
-  width: 15px;
-  height: 15px;
-  flex: none;
-  accent-color: var(--shell-accent);
-  cursor: inherit;
-}
-
-.sb-shell .radio-group {
-  display: grid;
-  gap: var(--shell-space-2);
-}
-
-.sb-shell .radio__box {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 15px;
-  height: 15px;
-  flex: none;
-  background: var(--shell-input-background, var(--shell-canvas));
-  border: 1px solid var(--shell-input-border);
-  border-radius: 9999px;
-}
-
-.sb-shell .radio__box[data-state='checked'] {
-  border-color: var(--shell-accent);
-}
-
-.sb-shell .radio__dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 9999px;
-  background: var(--shell-accent);
 }
 
 /*
@@ -1274,61 +1075,6 @@
   justify-content: flex-end;
   gap: var(--shell-space-2);
   flex-wrap: wrap;
-}
-
-.sb-shell .terminal-launcher {
-  width: min(440px, 90vw);
-  max-height: calc(100vh - 32px);
-  overflow-y: auto;
-}
-
-.sb-shell .terminal-launcher__search {
-  display: flex;
-  align-items: center;
-  gap: var(--shell-space-2);
-}
-
-.sb-shell .terminal-launcher__group {
-  display: grid;
-  gap: var(--shell-space-2);
-}
-
-.sb-shell .terminal-launcher__choice {
-  justify-content: flex-start;
-  gap: var(--shell-space-2);
-}
-
-.sb-shell .terminal-launcher__kind,
-.sb-shell .terminal-launcher__pending {
-  margin-left: auto;
-  color: var(--shell-text-muted);
-  font-size: var(--shell-text-xs);
-}
-
-.sb-shell .terminal-launcher__unavailable {
-  border-top: 1px solid var(--shell-border);
-  padding-top: var(--shell-space-2);
-  color: var(--shell-text-muted);
-}
-
-.sb-shell .terminal-launcher__unavailable summary {
-  cursor: pointer;
-  font-size: var(--shell-text-sm);
-}
-
-.sb-shell .terminal-launcher__unavailable ul {
-  display: grid;
-  gap: var(--shell-space-1);
-  margin: var(--shell-space-2) 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.sb-shell .terminal-launcher__unavailable li {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--shell-space-3);
-  font-size: var(--shell-text-xs);
 }
 
 .sb-shell .menu {
@@ -1435,23 +1181,6 @@
 .sb-shell .nav::-webkit-scrollbar-track,
 .sb-shell .inspector__body::-webkit-scrollbar-track {
   background: transparent;
-}
-
-/*
- * Motion, withdrawn wholesale rather than rule by rule.
- *
- * Naming each transition here is a second list to keep in step with the first,
- * and the rule a new transition needs is the rule that gets forgotten.
- * `shell.css` collapses the duration on `*`; this does the same inside the
- * shell and touches nothing outside it.
- */
-@media (prefers-reduced-motion: reduce) {
-  .sb-shell *,
-  .sb-shell *::before,
-  .sb-shell *::after {
-    transition-duration: 0.01ms !important;
-    animation-duration: 0.01ms !important;
-  }
 }
 
 /*
@@ -1564,52 +1293,4 @@
   color: var(--shell-text-muted);
 }
 
-/*
- * A titled region that asks for something, in the content rather than in the
- * top slot.
- *
- * The outline is what separates it from a panel, and it is drawn from the
- * status pair rather than from a colour of the package's own, on the same terms
- * as `Banner` and `StatusChip`: the vocabulary is the host's. Unmapped it is a
- * plain outlined box.
- */
-.sb-shell .callout {
-  display: flex;
-  flex-direction: column;
-  gap: var(--shell-space-2);
-  padding: var(--shell-space-3);
-  color: var(--shell-text);
-  background: var(--shell-status-muted, var(--shell-active));
-  border: 1px solid var(--shell-status, var(--shell-text-muted));
-  border-radius: var(--shell-radius-large);
-}
-
-/* Primary text rather than subtle when no status is mapped. An 11px uppercase
-   label in `--shell-text-subtle` fails contrast on this fill, which is the one
-   surface in the package raised above the panel it sits on. */
-.sb-shell .callout__title {
-  margin: 0;
-  color: var(--shell-status, var(--shell-text));
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.sb-shell .callout__body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--shell-space-2);
-  min-width: 0;
-  font-size: 13px;
-}
-
-/* Right aligned and wrapping, because the last button is the one a pointer
-   arrives at and two of them do not always fit on one line. */
-.sb-shell .callout__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--shell-space-2);
-  justify-content: flex-end;
-}
 }

@@ -164,10 +164,8 @@ analogue and no need for one).
 | `--danger-soft` | `error.background`, else derived | direct with fallback | Zed's `.background` variants are already soft tints; used as-is if present and opaque |
 | `--success-soft` | `success.background`, else derived | direct with fallback | |
 | `--warning-soft` | `warning.background`, else derived | direct with fallback | |
-| `--border-invalid` | `error.border`, else `error` | direct with fallback | |
 | `--border-subtle` | `border` | direct | |
 | `--border-strong` | `border.variant` | direct | |
-| `--border-input` | `border.variant` | direct | today's reference palette sets `--border-input` equal to `--border-strong`; sourcing both from the same key preserves that |
 | `--bg-active` | `element.active` | direct | |
 | `--bg-hover` | `element.hover` | direct | |
 | `--bg-panel` | `elevated_surface.background` | direct | this shell's dialog and menu chrome; Zed's own use (context menus, palettes) is the same role |
@@ -177,15 +175,15 @@ analogue and no need for one).
 | `--bg-app` | first of `title_bar.background`, `tab_bar.background`, `panel.background`, `status_bar.background` | approximate, with fallback chain | `--bg-app` is one token doing the job Zed splits four ways; in practice these four are equal or near-equal in most real themes (they are all "chrome, not content"), so take whichever is defined first |
 | `--focus-ring-color` | *(alias)* | derived | always equals the resolved `--accent`; `tokens.css` already defines it this way, so there is nothing to source separately |
 | `--accent-soft` | *(alias)* | derived | resolved `--accent` re-emitted as `rgb(r g b / 0.16)` (dark) or `/ 0.10` (light), matching the ratios already in `tokens.css` |
-| `--border-input-hover` | *(derived)* | derived | resolved `--border-input`, mixed 25% toward resolved `--text-primary` in RGB space: `result = border + 0.25 × (text − border)` per channel. Moves lighter in a dark theme and darker in a light theme automatically, because `text` always sits at the far end of the range from `border` |
+| `--border-input-hover` | *(derived)* | derived | resolved `--border-strong`, mixed 25% toward resolved `--text-primary` in RGB space: `result = border + 0.25 × (text − border)` per channel. Moves lighter in a dark theme and darker in a light theme automatically, because `text` always sits at the far end of the range from `border` |
 | `--accent-contrast` | *(derived)* | derived | `#ffffff` or `#000000`, whichever clears a higher ratio against resolved `--accent`, using `contrastRatio`/`luminance` already in `lib/contrast.ts` |
 | `--danger-fill` | *(derived from `error`)* | derived | resolved `error`, darkened toward black in fixed 8% steps (`channel *= 0.92`, per channel, clamped) until white text clears 4.5:1 against it, or after 12 steps. Contrast against white increases monotonically as a colour darkens, so this always converges — see "Contrast safety" for why it is derived rather than sourced from `error.background` |
 | `--text-on-solid` | *(derived)* | derived | `#ffffff` or `#000000`, whichever wins against the *derived* `--danger-fill` (see above) — resolved after `--danger-fill`, not before |
 
-Coverage: **18 of 28** colour tokens map cleanly to one unambiguous Zed key
+Coverage: **16 of 26** colour tokens map cleanly to one unambiguous Zed key
 (`--accent`, `--text-primary/secondary/muted/invalid`, `--danger`,
-`--success`, `--warning`, the three `-soft` tokens, `--border-invalid`,
-`--border-subtle/strong/input`, `--bg-active/hover/panel`). **4 more**
+`--success`, `--warning`, the three `-soft` tokens,
+`--border-subtle/strong`, `--bg-active/hover/panel`). **4 more**
 (`--bg-canvas`, `--bg-raised`, `--bg-input`, `--bg-app`) take a real Zed
 value but through a semantic stretch — Zed's schema draws more surface
 distinctions than this shell's stylesheet does, or fewer, depending on which

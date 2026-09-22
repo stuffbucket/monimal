@@ -382,6 +382,7 @@ describe('the published contract', () => {
     expect(packageStylesheets().map((entry) => entry.published).sort()).toEqual(exported);
     expect(packageStylesheets().flatMap((entry) => entry.sources)).toEqual([
       'src/renderer/styles/shell-structural-tokens.css',
+      'src/renderer/styles/shell-accessibility.css',
       'src/renderer/styles/shell-package-rules.css',
     ]);
   });
@@ -421,7 +422,8 @@ describe('the published contract', () => {
 
     expect(SHELL_NAMESPACE).toBe('--shell-');
     expect(stylesheets.length).toBeGreaterThan(0);
-    expect(stylesheets.every((entry) => declares(entry.css) || reads(entry.css))).toBe(true);
+    expect(stylesheets.every((entry) => entry.css.trim().length > 0)).toBe(true);
+    expect(stylesheets.some((entry) => declares(entry.css))).toBe(true);
     expect(stylesheets.some((entry) => reads(entry.css))).toBe(true);
     expect(runtimeProperties.length).toBeGreaterThan(0);
     expect(published().length).toBeGreaterThan(runtimeProperties.length);

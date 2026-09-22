@@ -84,7 +84,7 @@ export interface TabTransferOptions<T extends Tab> {
   onMoveTab?: (tabId: string, beforeTabId?: string) => void;
   onReceiveTab?: (transfer: TabTransfer, beforeTabId?: string) => void;
   onDetachTab?: (transfer: TabTransfer, position: TabDetachPosition) => void;
-  getTransfer?: (tab: T) => Pick<TabTransfer, 'sessionId' | 'pane' | 'title'> | undefined;
+  getTransfer?: (tab: T) => Pick<TabTransfer, 'sessionId' | 'pane' | 'title' | 'canRunInBackground'> | undefined;
   contextMenu?: (tab: T) => TabContextMenuItem[];
 }
 

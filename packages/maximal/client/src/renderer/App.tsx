@@ -1,8 +1,12 @@
 import { ObservabilityProvider } from '@stuffbucket/maximal-observability'
 import { useCallback, useEffect, useMemo, useState, type ReactElement } from 'react'
 import {
+  Button,
+  Dialog,
   TerminalLauncher,
+  TextInput,
   moveTabBefore,
+  terminalPaneSessionIds,
   terminalProcessTitle,
   type TerminalLaunchResult,
 } from 'stuffbucket-electron/renderer'
@@ -16,6 +20,10 @@ import { Settings, type SettingsSectionRequest } from './settings/Settings'
 import { createCoreSettingsCapabilities } from './settings/capabilities'
 import { Terminal } from './terminal/Terminal'
 import { terminalTransport } from './terminal/transport'
+import {
+  readDetachedTerminal,
+  useTerminalWindowTransfer,
+} from './terminal/window-transfer'
 import { Traffic } from './traffic/Traffic'
 import { createObservabilitySource } from './traffic/source'
 import {
@@ -60,6 +68,7 @@ function terminalTab(result: TerminalLaunchResult): AppTab {
     icon: 'terminal',
     kind: 'terminal',
     sessionId: result.sessionId,
+    canRunInBackground: result.canRunInBackground,
   }
 }
 
@@ -78,11 +87,24 @@ function AppContent(): ReactElement {
   const settings = useMemo(() => createCoreSettingsCapabilities(), [])
   const observability = useMemo(() => createObservabilitySource(), [])
 
+  const [detachedWindow] = useState(readDetachedTerminal)
+  const initialTerminalTab = detachedWindow
+    ? terminalTab({
+        sessionId: detachedWindow.sessionId,
+        label: detachedWindow.title,
+        canRunInBackground: detachedWindow.canRunInBackground,
+      })
+    : undefined
   const [authenticated, setAuthenticated] = useState<boolean | null>(null)
-  const [tabs, setTabs] = useState<AppTab[]>(PRODUCT_TABS)
-  const [activeTab, setActiveTab] = useState('overview')
+  const [tabs, setTabs] = useState<AppTab[]>(
+    initialTerminalTab ? [initialTerminalTab] : PRODUCT_TABS,
+  )
+  const [activeTab, setActiveTab] = useState(initialTerminalTab?.id ?? 'overview')
   const [launcherOpen, setLauncherOpen] = useState(false)
   const [recentProfiles, setRecentProfiles] = useState<string[]>([])
+  const [renameState, setRenameState] = useState<{ tabId: string; title: string }>()
+  const [closeState, setCloseState] = useState<{ tabId: string; title: string }>()
+  const [terminalError, setTerminalError] = useState<string>()
   const [sectionRequest, setSectionRequest] = useState<SettingsSectionRequest | null>(null)
   const requestNavigation = useGuardedNavigation()
 
@@ -125,7 +147,7 @@ function AppContent(): ReactElement {
   }, [settings])
 
   useEffect(() => {
-    if (authenticated !== true) return
+    if (authenticated !== true || detachedWindow) return
     void terminalTransport.list().then((sessions) => {
       setTabs((current) => {
         const known = new Set(current.flatMap((tab) => tab.sessionId ?? []))
@@ -134,11 +156,12 @@ function AppContent(): ReactElement {
           .map((session) => terminalTab({
             sessionId: session.id,
             label: session.shell.split('/').at(-1) ?? 'Terminal',
+            canRunInBackground: false,
           }))
         return restored.length === 0 ? current : [...current, ...restored]
       })
     })
-  }, [authenticated])
+  }, [authenticated, detachedWindow])
 
   const onTerminalLaunched = useCallback((result: TerminalLaunchResult) => {
     const tab = terminalTab(result)
@@ -163,7 +186,9 @@ function AppContent(): ReactElement {
   const updateTerminalTitle = useCallback((id: string, title: string) => {
     const nextTitle = terminalProcessTitle(title)
     if (nextTitle === '') return
-    setTabs((current) => current.map((tab) => tab.id === id ? { ...tab, title: nextTitle } : tab))
+    setTabs((current) => current.map((tab) =>
+      tab.id === id && !tab.customTitle ? { ...tab, title: nextTitle } : tab,
+    ))
   }, [])
 
   const moveTerminalTab = useCallback((id: string, beforeId?: string) => {
@@ -175,13 +200,56 @@ function AppContent(): ReactElement {
     })
   }, [])
 
+  const {
+    frameId,
+    getTabs,
+    panes,
+    paneRevisions,
+    receiveTab,
+    terminalWindowRequest,
+  } = useTerminalWindowTransfer({
+    tabs,
+    setTabs,
+    activeTab,
+    setActiveTab,
+    detachedWindow,
+    initialTerminalTab,
+    makeTerminalTab: terminalTab,
+    onError: setTerminalError,
+  })
+
+  const closeTerminal = useCallback(async (id: string) => {
+    const sessionId = getTabs().find((tab) => tab.id === id)?.sessionId
+    if (sessionId === undefined) return
+    const pane = panes.get(id)
+    try {
+      await Promise.all(
+        terminalPaneSessionIds(pane ?? { sessionId }).map((id) => terminalTransport.terminate(id)),
+      )
+      closeTab(id)
+    } catch {
+      setTerminalError('The terminal could not be closed.')
+    }
+  }, [closeTab, getTabs, panes])
+
+  const requestCloseTerminal = useCallback((id: string) => {
+    const tab = getTabs().find((candidate) => candidate.id === id)
+    if (tab?.kind !== 'terminal') return
+    if (tab.canRunInBackground) {
+      setCloseState({ tabId: tab.id, title: tab.title })
+      return
+    }
+    void closeTerminal(tab.id)
+  }, [closeTerminal, getTabs])
+
+
   // `null` means "not answered yet" and is deliberately NOT treated as signed
   // out: first-run handles both the pre-auth and the still-booting cases, so
   // rendering it while the answer is unknown is correct rather than a fallback.
   // Wrapped, not bare. First run needs a frame for the same reason every other
   // surface does — without one the window has no drag region and cannot be
   // moved, and this is the screen a new user meets first.
-  if (authenticated !== true && activeTab !== 'settings')
+  if (!detachedWindow && authenticated !== true && activeTab !== 'settings')
     return (
       <WindowChrome>
         <FirstRun />
@@ -193,8 +261,12 @@ function AppContent(): ReactElement {
    * its own — a poll, a subscription, a live snapshot — and keeping inactive
    * surfaces mounted would keep their work running out of view.
    */
-  const signedOut = authenticated !== true
-  const visibleTabs = signedOut ? PRODUCT_TABS.filter((tab) => tab.kind === 'settings') : tabs
+  const signedOut = !detachedWindow && authenticated !== true
+  const visibleTabs = detachedWindow
+    ? tabs.filter((tab) => tab.kind === 'terminal')
+    : signedOut
+      ? PRODUCT_TABS.filter((tab) => tab.kind === 'settings')
+      : tabs
   const current = visibleTabs.find((tab) => tab.id === activeTab) ?? visibleTabs[0]
   const terminalTabs = tabs.flatMap((tab) =>
     tab.kind === 'terminal' && tab.sessionId
@@ -208,13 +280,85 @@ function AppContent(): ReactElement {
         activeTab={current?.id ?? 'settings'}
         surface={current?.kind ?? 'settings'}
         onSelectTab={(id) => requestNavigation(() => setActiveTab(id))}
-        onCloseTab={signedOut ? undefined : closeTab}
-        onNewTab={signedOut ? undefined : () => setLauncherOpen(true)}
+        onCloseTab={signedOut ? undefined : requestCloseTerminal}
+        onNewTab={signedOut || detachedWindow ? undefined : () => setLauncherOpen(true)}
         tabTransfer={signedOut ? undefined : {
-          frameId: 'maximal-main',
+          frameId,
           canDrag: (tab) => tab.kind === 'terminal',
           canDropBefore: (tab) => tab === undefined || tab.kind === 'terminal',
           onMoveTab: moveTerminalTab,
+          onReceiveTab: detachedWindow ? undefined : receiveTab,
+          getTransfer: (tab) => tab.kind === 'terminal' && tab.sessionId
+            ? {
+                sessionId: tab.sessionId,
+                title: tab.title,
+                pane: panes.get(tab.id),
+                canRunInBackground: tab.canRunInBackground,
+              }
+            : undefined,
+          contextMenu: (tab) => tab.kind === 'terminal'
+            ? [
+                {
+                  id: 'rename',
+                  label: 'Rename',
+                  onSelect: () => setRenameState({ tabId: tab.id, title: tab.title }),
+                },
+                {
+                  id: 'move-to-new-window',
+                  label: 'Move to New Window',
+                  onSelect: () => {
+                    const request = terminalWindowRequest(tab)
+                    if (!request) return
+                    void window.maximal.terminal.undock(request).then((moved) => {
+                      if (moved) closeTab(tab.id)
+                      else setTerminalError('The terminal could not be moved to a new window.')
+                    }).catch(() => {
+                      setTerminalError('The terminal could not be moved to a new window.')
+                    })
+                  },
+                },
+                {
+                  id: 'copy-to-new-window',
+                  label: 'Copy into New Window',
+                  onSelect: () => {
+                    const request = terminalWindowRequest(tab)
+                    if (!request) return
+                    void window.maximal.terminal.copy(request).then((copied) => {
+                      if (!copied) setTerminalError('The terminal could not be copied to a new window.')
+                    }).catch(() => {
+                      setTerminalError('The terminal could not be copied to a new window.')
+                    })
+                  },
+                },
+                ...(tab.canRunInBackground
+                  ? [{
+                      id: 'put-in-background',
+                      label: 'Put in Background',
+                      separatorBefore: true,
+                      onSelect: () => closeTab(tab.id),
+                    }]
+                  : []),
+                {
+                  id: 'close',
+                  label: 'Close Terminal',
+                  shortcut: '⌘W',
+                  separatorBefore: !tab.canRunInBackground,
+                  onSelect: () => requestCloseTerminal(tab.id),
+                },
+              ]
+            : [],
+          onDetachTab: (transfer, position) => {
+            const tab = getTabs().find((candidate) => candidate.id === transfer.tabId)
+            if (!tab) return
+            const request = terminalWindowRequest(tab, position)
+            if (!request) return
+            void window.maximal.terminal.undock(request).then((moved) => {
+              if (moved) closeTab(tab.id)
+              else setTerminalError('The terminal could not be moved to a new window.')
+            }).catch(() => {
+              setTerminalError('The terminal could not be moved to a new window.')
+            })
+          },
         }}
       >
         {!signedOut && current?.kind === 'overview' ? <Overview /> : null}
@@ -224,7 +368,16 @@ function AppContent(): ReactElement {
             tabs={terminalTabs}
             activeId={current?.id ?? ''}
             onExit={closeTab}
+            onPaneChange={(tabId, pane, baseRevision) => {
+              panes.set(tabId, pane)
+              paneRevisions.set(tabId, baseRevision)
+              const tab = getTabs().find((candidate) => candidate.id === tabId)
+              if (tab?.sessionId) void window.maximal.terminal.syncPane(tab.sessionId, pane)
+            }}
             onTitleChange={updateTerminalTitle}
+            initialPane={detachedWindow?.pane}
+            initialPanes={panes}
+            paneRevisions={paneRevisions}
           />
         ) : null}
         {current?.kind === 'settings' ? (
@@ -257,6 +410,81 @@ function AppContent(): ReactElement {
           recentProfileIds={recentProfiles}
         />
       ) : null}
+      <Dialog
+        open={renameState !== undefined}
+        onOpenChange={(open) => {
+          if (!open) setRenameState(undefined)
+        }}
+        title="Rename terminal tab"
+        className="dialog"
+        testId="rename-terminal-tab"
+      >
+        <form
+          onSubmit={(event) => {
+            event.preventDefault()
+            if (!renameState) return
+            const title = terminalProcessTitle(renameState.title)
+            if (title !== '') {
+              setTabs((current) => current.map((tab) =>
+                tab.id === renameState.tabId && tab.kind === 'terminal'
+                  ? { ...tab, title, customTitle: true }
+                  : tab,
+              ))
+            }
+            setRenameState(undefined)
+          }}
+        >
+          <TextInput
+            aria-label="Terminal tab name"
+            value={renameState?.title ?? ''}
+            onChange={(title) => setRenameState((state) => state ? { ...state, title } : state)}
+          />
+          <Button type="submit" variant="primary">Rename</Button>
+        </form>
+      </Dialog>
+      <Dialog
+        open={terminalError !== undefined}
+        onOpenChange={(open) => {
+          if (!open) setTerminalError(undefined)
+        }}
+        title="Terminal action failed"
+        description={terminalError}
+        className="dialog"
+        testId="terminal-action-error"
+      >
+        <Button variant="primary" onClick={() => setTerminalError(undefined)}>Done</Button>
+      </Dialog>
+      <Dialog
+        open={closeState !== undefined}
+        onOpenChange={(open) => {
+          if (!open) setCloseState(undefined)
+        }}
+        title="Close terminal?"
+        description={`${closeState?.title ?? 'This terminal'} can keep running after its tab closes.`}
+        className="dialog"
+        testId="close-terminal"
+      >
+        <Button
+          variant="primary"
+          onClick={() => {
+            if (!closeState) return
+            closeTab(closeState.tabId)
+            setCloseState(undefined)
+          }}
+        >
+          Keep Running in Background
+        </Button>
+        <Button
+          onClick={() => {
+            if (!closeState) return
+            const tabId = closeState.tabId
+            setCloseState(undefined)
+            void closeTerminal(tabId)
+          }}
+        >
+          Close Terminal
+        </Button>
+      </Dialog>
     </ObservabilityProvider>
   )
 }

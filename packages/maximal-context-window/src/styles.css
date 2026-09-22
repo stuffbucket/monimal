@@ -1,3 +1,4 @@
+@import "@stuffbucket/maximal-electron/renderer/styles.css";
 @import "@stuffbucket/maximal-data-visualization/styles.css";
 
 .mcw-panel {
@@ -275,14 +276,6 @@
   margin: var(--shell-space-1, 0.25rem) 0;
   color: var(--shell-text-muted);
   font-size: var(--shell-text-xs);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .mcw-panel * {
-    animation: none !important;
-    scroll-behavior: auto !important;
-    transition: none !important;
-  }
 }
 
 @media (forced-colors: active) {

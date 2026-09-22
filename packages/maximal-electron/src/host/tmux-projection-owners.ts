@@ -67,6 +67,14 @@ export class TmuxProjectionOwners<Owner> {
     return true;
   }
 
+  transfer(owner: Owner, sessionId: string, recipient: Owner): boolean {
+    const ownsProjection = [...this.projectionOwners.entries()].some(([key, projectionOwner]) =>
+      projectionOwner === owner && key.startsWith(`${sessionId}\u0000`));
+    if (this.sessionOwners.get(sessionId) !== owner && !ownsProjection) return false;
+    this.sessionOwners.set(sessionId, recipient);
+    return true;
+  }
+
   attach(owner: Owner, request: TmuxProjectionRequest): boolean {
     const allowed = this.sessionOwners.get(request.sessionId) === owner
       || this.grants.get(request.sessionId)?.delete(owner) === true;
@@ -109,7 +117,9 @@ export class TmuxProjectionOwners<Owner> {
   }
 
   terminate(owner: Owner, sessionId: string): boolean {
-    if (this.sessionOwners.get(sessionId) !== owner) return false;
+    const ownsProjection = [...this.projectionOwners.entries()].some(([key, projectionOwner]) =>
+      projectionOwner === owner && key.startsWith(`${sessionId}\u0000`));
+    if (this.sessionOwners.get(sessionId) !== owner && !ownsProjection) return false;
     this.clearSession(sessionId);
     return this.host.terminate(sessionId);
   }

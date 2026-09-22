@@ -11,6 +11,7 @@ import {
   declaredTokens,
   readTokens,
 } from '../scripts/component-css.mjs';
+import { packageStylesheets } from '../scripts/shell-variables.mjs';
 import shell from '../eslint/shell.mjs';
 import {
   SHELL_COMPONENT_LAYER,
@@ -183,9 +184,8 @@ describe('the rules a component carries', () => {
 
 /** The text of every stylesheet the package ships. */
 function publishedSources(): string[] {
-  return [...new Set(['src/renderer/styles/shell-structural-tokens.css', 'src/renderer/styles/shell-package-rules.css'])].map(
-    (source) => readFileSync(new URL(`../${source}`, import.meta.url), 'utf8'),
-  );
+  return [...new Set(packageStylesheets().flatMap((sheet) => sheet.sources))]
+    .map((source) => readFileSync(new URL(`../${source}`, import.meta.url), 'utf8'));
 }
 
 describe('the rule that reports those findings in the editor', () => {

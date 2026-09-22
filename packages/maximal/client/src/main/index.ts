@@ -22,7 +22,11 @@ import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import { z } from 'zod'
 
 import { BRIDGE_CHANNELS } from '../shared/bridge-channels.js'
-import type { PendingSettingsRequest } from '../shared/bridge-types.js'
+import type {
+  PendingSettingsRequest,
+  TerminalRedockRequest,
+  TerminalWindowRequest,
+} from '../shared/bridge-types.js'
 import { createControlSession, type ControlSession } from './control-session.js'
 import {
   type CoreStatus,
@@ -48,7 +52,14 @@ import {
   startHarnessHost,
   stopHarnessHost,
 } from './harness-host.js'
-import { configureTerminalHost, registerTerminalIpc, stopTerminalHost } from './terminal-host.js'
+import {
+  configureTerminalHost,
+  configureTerminalWindowActions,
+  copyTerminalSessions,
+  moveTerminalSessions,
+  registerTerminalIpc,
+  stopTerminalHost,
+} from './terminal-host.js'
 
 // Before `whenReady`, not inside it: `app.name` is read when the default menu
 // and the About panel are built, so setting it later leaves both stale.
@@ -272,15 +283,24 @@ function broadcastCoreStatus(status: CoreStatus): void {
   broadcast(BRIDGE_CHANNELS.lifecycleChanged, toLifecycleStatus(status))
 }
 
-function loadRenderer(win: BrowserWindow): void {
+function loadRenderer(win: BrowserWindow, terminal?: TerminalWindowRequest): void {
+  const query = new URLSearchParams()
+  if (terminal) {
+    query.set('terminalSessionId', terminal.id)
+    query.set('terminalTitle', terminal.title)
+    query.set('terminalCanRunInBackground', String(terminal.canRunInBackground))
+    if (terminal.pane) query.set('terminalPane', JSON.stringify(terminal.pane))
+  }
+  const search = query.toString()
   if (
     typeof MAIN_WINDOW_VITE_DEV_SERVER_URL !== 'undefined' &&
     MAIN_WINDOW_VITE_DEV_SERVER_URL
   ) {
-    void win.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL)
+    void win.loadURL(`${MAIN_WINDOW_VITE_DEV_SERVER_URL}${search === '' ? '' : `?${search}`}`)
   } else {
     void win.loadFile(
       join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
+      search === '' ? undefined : { search },
     )
   }
 }
@@ -309,6 +329,63 @@ function createWindow(): BrowserWindow {
     menuBarMode?.cancelPending()
   })
   return win
+}
+
+function createTerminalWindow(request: TerminalWindowRequest): BrowserWindow {
+  return runShell({
+    preloadPath: join(__dirname, 'preload.js'),
+    title: request.title,
+    x: request.x,
+    y: request.y,
+    width: 1000,
+    height: 700,
+    showWhenReady: false,
+    loadRenderer: (win) => loadRenderer(win, request),
+  })
+}
+
+function openTransferredTerminal(
+  owner: BrowserWindow | undefined,
+  request: TerminalWindowRequest,
+  transfer: (
+    owner: BrowserWindow | undefined,
+    recipient: BrowserWindow | undefined,
+    request: TerminalWindowRequest,
+  ) => boolean,
+): boolean {
+  if (!owner) return false
+  const detached = createTerminalWindow(request)
+  const transferred = transfer(owner, detached, request)
+  if (!transferred) {
+    detached.close()
+    return false
+  }
+  detached.once('ready-to-show', () => {
+    detached.show()
+    focusWindow(detached)
+  })
+  return true
+}
+
+function redockTerminal(
+  owner: BrowserWindow | undefined,
+  request: TerminalRedockRequest,
+): boolean {
+  if (!owner) return false
+  const source = BrowserWindow.fromId(Number(request.sourceFrameId))
+  const target = BrowserWindow.fromId(Number(request.targetFrameId))
+  if (!source || !target || target !== owner) return false
+  const moved = moveTerminalSessions(source, target, request)
+  if (!moved) return false
+  target.webContents.send(BRIDGE_CHANNELS.terminalTabRedocked, {
+    id: request.id,
+    title: request.title,
+    canRunInBackground: request.canRunInBackground,
+    ...(request.pane ? { pane: request.pane } : {}),
+  })
+  source.close()
+  focusWindow(target)
+  return true
 }
 
 function activateWindow(): BrowserWindow {
@@ -351,6 +428,13 @@ void app.whenReady().then(async () => {
       broadcast(BRIDGE_CHANNELS.trafficInvalidated, invalidation),
   })
   configureTerminalHost()
+  configureTerminalWindowActions({
+    undock: (owner, request) =>
+      openTransferredTerminal(owner, request, moveTerminalSessions),
+    copy: (owner, request) =>
+      openTransferredTerminal(owner, request, copyTerminalSessions),
+    redock: redockTerminal,
+  })
   registerIpc(controlSession, nativeMode)
   startHarnessHost()
 

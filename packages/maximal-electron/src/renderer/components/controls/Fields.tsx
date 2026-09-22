@@ -14,13 +14,220 @@ import { useComponentStyles } from '../../lib/component-styles.js';
 import { IconButton } from './Button.js';
 import { useShellPortalContainer } from './Overlays.js';
 
+const FIELD_STYLES = `
+.sb-shell {
+  --shell-field-control-size: 15px;
+  --shell-field-radio-dot-size: 7px;
+  --shell-field-action-inset: 2px;
+  --shell-field-half: 50%;
+  --shell-switch-duration: 120ms;
+}
+
+.sb-shell .input:focus {
+  border-color: var(--shell-focus, var(--shell-accent));
+  outline: none;
+  box-shadow: 0 0 0 var(--shell-focus-ring-width) var(--shell-focus, var(--shell-accent));
+}
+
+.sb-shell .input:disabled,
+.sb-shell .switch:disabled,
+.sb-shell .checkbox__box:disabled,
+.sb-shell .radio-group[data-disabled] {
+  opacity: var(--shell-disabled-opacity, 0.5);
+  cursor: not-allowed;
+}
+
+.sb-shell .input {
+  width: 100%;
+  height: var(--shell-control-height, var(--shell-control-md));
+  padding: 0 var(--shell-space-2);
+  color: var(--shell-text);
+  font: inherit;
+  font-size: var(--shell-text-base);
+  background: var(--shell-field-background);
+  border: 1px solid var(--shell-input-border);
+  border-radius: var(--shell-radius);
+}
+
+.sb-shell .input::placeholder {
+  color: var(--shell-text-subtle);
+}
+
+.sb-shell .input-shell {
+  position: relative;
+  width: 100%;
+}
+
+.sb-shell .input-shell .input {
+  padding-right: calc(var(--shell-control-lg) + var(--shell-space-1));
+}
+
+.sb-shell .input-shell__action {
+  position: absolute;
+  top: var(--shell-field-half);
+  right: var(--shell-field-action-inset);
+  transform: translateY(calc(-1 * var(--shell-field-half)));
+}
+
+.sb-shell .input:hover:not(:disabled) {
+  border-color: var(--shell-border-hover, var(--shell-accent));
+}
+
+.sb-shell .input[aria-invalid='true'] {
+  border-color: var(--shell-invalid, var(--shell-danger, var(--shell-hover)));
+}
+
+.sb-shell .input--multiline {
+  height: auto;
+  padding: var(--shell-space-2);
+  line-height: var(--shell-leading-base);
+  resize: vertical;
+}
+
+.sb-shell .input--select {
+  padding-right: var(--shell-space-1);
+}
+
+.sb-shell .form-field {
+  display: grid;
+  gap: var(--shell-space-1);
+}
+
+.sb-shell .form-field__label-row {
+  display: flex;
+  align-items: center;
+  gap: var(--shell-space-1);
+}
+
+.sb-shell .form-field__label {
+  color: var(--shell-text-muted);
+  font-size: var(--shell-text-base);
+}
+
+.sb-shell .form-field__hint {
+  margin: 0;
+  color: var(--shell-text-subtle);
+  font-size: var(--shell-text-sm);
+}
+
+.sb-shell .form-field__error {
+  margin: 0;
+  color: var(--shell-invalid, var(--shell-danger, var(--shell-hover)));
+  font-size: var(--shell-text-sm);
+}
+
+.sb-shell .checkbox,
+.sb-shell .radio {
+  display: flex;
+  align-items: center;
+  gap: var(--shell-space-2);
+  font-size: var(--shell-text-base);
+  cursor: pointer;
+}
+
+.sb-shell .checkbox__box {
+  width: var(--shell-field-control-size);
+  height: var(--shell-field-control-size);
+  flex: none;
+  accent-color: var(--shell-accent);
+  cursor: inherit;
+}
+
+.sb-shell .radio-group {
+  display: grid;
+  gap: var(--shell-space-2);
+}
+
+.sb-shell .radio__box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--shell-field-control-size);
+  height: var(--shell-field-control-size);
+  flex: none;
+  background: var(--shell-field-background);
+  border: 1px solid var(--shell-input-border);
+  border-radius: var(--shell-radius-pill);
+}
+
+.sb-shell .radio__box[data-state='checked'] {
+  border-color: var(--shell-accent);
+}
+
+.sb-shell .radio__dot {
+  width: var(--shell-field-radio-dot-size);
+  height: var(--shell-field-radio-dot-size);
+  border-radius: var(--shell-radius-pill);
+  background: var(--shell-accent);
+}
+
+.sb-shell .switch {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--shell-space-3);
+  width: fit-content;
+  padding: 0;
+  color: var(--shell-text-muted);
+  font: inherit;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.sb-shell .switch[data-layout='spread'] {
+  justify-content: space-between;
+  width: 100%;
+}
+
+.sb-shell .switch__track {
+  position: relative;
+  box-sizing: border-box;
+  width: var(--shell-control-lg);
+  height: calc(var(--shell-control-sm) - var(--shell-space-1));
+  flex: none;
+  border: 1px solid var(--shell-text-muted);
+  border-radius: var(--shell-radius-pill);
+  background: var(--shell-active);
+  transition:
+    background var(--shell-switch-duration) ease-out,
+    border-color var(--shell-switch-duration) ease-out;
+}
+
+.sb-shell .switch__track[data-on='true'] {
+  border-color: var(--shell-accent);
+  background: var(--shell-accent);
+}
+
+.sb-shell .switch__thumb {
+  position: absolute;
+  top: var(--shell-field-action-inset);
+  left: var(--shell-field-action-inset);
+  width: calc(var(--shell-control-sm) - var(--shell-space-2));
+  height: calc(var(--shell-control-sm) - var(--shell-space-2));
+  border-radius: var(--shell-field-half);
+  background: var(--shell-text);
+  transition: transform var(--shell-switch-duration) ease-out;
+}
+
+.sb-shell .switch__track[data-on='true'] .switch__thumb {
+  background: var(--shell-accent-contrast, var(--shell-background));
+  transform: translateX(var(--shell-space-3));
+}
+`;
+
+function useFieldStyles(): void {
+  useComponentStyles('fields', FIELD_STYLES);
+}
+
 /**
  * Form controls.
  *
  * There was no `<input>` and no `<form>` anywhere in this repository before
  * these: one `<textarea>` in the overlay and one `<select>` in the inspector,
- * each carrying its own idea of a border and a background. They now agree,
- * because `--bg-input` and `--border-input` exist.
+ * each carrying its own idea of a border and a background. They now agree on
+ * the published field tokens.
  *
  * Native elements wherever the platform already does the work. Radix only for
  * the radio group, whose roving focus is not worth hand-rolling.
@@ -53,6 +260,7 @@ export function FormField({
   error?: string;
   children: (field: FieldControl) => ReactNode;
 }) {
+  useFieldStyles();
   const id = useId();
   const hintId = hint ? `${id}-hint` : undefined;
   const errorId = error ? `${id}-error` : undefined;
@@ -108,6 +316,7 @@ export function TextInput({
   revealLabel?: string;
   onBlur?: (event: FocusEvent<HTMLInputElement>) => void;
 } & Partial<FieldControl>) {
+  useFieldStyles();
   const [revealed, setRevealed] = useState(false);
   const secret = type === 'password';
   const input = (
@@ -164,6 +373,7 @@ export function Textarea({
   onKeyDown?: (event: React.KeyboardEvent<HTMLTextAreaElement>) => void;
   testId?: string;
 } & Partial<FieldControl>) {
+  useFieldStyles();
   return (
     <textarea
       className="input input--multiline"
@@ -200,6 +410,7 @@ export function Select<T extends string>({
   disabled?: boolean;
   testId?: string;
 } & Partial<FieldControl>) {
+  useFieldStyles();
   return (
     <select
       className="input input--select"
@@ -232,6 +443,7 @@ export function Checkbox({
   disabled?: boolean;
   testId?: string;
 }) {
+  useFieldStyles();
   return (
     <label className="checkbox">
       <input
@@ -262,6 +474,7 @@ export function RadioGroup<T extends string>({
   disabled?: boolean;
   testId?: string;
 } & Partial<FieldControl>) {
+  useFieldStyles();
   return (
     <RadioGroupPrimitive.Root
       className="radio-group"
@@ -305,6 +518,7 @@ export function Switch({
   testId?: string;
   className?: string;
 }) {
+  useFieldStyles();
   const container = useShellPortalContainer();
   const renderedLabel =
     displayLabel === undefined ? <span>{label}</span> : displayLabel;

@@ -12,6 +12,7 @@
   --shell-radius: 6px;
   --shell-radius-large: 8px;
   --shell-focus-ring-width: 2px;
+  --shell-field-background: var(--shell-input-background, var(--shell-canvas));
   --shell-focus-ring-offset: 2px;
   --shell-input-border: var(--shell-border-strong, var(--shell-border));
 

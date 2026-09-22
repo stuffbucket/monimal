@@ -235,7 +235,7 @@ describe('TmuxProjectionOwners', () => {
     expect(exited).toHaveBeenCalledOnce();
   });
 
-  it('authorizes explicit termination and clears every session mapping', () => {
+  it('lets an attached projection terminate the session and clears every mapping', () => {
     const creator = { id: 'creator' };
     const recipient = { id: 'recipient' };
     const stranger = { id: 'stranger' };
@@ -256,8 +256,7 @@ describe('TmuxProjectionOwners', () => {
     registry.attach(recipient, { sessionId: 'work', projectionId: 'right', cols: 80, rows: 24 });
 
     expect(registry.terminate(stranger, 'work')).toBe(false);
-    expect(registry.terminate(recipient, 'work')).toBe(false);
-    expect(registry.terminate(creator, 'work')).toBe(true);
+    expect(registry.terminate(recipient, 'work')).toBe(true);
     expect(terminate).toHaveBeenCalledWith('tmux', ['kill-session', '-t', 'work']);
     expect(registry.has('work')).toBe(false);
     expect(registry.focus(creator, 'work', 'left', 80, 24)).toBeUndefined();
@@ -267,6 +266,31 @@ describe('TmuxProjectionOwners', () => {
     registry.reserve(replacement, 'work', launch);
     expect(registry.attach(recipient, { sessionId: 'work', projectionId: 'new-right', cols: 80, rows: 24 })).toBe(false);
     expect(registry.attach(replacement, { sessionId: 'work', projectionId: 'left', cols: 80, rows: 24 })).toBe(true);
+  });
+
+  it('moves session authority before the destination projection attaches', () => {
+    const creator = { id: 'creator' };
+    const recipient = { id: 'recipient' };
+    const registry = new TmuxProjectionOwners({
+      homeDirectory: '/home/ada',
+      command: async () => ({ stdout: 'latest\n' }),
+      connector: { connect: () => processWire().process },
+      terminate: vi.fn(),
+      emit: vi.fn(),
+      onExit: vi.fn(),
+    });
+    registry.reserve(creator, 'work', launch);
+    registry.attach(creator, { sessionId: 'work', projectionId: 'left', cols: 80, rows: 24 });
+
+    expect(registry.transfer(creator, 'work', recipient)).toBe(true);
+    expect(registry.grant(creator, 'work', recipient)).toBe(false);
+    expect(registry.attach(recipient, {
+      sessionId: 'work',
+      projectionId: 'right',
+      cols: 80,
+      rows: 24,
+    })).toBe(true);
+    expect(registry.terminate(recipient, 'work')).toBe(true);
   });
 
   it('keeps authorization session-scoped and terminates a creator reservation', () => {
