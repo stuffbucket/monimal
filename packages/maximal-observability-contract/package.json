@@ -24,13 +24,13 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "zod": "^4.5.4"
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@stuffbucket/eslint-config": "workspace:*",
-    "@types/node": "^26.4.0",
+    "@types/node": "^26.5.1",
     "@typescript/native": "npm:typescript@^7.0.2",
-    "eslint": "^10.9.1",
+    "eslint": "^10.10.0",
     "tsup": "^8.5.1",
     "typescript": "npm:@typescript/typescript6@^6.0.2"
   },
