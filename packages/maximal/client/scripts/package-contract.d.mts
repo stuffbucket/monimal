@@ -1,5 +1,7 @@
 /** Types for the plain-Node native package contract. */
 
+export declare function ptyRuntimeEntries(platform: string, arch: string): string[];
+
 export declare function admitsTarget(
   list: readonly string[] | string | undefined,
   value: string,

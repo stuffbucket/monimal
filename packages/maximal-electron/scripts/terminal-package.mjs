@@ -70,6 +70,7 @@ function prebuildDirectories(files) {
 export function terminalPackageChecks(input) {
   const { packedFiles, unpackedFiles, platform, arch } = input;
   const directory = terminalPrebuildDirectory(platform, arch);
+  const packageFiles = [...packedFiles, ...unpackedFiles];
 
   // The floor. Point either list at the wrong directory and it is empty. Every
   // assertion over the missing input would otherwise report a pass.
@@ -82,6 +83,12 @@ export function terminalPackageChecks(input) {
     name: 'node-pty is packed as real files',
     ok: packedFiles.some((file) => /(?:^|\/)node-pty[^/]*\//.test(file)),
   });
+  checks.push({
+    name: 'node-pty has no competing build native module',
+    ok: packageFiles.length > 0 && packageFiles.every(
+      (file) => !/(?:^|\/)node-pty[^/]*\/build\/(?:Release|Debug)\/(?:pty|conpty)\.node$/.test(file),
+    ),
+  });
 
   for (const file of terminalNativeFiles(platform)) {
     checks.push({
@@ -90,7 +97,7 @@ export function terminalPackageChecks(input) {
     });
   }
 
-  const directories = prebuildDirectories([...packedFiles, ...unpackedFiles]);
+  const directories = prebuildDirectories(packageFiles);
   checks.push({
     name: 'a prebuild directory is present',
     ok: directories.size > 0,

@@ -16,6 +16,17 @@
  */
 const TARGET_PLATFORM = { mas: 'darwin' };
 
+export function ptyRuntimeEntries(platform, arch) {
+  const host = TARGET_PLATFORM[platform] ?? platform;
+  const architectures = arch === 'universal' ? ['x64', 'arm64'] : [arch];
+  return [
+    'LICENSE',
+    'package.json',
+    'lib',
+    ...architectures.map((entry) => `prebuilds/${host}-${entry}`),
+  ];
+}
+
 /**
  * npm's own `os`/`cpu` rule, which is not "is the value in the list".
  *

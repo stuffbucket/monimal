@@ -111,6 +111,17 @@ describe('terminalPackageChecks', () => {
     expect(failed(checks)).toEqual(['spawn-helper is unpacked']);
   });
 
+  it('reports a build native module that takes precedence over the verified prebuild', () => {
+    const checks = terminalPackageChecks({
+      ...darwin,
+      unpackedFiles: [
+        ...unpackedDarwin,
+        'node_modules/node-pty/build/Release/pty.node',
+      ],
+    });
+    expect(failed(checks)).toEqual(['node-pty has no competing build native module']);
+  });
+
   it('reports a prebuild for another platform', () => {
     const checks = terminalPackageChecks({
       ...darwin,
