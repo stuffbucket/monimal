@@ -165,15 +165,9 @@
   stroke: var(--shell-border-strong, var(--shell-border));
 }
 
-.mo-flow-node text,
-.mo-flow-column-label {
+.mo-flow-node text {
   fill: var(--shell-text);
   font: var(--shell-font);
-}
-
-.mo-flow-column-label {
-  fill: var(--shell-text-muted);
-  font-size: var(--shell-text-xs);
 }
 
 .mo-token-segment {
@@ -278,17 +272,6 @@
 @media (max-width: 56rem) {
   .mo-metrics { grid-template-columns: repeat(2, minmax(7rem, 1fr)); }
   .mo-metric { border-block-end: 1px solid var(--shell-border); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .mo-main *,
-  .mo-rail *,
-  .mo-inspector *,
-  .mo-status * {
-    animation: none !important;
-    scroll-behavior: auto !important;
-    transition: none !important;
-  }
 }
 
 @media (forced-colors: active) {

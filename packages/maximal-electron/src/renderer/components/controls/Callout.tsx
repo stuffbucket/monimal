@@ -1,5 +1,44 @@
 import { useId, type ReactNode } from 'react';
 
+import { useComponentStyles } from '../../lib/component-styles.js';
+
+const CALLOUT_STYLES = `
+.sb-shell .callout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--shell-space-2);
+  padding: var(--shell-space-3);
+  color: var(--shell-text);
+  background: var(--shell-status-muted, var(--shell-active));
+  border: 1px solid var(--shell-status, var(--shell-text-muted));
+  border-radius: var(--shell-radius-large);
+}
+
+.sb-shell .callout__title {
+  margin: 0;
+  color: var(--shell-status, var(--shell-text));
+  font-size: var(--shell-text-xs);
+  font-weight: var(--shell-weight-lg);
+  letter-spacing: var(--shell-tracking-caps);
+  text-transform: uppercase;
+}
+
+.sb-shell .callout__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--shell-space-2);
+  min-width: 0;
+  font-size: var(--shell-text-sm);
+}
+
+.sb-shell .callout__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--shell-space-2);
+  justify-content: flex-end;
+}
+`;
+
 /**
  * A titled region that calls something out of the flow and offers actions on
  * it.
@@ -42,6 +81,7 @@ export function Callout({
   as?: 'h2' | 'h3';
   testId?: string;
 }) {
+  useComponentStyles('callout', CALLOUT_STYLES);
   const titleId = useId();
 
   return (

@@ -1,0 +1,11 @@
+@layer sb-shell.base {
+@media (prefers-reduced-motion: reduce) {
+  .sb-shell *,
+  .sb-shell *::before,
+  .sb-shell *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+}
