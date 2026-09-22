@@ -34,6 +34,7 @@ export function useTerminalTabs(authenticated: boolean | null) {
           .map((session) => terminalTab({
             sessionId: session.id,
             label: session.shell.split('/').at(-1) ?? 'Terminal',
+            canRunInBackground: false,
           }))
         return restored.length === 0 ? current : [...current, ...restored]
       })

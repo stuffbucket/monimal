@@ -52,6 +52,7 @@ focus rings, type, and optical details are not spacing increments.
 | `--shell-control-sm` | `24px` | A compact control height. |
 | `--shell-control-md` | `28px` | The default control height. |
 | `--shell-control-lg` | `32px` | The tallest control height. |
+| `--shell-field-background` | `var(--shell-input-background, var(--shell-canvas))` | The resolved surface behind an editable field. |
 | `--shell-focus-ring-offset` | `2px` | Space between a control and its keyboard focus ring. |
 | `--shell-focus-ring-width` | `2px` | Keyboard focus ring width. |
 | `--shell-input-border` | `var(--shell-border-strong, var(--shell-border))` | The outline of a field. |

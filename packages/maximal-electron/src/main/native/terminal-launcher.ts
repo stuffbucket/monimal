@@ -91,13 +91,13 @@ const SSH_PROFILE: TerminalProfileSummary = Object.freeze({
 
 const TMUX_PROFILE: TerminalProfileSummary = Object.freeze({
   id: 'tmux',
-  label: 'Tmux',
+  label: 'Local',
   kind: 'tmux',
 });
 
 const SSH_TMUX_PROFILE: TerminalProfileSummary = Object.freeze({
   id: 'ssh-tmux',
-  label: 'SSH + Tmux',
+  label: 'SSH',
   kind: 'ssh-tmux',
 });
 
@@ -137,7 +137,6 @@ export function loadTerminalProfiles(userData: string): TerminalProfilesFile {
 export function terminalProfiles(platform = process.platform): readonly TerminalProfileSummary[] {
   return [
     LOCAL_PROFILE,
-    ...(platform === 'darwin' || platform === 'linux' ? [TMUX_CONTROL_PROFILE] : []),
     DOCKER_PROFILE,
     ...(platform === 'darwin' || platform === 'linux' || platform === 'win32' ? [PODMAN_PROFILE] : []),
     ...(platform === 'darwin' || platform === 'linux' ? [LIMA_PROFILE] : []),
@@ -221,6 +220,7 @@ export class TerminalLauncher<Owner> {
             profileId: result.connector.id,
             label: target.label,
             state: 'available',
+            ...(target.purpose ? { purpose: target.purpose } : {}),
           });
         }
       } else {
@@ -254,7 +254,7 @@ export class TerminalLauncher<Owner> {
         throw new Error('Unknown terminal profile or target.');
       }
       launch = connector.launch(target.target);
-      label = connector.label;
+      label = launch.tmuxProjection ? target.target.label : connector.label;
     }
     const sessionId = (this.options.createId ?? randomUUID)();
     this.reservations.set(sessionId, {
@@ -262,7 +262,11 @@ export class TerminalLauncher<Owner> {
       expiresAt: this.now() + (this.options.reservationMs ?? 10_000),
       launch,
     });
-    return { sessionId, label };
+    return {
+      sessionId,
+      label,
+      canRunInBackground: launch.tmuxProjection !== undefined,
+    };
   }
 
   take(owner: Owner, sessionId: string): TrustedTerminalLaunch | undefined {

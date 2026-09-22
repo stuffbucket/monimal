@@ -4,14 +4,12 @@ import {
   TerminalHost,
   TmuxProjectionOwners,
   type TerminalSession,
-  type TerminalStatus,
 } from '../../host/terminal-host.js';
 import type {
   PtyProjectionAttachRequest,
   PtyProjectionResizeRequest,
   PtyProjectionWriteRequest,
   PtySpawnRequest,
-  PtyStatus,
   TerminalDiscovery,
   TerminalLaunchRequest,
   TerminalLaunchResult,
@@ -40,6 +38,7 @@ import { clampTerminalGrid } from '../../shared/terminal-grid.js';
 import type { TerminalPaneLayout } from '../../shared/ipc.js';
 
 import { Owners } from './pty-session.js';
+import type { PtyHandlers } from './pty-handlers.js';
 import { TerminalWindowGroups } from './pty-window-groups.js';
 
 /**
@@ -58,44 +57,18 @@ import { TerminalWindowGroups } from './pty-window-groups.js';
  * session starts, and where its output goes.
  */
 
-/** Emit batched output, and the end of a session, to the owning window. */
-type Emit = (owner: BrowserWindow, id: string, chunk: string, sequence?: number, projectionId?: string) => void;
-type Exit = (owner: BrowserWindow, id: string, exitCode: number, projectionId?: string) => void;
-type Status = (owner: BrowserWindow, status: PtyStatus) => void;
-/** Tell one window the authoritative size a mirrored session settled on. */
-type Size = (
-  window: BrowserWindow,
-  id: string,
-  cols: number,
-  rows: number,
-  projectionId?: string,
-) => void;
-type Pane = (
-  window: BrowserWindow,
-  id: string,
-  pane: TerminalPaneLayout,
-  revision: number,
-  origin: string,
-) => void;
+let emit: PtyHandlers['emit'] = () => undefined;
+let onExit: PtyHandlers['onExit'] = () => undefined;
+let onStatus: PtyHandlers['onStatus'] = () => undefined;
+let onSize: NonNullable<PtyHandlers['onSize']> = () => undefined;
+let onPane: NonNullable<PtyHandlers['onPane']> = () => undefined;
 
-let emit: Emit = () => undefined;
-let onExit: Exit = () => undefined;
-let onStatus: Status = () => undefined;
-let onSize: Size = () => undefined;
-let onPane: Pane = () => undefined;
-
-export function configurePty(
-  handlers: { emit: Emit; onExit: Exit; onStatus: Status; onSize?: Size; onPane?: Pane },
-): void {
+export function configurePty(handlers: PtyHandlers): void {
   emit = handlers.emit;
   onExit = handlers.onExit;
   onStatus = handlers.onStatus;
   onSize = handlers.onSize ?? (() => undefined);
   onPane = handlers.onPane ?? (() => undefined);
-}
-
-function ptyStatus(status: TerminalStatus): PtyStatus {
-  return status;
 }
 
 /** The user's login shell, or a sane default for the platform. */
@@ -126,7 +99,7 @@ const hosts = new Owners<BrowserWindow, TerminalHost>(
         onExit(owner, id, exitCode);
       },
       onStatus: (status) => {
-        onStatus(owner, ptyStatus(status));
+        onStatus(owner, status);
       },
     });
   },
@@ -189,7 +162,14 @@ const projections = new TmuxProjectionOwners<BrowserWindow>({
 function prepareProjectionOwner(owner: BrowserWindow): void {
   if (projectionOwners.has(owner)) return;
   projectionOwners.add(owner);
-  owner.once('closed', () => projections.release(owner));
+  owner.once('closed', () => {
+    projections.release(owner);
+    windowGroups.removeWindow(owner);
+  });
+}
+
+function windowProjectionId(owner: BrowserWindow, sessionId: string): string {
+  return `${sessionId}:${String(owner.id)}`;
 }
 
 function prepareLauncher(owner: BrowserWindow): void {
@@ -350,13 +330,18 @@ function flushPendingPaneSyncs(): void {
       continue;
     }
     const sessions = paneSessionIds(pending.pane).map((sessionId) => {
+      if (projections.has(sessionId)) {
+        return { sessionId, owner: pending.requestor, projection: true as const };
+      }
       const owner = realOwnerOf(pending.requestor, sessionId);
-      return owner && hostFor(owner)?.has(sessionId) ? { sessionId, owner } : undefined;
+      return owner && hostFor(owner)?.has(sessionId)
+        ? { sessionId, owner, projection: false as const }
+        : undefined;
     });
     if (sessions.some((session) => session === undefined)) continue;
     windowGroups.setDocument(id, paneSessionIds(pending.pane));
     for (const session of sessions) {
-      if (!session) continue;
+      if (!session || session.projection) continue;
       paneSessionViewers.set(session.sessionId, new Set(viewers.keys()));
       for (const [viewer] of viewers) {
         if (viewer !== session.owner && !isMirrorWindow(viewer, session.sessionId)) {
@@ -441,11 +426,19 @@ function spawn(
     prepareProjectionOwner(owner);
     projections.attach(owner, {
       sessionId: request.id,
-      projectionId: request.id,
+      projectionId: windowProjectionId(owner, request.id),
       cols: request.cols,
       rows: request.rows,
     });
-    const epoch = projections.focus(owner, request.id, request.id, request.cols, request.rows);
+    trackViewerSize(request.id, owner, request.cols, request.rows);
+    flushPendingPaneSyncs();
+    const epoch = projections.focus(
+      owner,
+      request.id,
+      windowProjectionId(owner, request.id),
+      request.cols,
+      request.rows,
+    );
     if (epoch !== undefined) {
       const epochs = projectionEpochs.get(owner) ?? new Map<string, number>();
       epochs.set(request.id, epoch);
@@ -624,7 +617,7 @@ export function writePty(
   if (owner) {
     const epoch = projectionEpochs.get(owner)?.get(id);
     if (projections.has(id) && epoch !== undefined) {
-      projections.write(owner, id, id, epoch, data);
+      projections.write(owner, id, windowProjectionId(owner, id), epoch, data);
       return;
     }
   }
@@ -643,7 +636,7 @@ export function resizePty(
   if (owner) {
     const epoch = projectionEpochs.get(owner)?.get(id);
     if (projections.has(id) && epoch !== undefined) {
-      projections.resize(owner, id, id, epoch, cols, rows);
+      projections.resize(owner, id, windowProjectionId(owner, id), epoch, cols, rows);
       return;
     }
   }
@@ -728,7 +721,9 @@ export function detachPtyProjection(
   id: string,
   projectionId: string,
 ): boolean {
-  return owner ? projections.detach(owner, id, projectionId) : false;
+  if (!owner || !projections.detach(owner, id, projectionId)) return false;
+  forgetViewerSize(id, owner);
+  return true;
 }
 
 /** Authorize one destination window to attach its next projection. */
@@ -736,10 +731,32 @@ export function grantPtyProjection(
   owner: BrowserWindow | undefined,
   id: string,
   recipient: BrowserWindow | undefined,
+  cols = 80,
+  rows = 24,
 ): boolean {
   if (!owner || !recipient) return false;
   prepareProjectionOwner(recipient);
-  return projections.grant(owner, id, recipient);
+  const granted = projections.grant(owner, id, recipient);
+  if (granted) trackViewerSize(id, recipient, cols, rows);
+  return granted;
+}
+
+/** Move projection authority to a destination window and detach the old view. */
+export function transferPtyProjection(
+  owner: BrowserWindow | undefined,
+  id: string,
+  recipient: BrowserWindow | undefined,
+  cols = 80,
+  rows = 24,
+): boolean {
+  if (!owner || !recipient) return false;
+  prepareProjectionOwner(recipient);
+  if (!projections.transfer(owner, id, recipient)) return false;
+  projections.detach(owner, id, windowProjectionId(owner, id));
+  projectionEpochs.get(owner)?.delete(id);
+  forgetViewerSize(id, owner);
+  trackViewerSize(id, recipient, cols, rows);
+  return true;
 }
 
 /** Record renderer consumption of all output through this sequence. */

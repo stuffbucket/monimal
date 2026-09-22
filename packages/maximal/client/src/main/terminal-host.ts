@@ -87,10 +87,14 @@ export function registerTerminalIpc(): void {
 
 export function configureTerminalHost(): void {
   configurePty({
-    emit: (owner, id, data, sequence) =>
-      owner.webContents.send(BRIDGE_CHANNELS.terminalData, { id, data, sequence }),
-    onExit: (owner, id, exitCode) =>
-      owner.webContents.send(BRIDGE_CHANNELS.terminalExit, { id, exitCode }),
+    emit: (owner: BrowserWindow, id: string, data: string, sequence?: number) => {
+      if (!owner || owner.isDestroyed() || owner.webContents.isDestroyed()) return
+      owner.webContents.send(BRIDGE_CHANNELS.terminalData, { id, data, sequence })
+    },
+    onExit: (owner: BrowserWindow, id: string, exitCode: number) => {
+      if (!owner || owner.isDestroyed() || owner.webContents.isDestroyed()) return
+      owner.webContents.send(BRIDGE_CHANNELS.terminalExit, { id, exitCode })
+    },
     onStatus: () => undefined,
   })
 }

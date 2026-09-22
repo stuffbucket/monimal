@@ -51,6 +51,7 @@ export interface TerminalTargetSummary {
   profileId: string;
   label: string;
   state: 'available' | 'unavailable' | 'timed-out';
+  purpose?: 'destination' | 'new' | 'running';
 }
 
 export interface TerminalDiscovery {
@@ -68,6 +69,7 @@ export interface TerminalLaunchRequest {
 export interface TerminalLaunchResult {
   sessionId: string;
   label: string;
+  canRunInBackground: boolean;
 }
 
 /** A live shell, whether or not a terminal view is showing it. */
