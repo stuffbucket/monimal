@@ -1,7 +1,9 @@
 import {
   acknowledgePty,
+  copyPty,
   configurePty,
   discoverTerminalTargets,
+  grantPtyProjection,
   killAllPtys,
   killPty,
   launchTerminal,
@@ -9,6 +11,9 @@ import {
   listPtys,
   resizePty,
   spawnPty,
+  syncPtyPane,
+  transferPty,
+  transferPtyProjection,
   writePty,
 } from 'stuffbucket-electron/electron-terminal'
 import { registerTerminalChannels } from 'stuffbucket-electron/host/terminal'
@@ -17,6 +22,11 @@ import { BrowserWindow, ipcMain } from 'electron'
 import { z } from 'zod'
 
 import { BRIDGE_CHANNELS } from '../shared/bridge-channels.js'
+import type {
+  TerminalPaneLayout,
+  TerminalRedockRequest,
+  TerminalWindowRequest,
+} from '../shared/bridge-types.js'
 
 const nonEmptyString = z.string().min(1)
 const positiveInteger = z.number().int().positive()
@@ -36,6 +46,41 @@ const terminalLaunchRequest = z.object({
   cols: positiveInteger,
   rows: positiveInteger,
 })
+const terminalPane: z.ZodType<TerminalPaneLayout> = z.lazy(() => z.union([
+  z.object({ sessionId: nonEmptyString }),
+  z.object({
+    direction: z.enum(['right', 'down']),
+    first: terminalPane,
+    second: terminalPane,
+  }),
+]))
+const terminalWindowRequest = terminalId.extend({
+  cols: positiveInteger,
+  rows: positiveInteger,
+  x: z.number().finite(),
+  y: z.number().finite(),
+  title: nonEmptyString,
+  canRunInBackground: z.boolean(),
+  sessionIds: z.array(nonEmptyString).optional(),
+  pane: terminalPane.optional(),
+})
+const terminalRedockRequest = terminalWindowRequest.extend({
+  sourceFrameId: nonEmptyString,
+  targetFrameId: nonEmptyString,
+})
+const terminalPaneSync = terminalId.extend({ pane: terminalPane })
+
+interface TerminalWindowActions {
+  undock(owner: BrowserWindow | undefined, request: TerminalWindowRequest): boolean
+  copy(owner: BrowserWindow | undefined, request: TerminalWindowRequest): boolean
+  redock(owner: BrowserWindow | undefined, request: TerminalRedockRequest): boolean
+}
+
+let terminalWindowActions: TerminalWindowActions = {
+  undock: () => false,
+  copy: () => false,
+  redock: () => false,
+}
 
 const TERMINAL_CHANNELS = {
   spawn: BRIDGE_CHANNELS.terminalSpawn,
@@ -47,6 +92,31 @@ const TERMINAL_CHANNELS = {
 } as const
 
 export function registerTerminalIpc(): void {
+  ipcMain.handle(BRIDGE_CHANNELS.terminalFrameId, (event) =>
+    String(BrowserWindow.fromWebContents(event.sender)?.id ?? ''),
+  )
+  ipcMain.handle(BRIDGE_CHANNELS.terminalUndock, (event, request: unknown) =>
+    terminalWindowActions.undock(
+      BrowserWindow.fromWebContents(event.sender) ?? undefined,
+      terminalWindowRequest.parse(request),
+    ),
+  )
+  ipcMain.handle(BRIDGE_CHANNELS.terminalCopy, (event, request: unknown) =>
+    terminalWindowActions.copy(
+      BrowserWindow.fromWebContents(event.sender) ?? undefined,
+      terminalWindowRequest.parse(request),
+    ),
+  )
+  ipcMain.handle(BRIDGE_CHANNELS.terminalRedock, (event, request: unknown) =>
+    terminalWindowActions.redock(
+      BrowserWindow.fromWebContents(event.sender) ?? undefined,
+      terminalRedockRequest.parse(request),
+    ),
+  )
+  ipcMain.handle(BRIDGE_CHANNELS.terminalPaneSync, (event, request: unknown) => {
+    const parsed = terminalPaneSync.parse(request)
+    syncPtyPane(BrowserWindow.fromWebContents(event.sender) ?? undefined, parsed.id, parsed.pane)
+  })
   ipcMain.handle(BRIDGE_CHANNELS.terminalProfiles, (event) =>
     listTerminalProfiles(BrowserWindow.fromWebContents(event.sender) ?? undefined),
   )
@@ -96,7 +166,74 @@ export function configureTerminalHost(): void {
       owner.webContents.send(BRIDGE_CHANNELS.terminalExit, { id, exitCode })
     },
     onStatus: () => undefined,
+    onPane: (
+      owner: BrowserWindow,
+      id: string,
+      pane: TerminalPaneLayout,
+      revision: number,
+      origin: string,
+    ) => {
+      if (!owner || owner.isDestroyed() || owner.webContents.isDestroyed()) return
+      owner.webContents.send(BRIDGE_CHANNELS.terminalPaneChanged, {
+        id,
+        pane,
+        revision,
+        origin,
+      })
+    },
   })
+}
+
+export function configureTerminalWindowActions(actions: TerminalWindowActions): void {
+  terminalWindowActions = actions
+}
+
+export function moveTerminalSessions(
+  owner: BrowserWindow | undefined,
+  recipient: BrowserWindow | undefined,
+  request: TerminalWindowRequest,
+): boolean {
+  const moved: Array<{ id: string; projection: boolean }> = []
+  for (const id of request.sessionIds ?? [request.id]) {
+    if (transferPtyProjection(owner, id, recipient, request.cols, request.rows)) {
+      moved.push({ id, projection: true })
+      continue
+    }
+    if (transferPty(owner, recipient, { id, cols: request.cols, rows: request.rows })) {
+      moved.push({ id, projection: false })
+      continue
+    }
+    for (const movedSession of moved.reverse()) {
+      if (movedSession.projection) {
+        transferPtyProjection(
+          recipient,
+          movedSession.id,
+          owner,
+          request.cols,
+          request.rows,
+        )
+      } else {
+        transferPty(recipient, owner, {
+          id: movedSession.id,
+          cols: request.cols,
+          rows: request.rows,
+        })
+      }
+    }
+    return false
+  }
+  return true
+}
+
+export function copyTerminalSessions(
+  owner: BrowserWindow | undefined,
+  recipient: BrowserWindow | undefined,
+  request: TerminalWindowRequest,
+): boolean {
+  return (request.sessionIds ?? [request.id]).every((id) =>
+    grantPtyProjection(owner, id, recipient, request.cols, request.rows)
+    || copyPty(owner, recipient, { id, cols: request.cols, rows: request.rows }),
+  )
 }
 
 export function stopTerminalHost(): void {

@@ -53,7 +53,6 @@ const {
 } = vi.hoisted(() => {
   const listeners = new Map<string, Set<(...args: unknown[]) => void>>()
   const windowListeners = new Map<string, (...args: unknown[]) => void>()
-  const webContentsListeners = new Map<string, (...args: unknown[]) => void>()
   const webContentsSend = vi.fn()
   const windowState = {
     destroyed: false,
@@ -75,6 +74,7 @@ const {
       windowState.visible = false
     }),
     focus: vi.fn(),
+    close: vi.fn(),
     setSkipTaskbar: vi.fn(),
     on: vi.fn((event: string, listener: (...args: unknown[]) => void) => {
       windowListeners.set(event, listener)
@@ -85,12 +85,6 @@ const {
     webContents: {
       isLoading: () => windowState.loading,
       send: webContentsSend,
-      on: vi.fn((event: string, listener: (...args: unknown[]) => void) => {
-        webContentsListeners.set(event, listener)
-      }),
-      emit: (event: string, ...args: unknown[]) => {
-        webContentsListeners.get(event)?.(...args)
-      },
     },
   }
   const fakeApp = {
@@ -113,7 +107,6 @@ const {
     removeAllListeners() {
       listeners.clear()
       windowListeners.clear()
-      webContentsListeners.clear()
     },
   }
   return {
@@ -263,16 +256,25 @@ vi.mock('./harness-host.js', () => ({
 
 const {
   configureTerminalHostMock,
+  configureTerminalWindowActionsMock,
+  copyTerminalSessionsMock,
+  moveTerminalSessionsMock,
   registerTerminalIpcMock,
   stopTerminalHostMock,
 } = vi.hoisted(() => ({
   configureTerminalHostMock: vi.fn(),
+  configureTerminalWindowActionsMock: vi.fn(),
+  copyTerminalSessionsMock: vi.fn(() => true),
+  moveTerminalSessionsMock: vi.fn(() => true),
   registerTerminalIpcMock: vi.fn(),
   stopTerminalHostMock: vi.fn(),
 }))
 
 vi.mock('./terminal-host.js', () => ({
   configureTerminalHost: configureTerminalHostMock,
+  configureTerminalWindowActions: configureTerminalWindowActionsMock,
+  copyTerminalSessions: copyTerminalSessionsMock,
+  moveTerminalSessions: moveTerminalSessionsMock,
   registerTerminalIpc: registerTerminalIpcMock,
   stopTerminalHost: stopTerminalHostMock,
 }))
@@ -337,6 +339,9 @@ async function loadIndexOn(platform: NodeJS.Platform): Promise<void> {
   startHarnessHostMock.mockClear()
   stopHarnessHostMock.mockClear()
   configureTerminalHostMock.mockClear()
+  configureTerminalWindowActionsMock.mockClear()
+  copyTerminalSessionsMock.mockClear()
+  moveTerminalSessionsMock.mockClear()
   registerTerminalIpcMock.mockClear()
   stopTerminalHostMock.mockClear()
   registerTerminalIpcMock.mockImplementation(() => {
@@ -344,6 +349,11 @@ async function loadIndexOn(platform: NodeJS.Platform): Promise<void> {
       BRIDGE_CHANNELS.terminalProfiles,
       BRIDGE_CHANNELS.terminalDiscover,
       BRIDGE_CHANNELS.terminalLaunch,
+      BRIDGE_CHANNELS.terminalFrameId,
+      BRIDGE_CHANNELS.terminalUndock,
+      BRIDGE_CHANNELS.terminalCopy,
+      BRIDGE_CHANNELS.terminalRedock,
+      BRIDGE_CHANNELS.terminalPaneSync,
       BRIDGE_CHANNELS.terminalSpawn,
       BRIDGE_CHANNELS.terminalWrite,
       BRIDGE_CHANNELS.terminalResize,
@@ -377,6 +387,7 @@ async function loadIndexOn(platform: NodeJS.Platform): Promise<void> {
   fakeWindow.restore.mockClear()
   fakeWindow.show.mockClear()
   fakeWindow.focus.mockClear()
+  fakeWindow.close.mockClear()
   fakeWindow.setSkipTaskbar.mockClear()
   browserWindows.length = 0
   windowState.destroyed = false
@@ -414,6 +425,8 @@ describe('closed IPC boundary', () => {
       BRIDGE_CHANNELS.trafficInvalidated,
       BRIDGE_CHANNELS.terminalData,
       BRIDGE_CHANNELS.terminalExit,
+      BRIDGE_CHANNELS.terminalTabRedocked,
+      BRIDGE_CHANNELS.terminalPaneChanged,
       BRIDGE_CHANNELS.harnessDelta,
       BRIDGE_CHANNELS.harnessTool,
       BRIDGE_CHANNELS.harnessApproval,

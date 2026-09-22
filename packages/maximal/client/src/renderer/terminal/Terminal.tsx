@@ -4,6 +4,7 @@ import {
   SHELL_TERMINAL_PROPERTIES,
   TerminalTabs,
   type GhosttyWindowAdjustment,
+  type TerminalPane,
 } from 'stuffbucket-electron/renderer'
 
 import { terminalTransport } from './transport'
@@ -34,11 +35,24 @@ function currentTheme() {
   )
 }
 
-export function Terminal({ tabs, activeId, onExit, onTitleChange }: {
+export function Terminal({
+  tabs,
+  activeId,
+  onExit,
+  onTitleChange,
+  onPaneChange,
+  initialPane,
+  initialPanes,
+  paneRevisions,
+}: {
   tabs: TerminalTab[]
   activeId: string
   onExit: (id: string) => void
   onTitleChange: (id: string, title: string) => void
+  onPaneChange?: (id: string, pane: TerminalPane, baseRevision: number) => void
+  initialPane?: TerminalPane
+  initialPanes?: ReadonlyMap<string, TerminalPane>
+  paneRevisions?: ReadonlyMap<string, number>
 }): ReactElement {
   const launchSplit = useCallback(async () => {
     const result = await window.maximal.terminal.launch({ profileId: 'local', cols: 80, rows: 24 })
@@ -49,12 +63,16 @@ export function Terminal({ tabs, activeId, onExit, onTitleChange }: {
     <TerminalTabs
       activeId={activeId}
       attachments={tabs}
-      disposition="terminate"
+      disposition="detach"
       emulator="ghostty"
       ghosttyWindow={GHOSTTY_WINDOW}
       launchSplit={launchSplit}
       onExit={onExit}
+      onPaneChange={onPaneChange}
       onTitleChange={onTitleChange}
+      initialPane={initialPane}
+      initialPanes={initialPanes}
+      paneRevisions={paneRevisions}
       theme={currentTheme()}
       transport={terminalTransport}
     />

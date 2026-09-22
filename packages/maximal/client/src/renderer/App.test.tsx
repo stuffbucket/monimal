@@ -1,4 +1,9 @@
-import { act, type ReactNode } from 'react'
+import {
+  act,
+  type ButtonHTMLAttributes,
+  type InputHTMLAttributes,
+  type ReactNode,
+} from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -9,6 +14,9 @@ const {
   observabilitySource,
   subscribe,
   terminalList,
+  terminalCopy,
+  terminalTerminate,
+  terminalUndock,
 } = vi.hoisted(() => {
   const observabilitySource = { source: 'stable-observability-source' }
   return {
@@ -20,19 +28,50 @@ const {
     observabilitySource,
     subscribe: vi.fn(() => vi.fn()),
     terminalList: vi.fn(() => Promise.resolve([])),
+    terminalCopy: vi.fn(() => Promise.resolve(true)),
+    terminalTerminate: vi.fn(() => Promise.resolve()),
+    terminalUndock: vi.fn(() => Promise.resolve(true)),
   }
 })
 
 vi.mock('stuffbucket-electron/renderer', () => ({
+  decodeTabTransfer: vi.fn(),
+  isTerminalPane: vi.fn(() => false),
+  TAB_TRANSFER_MIME: 'application/x-stuffbucket-shell-tab+json',
+  terminalPaneSessionIds: vi.fn((pane: {
+    sessionId?: string
+    first?: { sessionId: string }
+    second?: { sessionId: string }
+  }) => pane.sessionId ? [pane.sessionId] : [pane.first!.sessionId, pane.second!.sessionId]),
+  terminalProcessTitle: (value: string) => value.trim(),
+  Button: ({ children, ...props }: ButtonHTMLAttributes<HTMLButtonElement>) => (
+    <button {...props}>{children}</button>
+  ),
+  Dialog: ({ children, open, title }: { children: ReactNode; open: boolean; title: string }) =>
+    open ? <div role="dialog" aria-label={title}>{children}</div> : null,
   UnsavedChangesDialog: () => null,
   TerminalLauncher: ({ open, onLaunched }: {
     open: boolean
-    onLaunched: (result: { sessionId: string; label: string }) => void
+    onLaunched: (result: {
+      sessionId: string
+      label: string
+      canRunInBackground: boolean
+    }) => void
   }) => open ? (
-    <button onClick={() => onLaunched({ sessionId: 'session-1', label: 'zsh' })}>
+    <button onClick={() => onLaunched({
+      sessionId: 'session-1',
+      label: 'zsh',
+      canRunInBackground: true,
+    })}>
       Launch zsh
     </button>
   ) : null,
+  TextInput: ({
+    onChange,
+    ...props
+  }: Omit<InputHTMLAttributes<HTMLInputElement>, 'onChange'> & {
+    onChange: (value: string) => void
+  }) => <input {...props} onChange={(event) => onChange(event.currentTarget.value)} />,
 }))
 
 vi.mock('@stuffbucket/maximal-observability', () => ({
@@ -64,15 +103,38 @@ vi.mock('./traffic/Traffic', () => ({
   Traffic: () => <div data-testid="traffic">Traffic content</div>,
 }))
 vi.mock('./terminal/Terminal', () => ({
-  Terminal: ({ activeId, onExit }: { activeId: string; onExit: (id: string) => void }) => (
+  Terminal: ({
+    activeId,
+    onExit,
+    onPaneChange,
+  }: {
+    activeId: string
+    onExit: (id: string) => void
+    onPaneChange?: (
+      id: string,
+      pane: {
+        direction: 'right'
+        first: { sessionId: string }
+        second: { sessionId: string }
+      },
+      revision: number,
+    ) => void
+  }) => (
     <div data-testid="terminal" data-active-id={activeId}>
       Terminal content
       <button onClick={() => onExit(activeId)}>Exit shell</button>
+      <button onClick={() => onPaneChange?.(activeId, {
+        direction: 'right',
+        first: { sessionId: 'session-1' },
+        second: { sessionId: 'session-2' },
+      }, 1)}>
+        Split shell
+      </button>
     </div>
   ),
 }))
 vi.mock('./terminal/transport', () => ({
-  terminalTransport: { list: terminalList },
+  terminalTransport: { list: terminalList, terminate: terminalTerminate },
 }))
 vi.mock('./frame/AppFrame', () => ({
   PRODUCT_TABS: [
@@ -85,13 +147,21 @@ vi.mock('./frame/AppFrame', () => ({
     children,
     onNewTab,
     onSelectTab,
+    tabTransfer,
     tabs,
   }: {
     activeTab: string
     children: ReactNode
     onNewTab?: () => void
     onSelectTab: (id: string) => void
-    tabs: Array<{ id: string; title: string }>
+    tabTransfer?: {
+      contextMenu?: (tab: { id: string; title: string; kind: string }) => Array<{
+        id: string
+        label: string
+        onSelect: () => void
+      }>
+    }
+    tabs: Array<{ id: string; title: string; kind: string }>
   }) => (
     <div
       data-testid="app-frame"
@@ -100,6 +170,11 @@ vi.mock('./frame/AppFrame', () => ({
     >
       <button onClick={() => onSelectTab('traffic')}>Traffic</button>
       {onNewTab ? <button onClick={onNewTab}>New terminal</button> : null}
+      {tabs.flatMap((tab) => (tabTransfer?.contextMenu?.(tab) ?? []).map((item) => (
+        <button key={`${tab.id}-${item.id}`} onClick={item.onSelect}>
+          {item.label} {tab.title}
+        </button>
+      )))}
       {children}
     </div>
   ),
@@ -126,6 +201,7 @@ let root: Root | null = null
 let container: HTMLElement | null = null
 
 beforeEach(() => {
+  window.history.replaceState({}, '', '/')
   capabilityState.openSettings = null
   accountStatus.mockResolvedValue({ state: 'unauthenticated' })
   Object.assign(window, {
@@ -134,6 +210,13 @@ beforeEach(() => {
         profiles: vi.fn(() => Promise.resolve([])),
         discover: vi.fn(() => Promise.resolve({ targets: [] })),
         launch: vi.fn(),
+        frameId: vi.fn(() => Promise.resolve('1')),
+        undock: terminalUndock,
+        copy: terminalCopy,
+        redock: vi.fn(() => Promise.resolve(true)),
+        syncPane: vi.fn(() => Promise.resolve()),
+        onTabRedocked: vi.fn(() => () => {}),
+        onPaneChanged: vi.fn(() => () => {}),
       },
     },
   })
@@ -229,6 +312,158 @@ describe('App routing', () => {
     expect(shell.querySelector('[data-testid="app-frame"]')?.getAttribute('data-view')).toBe(
       'settings',
     )
+  })
+
+  it('provides rename and close actions for a terminal tab context menu', async () => {
+    accountStatus.mockResolvedValue({ state: 'authenticated' })
+    const shell = await renderApp()
+    const newTerminal = [...shell.querySelectorAll('button')].find(
+      (button) => button.textContent === 'New terminal',
+    )
+    if (newTerminal === undefined) throw new Error('New terminal action was not rendered')
+
+    act(() => newTerminal.click())
+    const launch = [...shell.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Launch zsh',
+    )
+    if (launch === undefined) throw new Error('Terminal launcher was not rendered')
+    act(() => launch.click())
+
+    const rename = [...shell.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Rename zsh',
+    )
+    const close = [...shell.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Close Terminal zsh',
+    )
+    const background = [...shell.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Put in Background zsh',
+    )
+    expect(rename).toBeDefined()
+    expect(close).toBeDefined()
+    expect(background).toBeDefined()
+
+    act(() => rename?.click())
+    expect(shell.querySelector('[role="dialog"]')?.getAttribute('aria-label')).toBe(
+      'Rename terminal tab',
+    )
+    const confirmRename = [...shell.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Rename',
+    )
+    act(() => confirmRename?.click())
+
+    act(() => close?.click())
+    expect(shell.querySelector('[role="dialog"]')?.getAttribute('aria-label')).toBe(
+      'Close terminal?',
+    )
+    const confirmClose = [...shell.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Close Terminal',
+    )
+    await act(async () => confirmClose?.click())
+    expect(terminalTerminate).toHaveBeenCalledWith('session-1')
+    expect(shell.querySelector('[data-testid="terminal"]')).toBeNull()
+  })
+
+  it('removes a background terminal tab without ending its session', async () => {
+    accountStatus.mockResolvedValue({ state: 'authenticated' })
+    const shell = await renderApp()
+    const newTerminal = [...shell.querySelectorAll('button')].find(
+      (button) => button.textContent === 'New terminal',
+    )
+    if (newTerminal === undefined) throw new Error('New terminal action was not rendered')
+
+    act(() => newTerminal.click())
+    const launch = [...shell.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Launch zsh',
+    )
+    if (launch === undefined) throw new Error('Terminal launcher was not rendered')
+    act(() => launch.click())
+
+    const background = [...shell.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Put in Background zsh',
+    )
+    if (background === undefined) throw new Error('Background action was not rendered')
+    act(() => background.click())
+
+    expect(terminalTerminate).not.toHaveBeenCalled()
+    expect(shell.querySelector('[data-testid="terminal"]')).toBeNull()
+  })
+
+  it('copies and moves a terminal into a new window', async () => {
+    accountStatus.mockResolvedValue({ state: 'authenticated' })
+    const shell = await renderApp()
+    const newTerminal = [...shell.querySelectorAll('button')].find(
+      (button) => button.textContent === 'New terminal',
+    )
+    act(() => newTerminal?.click())
+    const launch = [...shell.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Launch zsh',
+    )
+    act(() => launch?.click())
+
+    const copy = [...shell.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Copy into New Window zsh',
+    )
+    await act(async () => copy?.click())
+    expect(terminalCopy).toHaveBeenCalledWith(expect.objectContaining({
+      id: 'session-1',
+      title: 'zsh',
+      canRunInBackground: true,
+      sessionIds: ['session-1'],
+    }))
+    expect(shell.querySelector('[data-testid="terminal"]')).not.toBeNull()
+
+    const move = [...shell.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Move to New Window zsh',
+    )
+    await act(async () => move?.click())
+    expect(terminalUndock).toHaveBeenCalledWith(expect.objectContaining({
+      id: 'session-1',
+      title: 'zsh',
+      canRunInBackground: true,
+      sessionIds: ['session-1'],
+    }))
+    expect(shell.querySelector('[data-testid="terminal"]')).toBeNull()
+    expect(terminalTerminate).not.toHaveBeenCalled()
+  })
+
+  it('opens a transferred terminal without mounting the signed-out surface', async () => {
+    window.history.replaceState(
+      {},
+      '',
+      '/?terminalSessionId=session-2&terminalTitle=Detached&terminalCanRunInBackground=true',
+    )
+    const shell = await renderApp()
+
+    expect(shell.querySelector('[data-testid="terminal"]')?.getAttribute('data-active-id')).toBe(
+      'terminal:session-2',
+    )
+    expect(shell.querySelector('[data-testid="first-run"]')).toBeNull()
+    expect([...shell.querySelectorAll('button')].some(
+      (button) => button.textContent === 'New terminal',
+    )).toBe(false)
+  })
+
+  it('closes every process in a split terminal document', async () => {
+    accountStatus.mockResolvedValue({ state: 'authenticated' })
+    const shell = await renderApp()
+    act(() => [...shell.querySelectorAll('button')].find(
+      (button) => button.textContent === 'New terminal',
+    )?.click())
+    act(() => [...shell.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Launch zsh',
+    )?.click())
+    act(() => [...shell.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Split shell',
+    )?.click())
+    act(() => [...shell.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Close Terminal zsh',
+    )?.click())
+    await act(async () => [...shell.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Close Terminal',
+    )?.click())
+
+    expect(terminalTerminate).toHaveBeenCalledWith('session-1')
+    expect(terminalTerminate).toHaveBeenCalledWith('session-2')
   })
 
   it('opens a native section request without exposing authenticated views', async () => {

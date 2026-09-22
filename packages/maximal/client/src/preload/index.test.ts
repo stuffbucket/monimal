@@ -121,15 +121,22 @@ describe('preload bridge allowlist', () => {
     ])
     expect(Object.keys(bridge.terminal).sort()).toEqual([
       'acknowledge',
+      'copy',
       'discover',
+      'frameId',
       'launch',
       'list',
       'onData',
       'onExit',
+      'onPaneChanged',
+      'onTabRedocked',
       'profiles',
+      'redock',
       'resize',
       'spawn',
+      'syncPane',
       'terminate',
+      'undock',
       'write',
     ])
     expect(bridge).not.toHaveProperty('getCoreOrigin')
@@ -208,6 +215,24 @@ describe('preload bridge allowlist', () => {
     await bridge.terminal.profiles()
     await bridge.terminal.discover()
     await bridge.terminal.launch({ profileId: 'local', cols: 80, rows: 24 })
+    await bridge.terminal.frameId()
+    const terminalWindow = {
+      id: 'terminal-1',
+      cols: 80,
+      rows: 24,
+      x: 100,
+      y: 100,
+      title: 'Terminal',
+      canRunInBackground: true,
+    }
+    await bridge.terminal.undock(terminalWindow)
+    await bridge.terminal.copy(terminalWindow)
+    await bridge.terminal.redock({
+      ...terminalWindow,
+      sourceFrameId: '2',
+      targetFrameId: '1',
+    })
+    await bridge.terminal.syncPane('terminal-1', { sessionId: 'terminal-1' })
 
     expect(invoke.mock.calls).toEqual([
       [BRIDGE_CHANNELS.lifecycleCurrent],
@@ -280,6 +305,17 @@ describe('preload bridge allowlist', () => {
       [BRIDGE_CHANNELS.terminalProfiles],
       [BRIDGE_CHANNELS.terminalDiscover],
       [BRIDGE_CHANNELS.terminalLaunch, { profileId: 'local', cols: 80, rows: 24 }],
+      [BRIDGE_CHANNELS.terminalFrameId],
+      [BRIDGE_CHANNELS.terminalUndock, terminalWindow],
+      [BRIDGE_CHANNELS.terminalCopy, terminalWindow],
+      [
+        BRIDGE_CHANNELS.terminalRedock,
+        { ...terminalWindow, sourceFrameId: '2', targetFrameId: '1' },
+      ],
+      [
+        BRIDGE_CHANNELS.terminalPaneSync,
+        { id: 'terminal-1', pane: { sessionId: 'terminal-1' } },
+      ],
     ])
   })
 
