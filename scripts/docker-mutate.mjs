@@ -24,9 +24,11 @@ const mutationReportDirectory = path.join(
 );
 const mutationLedgerContainerPath =
   "/workspace/packages/maximal-core/reports/mutation/incomplete-runs.log";
+const mutationIncrementalEnv = "MAXIMAL_MUTATION_INCREMENTAL_SEED=1";
 const usage =
   "Usage: pnpm run mutate:core -- [--all|--mutate=src/path.ts[:start-end]]" +
-  " [--concurrency=1..32] (or bun run mutate -- with the same options)";
+  " [--concurrency=1..32] [--incremental]" +
+  " (or bun run mutate -- with the same options)";
 const targetPattern =
   /^src\/[A-Za-z0-9_./*-]+\.ts(?::\d+(?::\d+)?-\d+(?::\d+)?)?$/u;
 
@@ -36,11 +38,17 @@ export function parseMutationOptions(arguments_) {
   let mutate;
   let concurrency;
   let sawConcurrency = false;
+  let incremental = false;
 
   for (const option of options) {
     if (option === "--all") {
       if (all) throw new Error("Duplicate --all option");
       all = true;
+      continue;
+    }
+    if (option === "--incremental") {
+      if (incremental) throw new Error("Duplicate --incremental option");
+      incremental = true;
       continue;
     }
     if (option.startsWith("--mutate=")) {
@@ -76,7 +84,7 @@ export function parseMutationOptions(arguments_) {
   if (all && mutate !== undefined) {
     throw new Error("--all and --mutate are mutually exclusive");
   }
-  return { all, concurrency, mutate };
+  return { all, concurrency, incremental, mutate };
 }
 
 export function createMutationContainerArguments(imageId, options) {
@@ -89,6 +97,7 @@ export function createMutationContainerArguments(imageId, options) {
   if (options.concurrency !== undefined) {
     commandArguments.push("--concurrency", String(options.concurrency));
   }
+  if (options.incremental) commandArguments.push("--incremental");
   return [
     "create",
     ...containerBoundaryArguments(),
@@ -97,6 +106,8 @@ export function createMutationContainerArguments(imageId, options) {
     ...turboCacheMountArguments(imageId),
     "--env",
     `MAXIMAL_MUTATION_LEDGER=${mutationLedgerContainerPath}`,
+    // Each run is a throwaway container, so Stryker's own incremental cache is restored from the read-only checkout instead.
+    ...(options.incremental ? ["--env", mutationIncrementalEnv] : []),
     imageId,
     ...stagedCommandArguments("core", "pnpm", commandArguments),
   ];

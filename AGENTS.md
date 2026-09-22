@@ -18,6 +18,10 @@ MAY. Documentation MUST NOT include nonbinding background.
 5. Orientation MUST stop when the behavior owner and applicable constraints are
    known.
 
+## Before writing code that echoes another package
+
+Query the workspace export map: **`node scripts/query-exports.mjs @stuffbucket/package-b ./export-name`** — if it exists and is public, import it instead of reimplementing. If not, use `@stuffbucket/package-b` through its public entry point (never `src/**`). Document intentional mirrors with a comment. See [`docs/query-exports.md`](docs/query-exports.md).
+
 ## Documentation
 
 - Facts MUST have one owner; other mentions MUST link to it.

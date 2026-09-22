@@ -20,6 +20,7 @@ const MAX_ACTIVE_OPERATIONS = 16
 const UNAVAILABLE_MESSAGE = "Local model control is unavailable."
 const FAILED_MESSAGE = "Local model provisioning failed."
 const CANCELLED_MESSAGE = "Local model provisioning was cancelled."
+const EMPTY_SNAPSHOT: LocalModelCatalogSnapshot = { models: [], revision: 0 }
 
 interface Operation {
   readonly controller: AbortController
@@ -95,7 +96,8 @@ export class LocalModelOperations {
   }
 
   list(): LocalModelCatalogSnapshot {
-    const control = boundedControl(this.#options.control())
+    const control = this.#options.control()
+    if (control === undefined) return EMPTY_SNAPSHOT
     this.#follow(control)
     try {
       return safeSnapshot(control.list())

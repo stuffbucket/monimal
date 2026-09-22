@@ -13,7 +13,7 @@ import type {
   TokenUsagePeriod,
   TokenUsageSummary,
 } from './capabilities'
-import { describeError } from './format'
+import { describeError } from '../shared/errors'
 
 interface UsageSectionProps {
   capabilities: SettingsCapabilities

@@ -13,8 +13,8 @@ import { Button, IconButton } from '../controls/Button.js';
 import { Field, FieldList, FormField, Switch, TextInput } from '../controls/Fields.js';
 import { EmptyState } from '../controls/Layout.js';
 import { Dialog } from '../controls/Overlays.js';
+import { CopyButton } from '../CopyButton.js';
 
-import { CopyButton } from './CopyButton.js';
 import { SETTINGS_STYLES, SettingsSection } from './SettingsPage.js';
 
 /**

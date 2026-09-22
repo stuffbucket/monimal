@@ -1,7 +1,7 @@
-import type { ReactNode } from 'react';
+import type { ReactNode } from "react";
 
-import { useComponentStyles } from '../../lib/component-styles.js';
-import { ScrollArea } from '../controls/ScrollArea.js';
+import { useComponentStyles } from "../../lib/component-styles.js";
+import { ScrollArea } from "../controls/ScrollArea.js";
 
 /**
  * The rules the settings frame draws itself with.
@@ -100,6 +100,12 @@ export const SETTINGS_STYLES = `
   display: grid;
   gap: var(--shell-space-3);
   align-content: start;
+}
+
+.sb-shell .banner[data-full-width='true'] {
+  margin-inline: calc(-1 * var(--shell-space-4));
+  margin-block-end: calc(-1 * var(--shell-space-3));
+  padding-inline: var(--shell-space-4);
 }
 
 .sb-shell .settings__group {
@@ -272,7 +278,7 @@ export function SettingsPage({
   children: ReactNode;
   testId?: string;
 }) {
-  useComponentStyles('settings-page', SETTINGS_STYLES);
+  useComponentStyles("settings-page", SETTINGS_STYLES);
 
   return (
     <div className="settings" data-testid={testId}>
@@ -299,17 +305,17 @@ export function SettingsSection({
   title,
   description,
   children,
-  as: Heading = 'h2',
+  as: Heading = "h2",
   testId,
 }: {
   title: string;
   description?: string;
   children: ReactNode;
   /** A dialog's own title is `h2`, so a section inside one is `h3`. */
-  as?: 'h2' | 'h3';
+  as?: "h2" | "h3";
   testId?: string;
 }) {
-  useComponentStyles('settings-page', SETTINGS_STYLES);
+  useComponentStyles("settings-page", SETTINGS_STYLES);
 
   return (
     <section className="settings__section" data-testid={testId}>
@@ -325,21 +331,17 @@ export function SettingsSection({
 /** A visually bounded set of related settings rows without additional landmark semantics. */
 export function SettingsGroup({
   children,
-  layout = 'list',
+  layout = "list",
   testId,
 }: {
   children: ReactNode;
-  layout?: 'list' | 'grid';
+  layout?: "list" | "grid";
   testId?: string;
 }) {
-  useComponentStyles('settings-page', SETTINGS_STYLES);
+  useComponentStyles("settings-page", SETTINGS_STYLES);
 
   return (
-    <div
-      className="settings__group"
-      data-layout={layout}
-      data-testid={testId}
-    >
+    <div className="settings__group" data-layout={layout} data-testid={testId}>
       {children}
     </div>
   );
@@ -361,18 +363,18 @@ export function SettingsItem({
   children?: ReactNode;
   testId?: string;
 }) {
-  useComponentStyles('settings-page', SETTINGS_STYLES);
+  useComponentStyles("settings-page", SETTINGS_STYLES);
   const hasControl = control !== undefined;
 
   return (
     <div
       className="settings__item"
-      data-has-control={hasControl ? 'true' : undefined}
+      data-has-control={hasControl ? "true" : undefined}
       data-testid={testId}
     >
       <div
         className="settings__item-summary"
-        data-has-control={hasControl ? 'true' : undefined}
+        data-has-control={hasControl ? "true" : undefined}
       >
         {hasControl ? (
           <div className="settings__item-control">{control}</div>

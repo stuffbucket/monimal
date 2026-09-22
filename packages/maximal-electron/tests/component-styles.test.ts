@@ -164,7 +164,9 @@ describe('the rules a component carries', () => {
     // constant has to reach `useComponentStyles`, in its own module or in one
     // that imports it.
     const uses = exportedModules()
-      .flatMap(([, source]) => [...source.matchAll(/useComponentStyles\('[^']+',\s*([A-Z_]+)\)/g)])
+      .flatMap(([, source]) => [
+        ...source.matchAll(/useComponentStyles\(["'][^"']+["'],\s*([A-Z_]+)\)/g),
+      ])
       .map((match) => match[1] ?? '');
 
     const orphans = exportedModules()

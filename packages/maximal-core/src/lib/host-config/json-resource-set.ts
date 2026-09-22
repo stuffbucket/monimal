@@ -29,6 +29,10 @@ import {
   activeOwnershipConflict,
   connectOwnership,
   disconnectClaim,
+  disconnectUnlocked,
+  inspectClaimOwnership,
+  inspectUnlockedOwnership,
+  resolveInspection,
   validateConfiguratorId,
 } from "~/lib/host-config/ownership"
 import { atomicWriteJson } from "~/lib/platform/atomic-json"
@@ -532,19 +536,30 @@ export async function inspectJsonResourceSet(
   validateConfiguratorId(options.configuratorId)
   const paths = pathsFor(options)
   ensureSidecar(paths.directory)
-  return withHostConfigLock(paths.lock, async () => {
-    if (!recoverJournal(paths.journal, paths.claim, options.anchorPath)) {
-      return { status: "recovery-required" }
-    }
-    const claim = readClaim(paths.claim)
-    if (!claim) return { status: "available" }
-    const ownershipConflict = await activeOwnershipConflict(claim, options)
-    if (ownershipConflict) return ownershipConflict
-    const documents = documentMap(claimTargets(claim))
-    return managedFieldsMatch(documents, claim.fields) ?
-        { status: "connected", claim }
-      : { status: "changed-externally", claim }
-  })
+  const recoveryPending = fs.existsSync(paths.journal)
+  const claim = readClaim(paths.claim)
+  const unlocked = await inspectUnlockedOwnership(
+    claim,
+    recoveryPending,
+    options,
+  )
+  if (unlocked) return unlocked
+  const inspected = await withHostConfigLock<InspectTargetResult | TargetClaim>(
+    paths.lock,
+    () => {
+      if (!recoverJournal(paths.journal, paths.claim, options.anchorPath)) {
+        return { status: "recovery-required" }
+      }
+      const ownership = inspectClaimOwnership(readClaim(paths.claim), options)
+      if ("result" in ownership) return ownership.result
+      const { claim } = ownership
+      const documents = documentMap(claimTargets(claim))
+      return managedFieldsMatch(documents, claim.fields) ?
+          { status: "connected", claim }
+        : { status: "changed-externally", claim }
+    },
+  )
+  return resolveInspection(inspected, options)
 }
 
 async function prepareConnectClaim(
@@ -681,6 +696,9 @@ export async function disconnectJsonResourceSet(
   validateConfiguratorId(options.configuratorId)
   const paths = pathsFor(options)
   ensureSidecar(paths.directory)
+  const recoveryPending = fs.existsSync(paths.journal)
+  const unlocked = disconnectUnlocked(readClaim(paths.claim), recoveryPending)
+  if (unlocked) return unlocked
   return withHostConfigLock(paths.lock, () => {
     if (!recoverJournal(paths.journal, paths.claim, options.anchorPath)) {
       return { status: "recovery-required", preservedPaths: [] }

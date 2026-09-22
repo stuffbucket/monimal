@@ -44,9 +44,28 @@ export default [
     plugins: { "react-hooks": reactHooks },
     rules: {
       "react-hooks/rules-of-hooks": "error",
-      "react-hooks/exhaustive-deps": "warn",
+      "react-hooks/exhaustive-deps": "error",
       "react-hooks/refs": "error",
       "react-hooks/set-state-in-effect": "error",
+    },
+  },
+  {
+    files: ["src/renderer/**/*.tsx"],
+    ignores: ["**/*.test.tsx"],
+    rules: {
+      // Warnings establish the architectural baseline while the existing
+      // oversized settings sections are split into feature modules.
+      "complexity": ["warn", { max: 16 }],
+      "max-lines": ["warn", {
+        max: 400,
+        skipBlankLines: true,
+        skipComments: true,
+      }],
+      "max-lines-per-function": ["warn", {
+        max: 120,
+        skipBlankLines: true,
+        skipComments: true,
+      }],
     },
   },
   {

@@ -11,11 +11,15 @@
   "mutate": [
     "src/lib/models/models.ts"
   ],
-  "reporters": ["progress", "clear-text", "html"],
+  "reporters": ["progress", "clear-text", "html", "json"],
   "tempDirName": ".stryker-tmp",
   "htmlReporter": {
     "fileName": "reports/mutation/index.html"
   },
+  "jsonReporter": {
+    "fileName": "reports/mutation/mutation.json"
+  },
+  "incrementalFile": "reports/mutation/incremental.json",
   "concurrency": 10,
   "timeoutMS": 30000,
   "ignorePatterns": [

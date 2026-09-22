@@ -35,6 +35,7 @@ import {
   auditWorkspaceReferences,
   pnpmWorkspacePaths,
 } from "./workspace-packages.mjs";
+import { loadWorkspaceExports } from "./query-exports.mjs";
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const require = createRequire(path.join(ROOT, "noop.js"));
@@ -468,6 +469,20 @@ check(
   {
     count: declared.size,
     of: "declared dependency names",
+  },
+);
+
+// 7. Workspace export map is loadable. This is a light check that the
+//    infrastructure for querying exports is working, not a gate on the exports
+//    themselves. Each package's individual `verify:exports` or equivalent runs
+//    the strict checks.
+const workspaceExports = loadWorkspaceExports(ROOT);
+check(
+  workspaceExports.size > 0,
+  "workspace export map is loadable (for query-exports tooling)",
+  {
+    count: workspaceExports.size,
+    of: "packages with exports",
   },
 );
 

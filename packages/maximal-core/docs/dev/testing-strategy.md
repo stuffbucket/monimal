@@ -570,6 +570,13 @@ wrapper. Mutation narrows the **source** scope, not the test command:
   edited-renamed, and eligible untracked source. `--mutate=src/path.ts:40-57` is
   a complete explicit override.
   `--all` is the intentionally expensive full-source escape hatch.
+  `--incremental` is a separate, combinable axis: it forwards Stryker's own
+  `--incremental` flag, so Stryker's incremental cache
+  (`reports/mutation/incremental.json`) — not a target list we derive — decides
+  which mutants can reuse their prior result. The Docker wrapper restores that
+  cache file into each fresh disposable container from the read-only
+  `/checkout` mount before the run, since it would otherwise be lost with the
+  container.
 - `testRunner: "command"` runs **`bun run test:mutation`** — the whole suite
   minus six port/process tests and the built-artifact-only `bin-shebang` test. It
   is **not** narrowed to the module's own test file, and

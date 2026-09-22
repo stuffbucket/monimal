@@ -307,6 +307,11 @@ package provenance or publisher identity -- the proxy does that.
   application. Here pnpm links it from a store directory that
   `maximal-electron` shares, so naming the development bundle renamed that
   package's development bundle too.
+- `maximal/client`: development Electron profiles are isolated by checkout.
+  Concurrent worktrees otherwise share `Application Support/Maximal`, letting
+  one checkout display another checkout's stopped Core lifecycle. Electron
+  also waits for its Core child to exit before completing shutdown, so Forge
+  replacements cannot race configurator cleanup and lock the target files.
 - `maximal/client`: deleted `package-lock.json`, and `scripts/build-core.ts`
   now takes the sidecar's git SHA from `git rev-parse HEAD`. It parsed the
   lockfile for the git URL maximal-core was once installed from — a commit that

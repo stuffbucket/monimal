@@ -179,6 +179,9 @@ jobs:
           if [ "$OUTCOME" = success ]; then status=success; fi
           echo "perf-marker phase=workspace-check-window started_at=$STARTED_AT ended_at=$ended_at elapsed_seconds=$elapsed_seconds status=$status"
 
+      - name: Check for cross-package and intra-package duplicate logic
+        run: pnpm run check:cross-package-duplicates
+
       # Turbo already covered Core's build and typecheck above. Retain both lint
       # variants and the remaining host checks; Bun tests use the wrapper below.
       - name: Check remaining Core host verification

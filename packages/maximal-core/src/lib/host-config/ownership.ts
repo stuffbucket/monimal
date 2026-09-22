@@ -1,5 +1,6 @@
 import type {
   DisconnectTargetResult,
+  InspectTargetResult,
   RuntimeIdentity,
   RuntimeIdentityProbe,
   TargetClaim,
@@ -22,6 +23,11 @@ interface OwnershipConflict {
   status: "owned-by-another-configurator" | "stale-recovery-required"
   claim: TargetClaim
 }
+
+type ImmediateOwnership = OwnershipConflict | "foreign-runtime" | null
+
+type ClaimInspection =
+  { result: InspectTargetResult | TargetClaim } | { claim: TargetClaim }
 
 interface ConnectOwnership {
   stale: boolean
@@ -85,6 +91,63 @@ export async function activeOwnershipConflict(
   return null
 }
 
+export function immediateOwnership(
+  claim: TargetClaim,
+  owner: OwnerIdentity,
+): ImmediateOwnership {
+  if (!sameRuntimeIdentity(claim.runtime, owner.runtime)) {
+    return "foreign-runtime"
+  }
+  if (claim.configuratorId !== owner.configuratorId) {
+    return { status: "owned-by-another-configurator", claim }
+  }
+  return null
+}
+
+export function inspectClaimOwnership(
+  claim: TargetClaim | null,
+  owner: OwnerIdentity,
+): ClaimInspection {
+  if (!claim) return { result: { status: "available" } }
+  const ownership = immediateOwnership(claim, owner)
+  if (ownership === "foreign-runtime") return { result: claim }
+  if (ownership) return { result: ownership }
+  return { claim }
+}
+
+export async function inspectUnlockedOwnership(
+  claim: TargetClaim | null,
+  recoveryPending: boolean,
+  options: OwnershipOptions,
+): Promise<InspectTargetResult | null> {
+  if (!claim) {
+    return recoveryPending ? null : { status: "available" }
+  }
+  if (immediateOwnership(claim, options) !== "foreign-runtime") {
+    return null
+  }
+  return resolveInspection(claim, options)
+}
+
+export async function resolveInspection(
+  inspected: InspectTargetResult | TargetClaim,
+  options: OwnershipOptions,
+): Promise<InspectTargetResult> {
+  if ("status" in inspected) return inspected
+  const ownership = await runtimeOwnership(
+    inspected,
+    options.runtime,
+    options.probeRuntime,
+  )
+  return {
+    status:
+      ownership === "live-other" ?
+        "owned-by-another-configurator"
+      : "stale-recovery-required",
+    claim: inspected,
+  }
+}
+
 function claimBelongsTo(
   claim: TargetClaim,
   configuratorId: string,
@@ -106,4 +169,13 @@ export function disconnectClaim(
     return { status: "owned-by-another-configurator", preservedPaths: [] }
   }
   return claim
+}
+
+export function disconnectUnlocked(
+  claim: TargetClaim | null,
+  recoveryPending: boolean,
+): DisconnectTargetResult | null {
+  return !claim && !recoveryPending ?
+      { status: "not-connected", preservedPaths: [] }
+    : null
 }

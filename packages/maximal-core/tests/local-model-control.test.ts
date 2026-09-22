@@ -86,6 +86,27 @@ function rpc(
 }
 
 describe("local model control", () => {
+  test("reports an empty catalogue when local model control is optional and absent", async () => {
+    const hub = new RecordingHub()
+    const operations = new LocalModelOperations({
+      control: () => undefined,
+      hub: () => hub,
+    })
+
+    const response = await rpc(operations, hub, {
+      method: "localModels/list",
+    })
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({
+      result: { models: [], revision: 0 },
+    })
+    expect(() => operations.ensure("fixture")).toThrow(
+      "Local model control is unavailable.",
+    )
+    operations.dispose()
+  })
+
   test("lists and publishes only explicitly projected fields", async () => {
     const hub = new RecordingHub()
     let listener: LocalModelCatalogListener | undefined

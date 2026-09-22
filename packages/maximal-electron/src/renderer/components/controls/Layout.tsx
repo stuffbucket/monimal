@@ -1,12 +1,12 @@
-import { LayoutGrid, List, X } from 'lucide-react';
-import type { ComponentType, ReactNode } from 'react';
+import { LayoutGrid, List, X } from "lucide-react";
+import type { ComponentType, ReactNode } from "react";
 
-import { useComponentStyles } from '../../lib/component-styles.js';
+import { useComponentStyles } from "../../lib/component-styles.js";
 
-import { IconButton } from './Button.js';
+import { IconButton } from "./Button.js";
 
 /** Grid and list are the two content modes a canvas offers. */
-export type ViewMode = 'grid' | 'list';
+export type ViewMode = "grid" | "list";
 
 /** The grid and list switch. */
 export function ViewModeSwitch({
@@ -20,18 +20,18 @@ export function ViewModeSwitch({
     <div className="segmented" role="group" aria-label="View mode">
       <button
         type="button"
-        aria-pressed={mode === 'grid'}
+        aria-pressed={mode === "grid"}
         aria-label="Grid view"
-        onClick={() => onChange('grid')}
+        onClick={() => onChange("grid")}
         data-testid="mode-grid"
       >
         <LayoutGrid size={14} />
       </button>
       <button
         type="button"
-        aria-pressed={mode === 'list'}
+        aria-pressed={mode === "list"}
         aria-label="List view"
-        onClick={() => onChange('list')}
+        onClick={() => onChange("list")}
         data-testid="mode-list"
       >
         <List size={14} />
@@ -45,13 +45,13 @@ export function Toolbar({
   title,
   mode,
   onModeChange,
-  as: Heading = 'h1',
+  as: Heading = "h1",
 }: {
   title: string;
   mode: ViewMode;
   onModeChange: (mode: ViewMode) => void;
   /** A document has one h1. A second toolbar on the page needs h2. */
-  as?: 'h1' | 'h2' | 'h3';
+  as?: "h1" | "h2" | "h3";
 }) {
   return (
     <div className="toolbar">
@@ -97,7 +97,13 @@ export function EmptyState({
  *
  * `--shell-status` is the label and `--shell-status-muted` the fill.
  */
-export function StatusChip({ status, label }: { status: string; label: string }) {
+export function StatusChip({
+  status,
+  label,
+}: {
+  status: string;
+  label: string;
+}) {
   return (
     <span className="chip" data-status={status}>
       {label}
@@ -133,7 +139,7 @@ const TAG_STYLES = `
  * and carries no status attribute for a host to colour.
  */
 export function Tag({ children }: { children: ReactNode }) {
-  useComponentStyles('tag', TAG_STYLES);
+  useComponentStyles("tag", TAG_STYLES);
 
   return <span className="tag">{children}</span>;
 }
@@ -197,17 +203,17 @@ export function Note({
    * How a replacement is announced. `assertive` interrupts, and is for a
    * failure the person has to act on; `polite` waits, and is for progress.
    */
-  live?: 'polite' | 'assertive';
+  live?: "polite" | "assertive";
   testId?: string;
 }) {
-  useComponentStyles('note', NOTE_STYLES);
+  useComponentStyles("note", NOTE_STYLES);
 
   return (
     <p
       className="note"
       data-status={status}
       data-testid={testId}
-      role={live === 'assertive' ? 'alert' : undefined}
+      role={live === "assertive" ? "alert" : undefined}
       aria-live={live}
     >
       {children}
@@ -227,7 +233,7 @@ export function Note({
 export function InspectorPanel({
   title,
   children,
-  testId = 'inspector',
+  testId = "inspector",
 }: {
   title: string;
   children: ReactNode;
@@ -260,15 +266,24 @@ export function Banner({
   action,
   onDismiss,
   testId,
+  fullWidth,
 }: {
   status?: string;
   children: ReactNode;
   action?: ReactNode;
   onDismiss?: () => void;
   testId?: string;
+  /** Break out of a padded settings content column while preserving alignment. */
+  fullWidth?: boolean;
 }) {
   return (
-    <div className="banner" role="status" data-status={status} data-testid={testId}>
+    <div
+      className="banner"
+      role="status"
+      data-status={status}
+      data-full-width={fullWidth ? "true" : undefined}
+      data-testid={testId}
+    >
       <span>{children}</span>
       <span className="banner__grow" />
       {action}

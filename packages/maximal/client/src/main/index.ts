@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 
@@ -50,8 +51,18 @@ import {
 } from './harness-host.js'
 import { configureTerminalHost, registerTerminalIpc, stopTerminalHost } from './terminal-host.js'
 
+function isolateDevelopmentUserData(): void {
+  if (app.isPackaged || app.commandLine.hasSwitch('user-data-dir')) return
+  const checkoutId = createHash('sha256')
+    .update(app.getAppPath())
+    .digest('hex')
+    .slice(0, 8)
+  app.setPath('userData', `${app.getPath('userData')}-${checkoutId}`)
+}
+
 // Before `whenReady`, not inside it: `app.name` is read when the default menu
 // and the About panel are built, so setting it later leaves both stale.
+isolateDevelopmentUserData()
 applyAppName()
 
 let controlSession: ControlSession | null = null
@@ -384,7 +395,7 @@ void app.whenReady().then(async () => {
 app.on('window-all-closed', () => {
   if (process.platform === 'darwin' || menuBarMode?.keepsAlive() === true) return
   controlSession?.dispose()
-  killCore()
+  void killCore()
   app.quit()
 })
 
@@ -392,19 +403,22 @@ let harnessStopped = false
 let harnessShutdown: Promise<void> | undefined
 
 app.on('before-quit', (event) => {
-  menuBarMode?.dispose()
-  controlSession?.dispose()
-  killCore()
-  stopTerminalHost()
-
   if (harnessStopped) return
   event.preventDefault()
-  harnessShutdown ??= stopHarnessHost()
+  if (mainWindow?.isDestroyed() === false) mainWindow.hide()
+  menuBarMode?.dispose()
+  controlSession?.dispose()
+  stopTerminalHost()
+
+  // Core must finish configurator cleanup and release shared target locks
+  // before Forge launches a replacement Electron process.
+  harnessShutdown ??= Promise.all([killCore(), stopHarnessHost()])
+    .then(() => undefined)
     .catch((error: unknown) => {
-      console.error('[maximal-client] harness failed to stop:', error)
+      console.error('[maximal-client] shutdown failed:', error)
     })
     .finally(() => {
       harnessStopped = true
-      app.quit()
+      app.exit(0)
     })
 })

@@ -12,7 +12,8 @@ import type {
   ModelsListResponse,
   SettingsCapabilities,
 } from './capabilities'
-import { describeError, formatTimestamp } from './format'
+import { describeError } from '../shared/errors'
+import { formatTimestamp } from '../shared/format'
 import { useSettingsHeaderActions } from './header-actions'
 import { ServiceIcon } from './service-icons'
 
