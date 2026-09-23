@@ -8,6 +8,7 @@ const electron = vi.hoisted(() => ({
   onClosed: undefined as (() => void) | undefined,
   readyToShow: undefined as (() => void) | undefined,
   show: vi.fn(),
+  center: vi.fn(),
 }));
 
 vi.mock('electron', () => ({
@@ -39,6 +40,10 @@ vi.mock('electron', () => ({
     show() {
       electron.show();
     }
+
+    center() {
+      electron.center();
+    }
   },
 }));
 
@@ -55,6 +60,7 @@ describe('splash window', () => {
     electron.onClosed = undefined;
     electron.readyToShow = undefined;
     electron.show.mockReset();
+    electron.center.mockReset();
   });
 
   afterEach(() => {
@@ -110,10 +116,11 @@ describe('splash window', () => {
     electron.readyToShow?.();
 
     closeSplashWindow();
-    vi.advanceTimersByTime(4_999);
+    vi.advanceTimersByTime(2_999);
     expect(electron.close).not.toHaveBeenCalled();
     vi.advanceTimersByTime(1);
     expect(electron.close).toHaveBeenCalledOnce();
+    expect(electron.center).toHaveBeenCalledOnce();
   });
 
   it('can hold the splash open for an explicit preview', () => {

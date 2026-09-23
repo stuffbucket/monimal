@@ -6,7 +6,7 @@ import {
 } from '@stuffbucket/maximal-assets/brand'
 
 const MAX_LIFETIME_MS = 10_000;
-const MIN_DISPLAY_MS = 5_000;
+const MIN_DISPLAY_MS = 3_000;
 
 let splash: BrowserWindow | undefined;
 let killTimer: NodeJS.Timeout | undefined;
@@ -52,6 +52,7 @@ export function createSplashWindow({
     backgroundColor: '#00000000',
     hasShadow: false,
   });
+  splash.center();
 
   void splash.loadURL(`data:text/html;charset=UTF-8,${encodeURIComponent(markup(name, version))}`);
   splash.once('ready-to-show', () => {
