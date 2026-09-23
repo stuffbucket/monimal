@@ -27,7 +27,20 @@ const {
     createObservabilitySource: vi.fn(() => observabilitySource),
     observabilitySource,
     subscribe: vi.fn(() => vi.fn()),
-    terminalList: vi.fn(() => Promise.resolve([])),
+    terminalList: vi.fn((): Promise<Array<{
+      id: string
+      cwd: string
+      shell: string
+      startedAt: number
+      title?: string
+      canRunInBackground?: boolean
+      pane?: {
+        direction: 'right'
+        first: { sessionId: string }
+        second: { sessionId: string }
+      }
+      revision?: number
+    }>> => Promise.resolve([])),
     terminalCopy: vi.fn(() => Promise.resolve(true)),
     terminalTerminate: vi.fn(() => Promise.resolve()),
     terminalUndock: vi.fn(() => Promise.resolve(true)),
@@ -105,10 +118,13 @@ vi.mock('./traffic/Traffic', () => ({
 vi.mock('./terminal/Terminal', () => ({
   Terminal: ({
     activeId,
+    initialPanes,
     onExit,
     onPaneChange,
+    paneRevisions,
   }: {
     activeId: string
+    initialPanes?: ReadonlyMap<string, unknown>
     onExit: (id: string) => void
     onPaneChange?: (
       id: string,
@@ -119,8 +135,15 @@ vi.mock('./terminal/Terminal', () => ({
       },
       revision: number,
     ) => void
+    paneRevisions?: ReadonlyMap<string, number>
   }) => (
-    <div data-testid="terminal" data-active-id={activeId}>
+    <div
+      data-testid="terminal"
+      data-active-id={activeId}
+      data-pane-tabs={[...(initialPanes?.keys() ?? [])].join(',')}
+      data-pane-revisions={[...(paneRevisions?.entries() ?? [])]
+        .map(([id, revision]) => `${id}:${String(revision)}`).join(',')}
+    >
       Terminal content
       <button onClick={() => onExit(activeId)}>Exit shell</button>
       <button onClick={() => onPaneChange?.(activeId, {
@@ -204,6 +227,7 @@ beforeEach(() => {
   window.history.replaceState({}, '', '/')
   capabilityState.openSettings = null
   accountStatus.mockResolvedValue({ state: 'unauthenticated' })
+  terminalList.mockResolvedValue([])
   Object.assign(window, {
     maximal: {
       terminal: {
@@ -284,6 +308,58 @@ describe('App routing', () => {
       'terminal:session-1',
     )
     expect(shell.querySelector('[data-testid="settings"]')).toBeNull()
+  })
+
+  it('reconstructs a durable projection and one split document from a fresh listing', async () => {
+    accountStatus.mockResolvedValue({ state: 'authenticated' })
+    terminalList.mockResolvedValue([
+      {
+        id: 'projection-session',
+        cwd: '/remote',
+        shell: 'tmux',
+        startedAt: 1,
+        title: 'Remote build',
+        canRunInBackground: true,
+      },
+      {
+        id: 'document-root',
+        cwd: '/work',
+        shell: '/bin/zsh',
+        startedAt: 2,
+        title: 'Workspace',
+        canRunInBackground: false,
+        pane: {
+          direction: 'right',
+          first: { sessionId: 'document-root' },
+          second: { sessionId: 'document-leaf' },
+        },
+        revision: 7,
+      },
+      {
+        id: 'document-leaf',
+        cwd: '/work',
+        shell: '/bin/zsh',
+        startedAt: 3,
+        title: 'zsh',
+        canRunInBackground: false,
+      },
+    ])
+
+    const shell = await renderApp()
+
+    expect(shell.querySelector('[data-testid="app-frame"]')?.getAttribute('data-available-views'))
+      .toContain('terminal:projection-session')
+    expect(shell.querySelector('[data-testid="app-frame"]')?.getAttribute('data-available-views'))
+      .toContain('terminal:document-root')
+    expect(shell.querySelector('[data-testid="app-frame"]')?.getAttribute('data-available-views'))
+      .not.toContain('terminal:document-leaf')
+    expect(shell.querySelector('[data-testid="terminal"]')?.getAttribute('data-pane-tabs'))
+      .toBe('terminal:document-root')
+    expect(shell.querySelector('[data-testid="terminal"]')?.getAttribute('data-pane-revisions'))
+      .toBe('terminal:document-root:7')
+    expect([...shell.querySelectorAll('button')].some(
+      (button) => button.textContent === 'Put in Background Remote build',
+    )).toBe(true)
   })
 
   it('closes a terminal document when its final shell exits', async () => {

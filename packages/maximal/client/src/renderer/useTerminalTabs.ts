@@ -45,23 +45,50 @@ export function useTerminalTabs(
   const [renameState, setRenameState] = useState<{ tabId: string; title: string }>()
   const [closeState, setCloseState] = useState<{ tabId: string; title: string }>()
   const [terminalError, setTerminalError] = useState<string>()
+  const transfer = useTerminalWindowTransfer({
+    tabs,
+    setTabs,
+    activeTab,
+    setActiveTab,
+    detachedWindow,
+    initialTerminalTab,
+    makeTerminalTab: terminalTab,
+    onError: setTerminalError,
+  })
 
   useEffect(() => {
     if (authenticated !== true || detachedWindow) return
     void terminalTransport.list().then((sessions) => {
       setTabs((current) => {
         const known = new Set(current.flatMap((tab) => tab.sessionId ?? []))
+        const paneLeaves = new Set(sessions.flatMap((session) =>
+          session.pane
+            ? terminalPaneSessionIds(session.pane).filter((id) => id !== session.id)
+            : []))
+        for (const session of sessions) {
+          if (!session.pane) continue
+          const tabId = `terminal:${session.id}`
+          transfer.panes.set(tabId, session.pane)
+          transfer.paneRevisions.set(tabId, session.revision ?? 0)
+        }
         const restored = sessions
-          .filter((session) => !known.has(session.id))
+          .filter((session) => !known.has(session.id) && !paneLeaves.has(session.id))
           .map((session) => terminalTab({
             sessionId: session.id,
-            label: session.shell.split('/').at(-1) ?? 'Terminal',
-            canRunInBackground: false,
+            label: session.title
+              ?? session.shell.split(/[\\/]/).at(-1)
+              ?? 'Terminal',
+            canRunInBackground: session.canRunInBackground ?? false,
           }))
         return restored.length === 0 ? current : [...current, ...restored]
       })
     })
-  }, [authenticated, detachedWindow])
+  }, [
+    authenticated,
+    detachedWindow,
+    transfer.paneRevisions,
+    transfer.panes,
+  ])
 
   const onTerminalLaunched = useCallback((result: TerminalLaunchResult) => {
     const tab = terminalTab(result)
@@ -99,17 +126,6 @@ export function useTerminalTabs(
       return moveTabBefore(current, id, beforeId)
     })
   }, [])
-
-  const transfer = useTerminalWindowTransfer({
-    tabs,
-    setTabs,
-    activeTab,
-    setActiveTab,
-    detachedWindow,
-    initialTerminalTab,
-    makeTerminalTab: terminalTab,
-    onError: setTerminalError,
-  })
 
   const closeTerminal = useCallback(async (id: string) => {
     const sessionId = tabs.find((tab) => tab.id === id)?.sessionId

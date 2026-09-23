@@ -127,6 +127,15 @@ export interface TerminalPaneChangedEvent extends TerminalPaneSyncRequest {
   origin: string;
 }
 
+/** One main-owned terminal document that a renderer can reconstruct after reload. */
+export interface TerminalRestoreEntry extends PtySession {
+  title: string;
+  canRunInBackground: boolean;
+  pane?: TerminalPaneLayout;
+  /** Present with `pane`; the main-owned document revision. */
+  revision?: number;
+}
+
 /** Result of an update check. This build has no update channel; see docs. */
 export type UpdateStatus =
   | { state: 'idle' }
@@ -344,8 +353,8 @@ export interface IpcContract {
   'pty:resize': { request: PtyResizeRequest; response: void };
   'pty:ack': { request: { id: string; sequence: number }; response: void };
   'pty:kill': { request: { id: string }; response: void };
-  /** Every live session for this window, so a detached one can be found again. */
-  'pty:list': { request: void; response: PtySession[] };
+  /** Every live session and document for this window, so its views can be reconstructed. */
+  'pty:list': { request: void; response: TerminalRestoreEntry[] };
   'pty:projection-attach': { request: PtyProjectionAttachRequest; response: boolean };
   'pty:projection-focus': { request: PtyProjectionAttachRequest; response: number | undefined };
   'pty:projection-write': { request: PtyProjectionWriteRequest; response: boolean };
