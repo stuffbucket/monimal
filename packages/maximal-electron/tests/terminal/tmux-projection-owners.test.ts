@@ -388,6 +388,7 @@ describe('TmuxProjectionOwners', () => {
     expect(registry.attach(recipient, { sessionId: 'work', projectionId: 'second', cols: 80, rows: 24 })).toBe(false);
     expect(registry.grant(recipient, 'work', delegate)).toBe(true);
     expect(registry.attach(delegate, { sessionId: 'work', projectionId: 'delegate', cols: 80, rows: 24 })).toBe(true);
+    expect(registry.grant(stranger, 'work', delegate)).toBe(false);
     expect(registry.attach(creator, { sessionId: 'work', projectionId: 'creator', cols: 80, rows: 24 })).toBe(false);
     expect(connect).toHaveBeenCalledTimes(3);
     expect(registry.focus(creator, 'work', 'creator', 80, 24)).toBe(1);
@@ -478,6 +479,8 @@ describe('TmuxProjectionOwners', () => {
   it('moves session authority before the destination projection attaches', () => {
     const creator = { id: 'creator' };
     const recipient = { id: 'recipient' };
+    const delegate = { id: 'delegate' };
+    const stranger = { id: 'stranger' };
     const registry = new TmuxProjectionOwners({
       homeDirectory: '/home/ada',
       command: async () => ({ stdout: 'latest\n' }),
@@ -490,7 +493,8 @@ describe('TmuxProjectionOwners', () => {
     registry.attach(creator, { sessionId: 'work', projectionId: 'left', cols: 80, rows: 24 });
 
     expect(registry.transfer(creator, 'work', recipient)).toBe(true);
-    expect(registry.grant(creator, 'work', recipient)).toBe(true);
+    expect(registry.grant(creator, 'work', delegate)).toBe(true);
+    expect(registry.grant(stranger, 'work', delegate)).toBe(false);
     expect(registry.attach(recipient, {
       sessionId: 'work',
       projectionId: 'right',

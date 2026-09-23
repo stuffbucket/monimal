@@ -561,6 +561,7 @@ interface StagedPtyOwnership {
   request: PtySpawnRequest;
   projection: boolean;
   recipientWasMirror: boolean;
+  recipientMirrorWasAttached: boolean;
   recipientProjectionIds: ReadonlySet<string>;
   recipientGrid?: { cols: number; rows: number };
 }
@@ -607,6 +608,24 @@ export function stagePtyOwnership(
         }
       } else if (!entry.recipientWasMirror) {
         detachMirror(entry.request.id, recipient);
+      } else if (!isMirrorWindow(recipient, entry.request.id)) {
+        const realOwner = realOwnerOf(owner, entry.request.id);
+        if (!realOwner) continue;
+        registerMirror(realOwner, recipient, entry.request.id);
+        if (entry.recipientMirrorWasAttached) {
+          attachMirror(realOwner, recipient, {
+            ...entry.request,
+            cols: entry.recipientGrid?.cols ?? entry.request.cols,
+            rows: entry.recipientGrid?.rows ?? entry.request.rows,
+          });
+        } else if (entry.recipientGrid) {
+          trackViewerSize(
+            entry.request.id,
+            recipient,
+            entry.recipientGrid.cols,
+            entry.recipientGrid.rows,
+          );
+        }
       }
     }
   };
@@ -625,12 +644,16 @@ export function stagePtyOwnership(
         request,
         projection: true,
         recipientWasMirror: false,
+        recipientMirrorWasAttached: false,
         recipientProjectionIds,
         recipientGrid,
       });
       continue;
     }
     const recipientWasMirror = isMirrorWindow(recipient, request.id);
+    const recipientMirrorWasAttached =
+      mirrorDetachers.get(request.id)?.has(recipient) ?? false;
+    const recipientGrid = windowGroups.viewers(request.id)?.get(recipient);
     if (!copyPty(owner, recipient, request)) {
       rollbackDestination();
       return undefined;
@@ -639,7 +662,9 @@ export function stagePtyOwnership(
       request,
       projection: false,
       recipientWasMirror,
+      recipientMirrorWasAttached,
       recipientProjectionIds: new Set(),
+      recipientGrid,
     });
   }
 
