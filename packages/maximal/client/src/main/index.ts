@@ -20,6 +20,7 @@ import {
   TrafficRequestListQuerySchema,
 } from '@stuffbucket/maximal-observability-contract'
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
+import { waitForHostWindowReady } from 'stuffbucket-electron/host'
 import { z } from 'zod'
 
 import { BRIDGE_CHANNELS } from '../shared/bridge-channels.js'
@@ -61,8 +62,6 @@ import {
   stageTerminalSessions,
   stopTerminalHost,
 } from './terminal-host.js'
-
-const TERMINAL_WINDOW_READY_TIMEOUT_MS = 15_000
 
 function isolateDevelopmentUserData(): void {
   if (app.isPackaged || app.commandLine.hasSwitch('user-data-dir')) return
@@ -467,33 +466,6 @@ function createTerminalWindow(request: TerminalWindowRequest): BrowserWindow {
   return win
 }
 
-function waitForTerminalWindow(
-  win: BrowserWindow,
-  timeoutMs = TERMINAL_WINDOW_READY_TIMEOUT_MS,
-): Promise<boolean> {
-  return new Promise((resolve) => {
-    let settled = false
-    const finish = (ready: boolean): void => {
-      if (settled) return
-      settled = true
-      clearTimeout(timer)
-      win.removeListener('ready-to-show', onReady)
-      win.removeListener('close', onFailure)
-      win.webContents.removeListener('did-fail-load', onFailure)
-      win.webContents.removeListener('render-process-gone', onFailure)
-      resolve(ready)
-    }
-    const onReady = (): void => finish(true)
-    const onFailure = (): void => finish(false)
-    const timer = setTimeout(onFailure, timeoutMs)
-    timer.unref()
-    win.once('ready-to-show', onReady)
-    win.once('close', onFailure)
-    win.webContents.once('did-fail-load', onFailure)
-    win.webContents.once('render-process-gone', onFailure)
-  })
-}
-
 async function openTransferredTerminal(
   owner: BrowserWindow | undefined,
   request: TerminalWindowRequest,
@@ -506,7 +478,7 @@ async function openTransferredTerminal(
     detached.close()
     return false
   }
-  const ready = waitForTerminalWindow(detached)
+  const ready = waitForHostWindowReady(detached)
   loadRenderer(detached, request)
   if (!await ready || !transaction.commit()) {
     transaction.rollback()
