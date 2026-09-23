@@ -259,7 +259,7 @@ export function ShellLayout<T extends Tab>({
           {top}
 
           <Group
-            key={documentLayoutId}
+            key={`${layoutId}:${documentStructure}`}
             orientation="horizontal"
             className="panels"
             defaultLayout={defaultDocumentLayout}

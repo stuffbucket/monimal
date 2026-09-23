@@ -326,7 +326,7 @@ function focusWindow(win: BrowserWindow): void {
 function installRendererRecovery(win: BrowserWindow): void {
   let closing = false
   let recoveryPromptOpen = false
-  let lastAutomaticReload = 0
+  let automaticReloadAttempted = false
 
   win.on('close', () => {
     closing = true
@@ -363,10 +363,10 @@ function installRendererRecovery(win: BrowserWindow): void {
     if (details.reason === 'clean-exit') return
     console.error('[maximal-client] renderer process exited:', details)
     if (quitting || closing || win.isDestroyed()) return
+    if (recoveryPromptOpen) return
 
-    const now = Date.now()
-    if (now - lastAutomaticReload >= 30_000) {
-      lastAutomaticReload = now
+    if (!automaticReloadAttempted) {
+      automaticReloadAttempted = true
       win.webContents.reload()
       return
     }

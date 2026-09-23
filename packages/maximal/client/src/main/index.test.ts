@@ -900,6 +900,16 @@ describe('renderer recovery', () => {
     await expectReloadPrompt(['Reload Window', 'Close Window'])
   })
 
+  it('does not reload beneath an existing recovery prompt', () => {
+    showMessageBox.mockReturnValueOnce(new Promise(() => undefined))
+
+    fakeWindow.webContents.emit('unresponsive')
+    emitRendererExit('crashed', 1)
+
+    expect(showMessageBox).toHaveBeenCalledOnce()
+    expect(fakeWindow.webContents.reload).not.toHaveBeenCalled()
+  })
+
   it('offers reload instead of requiring an application restart when unresponsive', async () => {
     fakeWindow.webContents.emit('unresponsive')
 

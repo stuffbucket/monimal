@@ -103,4 +103,38 @@ describe('ShellLayout panel topology', () => {
     expect(container.textContent).not.toContain('Sidebar');
     act(() => root.unmount());
   });
+
+  it('keeps the panel subtree mounted when the active tab changes', () => {
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    const tabs = [
+      { id: 'first', title: 'First' },
+      { id: 'second', title: 'Second' },
+    ];
+
+    act(() => root.render(
+      <ShellLayout
+        layoutId="topology-test"
+        tabs={tabs}
+        activeTab="first"
+        onSelectTab={() => undefined}
+        main={<div>content</div>}
+      />,
+    ));
+    const panels = container.querySelector('.panels');
+
+    act(() => root.render(
+      <ShellLayout
+        layoutId="topology-test"
+        tabs={tabs}
+        activeTab="second"
+        onSelectTab={() => undefined}
+        main={<div>content</div>}
+      />,
+    ));
+
+    expect(container.querySelector('.panels')).toBe(panels);
+    act(() => root.unmount());
+  });
 });
