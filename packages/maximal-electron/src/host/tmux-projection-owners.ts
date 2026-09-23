@@ -69,10 +69,16 @@ export class TmuxProjectionOwners<Owner> {
     return true;
   }
 
+  revoke(owner: Owner, sessionId: string, recipient: Owner): boolean {
+    if (this.sessionOwners.get(sessionId) !== owner) return false;
+    const recipients = this.grants.get(sessionId);
+    const revoked = recipients?.delete(recipient) ?? false;
+    if (recipients?.size === 0) this.grants.delete(sessionId);
+    return revoked;
+  }
+
   transfer(owner: Owner, sessionId: string, recipient: Owner): boolean {
-    const ownsProjection = [...this.projectionOwners.entries()].some(([key, projectionOwner]) =>
-      projectionOwner === owner && key.startsWith(`${sessionId}\u0000`));
-    if (this.sessionOwners.get(sessionId) !== owner && !ownsProjection) return false;
+    if (!this.controls(owner, sessionId)) return false;
     this.sessionOwners.set(sessionId, recipient);
     return true;
   }
@@ -146,6 +152,13 @@ export class TmuxProjectionOwners<Owner> {
 
   private owns(owner: Owner, sessionId: string, projectionId: string): boolean {
     return this.projectionOwners.get(projectionKey(sessionId, projectionId)) === owner;
+  }
+
+  private controls(owner: Owner, sessionId: string): boolean {
+    if (this.sessionOwners.get(sessionId) === owner) return true;
+    const prefix = `${sessionId}\u0000`;
+    return [...this.projectionOwners.entries()].some(([key, projectionOwner]) =>
+      projectionOwner === owner && key.startsWith(prefix));
   }
 
   private sessionProjections(sessionId: string): Array<[string, Owner]> {

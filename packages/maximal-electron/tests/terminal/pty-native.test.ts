@@ -1,21 +1,30 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const state = vi.hoisted(() => ({
   hosts: [] as Array<{
     spawn: ReturnType<typeof vi.fn>;
     list: ReturnType<typeof vi.fn>;
     acknowledge: ReturnType<typeof vi.fn>;
+    has: ReturnType<typeof vi.fn>;
   }>,
   throwOnSpawn: false,
+  failedProjectionGrants: new Set<string>(),
+  failedProjectionTransfers: new Set<string>(),
   projectionHosts: [] as Array<{
     reserve: ReturnType<typeof vi.fn>;
     attach: ReturnType<typeof vi.fn>;
     focus: ReturnType<typeof vi.fn>;
     write: ReturnType<typeof vi.fn>;
     resize: ReturnType<typeof vi.fn>;
+    detach: ReturnType<typeof vi.fn>;
+    grant: ReturnType<typeof vi.fn>;
+    revoke: ReturnType<typeof vi.fn>;
+    transfer: ReturnType<typeof vi.fn>;
     terminate: ReturnType<typeof vi.fn>;
     abandonAll: ReturnType<typeof vi.fn>;
     sessions: Set<string>;
+    owners: Map<string, unknown>;
+    grants: Map<string, Set<unknown>>;
   }>,
 }));
 
@@ -36,6 +45,13 @@ vi.mock('../../src/host/terminal-host.js', () => ({
     readonly acknowledge = vi.fn();
     readonly terminate = vi.fn();
     readonly terminateAll = vi.fn();
+    readonly has = vi.fn((id: string) => this.sessions.has(id));
+    readonly transfer = vi.fn((id: string, destination: { sessions: Set<string> }) => {
+      if (!this.sessions.has(id) || destination.sessions.has(id)) return false;
+      this.sessions.delete(id);
+      destination.sessions.add(id);
+      return true;
+    });
     constructor(options: { emit: (id: string, chunk: string, sequence?: number) => void }) {
       state.hosts.push(this);
       options.emit('session', 'output', 7);
@@ -43,14 +59,34 @@ vi.mock('../../src/host/terminal-host.js', () => ({
   },
   TmuxProjectionOwners: class {
     readonly sessions = new Set<string>();
-    readonly reserve = vi.fn((_owner: unknown, id: string) => this.sessions.add(id));
+    readonly owners = new Map<string, unknown>();
+    readonly grants = new Map<string, Set<unknown>>();
+    readonly reserve = vi.fn((owner: unknown, id: string) => {
+      this.sessions.add(id);
+      this.owners.set(id, owner);
+    });
     readonly has = vi.fn((id: string) => this.sessions.has(id));
     readonly attach = vi.fn(() => true);
     readonly focus = vi.fn(() => 1);
     readonly write = vi.fn(() => true);
     readonly resize = vi.fn(() => true);
     readonly detach = vi.fn(() => true);
-    readonly grant = vi.fn(() => true);
+    readonly grant = vi.fn((owner: unknown, id: string, recipient: unknown) => {
+      if (state.failedProjectionGrants.has(id) || this.owners.get(id) !== owner) return false;
+      const recipients = this.grants.get(id) ?? new Set();
+      recipients.add(recipient);
+      this.grants.set(id, recipients);
+      return true;
+    });
+    readonly revoke = vi.fn((owner: unknown, id: string, recipient: unknown) => {
+      if (this.owners.get(id) !== owner) return false;
+      return this.grants.get(id)?.delete(recipient) ?? false;
+    });
+    readonly transfer = vi.fn((owner: unknown, id: string, recipient: unknown) => {
+      if (state.failedProjectionTransfers.has(id) || this.owners.get(id) !== owner) return false;
+      this.owners.set(id, recipient);
+      return true;
+    });
     readonly release = vi.fn();
     readonly terminate = vi.fn((_owner: unknown, id: string) => this.sessions.delete(id));
     readonly abandonAll = vi.fn(() => this.sessions.clear());
@@ -60,11 +96,24 @@ vi.mock('../../src/host/terminal-host.js', () => ({
 
 const pty = await import('../../src/main/native/pty.js');
 
+let nextOwnerId = 1;
 function owner() {
-  return { once: vi.fn() } as never;
+  return {
+    id: nextOwnerId++,
+    once: vi.fn(),
+    isDestroyed: () => false,
+    isResizable: () => true,
+    getContentSize: () => [800, 600],
+    setContentSize: vi.fn(),
+  } as never;
 }
 
 describe('native pty adapter', () => {
+  beforeEach(() => {
+    state.failedProjectionGrants.clear();
+    state.failedProjectionTransfers.clear();
+  });
+
   it('forwards the host output sequence to the owner event adapter', () => {
     const emit = vi.fn();
     const window = owner();
@@ -112,5 +161,141 @@ describe('native pty adapter', () => {
     expect(() => pty.spawnReservedPty(window, { id: 'unknown', cols: 80, rows: 24 })).toThrow('not reserved');
 
     state.throwOnSpawn = false;
+  });
+
+  it('moves mixed direct and projection-backed sessions as one ownership unit', () => {
+    const source = owner();
+    const destination = owner();
+    pty.spawnPty(source, { id: 'mixed-direct', cols: 80, rows: 24 });
+    const projections = state.projectionHosts[0]!;
+    projections.sessions.add('mixed-projection');
+    projections.owners.set('mixed-projection', source);
+
+    expect(pty.transferPtyOwnership(source, destination, [
+      { id: 'mixed-direct', cols: 100, rows: 30 },
+      { id: 'mixed-projection', cols: 100, rows: 30 },
+    ])).toBe(true);
+
+    expect(projections.owners.get('mixed-projection')).toBe(destination);
+    expect(projections.detach).toHaveBeenCalledWith(
+      source,
+      'mixed-projection',
+      `mixed-projection:${String((source as { id: number }).id)}`,
+    );
+    expect(pty.transferPty(source, owner(), {
+      id: 'mixed-direct',
+      cols: 80,
+      rows: 24,
+    })).toBe(false);
+    expect(pty.transferPty(destination, owner(), {
+      id: 'mixed-direct',
+      cols: 80,
+      rows: 24,
+    })).toBe(true);
+  });
+
+  it('rolls back an earlier direct move when a later projection move fails', () => {
+    const source = owner();
+    const destination = owner();
+    pty.spawnPty(source, { id: 'rollback-direct', cols: 80, rows: 24 });
+    const projections = state.projectionHosts[0]!;
+    projections.sessions.add('rollback-projection');
+    projections.owners.set('rollback-projection', source);
+    state.failedProjectionTransfers.add('rollback-projection');
+
+    expect(pty.transferPtyOwnership(source, destination, [
+      { id: 'rollback-direct', cols: 100, rows: 30 },
+      { id: 'rollback-projection', cols: 100, rows: 30 },
+    ])).toBe(false);
+
+    expect(projections.owners.get('rollback-projection')).toBe(source);
+    expect(projections.detach).not.toHaveBeenCalledWith(
+      source,
+      'rollback-projection',
+      expect.any(String),
+    );
+    expect(pty.transferPty(source, owner(), {
+      id: 'rollback-direct',
+      cols: 80,
+      rows: 24,
+    })).toBe(true);
+  });
+
+  it('restores staged projection authority when a later direct move fails', () => {
+    const source = owner();
+    const destination = owner();
+    const projections = state.projectionHosts[0]!;
+    projections.sessions.add('staged-projection');
+    projections.owners.set('staged-projection', source);
+
+    expect(pty.transferPtyOwnership(source, destination, [
+      { id: 'staged-projection', cols: 100, rows: 30 },
+      { id: 'missing-direct-move', cols: 100, rows: 30 },
+    ])).toBe(false);
+
+    expect(projections.owners.get('staged-projection')).toBe(source);
+    expect(projections.detach).not.toHaveBeenCalledWith(
+      source,
+      'staged-projection',
+      expect.any(String),
+    );
+  });
+
+  it('copies mixed direct and projection-backed sessions as one ownership unit', () => {
+    const source = owner();
+    const destination = owner();
+    pty.spawnPty(source, { id: 'copy-direct', cols: 80, rows: 24 });
+    const projections = state.projectionHosts[0]!;
+    projections.sessions.add('copy-success-projection');
+    projections.owners.set('copy-success-projection', source);
+
+    expect(pty.copyPtyOwnership(source, destination, [
+      { id: 'copy-direct', cols: 80, rows: 24 },
+      { id: 'copy-success-projection', cols: 80, rows: 24 },
+    ])).toBe(true);
+
+    expect(projections.grants.get('copy-success-projection')?.has(destination)).toBe(true);
+    expect(pty.transferPty(destination, owner(), {
+      id: 'copy-direct',
+      cols: 80,
+      rows: 24,
+    })).toBe(true);
+  });
+
+  it('removes an earlier direct mirror when a later projection grant fails', () => {
+    const source = owner();
+    const destination = owner();
+    pty.spawnPty(source, { id: 'copy-rollback-direct', cols: 80, rows: 24 });
+    const projections = state.projectionHosts[0]!;
+    projections.sessions.add('copy-failing-projection');
+    projections.owners.set('copy-failing-projection', source);
+    state.failedProjectionGrants.add('copy-failing-projection');
+
+    expect(pty.copyPtyOwnership(source, destination, [
+      { id: 'copy-rollback-direct', cols: 80, rows: 24 },
+      { id: 'copy-failing-projection', cols: 80, rows: 24 },
+    ])).toBe(false);
+
+    expect(pty.transferPty(destination, owner(), {
+      id: 'copy-rollback-direct',
+      cols: 80,
+      rows: 24,
+    })).toBe(false);
+  });
+
+  it('revokes mixed copy capabilities when any session cannot be copied', () => {
+    const source = owner();
+    const destination = owner();
+    const projections = state.projectionHosts[0]!;
+    projections.sessions.add('copy-projection');
+    projections.owners.set('copy-projection', source);
+
+    expect(pty.copyPtyOwnership(source, destination, [
+      { id: 'copy-projection', cols: 80, rows: 24 },
+      { id: 'missing-direct', cols: 80, rows: 24 },
+    ])).toBe(false);
+
+    expect(projections.revoke).toHaveBeenCalledWith(source, 'copy-projection', destination);
+    expect(projections.grants.get('copy-projection')?.has(destination)).toBe(false);
   });
 });

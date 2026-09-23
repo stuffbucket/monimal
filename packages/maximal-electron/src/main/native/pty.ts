@@ -538,6 +538,106 @@ export function copyPty(
   return true;
 }
 
+/**
+ * Copy a complete terminal document into another window.
+ *
+ * Direct PTYs register a mirror while durable projections grant an independent
+ * attachment. A failed member revokes every capability already granted.
+ */
+export function copyPtyOwnership(
+  owner: BrowserWindow | undefined,
+  recipient: BrowserWindow | undefined,
+  requests: readonly PtySpawnRequest[],
+): boolean {
+  if (!owner || !recipient || owner === recipient || requests.length === 0) return false;
+  if (new Set(requests.map(({ id }) => id)).size !== requests.length) return false;
+  const rollback: Array<() => void> = [];
+  for (const request of requests) {
+    if (projections.has(request.id)) {
+      if (!grantPtyProjection(owner, request.id, recipient, request.cols, request.rows)) {
+        for (const undo of rollback.reverse()) undo();
+        return false;
+      }
+      rollback.push(() => {
+        projections.revoke(owner, request.id, recipient);
+        forgetViewerSize(request.id, recipient);
+      });
+      continue;
+    }
+    const alreadyMirrored = isMirrorWindow(recipient, request.id);
+    if (!copyPty(owner, recipient, request)) {
+      for (const undo of rollback.reverse()) undo();
+      return false;
+    }
+    rollback.push(() => {
+      if (!alreadyMirrored) detachMirror(request.id, recipient);
+    });
+  }
+  return true;
+}
+
+/**
+ * Move a complete terminal document to another window.
+ *
+ * Projection authority is staged without detaching its current client. Direct
+ * PTYs move immediately but carry an inverse move. Only after every member
+ * succeeds are staged projections detached from the source.
+ */
+export function transferPtyOwnership(
+  owner: BrowserWindow | undefined,
+  recipient: BrowserWindow | undefined,
+  requests: readonly PtySpawnRequest[],
+): boolean {
+  if (!owner || !recipient || owner === recipient || requests.length === 0) return false;
+  if (new Set(requests.map(({ id }) => id)).size !== requests.length) return false;
+  const rollback: Array<() => void> = [];
+  const projected: PtySpawnRequest[] = [];
+  for (const request of requests) {
+    if (projections.has(request.id)) {
+      prepareProjectionOwner(recipient);
+      if (!projections.transfer(owner, request.id, recipient)) {
+        for (const undo of rollback.reverse()) undo();
+        return false;
+      }
+      projected.push(request);
+      rollback.push(() => {
+        projections.transfer(recipient, request.id, owner);
+      });
+      continue;
+    }
+    const realOwner = realOwnerOf(owner, request.id);
+    const sourceGrid = realOwner
+      ? windowGroups.viewers(request.id)?.get(realOwner)
+      : undefined;
+    const recipientGrid = windowGroups.viewers(request.id)?.get(recipient);
+    const recipientWasMirror = isMirrorWindow(recipient, request.id);
+    if (!realOwner || !transferPty(owner, recipient, request)) {
+      for (const undo of rollback.reverse()) undo();
+      return false;
+    }
+    rollback.push(() => {
+      transferPty(recipient, realOwner, {
+        ...request,
+        cols: sourceGrid?.cols ?? request.cols,
+        rows: sourceGrid?.rows ?? request.rows,
+      });
+      if (recipientWasMirror) {
+        registerMirror(realOwner, recipient, request.id);
+        if (recipientGrid) {
+          trackViewerSize(request.id, recipient, recipientGrid.cols, recipientGrid.rows);
+        }
+      }
+    });
+  }
+  for (const request of projected) {
+    projections.detach(owner, request.id, windowProjectionId(owner, request.id));
+    projectionEpochs.get(owner)?.delete(request.id);
+    forgetViewerSize(request.id, owner);
+    trackViewerSize(request.id, recipient, request.cols, request.rows);
+  }
+  return true;
+}
+
 export function syncPtyPane(
   owner: BrowserWindow | undefined,
   id: string,

@@ -183,11 +183,11 @@ export function TerminalLauncher({
       .map((target) => ({ profile, target }));
   });
   const persistentDestinations = new Set(discoveredChoices
-    .filter(({ profile, target }) => profile.kind === 'ssh-tmux' && target?.purpose === 'new')
-    .map(({ profile, target }) => `remote\u0000${target?.label ?? profile.label}`));
+    .filter(({ profile, target }) =>
+      (profile.kind === 'tmux' || profile.kind === 'ssh-tmux') && target?.purpose === 'new')
+    .map(({ profile, target }) =>
+      `${profile.kind === 'tmux' ? 'local' : 'remote'}\u0000${target?.label ?? profile.label}`));
   const choices = discoveredChoices.filter(({ profile, target }) => {
-    if (profile.kind === 'tmux' && target?.purpose === 'new'
-      && items.some((candidate) => candidate.kind === 'local')) return false;
     const destination = profile.kind === 'local'
       ? `local\u0000${profile.label}`
       : profile.kind === 'ssh' && target

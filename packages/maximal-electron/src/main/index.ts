@@ -17,7 +17,12 @@ import {
   onPreferencesChanged,
   quietBounds,
 } from './native/preferences.js';
-import { configurePty, copyPty, killAllPtys, transferPty } from './native/pty.js';
+import {
+  configurePty,
+  copyPtyOwnership,
+  killAllPtys,
+  transferPtyOwnership,
+} from './native/pty.js';
 import { createHostWindow } from '../host/host-window.js';
 import { showCrashReports, startCrashReports } from './native/crash-reports.js';
 import { selfCheckRequested } from './native/self-check.js';
@@ -183,11 +188,11 @@ function bootstrap(): void {
         request.pane,
       ));
       const ids = request.sessionIds ?? [request.id];
-      const moved = ids.every((id) => transferPty(owner, detached, {
+      const moved = transferPtyOwnership(owner, detached, ids.map((id) => ({
         id,
         cols: request.cols,
         rows: request.rows,
-      }));
+      })));
       if (!moved) {
         detached.close();
       } else {
@@ -213,11 +218,11 @@ function bootstrap(): void {
         request.pane,
       ));
       const ids = request.sessionIds ?? [request.id];
-      const copied = ids.every((id) => copyPty(owner, detached, {
+      const copied = copyPtyOwnership(owner, detached, ids.map((id) => ({
         id,
         cols: request.cols,
         rows: request.rows,
-      }));
+      })));
       if (!copied) {
         detached.close();
       } else {
@@ -234,11 +239,11 @@ function bootstrap(): void {
       const target = BrowserWindow.fromId(Number(request.targetFrameId));
       if (!source || !target) return false;
       const ids = request.sessionIds ?? [request.id];
-      const moved = ids.every((id) => transferPty(source, target, {
+      const moved = transferPtyOwnership(source, target, ids.map((id) => ({
         id,
         cols: request.cols,
         rows: request.rows,
-      }));
+      })));
       if (moved) {
         sendEvent(target, 'terminal:tab-redocked', {
           id: request.id,

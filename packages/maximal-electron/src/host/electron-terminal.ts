@@ -1,6 +1,7 @@
 export {
   acknowledgePty,
   copyPty,
+  copyPtyOwnership,
   configurePty,
   defaultShell,
   discoverTerminalTargets,
@@ -14,6 +15,7 @@ export {
   spawnPty,
   syncPtyPane,
   transferPty,
+  transferPtyOwnership,
   transferPtyProjection,
   writePty,
 } from '../main/native/pty.js';
