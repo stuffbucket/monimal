@@ -110,7 +110,11 @@ await runMain(
       height: 820,
       loadRenderer: (window) => void window.loadFile(page),
     }),
-    beforeShutdown: () => supervisor.stop(),
+    configureShutdown: (lifecycle) => {
+      lifecycle.onWillShutdown((event) => {
+        event.join(supervisor.stop(), { id: 'supervisor', label: 'Supervisor' });
+      });
+    },
   },
 );
 ```
@@ -155,7 +159,7 @@ second launch. `runMain` opens a replacement window when none is left, and
 | `onActivate` | none | Every activation, with the surviving window |
 | `onWindowCreated` | none | Every window the shell opens |
 | `onWindowAllClosed` | none | The last window closed, with the quit decision |
-| `beforeShutdown` | none | Release what the application owns |
+| `configureShutdown` | none | Register shutdown vetos and named cleanup joiners |
 
 `keepRunningWithoutWindows` is a callback rather than a value because the
 answer changes while the application runs: this shell reads a preference the
@@ -171,10 +175,9 @@ otherwise get a second. Nothing is uploaded either way: there is no
 `submitURL`, no endpoint, and no credential. See `docs/architecture.md` for
 where the dumps land and what covers them.
 
-`beforeShutdown` returning a promise defers the quit until it settles, and the
-quit that follows does not run it again. Returning nothing lets the quit
-through untouched. A consumer uses this seam when native work must settle
-before Electron tears down the Node environment.
+`configureShutdown` receives the shared lifecycle before the application is
+ready. Consumers register pre-commit vetos with `onBeforeShutdown` and cleanup
+with `onWillShutdown`. See [shutdown-lifecycle.md](shutdown-lifecycle.md).
 
 `discoverDaemonUrl` is deliberately blunt about what it hands back: a
 normalized absolute URL with no trailing slash, on `context.daemonUrl`. How it
@@ -202,7 +205,7 @@ each event it listens to.
 | `second-instance` | after `whenReady` | The shell activates: a surviving window is passed to `onActivate`, or a replacement window is opened |
 | `activate` | after `whenReady` | The same |
 | `window-all-closed` | before `whenReady` | The shell may already have called `app.quit()`, depending on registration order. Use `onWindowAllClosed` instead, which is called before the decision is acted on |
-| `before-quit` | before `whenReady` | The shell may already have called `preventDefault` and started `beforeShutdown`, depending on registration order |
+| `before-quit` | before `whenReady` | The shell may already have called `preventDefault` and requested the shutdown lifecycle, depending on registration order |
 
 A listener registered before `runMain` runs first; one registered after it
 resolves runs second. Both of the events where that difference is observable

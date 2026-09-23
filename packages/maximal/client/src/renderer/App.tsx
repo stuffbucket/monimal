@@ -3,19 +3,34 @@ import { useEffect, useMemo, useState, type ReactElement } from 'react'
 import { TerminalLauncher } from 'stuffbucket-electron/renderer'
 
 import { DEFAULT_SETTINGS_SECTION_ID } from '../shared/settings-sections'
-import { WindowChrome } from './chrome/WindowChrome'
-import { FirstRun } from './first-run/FirstRun'
 import { AppWorkspace } from './AppWorkspace'
+import { useAccountStatus } from './useAccountStatus'
 import type { SettingsSectionRequest } from './settings/Settings'
 import { createCoreSettingsCapabilities } from './settings/capabilities'
 import { readDetachedTerminal } from './terminal/window-transfer'
 import { createObservabilitySource } from './traffic/source'
-import { useAuthStatus } from './useAuthStatus'
 import { useTerminalTabs } from './useTerminalTabs'
 import {
   UnsavedChangesProvider,
   useGuardedNavigation,
 } from './unsaved-changes'
+
+/**
+ * Top-level composition.
+ *
+ * This is the one place that decides which surface is showing, and it exists
+ * because that decision cannot be made by any surface individually. Overview,
+ * Traffic, and Settings are built to be mounted; none of them decides when it
+ * is the active surface. Account authentication is optional and owned by
+ * Settings rather than gating the workspace.
+ *
+ * Which surface is showing is that frame's active tab, so this file holds the
+ * view but draws no switcher of its own: there is one set of navigation, and it
+ * lives in the title bar where it is always reachable.
+ *
+ * The Settings adapter is the renderer boundary to the named main-process
+ * bridge, including the application menu's requests which arrive on that seam.
+ */
 
 export function App(): ReactElement {
   return (
@@ -29,9 +44,9 @@ function AppContent(): ReactElement {
   const settings = useMemo(() => createCoreSettingsCapabilities(), [])
   const observability = useMemo(() => createObservabilitySource(), [])
   const [detachedWindow] = useState(readDetachedTerminal)
-  const authenticated = useAuthStatus(settings)
-  const terminalTabsState = useTerminalTabs(authenticated, detachedWindow)
-  const { activeTab, setActiveTab } = terminalTabsState
+  const terminalTabsState = useTerminalTabs(detachedWindow)
+  const { openSettings } = terminalTabsState
+  const accountStatus = useAccountStatus(settings)
   const [sectionRequest, setSectionRequest] = useState<SettingsSectionRequest | null>(null)
   const requestNavigation = useGuardedNavigation()
 
@@ -39,32 +54,24 @@ function AppContent(): ReactElement {
     () =>
       settings.onOpenRequest((sectionId) => {
         requestNavigation(() => {
-          setActiveTab('settings')
+          openSettings()
           setSectionRequest({ id: sectionId ?? DEFAULT_SETTINGS_SECTION_ID })
         })
       }),
-    [requestNavigation, setActiveTab, settings],
+    [openSettings, requestNavigation, settings],
   )
 
-  if (!detachedWindow && authenticated !== true && activeTab !== 'settings')
-    return (
-      <WindowChrome>
-        <FirstRun />
-      </WindowChrome>
-    )
-
-  const signedOut = !detachedWindow && authenticated !== true
   return (
     <ObservabilityProvider source={observability}>
       <AppWorkspace
-        authenticated={authenticated}
         detachedWindow={detachedWindow}
+        accountStatus={accountStatus}
         settings={settings}
         sectionRequest={sectionRequest}
         terminalState={terminalTabsState}
         requestNavigation={requestNavigation}
       />
-      {!signedOut && !detachedWindow ? (
+  {!detachedWindow ? (
         <TerminalLauncher
           open={terminalTabsState.launcherOpen}
           onOpenChange={terminalTabsState.setLauncherOpen}

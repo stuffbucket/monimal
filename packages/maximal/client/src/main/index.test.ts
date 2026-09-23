@@ -39,6 +39,8 @@ interface ControlSessionSpies {
 
 const {
   browserWindows,
+  closeSplashWindowMock,
+  createSplashWindowMock,
   fakeApp,
   fakeWindow,
   installApplicationMenuMock,
@@ -138,6 +140,7 @@ const {
     exit: vi.fn(),
     getPath: vi.fn(() => '/tmp/maximal-client-test'),
     getAppPath: vi.fn(() => '/tmp/maximal-client-test'),
+    getVersion: vi.fn(() => '0.0.0-test'),
     setPath: vi.fn(),
     on(event: string, listener: (...args: unknown[]) => void) {
       if (!listeners.has(event)) listeners.set(event, new Set())
@@ -158,6 +161,8 @@ const {
       isDestroyed(): boolean
       webContents: { send: ReturnType<typeof vi.fn> }
     }>,
+    closeSplashWindowMock: vi.fn(),
+    createSplashWindowMock: vi.fn(),
     fakeApp,
     fakeWindow,
     installApplicationMenuMock: vi.fn(),
@@ -188,6 +193,11 @@ vi.mock('electron', () => ({
     },
   },
   shell: { openExternal: shellOpenExternal, openPath: shellOpenPath },
+}))
+
+vi.mock('./splash-window.js', () => ({
+  closeSplashWindow: closeSplashWindowMock,
+  createSplashWindow: createSplashWindowMock,
 }))
 
 const { localModelsMkdir, resolveLocalModelsPathMock } = vi.hoisted(() => ({
@@ -289,13 +299,15 @@ vi.mock('./core.js', () => ({
   onCoreStatus: onCoreStatusMock,
 }))
 
-const { showHarnessHostMock, startHarnessHostMock, stopHarnessHostMock } = vi.hoisted(() => ({
+const { isHarnessBusyMock, showHarnessHostMock, startHarnessHostMock, stopHarnessHostMock } = vi.hoisted(() => ({
+  isHarnessBusyMock: vi.fn(() => false),
   showHarnessHostMock: vi.fn(),
   startHarnessHostMock: vi.fn(),
   stopHarnessHostMock: vi.fn(() => Promise.resolve()),
 }))
 
 vi.mock('./harness-host.js', () => ({
+  isHarnessBusy: isHarnessBusyMock,
   showHarnessHost: showHarnessHostMock,
   startHarnessHost: startHarnessHostMock,
   stopHarnessHost: stopHarnessHostMock,
@@ -305,10 +317,12 @@ const {
   configureTerminalHostMock,
   configureTerminalWindowActionsMock,
   moveTerminalSessionsMock,
+  activeTerminalCountMock,
   registerTerminalIpcMock,
   stageTerminalSessionsMock,
   stopTerminalHostMock,
 } = vi.hoisted(() => ({
+  activeTerminalCountMock: vi.fn(() => 0),
   configureTerminalHostMock: vi.fn(),
   configureTerminalWindowActionsMock: vi.fn(),
   moveTerminalSessionsMock: vi.fn(() => true),
@@ -318,6 +332,7 @@ const {
 }))
 
 vi.mock('./terminal-host.js', () => ({
+  activeTerminalCount: activeTerminalCountMock,
   configureTerminalHost: configureTerminalHostMock,
   configureTerminalWindowActions: configureTerminalWindowActionsMock,
   moveTerminalSessions: moveTerminalSessionsMock,
@@ -458,6 +473,7 @@ async function loadIndexOn(platform: NodeJS.Platform): Promise<void> {
 const realPlatform = process.platform
 
 afterEach(() => {
+  fakeApp.isPackaged = false
   Object.defineProperty(process, 'platform', {
     value: realPlatform,
     configurable: true,
@@ -470,6 +486,7 @@ describe('closed IPC boundary', () => {
   it('names every renderer event channel in one closed allowlist', () => {
     expect(EVENT_CHANNELS).toEqual([
       BRIDGE_CHANNELS.lifecycleChanged,
+      BRIDGE_CHANNELS.shutdownChanged,
       BRIDGE_CHANNELS.controlChanged,
       BRIDGE_CHANNELS.localModelsChanged,
       BRIDGE_CHANNELS.menuOpenSettings,
@@ -1190,8 +1207,10 @@ describe('window-all-closed / before-quit', () => {
     expect(fakeApp.quit).not.toHaveBeenCalled()
 
     fakeApp.emit('before-quit', { preventDefault: vi.fn() })
+    await vi.waitFor(() => {
+      expect(killCoreMock).toHaveBeenCalledTimes(1)
+    })
     expect(disposeControlSessionMock).toHaveBeenCalledTimes(1)
-    expect(killCoreMock).toHaveBeenCalledTimes(1)
   })
 
   it('on non-darwin disposes core control before quitting', async () => {
@@ -1204,7 +1223,27 @@ describe('window-all-closed / before-quit', () => {
     expect(fakeApp.quit).toHaveBeenCalledTimes(1)
   })
 
-  it('defers process exit until harness and Core shutdown', async () => {
+  it('vetoes a packaged quit before cleanup when active work is not confirmed', async () => {
+    fakeApp.isPackaged = true
+    isHarnessBusyMock.mockReturnValueOnce(true)
+    await loadIndexOn('darwin')
+    const event = { preventDefault: vi.fn() }
+
+    fakeApp.emit('before-quit', event)
+
+    await vi.waitFor(() => {
+      expect(showMessageBox).toHaveBeenCalledWith(
+        fakeWindow,
+        expect.objectContaining({ detail: 'An agent is still working.' }),
+      )
+    })
+    expect(event.preventDefault).toHaveBeenCalledOnce()
+    expect(stopHarnessHostMock).not.toHaveBeenCalled()
+    expect(killCoreMock).not.toHaveBeenCalled()
+    expect(fakeApp.quit).not.toHaveBeenCalled()
+  })
+
+  it('defers Electron quit until named shutdown joiners complete', async () => {
     await loadIndexOn('darwin')
     let resolveShutdown: (() => void) | undefined
     let resolveCoreShutdown: (() => void) | undefined
@@ -1223,9 +1262,16 @@ describe('window-all-closed / before-quit', () => {
     fakeApp.emit('before-quit', first)
 
     expect(first.preventDefault).toHaveBeenCalledOnce()
-    expect(fakeWindow.hide).toHaveBeenCalledOnce()
-    expect(stopHarnessHostMock).toHaveBeenCalledOnce()
+    expect(fakeWindow.hide).not.toHaveBeenCalled()
+    await vi.waitFor(() => {
+      expect(stopHarnessHostMock).toHaveBeenCalledOnce()
+    })
     expect(fakeApp.quit).not.toHaveBeenCalled()
+
+    const repeated = { preventDefault: vi.fn() }
+    fakeApp.emit('before-quit', repeated)
+    expect(repeated.preventDefault).toHaveBeenCalledOnce()
+    expect(stopHarnessHostMock).toHaveBeenCalledOnce()
 
     resolveShutdown?.()
     await Promise.resolve()
@@ -1233,7 +1279,7 @@ describe('window-all-closed / before-quit', () => {
 
     resolveCoreShutdown?.()
     await vi.waitFor(() => {
-      expect(fakeApp.exit).toHaveBeenCalledWith(0)
+      expect(fakeApp.quit).toHaveBeenCalledOnce()
     })
 
     const second = { preventDefault: vi.fn() }
@@ -1241,7 +1287,7 @@ describe('window-all-closed / before-quit', () => {
 
     expect(second.preventDefault).not.toHaveBeenCalled()
     expect(stopHarnessHostMock).toHaveBeenCalledOnce()
-    expect(fakeApp.exit).toHaveBeenCalledOnce()
+    expect(fakeApp.exit).not.toHaveBeenCalled()
     expect(disposeControlSessionMock).toHaveBeenCalledOnce()
     expect(killCoreMock).toHaveBeenCalledOnce()
   })

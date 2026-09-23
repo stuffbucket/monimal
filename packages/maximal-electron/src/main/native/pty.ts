@@ -44,22 +44,6 @@ import { Owners } from './pty-session.js';
 import type { PtyHandlers } from './pty-handlers.js';
 import { TerminalWindowGroups } from './pty-window-groups.js';
 
-/**
- * Pseudo-terminal sessions, one manager per window.
- *
- * The shell runs here, in the main process. The renderer holds an xterm
- * terminal, which is a view and an input encoder, not a process host. Bytes
- * flow main to renderer as `pty:data` events, and renderer to main through the
- * `pty:write` channel.
- *
- * This split is what keeps `sandbox: true` on the renderer. The renderer never
- * spawns anything.
- *
- * The manager is `TerminalHost`, the same class `./host/terminal` exports.
- * This file is the Electron half of it: which window owns a session, where a
- * session starts, and where its output goes.
- */
-
 let emit: PtyHandlers['emit'] = () => undefined;
 let onExit: PtyHandlers['onExit'] = () => undefined;
 let onStatus: PtyHandlers['onStatus'] = () => undefined;
@@ -74,7 +58,6 @@ export function configurePty(handlers: PtyHandlers): void {
   onPane = handlers.onPane ?? (() => undefined);
 }
 
-/** The user's login shell, or a sane default for the platform. */
 export function defaultShell(): string {
   if (process.platform === 'win32') {
     return process.env['COMSPEC'] ?? 'powershell.exe';
@@ -92,7 +75,6 @@ const hosts = new Owners<BrowserWindow, TerminalHost>(
       homeDirectory: app.getPath('home'),
       defaultShell: defaultShell(),
       flowControl: true,
-      // Programs read this to name the terminal they are running under.
       env: { TERM_PROGRAM: 'Stuffbucket' },
       emit: (id, chunk, sequence) => {
         emit(owner, id, chunk, sequence);
@@ -188,17 +170,6 @@ function hostFor(owner: BrowserWindow | undefined): TerminalHost | undefined {
   return hosts.get(owner);
 }
 
-/*
- * "Copy into New Window" registry.
- *
- * A copy does not move a session's process; it adds a second window that
- * watches the same one. `sessionOwner` is the one place that answers "which
- * window actually holds this process right now", kept current across a
- * `transferPty()` so a copy still finds it after its original moves.
- * `mirrorIds` marks which (window, id) pairs are a *view* rather than the
- * owner, so a normal `pty:spawn`/`pty:write`/`pty:resize` from that window can
- * be redirected without the renderer knowing anything changed.
- */
 const sessionOwner = new Map<string, BrowserWindow>();
 const mirrorIds = new WeakMap<BrowserWindow, Set<string>>();
 const mirrorDetachers = new Map<string, Map<BrowserWindow, () => void>>();
@@ -214,11 +185,6 @@ function realOwnerOf(window: BrowserWindow, id: string): BrowserWindow | undefin
   return isMirrorWindow(window, id) ? sessionOwner.get(id) : window;
 }
 
-/**
- * Keeps a shared process alive when its current owner window closes by moving
- * ownership to a live declared viewer. A session with no remaining viewer
- * retains the normal owner-scoped termination policy.
- */
 function releasePtyOwner(owner: BrowserWindow): void {
   const source = hostFor(owner);
   for (const [id, sessionOwnerWindow] of [...sessionOwner]) {
@@ -312,14 +278,12 @@ function reconcileSharedSize(
   }, requestor);
 }
 
-/** Drops one viewer's size entry, restoring the rest once it is gone. */
 function forgetViewerSize(id: string, window: BrowserWindow): void {
   if (!windowGroups.removeViewer(id, window)) return;
   const realOwner = sessionOwner.get(id);
   if (realOwner) reconcileSharedSize(id, realOwner, undefined, 'detach');
 }
 
-/** Drops every size-tracking entry for a session that has fully exited. */
 function forgetSessionSize(id: string): void {
   windowGroups.removeSession(id);
   pendingPaneSyncs.delete(id);
@@ -386,7 +350,6 @@ function isAuthorizedPaneViewer(window: BrowserWindow, sessionId: string): boole
   return false;
 }
 
-/** Marks `recipient` as a copy-viewer of `owner`'s session, attached lazily. */
 function registerMirror(owner: BrowserWindow, recipient: BrowserWindow, id: string): void {
   const ids = mirrorIds.get(recipient) ?? new Set<string>();
   ids.add(id);
@@ -417,13 +380,6 @@ function attachMirror(owner: BrowserWindow, recipient: BrowserWindow, request: P
   if ((windowGroups.viewers(request.id)?.size ?? 0) > 1) reconcileSharedSize(request.id, owner);
 }
 
-/**
- * Open a shell for a window.
- *
- * A request that arrives without a window is dropped. Nothing would reap the
- * session, and an unreapable shell is a process the user cannot see and did
- * not ask to keep.
- */
 function spawn(
   owner: BrowserWindow | undefined,
   rawRequest: PtySpawnRequest,
@@ -503,7 +459,6 @@ export function spawnReservedPty(
   spawn(owner, request, true);
 }
 
-/** Move a live local PTY to another BrowserWindow without restarting it. */
 export function transferPty(
   owner: BrowserWindow | undefined,
   recipient: BrowserWindow | undefined,
@@ -530,13 +485,6 @@ export function transferPty(
   return moved;
 }
 
-/**
- * Add `recipient` as a second, live window for a session `owner` already
- * holds, without moving the process or disturbing `owner`'s own view.
- *
- * Used for "Copy into New Window": both windows keep working, live, off the
- * same shell, the same way a second tmux client would.
- */
 export function copyPty(
   owner: BrowserWindow | undefined,
   recipient: BrowserWindow | undefined,
@@ -550,12 +498,6 @@ export function copyPty(
   return true;
 }
 
-/**
- * Copy a complete terminal document into another window.
- *
- * Direct PTYs register a mirror while durable projections grant an independent
- * attachment. A failed member revokes every capability already granted.
- */
 export function copyPtyOwnership(
   owner: BrowserWindow | undefined,
   recipient: BrowserWindow | undefined,
@@ -578,14 +520,6 @@ interface StagedPtyOwnership {
   recipientGrid?: { cols: number; rows: number };
 }
 
-/**
- * Stage a complete terminal document for another window.
- *
- * The destination receives projection grants or direct PTY mirrors so its
- * renderer can become usable while the source remains fully attached. Commit
- * moves authority for `move` transactions; rollback removes only destination
- * capabilities.
- */
 export function stagePtyOwnership(
   owner: BrowserWindow | undefined,
   recipient: BrowserWindow | undefined,
@@ -763,12 +697,6 @@ export function stagePtyOwnership(
   };
 }
 
-/**
- * Move a complete terminal document to another window immediately.
- *
- * Callers that must wait for renderer readiness should use
- * `stagePtyOwnership` and commit only after the destination is usable.
- */
 export function transferPtyOwnership(
   owner: BrowserWindow | undefined,
   recipient: BrowserWindow | undefined,

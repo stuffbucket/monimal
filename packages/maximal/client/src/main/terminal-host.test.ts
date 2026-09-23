@@ -74,6 +74,41 @@ const request = {
 }
 
 describe('terminal host window actions', () => {
+  for (const kind of ['output', 'exit'] as const) {
+    for (const lifecycle of ['live', 'released', 'window-destroyed', 'contents-destroyed'] as const) {
+      it(`${kind} delivery with ${lifecycle} owner`, () => {
+        const delivered: Array<{ channel: string; payload: unknown }> = []
+        const targetOwner = {
+          isDestroyed: () => lifecycle === 'window-destroyed',
+          webContents: {
+            isDestroyed: () => lifecycle === 'contents-destroyed',
+            send(channel: string, payload: unknown) {
+              if (lifecycle !== 'live') throw new Error('Object has been destroyed')
+              delivered.push({ channel, payload })
+            },
+          },
+        }
+        configureTerminalHost()
+        type Owner = typeof targetOwner
+        const handlers = configurePty.mock.calls.at(-1)![0] as {
+          emit(owner: Owner | undefined, id: string, data: string, sequence: number): void
+          onExit(owner: Owner | undefined, id: string, exitCode: number): void
+        }
+        const target = lifecycle === 'released' ? undefined : targetOwner
+        expect(() => {
+          if (kind === 'output') handlers.emit(target, 'session', 'ready', 7)
+          else handlers.onExit(target, 'session', 0)
+        }).not.toThrow()
+        expect(delivered).toEqual(lifecycle === 'live' ? [{
+          channel: kind === 'output' ? BRIDGE_CHANNELS.terminalData : BRIDGE_CHANNELS.terminalExit,
+          payload: kind === 'output'
+            ? { id: 'session', data: 'ready', sequence: 7 }
+            : { id: 'session', exitCode: 0 },
+        }] : [])
+      })
+    }
+  }
+
   beforeEach(() => {
     ipcHandlers.clear()
     stagePtyOwnership.mockReset()

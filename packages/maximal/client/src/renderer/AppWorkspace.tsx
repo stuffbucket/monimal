@@ -5,18 +5,22 @@ import {
   TextInput,
 } from 'stuffbucket-electron/renderer'
 
-import { AppFrame, PRODUCT_TABS, type AppTab } from './frame/AppFrame'
+import { AccountStatusLine } from './AccountStatusLine'
+import { AppFrame, PRODUCT_TABS, SurfaceActivity, type AppTab } from './frame/AppFrame'
+import { WorkspaceRail } from './frame/WorkspaceRail'
 import { Overview } from './overview/Overview'
 import { Settings, type SettingsSectionRequest } from './settings/Settings'
 import type { SettingsCapabilities } from './settings/capabilities'
+import type { AuthStatus } from './settings/capabilities'
+import { ProviderOnboarding } from './ProviderOnboarding'
 import { Terminal } from './terminal/Terminal'
 import type { DetachedTerminal } from './terminal/window-transfer'
 import { Traffic } from './traffic/Traffic'
 import type { TerminalTabsState } from './useTerminalTabs'
 
 interface AppWorkspaceProps {
-  authenticated: boolean | null
   detachedWindow?: DetachedTerminal
+  accountStatus: AuthStatus | null
   settings: SettingsCapabilities
   sectionRequest: SettingsSectionRequest | null
   terminalState: TerminalTabsState
@@ -24,29 +28,25 @@ interface AppWorkspaceProps {
 }
 
 interface ActiveSurfaceProps {
-  signedOut: boolean
   current: AppTab | undefined
   terminalTabs: Array<{ id: string; sessionId: string; title: string }>
   settings: SettingsCapabilities
   sectionRequest: SettingsSectionRequest | null
   terminalState: TerminalTabsState
-  requestNavigation: (proceed: () => void) => void
 }
 
 function ActiveSurface({
-  signedOut,
   current,
   terminalTabs,
   settings,
   sectionRequest,
   terminalState,
-  requestNavigation,
 }: ActiveSurfaceProps): ReactElement {
   return (
     <>
-      {!signedOut && current?.kind === 'overview' ? <Overview /> : null}
-      {!signedOut && current?.kind === 'traffic' ? <Traffic /> : null}
-      {!signedOut && terminalTabs.length > 0 ? (
+      {current?.kind === 'overview' ? <Overview /> : null}
+      {current?.kind === 'traffic' ? <Traffic /> : null}
+      {terminalTabs.length > 0 ? (
         <Terminal
           tabs={terminalTabs}
           activeId={current?.id ?? ''}
@@ -62,11 +62,6 @@ function ActiveSurface({
         <Settings
           capabilities={settings}
           request={sectionRequest}
-          onBack={
-            signedOut
-              ? () => requestNavigation(() => terminalState.setActiveTab('overview'))
-              : undefined
-          }
         />
       ) : null}
     </>
@@ -154,20 +149,18 @@ function TerminalDialogs({ terminalState }: { terminalState: TerminalTabsState }
 }
 
 export function AppWorkspace({
-  authenticated,
   detachedWindow,
+  accountStatus,
   settings,
   sectionRequest,
   terminalState,
   requestNavigation,
 }: AppWorkspaceProps): ReactElement {
-  const signedOut = !detachedWindow && authenticated !== true
   const visibleTabs = detachedWindow
     ? terminalState.tabs.filter((tab) => tab.kind === 'terminal')
-    : signedOut
-      ? PRODUCT_TABS.filter((tab) => tab.kind === 'settings')
-      : terminalState.tabs
-  const current = visibleTabs.find((tab) => tab.id === terminalState.activeTab) ?? visibleTabs[0]
+    : terminalState.tabs
+  const current = visibleTabs.find((tab) => tab.id === terminalState.activeTab)
+    ?? visibleTabs[0] ?? PRODUCT_TABS[0]
   const terminalTabs = terminalState.tabs.flatMap((tab) =>
     tab.kind === 'terminal' && tab.sessionId
       ? [{ id: tab.id, sessionId: tab.sessionId, title: tab.title }]
@@ -199,9 +192,15 @@ export function AppWorkspace({
         activeTab={current?.id ?? 'settings'}
         surface={current?.kind ?? 'settings'}
         onSelectTab={(id) => requestNavigation(() => terminalState.setActiveTab(id))}
-        onCloseTab={signedOut ? undefined : terminalState.requestCloseTerminal}
-        onNewTab={signedOut || detachedWindow ? undefined : () => terminalState.setLauncherOpen(true)}
-        tabTransfer={signedOut ? undefined : {
+        onCloseTab={(id) => {
+          const closing = terminalState.tabs.find((tab) => tab.id === id)
+          if (closing?.kind === 'settings') requestNavigation(() => terminalState.closeTab(id))
+          else terminalState.requestCloseTerminal(id)
+        }}
+        onNewTab={detachedWindow ? undefined : () => terminalState.setLauncherOpen(true)}
+        settingsOpen={terminalState.tabs.some((tab) => tab.kind === 'settings')}
+        onToggleSettings={detachedWindow ? undefined : () => requestNavigation(terminalState.toggleSettings)}
+        tabTransfer={{
           frameId: terminalState.frameId,
           canDrag: (tab) => tab.kind === 'terminal',
           canDropBefore: (tab) => tab === undefined || tab.kind === 'terminal',
@@ -270,14 +269,28 @@ export function AppWorkspace({
         }}
       >
         <ActiveSurface
-          signedOut={signedOut}
           current={current}
           terminalTabs={terminalTabs}
           settings={settings}
           sectionRequest={sectionRequest}
           terminalState={terminalState}
-          requestNavigation={requestNavigation}
         />
+        {!detachedWindow ? (
+          <>
+            <SurfaceActivity>
+              <WorkspaceRail
+                tabs={terminalState.tabs}
+                current={current.id}
+                onSelect={(id) => requestNavigation(() => terminalState.setActiveTab(id))}
+              />
+            </SurfaceActivity>
+            <AccountStatusLine status={accountStatus} />
+            <ProviderOnboarding
+              capabilities={settings}
+              onSetup={() => terminalState.openSettings()}
+            />
+          </>
+        ) : null}
       </AppFrame>
       <TerminalDialogs terminalState={terminalState} />
     </>

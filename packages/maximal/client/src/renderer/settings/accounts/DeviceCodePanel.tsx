@@ -57,12 +57,12 @@ export function DeviceCodePanel({
           twice alongside the spelled-out version below. `aria-label` on a
           role-less `<p>` is prohibited by ARIA-in-HTML and silently dropped
           by browsers/screen readers — the name must be exposed via a real
-          text node instead (matches first-run/DeviceCode.tsx). */}
+          text node instead. */}
       <p className="settings-device-code__code" aria-hidden="true">
         {status.user_code}
       </p>
       {/* What a screen reader actually announces: discrete characters, with
-          "-" replaced by the word "dash" — the same spelling first-run uses,
+          "-" replaced by the word "dash",
           via the shared `spellOutCode` helper, so the code reads identically
           in both surfaces. Not a Note: a Note is a visible sentence, and this
           one exists only to be read aloud. */}

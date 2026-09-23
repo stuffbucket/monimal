@@ -60,6 +60,13 @@ const SETTINGS_CSS = `
   outline-offset: 2px;
 }
 
+.settings-rail__link[aria-label] {
+  width: 48px;
+  min-height: 48px;
+  justify-content: center;
+  padding: 0;
+}
+
 
 .settings-section {
   display: flex;

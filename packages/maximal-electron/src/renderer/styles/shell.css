@@ -133,8 +133,25 @@ body {
 
 /* ------------------------------------------------------------------ panels */
 
+.shell-workspace {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.activity-rail {
+  width: 64px;
+  min-width: 64px;
+  min-height: 0;
+  flex: none;
+  overflow: hidden;
+  border-right: 1px solid var(--border-subtle);
+}
+
 .panels {
   flex: 1;
+  min-width: 0;
   min-height: 0;
 }
 
@@ -198,6 +215,12 @@ body {
 }
 
 .nav__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.nav__content {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
@@ -276,6 +299,10 @@ body {
   padding: var(--space-3) var(--space-1);
 }
 
+.nav--collapsed .nav__content {
+  gap: var(--space-2);
+}
+
 .nav--collapsed .nav__item {
   justify-content: center;
   padding: 0;
@@ -285,6 +312,35 @@ body {
 .nav--collapsed .nav__item-count,
 .nav--collapsed .nav__heading span {
   display: none;
+}
+
+.activity-rail .nav--collapsed {
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  overflow-x: hidden;
+}
+
+.activity-rail .nav--collapsed .nav__break {
+  display: none;
+}
+
+.activity-rail .nav--collapsed .nav__section {
+  width: 48px;
+}
+
+.activity-rail .nav--collapsed .nav__item {
+  width: 48px;
+  height: 48px;
+  flex: none;
+  border-radius: var(--radius-card);
+}
+
+.activity-rail .nav--collapsed .nav__item > svg {
+  width: 24px;
+  height: 24px;
 }
 
 /*

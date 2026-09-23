@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   AppFrame,
+  SurfaceActivity,
   SurfaceRail,
   SurfaceRight,
   SurfaceStatus,
@@ -56,12 +57,14 @@ describe('AppFrame', () => {
         tabs={[{ id: 'document', title: 'Document' }]}
         activeTab="document"
         onSelectTab={vi.fn()}
+        withActivity
         withLeft
         withRight
         withStatus
       >
         <IdentityProbe />
         <SurfaceTop><p data-testid="top">top</p></SurfaceTop>
+        <SurfaceActivity><p data-testid="activity">activity</p></SurfaceActivity>
         <SurfaceRail>{(collapsed) => <p data-testid="rail">{String(collapsed)}</p>}</SurfaceRail>
         <SurfaceRight><p data-testid="right">right</p></SurfaceRight>
         <SurfaceStatus><p data-testid="status">status</p></SurfaceStatus>
@@ -70,12 +73,20 @@ describe('AppFrame', () => {
 
     expect(shell.querySelector('[data-testid="top"]')?.parentElement?.className)
       .toContain('app-frame__slot');
+    expect(shell.querySelector('.activity-rail [data-testid="activity"]')).not.toBeNull();
     expect(shell.querySelector('#left [data-testid="rail"]')?.textContent).toBe('false');
     expect(shell.querySelector('#right [data-testid="right"]')).not.toBeNull();
     expect(shell.querySelector('.statusbar [data-testid="status"]')).not.toBeNull();
     expect(shell.querySelector('[data-testid="ids"]')?.textContent).toBe(
       'consumer-documents-tab-document consumer-documents-tabpanel-document',
     );
+
+    const toggleLeft = shell.querySelector<HTMLButtonElement>('[data-testid="toggle-left"]');
+    act(() => toggleLeft?.click());
+
+    expect(toggleLeft?.getAttribute('aria-label')).toBe('Show sidebar');
+    expect(shell.querySelector('#left [data-testid="rail"]')?.textContent).toBe('true');
+    expect(shell.querySelector('.activity-rail [data-testid="activity"]')).not.toBeNull();
   });
 
   it('omits optional regions until the caller selects them', () => {
@@ -91,6 +102,7 @@ describe('AppFrame', () => {
     );
 
     expect(shell.querySelector('#left')).toBeNull();
+    expect(shell.querySelector('.activity-rail')).toBeNull();
     expect(shell.querySelector('#right')).toBeNull();
     expect(shell.querySelector('.statusbar')).toBeNull();
   });

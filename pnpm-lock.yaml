@@ -146,6 +146,18 @@ importers:
         specifier: npm:@typescript/typescript6@^6.0.2
         version: '@typescript/typescript6@6.0.2'
 
+  packages/maximal-assets:
+    devDependencies:
+      '@stuffbucket/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@types/node':
+        specifier: ^26.4.0
+        version: 26.4.0
+      typescript:
+        specifier: npm:@typescript/typescript6@^6.0.2
+        version: '@typescript/typescript6@6.0.2'
+
   packages/maximal-configurators:
     dependencies:
       '@deepseek-ai/cordis':
@@ -731,6 +743,9 @@ importers:
       '@stuffbucket/local-model-registry':
         specifier: workspace:*
         version: link:../../local-model-registry
+      '@stuffbucket/maximal-assets':
+        specifier: workspace:*
+        version: link:../../maximal-assets
       '@stuffbucket/maximal-core':
         specifier: workspace:*
         version: link:../../maximal-core

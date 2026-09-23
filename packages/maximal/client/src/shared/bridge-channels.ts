@@ -1,5 +1,7 @@
 export const BRIDGE_CHANNELS = {
   lifecycleCurrent: 'maximal:lifecycle/current',
+  shutdownCurrent: 'maximal:shutdown/current',
+  shutdownForce: 'maximal:shutdown/force',
   proxyUrl: 'maximal:connection/proxy-url',
   openExternal: 'maximal:native/open-external',
   authStatus: 'maximal:control/auth-status',
@@ -49,6 +51,8 @@ export const BRIDGE_CHANNELS = {
   menuBarModeConfirmEnable: 'maximal:native/menu-bar-mode-confirm-enable',
   menuBarModeCancelEnable: 'maximal:native/menu-bar-mode-cancel-enable',
   menuBarModeDisable: 'maximal:native/menu-bar-mode-disable',
+  providerOnboardingGet: 'maximal:native/provider-onboarding-get',
+  providerOnboardingSet: 'maximal:native/provider-onboarding-set',
   terminalSpawn: 'maximal:terminal/spawn',
   terminalWrite: 'maximal:terminal/write',
   terminalResize: 'maximal:terminal/resize',
@@ -64,6 +68,7 @@ export const BRIDGE_CHANNELS = {
   terminalRedock: 'maximal:terminal/redock',
   terminalPaneSync: 'maximal:terminal/pane-sync',
   lifecycleChanged: 'maximal:lifecycle/changed',
+  shutdownChanged: 'maximal:shutdown/changed',
   controlChanged: 'maximal:control/changed',
   localModelsChanged: 'maximal:control/local-models-changed',
   menuOpenSettings: 'maximal:menu/open-settings',
@@ -87,8 +92,12 @@ export const BRIDGE_CHANNELS = {
 
 export const INVOKE_CHANNELS = [
   BRIDGE_CHANNELS.lifecycleCurrent,
+  BRIDGE_CHANNELS.shutdownCurrent,
+  BRIDGE_CHANNELS.shutdownForce,
   BRIDGE_CHANNELS.proxyUrl,
   BRIDGE_CHANNELS.openExternal,
+  BRIDGE_CHANNELS.providerOnboardingGet,
+  BRIDGE_CHANNELS.providerOnboardingSet,
   BRIDGE_CHANNELS.authStatus,
   BRIDGE_CHANNELS.authStart,
   BRIDGE_CHANNELS.authCancel,
@@ -160,6 +169,7 @@ export const INVOKE_CHANNELS = [
 
 export const EVENT_CHANNELS = [
   BRIDGE_CHANNELS.lifecycleChanged,
+  BRIDGE_CHANNELS.shutdownChanged,
   BRIDGE_CHANNELS.controlChanged,
   BRIDGE_CHANNELS.localModelsChanged,
   BRIDGE_CHANNELS.menuOpenSettings,

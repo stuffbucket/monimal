@@ -7,7 +7,7 @@ import {
   type TerminalPane,
 } from 'stuffbucket-electron/renderer'
 
-import { PRODUCT_TABS, type AppTab } from './frame/AppFrame'
+import { PRODUCT_TABS, SETTINGS_TAB, type AppTab } from './frame/AppFrame'
 import { terminalTransport } from './terminal/transport'
 import {
   useTerminalWindowTransfer,
@@ -26,7 +26,6 @@ function terminalTab(result: TerminalLaunchResult): AppTab {
 }
 
 export function useTerminalTabs(
-  authenticated: boolean | null,
   detachedWindow?: DetachedTerminal,
 ) {
   const initialTerminalTab = detachedWindow
@@ -57,7 +56,7 @@ export function useTerminalTabs(
   })
 
   useEffect(() => {
-    if (authenticated !== true || detachedWindow) return
+    if (detachedWindow) return
     void terminalTransport.list().then((sessions) => {
       setTabs((current) => {
         const known = new Set(current.flatMap((tab) => tab.sessionId ?? []))
@@ -84,7 +83,6 @@ export function useTerminalTabs(
       })
     })
   }, [
-    authenticated,
     detachedWindow,
     transfer.paneRevisions,
     transfer.panes,
@@ -98,12 +96,35 @@ export function useTerminalTabs(
     setActiveTab(tab.id)
   }, [])
 
+  const openSettings = useCallback(() => {
+    setTabs((current) => current.some((tab) => tab.id === SETTINGS_TAB.id)
+      ? current
+      : [...current, SETTINGS_TAB])
+    setActiveTab(SETTINGS_TAB.id)
+  }, [])
+
   const closeTab = useCallback((id: string) => {
     setTabs((current) => {
       const index = current.findIndex((tab) => tab.id === id)
-      if (index < 0 || current[index]?.kind !== 'terminal') return current
+      const closing = current[index]
+      if (index < 0 || (closing?.kind !== 'terminal' && closing?.kind !== 'settings')) return current
       const next = current.filter((tab) => tab.id !== id)
       setActiveTab((active) => active === id
+        ? (next[index] ?? next[index - 1] ?? PRODUCT_TABS[0])?.id ?? 'overview'
+        : active)
+      return next
+    })
+  }, [])
+
+  const toggleSettings = useCallback(() => {
+    setTabs((current) => {
+      const index = current.findIndex((tab) => tab.id === SETTINGS_TAB.id)
+      if (index < 0) {
+        setActiveTab(SETTINGS_TAB.id)
+        return [...current, SETTINGS_TAB]
+      }
+      const next = current.filter((tab) => tab.id !== SETTINGS_TAB.id)
+      setActiveTab((active) => active === SETTINGS_TAB.id
         ? (next[index] ?? next[index - 1] ?? PRODUCT_TABS[0])?.id ?? 'overview'
         : active)
       return next
@@ -197,6 +218,8 @@ export function useTerminalTabs(
     setTerminalError,
     rememberProfile,
     onTerminalLaunched,
+    openSettings,
+    toggleSettings,
     closeTab,
     closeTerminal,
     requestCloseTerminal,

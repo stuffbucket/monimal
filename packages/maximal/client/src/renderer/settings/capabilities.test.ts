@@ -77,6 +77,11 @@ function fakeBridge(): MaximalBridge {
     getProxyUrl: vi.fn(async () => 'http://127.0.0.1:4141'),
     openExternal: vi.fn(async () => {}),
     onCoreStatus: vi.fn(() => () => {}),
+    shutdown: {
+      current: vi.fn(async () => ({ phase: 'idle' as const, operations: [] })),
+      force: vi.fn(async () => false),
+      onChange: vi.fn(() => () => {}),
+    },
     pendingSettingsRequest: vi.fn(async () => null),
     onOpenSettings: vi.fn(() => () => {}),
     logs: {
@@ -130,6 +135,10 @@ function fakeBridge(): MaximalBridge {
       confirmEnable: vi.fn(async () => ({ enabled: true, pending: false })),
       cancelEnable: vi.fn(async () => ({ enabled: false, pending: false })),
       disable: vi.fn(async () => ({ enabled: false, pending: false })),
+    },
+    providerOnboarding: {
+      get: vi.fn(async () => ({ dismissed: false })),
+      setDismissed: vi.fn(async (dismissed: boolean) => ({ dismissed })),
     },
     harness: {
       hide: vi.fn(async () => {}),

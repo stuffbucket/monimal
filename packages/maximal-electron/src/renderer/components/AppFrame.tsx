@@ -17,6 +17,7 @@ interface FrameContextValue {
   tabTriggerId: string;
   tabPanelId: string;
   top: HTMLElement | null;
+  activity: HTMLElement | null;
   rail: HTMLElement | null;
   right: HTMLElement | null;
   status: HTMLElement | null;
@@ -44,6 +45,12 @@ export function useTabPanelId(): string {
 export function SurfaceTop({ children }: { children: ReactNode }): ReactElement | null {
   const { top } = useFrame();
   return top === null ? null : createPortal(children, top);
+}
+
+/** Portal content into the persistent activity rail beside the collapsible panels. */
+export function SurfaceActivity({ children }: { children: ReactNode }): ReactElement | null {
+  const { activity } = useFrame();
+  return activity === null ? null : createPortal(children, activity);
 }
 
 /** Portal content into the left rail and receive its collapsed state. */
@@ -81,9 +88,10 @@ function RailCollapse({
 
 export type AppFrameProps<T extends Tab> = Omit<
   ShellLayoutProps<T>,
-  'top' | 'left' | 'main' | 'right' | 'status'
+  'top' | 'activity' | 'left' | 'main' | 'right' | 'status'
 > & {
   children: ReactNode;
+  withActivity?: boolean;
   withLeft?: boolean;
   withRight?: boolean;
   withStatus?: boolean;
@@ -92,12 +100,14 @@ export type AppFrameProps<T extends Tab> = Omit<
 /** A shell layout with portal-backed regions selected by its consumer. */
 export function AppFrame<T extends Tab>({
   children,
+  withActivity = false,
   withLeft = false,
   withRight = false,
   withStatus = false,
   ...shell
 }: AppFrameProps<T>): ReactElement {
   const [top, setTop] = useState<HTMLElement | null>(null);
+  const [activity, setActivity] = useState<HTMLElement | null>(null);
   const [rail, setRail] = useState<HTMLElement | null>(null);
   const [right, setRight] = useState<HTMLElement | null>(null);
   const [status, setStatus] = useState<HTMLElement | null>(null);
@@ -108,16 +118,20 @@ export function AppFrame<T extends Tab>({
     tabTriggerId: getTabTriggerId(tabIdBase, shell.activeTab),
     tabPanelId: getTabPanelId(tabIdBase, shell.activeTab),
     top,
+    activity,
     rail,
     right,
     status,
-  }), [railCollapsed, shell.activeTab, status, rail, right, tabIdBase, top]);
+  }), [activity, railCollapsed, shell.activeTab, status, rail, right, tabIdBase, top]);
 
   return (
     <FrameContext.Provider value={frame}>
       <ShellLayout
         {...shell}
         top={<div ref={setTop} className="app-frame__slot" />}
+        activity={withActivity
+          ? <div ref={setActivity} className="app-frame__slot app-frame__slot--fill" />
+          : undefined}
         left={withLeft ? (collapsed) => (
           <>
             <RailCollapse collapsed={collapsed} onChange={setRailCollapsed} />

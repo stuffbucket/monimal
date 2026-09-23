@@ -229,6 +229,11 @@ export function stageTerminalSessions(
   )
 }
 
+export function activeTerminalCount(): number {
+  return BrowserWindow.getAllWindows()
+    .reduce((count, window) => count + listPtys(window).length, 0)
+}
+
 export function stopTerminalHost(): void {
   killAllPtys()
 }

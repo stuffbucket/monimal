@@ -16,7 +16,7 @@ import {
 
 const source = {
   packaged: false,
-  resourcesPath: '/Applications/Stuffbucket.app/Contents/Resources',
+  resourcesPath: '/Applications/Maximal.app/Contents/Resources',
   sourceDir: '/checkout/build/icons',
 };
 
@@ -37,7 +37,7 @@ describe('iconDirectory', () => {
 
   it('reads a packaged application from beside the asar', () => {
     expect(iconDirectory({ ...source, packaged: true })).toBe(
-      '/Applications/Stuffbucket.app/Contents/Resources',
+      '/Applications/Maximal.app/Contents/Resources',
     );
   });
 

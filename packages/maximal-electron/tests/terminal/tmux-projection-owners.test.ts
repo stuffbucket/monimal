@@ -51,6 +51,91 @@ function projectionRegistry(
   });
 }
 
+describe('projection ownership transitions', () => {
+  function fixture() {
+    const wires = [processWire(), processWire(), processWire()];
+    const pending = [...wires];
+    const output: string[] = [];
+    const exits: number[] = [];
+    const terminated: string[] = [];
+    const registry = new TmuxProjectionOwners<{ id: string }>({
+      homeDirectory: '/home/ada',
+      command: successfulCommand,
+      connector: { connect: () => pending.shift()!.process },
+      terminate: (command) => { terminated.push(command); },
+      emit: (owner, _sessionId, _projectionId, chunk) => { output.push(`${owner.id}:${chunk}`); },
+      onExit: (_owner, _sessionId, _projectionId, code) => { exits.push(code); },
+    });
+    const creator = { id: 'creator' };
+    const recipient = { id: 'recipient' };
+    registry.reserve(creator, 'work', launch);
+    const request = { sessionId: 'work', projectionId: 'creator-view', cols: 80, rows: 24 };
+    expect(registry.attach(creator, request)).toBe(true);
+    return { registry, wires, output, exits, terminated, creator, recipient, request };
+  }
+
+  it('reattaches the same projection after renderer replacement and resumes input/output', () => {
+    const { registry, wires, creator, request, output } = fixture();
+    expect(registry.attach(creator, request)).toBe(true);
+    const epoch = registry.focus(creator, 'work', request.projectionId, 80, 24)!;
+    expect(registry.write(creator, 'work', request.projectionId, epoch, 'pwd\n')).toBe(true);
+    wires[0]!.data('/home/ada\n');
+    expect(output).toEqual(['creator:/home/ada\n']);
+  });
+
+  it('preserves a surviving copied view authority after its original window closes', () => {
+    const { registry, creator, recipient, terminated } = fixture();
+    expect(registry.grant(creator, 'work', recipient)).toBe(true);
+    expect(registry.attach(recipient, {
+      sessionId: 'work', projectionId: 'recipient-view', cols: 80, rows: 24,
+    })).toBe(true);
+    registry.release(creator);
+    expect(registry.has('work')).toBe(true);
+    const epoch = registry.focus(recipient, 'work', 'recipient-view', 80, 24)!;
+    expect(registry.write(recipient, 'work', 'recipient-view', epoch, 'exit\n')).toBe(true);
+    expect(registry.terminate(recipient, 'work')).toBe(true);
+    expect(terminated).toEqual(['tmux']);
+    expect(registry.has('work')).toBe(false);
+  });
+
+  it('allows a copied view to open another view without granting authority to strangers', () => {
+    const { registry, creator, recipient } = fixture();
+    const destination = { id: 'destination' };
+    expect(registry.grant({ id: 'stranger' }, 'work', destination)).toBe(false);
+    expect(registry.grant(creator, 'work', recipient)).toBe(true);
+    expect(registry.attach(recipient, {
+      sessionId: 'work', projectionId: 'recipient-view', cols: 80, rows: 24,
+    })).toBe(true);
+    expect(registry.grant(recipient, 'work', destination)).toBe(true);
+    expect(registry.attach(destination, {
+      sessionId: 'work', projectionId: 'destination-view', cols: 80, rows: 24,
+    })).toBe(true);
+    const epoch = registry.focus(destination, 'work', 'destination-view', 80, 24)!;
+    expect(registry.write(destination, 'work', 'destination-view', epoch, 'pwd\n')).toBe(true);
+  });
+
+  it('keeps a durable session alive after its last view detaches and can reattach', () => {
+    const { registry, creator, request, terminated, output, wires } = fixture();
+    expect(registry.detach(creator, 'work', request.projectionId)).toBe(true);
+    expect(registry.has('work')).toBe(true);
+    expect(terminated).toEqual([]);
+    expect(registry.attach(creator, request)).toBe(true);
+    wires[1]!.data('reattached');
+    expect(output).toEqual(['creator:reattached']);
+  });
+
+  it('ignores late process events after window release without killing the durable session', () => {
+    const { registry, creator, wires, output, exits, terminated } = fixture();
+    registry.release(creator);
+    wires[0]!.data('late');
+    wires[0]!.exit(9);
+    expect(output).toEqual([]);
+    expect(exits).toEqual([]);
+    expect(terminated).toEqual([]);
+    expect(registry.has('work')).toBe(true);
+  });
+});
+
 describe('TmuxProjectionOwners', () => {
   it('lists a durable projection and accepts its existing identity after renderer reload', () => {
     const owner = { id: 'window' };

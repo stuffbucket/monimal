@@ -15,6 +15,7 @@ export const APP_ICON = 'icon.png';
 
 /** The coloured Tauri menu-bar icon, used without system tinting. */
 export const TRAY_ICON = 'tray.png';
+export const TRAY_ICON_2X = 'tray@2x.png';
 
 export interface IconSource {
   /** `app.isPackaged`. */

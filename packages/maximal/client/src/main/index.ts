@@ -19,8 +19,9 @@ import {
   TrafficRequestDetailQuerySchema,
   TrafficRequestListQuerySchema,
 } from '@stuffbucket/maximal-observability-contract'
-import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, shell, type MessageBoxOptions } from 'electron'
 import { waitForHostWindowReady } from 'stuffbucket-electron/host'
+import { ShutdownLifecycle } from 'stuffbucket-electron/main'
 import { z } from 'zod'
 
 import { BRIDGE_CHANNELS } from '../shared/bridge-channels.js'
@@ -44,17 +45,24 @@ import { listClientInstallations } from './client-installations.js'
 import { toLifecycleStatus } from './lifecycle-status.js'
 import { MenuBarModeController } from './menu-bar-mode.js'
 import {
+  getProviderOnboardingPreference,
+  setProviderOnboardingPreference,
+} from './provider-onboarding-preference.js'
+import {
   getOllamaRuntimeStatus,
   launchOllama,
   updateOllamaContextLength,
 } from './ollama-runtime.js'
 import { runShell } from './shell.js'
+import { closeSplashWindow, createSplashWindow } from './splash-window.js'
 import {
+  isHarnessBusy,
   showHarnessHost,
   startHarnessHost,
   stopHarnessHost,
 } from './harness-host.js'
 import {
+  activeTerminalCount,
   configureTerminalHost,
   configureTerminalWindowActions,
   moveTerminalSessions,
@@ -62,6 +70,12 @@ import {
   stageTerminalSessions,
   stopTerminalHost,
 } from './terminal-host.js'
+
+const SPLASH_PREVIEW_FLAG = '--splash-preview'
+
+function isSplashPreview(): boolean {
+  return !app.isPackaged && process.argv.includes(SPLASH_PREVIEW_FLAG)
+}
 
 function isolateDevelopmentUserData(): void {
   if (app.isPackaged || app.commandLine.hasSwitch('user-data-dir')) return
@@ -121,9 +135,36 @@ function registerIpc(
   ipcMain.handle(BRIDGE_CHANNELS.lifecycleCurrent, () =>
     toLifecycleStatus(currentCoreStatus()),
   )
+  ipcMain.handle(BRIDGE_CHANNELS.shutdownCurrent, () => shutdownLifecycle.snapshot())
+  ipcMain.handle(BRIDGE_CHANNELS.shutdownForce, async () => {
+    const pending = shutdownLifecycle.snapshot().operations
+      .filter(({ phase }) => phase === 'waiting')
+    if (pending.length === 0) return false
+    const detail = pending.map(({ label, detail: progress }) =>
+      progress ? `${label}: ${progress}` : label,
+    ).join('\n')
+    const options: MessageBoxOptions = {
+      type: 'warning',
+      buttons: ['Keep waiting', 'Force quit'],
+      defaultId: 0,
+      cancelId: 0,
+      message: 'Shutdown work is still running.',
+      detail,
+    }
+    const result = mainWindow === null
+      ? await dialog.showMessageBox(options)
+      : await dialog.showMessageBox(mainWindow, options)
+    return result.response === 1 && shutdownLifecycle.force()
+  })
   ipcMain.handle(BRIDGE_CHANNELS.proxyUrl, () => awaitProxyUrl())
   ipcMain.handle(BRIDGE_CHANNELS.openExternal, (_event, url: unknown) =>
     openExternalUrl(url),
+  )
+  ipcMain.handle(BRIDGE_CHANNELS.providerOnboardingGet, () =>
+    getProviderOnboardingPreference(),
+  )
+  ipcMain.handle(BRIDGE_CHANNELS.providerOnboardingSet, (_event, dismissed: unknown) =>
+    setProviderOnboardingPreference(z.boolean().parse(dismissed)),
   )
   ipcMain.handle(BRIDGE_CHANNELS.authStatus, () => session.authStatus())
   ipcMain.handle(BRIDGE_CHANNELS.authStart, () => session.authStart())
@@ -570,8 +611,14 @@ void app.whenReady().then(async () => {
     broadcastCoreStatus(status)
   })
 
-  // Window first, then core, so the renderer can narrate a slow sidecar boot.
-  createWindow()
+  const splashPreview = isSplashPreview()
+  createSplashWindow({
+    name: 'maximal',
+    version: app.getVersion(),
+    dismissAfterMs: splashPreview ? false : undefined,
+  })
+  const win = createWindow()
+  if (!splashPreview) win.once('ready-to-show', closeSplashWindow)
   if (process.env.STUFFBUCKET_HARNESS_START_OPEN === '1') showHarnessHost()
   app.on('activate', () => {
     activateWindow()
@@ -595,27 +642,61 @@ app.on('window-all-closed', () => {
   app.quit()
 })
 
-let harnessStopped = false
-let harnessShutdown: Promise<void> | undefined
+const shutdownLifecycle = new ShutdownLifecycle()
+
+shutdownLifecycle.subscribe((snapshot) => {
+  broadcast(BRIDGE_CHANNELS.shutdownChanged, snapshot)
+})
+
+shutdownLifecycle.onBeforeShutdown((event) => {
+  if (!app.isPackaged) return
+  const impacts = [
+    isHarnessBusy() ? 'An agent is still working.' : null,
+    activeTerminalCount() > 0 ? 'Terminal sessions are still running.' : null,
+  ].filter((impact): impact is string => impact !== null)
+  if (impacts.length === 0) return
+
+  const options: MessageBoxOptions = {
+    type: 'question',
+    buttons: ['Cancel', 'Quit'],
+    defaultId: 0,
+    cancelId: 0,
+    message: 'Quit Maximal?',
+    detail: impacts.join('\n'),
+  }
+  const confirmation = (mainWindow === null
+    ? dialog.showMessageBox(options)
+    : dialog.showMessageBox(mainWindow, options)
+  ).then(({ response }) => response !== 1)
+  event.veto(confirmation, { id: 'active-work', label: 'Active work' })
+})
+
+shutdownLifecycle.onWillShutdown((event) => {
+  quitting = true
+  event.report('application', 'Closing application services.')
+  event.join(Promise.resolve().then(() => {
+    menuBarMode?.dispose()
+    controlSession?.dispose()
+    stopTerminalHost()
+  }), { id: 'application', label: 'Application services' })
+
+  event.report('core', 'Waiting for Core to exit.')
+  event.join(killCore(), { id: 'core', label: 'Core' })
+
+  event.report('agent', 'Waiting for the active agent to stop.')
+  event.join(stopHarnessHost(), { id: 'agent', label: 'Agent runtime' })
+})
+
+let shutdownComplete = false
 
 app.on('before-quit', (event) => {
-  quitting = true
-  if (harnessStopped) return
+  if (shutdownComplete) return
   event.preventDefault()
-  if (mainWindow?.isDestroyed() === false) mainWindow.hide()
-  menuBarMode?.dispose()
-  controlSession?.dispose()
-  stopTerminalHost()
-
-  // Core must finish configurator cleanup and release shared target locks
-  // before Forge launches a replacement Electron process.
-  harnessShutdown ??= Promise.all([killCore(), stopHarnessHost()])
-    .then(() => undefined)
-    .catch((error: unknown) => {
-      console.error('[maximal-client] shutdown failed:', error)
-    })
-    .finally(() => {
-      harnessStopped = true
-      app.exit(0)
-    })
+  void shutdownLifecycle.request('quit').then((result) => {
+    if (result === 'vetoed' || shutdownComplete) return
+    shutdownComplete = true
+    app.quit()
+  }).catch((error: unknown) => {
+    console.error('[maximal-client] shutdown failed:', error)
+  })
 })

@@ -49,6 +49,8 @@ describe('preload bridge allowlist', () => {
       'onOpenSettings',
       'openExternal',
       'pendingSettingsRequest',
+      'providerOnboarding',
+      'shutdown',
       'terminal',
     ])
     expect(Object.keys(bridge.control).sort()).toEqual([
@@ -118,6 +120,10 @@ describe('preload bridge allowlist', () => {
       'confirmEnable',
       'disable',
       'get',
+    ])
+    expect(Object.keys(bridge.providerOnboarding).sort()).toEqual([
+      'get',
+      'setDismissed',
     ])
     expect(Object.keys(bridge.terminal).sort()).toEqual([
       'acknowledge',
@@ -200,6 +206,8 @@ describe('preload bridge allowlist', () => {
     await bridge.menuBarMode.confirmEnable('attempt-1')
     await bridge.menuBarMode.cancelEnable('attempt-1')
     await bridge.menuBarMode.disable()
+    await bridge.providerOnboarding.get()
+    await bridge.providerOnboarding.setDismissed(true)
     await bridge.harness.hide()
     await bridge.harness.provider()
     await bridge.harness.ask('Explain this file')
@@ -233,6 +241,8 @@ describe('preload bridge allowlist', () => {
       targetFrameId: '1',
     })
     await bridge.terminal.syncPane('terminal-1', { sessionId: 'terminal-1' })
+    await bridge.shutdown.current()
+    await bridge.shutdown.force()
 
     expect(invoke.mock.calls).toEqual([
       [BRIDGE_CHANNELS.lifecycleCurrent],
@@ -290,6 +300,8 @@ describe('preload bridge allowlist', () => {
       [BRIDGE_CHANNELS.menuBarModeConfirmEnable, 'attempt-1'],
       [BRIDGE_CHANNELS.menuBarModeCancelEnable, 'attempt-1'],
       [BRIDGE_CHANNELS.menuBarModeDisable],
+      [BRIDGE_CHANNELS.providerOnboardingGet],
+      [BRIDGE_CHANNELS.providerOnboardingSet, true],
       [BRIDGE_CHANNELS.harnessHide],
       [BRIDGE_CHANNELS.harnessProvider],
       [BRIDGE_CHANNELS.harnessAsk, { prompt: 'Explain this file' }],
@@ -316,6 +328,8 @@ describe('preload bridge allowlist', () => {
         BRIDGE_CHANNELS.terminalPaneSync,
         { id: 'terminal-1', pane: { sessionId: 'terminal-1' } },
       ],
+      [BRIDGE_CHANNELS.shutdownCurrent],
+      [BRIDGE_CHANNELS.shutdownForce],
     ])
   })
 

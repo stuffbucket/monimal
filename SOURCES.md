@@ -27,6 +27,7 @@ repository or imported commit:
 | `packages/maximal-configurators`          | Statically linked first-party client configurators using Core's capability host.          |
 | `packages/maximal-observability`          | Renderer-only traffic explorer components and source interface.                           |
 | `packages/maximal-context-window`         | Renderer-only context-window derivation and visualization components.                      |
+| `packages/maximal-assets`                  | Canonical Maximal brand assets and shared candy-paint visual configuration.                 |
 | `packages/model-runtimes/anthropic`       | Profile-installed adapter for Anthropic-compatible Messages APIs.                         |
 | `packages/model-runtimes/omlx`            | Profile-installed adapter for an independently running oMLX model runtime.                |
 

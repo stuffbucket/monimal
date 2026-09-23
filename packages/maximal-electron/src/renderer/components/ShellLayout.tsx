@@ -3,6 +3,7 @@ import { PanelLeft, PanelRight } from 'lucide-react';
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type ReactNode,
@@ -116,6 +117,7 @@ export type ShellLayoutProps<T extends Tab> = {
   /** Optional host event adapter, such as an Electron menu subscription. */
   subscribeToPanelToggles?: PanelToggleSubscription;
   top?: ReactNode;
+  activity?: ReactNode;
   left?: (collapsed: boolean) => ReactNode;
   main: ReactNode;
   bottom?: ReactNode;
@@ -142,6 +144,7 @@ export function ShellLayout<T extends Tab>({
   titleBarActions,
   subscribeToPanelToggles,
   top,
+  activity,
   left,
   main,
   bottom,
@@ -177,7 +180,7 @@ export function ShellLayout<T extends Tab>({
   });
   const defaultDocumentLayout = layoutForPanels(layout.defaultLayout, documentPanelIds);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     let topologyDefault = topologyDefaultLayouts.current.get(documentTopologyId);
     if (topologyDefault === undefined) {
       topologyDefault = layoutForPanels(
@@ -192,11 +195,16 @@ export function ShellLayout<T extends Tab>({
     if (nextLayout !== undefined) {
       documentGroup.current?.setLayout(nextLayout);
     }
+    setLeftCollapsed(leftPanel.current?.isCollapsed() ?? false);
+    setRightCollapsed(rightPanel.current?.isCollapsed() ?? false);
   }, [
+    activeTab,
     defaultDocumentLayout,
     documentGroup,
     documentPanelIds,
     documentTopologyId,
+    leftPanel,
+    rightPanel,
   ]);
 
   // A second, independent layout for the centre column's split. Only created
@@ -216,8 +224,11 @@ export function ShellLayout<T extends Tab>({
     (panel: ShellPanel) => {
       const handle = panel === 'left' ? leftPanel.current : rightPanel.current;
       if (!handle) return;
-      if (handle.isCollapsed()) handle.expand();
+      const collapsed = handle.isCollapsed();
+      if (collapsed) handle.expand();
       else handle.collapse();
+      if (panel === 'left') setLeftCollapsed(!collapsed);
+      else setRightCollapsed(!collapsed);
     },
     [leftPanel, rightPanel],
   );
@@ -287,13 +298,17 @@ export function ShellLayout<T extends Tab>({
 
           {top}
 
-          <Group
-            key={`${layoutId}:${documentStructure}`}
-            groupRef={documentGroup}
-            orientation="horizontal"
-            className="panels"
-            onLayoutChanged={onDocumentLayoutChanged}
-          >
+          <div className="shell-workspace">
+            {activity !== undefined && (
+              <aside className="activity-rail">{activity}</aside>
+            )}
+            <Group
+              key={`${layoutId}:${documentStructure}`}
+              groupRef={documentGroup}
+              orientation="horizontal"
+              className="panels"
+              onLayoutChanged={onDocumentLayoutChanged}
+            >
             {hasLeft && (
               <>
                 <Panel
@@ -371,7 +386,8 @@ export function ShellLayout<T extends Tab>({
                 </Panel>
               </>
             )}
-          </Group>
+            </Group>
+          </div>
         </div>
       </ShellPortalRoot>
     </Tooltip.Provider>

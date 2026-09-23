@@ -182,6 +182,7 @@ export const RENDERER_SURFACE = [
   'ShellContentProvider',
   'ShellLayout',
   'StatusChip',
+  'SurfaceActivity',
   'SurfaceRail',
   'SurfaceRight',
   'SurfaceStatus',

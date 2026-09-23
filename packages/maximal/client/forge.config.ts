@@ -27,6 +27,7 @@ import {
   externalClosure,
   hoistedDependencies,
   platformPackagePlan,
+  ptyRuntimeEntries,
 } from './scripts/package-contract.mjs'
 
 // This config NEVER signs, and must not learn how.
@@ -91,6 +92,7 @@ function workspaceRoot(): string {
 const RESOLUTION = { boundary: workspaceRoot() }
 const HOISTED = hoistedDependencies(PACKAGE_IO, NODE_MODULES, EXTERNAL_MODULES, RESOLUTION)
 const CLOSURE = externalClosure(PACKAGE_IO, NODE_MODULES, EXTERNAL_MODULES, RESOLUTION)
+const PTY_SOURCE = realpathSync(path.join(NODE_MODULES, 'node-pty'))
 
 function copyExternalClosure(buildPath: string): void {
   for (const { name, dir, path: placement } of CLOSURE) {
@@ -109,25 +111,15 @@ function copyExternalClosure(buildPath: string): void {
   }
 }
 
-function prunePtyPrebuilds(buildPath: string, platform: string, arch: string): void {
-  const modulePath = path.join(buildPath, 'node_modules', 'node-pty')
-  const prebuilds = path.join(modulePath, 'prebuilds')
-  if (!existsSync(prebuilds)) throw new Error(`node-pty has no prebuilds directory at ${prebuilds}.`)
-
-  const host = platform === 'mas' ? 'darwin' : platform
-  const wanted = new Set(
-    (arch === 'universal' ? ['x64', 'arm64'] : [arch]).map((each) => `${host}-${each}`),
-  )
-  const present = readdirSync(prebuilds)
-  if (!present.some((entry) => wanted.has(entry))) {
-    throw new Error(`node-pty ships no prebuild for ${[...wanted].join(' or ')}. Found: ${present.join(', ')}.`)
-  }
-
-  for (const entry of present) {
-    if (!wanted.has(entry)) rmSync(path.join(prebuilds, entry), { recursive: true, force: true })
-  }
-  for (const entry of ['src', 'third_party', 'scripts', 'typings', 'node_modules', 'binding.gyp']) {
-    rmSync(path.join(modulePath, entry), { recursive: true, force: true })
+function stagePtyRuntime(buildPath: string, platform: string, arch: string): void {
+  const destination = path.join(buildPath, 'node_modules', 'node-pty')
+  rmSync(destination, { recursive: true, force: true })
+  for (const entry of ptyRuntimeEntries(platform, arch)) {
+    const source = path.join(PTY_SOURCE, entry)
+    if (!existsSync(source)) throw new Error(`node-pty runtime entry does not exist at ${source}.`)
+    const target = path.join(destination, entry)
+    mkdirSync(path.dirname(target), { recursive: true })
+    cpSync(source, target, { recursive: true, dereference: true })
   }
 }
 
@@ -259,7 +251,6 @@ const config: ForgeConfig = {
       if (!file || file === '/package.json') return false
       const keep = [
         '/.vite',
-        '/node_modules/node-pty',
         '/node_modules/node-llama-cpp',
         '/node_modules/@node-llama-cpp',
         ...HOISTED.map((name) => `/node_modules/${name}`),
@@ -305,7 +296,7 @@ const config: ForgeConfig = {
   hooks: {
     packageAfterCopy: (_config, buildPath, _electronVersion, platform, arch) => {
       copyExternalClosure(buildPath)
-      prunePtyPrebuilds(buildPath, platform, arch)
+      stagePtyRuntime(buildPath, platform, arch)
       pruneLlamaBackends(buildPath, platform, arch)
       pruneLlamaSource(buildPath)
       prunePlatformPackages(buildPath, platform, arch)
