@@ -326,6 +326,7 @@ function focusWindow(win: BrowserWindow): void {
 function installRendererRecovery(win: BrowserWindow): void {
   let closing = false
   let recoveryPromptOpen = false
+  let rendererExitPending = false
   let automaticReloadAttempted = false
 
   win.on('close', () => {
@@ -350,21 +351,24 @@ function installRendererRecovery(win: BrowserWindow): void {
     }).then(({ response }) => {
       recoveryPromptOpen = false
       if (quitting || closing || win.isDestroyed()) return
+      if (rendererExitPending) {
+        rendererExitPending = false
+        recoverFromUnexpectedExit()
+        return
+      }
       if (response === 0) win.webContents.reload()
       else secondaryAction()
     }).catch((error: unknown) => {
       recoveryPromptOpen = false
       console.error('[maximal-client] renderer recovery prompt failed:', error)
+      if (rendererExitPending) {
+        rendererExitPending = false
+        recoverFromUnexpectedExit()
+      }
     })
   }
 
-  win.webContents.on('render-process-gone', (_event, details) => {
-    menuBarMode?.cancelPending()
-    if (details.reason === 'clean-exit') return
-    console.error('[maximal-client] renderer process exited:', details)
-    if (quitting || closing || win.isDestroyed()) return
-    if (recoveryPromptOpen) return
-
+  const recoverFromUnexpectedExit = (): void => {
     if (!automaticReloadAttempted) {
       automaticReloadAttempted = true
       win.webContents.reload()
@@ -377,6 +381,18 @@ function installRendererRecovery(win: BrowserWindow): void {
       'Close Window',
       () => win.close(),
     )
+  }
+
+  win.webContents.on('render-process-gone', (_event, details) => {
+    menuBarMode?.cancelPending()
+    if (details.reason === 'clean-exit') return
+    console.error('[maximal-client] renderer process exited:', details)
+    if (quitting || closing || win.isDestroyed()) return
+    if (recoveryPromptOpen) {
+      rendererExitPending = true
+      return
+    }
+    recoverFromUnexpectedExit()
   })
 
   win.webContents.on('unresponsive', () => {

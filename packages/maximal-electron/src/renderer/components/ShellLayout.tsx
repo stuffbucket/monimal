@@ -1,6 +1,11 @@
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { PanelLeft, PanelRight } from 'lucide-react';
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useState,
+  type ReactNode,
+} from 'react';
 import {
   Group,
   type Layout,
@@ -8,6 +13,7 @@ import {
   Panel,
   Separator,
   useDefaultLayout,
+  useGroupRef,
   usePanelRef,
 } from 'react-resizable-panels';
 
@@ -159,16 +165,20 @@ export function ShellLayout<T extends Tab>({
   const leftPanel = usePanelRef();
   const rightPanel = usePanelRef();
   const bottomPanel = usePanelRef();
+  const documentGroup = useGroupRef();
   const documentPanelIds = PANEL_IDS[documentStructure];
   const documentLayoutId = `${layoutId}:tab:${encodeURIComponent(activeTab)}:${documentStructure}`;
-
-  // Each document restores its own geometry. The panel list also separates an
-  // inspector-free layout from one that owns the right panel.
   const layout = useDefaultLayout({
     id: documentLayoutId,
     panelIds: documentPanelIds,
   });
   const defaultDocumentLayout = layoutForPanels(layout.defaultLayout, documentPanelIds);
+
+  useEffect(() => {
+    if (defaultDocumentLayout !== undefined) {
+      documentGroup.current?.setLayout(defaultDocumentLayout);
+    }
+  }, [defaultDocumentLayout, documentGroup]);
 
   // A second, independent layout for the centre column's split. Only created
   // when there is something to split.
@@ -260,6 +270,7 @@ export function ShellLayout<T extends Tab>({
 
           <Group
             key={`${layoutId}:${documentStructure}`}
+            groupRef={documentGroup}
             orientation="horizontal"
             className="panels"
             defaultLayout={defaultDocumentLayout}

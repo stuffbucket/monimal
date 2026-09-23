@@ -29,7 +29,10 @@ class TestResizeObserver implements ResizeObserver {
 
   flush(): void {
     const entries = [...this.#targets].map(
-      (target) => ({ target, borderBoxSize: [{}] }) as unknown as ResizeObserverEntry,
+      (target) => ({
+        target,
+        borderBoxSize: [{ inlineSize: 800, blockSize: 600 }],
+      }) as unknown as ResizeObserverEntry,
     );
     this.callback(entries, this);
   }
@@ -105,6 +108,14 @@ describe('ShellLayout panel topology', () => {
   });
 
   it('keeps the panel subtree mounted when the active tab changes', () => {
+    localStorage.setItem(
+      'react-resizable-panels:topology-test:tab:first:right:main:right',
+      JSON.stringify({ main: 80, right: 20 }),
+    );
+    localStorage.setItem(
+      'react-resizable-panels:topology-test:tab:second:right:main:right',
+      JSON.stringify({ main: 65, right: 35 }),
+    );
     const container = document.createElement('div');
     document.body.append(container);
     const root = createRoot(container);
@@ -119,10 +130,17 @@ describe('ShellLayout panel topology', () => {
         tabs={tabs}
         activeTab="first"
         onSelectTab={() => undefined}
+        right={<aside>Inspector</aside>}
         main={<div>content</div>}
       />,
     ));
+    act(() => flushResizeObservers());
     const panels = container.querySelector('.panels');
+    const mainPanel = panels?.querySelector<HTMLElement>('[data-panel]');
+    expect(mainPanel?.style.flexGrow).toBe('80');
+    expect(localStorage.getItem(
+      'react-resizable-panels:topology-test:tab:second:right:main:right',
+    )).toBe(JSON.stringify({ main: 65, right: 35 }));
 
     act(() => root.render(
       <ShellLayout
@@ -130,11 +148,17 @@ describe('ShellLayout panel topology', () => {
         tabs={tabs}
         activeTab="second"
         onSelectTab={() => undefined}
+        right={<aside>Inspector</aside>}
         main={<div>content</div>}
       />,
     ));
+    act(() => flushResizeObservers());
 
     expect(container.querySelector('.panels')).toBe(panels);
+    expect(localStorage.getItem(
+      'react-resizable-panels:topology-test:tab:second:right:main:right',
+    )).toBe(JSON.stringify({ main: 65, right: 35 }));
+    expect(panels?.querySelector<HTMLElement>('[data-panel]')?.style.flexGrow).toBe('65');
     act(() => root.unmount());
   });
 });
