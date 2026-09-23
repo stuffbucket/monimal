@@ -278,6 +278,14 @@
   font-size: var(--shell-text-xs);
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .mcw-panel * {
+    animation: none !important;
+    scroll-behavior: auto !important;
+    transition: none !important;
+  }
+}
+
 @media (forced-colors: active) {
   .data-viz-meter,
   .mcw-cell-half,
