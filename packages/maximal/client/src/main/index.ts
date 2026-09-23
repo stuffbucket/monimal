@@ -20,11 +20,16 @@ import {
   TrafficRequestListQuerySchema,
 } from '@stuffbucket/maximal-observability-contract'
 import { app, BrowserWindow, dialog, ipcMain, shell, type MessageBoxOptions } from 'electron'
+import { waitForHostWindowReady } from 'stuffbucket-electron/host'
 import { ShutdownLifecycle } from 'stuffbucket-electron/main'
 import { z } from 'zod'
 
 import { BRIDGE_CHANNELS } from '../shared/bridge-channels.js'
-import type { PendingSettingsRequest } from '../shared/bridge-types.js'
+import type {
+  PendingSettingsRequest,
+  TerminalRedockRequest,
+  TerminalWindowRequest,
+} from '../shared/bridge-types.js'
 import { createControlSession, type ControlSession } from './control-session.js'
 import {
   type CoreStatus,
@@ -59,7 +64,10 @@ import {
 import {
   activeTerminalCount,
   configureTerminalHost,
+  configureTerminalWindowActions,
+  moveTerminalSessions,
   registerTerminalIpc,
+  stageTerminalSessions,
   stopTerminalHost,
 } from './terminal-host.js'
 
@@ -87,6 +95,7 @@ let controlSession: ControlSession | null = null
 let mainWindow: BrowserWindow | null = null
 let pendingSettingsRequest: PendingSettingsRequest | null = null
 let menuBarMode: MenuBarModeController | null = null
+let quitting = false
 
 const nonEmptyString = z.string().min(1)
 const localModelIdentifier = z.string().min(1).max(200)
@@ -328,15 +337,24 @@ function broadcastCoreStatus(status: CoreStatus): void {
   broadcast(BRIDGE_CHANNELS.lifecycleChanged, toLifecycleStatus(status))
 }
 
-function loadRenderer(win: BrowserWindow): void {
+function loadRenderer(win: BrowserWindow, terminal?: TerminalWindowRequest): void {
+  const query = new URLSearchParams()
+  if (terminal) {
+    query.set('terminalSessionId', terminal.id)
+    query.set('terminalTitle', terminal.title)
+    query.set('terminalCanRunInBackground', String(terminal.canRunInBackground))
+    if (terminal.pane) query.set('terminalPane', JSON.stringify(terminal.pane))
+  }
+  const search = query.toString()
   if (
     typeof MAIN_WINDOW_VITE_DEV_SERVER_URL !== 'undefined' &&
     MAIN_WINDOW_VITE_DEV_SERVER_URL
   ) {
-    void win.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL)
+    void win.loadURL(`${MAIN_WINDOW_VITE_DEV_SERVER_URL}${search === '' ? '' : `?${search}`}`)
   } else {
     void win.loadFile(
       join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
+      search === '' ? undefined : { search },
     )
   }
 }
@@ -345,6 +363,115 @@ function focusWindow(win: BrowserWindow): void {
   if (win.isMinimized()) win.restore()
   if (!win.isVisible()) win.show()
   win.focus()
+}
+
+function installRendererRecovery(win: BrowserWindow): void {
+  let closing = false
+  let recoveryPromptOpen = false
+  let rendererExitPending = false
+  let automaticReloadAttempted = false
+
+  win.on('close', () => {
+    closing = true
+  })
+
+  const promptReload = (
+    message: string,
+    detail: string,
+    secondaryLabel: string,
+    secondaryAction: () => void = () => undefined,
+  ): void => {
+    if (quitting || closing || win.isDestroyed() || recoveryPromptOpen) return
+    recoveryPromptOpen = true
+    void dialog.showMessageBox(win, {
+      type: 'warning',
+      buttons: ['Reload Window', secondaryLabel],
+      defaultId: 0,
+      cancelId: 1,
+      message,
+      detail,
+    }).then(({ response }) => {
+      recoveryPromptOpen = false
+      if (quitting || closing || win.isDestroyed()) return
+      if (rendererExitPending) {
+        rendererExitPending = false
+        recoverFromUnexpectedExit()
+        return
+      }
+      if (response === 0) win.webContents.reload()
+      else secondaryAction()
+    }).catch((error: unknown) => {
+      recoveryPromptOpen = false
+      console.error('[maximal-client] renderer recovery prompt failed:', error)
+      if (rendererExitPending) {
+        rendererExitPending = false
+        recoverFromUnexpectedExit()
+      }
+    })
+  }
+
+  const recoverFromUnexpectedExit = (): void => {
+    if (quitting || closing || win.isDestroyed()) return
+    if (!automaticReloadAttempted) {
+      automaticReloadAttempted = true
+      win.webContents.reload()
+      return
+    }
+
+    promptReload(
+      'This window stopped unexpectedly',
+      'Maximal already tried to restore it once. You can reload it again or close only this window.',
+      'Close Window',
+      () => win.close(),
+    )
+  }
+
+  win.webContents.on('render-process-gone', (_event, details) => {
+    menuBarMode?.cancelPending()
+    if (details.reason === 'clean-exit') return
+    console.error('[maximal-client] renderer process exited:', details)
+    if (quitting || closing || win.isDestroyed()) return
+    if (recoveryPromptOpen) {
+      rendererExitPending = true
+      return
+    }
+    recoverFromUnexpectedExit()
+  })
+
+  win.webContents.on('unresponsive', () => {
+    if (quitting || closing || win.isDestroyed()) return
+    console.error('[maximal-client] renderer became unresponsive')
+    promptReload(
+      'This window is not responding',
+      'Reloading reconnects the view to terminal processes that are still running.',
+      'Wait',
+    )
+  })
+
+  win.webContents.on(
+    'did-fail-load',
+    (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+      if (quitting || closing || win.isDestroyed() || !isMainFrame || errorCode === -3) return
+      console.error('[maximal-client] renderer failed to load:', {
+        errorCode,
+        errorDescription,
+        validatedURL,
+      })
+      promptReload(
+        'This window could not be loaded',
+        'Reload the window to try again without restarting the entire application.',
+        'Close Window',
+        () => win.close(),
+      )
+    },
+  )
+
+  win.webContents.on('console-message', (details) => {
+    if (details.level !== 'error') return
+    console.error(
+      `[maximal-client] renderer console: ${details.message} (${details.sourceId}:${String(details.lineNumber)})`,
+    )
+  })
 }
 
 function createWindow(): BrowserWindow {
@@ -361,10 +488,68 @@ function createWindow(): BrowserWindow {
     menuBarMode?.cancelPending()
     if (mainWindow === win) mainWindow = null
   })
-  win.webContents.on('render-process-gone', () => {
-    menuBarMode?.cancelPending()
-  })
+  installRendererRecovery(win)
   return win
+}
+
+function createTerminalWindow(request: TerminalWindowRequest): BrowserWindow {
+  const win = runShell({
+    preloadPath: join(__dirname, 'preload.js'),
+    title: request.title,
+    x: request.x,
+    y: request.y,
+    width: 1000,
+    height: 700,
+    showWhenReady: false,
+    loadRenderer: () => undefined,
+  })
+  installRendererRecovery(win)
+  return win
+}
+
+async function openTransferredTerminal(
+  owner: BrowserWindow | undefined,
+  request: TerminalWindowRequest,
+  mode: 'copy' | 'move',
+): Promise<boolean> {
+  if (!owner) return false
+  const detached = createTerminalWindow(request)
+  const transaction = stageTerminalSessions(owner, detached, request, mode)
+  if (!transaction) {
+    detached.close()
+    return false
+  }
+  const ready = waitForHostWindowReady(detached)
+  loadRenderer(detached, request)
+  if (!await ready || !transaction.commit()) {
+    transaction.rollback()
+    if (!detached.isDestroyed()) detached.close()
+    return false
+  }
+  detached.show()
+  focusWindow(detached)
+  return true
+}
+
+function redockTerminal(
+  owner: BrowserWindow | undefined,
+  request: TerminalRedockRequest,
+): boolean {
+  if (!owner) return false
+  const source = BrowserWindow.fromId(Number(request.sourceFrameId))
+  const target = BrowserWindow.fromId(Number(request.targetFrameId))
+  if (!source || !target || target !== owner) return false
+  const moved = moveTerminalSessions(source, target, request)
+  if (!moved) return false
+  target.webContents.send(BRIDGE_CHANNELS.terminalTabRedocked, {
+    id: request.id,
+    title: request.title,
+    canRunInBackground: request.canRunInBackground,
+    ...(request.pane ? { pane: request.pane } : {}),
+  })
+  source.close()
+  focusWindow(target)
+  return true
 }
 
 function activateWindow(): BrowserWindow {
@@ -407,6 +592,13 @@ void app.whenReady().then(async () => {
       broadcast(BRIDGE_CHANNELS.trafficInvalidated, invalidation),
   })
   configureTerminalHost()
+  configureTerminalWindowActions({
+    undock: (owner, request) =>
+      openTransferredTerminal(owner, request, 'move'),
+    copy: (owner, request) =>
+      openTransferredTerminal(owner, request, 'copy'),
+    redock: redockTerminal,
+  })
   registerIpc(controlSession, nativeMode)
   startHarnessHost()
 
@@ -480,6 +672,7 @@ shutdownLifecycle.onBeforeShutdown((event) => {
 })
 
 shutdownLifecycle.onWillShutdown((event) => {
+  quitting = true
   event.report('application', 'Closing application services.')
   event.join(Promise.resolve().then(() => {
     menuBarMode?.dispose()

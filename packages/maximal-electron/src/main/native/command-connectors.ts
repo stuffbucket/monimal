@@ -30,6 +30,7 @@ export const execFileRunner: CommandRunner = async (command, args, options) => {
 export interface DiscoveredTarget {
   key: string;
   label: string;
+  purpose?: 'destination' | 'new' | 'running';
 }
 
 export interface CommandLaunch {
@@ -72,7 +73,6 @@ const SAFE_VAGRANT_NAME = /^[A-Za-z0-9][A-Za-z0-9_., -]{0,127}$/;
 const SAFE_VAGRANT_PROVIDER = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/;
 const SAFE_POSIX_VAGRANT_DIRECTORY = /^(?:\/[A-Za-z0-9._, -]+)+(?:\/)?$/;
 const SAFE_VAGRANT_DIRECTORY_SEGMENT = /^[A-Za-z0-9._, -]+$/;
-const NEW_TMUX_TARGET_LABEL = ['New', 'tmux', 'session'].join(' ');
 const TMUX_CLIENT_FEATURES = 'hyperlinks';
 const TMUX_HYPERLINK_VERSION = /^tmux (\d+)\.(\d+)/;
 
@@ -194,8 +194,8 @@ type TargetFieldValidator = (value: unknown) => boolean;
 const TARGET_FIELDS = {
   docker: [validContext, validContainer],
   podman: [(value: unknown) => value === '' || validContext(value), validContainer],
-  tmux: [(value: unknown) => value === 'existing' || value === 'new', validTmuxName],
-  sshTmux: [validSshAlias, (value: unknown) => value === 'existing' || value === 'new', validTmuxName],
+  tmux: [(value: unknown) => value === 'existing' || value === 'resume' || value === 'new', validTmuxName],
+  sshTmux: [validSshAlias, (value: unknown) => value === 'existing' || value === 'resume' || value === 'new', validTmuxName],
   vagrant: [(value) => validVagrantId(value as string), (value) => validVagrantName(value as string), (value) => validVagrantProvider(value as string), (value) => validVagrantDirectory(value as string)],
   kubernetes: [validContext, validKubernetesName, validKubernetesName, validKubernetesUid, validKubernetesContainer],
 } satisfies Record<string, readonly TargetFieldValidator[]>;
@@ -320,7 +320,7 @@ export class SshConnector implements CommandConnector {
 /** Main-process-only local tmux connector. Session names never cross IPC. */
 export class TmuxConnector implements CommandConnector {
   readonly id = 'tmux' as const;
-  readonly label = 'Tmux';
+  readonly label = 'Local';
   private supportsHyperlinks = true;
 
   constructor(private readonly run: CommandRunner, private readonly createName: () => string = generatedTmuxName) {}
@@ -333,28 +333,35 @@ export class TmuxConnector implements CommandConnector {
     } catch (error) {
       if (!isNoTmuxServer(error)) throw error;
     }
-    const targets = sessions.map((_session, index) => ({ key: `existing\u0000${_session}`, label: `Tmux session ${String(index + 1)}` }));
+    const targets: DiscoveredTarget[] = sessions
+      .filter(validGeneratedTmuxName)
+      .map((session, index) => ({
+        key: `resume\u0000${session}`,
+        label: `Terminal ${String(index + 1)}`,
+        purpose: 'running' as const,
+      }));
     const name = this.createName();
     if (!validGeneratedTmuxName(name)) throw new Error('Invalid generated tmux session name.');
-    targets.push({ key: `new\u0000${name}`, label: NEW_TMUX_TARGET_LABEL });
+    targets.push({ key: `new\u0000${name}`, label: 'Local', purpose: 'new' });
     return targets;
   }
 
   launch(target: DiscoveredTarget): CommandLaunch {
     const fields = targetFields(target.key, TARGET_FIELDS.tmux);
-    if (!fields || (fields[0] === 'new' && !validGeneratedTmuxName(fields[1]))) {
+    if (!fields || (fields[0] !== 'existing' && !validGeneratedTmuxName(fields[1]))) {
       throw new Error('Invalid tmux target.');
     }
+    const mode = fields[0]!;
     const sessionName = fields[1]!;
     return {
       command: 'tmux',
       args: [...tmuxClientFeatureArgs(this.supportsHyperlinks), 'new-session', '-A', '-s', sessionName],
       tmuxProjection: {
-        ownership: fields[0] === 'new' ? 'created' : 'existing',
+        ownership: mode === 'existing' ? 'existing' : 'created',
         geometry: { transport: 'local', sessionName },
-        ...(fields[0] === 'new'
-          ? { terminate: { command: 'tmux', args: ['kill-session', '-t', sessionName] } }
-          : {}),
+        ...(mode === 'existing'
+          ? {}
+          : { terminate: { command: 'tmux', args: ['kill-session', '-t', sessionName] } }),
       },
     };
   }
@@ -363,7 +370,7 @@ export class TmuxConnector implements CommandConnector {
 /** Main-process-only SSH tmux connector. Remote command text is fixed. */
 export class SshTmuxConnector implements CommandConnector {
   readonly id = 'ssh-tmux' as const;
-  readonly label = 'SSH + Tmux';
+  readonly label = 'SSH';
   private readonly filename: string;
   private readonly legacyAliases = new Set<string>();
 
@@ -389,30 +396,37 @@ export class SshTmuxConnector implements CommandConnector {
       } catch (error) {
         if (!isNoTmuxServer(error)) continue;
       }
-      for (const [index, session] of sessions.entries()) targets.push({ key: `${alias}\u0000existing\u0000${session}`, label: `Tmux session ${String(index + 1)}` });
+      for (const [index, session] of sessions.filter(validGeneratedTmuxName).entries()) {
+        targets.push({
+          key: `${alias}\u0000resume\u0000${session}`,
+          label: `${alias} — Terminal ${String(index + 1)}`,
+          purpose: 'running',
+        });
+      }
       const name = this.createName();
       if (!validGeneratedTmuxName(name)) throw new Error('Invalid generated tmux session name.');
-      targets.push({ key: `${alias}\u0000new\u0000${name}`, label: 'New tmux session' });
+      targets.push({ key: `${alias}\u0000new\u0000${name}`, label: alias, purpose: 'new' });
     }
     return targets;
   }
 
   launch(target: DiscoveredTarget): CommandLaunch {
     const fields = targetFields(target.key, TARGET_FIELDS.sshTmux);
-    if (!fields || (fields[1] === 'new' && !validGeneratedTmuxName(fields[2]))) {
+    if (!fields || (fields[1] !== 'existing' && !validGeneratedTmuxName(fields[2]))) {
       throw new Error('Invalid SSH tmux target.');
     }
     const alias = fields[0]!;
+    const mode = fields[1]!;
     const sessionName = fields[2]!;
     return {
       command: 'ssh',
       args: ['-tt', alias, 'tmux', ...tmuxClientFeatureArgs(!this.legacyAliases.has(alias)), 'new-session', '-A', '-s', sessionName],
       tmuxProjection: {
-        ownership: fields[1] === 'new' ? 'created' : 'existing',
+        ownership: mode === 'existing' ? 'existing' : 'created',
         geometry: { transport: 'ssh', alias, sessionName },
-        ...(fields[1] === 'new'
-          ? { terminate: { command: 'ssh', args: [alias, 'tmux', 'kill-session', '-t', sessionName] } }
-          : {}),
+        ...(mode === 'existing'
+          ? {}
+          : { terminate: { command: 'ssh', args: [alias, 'tmux', 'kill-session', '-t', sessionName] } }),
       },
     };
   }

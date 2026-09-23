@@ -13,7 +13,11 @@ const meta = {
       generation: 1,
       targets: [{ id: 'local', profileId: 'local', label: 'This computer', state: 'available' }],
     }),
-    launch: async () => ({ sessionId: 'story-session', label: 'Local' }),
+    launch: async () => ({
+      sessionId: 'story-session',
+      label: 'Local',
+      canRunInBackground: false,
+    }),
     onLaunched: () => undefined,
   },
 } satisfies Meta<typeof TerminalLauncher>;

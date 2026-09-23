@@ -8,6 +8,7 @@ export type TerminalPane =
       second: TerminalPane;
     };
 
+/** Recognizes a serialized terminal pane tree received across a process boundary. */
 export function isTerminalPane(value: unknown): value is TerminalPane {
   if (typeof value !== 'object' || value === null) return false;
   if ('sessionId' in value) {

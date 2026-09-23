@@ -31,6 +31,8 @@ export type Surface = View | 'terminal'
 export interface AppTab extends Tab {
   kind: Surface
   sessionId?: string
+  customTitle?: boolean
+  canRunInBackground?: boolean
 }
 
 export const PRODUCT_TABS: AppTab[] = [

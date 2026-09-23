@@ -68,6 +68,11 @@ import type {
   MenuBarModeState,
   OllamaRuntimeStatus,
   PendingSettingsRequest,
+  TerminalPaneChangedEvent,
+  TerminalPaneLayout,
+  TerminalRedockRequest,
+  TerminalRedockedEvent,
+  TerminalWindowRequest,
   ProviderOnboardingPreference,
   ShutdownSnapshot,
 } from '../shared/bridge-types.js'
@@ -199,6 +204,16 @@ const bridge = {
       ipcRenderer.invoke(BRIDGE_CHANNELS.terminalDiscover),
     launch: (request: TerminalLaunchRequest): Promise<TerminalLaunchResult> =>
       ipcRenderer.invoke(BRIDGE_CHANNELS.terminalLaunch, request),
+    frameId: (): Promise<string> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.terminalFrameId),
+    undock: (request: TerminalWindowRequest): Promise<boolean> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.terminalUndock, request),
+    copy: (request: TerminalWindowRequest): Promise<boolean> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.terminalCopy, request),
+    redock: (request: TerminalRedockRequest): Promise<boolean> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.terminalRedock, request),
+    syncPane: (id: string, pane: TerminalPaneLayout): Promise<void> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.terminalPaneSync, { id, pane }),
     onData: (listener: (message: TerminalDataMessage) => void): (() => void) => {
       const handler = (_event: unknown, message: TerminalDataMessage): void => listener(message)
       ipcRenderer.on(BRIDGE_CHANNELS.terminalData, handler)
@@ -209,6 +224,10 @@ const bridge = {
       ipcRenderer.on(BRIDGE_CHANNELS.terminalExit, handler)
       return () => ipcRenderer.off(BRIDGE_CHANNELS.terminalExit, handler)
     },
+    onTabRedocked: (listener: (message: TerminalRedockedEvent) => void): (() => void) =>
+      subscribe(BRIDGE_CHANNELS.terminalTabRedocked, listener),
+    onPaneChanged: (listener: (message: TerminalPaneChangedEvent) => void): (() => void) =>
+      subscribe(BRIDGE_CHANNELS.terminalPaneChanged, listener),
   },
   /** The application menu asking for the Settings surface. The payload is a
    *  section id to scroll to, or null for the surface itself. */

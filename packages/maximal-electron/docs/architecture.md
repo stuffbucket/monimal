@@ -181,8 +181,12 @@ Direct `pty:spawn` remains the exported compatibility path for trusted
 embedders. Discovery is generation-labelled and bounds a connector failure or
 timeout to that profile, while Local remains available.
 
-Local, Docker, Podman, Lima, Multipass, Kubernetes, WSL, Vagrant, SSH, Tmux,
-and SSH + Tmux are immutable built-in profiles. Podman is available on supported hosts; Lima is
+Local, Docker, Podman, Lima, Multipass, Kubernetes, WSL, Vagrant, SSH, and the
+local and remote durable variants are immutable built-in profiles. The
+launcher presents one destination per machine: when tmux is available it
+prefers the durable variant, and otherwise retains the direct Local or SSH
+choice. Existing Maximal-owned durable sessions appear separately under
+Running. Podman is available on supported hosts; Lima is
 available on macOS and Linux; Multipass, Kubernetes, and Vagrant are available
 on macOS, Linux, and Windows when their CLI is present; WSL is Windows only.
 SSH is available on macOS, Linux, and Windows when system OpenSSH is present;
@@ -209,24 +213,30 @@ directive before `Match`; comments, wildcard and negated aliases, multi-pattern
 entries, `Include`, and every option are ignored. Alias target ids are opaque;
 the main process validates the cached alias again and launches exactly
 `ssh -tt alias`. System OpenSSH retains all configuration and authentication.
-Tmux is available locally on macOS and Linux and through SSH on every SSH
-platform. Discovery reads `tmux -V` before the fixed bounded `tmux list-sessions
+Background terminals require tmux to be installed. They are available locally
+on macOS and Linux and through SSH on every SSH platform. Discovery reads
+`tmux -V` before the fixed bounded `tmux list-sessions
 -F '#{session_name}'` command; the SSH form runs those exact remote commands
 against at most 16 strict aliases. A missing tmux server still exposes one host-generated New
 target, named `stuffbucket-` plus 32 lowercase hexadecimal characters; a
-missing binary is unavailable. Existing session names and SSH aliases remain in
-the owner- and generation-scoped main-process target cache. The renderer sees
-only neutral `Tmux session N` or `New tmux session` labels and opaque ids.
+missing binary is unavailable. Discovery ignores sessions that do not have the
+host-generated prefix, so Maximal never imports or takes ownership of a
+user-managed tmux session. Existing background session names and SSH aliases
+remain in the owner- and generation-scoped main-process target cache. The
+renderer sees only `Terminal N`, a local or SSH destination label, the target
+purpose used to separate Running sessions, and opaque ids.
 Tmux 3.4 and newer launches use `tmux -T hyperlinks new-session -A -s NAME` or
 `ssh -tt ALIAS tmux -T hyperlinks new-session -A -s NAME`; older clients omit
 the unsupported feature flag. Both renderer emulators support OSC 8 links, and
-no renderer value becomes command text. Closing a
-terminal, its owner window, or the app kills only the local tmux or SSH client
-PTY. The tmux server and session survive, while renderer scrollback and an SSH
-connection do not. Multiple windows may attach to an existing tmux session;
-tmux owns terminal-size arbitration.
+no renderer value becomes command text. Putting a terminal in the background,
+closing its owner window, or quitting the app preserves the tmux session.
+Closing the terminal explicitly kills its Maximal-owned tmux session. A
+background terminal can be discovered and reopened after restart; renderer
+scrollback and an SSH connection do not persist. Multiple windows may attach
+to the same background session; tmux owns terminal-size arbitration.
 
-Tmux Control (Experimental) is a separate local macOS/Linux capability. Its
+Tmux control mode is an internal local macOS/Linux capability and is not
+exposed as a terminal profile. Its
 main-process control client selects one pane and forwards that pane through the
 existing terminal channel, so Ghostty excludes tmux status, copy, and choose
 interfaces. It has no SSH form. The client bounds protocol and output backlog

@@ -218,6 +218,7 @@ export const RENDERER_SURFACE = [
   'focusTerminalView',
   'getTabPanelId',
   'getTabTriggerId',
+  'isTerminalPane',
   'moveTabBefore',
   'newTerminalTab',
   'readTerminalTheme',

@@ -2,6 +2,74 @@ import { Search, SquareTerminal } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { Button, Dialog, TextInput } from './controls/index.js';
+import { useComponentStyles } from '../lib/component-styles.js';
+
+const TERMINAL_LAUNCHER_STYLES = `
+.sb-shell {
+  --shell-terminal-launcher-width: min(440px, 90vw);
+  --shell-terminal-launcher-max-height: calc(100vh - 32px);
+}
+
+.sb-shell .terminal-launcher {
+  width: var(--shell-terminal-launcher-width);
+  max-height: var(--shell-terminal-launcher-max-height);
+  overflow-y: auto;
+}
+
+.sb-shell .terminal-launcher__search {
+  display: flex;
+  align-items: center;
+  gap: var(--shell-space-2);
+}
+
+.sb-shell .terminal-launcher__group {
+  display: grid;
+  gap: var(--shell-space-2);
+}
+
+.sb-shell .terminal-launcher__group h3 {
+  margin: 0;
+  font-size: var(--shell-text-sm);
+}
+
+.sb-shell .terminal-launcher__choice {
+  justify-content: flex-start;
+  gap: var(--shell-space-2);
+}
+
+.sb-shell .terminal-launcher__kind,
+.sb-shell .terminal-launcher__pending {
+  margin-left: auto;
+  color: var(--shell-text-muted);
+  font-size: var(--shell-text-xs);
+}
+
+.sb-shell .terminal-launcher__unavailable {
+  padding-top: var(--shell-space-2);
+  color: var(--shell-text-muted);
+  border-top: 1px solid var(--shell-border);
+}
+
+.sb-shell .terminal-launcher__unavailable summary {
+  cursor: pointer;
+  font-size: var(--shell-text-sm);
+}
+
+.sb-shell .terminal-launcher__unavailable ul {
+  display: grid;
+  gap: var(--shell-space-1);
+  margin: var(--shell-space-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sb-shell .terminal-launcher__unavailable li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--shell-space-3);
+  font-size: var(--shell-text-xs);
+}
+`;
 
 /** A renderer-visible terminal profile, with no executable configuration. */
 export interface TerminalProfileSummary {
@@ -15,6 +83,7 @@ export interface TerminalTargetSummary {
   profileId: string;
   label: string;
   state: 'available' | 'unavailable' | 'timed-out';
+  purpose?: 'destination' | 'new' | 'running';
 }
 
 export interface TerminalDiscovery {
@@ -32,6 +101,7 @@ export interface TerminalLaunchRequest {
 export interface TerminalLaunchResult {
   sessionId: string;
   label: string;
+  canRunInBackground: boolean;
 }
 
 export interface TerminalLauncherProps {
@@ -59,6 +129,7 @@ export function TerminalLauncher({
   onLaunched,
   recentProfileIds = [],
 }: TerminalLauncherProps) {
+  useComponentStyles('terminal-launcher', TERMINAL_LAUNCHER_STYLES);
   const [items, setItems] = useState<TerminalProfileSummary[]>([]);
   const [targets, setTargets] = useState<TerminalTargetSummary[]>([]);
   const [query, setQuery] = useState('');
@@ -104,18 +175,33 @@ export function TerminalLauncher({
   }, [discover, open, profiles]);
 
   const normalizedQuery = query.toLocaleLowerCase();
-  const choices = items.flatMap<TerminalChoice>((profile) => {
+  const discoveredChoices = items.flatMap<TerminalChoice>((profile) => {
     const targetless = profile.kind === 'local' || profile.kind === 'tmux-control';
     if (targetless) return [{ profile, target: undefined }];
     return targets
       .filter((target) => target.profileId === profile.id && target.state === 'available')
       .map((target) => ({ profile, target }));
+  });
+  const persistentDestinations = new Set(discoveredChoices
+    .filter(({ profile, target }) =>
+      (profile.kind === 'tmux' || profile.kind === 'ssh-tmux') && target?.purpose === 'new')
+    .map(({ profile, target }) =>
+      `${profile.kind === 'tmux' ? 'local' : 'remote'}\u0000${target?.label ?? profile.label}`));
+  const choices = discoveredChoices.filter(({ profile, target }) => {
+    const destination = profile.kind === 'local'
+      ? `local\u0000${profile.label}`
+      : profile.kind === 'ssh' && target
+        ? `remote\u0000${target.label}`
+        : undefined;
+    return destination === undefined || !persistentDestinations.has(destination);
   }).filter(({ profile, target }) =>
     profile.label.toLocaleLowerCase().includes(normalizedQuery)
       || target?.label.toLocaleLowerCase().includes(normalizedQuery),
   );
   const unavailable = items.flatMap((profile) => {
     if (profile.kind === 'local' || profile.kind === 'tmux-control') return [];
+    if (profile.kind === 'tmux' && items.some((candidate) => candidate.kind === 'local')) return [];
+    if (profile.kind === 'ssh-tmux' && choices.some(({ profile: candidate }) => candidate.kind === 'ssh')) return [];
     if (targets.some((target) => target.profileId === profile.id && target.state === 'available')) return [];
     const status = targets.find((target) => target.profileId === profile.id);
     const reason = status?.state === 'timed-out' ? 'Timed out' : status?.state === 'unavailable' ? 'Unavailable' : 'No running targets';
@@ -123,8 +209,10 @@ export function TerminalLauncher({
       ? [{ profile, reason }]
       : [];
   });
-  const recent = choices.filter(({ profile }) => recentProfileIds.includes(profile.id));
-  const available = choices.filter(({ profile }) => !recentProfileIds.includes(profile.id));
+  const running = choices.filter(({ target }) => target?.purpose === 'running');
+  const launchable = choices.filter(({ target }) => target?.purpose !== 'running');
+  const recent = launchable.filter(({ profile }) => recentProfileIds.includes(profile.id));
+  const available = launchable.filter(({ profile }) => !recentProfileIds.includes(profile.id));
   async function choose(profile: TerminalProfileSummary, target?: TerminalTargetSummary): Promise<void> {
     if (pending) return;
     const choiceId = `${profile.id}\u0000${target?.id ?? ''}`;
@@ -157,7 +245,9 @@ export function TerminalLauncher({
             >
               <SquareTerminal size={16} />
               <span>{target?.label ?? profile.label}</span>
-              {target && <span className="terminal-launcher__kind">{profile.label}</span>}
+              {target && target.label !== profile.label
+                ? <span className="terminal-launcher__kind">{profile.label}</span>
+                : null}
               {pending === choiceId && <span className="terminal-launcher__pending">Starting...</span>}
             </Button>
           );
@@ -171,7 +261,7 @@ export function TerminalLauncher({
       open={open}
       onOpenChange={onOpenChange}
       title="Open terminal"
-      description="Open a local terminal or connect to a discovered target."
+      description="Start a terminal here or connect to another environment."
       className="dialog terminal-launcher"
       testId="terminal-launcher"
     >
@@ -194,9 +284,10 @@ export function TerminalLauncher({
         ? <p>Loading terminal profiles...</p>
         : <>
             {error && <p role="alert">{error}</p>}
-            {discovering && <p role="status">Checking SSH, tmux, containers, and virtual machines...</p>}
+            {discovering && <p role="status">Checking running terminals, SSH, containers, and virtual machines...</p>}
             {discoveryError && <p role="alert">{discoveryError}</p>}
             {!error && items.length === 0 && <p>No terminal profiles are available.</p>}
+            {group('Running', running)}
             {group('Recent', recent)}
             {group('Available', available)}
             {!error && !discovering && choices.length === 0 && unavailable.length === 0 && <p>No matching terminals.</p>}

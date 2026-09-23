@@ -28,13 +28,15 @@ export class TmuxProjectionOwners<Owner> {
     this.host = new TmuxProjectionHost({
       ...options,
       emit: (sessionId, projectionId, chunk) => {
-        const owner = this.projectionOwners.get(projectionKey(sessionId, projectionId))!;
+        const owner = this.projectionOwners.get(projectionKey(sessionId, projectionId));
+        if (owner === undefined) return;
         options.emit(owner, sessionId, projectionId, chunk);
       },
       onExit: (sessionId, projectionId, exitCode) => {
         const key = projectionKey(sessionId, projectionId);
-        const owner = this.projectionOwners.get(key)!;
+        const owner = this.projectionOwners.get(key);
         this.projectionOwners.delete(key);
+        if (owner === undefined) return;
         options.onExit(owner, sessionId, projectionId, exitCode);
       },
       onGeometry: (sessionId, cols, rows) => {
@@ -59,20 +61,52 @@ export class TmuxProjectionOwners<Owner> {
     return this.host.has(sessionId);
   }
 
+  /** Sessions this owner controls, views, or has been granted permission to view. */
+  list(owner: Owner): string[] {
+    const sessionIds = new Set<string>();
+    for (const [sessionId, sessionOwner] of this.sessionOwners) {
+      if (sessionOwner === owner) sessionIds.add(sessionId);
+    }
+    for (const key of this.projectionOwners.keys()) {
+      if (this.projectionOwners.get(key) === owner) {
+        sessionIds.add(key.slice(0, key.indexOf('\u0000')));
+      }
+    }
+    for (const [sessionId, recipients] of this.grants) {
+      if (recipients.has(owner)) sessionIds.add(sessionId);
+    }
+    return [...sessionIds];
+  }
+
   grant(owner: Owner, sessionId: string, recipient: Owner): boolean {
-    if (this.sessionOwners.get(sessionId) !== owner) return false;
+    if (!this.controls(owner, sessionId)) return false;
     const recipients = this.grants.get(sessionId) ?? new Set<Owner>();
     recipients.add(recipient);
     this.grants.set(sessionId, recipients);
     return true;
   }
 
+  revoke(owner: Owner, sessionId: string, recipient: Owner): boolean {
+    if (!this.controls(owner, sessionId)) return false;
+    const recipients = this.grants.get(sessionId);
+    const revoked = recipients?.delete(recipient) ?? false;
+    if (recipients?.size === 0) this.grants.delete(sessionId);
+    return revoked;
+  }
+
+  transfer(owner: Owner, sessionId: string, recipient: Owner): boolean {
+    if (!this.controls(owner, sessionId)) return false;
+    this.sessionOwners.set(sessionId, recipient);
+    return true;
+  }
+
   attach(owner: Owner, request: TmuxProjectionRequest): boolean {
+    const key = projectionKey(request.sessionId, request.projectionId);
+    const existingOwner = this.projectionOwners.get(key);
+    if (existingOwner !== undefined) return existingOwner === owner;
     const allowed = this.sessionOwners.get(request.sessionId) === owner
       || this.grants.get(request.sessionId)?.delete(owner) === true;
     if (!allowed) return false;
-    const key = projectionKey(request.sessionId, request.projectionId);
-    if (this.projectionOwners.has(key)) return false;
     this.projectionOwners.set(key, owner);
     try {
       if (!this.host.attach(request)) {
@@ -108,17 +142,33 @@ export class TmuxProjectionOwners<Owner> {
     return this.host.detach(sessionId, projectionId);
   }
 
+  detachOwner(owner: Owner, sessionId: string): boolean {
+    let detached = false;
+    for (const [projectionId, projectionOwner] of this.sessionProjections(sessionId)) {
+      if (projectionOwner !== owner) continue;
+      detached = this.detach(owner, sessionId, projectionId) || detached;
+    }
+    return detached;
+  }
+
+  projectionIds(owner: Owner, sessionId: string): string[] {
+    return this.sessionProjections(sessionId).flatMap(([projectionId, projectionOwner]) =>
+      projectionOwner === owner ? [projectionId] : []);
+  }
+
   terminate(owner: Owner, sessionId: string): boolean {
-    if (this.sessionOwners.get(sessionId) !== owner) return false;
+    const ownsProjection = [...this.projectionOwners.entries()].some(([key, projectionOwner]) =>
+      projectionOwner === owner && key.startsWith(`${sessionId}\u0000`));
+    if (this.sessionOwners.get(sessionId) !== owner && !ownsProjection) return false;
     this.clearSession(sessionId);
     return this.host.terminate(sessionId);
   }
 
   release(owner: Owner): void {
-    for (const key of [...this.projectionOwners.keys()]) {
-      const separator = key.indexOf('\u0000');
-      this.detach(owner, key.slice(0, separator), key.slice(separator + 1));
-    }
+    const sessionIds = new Set(
+      [...this.projectionOwners.keys()].map((key) => key.slice(0, key.indexOf('\u0000'))),
+    );
+    for (const sessionId of sessionIds) this.detachOwner(owner, sessionId);
     for (const recipients of this.grants.values()) recipients.delete(owner);
     for (const [sessionId, sessionOwner] of this.sessionOwners) {
       if (sessionOwner === owner) this.sessionOwners.delete(sessionId);
@@ -134,6 +184,13 @@ export class TmuxProjectionOwners<Owner> {
 
   private owns(owner: Owner, sessionId: string, projectionId: string): boolean {
     return this.projectionOwners.get(projectionKey(sessionId, projectionId)) === owner;
+  }
+
+  private controls(owner: Owner, sessionId: string): boolean {
+    if (this.sessionOwners.get(sessionId) === owner) return true;
+    const prefix = `${sessionId}\u0000`;
+    return [...this.projectionOwners.entries()].some(([key, projectionOwner]) =>
+      projectionOwner === owner && key.startsWith(prefix));
   }
 
   private sessionProjections(sessionId: string): Array<[string, Owner]> {

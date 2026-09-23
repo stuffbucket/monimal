@@ -38,7 +38,6 @@ void (undefined as unknown as TerminalLauncherContractParity);
 
 const profiles = async () => [
   { id: 'local', label: 'Local', kind: 'local' as const },
-  { id: 'tmux-control', label: 'Tmux Control (Experimental)', kind: 'tmux-control' as const },
   { id: 'docker', label: 'Docker', kind: 'docker' as const },
 ];
 const discover = async () => ({
@@ -60,7 +59,7 @@ describe('TerminalLauncher', () => {
     const element = document.createElement('div');
     const root = createRoot(element);
     await act(async () => {
-      root.render(<TerminalLauncher open onOpenChange={() => undefined} profiles={() => pendingProfiles} discover={() => pendingDiscovery} launch={async () => ({ sessionId: 'unused', label: 'unused' })} onLaunched={() => undefined} />);
+      root.render(<TerminalLauncher open onOpenChange={() => undefined} profiles={() => pendingProfiles} discover={() => pendingDiscovery} launch={async () => ({ sessionId: 'unused', label: 'unused', canRunInBackground: false })} onLaunched={() => undefined} />);
     });
     expect(document.body.textContent).toContain('Loading terminal profiles...');
     expect(document.body.textContent).not.toContain('No terminal profiles are available.');
@@ -70,24 +69,24 @@ describe('TerminalLauncher', () => {
     });
     expect(document.body.textContent).not.toContain('Loading terminal profiles...');
     expect(document.body.textContent).toContain('Local');
-    expect(document.body.textContent).toContain('Checking SSH, tmux, containers, and virtual machines...');
+    expect(document.body.textContent).toContain('Checking running terminals, SSH, containers, and virtual machines...');
     expect(document.body.textContent).not.toContain('unavailable profiles');
     await act(async () => {
       resolveDiscovery(await discover());
     });
-    expect(document.body.textContent).not.toContain('Checking SSH, tmux, containers, and virtual machines...');
+    expect(document.body.textContent).not.toContain('Checking running terminals, SSH, containers, and virtual machines...');
     expect(document.body.textContent).toContain('desktop: web');
-    const tmuxControl = [...document.body.querySelectorAll('button')]
-      .find((button) => button.textContent?.includes('Tmux Control'));
-    expect(tmuxControl).toBeDefined();
-    expect(tmuxControl!.disabled).toBe(false);
-    expect(document.body.textContent).not.toContain('Tmux Control (Experimental) has no running targets.');
+    expect(document.body.textContent).not.toContain('Tmux Control');
     await act(async () => root.unmount());
   });
 
   it('searches and launches its sole result from Enter', async () => {
     const launched = vi.fn();
-    const launch = vi.fn(async () => ({ sessionId: 'session-1', label: 'Local' }));
+    const launch = vi.fn(async () => ({
+      sessionId: 'session-1',
+      label: 'Local',
+      canRunInBackground: false,
+    }));
     const element = document.createElement('div');
     const root = createRoot(element);
     await act(async () => {
@@ -100,7 +99,55 @@ describe('TerminalLauncher', () => {
       document.body.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     });
     expect(launch).toHaveBeenCalledWith({ profileId: 'docker', targetId: 'opaque-target', cols: 80, rows: 24 });
-    expect(launched).toHaveBeenCalledWith({ sessionId: 'session-1', label: 'Local' });
+    expect(launched).toHaveBeenCalledWith({
+      sessionId: 'session-1',
+      label: 'Local',
+      canRunInBackground: false,
+    });
+    await act(async () => root.unmount());
+  });
+
+  it('prefers durable local creation and separates running durable terminals', async () => {
+    const launch = vi.fn(async () => ({
+      sessionId: 'session-1',
+      label: 'Local',
+      canRunInBackground: false,
+    }));
+    const element = document.createElement('div');
+    const root = createRoot(element);
+    await act(async () => {
+      root.render(
+        <TerminalLauncher
+          open
+          onOpenChange={() => undefined}
+          profiles={async () => [
+            { id: 'local', label: 'Local', kind: 'local' },
+            { id: 'tmux', label: 'Local', kind: 'tmux' },
+          ]}
+          discover={async () => ({
+            generation: 1,
+            targets: [
+              { id: 'local', profileId: 'local', label: 'This computer', state: 'available' },
+              { id: 'new', profileId: 'tmux', label: 'Local', state: 'available', purpose: 'new' },
+              { id: 'running', profileId: 'tmux', label: 'Terminal 1', state: 'available', purpose: 'running' },
+            ],
+          })}
+          launch={launch}
+          onLaunched={() => undefined}
+        />,
+      );
+    });
+    expect(document.body.textContent).toContain('Running');
+    const localChoices = [...document.body.querySelectorAll<HTMLButtonElement>('.terminal-launcher__choice')]
+      .filter((button) => button.textContent?.trim() === 'Local');
+    expect(localChoices).toHaveLength(1);
+    await act(async () => localChoices[0]!.click());
+    expect(launch).toHaveBeenCalledWith({
+      profileId: 'tmux',
+      targetId: 'new',
+      cols: 80,
+      rows: 24,
+    });
     await act(async () => root.unmount());
   });
 

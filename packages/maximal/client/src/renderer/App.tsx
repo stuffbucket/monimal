@@ -7,6 +7,7 @@ import { AppWorkspace } from './AppWorkspace'
 import { useAccountStatus } from './useAccountStatus'
 import type { SettingsSectionRequest } from './settings/Settings'
 import { createCoreSettingsCapabilities } from './settings/capabilities'
+import { readDetachedTerminal } from './terminal/window-transfer'
 import { createObservabilitySource } from './traffic/source'
 import { useTerminalTabs } from './useTerminalTabs'
 import {
@@ -40,20 +41,15 @@ export function App(): ReactElement {
 }
 
 function AppContent(): ReactElement {
-  // Built once for the app's lifetime. Electron main owns sidecar replacement;
-  // this adapter keeps one stable named-bridge subscription across restarts.
-  // Recreating it per render would drop live subscriptions and defeat that.
   const settings = useMemo(() => createCoreSettingsCapabilities(), [])
   const observability = useMemo(() => createObservabilitySource(), [])
-
-  const terminalTabsState = useTerminalTabs()
+  const [detachedWindow] = useState(readDetachedTerminal)
+  const terminalTabsState = useTerminalTabs(detachedWindow)
   const { openSettings } = terminalTabsState
   const accountStatus = useAccountStatus(settings)
   const [sectionRequest, setSectionRequest] = useState<SettingsSectionRequest | null>(null)
   const requestNavigation = useGuardedNavigation()
 
-  /* The application menu chooses the surface here and the section there. A new
-     object keeps every request observable without a parallel counter. */
   useEffect(
     () =>
       settings.onOpenRequest((sectionId) => {
@@ -68,25 +64,28 @@ function AppContent(): ReactElement {
   return (
     <ObservabilityProvider source={observability}>
       <AppWorkspace
+        detachedWindow={detachedWindow}
         accountStatus={accountStatus}
         settings={settings}
         sectionRequest={sectionRequest}
         terminalState={terminalTabsState}
         requestNavigation={requestNavigation}
       />
-      <TerminalLauncher
-        open={terminalTabsState.launcherOpen}
-        onOpenChange={terminalTabsState.setLauncherOpen}
-        profiles={window.maximal.terminal.profiles}
-        discover={window.maximal.terminal.discover}
-        launch={async (request) => {
-          const result = await window.maximal.terminal.launch(request)
-          terminalTabsState.rememberProfile(request.profileId)
-          return result
-        }}
-        onLaunched={terminalTabsState.onTerminalLaunched}
-        recentProfileIds={terminalTabsState.recentProfiles}
-      />
+  {!detachedWindow ? (
+        <TerminalLauncher
+          open={terminalTabsState.launcherOpen}
+          onOpenChange={terminalTabsState.setLauncherOpen}
+          profiles={window.maximal.terminal.profiles}
+          discover={window.maximal.terminal.discover}
+          launch={async (request) => {
+            const result = await window.maximal.terminal.launch(request)
+            terminalTabsState.rememberProfile(request.profileId)
+            return result
+          }}
+          onLaunched={terminalTabsState.onTerminalLaunched}
+          recentProfileIds={terminalTabsState.recentProfiles}
+        />
+      ) : null}
     </ObservabilityProvider>
   )
 }

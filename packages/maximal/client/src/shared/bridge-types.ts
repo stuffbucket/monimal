@@ -112,3 +112,42 @@ export interface ClientInstallation {
   client_path: string | null
   configuration_path: string | null
 }
+
+export type TerminalPaneLayout =
+  | { sessionId: string }
+  | {
+      direction: 'right' | 'down'
+      first: TerminalPaneLayout
+      second: TerminalPaneLayout
+    }
+
+export interface TerminalWindowRequest {
+  id: string
+  cols: number
+  rows: number
+  x: number
+  y: number
+  title: string
+  canRunInBackground: boolean
+  sessionIds?: string[]
+  pane?: TerminalPaneLayout
+}
+
+export interface TerminalRedockRequest extends TerminalWindowRequest {
+  sourceFrameId: string
+  targetFrameId: string
+}
+
+export interface TerminalRedockedEvent {
+  id: string
+  title: string
+  canRunInBackground: boolean
+  pane?: TerminalPaneLayout
+}
+
+export interface TerminalPaneChangedEvent {
+  id: string
+  pane: TerminalPaneLayout
+  revision: number
+  origin: string
+}

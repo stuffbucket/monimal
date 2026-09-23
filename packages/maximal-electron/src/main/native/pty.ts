@@ -4,14 +4,12 @@ import {
   TerminalHost,
   TmuxProjectionOwners,
   type TerminalSession,
-  type TerminalStatus,
 } from '../../host/terminal-host.js';
 import type {
   PtyProjectionAttachRequest,
   PtyProjectionResizeRequest,
   PtyProjectionWriteRequest,
   PtySpawnRequest,
-  PtyStatus,
   TerminalDiscovery,
   TerminalLaunchRequest,
   TerminalLaunchResult,
@@ -37,56 +35,22 @@ import {
 import { TmuxControlHost } from './tmux-control-host.js';
 import { isTerminalLab, terminalLabLaunch } from './terminal-lab.js';
 import { clampTerminalGrid } from '../../shared/terminal-grid.js';
-import type { TerminalPaneLayout } from '../../shared/ipc.js';
+import type {
+  TerminalPaneLayout,
+  TerminalRestoreEntry,
+} from '../../shared/ipc.js';
 
 import { Owners } from './pty-session.js';
+import type { PtyHandlers } from './pty-handlers.js';
 import { TerminalWindowGroups } from './pty-window-groups.js';
 
-/**
- * Pseudo-terminal sessions, one manager per window.
- *
- * The shell runs here, in the main process. The renderer holds an xterm
- * terminal, which is a view and an input encoder, not a process host. Bytes
- * flow main to renderer as `pty:data` events, and renderer to main through the
- * `pty:write` channel.
- *
- * This split is what keeps `sandbox: true` on the renderer. The renderer never
- * spawns anything.
- *
- * The manager is `TerminalHost`, the same class `./host/terminal` exports.
- * This file is the Electron half of it: which window owns a session, where a
- * session starts, and where its output goes.
- */
+let emit: PtyHandlers['emit'] = () => undefined;
+let onExit: PtyHandlers['onExit'] = () => undefined;
+let onStatus: PtyHandlers['onStatus'] = () => undefined;
+let onSize: NonNullable<PtyHandlers['onSize']> = () => undefined;
+let onPane: NonNullable<PtyHandlers['onPane']> = () => undefined;
 
-/** Emit batched output, and the end of a session, to the owning window. */
-type Emit = (owner: BrowserWindow, id: string, chunk: string, sequence?: number, projectionId?: string) => void;
-type Exit = (owner: BrowserWindow, id: string, exitCode: number, projectionId?: string) => void;
-type Status = (owner: BrowserWindow, status: PtyStatus) => void;
-/** Tell one window the authoritative size a mirrored session settled on. */
-type Size = (
-  window: BrowserWindow,
-  id: string,
-  cols: number,
-  rows: number,
-  projectionId?: string,
-) => void;
-type Pane = (
-  window: BrowserWindow,
-  id: string,
-  pane: TerminalPaneLayout,
-  revision: number,
-  origin: string,
-) => void;
-
-let emit: Emit = () => undefined;
-let onExit: Exit = () => undefined;
-let onStatus: Status = () => undefined;
-let onSize: Size = () => undefined;
-let onPane: Pane = () => undefined;
-
-export function configurePty(
-  handlers: { emit: Emit; onExit: Exit; onStatus: Status; onSize?: Size; onPane?: Pane },
-): void {
+export function configurePty(handlers: PtyHandlers): void {
   emit = handlers.emit;
   onExit = handlers.onExit;
   onStatus = handlers.onStatus;
@@ -94,11 +58,6 @@ export function configurePty(
   onPane = handlers.onPane ?? (() => undefined);
 }
 
-function ptyStatus(status: TerminalStatus): PtyStatus {
-  return status;
-}
-
-/** The user's login shell, or a sane default for the platform. */
 export function defaultShell(): string {
   if (process.platform === 'win32') {
     return process.env['COMSPEC'] ?? 'powershell.exe';
@@ -116,7 +75,6 @@ const hosts = new Owners<BrowserWindow, TerminalHost>(
       homeDirectory: app.getPath('home'),
       defaultShell: defaultShell(),
       flowControl: true,
-      // Programs read this to name the terminal they are running under.
       env: { TERM_PROGRAM: 'Stuffbucket' },
       emit: (id, chunk, sequence) => {
         emit(owner, id, chunk, sequence);
@@ -126,7 +84,7 @@ const hosts = new Owners<BrowserWindow, TerminalHost>(
         onExit(owner, id, exitCode);
       },
       onStatus: (status) => {
-        onStatus(owner, ptyStatus(status));
+        onStatus(owner, status);
       },
     });
   },
@@ -171,7 +129,8 @@ const projections = new TmuxProjectionOwners<BrowserWindow>({
     void execFileRunner(command, args, { timeout: 2_000, maxBuffer: 64 * 1024 }).catch(() => undefined);
   },
   emit: (owner, sessionId, projectionId, chunk) => emit(owner, sessionId, chunk, undefined, projectionId),
-  onExit: (owner, sessionId, projectionId, exitCode) => onExit(owner, sessionId, exitCode, projectionId),
+  onExit: (owner, sessionId, projectionId, exitCode) =>
+    onExit(owner, sessionId, exitCode, projectionId),
   onGeometry: (owner, sessionId, projectionId, cols, rows) =>
     onSize(owner, sessionId, cols, rows, projectionId),
   onGeometryError: (owner, sessionId, projectionId, error) => {
@@ -189,7 +148,14 @@ const projections = new TmuxProjectionOwners<BrowserWindow>({
 function prepareProjectionOwner(owner: BrowserWindow): void {
   if (projectionOwners.has(owner)) return;
   projectionOwners.add(owner);
-  owner.once('closed', () => projections.release(owner));
+  owner.once('closed', () => {
+    projections.release(owner);
+    windowGroups.removeWindow(owner);
+  });
+}
+
+function windowProjectionId(owner: BrowserWindow, sessionId: string): string {
+  return `${sessionId}:${String(owner.id)}`;
 }
 
 function prepareLauncher(owner: BrowserWindow): void {
@@ -204,17 +170,6 @@ function hostFor(owner: BrowserWindow | undefined): TerminalHost | undefined {
   return hosts.get(owner);
 }
 
-/*
- * "Copy into New Window" registry.
- *
- * A copy does not move a session's process; it adds a second window that
- * watches the same one. `sessionOwner` is the one place that answers "which
- * window actually holds this process right now", kept current across a
- * `transferPty()` so a copy still finds it after its original moves.
- * `mirrorIds` marks which (window, id) pairs are a *view* rather than the
- * owner, so a normal `pty:spawn`/`pty:write`/`pty:resize` from that window can
- * be redirected without the renderer knowing anything changed.
- */
 const sessionOwner = new Map<string, BrowserWindow>();
 const mirrorIds = new WeakMap<BrowserWindow, Set<string>>();
 const mirrorDetachers = new Map<string, Map<BrowserWindow, () => void>>();
@@ -230,11 +185,6 @@ function realOwnerOf(window: BrowserWindow, id: string): BrowserWindow | undefin
   return isMirrorWindow(window, id) ? sessionOwner.get(id) : window;
 }
 
-/**
- * Keeps a shared process alive when its current owner window closes by moving
- * ownership to a live declared viewer. A session with no remaining viewer
- * retains the normal owner-scoped termination policy.
- */
 function releasePtyOwner(owner: BrowserWindow): void {
   const source = hostFor(owner);
   for (const [id, sessionOwnerWindow] of [...sessionOwner]) {
@@ -297,6 +247,13 @@ const paneDocuments = new Map<string, {
   origin: string;
   viewers: Set<BrowserWindow>;
 }>();
+const restoreMetadata = new Map<string, {
+  title: string;
+  canRunInBackground: boolean;
+  cwd: string;
+  shell: string;
+  startedAt: number;
+}>();
 
 function trackViewerSize(id: string, window: BrowserWindow, cols: number, rows: number): boolean {
   return windowGroups.observe(id, window, cols, rows);
@@ -321,19 +278,18 @@ function reconcileSharedSize(
   }, requestor);
 }
 
-/** Drops one viewer's size entry, restoring the rest once it is gone. */
 function forgetViewerSize(id: string, window: BrowserWindow): void {
   if (!windowGroups.removeViewer(id, window)) return;
   const realOwner = sessionOwner.get(id);
   if (realOwner) reconcileSharedSize(id, realOwner, undefined, 'detach');
 }
 
-/** Drops every size-tracking entry for a session that has fully exited. */
 function forgetSessionSize(id: string): void {
   windowGroups.removeSession(id);
   pendingPaneSyncs.delete(id);
   paneSessionViewers.delete(id);
   paneDocuments.delete(id);
+  restoreMetadata.delete(id);
 }
 
 function paneSessionIds(pane: TerminalPaneLayout): string[] {
@@ -345,18 +301,23 @@ function paneSessionIds(pane: TerminalPaneLayout): string[] {
 function flushPendingPaneSyncs(): void {
   for (const [id, pending] of pendingPaneSyncs) {
     const viewers = windowGroups.viewers(id);
-    if (!viewers || viewers.size < 2) {
+    if (!viewers || viewers.size === 0) {
       pendingPaneSyncs.delete(id);
       continue;
     }
     const sessions = paneSessionIds(pending.pane).map((sessionId) => {
+      if (projections.has(sessionId)) {
+        return { sessionId, owner: pending.requestor, projection: true as const };
+      }
       const owner = realOwnerOf(pending.requestor, sessionId);
-      return owner && hostFor(owner)?.has(sessionId) ? { sessionId, owner } : undefined;
+      return owner && hostFor(owner)?.has(sessionId)
+        ? { sessionId, owner, projection: false as const }
+        : undefined;
     });
     if (sessions.some((session) => session === undefined)) continue;
     windowGroups.setDocument(id, paneSessionIds(pending.pane));
     for (const session of sessions) {
-      if (!session) continue;
+      if (!session || session.projection) continue;
       paneSessionViewers.set(session.sessionId, new Set(viewers.keys()));
       for (const [viewer] of viewers) {
         if (viewer !== session.owner && !isMirrorWindow(viewer, session.sessionId)) {
@@ -389,7 +350,6 @@ function isAuthorizedPaneViewer(window: BrowserWindow, sessionId: string): boole
   return false;
 }
 
-/** Marks `recipient` as a copy-viewer of `owner`'s session, attached lazily. */
 function registerMirror(owner: BrowserWindow, recipient: BrowserWindow, id: string): void {
   const ids = mirrorIds.get(recipient) ?? new Set<string>();
   ids.add(id);
@@ -420,13 +380,6 @@ function attachMirror(owner: BrowserWindow, recipient: BrowserWindow, request: P
   if ((windowGroups.viewers(request.id)?.size ?? 0) > 1) reconcileSharedSize(request.id, owner);
 }
 
-/**
- * Open a shell for a window.
- *
- * A request that arrives without a window is dropped. Nothing would reap the
- * session, and an unreapable shell is a process the user cannot see and did
- * not ask to keep.
- */
 function spawn(
   owner: BrowserWindow | undefined,
   rawRequest: PtySpawnRequest,
@@ -441,11 +394,19 @@ function spawn(
     prepareProjectionOwner(owner);
     projections.attach(owner, {
       sessionId: request.id,
-      projectionId: request.id,
+      projectionId: windowProjectionId(owner, request.id),
       cols: request.cols,
       rows: request.rows,
     });
-    const epoch = projections.focus(owner, request.id, request.id, request.cols, request.rows);
+    trackViewerSize(request.id, owner, request.cols, request.rows);
+    flushPendingPaneSyncs();
+    const epoch = projections.focus(
+      owner,
+      request.id,
+      windowProjectionId(owner, request.id),
+      request.cols,
+      request.rows,
+    );
     if (epoch !== undefined) {
       const epochs = projectionEpochs.get(owner) ?? new Map<string, number>();
       epochs.set(request.id, epoch);
@@ -498,7 +459,6 @@ export function spawnReservedPty(
   spawn(owner, request, true);
 }
 
-/** Move a live local PTY to another BrowserWindow without restarting it. */
 export function transferPty(
   owner: BrowserWindow | undefined,
   recipient: BrowserWindow | undefined,
@@ -525,13 +485,6 @@ export function transferPty(
   return moved;
 }
 
-/**
- * Add `recipient` as a second, live window for a session `owner` already
- * holds, without moving the process or disturbing `owner`'s own view.
- *
- * Used for "Copy into New Window": both windows keep working, live, off the
- * same shell, the same way a second tmux client would.
- */
 export function copyPty(
   owner: BrowserWindow | undefined,
   recipient: BrowserWindow | undefined,
@@ -543,6 +496,213 @@ export function copyPty(
   windowGroups.registerViewer(request.id, recipient);
   registerMirror(realOwner, recipient, request.id);
   return true;
+}
+
+export function copyPtyOwnership(
+  owner: BrowserWindow | undefined,
+  recipient: BrowserWindow | undefined,
+  requests: readonly PtySpawnRequest[],
+): boolean {
+  return stagePtyOwnership(owner, recipient, requests, 'copy')?.commit() ?? false;
+}
+
+export interface PtyOwnershipTransaction {
+  commit(): boolean;
+  rollback(): void;
+}
+
+interface StagedPtyOwnership {
+  request: PtySpawnRequest;
+  projection: boolean;
+  recipientWasMirror: boolean;
+  recipientMirrorWasAttached: boolean;
+  recipientProjectionIds: ReadonlySet<string>;
+  recipientGrid?: { cols: number; rows: number };
+}
+
+export function stagePtyOwnership(
+  owner: BrowserWindow | undefined,
+  recipient: BrowserWindow | undefined,
+  requests: readonly PtySpawnRequest[],
+  mode: 'copy' | 'move',
+): PtyOwnershipTransaction | undefined {
+  if (!owner || !recipient || owner === recipient || requests.length === 0) return undefined;
+  if (new Set(requests.map(({ id }) => id)).size !== requests.length) return undefined;
+  const staged: StagedPtyOwnership[] = [];
+
+  const rollbackDestination = (): void => {
+    for (const entry of [...staged].reverse()) {
+      if (entry.projection) {
+        for (const projectionId of projections.projectionIds(recipient, entry.request.id)) {
+          if (!entry.recipientProjectionIds.has(projectionId)) {
+            projections.detach(recipient, entry.request.id, projectionId);
+          }
+        }
+        projections.revoke(owner, entry.request.id, recipient);
+        if (entry.recipientProjectionIds.size === 0) {
+          projectionEpochs.get(recipient)?.delete(entry.request.id);
+        }
+        if (entry.recipientGrid) {
+          trackViewerSize(
+            entry.request.id,
+            recipient,
+            entry.recipientGrid.cols,
+            entry.recipientGrid.rows,
+          );
+        } else {
+          forgetViewerSize(entry.request.id, recipient);
+        }
+      } else if (!entry.recipientWasMirror) {
+        detachMirror(entry.request.id, recipient);
+      } else if (!isMirrorWindow(recipient, entry.request.id)) {
+        const realOwner = realOwnerOf(owner, entry.request.id);
+        if (!realOwner) continue;
+        registerMirror(realOwner, recipient, entry.request.id);
+        if (entry.recipientMirrorWasAttached) {
+          attachMirror(realOwner, recipient, {
+            ...entry.request,
+            cols: entry.recipientGrid?.cols ?? entry.request.cols,
+            rows: entry.recipientGrid?.rows ?? entry.request.rows,
+          });
+        } else if (entry.recipientGrid) {
+          trackViewerSize(
+            entry.request.id,
+            recipient,
+            entry.recipientGrid.cols,
+            entry.recipientGrid.rows,
+          );
+        }
+      }
+    }
+  };
+
+  for (const request of requests) {
+    if (projections.has(request.id)) {
+      const recipientProjectionIds = new Set(
+        projections.projectionIds(recipient, request.id),
+      );
+      const recipientGrid = windowGroups.viewers(request.id)?.get(recipient);
+      if (!grantPtyProjection(owner, request.id, recipient, request.cols, request.rows)) {
+        rollbackDestination();
+        return undefined;
+      }
+      staged.push({
+        request,
+        projection: true,
+        recipientWasMirror: false,
+        recipientMirrorWasAttached: false,
+        recipientProjectionIds,
+        recipientGrid,
+      });
+      continue;
+    }
+    const recipientWasMirror = isMirrorWindow(recipient, request.id);
+    const recipientMirrorWasAttached =
+      mirrorDetachers.get(request.id)?.has(recipient) ?? false;
+    const recipientGrid = windowGroups.viewers(request.id)?.get(recipient);
+    if (!copyPty(owner, recipient, request)) {
+      rollbackDestination();
+      return undefined;
+    }
+    staged.push({
+      request,
+      projection: false,
+      recipientWasMirror,
+      recipientMirrorWasAttached,
+      recipientProjectionIds: new Set(),
+      recipientGrid,
+    });
+  }
+
+  let finished = false;
+  return {
+    commit(): boolean {
+      if (finished) return false;
+      if (mode === 'copy') {
+        finished = true;
+        return true;
+      }
+
+      const moved: Array<{
+        entry: StagedPtyOwnership;
+        realOwner?: BrowserWindow;
+        sourceGrid?: { cols: number; rows: number };
+      }> = [];
+      for (const entry of staged) {
+        if (entry.projection) {
+          if (!projections.transfer(owner, entry.request.id, recipient)) {
+            for (const prior of [...moved].reverse()) {
+              if (prior.entry.projection) {
+                projections.transfer(recipient, prior.entry.request.id, owner);
+              } else if (prior.realOwner) {
+                transferPty(recipient, prior.realOwner, {
+                  ...prior.entry.request,
+                  cols: prior.sourceGrid?.cols ?? prior.entry.request.cols,
+                  rows: prior.sourceGrid?.rows ?? prior.entry.request.rows,
+                });
+              }
+            }
+            rollbackDestination();
+            finished = true;
+            return false;
+          }
+          moved.push({ entry });
+          continue;
+        }
+
+        const realOwner = realOwnerOf(owner, entry.request.id);
+        const sourceGrid = realOwner
+          ? windowGroups.viewers(entry.request.id)?.get(realOwner)
+          : undefined;
+        if (!realOwner || !transferPty(owner, recipient, entry.request)) {
+          for (const prior of [...moved].reverse()) {
+            if (prior.entry.projection) {
+              projections.transfer(recipient, prior.entry.request.id, owner);
+            } else if (prior.realOwner) {
+              transferPty(recipient, prior.realOwner, {
+                ...prior.entry.request,
+                cols: prior.sourceGrid?.cols ?? prior.entry.request.cols,
+                rows: prior.sourceGrid?.rows ?? prior.entry.request.rows,
+              });
+            }
+          }
+          rollbackDestination();
+          finished = true;
+          return false;
+        }
+        moved.push({ entry, realOwner, sourceGrid });
+      }
+
+      for (const entry of staged) {
+        if (!entry.projection) continue;
+        projections.revoke(recipient, entry.request.id, recipient);
+        projections.detachOwner(owner, entry.request.id);
+        projectionEpochs.get(owner)?.delete(entry.request.id);
+        forgetViewerSize(entry.request.id, owner);
+        trackViewerSize(
+          entry.request.id,
+          recipient,
+          entry.request.cols,
+          entry.request.rows,
+        );
+      }
+      finished = true;
+      return true;
+    },
+    rollback(): void {
+      if (finished) return;
+      rollbackDestination();
+      finished = true;
+    },
+  };
+}
+
+export function transferPtyOwnership(
+  owner: BrowserWindow | undefined,
+  recipient: BrowserWindow | undefined,
+  requests: readonly PtySpawnRequest[],
+): boolean {
+  return stagePtyOwnership(owner, recipient, requests, 'move')?.commit() ?? false;
 }
 
 export function syncPtyPane(
@@ -579,6 +739,15 @@ export function launchTerminal(
   const result = launcher.launch(owner, request);
   const reserved = launcher.take(owner, result.sessionId);
   if (!reserved) throw new Error('Terminal launch reservation was unavailable.');
+  if (result.canRunInBackground) {
+    restoreMetadata.set(result.sessionId, {
+      title: result.label,
+      canRunInBackground: true,
+      cwd: reserved.cwd ?? app.getPath('home'),
+      shell: reserved.command,
+      startedAt: Date.now(),
+    });
+  }
   if (reserved.tmuxControl) {
     const sessions = controlHosts.for(owner);
     const host = new TmuxControlHost({
@@ -624,7 +793,7 @@ export function writePty(
   if (owner) {
     const epoch = projectionEpochs.get(owner)?.get(id);
     if (projections.has(id) && epoch !== undefined) {
-      projections.write(owner, id, id, epoch, data);
+      projections.write(owner, id, windowProjectionId(owner, id), epoch, data);
       return;
     }
   }
@@ -643,7 +812,7 @@ export function resizePty(
   if (owner) {
     const epoch = projectionEpochs.get(owner)?.get(id);
     if (projections.has(id) && epoch !== undefined) {
-      projections.resize(owner, id, id, epoch, cols, rows);
+      projections.resize(owner, id, windowProjectionId(owner, id), epoch, cols, rows);
       return;
     }
   }
@@ -728,7 +897,9 @@ export function detachPtyProjection(
   id: string,
   projectionId: string,
 ): boolean {
-  return owner ? projections.detach(owner, id, projectionId) : false;
+  if (!owner || !projections.detach(owner, id, projectionId)) return false;
+  forgetViewerSize(id, owner);
+  return true;
 }
 
 /** Authorize one destination window to attach its next projection. */
@@ -736,10 +907,32 @@ export function grantPtyProjection(
   owner: BrowserWindow | undefined,
   id: string,
   recipient: BrowserWindow | undefined,
+  cols = 80,
+  rows = 24,
 ): boolean {
   if (!owner || !recipient) return false;
   prepareProjectionOwner(recipient);
-  return projections.grant(owner, id, recipient);
+  const granted = projections.grant(owner, id, recipient);
+  if (granted) trackViewerSize(id, recipient, cols, rows);
+  return granted;
+}
+
+/** Move projection authority to a destination window and detach the old view. */
+export function transferPtyProjection(
+  owner: BrowserWindow | undefined,
+  id: string,
+  recipient: BrowserWindow | undefined,
+  cols = 80,
+  rows = 24,
+): boolean {
+  if (!owner || !recipient) return false;
+  prepareProjectionOwner(recipient);
+  if (!projections.transfer(owner, id, recipient)) return false;
+  projections.detachOwner(owner, id);
+  projectionEpochs.get(owner)?.delete(id);
+  forgetViewerSize(id, owner);
+  trackViewerSize(id, recipient, cols, rows);
+  return true;
 }
 
 /** Record renderer consumption of all output through this sequence. */
@@ -754,6 +947,7 @@ export function acknowledgePty(
 export function killPty(owner: BrowserWindow | undefined, id: string): void {
   if (owner && projections.terminate(owner, id)) {
     projectionEpochs.get(owner)?.delete(id);
+    forgetSessionSize(id);
     return;
   }
   const control = owner ? controlHosts.get(owner)?.get(id) : undefined;
@@ -765,9 +959,39 @@ export function killPty(owner: BrowserWindow | undefined, id: string): void {
   hostFor(owner)?.terminate(id);
 }
 
-/** This window's live sessions, including any no view is showing. */
-export function listPtys(owner: BrowserWindow | undefined): TerminalSession[] {
-  return hostFor(owner)?.list() ?? [];
+/** This window's live sessions and main-owned documents, including hidden views. */
+export function listPtys(owner: BrowserWindow | undefined): TerminalRestoreEntry[] {
+  if (!owner) return [];
+  const sessions = new Map<string, TerminalSession>();
+  for (const session of hostFor(owner)?.list() ?? []) sessions.set(session.id, session);
+  for (const id of mirrorIds.get(owner) ?? []) {
+    const realOwner = sessionOwner.get(id);
+    const session = realOwner
+      ? hostFor(realOwner)?.list().find((candidate) => candidate.id === id)
+      : undefined;
+    if (session) sessions.set(id, session);
+  }
+  for (const id of projections.list(owner)) {
+    const metadata = restoreMetadata.get(id);
+    sessions.set(id, metadata
+      ? { id, cwd: metadata.cwd, shell: metadata.shell, startedAt: metadata.startedAt }
+      : { id, cwd: '', shell: '', startedAt: 0 });
+  }
+  return [...sessions.values()].map((session) => {
+    const metadata = restoreMetadata.get(session.id);
+    const document = paneDocuments.get(session.id);
+    const shellTitle = session.shell.split(/[\\/]/).at(-1);
+    return {
+      ...session,
+      title: metadata?.title
+        ?? (shellTitle ? shellTitle : 'Terminal'),
+      canRunInBackground: metadata?.canRunInBackground
+        ?? projections.has(session.id),
+      ...(document?.viewers.has(owner)
+        ? { pane: document.pane, revision: document.revision }
+        : {}),
+    };
+  });
 }
 
 /** Kill every window's sessions. Call on quit, so no shell outlives the app. */
@@ -775,4 +999,5 @@ export function killAllPtys(): void {
   hosts.releaseAll();
   controlHosts.releaseAll();
   projections.abandonAll();
+  restoreMetadata.clear();
 }

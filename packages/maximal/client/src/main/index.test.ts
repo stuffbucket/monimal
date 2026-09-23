@@ -3,7 +3,7 @@ import {
   TrafficRequestDetailQuerySchema,
   TrafficRequestListQuerySchema,
 } from '@stuffbucket/maximal-observability-contract'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   BRIDGE_CHANNELS,
@@ -52,12 +52,34 @@ const {
   shellOpenPath,
   showMessageBox,
   webContentsSend,
+  webContentsState,
   windowState,
 } = vi.hoisted(() => {
   const listeners = new Map<string, Set<(...args: unknown[]) => void>>()
-  const windowListeners = new Map<string, (...args: unknown[]) => void>()
-  const webContentsListeners = new Map<string, (...args: unknown[]) => void>()
+  const windowListeners = new Map<string, Set<(...args: unknown[]) => void>>()
+  const webContentsListeners = new Map<string, Set<(...args: unknown[]) => void>>()
+  const addListener = (
+    target: Map<string, Set<(...args: unknown[]) => void>>,
+    event: string,
+    listener: (...args: unknown[]) => void,
+  ): void => {
+    const current = target.get(event) ?? new Set()
+    current.add(listener)
+    target.set(event, current)
+  }
+  const removeListener = (
+    target: Map<string, Set<(...args: unknown[]) => void>>,
+    event: string,
+    listener: (...args: unknown[]) => void,
+  ): void => {
+    target.get(event)?.delete(listener)
+  }
   const webContentsSend = vi.fn()
+  const webContentsState = {
+    emit(event: string, ...args: unknown[]) {
+      for (const listener of webContentsListeners.get(event) ?? []) listener(...args)
+    },
+  }
   const windowState = {
     destroyed: false,
     loading: false,
@@ -78,25 +100,36 @@ const {
       windowState.visible = false
     }),
     focus: vi.fn(),
+    close: vi.fn(),
+    loadFile: vi.fn(() => Promise.resolve()),
+    loadURL: vi.fn(() => Promise.resolve()),
     setSkipTaskbar: vi.fn(),
     on: vi.fn((event: string, listener: (...args: unknown[]) => void) => {
-      windowListeners.set(event, listener)
+      addListener(windowListeners, event, listener)
     }),
     once: vi.fn((event: string, listener: (...args: unknown[]) => void) => {
-      windowListeners.set(event, listener)
+      addListener(windowListeners, event, listener)
+    }),
+    removeListener: vi.fn((event: string, listener: (...args: unknown[]) => void) => {
+      removeListener(windowListeners, event, listener)
     }),
     emit: (event: string, ...args: unknown[]) => {
-      windowListeners.get(event)?.(...args)
+      for (const listener of windowListeners.get(event) ?? []) listener(...args)
     },
     webContents: {
       isLoading: () => windowState.loading,
       send: webContentsSend,
+      reload: vi.fn(),
       on: vi.fn((event: string, listener: (...args: unknown[]) => void) => {
-        webContentsListeners.set(event, listener)
+        addListener(webContentsListeners, event, listener)
       }),
-      emit: (event: string, ...args: unknown[]) => {
-        webContentsListeners.get(event)?.(...args)
-      },
+      once: vi.fn((event: string, listener: (...args: unknown[]) => void) => {
+        addListener(webContentsListeners, event, listener)
+      }),
+      removeListener: vi.fn((event: string, listener: (...args: unknown[]) => void) => {
+        removeListener(webContentsListeners, event, listener)
+      }),
+      emit: webContentsState.emit,
     },
   }
   const fakeApp = {
@@ -143,6 +176,7 @@ const {
     shellOpenPath: vi.fn(() => Promise.resolve('')),
     showMessageBox: vi.fn(() => Promise.resolve({ response: 0 })),
     webContentsSend,
+    webContentsState,
     windowState,
   }
 })
@@ -281,20 +315,29 @@ vi.mock('./harness-host.js', () => ({
 
 const {
   configureTerminalHostMock,
+  configureTerminalWindowActionsMock,
+  moveTerminalSessionsMock,
   activeTerminalCountMock,
   registerTerminalIpcMock,
+  stageTerminalSessionsMock,
   stopTerminalHostMock,
 } = vi.hoisted(() => ({
   activeTerminalCountMock: vi.fn(() => 0),
   configureTerminalHostMock: vi.fn(),
+  configureTerminalWindowActionsMock: vi.fn(),
+  moveTerminalSessionsMock: vi.fn(() => true),
   registerTerminalIpcMock: vi.fn(),
+  stageTerminalSessionsMock: vi.fn(),
   stopTerminalHostMock: vi.fn(),
 }))
 
 vi.mock('./terminal-host.js', () => ({
   activeTerminalCount: activeTerminalCountMock,
   configureTerminalHost: configureTerminalHostMock,
+  configureTerminalWindowActions: configureTerminalWindowActionsMock,
+  moveTerminalSessions: moveTerminalSessionsMock,
   registerTerminalIpc: registerTerminalIpcMock,
+  stageTerminalSessions: stageTerminalSessionsMock,
   stopTerminalHost: stopTerminalHostMock,
 }))
 
@@ -358,13 +401,21 @@ async function loadIndexOn(platform: NodeJS.Platform): Promise<void> {
   startHarnessHostMock.mockClear()
   stopHarnessHostMock.mockClear()
   configureTerminalHostMock.mockClear()
+  configureTerminalWindowActionsMock.mockClear()
+  moveTerminalSessionsMock.mockClear()
   registerTerminalIpcMock.mockClear()
+  stageTerminalSessionsMock.mockReset()
   stopTerminalHostMock.mockClear()
   registerTerminalIpcMock.mockImplementation(() => {
     for (const channel of [
       BRIDGE_CHANNELS.terminalProfiles,
       BRIDGE_CHANNELS.terminalDiscover,
       BRIDGE_CHANNELS.terminalLaunch,
+      BRIDGE_CHANNELS.terminalFrameId,
+      BRIDGE_CHANNELS.terminalUndock,
+      BRIDGE_CHANNELS.terminalCopy,
+      BRIDGE_CHANNELS.terminalRedock,
+      BRIDGE_CHANNELS.terminalPaneSync,
       BRIDGE_CHANNELS.terminalSpawn,
       BRIDGE_CHANNELS.terminalWrite,
       BRIDGE_CHANNELS.terminalResize,
@@ -398,7 +449,11 @@ async function loadIndexOn(platform: NodeJS.Platform): Promise<void> {
   fakeWindow.restore.mockClear()
   fakeWindow.show.mockClear()
   fakeWindow.focus.mockClear()
+  fakeWindow.close.mockClear()
+  fakeWindow.webContents.reload.mockClear()
   fakeWindow.setSkipTaskbar.mockClear()
+  showMessageBox.mockClear()
+  showMessageBox.mockResolvedValue({ response: 0 })
   browserWindows.length = 0
   windowState.destroyed = false
   windowState.loading = false
@@ -424,6 +479,7 @@ afterEach(() => {
     configurable: true,
   })
   vi.clearAllMocks()
+  vi.unstubAllGlobals()
 })
 
 describe('closed IPC boundary', () => {
@@ -437,12 +493,107 @@ describe('closed IPC boundary', () => {
       BRIDGE_CHANNELS.trafficInvalidated,
       BRIDGE_CHANNELS.terminalData,
       BRIDGE_CHANNELS.terminalExit,
+      BRIDGE_CHANNELS.terminalTabRedocked,
+      BRIDGE_CHANNELS.terminalPaneChanged,
       BRIDGE_CHANNELS.harnessDelta,
       BRIDGE_CHANNELS.harnessTool,
       BRIDGE_CHANNELS.harnessApproval,
       BRIDGE_CHANNELS.harnessEnd,
       BRIDGE_CHANNELS.harnessModelProgress,
     ])
+  })
+
+  describe('terminal destination readiness', () => {
+    const terminalRequest = {
+      id: 'primary',
+      cols: 120,
+      rows: 40,
+      x: 100,
+      y: 200,
+      title: 'Terminal',
+      canRunInBackground: true,
+      sessionIds: ['primary', 'split'],
+    }
+
+    function terminalActions(): {
+      undock(
+        owner: typeof fakeWindow,
+        request: typeof terminalRequest,
+      ): Promise<boolean>
+    } {
+      vi.stubGlobal('MAIN_WINDOW_VITE_DEV_SERVER_URL', 'http://localhost:5173')
+      const actions: unknown =
+        configureTerminalWindowActionsMock.mock.calls.at(-1)?.[0]
+      if (
+        actions === null
+        || typeof actions !== 'object'
+        || !('undock' in actions)
+        || typeof actions.undock !== 'function'
+      ) {
+        throw new Error('Terminal window actions were not configured')
+      }
+      return actions as ReturnType<typeof terminalActions>
+    }
+
+    it('commits and reports success only after the destination is ready', async () => {
+      await loadIndexOn('darwin')
+      const commit = vi.fn(() => true)
+      const rollback = vi.fn()
+      stageTerminalSessionsMock.mockReturnValue({ commit, rollback })
+
+      const result = terminalActions().undock(fakeWindow, terminalRequest)
+      await Promise.resolve()
+
+      expect(commit).not.toHaveBeenCalled()
+      expect(fakeWindow.show).not.toHaveBeenCalled()
+
+      fakeWindow.emit('ready-to-show')
+
+      await expect(result).resolves.toBe(true)
+      expect(commit).toHaveBeenCalledOnce()
+      expect(rollback).not.toHaveBeenCalled()
+      expect(fakeWindow.show).toHaveBeenCalledOnce()
+    })
+
+    it.each([
+      ['load failure', () => webContentsState.emit('did-fail-load')],
+      ['renderer crash', () => webContentsState.emit(
+        'render-process-gone',
+        {},
+        { reason: 'crashed', exitCode: 1 },
+      )],
+      ['destination close', () => fakeWindow.emit('close')],
+    ])('rolls back on %s', async (_name, fail) => {
+      await loadIndexOn('darwin')
+      const commit = vi.fn(() => true)
+      const rollback = vi.fn()
+      stageTerminalSessionsMock.mockReturnValue({ commit, rollback })
+
+      const result = terminalActions().undock(fakeWindow, terminalRequest)
+      fail()
+
+      await expect(result).resolves.toBe(false)
+      expect(commit).not.toHaveBeenCalled()
+      expect(rollback).toHaveBeenCalledOnce()
+      expect(fakeWindow.close).toHaveBeenCalledOnce()
+    })
+
+    it('rolls back when destination readiness times out', async () => {
+      await loadIndexOn('darwin')
+      vi.useFakeTimers()
+      const commit = vi.fn(() => true)
+      const rollback = vi.fn()
+      stageTerminalSessionsMock.mockReturnValue({ commit, rollback })
+
+      const result = terminalActions().undock(fakeWindow, terminalRequest)
+      await vi.advanceTimersByTimeAsync(15_000)
+
+      await expect(result).resolves.toBe(false)
+      expect(commit).not.toHaveBeenCalled()
+      expect(rollback).toHaveBeenCalledOnce()
+      expect(fakeWindow.close).toHaveBeenCalledOnce()
+      vi.useRealTimers()
+    })
   })
 
   it('registers exactly the named invoke allowlist', async () => {
@@ -830,6 +981,132 @@ describe('window defaults', () => {
     expect(runShellMock).toHaveBeenCalledWith(
       expect.objectContaining({ width: 1280, height: 768 }),
     )
+  })
+})
+
+describe('renderer recovery', () => {
+  function emitRendererExit(reason: string, exitCode: number): void {
+    fakeWindow.webContents.emit('render-process-gone', {}, { reason, exitCode })
+  }
+
+  function expectNoRecovery(): void {
+    expect(fakeWindow.webContents.reload).not.toHaveBeenCalled()
+    expect(showMessageBox).not.toHaveBeenCalled()
+  }
+
+  async function expectReloadPrompt(buttons: string[]): Promise<void> {
+    await vi.waitFor(() => {
+      expect(fakeWindow.webContents.reload).toHaveBeenCalledOnce()
+    })
+    expect(showMessageBox).toHaveBeenCalledWith(
+      fakeWindow,
+      expect.objectContaining({ buttons }),
+    )
+  }
+
+  beforeEach(async () => {
+    await loadIndexOn('darwin')
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('automatically reloads the first renderer process failure', () => {
+    emitRendererExit('crashed', 1)
+
+    expect(fakeWindow.webContents.reload).toHaveBeenCalledOnce()
+    expect(showMessageBox).not.toHaveBeenCalled()
+  })
+
+  it('does not recover a renderer that exited normally with its window', () => {
+    emitRendererExit('clean-exit', 0)
+
+    expectNoRecovery()
+  })
+
+  it('does not recover a renderer killed while its window intentionally closes', () => {
+    fakeWindow.emit('close')
+    emitRendererExit('killed', 15)
+    fakeWindow.webContents.emit('unresponsive')
+
+    expectNoRecovery()
+  })
+
+  it('offers to close a window that crashes again during recovery', async () => {
+    showMessageBox.mockResolvedValueOnce({ response: 1 })
+
+    emitRendererExit('crashed', 1)
+    emitRendererExit('crashed', 1)
+    await vi.waitFor(() => {
+      expect(fakeWindow.close).toHaveBeenCalledOnce()
+    })
+
+    await expectReloadPrompt(['Reload Window', 'Close Window'])
+  })
+
+  it('recovers a renderer exit after an existing prompt resolves', async () => {
+    let resolvePrompt: ((result: { response: number }) => void) | undefined
+    showMessageBox.mockReturnValueOnce(new Promise((resolve) => {
+      resolvePrompt = resolve
+    }))
+
+    fakeWindow.webContents.emit('unresponsive')
+    emitRendererExit('crashed', 1)
+
+    expect(showMessageBox).toHaveBeenCalledOnce()
+    expect(fakeWindow.webContents.reload).not.toHaveBeenCalled()
+    resolvePrompt?.({ response: 1 })
+    await vi.waitFor(() => {
+      expect(fakeWindow.webContents.reload).toHaveBeenCalledOnce()
+    })
+  })
+
+  it('does not recover a pending renderer exit after teardown begins', async () => {
+    let rejectPrompt: ((error: Error) => void) | undefined
+    showMessageBox.mockReturnValueOnce(new Promise((_resolve, reject) => {
+      rejectPrompt = reject
+    }))
+
+    fakeWindow.webContents.emit('unresponsive')
+    emitRendererExit('crashed', 1)
+    fakeWindow.emit('close')
+    rejectPrompt?.(new Error('window closed'))
+
+    await vi.waitFor(() => {
+      expect(console.error).toHaveBeenCalledWith(
+        '[maximal-client] renderer recovery prompt failed:',
+        expect.any(Error),
+      )
+    })
+    expect(fakeWindow.webContents.reload).not.toHaveBeenCalled()
+  })
+
+  it('offers reload instead of requiring an application restart when unresponsive', async () => {
+    fakeWindow.webContents.emit('unresponsive')
+
+    await expectReloadPrompt(['Reload Window', 'Wait'])
+  })
+
+  it('offers reload after a main renderer load failure', async () => {
+    fakeWindow.webContents.emit(
+      'did-fail-load',
+      {},
+      -102,
+      'Connection refused',
+      'http://localhost:5173',
+      true,
+    )
+
+    await expectReloadPrompt(['Reload Window', 'Close Window'])
+  })
+
+  it('does not recover a renderer while the application is quitting', () => {
+    fakeApp.emit('before-quit', { preventDefault: vi.fn() })
+    emitRendererExit('clean-exit', 0)
+
+    expectNoRecovery()
   })
 })
 

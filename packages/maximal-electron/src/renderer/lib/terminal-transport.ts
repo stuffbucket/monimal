@@ -1,4 +1,5 @@
 import type { TerminalTheme } from './terminal-emulator.js';
+import type { TerminalPane } from './terminal-pane.js';
 
 /**
  * What a terminal needs from its host, as a contract rather than an import.
@@ -53,6 +54,11 @@ export interface TerminalSession {
   shell: string;
   /** Milliseconds since the epoch. */
   startedAt: number;
+  /** Optional host-owned restoration metadata. */
+  title?: string;
+  canRunInBackground?: boolean;
+  pane?: TerminalPane;
+  revision?: number;
 }
 
 export interface TerminalTransport {

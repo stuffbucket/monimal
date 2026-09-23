@@ -104,6 +104,7 @@ export {
   type TerminalShellTab,
 } from "./lib/terminal-tab.js";
 export {
+  isTerminalPane,
   removeTerminalPane,
   splitTerminalPane,
   terminalPaneSessionIds,

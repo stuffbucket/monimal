@@ -166,7 +166,10 @@ describe('command connectors', () => {
       return '';
     }, runnerFor({}));
 
-    expect({ id: connector.id, label: connector.label }).toEqual({ id: 'ssh-tmux', label: 'SSH + Tmux' });
+    expect({ id: connector.id, label: connector.label }).toEqual({
+      id: 'ssh-tmux',
+      label: 'SSH',
+    });
     await expect(connector.discover()).resolves.toEqual([]);
     expect(reads).toEqual([['/home/ada/.ssh/config', 64 * 1024]]);
   });
