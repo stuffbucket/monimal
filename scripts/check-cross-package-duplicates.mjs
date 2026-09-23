@@ -77,6 +77,7 @@ const KNOWN_CROSS_PACKAGE_DUPLICATE_PAIRS = [
   "packages/maximal-core/src/lib/host-config/json-resource-set.ts <-> packages/maximal-core/src/lib/host-config/json-target.ts",
   "packages/maximal-electron/src/renderer/index.ts <-> packages/maximal/client/src/renderer/settings/capabilities.ts",
   "packages/maximal-electron/src/renderer/lib/content-lorem.ts <-> packages/maximal-electron/src/renderer/lib/content.ts",
+  "packages/maximal-electron/src/renderer/styles/controls.css <-> packages/maximal-electron/src/renderer/styles/shell-package-rules.css",
   "packages/maximal-electron/src/renderer/styles/controls.css <-> packages/maximal-electron/src/renderer/styles/shell.css",
   "packages/maximal-electron/src/renderer/styles/shell-package-rules.css <-> packages/maximal-electron/src/renderer/styles/shell.css",
   "packages/maximal-observability/src/Overview.tsx <-> packages/maximal-observability/src/TrafficExplorer.tsx",
