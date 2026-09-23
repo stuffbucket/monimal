@@ -1,0 +1,932 @@
+[
+  {
+    "path": "packages/maximal-configurators/tests/configurators.test.ts",
+    "literal": "http://127.0.0.1:41501",
+    "count": 3
+  },
+  {
+    "path": "packages/maximal-core/downstream/src/client-consumer.ts",
+    "literal": "http://127.0.0.1:4141",
+    "count": 5
+  },
+  {
+    "path": "packages/maximal-core/downstream/src/supervisor-consumer.ts",
+    "literal": "http://127.0.0.1",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-core/scripts/dev/harness/occupant.ts",
+    "literal": "127.0.0.1",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/scripts/dev/harness/sidecar.ts",
+    "literal": "127.0.0.1",
+    "count": 4
+  },
+  {
+    "path": "packages/maximal-core/scripts/dev/harness/sidecar.ts",
+    "literal": "http://127.0.0.1",
+    "count": 3
+  },
+  {
+    "path": "packages/maximal-core/scripts/dev/measure-baseline.ts",
+    "literal": "http://127.0.0.1:4141",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-core/scripts/dev/measure-baseline.ts",
+    "literal": "http://127.0.0.1:4142",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-core/scripts/dev/verify-build.ts",
+    "literal": "http://127.0.0.1:4141",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-core/scripts/dev/verify-build.ts",
+    "literal": "http://127.0.0.1:4142",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-core/src/apps/claude-code/config.ts",
+    "literal": "http://127.0.0.1:4141",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/src/apps/claude-desktop/config.ts",
+    "literal": "http://127.0.0.1:4141",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/src/lib/auth/origin-guard.ts",
+    "literal": "127.0.0.1",
+    "count": 3
+  },
+  {
+    "path": "packages/maximal-core/src/lib/auth/origin-guard.ts",
+    "literal": "[::1]",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/src/lib/auth/origin-guard.ts",
+    "literal": "http://127.0.0.1",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/src/lib/auth/origin-guard.ts",
+    "literal": "http://localhost",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/src/lib/auth/origin-guard.ts",
+    "literal": "localhost",
+    "count": 9
+  },
+  {
+    "path": "packages/maximal-core/src/lib/auth/request-auth.ts",
+    "literal": "127.0.0.1",
+    "count": 4
+  },
+  {
+    "path": "packages/maximal-core/src/lib/config/api-config.ts",
+    "literal": "127.0.0.1",
+    "count": 4
+  },
+  {
+    "path": "packages/maximal-core/src/lib/config/api-config.ts",
+    "literal": "[::1]",
+    "count": 3
+  },
+  {
+    "path": "packages/maximal-core/src/lib/config/api-config.ts",
+    "literal": "http://127.0.0.1",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-core/src/lib/config/api-config.ts",
+    "literal": "http://[::1]",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/src/lib/config/config.ts",
+    "literal": "http://127.0.0.1:11434",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/src/lib/config/settings-types.ts",
+    "literal": "localhost",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/src/lib/configurator-host-runtime.ts",
+    "literal": "http://127.0.0.1",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/src/lib/host-config/runtime-identity.ts",
+    "literal": "http://127.0.0.1",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/src/lib/live/client.ts",
+    "literal": "http://127.0.0.1:4141",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/src/lib/live/runtime-endpoint.ts",
+    "literal": "http://127.0.0.1",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/src/lib/net/network-diagnostics.ts",
+    "literal": "1.0.0.1",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-core/src/lib/net/network-diagnostics.ts",
+    "literal": "1.1.1.1",
+    "count": 3
+  },
+  {
+    "path": "packages/maximal-core/src/lib/platform/replace-running.ts",
+    "literal": "127.0.0.1",
+    "count": 3
+  },
+  {
+    "path": "packages/maximal-core/src/lib/platform/replace-running.ts",
+    "literal": "http://127.0.0.1",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-core/src/lib/platform/replace-running.ts",
+    "literal": "http://localhost",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/src/lib/runtime-state/state.ts",
+    "literal": "http://localhost",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/src/lib/start/boot-io.ts",
+    "literal": "http://127.0.0.1",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/src/lib/start/boot-io.ts",
+    "literal": "http://localhost",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/src/lib/start/port.ts",
+    "literal": "0.0.0.0",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-core/src/lib/start/port.ts",
+    "literal": "127.0.0.1",
+    "count": 4
+  },
+  {
+    "path": "packages/maximal-core/src/lib/start/port.ts",
+    "literal": "http://localhost",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/src/lib/start/run-server.ts",
+    "literal": "127.0.0.1",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/src/lib/start/run-server.ts",
+    "literal": "http://localhost",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/src/server.ts",
+    "literal": "http://127.0.0.1:4141",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/src/services/providers/ollama-accounts.ts",
+    "literal": "127.0.0.1",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/src/services/providers/ollama-accounts.ts",
+    "literal": "localhost",
+    "count": 3
+  },
+  {
+    "path": "packages/maximal-core/src/services/providers/provider-dispatcher.ts",
+    "literal": "http://localhost",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/src/setup.ts",
+    "literal": "http://localhost",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-core/tests/claude-desktop-3p-config.test.ts",
+    "literal": "http://127.0.0.1:9999",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-core/tests/copilot-token-stale.test.ts",
+    "literal": "127.0.0.1",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/github-api-base-override.test.ts",
+    "literal": "127.0.0.1",
+    "count": 20
+  },
+  {
+    "path": "packages/maximal-core/tests/github-api-base-override.test.ts",
+    "literal": "127.0.0.1:9999",
+    "count": 17
+  },
+  {
+    "path": "packages/maximal-core/tests/github-api-base-override.test.ts",
+    "literal": "http://127.0.0.1",
+    "count": 14
+  },
+  {
+    "path": "packages/maximal-core/tests/github-api-base-override.test.ts",
+    "literal": "http://127.0.0.1:9999",
+    "count": 13
+  },
+  {
+    "path": "packages/maximal-core/tests/github-api-base-override.test.ts",
+    "literal": "http://127.0.0.2:9999",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/github-api-base-override.test.ts",
+    "literal": "http://[::1]",
+    "count": 4
+  },
+  {
+    "path": "packages/maximal-core/tests/github-api-base-override.test.ts",
+    "literal": "http://[::1]:8443",
+    "count": 3
+  },
+  {
+    "path": "packages/maximal-core/tests/github-api-base-override.test.ts",
+    "literal": "http://[::2]:9999",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/github-api-base-override.test.ts",
+    "literal": "http://localhost:9999",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/github-api-base-override.test.ts",
+    "literal": "https://127.0.0.1:9999",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/github-api-base-override.test.ts",
+    "literal": "https://[::1]:9999",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/helpers/free-port.ts",
+    "literal": "127.0.0.1",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-core/tests/helpers/rfc-network-fixtures.ts",
+    "literal": "192.0.2.1",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/helpers/rfc-network-fixtures.ts",
+    "literal": "198.51.100.1",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/helpers/rfc-network-fixtures.ts",
+    "literal": "203.0.113.1",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/helpers/spawn-engine.ts",
+    "literal": "http://127.0.0.1",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-core/tests/host-config-json-resource-set.test.ts",
+    "literal": "http://127.0.0.1:41501",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-core/tests/host-config-json-resource-set.test.ts",
+    "literal": "http://127.0.0.1:41502",
+    "count": 3
+  },
+  {
+    "path": "packages/maximal-core/tests/host-config-json-target.test.ts",
+    "literal": "http://127.0.0.1:41501",
+    "count": 14
+  },
+  {
+    "path": "packages/maximal-core/tests/host-config-json-target.test.ts",
+    "literal": "http://127.0.0.1:41502",
+    "count": 4
+  },
+  {
+    "path": "packages/maximal-core/tests/host-config-runtime-identity.test.ts",
+    "literal": "http://127.0.0.1:42501",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/internal-shutdown.test.ts",
+    "literal": "10.0.0.5",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/internal-shutdown.test.ts",
+    "literal": "127.0.0.1",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-core/tests/jsonrpc/control-rpc.test.ts",
+    "literal": "127.0.0.1",
+    "count": 3
+  },
+  {
+    "path": "packages/maximal-core/tests/jsonrpc/control-rpc.test.ts",
+    "literal": "203.0.113.7",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/live/control-client.test.ts",
+    "literal": "127.0.0.1",
+    "count": 9
+  },
+  {
+    "path": "packages/maximal-core/tests/live/control-client.test.ts",
+    "literal": "http://127.0.0.1",
+    "count": 8
+  },
+  {
+    "path": "packages/maximal-core/tests/live/control-client.test.ts",
+    "literal": "http://127.0.0.1:1",
+    "count": 7
+  },
+  {
+    "path": "packages/maximal-core/tests/live/control-route.test.ts",
+    "literal": "127.0.0.1",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/live/control-route.test.ts",
+    "literal": "203.0.113.7",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/local-model-control.test.ts",
+    "literal": "127.0.0.1",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/log-redact.test.ts",
+    "literal": "140.82.112.6",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-core/tests/measure-baseline.test.ts",
+    "literal": "http://127.0.0.1:4141",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/measure-baseline.test.ts",
+    "literal": "http://127.0.0.1:4142",
+    "count": 4
+  },
+  {
+    "path": "packages/maximal-core/tests/model-routing.test.ts",
+    "literal": "http://localhost",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-core/tests/ollama-accounts.test.ts",
+    "literal": "http://127.0.0.1:11434",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-core/tests/ollama-accounts.test.ts",
+    "literal": "localhost",
+    "count": 3
+  },
+  {
+    "path": "packages/maximal-core/tests/ollama-provider.test.ts",
+    "literal": "192.168.1.20:11500",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-core/tests/ollama-provider.test.ts",
+    "literal": "http://127.0.0.1:11434",
+    "count": 3
+  },
+  {
+    "path": "packages/maximal-core/tests/ollama-provider.test.ts",
+    "literal": "http://192.168.1.20:11500",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/provider-dispatcher.test.ts",
+    "literal": "http://localhost",
+    "count": 16
+  },
+  {
+    "path": "packages/maximal-core/tests/replace-running.test.ts",
+    "literal": "127.0.0.1",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/request-auth.test.ts",
+    "literal": "10.0.0.1",
+    "count": 4
+  },
+  {
+    "path": "packages/maximal-core/tests/request-auth.test.ts",
+    "literal": "127.0.0.1",
+    "count": 9
+  },
+  {
+    "path": "packages/maximal-core/tests/request-auth.test.ts",
+    "literal": "192.168.1.5",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/request-auth.test.ts",
+    "literal": "203.0.113.7",
+    "count": 25
+  },
+  {
+    "path": "packages/maximal-core/tests/runtime-endpoint.test.ts",
+    "literal": "http://127.0.0.1:41502",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/security/origin-guard.test.ts",
+    "literal": "http://127.0.0.1",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/security/origin-guard.test.ts",
+    "literal": "http://[::1]",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/security/origin-guard.test.ts",
+    "literal": "http://localhost",
+    "count": 5
+  },
+  {
+    "path": "packages/maximal-core/tests/spawned-engine-ports.test.ts",
+    "literal": "127.0.0.1",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-core/tests/start-port-policy.test.ts",
+    "literal": "127.0.0.1",
+    "count": 4
+  },
+  {
+    "path": "packages/maximal-core/tests/start-run-server.test.ts",
+    "literal": "127.0.0.1",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/start-run-server.test.ts",
+    "literal": "http://localhost",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/verify-build.test.ts",
+    "literal": "http://127.0.0.1:4141",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/verify-build.test.ts",
+    "literal": "http://127.0.0.1:4142",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-electron/.storybook/preview-head.html",
+    "literal": "140.0.0.0",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-electron/scripts/storybook-check.mjs",
+    "literal": "http://localhost",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-electron/src/renderer/components/settings/SettingsPage.stories.tsx",
+    "literal": "http://127.0.0.1:4141",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-electron/src/renderer/lib/sample-settings.ts",
+    "literal": "http://127.0.0.1:4141",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-electron/src/renderer/lib/sample-settings.ts",
+    "literal": "localhost:4141",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-electron/tests/bridge-capabilities.test.ts",
+    "literal": "http://127.0.0.1:9731",
+    "count": 8
+  },
+  {
+    "path": "packages/maximal-electron/tests/bridge-capabilities.test.ts",
+    "literal": "localhost:9731",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-electron/tests/host-window.test.ts",
+    "literal": "http://127.0.0.1:9731",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-electron/tests/main-options.test.ts",
+    "literal": "http://127.0.0.1:53211",
+    "count": 4
+  },
+  {
+    "path": "packages/maximal-electron/tests/neutrality.test.ts",
+    "literal": "http://localhost:4141",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-electron/tests/run-main.test.ts",
+    "literal": "http://127.0.0.1:53211",
+    "count": 4
+  },
+  {
+    "path": "packages/maximal-harness/src/host/agent.ts",
+    "literal": "http://localhost:11434",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-harness/src/host/agent.ts",
+    "literal": "http://localhost:4141",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-harness/src/host/provider-endpoint.ts",
+    "literal": "127.0.0.1",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-harness/src/host/provider-endpoint.ts",
+    "literal": "[::1]",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-harness/src/host/provider-endpoint.ts",
+    "literal": "localhost",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-harness/tests/agent.test.ts",
+    "literal": "http://127.0.0.1:4141",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-harness/tests/provider-endpoint.test.ts",
+    "literal": "http://127.0.0.1:53219",
+    "count": 8
+  },
+  {
+    "path": "packages/maximal-harness/tests/provider-endpoint.test.ts",
+    "literal": "http://127.0.0.2:4141",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-harness/tests/provider-endpoint.test.ts",
+    "literal": "http://[::1]:8080",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-harness/tests/provider-endpoint.test.ts",
+    "literal": "http://localhost",
+    "count": 5
+  },
+  {
+    "path": "packages/maximal-harness/tests/provider-endpoint.test.ts",
+    "literal": "http://localhost:11434",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-harness/tests/provider-endpoint.test.ts",
+    "literal": "http://localhost:4141",
+    "count": 3
+  },
+  {
+    "path": "packages/maximal-harness/tests/provider-endpoint.test.ts",
+    "literal": "https://localhost:9",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-harness/tests/provider-endpoint.test.ts",
+    "literal": "localhost:4141",
+    "count": 4
+  },
+  {
+    "path": "packages/maximal-models/scripts/compiled-bun-entry.ts",
+    "literal": "http://localhost",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-models/tests/bridge.test.ts",
+    "literal": "http://localhost",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-models/tests/host.test.ts",
+    "literal": "http://localhost",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-models/tests/replay-alignment.test.ts",
+    "literal": "http://localhost",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal/client/e2e/support/model-server.ts",
+    "literal": "127.0.0.1",
+    "count": 3
+  },
+  {
+    "path": "packages/maximal/client/e2e/support/model-server.ts",
+    "literal": "http://127.0.0.1",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal/client/scripts/ui-check.mjs",
+    "literal": "127.0.0.1",
+    "count": 3
+  },
+  {
+    "path": "packages/maximal/client/scripts/ui-check.mjs",
+    "literal": "http://127.0.0.1",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal/client/src/main/control-session.test.ts",
+    "literal": "http://127.0.0.1:4141",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal/client/src/main/control-session.test.ts",
+    "literal": "http://127.0.0.1:50001",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal/client/src/main/control-session.test.ts",
+    "literal": "http://127.0.0.1:50002",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal/client/src/main/core.ts",
+    "literal": "http://127.0.0.1",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal/client/src/main/index.test.ts",
+    "literal": "http://127.0.0.1:11434",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal/client/src/main/lifecycle-status.test.ts",
+    "literal": "http://127.0.0.1:4141",
+    "count": 3
+  },
+  {
+    "path": "packages/maximal/client/src/main/lifecycle-status.test.ts",
+    "literal": "http://127.0.0.1:54321",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal/client/src/main/ollama-runtime.test.ts",
+    "literal": "192.168.1.20:11500",
+    "count": 3
+  },
+  {
+    "path": "packages/maximal/client/src/main/ollama-runtime.test.ts",
+    "literal": "http://127.0.0.1:11434",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal/client/src/main/ollama-runtime.test.ts",
+    "literal": "http://192.168.1.20:11500",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal/client/src/main/ollama-runtime.ts",
+    "literal": "http://127.0.0.1:11434",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal/client/src/renderer/settings/AccountSection.test.tsx",
+    "literal": "http://127.0.0.1:11434",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal/client/src/renderer/settings/AccountSection.test.tsx",
+    "literal": "localhost",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal/client/src/renderer/settings/AccountsSection.test.tsx",
+    "literal": "127.0.0.1:11434",
+    "count": 6
+  },
+  {
+    "path": "packages/maximal/client/src/renderer/settings/AccountsSection.test.tsx",
+    "literal": "http://localhost:11434",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal/client/src/renderer/settings/ConnectionsSection.test.tsx",
+    "literal": "http://127.0.0.1:4173",
+    "count": 3
+  },
+  {
+    "path": "packages/maximal/client/src/renderer/settings/LocalModelsSection.test.tsx",
+    "literal": "http://127.0.0.1:11434",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal/client/src/renderer/settings/Settings.test.tsx",
+    "literal": "http://127.0.0.1:11434",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal/client/src/renderer/settings/Settings.test.tsx",
+    "literal": "http://127.0.0.1:4141",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal/client/src/renderer/settings/accounts/OllamaAccountsSection.tsx",
+    "literal": "localhost",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal/client/src/renderer/settings/capabilities.test.ts",
+    "literal": "http://127.0.0.1:11434",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal/client/src/renderer/settings/capabilities.test.ts",
+    "literal": "http://127.0.0.1:4141",
+    "count": 6
+  },
+  {
+    "path": "packages/maximal/client/src/renderer/settings/capabilities.test.ts",
+    "literal": "http://127.0.0.1:4142",
+    "count": 6
+  },
+  {
+    "path": "packages/maximal/client/src/renderer/settings/local-models/format.ts",
+    "literal": "127.0.0.1",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal/client/src/renderer/settings/local-models/format.ts",
+    "literal": "localhost",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal/client/src/renderer/settings/ui-preview-capabilities.ts",
+    "literal": "http://127.0.0.1:11434",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal/scripts/dev/verify-build.ts",
+    "literal": "http://127.0.0.1:4141",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal/scripts/dev/verify-build.ts",
+    "literal": "http://127.0.0.1:4142",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal/tests/provider-profile-integration.test.ts",
+    "literal": "127.0.0.1",
+    "count": 3
+  },
+  {
+    "path": "packages/maximal/tests/provider-profile-integration.test.ts",
+    "literal": "http://127.0.0.1",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal/tests/provider-profile-integration.test.ts",
+    "literal": "http://localhost",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal/tests/verify-build.test.ts",
+    "literal": "http://127.0.0.1:4141",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal/tests/verify-build.test.ts",
+    "literal": "http://127.0.0.1:4142",
+    "count": 2
+  },
+  {
+    "path": "packages/model-runtimes/anthropic/tests/helpers.ts",
+    "literal": "127.0.0.1",
+    "count": 2
+  },
+  {
+    "path": "packages/model-runtimes/anthropic/tests/helpers.ts",
+    "literal": "http://127.0.0.1",
+    "count": 1
+  },
+  {
+    "path": "packages/model-runtimes/anthropic/tests/lifecycle.test.ts",
+    "literal": "http://localhost:8123",
+    "count": 1
+  },
+  {
+    "path": "packages/model-runtimes/omlx/tests/index.test.js",
+    "literal": "127.0.0.1",
+    "count": 5
+  },
+  {
+    "path": "packages/model-runtimes/omlx/tests/index.test.js",
+    "literal": "http://127.0.0.1",
+    "count": 4
+  },
+  {
+    "path": "packages/model-runtimes/omlx/tests/index.test.js",
+    "literal": "http://127.0.0.1:1",
+    "count": 2
+  },
+  {
+    "path": "packages/model-runtimes/omlx/tests/index.test.js",
+    "literal": "http://127.0.0.1:2",
+    "count": 1
+  },
+  {
+    "path": "packages/model-runtimes/omlx/tests/index.test.js",
+    "literal": "http://localhost",
+    "count": 8
+  },
+  {
+    "path": "packages/model-runtimes/omlx/tests/index.test.js",
+    "literal": "http://localhost:8000",
+    "count": 2
+  },
+  {
+    "path": "packages/model-runtimes/omlx/tests/index.test.js",
+    "literal": "https://localhost",
+    "count": 1
+  },
+  {
+    "path": "packages/model-runtimes/omlx/tests/regressions.test.js",
+    "literal": "127.0.0.1",
+    "count": 4
+  },
+  {
+    "path": "packages/model-runtimes/omlx/tests/regressions.test.js",
+    "literal": "http://127.0.0.1",
+    "count": 3
+  },
+  {
+    "path": "packages/model-runtimes/omlx/tests/regressions.test.js",
+    "literal": "http://127.0.0.1:1",
+    "count": 2
+  },
+  {
+    "path": "scripts/check-network-literals.mjs",
+    "literal": "localhost",
+    "count": 2
+  },
+  {
+    "path": "tests/docker-test-policy.test.mjs",
+    "literal": "127.0.0.1",
+    "count": 1
+  },
+  {
+    "path": "tests/docker-test-policy.test.mjs",
+    "literal": "172.18.0.2",
+    "count": 1
+  }
+]

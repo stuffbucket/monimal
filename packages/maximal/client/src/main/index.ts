@@ -602,23 +602,36 @@ void app.whenReady().then(async () => {
   registerIpc(controlSession, nativeMode)
   startHarnessHost()
 
+  const splashPreview = isSplashPreview()
+  let coreReady = false
+  let rendererReady = false
+  const closeReadySplash = (): void => {
+    if (!splashPreview && coreReady && rendererReady) closeSplashWindow()
+  }
+
   onCoreStatus((status) => {
     if (status.phase === 'ready') {
+      coreReady = true
       console.log(
         `[maximal-client] core ready — control ${status.controlOrigin}, proxy ${status.proxyUrl}`,
       )
+      closeReadySplash()
     }
     broadcastCoreStatus(status)
   })
 
-  const splashPreview = isSplashPreview()
   createSplashWindow({
     name: 'maximal',
     version: app.getVersion(),
     dismissAfterMs: splashPreview ? false : undefined,
   })
   const win = createWindow()
-  if (!splashPreview) win.once('ready-to-show', closeSplashWindow)
+  if (!splashPreview) {
+    win.once('ready-to-show', () => {
+      rendererReady = true
+      closeReadySplash()
+    })
+  }
   if (process.env.STUFFBUCKET_HARNESS_START_OPEN === '1') showHarnessHost()
   app.on('activate', () => {
     activateWindow()

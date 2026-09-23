@@ -2,6 +2,8 @@
 
 This is the documentation DAG root.
 
+Agents MUST read [CHURN.md](CHURN.md).
+
 Every `AGENTS.md` uses RFC 2119 keywords: MUST, MUST NOT, SHOULD, SHOULD NOT,
 MAY. Documentation MUST NOT include nonbinding background.
 
@@ -18,21 +20,11 @@ MAY. Documentation MUST NOT include nonbinding background.
 5. Orientation MUST stop when the behavior owner and applicable constraints are
    known.
 
-## Before writing code that echoes another package
-
-Query the workspace export map: **`node scripts/query-exports.mjs @stuffbucket/package-b ./export-name`** — if it exists and is public, import it instead of reimplementing. If not, use `@stuffbucket/package-b` through its public entry point (never `src/**`). Document intentional mirrors with a comment. See [`docs/query-exports.md`](docs/query-exports.md).
-
 ## Documentation
 
-- Facts MUST have one owner; other mentions MUST link to it.
 - Rules MUST state one requirement and be compatible.
 - Preferences SHOULD use SHOULD or MAY.
 - Runtime behavior MUST be documented in code.
-- Knowledge MUST live in one subtree, except vendored `packages/` copies from separate upstreams.
-- Repeated clauses SHOULD be listed.
-
-The tiered native and Docker test workflow is documented only in
-[`docs/testing-in-docker.md`](docs/testing-in-docker.md).
 
 ## Dependencies
 

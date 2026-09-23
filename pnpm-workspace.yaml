@@ -2,8 +2,8 @@ packages:
   - "packages/**"
   - "!packages/maximal-core/downstream"
 
-# Warn about dependency drift before scripts without performing an implicit install.
-verifyDepsBeforeRun: warn
+# Synchronize a stale dependency graph once, then retry the requested script.
+verifyDepsBeforeRun: install
 
 # pnpm 11 reads workspace settings from this file.
 overrides:
