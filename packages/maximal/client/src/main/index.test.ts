@@ -1243,6 +1243,28 @@ describe('window-all-closed / before-quit', () => {
     expect(fakeApp.quit).not.toHaveBeenCalled()
   })
 
+  it('confirms and stops terminal sessions before a packaged quit', async () => {
+    fakeApp.isPackaged = true
+    activeTerminalCountMock.mockReturnValueOnce(1)
+    showMessageBox.mockResolvedValueOnce({ response: 1 })
+    await loadIndexOn('darwin')
+    const event = { preventDefault: vi.fn() }
+
+    fakeApp.emit('before-quit', event)
+
+    await vi.waitFor(() => {
+      expect(showMessageBox).toHaveBeenCalledWith(
+        fakeWindow,
+        expect.objectContaining({ detail: 'Terminal sessions are still running.' }),
+      )
+    })
+    expect(event.preventDefault).toHaveBeenCalledOnce()
+    await vi.waitFor(() => {
+      expect(stopTerminalHostMock).toHaveBeenCalledOnce()
+      expect(fakeApp.quit).toHaveBeenCalledOnce()
+    })
+  })
+
   it('defers Electron quit until named shutdown joiners complete', async () => {
     await loadIndexOn('darwin')
     let resolveShutdown: (() => void) | undefined
