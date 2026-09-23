@@ -122,6 +122,7 @@ describe('ShellLayout panel topology', () => {
     const tabs = [
       { id: 'first', title: 'First' },
       { id: 'second', title: 'Second' },
+      { id: 'new', title: 'New' },
     ];
 
     act(() => root.render(
@@ -159,6 +160,21 @@ describe('ShellLayout panel topology', () => {
       'react-resizable-panels:topology-test:tab:second:right:main:right',
     )).toBe(JSON.stringify({ main: 65, right: 35 }));
     expect(panels?.querySelector<HTMLElement>('[data-panel]')?.style.flexGrow).toBe('65');
+
+    act(() => root.render(
+      <ShellLayout
+        layoutId="topology-test"
+        tabs={tabs}
+        activeTab="new"
+        onSelectTab={() => undefined}
+        right={<aside>Inspector</aside>}
+        main={<div>content</div>}
+      />,
+    ));
+    act(() => flushResizeObservers());
+
+    expect(container.querySelector('.panels')).toBe(panels);
+    expect(panels?.querySelector<HTMLElement>('[data-panel]')?.style.flexGrow).toBe('78');
     act(() => root.unmount());
   });
 });

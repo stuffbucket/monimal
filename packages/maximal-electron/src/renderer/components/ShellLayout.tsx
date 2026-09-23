@@ -3,6 +3,7 @@ import { PanelLeft, PanelRight } from 'lucide-react';
 import {
   useCallback,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -166,8 +167,10 @@ export function ShellLayout<T extends Tab>({
   const rightPanel = usePanelRef();
   const bottomPanel = usePanelRef();
   const documentGroup = useGroupRef();
+  const topologyDefaultLayouts = useRef(new Map<string, Layout>());
   const documentPanelIds = PANEL_IDS[documentStructure];
   const documentLayoutId = `${layoutId}:tab:${encodeURIComponent(activeTab)}:${documentStructure}`;
+  const documentTopologyId = `${layoutId}:${documentStructure}`;
   const layout = useDefaultLayout({
     id: documentLayoutId,
     panelIds: documentPanelIds,
@@ -175,10 +178,26 @@ export function ShellLayout<T extends Tab>({
   const defaultDocumentLayout = layoutForPanels(layout.defaultLayout, documentPanelIds);
 
   useEffect(() => {
-    if (defaultDocumentLayout !== undefined) {
-      documentGroup.current?.setLayout(defaultDocumentLayout);
+    let topologyDefault = topologyDefaultLayouts.current.get(documentTopologyId);
+    if (topologyDefault === undefined) {
+      topologyDefault = layoutForPanels(
+        documentGroup.current?.getLayout(),
+        documentPanelIds,
+      );
+      if (topologyDefault !== undefined) {
+        topologyDefaultLayouts.current.set(documentTopologyId, topologyDefault);
+      }
     }
-  }, [defaultDocumentLayout, documentGroup]);
+    const nextLayout = defaultDocumentLayout ?? topologyDefault;
+    if (nextLayout !== undefined) {
+      documentGroup.current?.setLayout(nextLayout);
+    }
+  }, [
+    defaultDocumentLayout,
+    documentGroup,
+    documentPanelIds,
+    documentTopologyId,
+  ]);
 
   // A second, independent layout for the centre column's split. Only created
   // when there is something to split.
@@ -273,7 +292,6 @@ export function ShellLayout<T extends Tab>({
             groupRef={documentGroup}
             orientation="horizontal"
             className="panels"
-            defaultLayout={defaultDocumentLayout}
             onLayoutChanged={onDocumentLayoutChanged}
           >
             {hasLeft && (

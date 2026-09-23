@@ -917,6 +917,26 @@ describe('renderer recovery', () => {
     })
   })
 
+  it('does not recover a pending renderer exit after teardown begins', async () => {
+    let rejectPrompt: ((error: Error) => void) | undefined
+    showMessageBox.mockReturnValueOnce(new Promise((_resolve, reject) => {
+      rejectPrompt = reject
+    }))
+
+    fakeWindow.webContents.emit('unresponsive')
+    emitRendererExit('crashed', 1)
+    fakeWindow.emit('close')
+    rejectPrompt?.(new Error('window closed'))
+
+    await vi.waitFor(() => {
+      expect(console.error).toHaveBeenCalledWith(
+        '[maximal-client] renderer recovery prompt failed:',
+        expect.any(Error),
+      )
+    })
+    expect(fakeWindow.webContents.reload).not.toHaveBeenCalled()
+  })
+
   it('offers reload instead of requiring an application restart when unresponsive', async () => {
     fakeWindow.webContents.emit('unresponsive')
 

@@ -369,6 +369,7 @@ function installRendererRecovery(win: BrowserWindow): void {
   }
 
   const recoverFromUnexpectedExit = (): void => {
+    if (quitting || closing || win.isDestroyed()) return
     if (!automaticReloadAttempted) {
       automaticReloadAttempted = true
       win.webContents.reload()
