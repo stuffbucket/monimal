@@ -1,4 +1,4 @@
-// Shared "spell a device code out for assistive tech" helper. First-run and
+// Shared "spell a device code out for assistive tech" helper. Account settings
 // settings render the same device code and must announce it identically.
 
 /** Spells a code out for assistive tech: "1234-ABCD" -> "1 2 3 4 dash A B C

@@ -396,22 +396,14 @@ export function isAgentBusy(): boolean {
  * Stop any run and wait for it to actually finish.
  *
  * Call this before the application quits. Aborting alone is not enough: abort
- * asks the engine to stop, and this waits for it to have stopped. The timeout
- * exists so a wedged engine delays a quit rather than preventing one.
+ * asks the engine to stop, and this waits for it to have stopped.
  */
-export async function shutdownAgent(timeoutMs = 5_000): Promise<void> {
+export async function shutdownAgent(): Promise<void> {
   abortAgent();
 
   const pending = inFlight;
   if (!pending) return;
-
-  await Promise.race([
-    pending,
-    new Promise<void>((resolve) => {
-      const timer = setTimeout(resolve, timeoutMs);
-      timer.unref?.();
-    }),
-  ]);
+  await pending;
 }
 
 /** Stop the current run. Safe to call when nothing is running. */

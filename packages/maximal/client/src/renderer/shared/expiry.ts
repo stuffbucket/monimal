@@ -1,4 +1,4 @@
-// Shared "time until an ISO expiry" derivation, used by the first-run and
+// Shared "time until an ISO expiry" derivation, used by the account settings
 // settings countdowns. The one place that arithmetic happens, so the two
 // surfaces cannot pick different guards for the same bad input.
 

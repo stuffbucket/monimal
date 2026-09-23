@@ -363,7 +363,14 @@ if (selfCheckRequested(process.argv)) {
       onWindowAllClosed: () => {
         if (getPreferences().menuBarIcon) setDockVisible(false);
       },
-      beforeShutdown: shutdown,
+      configureShutdown: (lifecycle) => {
+        lifecycle.onWillShutdown((event) => {
+          event.join(Promise.resolve().then(shutdown), {
+            id: 'reference-app',
+            label: 'Application services',
+          });
+        });
+      },
     },
   );
 }

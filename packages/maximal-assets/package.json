@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "@stuffbucket/maximal-assets",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Canonical Maximal brand assets and visual configuration.",
+  "type": "module",
+  "exports": {
+    "./brand": {
+      "types": "./src/brand.ts",
+      "import": "./src/brand.ts"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "node --test",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@stuffbucket/eslint-config": "workspace:*",
+    "@types/node": "^26.4.0",
+    "typescript": "npm:@typescript/typescript6@^6.0.2"
+  }
+}

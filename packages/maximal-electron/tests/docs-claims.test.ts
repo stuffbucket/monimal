@@ -209,8 +209,8 @@ describe('pathClaims', () => {
     });
 
     it('collects a path under any build root, not only the first', () => {
-      expect(pathClaims('`out/Stuffbucket-win32-x64/`', scope).build).toEqual([
-        'out/Stuffbucket-win32-x64/',
+      expect(pathClaims('`out/Maximal-win32-x64/`', scope).build).toEqual([
+        'out/Maximal-win32-x64/',
       ]);
     });
 

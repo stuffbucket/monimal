@@ -78,6 +78,10 @@ function fakeCapabilities(): SettingsCapabilities {
       cancelMenuBarOnly: vi.fn(async () => ({ enabled: false, pending: false })),
       disableMenuBarOnly: vi.fn(async () => ({ enabled: false, pending: false })),
     },
+    providerOnboarding: {
+      get: vi.fn(async () => ({ dismissed: false })),
+      setDismissed: vi.fn(async (dismissed: boolean) => ({ dismissed })),
+    },
     connections: {
       list: vi.fn(async () => ({
         clients: [],

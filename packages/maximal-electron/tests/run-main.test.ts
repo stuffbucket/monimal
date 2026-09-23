@@ -2,6 +2,7 @@ import type { App } from 'electron';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { HostWindowOptions } from '../src/host/host-window.js';
+import type { ShutdownLifecycle } from '../src/host/shutdown-lifecycle.js';
 
 const electron = vi.hoisted(() => {
   class FakeWindow {
@@ -101,10 +102,10 @@ describe('runMain', () => {
 
     await expect(
       runMain(runtime, {
-        version: 3 as typeof RUN_MAIN_OPTIONS_VERSION,
+        version: 4 as typeof RUN_MAIN_OPTIONS_VERSION,
         window: () => windowOptions,
       }),
-    ).rejects.toThrow('runMain options are version 2, and this call passed 3.');
+    ).rejects.toThrow('runMain options are version 3, and this call passed 4.');
     expect(electron.created).toHaveLength(0);
   });
 
@@ -317,52 +318,66 @@ describe('runMain', () => {
     expect(app.quit).not.toHaveBeenCalled();
   });
 
-  it('defers the quit until pending shutdown work settles, then lets it through', async () => {
+  it('defers the quit until shutdown joiners settle, then lets it through', async () => {
     const { app, runtime } = fakeApp();
+    let shutdown: ShutdownLifecycle | undefined;
     let release = () => undefined as void;
     const pending = new Promise<void>((resolve) => {
       release = () => {
         resolve();
       };
     });
-    const beforeShutdown = vi.fn(() => pending);
+    const join = vi.fn((lifecycle: ShutdownLifecycle) => {
+      shutdown = lifecycle;
+      lifecycle.onWillShutdown((event) => {
+        event.join(pending, { id: 'core', label: 'Core' });
+      });
+    });
     const event = { preventDefault: vi.fn() };
 
     await runMain(runtime, {
       version: RUN_MAIN_OPTIONS_VERSION,
       window: () => windowOptions,
-      beforeShutdown,
+      configureShutdown: join,
     });
 
     app.emit('before-quit', event);
     expect(event.preventDefault).toHaveBeenCalledOnce();
     expect(app.quit).not.toHaveBeenCalled();
 
+    const repeated = { preventDefault: vi.fn() };
+    app.emit('before-quit', repeated);
+    expect(repeated.preventDefault).toHaveBeenCalledOnce();
+
     release();
     await pending;
+    await shutdown?.request('quit');
     await Promise.resolve();
     expect(app.quit).toHaveBeenCalledOnce();
 
-    // The quit that follows must not run the shutdown again, or preventDefault
-    // on the second pass would leave the application unable to quit at all.
     app.emit('before-quit', event);
-    expect(beforeShutdown).toHaveBeenCalledOnce();
+    expect(join).toHaveBeenCalledOnce();
     expect(event.preventDefault).toHaveBeenCalledOnce();
   });
 
-  it('lets the quit through when shutdown work finishes synchronously', async () => {
+  it('vetoes a quit before the committed shutdown phase', async () => {
     const { app, runtime } = fakeApp();
-    const beforeShutdown = vi.fn(() => undefined);
     const event = { preventDefault: vi.fn() };
 
     await runMain(runtime, {
       version: RUN_MAIN_OPTIONS_VERSION,
       window: () => windowOptions,
-      beforeShutdown,
+      configureShutdown: (lifecycle) => {
+        lifecycle.onBeforeShutdown((before) => {
+          before.veto(true, { id: 'editor', label: 'Unsaved editor' });
+        });
+      },
     });
 
     app.emit('before-quit', event);
-    expect(beforeShutdown).toHaveBeenCalledOnce();
-    expect(event.preventDefault).not.toHaveBeenCalled();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(event.preventDefault).toHaveBeenCalledOnce();
+    expect(app.quit).not.toHaveBeenCalled();
   });
 });

@@ -1,21 +1,21 @@
 import { useEffect, useState } from 'react'
 
-import type { SettingsCapabilities } from './settings/capabilities'
+import type { AuthStatus, SettingsCapabilities } from './settings/capabilities'
 
 const POLL_MS = 3_000
 
-export function useAuthStatus(settings: SettingsCapabilities): boolean | null {
-  const [authenticated, setAuthenticated] = useState<boolean | null>(null)
+export function useAccountStatus(settings: SettingsCapabilities): AuthStatus | null {
+  const [status, setStatus] = useState<AuthStatus | null>(null)
 
   useEffect(() => {
     let cancelled = false
 
     const refresh = async (): Promise<void> => {
       try {
-        const status = await settings.account.status()
-        if (!cancelled) setAuthenticated(status.state === 'authenticated')
+        const next = await settings.account.status()
+        if (!cancelled) setStatus(next)
       } catch {
-        // Keep the current answer while Core is unavailable or still starting.
+        // The subscription and poll retry after transient Core startup failures.
       }
     }
 
@@ -29,5 +29,5 @@ export function useAuthStatus(settings: SettingsCapabilities): boolean | null {
     }
   }, [settings])
 
-  return authenticated
+  return status
 }

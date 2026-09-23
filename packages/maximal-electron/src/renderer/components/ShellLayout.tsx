@@ -101,6 +101,7 @@ export type ShellLayoutProps<T extends Tab> = {
   /** Optional host event adapter, such as an Electron menu subscription. */
   subscribeToPanelToggles?: PanelToggleSubscription;
   top?: ReactNode;
+  activity?: ReactNode;
   left?: (collapsed: boolean) => ReactNode;
   main: ReactNode;
   bottom?: ReactNode;
@@ -127,6 +128,7 @@ export function ShellLayout<T extends Tab>({
   titleBarActions,
   subscribeToPanelToggles,
   top,
+  activity,
   left,
   main,
   bottom,
@@ -171,7 +173,16 @@ export function ShellLayout<T extends Tab>({
     if (!group) return;
     const nextLayout = layout.defaultLayout ?? initialDocumentLayouts.current.get(documentStructure);
     if (nextLayout) group.setLayout(nextLayout);
-  }, [activeTab, documentGroup, documentStructure, layout.defaultLayout]);
+    setLeftCollapsed(leftPanel.current?.isCollapsed() ?? false);
+    setRightCollapsed(rightPanel.current?.isCollapsed() ?? false);
+  }, [
+    activeTab,
+    documentGroup,
+    documentStructure,
+    layout.defaultLayout,
+    leftPanel,
+    rightPanel,
+  ]);
 
   const onDocumentLayoutChanged = useCallback((nextLayout: Layout, meta: LayoutChangedMeta) => {
     if (!initialDocumentLayouts.current.has(documentStructure)) {
@@ -184,8 +195,11 @@ export function ShellLayout<T extends Tab>({
     (panel: ShellPanel) => {
       const handle = panel === 'left' ? leftPanel.current : rightPanel.current;
       if (!handle) return;
-      if (handle.isCollapsed()) handle.expand();
+      const collapsed = handle.isCollapsed();
+      if (collapsed) handle.expand();
       else handle.collapse();
+      if (panel === 'left') setLeftCollapsed(!collapsed);
+      else setRightCollapsed(!collapsed);
     },
     [leftPanel, rightPanel],
   );
@@ -255,14 +269,18 @@ export function ShellLayout<T extends Tab>({
 
           {top}
 
-          <Group
-            key={documentStructure}
-            groupRef={documentGroup}
-            orientation="horizontal"
-            className="panels"
-            defaultLayout={layout.defaultLayout}
-            onLayoutChanged={onDocumentLayoutChanged}
-          >
+          <div className="shell-workspace">
+            {activity !== undefined && (
+              <aside className="activity-rail">{activity}</aside>
+            )}
+            <Group
+              key={documentStructure}
+              groupRef={documentGroup}
+              orientation="horizontal"
+              className="panels"
+              defaultLayout={layout.defaultLayout}
+              onLayoutChanged={onDocumentLayoutChanged}
+            >
             {hasLeft && (
               <>
                 <Panel
@@ -340,7 +358,8 @@ export function ShellLayout<T extends Tab>({
                 </Panel>
               </>
             )}
-          </Group>
+            </Group>
+          </div>
         </div>
       </ShellPortalRoot>
     </Tooltip.Provider>

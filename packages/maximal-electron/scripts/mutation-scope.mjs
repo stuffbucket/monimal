@@ -73,6 +73,7 @@ export const DEFERRED = new Map([
   ['scripts/verify-exports.mjs', 125],
   ['scripts/verify-fixture-imports.mjs', 125],
   ['scripts/verify-git-install.mjs', 125],
+  ['src/host/shutdown-lifecycle.ts', 125],
   ['scripts/verify-neutral.mjs', 125],
   ['scripts/verify-package.mjs', 125],
   ['scripts/verify-publish.mjs', 125],
