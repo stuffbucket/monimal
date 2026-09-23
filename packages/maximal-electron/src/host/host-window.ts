@@ -48,6 +48,36 @@ export interface HostWindowOptions {
   loadRenderer: (window: BrowserWindow) => void;
 }
 
+const HOST_WINDOW_READY_TIMEOUT_MS = 15_000;
+
+/** Wait until a hidden host window can be revealed or can no longer become usable. */
+export function waitForHostWindowReady(
+  window: BrowserWindow,
+  timeoutMs = HOST_WINDOW_READY_TIMEOUT_MS,
+): Promise<boolean> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (ready: boolean): void => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      window.removeListener('ready-to-show', onReady);
+      window.removeListener('close', onFailure);
+      window.webContents.removeListener('did-fail-load', onFailure);
+      window.webContents.removeListener('render-process-gone', onFailure);
+      resolve(ready);
+    };
+    const onReady = (): void => finish(true);
+    const onFailure = (): void => finish(false);
+    const timer = setTimeout(onFailure, timeoutMs);
+    timer.unref();
+    window.once('ready-to-show', onReady);
+    window.once('close', onFailure);
+    window.webContents.once('did-fail-load', onFailure);
+    window.webContents.once('render-process-gone', onFailure);
+  });
+}
+
 /**
  * A secured host window a consuming application drives.
  *

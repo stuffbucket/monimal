@@ -23,7 +23,7 @@ import {
   stagePtyOwnership,
   transferPtyOwnership,
 } from './native/pty.js';
-import { createHostWindow } from '../host/host-window.js';
+import { createHostWindow, waitForHostWindowReady } from '../host/host-window.js';
 import { showCrashReports, startCrashReports } from './native/crash-reports.js';
 import { selfCheckRequested } from './native/self-check.js';
 import {
@@ -38,34 +38,6 @@ import { mainWindowOptions } from './windows/main-window.js';
 import { closeSplashWindow, createSplashWindow } from './windows/splash.js';
 import type { TerminalUndockRequest } from '../shared/ipc.js';
 
-const TERMINAL_WINDOW_READY_TIMEOUT_MS = 15_000;
-
-function waitForTerminalWindow(
-  window: BrowserWindowType,
-  timeoutMs = TERMINAL_WINDOW_READY_TIMEOUT_MS,
-): Promise<boolean> {
-  return new Promise((resolve) => {
-    let settled = false;
-    const finish = (ready: boolean): void => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      window.removeListener('ready-to-show', onReady);
-      window.removeListener('close', onFailure);
-      window.webContents.removeListener('did-fail-load', onFailure);
-      window.webContents.removeListener('render-process-gone', onFailure);
-      resolve(ready);
-    };
-    const onReady = (): void => finish(true);
-    const onFailure = (): void => finish(false);
-    const timer = setTimeout(onFailure, timeoutMs);
-    timer.unref();
-    window.once('ready-to-show', onReady);
-    window.once('close', onFailure);
-    window.webContents.once('did-fail-load', onFailure);
-    window.webContents.once('render-process-gone', onFailure);
-  });
-}
 import { createTerminalSessionMetadataStore } from './native/session-metadata.js';
 
 /*
@@ -227,7 +199,7 @@ function bootstrap(): void {
       detached.close();
       return false;
     }
-    const ready = waitForTerminalWindow(detached);
+    const ready = waitForHostWindowReady(detached);
     options.loadRenderer(detached);
     if (!await ready || !transaction.commit()) {
       transaction.rollback();
