@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   AppFrame,
   PRODUCT_TABS,
+  SETTINGS_TAB,
   SurfaceRail,
   SurfaceRight,
   SurfaceStatus,
@@ -13,6 +14,8 @@ import {
   useTabTriggerId,
   type View,
 } from './AppFrame'
+
+const FRAME_TABS = [...PRODUCT_TABS, SETTINGS_TAB]
 
 // `ShellLayout` uses `ResizeObserver` both for layout and to publish panel
 // collapse. jsdom supplies neither the observer nor element dimensions, so this
@@ -87,7 +90,7 @@ function renderFrame(
   act(() => {
     root?.render(
       <AppFrame
-        tabs={PRODUCT_TABS.filter((tab) => availableViews?.includes(tab.kind as View) ?? true)}
+        tabs={FRAME_TABS.filter((tab) => availableViews?.includes(tab.kind as View) ?? true)}
         activeTab={view}
         surface={view}
         onSelectTab={(id) => onSelectView(id as View)}
@@ -137,14 +140,43 @@ describe('AppFrame', () => {
     expect(shell.querySelector('.sb-shell.app .titlebar')).not.toBeNull()
   })
 
-  it('omits the empty status bar from Settings', () => {
-    const settings = renderFrame('settings', vi.fn(), <p>settings</p>)
-    expect(settings.querySelector('.statusbar')).toBeNull()
-
+  it('places the Settings toggle immediately left of the right-panel toggle', () => {
+    const onToggleSettings = vi.fn()
+    const shell = renderFrame('overview', vi.fn(), <p>content</p>)
     act(() => {
       root?.render(
         <AppFrame
           tabs={PRODUCT_TABS}
+          activeTab="overview"
+          surface="overview"
+          onSelectTab={vi.fn()}
+          settingsOpen={false}
+          onToggleSettings={onToggleSettings}
+        >
+          <p>content</p>
+        </AppFrame>,
+      )
+    })
+
+    const toggle = shell.querySelector<HTMLElement>('.titlebar__actions [data-testid="toggle-settings"]')
+    const rightPanelToggle = shell.querySelector<HTMLElement>(
+      '.titlebar__actions [data-testid="toggle-right"]',
+    )
+    if (toggle === null) throw new Error('Settings toggle was not rendered')
+    if (rightPanelToggle === null) throw new Error('right-panel toggle was not rendered')
+    expect(toggle.nextElementSibling).toBe(rightPanelToggle)
+    act(() => toggle.click())
+    expect(onToggleSettings).toHaveBeenCalledOnce()
+  })
+
+  it('keeps the status bar available in Settings', () => {
+    const settings = renderFrame('settings', vi.fn(), <p>settings</p>)
+    expect(settings.querySelector('.statusbar')).not.toBeNull()
+
+    act(() => {
+      root?.render(
+        <AppFrame
+          tabs={FRAME_TABS}
           activeTab="overview"
           surface="overview"
           onSelectTab={vi.fn()}
@@ -191,7 +223,7 @@ describe('AppFrame', () => {
     act(() => {
       root?.render(
         <AppFrame
-          tabs={[...PRODUCT_TABS, terminal]}
+          tabs={[...FRAME_TABS, terminal]}
           activeTab={terminal.id}
           surface="terminal"
           onSelectTab={vi.fn()}
@@ -262,7 +294,7 @@ describe('AppFrame', () => {
 
     act(() => {
       root?.render(
-        <AppFrame tabs={PRODUCT_TABS} activeTab="settings" surface="settings" onSelectTab={vi.fn()}>
+        <AppFrame tabs={FRAME_TABS} activeTab="settings" surface="settings" onSelectTab={vi.fn()}>
           <SurfaceRight><p data-testid="settings-right">settings</p></SurfaceRight>
         </AppFrame>,
       )
@@ -273,7 +305,7 @@ describe('AppFrame', () => {
 
     act(() => {
       root?.render(
-        <AppFrame tabs={PRODUCT_TABS} activeTab="traffic" surface="traffic" onSelectTab={vi.fn()}>
+        <AppFrame tabs={FRAME_TABS} activeTab="traffic" surface="traffic" onSelectTab={vi.fn()}>
           <SurfaceRight><p data-testid="traffic-right">traffic</p></SurfaceRight>
         </AppFrame>,
       )
@@ -283,7 +315,7 @@ describe('AppFrame', () => {
 
     act(() => {
       root?.render(
-        <AppFrame tabs={PRODUCT_TABS} activeTab="overview" surface="overview" onSelectTab={vi.fn()}>
+        <AppFrame tabs={FRAME_TABS} activeTab="overview" surface="overview" onSelectTab={vi.fn()}>
           <SurfaceRight><p data-testid="overview-right">overview</p></SurfaceRight>
         </AppFrame>,
       )

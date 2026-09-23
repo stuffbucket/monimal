@@ -98,6 +98,26 @@
   -webkit-app-region: drag;
 }
 
+.sb-shell .shell-workspace {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.sb-shell .activity-rail {
+  width: 64px;
+  min-width: 64px;
+  min-height: 0;
+  flex: none;
+  overflow: hidden;
+  border-right: 1px solid var(--shell-border);
+}
+
+.sb-shell .panels {
+  min-width: 0;
+}
+
 .sb-shell .titlebar__leading,
 .sb-shell .titlebar__actions {
   display: flex;
@@ -490,6 +510,12 @@
   gap: var(--shell-space-1);
 }
 
+.sb-shell .nav__content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--shell-space-1);
+}
+
 .sb-shell .nav__heading,
 .sb-shell .nav__item {
   display: flex;
@@ -585,6 +611,10 @@
   padding: var(--shell-space-3) var(--shell-space-1);
 }
 
+.sb-shell .nav--collapsed .nav__content {
+  gap: var(--shell-space-2);
+}
+
 .sb-shell .nav--collapsed .nav__item {
   justify-content: center;
   padding: 0;
@@ -593,6 +623,35 @@
 .sb-shell .nav--collapsed .nav__label,
 .sb-shell .nav--collapsed .nav__item-count {
   display: none;
+}
+
+.sb-shell .activity-rail .nav--collapsed {
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  gap: var(--shell-space-2);
+  padding: var(--shell-space-2);
+  overflow-x: hidden;
+}
+
+.sb-shell .activity-rail .nav--collapsed .nav__break {
+  display: none;
+}
+
+.sb-shell .activity-rail .nav--collapsed .nav__section {
+  width: 48px;
+}
+
+.sb-shell .activity-rail .nav--collapsed .nav__item {
+  width: 48px;
+  height: 48px;
+  flex: none;
+  border-radius: var(--shell-radius-large);
+}
+
+.sb-shell .activity-rail .nav--collapsed .nav__item > svg {
+  width: 24px;
+  height: 24px;
 }
 
 .sb-shell .toolbar {

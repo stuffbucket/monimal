@@ -68,6 +68,8 @@ import type {
   MenuBarModeState,
   OllamaRuntimeStatus,
   PendingSettingsRequest,
+  ProviderOnboardingPreference,
+  ShutdownSnapshot,
 } from '../shared/bridge-types.js'
 
 function subscribe<T>(channel: string, listener: (value: T) => void): () => void {
@@ -97,6 +99,14 @@ const bridge = {
     return () => {
       ipcRenderer.off(BRIDGE_CHANNELS.lifecycleChanged, handler)
     }
+  },
+  shutdown: {
+    current: (): Promise<ShutdownSnapshot> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.shutdownCurrent),
+    force: (): Promise<boolean> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.shutdownForce),
+    onChange: (listener: (snapshot: ShutdownSnapshot) => void): (() => void) =>
+      subscribe(BRIDGE_CHANNELS.shutdownChanged, listener),
   },
   pendingSettingsRequest: (): Promise<PendingSettingsRequest | null> =>
     ipcRenderer.invoke(BRIDGE_CHANNELS.pendingSettingsRequest),
@@ -141,6 +151,12 @@ const bridge = {
       ipcRenderer.invoke(BRIDGE_CHANNELS.menuBarModeCancelEnable, attemptId),
     disable: (): Promise<MenuBarModeState> =>
       ipcRenderer.invoke(BRIDGE_CHANNELS.menuBarModeDisable),
+  },
+  providerOnboarding: {
+    get: (): Promise<ProviderOnboardingPreference> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.providerOnboardingGet),
+    setDismissed: (dismissed: boolean): Promise<ProviderOnboardingPreference> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.providerOnboardingSet, dismissed),
   },
   harness: {
     hide: (): Promise<void> => ipcRenderer.invoke(BRIDGE_CHANNELS.harnessHide),

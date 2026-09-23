@@ -1,5 +1,4 @@
 import { existsSync } from 'node:fs'
-import { readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 
@@ -7,16 +6,13 @@ import { app, BrowserWindow, nativeImage, Tray } from 'electron'
 import { z } from 'zod'
 
 import type { MenuBarModeAttempt, MenuBarModeState } from '../shared/bridge-types.js'
+import { readUserPreferences, updateUserPreferences } from './user-preferences.js'
 
 const preferenceSchema = z.object({ menuBarOnly: z.boolean().default(false) })
 const CONFIRMATION_MS = 15_000
 
 interface PendingAttempt extends MenuBarModeAttempt {
   timer: NodeJS.Timeout
-}
-
-function preferencePath(): string {
-  return join(app.getPath('userData'), 'preferences.json')
 }
 
 function trayIconPath(): string {
@@ -26,27 +22,12 @@ function trayIconPath(): string {
     : join(app.getAppPath(), 'resources', 'tray', filename)
 }
 
-async function readPreferences(): Promise<Record<string, unknown>> {
-  try {
-    const parsed: unknown = JSON.parse(await readFile(preferencePath(), 'utf8'))
-    return typeof parsed === 'object' && parsed !== null
-      ? parsed as Record<string, unknown>
-      : {}
-  } catch {
-    return {}
-  }
-}
-
 async function readPreference(): Promise<boolean> {
-  return preferenceSchema.parse(await readPreferences()).menuBarOnly
+  return preferenceSchema.parse(await readUserPreferences()).menuBarOnly
 }
 
 async function writePreference(menuBarOnly: boolean): Promise<void> {
-  const preferences = await readPreferences()
-  await writeFile(
-    preferencePath(),
-    `${JSON.stringify({ ...preferences, menuBarOnly }, undefined, 2)}\n`,
-  )
+  await updateUserPreferences({ menuBarOnly })
 }
 
 export class MenuBarModeController {

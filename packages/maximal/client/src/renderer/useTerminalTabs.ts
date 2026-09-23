@@ -5,7 +5,7 @@ import {
   type TerminalLaunchResult,
 } from 'stuffbucket-electron/renderer'
 
-import { PRODUCT_TABS, type AppTab } from './frame/AppFrame'
+import { PRODUCT_TABS, SETTINGS_TAB, type AppTab } from './frame/AppFrame'
 import { terminalTransport } from './terminal/transport'
 
 function terminalTab(result: TerminalLaunchResult): AppTab {
@@ -18,14 +18,13 @@ function terminalTab(result: TerminalLaunchResult): AppTab {
   }
 }
 
-export function useTerminalTabs(authenticated: boolean | null) {
+export function useTerminalTabs() {
   const [tabs, setTabs] = useState<AppTab[]>(PRODUCT_TABS)
   const [activeTab, setActiveTab] = useState('overview')
   const [launcherOpen, setLauncherOpen] = useState(false)
   const [recentProfiles, setRecentProfiles] = useState<string[]>([])
 
   useEffect(() => {
-    if (authenticated !== true) return
     void terminalTransport.list().then((sessions) => {
       setTabs((current) => {
         const known = new Set(current.flatMap((tab) => tab.sessionId ?? []))
@@ -38,7 +37,7 @@ export function useTerminalTabs(authenticated: boolean | null) {
         return restored.length === 0 ? current : [...current, ...restored]
       })
     })
-  }, [authenticated])
+  }, [])
 
   const onTerminalLaunched = useCallback((result: TerminalLaunchResult) => {
     const tab = terminalTab(result)
@@ -48,12 +47,35 @@ export function useTerminalTabs(authenticated: boolean | null) {
     setActiveTab(tab.id)
   }, [])
 
+  const openSettings = useCallback(() => {
+    setTabs((current) => current.some((tab) => tab.id === SETTINGS_TAB.id)
+      ? current
+      : [...current, SETTINGS_TAB])
+    setActiveTab(SETTINGS_TAB.id)
+  }, [])
+
   const closeTab = useCallback((id: string) => {
     setTabs((current) => {
       const index = current.findIndex((tab) => tab.id === id)
-      if (index < 0 || current[index]?.kind !== 'terminal') return current
+      const closing = current[index]
+      if (index < 0 || (closing?.kind !== 'terminal' && closing?.kind !== 'settings')) return current
       const next = current.filter((tab) => tab.id !== id)
       setActiveTab((active) => active === id
+        ? (next[index] ?? next[index - 1] ?? PRODUCT_TABS[0])?.id ?? 'overview'
+        : active)
+      return next
+    })
+  }, [])
+
+  const toggleSettings = useCallback(() => {
+    setTabs((current) => {
+      const index = current.findIndex((tab) => tab.id === SETTINGS_TAB.id)
+      if (index < 0) {
+        setActiveTab(SETTINGS_TAB.id)
+        return [...current, SETTINGS_TAB]
+      }
+      const next = current.filter((tab) => tab.id !== SETTINGS_TAB.id)
+      setActiveTab((active) => active === SETTINGS_TAB.id
         ? (next[index] ?? next[index - 1] ?? PRODUCT_TABS[0])?.id ?? 'overview'
         : active)
       return next
@@ -91,6 +113,8 @@ export function useTerminalTabs(authenticated: boolean | null) {
     recentProfiles,
     rememberProfile,
     onTerminalLaunched,
+    openSettings,
+    toggleSettings,
     closeTab,
     updateTerminalTitle,
     moveTerminalTab,

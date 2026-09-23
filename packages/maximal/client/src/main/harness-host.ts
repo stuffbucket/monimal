@@ -128,6 +128,10 @@ export function showHarnessHost(): void {
   panel?.show()
 }
 
+export function isHarnessBusy(): boolean {
+  return isAgentBusy()
+}
+
 export async function stopHarnessHost(): Promise<void> {
   if (boundHotkey) globalShortcut.unregister(HOTKEY)
   boundHotkey = false

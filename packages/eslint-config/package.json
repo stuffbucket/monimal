@@ -25,7 +25,8 @@
   ],
   "scripts": {
     "analyze": "bun ../maximal-core/scripts/analyze.ts",
-    "lint": "eslint",
+    "check:runtime-style-injectors": "node scripts/check-runtime-style-injectors.mjs",
+    "lint": "eslint && node scripts/check-runtime-style-injectors.mjs",
     "test": "node --test tests/*.test.mjs"
   },
   "dependencies": {

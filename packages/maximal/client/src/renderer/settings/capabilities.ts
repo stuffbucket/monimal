@@ -35,6 +35,7 @@ import type {
   MenuBarModeAttempt,
   MenuBarModeState,
   OllamaRuntimeStatus,
+  ProviderOnboardingPreference,
 } from '../../shared/bridge-types'
 
 import type { MaximalBridge } from '../../preload'
@@ -109,6 +110,10 @@ export interface SettingsCapabilities {
     confirmMenuBarOnly(attemptId: string): Promise<MenuBarModeState>
     cancelMenuBarOnly(attemptId: string): Promise<MenuBarModeState>
     disableMenuBarOnly(): Promise<MenuBarModeState>
+  }
+  providerOnboarding: {
+    get(): Promise<ProviderOnboardingPreference>
+    setDismissed(dismissed: boolean): Promise<ProviderOnboardingPreference>
   }
   connections: {
     list(): Promise<ConnectionsListResponse>
@@ -289,6 +294,10 @@ export function createCoreSettingsCapabilities(): SettingsCapabilities {
       confirmMenuBarOnly: (attemptId) => bridge.menuBarMode.confirmEnable(attemptId),
       cancelMenuBarOnly: (attemptId) => bridge.menuBarMode.cancelEnable(attemptId),
       disableMenuBarOnly: () => bridge.menuBarMode.disable(),
+    },
+    providerOnboarding: {
+      get: () => bridge.providerOnboarding.get(),
+      setDismissed: (dismissed) => bridge.providerOnboarding.setDismissed(dismissed),
     },
     connections: {
       list: async () =>

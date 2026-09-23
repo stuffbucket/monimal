@@ -39,6 +39,7 @@
     "@radix-ui/react-tooltip": "^1.2.16",
     "@radix-ui/react-visually-hidden": "^1.2.11",
     "@stuffbucket/local-model-registry": "workspace:*",
+    "@stuffbucket/maximal-assets": "workspace:*",
     "@stuffbucket/maximal-core": "workspace:*",
     "@stuffbucket/maximal-electron": "workspace:*",
     "@stuffbucket/maximal-harness": "workspace:*",

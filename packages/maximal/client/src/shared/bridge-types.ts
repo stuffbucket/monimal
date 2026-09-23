@@ -23,6 +23,9 @@ import type {
   TrafficRequestList,
   TrafficRequestListQuery,
 } from '@stuffbucket/maximal-observability-contract'
+import type { ShutdownSnapshot } from 'stuffbucket-electron/main'
+
+export type { ShutdownSnapshot }
 
 /** Sidecar lifecycle state that is safe to expose to the product renderer. */
 export type LifecycleStatus =
@@ -85,6 +88,10 @@ export interface MenuBarModeState {
 export interface MenuBarModeAttempt {
   attemptId: string
   deadlineMs: number
+}
+
+export interface ProviderOnboardingPreference {
+  dismissed: boolean
 }
 
 export interface OllamaRuntimeStatus {

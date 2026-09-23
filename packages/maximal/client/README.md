@@ -13,7 +13,7 @@ surface state and near-term roadmap.
 
 | Surface | Backed by |
 | --- | --- |
-| First run | Live device-code flow over `auth/*`, with boot narration. |
+| Accounts | Optional GitHub device-code sign-in and account management in Settings. |
 | Overview | Live and persisted traffic metadata through `observability/overview`, with traffic flow, token volume, latency, and recent requests. |
 | Traffic | Cursor-paged request metadata through `observability/requests` and `observability/request`. |
 | Settings | Live account and proxy configuration through named control methods. |

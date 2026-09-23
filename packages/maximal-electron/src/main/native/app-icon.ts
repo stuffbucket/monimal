@@ -1,8 +1,9 @@
+import fs from 'node:fs';
 import path from 'node:path';
 
 import { app, nativeImage, type NativeImage } from 'electron';
 
-import { dockIconName, iconDirectory, windowIconName } from './icons.js';
+import { dockIconName, iconDirectory, TRAY_ICON, TRAY_ICON_2X, windowIconName } from './icons.js';
 
 /**
  * The application icon: the macOS dock, and the Windows and Linux taskbar.
@@ -46,7 +47,19 @@ function iconFile(name: string): string {
 function loadIcon(name: string): NativeImage | undefined {
   const file = iconFile(name);
   const image = nativeImage.createFromPath(file);
-  if (!image.isEmpty()) return image;
+  if (!image.isEmpty()) {
+    if (name === TRAY_ICON) {
+      try {
+        image.addRepresentation({
+          scaleFactor: 2,
+          buffer: fs.readFileSync(iconFile(TRAY_ICON_2X)),
+        });
+      } catch {
+        // Keep the valid 1x image when a consumer supplies an incomplete set.
+      }
+    }
+    return image;
+  }
   console.error(`No icon at ${file}. Falling back to the platform default.`);
   return undefined;
 }
