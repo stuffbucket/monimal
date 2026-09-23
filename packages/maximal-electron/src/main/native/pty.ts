@@ -35,7 +35,10 @@ import {
 import { TmuxControlHost } from './tmux-control-host.js';
 import { isTerminalLab, terminalLabLaunch } from './terminal-lab.js';
 import { clampTerminalGrid } from '../../shared/terminal-grid.js';
-import type { TerminalPaneLayout } from '../../shared/ipc.js';
+import type {
+  TerminalPaneLayout,
+  TerminalRestoreEntry,
+} from '../../shared/ipc.js';
 
 import { Owners } from './pty-session.js';
 import type { PtyHandlers } from './pty-handlers.js';
@@ -144,7 +147,8 @@ const projections = new TmuxProjectionOwners<BrowserWindow>({
     void execFileRunner(command, args, { timeout: 2_000, maxBuffer: 64 * 1024 }).catch(() => undefined);
   },
   emit: (owner, sessionId, projectionId, chunk) => emit(owner, sessionId, chunk, undefined, projectionId),
-  onExit: (owner, sessionId, projectionId, exitCode) => onExit(owner, sessionId, exitCode, projectionId),
+  onExit: (owner, sessionId, projectionId, exitCode) =>
+    onExit(owner, sessionId, exitCode, projectionId),
   onGeometry: (owner, sessionId, projectionId, cols, rows) =>
     onSize(owner, sessionId, cols, rows, projectionId),
   onGeometryError: (owner, sessionId, projectionId, error) => {
@@ -277,6 +281,13 @@ const paneDocuments = new Map<string, {
   origin: string;
   viewers: Set<BrowserWindow>;
 }>();
+const restoreMetadata = new Map<string, {
+  title: string;
+  canRunInBackground: boolean;
+  cwd: string;
+  shell: string;
+  startedAt: number;
+}>();
 
 function trackViewerSize(id: string, window: BrowserWindow, cols: number, rows: number): boolean {
   return windowGroups.observe(id, window, cols, rows);
@@ -314,6 +325,7 @@ function forgetSessionSize(id: string): void {
   pendingPaneSyncs.delete(id);
   paneSessionViewers.delete(id);
   paneDocuments.delete(id);
+  restoreMetadata.delete(id);
 }
 
 function paneSessionIds(pane: TerminalPaneLayout): string[] {
@@ -325,7 +337,7 @@ function paneSessionIds(pane: TerminalPaneLayout): string[] {
 function flushPendingPaneSyncs(): void {
   for (const [id, pending] of pendingPaneSyncs) {
     const viewers = windowGroups.viewers(id);
-    if (!viewers || viewers.size < 2) {
+    if (!viewers || viewers.size === 0) {
       pendingPaneSyncs.delete(id);
       continue;
     }
@@ -799,6 +811,15 @@ export function launchTerminal(
   const result = launcher.launch(owner, request);
   const reserved = launcher.take(owner, result.sessionId);
   if (!reserved) throw new Error('Terminal launch reservation was unavailable.');
+  if (result.canRunInBackground) {
+    restoreMetadata.set(result.sessionId, {
+      title: result.label,
+      canRunInBackground: true,
+      cwd: reserved.cwd ?? app.getPath('home'),
+      shell: reserved.command,
+      startedAt: Date.now(),
+    });
+  }
   if (reserved.tmuxControl) {
     const sessions = controlHosts.for(owner);
     const host = new TmuxControlHost({
@@ -998,6 +1019,7 @@ export function acknowledgePty(
 export function killPty(owner: BrowserWindow | undefined, id: string): void {
   if (owner && projections.terminate(owner, id)) {
     projectionEpochs.get(owner)?.delete(id);
+    forgetSessionSize(id);
     return;
   }
   const control = owner ? controlHosts.get(owner)?.get(id) : undefined;
@@ -1009,9 +1031,39 @@ export function killPty(owner: BrowserWindow | undefined, id: string): void {
   hostFor(owner)?.terminate(id);
 }
 
-/** This window's live sessions, including any no view is showing. */
-export function listPtys(owner: BrowserWindow | undefined): TerminalSession[] {
-  return hostFor(owner)?.list() ?? [];
+/** This window's live sessions and main-owned documents, including hidden views. */
+export function listPtys(owner: BrowserWindow | undefined): TerminalRestoreEntry[] {
+  if (!owner) return [];
+  const sessions = new Map<string, TerminalSession>();
+  for (const session of hostFor(owner)?.list() ?? []) sessions.set(session.id, session);
+  for (const id of mirrorIds.get(owner) ?? []) {
+    const realOwner = sessionOwner.get(id);
+    const session = realOwner
+      ? hostFor(realOwner)?.list().find((candidate) => candidate.id === id)
+      : undefined;
+    if (session) sessions.set(id, session);
+  }
+  for (const id of projections.list(owner)) {
+    const metadata = restoreMetadata.get(id);
+    sessions.set(id, metadata
+      ? { id, cwd: metadata.cwd, shell: metadata.shell, startedAt: metadata.startedAt }
+      : { id, cwd: '', shell: '', startedAt: 0 });
+  }
+  return [...sessions.values()].map((session) => {
+    const metadata = restoreMetadata.get(session.id);
+    const document = paneDocuments.get(session.id);
+    const shellTitle = session.shell.split(/[\\/]/).at(-1);
+    return {
+      ...session,
+      title: metadata?.title
+        ?? (shellTitle ? shellTitle : 'Terminal'),
+      canRunInBackground: metadata?.canRunInBackground
+        ?? projections.has(session.id),
+      ...(document?.viewers.has(owner)
+        ? { pane: document.pane, revision: document.revision }
+        : {}),
+    };
+  });
 }
 
 /** Kill every window's sessions. Call on quit, so no shell outlives the app. */
@@ -1019,4 +1071,5 @@ export function killAllPtys(): void {
   hosts.releaseAll();
   controlHosts.releaseAll();
   projections.abandonAll();
+  restoreMetadata.clear();
 }

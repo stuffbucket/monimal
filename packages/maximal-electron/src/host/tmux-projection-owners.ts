@@ -61,6 +61,23 @@ export class TmuxProjectionOwners<Owner> {
     return this.host.has(sessionId);
   }
 
+  /** Sessions this owner controls, views, or has been granted permission to view. */
+  list(owner: Owner): string[] {
+    const sessionIds = new Set<string>();
+    for (const [sessionId, sessionOwner] of this.sessionOwners) {
+      if (sessionOwner === owner) sessionIds.add(sessionId);
+    }
+    for (const key of this.projectionOwners.keys()) {
+      if (this.projectionOwners.get(key) === owner) {
+        sessionIds.add(key.slice(0, key.indexOf('\u0000')));
+      }
+    }
+    for (const [sessionId, recipients] of this.grants) {
+      if (recipients.has(owner)) sessionIds.add(sessionId);
+    }
+    return [...sessionIds];
+  }
+
   grant(owner: Owner, sessionId: string, recipient: Owner): boolean {
     if (!this.controls(owner, sessionId)) return false;
     const recipients = this.grants.get(sessionId) ?? new Set<Owner>();
@@ -84,11 +101,12 @@ export class TmuxProjectionOwners<Owner> {
   }
 
   attach(owner: Owner, request: TmuxProjectionRequest): boolean {
+    const key = projectionKey(request.sessionId, request.projectionId);
+    const existingOwner = this.projectionOwners.get(key);
+    if (existingOwner !== undefined) return existingOwner === owner;
     const allowed = this.sessionOwners.get(request.sessionId) === owner
       || this.grants.get(request.sessionId)?.delete(owner) === true;
     if (!allowed) return false;
-    const key = projectionKey(request.sessionId, request.projectionId);
-    if (this.projectionOwners.has(key)) return false;
     this.projectionOwners.set(key, owner);
     try {
       if (!this.host.attach(request)) {

@@ -24,6 +24,7 @@ const state = vi.hoisted(() => ({
     grant: ReturnType<typeof vi.fn>;
     revoke: ReturnType<typeof vi.fn>;
     transfer: ReturnType<typeof vi.fn>;
+    list: ReturnType<typeof vi.fn>;
     terminate: ReturnType<typeof vi.fn>;
     abandonAll: ReturnType<typeof vi.fn>;
     sessions: Set<string>;
@@ -45,7 +46,12 @@ vi.mock('../../src/host/terminal-host.js', () => ({
       if (state.throwOnSpawn) throw new Error('connector failed');
       this.sessions.add(request.id);
     });
-    readonly list = vi.fn(() => [...this.sessions].map((id) => ({ id })));
+    readonly list = vi.fn(() => [...this.sessions].map((id) => ({
+      id,
+      cwd: '/home/test',
+      shell: '/bin/zsh',
+      startedAt: 1,
+    })));
     readonly write = vi.fn();
     readonly resize = vi.fn();
     readonly acknowledge = vi.fn();
@@ -112,6 +118,8 @@ vi.mock('../../src/host/terminal-host.js', () => ({
       this.owners.set(id, recipient);
       return true;
     });
+    readonly list = vi.fn((owner: unknown) => [...this.sessions].filter((id) =>
+      this.owners.get(id) === owner || this.grants.get(id)?.has(owner) === true));
     readonly release = vi.fn();
     readonly terminate = vi.fn((_owner: unknown, id: string) => this.sessions.delete(id));
     readonly abandonAll = vi.fn(() => this.sessions.clear());
@@ -177,6 +185,43 @@ describe('native pty adapter', () => {
       cols: 100,
       rows: 40,
     });
+  });
+
+  it('lists durable projections and preserves one-viewer pane documents', () => {
+    const window = owner();
+    pty.spawnPty(window, { id: 'document-root', cols: 80, rows: 24 });
+    pty.spawnPty(window, { id: 'document-leaf', cols: 80, rows: 24 });
+    const pane = {
+      direction: 'right' as const,
+      first: { sessionId: 'document-root' },
+      second: { sessionId: 'document-leaf' },
+    };
+    pty.syncPtyPane(window, 'document-root', pane);
+    const projections = state.projectionHosts[0]!;
+    projections.sessions.add('durable-projection');
+    projections.owners.set('durable-projection', window);
+
+    expect(pty.listPtys(window)).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: 'document-root',
+        pane,
+        revision: 1,
+        title: 'zsh',
+        canRunInBackground: false,
+      }),
+      expect.objectContaining({ id: 'document-leaf' }),
+      expect.objectContaining({
+        id: 'durable-projection',
+        title: 'Terminal',
+        canRunInBackground: true,
+      }),
+    ]));
+    expect(pty.attachPtyProjection(window, {
+      id: 'durable-projection',
+      projectionId: 'durable-projection:window',
+      cols: 80,
+      rows: 24,
+    })).toBe(true);
   });
 
   it('does not report a launch when the trusted connector throws synchronously', () => {
