@@ -18,6 +18,7 @@ const state = vi.hoisted(() => ({
     resize: ReturnType<typeof vi.fn>;
     detach: ReturnType<typeof vi.fn>;
     detachOwner: ReturnType<typeof vi.fn>;
+    projectionIds: ReturnType<typeof vi.fn>;
     grant: ReturnType<typeof vi.fn>;
     revoke: ReturnType<typeof vi.fn>;
     transfer: ReturnType<typeof vi.fn>;
@@ -26,6 +27,7 @@ const state = vi.hoisted(() => ({
     sessions: Set<string>;
     owners: Map<string, unknown>;
     grants: Map<string, Set<unknown>>;
+    controllers: Map<string, Set<unknown>>;
   }>,
 }));
 
@@ -62,6 +64,7 @@ vi.mock('../../src/host/terminal-host.js', () => ({
     readonly sessions = new Set<string>();
     readonly owners = new Map<string, unknown>();
     readonly grants = new Map<string, Set<unknown>>();
+    readonly controllers = new Map<string, Set<unknown>>();
     readonly reserve = vi.fn((owner: unknown, id: string) => {
       this.sessions.add(id);
       this.owners.set(id, owner);
@@ -73,19 +76,26 @@ vi.mock('../../src/host/terminal-host.js', () => ({
     readonly resize = vi.fn(() => true);
     readonly detach = vi.fn(() => true);
     readonly detachOwner = vi.fn(() => true);
+    readonly projectionIds = vi.fn(() => [] as string[]);
     readonly grant = vi.fn((owner: unknown, id: string, recipient: unknown) => {
-      if (state.failedProjectionGrants.has(id) || this.owners.get(id) !== owner) return false;
+      const controls = this.owners.get(id) === owner
+        || this.controllers.get(id)?.has(owner) === true;
+      if (state.failedProjectionGrants.has(id) || !controls) return false;
       const recipients = this.grants.get(id) ?? new Set();
       recipients.add(recipient);
       this.grants.set(id, recipients);
       return true;
     });
     readonly revoke = vi.fn((owner: unknown, id: string, recipient: unknown) => {
-      if (this.owners.get(id) !== owner) return false;
+      const controls = this.owners.get(id) === owner
+        || this.controllers.get(id)?.has(owner) === true;
+      if (!controls) return false;
       return this.grants.get(id)?.delete(recipient) ?? false;
     });
     readonly transfer = vi.fn((owner: unknown, id: string, recipient: unknown) => {
-      if (state.failedProjectionTransfers.has(id) || this.owners.get(id) !== owner) return false;
+      const controls = this.owners.get(id) === owner
+        || this.controllers.get(id)?.has(owner) === true;
+      if (state.failedProjectionTransfers.has(id) || !controls) return false;
       this.owners.set(id, recipient);
       return true;
     });
@@ -114,6 +124,7 @@ describe('native pty adapter', () => {
   beforeEach(() => {
     state.failedProjectionGrants.clear();
     state.failedProjectionTransfers.clear();
+    state.projectionHosts[0]?.projectionIds.mockReset().mockReturnValue([]);
   });
 
   it('forwards the host output sequence to the owner event adapter', () => {
@@ -210,6 +221,64 @@ describe('native pty adapter', () => {
       cols: 80,
       rows: 24,
     })).toBe(true);
+  });
+
+  it('stages and commits a projection move from an active secondary window', () => {
+    const authority = owner();
+    const secondary = owner();
+    const destination = owner();
+    const projections = state.projectionHosts[0]!;
+    projections.sessions.add('secondary-move');
+    projections.owners.set('secondary-move', authority);
+    projections.controllers.set('secondary-move', new Set([secondary]));
+
+    const transaction = pty.stagePtyOwnership(secondary, destination, [
+      { id: 'secondary-move', cols: 80, rows: 24 },
+    ], 'move');
+
+    expect(transaction).toBeDefined();
+    expect(transaction?.commit()).toBe(true);
+    expect(projections.grant).toHaveBeenCalledWith(
+      secondary,
+      'secondary-move',
+      destination,
+    );
+    expect(projections.owners.get('secondary-move')).toBe(destination);
+    expect(projections.detachOwner).toHaveBeenCalledWith(secondary, 'secondary-move');
+  });
+
+  it('preserves a recipient projection that existed before rollback', () => {
+    const source = owner();
+    const destination = owner();
+    const projections = state.projectionHosts[0]!;
+    projections.sessions.add('existing-destination');
+    projections.owners.set('existing-destination', source);
+    projections.projectionIds
+      .mockReturnValueOnce(['existing'])
+      .mockReturnValueOnce(['existing', 'transaction-created']);
+
+    const transaction = pty.stagePtyOwnership(source, destination, [
+      { id: 'existing-destination', cols: 100, rows: 30 },
+    ], 'move');
+    expect(transaction).toBeDefined();
+
+    transaction?.rollback();
+
+    expect(projections.detach).toHaveBeenCalledWith(
+      destination,
+      'existing-destination',
+      'transaction-created',
+    );
+    expect(projections.detach).not.toHaveBeenCalledWith(
+      destination,
+      'existing-destination',
+      'existing',
+    );
+    expect(projections.revoke).toHaveBeenCalledWith(
+      source,
+      'existing-destination',
+      destination,
+    );
   });
 
   it('removes staged destination capabilities without moving the source', () => {

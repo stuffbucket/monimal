@@ -561,6 +561,8 @@ interface StagedPtyOwnership {
   request: PtySpawnRequest;
   projection: boolean;
   recipientWasMirror: boolean;
+  recipientProjectionIds: ReadonlySet<string>;
+  recipientGrid?: { cols: number; rows: number };
 }
 
 /**
@@ -584,10 +586,25 @@ export function stagePtyOwnership(
   const rollbackDestination = (): void => {
     for (const entry of [...staged].reverse()) {
       if (entry.projection) {
-        projections.detachOwner(recipient, entry.request.id);
+        for (const projectionId of projections.projectionIds(recipient, entry.request.id)) {
+          if (!entry.recipientProjectionIds.has(projectionId)) {
+            projections.detach(recipient, entry.request.id, projectionId);
+          }
+        }
         projections.revoke(owner, entry.request.id, recipient);
-        projectionEpochs.get(recipient)?.delete(entry.request.id);
-        forgetViewerSize(entry.request.id, recipient);
+        if (entry.recipientProjectionIds.size === 0) {
+          projectionEpochs.get(recipient)?.delete(entry.request.id);
+        }
+        if (entry.recipientGrid) {
+          trackViewerSize(
+            entry.request.id,
+            recipient,
+            entry.recipientGrid.cols,
+            entry.recipientGrid.rows,
+          );
+        } else {
+          forgetViewerSize(entry.request.id, recipient);
+        }
       } else if (!entry.recipientWasMirror) {
         detachMirror(entry.request.id, recipient);
       }
@@ -596,6 +613,10 @@ export function stagePtyOwnership(
 
   for (const request of requests) {
     if (projections.has(request.id)) {
+      const recipientProjectionIds = new Set(
+        projections.projectionIds(recipient, request.id),
+      );
+      const recipientGrid = windowGroups.viewers(request.id)?.get(recipient);
       if (!grantPtyProjection(owner, request.id, recipient, request.cols, request.rows)) {
         rollbackDestination();
         return undefined;
@@ -604,6 +625,8 @@ export function stagePtyOwnership(
         request,
         projection: true,
         recipientWasMirror: false,
+        recipientProjectionIds,
+        recipientGrid,
       });
       continue;
     }
@@ -616,6 +639,7 @@ export function stagePtyOwnership(
       request,
       projection: false,
       recipientWasMirror,
+      recipientProjectionIds: new Set(),
     });
   }
 
