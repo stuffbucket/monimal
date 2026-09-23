@@ -383,7 +383,7 @@ export async function spawnCore(): Promise<{ controlOrigin: string; proxyUrl: st
     return await launchCore()
   } catch (error) {
     // The FIRST start failing emitted nothing, so no listener ever learned —
-    // not the renderer (whose first-run flow has a screen for exactly this),
+    // not the renderer (whose Settings account flow reports auth failures),
     // and not `awaitControlOrigin()`, which waits for `ready` or `failed` and
     // would otherwise never settle. Post-ready crashes already emit `failed`
     // once the restart budget is spent; this makes the initial failure behave

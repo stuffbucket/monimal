@@ -107,7 +107,7 @@ export function TrafficFlowChart({ flow }: { flow: TrafficFlow }) {
               {Object.entries(KIND_LABELS).map(([kind, label], index) => (
                 <text
                   key={kind}
-                  className="mo-flow-column-label"
+                  className="data-viz-axis-label"
                   x={index * 170}
                   y={10}
                 >

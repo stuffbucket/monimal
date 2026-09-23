@@ -53,12 +53,6 @@ svg {
   border-radius: var(--radius-chip);
 }
 
-.input:focus {
-  border-color: var(--focus-ring-color);
-  outline: none;
-  box-shadow: 0 0 0 var(--focus-ring-width) var(--focus-ring-color);
-}
-
 /*
  * Disabled is deliberately not styled here.
  *
@@ -92,6 +86,8 @@ svg {
 .banner[data-status='running'] {
   --status: var(--accent);
   --status-soft: var(--accent-soft);
+  --shell-status: var(--accent);
+  --shell-status-muted: var(--accent-soft);
 }
 
 .dot[data-status='blocked'],
@@ -101,6 +97,8 @@ svg {
 .banner[data-status='blocked'] {
   --status: var(--warning);
   --status-soft: var(--warning-soft);
+  --shell-status: var(--warning);
+  --shell-status-muted: var(--warning-soft);
 }
 
 .dot[data-status='done'],
@@ -110,6 +108,8 @@ svg {
 .banner[data-status='done'] {
   --status: var(--success);
   --status-soft: var(--success-soft);
+  --shell-status: var(--success);
+  --shell-status-muted: var(--success-soft);
 }
 
 .dot[data-status='failed'],
@@ -119,6 +119,8 @@ svg {
 .banner[data-status='failed'] {
   --status: var(--danger);
   --status-soft: var(--danger-soft);
+  --shell-status: var(--danger);
+  --shell-status-muted: var(--danger-soft);
 }
 
 
@@ -165,11 +167,7 @@ svg {
 
 /* Disabled lives on the control classes, not on a blanket attribute selector.
    See the note at the end of this file. */
-.btn:disabled,
-.input:disabled,
-.switch:disabled,
-.checkbox__box:disabled,
-.radio-group[data-disabled] {
+.btn:disabled {
   opacity: var(--opacity-disabled);
   cursor: not-allowed;
 }
@@ -192,131 +190,6 @@ svg {
 .btn--danger:hover:not(:disabled) {
   background: var(--danger-fill);
   filter: brightness(1.08);
-}
-
-/* ------------------------------------------------------------------ inputs */
-
-.input {
-  width: 100%;
-  height: var(--control-lg);
-  padding: 0 var(--space-2);
-  border-radius: var(--radius-input);
-  border: 1px solid var(--border-input);
-  background: var(--bg-input);
-  color: var(--text-primary);
-  font: inherit;
-  font-size: var(--text-base);
-}
-
-.input::placeholder {
-  color: var(--text-muted);
-}
-
-.input:hover:not(:disabled) {
-  border-color: var(--border-input-hover);
-}
-
-.input[aria-invalid='true'] {
-  border-color: var(--border-invalid);
-}
-
-.input--multiline {
-  height: auto;
-  padding: var(--space-2);
-  resize: vertical;
-  line-height: var(--leading-base);
-}
-
-/* The native arrow needs room, and the platform draws it. */
-.input--select {
-  padding-right: var(--space-1);
-}
-
-.input-shell {
-  position: relative;
-  width: 100%;
-}
-
-.input-shell .input {
-  padding-right: calc(var(--control-lg) + var(--space-1));
-}
-
-.input-shell__action {
-  position: absolute;
-  top: 50%;
-  right: 2px;
-  transform: translateY(-50%);
-}
-
-/* ------------------------------------------------------------- form field */
-
-.form-field {
-  display: grid;
-  gap: var(--space-1);
-}
-
-.form-field__label {
-  font-size: var(--text-base);
-  color: var(--text-secondary);
-}
-
-.form-field__hint {
-  margin: 0;
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-}
-
-.form-field__error {
-  margin: 0;
-  font-size: var(--text-sm);
-  color: var(--text-invalid);
-}
-
-/* ---------------------------------------------------------------- choices */
-
-.checkbox,
-.radio {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-size: var(--text-base);
-  cursor: pointer;
-}
-
-.checkbox__box {
-  width: 15px;
-  height: 15px;
-  flex: none;
-  accent-color: var(--accent);
-  cursor: inherit;
-}
-
-.radio-group {
-  display: grid;
-  gap: var(--space-2);
-}
-
-.radio__box {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 15px;
-  height: 15px;
-  flex: none;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--border-input);
-  background: var(--bg-input);
-}
-
-.radio__box[data-state='checked'] {
-  border-color: var(--accent);
-}
-
-.radio__dot {
-  width: 7px;
-  height: 7px;
-  border-radius: var(--radius-pill);
-  background: var(--accent);
 }
 
 /* ---------------------------------------------------------------- dialog */
@@ -342,6 +215,8 @@ svg {
   border: 1px solid var(--border-strong);
   box-shadow: var(--elevation-dialog);
 }
+
+/* ------------------------------------------------------------------ menu */
 
 .terminal-launcher {
   width: min(440px, 90vw);
@@ -406,8 +281,6 @@ svg {
   gap: var(--space-3);
   font-size: var(--text-xs);
 }
-
-/* ------------------------------------------------------------------ menu */
 
 .menu {
   min-width: 220px;
@@ -565,52 +438,4 @@ svg {
   white-space: nowrap;
 }
 
-/* ----------------------------------------------------------------- callout */
-
-/*
- * A titled region that asks for something.
- *
- * Here rather than in `shell.css` because the overlay document needs it too:
- * the approval prompt is this shape, and it is currently hand-rolled there.
- * The outline comes from the status pair, so a callout with no status is a
- * plain outlined box rather than a warning nobody set.
- */
-.callout {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-3);
-  color: var(--text-primary);
-  background: var(--status-soft, var(--bg-active));
-  border: 1px solid var(--status, var(--text-muted));
-  border-radius: var(--radius-card);
-}
-
-/* Primary text rather than muted when no status is mapped. An 11px uppercase
-   label in `--text-muted` fails contrast on this fill. */
-.callout__title {
-  margin: 0;
-  color: var(--status, var(--text-primary));
-  font-size: var(--text-xs);
-  font-weight: var(--weight-lg);
-  letter-spacing: var(--tracking-caps);
-  text-transform: uppercase;
-}
-
-.callout__body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  min-width: 0;
-  font-size: var(--text-sm);
-}
-
-/* Right aligned and wrapping, because the last button is the one a pointer
-   arrives at and two of them do not always fit on one line. */
-.callout__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  justify-content: flex-end;
-}
 }

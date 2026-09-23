@@ -1,6 +1,7 @@
 import type { BrowserWindow } from 'electron';
 
 import type { HostWindowOptions } from './host-window.js';
+import type { ShutdownLifecycle } from './shutdown-lifecycle.js';
 
 /**
  * The version of the shape `runMain` accepts.
@@ -9,7 +10,7 @@ import type { HostWindowOptions } from './host-window.js';
  * later contract refuses an older call site instead of reading a field that
  * moved. See `docs/embedding.md`.
  */
-export const RUN_MAIN_OPTIONS_VERSION = 2;
+export const RUN_MAIN_OPTIONS_VERSION = 3;
 
 /** What every callback receives, and what `runMain` resolves to. */
 export interface MainContext {
@@ -21,6 +22,8 @@ export interface MainContext {
   activate: () => void;
   /** Open an additional application window through the normal lifecycle. */
   openWindow: () => BrowserWindow;
+  /** Vetoable and joinable application shutdown lifecycle. */
+  shutdown: ShutdownLifecycle;
 }
 
 /**
@@ -79,11 +82,8 @@ export interface RunMainOptions {
    * depends on where its own listener sits in the order.
    */
   onWindowAllClosed?: (quitting: boolean) => void;
-  /**
-   * Release whatever the application owns. Returning a promise defers the quit
-   * until it settles; returning nothing lets the quit through untouched.
-   */
-  beforeShutdown?: () => void | Promise<void>;
+  /** Register shutdown vetos and joiners before the application becomes ready. */
+  configureShutdown?: (lifecycle: ShutdownLifecycle) => void;
 }
 
 /** Reject a call site written against a different `options` shape. */

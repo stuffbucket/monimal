@@ -6,6 +6,7 @@ export {
 } from "./components/NavRail.js";
 export {
   AppFrame,
+  SurfaceActivity,
   SurfaceRail,
   SurfaceRight,
   SurfaceStatus,

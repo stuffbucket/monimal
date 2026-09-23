@@ -38,7 +38,8 @@
     "docs/agent.md"
   ],
   "scripts": {
-    "build": "tsup src/index.ts src/host/index.ts src/renderer/index.ts src/worker/index.ts src/search.ts src/search/settings.ts src/search/providers/copilot.ts src/search/providers/duckduckgo.ts src/search/providers/ollama.ts --format esm --dts --clean --target es2022 --external electron --external react --external react-dom --external node-llama-cpp --out-dir dist && cp src/styles.css dist/styles.css",
+    "build": "tsup src/index.ts src/host/index.ts src/renderer/index.ts src/worker/index.ts src/search.ts src/search/settings.ts src/search/providers/copilot.ts src/search/providers/duckduckgo.ts src/search/providers/ollama.ts --format esm --dts --target es2022 --external electron --external react --external react-dom --external node-llama-cpp --out-dir dist && cp src/styles.css dist/styles.css && node scripts/verify-exports.mjs",
+    "verify:exports": "node scripts/verify-exports.mjs",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "mutate": "stryker run stryker.config.mjs",

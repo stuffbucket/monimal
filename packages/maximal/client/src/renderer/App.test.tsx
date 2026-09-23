@@ -49,14 +49,6 @@ vi.mock('./settings/capabilities', () => ({
     subscribe,
   }),
 }))
-vi.mock('./chrome/WindowChrome', () => ({
-  WindowChrome: ({ children }: { children: ReactNode }) => (
-    <div data-testid="window-chrome">{children}</div>
-  ),
-}))
-vi.mock('./first-run/FirstRun', () => ({
-  FirstRun: () => <div data-testid="first-run" />,
-}))
 vi.mock('./overview/Overview', () => ({
   Overview: () => <div data-testid="overview">Overview content</div>,
 }))
@@ -78,19 +70,28 @@ vi.mock('./frame/AppFrame', () => ({
   PRODUCT_TABS: [
     { id: 'overview', title: 'Overview', kind: 'overview' },
     { id: 'traffic', title: 'Traffic', kind: 'traffic' },
-    { id: 'settings', title: 'Settings', kind: 'settings' },
   ],
+  SETTINGS_TAB: { id: 'settings', title: 'Settings', kind: 'settings' },
+  SurfaceActivity: ({ children }: { children: ReactNode }) => <aside>{children}</aside>,
+  SurfaceRail: ({ children }: { children: (collapsed: boolean) => ReactNode }) => (
+    <aside>{children(false)}</aside>
+  ),
+  SurfaceStatus: ({ children }: { children: ReactNode }) => <footer>{children}</footer>,
   AppFrame: ({
     activeTab,
     children,
+    onCloseTab,
     onNewTab,
     onSelectTab,
+    onToggleSettings,
     tabs,
   }: {
     activeTab: string
     children: ReactNode
+    onCloseTab?: (id: string) => void
     onNewTab?: () => void
     onSelectTab: (id: string) => void
+    onToggleSettings?: () => void
     tabs: Array<{ id: string; title: string }>
   }) => (
     <div
@@ -99,10 +100,18 @@ vi.mock('./frame/AppFrame', () => ({
       data-available-views={tabs.map((tab) => tab.id).join(',')}
     >
       <button onClick={() => onSelectTab('traffic')}>Traffic</button>
+      {onToggleSettings ? <button onClick={onToggleSettings}>Settings gear</button> : null}
+      {tabs.some((tab) => tab.id === 'settings') && onCloseTab
+        ? <button onClick={() => onCloseTab('settings')}>Close Settings</button>
+        : null}
       {onNewTab ? <button onClick={onNewTab}>New terminal</button> : null}
       {children}
     </div>
   ),
+}))
+vi.mock('./ProviderOnboarding', () => ({ ProviderOnboarding: () => null }))
+vi.mock('./frame/WorkspaceRail', () => ({
+  WorkspaceRail: () => <nav data-testid="workspace-rail" />,
 }))
 vi.mock('./settings/Settings', () => ({
   Settings: ({
@@ -130,6 +139,11 @@ beforeEach(() => {
   accountStatus.mockResolvedValue({ state: 'unauthenticated' })
   Object.assign(window, {
     maximal: {
+      shutdown: {
+        current: vi.fn(async () => ({ phase: 'idle', operations: [] })),
+        force: vi.fn(async () => false),
+        onChange: vi.fn(() => () => {}),
+      },
       terminal: {
         profiles: vi.fn(() => Promise.resolve([])),
         discover: vi.fn(() => Promise.resolve({ targets: [] })),
@@ -160,11 +174,14 @@ async function renderApp(): Promise<HTMLElement> {
 }
 
 describe('App routing', () => {
-  it('keeps one observability source while switching authenticated views', async () => {
-    accountStatus.mockResolvedValue({ state: 'authenticated' })
+  it('opens the workspace without requiring an authenticated account', async () => {
     const shell = await renderApp()
 
     expect(shell.querySelector('[data-testid="overview"]')).not.toBeNull()
+    expect(shell.querySelector('[data-testid="app-frame"]')?.getAttribute('data-available-views')).toBe(
+      'overview,traffic',
+    )
+    expect(accountStatus).toHaveBeenCalled()
     expect(createObservabilitySource).toHaveBeenCalledTimes(1)
 
     const traffic = [...shell.querySelectorAll('button')].find(
@@ -197,6 +214,7 @@ describe('App routing', () => {
     expect(shell.querySelector('[data-testid="terminal"]')?.getAttribute('data-active-id')).toBe(
       'terminal:session-1',
     )
+    expect(shell.querySelector('[data-testid="workspace-rail"]')).not.toBeNull()
     expect(shell.querySelector('[data-testid="app-frame"]')?.getAttribute('data-view')).toBe(
       'terminal:session-1',
     )
@@ -225,15 +243,16 @@ describe('App routing', () => {
     act(() => exit.click())
 
     expect(shell.querySelector('[data-testid="terminal"]')).toBeNull()
-    expect(shell.querySelector('[data-testid="settings"]')).not.toBeNull()
+  expect(shell.querySelector('[data-testid="workspace-rail"]')).not.toBeNull()
+    expect(shell.querySelector('[data-testid="traffic"]')).not.toBeNull()
     expect(shell.querySelector('[data-testid="app-frame"]')?.getAttribute('data-view')).toBe(
-      'settings',
+      'traffic',
     )
   })
 
-  it('opens a native section request without exposing authenticated views', async () => {
+  it('opens a native settings section without hiding workspace views', async () => {
     const shell = await renderApp()
-    expect(shell.querySelector('[data-testid="first-run"]')).not.toBeNull()
+    expect(shell.querySelector('[data-testid="overview"]')).not.toBeNull()
     if (capabilityState.openSettings === null) {
       throw new Error('Settings request listener was not installed')
     }
@@ -243,29 +262,34 @@ describe('App routing', () => {
     const frame = shell.querySelector('[data-testid="app-frame"]')
     const settings = shell.querySelector('[data-testid="settings"]')
     expect(frame?.getAttribute('data-view')).toBe('settings')
-    expect(frame?.getAttribute('data-available-views')).toBe('settings')
+    expect(frame?.getAttribute('data-available-views')).toBe('overview,traffic,settings')
     expect(settings?.getAttribute('data-request')).toBe('settings-usage-heading')
     expect(shell.querySelector('[data-testid="overview"]')).toBeNull()
     expect(shell.querySelector('[data-testid="traffic"]')).toBeNull()
   })
 
-  it('returns from signed-out Settings to First Run', async () => {
+  it('toggles the Settings tab from the gear and its close action', async () => {
     const shell = await renderApp()
-    if (capabilityState.openSettings === null) {
-      throw new Error('Settings request listener was not installed')
-    }
-    act(() => capabilityState.openSettings?.(null))
-    expect(shell.querySelector('[data-testid="settings"]')?.getAttribute('data-request')).toBe(
-      'settings-account-heading',
+    const gear = [...shell.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Settings gear',
     )
-    const back = [...shell.querySelectorAll('button')].find(
-      (button) => button.textContent === 'Back to sign in',
+    if (gear === undefined) throw new Error('Settings gear was not rendered')
+
+    act(() => gear.click())
+    expect(shell.querySelector('[data-testid="settings"]')).not.toBeNull()
+    expect(shell.querySelector('[data-testid="app-frame"]')?.getAttribute('data-available-views')).toBe(
+      'overview,traffic,settings',
     )
-    if (back === undefined) throw new Error('Back to sign in button was not rendered')
 
-    act(() => back.click())
+    const close = [...shell.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Close Settings',
+    )
+    if (close === undefined) throw new Error('Settings close action was not rendered')
+    act(() => close.click())
 
-    expect(shell.querySelector('[data-testid="first-run"]')).not.toBeNull()
     expect(shell.querySelector('[data-testid="settings"]')).toBeNull()
+    expect(shell.querySelector('[data-testid="app-frame"]')?.getAttribute('data-view')).toBe(
+      'traffic',
+    )
   })
 })

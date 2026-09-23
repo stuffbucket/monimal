@@ -24,7 +24,11 @@ const execPath = prepareDevBundle()
 // re-resolves the workspace lockfile.
 const forge = resolve('node_modules/.bin/electron-forge')
 
-const { status, error } = spawnSync(forge, ['start', ...process.argv.slice(2)], {
+const forgeArguments = process.argv.length > 2
+  ? ['start', '--', ...process.argv.slice(2)]
+  : ['start']
+
+const { status, error } = spawnSync(forge, forgeArguments, {
   stdio: 'inherit',
   // Absent, `forge.config.ts` declines the start command and Forge resolves the
   // stock bundle itself — the right answer on a platform with nothing to name.

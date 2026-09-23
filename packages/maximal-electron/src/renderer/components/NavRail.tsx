@@ -94,7 +94,7 @@ export function NavRail<Id extends string, Status extends string = string>({
             </Collapsible.Trigger>
           )}
 
-          <Collapsible.Content>
+          <Collapsible.Content className="nav__content">
             {section.items.map((entry) => {
               const Icon = icon(entry);
               return (

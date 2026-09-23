@@ -10,9 +10,24 @@ import {
   type MainContext,
   type RunMainOptions,
 } from './main-options.js';
+import { ShutdownLifecycle } from './shutdown-lifecycle.js';
 
 export { RUN_MAIN_OPTIONS_VERSION };
 export type { MainContext, RunMainOptions };
+export {
+  ShutdownLifecycle,
+  type BeforeShutdownEvent,
+  type ShutdownJoiner,
+  type ShutdownJoinerOrder,
+  type ShutdownOperationPhase,
+  type ShutdownOperationSnapshot,
+  type ShutdownParticipantIdentity,
+  type ShutdownPhase,
+  type ShutdownReason,
+  type ShutdownResult,
+  type ShutdownSnapshot,
+  type WillShutdownEvent,
+} from './shutdown-lifecycle.js';
 
 /**
  * The runtime `runMain` drives.
@@ -46,6 +61,8 @@ export async function runMain(
 
   const app = runtime.app;
   const platform = runtime.platform ?? process.platform;
+  const shutdown = new ShutdownLifecycle();
+  options.configureShutdown?.(shutdown);
 
   if (options.userDataDirectory !== undefined) {
     app.setPath('userData', options.userDataDirectory);
@@ -69,6 +86,7 @@ export async function runMain(
     currentWindow: () => (window?.isDestroyed() === false ? window : undefined),
     activate,
     openWindow,
+    shutdown,
   };
 
   function openWindow(): BrowserWindow {
@@ -111,16 +129,13 @@ export async function runMain(
     else void decision.then(finish);
   });
 
-  let shuttingDown = false;
+  let shutdownComplete = false;
   app.on('before-quit', (event) => {
-    // The second pass, after the deferred work finished. Let it through.
-    if (shuttingDown) return;
-    const pending = options.beforeShutdown?.();
-    if (!pending) return;
-
-    shuttingDown = true;
+    if (shutdownComplete) return;
     event.preventDefault();
-    void Promise.resolve(pending).then(() => {
+    void shutdown.request('quit').then((result) => {
+      if (result === 'vetoed' || shutdownComplete) return;
+      shutdownComplete = true;
       app.quit();
     });
   });

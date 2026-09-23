@@ -390,6 +390,10 @@ export function createPreviewSettingsCapabilities(): SettingsCapabilities {
         return Promise.resolve(menuBarState())
       },
     },
+    providerOnboarding: {
+      get: () => Promise.resolve({ dismissed: false }),
+      setDismissed: (dismissed) => Promise.resolve({ dismissed }),
+    },
     connections: {
       list: unavailable,
       act: unavailable,
