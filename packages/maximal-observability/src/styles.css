@@ -165,15 +165,9 @@
   stroke: var(--shell-border-strong, var(--shell-border));
 }
 
-.mo-flow-node text,
-.mo-flow-column-label {
+.mo-flow-node text {
   fill: var(--shell-text);
   font: var(--shell-font);
-}
-
-.mo-flow-column-label {
-  fill: var(--shell-text-muted);
-  font-size: var(--shell-text-xs);
 }
 
 .mo-token-segment {

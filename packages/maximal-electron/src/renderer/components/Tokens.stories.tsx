@@ -87,9 +87,7 @@ const SURFACES = [
 const LINES = [
   '--border-subtle',
   '--border-strong',
-  '--border-input',
   '--border-input-hover',
-  '--border-invalid',
 ];
 
 const INK = ['--text-primary', '--text-secondary', '--text-muted', '--text-invalid'];

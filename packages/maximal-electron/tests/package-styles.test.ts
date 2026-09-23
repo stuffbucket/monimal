@@ -266,7 +266,6 @@ describe('the mirror between the package stylesheet and the reference', () => {
    */
   const DELIBERATE = new Map([
     ['.panel--drawer background', '`.panel` already paints it, and a drawer is always a panel'],
-    ['.switch font-size', '`font: inherit` here is the shorthand that carries font-size'],
     ['.tab flex', '`flex: 0 1 auto` in the reference is the initial value, written to record it'],
     ['.tab:focus-visible background', 'the package ships one focus ring for twelve selectors'],
     ['.tab:focus-visible color', 'the same shared ring'],

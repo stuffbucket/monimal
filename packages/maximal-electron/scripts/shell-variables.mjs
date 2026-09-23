@@ -63,6 +63,7 @@ export function packageStylesheets() {
       // Values precede rules so both linked CSS and carried rules inherit them.
       sources: [
         'src/renderer/styles/shell-structural-tokens.css',
+        'src/renderer/styles/shell-accessibility.css',
         'src/renderer/styles/shell-package-rules.css',
       ],
       imports: ['@wterm/dom/css', '@xterm/xterm/css/xterm.css'],

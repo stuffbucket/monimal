@@ -1,6 +1,7 @@
 /* Carried component rules inherit the same structural values as package CSS. */
 @import './shell-structural-tokens.css';
 @import './controls.css';
+@import './shell-accessibility.css';
 
 @layer sb-shell.base {
 .sb-shell .app-frame__slot,
@@ -1014,21 +1015,6 @@ body {
   align-items: stretch;
 }
 
-.field__select {
-  width: 100%;
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-input);
-  border: 1px solid var(--border-input);
-  background: var(--bg-input);
-  color: var(--text-primary);
-  font: inherit;
-  font-size: var(--text-sm);
-}
-
-.field__select:hover {
-  border-color: var(--border-input-hover);
-}
-
 .field__value {
   font-family: var(--font-mono);
   font-size: var(--text-sm);
@@ -1043,58 +1029,6 @@ body {
   color: var(--text-muted);
   text-align: center;
   padding: var(--space-5);
-}
-
-/* --------------------------------------------------------------- controls */
-
-.switch {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: var(--space-3);
-  font-size: var(--text-base);
-  color: var(--text-secondary);
-  width: fit-content;
-}
-
-.switch[data-layout='spread'] {
-  justify-content: space-between;
-  width: 100%;
-}
-
-.switch__track {
-  position: relative;
-  box-sizing: border-box;
-  width: 30px;
-  height: 18px;
-  flex: none;
-  border: 1px solid var(--text-muted);
-  border-radius: var(--radius-pill);
-  background: color-mix(in srgb, var(--text-muted) 20%, transparent);
-  transition:
-    background var(--duration-fast) var(--ease-out),
-    border-color var(--duration-fast) var(--ease-out);
-}
-
-.switch__track[data-on='true'] {
-  border-color: var(--accent);
-  background: var(--accent);
-}
-
-.switch__thumb {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: var(--text-primary);
-  transition: transform var(--duration-fast) var(--ease-out);
-}
-
-.switch__track[data-on='true'] .switch__thumb {
-  background: var(--accent-contrast);
-  transform: translateX(12px);
 }
 
 /* -------------------------------------------------------------- statusbar */
@@ -1182,15 +1116,6 @@ body {
    edge, and it stops reading as a status. */
 .inspector__section > .chip {
   justify-self: start;
-}
-
-/* ------------------------------------------------------------- reduced motion */
-
-@media (prefers-reduced-motion: reduce) {
-  * {
-    transition-duration: 0.01ms !important;
-    animation-duration: 0.01ms !important;
-  }
 }
 
 /* ------------------------------------------------------------ scrollbars */

@@ -188,7 +188,6 @@
    * members of the ramp.
    */
   --bg-input: #101216;
-  --border-input: #363d48;
   --border-input-hover: #454e5c;
 
   /*
@@ -196,7 +195,6 @@
    * from it because they answer different questions: one is "this operation
    * failed", the other is "fix this before you continue".
    */
-  --border-invalid: #f47174;
   --text-invalid: #f47174;
 
   /* A foreground on a solid semantic fill. White in both schemes, because a
@@ -231,7 +229,6 @@
   --danger-soft: rgb(211 55 59 / 0.12);
 
   --bg-input: #ffffff;
-  --border-input: #ccd2da;
   --border-input-hover: #aab3be;
 
   /* A half-black shadow is a grey smudge on a white page. The dark palette's
@@ -239,7 +236,6 @@
      thing. Storybook's light story is where that became obvious. */
   --elevation-dialog: 0 24px 64px rgb(0 0 0 / 0.18);
 
-  --border-invalid: #d3373b;
   --text-invalid: #d3373b;
 
   --text-on-solid: #ffffff;
