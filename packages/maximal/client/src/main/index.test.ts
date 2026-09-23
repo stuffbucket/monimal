@@ -11,6 +11,8 @@ import {
   INVOKE_CHANNELS,
 } from '../shared/bridge-channels'
 
+const testRendererUrl = 'http://renderer.invalid'
+
 interface ControlSessionSpies {
   authStatus: ReturnType<typeof vi.fn>
   authStart: ReturnType<typeof vi.fn>
@@ -207,13 +209,15 @@ const { localModelsMkdir, resolveLocalModelsPathMock } = vi.hoisted(() => ({
 
 const {
   getOllamaRuntimeStatusMock,
+  launchedOllamaRuntimeStatus,
   launchOllamaMock,
+  ollamaRuntimeStatus,
   updateOllamaContextLengthMock,
-} = vi.hoisted(() => ({
-  getOllamaRuntimeStatusMock: vi.fn(async () => ({
+} = vi.hoisted(() => {
+  const ollamaRuntimeStatus = {
     installation: 'application',
     installed: true,
-    running: true,
+    running: false,
     can_launch: true,
     can_manage: true,
     application_path: '/Applications/Ollama.app',
@@ -221,21 +225,19 @@ const {
     desktop_settings_path: '/Users/test/Ollama/db.sqlite',
     endpoint: 'http://127.0.0.1:11434',
     context_length: 4096,
-  })),
-  launchOllamaMock: vi.fn(async () => ({
-    installation: 'application',
-    installed: true,
+  }
+  const launchedOllamaRuntimeStatus = {
+    ...ollamaRuntimeStatus,
     running: true,
-    can_launch: true,
-    can_manage: true,
-    application_path: '/Applications/Ollama.app',
-    server_configuration_path: '/Users/test/.ollama/server.json',
-    desktop_settings_path: '/Users/test/Ollama/db.sqlite',
-    endpoint: 'http://127.0.0.1:11434',
-    context_length: 4096,
-  })),
-  updateOllamaContextLengthMock: vi.fn(),
-}))
+  }
+  return {
+    getOllamaRuntimeStatusMock: vi.fn(async () => ollamaRuntimeStatus),
+    launchedOllamaRuntimeStatus,
+    launchOllamaMock: vi.fn(async () => launchedOllamaRuntimeStatus),
+    ollamaRuntimeStatus,
+    updateOllamaContextLengthMock: vi.fn(),
+  }
+})
 
 vi.mock('node:fs/promises', () => ({
   access: vi.fn(() => Promise.reject(new Error('not found'))),
@@ -281,18 +283,26 @@ vi.mock('./identity.js', () => ({
   installApplicationMenu: installApplicationMenuMock,
 }))
 
-const { killCoreMock, spawnCoreMock, onCoreStatusMock } = vi.hoisted(() => ({
+const {
+  killCoreMock,
+  onCoreStatusMock,
+  spawnCoreMock,
+  testCoreControlOrigin,
+  testCoreProxyUrl,
+} = vi.hoisted(() => ({
   killCoreMock: vi.fn(() => Promise.resolve()),
-  spawnCoreMock: vi.fn(() =>
-    Promise.resolve({ controlOrigin: '', proxyUrl: '', port: 0, pid: 0 }),
-  ),
   onCoreStatusMock: vi.fn(
     (_listener: (status: unknown) => void) => vi.fn(),
   ),
+  spawnCoreMock: vi.fn(() =>
+    Promise.resolve({ controlOrigin: '', proxyUrl: '', port: 0, pid: 0 }),
+  ),
+  testCoreControlOrigin: 'http://core-control.invalid',
+  testCoreProxyUrl: 'http://core-proxy.invalid',
 }))
 
 vi.mock('./core.js', () => ({
-  awaitProxyUrl: () => Promise.resolve('http://127.0.0.1:4141'),
+  awaitProxyUrl: () => Promise.resolve(testCoreProxyUrl),
   currentCoreStatus: () => ({ phase: 'starting' }),
   killCore: killCoreMock,
   spawnCore: spawnCoreMock,
@@ -521,7 +531,7 @@ describe('closed IPC boundary', () => {
         request: typeof terminalRequest,
       ): Promise<boolean>
     } {
-      vi.stubGlobal('MAIN_WINDOW_VITE_DEV_SERVER_URL', 'http://localhost:5173')
+      vi.stubGlobal('MAIN_WINDOW_VITE_DEV_SERVER_URL', testRendererUrl)
       const actions: unknown =
         configureTerminalWindowActionsMock.mock.calls.at(-1)?.[0]
       if (
@@ -826,6 +836,23 @@ describe('closed IPC boundary', () => {
     expect(onHeadersReceived).not.toHaveBeenCalled()
   })
 
+  it('dismisses the splash only after the renderer and Core are ready', async () => {
+    await loadIndexOn('darwin')
+    const lifecycleListener = onCoreStatusMock.mock.calls[0]?.[0]
+
+    fakeWindow.emit('ready-to-show')
+    expect(closeSplashWindowMock).not.toHaveBeenCalled()
+
+    lifecycleListener?.({
+      phase: 'ready',
+      controlOrigin: testCoreControlOrigin,
+      proxyUrl: testCoreProxyUrl,
+      pid: 42,
+    })
+
+    expect(closeSplashWindowMock).toHaveBeenCalledOnce()
+  })
+
   it('broadcasts redacted lifecycle state and payload-free control invalidation', async () => {
     await loadIndexOn('darwin')
     browserWindows.push({
@@ -836,15 +863,15 @@ describe('closed IPC boundary', () => {
     const lifecycleListener = onCoreStatusMock.mock.calls[0]?.[0]
     lifecycleListener?.({
       phase: 'ready',
-      controlOrigin: 'http://127.0.0.1:54321',
-      proxyUrl: 'http://127.0.0.1:4141',
+      controlOrigin: testCoreControlOrigin,
+      proxyUrl: testCoreProxyUrl,
       pid: 42,
     })
     expect(webContentsSend).toHaveBeenCalledWith(
       BRIDGE_CHANNELS.lifecycleChanged,
       {
         phase: 'ready',
-        proxyUrl: 'http://127.0.0.1:4141',
+        proxyUrl: testCoreProxyUrl,
         pid: 42,
       },
     )
@@ -954,10 +981,14 @@ describe('closed IPC boundary', () => {
       return registration[1]
     }
 
-    await handlerFor(BRIDGE_CHANNELS.ollamaRuntimeStatus)({})
-    await handlerFor(BRIDGE_CHANNELS.ollamaRuntimeLaunch)({})
+    const status = await handlerFor(BRIDGE_CHANNELS.ollamaRuntimeStatus)({})
+    const launchedStatus = await handlerFor(
+      BRIDGE_CHANNELS.ollamaRuntimeLaunch,
+    )({})
     await handlerFor(BRIDGE_CHANNELS.ollamaRuntimeUpdateContext)({}, 8192)
 
+    expect(status).toEqual(ollamaRuntimeStatus)
+    expect(launchedStatus).toEqual(launchedOllamaRuntimeStatus)
     expect(getOllamaRuntimeStatusMock).toHaveBeenCalledOnce()
     expect(launchOllamaMock).toHaveBeenCalledOnce()
     expect(updateOllamaContextLengthMock).toHaveBeenCalledWith(8192)
@@ -1095,7 +1126,7 @@ describe('renderer recovery', () => {
       {},
       -102,
       'Connection refused',
-      'http://localhost:5173',
+      testRendererUrl,
       true,
     )
 

@@ -421,7 +421,11 @@ test("the outer and fixed inner test scripts cannot recurse", () => {
   );
   assert.equal(
     manifest.scripts["check:static"],
-    "turbo run build typecheck lint",
+    "turbo run build typecheck lint && pnpm run check:network-literals",
+  );
+  assert.equal(
+    manifest.scripts["check:network-literals"],
+    "node scripts/check-network-literals.mjs",
   );
   assert.equal(
     manifest.scripts.check,
@@ -576,6 +580,12 @@ test("pnpm prepares a functional workspace Core bin before linking", async () =>
   fs.writeFileSync(binPath, "built output");
   assert.equal(prepareCoreWorkspaceBin(fixture), false);
   assert.equal(fs.readFileSync(binPath, "utf8"), "built output");
+});
+
+test("pnpm synchronizes stale dependencies before retrying a workspace script", () => {
+  const workspace = read("pnpm-workspace.yaml");
+  assert.match(workspace, /^verifyDepsBeforeRun: install$/m);
+  assert.doesNotMatch(workspace, /^verifyDepsBeforeRun: warn$/m);
 });
 
 test("the client sidecar builds through its composition owner", () => {
