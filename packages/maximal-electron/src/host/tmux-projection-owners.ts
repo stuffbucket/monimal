@@ -79,7 +79,7 @@ export class TmuxProjectionOwners<Owner> {
   }
 
   grant(owner: Owner, sessionId: string, recipient: Owner): boolean {
-    if (this.sessionOwners.get(sessionId) !== owner) return false;
+    if (!this.controls(owner, sessionId)) return false;
     const recipients = this.grants.get(sessionId) ?? new Set<Owner>();
     recipients.add(recipient);
     this.grants.set(sessionId, recipients);
@@ -87,7 +87,7 @@ export class TmuxProjectionOwners<Owner> {
   }
 
   revoke(owner: Owner, sessionId: string, recipient: Owner): boolean {
-    if (this.sessionOwners.get(sessionId) !== owner) return false;
+    if (!this.controls(owner, sessionId)) return false;
     const recipients = this.grants.get(sessionId);
     const revoked = recipients?.delete(recipient) ?? false;
     if (recipients?.size === 0) this.grants.delete(sessionId);
@@ -149,6 +149,11 @@ export class TmuxProjectionOwners<Owner> {
       detached = this.detach(owner, sessionId, projectionId) || detached;
     }
     return detached;
+  }
+
+  projectionIds(owner: Owner, sessionId: string): string[] {
+    return this.sessionProjections(sessionId).flatMap(([projectionId, projectionOwner]) =>
+      projectionOwner === owner ? [projectionId] : []);
   }
 
   terminate(owner: Owner, sessionId: string): boolean {

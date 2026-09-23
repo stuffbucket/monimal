@@ -573,6 +573,9 @@ interface StagedPtyOwnership {
   request: PtySpawnRequest;
   projection: boolean;
   recipientWasMirror: boolean;
+  recipientMirrorWasAttached: boolean;
+  recipientProjectionIds: ReadonlySet<string>;
+  recipientGrid?: { cols: number; rows: number };
 }
 
 /**
@@ -596,18 +599,55 @@ export function stagePtyOwnership(
   const rollbackDestination = (): void => {
     for (const entry of [...staged].reverse()) {
       if (entry.projection) {
-        projections.detachOwner(recipient, entry.request.id);
+        for (const projectionId of projections.projectionIds(recipient, entry.request.id)) {
+          if (!entry.recipientProjectionIds.has(projectionId)) {
+            projections.detach(recipient, entry.request.id, projectionId);
+          }
+        }
         projections.revoke(owner, entry.request.id, recipient);
-        projectionEpochs.get(recipient)?.delete(entry.request.id);
-        forgetViewerSize(entry.request.id, recipient);
+        if (entry.recipientProjectionIds.size === 0) {
+          projectionEpochs.get(recipient)?.delete(entry.request.id);
+        }
+        if (entry.recipientGrid) {
+          trackViewerSize(
+            entry.request.id,
+            recipient,
+            entry.recipientGrid.cols,
+            entry.recipientGrid.rows,
+          );
+        } else {
+          forgetViewerSize(entry.request.id, recipient);
+        }
       } else if (!entry.recipientWasMirror) {
         detachMirror(entry.request.id, recipient);
+      } else if (!isMirrorWindow(recipient, entry.request.id)) {
+        const realOwner = realOwnerOf(owner, entry.request.id);
+        if (!realOwner) continue;
+        registerMirror(realOwner, recipient, entry.request.id);
+        if (entry.recipientMirrorWasAttached) {
+          attachMirror(realOwner, recipient, {
+            ...entry.request,
+            cols: entry.recipientGrid?.cols ?? entry.request.cols,
+            rows: entry.recipientGrid?.rows ?? entry.request.rows,
+          });
+        } else if (entry.recipientGrid) {
+          trackViewerSize(
+            entry.request.id,
+            recipient,
+            entry.recipientGrid.cols,
+            entry.recipientGrid.rows,
+          );
+        }
       }
     }
   };
 
   for (const request of requests) {
     if (projections.has(request.id)) {
+      const recipientProjectionIds = new Set(
+        projections.projectionIds(recipient, request.id),
+      );
+      const recipientGrid = windowGroups.viewers(request.id)?.get(recipient);
       if (!grantPtyProjection(owner, request.id, recipient, request.cols, request.rows)) {
         rollbackDestination();
         return undefined;
@@ -616,10 +656,16 @@ export function stagePtyOwnership(
         request,
         projection: true,
         recipientWasMirror: false,
+        recipientMirrorWasAttached: false,
+        recipientProjectionIds,
+        recipientGrid,
       });
       continue;
     }
     const recipientWasMirror = isMirrorWindow(recipient, request.id);
+    const recipientMirrorWasAttached =
+      mirrorDetachers.get(request.id)?.has(recipient) ?? false;
+    const recipientGrid = windowGroups.viewers(request.id)?.get(recipient);
     if (!copyPty(owner, recipient, request)) {
       rollbackDestination();
       return undefined;
@@ -628,6 +674,9 @@ export function stagePtyOwnership(
       request,
       projection: false,
       recipientWasMirror,
+      recipientMirrorWasAttached,
+      recipientProjectionIds: new Set(),
+      recipientGrid,
     });
   }
 
