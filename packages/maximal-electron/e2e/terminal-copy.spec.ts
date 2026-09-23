@@ -5,6 +5,8 @@ import {
   closeApp,
   launchApp,
   terminalScreen,
+  terminalOwnsDomFocus,
+  transferWindowFocus,
   type Harness,
 } from './harness.js';
 
@@ -43,27 +45,6 @@ function terminalGrid(terminal: Locator): Promise<{ cols: number; rows: number }
     }).__terminal;
     return { cols: term?.cols ?? 0, rows: term?.rows ?? 0 };
   });
-}
-
-/** True only when this emulator owns the page's actual DOM input focus. */
-function terminalOwnsDomFocus(terminal: Locator): Promise<boolean> {
-  return terminal.evaluate((node) => node.contains(document.activeElement));
-}
-
-/**
- * Electron Playwright does not transfer macOS application focus between its
- * pages. Dispatch the same renderer events a native transfer produces, then
- * use a real terminal click so the assertion still reads actual DOM focus.
- */
-async function transferWindowFocus(
-  target: Page,
-  terminal: Locator,
-  backgrounds: readonly Page[],
-): Promise<void> {
-  await Promise.all(backgrounds.map((page) =>
-    page.evaluate(() => window.dispatchEvent(new Event('blur')))));
-  await target.evaluate(() => window.dispatchEvent(new Event('focus')));
-  await terminal.click();
 }
 
 test('copies a live terminal into a new window, keeping both live, then recovers on drop-back', async () => {

@@ -3,6 +3,7 @@ import path from 'node:path';
 
 import {
   _electron as electron,
+  expect,
   type ElectronApplication,
   type Locator,
   type Page,
@@ -223,6 +224,28 @@ export async function resetShell({ window }: Harness): Promise<void> {
   // A known view and view mode, with nothing selected.
   await window.click('[data-testid="nav-library"]');
   await window.click('[data-testid="mode-grid"]');
+}
+
+export async function terminalSessionId(terminal: Locator): Promise<string> {
+  const sessionId = await terminal.getAttribute('data-session-id');
+  if (!sessionId) throw new Error('The terminal has no host-issued session ID.');
+  return sessionId;
+}
+
+export function terminalOwnsDomFocus(terminal: Locator): Promise<boolean> {
+  return terminal.evaluate((node) => node.contains(document.activeElement));
+}
+
+export async function transferWindowFocus(
+  target: Page,
+  terminal: Locator,
+  backgrounds: readonly Page[],
+): Promise<void> {
+  await Promise.all(backgrounds.map((page) =>
+    page.evaluate(() => window.dispatchEvent(new Event('blur')))));
+  await target.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await terminal.click();
+  await expect.poll(() => terminalOwnsDomFocus(terminal)).toBe(true);
 }
 
 /**

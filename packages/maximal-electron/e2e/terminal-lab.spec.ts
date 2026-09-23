@@ -5,6 +5,8 @@ import {
   closeApp,
   launchApp,
   terminalScreen,
+  terminalSessionId,
+  terminalOwnsDomFocus,
   type Harness,
 } from './harness.js';
 
@@ -189,11 +191,19 @@ test('drives production terminal tabs, splits, tooltips, and emulators', async (
     await expect(terminal.last().locator('.term-grid')).toContainText('ghostty-second-marker');
   }
 
-  await harness.window.getByRole('button', { name: 'xterm.js' }).click();
-  await expect(harness.window.locator('.terminal:visible[data-focused="true"]')).toHaveCount(0);
-  const xtermScrollers = await harness.window.locator(
+  const selectedPane = harness.window.locator('.terminal:visible[data-focused="true"]');
+  const selectedSessionId = await terminalSessionId(selectedPane);
+  const xtermButton = harness.window.getByRole('button', { name: 'xterm.js' });
+  await xtermButton.click();
+  await expect(xtermButton).toHaveAttribute('aria-pressed', 'true');
+  await expect(selectedPane).toHaveCount(1);
+  await expect(selectedPane).toHaveAttribute('data-session-id', selectedSessionId);
+  await expect.poll(() => terminalOwnsDomFocus(selectedPane)).toBe(true);
+  const xtermScrollerElements = harness.window.locator(
     '.terminal:visible .xterm-scrollable-element',
-  ).evaluateAll((elements) => elements.map((element) => ({
+  );
+  await expect(xtermScrollerElements).toHaveCount(2);
+  const xtermScrollers = await xtermScrollerElements.evaluateAll((elements) => elements.map((element) => ({
     clientWidth: element.clientWidth,
     scrollWidth: element.scrollWidth,
     overflowX: getComputedStyle(element).overflowX,
