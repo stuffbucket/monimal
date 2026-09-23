@@ -16,6 +16,23 @@ describe('ShutdownLifecycle', () => {
     expect(lifecycle.snapshot()).toMatchObject({ phase: 'vetoed', reason: 'quit' });
   });
 
+  it('allows a new shutdown request after a veto clears', async () => {
+    const lifecycle = new ShutdownLifecycle();
+    const joined = vi.fn();
+    let blocked = true;
+    lifecycle.onBeforeShutdown((event) => {
+      event.veto(blocked, { id: 'editor', label: 'Unsaved editor' });
+    });
+    lifecycle.onWillShutdown(joined);
+
+    await expect(lifecycle.request('quit')).resolves.toBe('vetoed');
+    blocked = false;
+    await expect(lifecycle.request('quit')).resolves.toBe('completed');
+
+    expect(joined).toHaveBeenCalledOnce();
+    expect(lifecycle.snapshot().phase).toBe('did');
+  });
+
   it('treats a rejected veto as a veto and exposes the failure', async () => {
     const lifecycle = new ShutdownLifecycle();
     lifecycle.onBeforeShutdown((event) => {
@@ -97,6 +114,34 @@ describe('ShutdownLifecycle', () => {
     await expect(result).resolves.toBe('forced');
     expect(signal?.aborted).toBe(true);
     expect(lifecycle.snapshot().phase).toBe('forced');
+  });
+
+  it('does not treat elapsed time as joiner completion', async () => {
+    vi.useFakeTimers();
+    try {
+      const lifecycle = new ShutdownLifecycle();
+      lifecycle.onWillShutdown((event) => {
+        event.join(new Promise<void>(() => undefined), {
+          id: 'plugin',
+          label: 'Slow plugin',
+        });
+      });
+      let settled = false;
+      const result = lifecycle.request('quit').then((value) => {
+        settled = true;
+        return value;
+      });
+
+      await Promise.resolve();
+      await vi.advanceTimersByTimeAsync(60_000);
+
+      expect(settled).toBe(false);
+      expect(lifecycle.snapshot().phase).toBe('will');
+      expect(lifecycle.force()).toBe(true);
+      await expect(result).resolves.toBe('forced');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('shares one in-flight request across repeated quit signals', async () => {
