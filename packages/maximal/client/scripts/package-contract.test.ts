@@ -1,8 +1,29 @@
 import { describe, expect, it } from 'vitest'
 
-import { externalClosure, platformPackagePlan } from './package-contract.mjs'
+import { externalClosure, platformPackagePlan, ptyRuntimeEntries } from './package-contract.mjs'
 
 const keeps = <T extends { keep: boolean }>(plan: T[]) => plan.filter((entry) => entry.keep)
+
+describe('node-pty runtime selection', () => {
+  it('constructs a package from runtime files and only the target prebuild', () => {
+    expect(ptyRuntimeEntries('darwin', 'arm64')).toEqual([
+      'LICENSE',
+      'package.json',
+      'lib',
+      'prebuilds/darwin-arm64',
+    ])
+  })
+
+  it('keeps both macOS architectures for a universal package', () => {
+    expect(ptyRuntimeEntries('mas', 'universal')).toEqual([
+      'LICENSE',
+      'package.json',
+      'lib',
+      'prebuilds/darwin-x64',
+      'prebuilds/darwin-arm64',
+    ])
+  })
+})
 
 describe('platform package selection', () => {
   const darwinArm = {
