@@ -1,12 +1,18 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   moveTabBefore,
+  terminalPaneSessionIds,
   terminalProcessTitle,
   type TerminalLaunchResult,
+  type TerminalPane,
 } from 'stuffbucket-electron/renderer'
 
 import { PRODUCT_TABS, type AppTab } from './frame/AppFrame'
 import { terminalTransport } from './terminal/transport'
+import {
+  useTerminalWindowTransfer,
+  type DetachedTerminal,
+} from './terminal/window-transfer'
 
 function terminalTab(result: TerminalLaunchResult): AppTab {
   return {
@@ -15,17 +21,33 @@ function terminalTab(result: TerminalLaunchResult): AppTab {
     icon: 'terminal',
     kind: 'terminal',
     sessionId: result.sessionId,
+    canRunInBackground: result.canRunInBackground,
   }
 }
 
-export function useTerminalTabs(authenticated: boolean | null) {
-  const [tabs, setTabs] = useState<AppTab[]>(PRODUCT_TABS)
-  const [activeTab, setActiveTab] = useState('overview')
+export function useTerminalTabs(
+  authenticated: boolean | null,
+  detachedWindow?: DetachedTerminal,
+) {
+  const initialTerminalTab = detachedWindow
+    ? terminalTab({
+        sessionId: detachedWindow.sessionId,
+        label: detachedWindow.title,
+        canRunInBackground: detachedWindow.canRunInBackground,
+      })
+    : undefined
+  const [tabs, setTabs] = useState<AppTab[]>(
+    initialTerminalTab ? [initialTerminalTab] : PRODUCT_TABS,
+  )
+  const [activeTab, setActiveTab] = useState(initialTerminalTab?.id ?? 'overview')
   const [launcherOpen, setLauncherOpen] = useState(false)
   const [recentProfiles, setRecentProfiles] = useState<string[]>([])
+  const [renameState, setRenameState] = useState<{ tabId: string; title: string }>()
+  const [closeState, setCloseState] = useState<{ tabId: string; title: string }>()
+  const [terminalError, setTerminalError] = useState<string>()
 
   useEffect(() => {
-    if (authenticated !== true) return
+    if (authenticated !== true || detachedWindow) return
     void terminalTransport.list().then((sessions) => {
       setTabs((current) => {
         const known = new Set(current.flatMap((tab) => tab.sessionId ?? []))
@@ -39,7 +61,7 @@ export function useTerminalTabs(authenticated: boolean | null) {
         return restored.length === 0 ? current : [...current, ...restored]
       })
     })
-  }, [authenticated])
+  }, [authenticated, detachedWindow])
 
   const onTerminalLaunched = useCallback((result: TerminalLaunchResult) => {
     const tab = terminalTab(result)
@@ -64,7 +86,9 @@ export function useTerminalTabs(authenticated: boolean | null) {
   const updateTerminalTitle = useCallback((id: string, title: string) => {
     const nextTitle = terminalProcessTitle(title)
     if (nextTitle === '') return
-    setTabs((current) => current.map((tab) => tab.id === id ? { ...tab, title: nextTitle } : tab))
+    setTabs((current) => current.map((tab) =>
+      tab.id === id && !tab.customTitle ? { ...tab, title: nextTitle } : tab,
+    ))
   }, [])
 
   const moveTerminalTab = useCallback((id: string, beforeId?: string) => {
@@ -76,6 +100,63 @@ export function useTerminalTabs(authenticated: boolean | null) {
     })
   }, [])
 
+  const transfer = useTerminalWindowTransfer({
+    tabs,
+    setTabs,
+    activeTab,
+    setActiveTab,
+    detachedWindow,
+    initialTerminalTab,
+    makeTerminalTab: terminalTab,
+    onError: setTerminalError,
+  })
+
+  const closeTerminal = useCallback(async (id: string) => {
+    const sessionId = tabs.find((tab) => tab.id === id)?.sessionId
+    if (sessionId === undefined) return
+    const pane = transfer.panes.get(id)
+    try {
+      await Promise.all(
+        terminalPaneSessionIds(pane ?? { sessionId }).map((paneId) =>
+          terminalTransport.terminate(paneId)),
+      )
+      closeTab(id)
+    } catch {
+      setTerminalError('The terminal could not be closed.')
+    }
+  }, [closeTab, tabs, transfer.panes])
+
+  const requestCloseTerminal = useCallback((id: string) => {
+    const tab = tabs.find((candidate) => candidate.id === id)
+    if (tab?.kind !== 'terminal') return
+    if (tab.canRunInBackground) {
+      setCloseState({ tabId: tab.id, title: tab.title })
+      return
+    }
+    void closeTerminal(tab.id)
+  }, [closeTerminal, tabs])
+
+  const renameTerminal = useCallback((id: string, title: string) => {
+    const nextTitle = terminalProcessTitle(title)
+    if (nextTitle === '') return
+    setTabs((current) => current.map((tab) =>
+      tab.id === id && tab.kind === 'terminal'
+        ? { ...tab, title: nextTitle, customTitle: true }
+        : tab,
+    ))
+  }, [])
+
+  const syncPane = useCallback((
+    tabId: string,
+    pane: TerminalPane,
+    baseRevision: number,
+  ) => {
+    transfer.panes.set(tabId, pane)
+    transfer.paneRevisions.set(tabId, baseRevision)
+    const tab = tabs.find((candidate) => candidate.id === tabId)
+    if (tab?.sessionId) void window.maximal.terminal.syncPane(tab.sessionId, pane)
+  }, [tabs, transfer.paneRevisions, transfer.panes])
+
   const rememberProfile = useCallback((profileId: string) => {
     setRecentProfiles((current) => [
       profileId,
@@ -84,17 +165,30 @@ export function useTerminalTabs(authenticated: boolean | null) {
   }, [])
 
   return {
+    detachedWindow,
     tabs,
+    setTabs,
     activeTab,
     setActiveTab,
     launcherOpen,
     setLauncherOpen,
     recentProfiles,
+    renameState,
+    setRenameState,
+    closeState,
+    setCloseState,
+    terminalError,
+    setTerminalError,
     rememberProfile,
     onTerminalLaunched,
     closeTab,
+    closeTerminal,
+    requestCloseTerminal,
+    renameTerminal,
     updateTerminalTitle,
     moveTerminalTab,
+    syncPane,
+    ...transfer,
   }
 }
 

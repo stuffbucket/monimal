@@ -177,6 +177,147 @@ describe('TmuxProjectionOwners', () => {
     })).toBe(false);
   });
 
+  it('lets an active secondary projection grant a move destination', () => {
+    const authority = { id: 'authority' };
+    const secondary = { id: 'secondary' };
+    const destination = { id: 'destination' };
+    const wires = [processWire(), processWire(), processWire()];
+    const pending = [...wires];
+    const registry = new TmuxProjectionOwners<TestOwner>({
+      homeDirectory: '/home/ada',
+      command: successfulCommand,
+      connector: { connect: () => pending.shift()!.process },
+      terminate: vi.fn(),
+      emit: vi.fn(),
+      onExit: vi.fn(),
+    });
+    registry.reserve(authority, 'work', launch);
+    registry.attach(authority, {
+      sessionId: 'work',
+      projectionId: 'authority',
+      cols: 80,
+      rows: 24,
+    });
+    registry.grant(authority, 'work', secondary);
+    registry.attach(secondary, {
+      sessionId: 'work',
+      projectionId: 'secondary',
+      cols: 80,
+      rows: 24,
+    });
+
+    expect(registry.grant(secondary, 'work', destination)).toBe(true);
+    expect(registry.revoke(secondary, 'work', destination)).toBe(true);
+    expect(registry.attach(destination, {
+      sessionId: 'work',
+      projectionId: 'revoked',
+      cols: 80,
+      rows: 24,
+    })).toBe(false);
+    expect(registry.grant(secondary, 'work', destination)).toBe(true);
+    expect(registry.attach(destination, {
+      sessionId: 'work',
+      projectionId: 'destination',
+      cols: 80,
+      rows: 24,
+    })).toBe(true);
+  });
+
+  it('detaches only a transaction-created destination projection on rollback', () => {
+    const source = { id: 'source' };
+    const destination = { id: 'destination' };
+    const wires = [processWire(), processWire(), processWire()];
+    const pending = [...wires];
+    const registry = new TmuxProjectionOwners<TestOwner>({
+      homeDirectory: '/home/ada',
+      command: successfulCommand,
+      connector: { connect: () => pending.shift()!.process },
+      terminate: vi.fn(),
+      emit: vi.fn(),
+      onExit: vi.fn(),
+    });
+    registry.reserve(source, 'work', launch);
+    registry.attach(source, {
+      sessionId: 'work',
+      projectionId: 'source',
+      cols: 80,
+      rows: 24,
+    });
+    registry.grant(source, 'work', destination);
+    registry.attach(destination, {
+      sessionId: 'work',
+      projectionId: 'existing',
+      cols: 80,
+      rows: 24,
+    });
+    const before = new Set(registry.projectionIds(destination, 'work'));
+    registry.grant(source, 'work', destination);
+    registry.attach(destination, {
+      sessionId: 'work',
+      projectionId: 'transaction-created',
+      cols: 80,
+      rows: 24,
+    });
+
+    for (const projectionId of registry.projectionIds(destination, 'work')) {
+      if (!before.has(projectionId)) registry.detach(destination, 'work', projectionId);
+    }
+    registry.revoke(source, 'work', destination);
+
+    expect(registry.projectionIds(destination, 'work')).toEqual(['existing']);
+    expect(registry.focus(destination, 'work', 'existing', 80, 24)).toBe(1);
+    expect(wires[1]?.process.kill).not.toHaveBeenCalled();
+    expect(wires[2]?.process.kill).toHaveBeenCalledOnce();
+  });
+
+  it('keeps original projection views usable after a partial staged grant rolls back', () => {
+    const source = { id: 'source' };
+    const destination = { id: 'destination' };
+    const wires = [processWire(), processWire(), processWire()];
+    const pending = [...wires];
+    const registry = new TmuxProjectionOwners<TestOwner>({
+      homeDirectory: '/home/ada',
+      command: successfulCommand,
+      connector: { connect: () => pending.shift()!.process },
+      terminate: vi.fn(),
+      emit: vi.fn(),
+      onExit: vi.fn(),
+    });
+    registry.reserve(source, 'first', launch);
+    registry.reserve(source, 'second', launch);
+    registry.attach(source, {
+      sessionId: 'first',
+      projectionId: 'first:source',
+      cols: 80,
+      rows: 24,
+    });
+    registry.attach(source, {
+      sessionId: 'second',
+      projectionId: 'second:source',
+      cols: 80,
+      rows: 24,
+    });
+
+    expect(registry.grant(source, 'first', destination)).toBe(true);
+    expect(registry.attach(destination, {
+      sessionId: 'first',
+      projectionId: 'first:destination',
+      cols: 80,
+      rows: 24,
+    })).toBe(true);
+    expect(registry.grant(source, 'missing', destination)).toBe(false);
+
+    expect(registry.detachOwner(destination, 'first')).toBe(true);
+    registry.revoke(source, 'first', destination);
+    const firstEpoch = registry.focus(source, 'first', 'first:source', 80, 24)!;
+    const secondEpoch = registry.focus(source, 'second', 'second:source', 80, 24)!;
+    expect(registry.write(source, 'first', 'first:source', firstEpoch, 'source-first')).toBe(true);
+    expect(registry.write(source, 'second', 'second:source', secondEpoch, 'source-second')).toBe(true);
+    expect(wires[0]?.process.write).toHaveBeenCalledWith('source-first');
+    expect(wires[1]?.process.write).toHaveBeenCalledWith('source-second');
+    expect(wires[2]?.process.kill).toHaveBeenCalledOnce();
+  });
+
   it('drops projection events after their owner mapping has been released', () => {
     const owner = { id: 'owner' };
     const wire = processWire();
@@ -223,7 +364,7 @@ describe('TmuxProjectionOwners', () => {
     expect(registry.detach(owner, 'work', 'left')).toBe(false);
   });
 
-  it('requires control and lets an attached projection owner delegate', () => {
+  it('requires active control and lets an attached owner delegate', () => {
     const creator = { id: 'creator' };
     const recipient = { id: 'recipient' };
     const delegate = { id: 'delegate' };

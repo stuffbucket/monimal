@@ -9,10 +9,8 @@ import {
   useRef,
   useState,
   type ComponentType,
-  type CSSProperties,
   type DragEvent,
 } from 'react';
-import { createPortal } from 'react-dom';
 
 import {
   adornmentLabel,
@@ -84,7 +82,7 @@ export interface TabTransferOptions<T extends Tab> {
   onMoveTab?: (tabId: string, beforeTabId?: string) => void;
   onReceiveTab?: (transfer: TabTransfer, beforeTabId?: string) => void;
   onDetachTab?: (transfer: TabTransfer, position: TabDetachPosition) => void;
-  getTransfer?: (tab: T) => Pick<TabTransfer, 'sessionId' | 'pane' | 'title'> | undefined;
+  getTransfer?: (tab: T) => Pick<TabTransfer, 'sessionId' | 'pane' | 'title' | 'canRunInBackground'> | undefined;
   contextMenu?: (tab: T) => TabContextMenuItem[];
 }
 
@@ -101,6 +99,13 @@ export interface TabContextMenuItem {
 
 function safeIdPart(value: string) {
   return encodeURIComponent(value);
+}
+
+function releasedOutsideWindow(event: DragEvent): boolean {
+  return event.screenX < window.screenX
+    || event.screenY < window.screenY
+    || event.screenX >= window.screenX + window.outerWidth
+    || event.screenY >= window.screenY + window.outerHeight;
 }
 
 /** The ID applied to a tab trigger for a consumer-rendered panel. */
@@ -354,9 +359,13 @@ export function TabBar<T extends Tab>({
                   dragDropHandled.current = false;
                   return;
                 }
-                if (!transfer?.onDetachTab || event.dataTransfer.dropEffect !== 'none') return;
-                const element = document.elementFromPoint(event.clientX, event.clientY);
-                if (element?.closest('.sb-shell')) return;
+                if (!transfer?.onDetachTab) return;
+                const outsideWindow = releasedOutsideWindow(event);
+                if (!outsideWindow && event.dataTransfer.dropEffect !== 'none') return;
+                if (!outsideWindow) {
+                  const element = document.elementFromPoint(event.clientX, event.clientY);
+                  if (element?.closest('.sb-shell')) return;
+                }
                 transfer.onDetachTab(
                   {
                     version: 1,
@@ -423,19 +432,6 @@ export function TabBar<T extends Tab>({
         </button>
         )}
       </Tabs.Root>
-      {contextMenu && createPortal(
-        <div
-          aria-hidden="true"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 40,
-            WebkitAppRegion: 'no-drag',
-          } as CSSProperties}
-          onPointerDown={() => setContextMenu(undefined)}
-        />,
-        portalContainer ?? document.body,
-      )}
       <DropdownMenu.Root
         open={contextMenu !== undefined}
         onOpenChange={(open) => {

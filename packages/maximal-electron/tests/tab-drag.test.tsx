@@ -184,6 +184,32 @@ describe('tab drag gestures', () => {
     await act(async () => root.unmount());
   });
 
+  it('detaches outside the window even when Chromium retains a move drop effect', async () => {
+    const onDetachTab = vi.fn();
+    const { element, root } = await renderStrip({ frameId: 'main', onDetachTab });
+    const source = element.querySelector('[role="tab"]')!;
+    const data = new TransferData();
+    data.dropEffect = 'move';
+    Object.defineProperty(document, 'elementFromPoint', {
+      configurable: true,
+      value: () => source,
+    });
+
+    await act(async () => source.dispatchEvent(dragEvent('dragend', data, {
+      screenX: window.screenX + window.outerWidth + 20,
+      screenY: window.screenY + 100,
+    })));
+
+    expect(onDetachTab).toHaveBeenCalledWith(
+      { version: 1, sourceFrameId: 'main', tabId: 'one' },
+      {
+        screenX: window.screenX + window.outerWidth + 20,
+        screenY: window.screenY + 100,
+      },
+    );
+    await act(async () => root.unmount());
+  });
+
   it('does not detach a canceled drag while it remains over the shell', async () => {
     const onDetachTab = vi.fn();
     const { element, root } = await renderStrip({ frameId: 'main', onDetachTab });

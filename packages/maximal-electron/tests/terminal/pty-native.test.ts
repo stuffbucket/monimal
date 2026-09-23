@@ -19,6 +19,8 @@ const state = vi.hoisted(() => ({
     write: ReturnType<typeof vi.fn>;
     resize: ReturnType<typeof vi.fn>;
     detach: ReturnType<typeof vi.fn>;
+    detachOwner: ReturnType<typeof vi.fn>;
+    projectionIds: ReturnType<typeof vi.fn>;
     grant: ReturnType<typeof vi.fn>;
     revoke: ReturnType<typeof vi.fn>;
     transfer: ReturnType<typeof vi.fn>;
@@ -27,6 +29,7 @@ const state = vi.hoisted(() => ({
     sessions: Set<string>;
     owners: Map<string, unknown>;
     grants: Map<string, Set<unknown>>;
+    controllers: Map<string, Set<unknown>>;
   }>,
 }));
 
@@ -74,6 +77,7 @@ vi.mock('../../src/host/terminal-host.js', () => ({
     readonly sessions = new Set<string>();
     readonly owners = new Map<string, unknown>();
     readonly grants = new Map<string, Set<unknown>>();
+    readonly controllers = new Map<string, Set<unknown>>();
     readonly reserve = vi.fn((owner: unknown, id: string) => {
       this.sessions.add(id);
       this.owners.set(id, owner);
@@ -84,19 +88,27 @@ vi.mock('../../src/host/terminal-host.js', () => ({
     readonly write = vi.fn(() => true);
     readonly resize = vi.fn(() => true);
     readonly detach = vi.fn(() => true);
+    readonly detachOwner = vi.fn(() => true);
+    readonly projectionIds = vi.fn(() => [] as string[]);
     readonly grant = vi.fn((owner: unknown, id: string, recipient: unknown) => {
-      if (state.failedProjectionGrants.has(id) || this.owners.get(id) !== owner) return false;
+      const controls = this.owners.get(id) === owner
+        || this.controllers.get(id)?.has(owner) === true;
+      if (state.failedProjectionGrants.has(id) || !controls) return false;
       const recipients = this.grants.get(id) ?? new Set();
       recipients.add(recipient);
       this.grants.set(id, recipients);
       return true;
     });
     readonly revoke = vi.fn((owner: unknown, id: string, recipient: unknown) => {
-      if (this.owners.get(id) !== owner) return false;
+      const controls = this.owners.get(id) === owner
+        || this.controllers.get(id)?.has(owner) === true;
+      if (!controls) return false;
       return this.grants.get(id)?.delete(recipient) ?? false;
     });
     readonly transfer = vi.fn((owner: unknown, id: string, recipient: unknown) => {
-      if (state.failedProjectionTransfers.has(id) || this.owners.get(id) !== owner) return false;
+      const controls = this.owners.get(id) === owner
+        || this.controllers.get(id)?.has(owner) === true;
+      if (state.failedProjectionTransfers.has(id) || !controls) return false;
       this.owners.set(id, recipient);
       return true;
     });
@@ -125,6 +137,7 @@ describe('native pty adapter', () => {
   beforeEach(() => {
     state.failedProjectionGrants.clear();
     state.failedProjectionTransfers.clear();
+    state.projectionHosts[0]?.projectionIds.mockReset().mockReturnValue([]);
   });
 
   it('forwards the host output sequence to the owner event adapter', () => {
@@ -190,10 +203,10 @@ describe('native pty adapter', () => {
     ])).toBe(true);
 
     expect(projections.owners.get('mixed-projection')).toBe(destination);
-    expect(projections.detach).toHaveBeenCalledWith(
+    expect(projections.grants.get('mixed-projection')?.has(destination)).toBe(false);
+    expect(projections.detachOwner).toHaveBeenCalledWith(
       source,
       'mixed-projection',
-      `mixed-projection:${String((source as { id: number }).id)}`,
     );
     expect(pty.transferPty(source, owner(), {
       id: 'mixed-direct',
@@ -202,6 +215,114 @@ describe('native pty adapter', () => {
     })).toBe(false);
     expect(pty.transferPty(destination, owner(), {
       id: 'mixed-direct',
+      cols: 80,
+      rows: 24,
+    })).toBe(true);
+  });
+
+  it('rejects duplicate session IDs before staging any ownership', () => {
+    const source = owner();
+    const destination = owner();
+    pty.spawnPty(source, { id: 'duplicate', cols: 80, rows: 24 });
+
+    expect(pty.stagePtyOwnership(source, destination, [
+      { id: 'duplicate', cols: 80, rows: 24 },
+      { id: 'duplicate', cols: 100, rows: 30 },
+    ], 'move')).toBeUndefined();
+    expect(pty.transferPty(source, owner(), {
+      id: 'duplicate',
+      cols: 80,
+      rows: 24,
+    })).toBe(true);
+  });
+
+  it('stages and commits a projection move from an active secondary window', () => {
+    const authority = owner();
+    const secondary = owner();
+    const destination = owner();
+    const projections = state.projectionHosts[0]!;
+    projections.sessions.add('secondary-move');
+    projections.owners.set('secondary-move', authority);
+    projections.controllers.set('secondary-move', new Set([secondary]));
+
+    const transaction = pty.stagePtyOwnership(secondary, destination, [
+      { id: 'secondary-move', cols: 80, rows: 24 },
+    ], 'move');
+
+    expect(transaction).toBeDefined();
+    expect(transaction?.commit()).toBe(true);
+    expect(projections.grant).toHaveBeenCalledWith(
+      secondary,
+      'secondary-move',
+      destination,
+    );
+    expect(projections.owners.get('secondary-move')).toBe(destination);
+    expect(projections.detachOwner).toHaveBeenCalledWith(secondary, 'secondary-move');
+  });
+
+  it('preserves a recipient projection that existed before rollback', () => {
+    const source = owner();
+    const destination = owner();
+    const projections = state.projectionHosts[0]!;
+    projections.sessions.add('existing-destination');
+    projections.owners.set('existing-destination', source);
+    projections.projectionIds
+      .mockReturnValueOnce(['existing'])
+      .mockReturnValueOnce(['existing', 'transaction-created']);
+
+    const transaction = pty.stagePtyOwnership(source, destination, [
+      { id: 'existing-destination', cols: 100, rows: 30 },
+    ], 'move');
+    expect(transaction).toBeDefined();
+
+    transaction?.rollback();
+
+    expect(projections.detach).toHaveBeenCalledWith(
+      destination,
+      'existing-destination',
+      'transaction-created',
+    );
+    expect(projections.detach).not.toHaveBeenCalledWith(
+      destination,
+      'existing-destination',
+      'existing',
+    );
+    expect(projections.revoke).toHaveBeenCalledWith(
+      source,
+      'existing-destination',
+      destination,
+    );
+  });
+
+  it('removes staged destination capabilities without moving the source', () => {
+    const source = owner();
+    const destination = owner();
+    pty.spawnPty(source, { id: 'staged-direct', cols: 80, rows: 24 });
+    const projections = state.projectionHosts[0]!;
+    projections.sessions.add('staged-projection-view');
+    projections.owners.set('staged-projection-view', source);
+
+    const transaction = pty.stagePtyOwnership(source, destination, [
+      { id: 'staged-direct', cols: 80, rows: 24 },
+      { id: 'staged-projection-view', cols: 80, rows: 24 },
+    ], 'move');
+    expect(transaction).toBeDefined();
+
+    transaction?.rollback();
+
+    expect(projections.owners.get('staged-projection-view')).toBe(source);
+    expect(projections.revoke).toHaveBeenCalledWith(
+      source,
+      'staged-projection-view',
+      destination,
+    );
+    expect(pty.transferPty(destination, owner(), {
+      id: 'staged-direct',
+      cols: 80,
+      rows: 24,
+    })).toBe(false);
+    expect(pty.transferPty(source, owner(), {
+      id: 'staged-direct',
       cols: 80,
       rows: 24,
     })).toBe(true);
@@ -222,10 +343,9 @@ describe('native pty adapter', () => {
     ])).toBe(false);
 
     expect(projections.owners.get('rollback-projection')).toBe(source);
-    expect(projections.detach).not.toHaveBeenCalledWith(
+    expect(projections.detachOwner).not.toHaveBeenCalledWith(
       source,
       'rollback-projection',
-      expect.any(String),
     );
     expect(pty.transferPty(source, owner(), {
       id: 'rollback-direct',
@@ -275,10 +395,9 @@ describe('native pty adapter', () => {
     ])).toBe(false);
 
     expect(projections.owners.get('staged-projection')).toBe(source);
-    expect(projections.detach).not.toHaveBeenCalledWith(
+    expect(projections.detachOwner).not.toHaveBeenCalledWith(
       source,
       'staged-projection',
-      expect.any(String),
     );
   });
 

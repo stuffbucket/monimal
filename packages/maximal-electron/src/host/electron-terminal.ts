@@ -13,9 +13,11 @@ export {
   listPtys,
   resizePty,
   spawnPty,
+  stagePtyOwnership,
   syncPtyPane,
   transferPty,
   transferPtyOwnership,
   transferPtyProjection,
   writePty,
+  type PtyOwnershipTransaction,
 } from '../main/native/pty.js';

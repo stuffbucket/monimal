@@ -12,6 +12,7 @@ const transfer: TabTransfer = {
   version: 1,
   sourceFrameId: 'main',
   tabId: 'terminal:one',
+  canRunInBackground: true,
 };
 
 describe('tab transfers', () => {
