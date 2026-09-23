@@ -17,6 +17,7 @@ const state = vi.hoisted(() => ({
     write: ReturnType<typeof vi.fn>;
     resize: ReturnType<typeof vi.fn>;
     detach: ReturnType<typeof vi.fn>;
+    detachOwner: ReturnType<typeof vi.fn>;
     grant: ReturnType<typeof vi.fn>;
     revoke: ReturnType<typeof vi.fn>;
     transfer: ReturnType<typeof vi.fn>;
@@ -71,6 +72,7 @@ vi.mock('../../src/host/terminal-host.js', () => ({
     readonly write = vi.fn(() => true);
     readonly resize = vi.fn(() => true);
     readonly detach = vi.fn(() => true);
+    readonly detachOwner = vi.fn(() => true);
     readonly grant = vi.fn((owner: unknown, id: string, recipient: unknown) => {
       if (state.failedProjectionGrants.has(id) || this.owners.get(id) !== owner) return false;
       const recipients = this.grants.get(id) ?? new Set();
@@ -177,10 +179,10 @@ describe('native pty adapter', () => {
     ])).toBe(true);
 
     expect(projections.owners.get('mixed-projection')).toBe(destination);
-    expect(projections.detach).toHaveBeenCalledWith(
+    expect(projections.grants.get('mixed-projection')?.has(destination)).toBe(false);
+    expect(projections.detachOwner).toHaveBeenCalledWith(
       source,
       'mixed-projection',
-      `mixed-projection:${String((source as { id: number }).id)}`,
     );
     expect(pty.transferPty(source, owner(), {
       id: 'mixed-direct',
@@ -189,6 +191,56 @@ describe('native pty adapter', () => {
     })).toBe(false);
     expect(pty.transferPty(destination, owner(), {
       id: 'mixed-direct',
+      cols: 80,
+      rows: 24,
+    })).toBe(true);
+  });
+
+  it('rejects duplicate session IDs before staging any ownership', () => {
+    const source = owner();
+    const destination = owner();
+    pty.spawnPty(source, { id: 'duplicate', cols: 80, rows: 24 });
+
+    expect(pty.stagePtyOwnership(source, destination, [
+      { id: 'duplicate', cols: 80, rows: 24 },
+      { id: 'duplicate', cols: 100, rows: 30 },
+    ], 'move')).toBeUndefined();
+    expect(pty.transferPty(source, owner(), {
+      id: 'duplicate',
+      cols: 80,
+      rows: 24,
+    })).toBe(true);
+  });
+
+  it('removes staged destination capabilities without moving the source', () => {
+    const source = owner();
+    const destination = owner();
+    pty.spawnPty(source, { id: 'staged-direct', cols: 80, rows: 24 });
+    const projections = state.projectionHosts[0]!;
+    projections.sessions.add('staged-projection-view');
+    projections.owners.set('staged-projection-view', source);
+
+    const transaction = pty.stagePtyOwnership(source, destination, [
+      { id: 'staged-direct', cols: 80, rows: 24 },
+      { id: 'staged-projection-view', cols: 80, rows: 24 },
+    ], 'move');
+    expect(transaction).toBeDefined();
+
+    transaction?.rollback();
+
+    expect(projections.owners.get('staged-projection-view')).toBe(source);
+    expect(projections.revoke).toHaveBeenCalledWith(
+      source,
+      'staged-projection-view',
+      destination,
+    );
+    expect(pty.transferPty(destination, owner(), {
+      id: 'staged-direct',
+      cols: 80,
+      rows: 24,
+    })).toBe(false);
+    expect(pty.transferPty(source, owner(), {
+      id: 'staged-direct',
       cols: 80,
       rows: 24,
     })).toBe(true);
@@ -209,10 +261,9 @@ describe('native pty adapter', () => {
     ])).toBe(false);
 
     expect(projections.owners.get('rollback-projection')).toBe(source);
-    expect(projections.detach).not.toHaveBeenCalledWith(
+    expect(projections.detachOwner).not.toHaveBeenCalledWith(
       source,
       'rollback-projection',
-      expect.any(String),
     );
     expect(pty.transferPty(source, owner(), {
       id: 'rollback-direct',
@@ -234,10 +285,9 @@ describe('native pty adapter', () => {
     ])).toBe(false);
 
     expect(projections.owners.get('staged-projection')).toBe(source);
-    expect(projections.detach).not.toHaveBeenCalledWith(
+    expect(projections.detachOwner).not.toHaveBeenCalledWith(
       source,
       'staged-projection',
-      expect.any(String),
     );
   });
 

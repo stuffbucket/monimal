@@ -177,6 +177,54 @@ describe('TmuxProjectionOwners', () => {
     })).toBe(false);
   });
 
+  it('keeps original projection views usable after a partial staged grant rolls back', () => {
+    const source = { id: 'source' };
+    const destination = { id: 'destination' };
+    const wires = [processWire(), processWire(), processWire()];
+    const pending = [...wires];
+    const registry = new TmuxProjectionOwners<TestOwner>({
+      homeDirectory: '/home/ada',
+      command: successfulCommand,
+      connector: { connect: () => pending.shift()!.process },
+      terminate: vi.fn(),
+      emit: vi.fn(),
+      onExit: vi.fn(),
+    });
+    registry.reserve(source, 'first', launch);
+    registry.reserve(source, 'second', launch);
+    registry.attach(source, {
+      sessionId: 'first',
+      projectionId: 'first:source',
+      cols: 80,
+      rows: 24,
+    });
+    registry.attach(source, {
+      sessionId: 'second',
+      projectionId: 'second:source',
+      cols: 80,
+      rows: 24,
+    });
+
+    expect(registry.grant(source, 'first', destination)).toBe(true);
+    expect(registry.attach(destination, {
+      sessionId: 'first',
+      projectionId: 'first:destination',
+      cols: 80,
+      rows: 24,
+    })).toBe(true);
+    expect(registry.grant(source, 'missing', destination)).toBe(false);
+
+    expect(registry.detachOwner(destination, 'first')).toBe(true);
+    registry.revoke(source, 'first', destination);
+    const firstEpoch = registry.focus(source, 'first', 'first:source', 80, 24)!;
+    const secondEpoch = registry.focus(source, 'second', 'second:source', 80, 24)!;
+    expect(registry.write(source, 'first', 'first:source', firstEpoch, 'source-first')).toBe(true);
+    expect(registry.write(source, 'second', 'second:source', secondEpoch, 'source-second')).toBe(true);
+    expect(wires[0]?.process.write).toHaveBeenCalledWith('source-first');
+    expect(wires[1]?.process.write).toHaveBeenCalledWith('source-second');
+    expect(wires[2]?.process.kill).toHaveBeenCalledOnce();
+  });
+
   it('drops projection events after their owner mapping has been released', () => {
     const owner = { id: 'owner' };
     const wire = processWire();

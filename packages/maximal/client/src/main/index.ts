@@ -56,11 +56,13 @@ import {
 import {
   configureTerminalHost,
   configureTerminalWindowActions,
-  copyTerminalSessions,
   moveTerminalSessions,
   registerTerminalIpc,
+  stageTerminalSessions,
   stopTerminalHost,
 } from './terminal-host.js'
+
+const TERMINAL_WINDOW_READY_TIMEOUT_MS = 15_000
 
 function isolateDevelopmentUserData(): void {
   if (app.isPackaged || app.commandLine.hasSwitch('user-data-dir')) return
@@ -348,31 +350,59 @@ function createTerminalWindow(request: TerminalWindowRequest): BrowserWindow {
     width: 1000,
     height: 700,
     showWhenReady: false,
-    loadRenderer: (win) => loadRenderer(win, request),
+    loadRenderer: () => undefined,
   })
   return win
 }
 
-function openTransferredTerminal(
+function waitForTerminalWindow(
+  win: BrowserWindow,
+  timeoutMs = TERMINAL_WINDOW_READY_TIMEOUT_MS,
+): Promise<boolean> {
+  return new Promise((resolve) => {
+    let settled = false
+    const finish = (ready: boolean): void => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      win.removeListener('ready-to-show', onReady)
+      win.removeListener('close', onFailure)
+      win.webContents.removeListener('did-fail-load', onFailure)
+      win.webContents.removeListener('render-process-gone', onFailure)
+      resolve(ready)
+    }
+    const onReady = (): void => finish(true)
+    const onFailure = (): void => finish(false)
+    const timer = setTimeout(onFailure, timeoutMs)
+    timer.unref()
+    win.once('ready-to-show', onReady)
+    win.once('close', onFailure)
+    win.webContents.once('did-fail-load', onFailure)
+    win.webContents.once('render-process-gone', onFailure)
+  })
+}
+
+async function openTransferredTerminal(
   owner: BrowserWindow | undefined,
   request: TerminalWindowRequest,
-  transfer: (
-    owner: BrowserWindow | undefined,
-    recipient: BrowserWindow | undefined,
-    request: TerminalWindowRequest,
-  ) => boolean,
-): boolean {
+  mode: 'copy' | 'move',
+): Promise<boolean> {
   if (!owner) return false
   const detached = createTerminalWindow(request)
-  const transferred = transfer(owner, detached, request)
-  if (!transferred) {
+  const transaction = stageTerminalSessions(owner, detached, request, mode)
+  if (!transaction) {
     detached.close()
     return false
   }
-  detached.once('ready-to-show', () => {
-    detached.show()
-    focusWindow(detached)
-  })
+  const ready = waitForTerminalWindow(detached)
+  loadRenderer(detached, request)
+  if (!await ready || !transaction.commit()) {
+    transaction.rollback()
+    if (!detached.isDestroyed()) detached.close()
+    return false
+  }
+  detached.show()
+  focusWindow(detached)
   return true
 }
 
@@ -439,9 +469,9 @@ void app.whenReady().then(async () => {
   configureTerminalHost()
   configureTerminalWindowActions({
     undock: (owner, request) =>
-      openTransferredTerminal(owner, request, moveTerminalSessions),
+      openTransferredTerminal(owner, request, 'move'),
     copy: (owner, request) =>
-      openTransferredTerminal(owner, request, copyTerminalSessions),
+      openTransferredTerminal(owner, request, 'copy'),
     redock: redockTerminal,
   })
   registerIpc(controlSession, nativeMode)

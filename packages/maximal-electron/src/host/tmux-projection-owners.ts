@@ -124,6 +124,15 @@ export class TmuxProjectionOwners<Owner> {
     return this.host.detach(sessionId, projectionId);
   }
 
+  detachOwner(owner: Owner, sessionId: string): boolean {
+    let detached = false;
+    for (const [projectionId, projectionOwner] of this.sessionProjections(sessionId)) {
+      if (projectionOwner !== owner) continue;
+      detached = this.detach(owner, sessionId, projectionId) || detached;
+    }
+    return detached;
+  }
+
   terminate(owner: Owner, sessionId: string): boolean {
     const ownsProjection = [...this.projectionOwners.entries()].some(([key, projectionOwner]) =>
       projectionOwner === owner && key.startsWith(`${sessionId}\u0000`));
@@ -133,10 +142,10 @@ export class TmuxProjectionOwners<Owner> {
   }
 
   release(owner: Owner): void {
-    for (const key of [...this.projectionOwners.keys()]) {
-      const separator = key.indexOf('\u0000');
-      this.detach(owner, key.slice(0, separator), key.slice(separator + 1));
-    }
+    const sessionIds = new Set(
+      [...this.projectionOwners.keys()].map((key) => key.slice(0, key.indexOf('\u0000'))),
+    );
+    for (const sessionId of sessionIds) this.detachOwner(owner, sessionId);
     for (const recipients of this.grants.values()) recipients.delete(owner);
     for (const [sessionId, sessionOwner] of this.sessionOwners) {
       if (sessionOwner === owner) this.sessionOwners.delete(sessionId);

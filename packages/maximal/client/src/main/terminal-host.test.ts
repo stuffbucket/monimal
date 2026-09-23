@@ -5,18 +5,12 @@ import { BRIDGE_CHANNELS } from '../shared/bridge-channels'
 
 const {
   configurePty,
-  copyPty,
-  grantPtyProjection,
   ipcHandlers,
-  transferPty,
-  transferPtyProjection,
+  stagePtyOwnership,
 } = vi.hoisted(() => ({
   configurePty: vi.fn(),
-  copyPty: vi.fn(),
-  grantPtyProjection: vi.fn(),
   ipcHandlers: new Map<string, (...args: unknown[]) => unknown>(),
-  transferPty: vi.fn(),
-  transferPtyProjection: vi.fn(),
+  stagePtyOwnership: vi.fn(),
 }))
 
 const owner = {
@@ -43,9 +37,7 @@ vi.mock('electron', () => ({
 vi.mock('stuffbucket-electron/electron-terminal', () => ({
   acknowledgePty: vi.fn(),
   configurePty,
-  copyPty,
   discoverTerminalTargets: vi.fn(),
-  grantPtyProjection,
   killAllPtys: vi.fn(),
   killPty: vi.fn(),
   launchTerminal: vi.fn(),
@@ -53,9 +45,8 @@ vi.mock('stuffbucket-electron/electron-terminal', () => ({
   listPtys: vi.fn(),
   resizePty: vi.fn(),
   spawnPty: vi.fn(),
+  stagePtyOwnership,
   syncPtyPane: vi.fn(),
-  transferPty,
-  transferPtyProjection,
   writePty: vi.fn(),
 }))
 
@@ -85,10 +76,7 @@ const request = {
 describe('terminal host window actions', () => {
   beforeEach(() => {
     ipcHandlers.clear()
-    copyPty.mockReset()
-    grantPtyProjection.mockReset()
-    transferPty.mockReset()
-    transferPtyProjection.mockReset()
+    stagePtyOwnership.mockReset()
   })
 
   it('validates an undock request before dispatching it with the sender window', () => {
@@ -109,45 +97,27 @@ describe('terminal host window actions', () => {
     })).toThrow()
   })
 
-  it('moves projection and direct sessions as one window operation', () => {
-    transferPtyProjection
-      .mockReturnValueOnce(true)
-      .mockReturnValueOnce(false)
-    transferPty.mockReturnValue(true)
+  it('moves all sessions through one native ownership transaction', () => {
+    const commit = vi.fn(() => true)
+    stagePtyOwnership.mockReturnValue({ commit, rollback: vi.fn() })
 
     expect(moveTerminalSessions(owner, recipient, request)).toBe(true)
-    expect(transferPtyProjection).toHaveBeenNthCalledWith(
-      1,
+    expect(stagePtyOwnership).toHaveBeenCalledWith(
       owner,
-      'primary',
       recipient,
-      120,
-      40,
+      [
+        { id: 'primary', cols: 120, rows: 40 },
+        { id: 'split', cols: 120, rows: 40 },
+      ],
+      'move',
     )
-    expect(transferPty).toHaveBeenCalledWith(owner, recipient, {
-      id: 'split',
-      cols: 120,
-      rows: 40,
-    })
+    expect(commit).toHaveBeenCalledOnce()
   })
 
-  it('rolls a projection back through the projection transfer path', () => {
-    transferPtyProjection
-      .mockReturnValueOnce(true)
-      .mockReturnValueOnce(false)
-      .mockReturnValueOnce(true)
-    transferPty.mockReturnValue(false)
+  it('reports a rejected ownership transaction', () => {
+    stagePtyOwnership.mockReturnValue(undefined)
 
     expect(moveTerminalSessions(owner, recipient, request)).toBe(false)
-    expect(transferPtyProjection).toHaveBeenNthCalledWith(
-      3,
-      recipient,
-      'primary',
-      owner,
-      120,
-      40,
-    )
-    expect(transferPty).toHaveBeenCalledOnce()
   })
 
   describe('terminal host event delivery', () => {
@@ -166,17 +136,20 @@ describe('terminal host window actions', () => {
     })
   })
 
-  it('grants projection copies and falls back to direct PTY mirrors', () => {
-    grantPtyProjection
-      .mockReturnValueOnce(true)
-      .mockReturnValueOnce(false)
-    copyPty.mockReturnValue(true)
+  it('copies all sessions through one native ownership transaction', () => {
+    const commit = vi.fn(() => true)
+    stagePtyOwnership.mockReturnValue({ commit, rollback: vi.fn() })
 
     expect(copyTerminalSessions(owner, recipient, request)).toBe(true)
-    expect(copyPty).toHaveBeenCalledWith(owner, recipient, {
-      id: 'split',
-      cols: 120,
-      rows: 40,
-    })
+    expect(stagePtyOwnership).toHaveBeenCalledWith(
+      owner,
+      recipient,
+      [
+        { id: 'primary', cols: 120, rows: 40 },
+        { id: 'split', cols: 120, rows: 40 },
+      ],
+      'copy',
+    )
+    expect(commit).toHaveBeenCalledOnce()
   })
 })
