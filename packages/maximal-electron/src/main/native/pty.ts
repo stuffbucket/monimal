@@ -611,6 +611,8 @@ export function transferPtyOwnership(
       : undefined;
     const recipientGrid = windowGroups.viewers(request.id)?.get(recipient);
     const recipientWasMirror = isMirrorWindow(recipient, request.id);
+    const recipientMirrorWasAttached =
+      mirrorDetachers.get(request.id)?.has(recipient) ?? false;
     if (!realOwner || !transferPty(owner, recipient, request)) {
       for (const undo of rollback.reverse()) undo();
       return false;
@@ -623,7 +625,13 @@ export function transferPtyOwnership(
       });
       if (recipientWasMirror) {
         registerMirror(realOwner, recipient, request.id);
-        if (recipientGrid) {
+        if (recipientMirrorWasAttached) {
+          attachMirror(realOwner, recipient, {
+            ...request,
+            cols: recipientGrid?.cols ?? request.cols,
+            rows: recipientGrid?.rows ?? request.rows,
+          });
+        } else if (recipientGrid) {
           trackViewerSize(request.id, recipient, recipientGrid.cols, recipientGrid.rows);
         }
       }

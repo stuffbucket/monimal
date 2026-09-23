@@ -6,6 +6,8 @@ const state = vi.hoisted(() => ({
     list: ReturnType<typeof vi.fn>;
     acknowledge: ReturnType<typeof vi.fn>;
     has: ReturnType<typeof vi.fn>;
+    mirror: ReturnType<typeof vi.fn>;
+    emitMirror: (id: string, chunk: string) => void;
   }>,
   throwOnSpawn: false,
   failedProjectionGrants: new Set<string>(),
@@ -35,6 +37,7 @@ vi.mock('electron', () => ({
 vi.mock('../../src/host/terminal-host.js', () => ({
   TerminalHost: class {
     private readonly sessions = new Set<string>();
+    private readonly mirrors = new Map<string, Set<{ onData: (chunk: string) => void }>>();
     readonly spawn = vi.fn((request: { id: string }) => {
       if (state.throwOnSpawn) throw new Error('connector failed');
       this.sessions.add(request.id);
@@ -46,6 +49,16 @@ vi.mock('../../src/host/terminal-host.js', () => ({
     readonly terminate = vi.fn();
     readonly terminateAll = vi.fn();
     readonly has = vi.fn((id: string) => this.sessions.has(id));
+    readonly mirror = vi.fn((id: string, observer: { onData: (chunk: string) => void }) => {
+      if (!this.sessions.has(id)) return undefined;
+      const observers = this.mirrors.get(id) ?? new Set();
+      observers.add(observer);
+      this.mirrors.set(id, observers);
+      return () => observers.delete(observer);
+    });
+    readonly emitMirror = (id: string, chunk: string) => {
+      for (const observer of this.mirrors.get(id) ?? []) observer.onData(chunk);
+    };
     readonly transfer = vi.fn((id: string, destination: { sessions: Set<string> }) => {
       if (!this.sessions.has(id) || destination.sessions.has(id)) return false;
       this.sessions.delete(id);
@@ -219,6 +232,34 @@ describe('native pty adapter', () => {
       cols: 80,
       rows: 24,
     })).toBe(true);
+  });
+
+  it('restores a recipient mirror subscription when a later move fails', () => {
+    const emit = vi.fn();
+    pty.configurePty({ emit, onExit: vi.fn(), onStatus: vi.fn() });
+    const source = owner();
+    const recipient = owner();
+    pty.spawnPty(source, { id: 'attached-mirror', cols: 80, rows: 24 });
+    const sourceHost = state.hosts.at(-1)!;
+    expect(pty.copyPty(source, recipient, {
+      id: 'attached-mirror',
+      cols: 80,
+      rows: 24,
+    })).toBe(true);
+    pty.spawnPty(recipient, { id: 'attached-mirror', cols: 80, rows: 24 });
+    const projections = state.projectionHosts[0]!;
+    projections.sessions.add('mirror-rollback-projection');
+    projections.owners.set('mirror-rollback-projection', source);
+    state.failedProjectionTransfers.add('mirror-rollback-projection');
+    emit.mockClear();
+
+    expect(pty.transferPtyOwnership(source, recipient, [
+      { id: 'attached-mirror', cols: 100, rows: 30 },
+      { id: 'mirror-rollback-projection', cols: 100, rows: 30 },
+    ])).toBe(false);
+    sourceHost.emitMirror('attached-mirror', 'still-live');
+
+    expect(emit).toHaveBeenCalledWith(recipient, 'attached-mirror', 'still-live');
   });
 
   it('restores staged projection authority when a later direct move fails', () => {
