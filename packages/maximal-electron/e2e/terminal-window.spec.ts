@@ -6,6 +6,7 @@ import {
   launchApp,
   resetShell,
   terminalScreen,
+  transferWindowFocus,
   type Harness,
 } from './harness.js';
 
@@ -29,7 +30,7 @@ import {
 let harness: Harness;
 
 test.beforeAll(async () => {
-  harness = await launchApp();
+  harness = await launchApp({ SHELL: '/bin/sh' });
 });
 
 test.afterAll(async () => {
@@ -54,7 +55,8 @@ test('closing a window reaps its shells and leaves the application running', asy
   await expect(terminal.getByRole('textbox', { name: 'Terminal input' })).toBeVisible({
     timeout: 20_000,
   });
-  await terminal.click();
+  await expect.poll(() => terminalScreen(terminal)).not.toBe('');
+  await transferWindowFocus(window, terminal, []);
 
   await window.keyboard.type('echo SHELL_PID:$$');
   await window.keyboard.press('Enter');

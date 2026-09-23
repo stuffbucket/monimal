@@ -11,6 +11,7 @@ import {
   launchApp,
   resetShell,
   terminalScreen,
+  terminalSessionId,
   type Harness,
 } from './harness.js';
 
@@ -36,14 +37,10 @@ import {
  * has no equivalent. Windows is unverified.
  */
 
-/** `newTerminal` in `App.tsx` numbers from the terminals open, so this is it. */
-const SESSION = 'term-1';
-const TAB = 'Terminal 1';
-
 let harness: Harness;
 
 test.beforeAll(async () => {
-  harness = await launchApp();
+  harness = await launchApp({ SHELL: '/bin/sh' });
 });
 
 test.afterAll(async () => {
@@ -87,7 +84,8 @@ function isAlive(app: ElectronApplication, pid: number): Promise<boolean> {
  * than yielding a number that is not a pid.
  */
 async function pidOf(page: Page, terminal: Locator, marker: string): Promise<number> {
-  await invoke(page, 'pty:write', { id: SESSION, data: `echo "[${marker}=$$]"\n` });
+  const sessionId = await terminalSessionId(terminal);
+  await invoke(page, 'pty:write', { id: sessionId, data: `echo "[${marker}=$$]"\n` });
 
   const pattern = new RegExp(`\\[${marker}=(\\d+)]`);
   await expect
@@ -136,7 +134,7 @@ async function openTerminal(page: Page): Promise<Locator> {
  * report it as replayed output.
  */
 async function closeTerminalTab(page: Page): Promise<void> {
-  await page.locator('.tab').filter({ hasText: TAB }).locator('.tab__close').click();
+  await page.getByRole('tab', { selected: true }).locator('.tab__close').click();
   await expect(page.locator('[data-testid="terminal"]:visible')).toHaveCount(0);
 }
 
@@ -170,7 +168,9 @@ test('a tab close ends its shell, unless the shell is detached', async () => {
   /* ------------------------------------------------------ opted in: detach */
 
   await invoke(window, 'prefs:set', { terminalDetach: true });
-  const kept = await pidOf(window, await openTerminal(window), 'KEPT');
+  const keptTerminal = await openTerminal(window);
+  const keptSessionId = await terminalSessionId(keptTerminal);
+  const kept = await pidOf(window, keptTerminal, 'KEPT');
 
   expect(kept).toBeGreaterThan(0);
   expect(kept).not.toBe(reaped);
@@ -190,12 +190,14 @@ test('a tab close ends its shell, unless the shell is detached', async () => {
 
   // A session nothing can find again is a leak rather than a feature, so the
   // shell lists what is running with no tab.
-  const reattach = window.locator(`[data-testid="reattach-${SESSION}"]`);
+  const reattach = window.getByTestId(`reattach-${keptSessionId}`);
   await expect(reattach).toBeVisible({ timeout: 10_000 });
   await reattach.click();
 
   const terminal = terminalOf(window);
-  await expect(terminal.locator('canvas').first()).toBeVisible({ timeout: 20_000 });
+  await expect(terminal.getByRole('textbox', { name: 'Terminal input' })).toBeVisible({
+    timeout: 20_000,
+  });
 
   // What the host retained crosses the unmount. This is a new view over an old
   // session, so every character on it was replayed.
