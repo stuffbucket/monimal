@@ -9,6 +9,7 @@ import {
   configureAgent,
   isAgentBusy,
   runAgent,
+  shutdownAgent,
   type AgentSink,
 } from '../src/host/agent.js';
 import { configureModel } from '../src/host/llama.js';
@@ -90,5 +91,35 @@ describe('runAgent', () => {
 
     expect(results).toEqual([{ ok: false, error: 'Toolset setup failed.' }]);
     expect(isAgentBusy()).toBe(false);
+  });
+
+  it('waits for the in-flight run to settle during shutdown', async () => {
+    process.env['STUFFBUCKET_PROVIDER'] = 'maximal';
+    process.env['STUFFBUCKET_PROVIDER_URL'] = 'http://127.0.0.1:4141';
+    let finishProbe: (response: Response) => void = () => undefined;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => new Promise<Response>((resolve) => {
+        finishProbe = resolve;
+      })),
+    );
+    const results: Array<{ ok: true } | { ok: false; error: string }> = [];
+    const run = runAgent('test', sink(results));
+    let shutdownSettled = false;
+    const shutdown = shutdownAgent().then(() => {
+      shutdownSettled = true;
+    });
+
+    await Promise.resolve();
+    expect(isAgentBusy()).toBe(true);
+    expect(shutdownSettled).toBe(false);
+
+    finishProbe(new Response('{}', { status: 503 }));
+    await shutdown;
+    await run;
+
+    expect(shutdownSettled).toBe(true);
+    expect(isAgentBusy()).toBe(false);
+    expect(results).toEqual([{ ok: false, error: 'No maximal backend answered.' }]);
   });
 });
