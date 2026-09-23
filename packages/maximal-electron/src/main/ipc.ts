@@ -63,9 +63,18 @@ import { isSafeExternalUrl } from '../shared/urls.js';
 
 interface TerminalWindowActions {
   frameId: (window: BrowserWindow | undefined) => string;
-  undock: (owner: BrowserWindow | undefined, request: TerminalUndockRequest) => boolean;
-  copy: (owner: BrowserWindow | undefined, request: TerminalCopyRequest) => boolean;
-  redock: (owner: BrowserWindow | undefined, request: TerminalRedockRequest) => boolean;
+  undock: (
+    owner: BrowserWindow | undefined,
+    request: TerminalUndockRequest,
+  ) => boolean | Promise<boolean>;
+  copy: (
+    owner: BrowserWindow | undefined,
+    request: TerminalCopyRequest,
+  ) => boolean | Promise<boolean>;
+  redock: (
+    owner: BrowserWindow | undefined,
+    request: TerminalRedockRequest,
+  ) => boolean | Promise<boolean>;
 }
 
 let terminalWindowActions: TerminalWindowActions = {

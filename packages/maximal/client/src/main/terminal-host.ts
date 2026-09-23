@@ -1,9 +1,7 @@
 import {
   acknowledgePty,
-  copyPty,
   configurePty,
   discoverTerminalTargets,
-  grantPtyProjection,
   killAllPtys,
   killPty,
   launchTerminal,
@@ -11,10 +9,10 @@ import {
   listPtys,
   resizePty,
   spawnPty,
+  stagePtyOwnership,
   syncPtyPane,
-  transferPty,
-  transferPtyProjection,
   writePty,
+  type PtyOwnershipTransaction,
 } from 'stuffbucket-electron/electron-terminal'
 import { registerTerminalChannels } from 'stuffbucket-electron/host/terminal'
 
@@ -71,9 +69,18 @@ const terminalRedockRequest = terminalWindowRequest.extend({
 const terminalPaneSync = terminalId.extend({ pane: terminalPane })
 
 interface TerminalWindowActions {
-  undock(owner: BrowserWindow | undefined, request: TerminalWindowRequest): boolean
-  copy(owner: BrowserWindow | undefined, request: TerminalWindowRequest): boolean
-  redock(owner: BrowserWindow | undefined, request: TerminalRedockRequest): boolean
+  undock(
+    owner: BrowserWindow | undefined,
+    request: TerminalWindowRequest,
+  ): boolean | Promise<boolean>
+  copy(
+    owner: BrowserWindow | undefined,
+    request: TerminalWindowRequest,
+  ): boolean | Promise<boolean>
+  redock(
+    owner: BrowserWindow | undefined,
+    request: TerminalRedockRequest,
+  ): boolean | Promise<boolean>
 }
 
 let terminalWindowActions: TerminalWindowActions = {
@@ -193,36 +200,7 @@ export function moveTerminalSessions(
   recipient: BrowserWindow | undefined,
   request: TerminalWindowRequest,
 ): boolean {
-  const moved: Array<{ id: string; projection: boolean }> = []
-  for (const id of request.sessionIds ?? [request.id]) {
-    if (transferPtyProjection(owner, id, recipient, request.cols, request.rows)) {
-      moved.push({ id, projection: true })
-      continue
-    }
-    if (transferPty(owner, recipient, { id, cols: request.cols, rows: request.rows })) {
-      moved.push({ id, projection: false })
-      continue
-    }
-    for (const movedSession of moved.reverse()) {
-      if (movedSession.projection) {
-        transferPtyProjection(
-          recipient,
-          movedSession.id,
-          owner,
-          request.cols,
-          request.rows,
-        )
-      } else {
-        transferPty(recipient, owner, {
-          id: movedSession.id,
-          cols: request.cols,
-          rows: request.rows,
-        })
-      }
-    }
-    return false
-  }
-  return true
+  return stageTerminalSessions(owner, recipient, request, 'move')?.commit() ?? false
 }
 
 export function copyTerminalSessions(
@@ -230,9 +208,24 @@ export function copyTerminalSessions(
   recipient: BrowserWindow | undefined,
   request: TerminalWindowRequest,
 ): boolean {
-  return (request.sessionIds ?? [request.id]).every((id) =>
-    grantPtyProjection(owner, id, recipient, request.cols, request.rows)
-    || copyPty(owner, recipient, { id, cols: request.cols, rows: request.rows }),
+  return stageTerminalSessions(owner, recipient, request, 'copy')?.commit() ?? false
+}
+
+export function stageTerminalSessions(
+  owner: BrowserWindow | undefined,
+  recipient: BrowserWindow | undefined,
+  request: TerminalWindowRequest,
+  mode: 'copy' | 'move',
+): PtyOwnershipTransaction | undefined {
+  return stagePtyOwnership(
+    owner,
+    recipient,
+    (request.sessionIds ?? [request.id]).map((id) => ({
+      id,
+      cols: request.cols,
+      rows: request.rows,
+    })),
+    mode,
   )
 }
 

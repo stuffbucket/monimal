@@ -17,7 +17,12 @@ import {
   onPreferencesChanged,
   quietBounds,
 } from './native/preferences.js';
-import { configurePty, copyPty, killAllPtys, transferPty } from './native/pty.js';
+import {
+  configurePty,
+  killAllPtys,
+  stagePtyOwnership,
+  transferPtyOwnership,
+} from './native/pty.js';
 import { createHostWindow } from '../host/host-window.js';
 import { showCrashReports, startCrashReports } from './native/crash-reports.js';
 import { selfCheckRequested } from './native/self-check.js';
@@ -31,6 +36,36 @@ import { destroyTray, setTrayEnabled } from './native/tray.js';
 import { checkForUpdates } from './native/updates.js';
 import { mainWindowOptions } from './windows/main-window.js';
 import { closeSplashWindow, createSplashWindow } from './windows/splash.js';
+import type { TerminalUndockRequest } from '../shared/ipc.js';
+
+const TERMINAL_WINDOW_READY_TIMEOUT_MS = 15_000;
+
+function waitForTerminalWindow(
+  window: BrowserWindowType,
+  timeoutMs = TERMINAL_WINDOW_READY_TIMEOUT_MS,
+): Promise<boolean> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (ready: boolean): void => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      window.removeListener('ready-to-show', onReady);
+      window.removeListener('close', onFailure);
+      window.webContents.removeListener('did-fail-load', onFailure);
+      window.webContents.removeListener('render-process-gone', onFailure);
+      resolve(ready);
+    };
+    const onReady = (): void => finish(true);
+    const onFailure = (): void => finish(false);
+    const timer = setTimeout(onFailure, timeoutMs);
+    timer.unref();
+    window.once('ready-to-show', onReady);
+    window.once('close', onFailure);
+    window.webContents.once('did-fail-load', onFailure);
+    window.webContents.once('render-process-gone', onFailure);
+  });
+}
 import { createTerminalSessionMetadataStore } from './native/session-metadata.js';
 
 /*
@@ -166,6 +201,51 @@ async function runUpdateCheck(): Promise<void> {
 function bootstrap(): void {
   const prefs = getPreferences();
   const sessionMetadata = createTerminalSessionMetadataStore();
+  const openTransferredTerminal = async (
+    owner: BrowserWindowType | undefined,
+    request: TerminalUndockRequest,
+    mode: 'copy' | 'move',
+  ): Promise<boolean> => {
+    if (!owner) return false;
+    const options = mainWindowOptions(
+      { x: request.x, y: request.y, width: 1000, height: 700 },
+      request.id,
+      request.title,
+      request.pane,
+    );
+    const detached = createHostWindow({
+      ...options,
+      loadRenderer: () => undefined,
+    });
+    const ids = request.sessionIds ?? [request.id];
+    const transaction = stagePtyOwnership(owner, detached, ids.map((id) => ({
+      id,
+      cols: request.cols,
+      rows: request.rows,
+    })), mode);
+    if (!transaction) {
+      detached.close();
+      return false;
+    }
+    const ready = waitForTerminalWindow(detached);
+    options.loadRenderer(detached);
+    if (!await ready || !transaction.commit()) {
+      transaction.rollback();
+      if (!detached.isDestroyed()) detached.close();
+      return false;
+    }
+    if (mode === 'move') {
+      sessionMetadata.remember({
+        sessionId: request.id,
+        title: request.title,
+        frameId: String(detached.id),
+        bounds: detached.getBounds(),
+      });
+    }
+    detached.show();
+    focusWindow(detached);
+    return true;
+  };
 
   // An unpackaged run shows Electron's own dock icon until this call. A
   // packaged build already carries the bundle icon; this keeps the two the
@@ -174,71 +254,19 @@ function bootstrap(): void {
 
   configureTerminalWindowActions({
     frameId: (window) => String(window?.id ?? ''),
-    undock: (owner, request) => {
-      if (!owner) return false;
-      const detached = createHostWindow(mainWindowOptions(
-        { x: request.x, y: request.y, width: 1000, height: 700 },
-        request.id,
-        request.title,
-        request.pane,
-      ));
-      const ids = request.sessionIds ?? [request.id];
-      const moved = ids.every((id) => transferPty(owner, detached, {
-        id,
-        cols: request.cols,
-        rows: request.rows,
-      }));
-      if (!moved) {
-        detached.close();
-      } else {
-        sessionMetadata.remember({
-          sessionId: request.id,
-          title: request.title,
-          frameId: String(detached.id),
-          bounds: detached.getBounds(),
-        });
-        detached.once('ready-to-show', () => {
-          detached.show();
-          focusWindow(detached);
-        });
-      }
-      return moved;
-    },
-    copy: (owner, request) => {
-      if (!owner) return false;
-      const detached = createHostWindow(mainWindowOptions(
-        { x: request.x, y: request.y, width: 1000, height: 700 },
-        request.id,
-        request.title,
-        request.pane,
-      ));
-      const ids = request.sessionIds ?? [request.id];
-      const copied = ids.every((id) => copyPty(owner, detached, {
-        id,
-        cols: request.cols,
-        rows: request.rows,
-      }));
-      if (!copied) {
-        detached.close();
-      } else {
-        detached.once('ready-to-show', () => {
-          detached.show();
-          focusWindow(detached);
-        });
-      }
-      return copied;
-    },
+    undock: (owner, request) => openTransferredTerminal(owner, request, 'move'),
+    copy: (owner, request) => openTransferredTerminal(owner, request, 'copy'),
     redock: (owner, request) => {
       if (!owner) return false;
       const source = BrowserWindow.fromId(Number(request.sourceFrameId));
       const target = BrowserWindow.fromId(Number(request.targetFrameId));
       if (!source || !target) return false;
       const ids = request.sessionIds ?? [request.id];
-      const moved = ids.every((id) => transferPty(source, target, {
+      const moved = transferPtyOwnership(source, target, ids.map((id) => ({
         id,
         cols: request.cols,
         rows: request.rows,
-      }));
+      })));
       if (moved) {
         sendEvent(target, 'terminal:tab-redocked', {
           id: request.id,

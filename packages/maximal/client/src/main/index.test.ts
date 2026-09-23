@@ -50,12 +50,34 @@ const {
   shellOpenPath,
   showMessageBox,
   webContentsSend,
+  webContentsState,
   windowState,
 } = vi.hoisted(() => {
   const listeners = new Map<string, Set<(...args: unknown[]) => void>>()
-  const windowListeners = new Map<string, (...args: unknown[]) => void>()
-  const webContentsListeners = new Map<string, (...args: unknown[]) => void>()
+  const windowListeners = new Map<string, Set<(...args: unknown[]) => void>>()
+  const webContentsListeners = new Map<string, Set<(...args: unknown[]) => void>>()
+  const addListener = (
+    target: Map<string, Set<(...args: unknown[]) => void>>,
+    event: string,
+    listener: (...args: unknown[]) => void,
+  ): void => {
+    const current = target.get(event) ?? new Set()
+    current.add(listener)
+    target.set(event, current)
+  }
+  const removeListener = (
+    target: Map<string, Set<(...args: unknown[]) => void>>,
+    event: string,
+    listener: (...args: unknown[]) => void,
+  ): void => {
+    target.get(event)?.delete(listener)
+  }
   const webContentsSend = vi.fn()
+  const webContentsState = {
+    emit(event: string, ...args: unknown[]) {
+      for (const listener of webContentsListeners.get(event) ?? []) listener(...args)
+    },
+  }
   const windowState = {
     destroyed: false,
     loading: false,
@@ -77,23 +99,35 @@ const {
     }),
     focus: vi.fn(),
     close: vi.fn(),
+    loadFile: vi.fn(() => Promise.resolve()),
+    loadURL: vi.fn(() => Promise.resolve()),
     setSkipTaskbar: vi.fn(),
     on: vi.fn((event: string, listener: (...args: unknown[]) => void) => {
-      windowListeners.set(event, listener)
+      addListener(windowListeners, event, listener)
+    }),
+    once: vi.fn((event: string, listener: (...args: unknown[]) => void) => {
+      addListener(windowListeners, event, listener)
+    }),
+    removeListener: vi.fn((event: string, listener: (...args: unknown[]) => void) => {
+      removeListener(windowListeners, event, listener)
     }),
     emit: (event: string, ...args: unknown[]) => {
-      windowListeners.get(event)?.(...args)
+      for (const listener of windowListeners.get(event) ?? []) listener(...args)
     },
     webContents: {
       isLoading: () => windowState.loading,
       send: webContentsSend,
       reload: vi.fn(),
       on: vi.fn((event: string, listener: (...args: unknown[]) => void) => {
-        webContentsListeners.set(event, listener)
+        addListener(webContentsListeners, event, listener)
       }),
-      emit: (event: string, ...args: unknown[]) => {
-        webContentsListeners.get(event)?.(...args)
-      },
+      once: vi.fn((event: string, listener: (...args: unknown[]) => void) => {
+        addListener(webContentsListeners, event, listener)
+      }),
+      removeListener: vi.fn((event: string, listener: (...args: unknown[]) => void) => {
+        removeListener(webContentsListeners, event, listener)
+      }),
+      emit: webContentsState.emit,
     },
   }
   const fakeApp = {
@@ -137,6 +171,7 @@ const {
     shellOpenPath: vi.fn(() => Promise.resolve('')),
     showMessageBox: vi.fn(() => Promise.resolve({ response: 0 })),
     webContentsSend,
+    webContentsState,
     windowState,
   }
 })
@@ -269,25 +304,25 @@ vi.mock('./harness-host.js', () => ({
 const {
   configureTerminalHostMock,
   configureTerminalWindowActionsMock,
-  copyTerminalSessionsMock,
   moveTerminalSessionsMock,
   registerTerminalIpcMock,
+  stageTerminalSessionsMock,
   stopTerminalHostMock,
 } = vi.hoisted(() => ({
   configureTerminalHostMock: vi.fn(),
   configureTerminalWindowActionsMock: vi.fn(),
-  copyTerminalSessionsMock: vi.fn(() => true),
   moveTerminalSessionsMock: vi.fn(() => true),
   registerTerminalIpcMock: vi.fn(),
+  stageTerminalSessionsMock: vi.fn(),
   stopTerminalHostMock: vi.fn(),
 }))
 
 vi.mock('./terminal-host.js', () => ({
   configureTerminalHost: configureTerminalHostMock,
   configureTerminalWindowActions: configureTerminalWindowActionsMock,
-  copyTerminalSessions: copyTerminalSessionsMock,
   moveTerminalSessions: moveTerminalSessionsMock,
   registerTerminalIpc: registerTerminalIpcMock,
+  stageTerminalSessions: stageTerminalSessionsMock,
   stopTerminalHost: stopTerminalHostMock,
 }))
 
@@ -352,9 +387,9 @@ async function loadIndexOn(platform: NodeJS.Platform): Promise<void> {
   stopHarnessHostMock.mockClear()
   configureTerminalHostMock.mockClear()
   configureTerminalWindowActionsMock.mockClear()
-  copyTerminalSessionsMock.mockClear()
   moveTerminalSessionsMock.mockClear()
   registerTerminalIpcMock.mockClear()
+  stageTerminalSessionsMock.mockReset()
   stopTerminalHostMock.mockClear()
   registerTerminalIpcMock.mockImplementation(() => {
     for (const channel of [
@@ -428,6 +463,7 @@ afterEach(() => {
     configurable: true,
   })
   vi.clearAllMocks()
+  vi.unstubAllGlobals()
 })
 
 describe('closed IPC boundary', () => {
@@ -448,6 +484,99 @@ describe('closed IPC boundary', () => {
       BRIDGE_CHANNELS.harnessEnd,
       BRIDGE_CHANNELS.harnessModelProgress,
     ])
+  })
+
+  describe('terminal destination readiness', () => {
+    const terminalRequest = {
+      id: 'primary',
+      cols: 120,
+      rows: 40,
+      x: 100,
+      y: 200,
+      title: 'Terminal',
+      canRunInBackground: true,
+      sessionIds: ['primary', 'split'],
+    }
+
+    function terminalActions(): {
+      undock(
+        owner: typeof fakeWindow,
+        request: typeof terminalRequest,
+      ): Promise<boolean>
+    } {
+      vi.stubGlobal('MAIN_WINDOW_VITE_DEV_SERVER_URL', 'http://localhost:5173')
+      const actions: unknown =
+        configureTerminalWindowActionsMock.mock.calls.at(-1)?.[0]
+      if (
+        actions === null
+        || typeof actions !== 'object'
+        || !('undock' in actions)
+        || typeof actions.undock !== 'function'
+      ) {
+        throw new Error('Terminal window actions were not configured')
+      }
+      return actions as ReturnType<typeof terminalActions>
+    }
+
+    it('commits and reports success only after the destination is ready', async () => {
+      await loadIndexOn('darwin')
+      const commit = vi.fn(() => true)
+      const rollback = vi.fn()
+      stageTerminalSessionsMock.mockReturnValue({ commit, rollback })
+
+      const result = terminalActions().undock(fakeWindow, terminalRequest)
+      await Promise.resolve()
+
+      expect(commit).not.toHaveBeenCalled()
+      expect(fakeWindow.show).not.toHaveBeenCalled()
+
+      fakeWindow.emit('ready-to-show')
+
+      await expect(result).resolves.toBe(true)
+      expect(commit).toHaveBeenCalledOnce()
+      expect(rollback).not.toHaveBeenCalled()
+      expect(fakeWindow.show).toHaveBeenCalledOnce()
+    })
+
+    it.each([
+      ['load failure', () => webContentsState.emit('did-fail-load')],
+      ['renderer crash', () => webContentsState.emit(
+        'render-process-gone',
+        {},
+        { reason: 'crashed', exitCode: 1 },
+      )],
+      ['destination close', () => fakeWindow.emit('close')],
+    ])('rolls back on %s', async (_name, fail) => {
+      await loadIndexOn('darwin')
+      const commit = vi.fn(() => true)
+      const rollback = vi.fn()
+      stageTerminalSessionsMock.mockReturnValue({ commit, rollback })
+
+      const result = terminalActions().undock(fakeWindow, terminalRequest)
+      fail()
+
+      await expect(result).resolves.toBe(false)
+      expect(commit).not.toHaveBeenCalled()
+      expect(rollback).toHaveBeenCalledOnce()
+      expect(fakeWindow.close).toHaveBeenCalledOnce()
+    })
+
+    it('rolls back when destination readiness times out', async () => {
+      await loadIndexOn('darwin')
+      vi.useFakeTimers()
+      const commit = vi.fn(() => true)
+      const rollback = vi.fn()
+      stageTerminalSessionsMock.mockReturnValue({ commit, rollback })
+
+      const result = terminalActions().undock(fakeWindow, terminalRequest)
+      await vi.advanceTimersByTimeAsync(15_000)
+
+      await expect(result).resolves.toBe(false)
+      expect(commit).not.toHaveBeenCalled()
+      expect(rollback).toHaveBeenCalledOnce()
+      expect(fakeWindow.close).toHaveBeenCalledOnce()
+      vi.useRealTimers()
+    })
   })
 
   it('registers exactly the named invoke allowlist', async () => {

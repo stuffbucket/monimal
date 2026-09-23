@@ -107,7 +107,7 @@ describe('TerminalLauncher', () => {
     await act(async () => root.unmount());
   });
 
-  it('launches a direct local shell and separates running durable terminals', async () => {
+  it('prefers durable local creation and separates running durable terminals', async () => {
     const launch = vi.fn(async () => ({
       sessionId: 'session-1',
       label: 'Local',
@@ -143,8 +143,8 @@ describe('TerminalLauncher', () => {
     expect(localChoices).toHaveLength(1);
     await act(async () => localChoices[0]!.click());
     expect(launch).toHaveBeenCalledWith({
-      profileId: 'local',
-      targetId: undefined,
+      profileId: 'tmux',
+      targetId: 'new',
       cols: 80,
       rows: 24,
     });

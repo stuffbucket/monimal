@@ -249,7 +249,9 @@ package provenance or publisher identity -- the proxy does that.
 - `maximal-electron`: terminal copies use a main-owned revisioned pane document
   and window-group geometry controller. Local Electron viewers share one PTY
   grid and synchronized physical content size without applying the policy to
-  non-resizable or projection-backed clients.
+  non-resizable or projection-backed clients. Window transfers stage projection
+  grants or direct PTY mirrors while the source remains attached, then expose
+  explicit atomic commit and rollback operations for renderer-readiness gates.
 - `maximal-electron`: the nested `pnpm run` taken back out of the build hooks.
   `build:package` and the four `pre*` hooks that called it are now
   `node scripts/build-package.mjs`, which invokes `tsc` at its installed path
