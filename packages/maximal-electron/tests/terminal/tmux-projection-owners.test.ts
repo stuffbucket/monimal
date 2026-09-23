@@ -151,6 +151,32 @@ describe('TmuxProjectionOwners', () => {
     expect(output).toEqual(['first:left:left-output', 'second:right:right-output']);
   });
 
+  it('lets the session owner revoke a pending copy grant', () => {
+    const first = { id: 'first' };
+    const second = { id: 'second' };
+    const wires = [processWire()];
+    const pending = [...wires];
+    const registry = new TmuxProjectionOwners<TestOwner>({
+      homeDirectory: '/home/ada',
+      command: successfulCommand,
+      connector: { connect: () => pending.shift()!.process },
+      terminate: vi.fn(),
+      emit: vi.fn(),
+      onExit: vi.fn(),
+    });
+    registry.reserve(first, 'work', launch);
+    registry.attach(first, { sessionId: 'work', projectionId: 'first', cols: 80, rows: 24 });
+    registry.grant(first, 'work', second);
+
+    expect(registry.revoke(first, 'work', second)).toBe(true);
+    expect(registry.attach(second, {
+      sessionId: 'work',
+      projectionId: 'second',
+      cols: 80,
+      rows: 24,
+    })).toBe(false);
+  });
+
   it('drops projection events after their owner mapping has been released', () => {
     const owner = { id: 'owner' };
     const wire = processWire();
