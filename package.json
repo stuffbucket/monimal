@@ -14,12 +14,14 @@
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint",
-    "check:static": "turbo run build typecheck lint && pnpm run check:network-literals",
+    "check:static": "turbo run build typecheck lint && pnpm run check:network-literals && pnpm run check:settings",
+    "check:settings": "pnpm --filter @stuffbucket/maximal-settings run migration:check && pnpm --filter @stuffbucket/maximal-settings run security:check",
     "check:runtime-style-injectors": "pnpm --filter @stuffbucket/eslint-config run check:runtime-style-injectors",
     "check:network-literals": "node scripts/check-network-literals.mjs",
     "test": "node scripts/test-workspace.mjs",
     "test:all": "node scripts/test-workspace.mjs --all",
     "test:core": "node scripts/test-workspace.mjs --core",
+    "test:settings": "node scripts/test-workspace.mjs --settings",
     "test:docker": "node scripts/docker-test.mjs",
     "test:inner": "node scripts/docker-workspace-test.mjs",
     "test:maximal-core:inner": "node scripts/assert-test-container.mjs && pnpm --filter @stuffbucket/maximal-core test",
@@ -27,6 +29,7 @@
     "test:connections:inner": "node scripts/assert-test-container.mjs && pnpm --filter @stuffbucket/maximal-configurators test && pnpm --filter @stuffbucket/maximal-core test && pnpm --filter maximal-client test",
     "test:maximal-models:inner": "node scripts/assert-test-container.mjs && pnpm --filter @stuffbucket/maximal-models test",
     "test:policy:inner": "node scripts/assert-test-container.mjs && node --test tests/docker-test-policy.test.mjs",
+    "test:settings:inner": "node scripts/assert-test-container.mjs && pnpm --filter @stuffbucket/maximal-settings test && pnpm --filter maximal-client run test:settings",
     "docker:prune:test-images": "node scripts/prune-test-images.mjs",
     "mutate:core": "node scripts/docker-mutate.mjs",
     "mutate:core:inner": "node scripts/assert-test-container.mjs && pnpm --filter @stuffbucket/maximal-core exec stryker run",
@@ -39,6 +42,7 @@
     "package:all": "turbo run package"
   },
   "devDependencies": {
+    "@cyclonedx/cdxgen": "12.8.4",
     "jsinspect-plus": "3.1.3",
     "turbo": "^2.10.12"
   },

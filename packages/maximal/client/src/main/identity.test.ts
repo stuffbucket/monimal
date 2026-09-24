@@ -44,6 +44,7 @@ vi.mock('electron', () => ({
 }))
 
 vi.mock('node:fs', () => ({ existsSync }))
+vi.mock('./main-logger.js', () => ({ mainLogger: { warn: vi.fn() } }))
 
 const { applyAppName, applyDockIcon, installApplicationMenu } = await import('./identity.js')
 
@@ -92,6 +93,28 @@ describe('installApplicationMenu', () => {
 
     const template = buildFromTemplate.mock.calls[0]?.[0] as Array<{ label?: string }>
     expect(template[0]?.label).toBe('File')
+  })
+
+  it('offers third-party licenses in Help on Windows and Linux', () => {
+    const platform = Object.getOwnPropertyDescriptor(process, 'platform')
+    const onOpenLicenses = vi.fn()
+    Object.defineProperty(process, 'platform', { configurable: true, value: 'win32' })
+    try {
+      installApplicationMenu({ onOpenLicenses })
+      const help = template().find((item) => item.role === 'help')
+      const licenses = help?.submenu?.find((item) => item.label === 'Third Party Licenses')
+      expect(licenses?.enabled).toBe(true)
+      licenses?.click?.()
+      expect(onOpenLicenses).toHaveBeenCalledOnce()
+
+      buildFromTemplate.mockClear()
+      installApplicationMenu()
+      const disabled = template().find((item) => item.role === 'help')
+        ?.submenu?.find((item) => item.label === 'Third Party Licenses')
+      expect(disabled?.enabled).toBe(false)
+    } finally {
+      if (platform) Object.defineProperty(process, 'platform', platform)
+    }
   })
 })
 
@@ -196,37 +219,45 @@ describe('installApplicationMenu, Settings', () => {
 
 describe('installApplicationMenu, macOS application menu', () => {
   onDarwin('leads with clean product entries and no icons', () => {
+    const onOpenLicenses = vi.fn()
     installApplicationMenu({
       onCheckForUpdates: vi.fn(),
+      onOpenLicenses,
       onOpenSettings: vi.fn(),
     })
 
     const items = template()[0]?.submenu ?? []
-    expect(items.slice(0, 6).map(({ label, type }) => label ?? type)).toEqual([
+    expect(items.slice(0, 7).map(({ label, type }) => label ?? type)).toEqual([
       'About Maximal',
+      'Third Party Licenses',
       'Check for Updates…',
       'separator',
       'Settings',
       'Actions',
       'separator',
     ])
-    expect(items.slice(0, 6).every((item) => !('icon' in item))).toBe(true)
+    expect(items.slice(0, 7).every((item) => !('icon' in item))).toBe(true)
     expect(items[0]?.role).toBeUndefined()
     items[0]?.click?.()
     expect(showAboutPanel).toHaveBeenCalledOnce()
+    items.find((item) => item.label === 'Third Party Licenses')?.click?.()
+    expect(onOpenLicenses).toHaveBeenCalledOnce()
   })
 
   onDarwin('routes update and action items through their owners', () => {
     const onCheckForUpdates = vi.fn()
+    const onOpenLicenses = vi.fn()
     const onOpenSettings = vi.fn()
-    installApplicationMenu({ onCheckForUpdates, onOpenSettings })
+    installApplicationMenu({ onCheckForUpdates, onOpenLicenses, onOpenSettings })
 
     const items = template()[0]?.submenu ?? []
     items.find((item) => item.label === 'Check for Updates…')?.click?.()
+    items.find((item) => item.label === 'Third Party Licenses')?.click?.()
     const actions = items.find((item) => item.label === 'Actions')?.submenu ?? []
     for (const item of actions) item.click?.()
 
     expect(onCheckForUpdates).toHaveBeenCalledOnce()
+    expect(onOpenLicenses).toHaveBeenCalledOnce()
     expect(actions.map((item) => item.label)).toEqual(['Accounts', 'Apps'])
     expect(onOpenSettings.mock.calls.flat()).toEqual([
       'settings-account-heading',

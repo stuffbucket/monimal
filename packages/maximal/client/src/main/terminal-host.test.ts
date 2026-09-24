@@ -88,7 +88,7 @@ describe('terminal host window actions', () => {
             },
           },
         }
-        configureTerminalHost()
+        configureTerminalHost({ terminalDiagnostics: false })
         type Owner = typeof targetOwner
         const handlers = configurePty.mock.calls.at(-1)![0] as {
           emit(owner: Owner | undefined, id: string, data: string, sequence: number): void
@@ -157,7 +157,7 @@ describe('terminal host window actions', () => {
 
   describe('terminal host event delivery', () => {
     it('drops late events after their window owner has been released', () => {
-      configureTerminalHost()
+      configureTerminalHost({ terminalDiagnostics: false })
       const handlers = configurePty.mock.calls.at(-1)?.[0] as {
         emit(owner: BrowserWindow | undefined, id: string, data: string): void
         onExit(owner: BrowserWindow | undefined, id: string, exitCode: number): void

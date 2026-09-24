@@ -15,12 +15,14 @@ has ended.
 
 | Package | Purpose |
 | --- | --- |
+| `packages/maximal-settings` | Typed layered settings and the settings migration ratchet. |
 | `packages/local-model-registry` | Local-model registration and provisioning. |
 | `packages/maximal-assets` | Brand assets and visual configuration. |
 | `packages/maximal-configurators` | First-party client configurators. |
 | `packages/maximal-context-window` | Context-window derivation and UI. |
 | `packages/maximal-data-visualization` | Visualization primitives and styles. |
 | `packages/maximal-harness` | Local agent runtime, workers, and renderer. |
+| `packages/maximal-logging` | Persistent structured runtime logging and log discovery. |
 | `packages/maximal-model-contract` | Runtime-neutral model gateway contract. |
 | `packages/maximal-models` | Model runtime lifecycle and DSH dispatch. |
 | `packages/maximal-observability-contract` | Traffic schemas and observer interfaces. |
@@ -71,6 +73,8 @@ has ended.
 | Copied packages | `CLAUDE.md` includes `AGENTS.md`; root instructions take precedence. |
 | Workspace | `@stuffbucket/eslint-config` owns the shared ESLint configuration and enforced rule sets. |
 | Workspace | `architecture-analysis.json` owns package coverage, layer rules, and non-Core architecture baselines. |
+| `maximal-settings` | The pnpm bootstrap hook MUST load its dependency-policy source before workspace packages are installed; installed consumers MUST use the exported entry point. |
+| `maximal-settings` | Dependency changes MUST update the reviewed closure and deterministic SBOM; `.pnpmfile.cjs` MUST enforce the reviewed resolution graph and integrity. |
 | `maximal-configurators` | Owns first-party Cordis registration through Core's capability-scoped configurator host. |
 | `maximal` / `maximal-core` | Connector payloads remain opaque in Core and are validated by host-installed Standard Schema plugins. |
 | `maximal-core/downstream` | Declares itself as an independently installed compatibility fixture. |

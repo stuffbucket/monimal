@@ -11,9 +11,12 @@ import type { serve } from "srvx"
 
 import consola from "consola"
 
+import { createTeeLogger } from "~/lib/platform/logger"
 import { removePidfile } from "~/lib/platform/replace-running"
 
 import { clearSessionRunning } from "./session-sentinel"
+
+const log = createTeeLogger("startup")
 
 // Idempotency guard so SIGTERM racing with the parent-death watchdog
 // (or being delivered twice) doesn't double-stop the server.
@@ -47,7 +50,7 @@ export async function initiateShutdown(
   // Fail-safe: if close() hangs, hard-exit after 2.5s. .unref() so the
   // timer itself never holds the loop open in the happy path.
   const watchdog = setTimeout(() => {
-    consola.warn("shutdown: watchdog tripped, forcing exit")
+    log.warn("shutdown: watchdog tripped, forcing exit")
     process.exit(1)
   }, 2500)
   watchdog.unref()
@@ -55,7 +58,7 @@ export async function initiateShutdown(
   try {
     await hooks.beforeClose?.()
   } catch (error) {
-    consola.warn("shutdown: pre-close disposal threw", error)
+    log.warn("shutdown: pre-close disposal threw", error)
   }
 
   // Close every listener. Since maximal-core#10 there are two (public /v1 and
@@ -66,14 +69,14 @@ export async function initiateShutdown(
       // srvx Server exposes close(); pass true to drop in-flight conns.
       await server.close(true)
     } catch (error) {
-      consola.warn("shutdown: server.close() threw", error)
+      log.warn("shutdown: server.close() threw", error)
     }
   }
 
   try {
     await hooks.afterClose?.()
   } catch (error) {
-    consola.warn("shutdown: post-close disposal threw", error)
+    log.warn("shutdown: post-close disposal threw", error)
   }
 
   // Pidfile is a hint, not a lock — best-effort cleanup.
@@ -120,7 +123,7 @@ export function installShutdownHandlers(
   const parentPid = parentPidStr ? Number(parentPidStr) : null
 
   if (parentPid && Number.isInteger(parentPid) && parentPid > 0) {
-    consola.info(`shutdown: watching parent pid ${parentPid}`)
+    log.info(`shutdown: watching parent pid ${parentPid}`)
     const interval = setInterval(() => {
       try {
         // kill(pid, 0) is the POSIX "is this process alive" probe —
@@ -128,7 +131,7 @@ export function installShutdownHandlers(
         process.kill(parentPid, 0)
       } catch {
         clearInterval(interval)
-        consola.warn(`shutdown: parent ${parentPid} gone`)
+        log.warn(`shutdown: parent ${parentPid} gone`)
         void initiateShutdown(servers, `parent ${parentPid} exited`, hooks)
       }
     }, 3000)

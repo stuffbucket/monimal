@@ -138,10 +138,11 @@ const suites = Object.freeze({
     rebuild: "connections",
   },
   policy: { innerScript: "test:policy:inner", rebuild: "policy" },
+  settings: { innerScript: "test:settings:inner", rebuild: "settings" },
 });
 
 const usage =
-  "Usage: pnpm run test:docker -- [--all] [--suite=workspace|maximal-core|maximal-models|maximal-configurators|connections|policy] [--trace=off|tests|all]";
+  "Usage: pnpm run test:docker -- [--all] [--suite=workspace|maximal-core|maximal-models|maximal-configurators|connections|policy|settings] [--trace=off|tests|all]";
 
 export function parseOptions(arguments_) {
   const options = arguments_[0] === "--" ? arguments_.slice(1) : arguments_;

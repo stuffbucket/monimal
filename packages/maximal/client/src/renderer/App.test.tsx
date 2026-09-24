@@ -90,6 +90,7 @@ vi.mock('stuffbucket-electron/renderer', () => ({
 vi.mock('@stuffbucket/maximal-observability', () => ({
   ObservabilityProvider: ({ children }: { children: ReactNode }) => children,
 }))
+vi.mock('./ThirdPartyLicensesDialog', () => ({ ThirdPartyLicensesDialog: () => null }))
 vi.mock('./traffic/source', () => ({ createObservabilitySource }))
 vi.mock('./settings/capabilities', () => ({
   createCoreSettingsCapabilities: () => ({

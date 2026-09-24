@@ -23,7 +23,8 @@
   },
   "files": [
     "dist",
-    "THIRD-PARTY-LICENSE"
+    "THIRD-PARTY-LICENSE",
+    "THIRD-PARTY-LICENSES.txt"
   ],
   "scripts": {
     "analyze": "bun ../maximal-core/scripts/analyze.ts",

@@ -8,10 +8,11 @@ const electron = vi.hoisted(() => ({
   onClosed: undefined as (() => void) | undefined,
   readyToShow: undefined as (() => void) | undefined,
   show: vi.fn(),
-  center: vi.fn(),
+  workArea: { x: -1600, y: 80, width: 1600, height: 900 },
 }));
 
 vi.mock('electron', () => ({
+  screen: { getPrimaryDisplay: () => ({ workArea: electron.workArea }) },
   BrowserWindow: class BrowserWindow {
     constructor(options: unknown) {
       electron.constructorOptions.push(options);
@@ -41,9 +42,6 @@ vi.mock('electron', () => ({
       electron.show();
     }
 
-    center() {
-      electron.center();
-    }
   },
 }));
 
@@ -60,7 +58,7 @@ describe('splash window', () => {
     electron.onClosed = undefined;
     electron.readyToShow = undefined;
     electron.show.mockReset();
-    electron.center.mockReset();
+    electron.workArea = { x: -1600, y: 80, width: 1600, height: 900 };
   });
 
   afterEach(() => {
@@ -75,6 +73,8 @@ describe('splash window', () => {
       expect.objectContaining({
         width: 880,
         height: 480,
+        x: -1240,
+        y: 290,
         backgroundColor: '#00000000',
         hasShadow: false,
         movable: true,
@@ -120,7 +120,16 @@ describe('splash window', () => {
     expect(electron.close).not.toHaveBeenCalled();
     vi.advanceTimersByTime(1);
     expect(electron.close).toHaveBeenCalledOnce();
-    expect(electron.center).toHaveBeenCalledOnce();
+  });
+
+  it('keeps the splash origin on the primary display when its work area is smaller', () => {
+    electron.workArea = { x: 1920, y: -300, width: 640, height: 400 };
+
+    createSplashWindow();
+
+    expect(electron.constructorOptions).toEqual([
+      expect.objectContaining({ x: 1920, y: -300 }),
+    ]);
   });
 
   it('can hold the splash open for an explicit preview', () => {

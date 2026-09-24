@@ -42,6 +42,7 @@ import {
   clearRuntimeEndpoint,
   writeRuntimeEndpoint,
 } from "~/lib/live/runtime-endpoint"
+import { createTeeLogger } from "~/lib/platform/logger"
 import { initOpencodeVersion } from "~/lib/platform/opencode"
 import { ensurePaths } from "~/lib/platform/paths"
 import { writePidfile } from "~/lib/platform/replace-running"
@@ -69,6 +70,8 @@ import {
   staleSessionMarkerPresent,
 } from "./session-sentinel"
 import { initiateShutdown, installShutdownHandlers } from "./shutdown"
+
+const log = createTeeLogger("startup")
 
 // Injectable server binder. Defaults to srvx's real `serve()`; tests swap it
 // via `__setServeForTests` to avoid binding a port. This is a module-local
@@ -158,7 +161,7 @@ export interface RunServerOptions {
 
 function warnAboutStaleSession(): void {
   if (!staleSessionMarkerPresent()) return
-  consola.warn(
+  log.warn(
     "Previous maximal session ended ungracefully (likely a crash, "
       + "force-quit, or system shutdown). If `claude` produced "
       + "connection-refused errors since then, that was why — your "
@@ -226,12 +229,12 @@ export async function runServer(options: RunServerOptions): Promise<void> {
     // no concurrent caller exists.
     // eslint-disable-next-line require-atomic-updates
     consola.level = 5
-    consola.info("Verbose logging enabled")
+    log.info("Verbose logging enabled")
   }
 
   state.accountType = options.accountType
   if (options.accountType !== "individual") {
-    consola.info(`Using ${options.accountType} plan GitHub account`)
+    log.info(`Using ${options.accountType} plan GitHub account`)
   }
 
   state.manualApprove = options.manual
@@ -280,7 +283,7 @@ export async function runServer(options: RunServerOptions): Promise<void> {
     process.env.OLLAMA_API_KEY ?
       "OllamaWebExecutor"
     : "InProcessFetchExecutor (search disabled; set OLLAMA_API_KEY)"
-  consola.info(`Web-tools executor: ${executorName}`)
+  log.info(`Web-tools executor: ${executorName}`)
 
   const serverUrl = `http://localhost:${port}`
 
@@ -288,7 +291,7 @@ export async function runServer(options: RunServerOptions): Promise<void> {
     if (state.models) {
       await runClaudeCodeFlow(serverUrl)
     } else {
-      consola.warn(
+      log.warn(
         "--claude-code requires an authenticated session; skipping helper.",
       )
     }
@@ -422,7 +425,7 @@ async function bindListeners({
       try {
         await listener.close(true)
       } catch (closeError) {
-        consola.warn("startup: server.close() threw", closeError)
+        log.warn("startup: server.close() threw", closeError)
       }
     }
     if (providerDispatcher) {
@@ -546,7 +549,7 @@ async function finalizeBoot({
     try {
       writeRuntimeEndpoint(runtime)
     } catch (error) {
-      consola.warn("Could not publish the local control endpoint.", error)
+      log.warn("Could not publish the local control endpoint.", error)
     }
   }
 

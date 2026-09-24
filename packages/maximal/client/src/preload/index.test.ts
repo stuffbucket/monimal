@@ -41,11 +41,13 @@ describe('preload bridge allowlist', () => {
       'getCoreStatus',
       'getProxyUrl',
       'harness',
+      'licenses',
       'localModels',
       'logs',
       'menuBarMode',
       'ollamaRuntime',
       'onCoreStatus',
+      'onOpenLicenses',
       'onOpenSettings',
       'openExternal',
       'pendingSettingsRequest',
@@ -53,6 +55,7 @@ describe('preload bridge allowlist', () => {
       'shutdown',
       'terminal',
     ])
+    expect(Object.keys(bridge.licenses).sort()).toEqual(['text'])
     expect(Object.keys(bridge.control).sort()).toEqual([
       'accountsList',
       'accountsReorder',
@@ -88,7 +91,7 @@ describe('preload bridge allowlist', () => {
       'searchSettingsUpdate',
       'usageGet',
     ])
-    expect(Object.keys(bridge.logs).sort()).toEqual(['location', 'reveal'])
+    expect(Object.keys(bridge.logs).sort()).toEqual(['coreLocation', 'list', 'location', 'reveal', 'revealCore'])
     expect(Object.keys(bridge.localModels).sort()).toEqual([
       'cancel',
       'ensure',
@@ -154,6 +157,7 @@ describe('preload bridge allowlist', () => {
 
     await bridge.getCoreStatus()
     await bridge.getProxyUrl()
+    await bridge.licenses.text()
     await bridge.openExternal('https://github.com/login/device')
     await bridge.control.authStatus()
     await bridge.control.authStart()
@@ -195,7 +199,10 @@ describe('preload bridge allowlist', () => {
     })
     await bridge.pendingSettingsRequest()
     await bridge.logs.location()
+    await bridge.logs.list()
     await bridge.logs.reveal()
+    await bridge.logs.coreLocation()
+    await bridge.logs.revealCore()
     await bridge.localModels.openFolder()
     await bridge.ollamaRuntime.status()
     await bridge.ollamaRuntime.launch()
@@ -247,6 +254,7 @@ describe('preload bridge allowlist', () => {
     expect(invoke.mock.calls).toEqual([
       [BRIDGE_CHANNELS.lifecycleCurrent],
       [BRIDGE_CHANNELS.proxyUrl],
+      [BRIDGE_CHANNELS.licensesText],
       [BRIDGE_CHANNELS.openExternal, 'https://github.com/login/device'],
       [BRIDGE_CHANNELS.authStatus],
       [BRIDGE_CHANNELS.authStart],
@@ -289,7 +297,10 @@ describe('preload bridge allowlist', () => {
       ],
       [BRIDGE_CHANNELS.pendingSettingsRequest],
       [BRIDGE_CHANNELS.logsLocation],
+      [BRIDGE_CHANNELS.logsList],
       [BRIDGE_CHANNELS.logsReveal],
+      [BRIDGE_CHANNELS.coreLogsLocation],
+      [BRIDGE_CHANNELS.coreLogsReveal],
       [BRIDGE_CHANNELS.localModelsOpenFolder],
       [BRIDGE_CHANNELS.ollamaRuntimeStatus],
       [BRIDGE_CHANNELS.ollamaRuntimeLaunch],

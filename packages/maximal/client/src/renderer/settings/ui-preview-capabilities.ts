@@ -418,7 +418,7 @@ export function createPreviewSettingsCapabilities(): SettingsCapabilities {
       subscribe: () => () => undefined,
     },
     usage: { get: unavailable },
-    logs: { location: unavailable, reveal: unavailable },
+    logs: { location: unavailable, list: unavailable, reveal: unavailable, coreLocation: unavailable, revealCore: unavailable },
     diagnostics: { get: unavailable },
     search: {
       get: () => Promise.resolve(cloneSnapshot(snapshot)),

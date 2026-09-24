@@ -4,6 +4,7 @@ import { TerminalLauncher } from 'stuffbucket-electron/renderer'
 
 import { DEFAULT_SETTINGS_SECTION_ID } from '../shared/settings-sections'
 import { AppWorkspace } from './AppWorkspace'
+import { ThirdPartyLicensesDialog } from './ThirdPartyLicensesDialog'
 import { useAccountStatus } from './useAccountStatus'
 import type { SettingsSectionRequest } from './settings/Settings'
 import { createCoreSettingsCapabilities } from './settings/capabilities'
@@ -71,7 +72,7 @@ function AppContent(): ReactElement {
         terminalState={terminalTabsState}
         requestNavigation={requestNavigation}
       />
-  {!detachedWindow ? (
+      {!detachedWindow ? (
         <TerminalLauncher
           open={terminalTabsState.launcherOpen}
           onOpenChange={terminalTabsState.setLauncherOpen}
@@ -86,6 +87,7 @@ function AppContent(): ReactElement {
           recentProfileIds={terminalTabsState.recentProfiles}
         />
       ) : null}
+      <ThirdPartyLicensesDialog />
     </ObservabilityProvider>
   )
 }

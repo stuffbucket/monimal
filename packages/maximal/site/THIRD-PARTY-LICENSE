@@ -1,0 +1,22 @@
+Third-Party Software Notices and Information
+
+================================================================================
+Static landing-page assets
+================================================================================
+
+The GitHub Pages landing site bundles these third-party assets:
+
+- **Star Nest fragment shader** - `src/components/StarNest.astro` embeds the
+  GLSL "Star Nest" 3D-kaliset shader by Pablo Roman Andrioli. Original at
+  https://www.shadertoy.com/view/XlfGRj, released under the MIT License.
+
+- **Flying Toasters animation recipe** - `src/components/FlyingToasters.astro`
+  adapts the CSS keyframe plus step()-flicker technique from Bryan Braun's
+  `bryanbraun/after-dark-css` project
+  (https://github.com/bryanbraun/after-dark-css), MIT-licensed for the
+  HTML/CSS portion.
+
+- **After Dark sprite GIFs** - `public/sprites/toaster-sprite.gif` and
+  `public/sprites/toast.gif` originate from After Dark (1989), copyright
+  Berkeley Systems, Inc. Re-distributed here for nostalgic homage; copyright
+  remains with the original rightsholder.

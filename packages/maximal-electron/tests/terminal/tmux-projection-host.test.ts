@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   TmuxProjectionHost,
+  configureTerminalDiagnostics,
   type TerminalConnectOptions,
   type TerminalProcess,
 } from '../../src/host/terminal-host.js';
@@ -28,6 +29,55 @@ async function tmuxCommand(_command: string, args: readonly string[]): Promise<{
 }
 
 describe('TmuxProjectionHost', () => {
+  it.each(['local', 'ssh'] as const)('logs %s lifecycle and failures with simulated commands, without target details', async (transport) => {
+    const log = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    let failCommand = false;
+    const host = new TmuxProjectionHost({
+      homeDirectory: '/private-home',
+      connector: { connect: () => processWire() },
+      command: async (_command, args) => {
+        if (failCommand) throw new Error('private-host command failed');
+        return { stdout: args.join(' ').includes('show-options') ? 'latest\n' : '90x30\n' };
+      },
+      terminate: vi.fn(), emit: vi.fn(), onExit: vi.fn(), onGeometryError: vi.fn(),
+    });
+    try {
+      configureTerminalDiagnostics(true);
+      host.reserve('opaque-session', {
+        command: transport === 'ssh' ? 'ssh' : 'tmux',
+        args: ['private-command'], ownership: 'created',
+        geometry: transport === 'ssh'
+          ? { transport, alias: 'private-host', sessionName: 'private-session' }
+          : { transport, sessionName: 'private-session' },
+      });
+      for (const projectionId of ['left', 'right']) {
+        expect(host.attach({ sessionId: 'opaque-session', projectionId, cols: 90, rows: 30 })).toBe(true);
+      }
+      host.focus('opaque-session', 'left', 90, 30);
+      await host.settleGeometry('opaque-session');
+      expect(host.detach('opaque-session', 'right')).toBe(true);
+      failCommand = true;
+      host.focus('opaque-session', 'left', 90, 30);
+      await host.settleGeometry('opaque-session');
+      host.terminateAll();
+      const records = log.mock.calls.map(([, json]) => JSON.parse(String(json)) as Record<string, unknown>);
+      expect(records.length).toBeGreaterThan(0);
+      expect(records).toContainEqual(expect.objectContaining({ event: 'reserved', transport, ownership: 'created' }));
+      expect(records).toContainEqual(expect.objectContaining({ event: 'attach', accepted: true, projectionCount: 2 }));
+      expect(records).toContainEqual(expect.objectContaining({ event: 'detach', accepted: true, projectionCount: 1 }));
+      expect(records).toContainEqual(expect.objectContaining({ event: 'geometry-applied' }));
+      expect(records).toContainEqual(expect.objectContaining({ event: 'command-failed' }));
+      expect(records).toContainEqual(expect.objectContaining({ event: 'geometry-failed' }));
+      expect(records.at(-1)).toMatchObject({ event: 'released', sessionCount: 0, projectionCount: 0 });
+      expect(new Set(records.map((record) => record['ownerId'])).size).toBe(1);
+      expect(JSON.stringify(records)).not.toContain('private-');
+    } finally {
+      configureTerminalDiagnostics(undefined);
+      host.terminateAll();
+      log.mockRestore();
+    }
+  });
+
   it('opens one trusted client per projection and terminates the session explicitly', () => {
     const processes = [processWire(), processWire()];
     const connections: TerminalConnectOptions[] = [];

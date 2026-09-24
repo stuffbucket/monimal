@@ -1,9 +1,11 @@
+import { randomUUID } from 'node:crypto';
 import { homedir } from 'node:os';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   TerminalHost,
+  configureTerminalDiagnostics,
   registerTerminalChannels,
   type TerminalChannelHost,
   type TerminalConnectOptions,
@@ -69,6 +71,60 @@ function flowHost(pausable = true) {
 const POSIX = process.platform !== 'win32';
 
 describe('TerminalHost connector', () => {
+  it('emits opt-in metadata without terminal contents and tolerates a failed log sink', () => {
+    const log = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const wire = flowHost();
+    try {
+      configureTerminalDiagnostics(false);
+      wire.host.spawn({ id: 'one', cols: 80, rows: 24 });
+      expect(log).not.toHaveBeenCalled();
+      configureTerminalDiagnostics(true);
+      wire.emitData('private terminal contents');
+      const detach = wire.host.mirror('one', { onData: () => undefined, onExit: () => undefined });
+      expect(detach).toBeTypeOf('function');
+      detach!();
+      const records = log.mock.calls.map(([, json]) => JSON.parse(String(json)) as Record<string, unknown>);
+      expect(records.map((record) => record['event'])).toEqual(['mirror-attached', 'mirror-detached']);
+      expect(records[0]).toMatchObject({ component: 'pty-host', sessionCount: 1, mirrorCount: 1 });
+      expect(records[1]).toMatchObject({ sessionCount: 1, mirrorCount: 0 });
+      expect(records[0]?.['ownerId']).toBe(records[1]?.['ownerId']);
+      expect(records[0]?.['heapUsed']).toBeGreaterThan(0);
+      expect(JSON.stringify(records)).not.toContain('private terminal contents');
+      log.mockClear();
+      const sink = vi.fn();
+      configureTerminalDiagnostics(true, sink);
+      const stop = wire.host.mirror('one', { onData: () => undefined, onExit: () => undefined });
+      stop?.();
+      expect(sink).toHaveBeenCalledWith(expect.objectContaining({
+        component: 'pty-host',
+        event: 'mirror-attached',
+      }));
+      expect(log).not.toHaveBeenCalled();
+      configureTerminalDiagnostics(undefined);
+      vi.stubEnv('TERMINAL_DIAGNOSTICS', '1');
+      log.mockClear();
+      wire.host.spawn({ id: 'one', cols: 80, rows: 24 });
+      expect(log).not.toHaveBeenCalled();
+      configureTerminalDiagnostics(false);
+      log.mockClear();
+      wire.host.spawn({ id: 'one', cols: 80, rows: 24 });
+      expect(log).not.toHaveBeenCalled();
+      configureTerminalDiagnostics(undefined);
+      vi.stubEnv('TERMINAL_DIAGNOSTICS', '0');
+      wire.host.spawn({ id: 'one', cols: 80, rows: 24 });
+      expect(log).not.toHaveBeenCalled();
+      configureTerminalDiagnostics(true);
+      log.mockImplementation(() => { throw new Error('sink unavailable'); });
+      expect(() => wire.host.terminateAll()).not.toThrow();
+      expect(wire.host.list()).toEqual([]);
+    } finally {
+      configureTerminalDiagnostics(undefined);
+      vi.unstubAllEnvs();
+      wire.host.terminateAll();
+      log.mockRestore();
+    }
+  });
+
   it('keeps mirror replay and live output attached across owner transfer', async () => {
     let dataListener: (data: string) => void = () => {};
     let connects = 0;
@@ -421,6 +477,54 @@ function owner() {
 }
 
 describe.skipIf(!POSIX)('TerminalHost, per owner', () => {
+  it('preserves one real shell through twelve owner moves and clears both registries on exit', async () => {
+    let output = '';
+    const exits: number[] = [];
+    const hosts = Array.from({ length: 2 }, () => new TerminalHost({
+      homeDirectory: homedir(),
+      defaultShell: '/bin/sh',
+      flushMs: 1,
+      emit: (_id, chunk) => { output += chunk; },
+      onExit: (_id, exitCode) => exits.push(exitCode),
+    }));
+    let current = hosts[0]!;
+    const id = randomUUID();
+    const nonce = randomUUID();
+    try {
+      current.spawn({ id, cols: 80, rows: 24 });
+      current.write(id, 'printf "PID:%s\\n" "$$"\n');
+      expect(await until(() => /PID:(\d+)/.test(output))).toBe(true);
+      const pid = Number(/PID:(\d+)/.exec(output)?.[1]);
+      expect(pid).toBeGreaterThan(0);
+      for (let round = 0; round < 12; round += 1) {
+        const destination = current === hosts[0] ? hosts[1]! : hosts[0]!;
+        expect(current.transfer(id, destination, { id, cols: 80 + round, rows: 24 + round })).toBe(true);
+        current.terminateAll();
+        expect(current.list()).toEqual([]);
+        current = destination;
+        current.spawn({ id, cols: 100, rows: 30 });
+        expect(current.list().map((session) => session.id)).toEqual([id]);
+        let mirrored = '';
+        const detach = current.mirror(id, {
+          onData: (chunk) => { mirrored += chunk; },
+          onExit: () => undefined,
+        });
+        expect(detach).toBeTypeOf('function');
+        const marker = `${nonce}:${String(round)}:${String(pid)}`;
+        current.write(id, `printf '${nonce}:${String(round)}:%s\\n' "$$"\n`);
+        expect(await until(() => output.includes(marker) && mirrored.includes(marker))).toBe(true);
+        expect(alive(pid)).toBe(true);
+        detach!();
+      }
+      current.write(id, 'exit 0\n');
+      expect(await until(() => !alive(pid))).toBe(true);
+      expect(await until(() => hosts.every((host) => host.list().length === 0))).toBe(true);
+      expect(exits).toEqual([0]);
+    } finally {
+      for (const host of hosts) host.terminateAll();
+    }
+  }, 15_000);
+
   it('reaps its own shells and leaves another owner\'s running', async () => {
     const closing = owner();
     const staying = owner();

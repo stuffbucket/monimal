@@ -144,7 +144,10 @@ function fakeCapabilities(): SettingsCapabilities {
     },
     logs: {
       location: vi.fn(async () => '/tmp/maximal/logs'),
+      list: vi.fn(async () => [{ name: 'sidecar.log', size: 42, modifiedAt: 1 }]),
       reveal: vi.fn(async () => {}),
+      coreLocation: vi.fn(async () => '/tmp/core/logs'),
+      revealCore: vi.fn(async () => {}),
     },
     diagnostics: {
       get: vi.fn(async () => ({
@@ -231,6 +234,18 @@ afterEach(() => {
 })
 
 describe('Settings', () => {
+  it('shows discovered desktop lifecycle logs and preserves the core log path', async () => {
+    const surface = await renderSettings()
+    const logs = surface.querySelector<HTMLButtonElement>('[data-testid="settings-rail-settings-logs-heading"]')
+    if (logs === null) throw new Error('the Logs rail item is missing')
+    await act(async () => logs.click())
+    expect(surface.textContent).toContain('sidecar.log')
+    expect(surface.textContent).toContain('/tmp/maximal/logs')
+    expect(surface.textContent).toContain('/tmp/core/logs')
+    expect(surface.textContent).toContain('Reveal desktop logs')
+    expect(surface.textContent).toContain('Reveal core logs')
+  })
+
   it('lists exactly the manifest sections in the rail, in order', async () => {
     const surface = await renderSettings()
 

@@ -21,6 +21,7 @@ import {
   SETTINGS_SECTIONS,
   type SettingsSectionId,
 } from '../shared/settings-sections.js'
+import { mainLogger } from './main-logger.js'
 
 /** Where the runtime icon sits. Unpackaged only, because that is the only case
  *  this file sets an icon for — `scripts/gen-icon-png.mjs` writes it. */
@@ -54,13 +55,13 @@ export function applyDockIcon(): void {
 
   const path = dockIconPath()
   if (!existsSync(path)) {
-    console.warn(`[maximal-client] no dock icon at ${path}; run gen-icon-png`)
+    mainLogger.warn({ path }, 'No dock icon; run gen-icon-png')
     return
   }
 
   const image = nativeImage.createFromPath(path)
   if (image.isEmpty()) {
-    console.warn(`[maximal-client] dock icon at ${path} is not a readable image`)
+    mainLogger.warn({ path }, 'Dock icon is not a readable image')
     return
   }
 
@@ -77,6 +78,8 @@ export function applyDockIcon(): void {
 export interface MenuCallbacks {
   /** Ask the application's update owner to check for a new release. */
   onCheckForUpdates?: () => void
+  /** Show the bundled third-party licenses dialog. */
+  onOpenLicenses?: () => void
   /**
    * Show Settings.
    *
@@ -109,7 +112,11 @@ export interface MenuCallbacks {
  */
 export function installApplicationMenu(callbacks: MenuCallbacks = {}): void {
   const isMac = process.platform === 'darwin'
-  const { onCheckForUpdates, onOpenSettings } = callbacks
+  const { onCheckForUpdates, onOpenLicenses, onOpenSettings } = callbacks
+
+  const openLicenses = () => () => {
+    onOpenLicenses?.()
+  }
 
   const openSettings = (sectionId: SettingsSectionId | null) => () => {
     onOpenSettings?.(sectionId)
@@ -122,6 +129,11 @@ export function installApplicationMenu(callbacks: MenuCallbacks = {}): void {
     accelerator: 'CmdOrCtrl+,',
     enabled: onOpenSettings !== undefined,
     click: openSettings(null),
+  }
+  const licensesItem: MenuItemConstructorOptions = {
+    label: 'Third Party Licenses',
+    enabled: onOpenLicenses !== undefined,
+    click: openLicenses(),
   }
 
   const sectionItems: MenuItemConstructorOptions[] = SETTINGS_SECTIONS.map(
@@ -160,6 +172,7 @@ export function installApplicationMenu(callbacks: MenuCallbacks = {}): void {
                 label: `About ${app.name}`,
                 click: () => app.showAboutPanel(),
               },
+              licensesItem,
               {
                 label: 'Check for Updates…',
                 // No release feed exists yet. Keep the command honest until an
@@ -195,6 +208,7 @@ export function installApplicationMenu(callbacks: MenuCallbacks = {}): void {
     {
       role: 'help',
       submenu: [
+        ...(!isMac ? [licensesItem] : []),
         {
           label: 'Learn More',
           click: () => void shell.openExternal('https://github.com/stuffbucket/maximal'),

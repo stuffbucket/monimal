@@ -69,6 +69,8 @@ for (const [file, label] of [
   ['.vite/build/main.js', 'main bundle'],
   ['.vite/build/preload.js', 'preload bundle'],
   [`.vite/build/${LLAMA_WORKER_FILENAME}`, 'llama worker bundle'],
+  ['SBOM.cdx.json', 'final-build software bill of materials'],
+  ['THIRD-PARTY-LICENSES.txt', 'final-build third-party license notices'],
   ['.vite/renderer/main_window/index.html', 'renderer shell'],
   ['.vite/renderer/main_window/overlay.html', 'overlay shell'],
 ]) {

@@ -1,0 +1,2 @@
+level = "warn"
+enforce = "packages/maximal/client/src/main"

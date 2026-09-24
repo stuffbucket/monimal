@@ -43,6 +43,7 @@ import {
 import { logUser, setupCopilotToken } from "~/lib/auth/token"
 import { isAutoRecoverAccountEnabled } from "~/lib/config/config"
 import { CopilotAuthFatalError } from "~/lib/errors/error"
+import { createTeeLogger } from "~/lib/platform/logger"
 import { PATHS } from "~/lib/platform/paths"
 import { cacheModels } from "~/lib/platform/utils"
 import {
@@ -55,6 +56,8 @@ import { getGitHubUser } from "~/services/github/get-user"
 
 import { emitBootStatus } from "./boot-status"
 
+const log = createTeeLogger("startup")
+
 export async function bootstrapUpstream(
   githubTokenOverride: string | undefined,
 ): Promise<void> {
@@ -64,12 +67,12 @@ export async function bootstrapUpstream(
   // hook stays dormant and a fatal rejection degrades + surfaces the reason.
   if (isAutoRecoverAccountEnabled()) {
     registerAutoRecovery(attemptAutoRecovery)
-    consola.info("Auto-recover account: enabled")
+    log.info("Auto-recover account: enabled")
   }
 
   if (githubTokenOverride) {
     setGithubToken(githubTokenOverride)
-    consola.info("Using provided GitHub token")
+    log.info("Using provided GitHub token")
   } else {
     // One-time: lift a legacy single-record token into the multi-account
     // registry so a user who signed in before multi-account boots into a
@@ -86,7 +89,7 @@ export async function bootstrapUpstream(
           .then((user) => user.login)
           .catch(() => null),
     }).catch((error: unknown) => {
-      consola.warn("Account registry migration failed (continuing):", error)
+      log.warn("Account registry migration failed (continuing):", error)
       return null
     })
     const existing = await readDefaultRecord()
@@ -127,7 +130,7 @@ export async function bootstrapUpstream(
         markSignedIn(state.userName, avatarUrl)
         return
       }
-      consola.warn(
+      log.warn(
         "Bootstrap: logUser succeeded but state.userName is empty; degrading to unauthenticated.",
       )
       clearTokenTrio({ github: true, copilot: true })
@@ -149,7 +152,7 @@ export async function bootstrapUpstream(
         await markAuthDegraded(error)
         return
       }
-      consola.warn(
+      log.warn(
         "GitHub token present but Copilot bootstrap failed transiently; keeping the GitHub token and scheduling a background retry.",
         error,
       )
@@ -174,7 +177,7 @@ export async function bootstrapUpstream(
               try {
                 avatar = await logUser()
               } catch (err) {
-                consola.warn(
+                log.warn(
                   "Bootstrap online-retry: Copilot came online but the GitHub identity lookup is still failing; staying signed-out until it recovers.",
                   err,
                 )
@@ -188,7 +191,7 @@ export async function bootstrapUpstream(
     }
   }
 
-  consola.warn(
+  log.warn(
     "No GitHub token; proxy is up in unauthenticated mode — run `maximal auth` to sign in.",
   )
 }
@@ -201,7 +204,7 @@ export function bootSecrets(): void {
       fileName: def.fileName,
     })
     if (result.source === "file") {
-      consola.info(`Loaded ${def.envVar} from secrets/${def.fileName}`)
+      log.info(`Loaded ${def.envVar} from secrets/${def.fileName}`)
     }
   }
 }

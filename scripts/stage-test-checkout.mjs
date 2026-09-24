@@ -22,6 +22,7 @@ const rebuildArguments = Object.freeze({
   "maximal-configurators": workspaceRebuild,
   connections: workspaceRebuild,
   policy: workspaceRebuild,
+  settings: workspaceRebuild,
 });
 const buildArguments = Object.freeze({
   workspace: ["run", "build", "--concurrency=1"],
@@ -52,6 +53,7 @@ const buildArguments = Object.freeze({
     "--filter=maximal-client...",
   ],
   policy: undefined,
+  settings: ["run", "build", "--concurrency=1", "--filter=@stuffbucket/maximal-settings"],
 });
 
 function gitOutput(arguments_, root, encoding = "utf8") {
@@ -147,6 +149,18 @@ export function stageCheckout({
     const stat = fs.lstatSync(source, { throwIfNoEntry: false });
     if (!stat) continue;
 
+    const destinationStat = fs.lstatSync(destination, { throwIfNoEntry: false });
+    if (
+      stat.isFile() &&
+      destinationStat?.isFile() &&
+      stat.size === destinationStat.size &&
+      (stat.mode & 0o777) === (destinationStat.mode & 0o777) &&
+      fs.readFileSync(source).equals(fs.readFileSync(destination))
+    ) {
+      count += 1;
+      continue;
+    }
+
     fs.mkdirSync(path.dirname(destination), { recursive: true });
     fs.rmSync(destination, { force: true, recursive: true });
     if (stat.isSymbolicLink()) {
@@ -204,7 +218,7 @@ export function parseStageOptions(arguments_) {
     !command
   ) {
     throw new Error(
-      "Usage: stage-test-checkout.mjs --rebuild=workspace|core|maximal-models|maximal-configurators|connections|policy -- <command> [arguments]",
+      "Usage: stage-test-checkout.mjs --rebuild=workspace|core|maximal-models|maximal-configurators|connections|policy|settings -- <command> [arguments]",
     );
   }
   const rebuild = rebuildOption.slice("--rebuild=".length);

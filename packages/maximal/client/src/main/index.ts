@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { mkdir } from 'node:fs/promises'
+import { mkdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import { resolveLocalModelsPath } from '@stuffbucket/local-model-registry'
@@ -19,6 +19,7 @@ import {
   TrafficRequestDetailQuerySchema,
   TrafficRequestListQuerySchema,
 } from '@stuffbucket/maximal-observability-contract'
+import { listLogFiles, resolveLogDirectory } from '@stuffbucket/maximal-logging'
 import { app, BrowserWindow, dialog, ipcMain, shell, type MessageBoxOptions } from 'electron'
 import { waitForHostWindowReady } from 'stuffbucket-electron/host'
 import { ShutdownLifecycle } from 'stuffbucket-electron/main'
@@ -41,9 +42,11 @@ import {
   spawnCore,
 } from './core.js'
 import { applyAppName, applyDockIcon, installApplicationMenu } from './identity.js'
+import { resolveLicenseBundlePath } from './license-bundle.js'
 import { listClientInstallations } from './client-installations.js'
 import { toLifecycleStatus } from './lifecycle-status.js'
 import { MenuBarModeController } from './menu-bar-mode.js'
+import { mainLogger } from './main-logger.js'
 import {
   getProviderOnboardingPreference,
   setProviderOnboardingPreference,
@@ -55,6 +58,7 @@ import {
 } from './ollama-runtime.js'
 import { runShell } from './shell.js'
 import { closeSplashWindow, createSplashWindow } from './splash-window.js'
+import { centerOnPrimaryDisplay } from './window-placement.js'
 import {
   isHarnessBusy,
   showHarnessHost,
@@ -70,6 +74,7 @@ import {
   stageTerminalSessions,
   stopTerminalHost,
 } from './terminal-host.js'
+import { loadApplicationSettings } from './application-settings.js'
 
 const SPLASH_PREVIEW_FLAG = '--splash-preview'
 
@@ -128,6 +133,18 @@ async function openLocalModelsDirectory(): Promise<void> {
   if (error) throw new Error(error)
 }
 
+async function readLicenseText(): Promise<string> {
+  const path = resolveLicenseBundlePath({
+    appPath: app.getAppPath(),
+    isPackaged: app.isPackaged,
+  })
+  try {
+    return await readFile(path, 'utf8')
+  } catch {
+    return 'Licenses information is unavailable.\n\nNo bundled third-party license text was found.'
+  }
+}
+
 function registerIpc(
   session: ControlSession,
   mode: MenuBarModeController,
@@ -157,6 +174,7 @@ function registerIpc(
     return result.response === 1 && shutdownLifecycle.force()
   })
   ipcMain.handle(BRIDGE_CHANNELS.proxyUrl, () => awaitProxyUrl())
+  ipcMain.handle(BRIDGE_CHANNELS.licensesText, readLicenseText)
   ipcMain.handle(BRIDGE_CHANNELS.openExternal, (_event, url: unknown) =>
     openExternalUrl(url),
   )
@@ -285,8 +303,16 @@ function registerIpc(
     (_event, input: unknown) =>
       session.searchProviderValidate(SearchProviderValidationRequest.parse(input)),
   )
-  ipcMain.handle(BRIDGE_CHANNELS.logsLocation, () => join(coreHomePath(), 'logs'))
+  ipcMain.handle(BRIDGE_CHANNELS.logsLocation, () => resolveLogDirectory())
+  ipcMain.handle(BRIDGE_CHANNELS.logsList, () => listLogFiles())
   ipcMain.handle(BRIDGE_CHANNELS.logsReveal, async () => {
+    const directory = resolveLogDirectory()
+    await mkdir(directory, { recursive: true })
+    const error = await shell.openPath(directory)
+    if (error) throw new Error(error)
+  })
+  ipcMain.handle(BRIDGE_CHANNELS.coreLogsLocation, () => join(coreHomePath(), 'logs'))
+  ipcMain.handle(BRIDGE_CHANNELS.coreLogsReveal, async () => {
     const error = await shell.openPath(join(coreHomePath(), 'logs'))
     if (error) throw new Error(error)
   })
@@ -480,6 +506,7 @@ function createWindow(): BrowserWindow {
     title: 'Maximal',
     width: 1280,
     height: 768,
+    ...centerOnPrimaryDisplay(1280, 768),
     loadRenderer,
   })
   mainWindow = win
@@ -581,6 +608,9 @@ void app.whenReady().then(async () => {
     onCheckForUpdates: () => {
       void openExternalUrl('https://github.com/stuffbucket/maximal/releases/latest')
     },
+    onOpenLicenses: () => {
+      activateWindow().webContents.send(BRIDGE_CHANNELS.menuOpenLicenses)
+    },
     onOpenSettings: openSettings,
   })
 
@@ -591,7 +621,7 @@ void app.whenReady().then(async () => {
     onTrafficInvalidation: (invalidation) =>
       broadcast(BRIDGE_CHANNELS.trafficInvalidated, invalidation),
   })
-  configureTerminalHost()
+  configureTerminalHost(loadApplicationSettings(app.getPath('userData')).settings)
   configureTerminalWindowActions({
     undock: (owner, request) =>
       openTransferredTerminal(owner, request, 'move'),
@@ -612,9 +642,7 @@ void app.whenReady().then(async () => {
   onCoreStatus((status) => {
     if (status.phase === 'ready') {
       coreReady = true
-      console.log(
-        `[maximal-client] core ready — control ${status.controlOrigin}, proxy ${status.proxyUrl}`,
-      )
+      mainLogger.info({ pid: status.pid }, 'Sidecar is ready for desktop requests')
       closeReadySplash()
     }
     broadcastCoreStatus(status)
@@ -642,7 +670,7 @@ void app.whenReady().then(async () => {
   } catch (error) {
     // `spawnCore()` emits a failed lifecycle state for the in-app problem screen.
     // A native blocking error dialog can prevent `app.quit()` from completing.
-    console.error('[maximal-client] core failed to start:', error)
+    mainLogger.error({ errorName: error instanceof Error ? error.name : 'unknown' }, 'Core failed to start')
   }
 })
 
@@ -710,6 +738,6 @@ app.on('before-quit', (event) => {
     shutdownComplete = true
     app.quit()
   }).catch((error: unknown) => {
-    console.error('[maximal-client] shutdown failed:', error)
+    mainLogger.error({ errorName: error instanceof Error ? error.name : 'unknown' }, 'Desktop shutdown failed')
   })
 })

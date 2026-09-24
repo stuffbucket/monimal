@@ -27,8 +27,10 @@
  */
 
 const { dropShardHostUrls } = require("./scripts/lockfile-shard-hosts.cjs");
+const settingsDependencies = require("./packages/maximal-settings/scripts/dependency-policy.cjs");
 
 function afterAllResolved(lockfile) {
+  settingsDependencies.verifyLockfile(lockfile);
   const { dropped } = dropShardHostUrls(lockfile);
   if (dropped > 0) {
     console.log(
@@ -38,4 +40,4 @@ function afterAllResolved(lockfile) {
   return lockfile;
 }
 
-module.exports = { hooks: { afterAllResolved } };
+module.exports = { hooks: { afterAllResolved, readPackage: settingsDependencies.readPackage } };

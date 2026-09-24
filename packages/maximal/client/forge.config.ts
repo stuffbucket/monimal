@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process'
 import {
   cpSync,
   existsSync,
@@ -57,6 +58,14 @@ import {
 const PACKAGER_STAGING_BASE = mkdtempSync(path.join(os.tmpdir(), 'forge-maximal-client-'))
 const EXTERNAL_MODULES = ['node-pty', 'node-llama-cpp']
 const NODE_MODULES = path.resolve('node_modules')
+const CDXGEN_CLI = path.join(
+  workspaceRoot(),
+  'node_modules',
+  '@cyclonedx',
+  'cdxgen',
+  'bin',
+  'cdxgen.js',
+)
 
 const PACKAGE_IO = {
   basename: (target: string) => path.basename(target),
@@ -300,6 +309,12 @@ const config: ForgeConfig = {
       pruneLlamaBackends(buildPath, platform, arch)
       pruneLlamaSource(buildPath)
       prunePlatformPackages(buildPath, platform, arch)
+      execFileSync(process.execPath, [
+        path.join(__dirname, 'scripts', 'generate-package-sbom.mjs'),
+        buildPath,
+        path.resolve(__dirname, '..'),
+        CDXGEN_CLI,
+      ], { stdio: 'inherit' })
       return Promise.resolve()
     },
   },

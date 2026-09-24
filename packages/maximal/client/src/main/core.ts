@@ -3,7 +3,10 @@ import { mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import { awaitReadyLine, parseBootStatus, sidecarSpawnEnv } from '@stuffbucket/maximal-core/supervisor'
+import { createLogger } from '@stuffbucket/maximal-logging'
 import { app } from 'electron'
+
+const logger = createLogger('sidecar')
 
 let child: ChildProcess | null = null
 let controlBase = ''
@@ -143,16 +146,15 @@ function emitStatus(status: CoreStatus): void {
   for (const listener of statusListeners) listener(status)
 }
 
-/** Route one line of sidecar stdout: boot-status markers become status
- *  events, everything else is just logged as before. */
+/** Route sidecar boot markers to status without persisting raw stdout. */
 function handleSidecarLine(line: string): void {
   const bootMessage = parseBootStatus(line)
   if (bootMessage !== null) {
-    console.log('[core] boot:', bootMessage)
+    logger.debug('Sidecar boot status received')
     emitStatus({ phase: 'boot-status', message: bootMessage })
     return
   }
-  console.log('[core]', line)
+  logger.debug({ bytes: Buffer.byteLength(line) }, 'Sidecar stdout line received')
 }
 
 /** Feed a stdout data stream through `handleSidecarLine` one whole line at a
@@ -162,16 +164,25 @@ function handleSidecarLine(line: string): void {
  *  chunks is still recognised instead of only ever seen as raw chunk noise. */
 function attachLineLogger(stdout: NonNullable<ChildProcess['stdout']>): void {
   let buffer = ''
-  stdout.on('data', (chunk: Buffer) => {
-    buffer += chunk.toString()
-    let newline = buffer.indexOf('\n')
-    while (newline >= 0) {
-      const line = buffer.slice(0, newline)
-      buffer = buffer.slice(newline + 1)
-      if (line.trim()) handleSidecarLine(line)
-      newline = buffer.indexOf('\n')
+  const drain = (): void => {
+    let chunk: unknown = stdout.read()
+    while (chunk !== null) {
+      if (!Buffer.isBuffer(chunk) && typeof chunk !== 'string') {
+        throw new TypeError('Sidecar stdout returned a non-text chunk')
+      }
+      buffer += chunk.toString()
+      let newline = buffer.indexOf('\n')
+      while (newline >= 0) {
+        const line = buffer.slice(0, newline)
+        buffer = buffer.slice(newline + 1)
+        if (line.trim()) handleSidecarLine(line)
+        newline = buffer.indexOf('\n')
+      }
+      chunk = stdout.read()
     }
-  })
+  }
+  stdout.on('readable', drain)
+  drain()
 }
 
 /** Set by `killCore()` so a post-ready exit it caused is never mistaken for a
@@ -206,6 +217,7 @@ function clearStabilityTimer(): void {
 
 function scheduleRestart(attempt: number): void {
   const delayMs = backoffFor(attempt)
+  logger.warn({ attempt, delayMs }, 'Sidecar restart scheduled')
   emitStatus({ phase: 'restarting', attempt, delayMs })
   restartTimer = setTimeout(() => {
     restartTimer = null
@@ -221,9 +233,13 @@ async function attemptRestart(): Promise<void> {
     await launchCore()
   } catch (error) {
     if (intentionalShutdown) return
-    console.error('[core] restart attempt failed:', error)
+    logger.error({
+      attempt: restartAttempts + 1,
+      errorName: error instanceof Error ? error.name : 'unknown',
+    }, 'Sidecar restart attempt failed')
     restartAttempts += 1
     if (restartAttempts > MAX_RESTART_ATTEMPTS) {
+      logger.error({ attempt: restartAttempts }, 'Sidecar restart limit exceeded')
       emitStatus({
         phase: 'failed',
         reason: error instanceof Error ? error.message : String(error),
@@ -251,9 +267,11 @@ function onUnexpectedExit(proc: ChildProcess, code: number | null, signal: NodeJ
   restartAttempts += 1
   const attempt = restartAttempts
   const willRetry = attempt <= MAX_RESTART_ATTEMPTS
+  logger.warn({ pid: proc.pid ?? null, code, signal, attempt, willRetry }, 'Sidecar exited unexpectedly')
   emitStatus({ phase: 'crashed', code, signal, attempt, willRetry })
 
   if (!willRetry) {
+    logger.error({ attempt }, 'Sidecar crash limit exceeded')
     emitStatus({ phase: 'failed', reason: `sidecar crashed ${attempt} times; giving up` })
     return
   }
@@ -274,6 +292,7 @@ async function launchCore(): Promise<{ controlOrigin: string; proxyUrl: string; 
   // evicting anything — so a proxy already running on 4141 is left alone.
   // The private control port is separately ephemeral by default
   // (`resolveControlPort(undefined)` returns 0), which is what we want.
+  logger.info({ attempt: restartAttempts }, 'Starting sidecar')
   const proc = spawn(coreBinaryPath(), ['start'], {
     stdio: ['ignore', 'pipe', 'pipe'],
     env: {
@@ -285,11 +304,29 @@ async function launchCore(): Promise<{ controlOrigin: string; proxyUrl: string; 
   child = proc
 
   let isReady = false
+  let stderrBytes = 0
 
-  proc.stderr?.on('data', (chunk: Buffer) => console.error('[core]', chunk.toString().trimEnd()))
-  proc.on('error', (error) => console.error('[core] process error:', error))
+  proc.stderr?.on('data', (chunk: Buffer) => {
+    stderrBytes += chunk.length
+    if (stderrBytes === chunk.length) {
+      logger.warn({ pid: proc.pid ?? null }, 'Sidecar wrote to stderr; contents omitted')
+    }
+  })
+  proc.on('error', (error: NodeJS.ErrnoException) => {
+    logger.error({
+      pid: proc.pid ?? null,
+      errorName: error.name,
+      errorCode: error.code ?? null,
+    }, 'Sidecar process error')
+  })
   proc.on('exit', (code, signal) => {
-    console.log('[core] exited', { code, signal })
+    logger.info({
+      pid: proc.pid ?? null,
+      code,
+      signal,
+      intentional: intentionalShutdown,
+      stderrBytes,
+    }, 'Sidecar process exited')
     if (isReady) onUnexpectedExit(proc, code, signal)
   })
 
@@ -353,6 +390,7 @@ async function launchCore(): Promise<{ controlOrigin: string; proxyUrl: string; 
       stabilityTimer = null
       if (child === proc) restartAttempts = 0
     }, RESTART_STABILITY_MS)
+    logger.info({ pid: ready.pid, attempt: restartAttempts }, 'Sidecar ready')
     emitStatus({ phase: 'ready', controlOrigin: controlBase, proxyUrl: proxyBase, pid: ready.pid })
     return {
       controlOrigin: controlBase,
@@ -396,6 +434,9 @@ export async function spawnCore(): Promise<{ controlOrigin: string; proxyUrl: st
     // `failed` would put an error screen in front of someone who chose to quit.
     // Same distinction `attemptRestart()` and `onUnexpectedExit()` already make.
     if (!intentionalShutdown) {
+      logger.error({
+        errorName: error instanceof Error ? error.name : 'unknown',
+      }, 'Sidecar failed to start')
       emitStatus({ phase: 'failed', reason: error instanceof Error ? error.message : String(error) })
     }
     throw error
@@ -404,6 +445,7 @@ export async function spawnCore(): Promise<{ controlOrigin: string; proxyUrl: st
 
 export function killCore(): Promise<void> {
   intentionalShutdown = true
+  logger.info({ pid: child?.pid ?? null }, 'Sidecar shutdown requested')
   clearRestartTimer()
   clearStabilityTimer()
   const proc = child

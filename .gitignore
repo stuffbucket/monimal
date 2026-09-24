@@ -30,3 +30,4 @@ reports/
 
 # packaged app output
 packages/maximal/client/resources/bin/
+packages/maximal/THIRD-PARTY-LICENSES.txt

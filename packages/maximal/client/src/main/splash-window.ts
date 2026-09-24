@@ -4,6 +4,7 @@ import {
   FRAUNCES_FONT_DATA,
   MAXIMAL_PAINT_CANDY,
 } from '@stuffbucket/maximal-assets/brand'
+import { centerOnPrimaryDisplay } from './window-placement.js'
 
 const MAX_LIFETIME_MS = 10_000;
 const MIN_DISPLAY_MS = 3_000;
@@ -40,11 +41,11 @@ export function createSplashWindow({
   splash = new BrowserWindow({
     width: 880,
     height: 480,
+    ...centerOnPrimaryDisplay(880, 480),
     frame: false,
     transparent: true,
     resizable: false,
     movable: true,
-    center: true,
     show: false,
     skipTaskbar: true,
     alwaysOnTop: true,
@@ -52,8 +53,6 @@ export function createSplashWindow({
     backgroundColor: '#00000000',
     hasShadow: false,
   });
-  splash.center();
-
   void splash.loadURL(`data:text/html;charset=UTF-8,${encodeURIComponent(markup(name, version))}`);
   splash.once('ready-to-show', () => {
     shownAt = Date.now();

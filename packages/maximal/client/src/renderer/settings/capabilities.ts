@@ -25,6 +25,7 @@ import type {
   TokenUsagePeriod,
   TokenUsageSummary,
 } from '@stuffbucket/maximal-core/settings-types'
+import type { LogFile } from '@stuffbucket/maximal-logging'
 
 import type {
   ClientInstallation,
@@ -157,7 +158,10 @@ export interface SettingsCapabilities {
   }
   logs: {
     location(): Promise<string>
+    list(): Promise<LogFile[]>
     reveal(): Promise<void>
+    coreLocation(): Promise<string>
+    revealCore(): Promise<void>
   }
   diagnostics: {
     get(): Promise<DiagnosticsResponse>

@@ -75,6 +75,7 @@ function fakeBridge(): MaximalBridge {
       phase: 'starting',
     })),
     getProxyUrl: vi.fn(async () => 'http://127.0.0.1:4141'),
+    licenses: { text: vi.fn(async () => '') },
     openExternal: vi.fn(async () => {}),
     onCoreStatus: vi.fn(() => () => {}),
     shutdown: {
@@ -83,10 +84,14 @@ function fakeBridge(): MaximalBridge {
       onChange: vi.fn(() => () => {}),
     },
     pendingSettingsRequest: vi.fn(async () => null),
+    onOpenLicenses: vi.fn(() => () => {}),
     onOpenSettings: vi.fn(() => () => {}),
     logs: {
       location: vi.fn(async () => '/tmp/maximal/logs'),
+      list: vi.fn(async () => []),
       reveal: vi.fn(async () => {}),
+      coreLocation: vi.fn(async () => '/tmp/core/logs'),
+      revealCore: vi.fn(async () => {}),
     },
     localModels: {
       list: vi.fn(async () => success({ models: [], revision: 0 })),

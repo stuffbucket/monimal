@@ -27,6 +27,60 @@ export interface TerminalConnector {
   connect(options: TerminalConnectOptions): TerminalProcess;
 }
 
+export interface TerminalDiagnostic {
+  component: 'pty-host' | 'tmux-host';
+  event: string;
+  ownerId: string;
+  sessionId: string;
+  sessionCount: number;
+  projectionCount?: number;
+  commandQueueCount?: number;
+  projectionId?: string;
+  transport?: 'local' | 'ssh';
+  ownership?: 'created' | 'existing';
+  mirrorCount?: number;
+  pendingCodeUnits?: number;
+  inFlightCodeUnits?: number;
+  exitCode?: number;
+  accepted?: boolean;
+}
+
+export interface TerminalDiagnosticRecord extends TerminalDiagnostic {
+  timestamp: number;
+  processId: number;
+  rss: number;
+  heapUsed: number;
+}
+
+let diagnosticsConfigured = false;
+let diagnosticSink: ((record: TerminalDiagnosticRecord) => void) | undefined;
+
+export function configureTerminalDiagnostics(
+  enabled: boolean | undefined,
+  sink?: (record: TerminalDiagnosticRecord) => void,
+): void {
+  diagnosticsConfigured = enabled ?? false;
+  diagnosticSink = diagnosticsConfigured ? sink : undefined;
+}
+
+export function terminalDiagnostic(snapshot: () => TerminalDiagnostic): void {
+  if (!diagnosticsConfigured) return;
+  try {
+    const { rss, heapUsed } = process.memoryUsage();
+    const record = {
+      ...snapshot(),
+      timestamp: Date.now(),
+      processId: process.pid,
+      rss,
+      heapUsed,
+    };
+    if (diagnosticSink) diagnosticSink(record);
+    else console.warn('[terminal-diagnostic]', JSON.stringify(record));
+  } catch {
+    return;
+  }
+}
+
 /** Runs the requested command in a local pseudo-terminal. */
 export class LocalPtyConnector implements TerminalConnector {
   connect(options: TerminalConnectOptions): IPty {
