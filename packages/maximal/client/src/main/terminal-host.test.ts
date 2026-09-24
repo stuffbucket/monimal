@@ -51,6 +51,7 @@ vi.mock('stuffbucket-electron/electron-terminal', () => ({
 }))
 
 vi.mock('stuffbucket-electron/host/terminal', () => ({
+  configureTerminalDiagnostics: vi.fn(),
   registerTerminalChannels: vi.fn(),
 }))
 

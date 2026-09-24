@@ -7,10 +7,12 @@ import {
 } from '@stuffbucket/maximal-observability-contract'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+const { loggerError } = vi.hoisted(() => ({ loggerError: vi.fn() }))
+
 vi.mock('@stuffbucket/maximal-logging', () => ({
   resolveLogDirectory: () => '/state/stuffbucket/logs',
   listLogFiles: () => [{ name: 'sidecar.log', size: 42, modifiedAt: 1 }],
-  createLogger: () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() }),
+  createLogger: () => ({ info: vi.fn(), warn: vi.fn(), error: loggerError, debug: vi.fn() }),
 }))
 
 import {
@@ -1138,9 +1140,9 @@ describe('renderer recovery', () => {
     rejectPrompt?.(new Error('window closed'))
 
     await vi.waitFor(() => {
-      expect(console.error).toHaveBeenCalledWith(
-        '[maximal-client] renderer recovery prompt failed:',
-        expect.any(Error),
+      expect(loggerError).toHaveBeenCalledWith(
+        { errorName: 'Error' },
+        'Renderer recovery prompt failed',
       )
     })
     expect(fakeWindow.webContents.reload).not.toHaveBeenCalled()

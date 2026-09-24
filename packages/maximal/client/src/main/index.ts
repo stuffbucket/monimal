@@ -428,7 +428,10 @@ function installRendererRecovery(win: BrowserWindow): void {
       else secondaryAction()
     }).catch((error: unknown) => {
       recoveryPromptOpen = false
-      console.error('[maximal-client] renderer recovery prompt failed:', error)
+      mainLogger.error(
+        { errorName: error instanceof Error ? error.name : 'unknown' },
+        'Renderer recovery prompt failed',
+      )
       if (rendererExitPending) {
         rendererExitPending = false
         recoverFromUnexpectedExit()
@@ -455,7 +458,10 @@ function installRendererRecovery(win: BrowserWindow): void {
   win.webContents.on('render-process-gone', (_event, details) => {
     menuBarMode?.cancelPending()
     if (details.reason === 'clean-exit') return
-    console.error('[maximal-client] renderer process exited:', details)
+    mainLogger.error(
+      { reason: details.reason, exitCode: details.exitCode },
+      'Renderer process exited',
+    )
     if (quitting || closing || win.isDestroyed()) return
     if (recoveryPromptOpen) {
       rendererExitPending = true
@@ -466,7 +472,7 @@ function installRendererRecovery(win: BrowserWindow): void {
 
   win.webContents.on('unresponsive', () => {
     if (quitting || closing || win.isDestroyed()) return
-    console.error('[maximal-client] renderer became unresponsive')
+    mainLogger.error('Renderer became unresponsive')
     promptReload(
       'This window is not responding',
       'Reloading reconnects the view to terminal processes that are still running.',
@@ -476,13 +482,9 @@ function installRendererRecovery(win: BrowserWindow): void {
 
   win.webContents.on(
     'did-fail-load',
-    (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+    (_event, errorCode, _errorDescription, _validatedURL, isMainFrame) => {
       if (quitting || closing || win.isDestroyed() || !isMainFrame || errorCode === -3) return
-      console.error('[maximal-client] renderer failed to load:', {
-        errorCode,
-        errorDescription,
-        validatedURL,
-      })
+      mainLogger.error({ errorCode }, 'Renderer failed to load')
       promptReload(
         'This window could not be loaded',
         'Reload the window to try again without restarting the entire application.',
@@ -494,9 +496,7 @@ function installRendererRecovery(win: BrowserWindow): void {
 
   win.webContents.on('console-message', (details) => {
     if (details.level !== 'error') return
-    console.error(
-      `[maximal-client] renderer console: ${details.message} (${details.sourceId}:${String(details.lineNumber)})`,
-    )
+    mainLogger.error({ lineNumber: details.lineNumber }, 'Renderer console error')
   })
 }
 
