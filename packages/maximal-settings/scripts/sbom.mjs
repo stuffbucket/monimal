@@ -16,7 +16,7 @@ const rootPath = fileURLToPath(new URL("../package.json", import.meta.url))
 const root = JSON.parse(readFileSync(rootPath, "utf8"))
 const components = new Map()
 const dependencies = []
-const ref = (pkg) => `pkg:npm/${pkg.name.replace("@", "%40")}@${pkg.version}`
+const ref = (pkg) => `pkg:npm/${pkg.name.replaceAll("@", "%40")}@${pkg.version}`
 const visit = (manifestPath, isRoot = false) => {
   const pkg = JSON.parse(readFileSync(manifestPath, "utf8"))
   const id = `${pkg.name}@${pkg.version}`

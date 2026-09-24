@@ -520,6 +520,12 @@ test("root workflows select the intended package and task graphs", () => {
   assert.deepEqual(turbo.tasks.typecheck.passThroughEnv, [
     "MONIMAL_WORKSPACE_TASK",
   ]);
+  for (const name of ["maximal-settings", "maximal-logging"]) {
+    assert.deepEqual(
+      turbo.tasks[`@stuffbucket/${name}#typecheck`].dependsOn,
+      ["build", "^build"],
+    );
+  }
   assert.deepEqual(turbo.tasks.dev.dependsOn, ["^build"]);
   assert.equal(turbo.tasks.dev.cache, false);
   assert.equal(turbo.tasks.dev.persistent, true);
