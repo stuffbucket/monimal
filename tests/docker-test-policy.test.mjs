@@ -421,8 +421,13 @@ test("the outer and fixed inner test scripts cannot recurse", () => {
   );
   assert.equal(
     manifest.scripts["check:static"],
-    "turbo run build typecheck lint && pnpm run check:network-literals",
+    "turbo run build typecheck lint && pnpm run check:network-literals && pnpm run check:settings",
   );
+  assert.equal(
+    manifest.scripts["check:settings"],
+    "pnpm --filter @stuffbucket/maximal-settings run migration:check && pnpm --filter @stuffbucket/maximal-settings run security:check",
+  );
+  assert.equal(manifest.scripts["test:settings"], "node scripts/test-workspace.mjs --settings");
   assert.equal(
     manifest.scripts["check:network-literals"],
     "node scripts/check-network-literals.mjs",
@@ -488,7 +493,11 @@ test("root workflows select the intended package and task graphs", () => {
     },
   );
   assert.equal(client.scripts.dev, "node scripts/start.mjs");
-  assert.equal(client.scripts.predev, "node scripts/gen-icon-png.mjs");
+  assert.equal(
+    client.scripts.predev,
+    "pnpm run generate:licenses && node scripts/gen-icon-png.mjs",
+  );
+  assert.equal(client.scripts.prepackage, client.scripts.predev);
   assert.equal(
     manifest.scripts["pnpm:devPreinstall"],
     "node scripts/prepare-workspace.mjs",
@@ -511,6 +520,12 @@ test("root workflows select the intended package and task graphs", () => {
   assert.deepEqual(turbo.tasks.typecheck.passThroughEnv, [
     "MONIMAL_WORKSPACE_TASK",
   ]);
+  for (const name of ["maximal-settings", "maximal-logging"]) {
+    assert.deepEqual(
+      turbo.tasks[`@stuffbucket/${name}#typecheck`].dependsOn,
+      ["build", "^build"],
+    );
+  }
   assert.deepEqual(turbo.tasks.dev.dependsOn, ["^build"]);
   assert.equal(turbo.tasks.dev.cache, false);
   assert.equal(turbo.tasks.dev.persistent, true);
@@ -799,6 +814,14 @@ test("native test selection is closed and uses affected dependents", () => {
     scope: "core",
     trace: "off",
   });
+  assert.deepEqual(parseTestOptions(["--settings"]), {
+    scope: "settings",
+    trace: "off",
+  });
+  assert.deepEqual(turboTestArguments({ scope: "settings" }), [
+    "run", "test", "--concurrency=1", "--filter=@stuffbucket/maximal-settings",
+  ]);
+  assert.throws(() => parseTestOptions(["--settings", "--all"]), /Duplicate test scope/);
   assert.deepEqual(parseTestOptions(["--all", "--", "--trace=tests"]), {
     scope: "all",
     trace: "tests",
@@ -1425,7 +1448,22 @@ test("checkout staging copies Git-visible source without host dependencies", () 
     fs.mkdirSync(path.join(workspace, "node_modules"));
     fs.writeFileSync(path.join(workspace, "node_modules/image"), "owned\n");
 
-    assert.equal(stageCheckout({ checkout, workspace }), 3);
+    const sourceHook = path.join(checkout, ".pnpmfile.cjs");
+    const stagedHook = path.join(workspace, ".pnpmfile.cjs");
+    fs.writeFileSync(sourceHook, "module.exports = {};\n");
+    fs.writeFileSync(stagedHook, "module.exports = {};\n");
+    const installedTime = new Date("2020-01-01T00:00:00Z");
+    fs.utimesSync(stagedHook, installedTime, installedTime);
+
+    assert.equal(stageCheckout({ checkout, workspace }), 4);
+    assert.equal(fs.statSync(stagedHook).mtimeMs, installedTime.getTime());
+    fs.writeFileSync(sourceHook, "module.exports = { hooks: {} };\n");
+    assert.equal(stageCheckout({ checkout, workspace }), 4);
+    assert.equal(fs.readFileSync(stagedHook, "utf8"), fs.readFileSync(sourceHook, "utf8"));
+    assert.ok(fs.statSync(stagedHook).mtimeMs > installedTime.getTime());
+    fs.chmodSync(sourceHook, 0o700);
+    assert.equal(stageCheckout({ checkout, workspace }), 4);
+    assert.equal(fs.statSync(stagedHook).mode & 0o777, 0o700);
     assert.equal(
       fs.realpathSync(path.join(workspace, ".git")),
       fs.realpathSync(path.join(checkout, ".git")),
@@ -1525,6 +1563,11 @@ test("the Docker workspace runner accepts only one affected Turbo filter", () =>
 });
 
 test("suite and trace selectors are closed and do not forward arguments", () => {
+  assert.deepEqual(parseOptions(["--suite=settings"]), { scope: "affected", suite: "settings", trace: "off" });
+  assert.equal(innerScriptForSuite("settings"), "test:settings:inner");
+  assert.deepEqual(parseStageOptions(["--rebuild=settings", "--", "pnpm", "run", "test:settings:inner"]), {
+    command: "pnpm", commandArguments: ["run", "test:settings:inner"], rebuild: "settings",
+  });
   assert.deepEqual(parseOptions([]), {
     scope: "affected",
     suite: "workspace",
@@ -1814,6 +1857,10 @@ test("the reusable Docker dependency image includes every workspace manifest", (
   ].map((match) => match[1]).sort();
   assert.deepEqual(copiedManifests, manifests);
   assert.ok(install >= 0);
+  for (const input of ["packages/maximal-settings/dependency-review.json", "packages/maximal-settings/scripts/dependency-policy.cjs"]) {
+    const copy = dockerfile.indexOf(`COPY --chown=maximal:maximal ${input} ${input}`);
+    assert.ok(copy >= 0 && copy < install, `${input} must be copied before dependency installation`);
+  }
   assert.match(
     dockerfile,
     /COPY --chown=maximal:maximal scripts\/stage-test-checkout\.mjs \/opt\/monimal\/stage-test-checkout\.mjs/,

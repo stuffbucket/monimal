@@ -1,4 +1,4 @@
-import consola from "consola"
+import { runtimeLogger } from "~/lib/platform/runtime-logger"
 
 const copilotRateLimitTypes = ["session", "weekly"] as const
 
@@ -88,7 +88,7 @@ export const logCopilotRateLimits = (headers: HeadersLike): void => {
     const d = new Date(usage.resetAt)
     const dateStr =
       Number.isNaN(d.getTime()) ? usage.resetAt : d.toLocaleString()
-    consola.info(
+    runtimeLogger.info(
       `Copilot ${usage.type} quota remaining: ${usage.remaining}, resets at: ${dateStr}`,
     )
   }

@@ -11,6 +11,7 @@ export default defineConfig({
     "control-contract": "src/lib/jsonrpc/contract.ts",
     supervisor: "src/lib/live/supervisor.ts",
     "settings-types": "src/lib/config/settings-types.ts",
+    "settings-environment": "src/lib/config/settings-environment.ts",
     "provider-host": "src/lib/provider-host.ts",
     "search-connector": "src/search-connector.ts",
     "configurator-host": "src/lib/configurator-host.ts",

@@ -1,9 +1,9 @@
-/* eslint-disable max-lines -- legacy usage store remains one transactional module */
-import consola from "consola"
 import path from "node:path"
 
+/* eslint-disable max-lines -- legacy usage store remains one transactional module */
 import { PATHS } from "~/lib/platform/paths"
 import { registerProcessCleanup } from "~/lib/platform/process-cleanup"
+import { runtimeLogger } from "~/lib/platform/runtime-logger"
 import {
   type Migration,
   isSqliteRuntimeSupported,
@@ -413,7 +413,7 @@ export function enqueueTokenUsageWrite(event: PersistedTokenUsageEvent): void {
   writeQueue = writeQueue
     .then(() => writeTokenUsageEvent(event))
     .catch((error: unknown) => {
-      consola.warn("Failed to record token usage", error)
+      runtimeLogger.warn("Failed to record token usage", error)
     })
 }
 

@@ -1,3 +1,4 @@
+import type { SSEStreamingApi } from "hono/streaming"
 /**
  * Mid-stream error reporting for the three `/v1/messages` upstream flows.
  *
@@ -8,9 +9,7 @@
  * dedicated module nobody mocks keeps the behavior testable in isolation.
  */
 
-import type { ConsolaInstance } from "consola"
-import type { SSEStreamingApi } from "hono/streaming"
-
+import { type TeeLogger } from "~/lib/platform/logger"
 import { buildErrorEvent } from "~/routes/messages/responses-stream-translation"
 
 export type StreamFlow =
@@ -29,7 +28,7 @@ export type StreamFlow =
  */
 export const emitStreamError = async (
   stream: SSEStreamingApi,
-  logger: ConsolaInstance,
+  logger: TeeLogger,
   ctx: { error: unknown; flow: StreamFlow },
 ): Promise<void> => {
   const { error, flow } = ctx

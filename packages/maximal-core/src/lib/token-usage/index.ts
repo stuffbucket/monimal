@@ -1,8 +1,7 @@
 import type { TrafficTokenMetadata } from "@stuffbucket/maximal-observability-contract"
 
-import consola from "consola"
-
 import { requestContext, generateTraceId } from "~/lib/http/request-context"
+import { runtimeLogger } from "~/lib/platform/runtime-logger"
 import { state } from "~/lib/runtime-state/state"
 import { pricedModelIsPaid } from "~/services/copilot/get-models"
 
@@ -254,7 +253,7 @@ function annotateTrafficObservation(input: TokenUsageEventInput): void {
     store.trafficTokens = tokens
     observation.recordTokens({ at, tokens })
   } catch (error) {
-    consola.warn("Traffic observer rejected token annotation", error)
+    runtimeLogger.warn("Traffic observer rejected token annotation", error)
   }
 }
 

@@ -32,10 +32,11 @@ const compileTarget = process.env.MAXIMAL_CORE_TARGET?.trim() || 'bun-darwin-arm
 if (!/^bun(?:-(?:darwin|linux)-(?:arm64|x64))?$/.test(compileTarget)) {
   throw new Error(`Unsupported MAXIMAL_CORE_TARGET: ${compileTarget}`)
 }
-const metafile = `${output}.metafile.json`
+const metafile = resolve('build/maximal-core.metafile.json')
 const compositionEntry = resolve(import.meta.dirname, '../../src/main.ts')
 
 mkdirSync(dirname(output), { recursive: true })
+mkdirSync(dirname(metafile), { recursive: true })
 
 const args = [
   'build',
@@ -71,7 +72,6 @@ try {
   assertGenericProviderBundle(metadata)
 } catch (error) {
   rmSync(output, { force: true })
-  throw error
-} finally {
   rmSync(metafile, { force: true })
+  throw error
 }

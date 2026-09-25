@@ -1,0 +1,307 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "version": 1,
+  "metadata": {
+    "component": {
+      "type": "library",
+      "name": "@stuffbucket/maximal-settings",
+      "version": "0.0.0",
+      "bom-ref": "pkg:npm/%40stuffbucket/maximal-settings@0.0.0"
+    }
+  },
+  "components": [
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/deepmerge@4.3.1",
+      "name": "deepmerge",
+      "version": "4.3.1",
+      "purl": "pkg:npm/deepmerge@4.3.1",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-1",
+          "content": "44b5f2147cd3b00d4b56137685966f26fd25dd4a"
+        }
+      ],
+      "properties": [
+        {
+          "name": "settings:reviewed-lifecycle",
+          "value": "{}"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/graceful-fs@4.2.11",
+      "name": "graceful-fs",
+      "version": "4.2.11",
+      "purl": "pkg:npm/graceful-fs@4.2.11",
+      "licenses": [
+        {
+          "license": {
+            "id": "ISC"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-1",
+          "content": "4183e4e8bf08bb6e05bbb2f7d2e0c8f712ca40e3"
+        }
+      ],
+      "properties": [
+        {
+          "name": "settings:reviewed-lifecycle",
+          "value": "{}"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/lilconfig@3.1.3",
+      "name": "lilconfig",
+      "version": "3.1.3",
+      "purl": "pkg:npm/lilconfig@3.1.3",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-1",
+          "content": "a1bcfd6257f9585bf5ae14ceeebb7b559025e4c4"
+        },
+        {
+          "alg": "SHA-512",
+          "content": "fef945280a07e4282ddc87be24b8516f03ac09078f001894ded2757a01afc90fb7dd1fef730336665d9047f2f38ec05e22d3edde84955daa67fa6e27403be9cf"
+        }
+      ],
+      "properties": [
+        {
+          "name": "settings:reviewed-lifecycle",
+          "value": "{}"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/proper-lockfile@4.1.2",
+      "name": "proper-lockfile",
+      "version": "4.1.2",
+      "purl": "pkg:npm/proper-lockfile@4.1.2",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-1",
+          "content": "c8b9de2af6b2f1601067f98e01ac66baa223141f"
+        }
+      ],
+      "properties": [
+        {
+          "name": "settings:reviewed-lifecycle",
+          "value": "{}"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/retry@0.12.0",
+      "name": "retry",
+      "version": "0.12.0",
+      "purl": "pkg:npm/retry@0.12.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-1",
+          "content": "1b42a6266a21f07421d1b0b54b7dc167b01c013b"
+        }
+      ],
+      "properties": [
+        {
+          "name": "settings:reviewed-lifecycle",
+          "value": "{}"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/signal-exit@3.0.7",
+      "name": "signal-exit",
+      "version": "3.0.7",
+      "purl": "pkg:npm/signal-exit@3.0.7",
+      "licenses": [
+        {
+          "license": {
+            "id": "ISC"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-1",
+          "content": "a9a1767f8af84155114eaabd73f99273c8f59ad9"
+        }
+      ],
+      "properties": [
+        {
+          "name": "settings:reviewed-lifecycle",
+          "value": "{}"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/signal-exit@4.1.0",
+      "name": "signal-exit",
+      "version": "4.1.0",
+      "purl": "pkg:npm/signal-exit@4.1.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "ISC"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-1",
+          "content": "952188c1cbd546070e2dd20d0f41c0ae0530cb04"
+        }
+      ],
+      "properties": [
+        {
+          "name": "settings:reviewed-lifecycle",
+          "value": "{\"prepare\":\"tsc -p tsconfig.json && tsc -p tsconfig-esm.json && bash ./scripts/fixup.sh\"}"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/write-file-atomic@8.0.0",
+      "name": "write-file-atomic",
+      "version": "8.0.0",
+      "purl": "pkg:npm/write-file-atomic@8.0.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "ISC"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-1",
+          "content": "4f61a361538a74a38dc6a07d1eff177936d27506"
+        }
+      ],
+      "properties": [
+        {
+          "name": "settings:reviewed-lifecycle",
+          "value": "{}"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/zod@4.5.4",
+      "name": "zod",
+      "version": "4.5.4",
+      "purl": "pkg:npm/zod@4.5.4",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-1",
+          "content": "e215c62420c528dd7951e31fb52c5438f1fd184a"
+        }
+      ],
+      "properties": [
+        {
+          "name": "settings:reviewed-lifecycle",
+          "value": "{}"
+        }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "pkg:npm/%40stuffbucket/maximal-settings@0.0.0",
+      "dependsOn": [
+        "pkg:npm/deepmerge@4.3.1",
+        "pkg:npm/lilconfig@3.1.3",
+        "pkg:npm/proper-lockfile@4.1.2",
+        "pkg:npm/write-file-atomic@8.0.0",
+        "pkg:npm/zod@4.5.4"
+      ]
+    },
+    {
+      "ref": "pkg:npm/deepmerge@4.3.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:npm/graceful-fs@4.2.11",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:npm/lilconfig@3.1.3",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:npm/proper-lockfile@4.1.2",
+      "dependsOn": [
+        "pkg:npm/graceful-fs@4.2.11",
+        "pkg:npm/retry@0.12.0",
+        "pkg:npm/signal-exit@3.0.7"
+      ]
+    },
+    {
+      "ref": "pkg:npm/retry@0.12.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:npm/signal-exit@3.0.7",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:npm/signal-exit@4.1.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:npm/write-file-atomic@8.0.0",
+      "dependsOn": [
+        "pkg:npm/signal-exit@4.1.0"
+      ]
+    },
+    {
+      "ref": "pkg:npm/zod@4.5.4",
+      "dependsOn": []
+    }
+  ]
+}

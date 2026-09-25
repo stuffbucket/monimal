@@ -1,9 +1,9 @@
-import consola from "consola"
 import { z } from "zod"
 
 import { getOauthAppConfig, getOauthUrls } from "~/lib/config/api-config"
 import { DEVICE_POLL_TIMEOUT_MS } from "~/lib/http/http-timeouts"
 import { sendRequest } from "~/lib/http/send-request"
+import { runtimeLogger } from "~/lib/platform/runtime-logger"
 import { abortableSleep } from "~/lib/platform/utils"
 
 import type { DeviceCodeResponse } from "./get-device-code"
@@ -140,7 +140,7 @@ function interpretPollBody(
         typeof body.interval === "number" && body.interval > intervalSeconds ?
           body.interval + 1
         : intervalSeconds + SLOW_DOWN_BUMP_SECONDS
-      consola.debug(`Server asked for slow_down → ${nextInterval}s`)
+      runtimeLogger.debug(`Server asked for slow_down → ${nextInterval}s`)
       return { kind: "retry", nextInterval }
     }
     case "expired_token": {
@@ -150,7 +150,7 @@ function interpretPollBody(
       throw new Error("Authorization denied by the user.")
     }
     case undefined: {
-      consola.warn("Device-code poll: empty response, retrying")
+      runtimeLogger.warn("Device-code poll: empty response, retrying")
       return { kind: "retry" }
     }
     default: {
@@ -172,7 +172,7 @@ export async function pollAccessToken(
 
   // Server-told interval, in seconds, plus a 1s buffer for minor clock skew.
   let intervalSeconds = deviceCode.interval + 1
-  consola.debug(`Polling access token at ${intervalSeconds}s interval`)
+  runtimeLogger.debug(`Polling access token at ${intervalSeconds}s interval`)
 
   // Self-expiry guard: bound the whole poll on the device code's own lifetime
   // so `polling` always terminates into a terminal error even if GitHub never
@@ -213,7 +213,7 @@ export async function pollAccessToken(
           { cause: err },
         )
       }
-      consola.warn("Device-code poll: network error, retrying", err)
+      runtimeLogger.warn("Device-code poll: network error, retrying", err)
       continue
     }
     // A response arrived — the transport is working; reset the failure streak.
@@ -223,7 +223,7 @@ export async function pollAccessToken(
     try {
       raw = await response.json()
     } catch {
-      consola.warn(
+      runtimeLogger.warn(
         `Device-code poll: non-JSON response (HTTP ${response.status}), retrying`,
       )
       continue
@@ -231,13 +231,13 @@ export async function pollAccessToken(
 
     const parsed = PollResponseBodySchema.safeParse(raw)
     if (!parsed.success) {
-      consola.warn(
+      runtimeLogger.warn(
         `Device-code poll: unexpected response shape (HTTP ${response.status}), retrying`,
       )
       continue
     }
 
-    consola.debug("Device-code poll response:", parsed.data)
+    runtimeLogger.debug("Device-code poll response:", parsed.data)
     const outcome = interpretPollBody(parsed.data, intervalSeconds)
     if (outcome.kind === "token") return outcome.result
     if (outcome.nextInterval !== undefined)

@@ -56,6 +56,16 @@
       ],
       "description": "Check package types against built workspace dependencies."
     },
+    "@stuffbucket/maximal-settings#typecheck": {
+      "dependsOn": ["build", "^build"],
+      "outputs": [],
+      "description": "Typecheck public-contract tests after building this package."
+    },
+    "@stuffbucket/maximal-logging#typecheck": {
+      "dependsOn": ["build", "^build"],
+      "outputs": [],
+      "description": "Typecheck public-contract tests after building this package."
+    },
     "test": {
       "dependsOn": ["analyze", "^build"],
       "inputs": [
@@ -100,6 +110,12 @@
       ],
       "description": "Lint packages against built dependencies while tracking dependency changes."
     },
+    "@stuffbucket/maximal-logging#lint": {
+      "dependsOn": ["transit", "^build"],
+      "cache": false,
+      "outputs": [],
+      "description": "Rescan current runtime source for legacy logging on every lint run."
+    },
     "package": {
       "dependsOn": ["build"],
       "cache": false,
@@ -120,6 +136,7 @@
       "dependsOn": ["^build"],
       "cache": false,
       "persistent": true,
+      "passThroughEnv": ["MAXIMAL_*", "XDG_CONFIG_HOME"],
       "description": "Build workspace dependencies, then run a package's interactive development process."
     },
     "dev:terminal": {

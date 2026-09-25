@@ -1,3 +1,4 @@
+import { createLogger, resolveLogDirectory } from "@stuffbucket/maximal-logging"
 import consola, { type ConsolaInstance } from "consola"
 import fs from "node:fs"
 import path from "node:path"
@@ -6,28 +7,22 @@ import util from "node:util"
 import { getLogRetentionDays } from "~/lib/config/config"
 import { requestContext } from "~/lib/http/request-context"
 import { redactForLog, scrubSecrets } from "~/lib/platform/log-redact"
+import { type CoreLogger } from "~/lib/platform/log-types"
 import { PATHS } from "~/lib/platform/paths"
 import { registerProcessCleanup } from "~/lib/platform/process-cleanup"
 import { state } from "~/lib/runtime-state/state"
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000
 const CLEANUP_INTERVAL_MS = ONE_DAY_MS
-const LOG_DIR = path.join(PATHS.APP_DIR, "logs")
-const FLUSH_INTERVAL_MS = 1000
-const MAX_BUFFER_SIZE = 100
+// Keep Core's per-home log location while the shared package owns persistence.
+const LOG_DIR = resolveLogDirectory({
+  directory: path.resolve(PATHS.APP_DIR, "logs"),
+})
 
-const logStreams = new Map<string, fs.WriteStream>()
-const logBuffers = new Map<string, Array<string>>()
+const loggers = new Map<string, ReturnType<typeof createLogger>>()
 
 let runtimeInitialized = false
-let flushInterval: ReturnType<typeof setInterval> | undefined
 let cleanupInterval: ReturnType<typeof setInterval> | undefined
-
-const ensureLogDirectory = () => {
-  if (!fs.existsSync(LOG_DIR)) {
-    fs.mkdirSync(LOG_DIR, { recursive: true })
-  }
-}
 
 const cleanupOldLogs = () => {
   if (!fs.existsSync(LOG_DIR)) {
@@ -85,45 +80,15 @@ const maybeUnref = (timer: ReturnType<typeof setInterval>) => {
   timer.unref()
 }
 
-const flushBuffer = (filePath: string) => {
-  const buffer = logBuffers.get(filePath)
-  if (!buffer || buffer.length === 0) {
-    return
-  }
-
-  const stream = getLogStream(filePath)
-  const content = buffer.join("\n") + "\n"
-  stream.write(content, (error) => {
-    if (error) {
-      console.warn("Failed to write handler log", error)
-    }
-  })
-
-  logBuffers.set(filePath, [])
-}
-
-const flushAllBuffers = () => {
-  for (const filePath of logBuffers.keys()) {
-    flushBuffer(filePath)
-  }
-}
-
 const cleanup = () => {
-  if (flushInterval) {
-    clearInterval(flushInterval)
-    flushInterval = undefined
-  }
   if (cleanupInterval) {
     clearInterval(cleanupInterval)
     cleanupInterval = undefined
   }
-
-  flushAllBuffers()
-  for (const stream of logStreams.values()) {
-    stream.end()
+  for (const logger of loggers.values()) {
+    logger.close()
   }
-  logStreams.clear()
-  logBuffers.clear()
+  loggers.clear()
 }
 
 const initializeLoggerRuntime = () => {
@@ -131,51 +96,65 @@ const initializeLoggerRuntime = () => {
     return
   }
 
-  runtimeInitialized = true
-
-  ensureLogDirectory()
+  fs.mkdirSync(LOG_DIR, { recursive: true })
   cleanupOldLogs()
-
-  flushInterval = setInterval(flushAllBuffers, FLUSH_INTERVAL_MS)
-  maybeUnref(flushInterval)
 
   cleanupInterval = setInterval(cleanupOldLogs, CLEANUP_INTERVAL_MS)
   maybeUnref(cleanupInterval)
 
   registerProcessCleanup(cleanup)
+  runtimeInitialized = true
 }
 
-const getLogStream = (filePath: string): fs.WriteStream => {
+const writeLine = (
+  name: string,
+  event: {
+    date: Date
+    type: string
+    tag: string
+    args: Array<unknown>
+  },
+) => {
   initializeLoggerRuntime()
 
-  let stream = logStreams.get(filePath)
-  if (!stream || stream.destroyed) {
-    stream = fs.createWriteStream(filePath, { flags: "a" })
-    logStreams.set(filePath, stream)
-
-    stream.on("error", (error: unknown) => {
-      console.warn("Log stream error", error)
-      logStreams.delete(filePath)
-    })
+  const { date, type, tag, args } = event
+  const dateKey = date.toLocaleDateString("sv-SE")
+  const component = `${sanitizeName(name)}-${dateKey}`
+  let logger = loggers.get(component)
+  if (!logger) {
+    logger = createLogger(component, { directory: LOG_DIR, level: "debug" })
+    loggers.set(component, logger)
   }
-  return stream
+  const traceId = requestContext.getStore()?.traceId
+  const timestamp = date.toLocaleString("sv-SE", { hour12: false })
+  const message = formatArgs(args)
+  const line = `[${timestamp}] [${type}] [${tag}]${traceId ? ` [${traceId}]` : ""}${
+    message ? ` ${message}` : ""
+  }`
+  const fields = traceId ? { traceId } : {}
+  switch (type) {
+    case "error": {
+      logger.error(fields, line)
+      break
+    }
+    case "warn": {
+      logger.warn(fields, line)
+      break
+    }
+    case "debug":
+    case "trace": {
+      logger.debug(fields, line)
+      break
+    }
+    default: {
+      logger.info(fields, line)
+    }
+  }
 }
 
-const appendLine = (filePath: string, line: string) => {
-  let buffer = logBuffers.get(filePath)
-  if (!buffer) {
-    buffer = []
-    logBuffers.set(filePath, buffer)
-  }
-
-  buffer.push(line)
-
-  if (buffer.length >= MAX_BUFFER_SIZE) {
-    flushBuffer(filePath)
-  }
+type DebugLogger = {
+  debug: (...args: Array<unknown>) => void
 }
-
-type DebugLogger = Pick<ConsolaInstance, "debug">
 
 /**
  * Redact every non-string argument before it reaches the log reporter.
@@ -225,17 +204,12 @@ export const debugJsonTail = (
 }
 
 /** The subset of consola's surface our runtime call sites use. */
-export interface TeeLogger {
-  info: (...args: Array<unknown>) => void
-  warn: (...args: Array<unknown>) => void
-  error: (...args: Array<unknown>) => void
-  debug: (...args: Array<unknown>) => void
-}
+export type TeeLogger = CoreLogger
 
 /**
  * A logger that writes through the GLOBAL `consola` (so the dev console — and
  * any test that spies on `consola.warn`/`.error` — still sees every line) AND
- * tees a redacted copy to a dated `<name>-YYYY-MM-DD.log` in the logs dir. This
+ * tees a redacted copy to a dated `<name>-YYYY-MM-DD.log` in the Core logs dir. This
  * is the seam that makes runtime events (especially auth: sign-in, degrade,
  * refresh retries, sign-out) OBSERVABLE AFTER THE FACT instead of vanishing
  * into stderr / the shell dev terminal where they can't be inspected later.
@@ -245,31 +219,18 @@ export interface TeeLogger {
  * are caller labels and kept. `debug` only writes (console + file) when verbose.
  */
 export const createTeeLogger = (name: string): TeeLogger => {
-  const sanitizedName = sanitizeName(name)
   // consola's typed signature won't accept a spread of `unknown[]`; alias to a
   // permissive shape so we can forward variadic args straight through.
   const c = consola as unknown as TeeLogger
 
   const writeFile = (type: string, args: Array<unknown>) => {
-    initializeLoggerRuntime()
-    const context = requestContext.getStore()
-    const traceId = context?.traceId
-    const now = new Date()
-    const dateKey = now.toLocaleDateString("sv-SE")
-    const timestamp = now.toLocaleString("sv-SE", { hour12: false })
-    const filePath = path.join(LOG_DIR, `${sanitizedName}-${dateKey}.log`)
     // Object args run through the key-driven redactor; string args (labels,
     // interpolated messages) through the secret-pattern scrubber so a token
     // passed/interpolated as a bare string can't land on disk unmasked.
     const redacted = args.map((arg) =>
       typeof arg === "string" ? scrubSecrets(arg) : redactForLog(arg),
     )
-    const message = formatArgs(redacted)
-    const traceIdStr = traceId ? ` [${traceId}]` : ""
-    appendLine(
-      filePath,
-      `[${timestamp}] [${type}] [${name}]${traceIdStr}${message ? ` ${message}` : ""}`,
-    )
+    writeLine(name, { date: new Date(), type, tag: name, args: redacted })
   }
 
   // Each level forwards to console then tees the same args to the file sink.
@@ -297,9 +258,14 @@ export const createTeeLogger = (name: string): TeeLogger => {
 
   return {
     info: tee("info"),
+    log: tee("info"),
     warn: tee("warn"),
     error: tee("error"),
     debug: (...args) => {
+      if (!state.verbose) return
+      tee("debug")(...args)
+    },
+    trace: (...args) => {
       if (!state.verbose) return
       tee("debug")(...args)
     },
@@ -307,7 +273,6 @@ export const createTeeLogger = (name: string): TeeLogger => {
 }
 
 export const createHandlerLogger = (name: string): ConsolaInstance => {
-  const sanitizedName = sanitizeName(name)
   const instance = consola.withTag(name)
 
   if (state.verbose) {
@@ -317,21 +282,14 @@ export const createHandlerLogger = (name: string): ConsolaInstance => {
 
   instance.addReporter({
     log(logObj) {
-      initializeLoggerRuntime()
-
-      const context = requestContext.getStore()
-      const traceId = context?.traceId
-      const date = logObj.date
-      const dateKey = date.toLocaleDateString("sv-SE")
-      const timestamp = date.toLocaleString("sv-SE", { hour12: false })
-      const filePath = path.join(LOG_DIR, `${sanitizedName}-${dateKey}.log`)
-      const message = formatArgs(logObj.args as Array<unknown>)
-      const traceIdStr = traceId ? ` [${traceId}]` : ""
-      const line = `[${timestamp}] [${logObj.type}] [${logObj.tag || name}]${traceIdStr}${
-        message ? ` ${message}` : ""
-      }`
-
-      appendLine(filePath, line)
+      writeLine(name, {
+        date: logObj.date,
+        type: logObj.type,
+        tag: logObj.tag || name,
+        args: (logObj.args as Array<unknown>).map((arg) =>
+          typeof arg === "string" ? scrubSecrets(arg) : redactForLog(arg),
+        ),
+      })
     },
   })
 

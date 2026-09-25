@@ -1,13 +1,12 @@
-import consola from "consola"
-
 import { copilotBaseUrl, copilotModelsHeaders } from "~/lib/config/api-config"
 import { HTTPError } from "~/lib/errors/error"
 import { GITHUB_API_TIMEOUT_MS } from "~/lib/http/http-timeouts"
 import { sendRequest } from "~/lib/http/send-request"
+import { runtimeLogger } from "~/lib/platform/runtime-logger"
 import { state } from "~/lib/runtime-state/state"
 
 export const getModels = async () => {
-  consola.info(`Fetching models from ${copilotBaseUrl(state)}/models`)
+  runtimeLogger.info(`Fetching models from ${copilotBaseUrl(state)}/models`)
   const response = await sendRequest(`${copilotBaseUrl(state)}/models`, {
     headers: copilotModelsHeaders(state),
     // Bounded like the other auth/discovery fetches — cacheModels runs on the
@@ -18,7 +17,7 @@ export const getModels = async () => {
   if (!response.ok) {
     const errorText = await response.clone().text()
 
-    consola.error("Failed to get models response body", errorText)
+    runtimeLogger.error("Failed to get models response body", errorText)
 
     throw new HTTPError("Failed to get models", response)
   }

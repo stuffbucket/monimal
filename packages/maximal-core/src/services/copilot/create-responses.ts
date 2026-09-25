@@ -1,8 +1,8 @@
-import consola from "consola"
 import { events } from "fetch-event-stream"
 
 import { copilotBaseUrl } from "~/lib/config/api-config"
 import { sendRequest } from "~/lib/http/send-request"
+import { runtimeLogger } from "~/lib/platform/runtime-logger"
 import { state } from "~/lib/runtime-state/state"
 
 import type { Initiator } from "./agent-initiator"
@@ -388,7 +388,7 @@ export const createResponses = async (
   // service_tier is not supported by github copilot
   payload.service_tier = undefined
 
-  consola.log(`<-- model: ${payload.model}`)
+  runtimeLogger.log(`<-- model: ${payload.model}`)
 
   let response = await sendRequest(`${copilotBaseUrl(state)}/responses`, {
     method: "POST",
@@ -409,7 +409,7 @@ export const createResponses = async (
   ) {
     const probeBody = await response.clone().text()
     if (isUnsupportedPromptCacheRetention(probeBody)) {
-      consola.warn(
+      runtimeLogger.warn(
         "Copilot rejected prompt_cache_retention; retrying once without it",
       )
       delete payload.prompt_cache_retention

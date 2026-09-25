@@ -15,7 +15,88 @@ Raw package test commands are inner scripts, not supported host entry points. In
 particular, do not run `bun test`, a package-local `test` script, or a test file
 directly to bypass the root wrapper.
 
+## Terminal evidence buckets
+
+Terminal reliability reports MUST distinguish the following buckets. An empty,
+skipped, or unexecuted bucket MUST NOT be reported as passing. Test counts MUST
+NOT be used as an estimate of hours of reliable operation.
+
+| Bucket | Existing evidence | Required boundary |
+| --- | --- | --- |
+| Contracts | `packages/maximal-electron/tests/terminal/` | Injected processes and Electron events MUST be labeled as simulated evidence. |
+| Local processes | `packages/maximal-electron/tests/terminal/terminal-host.test.ts` | Shell identity, owner isolation, replay, and process reaping MUST use real PTYs. |
+| Local tmux | `packages/maximal-electron/tests/integration/tmux-projection.integration.test.ts` | Reports MUST state whether the opt-in real-server tests executed. |
+| SSH and remote tmux | No real-SSH fixture | Connector command assertions MUST NOT count as a successful SSH session. |
+| Window and recovery composition | `packages/maximal-electron/e2e/terminal-*.spec.ts` | Reports MUST distinguish the standalone shell from the Maximal client and actual renderer crashes from simulated events. |
+| Sustained use and resource cleanup | No sustained-use acceptance test | Logs and debugger observations MUST NOT count as assertions or a completed soak. |
+
+### Diagnostic evidence
+
+- Developers MAY enable terminal lifecycle records with
+  `MAXIMAL_TERMINAL_DIAGNOSTICS=true pnpm dev` and capture stderr alongside the test seed and
+  source revision.
+- Developers MAY set `terminalDiagnostics` in the Maximal user settings document;
+  the application MUST resolve it before configuring the host. Client project
+  settings MUST remain disabled unless the caller explicitly establishes trust.
+- Hosts MAY call `configureTerminalDiagnostics(true)` or
+  `configureTerminalDiagnostics(false)` through
+  `@stuffbucket/maximal-electron/host/terminal`; `undefined` MUST disable diagnostics.
+  The terminal library MUST NOT read application environment settings. Product configuration SHOULD use this API
+  instead of a second logging implementation.
+- Diagnostic consumers MUST filter the `[terminal-diagnostic]` prefix and parse
+  its JSON record. They MUST correlate process, owner, and session identities
+  instead of relying on event order across different processes.
+- Diagnostic changes MUST NOT record terminal input, output, command arguments,
+  SSH aliases, remote session names, environment values, or raw errors.
+- Reports MUST interpret session and projection counts as application registry
+  state, not an OS process census. A termination request or registry release
+  MUST NOT be treated as confirmation that a process exited.
+- Reports MUST treat RSS and heap samples as investigation evidence, not fixed
+  leak thresholds. Idle-period growth, descriptors, and native allocations
+  SHOULD be measured separately when investigating sustained-use failures.
+
+### Bounded terminal journey
+
+- A mixed-terminal acceptance test SHOULD open a local shell, create a dedicated
+  tmux session, and use SSH from the local shell to attach to that same tmux
+  session through a disposable loopback SSH server.
+- A test of SSH typed into a local shell MUST NOT be reported as coverage of the
+  application's SSH connector; that connector SHOULD receive a separate launch
+  and output assertion against the same fixture.
+- The journey MUST record owner-provided session IDs and the tmux server/session
+  identity; tab labels, pane positions, and shell PIDs alone MUST NOT identify a
+  remote session.
+- The journey SHOULD exercise tab switching, copy, undock, redock, resize,
+  detach/reattach, and closing the former owner while a surviving view remains.
+- Each transition MUST assert a fresh nonce round trip and expected session
+  identity. Concurrent views of one shell MUST NOT be treated as independent
+  command streams.
+- Final checks MUST assert expected pane ownership, loss-free numbered output,
+  surviving-session identity, and termination of test-owned client processes.
+  The fixture MUST distinguish deliberately retained tmux sessions from leaks
+  before removing its own server and temporary credentials.
+- A sustained-use run SHOULD repeat the bounded journey with idle periods and
+  output bursts, recording elapsed time and warmed-up resource baselines.
+  Growth in processes, descriptors, listeners, or retained terminal state MUST
+  be checked separately from allocator-dependent resident memory.
+- An attached debugger MAY provide exception and allocation evidence. Acceptance
+  MUST also run without debugger pauses, which alter scheduling and timeout
+  behavior.
+- GUI acceptance MUST run on an isolated desktop or establish native-input
+  isolation before any test window can acquire focus.
+
 ## Native tiers
+
+- `pnpm test -- --settings` MUST run the settings package contracts and the
+  client agent-preference and terminal-configuration consumer tests in the same
+  isolated environment; it MUST NOT launch Electron or native-input tests.
+- `pnpm run check:settings` MUST verify the package-owned migration baseline and
+  reviewed SBOM. New runtime readers MUST fail the ratchet; baseline updates MUST
+  be down-only through the package's `migration:update` command.
+- Reports MUST distinguish these focused settings checks from the full client
+  typecheck, native workspace graph, and Docker admission gates.
+- The focused Linux rerun MUST use `pnpm run test:docker -- --suite=settings`;
+  it MUST run the same package and consumer contracts without launching Electron.
 
 `pnpm test` creates a fresh mode-0700 temporary root and then runs the root policy
 tests followed by the Turbo test graph. It sets `MAXIMAL_TEST_HOST=1` and places
@@ -43,12 +124,14 @@ The native options are closed:
 pnpm test
 pnpm test -- --all
 pnpm test -- --core
+pnpm test -- --settings
 pnpm test -- --trace=tests
 pnpm test -- --core --trace=all
 ```
 
-`off`, `tests`, and `all` are the only trace values. `--all` and `--core` are
-mutually exclusive. Unknown, duplicate, positional, or split-form options fail.
+`off`, `tests`, and `all` are the only trace values. `--all`, `--core`, and
+`--settings` are mutually exclusive. The settings scope MUST exercise the built
+public package export. Unknown, duplicate, positional, or split-form options fail.
 The wrapper does not forward arbitrary package names, runner flags, commands, or
 test paths.
 

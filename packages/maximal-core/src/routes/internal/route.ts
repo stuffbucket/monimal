@@ -1,3 +1,4 @@
+import type { Context } from "hono"
 /**
  * /_internal/* — process-control endpoints meant for the local machine
  * only.
@@ -15,13 +16,11 @@
  * a missing route to a remote scanner).
  */
 
-import type { Context } from "hono"
-
-import consola from "consola"
 import { Hono } from "hono"
 
 import { defaultGetRequestIp, isLoopbackAddress } from "~/lib/auth/request-auth"
 import { requestContext } from "~/lib/http/request-context"
+import { runtimeLogger } from "~/lib/platform/runtime-logger"
 
 interface ShutdownTimer {
   unref(): void
@@ -69,7 +68,7 @@ export function createInternalRoutes(
     }
 
     const traceId = requestContext.getStore()?.traceId
-    consola.warn(
+    runtimeLogger.warn(
       `shutting down due to /_internal/shutdown${reason ? ` (reason: ${reason})` : ""}${traceId ? ` [trace ${traceId}]` : ""}`,
     )
 
@@ -81,10 +80,10 @@ export function createInternalRoutes(
         void Promise.resolve(
           requestShutdown(`/_internal/shutdown${reason ? ` (${reason})` : ""}`),
         ).catch((error: unknown) => {
-          consola.error("shutdown owner rejected", error)
+          runtimeLogger.error("shutdown owner rejected", error)
         })
       } catch (error) {
-        consola.error("shutdown owner threw", error)
+        runtimeLogger.error("shutdown owner threw", error)
       }
     }, 250)
     timer.unref()

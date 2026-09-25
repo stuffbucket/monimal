@@ -7,6 +7,7 @@ import { z } from 'zod'
 
 import type { MenuBarModeAttempt, MenuBarModeState } from '../shared/bridge-types.js'
 import { readUserPreferences, updateUserPreferences } from './user-preferences.js'
+import { mainLogger } from './main-logger.js'
 
 const preferenceSchema = z.object({ menuBarOnly: z.boolean().default(false) })
 const CONFIRMATION_MS = 15_000
@@ -56,7 +57,10 @@ export class MenuBarModeController {
       this.confirmed = true
     } catch (error) {
       await writePreference(false)
-      console.error('[maximal-client] could not restore menu-bar-only mode:', error)
+      mainLogger.error(
+        { errorName: error instanceof Error ? error.name : 'unknown' },
+        'Could not restore menu-bar-only mode',
+      )
     }
   }
 

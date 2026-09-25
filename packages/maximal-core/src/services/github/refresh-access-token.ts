@@ -1,9 +1,9 @@
-import consola from "consola"
 import { z } from "zod"
 
 import { getOauthAppConfig, getOauthUrls } from "~/lib/config/api-config"
 import { GITHUB_API_TIMEOUT_MS } from "~/lib/http/http-timeouts"
 import { sendRequest } from "~/lib/http/send-request"
+import { runtimeLogger } from "~/lib/platform/runtime-logger"
 
 import {
   type DeviceTokenResult,
@@ -71,6 +71,6 @@ export async function refreshAccessToken(
     throw new Error(`GitHub refresh-token grant failed: ${reason}`)
   }
 
-  consola.debug("GitHub access token renewed via the refresh grant")
+  runtimeLogger.debug("GitHub access token renewed via the refresh grant")
   return toDeviceTokenResult(parsed.data)
 }

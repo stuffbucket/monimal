@@ -25,7 +25,6 @@
  *     turn's round-trip) periodic `ping` events keep the stream visibly alive
  */
 
-import type { ConsolaInstance } from "consola"
 import type { SSEStreamingApi } from "hono/streaming"
 
 import type {
@@ -43,7 +42,7 @@ import type { Model } from "~/services/copilot/get-models"
 import type { CopilotCallOptions } from "~/services/copilot/upstream-request"
 
 import { shouldUseResponsesApi } from "~/lib/models/endpoint-selection"
-import { debugLazy } from "~/lib/platform/logger"
+import { type TeeLogger, debugLazy } from "~/lib/platform/logger"
 import { getResponsesRequestOptions } from "~/routes/responses/utils"
 import { isAsyncIterable, isNonStreaming } from "~/routes/streaming-predicates"
 import {
@@ -192,7 +191,7 @@ interface StreamingAgentArgs {
     sessionId?: string
     compactType?: CompactType
     subagentMarker?: SubagentMarker | null
-    logger: ConsolaInstance
+    logger: TeeLogger
   }
   /** Catalog entry for the resolved model, used to pick each turn's upstream
    *  transport. `undefined` (model absent from the catalog) keeps
@@ -453,7 +452,7 @@ interface DispatchArgs {
   outcomes: Array<{ toolUse: AnthropicToolUseBlock; outcome: ExecOutcome }>
   assistantContent: Array<AnthropicAssistantContentBlock>
   bufferedFinal: Array<AnthropicStreamEventData>
-  logger: ConsolaInstance
+  logger: TeeLogger
   heartbeatIntervalMs: number
 }
 

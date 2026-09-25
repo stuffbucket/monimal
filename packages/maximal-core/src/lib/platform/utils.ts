@@ -1,6 +1,5 @@
 import type { Context } from "hono"
 
-import consola from "consola"
 import { createHash, randomUUID } from "node:crypto"
 import { networkInterfaces } from "node:os"
 
@@ -8,6 +7,7 @@ import type { AnthropicMessagesPayload } from "~/lib/models/anthropic-types"
 
 import { getVSCodeDeviceId } from "~/lib/auth/deviceid"
 import { getConfig } from "~/lib/config/config"
+import { runtimeLogger } from "~/lib/platform/runtime-logger"
 import { setModels, state } from "~/lib/runtime-state/state"
 import { clearContextManagementRejections } from "~/services/copilot/context-management-capabilities"
 import { getModels } from "~/services/copilot/get-models"
@@ -63,7 +63,7 @@ export const cacheVSCodeVersion = (): Promise<void> => {
   const response = getConfig().editorVersion ?? "1.138.0"
   state.vsCodeVersion = response
 
-  consola.info(`Using VSCode version: ${response}`)
+  runtimeLogger.info(`Using VSCode version: ${response}`)
   return Promise.resolve()
 }
 
@@ -99,12 +99,12 @@ export const cacheMacMachineId = () => {
   state.macMachineId = createHash("sha256")
     .update(macAddress, "utf8")
     .digest("hex")
-  consola.debug(`Using machine ID: ${state.macMachineId}`)
+  runtimeLogger.debug(`Using machine ID: ${state.macMachineId}`)
 }
 
 export const cacheVsCodeDeviceId = async () => {
   state.vsCodeDeviceId = await getVSCodeDeviceId()
-  consola.debug(`Using VSCode device ID: ${state.vsCodeDeviceId}`)
+  runtimeLogger.debug(`Using VSCode device ID: ${state.vsCodeDeviceId}`)
 }
 
 const SESSION_REFRESH_BASE_MS = 60 * 60 * 1000
@@ -113,7 +113,7 @@ let vsCodeSessionRefreshTimer: ReturnType<typeof setTimeout> | null = null
 
 const generateSessionId = () => {
   state.vsCodeSessionId = randomUUID() + Date.now().toString()
-  consola.debug(`Generated VSCode session ID: ${state.vsCodeSessionId}`)
+  runtimeLogger.debug(`Generated VSCode session ID: ${state.vsCodeSessionId}`)
 }
 
 export const stopVsCodeSessionRefreshLoop = () => {
@@ -126,7 +126,7 @@ export const stopVsCodeSessionRefreshLoop = () => {
 const scheduleSessionIdRefresh = () => {
   const randomDelay = Math.floor(Math.random() * SESSION_REFRESH_JITTER_MS)
   const delay = SESSION_REFRESH_BASE_MS + randomDelay
-  consola.debug(
+  runtimeLogger.debug(
     `Scheduling next VSCode session ID refresh in ${Math.round(
       delay / 1000,
     )} seconds`,
@@ -137,7 +137,10 @@ const scheduleSessionIdRefresh = () => {
     try {
       generateSessionId()
     } catch (error) {
-      consola.error("Failed to refresh session ID, rescheduling...", error)
+      runtimeLogger.error(
+        "Failed to refresh session ID, rescheduling...",
+        error,
+      )
     } finally {
       scheduleSessionIdRefresh()
     }

@@ -11,6 +11,7 @@ const {
   imageIsEmpty,
   imageResize,
   imageSetTemplate,
+  logError,
   randomUUID,
   readFile,
   trayConstruct,
@@ -39,6 +40,7 @@ const {
     imageIsEmpty: vi.fn(() => false),
     imageResize: vi.fn(),
     imageSetTemplate: vi.fn(),
+    logError: vi.fn(),
     randomUUID: vi.fn(() => 'attempt-1'),
     readFile: vi.fn<() => Promise<string>>(() =>
       Promise.reject(new Error('missing')),
@@ -52,8 +54,12 @@ const {
 })
 
 vi.mock('node:crypto', () => ({ randomUUID }))
-vi.mock('node:fs', () => ({ existsSync }))
+vi.mock('node:fs', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('node:fs')>()),
+  existsSync,
+}))
 vi.mock('node:fs/promises', () => ({ readFile, writeFile }))
+vi.mock('./main-logger.js', () => ({ mainLogger: { error: logError } }))
 vi.mock('electron', () => {
   const image = {
     isEmpty: imageIsEmpty,
@@ -476,7 +482,6 @@ describe('MenuBarModeController', () => {
   it('repairs a persisted preference when startup tray creation fails', async () => {
     readFile.mockResolvedValue('{"menuBarOnly":true}')
     existsSync.mockReturnValue(false)
-    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
     const controller = new MenuBarModeController(vi.fn())
 
     await controller.initialize()
@@ -486,11 +491,10 @@ describe('MenuBarModeController', () => {
       '/profile/preferences.json',
       '{\n  "menuBarOnly": false\n}\n',
     )
-    expect(error).toHaveBeenCalledWith(
-      '[maximal-client] could not restore menu-bar-only mode:',
-      expect.any(Error),
+    expect(logError).toHaveBeenCalledWith(
+      { errorName: 'Error' },
+      'Could not restore menu-bar-only mode',
     )
-    error.mockRestore()
   })
 
   it('uses taskbar visibility rather than the Dock off macOS', () => {

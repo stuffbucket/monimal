@@ -1,4 +1,3 @@
-import consola from "consola"
 import { events } from "fetch-event-stream"
 
 import type {
@@ -11,6 +10,7 @@ import {
   prepareMessageProxyHeaders,
 } from "~/lib/config/api-config"
 import { sendRequest } from "~/lib/http/send-request"
+import { runtimeLogger } from "~/lib/platform/runtime-logger"
 import { parseUserIdMetadata } from "~/lib/platform/utils"
 import { state } from "~/lib/runtime-state/state"
 
@@ -159,7 +159,9 @@ const sendWithContextFallback = async ({
   }
 
   if (capabilityScope) recordContextManagementRejection(capabilityScope)
-  consola.warn("Copilot rejected context_management; retrying once without it")
+  runtimeLogger.warn(
+    "Copilot rejected context_management; retrying once without it",
+  )
   const retryHeaders = { ...headers }
   const currentBeta = retryHeaders["anthropic-beta"]
   const retryBeta =
@@ -251,7 +253,7 @@ export const createMessages = async (
     headers["anthropic-beta"] = anthropicBeta
   }
 
-  consola.log(`<-- model: ${requestPayload.model}`)
+  runtimeLogger.log(`<-- model: ${requestPayload.model}`)
 
   const requestUrl = `${baseUrl}/v1/messages`
   const response = await sendWithContextFallback({

@@ -21,6 +21,7 @@ import { z } from 'zod'
 
 import { BRIDGE_CHANNELS } from '../shared/bridge-channels.js'
 import { loadAgentPreferences } from './agent-preferences.js'
+import { mainLogger } from './main-logger.js'
 
 const HOTKEY = 'CommandOrControl+Shift+Space'
 const askRequest = z.object({ prompt: z.string().trim().min(1) })
@@ -118,9 +119,12 @@ export function startHarnessHost(): void {
 
   try {
     boundHotkey = globalShortcut.register(HOTKEY, () => panel?.toggle())
-    if (!boundHotkey) console.error(`Harness hotkey "${HOTKEY}" is already in use.`)
+    if (!boundHotkey) mainLogger.error({ hotkey: HOTKEY }, 'Harness hotkey is already in use')
   } catch (error) {
-    console.error(`Harness hotkey "${HOTKEY}" is invalid:`, error)
+    mainLogger.error(
+      { hotkey: HOTKEY, errorName: error instanceof Error ? error.name : 'unknown' },
+      'Harness hotkey is invalid',
+    )
   }
 }
 

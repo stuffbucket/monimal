@@ -69,6 +69,8 @@ for (const [file, label] of [
   ['.vite/build/main.js', 'main bundle'],
   ['.vite/build/preload.js', 'preload bundle'],
   [`.vite/build/${LLAMA_WORKER_FILENAME}`, 'llama worker bundle'],
+  ['SBOM.cdx.json', 'final-build software bill of materials'],
+  ['THIRD-PARTY-LICENSES.txt', 'final-build third-party license notices'],
   ['.vite/renderer/main_window/index.html', 'renderer shell'],
   ['.vite/renderer/main_window/overlay.html', 'overlay shell'],
 ]) {
@@ -85,6 +87,36 @@ for (const asset of ['tray/tray.png', 'tray/trayTemplate.png', 'tray/trayTemplat
 function extract(inner) {
   return extractFile(asar, path.join(...inner.split('/'))).toString('utf8')
 }
+
+console.log('\nthird-party licenses')
+const sbom = JSON.parse(extract('SBOM.cdx.json'))
+const components = Array.isArray(sbom.components) ? sbom.components : []
+const componentNames = new Set(components.map((component) =>
+  component.group ? `${component.group}/${component.name}` : component.name,
+))
+const embeddedLicenseCount = components.filter((component) =>
+  (component.licenses ?? []).some(({ license }) => typeof license?.text?.content === 'string'),
+).length
+check(components.length > 0, `${String(components.length)} runtime components are inventoried`)
+check(
+  embeddedLicenseCount / components.length >= 0.75,
+  `${String(embeddedLicenseCount)} of ${String(components.length)} components embed package license text`,
+)
+for (const name of ['citty', '@deepseek-ai/cordis', 'hono', 'clipboardy']) {
+  check(componentNames.has(name), `${name} from the compiled sidecar is inventoried`)
+}
+for (const name of ['vitest', 'vite', 'electron', '@electron/packager', '@playwright/test']) {
+  check(!componentNames.has(name), `${name} build tooling is excluded from the runtime SBOM`)
+}
+const licenseNotices = extract('THIRD-PARTY-LICENSES.txt')
+check(
+  licenseNotices.includes('Permission is hereby granted'),
+  'third-party notices contain full license text',
+)
+check(
+  !licenseNotices.includes('@stuffbucket/'),
+  'first-party workspace packages are excluded from third-party notices',
+)
 
 const rendererHtml = listedPaths.has('.vite/renderer/main_window/index.html')
   ? extract('.vite/renderer/main_window/index.html')

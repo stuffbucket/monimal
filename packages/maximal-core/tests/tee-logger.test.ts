@@ -89,136 +89,60 @@ describe("createTeeLogger — console delegation", () => {
   })
 })
 
-// A fresh logger name per run. `logStreams` in platform/logger.ts caches the
-// WriteStream by path for the life of the process, so a test that unlinks its
-// own log file strands that stream on the deleted inode and every later run
-// in the same process writes to a file that no longer has a name. That made
-// these tests pass once and then fail forever after — invisible under a
-// single `bun test`, fatal under `--rerun-each` and under Stryker, which
-// re-runs the suite per mutant.
+// Use fresh names so persisted test records cannot satisfy a later run.
 let runId = 0
 const uniqueName = (base: string) => `${base}-${Date.now()}-${++runId}`
 
-/**
- * The wait the original fixed sleep allowed. Kept as a WARNING threshold, not a
- * failure: an intermittent `maximal-core#test` failure was never reproduced, and
- * this sleep was a suspect. Deleting it would have destroyed the evidence — if a
- * flush really does run long, the run now says so in the log instead of either
- * going red for an invisible reason or passing in silence.
- */
-const FLUSH_WARN_AFTER_MS = 1300
-/** Binary backoff. Doubles from here to the cap. */
-const FLUSH_BACKOFF_START_MS = 256
-const FLUSH_BACKOFF_CAP_MS = 4096
-/** Hard stop. Only a writer that never flushes reaches this. */
-const FLUSH_GIVE_UP_MS = 20_000
-/** Per-test budget, above the give-up so our message wins over Bun's timeout. */
-const FLUSH_TEST_TIMEOUT_MS = 30_000
-
-/**
- * Wait for the tee writer to flush, then return the file body.
- *
- * The writer buffers and flushes on a 1s interval, so the file appears
- * asynchronously. Polling for the markers the assertions need — rather than
- * sleeping a fixed span and hoping — is what makes this robust; the markers
- * matter most for the NEGATIVE assertions, since `not.toContain` passes
- * trivially on a file that does not exist yet.
- *
- * The warning compares the LAST UNSUCCESSFUL check against the threshold, not
- * the elapsed total. With binary backoff the checks land at roughly 0, 256,
- * 768, 1792, 3840ms, so a normal ~1000ms flush is first seen at ~1792ms and
- * reporting raw elapsed would warn on every healthy run. Asking instead
- * "was the file still missing at a check taken after 1300ms?" only fires when
- * the flush genuinely outran what the fixed sleep permitted.
- */
-async function readWhenFlushed(
-  file: string,
-  ...markers: Array<string>
-): Promise<string> {
-  const started = Date.now()
-  let wait = FLUSH_BACKOFF_START_MS
-  let lastMissAt = 0
-
-  for (;;) {
-    if (fs.existsSync(file)) {
-      const body = fs.readFileSync(file, "utf8")
-      if (markers.every((marker) => body.includes(marker))) {
-        if (lastMissAt > FLUSH_WARN_AFTER_MS) {
-          console.warn(
-            `[tee-logger] SLOW FLUSH: ${path.basename(file)} was still`
-              + ` incomplete ${lastMissAt}ms in, seen at ${Date.now() - started}ms.`
-              + ` The fixed ${FLUSH_WARN_AFTER_MS}ms sleep this replaced would`
-              + " have failed here.",
-          )
-        }
-        return body
-      }
-    }
-
-    lastMissAt = Date.now() - started
-    if (lastMissAt > FLUSH_GIVE_UP_MS) {
-      throw new Error(
-        `tee log ${file} did not flush ${JSON.stringify(markers)} in`
-          + ` ${lastMissAt}ms`,
-      )
-    }
-    await new Promise((r) => setTimeout(r, wait))
-    wait = Math.min(wait * 2, FLUSH_BACKOFF_CAP_MS)
-  }
-}
-
 describe("createTeeLogger — redacted file write", () => {
-  test(
-    "writes a dated file, keeps string labels, redacts object args",
-    async () => {
-      const name = uniqueName("tee-file-test")
-      const file = logFileFor(name)
+  test("writes a dated structured file, keeps labels, redacts object args", () => {
+    const name = uniqueName("tee-file-test")
+    const file = logFileFor(name)
 
-      const log = createTeeLogger(name)
-      log.warn("degraded for", "alice@github.com", {
-        token: "ghu_supersecret_value_1234567890",
-      })
+    const log = createTeeLogger(name)
+    log.warn("degraded for", "alice@github.com", {
+      token: "ghu_supersecret_value_1234567890",
+    })
 
-      const body = await readWhenFlushed(file, `[${name}]`, "degraded for")
+    const body = fs.readFileSync(file, "utf8")
+    const record = JSON.parse(body.trim()) as {
+      level: number
+      name: string
+      msg: string
+    }
 
-      expect(fs.existsSync(file)).toBe(true)
-      // String labels survive; the line is tagged.
-      expect(body).toContain("degraded for")
-      expect(body).toContain("alice@github.com")
-      expect(body).toContain("[warn]")
-      expect(body).toContain(`[${name}]`)
-      // The token inside the object arg is NEVER written raw.
-      expect(body).not.toContain("ghu_supersecret_value_1234567890")
-    },
-    FLUSH_TEST_TIMEOUT_MS,
-  )
+    expect(fs.existsSync(file)).toBe(true)
+    expect(record.level).toBe(40)
+    expect(record.name).toBe(
+      `${name}-${new Date().toLocaleDateString("sv-SE")}`,
+    )
+    expect(record.msg).toContain("degraded for")
+    // String labels survive; the line is tagged.
+    expect(body).toContain("degraded for")
+    expect(body).toContain("alice@github.com")
+    expect(body).toContain("[warn]")
+    expect(body).toContain(`[${name}]`)
+    // The token inside the object arg is NEVER written raw.
+    expect(body).not.toContain("ghu_supersecret_value_1234567890")
+  })
 
-  test(
-    "scrubs a secret passed as a bare STRING arg (the leak surface)",
-    async () => {
-      // Regression guard: createTeeLogger used to write string args verbatim, so
-      // a token logged/interpolated as a string leaked to disk. It must be masked.
-      const name = uniqueName("tee-string-secret")
-      const file = logFileFor(name)
+  test("scrubs a secret passed as a bare STRING arg (the leak surface)", () => {
+    // Regression guard: createTeeLogger used to write string args verbatim, so
+    // a token logged/interpolated as a string leaked to disk. It must be masked.
+    const name = uniqueName("tee-string-secret")
+    const file = logFileFor(name)
 
-      const log = createTeeLogger(name)
-      log.warn("GitHub token:", "ghu_AbCdEf0123456789AbCdEf0123456789")
-      log.warn(
-        "bearer tid=abc123def456ghi789;exp=1700000000;sku=z:deadbeefsignature",
-      )
+    const log = createTeeLogger(name)
+    log.warn("GitHub token:", "ghu_AbCdEf0123456789AbCdEf0123456789")
+    log.warn(
+      "bearer tid=abc123def456ghi789;exp=1700000000;sku=z:deadbeefsignature",
+    )
 
-      // Both lines must be on disk before the negatives mean anything.
-      const body = await readWhenFlushed(
-        file,
-        "[redacted github token]",
-        "[redacted copilot token]",
-      )
+    const body = fs.readFileSync(file, "utf8")
+    expect(body.trim().split("\n")).toHaveLength(2)
 
-      expect(body).not.toContain("ghu_AbCdEf0123456789AbCdEf0123456789")
-      expect(body).not.toContain("tid=abc123def456ghi789")
-      expect(body).toContain("[redacted github token]")
-      expect(body).toContain("[redacted copilot token]")
-    },
-    FLUSH_TEST_TIMEOUT_MS,
-  )
+    expect(body).not.toContain("ghu_AbCdEf0123456789AbCdEf0123456789")
+    expect(body).not.toContain("tid=abc123def456ghi789")
+    expect(body).toContain("[redacted github token]")
+    expect(body).toContain("[redacted copilot token]")
+  })
 })

@@ -14,7 +14,7 @@ import {
   writePty,
   type PtyOwnershipTransaction,
 } from 'stuffbucket-electron/electron-terminal'
-import { registerTerminalChannels } from 'stuffbucket-electron/host/terminal'
+import { configureTerminalDiagnostics, registerTerminalChannels } from 'stuffbucket-electron/host/terminal'
 
 import { BrowserWindow, ipcMain } from 'electron'
 import { z } from 'zod'
@@ -25,6 +25,7 @@ import type {
   TerminalRedockRequest,
   TerminalWindowRequest,
 } from '../shared/bridge-types.js'
+import { mainLogger } from './main-logger.js'
 
 const nonEmptyString = z.string().min(1)
 const positiveInteger = z.number().int().positive()
@@ -162,7 +163,10 @@ export function registerTerminalIpc(): void {
   )
 }
 
-export function configureTerminalHost(): void {
+export function configureTerminalHost(settings: { terminalDiagnostics: boolean }): void {
+  configureTerminalDiagnostics(settings.terminalDiagnostics, (record) => {
+    mainLogger.warn(record, 'Terminal lifecycle event')
+  })
   configurePty({
     emit: (owner: BrowserWindow, id: string, data: string, sequence?: number) => {
       if (!owner || owner.isDestroyed() || owner.webContents.isDestroyed()) return

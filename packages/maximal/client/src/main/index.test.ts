@@ -1,9 +1,19 @@
+import { join } from 'node:path'
+
 import {
   TrafficOverviewQuerySchema,
   TrafficRequestDetailQuerySchema,
   TrafficRequestListQuerySchema,
 } from '@stuffbucket/maximal-observability-contract'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+const { loggerError } = vi.hoisted(() => ({ loggerError: vi.fn() }))
+
+vi.mock('@stuffbucket/maximal-logging', () => ({
+  resolveLogDirectory: () => '/state/stuffbucket/logs',
+  listLogFiles: () => [{ name: 'sidecar.log', size: 42, modifiedAt: 1 }],
+  createLogger: () => ({ info: vi.fn(), warn: vi.fn(), error: loggerError, debug: vi.fn() }),
+}))
 
 import {
   BRIDGE_CHANNELS,
@@ -186,6 +196,9 @@ const {
 vi.mock('electron', () => ({
   app: fakeApp,
   BrowserWindow: { getAllWindows: () => browserWindows },
+  screen: {
+    getPrimaryDisplay: () => ({ workArea: { x: -1600, y: 80, width: 1600, height: 900 } }),
+  },
   dialog: { showMessageBox },
   ipcMain: { handle: ipcMainHandle },
   // Keep spies available to prove index.ts never installs the old shim.
@@ -303,6 +316,7 @@ const {
 
 vi.mock('./core.js', () => ({
   awaitProxyUrl: () => Promise.resolve(testCoreProxyUrl),
+  coreHomePath: () => '/tmp/core-home',
   currentCoreStatus: () => ({ phase: 'starting' }),
   killCore: killCoreMock,
   spawnCore: spawnCoreMock,
@@ -493,6 +507,25 @@ afterEach(() => {
 })
 
 describe('closed IPC boundary', () => {
+  it('serves log metadata from the shared logging package', async () => {
+    await loadIndexOn('darwin')
+    const handler = (channel: string): (() => unknown) => {
+      const registration = ipcMainHandle.mock.calls.find(([name]) => name === channel)
+      if (!registration) throw new Error(`Missing ${channel} handler`)
+      return registration[1]
+    }
+    expect(handler(BRIDGE_CHANNELS.logsLocation)()).toBe('/state/stuffbucket/logs')
+    expect(handler(BRIDGE_CHANNELS.logsList)()).toEqual([
+      { name: 'sidecar.log', size: 42, modifiedAt: 1 },
+    ])
+    expect(handler(BRIDGE_CHANNELS.coreLogsLocation)()).toBe(join('/tmp/core-home', 'logs'))
+    await handler(BRIDGE_CHANNELS.logsReveal)()
+    expect(localModelsMkdir).toHaveBeenCalledWith('/state/stuffbucket/logs', { recursive: true })
+    expect(shellOpenPath).toHaveBeenCalledWith('/state/stuffbucket/logs')
+    await handler(BRIDGE_CHANNELS.coreLogsReveal)()
+    expect(shellOpenPath).toHaveBeenCalledWith(join('/tmp/core-home', 'logs'))
+  })
+
   it('names every renderer event channel in one closed allowlist', () => {
     expect(EVENT_CHANNELS).toEqual([
       BRIDGE_CHANNELS.lifecycleChanged,
@@ -500,6 +533,7 @@ describe('closed IPC boundary', () => {
       BRIDGE_CHANNELS.controlChanged,
       BRIDGE_CHANNELS.localModelsChanged,
       BRIDGE_CHANNELS.menuOpenSettings,
+      BRIDGE_CHANNELS.menuOpenLicenses,
       BRIDGE_CHANNELS.trafficInvalidated,
       BRIDGE_CHANNELS.terminalData,
       BRIDGE_CHANNELS.terminalExit,
@@ -1010,7 +1044,7 @@ describe('window defaults', () => {
     await loadIndexOn('darwin')
 
     expect(runShellMock).toHaveBeenCalledWith(
-      expect.objectContaining({ width: 1280, height: 768 }),
+      expect.objectContaining({ width: 1280, height: 768, x: -1440, y: 146 }),
     )
   })
 })
@@ -1106,9 +1140,9 @@ describe('renderer recovery', () => {
     rejectPrompt?.(new Error('window closed'))
 
     await vi.waitFor(() => {
-      expect(console.error).toHaveBeenCalledWith(
-        '[maximal-client] renderer recovery prompt failed:',
-        expect.any(Error),
+      expect(loggerError).toHaveBeenCalledWith(
+        { errorName: 'Error' },
+        'Renderer recovery prompt failed',
       )
     })
     expect(fakeWindow.webContents.reload).not.toHaveBeenCalled()

@@ -44,6 +44,10 @@
       "types": "./dist/lib/search-connector.d.ts",
       "import": "./dist/lib/search-connector.js"
     },
+    "./settings-environment": {
+      "types": "./dist/lib/settings-environment.d.ts",
+      "import": "./dist/lib/settings-environment.js"
+    },
     "./settings-types": {
       "types": "./dist/lib/settings-types.d.ts",
       "import": "./dist/lib/settings-types.js"
@@ -134,8 +138,10 @@
   "dependencies": {
     "@hono/zod-openapi": "1.6.1",
     "@stuffbucket/maximal-harness": "workspace:*",
+    "@stuffbucket/maximal-logging": "workspace:*",
     "@stuffbucket/maximal-model-contract": "workspace:*",
     "@stuffbucket/maximal-observability-contract": "workspace:*",
+    "@stuffbucket/maximal-settings": "workspace:*",
     "citty": "^0.2.2",
     "clipboardy": "^5.0.0",
     "consola": "^3.4.2",

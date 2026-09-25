@@ -4,6 +4,8 @@ import { spawnSync } from "node:child_process"
 import fs from "node:fs/promises"
 import path from "node:path"
 
+import { renderPlainTextLicenses } from "./render-license-bundle.mjs"
+
 const FORBIDDEN_INPUT_MARKERS = [
   "/packages/model-runtimes/anthropic/",
   "/packages/model-runtimes/omlx/",
@@ -66,6 +68,7 @@ async function build(): Promise<void> {
   } finally {
     await fs.rm(metafilePath, { force: true })
   }
+  await renderPlainTextLicenses(packageRoot)
 }
 
 if (import.meta.main) await build()

@@ -1,9 +1,8 @@
-import consola from "consola"
-
 import { HTTPError } from "~/lib/errors/error"
+import { runtimeConsole } from "~/lib/platform/runtime-console"
 
 export const awaitApproval = async () => {
-  const response = await consola.prompt(`Accept incoming request?`, {
+  const response = await runtimeConsole.prompt(`Accept incoming request?`, {
     type: "confirm",
   })
 

@@ -77,6 +77,7 @@ import {
 import { z } from 'zod'
 
 import { awaitControlOrigin, onCoreStatus, type CoreStatus } from './core'
+import { mainLogger } from './main-logger'
 import type {
   ControlFailure,
   ControlResult,
@@ -425,7 +426,10 @@ export function createControlSession(
     awaitOrigin: awaitControlOrigin,
     onLifecycle: onCoreStatus,
     createClient: (origin) => new ControlClient({ baseUrl: origin }),
-    logError: (message, error) => console.error(message, error),
+    logError: (message, error) => mainLogger.error(
+      { errorName: error instanceof Error ? error.name : 'unknown' },
+      message,
+    ),
     onLocalModelEvent: () => {},
     ...options,
   }

@@ -20,7 +20,7 @@ const scrubbedEnvironment = [
   "NO_PROXY",
   "OPENAI_API_KEY",
 ];
-const usage = "Usage: pnpm test -- [--all|--core] [--trace=off|tests|all]";
+const usage = "Usage: pnpm test -- [--all|--core|--settings] [--trace=off|tests|all]";
 const performanceMarkerEnvironment = "MONIMAL_PERF_MARKERS";
 
 export function formatPerformanceMarker({
@@ -82,7 +82,7 @@ export function parseTestOptions(arguments_) {
   let sawTrace = false;
 
   for (const option of options) {
-    if (option === "--all" || option === "--core") {
+    if (option === "--all" || option === "--core" || option === "--settings") {
       if (scope !== "affected") throw new Error("Duplicate test scope option");
       scope = option.slice(2);
       continue;
@@ -160,6 +160,8 @@ export function turboTestArguments(options, base) {
   const arguments_ = ["run", "test", "--concurrency=1"];
   if (options.scope === "core") {
     arguments_.push("--filter=@stuffbucket/maximal-core");
+  } else if (options.scope === "settings") {
+    arguments_.push("--filter=@stuffbucket/maximal-settings");
   } else if (options.scope === "affected") {
     arguments_.push(`--filter=...[${base}]`);
   }
@@ -202,6 +204,16 @@ export function main(arguments_ = process.argv.slice(2)) {
           "Workspace tests",
         ),
       );
+      if (options.scope === "settings") {
+        measure("test-settings-consumers", () =>
+          run(
+            "pnpm",
+            ["--filter", "maximal-client", "run", "test:settings"],
+            isolated.environment,
+            "Settings consumer tests",
+          ),
+        );
+      }
     } finally {
       measure("test-cleanup", () =>
         fs.rmSync(isolated.root, { recursive: true, force: true }),

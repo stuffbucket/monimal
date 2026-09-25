@@ -1,3 +1,4 @@
+import type { Context, Next } from "hono"
 /**
  * Activity-driven lazy refresh of the Copilot models cache (L1a).
  *
@@ -17,11 +18,9 @@
  * Spec: docs/spec/model-protocol-strategy.md, "Layer 1 — Detection".
  */
 
-import type { Context, Next } from "hono"
-
-import consola from "consola"
 import { createHash } from "node:crypto"
 
+import { runtimeLogger } from "~/lib/platform/runtime-logger"
 import { cacheModels } from "~/lib/platform/utils"
 import { modelsCached, state } from "~/lib/runtime-state/state"
 
@@ -79,7 +78,7 @@ let refreshInFlight = false
 // NOTE when an empty cache repopulates. It never throws.
 // ────────────────────────────────────────────────────────────────────
 
-/** Minimal logger shape the prime path needs — satisfied by `consola` and by
+/** Minimal logger shape the prime path needs — satisfied by `runtimeLogger` and by
  *  a plain `{ info, warn }` in tests. */
 export interface PrimeLogger {
   info: (message: string, ...args: Array<unknown>) => void
@@ -92,7 +91,7 @@ export interface PrimeLogger {
  *  hard dependency of serving traffic. */
 export async function primeModelsCache(
   refresh: () => Promise<void> = cacheModels,
-  log: PrimeLogger = consola,
+  log: PrimeLogger = runtimeLogger,
 ): Promise<void> {
   const wasEmpty = modelsCached() === 0
   try {

@@ -1,4 +1,3 @@
-import type { ConsolaInstance } from "consola"
 import type { Context } from "hono"
 
 import { streamSSE } from "hono/streaming"
@@ -20,7 +19,12 @@ import {
 } from "~/lib/models/anthropic-types"
 import { resolveModelProfile } from "~/lib/models/model-profile"
 import { getTokenCount } from "~/lib/models/tokenizer"
-import { debugJson, debugJsonTail, debugLazy } from "~/lib/platform/logger"
+import {
+  type TeeLogger,
+  debugJson,
+  debugJsonTail,
+  debugLazy,
+} from "~/lib/platform/logger"
 import { parseUserIdMetadata } from "~/lib/platform/utils"
 import {
   createCopilotTokenUsageRecorder,
@@ -67,7 +71,7 @@ import { emitStreamError } from "./stream-error"
 import { translateChunkToAnthropicEvents } from "./stream-translation"
 
 export interface FlowBaseOptions {
-  logger: ConsolaInstance
+  logger: TeeLogger
   subagentMarker?: SubagentMarker | null
   requestId: string
   sessionId?: string
@@ -321,7 +325,7 @@ export const handleWithResponsesApi = async (
 function finishNonStreamingResponses(
   c: Context,
   result: ResponsesResult,
-  deps: { logger: ConsolaInstance; recordUsage: (usage: UsageTokens) => void },
+  deps: { logger: TeeLogger; recordUsage: (usage: UsageTokens) => void },
 ) {
   const { logger, recordUsage } = deps
   debugJsonTail(logger, "Non-streaming Responses result:", {

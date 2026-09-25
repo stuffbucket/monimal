@@ -12,9 +12,8 @@
  * for HTML/CSS/TS work.
  */
 
-import consola from "consola"
-
 import { createHandlerLogger } from "~/lib/platform/logger"
+import { runtimeConsole } from "~/lib/platform/runtime-console"
 import { shortSha, type GitVersion } from "~/lib/update/version"
 
 interface BootLoggerOptions {
@@ -39,7 +38,7 @@ export function initBootLogger(
 export function printReadyBanner(proxyPort: number, controlPort: number): void {
   const proxyUrl = `http://localhost:${proxyPort}`
   const controlUrl = `http://127.0.0.1:${controlPort}`
-  consola.box(
+  runtimeConsole.box(
     [
       `Proxy:   ${proxyUrl}/v1`,
       `Status:  ${proxyUrl}/status`,

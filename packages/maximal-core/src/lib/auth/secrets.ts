@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto"
 /**
  * File-based secrets loader.
  *
@@ -17,13 +18,11 @@
  * loader, debug subcommand, and `/_debug/state` all iterate this
  * table so adding a third provider is a one-line change.
  */
-
-import consola from "consola"
-import { randomUUID } from "node:crypto"
 import fs from "node:fs"
 import path from "node:path"
 
 import { PATHS } from "~/lib/platform/paths"
+import { runtimeLogger } from "~/lib/platform/runtime-logger"
 
 const SECRETS_DIR = path.join(PATHS.APP_DIR, "secrets")
 const SAFE_FILE_MODE = 0o600
@@ -123,7 +122,7 @@ export function readSecret(opts: {
     const mode = stats.mode & 0o777
     if (!modeIsOwnerOnly(mode)) {
       const msg = `${file} has insecure mode ${mode.toString(8).padStart(3, "0")} (expected 600); skipped`
-      consola.warn(msg)
+      runtimeLogger.warn(msg)
       return { value: undefined, source: "unset", diagnostic: msg }
     }
 

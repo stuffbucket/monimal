@@ -12,9 +12,25 @@ import { describe, expect, it, vi } from 'vitest'
 vi.mock('electron', () => ({
   app: {
     isPackaged: false,
-    getAppPath: () => '/tmp/maximal-client-test',
-    getPath: () => '/tmp/maximal-client-test/userData',
+    getAppPath: () => process.cwd(),
+    getPath: () => process.cwd(),
   },
+}))
+
+vi.mock('node:fs/promises', () => ({
+  mkdir: vi.fn(async () => undefined),
+}))
+
+const { logs } = vi.hoisted(() => ({
+  logs: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  },
+}))
+vi.mock('@stuffbucket/maximal-logging', () => ({
+  createLogger: () => logs,
 }))
 
 // core.ts spawns the real `maximal-core` binary via `node:child_process`'s
@@ -68,8 +84,71 @@ function writeReadyLine(proc: FakeChildProcess, ports: { controlPort: number; pr
 async function freshCore() {
   vi.resetModules()
   spawnMock.mockReset()
+  for (const log of Object.values(logs)) log.mockClear()
   return import('./core')
 }
+
+describe('sidecar lifecycle logging', () => {
+  it('records spawn, ready, stderr observation, unexpected exit and restart without raw output', async () => {
+    const { spawnCore, killCore, onCoreStatus } = await freshCore()
+    const proc = new FakeChildProcess()
+    spawnMock.mockReturnValueOnce(proc)
+    const statuses: string[] = []
+    onCoreStatus((status) => statuses.push(status.phase))
+
+    const starting = spawnCore()
+    writeReadyLine(proc, { controlPort: 5000, proxyPort: 6000 })
+    await starting
+    proc.stderr.write('sensitive stderr token\n')
+    proc.stdout.write('sensitive stdout token\n')
+    await vi.waitFor(() => {
+      expect(logs.debug).toHaveBeenCalledWith(
+        { bytes: 22 },
+        'Sidecar stdout line received',
+      )
+    })
+    proc.emit('exit', 42, null)
+
+    expect(logs.info).toHaveBeenCalledWith({ attempt: 0 }, 'Starting sidecar')
+    expect(logs.info).toHaveBeenCalledWith({ pid: proc.pid, attempt: 0 }, 'Sidecar ready')
+    expect(logs.warn).toHaveBeenCalledWith(
+      { pid: proc.pid },
+      'Sidecar wrote to stderr; contents omitted',
+    )
+    expect(logs.info).toHaveBeenCalledWith(
+      { pid: proc.pid, code: 42, signal: null, intentional: false, stderrBytes: 23 },
+      'Sidecar process exited',
+    )
+    expect(logs.warn).toHaveBeenCalledWith(
+      { pid: proc.pid, code: 42, signal: null, attempt: 1, willRetry: true },
+      'Sidecar exited unexpectedly',
+    )
+    expect(logs.warn).toHaveBeenCalledWith(
+      { attempt: 1, delayMs: 1_000 },
+      'Sidecar restart scheduled',
+    )
+    expect(statuses).toContain('crashed')
+    expect(statuses).toContain('restarting')
+    expect(JSON.stringify(Object.values(logs).flatMap((log) => log.mock.calls)))
+      .not.toMatch(/sensitive|5000|6000/)
+    await killCore()
+  })
+
+  it('records initial spawn failure without persisting its error message', async () => {
+    const { spawnCore } = await freshCore()
+    spawnMock.mockImplementationOnce(() => {
+      throw new Error('sensitive spawn token')
+    })
+
+    await expect(spawnCore()).rejects.toThrow('sensitive spawn token')
+    expect(logs.error).toHaveBeenCalledWith(
+      { errorName: 'Error' },
+      'Sidecar failed to start',
+    )
+    expect(JSON.stringify(Object.values(logs).flatMap((log) => log.mock.calls)))
+      .not.toContain('sensitive spawn token')
+  })
+})
 
 describe('core lifecycle status (no sidecar spawned)', () => {
   it('reports "starting" as the initial phase before spawnCore/killCore ever run', async () => {

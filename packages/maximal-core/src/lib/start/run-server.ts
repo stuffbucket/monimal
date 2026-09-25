@@ -10,7 +10,6 @@
 
 import type { ProviderGateway } from "@stuffbucket/maximal-model-contract"
 
-import consola from "consola"
 import { serve } from "srvx"
 
 import type {
@@ -42,9 +41,12 @@ import {
   clearRuntimeEndpoint,
   writeRuntimeEndpoint,
 } from "~/lib/live/runtime-endpoint"
+import { createTeeLogger } from "~/lib/platform/logger"
 import { initOpencodeVersion } from "~/lib/platform/opencode"
 import { ensurePaths } from "~/lib/platform/paths"
 import { writePidfile } from "~/lib/platform/replace-running"
+import { runtimeConsole } from "~/lib/platform/runtime-console"
+import { runtimeLogger } from "~/lib/platform/runtime-logger"
 import {
   cacheMacMachineId,
   cacheVsCodeDeviceId,
@@ -69,6 +71,8 @@ import {
   staleSessionMarkerPresent,
 } from "./session-sentinel"
 import { initiateShutdown, installShutdownHandlers } from "./shutdown"
+
+const log = createTeeLogger("startup")
 
 // Injectable server binder. Defaults to srvx's real `serve()`; tests swap it
 // via `__setServeForTests` to avoid binding a port. This is a module-local
@@ -158,7 +162,7 @@ export interface RunServerOptions {
 
 function warnAboutStaleSession(): void {
   if (!staleSessionMarkerPresent()) return
-  consola.warn(
+  log.warn(
     "Previous maximal session ended ungracefully (likely a crash, "
       + "force-quit, or system shutdown). If `claude` produced "
       + "connection-refused errors since then, that was why — your "
@@ -169,13 +173,13 @@ function warnAboutStaleSession(): void {
 
 export async function runServer(options: RunServerOptions): Promise<void> {
   // Work around unjs/consola#357 until a release includes PR #359.
-  consola.options.throttle = 0
+  runtimeConsole.options.throttle = 0
 
   // Print something immediately so users know `maximal start` is
   // doing something. The next ~3-5s are spent on Copilot bootstrap
   // (token exchange, model fetch, machine-id + session-id caching),
   // and without this line the terminal just sits silent.
-  consola.start("Starting maximal…")
+  runtimeConsole.start("Starting maximal…")
 
   // If --replace was passed, try to take over the port from a
   // running instance before the regular probe. An explicit flag outranks the
@@ -208,7 +212,7 @@ export async function runServer(options: RunServerOptions): Promise<void> {
   const controlPortRequested = await resolveControlPort(options.controlPort)
 
   const git = getGitVersion()
-  consola.info(
+  runtimeLogger.info(
     `Source revision: ${shortSha(git.sha)}${git.branch ? ` (${git.branch})` : ""}`,
   )
 
@@ -225,13 +229,13 @@ export async function runServer(options: RunServerOptions): Promise<void> {
     // Module-scope mutation, but runServer runs once at startup —
     // no concurrent caller exists.
     // eslint-disable-next-line require-atomic-updates
-    consola.level = 5
-    consola.info("Verbose logging enabled")
+    runtimeConsole.level = 5
+    log.info("Verbose logging enabled")
   }
 
   state.accountType = options.accountType
   if (options.accountType !== "individual") {
-    consola.info(`Using ${options.accountType} plan GitHub account`)
+    log.info(`Using ${options.accountType} plan GitHub account`)
   }
 
   state.manualApprove = options.manual
@@ -266,7 +270,7 @@ export async function runServer(options: RunServerOptions): Promise<void> {
   // Idempotent; only deletes a file carrying the SHIM_MARKER.
   const removedShim = removeLegacyShimIfPresent()
   if (removedShim) {
-    consola.info(`Removed legacy Claude Code shim at ${removedShim}`)
+    runtimeLogger.info(`Removed legacy Claude Code shim at ${removedShim}`)
   }
 
   await cacheVSCodeVersion()
@@ -280,7 +284,7 @@ export async function runServer(options: RunServerOptions): Promise<void> {
     process.env.OLLAMA_API_KEY ?
       "OllamaWebExecutor"
     : "InProcessFetchExecutor (search disabled; set OLLAMA_API_KEY)"
-  consola.info(`Web-tools executor: ${executorName}`)
+  log.info(`Web-tools executor: ${executorName}`)
 
   const serverUrl = `http://localhost:${port}`
 
@@ -288,7 +292,7 @@ export async function runServer(options: RunServerOptions): Promise<void> {
     if (state.models) {
       await runClaudeCodeFlow(serverUrl)
     } else {
-      consola.warn(
+      log.warn(
         "--claude-code requires an authenticated session; skipping helper.",
       )
     }
@@ -422,7 +426,7 @@ async function bindListeners({
       try {
         await listener.close(true)
       } catch (closeError) {
-        consola.warn("startup: server.close() threw", closeError)
+        log.warn("startup: server.close() threw", closeError)
       }
     }
     if (providerDispatcher) {
@@ -512,12 +516,12 @@ async function reconcileConfiguratorsOnBoot(
       if (connection.status !== "connected") {
         const detail =
           connection.detail ?? connection.status.replaceAll("-", " ")
-        consola.warn(
+        runtimeLogger.warn(
           `Could not reconnect ${configurator.metadata.name}: ${detail}.`,
         )
       }
     } catch (error) {
-      consola.warn(
+      runtimeLogger.warn(
         `Could not reconnect ${configurator.metadata.name} during startup.`,
         error,
       )
@@ -546,7 +550,7 @@ async function finalizeBoot({
     try {
       writeRuntimeEndpoint(runtime)
     } catch (error) {
-      consola.warn("Could not publish the local control endpoint.", error)
+      log.warn("Could not publish the local control endpoint.", error)
     }
   }
 

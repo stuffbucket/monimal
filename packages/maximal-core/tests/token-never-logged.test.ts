@@ -99,9 +99,8 @@ beforeAll(async () => {
     }),
   })
 
-  // The tee'd file sink buffers and flushes on a 1s interval, so a line logged
-  // a millisecond ago is still in memory. Wait for the sink to materialise
-  // before SIGTERM rather than sleeping a fixed amount.
+  // Synchronous persistence should materialise a file before shutdown; keep
+  // the bound so a missing sink fails rather than asserting on empty output.
   const deadline = Date.now() + 10_000
   while (readLogFiles().length === 0 && Date.now() < deadline) {
     await Bun.sleep(100)

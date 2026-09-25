@@ -147,6 +147,10 @@ export class TmuxProjectionBroker implements TerminalSessionBackend {
     return this.sessions.get(sessionId)?.actualGeometry;
   }
 
+  projectionCount(sessionId: string): number {
+    return this.sessions.get(sessionId)?.projections.size ?? 0;
+  }
+
   async settleGeometry(sessionId: string): Promise<{ cols: number; rows: number } | undefined> {
     const session = this.sessions.get(sessionId);
     if (!session) return undefined;

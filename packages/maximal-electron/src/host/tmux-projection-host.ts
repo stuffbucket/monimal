@@ -1,9 +1,12 @@
 import { execFile } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { promisify } from 'node:util';
 
 import {
   LocalPtyConnector,
+  terminalDiagnostic,
   type TerminalConnector,
+  type TerminalDiagnostic,
 } from './terminal-connector.js';
 import {
   TmuxProjectionBroker,
@@ -83,6 +86,7 @@ function parseGeometry(stdout: string): { cols: number; rows: number } {
 
 /** Binds trusted tmux commands to projection lifecycle policy. */
 export class TmuxProjectionHost {
+  private readonly diagnosticOwnerId = randomUUID();
   private readonly launches = new Map<string, TmuxProjectionLaunch>();
   private readonly originalWindowSizes = new Map<string, string>();
   private readonly commandQueues = new Map<string, Promise<void>>();
@@ -107,15 +111,25 @@ export class TmuxProjectionHost {
         }
       },
       emit: (sessionId, projectionId, chunk) => options.emit(sessionId, projectionId, chunk),
-      onExit: (sessionId, projectionId, exitCode) => options.onExit(sessionId, projectionId, exitCode),
-      onGeometry: (sessionId, cols, rows) => options.onGeometry?.(sessionId, cols, rows),
-      onGeometryError: (sessionId, error) => options.onGeometryError?.(sessionId, error),
+      onExit: (sessionId, projectionId, exitCode) => {
+        this.diagnose('client-exited', sessionId, { projectionId, exitCode });
+        options.onExit(sessionId, projectionId, exitCode);
+      },
+      onGeometry: (sessionId, cols, rows) => {
+        this.diagnose('geometry-applied', sessionId);
+        options.onGeometry?.(sessionId, cols, rows);
+      },
+      onGeometryError: (sessionId, error) => {
+        this.diagnose('geometry-failed', sessionId);
+        options.onGeometryError?.(sessionId, error);
+      },
     });
   }
 
   reserve(sessionId: string, launch: TmuxProjectionLaunch): void {
     if (this.launches.has(sessionId)) throw new Error('Tmux projection session already exists.');
     this.launches.set(sessionId, launch);
+    this.diagnose('reserved', sessionId);
   }
 
   has(sessionId: string): boolean {
@@ -123,7 +137,14 @@ export class TmuxProjectionHost {
   }
 
   attach(request: TmuxProjectionRequest): boolean {
-    return this.launches.has(request.sessionId) && this.broker.attach(request);
+    try {
+      const accepted = this.launches.has(request.sessionId) && this.broker.attach(request);
+      this.diagnose('attach', request.sessionId, { projectionId: request.projectionId, accepted });
+      return accepted;
+    } catch (error) {
+      this.diagnose('attach-failed', request.sessionId, { projectionId: request.projectionId });
+      throw error;
+    }
   }
 
   focus(sessionId: string, projectionId: string, cols: number, rows: number): number | undefined {
@@ -143,19 +164,26 @@ export class TmuxProjectionHost {
   }
 
   detach(sessionId: string, projectionId: string): boolean {
-    return this.broker.detach(sessionId, projectionId);
+    const accepted = this.broker.detach(sessionId, projectionId);
+    this.diagnose('detach', sessionId, { projectionId, accepted });
+    return accepted;
   }
 
   terminate(sessionId: string): boolean {
     const launch = this.launches.get(sessionId);
     if (!launch) return false;
-    if (this.broker.terminate(sessionId)) return true;
+    this.diagnose('termination-requested', sessionId);
+    if (this.broker.terminate(sessionId)) {
+      this.diagnose('released', sessionId);
+      return true;
+    }
     if (launch.ownership === 'existing') void this.restoreGeometry(sessionId);
     else this.originalWindowSizes.delete(sessionId);
     this.launches.delete(sessionId);
     if (launch.terminate) {
       this.options.terminate(launch.terminate.command, launch.terminate.args);
     }
+    this.diagnose('released', sessionId);
     return true;
   }
 
@@ -165,9 +193,11 @@ export class TmuxProjectionHost {
 
   abandonAll(): void {
     for (const sessionId of [...this.launches.keys()]) {
+      this.diagnose('abandon-requested', sessionId);
       this.broker.abandon(sessionId);
       void this.restoreGeometry(sessionId);
       this.launches.delete(sessionId);
+      this.diagnose('released', sessionId);
     }
   }
 
@@ -241,13 +271,29 @@ export class TmuxProjectionHost {
     const result = (this.commandQueues.get(sessionId) ?? Promise.resolve())
       .then(operation, operation);
     const tail = result.then(
-      () => undefined,
-      () => undefined,
+      () => { this.diagnose('command-completed', sessionId); },
+      () => { this.diagnose('command-failed', sessionId); },
     );
     this.commandQueues.set(sessionId, tail);
     void tail.then(() => {
       if (this.commandQueues.get(sessionId) === tail) this.commandQueues.delete(sessionId);
     });
     return result;
+  }
+
+  private diagnose(
+    event: string,
+    sessionId: string,
+    details: Pick<TerminalDiagnostic, 'projectionId' | 'exitCode' | 'accepted'> = {},
+  ): void {
+    terminalDiagnostic(() => ({
+      component: 'tmux-host', event, sessionId, ...details,
+      ownerId: this.diagnosticOwnerId,
+      sessionCount: this.launches.size,
+      projectionCount: this.broker.projectionCount(sessionId),
+      commandQueueCount: this.commandQueues.size,
+      transport: this.launches.get(sessionId)?.geometry.transport,
+      ownership: this.launches.get(sessionId)?.ownership,
+    }));
   }
 }

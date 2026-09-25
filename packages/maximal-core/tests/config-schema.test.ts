@@ -1,5 +1,6 @@
 import { SearchConnectorConfigSchema } from "@stuffbucket/maximal-harness"
 import { afterEach, beforeEach, describe, expect, it } from "bun:test"
+import { z } from "zod"
 
 import {
   ConfigValidationError,
@@ -7,9 +8,84 @@ import {
   validateAppConfig,
 } from "~/lib/config/config-schema"
 import { installConnectorPlugins } from "~/lib/config/connector-plugins"
+import { resolveSettingsEnvironment } from "~/lib/config/settings-environment"
 
 beforeEach(() => installConnectorPlugins([]))
 afterEach(() => installConnectorPlugins([]))
+
+describe("settings environment overrides", () => {
+  const schema = z
+    .object({
+      terminalDiagnostics: z.boolean().optional(),
+      ui: z.object({ menuBarOnly: z.boolean().optional() }).optional(),
+      count: z.number().int().min(0).optional(),
+      name: z.string().optional(),
+      mode: z.enum(["safe", "full"]).optional(),
+      tools: z.array(z.string()).optional(),
+    })
+    .loose()
+
+  it("resolves absent optional keys and preserves persisted values", () => {
+    const stored = { terminalDiagnostics: true, future: { retained: 1 } }
+    expect(
+      resolveSettingsEnvironment(schema, stored, {
+        MAXIMAL_TERMINAL_DIAGNOSTICS: "false",
+        MAXIMAL_UI_MENU_BAR_ONLY: "true",
+        MAXIMAL_COUNT: "0",
+        MAXIMAL_NAME: "123",
+        MAXIMAL_MODE: "safe",
+        MAXIMAL_TOOLS: '["app"]',
+        MAXIMAL_BUILD_CONTROL: "not a setting",
+      }),
+    ).toEqual({
+      terminalDiagnostics: false,
+      ui: { menuBarOnly: true },
+      count: 0,
+      name: "123",
+      mode: "safe",
+      tools: ["app"],
+      future: { retained: 1 },
+    })
+    expect(stored).toEqual({
+      terminalDiagnostics: true,
+      future: { retained: 1 },
+    })
+    expect(resolveSettingsEnvironment(schema, {}, {})).toEqual({})
+  })
+
+  it.each(["yes", "1", "", "null", "private-value"])(
+    "rejects invalid booleans without exposing %s",
+    (raw) => {
+      expect(() =>
+        resolveSettingsEnvironment(
+          schema,
+          {},
+          {
+            MAXIMAL_TERMINAL_DIAGNOSTICS: raw,
+          },
+        ),
+      ).toThrow(
+        "Invalid MAXIMAL_TERMINAL_DIAGNOSTICS override for terminalDiagnostics",
+      )
+    },
+  )
+
+  it("validates numeric bounds and ambiguous derived names", () => {
+    expect(() =>
+      resolveSettingsEnvironment(schema, {}, { MAXIMAL_COUNT: "-1" }),
+    ).toThrow("Invalid MAXIMAL_COUNT override for count")
+    expect(() =>
+      resolveSettingsEnvironment(
+        z.object({
+          fooBar: z.boolean().optional(),
+          foo_bar: z.boolean().optional(),
+        }),
+        {},
+        {},
+      ),
+    ).toThrow("Ambiguous setting environment name: MAXIMAL_FOO_BAR")
+  })
+})
 
 describe("validateAppConfig", () => {
   it("accepts an empty config", () => {

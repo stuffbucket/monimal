@@ -1,6 +1,5 @@
-import consola from "consola"
-
 import { getTokenUsageRetentionDays } from "~/lib/config/config"
+import { runtimeLogger } from "~/lib/platform/runtime-logger"
 
 import { isTokenUsageStorageEnabled, pruneTokenUsageEvents } from "./store"
 
@@ -31,13 +30,13 @@ function runRetentionSweep(): void {
   void pruneTokenUsageEvents(cutoff).then(
     (removed) => {
       if (removed > 0) {
-        consola.debug(
+        runtimeLogger.debug(
           `Pruned ${removed} token-usage event(s) older than ${days}d`,
         )
       }
     },
     (error: unknown) => {
-      consola.warn("Token-usage retention sweep failed:", error)
+      runtimeLogger.warn("Token-usage retention sweep failed:", error)
     },
   )
 }

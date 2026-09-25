@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { statSync } from 'node:fs';
 
 import {
@@ -18,14 +19,17 @@ import {
 } from '../main/native/pty-session.js';
 import {
   LocalPtyConnector,
+  terminalDiagnostic,
   type TerminalConnector,
   type TerminalProcess,
 } from './terminal-connector.js';
 
 export {
   LocalPtyConnector,
+  configureTerminalDiagnostics,
   type TerminalConnectOptions,
   type TerminalConnector,
+  type TerminalDiagnosticRecord,
   type TerminalProcess,
 } from './terminal-connector.js';
 export {
@@ -164,6 +168,7 @@ export type TerminalStatus =
  * two registries and closing one cannot reap the other's shells.
  */
 export class TerminalHost {
+  private readonly diagnosticOwnerId = randomUUID();
   private readonly sessions = new Map<string, Session>();
   private readonly generations = new Generations();
   private readonly options: Required<TerminalHostOptions>;
@@ -249,6 +254,7 @@ export class TerminalHost {
       mirrors: new Set(),
     };
     this.sessions.set(request.id, session);
+    this.diagnose('started', request.id);
     this.options.onStatus?.({ state: 'started', session: { ...session.summary } });
 
     terminalProcess.onData((data) => {
@@ -262,7 +268,7 @@ export class TerminalHost {
       session.owner.flush(request.id, session);
       // A killed session's exit can arrive after the id was reused. Acting on
       // it then would delete the live session and silence a running shell.
-      if (!this.generations.isCurrent(request.id, generation)) return;
+      if (session.owner.sessions.get(request.id) !== session) return;
       session.exitCode = exitCode;
       session.owner.finishExit(request.id, session);
       for (const mirror of session.mirrors) mirror.onExit(exitCode);
@@ -286,10 +292,12 @@ export class TerminalHost {
     const session = this.sessions.get(id);
     if (!session) return undefined;
     session.mirrors.add(observer);
+    this.diagnose('mirror-attached', id);
     const text = replay(session.retained);
     if (text !== '') observer.onData(text);
     return () => {
       session.mirrors.delete(observer);
+      session.owner.diagnose('mirror-detached', id);
     };
   }
 
@@ -307,11 +315,14 @@ export class TerminalHost {
     const session = this.sessions.get(id);
     if (!session || destination.sessions.has(id)) return false;
     if (session.timer) clearTimeout(session.timer);
+    this.generations.release(id, session.generation);
     this.sessions.delete(id);
     session.pending = emptyBuffer();
     session.owner = destination;
     session.generation = destination.generations.next(id);
     destination.sessions.set(id, session);
+    this.diagnose('transferred-out', id);
+    destination.diagnose('transferred-in', id);
     session.process.resize(Math.max(1, request.cols), Math.max(1, request.rows));
     destination.finishExit(id, session);
     return true;
@@ -333,6 +344,7 @@ export class TerminalHost {
     if (session.timer) clearTimeout(session.timer);
     this.generations.release(id, session.generation);
     this.sessions.delete(id);
+    this.diagnose('termination-requested', id);
     for (const mirror of session.mirrors) mirror.onExit(session.exitCode ?? 0);
     session.mirrors.clear();
     try {
@@ -370,6 +382,7 @@ export class TerminalHost {
   }
 
   private attach(request: SpawnOptions, session: Session): void {
+    this.diagnose('reattached', request.id);
     session.process.resize(Math.max(1, request.cols), Math.max(1, request.rows));
     const text = replay(session.retained);
     if (text === '') return;
@@ -429,8 +442,23 @@ export class TerminalHost {
     }
     if (!this.generations.release(id, session.generation)) return;
     this.sessions.delete(id);
+    this.diagnose('exited', id, session.exitCode);
     session.owner.options.onExit(id, session.exitCode);
     session.owner.options.onStatus?.({ state: 'exited', id, exitCode: session.exitCode });
+  }
+
+  private diagnose(event: string, sessionId: string, exitCode?: number): void {
+    terminalDiagnostic(() => {
+      const sessions = [...this.sessions.values()];
+      return {
+        component: 'pty-host', event, sessionId, exitCode,
+        ownerId: this.diagnosticOwnerId,
+        sessionCount: sessions.length,
+        mirrorCount: sessions.reduce((count, session) => count + session.mirrors.size, 0),
+        pendingCodeUnits: sessions.reduce((count, session) => count + session.pending.text.length, 0),
+        inFlightCodeUnits: sessions.reduce((count, session) => count + session.inFlightBytes, 0),
+      };
+    });
   }
 }
 

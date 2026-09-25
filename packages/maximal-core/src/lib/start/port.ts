@@ -1,3 +1,4 @@
+import net from "node:net"
 /**
  * Port pre-flight: probe the configured port and decide what to bind, per the
  * configured policy (`server.portPolicy`). Runs before the several seconds of
@@ -7,12 +8,10 @@
  * Also: optional eviction of a stale prior maximal instance via `--replace`.
  */
 
-import consola from "consola"
-import net from "node:net"
-
 import type { PortPolicy } from "~/lib/config/config"
 
 import { evictRunning } from "~/lib/platform/replace-running"
+import { runtimeLogger } from "~/lib/platform/runtime-logger"
 import { emitBootStatus } from "~/lib/start/boot-status"
 
 /** Wrap evictRunning() with the CLI's error-handling. On failure to
@@ -25,7 +24,7 @@ export async function maybeEvictRunning(port: number): Promise<void> {
   try {
     await evictRunning({ port })
   } catch (error) {
-    consola.error(error instanceof Error ? error.message : String(error))
+    runtimeLogger.error(error instanceof Error ? error.message : String(error))
     process.exit(1)
   }
 }
@@ -37,7 +36,7 @@ export function reportPortBusyAndExit(
   occupant: "maximal" | "other",
 ): never {
   if (occupant === "maximal") {
-    consola.error(
+    runtimeLogger.error(
       [
         `Port ${port} is already in use by another maximal instance.`,
         ``,
@@ -52,7 +51,7 @@ export function reportPortBusyAndExit(
       process.platform === "darwin" || process.platform === "linux" ?
         `lsof -i :${port}`
       : `Get-Process -Id (Get-NetTCPConnection -LocalPort ${port}).OwningProcess`
-    consola.error(
+    runtimeLogger.error(
       [
         `Port ${port} is in use by another process (not maximal).`,
         ``,
@@ -261,7 +260,7 @@ async function scanForNextFree(
 export function portOrExit(resolution: PortResolution): number {
   if (resolution.ok) {
     if (resolution.movedFrom !== undefined) {
-      consola.warn(
+      runtimeLogger.warn(
         `Port ${resolution.movedFrom} is in use — starting on ${resolution.port} instead.`,
       )
       emitBootStatus(
@@ -277,14 +276,14 @@ export function portOrExit(resolution: PortResolution): number {
       break
     }
     case "evict-failed": {
-      consola.error(
+      runtimeLogger.error(
         `Port ${resolution.port} is still held after evicting the maximal instance on it.`,
       )
       process.exit(1)
       break
     }
     case "exhausted": {
-      consola.error(
+      runtimeLogger.error(
         [
           `Port ${resolution.from} is in use, and so is every port through ${resolution.through}.`,
           ``,

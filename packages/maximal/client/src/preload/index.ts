@@ -48,6 +48,7 @@ import {
   type TrafficRequestList,
   type TrafficRequestListQuery,
 } from '@stuffbucket/maximal-observability-contract'
+import type { LogFile } from '@stuffbucket/maximal-logging'
 import { contextBridge, ipcRenderer } from 'electron'
 
 import { BRIDGE_CHANNELS } from '../shared/bridge-channels.js'
@@ -87,6 +88,9 @@ const bridge = {
   /** Base URL where `/v1` is served for external programs (to display/copy). */
   getProxyUrl: (): Promise<string> =>
     ipcRenderer.invoke(BRIDGE_CHANNELS.proxyUrl),
+  licenses: {
+    text: (): Promise<string> => ipcRenderer.invoke(BRIDGE_CHANNELS.licensesText),
+  },
   /** Open a URL in the user's default browser (device-flow verification, etc.). */
   openExternal: (url: string): Promise<void> =>
     ipcRenderer.invoke(BRIDGE_CHANNELS.openExternal, url),
@@ -118,7 +122,13 @@ const bridge = {
   logs: {
     location: (): Promise<string> =>
       ipcRenderer.invoke(BRIDGE_CHANNELS.logsLocation),
+    list: (): Promise<LogFile[]> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.logsList),
     reveal: (): Promise<void> => ipcRenderer.invoke(BRIDGE_CHANNELS.logsReveal),
+    coreLocation: (): Promise<string> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.coreLogsLocation),
+    revealCore: (): Promise<void> =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.coreLogsReveal),
   },
   localModels: {
     list: (): Promise<ControlResult<LocalModelCatalogSnapshot>> =>
@@ -240,6 +250,13 @@ const bridge = {
     ipcRenderer.on(BRIDGE_CHANNELS.menuOpenSettings, handler)
     return () => {
       ipcRenderer.off(BRIDGE_CHANNELS.menuOpenSettings, handler)
+    }
+  },
+  onOpenLicenses: (listener: () => void): (() => void) => {
+    const handler = (): void => listener()
+    ipcRenderer.on(BRIDGE_CHANNELS.menuOpenLicenses, handler)
+    return () => {
+      ipcRenderer.off(BRIDGE_CHANNELS.menuOpenLicenses, handler)
     }
   },
   control: {

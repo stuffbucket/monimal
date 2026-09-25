@@ -19,11 +19,11 @@ import {
   TRAFFIC_INVALIDATION_REQUEST_IDS_MAX,
   TRAFFIC_OBSERVABILITY_CONTRACT_VERSION,
 } from "@stuffbucket/maximal-observability-contract"
-import consola from "consola"
 import path from "node:path"
 
 import { PATHS } from "~/lib/platform/paths"
 import { registerProcessCleanup } from "~/lib/platform/process-cleanup"
+import { runtimeLogger } from "~/lib/platform/runtime-logger"
 import {
   isSqliteRuntimeSupported,
   SqliteDbStore,
@@ -650,7 +650,7 @@ export class SqliteTrafficObserver
         this.invalidate(db, requestId)
       })
       .catch((error: unknown) => {
-        consola.warn("Failed to persist traffic observation", error)
+        runtimeLogger.warn("Failed to persist traffic observation", error)
       })
   }
 
@@ -682,7 +682,7 @@ export class SqliteTrafficObserver
         requestIds: [requestId].slice(0, TRAFFIC_INVALIDATION_REQUEST_IDS_MAX),
       })
     } catch (error) {
-      consola.warn("Traffic invalidation listener failed", error)
+      runtimeLogger.warn("Traffic invalidation listener failed", error)
     }
   }
 
