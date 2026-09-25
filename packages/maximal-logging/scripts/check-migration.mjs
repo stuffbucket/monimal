@@ -11,6 +11,11 @@ const match = /^level = "(warn|error)"$/m.exec(config)
 if (!match) throw new Error("logging.toml must set level to warn or error")
 const level = match[1]
 const enforce = /^enforce = "([^"]+)"$/m.exec(config)?.[1]
+const compatibilityAdapters = new Set([
+  "packages/maximal-core/src/lib/platform/logger.ts",
+  "packages/maximal-core/src/lib/platform/runtime-console.ts",
+  "packages/maximal-core/src/lib/platform/runtime-logger.ts",
+])
 let count = 0
 let errors = 0
 
@@ -26,10 +31,8 @@ function scan(directory) {
       && !/\.test\.[^.]+$/.test(entry.name)
     ) {
       if (
-        location
-        === path.join(
-          workspaceRoot,
-          "packages/maximal-core/src/lib/platform/logger.ts",
+        compatibilityAdapters.has(
+          path.relative(workspaceRoot, location).replaceAll(path.sep, "/"),
         )
       )
         continue

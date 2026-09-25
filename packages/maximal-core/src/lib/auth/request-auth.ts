@@ -1,10 +1,9 @@
 import type { Context, MiddlewareHandler } from "hono"
 
-import consola from "consola"
-
 import { getConfig, type AppConfig } from "~/lib/config/config"
 import { recordClient } from "~/lib/http/active-clients"
 import { requestContext } from "~/lib/http/request-context"
+import { runtimeLogger } from "~/lib/platform/runtime-logger"
 import { hasGithubToken, state } from "~/lib/runtime-state/state"
 
 interface AuthMiddlewareOptions {
@@ -72,7 +71,9 @@ export function defaultGetRequestIp(c: Context): string | null {
 export function normalizeApiKeys(apiKeys: unknown): Array<string> {
   if (!Array.isArray(apiKeys)) {
     if (apiKeys !== undefined) {
-      consola.warn("Invalid auth.apiKeys config. Expected an array of strings.")
+      runtimeLogger.warn(
+        "Invalid auth.apiKeys config. Expected an array of strings.",
+      )
     }
     return []
   }
@@ -83,7 +84,7 @@ export function normalizeApiKeys(apiKeys: unknown): Array<string> {
     .filter((key) => key.length > 0)
 
   if (normalizedKeys.length !== apiKeys.length) {
-    consola.warn(
+    runtimeLogger.warn(
       "Invalid auth.apiKeys entries found. Only non-empty strings are allowed.",
     )
   }

@@ -1,2 +1,2 @@
-level = "warn"
+level = "error"
 enforce = "packages/maximal/client/src/main"

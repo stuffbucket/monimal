@@ -9,10 +9,9 @@
 
 import type { serve } from "srvx"
 
-import consola from "consola"
-
 import { createTeeLogger } from "~/lib/platform/logger"
 import { removePidfile } from "~/lib/platform/replace-running"
+import { runtimeLogger } from "~/lib/platform/runtime-logger"
 
 import { clearSessionRunning } from "./session-sentinel"
 
@@ -45,7 +44,7 @@ export async function initiateShutdown(
   if (shuttingDown) return
   shuttingDown = true
 
-  consola.info(`shutdown: ${reason}, draining`)
+  runtimeLogger.info(`shutdown: ${reason}, draining`)
 
   // Fail-safe: if close() hangs, hard-exit after 2.5s. .unref() so the
   // timer itself never holds the loop open in the happy path.

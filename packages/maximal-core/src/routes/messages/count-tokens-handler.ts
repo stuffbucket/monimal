@@ -1,7 +1,5 @@
 import type { Context } from "hono"
 
-import consola from "consola"
-
 import {
   getAnthropicApiKey,
   getClaudeTokenMultiplier,
@@ -13,6 +11,7 @@ import {
   ANTHROPIC_API_VERSION,
 } from "~/lib/models/anthropic-types"
 import { getTokenCount } from "~/lib/models/tokenizer"
+import { runtimeLogger } from "~/lib/platform/runtime-logger"
 
 import { findEndpointModel } from "../../lib/models/models"
 import { translateToOpenAI } from "./non-stream-translation"
@@ -49,7 +48,7 @@ async function countTokensViaAnthropic(
   )
 
   if (!res.ok) {
-    consola.warn(
+    runtimeLogger.warn(
       "Anthropic count_tokens failed:",
       res.status,
       await res.text().catch(() => ""),
@@ -59,7 +58,7 @@ async function countTokensViaAnthropic(
   }
 
   const result = (await res.json()) as { input_tokens: number }
-  consola.info("Token count (Anthropic API):", result.input_tokens)
+  runtimeLogger.info("Token count (Anthropic API):", result.input_tokens)
   return c.json(result)
 }
 
@@ -93,7 +92,7 @@ export async function handleCountTokens(c: Context) {
     anthropicPayload.model = selectedModel?.id ?? anthropicPayload.model
 
     if (!selectedModel) {
-      consola.warn("Model not found, returning default token count")
+      runtimeLogger.warn("Model not found, returning default token count")
       return c.json({
         input_tokens: 1,
       })
@@ -126,13 +125,13 @@ export async function handleCountTokens(c: Context) {
       finalTokenCount = Math.round(finalTokenCount * getClaudeTokenMultiplier())
     }
 
-    consola.info("Token count:", finalTokenCount)
+    runtimeLogger.info("Token count:", finalTokenCount)
 
     return c.json({
       input_tokens: finalTokenCount,
     })
   } catch (error) {
-    consola.error("Error counting tokens:", error)
+    runtimeLogger.error("Error counting tokens:", error)
     return c.json({
       input_tokens: 1,
     })

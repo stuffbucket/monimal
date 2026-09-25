@@ -1,8 +1,8 @@
-import consola from "consola"
 import { events } from "fetch-event-stream"
 
 import { copilotBaseUrl } from "~/lib/config/api-config"
 import { sendRequest } from "~/lib/http/send-request"
+import { runtimeLogger } from "~/lib/platform/runtime-logger"
 import { state } from "~/lib/runtime-state/state"
 
 import type { CopilotCallOptions } from "./upstream-request"
@@ -36,7 +36,7 @@ export const createChatCompletions = async (
     initiator: chatCompletionsInitiator(payload),
   })
 
-  consola.log(`<-- model: ${payload.model}`)
+  runtimeLogger.log(`<-- model: ${payload.model}`)
 
   const response = await sendRequest(
     `${copilotBaseUrl(state)}/chat/completions`,

@@ -1,3 +1,4 @@
+import clipboard from "clipboardy"
 /**
  * Interactive --claude-code helper: prompt for primary + small model,
  * generate a clipboard-ready env script for launching Claude Code with
@@ -10,17 +11,15 @@
  * persistent path; this flag remains for users who want a one-time
  * shell-snippet without touching their Claude settings file.
  */
-
-import clipboard from "clipboardy"
-import consola from "consola"
 import invariant from "tiny-invariant"
 
 import { resolveSmallToolModel } from "~/lib/models/small-model"
+import { runtimeConsole } from "~/lib/platform/runtime-console"
 import { generateEnvScript } from "~/lib/platform/shell"
 import { state } from "~/lib/runtime-state/state"
 
 export async function runClaudeCodeFlow(serverUrl: string): Promise<void> {
-  consola.log(
+  runtimeConsole.log(
     "\n💡 Tip: The --claude-code flag simply generates a clipboard command for launching Claude Code. \n"
       + "All models remain fully accessible without this flag, just configure the model ID directly in your settings.json file.",
   )
@@ -29,7 +28,7 @@ export async function runClaudeCodeFlow(serverUrl: string): Promise<void> {
 
   const modelIds = state.models.data.map((m) => m.id)
 
-  const selectedModel = await consola.prompt(
+  const selectedModel = await runtimeConsole.prompt(
     "Select a model to use with Claude Code",
     { type: "select", options: modelIds },
   )
@@ -43,7 +42,7 @@ export async function runClaudeCodeFlow(serverUrl: string): Promise<void> {
     process.env.ANTHROPIC_DEFAULT_HAIKU_MODEL,
   )
 
-  const selectedSmallModel = await consola.prompt(
+  const selectedSmallModel = await runtimeConsole.prompt(
     "Select a small model to use with Claude Code (used for subagent + background"
       + " tool calls — pick a tool-capable model)",
     {
@@ -78,11 +77,11 @@ export async function runClaudeCodeFlow(serverUrl: string): Promise<void> {
 
   try {
     clipboard.writeSync(command)
-    consola.success("Copied Claude Code command to clipboard!")
+    runtimeConsole.success("Copied Claude Code command to clipboard!")
   } catch {
-    consola.warn(
+    runtimeConsole.warn(
       "Failed to copy to clipboard. Here is the Claude Code command:",
     )
-    consola.log(command)
+    runtimeConsole.log(command)
   }
 }

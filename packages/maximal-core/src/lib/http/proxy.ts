@@ -1,6 +1,7 @@
-import consola from "consola"
 import { getProxyForUrl } from "proxy-from-env"
 import { Agent, ProxyAgent, setGlobalDispatcher, type Dispatcher } from "undici"
+
+import { runtimeLogger } from "~/lib/platform/runtime-logger"
 
 export function initProxyFromEnv(): void {
   if (typeof Bun !== "undefined") return
@@ -29,7 +30,7 @@ export function initProxyFromEnv(): void {
           const raw = get(origin.toString())
           const proxyUrl = raw && raw.length > 0 ? raw : undefined
           if (!proxyUrl) {
-            consola.debug(`HTTP proxy bypass: ${origin.hostname}`)
+            runtimeLogger.debug(`HTTP proxy bypass: ${origin.hostname}`)
             return (direct as unknown as Dispatcher).dispatch(options, handler)
           }
           let agent = proxies.get(proxyUrl)
@@ -44,7 +45,9 @@ export function initProxyFromEnv(): void {
           } catch {
             /* noop */
           }
-          consola.debug(`HTTP proxy route: ${origin.hostname} via ${label}`)
+          runtimeLogger.debug(
+            `HTTP proxy route: ${origin.hostname} via ${label}`,
+          )
           return agent.dispatch(options, handler)
         } catch {
           return (direct as unknown as Dispatcher).dispatch(options, handler)
@@ -59,8 +62,8 @@ export function initProxyFromEnv(): void {
     }
 
     setGlobalDispatcher(dispatcher as unknown as Dispatcher)
-    consola.debug("HTTP proxy configured from environment (per-URL)")
+    runtimeLogger.debug("HTTP proxy configured from environment (per-URL)")
   } catch (err) {
-    consola.debug("Proxy setup skipped:", err)
+    runtimeLogger.debug("Proxy setup skipped:", err)
   }
 }

@@ -8,8 +8,6 @@
  * (executor, result-block builders) are in web-tools-exec.ts.
  */
 
-import type { ConsolaInstance } from "consola"
-
 import type {
   AnthropicAssistantContentBlock,
   AnthropicMessage,
@@ -19,7 +17,7 @@ import type {
   AnthropicToolUseBlock,
 } from "~/lib/models/anthropic-types"
 
-import { debugLazy } from "~/lib/platform/logger"
+import { type TeeLogger, debugLazy } from "~/lib/platform/logger"
 
 import type { Executor } from "./executor"
 
@@ -52,7 +50,7 @@ export interface AgentLoopArgs {
   /** Optional — when present, the loop emits debug-level traces matching
    *  the cadence of api-flows.ts. Tests pass `undefined` to keep output
    *  quiet. */
-  logger?: ConsolaInstance
+  logger?: TeeLogger
 }
 
 export async function runAgentLoop(

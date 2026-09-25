@@ -16,8 +16,6 @@
  * secrets.ts.
  */
 
-import consola from "consola"
-
 import {
   markAuthDegraded,
   markSignedIn,
@@ -45,6 +43,7 @@ import { isAutoRecoverAccountEnabled } from "~/lib/config/config"
 import { CopilotAuthFatalError } from "~/lib/errors/error"
 import { createTeeLogger } from "~/lib/platform/logger"
 import { PATHS } from "~/lib/platform/paths"
+import { runtimeLogger } from "~/lib/platform/runtime-logger"
 import { cacheModels } from "~/lib/platform/utils"
 import {
   clearTokenTrio,
@@ -99,11 +98,11 @@ export async function bootstrapUpstream(
         // console-only: a raw token must never reach the auth-*.log file sink.
         // Printing it here is the FEATURE, not a leak — `--show-token` is an
         // explicit operator opt-in (the user asked to see the bearer). The rule
-        // is threefold: gated on that opt-in, emitted through bare `consola`
+        // is threefold: gated on that opt-in, emitted through bare `runtimeLogger`
         // (whose reporters only write stdout) and never `createTeeLogger`, so
         // nothing durable lands under `<home>/logs/`. `tests/token-never-logged.test.ts`
         // asserts the no-opt-in case; do not route this through a tee'd logger.
-        consola.info("GitHub token:", existing.accessToken)
+        runtimeLogger.info("GitHub token:", existing.accessToken)
       }
     }
   }
@@ -117,7 +116,7 @@ export async function bootstrapUpstream(
       avatarUrl = await logUser()
       await setupCopilotToken()
       await cacheModels()
-      consola.info(
+      runtimeLogger.info(
         `Available models: \n${state.models?.data.map((model) => `- ${model.id}`).join("\n")}`,
       )
       // Record the signed-in status so getAuthStatus() reports
@@ -145,7 +144,7 @@ export async function bootstrapUpstream(
       // on-disk credential (flags it needs-reauth), so a transient boot-time
       // rejection self-heals on the next restart rather than forcing re-auth.
       if (error instanceof CopilotAuthFatalError) {
-        consola.warn(
+        runtimeLogger.warn(
           "GitHub token present but Copilot rejected it; surfacing the reason in Settings.",
           error.message,
         )

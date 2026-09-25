@@ -1,4 +1,3 @@
-import consola from "consola"
 import fs from "node:fs"
 
 import {
@@ -9,6 +8,7 @@ import {
 import { withHostConfigLockSync } from "~/lib/host-config/lock"
 import { atomicWriteJson } from "~/lib/platform/atomic-json"
 import { PATHS } from "~/lib/platform/paths"
+import { runtimeLogger } from "~/lib/platform/runtime-logger"
 
 export interface ApiKeyEntry {
   id: string
@@ -321,7 +321,7 @@ function ensureConfigFile(): void {
       label: "Maximal configuration",
     })
   } catch (error) {
-    consola.warn(
+    runtimeLogger.warn(
       `Couldn't create ${PATHS.CONFIG_PATH}; continuing with whatever is on disk`,
       error,
     )
@@ -349,7 +349,10 @@ function readConfigFromDisk(mode: ConfigReadMode = "startup"): AppConfig {
     raw = fs.readFileSync(PATHS.CONFIG_PATH, "utf8")
   } catch (error) {
     if (mode === "reload") throw new ConfigReloadError("read")
-    consola.error("Failed to read config file, using default config", error)
+    runtimeLogger.error(
+      "Failed to read config file, using default config",
+      error,
+    )
     return defaultConfig
   }
 
@@ -360,7 +363,10 @@ function readConfigFromDisk(mode: ConfigReadMode = "startup"): AppConfig {
         label: "Maximal configuration",
       })
     } catch (error) {
-      consola.error("Failed to seed empty config file, using defaults", error)
+      runtimeLogger.error(
+        "Failed to seed empty config file, using defaults",
+        error,
+      )
     }
     return defaultConfig
   }
@@ -370,7 +376,10 @@ function readConfigFromDisk(mode: ConfigReadMode = "startup"): AppConfig {
     parsed = JSON.parse(raw)
   } catch (error) {
     if (mode === "reload") throw new ConfigReloadError("parse")
-    consola.error("Failed to parse config file, using default config", error)
+    runtimeLogger.error(
+      "Failed to parse config file, using default config",
+      error,
+    )
     return defaultConfig
   }
 
@@ -385,7 +394,7 @@ function readConfigFromDisk(mode: ConfigReadMode = "startup"): AppConfig {
   } catch (error) {
     if (error instanceof ConfigValidationError) {
       if (mode === "reload") throw new ConfigReloadError("validation")
-      consola.error(
+      runtimeLogger.error(
         `Invalid ${PATHS.CONFIG_PATH}:\n${error.issues
           .map((i) => `  ${i.path || "<root>"}: ${i.message}`)
           .join("\n")}`,
@@ -400,7 +409,7 @@ function readConfigFromDisk(mode: ConfigReadMode = "startup"): AppConfig {
 
   const unknown = detectUnknownKeys(parsed)
   if (unknown.length > 0) {
-    consola.warn(
+    runtimeLogger.warn(
       `Config has unknown keys (ignored, may be deprecated): ${unknown.join(", ")}`,
     )
   }
@@ -587,7 +596,7 @@ function resolveProviderAuthType(
     return authType
   }
 
-  consola.warn(
+  runtimeLogger.warn(
     `Provider ${providerName} has invalid authType '${authType}', falling back to x-api-key`,
   )
   return "x-api-key"
@@ -601,7 +610,9 @@ function resolveOllamaProvider(
     provider.baseUrl ?? defaultOllamaBaseUrl(providerName),
   )
   if (!baseUrl) {
-    consola.warn(`Provider ${providerName} is enabled but missing baseUrl`)
+    runtimeLogger.warn(
+      `Provider ${providerName} is enabled but missing baseUrl`,
+    )
     return null
   }
   const apiKey = provider.apiKey?.trim()
@@ -622,7 +633,7 @@ function resolveAnthropicProvider(
   const baseUrl = normalizeProviderBaseUrl(provider.baseUrl ?? "")
   const apiKey = provider.apiKey?.trim() ?? ""
   if (!baseUrl || !apiKey) {
-    consola.warn(
+    runtimeLogger.warn(
       `Provider ${providerName} is enabled but missing baseUrl or apiKey`,
     )
     return null
@@ -660,7 +671,7 @@ export function resolveProviderConfig(
 
   const type = provider.type ?? "anthropic"
   if (type !== "anthropic" && type !== "ollama") {
-    consola.warn(
+    runtimeLogger.warn(
       `Provider ${providerName} is ignored because type '${type}' is unsupported`,
     )
     return null

@@ -1,6 +1,7 @@
-import consola from "consola"
 import { randomUUID } from "node:crypto"
 import path from "node:path"
+
+import { runtimeLogger } from "~/lib/platform/runtime-logger"
 
 const WINDOWS_DEVICE_ID_KEY = String.raw`\SOFTWARE\Microsoft\DeveloperTools`
 const WINDOWS_DEVICE_ID_NAME = "deviceid"
@@ -247,7 +248,7 @@ export async function getVSCodeDeviceId(): Promise<string> {
   try {
     deviceId = await getStoredVSCodeDeviceId()
   } catch (error) {
-    consola.debug("Failed to read VSCode device id", error)
+    runtimeLogger.debug("Failed to read VSCode device id", error)
   }
 
   if (deviceId) {
@@ -259,7 +260,7 @@ export async function getVSCodeDeviceId(): Promise<string> {
   try {
     await setStoredVSCodeDeviceId(newDeviceId)
   } catch (error) {
-    consola.warn(
+    runtimeLogger.warn(
       "Failed to persist VSCode device id, using ephemeral id",
       error,
     )

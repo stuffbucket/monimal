@@ -1,6 +1,5 @@
-import consola from "consola"
-
 import { type AnthropicResponse } from "~/lib/models/anthropic-types"
+import { runtimeLogger } from "~/lib/platform/runtime-logger"
 
 /**
  * Parse the `arguments` string of an OpenAI/Copilot tool call into the object
@@ -30,7 +29,10 @@ export function parseToolCallArguments(
       return parsed as Record<string, unknown>
     }
   } catch (error) {
-    consola.warn("Failed to parse tool call arguments", { error, rawArguments })
+    runtimeLogger.warn("Failed to parse tool call arguments", {
+      error,
+      rawArguments,
+    })
   }
 
   return { raw_arguments: rawArguments }

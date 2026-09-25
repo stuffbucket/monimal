@@ -1,9 +1,10 @@
-import consola from "consola"
 import { exec } from "node:child_process"
 import { readFile } from "node:fs/promises"
 import path from "node:path"
 import { promisify } from "node:util"
 import { z } from "zod"
+
+import { runtimeLogger } from "~/lib/platform/runtime-logger"
 
 /** Only `version` is read; everything else in the package.json passes through. */
 const OpencodePackageSchema = z.object({ version: z.string() }).loose()
@@ -29,7 +30,7 @@ async function resolveOpencodeVersion(): Promise<void> {
     const { version } = OpencodePackageSchema.parse(JSON.parse(packageJson))
     opencodeVersionCache = version
   } catch (error) {
-    consola.warn(`Failed to resolve opencode version`, error)
+    runtimeLogger.warn(`Failed to resolve opencode version`, error)
   }
 }
 

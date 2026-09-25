@@ -1,4 +1,3 @@
-import consola from "consola"
 import { events } from "fetch-event-stream"
 
 import type { CompactType } from "~/lib/models/compact"
@@ -21,6 +20,7 @@ import {
   CopilotTokenStaleError,
   HTTPError,
 } from "~/lib/errors/error"
+import { runtimeLogger } from "~/lib/platform/runtime-logger"
 import {
   clearLastUpstreamRejection,
   copilotRefreshHealth,
@@ -114,7 +114,7 @@ export const finishUpstreamResponse = async <T>(
   logCopilotRateLimits(response.headers)
 
   if (!response.ok) {
-    consola.error(errorMessage, response)
+    runtimeLogger.error(errorMessage, response)
     const body = await response.clone().text()
     const parsed = parseCopilotErrorBody(body)
     if (isAuthFatal(response.status, parsed)) {

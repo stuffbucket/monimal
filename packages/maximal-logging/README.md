@@ -25,11 +25,9 @@ strings. Callers SHOULD reuse a logger per component and call `close()` during o
 shutdown; synchronous writes still preserve events if shutdown is abrupt.
 
 `pnpm lint` runs the package-owned dynamic migration scan across runtime source.
-`logging.toml` owns its severity: `warn` reports remaining legacy log calls;
-`enforce` blocks regressions in the migrated desktop main process already. Switch
-the global level to `error` only after the scan reports zero alternatives.
-Once zero is reached, lint fails until the level is promoted, preventing the
-warning mode from becoming permanent.
+`logging.toml` owns its severity and globally enforces the zero-alternative
+contract. Direct runtime calls through Consola or `console` fail lint; interactive
+CLI affordances remain isolated behind Core's compatibility adapter.
 CLI output and tests are not runtime log calls; the scanner is intentionally
 limited to runtime source and excludes test files. Core's compatibility
 adapter is excluded because it forwards its persisted logs through this

@@ -1,5 +1,6 @@
-import consola from "consola"
 import { createRequire } from "node:module"
+
+import { runtimeLogger } from "~/lib/platform/runtime-logger"
 
 type ElectronModule = {
   net?: {
@@ -19,10 +20,12 @@ export function bindElectronFetch(): boolean {
     if (typeof netFetch !== "function") return false
 
     globalThis.fetch = netFetch.bind(electronModule.net)
-    consola.log("Successfully bound Electron's net.fetch to global fetch.")
+    runtimeLogger.log(
+      "Successfully bound Electron's net.fetch to global fetch.",
+    )
     return true
   } catch {
-    consola.log(
+    runtimeLogger.log(
       "Failed to bind Electron's net.fetch. Falling back to global fetch.",
     )
     return false

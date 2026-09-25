@@ -23,7 +23,7 @@ test("debugJson skips serialization when verbose logging is disabled", () => {
   }
   const toJSON = mock(() => ({ ok: true }))
 
-  debugJson(logger as never, "payload", { toJSON })
+  debugJson(logger, "payload", { toJSON })
 
   expect(toJSON).not.toHaveBeenCalled()
   expect(logger.debug).not.toHaveBeenCalled()
@@ -37,7 +37,7 @@ test("debugJson logs the serialized payload when verbose logging is enabled", ()
   }
   const payload = { ok: true }
 
-  debugJson(logger as never, "payload", payload)
+  debugJson(logger, "payload", payload)
 
   expect(logger.debug).toHaveBeenCalledWith("payload", JSON.stringify(payload))
 })
@@ -54,7 +54,7 @@ test("debugJsonTail preserves tail truncation behavior", () => {
   const redacted = { text: `[redacted ${payload.text.length} chars]` }
   const expected = JSON.stringify(redacted).slice(-10)
 
-  debugJsonTail(logger as never, "payload", { value: payload, tailLength: 10 })
+  debugJsonTail(logger, "payload", { value: payload, tailLength: 10 })
 
   expect(logger.debug).toHaveBeenCalledWith("payload", expected)
 })

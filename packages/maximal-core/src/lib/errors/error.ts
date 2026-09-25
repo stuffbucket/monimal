@@ -1,12 +1,11 @@
 import type { Context } from "hono"
 import type { ContentfulStatusCode } from "hono/utils/http-status"
 
-import consola from "consola"
-
 import type { RearmOutcome } from "~/lib/auth/auth-controller"
 
 import { markAuthDegraded, rearmCopilotAuth } from "~/lib/auth/auth-controller"
 import { adviseUpstreamError } from "~/lib/errors/upstream-error-advice"
+import { runtimeLogger } from "~/lib/platform/runtime-logger"
 import { state } from "~/lib/runtime-state/state"
 
 export class HTTPError extends Error {
@@ -88,7 +87,7 @@ async function forwardAuthFatal(
   try {
     outcome = await rearmCopilotAuth()
   } catch (handlerErr) {
-    consola.warn(
+    runtimeLogger.warn(
       "rearmCopilotAuth threw while forwarding upstream error:",
       handlerErr,
     )
@@ -124,7 +123,7 @@ async function forwardAuthFatal(
   try {
     await markAuthDegraded(error)
   } catch (handlerErr) {
-    consola.warn(
+    runtimeLogger.warn(
       "markAuthDegraded failed while forwarding upstream error:",
       handlerErr,
     )
@@ -147,7 +146,7 @@ export async function forwardError(
   c: Context,
   error: unknown,
 ): Promise<Response> {
-  consola.error("Error occurred:", error)
+  runtimeLogger.error("Error occurred:", error)
 
   if (error instanceof CopilotTokenStaleError) {
     // 503, deliberately NOT 401/403: the client's credentials are fine, so any
@@ -185,7 +184,7 @@ export async function forwardError(
     } catch {
       errorJson = errorText
     }
-    consola.error("HTTP error:", errorJson)
+    runtimeLogger.error("HTTP error:", errorJson)
 
     // Recognizable upstream errors (e.g. Copilot's opaque
     // `model_not_supported` 400) get reframed into context + a recovery

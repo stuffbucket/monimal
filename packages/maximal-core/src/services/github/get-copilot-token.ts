@@ -1,4 +1,3 @@
-import consola from "consola"
 import { z } from "zod"
 
 import { getCopilotTokenUrl, githubHeaders } from "~/lib/config/api-config"
@@ -6,6 +5,7 @@ import { parseCopilotErrorBody } from "~/lib/errors/copilot-error-parser"
 import { CopilotAuthFatalError, HTTPError } from "~/lib/errors/error"
 import { COPILOT_TOKEN_TIMEOUT_MS } from "~/lib/http/http-timeouts"
 import { sendRequest } from "~/lib/http/send-request"
+import { runtimeLogger } from "~/lib/platform/runtime-logger"
 import { state } from "~/lib/runtime-state/state"
 
 /**
@@ -64,7 +64,7 @@ export const getCopilotToken = async () => {
 
   if (!response.ok) {
     const errorText = await response.clone().text()
-    consola.error("Failed to get Copilot token response body", errorText)
+    runtimeLogger.error("Failed to get Copilot token response body", errorText)
 
     // /copilot_internal/v2/token never returns "your model isn't allowed"
     // — every 401/403 from this endpoint means the underlying GitHub

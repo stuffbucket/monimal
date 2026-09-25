@@ -1,10 +1,9 @@
-import consola from "consola"
-
 import type { ResolvedOllamaProviderConfig } from "~/lib/config/config"
 import type { ProviderCatalogueModel } from "~/lib/live/resources"
 
 import { sendProviderRequest } from "~/lib/http/send-request"
 import { asRecord } from "~/lib/http/untrusted-frame"
+import { runtimeLogger } from "~/lib/platform/runtime-logger"
 
 const DETAIL_CONCURRENCY = 4
 const DETAIL_TIMEOUT_MS = 5_000
@@ -71,14 +70,14 @@ async function loadOllamaModelDetails(
       },
     )
     if (!response.ok) {
-      consola.warn(
+      runtimeLogger.warn(
         `Ollama model details unavailable for '${model}' (${response.status})`,
       )
       return undefined
     }
     return parseOllamaModelDetails(await response.json())
   } catch (error) {
-    consola.warn(`Ollama model details unavailable for '${model}'`, error)
+    runtimeLogger.warn(`Ollama model details unavailable for '${model}'`, error)
     return undefined
   }
 }

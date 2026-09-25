@@ -10,7 +10,6 @@
 
 import type { ProviderGateway } from "@stuffbucket/maximal-model-contract"
 
-import consola from "consola"
 import { serve } from "srvx"
 
 import type {
@@ -46,6 +45,8 @@ import { createTeeLogger } from "~/lib/platform/logger"
 import { initOpencodeVersion } from "~/lib/platform/opencode"
 import { ensurePaths } from "~/lib/platform/paths"
 import { writePidfile } from "~/lib/platform/replace-running"
+import { runtimeConsole } from "~/lib/platform/runtime-console"
+import { runtimeLogger } from "~/lib/platform/runtime-logger"
 import {
   cacheMacMachineId,
   cacheVsCodeDeviceId,
@@ -172,13 +173,13 @@ function warnAboutStaleSession(): void {
 
 export async function runServer(options: RunServerOptions): Promise<void> {
   // Work around unjs/consola#357 until a release includes PR #359.
-  consola.options.throttle = 0
+  runtimeConsole.options.throttle = 0
 
   // Print something immediately so users know `maximal start` is
   // doing something. The next ~3-5s are spent on Copilot bootstrap
   // (token exchange, model fetch, machine-id + session-id caching),
   // and without this line the terminal just sits silent.
-  consola.start("Starting maximal…")
+  runtimeConsole.start("Starting maximal…")
 
   // If --replace was passed, try to take over the port from a
   // running instance before the regular probe. An explicit flag outranks the
@@ -211,7 +212,7 @@ export async function runServer(options: RunServerOptions): Promise<void> {
   const controlPortRequested = await resolveControlPort(options.controlPort)
 
   const git = getGitVersion()
-  consola.info(
+  runtimeLogger.info(
     `Source revision: ${shortSha(git.sha)}${git.branch ? ` (${git.branch})` : ""}`,
   )
 
@@ -228,7 +229,7 @@ export async function runServer(options: RunServerOptions): Promise<void> {
     // Module-scope mutation, but runServer runs once at startup —
     // no concurrent caller exists.
     // eslint-disable-next-line require-atomic-updates
-    consola.level = 5
+    runtimeConsole.level = 5
     log.info("Verbose logging enabled")
   }
 
@@ -269,7 +270,7 @@ export async function runServer(options: RunServerOptions): Promise<void> {
   // Idempotent; only deletes a file carrying the SHIM_MARKER.
   const removedShim = removeLegacyShimIfPresent()
   if (removedShim) {
-    consola.info(`Removed legacy Claude Code shim at ${removedShim}`)
+    runtimeLogger.info(`Removed legacy Claude Code shim at ${removedShim}`)
   }
 
   await cacheVSCodeVersion()
@@ -515,12 +516,12 @@ async function reconcileConfiguratorsOnBoot(
       if (connection.status !== "connected") {
         const detail =
           connection.detail ?? connection.status.replaceAll("-", " ")
-        consola.warn(
+        runtimeLogger.warn(
           `Could not reconnect ${configurator.metadata.name}: ${detail}.`,
         )
       }
     } catch (error) {
-      consola.warn(
+      runtimeLogger.warn(
         `Could not reconnect ${configurator.metadata.name} during startup.`,
         error,
       )

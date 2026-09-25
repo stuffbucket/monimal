@@ -7,6 +7,7 @@ import util from "node:util"
 import { getLogRetentionDays } from "~/lib/config/config"
 import { requestContext } from "~/lib/http/request-context"
 import { redactForLog, scrubSecrets } from "~/lib/platform/log-redact"
+import { type CoreLogger } from "~/lib/platform/log-types"
 import { PATHS } from "~/lib/platform/paths"
 import { registerProcessCleanup } from "~/lib/platform/process-cleanup"
 import { state } from "~/lib/runtime-state/state"
@@ -151,7 +152,9 @@ const writeLine = (
   }
 }
 
-type DebugLogger = Pick<ConsolaInstance, "debug">
+type DebugLogger = {
+  debug: (...args: Array<unknown>) => void
+}
 
 /**
  * Redact every non-string argument before it reaches the log reporter.
@@ -201,12 +204,7 @@ export const debugJsonTail = (
 }
 
 /** The subset of consola's surface our runtime call sites use. */
-export interface TeeLogger {
-  info: (...args: Array<unknown>) => void
-  warn: (...args: Array<unknown>) => void
-  error: (...args: Array<unknown>) => void
-  debug: (...args: Array<unknown>) => void
-}
+export type TeeLogger = CoreLogger
 
 /**
  * A logger that writes through the GLOBAL `consola` (so the dev console — and
@@ -260,9 +258,14 @@ export const createTeeLogger = (name: string): TeeLogger => {
 
   return {
     info: tee("info"),
+    log: tee("info"),
     warn: tee("warn"),
     error: tee("error"),
     debug: (...args) => {
+      if (!state.verbose) return
+      tee("debug")(...args)
+    },
+    trace: (...args) => {
       if (!state.verbose) return
       tee("debug")(...args)
     },

@@ -1,4 +1,3 @@
-import consola from "consola"
 import fs from "node:fs"
 import path from "node:path"
 
@@ -17,6 +16,7 @@ import {
   subscribeConfig,
 } from "~/lib/config/config"
 import { PATHS } from "~/lib/platform/paths"
+import { runtimeLogger } from "~/lib/platform/runtime-logger"
 
 /** @internal Test seams for the Core-owned watcher. */
 export interface CreateProviderHostConfigSourceOptions {
@@ -121,7 +121,7 @@ export function createProviderHostConfigSource(
 
   const publishReloadFailure = (error: unknown): void => {
     const reason = failureReasonFor(error)
-    consola.error(
+    runtimeLogger.error(
       `Failed to reload externally changed config (${reason}); retaining last validated config`,
     )
     publish(
@@ -166,7 +166,7 @@ export function createProviderHostConfigSource(
       watcher.unref()
       if (refreshObservedConfigIdentity()) scheduleReload()
     } catch (error) {
-      consola.warn("Could not watch config for external changes", error)
+      runtimeLogger.warn("Could not watch config for external changes", error)
     }
   }
 

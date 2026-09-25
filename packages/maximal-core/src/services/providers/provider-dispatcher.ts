@@ -5,8 +5,6 @@ import type {
   ProviderOperation,
 } from "@stuffbucket/maximal-model-contract"
 
-import consola from "consola"
-
 import type { AppConfig } from "~/lib/config/config"
 import type { FrameUsage } from "~/lib/http/untrusted-frame"
 import type { ProviderCatalogueModel } from "~/lib/live/resources"
@@ -27,6 +25,7 @@ import {
   readNestedUsage,
   readUsage,
 } from "~/lib/http/untrusted-frame"
+import { runtimeLogger } from "~/lib/platform/runtime-logger"
 import { parseUserIdMetadata } from "~/lib/platform/utils"
 import {
   createProviderTokenUsageRecorder,
@@ -217,7 +216,7 @@ export function createProviderDispatcher(
     try {
       await candidate.retire()
     } catch (error) {
-      consola.error(`Provider gateway ${context} disposal failed`, error)
+      runtimeLogger.error(`Provider gateway ${context} disposal failed`, error)
     }
   }
 
@@ -255,7 +254,7 @@ export function createProviderDispatcher(
           }),
         )
       } catch (error) {
-        consola.error("Provider gateway activation failed", error)
+        runtimeLogger.error("Provider gateway activation failed", error)
         return
       }
       if (
@@ -360,7 +359,7 @@ export function createProviderDispatcher(
         try {
           await options.beforeDispose?.()
         } catch (error) {
-          consola.error("Provider pre-disposal cleanup failed", error)
+          runtimeLogger.error("Provider pre-disposal cleanup failed", error)
         }
         await activation
         const currentFactory = factoryGateway
@@ -556,7 +555,7 @@ function observeMessagesUsage(
             sessionId: metadata.sessionId,
           })(usage)
         } catch (error) {
-          consola.warn("Failed to record provider token usage", error)
+          runtimeLogger.warn("Failed to record provider token usage", error)
         }
         controller.close()
       } catch (error) {
