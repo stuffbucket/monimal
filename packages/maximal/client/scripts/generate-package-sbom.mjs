@@ -74,7 +74,7 @@ function componentFromPackage(packageRoot) {
     ...(licenses === undefined ? {} : { licenses }),
     purl,
     type: 'library',
-    'bom-ref': purl.replace('%40', '@'),
+    'bom-ref': purl,
   }
 }
 
