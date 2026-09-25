@@ -31,3 +31,4 @@ reports/
 # packaged app output
 packages/maximal/client/resources/bin/
 packages/maximal/THIRD-PARTY-LICENSES.txt
+packages/maximal/client/build/maximal-core.metafile.json

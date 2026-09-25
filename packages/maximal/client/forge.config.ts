@@ -313,6 +313,7 @@ const config: ForgeConfig = {
         path.join(__dirname, 'scripts', 'generate-package-sbom.mjs'),
         buildPath,
         path.resolve(__dirname, '..'),
+        path.join(__dirname, 'build', 'maximal-core.metafile.json'),
         CDXGEN_CLI,
       ], { stdio: 'inherit' })
       return Promise.resolve()
@@ -323,9 +324,9 @@ const config: ForgeConfig = {
     new DevBundlePlugin({}),
     new VitePlugin({
       build: [
-        { entry: 'src/main/index.ts', config: 'vite.main.config.ts', target: 'main' },
+        { entry: 'src/main/index.ts', config: 'vite.main.config.mts', target: 'main' },
         { entry: 'src/main/llama-worker.ts', config: 'vite.worker.config.mts', target: 'main' },
-        { entry: 'src/preload/index.ts', config: 'vite.preload.config.ts', target: 'preload' },
+        { entry: 'src/preload/index.ts', config: 'vite.preload.config.mts', target: 'preload' },
       ],
       renderer: [{ name: 'main_window', config: 'vite.renderer.config.mts' }],
     }),
