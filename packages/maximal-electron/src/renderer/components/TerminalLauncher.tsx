@@ -68,6 +68,10 @@ const TERMINAL_LAUNCHER_STYLES = `
   text-align: left;
 }
 
+.sb-shell .terminal-launcher__choice-name {
+  overflow-wrap: anywhere;
+}
+
 .sb-shell .terminal-launcher__choice-description {
   color: var(--shell-text-muted);
   font-size: var(--shell-text-xs);
@@ -279,11 +283,11 @@ export function TerminalLauncher({
     }
   }
 
-  function group(label: string, entries: typeof choices, variant: 'running' | 'launchable') {
+  function group(label: string, entries: typeof choices, running = false) {
     if (entries.length === 0) return null;
     return (
       <section
-        className={`terminal-launcher__group terminal-launcher__group--${variant}`}
+        className={`terminal-launcher__group${running ? ' terminal-launcher__group--running' : ''}`}
         aria-label={label}
       >
         <h3>{label}</h3>
@@ -348,9 +352,9 @@ export function TerminalLauncher({
             {discovering && <p role="status">Checking running terminals, SSH, containers, and virtual machines...</p>}
             {discoveryError && <p role="alert">{discoveryError}</p>}
             {!error && items.length === 0 && <p>No terminal profiles are available.</p>}
-            {group('Running', running, 'running')}
-            {group('Recent', recent, 'launchable')}
-            {group('Available', available, 'launchable')}
+            {group('Running', running, true)}
+            {group('Recent', recent)}
+            {group('Available', available)}
             {!error && !discovering && choices.length === 0 && unavailable.length === 0 && <p>No matching terminals.</p>}
             {!discovering && unavailable.length > 0 && (
               <details className="terminal-launcher__unavailable" open={query.length > 0 || undefined}>
