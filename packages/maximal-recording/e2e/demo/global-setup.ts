@@ -1,5 +1,5 @@
-import { detectFfmpeg } from '../../src/main/native/ffmpeg.js';
-import { requireFreshBundles } from '../global-setup.js';
+import { detectFfmpeg } from '../../src/ffmpeg.js';
+import { requireFreshBundles } from '../../../maximal-electron/e2e/global-setup.js';
 
 /**
  * Prove the encoder is there, and the build is current, before anything
@@ -34,6 +34,5 @@ export default async function globalSetup(): Promise<void> {
   }
 
   const ffmpeg = status.tools.find((tool) => tool.name === 'ffmpeg');
-  // eslint-disable-next-line no-console
   console.log(`encoder: ${ffmpeg?.path ?? 'unknown'}`);
 }

@@ -74,6 +74,15 @@
       "cycleEdges": [],
       "duplicatePairs": []
     },
+    "@maximal/maximal-recording": {
+      "root": "packages/maximal-recording",
+      "dependsOn": [
+        "@maximal/eslint-config",
+        "@maximal/maximal-electron"
+      ],
+      "cycleEdges": [],
+      "duplicatePairs": []
+    },
     "@maximal/maximal-data-visualization": {
       "root": "packages/maximal-data-visualization",
       "dependsOn": [
@@ -172,6 +181,7 @@
         "@maximal/maximal-observability",
         "@maximal/maximal-observability-contract",
         "@maximal/maximal-ollama",
+        "@maximal/maximal-recording",
         "@maximal/maximal-settings",
         "@maximal/maximal-terminal"
       ],

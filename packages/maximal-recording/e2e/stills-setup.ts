@@ -1,9 +1,9 @@
-import { requireFreshBundles } from './global-setup.js';
+import { requireFreshBundles } from '../../maximal-electron/e2e/global-setup.js';
 
 /**
  * Setup for the stills runner.
  *
- * Only the freshness check. `npm run stills` builds nothing, so without this it
+ * Only the freshness check. `pnpm run stills` builds nothing, so without this it
  * happily photographs the previous build — and an image of the wrong thing is
  * exactly the failure this repository has already made once, in the other
  * direction, by trusting a stale bundle.

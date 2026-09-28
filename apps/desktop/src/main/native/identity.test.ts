@@ -78,6 +78,26 @@ describe('installApplicationMenu', () => {
     expect(setApplicationMenu).toHaveBeenCalledTimes(1)
   })
 
+  it('offers an explicit start or stop action in File only when the host supplies it', () => {
+    installApplicationMenu()
+    const fileMenu = template().find((item) => item.label === 'File')?.submenu
+    expect(fileMenu?.[0]).toEqual(expect.objectContaining({
+      label: 'Record Window…',
+      enabled: false,
+    }))
+
+    buildFromTemplate.mockClear()
+    const onToggleRecording = vi.fn()
+    installApplicationMenu({ onToggleRecording, isRecording: true })
+    const stop = template().find((item) => item.label === 'File')?.submenu?.[0]
+    expect(stop).toEqual(expect.objectContaining({
+      label: 'Stop Window Recording',
+      enabled: true,
+    }))
+    stop?.click?.()
+    expect(onToggleRecording).toHaveBeenCalledOnce()
+  })
+
   onDarwin('leads with an application submenu labelled from app.name', () => {
     installApplicationMenu()
 

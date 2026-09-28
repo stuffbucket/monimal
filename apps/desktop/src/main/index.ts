@@ -47,6 +47,7 @@ import {
   spawnCore,
 } from './sidecar/core.js'
 import { applyAppName, applyDockIcon, installApplicationMenu } from './native/identity.js'
+import { createDesktopRecording, type DesktopRecording } from './native/recording.js'
 import { resolveLicenseBundlePath } from './native/license-bundle.js'
 import { listClientInstallations } from './native/client-installations.js'
 import { toLifecycleStatus } from './sidecar/lifecycle-status.js'
@@ -99,6 +100,7 @@ let coreControlConnection: CoreControlConnection | null = null
 let mainWindow: BrowserWindow | null = null
 let pendingSettingsRequest: PendingSettingsRequest | null = null
 let menuBarMode: MenuBarModeController | null = null
+let recording: DesktopRecording | null = null
 let quitting = false
 
 const nonEmptyString = z.string().min(1)
@@ -512,6 +514,7 @@ function createWindow(): BrowserWindow {
   mainWindow = win
   menuBarMode?.applyToWindow(win)
   win.on('closed', () => {
+    recording?.windowClosed(win)
     menuBarMode?.cancelPending()
     if (mainWindow === win) mainWindow = null
   })
@@ -605,7 +608,7 @@ void app.whenReady().then(async () => {
   menuBarMode = nativeMode
   await nativeMode.initialize()
 
-  installApplicationMenu({
+  const installMenu = (): void => installApplicationMenu({
     onCheckForUpdates: () => {
       void openExternalUrl('https://github.com/stuffbucket/maximal/releases/latest')
     },
@@ -613,7 +616,16 @@ void app.whenReady().then(async () => {
       activateWindow().webContents.send(BRIDGE_CHANNELS.menuOpenLicenses)
     },
     onOpenSettings: openSettings,
+    isRecording: recording?.isRecording() ?? false,
+    onToggleRecording: () => {
+      void recording?.toggle().catch((error: unknown) => {
+        mainLogger.error({ errorName: error instanceof Error ? error.name : 'unknown' }, 'Window recording failed')
+        dialog.showErrorBox('Recording failed', error instanceof Error ? error.message : String(error))
+      })
+    },
   })
+  recording = createDesktopRecording(() => mainWindow, installMenu)
+  installMenu()
 
   coreControlConnection = createCoreControlConnection({
     onChange: () => broadcast(BRIDGE_CHANNELS.controlChanged),
@@ -727,6 +739,11 @@ shutdownLifecycle.onWillShutdown((event) => {
 
   event.report('agent', 'Waiting for the active agent to stop.')
   event.join(stopHarnessHost(), { id: 'agent', label: 'Agent runtime' })
+
+  if (recording?.isRecording()) {
+    event.report('recording', 'Saving the window recording.')
+    event.join(recording.stop(), { id: 'recording', label: 'Window recording' })
+  }
 })
 
 let shutdownComplete = false

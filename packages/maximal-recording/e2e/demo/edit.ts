@@ -16,7 +16,7 @@ import { markTime, sequenceById, type Take } from './take.js';
  * that breaking one is now cheap to find and cheap to fix.
  */
 
-const ROOT = path.resolve(__dirname, '../..');
+const ROOT = path.resolve(import.meta.dirname, '../..');
 const EDITS_DIR = path.join(ROOT, 'demo', 'edits');
 
 /**

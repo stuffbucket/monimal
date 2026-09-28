@@ -14,16 +14,17 @@ exists. Full reference is `docs/recording.md`.
 - A new capability needs to be shown rather than described.
 - A release needs an asset that proves the application works.
 
-Do not use it to capture a still. `npm run stills` is far quicker.
+Do not use it to capture a still. `pnpm run stills` is far quicker.
 
 ## Run it
 
 ```bash
 npm run package                     # the recorder drives .vite/, not the package
-npm run record                      # capture and cut every timeline
-npm run record -- --grep pipeline-check   # one of them
+pnpm run build:app                  # build the reference Electron shell
+pnpm run record                     # capture and cut every timeline
+pnpm run record -- --grep pipeline-check   # one of them
 
-npm run compose -- pipeline-check         # re-cut from frames already captured
+pnpm run compose -- pipeline-check         # re-cut from frames already captured
 ```
 
 **Reach for `compose` first.** Changing a hold, an order, a freeze, or a card is
@@ -34,7 +35,7 @@ Requires `ffmpeg` and `ffprobe`. Nothing installs them for you. When either is
 absent the run stops before it launches anything, names the one command that
 fixes it, and tells you to try again.
 
-`src/main/native/ffmpeg.ts` owns that search, and it is the only copy of the
+`src/ffmpeg.ts` owns that search, and it is the only copy of the
 rules. Do not add a second check anywhere. There used to be one in
 `scripts/record.mjs`, and it was the weaker of the two: it asked whether a file
 existed rather than whether it ran.

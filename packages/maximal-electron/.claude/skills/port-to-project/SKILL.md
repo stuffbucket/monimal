@@ -20,9 +20,9 @@ users, the installer is the part you have to supply yourself, and
 | `.github/workflows/ci.yml` | Yes | The package matrix is the part worth copying. |
 | `scripts/verify-package.mjs` | Electron only | It reads asar and fuses. |
 | `AGENTS.md` and `.claude/skills` | Yes | Adapt the commands table. |
-| `e2e/demo/*` except `*.demo.ts` | Yes | Generic. Pages, frames, and seconds only. |
-| `e2e/demo/*.demo.ts` | No | Rewrite. These are the timelines. |
-| `demo/edits/*.json` | No | One per video. The cut, not the machinery. |
+| `../maximal-recording/e2e/demo/` except `*.demo.ts` | Yes | Generic. Pages, frames, and seconds only. |
+| `../maximal-recording/e2e/demo/pipeline-check.demo.ts` | No | Rewrite the timeline for the new shell. |
+| `../maximal-recording/demo/edits/pipeline-check.json` | No | The cut, not the machinery. |
 | `src/shared/ipc.ts` pattern | Electron only | Tauri has its own command layer. |
 | `src/renderer/**` | Yes | React plus Radix plus `react-resizable-panels`. |
 

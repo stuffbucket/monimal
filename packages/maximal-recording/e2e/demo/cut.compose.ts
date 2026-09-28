@@ -16,7 +16,7 @@ import { readTake } from './take.js';
  * `scripts/compose.mjs` is the front door and sets `COMPOSE_NAMES`.
  */
 
-const ROOT = path.resolve(__dirname, '../..');
+const ROOT = path.resolve(import.meta.dirname, '../..');
 const names = (process.env['COMPOSE_NAMES'] ?? '').split(',').filter(Boolean);
 
 test.describe('compose', () => {

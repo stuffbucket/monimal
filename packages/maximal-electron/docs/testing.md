@@ -128,7 +128,7 @@ catch-all is not acceptable**:
 2. **Dead.** Delete the code, or encode the impossibility in the type system.
    `noUncheckedIndexedAccess` forces a fallback on every index read, and a
    fallback that can never run is dead code that reads as untested. `cycle` in
-   `data.ts` and `firstLine` in `ffmpeg.ts` both exist to remove one. Prefer
+   `data.ts` and `firstLine` in the recording package's `ffmpeg.ts` both exist to remove one. Prefer
   this to a suppression.
 3. **A deliberately-retained equivalent, with a written proof** over the
    reachable input domain. Use `// Stryker disable next-line <Mutator>: why`,
@@ -238,11 +238,11 @@ is in front.
 
 ### A still is not an oracle
 
-`demo/stills/*.png` are artifacts to look at. Do not diff them for equality and
+Reference stills from `maximal-recording` are artifacts to look at. Do not diff them for equality and
 read the result as proof a change was neutral.
 
 They are bistable. Running
-`pnpm --filter @maximal/maximal-electron run stills` three times over
+`pnpm --filter @maximal/maximal-recording run stills` three times over
 identical code
 produced state A once and state B twice, differing by 179,000 pixels — around
 four percent of the frame — in the canvas region of `01-projects` and
@@ -297,20 +297,15 @@ both are outside `playwright.config.ts` and outside CI.
 So the suite that runs constantly does not need to be seen. If it is visible on
 your desktop, that is a leak worth fixing rather than a requirement.
 
-## Two directories say "demo"
+## Recording lives outside the Electron package
 
-They are not the same thing, and the names are a trap.
+`maximal-recording` owns both the video pipeline and its demo output. Its
+`.demo.ts` timeline drives the reference Electron shell through the existing
+test harness. The `.compose.ts` runner cuts recorded takes, and `.stills.ts`
+photographs the shell. None belongs in Electron's blocking `.spec.ts` suite.
 
-| Path                       | What it is                                                                                                                           |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `demo/`                    | Output. Committed stills, mp4 files, and the `edits/*.json` that cut them.                                                           |
-| `e2e/demo/`                | The recorder. Generic capture, compose, and encode machinery.                                                                        |
-
-The product may not import from `e2e/`. ESLint enforces that boundary.
-
-`e2e/demo/*.demo.ts` are timelines, not tests. Four configurations match four
-suffixes: `.demo.ts` records, `.compose.ts` cuts, `.stills.ts` photographs,
-`.spec.ts` gates. Do not merge them.
+The shipped desktop app separately composes `maximal-recording`'s main-process
+window capability; only the host can choose a window and a destination.
 
 ## Techniques rejected, with the reason
 
@@ -321,7 +316,7 @@ technique with no stated rejection gets proposed again every six months.
 Each one would also run, print green, and check less than what is already
 here. That is worse than not having it, because a green run reads as verified.
 
-- **Do not diff `demo/stills` for equality**, in Playwright's
+- **Do not diff recording stills for equality**, in Playwright's
   `toHaveScreenshot` or anything else, and call it a regression gate. A pixel
   diff reads as "layout unchanged" on a still that is bistable for reasons
   unrelated to the change under review. That is the empty-scope failure wearing
