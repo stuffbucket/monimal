@@ -94,6 +94,7 @@ updates:
           - "undici"
           - "gpt-tokenizer"
           - "proxy-from-env"
+          - "srvx"
         update-types:
           - major
 
