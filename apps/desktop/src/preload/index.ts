@@ -64,6 +64,8 @@ const bridge = {
     show: () => ipcRenderer.invoke(BRIDGE_CHANNELS.harnessShow),
     hide: () => ipcRenderer.invoke(BRIDGE_CHANNELS.harnessHide),
     provider: () => ipcRenderer.invoke(BRIDGE_CHANNELS.harnessProvider),
+    selectModel: (modelKey) =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.harnessSelectModel, modelKey),
     ask: (prompt) => ipcRenderer.invoke(BRIDGE_CHANNELS.harnessAsk, { prompt }),
     abort: () => ipcRenderer.invoke(BRIDGE_CHANNELS.harnessAbort),
     approve: (request) => ipcRenderer.invoke(BRIDGE_CHANNELS.harnessApprove, request),

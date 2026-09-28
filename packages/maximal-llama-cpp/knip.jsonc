@@ -1,0 +1,18 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
+  "entry": [
+    "src/index.ts",
+    "src/host/index.ts",
+    "src/worker/index.ts",
+    "scripts/*.mjs",
+    "tests/**/*.test.ts"
+  ],
+  "project": ["src/**/*.ts", "scripts/**/*.mjs", "tests/**/*.ts"],
+  "ignoreDependencies": [
+    // The command runner is built into Stryker core but is inferred as a plugin.
+    "@stryker-mutator/command-runner",
+    // Loaded through an indirect ESM import so the worker remains bundleable.
+    "node-llama-cpp"
+  ],
+  "ignoreExportsUsedInFile": true
+}

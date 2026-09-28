@@ -1,10 +1,11 @@
 const mutate = [
-  'src/host/approval.ts',
-  'src/host/provider-endpoint.ts',
-  'src/renderer/overlay-keys.ts',
+  'scripts/llama-package-checks.mjs',
+  'scripts/llama-packaging.mjs',
+  'src/host/llama-protocol.ts',
+  'src/worker/grammar.ts',
 ]
 
-if (mutate.length === 0) throw new Error('Harness mutation scope is empty.')
+if (mutate.length === 0) throw new Error('llama.cpp mutation scope is empty.')
 
 export default {
   packageManager: 'pnpm',
@@ -13,7 +14,7 @@ export default {
   testRunner: 'command',
   commandRunner: {
     command:
-      'pnpm exec vitest run tests/approval.test.ts tests/overlay-keys.test.ts tests/provider-endpoint.test.ts',
+      'pnpm exec vitest run tests/grammar.test.ts tests/llama-protocol.test.ts tests/packaging.test.ts',
   },
   mutate,
   reporters: ['progress', 'clear-text', 'json'],

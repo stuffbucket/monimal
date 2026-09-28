@@ -1,3 +1,4 @@
+import { LLAMA_EXTERNAL_MODULES } from '@maximal/maximal-llama-cpp/packaging'
 import { defineConfig, type Plugin } from 'vite'
 
 function restartElectronAfterMainBuild(): Plugin {
@@ -23,7 +24,7 @@ export default defineConfig({
   build: {
     sourcemap: true,
     rollupOptions: {
-      external: [/^node:/, 'electron', 'node-llama-cpp', 'node-pty'],
+      external: [/^node:/, 'electron', ...LLAMA_EXTERNAL_MODULES, 'node-pty'],
       output: { entryFileNames: 'main.js' },
     },
   },

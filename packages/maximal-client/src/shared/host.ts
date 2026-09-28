@@ -241,6 +241,7 @@ export interface MaximalHost {
     show: () => Promise<void>
     hide: () => Promise<void>
     provider: () => Promise<ProviderStatus>
+    selectModel: (modelKey: string) => Promise<ProviderStatus>
     ask: (prompt: string) => Promise<AskAccepted>
     abort: () => Promise<void>
     approve: (request: ApproveRequest) => Promise<void>
