@@ -496,8 +496,10 @@ function domainMatches(hostname: string, domain: string): boolean {
 }
 
 function normalizeDomain(domain: string): string {
-  return domain
-    .trim()
-    .toLowerCase()
-    .replaceAll(/^\.+|\.+$/gu, "")
+  const normalized = domain.trim().toLowerCase()
+  let start = 0
+  while (normalized[start] === ".") start += 1
+  let end = normalized.length
+  while (end > start && normalized[end - 1] === ".") end -= 1
+  return normalized.slice(start, end)
 }

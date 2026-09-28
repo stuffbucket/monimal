@@ -13,6 +13,11 @@ describe('terminal tab identity', () => {
     expect(terminalDirectoryTitle('/')).toBe('/');
   });
 
+  it('handles long repetitive path separators', () => {
+    expect(terminalDirectoryTitle(`/root/${'/'.repeat(100_000)}leaf`)).toBe('leaf');
+    expect(terminalDirectoryTitle(`C:\\root\\${'\\/'.repeat(50_000)}leaf\\\\`)).toBe('leaf');
+  });
+
   it('removes controls and bounds a process-supplied title', () => {
     expect(terminalProcessTitle('  vim\u0000 README.md\u0080\u009f  ')).toBe('vim README.md');
     expect(terminalProcessTitle('café')).toBe('café');

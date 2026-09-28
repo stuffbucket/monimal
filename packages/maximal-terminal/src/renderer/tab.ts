@@ -39,7 +39,9 @@ function nextTitle(existing: readonly ExistingTab[], label: string): string {
 
 /** Returns the final directory segment for an idle terminal title. */
 export function terminalDirectoryTitle(cwd: string): string {
-  const withoutTrailingSeparators = cwd.replace(/[\\/]+$/, '');
+  let end = cwd.length;
+  while (end > 0 && (cwd[end - 1] === '/' || cwd[end - 1] === '\\')) end -= 1;
+  const withoutTrailingSeparators = cwd.slice(0, end);
   const segments = withoutTrailingSeparators.split(/[\\/]/);
   return segments.at(-1) || cwd;
 }

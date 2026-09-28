@@ -179,6 +179,32 @@ void test("intersects configured and request domain allow-lists", async () => {
   )
 })
 
+void test("normalizes domain boundaries without rescanning repetitive input", async () => {
+  const calls: Array<string> = []
+  const connector = createSearchConnector(
+    [
+      provider("search", calls, {
+        ok: true,
+        items: [
+          { url: "https://example.com/one", title: "One" },
+          { url: "https://elsewhere.test/two", title: "Two" },
+        ],
+      }),
+    ],
+    { defaults: { allowedDomains: [".EXAMPLE.COM..."] } },
+  )
+
+  assert.deepEqual(
+    await connector.search("query", {
+      blockedDomains: [`a${".".repeat(100_000)}b`],
+    }),
+    {
+      ok: true,
+      items: [{ url: "https://example.com/one", title: "One" }],
+    },
+  )
+})
+
 void test("keeps all results when no maximum is configured", async () => {
   const calls: Array<string> = []
   const items = [
