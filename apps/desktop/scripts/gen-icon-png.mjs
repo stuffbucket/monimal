@@ -1,11 +1,9 @@
 /**
- * Derive the runtime dock icon from the bundle icon.
+ * Derive raster tray assets from the bundle icon.
  *
- * `build/icon.icns` is the app's art, but a `.icns` is only ever read by the
- * OS from a packaged bundle. An unpackaged run — `electron-forge start` — shows
- * Electron's own icon instead, and `app.dock.setIcon` is the only way to change
- * that. It needs a raster image, so this renders one out of the icns rather
- * than committing a second copy of the same artwork that can drift from it.
+ * `build/icon.icns` is the app's source artwork. The menu bar and non-template
+ * tray variants need raster images, so this renders them rather than committing
+ * copies that can drift from the bundle icon.
  *
  * `sips` is macOS-only, which matches where this icon is needed: it is the dock
  * icon, and `app.dock` exists nowhere else. On any other platform the script
@@ -37,8 +35,8 @@ if (!existsSync(source)) {
 
 mkdirSync(dirname(output), { recursive: true })
 
-// 512 rather than the icns's full 1024: the dock renders at a fraction of that,
-// and `setIcon` holds the whole bitmap in memory for the life of the process.
+// 512 rather than the icns's full 1024: the generated tray assets render at a
+// fraction of that size.
 const result = spawnSync(
   'sips',
   ['-s', 'format', 'png', '-z', '512', '512', source, '--out', output],

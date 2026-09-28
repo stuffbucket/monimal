@@ -46,7 +46,7 @@ import {
   onCoreStatus,
   spawnCore,
 } from './sidecar/core.js'
-import { applyAppName, applyDockIcon, installApplicationMenu } from './native/identity.js'
+import { applyAppName, installApplicationMenu } from './native/identity.js'
 import { createDesktopRecording, type DesktopRecording } from './native/recording.js'
 import { resolveLicenseBundlePath } from './native/license-bundle.js'
 import { listClientInstallations } from './native/client-installations.js'
@@ -601,7 +601,6 @@ function openSettings(sectionId: PendingSettingsRequest['sectionId']): void {
 }
 
 void app.whenReady().then(async () => {
-  applyDockIcon()
   const nativeMode = new MenuBarModeController(() => {
     activateWindow()
   })

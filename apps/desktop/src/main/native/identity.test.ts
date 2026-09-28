@@ -3,28 +3,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { SETTINGS_SECTIONS } from '@maximal/maximal-client/shared/settings-sections'
 
 /*
- * Identity is what the operating system shows: the menu bar's application
- * name, and the dock icon. Both are set through Electron surfaces rather than
- * through anything this app renders, so the fakes below are the only way to
- * observe them.
- *
- * The behaviour worth pinning is the conditional half. Setting a dock icon
- * from a missing or unreadable file does not fail loudly — `nativeImage`
- * returns an empty image, and handing that to `setIcon` clears the icon rather
- * than leaving the default in place. Each guard here corresponds to a way the
- * app could end up with no icon at all.
+ * The menu bar's application name and commands come from Electron surfaces
+ * rather than anything this app renders, so these fakes are the observation
+ * boundary.
  */
 
-const { setName, showAboutPanel, setIcon, isPackaged, buildFromTemplate, setApplicationMenu, createFromPath, existsSync } =
+const { setName, showAboutPanel, buildFromTemplate, setApplicationMenu } =
   vi.hoisted(() => ({
     setName: vi.fn(),
     showAboutPanel: vi.fn(),
-    setIcon: vi.fn(),
-    isPackaged: { value: false },
     buildFromTemplate: vi.fn((template: unknown) => template),
     setApplicationMenu: vi.fn(),
-    createFromPath: vi.fn((): { isEmpty: () => boolean } => ({ isEmpty: () => false })),
-    existsSync: vi.fn(() => true),
   }))
 
 vi.mock('electron', () => ({
@@ -32,27 +21,15 @@ vi.mock('electron', () => ({
     name: 'Maximal',
     setName,
     showAboutPanel,
-    get isPackaged() {
-      return isPackaged.value
-    },
-    dock: { setIcon },
-    getAppPath: () => '/app',
   },
   Menu: { buildFromTemplate, setApplicationMenu },
-  nativeImage: { createFromPath },
   shell: { openExternal: vi.fn() },
 }))
 
-vi.mock('node:fs', () => ({ existsSync }))
-vi.mock('../main-logger.js', () => ({ mainLogger: { warn: vi.fn() } }))
-
-const { applyAppName, applyDockIcon, installApplicationMenu } = await import('./identity.js')
+const { applyAppName, installApplicationMenu } = await import('./identity.js')
 
 beforeEach(() => {
   vi.clearAllMocks()
-  isPackaged.value = false
-  existsSync.mockReturnValue(true)
-  createFromPath.mockReturnValue({ isEmpty: () => false })
 })
 
 describe('applyAppName', () => {
@@ -283,34 +260,5 @@ describe('installApplicationMenu, macOS application menu', () => {
       'settings-account-heading',
       'settings-connections-heading',
     ])
-  })
-})
-
-describe('applyDockIcon', () => {
-  const onDarwin = process.platform === 'darwin' ? it : it.skip
-
-  onDarwin('sets the icon from the rendered PNG when unpackaged', () => {
-    applyDockIcon()
-    expect(setIcon).toHaveBeenCalledTimes(1)
-  })
-
-  onDarwin('leaves a packaged app alone', () => {
-    // The bundle's own .icns is higher resolution than the PNG, and the OS
-    // already resolves it. Overriding it there would be a downgrade.
-    isPackaged.value = true
-    applyDockIcon()
-    expect(setIcon).not.toHaveBeenCalled()
-  })
-
-  onDarwin('does not clear the icon when the file is missing', () => {
-    existsSync.mockReturnValue(false)
-    applyDockIcon()
-    expect(setIcon).not.toHaveBeenCalled()
-  })
-
-  onDarwin('does not clear the icon when the file is not a readable image', () => {
-    createFromPath.mockReturnValue({ isEmpty: () => true })
-    applyDockIcon()
-    expect(setIcon).not.toHaveBeenCalled()
   })
 })

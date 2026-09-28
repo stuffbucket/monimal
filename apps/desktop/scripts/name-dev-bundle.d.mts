@@ -17,6 +17,17 @@ export interface BundleRename {
 
 export declare function renameBundle(plist: string, name: string): BundleRename
 
+export interface BundleIconReplacement {
+  changed: boolean
+  found: boolean
+  plist: string
+}
+
+export declare function replaceBundleIcon(
+  plist: string,
+  icon: string,
+): BundleIconReplacement
+
 /**
  * The binary inside the named copy, given the directory holding it.
  *
