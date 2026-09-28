@@ -124,6 +124,9 @@ function fakeBridge(): MaximalHost {
         server_configuration_path: '/home/test/.ollama/server.json',
         desktop_settings_path: null,
         endpoint: OLLAMA_BASE_URL,
+        process_id: null,
+        process_endpoint: null,
+        suggested_endpoint: null,
         context_length: null,
       })),
       launch: vi.fn(async () => ({
@@ -136,9 +139,18 @@ function fakeBridge(): MaximalHost {
         server_configuration_path: '/home/test/.ollama/server.json',
         desktop_settings_path: '/home/test/Ollama/db.sqlite',
         endpoint: OLLAMA_BASE_URL,
+        process_id: 42,
+        process_endpoint: OLLAMA_BASE_URL,
+        suggested_endpoint: null,
         context_length: 4096,
       })),
       updateContextLength: vi.fn(),
+      preferences: vi.fn(async () => ({
+        start_on_maximal_launch: false,
+        cloud_disabled: false,
+        restart_required: false,
+      })),
+      updatePreferences: vi.fn(),
     },
     clientInstallations: {
       list: vi.fn(async () => []),
@@ -202,17 +214,27 @@ function fakeBridge(): MaximalHost {
       ollamaSettingsGet: vi.fn(async () =>
         success({
           has_api_key: false,
+          api_key: null,
           credential_source: 'none' as const,
           local_enabled: true,
+          local_endpoint: OLLAMA_BASE_URL,
           prefer_local_models: true,
         }),
       ),
       ollamaSettingsUpdate: vi.fn(async () =>
         success({
           has_api_key: true,
+          api_key: 'saved-key',
           credential_source: 'file' as const,
           local_enabled: true,
+          local_endpoint: OLLAMA_BASE_URL,
           prefer_local_models: true,
+        }),
+      ),
+      ollamaApiKeyTest: vi.fn(async () =>
+        success({
+          status: 'valid' as const,
+          message: 'Ollama accepted this API key.',
         }),
       ),
       observabilityOverview: vi.fn(),

@@ -11,6 +11,7 @@ import {
   ConnectionActionRequest,
   ConnectionCredentialIdRequest,
   OllamaSettingsUpdateRequest,
+  OllamaApiKeyTestRequest,
   SearchProviderValidationRequest,
   SearchSettingsUpdateRequest,
   TokenUsageRequest,
@@ -105,6 +106,7 @@ import { projectControlConfig } from "~/routes/control/config-projection"
 import { listOllamaAccounts } from "~/services/providers/ollama-accounts"
 import {
   getOllamaSettings,
+  testOllamaApiKey,
   updateOllamaSettings,
 } from "~/services/providers/ollama-settings"
 
@@ -257,6 +259,16 @@ function createOllamaSettingsRpcMethods(): RpcRegistry {
             OllamaSettingsUpdateRequest,
             params,
             "Expected an Ollama settings update.",
+          ),
+        ),
+      ),
+    "ollamaSettings/testApiKey": (params: unknown) =>
+      asAsyncRpcOperation(() =>
+        testOllamaApiKey(
+          parseParams(
+            OllamaApiKeyTestRequest,
+            params,
+            "Expected an Ollama API key test request.",
           ),
         ),
       ),

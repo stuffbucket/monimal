@@ -6,11 +6,17 @@ import { BRIDGE_CHANNELS } from '../../shared/bridge-channels'
 
 const {
   configurePty,
+  discoverTerminalTargets,
   ipcHandlers,
+  launchTerminal,
+  logError,
   stagePtyOwnership,
 } = vi.hoisted(() => ({
   configurePty: vi.fn(),
+  discoverTerminalTargets: vi.fn(),
   ipcHandlers: new Map<string, (...args: unknown[]) => unknown>(),
+  launchTerminal: vi.fn(),
+  logError: vi.fn(),
   stagePtyOwnership: vi.fn(),
 }))
 
@@ -36,12 +42,13 @@ vi.mock('electron', () => ({
 }))
 
 vi.mock('@maximal/maximal-electron/electron-terminal', () => ({
+  TERMINAL_SESSION_PREFIX: 'maximal',
   acknowledgePty: vi.fn(),
   configurePty,
-  discoverTerminalTargets: vi.fn(),
+  discoverTerminalTargets,
   killAllPtys: vi.fn(),
   killPty: vi.fn(),
-  launchTerminal: vi.fn(),
+  launchTerminal,
   listTerminalProfiles: vi.fn(),
   listPtys: vi.fn(),
   resizePty: vi.fn(),
@@ -49,6 +56,13 @@ vi.mock('@maximal/maximal-electron/electron-terminal', () => ({
   stagePtyOwnership,
   syncPtyPane: vi.fn(),
   writePty: vi.fn(),
+}))
+
+vi.mock('../main-logger.js', () => ({
+  mainLogger: {
+    error: logError,
+    warn: vi.fn(),
+  },
 }))
 
 vi.mock('@maximal/maximal-terminal', async (importOriginal) => ({
@@ -91,7 +105,7 @@ describe('terminal host window actions', () => {
             },
           },
         }
-        configureTerminalHost({ terminalDiagnostics: false, terminalSessionPrefix: 'maximal' })
+        configureTerminalHost({ terminalDiagnostics: false, terminalTmuxStatus: 'off' })
         type Owner = typeof targetOwner
         const handlers = configurePty.mock.calls.at(-1)![0] as {
           emit(owner: Owner | undefined, id: string, data: string, sequence: number): void
@@ -114,6 +128,9 @@ describe('terminal host window actions', () => {
 
   beforeEach(() => {
     ipcHandlers.clear()
+    discoverTerminalTargets.mockReset()
+    launchTerminal.mockReset()
+    logError.mockReset()
     stagePtyOwnership.mockReset()
   })
 
@@ -124,6 +141,7 @@ describe('terminal host window actions', () => {
       copy: vi.fn(() => false),
       redock: vi.fn(() => false),
     })
+
     registerTerminalIpc()
 
     const handler = ipcHandlers.get(BRIDGE_CHANNELS.terminalUndock)
@@ -133,6 +151,44 @@ describe('terminal host window actions', () => {
       ...request,
       sessionIds: [''],
     })).toThrow()
+  })
+
+  it('logs terminal discovery and launch failures without terminal data', async () => {
+    const discoveryError = new Error('private discovery details')
+    const launchError = new TypeError('private launch details')
+    discoverTerminalTargets.mockRejectedValue(discoveryError)
+    launchTerminal.mockImplementation(() => { throw launchError })
+    registerTerminalIpc()
+
+    const discover = ipcHandlers.get(BRIDGE_CHANNELS.terminalDiscover)
+    await expect(discover?.({ sender: owner.webContents })).rejects.toBe(discoveryError)
+    const launch = ipcHandlers.get(BRIDGE_CHANNELS.terminalLaunch)
+    expect(() => launch?.({ sender: owner.webContents }, {
+      profileId: 'tmux',
+      targetId: 'opaque',
+      cols: 80,
+      rows: 24,
+    })).toThrow(launchError)
+
+    expect(logError).toHaveBeenCalledWith(
+      { errorName: 'Error' },
+      'Terminal target discovery failed',
+    )
+    expect(logError).toHaveBeenCalledWith(
+      { errorName: 'TypeError', profileId: 'tmux' },
+      'Terminal launch failed',
+    )
+    expect(JSON.stringify(logError.mock.calls)).not.toContain('private')
+    expect(JSON.stringify(logError.mock.calls)).not.toContain('opaque')
+  })
+
+  it('configures tmux with the Maximal-owned session prefix', () => {
+    configureTerminalHost({ terminalDiagnostics: false, terminalTmuxStatus: 'inherit' })
+
+    expect(configurePty).toHaveBeenLastCalledWith(
+      expect.any(Object),
+      { tmuxSessionPrefix: 'maximal', tmuxStatus: 'inherit' },
+    )
   })
 
   it('moves all sessions through one native ownership transaction', () => {
@@ -160,7 +216,7 @@ describe('terminal host window actions', () => {
 
   describe('terminal host event delivery', () => {
     it('drops late events after their window owner has been released', () => {
-      configureTerminalHost({ terminalDiagnostics: false, terminalSessionPrefix: 'maximal' })
+      configureTerminalHost({ terminalDiagnostics: false, terminalTmuxStatus: 'off' })
       const handlers = configurePty.mock.calls.at(-1)?.[0] as {
         emit(owner: BrowserWindow | undefined, id: string, data: string): void
         onExit(owner: BrowserWindow | undefined, id: string, exitCode: number): void

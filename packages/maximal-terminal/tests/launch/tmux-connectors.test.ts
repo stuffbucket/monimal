@@ -15,6 +15,38 @@ import {
 } from '../../src/launch/command-connectors.js';
 import { TerminalLauncher } from '../../src/launch/launcher.js';
 
+function maximalTmuxStyle(sessionName: string, status: 'off' | 'on', separator = ';'): string[] {
+  const commandValue = (optionValue: string) => separator === '\\;' ? `'${optionValue}'` : optionValue;
+  const args = [
+    separator, 'set-option', '-t', sessionName, 'status', status,
+  ];
+  for (const [option, value] of [
+    ['status-position', 'bottom'],
+    ['status-justify', 'left'],
+    ['status-style', 'fg=default,bg=default'],
+    ['status-left', ''],
+    ['status-right', ''],
+    ['window-status-separator', ' '],
+    ['window-status-format', '#I:#W'],
+    ['window-status-current-format', '#I:#W'],
+    ['window-status-style', 'default'],
+    ['window-status-current-style', 'reverse'],
+    ['message-style', 'fg=default,bg=default'],
+  ]) {
+    args.push(separator, 'set-option', '-t', sessionName, option!, commandValue(value!));
+  }
+  for (const [option, value] of [
+    ['window-style', 'fg=default,bg=default'],
+    ['window-active-style', 'fg=default,bg=default'],
+    ['pane-border-status', 'off'],
+    ['pane-border-style', 'fg=default,bg=default'],
+    ['pane-active-border-style', 'reverse'],
+  ]) {
+    args.push(separator, 'set-option', '-w', '-t', sessionName, option!, commandValue(value!));
+  }
+  return args;
+}
+
 describe('tmux connectors', () => {
   it('discovers bounded local tmux sessions plus a generated New target with exact argv', async () => {
     const sessions = [
@@ -45,8 +77,9 @@ describe('tmux connectors', () => {
     expect(connector.launch(targets[0]!)).toEqual({
       command: 'tmux',
       args: [
-        '-T', 'hyperlinks', 'new-session', '-A', '-s',
+        '-T', 'RGB,hyperlinks', 'new-session', '-A', '-s',
         'maximal-00000000000000000000000000000000',
+        ...maximalTmuxStyle('maximal-00000000000000000000000000000000', 'off'),
       ],
       tmuxProjection: {
         ownership: 'created',
@@ -62,7 +95,11 @@ describe('tmux connectors', () => {
     });
     expect(connector.launch(targets.at(-1)!)).toEqual({
       command: 'tmux',
-      args: ['-T', 'hyperlinks', 'new-session', '-A', '-s', 'maximal-0123456789abcdef0123456789abcdef'],
+      args: [
+        '-T', 'RGB,hyperlinks', 'new-session', '-A', '-s',
+        'maximal-0123456789abcdef0123456789abcdef',
+        ...maximalTmuxStyle('maximal-0123456789abcdef0123456789abcdef', 'off'),
+      ],
       tmuxProjection: {
         ownership: 'created',
         geometry: {
@@ -86,7 +123,10 @@ describe('tmux connectors', () => {
     const [target] = await connector.discover();
     expect(connector.launch(target!)).toEqual({
       command: 'tmux',
-      args: ['new-session', '-A', '-s', session],
+      args: [
+        'new-session', '-A', '-s', session,
+        ...maximalTmuxStyle(session, 'off'),
+      ],
       tmuxProjection: {
         ownership: 'created',
         geometry: { transport: 'local', sessionName: session },
@@ -110,16 +150,38 @@ describe('tmux connectors', () => {
     const [target] = await connector.discover();
 
     expect(connector.launch(target!).args).toEqual([
-      ...(supportsHyperlinks ? ['-T', 'hyperlinks'] : []),
+      ...(supportsHyperlinks ? ['-T', 'RGB,hyperlinks'] : []),
       'new-session', '-A', '-s', session,
+      ...maximalTmuxStyle(session, 'off'),
     ]);
   });
 
-  it('defaults to hyperlink advertisement before discovery', () => {
+  it('does not restyle an explicitly attached host tmux session', () => {
     const connector = new TmuxConnector(async () => ({ stdout: '' }), tmuxNames());
 
     expect(connector.launch({ key: 'existing\u0000work', label: 'Tmux session 1' }).args)
-      .toEqual(['-T', 'hyperlinks', 'new-session', '-A', '-s', 'work']);
+      .toEqual([
+        '-T', 'RGB,hyperlinks', 'new-session', '-A', '-s', 'work',
+      ]);
+  });
+
+  it.each([
+    ['off', maximalTmuxStyle('maximal-11111111111111111111111111111111', 'off')],
+    ['on', maximalTmuxStyle('maximal-11111111111111111111111111111111', 'on')],
+    ['inherit', []],
+  ] as const)('applies the %s tmux status policy without shell text', (status, expectedTail) => {
+    const session = 'maximal-11111111111111111111111111111111';
+    const connector = new TmuxConnector(
+      async () => ({ stdout: '' }),
+      tmuxNames(),
+      status,
+    );
+
+    expect(connector.launch({ key: `resume\u0000${session}`, label: 'Terminal 1' }).args)
+      .toEqual([
+        '-T', 'RGB,hyperlinks', 'new-session', '-A', '-s', session,
+        ...expectedTail,
+      ]);
   });
 
   it('keeps the generated tmux target key and label distinct', async () => {
@@ -165,7 +227,10 @@ describe('tmux connectors', () => {
     expect(targets.some((target) => target.key.startsWith('broken\u0000'))).toBe(false);
     expect(connector.launch({ key: `work\u0000existing\u0000remote-work`, label: 'Tmux session 1' })).toEqual({
       command: 'ssh',
-      args: ['-tt', 'work', 'tmux', '-T', 'hyperlinks', 'new-session', '-A', '-s', 'remote-work'],
+      args: [
+        '-tt', 'work', 'tmux',
+        '-T', 'RGB,hyperlinks', 'new-session', '-A', '-s', 'remote-work',
+      ],
       tmuxProjection: {
         ownership: 'existing',
         geometry: { transport: 'ssh', alias: 'work', sessionName: 'remote-work' },
@@ -173,13 +238,21 @@ describe('tmux connectors', () => {
     });
     expect(connector.launch({ key: `work\u0000new\u0000${name}`, label: 'New tmux session' })).toEqual({
       command: 'ssh',
-      args: ['-tt', 'work', 'tmux', '-T', 'hyperlinks', 'new-session', '-A', '-s', name],
+      args: [
+        '-tt', 'work', 'tmux',
+        '-T', 'RGB,hyperlinks', 'new-session', '-A', '-s', name,
+        ...maximalTmuxStyle(name, 'off', '\\;'),
+      ],
       tmuxProjection: {
         ownership: 'created',
         geometry: { transport: 'ssh', alias: 'work', sessionName: name },
         terminate: { command: 'ssh', args: ['work', 'tmux', 'kill-session', '-t', name] },
       },
     });
+    const remoteStyle = connector.launch({ key: `work\u0000new\u0000${name}`, label: 'New tmux session' }).args;
+    expect(remoteStyle).toContain("''");
+    expect(remoteStyle).toContain("' '");
+    expect(remoteStyle).toContain("'#I:#W'");
     expect(connector.launch({ key: `host-1\u0000existing\u0000remote-work`, label: 'Tmux session 1' }).args).toEqual([
       '-tt', 'host-1', 'tmux', 'new-session', '-A', '-s', 'remote-work',
     ]);
@@ -196,12 +269,16 @@ describe('tmux connectors', () => {
     const connector = new SshTmuxConnector('/home/ada', tmuxNamed(name), () => 'Host work', run);
 
     let target = (await connector.discover()).find((candidate) => candidate.key.includes('\u0000resume\u0000'))!;
-    expect(connector.launch(target).args).toEqual(['-tt', 'work', 'tmux', 'new-session', '-A', '-s', existing]);
+    expect(connector.launch(target).args).toEqual([
+      '-tt', 'work', 'tmux', 'new-session', '-A', '-s', existing,
+      ...maximalTmuxStyle(existing, 'off', '\\;'),
+    ]);
 
     version = 'tmux 3.4\n';
     target = (await connector.discover()).find((candidate) => candidate.key.includes('\u0000resume\u0000'))!;
     expect(connector.launch(target).args).toEqual([
-      '-tt', 'work', 'tmux', '-T', 'hyperlinks', 'new-session', '-A', '-s', existing,
+      '-tt', 'work', 'tmux', '-T', 'RGB,hyperlinks', 'new-session', '-A', '-s', existing,
+      ...maximalTmuxStyle(existing, 'off', '\\;'),
     ]);
   });
 

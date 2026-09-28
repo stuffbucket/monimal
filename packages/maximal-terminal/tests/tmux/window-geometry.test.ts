@@ -60,6 +60,31 @@ describe('TmuxWindowGeometry', () => {
     expect(command).toHaveBeenCalledTimes(2);
   });
 
+  it('resolves and restores an inherited global window-size policy', async () => {
+    const command = vi.fn(async (_command: string, args: readonly string[]) => {
+      if (args.includes('-wv')) return { stdout: '' };
+      if (args.includes('-wgv')) return { stdout: 'latest\n' };
+      return { stdout: '80x24\n' };
+    });
+    const geometry = new TmuxWindowGeometry(vi.fn(), command);
+
+    await geometry.apply('s', local, 80, 24);
+    await geometry.restore('s', local);
+
+    expect(command.mock.calls.map(([, args]) => args)).toEqual([
+      ['show-options', '-wv', '-t', 'work', 'window-size'],
+      ['show-options', '-wgv', 'window-size'],
+      [
+        'set-option', '-w', '-t', 'work', 'window-size', 'manual',
+        ';',
+        'resize-window', '-t', 'work', '-x', '80', '-y', '24',
+        ';',
+        'display-message', '-p', '-t', 'work', '#{window_width}x#{window_height}',
+      ],
+      ['set-option', '-wu', '-t', 'work', 'window-size'],
+    ]);
+  });
+
   it('builds a fixed escaped remote tmux geometry command', async () => {
     const command = vi.fn(async (_executable: string, args: readonly string[]) => (
       args[1]?.includes('show-options') ? { stdout: 'smallest\n' } : { stdout: '90x28\n' }

@@ -4,7 +4,11 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 
+import { getJsonDocumentStore } from '@maximal/maximal-settings'
+
 import type { OllamaRuntimeStatus } from './contract.js'
+
+const DEFAULT_OLLAMA_ENDPOINT = 'http://127.0.0.1:11434'
 
 interface CommandResult {
   stdout: string
@@ -14,6 +18,7 @@ interface OllamaRuntimeDependencies {
   platform: NodeJS.Platform
   environment: NodeJS.ProcessEnv
   home: string
+  configuredEndpoint?: string
   fetch: typeof globalThis.fetch
   access(path: string): Promise<void>
   execFile(file: string, args: string[]): Promise<CommandResult>
@@ -113,10 +118,37 @@ function runtimePaths(dependencies: OllamaRuntimeDependencies): {
   return { serverConfigurationPath, desktopSettingsPath: null }
 }
 
+function serverConfigurationStore(home: string) {
+  return getJsonDocumentStore({
+    namespace: 'ollama-server-configuration',
+    filePath: join(home, '.ollama', 'server.json'),
+  })
+}
+
+export function getOllamaCloudDisabled(
+  overrides: Pick<Partial<OllamaRuntimeDependencies>, 'home'> = {},
+): boolean {
+  const home = overrides.home ?? defaults.home
+  return serverConfigurationStore(home).read()?.disable_ollama_cloud === true
+}
+
+export async function updateOllamaCloudDisabled(
+  disabled: boolean,
+  overrides: Pick<Partial<OllamaRuntimeDependencies>, 'home'> = {},
+): Promise<boolean> {
+  const home = overrides.home ?? defaults.home
+  await serverConfigurationStore(home).transact((document) => ({
+    ...document,
+    disable_ollama_cloud: disabled,
+  }))
+  return getOllamaCloudDisabled({ home })
+}
+
 async function effectiveEndpoint(
   dependencies: OllamaRuntimeDependencies,
 ): Promise<string> {
-  let host = dependencies.environment.OLLAMA_HOST?.trim()
+  let host = dependencies.configuredEndpoint?.trim()
+    || dependencies.environment.OLLAMA_HOST?.trim()
   if (!host && dependencies.platform === 'darwin') {
     try {
       host = (
@@ -126,9 +158,100 @@ async function effectiveEndpoint(
       host = undefined
     }
   }
-  if (!host) return 'http://127.0.0.1:11434'
+  if (!host) return DEFAULT_OLLAMA_ENDPOINT
   if (/^https?:\/\//u.test(host)) return host.replace(/\/$/u, '')
   return `http://${host.replace(/\/$/u, '')}`
+}
+
+interface OllamaProcess {
+  id: number
+  endpoint: string | null
+}
+
+function localEndpoint(port: number): string {
+  const endpoint = new URL(DEFAULT_OLLAMA_ENDPOINT)
+  endpoint.port = String(port)
+  return endpoint.href.replace(/\/$/u, '')
+}
+
+function listeningPort(output: string): number | null {
+  for (const line of output.split(/\r?\n/u)) {
+    if (!line.startsWith('n')) continue
+    const match = /:(\d+)$/u.exec(line)
+    const port = Number(match?.[1])
+    if (Number.isSafeInteger(port) && port > 0 && port <= 65_535) return port
+  }
+  return null
+}
+
+async function ollamaProcess(
+  dependencies: OllamaRuntimeDependencies,
+): Promise<OllamaProcess | null> {
+  if (dependencies.platform !== 'darwin' && dependencies.platform !== 'linux') {
+    return null
+  }
+  let output: string | null = null
+  for (const processName of ['ollama', 'Ollama']) {
+    try {
+      output = (
+        await dependencies.execFile('/usr/bin/pgrep', ['-x', processName])
+      ).stdout
+      if (output.trim()) break
+    } catch {
+      continue
+    }
+  }
+  if (output === null) return null
+  const id = output
+    .split(/\s+/u)
+    .map(Number)
+    .find((candidate) => Number.isSafeInteger(candidate) && candidate > 0)
+  if (id === undefined) return null
+
+  const lsof = await firstExisting(
+    dependencies.platform === 'darwin'
+      ? ['/usr/sbin/lsof', '/usr/bin/lsof']
+      : ['/usr/bin/lsof', '/usr/sbin/lsof'],
+    dependencies,
+  )
+  if (lsof !== null) {
+    try {
+      const result = await dependencies.execFile(lsof, [
+        '-nP',
+        '-a',
+        '-p',
+        String(id),
+        '-iTCP',
+        '-sTCP:LISTEN',
+        '-Fn',
+      ])
+      const port = listeningPort(result.stdout)
+      if (port !== null) {
+        return { id, endpoint: localEndpoint(port) }
+      }
+    } catch {
+      // Fall through to ss on Linux.
+    }
+  }
+  if (dependencies.platform === 'linux') {
+    const ss = await firstExisting(['/usr/bin/ss', '/bin/ss'], dependencies)
+    if (ss !== null) {
+      try {
+        const output = (await dependencies.execFile(ss, ['-ltnp'])).stdout
+        const processPattern = new RegExp(
+          `:(\\d+)\\s+.*pid=${String(id)},`,
+          'u',
+        )
+        const port = Number(processPattern.exec(output)?.[1])
+        if (Number.isSafeInteger(port) && port > 0 && port <= 65_535) {
+          return { id, endpoint: localEndpoint(port) }
+        }
+      } catch {
+        // The PID still establishes that Ollama is running.
+      }
+    }
+  }
+  return { id, endpoint: null }
 }
 
 async function contextLength(
@@ -207,13 +330,19 @@ export async function getOllamaRuntimeStatus(
 ): Promise<OllamaRuntimeStatus> {
   const dependencies = { ...defaults, ...overrides }
   const paths = runtimePaths(dependencies)
-  const [application, cliPath, endpoint, configuredContextLength] = await Promise.all([
+  const [application, cliPath, endpoint, configuredContextLength, process] = await Promise.all([
     registeredApplication(dependencies),
     commandPath(dependencies),
     effectiveEndpoint(dependencies),
     contextLength(paths.desktopSettingsPath, dependencies),
+    ollamaProcess(dependencies),
   ])
   const running = await isRunning(dependencies, endpoint)
+  const processEndpointRunning =
+    process?.endpoint !== null
+    && process?.endpoint !== undefined
+    && process.endpoint !== endpoint
+    && await isRunning(dependencies, process.endpoint)
   const installation =
     application !== null ? 'application'
     : cliPath !== null ? 'cli'
@@ -222,12 +351,15 @@ export async function getOllamaRuntimeStatus(
     installation,
     installed: installation !== 'none',
     running,
-    can_launch: application !== null || (cliPath !== null && !running),
+    can_launch: application !== null || (cliPath !== null && process === null),
     can_manage: application !== null,
     application_path: application ?? cliPath,
     server_configuration_path: paths.serverConfigurationPath,
     desktop_settings_path: paths.desktopSettingsPath,
     endpoint,
+    process_id: process?.id ?? null,
+    process_endpoint: process?.endpoint ?? null,
+    suggested_endpoint: processEndpointRunning ? process.endpoint : null,
     context_length: configuredContextLength,
   }
 }

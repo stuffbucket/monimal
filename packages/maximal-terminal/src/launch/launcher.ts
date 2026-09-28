@@ -6,6 +6,10 @@ import type {
   CommandConnector,
   DiscoveredTarget,
 } from './command-connectors.js';
+import {
+  terminalDiagnostic,
+  type TerminalDiagnostic,
+} from '../host/connector.js';
 import type { TmuxProjectionMetadata } from '../tmux/projection-host.js';
 import type {
   TerminalDiscovery,
@@ -161,6 +165,8 @@ interface Reservation<Owner> {
   owner: Owner;
   expiresAt: number;
   launch: TrustedTerminalLaunch;
+  profileId: string;
+  launchMode: NonNullable<TerminalDiagnostic['launchMode']>;
 }
 
 interface Target {
@@ -170,6 +176,7 @@ interface Target {
 }
 
 export class TerminalLauncher<Owner> {
+  private readonly diagnosticOwnerId = randomUUID();
   private readonly reservations = new Map<string, Reservation<Owner>>();
   private readonly targets = new Map<string, Target>();
   private readonly connectors: readonly CommandConnector[];
@@ -213,11 +220,22 @@ export class TerminalLauncher<Owner> {
       .filter((connector) => profileIds.has(connector.id))
       .map(async (connector) => {
         try {
-          return { connector, discovered: await connector.discover() };
+          const discovered = await connector.discover();
+          this.diagnose('discovery-completed', {
+            profileId: connector.id,
+            targetCount: discovered.length,
+          });
+          return { connector, discovered };
         } catch (error) {
           const state: TerminalTargetSummary['state'] = (error as NodeJS.ErrnoException).code === 'ETIMEDOUT'
             ? 'timed-out'
             : 'unavailable';
+          const code = (error as NodeJS.ErrnoException).code;
+          this.diagnose('discovery-failed', {
+            profileId: connector.id,
+            targetState: state,
+            ...(typeof code === 'string' ? { errorCode: code.slice(0, 64) } : {}),
+          });
           return { connector, state };
         }
       }));
@@ -267,16 +285,33 @@ export class TerminalLauncher<Owner> {
       const target = this.targets.get(request.targetId!);
       const connector = this.connectors.find((candidate) => candidate.id === request.profileId);
       if (!target || this.targetsOwner !== owner || target.generation !== this.generation || target.profileId !== request.profileId || !connector) {
+        this.diagnose('launch-rejected', { profileId: request.profileId });
         throw new Error('Unknown terminal profile or target.');
       }
       launch = connector.launch(target.target);
       label = launch.tmuxProjection ? target.target.label : connector.label;
     }
     const sessionId = (this.options.createId ?? randomUUID)();
+    const launchMode = launch.tmuxControl
+      ? 'tmux-control'
+      : launch.tmuxProjection
+        ? 'tmux-projection'
+        : request.profileId === LOCAL_PROFILE.id
+          ? 'local'
+          : 'command';
     this.reservations.set(sessionId, {
       owner,
       expiresAt: this.now() + (this.options.reservationMs ?? 10_000),
       launch,
+      profileId: request.profileId,
+      launchMode,
+    });
+    this.diagnose('reserved', {
+      sessionId,
+      profileId: request.profileId,
+      launchMode,
+      transport: launch.tmuxProjection?.geometry.transport,
+      ownership: launch.tmuxProjection?.ownership,
     });
     return {
       sessionId,
@@ -288,14 +323,30 @@ export class TerminalLauncher<Owner> {
   take(owner: Owner, sessionId: string): TrustedTerminalLaunch | undefined {
     this.clean();
     const reservation = this.reservations.get(sessionId);
-    if (!reservation || reservation.owner !== owner) return undefined;
+    if (!reservation || reservation.owner !== owner) {
+      this.diagnose('reservation-rejected', { sessionId, accepted: false });
+      return undefined;
+    }
     this.reservations.delete(sessionId);
+    this.diagnose('reservation-taken', {
+      sessionId,
+      profileId: reservation.profileId,
+      launchMode: reservation.launchMode,
+      accepted: true,
+    });
     return reservation.launch;
   }
 
   release(owner: Owner): void {
     for (const [id, reservation] of this.reservations) {
-      if (reservation.owner === owner) this.reservations.delete(id);
+      if (reservation.owner === owner) {
+        this.reservations.delete(id);
+        this.diagnose('reservation-released', {
+          sessionId: id,
+          profileId: reservation.profileId,
+          launchMode: reservation.launchMode,
+        });
+      }
     }
     if (this.targetsOwner === owner) {
       this.targetsOwner = undefined;
@@ -309,8 +360,38 @@ export class TerminalLauncher<Owner> {
   private clean(): void {
     const now = this.now();
     for (const [id, reservation] of this.reservations) {
-      if (reservation.expiresAt <= now) this.reservations.delete(id);
+      if (reservation.expiresAt <= now) {
+        this.reservations.delete(id);
+        this.diagnose('reservation-expired', {
+          sessionId: id,
+          profileId: reservation.profileId,
+          launchMode: reservation.launchMode,
+        });
+      }
     }
   }
 
+  private diagnose(
+    event: string,
+    details: Pick<
+      TerminalDiagnostic,
+      | 'sessionId'
+      | 'profileId'
+      | 'targetState'
+      | 'targetCount'
+      | 'launchMode'
+      | 'errorCode'
+      | 'transport'
+      | 'ownership'
+      | 'accepted'
+    > = {},
+  ): void {
+    terminalDiagnostic(() => ({
+      component: 'terminal-launcher',
+      event,
+      ownerId: this.diagnosticOwnerId,
+      reservationCount: this.reservations.size,
+      ...details,
+    }));
+  }
 }

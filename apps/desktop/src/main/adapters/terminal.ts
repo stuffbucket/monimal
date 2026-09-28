@@ -100,6 +100,10 @@ const TERMINAL_CHANNELS = {
   list: BRIDGE_CHANNELS.terminalList,
 } as const
 
+function terminalErrorName(error: unknown): string {
+  return error instanceof Error ? error.name : 'unknown'
+}
+
 export function registerTerminalIpc(): void {
   ipcMain.handle(BRIDGE_CHANNELS.terminalFrameId, (event) =>
     String(BrowserWindow.fromWebContents(event.sender)?.id ?? ''),
@@ -129,15 +133,29 @@ export function registerTerminalIpc(): void {
   ipcMain.handle(BRIDGE_CHANNELS.terminalProfiles, (event) =>
     listTerminalProfiles(BrowserWindow.fromWebContents(event.sender) ?? undefined),
   )
-  ipcMain.handle(BRIDGE_CHANNELS.terminalDiscover, (event) =>
-    discoverTerminalTargets(BrowserWindow.fromWebContents(event.sender) ?? undefined),
-  )
-  ipcMain.handle(BRIDGE_CHANNELS.terminalLaunch, (event, request: unknown) =>
-    launchTerminal(
-      BrowserWindow.fromWebContents(event.sender) ?? undefined,
-      terminalLaunchRequest.parse(request),
-    ),
-  )
+  ipcMain.handle(BRIDGE_CHANNELS.terminalDiscover, async (event) => {
+    try {
+      return await discoverTerminalTargets(BrowserWindow.fromWebContents(event.sender) ?? undefined)
+    } catch (error) {
+      mainLogger.error({ errorName: terminalErrorName(error) }, 'Terminal target discovery failed')
+      throw error
+    }
+  })
+  ipcMain.handle(BRIDGE_CHANNELS.terminalLaunch, (event, request: unknown) => {
+    const parsed = terminalLaunchRequest.parse(request)
+    try {
+      return launchTerminal(
+        BrowserWindow.fromWebContents(event.sender) ?? undefined,
+        parsed,
+      )
+    } catch (error) {
+      mainLogger.error(
+        { errorName: terminalErrorName(error), profileId: parsed.profileId },
+        'Terminal launch failed',
+      )
+      throw error
+    }
+  })
   registerTerminalChannels(
     ipcMain,
     (event) => {
@@ -167,6 +185,7 @@ export function registerTerminalIpc(): void {
 export function configureTerminalHost(settings: {
   terminalDiagnostics: boolean
   terminalSessionPrefix: string
+  terminalTmuxStatus: 'off' | 'on' | 'inherit'
 }): void {
   configureTerminalDiagnostics(settings.terminalDiagnostics, (record) => {
     mainLogger.warn(record, 'Terminal lifecycle event')
@@ -199,6 +218,7 @@ export function configureTerminalHost(settings: {
   }, {
     tmuxSessionPrefix: settings.terminalSessionPrefix,
     directProfiles: desktopTerminalProfiles(),
+    tmuxStatus: settings.terminalTmuxStatus,
   })
 }
 

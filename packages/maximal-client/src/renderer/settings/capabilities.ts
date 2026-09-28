@@ -15,6 +15,8 @@ import type {
   ConnectorSettingValue,
   DiagnosticsResponse,
   ModelsListResponse,
+  OllamaApiKeyTestRequest,
+  OllamaApiKeyTestResponse,
   OllamaAccountsListResponse,
   OllamaSettingsResponse,
   OllamaSettingsUpdateRequest,
@@ -37,6 +39,8 @@ import type {
   MenuBarModeAttempt,
   MenuBarModeState,
   OllamaRuntimeStatus,
+  OllamaRuntimePreferences,
+  OllamaRuntimePreferencesUpdate,
   ProviderOnboardingPreference,
 } from '../../shared/host'
 
@@ -66,7 +70,11 @@ export type {
   MenuBarModeAttempt,
   MenuBarModeState,
   ModelsListResponse,
+  OllamaApiKeyTestRequest,
+  OllamaApiKeyTestResponse,
   OllamaAccountsListResponse,
+  OllamaRuntimePreferences,
+  OllamaRuntimePreferencesUpdate,
   OllamaSettingsResponse,
   OllamaSettingsUpdateRequest,
   LocalModelCancelResult,
@@ -104,6 +112,7 @@ export interface SettingsCapabilities {
   ollamaSettings: {
     get(): Promise<OllamaSettingsResponse>
     update(input: OllamaSettingsUpdateRequest): Promise<OllamaSettingsResponse>
+    testApiKey(input: OllamaApiKeyTestRequest): Promise<OllamaApiKeyTestResponse>
   }
   general: {
     menuBarMode(): Promise<MenuBarModeState>
@@ -149,9 +158,11 @@ export interface SettingsCapabilities {
     subscribe(listener: (event: LocalModelOperationEvent) => void): () => void
   }
   ollamaRuntime: {
-    status(): Promise<OllamaRuntimeStatus>
-    launch(): Promise<OllamaRuntimeStatus>
+    status(endpoint?: string): Promise<OllamaRuntimeStatus>
+    launch(endpoint?: string): Promise<OllamaRuntimeStatus>
     updateContextLength(value: number): Promise<OllamaRuntimeStatus>
+    preferences(): Promise<OllamaRuntimePreferences>
+    updatePreferences(input: OllamaRuntimePreferencesUpdate): Promise<OllamaRuntimePreferences>
   }
   usage: {
     get(period: TokenUsagePeriod): Promise<TokenUsageSummary>
@@ -291,6 +302,8 @@ export function createCoreSettingsCapabilities(): SettingsCapabilities {
         unwrapControlResult(await bridge.control.ollamaSettingsGet()),
       update: async (input) =>
         unwrapControlResult(await bridge.control.ollamaSettingsUpdate(input)),
+      testApiKey: async (input) =>
+        unwrapControlResult(await bridge.control.ollamaApiKeyTest(input)),
     },
     general: {
       menuBarMode: () => bridge.menuBarMode.get(),

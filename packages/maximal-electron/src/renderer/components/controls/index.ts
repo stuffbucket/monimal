@@ -23,11 +23,13 @@ export {
   FormField,
   RadioGroup,
   Select,
+  Slider,
   Switch,
   TextInput,
   Textarea,
   type FieldControl,
   type Option,
+  type SliderOption,
 } from './Fields.js';
 
 export {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { OllamaRuntimeStatus } from "@maximal/maximal-ollama/contract";
 import type {
@@ -25,6 +25,7 @@ export function useOllamaProvider({
   const [launching, setLaunching] = useState(false);
   const [savingContextLength, setSavingContextLength] = useState(false);
   const [contextLength, setContextLength] = useState("");
+  const contextLengthSaveRevision = useRef(0);
 
   const applyRuntime = useCallback((next: OllamaRuntimeStatus) => {
     setRuntime(next);
@@ -34,43 +35,53 @@ export function useOllamaProvider({
   }, []);
 
   const refreshStatus = useCallback(async () => {
+    if (settings === null) return;
     try {
-      applyRuntime(await capabilities.ollamaRuntime.status());
+      applyRuntime(
+        await capabilities.ollamaRuntime.status(settings.local_endpoint),
+      );
     } catch (cause) {
       reportError(describeError(cause));
     }
-  }, [applyRuntime, capabilities, reportError]);
+  }, [applyRuntime, capabilities, reportError, settings]);
 
   useEffect(() => {
     let active = true;
-    void Promise.all([
-      capabilities.ollamaSettings.get(),
-      capabilities.ollamaRuntime.status(),
-    ])
-      .then(([nextSettings, nextRuntime]) => {
+    void capabilities.ollamaSettings.get()
+      .then((nextSettings) => {
         if (!active) return;
         setSettings(nextSettings);
-        applyRuntime(nextRuntime);
       })
       .catch((cause: unknown) => {
         if (active) reportError(describeError(cause));
       });
+    return () => {
+      active = false;
+    };
+  }, [capabilities, reportError]);
 
-    const interval = window.setInterval(() => {
+  useEffect(() => {
+    if (settings === null) return;
+    let active = true;
+    const refresh = () => {
       void capabilities.ollamaRuntime
-        .status()
+        .status(settings.local_endpoint)
         .then((nextRuntime) => {
           if (active) applyRuntime(nextRuntime);
         })
         .catch((cause: unknown) => {
           if (active) reportError(describeError(cause));
         });
+    };
+    refresh();
+    const interval = window.setInterval(() => {
+      refresh();
     }, 5000);
     return () => {
       active = false;
       window.clearInterval(interval);
     };
-  }, [applyRuntime, capabilities, reportError]);
+  }, [applyRuntime, capabilities, reportError, settings]);
 
   const updatePreference = useCallback(
     async (preferLocalModels: boolean) => {
@@ -105,31 +116,41 @@ export function useOllamaProvider({
   );
 
   const launch = useCallback(async () => {
+    if (settings === null) return;
     setLaunching(true);
     clearError();
     try {
-      applyRuntime(await capabilities.ollamaRuntime.launch());
+      applyRuntime(
+        await capabilities.ollamaRuntime.launch(settings.local_endpoint),
+      );
     } catch (cause) {
       reportError(describeError(cause));
     } finally {
       setLaunching(false);
     }
-  }, [applyRuntime, capabilities, clearError, reportError]);
+  }, [applyRuntime, capabilities, clearError, reportError, settings]);
 
-  const saveContextLength = useCallback(async () => {
-    const value = Number(contextLength);
+  const saveContextLength = useCallback(async (nextContextLength = contextLength) => {
+    const value = Number(nextContextLength);
     if (!Number.isSafeInteger(value) || value < 512) {
       reportError("Context length must be a whole number of at least 512.");
       return;
     }
+    const revision = contextLengthSaveRevision.current + 1;
+    contextLengthSaveRevision.current = revision;
     setSavingContextLength(true);
     clearError();
     try {
-      applyRuntime(await capabilities.ollamaRuntime.updateContextLength(value));
+      const next = await capabilities.ollamaRuntime.updateContextLength(value);
+      if (contextLengthSaveRevision.current === revision) applyRuntime(next);
     } catch (cause) {
-      reportError(describeError(cause));
+      if (contextLengthSaveRevision.current === revision) {
+        reportError(describeError(cause));
+      }
     } finally {
-      setSavingContextLength(false);
+      if (contextLengthSaveRevision.current === revision) {
+        setSavingContextLength(false);
+      }
     }
   }, [applyRuntime, capabilities, clearError, contextLength, reportError]);
 

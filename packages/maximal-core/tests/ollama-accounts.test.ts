@@ -27,6 +27,7 @@ describe("Ollama account status", () => {
           account_state: "unauthenticated",
           availability: "available",
           model_count: 2,
+          error_code: null,
         },
       ],
     })
@@ -63,6 +64,7 @@ describe("Ollama account status", () => {
         account_state: "unauthenticated",
         availability: "unavailable",
         model_count: null,
+        error_code: "HTTP 503",
       },
       {
         type: "ollama",
@@ -72,8 +74,19 @@ describe("Ollama account status", () => {
         account_state: "authenticated",
         availability: "unavailable",
         model_count: null,
+        error_code: "HTTP 503",
       },
     ])
+  })
+
+  test("reports a transport error code without exposing its message", async () => {
+    const result = await listOllamaAccounts({}, () => {
+      const cause = new Error("connect ECONNREFUSED 127.0.0.1")
+      Object.assign(cause, { code: "ECONNREFUSED" })
+      return Promise.reject(new TypeError("fetch failed", { cause }))
+    })
+
+    expect(result.accounts[0]?.error_code).toBe("ECONNREFUSED")
   })
 
   test("omits explicitly disabled Ollama providers", async () => {

@@ -194,6 +194,7 @@ test('packaged preload exposes only the closed named bridge', async () => {
       'observabilityRequest',
       'observabilityRequests',
       'ollamaAccountsList',
+      'ollamaApiKeyTest',
       'ollamaSettingsGet',
       'ollamaSettingsUpdate',
       'onChange',

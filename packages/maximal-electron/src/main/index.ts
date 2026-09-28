@@ -22,6 +22,7 @@ import { selfCheckRequested } from './native/self-check.js';
 import { runSelfCheck } from './self-check.js';
 import { destroyTray, setTrayEnabled } from './native/tray.js';
 import { checkForUpdates } from './native/updates.js';
+import { TERMINAL_SESSION_PREFIX } from './terminal-identity.js';
 import { mainWindowOptions } from './windows/main-window.js';
 import { closeSplashWindow, createSplashWindow } from './windows/splash.js';
 
@@ -144,7 +145,7 @@ function bootstrap(): void {
       sendEvent(window, 'pty:size', { id, cols, rows, projectionId }),
     onPane: (window, id, pane, revision, origin) =>
       sendEvent(window, 'terminal:pane-changed', { id, pane, revision, origin }),
-  }, { tmuxSessionPrefix: app.getName() });
+  }, { tmuxSessionPrefix: TERMINAL_SESSION_PREFIX });
 
   installApplicationMenu({
     onNavigate: (view) => {

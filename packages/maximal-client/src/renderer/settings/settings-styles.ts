@@ -327,7 +327,7 @@ const SETTINGS_CSS = `
 .settings-credential-field {
   display: flex;
   align-items: center;
-  width: min(100%, 32rem);
+  width: 100%;
   gap: var(--shell-space-2, 8px);
   flex-wrap: wrap;
 }
@@ -335,6 +335,21 @@ const SETTINGS_CSS = `
 .settings-credential-field .input-shell {
   min-width: min(100%, 16rem);
   flex: 1;
+}
+
+.settings-credential-input {
+  display: flex;
+  min-width: min(100%, 24rem);
+  flex: 1 1 24rem;
+}
+
+.settings-credential-field > .btn {
+  flex-shrink: 0;
+}
+
+.settings-credential-input .input-shell {
+  min-width: 0;
+  width: 100%;
 }
 
 .settings-dialog__heading {
@@ -553,10 +568,14 @@ const SETTINGS_CSS = `
 const SETTINGS_STYLE_ID = 'settings-styles'
 
 export function ensureSettingsStyles(): void {
-  if (!document.getElementById(SETTINGS_STYLE_ID)) {
-    const style = document.createElement('style')
-    style.id = SETTINGS_STYLE_ID
-    style.textContent = SETTINGS_CSS
-    document.head.appendChild(style)
+  const existing = document.getElementById(SETTINGS_STYLE_ID)
+  if (existing !== null) {
+    if (existing.textContent !== SETTINGS_CSS) existing.textContent = SETTINGS_CSS
+    return
   }
+
+  const style = document.createElement('style')
+  style.id = SETTINGS_STYLE_ID
+  style.textContent = SETTINGS_CSS
+  document.head.appendChild(style)
 }

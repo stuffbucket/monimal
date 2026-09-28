@@ -46,6 +46,8 @@ export interface CommandConnector {
   launch(target: DiscoveredTarget): CommandLaunch;
 }
 
+export type TmuxStatusMode = 'off' | 'on' | 'inherit';
+
 const MAX_CONTEXTS = 32;
 const MAX_CONTAINERS = 128;
 const MAX_NAMESPACES = 32;
@@ -70,8 +72,28 @@ const SAFE_VAGRANT_NAME = /^[A-Za-z0-9][A-Za-z0-9_., -]{0,127}$/;
 const SAFE_VAGRANT_PROVIDER = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/;
 const SAFE_POSIX_VAGRANT_DIRECTORY = /^(?:\/[A-Za-z0-9._, -]+)+(?:\/)?$/;
 const SAFE_VAGRANT_DIRECTORY_SEGMENT = /^[A-Za-z0-9._, -]+$/;
-const TMUX_CLIENT_FEATURES = 'hyperlinks';
+const TMUX_CLIENT_FEATURES = 'RGB,hyperlinks';
 const TMUX_HYPERLINK_VERSION = /^tmux (\d+)\.(\d+)/;
+const MAXIMAL_TMUX_SESSION_STYLE = [
+  ['status-position', 'bottom'],
+  ['status-justify', 'left'],
+  ['status-style', 'fg=default,bg=default'],
+  ['status-left', ''],
+  ['status-right', ''],
+  ['window-status-separator', ' '],
+  ['window-status-format', '#I:#W'],
+  ['window-status-current-format', '#I:#W'],
+  ['window-status-style', 'default'],
+  ['window-status-current-style', 'reverse'],
+  ['message-style', 'fg=default,bg=default'],
+] as const;
+const MAXIMAL_TMUX_WINDOW_STYLE = [
+  ['window-style', 'fg=default,bg=default'],
+  ['window-active-style', 'fg=default,bg=default'],
+  ['pane-border-status', 'off'],
+  ['pane-border-style', 'fg=default,bg=default'],
+  ['pane-active-border-style', 'reverse'],
+] as const;
 
 interface DockerContainer {
   ID?: unknown;
@@ -258,6 +280,48 @@ function tmuxClientFeatureArgs(supportsHyperlinks: boolean): string[] {
   return supportsHyperlinks ? ['-T', TMUX_CLIENT_FEATURES] : [];
 }
 
+function tmuxStyleValue(value: string, separator: string): string {
+  return separator === '\\;' ? `'${value}'` : value;
+}
+
+function tmuxSessionArgs(
+  supportsHyperlinks: boolean,
+  sessionName: string,
+  status: TmuxStatusMode,
+  applyMaximalStyle: boolean,
+  separator = ';',
+): string[] {
+  const args = [
+    ...tmuxClientFeatureArgs(supportsHyperlinks),
+    'new-session', '-A', '-s', sessionName,
+  ];
+  if (!applyMaximalStyle || status === 'inherit') return args;
+
+  args.push(separator, 'set-option', '-t', sessionName, 'status', status);
+  for (const [option, value] of MAXIMAL_TMUX_SESSION_STYLE) {
+    args.push(
+      separator,
+      'set-option',
+      '-t',
+      sessionName,
+      option,
+      tmuxStyleValue(value, separator),
+    );
+  }
+  for (const [option, value] of MAXIMAL_TMUX_WINDOW_STYLE) {
+    args.push(
+      separator,
+      'set-option',
+      '-w',
+      '-t',
+      sessionName,
+      option,
+      tmuxStyleValue(value, separator),
+    );
+  }
+  return args;
+}
+
 /** Read the fixed user SSH config through a bounded, host-owned dependency. */
 export type SshConfigReader = (filename: string, maxBytes: number) => string;
 
@@ -312,7 +376,11 @@ export class TmuxConnector implements CommandConnector {
   readonly label = 'Local';
   private supportsHyperlinks = true;
 
-  constructor(private readonly run: CommandRunner, private readonly names: TmuxSessionNames) {}
+  constructor(
+    private readonly run: CommandRunner,
+    private readonly names: TmuxSessionNames,
+    private readonly status: TmuxStatusMode = 'off',
+  ) {}
 
   async discover(): Promise<DiscoveredTarget[]> {
     this.supportsHyperlinks = tmuxSupportsHyperlinks((await this.run('tmux', ['-V'], discoveryOptions())).stdout);
@@ -343,7 +411,7 @@ export class TmuxConnector implements CommandConnector {
     const sessionName = fields[1]!;
     return {
       command: 'tmux',
-      args: [...tmuxClientFeatureArgs(this.supportsHyperlinks), 'new-session', '-A', '-s', sessionName],
+      args: tmuxSessionArgs(this.supportsHyperlinks, sessionName, this.status, mode !== 'existing'),
       tmuxProjection: {
         ownership: mode === 'existing' ? 'existing' : 'created',
         geometry: { transport: 'local', sessionName },
@@ -367,6 +435,7 @@ export class SshTmuxConnector implements CommandConnector {
     private readonly names: TmuxSessionNames,
     private readonly readConfig: SshConfigReader = readSshConfig,
     private readonly run: CommandRunner = execFileRunner,
+    private readonly status: TmuxStatusMode = 'off',
   ) {
     this.filename = join(homeDirectory, '.ssh', 'config');
   }
@@ -408,7 +477,10 @@ export class SshTmuxConnector implements CommandConnector {
     const sessionName = fields[2]!;
     return {
       command: 'ssh',
-      args: ['-tt', alias, 'tmux', ...tmuxClientFeatureArgs(!this.legacyAliases.has(alias)), 'new-session', '-A', '-s', sessionName],
+      args: [
+        '-tt', alias, 'tmux',
+        ...tmuxSessionArgs(!this.legacyAliases.has(alias), sessionName, this.status, mode !== 'existing', '\\;'),
+      ],
       tmuxProjection: {
         ownership: mode === 'existing' ? 'existing' : 'created',
         geometry: { transport: 'ssh', alias, sessionName },

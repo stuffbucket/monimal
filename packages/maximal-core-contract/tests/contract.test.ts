@@ -8,7 +8,11 @@ import {
   jsonRpcRequestSchema,
   successResponse,
 } from "../src/control.ts"
-import { AuthStatus } from "../src/settings.ts"
+import {
+  AuthStatus,
+  OllamaAccountsListResponse,
+  OllamaSettingsResponse,
+} from "../src/settings.ts"
 
 void test("every control error reason has its own code", () => {
   const codes = CONTROL_ERROR_REASONS.map((reason) => codeForReason(reason))
@@ -37,4 +41,46 @@ void test("a request parses and its responses echo the id", () => {
 void test("the auth status union rejects an unknown state", () => {
   assert.equal(AuthStatus.safeParse({ state: "unauthenticated" }).success, true)
   assert.equal(AuthStatus.safeParse({ state: "bogus" }).success, false)
+})
+
+void test("legacy Ollama account results default a missing error code", () => {
+  const result = OllamaAccountsListResponse.parse({
+    accounts: [
+      {
+        type: "ollama",
+        provider: "ollama",
+        endpoint: "local-endpoint",
+        scope: "remote",
+        account_state: "unauthenticated",
+        availability: "unavailable",
+        model_count: null,
+      },
+      {
+        type: "ollama",
+        provider: "ollama-cloud",
+        endpoint: "cloud-endpoint",
+        scope: "remote",
+        account_state: "authenticated",
+        availability: "unavailable",
+        model_count: null,
+      },
+    ],
+  })
+
+  assert.deepEqual(
+    result.accounts.map(({ error_code: errorCode }) => errorCode),
+    [null, null],
+  )
+})
+
+void test("legacy Ollama settings default a missing API key value", () => {
+  const result = OllamaSettingsResponse.parse({
+    has_api_key: true,
+    credential_source: "file",
+    local_enabled: true,
+    local_endpoint: "data:,ollama",
+    prefer_local_models: true,
+  })
+
+  assert.equal(result.api_key, null)
 })

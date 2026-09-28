@@ -86,6 +86,35 @@ describe('TerminalLauncher', () => {
     await act(async () => root.unmount());
   });
 
+  it('hides the tmux profile when tmux is unavailable on the host', async () => {
+    const element = document.createElement('div');
+    const root = createRoot(element);
+    await act(async () => {
+      root.render(
+        <TerminalLauncher
+          open
+          onOpenChange={() => undefined}
+          profiles={async () => [
+            { id: 'local', label: 'Local', kind: 'local' },
+            { id: 'tmux', label: 'Local', kind: 'tmux' },
+          ]}
+          discover={async () => ({
+            generation: 1,
+            targets: [
+              { id: 'local', profileId: 'local', label: 'This computer', state: 'available' },
+              { id: 'tmux-unavailable', profileId: 'tmux', label: 'Local', state: 'unavailable' },
+            ],
+          })}
+          launch={async () => ({ sessionId: 'unused', label: 'unused', canRunInBackground: false })}
+          onLaunched={() => undefined}
+        />,
+      );
+    });
+    expect(document.body.querySelectorAll('.terminal-launcher__choice')).toHaveLength(1);
+    expect(document.body.textContent).not.toContain('unavailable profile');
+    await act(async () => root.unmount());
+  });
+
   it('searches and launches its sole result from Enter', async () => {
     const launched = vi.fn();
     const launch = vi.fn(async () => ({

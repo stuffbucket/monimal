@@ -56,7 +56,10 @@ function parseGeometry(stdout: string): { cols: number; rows: number } {
  * the resize it undoes.
  */
 export class TmuxWindowGeometry {
-  private readonly originalWindowSizes = new Map<string, string>();
+  private readonly originalWindowSizes = new Map<string, {
+    value: string;
+    inherited: boolean;
+  }>();
   private readonly commandQueues = new Map<string, Promise<void>>();
 
   constructor(
@@ -76,14 +79,21 @@ export class TmuxWindowGeometry {
   ): Promise<{ cols: number; rows: number }> {
     return this.enqueue(sessionId, async () => {
       if (!this.originalWindowSizes.has(sessionId)) {
-        const show = geometryCommand(target, [
+        const showLocal = geometryCommand(target, [
           'show-options', '-wv', '-t', target.sessionName, 'window-size',
         ]);
-        const original = (await this.command(show.command, show.args)).stdout.trim();
-        if (!TMUX_WINDOW_SIZES.has(original)) {
+        const local = (await this.command(showLocal.command, showLocal.args)).stdout.trim();
+        const inherited = local === '';
+        const showGlobal = inherited
+          ? geometryCommand(target, ['show-options', '-wgv', 'window-size'])
+          : undefined;
+        const value = showGlobal
+          ? (await this.command(showGlobal.command, showGlobal.args)).stdout.trim()
+          : local;
+        if (!TMUX_WINDOW_SIZES.has(value)) {
           throw new Error('Tmux reported an invalid window-size policy.');
         }
-        this.originalWindowSizes.set(sessionId, original);
+        this.originalWindowSizes.set(sessionId, { value, inherited });
       }
       const resize = geometryCommand(target, [
         'set-option', '-w', '-t', target.sessionName, 'window-size', 'manual',
@@ -102,9 +112,9 @@ export class TmuxWindowGeometry {
       const original = this.originalWindowSizes.get(sessionId);
       if (!original) return;
       this.originalWindowSizes.delete(sessionId);
-      const restore = geometryCommand(target, [
-        'set-option', '-w', '-t', target.sessionName, 'window-size', original,
-      ]);
+      const restore = geometryCommand(target, original.inherited
+        ? ['set-option', '-wu', '-t', target.sessionName, 'window-size']
+        : ['set-option', '-w', '-t', target.sessionName, 'window-size', original.value]);
       await this.command(restore.command, restore.args);
     });
   }

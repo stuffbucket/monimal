@@ -21,6 +21,8 @@ import type {
   ConnectionsListResponse,
   DiagnosticsResponse,
   ModelsListResponse,
+  OllamaApiKeyTestRequest,
+  OllamaApiKeyTestResponse,
   OllamaAccountsListResponse,
   OllamaSettingsResponse,
   OllamaSettingsUpdateRequest,
@@ -135,6 +137,17 @@ export interface ProviderOnboardingPreference {
   dismissed: boolean
 }
 
+export interface OllamaRuntimePreferences {
+  start_on_maximal_launch: boolean
+  cloud_disabled: boolean
+  restart_required: boolean
+}
+
+export interface OllamaRuntimePreferencesUpdate {
+  start_on_maximal_launch?: boolean
+  cloud_disabled?: boolean
+}
+
 export type { OllamaRuntimeStatus }
 
 export interface ClientInstallation {
@@ -219,9 +232,11 @@ export interface MaximalHost {
     onChange: (listener: (event: LocalModelOperationEvent) => void) => Unsubscribe
   }
   ollamaRuntime: {
-    status: () => Promise<OllamaRuntimeStatus>
-    launch: () => Promise<OllamaRuntimeStatus>
+    status: (endpoint?: string) => Promise<OllamaRuntimeStatus>
+    launch: (endpoint?: string) => Promise<OllamaRuntimeStatus>
     updateContextLength: (value: number) => Promise<OllamaRuntimeStatus>
+    preferences: () => Promise<OllamaRuntimePreferences>
+    updatePreferences: (input: OllamaRuntimePreferencesUpdate) => Promise<OllamaRuntimePreferences>
   }
   clientInstallations: {
     list: () => Promise<ClientInstallation[]>
@@ -287,6 +302,7 @@ export interface MaximalHost {
     ollamaAccountsList: () => Promise<ControlResult<OllamaAccountsListResponse>>
     ollamaSettingsGet: () => Promise<ControlResult<OllamaSettingsResponse>>
     ollamaSettingsUpdate: (input: OllamaSettingsUpdateRequest) => Promise<ControlResult<OllamaSettingsResponse>>
+    ollamaApiKeyTest: (input: OllamaApiKeyTestRequest) => Promise<ControlResult<OllamaApiKeyTestResponse>>
     observabilityOverview: (query: TrafficOverviewQuery) => Promise<ControlResult<TrafficOverview>>
     observabilityRequests: (query: TrafficRequestListQuery) => Promise<ControlResult<TrafficRequestList>>
     observabilityRequest: (query: TrafficRequestDetailQuery) => Promise<ControlResult<TrafficRequestDetail | null>>

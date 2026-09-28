@@ -96,6 +96,7 @@ Both are monorepo-native;
 | --- | --- |
 | Copied packages | `CLAUDE.md` includes `AGENTS.md`; root instructions take precedence. |
 | `maximal-electron` | Uses the workspace mutation runner for changed-line and explicit local scopes, cached edit loops, and fresh complete or sharded audits. |
+| `maximal-electron` | `TextInput` owns the token-based active-service treatment, and the Radix-backed `Slider` owns its track, detents, labels, and thumb geometry so consumers do not recreate either control. |
 | Workspace | `@maximal/eslint-config` owns the shared ESLint configuration and enforced rule sets. |
 | Workspace | `architecture-analysis.json` owns package coverage, the declared workspace dependency tree (`dependsOn`), external-package deny rules, and non-Core architecture baselines. |
 | `maximal-settings` | The pnpm bootstrap hook MUST load its dependency-policy source before workspace packages are installed; installed consumers MUST use the exported entry point. |
@@ -110,15 +111,17 @@ Both are monorepo-native;
 | `maximal` / `apps/desktop` | Core dependencies are workspace links; the desktop sidecar builds the Maximal composition. |
 | `maximal-core` / `maximal` | Desktop-spawned Core (`start --desktop-ipc`) uses inherited Node child-process IPC for control RPC and events instead of binding its private HTTP listener; standalone Core keeps its loopback control listener and public proxy unchanged. |
 | `maximal-core` | Ollama API keys are saved without using a malformed inference request as an authentication probe; Ollama has no dedicated key-validation endpoint. |
+| `maximal-core` / `maximal-core-contract` | Ollama account probes expose a sanitized error code with unavailable results so Settings can distinguish a saved working key from a saved key whose validation failed. |
+| `@maximal/maximal-client` / `maximal-core` | Ollama direct Cloud API keys are entered in Maximal and returned only through the private desktop settings control path so the password field can hide or reveal the configured value; Ollama device identities remain owned by the Ollama app or CLI. |
 | `apps/desktop` | Packaged Linux smoke uses the `desktop-smoke` target of the pinned Docker dependency build, stages Git-visible source, and runs Electron E2E under Xvfb without container networking. |
-| `maximal-ollama` | Desktop calls the package behind validated IPC. Core provider policy and Settings integration remain in their existing owners until an optional provider seam is established. |
+| `maximal-ollama` | Desktop calls the package behind validated IPC. The package owns installed-process and listening-port discovery; Core owns the persisted inference endpoint. Core provider policy and Settings integration remain in their existing owners until an optional provider seam is established. |
 | `apps/desktop` | The workspace build must build the Maximal composition and `@maximal/maximal-client` renderer dependencies before compiling the sidecar; Forge bundles its app entry points with product surfaces from `packages/maximal-client/src`. |
 | `@maximal/maximal-client` | Its workspace build waits for dependency builds; typechecking the renderer requires their emitted contracts in a clean Linux checkout. |
 | `apps/desktop` | Development Electron profiles are checkout-isolated and shutdown waits for the Core child. |
 | `maximal-electron` / `apps/desktop` | Desktop imports the package host-window API directly; it has no local shell adapter. |
 | `@maximal/maximal-client` / `apps/desktop` | Direct lint and typecheck commands re-enter their Turbo tasks through `run-workspace-task.mjs`. |
 | `maximal-electron` | Terminal copies use a main-owned revisioned pane document and geometry controller; window transfers stage before atomic readiness-gated commit or rollback. |
-| `maximal-electron` / `maximal-terminal` | Terminal code outside Electron integration lives in `maximal-terminal`; generated tmux session names take their prefix from the host (`terminalSessionPrefix` in the desktop settings) instead of the fixed `stuffbucket-`. |
+| `maximal-electron` / `maximal-terminal` | Terminal code outside Electron integration lives in `maximal-terminal`; `maximal-electron` owns the fixed Maximal terminal identity and generated tmux session prefix instead of deriving either from legacy Stuffbucket identity or application settings. The desktop's validated `terminalTmuxStatus` setting selects Maximal-owned `off` or `on` styling, or inherited host styling, without accepting shell command text or restyling explicitly attached host sessions. |
 | `maximal-electron` | `verify:neutral` denies imports of workspace packages outside its `dependsOn` in the root `architecture-analysis.json` instead of a fixed name list, and bare `maximal` is no longer a forbidden term. |
 | `maximal-electron` | Private workspace package, not published; the registry publish, tag, and git-install checks are removed. |
 | `maximal-electron` | Workspace installation MUST NOT build the package; Turbo MUST own dependency-ordered builds. |

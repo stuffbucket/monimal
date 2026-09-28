@@ -31,6 +31,9 @@ import {
   type DiagnosticsResponse,
   ModelsListResponse as ModelsListResponseSchema,
   type ModelsListResponse,
+  type OllamaApiKeyTestRequest,
+  OllamaApiKeyTestResponse as OllamaApiKeyTestResponseSchema,
+  type OllamaApiKeyTestResponse,
   OllamaAccountsListResponse as OllamaAccountsListResponseSchema,
   type OllamaAccountsListResponse,
   OllamaSettingsResponse as OllamaSettingsResponseSchema,
@@ -76,6 +79,7 @@ export interface CoreControlOperations {
   ollamaAccountsList(): Promise<ControlResult<OllamaAccountsListResponse>>
   ollamaSettingsGet(): Promise<ControlResult<OllamaSettingsResponse>>
   ollamaSettingsUpdate(input: OllamaSettingsUpdateRequest): Promise<ControlResult<OllamaSettingsResponse>>
+  ollamaApiKeyTest(input: OllamaApiKeyTestRequest): Promise<ControlResult<OllamaApiKeyTestResponse>>
   observabilityOverview(query: TrafficOverviewQuery): Promise<ControlResult<TrafficOverview>>
   observabilityRequests(query: TrafficRequestListQuery): Promise<ControlResult<TrafficRequestList>>
   observabilityRequest(query: TrafficRequestDetailQuery): Promise<ControlResult<TrafficRequestDetail | null>>
@@ -117,6 +121,7 @@ export const optionalMethods = [
   'ollamaAccounts/list',
   'ollamaSettings/get',
   'ollamaSettings/update',
+  'ollamaSettings/testApiKey',
   'observability/overview',
   'observability/requests',
   'observability/request',
@@ -264,6 +269,9 @@ export function createCoreControlOperations(call: ControlCall): CoreControlOpera
     ollamaSettingsUpdate: (input) =>
       call('ollamaSettings/update', parseWith(OllamaSettingsResponseSchema),
         input, parseWith(OllamaSettingsUpdateRequestSchema)),
+    ollamaApiKeyTest: (input) =>
+      call('ollamaSettings/testApiKey', parseWith(OllamaApiKeyTestResponseSchema),
+        input),
     observabilityOverview: (query) =>
       call('observability/overview', parseWith(TrafficOverviewSchema),
         query, parseWith(TrafficOverviewQuerySchema)),

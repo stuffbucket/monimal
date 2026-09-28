@@ -5,6 +5,7 @@ import { app } from 'electron';
 import { TerminalHost } from '@maximal/maximal-terminal';
 
 import { defaultShell } from './native/pty/index.js';
+import { TERMINAL_PROGRAM } from './terminal-identity.js';
 import {
   selfCheckCommand,
   selfCheckLine,
@@ -64,7 +65,7 @@ export function runSelfCheck(argv: readonly string[]): void {
   const host = new TerminalHost({
     homeDirectory: app.getPath('home'),
     defaultShell: defaultShell(),
-    env: { TERM_PROGRAM: 'Stuffbucket' },
+    env: { TERM_PROGRAM: TERMINAL_PROGRAM },
     emit: (_id, chunk) => {
       output += chunk;
       if (selfCheckPassed(output, token)) report({ ok: true, token });

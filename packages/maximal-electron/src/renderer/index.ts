@@ -109,6 +109,7 @@ export {
   Row,
   ScrollArea,
   Select,
+  Slider,
   StatusChip,
   Switch,
   Tag,
@@ -122,6 +123,7 @@ export {
   type FieldControl,
   type MenuItem,
   type Option,
+  type SliderOption,
   type TileProps,
   type ViewMode,
 } from "./components/controls/index.js";

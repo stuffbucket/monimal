@@ -1,4 +1,5 @@
 import * as RadioGroupPrimitive from '@radix-ui/react-radio-group';
+import * as SliderPrimitive from '@radix-ui/react-slider';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { Eye, EyeOff } from 'lucide-react';
 import {
@@ -23,12 +24,6 @@ const FIELD_STYLES = `
   --shell-switch-duration: 120ms;
 }
 
-.sb-shell .input:focus {
-  border-color: var(--shell-focus, var(--shell-accent));
-  outline: none;
-  box-shadow: 0 0 0 var(--shell-focus-ring-width) var(--shell-focus, var(--shell-accent));
-}
-
 .sb-shell .input:disabled,
 .sb-shell .switch:disabled,
 .sb-shell .checkbox__box:disabled,
@@ -51,6 +46,19 @@ const FIELD_STYLES = `
 
 .sb-shell .input::placeholder {
   color: var(--shell-text-subtle);
+}
+
+.sb-shell .input[data-active='true'] {
+  border-color: var(--shell-accent);
+  box-shadow:
+    0 0 0 var(--shell-focus-ring-width) var(--shell-accent-muted),
+    0 0 var(--shell-space-2) var(--shell-accent);
+}
+
+.sb-shell .input:focus {
+  border-color: var(--shell-focus, var(--shell-accent));
+  outline: none;
+  box-shadow: 0 0 0 var(--shell-focus-ring-width) var(--shell-focus, var(--shell-accent));
 }
 
 .sb-shell .input-shell {
@@ -161,6 +169,108 @@ const FIELD_STYLES = `
   background: var(--shell-accent);
 }
 
+.sb-shell .slider {
+  display: grid;
+  gap: var(--shell-space-1);
+  width: 100%;
+}
+
+.sb-shell .slider__root {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: var(--shell-control-md);
+  touch-action: none;
+  user-select: none;
+}
+
+.sb-shell .slider__track {
+  position: relative;
+  width: 100%;
+  height: var(--shell-space-1);
+  overflow: visible;
+  border-radius: var(--shell-radius-pill);
+  background: var(--shell-active);
+}
+
+.sb-shell .slider__range {
+  position: absolute;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--shell-accent);
+}
+
+.sb-shell .slider__detents {
+  position: absolute;
+  top: var(--shell-field-half);
+  right: calc(var(--shell-control-sm) / 2);
+  left: calc(var(--shell-control-sm) / 2);
+  pointer-events: none;
+}
+
+.sb-shell .slider__mark {
+  position: absolute;
+  top: 0;
+  width: var(--shell-space-1);
+  height: var(--shell-space-1);
+  border: 1px solid var(--shell-field-background);
+  border-radius: var(--shell-radius-pill);
+  background: var(--shell-text-muted);
+  transform: translate(
+    calc(-1 * var(--shell-field-half)),
+    calc(-1 * var(--shell-field-half))
+  );
+}
+
+.sb-shell .slider__thumb {
+  display: block;
+  width: var(--shell-control-sm);
+  height: var(--shell-control-sm);
+  border: 1px solid var(--shell-input-border);
+  border-radius: var(--shell-radius-pill);
+  background: var(--shell-field-background);
+  cursor: grab;
+}
+
+.sb-shell .slider__thumb:focus {
+  outline: none;
+  box-shadow: 0 0 0 var(--shell-focus-ring-width) var(--shell-focus, var(--shell-accent));
+}
+
+.sb-shell .slider__thumb:active {
+  cursor: grabbing;
+}
+
+.sb-shell .slider__root[data-disabled] {
+  opacity: var(--shell-disabled-opacity, 0.5);
+}
+
+.sb-shell .slider__labels {
+  position: relative;
+  height: calc(var(--shell-text-sm) * var(--shell-leading-base));
+  margin:
+    0
+    calc(var(--shell-control-sm) / 2);
+  padding: 0;
+  color: var(--shell-text-subtle);
+  font-size: var(--shell-text-sm);
+  list-style: none;
+}
+
+.sb-shell .slider__label {
+  position: absolute;
+  transform: translateX(calc(-1 * var(--shell-field-half)));
+}
+
+.sb-shell .slider__label[data-edge='start'] {
+  transform: none;
+}
+
+.sb-shell .slider__label[data-edge='end'] {
+  transform: translateX(-100%);
+}
+
 .sb-shell .switch {
   display: flex;
   align-items: center;
@@ -240,6 +350,11 @@ export interface FieldControl {
   'aria-invalid': boolean | undefined;
 }
 
+export interface SliderOption {
+  value: number;
+  label: string;
+}
+
 /**
  * A labelled control, with hint and error text wired to it.
  *
@@ -303,6 +418,7 @@ export function TextInput({
   testId,
   title,
   revealLabel = 'value',
+  active = false,
   onBlur,
   ...field
 }: {
@@ -314,6 +430,7 @@ export function TextInput({
   testId?: string;
   title?: string;
   revealLabel?: string;
+  active?: boolean;
   onBlur?: (event: FocusEvent<HTMLInputElement>) => void;
 } & Partial<FieldControl>) {
   useFieldStyles();
@@ -329,6 +446,7 @@ export function TextInput({
       title={title}
       onChange={(event) => onChange(event.target.value)}
       onBlur={onBlur}
+      data-active={active ? 'true' : undefined}
       data-testid={testId}
       {...field}
     />
@@ -348,6 +466,100 @@ export function TextInput({
       >
         {revealed ? <EyeOff aria-hidden="true" size={14} /> : <Eye aria-hidden="true" size={14} />}
       </IconButton>
+    </div>
+  );
+}
+
+function sliderIndex(value: number, options: readonly SliderOption[]): number {
+  let closestIndex = 0;
+  for (let index = 1; index < options.length; index += 1) {
+    const closest = options[closestIndex];
+    const candidate = options[index];
+    if (
+      closest !== undefined
+      && candidate !== undefined
+      && Math.abs(candidate.value - value) < Math.abs(closest.value - value)
+    ) {
+      closestIndex = index;
+    }
+  }
+  return closestIndex;
+}
+
+/** A discrete slider whose detents and labels share one positioning model. */
+export function Slider({
+  label,
+  value,
+  options,
+  onChange,
+  onCommit = onChange,
+  disabled,
+  testId,
+  ...field
+}: {
+  label: string;
+  value: number;
+  options: readonly SliderOption[];
+  onChange: (next: number) => void;
+  onCommit?: (next: number) => void;
+  disabled?: boolean;
+  testId?: string;
+} & Partial<FieldControl>) {
+  useFieldStyles();
+  if (options.length === 0) throw new Error('Slider requires at least one option');
+  const selectedIndex = sliderIndex(value, options);
+  const selected = options[selectedIndex];
+  const maximum = options.length - 1;
+  const position = (index: number): string =>
+    `${maximum === 0 ? 0 : (index / maximum) * 100}%`;
+  const optionAt = (index: number): SliderOption =>
+    options[index] ?? options[0]!;
+
+  return (
+    <div className="slider" data-testid={testId}>
+      <SliderPrimitive.Root
+        className="slider__root"
+        value={[selectedIndex]}
+        min={0}
+        max={maximum}
+        step={1}
+        disabled={disabled}
+        onValueChange={([next = 0]) => onChange(optionAt(next).value)}
+        onValueCommit={([next = 0]) => onCommit(optionAt(next).value)}
+      >
+        <SliderPrimitive.Track className="slider__track">
+          <SliderPrimitive.Range className="slider__range" />
+        </SliderPrimitive.Track>
+        <div className="slider__detents" aria-hidden="true">
+          {options.map((option, index) => (
+            <span
+              key={option.value}
+              className="slider__mark"
+              style={{ left: position(index) }}
+            />
+          ))}
+        </div>
+        <SliderPrimitive.Thumb
+          {...field}
+          className="slider__thumb"
+          aria-label={label}
+          aria-valuetext={selected?.label}
+        />
+      </SliderPrimitive.Root>
+      <ol className="slider__labels" aria-hidden="true">
+        {options.map((option, index) => (
+          <li
+            key={option.value}
+            className="slider__label"
+            data-edge={
+              index === 0 ? 'start' : index === maximum ? 'end' : undefined
+            }
+            style={{ left: position(index) }}
+          >
+            {option.label}
+          </li>
+        ))}
+      </ol>
     </div>
   );
 }

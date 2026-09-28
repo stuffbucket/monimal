@@ -82,6 +82,7 @@ describe('preload bridge allowlist', () => {
       'observabilityRequest',
       'observabilityRequests',
       'ollamaAccountsList',
+      'ollamaApiKeyTest',
       'ollamaSettingsGet',
       'ollamaSettingsUpdate',
       'onChange',
@@ -101,8 +102,10 @@ describe('preload bridge allowlist', () => {
     ])
     expect(Object.keys(bridge.ollamaRuntime).sort()).toEqual([
       'launch',
+      'preferences',
       'status',
       'updateContextLength',
+      'updatePreferences',
     ])
     expect(Object.keys(bridge.harness).sort()).toEqual([
       'abort',
@@ -173,6 +176,7 @@ describe('preload bridge allowlist', () => {
     await bridge.control.ollamaSettingsUpdate({
       prefer_local_models: false,
     })
+    await bridge.control.ollamaApiKeyTest({ api_key: 'test-key' })
     await bridge.control.observabilityOverview(overviewQuery)
     await bridge.control.observabilityRequests(requestsQuery)
     await bridge.control.observabilityRequest({ requestId: 'req-1' })
@@ -206,9 +210,13 @@ describe('preload bridge allowlist', () => {
     await bridge.logs.coreLocation()
     await bridge.logs.revealCore()
     await bridge.localModels.openFolder()
-    await bridge.ollamaRuntime.status()
-    await bridge.ollamaRuntime.launch()
+    await bridge.ollamaRuntime.status('http://ollama.lan:11500')
+    await bridge.ollamaRuntime.launch('http://ollama.lan:11500')
     await bridge.ollamaRuntime.updateContextLength(8192)
+    await bridge.ollamaRuntime.preferences()
+    await bridge.ollamaRuntime.updatePreferences({
+      start_on_maximal_launch: true,
+    })
     await bridge.clientInstallations.list()
     await bridge.menuBarMode.get()
     await bridge.menuBarMode.beginEnable()
@@ -273,6 +281,7 @@ describe('preload bridge allowlist', () => {
         BRIDGE_CHANNELS.ollamaSettingsUpdate,
         { prefer_local_models: false },
       ],
+      [BRIDGE_CHANNELS.ollamaApiKeyTest, { api_key: 'test-key' }],
       [BRIDGE_CHANNELS.observabilityOverview, overviewQuery],
       [BRIDGE_CHANNELS.observabilityRequests, requestsQuery],
       [BRIDGE_CHANNELS.observabilityRequest, { requestId: 'req-1' }],
@@ -306,9 +315,14 @@ describe('preload bridge allowlist', () => {
       [BRIDGE_CHANNELS.coreLogsLocation],
       [BRIDGE_CHANNELS.coreLogsReveal],
       [BRIDGE_CHANNELS.localModelsOpenFolder],
-      [BRIDGE_CHANNELS.ollamaRuntimeStatus],
-      [BRIDGE_CHANNELS.ollamaRuntimeLaunch],
+      [BRIDGE_CHANNELS.ollamaRuntimeStatus, 'http://ollama.lan:11500'],
+      [BRIDGE_CHANNELS.ollamaRuntimeLaunch, 'http://ollama.lan:11500'],
       [BRIDGE_CHANNELS.ollamaRuntimeUpdateContext, 8192],
+      [BRIDGE_CHANNELS.ollamaRuntimePreferences],
+      [
+        BRIDGE_CHANNELS.ollamaRuntimeUpdatePreferences,
+        { start_on_maximal_launch: true },
+      ],
       [BRIDGE_CHANNELS.clientInstallationsList],
       [BRIDGE_CHANNELS.menuBarModeGet],
       [BRIDGE_CHANNELS.menuBarModeBeginEnable],

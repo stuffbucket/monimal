@@ -9,6 +9,7 @@ import type {
 } from '@maximal/maximal-terminal';
 import { clampTerminalGrid } from '@maximal/maximal-terminal';
 import { execFileRunner } from '@maximal/maximal-terminal';
+import { TERMINAL_PROGRAM } from '../../terminal-identity.js';
 import type { PtyEvents } from './handlers.js';
 
 type ProjectionLaunch = Parameters<TmuxProjectionOwners<BrowserWindow>['reserve']>[2];
@@ -32,7 +33,7 @@ export function createPtyProjections(hooks: PtyProjectionHooks) {
   const prepared = new WeakSet<BrowserWindow>();
   const owners = new TmuxProjectionOwners<BrowserWindow>({
     homeDirectory: app.getPath('home'),
-    env: { TERM_PROGRAM: 'Stuffbucket' },
+    env: { TERM_PROGRAM: TERMINAL_PROGRAM },
     command: (command, args) =>
       execFileRunner(command, args, { timeout: 5_000, maxBuffer: 64 * 1024 }),
     terminate: (command, args) => {

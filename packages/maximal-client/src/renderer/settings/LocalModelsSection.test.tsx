@@ -10,7 +10,16 @@ import type {
 } from './capabilities'
 import { LocalModelsSection } from './LocalModelsSection'
 
+class NoopResizeObserver implements ResizeObserver {
+  observe(): void {}
+  unobserve(): void {}
+  disconnect(): void {}
+}
+
+globalThis.ResizeObserver = NoopResizeObserver
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
+
+const OLLAMA_ENDPOINT = 'http://127.0.0.1:11434'
 
 const catalogue: LocalModelCatalogSnapshot = {
   revision: 1,
@@ -65,8 +74,7 @@ function fakeCapabilities(initial: LocalModelCatalogSnapshot = catalogue) {
       return () => {}
     }),
   }
-  const ollamaRuntime = {
-    status: vi.fn(async () => ({
+  const runtimeStatus = {
       installation: 'application' as const,
       installed: true,
       running: false,
@@ -75,9 +83,14 @@ function fakeCapabilities(initial: LocalModelCatalogSnapshot = catalogue) {
       application_path: '/Applications/Ollama.app',
       server_configuration_path: '/Users/test/.ollama/server.json',
       desktop_settings_path: '/Users/test/Ollama/db.sqlite',
-      endpoint: 'http://127.0.0.1:11434',
+      endpoint: OLLAMA_ENDPOINT,
+      process_id: null,
+      process_endpoint: null,
+      suggested_endpoint: null,
       context_length: 4096,
-    })),
+  }
+  const ollamaRuntime = {
+    status: vi.fn(async () => runtimeStatus),
     launch: vi.fn(async () => ({
       installation: 'application' as const,
       installed: true,
@@ -87,10 +100,16 @@ function fakeCapabilities(initial: LocalModelCatalogSnapshot = catalogue) {
       application_path: '/Applications/Ollama.app',
       server_configuration_path: '/Users/test/.ollama/server.json',
       desktop_settings_path: '/Users/test/Ollama/db.sqlite',
-      endpoint: 'http://127.0.0.1:11434',
+      endpoint: OLLAMA_ENDPOINT,
+      process_id: 42,
+      process_endpoint: OLLAMA_ENDPOINT,
+      suggested_endpoint: null,
       context_length: 4096,
     })),
-    updateContextLength: vi.fn(),
+    updateContextLength: vi.fn(async (contextLength: number) => ({
+      ...runtimeStatus,
+      context_length: contextLength,
+    })),
   }
   return {
     capabilities: {
@@ -99,8 +118,10 @@ function fakeCapabilities(initial: LocalModelCatalogSnapshot = catalogue) {
       ollamaSettings: {
         get: vi.fn(async () => ({
           has_api_key: false,
+          api_key: null,
           credential_source: 'none' as const,
           local_enabled: true,
+          local_endpoint: OLLAMA_ENDPOINT,
           prefer_local_models: true,
         })),
         update: vi.fn(),
@@ -233,5 +254,45 @@ describe('LocalModelsSection', () => {
 
     expect(ollamaRuntime.launch).toHaveBeenCalledOnce()
     expect(surface.textContent).toContain('Running')
+  })
+
+  it('uses stepped context lengths and saves the selected value', async () => {
+    const { capabilities, ollamaRuntime } = fakeCapabilities()
+    const surface = await renderLocalModels(capabilities)
+    const slider = surface.querySelector<HTMLElement>(
+      '[role="slider"]',
+    )
+    if (slider === null) throw new Error('context length slider was not rendered')
+
+    expect(slider.getAttribute('aria-valuemin')).toBe('0')
+    expect(slider.getAttribute('aria-valuemax')).toBe('6')
+    expect(slider.getAttribute('aria-valuenow')).toBe('0')
+    expect(slider.getAttribute('aria-valuetext')).toBe('4k')
+    const marks = [...surface.querySelectorAll<HTMLElement>('.slider__mark')]
+    const labels = [...surface.querySelectorAll<HTMLElement>('.slider__label')]
+    expect(labels.map((label) => label.textContent)).toEqual([
+      '4k',
+      '8k',
+      '16k',
+      '32k',
+      '64k',
+      '128k',
+      '256k',
+    ])
+    expect(marks.map((mark) => mark.style.left)).toEqual(
+      labels.map((label) => label.style.left),
+    )
+    expect(surface.querySelector('input[type="number"]')).toBeNull()
+
+    await act(async () => {
+      slider.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'ArrowRight',
+        bubbles: true,
+      }))
+      await Promise.resolve()
+    })
+
+    expect(ollamaRuntime.updateContextLength).toHaveBeenCalledWith(8_192)
+    expect(slider.getAttribute('aria-valuetext')).toBe('8k')
   })
 })

@@ -23,6 +23,9 @@
     "test": "pnpm run build && node --test tests/*.test.mjs && vitest run tests/runtime.test.ts",
     "typecheck": "tsc --noEmit"
   },
+  "dependencies": {
+    "@maximal/maximal-settings": "workspace:*"
+  },
   "devDependencies": {
     "@maximal/eslint-config": "workspace:*",
     "@types/node": "^26.4.0",

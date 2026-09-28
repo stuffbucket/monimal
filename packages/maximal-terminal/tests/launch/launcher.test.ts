@@ -30,6 +30,10 @@ import {
   loadTerminalProfiles,
   terminalProfiles,
 } from '../../src/launch/launcher.js';
+import {
+  configureTerminalDiagnostics,
+  type TerminalDiagnosticRecord,
+} from '../../src/host/connector.js';
 
 describe('terminal profiles', () => {
   it('coerces corrupt and future files to the current safe version', () => {
@@ -170,7 +174,9 @@ describe('command discovery boundaries', () => {
     [new SshConnector('/home/ada', () => ''), 'work', { command: 'ssh', args: ['-tt', 'work'] }],
     [new TmuxConnector(async () => ({ stdout: '' }), tmuxNames('0123456789abcdef0123456789abcdef')), 'existing\u0000session', {
       command: 'tmux',
-      args: ['-T', 'hyperlinks', 'new-session', '-A', '-s', 'session'],
+      args: [
+        '-T', 'RGB,hyperlinks', 'new-session', '-A', '-s', 'session',
+      ],
       tmuxProjection: {
         ownership: 'existing',
         geometry: { transport: 'local', sessionName: 'session' },
@@ -178,7 +184,10 @@ describe('command discovery boundaries', () => {
     }],
     [new SshTmuxConnector('/home/ada', tmuxNames('0123456789abcdef0123456789abcdef'), () => '', async () => ({ stdout: '' })), 'work\u0000existing\u0000session', {
       command: 'ssh',
-      args: ['-tt', 'work', 'tmux', '-T', 'hyperlinks', 'new-session', '-A', '-s', 'session'],
+      args: [
+        '-tt', 'work', 'tmux',
+        '-T', 'RGB,hyperlinks', 'new-session', '-A', '-s', 'session',
+      ],
       tmuxProjection: {
         ownership: 'existing',
         geometry: { transport: 'ssh', alias: 'work', sessionName: 'session' },
@@ -282,6 +291,60 @@ describe('command discovery boundaries', () => {
 });
 
 describe('TerminalLauncher', () => {
+  it('diagnoses connector discovery and reservation lifecycle without target details', async () => {
+    const records: TerminalDiagnosticRecord[] = [];
+    configureTerminalDiagnostics(true, (record) => records.push(record));
+    try {
+      const unavailable = Object.assign(new Error('private target details'), { code: 'ENOENT' });
+      const connector: CommandConnector = {
+        id: 'docker',
+        label: 'Docker',
+        discover: async () => { throw unavailable; },
+        launch: () => ({ command: 'docker', args: [] }),
+      };
+      const owner = {};
+      const launcher = new TerminalLauncher<object>({
+        connectors: [connector],
+        createId: () => 'session',
+        localLaunch: { command: '/bin/example', args: [] },
+        platform: 'linux',
+      });
+
+      await launcher.discover(owner);
+      launcher.launch(owner, { profileId: 'local', cols: 80, rows: 24 });
+      launcher.take(owner, 'session');
+
+      expect(records).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          component: 'terminal-launcher',
+          event: 'discovery-failed',
+          profileId: 'docker',
+          targetState: 'unavailable',
+          errorCode: 'ENOENT',
+          reservationCount: 0,
+        }),
+        expect.objectContaining({
+          component: 'terminal-launcher',
+          event: 'reserved',
+          sessionId: 'session',
+          profileId: 'local',
+          launchMode: 'local',
+          reservationCount: 1,
+        }),
+        expect.objectContaining({
+          component: 'terminal-launcher',
+          event: 'reservation-taken',
+          sessionId: 'session',
+          accepted: true,
+          reservationCount: 0,
+        }),
+      ]));
+      expect(JSON.stringify(records)).not.toContain('private target details');
+    } finally {
+      configureTerminalDiagnostics(false);
+    }
+  });
+
   it('consumes a trusted reservation once and only for its owner', () => {
     const owner = {};
     const launch = { command: '/bin/example', args: ['--safe'], cwd: '/work', env: { SAFE: 'yes' } };

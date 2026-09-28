@@ -36,24 +36,39 @@ describe('loadApplicationSettings', () => {
     const directory = await fixture()
     const snapshot = loadApplicationSettings(directory, {
       homeDirectory: directory, cwd: directory,
-      environment: { MAXIMAL_AGENT_TOOLS: 'false', MAXIMAL_TERMINAL_DIAGNOSTICS: 'true' },
+      environment: {
+        MAXIMAL_AGENT_TOOLS: 'false',
+        MAXIMAL_TERMINAL_DIAGNOSTICS: 'true',
+        MAXIMAL_TERMINAL_TMUX_STATUS: 'inherit',
+      },
       argv: ['--setting=agentApproval=all'],
     })
-    expect(snapshot.settings).toMatchObject({ agentTools: false, agentApproval: 'all', terminalDiagnostics: true, terminalSessionPrefix: 'maximal' })
+    expect(snapshot.settings).toMatchObject({
+      agentTools: false,
+      agentApproval: 'all',
+      terminalDiagnostics: true,
+      terminalTmuxStatus: 'inherit',
+    })
     expect(snapshot.origins.agentTools).toBe('MAXIMAL_AGENT_TOOLS')
     expect(snapshot.origins.agentApproval).toBe('cli')
+    expect(snapshot.origins.terminalTmuxStatus).toBe('MAXIMAL_TERMINAL_TMUX_STATUS')
     expect(snapshot.files).toEqual([])
   })
 
-  it('names tmux sessions from a setting, keeping the default when the legacy value is unusable', async () => {
+  it('does not expose the fixed terminal identity as an application setting', async () => {
     const directory = await fixture()
-    await writeFile(join(directory, 'preferences.json'), JSON.stringify({ terminalSessionPrefix: 'bad prefix' }))
-    const context = { homeDirectory: directory, cwd: directory, argv: [] }
-    expect(loadApplicationSettings(directory, { ...context, environment: {} }).settings.terminalSessionPrefix)
-      .toBe('maximal')
-    expect(loadApplicationSettings(directory, {
-      ...context, environment: { MAXIMAL_TERMINAL_SESSION_PREFIX: 'work' },
-    }).settings.terminalSessionPrefix).toBe('work')
+    await writeFile(join(directory, 'preferences.json'), JSON.stringify({
+      terminalSessionPrefix: 'legacy',
+    }))
+    const snapshot = loadApplicationSettings(directory, {
+      homeDirectory: directory,
+      cwd: directory,
+      environment: { MAXIMAL_TERMINAL_SESSION_PREFIX: 'override' },
+      argv: [],
+    })
+
+    expect('terminalSessionPrefix' in snapshot.settings).toBe(false)
+    expect('terminalSessionPrefix' in snapshot.origins).toBe(false)
   })
 
   it('loads the preferred agent model from application settings', async () => {
@@ -71,5 +86,16 @@ describe('loadApplicationSettings', () => {
 
     expect(loadApplicationSettings(directory, context).settings.agentModel)
       .toBe('embedded:tiny.gguf')
+  })
+
+  it('rejects tmux shell text instead of treating it as a status policy', async () => {
+    const directory = await fixture()
+
+    expect(() => loadApplicationSettings(directory, {
+      homeDirectory: directory,
+      cwd: directory,
+      environment: { MAXIMAL_TERMINAL_TMUX_STATUS: 'off; run-shell bad' },
+      argv: [],
+    })).toThrow(/MAXIMAL_TERMINAL_TMUX_STATUS/)
   })
 })

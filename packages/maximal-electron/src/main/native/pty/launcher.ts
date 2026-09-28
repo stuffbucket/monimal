@@ -16,20 +16,23 @@ import {
   SshTmuxConnector,
   TmuxConnector,
   TmuxSessionNames,
+  type TmuxStatusMode,
   VagrantConnector,
   WslConnector,
 } from '@maximal/maximal-terminal';
 import { TerminalLauncher, loadTerminalProfiles } from '@maximal/maximal-terminal';
 
 let names: TmuxSessionNames | undefined;
+let status: TmuxStatusMode = 'off';
 let instance: TerminalLauncher<BrowserWindow> | undefined;
 let directProfiles: readonly DirectTerminalProfile[] = [];
 
 /** Name this app's tmux sessions. Fixed once the launcher has been built. */
-export function configureTmuxSessions(prefix: string): void {
-  if (names?.prefix === prefix) return;
-  if (instance) throw new Error('The tmux session prefix cannot change after terminals have launched.');
+export function configureTmuxSessions(prefix: string, nextStatus: TmuxStatusMode = 'off'): void {
+  if (names?.prefix === prefix && status === nextStatus) return;
+  if (instance) throw new Error('Tmux session configuration cannot change after terminals have launched.');
   names = new TmuxSessionNames(prefix);
+  status = nextStatus;
 }
 
 export function configureDirectTerminalProfiles(profiles: readonly DirectTerminalProfile[]): void {
@@ -46,11 +49,14 @@ export function tmuxSessionNames(): TmuxSessionNames {
 }
 
 export function launcher(): TerminalLauncher<BrowserWindow> {
-  instance ??= createLauncher(tmuxSessionNames());
+  instance ??= createLauncher(tmuxSessionNames(), status);
   return instance;
 }
 
-const createLauncher = (names: TmuxSessionNames): TerminalLauncher<BrowserWindow> => new TerminalLauncher<BrowserWindow>({
+const createLauncher = (
+  names: TmuxSessionNames,
+  tmuxStatus: TmuxStatusMode,
+): TerminalLauncher<BrowserWindow> => new TerminalLauncher<BrowserWindow>({
   directProfiles,
   connectors: [
     new DockerConnector(execFileRunner),
@@ -61,8 +67,8 @@ const createLauncher = (names: TmuxSessionNames): TerminalLauncher<BrowserWindow
     new WslConnector(execFileRunner),
     new VagrantConnector(execFileRunner),
     new SshConnector(app.getPath('home'), undefined, execFileRunner),
-    new TmuxConnector(execFileRunner, names),
-    new SshTmuxConnector(app.getPath('home'), names, undefined, execFileRunner),
+    new TmuxConnector(execFileRunner, names, tmuxStatus),
+    new SshTmuxConnector(app.getPath('home'), names, undefined, execFileRunner, tmuxStatus),
   ],
 });
 const launchOwners = new WeakSet<BrowserWindow>();

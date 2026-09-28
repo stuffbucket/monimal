@@ -555,6 +555,7 @@ export const OllamaAccountSummary = z.object({
   account_state: z.enum(["unauthenticated", "authenticated"]),
   availability: z.enum(["available", "unavailable"]),
   model_count: z.number().int().nonnegative().nullable(),
+  error_code: z.string().nullable().default(null),
 })
 export type OllamaAccountSummary = z.infer<typeof OllamaAccountSummary>
 
@@ -567,8 +568,10 @@ export type OllamaAccountsListResponse = z.infer<
 
 export const OllamaSettingsResponse = z.object({
   has_api_key: z.boolean(),
+  api_key: z.string().nullable().default(null),
   credential_source: z.enum(["environment", "file", "none"]),
   local_enabled: z.boolean(),
+  local_endpoint: z.url(),
   prefer_local_models: z.boolean(),
 })
 export type OllamaSettingsResponse = z.infer<typeof OllamaSettingsResponse>
@@ -576,11 +579,31 @@ export type OllamaSettingsResponse = z.infer<typeof OllamaSettingsResponse>
 export const OllamaSettingsUpdateRequest = z.object({
   api_key: z.string().max(4096).optional(),
   local_enabled: z.boolean().optional(),
+  local_endpoint: z
+    .union([
+      z.literal(""),
+      z.url().refine((value) => {
+        const protocol = new URL(value).protocol
+        return protocol === "http:" || protocol === "https:"
+      }, "Ollama endpoint must use HTTP or HTTPS"),
+    ])
+    .optional(),
   prefer_local_models: z.boolean().optional(),
 })
 export type OllamaSettingsUpdateRequest = z.infer<
   typeof OllamaSettingsUpdateRequest
 >
+
+export const OllamaApiKeyTestRequest = z.object({
+  api_key: z.string().max(4096).optional(),
+})
+export type OllamaApiKeyTestRequest = z.infer<typeof OllamaApiKeyTestRequest>
+
+export const OllamaApiKeyTestResponse = z.object({
+  status: z.enum(["valid", "invalid"]),
+  message: z.string(),
+})
+export type OllamaApiKeyTestResponse = z.infer<typeof OllamaApiKeyTestResponse>
 
 /**
  * An API-key entry as managed by Settings → API clients. The key value
