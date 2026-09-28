@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from "bun:test"
+import { afterEach, describe, expect, mock, test } from "bun:test"
 import { Hono } from "hono"
 
 import type { ResolvedOllamaProviderConfig } from "~/lib/config/config"
@@ -15,10 +15,7 @@ import {
   handleOllamaMessages,
 } from "~/routes/provider/messages/handler"
 import { forwardProviderModels } from "~/services/providers/anthropic-proxy"
-import {
-  getOllamaSettings,
-  updateOllamaSettings,
-} from "~/services/providers/ollama-settings"
+import { updateOllamaSettings } from "~/services/providers/ollama-settings"
 import { createProviderDispatcher } from "~/services/providers/provider-dispatcher"
 
 const realFetch = globalThis.fetch
@@ -36,49 +33,24 @@ afterEach(() => {
 })
 
 describe("Ollama account settings", () => {
-  test("rejects an invalid API key without activating cloud access", async () => {
+  test("saves an API key without an unreliable inference probe", async () => {
     delete process.env.OLLAMA_API_KEY
-    globalThis.fetch = ((_input, _init) =>
-      Promise.resolve(
-        new Response("unauthorized", { status: 401 }),
-      )) as typeof fetch
-
-    let errorMessage = ""
-    try {
-      await updateOllamaSettings({ api_key: "invalid-key" })
-    } catch (error) {
-      errorMessage = error instanceof Error ? error.message : String(error)
-    }
-    expect(errorMessage).toContain("Ollama rejected this API key")
-    expect(getOllamaSettings().has_api_key).toBe(false)
-  })
-
-  test("accepts a validated API key and allows an empty value to remove it", async () => {
-    delete process.env.OLLAMA_API_KEY
-    globalThis.fetch = ((input, init) => {
-      let url: string
-      if (typeof input === "string") url = input
-      else if (input instanceof URL) url = input.href
-      else url = input.url
-      expect(url).toBe("https://ollama.com/api/chat")
-      expect(init?.method).toBe("POST")
-      expect(init?.body).toBe("{}")
-      expect(new Headers(init?.headers).get("content-type")).toBe(
-        "application/json",
-      )
-      expect(new Headers(init?.headers).get("authorization")).toBe(
-        "Bearer valid-key",
-      )
-      return Promise.resolve(
-        Response.json({ error: "model is required" }, { status: 400 }),
-      )
-    }) as typeof fetch
+    const fetchMock = mock(() =>
+      Promise.reject(new Error("Ollama settings must not probe inference")),
+    )
+    globalThis.fetch = Object.assign(fetchMock, {
+      preconnect: realFetch.preconnect,
+    })
 
     const saved = await updateOllamaSettings({ api_key: "valid-key" })
     expect(saved).toMatchObject({
       has_api_key: true,
       credential_source: "file",
     })
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  test("allows an empty API key to remove the saved credential", async () => {
     const removed = await updateOllamaSettings({ api_key: "" })
     expect(removed).toMatchObject({
       has_api_key: false,

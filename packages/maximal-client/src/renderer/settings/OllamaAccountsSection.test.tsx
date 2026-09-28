@@ -140,10 +140,10 @@ describe('OllamaAccountsSection API key validation', () => {
 
     const dialog = document.querySelector('[data-testid="ollama-key-dialog"]')
     expect(dialog).not.toBeNull()
-    expect(dialog?.textContent).toContain('Update Ollama API key?')
+    expect(dialog?.textContent).toContain('Save Ollama API key?')
 
     const confirmButton = [...(dialog?.querySelectorAll('button') ?? [])].find(
-      (btn) => btn.textContent === 'Yes, update key',
+      (btn) => btn.textContent === 'Yes, save key',
     )
     if (!confirmButton) throw new Error('confirm button not found')
 
@@ -154,7 +154,7 @@ describe('OllamaAccountsSection API key validation', () => {
 
     expect(update).toHaveBeenCalledTimes(1)
     expect(update).toHaveBeenCalledWith({ api_key: 'ollama-secret-key' })
-    expect(surface.textContent).toContain('Ollama API key verified and saved.')
+    expect(surface.textContent).toContain('Ollama API key saved.')
   })
 
   it('discards the entered key without updating when rejected in dialog', async () => {
@@ -207,7 +207,7 @@ describe('OllamaAccountsSection API key validation', () => {
     expect(dialog).not.toBeNull()
 
     const confirmButton = [...(dialog?.querySelectorAll('button') ?? [])].find(
-      (btn) => btn.textContent === 'Yes, update key',
+      (btn) => btn.textContent === 'Yes, save key',
     )
     if (!confirmButton) throw new Error('confirm button not found')
 
@@ -239,7 +239,7 @@ describe('OllamaAccountsSection API key validation', () => {
 
     const dialog = document.querySelector('[data-testid="ollama-key-dialog"]')
     const confirmButton = [...(dialog?.querySelectorAll('button') ?? [])].find(
-      (btn) => btn.textContent === 'Yes, update key',
+      (btn) => btn.textContent === 'Yes, save key',
     )
     if (!confirmButton) throw new Error('confirm button not found')
 
@@ -269,4 +269,3 @@ describe('OllamaAccountsSection API key validation', () => {
     expect(update).toHaveBeenCalledWith({ api_key: '' })
   })
 })
-

@@ -91,8 +91,8 @@ export function OllamaApiKeySettings({
       <Dialog
         open={confirmOpen}
         onOpenChange={onConfirmOpenChange}
-        title="Update Ollama API key?"
-        description="Would you like to verify and save this API key to your Ollama configuration?"
+        title="Save Ollama API key?"
+        description="Would you like to save this API key to your Ollama configuration?"
         showTitle
         showDescription
         className="dialog unsaved-changes-dialog"
@@ -108,7 +108,7 @@ export function OllamaApiKeySettings({
             No, discard
           </Button>
           <Button variant="primary" onClick={onSave} disabled={saving}>
-            {saving ? 'Verifying…' : 'Yes, update key'}
+            {saving ? 'Saving…' : 'Yes, save key'}
           </Button>
         </div>
       </Dialog>

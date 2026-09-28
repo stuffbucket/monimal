@@ -102,7 +102,7 @@ export function useOllamaAccounts(capabilities: SettingsCapabilities) {
       setApiKeyDirty(false)
       setConfirmOpen(false)
       setKeyError(null)
-      setKeyMessage('Ollama API key verified and saved.')
+      setKeyMessage('Ollama API key saved.')
       try {
         setList(await capabilities.ollamaAccounts.list())
       } catch (cause) {
