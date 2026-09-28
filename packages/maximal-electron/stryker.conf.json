@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
-  "_comment": "Mutation testing. Runs in CI, in the `static` job, and breaks the build below 100. `mutate` is not a hand-list: `scripts/mutation-scope.mjs` derives the set every file under `src/` and `scripts/` that Stryker can run, and fails when one is on neither this list nor its deferred list. Anything importing `electron` or React for a value cannot be mutated here: it needs a real Electron runtime or a browser, not Node. `scripts/mutation-report.mjs` then reads the run back, because the score alone says nothing about how many mutants there were or what killed them. The shape follows stuffbucket/maximal's stryker.conf.json, with the Vitest runner instead of a command runner because the unit suite is already Vitest.",
+  "_comment": "The complete mutation scope. The workspace runner narrows it to changed or explicit ranges for development and shards it only across isolated checkouts. `scripts/mutation-scope.mjs` derives every file under `src/` and `scripts/` that Stryker can run, and fails when one is on neither this list nor its deferred list. Anything importing `electron` or React for a value needs a real Electron runtime or browser and cannot run here. `scripts/mutation-report.mjs` verifies the result shape because the score alone says nothing about missing mutants or non-assertion kills.",
   "packageManager": "npm",
   "plugins": [
     "@stryker-mutator/vitest-runner"
@@ -51,6 +51,7 @@
   "jsonReporter": {
     "fileName": "reports/mutation/mutation.json"
   },
+  "incrementalFile": "reports/mutation/incremental.json",
   "concurrency": 12,
   "timeoutMS": 30000,
   "coverageAnalysis": "perTest",

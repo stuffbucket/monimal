@@ -27,27 +27,45 @@ still works.
 
 `tests/terminal/` owns the terminal unit-test boundary. `npm run test:terminal`
 runs that directory alone. The terminal modules themselves are mutated by
-`@maximal/maximal-terminal`'s own `npm run mutate`.
+`@maximal/maximal-terminal`'s own mutation commands.
 
 ## Mutation testing
 
-`npm run mutate` reports what the tests actually catch, which coverage does not.
-**It breaks below 100.** The commands around Stryker exist because a percentage
-on its own is a weak claim: it says nothing about how many mutants there were,
-which files produced them, or what did the killing.
+Mutation testing reports what the tests actually catch, which coverage does
+not. **Every mode breaks below 100.** `pnpm run mutate` selects mutable lines
+changed since `origin/main`; `--mutate=file[:start-end]` selects an explicit
+scope. `pnpm run mutate:all` is the fresh complete audit, while
+four isolated jobs can run `pnpm run mutate -- --all --shard=1/4` through
+`4/4`; after their report directories are collected, `pnpm run
+mutate:merge-shards` produces and verifies the same complete evidence. Shards
+must use separate checkouts because the Vitest adapter writes worker setup
+files in the package root. The commands around Stryker exist because a
+percentage on its own is a weak claim: it says nothing about how many mutants
+there were, which files produced them, or what did the killing.
+
+Changed-line selection fails closed when no configured mutable line changed.
+Changes to tests, dependencies, shared test support, Stryker configuration, or
+the runner itself require `pnpm run mutate:all`, because source ranges cannot
+represent their impact.
 
 | Step | What it decides |
 | --- | --- |
-| `scripts/mutation-scope.mjs` | Which modules Stryker should sweep, from a criterion |
-| `stryker run` | Runtime mutants, against `break: 100` |
+| `scripts/mutation-scope.mjs` | Which modules a complete audit must cover |
+| `../../scripts/run-mutation.mjs` | Changed, explicit, complete, cached, and sharded scopes |
+| `stryker run` | Runtime mutants in the selected scope, against `break: 100` |
 | `stryker run stryker.static.conf.mjs` | Static initializers, active before Vitest imports them |
-| `scripts/mutation-report.mjs` | Whether the run measured what it claims to have measured |
+| `scripts/mutation-report.mjs` | Whether the selected scope measured what it claims |
 
-The static command runner omits the freshness, screenshot, and shuffle unit
-tests. They import only helpers under `e2e/`, which Stryker ignores and does not
-copy into its sandbox. The command runner reports its suite as one aggregate,
-so kill attribution comes from the Vitest phase; the report joiner separately
-requires every static mutant to fail that aggregate in a fresh process.
+The dynamic coverage pass records which test files loaded each selected static
+initializer. The static command runner starts fresh processes with the union
+of those files. Static initializers that execute before Vitest starts reporting
+coverage have no trustworthy mapping, so that scope falls back to the complete
+package suite. The command runner reports its tests as one aggregate, so kill
+attribution comes from the Vitest phase; the report joiner separately requires
+every static mutant to fail the aggregate.
+Static mutants are retained because module initializers and exported defaults
+have already executed by the time a hot mutant is activated. Reusing the
+Vitest process can therefore let their original values survive unchanged.
 
 A surviving mutant is a real gap. It found one here: `src/renderer/lib/data.ts`
 scored 0 with 77 untouched mutants, because it had no unit tests at all.
@@ -342,13 +360,13 @@ here. That is worse than not having it, because a green run reads as verified.
   first. It could mean something on the modules Stryker cannot reach, but that
   is a different scope, and even there it proves execution rather than
   correctness.
-- **Do not turn on Stryker's incremental mode.** It works, and its own
-  documentation is explicit that it can carry a stale "killed" result forward
-  when a change falls into one of its blind spots: an environment change, a
-  dependency bump, or a runner that reports coverage per file rather than per
-  test location, which Vitest does. A mode that can report 100 against data it
-  did not re-run is the same failure in a faster package. The minute this step
-  costs is the honest price of a gate that means what it says.
+- **Do not use Stryker's incremental mode as a gate.** `pnpm run
+  mutate:incremental` is an edit-loop command that reuses dynamic-mutant
+  results while still rerunning static mutants in fresh processes. Stryker
+  cannot invalidate cached results for every environment change, dependency
+  bump, or non-test support-file change. Only `pnpm run mutate:all` or a merged
+  set of fresh shards starts every mutant from fresh evidence and therefore
+  owns the authoritative 100 percent claim.
 - **Do not run `fast-check` over a domain the tests already enumerate.**
   `escapeAction` takes two booleans and its whole input domain is four values.
   Generating inputs for that is exhaustive testing done slower, with a

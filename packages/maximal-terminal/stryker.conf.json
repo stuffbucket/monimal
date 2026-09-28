@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
-  "_comment": "Mutation testing, breaking below 100. `scripts/mutation-scope.mjs` fails when a module Stryker can run is on neither this list nor its deferred list; `scripts/mutation-report.mjs` reads the run back. Both apply the workspace's criteria in `../../scripts`. Modules importing React, xterm or wterm for a value are out of reach under Node.",
+  "_comment": "The complete mutation scope, breaking below 100. The workspace runner narrows it to changed or explicit ranges for development and shards it only across isolated checkouts. `scripts/mutation-scope.mjs` fails when a module Stryker can run is on neither this list nor its deferred list; `scripts/mutation-report.mjs` verifies the selected evidence. Modules importing React, xterm or wterm for a value are out of reach under Node.",
   "packageManager": "npm",
   "plugins": ["@stryker-mutator/vitest-runner"],
   "testRunner": "vitest",
@@ -37,6 +37,7 @@
   "cleanTempDir": "always",
   "htmlReporter": { "fileName": "reports/mutation/index.html" },
   "jsonReporter": { "fileName": "reports/mutation/mutation.json" },
+  "incrementalFile": "reports/mutation/incremental.json",
   "concurrency": 12,
   "timeoutMS": 30000,
   "coverageAnalysis": "perTest",

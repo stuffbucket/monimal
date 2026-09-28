@@ -121,6 +121,23 @@ export function summarize(report) {
   };
 }
 
+export function mutantsForTarget(report, target) {
+  const match = target.match(
+    /^(.*?)(?::(\d+)(?::\d+)?-(\d+)(?::\d+)?)?$/u,
+  );
+  if (!match) return [];
+  const [, file, startValue, endValue] = match;
+  const mutants = report.files?.[file]?.mutants ?? [];
+  if (startValue === undefined || endValue === undefined) return mutants;
+  const start = Number(startValue);
+  const end = Number(endValue);
+  return mutants.filter((mutant) => {
+    const mutantStart = mutant.location?.start?.line;
+    const mutantEnd = mutant.location?.end?.line ?? mutantStart;
+    return mutantStart !== undefined && mutantEnd >= start && mutantStart <= end;
+  });
+}
+
 /**
  * Assert the shape of a package's run, and exit non-zero when it is wrong.
  *
@@ -131,6 +148,7 @@ export function summarize(report) {
  * @param {{ root: string, mutantFloor: number, ignoredCeiling: number, reportDirectory?: string }} options
  */
 export function checkMutationReport({ root, mutantFloor, ignoredCeiling, reportDirectory = 'reports/mutation' }) {
+  reportDirectory = process.env.MONIMAL_MUTATION_REPORT_DIRECTORY ?? reportDirectory;
   const reportArgument = process.argv.slice(2).find((argument) => !argument.startsWith('--'));
   const file = path.resolve(root, reportArgument ?? `${reportDirectory}/mutation.json`);
   if (!existsSync(file)) {
@@ -146,6 +164,9 @@ export function checkMutationReport({ root, mutantFloor, ignoredCeiling, reportD
   );
   const listed = JSON.parse(readFileSync(path.join(root, 'stryker.conf.json'), 'utf8')).mutate ?? [];
   const failures = [];
+  const scoped = process.argv.includes('--scoped');
+  const targetArgument = process.argv.find((argument) => argument.startsWith('--mutate='));
+  const targets = targetArgument?.slice('--mutate='.length).split(',').filter(Boolean) ?? [];
 
   const counted = (status) => scope.statuses.get(status) ?? 0;
   console.log(
@@ -160,13 +181,22 @@ export function checkMutationReport({ root, mutantFloor, ignoredCeiling, reportD
   // from "there was nothing to look at".
   if (scope.total === 0) failures.push('The report contains no mutants at all.');
   if (scope.knownTests === 0) failures.push('The report names no tests, so no kill can be attributed.');
-  if (scope.total < mutantFloor) {
-    failures.push(
-      `${scope.total} mutants is below the floor of ${mutantFloor}. Something left the mutate list.`,
-    );
-  }
-  for (const entry of listed) {
-    if (!scope.perFile.has(entry)) failures.push(`${entry} is on the mutate list and produced no mutants.`);
+  if (scoped) {
+    if (targets.length === 0) failures.push('A scoped report requires at least one --mutate target.');
+    for (const target of targets) {
+      if (mutantsForTarget(report, target).length === 0) {
+        failures.push(`${target} was requested but produced no mutants.`);
+      }
+    }
+  } else {
+    if (scope.total < mutantFloor) {
+      failures.push(
+        `${scope.total} mutants is below the floor of ${mutantFloor}. Something left the mutate list.`,
+      );
+    }
+    for (const entry of listed) {
+      if (!scope.perFile.has(entry)) failures.push(`${entry} is on the mutate list and produced no mutants.`);
+    }
   }
 
   for (const mutant of scope.unattributed) failures.push(`Killed with no killing test: ${mutant}`);
@@ -188,9 +218,9 @@ export function checkMutationReport({ root, mutantFloor, ignoredCeiling, reportD
   // a kill, so it is the one status that inflates the headline silently.
   if (counted('Timeout') > 0) failures.push(`${counted('Timeout')} mutants timed out. A timeout is not an assertion.`);
 
-  if (canonicalStatic.length === 0) {
+  if (canonicalStatic.length === 0 && !scoped) {
     failures.push('The static mutation scope is empty.');
-  } else {
+  } else if (canonicalStatic.length > 0) {
     const staticFile = path.resolve(root, `${reportDirectory}/static.json`);
     if (!existsSync(staticFile)) {
       failures.push('No static mutation report. Run npm run mutate first.');

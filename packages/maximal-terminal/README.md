@@ -12,8 +12,13 @@ React terminal views. Nothing here imports `electron`; the Electron adapter is
 Generated tmux session names take their prefix from the host through
 `TmuxSessionNames`; only names under that prefix are offered for resume.
 
-`npm run mutate` is the mutation gate, run under the workspace criteria in
-[`../../scripts`](../../scripts).
+`pnpm run mutate` checks mutable lines changed since `origin/main`;
+`--mutate=file[:start-end]` selects a scope explicitly.
+`pnpm run mutate:incremental` reuses dynamic-mutant results during local edit
+loops. `pnpm run mutate:all` is the fresh complete audit. The same audit can
+be split into four isolated `--all --shard=I/4` runs followed by `pnpm run
+mutate:merge-shards`. Every mode reruns selected static mutants in fresh
+processes under the workspace criteria in [`../../scripts`](../../scripts).
 
 ## Wiring a terminal
 

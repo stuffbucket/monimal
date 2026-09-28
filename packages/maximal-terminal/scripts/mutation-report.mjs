@@ -11,7 +11,7 @@ import { checkMutationReport } from '../../../scripts/mutation-report.mjs';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 /**
- * The mutant count `pnpm run mutate` produced when this floor was last set.
+ * The mutant count `pnpm run mutate:all` produced when this floor was last set.
  * Raise it when the count rises. Lower it only for code deleted on purpose,
  * and say which deletion paid for it.
  *
@@ -30,5 +30,10 @@ export const MUTANT_FLOOR = 3796;
 export const IGNORED_CEILING = 7;
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  checkMutationReport({ root, mutantFloor: MUTANT_FLOOR, ignoredCeiling: IGNORED_CEILING });
+  checkMutationReport({
+    root,
+    mutantFloor: MUTANT_FLOOR,
+    ignoredCeiling: IGNORED_CEILING,
+    reportDirectory: process.env.MONIMAL_MUTATION_REPORT_DIRECTORY,
+  });
 }

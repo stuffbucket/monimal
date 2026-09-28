@@ -3,16 +3,22 @@
  * `scripts/mutation-report.mjs`.
  */
 import path from 'node:path';
+import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 import { checkMutationReport } from '../../../scripts/mutation-report.mjs';
 
-export { readReport, summarize, verifyStaticRun } from '../../../scripts/mutation-report.mjs';
+export {
+  mutantsForTarget,
+  readReport,
+  summarize,
+  verifyStaticRun,
+} from '../../../scripts/mutation-report.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 /**
- * The mutant count `npm run mutate` produced when this floor was last set.
+ * The mutant count `pnpm run mutate:all` produced when this floor was last set.
  *
  * 1246 was a number nothing asserted, so a configuration change that halved
  * the mutated set would still have printed 100.00. Raise this when the count
@@ -77,5 +83,10 @@ export const MUTANT_FLOOR = 1953;
 export const IGNORED_CEILING = 6;
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  checkMutationReport({ root, mutantFloor: MUTANT_FLOOR, ignoredCeiling: IGNORED_CEILING });
+  checkMutationReport({
+    root,
+    mutantFloor: MUTANT_FLOOR,
+    ignoredCeiling: IGNORED_CEILING,
+    reportDirectory: process.env.MONIMAL_MUTATION_REPORT_DIRECTORY,
+  });
 }

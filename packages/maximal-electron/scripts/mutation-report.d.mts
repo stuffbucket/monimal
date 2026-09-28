@@ -21,6 +21,7 @@ export interface MutationSummary {
 
 export declare function readReport(file: string): unknown;
 export declare function summarize(report: unknown): MutationSummary;
+export declare function mutantsForTarget(report: unknown, target: string): unknown[];
 export declare function verifyStaticRun(
   dynamicReport: unknown,
   staticReport: unknown,

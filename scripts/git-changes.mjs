@@ -45,10 +45,6 @@ export function affectedBase(root = repositoryRoot) {
   return base;
 }
 
-function coreSourcePath(diffPath) {
-  return diffPath.match(coreSourcePattern)?.[1];
-}
-
 export function mergeLineRanges(ranges) {
   const merged = [];
   for (const range of [...ranges].sort(
@@ -64,7 +60,7 @@ export function mergeLineRanges(ranges) {
   return merged;
 }
 
-function formatTargets(rangesByPath) {
+export function formatMutationTargets(rangesByPath) {
   return [...rangesByPath.entries()]
     .sort(([left], [right]) => left.localeCompare(right))
     .flatMap(([relativePath, ranges]) =>
@@ -74,7 +70,7 @@ function formatTargets(rangesByPath) {
     );
 }
 
-export function parseCoreMutationDiff(diff) {
+export function parseMutationDiff(diff, sourcePath) {
   const rangesByPath = new Map();
   let destinationPath;
 
@@ -88,7 +84,7 @@ export function parseCoreMutationDiff(diff) {
       destinationPath =
         pathValue === "/dev/null"
           ? undefined
-          : coreSourcePath(pathValue.replace(/^b\//u, ""));
+          : sourcePath(pathValue.replace(/^b\//u, ""));
       continue;
     }
     if (!destinationPath || !line.startsWith("@@ ")) continue;
@@ -105,6 +101,13 @@ export function parseCoreMutationDiff(diff) {
   return rangesByPath;
 }
 
+export function parseCoreMutationDiff(diff) {
+  return parseMutationDiff(
+    diff,
+    (diffPath) => diffPath.match(coreSourcePattern)?.[1],
+  );
+}
+
 function untrackedLineCount(filePath) {
   const contents = fs.readFileSync(filePath, "utf8");
   if (!contents) return 0;
@@ -112,12 +115,22 @@ function untrackedLineCount(filePath) {
   return contents.endsWith("\n") ? lines - 1 : lines;
 }
 
-export function coreMutationTargets(
+export function mutationTargets({
+  packageDirectory,
+  mutableFiles,
+  label,
   root = repositoryRoot,
   base = affectedBase(root),
-) {
+}) {
   if (!/^[0-9a-f]{40}$/u.test(base))
     throw new Error(`Invalid merge base: ${base}`);
+  const packagePrefix = `${packageDirectory.replace(/\/+$/u, "")}/`;
+  const mutable = new Set(mutableFiles);
+  const sourcePath = (repositoryPath) => {
+    if (!repositoryPath.startsWith(packagePrefix)) return undefined;
+    const relativePath = repositoryPath.slice(packagePrefix.length);
+    return mutable.has(relativePath) ? relativePath : undefined;
+  };
   const diff = gitOutput(
     [
       "-c",
@@ -128,26 +141,26 @@ export function coreMutationTargets(
       "--no-ext-diff",
       base,
       "--",
-      `${coreSourcePrefix}src`,
+      packageDirectory,
     ],
-    "Core source diff",
+    `${label} source diff`,
     root,
   );
-  const rangesByPath = parseCoreMutationDiff(diff);
+  const rangesByPath = parseMutationDiff(diff, sourcePath);
   const untracked = gitOutput(
     [
       "ls-files",
       "--others",
       "--exclude-standard",
       "--",
-      `${coreSourcePrefix}src`,
+      packageDirectory,
     ],
-    "untracked Core source files",
+    `untracked ${label} source files`,
     root,
   );
 
   for (const repositoryPath of untracked.split("\n").filter(Boolean)) {
-    const relativePath = coreSourcePath(repositoryPath);
+    const relativePath = sourcePath(repositoryPath);
     if (!relativePath) continue;
     const filePath = path.join(root, repositoryPath);
     const stat = fs.lstatSync(filePath, { throwIfNoEntry: false });
@@ -157,12 +170,34 @@ export function coreMutationTargets(
       rangesByPath.set(relativePath, [{ start: 1, end: lineCount }]);
   }
 
-  const targets = formatTargets(rangesByPath);
+  const targets = formatMutationTargets(rangesByPath);
   if (targets.length === 0) {
     throw new Error(
-      "No mutable Core source lines changed since origin/main. Use --mutate for an" +
+      `No mutable ${label} source lines changed since origin/main. Use --mutate for an` +
         " explicit target or --all for a deliberate full sweep.",
     );
   }
   return targets;
+}
+
+export function coreMutationTargets(
+  root = repositoryRoot,
+  base = affectedBase(root),
+) {
+  const sourceRoot = path.join(root, coreSourcePrefix, "src");
+  const mutableFiles = fs
+    .readdirSync(sourceRoot, { recursive: true, withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith(".ts"))
+    .map((entry) =>
+      path
+        .relative(path.join(root, coreSourcePrefix), path.join(entry.parentPath, entry.name))
+        .replaceAll(path.sep, "/"),
+    );
+  return mutationTargets({
+    packageDirectory: coreSourcePrefix,
+    mutableFiles,
+    label: "Core",
+    root,
+    base,
+  });
 }
