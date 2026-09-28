@@ -98,7 +98,7 @@ interface Registration {
   store: JsonDocumentStore
 }
 const registry = singletonRegistry<Registration>(
-  "@stuffbucket/maximal-settings/document-stores/v1",
+  "@maximal/maximal-settings/document-stores/v1",
 )
 
 export function getJsonDocumentStore(

@@ -1,4 +1,4 @@
-import { typescript } from '@stuffbucket/eslint-config/typescript';
+import { typescript } from '@maximal/eslint-config/typescript';
 
 import shell from './eslint/shell.mjs';
 
@@ -65,8 +65,6 @@ export default [
       globals: {
         MAIN_WINDOW_VITE_DEV_SERVER_URL: 'readonly',
         MAIN_WINDOW_VITE_NAME: 'readonly',
-        DEMO_WINDOW_VITE_DEV_SERVER_URL: 'readonly',
-        DEMO_WINDOW_VITE_NAME: 'readonly',
       },
     },
     rules: {
@@ -134,14 +132,7 @@ export default [
     rules: { 'shell/content': 'error' },
   },
   {
-    /*
-     * The product may not import from the test tree.
-     *
-     * `e2e/fixtures/demo-shell` is a capture fixture that imports the product's
-     * components, and that direction is the only one that is allowed. Nothing
-     * enforced it before, and a single import the other way would put the
-     * fixture back in the bundle this change takes it out of.
-     */
+    /* The product may not import from the test tree. */
     files: ['src/**/*.ts', 'src/**/*.tsx'],
     rules: {
       'no-restricted-imports': [
@@ -150,19 +141,18 @@ export default [
           patterns: [
             {
               group: [
-                '@stuffbucket/*/src',
-                '@stuffbucket/*/src/**',
-                'stuffbucket-electron/src/**',
+                '@maximal/*/src',
+                '@maximal/*/src/**',
               ],
               message:
                 'Import another package through a declared public entry point, never its source tree.',
             },
             {
               group: [
-                'maximal-client',
-                'maximal-client/**',
-                '@stuffbucket/maximal-core',
-                '@stuffbucket/maximal-core/**',
+                '@maximal/maximal-client',
+                '@maximal/maximal-client/**',
+                '@maximal/maximal-core',
+                '@maximal/maximal-core/**',
               ],
               message:
                 'The reusable Electron package must not depend on consumer or Maximal Core policy.',

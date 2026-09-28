@@ -2,7 +2,7 @@ import type {
   ProviderDispatch,
   ProviderGateway,
   ProviderStatus,
-} from "@stuffbucket/maximal-model-contract"
+} from "@maximal/maximal-model-contract"
 
 import { afterEach, beforeEach, describe, expect, test } from "bun:test"
 

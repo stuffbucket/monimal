@@ -1,19 +1,13 @@
-export interface ConnectorConfigIssue {
-  readonly path?: ReadonlyArray<PropertyKey>
-  readonly message: string
-}
+import {
+  parsePluginSettings,
+  pluginSettingsIssues,
+  PluginSettingsError,
+  type PluginSettingsIssue,
+  type PluginSettingsSchema,
+} from "@maximal/maximal-settings"
 
-export interface ConnectorConfigSchema<T> {
-  readonly "~standard": {
-    readonly version: 1
-    readonly vendor: string
-    validate(
-      value: unknown,
-    ):
-      | { readonly value: T }
-      | { readonly issues: ReadonlyArray<ConnectorConfigIssue> }
-  }
-}
+export type ConnectorConfigIssue = PluginSettingsIssue
+export type ConnectorConfigSchema<T> = PluginSettingsSchema<T>
 
 export interface ConnectorPlugin<TConfig = unknown> {
   readonly id: string
@@ -25,22 +19,10 @@ export type ConnectorPluginFactory = () =>
 
 const installed = new Map<string, ConnectorPlugin>()
 
-export class ConnectorConfigError extends Error {
-  readonly pluginId: string
-  readonly issues: ReadonlyArray<ConnectorConfigIssue>
-
+export class ConnectorConfigError extends PluginSettingsError {
   constructor(pluginId: string, issues: ReadonlyArray<ConnectorConfigIssue>) {
-    super(
-      issues
-        .map((issue) => {
-          const path = issue.path?.map(String).join(".")
-          return `${pluginId}${path ? `.${path}` : ""}: ${issue.message}`
-        })
-        .join("\n"),
-    )
+    super(pluginId, issues)
     this.name = "ConnectorConfigError"
-    this.pluginId = pluginId
-    this.issues = issues
   }
 }
 
@@ -69,26 +51,28 @@ export function parseConnectorConfig<TConfig>(
   plugin: ConnectorPlugin<TConfig>,
   connectors: Readonly<Record<string, unknown>> | undefined,
 ): TConfig {
-  const result = plugin.Config["~standard"].validate(connectors?.[plugin.id])
-  if ("issues" in result) {
-    throw new ConnectorConfigError(plugin.id, result.issues)
+  try {
+    return parsePluginSettings(
+      { id: plugin.id, schema: plugin.Config },
+      connectors,
+    )
+  } catch (error) {
+    if (error instanceof PluginSettingsError) {
+      throw new ConnectorConfigError(error.pluginId, error.issues)
+    }
+    throw error
   }
-  return result.value
 }
 
 export function connectorConfigIssues(
   connectors: Readonly<Record<string, unknown>> | undefined,
 ): ReadonlyArray<ConnectorConfigIssue> {
-  const issues: Array<ConnectorConfigIssue> = []
-  for (const plugin of installed.values()) {
-    const result = plugin.Config["~standard"].validate(connectors?.[plugin.id])
-    if (!("issues" in result)) continue
-    for (const issue of result.issues) {
-      issues.push({
-        path: ["connectors", plugin.id, ...(issue.path ?? [])],
-        message: issue.message,
-      })
-    }
-  }
-  return issues
+  return pluginSettingsIssues(
+    Array.from(installed.values(), ({ id, Config: schema }) => ({
+      id,
+      schema,
+    })),
+    connectors,
+    ["connectors"],
+  )
 }

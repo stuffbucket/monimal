@@ -38,6 +38,7 @@ export declare function peerRequirements(
   packageRoot: string,
   exports: unknown,
   readSource?: ReadSource,
+  exceptions?: readonly RequiredWithoutImport[],
 ): Promise<Map<string, string[]>>;
 
 export declare function readPackageSource(file: string): Promise<string>;

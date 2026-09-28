@@ -105,18 +105,6 @@ check(
   'renderer stylesheet is packed',
 );
 
-// The capture fixture is a screenshot and video prop. It used to sit inside the
-// product's own bundle, reachable with a query parameter, and shipped to every
-// user. `forge.config.ts` drops it; this is what makes that a fact rather than
-// an intention.
-check(
-  !listing.some((entry) => entry.includes('/renderer/demo_window')),
-  'capture fixture is not packed',
-);
-check(
-  !listing.some((entry) => entry.includes('/renderer/terminal_lab_window')),
-  'terminal lab is not packed',
-);
 
 // Stories live beside the components they cover, inside `src/`. Nothing
 // imports them, so Vite should never reach one from an entry point. This is
@@ -196,7 +184,7 @@ const unpackedFiles = existsSync(unpacked)
   : [];
 
 // The terminal assertions are the `./verify` export, so a consumer packaging
-// `./host/terminal` runs the same checks this build runs rather than a copy
+// `@maximal/maximal-terminal` runs the same checks this build runs rather than a copy
 // that drifts. Issue #76.
 for (const { name, ok } of terminalPackageChecks({
   packedFiles: listing,

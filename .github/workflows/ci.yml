@@ -189,7 +189,7 @@ jobs:
           SECONDS=0
           started_at=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
           set +e
-          pnpm --filter @stuffbucket/maximal-core run check:deep:host:after-workspace
+          pnpm --filter @maximal/maximal-core run check:deep:host:after-workspace
           command_status=$?
           set -e
           ended_at=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
@@ -202,24 +202,23 @@ jobs:
       # checks that require a tag or packaged app remain out of the PR gate.
       - name: Verify package mechanics
         run: |
-          pnpm --filter @stuffbucket/maximal-electron run verify:fixture-imports
-          pnpm --filter @stuffbucket/maximal-electron run verify:neutral
-          pnpm --filter @stuffbucket/maximal-electron run verify:docs
-          pnpm --filter @stuffbucket/maximal-electron run verify:exports
-          pnpm --filter @stuffbucket/maximal-electron run check:contrast
+          pnpm --filter @maximal/maximal-electron run verify:neutral
+          pnpm --filter @maximal/maximal-electron run verify:docs
+          pnpm --filter @maximal/maximal-electron run verify:exports
+          pnpm --filter @maximal/maximal-electron run check:contrast
 
       # Prove that the client compiled this checkout's workspace core rather
       # than the stale git dependency from the copied upstream manifest.
       - name: Verify sidecar provenance
         run: |
           set -euo pipefail
-          LINK=packages/maximal/client/node_modules/@stuffbucket/maximal-core
+          LINK=apps/desktop/node_modules/@maximal/maximal-core
           test -L "$LINK" || { echo "::error::$LINK is not a workspace symlink"; exit 1; }
           TARGET="$(cd "$(dirname "$LINK")" && cd "$(readlink "$(basename "$LINK")")" && pwd)"
           EXPECTED="$PWD/packages/maximal-core"
           echo "resolves to: $TARGET"
           test "$TARGET" = "$EXPECTED" || { echo "::error::expected $EXPECTED"; exit 1; }
-          BIN=packages/maximal/client/resources/bin/maximal-core
+          BIN=apps/desktop/resources/bin/maximal-core
           test -s "$BIN" || { echo "::error::no sidecar at $BIN"; exit 1; }
           SHA="$(git rev-parse HEAD)"
           # Process substitution, not a pipe: `grep -q` exits at the first
@@ -254,8 +253,8 @@ jobs:
   # build/typecheck/lint/test do not prove.
   #
   # BOTH Electron applications, because they package differently and only one
-  # of them was ever built here. `maximal-client` bundles its dependencies and
-  # ships a sidecar; `@stuffbucket/maximal-electron` keeps two native modules
+  # of them was ever built here. `maximal-desktop` bundles its dependencies and
+  # ships a sidecar; `@maximal/maximal-electron` keeps two native modules
   # external and materialises their dependency closure by hand. Four packaging
   # defects lived in the second one undetected -- a resolver that walked
   # symlinks, one that appended `node_modules` to a directory already named
@@ -284,7 +283,7 @@ jobs:
           bun-version-file: .bun-version
 
       # Dependency builds can replay from a previous run. The Git-dependent
-      # maximal-client sidecar build is uncached and therefore recompiles.
+      # maximal-desktop sidecar build is uncached and therefore recompiles.
       # The check job owns saving this key. Restore-only avoids two successful
       # parallel jobs racing to reserve the same cache in their post-steps.
       - name: Restore turbo cache
@@ -302,7 +301,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/electron
-          key: electron-${{ runner.os }}-${{ hashFiles('packages/maximal/client/package.json', 'packages/maximal-electron/package.json', 'packages/maximal-harness/package.json') }}
+          key: electron-${{ runner.os }}-${{ hashFiles('apps/desktop/package.json', 'packages/maximal-electron/package.json', 'packages/maximal-harness/package.json') }}
           restore-keys: electron-${{ runner.os }}-
 
       # Same reason as the check job: a lockfile can arrive host-pinned, and
@@ -320,7 +319,7 @@ jobs:
       - name: Verify the client's packaged app
         run: |
           set -euo pipefail
-          OUT=packages/maximal/client/out
+          OUT=apps/desktop/out
           APP="$(find "$OUT" -maxdepth 1 -type d -name 'Maximal-*' | head -1)"
           test -n "$APP" || { echo "::error::no packaged app under $OUT"; exit 1; }
           echo "packaged: $APP"
@@ -336,4 +335,4 @@ jobs:
       # can see, because the end-to-end suite deliberately drives the
       # UNPACKAGED tree. Nothing in this repository ran it until now.
       - name: Verify the shell's packaged app
-        run: pnpm --filter @stuffbucket/maximal-electron run verify:package
+        run: pnpm --filter @maximal/maximal-electron run verify:package

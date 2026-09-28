@@ -1,5 +1,5 @@
 {
-  "name": "@stuffbucket/maximal-models",
+  "name": "@maximal/maximal-models",
   "version": "0.0.0",
   "private": true,
   "description": "Model runtime orchestration for profile-installed Maximal providers.",
@@ -24,12 +24,12 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@stuffbucket/maximal-model-contract": "workspace:*"
+    "@maximal/maximal-model-contract": "workspace:*"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.2",
     "@deepseek-ai/dsh-llm": "0.1.0-rc.8",
-    "@stuffbucket/eslint-config": "workspace:*",
+    "@maximal/eslint-config": "workspace:*",
     "@types/node": "^26.4.0",
     "@typescript/native": "npm:typescript@^7.0.2",
     "eslint": "^10.9.1",

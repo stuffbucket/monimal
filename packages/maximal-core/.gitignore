@@ -1,7 +1,5 @@
 node_modules/
-# Build output, never committed. The published tarball still carries it —
-# `files` includes `dist` and `prepack` builds into it before packing — but
-# nothing in git does. See SOURCES.md for why the monorepo builds instead.
+# Build output, never committed. See SOURCES.md for why the monorepo builds instead.
 dist/
 # `scripts/sbom.ts` output.
 SBOM.cdx.json
@@ -10,8 +8,7 @@ SBOM.cdx.json
 .env
 .env.local
 .env.*.local
-# `publish-package.yml` writes one at runtime to carry the registry auth token.
-# It must never be committed; ignoring it means a stray local copy cannot be.
+# Registry auth tokens live here; a stray local copy must never be committed.
 .npmrc
 
 # bun

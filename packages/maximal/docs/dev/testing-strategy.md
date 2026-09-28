@@ -4,7 +4,7 @@
 version described the proxy's own test architecture — the `bunfig.toml`
 `[test] preload`, `tests/test-setup.ts`, its credential isolation and
 module-mock discipline. None of that lives here any more. It moved with the
-code, to `@stuffbucket/maximal-core`. Read that repository for it; the old text
+code, to `@maximal/maximal-core`. Read that repository for it; the old text
 is in this file's git history.
 
 **Audience:** contributors who need one place that says what *this* repository
@@ -14,21 +14,22 @@ verifies, and where everything else went.
 
 maximal composes three things it mostly does not implement:
 
-- the proxy engine, from the `@stuffbucket/maximal-core` package
-- the desktop shell, from the `stuffbucket-electron` package
+- the proxy engine, from the `@maximal/maximal-core` package
+- the desktop shell, from the `@maximal/maximal-electron` package
 - its own client, site, and release scripts
 
 So the interesting tests are mostly *other repositories'*. What remains here
 tests the seams and the things maximal genuinely owns.
 
-## The two suites
+## The suites
 
 | Suite | Runner | Scope |
 | --- | --- | --- |
 | root `tests/` | `bun test` | Release and packaging scripts: the homebrew formula sync, the macOS installer template, build verification |
-| `client/` | `vitest` (+ Playwright for e2e) | The Electron client: renderer surfaces, the preload seam, and the `--shell-*` contract against the installed shell package |
+| `apps/desktop/` | `vitest` (+ Playwright for e2e) | Electron host, app-level renderer composition, preload seam, and packaged behavior |
+| `packages/maximal-client/` | `vitest` | Reusable renderer features, controls, and the `--shell-*` contract against the installed shell package |
 
-Each is a separate install root and runs independently.
+All run through the root workspace test graph.
 
 ## What is worth knowing about each
 
@@ -37,9 +38,9 @@ assert on text and shape. They are fast and have no network, no server boot,
 and no credential surface — which is why the elaborate isolation the old
 document described is no longer needed here.
 
-**Client.** `src/renderer/theme.test.ts` is the one to understand before
+**Product UI.** `src/renderer/theme.test.ts` is the one to understand before
 changing anything visual. It derives the required `--shell-*` variables from
-the *installed* `stuffbucket-electron` package via that package's
+the *installed* `@maximal/maximal-electron` package via that package's
 `verify/shell-variables` export, and fails when `theme.ts` misses one. This
 exists because a hand-maintained adapter previously drifted to 27 dead names
 and 7 unset required ones with nothing noticing — the result still rendered a
@@ -50,7 +51,8 @@ plausible shell. Do not hand-edit the variable list; regenerate it.
 `bun run check:fast` is lint, typecheck and lint:all. `bun run check:deep`
 adds `bun test` and `knip`. The client gate runs from its own root.
 
-CI runs these per root; see `.github/workflows/ci.yml` and `client-ci.yml`.
+The root CI workflow runs the workspace graph; see
+[`../../../../.github/workflows/ci.yml`](../../../../.github/workflows/ci.yml).
 The site and its tests are owned by
 [`stuffbucket/maximal-site`](https://github.com/stuffbucket/maximal-site).
 

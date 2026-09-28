@@ -1,7 +1,7 @@
 import type {
   TrafficContextObservation,
   TrafficDispatchObservation,
-} from "@stuffbucket/maximal-observability-contract"
+} from "@maximal/maximal-observability-contract"
 
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test"
 import { Hono } from "hono"

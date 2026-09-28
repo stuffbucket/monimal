@@ -1074,8 +1074,7 @@ body {
  * have to repeat the mapping.
  *
  * `TabBar` renders `.dot` and `StatusChip` renders `.chip`, so these belong to
- * the product even though nothing in the default views sets a status yet. The
- * fleet fixture's own selectors live in `e2e/fixtures/demo-shell/demo.css`.
+ * the product even though nothing in the default views sets a status yet.
  */
 
 .dot {

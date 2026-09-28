@@ -1,4 +1,4 @@
-import type { TerminalTheme } from './terminal-emulator.js';
+import type { TerminalTheme } from '@maximal/maximal-terminal/renderer';
 
 /**
  * The emulator's colours, as design tokens.

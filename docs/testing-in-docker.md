@@ -38,9 +38,12 @@ NOT be used as an estimate of hours of reliable operation.
 - Developers MAY set `terminalDiagnostics` in the Maximal user settings document;
   the application MUST resolve it before configuring the host. Client project
   settings MUST remain disabled unless the caller explicitly establishes trust.
+- Developers MAY set `terminalSessionPrefix` (default `maximal`) in the same
+  document to name the tmux sessions the application creates and offers to
+  resume; sessions under another prefix are not offered.
 - Hosts MAY call `configureTerminalDiagnostics(true)` or
   `configureTerminalDiagnostics(false)` through
-  `@stuffbucket/maximal-electron/host/terminal`; `undefined` MUST disable diagnostics.
+  `@maximal/maximal-terminal`; `undefined` MUST disable diagnostics.
   The terminal library MUST NOT read application environment settings. Product configuration SHOULD use this API
   instead of a second logging implementation.
 - Diagnostic consumers MUST filter the `[terminal-diagnostic]` prefix and parse
@@ -177,11 +180,11 @@ home-state-free runs before admission to a parallel lane.
 
 The first experimental lane SHOULD be limited to:
 
-- `@stuffbucket/maximal-observability-contract`;
-- `@stuffbucket/maximal-model-contract`;
-- `@stuffbucket/omlx`;
-- `@stuffbucket/anthropic-provider`;
-- `@stuffbucket/maximal-observability`.
+- `@maximal/maximal-observability-contract`;
+- `@maximal/maximal-model-contract`;
+- `@maximal/omlx`;
+- `@maximal/anthropic-provider`;
+- `@maximal/maximal-observability`.
 
 A parallel lane MUST NOT include Core, model orchestration, or maximal until
 their port and user-state boundaries no longer overlap another package task.

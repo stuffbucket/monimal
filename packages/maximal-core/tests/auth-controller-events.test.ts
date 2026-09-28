@@ -10,9 +10,9 @@
  * Together they prove the bus is wired end to end.
  */
 
-import { afterEach, beforeEach, describe, expect, test } from "bun:test"
+import type { AuthStatus } from "@maximal/maximal-core-contract/settings"
 
-import type { AuthStatus } from "~/lib/config/settings-types"
+import { afterEach, beforeEach, describe, expect, test } from "bun:test"
 
 import {
   __resetAuthControllerForTests,

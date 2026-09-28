@@ -6,6 +6,14 @@ export {
 } from "./document.ts"
 export { resolveSettingsEnvironment } from "./environment.ts"
 export {
+  parsePluginSettings,
+  PluginSettingsError,
+  type PluginSettingsIssue,
+  pluginSettingsIssues,
+  type PluginSettingsRegistration,
+  type PluginSettingsSchema,
+} from "./plugin.ts"
+export {
   loadSettings,
   type SettingsOptions,
   type SettingsSnapshot,

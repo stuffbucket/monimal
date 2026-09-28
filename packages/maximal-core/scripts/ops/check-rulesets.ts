@@ -33,11 +33,11 @@
  *
  *   ASSERTED — the ruleset exists, is `active` (not `evaluate`/`disabled`),
  *   targets the default branch, still carries each rule TYPE, still requires
- *   each of `test`/`windows`/`gate`, still requires the branch to be
+ *   each of `test`/`windows`, still requires the branch to be
  *   up to date (`strict_required_status_checks_policy`, which is what stands in
  *   for the Merge Queue this repo cannot have — repoman ADR-0007), and still
- *   allows ONLY squash merges (the PR title is the commit subject and the whole
- *   changelog; a merge commit would bypass that).
+ *   allows ONLY squash merges (the PR title is the commit subject; a merge
+ *   commit would bypass that).
  *
  *   NOT ASSERTED — ruleset ids, timestamps, `do_not_enforce_on_create`, the
  *   review-count knobs, the identity of a bypass actor, and any check or
@@ -48,13 +48,10 @@
  *
  * THE ONE ASSERTION THIS USUALLY CANNOT MAKE is the bypass list, and both
  * rulesets now demand the same thing of it: NO bypass actor at all. `main` used
- * to carry an always-mode admin bypass so `release:manual` could push the
- * release commit straight to it; that flow is gone. `release:prepare` lands the
- * release commit through a pull request like everything else, and `release:tag`
- * pushes the tag, which no ruleset here restricts (both are `target: branch`,
- * and there is no tag ruleset). So a bypass actor appearing on `main-require-pr`
- * is now DRIFT rather than a requirement — it would restore the one commit that
- * reached `main` with no check run against it.
+ * to carry an always-mode admin bypass for direct maintainer pushes; that flow
+ * is gone. So a bypass actor appearing on `main-require-pr` is now DRIFT rather
+ * than a requirement — it would restore a path to `main` with no check run
+ * against it.
  *
  * `bypass_actors` is only returned to a token that can read repository
  * administration — measured: an unauthenticated read of this public repo's
@@ -119,12 +116,12 @@ export const EXPECTED: ReadonlyArray<Expectation> = [
     why: "Without it every CI gate in this repo is advisory again: a red PR, or no PR at all, can land on `main`.",
     refs: ["~DEFAULT_BRANCH", "refs/heads/main"],
     rules: ["pull_request", "required_status_checks"],
-    requiredContexts: ["test", "windows", "gate"],
+    requiredContexts: ["test", "windows"],
     strictUpdate: true,
     mergeMethods: ["squash"],
     bypass: "none",
     bypassWhy:
-      "Nothing may reach `main` outside a pull request, the release included. `release:prepare` lands the release commit on `release/vX.Y.Z` and opens a PR for it, and `release:tag` then tags the MERGED head — tags are unrestricted here, because both rulesets are `target: branch` and there is no tag ruleset. A bypass actor would put back the one commit that used to reach `main` with no `test`, `windows` or `gate` run against it (docs/release-runbook.md).",
+      "Nothing may reach `main` outside a pull request. A bypass actor would put back a path to `main` with no required check run against it.",
   },
   {
     name: "main-protect-history",
@@ -146,7 +143,6 @@ export const EXPECTED: ReadonlyArray<Expectation> = [
 export const CHECK_JOBS: ReadonlyArray<{ context: string; workflow: string }> = [
   { context: "test", workflow: ".github/workflows/ci.yml" },
   { context: "windows", workflow: ".github/workflows/ci.yml" },
-  { context: "gate", workflow: ".github/workflows/release-gates.yml" },
 ]
 
 /**
@@ -179,7 +175,7 @@ export const repoPath = (rel: string): string => path.join(REPO_ROOT, rel)
 
 /**
  * Top-level job ids of a workflow. Deliberately textual: the ops lane has no
- * `node_modules` (release-gates.yml runs `test:ops` without `bun install`), so
+ * `node_modules` (watch-branch-rules.yml runs `test:ops` without `bun install`), so
  * a YAML dependency here would be a new install in three workflows to read
  * three identifiers.
  */

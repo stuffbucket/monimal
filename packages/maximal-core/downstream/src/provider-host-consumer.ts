@@ -4,13 +4,13 @@ import type {
   ProviderHostConfigSnapshot,
   RunServerOptions,
   ServerApps,
-} from "@stuffbucket/maximal-core/provider-host"
+} from "@maximal/maximal-core/provider-host"
 import {
   createMain,
   createServerApps,
   runCli,
   runServer,
-} from "@stuffbucket/maximal-core/provider-host"
+} from "@maximal/maximal-core/provider-host"
 
 import { expectAssignable } from "./assert.js"
 

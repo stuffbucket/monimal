@@ -2,43 +2,28 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { app, dialog, screen, BrowserWindow, type BrowserWindow as BrowserWindowType } from 'electron';
+import { app, dialog, type BrowserWindow as BrowserWindowType } from 'electron';
 
 import { RUN_MAIN_OPTIONS_VERSION, runMain } from '../host/run-main.js';
-import { configureTerminalWindowActions, registerIpcHandlers, sendEvent } from './ipc.js';
+import { registerIpcHandlers, sendEvent } from './ipc.js';
 import { focusWindow, installApplicationMenu } from './native/menu.js';
 import { applyDockIcon } from './native/app-icon.js';
 import { clearBadge } from './native/notifications.js';
 import {
   getPreferences,
-  isDemo,
   isE2E,
   isE2EQuiet,
   onPreferencesChanged,
   quietBounds,
 } from './native/preferences.js';
-import {
-  configurePty,
-  killAllPtys,
-  stagePtyOwnership,
-  transferPtyOwnership,
-} from './native/pty.js';
-import { createHostWindow, waitForHostWindowReady } from '../host/host-window.js';
+import { configurePty, killAllPtys } from './native/pty/index.js';
 import { showCrashReports, startCrashReports } from './native/crash-reports.js';
 import { selfCheckRequested } from './native/self-check.js';
-import {
-  isTerminalLab,
-  restoreTerminalLabWindowBounds,
-  saveTerminalLabWindowState,
-} from './native/terminal-lab.js';
 import { runSelfCheck } from './self-check.js';
 import { destroyTray, setTrayEnabled } from './native/tray.js';
 import { checkForUpdates } from './native/updates.js';
 import { mainWindowOptions } from './windows/main-window.js';
 import { closeSplashWindow, createSplashWindow } from './windows/splash.js';
-import type { TerminalUndockRequest } from '../shared/ipc.js';
-
-import { createTerminalSessionMetadataStore } from './native/session-metadata.js';
 
 /*
  * Pick the profile before anything else touches it.
@@ -50,17 +35,9 @@ import { createTerminalSessionMetadataStore } from './native/session-metadata.js
  *
  * - Under test: a throwaway directory, so a run never clobbers a developer's
  *   real preferences.
- * - In demo mode: a sibling directory that persists. The demo shell is a
- *   different application with different data, and giving it its own profile
- *   means `npm start` and `STUFFBUCKET_DEMO=1 npm start` can run side by side.
- *   They could not before, and the failure was silent: the second process took
- *   no lock, quit, and asked the first to come forward, so a developer saw a
- *   clean build and a window that was not the one they had just asked for.
  */
 function profileDirectory(): string | undefined {
   if (isE2E()) return mkdtempSync(path.join(tmpdir(), 'stuffbucket-e2e-'));
-  if (isTerminalLab()) return `${app.getPath('userData')}-terminal-lab`;
-  if (isDemo()) return `${app.getPath('userData')}-demo`;
   return undefined;
 }
 
@@ -120,30 +97,6 @@ function onActivate(window: BrowserWindowType | undefined): void {
 function wireWindow(window: BrowserWindowType): void {
   mainWindow = window;
 
-  if (isTerminalLab() && !isE2E()) {
-    const appPath = app.getAppPath();
-    let saveTimer: ReturnType<typeof setTimeout> | undefined;
-    const saveWindowState = () => {
-      const currentBounds = window.getBounds();
-      saveTerminalLabWindowState(
-        appPath,
-        screen.getDisplayMatching(currentBounds),
-        currentBounds,
-      );
-    };
-    const scheduleWindowStateSave = () => {
-      if (saveTimer) clearTimeout(saveTimer);
-      saveTimer = setTimeout(saveWindowState, 100);
-      saveTimer.unref();
-    };
-    window.on('move', scheduleWindowStateSave);
-    window.on('resize', scheduleWindowStateSave);
-    window.on('close', () => {
-      if (saveTimer) clearTimeout(saveTimer);
-      saveWindowState();
-    });
-  }
-
   window.once('ready-to-show', () => {
     closeSplashWindow();
     // A quiet test run parks the window off screen rather than hiding it, so
@@ -172,85 +125,12 @@ async function runUpdateCheck(): Promise<void> {
 
 function bootstrap(): void {
   const prefs = getPreferences();
-  const sessionMetadata = createTerminalSessionMetadataStore();
-  const openTransferredTerminal = async (
-    owner: BrowserWindowType | undefined,
-    request: TerminalUndockRequest,
-    mode: 'copy' | 'move',
-  ): Promise<boolean> => {
-    if (!owner) return false;
-    const options = mainWindowOptions(
-      { x: request.x, y: request.y, width: 1000, height: 700 },
-      request.id,
-      request.title,
-      request.pane,
-    );
-    const detached = createHostWindow({
-      ...options,
-      loadRenderer: () => undefined,
-    });
-    const ids = request.sessionIds ?? [request.id];
-    const transaction = stagePtyOwnership(owner, detached, ids.map((id) => ({
-      id,
-      cols: request.cols,
-      rows: request.rows,
-    })), mode);
-    if (!transaction) {
-      detached.close();
-      return false;
-    }
-    const ready = waitForHostWindowReady(detached);
-    options.loadRenderer(detached);
-    if (!await ready || !transaction.commit()) {
-      transaction.rollback();
-      if (!detached.isDestroyed()) detached.close();
-      return false;
-    }
-    if (mode === 'move') {
-      sessionMetadata.remember({
-        sessionId: request.id,
-        title: request.title,
-        frameId: String(detached.id),
-        bounds: detached.getBounds(),
-      });
-    }
-    detached.show();
-    focusWindow(detached);
-    return true;
-  };
 
   // An unpackaged run shows Electron's own dock icon until this call. A
   // packaged build already carries the bundle icon; this keeps the two the
   // same when `STUFFBUCKET_ICON_DIR` overrides it.
   applyDockIcon(process.platform);
 
-  configureTerminalWindowActions({
-    frameId: (window) => String(window?.id ?? ''),
-    undock: (owner, request) => openTransferredTerminal(owner, request, 'move'),
-    copy: (owner, request) => openTransferredTerminal(owner, request, 'copy'),
-    redock: (owner, request) => {
-      if (!owner) return false;
-      const source = BrowserWindow.fromId(Number(request.sourceFrameId));
-      const target = BrowserWindow.fromId(Number(request.targetFrameId));
-      if (!source || !target) return false;
-      const ids = request.sessionIds ?? [request.id];
-      const moved = transferPtyOwnership(source, target, ids.map((id) => ({
-        id,
-        cols: request.cols,
-        rows: request.rows,
-      })));
-      if (moved) {
-        sendEvent(target, 'terminal:tab-redocked', {
-          id: request.id,
-          title: request.title,
-          ...(request.pane ? { pane: request.pane } : {}),
-        });
-        sessionMetadata.forget(request.id);
-        source.close();
-      }
-      return moved;
-    },
-  });
   registerIpcHandlers();
 
   // Terminal output is pushed, not polled, so the pty layer needs a way to
@@ -264,7 +144,7 @@ function bootstrap(): void {
       sendEvent(window, 'pty:size', { id, cols, rows, projectionId }),
     onPane: (window, id, pane, revision, origin) =>
       sendEvent(window, 'terminal:pane-changed', { id, pane, revision, origin }),
-  });
+  }, { tmuxSessionPrefix: app.getName() });
 
   installApplicationMenu({
     onNavigate: (view) => {
@@ -346,11 +226,7 @@ if (selfCheckRequested(process.argv)) {
       version: RUN_MAIN_OPTIONS_VERSION,
       userDataDirectory,
       shouldQuitAfterLastWindow,
-      window: () => mainWindowOptions(
-        isTerminalLab() && !isE2E()
-          ? restoreTerminalLabWindowBounds(app.getAppPath(), screen.getAllDisplays())
-          : undefined,
-      ),
+      window: () => mainWindowOptions(),
       onReady: (context) => {
         activate = context.activate;
         if (getPreferences().splash) createSplashWindow();

@@ -75,13 +75,17 @@ const KNOWN_CROSS_PACKAGE_DUPLICATE_PAIRS = [
   "packages/maximal-context-window/src/styles.css <-> packages/maximal-data-visualization/src/styles.css",
   "packages/maximal-context-window/src/styles.css <-> packages/maximal-observability/src/styles.css",
   "packages/maximal-core/src/lib/host-config/json-resource-set.ts <-> packages/maximal-core/src/lib/host-config/json-target.ts",
-  "packages/maximal-electron/src/renderer/index.ts <-> packages/maximal/client/src/renderer/settings/capabilities.ts",
+  "packages/maximal-electron/src/renderer/index.ts <-> packages/maximal-client/src/renderer/settings/capabilities.ts",
   "packages/maximal-electron/src/renderer/lib/content-lorem.ts <-> packages/maximal-electron/src/renderer/lib/content.ts",
   "packages/maximal-electron/src/renderer/styles/controls.css <-> packages/maximal-electron/src/renderer/styles/shell.css",
   "packages/maximal-electron/src/renderer/styles/shell-package-rules.css <-> packages/maximal-electron/src/renderer/styles/shell.css",
   "packages/maximal-observability/src/Overview.tsx <-> packages/maximal-observability/src/TrafficExplorer.tsx",
 ];
 // --- END KNOWN CROSS-PACKAGE DUPLICATE PAIRS ---
+// Pairs are unordered; compare a hand-edited entry the same way `addDuplicatePairs` keys it.
+const knownPairs = KNOWN_CROSS_PACKAGE_DUPLICATE_PAIRS.map((id) =>
+  id.split(" <-> ").sort().join(" <-> "),
+);
 
 export function packageRoots(root = ROOT) {
   const policy = readArchitecturePolicy(root);
@@ -443,14 +447,14 @@ export function main(argv = process.argv.slice(2)) {
   const cssPairs = crossPackagePairsFromClones(runJscpd(targets, ROOT), packages, ROOT);
   const pairs = mergePairs(jsPairs, cssPairs);
   const current = [...pairs.keys()].sort();
-  const known = KNOWN_CROSS_PACKAGE_DUPLICATE_PAIRS.filter((id) => pairWithinScope(scope, id));
-  const report = writeReport(pairs, KNOWN_CROSS_PACKAGE_DUPLICATE_PAIRS);
+  const known = knownPairs.filter((id) => pairWithinScope(scope, id));
+  const report = writeReport(pairs, knownPairs);
   console.error(`Report: ${report.htmlPath} (${report.jsonPath})`);
 
   if (list) {
     console.log(`${current.length} duplicate pair(s):\n`);
     for (const id of current) {
-      const tag = KNOWN_CROSS_PACKAGE_DUPLICATE_PAIRS.includes(id) ? "GATE" : "new ";
+      const tag = knownPairs.includes(id) ? "GATE" : "new ";
       console.log(`${tag}  ${id}`);
       for (const instance of pairs.get(id) ?? []) console.log(`        ${describeMatch(instance)}`);
     }
@@ -471,7 +475,7 @@ export function main(argv = process.argv.slice(2)) {
     }
     writeKnown(
       [
-        ...KNOWN_CROSS_PACKAGE_DUPLICATE_PAIRS.filter((id) => !pairWithinScope(scope, id)),
+        ...knownPairs.filter((id) => !pairWithinScope(scope, id)),
         ...current,
       ].sort(),
     );

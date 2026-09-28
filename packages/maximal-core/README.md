@@ -6,7 +6,7 @@ Code, Codex, and similar) talk to GitHub Copilot's backend, including GitHub
 Enterprise deployments. It adds a server-side web-tools agent loop, model-id
 rewriting, and a runtime-selected search/fetch executor.
 
-This package (`@stuffbucket/maximal-core`) is **headless** — there is no UI,
+This package (`@maximal/maximal-core`) is **headless** — there is no UI,
 no menu-bar shell, and it serves no browser pages. It exposes a decoupled
 `/control` JSON-RPC 2.0 API that a separate UI tier or desktop app consumes over
 loopback (Ollama-style). See [Relation to `maximal`](#relation-to-maximal).
@@ -57,16 +57,6 @@ the server still listens but upstream routes answer `401 not_authenticated`.
 
 ## Install
 
-`maximal-core` is published as `@stuffbucket/maximal-core` and installs the
-`maximal` command (`dist/main.js`). It is on the **GitHub Package Registry**,
-not npmjs, so an install needs the scope pointed at it and an authenticated
-token:
-
-```sh
-echo "@stuffbucket:registry=https://npm.pkg.github.com" >> .npmrc
-bun add @stuffbucket/maximal-core
-```
-
 **The `maximal` command needs Bun on PATH.** `dist/main.js` is a
 `bun build --target=bun` bundle — it uses Bun-runtime internals, so its shebang
 asks for `bun` and Node cannot execute it. `engines.node` covers the library
@@ -74,10 +64,8 @@ half (`dist/lib`, an esbuild bundle a Node consumer can import); it does not
 cover the CLI. v0.4.4 shipped with a `node` shebang and a `maximal start` that
 died on `__require is not a function` — see #94.
 
-Tags v0.2.0 … v0.4.3 predate the package and exist only as git refs. A git
-dependency resolves against the standalone `stuffbucket/maximal-core` repo,
-which commits its built bundle; inside this monorepo the package is consumed
-through the workspace and built from source. Run from source for development:
+Inside this monorepo the package is consumed through the workspace and built
+from source. Run from source for development:
 
 ```sh
 bun install
@@ -287,23 +275,13 @@ THIRD-PARTY-LICENSE        Bundled-dependency license pointer (npm SBOM).
 
 ## Releasing
 
-`docs/release-runbook.md` is the canonical checklist. A release is a **GitHub
-milestone whose title is the tag**: assigning a PR to `vX.Y.Z` pre-selects its
-release, so what ships is reviewable before the tag exists. `bun run
-release:notes vX.Y.Z` turns the milestone into changelog-shaped Markdown, and
-and cutting it takes two commands with a merged pull request between them.
-`bun run release:prepare vX.Y.Z` refuses a dirty tree, an off-pin Bun, or a
-milestone `release:notes` would not emit for, then bumps, rebuilds `dist/`,
-writes the changelog entry, commits all of it on `release/vX.Y.Z`, pushes the
-branch and opens the PR — it cuts no tag. Once that PR is merged,
-`bun run release:tag vX.Y.Z` cuts the annotated tag on `main`'s merged HEAD,
-which is what publishes the package (`publish-package.yml`) and re-runs the tag
-gates (`release-tag-check.yml`). Core attaches no binaries.
+`maximal-core` is a private workspace package. It is not released or published
+on its own.
 
-`main` requires a pull request, three green checks (`test`, `windows`, `gate`)
-and a branch that is up to date before it will merge. There is no exemption and
-no bypass actor — the release commit included, which is why it takes a PR at all
-— see [`docs/admin/branch-rulesets.md`](docs/admin/branch-rulesets.md).
+`main` requires a pull request, two green checks (`test`, `windows`) and a
+branch that is up to date before it will merge. There is no exemption and no
+bypass actor — see
+[`docs/admin/branch-rulesets.md`](docs/admin/branch-rulesets.md).
 
 ## Status
 

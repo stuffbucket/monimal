@@ -35,7 +35,8 @@
  * idempotent — same code returned, no second poller spawned.
  */
 
-import type { AuthStatus } from "~/lib/config/settings-types"
+import type { AuthStatus } from "@maximal/maximal-core-contract/settings"
+
 import type { ParsedCopilotError } from "~/lib/errors/copilot-error-parser"
 import type { DeviceCodeResponse } from "~/services/github/get-device-code"
 

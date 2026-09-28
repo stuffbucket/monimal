@@ -58,7 +58,7 @@ git push origin v0.5.0-rc.1
 ```
 
 That is the whole trigger. The tag is the single owner of the version:
-`packages/maximal/client/package.json` stays at `0.0.0` and the producer stamps
+[`apps/desktop/package.json`](apps/desktop/package.json) stays at `0.0.0` and the producer stamps
 `${TAG#v}` into it at build time, so there is no manifest to bump and no way for
 a tag and a bundle version to disagree. A released version MUST come from the
 tag and MUST NOT be committed to the manifest; `scripts/release/contract.sh`

@@ -9,7 +9,7 @@ export async function renderPlainTextLicenses(packageRoot, {
   try {
     const bom = JSON.parse(await fs.readFile(sbomPath, 'utf8'))
     const rendered = (bom.components ?? [])
-      .filter((component) => component.group !== '@stuffbucket')
+      .filter((component) => component.group !== '@maximal')
       .map((component) => {
         const name = typeof component.name === 'string' ? component.name : 'unknown'
         const version = typeof component.version === 'string' ? component.version : 'unknown'

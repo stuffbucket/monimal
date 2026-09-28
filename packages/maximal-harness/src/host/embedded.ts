@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
+import { HARNESS_CONFIG, HARNESS_COPY } from '../constants.js';
 import { riskOf, type ToolRisk } from './approval.js';
 import { listen, send } from './llama-host.js';
 import { modelPath } from './llama.js';
@@ -40,20 +41,6 @@ export interface EmbeddedRun {
   signal: AbortSignal;
 }
 
-/** Text fed back to the model when a call is refused. */
-const DENIED = 'The user denied this tool call. Do not retry it.';
-
-/** Cap a turn so a runaway loop cannot hold the overlay open. */
-const MAX_TOKENS = 800;
-
-/**
- * A fresh context per run, sized here rather than in the engine.
- *
- * Conversation history is not carried between summons yet, so there is nothing
- * to keep alive, and holding a sequence open costs memory for no benefit.
- */
-const CONTEXT_SIZE = 4096;
-
 /** The part of a tool call worth showing in an approval prompt. */
 export function summarise(args: unknown): string {
   const record =
@@ -74,7 +61,7 @@ export function summarise(args: unknown): string {
 /** Flatten a pi tool result into the string the model reads. */
 export function textOf(result: unknown): string {
   const content = (result as { content?: unknown })?.content;
-  if (!Array.isArray(content)) return 'Done.';
+  if (!Array.isArray(content)) return HARNESS_COPY.common.done;
   const text = content
     .filter(
       (part): part is { type: 'text'; text: string } =>
@@ -84,7 +71,7 @@ export function textOf(result: unknown): string {
     )
     .map((part) => part.text)
     .join('\n');
-  return text.length > 0 ? text : 'Done.';
+  return text.length > 0 ? text : HARNESS_COPY.common.done;
 }
 
 /** What the engine is allowed to know about a tool: no functions cross. */
@@ -109,11 +96,11 @@ async function serveToolCall(
   name: string,
   args: unknown,
 ): Promise<string> {
-  if (!entry) return `Tool failed: ${name} is not available.`;
-  if (run.signal.aborted) return 'Cancelled.';
+  if (!entry) return HARNESS_COPY.embedded.toolUnavailable(name);
+  if (run.signal.aborted) return HARNESS_COPY.common.cancelled;
 
   const allowed = await run.approve(name, riskOf(name, entry.risk), summarise(args));
-  if (!allowed) return DENIED;
+  if (!allowed) return HARNESS_COPY.common.denied;
 
   run.onTool(name, 'start');
   try {
@@ -128,7 +115,9 @@ async function serveToolCall(
     run.onTool(name, 'end', true);
     // Returned, not thrown. The model can recover from a tool that failed; it
     // cannot recover from the turn ending.
-    return `Tool failed: ${error instanceof Error ? error.message : String(error)}`;
+    return HARNESS_COPY.embedded.toolFailed(
+      error instanceof Error ? error.message : String(error),
+    );
   }
 }
 
@@ -147,9 +136,7 @@ export function runEmbedded(run: EmbeddedRun): Promise<void> {
           // A dropped tool is the difference between "the model chose not to"
           // and "the model was never offered it", and only one of those is
           // worth debugging the prompt over.
-          console.warn(
-            `Embedded run: no grammar for ${event.names.join(', ')}. Those tools were not offered.`,
-          );
+          console.warn(HARNESS_COPY.embedded.droppedTools(event.names));
           return;
         case 'tool-call':
           void serveToolCall(run, byName.get(event.name), event.name, event.args).then(
@@ -185,8 +172,8 @@ export function runEmbedded(run: EmbeddedRun): Promise<void> {
         modelPath: modelPath(),
         prompt: run.prompt,
         systemPrompt: run.systemPrompt,
-        maxTokens: MAX_TOKENS,
-        contextSize: CONTEXT_SIZE,
+        maxTokens: HARNESS_CONFIG.models.embedded.maxTokens,
+        contextSize: HARNESS_CONFIG.models.embedded.contextSize,
         tools: run.tools.map(offer),
       });
     } catch (error) {

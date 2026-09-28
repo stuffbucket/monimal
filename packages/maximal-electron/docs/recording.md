@@ -62,7 +62,6 @@ where it freezes. Small, tracked, and edited by hand.
 | `e2e/demo/screencast.ts` | Frame capture over the Chrome DevTools Protocol. |
 | `e2e/demo/encode.ts` | The `ffmpeg` filter graph, and the probe that checks it. |
 | `e2e/demo/caption.ts` | Cards, rendered to transparent images. |
-| `e2e/demo/launch.ts` | Launch the shell in demo mode. Application specific. |
 | `e2e/demo/*.demo.ts` | The timelines. Application specific. |
 | `e2e/demo/rules.demo.ts` | Proves the pacing rules, in milliseconds. |
 | `e2e/demo/record.config.ts` | Playwright config for `.demo.ts`. |
@@ -276,20 +275,6 @@ The check lives in `e2e/demo/global-setup.ts`, which Playwright runs once
 before any worker starts. It pins the paths it verified into the environment,
 so the encoder that runs is the one that was tested.
 
-## Fixture data
-
-`e2e/fixtures/demo-shell/runs.ts` holds the agent fleet the video shows, beside
-the components that render it. The whole fixture is a separate renderer entry
-point, and `STUFFBUCKET_DEMO` selects it: the main process loads that bundle
-instead of the product's.
-
-`forge.config.ts` keeps the fixture bundle out of the package, and
-`npm run verify:package` fails if it ever appears. The fixture is reachable from
-a checkout and not from an installed application.
-
-Nothing else in the application behaves differently. The terminal and the
-chrome around the fixture use the product's own `ShellLayout`, `NavRail`, and
-`TerminalTabs`; only the displayed run data belongs to the fixture.
 
 ## Cards
 

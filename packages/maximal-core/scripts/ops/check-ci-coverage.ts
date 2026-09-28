@@ -256,7 +256,7 @@ function runsTurboTask(command: string, task: string): boolean {
     if (!runsTask) continue
     if (filters.length === 0) return true
     if (filters.some((filter) => filter.startsWith("!"))) return false
-    return filters.includes("@stuffbucket/maximal-core")
+    return filters.includes("@maximal/maximal-core")
   }
   return false
 }

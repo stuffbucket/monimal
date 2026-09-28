@@ -3,6 +3,7 @@ import path from 'node:path';
 
 import type {} from 'electron';
 
+import { HARNESS_CONFIG, HARNESS_COPY } from '../constants.js';
 import { ENGINE_LIFECYCLE } from '../host/llama-protocol.js';
 import type { EngineEvent, EngineRequest } from '../host/llama-protocol.js';
 import { toGrammarSchema } from './grammar.js';
@@ -48,8 +49,6 @@ let llamaModule: Record<string, unknown> | undefined;
  * own limit, and far above anything a real load costs, so a failure here means
  * the import and not a slow machine. Issue #133.
  */
-const IMPORT_TIMEOUT_MS = 30_000;
-
 async function library(): Promise<Record<string, unknown>> {
   if (llamaModule) return llamaModule;
 
@@ -59,10 +58,12 @@ async function library(): Promise<Record<string, unknown>> {
       () =>
         reject(
           new Error(
-            `loading node-llama-cpp did not complete in ${String(IMPORT_TIMEOUT_MS)} ms.`,
+            HARNESS_COPY.engine.importTimeout(
+              HARNESS_CONFIG.engine.importTimeoutMs,
+            ),
           ),
         ),
-      IMPORT_TIMEOUT_MS,
+      HARNESS_CONFIG.engine.importTimeoutMs,
     );
   });
 
@@ -102,8 +103,6 @@ interface ChatSessionCtor {
  * point: a build this bundle cannot perform should fail at load with
  * `NoBinaryFoundError` and not halfway through a compile.
  */
-const LLAMA_OPTIONS = { build: 'never' } as const;
-
 let loaded: { path: string; model: LoadedModel } | undefined;
 
 /** Load the library and report the backend it chose, and what it cost. */
@@ -111,9 +110,9 @@ async function probe(id: string): Promise<string> {
   const started = Date.now();
   const nlc = await library();
   const getLlama = nlc.getLlama as (
-    options: typeof LLAMA_OPTIONS,
+    options: typeof HARNESS_CONFIG.engine.llamaOptions,
   ) => Promise<{ gpu: string | false }>;
-  const llama = await getLlama(LLAMA_OPTIONS);
+  const llama = await getLlama(HARNESS_CONFIG.engine.llamaOptions);
   const device = llama.gpu === false ? 'cpu' : llama.gpu;
   // The number, not a round guess, is what a timeout on a platform nobody has
   // measured should be derived from. Issue #133.
@@ -137,12 +136,12 @@ async function model(modelPath: string, id: string): Promise<LoadedModel> {
   await probe(id);
   const nlc = await library();
   const getLlama = nlc.getLlama as (
-    options: typeof LLAMA_OPTIONS,
+    options: typeof HARNESS_CONFIG.engine.llamaOptions,
   ) => Promise<{
     loadModel: (options: { modelPath: string }) => Promise<LoadedModel>;
   }>;
 
-  const llama = await getLlama(LLAMA_OPTIONS);
+  const llama = await getLlama(HARNESS_CONFIG.engine.llamaOptions);
   const opened = await llama.loadModel({ modelPath });
   loaded = { path: modelPath, model: opened };
   return opened;
@@ -211,7 +210,9 @@ async function download(request: Extract<EngineRequest, { kind: 'ensure-model' }
     post({ kind: 'done', id });
   } catch (error) {
     const aborted = controller.signal.aborted;
-    const reason = aborted ? 'Download cancelled.' : describeDownloadFailure(error);
+    const reason = aborted
+      ? HARNESS_COPY.download.cancelled
+      : describeDownloadFailure(error);
 
     // A failed attempt that is not a cancellation may have left a corrupt
     // partial. Clear it so a retry starts clean rather than resuming garbage.
@@ -228,10 +229,10 @@ async function download(request: Extract<EngineRequest, { kind: 'ensure-model' }
 function describeDownloadFailure(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
   if (/ENOTFOUND|EAI_AGAIN|ECONNREFUSED|ETIMEDOUT|fetch failed/i.test(message)) {
-    return 'Could not reach the model host. Check your network connection, then try again.';
+    return HARNESS_COPY.download.hostUnavailable;
   }
-  if (/ENOSPC/i.test(message)) return 'Not enough disk space for the model.';
-  return `Download failed: ${message}`;
+  if (/ENOSPC/i.test(message)) return HARNESS_COPY.download.diskFull;
+  return HARNESS_COPY.download.failed(message);
 }
 
 /* ------------------------------------------------------------------- run */
@@ -286,7 +287,7 @@ async function run(request: Extract<EngineRequest, { kind: 'run' }>): Promise<vo
           description: tool.description,
           params,
           handler: async (args: unknown) => {
-            if (controller.signal.aborted) return 'Cancelled.';
+            if (controller.signal.aborted) return HARNESS_COPY.common.cancelled;
             return callTool(id, tool.name, args);
           },
         });
@@ -321,7 +322,9 @@ async function run(request: Extract<EngineRequest, { kind: 'run' }>): Promise<vo
   } finally {
     running = undefined;
     // Nothing is coming back for a call whose run has ended.
-    for (const settle of [...awaiting.values()]) settle('Cancelled.');
+    for (const settle of [...awaiting.values()]) {
+      settle(HARNESS_COPY.common.cancelled);
+    }
     awaiting.clear();
   }
 }

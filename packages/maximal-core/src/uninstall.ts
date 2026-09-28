@@ -11,6 +11,8 @@
  * Spec: docs/spec/archive/internal-distribution-stream-b.md §B6.
  */
 
+import type { AppEntry } from "@maximal/maximal-core-contract/settings"
+
 import { defineCommand } from "citty"
 import consola from "consola"
 import { spawnSync } from "node:child_process"
@@ -19,7 +21,6 @@ import os from "node:os"
 import path from "node:path"
 
 import type { ClientApp } from "~/apps/index"
-import type { AppEntry } from "~/lib/config/settings-types"
 import type { LiveAppControlClient } from "~/lib/live/app-control-client"
 
 import { getAllApps } from "~/apps/registry"

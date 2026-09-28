@@ -11,6 +11,12 @@
 
 import type { Context, Hono as HonoApp } from "hono"
 
+import {
+  ApiKeyCreateRequest,
+  ApiKeyUpdateRequest,
+  ClaudeCodeToggleRequest,
+  ClaudeDesktopToggleRequest,
+} from "@maximal/maximal-core-contract/settings"
 import { z } from "zod"
 
 import type { ConfiguratorRegistry } from "~/lib/configurator-host"
@@ -31,12 +37,6 @@ import {
   SettingsOperationError,
   updateApiKey,
 } from "~/lib/config/settings-operations"
-import {
-  ApiKeyCreateRequest,
-  ApiKeyUpdateRequest,
-  ClaudeCodeToggleRequest,
-  ClaudeDesktopToggleRequest,
-} from "~/lib/config/settings-types"
 import { forwardError } from "~/lib/errors/error"
 
 type GhCliModule = Pick<

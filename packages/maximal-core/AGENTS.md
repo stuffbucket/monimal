@@ -7,7 +7,7 @@ tier drives the engine over the loopback `/control` JSON-RPC 2.0 surface.
 
 ## Every turn
 
-- From the monorepo root, run **`pnpm --filter @stuffbucket/maximal-core run
+- From the monorepo root, run **`pnpm --filter @maximal/maximal-core run
 check:fast` after each edit** — oxlint + `tsc` + ESLint. This is the native,
   non-product inner loop.
 - Before you call the task done, run **`pnpm run check:core` from the monorepo
@@ -15,7 +15,7 @@ check:fast` after each edit** — oxlint + `tsc` + ESLint. This is the native,
   focused Core suite through the isolated native wrapper. It does **not** cover
   the pinned-dependency Docker rerun or `ci.yml`'s native Windows job. If you
   touched `scripts/ops/`, also run
-  `pnpm --filter @stuffbucket/maximal-core run check:ops`.
+  `pnpm --filter @maximal/maximal-core run check:ops`.
 - To rerun only Core's tests, use **`pnpm test -- --core` from the monorepo
   root**. To rerun Core with pinned container dependencies, use **`pnpm run
 test:docker -- --suite=maximal-core` from the primary checkout**. The
@@ -69,21 +69,14 @@ Each rule states the prohibition; the linked doc is its only elaboration.
   reset only on the way in leaks to the next file; only on the way out inherits
   from the previous one. Both bugs shipped here — §5.6.
 - **A PR title must be a single valid Conventional Commit.** Squash-merge uses
-  it as the commit subject, and the release notes are generated from PR titles,
-  so the title is the only thing that reaches the changelog. Mark a breaking
-  change with `!` — that is what puts it in a minor rather than a patch, and a
-  breaking change shipped as a patch lands inside a consumer's `^0.y.z` range.
-  [`docs/architecture.md`](docs/architecture.md) → _Release & PR conventions_.
-- **Assign every PR to a release milestone.** The milestone title is the tag
-  that will be cut; it is how a PR pre-selects the release it ships in.
-- **`main` requires a PR, three green checks, and an up-to-date branch.** `test`
-  and `windows` (`ci.yml`) plus `gate` (`release-gates.yml`) are _required_
+  it as the commit subject, so the title is the durable history entry.
+  [`docs/architecture.md`](docs/architecture.md) → _PR conventions_.
+- **`main` requires a PR, two green checks, and an up-to-date branch.** `test`
+  and `windows` (`ci.yml`) are _required_
   status checks — a red one blocks the merge button, and so does a branch that
   has fallen behind `main` (`gh pr update-branch`; nothing rebases for you
   here). Direct pushes to `main` are rejected, and `main` cannot be deleted or
-  force-pushed by anyone. There is **no exemption and no bypass actor**, the
-  release included: `release:prepare` lands the release commit through a PR and
-  `release:tag` cuts the tag on the merged head afterwards.
+  force-pushed by anyone. There is **no exemption and no bypass actor**.
   [`docs/admin/branch-rulesets.md`](docs/admin/branch-rulesets.md).
 
 ## Read before you touch
@@ -95,7 +88,7 @@ Each rule states the prohibition; the linked doc is its only elaboration.
 | Running scripts or setting up the dev environment                                  | [`docs/commands.md`](docs/commands.md)                                                                                                  |
 | Running the checks on the pinned toolchain, off your own PATH                      | [`docs/dev/container-toolchain.md`](docs/dev/container-toolchain.md)                                                                    |
 | Reproducing a Windows-only failure locally, instead of pushing and waiting         | [`docs/dev/windows-vm-qemu.md`](docs/dev/windows-vm-qemu.md)                                                                            |
-| Opening a PR or cutting a release                                                  | [`docs/architecture.md`](docs/architecture.md) → _Release & PR conventions_, then [`docs/release-runbook.md`](docs/release-runbook.md)  |
+| Opening a PR                                                                       | [`docs/architecture.md`](docs/architecture.md) → _PR conventions_                                                                       |
 | Branch protection, required checks, or anything in repo settings                   | [`docs/admin/branch-rulesets.md`](docs/admin/branch-rulesets.md)                                                                        |
 | Spawning parallel agents or using worktrees                                        | [`docs/architecture.md`](docs/architecture.md) → _Parallel-agent convention_                                                            |
 | Changing the pinned Bun version                                                    | [`docs/bun-version-policy.md`](docs/bun-version-policy.md)                                                                              |

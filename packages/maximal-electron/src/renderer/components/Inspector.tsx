@@ -1,7 +1,7 @@
 import type { AppVersions, Preferences, UpdateStatus } from '../../shared/ipc.js';
 import { bridge } from '../lib/bridge.js';
 import type { Item } from '../lib/data.js';
-import type { TerminalSession } from '../lib/terminal-transport.js';
+import type { TerminalSession } from '@maximal/maximal-terminal/renderer';
 
 import { Button, Field, InspectorPanel, Switch } from './Controls.js';
 

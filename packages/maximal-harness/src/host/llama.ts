@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 
 import type { ModelProgress } from '../contracts.js';
+import { HARNESS_CONFIG, HARNESS_COPY } from '../constants.js';
 
 import { listen, send } from './llama-host.js';
 
@@ -17,7 +18,7 @@ import { listen, send } from './llama-host.js';
  *
  * **Nothing here loads `node-llama-cpp`.** The engine runs in a
  * `utilityProcess` because a native abort is not catchable and took the whole
- * application with it; `src/main/llama-worker.ts` is the only file that loads
+ * application with it; `src/main/workers/llama-worker.ts` is the only file that loads
  * the library, and `llama-host.ts` supervises it. Issue #133.
  */
 
@@ -33,24 +34,14 @@ import { listen, send } from './llama-host.js';
  * Only Q8_0 is published in that repository, so there is no smaller quant to
  * pick without moving to a community mirror.
  */
-const MODEL = {
-  file: 'Qwen3-0.6B-Q8_0.gguf',
-  url: 'https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/resolve/main/Qwen3-0.6B-Q8_0.gguf',
-  label: 'Qwen3 0.6B',
-  approxMb: 610,
-} as const;
-
-export const EMBEDDED_MODEL_LABEL = MODEL.label;
-export const EMBEDDED_MODEL_MB = MODEL.approxMb;
+export const EMBEDDED_MODEL_LABEL = HARNESS_CONFIG.models.embedded.label;
+export const EMBEDDED_MODEL_MB = HARNESS_CONFIG.models.embedded.approxMb;
 
 let modelDirectory: string | undefined;
 
 export function configureModel(options: { directory: string }): void {
   modelDirectory = options.directory;
 }
-
-/** Smallest plausible weights file. Guards against a truncated download. */
-const MIN_MODEL_BYTES = 100_000_000;
 
 /* ----------------------------------------------------------------- paths */
 
@@ -60,8 +51,10 @@ export function modelPath(): string {
   // profile, which is what the end-to-end test does.
   const override = process.env['STUFFBUCKET_MODEL_PATH'];
   if (override) return override;
-  if (!modelDirectory) throw new Error('The harness model directory has not been configured.');
-  return path.join(modelDirectory, MODEL.file);
+  if (!modelDirectory) {
+    throw new Error(HARNESS_COPY.engine.modelDirectoryNotConfigured);
+  }
+  return path.join(modelDirectory, HARNESS_CONFIG.models.embedded.file);
 }
 
 /**
@@ -76,7 +69,7 @@ export function isModelPresent(): boolean {
   const file = modelPath();
   if (!existsSync(file)) return false;
   try {
-    return statSync(file).size >= MIN_MODEL_BYTES;
+    return statSync(file).size >= HARNESS_CONFIG.models.embedded.minBytes;
   } catch {
     return false;
   }
@@ -140,8 +133,8 @@ function download(
         kind: 'ensure-model',
         id,
         modelPath: modelPath(),
-        url: MODEL.url,
-        minBytes: MIN_MODEL_BYTES,
+        url: HARNESS_CONFIG.models.embedded.url,
+        minBytes: HARNESS_CONFIG.models.embedded.minBytes,
       });
     } catch (error) {
       // The engine has crashed too often to be started again.

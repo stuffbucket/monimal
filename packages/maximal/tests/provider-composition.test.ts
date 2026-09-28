@@ -1,20 +1,20 @@
 import type {
   ProviderHostConfigSnapshot,
   ProviderHostConfigSource,
-} from "@stuffbucket/maximal-core/provider-host"
+} from "@maximal/maximal-core/provider-host"
 import type {
   ProviderDispatch,
   ProviderStatus,
   ProviderTopology,
   ProviderTopologyListener,
-} from "@stuffbucket/maximal-model-contract"
+} from "@maximal/maximal-model-contract"
 
 import {
   ProfileValidationError,
   type DshHostOptions,
   type DshHostReconcileInput,
   type DshHostReconcileResult,
-} from "@stuffbucket/maximal-models"
+} from "@maximal/maximal-models"
 import { describe, expect, test } from "bun:test"
 
 import {

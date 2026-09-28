@@ -1,5 +1,5 @@
 {
-  "name": "@stuffbucket/maximal-model-contract",
+  "name": "@maximal/maximal-model-contract",
   "version": "0.0.0",
   "private": true,
   "description": "Runtime-neutral model gateway contract shared by Maximal and model orchestration.",
@@ -23,7 +23,7 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@stuffbucket/eslint-config": "workspace:*",
+    "@maximal/eslint-config": "workspace:*",
     "@types/node": "^26.4.0",
     "@typescript/native": "npm:typescript@^7.0.2",
     "eslint": "^10.9.1",

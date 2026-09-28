@@ -41,9 +41,9 @@ import {
   newTerminalTab,
   terminalDirectoryTitle,
   terminalProcessTitle,
-} from './lib/terminal-tab.js';
+} from '@maximal/maximal-terminal/renderer';
 import { useShellTabs } from './lib/useShellTabs.js';
-import { useDetachedTerminals } from './lib/useDetachedTerminals.js';
+import { useDetachedTerminals } from '@maximal/maximal-terminal/renderer';
 import { useThemePreference } from './lib/useThemePreference.js';
 
 /**

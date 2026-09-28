@@ -1,13 +1,13 @@
 # Maximal logging
 
 Runtime code MUST import `createLogger`, `resolveLogDirectory`, and
-`listLogFiles` from `@stuffbucket/maximal-logging` rather than creating another
+`listLogFiles` from `@maximal/maximal-logging` rather than creating another
 file writer. The Node-only package uses MIT-licensed Pino and writes newline
 delimited JSON synchronously, so an unexpected sidecar exit does not discard
 buffered lifecycle events.
 
 ```ts
-import { createLogger } from "@stuffbucket/maximal-logging"
+import { createLogger } from "@maximal/maximal-logging"
 
 const log = createLogger("sidecar")
 log.warn({ phase: "crashed", code: 1, signal: null }, "sidecar exited")

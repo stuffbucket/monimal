@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
-  "_comment": "Mutation testing. Runs in CI, in the `static` job, and breaks the build below 100. `mutate` is not a hand-list: `scripts/mutation-scope.mjs` derives the set every file under `src/` and `scripts/` that Stryker can run, and fails when one is on neither this list nor its deferred list. Anything importing `electron` or React for a value cannot be mutated here: it needs a real Electron runtime or a browser, not Node. `scripts/mutation-report.mjs` then reads the run back, because the score alone says nothing about how many mutants there were or what killed them. The shape follows stuffbucket/maximal's stryker.conf.json, with the Vitest runner instead of a command runner because the unit suite is already Vitest.",
+  "_comment": "The complete mutation scope. The workspace runner narrows it to changed or explicit ranges for development and shards it only across isolated checkouts. `scripts/mutation-scope.mjs` derives every file under `src/` and `scripts/` that Stryker can run, and fails when one is on neither this list nor its deferred list. Anything importing `electron` or React for a value needs a real Electron runtime or browser and cannot run here. `scripts/mutation-report.mjs` verifies the result shape because the score alone says nothing about missing mutants or non-assertion kills.",
   "packageManager": "npm",
   "plugins": [
     "@stryker-mutator/vitest-runner"
@@ -12,15 +12,8 @@
   "mutate": [
     "scripts/component-css.mjs",
     "src/shared/urls.ts",
-    "src/shared/terminal-grid.ts",
     "src/host/main-options.ts",
     "src/host/crash-artifacts.ts",
-    "src/host/terminal-connector.ts",
-    "src/host/tmux-projection-broker.ts",
-    "src/host/tmux-projection-host.ts",
-    "src/host/tmux-projection-owners.ts",
-    "src/host/terminal-session-backend.ts",
-    "src/main/native/session-metadata.ts",
     "src/preload/capabilities.ts",
     "src/renderer/lib/data.ts",
     "src/renderer/lib/theme.ts",
@@ -31,21 +24,7 @@
     "src/renderer/lib/tab-adornment.ts",
     "src/renderer/lib/account.ts",
     "src/renderer/lib/settings.ts",
-    "src/main/native/pty-session.ts",
-    "src/main/native/pty-window-groups.ts",
-    "src/main/native/tmux-control-protocol.ts",
-    "src/main/native/tmux-control-host.ts",
-    "src/main/native/terminal-lab.ts",
-    "src/main/native/terminal-launcher.ts",
-    "src/main/native/command-connectors.ts",
     "src/main/native/self-check.ts",
-    "src/renderer/lib/terminal-tab.ts",
-    "src/renderer/lib/terminal-pane.ts",
-    "src/renderer/lib/terminal-workspace.ts",
-    "src/renderer/lib/terminal-sessions.ts",
-    "src/renderer/lib/terminal-ack.ts",
-    "src/renderer/lib/osc-title.ts",
-    "src/renderer/lib/terminal-transport.ts",
     "src/renderer/lib/tab-transfer.ts",
     "scripts/terminal-package.mjs",
     "scripts/shell-variables.mjs",
@@ -54,8 +33,7 @@
     "scripts/docs-claims.mjs",
     "scripts/fixture-imports.mjs",
     "scripts/peer-requirements.mjs",
-    "scripts/peer-table.mjs",
-    "scripts/publish-decision.mjs"
+    "scripts/peer-table.mjs"
   ],
   "reporters": [
     "progress",
@@ -71,7 +49,8 @@
   "jsonReporter": {
     "fileName": "reports/mutation/mutation.json"
   },
-  "concurrency": 4,
+  "incrementalFile": "reports/mutation/incremental.json",
+  "concurrency": 12,
   "timeoutMS": 30000,
   "coverageAnalysis": "perTest",
   "ignoreStatic": true,

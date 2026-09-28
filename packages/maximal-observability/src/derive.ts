@@ -4,7 +4,7 @@ import type {
   TrafficFlowNode,
   TrafficFlowNodeKind,
   TrafficTokenSeriesPoint,
-} from "@stuffbucket/maximal-observability-contract"
+} from "@maximal/maximal-observability-contract"
 
 export type FlowMeasure = "requests" | "tokens"
 

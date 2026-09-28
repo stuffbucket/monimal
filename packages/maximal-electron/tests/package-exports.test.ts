@@ -57,6 +57,15 @@ describe('package exports', () => {
     expect(manifest.scripts['verify:exports']).toBeTruthy();
   });
 
+  it('leaves dependency-ordered builds to the workspace task graph', async () => {
+    const manifest = JSON.parse(
+      await readFile(path.join(ROOT, 'package.json'), 'utf8'),
+    ) as PackageManifest;
+
+    expect(manifest.scripts.prepare).toBeUndefined();
+    expect(manifest.scripts.prepack).toBe(manifest.scripts['build:package']);
+  });
+
   /*
    * A caret on a version this repository ships is a version nobody chose.
    * `^1.2.0-beta.14` admitted every later beta and every 1.x release from a
@@ -65,7 +74,8 @@ describe('package exports', () => {
    * These moved to `devDependencies` when issue #31 took them off a consumer's
    * install path, and a packaged build still contains them, so the pin still
    * applies. `react` and `react-dom` are exempt because the consumer owns that
-   * instance, which is the reason they are a peer.
+   * instance, which is the reason they are a peer. A `workspace:` range names
+   * the one copy in this tree, so it is already exact.
    */
   it('pins every package a build ships to an exact version', async () => {
     const manifest = JSON.parse(
@@ -87,7 +97,7 @@ describe('package exports', () => {
 
     const pins = shipped.map((name) => [name, manifest.devDependencies[name] ?? ''] as const);
     expect(
-      pins.filter(([, range]) => !/^\d+\.\d+\.\d+(?:-[\w.]+)?$/.test(range)),
+      pins.filter(([, range]) => !/^(?:\d+\.\d+\.\d+(?:-[\w.]+)?|workspace:\*)$/.test(range)),
     ).toEqual([]);
   });
 
@@ -98,13 +108,18 @@ describe('package exports', () => {
    * An optional peer is the only npm mechanism that installs nothing. An
    * `optionalDependencies` entry installs by default, and npm 7 and later
    * auto-installs a peer that is not marked optional.
+   *
+   * The one exception is a workspace link. `@maximal/maximal-terminal` is
+   * this package's own terminal layer, split out but installed with it.
    */
   it('leaves a consumer to install what the entry point they import needs', async () => {
     const manifest = JSON.parse(
       await readFile(path.join(ROOT, 'package.json'), 'utf8'),
     ) as PackageManifest;
 
-    expect(manifest.dependencies).toBeUndefined();
+    expect(
+      Object.entries(manifest.dependencies ?? {}).filter(([, range]) => !range.startsWith('workspace:')),
+    ).toEqual([]);
     expect(manifest.optionalDependencies).toBeUndefined();
 
     const peers = Object.keys(manifest.peerDependencies);

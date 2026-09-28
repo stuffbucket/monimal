@@ -44,7 +44,7 @@ const ROOT_DOCS = ["README.md", "AGENTS.md"]
 const EXCLUDED_TREES: Array<{ path: string; why: string }> = [
   {
     path: "docs/archive",
-    why: "Frozen parent-repo history. Its links correctly target stuffbucket/maximal, and scripts/ops/release-notes.test.ts reads CHANGELOG-maximal.md as a fixture. Never flag, never edit.",
+    why: "Frozen parent-repo history. Its links correctly target stuffbucket/maximal. Never flag, never edit.",
   },
   {
     path: "docs/decisions",
@@ -106,10 +106,8 @@ const PLACEHOLDER = /[*?<>{}$|\\%~…]|\.\.\./
 
 /**
  * Paragraph-level negation. Docs legitimately name things in order to say they
- * are absent — `docs/release-runbook.md` devotes a section to "What this repo
- * does *not* have" and names `release.yml` four times. Flagging those would
- * force someone to delete a correct sentence, which is the worst possible
- * outcome for this test's credibility.
+ * are absent. Flagging those would force someone to delete a correct sentence,
+ * which is the worst possible outcome for this test's credibility.
  *
  * Matched against the enclosing paragraph plus its nearest heading, not the
  * single line: these sentences wrap.

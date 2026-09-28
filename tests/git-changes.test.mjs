@@ -8,8 +8,10 @@ import { test } from "node:test";
 import {
   affectedBase,
   coreMutationTargets,
+  formatMutationTargets,
   mergeLineRanges,
   parseCoreMutationDiff,
+  parseMutationDiff,
 } from "../scripts/git-changes.mjs";
 
 function git(root, ...arguments_) {
@@ -76,6 +78,44 @@ test("zero-context Core hunks use destination paths and merge adjacent ranges", 
       { start: 5, end: 8 },
     ]),
     [{ start: 3, end: 9 }],
+  );
+  assert.deepEqual(
+    formatMutationTargets(
+      new Map([
+        ["src/two.ts", [{ start: 4, end: 5 }]],
+        ["src/one.ts", [{ start: 8, end: 8 }]],
+      ]),
+    ),
+    ["src/one.ts:8-8", "src/two.ts:4-5"],
+  );
+});
+
+test("package mutation diffs keep only configured mutable files", () => {
+  const diff = [
+    "diff --git a/packages/example/src/in.ts b/packages/example/src/in.ts",
+    "+++ b/packages/example/src/in.ts",
+    "@@ -1 +1,2 @@",
+    "+changed",
+    "diff --git a/packages/example/src/out.ts b/packages/example/src/out.ts",
+    "+++ b/packages/example/src/out.ts",
+    "@@ -1 +1 @@",
+    "+ignored",
+  ].join("\n");
+  const mutable = new Set(["src/in.ts"]);
+
+  assert.deepEqual(
+    Object.fromEntries(
+      parseMutationDiff(diff, (repositoryPath) => {
+        const prefix = "packages/example/";
+        const relativePath = repositoryPath.startsWith(prefix)
+          ? repositoryPath.slice(prefix.length)
+          : undefined;
+        return relativePath && mutable.has(relativePath)
+          ? relativePath
+          : undefined;
+      }),
+    ),
+    { "src/in.ts": [{ start: 1, end: 2 }] },
   );
 });
 

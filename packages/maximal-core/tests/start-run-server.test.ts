@@ -15,7 +15,7 @@
  * dependency runServer pulls in. The mocks form a "test harness
  * runServer": deterministic, fast, no listeners leaked.
  */
-import type { ProviderGateway } from "@stuffbucket/maximal-model-contract"
+import type { ProviderGateway } from "@maximal/maximal-model-contract"
 
 import {
   afterAll,
@@ -95,6 +95,7 @@ await mock.module("~/lib/platform/utils", () => ({
 }))
 
 const TEST_RUNTIME_LOGIN = "maximal-test-only-runtime-user"
+const LOOPBACK_ORIGIN = "http://localhost"
 const logUserMock = mock(() => {
   // The real logUser() populates state.userName as part of its contract.
   // Mirror that here so the cold-boot path (which now requires a real
@@ -427,7 +428,7 @@ describe("runServer — boot logger format", () => {
     await runServer(baseOptions({ port, githubToken: undefined }))
     const listening = bootLogMessages.find((m) => m.startsWith("listening "))
     expect(listening).toBeDefined()
-    expect(listening).toContain(`url=http://localhost:${port}`)
+    expect(listening).toContain(`url=${LOOPBACK_ORIGIN}:${port}`)
     expect(listening).toContain("executor=")
     expect(listening).toContain("auth=unauthenticated")
   })
@@ -509,6 +510,61 @@ describe("runServer — configurator lifecycle", () => {
 })
 
 describe("runServer — server bind", () => {
+  test("desktop IPC mode binds only the public listener and reports no control port", async () => {
+    const sendDescriptor = Object.getOwnPropertyDescriptor(process, "send")
+    const previousServeImpl = serveMock.getMockImplementation()
+    const connectedDescriptor = Object.getOwnPropertyDescriptor(
+      process,
+      "connected",
+    )
+    const boundPort = pickFreePort()
+    serveMock.mockImplementationOnce(() => ({
+      url: `${LOOPBACK_ORIGIN}:${boundPort}`,
+      close: () => Promise.resolve(),
+    }))
+    Object.defineProperty(process, "send", {
+      configurable: true,
+      value: (_message: unknown, callback: (error: Error | null) => void) => {
+        callback(null)
+        return true
+      },
+    })
+    Object.defineProperty(process, "connected", {
+      configurable: true,
+      value: true,
+    })
+    try {
+      await runServer(baseOptions({ port: 0, desktopIpc: true }))
+      expect(serveMock).toHaveBeenCalledTimes(1)
+      expect(state.controlPort).toBe(0)
+      expect(state.proxyPort).toBe(boundPort)
+      const [[publicArg]] = serveMock.mock.calls as unknown as Array<
+        [{ port: number }]
+      >
+      expect(publicArg.port).toBe(0)
+      process.emit("disconnect")
+    } finally {
+      serveMock.mockImplementation(previousServeImpl ?? defaultServeImpl)
+      if (sendDescriptor) Object.defineProperty(process, "send", sendDescriptor)
+      else Reflect.deleteProperty(process, "send")
+      if (connectedDescriptor) {
+        Object.defineProperty(process, "connected", connectedDescriptor)
+      } else {
+        Reflect.deleteProperty(process, "connected")
+      }
+    }
+  })
+
+  test("desktop IPC mode rejects a missing inherited channel before binding", async () => {
+    const failure = await runServer(baseOptions({ desktopIpc: true })).then(
+      () => null,
+      (error: unknown) => error,
+    )
+    expect(failure).toBeInstanceOf(Error)
+    expect((failure as Error).message).toContain("inherited Node IPC channel")
+    expect(serveMock).not.toHaveBeenCalled()
+  })
+
   test("binds two listeners: public /v1 and the private control plane", async () => {
     // maximal-core#10. Two calls, not one — and the second must be loopback-only
     // and ephemeral, because the control plane is not for anything off-box and

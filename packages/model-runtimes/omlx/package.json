@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "name": "@stuffbucket/omlx",
+  "name": "@maximal/omlx",
   "version": "0.0.0",
   "description": "Cordis/DSH adapter for oMLX's Anthropic-compatible Messages API.",
   "repository": {
@@ -34,7 +34,7 @@
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.2",
     "@deepseek-ai/dsh-llm": "0.1.0-rc.8",
-    "@stuffbucket/eslint-config": "workspace:*",
+    "@maximal/eslint-config": "workspace:*",
     "@types/node": "^26.4.0",
     "@typescript/native": "npm:typescript@^7.0.2",
     "eslint": "^10.9.1",

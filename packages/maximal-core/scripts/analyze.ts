@@ -126,7 +126,7 @@ async function runDuplicates(): Promise<string> {
 }
 
 async function runPackageGraph(): Promise<string> {
-  if (manifest.name !== "@stuffbucket/maximal-core") return ""
+  if (manifest.name !== "@maximal/maximal-core") return ""
   const graph = readPackageGraph(WORKSPACE_ROOT, policy)
   const cycles = packageCycleEdges(graph)
   const violations = packageRuleViolations(graph, policy.packageRules)

@@ -73,4 +73,4 @@ export function moveTabBefore<T extends { id: string }>(
     ...remaining.slice(targetIndex),
   ];
 }
-import { isTerminalPane, type TerminalPane } from './terminal-pane.js';
+import { isTerminalPane, type TerminalPane } from '@maximal/maximal-terminal/renderer';

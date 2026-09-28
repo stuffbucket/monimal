@@ -314,7 +314,7 @@ from zero.
    early under Bun), but it is the single most rule-invisible credential
    header in the repo.
 3. **A latent second mechanism on a PUBLISHED surface** — `lib/live/client.ts`
-   (`ControlClient`, exported as `@stuffbucket/maximal-core/client`). Its
+   (`ControlClient`, exported as `@maximal/maximal-core/client`). Its
    `headers` option was documented as *"Auth headers sent on every request
    (e.g. `{ "x-api-key": "…" }`)"* and is spread into four `fetch` calls —
    and at one of them was passed as a bare identifier in the `headers`

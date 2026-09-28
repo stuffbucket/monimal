@@ -1,7 +1,8 @@
 {
-  "name": "@stuffbucket/maximal-electron",
+  "name": "@maximal/maximal-electron",
   "productName": "Stuffbucket",
   "version": "0.0.9",
+  "private": true,
   "description": "Reference Electron application with cross-platform build and release mechanics",
   "license": "MIT",
   "author": "stuffbucket",
@@ -24,10 +25,6 @@
       "default": "./dist/renderer/index.js"
     },
     "./renderer/styles.css": "./dist/renderer/styles.css",
-    "./host/terminal": {
-      "types": "./dist/host/terminal-host.d.ts",
-      "default": "./dist/host/terminal-host.js"
-    },
     "./electron-terminal": {
       "types": "./dist/host/electron-terminal.d.ts",
       "default": "./dist/host/electron-terminal.js"
@@ -64,18 +61,13 @@
     "type": "git",
     "url": "git+https://github.com/stuffbucket/maximal-electron.git"
   },
-  "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
-  },
   "scripts": {
     "analyze": "bun ../maximal-core/scripts/analyze.ts",
     "start": "electron-forge start",
-    "dev:terminal": "node scripts/build-package.mjs && electron-forge start -- --terminal-lab",
     "build:host": "node scripts/build-package.mjs --host",
     "build:renderer": "node scripts/build-package.mjs --renderer",
     "build:package": "node scripts/build-package.mjs",
     "prepack": "node scripts/build-package.mjs",
-    "prepare": "node scripts/build-package.mjs",
     "prestart": "node scripts/build-package.mjs",
     "prepackage": "node scripts/build-package.mjs",
     "postinstall": "node scripts/check-install.mjs",
@@ -85,13 +77,8 @@
     "verify:electron-cache": "node scripts/verify-electron-cache.mjs",
     "smoke:packaged": "node scripts/smoke-packaged.mjs",
     "verify:exports": "node scripts/verify-exports.mjs",
-    "verify:publish": "node scripts/verify-publish.mjs",
-    "publish:package": "node scripts/publish-package.mjs",
     "verify:neutral": "node scripts/verify-neutral.mjs",
-    "verify:fixture-imports": "node scripts/verify-fixture-imports.mjs",
     "verify:workflow-health": "node scripts/verify-workflow-health.mjs",
-    "verify:tag": "node scripts/verify-tag.mjs",
-    "verify:git-install": "node scripts/verify-git-install.mjs",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit",
@@ -99,9 +86,11 @@
     "test:terminal": "vitest run tests/terminal",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "mutate": "node ../../scripts/run-mutation.mjs",
+    "mutate:all": "node ../../scripts/run-mutation.mjs --all",
+    "mutate:incremental": "node ../../scripts/run-mutation.mjs --incremental",
+    "mutate:merge-shards": "node ../../scripts/run-mutation.mjs --merge-shards=4",
     "record": "node scripts/record.mjs",
-    "mutate": "node scripts/mutation-scope.mjs && stryker run && stryker run stryker.static.conf.mjs && node scripts/mutation-report.mjs",
-    "mutate:terminal": "stryker run stryker.terminal.conf.mjs && stryker run stryker.terminal-static.conf.mjs && node scripts/mutation-report.mjs --terminal",
     "compose": "node scripts/compose.mjs",
     "verify:docs": "node scripts/verify-docs.mjs",
     "stills": "node scripts/stills.mjs",
@@ -119,6 +108,7 @@
     "@radix-ui/react-tabs": "^1.1.21",
     "@radix-ui/react-tooltip": "^1.2.16",
     "@radix-ui/react-visually-hidden": "^1.2.11",
+    "@maximal/maximal-terminal": "workspace:*",
     "@wterm/dom": "^0.4.1",
     "@wterm/ghostty": "^0.4.1",
     "@xterm/addon-fit": "^0.11.0",
@@ -152,19 +142,22 @@
     "@radix-ui/react-visually-hidden": {
       "optional": true
     },
+    "@maximal/maximal-terminal": {
+      "optional": true
+    },
     "@wterm/dom": {
       "optional": true
     },
     "@wterm/ghostty": {
       "optional": true
     },
-    "electron": {
-      "optional": true
-    },
     "@xterm/addon-fit": {
       "optional": true
     },
     "@xterm/xterm": {
+      "optional": true
+    },
+    "electron": {
       "optional": true
     },
     "lucide-react": {
@@ -203,29 +196,30 @@
     "@storybook/react-vite": "10.5.10",
     "@stryker-mutator/core": "^10.0.0",
     "@stryker-mutator/vitest-runner": "^10.0.0",
-    "@stuffbucket/eslint-config": "workspace:*",
+    "@maximal/eslint-config": "workspace:*",
+    "@maximal/maximal-terminal": "workspace:*",
     "@types/node": "^26.4.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.5",
+    "@typescript/native": "npm:typescript@^7.0.2",
     "@vitejs/plugin-react": "^6.1.0",
-    "axe-core": "4.13.0",
-    "electron": "44.1.0",
-    "eslint": "^10.9.1",
-    "fast-check": "4.9.0",
     "@wterm/dom": "0.4.1",
     "@wterm/ghostty": "0.4.1",
     "@xterm/addon-fit": "0.11.0",
     "@xterm/xterm": "6.0.0",
+    "axe-core": "4.13.0",
+    "electron": "44.1.0",
+    "eslint": "^10.9.1",
+    "fast-check": "4.9.0",
     "lucide-react": "1.38.0",
     "node-pty": "1.2.0-beta.15",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-resizable-panels": "4.12.3",
     "storybook": "10.5.10",
-    "@typescript/native": "npm:typescript@^7.0.2",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "vite": "^8.2.2",
-    "vitest": "^4.1.11",
+    "vitest": "^5.0.1",
     "yaml": "^2.9.0"
   },
   "engines": {

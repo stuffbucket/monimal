@@ -6,7 +6,7 @@ import type {
   TrafficErrorMetadata,
   TrafficObservationHandle,
   TrafficObserver,
-} from "@stuffbucket/maximal-observability-contract"
+} from "@maximal/maximal-observability-contract"
 import type { Context, MiddlewareHandler } from "hono"
 
 import { requestContext } from "~/lib/http/request-context"

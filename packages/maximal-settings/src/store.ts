@@ -41,7 +41,7 @@ interface Registration {
 }
 
 const registry = singletonRegistry<Registration>(
-  "@stuffbucket/maximal-settings/typed-stores/v1",
+  "@maximal/maximal-settings/typed-stores/v1",
 )
 
 function removeSetting(document: JsonDocument, path: Array<string>): void {

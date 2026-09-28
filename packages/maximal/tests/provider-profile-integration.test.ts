@@ -1,12 +1,12 @@
 import type {
   ProviderHostConfigSnapshot,
   ProviderHostConfigSource,
-} from "@stuffbucket/maximal-core/provider-host"
+} from "@maximal/maximal-core/provider-host"
 import type {
   ProviderDispatch,
   ProviderGateway,
   ProviderOperation,
-} from "@stuffbucket/maximal-model-contract"
+} from "@maximal/maximal-model-contract"
 
 import { afterEach, describe, expect, test } from "bun:test"
 import { once } from "node:events"
@@ -104,7 +104,7 @@ async function linkPackage(
 }
 
 async function materializeOmlx(nodeModules: string): Promise<void> {
-  const packageDirectory = join(nodeModules, "@stuffbucket", "omlx")
+  const packageDirectory = join(nodeModules, "@maximal", "omlx")
   const outdir = join(packageDirectory, "dist")
   await mkdir(outdir, { recursive: true })
   const result = await Bun.build({
@@ -122,7 +122,7 @@ async function materializeOmlx(nodeModules: string): Promise<void> {
   await writeFile(
     join(packageDirectory, "package.json"),
     JSON.stringify({
-      name: "@stuffbucket/omlx",
+      name: "@maximal/omlx",
       version: "0.0.0",
       type: "module",
       exports: {
@@ -174,7 +174,7 @@ async function createProfile(): Promise<string> {
         "@deepseek-ai/dsh-llm": packageVersion("@deepseek-ai/dsh-llm"),
         "@deepseek-ai/dsh-timeout": packageVersion("@deepseek-ai/dsh-timeout"),
         "@deepseek-ai/schemastery": packageVersion("@deepseek-ai/schemastery"),
-        "@stuffbucket/omlx": "0.0.0",
+        "@maximal/omlx": "0.0.0",
       },
     }),
   )
@@ -190,7 +190,7 @@ async function createProfile(): Promise<string> {
       plugins: [
         {
           id: "omlx",
-          package: "@stuffbucket/omlx",
+          package: "@maximal/omlx",
           providers: ["local"],
         },
       ],

@@ -1,5 +1,5 @@
 import { Context } from "@deepseek-ai/cordis"
-import * as registryPlugin from "@stuffbucket/local-model-registry"
+import * as registryPlugin from "@maximal/local-model-registry"
 import assert from "node:assert/strict"
 import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"

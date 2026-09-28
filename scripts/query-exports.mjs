@@ -4,8 +4,8 @@
  * exists without chewing up context window or running verification gates.
  *
  * Usage:
- *   node scripts/query-exports.mjs @stuffbucket/maximal-core
- *   node scripts/query-exports.mjs @stuffbucket/maximal-core ./settings-types
+ *   node scripts/query-exports.mjs @maximal/maximal-core
+ *   node scripts/query-exports.mjs @maximal/maximal-core ./settings-types
  *   node scripts/query-exports.mjs --all
  *   node scripts/query-exports.mjs --all --json
  *   node scripts/query-exports.mjs --summary
@@ -192,9 +192,9 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     console.error("  node scripts/query-exports.mjs --all --json          # JSON output");
     console.error("  node scripts/query-exports.mjs --summary             # Count summary");
     console.error("\nExamples:");
-    console.error("  node scripts/query-exports.mjs @stuffbucket/maximal-core");
-    console.error("  node scripts/query-exports.mjs @stuffbucket/maximal-core ./settings-types");
-    console.error("  node scripts/query-exports.mjs @stuffbucket/maximal-electron ./renderer");
+    console.error("  node scripts/query-exports.mjs @maximal/maximal-core");
+    console.error("  node scripts/query-exports.mjs @maximal/maximal-core ./settings-types");
+    console.error("  node scripts/query-exports.mjs @maximal/maximal-electron ./renderer");
     process.exit(1);
   }
 }

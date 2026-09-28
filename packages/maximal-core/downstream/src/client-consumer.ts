@@ -1,5 +1,5 @@
 /**
- * Downstream consumer of `@stuffbucket/maximal-core/client`.
+ * Downstream consumer of `@maximal/maximal-core/client`.
  *
  * `./client` is the one published entrypoint that ships a CLASS a consumer
  * constructs, so its options object is a contract in a way the pure-type
@@ -29,12 +29,12 @@ import type {
   FetchLike,
   NonCredentialHeaders,
   StateListener,
-} from "@stuffbucket/maximal-core/client"
+} from "@maximal/maximal-core/client"
 
 import {
   ControlClient,
   ControlRpcError,
-} from "@stuffbucket/maximal-core/client"
+} from "@maximal/maximal-core/client"
 
 import { expectAssignable } from "./assert.js"
 

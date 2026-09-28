@@ -1,4 +1,4 @@
-import type { TrafficRequestSummary } from "@stuffbucket/maximal-observability-contract"
+import type { TrafficRequestSummary } from "@maximal/maximal-observability-contract"
 
 export const TOKENS: NonNullable<TrafficRequestSummary["tokens"]> = {
   inputTokens: 90,

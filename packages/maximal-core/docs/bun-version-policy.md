@@ -3,8 +3,7 @@
 Pinned in `.bun-version` — read by `bun install`, by Bun's own version manager,
 and at runtime by every CI workflow that needs Bun: `tooling-ci.yml`,
 `watch-external-drift.yml`, `watch-branch-rules.yml`, `randomized-test-order.yml`,
-`release-gates.yml`, `release-tag-check.yml`, `publish-package.yml` and
-`ci.yml`'s `windows` job each `cat .bun-version` into `setup-bun`;
+and `ci.yml`'s `windows` job each `cat .bun-version` into `setup-bun`;
 [`publish-ci-image.yml`](../.github/workflows/publish-ci-image.yml) bakes it into
 the toolchain image, and `ci.yml`'s `test` job runs in that image and `cat`s the
 file to assert the two agree. No workflow computes Bun from a literal it holds,
@@ -18,7 +17,7 @@ cannot be computed (see that workflow's comment and
 [`publish-ci-image.yml`](../.github/workflows/publish-ci-image.yml)'s header).
 That literal moves in the bump commit, and
 [`scripts/ops/check-ci-image.test.ts`](../scripts/ops/check-ci-image.test.ts)
-fails — offline, in `bun run check:ops` and in the required `gate` job — when it
+fails — offline, in `bun run check:ops` and in tooling CI — when it
 and `.bun-version` disagree.
 
 Bump intentionally — edit `.bun-version`, then regenerate the one committed
@@ -36,7 +35,7 @@ artifact that the version decides:
 3. Rebuild the CLI bundle **on the pin**:
    `bun run container:run -- bun run build`. Nothing is staged — `dist/` is not
    committed — but a pin that cannot build the bundle must not land, and the
-   bytes it produces are what a release uploads. See below.
+   bytes it produces are what the local package surface names. See below.
 4. Run the whole suite on the new version:
    `bun run container:run -- bun run check:deep`, then `bun run check:ops` and
    `bun run e2e`.
@@ -102,57 +101,16 @@ bundle against a fresh build; monimal does not commit one, so it is retired here
 — `bun run build` refusing to bundle off-pin is what remains, and it is the part
 that matters.
 
-## The pin also decides the published tarball
-
-The bundle in the tarball is built at publish time: `bun publish` fires
-`prepack`, which rebuilds `dist/` into what gets uploaded. Measured against Bun
-1.3.14 rather than assumed from npm's docs, because the exposure depends on it:
-
-```
-bun publish  →  prepublishOnly → prepack → prepare → (pack) → upload
-bun pm pack  →                   prepack → prepare → (pack)
-```
-
-So an off-pin releaser publishes an off-pin bundle. On `main` at v0.3.2:
-
-```
-committed dist/main.js   85697a48…   (Bun 1.3.11, the pin)
-tarball   dist/main.js   ffdee378…   (Bun 1.3.14, whatever was on PATH)
-```
-
-**Installing the pinned Bun does not fix this by itself.** Bun runs lifecycle
-scripts through a shell whose PATH contains neither `node_modules/.bin` nor
-Bun's own bindir, so a bare `bun` inside a script re-resolves from the
-developer's PATH. Invoking the pin explicitly still produced the unpinned
-bundle:
-
-```
-$ /path/to/1.3.11/bin/bun pm pack     # tarball dist/main.js → ffdee378… (1.3.14)
-$ /tmp/bun1311/bin/bun run build      # dist/main.js → a 1.3.14 bundle
-```
-
-`bun run build` **was** exposed the same way, and that one is **step 3 above**
-(and the by-hand release path in the runbook's § 4): the nested `bun build`
-inside the npm script re-resolved `bun` from PATH, so the rebuild that blesses a
-new pin got built by whatever Bun was on PATH instead. `bindings:check` caught
-it as stale, downstream, after the wrong bytes were already in the work tree —
-three people hit exactly that in one session. `build` is now
+`bun run build` **was** exposed to PATH drift: the nested `bun build` inside the
+npm script re-resolved `bun` from PATH, so the rebuild that blesses a new pin
+got built by whatever Bun was on PATH instead. `bindings:check` caught it as
+stale, downstream, after the wrong bytes were already in the work tree — three
+people hit exactly that in one session. `build` is now
 [`scripts/ops/build-bundle.ts`](../scripts/ops/build-bundle.ts), which asserts
 `process.versions.bun` against the pin and then bundles with `process.execPath`,
 so the binary that was checked is the binary that bundles and there is no PATH
 lookup in between. Off-pin it refuses, naming
 `bun run container:run -- bun run build`.
-
-That is the same trap `check-bindings.ts` solved with `process.execPath`, and it
-is why `prepack` is [`scripts/ops/prepack.ts`](../scripts/ops/prepack.ts) rather
-than `bun run build && bun run build:lib`: it version-checks
-`process.versions.bun` and then bundles with `process.execPath`, so the binary
-that was checked is the binary that bundles. Off-pin it refuses — before writing
-anything into `dist/` — instead of shipping a tarball nobody can regenerate.
-`bun run release:preflight` runs the same assertion with no build, and
-`release:prepare` runs it ahead of `bumpp`, because the bundle `bumpp` commits is
-the bundle a git-dependency consumer executes. See
-[`docs/release-runbook.md`](release-runbook.md) § 4.
 
 Don't float `latest`. Bun ships fast; a release in a single afternoon
 can ship a regression that breaks our test loader, and the difference

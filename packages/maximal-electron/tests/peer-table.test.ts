@@ -22,7 +22,7 @@ import {
  */
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const NAME = '@stuffbucket/maximal-electron';
+const NAME = '@maximal/maximal-electron';
 
 const table = (...rows: string[]): string =>
   ['| Entry | Peers |', '| --- | --- |', ...rows].join('\n');

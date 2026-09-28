@@ -69,7 +69,7 @@ function getUnsupportedNodeSqliteMessage(nodeVersion: string): string {
   return (
     `SQLite-backed token usage requires Bun or Node.js >= ${MINIMUM_NODE_SQLITE_VERSION}. `
     + `Detected Node.js ${nodeVersion}. Upgrade Node.js or run the CLI with Bun, for example `
-    + "`bunx --bun @stuffbucket/maximal@latest start` or `maximal start`."
+    + "`bunx --bun @maximal/maximal@latest start` or `maximal start`."
   )
 }
 

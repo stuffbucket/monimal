@@ -10,7 +10,7 @@ import {
   registerTerminalChannels,
   type TerminalChannelHost,
   type TerminalRequestChannels,
-} from '../host/terminal-host.js';
+} from '@maximal/maximal-terminal';
 import {
   IPC_CHANNELS,
   isPtyAcknowledgement,
@@ -57,7 +57,7 @@ import {
   spawnReservedPty,
   writePty,
   writePtyProjection,
-} from './native/pty.js';
+} from './native/pty/index.js';
 import { checkForUpdates } from './native/updates.js';
 import { isSafeExternalUrl } from '../shared/urls.js';
 
@@ -77,16 +77,12 @@ interface TerminalWindowActions {
   ) => boolean | Promise<boolean>;
 }
 
-let terminalWindowActions: TerminalWindowActions = {
+const terminalWindowActions: TerminalWindowActions = {
   frameId: (window) => String(window?.id ?? ''),
   undock: () => false,
   copy: () => false,
   redock: () => false,
 };
-
-export function configureTerminalWindowActions(actions: TerminalWindowActions): void {
-  terminalWindowActions = actions;
-}
 
 /** A handler for one channel. Types come from the contract, so it cannot drift. */
 type IpcHandler<C extends IpcChannel> = (
@@ -99,7 +95,7 @@ type IpcHandler<C extends IpcChannel> = (
  *
  * The renderer half names the same five in
  * `src/renderer/lib/bridge-terminal.ts`, and neither imports the other:
- * `./host/terminal` is a consumer's export and knows nothing of this contract.
+ * `@maximal/maximal-terminal` is a consumer's package and knows nothing of this contract.
  * `tests/terminal/terminal-channels.test.ts` is the check that duplication owes.
  */
 export const TERMINAL_CHANNELS = {
@@ -223,7 +219,7 @@ const handlers: IpcHandlers = {
 /**
  * The manager for the window a request arrived from.
  *
- * A session belongs to a window, so `native/pty.ts` keys one `TerminalHost`
+ * A session belongs to a window, so `native/pty/` keys one `TerminalHost`
  * per `BrowserWindow` and this hands the registration the one that request
  * belongs to. A request with no window reaches a manager that opens nothing.
  */

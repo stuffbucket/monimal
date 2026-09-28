@@ -9,6 +9,7 @@ import { pathToFileURL } from "node:url"
 import {
   packageCycleEdges,
   packageRuleViolations,
+  packageTreeViolations,
   readArchitecturePolicy,
   readPackageGraph,
 } from "../scripts/architecture-graph.mjs"
@@ -41,14 +42,54 @@ test("package graph reports manifest cycles and layer violations with edges", ()
       deny: [
         { from: ["public-shell"], to: ["private-client", "external-runtime"] },
       ],
-      require: [{ from: "public-shell", to: ["contract"] }],
     }),
     [
       "forbidden public-shell -> private-client (dependencies)",
       "forbidden public-shell -> external-runtime (peerDependencies)",
-      "required public-shell -> contract is missing",
     ],
   )
+})
+
+test("the declared tree rejects undeclared, stale, and unknown workspace edges", () => {
+  const graph = {
+    packages: new Map([
+      ["shell", { dependsOn: ["terminal", "ghost"] }],
+      ["terminal", { dependsOn: ["contract"] }],
+      ["contract", { dependsOn: [] }],
+      ["client", { dependsOn: [] }],
+    ]),
+    edges: [
+      { from: "shell", to: "client", kind: "dependencies" },
+      { from: "shell", to: "electron", kind: "devDependencies" },
+      { from: "terminal", to: "contract", kind: "peerDependencies" },
+    ],
+  }
+  assert.deepEqual(packageTreeViolations(graph), [
+    "shell declares terminal, which its manifest no longer names",
+    "shell declares unknown ghost",
+    "shell -> client is not in the declared tree",
+  ])
+})
+
+test("a workspace alias is an edge to the package it names", () => {
+  const fixture = fs.mkdtempSync(path.join(os.tmpdir(), "architecture-alias-"))
+  try {
+    fs.mkdirSync(path.join(fixture, "pkg"))
+    fs.writeFileSync(
+      path.join(fixture, "pkg", "package.json"),
+      JSON.stringify({
+        name: "consumer",
+        dependencies: { "short-name": "workspace:@scope/real-name@*", plain: "workspace:*" },
+      }),
+    )
+    const graph = readPackageGraph(fixture, { packages: { consumer: { root: "pkg" } } })
+    assert.deepEqual(
+      graph.edges.map((edge) => edge.to),
+      ["@scope/real-name", "plain"],
+    )
+  } finally {
+    fs.rmSync(fixture, { recursive: true, force: true })
+  }
 })
 
 test("package graph retains external dependency edges as cycle leaves", () => {

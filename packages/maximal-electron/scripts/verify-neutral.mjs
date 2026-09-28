@@ -21,27 +21,26 @@
  * shipping documentation fails.
  *
  * Naming a repository is not depending on it, so a term inside a
- * `stuffbucket/…` slug is exempt. This repository is called maximal-electron.
- * Without that one rule the scan fails on its own Help menu URL and says
- * nothing about a real leak.
+ * `stuffbucket/…` slug is exempt.
  */
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { readArchitecturePolicy } from '../../../scripts/architecture-graph.mjs';
 import {
-  FORBIDDEN_PACKAGES,
+  deniedPackages,
   forbiddenImports,
   forbiddenTerms,
   isForbiddenPackage,
   moduleSpecifiers,
   termMatches,
 } from './neutrality.mjs';
-import { packedName } from './export-checks.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const manifest = JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
+const DENIED = deniedPackages(readArchitecturePolicy(path.join(ROOT, '../..')), manifest.name);
 
 /** The stylesheet ships from here; `copy-renderer-css.mjs` moves it. */
 const SHIPPED_STYLESHEET = 'src/renderer/styles/shell-package-rules.css';
@@ -52,16 +51,7 @@ const SHIPPED_STYLESHEET = 'src/renderer/styles/shell-package-rules.css';
  * be absent from the export graph, so the list cannot cover a file a consumer
  * installs and cannot outlive the debt it records.
  */
-const ALLOWED = [
-  {
-    file: 'src/renderer/components/Inspector.tsx',
-    reason: 'the reference application owns its settings copy.',
-  },
-  {
-    file: 'README.md',
-    reason: 'the reference application documents its own icon fixture.',
-  },
-];
+const ALLOWED = [];
 
 const failures = [];
 const check = (condition, message) => {
@@ -98,20 +88,20 @@ const read = (file) => readFileSync(path.join(ROOT, file), 'utf8');
  */
 const LAUNDERING = `
   import { createRequire as make } from 'node:module';
-  import 'maximal';
-  export { a } from 'maximal-core';
-  import type { B } from '@stuffbucket/maximal-core';
-  import legacy = require('maximal');
+  import '@maximal/maximal';
+  export { a } from '@maximal/maximal-core';
+  import type { B } from '@maximal/maximal-core';
+  import legacy = require('@maximal/maximal');
   const later = make(import.meta.url);
-  await import('maximal/client');
-  require('maximal');
-  require.resolve('maximal-core');
-  later('@stuffbucket/maximal-core');
-  later.resolve('maximal');
-  make(import.meta.url)('maximal');
-  make(import.meta.url).resolve('maximal');
-  import.meta.resolve('maximal');
-  type C = import('maximal-core').D;
+  await import('@maximal/maximal-client');
+  require('@maximal/maximal');
+  require.resolve('@maximal/maximal-core');
+  later('@maximal/maximal-core');
+  later.resolve('@maximal/maximal');
+  make(import.meta.url)('@maximal/maximal');
+  make(import.meta.url).resolve('@maximal/maximal');
+  import.meta.resolve('@maximal/maximal');
+  type C = import('@maximal/maximal-core').D;
 `;
 
 /** One per line of `LAUNDERING` that reaches a denied package. */
@@ -129,7 +119,7 @@ const LAUNDERING_FORMS = [
 ];
 
 console.log('Import parse');
-const laundered = forbiddenImports(LAUNDERING, 'fixture.ts');
+const laundered = forbiddenImports(LAUNDERING, 'fixture.ts', DENIED);
 const forms = [...new Set(laundered.map((found) => found.form))].sort();
 check(laundered.length === 13, `${String(laundered.length)} of 13 laundered imports caught`);
 check(
@@ -160,13 +150,14 @@ for (const [file, found] of specifiers) {
       reached += 1;
       check(false, `${file}:${String(one.line)} ${one.form} takes a computed specifier`);
       detail('a specifier this parse cannot read is a specifier this guard cannot judge');
-    } else if (isForbiddenPackage(one.text)) {
+    } else if (isForbiddenPackage(one.text, DENIED)) {
       reached += 1;
       check(false, `${file}:${String(one.line)} ${one.form} '${one.text}'`);
     }
   }
 }
-check(reached === 0, `no source reaches ${FORBIDDEN_PACKAGES.join(', ')}`);
+check(DENIED.length > 0, `${String(DENIED.length)} workspace packages outside the declared tree`);
+check(reached === 0, 'no source reaches a workspace package outside the declared tree');
 
 /* --------------------------------------------------------- what ships */
 
@@ -219,30 +210,11 @@ const terms = forbiddenTerms(process.env);
 const scanned = [...sourceFiles, 'README.md'];
 const allowed = new Map(ALLOWED.map((entry) => [entry.file, entry.reason]));
 
-/*
- * This package's own name, which carries a forbidden term because the
- * repository is called maximal-electron. Naming yourself is not depending on
- * a sibling. Both forms: the specifier a consumer imports, and the flattened
- * one npm writes as a release asset. The guard on the guard is below: the
- * exemption may not be a package the import rule denies, so it can never
- * cancel a real one.
- */
-const selfNames = [manifest.name, packedName(manifest.name)];
-
 console.log(`\nNeutrality scan (${terms.join(', ')})`);
 // Two more floors. An empty term list matches nothing, and so does an empty
 // corpus.
 check(terms.length > 0, `${String(terms.length)} forbidden terms`);
 check(scanned.length > 20, `${String(scanned.length)} files scanned`);
-check(
-  !isForbiddenPackage(manifest.name),
-  `the self-name exemption ${manifest.name} is not a denied package`,
-);
-// A dead exemption is a rule nobody notices has stopped applying. If the name
-// stops carrying a term, these lines go.
-for (const self of selfNames) {
-  check(termMatches(self, terms).length > 0, `${self} needs the self-name exemption`);
-}
 
 for (const entry of ALLOWED) {
   check(scanned.includes(entry.file), `${entry.file} is a file the scan covers`);
@@ -250,7 +222,7 @@ for (const entry of ALLOWED) {
 
 let clean = 0;
 for (const file of scanned) {
-  const matches = termMatches(read(file), terms, selfNames);
+  const matches = termMatches(read(file), terms);
   const reason = allowed.get(file);
 
   if (reason === undefined) {

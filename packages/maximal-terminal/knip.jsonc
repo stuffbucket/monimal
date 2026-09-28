@@ -1,0 +1,12 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
+  // Mirrors the package exports; knip cannot map ./dist back to src on its own.
+  "entry": ["src/index.ts", "src/renderer/index.ts", "scripts/*.mjs", "tests/**/*.test.{ts,tsx}"],
+  "project": ["src/**/*.{ts,tsx}", "scripts/*.mjs", "tests/**/*.{ts,tsx}"],
+  "stryker": {
+    "config": ["stryker.conf.json", "stryker.static.conf.mjs"]
+  },
+  // Flow-control limits are named aliases of one budget, each for its own role.
+  "ignoreIssues": { "src/pty/session.ts": ["duplicates"] },
+  "ignoreExportsUsedInFile": true
+}

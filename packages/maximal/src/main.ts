@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 
-import { createBuiltinConfiguratorRuntime } from "@stuffbucket/maximal-configurators"
-import { runCli } from "@stuffbucket/maximal-core/provider-host"
-import { createBuiltinConnectorPlugins } from "@stuffbucket/maximal-core/search-connector"
+import { createBuiltinConfiguratorRuntime } from "@maximal/maximal-configurators"
+import { runCli } from "@maximal/maximal-core/provider-host"
+import { createBuiltinConnectorPlugins } from "@maximal/maximal-core/search-connector"
 
 import {
   createDshProviderGateway,

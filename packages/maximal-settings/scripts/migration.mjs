@@ -8,7 +8,7 @@ import { z } from "zod"
 
 const defaultPatterns = [
   "packages/*/src/**/*.{ts,tsx,js,mjs,cjs}",
-  "packages/maximal/client/src/**/*.{ts,tsx,js,mjs,cjs}",
+  "apps/*/src/**/*.{ts,tsx,js,mjs,cjs}",
 ]
 // Log placement reads OS state directories, not application settings.
 const loggingPathReaders = new Set([

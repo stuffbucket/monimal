@@ -14,10 +14,10 @@ import {
 
 // Offline and deterministic: both the environment assertions and the bundler
 // are injected, so nothing here runs `bun build` or writes to dist/. Nothing
-// may assert on the AMBIENT environment — release-gates.yml runs `check:ops`
-// with no `bun install` and on whatever Bun it has — so the pin and the
-// node_modules check are expressed as injected requirements, never as a fixture
-// this process happens to satisfy.
+// may assert on the AMBIENT environment — tooling CI owns `check:ops`, and its
+// environment is not this process — so the pin and the node_modules check are
+// expressed as injected requirements, never as a fixture this process happens
+// to satisfy.
 
 const ok: ReadonlyArray<Requirement> = []
 const objects: ReadonlyArray<Requirement> = [
@@ -37,10 +37,9 @@ function recordingBuild(status = 0, output = ""): { runner: BuildRunner, calls: 
 
 describe("the pin guard", () => {
   // The whole point. `bun run build` was the last unguarded path to
-  // dist/main.js: `check-bindings.ts` refused to judge it off-pin and
-  // `prepack.ts` refused to publish it off-pin, but the command that WRITES it
-  // ran anywhere, and `git add -f dist/main.js` then committed bytes CI cannot
-  // reproduce. Three people hit that in one session.
+  // dist/main.js: `check-bindings.ts` refused to judge it off-pin, but the
+  // command that WRITES it ran anywhere, and `git add -f dist/main.js` then
+  // committed bytes CI cannot reproduce. Three people hit that in one session.
   test("an off-pin Bun refuses, and never reaches the bundler", () => {
     const { calls, runner } = recordingBuild()
     const lines: Array<string> = []
@@ -91,8 +90,8 @@ describe("parity", () => {
     expect(MAIN_ARTIFACT.requires).toContain(needsNodeModules)
   })
 
-  // Asserted from the other side in check-bindings.test.ts and prepack.test.ts;
-  // this pins the literal so a rename of THIS file cannot leave those green.
+  // Asserted from the other side in check-bindings.test.ts; this pins the
+  // literal so a rename of THIS file cannot leave those green.
   test("BUILD_COMMAND names this file", () => {
     expect(BUILD_COMMAND).toBe("bun scripts/ops/build-bundle.ts")
   })

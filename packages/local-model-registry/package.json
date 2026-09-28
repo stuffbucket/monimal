@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "name": "@stuffbucket/local-model-registry",
+  "name": "@maximal/local-model-registry",
   "version": "0.0.0",
   "description": "Provider-neutral Cordis service for provisioning and assigning local models.",
   "repository": {
@@ -22,6 +22,7 @@
     "dist"
   ],
   "scripts": {
+    "analyze": "bun ../maximal-core/scripts/analyze.ts",
     "build": "tsup src/index.ts --format esm --dts --clean --target node24 --out-dir dist",
     "lint": "eslint",
     "test": "node --test tests/*.test.ts",
@@ -29,11 +30,11 @@
   },
   "dependencies": {
     "@deepseek-ai/schemastery": "3.18.2",
-    "@stuffbucket/maximal-model-contract": "workspace:*"
+    "@maximal/maximal-model-contract": "workspace:*"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.2",
-    "@stuffbucket/eslint-config": "workspace:*",
+    "@maximal/eslint-config": "workspace:*",
     "@types/node": "^26.4.0",
     "@typescript/native": "npm:typescript@^7.0.2",
     "eslint": "^10.9.1",

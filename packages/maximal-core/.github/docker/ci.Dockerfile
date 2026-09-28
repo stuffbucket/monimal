@@ -49,8 +49,8 @@ ENV BUN_INSTALL=/usr/local
 RUN curl -fsSL https://bun.sh/install | bash -s "bun-v${BUN_VERSION}"
 
 # Refuse to produce an off-pin image at all, rather than producing one that
-# reports the wrong cause later. Same posture as scripts/ops/prepack.ts, which
-# asserts the running Bun before it writes anything into dist/.
+# reports the wrong cause later. Same posture as the build guard, which asserts
+# the running Bun before it writes anything into dist/.
 RUN test "$(bun --version)" = "${BUN_VERSION}" \
   || { echo "bun $(bun --version) != requested ${BUN_VERSION}" >&2; exit 1; }
 

@@ -7,7 +7,7 @@ import type {
   ConfiguratorMetadata,
   ConfiguratorPlugin,
   ManagedFieldPatch,
-} from "@stuffbucket/maximal-core/configurator-host"
+} from "@maximal/maximal-core/configurator-host"
 
 export type ConfiguratorFields = (
   material: ConfiguratorConnectionMaterial,

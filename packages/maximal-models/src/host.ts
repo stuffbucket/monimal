@@ -9,7 +9,7 @@ import type {
   ProviderTopology,
   ProviderTopologyListener,
   ProviderUnsubscribe,
-} from "@stuffbucket/maximal-model-contract"
+} from "@maximal/maximal-model-contract"
 
 import { watch } from "node:fs"
 

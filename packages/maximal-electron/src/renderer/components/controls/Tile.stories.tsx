@@ -26,10 +26,8 @@ function Listbox({ children }: { children: ReactNode }) {
  * The caller's half of both seams, which is where a tile's colour comes from.
  *
  * No stylesheet in this repository maps `.card[data-status]` to anything, so
- * the `status` control moved nothing at all until this existed. The mapping
- * below is the one `e2e/fixtures/demo-shell/demo.css` writes for the same
- * props, and `.story-card` is a caller's modifier class reading the pair the
- * mapping publishes — a run card, in the smallest form that shows the seam.
+ * the `status` control moved nothing at all until this existed. `.story-card`
+ * is a caller's modifier class reading the pair the mapping publishes.
  *
  * A story has no stylesheet of its own, so it renders one. Both selectors,
  * because an unscoped `.story-card` loses to `.sb-shell .card` on specificity

@@ -3,8 +3,8 @@ import {
   DataVizMeter,
   DataVizTooltip,
   useDataVizTooltip,
-} from "@stuffbucket/maximal-data-visualization"
-import { FormField, Select } from "@stuffbucket/maximal-electron/renderer"
+} from "@maximal/maximal-data-visualization"
+import { FormField, Select } from "@maximal/maximal-electron/renderer"
 import { useState } from "react"
 
 import {

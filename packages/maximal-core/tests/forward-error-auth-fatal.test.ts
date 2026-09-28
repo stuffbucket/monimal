@@ -58,6 +58,9 @@ afterAll(async () => {
 
 const errorMod = await import("~/lib/errors/error")
 const { CopilotAuthFatalError, forwardError, HTTPError } = errorMod
+const { invokeRpcMethod } = await import("~/lib/jsonrpc/dispatch")
+const { CONTROL_AUTH_FATAL } =
+  await import("@maximal/maximal-core-contract/control")
 const stateMod = await import("~/lib/runtime-state/state")
 const { state } = stateMod
 const { PATHS } = await import("~/lib/platform/paths")
@@ -121,6 +124,32 @@ function makeContextStub(): {
 }
 
 describe("forwardError", () => {
+  test("direct IPC dispatch preserves auth-fatal recovery and the saved credential", async () => {
+    const token = testAccountToken("alice", "gho_")
+    await addAccountToDefaultRegistry(makeTestAccount("alice", "gho_"))
+    state.githubToken = token
+    const result = await invokeRpcMethod(
+      {
+        "test/rejected": () => {
+          throw new CopilotAuthFatalError("revoked", 401, null)
+        },
+      },
+      { method: "test/rejected" },
+    )
+    expect(result).toEqual({
+      kind: "error",
+      error: {
+        code: CONTROL_AUTH_FATAL,
+        message: "revoked",
+        data: { reason: "auth_fatal", retryable: false },
+      },
+    })
+    expect(state.githubToken).toBeUndefined()
+    const registry = await readDefaultRegistry()
+    expect(registry.accounts[testAccountKey("alice")].token).toBe(token)
+    expect(registry.accounts[testAccountKey("alice")].needsReauth).toBe(true)
+  })
+
   test("CopilotAuthFatalError: clears githubToken and returns auth_fatal body", async () => {
     state.githubToken = "gho_pretend_real"
     const { ctx, captured } = makeContextStub()

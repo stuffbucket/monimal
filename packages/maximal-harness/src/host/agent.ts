@@ -20,6 +20,7 @@ import type {
   ApproveRequest,
   ProviderStatus,
 } from '../contracts.js';
+import { HARNESS_CONFIG, HARNESS_COPY } from '../constants.js';
 
 import { describeToolCall, needsApproval, riskOf, type ToolRisk } from './approval.js';
 import { runEmbedded } from './embedded.js';
@@ -39,15 +40,9 @@ import { buildToolsetTools, type RiskyTool } from './toolsets.js';
  * plainly. Never demand a key. See `docs/agent.md` for the ranking and why.
  */
 
-/** Where the two HTTP backends listen when nothing moves them. */
-const DEFAULT_ENDPOINTS = {
-  maximal: 'http://localhost:4141',
-  ollama: 'http://localhost:11434',
-} as const;
+type Backend = keyof typeof HARNESS_CONFIG.discovery.defaultEndpoints | 'embedded';
 
-type Backend = keyof typeof DEFAULT_ENDPOINTS | 'embedded';
-
-const PINS: readonly Backend[] = ['maximal', 'ollama', 'embedded'];
+const PINS: readonly Backend[] = HARNESS_CONFIG.discovery.providerPins;
 
 /**
  * The pin and the endpoints for this process, read fresh on every call.
@@ -57,18 +52,15 @@ const PINS: readonly Backend[] = ['maximal', 'ollama', 'embedded'];
  */
 function environment(): {
   pin: Backend | undefined;
-  base: Endpoints<keyof typeof DEFAULT_ENDPOINTS>;
+  base: Endpoints<keyof typeof HARNESS_CONFIG.discovery.defaultEndpoints>;
 } {
   const pin = process.env['STUFFBUCKET_PROVIDER'] ?? '';
   const address = process.env['STUFFBUCKET_PROVIDER_URL'] ?? '';
   return {
     pin: PINS.find((name) => name === pin),
-    base: resolveEndpoints(DEFAULT_ENDPOINTS, pin, address),
+    base: resolveEndpoints(HARNESS_CONFIG.discovery.defaultEndpoints, pin, address),
   };
 }
-
-/** Wiggle pins this model for maximal. Keep them in step. */
-const MAXIMAL_MODEL = 'claude-haiku-4-5';
 
 /**
  * Ollama models to prefer, best first.
@@ -79,23 +71,6 @@ const MAXIMAL_MODEL = 'claude-haiku-4-5';
  * every prompt including ones that need none, which is the one failure a
  * concierge cannot have.
  */
-const OLLAMA_PREFERRED = [
-  'qwen3:4b',
-  'qwen3:1.7b',
-  'qwen2.5:7b',
-  'lfm2.5:1.2b',
-  'qwen3:0.6b',
-];
-
-/** A probe must not hang the overlay, so every request is bounded. */
-const PROBE_TIMEOUT_MS = 1500;
-
-/**
- * maximal supplies the real credential, and Ollama wants none. pi-ai still
- * requires the field, so this is a placeholder rather than a secret.
- */
-const PLACEHOLDER_KEY = 'supplied-by-local-backend';
-
 export interface AgentOptions {
   systemPrompt: string;
   codingTools: boolean;
@@ -119,7 +94,10 @@ async function reachable(url: string): Promise<boolean> {
 /** GET with a bound timeout. Returns undefined for anything that is not 200. */
 async function fetchJson(url: string): Promise<unknown> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
+  const timer = setTimeout(
+    () => controller.abort(),
+    HARNESS_CONFIG.discovery.probeTimeoutMs,
+  );
   try {
     const response = await fetch(url, { signal: controller.signal });
     if (!response.ok) return undefined;
@@ -149,7 +127,7 @@ function chooseOllamaModel(tags: unknown): string | undefined {
     .filter((name): name is string => typeof name === 'string');
   if (installed.length === 0) return undefined;
 
-  for (const wanted of OLLAMA_PREFERRED) {
+  for (const wanted of HARNESS_CONFIG.discovery.ollamaPreferredModels) {
     const match = installed.find(
       (name) => name === wanted || name.startsWith(`${wanted}-`),
     );
@@ -178,7 +156,11 @@ export async function discoverProvider(): Promise<ProviderStatus> {
   }
 
   if (pin !== 'ollama' && (await reachable(`${base.maximal}/v1/models`))) {
-    return { state: 'ready', provider: 'maximal', model: MAXIMAL_MODEL };
+    return {
+      state: 'ready',
+      provider: 'maximal',
+      model: HARNESS_CONFIG.discovery.maximalModel,
+    };
   }
 
   if (pin !== 'maximal') {
@@ -194,7 +176,7 @@ export async function discoverProvider(): Promise<ProviderStatus> {
   // A pin that did not answer says so, rather than quietly becoming a
   // different backend. Someone who named one wants that one.
   if (pin !== undefined) {
-    return { state: 'unavailable', reason: `No ${pin} backend answered.` };
+    return { state: 'unavailable', reason: HARNESS_COPY.agent.noProviderAnswer(pin) };
   }
 
   if (isModelPresent()) {
@@ -218,7 +200,7 @@ export async function discoverProvider(): Promise<ProviderStatus> {
 function buildModel(
   provider: AgentProvider,
   id: string,
-  base: Endpoints<keyof typeof DEFAULT_ENDPOINTS>,
+  base: Endpoints<keyof typeof HARNESS_CONFIG.discovery.defaultEndpoints>,
 ) {
   const zero = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
 
@@ -232,8 +214,8 @@ function buildModel(
         reasoning: false,
         input: ['text' as const],
         cost: zero,
-        contextWindow: 200_000,
-        maxTokens: 4096,
+        contextWindow: HARNESS_CONFIG.models.maximal.contextWindow,
+        maxTokens: HARNESS_CONFIG.models.maximal.maxTokens,
       }
     : {
         id,
@@ -244,8 +226,8 @@ function buildModel(
         reasoning: false,
         input: ['text' as const],
         cost: zero,
-        contextWindow: 32_000,
-        maxTokens: 4096,
+        contextWindow: HARNESS_CONFIG.models.ollama.contextWindow,
+        maxTokens: HARNESS_CONFIG.models.ollama.maxTokens,
       };
 }
 
@@ -328,13 +310,13 @@ function buildTools(options: {
 function describeNotReady(status: ProviderStatus): string {
   switch (status.state) {
     case 'probing':
-      return 'Still looking for a model backend.';
+      return HARNESS_COPY.agent.probing;
     case 'needs-model':
-      return `The ${status.model} model has not been downloaded yet.`;
+      return HARNESS_COPY.agent.modelNotDownloaded(status.model);
     case 'unavailable':
       return status.reason;
     default:
-      return 'No model backend is available.';
+      return HARNESS_COPY.agent.noBackend;
   }
 }
 
@@ -356,11 +338,6 @@ export interface AgentSink {
  * The run would hold `active` until the process exits, and every later summon
  * would report that it is still busy.
  */
-const APPROVAL_TIMEOUT_MS = 45_000;
-
-/** Text fed back to the model when a call is refused. */
-const DENIED = 'The user denied this tool call. Do not retry it.';
-
 interface PendingApproval {
   tool: string;
   settle: (allow: boolean) => void;
@@ -461,7 +438,10 @@ function requestApproval(
     };
 
     pending.set(id, entry);
-    entry.timer = setTimeout(() => entry.settle(false), APPROVAL_TIMEOUT_MS);
+    entry.timer = setTimeout(
+      () => entry.settle(false),
+      HARNESS_CONFIG.approval.timeoutMs,
+    );
     // A pending prompt must not keep the process alive on its own.
     entry.timer.unref?.();
 
@@ -477,7 +457,7 @@ function requestApproval(
  */
 export async function runAgent(prompt: string, sink: AgentSink): Promise<void> {
   if (inFlight) {
-    sink.onEnd({ ok: false, error: 'Already working on the previous request.' });
+    sink.onEnd({ ok: false, error: HARNESS_COPY.agent.alreadyWorking });
     return;
   }
 
@@ -502,7 +482,7 @@ async function execute(prompt: string, sink: AgentSink): Promise<void> {
 
   const options = configured;
   if (!options) {
-    sink.onEnd({ ok: false, error: 'The agent harness has not been configured.' });
+    sink.onEnd({ ok: false, error: HARNESS_COPY.agent.notConfigured });
     return;
   }
 
@@ -554,7 +534,10 @@ async function execute(prompt: string, sink: AgentSink): Promise<void> {
 
   const agent = new Agent({
     streamFn: (model, context, options) =>
-      stream(model, context, { ...options, apiKey: PLACEHOLDER_KEY }),
+      stream(model, context, {
+        ...options,
+        apiKey: HARNESS_CONFIG.discovery.placeholderApiKey,
+      }),
 
     /**
      * The gate. This is the only thing standing between a model and a shell
@@ -565,7 +548,7 @@ async function execute(prompt: string, sink: AgentSink): Promise<void> {
       const tool = toolCall.name;
       const risk = riskOf(tool, built.risk.get(tool));
       const ok = await gate(tool, risk, describeToolCall(tool, args));
-      return ok ? undefined : { block: true, reason: DENIED };
+      return ok ? undefined : { block: true, reason: HARNESS_COPY.common.denied };
     },
 
     initialState: {

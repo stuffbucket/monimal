@@ -23,8 +23,12 @@ import { z } from "zod"
 
 export const BOOT_STATUS_MARKER = "@@MAXIMAL_STATUS@@"
 
+function isSupervised(): boolean {
+  return Boolean(process.env.MAXIMAL_SIDECAR_PARENT_PID)
+}
+
 export function emitBootStatus(message: string): void {
-  if (!process.env.MAXIMAL_SIDECAR_PARENT_PID) return
+  if (!isSupervised()) return
   process.stdout.write(`${BOOT_STATUS_MARKER} ${message}\n`)
 }
 
@@ -41,7 +45,8 @@ export const READY_MARKER = "@@MAXIMAL_READY@@"
  * - **absent on the wire** — the original `{ port, pid }`, emitted when a single
  *   listener served both the proxy and the control plane. A parser normalises it
  *   and reports `v: 0`, a value no engine ever emits.
- * - **1** — two listeners: `controlPort` + `proxyPort`.
+ * - **1** — `controlPort` + `proxyPort`; desktop IPC uses `controlPort: 0`
+ *   instead of binding the private listener.
  *
  * A parser accepts *any* `v >= 1` whose fields still validate: `v` is
  * informational, not a gate. A newer engine that adds a field must not hang an
@@ -73,9 +78,8 @@ export const readyLineSchema = z.object({
    * just in a type.
    */
   v: z.number().int().min(1),
-  /** The **control plane** port: JSON-RPC, subscriptions, config, auth. This is
-   *  what a supervising host connects to. Load-bearing: a supervisor asks for
-   *  port 0, so this is the only way it learns where to connect. */
+  /** The loopback HTTP control port, or 0 when the desktop uses inherited IPC.
+   *  A standalone supervisor asks for an ephemeral port and learns it here. */
   controlPort: port,
   /** The **public data plane** port serving `/v1` for third-party tools. Not
    *  necessarily the requested 4141 — a busy port falls back (maximal-core#10),
@@ -153,7 +157,7 @@ export type ParsedReadyLine = z.infer<typeof anyReadyLineSchema>
  * terminal never sees it.
  */
 export function emitReadyLine(ready: ReadyLine): boolean {
-  if (!process.env.MAXIMAL_SIDECAR_PARENT_PID) return false
+  if (!isSupervised()) return false
   process.stdout.write(`${READY_MARKER} ${JSON.stringify(ready)}\n`)
   return true
 }
@@ -166,7 +170,7 @@ export const QUIT_REQUEST_MARKER = "@@MAXIMAL_QUIT@@"
  * where there is nothing to quit and the caller should say so).
  */
 export function emitQuitRequest(): boolean {
-  if (!process.env.MAXIMAL_SIDECAR_PARENT_PID) return false
+  if (!isSupervised()) return false
   process.stdout.write(`${QUIT_REQUEST_MARKER}\n`)
   return true
 }
@@ -180,7 +184,7 @@ export const UPDATE_REQUEST_MARKER = "@@MAXIMAL_UPDATE@@"
  * updatable app bundle — the caller should fall back to the download page).
  */
 export function emitUpdateRequest(): boolean {
-  if (!process.env.MAXIMAL_SIDECAR_PARENT_PID) return false
+  if (!isSupervised()) return false
   process.stdout.write(`${UPDATE_REQUEST_MARKER}\n`)
   return true
 }

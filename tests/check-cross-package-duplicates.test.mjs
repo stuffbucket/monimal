@@ -30,8 +30,8 @@ const scriptSource = fs.readFileSync(
 test("packageRoots reads every package from the architecture policy", () => {
   const packages = packageRoots(root);
   assert.ok(packages.length > 5);
-  assert.ok(packages.some((pkg) => pkg.name === "@stuffbucket/maximal-core"));
-  // Longest root first, so a nested package (maximal/client) is matched before its parent.
+  assert.ok(packages.some((pkg) => pkg.name === "@maximal/maximal-core"));
+  // Keep longest roots first for policies with nested package fixtures.
   for (let index = 1; index < packages.length; index += 1) {
     assert.ok(packages[index - 1].root.length >= packages[index].root.length);
   }
@@ -41,11 +41,15 @@ test("packageForPath resolves the most specific containing package", () => {
   const packages = packageRoots(root);
   assert.equal(
     packageForPath(packages, "packages/maximal-core/src/lib/x.ts"),
-    "@stuffbucket/maximal-core",
+    "@maximal/maximal-core",
   );
   assert.equal(
-    packageForPath(packages, "packages/maximal/client/src/index.ts"),
-    "maximal-client",
+    packageForPath(packages, "packages/maximal-client/scripts/index.ts"),
+    "@maximal/maximal-client",
+  );
+  assert.equal(
+    packageForPath(packages, "apps/desktop/src/main/index.ts"),
+    "maximal-desktop",
   );
   assert.equal(packageForPath(packages, "scripts/check-file-sizes.mjs"), undefined);
 });

@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "@maximal/maximal-search",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Search connector contract, first-party providers, and the provider settings manifest.",
+  "type": "module",
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" },
+    "./package.json": "./package.json"
+  },
+  "files": ["dist"],
+  "scripts": {
+    "analyze": "bun ../maximal-core/scripts/analyze.ts",
+    "build": "tsup src/index.ts --format esm --dts --clean --target es2022 --out-dir dist",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "typecheck": "tsc6 --noEmit"
+  },
+  "dependencies": {
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@maximal/eslint-config": "workspace:*",
+    "@types/node": "^26.4.0",
+    "eslint": "^10.9.1",
+    "tsup": "^8.5.1",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "vitest": "^5.0.1"
+  },
+  "engines": { "node": ">=24" }
+}

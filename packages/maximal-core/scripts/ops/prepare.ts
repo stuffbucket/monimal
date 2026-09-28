@@ -7,7 +7,7 @@
  * Bun's built-in shell rejects on Windows:
  *
  *     error: expected a command or assignment but got: "Redirect"
- *     error: prepare script from "@stuffbucket/maximal" exited with 1
+ *     error: prepare script from "@maximal/maximal" exited with 1
  *
  * That failed `bun install` outright on Windows. Nothing caught it: `ci.yml`
  * was Linux-only, and the sole Windows leg ran on a tag push — so it surfaced

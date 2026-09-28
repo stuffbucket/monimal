@@ -1,4 +1,4 @@
-import * as policy from "@stuffbucket/maximal-settings/dependency-policy"
+import * as policy from "@maximal/maximal-settings/dependency-policy"
 import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 import test from "node:test"

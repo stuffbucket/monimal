@@ -2,12 +2,11 @@
  * Compile-time build metadata.
  *
  * Values are injected by `bun build --compile --define ...` for release
- * binaries. **Core no longer compiles one** — delivery is the GitHub Package
- * Registry — but the compile did not stop happening, so these are NOT dead:
+ * binaries. **Core no longer compiles one**, but the compile did not stop happening, so these are NOT dead:
  *
  *   - `scripts/build-sidecar.ts` in `stuffbucket/maximal` compiles **this
  *     repo's `src/main.ts`**, reached through the git dependency at
- *     `shell/node_modules/@stuffbucket/maximal-core/src/main.ts`, and injects
+ *     `shell/node_modules/@maximal/maximal-core/src/main.ts`, and injects
  *     all four defines itself.
  *
  * That is now the only producer, it is the one that ships to users, and nothing

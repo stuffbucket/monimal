@@ -1,8 +1,9 @@
-import type { AppConfig } from "~/lib/config/config"
 import type {
   OllamaSettingsResponse,
   OllamaSettingsUpdateRequest,
-} from "~/lib/config/settings-types"
+} from "@maximal/maximal-core-contract/settings"
+
+import type { AppConfig } from "~/lib/config/config"
 
 import {
   readSecret,
@@ -10,14 +11,7 @@ import {
   secretIsFromFile,
   writeSecret,
 } from "~/lib/auth/secrets"
-import {
-  DEFAULT_OLLAMA_CLOUD_BASE_URL,
-  getConfig,
-  type ResolvedOllamaProviderConfig,
-  writeConfig,
-} from "~/lib/config/config"
-import { SettingsOperationError } from "~/lib/config/settings-operations"
-import { sendProviderRequest } from "~/lib/http/send-request"
+import { getConfig, writeConfig } from "~/lib/config/config"
 
 const SECRET = { envVar: "OLLAMA_API_KEY", fileName: "ollama" }
 
@@ -47,48 +41,12 @@ export function getOllamaSettings(
   }
 }
 
-async function validateApiKey(apiKey: string): Promise<void> {
-  const provider: ResolvedOllamaProviderConfig = {
-    name: "ollama-cloud",
-    type: "ollama",
-    baseUrl: DEFAULT_OLLAMA_CLOUD_BASE_URL,
-    authType: "authorization",
-    apiKey,
-  }
-  let response: Response
-  try {
-    response = await sendProviderRequest(
-      provider,
-      `${provider.baseUrl}/api/chat`,
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: "{}",
-        signal: AbortSignal.timeout(5_000),
-      },
-    )
-  } catch (error) {
-    throw new SettingsOperationError(
-      `Could not validate the Ollama API key: ${error instanceof Error ? error.message : "request failed"}`,
-      "validation_error",
-    )
-  }
-  if (response.ok || response.status === 400) return
-  throw new SettingsOperationError(
-    response.status === 401 || response.status === 403 ?
-      "Ollama rejected this API key."
-    : `Ollama API-key validation returned HTTP ${response.status}.`,
-    "validation_error",
-  )
-}
-
-export async function updateOllamaSettings(
+export function updateOllamaSettings(
   input: OllamaSettingsUpdateRequest,
 ): Promise<OllamaSettingsResponse> {
   if (input.api_key !== undefined) {
     const apiKey = input.api_key.trim()
     if (apiKey.length > 0) {
-      await validateApiKey(apiKey)
       writeSecret(SECRET.fileName, apiKey)
       process.env[SECRET.envVar] = apiKey
     } else {
@@ -120,5 +78,5 @@ export async function updateOllamaSettings(
       },
     })
   }
-  return getOllamaSettings()
+  return Promise.resolve(getOllamaSettings())
 }

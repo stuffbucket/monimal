@@ -1,15 +1,15 @@
+import {
+  CONTROL_UPSTREAM_ERROR,
+  JSON_RPC_INVALID_REQUEST,
+  JSON_RPC_METHOD_NOT_FOUND,
+  JSON_RPC_PARSE_ERROR,
+} from "@maximal/maximal-core-contract/control"
 import { describe, expect, test } from "bun:test"
 import { Hono } from "hono"
 
 import type { RpcRegistry } from "~/lib/jsonrpc/dispatch"
 
 import { HTTPError } from "~/lib/errors/error"
-import {
-  CONTROL_UPSTREAM_ERROR,
-  JSON_RPC_INVALID_REQUEST,
-  JSON_RPC_METHOD_NOT_FOUND,
-  JSON_RPC_PARSE_ERROR,
-} from "~/lib/jsonrpc/codes"
 import { createRpcHandler } from "~/lib/jsonrpc/dispatch"
 
 interface RpcBody {

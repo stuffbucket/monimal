@@ -7,7 +7,7 @@ import type {
   TrafficRequestList,
   TrafficRequestListQuery,
   TrafficUnsubscribe,
-} from "@stuffbucket/maximal-observability-contract"
+} from "@maximal/maximal-observability-contract"
 
 export type ObservabilityRead<T> =
   { status: "ready"; data: T } | { status: "unsupported"; message: string }

@@ -1,4 +1,4 @@
-import { service } from "@stuffbucket/eslint-config/service"
+import { service } from "@maximal/eslint-config/service"
 
 // The single-mechanism invariant (ADR-0001): a credential token becomes an
 // Authorization / x-api-key header in EXACTLY one file, `src/lib/http/send-request.ts`.

@@ -1,7 +1,17 @@
+import type { AppEntry } from "@maximal/maximal-core-contract/settings"
+
+import {
+  CONTROL_UPSTREAM_ERROR,
+  JSON_RPC_INVALID_PARAMS,
+} from "@maximal/maximal-core-contract/control"
+import {
+  AppsListResponse,
+  ConnectionsListResponse,
+  SearchSettingsResponse,
+} from "@maximal/maximal-core-contract/settings"
 import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test"
 import { Hono } from "hono"
 
-import type { AppEntry } from "~/lib/config/settings-types"
 import type { ControlSnapshot } from "~/lib/live/resources"
 import type { ControlRpcOperationOverrides } from "~/routes/control/rpc"
 
@@ -15,15 +25,6 @@ import {
 import { writeConfig } from "~/lib/config/config"
 import { installConnectorPlugins } from "~/lib/config/connector-plugins"
 import { SettingsOperationError } from "~/lib/config/settings-operations"
-import {
-  AppsListResponse,
-  ConnectionsListResponse,
-  SearchSettingsResponse,
-} from "~/lib/config/settings-types"
-import {
-  CONTROL_UPSTREAM_ERROR,
-  JSON_RPC_INVALID_PARAMS,
-} from "~/lib/jsonrpc/codes"
 import { createRpcHandler } from "~/lib/jsonrpc/dispatch"
 import {
   PROTOCOL_VERSION_HEADER,

@@ -122,6 +122,22 @@ describe('terminalPackageChecks', () => {
     expect(failed(checks)).toEqual(['node-pty has no competing build native module']);
   });
 
+  it.each([
+    'node-pty/build/Release/pty.node',
+    'node_modules/node-pty-prebuilt/build/Debug/conpty.node',
+  ])('reports a build native module at %s', (file) => {
+    const checks = terminalPackageChecks({ ...darwin, unpackedFiles: [...unpackedDarwin, file] });
+    expect(failed(checks)).toEqual(['node-pty has no competing build native module']);
+  });
+
+  it('ignores a file that only resembles a build native module', () => {
+    const checks = terminalPackageChecks({
+      ...darwin,
+      unpackedFiles: [...unpackedDarwin, 'node_modules/node-pty/build/Release/pty.node.dSYM'],
+    });
+    expect(failed(checks)).toEqual([]);
+  });
+
   it('reports a prebuild for another platform', () => {
     const checks = terminalPackageChecks({
       ...darwin,

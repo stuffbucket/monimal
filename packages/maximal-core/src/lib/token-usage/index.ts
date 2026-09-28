@@ -1,4 +1,4 @@
-import type { TrafficTokenMetadata } from "@stuffbucket/maximal-observability-contract"
+import type { TrafficTokenMetadata } from "@maximal/maximal-observability-contract"
 
 import { requestContext, generateTraceId } from "~/lib/http/request-context"
 import { runtimeLogger } from "~/lib/platform/runtime-logger"

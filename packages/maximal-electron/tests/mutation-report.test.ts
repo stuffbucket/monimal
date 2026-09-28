@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { summarize, verifyStaticRun } from '../scripts/mutation-report.mjs';
+import {
+  mutantsForTarget,
+  summarize,
+  verifyStaticRun,
+} from '../scripts/mutation-report.mjs';
 
 /**
  * What the score does not say.
@@ -160,5 +164,40 @@ describe('verifyStaticRun', () => {
 
   it('accepts the same static signature when the fresh process kills it', () => {
     expect(verifyStaticRun(mutant('Ignored'), mutant('Killed')).failures).toEqual([]);
+  });
+});
+
+describe('mutantsForTarget', () => {
+  const source = report([
+    {
+      status: 'Killed',
+      killedBy: ['t1'],
+      location: {
+        start: { line: 4, column: 1 },
+        end: { line: 6, column: 1 },
+      },
+    },
+    {
+      status: 'Killed',
+      killedBy: ['t1'],
+      location: {
+        start: { line: 10, column: 1 },
+        end: { line: 10, column: 2 },
+      },
+    },
+  ]);
+
+  it('returns every mutant for a whole-file target', () => {
+    expect(mutantsForTarget(source, 'src/example.ts')).toHaveLength(2);
+  });
+
+  it('matches mutants whose locations overlap a requested range', () => {
+    expect(mutantsForTarget(source, 'src/example.ts:5-8')).toHaveLength(1);
+    expect(mutantsForTarget(source, 'src/example.ts:7-9')).toHaveLength(0);
+    expect(mutantsForTarget(source, 'src/example.ts:10:0-10:3')).toHaveLength(1);
+  });
+
+  it('returns no mutants for an absent file', () => {
+    expect(mutantsForTarget(source, 'src/missing.ts')).toEqual([]);
   });
 });

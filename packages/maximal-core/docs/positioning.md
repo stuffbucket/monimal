@@ -6,7 +6,7 @@ site, the guide, and any pitch.
 
 **Scope:** this governs **end-user-facing** copy for the `maximal` product (the
 desktop app). It does **not** govern developer-facing surfaces of
-`@stuffbucket/maximal-core` — this package is a headless proxy, and its README,
+`@maximal/maximal-core` — this package is a headless proxy, and its README,
 `package.json` description, and CLI help say so in exactly the words the
 guardrails below forbid. That is deliberate, not drift.
 

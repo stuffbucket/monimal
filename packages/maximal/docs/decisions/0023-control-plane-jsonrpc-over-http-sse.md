@@ -22,9 +22,14 @@ links:
 
 # Control plane — stateless JSON-RPC 2.0 over HTTP+SSE (MCP-aligned); /v1 stays REST
 
+Desktop-spawned Core now carries the same JSON-RPC operations over inherited
+process IPC rather than opening an HTTP control listener. This decision still
+describes standalone Core's HTTP transport; see
+[client architecture](../dev/client-architecture.md) for the desktop binding.
+
 ## Context
 
-Post-excavation, the proxy engine lives in `@stuffbucket/maximal-core`; a new
+Post-excavation, the proxy engine lives in `@maximal/maximal-core`; a new
 Electron client at `maximal/client` spawns it as a sidecar (Tauri retired to
 `platform/tauri`). The sidecar exposes **two wire surfaces**:
 

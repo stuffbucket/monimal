@@ -6,7 +6,6 @@
  */
 
 export declare const MUTANT_FLOOR: number;
-export declare const TERMINAL_MUTANT_FLOOR: number;
 export declare const IGNORED_CEILING: number;
 
 export interface MutationSummary {
@@ -22,6 +21,7 @@ export interface MutationSummary {
 
 export declare function readReport(file: string): unknown;
 export declare function summarize(report: unknown): MutationSummary;
+export declare function mutantsForTarget(report: unknown, target: string): unknown[];
 export declare function verifyStaticRun(
   dynamicReport: unknown,
   staticReport: unknown,

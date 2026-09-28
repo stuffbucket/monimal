@@ -40,23 +40,24 @@ arbitrary test paths.
 
 `dev`, `build`, and `start` all begin at `src/main.ts`, the package-owned
 composition entry. `dev` is a watched CLI runner, so it requires a CLI
-subcommand such as `start`. The composition invokes `@stuffbucket/maximal-core`'s
+subcommand such as `start`. The composition invokes `@maximal/maximal-core`'s
 public CLI and may supply the generic DSH provider host and built-in
 configurators; routing and engine behavior remain in Core, and concrete
 providers remain external profile packages.
 
-## Electron client (`client/`)
+## Electron desktop (`apps/desktop/`)
 
-`client/` is a package in the root pnpm workspace. Its filtered commands are
-low-level diagnostics for the client package:
+The desktop host and product UI are separate workspace packages. These filtered
+commands are low-level diagnostics for their respective owners:
 
 ```sh
-pnpm --filter maximal-client build:core  # Compile the maximal-core sidecar
-pnpm --filter maximal-client typecheck   # tsc --noEmit
-pnpm --filter maximal-client ui:preview  # Open the real Settings UI with in-memory capabilities
-pnpm --filter maximal-client ui:check    # Check two browser widths and capture screenshots
+pnpm --filter maximal-desktop build:core # Compile the maximal-core sidecar
+pnpm --filter maximal-desktop typecheck  # Typecheck the Electron host
+pnpm --filter @maximal/maximal-client typecheck   # Typecheck the product UI
+pnpm --filter @maximal/maximal-client ui:preview  # Open the real Settings UI with in-memory capabilities
+pnpm --filter @maximal/maximal-client ui:check    # Check two browser widths and capture screenshots
 pnpm test                                 # Run isolated affected workspace tests
-pnpm --filter maximal-client start       # Launch without graph orchestration
+pnpm --filter maximal-desktop start      # Launch without graph orchestration
 pnpm package                              # Package the Electron client via Turbo
 ```
 
@@ -78,14 +79,14 @@ desktop and compact screenshots under `$TMPDIR/maximal-ui-check` for inspection.
 The third capture opens the Copilot disclosure at compact width and records the
 keyboard-focused provider-model dropdown.
 
-Bun compiles the composed `@stuffbucket/maximal-core` proxy into a sidecar
-binary. The client Vitest suite
-belongs to the root Turbo graph and must be entered through the isolated root
+Bun compiles the composed `@maximal/maximal-core` proxy into a sidecar
+binary. Both desktop and product UI Vitest suites belong to the root Turbo
+graph and must be entered through the isolated root
 wrapper. CI runs the full native graph; the mountless Docker graph is the
 separate final gate defined by the workflow owner linked above.
 
 `MAXIMAL_CORE_REF` overrides the provenance ref embedded in a sidecar build.
 `MAXIMAL_CORE_OUT` overrides its output path. A relative output path resolves
-from `packages/maximal/client`; an absolute path remains absolute. The desktop
+from `apps/desktop`; an absolute path remains absolute. The desktop
 app launches the default `resources/bin/maximal-core` path, so a custom output
 is for build diagnostics rather than `pnpm dev`.

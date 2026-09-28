@@ -8,6 +8,7 @@ import { RUNTIME_ICONS, bundleIcon } from '../scripts/package-contract.mjs';
 import {
   APP_ICON,
   TRAY_ICON,
+  TRAY_ICON_2X,
   dockIconName,
   iconDirectory,
   trayIconChoice,
@@ -63,7 +64,7 @@ describe('iconDirectory', () => {
 
 describe('icon names', () => {
   it('names the files the generator writes', () => {
-    expect([APP_ICON, TRAY_ICON]).toEqual(['icon.png', 'tray.png']);
+    expect([APP_ICON, TRAY_ICON, TRAY_ICON_2X]).toEqual(['icon.png', 'tray.png', 'tray@2x.png']);
   });
 
   it('ships the exact Maximal application and menu-bar icons', () => {

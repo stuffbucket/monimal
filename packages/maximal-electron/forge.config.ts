@@ -324,11 +324,6 @@ const config: ForgeConfig = {
       if (!file) return false;
       if (file === '/package.json') return false;
 
-      // The capture fixture is built beside the product's renderer so the
-      // recording tools can drive it, and dropped here so a user never
-      // installs it. `scripts/verify-package.mjs` asserts it is absent.
-      if (file.startsWith('/.vite/renderer/demo_window')) return true;
-      if (file.startsWith('/.vite/renderer/terminal_lab_window')) return true;
 
       const keep = [
         '/.vite',
@@ -389,13 +384,6 @@ const config: ForgeConfig = {
       ],
       renderer: [
         { name: 'main_window', config: 'vite.renderer.config.mts' },
-        // The capture fixture. Built alongside, excluded from the package by
-        // the `ignore` predicate above. `STUFFBUCKET_SKIP_FIXTURE` drops it
-        // where nothing drives it; see docs/testing.md.
-        ...(process.env.STUFFBUCKET_SKIP_FIXTURE
-          ? []
-          : [{ name: 'demo_window', config: 'vite.demo.config.mts' }]),
-        { name: 'terminal_lab_window', config: 'vite.terminal-lab.config.mts' },
       ],
     }),
     // Fuses harden the packaged binary. Changing any value here invalidates an

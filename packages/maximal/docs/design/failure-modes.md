@@ -9,7 +9,7 @@
 > been deleted from the working tree — git history is the archive, not
 > this directory. The Electron `client/` app instead consumes the
 > `--shell-*` CSS custom-property contract published by
-> `stuffbucket-electron`, which ships no palette or component styles by
+> `@maximal/maximal-electron`, which ships no palette or component styles by
 > design. There is currently no equivalent design-system doc for
 > `client/`; this file is trimmed to the failure modes that are
 > genuinely implementation-agnostic, since the ones that referenced

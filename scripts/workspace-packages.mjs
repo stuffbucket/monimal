@@ -19,6 +19,7 @@ export function discoverPackageManifests(root) {
       "-z",
       "--",
       ":(glob)packages/**/package.json",
+      ":(glob)apps/**/package.json",
     ],
     { cwd: root, encoding: "utf8" },
   )

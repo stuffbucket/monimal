@@ -1,8 +1,9 @@
+import type { AppEntry } from "@maximal/maximal-core-contract/settings"
+
 import { afterEach, beforeEach, describe, expect, test } from "bun:test"
 
 import type { ClientApp } from "~/apps"
 import type { AppConfig, ApiKeyEntry } from "~/lib/config/config"
-import type { AppEntry } from "~/lib/config/settings-types"
 import type {
   ConfiguratorPlugin,
   ConfiguratorRegistry,

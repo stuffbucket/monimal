@@ -1,4 +1,4 @@
-import { createLogger, resolveLogDirectory } from "@stuffbucket/maximal-logging"
+import { createLogger, resolveLogDirectory } from "@maximal/maximal-logging"
 import consola, { type ConsolaInstance } from "consola"
 import fs from "node:fs"
 import path from "node:path"

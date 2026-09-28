@@ -1,6 +1,6 @@
-import consola from "consola"
+import type { AppEntry } from "@maximal/maximal-core-contract/settings"
 
-import type { AppEntry } from "~/lib/config/settings-types"
+import consola from "consola"
 
 import type { AppCli, AppCliOp, ClientApp } from "./index"
 

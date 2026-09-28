@@ -84,10 +84,8 @@ assertion, so Playwright reports the run as passed; the only evidence was in
 the operating system's crash reports. `closeApp` reads the exit code and the
 signal and throws on either.
 
-It was then not used by `e2e/demo-stills.stills.ts`, which called
-`app.close()`. That is the stills configuration, which is both the one nobody
-watches and the one issue #24 says is already nondeterministic. Fixed, and the
-rule stops it coming back.
+The former stills capture called `app.close()` instead. The rule stops that
+teardown path from returning.
 
 ## What did not change, and why
 

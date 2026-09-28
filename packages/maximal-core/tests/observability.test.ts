@@ -21,7 +21,7 @@ import {
   type TrafficTokenObservation,
   type TrafficObservationStart,
   type TrafficObserver,
-} from "@stuffbucket/maximal-observability-contract"
+} from "@maximal/maximal-observability-contract"
 import { Database } from "bun:sqlite"
 import { afterEach, beforeEach, describe, expect, test } from "bun:test"
 import { Hono } from "hono"

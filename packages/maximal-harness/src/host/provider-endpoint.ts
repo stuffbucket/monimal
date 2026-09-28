@@ -31,9 +31,6 @@ export function pinnedKey<K extends string>(
   return keys.find((key) => key === pin);
 }
 
-/** Hosts that cannot leave the machine. `new URL` keeps the brackets on IPv6. */
-const LOOPBACK = ['localhost', '127.0.0.1', '[::1]'];
-
 /**
  * `value` as a base URL, or undefined when it is not a loopback HTTP address.
  *
@@ -50,7 +47,9 @@ export function loopbackBaseUrl(value: string): string | undefined {
   }
 
   if (url.protocol !== 'http:' && url.protocol !== 'https:') return undefined;
-  if (!LOOPBACK.includes(url.hostname)) return undefined;
+  if (!(HARNESS_CONFIG.discovery.loopbackHosts as readonly string[]).includes(url.hostname)) {
+    return undefined;
+  }
   return url.origin;
 }
 
@@ -75,3 +74,4 @@ export function resolveEndpoints<K extends string>(
 
   return { ...defaults, [key]: base };
 }
+import { HARNESS_CONFIG } from '../constants.js';

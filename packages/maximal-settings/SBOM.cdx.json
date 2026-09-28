@@ -5,9 +5,9 @@
   "metadata": {
     "component": {
       "type": "library",
-      "name": "@stuffbucket/maximal-settings",
+      "name": "@maximal/maximal-settings",
       "version": "0.0.0",
-      "bom-ref": "pkg:npm/%40stuffbucket/maximal-settings@0.0.0"
+      "bom-ref": "pkg:npm/%40maximal/maximal-settings@0.0.0"
     }
   },
   "components": [
@@ -252,7 +252,7 @@
   ],
   "dependencies": [
     {
-      "ref": "pkg:npm/%40stuffbucket/maximal-settings@0.0.0",
+      "ref": "pkg:npm/%40maximal/maximal-settings@0.0.0",
       "dependsOn": [
         "pkg:npm/deepmerge@4.3.1",
         "pkg:npm/lilconfig@3.1.3",

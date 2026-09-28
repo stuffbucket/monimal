@@ -29,6 +29,130 @@ importers:
         specifier: ^2.10.12
         version: 2.10.12
 
+  apps/desktop:
+    dependencies:
+      '@maximal/local-model-registry':
+        specifier: workspace:*
+        version: link:../../packages/local-model-registry
+      '@maximal/maximal-assets':
+        specifier: workspace:*
+        version: link:../../packages/maximal-assets
+      '@maximal/maximal-client':
+        specifier: workspace:*
+        version: link:../../packages/maximal-client
+      '@maximal/maximal-core':
+        specifier: workspace:*
+        version: link:../../packages/maximal-core
+      '@maximal/maximal-core-contract':
+        specifier: workspace:*
+        version: link:../../packages/maximal-core-contract
+      '@maximal/maximal-electron':
+        specifier: workspace:*
+        version: link:../../packages/maximal-electron
+      '@maximal/maximal-harness':
+        specifier: workspace:*
+        version: link:../../packages/maximal-harness
+      '@maximal/maximal-logging':
+        specifier: workspace:*
+        version: link:../../packages/maximal-logging
+      '@maximal/maximal-observability':
+        specifier: workspace:*
+        version: link:../../packages/maximal-observability
+      '@maximal/maximal-observability-contract':
+        specifier: workspace:*
+        version: link:../../packages/maximal-observability-contract
+      '@maximal/maximal-ollama':
+        specifier: workspace:*
+        version: link:../../packages/maximal-ollama
+      '@maximal/maximal-settings':
+        specifier: workspace:*
+        version: link:../../packages/maximal-settings
+      '@maximal/maximal-terminal':
+        specifier: workspace:*
+        version: link:../../packages/maximal-terminal
+      node-llama-cpp:
+        specifier: 3.20.0
+        version: 3.20.0(@typescript/typescript6@6.0.2)(supports-color@8.1.1)
+      node-pty:
+        specifier: 1.2.0-beta.15
+        version: 1.2.0-beta.15
+      zod:
+        specifier: ^4.5.4
+        version: 4.5.4
+    devDependencies:
+      '@electron-forge/cli':
+        specifier: 7.11.2
+        version: 7.11.2(bluebird@3.7.2)(csso@5.0.5)(encoding@0.1.13)(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.26)(supports-color@8.1.1)(uglify-js@3.19.3)
+      '@electron-forge/plugin-base':
+        specifier: 7.11.2
+        version: 7.11.2(bluebird@3.7.2)(supports-color@8.1.1)
+      '@electron-forge/plugin-vite':
+        specifier: 7.11.2
+        version: 7.11.2(bluebird@3.7.2)(supports-color@8.1.1)
+      '@electron-forge/shared-types':
+        specifier: 7.11.2
+        version: 7.11.2(bluebird@3.7.2)(supports-color@8.1.1)
+      '@electron/asar':
+        specifier: ^4.3.0
+        version: 4.3.0
+      '@electron/packager':
+        specifier: ^20.3.0
+        version: 20.3.0(supports-color@8.1.1)
+      '@maximal/eslint-config':
+        specifier: workspace:*
+        version: link:../../packages/eslint-config
+      '@playwright/test':
+        specifier: ^1.62.1
+        version: 1.62.1
+      '@types/node':
+        specifier: ^26.4.0
+        version: 26.4.0
+      '@types/react':
+        specifier: ^19.2.17
+        version: 19.2.18
+      '@types/react-dom':
+        specifier: ^19.2.5
+        version: 19.2.5(@types/react@19.2.18)
+      '@typescript/native':
+        specifier: npm:typescript@^7.0.2
+        version: typescript@7.0.2
+      '@vitejs/plugin-react':
+        specifier: ^6.1.0
+        version: 6.1.1(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))
+      electron:
+        specifier: 44.1.0
+        version: 44.1.0(supports-color@8.1.1)
+      eslint:
+        specifier: ^10.9.1
+        version: 10.9.1(jiti@2.7.0)(supports-color@8.1.1)
+      eslint-plugin-react-hooks:
+        specifier: 7.1.1
+        version: 7.1.1(eslint@10.9.1(jiti@2.7.0)(supports-color@8.1.1))(supports-color@8.1.1)
+      globals:
+        specifier: ^17.11.0
+        version: 17.11.0
+      jsdom:
+        specifier: ^30.0.1
+        version: 30.0.1
+      react:
+        specifier: ^19.2.8
+        version: 19.2.8
+      react-dom:
+        specifier: ^19.2.8
+        version: 19.2.8(react@19.2.8)
+      typescript:
+        specifier: npm:@typescript/typescript6@^6.0.2
+        version: '@typescript/typescript6@6.0.2'
+      vite:
+        specifier: ^8.2.2
+        version: 8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0)
+      vite-plugin-react-click-to-component:
+        specifier: 4.2.3
+        version: 4.2.3(react@19.2.8)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))
+      vitest:
+        specifier: ^5.0.1
+        version: 5.0.1(@opentelemetry/api@1.9.0)(@types/node@26.4.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))
+
   packages/eslint-config:
     dependencies:
       '@eslint/js':
@@ -56,8 +180,8 @@ importers:
         specifier: ^3.2.0
         version: 3.2.0(eslint@10.9.1(jiti@2.7.0)(supports-color@8.1.1))
       eslint-plugin-unicorn:
-        specifier: ^74.0.0
-        version: 74.0.0(eslint@10.9.1(jiti@2.7.0)(supports-color@8.1.1))
+        specifier: ^75.0.0
+        version: 75.0.0(eslint@10.9.1(jiti@2.7.0)(supports-color@8.1.1))
       eslint-plugin-unused-imports:
         specifier: ^4.4.1
         version: 4.4.1(@typescript-eslint/eslint-plugin@8.69.0(@typescript-eslint/parser@8.69.0(eslint@10.9.1(jiti@2.7.0)(supports-color@8.1.1))(supports-color@8.1.1)(typescript@6.0.3))(eslint@10.9.1(jiti@2.7.0)(supports-color@8.1.1))(supports-color@8.1.1)(typescript@6.0.3))(eslint@10.9.1(jiti@2.7.0)(supports-color@8.1.1))
@@ -83,14 +207,14 @@ importers:
       '@deepseek-ai/schemastery':
         specifier: 3.18.2
         version: 3.18.2
-      '@stuffbucket/maximal-model-contract':
+      '@maximal/maximal-model-contract':
         specifier: workspace:*
         version: link:../maximal-model-contract
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: 4.0.2
         version: 4.0.2
-      '@stuffbucket/eslint-config':
+      '@maximal/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
       '@types/node':
@@ -111,20 +235,20 @@ importers:
 
   packages/maximal:
     dependencies:
-      '@stuffbucket/maximal-configurators':
+      '@maximal/maximal-configurators':
         specifier: workspace:*
         version: link:../maximal-configurators
-      '@stuffbucket/maximal-core':
+      '@maximal/maximal-core':
         specifier: workspace:*
         version: link:../maximal-core
-      '@stuffbucket/maximal-model-contract':
+      '@maximal/maximal-model-contract':
         specifier: workspace:*
         version: link:../maximal-model-contract
-      '@stuffbucket/maximal-models':
+      '@maximal/maximal-models':
         specifier: workspace:*
         version: link:../maximal-models
     devDependencies:
-      '@stuffbucket/eslint-config':
+      '@maximal/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
       '@types/bun':
@@ -151,26 +275,153 @@ importers:
 
   packages/maximal-assets:
     devDependencies:
-      '@stuffbucket/eslint-config':
+      '@maximal/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
       '@types/node':
         specifier: ^26.4.0
         version: 26.4.0
+      eslint:
+        specifier: ^10.9.1
+        version: 10.9.1(jiti@2.7.0)(supports-color@8.1.1)
       typescript:
         specifier: npm:@typescript/typescript6@^6.0.2
         version: '@typescript/typescript6@6.0.2'
+
+  packages/maximal-client:
+    dependencies:
+      '@maximal/maximal-core-contract':
+        specifier: workspace:*
+        version: link:../maximal-core-contract
+      '@maximal/maximal-electron':
+        specifier: workspace:*
+        version: link:../maximal-electron
+      '@maximal/maximal-harness':
+        specifier: workspace:*
+        version: link:../maximal-harness
+      '@maximal/maximal-logging':
+        specifier: workspace:*
+        version: link:../maximal-logging
+      '@maximal/maximal-observability':
+        specifier: workspace:*
+        version: link:../maximal-observability
+      '@maximal/maximal-observability-contract':
+        specifier: workspace:*
+        version: link:../maximal-observability-contract
+      '@maximal/maximal-ollama':
+        specifier: workspace:*
+        version: link:../maximal-ollama
+      '@maximal/maximal-search':
+        specifier: workspace:*
+        version: link:../maximal-search
+      '@maximal/maximal-terminal':
+        specifier: workspace:*
+        version: link:../maximal-terminal
+      '@radix-ui/react-collapsible':
+        specifier: ^1.1.20
+        version: 1.1.20(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@radix-ui/react-dialog':
+        specifier: ^1.1.23
+        version: 1.1.23(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@radix-ui/react-dropdown-menu':
+        specifier: ^2.1.24
+        version: 2.1.24(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@radix-ui/react-radio-group':
+        specifier: ^1.4.7
+        version: 1.4.7(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@radix-ui/react-tabs':
+        specifier: ^1.1.21
+        version: 1.1.21(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@radix-ui/react-tooltip':
+        specifier: ^1.2.16
+        version: 1.2.16(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@radix-ui/react-visually-hidden':
+        specifier: ^1.2.11
+        version: 1.2.11(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@wterm/dom':
+        specifier: 0.4.1
+        version: 0.4.1
+      '@wterm/ghostty':
+        specifier: 0.4.1
+        version: 0.4.1
+      '@xterm/addon-fit':
+        specifier: 0.11.0
+        version: 0.11.0
+      '@xterm/xterm':
+        specifier: 6.0.0
+        version: 6.0.0
+      lucide-react:
+        specifier: ^1.38.0
+        version: 1.38.0(react@19.2.8)
+      react:
+        specifier: ^19.2.8
+        version: 19.2.8
+      react-dom:
+        specifier: ^19.2.8
+        version: 19.2.8(react@19.2.8)
+      react-resizable-panels:
+        specifier: ^4.12.3
+        version: 4.12.3(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+    devDependencies:
+      '@maximal/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@playwright/test':
+        specifier: ^1.62.1
+        version: 1.62.1
+      '@stryker-mutator/core':
+        specifier: ^10.0.0
+        version: 10.0.0(@types/node@26.4.0)
+      '@stryker-mutator/vitest-runner':
+        specifier: ^10.0.0
+        version: 10.0.0(@stryker-mutator/core@10.0.0(@types/node@26.4.0))(vitest@5.0.1(@opentelemetry/api@1.9.0)(@types/node@26.4.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0)))
+      '@types/node':
+        specifier: ^26.4.0
+        version: 26.4.0
+      '@types/react':
+        specifier: ^19.2.17
+        version: 19.2.18
+      '@types/react-dom':
+        specifier: ^19.2.5
+        version: 19.2.5(@types/react@19.2.18)
+      '@typescript/native':
+        specifier: npm:typescript@^7.0.2
+        version: typescript@7.0.2
+      '@vitejs/plugin-react':
+        specifier: ^6.1.0
+        version: 6.1.1(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))
+      eslint:
+        specifier: ^10.9.1
+        version: 10.9.1(jiti@2.7.0)(supports-color@8.1.1)
+      eslint-plugin-react-hooks:
+        specifier: 7.1.1
+        version: 7.1.1(eslint@10.9.1(jiti@2.7.0)(supports-color@8.1.1))(supports-color@8.1.1)
+      globals:
+        specifier: ^17.11.0
+        version: 17.11.0
+      jsdom:
+        specifier: ^30.0.1
+        version: 30.0.1
+      typescript:
+        specifier: npm:@typescript/typescript6@^6.0.2
+        version: '@typescript/typescript6@6.0.2'
+      vite:
+        specifier: ^8.2.2
+        version: 8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0)
+      vitest:
+        specifier: ^5.0.1
+        version: 5.0.1(@opentelemetry/api@1.9.0)(@types/node@26.4.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))
 
   packages/maximal-configurators:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 4.0.2
         version: 4.0.2
-      '@stuffbucket/maximal-core':
+      '@maximal/maximal-core':
         specifier: workspace:*
         version: link:../maximal-core
     devDependencies:
-      '@stuffbucket/eslint-config':
+      '@maximal/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
       '@types/node':
@@ -191,19 +442,22 @@ importers:
 
   packages/maximal-context-window:
     dependencies:
-      '@stuffbucket/maximal-data-visualization':
+      '@maximal/maximal-data-visualization':
         specifier: workspace:*
         version: link:../maximal-data-visualization
-      '@stuffbucket/maximal-observability-contract':
+      '@maximal/maximal-observability-contract':
         specifier: workspace:*
         version: link:../maximal-observability-contract
     devDependencies:
-      '@stuffbucket/eslint-config':
+      '@maximal/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
-      '@stuffbucket/maximal-electron':
+      '@maximal/maximal-electron':
         specifier: workspace:*
         version: link:../maximal-electron
+      '@maximal/maximal-terminal':
+        specifier: workspace:*
+        version: link:../maximal-terminal
       '@types/node':
         specifier: ^26.4.0
         version: 26.4.0
@@ -244,27 +498,30 @@ importers:
         specifier: ^8.2.2
         version: 8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0)
       vitest:
-        specifier: ^4.1.11
-        version: 4.1.11(@opentelemetry/api@1.9.0)(@types/node@26.4.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))
+        specifier: ^5.0.1
+        version: 5.0.1(@opentelemetry/api@1.9.0)(@types/node@26.4.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))
 
   packages/maximal-core:
     dependencies:
       '@hono/zod-openapi':
         specifier: 1.6.1
         version: 1.6.1(hono@4.13.5)(zod@4.5.4)
-      '@stuffbucket/maximal-harness':
+      '@maximal/maximal-core-contract':
         specifier: workspace:*
-        version: link:../maximal-harness
-      '@stuffbucket/maximal-logging':
+        version: link:../maximal-core-contract
+      '@maximal/maximal-logging':
         specifier: workspace:*
         version: link:../maximal-logging
-      '@stuffbucket/maximal-model-contract':
+      '@maximal/maximal-model-contract':
         specifier: workspace:*
         version: link:../maximal-model-contract
-      '@stuffbucket/maximal-observability-contract':
+      '@maximal/maximal-observability-contract':
         specifier: workspace:*
         version: link:../maximal-observability-contract
-      '@stuffbucket/maximal-settings':
+      '@maximal/maximal-search':
+        specifier: workspace:*
+        version: link:../maximal-search
+      '@maximal/maximal-settings':
         specifier: workspace:*
         version: link:../maximal-settings
       citty:
@@ -292,8 +549,8 @@ importers:
         specifier: ^2.1.0
         version: 2.1.0
       srvx:
-        specifier: ^0.12.7
-        version: 0.12.7
+        specifier: ^1.0.5
+        version: 1.0.5
       tiny-invariant:
         specifier: ^1.3.3
         version: 1.3.3
@@ -310,12 +567,12 @@ importers:
         specifier: ^4.5.4
         version: 4.5.4
     devDependencies:
+      '@maximal/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
       '@stryker-mutator/core':
         specifier: ^10.0.0
         version: 10.0.0(@types/node@26.4.0)
-      '@stuffbucket/eslint-config':
-        specifier: workspace:*
-        version: link:../eslint-config
       '@types/bun':
         specifier: ^1.4.0
         version: 1.4.0
@@ -359,9 +616,37 @@ importers:
         specifier: npm:@typescript/typescript6@^6.0.2
         version: '@typescript/typescript6@6.0.2'
 
+  packages/maximal-core-contract:
+    dependencies:
+      '@maximal/maximal-model-contract':
+        specifier: workspace:*
+        version: link:../maximal-model-contract
+      zod:
+        specifier: ^4.5.4
+        version: 4.5.4
+    devDependencies:
+      '@maximal/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@types/node':
+        specifier: ^26.4.0
+        version: 26.4.0
+      '@typescript/native':
+        specifier: npm:typescript@^7.0.2
+        version: typescript@7.0.2
+      eslint:
+        specifier: ^10.9.1
+        version: 10.9.1(jiti@2.7.0)(supports-color@8.1.1)
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(@typescript/typescript6@6.0.2)(jiti@2.7.0)(postcss@8.5.26)(supports-color@8.1.1)(yaml@2.9.0)
+      typescript:
+        specifier: npm:@typescript/typescript6@^6.0.2
+        version: '@typescript/typescript6@6.0.2'
+
   packages/maximal-data-visualization:
     devDependencies:
-      '@stuffbucket/eslint-config':
+      '@maximal/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
       '@types/react':
@@ -395,8 +680,8 @@ importers:
         specifier: npm:@typescript/typescript6@^6.0.2
         version: '@typescript/typescript6@6.0.2'
       vitest:
-        specifier: ^4.1.11
-        version: 4.1.11(@opentelemetry/api@1.9.0)(@types/node@26.4.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))
+        specifier: ^5.0.1
+        version: 5.0.1(@opentelemetry/api@1.9.0)(@types/node@26.4.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))
 
   packages/maximal-electron:
     devDependencies:
@@ -418,6 +703,12 @@ importers:
       '@electron/fuses':
         specifier: ^2.1.3
         version: 2.1.3
+      '@maximal/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@maximal/maximal-terminal':
+        specifier: workspace:*
+        version: link:../maximal-terminal
       '@playwright/test':
         specifier: ^1.62.0
         version: 1.62.1
@@ -456,10 +747,7 @@ importers:
         version: 10.0.0(@types/node@26.4.0)
       '@stryker-mutator/vitest-runner':
         specifier: ^10.0.0
-        version: 10.0.0(@stryker-mutator/core@10.0.0(@types/node@26.4.0))(vitest@4.1.11(@opentelemetry/api@1.9.0)(@types/node@26.4.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0)))
-      '@stuffbucket/eslint-config':
-        specifier: workspace:*
-        version: link:../eslint-config
+        version: 10.0.0(@stryker-mutator/core@10.0.0(@types/node@26.4.0))(vitest@5.0.1(@opentelemetry/api@1.9.0)(@types/node@26.4.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0)))
       '@types/node':
         specifier: ^26.4.0
         version: 26.4.0
@@ -524,8 +812,8 @@ importers:
         specifier: ^8.2.2
         version: 8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0)
       vitest:
-        specifier: ^4.1.11
-        version: 4.1.11(@opentelemetry/api@1.9.0)(@types/node@26.4.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))
+        specifier: ^5.0.1
+        version: 5.0.1(@opentelemetry/api@1.9.0)(@types/node@26.4.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))
       yaml:
         specifier: ^2.9.0
         version: 2.9.0
@@ -541,22 +829,19 @@ importers:
       typebox:
         specifier: 1.3.23
         version: 1.3.23
-      zod:
-        specifier: ^4.5.4
-        version: 4.5.4
     devDependencies:
+      '@maximal/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@maximal/maximal-electron':
+        specifier: workspace:*
+        version: link:../maximal-electron
       '@stryker-mutator/core':
         specifier: ^10.0.0
         version: 10.0.0(@types/node@26.4.0)
       '@stryker-mutator/vitest-runner':
         specifier: ^10.0.0
-        version: 10.0.0(@stryker-mutator/core@10.0.0(@types/node@26.4.0))(vitest@4.1.11(@opentelemetry/api@1.9.0)(@types/node@26.4.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0)))
-      '@stuffbucket/eslint-config':
-        specifier: workspace:*
-        version: link:../eslint-config
-      '@stuffbucket/maximal-electron':
-        specifier: workspace:*
-        version: link:../maximal-electron
+        version: 10.0.0(@stryker-mutator/core@10.0.0(@types/node@26.4.0))(vitest@5.0.1(@opentelemetry/api@1.9.0)(@types/node@26.4.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0)))
       '@types/node':
         specifier: ^26.4.0
         version: 26.4.0
@@ -591,8 +876,8 @@ importers:
         specifier: npm:@typescript/typescript6@^6.0.2
         version: '@typescript/typescript6@6.0.2'
       vitest:
-        specifier: ^4.1.11
-        version: 4.1.11(@opentelemetry/api@1.9.0)(@types/node@26.4.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))
+        specifier: ^5.0.1
+        version: 5.0.1(@opentelemetry/api@1.9.0)(@types/node@26.4.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))
 
   packages/maximal-logging:
     dependencies:
@@ -600,7 +885,7 @@ importers:
         specifier: 10.3.1
         version: 10.3.1
     devDependencies:
-      '@stuffbucket/eslint-config':
+      '@maximal/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
       '@types/node':
@@ -618,7 +903,7 @@ importers:
 
   packages/maximal-model-contract:
     devDependencies:
-      '@stuffbucket/eslint-config':
+      '@maximal/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
       '@types/node':
@@ -639,7 +924,7 @@ importers:
 
   packages/maximal-models:
     dependencies:
-      '@stuffbucket/maximal-model-contract':
+      '@maximal/maximal-model-contract':
         specifier: workspace:*
         version: link:../maximal-model-contract
     devDependencies:
@@ -649,7 +934,7 @@ importers:
       '@deepseek-ai/dsh-llm':
         specifier: 0.1.0-rc.8
         version: 0.1.0-rc.8(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-attachment@0.1.0-rc.8(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-brand@0.1.0-rc.8(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-invariants@0.1.0-rc.8(@deepseek-ai/cordis@4.0.2)))(@deepseek-ai/dsh-invariants@0.1.0-rc.8(@deepseek-ai/cordis@4.0.2)))(@deepseek-ai/dsh-brand@0.1.0-rc.8(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-invariants@0.1.0-rc.8(@deepseek-ai/cordis@4.0.2)))(@deepseek-ai/dsh-invariants@0.1.0-rc.8(@deepseek-ai/cordis@4.0.2))(@deepseek-ai/dsh-timeout@0.1.0-rc.8(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-invariants@0.1.0-rc.8(@deepseek-ai/cordis@4.0.2)))
-      '@stuffbucket/eslint-config':
+      '@maximal/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
       '@types/node':
@@ -670,22 +955,25 @@ importers:
 
   packages/maximal-observability:
     dependencies:
-      '@stuffbucket/maximal-context-window':
+      '@maximal/maximal-context-window':
         specifier: workspace:*
         version: link:../maximal-context-window
-      '@stuffbucket/maximal-data-visualization':
+      '@maximal/maximal-data-visualization':
         specifier: workspace:*
         version: link:../maximal-data-visualization
-      '@stuffbucket/maximal-observability-contract':
+      '@maximal/maximal-observability-contract':
         specifier: workspace:*
         version: link:../maximal-observability-contract
     devDependencies:
-      '@stuffbucket/eslint-config':
+      '@maximal/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
-      '@stuffbucket/maximal-electron':
+      '@maximal/maximal-electron':
         specifier: workspace:*
         version: link:../maximal-electron
+      '@maximal/maximal-terminal':
+        specifier: workspace:*
+        version: link:../maximal-terminal
       '@types/node':
         specifier: ^26.4.0
         version: 26.4.0
@@ -720,8 +1008,8 @@ importers:
         specifier: npm:@typescript/typescript6@^6.0.2
         version: '@typescript/typescript6@6.0.2'
       vitest:
-        specifier: ^4.1.11
-        version: 4.1.11(@opentelemetry/api@1.9.0)(@types/node@26.4.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))
+        specifier: ^5.0.1
+        version: 5.0.1(@opentelemetry/api@1.9.0)(@types/node@26.4.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))
 
   packages/maximal-observability-contract:
     dependencies:
@@ -729,7 +1017,7 @@ importers:
         specifier: ^4.5.4
         version: 4.5.4
     devDependencies:
-      '@stuffbucket/eslint-config':
+      '@maximal/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
       '@types/node':
@@ -747,6 +1035,52 @@ importers:
       typescript:
         specifier: npm:@typescript/typescript6@^6.0.2
         version: '@typescript/typescript6@6.0.2'
+
+  packages/maximal-ollama:
+    devDependencies:
+      '@maximal/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@types/node':
+        specifier: ^26.4.0
+        version: 26.4.0
+      '@typescript/native':
+        specifier: npm:typescript@^7.0.2
+        version: typescript@7.0.2
+      eslint:
+        specifier: ^10.9.1
+        version: 10.9.1(jiti@2.7.0)(supports-color@8.1.1)
+      typescript:
+        specifier: npm:@typescript/typescript6@^6.0.2
+        version: '@typescript/typescript6@6.0.2'
+      vitest:
+        specifier: ^5.0.1
+        version: 5.0.1(@opentelemetry/api@1.9.0)(@types/node@26.4.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))
+
+  packages/maximal-search:
+    dependencies:
+      zod:
+        specifier: ^4.5.4
+        version: 4.5.4
+    devDependencies:
+      '@maximal/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@types/node':
+        specifier: ^26.4.0
+        version: 26.4.0
+      eslint:
+        specifier: ^10.9.1
+        version: 10.9.1(jiti@2.7.0)(supports-color@8.1.1)
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(@typescript/typescript6@6.0.2)(jiti@2.7.0)(postcss@8.5.26)(supports-color@8.1.1)(yaml@2.9.0)
+      typescript:
+        specifier: npm:@typescript/typescript6@^6.0.2
+        version: '@typescript/typescript6@6.0.2'
+      vitest:
+        specifier: ^5.0.1
+        version: 5.0.1(@opentelemetry/api@1.9.0)(@types/node@26.4.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))
 
   packages/maximal-settings:
     dependencies:
@@ -766,7 +1100,7 @@ importers:
         specifier: 4.5.4
         version: 4.5.4
     devDependencies:
-      '@stuffbucket/eslint-config':
+      '@maximal/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
       '@types/node':
@@ -791,123 +1125,17 @@ importers:
         specifier: 2.9.0
         version: 2.9.0
 
-  packages/maximal/client:
-    dependencies:
-      '@radix-ui/react-collapsible':
-        specifier: ^1.1.20
-        version: 1.1.20(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      '@radix-ui/react-dialog':
-        specifier: ^1.1.23
-        version: 1.1.23(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      '@radix-ui/react-dropdown-menu':
-        specifier: ^2.1.24
-        version: 2.1.24(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      '@radix-ui/react-radio-group':
-        specifier: ^1.4.7
-        version: 1.4.7(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      '@radix-ui/react-tabs':
-        specifier: ^1.1.21
-        version: 1.1.21(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      '@radix-ui/react-tooltip':
-        specifier: ^1.2.16
-        version: 1.2.16(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      '@radix-ui/react-visually-hidden':
-        specifier: ^1.2.11
-        version: 1.2.11(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      '@stuffbucket/local-model-registry':
-        specifier: workspace:*
-        version: link:../../local-model-registry
-      '@stuffbucket/maximal-assets':
-        specifier: workspace:*
-        version: link:../../maximal-assets
-      '@stuffbucket/maximal-core':
-        specifier: workspace:*
-        version: link:../../maximal-core
-      '@stuffbucket/maximal-electron':
-        specifier: workspace:*
-        version: link:../../maximal-electron
-      '@stuffbucket/maximal-harness':
-        specifier: workspace:*
-        version: link:../../maximal-harness
-      '@stuffbucket/maximal-logging':
-        specifier: workspace:*
-        version: link:../../maximal-logging
-      '@stuffbucket/maximal-observability':
-        specifier: workspace:*
-        version: link:../../maximal-observability
-      '@stuffbucket/maximal-observability-contract':
-        specifier: workspace:*
-        version: link:../../maximal-observability-contract
-      '@stuffbucket/maximal-settings':
-        specifier: workspace:*
-        version: link:../../maximal-settings
-      '@wterm/dom':
-        specifier: 0.4.1
-        version: 0.4.1
-      '@wterm/ghostty':
-        specifier: 0.4.1
-        version: 0.4.1
-      '@xterm/addon-fit':
-        specifier: 0.11.0
-        version: 0.11.0
-      '@xterm/xterm':
-        specifier: 6.0.0
-        version: 6.0.0
-      lucide-react:
-        specifier: ^1.38.0
-        version: 1.38.0(react@19.2.8)
-      node-llama-cpp:
-        specifier: 3.20.0
-        version: 3.20.0(@typescript/typescript6@6.0.2)(supports-color@8.1.1)
-      node-pty:
-        specifier: 1.2.0-beta.15
-        version: 1.2.0-beta.15
-      react:
-        specifier: ^19.2.8
-        version: 19.2.8
-      react-dom:
-        specifier: ^19.2.8
-        version: 19.2.8(react@19.2.8)
-      react-resizable-panels:
-        specifier: ^4.12.3
-        version: 4.12.3(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      stuffbucket-electron:
-        specifier: workspace:@stuffbucket/maximal-electron@*
-        version: link:../../maximal-electron
-      zod:
-        specifier: ^4.5.4
-        version: 4.5.4
+  packages/maximal-terminal:
     devDependencies:
-      '@electron-forge/cli':
-        specifier: 7.11.2
-        version: 7.11.2(bluebird@3.7.2)(csso@5.0.5)(encoding@0.1.13)(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.26)(supports-color@8.1.1)(uglify-js@3.19.3)
-      '@electron-forge/plugin-base':
-        specifier: 7.11.2
-        version: 7.11.2(bluebird@3.7.2)(supports-color@8.1.1)
-      '@electron-forge/plugin-vite':
-        specifier: 7.11.2
-        version: 7.11.2(bluebird@3.7.2)(supports-color@8.1.1)
-      '@electron-forge/shared-types':
-        specifier: 7.11.2
-        version: 7.11.2(bluebird@3.7.2)(supports-color@8.1.1)
-      '@electron/asar':
-        specifier: ^4.3.0
-        version: 4.3.0
-      '@electron/packager':
-        specifier: ^20.3.0
-        version: 20.3.0(supports-color@8.1.1)
-      '@playwright/test':
-        specifier: ^1.62.1
-        version: 1.62.1
+      '@maximal/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
       '@stryker-mutator/core':
         specifier: ^10.0.0
         version: 10.0.0(@types/node@26.4.0)
       '@stryker-mutator/vitest-runner':
         specifier: ^10.0.0
-        version: 10.0.0(@stryker-mutator/core@10.0.0(@types/node@26.4.0))(vitest@4.1.11(@opentelemetry/api@1.9.0)(@types/node@26.4.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0)))
-      '@stuffbucket/eslint-config':
-        specifier: workspace:*
-        version: link:../../eslint-config
+        version: 10.0.0(@stryker-mutator/core@10.0.0(@types/node@26.4.0))(vitest@5.0.1(@opentelemetry/api@1.9.0)(@types/node@26.4.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0)))
       '@types/node':
         specifier: ^26.4.0
         version: 26.4.0
@@ -920,36 +1148,42 @@ importers:
       '@typescript/native':
         specifier: npm:typescript@^7.0.2
         version: typescript@7.0.2
-      '@vitejs/plugin-react':
-        specifier: ^6.1.0
-        version: 6.1.1(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))
-      electron:
-        specifier: 44.1.0
-        version: 44.1.0(supports-color@8.1.1)
+      '@wterm/dom':
+        specifier: 0.4.1
+        version: 0.4.1
+      '@wterm/ghostty':
+        specifier: 0.4.1
+        version: 0.4.1
+      '@xterm/addon-fit':
+        specifier: 0.11.0
+        version: 0.11.0
+      '@xterm/xterm':
+        specifier: 6.0.0
+        version: 6.0.0
       eslint:
         specifier: ^10.9.1
         version: 10.9.1(jiti@2.7.0)(supports-color@8.1.1)
-      eslint-plugin-react-hooks:
-        specifier: 7.1.1
-        version: 7.1.1(eslint@10.9.1(jiti@2.7.0)(supports-color@8.1.1))(supports-color@8.1.1)
-      globals:
-        specifier: ^17.11.0
-        version: 17.11.0
       jsdom:
-        specifier: ^30.0.1
+        specifier: 30.0.1
         version: 30.0.1
+      node-pty:
+        specifier: 1.2.0-beta.15
+        version: 1.2.0-beta.15
+      react:
+        specifier: ^19.2.8
+        version: 19.2.8
+      react-dom:
+        specifier: ^19.2.8
+        version: 19.2.8(react@19.2.8)
       typescript:
         specifier: npm:@typescript/typescript6@^6.0.2
         version: '@typescript/typescript6@6.0.2'
       vite:
         specifier: ^8.2.2
         version: 8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0)
-      vite-plugin-react-click-to-component:
-        specifier: 4.2.3
-        version: 4.2.3(react@19.2.8)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))
       vitest:
-        specifier: ^4.1.11
-        version: 4.1.11(@opentelemetry/api@1.9.0)(@types/node@26.4.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))
+        specifier: ^5.0.1
+        version: 5.0.1(@opentelemetry/api@1.9.0)(@types/node@26.4.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))
 
   packages/model-qwen3-0.6b-q8-gguf:
     dependencies:
@@ -960,10 +1194,10 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 4.0.2
         version: 4.0.2
-      '@stuffbucket/eslint-config':
+      '@maximal/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
-      '@stuffbucket/local-model-registry':
+      '@maximal/local-model-registry':
         specifier: workspace:*
         version: link:../local-model-registry
       '@types/node':
@@ -1006,7 +1240,7 @@ importers:
       '@deepseek-ai/dsh-timeout':
         specifier: 0.1.0-rc.8
         version: 0.1.0-rc.8(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-invariants@0.1.0-rc.8(@deepseek-ai/cordis@4.0.2))
-      '@stuffbucket/eslint-config':
+      '@maximal/eslint-config':
         specifier: workspace:*
         version: link:../../eslint-config
       '@types/node':
@@ -1037,7 +1271,7 @@ importers:
       '@deepseek-ai/dsh-llm':
         specifier: 0.1.0-rc.8
         version: 0.1.0-rc.8(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-attachment@0.1.0-rc.8(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-brand@0.1.0-rc.8(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-invariants@0.1.0-rc.8(@deepseek-ai/cordis@4.0.2)))(@deepseek-ai/dsh-invariants@0.1.0-rc.8(@deepseek-ai/cordis@4.0.2)))(@deepseek-ai/dsh-brand@0.1.0-rc.8(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-invariants@0.1.0-rc.8(@deepseek-ai/cordis@4.0.2)))(@deepseek-ai/dsh-invariants@0.1.0-rc.8(@deepseek-ai/cordis@4.0.2))(@deepseek-ai/dsh-timeout@0.1.0-rc.8(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-invariants@0.1.0-rc.8(@deepseek-ai/cordis@4.0.2)))
-      '@stuffbucket/eslint-config':
+      '@maximal/eslint-config':
         specifier: workspace:*
         version: link:../../eslint-config
       '@types/node':
@@ -2344,6 +2578,9 @@ packages:
 
   '@jridgewell/sourcemap-codec@1.5.5':
     resolution: {integrity: sha1-aRKwDSxjHA0Vzhp6tXzWV/Ko+Lo=}
+
+  '@jridgewell/sourcemap-codec@1.6.0':
+    resolution: {integrity: sha1-9MZj6GLwbcmMpNRThixGkCeJoY0=}
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha1-2xXWeByTHzolGj2sOVAcmKYIL9A=}
@@ -4376,11 +4613,8 @@ packages:
   '@vitest/expect@3.2.4':
     resolution: {integrity: sha1-g2ISTNgRpe4RxXaCB7nfU9NPJDM=}
 
-  '@vitest/expect@4.1.11':
-    resolution: {integrity: sha1-X1gNH5zbujFNvyOy2RH46yOHj18=}
-
-  '@vitest/mocker@4.1.11':
-    resolution: {integrity: sha1-jikGNhvF36JxdXqFiugGQxGPy7Q=}
+  '@vitest/mocker@5.0.1':
+    resolution: {integrity: sha512-6K1DoBNAPGvuOcSsGA4D6x+5zEEff/KmOOP3uetT2TrGpVfI+HRHRnJJfKi5ib/g1vx8IYHQD8s0pbJz8WQI7Q==}
     peerDependencies:
       msw: ^2.4.9
       vite: ^6.0.0 || ^7.0.0 || ^8.0.0
@@ -4393,26 +4627,14 @@ packages:
   '@vitest/pretty-format@3.2.4':
     resolution: {integrity: sha1-PBAveegrIEomx6WSG/R9U0kZ07Q=}
 
-  '@vitest/pretty-format@4.1.11':
-    resolution: {integrity: sha1-iyjrgkB3HW6pcOM76utBOEtRho4=}
-
-  '@vitest/runner@4.1.11':
-    resolution: {integrity: sha1-v7rZjI1sPx+03xIFatVpgh/3fyE=}
-
-  '@vitest/snapshot@4.1.11':
-    resolution: {integrity: sha1-30YesWWSSjFVmG3eaOEzYPU/PUw=}
-
   '@vitest/spy@3.2.4':
     resolution: {integrity: sha1-zBjyb0Dz8CjaZiAEaIH05FGMJZk=}
 
-  '@vitest/spy@4.1.11':
-    resolution: {integrity: sha1-Ct1FyulTr+2ciPmOL2/JFkVYwyo=}
+  '@vitest/spy@5.0.1':
+    resolution: {integrity: sha512-rbto/mF/SGERxEgYOek7Xm6B9b+y+mVoo+f4b2LymYO8zM1b7uB5nHuhVMTP2hxdzgxvGiZYGxGIaMvL5y180Q==}
 
   '@vitest/utils@3.2.4':
     resolution: {integrity: sha1-wIE7xC2ZUn+4xbE4x6iFFrykb+o=}
-
-  '@vitest/utils@4.1.11':
-    resolution: {integrity: sha1-myekKTuCeUKyI1Ob+rG9n36toxs=}
 
   '@vscode/sudo-prompt@9.3.2':
     resolution: {integrity: sha1-aSujjfQL01AszE6fCZ+7rtvV8E4=}
@@ -4978,10 +5200,6 @@ packages:
     resolution: {integrity: sha1-2TicQ8Coz2o1XbRk0h4HCSpASTo=}
     engines: {node: '>=18'}
 
-  convert-hrtime@5.0.0:
-    resolution: {integrity: sha1-8hMSNtRZi5XehWkmpnEAoKl+n6M=}
-    engines: {node: '>=12'}
-
   convert-source-map@2.0.0:
     resolution: {integrity: sha1-S1YPZJ/E6RjdCrdc9JYei8iC2Co=}
 
@@ -5278,8 +5496,8 @@ packages:
     resolution: {integrity: sha1-BfdaJdq5jk+x3NXhRywFRtUFfI8=}
     engines: {node: '>= 0.4'}
 
-  es-module-lexer@2.3.1:
-    resolution: {integrity: sha1-W/LfBpmdu+XwBqX0ahH7n1t7ORs=}
+  es-module-lexer@2.3.2:
+    resolution: {integrity: sha1-MR+k9AFowZdcUFR3xRsjI01BrVU=}
 
   es-object-atoms@1.1.2:
     resolution: {integrity: sha1-otCzcyBXJN+lJdI7DD4bHKWCyZs=}
@@ -5417,8 +5635,8 @@ packages:
     peerDependencies:
       eslint: '>=9.38.0'
 
-  eslint-plugin-unicorn@74.0.0:
-    resolution: {integrity: sha1-m0IxAxCNQElx+HMIFsn8FBgql64=}
+  eslint-plugin-unicorn@75.0.0:
+    resolution: {integrity: sha512-72I7eSn+/z5CpgValFBl9mp2JE5UPD+nUUyB/VIGUMF1rCP1i37mA05zfIAVIU312A+qCZ38T8tSZr3oaMv4Mw==}
     engines: {node: '>=22'}
     peerDependencies:
       eslint: '>=10.4'
@@ -5693,10 +5911,6 @@ packages:
 
   function-bind@1.1.2:
     resolution: {integrity: sha1-LALYZNl/PqbIgwxGTL0Rq26rehw=}
-
-  function-timeout@1.0.2:
-    resolution: {integrity: sha1-5ae2/6UjdW/yDhIxu+N7Xzc6rdU=}
-    engines: {node: '>=18'}
 
   galactus@1.0.0:
     resolution: {integrity: sha1-wmFRgq+gxtCFm5LlauNtBSgn234=}
@@ -6042,10 +6256,6 @@ packages:
   is-glob@4.0.3:
     resolution: {integrity: sha1-ZPYeQsu7LuwgcanawLKLoeZdUIQ=}
     engines: {node: '>=0.10.0'}
-
-  is-identifier@1.1.0:
-    resolution: {integrity: sha1-a0BuFaQp9xlvZJbgn4MzvLSy2xs=}
-    engines: {node: '>=18'}
 
   is-inside-container@1.0.0:
     resolution: {integrity: sha1-6B+6aZZi6zHb2vJnZqYdSBRxfqQ=}
@@ -6476,9 +6686,8 @@ packages:
   magic-string@0.30.21:
     resolution: {integrity: sha1-VnY+wJoPqAkd8nh5/ZTRkHjADZE=}
 
-  make-asynchronous@1.1.0:
-    resolution: {integrity: sha1-YiX38cyquayqxeL80LB1r+//Gao=}
-    engines: {node: '>=18'}
+  magic-string@1.4.1:
+    resolution: {integrity: sha512-8lyCu36ErXR0J9uaGKlKQoiLZKmtI63YGLE8G2o9jyRPdr4X47LusSOwgOJOzcVtp81fTAAjxR7BwKz682Jhow==}
 
   make-fetch-happen@10.2.1:
     resolution: {integrity: sha1-9eODXF6YF7YX8ncIcNlJLShngWQ=}
@@ -6924,10 +7133,6 @@ packages:
     resolution: {integrity: sha1-n26xgvbJqozXQwBKfU+WsZaw+ww=}
     engines: {node: '>=4'}
 
-  p-event@6.0.1:
-    resolution: {integrity: sha1-j2Kh42FtS8Afzjq9oSfgOD70cVs=}
-    engines: {node: '>=16.17'}
-
   p-finally@1.0.0:
     resolution: {integrity: sha1-P7z7FbiZpEEjs0ttzBi3JDNqLK4=}
     engines: {node: '>=4'}
@@ -6959,10 +7164,6 @@ packages:
   p-retry@4.6.2:
     resolution: {integrity: sha1-m6rnGEBX7dThcjHO4EJkEG4JKhY=}
     engines: {node: '>=8'}
-
-  p-timeout@6.1.4:
-    resolution: {integrity: sha1-QY4fTdgz+pai4/UyVH3Sq9sI28I=}
-    engines: {node: '>=14.16'}
 
   p-try@1.0.0:
     resolution: {integrity: sha1-y8ec26+P1CKOE/Yh8rGiN8GyB7M=}
@@ -7663,8 +7864,8 @@ packages:
   sprintf-js@1.1.3:
     resolution: {integrity: sha1-SRS5A6L4toXRf994pw6RfocuREo=}
 
-  srvx@0.12.7:
-    resolution: {integrity: sha1-G6SWwhHUWOjrgXTpC/I4shpglzA=}
+  srvx@1.0.5:
+    resolution: {integrity: sha512-KvSKRpgPG/oaq3cyT614OQ2bAa7DynuGamivCZeoZzIUULOdbQz6wUtnnVuC4+DCx2Zglzo8v5gBYmWIWYhDxA==}
     engines: {node: '>=20.16.0'}
     hasBin: true
 
@@ -7805,10 +8006,6 @@ packages:
     resolution: {integrity: sha1-Y3fplnlauwttNI6bPh37JDRajkI=}
     engines: {node: '>= 8.0'}
 
-  super-regex@1.1.0:
-    resolution: {integrity: sha1-FLabY3T3szONtS7NUR2ul8J6z3U=}
-    engines: {node: '>=18'}
-
   supports-color@5.5.0:
     resolution: {integrity: sha1-4uaaRKyHcveKHsCzW2id9lMO/I8=}
     engines: {node: '>=4'}
@@ -7860,15 +8057,12 @@ packages:
     resolution: {integrity: sha1-BUBj6TuqsiNj0Ft4TWx+Q5Iwysc=}
     engines: {node: '>=20'}
 
-  time-span@5.1.0:
-    resolution: {integrity: sha1-gMds9aDKKOCELT8QpOmQNM6UuQ0=}
-    engines: {node: '>=12'}
-
   tiny-invariant@1.3.3:
     resolution: {integrity: sha1-RmgLeoc6DV0QAFmV65CnDXTWASc=}
 
-  tinybench@2.9.0:
-    resolution: {integrity: sha1-EDyfi6bXI3pHq23R3P93JRhjQms=}
+  tinybench@6.1.4:
+    resolution: {integrity: sha1-+FW7OtHy/oXPYkSQ1Yu09PXTDag=}
+    engines: {node: '>=20.0.0'}
 
   tinyexec@0.3.2:
     resolution: {integrity: sha1-lBeU5leoXklld5lcbu9m9T9Cs9I=}
@@ -7883,10 +8077,6 @@ packages:
 
   tinyrainbow@2.0.0:
     resolution: {integrity: sha1-lQmyFiQ2MV6A4+7g/M5EdNJEQpQ=}
-    engines: {node: '>=14.0.0'}
-
-  tinyrainbow@3.1.1:
-    resolution: {integrity: sha1-wBaDh9PY1wtrPCwJNt5f7nOM6iA=}
     engines: {node: '>=14.0.0'}
 
   tinyspy@4.0.4:
@@ -8012,10 +8202,6 @@ packages:
   type-fest@2.19.0:
     resolution: {integrity: sha1-iAaAFbszA2pZi5UuVekxGmD9Ops=}
     engines: {node: '>=12.20'}
-
-  type-fest@4.41.0:
-    resolution: {integrity: sha1-auHI5XMSc8K/H1itOcuuLJGkbFg=}
-    engines: {node: '>=16'}
 
   type-is@2.1.0:
     resolution: {integrity: sha1-cdGnBTKTWC4WrJ8+uvGrmqSeVXA=}
@@ -8243,23 +8429,23 @@ packages:
       yaml:
         optional: true
 
-  vitest@4.1.11:
-    resolution: {integrity: sha1-FlPBUhrpF/lg2bIYd3l8R9/YvyE=}
-    engines: {node: ^20.0.0 || ^22.0.0 || >=24.0.0}
+  vitest@5.0.1:
+    resolution: {integrity: sha512-iA95lQbKEkvrtTkdAgnWbXfbipWiiWe/hDl2P5tMi6WFwD76G0NxXAGp/M9EOcYupeGJRr6wppMc7CoA41TQjg==}
+    engines: {node: ^22.12.0 || ^24.0.0 || >=26.0.0}
     hasBin: true
     peerDependencies:
       '@edge-runtime/vm': '*'
       '@opentelemetry/api': ^1.9.0
-      '@types/node': ^20.0.0 || ^22.0.0 || >=24.0.0
-      '@vitest/browser-playwright': 4.1.11
-      '@vitest/browser-preview': 4.1.11
-      '@vitest/browser-webdriverio': 4.1.11
-      '@vitest/coverage-istanbul': 4.1.11
-      '@vitest/coverage-v8': 4.1.11
-      '@vitest/ui': 4.1.11
+      '@types/node': ^22.0.0 || >=24.0.0
+      '@vitest/browser-playwright': 5.0.1
+      '@vitest/browser-preview': 5.0.1
+      '@vitest/browser-webdriverio': ^5.0.0-beta.5 || >=5.0.0
+      '@vitest/coverage-istanbul': 5.0.1
+      '@vitest/coverage-v8': 5.0.1
+      '@vitest/ui': 5.0.1
       happy-dom: '*'
       jsdom: '*'
-      vite: ^6.0.0 || ^7.0.0 || ^8.0.0
+      vite: ^6.4.0 || ^7.0.0 || ^8.0.0
     peerDependenciesMeta:
       '@edge-runtime/vm':
         optional: true
@@ -8310,9 +8496,6 @@ packages:
   web-streams-polyfill@3.3.3:
     resolution: {integrity: sha1-IHO5Gi/bH7+9QB594KyfghTOy0s=}
     engines: {node: '>= 8'}
-
-  web-worker@1.5.0:
-    resolution: {integrity: sha1-cbKw+8xCk+jwqk9rij/+v/cz3MU=}
 
   webidl-conversions@3.0.1:
     resolution: {integrity: sha1-JFNCdeKnvGvnvIZhHMFq4KVlSHE=}
@@ -10233,7 +10416,7 @@ snapshots:
 
   '@jridgewell/gen-mapping@0.3.13':
     dependencies:
-      '@jridgewell/sourcemap-codec': 1.5.5
+      '@jridgewell/sourcemap-codec': 1.6.0
       '@jridgewell/trace-mapping': 0.3.31
 
   '@jridgewell/remapping@2.3.5':
@@ -10250,10 +10433,12 @@ snapshots:
 
   '@jridgewell/sourcemap-codec@1.5.5': {}
 
+  '@jridgewell/sourcemap-codec@1.6.0': {}
+
   '@jridgewell/trace-mapping@0.3.31':
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
-      '@jridgewell/sourcemap-codec': 1.5.5
+      '@jridgewell/sourcemap-codec': 1.6.0
 
   '@kwsites/file-exists@1.1.1(supports-color@8.1.1)':
     dependencies:
@@ -11480,14 +11665,14 @@ snapshots:
 
   '@stryker-mutator/util@10.0.0': {}
 
-  '@stryker-mutator/vitest-runner@10.0.0(@stryker-mutator/core@10.0.0(@types/node@26.4.0))(vitest@4.1.11(@opentelemetry/api@1.9.0)(@types/node@26.4.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0)))':
+  '@stryker-mutator/vitest-runner@10.0.0(@stryker-mutator/core@10.0.0(@types/node@26.4.0))(vitest@5.0.1(@opentelemetry/api@1.9.0)(@types/node@26.4.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0)))':
     dependencies:
       '@stryker-mutator/api': 10.0.0
       '@stryker-mutator/core': 10.0.0(@types/node@26.4.0)
       '@stryker-mutator/util': 10.0.0
       semver: 7.8.5
       tslib: 2.8.1
-      vitest: 4.1.11(@opentelemetry/api@1.9.0)(@types/node@26.4.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))
+      vitest: 5.0.1(@opentelemetry/api@1.9.0)(@types/node@26.4.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))
 
   '@szmarczak/http-timer@4.0.6':
     dependencies:
@@ -11874,20 +12059,12 @@ snapshots:
       chai: 5.3.3
       tinyrainbow: 2.0.0
 
-  '@vitest/expect@4.1.11':
+  '@vitest/mocker@5.0.1(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))':
     dependencies:
-      '@standard-schema/spec': 1.1.0
-      '@types/chai': 5.2.3
-      '@vitest/spy': 4.1.11
-      '@vitest/utils': 4.1.11
-      chai: 6.2.2
-      tinyrainbow: 3.1.1
-
-  '@vitest/mocker@4.1.11(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))':
-    dependencies:
-      '@vitest/spy': 4.1.11
+      '@jridgewell/trace-mapping': 0.3.31
+      '@vitest/spy': 5.0.1
       estree-walker: 3.0.3
-      magic-string: 0.30.21
+      magic-string: 1.4.1
     optionalDependencies:
       vite: 8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0)
 
@@ -11895,39 +12072,17 @@ snapshots:
     dependencies:
       tinyrainbow: 2.0.0
 
-  '@vitest/pretty-format@4.1.11':
-    dependencies:
-      tinyrainbow: 3.1.1
-
-  '@vitest/runner@4.1.11':
-    dependencies:
-      '@vitest/utils': 4.1.11
-      pathe: 2.0.3
-
-  '@vitest/snapshot@4.1.11':
-    dependencies:
-      '@vitest/pretty-format': 4.1.11
-      '@vitest/utils': 4.1.11
-      magic-string: 0.30.21
-      pathe: 2.0.3
-
   '@vitest/spy@3.2.4':
     dependencies:
       tinyspy: 4.0.4
 
-  '@vitest/spy@4.1.11': {}
+  '@vitest/spy@5.0.1': {}
 
   '@vitest/utils@3.2.4':
     dependencies:
       '@vitest/pretty-format': 3.2.4
       loupe: 3.2.1
       tinyrainbow: 2.0.0
-
-  '@vitest/utils@4.1.11':
-    dependencies:
-      '@vitest/pretty-format': 4.1.11
-      convert-source-map: 2.0.0
-      tinyrainbow: 3.1.1
 
   '@vscode/sudo-prompt@9.3.2': {}
 
@@ -12522,8 +12677,6 @@ snapshots:
   content-type@2.1.0:
     optional: true
 
-  convert-hrtime@5.0.0: {}
-
   convert-source-map@2.0.0: {}
 
   core-js-compat@3.50.0:
@@ -12810,7 +12963,7 @@ snapshots:
 
   es-errors@1.3.0: {}
 
-  es-module-lexer@2.3.1: {}
+  es-module-lexer@2.3.2: {}
 
   es-object-atoms@1.1.2:
     dependencies:
@@ -12968,7 +13121,7 @@ snapshots:
       regexp-ast-analysis: 0.7.1
       scslre: 0.3.0
 
-  eslint-plugin-unicorn@74.0.0(eslint@10.9.1(jiti@2.7.0)(supports-color@8.1.1)):
+  eslint-plugin-unicorn@75.0.0(eslint@10.9.1(jiti@2.7.0)(supports-color@8.1.1)):
     dependencies:
       '@eslint-community/eslint-utils': 4.10.1(eslint@10.9.1(jiti@2.7.0)(supports-color@8.1.1))
       '@eslint/css-tree': 4.0.5
@@ -12981,9 +13134,9 @@ snapshots:
       eslint: 10.9.1(jiti@2.7.0)(supports-color@8.1.1)
       find-up-simple: 1.0.1
       globals: 17.11.0
+      identifier-regex: 1.1.0
       indent-string: 5.0.0
       is-builtin-module: 5.0.0
-      is-identifier: 1.1.0
       pluralize: 8.0.0
       quote-js-string: 0.1.0
       regjsparser: 0.13.2
@@ -13310,8 +13463,6 @@ snapshots:
     optional: true
 
   function-bind@1.1.2: {}
-
-  function-timeout@1.0.2: {}
 
   galactus@1.0.0(supports-color@8.1.1):
     dependencies:
@@ -13709,11 +13860,6 @@ snapshots:
     dependencies:
       is-extglob: 2.1.1
 
-  is-identifier@1.1.0:
-    dependencies:
-      identifier-regex: 1.1.0
-      super-regex: 1.1.0
-
   is-inside-container@1.0.0:
     dependencies:
       is-docker: 3.0.0
@@ -14095,11 +14241,9 @@ snapshots:
     dependencies:
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  make-asynchronous@1.1.0:
+  magic-string@1.4.1:
     dependencies:
-      p-event: 6.0.1
-      type-fest: 4.41.0
-      web-worker: 1.5.0
+      '@jridgewell/sourcemap-codec': 1.6.0
 
   make-fetch-happen@10.2.1(bluebird@3.7.2)(supports-color@8.1.1):
     dependencies:
@@ -14636,10 +14780,6 @@ snapshots:
 
   p-defer@1.0.0: {}
 
-  p-event@6.0.1:
-    dependencies:
-      p-timeout: 6.1.4
-
   p-finally@1.0.0: {}
 
   p-is-promise@2.1.0: {}
@@ -14668,8 +14808,6 @@ snapshots:
     dependencies:
       '@types/retry': 0.12.0
       retry: 0.13.1
-
-  p-timeout@6.1.4: {}
 
   p-try@1.0.0: {}
 
@@ -15401,7 +15539,7 @@ snapshots:
   sprintf-js@1.1.3:
     optional: true
 
-  srvx@0.12.7: {}
+  srvx@1.0.5: {}
 
   ssri@13.0.1:
     dependencies:
@@ -15543,12 +15681,6 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  super-regex@1.1.0:
-    dependencies:
-      function-timeout: 1.0.2
-      make-asynchronous: 1.1.0
-      time-span: 5.1.0
-
   supports-color@5.5.0:
     dependencies:
       has-flag: 3.0.0
@@ -15600,13 +15732,9 @@ snapshots:
     dependencies:
       real-require: 1.0.0
 
-  time-span@5.1.0:
-    dependencies:
-      convert-hrtime: 5.0.0
-
   tiny-invariant@1.3.3: {}
 
-  tinybench@2.9.0: {}
+  tinybench@6.1.4: {}
 
   tinyexec@0.3.2: {}
 
@@ -15618,8 +15746,6 @@ snapshots:
       picomatch: 4.0.7
 
   tinyrainbow@2.0.0: {}
-
-  tinyrainbow@3.1.1: {}
 
   tinyspy@4.0.4: {}
 
@@ -15736,8 +15862,6 @@ snapshots:
   type-fest@1.4.0: {}
 
   type-fest@2.19.0: {}
-
-  type-fest@4.41.0: {}
 
   type-is@2.1.0:
     dependencies:
@@ -15933,26 +16057,20 @@ snapshots:
       terser: 5.49.2
       yaml: 2.9.0
 
-  vitest@4.1.11(@opentelemetry/api@1.9.0)(@types/node@26.4.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0)):
+  vitest@5.0.1(@opentelemetry/api@1.9.0)(@types/node@26.4.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0)):
     dependencies:
-      '@vitest/expect': 4.1.11
-      '@vitest/mocker': 4.1.11(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))
-      '@vitest/pretty-format': 4.1.11
-      '@vitest/runner': 4.1.11
-      '@vitest/snapshot': 4.1.11
-      '@vitest/spy': 4.1.11
-      '@vitest/utils': 4.1.11
-      es-module-lexer: 2.3.1
+      '@types/chai': 5.2.3
+      '@vitest/mocker': 5.0.1(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))
+      chai: 6.2.2
+      es-module-lexer: 2.3.2
       expect-type: 1.4.0
-      magic-string: 0.30.21
+      magic-string: 1.4.1
       obug: 2.1.4
-      pathe: 2.0.3
       picomatch: 4.0.7
       std-env: 4.2.0
-      tinybench: 2.9.0
+      tinybench: 6.1.4
       tinyexec: 1.3.0
       tinyglobby: 0.2.17
-      tinyrainbow: 3.1.1
       vite: 8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0)
       why-is-node-running: 2.3.0
     optionalDependencies:
@@ -15982,8 +16100,6 @@ snapshots:
 
   web-streams-polyfill@3.3.3: {}
 
-  web-worker@1.5.0: {}
-
   webidl-conversions@3.0.1: {}
 
   webidl-conversions@8.0.1: {}
@@ -16003,7 +16119,7 @@ snapshots:
       browserslist: 4.28.8
       chrome-trace-event: 1.0.4
       enhanced-resolve: 5.24.5
-      es-module-lexer: 2.3.1
+      es-module-lexer: 2.3.2
       eslint-scope: 5.1.1
       events: 3.3.0
       graceful-fs: 4.2.11

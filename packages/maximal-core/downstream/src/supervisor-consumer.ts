@@ -1,5 +1,5 @@
 /**
- * Downstream consumer of `@stuffbucket/maximal-core/supervisor`.
+ * Downstream consumer of `@maximal/maximal-core/supervisor`.
  *
  * Written the way the Electron host in stuffbucket/maximal actually uses it:
  * spawn the sidecar with `sidecarSpawnEnv()`, hand the child's stdout to
@@ -12,7 +12,7 @@
  * `controlPort`/`proxyPort` change is a breaking edit to a published type, and a
  * consumer that reads `.controlPort` breaks the moment it goes away.
  */
-import type { AwaitReadyOptions } from "@stuffbucket/maximal-core/supervisor"
+import type { AwaitReadyOptions } from "@maximal/maximal-core/supervisor"
 
 import {
   awaitReadyLine,
@@ -24,7 +24,7 @@ import {
   SidecarExitedError,
   SidecarReadyTimeoutError,
   UPDATE_REQUEST_MARKER,
-} from "@stuffbucket/maximal-core/supervisor"
+} from "@maximal/maximal-core/supervisor"
 
 import { expectAssignable } from "./assert.js"
 

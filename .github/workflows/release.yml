@@ -6,7 +6,7 @@
 # self-hosted Mac and every Apple secret. RELEASING.md owns the process.
 #
 # Triggers:
-#   push tags   the tag IS the version. packages/maximal/client/package.json
+#   push tags   the tag IS the version. apps/desktop/package.json
 #               stays 0.0.0 and is stamped from the tag at build time, so there
 #               is no second place to bump.
 #   dispatch    recovery. Every job below is idempotent: a re-run reuses the
@@ -161,9 +161,9 @@ jobs:
           mkdir -p "$D"
           git show "${TAG}:.macos-builder/config" > "$D/config" \
             || { echo "::error::${TAG} has no .macos-builder/config."; exit 1; }
-          git show "${TAG}:packages/maximal/client/forge.config.ts" > "$D/forge.config.ts" \
+          git show "${TAG}:apps/desktop/forge.config.ts" > "$D/forge.config.ts" \
             || { echo "::error::${TAG} has no client forge.config.ts."; exit 1; }
-          git show "${TAG}:packages/maximal/client/package.json" > "$D/package.json" \
+          git show "${TAG}:apps/desktop/package.json" > "$D/package.json" \
             || { echo "::error::${TAG} has no client package.json."; exit 1; }
 
           # tee, not a redirect, so the resolved names appear in the log too.

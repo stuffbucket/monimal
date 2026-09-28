@@ -1,7 +1,7 @@
 import {
   getSettingsStore,
   type SettingsStoreOptions,
-} from "@stuffbucket/maximal-settings"
+} from "@maximal/maximal-settings"
 import assert from "node:assert/strict"
 import {
   mkdtempSync,

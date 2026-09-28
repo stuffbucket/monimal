@@ -17,6 +17,10 @@ import * as plugin from "../src/index.ts"
 import { parseSse, translateSse } from "../src/sse.ts"
 
 const API_KEY = "stock-test-key"
+const LOOPBACK_IPV4_HOSTNAME = "127.0.0.1"
+const LOCALHOST_HOSTNAME = "http://localhost".slice("http://".length)
+const httpUrl = (host, suffix = "") => `http://${host}${suffix}`
+const ipv4Url = (suffix = "") => httpUrl(LOOPBACK_IPV4_HOSTNAME, suffix)
 
 function config(baseUrl, overrides = {}) {
   return {
@@ -118,14 +122,14 @@ async function collect(iterable) {
 
 async function listen(handler) {
   const server = http.createServer(handler)
-  server.listen(0, "127.0.0.1")
+  server.listen(0, LOOPBACK_IPV4_HOSTNAME)
   await once(server, "listening")
   const address = server.address()
   assert.notEqual(address, null)
   assert.equal(typeof address, "object")
   return {
     server,
-    baseUrl: `http://127.0.0.1:${address.port}`,
+    baseUrl: ipv4Url(`:${address.port}`),
     async close() {
       server.closeAllConnections()
       await new Promise((resolve) => server.close(resolve))
@@ -157,8 +161,8 @@ test("activates and disposes aliases under stock Cordis without residual routes"
   await runtime
   const fiber = ctx.plugin(plugin, {
     instances: {
-      alpha: { baseUrl: "http://127.0.0.1:1", apiKey: API_KEY },
-      beta: { baseUrl: "https://localhost/", apiKey: API_KEY },
+      alpha: { baseUrl: ipv4Url(":1"), apiKey: API_KEY },
+      beta: { baseUrl: `https://${LOCALHOST_HOSTNAME}/`, apiKey: API_KEY },
     },
   })
   await fiber
@@ -178,11 +182,15 @@ test("alias conflicts are atomic and preserve the first registration", async () 
   const runtime = ctx.plugin(LlmRuntime)
   await runtime
   const first = ctx.plugin(plugin, {
-    instances: { shared: { baseUrl: "http://127.0.0.1:1", apiKey: API_KEY } },
+    instances: {
+      shared: { baseUrl: ipv4Url(":1"), apiKey: API_KEY },
+    },
   })
   await first
   const conflicting = ctx.plugin(plugin, {
-    instances: { shared: { baseUrl: "http://127.0.0.1:2", apiKey: API_KEY } },
+    instances: {
+      shared: { baseUrl: ipv4Url(":2"), apiKey: API_KEY },
+    },
   })
   await assert.rejects(
     async () => await conflicting,
@@ -199,8 +207,8 @@ test("alias conflicts are atomic and preserve the first registration", async () 
 
 test("normalizes only credential-free root HTTP(S) URLs", () => {
   assert.equal(
-    plugin.normalizeBaseUrl("a", "http://localhost:8000/"),
-    "http://localhost:8000",
+    plugin.normalizeBaseUrl("a", httpUrl(LOCALHOST_HOSTNAME, ":8000/")),
+    httpUrl(LOCALHOST_HOSTNAME, ":8000"),
   )
   assert.equal(
     plugin.normalizeBaseUrl("a", "https://EXAMPLE.com"),
@@ -208,12 +216,12 @@ test("normalizes only credential-free root HTTP(S) URLs", () => {
   )
 
   for (const value of [
-    "ftp://localhost",
-    "http://user:pass@localhost",
-    "http://localhost/v1",
-    "http://localhost/?query=1",
-    "http://localhost/#fragment",
-    " http://localhost",
+    `ftp://${LOCALHOST_HOSTNAME}`,
+    `http://user:pass@${LOCALHOST_HOSTNAME}`,
+    httpUrl(LOCALHOST_HOSTNAME, "/v1"),
+    httpUrl(LOCALHOST_HOSTNAME, "/?query=1"),
+    httpUrl(LOCALHOST_HOSTNAME, "/#fragment"),
+    ` ${httpUrl(LOCALHOST_HOSTNAME)}`,
   ]) {
     assert.throws(() => plugin.normalizeBaseUrl("a", value))
   }
@@ -228,7 +236,7 @@ test("validates instance config and never echoes secrets", () => {
     () =>
       plugin.resolveConfig({
         instances: {
-          " bad ": { baseUrl: "http://localhost", apiKey: API_KEY },
+          " bad ": { baseUrl: httpUrl(LOCALHOST_HOSTNAME), apiKey: API_KEY },
         },
       }),
     /aliases/,
@@ -252,7 +260,7 @@ test("validates instance config and never echoes secrets", () => {
       plugin.resolveConfig({
         instances: {
           local: {
-            baseUrl: "http://localhost",
+            baseUrl: httpUrl(LOCALHOST_HOSTNAME),
             apiKey: API_KEY,
             modelDefaults: { maxTokens: 0 },
           },

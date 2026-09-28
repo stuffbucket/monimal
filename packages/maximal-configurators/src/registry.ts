@@ -1,7 +1,7 @@
 import type {
   ConfiguratorPlugin,
   ConfiguratorRegistry,
-} from "@stuffbucket/maximal-core/configurator-host"
+} from "@maximal/maximal-core/configurator-host"
 
 import { Context, type Fiber } from "@deepseek-ai/cordis"
 

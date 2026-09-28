@@ -32,8 +32,7 @@ on:
   # `HTTP 422: Workflow does not have 'workflow_dispatch' trigger`.
   #
   # A dispatch is an API call rather than an event, so it does not travel the
-  # path that failed. `release-tag-check.yml` gained the same escape hatch for
-  # the same reason and in the same week.
+  # path that failed.
   #
   # It takes no inputs on purpose: the ref IS the input (`--ref <branch>`), and
   # a dispatched run reports its check runs against that ref's head commit —

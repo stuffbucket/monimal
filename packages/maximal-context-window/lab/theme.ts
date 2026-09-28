@@ -1,7 +1,7 @@
 /*
  * The `--shell-*` palette used to preview this package's components against
  * a real theme. The shell design system ships no palette by design (a host
- * defines it); this mirrors the same values `packages/maximal/client` uses so
+ * defines it); this mirrors the same values `packages/maximal-client/src/renderer` uses so
  * the lab looks like the real application, not an unstyled document.
  */
 const THEME_CSS = `

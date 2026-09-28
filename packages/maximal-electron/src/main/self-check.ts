@@ -2,9 +2,9 @@ import { writeSync } from 'node:fs';
 
 import { app } from 'electron';
 
-import { TerminalHost } from '../host/terminal-host.js';
+import { TerminalHost } from '@maximal/maximal-terminal';
 
-import { defaultShell } from './native/pty.js';
+import { defaultShell } from './native/pty/index.js';
 import {
   selfCheckCommand,
   selfCheckLine,

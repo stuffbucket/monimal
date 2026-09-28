@@ -1,0 +1,484 @@
+import { spawn, type ChildProcess } from 'node:child_process'
+import { mkdir } from 'node:fs/promises'
+import { join } from 'node:path'
+
+import { awaitReadyLine, parseBootStatus, sidecarSpawnEnv } from '@maximal/maximal-core/supervisor'
+import { createLogger } from '@maximal/maximal-logging'
+import { app } from 'electron'
+
+import { CoreProcessClient } from '../adapters/core-process-client.js'
+
+const logger = createLogger('sidecar')
+
+let child: ChildProcess | null = null
+let processClient: CoreProcessClient | null = null
+let proxyBase = ''
+
+/** Base URL where `/v1` is served for external programs. */
+export function proxyUrl(): string {
+  return proxyBase
+}
+
+export function coreHomePath(): string {
+  return join(app.getPath('userData'), 'core-home')
+}
+
+/**
+ * Resolve once the sidecar is ready, rather than answering with an empty value.
+ *
+ * The window is created before the sidecar is awaited, so a renderer reliably
+ * asks for the proxy URL while the sidecar is still starting.
+ *
+ * Bounded: it settles on all three terminal phases. `ready` resolves; `failed`
+ * rejects; and `stopped` rejects, because a deliberate quit never emits
+ * `failed`. Waiting only on `ready` and `failed` would leave this promise
+ * unsettled forever when the user quits mid-startup. Hanging is the one
+ * outcome not allowed.
+ */
+function awaitReady<T>(pick: () => T | undefined): Promise<T> {
+  const current = pick()
+  if (current !== undefined) return Promise.resolve(current)
+  if (lastStatus.phase === 'failed') {
+    return Promise.reject(
+      new Error(`maximal-core is not available: ${lastStatus.reason}`),
+    )
+  }
+  if (lastStatus.phase === 'stopped') {
+    return Promise.reject(
+      new Error('maximal-core was stopped before it became available'),
+    )
+  }
+
+  return new Promise<T>((resolve, reject) => {
+    const stop = onCoreStatus((status) => {
+      if (status.phase === 'ready') {
+        stop()
+        const value = pick()
+        if (value === undefined) reject(new Error('maximal-core became ready without the requested resource'))
+        else resolve(value)
+      } else if (status.phase === 'failed') {
+        stop()
+        reject(new Error(`maximal-core is not available: ${status.reason}`))
+      } else if (status.phase === 'stopped') {
+        stop()
+        reject(new Error('maximal-core was stopped before it became available'))
+      }
+    })
+  })
+}
+
+/** The ready sidecar's inherited process channel; no private network listener. */
+export function awaitCoreProcess(): Promise<ChildProcess> {
+  return awaitReady(() => lastStatus.phase === 'ready' ? child ?? undefined : undefined)
+}
+
+export function controlClientFor(process: ChildProcess): CoreProcessClient {
+  if (child !== process || !processClient) {
+    throw new Error('No control client for this Maximal Core process')
+  }
+  return processClient
+}
+
+/** `proxyUrl()`, but waits for a real URL instead of returning `''`. */
+export function awaitProxyUrl(): Promise<string> {
+  return awaitReady(() => proxyBase || undefined)
+}
+
+function binaryName(): string {
+  return process.platform === 'win32' ? 'maximal-core.exe' : 'maximal-core'
+}
+
+function coreBinaryPath(): string {
+  return app.isPackaged
+    ? join(process.resourcesPath, 'bin', binaryName())
+    : join(app.getAppPath(), 'resources', 'bin', binaryName())
+}
+
+
+/** Bounded so a sidecar that can never come up (bad binary, port permanently
+ *  taken, etc.) does not spin the app forever. */
+const MAX_RESTART_ATTEMPTS = 5
+/** Backoff per attempt, indexed by `attempt - 1` and clamped to the last
+ *  entry beyond that — capped rather than unbounded exponential growth. */
+const RESTART_BACKOFF_MS = [1_000, 2_000, 5_000, 10_000, 20_000]
+
+function backoffFor(attempt: number): number {
+  return RESTART_BACKOFF_MS[Math.min(attempt - 1, RESTART_BACKOFF_MS.length - 1)] ?? 20_000
+}
+
+/**
+ * Lifecycle state the main process can observe without polling.
+ *
+ * `boot-status` is a live relay of the sidecar's own boot narration.
+ * `crashed`/`restarting`/`failed` cover a sidecar dying *after* a successful
+ * start. `willRetry` on `crashed` tells a listener whether a `restarting`
+ * event should be expected next, or whether this crash hit the bound.
+ */
+export type CoreStatus =
+  | { phase: 'starting' }
+  | { phase: 'boot-status'; message: string }
+  | { phase: 'ready'; proxyUrl: string; pid: number }
+  | {
+      phase: 'crashed'
+      code: number | null
+      signal: NodeJS.Signals | null
+      attempt: number
+      willRetry: boolean
+    }
+  | { phase: 'restarting'; attempt: number; delayMs: number }
+  | { phase: 'failed'; reason: string }
+  | { phase: 'stopped' }
+
+const statusListeners = new Set<(status: CoreStatus) => void>()
+let lastStatus: CoreStatus = { phase: 'starting' }
+
+/** Subscribe to lifecycle status. Returns an unsubscribe function. This
+ *  module only narrates — a splash/status surface elsewhere decides what, if
+ *  anything, to render. */
+export function onCoreStatus(listener: (status: CoreStatus) => void): () => void {
+  statusListeners.add(listener)
+  return () => statusListeners.delete(listener)
+}
+
+/** The most recent status, for a late subscriber (e.g. a window created after
+ *  boot) that needs the current state rather than only future transitions. */
+export function currentCoreStatus(): CoreStatus {
+  return lastStatus
+}
+
+function emitStatus(status: CoreStatus): void {
+  lastStatus = status
+  for (const listener of statusListeners) listener(status)
+}
+
+/** Route sidecar boot markers to status without persisting raw stdout. */
+function handleSidecarLine(line: string): void {
+  const bootMessage = parseBootStatus(line)
+  if (bootMessage !== null) {
+    logger.debug('Sidecar boot status received')
+    emitStatus({ phase: 'boot-status', message: bootMessage })
+    return
+  }
+  logger.debug({ bytes: Buffer.byteLength(line) }, 'Sidecar stdout line received')
+}
+
+/** Feed a stdout data stream through `handleSidecarLine` one whole line at a
+ *  time. `awaitReadyLine` does its own line reassembly internally (and hands
+ *  us already-split lines via `onLine`); this is the equivalent for the
+ *  continued draining after readiness, so a marker straddling two `data`
+ *  chunks is still recognised instead of only ever seen as raw chunk noise. */
+function attachLineLogger(stdout: NonNullable<ChildProcess['stdout']>): void {
+  let buffer = ''
+  const drain = (): void => {
+    let chunk: unknown = stdout.read()
+    while (chunk !== null) {
+      if (!Buffer.isBuffer(chunk) && typeof chunk !== 'string') {
+        throw new TypeError('Sidecar stdout returned a non-text chunk')
+      }
+      buffer += chunk.toString()
+      let newline = buffer.indexOf('\n')
+      while (newline >= 0) {
+        const line = buffer.slice(0, newline)
+        buffer = buffer.slice(newline + 1)
+        if (line.trim()) handleSidecarLine(line)
+        newline = buffer.indexOf('\n')
+      }
+      chunk = stdout.read()
+    }
+  }
+  stdout.on('readable', drain)
+  drain()
+}
+
+/** Set by `killCore()` so a post-ready exit it caused is never mistaken for a
+ *  crash. Cleared at the start of a fresh `spawnCore()` call. */
+let intentionalShutdown = false
+let restartAttempts = 0
+let restartTimer: ReturnType<typeof setTimeout> | null = null
+let shutdownPromise: Promise<void> | null = null
+
+function clearRestartTimer(): void {
+  if (restartTimer) {
+    clearTimeout(restartTimer)
+    restartTimer = null
+  }
+}
+
+/** How long a restarted sidecar must stay up before its `ready` is treated as
+ *  proof the *process* recovered, not just that it can print a ready line.
+ *  An order of magnitude past the renderers' few-second status polls, so a
+ *  sidecar that dies on its first control-plane request never resets its
+ *  budget, while one that genuinely recovered is not held on a depleted
+ *  budget long after a transient blip. */
+const RESTART_STABILITY_MS = 30_000
+let stabilityTimer: ReturnType<typeof setTimeout> | null = null
+
+function clearStabilityTimer(): void {
+  if (stabilityTimer) {
+    clearTimeout(stabilityTimer)
+    stabilityTimer = null
+  }
+}
+
+function scheduleRestart(attempt: number): void {
+  const delayMs = backoffFor(attempt)
+  logger.warn({ attempt, delayMs }, 'Sidecar restart scheduled')
+  emitStatus({ phase: 'restarting', attempt, delayMs })
+  restartTimer = setTimeout(() => {
+    restartTimer = null
+    void attemptRestart()
+  }, delayMs)
+}
+
+/** Re-run the same spawn+ready flow used for the initial start. Failures here
+ *  (the restart itself never reaching readiness) count against the same
+ *  bound as a post-ready crash — they do not get an independent retry budget. */
+async function attemptRestart(): Promise<void> {
+  try {
+    await launchCore()
+  } catch (error) {
+    if (intentionalShutdown) return
+    logger.error({
+      attempt: restartAttempts + 1,
+      errorName: error instanceof Error ? error.name : 'unknown',
+    }, 'Sidecar restart attempt failed')
+    restartAttempts += 1
+    if (restartAttempts > MAX_RESTART_ATTEMPTS) {
+      logger.error({ attempt: restartAttempts }, 'Sidecar restart limit exceeded')
+      emitStatus({
+        phase: 'failed',
+        reason: error instanceof Error ? error.message : String(error),
+      })
+      return
+    }
+    scheduleRestart(restartAttempts)
+  }
+}
+
+/** Called when a ready sidecar's process exits on its own. Never fires for a
+ *  `killCore()`-initiated exit, and never restarts past
+ *  `MAX_RESTART_ATTEMPTS`. */
+function onUnexpectedExit(proc: ChildProcess, code: number | null, signal: NodeJS.Signals | null): void {
+  if (intentionalShutdown) return
+  // A newer launch may already have superseded this process; only the
+  // currently-tracked child's death should trigger recovery.
+  if (child !== proc) return
+
+  child = null
+  processClient?.close()
+  processClient = null
+  proxyBase = ''
+  clearStabilityTimer()
+
+  restartAttempts += 1
+  const attempt = restartAttempts
+  const willRetry = attempt <= MAX_RESTART_ATTEMPTS
+  logger.warn({ pid: proc.pid ?? null, code, signal, attempt, willRetry }, 'Sidecar exited unexpectedly')
+  emitStatus({ phase: 'crashed', code, signal, attempt, willRetry })
+
+  if (!willRetry) {
+    logger.error({ attempt }, 'Sidecar crash limit exceeded')
+    emitStatus({ phase: 'failed', reason: `sidecar crashed ${attempt} times; giving up` })
+    return
+  }
+  scheduleRestart(attempt)
+}
+
+/** Spawn one isolated sidecar on an OS-assigned port and wait for its ready
+ *  line. Shared by the initial start and every restart attempt, so both go
+ *  through identical readiness/pid-check/drain/monitor wiring. */
+async function launchCore(): Promise<{ proxyUrl: string; port: number; pid: number }> {
+  const dataHome = coreHomePath()
+  await mkdir(dataHome, { recursive: true })
+
+  // `--port` is the PUBLIC PROXY port, not the control port. Passing `--port 0`
+  // made the proxy ephemeral, which is why the UI advertised a random port to
+  // point external programs at. Leave it unset: core prefers 4141 and, under the
+  // default `next` port policy, moves to the following free port rather than
+  // evicting anything — so a proxy already running on 4141 is left alone.
+  // The private control plane runs over the inherited child-process channel.
+  logger.info({ attempt: restartAttempts }, 'Starting sidecar')
+  const proc = spawn(coreBinaryPath(), ['start', '--desktop-ipc'], {
+    stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
+    env: {
+      ...process.env,
+      COPILOT_API_HOME: dataHome,
+      ...sidecarSpawnEnv(),
+    },
+  })
+  child = proc
+  processClient = new CoreProcessClient(proc)
+
+  let isReady = false
+  let stderrBytes = 0
+
+  proc.stderr?.on('data', (chunk: Buffer) => {
+    stderrBytes += chunk.length
+    if (stderrBytes === chunk.length) {
+      logger.warn({ pid: proc.pid ?? null }, 'Sidecar wrote to stderr; contents omitted')
+    }
+  })
+  proc.on('error', (error: NodeJS.ErrnoException) => {
+    logger.error({
+      pid: proc.pid ?? null,
+      errorName: error.name,
+      errorCode: error.code ?? null,
+    }, 'Sidecar process error')
+  })
+  proc.on('disconnect', () => {
+    if (child === proc && !intentionalShutdown && !proc.killed) {
+      logger.error({ pid: proc.pid ?? null }, 'Sidecar process IPC disconnected')
+      proc.kill('SIGTERM')
+    }
+  })
+  proc.on('exit', (code, signal) => {
+    logger.info({
+      pid: proc.pid ?? null,
+      code,
+      signal,
+      intentional: intentionalShutdown,
+      stderrBytes,
+    }, 'Sidecar process exited')
+    if (isReady) onUnexpectedExit(proc, code, signal)
+  })
+
+  if (!proc.stdout) {
+    proc.kill('SIGTERM')
+    if (child === proc) child = null
+    throw new Error('maximal-core stdout pipe was not created')
+  }
+
+  let removeReadinessFailureListeners = () => {}
+  const failedBeforeReady = new Promise<never>((_resolve, reject) => {
+    const onError = (error: Error) => reject(error)
+    const onDisconnect = () => reject(new Error('maximal-core process IPC disconnected before readiness'))
+    const onExit = (code: number | null, signal: NodeJS.Signals | null) => {
+      reject(new Error(`maximal-core exited before readiness (code=${String(code)}, signal=${String(signal)})`))
+    }
+    proc.once('error', onError)
+    proc.once('disconnect', onDisconnect)
+    proc.once('exit', onExit)
+    removeReadinessFailureListeners = () => {
+      proc.off('error', onError)
+      proc.off('disconnect', onDisconnect)
+      proc.off('exit', onExit)
+    }
+  })
+
+  try {
+    const ready = await Promise.race([
+      awaitReadyLine(proc.stdout, {
+        onLine: handleSidecarLine,
+      }),
+      failedBeforeReady,
+    ])
+    removeReadinessFailureListeners()
+
+    if (proc.pid === undefined || ready.pid !== proc.pid) {
+      throw new Error(`maximal-core ready-line pid ${ready.pid} did not match spawned pid ${String(proc.pid)}`)
+    }
+
+    // A shutdown, or a newer launch superseding this one, can land while this
+    // function awaits the ready line, and neither cancels the in-flight await.
+    // Without this check, a shutdown mid-startup could announce a dead process
+    // as ready after the `stopped` transition.
+    if (intentionalShutdown || child !== proc) {
+      throw new Error('maximal-core became ready after shutdown was requested; discarding')
+    }
+
+    isReady = true
+
+    // awaitReadyLine deliberately leaves stdout open. Keep draining it for the
+    // process lifetime or the pipe can fill and block the sidecar on a later log.
+    attachLineLogger(proc.stdout)
+
+    if (ready.controlPort !== 0 || !proc.connected) {
+      throw new Error('maximal-core did not start with its inherited control channel')
+    }
+    proxyBase = `http://127.0.0.1:${ready.proxyPort}`
+    // A restart that reaches readiness has only proven the sidecar CAN come
+    // up again — not that it stays up. Resetting the budget here would let one
+    // that dies right after every ready line restart forever without ever
+    // reaching `failed`, so the reset waits for `RESTART_STABILITY_MS`. The
+    // `child === proc` check guards a stale timer from a superseded launch.
+    clearStabilityTimer()
+    stabilityTimer = setTimeout(() => {
+      stabilityTimer = null
+      if (child === proc) restartAttempts = 0
+    }, RESTART_STABILITY_MS)
+    logger.info({ pid: ready.pid, attempt: restartAttempts }, 'Sidecar ready')
+    emitStatus({ phase: 'ready', proxyUrl: proxyBase, pid: ready.pid })
+    return {
+      proxyUrl: proxyBase,
+      port: ready.proxyPort,
+      pid: ready.pid,
+    }
+  } catch (error) {
+    removeReadinessFailureListeners()
+    if (!proc.killed) proc.kill('SIGTERM')
+    if (child === proc) {
+      child = null
+      processClient?.close()
+      processClient = null
+    }
+    throw error
+  }
+}
+
+/** Spawn the sidecar for the first time this app run. Resets restart/shutdown
+ *  bookkeeping so a fresh call (e.g. the app relaunching) is not haunted by a
+ *  previous run's crash count. Recovery after a successful start is handled
+ *  internally from here on — a caller only needs to await the first start. */
+export async function spawnCore(): Promise<{ proxyUrl: string; port: number; pid: number }> {
+  intentionalShutdown = false
+  shutdownPromise = null
+  restartAttempts = 0
+  clearRestartTimer()
+  clearStabilityTimer()
+  emitStatus({ phase: 'starting' })
+  try {
+    return await launchCore()
+  } catch (error) {
+    // The FIRST start failing emitted nothing, so no listener ever learned —
+    // not the renderer (whose Settings account flow reports auth failures),
+    // and not `awaitCoreProcess()`, which waits for `ready` or `failed` and
+    // would otherwise never settle. Post-ready crashes already emit `failed`
+    // once the restart budget is spent; this makes the initial failure behave
+    // the same way. Rethrown as well, so a caller that wants to react directly
+    // still can.
+    //
+    // NOT when the shutdown was intentional. `killCore()` mid-startup makes
+    // `launchCore()` reject too, but that is the user getting what they asked
+    // for — `killCore()` has already emitted `stopped`, and overwriting it with
+    // `failed` would put an error screen in front of someone who chose to quit.
+    // Same distinction `attemptRestart()` and `onUnexpectedExit()` already make.
+    if (!intentionalShutdown) {
+      logger.error({
+        errorName: error instanceof Error ? error.name : 'unknown',
+      }, 'Sidecar failed to start')
+      emitStatus({ phase: 'failed', reason: error instanceof Error ? error.message : String(error) })
+    }
+    throw error
+  }
+}
+
+export function killCore(): Promise<void> {
+  intentionalShutdown = true
+  logger.info({ pid: child?.pid ?? null }, 'Sidecar shutdown requested')
+  clearRestartTimer()
+  clearStabilityTimer()
+  const proc = child
+  child = null
+  processClient?.close()
+  processClient = null
+  proxyBase = ''
+  emitStatus({ phase: 'stopped' })
+  if (!proc) return shutdownPromise ?? Promise.resolve()
+  if (shutdownPromise) return shutdownPromise
+
+  shutdownPromise = new Promise<void>((resolve) => {
+    proc.once('exit', () => resolve())
+  })
+  if (!proc.killed) proc.kill('SIGTERM')
+  return shutdownPromise
+}

@@ -4,7 +4,7 @@ import {
   shellVariableContract,
   shellVariableEntries,
   shellVariablesIn,
-} from '@stuffbucket/maximal-electron/verify/shell-variables';
+} from '@maximal/maximal-electron/verify/shell-variables';
 import { readFileSync, readdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { extname, join, resolve } from 'node:path';
@@ -32,11 +32,11 @@ describe('renderer architecture', () => {
     expect(sources.length).toBeGreaterThan(0);
 
     const forbidden = [
-      /@stuffbucket\/maximal-core/u,
+      /@maximal\/maximal-core/u,
       /from\s+['"]electron['"]/u,
       /window\.maximal/u,
       /maximal-electron\/src\//u,
-      /@stuffbucket\/maximal-electron\/(?:host|electron-)/u,
+      /@maximal\/maximal-electron\/(?:host|electron-)/u,
     ];
     for (const { file, text } of sources) {
       for (const pattern of forbidden) {
@@ -45,17 +45,17 @@ describe('renderer architecture', () => {
     }
 
     const imports = sources.flatMap(({ text }) =>
-      [...text.matchAll(/from\s+['"](@stuffbucket\/maximal-electron[^'"]*)['"]/gu)].map(
+      [...text.matchAll(/from\s+['"](@maximal\/maximal-electron[^'"]*)['"]/gu)].map(
         (match) => match[1],
       ),
     );
     expect(imports.length).toBeGreaterThan(0);
-    expect(new Set(imports)).toEqual(new Set(['@stuffbucket/maximal-electron/renderer']));
+    expect(new Set(imports)).toEqual(new Set(['@maximal/maximal-electron/renderer']));
   });
 
   it('uses only shell variables published by maximal-electron', () => {
     const upstreamCss = readFileSync(
-      require.resolve('@stuffbucket/maximal-electron/renderer/styles.css'),
+      require.resolve('@maximal/maximal-electron/renderer/styles.css'),
       'utf8',
     );
     const stylesheets = [{ name: 'maximal-electron styles.css', css: upstreamCss }];

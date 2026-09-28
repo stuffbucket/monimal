@@ -1,5 +1,11 @@
 node_modules/
 dist/
+# Old local build output may still exist after the desktop package moves.
+client/.electron-dev/
+client/.vite/
+client/.turbo/
+client/build/
+client/resources/
 # Astro per-project cache (regenerated on build)
 .astro/
 # build/ holds two flavors: compiled output (bun-build artifacts —

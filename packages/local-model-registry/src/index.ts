@@ -44,4 +44,4 @@ export type {
   LocalModelProvisionProgress,
   LocalModelPublication,
   LocalModelState,
-} from "@stuffbucket/maximal-model-contract"
+} from "@maximal/maximal-model-contract"

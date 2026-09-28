@@ -2,11 +2,11 @@ import { useState, type ReactNode } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, within } from 'storybook/test';
 
-import type { TerminalTheme } from '../lib/terminal-emulator.js';
-import type { TerminalTransport } from '../lib/terminal-transport.js';
+import type { TerminalTheme } from '@maximal/maximal-terminal/renderer';
+import type { TerminalTransport } from '@maximal/maximal-terminal/renderer';
 import { TabBar, getTabPanelId, getTabTriggerId, type Tab } from './TabBar.js';
 import { TerminalTabs } from './TerminalTabs.js';
-import type { TerminalHost } from './TerminalView.js';
+import type { TerminalHost } from '@maximal/maximal-terminal/renderer';
 import {
   bufferContaining,
   cannedTransport,

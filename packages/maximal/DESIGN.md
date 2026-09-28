@@ -6,7 +6,7 @@
 > **Provenance.** This file is a synthesized, human-readable snapshot of
 > maximal's design system for setting overall direction and writing agent
 > prompts. **The canonical source of every value is
-> [`client/src/renderer/theme.ts`](client/src/renderer/theme.ts).** Component
+> [`../maximal-client/src/renderer/theme.ts`](../maximal-client/src/renderer/theme.ts).** Component
 > code references tokens **by name, never by value** — do not inline the hex/px
 > shown here into a component. When values below and `theme.ts` disagree,
 > `theme.ts` wins.
@@ -14,15 +14,15 @@
 > That used to be `shell/src/ui/styles/theme.ts`, generated into
 > `tokens.css` by a `check:tokens` / `tokens:verify` pipeline. All of it went
 > with the Tauri shell. The replacement is smaller and better bounded: the
-> `stuffbucket-electron` package publishes a `--shell-*` custom-property
-> contract and **ships no palette by design**, so `client/src/renderer/theme.ts`
+> `@maximal/maximal-electron` package publishes a `--shell-*` custom-property
+> contract and **ships no palette by design**, so `../maximal-client/src/renderer/theme.ts`
 > supplies the values and nothing else. The binding rules live in
 > [`.design-context.md`](.design-context.md); the remaining topic detail is
 > [`docs/design/failure-modes.md`](docs/design/failure-modes.md).
 >
-> **The list of names is not maintained by hand.** `client/src/renderer/theme.test.ts`
+> **The list of names is not maintained by hand.** `../maximal-client/src/renderer/theme.test.ts`
 > derives the required set from the *installed* package via
-> `stuffbucket-electron/verify/shell-variables` and fails if `theme.ts` misses
+> `@maximal/maximal-electron/verify/shell-variables` and fails if `theme.ts` misses
 > one. A previous hand-kept adapter drifted to 27 dead names and 7 unset
 > required ones without anything noticing, because the result still rendered a
 > plausible shell. Regenerate rather than edit the list.

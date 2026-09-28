@@ -13,11 +13,28 @@
 
 import ts from 'typescript';
 
-/** Denied outright, as an exact specifier or as the root of a subpath. */
-export const FORBIDDEN_PACKAGES = ['maximal', 'maximal-core', '@stuffbucket/maximal-core'];
+/**
+ * The workspace packages `self` may not import: every package the root
+ * `architecture-analysis.json` declares, less `self` and its `dependsOn`. The
+ * tree is declared there, so a sibling is allowed by being listed, not by
+ * what it is called.
+ */
+export function deniedPackages(policy, self) {
+  if (!(self in policy.packages)) throw new Error(`${self} is not in the declared tree`);
+  const allowed = new Set([self, ...(policy.packages[self].dependsOn ?? [])]);
+  return Object.keys(policy.packages)
+    .filter((name) => !allowed.has(name))
+    .sort();
+}
 
-/** Overridden by `FORBIDDEN_TERMS`, so a consumer can name their own. */
-export const DEFAULT_FORBIDDEN_TERMS = ['maximal', 'maximal-core', 'copilot'];
+/**
+ * Overridden by `FORBIDDEN_TERMS`, so a consumer can name their own.
+ *
+ * Bare `maximal` is absent: it names the whole `@maximal/maximal-*`
+ * workspace, this package included, so it cannot single out the host.
+ * `deniedPackages` still denies depending on the application.
+ */
+export const DEFAULT_FORBIDDEN_TERMS = ['maximal-core', 'copilot'];
 
 /** Callers that take a module specifier and hand back a module or its path. */
 const RESOLVERS = new Set(['resolve']);
@@ -160,12 +177,12 @@ export function moduleSpecifiers(source, fileName) {
 }
 
 /** Whether a specifier is one of the denied packages, or a path inside one. */
-export function isForbiddenPackage(specifier, packages = FORBIDDEN_PACKAGES) {
+export function isForbiddenPackage(specifier, packages) {
   return packages.some((name) => specifier === name || specifier.startsWith(`${name}/`));
 }
 
 /** Every specifier in a source file that reaches a denied package. */
-export function forbiddenImports(source, fileName, packages = FORBIDDEN_PACKAGES) {
+export function forbiddenImports(source, fileName, packages) {
   return moduleSpecifiers(source, fileName).filter(
     (found) => found.text !== undefined && isForbiddenPackage(found.text, packages),
   );
@@ -176,53 +193,25 @@ export function forbiddenImports(source, fileName, packages = FORBIDDEN_PACKAGES
 /**
  * Naming a repository is not depending on it.
  *
- * This repository is called `maximal-electron`, so its own URL in the Help
- * menu contains a forbidden term, and so does every reference to the sibling
- * it was extracted from. A term inside an owner-qualified slug is exempt; a
- * bare one is not, which is what leaves `MAXIMAL_BASE` and `provider ===
- * 'maximal'` reportable.
+ * Prose that cites `stuffbucket/maximal-core` refers to a repository. A term
+ * inside an owner-qualified slug is exempt; a bare one is not, which is what
+ * leaves `COPILOT_TOKEN` and `provider === 'copilot'` reportable.
  *
- * The `@` matters. `@stuffbucket/maximal-core` is an npm scope, so it is a
+ * The `@` matters. `@maximal/maximal-core` is an npm scope, so it is a
  * package a string could name, not a repository prose refers to. Exempting it
  * let a laundered specifier sit in a string literal unreported.
  */
 const SLUG_OWNER = /(?<!@)stuffbucket\/$/i;
 
 /**
- * Every span in `text` covered by one of `exempt`.
- *
- * A package's own name is not a foreign name. `@stuffbucket/maximal-electron`
- * carries a forbidden term and is not covered by `SLUG_OWNER`, deliberately:
- * the `@` marks an npm scope, and exempting that shape wholesale would let
- * `@stuffbucket/maximal-core` sit in a string literal unreported.
- *
- * So the exemption is the exact string and nothing else. The caller passes the
- * manifest's own name, `verify-neutral.mjs` refuses to pass one that is a
- * forbidden package, and every other scoped name stays reportable.
- */
-function exemptSpans(text, exempt) {
-  const spans = [];
-  for (const phrase of exempt) {
-    if (phrase === '') continue;
-    let at = text.indexOf(phrase);
-    while (at !== -1) {
-      spans.push([at, at + phrase.length]);
-      at = text.indexOf(phrase, at + 1);
-    }
-  }
-  return spans;
-}
-
-/**
  * Every place a forbidden term appears in a text.
  *
  * The boundary treats `_` and `-` as separators, which `\b` does not:
- * `MAXIMAL_BASE` is the constant issue #16 exists to catch, and `\bmaximal\b`
- * does not match it.
+ * `COPILOT_TOKEN` is the shape of constant issue #16 exists to catch, and
+ * `\bcopilot\b` does not match it.
  */
-export function termMatches(text, terms, exempt = []) {
+export function termMatches(text, terms) {
   const found = [];
-  const spans = exemptSpans(text, exempt);
 
   for (const term of terms) {
     const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -231,7 +220,6 @@ export function termMatches(text, terms, exempt = []) {
     for (const match of text.matchAll(pattern)) {
       const at = match.index;
       if (SLUG_OWNER.test(text.slice(Math.max(0, at - 13), at))) continue;
-      if (spans.some(([start, end]) => at >= start && at < end)) continue;
 
       const before = text.slice(0, at);
       const line = before.split('\n').length;

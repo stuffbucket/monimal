@@ -3,7 +3,7 @@ import type {
   ProviderDispatch,
   ProviderGateway,
   ProviderOperation,
-} from "@stuffbucket/maximal-model-contract"
+} from "@maximal/maximal-model-contract"
 
 import type { AppConfig } from "~/lib/config/config"
 import type { FrameUsage } from "~/lib/http/untrusted-frame"

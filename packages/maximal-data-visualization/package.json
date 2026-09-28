@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "name": "@stuffbucket/maximal-data-visualization",
+  "name": "@maximal/maximal-data-visualization",
   "version": "0.0.0",
   "private": true,
   "description": "Renderer-only data visualization primitives for Maximal surfaces.",
@@ -27,7 +27,7 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@stuffbucket/eslint-config": "workspace:*",
+    "@maximal/eslint-config": "workspace:*",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.5",
     "@typescript/native": "npm:typescript@^7.0.2",
@@ -38,7 +38,7 @@
     "react-dom": "^19.2.8",
     "tsup": "^8.5.1",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
-    "vitest": "^4.1.11"
+    "vitest": "^5.0.1"
   },
   "peerDependencies": {
     "react": ">=18.0.0 <20.0.0"

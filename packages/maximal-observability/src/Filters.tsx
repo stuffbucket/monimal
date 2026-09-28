@@ -1,10 +1,6 @@
-import type { TrafficRequestOutcome } from "@stuffbucket/maximal-observability-contract"
+import type { TrafficRequestOutcome } from "@maximal/maximal-observability-contract"
 
-import {
-  FormField,
-  Select,
-  Switch,
-} from "@stuffbucket/maximal-electron/renderer"
+import { FormField, Select, Switch } from "@maximal/maximal-electron/renderer"
 
 import {
   useObservability,

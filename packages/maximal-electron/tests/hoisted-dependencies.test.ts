@@ -16,7 +16,7 @@ import { externalClosure, hoistedDependencies } from '../scripts/package-contrac
  * package manager: `npm run package` failed with "node-pty depends on
  * node-addon-api, which is not installed" against an install where Node
  * resolves it in one hop. Nothing else could see it — the `electron package`
- * job in CI packaged `packages/maximal/client` alone, whose Forge config does
+ * job in CI packaged `packages/maximal-client` alone, whose Forge config does
  * not call this. That job now packages this shell too and runs
  * `verify:package` over the result, so the closure is exercised against a real
  * install as well as against the trees below.

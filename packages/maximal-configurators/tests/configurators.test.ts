@@ -7,7 +7,7 @@ import type {
   ConfiguratorTargetPatch,
   ConnectTargetResult,
   DisconnectTargetResult,
-} from "@stuffbucket/maximal-core/configurator-host"
+} from "@maximal/maximal-core/configurator-host"
 
 import assert from "node:assert/strict"
 import test from "node:test"

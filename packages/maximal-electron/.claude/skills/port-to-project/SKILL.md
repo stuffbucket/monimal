@@ -8,21 +8,20 @@ description: Apply this template's build and release pipeline to another reposit
 Use this to give another repository, such as `stuffbucket/maximal`, the same
 build and release mechanics.
 
-**This repository ships no installer.** It packages, verifies the package, and
-releases an npm tarball. If the target repository distributes an application to
-end users, the installer is the part you have to supply yourself, and
+**This package ships no installer.** It packages and verifies the Electron
+application output. If the target repository distributes an application to end
+users, the installer is the part you have to supply yourself, and
 `docs/release.md` says why none is here.
 
 ## What actually transfers
 
 | Piece | Portable | Note |
 | --- | --- | --- |
-| `.github/workflows/release.yml` | Yes | The draft-then-publish shape is framework neutral. |
 | `.github/workflows/ci.yml` | Yes | The package matrix is the part worth copying. |
 | `scripts/verify-package.mjs` | Electron only | It reads asar and fuses. |
 | `AGENTS.md` and `.claude/skills` | Yes | Adapt the commands table. |
-| `e2e/demo/*` except the two below | Yes | Generic. Pages, frames, and seconds only. |
-| `e2e/demo/launch.ts` and `*.demo.ts` | No | Rewrite. These are the timelines. |
+| `e2e/demo/*` except `*.demo.ts` | Yes | Generic. Pages, frames, and seconds only. |
+| `e2e/demo/*.demo.ts` | No | Rewrite. These are the timelines. |
 | `demo/edits/*.json` | No | One per video. The cut, not the machinery. |
 | `src/shared/ipc.ts` pattern | Electron only | Tauri has its own command layer. |
 | `src/renderer/**` | Yes | React plus Radix plus `react-resizable-panels`. |
@@ -42,9 +41,6 @@ end users, the installer is the part you have to supply yourself, and
    with the most earned detail in it: the asar layout, the unpacked native
    modules, the run-time icons, and the fuse values. Every assertion in it
    exists because something shipped broken without it.
-
-4. **Rehearse before you rely on it.** Dispatch `release.yml` from a branch for
-   a dry run, then push a `v0.0.1-alpha.1` tag and watch the full run.
 
 ## If you need an installer
 
@@ -74,9 +70,9 @@ builder shape that a personal account has to use, and why.
 
 ## For a project that already releases
 
-`maximal` already has a `release.yml` with a draft-then-publish flow and its
-own packaging. Do not replace it. Take only what is missing, most likely the
-`verify:package` idea and the skills.
+`maximal` already has its own release flow and packaging. Do not replace it.
+Take only what is missing, most likely the `verify:package` idea and the
+skills.
 
 ## What not to copy
 

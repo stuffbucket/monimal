@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { Dialog } from '@stuffbucket/maximal-electron/renderer';
+import { Dialog } from '@maximal/maximal-electron/renderer';
 
 import type {
   AgentApprovalRequest,
@@ -11,6 +11,7 @@ import type {
   ModelProgress,
   ProviderStatus,
 } from '../contracts.js';
+import { HARNESS_CONFIG, HARNESS_COPY } from '../constants.js';
 import { escapeAction, outsideAction } from './overlay-keys.js';
 
 export interface HarnessTransport {
@@ -54,11 +55,11 @@ function useTransportEvent<T>(
 function providerLabel(status: ProviderStatus): string {
   switch (status.state) {
     case 'probing':
-      return 'Looking for a local model…';
+      return HARNESS_COPY.overlay.probing;
     case 'ready':
       return `${status.provider} · ${status.model}`;
     case 'needs-model':
-      return `${status.model} is not downloaded yet`;
+      return HARNESS_COPY.overlay.modelMissing(status.model);
     case 'unavailable':
       return status.reason;
   }
@@ -66,7 +67,9 @@ function providerLabel(status: ProviderStatus): string {
 
 /** Bytes as a short human figure. Progress text should not jitter in width. */
 function megabytes(bytes: number): string {
-  return `${String(Math.round(bytes / 1_000_000))} MB`;
+  return HARNESS_COPY.overlay.megabytes(
+    Math.round(bytes / HARNESS_CONFIG.overlay.bytesPerMegabyte),
+  );
 }
 
 export function Overlay({ transport }: { transport: HarnessTransport }) {
@@ -187,7 +190,7 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
     }).catch(() => {
       setBusy(false);
       setPrompt(text);
-      setError('The request could not be started.');
+      setError(HARNESS_COPY.overlay.requestFailed);
     });
   }, [prompt, busy, transport]);
 
@@ -268,7 +271,7 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
      */
     <Dialog
       open
-      title="Ask the agent"
+      title={HARNESS_COPY.overlay.title}
       className="sb-shell mh-card"
       overlayClassName="mh-scrim"
       testId="overlay-card"
@@ -290,11 +293,10 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
         {status.state === 'needs-model' && (
           <div className="mh-setup" data-testid="overlay-setup">
             <div className="mh-setup__head">
-              Download {status.model} to answer without a proxy?
+              {HARNESS_COPY.overlay.downloadPrompt(status.model)}
             </div>
             <p className="mh-setup__body">
-              About {status.approxMb} MB, once. It runs on this machine, so
-              nothing leaves it and there is no key to paste.
+              {HARNESS_COPY.overlay.downloadSummary(status.approxMb)}
             </p>
 
             {download?.state === 'downloading' ? (
@@ -311,7 +313,7 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
                 <span className="mh-setup__figure">
                   {download.total
                     ? `${megabytes(download.received)} of ${megabytes(download.total)}`
-                    : 'Starting…'}
+                    : HARNESS_COPY.overlay.downloadStarting}
                 </span>
               </div>
             ) : (
@@ -322,7 +324,9 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
                   onClick={startDownload}
                   data-testid="overlay-download-start"
                 >
-                  {download?.state === 'error' ? 'Try again' : 'Download'}
+                  {download?.state === 'error'
+                    ? HARNESS_COPY.overlay.tryAgain
+                    : HARNESS_COPY.overlay.download}
                 </button>
               </div>
             )}
@@ -338,7 +342,9 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
         {approval && (
           <div className="mh-approval" data-testid="overlay-approval">
             <div className="mh-approval__head">
-              Run <code className="mh-approval__tool">{approval.tool}</code>?
+              {HARNESS_COPY.overlay.runToolPrefix}{' '}
+              <code className="mh-approval__tool">{approval.tool}</code>
+              {HARNESS_COPY.overlay.questionMark}
             </div>
             <pre className="mh-approval__summary" data-testid="overlay-approval-summary">
               {approval.summary}
@@ -350,7 +356,7 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
                 onClick={() => decide(false)}
                 data-testid="overlay-deny"
               >
-                Deny
+                {HARNESS_COPY.overlay.deny}
               </button>
               <button
                 type="button"
@@ -358,7 +364,7 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
                 onClick={() => decide(true)}
                 data-testid="overlay-allow"
               >
-                Allow
+                {HARNESS_COPY.overlay.allow}
               </button>
               <button
                 type="button"
@@ -366,7 +372,7 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
                 onClick={() => decide(true, true)}
                 data-testid="overlay-allow-always"
               >
-                Allow every {approval.tool}
+                {HARNESS_COPY.overlay.allowAlways(approval.tool)}
               </button>
             </div>
           </div>
@@ -375,8 +381,12 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
         <textarea
           ref={input}
           className="mh-card__input"
-          rows={2}
-          placeholder={ready ? 'Ask anything…' : 'Waiting for a local model…'}
+          rows={HARNESS_CONFIG.overlay.inputRows}
+          placeholder={
+            ready
+              ? HARNESS_COPY.overlay.readyPlaceholder
+              : HARNESS_COPY.overlay.waitingPlaceholder
+          }
           value={prompt}
           disabled={!ready}
           onChange={(event) => setPrompt(event.target.value)}
@@ -397,19 +407,19 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
             data-testid="overlay-status"
           >
             {approval
-              ? `Waiting for you to approve ${approval.tool}`
+              ? HARNESS_COPY.overlay.approvalStatus(approval.tool)
               : tool
-                ? `Running ${tool}…`
+                ? HARNESS_COPY.overlay.running(tool)
                 : busy
-                  ? 'Thinking…'
+                  ? HARNESS_COPY.overlay.thinking
                   : providerLabel(status)}
           </span>
           <span className="mh-card__hint">
             {approval
-              ? 'Enter to allow · Esc to deny'
+              ? HARNESS_COPY.overlay.approvalHint
               : busy
-                ? 'Esc to stop'
-                : 'Enter to send · Esc to dismiss'}
+                ? HARNESS_COPY.overlay.stopHint
+                : HARNESS_COPY.overlay.dismissHint}
           </span>
         </div>
     </Dialog>

@@ -1,9 +1,9 @@
-import type { TrafficTokenSeries } from "@stuffbucket/maximal-observability-contract"
+import type { TrafficTokenSeries } from "@maximal/maximal-observability-contract"
 
 import {
   ChartViewport,
   DataVizLegend,
-} from "@stuffbucket/maximal-data-visualization"
+} from "@maximal/maximal-data-visualization"
 import { useId } from "react"
 
 import { deriveTokenStacks, scaleLinear } from "../derive.ts"

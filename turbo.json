@@ -38,11 +38,15 @@
         ],
       "description": "Build package outputs after building workspace dependencies."
     },
-    "maximal-client#build": {
-      "dependsOn": ["^build", "@stuffbucket/maximal#build"],
+    "@maximal/maximal-client#build": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "maximal-desktop#build": {
+      "dependsOn": ["^build", "@maximal/maximal#build"],
       "cache": false,
       "env": ["MAXIMAL_CORE_OUT", "MAXIMAL_CORE_REF", "MAXIMAL_CORE_TARGET", "MAXIMAL_GIT_SHA"],
-      "description": "Build the Maximal composition owner and client dependencies before compiling the platform sidecar."
+      "description": "Build the Maximal composition and UI dependencies before compiling the desktop sidecar."
     },
     "typecheck": {
       "dependsOn": ["^build"],
@@ -56,12 +60,12 @@
       ],
       "description": "Check package types against built workspace dependencies."
     },
-    "@stuffbucket/maximal-settings#typecheck": {
+    "@maximal/maximal-settings#typecheck": {
       "dependsOn": ["build", "^build"],
       "outputs": [],
       "description": "Typecheck public-contract tests after building this package."
     },
-    "@stuffbucket/maximal-logging#typecheck": {
+    "@maximal/maximal-logging#typecheck": {
       "dependsOn": ["build", "^build"],
       "outputs": [],
       "description": "Typecheck public-contract tests after building this package."
@@ -110,7 +114,7 @@
       ],
       "description": "Lint packages against built dependencies while tracking dependency changes."
     },
-    "@stuffbucket/maximal-logging#lint": {
+    "@maximal/maximal-logging#lint": {
       "dependsOn": ["transit", "^build"],
       "cache": false,
       "outputs": [],
@@ -139,19 +143,13 @@
       "passThroughEnv": ["MAXIMAL_*", "XDG_CONFIG_HOME"],
       "description": "Build workspace dependencies, then run a package's interactive development process."
     },
-    "dev:terminal": {
-      "dependsOn": ["^build"],
-      "cache": false,
-      "persistent": true,
-      "description": "Launch the focused Electron terminal development lab."
-    },
     "dev:context": {
       "dependsOn": ["^build"],
       "cache": false,
       "persistent": true,
       "description": "Launch the focused context-window visualization development lab."
     },
-    "maximal-client#dev": {
+    "maximal-desktop#dev": {
       "dependsOn": ["build"],
       "cache": false,
       "persistent": true,

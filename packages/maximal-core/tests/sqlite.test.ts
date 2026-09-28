@@ -34,7 +34,7 @@ describe("sqlite runtime support", () => {
     const error = new UnsupportedNodeSqliteRuntimeError("22.12.0")
 
     expect(error.message).toContain(
-      "`bunx --bun @stuffbucket/maximal@latest start` or `maximal start`.",
+      "`bunx --bun @maximal/maximal@latest start` or `maximal start`.",
     )
     expect(error.message).not.toContain("copilot-api")
   })

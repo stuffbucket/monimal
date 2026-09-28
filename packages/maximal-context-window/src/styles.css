@@ -1,5 +1,5 @@
-@import "@stuffbucket/maximal-electron/renderer/styles.css";
-@import "@stuffbucket/maximal-data-visualization/styles.css";
+@import "@maximal/maximal-electron/renderer/styles.css";
+@import "@maximal/maximal-data-visualization/styles.css";
 
 .mcw-panel {
   display: grid;

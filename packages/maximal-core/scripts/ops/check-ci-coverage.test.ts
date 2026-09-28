@@ -189,27 +189,27 @@ describe("matching an invocation", () => {
   test("a filtered root Turbo task counts only when the filter includes Core", () => {
     expect(runsStep(["turbo run build --filter=maximal-site"], step("build"))).toBe(false)
     expect(
-      runsStep(["turbo run build --filter=@stuffbucket/maximal-core"], step("build")),
+      runsStep(["turbo run build --filter=@maximal/maximal-core"], step("build")),
     ).toBe(true)
     expect(
-      runsStep(["turbo run build --filter @stuffbucket/maximal-core"], step("build")),
+      runsStep(["turbo run build --filter @maximal/maximal-core"], step("build")),
     ).toBe(true)
     expect(
-      runsStep(["turbo run build --filter='@stuffbucket/maximal-core'"], step("build")),
+      runsStep(["turbo run build --filter='@maximal/maximal-core'"], step("build")),
     ).toBe(true)
     expect(
-      runsStep(["turbo run build --filter \"@stuffbucket/maximal-core\""], step("build")),
+      runsStep(["turbo run build --filter \"@maximal/maximal-core\""], step("build")),
     ).toBe(true)
   })
 
   test("negative Turbo filters fail closed even alongside a Core filter", () => {
-    const positive = "--filter=@stuffbucket/maximal-core"
+    const positive = "--filter=@maximal/maximal-core"
     for (const negative of [
-      "--filter=!@stuffbucket/maximal-core",
-      "--filter='!@stuffbucket/maximal-core'",
-      '--filter="!@stuffbucket/maximal-core"',
-      "'--filter=!@stuffbucket/maximal-core'",
-      '"--filter=!@stuffbucket/maximal-core"',
+      "--filter=!@maximal/maximal-core",
+      "--filter='!@maximal/maximal-core'",
+      '--filter="!@maximal/maximal-core"',
+      "'--filter=!@maximal/maximal-core'",
+      '"--filter=!@maximal/maximal-core"',
     ]) {
       expect(runsStep([`turbo run build ${positive} ${negative}`], step("build"))).toBe(false)
     }
@@ -217,9 +217,9 @@ describe("matching an invocation", () => {
 
   test("malformed or evaluated Turbo filters cannot establish Core coverage", () => {
     for (const filter of [
-      "--filter='@stuffbucket/maximal-core",
+      "--filter='@maximal/maximal-core",
       '--filter="$CORE_PACKAGE"',
-      "--filter=@stuffbucket/maximal-core'",
+      "--filter=@maximal/maximal-core'",
       "--filter=",
     ]) {
       expect(runsStep([`turbo run build ${filter}`], step("build"))).toBe(false)

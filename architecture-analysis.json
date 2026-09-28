@@ -1,77 +1,248 @@
 {
   "$schema": "./architecture-analysis.schema.json",
   "packages": {
-    "@stuffbucket/maximal-settings": {
+    "@maximal/maximal-settings": {
       "root": "packages/maximal-settings",
+      "dependsOn": [
+        "@maximal/eslint-config"
+      ],
       "cycleEdges": [],
       "duplicatePairs": []
     },
-    "@stuffbucket/maximal-logging": {
+    "@maximal/maximal-logging": {
       "root": "packages/maximal-logging",
+      "dependsOn": [
+        "@maximal/eslint-config"
+      ],
       "cycleEdges": [],
       "duplicatePairs": []
     },
-    "@stuffbucket/anthropic-provider": {
+    "@maximal/anthropic-provider": {
       "root": "packages/model-runtimes/anthropic",
+      "dependsOn": [
+        "@maximal/eslint-config"
+      ],
       "cycleEdges": [],
       "duplicatePairs": []
     },
-    "@stuffbucket/eslint-config": {
+    "@maximal/eslint-config": {
       "root": "packages/eslint-config",
+      "dependsOn": [],
       "cycleEdges": [],
       "duplicatePairs": []
     },
-    "@stuffbucket/maximal": {
+    "@maximal/maximal": {
       "root": "packages/maximal",
+      "dependsOn": [
+        "@maximal/eslint-config",
+        "@maximal/maximal-configurators",
+        "@maximal/maximal-core",
+        "@maximal/maximal-model-contract",
+        "@maximal/maximal-models"
+      ],
       "cycleEdges": [],
       "duplicatePairs": []
     },
-    "@stuffbucket/maximal-core": {
+    "@maximal/maximal-core": {
       "root": "packages/maximal-core",
+      "dependsOn": [
+        "@maximal/eslint-config",
+        "@maximal/maximal-core-contract",
+        "@maximal/maximal-logging",
+        "@maximal/maximal-model-contract",
+        "@maximal/maximal-observability-contract",
+        "@maximal/maximal-search",
+        "@maximal/maximal-settings"
+      ],
       "existingRatchets": true
     },
-    "@stuffbucket/maximal-models": {
+    "@maximal/maximal-models": {
       "root": "packages/maximal-models",
+      "dependsOn": [
+        "@maximal/eslint-config",
+        "@maximal/maximal-model-contract"
+      ],
       "cycleEdges": [],
       "duplicatePairs": []
     },
-    "@stuffbucket/maximal-electron": {
+    "@maximal/maximal-electron": {
       "root": "packages/maximal-electron",
+      "dependsOn": [
+        "@maximal/eslint-config",
+        "@maximal/maximal-terminal"
+      ],
       "cycleEdges": [],
       "duplicatePairs": []
     },
-    "@stuffbucket/maximal-data-visualization": {
+    "@maximal/maximal-data-visualization": {
       "root": "packages/maximal-data-visualization",
+      "dependsOn": [
+        "@maximal/eslint-config"
+      ],
       "cycleEdges": [],
       "duplicatePairs": []
     },
-    "@stuffbucket/maximal-context-window": {
+    "@maximal/maximal-context-window": {
       "root": "packages/maximal-context-window",
+      "dependsOn": [
+        "@maximal/eslint-config",
+        "@maximal/maximal-data-visualization",
+        "@maximal/maximal-electron",
+        "@maximal/maximal-observability-contract",
+        "@maximal/maximal-terminal"
+      ],
       "cycleEdges": [],
       "duplicatePairs": []
     },
-    "@stuffbucket/maximal-observability": {
+    "@maximal/maximal-observability": {
       "root": "packages/maximal-observability",
+      "dependsOn": [
+        "@maximal/eslint-config",
+        "@maximal/maximal-context-window",
+        "@maximal/maximal-data-visualization",
+        "@maximal/maximal-electron",
+        "@maximal/maximal-observability-contract",
+        "@maximal/maximal-terminal"
+      ],
       "cycleEdges": [],
       "duplicatePairs": []
     },
-    "@stuffbucket/maximal-observability-contract": {
+    "@maximal/maximal-observability-contract": {
       "root": "packages/maximal-observability-contract",
+      "dependsOn": [
+        "@maximal/eslint-config"
+      ],
       "cycleEdges": [],
       "duplicatePairs": []
     },
-    "@stuffbucket/maximal-model-contract": {
+    "@maximal/maximal-model-contract": {
       "root": "packages/maximal-model-contract",
+      "dependsOn": [
+        "@maximal/eslint-config"
+      ],
       "cycleEdges": [],
       "duplicatePairs": []
     },
-    "maximal-client": {
-      "root": "packages/maximal/client",
+    "@maximal/maximal-core-contract": {
+      "root": "packages/maximal-core-contract",
+      "dependsOn": [
+        "@maximal/eslint-config",
+        "@maximal/maximal-model-contract"
+      ],
       "cycleEdges": [],
       "duplicatePairs": []
     },
-    "@stuffbucket/omlx": {
+    "@maximal/maximal-client": {
+      "root": "packages/maximal-client",
+      "dependsOn": [
+        "@maximal/eslint-config",
+        "@maximal/maximal-core-contract",
+        "@maximal/maximal-electron",
+        "@maximal/maximal-harness",
+        "@maximal/maximal-logging",
+        "@maximal/maximal-observability",
+        "@maximal/maximal-observability-contract",
+        "@maximal/maximal-ollama",
+        "@maximal/maximal-search",
+        "@maximal/maximal-terminal"
+      ],
+      "cycleEdges": [],
+      "duplicatePairs": []
+    },
+    "@maximal/omlx": {
       "root": "packages/model-runtimes/omlx",
+      "dependsOn": [
+        "@maximal/eslint-config"
+      ],
+      "cycleEdges": [],
+      "duplicatePairs": []
+    },
+    "maximal-desktop": {
+      "root": "apps/desktop",
+      "dependsOn": [
+        "@maximal/eslint-config",
+        "@maximal/local-model-registry",
+        "@maximal/maximal-assets",
+        "@maximal/maximal-client",
+        "@maximal/maximal-core",
+        "@maximal/maximal-core-contract",
+        "@maximal/maximal-electron",
+        "@maximal/maximal-harness",
+        "@maximal/maximal-logging",
+        "@maximal/maximal-observability",
+        "@maximal/maximal-observability-contract",
+        "@maximal/maximal-ollama",
+        "@maximal/maximal-settings",
+        "@maximal/maximal-terminal"
+      ],
+      "cycleEdges": [],
+      "duplicatePairs": []
+    },
+    "@maximal/local-model-registry": {
+      "root": "packages/local-model-registry",
+      "dependsOn": [
+        "@maximal/eslint-config",
+        "@maximal/maximal-model-contract"
+      ],
+      "cycleEdges": [],
+      "duplicatePairs": []
+    },
+    "@maximal/maximal-assets": {
+      "root": "packages/maximal-assets",
+      "dependsOn": [
+        "@maximal/eslint-config"
+      ],
+      "cycleEdges": [],
+      "duplicatePairs": []
+    },
+    "@maximal/maximal-configurators": {
+      "root": "packages/maximal-configurators",
+      "dependsOn": [
+        "@maximal/eslint-config",
+        "@maximal/maximal-core"
+      ],
+      "cycleEdges": [],
+      "duplicatePairs": []
+    },
+    "@maximal/maximal-harness": {
+      "root": "packages/maximal-harness",
+      "dependsOn": [
+        "@maximal/eslint-config",
+        "@maximal/maximal-electron"
+      ],
+      "cycleEdges": [],
+      "duplicatePairs": []
+    },
+    "@maximal/maximal-search": {
+      "root": "packages/maximal-search",
+      "dependsOn": [
+        "@maximal/eslint-config"
+      ],
+      "cycleEdges": [],
+      "duplicatePairs": []
+    },
+    "@maximal/maximal-ollama": {
+      "root": "packages/maximal-ollama",
+      "dependsOn": [
+        "@maximal/eslint-config"
+      ],
+      "cycleEdges": [],
+      "duplicatePairs": []
+    },
+    "@maximal/maximal-terminal": {
+      "root": "packages/maximal-terminal",
+      "dependsOn": [
+        "@maximal/eslint-config"
+      ],
+      "cycleEdges": [],
+      "duplicatePairs": []
+    },
+    "@maximal/model-qwen3-0.6b-q8-gguf": {
+      "root": "packages/model-qwen3-0.6b-q8-gguf",
+      "dependsOn": [
+        "@maximal/eslint-config",
+        "@maximal/local-model-registry"
+      ],
       "cycleEdges": [],
       "duplicatePairs": []
     }
@@ -80,79 +251,14 @@
     "deny": [
       {
         "from": [
-          "@stuffbucket/maximal-core",
-          "@stuffbucket/maximal-models",
-          "@stuffbucket/maximal"
-        ],
-        "to": ["@stuffbucket/anthropic-provider", "@stuffbucket/omlx"]
-      },
-      {
-        "from": [
-          "@stuffbucket/maximal-core",
-          "@stuffbucket/maximal",
-          "@stuffbucket/maximal-model-contract"
+          "@maximal/maximal-core",
+          "@maximal/maximal",
+          "@maximal/maximal-model-contract"
         ],
         "to": [
           "@deepseek-ai/cordis",
           "@deepseek-ai/dsh-llm",
           "@deepseek-ai/schemastery"
-        ]
-      },
-      {
-        "from": ["@stuffbucket/anthropic-provider", "@stuffbucket/omlx"],
-        "to": [
-          "@stuffbucket/maximal",
-          "@stuffbucket/maximal-core",
-          "@stuffbucket/maximal-models",
-          "@stuffbucket/maximal-model-contract"
-        ]
-      },
-      {
-        "from": ["@stuffbucket/maximal-electron"],
-        "to": [
-          "maximal-client",
-          "@stuffbucket/maximal-core",
-          "@stuffbucket/maximal-data-visualization",
-          "@stuffbucket/maximal-context-window",
-          "@stuffbucket/maximal-observability"
-        ]
-      },
-      {
-        "from": ["@stuffbucket/maximal-data-visualization"],
-        "to": [
-          "maximal-client",
-          "@stuffbucket/maximal",
-          "@stuffbucket/maximal-core",
-          "@stuffbucket/maximal-context-window",
-          "@stuffbucket/maximal-observability",
-          "@stuffbucket/maximal-observability-contract"
-        ]
-      },
-      {
-        "from": ["@stuffbucket/maximal-context-window"],
-        "to": [
-          "maximal-client",
-          "@stuffbucket/maximal",
-          "@stuffbucket/maximal-core",
-          "@stuffbucket/maximal-observability"
-        ]
-      }
-    ],
-    "require": [
-      {
-        "from": "@stuffbucket/maximal-core",
-        "to": ["@stuffbucket/maximal-model-contract"]
-      },
-      {
-        "from": "@stuffbucket/maximal-models",
-        "to": ["@stuffbucket/maximal-model-contract"]
-      },
-      {
-        "from": "@stuffbucket/maximal",
-        "to": [
-          "@stuffbucket/maximal-core",
-          "@stuffbucket/maximal-models",
-          "@stuffbucket/maximal-model-contract"
         ]
       }
     ]

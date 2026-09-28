@@ -57,23 +57,6 @@ export function isE2E(): boolean {
 }
 
 /**
- * True when the window should mount the demo shell.
- *
- * `STUFFBUCKET_DEMO=1` makes `createMainWindow` load the capture fixture's own
- * renderer bundle instead of the product's. The renderer knows nothing about
- * it: there is no flag to read and no branch to take, because the two shells
- * are two entry points.
- *
- * The fixture bundle is excluded from the package, so this is reachable from a
- * checkout and not from an installed application.
- *
- * It also earns a profile of its own. See `src/main/index.ts`.
- */
-export function isDemo(): boolean {
-  return process.env['STUFFBUCKET_DEMO'] === '1';
-}
-
-/**
  * True when the suite should stay off the user's screen.
  *
  * A test run drives a real application on a real desktop. Left alone it paints

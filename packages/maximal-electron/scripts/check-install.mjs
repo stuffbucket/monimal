@@ -14,8 +14,8 @@
  * `stuffbucket/maximal` consumes this package from the GitHub Packages
  * registry. Issue #117 holds the condition and what removal touches.
  *
- * It runs on this repository too, where `dist/` is absent until `prepare`
- * builds it — `postinstall` runs first — hence the `node_modules` test.
+ * It runs on this repository too, where `dist/` can be absent during a
+ * workspace install, hence the `node_modules` test.
  */
 
 import { readFile } from 'node:fs/promises';

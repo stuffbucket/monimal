@@ -1,4 +1,4 @@
-import type { LocalModelSource } from "@stuffbucket/local-model-registry"
+import type { LocalModelSource } from "@maximal/local-model-registry"
 
 import { createReadStream } from "node:fs"
 import { lstat } from "node:fs/promises"

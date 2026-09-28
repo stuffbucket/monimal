@@ -23,7 +23,7 @@ collapses two-way drift between dev (`bun run start`) and prod
 ## Non-goals
 
 - Replacing tsdown for a published-as-library use case. Maximal is a CLI/server
-  binary, not an npm library. If we ever ship a public `@stuffbucket/maximal`
+  binary, not an npm library. If we ever ship a public `@maximal/maximal`
   npm package with `.d.ts`, we'd revisit.
 - Reorganizing the source tree. The change is purely tooling.
 

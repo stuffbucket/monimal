@@ -7,6 +7,7 @@ import { afterEach, test } from "node:test"
 import { ESLint } from "eslint"
 
 import { architecture } from "../architecture.js"
+import { service } from "../service.js"
 import { typescript } from "../typescript.js"
 
 const fixtureRoots = []
@@ -38,6 +39,15 @@ async function lintFixture({ from, source, targets = [], kind = "service" }) {
   return result.messages
 }
 
+test("service lint allows but does not force ternaries", () => {
+  const config = service({ tsconfigRootDir: import.meta.dirname })
+  const rule = config
+    .flatMap((entry) => Object.entries(entry.rules ?? {}))
+    .find(([name]) => name === "unicorn/prefer-ternary")
+
+  assert.equal(rule, undefined)
+})
+
 for (const fixture of [
   {
     name: "renderer cannot import main implementation",
@@ -63,14 +73,28 @@ for (const fixture of [
   {
     name: "Electron public code cannot import client policy",
     from: "src/renderer/index.js",
-    source: 'import "maximal-client"\n',
+    source: 'import "@maximal/maximal-client"\n',
     kind: "electron",
+    ruleId: "no-restricted-imports",
+  },
+  {
+    name: "terminal code cannot import Electron",
+    from: "src/pty/session.js",
+    source: 'import "electron"\n',
+    kind: "terminal",
+    ruleId: "no-restricted-imports",
+  },
+  {
+    name: "terminal code cannot import the Electron shell",
+    from: "src/renderer/view.js",
+    source: 'import "@maximal/maximal-electron/renderer"\n',
+    kind: "terminal",
     ruleId: "no-restricted-imports",
   },
   {
     name: "packages cannot import another package source tree",
     from: "src/index.js",
-    source: 'import "@stuffbucket/maximal-electron/src/main/index.js"\n',
+    source: 'import "@maximal/maximal-electron/src/main/index.js"\n',
     ruleId: "no-restricted-imports",
   },
 ]) {
@@ -86,7 +110,7 @@ for (const fixture of [
 test("client may import a declared Electron public entry point", async () => {
   const messages = await lintFixture({
     from: "src/renderer/view.js",
-    source: 'import "stuffbucket-electron/renderer"\n',
+    source: 'import "@maximal/maximal-electron/renderer"\n',
     kind: "client",
   })
   assert.deepEqual(messages, [])

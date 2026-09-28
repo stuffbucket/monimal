@@ -1,4 +1,4 @@
-import type { TrafficFlowNode } from "@stuffbucket/maximal-observability-contract"
+import type { TrafficFlowNode } from "@maximal/maximal-observability-contract"
 
 import { describe, expect, it } from "vitest"
 

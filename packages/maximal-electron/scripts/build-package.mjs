@@ -3,11 +3,9 @@
  * Build the published library: the two `tsc` emits and the stylesheet copy.
  *
  * One file rather than three npm scripts calling each other, because the
- * caller that matters is not a shell. `npm pack` runs `prepack` AND `prepare`,
- * both of which built this package by shelling back into the package manager,
- * and `scripts/verify-exports.mjs` parses `npm pack --dry-run --json` off the
- * stdout those hooks inherit. A build that prints anything at all lands in the
- * middle of the JSON.
+ * caller that matters is not a shell. `scripts/verify-exports.mjs` parses
+ * `npm pack --dry-run --json` off the stdout inherited from package hooks. A
+ * build that prints anything at all lands in the middle of the JSON.
  *
  * That was not hypothetical, and it was not the compilers: `pnpm run` writes
  * its own resolution progress to stdout whenever the lockfile does not match

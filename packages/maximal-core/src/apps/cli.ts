@@ -1,3 +1,4 @@
+import type { AppEntry } from "@maximal/maximal-core-contract/settings"
 /**
  * Registry-driven CLI surface for third-party client integrations.
  *
@@ -26,7 +27,6 @@ import type { ArgsDef, CommandDef } from "citty"
 import { defineCommand } from "citty"
 import consola from "consola"
 
-import type { AppEntry } from "~/lib/config/settings-types"
 import type { LiveAppControlClient } from "~/lib/live/app-control-client"
 
 import { runApiKeyHelper } from "~/lib/auth/api-key-helper"

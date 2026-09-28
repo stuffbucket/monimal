@@ -1,0 +1,22 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
+  // Forge builds the main, worker and preload entries; the renderer HTML loads the rest.
+  "entry": [
+    "forge.config.ts",
+    "vite.*.config.mts",
+    "scripts/**/*.mjs",
+    "scripts/**/*.ts",
+    "e2e/**/*.ts",
+    "src/main/index.ts",
+    "src/main/workers/llama-worker.ts",
+    "src/preload/index.ts",
+    "src/renderer/workspace/main.tsx",
+    "src/renderer/overlay/entry.tsx"
+  ],
+  "project": ["src/**/*.{ts,tsx}", "scripts/**/*.{mjs,mts,ts}", "e2e/**/*.ts", "*.{ts,mts}"],
+  // The Dockerfile desktop-smoke stage resolves @electron/get through it.
+  "ignoreDependencies": ["@electron/packager"],
+  // macOS system tools invoked by the icon script and the packaged-app e2e.
+  "ignoreBinaries": ["diff", "sips"],
+  "ignoreExportsUsedInFile": true
+}

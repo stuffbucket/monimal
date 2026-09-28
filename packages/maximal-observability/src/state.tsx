@@ -5,7 +5,7 @@ import type {
   TrafficRequestList,
   TrafficRequestOutcome,
   TrafficRequestSummary,
-} from "@stuffbucket/maximal-observability-contract"
+} from "@maximal/maximal-observability-contract"
 
 import {
   createContext,

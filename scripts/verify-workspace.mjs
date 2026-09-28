@@ -27,6 +27,7 @@ import { fileURLToPath } from "node:url";
 import { scopedChecks } from "../packages/maximal-electron/scripts/check-scope.mjs";
 import {
   packageRuleViolations,
+  packageTreeViolations,
   readArchitecturePolicy,
   readPackageGraph,
 } from "./architecture-graph.mjs";
@@ -106,7 +107,8 @@ const typescriptVersions = new Set(
     "packages/maximal-electron",
     "packages/maximal-observability-contract",
     "packages/maximal-observability",
-    "packages/maximal/client",
+    "packages/maximal-client",
+    "apps/desktop",
   ]
     .map((pkg) => manifestAt(ROOT, pkg, "node_modules/typescript")?.version)
     .filter((version) => version != null)
@@ -126,16 +128,14 @@ check(
 //    invisible under isolated linking -- failing one package at a time, which
 //    reads as unrelated breakage.
 const RADIX_TRANSITIVES = ["@radix-ui/react-primitive", "react-remove-scroll"];
-const rendererEntry = path.join(
+const rendererSourceEntry = path.join(
   ROOT,
-  "packages/maximal/client/node_modules/stuffbucket-electron/dist/renderer/index.js",
+  "packages/maximal-client/node_modules/@maximal/maximal-electron/src/renderer/index.ts",
 );
-const rendererBuilt = existsSync(rendererEntry);
 check(
-  rendererBuilt &&
-    RADIX_TRANSITIVES.every(
-      (specifier) => resolvesFrom(rendererEntry, specifier) !== null,
-    ),
+  RADIX_TRANSITIVES.every(
+    (specifier) => resolvesFrom(rendererSourceEntry, specifier) !== null,
+  ),
   "Radix transitive deps resolve through the symlink path",
   { count: RADIX_TRANSITIVES.length, of: "radix transitive deps" },
 );
@@ -167,7 +167,7 @@ check(ptyLoads, `node-pty loads on this node ABI (${process.version})`, {
 });
 
 // 5. The `overrides` block moved out of package.json's `pnpm` field, which
-//    pnpm 11 ignores. @stuffbucket/eslint-config declares prettier directly,
+//    pnpm 11 ignores. @maximal/eslint-config declares prettier directly,
 //    but the override still matters: it also pins the copies that arrive
 //    transitively, which a declaration cannot reach. Compare the installed
 //    version to that declaration so an intentional formatter upgrade does not
@@ -215,7 +215,8 @@ check(
 //    in the same way.
 const VITE_CONSUMERS = [
   ["packages/maximal-electron", null],
-  ["packages/maximal/client", null],
+  ["packages/maximal-client", null],
+  ["apps/desktop", null],
   // The renderer surfaces run under Vitest's Vite pipeline. Resolve through
   // Vitest because pnpm does not create a package-local Vite link here.
   ["packages/maximal-observability", "vitest"],
@@ -276,11 +277,13 @@ const ESLINT_CONSUMERS = [
   "packages/maximal-core",
   "packages/maximal-models",
   "packages/maximal-model-contract",
+  "packages/maximal-core-contract",
   "packages/maximal",
   "packages/maximal-electron",
   "packages/maximal-observability-contract",
   "packages/maximal-observability",
-  "packages/maximal/client",
+  "packages/maximal-client",
+  "apps/desktop",
   "packages/model-runtimes/omlx",
 ];
 const eslintVersions = new Map();
@@ -309,22 +312,20 @@ check(
   { count: eslintVersions.size, of: "eslint consumers" },
 );
 
-// 7. Package-layer policy is data in architecture-analysis.json. This remains
-//    the workspace-verification owner for provider boundaries; `pnpm analyze`
-//    consumes the same graph and data for its package-cycle pass.
+// 7. Package-layer policy is data in architecture-analysis.json: each
+//    package's `dependsOn` declares the workspace tree, and `deny` bans
+//    external packages. `pnpm analyze` consumes the same graph and data for
+//    its package-cycle pass.
 const architecturePolicy = readArchitecturePolicy(ROOT);
 const architectureGraph = readPackageGraph(ROOT, architecturePolicy);
-const violations = packageRuleViolations(
-  architectureGraph,
-  architecturePolicy.packageRules,
-);
-if (violations.length > 0) {
-  for (const violation of violations)
-    console.error(`       forbidden provider edge: ${violation}`);
-}
+const violations = [
+  ...packageTreeViolations(architectureGraph),
+  ...packageRuleViolations(architectureGraph, architecturePolicy.packageRules),
+];
+for (const violation of violations) console.error(`       ${violation}`);
 check(
   violations.length === 0,
-  "provider package dependency boundaries are intact",
+  "workspace dependencies match the declared tree",
   { count: architectureGraph.packages.size, of: "architecture package manifests" },
 );
 
@@ -395,7 +396,7 @@ check(
 
 // 9. No two workspace packages may end up on different versions of the same
 //    directly-declared dependency. maximal-electron pinned electron 43.2.0
-//    while maximal/client pinned 43.3.0, so the UI library was tested against
+//    while maximal-client pinned 43.3.0, so the UI library was tested against
 //    one runtime and the app that ships it was built against another -- a
 //    divergence nothing reported, because each package's own install was
 //    internally consistent and every gate passed.

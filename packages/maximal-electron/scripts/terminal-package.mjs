@@ -2,7 +2,7 @@
  * The packaging assertions for the terminal, as a function.
  *
  * `scripts/verify-package.mjs` runs these against this repository's own build.
- * A consumer packaging `./host/terminal` and `./renderer` hits the same two
+ * A consumer packaging `@maximal/maximal-terminal` hits the same two
  * traps and has no equivalent, so the checks are exported rather than only
  * described. See issue #76 and `docs/architecture.md`.
  *

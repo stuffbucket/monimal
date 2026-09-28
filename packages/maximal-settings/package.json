@@ -1,5 +1,5 @@
 {
-  "name": "@stuffbucket/maximal-settings",
+  "name": "@maximal/maximal-settings",
   "version": "0.0.0",
   "private": true,
   "description": "Typed layered settings and the workspace settings migration ratchet.",
@@ -47,7 +47,7 @@
     "zod": "4.5.4"
   },
   "devDependencies": {
-    "@stuffbucket/eslint-config": "workspace:*",
+    "@maximal/eslint-config": "workspace:*",
     "@types/node": "^26.4.0",
     "@types/proper-lockfile": "4.1.4",
     "@types/write-file-atomic": "4.0.3",

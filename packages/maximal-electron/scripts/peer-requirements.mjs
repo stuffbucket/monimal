@@ -92,9 +92,16 @@ async function packagesReached(entry, readSource) {
  * target wins and the rest are skipped.
  *
  * `readSource` is the seam the tests read a graph through without writing one
- * to disk. It defaults to reading the package the caller named.
+ * to disk. It defaults to reading the package the caller named. `exceptions`
+ * defaults to `REQUIRED_WITHOUT_IMPORT`, which is empty today; the tests pass
+ * one so the path that adds them stays exercised.
  */
-export async function peerRequirements(packageRoot, exports, readSource = readPackageSource) {
+export async function peerRequirements(
+  packageRoot,
+  exports,
+  readSource = readPackageSource,
+  exceptions = REQUIRED_WITHOUT_IMPORT,
+) {
   /** @type {Map<string, string[]>} */
   const requirements = new Map();
 
@@ -103,7 +110,7 @@ export async function peerRequirements(packageRoot, exports, readSource = readPa
 
     const entry = path.resolve(packageRoot, target);
     const reached = await packagesReached(entry, readSource);
-    for (const { subpath: where, name } of REQUIRED_WITHOUT_IMPORT) {
+    for (const { subpath: where, name } of exceptions) {
       if (where === subpath) reached.add(name);
     }
 

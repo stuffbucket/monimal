@@ -6,14 +6,14 @@
  *
  * What this does, and why each step is there:
  *
- * 1. **Rebuilds `dist/lib` with tsup.** The committed `dist/lib/*.d.ts` exist so
- *    a git-dependency install gets types without a build step — they are a
- *    convenience copy, and a copy can be stale. What actually ships is whatever
- *    `prepack` (`bun run build:lib`) produces, so that is what has to be under
- *    test; checking the committed copy would green-light bindings nobody will
- *    publish and would fail for reasons unrelated to the contract whenever the
- *    copy lags. Staleness of the committed copy is a SEPARATE gate and is not
- *    this script's job. Pass `--no-build` to skip (e.g. right after a build).
+ * 1. **Rebuilds `dist/lib` with tsup.** The generated `dist/lib/*.d.ts` are the
+ *    package export targets — they are a convenience copy, and a copy can be
+ *    stale. What in-repo consumers resolve is whatever `build:lib` produces, so
+ *    that is what has to be under test; checking a stale generated copy would
+ *    green-light bindings nobody should consume and would fail for reasons
+ *    unrelated to the contract whenever the copy lags. Staleness of the copy is
+ *    a SEPARATE gate and is not this script's job. Pass `--no-build` to skip
+ *    (e.g. right after a build).
  *
  * 2. **Links the repo into `downstream/node_modules/` under its published name.**
  *    Resolution then goes package-name → `exports` map → `dist/lib/*.d.ts`,
@@ -38,7 +38,7 @@ import { join, resolve } from "node:path"
 
 const fixtureDir = import.meta.dirname
 const repoRoot = resolve(fixtureDir, "..")
-const packageName = "@stuffbucket/maximal-core"
+const packageName = "@maximal/maximal-core"
 
 const skipBuild = process.argv.includes("--no-build")
 
@@ -53,7 +53,7 @@ function fail(message: string, detail?: string): never {
   process.exit(1)
 }
 
-// --- 1. build the published bindings ----------------------------------------
+// --- 1. build the export bindings -------------------------------------------
 if (skipBuild) {
   console.log("• skipping build:lib (--no-build)")
 } else {
@@ -64,7 +64,7 @@ if (skipBuild) {
   }
 }
 
-// --- 2. link the package under its published name ---------------------------
+// --- 2. link the package under its package name -----------------------------
 const scopeDir = join(
   fixtureDir,
   "node_modules",
@@ -104,7 +104,7 @@ for (const config of configs) {
   )
   if (engineSources.length > 0) {
     fail(
-      `${config} pulled engine source into the program — the fixture is not testing the published surface`,
+      `${config} pulled engine source into the program — the fixture is not testing the package surface`,
       engineSources.join("\n"),
     )
   }

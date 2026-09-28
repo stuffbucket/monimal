@@ -26,8 +26,8 @@ Use exact versions in `package.json`. The supported initial runtime pair is
   "dependencies": {
     "@deepseek-ai/cordis": "4.0.1",
     "@deepseek-ai/dsh-llm": "0.1.0-rc.6",
-    "@stuffbucket/anthropic-provider": "<exact-version>",
-    "@stuffbucket/omlx": "<exact-version>"
+    "@maximal/anthropic-provider": "<exact-version>",
+    "@maximal/omlx": "<exact-version>"
   }
 }
 ```
@@ -43,8 +43,8 @@ Use exact versions in `package.json`. The supported initial runtime pair is
   },
   "services": [],
   "plugins": [
-    { "id": "anthropic", "package": "@stuffbucket/anthropic-provider" },
-    { "id": "omlx", "package": "@stuffbucket/omlx" }
+    { "id": "anthropic", "package": "@maximal/anthropic-provider" },
+    { "id": "omlx", "package": "@maximal/omlx" }
   ]
 }
 ```

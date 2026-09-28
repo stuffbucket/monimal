@@ -13,7 +13,7 @@ import {
   awaitReadyLine,
   type ParsedReadyLine,
   type ReadyLine,
-} from "@stuffbucket/maximal-core/supervisor"
+} from "@maximal/maximal-core/supervisor"
 
 import { expectAssignable } from "./assert.js"
 

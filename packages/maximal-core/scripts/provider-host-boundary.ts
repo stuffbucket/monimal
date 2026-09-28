@@ -3,7 +3,7 @@ import path from "node:path"
 import * as ts from "typescript"
 
 const ALLOWED_PROVIDER_HOST_PACKAGE =
-  "@stuffbucket/maximal-model-contract"
+  "@maximal/maximal-model-contract"
 const DEPENDENCY_FIELDS = [
   "dependencies",
   "devDependencies",

@@ -2,11 +2,7 @@
  * What "an export resolves" means, as functions over a package directory.
  *
  * `scripts/verify-exports.mjs` runs these against this repository's own build
- * and the tarball `npm pack` produces. `scripts/verify-git-install.mjs` runs
- * the same functions against a package installed by git ref, which is how
- * `stuffbucket/maximal` consumes this one. npm runs `prepare` for a git install
- * and `prepack` for a tarball, so a check that walks one path says nothing
- * about the other. Issue #83.
+ * and the tarball `npm pack` produces.
  *
  * `scripts/check-install.mjs` runs `missingTargets` inside a consumer's
  * install, where npm runs neither. Issue #100.
@@ -79,9 +75,8 @@ export function targetPresent(root, target) {
 /**
  * The first line `scripts/check-install.mjs` prints when it refuses an install.
  *
- * `scripts/verify-git-install.mjs` greps a failed install for it. "npm exited
- * non-zero" is true of a network error as well, so the marker is what tells the
- * two apart.
+ * "npm exited non-zero" is true of a network error as well, so the marker is
+ * what tells the two apart.
  */
 export const INSTALLED_WITHOUT_BUILD = 'installed without a build step';
 
@@ -168,7 +163,6 @@ export const RENDERER_SURFACE = [
   'RadioGroup',
   'Row',
   'SHELL_CONTENT',
-  'SHELL_TERMINAL_PROPERTIES',
   'STATUS_LABELS',
   'ScrollArea',
   'Select',
@@ -195,7 +189,6 @@ export const RENDERER_SURFACE = [
   'Tag',
   'TerminalLauncher',
   'TerminalTabs',
-  'TerminalView',
   'TextInput',
   'Textarea',
   'TitleBar',
@@ -205,38 +198,14 @@ export const RENDERER_SURFACE = [
   'ViewModeSwitch',
   'WindowChrome',
   'adornmentLabel',
-  'assertTerminalWorkspace',
-  'closeTerminalView',
   'copyText',
-  'createTerminalTransport',
-  'createTerminalWorkspace',
   'decodeTabTransfer',
-  'detachedSessions',
-  'dockTerminalDocument',
   'encodeTabTransfer',
   'fill',
-  'focusTerminalView',
   'getTabPanelId',
   'getTabTriggerId',
-  'isTerminalPane',
   'moveTabBefore',
-  'newTerminalTab',
-  'readTerminalTheme',
-  'removeTerminalPane',
-  'splitTerminalPane',
-  'splitTerminalView',
   'tabSlot',
-  'terminalDirectoryTitle',
-  'terminalDocumentId',
-  'terminalPaneSessionIds',
-  'terminalPaneViewIds',
-  'terminalProcessTitle',
-  'terminalProjectionId',
-  'terminalSessionId',
-  'terminalViewId',
-  'terminalWorkspaceIssues',
-  'undockTerminalDocument',
-  'useDetachedTerminals',
   'useShellContent',
   'useShellTabs',
   'useTabPanelId',
