@@ -37,6 +37,13 @@ has ended.
 | `packages/model-runtimes/anthropic` | Anthropic Messages adapter. |
 | `packages/model-runtimes/omlx` | oMLX HTTP adapter. |
 
+## Asset provenance
+
+| Assets | Source | Commit | License |
+| --- | --- | --- | --- |
+| Claude, Claude Code, GitHub Copilot, and Codex terminal icons | `lobehub/lobe-icons` | `329f378cbd1a88f45b60cd096b9111ce16f3ea39` | MIT |
+| Maximal terminal icon | `apps/desktop/build/icon.icns` | Workspace-owned | Workspace license |
+
 ## Rules
 
 `apps/desktop` owns Electron main/preload, private IPC channels, native

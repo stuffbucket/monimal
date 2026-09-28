@@ -32,11 +32,21 @@ body,
  */
 .mh-card {
   position: fixed;
+  top: auto;
+  right: auto;
+  bottom: 18vh;
+  left: 50%;
   inset: 12px;
   display: flex;
   flex-direction: column;
+  width: min(680px, 82vw);
+  height: fit-content;
+  min-height: 0;
+  max-height: 80vh;
+  margin: 0;
   gap: var(--shell-space-3, 12px);
   padding: var(--shell-space-4, 16px);
+  transform: translateX(-50%);
   border-radius: var(--shell-radius-large, 8px);
   background: var(--shell-raised);
   border: 1px solid var(--shell-border);
