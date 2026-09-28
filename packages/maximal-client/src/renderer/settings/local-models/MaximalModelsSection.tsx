@@ -1,5 +1,7 @@
 import {
   Button,
+  Field,
+  FieldList,
   Note,
   SettingsGroup,
   SettingsItem,
@@ -28,8 +30,7 @@ export function MaximalModelsSection({
 }: MaximalModelsSectionProps) {
   return (
     <SettingsSection
-      title="Models hosted by Maximal"
-      description="Models downloaded and served by this device using its hardware."
+      title="Maximal"
     >
       {catalogue !== null && catalogue.models.length === 0 ? (
         <Note>No bundled local models are configured.</Note>
@@ -66,19 +67,20 @@ export function MaximalModelsSection({
                 ) : undefined
               }
             >
-              <code>{model.modelId}</code>
-              <span className="settings-list__meta">
-                {model.format.toUpperCase()} ·{" "}
-                {formatBytes(model.expectedBytes)}
-              </span>
-              <span className="settings-list__detail">
-                {publicationLabel(model)}
-              </span>
-              {progress ? (
-                <span className="settings-list__detail" aria-live="polite">
-                  {progress}
-                </span>
-              ) : null}
+              <FieldList>
+                <Field label="Model" value={<code>{model.modelId}</code>} />
+                <Field
+                  label="Format"
+                  value={`${model.format.toUpperCase()} · ${formatBytes(model.expectedBytes)}`}
+                />
+                <Field label="Source" value={publicationLabel(model)} />
+                {progress ? (
+                  <Field
+                    label="Progress"
+                    value={<span aria-live="polite">{progress}</span>}
+                  />
+                ) : null}
+              </FieldList>
             </SettingsItem>
           );
         })}

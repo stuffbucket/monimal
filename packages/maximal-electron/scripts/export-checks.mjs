@@ -168,6 +168,7 @@ export const RENDERER_SURFACE = [
   'STATUS_LABELS',
   'ScrollArea',
   'Select',
+  'SettingsActions',
   'SettingsDisclosure',
   'SettingsDisclosureList',
   'SettingsGroup',

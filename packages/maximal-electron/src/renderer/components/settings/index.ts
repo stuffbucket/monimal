@@ -17,6 +17,7 @@ export { AppTogglesDialog } from "./AppTogglesDialog.js";
 export { Diagnostics } from "./Diagnostics.js";
 export { ModelCardGrid, ModelCards } from "./ModelCards.js";
 export {
+  SettingsActions,
   SettingsGroup,
   SettingsItem,
   SettingsPage,

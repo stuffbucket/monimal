@@ -150,6 +150,7 @@ export {
   Diagnostics,
   ModelCardGrid,
   ModelCards,
+  SettingsActions,
   SettingsDisclosure,
   SettingsDisclosureList,
   SettingsPage,

@@ -111,25 +111,31 @@ function fakeCapabilities(initial: LocalModelCatalogSnapshot = catalogue) {
       context_length: contextLength,
     })),
   }
+  let ollamaSettingsValue = {
+    has_api_key: false,
+    api_key: null,
+    credential_source: 'none' as const,
+    local_enabled: true,
+    local_endpoint: OLLAMA_ENDPOINT,
+    prefer_local_models: true,
+  }
+  const ollamaSettings = {
+    get: vi.fn(async () => ollamaSettingsValue),
+    update: vi.fn(async (update: Partial<typeof ollamaSettingsValue>) => {
+      ollamaSettingsValue = { ...ollamaSettingsValue, ...update }
+      return ollamaSettingsValue
+    }),
+  }
   return {
     capabilities: {
       localModels,
       ollamaRuntime,
-      ollamaSettings: {
-        get: vi.fn(async () => ({
-          has_api_key: false,
-          api_key: null,
-          credential_source: 'none' as const,
-          local_enabled: true,
-          local_endpoint: OLLAMA_ENDPOINT,
-          prefer_local_models: true,
-        })),
-        update: vi.fn(),
-      },
+      ollamaSettings,
     } as unknown as SettingsCapabilities,
     emit: (event: LocalModelOperationEvent) => listener(event),
     localModels,
     ollamaRuntime,
+    ollamaSettings,
   }
 }
 
@@ -246,7 +252,7 @@ describe('LocalModelsSection', () => {
     expect(surface.textContent).toContain('download rejected')
   })
 
-  it('opens an installed Ollama desktop app and refreshes its process status', async () => {
+  it('opens an installed Ollama desktop app and reports its process status', async () => {
     const { capabilities, ollamaRuntime } = fakeCapabilities()
     const surface = await renderLocalModels(capabilities)
 
@@ -254,6 +260,53 @@ describe('LocalModelsSection', () => {
 
     expect(ollamaRuntime.launch).toHaveBeenCalledOnce()
     expect(surface.textContent).toContain('Running')
+  })
+
+  it('polls runtime status and puts the provider toggle in the runtime header', async () => {
+    const setInterval = vi.spyOn(window, 'setInterval')
+    const { capabilities, ollamaRuntime, ollamaSettings } = fakeCapabilities()
+    const surface = await renderLocalModels(capabilities)
+
+    expect(setInterval).toHaveBeenCalledWith(expect.any(Function), 3000)
+    expect(surface.textContent).not.toContain('Enable provider')
+    expect(surface.textContent).not.toContain('Refresh')
+    expect(surface.querySelector('[data-testid="ollama-provider-settings"]')?.getAttribute('data-dividers'))
+      .toBe('false')
+
+    const toggle = surface.querySelector<HTMLButtonElement>(
+      '[data-testid="local-models-enable-ollama"]',
+    )
+    if (toggle === null) throw new Error('provider toggle was not rendered')
+    expect(toggle.textContent).toBe('')
+    expect(toggle.getAttribute('aria-label')).toBe('Disable provider')
+    expect(toggle.closest('.settings__item-actions')).not.toBeNull()
+
+    await act(async () => toggle.click())
+
+    expect(ollamaSettings.update).toHaveBeenCalledWith({ local_enabled: false })
+    expect(toggle.textContent).toBe('')
+    expect(toggle.getAttribute('aria-label')).toBe('Enable provider')
+
+    const pollingCall = setInterval.mock.calls.find(([, delay]) => delay === 3000)
+    const poll = pollingCall?.[0]
+    if (typeof poll !== 'function') throw new Error('runtime polling was not scheduled')
+    await act(async () => {
+      poll()
+      await Promise.resolve()
+    })
+    expect(ollamaRuntime.status).toHaveBeenCalledTimes(2)
+  })
+
+  it('uses the shared left-aligned action row below runtime details', async () => {
+    const { capabilities } = fakeCapabilities()
+    const surface = await renderLocalModels(capabilities)
+    const actions = surface.querySelector('[data-testid="ollama-provider-actions"]')
+
+    expect(actions?.classList.contains('settings__actions-row')).toBe(true)
+    expect(actions?.textContent).toContain('Edit account…')
+    expect(actions?.textContent).toContain('Open Ollama')
+    expect(actions?.textContent).not.toContain('Actions')
+    expect(actions?.querySelector('.settings__item-actions')).toBeNull()
   })
 
   it('uses stepped context lengths and saves the selected value', async () => {
@@ -282,6 +335,15 @@ describe('LocalModelsSection', () => {
     expect(marks.map((mark) => mark.style.left)).toEqual(
       labels.map((label) => label.style.left),
     )
+    expect(marks.map((mark) => mark.hidden)).toEqual([
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+    ])
     expect(surface.querySelector('input[type="number"]')).toBeNull()
 
     await act(async () => {
@@ -294,5 +356,14 @@ describe('LocalModelsSection', () => {
 
     expect(ollamaRuntime.updateContextLength).toHaveBeenCalledWith(8_192)
     expect(slider.getAttribute('aria-valuetext')).toBe('8k')
+    expect(marks.map((mark) => mark.hidden)).toEqual([
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+    ])
   })
 })

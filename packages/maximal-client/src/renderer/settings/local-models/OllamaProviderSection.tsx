@@ -1,5 +1,4 @@
 import {
-  Button,
   SettingsGroup,
   SettingsItem,
   SettingsSection,
@@ -22,13 +21,14 @@ export function OllamaProviderSection({
   provider,
 }: OllamaProviderSectionProps) {
   const { runtime, settings } = provider;
+  const providerToggleLabel =
+    settings?.local_enabled === false ? "Enable provider" : "Disable provider";
 
   return (
     <SettingsSection
       title="Ollama"
-      description="Models running locally on this device via Ollama."
     >
-      <SettingsGroup>
+      <SettingsGroup dividers={false} testId="ollama-provider-settings">
         <SettingsItem
           title="Runtime status"
           description={
@@ -37,30 +37,20 @@ export function OllamaProviderSection({
               : `${provider.status} · ${provider.endpointLocation}`
           }
           actions={
-            <Button size="sm" onClick={() => void provider.refreshStatus()}>
-              Refresh
-            </Button>
+            settings && runtime?.installed ? (
+              <Switch
+                label={providerToggleLabel}
+                displayLabel={null}
+                tooltip={providerToggleLabel}
+                checked={settings.local_enabled ?? true}
+                onChange={(enabled) => void provider.updateEnabled(enabled)}
+                testId="local-models-enable-ollama"
+              />
+            ) : undefined
           }
         >
           <OllamaRuntimeDetails provider={provider} />
         </SettingsItem>
-        {settings && runtime?.installed ? (
-          <SettingsItem
-            title="Enable provider"
-            control={
-              <Switch
-                label={`${settings.local_enabled === false ? "Enable" : "Disable"} local Ollama`}
-                displayLabel={null}
-                tooltip={
-                  settings.local_enabled === false ? "Disabled" : "Enabled"
-                }
-                layout="compact"
-                checked={settings.local_enabled ?? true}
-                onChange={(enabled) => void provider.updateEnabled(enabled)}
-              />
-            }
-          />
-        ) : null}
         {settings ? (
           <SettingsItem
             title="Prefer local models"

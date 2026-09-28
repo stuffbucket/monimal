@@ -622,7 +622,7 @@ describe('OllamaAccountsSection API key validation', () => {
     const localModels = button(surface, 'Local models')
 
     expect(localModels.closest('.settings__item-actions')).toBeNull()
-    expect(localModels.closest('.settings-device-code__actions')).not.toBeNull()
+    expect(localModels.closest('.settings__actions-row')).not.toBeNull()
   })
 
   it('removes a configured key only through an explicit action', async () => {

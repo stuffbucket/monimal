@@ -94,7 +94,7 @@ export function OllamaRuntimeDetails({ provider }: OllamaRuntimeDetailsProps) {
         >
           {(control) => (
             <Slider
-                {...control}
+              {...control}
               label="Context length"
               value={Number(provider.contextLength)}
               options={CONTEXT_LENGTH_OPTIONS}

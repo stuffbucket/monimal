@@ -535,6 +535,7 @@ export function Slider({
             <span
               key={option.value}
               className="slider__mark"
+              hidden={index <= selectedIndex}
               style={{ left: position(index) }}
             />
           ))}

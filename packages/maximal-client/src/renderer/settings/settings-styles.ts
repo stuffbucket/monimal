@@ -421,21 +421,6 @@ const SETTINGS_CSS = `
   outline-offset: 2px;
 }
 
-.settings-local-model__row {
-  align-items: flex-start;
-  flex-wrap: wrap;
-}
-
-.settings-local-model__content {
-  flex: 1 1 20rem;
-}
-
-.settings-local-model__actions {
-  display: flex;
-  align-items: center;
-  gap: var(--shell-space-2, 8px);
-}
-
 .settings-metrics {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));

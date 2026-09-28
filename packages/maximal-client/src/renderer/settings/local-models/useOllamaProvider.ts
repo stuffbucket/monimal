@@ -26,6 +26,7 @@ export function useOllamaProvider({
   const [savingContextLength, setSavingContextLength] = useState(false);
   const [contextLength, setContextLength] = useState("");
   const contextLengthSaveRevision = useRef(0);
+  const localEndpoint = settings?.local_endpoint;
 
   const applyRuntime = useCallback((next: OllamaRuntimeStatus) => {
     setRuntime(next);
@@ -33,17 +34,6 @@ export function useOllamaProvider({
       next.context_length === null ? "" : String(next.context_length),
     );
   }, []);
-
-  const refreshStatus = useCallback(async () => {
-    if (settings === null) return;
-    try {
-      applyRuntime(
-        await capabilities.ollamaRuntime.status(settings.local_endpoint),
-      );
-    } catch (cause) {
-      reportError(describeError(cause));
-    }
-  }, [applyRuntime, capabilities, reportError, settings]);
 
   useEffect(() => {
     let active = true;
@@ -61,11 +51,11 @@ export function useOllamaProvider({
   }, [capabilities, reportError]);
 
   useEffect(() => {
-    if (settings === null) return;
+    if (localEndpoint === undefined) return;
     let active = true;
     const refresh = () => {
       void capabilities.ollamaRuntime
-        .status(settings.local_endpoint)
+        .status(localEndpoint)
         .then((nextRuntime) => {
           if (active) applyRuntime(nextRuntime);
         })
@@ -76,12 +66,12 @@ export function useOllamaProvider({
     refresh();
     const interval = window.setInterval(() => {
       refresh();
-    }, 5000);
+    }, 3000);
     return () => {
       active = false;
       window.clearInterval(interval);
     };
-  }, [applyRuntime, capabilities, reportError, settings]);
+  }, [applyRuntime, capabilities, localEndpoint, reportError]);
 
   const updatePreference = useCallback(
     async (preferLocalModels: boolean) => {
@@ -175,7 +165,6 @@ export function useOllamaProvider({
         ? null
         : ollamaEndpointLocation(runtime.endpoint),
     setContextLength,
-    refreshStatus,
     updatePreference,
     updateEnabled,
     launch,

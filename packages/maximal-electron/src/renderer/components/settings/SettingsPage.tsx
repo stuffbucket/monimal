@@ -139,6 +139,23 @@ export const SETTINGS_STYLES = `
   border-top: 1px solid var(--shell-border-strong, var(--shell-border));
 }
 
+.sb-shell .settings__group[data-dividers='false'] .settings__item + .settings__item {
+  border-top: 0;
+}
+
+.sb-shell .settings__actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: var(--shell-space-2);
+  padding: 0 var(--shell-space-3) var(--shell-space-3);
+}
+
+.sb-shell .settings__item-body > .settings__actions-row {
+  padding: 0;
+}
+
 .sb-shell .settings__item-summary {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -332,16 +349,40 @@ export function SettingsSection({
 export function SettingsGroup({
   children,
   layout = "list",
+  dividers = true,
   testId,
 }: {
   children: ReactNode;
   layout?: "list" | "grid";
+  dividers?: boolean;
   testId?: string;
 }) {
   useComponentStyles("settings-page", SETTINGS_STYLES);
 
   return (
-    <div className="settings__group" data-layout={layout} data-testid={testId}>
+    <div
+      className="settings__group"
+      data-layout={layout}
+      data-dividers={dividers ? undefined : "false"}
+      data-testid={testId}
+    >
+      {children}
+    </div>
+  );
+}
+
+/** A left-aligned row of actions at the foot of a settings group or item. */
+export function SettingsActions({
+  children,
+  testId,
+}: {
+  children: ReactNode;
+  testId?: string;
+}) {
+  useComponentStyles("settings-page", SETTINGS_STYLES);
+
+  return (
+    <div className="settings__actions-row" data-testid={testId}>
       {children}
     </div>
   );

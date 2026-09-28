@@ -4,6 +4,7 @@ import {
   Button,
   Dialog,
   FormField,
+  SettingsActions,
   SettingsItem,
   Switch,
   TextInput,
@@ -240,11 +241,11 @@ export function OllamaLocalSettings({
           />
         </div>
         {runtime?.installed ? (
-          <div className="settings-device-code__actions">
+          <SettingsActions>
             <Button size="sm" onClick={onOpenLocalModels}>
               Local models
             </Button>
-          </div>
+          </SettingsActions>
         ) : null}
       </SettingsItem>
 

@@ -3,6 +3,7 @@ import type { ReactElement } from 'react'
 import {
   Button,
   FormField,
+  SettingsActions,
   SettingsItem,
   TextInput,
 } from '@maximal/maximal-electron/renderer'
@@ -119,7 +120,7 @@ export function OllamaApiKeySettings({
             </span>
           )}
         </FormField>
-        <div className="settings-device-code__actions">
+        <SettingsActions>
           <Button size="sm" onClick={onOpenCloudModels}>
             Cloud models
           </Button>
@@ -132,7 +133,7 @@ export function OllamaApiKeySettings({
           <Button size="sm" onClick={onOpenCloudSettings}>
             Cloud settings
           </Button>
-        </div>
+        </SettingsActions>
       </SettingsItem>
 
     </>
