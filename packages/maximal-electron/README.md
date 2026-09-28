@@ -9,7 +9,7 @@ most templates leave out:
    proved correct?
 2. How does an agent work in this repository without breaking it?
 
-Screenshot of the shell: `test-results/shell.png`, after `npm run stills`.
+Reference-shell stills are captured by [`maximal-recording`](../maximal-recording/).
 
 ## What is here
 
@@ -367,13 +367,13 @@ configuration.
 
 ## Demos
 
-The application can drive itself and record the result. `demo/` holds the mp4s
-and stills that produces.
+The optional [`maximal-recording`](../maximal-recording/) package drives the
+reference shell and owns the edit and output directories.
 
 ```bash
-npm run package
-npm run record                  # drive the app, then cut the video
-npm run compose -- workflow     # re-cut, without touching the app
+pnpm --filter @maximal/maximal-recording run build:app
+pnpm --filter @maximal/maximal-recording run record
+pnpm --filter @maximal/maximal-recording run compose -- pipeline-check
 ```
 
 Nothing in the output is a mock. The window is the window `npm start` opens,
@@ -387,7 +387,7 @@ in what order, how long each beat holds, and where it freezes.
 That split is what makes the timing workable. A capture takes about 45 seconds.
 A re-cut takes about 6, and needs no build and no application.
 
-See [docs/recording.md](./docs/recording.md).
+See [recording.md](../maximal-recording/docs/recording.md).
 
 ## Release
 

@@ -36,6 +36,7 @@
     "@maximal/maximal-electron": "workspace:*",
     "@maximal/maximal-harness": "workspace:*",
     "@maximal/maximal-logging": "workspace:*",
+    "@maximal/maximal-recording": "workspace:*",
     "@maximal/maximal-observability": "workspace:*",
     "@maximal/maximal-observability-contract": "workspace:*",
     "@maximal/maximal-ollama": "workspace:*",

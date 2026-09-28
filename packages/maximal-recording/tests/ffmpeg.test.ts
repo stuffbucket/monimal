@@ -12,7 +12,7 @@ import {
   installHint,
   missingMessage,
   requireFfmpeg,
-} from '../src/main/native/ffmpeg.js';
+} from '../src/ffmpeg.js';
 
 /**
  * Stand-in binaries.
@@ -40,8 +40,7 @@ afterAll(() => {
 /**
  * The detection rules.
  *
- * The pure parts are asserted exactly, because they are in the Stryker mutate
- * list. The impure parts are exercised against real commands that every
+ * The pure parts are asserted exactly. The impure parts are exercised against real commands that every
  * machine has, rather than against a mock, so the spawn path is actually
  * covered.
  */

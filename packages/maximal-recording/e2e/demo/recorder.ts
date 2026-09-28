@@ -13,10 +13,10 @@ import { loadEdit } from './edit.js';
  * all belong to the second step, so changing any of them no longer means
  * driving a real `claude` and a real model round trip again.
  *
- * Use `npm run compose` to re-cut without capturing.
+ * Use `pnpm run compose` to re-cut without capturing.
  */
 
-const ROOT = path.resolve(__dirname, '../..');
+const ROOT = path.resolve(import.meta.dirname, '../..');
 
 export { sequence, type SequenceDef, type SequenceContext } from './capture.js';
 export {
