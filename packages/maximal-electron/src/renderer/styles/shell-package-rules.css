@@ -1198,8 +1198,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  width: calc(var(--shell-control-sm) - 2px);
+  height: calc(var(--shell-control-sm) - 2px);
   flex: none;
   border-radius: var(--shell-radius-pill);
   object-fit: cover;
@@ -1210,8 +1210,8 @@
 }
 
 .sb-shell .avatar--lg {
-  width: 32px;
-  height: 32px;
+  width: var(--shell-control-lg);
+  height: var(--shell-control-lg);
   font-size: var(--shell-text-sm);
 }
 
