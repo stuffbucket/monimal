@@ -1,17 +1,31 @@
 export type AgentApproval = 'all' | 'writes' | 'none'
 export type AgentProvider = 'maximal' | 'ollama' | 'embedded'
 
+export interface AgentModelOption {
+  key: string
+  label: string
+  model: string
+  provider: AgentProvider
+}
+
 export type ProviderStatus =
   | { state: 'probing' }
-  | { state: 'ready'; provider: AgentProvider; model: string }
+  | {
+      state: 'ready'
+      provider: AgentProvider
+      model: string
+      modelKey: string
+      models: AgentModelOption[]
+    }
+  | {
+      state: 'select-model'
+      preferredModel?: string
+      models: AgentModelOption[]
+    }
   | { state: 'needs-model'; model: string; approxMb: number }
   | { state: 'unavailable'; reason: string }
 
-export type ModelProgress =
-  | { state: 'absent' }
-  | { state: 'downloading'; received: number; total: number }
-  | { state: 'ready' }
-  | { state: 'error'; reason: string }
+export type { ModelProgress } from '@maximal/maximal-llama-cpp'
 
 export interface AskRequest {
   prompt: string

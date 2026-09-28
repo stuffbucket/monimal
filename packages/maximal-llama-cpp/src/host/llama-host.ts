@@ -1,6 +1,6 @@
 import { utilityProcess, type UtilityProcess } from 'electron';
 
-import { HARNESS_CONFIG, HARNESS_COPY } from '../constants.js';
+import { LLAMA_CONFIG, LLAMA_COPY } from '../constants.js';
 import {
   describeEngineExit,
   exhaustedMessage,
@@ -63,7 +63,7 @@ let lastFailure = '';
 let workerPath: string | undefined;
 
 export function configureLlamaHost(options: { workerPath: string }): void {
-  if (child) throw new Error(HARNESS_COPY.engine.configureWhileRunning);
+  if (child) throw new Error(LLAMA_COPY.engine.configureWhileRunning);
   workerPath = options.workerPath;
 }
 
@@ -93,7 +93,7 @@ type Listener = (event: EngineEvent) => void;
 const listeners = new Map<string, Listener>();
 
 function enginePath(): string {
-  if (!workerPath) throw new Error(HARNESS_COPY.engine.workerPathNotConfigured);
+  if (!workerPath) throw new Error(LLAMA_COPY.engine.workerPathNotConfigured);
   return workerPath;
 }
 
@@ -169,7 +169,7 @@ function engine(): Engine {
   const forked = utilityProcess.fork(enginePath(), [], {
     // Named, so a user looking at Activity Monitor or the Electron task
     // manager sees which child is holding a gigabyte of weights.
-    serviceName: HARNESS_CONFIG.engine.serviceName,
+    serviceName: LLAMA_CONFIG.engine.serviceName,
     stdio: 'pipe',
   });
 

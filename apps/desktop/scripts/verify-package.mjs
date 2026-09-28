@@ -7,11 +7,12 @@ import { fileURLToPath } from 'node:url'
 import { extractFile, listPackage } from '@electron/asar'
 import {
   LLAMA_BACKENDS_VARIABLE,
+  LLAMA_PACKAGE_NAME,
   LLAMA_WORKER_FILENAME,
   llamaPackagePlan,
   parseLlamaBackends,
-} from '@maximal/maximal-harness/packaging'
-import { llamaPackageChecks } from '@maximal/maximal-harness/verify'
+} from '@maximal/maximal-llama-cpp/packaging'
+import { llamaPackageChecks } from '@maximal/maximal-llama-cpp/verify'
 import { terminalPackageChecks } from '@maximal/maximal-electron/verify'
 
 import {
@@ -21,7 +22,7 @@ import {
 } from './package-contract.mjs'
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..')
-const EXTERNAL_MODULES = ['node-pty', 'node-llama-cpp']
+const EXTERNAL_CLOSURE_ROOTS = ['node-pty', LLAMA_PACKAGE_NAME]
 const LLAMA_SCOPE = 'node_modules/@node-llama-cpp'
 const failures = []
 
@@ -164,8 +165,8 @@ const workspaceRoot = (() => {
 })()
 const resolution = { boundary: workspaceRoot }
 const nodeModules = path.join(ROOT, 'node_modules')
-const closure = externalClosure(IO, nodeModules, EXTERNAL_MODULES, resolution)
-const hoisted = hoistedDependencies(IO, nodeModules, EXTERNAL_MODULES, resolution)
+const closure = externalClosure(IO, nodeModules, EXTERNAL_CLOSURE_ROOTS, resolution)
+const hoisted = hoistedDependencies(IO, nodeModules, EXTERNAL_CLOSURE_ROOTS, resolution)
 
 const scopeEntries = closure.filter(({ name }) => name.startsWith('@node-llama-cpp/'))
 const installed = scopeEntries.map(({ name }) => name.slice('@node-llama-cpp/'.length))

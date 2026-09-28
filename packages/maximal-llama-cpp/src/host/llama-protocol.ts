@@ -1,8 +1,8 @@
 import type { ModelProgress } from '../contracts.js';
 import {
   ENGINE_PHASE_DETAIL,
-  HARNESS_CONFIG,
-  HARNESS_COPY,
+  LLAMA_CONFIG,
+  LLAMA_COPY,
   POSIX_ENGINE_FAULTS,
   SIGBUS_BY_PLATFORM,
   WINDOWS_ENGINE_FAULTS,
@@ -18,7 +18,7 @@ import {
  * every terminal session with it. Issue #133.
  *
  * This module imports nothing that needs Electron, so it is mutation tested.
- * `llama-host.ts` owns the child, and `src/main/workers/llama-worker.ts` is the child.
+ * `llama-host.ts` owns the child, and the package's worker entry is the child.
  */
 
 /** A tool the engine may offer the model. Structured-clonable: no functions. */
@@ -95,7 +95,7 @@ export function parseEngineEvent(value: unknown): EngineEvent | undefined {
  * The id `hello` carries. It belongs to the engine rather than to any one
  * operation, so the supervisor intercepts it instead of routing it.
  */
-export const ENGINE_LIFECYCLE = HARNESS_CONFIG.engine.lifecycleId;
+export const ENGINE_LIFECYCLE = LLAMA_CONFIG.engine.lifecycleId;
 
 /* -------------------------------------------------------- how it went down */
 
@@ -148,21 +148,21 @@ export function faultName(code: number, platform: string): string | undefined {
  * user cannot see is only marginally better than one that takes the app.
  */
 export function describeEngineExit(code: number, platform: string): string {
-  if (code === 0) return HARNESS_COPY.engine.cleanStop;
+  if (code === 0) return LLAMA_COPY.engine.cleanStop;
 
   const fault = faultName(code, platform);
   if (fault === undefined) {
-    return HARNESS_COPY.engine.exited(code);
+    return LLAMA_COPY.engine.exited(code);
   }
-  return HARNESS_COPY.engine.crashed(fault);
+  return LLAMA_COPY.engine.crashed(fault);
 }
 
 /* ---------------------------------------------------------- restart budget */
 /** How long a crash counts against the budget. */
-export const CRASH_WINDOW_MS = HARNESS_CONFIG.engine.crashWindowMs;
+export const CRASH_WINDOW_MS = LLAMA_CONFIG.engine.crashWindowMs;
 
 /** Crashes allowed inside that window before the engine stops being restarted. */
-export const CRASH_LIMIT = HARNESS_CONFIG.engine.crashLimit;
+export const CRASH_LIMIT = LLAMA_CONFIG.engine.crashLimit;
 
 /** Crash times still inside the window, oldest first. */
 export function recentCrashes(times: readonly number[], now: number): number[] {
@@ -183,7 +183,7 @@ export function mayRestart(times: readonly number[], now: number): boolean {
 
 /** What to say once the budget is spent. */
 export function exhaustedMessage(last: string): string {
-  return HARNESS_COPY.engine.exhausted(last, CRASH_LIMIT);
+  return LLAMA_COPY.engine.exhausted(last, CRASH_LIMIT);
 }
 
 /* --------------------------------------------------------- where it got to */
@@ -236,9 +236,9 @@ export function describeEngineWait(phase: EnginePhase, ms: number): string {
  * module, so it holds its own copies of these strings.
  * `tests/llama-protocol.test.ts` asserts they match.
  */
-export const LLAMA_CHECK_FLAG = HARNESS_COPY.selfCheck.flag;
-export const LLAMA_CHECK_OK = HARNESS_COPY.selfCheck.ok;
-export const LLAMA_CHECK_FAILED = HARNESS_COPY.selfCheck.failed;
+export const LLAMA_CHECK_FLAG = LLAMA_COPY.selfCheck.flag;
+export const LLAMA_CHECK_OK = LLAMA_COPY.selfCheck.ok;
+export const LLAMA_CHECK_FAILED = LLAMA_COPY.selfCheck.failed;
 
 /**
  * The failure that means the engine started and could not load the library.
@@ -249,7 +249,7 @@ export const LLAMA_CHECK_FAILED = HARNESS_COPY.selfCheck.failed;
  * the "failed for the wrong reason" case `.claude/skills/write-a-check` ends
  * on. Naming the branch is what tells the two apart.
  */
-export const LLAMA_NO_LIBRARY = HARNESS_COPY.selfCheck.noLibrary;
+export const LLAMA_NO_LIBRARY = LLAMA_COPY.selfCheck.noLibrary;
 
 export type LlamaCheckResult =
   | { ok: true; device: string; loadMs: number; releasedBy: string; survived: string }
@@ -274,8 +274,8 @@ export function llamaCheckRequested(argv: readonly string[]): boolean {
  */
 export function engineCheckTimeoutMs(platform: string): number {
   return platform === 'win32'
-    ? HARNESS_CONFIG.engine.checkTimeoutMs.win32
-    : HARNESS_CONFIG.engine.checkTimeoutMs.default;
+    ? LLAMA_CONFIG.engine.checkTimeoutMs.win32
+    : LLAMA_CONFIG.engine.checkTimeoutMs.default;
 }
 
 /**

@@ -17,7 +17,7 @@
  * schema that is subtly wrong. A dropped tool is visible. A misdescribed one
  * produces arguments that pass the grammar and fail the real validator.
  *
- * Pure, and free of `electron`, so it is in the stryker mutate list.
+ * Pure and free of `electron`, so it can be mutation tested independently.
  */
 
 /** The shape llama.cpp accepts. Loose on purpose: it is a foreign dialect. */

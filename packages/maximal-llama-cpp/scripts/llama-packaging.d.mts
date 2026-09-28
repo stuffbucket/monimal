@@ -1,5 +1,7 @@
 export declare const OPTIONAL_LLAMA_BACKENDS: readonly string[];
 export declare const LLAMA_BACKENDS_VARIABLE: string;
+export declare const LLAMA_EXTERNAL_MODULES: readonly string[];
+export declare const LLAMA_PACKAGE_NAME: string;
 export declare const LLAMA_WORKER_FILENAME: string;
 export declare const LLAMA_SOURCE_INPUTS: readonly string[];
 

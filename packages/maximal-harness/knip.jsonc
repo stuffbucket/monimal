@@ -5,14 +5,9 @@
     "src/index.ts",
     "src/host/index.ts",
     "src/renderer/index.ts",
-    "src/worker/index.ts",
     "scripts/*.mjs",
     "tests/**/*.test.{ts,tsx}"
   ],
   "project": ["src/**/*.{ts,tsx}", "scripts/**/*.mjs", "tests/**/*.{ts,tsx}"],
-  "ignoreDependencies": [
-    // A peer the worker loads; the dev copy only lets local builds resolve it.
-    "node-llama-cpp"
-  ],
   "ignoreExportsUsedInFile": true
 }

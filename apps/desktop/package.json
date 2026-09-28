@@ -35,6 +35,7 @@
     "@maximal/maximal-core-contract": "workspace:*",
     "@maximal/maximal-electron": "workspace:*",
     "@maximal/maximal-harness": "workspace:*",
+    "@maximal/maximal-llama-cpp": "workspace:*",
     "@maximal/maximal-logging": "workspace:*",
     "@maximal/maximal-recording": "workspace:*",
     "@maximal/maximal-observability": "workspace:*",
@@ -42,7 +43,6 @@
     "@maximal/maximal-ollama": "workspace:*",
     "@maximal/maximal-settings": "workspace:*",
     "@maximal/maximal-terminal": "workspace:*",
-    "node-llama-cpp": "3.20.0",
     "node-pty": "1.2.0-beta.15",
     "zod": "^4.5.4"
   },

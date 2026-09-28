@@ -1,1 +1,1 @@
-import '@maximal/maximal-harness/worker'
+import '@maximal/maximal-llama-cpp/worker'
