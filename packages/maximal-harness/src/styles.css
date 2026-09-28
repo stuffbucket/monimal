@@ -3,8 +3,8 @@
 /*
  * The floating overlay.
  *
- * The window is transparent and full screen. The dim and the mh-card are drawn
- * here rather than natively, which is the split stuffbucket/wiggle uses.
+ * The window is transparent and bounded to the assistant card. The rest of
+ * the desktop remains visible and interactive.
  */
 
 @layer sb-shell.base {
@@ -22,33 +22,17 @@ body,
     var(--shell-font);
   color: var(--shell-text);
   -webkit-font-smoothing: antialiased;
-  /* The whole surface is a dismiss target, so no text selection anywhere. */
   user-select: none;
   cursor: default;
 }
 
-.mh-scrim {
-  position: fixed;
-  inset: 0;
-  background: var(--shell-scrim, color-mix(in srgb, var(--shell-text) 34%, transparent));
-  animation: mh-scrim-in 140ms ease-out;
-}
-
 /*
- * The mh-card places itself.
- *
- * It used to be a flex child of `.mh-scrim`. Radix portals the dialog content as
- * a sibling of the overlay rather than a descendant, so the mh-scrim can no
- * longer position it. Same result, stated directly: wiggle drops the mh-card near
- * the bottom of the focused monitor.
+ * The native window owns placement; the card fills it with a transparent edge
+ * for its shadow.
  */
 .mh-card {
   position: fixed;
-  bottom: 18vh;
-  left: 50%;
-  transform: translateX(-50%);
-  width: min(680px, 82vw);
-  max-height: 80vh;
+  inset: 12px;
   display: flex;
   flex-direction: column;
   gap: var(--shell-space-3, 12px);
@@ -264,11 +248,7 @@ body,
   flex: none;
 }
 
-@keyframes mh-scrim-in {
-  from {
-    opacity: 0;
-  }
-}
+
 
 /* The mh-card is centred by `translateX(-50%)`, so the animation has to carry
    that through or it jumps sideways on the first frame. */

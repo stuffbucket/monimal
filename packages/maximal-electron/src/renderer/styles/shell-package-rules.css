@@ -1194,6 +1194,80 @@
   border-bottom: 1px solid var(--shell-border);
 }
 
+.sb-shell .avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex: none;
+  border-radius: var(--shell-radius-pill);
+  object-fit: cover;
+  font-size: var(--shell-text-xs);
+  font-weight: var(--shell-weight-lg);
+  letter-spacing: 0;
+  user-select: none;
+}
+
+.sb-shell .avatar--lg {
+  width: 32px;
+  height: 32px;
+  font-size: var(--shell-text-sm);
+}
+
+.sb-shell .avatar--initials {
+  color: var(--shell-accent-contrast, var(--shell-text));
+  background: var(--shell-accent);
+}
+
+.sb-shell .avatar--anon {
+  color: var(--shell-text-muted);
+  background: var(--shell-raised);
+  border: 1px solid var(--shell-border-strong, var(--shell-border));
+}
+
+.sb-shell .profile__identity {
+  display: flex;
+  align-items: center;
+  gap: var(--shell-space-2);
+  max-width: 260px;
+}
+
+.sb-shell .profile__lines {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.sb-shell .profile__name {
+  color: var(--shell-text);
+  overflow: hidden;
+  font-size: var(--shell-text-sm);
+  font-weight: var(--shell-weight-md);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sb-shell .profile__handle {
+  color: var(--shell-text-muted);
+  overflow: hidden;
+  font-size: var(--shell-text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sb-shell .profile__plan {
+  padding: 2px var(--shell-space-2);
+  margin-left: auto;
+  flex: none;
+  color: var(--shell-text-muted);
+  background: var(--shell-raised);
+  border-radius: var(--shell-radius-pill);
+  font-size: var(--shell-text-xs);
+  font-weight: var(--shell-weight-md);
+  white-space: nowrap;
+}
+
 /* A quiet scrollbar on the three surfaces that scroll. The default one is
    sized and coloured for a document. */
 .sb-shell .canvas,
