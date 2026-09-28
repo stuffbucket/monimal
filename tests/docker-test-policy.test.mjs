@@ -817,6 +817,10 @@ test("root automation schedules Docker and keeps CodeQL lean and pinned", () => 
     dependabot,
     /package-ecosystem: docker[\s\S]*?ignore:\n      - dependency-name: node\n        update-types:\n          - version-update:semver-major/,
   );
+  assert.match(
+    dependabot,
+    /npm-major-runtime:[\s\S]*?patterns:[\s\S]*?          - "srvx"[\s\S]*?update-types:\n          - major/,
+  );
   assert.doesNotMatch(rootWorkflows, /runs-on: ubuntu-latest/);
   for (const reference of rootWorkflows.matchAll(/uses: ([^\s#]+)/g)) {
     if (reference[1]?.startsWith("./")) continue;
