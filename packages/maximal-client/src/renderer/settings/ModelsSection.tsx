@@ -4,7 +4,7 @@ import {
   Button,
   ModelCardGrid,
   Note,
-  SettingsSection,
+  SettingsActions,
   type ModelCard,
 } from '@maximal/maximal-electron/renderer'
 
@@ -15,7 +15,7 @@ import type {
 import { describeError } from '../shared/errors'
 import { formatTimestamp } from '../shared/format'
 import { useSettingsHeaderActions } from './header-actions'
-import { ServiceIcon } from './service-icons'
+import { AccountAvatar } from './service-icons'
 
 interface ModelsSectionProps {
   capabilities: SettingsCapabilities
@@ -45,38 +45,6 @@ function providerStatusUrl(provider: string): string | null {
     return 'https://status.cloud.google.com/'
   }
   return null
-}
-
-function ProviderAvatar({ provider }: { provider: string }): ReactElement {
-  return (
-    <span
-      title={`${provider} provider`}
-      aria-label={`${provider} provider`}
-      style={{
-        alignItems: 'center',
-        background: 'var(--surface-raised, transparent)',
-        border: '1px solid color-mix(in srgb, currentColor 20%, transparent)',
-        borderRadius: '50%',
-        display: 'inline-flex',
-        height: 30,
-        justifyContent: 'center',
-        padding: 5,
-        width: 30,
-      }}
-    >
-      <ServiceIcon provider={provider} size={20} />
-    </span>
-  )
-}
-
-function ProviderAvatars({ providers }: { providers: string[] }): ReactElement {
-  return (
-    <span style={{ alignItems: 'center', display: 'inline-flex', gap: 8, padding: '2px 4px' }}>
-      {providers.map((provider) => (
-        <ProviderAvatar key={provider} provider={provider} />
-      ))}
-    </span>
-  )
 }
 
 function modelCards(models: ModelsListResponse['models']): ModelCard[] {
@@ -188,39 +156,37 @@ export function ModelsSection({ capabilities }: ModelsSectionProps): ReactElemen
         <Note live="polite">Loading model catalogue…</Note>
       ) : (
         <>
-          <SettingsSection title="Cloud Models">
-            <ProviderAvatars providers={cloudProviders} />
-            {catalogue.loaded_at ? (
-              <span
-                title={catalogueIsStale ? 'This catalogue predates the current Maximal session' : undefined}
-                style={catalogueIsStale ? {
-                  background: 'color-mix(in srgb, #d29922 18%, transparent)',
-                  border: '1px solid color-mix(in srgb, #d29922 55%, transparent)',
-                  borderRadius: 6,
-                  padding: '2px 6px',
-                } : undefined}
-              >
-                <Note>{catalogueIsStale ? 'Stale · ' : ''}Updated {formatTimestamp(catalogue.loaded_at)}</Note>
-              </span>
-            ) : null}
-            {cloudCards.length > 0 ? (
-              <ModelCardGrid models={cloudCards} />
-            ) : (
-              <Note>No cloud models are currently available.</Note>
-            )}
-            {cloudProviders.some((provider) => providerStatusUrl(provider)) ? (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 12 }}>
-                {cloudProviders.map((provider) => {
-                  const statusUrl = providerStatusUrl(provider)
-                  return statusUrl ? (
-                    <a key={provider} href={statusUrl} rel="noreferrer" target="_blank">
-                      {provider} service status
-                    </a>
-                  ) : null
-                })}
-              </div>
-            ) : null}
-          </SettingsSection>
+          {catalogue.loaded_at ? (
+            <Note>
+              {catalogueIsStale ? 'Stale · ' : ''}Updated {formatTimestamp(catalogue.loaded_at)}
+            </Note>
+          ) : null}
+          {cloudCards.length > 0 ? (
+            <ModelCardGrid
+              models={cloudCards}
+              renderProviderAvatar={(provider) => (
+                <AccountAvatar
+                  account={{ provider, login: provider }}
+                  size={30}
+                  testId={`model-provider-${provider.toLowerCase().replaceAll(' ', '-')}`}
+                />
+              )}
+            />
+          ) : (
+            <Note>No cloud models are currently available.</Note>
+          )}
+          {cloudProviders.some((provider) => providerStatusUrl(provider)) ? (
+            <SettingsActions>
+              {cloudProviders.map((provider) => {
+                const statusUrl = providerStatusUrl(provider)
+                return statusUrl ? (
+                  <a key={provider} href={statusUrl} rel="noreferrer" target="_blank">
+                    {provider} service status
+                  </a>
+                ) : null
+              })}
+            </SettingsActions>
+          ) : null}
         </>
       )}
     </section>

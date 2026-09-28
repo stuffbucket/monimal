@@ -29,6 +29,24 @@ const catalogue: ModelsListResponse = {
       },
     },
     {
+      id: 'gpt-5',
+      name: 'GPT-5',
+      vendor: 'GitHub Copilot',
+      family: 'gpt',
+      type: 'chat',
+      preview: false,
+      context_window_tokens: 128_000,
+      max_output_tokens: 32_000,
+      capabilities: {
+        vision: true,
+        image_generation: false,
+        video_generation: false,
+        tool_calls: true,
+        streaming: true,
+        reasoning: true,
+      },
+    },
+    {
       id: 'image-model',
       name: 'Image model',
       vendor: 'Ollama',
@@ -47,7 +65,7 @@ const catalogue: ModelsListResponse = {
       },
     },
   ],
-  count: 2,
+  count: 3,
   loaded_at: null,
 }
 
@@ -97,16 +115,21 @@ describe('ModelsSection', () => {
     const { capabilities } = fakeCapabilities(async () => catalogue)
     const surface = await renderModels(capabilities)
 
-    expect(surface.querySelector('h2')?.textContent).toBe('Cloud Models')
+    expect(surface.querySelector('h2')?.textContent).toBe('Chat models (2)')
     expect([...surface.querySelectorAll('.settings__section-title')].map(
       (heading) => heading.textContent,
-    )).toEqual(['Cloud Models', 'Chat models (1)', 'Image models (1)'])
-    expect(surface.querySelectorAll('.model-card')).toHaveLength(2)
+    )).toEqual(['Chat models (2)', 'Image models (1)'])
+    expect(surface.querySelectorAll('.model-card')).toHaveLength(3)
     expect(surface.textContent).toContain('Claude Opus 5')
     expect(surface.textContent).toContain('claude-opus-5')
     expect(surface.textContent).toContain('1.0M')
     expect(surface.textContent).toContain('Tools')
     expect(surface.textContent).toContain('Image generation')
+    expect(surface.querySelector('[data-testid="model-provider-anthropic"]')).not.toBeNull()
+    expect(surface.querySelector('[data-testid="model-provider-github-copilot"]')).not.toBeNull()
+    expect(surface.querySelector('[data-testid="model-provider-ollama"]')).not.toBeNull()
+    expect(surface.querySelector('[data-testid="service-icon-github"]')).not.toBeNull()
+    expect(surface.querySelector('[data-testid="service-icon-ollama"]')).not.toBeNull()
   })
 
   it('shows loading, empty, and error states', async () => {
@@ -141,7 +164,7 @@ describe('ModelsSection', () => {
 
   it('refreshes the model-card grid', async () => {
     const initial = { ...catalogue, models: [catalogue.models[0]], count: 1 }
-    const refreshed = { ...catalogue, models: [catalogue.models[1]], count: 1 }
+    const refreshed = { ...catalogue, models: [catalogue.models[2]], count: 1 }
     const { capabilities, models } = fakeCapabilities(async () => initial)
     models.refresh.mockResolvedValue(refreshed)
     const surface = await renderModels(capabilities)

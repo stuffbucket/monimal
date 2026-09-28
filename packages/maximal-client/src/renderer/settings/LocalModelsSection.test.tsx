@@ -20,6 +20,11 @@ globalThis.ResizeObserver = NoopResizeObserver
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 
 const OLLAMA_ENDPOINT = 'http://127.0.0.1:11434'
+const MAXIMAL_ENDPOINT = (() => {
+  const endpoint = new URL(OLLAMA_ENDPOINT)
+  endpoint.port = '4141'
+  return endpoint.toString().replace(/\/$/u, '')
+})()
 
 const catalogue: LocalModelCatalogSnapshot = {
   revision: 1,
@@ -131,6 +136,9 @@ function fakeCapabilities(initial: LocalModelCatalogSnapshot = catalogue) {
       localModels,
       ollamaRuntime,
       ollamaSettings,
+      connection: {
+        proxyUrl: vi.fn(async () => MAXIMAL_ENDPOINT),
+      },
     } as unknown as SettingsCapabilities,
     emit: (event: LocalModelOperationEvent) => listener(event),
     localModels,
@@ -170,11 +178,10 @@ describe('LocalModelsSection', () => {
     expect(surface.querySelector('h1')).toBeNull()
     expect(surface.textContent).toContain('Qwen3 0.6B Q8')
     expect(surface.textContent).toContain('qwen3-0.6b')
-    expect(surface.textContent).toContain('GGUF')
-    expect(surface.textContent).toContain('registered')
-    expect(surface.textContent).toContain('Published by its configured provider')
     expect(surface.textContent).toContain('Installed, not running')
-    expect(surface.textContent).toContain('Models hosted by Maximal')
+    expect(surface.textContent).toContain('Enabled · Running · Maximal')
+    expect(surface.textContent).toContain('Available models')
+    expect(surface.textContent).toContain('Chat models (1)')
     expect(surface.textContent).not.toContain('/models/')
 
     await act(async () => button(surface, 'Open models folder').click())
@@ -286,6 +293,7 @@ describe('LocalModelsSection', () => {
     expect(ollamaSettings.update).toHaveBeenCalledWith({ local_enabled: false })
     expect(toggle.textContent).toBe('')
     expect(toggle.getAttribute('aria-label')).toBe('Enable provider')
+    expect(surface.textContent).toContain('Disabled · Installed, not running · Ollama')
 
     const pollingCall = setInterval.mock.calls.find(([, delay]) => delay === 3000)
     const poll = pollingCall?.[0]
@@ -294,7 +302,28 @@ describe('LocalModelsSection', () => {
       poll()
       await Promise.resolve()
     })
+
     expect(ollamaRuntime.status).toHaveBeenCalledTimes(2)
+  })
+
+  it('mirrors provider status and controls for Maximal', async () => {
+    const { capabilities } = fakeCapabilities()
+    const surface = await renderLocalModels(capabilities)
+    const toggle = surface.querySelector<HTMLButtonElement>(
+      '[data-testid="local-models-enable-maximal"]',
+    )
+    if (toggle === null) throw new Error('Maximal provider toggle was not rendered')
+
+    expect(surface.textContent).toContain('Enabled · Running · Maximal')
+    expect(surface.textContent).toContain(MAXIMAL_ENDPOINT)
+    expect(surface.textContent).toContain('Maximal llama.cpp runtime')
+    expect(surface.textContent).toContain('32,768')
+
+    act(() => toggle.click())
+
+    expect(toggle.getAttribute('aria-label')).toBe('Enable provider')
+    expect(surface.textContent).toContain('Disabled · Running · Maximal')
+    expect(button(surface, 'Download').disabled).toBe(true)
   })
 
   it('uses the shared left-aligned action row below runtime details', async () => {

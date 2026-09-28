@@ -1,6 +1,6 @@
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { Cpu, RefreshCw } from 'lucide-react';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 
 import { useComponentStyles } from '../../lib/component-styles.js';
 import { fill, useShellContent } from '../../lib/content.js';
@@ -179,7 +179,6 @@ const MODEL_CARD_STYLES = `
   flex-wrap: wrap;
   gap: var(--shell-space-1);
 }
-}
 
 @media (prefers-reduced-motion: reduce) {
   .sb-shell .model-card {
@@ -207,6 +206,19 @@ const MODEL_CARD_STYLES = `
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.sb-shell .model-card__provider {
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+.sb-shell .model-card__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: var(--shell-space-2);
 }
 
 .sb-shell .model-card__id {
@@ -256,8 +268,12 @@ const MODEL_CARD_STYLES = `
 /** A read-only model catalogue grouped by model type. */
 export function ModelCardGrid({
   models,
+  renderProviderAvatar,
+  renderActions,
 }: {
   models: ModelCard[];
+  renderProviderAvatar?: (provider: string) => ReactNode;
+  renderActions?: (model: ModelCard) => ReactNode;
 }) {
   useComponentStyles('model-cards', MODEL_CARD_STYLES);
   const [mode, setMode] = useState<ViewMode>('grid');
@@ -298,6 +314,11 @@ export function ModelCardGrid({
                 <header className="model-card__head">
                   <h3 className="model-card__name">{model.name}</h3>
                   {model.preview === true && <Tag>{content.preview}</Tag>}
+                  {model.provider !== undefined && renderProviderAvatar !== undefined ? (
+                    <span className="model-card__provider">
+                      {renderProviderAvatar(model.provider)}
+                    </span>
+                  ) : null}
                 </header>
                 <p className="model-card__id">{model.id}</p>
 
@@ -318,6 +339,11 @@ export function ModelCardGrid({
                   ))}
                   {capabilityLabels(model.capabilities).length === 0 && NO_VALUE}
                 </p>
+                {renderActions !== undefined ? (
+                  <div className="model-card__actions">
+                    {renderActions(model)}
+                  </div>
+                ) : null}
               </article>
             );
           })}

@@ -43,6 +43,7 @@ export function LocalModelsSection({
       ) : null}
       <OllamaProviderSection capabilities={capabilities} provider={ollama} />
       <MaximalModelsSection
+        capabilities={capabilities}
         catalogue={catalogue.catalogue}
         operations={catalogue.operations}
         onCancel={(modelKey, operationId) =>

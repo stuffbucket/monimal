@@ -23,6 +23,8 @@ export function OllamaProviderSection({
   const { runtime, settings } = provider;
   const providerToggleLabel =
     settings?.local_enabled === false ? "Enable provider" : "Disable provider";
+  const providerStatus =
+    settings?.local_enabled === false ? "Disabled" : "Enabled";
 
   return (
     <SettingsSection
@@ -33,8 +35,8 @@ export function OllamaProviderSection({
           title="Runtime status"
           description={
             provider.endpointLocation === null
-              ? provider.status
-              : `${provider.status} · ${provider.endpointLocation}`
+              ? `${providerStatus} · ${provider.status} · Ollama`
+              : `${providerStatus} · ${provider.status} · Ollama · ${provider.endpointLocation}`
           }
           actions={
             settings && runtime?.installed ? (
