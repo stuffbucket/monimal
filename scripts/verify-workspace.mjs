@@ -128,16 +128,14 @@ check(
 //    invisible under isolated linking -- failing one package at a time, which
 //    reads as unrelated breakage.
 const RADIX_TRANSITIVES = ["@radix-ui/react-primitive", "react-remove-scroll"];
-const rendererEntry = path.join(
+const rendererSourceEntry = path.join(
   ROOT,
-  "packages/maximal-client/node_modules/@maximal/maximal-electron/dist/renderer/index.js",
+  "packages/maximal-client/node_modules/@maximal/maximal-electron/src/renderer/index.ts",
 );
-const rendererBuilt = existsSync(rendererEntry);
 check(
-  rendererBuilt &&
-    RADIX_TRANSITIVES.every(
-      (specifier) => resolvesFrom(rendererEntry, specifier) !== null,
-    ),
+  RADIX_TRANSITIVES.every(
+    (specifier) => resolvesFrom(rendererSourceEntry, specifier) !== null,
+  ),
   "Radix transitive deps resolve through the symlink path",
   { count: RADIX_TRANSITIVES.length, of: "radix transitive deps" },
 );
