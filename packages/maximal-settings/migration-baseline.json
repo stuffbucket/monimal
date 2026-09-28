@@ -62,7 +62,7 @@
     "packages/maximal-core/src/services/providers/ollama-settings.ts::environment:OLLAMA_API_KEY": 1,
     "packages/maximal-core/src/services/providers/provider-dispatcher.ts::environment:OLLAMA_API_KEY": 1,
     "packages/maximal-electron/src/main/native/app-icon.ts::environment:STUFFBUCKET_ICON_DIR": 1,
-    "packages/maximal-electron/src/main/native/ffmpeg.ts::environment:*": 2,
+    "packages/maximal-recording/src/ffmpeg.ts::environment:*": 2,
     "packages/maximal-electron/src/main/native/preferences.ts::environment:STUFFBUCKET_E2E": 1,
     "packages/maximal-electron/src/main/native/preferences.ts::environment:STUFFBUCKET_E2E_VISIBLE": 1,
     "packages/maximal-electron/src/main/native/preferences.ts::settings-file": 1,
