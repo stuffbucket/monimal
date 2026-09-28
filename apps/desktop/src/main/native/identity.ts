@@ -49,6 +49,9 @@ export interface MenuCallbacks {
    * itself with nothing in particular selected.
    */
   onOpenSettings?: (sectionId: SettingsSectionId | null) => void
+  /** Toggle an explicitly user-started recording of the main window. */
+  onToggleRecording?: () => void
+  isRecording?: boolean
 }
 
 /**
@@ -74,7 +77,7 @@ export interface MenuCallbacks {
  */
 export function installApplicationMenu(callbacks: MenuCallbacks = {}): void {
   const isMac = process.platform === 'darwin'
-  const { onCheckForUpdates, onOpenLicenses, onOpenSettings } = callbacks
+  const { onCheckForUpdates, onOpenLicenses, onOpenSettings, onToggleRecording, isRecording } = callbacks
 
   const openLicenses = () => () => {
     onOpenLicenses?.()
@@ -159,7 +162,15 @@ export function installApplicationMenu(callbacks: MenuCallbacks = {}): void {
       : []),
     {
       label: 'File',
-      submenu: [isMac ? { role: 'close' } : { role: 'quit' }],
+      submenu: [
+        {
+          label: isRecording ? 'Stop Window Recording' : 'Record Window…',
+          enabled: onToggleRecording !== undefined,
+          click: () => onToggleRecording?.(),
+        },
+        { type: 'separator' },
+        isMac ? { role: 'close' } : { role: 'quit' },
+      ],
     },
     { role: 'editMenu' },
     { role: 'viewMenu' },

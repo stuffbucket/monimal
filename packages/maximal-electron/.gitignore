@@ -14,7 +14,6 @@ coverage/
 
 .stryker-tmp/
 reports/
-demo/takes/
 
 # Agent worktrees. Whole copies of this repository, created per task.
 .claude/worktrees/

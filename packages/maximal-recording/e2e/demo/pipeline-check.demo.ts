@@ -1,5 +1,10 @@
 import { expect, test } from '@playwright/test';
-import { closeApp, launchApp, resetShell, type Harness } from '../harness.js';
+import {
+  closeApp,
+  launchApp,
+  resetShell,
+  type Harness,
+} from '../../../maximal-electron/e2e/harness.js';
 import { record, sequence } from './recorder.js';
 
 /**
@@ -10,7 +15,7 @@ import { record, sequence } from './recorder.js';
  * the pipeline end to end: pacing rules, capture, dips between scenes, and the
  * encode. It doubles as a short tour of the application.
  *
- * Run it with `npm run record`, not with `npm run test:e2e`. The file name
+ * Run it with `pnpm run record`, not with the Electron test suite. The file name
  * ends in `.demo.ts` so the ordinary end-to-end run never picks it up.
  */
 
@@ -92,8 +97,12 @@ test('records a demonstration of the shell', async () => {
           note: 'xterm over a native pseudo terminal',
           async drive({ shell }) {
             await shell.click('[data-testid="tab-new"]');
+            await shell.getByTestId('terminal-launcher').getByRole('button', {
+              name: 'Local',
+              exact: true,
+            }).click();
             const terminal = shell.locator('[data-testid="terminal"]').last();
-            await expect(terminal.locator('canvas').first()).toBeVisible({
+            await expect(terminal.getByRole('textbox', { name: 'Terminal input' })).toBeVisible({
               timeout: 30_000,
             });
             await terminal.click();

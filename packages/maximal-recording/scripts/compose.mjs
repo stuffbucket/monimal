@@ -9,14 +9,14 @@
  *
  * Capture the frames first, once:
  *
- *   npm run package && npm run record
+ *   pnpm run build:app && pnpm run record
  *
  * Then re-cut as often as you like:
  *
- *   npm run compose                 every edit that has a take
- *   npm run compose -- pipeline-check     one of them
+ *   pnpm run compose                 every edit that has a take
+ *   pnpm run compose -- pipeline-check     one of them
  *
- * `ffmpeg` and `ffprobe` have to be installed. `src/main/native/ffmpeg.ts`
+ * `ffmpeg` and `ffprobe` have to be installed. `src/ffmpeg.ts`
  * owns that search and says what to do when they are missing.
  */
 

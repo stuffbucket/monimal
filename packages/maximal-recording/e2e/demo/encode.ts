@@ -65,7 +65,7 @@ export interface ProbeResult {
 /**
  * Where the encoder is.
  *
- * The search lives in `src/main/native/ffmpeg.ts`, and the recorder's global
+ * The search lives in `src/ffmpeg.ts`, and the recorder's global
  * setup runs it once before any test and pins the answers into `FFMPEG` and
  * `FFPROBE`. So this reads the result rather than searching a second time, and
  * the recorder and the application can never disagree about which binary they

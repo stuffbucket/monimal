@@ -13,9 +13,9 @@
  *
  * The output is also not stable enough to diff for equality. Three runs over
  * identical code produced two different canvas layouts. See "A still is not an
- * oracle" in AGENTS.md before using these images to prove anything.
+ * oracle" in maximal-electron/docs/testing.md before using these images to prove anything.
  *
- * Run `npm run package` first. The suite drives the built bundles.
+ * Run `pnpm run build:app` first. The suite drives the built bundles.
  */
 
 import { spawn } from 'node:child_process';

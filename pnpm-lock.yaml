@@ -64,6 +64,9 @@ importers:
       '@maximal/maximal-ollama':
         specifier: workspace:*
         version: link:../../packages/maximal-ollama
+      '@maximal/maximal-recording':
+        specifier: workspace:*
+        version: link:../../packages/maximal-recording
       '@maximal/maximal-settings':
         specifier: workspace:*
         version: link:../../packages/maximal-settings
@@ -1047,6 +1050,34 @@ importers:
       '@typescript/native':
         specifier: npm:typescript@^7.0.2
         version: typescript@7.0.2
+      eslint:
+        specifier: ^10.9.1
+        version: 10.9.1(jiti@2.7.0)(supports-color@8.1.1)
+      typescript:
+        specifier: npm:@typescript/typescript6@^6.0.2
+        version: '@typescript/typescript6@6.0.2'
+      vitest:
+        specifier: ^5.0.1
+        version: 5.0.1(@opentelemetry/api@1.9.0)(@types/node@26.4.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))
+
+  packages/maximal-recording:
+    dependencies:
+      '@maximal/maximal-electron':
+        specifier: workspace:*
+        version: link:../maximal-electron
+    devDependencies:
+      '@maximal/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@playwright/test':
+        specifier: ^1.62.0
+        version: 1.62.1
+      '@types/node':
+        specifier: ^26.4.0
+        version: 26.4.0
+      electron:
+        specifier: 44.1.0
+        version: 44.1.0(supports-color@8.1.1)
       eslint:
         specifier: ^10.9.1
         version: 10.9.1(jiti@2.7.0)(supports-color@8.1.1)

@@ -1,11 +1,17 @@
 import { expect, test } from '@playwright/test';
 
-import { capture, closeApp, launchApp, resetShell, type Harness } from './harness.js';
+import {
+  capture,
+  closeApp,
+  launchApp,
+  resetShell,
+  type Harness,
+} from '../../maximal-electron/e2e/harness.js';
 
 /**
  * Reference images of the production shell.
  *
- * A developer tool. `npm run stills` produces these; nothing in CI does, and
+ * A developer tool. `pnpm run stills` produces these; nothing in CI does, and
  * nothing fails because one of them is wrong. They exist for the README and
  * for looking at a change, which is a different job from proving one.
  *
@@ -26,6 +32,7 @@ test.beforeEach(async () => {
 });
 
 test.afterAll(async () => {
+  await resetShell(harness);
   await closeApp(harness);
 });
 
@@ -40,8 +47,12 @@ test('a terminal', async () => {
   const { window } = harness;
 
   await window.click('[data-testid="tab-new"]');
+  await window.getByTestId('terminal-launcher').getByRole('button', {
+    name: 'Local',
+    exact: true,
+  }).click();
   const terminal = window.locator('[data-testid="terminal"]').last();
-  await expect(terminal.locator('canvas').first()).toBeVisible({
+  await expect(terminal.getByRole('textbox', { name: 'Terminal input' })).toBeVisible({
     timeout: 20_000,
   });
 
