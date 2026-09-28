@@ -296,11 +296,8 @@ const config: ForgeConfig = {
     // maximal-core ships as a compiled Bun sidecar under resources/bin and is
     // copied into the packaged app at Contents/Resources/bin — OUTSIDE the asar,
     // so it stays a real, spawnable, signable executable; the client spawns it.
-    // Only the sidecar. The runtime PNG that `app.dock.setIcon` reads is
-    // deliberately NOT shipped: a packaged bundle takes its icon from the
-    // .icns Forge installs from `packagerConfig.icon`, so the dock is already
-    // correct there and `applyDockIcon` leaves it alone. The PNG exists for
-    // unpackaged runs only, where the bundle is stock Electron's.
+    // Only the sidecar and tray assets. Packaged and development bundles both
+    // carry the .icns as their bundle icon.
     extraResource: ['resources/bin', 'resources/tray'],
   },
   hooks: {

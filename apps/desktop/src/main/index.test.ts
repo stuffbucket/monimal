@@ -295,7 +295,6 @@ vi.mock('./native/menu-bar-mode.js', () => ({
 // `identity.test.ts` covers it against its own fakes.
 vi.mock('./native/identity.js', () => ({
   applyAppName: vi.fn(),
-  applyDockIcon: vi.fn(),
   installApplicationMenu: installApplicationMenuMock,
 }))
 

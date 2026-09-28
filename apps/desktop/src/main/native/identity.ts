@@ -12,22 +12,12 @@
  * consumer. This is the client's own copy, deliberately small.
  */
 
-import { existsSync } from 'node:fs'
-import { join } from 'node:path'
-
-import { app, Menu, nativeImage, shell, type MenuItemConstructorOptions } from 'electron'
+import { app, Menu, shell, type MenuItemConstructorOptions } from 'electron'
 
 import {
   SETTINGS_SECTIONS,
   type SettingsSectionId,
 } from '@maximal/maximal-client/shared/settings-sections'
-import { mainLogger } from '../main-logger.js'
-
-/** Where the runtime icon sits. Unpackaged only, because that is the only case
- *  this file sets an icon for — `scripts/gen-icon-png.mjs` writes it. */
-function dockIconPath(): string {
-  return join(app.getAppPath(), 'build', 'icon.png')
-}
 
 /**
  * Set the application name.
@@ -38,34 +28,6 @@ function dockIconPath(): string {
  */
 export function applyAppName(name = 'Maximal'): void {
   app.setName(name)
-}
-
-/**
- * Point the dock at the application's own icon.
- *
- * Only meaningful unpackaged: a packaged bundle's icon comes from the `.icns`
- * the bundle carries, and calling this there would replace a correct icon with
- * a lower-resolution copy of itself. A missing file is left alone rather than
- * set — `nativeImage` returns an empty image for a path it cannot read, and
- * setting that clears the icon instead of restoring the default.
- */
-export function applyDockIcon(): void {
-  if (process.platform !== 'darwin' || app.dock === undefined) return
-  if (app.isPackaged) return
-
-  const path = dockIconPath()
-  if (!existsSync(path)) {
-    mainLogger.warn({ path }, 'No dock icon; run gen-icon-png')
-    return
-  }
-
-  const image = nativeImage.createFromPath(path)
-  if (image.isEmpty()) {
-    mainLogger.warn({ path }, 'Dock icon is not a readable image')
-    return
-  }
-
-  app.dock.setIcon(image)
 }
 
 /**

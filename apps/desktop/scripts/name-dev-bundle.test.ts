@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { executablePath, renameBundle } from './name-dev-bundle.mjs'
+import {
+  executablePath,
+  renameBundle,
+  replaceBundleIcon,
+} from './name-dev-bundle.mjs'
 
 /**
  * The one part of naming the development bundle that a filesystem cannot show
@@ -29,6 +33,8 @@ const plist = (name: string, displayName = name) => `<?xml version="1.0" encodin
 	<string>Electron</string>
 	<key>CFBundleIdentifier</key>
 	<string>com.github.Electron</string>
+	<key>CFBundleIconFile</key>
+	<string>electron.icns</string>
 	<key>CFBundleName</key>
 	<string>${name}</string>
 	<key>CFBundleDisplayName</key>
@@ -55,6 +61,21 @@ describe('renameBundle', () => {
     expect(result.changed).toBe(true)
     expect(result.was).toBe('Electron')
     expect(result.plist).toContain('<key>CFBundleName</key>\n\t<string>Maximal</string>')
+  })
+
+  describe('replaceBundleIcon', () => {
+    it('points the development bundle at the product icon', () => {
+      const result = replaceBundleIcon(plist('Electron'), 'Maximal.icns')
+      expect(result).toMatchObject({ changed: true, found: true })
+      expect(result.plist).toContain(
+        '<key>CFBundleIconFile</key>\n\t<string>Maximal.icns</string>',
+      )
+    })
+
+    it('reports an Electron plist without an icon key as unsupported', () => {
+      const result = replaceBundleIcon(withoutDisplayName, 'Maximal.icns')
+      expect(result).toMatchObject({ changed: false, found: false })
+    })
   })
 
   /*
