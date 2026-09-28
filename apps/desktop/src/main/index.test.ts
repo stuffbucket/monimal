@@ -450,6 +450,7 @@ async function loadIndexOn(platform: NodeJS.Platform): Promise<void> {
   })
   startHarnessHostMock.mockImplementation(() => {
     for (const channel of [
+      BRIDGE_CHANNELS.harnessShow,
       BRIDGE_CHANNELS.harnessHide,
       BRIDGE_CHANNELS.harnessProvider,
       BRIDGE_CHANNELS.harnessAsk,

@@ -26,8 +26,13 @@ export function createElectronPanel(options: ElectronPanelOptions): ElectronPane
 
   const applyStacking = (window: BrowserWindow): void => {
     if (options.stackAboveFullscreen === false) return;
-    window.setAlwaysOnTop(true, 'screen-saver');
-    window.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    window.setAlwaysOnTop(true, 'floating');
+    window.setVisibleOnAllWorkspaces(true, {
+      visibleOnFullScreen: true,
+      // A native panel needs no app-wide process-type transform, which would
+      // temporarily remove the macOS menu bar and dock presence.
+      skipTransformProcessType: process.platform === 'darwin',
+    });
   };
 
   const create = (): BrowserWindow => {
@@ -65,7 +70,10 @@ export function createElectronPanel(options: ElectronPanelOptions): ElectronPane
     if (!panel || panel.isDestroyed()) panel = create();
     panel.setBounds(displayBounds());
     if (options.stackAboveFullscreen !== false) {
-      panel.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+      panel.setVisibleOnAllWorkspaces(true, {
+        visibleOnFullScreen: true,
+        skipTransformProcessType: process.platform === 'darwin',
+      });
     }
     panel.showInactive();
     if (options.focusWhenShown !== false) panel.focus();

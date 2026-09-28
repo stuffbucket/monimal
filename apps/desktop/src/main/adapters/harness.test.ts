@@ -115,13 +115,17 @@ vi.mock('@maximal/maximal-harness/host', () => ({
   stopEngine: stopEngineMock,
 }))
 
-const invokeChannels = [
+const overlayInvokeChannels = [
   BRIDGE_CHANNELS.harnessHide,
   BRIDGE_CHANNELS.harnessProvider,
   BRIDGE_CHANNELS.harnessAsk,
   BRIDGE_CHANNELS.harnessAbort,
   BRIDGE_CHANNELS.harnessApprove,
   BRIDGE_CHANNELS.harnessEnsureModel,
+]
+const invokeChannels = [
+  BRIDGE_CHANNELS.harnessShow,
+  ...overlayInvokeChannels,
 ]
 
 async function startHost() {
@@ -177,7 +181,7 @@ describe('harness host IPC boundary', () => {
       ],
     ])
 
-    for (const channel of invokeChannels) {
+    for (const channel of overlayInvokeChannels) {
       expect(() => handler(channel)(foreignEvent, inputs.get(channel))).toThrow(
         'Harness requests are accepted only from the overlay window.',
       )
@@ -189,6 +193,14 @@ describe('harness host IPC boundary', () => {
     expect(abortAgentMock).not.toHaveBeenCalled()
     expect(resolveApprovalMock).not.toHaveBeenCalled()
     expect(ensureModelMock).not.toHaveBeenCalled()
+  })
+
+  it('shows the overlay when the application renderer requests it', async () => {
+    await startHost()
+
+    handler(BRIDGE_CHANNELS.harnessShow)({ sender: { send: vi.fn() } })
+
+    expect(panel.show).toHaveBeenCalledOnce()
   })
 
   it('validates and normalizes ask requests before running the agent', async () => {
@@ -276,6 +288,17 @@ describe('harness host lifecycle', () => {
   it('creates the panel, binds its hotkey, and tears both down', async () => {
     const host = await startHost()
 
+    expect(host.assistantPanelBounds({
+      x: 1280,
+      y: 0,
+      width: 1280,
+      height: 720,
+    })).toEqual({
+      x: 1560,
+      y: 48,
+      width: 720,
+      height: 624,
+    })
     expect(configureLlamaHostMock).toHaveBeenCalledWith({
       workerPath: expect.stringMatching(/llama-worker\.js$/) as unknown,
     })
@@ -293,6 +316,7 @@ describe('harness host lifecycle', () => {
       expect.objectContaining({
         preloadPath: expect.stringMatching(/preload\.js$/) as unknown,
         loadRenderer: expect.any(Function) as unknown,
+        bounds: host.assistantPanelBounds,
       }),
     )
 

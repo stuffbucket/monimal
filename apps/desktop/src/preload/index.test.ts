@@ -116,6 +116,7 @@ describe('preload bridge allowlist', () => {
       'onModelProgress',
       'onTool',
       'provider',
+      'show',
     ])
     expect(Object.keys(bridge.menuBarMode).sort()).toEqual([
       'beginEnable',
@@ -215,6 +216,7 @@ describe('preload bridge allowlist', () => {
     await bridge.menuBarMode.disable()
     await bridge.providerOnboarding.get()
     await bridge.providerOnboarding.setDismissed(true)
+    await bridge.harness.show()
     await bridge.harness.hide()
     await bridge.harness.provider()
     await bridge.harness.ask('Explain this file')
@@ -313,6 +315,7 @@ describe('preload bridge allowlist', () => {
       [BRIDGE_CHANNELS.menuBarModeDisable],
       [BRIDGE_CHANNELS.providerOnboardingGet],
       [BRIDGE_CHANNELS.providerOnboardingSet, true],
+      [BRIDGE_CHANNELS.harnessShow],
       [BRIDGE_CHANNELS.harnessHide],
       [BRIDGE_CHANNELS.harnessProvider],
       [BRIDGE_CHANNELS.harnessAsk, { prompt: 'Explain this file' }],

@@ -69,6 +69,8 @@ export {
   type TerminalTargetSummary,
 } from "./components/TerminalLauncher.js";
 export { TitleBar } from "./components/TitleBar.js";
+export { Avatar, Profile } from "./components/Profile.js";
+export { type Account } from "./lib/account.js";
 export {
   WindowChrome,
   type WindowChromeProps,

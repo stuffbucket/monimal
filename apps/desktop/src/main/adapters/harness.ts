@@ -16,7 +16,14 @@ import {
   shutdownAgent,
   stopEngine,
 } from '@maximal/maximal-harness/host'
-import { app, BrowserWindow, globalShortcut, ipcMain, type IpcMainInvokeEvent } from 'electron'
+import {
+  app,
+  BrowserWindow,
+  globalShortcut,
+  ipcMain,
+  type IpcMainInvokeEvent,
+  type Rectangle,
+} from 'electron'
 import { z } from 'zod'
 
 import { BRIDGE_CHANNELS } from '../../shared/bridge-channels.js'
@@ -24,6 +31,10 @@ import { loadHarnessOptions } from './harness-options.js'
 import { mainLogger } from '../main-logger.js'
 
 const HOTKEY = 'CommandOrControl+Shift+Space'
+const PANEL_MAX_WIDTH = 720
+const PANEL_MAX_HEIGHT = 640
+const PANEL_HORIZONTAL_MARGIN = 24
+const PANEL_VERTICAL_MARGIN = 48
 const askRequest = z.object({ prompt: z.string().trim().min(1) })
 const approvalRequest = z.object({
   id: z.string().min(1),
@@ -41,6 +52,17 @@ const SYSTEM_PROMPT = [
 let panel: ElectronPanel | undefined
 let registered = false
 let boundHotkey = false
+
+export function assistantPanelBounds(display: Rectangle): Rectangle {
+  const width = Math.min(PANEL_MAX_WIDTH, Math.max(1, display.width - PANEL_HORIZONTAL_MARGIN * 2))
+  const height = Math.min(PANEL_MAX_HEIGHT, Math.max(1, display.height - PANEL_VERTICAL_MARGIN * 2))
+  return {
+    x: display.x + Math.floor((display.width - width) / 2),
+    y: display.y + Math.floor((display.height - height) / 2),
+    width,
+    height,
+  }
+}
 
 function owner(event: IpcMainInvokeEvent): BrowserWindow {
   const window = panel?.window()
@@ -68,6 +90,9 @@ function registerIpc(): void {
   if (registered) return
   registered = true
 
+  ipcMain.handle(BRIDGE_CHANNELS.harnessShow, () => {
+    panel?.show()
+  })
   ipcMain.handle(BRIDGE_CHANNELS.harnessHide, (event) => {
     owner(event)
     panel?.hide()
@@ -114,6 +139,7 @@ export function startHarnessHost(): void {
   panel = createElectronPanel({
     preloadPath: join(__dirname, 'preload.js'),
     loadRenderer,
+    bounds: assistantPanelBounds,
   })
   registerIpc()
 
@@ -146,6 +172,7 @@ export async function stopHarnessHost(): Promise<void> {
 
   if (registered) {
     for (const channel of [
+      BRIDGE_CHANNELS.harnessShow,
       BRIDGE_CHANNELS.harnessHide,
       BRIDGE_CHANNELS.harnessProvider,
       BRIDGE_CHANNELS.harnessAsk,

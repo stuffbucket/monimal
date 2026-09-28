@@ -12,7 +12,7 @@ import type {
   ProviderStatus,
 } from '../contracts.js';
 import { HARNESS_CONFIG, HARNESS_COPY } from '../constants.js';
-import { escapeAction, outsideAction } from './overlay-keys.js';
+import { escapeAction } from './overlay-keys.js';
 
 export interface HarnessTransport {
   hide: () => Promise<void>;
@@ -241,21 +241,6 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
     [act, approval, busy],
   );
 
-  /**
-   * A click outside the card.
-   *
-   * Dismissing with a question on screen answers it. Leaving the gate open
-   * would park the run until the timeout, and every summon in that window
-   * would report the agent as busy.
-   */
-  const onOutside = useCallback(
-    (event: Event) => {
-      event.preventDefault();
-      for (const action of outsideAction(Boolean(approval))) act(action);
-    },
-    [act, approval],
-  );
-
   const ready = status.state === 'ready';
 
   return (
@@ -271,13 +256,12 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
      */
     <Dialog
       open
+      modal={false}
       title={HARNESS_COPY.overlay.title}
       className="sb-shell mh-card"
-      overlayClassName="mh-scrim"
       testId="overlay-card"
       onKeyDown={onKeyDown}
       onEscapeKeyDown={onEscape}
-      onPointerDownOutside={onOutside}
     >
         {(answer || error) && (
           <div

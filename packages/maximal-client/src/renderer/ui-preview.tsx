@@ -75,6 +75,15 @@ function PreviewFrame(): ReactElement {
       onCloseTab={(id) => {
         if (id === SETTINGS_TAB.id) requestNavigation(closeSettings)
       }}
+      account={{
+        id: 'octocat',
+        displayName: 'Octocat',
+        handle: '@octocat',
+        plan: 'individual',
+      }}
+      onOpenProfileSurface={() => undefined}
+      onSignOut={() => undefined}
+      onOpenAssistant={() => undefined}
       settingsOpen={settingsOpen}
       onToggleSettings={toggleSettings}
     >
