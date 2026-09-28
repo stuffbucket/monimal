@@ -1764,7 +1764,7 @@ packages:
     libc: glibc
 
   '@cdxgen/cdxgen-plugins-bin-linux-arm64@2.5.1':
-    resolution: {integrity: sha1-+a8wy+mZOvtWRxWqKDK8eE+NJp4=}
+    resolution: {integrity: sha512-NjxXYNzqMAv0M5lBDNZZniYvJRgzJlHVsucR2R2DNK7lHzALBWeYdY6FhBSztX6SmK3Ictq8T7g+w1k0vMnxoA==}
     cpu: [arm64]
     os: [linux]
     libc: glibc
@@ -1821,7 +1821,7 @@ packages:
     os: [linux]
 
   '@cdxgen/safer-exec-linux-arm64@0.15.0':
-    resolution: {integrity: sha1-dj44jzACUewyKuFwOAFbM2Sx1qM=}
+    resolution: {integrity: sha512-NRfsNnFcl3qUbxWTNNJltrFAagJcYumTGhK9Ad9BxzFu6l2FS2wozr4pr9KRzSrEXFCiEqm2unAtDgyAGx/nbw==}
     cpu: [arm64]
     os: [linux]
 
@@ -6239,8 +6239,8 @@ packages:
     resolution: {integrity: sha1-W+DO7WfKecbEvFzw1+6EPc6hEMQ=}
     engines: {node: '>=10.13.0'}
 
-  ip-address@10.5.0:
-    resolution: {integrity: sha1-/NbX3+nmhBa3y3Gv6byWCz44wTs=}
+  ip-address@10.7.2:
+    resolution: {integrity: sha512-7H/2gFSIitxc0hG3nOI1glS8QLo/EHBFFLk8vEUjXY/xu0AdL8jZ9U1IzO2PUm0d2D/ofQcAifb0g6OBkt8U7w==}
     engines: {node: '>= 12'}
 
   ipull@3.9.5:
@@ -13835,7 +13835,7 @@ snapshots:
 
   interpret@3.1.1: {}
 
-  ip-address@10.5.0: {}
+  ip-address@10.7.2: {}
 
   ipull@3.9.5:
     dependencies:
@@ -15506,7 +15506,7 @@ snapshots:
 
   socks@2.8.9:
     dependencies:
-      ip-address: 10.5.0
+      ip-address: 10.7.2
       smart-buffer: 4.2.0
 
   sonic-boom@4.2.1:
