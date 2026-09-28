@@ -1733,7 +1733,7 @@ packages:
     libc: glibc
 
   '@cdxgen/cdxgen-plugins-bin-linux-arm64@2.5.1':
-    resolution: {integrity: sha1-+a8wy+mZOvtWRxWqKDK8eE+NJp4=}
+    resolution: {integrity: sha512-NjxXYNzqMAv0M5lBDNZZniYvJRgzJlHVsucR2R2DNK7lHzALBWeYdY6FhBSztX6SmK3Ictq8T7g+w1k0vMnxoA==}
     cpu: [arm64]
     os: [linux]
     libc: glibc
@@ -1790,7 +1790,7 @@ packages:
     os: [linux]
 
   '@cdxgen/safer-exec-linux-arm64@0.15.0':
-    resolution: {integrity: sha1-dj44jzACUewyKuFwOAFbM2Sx1qM=}
+    resolution: {integrity: sha512-NRfsNnFcl3qUbxWTNNJltrFAagJcYumTGhK9Ad9BxzFu6l2FS2wozr4pr9KRzSrEXFCiEqm2unAtDgyAGx/nbw==}
     cpu: [arm64]
     os: [linux]
 
@@ -4696,8 +4696,8 @@ packages:
   '@wterm/ghostty@0.4.1':
     resolution: {integrity: sha1-/M5AfUi4VFqGzZxvydjf4E4SucI=}
 
-  '@xmldom/xmldom@0.9.10':
-    resolution: {integrity: sha1-oK1aJv6KqZYxCHBybhcEl392ne4=}
+  '@xmldom/xmldom@0.9.12':
+    resolution: {integrity: sha1-H4TAfLlczyggIpn3e1/X/CVxUeg=}
     engines: {node: '>=14.6'}
 
   '@xterm/addon-fit@0.11.0':
@@ -12174,7 +12174,7 @@ snapshots:
     dependencies:
       '@wterm/core': 0.4.1
 
-  '@xmldom/xmldom@0.9.10': {}
+  '@xmldom/xmldom@0.9.12': {}
 
   '@xterm/addon-fit@0.11.0': {}
 
@@ -14939,7 +14939,7 @@ snapshots:
 
   plist@3.1.1:
     dependencies:
-      '@xmldom/xmldom': 0.9.10
+      '@xmldom/xmldom': 0.9.12
       base64-js: 1.5.1
       xmlbuilder: 15.1.1
 
