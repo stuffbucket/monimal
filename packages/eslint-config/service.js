@@ -118,6 +118,9 @@ export const PERFECTIONIST_RULES = {
  *
  * A rule that leaves the plugin must be deleted from this list -- naming one
  * that no longer exists is a hard error, not a no-op.
+ *
+ * `prefer-ternary` is intentionally excluded. Ternaries remain available for
+ * simple expressions, but lint must not force control-flow rewrites.
  */
 export const UNICORN_RULES = Object.fromEntries(
   [
@@ -196,7 +199,6 @@ export const UNICORN_RULES = Object.fromEntries(
     "prefer-string-trim-start-end",
     "prefer-structured-clone",
     "prefer-switch",
-    "prefer-ternary",
     "prefer-type-error",
     "require-array-join-separator",
     "require-number-to-fixed-digits-argument",

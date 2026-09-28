@@ -180,8 +180,8 @@ importers:
         specifier: ^3.2.0
         version: 3.2.0(eslint@10.9.1(jiti@2.7.0)(supports-color@8.1.1))
       eslint-plugin-unicorn:
-        specifier: ^74.0.0
-        version: 74.0.0(eslint@10.9.1(jiti@2.7.0)(supports-color@8.1.1))
+        specifier: ^75.0.0
+        version: 75.0.0(eslint@10.9.1(jiti@2.7.0)(supports-color@8.1.1))
       eslint-plugin-unused-imports:
         specifier: ^4.4.1
         version: 4.4.1(@typescript-eslint/eslint-plugin@8.69.0(@typescript-eslint/parser@8.69.0(eslint@10.9.1(jiti@2.7.0)(supports-color@8.1.1))(supports-color@8.1.1)(typescript@6.0.3))(eslint@10.9.1(jiti@2.7.0)(supports-color@8.1.1))(supports-color@8.1.1)(typescript@6.0.3))(eslint@10.9.1(jiti@2.7.0)(supports-color@8.1.1))
@@ -5200,10 +5200,6 @@ packages:
     resolution: {integrity: sha1-2TicQ8Coz2o1XbRk0h4HCSpASTo=}
     engines: {node: '>=18'}
 
-  convert-hrtime@5.0.0:
-    resolution: {integrity: sha1-8hMSNtRZi5XehWkmpnEAoKl+n6M=}
-    engines: {node: '>=12'}
-
   convert-source-map@2.0.0:
     resolution: {integrity: sha1-S1YPZJ/E6RjdCrdc9JYei8iC2Co=}
 
@@ -5639,8 +5635,8 @@ packages:
     peerDependencies:
       eslint: '>=9.38.0'
 
-  eslint-plugin-unicorn@74.0.0:
-    resolution: {integrity: sha1-m0IxAxCNQElx+HMIFsn8FBgql64=}
+  eslint-plugin-unicorn@75.0.0:
+    resolution: {integrity: sha512-72I7eSn+/z5CpgValFBl9mp2JE5UPD+nUUyB/VIGUMF1rCP1i37mA05zfIAVIU312A+qCZ38T8tSZr3oaMv4Mw==}
     engines: {node: '>=22'}
     peerDependencies:
       eslint: '>=10.4'
@@ -5915,10 +5911,6 @@ packages:
 
   function-bind@1.1.2:
     resolution: {integrity: sha1-LALYZNl/PqbIgwxGTL0Rq26rehw=}
-
-  function-timeout@1.0.2:
-    resolution: {integrity: sha1-5ae2/6UjdW/yDhIxu+N7Xzc6rdU=}
-    engines: {node: '>=18'}
 
   galactus@1.0.0:
     resolution: {integrity: sha1-wmFRgq+gxtCFm5LlauNtBSgn234=}
@@ -6264,10 +6256,6 @@ packages:
   is-glob@4.0.3:
     resolution: {integrity: sha1-ZPYeQsu7LuwgcanawLKLoeZdUIQ=}
     engines: {node: '>=0.10.0'}
-
-  is-identifier@1.1.0:
-    resolution: {integrity: sha1-a0BuFaQp9xlvZJbgn4MzvLSy2xs=}
-    engines: {node: '>=18'}
 
   is-inside-container@1.0.0:
     resolution: {integrity: sha1-6B+6aZZi6zHb2vJnZqYdSBRxfqQ=}
@@ -6700,10 +6688,6 @@ packages:
 
   magic-string@1.4.1:
     resolution: {integrity: sha512-8lyCu36ErXR0J9uaGKlKQoiLZKmtI63YGLE8G2o9jyRPdr4X47LusSOwgOJOzcVtp81fTAAjxR7BwKz682Jhow==}
-
-  make-asynchronous@1.1.0:
-    resolution: {integrity: sha1-YiX38cyquayqxeL80LB1r+//Gao=}
-    engines: {node: '>=18'}
 
   make-fetch-happen@10.2.1:
     resolution: {integrity: sha1-9eODXF6YF7YX8ncIcNlJLShngWQ=}
@@ -7149,10 +7133,6 @@ packages:
     resolution: {integrity: sha1-n26xgvbJqozXQwBKfU+WsZaw+ww=}
     engines: {node: '>=4'}
 
-  p-event@6.0.1:
-    resolution: {integrity: sha1-j2Kh42FtS8Afzjq9oSfgOD70cVs=}
-    engines: {node: '>=16.17'}
-
   p-finally@1.0.0:
     resolution: {integrity: sha1-P7z7FbiZpEEjs0ttzBi3JDNqLK4=}
     engines: {node: '>=4'}
@@ -7184,10 +7164,6 @@ packages:
   p-retry@4.6.2:
     resolution: {integrity: sha1-m6rnGEBX7dThcjHO4EJkEG4JKhY=}
     engines: {node: '>=8'}
-
-  p-timeout@6.1.4:
-    resolution: {integrity: sha1-QY4fTdgz+pai4/UyVH3Sq9sI28I=}
-    engines: {node: '>=14.16'}
 
   p-try@1.0.0:
     resolution: {integrity: sha1-y8ec26+P1CKOE/Yh8rGiN8GyB7M=}
@@ -8030,10 +8006,6 @@ packages:
     resolution: {integrity: sha1-Y3fplnlauwttNI6bPh37JDRajkI=}
     engines: {node: '>= 8.0'}
 
-  super-regex@1.1.0:
-    resolution: {integrity: sha1-FLabY3T3szONtS7NUR2ul8J6z3U=}
-    engines: {node: '>=18'}
-
   supports-color@5.5.0:
     resolution: {integrity: sha1-4uaaRKyHcveKHsCzW2id9lMO/I8=}
     engines: {node: '>=4'}
@@ -8084,10 +8056,6 @@ packages:
   thread-stream@4.2.0:
     resolution: {integrity: sha1-BUBj6TuqsiNj0Ft4TWx+Q5Iwysc=}
     engines: {node: '>=20'}
-
-  time-span@5.1.0:
-    resolution: {integrity: sha1-gMds9aDKKOCELT8QpOmQNM6UuQ0=}
-    engines: {node: '>=12'}
 
   tiny-invariant@1.3.3:
     resolution: {integrity: sha1-RmgLeoc6DV0QAFmV65CnDXTWASc=}
@@ -8234,10 +8202,6 @@ packages:
   type-fest@2.19.0:
     resolution: {integrity: sha1-iAaAFbszA2pZi5UuVekxGmD9Ops=}
     engines: {node: '>=12.20'}
-
-  type-fest@4.41.0:
-    resolution: {integrity: sha1-auHI5XMSc8K/H1itOcuuLJGkbFg=}
-    engines: {node: '>=16'}
 
   type-is@2.1.0:
     resolution: {integrity: sha1-cdGnBTKTWC4WrJ8+uvGrmqSeVXA=}
@@ -8532,9 +8496,6 @@ packages:
   web-streams-polyfill@3.3.3:
     resolution: {integrity: sha1-IHO5Gi/bH7+9QB594KyfghTOy0s=}
     engines: {node: '>= 8'}
-
-  web-worker@1.5.0:
-    resolution: {integrity: sha1-cbKw+8xCk+jwqk9rij/+v/cz3MU=}
 
   webidl-conversions@3.0.1:
     resolution: {integrity: sha1-JFNCdeKnvGvnvIZhHMFq4KVlSHE=}
@@ -12716,8 +12677,6 @@ snapshots:
   content-type@2.1.0:
     optional: true
 
-  convert-hrtime@5.0.0: {}
-
   convert-source-map@2.0.0: {}
 
   core-js-compat@3.50.0:
@@ -13162,7 +13121,7 @@ snapshots:
       regexp-ast-analysis: 0.7.1
       scslre: 0.3.0
 
-  eslint-plugin-unicorn@74.0.0(eslint@10.9.1(jiti@2.7.0)(supports-color@8.1.1)):
+  eslint-plugin-unicorn@75.0.0(eslint@10.9.1(jiti@2.7.0)(supports-color@8.1.1)):
     dependencies:
       '@eslint-community/eslint-utils': 4.10.1(eslint@10.9.1(jiti@2.7.0)(supports-color@8.1.1))
       '@eslint/css-tree': 4.0.5
@@ -13175,9 +13134,9 @@ snapshots:
       eslint: 10.9.1(jiti@2.7.0)(supports-color@8.1.1)
       find-up-simple: 1.0.1
       globals: 17.11.0
+      identifier-regex: 1.1.0
       indent-string: 5.0.0
       is-builtin-module: 5.0.0
-      is-identifier: 1.1.0
       pluralize: 8.0.0
       quote-js-string: 0.1.0
       regjsparser: 0.13.2
@@ -13504,8 +13463,6 @@ snapshots:
     optional: true
 
   function-bind@1.1.2: {}
-
-  function-timeout@1.0.2: {}
 
   galactus@1.0.0(supports-color@8.1.1):
     dependencies:
@@ -13903,11 +13860,6 @@ snapshots:
     dependencies:
       is-extglob: 2.1.1
 
-  is-identifier@1.1.0:
-    dependencies:
-      identifier-regex: 1.1.0
-      super-regex: 1.1.0
-
   is-inside-container@1.0.0:
     dependencies:
       is-docker: 3.0.0
@@ -14292,12 +14244,6 @@ snapshots:
   magic-string@1.4.1:
     dependencies:
       '@jridgewell/sourcemap-codec': 1.6.0
-
-  make-asynchronous@1.1.0:
-    dependencies:
-      p-event: 6.0.1
-      type-fest: 4.41.0
-      web-worker: 1.5.0
 
   make-fetch-happen@10.2.1(bluebird@3.7.2)(supports-color@8.1.1):
     dependencies:
@@ -14834,10 +14780,6 @@ snapshots:
 
   p-defer@1.0.0: {}
 
-  p-event@6.0.1:
-    dependencies:
-      p-timeout: 6.1.4
-
   p-finally@1.0.0: {}
 
   p-is-promise@2.1.0: {}
@@ -14866,8 +14808,6 @@ snapshots:
     dependencies:
       '@types/retry': 0.12.0
       retry: 0.13.1
-
-  p-timeout@6.1.4: {}
 
   p-try@1.0.0: {}
 
@@ -15741,12 +15681,6 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  super-regex@1.1.0:
-    dependencies:
-      function-timeout: 1.0.2
-      make-asynchronous: 1.1.0
-      time-span: 5.1.0
-
   supports-color@5.5.0:
     dependencies:
       has-flag: 3.0.0
@@ -15797,10 +15731,6 @@ snapshots:
   thread-stream@4.2.0:
     dependencies:
       real-require: 1.0.0
-
-  time-span@5.1.0:
-    dependencies:
-      convert-hrtime: 5.0.0
 
   tiny-invariant@1.3.3: {}
 
@@ -15932,8 +15862,6 @@ snapshots:
   type-fest@1.4.0: {}
 
   type-fest@2.19.0: {}
-
-  type-fest@4.41.0: {}
 
   type-is@2.1.0:
     dependencies:
@@ -16171,8 +16099,6 @@ snapshots:
   weapon-regex@2.0.4: {}
 
   web-streams-polyfill@3.3.3: {}
-
-  web-worker@1.5.0: {}
 
   webidl-conversions@3.0.1: {}
 

@@ -7,6 +7,7 @@ import { afterEach, test } from "node:test"
 import { ESLint } from "eslint"
 
 import { architecture } from "../architecture.js"
+import { service } from "../service.js"
 import { typescript } from "../typescript.js"
 
 const fixtureRoots = []
@@ -37,6 +38,15 @@ async function lintFixture({ from, source, targets = [], kind = "service" }) {
   const [result] = await eslint.lintFiles([fromPath])
   return result.messages
 }
+
+test("service lint allows but does not force ternaries", () => {
+  const config = service({ tsconfigRootDir: import.meta.dirname })
+  const rule = config
+    .flatMap((entry) => Object.entries(entry.rules ?? {}))
+    .find(([name]) => name === "unicorn/prefer-ternary")
+
+  assert.equal(rule, undefined)
+})
 
 for (const fixture of [
   {
