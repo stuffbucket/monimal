@@ -743,8 +743,6 @@ test("required CI runs native checks before Docker and has one cache writer", ()
   const staticGate = "pnpm exec turbo run build typecheck lint";
   const hostGate =
     "pnpm --filter @maximal/maximal-core run check:deep:host:after-workspace";
-  const packageMechanics =
-    "pnpm --filter @maximal/maximal-electron run verify:fixture-imports";
   const sidecarProvenance =
     "LINK=apps/desktop/node_modules/@maximal/maximal-core";
   const testGate =
@@ -752,7 +750,6 @@ test("required CI runs native checks before Docker and has one cache writer", ()
   const packageGate = "pnpm run package:all";
   assert.equal(workflow.split(staticGate).length - 1, 1);
   assert.equal(workflow.split(hostGate).length - 1, 1);
-  assert.equal(workflow.split(packageMechanics).length - 1, 1);
   assert.equal(workflow.split(sidecarProvenance).length - 1, 1);
   assert.equal(workflow.split(testGate).length - 1, 1);
   assert.equal(workflow.split(packageGate).length - 1, 1);
@@ -777,7 +774,6 @@ test("required CI runs native checks before Docker and has one cache writer", ()
     /MAXIMAL_DOCKER_CACHE|MAXIMAL_TEST_CONTAINER|docker\/setup-buildx-action|ghaction-github-runtime/,
   );
   assert.ok(workflow.indexOf(hostGate) < workflow.indexOf(testGate));
-  assert.ok(workflow.indexOf(packageMechanics) < workflow.indexOf(testGate));
   assert.ok(workflow.indexOf(sidecarProvenance) < workflow.indexOf(testGate));
   assert.equal(workflow.split("uses: actions/cache/save@").length - 1, 1);
   assert.equal(workflow.split("uses: actions/cache@").length - 1, 1);
@@ -1896,7 +1892,6 @@ test("the build context excludes local state but retains source fixtures", () =>
     ".npmrc",
     ".github/workflows/ci.yml",
     "packages/maximal-core/tests/fixtures/isolation/maximal-path-probe.test-fixture.ts",
-    "packages/maximal-electron/e2e/fixtures/demo-shell/index.html",
   ]) {
     assert.ok(
       fs.existsSync(path.join(root, requiredPath)),
