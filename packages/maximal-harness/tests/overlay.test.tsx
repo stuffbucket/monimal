@@ -127,13 +127,14 @@ function click(id: string): void {
 }
 
 describe('Overlay', () => {
-  it('probes on mount and focus, focuses the prompt, and exposes a named modal', async () => {
+  it('probes on mount and focus, focuses the prompt, and exposes a named modeless dialog', async () => {
     const fake = fakeTransport();
     await renderOverlay(fake.transport);
 
     expect(fake.transport.provider).toHaveBeenCalledTimes(1);
     const dialog = document.body.querySelector('[role="dialog"]');
     expect(dialog).not.toBeNull();
+    expect(dialog?.getAttribute('aria-modal')).toBeNull();
     const labelledBy = dialog?.getAttribute('aria-labelledby');
     expect(labelledBy).toBeTruthy();
     expect(document.getElementById(labelledBy ?? '')?.textContent).toBe('Ask the agent');
@@ -191,7 +192,7 @@ describe('Overlay', () => {
     expect(byTestId('overlay-status').textContent).toBe('embedded · local-model');
   });
 
-  it('aborts before dismissing and denies approval before an outside dismissal', async () => {
+  it('aborts before dismissing', async () => {
     const fake = fakeTransport();
     await renderOverlay(fake.transport);
 
@@ -211,22 +212,6 @@ describe('Overlay', () => {
       keyDown(document, 'Escape');
     });
     expect(fake.transport.hide).toHaveBeenCalledTimes(1);
-
-    act(() => fake.approval.emit({ id: 'approval-1', tool: 'bash', summary: 'rm draft' }));
-    const scrim = document.body.querySelector('.mh-scrim');
-    if (!scrim) throw new Error('Overlay scrim not found');
-    await new Promise<void>((resolve) => setTimeout(resolve, 0));
-    act(() => {
-      scrim.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, cancelable: true }));
-      scrim.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
-    });
-
-    expect(fake.transport.approve).toHaveBeenCalledWith({
-      id: 'approval-1',
-      allow: false,
-      remember: false,
-    });
-    expect(fake.transport.hide).toHaveBeenCalledTimes(2);
   });
 
   it('supports approval buttons and gives approval Enter priority over a draft prompt', async () => {

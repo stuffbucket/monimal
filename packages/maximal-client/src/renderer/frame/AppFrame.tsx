@@ -1,8 +1,11 @@
 import { type ReactElement, type ReactNode } from 'react'
-import { Settings as SettingsIcon } from 'lucide-react'
+import { Settings as SettingsIcon, Sparkles } from 'lucide-react'
 import {
   AppFrame as PackageAppFrame,
   IconButton,
+  Profile,
+  type Account,
+  type SettingsSurface,
   type Tab,
   type TabTransferOptions,
 } from '@maximal/maximal-electron/renderer'
@@ -56,6 +59,11 @@ export function AppFrame({
   onCloseTab,
   onNewTab,
   tabTransfer,
+  account,
+  onOpenProfileSurface,
+  onSignIn,
+  onSignOut,
+  onOpenAssistant,
   settingsOpen = false,
   onToggleSettings,
   children,
@@ -67,6 +75,11 @@ export function AppFrame({
   onCloseTab?: (id: string) => void
   onNewTab?: () => void
   tabTransfer?: TabTransferOptions<AppTab>
+  account?: Account
+  onOpenProfileSurface?: (surface: SettingsSurface) => void
+  onSignIn?: () => void
+  onSignOut?: () => void
+  onOpenAssistant?: () => void
   settingsOpen?: boolean
   onToggleSettings?: () => void
   children: ReactNode
@@ -83,14 +96,33 @@ export function AppFrame({
       tabsLabel="Views"
       newTabLabel="New terminal"
       titleBarActions={onToggleSettings ? (
-        <IconButton
-          label={settingsOpen ? 'Close Settings' : 'Open Settings'}
-          active={settingsOpen}
-          onClick={onToggleSettings}
-          testId="toggle-settings"
-        >
-          <SettingsIcon size={15} />
-        </IconButton>
+        <>
+          {onOpenAssistant ? (
+            <IconButton
+              label="Open Assistant"
+              onClick={onOpenAssistant}
+              testId="open-assistant"
+            >
+              <Sparkles size={15} />
+            </IconButton>
+          ) : null}
+          {onOpenProfileSurface ? (
+            <Profile
+              account={account}
+              onOpen={onOpenProfileSurface}
+              onSignIn={onSignIn}
+              onSignOut={onSignOut}
+            />
+          ) : null}
+          <IconButton
+            label={settingsOpen ? 'Close Settings' : 'Open Settings'}
+            active={settingsOpen}
+            onClick={onToggleSettings}
+            testId="toggle-settings"
+          >
+            <SettingsIcon size={15} />
+          </IconButton>
+        </>
       ) : undefined}
       leftSize={LEFT_PANEL_SIZE}
       withActivity

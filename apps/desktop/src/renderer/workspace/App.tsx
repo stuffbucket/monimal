@@ -71,6 +71,7 @@ function AppContent(): ReactElement {
         sectionRequest={sectionRequest}
         terminalState={terminalTabsState}
         requestNavigation={requestNavigation}
+        openSettingsSection={(id) => setSectionRequest({ id })}
       />
       {/* Detached windows display transferred sessions; only the workspace launches new ones. */}
       {!detachedWindow && <WorkspaceTerminalLauncher terminalState={terminalTabsState} />}

@@ -61,6 +61,7 @@ const bridge = {
     setDismissed: (dismissed) => ipcRenderer.invoke(BRIDGE_CHANNELS.providerOnboardingSet, dismissed),
   },
   harness: {
+    show: () => ipcRenderer.invoke(BRIDGE_CHANNELS.harnessShow),
     hide: () => ipcRenderer.invoke(BRIDGE_CHANNELS.harnessHide),
     provider: () => ipcRenderer.invoke(BRIDGE_CHANNELS.harnessProvider),
     ask: (prompt) => ipcRenderer.invoke(BRIDGE_CHANNELS.harnessAsk, { prompt }),

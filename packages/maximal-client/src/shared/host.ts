@@ -238,6 +238,7 @@ export interface MaximalHost {
     setDismissed: (dismissed: boolean) => Promise<ProviderOnboardingPreference>
   }
   harness: {
+    show: () => Promise<void>
     hide: () => Promise<void>
     provider: () => Promise<ProviderStatus>
     ask: (prompt: string) => Promise<AskAccepted>
