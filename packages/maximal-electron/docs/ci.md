@@ -138,30 +138,6 @@ an installed tree, because the MSI is gone. The command differs too: `cmd.exe`
 has no `printf`, so the two halves of the token are joined by the caret
 `cmd.exe` strips while parsing the line.
 
-## The fixture that installs nothing, and is still a consumer
-
-`e2e/fixtures/demo-shell/` is the shell the recordings and the README stills
-are cut from, and `docs/recording.md` calls it the first consumer of the
-renderer package. It is a consumer only while its imports resolve through the
-`exports` map. Every import in it read `../../../src/` instead, which resolves
-through nothing a third party has, so the fixture proved less than it claimed
-and looked identical either way. Eight names the fixture needed were missing
-from the exports map, and nothing said so.
-
-`npm run verify:fixture-imports` reads every source file under the fixture,
-denies a specifier that reaches outside it, and denies one that names a subpath
-the manifest does not export. It prints the files it declined beside the ones it
-read, because a scan that narrows its input and does not say what it dropped
-reads as coverage it does not have.
-
-It runs in the `static` job of `ci.yml`, before `pnpm test` and `pnpm run mutate`
-rather than beside `verify:exports` at the end. The two ask the same question
-from opposite sides, so the reading order argues for pairing them. The cost
-argues louder: this one reads the checkout and nothing else — no install step
-it depends on, no build, no `dist/`, no Electron binary — so it answers in a
-second, and the minutes after it are minutes not spent on a tree that already
-fails.
-
 ## Whether the workflows themselves still run
 
 `triage.yml` fired on every issue event and failed on every one of its 88 runs.

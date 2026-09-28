@@ -4,14 +4,14 @@ import type {
   TrafficRequestFilters,
   TrafficRequestListQuery,
   TrafficRequestSummary,
-} from "@stuffbucket/maximal-observability-contract"
+} from "@maximal/maximal-observability-contract"
 
 import {
   TRAFFIC_FLOW_EDGES_MAX,
   TRAFFIC_FLOW_NODES_MAX,
   TRAFFIC_OBSERVABILITY_CONTRACT_VERSION,
   TRAFFIC_TOKEN_SERIES_POINTS_MAX,
-} from "@stuffbucket/maximal-observability-contract"
+} from "@maximal/maximal-observability-contract"
 import { createHash } from "node:crypto"
 
 type Row = Record<string, unknown>

@@ -16,13 +16,7 @@ import {
   type ViewMode,
 } from './Layout.js';
 
-/**
- * The host's half of the status contract, as `e2e/fixtures/demo-shell/demo.css`
- * writes it.
- *
- * Each state takes the token `controls.css` maps it to, so a mapped story
- * measures one colour under either stylesheet.
- */
+/** The host's half of the status contract. */
 const HOST_CSS = `
   [data-status='running'] { --shell-status: var(--accent); --shell-status-muted: var(--accent-soft); }
   [data-status='blocked'] { --shell-status: var(--warning); --shell-status-muted: var(--warning-soft); }

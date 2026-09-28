@@ -112,6 +112,9 @@ Both are monorepo-native;
 | `maximal-electron` / `maximal-terminal` | Terminal code outside Electron integration lives in `maximal-terminal`; generated tmux session names take their prefix from the host (`terminalSessionPrefix` in the desktop settings) instead of the fixed `stuffbucket-`. |
 | `maximal-electron` | `verify:neutral` denies imports of workspace packages outside its `dependsOn` in the root `architecture-analysis.json` instead of a fixed name list, and bare `maximal` is no longer a forbidden term. |
 | `maximal-electron` | Private workspace package, not published; the registry publish, tag, and git-install checks are removed. |
+| `maximal-electron` | Workspace installation MUST NOT build the package; Turbo MUST own dependency-ordered builds. |
+| `maximal-electron` | The package MUST NOT contain demo-shell or terminal-lab application composition. |
+| `apps/desktop` | The desktop application MUST own terminal integration behavior and end-to-end coverage. |
 | `maximal-electron` / `maximal` | Consumers and design docs name the package `@maximal/maximal-electron`; the `stuffbucket-electron` workspace alias is removed. |
 | `maximal-core` | Private workspace package, not published; the registry publish, release-tag, release-gates, and release-notes tooling are removed. |
 | `maximal-core` | The settings wire types and control contract live in `maximal-core-contract`; Core's `./settings-types` and `./control-contract` exports republish them. |

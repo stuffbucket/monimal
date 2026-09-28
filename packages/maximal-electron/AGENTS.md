@@ -31,7 +31,6 @@ linked document.
 | Verify the Electron download cache      | `npm run verify:electron-cache`                                                                                       |
 | Launch a package                        | `npm run smoke:packaged`                                                                                              |
 | Verify the exports                      | `npm run verify:exports`                                                                                              |
-| Verify the fixture consumes the package | `npm run verify:fixture-imports`                                                                                      |
 | Verify the shell stays agnostic         | `npm run verify:neutral`                                                                                              |
 | Verify the docs                         | `npm run verify:docs`                                                                                                 |
 | Verify every workflow still runs        | `npm run verify:workflow-health`                                                                                      |

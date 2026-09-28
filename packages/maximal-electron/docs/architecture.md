@@ -304,11 +304,6 @@ Four details are load-bearing.
   terminal tab an opaque session id. IPC keeps the backward-compatible `id`
   field name for that session id. `pty:status` reports `started` after host
   registration and `exited` only for the current process generation.
-- **Session metadata has an injected no-op facade.** `native/session-metadata.ts`
-  defines the metadata record, provider contract, and facade used at terminal
-  window transfer boundaries. The default provider deliberately performs no
-  storage or I/O; an application may inject persistence later without changing
-  PTY ownership or renderer behavior.
 - **Shared sessions use a projection backend contract.** The
   [session backend](../../maximal-terminal/src/host/session-backend.ts)
   defines attach, focus, write, resize, detach, and geometry independently of
@@ -605,17 +600,6 @@ application rather than to a document. The seam is the environment and the
 | `src/main/index.ts` | `.vite/build/main.js` | `entryFileNames` is explicit, or it collides with preload. |
 | `src/preload/index.ts` | `.vite/build/preload.js` | Emits CommonJS: a sandboxed preload cannot use ES modules. |
 | `src/renderer/*.html` | `.vite/renderer/main_window/` | `root` is set, so `outDir` must be absolute. |
-| `e2e/fixtures/demo-shell/` | `.vite/renderer/demo_window/` | The capture fixture. Built here, then dropped from the package. |
-
-That last row is a real trap. Forge's default `outDir` is relative to the root
-it supplies. Override `root` without also setting `outDir` and the renderer
-builds into `src/renderer/.vite/`, where the package never finds it.
-
-The capture fixture is a second renderer entry rather than a branch inside the
-first. It used to be a subtree of `src/renderer/` chosen at mount time by a
-query parameter, which meant sample run data shipped inside the application a
-user installs. `forge.config.ts` excludes its output, and
-`npm run verify:package` fails if it ever returns.
 
 ## Testing
 

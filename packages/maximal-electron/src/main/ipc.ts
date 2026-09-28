@@ -77,16 +77,12 @@ interface TerminalWindowActions {
   ) => boolean | Promise<boolean>;
 }
 
-let terminalWindowActions: TerminalWindowActions = {
+const terminalWindowActions: TerminalWindowActions = {
   frameId: (window) => String(window?.id ?? ''),
   undock: () => false,
   copy: () => false,
   redock: () => false,
 };
-
-export function configureTerminalWindowActions(actions: TerminalWindowActions): void {
-  terminalWindowActions = actions;
-}
 
 /** A handler for one channel. Types come from the contract, so it cannot drift. */
 type IpcHandler<C extends IpcChannel> = (

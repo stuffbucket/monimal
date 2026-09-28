@@ -65,22 +65,25 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
  * ownership validation, split, focus, close and document docking operations.
  *
  * 2657 to 1953 is deletion on purpose: the nineteen terminal, pty and tmux
- * modules left for `@stuffbucket/maximal-terminal`, which carries their
+ * modules left for `@maximal/maximal-terminal`, which carries their
  * mutants under its own floor, and `scripts/publish-decision.mjs` went with
  * this package's registry publishing.
+ *
+ * 1953 to 1852 removes the demo shell, terminal lab, and session metadata
+ * facade after the desktop application became the integration host.
  */
-export const MUTANT_FLOOR = 1953;
+export const MUTANT_FLOOR = 1852;
 
 /**
  * `// Stryker disable` suppressions, counted in mutants rather than comments
  * because one comment covers every mutant on its line.
  *
- * Five comments, in `contrast.ts`, `tab-transfer.ts` and `terminal-lab.ts`,
- * suppress six mutants. An ignored mutant is outside the score, so another
+ * Two comments in `contrast.ts` and `tab-transfer.ts` suppress two mutants.
+ * An ignored mutant is outside the score, so another
  * must raise this on purpose. `docs/testing.md` says to read the existing ones
  * before writing another.
  */
-export const IGNORED_CEILING = 6;
+export const IGNORED_CEILING = 2;
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   checkMutationReport({

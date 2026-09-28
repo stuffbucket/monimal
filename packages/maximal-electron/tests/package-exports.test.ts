@@ -57,6 +57,15 @@ describe('package exports', () => {
     expect(manifest.scripts['verify:exports']).toBeTruthy();
   });
 
+  it('leaves dependency-ordered builds to the workspace task graph', async () => {
+    const manifest = JSON.parse(
+      await readFile(path.join(ROOT, 'package.json'), 'utf8'),
+    ) as PackageManifest;
+
+    expect(manifest.scripts.prepare).toBeUndefined();
+    expect(manifest.scripts.prepack).toBe(manifest.scripts['build:package']);
+  });
+
   /*
    * A caret on a version this repository ships is a version nobody chose.
    * `^1.2.0-beta.14` admitted every later beta and every 1.x release from a

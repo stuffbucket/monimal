@@ -44,7 +44,7 @@ const failures = [];
 // `EnableNodeCliInspectArguments: false` fuse stops Playwright attaching to a
 // packaged binary. It drives the capture fixture, which is its own renderer
 // bundle, so checking the product's would pass and then fail minutes in.
-for (const artefact of ['.vite/build/main.js', '.vite/renderer/demo_window/index.html']) {
+for (const artefact of ['.vite/build/main.js', '.vite/renderer/main_window/index.html']) {
   if (!existsSync(path.join(ROOT, artefact))) {
     failures.push(`${artefact} is missing. Run \`npm run package\` first.`);
   }

@@ -202,7 +202,6 @@ jobs:
       # checks that require a tag or packaged app remain out of the PR gate.
       - name: Verify package mechanics
         run: |
-          pnpm --filter @maximal/maximal-electron run verify:fixture-imports
           pnpm --filter @maximal/maximal-electron run verify:neutral
           pnpm --filter @maximal/maximal-electron run verify:docs
           pnpm --filter @maximal/maximal-electron run verify:exports

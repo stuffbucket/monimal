@@ -1,12 +1,9 @@
-import { existsSync } from 'node:fs';
 import path from 'node:path';
 
 import type { BrowserWindow, Rectangle } from 'electron';
 
 import type { HostWindowOptions } from '../../host/host-window.js';
 import { windowIcon } from '../native/app-icon.js';
-import { isDemo } from '../native/preferences.js';
-import { isTerminalLab } from '../native/terminal-lab.js';
 
 /**
  * The main application window, as options for the shell's own host window.
@@ -22,9 +19,6 @@ import { isTerminalLab } from '../native/terminal-lab.js';
  */
 export function mainWindowOptions(
   bounds?: Rectangle,
-  terminalSessionId?: string,
-  terminalTitle?: string,
-  terminalPane?: unknown,
 ): HostWindowOptions {
   return {
     preloadPath: path.join(__dirname, 'preload.js'),
@@ -55,25 +49,11 @@ export function mainWindowOptions(
         }),
     trafficLightPosition: { x: 14, y: 13 },
     showWhenReady: false,
-    loadRenderer: (window) => loadRenderer(window, terminalSessionId, terminalTitle, terminalPane),
+    loadRenderer,
   };
 }
 
-function loadRenderer(
-  window: BrowserWindow,
-  terminalSessionId?: string,
-  terminalTitle?: string,
-  terminalPane?: unknown,
-): void {
-  if (isTerminalLab()) {
-    loadTerminalLab(window, terminalSessionId, terminalTitle, terminalPane);
-    return;
-  }
-  if (isDemo()) {
-    loadDemoShell(window);
-    return;
-  }
-
+function loadRenderer(window: BrowserWindow): void {
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     void window.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
     // Development only. The upstream Forge template opens DevTools in packaged
@@ -85,63 +65,4 @@ function loadRenderer(
   void window.loadFile(
     path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
   );
-}
-
-function loadTerminalLab(
-  window: BrowserWindow,
-  terminalSessionId?: string,
-  terminalTitle?: string,
-  terminalPane?: unknown,
-): void {
-  const query = new URLSearchParams();
-  if (terminalSessionId) query.set('sessionId', terminalSessionId);
-  if (terminalTitle) query.set('title', terminalTitle);
-  if (terminalPane) query.set('pane', JSON.stringify(terminalPane));
-  const search = query.toString() === '' ? '' : `?${query.toString()}`;
-  if (TERMINAL_LAB_WINDOW_VITE_DEV_SERVER_URL) {
-    void window.loadURL(`${TERMINAL_LAB_WINDOW_VITE_DEV_SERVER_URL}${search}`);
-    window.webContents.openDevTools({ mode: 'detach' });
-    return;
-  }
-
-  const page = path.join(
-    __dirname,
-    `../renderer/${TERMINAL_LAB_WINDOW_VITE_NAME}/index.html`,
-  );
-  if (!existsSync(page)) {
-    throw new Error(
-      'The terminal lab renderer is not in this build. Run it from the repository root with `pnpm dev:terminal`.',
-    );
-  }
-  void window.loadFile(page, search === '' ? undefined : { search });
-}
-
-/**
- * Load the capture fixture instead of the product.
- *
- * `STUFFBUCKET_DEMO=1` selects it. It is a separate renderer bundle, and
- * `forge.config.ts` keeps that bundle out of the package, so this is reachable
- * from a checkout and not from an installed application. Failing loudly here
- * beats `loadFile` rejecting into a discarded promise, which leaves a blank
- * window that looks like a hang.
- */
-function loadDemoShell(window: BrowserWindow): void {
-  if (DEMO_WINDOW_VITE_DEV_SERVER_URL) {
-    void window.loadURL(DEMO_WINDOW_VITE_DEV_SERVER_URL);
-    window.webContents.openDevTools({ mode: 'detach' });
-    return;
-  }
-
-  const page = path.join(
-    __dirname,
-    `../renderer/${DEMO_WINDOW_VITE_NAME}/index.html`,
-  );
-  if (!existsSync(page)) {
-    throw new Error(
-      `STUFFBUCKET_DEMO is set, but the capture fixture is not in this build. ` +
-        `It is excluded from the package on purpose. Run it from a checkout: ` +
-        `npm run package && STUFFBUCKET_DEMO=1 npm start`,
-    );
-  }
-  void window.loadFile(page);
 }

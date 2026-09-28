@@ -444,12 +444,6 @@ The `.d.ts` comments describe one component each. This is the assembly: a nav
 rail on the left, a canvas of selectable runs in the middle, an inspector on
 the right, document tabs, and a status bar.
 
-It is `e2e/fixtures/demo-shell/DemoApp.tsx` with the fleet data and the
-terminal taken out. That fixture reaches this package through the same
-`exports` map a registry install resolves, and `npm run verify:fixture-imports`
-fails if it ever reaches into `src/` instead, so an example derived from it
-cannot be wrong about the API.
-
 ```tsx
 import {
   Canvas,

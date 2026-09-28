@@ -297,7 +297,7 @@ both are outside `playwright.config.ts` and outside CI.
 So the suite that runs constantly does not need to be seen. If it is visible on
 your desktop, that is a leak worth fixing rather than a requirement.
 
-## Three directories say "demo"
+## Two directories say "demo"
 
 They are not the same thing, and the names are a trap.
 
@@ -305,27 +305,12 @@ They are not the same thing, and the names are a trap.
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | `demo/`                    | Output. Committed stills, mp4 files, and the `edits/*.json` that cut them.                                                           |
 | `e2e/demo/`                | The recorder. Generic capture, compose, and encode machinery.                                                                        |
-| `e2e/fixtures/demo-shell/` | The fixture itself: the fake agent fleet and the components that render it. Its own renderer entry point, excluded from the package. |
 
-The fixture may import from `src/`. The product may not import from `e2e/` —
-ESLint enforces that, because one import the wrong way puts the fixture back
-into the bundle a user installs.
+The product may not import from `e2e/`. ESLint enforces that boundary.
 
 `e2e/demo/*.demo.ts` are timelines, not tests. Four configurations match four
 suffixes: `.demo.ts` records, `.compose.ts` cuts, `.stills.ts` photographs,
 `.spec.ts` gates. Do not merge them.
-
-## The capture fixture is not always built
-
-`pnpm --filter @maximal/maximal-electron run package` builds `demo_window`
-alongside the application, and
-`forge.config.ts` then excludes it from the package. `verify-package.mjs`
-asserts that exclusion, which is why the default builds it: a check that the
-fixture is absent proves nothing if the fixture was never made.
-
-`STUFFBUCKET_SKIP_FIXTURE=1` drops it. CI sets that on the end-to-end job only,
-where no spec reaches the fixture and `verify:package` does not run. Leave it
-unset anywhere the package `stills` or `record` script follows.
 
 ## Techniques rejected, with the reason
 

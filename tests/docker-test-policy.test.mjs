@@ -662,6 +662,11 @@ test("pnpm synchronizes stale dependencies before retrying a workspace script", 
   assert.doesNotMatch(workspace, /^verifyDepsBeforeRun: warn$/m);
 });
 
+test("electron leaves package builds outside the install lifecycle", () => {
+  const electron = JSON.parse(read("packages/maximal-electron/package.json"));
+  assert.equal(electron.scripts.prepare, undefined);
+});
+
 test("the client renderer and sidecar build after their workspace dependencies", () => {
   const maximal = JSON.parse(read("packages/maximal/package.json"));
   const buildCore = read("apps/desktop/scripts/build-core.ts");

@@ -18,7 +18,6 @@ import {
   VagrantConnector,
   WslConnector,
 } from '@maximal/maximal-terminal';
-import { isTerminalLab, terminalLabLaunch } from '../terminal-lab.js';
 import { TerminalLauncher, loadTerminalProfiles } from '@maximal/maximal-terminal';
 
 let names: TmuxSessionNames | undefined;
@@ -42,7 +41,6 @@ export function launcher(): TerminalLauncher<BrowserWindow> {
 }
 
 const createLauncher = (names: TmuxSessionNames): TerminalLauncher<BrowserWindow> => new TerminalLauncher<BrowserWindow>({
-  localLaunch: isTerminalLab() ? terminalLabLaunch(app.getAppPath()) : undefined,
   connectors: [
     new DockerConnector(execFileRunner),
     new PodmanConnector(execFileRunner),

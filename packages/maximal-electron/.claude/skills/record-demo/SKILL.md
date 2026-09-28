@@ -14,8 +14,7 @@ exists. Full reference is `docs/recording.md`.
 - A new capability needs to be shown rather than described.
 - A release needs an asset that proves the application works.
 
-Do not use it to capture a still. `e2e/demo-stills.stills.ts` does that, and it
-is far quicker.
+Do not use it to capture a still. `npm run stills` is far quicker.
 
 ## Run it
 
@@ -83,8 +82,7 @@ Five rules, in the order they catch people:
 
 Copy an existing `*.demo.ts`. Keep three things:
 
-- A launch helper that sets a known state: `launchApp()` for the product shell,
-  or `launchDemoApp()` from `./launch.js` when the timeline needs the fixture.
+- `launchApp()` to start the product shell in a known state.
 - `closeApp(harness)` from `../harness.js`, **not** `app.close()`. A crash
   during teardown lands after the last frame, and a plain close reports a clean
   recording over a process that aborted.

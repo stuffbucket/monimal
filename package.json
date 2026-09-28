@@ -8,7 +8,6 @@
     "pnpm:devPreinstall": "node scripts/prepare-workspace.mjs",
     "analyze": "turbo run analyze",
     "dev": "turbo run dev --filter=maximal-desktop",
-    "dev:terminal": "turbo run dev:terminal --filter=@maximal/maximal-electron",
     "dev:context": "turbo run dev:context --filter=@maximal/maximal-context-window",
     "dev:server": "turbo run dev --filter=@maximal/maximal -- start",
     "build": "turbo run build",

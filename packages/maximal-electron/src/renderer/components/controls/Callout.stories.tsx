@@ -112,9 +112,7 @@ export const Approval: Story = {
  *
  * The shipped stylesheet maps no status to a colour, so a callout with a status
  * and no rule behind it is the same box as one without. This story writes the
- * rule — one selector, the pair, exactly as `README.md` and
- * `e2e/fixtures/demo-shell/demo.css` write it — and the `play` measures that the
- * outline took it.
+ * rule, and the `play` measures that the outline took it.
  */
 export const HostMapping: Story = {
   name: 'Host mapping',

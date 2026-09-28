@@ -143,12 +143,6 @@
       "passThroughEnv": ["MAXIMAL_*", "XDG_CONFIG_HOME"],
       "description": "Build workspace dependencies, then run a package's interactive development process."
     },
-    "dev:terminal": {
-      "dependsOn": ["^build"],
-      "cache": false,
-      "persistent": true,
-      "description": "Launch the focused Electron terminal development lab."
-    },
     "dev:context": {
       "dependsOn": ["^build"],
       "cache": false,
