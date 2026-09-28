@@ -4,7 +4,7 @@ import {
   type ConnectorSettingValue,
   type SearchProvider,
   type SearchProviderConfig,
-} from "@stuffbucket/maximal-harness"
+} from "@maximal/maximal-search"
 
 export function searchSettingError(
   field: ConnectorSettingField,

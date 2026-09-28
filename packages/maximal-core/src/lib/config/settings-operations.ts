@@ -1,15 +1,3 @@
-import {
-  buildSearchSettingsManifest,
-  isSearchConnectorPlugin,
-  type ConnectorSettingField,
-  type ConnectorSettingValue,
-  type SearchConnectorConfig,
-  type SearchConnectorPlugin,
-  type SearchProviderConfig,
-  type SearchProvider,
-} from "@stuffbucket/maximal-harness"
-import { randomUUID } from "node:crypto"
-
 import type {
   AppEntry,
   ApiKeyCreateRequest as ApiKeyCreateRequestType,
@@ -26,7 +14,21 @@ import type {
   SearchProviderValidationResponse,
   SearchSettingsResponse,
   SearchSettingsUpdateRequest,
-} from "~/lib/config/settings-types"
+} from "@maximal/maximal-core-contract/settings"
+
+import { SearchSettingsResponse as SearchSettingsResponseSchema } from "@maximal/maximal-core-contract/settings"
+import {
+  buildSearchSettingsManifest,
+  isSearchConnectorPlugin,
+  type ConnectorSettingField,
+  type ConnectorSettingValue,
+  type SearchConnectorConfig,
+  type SearchConnectorPlugin,
+  type SearchProviderConfig,
+  type SearchProvider,
+} from "@maximal/maximal-search"
+import { randomUUID } from "node:crypto"
+
 import type {
   ConfiguratorConnection,
   ConfiguratorPlugin,
@@ -62,7 +64,6 @@ import {
   enabledProviderError,
   searchSettingError,
 } from "~/lib/config/search-setting-validation"
-import { SearchSettingsResponse as SearchSettingsResponseSchema } from "~/lib/config/settings-types"
 import {
   apiKeyToCredentialSummary,
   configuratorConnectionToAppEntry,

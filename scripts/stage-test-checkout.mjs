@@ -30,30 +30,31 @@ const buildArguments = Object.freeze({
     "run",
     "build",
     "--concurrency=1",
-    "--filter=@stuffbucket/maximal-core...",
+    "--filter=@maximal/maximal-core...",
   ],
   "maximal-models": [
     "run",
     "build",
     "--concurrency=1",
-    "--filter=@stuffbucket/maximal-models...",
+    "--filter=@maximal/maximal-models...",
   ],
   "maximal-configurators": [
     "run",
     "build",
     "--concurrency=1",
-    "--filter=@stuffbucket/maximal-configurators...",
+    "--filter=@maximal/maximal-configurators...",
   ],
   connections: [
     "run",
     "build",
     "--concurrency=1",
-    "--filter=@stuffbucket/maximal-configurators...",
-    "--filter=@stuffbucket/maximal-core...",
-    "--filter=maximal-client...",
+    "--filter=@maximal/maximal-configurators...",
+    "--filter=@maximal/maximal-core...",
+    "--filter=@maximal/maximal-client...",
+    "--filter=maximal-desktop...",
   ],
   policy: undefined,
-  settings: ["run", "build", "--concurrency=1", "--filter=@stuffbucket/maximal-settings"],
+  settings: ["run", "build", "--concurrency=1", "--filter=@maximal/maximal-settings"],
 });
 
 function gitOutput(arguments_, root, encoding = "utf8") {

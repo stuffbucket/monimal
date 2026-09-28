@@ -9,7 +9,7 @@ import {
   type TerminalDataMessage,
   type TerminalExitMessage,
   type TerminalSizeMessage,
-} from './terminal-transport.js';
+} from '@maximal/maximal-terminal/renderer';
 
 /**
  * This application's terminal transport, over its own IPC contract.

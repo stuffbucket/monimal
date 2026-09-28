@@ -2,15 +2,15 @@ import type { ReactNode } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect } from 'storybook/test';
 
-import type { TerminalEmulator, TerminalTheme } from '../lib/terminal-emulator.js';
+import type { TerminalEmulator, TerminalTheme } from '@maximal/maximal-terminal/renderer';
 import type {
   DetachableTerminalTransport,
   TerminalDescriptor,
   TerminalEvent,
   TerminalSession,
   TerminalTransport,
-} from '../lib/terminal-transport.js';
-import { TerminalView, type TerminalHost } from './TerminalView.js';
+} from '@maximal/maximal-terminal/renderer';
+import { TerminalView, type TerminalHost } from '@maximal/maximal-terminal/renderer';
 
 /**
  * A real terminal, over a transport that answers from a string.
@@ -33,7 +33,7 @@ import { TerminalView, type TerminalHost } from './TerminalView.js';
 const SESSION = [
   '\x1b[1;32mavery\x1b[0m:\x1b[1;34m~/work/shell\x1b[0m $ npm run build:package',
   '',
-  '> @stuffbucket/maximal-electron build:package',
+  '> @maximal/maximal-electron build:package',
   '> npm run build:host && npm run build:renderer',
   '',
   '  \x1b[32mok\x1b[0m  tsc -p tsconfig.host.json              \x1b[2m1.8s\x1b[0m',

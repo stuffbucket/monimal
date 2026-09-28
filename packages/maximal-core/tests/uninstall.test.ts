@@ -1,10 +1,11 @@
+import type { AppEntry } from "@maximal/maximal-core-contract/settings"
+
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test"
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
 
 import type { ClientApp } from "~/apps/index"
-import type { AppEntry } from "~/lib/config/settings-types"
 import type {
   RunUninstallDependencies,
   UninstallControlClient,

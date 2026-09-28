@@ -18,7 +18,7 @@ import { packageStylesheets } from '../scripts/shell-variables.mjs';
  * `--shell-border` and the strong border stays whatever hex was transcribed,
  * and nothing reports an error, because a colour that is merely wrong renders.
  * That is the mechanism behind the twenty-nine divergent
- * `var(--shell-*, literal)` sites measured in `packages/maximal/client`.
+ * `var(--shell-*, literal)` sites measured in `packages/maximal-client/src/renderer`.
  *
  * Structural sizes do not appear here. `shell-structural-tokens.css` owns their
  * values, and package rules inherit them without a second fallback value.

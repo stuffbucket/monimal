@@ -6,7 +6,7 @@ entry.
 
 The engine — routing, middleware, model dispatch, config, the token store, and
 diagnostics — lives in [`stuffbucket/maximal-core`](https://github.com/stuffbucket/maximal-core)
-and is consumed as `@stuffbucket/maximal-core`. For anything about how a request
+and is consumed as `@maximal/maximal-core`. For anything about how a request
 is handled, read that repo's
 [`docs/architecture.md`](https://github.com/stuffbucket/maximal-core/blob/main/docs/architecture.md);
 this document deliberately does not mirror it, because the mirrored copy drifted
@@ -22,7 +22,6 @@ provider implementations, or engine policy.
 | Path                     | Purpose                                                                                                                                                                                    |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `src/`                   | Packaging composition only: invokes Core's real CLI and supplies a lazy, contract-shaped provider gateway plus the built-in configurator runtime. Concrete providers never live here.     |
-| `client/`                | Electron 43 + React 19 + TypeScript + Vite desktop app. Compiles the same composition into its `maximal-core` sidecar via `client/scripts/build-core.ts`.                                  |
 | `scripts/`               | Release and packaging tooling: `sync-homebrew-formula.ts`, `sbom.ts`, `secret-scan.sh`, plus `scripts/dev/verify-build.ts`.                                                                |
 | `build/`                 | Distribution templates — `build/homebrew/` and `build/macos/`.                                                                                                                             |
 | `tests/`                 | Tests for the packaging and distribution surface only (manifests, the Homebrew formula renderer, the macOS installer template, `verify-build`). The root Turbo graph owns their execution. |
@@ -33,7 +32,7 @@ provider implementations, or engine policy.
 
 ## Building and shipping the CLI
 
-The published package is `@stuffbucket/maximal`, exposing one binary,
+The published package is `@maximal/maximal`, exposing one binary,
 `maximal` → `./dist/main.js`. It ships `dist/` plus the third-party notice.
 
 The build starts at the package-owned composition entry:
@@ -52,7 +51,8 @@ concrete adapters remain external profile dependencies. Package-boundary and
 bundle-metafile checks fail if oMLX, the external Anthropic adapter, or
 fixture-provider code enters the CLI.
 
-`client/scripts/build-core.ts` compiles this same entry into the sidecar while
+The desktop app's [sidecar builder](../../../apps/desktop/scripts/build-core.ts)
+compiles this same entry into the sidecar while
 retaining the historical `resources/bin/maximal-core` filename and Core build
 identity defines. It obtains provenance from `git rev-parse HEAD`, not a package
 lock. The compiled build uses `--compile-autoload-package-json` so absolute
@@ -63,11 +63,13 @@ trusted-code boundary, live reconciliation, rollback, and package restart rule.
 
 ## Electron client
 
-`client/` is the desktop app for non-CLI users — TypeScript, Vitest, and
-Electron Forge own its application build. It is a package in the root pnpm
-workspace. Bun is used only to compile the composed proxy into a sidecar binary
-via `client/scripts/build-core.ts`; its Vitest suite runs as part of the root
-Turbo test graph.
+The [`maximal-desktop`](../../../apps/desktop/) workspace app owns Electron
+main/preload, app-level renderer composition, Forge packaging, and the sidecar
+build. The [`@maximal/maximal-client`](../../maximal-client/) workspace package owns
+reusable product features, controls, and shared contracts. Bun compiles the
+composition entry into a sidecar binary through the desktop app's
+[sidecar builder](../../../apps/desktop/scripts/build-core.ts); both test suites
+run in the root Turbo graph.
 
 The Tauri menu-bar shell that previously filled this role was retired in #442;
 `shell/` no longer exists.

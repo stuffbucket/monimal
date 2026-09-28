@@ -3,7 +3,7 @@ import path from 'node:path';
 
 import type { Display, Rectangle } from 'electron';
 
-import type { TrustedTerminalLaunch } from './terminal-launcher.js';
+import type { TrustedTerminalLaunch } from '@maximal/maximal-terminal';
 
 const WINDOW_STATE_FILE = '.terminal-lab-window.json';
 

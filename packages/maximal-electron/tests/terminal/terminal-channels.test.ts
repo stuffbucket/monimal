@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   registerTerminalChannels,
   type TerminalChannelHost,
-} from '../../src/host/terminal-host.js';
+} from '@maximal/maximal-terminal';
 import { BRIDGE_KEY, IPC_CHANNELS, IPC_EVENTS } from '../../src/shared/ipc.js';
 
 /**
@@ -12,7 +12,7 @@ import { BRIDGE_KEY, IPC_CHANNELS, IPC_EVENTS } from '../../src/shared/ipc.js';
  * `src/renderer/lib/bridge-terminal.ts` hands `createTerminalTransport` this
  * shell's names, and `src/main/ipc.ts` hands `registerTerminalChannels` the
  * same five. Neither imports the other, and neither may: `./renderer` and
- * `./host/terminal` are a consumer's exports, and this repository's contract
+ * `@maximal/maximal-terminal` are a consumer's exports, and this repository's contract
  * inside either is what `npm run verify:neutral` fails on. That is the
  * deliberate duplication `tests/bridge-capabilities.test.ts` covers for the
  * preload bridge, and this is the check it owes: two copies with nothing
@@ -44,7 +44,7 @@ vi.mock('../../src/main/native/preferences.js', () => ({
   getPreferences: vi.fn(),
   setPreferences: vi.fn(),
 }));
-vi.mock('../../src/main/native/pty.js', () => ({
+vi.mock('../../src/main/native/pty/index.js', () => ({
   attachPtyProjection: vi.fn(),
   defaultShell: vi.fn(),
   detachPtyProjection: vi.fn(),

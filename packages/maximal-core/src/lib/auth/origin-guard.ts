@@ -3,17 +3,17 @@
  * not a plan — the CSRF hole it closes is closed.
  *
  * Loopback gating alone was never enough: it checks the source IP, and a
- * malicious page driving the user's local browser originates from 127.0.0.1 and
+ * malicious page driving the user's local browser originates from loopback and
  * passes. So this module adds the two Origin-shaped gates, both mounted by
  * `applyCommonMiddleware` in `server.ts` ahead of every route:
  *
  *   - `createOriginGuardMiddleware` — 403s any request to a
  *     {@link CSRF_GUARDED_PREFIXES} path whose `Origin` is present and not
- *     localhost-on-the-bound-port. `Origin` is a Forbidden header (page JS
+ *     a loopback host on the bound port. `Origin` is a Forbidden header (page JS
  *     cannot forge it), so this blocks all browser-driven cross-origin calls. A
  *     MISSING Origin passes — the CLI/plugin invariant (§6.6): Claude Code,
  *     opencode, and SDK clients send no Origin and must stay reachable.
- *   - `buildCorsOptions` — the global `cors()` is a localhost allowlist rather
+ *   - `buildCorsOptions` — the global `cors()` is a loopback allowlist rather
  *     than `*`. The OPTIONS preflight is the load-bearing case, because auth
  *     bypasses OPTIONS.
  *
@@ -56,10 +56,14 @@ export const CSRF_GUARDED_PREFIXES = [
 ] as const
 
 /** Loopback hostnames a browser may report in an `Origin` for the local UI. */
+const LOCALHOST_HOSTNAME = "localhost"
+const LOOPBACK_IPV4_HOSTNAME = "127.0.0.1"
+const LOOPBACK_IPV6_HOSTNAME = "[::1]"
+
 const LOCALHOST_HOSTNAMES = new Set([
-  "localhost",
-  "127.0.0.1",
-  "[::1]", // URL.hostname brackets IPv6 literals
+  LOCALHOST_HOSTNAME,
+  LOOPBACK_IPV4_HOSTNAME,
+  LOOPBACK_IPV6_HOSTNAME,
 ])
 
 function pathMatchesPrefix(path: string, prefix: string): boolean {
@@ -69,7 +73,7 @@ function pathMatchesPrefix(path: string, prefix: string): boolean {
 /**
  * True if the request may proceed past the Origin gate.
  * - `origin === null` (no header) → true  — non-browser CLI callers (§6.6).
- * - `http://localhost:<port>` / `http://127.0.0.1:<port>` → true.
+ * - A loopback origin on the bound port → true.
  * - anything else → false.
  *
  * Pure; the unit + mutation-test anchor for the gate.
@@ -91,8 +95,8 @@ export function isAllowedOrigin(
     return false
   }
   if (!LOCALHOST_HOSTNAMES.has(url.hostname)) return false
-  // A localhost UI is always served on an explicit port, so require an exact
-  // match against the bound port — not a blanket "any localhost" allow (which
+  // A loopback UI is always served on an explicit port, so require an exact
+  // match against the bound port — not a blanket "any loopback" allow (which
   // would let a page on another local port drive the control surface).
   return url.port === String(boundPort)
 }
@@ -107,7 +111,7 @@ export interface OriginGuardOptions {
   readonly boundPort: () => number
 }
 
-/** 403s a present, non-localhost `Origin` on any guarded path. */
+/** 403s a present, non-loopback `Origin` on any guarded path. */
 export function createOriginGuardMiddleware(
   options: OriginGuardOptions,
 ): MiddlewareHandler {
@@ -131,7 +135,7 @@ export function createOriginGuardMiddleware(
 }
 
 /**
- * Tighten the global `cors()` from `*` to an explicit localhost allowlist. The
+ * Tighten the global `cors()` from `*` to an explicit loopback allowlist. The
  * OPTIONS preflight is the load-bearing case (auth bypasses it). Returns the
  * option object for `hono/cors`'s `cors(...)`.
  */
@@ -139,7 +143,7 @@ export function buildCorsOptions(boundPort: () => number): {
   origin: (origin: string) => string | null
 } {
   // hono/cors calls this with the request's `Origin`; echo it back (allow) only
-  // for a localhost origin on the bound port, else return null (no
+  // for a loopback origin on the bound port, else return null (no
   // Access-Control-Allow-Origin header → the browser blocks the cross-origin read).
   return {
     origin: (origin: string) =>

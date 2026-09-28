@@ -1,9 +1,8 @@
+import type { SearchProviderValidationResponse } from "@maximal/maximal-core-contract/settings"
 import type {
   SearchProvider,
   SearchProviderConfig,
-} from "@stuffbucket/maximal-harness"
-
-import type { SearchProviderValidationResponse } from "~/lib/config/settings-types"
+} from "@maximal/maximal-search"
 
 import {
   sendProviderRequest,

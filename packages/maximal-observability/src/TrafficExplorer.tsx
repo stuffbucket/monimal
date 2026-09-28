@@ -4,7 +4,7 @@ import {
   FieldList,
   InspectorPanel,
   StatusChip,
-} from "@stuffbucket/maximal-electron/renderer"
+} from "@maximal/maximal-electron/renderer"
 
 import { ObservabilityFilters } from "./Filters.tsx"
 import {

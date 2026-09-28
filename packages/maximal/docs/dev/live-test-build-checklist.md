@@ -11,8 +11,8 @@ sidecar." The proxy is compiled into a sidecar binary; `bun run app:dev`
 `scripts/build-sidecar.ts` → `isUpToDate`). A sidecar built from an older
 commit silently omits everything merged since. Symptom: the proxy on `:4141`
 reports an old commit in its `x-maximal-version` header while `origin/main`
-has moved on. The same staleness risk applies to `client/`'s own sidecar
-build (`client/scripts/build-core.ts`) — the verification approach below
+has moved on. The same staleness risk applies to the desktop app's sidecar
+build ([`build-core.ts`](../../../../apps/desktop/scripts/build-core.ts)) — the verification approach below
 (`verify:build`, the `x-maximal-version` header) is shared, stack-agnostic
 infrastructure.
 

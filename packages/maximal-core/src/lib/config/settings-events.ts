@@ -18,7 +18,7 @@
  * being the same shape its corresponding GET endpoint returns.
  */
 
-import type { AuthStatus } from "~/lib/config/settings-types"
+import type { AuthStatus } from "@maximal/maximal-core-contract/settings"
 
 import { EventBus } from "~/lib/runtime-state/event-bus"
 

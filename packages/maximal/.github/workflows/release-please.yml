@@ -1,7 +1,7 @@
 # Release Please — PAUSED during the core excavation / Electron transition.
 #
 # This repo's release story is being redefined: the proxy core moved to
-# @stuffbucket/maximal-core and an Electron client is about to be brought into
+# @maximal/maximal-core and an Electron client is about to be brought into
 # this repo. The previous flow (open a release PR → tag on merge → dispatch
 # release.yml to build + sign installers) no longer applies: release.yml and the
 # installer/binary build pipeline have been removed, so there is nothing for a

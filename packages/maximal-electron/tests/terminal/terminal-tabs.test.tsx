@@ -3,8 +3,10 @@ import { StrictMode, act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
+import type * as TerminalRenderer from '@maximal/maximal-terminal/renderer';
 
-vi.mock('../../src/renderer/components/TerminalView.js', () => ({
+vi.mock('@maximal/maximal-terminal/renderer', async (importOriginal) => ({
+  ...(await importOriginal<typeof TerminalRenderer>()),
   TerminalView: ({ id, focusRequest, focused, focusIndicator, onExit, onSplit, onNavigateSplit }: {
     id: string;
     focusRequest?: number;

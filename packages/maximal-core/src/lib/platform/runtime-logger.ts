@@ -1,4 +1,4 @@
-import { createLogger } from "@stuffbucket/maximal-logging"
+import { createLogger } from "@maximal/maximal-logging"
 import consola from "consola"
 
 import { redactForLog, scrubSecrets } from "~/lib/platform/log-redact"

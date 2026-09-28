@@ -38,11 +38,13 @@ describe('capabilityLabels', () => {
     expect(
       capabilityLabels({
         vision: true,
+        imageGeneration: true,
+        videoGeneration: true,
         toolCalls: true,
         streaming: true,
         reasoning: true,
       }),
-    ).toEqual(['Vision', 'Tools', 'Streaming', 'Reasoning']);
+    ).toEqual(['Vision', 'Image generation', 'Video generation', 'Tools', 'Streaming', 'Reasoning']);
   });
 
   it('names only the ones it has', () => {

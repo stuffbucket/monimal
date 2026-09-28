@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "name": "@stuffbucket/maximal",
+  "name": "@maximal/maximal",
   "version": "0.4.41",
   "description": "Local proxy that exposes GitHub Copilot as OpenAI- and Anthropic-compatible HTTP endpoints.",
   "keywords": [
@@ -55,13 +55,13 @@
     ]
   },
   "dependencies": {
-    "@stuffbucket/maximal-configurators": "workspace:*",
-    "@stuffbucket/maximal-core": "workspace:*",
-    "@stuffbucket/maximal-model-contract": "workspace:*",
-    "@stuffbucket/maximal-models": "workspace:*"
+    "@maximal/maximal-configurators": "workspace:*",
+    "@maximal/maximal-core": "workspace:*",
+    "@maximal/maximal-model-contract": "workspace:*",
+    "@maximal/maximal-models": "workspace:*"
   },
   "devDependencies": {
-    "@stuffbucket/eslint-config": "workspace:*",
+    "@maximal/eslint-config": "workspace:*",
     "@types/bun": "^1.4.0",
     "@typescript/native": "npm:typescript@^7.0.2",
     "bumpp": "^12.2.2",

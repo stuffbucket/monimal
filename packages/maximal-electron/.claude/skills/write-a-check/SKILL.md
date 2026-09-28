@@ -58,7 +58,7 @@ An assertion over a collection needs a floor on the collection. Write the floor
 as a separate failure with its own message, so the output distinguishes "this
 was wrong" from "there was nothing to look at".
 
-`@stuffbucket/maximal-electron/verify` does this at the seam a consumer
+`@maximal/maximal-electron/verify` does this at the seam a consumer
 touches: the
 first two returned checks are floors on the file lists, because a consumer who
 points the verifier at the wrong directory would otherwise get a green run.
@@ -69,7 +69,7 @@ Every defect above was found by running something, and none by reading it.
 #88 made nine checks fail deliberately and found that the new `spawn-helper`
 assertion would have failed every Linux release, because `pty.cc` uses the
 helper only under `__APPLE__`. #87 made six fail deliberately. The first real
-run of `release.yml` found #86.
+run of the since-removed package release workflow found #86.
 
 The recipe is the same each time.
 
@@ -99,7 +99,7 @@ Undoing by path discards by path. Checking out a path, restoring a path,
 cleaning with force, and a reset in hard mode all replace the whole file, so the
 injected line and every other uncommitted edit in that file go together. Two
 agents reached for one of those in a single day, and the second lost its own
-edits to `.github/workflows/release.yml`. Use one of these instead.
+edits to a workflow file. Use one of these instead.
 
 - **Commit the break, then revert the commit.** Commit the injection on its own,
   then `git revert --no-edit HEAD`, or move the ref back with
@@ -119,14 +119,13 @@ ceremony.
 
 ## The related failure: a check that never runs
 
-Three of the four jobs in `release.yml` had never once completed successfully,
-and only a dispatch found that out. That is the same defect one level up: the
-scope is the set of runs, and it was empty. Those three jobs were the
-installers, and they were eventually deleted rather than fixed.
+Three of the four jobs in the since-removed release workflow had never once
+completed successfully, and only a dispatch found that out. That is the same
+defect one level up: the scope is the set of runs, and it was empty. Those
+three jobs were the installers, and they were eventually deleted rather than
+fixed.
 
-`docs/ci.md` holds the rule for anything added to a workflow. It must be
-possible to run before a tag, and it must fail when it has nothing to do. The
-dry run exists for the first half and `dry-run-artifacts` for the second.
+`docs/ci.md` holds the rule for anything added to a workflow.
 
 ## Still unfloored
 

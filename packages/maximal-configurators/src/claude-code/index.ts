@@ -4,7 +4,7 @@ import {
   type ConfiguratorMetadata,
   type ConfiguratorPlugin,
   type ManagedFieldPatch,
-} from "@stuffbucket/maximal-core/configurator-host"
+} from "@maximal/maximal-core/configurator-host"
 
 import { defineConfigurator } from "../configurator.ts"
 

@@ -13,12 +13,12 @@ import type {
   TrafficRequestList,
   TrafficRequestListQuery,
   TrafficTokenObservation,
-} from "@stuffbucket/maximal-observability-contract"
+} from "@maximal/maximal-observability-contract"
 
 import {
   TRAFFIC_INVALIDATION_REQUEST_IDS_MAX,
   TRAFFIC_OBSERVABILITY_CONTRACT_VERSION,
-} from "@stuffbucket/maximal-observability-contract"
+} from "@maximal/maximal-observability-contract"
 import path from "node:path"
 
 import { PATHS } from "~/lib/platform/paths"

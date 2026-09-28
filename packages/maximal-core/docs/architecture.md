@@ -282,8 +282,26 @@ cannot be reached there. `/_internal` stays public on purpose — `evictRunning`
 takes over the public port by POSTing `/_internal/shutdown` *to that port*, and
 moving it would break `--replace`.
 
-Both bound ports are reported four ways, because a host may miss any one of
-them: the boot banner, the stdout ready-line, `/status`, and `server/discover`.
+With `start --desktop-ipc`, a desktop-spawned Core requires an inherited Node
+IPC channel and binds only the public listener. The ready-line still reports the
+actual `proxyPort`, with `controlPort: 0` to indicate no HTTP control listener;
+the boot-status stdout markers are unchanged. Standalone Core retains both
+listeners and the HTTP control API. Desktop sends
+`{kind:"rpc",id:number,method:string,params?:unknown}`; Core responds with
+`{kind:"rpc-result",id:number,result?:unknown,error?:{code:number,message:string,data?:unknown}}`
+and pushes `{kind:"control-event",frame:{jsonrpc:"2.0",method:string,params?:unknown}}`.
+IPC invokes the same method registry and error-recovery mapping as HTTP without
+an in-process HTTP request. ControlHub supplies JSON-RPC notification objects
+directly; only its HTTP subscriber formats them as SSE. Notifications start
+with `control/snapshot` and the subscription closes on channel disconnect. The
+HTTP-only streaming method `subscriptions/listen` is not callable over IPC.
+
+Standalone reports both bound ports in the boot banner, stdout ready-line,
+`/status`, and `server/discover`. Desktop IPC reports `controlPort: 0` in the
+ready-line (and `control: 0` in status/discovery), with no control URL banner or
+published HTTP runtime endpoint. An older endpoint descriptor is used by local
+clients only after its exact runtime identity answers a control-plane probe;
+IPC shutdown does not remove a descriptor owned by another runtime.
 
 The ready-line is versioned (`v: 1`) and parsed against a shared zod schema
 (`readyLineSchema` in `src/lib/start/boot-status.ts`) so emitter and parser
@@ -317,8 +335,8 @@ Two properties worth preserving:
 Core is headless: sign-in is CLI-only and the engine serves no UI. A decoupled
 UI-server tier or desktop app consumes core over the loopback `/control`
 surface (Ollama-style), which replaces the removed `/settings/api` request API
-and `/ws` live feed. The wire types live in `src/lib/jsonrpc/contract.ts`
-(published as `./control-contract`) and `src/lib/live/contract.ts` (published as
+and `/ws` live feed. The wire types live in `@maximal/maximal-core-contract/control`
+(republished as `./control-contract`) and `src/lib/live/contract.ts` (published as
 `./contract`); the callable method set is whatever `server/discover` returns at
 runtime — both are generated from the code that serves them, so neither can
 drift from it the way a prose spec does.
@@ -414,42 +432,18 @@ proven-equivalent). The decision itself is
 [ADR-0011](decisions/0011-mock-module-leakage-discipline.md).
 
 
-## Release & PR conventions
+## PR conventions
 
-- **A release is a GitHub milestone whose title is the tag.** There is no
-  release automation in this repo — `release-please.yml` and `release.yml`
-  do not exist here, and no release-please config remains. A PR
-  pre-selects its release by being assigned to the `vX.Y.Z` milestone;
-  whatever is in that milestone is what ships. `bun run release:notes
-  vX.Y.Z` turns it into changelog-shaped Markdown. See
-  [`docs/release-runbook.md`](release-runbook.md).
-- **The version is chosen by a human, up front.** Pre-1.0, `feat:` and
-  `fix:` both cut a **patch**, and a breaking change (`feat!:`) cuts a
-  **minor** — the pre-1.0 convention inherited from release-please
-  (`bump-minor-pre-major` + `bump-patch-for-minor-pre-major`), now
-  enforced by `requiredBump` in
-  [`scripts/ops/release-gates.ts`](../scripts/ops/release-gates.ts).
-  This matters more than it looks: `^0.2.0` means `>=0.2.0 <0.3.0`, so a
-  breaking change released as a patch is *auto-installed* by a downstream
-  consumer. Minor is the only thing that puts it out of range.
-- **Conventional Commit *types* still drive the notes.** They no longer
-  decide *whether* a release happens (the milestone does), but they decide
-  which section an entry lands in, and a `!` is what emits the
-  `BREAKING CHANGES` block. `release:notes` refuses to emit on a title it
-  cannot parse rather than silently dropping the entry.
 - **Squash-merge uses the PR *title* as the commit subject.** So the PR
   title must be a single valid Conventional Commit (`fix: …`, not
   `test+fix: …`). A non-standard type like `test+fix` parses as one
-  unrecognized token, and since the notes are generated from PR titles it
-  is the title — not the body's individual commits, which a squash
-  discards — that has to be right.
+  unrecognized token, and it is the title — not the body's individual commits,
+  which a squash discards — that becomes the durable commit subject.
 - **`main` is protected by two rulesets, and they are what make every other
   gate blocking.** A PR is mandatory, squash is the only merge method,
-  `test` / `windows` / `gate` are required status checks, the branch must be
+  `test` / `windows` are required status checks, the branch must be
   up to date before it merges (the substitute for a Merge Queue this
   user-owned repo cannot have), and `main` cannot be deleted or force-pushed.
-  There is **no bypass actor on either ruleset** — the release commit goes
-  through a PR like everything else (`release:prepare`, then `release:tag` on the
-  merged head), and a bypass reappearing is drift. Verified by
-  `bun run rules:check`; described in
+  There is **no bypass actor on either ruleset**; a bypass reappearing is drift.
+  Verified by `bun run rules:check`; described in
   [`docs/admin/branch-rulesets.md`](admin/branch-rulesets.md).

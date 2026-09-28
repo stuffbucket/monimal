@@ -22,8 +22,8 @@ describe("provider bundle boundary", () => {
   })
 
   test.each([
-    "../omlx/node_modules/@stuffbucket/omlx/dist/index.js",
-    "../anthropic/node_modules/@stuffbucket/anthropic-provider/dist/index.js",
+    "../omlx/node_modules/@maximal/omlx/dist/index.js",
+    "../anthropic/node_modules/@maximal/anthropic-provider/dist/index.js",
     "../../node_modules/.pnpm/@deepseek-ai+dsh-llm@0.1.0-rc.6/node_modules/@deepseek-ai/dsh-llm/lib/index.js",
     "../../node_modules/.pnpm/@deepseek-ai+schemastery@3.18.1/node_modules/@deepseek-ai/schemastery/lib/index.js",
     "../../packages/model-runtimes/omlx/dist/index.js",

@@ -16,11 +16,11 @@
  *      projector IS registered, mirroring production module-load order.
  */
 
+import { NetworkDiagnosisSignal } from "@maximal/maximal-core-contract/settings"
 import { afterEach, beforeEach, describe, expect, test } from "bun:test"
 
 import type { NetworkDiagnosis } from "~/lib/net/network-diagnostics"
 
-import { NetworkDiagnosisSignal } from "~/lib/config/settings-types"
 import {
   NETWORK_DIAGNOSIS_KIND,
   NETWORK_SCOPE,

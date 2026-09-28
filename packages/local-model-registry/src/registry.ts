@@ -7,7 +7,7 @@ import type {
   LocalModelProvisionPhase,
   LocalModelState,
   ProviderUnsubscribe,
-} from "@stuffbucket/maximal-model-contract"
+} from "@maximal/maximal-model-contract"
 
 import { Context, Service } from "@deepseek-ai/cordis"
 import { createHash, randomUUID } from "node:crypto"

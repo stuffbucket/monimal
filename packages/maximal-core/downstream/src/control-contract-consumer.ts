@@ -1,5 +1,5 @@
 /**
- * Downstream consumer of `@stuffbucket/maximal-core/control-contract`.
+ * Downstream consumer of `@maximal/maximal-core/control-contract`.
  *
  * Models what the Electron renderer does: build a JSON-RPC request, discriminate
  * the response, and branch on `error.data.reason` — never on an HTTP status
@@ -21,7 +21,7 @@ import type {
   JsonRpcResponse,
   JsonRpcSuccessResponse,
   ParsedMessage,
-} from "@stuffbucket/maximal-core/control-contract"
+} from "@maximal/maximal-core/control-contract"
 
 import {
   codeForReason,
@@ -40,7 +40,7 @@ import {
   jsonRpcRequestSchema,
   notification,
   successResponse,
-} from "@stuffbucket/maximal-core/control-contract"
+} from "@maximal/maximal-core/control-contract"
 
 import { expectAssignable } from "./assert.js"
 

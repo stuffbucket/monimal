@@ -364,7 +364,7 @@ expect_fail "zip whose app carries no stapled ticket" "no stapled ticket" \
 echo "== contract.sh =="
 mk_cfg() { # <file> <artifact-line> [extra]
   cat > "$1" <<CFG
-app_path = packages/maximal/client/out/Maximal-darwin-arm64/Maximal.app
+app_path = apps/desktop/out/Maximal-darwin-arm64/Maximal.app
 bundle_id = co.stuffbucket.maximal
 artifact = $2
 dmg_name = maximal-{tag}-darwin-arm64.dmg

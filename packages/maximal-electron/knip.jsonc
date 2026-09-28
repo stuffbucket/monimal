@@ -17,7 +17,6 @@
     "src/terminal-lab/main.tsx",
     "src/host/run-main.ts",
     "src/host/host-window.ts",
-    "src/host/terminal-host.ts",
     "src/host/electron-terminal.ts"
   ],
   "project": [
@@ -37,11 +36,7 @@
     "node-llama-cpp"
   ],
   "stryker": {
-    "config": ["stryker.conf.json", "stryker.terminal.conf.mjs"]
-  },
-  "ignoreIssues": {
-    // Semantic flow-control aliases intentionally share threshold values.
-    "src/main/native/pty-session.ts": ["duplicates"]
+    "config": ["stryker.conf.json", "stryker.static.conf.mjs"]
   },
   "ignoreExportsUsedInFile": true
 }

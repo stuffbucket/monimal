@@ -38,7 +38,7 @@ export type {
   ProviderTopology,
   ProviderTopologyListener,
   ProviderUnsubscribe,
-} from "@stuffbucket/maximal-model-contract"
+} from "@maximal/maximal-model-contract"
 
 /**
  * Trust boundary: profile packages execute in-process with the embedding

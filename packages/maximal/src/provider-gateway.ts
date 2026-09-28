@@ -2,7 +2,7 @@ import type {
   ProviderCompatibilityConfig,
   ProviderGatewayFactoryContext,
   ProviderHostConfigSnapshot,
-} from "@stuffbucket/maximal-core/provider-host"
+} from "@maximal/maximal-core/provider-host"
 import type {
   LocalModelControl,
   ProviderDispatch,
@@ -10,7 +10,7 @@ import type {
   ProviderStatus,
   ProviderTopologyListener,
   ProviderUnsubscribe,
-} from "@stuffbucket/maximal-model-contract"
+} from "@maximal/maximal-model-contract"
 
 import {
   ProfileValidationError,
@@ -20,7 +20,7 @@ import {
   type DshHostOptions,
   type DshHostReconcileInput,
   type DshHostReconcileResult,
-} from "@stuffbucket/maximal-models"
+} from "@maximal/maximal-models"
 
 interface AnthropicCompatibilityInstance {
   readonly adjustInputTokens?: boolean

@@ -2,7 +2,7 @@ import type {
   ConfiguratorHost,
   ConfiguratorPlugin,
   ConfiguratorRegistry,
-} from "@stuffbucket/maximal-core/configurator-host"
+} from "@maximal/maximal-core/configurator-host"
 
 import { createClaudeCodeConfigurator } from "./claude-code/index.ts"
 import { createClaudeDesktopConfigurator } from "./claude-desktop/index.ts"

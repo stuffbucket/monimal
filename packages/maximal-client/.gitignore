@@ -1,0 +1,11 @@
+node_modules/
+THIRD-PARTY-LICENSES.txt
+# The privately named development Electron bundle. See scripts/name-dev-bundle.mjs.
+.electron-dev/
+.vite/
+out/
+resources/bin/
+*.log
+test-results/
+playwright-report/
+build/icon.png

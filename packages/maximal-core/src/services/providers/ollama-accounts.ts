@@ -1,8 +1,9 @@
+import type { OllamaAccountsListResponse } from "@maximal/maximal-core-contract/settings"
+
 import type {
   AppConfig,
   ResolvedOllamaProviderConfig,
 } from "~/lib/config/config"
-import type { OllamaAccountsListResponse } from "~/lib/config/settings-types"
 
 import {
   getConfig,

@@ -1,4 +1,4 @@
-# @stuffbucket/anthropic-provider
+# @maximal/anthropic-provider
 
 A trusted external Cordis plugin that connects the stock `@deepseek-ai/dsh-llm` service to an Anthropic-compatible Messages API. It is not a Maximal plugin, has no Maximal dependency, and does not import Maximal contracts, hosts, or extensions.
 
@@ -7,7 +7,7 @@ The adapter uses the real `LlmAdapter` and `ctx.llm.registerAdapter()` APIs. It 
 ## Install
 
 ```sh
-pnpm add @stuffbucket/anthropic-provider @deepseek-ai/cordis@4.0.1 @deepseek-ai/dsh-llm@0.1.0-rc.6
+pnpm add @maximal/anthropic-provider @deepseek-ai/cordis@4.0.1 @deepseek-ai/dsh-llm@0.1.0-rc.6
 ```
 
 Treat this package as trusted code: a provider plugin can see model prompts, tool schemas/results, and its configured credential.
@@ -17,7 +17,7 @@ Treat this package as trusted code: a provider plugin can see model prompts, too
 ```ts
 import { Context } from "@deepseek-ai/cordis"
 import LlmRuntime, { createUserMessage } from "@deepseek-ai/dsh-llm"
-import * as anthropicProvider from "@stuffbucket/anthropic-provider"
+import * as anthropicProvider from "@maximal/anthropic-provider"
 
 const ctx = new Context()
 await ctx.plugin(LlmRuntime)

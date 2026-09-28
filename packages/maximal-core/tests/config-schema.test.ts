@@ -1,4 +1,4 @@
-import { SearchConnectorConfigSchema } from "@stuffbucket/maximal-harness"
+import { SearchConnectorConfigSchema } from "@maximal/maximal-search"
 import { afterEach, beforeEach, describe, expect, it } from "bun:test"
 import { z } from "zod"
 
@@ -7,7 +7,11 @@ import {
   detectUnknownKeys,
   validateAppConfig,
 } from "~/lib/config/config-schema"
-import { installConnectorPlugins } from "~/lib/config/connector-plugins"
+import {
+  ConnectorConfigError,
+  installConnectorPlugins,
+  parseConnectorConfig,
+} from "~/lib/config/connector-plugins"
 import { resolveSettingsEnvironment } from "~/lib/config/settings-environment"
 
 beforeEach(() => installConnectorPlugins([]))
@@ -161,14 +165,18 @@ describe("validateAppConfig", () => {
   })
 
   it("delegates installed connector payloads to their plugin schema", () => {
-    installConnectorPlugins([
-      { id: "search", Config: SearchConnectorConfigSchema },
-    ])
+    const plugin = { id: "search", Config: SearchConnectorConfigSchema }
+    installConnectorPlugins([plugin])
     expect(() =>
       validateAppConfig({
         connectors: { search: { defaults: { maxResults: 0 } } },
       }),
     ).toThrow("connectors.search.defaults.maxResults")
+    expect(() =>
+      parseConnectorConfig(plugin, {
+        search: { defaults: { maxResults: 0 } },
+      }),
+    ).toThrow(ConnectorConfigError)
   })
 
   it("accepts 'max' reasoning effort (GPT-5.6 ladder top)", () => {

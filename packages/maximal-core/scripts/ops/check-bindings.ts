@@ -6,15 +6,15 @@
  * Two artifacts qualify, and both are force-tracked against the `dist/` entry in
  * `.gitignore`:
  *
- *   - `dist/lib/**` — the `exports` map's targets, so a git-dependency install
- *     (`bun add github:stuffbucket/maximal-core`) resolves types and runtime
- *     without a build. Built by `build:lib` (tsup).
- *   - `dist/main.js` — the `bin.maximal` target, so that same install gets a
- *     working `maximal` command. Built by `build` (`bun build`).
+ *   - `dist/lib/**` — the `exports` map's targets, so in-repo consumers resolve
+ *     types and runtime through the same package surface. Built by `build:lib`
+ *     (tsup).
+ *   - `dist/main.js` — the `bin.maximal` target. Built by `build`
+ *     (`bun build`).
  *
  * That makes them GENERATED FILES THAT ARE ALSO SOURCE OF TRUTH for every
  * consumer. PR #14 changed `src/lib/live/supervisor.ts`, nothing regenerated
- * `dist/lib`, and `main` published new runtime behaviour behind the old
+ * `dist/lib`, and `main` exposed new runtime behaviour behind the old
  * `{ port, pid }` declaration: a downstream `const { port } = await
  * awaitReadyLine(...)` typechecked clean and was `undefined` at runtime. Fixed
  * by hand in #19; this is the check that would have caught it in #14.
@@ -22,22 +22,16 @@
  * `dist/main.js` was scoped out of the first version of this gate (#24) only
  * because it is a ~7 MB bundle. Its failure mode is strictly worse than
  * `dist/lib`'s: a stale declaration misleads a compiler at build time, where a
- * stale `dist/main.js` silently RUNS old code — `bin` points straight at the
- * committed bytes, so a git-dependency consumer executes whatever was last
- * committed, not what `src/` says.
+ * stale `dist/main.js` silently RUNS old code — `bin` points straight at those
+ * bytes, so a consumer executes whatever was last built, not what `src/` says.
  *
- * WHY NOT JUST STOP COMMITTING `dist/main.js` and build it on install? Because
- * the git-dependency install is the whole reason it is committed (`f79f7b6`,
- * `d607485`) and it has no build step. Measured, not assumed: with
- * `dist/main.js` removed from the index and `prepare: bun run build` added,
- * `npm install git+file://…` does produce the file — but only because `bun` is
- * on that machine's PATH; an install-time build turns a zero-toolchain install
- * into one that hard-fails without Bun. Bun's own installer additionally gates
- * dependency lifecycle scripts (`bun add ./probe.tgz` → "Blocked 1
- * postinstall"), so the fallback is a DANGLING `bin` symlink — a silently
- * broken install, which is worse than the staleness this file exists to catch.
- * The registry path already builds via `prepack`; committing is only for the
- * git path. So the file stays committed, and the gate grows to cover it.
+ * WHY NOT JUST BUILD IT ON DEMAND? An install-time or consumer-time build turns
+ * a prepared package surface into one that depends on Bun being present, and on
+ * Bun running lifecycle scripts in the caller's environment. Bun's own
+ * installer additionally gates dependency lifecycle scripts (`bun add
+ * ./probe.tgz` → "Blocked 1 postinstall"), so the fallback is a DANGLING `bin`
+ * symlink — a silently broken install, which is worse than the staleness this
+ * file exists to catch. So the gate covers the bytes the package surface names.
  *
  * WHY BYTES, NOT THE TYPE SURFACE. A type-surface comparison (extract the
  * declarations, compare structurally) tolerates cosmetic bundler churn, but it
@@ -134,8 +128,8 @@
  * even when every artifact that DID run was clean.
  *
  * The builds and `git` are the only I/O and each goes through one injectable
- * runner, mirroring `release-notes.ts`'s `GhRunner`, so every test runs offline
- * without invoking a bundler or touching a repository.
+ * runner, so every test runs offline without invoking a bundler or touching a
+ * repository.
  */
 
 import { spawnSync } from "node:child_process"
@@ -542,9 +536,9 @@ export function renderReport(
     for (const d of drifts) lines.push(`  ${displayPath(d, artifacts)} — ${KIND_LABEL[d.kind]}`)
     lines.push(
       "",
-      "These files are committed so a git-dependency install gets a working `bin`",
-      "and resolvable types without a build, which means a consumer compiles and",
-      "RUNS them. Stale ones publish new runtime behaviour behind an old",
+      "These files are the package surface for a working `bin` and resolvable",
+      "types without a caller-side build, which means a consumer compiles and",
+      "RUNS them. Stale ones expose new runtime behaviour behind an old",
       "declaration (see maximal-core#14/#19), or execute last week's code.",
       "",
       stale.length > 1

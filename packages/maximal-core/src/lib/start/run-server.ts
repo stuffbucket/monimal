@@ -8,7 +8,7 @@
  * claude-code-flow.ts) so this file reads as a checklist.
  */
 
-import type { ProviderGateway } from "@stuffbucket/maximal-model-contract"
+import type { ProviderGateway } from "@maximal/maximal-model-contract"
 
 import { serve } from "srvx"
 
@@ -65,6 +65,7 @@ import {
 } from "./boot-status"
 import { bootSecrets, bootstrapUpstream } from "./bootstrap"
 import { runClaudeCodeFlow } from "./claude-code-flow"
+import { installDesktopIpc } from "./desktop-ipc"
 import { maybeEvictRunning, portOrExit, resolvePort } from "./port"
 import {
   markSessionRunning,
@@ -147,6 +148,9 @@ export interface RunServerOptions {
    *  ephemeral — because nothing external is meant to find it; a supervisor
    *  learns the bound value from the ready-line. */
   controlPort?: number
+  /** Serve control RPC over the inherited Node IPC channel instead of an HTTP
+   *  control listener. Requires a parent spawned with an `ipc` stdio slot. */
+  desktopIpc?: boolean
   /** Statically linked first-party configurators. Omit for standalone Core. */
   createConfiguratorRuntime?: ConfiguratorRuntimeFactory
   /** Host-owned connector plugins installed before configuration is parsed. */
@@ -171,7 +175,22 @@ function warnAboutStaleSession(): void {
   )
 }
 
+function desktopIpcEnabled(requested: boolean | undefined): boolean {
+  if (!requested) return false
+  if (typeof process.send !== "function" || !process.connected) {
+    throw new Error("Desktop IPC requires an inherited Node IPC channel")
+  }
+  return true
+}
+
+function logSourceRevision(git: ReturnType<typeof getGitVersion>): void {
+  runtimeLogger.info(
+    `Source revision: ${shortSha(git.sha)}${git.branch ? ` (${git.branch})` : ""}`,
+  )
+}
+
 export async function runServer(options: RunServerOptions): Promise<void> {
+  const desktopIpc = desktopIpcEnabled(options.desktopIpc)
   // Work around unjs/consola#357 until a release includes PR #359.
   runtimeConsole.options.throttle = 0
 
@@ -206,15 +225,11 @@ export async function runServer(options: RunServerOptions): Promise<void> {
     ),
   )
 
-  // The control plane is ephemeral by default, so there is nothing to contend
-  // for and no policy to apply — 0 goes straight through to the OS. A caller
-  // that pins it explicitly gets the same policy treatment as the public port.
-  const controlPortRequested = await resolveControlPort(options.controlPort)
+  const controlPortRequested =
+    desktopIpc ? 0 : await resolveControlPort(options.controlPort)
 
   const git = getGitVersion()
-  runtimeLogger.info(
-    `Source revision: ${shortSha(git.sha)}${git.branch ? ` (${git.branch})` : ""}`,
-  )
+  logSourceRevision(git)
 
   const bootLogger = initBootLogger(git, options)
 
@@ -307,10 +322,11 @@ export async function runServer(options: RunServerOptions): Promise<void> {
   )
   const providerConfigSource = createProviderHostConfigSource()
   try {
-    const { proxyServer, controlServer, providerDispatcher } =
+    const { proxyServer, controlServer, providerDispatcher, stopDesktopIpc } =
       await bindListeners({
         configurators: configuratorRegistry,
         controlPort: controlPortRequested,
+        desktopIpc,
         createProviderGateway: options.createProviderGateway,
         providerConfigSource,
         providerGateway: options.providerGateway,
@@ -322,6 +338,8 @@ export async function runServer(options: RunServerOptions): Promise<void> {
       proxyRequested: port,
       controlServer,
       controlRequested: controlPortRequested,
+      desktopIpc,
+      stopDesktopIpc,
       configurators: configuratorRegistry,
       providerDispatcher,
     })
@@ -347,6 +365,7 @@ function logListening(
 interface BindListenersOptions {
   configurators: ConfiguratorRegistry
   controlPort: number
+  desktopIpc: boolean
   createProviderGateway?: ProviderGatewayFactory
   providerConfigSource: ProviderHostConfigSource
   providerGateway?: ProviderGateway
@@ -354,7 +373,7 @@ interface BindListenersOptions {
 }
 
 /**
- * Bind both listeners (maximal-core#10).
+ * Bind the public listener and, outside desktop IPC mode, the control listener.
  *
  * The public one carries `/v1` on a well-known port third-party tools hardcode.
  * The control one carries the JSON-RPC surface on an ephemeral port only the
@@ -362,22 +381,25 @@ interface BindListenersOptions {
  * remote caller gets 404), but binding to the loopback interface means a remote
  * packet never reaches the router at all.
  *
- * Two `serve()` calls rather than one app with a path filter: the separation is
- * the point, and a filter is something a later edit can quietly regress.
+ * Standalone Core uses two `serve()` calls rather than a path filter; desktop
+ * Core uses an inherited IPC channel instead of the second listener.
  */
 async function bindListeners({
   configurators,
   controlPort,
+  desktopIpc,
   createProviderGateway,
   providerConfigSource,
   providerGateway,
   proxyPort,
 }: BindListenersOptions): Promise<{
   proxyServer: ReturnType<ServeFn>
-  controlServer: ReturnType<ServeFn>
+  controlServer?: ReturnType<ServeFn>
   providerDispatcher: ProviderDispatcher
+  stopDesktopIpc?: () => void
 }> {
   let providerDispatcher: ProviderDispatcher | undefined
+  let stopDesktopIpc: (() => void) | undefined
   const listeners: Array<ReturnType<ServeFn>> = []
   const requestShutdown = (reason: string): Promise<void> => {
     const dispatcher = providerDispatcher
@@ -412,16 +434,30 @@ async function bindListeners({
       gracefulShutdown: false,
     })
     listeners.push(proxyServer)
-    const controlServer = serveImpl({
-      fetch: apps.controlApp.fetch,
-      port: controlPort,
-      hostname: "127.0.0.1",
-      bun: { idleTimeout: 0 },
-      gracefulShutdown: false,
-    })
-    listeners.push(controlServer)
-    return { proxyServer, controlServer, providerDispatcher }
+    if (desktopIpc) {
+      if (boundPort(proxyServer, proxyPort) <= 0) {
+        throw new Error(
+          "Desktop IPC proxy listener did not report a bound port",
+        )
+      }
+      stopDesktopIpc = await installDesktopIpc(
+        apps.controlRpcMethods,
+        apps.controlHub,
+      )
+    } else {
+      const controlServer = serveImpl({
+        fetch: apps.controlApp.fetch,
+        port: controlPort,
+        hostname: "127.0.0.1",
+        bun: { idleTimeout: 0 },
+        gracefulShutdown: false,
+      })
+      listeners.push(controlServer)
+      return { proxyServer, controlServer, providerDispatcher }
+    }
+    return { proxyServer, providerDispatcher, stopDesktopIpc }
   } catch (error) {
+    stopDesktopIpc?.()
     for (const listener of listeners) {
       try {
         await listener.close(true)
@@ -485,7 +521,7 @@ function boundPort(httpServer: ReturnType<ServeFn>, requested: number): number {
 
 /**
  * Post-bind finalization — order is load-bearing: publish the actual runtime
- * ports, record the PID, reconcile enabled configurators through their owner
+ * ports (control port 0 for IPC), record the PID, reconcile configurators through their owner
  * claims, then write the session marker only after client routing is live.
  * Graceful shutdown restores configured clients before closing the proxy and
  * disposes providers only after no new requests can enter.
@@ -493,8 +529,10 @@ function boundPort(httpServer: ReturnType<ServeFn>, requested: number): number {
 interface FinalizeBootArgs {
   proxyServer: ReturnType<ServeFn>
   proxyRequested: number
-  controlServer: ReturnType<ServeFn>
+  controlServer?: ReturnType<ServeFn>
   controlRequested: number
+  desktopIpc: boolean
+  stopDesktopIpc?: () => void
   configurators: ConfiguratorRegistry
   providerDispatcher: ProviderDispatcher
 }
@@ -534,15 +572,18 @@ async function finalizeBoot({
   proxyRequested,
   controlServer,
   controlRequested,
+  desktopIpc,
+  stopDesktopIpc,
   configurators,
   providerDispatcher,
 }: FinalizeBootArgs): Promise<void> {
-  // Re-record both bound ports now that they are knowable: under `--port 0` the
+  // Re-record bound ports now that they are knowable: under `--port 0` the
   // pre-bind value was 0, which would make the Origin guard compare every
   // localhost origin against the wrong port and reject the UI. The control port
-  // is *always* ephemeral under a supervisor, so this is not an edge case there.
+  // is ephemeral for a standalone supervisor, or absent under desktop IPC.
   const proxyPort = boundPort(proxyServer, proxyRequested)
-  const controlPort = boundPort(controlServer, controlRequested)
+  const controlPort =
+    controlServer ? boundPort(controlServer, controlRequested) : 0
   state.proxyPort = proxyPort
   state.controlPort = controlPort
   const runtime = currentRuntimeIdentity()
@@ -554,9 +595,8 @@ async function finalizeBoot({
     }
   }
 
-  // Emitted here, after both binds and never before: a supervisor treats this
-  // line as "connectable now" and would otherwise race a socket that is not
-  // listening yet.
+  // Emitted after the public bind and control transport are ready, so the
+  // supervisor cannot race a socket or IPC handler that is not listening yet.
   emitReadyLine({
     v: READY_LINE_VERSION,
     controlPort,
@@ -567,20 +607,26 @@ async function finalizeBoot({
   // After the binds, not before: the control port is ephemeral by default, so a
   // banner printed earlier could only have shown 0 — and this banner is the one
   // place a CLI user can discover it.
-  printReadyBanner(proxyPort, controlPort)
+  if (!desktopIpc) printReadyBanner(proxyPort, controlPort)
 
   void writePidfile()
   await reconcileConfiguratorsOnBoot(configurators)
   markSessionRunning()
   startTokenUsageRetention()
-  installShutdownHandlers([proxyServer, controlServer], {
-    beforeClose: () => configurators.dispose(),
-    afterClose: async () => {
-      try {
-        await providerDispatcher.dispose()
-      } finally {
-        clearRuntimeEndpoint(runtime)
-      }
+  installShutdownHandlers(
+    controlServer ? [proxyServer, controlServer] : [proxyServer],
+    {
+      beforeClose: async () => {
+        stopDesktopIpc?.()
+        await configurators.dispose()
+      },
+      afterClose: async () => {
+        try {
+          await providerDispatcher.dispose()
+        } finally {
+          clearRuntimeEndpoint(runtime)
+        }
+      },
     },
-  })
+  )
 }

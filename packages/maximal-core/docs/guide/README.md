@@ -5,7 +5,7 @@ point your AI coding tools at it.
 
 > This guide describes the **`maximal` desktop app**
 > ([`stuffbucket/maximal`](https://github.com/stuffbucket/maximal)), not the
-> headless `@stuffbucket/maximal-core` package this repo publishes. Sections
+> headless `@maximal/maximal-core` package this repo publishes. Sections
 > named here (Account, Endpoint, API clients, Apps, Models, Usage, General,
 > Logs, Diagnostics) are the app's UI over core's `/control` surface. For the
 > engine itself, see [`../../README.md`](../../README.md) and

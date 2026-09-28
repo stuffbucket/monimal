@@ -12,7 +12,7 @@ const root = resolve(import.meta.dirname, 'e2e/fixtures/demo-shell');
 /**
  * Refuse to build the fixture against a stale or missing `dist/`.
  *
- * The fixture imports `@stuffbucket/maximal-electron/renderer`, which the
+ * The fixture imports `@maximal/maximal-electron/renderer`, which the
  * `exports` map sends to `dist/`, which `npm run build:package` writes. The
  * `prepack`, `prepare`, `prestart` and `prepackage` hooks all run that build,
  * so every documented flow arrives here with a current `dist/`. Anything that
@@ -32,7 +32,7 @@ function requireFreshPackage(): void {
   } catch {
     throw new Error(
       'No renderer package at dist/renderer/index.js. The capture fixture ' +
-        'imports @stuffbucket/maximal-electron/renderer, which resolves there. ' +
+        'imports @maximal/maximal-electron/renderer, which resolves there. ' +
         'Run `npm run build:package` first.',
     );
   }

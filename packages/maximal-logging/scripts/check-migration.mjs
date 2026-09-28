@@ -71,7 +71,7 @@ function scan(directory) {
               "error"
             : "warn"
           process.stderr.write(
-            `${relativePath}:${line + 1}: ${severity}: migrate runtime logging to @stuffbucket/maximal-logging\n`,
+            `${relativePath}:${line + 1}: ${severity}: migrate runtime logging to @maximal/maximal-logging\n`,
           )
           count++
           if (severity === "error") errors++
@@ -87,7 +87,7 @@ for (const relative of [
   "packages/maximal-core/src/lib",
   "packages/maximal-core/src/routes",
   "packages/maximal-core/src/services",
-  "packages/maximal/client/src/main",
+  "apps/desktop/src/main",
 ]) {
   scan(path.join(workspaceRoot, relative))
 }

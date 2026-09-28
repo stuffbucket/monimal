@@ -1,9 +1,9 @@
 # Code Style
 
-Scoped to the root proxy (`src/`). `client/` (the Electron app) is a
-separate TypeScript project — same strict-mode discipline, but its own
-`tsconfig.json` with no `~/` alias and its own npm-run lint/test scripts;
-see `client/package.json`.
+Scoped to the root composition (`src/`). The
+[`maximal-desktop`](../../../apps/desktop/package.json) Electron app and
+[`@maximal/maximal-client`](../../maximal-client/package.json) product UI are separate
+TypeScript projects with their own pnpm lint and test scripts.
 
 - **Imports:** Use `~/` alias for `src/` (e.g., `import { foo } from '~/lib/foo'`)
 - **TypeScript:** Strict mode — no `any`, `noUnusedLocals`, `noUnusedParameters`

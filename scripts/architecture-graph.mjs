@@ -14,6 +14,12 @@ export function readArchitecturePolicy(root) {
   )
 }
 
+/** `"alias": "workspace:@scope/real@*"` depends on `@scope/real`. */
+function aliasTarget(key, spec) {
+  const match = /^workspace:(@?[^@]+)@/.exec(String(spec))
+  return match ? match[1] : key
+}
+
 export function readPackageGraph(root, policy = readArchitecturePolicy(root)) {
   const packages = new Map()
   for (const [expectedName, options] of Object.entries(policy.packages)) {
@@ -30,8 +36,8 @@ export function readPackageGraph(root, policy = readArchitecturePolicy(root)) {
   const edges = []
   for (const [from, pkg] of packages) {
     for (const kind of DEPENDENCY_KINDS) {
-      for (const to of Object.keys(pkg.manifest[kind] ?? {})) {
-        edges.push({ from, to, kind })
+      for (const [key, spec] of Object.entries(pkg.manifest[kind] ?? {})) {
+        edges.push({ from, to: aliasTarget(key, spec), kind })
       }
     }
   }
@@ -79,11 +85,30 @@ export function packageRuleViolations(graph, rules) {
       }
     }
   }
-  for (const rule of rules.require) {
-    for (const to of rule.to) {
-      if (!declared.has(`${rule.from} -> ${to}`)) {
-        violations.push(`required ${rule.from} -> ${to} is missing`)
-      }
+  return violations
+}
+
+/**
+ * The workspace tree is declared, not inferred: each package's `dependsOn`
+ * lists exactly the workspace packages its manifest may name. An edge the
+ * manifest adds, or one the declaration keeps after the manifest drops it,
+ * is a violation.
+ */
+export function packageTreeViolations(graph) {
+  const violations = []
+  for (const [from, pkg] of graph.packages) {
+    const declared = new Set(pkg.dependsOn ?? [])
+    const actual = new Set(
+      graph.edges
+        .filter((edge) => edge.from === from && graph.packages.has(edge.to))
+        .map((edge) => edge.to),
+    )
+    for (const to of declared) {
+      if (!graph.packages.has(to)) violations.push(`${from} declares unknown ${to}`)
+      else if (!actual.has(to)) violations.push(`${from} declares ${to}, which its manifest no longer names`)
+    }
+    for (const to of actual) {
+      if (!declared.has(to)) violations.push(`${from} -> ${to} is not in the declared tree`)
     }
   }
   return violations

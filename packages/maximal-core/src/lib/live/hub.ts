@@ -1,11 +1,13 @@
-import type { TrafficInvalidation } from "@stuffbucket/maximal-observability-contract"
+import type { TrafficInvalidation } from "@maximal/maximal-observability-contract"
 
-import { TRAFFIC_INVALIDATION_REQUEST_IDS_MAX } from "@stuffbucket/maximal-observability-contract"
+import { TRAFFIC_INVALIDATION_REQUEST_IDS_MAX } from "@maximal/maximal-observability-contract"
 
 import {
   CONTROL_PROTOCOL_VERSION,
+  type ControlFrame,
   type ControlTopic,
-  serializeFrame,
+  type FrameEnvelope,
+  notificationForFrame,
   type SnapshotPayload,
 } from "~/lib/live/contract"
 import { BoundedQueue, CLOSED } from "~/lib/live/queue"
@@ -21,9 +23,22 @@ export interface ControlSink {
   close(reason: string): void
 }
 
+export interface ControlNotificationSink {
+  write(frame: FrameEnvelope): Promise<void>
+  close(reason: string): void
+}
+
+interface HubMessage {
+  sse: string
+  notification?: FrameEnvelope
+}
+
 interface Subscriber {
-  readonly sink: ControlSink
-  readonly queue: BoundedQueue<string>
+  readonly sink: {
+    write(message: HubMessage): Promise<void>
+    close(reason: string): void
+  }
+  readonly queue: BoundedQueue<HubMessage>
   alive: boolean
 }
 
@@ -80,7 +95,7 @@ export class ControlHub<Snapshot = unknown> {
 
   private startHeartbeat(intervalMs: number): ReturnType<typeof setInterval> {
     const timer = setInterval(() => {
-      this.fanout(HEARTBEAT_FRAME)
+      this.fanout(null)
     }, intervalMs)
     timer.unref()
     return timer
@@ -101,7 +116,7 @@ export class ControlHub<Snapshot = unknown> {
    * two methods no longer exists.
    */
   emit(topic: ControlTopic, data: unknown): void {
-    this.fanout(serializeFrame({ topic, data }))
+    this.fanout({ topic, data })
   }
 
   /** Record a usage tick. Still coalesced — that was always about volume, not
@@ -162,9 +177,29 @@ export class ControlHub<Snapshot = unknown> {
    * Every connect is a fresh snapshot — there is no resume path to take instead.
    */
   async subscribe(sink: ControlSink): Promise<() => void> {
+    return this.subscribeSink({
+      write: (message) => sink.write(message.sse),
+      close: (reason) => sink.close(reason),
+    })
+  }
+
+  /** Deliver JSON-RPC notifications directly to non-HTTP transports. */
+  async subscribeNotifications(
+    sink: ControlNotificationSink,
+  ): Promise<() => void> {
+    return this.subscribeSink({
+      write: (message) =>
+        message.notification ?
+          sink.write(message.notification)
+        : Promise.resolve(),
+      close: (reason) => sink.close(reason),
+    })
+  }
+
+  private async subscribeSink(sink: Subscriber["sink"]): Promise<() => void> {
     const subscriber: Subscriber = {
       sink,
-      queue: new BoundedQueue<string>(this.queueCapacity),
+      queue: new BoundedQueue<HubMessage>(this.queueCapacity),
       alive: true,
     }
     this.subscribers.add(subscriber)
@@ -182,7 +217,7 @@ export class ControlHub<Snapshot = unknown> {
       snapshot,
     }
     subscriber.queue.pushFront(
-      serializeFrame({ topic: "snapshot", data: payload }),
+      this.messageFor({ topic: "snapshot", data: payload }),
     )
 
     void this.drain(subscriber)
@@ -193,11 +228,20 @@ export class ControlHub<Snapshot = unknown> {
 
   // ── Internals ───────────────────────────────────────────────────────────
 
-  private fanout(frame: string): void {
+  private messageFor(frame: ControlFrame): HubMessage {
+    const notification = notificationForFrame(frame)
+    return {
+      notification,
+      sse: `data: ${JSON.stringify(notification)}\n\n`,
+    }
+  }
+
+  private fanout(frame: ControlFrame | null): void {
     // The frame is serialized once and the same string is shared to every
     // queue. Iterate a copy — overflow removal mutates the set mid-loop.
+    const message = frame ? this.messageFor(frame) : { sse: HEARTBEAT_FRAME }
     for (const subscriber of Array.from(this.subscribers)) {
-      if (!subscriber.queue.push(frame)) {
+      if (!subscriber.queue.push(message)) {
         this.remove(subscriber, "overflow")
       }
     }

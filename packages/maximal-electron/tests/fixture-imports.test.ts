@@ -21,7 +21,7 @@ const ROOT = '/repo/e2e/fixtures/demo-shell';
 describe('importSpecifiers', () => {
   it('reads every form a module states an import in', () => {
     const source = [
-      "import { Card } from '@stuffbucket/maximal-electron/renderer';",
+      "import { Card } from '@maximal/maximal-electron/renderer';",
       "import './demo.css';",
       "import type { Tab } from './views.js';",
       "export { RUNS } from './runs.js';",
@@ -30,7 +30,7 @@ describe('importSpecifiers', () => {
     ].join('\n');
 
     expect(importSpecifiers(source, '.tsx').map((found) => found.specifier)).toEqual([
-      '@stuffbucket/maximal-electron/renderer',
+      '@maximal/maximal-electron/renderer',
       './demo.css',
       './views.js',
       './runs.js',
@@ -127,7 +127,7 @@ describe('reachesOutside', () => {
     for (const specifier of [
       './views.js',
       './nested/thing.js',
-      '@stuffbucket/maximal-electron/renderer',
+      '@maximal/maximal-electron/renderer',
       'react',
       'lucide-react',
     ]) {
@@ -190,7 +190,7 @@ describe('reachesOutside', () => {
 });
 
 describe('packageSubpath', () => {
-  const NAME = '@stuffbucket/maximal-electron';
+  const NAME = '@maximal/maximal-electron';
 
   it('returns the subpath an import names', () => {
     expect(packageSubpath(`${NAME}/renderer`, NAME)).toBe('./renderer');

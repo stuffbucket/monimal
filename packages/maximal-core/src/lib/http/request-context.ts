@@ -1,7 +1,7 @@
 import type {
   TrafficObservationHandle,
   TrafficTokenMetadata,
-} from "@stuffbucket/maximal-observability-contract"
+} from "@maximal/maximal-observability-contract"
 
 import { AsyncLocalStorage } from "node:async_hooks"
 

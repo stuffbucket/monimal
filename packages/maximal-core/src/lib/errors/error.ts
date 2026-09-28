@@ -72,10 +72,21 @@ export class CopilotTokenStaleError extends Error {
  * The CopilotAuthFatalError branch of {@link forwardError}, extracted so the
  * dispatcher stays under the function-length / complexity caps.
  */
+export interface ForwardedError {
+  status: ContentfulStatusCode
+  body: {
+    error: {
+      message: string
+      type: string
+      remediation_url?: string
+    }
+  }
+  headers?: Headers
+}
+
 async function forwardAuthFatal(
-  c: Context,
   error: CopilotAuthFatalError,
-): Promise<Response> {
+): Promise<ForwardedError> {
   // A Copilot 401/403 from a completion endpoint might be a merely-STALE
   // short-lived bearer (common after the laptop sleeps past the ~25-min
   // bearer TTL), NOT a dead GitHub identity. Try to re-mint from the retained
@@ -98,8 +109,8 @@ async function forwardAuthFatal(
     // "offline" → the mint failed transiently; don't wedge the session over a
     // network blip. Either way, ask the client to retry rather than degrade:
     // the fresh bearer (online) or the next attempt (offline) serves it.
-    return c.json(
-      {
+    return {
+      body: {
         error: {
           message:
             outcome === "online" ?
@@ -108,8 +119,8 @@ async function forwardAuthFatal(
           type: "server_error",
         },
       },
-      503,
-    )
+      status: 503,
+    }
   }
 
   // Genuinely auth-fatal (the re-mint itself was rejected, or there is no
@@ -128,8 +139,8 @@ async function forwardAuthFatal(
       handlerErr,
     )
   }
-  return c.json(
-    {
+  return {
+    body: {
       error: {
         message: error.message,
         type: "auth_fatal",
@@ -138,41 +149,42 @@ async function forwardAuthFatal(
         : {}),
       },
     },
-    error.status as ContentfulStatusCode,
-  )
+    status: error.status as ContentfulStatusCode,
+  }
 }
 
-export async function forwardError(
-  c: Context,
+/** Preserve auth recovery and upstream advice across HTTP and inherited IPC. */
+export async function describeForwardedError(
   error: unknown,
-): Promise<Response> {
+): Promise<ForwardedError> {
   runtimeLogger.error("Error occurred:", error)
 
   if (error instanceof CopilotTokenStaleError) {
     // 503, deliberately NOT 401/403: the client's credentials are fine, so any
     // auth-shaped status would send it down a re-login path that cannot work.
     // Retryable — the refresh loop is still running and a later attempt serves.
-    return c.json(
-      {
+    return {
+      body: {
         error: {
           message: error.message,
           type: "upstream_credential_stale",
         },
       },
-      503,
-    )
+      status: 503,
+    }
   }
 
   if (error instanceof CopilotAuthFatalError) {
-    return forwardAuthFatal(c, error)
+    return forwardAuthFatal(error)
   }
 
   if (error instanceof HTTPError) {
+    const headers = new Headers()
     if (error.response.status === 429) {
       for (const [name, value] of error.response.headers) {
         const lowerName = name.toLowerCase()
         if (lowerName === "retry-after" || lowerName.startsWith("x-")) {
-          c.header(name, value)
+          headers.set(name, value)
         }
       }
     }
@@ -196,24 +208,34 @@ export async function forwardError(
         errorText,
         state.models?.data ?? [],
       ) ?? errorText
-    return c.json(
-      {
+    return {
+      body: {
         error: {
           message,
           type: "error",
         },
       },
-      error.response.status as ContentfulStatusCode,
-    )
+      status: error.response.status as ContentfulStatusCode,
+      headers,
+    }
   }
 
-  return c.json(
-    {
+  return {
+    body: {
       error: {
         message: (error as Error).message,
         type: "error",
       },
     },
-    500,
-  )
+    status: 500,
+  }
+}
+
+export async function forwardError(
+  c: Context,
+  error: unknown,
+): Promise<Response> {
+  const forwarded = await describeForwardedError(error)
+  for (const [name, value] of forwarded.headers ?? []) c.header(name, value)
+  return c.json(forwarded.body, forwarded.status)
 }

@@ -1,4 +1,4 @@
-import type { TrafficRequestSummary } from "@stuffbucket/maximal-observability-contract"
+import type { TrafficRequestSummary } from "@maximal/maximal-observability-contract"
 
 import type { ContextInputSegment } from "../src/context-window.ts"
 

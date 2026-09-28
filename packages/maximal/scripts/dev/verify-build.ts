@@ -29,9 +29,9 @@
  * is thin. No mock.module anywhere (ADR-0011) — deps are injected.
  *
  * Usage:
- *   bun run verify:build                       # against http://127.0.0.1:4141
- *   bun run verify:build -- --base-url http://127.0.0.1:4142
- *   MAXIMAL_BASE_URL=http://127.0.0.1:4142 bun run verify:build
+ *   bun run verify:build                       # against the default proxy
+ *   bun run verify:build -- --base-url <local-proxy-url>
+ *   MAXIMAL_BASE_URL=<local-proxy-url> bun run verify:build
  *
  * Exit codes: 0 PASS, 1 STALE/UNKNOWN, 2 proxy unreachable.
  */

@@ -2,14 +2,14 @@ import {
   failedPeerChecks,
   missingPeerChecks,
   peerRequirements,
-} from "@stuffbucket/maximal-electron/verify/peers"
+} from "@maximal/maximal-electron/verify/peers"
 import {
   failedShellVariableChecks,
   shellVariableChecks,
   shellVariableContract,
   shellVariableEntries,
   shellVariablesIn,
-} from "@stuffbucket/maximal-electron/verify/shell-variables"
+} from "@maximal/maximal-electron/verify/shell-variables"
 import { readFileSync, readdirSync } from "node:fs"
 import { createRequire } from "node:module"
 import { dirname, extname, join, resolve } from "node:path"
@@ -47,8 +47,8 @@ describe("renderer architecture", () => {
     }))
     expect(sources.length).toBeGreaterThan(0)
     const forbidden = [
-      /@stuffbucket\/maximal-core/u,
-      /@stuffbucket\/maximal[/"']/u,
+      /@maximal\/maximal-core/u,
+      /@maximal\/maximal[/"']/u,
       /from\s+["']electron["']/u,
       /window\.maximal/u,
       /maximal-electron\/src\//u,
@@ -64,21 +64,19 @@ describe("renderer architecture", () => {
     }
     const rendererImports = sources.flatMap(({ text }) =>
       [
-        ...text.matchAll(
-          /from\s+["'](@stuffbucket\/maximal-electron[^"']*)["']/gu,
-        ),
+        ...text.matchAll(/from\s+["'](@maximal\/maximal-electron[^"']*)["']/gu),
       ].map((match) => match[1]),
     )
     expect(rendererImports.length).toBeGreaterThan(0)
     expect(new Set(rendererImports)).toEqual(
-      new Set(["@stuffbucket/maximal-electron/renderer"]),
+      new Set(["@maximal/maximal-electron/renderer"]),
     )
   })
 
   it("declares React and maximal-electron as mirrored peers", () => {
     const manifest = manifestAt(join(packageRoot, "package.json"))
     expect(Object.keys(manifest.peerDependencies ?? {}).sort()).toEqual([
-      "@stuffbucket/maximal-electron",
+      "@maximal/maximal-electron",
       "react",
     ])
     for (const peer of Object.keys(manifest.peerDependencies ?? {})) {
@@ -91,7 +89,7 @@ describe("renderer architecture", () => {
 
   it("satisfies maximal-electron published peer requirements", async () => {
     const verificationPath =
-      require.resolve("@stuffbucket/maximal-electron/verify/peers")
+      require.resolve("@maximal/maximal-electron/verify/peers")
     const electronRoot = dirname(dirname(verificationPath))
     const manifest = manifestAt(join(electronRoot, "package.json"))
     const requirements = await peerRequirements(electronRoot, manifest.exports)
@@ -113,7 +111,7 @@ describe("renderer architecture", () => {
 
   it("uses only shell variables published by maximal-electron", () => {
     const upstreamCss = readFileSync(
-      require.resolve("@stuffbucket/maximal-electron/renderer/styles.css"),
+      require.resolve("@maximal/maximal-electron/renderer/styles.css"),
       "utf8",
     )
     const stylesheets = [

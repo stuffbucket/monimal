@@ -6,7 +6,7 @@ import {
   useThemePreference,
   type Tab,
   type ViewMode,
-} from '@stuffbucket/maximal-electron/renderer';
+} from '@maximal/maximal-electron/renderer';
 import { useCallback, useState, useMemo } from 'react';
 
 import {
@@ -35,7 +35,7 @@ import { RunInspector } from './RunInspector.js';
  * be a screenshot fixture.
  *
  * The chrome is shared, and shared the way a dependent project shares it:
- * every import resolves through `@stuffbucket/maximal-electron`'s own
+ * every import resolves through `@maximal/maximal-electron`'s own
  * `exports` map, which is the map a registry install resolves through. Nothing
  * here reaches into `src/`, and `npm run verify:fixture-imports` fails if it
  * ever does again. So this really is the first consumer of those primitives,

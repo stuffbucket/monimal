@@ -27,8 +27,7 @@ import {
  * supervisor that parses them — and until this export existed there was no way
  * for a supervisor to obey it, because `./supervisor` carried only the
  * ready-line helpers and Node's `exports` map rejects a deeper path. So a host
- * hardcoded `"@@MAXIMAL_STATUS@@"` (stuffbucket/maximal
- * `client/src/main/core.ts`), and a change here would have degraded it
+ * hardcoded `"@@MAXIMAL_STATUS@@"`, and a change here would have degraded it
  * SILENTLY: the splash simply stops updating and shows a blank "Starting…"
  * again — the exact failure the marker exists to prevent, with no error
  * anywhere (maximal-core#110).

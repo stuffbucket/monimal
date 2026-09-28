@@ -12,13 +12,13 @@
 
 # Where build.sh leaves the bundle, relative to the checkout root.
 # @electron/packager writes out/<productName>-darwin-<arch>/, productName is
-# "Maximal" in packages/maximal/client/package.json, and build.sh pins --arch,
+# "Maximal" in apps/desktop/package.json, and build.sh pins --arch,
 # so this literal path is always what appears.
-app_path = packages/maximal/client/out/Maximal-darwin-arm64/Maximal.app
+app_path = apps/desktop/out/Maximal-darwin-arm64/Maximal.app
 
 volname = Maximal
 
-# MUST equal appBundleId in packages/maximal/client/forge.config.ts AND
+# MUST equal appBundleId in apps/desktop/forge.config.ts AND
 # bundle_id_allowed in the builder's clients/stuffbucket/<repo>.policy. A
 # mismatch is caught by the builder's policy gate only AFTER a full build.
 bundle_id = co.stuffbucket.maximal

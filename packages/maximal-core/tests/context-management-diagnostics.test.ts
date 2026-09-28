@@ -1,9 +1,9 @@
+import { ContextManagementDiagnostics } from "@maximal/maximal-core-contract/settings"
 import { afterEach, beforeEach, describe, expect, test } from "bun:test"
 
 import type { Model } from "~/services/copilot/get-models"
 
 import { buildDiagnostics } from "~/lib/config/settings-operations"
-import { ContextManagementDiagnostics } from "~/lib/config/settings-types"
 import { state } from "~/lib/runtime-state/state"
 import {
   clearContextManagementRejections,

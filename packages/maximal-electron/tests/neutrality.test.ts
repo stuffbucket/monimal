@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   DEFAULT_FORBIDDEN_TERMS,
+  deniedPackages,
   forbiddenImports,
   forbiddenTerms,
   isForbiddenPackage,
@@ -19,21 +20,24 @@ import {
  * check that fails on everything gets turned off.
  */
 
+/** A denied set in the shape `deniedPackages` derives from the tree. */
+const DENIED = ['maximal', '@maximal/maximal-client', 'maximal-core', '@maximal/maximal-core'];
+
 const specifiers = (source: string): (string | undefined)[] =>
-  forbiddenImports(source, 'fixture.ts').map((found) => found.text);
+  forbiddenImports(source, 'fixture.ts', DENIED).map((found) => found.text);
 
 describe('reaching a forbidden package', () => {
   it('catches a plain import, a re-export, and a type-only import', () => {
     expect(specifiers("import 'maximal';")).toEqual(['maximal']);
     expect(specifiers("export { a } from 'maximal-core';")).toEqual(['maximal-core']);
-    expect(specifiers("import type { A } from '@stuffbucket/maximal-core';")).toEqual([
-      '@stuffbucket/maximal-core',
+    expect(specifiers("import type { A } from '@maximal/maximal-core';")).toEqual([
+      '@maximal/maximal-core',
     ]);
     expect(specifiers("type A = import('maximal-core').B;")).toEqual(['maximal-core']);
   });
 
   it('catches a dynamic import and an import-equals', () => {
-    expect(specifiers("const a = await import('maximal/client');")).toEqual(['maximal/client']);
+    expect(specifiers("const a = await import('@maximal/maximal-client');")).toEqual(['@maximal/maximal-client']);
     expect(specifiers("import a = require('maximal');")).toEqual(['maximal']);
   });
 
@@ -46,9 +50,9 @@ describe('reaching a forbidden package', () => {
     const assigned = `
       import { createRequire } from 'node:module';
       const load = createRequire(import.meta.url);
-      load('@stuffbucket/maximal-core');
+      load('@maximal/maximal-core');
     `;
-    expect(specifiers(assigned)).toEqual(['@stuffbucket/maximal-core']);
+    expect(specifiers(assigned)).toEqual(['@maximal/maximal-core']);
     expect(
       specifiers("import { createRequire } from 'node:module';\ncreateRequire(x)('maximal');"),
     ).toEqual(['maximal']);
@@ -73,8 +77,31 @@ describe('reaching a forbidden package', () => {
   });
 
   it('reports the line and the syntax that named it', () => {
-    const found = forbiddenImports("const a = 1;\nrequire.resolve('maximal');", 'fixture.ts');
+    const found = forbiddenImports("const a = 1;\nrequire.resolve('maximal');", 'fixture.ts', DENIED);
     expect(found).toEqual([{ text: 'maximal', line: 2, form: 'require.resolve' }]);
+  });
+});
+
+describe('the denied set, from the declared tree', () => {
+  const policy = {
+    packages: {
+      shell: { dependsOn: ['terminal'] },
+      terminal: { dependsOn: [] },
+      client: { dependsOn: ['shell'] },
+      core: {},
+    },
+  };
+
+  it('denies every declared package outside the tree of self', () => {
+    expect(deniedPackages(policy, 'shell')).toEqual(['client', 'core']);
+  });
+
+  it('allows a sibling by being listed, whatever it is called', () => {
+    expect(deniedPackages(policy, 'client')).toEqual(['core', 'terminal']);
+  });
+
+  it('refuses a package the tree does not declare', () => {
+    expect(() => deniedPackages(policy, 'stranger')).toThrow('stranger is not in the declared tree');
   });
 });
 
@@ -90,14 +117,15 @@ describe('what is not a forbidden import', () => {
   });
 
   it('does not match a package that merely starts with a forbidden name', () => {
-    expect(isForbiddenPackage('maximalist')).toBe(false);
-    expect(isForbiddenPackage('maximal-core-types')).toBe(false);
-    expect(isForbiddenPackage('@stuffbucket/maximal-core-contract')).toBe(false);
+    expect(isForbiddenPackage('maximalist', DENIED)).toBe(false);
+    expect(isForbiddenPackage('maximal-core-types', DENIED)).toBe(false);
+    expect(isForbiddenPackage('@maximal/maximal-core-contract', DENIED)).toBe(false);
   });
 
   it('does match a subpath of a forbidden package', () => {
-    expect(isForbiddenPackage('maximal/client')).toBe(true);
-    expect(isForbiddenPackage('@stuffbucket/maximal-core/control')).toBe(true);
+    expect(isForbiddenPackage('@maximal/maximal-client', DENIED)).toBe(true);
+    expect(isForbiddenPackage('@maximal/maximal-client/renderer', DENIED)).toBe(true);
+    expect(isForbiddenPackage('@maximal/maximal-core/control', DENIED)).toBe(true);
   });
 
   it('still reads a specifier it cannot judge, rather than dropping it', () => {
@@ -116,9 +144,9 @@ describe('what is not a forbidden import', () => {
 });
 
 describe('the forbidden term list', () => {
-  it('defaults to the three terms the issue names', () => {
-    expect(forbiddenTerms({})).toEqual(['maximal', 'maximal-core', 'copilot']);
-    expect(DEFAULT_FORBIDDEN_TERMS).toEqual(['maximal', 'maximal-core', 'copilot']);
+  it('defaults to the application terms, not the workspace family name', () => {
+    expect(forbiddenTerms({})).toEqual(['maximal-core', 'copilot']);
+    expect(DEFAULT_FORBIDDEN_TERMS).toEqual(['maximal-core', 'copilot']);
   });
 
   it('takes a comma-separated list from the environment', () => {
@@ -136,51 +164,51 @@ describe('scanning prose and code for a forbidden term', () => {
   const found = (text: string): string[] => termMatches(text, terms).map((match) => match.term);
 
   it('matches a bare term in prose', () => {
-    expect(found('Discovery finds maximal on localhost.')).toEqual(['maximal']);
+    expect(found('Discovery finds copilot on localhost.')).toEqual(['copilot']);
+    expect(found('Start maximal-core first.')).toEqual(['maximal-core']);
   });
 
   it('matches across case and across the separators a constant uses', () => {
-    // `\b` does not treat `_` as a boundary, so `\bmaximal\b` misses the one
-    // constant issue #16 was filed about.
-    expect(found("const MAXIMAL_BASE = 'http://localhost:4141';")).toEqual(['maximal']);
+    // `\b` does not treat `_` as a boundary, so `\bcopilot\b` misses a
+    // constant.
+    expect(found("const COPILOT_BASE = 'http://localhost:4141';")).toEqual(['copilot']);
     expect(found('COPILOT_API_HOME')).toEqual(['copilot']);
     expect(found("id: 'copilot-cli'")).toEqual(['copilot']);
   });
 
   it('matches a term inside a string literal', () => {
-    expect(found("export type P = 'maximal' | 'ollama';")).toEqual(['maximal']);
+    expect(found("export type P = 'copilot' | 'ollama';")).toEqual(['copilot']);
   });
 
   it('reports the line and the whole line', () => {
-    expect(termMatches('clean\nconst a = 1; // maximal\n', ['maximal'])).toEqual([
-      { term: 'maximal', line: 2, excerpt: 'const a = 1; // maximal' },
+    expect(termMatches('clean\nconst a = 1; // copilot\n', ['copilot'])).toEqual([
+      { term: 'copilot', line: 2, excerpt: 'const a = 1; // copilot' },
     ]);
   });
 
+  it('leaves sibling workspace packages alone', () => {
+    expect(found("import { x } from '@maximal/maximal-terminal/renderer';")).toEqual([]);
+    expect(found("import { y } from '@maximal/maximal-electron/host';")).toEqual([]);
+  });
+
   it('exempts a term inside an owner-qualified repository slug', () => {
-    // This repository is called maximal-electron. Its own Help-menu URL is
-    // the reason this rule exists, and it is the only exemption.
-    expect(found("const REPO = 'https://github.com/stuffbucket/maximal-electron';")).toEqual([]);
-    expect(found('modeled on `stuffbucket/maximal`’s splash.html')).toEqual([]);
+    expect(found('see https://github.com/stuffbucket/maximal-core')).toEqual([]);
+    expect(found('modeled on `stuffbucket/copilot`’s splash.html')).toEqual([]);
   });
 
   it('does not exempt a bare term on a line that also carries a slug', () => {
-    expect(found('stuffbucket/maximal-electron, and maximal itself')).toEqual(['maximal']);
+    expect(found('stuffbucket/maximal-core, and copilot itself')).toEqual(['copilot']);
   });
 
   it('does not exempt an npm scope, which a string can name', () => {
     // The `@` is the difference. Without it the exemption covered
-    // `@stuffbucket/maximal-core` sitting in a string literal, which is the
+    // `@maximal/maximal-core` sitting in a string literal, which is the
     // specifier this guard exists to find.
-    expect(found("const p = '@stuffbucket/maximal-core';")).toEqual([
-      'maximal',
-      'maximal-core',
-    ]);
+    expect(found("const p = '@maximal/maximal-core';")).toEqual(['maximal-core']);
   });
 
   it('does not match a longer word that contains a term', () => {
-    expect(found('a maximally wide layout')).toEqual([]);
-    expect(found('maximalist')).toEqual([]);
+    expect(found('maximal-cores')).toEqual([]);
     expect(found('copilots')).toEqual([]);
   });
 
@@ -191,50 +219,6 @@ describe('scanning prose and code for a forbidden term', () => {
   it('matches nothing when the term list is empty', () => {
     // Which is why `verify-neutral.mjs` fails on an empty list rather than
     // reporting a clean tree.
-    expect(termMatches('maximal everywhere', [])).toEqual([]);
-  });
-});
-
-/**
- * A package's own name is not a foreign name.
- *
- * `@stuffbucket/maximal-electron` is an npm scope, so the slug rule above
- * deliberately does not cover it, and must not: exempting that shape
- * wholesale is what let `@stuffbucket/maximal-core` sit in a string literal
- * unreported. So the exemption is the exact string, and these are the tests
- * that say it stayed that narrow.
- */
-describe('the self-name exemption', () => {
-  const terms = DEFAULT_FORBIDDEN_TERMS;
-  const self = ['@stuffbucket/maximal-electron', 'stuffbucket-maximal-electron'];
-  const found = (text: string): string[] =>
-    termMatches(text, terms, self).map((match) => match.term);
-
-  it('exempts the package specifier a consumer imports', () => {
-    expect(found("import { createHostWindow } from '@stuffbucket/maximal-electron/host';")).toEqual(
-      [],
-    );
-  });
-
-  it('exempts the flattened name npm writes as a release asset', () => {
-    expect(found('stuffbucket-maximal-electron-0.0.5.tgz')).toEqual([]);
-  });
-
-  it('still reports the sibling npm scope', () => {
-    expect(found("const p = '@stuffbucket/maximal-core';")).toEqual(['maximal', 'maximal-core']);
-  });
-
-  it('still reports the sibling in the same flattened shape', () => {
-    expect(found('stuffbucket-maximal-core-0.0.5.tgz')).toEqual(['maximal', 'maximal-core']);
-  });
-
-  it('still reports a bare term beside the exempt name', () => {
-    expect(found('@stuffbucket/maximal-electron, and maximal itself')).toEqual(['maximal']);
-  });
-
-  it('exempts nothing when no name is passed', () => {
-    expect(termMatches("'@stuffbucket/maximal-electron'", terms).map((m) => m.term)).toEqual([
-      'maximal',
-    ]);
+    expect(termMatches('copilot everywhere', [])).toEqual([]);
   });
 });

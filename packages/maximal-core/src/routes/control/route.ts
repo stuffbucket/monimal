@@ -10,11 +10,14 @@
 
 import type { Context, Hono as HonoApp } from "hono"
 
+import { errorResponse } from "@maximal/maximal-core-contract/control"
+import { AccountSetEnabledRequest } from "@maximal/maximal-core-contract/settings"
 import { Hono } from "hono"
 import { z } from "zod"
 
 import type { ConfiguratorRegistry } from "~/lib/configurator-host"
 import type { ClientRosterReader } from "~/lib/http/active-clients"
+import type { RpcRegistry } from "~/lib/jsonrpc/dispatch"
 import type { TrafficQueryStore } from "~/lib/observability/store"
 
 import {
@@ -35,12 +38,10 @@ import {
 } from "~/lib/auth/github-token-store"
 import { defaultGetRequestIp, isLoopbackAddress } from "~/lib/auth/request-auth"
 import { getConfig } from "~/lib/config/config"
-import { AccountSetEnabledRequest } from "~/lib/config/settings-types"
 import { forwardError } from "~/lib/errors/error"
 import { listActiveClients } from "~/lib/http/active-clients"
 import { createRpcHandler } from "~/lib/jsonrpc/dispatch"
 import { controlError } from "~/lib/jsonrpc/errors"
-import { errorResponse } from "~/lib/jsonrpc/message"
 import { SUPPORTED_PROTOCOL_VERSION } from "~/lib/live/contract"
 import { type ControlHub } from "~/lib/live/hub"
 import { AsyncMutex } from "~/lib/live/mutex"
@@ -59,8 +60,6 @@ import { emitQuitRequest, emitUpdateRequest } from "~/lib/start/boot-status"
 import { getTokenUsageSummary } from "~/lib/token-usage"
 import { getUpdateStatus } from "~/lib/update/update-check"
 import { listOllamaAccounts } from "~/services/providers/ollama-accounts"
-
-import type { ControlRpcDeps } from "./rpc"
 
 import { projectControlConfig } from "./config-projection"
 import { LocalModelOperations } from "./local-models"
@@ -319,8 +318,8 @@ function registerAccountActions(
  * account actions use — and they call the SAME underlying operations, so the two
  * surfaces cannot diverge while both exist.
  */
-function registerRpc(app: HonoApp, deps: ControlRpcDeps): void {
-  const dispatch = createRpcHandler(createControlRpcMethods(deps))
+function registerRpc(app: HonoApp, methods: RpcRegistry): void {
+  const dispatch = createRpcHandler(methods)
 
   app.post("/rpc", async (c) => {
     // A client that pins a version we don't speak gets told so explicitly,
@@ -346,7 +345,9 @@ function registerRpc(app: HonoApp, deps: ControlRpcDeps): void {
   app.on(["GET", "DELETE"], "/rpc", (c) => c.body(null, 405))
 }
 
-export function createControlRoutes(options: ControlRoutesOptions = {}): Hono {
+export function createControlRoutesComposition(
+  options: ControlRoutesOptions = {},
+): { app: Hono; methods: RpcRegistry; hub: HubAccessor } {
   const getRequestIp = options.getRequestIp ?? defaultGetRequestIp
   const listClients = options.listClients ?? listActiveClients
   const listProviderModels =
@@ -378,7 +379,7 @@ export function createControlRoutes(options: ControlRoutesOptions = {}): Hono {
   registerSettingsEndpoints(app, undefined, options.configurators)
   registerShellSignals(app)
   registerAccountActions(app, hub, new AsyncMutex())
-  registerRpc(app, {
+  const methods = createControlRpcMethods({
     hub,
     mutex: new AsyncMutex(),
     configurators: options.configurators,
@@ -387,6 +388,11 @@ export function createControlRoutes(options: ControlRoutesOptions = {}): Hono {
     localModels: localModelOperations,
     trafficQueries: options.trafficQueries ?? getDefaultTrafficObserver(),
   })
+  registerRpc(app, methods)
 
-  return app
+  return { app, methods, hub }
+}
+
+export function createControlRoutes(options: ControlRoutesOptions = {}): Hono {
+  return createControlRoutesComposition(options).app
 }

@@ -1,3 +1,7 @@
+import type {
+  JsonRpcErrorObject,
+  ParsedMessage,
+} from "@maximal/maximal-core-contract/control"
 /**
  * HTTP binding for the JSON-RPC control surface.
  *
@@ -20,20 +24,17 @@
  */
 import type { Context } from "hono"
 
-import type { JsonRpcErrorObject, ParsedMessage } from "~/lib/jsonrpc/message"
-
 import {
+  errorResponse,
   JSON_RPC_INTERNAL_ERROR,
   JSON_RPC_INVALID_REQUEST,
   JSON_RPC_METHOD_NOT_FOUND,
   JSON_RPC_PARSE_ERROR,
-} from "~/lib/jsonrpc/codes"
-import { jsonRpcError, toJsonRpcError } from "~/lib/jsonrpc/errors"
-import {
-  errorResponse,
   jsonRpcRequestSchema,
   successResponse,
-} from "~/lib/jsonrpc/message"
+} from "@maximal/maximal-core-contract/control"
+
+import { jsonRpcError, toJsonRpcError } from "~/lib/jsonrpc/errors"
 
 /**
  * A method handler. Returning a `Response` hands the whole HTTP response to the
@@ -41,12 +42,50 @@ import {
  * `result`. The return type is bare `unknown` because the dispatcher awaits it:
  * a handler may be sync or async.
  */
-export type RpcHandler = (params: unknown, c: Context) => unknown
+export type RpcHandler = (params: unknown, c?: Context) => unknown
 
 /** Indexing must be able to miss — an unknown method is the common case, not an
  *  exceptional one, so the lookup is typed as possibly-undefined rather than
  *  relying on a truthiness check the type system believes is redundant. */
 export type RpcRegistry = Readonly<Record<string, RpcHandler | undefined>>
+
+export type RpcInvocation =
+  | { kind: "result"; result: unknown }
+  | { kind: "error"; error: JsonRpcErrorObject }
+  | { kind: "response"; response: Response }
+
+/** Share method dispatch and error recovery between HTTP and inherited IPC. */
+export async function invokeRpcMethod(
+  registry: RpcRegistry,
+  request: { method: string; params?: unknown },
+  c?: Context,
+): Promise<RpcInvocation> {
+  const { method, params } = request
+  const handler = registry[method]
+  if (!handler) {
+    return {
+      kind: "error",
+      error: jsonRpcError(
+        JSON_RPC_METHOD_NOT_FOUND,
+        `Unknown method: ${method}`,
+      ),
+    }
+  }
+  try {
+    const result = await handler(params, c)
+    return result instanceof Response ?
+        { kind: "response", response: result }
+      : { kind: "result", result: result ?? null }
+  } catch (error) {
+    const rpcError = await toJsonRpcError(error, c).catch(() =>
+      jsonRpcError(
+        JSON_RPC_INTERNAL_ERROR,
+        error instanceof Error ? error.message : "Internal error",
+      ),
+    )
+    return { kind: "error", error: rpcError }
+  }
+}
 
 /** Discriminates a parse attempt without throwing — the caller needs the error
  *  object to render, not an exception to catch. */
@@ -183,31 +222,10 @@ export function createRpcHandler(registry: RpcRegistry) {
 
     const { id } = parsed.message
 
-    if (!handler) {
-      return c.json(
-        errorResponse(
-          id,
-          jsonRpcError(
-            JSON_RPC_METHOD_NOT_FOUND,
-            `Unknown method: ${parsed.message.method}`,
-          ),
-        ),
-      )
-    }
-
-    try {
-      const result = await handler(parsed.message.params, c)
-      // A streaming method has already produced the whole response.
-      if (result instanceof Response) return result
-      return c.json(successResponse(id, result ?? null))
-    } catch (error) {
-      const rpcError = await toJsonRpcError(c, error).catch(() =>
-        jsonRpcError(
-          JSON_RPC_INTERNAL_ERROR,
-          error instanceof Error ? error.message : "Internal error",
-        ),
-      )
-      return c.json(errorResponse(id, rpcError))
-    }
+    const invocation = await invokeRpcMethod(registry, parsed.message, c)
+    if (invocation.kind === "response") return invocation.response
+    return invocation.kind === "error" ?
+        c.json(errorResponse(id, invocation.error))
+      : c.json(successResponse(id, invocation.result))
   }
 }

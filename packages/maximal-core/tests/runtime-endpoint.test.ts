@@ -44,8 +44,21 @@ test("publishes owner-only runtime evidence and reads it back", () => {
   }
 })
 
+test("does not publish a desktop IPC identity as an HTTP endpoint", () => {
+  expect(() =>
+    writeRuntimeEndpoint({ ...runtime, controlPort: 0 }, descriptorPath),
+  ).toThrow("Cannot publish an incomplete Maximal runtime identity")
+  expect(fs.existsSync(descriptorPath)).toBe(false)
+})
+
 test("clears only the descriptor written by the expected runtime", () => {
   writeRuntimeEndpoint(runtime, descriptorPath)
+  clearRuntimeEndpoint(
+    { ...runtime, nonce: "desktop-ipc", controlPort: 0 },
+    descriptorPath,
+  )
+  expect(readRuntimeEndpoint(descriptorPath)).toEqual(runtime)
+
   clearRuntimeEndpoint({ ...runtime, nonce: "replacement" }, descriptorPath)
   expect(readRuntimeEndpoint(descriptorPath)).toEqual(runtime)
 

@@ -5,7 +5,7 @@ import {
   Row,
   StatusChip,
   type ViewMode,
-} from '@stuffbucket/maximal-electron/renderer';
+} from '@maximal/maximal-electron/renderer';
 import { Bot, GitBranch } from 'lucide-react';
 
 import { STATUS_LABELS, type AgentRun } from './runs.js';

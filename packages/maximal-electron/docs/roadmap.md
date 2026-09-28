@@ -14,7 +14,7 @@ Working. Configurable xterm.js or wterm/libghostty in the renderer, with
   has run it there.
 - Reaping is checked against real processes on POSIX only. Both checks read the
   shell's own pid through `$$`, and `cmd.exe` has no equivalent, so
-  `tests/terminal/terminal-host.test.ts` and `e2e/terminal-window.spec.ts` skip on
+  `../maximal-terminal/tests/host/terminal-host.test.ts` and `e2e/terminal-window.spec.ts` skip on
   Windows.
 - No tab-level working directory. Every shell starts in the home directory.
 - `TmuxProjectionBroker` and `TmuxProjectionHost` are exported and proven

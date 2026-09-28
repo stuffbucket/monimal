@@ -26,12 +26,8 @@ still works.
 ## Terminal scope
 
 `tests/terminal/` owns the terminal unit-test boundary. `npm run test:terminal`
-runs that directory alone. `npm run mutate:terminal` derives terminal source
-files from the canonical `mutate` list and limits Stryker to those tests. Its
-Vitest phase measures runtime mutants. A command-runner phase then derives the
-static initializer ranges from that report and starts Vitest with each mutant
-already active. The report check requires both scopes and joins them into one
-100 percent result. Both commands fail when their scope is empty.
+runs that directory alone. The terminal modules themselves are mutated by
+`@maximal/maximal-terminal`'s own `npm run mutate`.
 
 ## Mutation testing
 
@@ -118,8 +114,8 @@ catch-all is not acceptable**:
   this to a suppression.
 3. **A deliberately-retained equivalent, with a written proof** over the
    reachable input domain. Use `// Stryker disable next-line <Mutator>: why`,
-  and state the evidence, not the conclusion. There are two in the repository.
-  Read them before you write a third, and raise
+  and state the evidence, not the conclusion. Read the existing ones before
+  you write another, and raise
    `IGNORED_CEILING`.
 
 The rule comes from `stuffbucket/maximal-core`'s testing strategy, which states
@@ -142,7 +138,7 @@ Three rules come with it.
   mutants from a dry run and reruns the covering tests once per mutant. A suite
   that draws different inputs on the second run can report a mutant as
   surviving for a reason that has nothing to do with the mutant, and
-  `pnpm --filter @stuffbucket/maximal-electron run mutate` breaks below 100.
+  `pnpm --filter @maximal/maximal-electron run mutate` breaks below 100.
   Exploration is something a person does by
   moving the seed, not something a gate does by accident.
 - **A property over an empty set asserts nothing.** The same rule as a check
@@ -160,7 +156,7 @@ holds, and it is the reason this section names one module.
 
 ## The packaged application answers for itself
 
-`pnpm --filter @stuffbucket/maximal-electron run test:e2e` drives the unpackaged
+`pnpm --filter @maximal/maximal-electron run test:e2e` drives the unpackaged
 build, because
 `EnableNodeCliInspectArguments: false` stops Playwright attaching to a packaged
 one. That fuse stays as it is. Until now nothing launched the artifact a user
@@ -168,8 +164,8 @@ installs, and two defects shipped inside it: #86 and #88. `verify-package.mjs`
 reads the archive listing, which finds a file that is absent and not one that
 is present where the loader cannot reach it.
 
-Run `pnpm --filter @stuffbucket/maximal-electron run package` and then
-`pnpm --filter @stuffbucket/maximal-electron run smoke:packaged` to close it on
+Run `pnpm --filter @maximal/maximal-electron run package` and then
+`pnpm --filter @maximal/maximal-electron run smoke:packaged` to close it on
 macOS and Windows.
 `scripts/smoke-packaged.mjs` copies the package out of this checkout —
 `scripts/packaged-app.mjs` does that, and issue #149 is why — then launches
@@ -228,7 +224,7 @@ is in front.
 read the result as proof a change was neutral.
 
 They are bistable. Running
-`pnpm --filter @stuffbucket/maximal-electron run stills` three times over
+`pnpm --filter @maximal/maximal-electron run stills` three times over
 identical code
 produced state A once and state B twice, differing by 179,000 pixels — around
 four percent of the frame — in the canvas region of `01-projects` and
@@ -303,7 +299,7 @@ suffixes: `.demo.ts` records, `.compose.ts` cuts, `.stills.ts` photographs,
 
 ## The capture fixture is not always built
 
-`pnpm --filter @stuffbucket/maximal-electron run package` builds `demo_window`
+`pnpm --filter @maximal/maximal-electron run package` builds `demo_window`
 alongside the application, and
 `forge.config.ts` then excludes it from the package. `verify-package.mjs`
 asserts that exclusion, which is why the default builds it: a check that the

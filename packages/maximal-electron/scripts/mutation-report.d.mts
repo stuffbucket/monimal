@@ -6,7 +6,6 @@
  */
 
 export declare const MUTANT_FLOOR: number;
-export declare const TERMINAL_MUTANT_FLOOR: number;
 export declare const IGNORED_CEILING: number;
 
 export interface MutationSummary {

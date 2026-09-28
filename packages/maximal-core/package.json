@@ -1,7 +1,8 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "name": "@stuffbucket/maximal-core",
+  "name": "@maximal/maximal-core",
   "version": "0.6.3",
+  "private": true,
   "description": "Headless core of maximal: a local proxy that exposes GitHub Copilot as OpenAI- and Anthropic-compatible HTTP endpoints. No UI.",
   "keywords": [
     "proxy",
@@ -60,11 +61,6 @@
   "bin": {
     "maximal": "./dist/main.js"
   },
-  "files": [
-    "dist",
-    "src",
-    "tsconfig.json"
-  ],
   "scripts": {
     "analyze": "bun scripts/analyze.ts",
     "build": "bun scripts/ops/build-bundle.ts && bun run build:lib",
@@ -97,14 +93,8 @@
     "lint:fast": "oxlint",
     "measure:baseline": "bun scripts/dev/measure-baseline.ts",
     "mutate": "node ../../scripts/docker-mutate.mjs",
-    "prepack": "bun scripts/ops/prepack.ts",
     "preflight": "bun scripts/preflight.ts",
     "prepare:hooks": "bun scripts/ops/prepare.ts",
-    "release:check": "bun scripts/ops/release-gates.ts",
-    "release:notes": "bun scripts/ops/release-notes.ts",
-    "release:preflight": "bun scripts/ops/prepack.ts --check",
-    "release:prepare": "bun scripts/ops/release.ts prepare",
-    "release:tag": "bun scripts/ops/release.ts tag",
     "rules:check": "bun scripts/ops/check-rulesets.ts",
     "sbom": "bun scripts/sbom.ts",
     "scan:secrets": "trufflehog filesystem . --no-verification --fail --results=verified,unknown,unverified --no-update --exclude-paths .trufflehog-exclude",
@@ -137,11 +127,12 @@
   },
   "dependencies": {
     "@hono/zod-openapi": "1.6.1",
-    "@stuffbucket/maximal-harness": "workspace:*",
-    "@stuffbucket/maximal-logging": "workspace:*",
-    "@stuffbucket/maximal-model-contract": "workspace:*",
-    "@stuffbucket/maximal-observability-contract": "workspace:*",
-    "@stuffbucket/maximal-settings": "workspace:*",
+    "@maximal/maximal-core-contract": "workspace:*",
+    "@maximal/maximal-logging": "workspace:*",
+    "@maximal/maximal-model-contract": "workspace:*",
+    "@maximal/maximal-observability-contract": "workspace:*",
+    "@maximal/maximal-search": "workspace:*",
+    "@maximal/maximal-settings": "workspace:*",
     "citty": "^0.2.2",
     "clipboardy": "^5.0.0",
     "consola": "^3.4.2",
@@ -158,8 +149,8 @@
     "zod": "^4.5.4"
   },
   "devDependencies": {
+    "@maximal/eslint-config": "workspace:*",
     "@stryker-mutator/core": "^10.0.0",
-    "@stuffbucket/eslint-config": "workspace:*",
     "@types/bun": "^1.4.0",
     "@types/proxy-from-env": "^1.0.4",
     "@types/turndown": "^5.0.6",
@@ -177,8 +168,5 @@
   },
   "engines": {
     "node": ">=24"
-  },
-  "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
   }
 }

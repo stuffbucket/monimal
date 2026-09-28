@@ -63,14 +63,28 @@ for (const fixture of [
   {
     name: "Electron public code cannot import client policy",
     from: "src/renderer/index.js",
-    source: 'import "maximal-client"\n',
+    source: 'import "@maximal/maximal-client"\n',
     kind: "electron",
+    ruleId: "no-restricted-imports",
+  },
+  {
+    name: "terminal code cannot import Electron",
+    from: "src/pty/session.js",
+    source: 'import "electron"\n',
+    kind: "terminal",
+    ruleId: "no-restricted-imports",
+  },
+  {
+    name: "terminal code cannot import the Electron shell",
+    from: "src/renderer/view.js",
+    source: 'import "@maximal/maximal-electron/renderer"\n',
+    kind: "terminal",
     ruleId: "no-restricted-imports",
   },
   {
     name: "packages cannot import another package source tree",
     from: "src/index.js",
-    source: 'import "@stuffbucket/maximal-electron/src/main/index.js"\n',
+    source: 'import "@maximal/maximal-electron/src/main/index.js"\n',
     ruleId: "no-restricted-imports",
   },
 ]) {
@@ -86,7 +100,7 @@ for (const fixture of [
 test("client may import a declared Electron public entry point", async () => {
   const messages = await lintFixture({
     from: "src/renderer/view.js",
-    source: 'import "stuffbucket-electron/renderer"\n',
+    source: 'import "@maximal/maximal-electron/renderer"\n',
     kind: "client",
   })
   assert.deepEqual(messages, [])

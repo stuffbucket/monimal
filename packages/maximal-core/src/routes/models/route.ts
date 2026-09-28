@@ -1,7 +1,7 @@
 import type {
   LocalModelCatalogEntry,
   LocalModelControl,
-} from "@stuffbucket/maximal-model-contract"
+} from "@maximal/maximal-model-contract"
 
 import { Hono } from "hono"
 

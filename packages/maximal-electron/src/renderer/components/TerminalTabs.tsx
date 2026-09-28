@@ -1,32 +1,19 @@
-import { Group, Panel, Separator } from 'react-resizable-panels';
-import { useEffect, useRef, useState } from 'react';
-
-import type {
-  GhosttyWindowAdjustment,
-  TerminalEmulatorKind,
-  TerminalTheme,
-} from '../lib/terminal-emulator.js';
-import type {
-  DetachableTerminalTransport,
-  TerminalTransport,
-} from '../lib/terminal-transport.js';
 import {
-  removeTerminalPane,
-  splitTerminalPane,
-  terminalPaneSessionIds,
+  TerminalView,
+  useTerminalPaneTree,
+  type DetachableTerminalTransport,
+  type GhosttyWindowAdjustment,
+  type TerminalAttachment,
+  type TerminalEmulatorKind,
   type TerminalPane,
-} from '../lib/terminal-pane.js';
-import { TerminalView } from './TerminalView.js';
+  type TerminalPaneTreeOptions,
+  type TerminalTheme,
+  type TerminalTransport,
+} from '@maximal/maximal-terminal/renderer';
 
-/**
- * Every open terminal, with the inactive ones hidden.
- *
- * Hidden rather than unmounted, and that is a scrollback decision rather than a
- * lifetime one. `disposition="detach"` keeps the shell alive across an unmount,
- * but the scrollback lives in the emulator and dies with it, so a reattached
- * view gets the tail the host retained and nothing older. An inactive tab stays
- * mounted to keep all of it; detach covers the tab a user actually closes.
- */
+import { RetainedTabPanels } from './RetainedTabPanels.js';
+import { SplitTree } from './SplitTree.js';
+
 interface TerminalTabsCommonProps {
   activeId: string;
   emulator?: TerminalEmulatorKind;
@@ -44,12 +31,6 @@ interface TerminalTabsCommonProps {
   onTitleChange?: (tabId: string, title: string) => void;
 }
 
-/** A renderer tab attached to one opaque terminal session. */
-export interface TerminalAttachment {
-  id: string;
-  sessionId: string;
-}
-
 type TerminalTabsAttachments =
   | { ids: string[]; attachments?: never }
   | { ids?: never; attachments: TerminalAttachment[] };
@@ -60,215 +41,58 @@ export type TerminalTabsProps = TerminalTabsCommonProps & TerminalTabsAttachment
     | { disposition: 'detach'; transport: DetachableTerminalTransport }
   );
 
-interface TerminalAttachmentViewProps {
-  attachment: TerminalAttachment;
+interface TerminalAttachmentViewProps extends TerminalPaneTreeOptions {
   emulator?: TerminalEmulatorKind;
   ghosttyWindow?: GhosttyWindowAdjustment;
   shell?: string;
   theme?: TerminalTheme;
-  launchSplit?: () => Promise<{ sessionId: string }>;
-  onExit?: (tabId: string) => void;
-  onSessionsChange?: (tabId: string, sessionIds: string[]) => void;
-  onPaneChange?: (tabId: string, pane: TerminalPane, baseRevision: number) => void;
-  initialPane?: TerminalPane;
-  initialPaneRevision?: number;
-  onTitleChange?: (tabId: string, title: string) => void;
-  session:
-    | { disposition: 'terminate'; transport: TerminalTransport }
-    | { disposition: 'detach'; transport: DetachableTerminalTransport };
 }
 
 function TerminalAttachmentView({
-  attachment,
   emulator,
   ghosttyWindow,
   shell,
   theme,
-  launchSplit,
-  onExit,
-  onSessionsChange,
-  onPaneChange,
-  initialPane,
-  initialPaneRevision = 0,
-  onTitleChange,
-  session,
+  ...options
 }: TerminalAttachmentViewProps) {
-  const [paneState, setPaneState] = useState(() => ({
-    pane: initialPane ?? { sessionId: attachment.sessionId },
-    revision: initialPaneRevision,
-  }));
-  const pane = paneState.pane;
-  const paneRef = useRef(pane);
-  const paneRevisionRef = useRef(paneState.revision);
-  const callbacks = useRef({ onPaneChange, onSessionsChange });
-  const mountGeneration = useRef(0);
-  const [focusedId, setFocusedId] = useState(attachment.sessionId);
-  const [focusRequest, setFocusRequest] = useState({ sessionId: '', generation: 0 });
-  const splitPending = useRef(false);
-  const [splitFailed, setSplitFailed] = useState(false);
-  paneRef.current = pane;
-  paneRevisionRef.current = paneState.revision;
-  callbacks.current = { onPaneChange, onSessionsChange };
-
-  useEffect(() => {
-    if (!initialPane) return;
-    setPaneState((current) =>
-      initialPaneRevision > current.revision
-        ? { pane: initialPane, revision: initialPaneRevision }
-        : current,
-    );
-  }, [initialPane, initialPaneRevision]);
-
-  useEffect(() => {
-    const generation = mountGeneration.current + 1;
-    mountGeneration.current = generation;
-    return () => {
-      if (session.disposition !== 'terminate') return;
-      const sessionIds = terminalPaneSessionIds(paneRef.current);
-      queueMicrotask(() => {
-        if (mountGeneration.current !== generation) return;
-        for (const sessionId of sessionIds) void session.transport.terminate(sessionId);
-      });
-    };
-  }, [session.disposition, session.transport]);
-
-  useEffect(() => {
-    callbacks.current.onSessionsChange?.(attachment.id, terminalPaneSessionIds(pane));
-  }, [attachment.id, pane]);
-
-  function commitPane(update: (current: TerminalPane) => TerminalPane): void {
-    const pane = update(paneRef.current);
-    const revision = paneRevisionRef.current;
-    paneRef.current = pane;
-    setPaneState({ pane, revision });
-    callbacks.current.onPaneChange?.(attachment.id, pane, revision);
-  }
-
-  function requestPaneFocus(sessionId: string): void {
-    setFocusedId(sessionId);
-    setFocusRequest((current) => ({
-      sessionId,
-      generation: current.generation + 1,
-    }));
-  }
-
-  function navigateSplit(fromId: string, direction: 'previous' | 'next'): void {
-    const ids = terminalPaneSessionIds(pane);
-    if (ids.length < 2) return;
-    const index = ids.indexOf(fromId);
-    const offset = direction === 'previous' ? -1 : 1;
-    requestPaneFocus(ids[(index + offset + ids.length) % ids.length] ?? fromId);
-  }
-
-  function exitPane(sessionId: string): void {
-    const remaining = removeTerminalPane(paneRef.current, sessionId);
-    if (!remaining) {
-      onExit?.(attachment.id);
-      return;
-    }
-    const ids = terminalPaneSessionIds(remaining);
-    commitPane(() => remaining);
-    if (focusedId === sessionId) requestPaneFocus(ids[0]!);
-  }
-
-  function renderPane(current: TerminalPane, path: string): React.ReactNode {
-    if ('sessionId' in current) {
-      const sessionId = current.sessionId;
-      return (
-        <TerminalView
-          id={sessionId}
-          emulator={emulator}
-          ghosttyWindow={ghosttyWindow}
-          shell={shell}
-          theme={theme}
-          disposition="preserve"
-          transport={session.transport}
-          focusRequest={focusRequest.sessionId === sessionId ? focusRequest.generation : 0}
-          focused={focusedId === sessionId}
-          focusIndicator={terminalPaneSessionIds(pane).length > 1}
-          onActivate={() => setFocusedId(sessionId)}
-          onExit={() => exitPane(sessionId)}
-          onSplit={launchSplit ? (direction) => {
-            if (splitPending.current) return;
-            splitPending.current = true;
-            setSplitFailed(false);
-            void launchSplit()
-              .then((result) => {
-                commitPane((existing) =>
-                  splitTerminalPane(existing, sessionId, direction, result.sessionId));
-                requestPaneFocus(result.sessionId);
-              })
-              .catch(() => setSplitFailed(true))
-              .finally(() => {
-                splitPending.current = false;
-              });
-          } : undefined}
-          onNavigateSplit={terminalPaneSessionIds(pane).length > 1
-            ? (direction) => navigateSplit(sessionId, direction)
-            : undefined}
-          onTitleChange={(title) => {
-            if (focusedId === sessionId) onTitleChange?.(attachment.id, title);
-          }}
-        />
-      );
-    }
-
-    const orientation = current.direction === 'right' ? 'horizontal' : 'vertical';
-    return (
-      <Group
-        orientation={orientation}
-        className="terminal-split"
-        defaultLayout={{ [`${path}-first`]: 50, [`${path}-second`]: 50 }}
-        resizeTargetMinimumSize={{ coarse: 20, fine: 9 }}
-      >
-        <Panel className="terminal-split__panel" id={`${path}-first`} minSize="10%">
-          {renderPane(current.first, `${path}-first`)}
-        </Panel>
-        <Separator
-          className={orientation === 'vertical'
-            ? 'resize-handle resize-handle--horizontal'
-            : 'resize-handle'}
-        />
-        <Panel className="terminal-split__panel" id={`${path}-second`} minSize="10%">
-          {renderPane(current.second, `${path}-second`)}
-        </Panel>
-      </Group>
-    );
-  }
-
+  const tree = useTerminalPaneTree(options);
   return (
     <>
-      {renderPane(pane, attachment.id)}
-      {splitFailed && <p className="terminal-split__error" role="alert">Terminal split could not start.</p>}
+      <SplitTree<{ sessionId: string }>
+        node={tree.pane}
+        id={options.attachment.id}
+        className="terminal-split"
+        panelClassName="terminal-split__panel"
+        renderLeaf={({ sessionId }) => (
+          <TerminalView
+            id={sessionId}
+            emulator={emulator}
+            ghosttyWindow={ghosttyWindow}
+            shell={shell}
+            theme={theme}
+            disposition="preserve"
+            transport={options.session.transport}
+            {...tree.leaf(sessionId)}
+          />
+        )}
+      />
+      {tree.splitFailed && <p className="terminal-split__error" role="alert">Terminal split could not start.</p>}
     </>
   );
 }
 
 /**
- * One mounted terminal per id, with the inactive ones hidden rather than
- * unmounted.
+ * Every open terminal, with the inactive ones hidden rather than unmounted.
  *
- * Unmounting would kill the emulator and lose the scrollback, so a tab a user
- * comes back to still holds what it printed. `disposition` decides what
- * closing does: `terminate` ends the session, `detach` leaves it running for
- * something else to reattach, and only the detachable transport allows it.
+ * That is a scrollback decision rather than a lifetime one. `detach` keeps the
+ * shell alive across an unmount, but the scrollback lives in the emulator and
+ * dies with it, so a reattached view gets the tail the host retained and
+ * nothing older. `disposition` decides what closing does: `terminate` ends the
+ * session, `detach` leaves it running for something else to reattach, and only
+ * the detachable transport allows it.
  */
 export function TerminalTabs(props: TerminalTabsProps) {
-  const {
-    activeId,
-    emulator,
-    ghosttyWindow,
-    shell,
-    theme,
-    launchSplit,
-    onExit,
-    onSessionsChange,
-    onPaneChange,
-    onTitleChange,
-    initialPane,
-    initialPanes,
-    paneRevisions,
-  } = props;
+  const { activeId, emulator, ghosttyWindow, shell, theme, initialPane, initialPanes, paneRevisions } = props;
   const attachments = props.attachments ?? props.ids.map((id) => ({ id, sessionId: id }));
   const session =
     props.disposition === 'detach'
@@ -276,26 +100,27 @@ export function TerminalTabs(props: TerminalTabsProps) {
       : ({ disposition: 'terminate', transport: props.transport } as const);
 
   return (
-    <>
-      {attachments.map((attachment) => (
-        <div key={attachment.id} className="terminal-host" hidden={attachment.id !== activeId}>
-          <TerminalAttachmentView
-            attachment={attachment}
-            emulator={emulator}
-            ghosttyWindow={ghosttyWindow}
-            shell={shell}
-            theme={theme}
-            launchSplit={launchSplit}
-            onExit={onExit}
-            onSessionsChange={onSessionsChange}
-            onPaneChange={onPaneChange}
-            initialPane={initialPanes?.get(attachment.id) ?? initialPane}
-            initialPaneRevision={paneRevisions?.get(attachment.id)}
-            onTitleChange={onTitleChange}
-            session={session}
-          />
-        </div>
-      ))}
-    </>
+    <RetainedTabPanels
+      items={attachments}
+      activeId={activeId}
+      className="terminal-host"
+      renderPanel={(attachment) => (
+        <TerminalAttachmentView
+          attachment={attachment}
+          emulator={emulator}
+          ghosttyWindow={ghosttyWindow}
+          shell={shell}
+          theme={theme}
+          launchSplit={props.launchSplit}
+          onExit={props.onExit}
+          onSessionsChange={props.onSessionsChange}
+          onPaneChange={props.onPaneChange}
+          initialPane={initialPanes?.get(attachment.id) ?? initialPane}
+          initialPaneRevision={paneRevisions?.get(attachment.id)}
+          onTitleChange={props.onTitleChange}
+          session={session}
+        />
+      )}
+    />
   );
 }

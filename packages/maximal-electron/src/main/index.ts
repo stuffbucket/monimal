@@ -22,7 +22,7 @@ import {
   killAllPtys,
   stagePtyOwnership,
   transferPtyOwnership,
-} from './native/pty.js';
+} from './native/pty/index.js';
 import { createHostWindow, waitForHostWindowReady } from '../host/host-window.js';
 import { showCrashReports, startCrashReports } from './native/crash-reports.js';
 import { selfCheckRequested } from './native/self-check.js';
@@ -264,7 +264,7 @@ function bootstrap(): void {
       sendEvent(window, 'pty:size', { id, cols, rows, projectionId }),
     onPane: (window, id, pane, revision, origin) =>
       sendEvent(window, 'terminal:pane-changed', { id, pane, revision, origin }),
-  });
+  }, { tmuxSessionPrefix: app.getName() });
 
   installApplicationMenu({
     onNavigate: (view) => {

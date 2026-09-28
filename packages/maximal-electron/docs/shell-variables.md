@@ -1,6 +1,6 @@
 # The `--shell-*` contract
 
-`@stuffbucket/maximal-electron/renderer/styles.css` ships no palette. Every colour,
+`@maximal/maximal-electron/renderer/styles.css` ships no palette. Every colour,
 space, radius, and height in it comes from a custom property the host defines,
 and this document is the list of them.
 
@@ -13,7 +13,7 @@ so does a row nothing reads.
 ## Why this exists
 
 A hand-maintained list drifts. `stuffbucket/maximal` maintains 57 lines of
-`client/src/renderer/styles/shell-adapter.css` by reading our source. Measured
+`maximal-client/src/renderer/styles/shell-adapter.css` by reading our source. Measured
 against `release/0.0.4`, it sets 49 names, of which 27 are ones nothing here
 reads, and it leaves 7 of ours unset: `--shell-danger`,
 `--shell-danger-contrast`, `--shell-nav-heading-height`, `--shell-status`,
@@ -237,7 +237,7 @@ against layers of their own, name it in their own statement:
 `@layer reset, sb-shell, app;`.
 
 This is the mechanical end of a class of bug rather than a convenience.
-`packages/maximal/client` declared `.inspector__title` against this package's
+`packages/maximal-client/src/renderer` declared `.inspector__title` against this package's
 `.sb-shell .inspector__title`; ours is (0,2,0) and theirs is (0,1,0), so theirs
 had never applied and their inspector rendered two eyebrows and no title. Atom
 shipped the same failure in issue #13019 — a mechanical selector rewrite that
@@ -271,7 +271,7 @@ the weight the package sets stops at the glyphs the package draws.
 
 ## Assert against it from a consuming application
 
-`@stuffbucket/maximal-electron/verify/shell-variables` is pure and imports no
+`@maximal/maximal-electron/verify/shell-variables` is pure and imports no
 `electron`, so it runs under plain `node`. Point it at the stylesheet the
 package ships and at whatever your application defines. Nothing is
 hand-transcribed on either side, so the two cannot drift.
@@ -283,10 +283,10 @@ import { createRequire } from 'node:module';
 import {
   failedShellVariableChecks,
   shellVariableContract,
-} from '@stuffbucket/maximal-electron/verify/shell-variables';
+} from '@maximal/maximal-electron/verify/shell-variables';
 
 const require = createRequire(import.meta.url);
-const css = readFileSync(require.resolve('@stuffbucket/maximal-electron/renderer/styles.css'), 'utf8');
+const css = readFileSync(require.resolve('@maximal/maximal-electron/renderer/styles.css'), 'utf8');
 
 const contract = shellVariableContract({
   stylesheets: [{ name: 'styles.css', css }],
@@ -307,7 +307,7 @@ if (missing.length > 0) throw new Error(`unset: ${missing.join(', ')}`);
 ```
 
 `shellVariableChecks` is the stricter form, and returns a `{ name, ok }` list in
-the shape `@stuffbucket/maximal-electron/verify` uses. `failedShellVariableChecks` names
+the shape `@maximal/maximal-electron/verify` uses. `failedShellVariableChecks` names
 the ones that did not hold.
 
 Both start with floors: an empty stylesheet list, an empty derived contract, or

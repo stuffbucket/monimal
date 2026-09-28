@@ -2,7 +2,7 @@ import {
   createLogger,
   listLogFiles,
   resolveLogDirectory,
-} from "@stuffbucket/maximal-logging"
+} from "@maximal/maximal-logging"
 import assert from "node:assert/strict"
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"

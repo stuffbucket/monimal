@@ -48,6 +48,8 @@ export interface ShellVariableContract {
 export interface PackageStylesheet {
   /** Repository-relative paths, concatenated in order into `published`. */
   readonly sources: readonly string[];
+  /** Package stylesheets `@import`ed ahead of the concatenated sources. */
+  readonly imports: readonly string[];
   /** Repository-relative path the build writes. */
   readonly published: string;
 }

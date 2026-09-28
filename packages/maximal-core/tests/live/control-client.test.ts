@@ -11,6 +11,9 @@ import {
 import { ControlHub } from "~/lib/live/hub"
 import { createControlRoutes } from "~/routes/control/route"
 
+const LOOPBACK_IPV4_HOSTNAME = "127.0.0.1"
+const unreachableControlBaseUrl = `http://${LOOPBACK_IPV4_HOSTNAME}:1`
+
 // Mount the control routes under /control on a real ephemeral server, so the
 // fetch-based client exercises the actual HTTP + SSE path end to end.
 function serve(hub: ControlHub<ControlSnapshot>): {
@@ -20,11 +23,11 @@ function serve(hub: ControlHub<ControlSnapshot>): {
   const app = new Hono()
   app.route(
     "/control",
-    createControlRoutes({ getRequestIp: () => "127.0.0.1", hub }),
+    createControlRoutes({ getRequestIp: () => LOOPBACK_IPV4_HOSTNAME, hub }),
   )
   const server = Bun.serve({ port: 0, fetch: app.fetch })
   return {
-    baseUrl: `http://127.0.0.1:${server.port}`,
+    baseUrl: `http://${LOOPBACK_IPV4_HOSTNAME}:${server.port}`,
     stop: () => server.stop(true),
   }
 }
@@ -154,7 +157,7 @@ function recordingClient(): {
 } {
   const sent: Array<Record<string, string>> = []
   const client = new ControlClient({
-    baseUrl: "http://127.0.0.1:1",
+    baseUrl: unreachableControlBaseUrl,
     fetch: (_input, init) => {
       sent.push({ ...(init?.headers as Record<string, string>) })
       return Promise.resolve(Response.json({ result: null }))
@@ -203,7 +206,7 @@ describe("ControlClient protocol version header", () => {
 
 /**
  * The `headers` option is a published, credential-shaped affordance on an
- * exported SDK (`@stuffbucket/maximal-core/client`), and it is the "record built
+ * exported SDK (`@maximal/maximal-core/client`), and it is the "record built
  * elsewhere and spread into fetch" shape that `eslint.config.js`'s
  * `credential-attachment-single-mechanism` guard documents as structurally
  * invisible to it — the guard only lints this repo's `src/**` anyway, never a
@@ -240,7 +243,7 @@ describe("ControlClient credential headers", () => {
     expect(
       () =>
         new ControlClient({
-          baseUrl: "http://127.0.0.1:1",
+          baseUrl: unreachableControlBaseUrl,
           headers: asHeaders(name, "secret"),
         }),
     ).toThrow(TypeError)
@@ -250,7 +253,7 @@ describe("ControlClient credential headers", () => {
     let caught: unknown
     try {
       new ControlClient({
-        baseUrl: "http://127.0.0.1:1",
+        baseUrl: unreachableControlBaseUrl,
         headers: asHeaders("X-Api-Key", "super-secret-value"),
       })
     } catch (error) {
@@ -265,7 +268,7 @@ describe("ControlClient credential headers", () => {
   test("non-credential headers are sent on both the RPC and read paths", async () => {
     const sent: Array<Record<string, string>> = []
     const client = new ControlClient({
-      baseUrl: "http://127.0.0.1:1",
+      baseUrl: unreachableControlBaseUrl,
       headers: { "x-trace-id": "trace-1" },
       fetch: (_input, init) => {
         sent.push({ ...(init?.headers as Record<string, string>) })
@@ -287,7 +290,7 @@ describe("ControlClient credential headers", () => {
     const caller: Record<string, string> = { "x-trace-id": "trace-1" }
     const sent: Array<Record<string, string>> = []
     const client = new ControlClient({
-      baseUrl: "http://127.0.0.1:1",
+      baseUrl: unreachableControlBaseUrl,
       headers: caller,
       fetch: (_input, init) => {
         sent.push({ ...(init?.headers as Record<string, string>) })
@@ -349,7 +352,7 @@ describe("ControlClient — the default fetch's receiver", () => {
       return Promise.resolve(new Response("{}", { status: 200 }))
     } as unknown as typeof fetch)
     try {
-      const client = new ControlClient({ baseUrl: "http://127.0.0.1:1" })
+      const client = new ControlClient({ baseUrl: unreachableControlBaseUrl })
       await client.call("server/discover", {}).catch(() => undefined)
       expect(seen.length).toBeGreaterThan(0)
       for (const receiver of seen) {
@@ -373,7 +376,7 @@ describe("ControlClient — the default fetch's receiver", () => {
     }
     const bound = carrier.fetchImpl.bind(carrier) as unknown as typeof fetch
     const client = new ControlClient({
-      baseUrl: "http://127.0.0.1:1",
+      baseUrl: unreachableControlBaseUrl,
       fetch: bound,
     })
     await client.call("server/discover", {}).catch(() => undefined)

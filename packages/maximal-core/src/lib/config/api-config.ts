@@ -43,7 +43,7 @@ export const getEnterpriseDomain = (): string | null => {
  * *Why not reuse `COPILOT_API_ENTERPRISE_URL`.* That one carries a bare
  * **domain**: `getEnterpriseDomain()` strips the scheme and the accessors
  * re-prefix `https://` / `https://api.` / `https://copilot-api.`. A loopback
- * fixture (`http://127.0.0.1:<ephemeral port>`) is therefore unrepresentable
+ * fixture with its own scheme and ephemeral port is therefore unrepresentable
  * through it — no scheme control, no port. This override takes a full origin,
  * so it can express one.
  *
@@ -65,15 +65,15 @@ export const getEnterpriseDomain = (): string | null => {
  *      outright, whatever it says.
  *   2. `http:` — a loopback fixture has no reason to present TLS, and
  *      accepting `https:` buys only the ability to name a remote-looking one.
- *   3. A loopback **literal** host: `127.0.0.1`, or `[::1]` as WHATWG brackets
- *      an IPv6 literal in `URL.hostname`. Not `localhost`, which is a name and
+ *   3. A loopback **literal** host: IPv4 loopback, or bracketed IPv6 loopback
+ *      as WHATWG represents it in `URL.hostname`. Not the local host name, which is a name and
  *      therefore resolver-dependent.
  *   4. No userinfo, no query, no fragment, and no path beyond the root — each
  *      of those either carries a credential or smuggles out-of-origin data
  *      past a loopback-looking prefix.
  *
- * Every one of those still permits `http://127.0.0.1:<ephemeral port>` and
- * `http://[::1]:<ephemeral port>`, which is the entire use case. None permits a
+ * Every one of those still permits a loopback fixture on an ephemeral port,
+ * which is the entire use case. None permits a
  * remote origin to receive the token. Anything rejected — including a typo —
  * falls back to the default hosts rather than nulling out the auth path.
  *
@@ -86,10 +86,12 @@ export const getEnterpriseDomain = (): string | null => {
  * carries the credential — so `tests/github-api-base-override.test.ts` asserts
  * each rejected shape by name.
  */
+const GITHUB_API_BASE_OVERRIDE_IPV4_HOSTNAME = "127.0.0.1"
+const GITHUB_API_BASE_OVERRIDE_IPV6_HOSTNAME = "[::1]"
+
 const LOOPBACK_OVERRIDE_HOSTNAMES = new Set([
-  "127.0.0.1",
-  // `URL.hostname` brackets an IPv6 literal; the bare `::1` never appears here.
-  "[::1]",
+  GITHUB_API_BASE_OVERRIDE_IPV4_HOSTNAME,
+  GITHUB_API_BASE_OVERRIDE_IPV6_HOSTNAME,
 ])
 
 const getGitHubApiBaseOverride = (): string | null => {

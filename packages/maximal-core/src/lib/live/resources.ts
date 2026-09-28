@@ -10,13 +10,14 @@
  * body and a live delta carry the identical shape.
  */
 
-import type { AuthStatus } from "~/lib/config/settings-types"
+import type { AuthStatus } from "@maximal/maximal-core-contract/settings"
 import type {
   AccountsListResponse,
   AppsListResponse,
   ModelsListResponse,
   ModelSummary,
-} from "~/lib/config/settings-types"
+} from "@maximal/maximal-core-contract/settings"
+
 import type { ConfiguratorRegistry } from "~/lib/configurator-host"
 import type { Model } from "~/services/copilot/get-models"
 

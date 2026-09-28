@@ -1,3 +1,5 @@
+import type { AuthStatus } from "@maximal/maximal-core-contract/settings"
+
 /**
  * Narrowing helpers for AuthStatus tests (ADR-0006). AuthStatus is a
  * discriminated union on `state`; tests that previously read optional
@@ -10,8 +12,6 @@
  *     local at the call site — no extra `as` casts needed.
  */
 import { expect } from "bun:test"
-
-import type { AuthStatus } from "~/lib/config/settings-types"
 
 export type PendingStatus = Extract<
   AuthStatus,

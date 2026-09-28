@@ -1,4 +1,7 @@
-import type { AppEntry, AppsListResponse } from "~/lib/config/settings-types"
+import type {
+  AppEntry,
+  AppsListResponse,
+} from "@maximal/maximal-core-contract/settings"
 
 import { connectToLiveControl } from "~/lib/live/runtime-endpoint"
 

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
+  "entry": [
+    "src/**/*.test.{ts,tsx}",
+    "src/renderer/ui-preview.tsx"
+  ],
+  "project": [
+    "src/**/*.{ts,tsx}",
+    "*.{ts,mts}"
+  ],
+  "ignoreExportsUsedInFile": true
+}

@@ -125,11 +125,10 @@ const PATHS_NOT_HERE = new Map([
   ['build/windows/app.wxs', 'deleted with the MSI in #119'],
   ['tests/wxs.test.ts', 'deleted with the MSI in #119'],
   ['scripts/prebuild.js', "node-pty's, run by its own install"],
-  ['src/main/shell.ts', "maximal/client's, named in docs/embedding.md as the consumer's side"],
   ['src/renderer/.vite/', 'the output path a misconfigured `root` produces, and must not exist'],
   [
-    'client/src/renderer/styles/shell-adapter.css',
-    "maximal/client's adapter, counted in docs/shell-variables.md",
+    'maximal-client/src/renderer/styles/shell-adapter.css',
+    "maximal-client's adapter, counted in docs/shell-variables.md",
   ],
   ['shell/src/ui/styles/tokens.css', "stuffbucket/maximal's scale, followed by ours"],
 ]);

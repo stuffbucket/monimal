@@ -4,9 +4,8 @@
  *
  * WHY THIS IS NOT JUST `bun build src/main.ts --target=bun --outdir dist`.
  *
- * `dist/main.js` is committed and `bin.maximal` points straight at it, so a
- * git-dependency install runs those exact bytes. It is produced by `bun build`,
- * which bundles with BUN'S OWN BUNDLER — its output is a function of the Bun
+ * `bin.maximal` points at `dist/main.js`, which is produced by `bun build`.
+ * That bundles with BUN'S OWN BUNDLER — its output is a function of the Bun
  * version, measured on a 2x2 of {ubuntu, macos} x {1.3.11, 1.3.14} in
  * maximal-core#31, where the OS made no difference and the version made all of
  * it. So a build on an off-pin Bun emits bytes CI cannot reproduce.
@@ -14,7 +13,7 @@
  * Every OTHER path to those bytes was already guarded and this one was not:
  *
  *   - `check-bindings.ts` refuses to report staleness off-pin (exit 2).
- *   - `prepack.ts` refuses to build the published tarball off-pin (exit 1).
+ *   - CI refuses to accept a bundle produced by a different Bun version.
  *   - `bun run build` did it anyway, silently, and `git add -f dist/main.js` —
  *     step 3 of docs/bun-version-policy.md — committed the result.
  *
@@ -36,9 +35,8 @@
  * from the developer's PATH. Measured: `/tmp/bun1311/bin/bun run build`
  * produced a 1.3.14 bundle. Version-checking one binary and bundling with
  * another answers a question nobody asked, so the binary that was checked is
- * the binary that bundles — the same fix `check-bindings.ts` and `prepack.ts`
- * already made, and the reason `realMainBuild` is reused here verbatim rather
- * than re-spelled.
+ * the binary that bundles — the same fix `check-bindings.ts` already made, and
+ * the reason `realMainBuild` is reused here verbatim rather than re-spelled.
  *
  * WHY THE REQUIREMENTS ARE `MAIN_ARTIFACT.requires` AND NOT A LIST OF ITS OWN.
  * The build must refuse in EXACTLY the cases where `bindings:check` refuses to
@@ -67,9 +65,9 @@ import {
 export const OUT_DIR = path.posix.dirname(MAIN_BUNDLE)
 
 /**
- * What `package.json`'s `build` must be. Parity-tested there and in
- * `prepack.test.ts`: a `build` that stops routing through this file is a build
- * with no guard, which is the entire defect.
+ * What `package.json`'s `build` must be. Parity-tested there and in the ops
+ * suite: a `build` that stops routing through this file is a build with no
+ * guard, which is the entire defect.
  *
  * Deliberately ONE command with no `&&`: `check-ci-coverage.ts` expands any
  * `check:deep` member whose body contains `&&` into its parts and then demands

@@ -154,6 +154,18 @@ describe('peerRequirements', () => {
     expect(reads).toHaveLength(4);
   });
 
+  it('adds an exception only to the subpath it names', async () => {
+    const requirements = await peerRequirements(
+      '/pkg',
+      { './renderer': './r.js', './host': './h.js' },
+      (file: string) => Promise.resolve(file === '/pkg/r.js' ? "import 'react';\n" : ''),
+      [{ subpath: './renderer', name: 'node-pty' }],
+    );
+
+    expect(requirements.get('./renderer')).toEqual(['node-pty', 'react']);
+    expect(requirements.get('./host')).toEqual([]);
+  });
+
   it('reports what it could read when a file the graph names is absent', async () => {
     // `index.js` imports `./components/Gone.js`, which was never written.
     const requirements = await peerRequirements(root, EXPORTS);

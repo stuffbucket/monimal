@@ -135,8 +135,15 @@ test("package onboarding is dynamically discovered and fails closed", () => {
       name: "nested",
       scripts: {},
     });
+    writeManifest(fixture, "apps/desktop", {
+      name: "desktop",
+      scripts: Object.fromEntries(
+        ["build", "lint", "test", "typecheck"].map((task) => [task, task]),
+      ),
+    });
     let audit = auditWorkspacePackages(fixture, ["packages/library"]);
     assert.deepEqual(audit.issues, [
+      "apps/desktop is not included in the pnpm workspace",
       "packages/feature/nested is not included in the pnpm workspace",
     ]);
 
@@ -148,10 +155,11 @@ test("package onboarding is dynamically discovered and fails closed", () => {
         workspaceReason: "Independent fixture.",
       },
     });
-    audit = auditWorkspacePackages(fixture, ["packages/library"]);
+    audit = auditWorkspacePackages(fixture, ["apps/desktop", "packages/library"]);
     assert.deepEqual(audit.issues, []);
 
     audit = auditWorkspacePackages(fixture, [
+      "apps/desktop",
       "packages/library",
       "packages/feature/nested",
     ]);
@@ -161,15 +169,17 @@ test("package onboarding is dynamically discovered and fails closed", () => {
       name: "ignored-output",
     });
     assert.deepEqual(discoverPackageManifests(fixture), [
+      "apps/desktop",
       "packages/feature/nested",
       "packages/library",
     ]);
 
     fs.rmSync(path.join(fixture, "packages/library/package.json"));
     assert.deepEqual(discoverPackageManifests(fixture), [
+      "apps/desktop",
       "packages/feature/nested",
     ]);
-    audit = auditWorkspacePackages(fixture, []);
+    audit = auditWorkspacePackages(fixture, ["apps/desktop"]);
     assert.deepEqual(audit.issues, []);
   } finally {
     fs.rmSync(fixture, { recursive: true, force: true });
@@ -396,17 +406,17 @@ test("the outer and fixed inner test scripts cannot recurse", () => {
     {
       "test:inner": "node scripts/docker-workspace-test.mjs",
       "test:maximal-core:inner":
-        "node scripts/assert-test-container.mjs && pnpm --filter @stuffbucket/maximal-core test",
+        "node scripts/assert-test-container.mjs && pnpm --filter @maximal/maximal-core test",
       "test:maximal-models:inner":
-        "node scripts/assert-test-container.mjs && pnpm --filter @stuffbucket/maximal-models test",
+        "node scripts/assert-test-container.mjs && pnpm --filter @maximal/maximal-models test",
       "test:maximal-configurators:inner":
-        "node scripts/assert-test-container.mjs && pnpm --filter @stuffbucket/maximal-configurators test && pnpm --filter @stuffbucket/maximal-core run test:configurator-harness",
+        "node scripts/assert-test-container.mjs && pnpm --filter @maximal/maximal-configurators test && pnpm --filter @maximal/maximal-core run test:configurator-harness",
       "test:connections:inner":
-        "node scripts/assert-test-container.mjs && pnpm --filter @stuffbucket/maximal-configurators test && pnpm --filter @stuffbucket/maximal-core test && pnpm --filter maximal-client test",
+        "node scripts/assert-test-container.mjs && pnpm --filter @maximal/maximal-configurators test && pnpm --filter @maximal/maximal-core test && pnpm --filter @maximal/maximal-client test && pnpm --filter maximal-desktop test",
       "test:policy:inner":
         "node scripts/assert-test-container.mjs && node --test tests/docker-test-policy.test.mjs",
       "mutate:core:inner":
-        "node scripts/assert-test-container.mjs && pnpm --filter @stuffbucket/maximal-core exec stryker run",
+        "node scripts/assert-test-container.mjs && pnpm --filter @maximal/maximal-core exec stryker run",
     },
   );
   for (const [name, script] of Object.entries(manifest.scripts)) {
@@ -417,7 +427,7 @@ test("the outer and fixed inner test scripts cannot recurse", () => {
   }
   assert.equal(
     manifest.scripts["check:core"],
-    "pnpm --filter @stuffbucket/maximal-core run check:deep:host && pnpm run test:core",
+    "pnpm --filter @maximal/maximal-core run check:deep:host && pnpm run test:core",
   );
   assert.equal(
     manifest.scripts["check:static"],
@@ -425,23 +435,32 @@ test("the outer and fixed inner test scripts cannot recurse", () => {
   );
   assert.equal(
     manifest.scripts["check:settings"],
-    "pnpm --filter @stuffbucket/maximal-settings run migration:check && pnpm --filter @stuffbucket/maximal-settings run security:check",
+    "pnpm --filter @maximal/maximal-settings run migration:check && pnpm --filter @maximal/maximal-settings run security:check",
   );
   assert.equal(manifest.scripts["test:settings"], "node scripts/test-workspace.mjs --settings");
+  assert.equal(
+    manifest.scripts["test:settings:inner"],
+    "node scripts/assert-test-container.mjs && pnpm --filter @maximal/maximal-settings test && pnpm --filter @maximal/maximal-client test && pnpm --filter maximal-desktop test",
+  );
   assert.equal(
     manifest.scripts["check:network-literals"],
     "node scripts/check-network-literals.mjs",
   );
   assert.equal(
     manifest.scripts.check,
-    "pnpm run check:static && pnpm run check:cross-package-duplicates && pnpm --filter @stuffbucket/maximal-core run check:deep:host && pnpm test",
+    "pnpm run check:static && pnpm run check:cross-package-duplicates && pnpm --filter @maximal/maximal-core run check:deep:host && pnpm test",
   );
   assert.equal(
     (manifest.scripts.check.match(/(?:^|&& )pnpm test(?: |$)/g) ?? []).length,
     1,
   );
   assert.doesNotMatch(manifest.scripts.check, /pnpm run check:core/);
-  assert.deepEqual(turbo.tasks["maximal-client#build"].env, [
+  assert.deepEqual(turbo.tasks["@maximal/maximal-client#build"].outputs, []);
+  assert.equal(turbo.tasks["maximal-desktop#build"].cache, false);
+  assert.ok(
+    turbo.tasks["maximal-desktop#build"].dependsOn.includes("@maximal/maximal#build"),
+  );
+  assert.deepEqual(turbo.tasks["maximal-desktop#build"].env, [
     "MAXIMAL_CORE_OUT",
     "MAXIMAL_CORE_REF",
     "MAXIMAL_CORE_TARGET",
@@ -474,8 +493,44 @@ test("the outer and fixed inner test scripts cannot recurse", () => {
 
 test("root workflows select the intended package and task graphs", () => {
   const manifest = JSON.parse(read("package.json"));
-  const client = JSON.parse(read("packages/maximal/client/package.json"));
+  const client = JSON.parse(read("packages/maximal-client/package.json"));
+  const desktop = JSON.parse(read("apps/desktop/package.json"));
   const turbo = JSON.parse(read("turbo.json"));
+
+  assert.equal(fs.existsSync(path.join(root, "packages/maximal/client/src")), false);
+  for (const processDir of ["renderer", "shared"]) {
+    assert.equal(
+      fs.statSync(path.join(root, "packages/maximal-client/src", processDir)).isDirectory(),
+      true,
+    );
+  }
+  for (const processDir of ["main", "preload"]) {
+    assert.equal(fs.existsSync(path.join(root, "packages/maximal-client/src", processDir)), false);
+    assert.equal(fs.statSync(path.join(root, "apps/desktop/src", processDir)).isDirectory(), true);
+  }
+  for (const entry of [
+    "workspace/App.tsx",
+    "workspace/App.test.tsx",
+    "workspace/RendererErrorBoundary.tsx",
+    "workspace/RendererErrorBoundary.test.tsx",
+    "workspace/WorkspaceTerminalLauncher.tsx",
+    "index.html",
+    "workspace/main.tsx",
+    "overlay/entry.tsx",
+    "overlay.html",
+  ]) {
+    assert.equal(fs.existsSync(path.join(root, "packages/maximal-client/src/renderer", entry)), false);
+    assert.equal(fs.statSync(path.join(root, "apps/desktop/src/renderer", entry)).isFile(), true);
+  }
+  for (const feature of ["AppWorkspace.tsx", "frame/AppFrame.tsx", "settings/Settings.tsx", "ui-preview.html"]) {
+    assert.equal(fs.statSync(path.join(root, "packages/maximal-client/src/renderer", feature)).isFile(), true);
+  }
+  assert.equal(client.name, "@maximal/maximal-client");
+  assert.equal(desktop.name, "maximal-desktop");
+  assert.equal(desktop.dependencies["@maximal/maximal-client"], "workspace:*");
+  assert.match(read("pnpm-workspace.yaml"), /^  - "apps\/\*\*"$/m);
+  assert.equal(fs.existsSync(path.join(root, "packages/maximal-client/forge.config.ts")), false);
+  assert.equal(fs.statSync(path.join(root, "apps/desktop/forge.config.ts")).isFile(), true);
 
   assert.deepEqual(
     {
@@ -485,33 +540,36 @@ test("root workflows select the intended package and task graphs", () => {
       "package:all": manifest.scripts["package:all"],
     },
     {
-      dev: "turbo run dev --filter=maximal-client",
+      dev: "turbo run dev --filter=maximal-desktop",
       "dev:server":
-        "turbo run dev --filter=@stuffbucket/maximal -- start",
-      package: "turbo run package --filter=maximal-client",
+        "turbo run dev --filter=@maximal/maximal -- start",
+      package: "turbo run package --filter=maximal-desktop",
       "package:all": "turbo run package",
     },
   );
-  assert.equal(client.scripts.dev, "node scripts/start.mjs");
+  assert.equal(desktop.scripts.dev, "node scripts/start.mjs");
   assert.equal(
-    client.scripts.predev,
+    desktop.scripts.predev,
     "pnpm run generate:licenses && node scripts/gen-icon-png.mjs",
   );
-  assert.equal(client.scripts.prepackage, client.scripts.predev);
+  assert.equal(desktop.scripts.prepackage, desktop.scripts.predev);
   assert.equal(
     manifest.scripts["pnpm:devPreinstall"],
     "node scripts/prepare-workspace.mjs",
   );
   assert.equal(
     client.scripts.typecheck,
-    "node ../../../scripts/run-workspace-task.mjs typecheck",
+    "node ../../scripts/run-workspace-task.mjs typecheck",
   );
   assert.equal(client.scripts["typecheck:inner"], "tsc --noEmit");
   assert.equal(
     client.scripts.lint,
-    "node ../../../scripts/run-workspace-task.mjs lint",
+    "node ../../scripts/run-workspace-task.mjs lint",
   );
-  assert.equal(client.scripts["lint:inner"], "eslint .");
+  assert.equal(
+    client.scripts["lint:inner"],
+    "eslint .",
+  );
   assert.deepEqual(turbo.tasks.transit.dependsOn, ["^transit"]);
   assert.deepEqual(turbo.tasks.lint.dependsOn, ["transit", "^build"]);
   assert.deepEqual(turbo.tasks.lint.passThroughEnv, [
@@ -522,25 +580,26 @@ test("root workflows select the intended package and task graphs", () => {
   ]);
   for (const name of ["maximal-settings", "maximal-logging"]) {
     assert.deepEqual(
-      turbo.tasks[`@stuffbucket/${name}#typecheck`].dependsOn,
+      turbo.tasks[`@maximal/${name}#typecheck`].dependsOn,
       ["build", "^build"],
     );
   }
   assert.deepEqual(turbo.tasks.dev.dependsOn, ["^build"]);
   assert.equal(turbo.tasks.dev.cache, false);
   assert.equal(turbo.tasks.dev.persistent, true);
-  assert.deepEqual(turbo.tasks["maximal-client#dev"].dependsOn, ["build"]);
-  assert.equal(turbo.tasks["maximal-client#dev"].cache, false);
-  assert.equal(turbo.tasks["maximal-client#dev"].persistent, true);
+  assert.deepEqual(turbo.tasks["maximal-desktop#dev"].dependsOn, ["build"]);
+  assert.equal(turbo.tasks["maximal-desktop#dev"].cache, false);
+  assert.equal(turbo.tasks["maximal-desktop#dev"].persistent, true);
+  assert.ok(turbo.tasks["maximal-desktop#build"].dependsOn.includes("^build"));
 });
 
 test("direct client checks re-enter the workspace task graph", () => {
   const direct = workspaceTaskPlan({
     arguments_: ["typecheck"],
     environment: {},
-    packageDirectory: "/repo/packages/maximal/client",
+    packageDirectory: "/repo/packages/maximal-client",
     packageManagerPath: "/pnpm.cjs",
-    packageName: "maximal-client",
+    packageName: "@maximal/maximal-client",
     rootDirectory: "/repo",
   });
   assert.deepEqual(direct, {
@@ -551,7 +610,7 @@ test("direct client checks re-enter the workspace task graph", () => {
       "turbo",
       "run",
       "typecheck",
-      "--filter=maximal-client",
+      "--filter=@maximal/maximal-client",
     ],
     command: "/pnpm.cjs",
     cwd: "/repo",
@@ -564,15 +623,15 @@ test("direct client checks re-enter the workspace task graph", () => {
   const inner = workspaceTaskPlan({
     arguments_: ["lint"],
     environment: { TURBO_HASH: "task-hash" },
-    packageDirectory: "/repo/packages/maximal/client",
+    packageDirectory: "/repo/packages/maximal-client",
     packageManagerPath: "/pnpm.cjs",
-    packageName: "maximal-client",
+    packageName: "@maximal/maximal-client",
     rootDirectory: "/repo",
   });
   assert.deepEqual(inner, {
     arguments: ["run", "lint:inner"],
     command: "/pnpm.cjs",
-    cwd: "/repo/packages/maximal/client",
+    cwd: "/repo/packages/maximal-client",
     shell: process.platform === "win32",
   });
   assert.throws(
@@ -603,25 +662,28 @@ test("pnpm synchronizes stale dependencies before retrying a workspace script", 
   assert.doesNotMatch(workspace, /^verifyDepsBeforeRun: warn$/m);
 });
 
-test("the client sidecar builds through its composition owner", () => {
+test("the client renderer and sidecar build after their workspace dependencies", () => {
   const maximal = JSON.parse(read("packages/maximal/package.json"));
-  const buildCore = read("packages/maximal/client/scripts/build-core.ts");
+  const buildCore = read("apps/desktop/scripts/build-core.ts");
   const turbo = JSON.parse(read("turbo.json"));
 
   assert.match(
     buildCore,
-    /compositionEntry = resolve\(import\.meta\.dirname, '\.\.\/\.\.\/src\/main\.ts'\)/,
+    /compositionEntry = resolve\(import\.meta\.dirname, '\.\.\/\.\.\/\.\.\/packages\/maximal\/src\/main\.ts'\)/,
   );
-  assert.deepEqual(turbo.tasks["maximal-client#build"].dependsOn, [
+  assert.deepEqual(turbo.tasks["@maximal/maximal-client#build"].dependsOn, [
+    "^build",
+  ]);
+  assert.deepEqual(turbo.tasks["maximal-desktop#build"].dependsOn, [
     "^build",
     `${maximal.name}#build`,
   ]);
 });
 
 test("the client React hooks policy is narrow and content-pinned", async () => {
-  const client = JSON.parse(read("packages/maximal/client/package.json"));
+  const client = JSON.parse(read("packages/maximal-client/package.json"));
   const config = (
-    await import("../packages/maximal/client/eslint.config.mjs")
+    await import("../packages/maximal-client/eslint.config.mjs")
   ).default;
   const hooks = config.find((entry) => entry.plugins?.["react-hooks"]);
 
@@ -675,11 +737,11 @@ test("required CI runs native checks before Docker and has one cache writer", ()
   const workflow = read(".github/workflows/ci.yml");
   const staticGate = "pnpm exec turbo run build typecheck lint";
   const hostGate =
-    "pnpm --filter @stuffbucket/maximal-core run check:deep:host:after-workspace";
+    "pnpm --filter @maximal/maximal-core run check:deep:host:after-workspace";
   const packageMechanics =
-    "pnpm --filter @stuffbucket/maximal-electron run verify:fixture-imports";
+    "pnpm --filter @maximal/maximal-electron run verify:fixture-imports";
   const sidecarProvenance =
-    "LINK=packages/maximal/client/node_modules/@stuffbucket/maximal-core";
+    "LINK=apps/desktop/node_modules/@maximal/maximal-core";
   const testGate =
     "pnpm run test:all -- --trace=${{ inputs.test_trace || 'off' }}";
   const packageGate = "pnpm run package:all";
@@ -819,7 +881,7 @@ test("native test selection is closed and uses affected dependents", () => {
     trace: "off",
   });
   assert.deepEqual(turboTestArguments({ scope: "settings" }), [
-    "run", "test", "--concurrency=1", "--filter=@stuffbucket/maximal-settings",
+    "run", "test", "--concurrency=1", "--filter=@maximal/maximal-settings",
   ]);
   assert.throws(() => parseTestOptions(["--settings", "--all"]), /Duplicate test scope/);
   assert.deepEqual(parseTestOptions(["--all", "--", "--trace=tests"]), {
@@ -841,7 +903,7 @@ test("native test selection is closed and uses affected dependents", () => {
     "run",
     "test",
     "--concurrency=1",
-    "--filter=@stuffbucket/maximal-core",
+    "--filter=@maximal/maximal-core",
   ]);
   assert.throws(
     () => parseTestOptions(["--all", "--core"]),
@@ -1611,7 +1673,7 @@ test("suite and trace selectors are closed and do not forward arguments", () => 
   for (const arguments_ of [
     ["maximal-core"],
     ["--suite", "maximal-core"],
-    ["--filter=@stuffbucket/maximal-core"],
+    ["--filter=@maximal/maximal-core"],
     ["--", "--", "--suite=policy"],
   ]) {
     assert.throws(() => parseOptions(arguments_), /Usage:/);
@@ -1804,7 +1866,7 @@ test("the build context excludes local state but retains source fixtures", () =>
     "packages/maximal-core/state/runtime.json",
     "packages/maximal-core/.pnpm-store/v11/index.json",
     "packages/maximal-core/reports/.mutation-stage-123/index.html",
-    "packages/maximal/client/resources/bin/maximal-core",
+    "apps/desktop/resources/bin/maximal-core",
     "packages/maximal-core/.local/share/cache.json",
     "packages/maximal-core/.config/maximal/config.json",
     "packages/maximal-core/accounts.json",
@@ -1852,7 +1914,7 @@ test("the reusable Docker dependency image includes every workspace manifest", (
   }
   const copiedManifests = [
     ...dockerfile.matchAll(
-      /^COPY --chown=maximal:maximal (packages\/[^ ]+\/package\.json) \1$/gm,
+      /^COPY --chown=maximal:maximal ((?:packages|apps)\/[^ ]+\/package\.json) \1$/gm,
     ),
   ].map((match) => match[1]).sort();
   assert.deepEqual(copiedManifests, manifests);
@@ -1887,7 +1949,7 @@ test("the reusable Docker dependency image includes every workspace manifest", (
 
 test("the image owns test homes and stages commands as non-root", () => {
   const dockerfile = read("Dockerfile");
-  assert.match(dockerfile, /^FROM node:24-bookworm-slim@sha256:[0-9a-f]{64}$/m);
+  assert.match(dockerfile, /^FROM node:24-bookworm-slim@sha256:[0-9a-f]{64} AS dependency-base$/m);
   assert.match(dockerfile, /test "\$\(node --version\)" = "v\$\{NODE_VERSION\}"/);
   assert.doesNotMatch(dockerfile, /https:\/\/bun\.sh\/install/);
   assert.match(dockerfile, /curl -fsSL "\$\{bun_url\}"/);
@@ -1910,7 +1972,7 @@ test("the image owns test homes and stages commands as non-root", () => {
   assert.match(dockerfile, /\bprocps\b/);
   assert.match(
     dockerfile,
-    /pnpm --filter @stuffbucket\/maximal-core exec stryker --version/,
+    /pnpm --filter @maximal\/maximal-core exec stryker --version/,
   );
   assert.match(
     dockerfile,

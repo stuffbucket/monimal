@@ -1,0 +1,61 @@
+{
+  "name": "@maximal/maximal-terminal",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Terminal sessions, launchers, tmux projection, and React terminal views for maximal.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./renderer": {
+      "types": "./dist/renderer/index.d.ts",
+      "default": "./dist/renderer/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "analyze": "bun ../maximal-core/scripts/analyze.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "lint": "eslint .",
+    "mutate": "node scripts/mutation-scope.mjs && stryker run && stryker run stryker.static.conf.mjs && node scripts/mutation-report.mjs",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@wterm/dom": "^0.4.1",
+    "@wterm/ghostty": "^0.4.1",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^6.0.0",
+    "node-pty": ">=1.2.0-beta.14",
+    "react": ">=18.0.0 <20.0.0"
+  },
+  "devDependencies": {
+    "@stryker-mutator/core": "^10.0.0",
+    "@stryker-mutator/vitest-runner": "^10.0.0",
+    "@maximal/eslint-config": "workspace:*",
+    "@types/node": "^26.4.0",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.5",
+    "@typescript/native": "npm:typescript@^7.0.2",
+    "@wterm/dom": "0.4.1",
+    "@wterm/ghostty": "0.4.1",
+    "@xterm/addon-fit": "0.11.0",
+    "@xterm/xterm": "6.0.0",
+    "eslint": "^10.9.1",
+    "jsdom": "30.0.1",
+    "node-pty": "1.2.0-beta.15",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "vite": "^8.2.2",
+    "vitest": "^4.1.11"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

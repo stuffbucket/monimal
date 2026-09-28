@@ -1,2 +1,2 @@
 level = "error"
-enforce = "packages/maximal/client/src/main"
+enforce = "apps/desktop/src/main"

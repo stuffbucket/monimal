@@ -30,7 +30,7 @@ const files = [
 
 const commonRestrictedPatterns = [
   {
-    group: ["@stuffbucket/*/src", "@stuffbucket/*/src/**", "stuffbucket-electron/src/**"],
+    group: ["@maximal/*/src", "@maximal/*/src/**"],
     message: "Import another package through a declared public entry point, never its source tree.",
   },
 ]
@@ -38,8 +38,22 @@ const commonRestrictedPatterns = [
 const packageRestrictedPatterns = {
   electron: [
     {
-      group: ["maximal-client", "maximal-client/**", "@stuffbucket/maximal-core", "@stuffbucket/maximal-core/**"],
+      group: ["@maximal/maximal-client", "@maximal/maximal-client/**", "@maximal/maximal-core", "@maximal/maximal-core/**"],
       message: "The reusable Electron package must not depend on consumer or Maximal Core policy.",
+    },
+  ],
+  terminal: [
+    {
+      group: [
+        "electron",
+        "@maximal/maximal-electron",
+        "@maximal/maximal-electron/**",
+        "@maximal/maximal-client",
+        "@maximal/maximal-client/**",
+        "@maximal/maximal-core",
+        "@maximal/maximal-core/**",
+      ],
+      message: "The terminal package must not depend on Electron, the shell, or consumer policy.",
     },
   ],
   client: [],
@@ -47,7 +61,16 @@ const packageRestrictedPatterns = {
 }
 
 /**
- * @param {{ kind?: "electron" | "client" | "service", root: string }} options
+ * The `no-restricted-imports` patterns a package kind is held to, for a
+ * package that narrows the rule further in one subtree.
+ * @param {"electron" | "terminal" | "client" | "service"} kind
+ */
+export function restrictedImportPatterns(kind) {
+  return [...commonRestrictedPatterns, ...packageRestrictedPatterns[kind]]
+}
+
+/**
+ * @param {{ kind?: "electron" | "terminal" | "client" | "service", root: string }} options
  * @returns {Array<import("eslint").Linter.Config>}
  */
 export function architecture({ kind = "service", root } = {}) {
@@ -105,10 +128,7 @@ export function architecture({ kind = "service", root } = {}) {
         "no-restricted-imports": [
           "error",
           {
-            patterns: [
-              ...commonRestrictedPatterns,
-              ...packageRestrictedPatterns[kind],
-            ],
+            patterns: restrictedImportPatterns(kind),
           },
         ],
       },

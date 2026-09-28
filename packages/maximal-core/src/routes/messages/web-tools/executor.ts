@@ -27,7 +27,7 @@ import {
   type SearchConnectorPlugin,
   type SearchProviderInstance,
   type SearchResult as ConnectorSearchResult,
-} from "@stuffbucket/maximal-harness"
+} from "@maximal/maximal-search"
 import { randomUUID } from "node:crypto"
 import TurndownService from "turndown"
 

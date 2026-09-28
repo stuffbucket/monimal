@@ -1,7 +1,7 @@
 import type {
   LocalModelManifest,
   LocalModelPublication,
-} from "@stuffbucket/local-model-registry"
+} from "@maximal/local-model-registry"
 
 export const QWEN3_0_6B_Q8_0_ARTIFACT = Object.freeze({
   expectedBytes: 639_446_688,

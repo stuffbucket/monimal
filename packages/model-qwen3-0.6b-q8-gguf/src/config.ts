@@ -1,4 +1,4 @@
-import type { LocalModelPublication } from "@stuffbucket/local-model-registry"
+import type { LocalModelPublication } from "@maximal/local-model-registry"
 
 import Schema from "@deepseek-ai/schemastery"
 

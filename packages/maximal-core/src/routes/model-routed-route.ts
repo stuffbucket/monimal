@@ -1,4 +1,4 @@
-import type { ProviderOperation } from "@stuffbucket/maximal-model-contract"
+import type { ProviderOperation } from "@maximal/maximal-model-contract"
 
 import { Hono, type Context } from "hono"
 

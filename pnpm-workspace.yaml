@@ -1,5 +1,6 @@
 packages:
   - "packages/**"
+  - "apps/**"
   - "!packages/maximal-core/downstream"
 
 # Synchronize a stale dependency graph once, then retry the requested script.

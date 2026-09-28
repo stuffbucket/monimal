@@ -17,7 +17,7 @@ set -euo pipefail
 #
 # So the caller decides where each file comes from, typically:
 #   git show "${TAG}:.macos-builder/config"           > cfg
-#   git show "${TAG}:packages/maximal/client/forge.config.ts" > forge
+#   git show "${TAG}:apps/desktop/forge.config.ts" > forge
 #
 # It also makes every branch below reachable from scripts/release/selftest.sh
 # with fixtures, instead of only during a real 20-40 minute release.

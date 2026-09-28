@@ -24,7 +24,8 @@ import type {
   TerminalLaunchRequest,
   TerminalLaunchResult,
   TerminalProfileSummary,
-} from '../host/electron-terminal-contract.js';
+  TerminalPane,
+} from '@maximal/maximal-terminal';
 
 export type {
   PtyProjectionAttachRequest,
@@ -41,7 +42,7 @@ export type {
   TerminalLaunchResult,
   TerminalProfileSummary,
   TerminalTargetSummary,
-} from '../host/electron-terminal-contract.js';
+} from '@maximal/maximal-terminal';
 
 /* ------------------------------------------------------------------ types */
 
@@ -111,9 +112,7 @@ export interface TerminalRedockRequest {
   pane?: TerminalPaneLayout;
 }
 
-export type TerminalPaneLayout =
-  | { sessionId: string }
-  | { direction: 'right' | 'down'; first: TerminalPaneLayout; second: TerminalPaneLayout };
+export type TerminalPaneLayout = TerminalPane;
 
 export interface TerminalPaneSyncRequest {
   id: string;
@@ -347,7 +346,7 @@ export interface IpcContract {
   'terminal:pane-sync': { request: TerminalPaneSyncRequest; response: void };
 
   // Terminal sessions. The shell runs in the main process; the renderer holds
-  // only the xterm view. See src/main/native/pty.ts.
+  // only the xterm view. See src/main/native/pty/.
   'pty:spawn': { request: PtySpawnRequest; response: void };
   'pty:write': { request: PtyWriteRequest; response: void };
   'pty:resize': { request: PtyResizeRequest; response: void };

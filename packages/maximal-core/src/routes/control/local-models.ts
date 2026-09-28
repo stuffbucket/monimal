@@ -1,18 +1,18 @@
 import type {
+  LocalModelCancelResult,
+  LocalModelEnsureResult,
+  LocalModelOperationEvent,
+} from "@maximal/maximal-core-contract/control"
+import type {
   LocalModelCatalogEntry,
   LocalModelCatalogSnapshot,
   LocalModelControl,
   LocalModelProvisionProgress,
   ProviderUnsubscribe,
-} from "@stuffbucket/maximal-model-contract"
+} from "@maximal/maximal-model-contract"
 
 import { randomUUID } from "node:crypto"
 
-import type {
-  LocalModelCancelResult,
-  LocalModelEnsureResult,
-  LocalModelOperationEvent,
-} from "~/lib/jsonrpc/contract"
 import type { ControlHub } from "~/lib/live/hub"
 import type { ControlSnapshot } from "~/lib/live/resources"
 

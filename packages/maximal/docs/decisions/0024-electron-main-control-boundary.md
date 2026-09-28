@@ -14,6 +14,11 @@ depends_on:
 
 # Electron main owns the private control-plane connection
 
+The private connection now uses inherited child-process IPC instead of a
+loopback origin. The process boundary and named renderer capabilities below
+are unchanged; see [client architecture](../dev/client-architecture.md) for
+the current transport.
+
 ## Context
 
 ADR-0023 chose stateless JSON-RPC 2.0 over HTTP+SSE for the sidecar control

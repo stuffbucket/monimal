@@ -36,8 +36,8 @@
  *   # Capture a baseline against a live proxy on :4141
  *   bun run measure:baseline -- --label before
  *
- *   # Point at another host/port
- *   bun run measure:baseline -- --label before --base-url http://127.0.0.1:4142
+ *   # Point at another local host/port
+ *   bun run measure:baseline -- --label before --base-url <local-proxy-url>
  *
  *   # More warmup samples + drop the first N cold-start samples from stats
  *   bun run measure:baseline -- --label before --samples 20 --discard 2
@@ -48,7 +48,7 @@
  *   # A/B compare two proxies with INTERLEAVED warmup sampling + a
  *   # significance test (both arms see the same congestion window):
  *   bun run measure:baseline -- --label old-vs-new \
- *     --base-url http://127.0.0.1:4141 --compare http://127.0.0.1:4142 --samples 20
+ *     --base-url <old-local-proxy-url> --compare <new-local-proxy-url> --samples 20
  *
  * On timing noise: single before/after runs taken minutes apart can't
  * separate a real delta from upstream congestion. For small deltas (caching,

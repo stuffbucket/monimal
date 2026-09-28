@@ -4,8 +4,9 @@ This shell is a package another application composes. This document is the
 contract for that: what a consumer imports, what it passes, and what changes
 under it without warning.
 
-`maximal/client` is the consumer this was built for. It composes the shell from
-its own `src/main/shell.ts`, spawns its own service, and owns its own renderer.
+`maximal-desktop` is the host consumer this was built for. Its main process
+imports `createHostWindow` directly, spawns its own service, and uses the
+`@maximal/maximal-client` renderer.
 Nothing about that application appears here, and nothing about it may: a port
 number, a home directory variable, a control path, or a provider name in this
 repository is a defect, not a convenience.
@@ -17,7 +18,6 @@ repository is a defect, not a convenience.
 | `./main` | `runMain`, the main-process lifecycle |
 | `./host` | `createHostWindow`, one secured window |
 | `./preload` | `exposeBridge`, the generic renderer bridge |
-| `./host/terminal` | `TerminalHost` and `registerTerminalChannels`, the pty manager and its wiring |
 | `./renderer` | The React control surface: layout, controls, the terminal, and the hooks under them |
 | `./renderer/styles.css` | The structural stylesheet. It ships no palette |
 | `./verify` | Packaging checks a consumer runs against its own build |
@@ -96,7 +96,7 @@ the deferred shutdown. It decides nothing about the application it hosts.
 
 ```ts
 import { app } from 'electron';
-import { RUN_MAIN_OPTIONS_VERSION, runMain } from '@stuffbucket/maximal-electron/main';
+import { RUN_MAIN_OPTIONS_VERSION, runMain } from '@maximal/maximal-electron/main';
 
 await runMain(
   { app },
@@ -240,14 +240,14 @@ which is one line and needs no package.
 
 ## The preload bridge
 
-`@stuffbucket/maximal-electron/preload` is the seam issue #17 asks for: one
+`@maximal/maximal-electron/preload` is the seam issue #17 asks for: one
 namespaced global, generic native powers, `{ok}` envelopes, working under
-`sandbox: true`. `maximal/client` wrote three methods of it by hand because
+`sandbox: true`. `maximal-client` wrote three methods of it by hand because
 this export did not exist.
 
 ```ts
 // the consumer's own preload entry, bundled by the consumer's own bundler
-import { exposeBridge } from '@stuffbucket/maximal-electron/preload';
+import { exposeBridge } from '@maximal/maximal-electron/preload';
 
 exposeBridge({ namespace: 'myApp' });
 ```
@@ -353,7 +353,7 @@ ways worth stating rather than discovering.
 
 A sandboxed preload cannot `require` a package. Its `require` reaches a handful
 of Electron and Node built-ins and nothing in `node_modules`, so
-`require('@stuffbucket/maximal-electron/preload')` from a preload file does not
+`require('@maximal/maximal-electron/preload')` from a preload file does not
 work and cannot be made to. **The consumer bundles this module into their own
 preload entry.** That is the one thing they must still do themselves, and it is
 why `preloadPath` stays a path they supply: the shell never chooses the file,
@@ -431,8 +431,8 @@ import {
   Canvas,
   NavRail,
   ShellLayout,
-} from '@stuffbucket/maximal-electron/renderer';
-import '@stuffbucket/maximal-electron/renderer/styles.css';
+} from '@maximal/maximal-electron/renderer';
+import '@maximal/maximal-electron/renderer/styles.css';
 ```
 
 Every rule is scoped under `.sb-shell`. `ShellLayout` applies that root class;
@@ -467,8 +467,8 @@ import {
   useShellTabs,
   type Tab,
   type ViewMode,
-} from '@stuffbucket/maximal-electron/renderer';
-import '@stuffbucket/maximal-electron/renderer/styles.css';
+} from '@maximal/maximal-electron/renderer';
+import '@maximal/maximal-electron/renderer/styles.css';
 import './shell-variables.css';
 import { Bot, FolderGit2 } from 'lucide-react';
 import { useState } from 'react';
@@ -625,7 +625,7 @@ canvas. The fixture swaps `TerminalTabs` in when the active tab is a terminal;
 "Wiring a terminal" below is the transport that feeds it.
 
 Two things the example cannot supply for a consumer. The specifier is
-`@stuffbucket/maximal-electron/renderer`, because the package declares no `.`
+`@maximal/maximal-electron/renderer`, because the package declares no `.`
 export and an import of the bare name does not resolve. And
 `shell-variables.css` is the consumer's own file: `docs/shell-variables.md`
 lists the eleven properties that carry no fallback, and the shell draws nothing
@@ -692,7 +692,7 @@ put it. Applying the class by hand does not reach them: the portalled subtree is
 a sibling of the container, not a descendant.
 
 That is not a cosmetic failure. Measured in a browser, on a page carrying only
-`@stuffbucket/maximal-electron/renderer/styles.css` and the eleven required
+`@maximal/maximal-electron/renderer/styles.css` and the eleven required
 properties, a standalone `Dialog` on `document.body` computed
 `position: static`, `width: 1280px`, `background-color: rgba(0, 0, 0, 0)` and
 `border-radius: 0`, over a scrim that computed `position: static` and painted
@@ -728,7 +728,7 @@ holds the browser half of it under `npm run storybook:check`.
 restate it. It says which properties are required, which carry a fallback in
 the rule that reads them, which two JavaScript resolves rather than any rule,
 and why there is no defaults layer.
-`@stuffbucket/maximal-electron/verify/shell-variables` derives that contract
+`@maximal/maximal-electron/verify/shell-variables` derives that contract
 from the stylesheet a consumer installed, so an application asserts its own
 adapter against the file it has rather than against a table somebody copied.
 
@@ -740,160 +740,3 @@ Radix packages the layout components do not, so a consumer who was already
 importing `ShellLayout` gains three. README.md carries the whole row, and
 `npm run verify:exports` compares it against the import graph the built entry
 reaches, so the table cannot invent a peer or omit one.
-
-## Wiring a terminal
-
-`TerminalView` takes its transport as a value, so it knows nothing about an IPC
-contract and a consumer supplies their own. Writing that transport was the
-consumer's job until now: five request methods, two event subscriptions, and
-the id filtering between them. Every consumer writes it the same way, and one
-of them writes it wrong.
-
-Two exports do it instead. `createTerminalTransport` from `./renderer` is the
-renderer half. `registerTerminalChannels` from `./host/terminal` answers it
-from a `TerminalHost`. Neither picks a channel name, for the reason
-`exposeBridge` takes its `namespace` from the caller: a name this package chose
-is a name every consumer with a contract of their own has to work around. Issue
-#22.
-
-```ts
-// the consumer's renderer, over the preload they exposed themselves
-import {
-  createTerminalTransport,
-  TerminalView,
-} from '@stuffbucket/maximal-electron/renderer';
-
-const transport = createTerminalTransport({
-  invoke: (channel, request) => window.myApp.invoke(channel, request),
-  on: (event, listener) => window.myApp.on(event, listener),
-  channels: {
-    spawn: 'term:spawn',
-    write: 'term:write',
-    resize: 'term:resize',
-    terminate: 'term:kill',
-    list: 'term:list',
-    // Optional: enables bounded acknowledged terminal output.
-    ack: 'term:ack',
-    data: 'term:data',
-    exit: 'term:exit',
-  },
-});
-
-<TerminalView id="one" transport={transport} disposition="detach" />;
-```
-
-`invoke` and `on` are the consumer's own. `exposeBridge` does not supply them:
-its capabilities are three named native powers, and a request channel is not
-one of them. A consumer exposes their own pair through `extend`, or through a
-preload of their own, and passes it here. This shell does the first, in
-`src/preload/index.ts`.
-
-```ts
-// the consumer's main process
-import { app, ipcMain } from 'electron';
-import {
-  registerTerminalChannels,
-  TerminalHost,
-} from '@stuffbucket/maximal-electron/host/terminal';
-
-const host = new TerminalHost({
-  homeDirectory: app.getPath('home'),
-  defaultShell: process.env['SHELL'] ?? '/bin/zsh',
-  env: { TERM_PROGRAM: 'Consumer' },
-  emit: (id, chunk) => mainWindow.webContents.send('term:data', { id, data: chunk }),
-  onExit: (id, exitCode) =>
-    mainWindow.webContents.send('term:exit', { id, exitCode }),
-});
-
-registerTerminalChannels(ipcMain, host, {
-  channels: {
-    spawn: 'term:spawn',
-    write: 'term:write',
-    resize: 'term:resize',
-    terminate: 'term:kill',
-    list: 'term:list',
-    ack: 'term:ack',
-  },
-});
-```
-
-Four things about that pair are worth stating rather than discovering.
-
-**The two halves name a different number of channels.** The transport takes
-seven and the registration takes five. `data` and `exit` are pushed by the
-host, so a `TerminalHost` reports them through `emit` and `onExit`, which the
-consumer sends on whatever the host's own window send looks like. Nothing here
-sends for them: `./host/terminal` imports no `electron` and has no
-`webContents` to reach.
-
-**The names are typed against the caller's own contract.**
-`TerminalChannels<C, E>` takes the caller's channel union and event union, so
-`TerminalChannels<IpcChannel, IpcEvent>` makes a channel that contract does not
-declare a compile error rather than a silent no-op. `TerminalRequestChannels<C>`
-is the five-name half `registerTerminalChannels` takes.
-
-**`registerTerminalChannels` takes a resolver as well as a host.** Its `host`
-parameter accepts a `TerminalHost` or a function of the invoke event. A
-consumer with one manager passes the manager. A consumer that keys one per
-window passes the function, which is what this repository does: a session
-belongs to a window, and `src/main/ipc.ts` resolves the manager from
-`event.sender`. A request that resolves to no manager is dropped, and `list`
-answers with no sessions.
-
-**Its `ipcMain` parameter is structural, not an `electron` import.**
-`TerminalIpcMain<E>` names the one method the registration calls, so
-`./host/terminal` still loads no `electron`. That is what keeps the module
-inside the unit suite, and inside the criterion `scripts/mutation-scope.mjs`
-applies; it is deferred there rather than mutated, under #125. Passing
-Electron's own `ipcMain` satisfies the parameter, and `E` is inferred from it.
-
-The rule `exposeBridge` states holds here too. `src/renderer/lib/bridge-terminal.ts`
-calls `createTerminalTransport` and `src/main/ipc.ts` calls
-`registerTerminalChannels`, so the export is not a second implementation that
-can drift from the one this repository runs: it is the one this repository
-runs. Neither half imports the other, and neither may, so
-`tests/terminal/terminal-channels.test.ts` is the check that duplication owes: it drives
-both halves and asserts they name the same set.
-
-### Brokering tmux projections
-
-`TmuxProjectionBroker` from `./host/terminal` coordinates several ordinary
-tmux client PTYs around one tmux-owned pane. It does not construct commands.
-The consumer's `attach` callback chooses whether each client runs locally,
-through SSH, or through another connector. The renderer receives only the
-client PTY's VT stream.
-
-```ts
-import {
-  LocalPtyConnector,
-  TmuxProjectionBroker,
-} from '@stuffbucket/maximal-electron/host/terminal';
-
-const connector = new LocalPtyConnector();
-const broker = new TmuxProjectionBroker({
-  attach: ({ sessionId, cols, rows }) => connector.connect({
-    command: 'tmux',
-    args: ['attach-session', '-t', sessionId],
-    name: 'xterm-256color',
-    cols,
-    rows,
-    cwd: process.env['HOME'] ?? '/',
-    env: { ...process.env, TERM: 'xterm-256color' } as Record<string, string>,
-  }),
-  terminateSession: (sessionId) => terminateTrustedTmuxSession(sessionId),
-  emit: (sessionId, projectionId, chunk) =>
-    sendProjectionOutput(sessionId, projectionId, chunk),
-  onExit: (sessionId, projectionId, exitCode) =>
-    reportProjectionExit(sessionId, projectionId, exitCode),
-});
-```
-
-`attach` registers a projection without granting input. `focus` returns the
-new focus epoch. `write` and `resize` accept only that projection and epoch;
-an operation delayed across a focus transfer returns `false`. `detach` kills
-one client process and leaves the tmux pane alive. `terminate` kills every
-client and invokes `terminateSession`.
-
-Tmux command arguments and session names remain trusted host state. A renderer
-must not supply either. Tmux control mode uses another host-only process; its
-records do not share the projection data stream.

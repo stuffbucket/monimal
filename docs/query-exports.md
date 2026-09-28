@@ -32,8 +32,8 @@ Example output:
   "packages": 15,
   "exports": 58,
   "byPackage": {
-    "@stuffbucket/maximal-core": 9,
-    "@stuffbucket/maximal-electron": 11,
+    "@maximal/maximal-core": 9,
+    "@maximal/maximal-electron": 11,
     ...
   }
 }
@@ -43,21 +43,21 @@ Example output:
 
 ```bash
 # List all exports from a package
-node scripts/query-exports.mjs @stuffbucket/maximal-core
+node scripts/query-exports.mjs @maximal/maximal-core
 
 # Check if a specific export exists
-node scripts/query-exports.mjs @stuffbucket/maximal-core ./settings-types
+node scripts/query-exports.mjs @maximal/maximal-core ./settings-types
 ```
 
 Example output:
 ```
-✓ @stuffbucket/maximal-core exports ./settings-types
+✓ @maximal/maximal-core exports ./settings-types
 ```
 
 or
 
 ```
-✗ @stuffbucket/maximal-core does not export ./nonexistent
+✗ @maximal/maximal-core does not export ./nonexistent
 
   Available exports:
     ./client
@@ -71,8 +71,8 @@ or
 Add `--json` to get structured output:
 
 ```bash
-node scripts/query-exports.mjs @stuffbucket/maximal-core --json
-node scripts/query-exports.mjs @stuffbucket/maximal-core ./settings-types --json
+node scripts/query-exports.mjs @maximal/maximal-core --json
+node scripts/query-exports.mjs @maximal/maximal-core ./settings-types --json
 ```
 
 ## Integration

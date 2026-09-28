@@ -24,6 +24,27 @@ describe('tab transfers', () => {
     expect(decodeTabTransfer(encodeTabTransfer(transfer))).toEqual(transfer);
   });
 
+  it('keeps every valid optional field', () => {
+    const full: TabTransfer = {
+      ...transfer,
+      sessionId: 'session-one',
+      pane: { sessionId: 'pane-one' },
+      title: 'Build',
+      canRunInBackground: false,
+    };
+    expect(decodeTabTransfer(encodeTabTransfer(full))).toStrictEqual(full);
+  });
+
+  it('drops empty and mistyped optional fields', () => {
+    const identity = { version: 1, sourceFrameId: 'main', tabId: 'terminal:one' };
+    for (const invalid of [
+      { sessionId: '', pane: {}, title: '', canRunInBackground: 'yes' },
+      { sessionId: 1, pane: { sessionId: '' }, title: 1, canRunInBackground: 1 },
+    ]) {
+      expect(decodeTabTransfer(JSON.stringify({ ...identity, ...invalid }))).toStrictEqual(identity);
+    }
+  });
+
   it('rejects malformed, unsupported, and empty identities', () => {
     expect(decodeTabTransfer('not json')).toBeUndefined();
     expect(decodeTabTransfer('{"version":2,"sourceFrameId":"main","tabId":"one"}')).toBeUndefined();

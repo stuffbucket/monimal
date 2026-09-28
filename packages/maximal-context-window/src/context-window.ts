@@ -1,4 +1,4 @@
-import type { TrafficRequestSummary } from "@stuffbucket/maximal-observability-contract"
+import type { TrafficRequestSummary } from "@maximal/maximal-observability-contract"
 
 /** Grid is 10 blocks wide, each representing a fixed 2k-token slice of the
  * context window (not scaled to the window size), so the grid's height

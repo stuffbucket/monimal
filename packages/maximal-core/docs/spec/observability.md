@@ -13,9 +13,9 @@ remains deferred until one of its listed triggers fires.
 - The product dashboard reads metadata-only request history and aggregates from
   an embedded SQLite store. It is part of the desktop product and requires no
   collector, ClickHouse, SigNoz, or network export.
-- `@stuffbucket/maximal-observability-contract` defines the durable query,
+- `@maximal/maximal-observability-contract` defines the durable query,
   result, invalidation, and passive-observer boundary;
-  `@stuffbucket/maximal-observability` supplies renderer-only surfaces. The
+  `@maximal/maximal-observability` supplies renderer-only surfaces. The
   contract keeps Core independent of the store, transport, and UI.
 - OpenTelemetry and SigNoz are an optional future export and operations path for
   cross-source correlation, external querying, retention, and dashboards. They

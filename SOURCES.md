@@ -15,23 +15,38 @@ has ended.
 
 | Package | Purpose |
 | --- | --- |
-| `packages/maximal-settings` | Typed layered settings and the settings migration ratchet. |
+| `packages/maximal-terminal` | Electron-free terminal hosts, tmux control and projection, launch connectors, and the terminal renderer. |
+| `packages/maximal-settings` | Typed layered settings, process-owned JSON stores, plugin-schema validation, and the settings migration ratchet. |
 | `packages/local-model-registry` | Local-model registration and provisioning. |
 | `packages/maximal-assets` | Brand assets and visual configuration. |
 | `packages/maximal-configurators` | First-party client configurators. |
 | `packages/maximal-context-window` | Context-window derivation and UI. |
 | `packages/maximal-data-visualization` | Visualization primitives and styles. |
 | `packages/maximal-harness` | Local agent runtime, workers, and renderer. |
+| `packages/maximal-search` | Search connector contract, first-party providers, and provider settings manifest. |
 | `packages/maximal-logging` | Persistent structured runtime logging and log discovery. |
 | `packages/maximal-model-contract` | Runtime-neutral model gateway contract. |
+| `packages/maximal-core-contract` | Core's settings wire types and control-plane contract; Core republishes them. |
 | `packages/maximal-models` | Model runtime lifecycle and DSH dispatch. |
 | `packages/maximal-observability-contract` | Traffic schemas and observer interfaces. |
 | `packages/maximal-observability` | Traffic explorer UI. |
+| `packages/maximal-ollama` | Node-native Ollama runtime management and renderer-safe status contract. |
+| `packages/maximal-client` (`@maximal/maximal-client`) | Product renderer, UI controls, and shared desktop contracts. |
 | `packages/model-qwen3-0.6b-q8-gguf` | Qwen3 artifact metadata and provisioning. |
 | `packages/model-runtimes/anthropic` | Anthropic Messages adapter. |
 | `packages/model-runtimes/omlx` | oMLX HTTP adapter. |
 
 ## Rules
+
+`apps/desktop` owns Electron main/preload, private IPC channels, native
+packaging, renderer entry points, and app-level `App` composition. It composes
+`packages/maximal-client`'s `AppWorkspace`, feature surfaces, and React
+controls. Main-process bindings to package-owned hosts and Core's control
+transport live under `apps/desktop/src/main/adapters`; desktop preferences,
+native integration, sidecar lifecycle, windows, and worker entry points live
+in their matching `src/main` subdirectories. Each owns tests for its source.
+Both are monorepo-native;
+`packages/maximal` remains the copied CLI composition.
 
 | Requirement | Owner or enforcement |
 | --- | --- |
@@ -71,9 +86,10 @@ has ended.
 | Scope | Deviation from copied repositories |
 | --- | --- |
 | Copied packages | `CLAUDE.md` includes `AGENTS.md`; root instructions take precedence. |
-| Workspace | `@stuffbucket/eslint-config` owns the shared ESLint configuration and enforced rule sets. |
-| Workspace | `architecture-analysis.json` owns package coverage, layer rules, and non-Core architecture baselines. |
+| Workspace | `@maximal/eslint-config` owns the shared ESLint configuration and enforced rule sets. |
+| Workspace | `architecture-analysis.json` owns package coverage, the declared workspace dependency tree (`dependsOn`), external-package deny rules, and non-Core architecture baselines. |
 | `maximal-settings` | The pnpm bootstrap hook MUST load its dependency-policy source before workspace packages are installed; installed consumers MUST use the exported entry point. |
+| `maximal-core` / `maximal-settings` | Core preserves its synchronous `config.json` storage and locking while validating installed connector payloads through the shared settings API; unknown plugins remain opaque. |
 | `maximal-settings` | Dependency changes MUST update the reviewed closure and deterministic SBOM; `.pnpmfile.cjs` MUST enforce the reviewed resolution graph and integrity. |
 | `maximal-configurators` | Owns first-party Cordis registration through Core's capability-scoped configurator host. |
 | `maximal` / `maximal-core` | Connector payloads remain opaque in Core and are validated by host-installed Standard Schema plugins. |
@@ -81,10 +97,22 @@ has ended.
 | Model packages | Core consumes the side-effect-free model contract; orchestration and concrete runtime adapters remain separate packages. |
 | Observability packages | The contract is runtime-neutral; renderer surfaces depend on it, not the reverse. |
 | `model-runtimes/omlx` | Ships as a profile-installed Cordis/DSH adapter, not as compiled Core code. |
-| `maximal` / `maximal/client` | Core dependencies are workspace links; the client sidecar builds the workspace composition. |
-| `maximal/client` | Development Electron profiles are checkout-isolated and shutdown waits for the Core child. |
-| `maximal/client` | Direct lint and typecheck commands re-enter their Turbo tasks through `run-workspace-task.mjs`. |
+| `maximal` / `apps/desktop` | Core dependencies are workspace links; the desktop sidecar builds the Maximal composition. |
+| `maximal-core` / `maximal` | Desktop-spawned Core (`start --desktop-ipc`) uses inherited Node child-process IPC for control RPC and events instead of binding its private HTTP listener; standalone Core keeps its loopback control listener and public proxy unchanged. |
+| `apps/desktop` | Packaged Linux smoke uses the `desktop-smoke` target of the pinned Docker dependency build, stages Git-visible source, and runs Electron E2E under Xvfb without container networking. |
+| `maximal-ollama` | Desktop calls the package behind validated IPC. Core provider policy and Settings integration remain in their existing owners until an optional provider seam is established. |
+| `apps/desktop` | The workspace build must build the Maximal composition and `@maximal/maximal-client` renderer dependencies before compiling the sidecar; Forge bundles its app entry points with product surfaces from `packages/maximal-client/src`. |
+| `@maximal/maximal-client` | Its workspace build waits for dependency builds; typechecking the renderer requires their emitted contracts in a clean Linux checkout. |
+| `apps/desktop` | Development Electron profiles are checkout-isolated and shutdown waits for the Core child. |
+| `maximal-electron` / `apps/desktop` | Desktop imports the package host-window API directly; it has no local shell adapter. |
+| `@maximal/maximal-client` / `apps/desktop` | Direct lint and typecheck commands re-enter their Turbo tasks through `run-workspace-task.mjs`. |
 | `maximal-electron` | Terminal copies use a main-owned revisioned pane document and geometry controller; window transfers stage before atomic readiness-gated commit or rollback. |
+| `maximal-electron` / `maximal-terminal` | Terminal code outside Electron integration lives in `maximal-terminal`; generated tmux session names take their prefix from the host (`terminalSessionPrefix` in the desktop settings) instead of the fixed `stuffbucket-`. |
+| `maximal-electron` | `verify:neutral` denies imports of workspace packages outside its `dependsOn` in the root `architecture-analysis.json` instead of a fixed name list, and bare `maximal` is no longer a forbidden term. |
+| `maximal-electron` | Private workspace package, not published; the registry publish, tag, and git-install checks are removed. |
+| `maximal-electron` / `maximal` | Consumers and design docs name the package `@maximal/maximal-electron`; the `stuffbucket-electron` workspace alias is removed. |
+| `maximal-core` | Private workspace package, not published; the registry publish, release-tag, release-gates, and release-notes tooling are removed. |
+| `maximal-core` | The settings wire types and control contract live in `maximal-core-contract`; Core's `./settings-types` and `./control-contract` exports republish them. |
 | Test workflow | Native tests enter through the root isolation wrapper; Docker stages Git-visible source with container-owned dependencies. |
 
 ## Excluded from copied packages

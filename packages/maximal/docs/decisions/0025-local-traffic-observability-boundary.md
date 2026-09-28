@@ -31,13 +31,13 @@ before choosing storage, transport, or presentation details.
 ## Decision
 
 1. **The contract is the dependency root.**
-   `@stuffbucket/maximal-observability-contract` contains only serializable
+   `@maximal/maximal-observability-contract` contains only serializable
    schemas, inferred types, bounds, query/result shapes, live invalidation
    hints, and the passive observer interfaces. It MUST NOT depend on Maximal
    Core, a database, HTTP, Electron, React, or any implementation package.
 
    Core and storage/control adapters MAY depend on the contract. The
-   renderer-only `@stuffbucket/maximal-observability` package depends on the
+   renderer-only `@maximal/maximal-observability` package depends on the
    contract and exposes an `ObservabilitySource` consumer interface. It MUST NOT
    import Core or a concrete store. A desktop composition MAY adapt named
    main-process capabilities to that source. Dependencies never point from the

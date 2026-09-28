@@ -10,7 +10,7 @@ export default defineConfig({
   server: { open: true },
   plugins: [react()],
   resolve: {
-    dedupe: ["@stuffbucket/maximal-electron", "react", "react-dom"],
+    dedupe: ["@maximal/maximal-electron", "react", "react-dom"],
   },
   build: {
     outDir: resolve(import.meta.dirname, "../.vite/lab"),

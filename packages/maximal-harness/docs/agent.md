@@ -1,6 +1,6 @@
 # Agent runtime
 
-`@stuffbucket/maximal-harness` owns provider discovery, the coding-agent loop,
+`@maximal/maximal-harness` owns provider discovery, the coding-agent loop,
 the approval gate, embedded model management, utility-process supervision, and
 the transport-driven overlay. The application owns IPC names, request
 validation, sender authorization, panel creation, shortcuts, lifecycle, worker
@@ -14,6 +14,8 @@ bundle paths, and native package mutation.
   response.
 - The host must reserve a run before provider discovery starts. Two runs must
   never share the singleton approval and event state.
+- `src/constants.ts` owns runtime tuning values and human-facing copy. Keep
+  protocol discriminants and schema vocabulary with their contracts.
 
 ## Provider chain
 
@@ -66,9 +68,9 @@ only the three `AgentApproval` values in its typed options.
 
 ## Packaging
 
-`@stuffbucket/maximal-harness/packaging` owns the worker filename, target
+`@maximal/maximal-harness/packaging` owns the worker filename, target
 prebuild selection, optional GPU backend policy, and compile-only source list.
-`@stuffbucket/maximal-harness/verify` checks those decisions against a packaged
+`@maximal/maximal-harness/verify` checks those decisions against a packaged
 file tree. The application owns Forge hooks, dependency closure copying,
 `asar.unpack`, target pruning, and the concrete worker target.
 

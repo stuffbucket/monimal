@@ -6,6 +6,7 @@ import path from "node:path"
 import { PATHS } from "~/lib/platform/paths"
 
 export const PIDFILE_PATH = path.join(PATHS.APP_DIR, "maximal.pid")
+const LOOPBACK_IPV4_HOSTNAME = "127.0.0.1"
 
 export interface EvictOptions {
   /** Port to evict. Defaults to 4141 (the desktop sidecar's port). */
@@ -53,7 +54,7 @@ function defaultProbePort(port: number): Promise<boolean> {
     socket.once("connect", () => finish(true))
     socket.once("error", () => finish(false))
     socket.once("timeout", () => finish(false))
-    socket.connect(port, "127.0.0.1")
+    socket.connect(port, LOOPBACK_IPV4_HOSTNAME)
   })
 }
 
@@ -186,8 +187,8 @@ function resolveDeps(opts: EvictOptions): ResolvedEvictDeps {
  * inert on the receiving side and a small liability on the sending side: the
  * caller has *not* authenticated the peer. `resolvePort` only evicts when
  * `probePort` saw the body `"Server running"`, which any local process can
- * serve — and `probePort` asks `http://localhost:<port>` while this function
- * posts to `http://127.0.0.1:<port>`, so on a dual-stack box the identity
+ * serve — and `probePort` asks one loopback name while this function posts to
+ * the IPv4 loopback literal, so on a dual-stack box the identity
  * check and the POST can even reach different listeners. Sending nothing
  * removes the question.
  *
@@ -197,7 +198,7 @@ function resolveDeps(opts: EvictOptions): ResolvedEvictDeps {
  * mechanism, not by this caller. See ADR-0001.
  */
 async function requestShutdown(deps: ResolvedEvictDeps): Promise<boolean> {
-  const base = `http://127.0.0.1:${deps.port}`
+  const base = `http://${LOOPBACK_IPV4_HOSTNAME}:${deps.port}`
   try {
     await deps.fetchImpl(`${base}/setup-status`, {
       signal: AbortSignal.timeout(100),

@@ -16,8 +16,8 @@ Two repository rulesets, both `active`, both targeting `~DEFAULT_BRANCH`.
 
 | Rule | Setting | Why |
 |---|---|---|
-| `pull_request` | 0 approvals, no code-owner review, **squash only** | Nothing reaches `main` except through a PR. Squash-only because the PR *title* is the squash subject, and the changelog and both release gates are generated from titles — a merge commit's subject is not the title, so allowing one would make the notes underivable. |
-| `required_status_checks` | `test`, `windows`, `gate` | The three merge-blocking checks. `test` and `windows` are the jobs in `ci.yml`; `gate` is the job in `release-gates.yml`. |
+| `pull_request` | 0 approvals, no code-owner review, **squash only** | Nothing reaches `main` except through a PR. Squash-only because the PR *title* is the squash subject; a merge commit's subject is not the title. |
+| `required_status_checks` | `test`, `windows` | The two merge-blocking checks. Both jobs live in `ci.yml`. |
 | | `strict_required_status_checks_policy: true` | The branch must be **up to date with `main`** before it can merge. |
 | | `do_not_enforce_on_create: true` | Creating a branch is not a merge; this keeps branch creation from needing checks that have not run yet. |
 
@@ -48,70 +48,25 @@ its other half: `app-repoman` auto-rebases queued PRs in the repos it manages,
 and it does not manage this one, so the rebase is yours to run.
 
 `ci.yml` still carries a `merge_group:` trigger. It is inert while no queue
-exists and correct if one is ever enabled — but note `release-gates.yml` has no
-such trigger, so enabling a queue without adding one would hang it on the
-required `gate` check.
+exists and correct if one is ever enabled.
 
 ### `main-protect-history`
 
 `deletion` and `non_fast_forward`, with **no bypass actors at all** — the branch
 cannot be deleted or force-pushed by anyone, including an admin. Nothing needs
-to: the release only ever fast-forwards `main`, through a merged PR. A published
-tag whose history was rewritten is the failure this closes, and it is the one
-thing a consumer cannot recover from (`bun.lock` pins the commit SHA, so two
-machines can end up holding different code under one version).
+to: all changes land through merged PRs.
 
-## There is no bypass, and the release is not an exception
+## There is no bypass
 
 **Both rulesets are expected to carry `bypass_actors: []`.** Nothing reaches
-`main` outside a pull request — the release commit included.
-
-`main-require-pr` used to carry one always-mode bypass actor, for the admin
-repository role, and the reason was the release:
-
-> `bun run release:manual vX.Y.Z` committed, tagged and **pushed the release
-> commit straight to `main`** (`bumpp` did the push). With the `pull_request`
-> rule active and no bypass, that push is rejected — *after* the version has been
-> bumped, the changelog written and the tag created locally, on the irreversible
-> side of the flow.
-
-That flow is gone. The release is now two commands with a merged PR between
-them, because a squash merge rewrites the SHA and the tag has to name the commit
-`main` actually received:
-
-- `bun run release:prepare vX.Y.Z` bumps, regenerates `dist/`, writes the
-  changelog entry, commits on `release/vX.Y.Z`, pushes the branch and opens a PR
-  titled `chore: release vX.Y.Z`. **It cuts no tag.**
-- `bun run release:tag vX.Y.Z`, once that PR has merged, asserts the merged
-  `package.json` is that version, re-runs the tag-order gate, and cuts the
-  annotated tag on the merged HEAD.
-
-**Tags were never the problem.** Both rulesets are `target: branch` and there is
-no tag ruleset on this repository, so `git push origin vX.Y.Z` is unrestricted.
-Only the release *commit* ever needed the bypass.
+`main` outside a pull request.
 
 Removing the bypass is therefore a **strengthening**. Under the direct-push flow
-the release commit was the one commit that reached `main` with no `test`, no
-`windows` and no `gate` run against it — and its whole content is generated: the
-bump, the regenerated `dist/main.js` and `dist/lib`, and a changelog block
-assembled from the milestone. `bindings:check`, inside the required `test` job,
-is exactly the gate that catches a stale committed bundle, and it had never once
-seen a release commit. Now it does.
+some commits reached `main` with no `test` or `windows` run against them.
 
 So: **a bypass actor reappearing on `main-require-pr` is drift.** `bun run
 rules:check` reports one as a finding, with the reason — but only when it can
 see the key at all, see *What this cannot verify*.
-
-### Deviation from `stuffbucket/maximal`
-
-The reference repo bypasses `main-require-pr` with the **`app-repoman`
-Integration** (actor type `Integration`), because the repoman bot authors and
-lands the release PR there. That app does not manage this repo, so there is
-nothing here that could hold a bypass usefully — and nothing that needs one:
-a human runs `release:prepare` and a human merges the PR it opens.
-
-`maximal` also requires only `test`; the extra `windows` and `gate` contexts are
-this repo's.
 
 ## Verifying it
 
@@ -122,8 +77,8 @@ expectation file is one more thing that can drift from what it describes.
 
 Every assertion is a **floor** — a weakening fails, a tightening passes. It
 asserts existence, `active` enforcement, the target branch, each rule type, each
-of the three required contexts (as a *subset*, so a fourth required check is
-fine), the strict-update policy, squash-only merges, and that neither ruleset
+of the required contexts (as a *subset*, so an added required check is fine),
+the strict-update policy, squash-only merges, and that neither ruleset
 has a bypass actor. It deliberately does **not** assert ruleset ids, timestamps,
 or review counts: pinning those turns every legitimate settings change into a
 red build, and a check that cries wolf gets deleted.
@@ -154,10 +109,9 @@ proves each required context is a real job id in a workflow that fires on
   its token in the CLI's own config and exports nothing to the environment — so
   without that last fallback the local run, the only run that can see this at
   all, silently reports it unverified. A scheduled run can also see it if a
-  `RULESET_WATCH_TOKEN` secret is set (none is configured today). Unlike the old
-  expectation, this one fails quietly if it is ever violated: a bypass actor
-  added back would let somebody push to `main` unnoticed rather than stopping the
-  next release at a rejected push. Run `bun run rules:check` locally when the
+  `RULESET_WATCH_TOKEN` secret is set (none is configured today). A bypass actor
+  added back would let somebody push to `main` unnoticed. Run
+  `bun run rules:check` locally when the
   ruleset changes.
 - **A private repository.** The ruleset endpoints return 403 on a private repo
   without GitHub Pro. The rulesets keep applying; the check just stops being
@@ -170,8 +124,6 @@ proves each required context is a real job id in a workflow that fires on
 
 ## See also
 
-- [`docs/release-runbook.md`](../release-runbook.md) — the two-phase release
-  flow that landing through a PR made necessary
 - [`scripts/ops/check-rulesets.ts`](../../scripts/ops/check-rulesets.ts) — the
   expectation, and the argument for every line drawn above
 - [`docs/admin/external-drift-watch.md`](external-drift-watch.md) — the watcher

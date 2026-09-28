@@ -68,6 +68,20 @@ describe("ready-line (maximal-core#3)", () => {
     expect(out).toBe("")
   })
 
+  test("IPC mode emits a ready marker with no control listener", () => {
+    process.env.MAXIMAL_SIDECAR_PARENT_PID = "1"
+    const ready: ReadyLine = {
+      v: READY_LINE_VERSION,
+      controlPort: 0,
+      proxyPort: 52_341,
+      pid: 99,
+    }
+    const out = captureStdout(() => {
+      expect(emitReadyLine(ready)).toBe(true)
+    })
+    expect(parseReadyLine(out.trimEnd())).toEqual(ready)
+  })
+
   test("the payload survives a strict round-trip, so a supervisor can parse it", () => {
     process.env.MAXIMAL_SIDECAR_PARENT_PID = "1"
     const ready: ReadyLine = { v: 1, controlPort: 0, proxyPort: 4141, pid: 7 }

@@ -7,9 +7,14 @@
       "type": "object",
       "additionalProperties": {
         "type": "object",
-        "required": ["root"],
+        "required": ["root", "dependsOn"],
         "properties": {
           "root": { "type": "string" },
+          "dependsOn": {
+            "type": "array",
+            "items": { "type": "string" },
+            "uniqueItems": true
+          },
           "existingRatchets": { "type": "boolean" },
           "cycleEdges": { "type": "array", "items": { "type": "string" } },
           "duplicatePairs": { "type": "array", "items": { "type": "string" } }
@@ -19,7 +24,7 @@
     },
     "packageRules": {
       "type": "object",
-      "required": ["deny", "require"],
+      "required": ["deny"],
       "properties": {
         "deny": {
           "type": "array",
@@ -28,18 +33,6 @@
             "required": ["from", "to"],
             "properties": {
               "from": { "type": "array", "items": { "type": "string" } },
-              "to": { "type": "array", "items": { "type": "string" } }
-            },
-            "additionalProperties": false
-          }
-        },
-        "require": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": ["from", "to"],
-            "properties": {
-              "from": { "type": "string" },
               "to": { "type": "array", "items": { "type": "string" } }
             },
             "additionalProperties": false

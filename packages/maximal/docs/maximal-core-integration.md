@@ -9,7 +9,7 @@ Three independently-versioned pieces. Nothing carries another's source.
 
 ```
 ┌────────────────────────────┐   ┌────────────────────────────────┐
-│  @stuffbucket/maximal-core  │   │  electron shell (generic)      │
+│  @maximal/maximal-core  │   │  electron shell (generic)      │
 │  the proxy ENGINE           │   │  windows, terminal, overlay,   │
 │  (headless, /control API)   │   │  agent framework, IPC, build/  │
 │  published, tagged          │   │  signing — MAXIMAL-AGNOSTIC    │
@@ -122,7 +122,7 @@ and removing root `src/` from the go-forward line. (Decide with D1 below.)
   Recommendation: a new `client/` in maximal, leaving the frozen Tauri `shell/`
   until excavation retires it.
 - **D-pkg — one shell package or subpath exports.** Recommendation: one package
-  `@stuffbucket/electron-shell` (the repo itself) with subpath exports
+  `@maximal/electron-shell` (the repo itself) with subpath exports
   (`/main`, `/preload`, `/renderer`, `/shared`, `/build`) — mirrors maximal-core.
 - **D1 — maximal repo fate after excavation** (unchanged from prior draft):
   becomes the maximal-client + (frozen) Tauri shell repo.

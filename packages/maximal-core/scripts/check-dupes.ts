@@ -41,10 +41,8 @@
  * to.
  *
  * **`scripts/**` is not gated either**, for a smaller reason: it is tooling,
- * not the product, and its one real pair (`release-gates.ts` ↔
- * `release-notes.ts`) is release plumbing that another workstream is actively
- * moving. Gating it would fail PRs on churn in a tree the gate has no opinion
- * about.
+ * not the product. Gating it would fail PRs on churn in a tree the gate has no
+ * opinion about.
  *
  * ─── Why a pair of files, and not a percentage ───────────────────────────────
  * The obvious gate is jscpd's own `--threshold`: fail over N% duplication. It

@@ -1,6 +1,14 @@
 # Settings Contract
 
-- Consumers MUST import runtime APIs from `@stuffbucket/maximal-settings`.
+- `loadSettings` resolves each process owner's declared schema and layered
+  sources; `getSettingsStore` owns typed mutations and `getJsonDocumentStore`
+  owns independently persisted JSON documents. A process-local singleton is
+  not a cross-process settings service.
+- Plugin owners provide synchronous Standard Schemas to `parsePluginSettings`
+  and `pluginSettingsIssues`. The host supplies plugin IDs and a path prefix,
+  keeps uninstalled plugin payloads opaque, and retains ownership of its
+  existing config file and write lifecycle.
+- Consumers MUST import runtime APIs from `@maximal/maximal-settings`.
 - Consumers MUST provide the schema, application name, environment prefix,
   environment values, absolute home directory, and absolute working directory.
 - Schemas and defaults MUST describe JSON objects; schema validation MUST NOT

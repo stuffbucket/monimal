@@ -1,6 +1,6 @@
 import type { z } from "zod"
 
-import { resolveSettingsEnvironment as resolveEnvironment } from "@stuffbucket/maximal-settings"
+import { resolveSettingsEnvironment as resolveEnvironment } from "@maximal/maximal-settings"
 
 export function resolveSettingsEnvironment<Settings>(
   schema: z.ZodType<Settings>,

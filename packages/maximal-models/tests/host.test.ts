@@ -1,4 +1,4 @@
-import type { ProviderOperation } from "@stuffbucket/maximal-model-contract"
+import type { ProviderOperation } from "@maximal/maximal-model-contract"
 
 import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"

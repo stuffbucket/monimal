@@ -1,4 +1,4 @@
-# @stuffbucket/maximal-observability-contract
+# @maximal/maximal-observability-contract
 
 A side-effect-free ESM package defining the versioned traffic-observability
 boundary shared by collectors, stores, control transports, and consumers.
@@ -20,8 +20,8 @@ otherwise control request processing.
 From the workspace root:
 
 ```sh
-pnpm --filter @stuffbucket/maximal-observability-contract run typecheck
-pnpm --filter @stuffbucket/maximal-observability-contract run lint
-pnpm --filter @stuffbucket/maximal-observability-contract run build
-pnpm --filter @stuffbucket/maximal-observability-contract run test
+pnpm --filter @maximal/maximal-observability-contract run typecheck
+pnpm --filter @maximal/maximal-observability-contract run lint
+pnpm --filter @maximal/maximal-observability-contract run build
+pnpm --filter @maximal/maximal-observability-contract run test
 ```

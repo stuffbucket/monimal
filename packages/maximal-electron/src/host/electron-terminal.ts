@@ -20,4 +20,4 @@ export {
   transferPtyProjection,
   writePty,
   type PtyOwnershipTransaction,
-} from '../main/native/pty.js';
+} from '../main/native/pty/index.js';

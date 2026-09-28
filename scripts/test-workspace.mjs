@@ -159,9 +159,9 @@ function run(command, arguments_, environment, label) {
 export function turboTestArguments(options, base) {
   const arguments_ = ["run", "test", "--concurrency=1"];
   if (options.scope === "core") {
-    arguments_.push("--filter=@stuffbucket/maximal-core");
+    arguments_.push("--filter=@maximal/maximal-core");
   } else if (options.scope === "settings") {
-    arguments_.push("--filter=@stuffbucket/maximal-settings");
+    arguments_.push("--filter=@maximal/maximal-settings");
   } else if (options.scope === "affected") {
     arguments_.push(`--filter=...[${base}]`);
   }
@@ -208,9 +208,17 @@ export function main(arguments_ = process.argv.slice(2)) {
         measure("test-settings-consumers", () =>
           run(
             "pnpm",
-            ["--filter", "maximal-client", "run", "test:settings"],
+            ["--filter", "@maximal/maximal-client", "test"],
             isolated.environment,
-            "Settings consumer tests",
+            "Settings client consumer tests",
+          ),
+        );
+        measure("test-settings-desktop-consumer", () =>
+          run(
+            "pnpm",
+            ["--filter", "maximal-desktop", "test"],
+            isolated.environment,
+            "Settings desktop consumer tests",
           ),
         );
       }

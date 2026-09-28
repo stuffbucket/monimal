@@ -1,9 +1,9 @@
-import type { TrafficFlow } from "@stuffbucket/maximal-observability-contract"
+import type { TrafficFlow } from "@maximal/maximal-observability-contract"
 
 import {
   ChartViewport,
   DataVizSegmentedControl,
-} from "@stuffbucket/maximal-data-visualization"
+} from "@maximal/maximal-data-visualization"
 import { useId, useState } from "react"
 
 import { deriveDisplayFlow, scaleLinear, type FlowMeasure } from "../derive.ts"

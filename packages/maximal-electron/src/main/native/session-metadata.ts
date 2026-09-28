@@ -28,8 +28,8 @@ export interface TerminalSessionMetadataStore {
 
 /** The default provider intentionally performs no storage or I/O. */
 export class NoopTerminalSessionMetadataProvider implements TerminalSessionMetadataProvider {
-  read(_sessionId: string): TerminalSessionMetadata | undefined {
-    return undefined;
+  read(_sessionId: string): undefined {
+    // Stub: nothing is stored, so nothing is found.
   }
 
   write(_metadata: TerminalSessionMetadata): void {

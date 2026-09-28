@@ -196,7 +196,7 @@ const unpackedFiles = existsSync(unpacked)
   : [];
 
 // The terminal assertions are the `./verify` export, so a consumer packaging
-// `./host/terminal` runs the same checks this build runs rather than a copy
+// `@maximal/maximal-terminal` runs the same checks this build runs rather than a copy
 // that drifts. Issue #76.
 for (const { name, ok } of terminalPackageChecks({
   packedFiles: listing,

@@ -153,6 +153,9 @@ the boundary it was meant to guard have left this tree.
 - The shared module moved and changed kind. `src/lib/settings-types.ts` is now
   `src/lib/config/settings-types.ts`, and its exports are zod schemas with
   `z.infer` type aliases rather than bare interfaces.
+- The canonical module later left Core for
+  `@maximal/maximal-core-contract/settings`, so the shell no longer depends
+  on Core; Core republishes it as `./settings-types`.
 
 What the decision achieved, in its re-homed form:
 

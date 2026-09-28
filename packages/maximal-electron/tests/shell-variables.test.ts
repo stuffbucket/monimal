@@ -13,7 +13,7 @@ import {
   type ShellVariableCheck,
   type ShellVariableEntry,
 } from '../scripts/shell-variables.mjs';
-import { SHELL_TERMINAL_PROPERTIES } from '../src/renderer/lib/terminal-transport.js';
+import { SHELL_TERMINAL_PROPERTIES } from '@maximal/maximal-terminal/renderer';
 
 /**
  * The `--shell-*` contract a consumer has to satisfy.
@@ -387,6 +387,15 @@ describe('the published contract', () => {
     ]);
   });
 
+  it('carries the emulator stylesheets the renderer entry imports', () => {
+    const entry = readFileSync(new URL('src/renderer/main.tsx', ROOT), 'utf8');
+    const emulatorSheets = [...entry.matchAll(/^import '(@[^']+(?:\/css|\.css))';$/gm)]
+      .map((match) => match[1]);
+
+    expect(emulatorSheets.length).toBeGreaterThan(0);
+    expect(packageStylesheets().flatMap((sheet) => sheet.imports)).toEqual(emulatorSheets);
+  });
+
   it('names the same required variables as the README table', () => {
     // README.md carries the eleven with a description of what each draws, and
     // `tests/package-styles.test.ts` checks that table against the CSS. Two
@@ -437,7 +446,7 @@ describe('the declaration a consumer compiles against', () => {
    * Hand-written is the whole problem: `structural` was added to the
    * implementation and not to the declaration, so `shellVariableContract()`
    * returned four lists and told every consumer it returned three.
-   * `packages/maximal/client` hit it as `Property 'structural' does not exist`
+   * `packages/maximal-client` hit it as `Property 'structural' does not exist`
    * on a field that had existed for a day.
    *
    * Nothing else can see this. `tsc` type-checks this package against the

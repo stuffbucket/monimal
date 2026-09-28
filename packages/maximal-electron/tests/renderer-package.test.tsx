@@ -39,29 +39,26 @@ describe('the renderer entry point', () => {
     expect(undeclared).toEqual([]);
   });
 
-  it('exports the hooks and the terminal theme pair a consumer composes with', () => {
+  it('exports the hooks a consumer composes with', () => {
     expect(typeof surface.useThemePreference).toBe('function');
     expect(typeof surface.useShellTabs).toBe('function');
-    expect(typeof surface.readTerminalTheme).toBe('function');
   });
 
-  it('resolves the terminal theme through the --shell-* namespace only', () => {
+  it('leaves the terminal surface to @maximal/maximal-terminal', async () => {
     /*
-     * `terminalTheme` and `TERMINAL_TOKENS` in `lib/theme.ts` read
-     * `--bg-canvas`, `--text-primary` and `--accent`, which are this
-     * application's names and appear in no shipped stylesheet. Both were
-     * exported once. A consumer resolving them against a `--shell-*` adapter
-     * gets an empty theme and the emulator's defaults, and nothing raises.
+     * A second entry point for the same symbols is a second place a consumer
+     * learns them from, and the two drift. `terminalTheme` and
+     * `TERMINAL_TOKENS` read this application's own property names, which no
+     * shipped stylesheet defines.
      */
-    const properties = Object.values(surface.SHELL_TERMINAL_PROPERTIES);
+    const terminal = await import('@maximal/maximal-terminal/renderer');
 
-    expect(properties.length).toBeGreaterThan(0);
-    expect(properties.filter((name) => !name.startsWith('--shell-'))).toEqual([]);
+    expect(Object.keys(terminal).filter((name) => name in surface)).toEqual([]);
     expect('terminalTheme' in surface).toBe(false);
     expect('TERMINAL_TOKENS' in surface).toBe(false);
   });
 
-  it('keeps third-party custom properties inside the terminal adapter', () => {
+  it('names no third-party custom property; the terminal adapter owns those', () => {
     /*
      * The general form of the assertion above. That one names two symbols, so
      * it catches the mistake that was made and not the next one: any module
@@ -91,11 +88,7 @@ describe('the renderer entry point', () => {
           .filter((entry) => !entry.property.startsWith('--shell-'))
           .map((entry) => `${entry.module}: ${entry.property}`),
       )].sort(),
-    ).toEqual([
-      'lib/terminal-emulator: --term-bg',
-      'lib/terminal-emulator: --term-cursor',
-      'lib/terminal-emulator: --term-fg',
-    ]);
+    ).toEqual([]);
   });
 });
 

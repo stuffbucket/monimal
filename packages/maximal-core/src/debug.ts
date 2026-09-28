@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { isSearchConnectorPlugin } from "@stuffbucket/maximal-harness"
+import { isSearchConnectorPlugin } from "@maximal/maximal-search"
 import { defineCommand } from "citty"
 import consola from "consola"
 import os from "node:os"

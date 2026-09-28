@@ -4,7 +4,7 @@ import type {
   LlmProviderInfo,
   StreamChunk,
 } from "@deepseek-ai/dsh-llm"
-import type { LocalModelControl } from "@stuffbucket/maximal-model-contract"
+import type { LocalModelControl } from "@maximal/maximal-model-contract"
 
 import type {
   ActivationSnapshot,

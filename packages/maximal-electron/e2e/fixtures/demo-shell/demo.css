@@ -2,7 +2,7 @@
  * The fixture's own stylesheet.
  *
  * Two jobs, and the first is the one that matters. `main.tsx` imports
- * `@stuffbucket/maximal-electron/renderer/styles.css`, which ships no palette:
+ * `@maximal/maximal-electron/renderer/styles.css`, which ships no palette:
  * every colour, space and radius in it comes from a `--shell-*` custom
  * property the host defines. Nothing in that package defines one, so this file
  * is the whole palette, written the way a dependent project writes it.

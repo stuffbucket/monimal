@@ -31,6 +31,12 @@ const startArgs = {
     description:
       "Port for the private control plane (JSON-RPC, events). 0 picks an ephemeral port; the boot banner reports it.",
   },
+  "desktop-ipc": {
+    type: "boolean",
+    default: false,
+    description:
+      "Serve the control plane over the inherited Node IPC channel instead of --control-port. Set by the desktop supervisor.",
+  },
   verbose: {
     alias: "v",
     type: "boolean",
@@ -109,6 +115,7 @@ export function createStartCommand(options: CreateStartCommandOptions = {}) {
       return run({
         port: Number.parseInt(args.port, 10),
         controlPort: Number.parseInt(args["control-port"], 10),
+        desktopIpc: args["desktop-ipc"],
         verbose: args.verbose,
         accountType: parseAccountType(args["account-type"]),
         manual: args.manual,

@@ -24,6 +24,7 @@
  * recreate the harness here.
  */
 
+import { AuthStatus } from "@maximal/maximal-core-contract/settings"
 import {
   afterAll,
   afterEach,
@@ -35,8 +36,6 @@ import {
 } from "bun:test"
 
 import type { AccountRecord } from "~/lib/auth/github-token-store"
-
-import { AuthStatus } from "~/lib/config/settings-types"
 
 // --- Shared harness (mirrors auth-controller.test.ts) ---------------------
 // Kept inline rather than extracted so the leakage profile is obvious in

@@ -13,7 +13,7 @@ import type {
   TokenUsage,
   ToolSchema,
 } from "@deepseek-ai/dsh-llm"
-import type { ProviderDispatch } from "@stuffbucket/maximal-model-contract"
+import type { ProviderDispatch } from "@maximal/maximal-model-contract"
 
 import { randomUUID } from "node:crypto"
 import { isDeepStrictEqual } from "node:util"

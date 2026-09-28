@@ -26,10 +26,10 @@
 
 import type { Context } from "hono"
 
+import { DiagnosticsResponse } from "@maximal/maximal-core-contract/settings"
 import { afterEach, beforeEach, describe, expect, test } from "bun:test"
 
 import { CREDENTIAL_HEALTH } from "~/lib/auth/auth-types"
-import { DiagnosticsResponse } from "~/lib/config/settings-types"
 import {
   CopilotTokenStaleError,
   forwardError,

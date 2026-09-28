@@ -43,7 +43,7 @@ export const UNTYPED_FILES = [
  *   typeChecked?: boolean,
  *   files?: Array<string>,
  *   globals?: Record<string, string>,
- *   architectureKind?: "electron" | "client" | "service",
+ *   architectureKind?: "electron" | "terminal" | "client" | "service",
  * }} options
  * @returns {Array<import("eslint").Linter.Config>}
  */

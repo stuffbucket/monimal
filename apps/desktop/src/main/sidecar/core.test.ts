@@ -1,0 +1,351 @@
+import { EventEmitter } from 'node:events'
+import { PassThrough } from 'node:stream'
+
+import { describe, expect, it, vi } from 'vitest'
+
+// core.ts imports `app` from 'electron' at module scope. Outside a real
+// Electron process the `electron` package's main export is a synchronous
+// side-effecting lookup for the platform binary path (see
+// node_modules/electron/index.js), not the { app, BrowserWindow, ... } API —
+// requiring it unmocked in a plain Node/Vitest process throws or attempts a
+// download. Stub the one export core.ts actually touches.
+vi.mock('electron', () => ({
+  app: {
+    isPackaged: false,
+    getAppPath: () => process.cwd(),
+    getPath: () => process.cwd(),
+  },
+}))
+
+vi.mock('node:fs/promises', () => ({
+  mkdir: vi.fn(async () => undefined),
+}))
+
+const { logs } = vi.hoisted(() => ({
+  logs: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  },
+}))
+vi.mock('@maximal/maximal-logging', () => ({
+  createLogger: () => logs,
+}))
+
+// core.ts spawns the real `maximal-core` binary via `node:child_process`'s
+// `spawn`. Testing the restart/shutdown-race logic in `launchCore()` (M2,
+// M3) needs a controllable fake process rather than a real sidecar binary —
+// `spawnMock` is hoisted so the mock factory below can reference it.
+const { spawnMock } = vi.hoisted(() => ({
+  spawnMock: vi.fn<(...args: unknown[]) => unknown>(),
+}))
+vi.mock('node:child_process', () => ({
+  spawn: (...args: unknown[]): unknown => spawnMock(...args),
+}))
+
+/** A minimal stand-in for Node's `ChildProcess`: an `EventEmitter` with a
+ *  real `stdout`/`stderr` (`PassThrough`, so `awaitReadyLine`'s async-iterator
+ *  read and `attachLineLogger`'s `data` listener both work unmodified) and a
+ *  `kill()` that marks `killed` and emits `exit` — matching what `core.ts`
+ *  reads off a real `ChildProcess`. */
+class FakeChildProcess extends EventEmitter {
+  static nextPid = 1000
+  readonly pid: number
+  readonly stdout = new PassThrough()
+  readonly stderr = new PassThrough()
+  killed = false
+  connected = true
+
+  constructor() {
+    super()
+    this.pid = FakeChildProcess.nextPid++
+  }
+
+  kill(signal?: NodeJS.Signals): boolean {
+    if (this.killed) return true
+    this.killed = true
+    this.connected = false
+    queueMicrotask(() => this.emit('exit', null, signal ?? 'SIGTERM'))
+    return true
+  }
+}
+
+/** Writes a `@@MAXIMAL_READY@@` line matching the real sidecar's wire format
+ *  (see `@maximal/maximal-core/supervisor`'s `parseReadyLine`), so
+ *  `awaitReadyLine` resolves exactly as it would against a real process. */
+function writeReadyLine(proc: FakeChildProcess, proxyPort: number): void {
+  const line = { v: 1, controlPort: 0, proxyPort, pid: proc.pid }
+  proc.stdout.write(`@@MAXIMAL_READY@@ ${JSON.stringify(line)}\n`)
+}
+
+// core.ts keeps its lifecycle state (child, proxyBase, lastStatus)
+// in module-scope variables, so each test gets its own fresh instance via
+// `vi.resetModules()` + a dynamic re-import rather than sharing state (and
+// therefore test order) with its siblings.
+async function freshCore() {
+  vi.resetModules()
+  spawnMock.mockReset()
+  for (const log of Object.values(logs)) log.mockClear()
+  return import('./core')
+}
+
+describe('sidecar lifecycle logging', () => {
+  it('records spawn, ready, stderr observation, unexpected exit and restart without raw output', async () => {
+    const { spawnCore, killCore, onCoreStatus, awaitCoreProcess } = await freshCore()
+    const proc = new FakeChildProcess()
+    spawnMock.mockReturnValueOnce(proc)
+    const statuses: string[] = []
+    onCoreStatus((status) => statuses.push(status.phase))
+
+    const starting = spawnCore()
+    writeReadyLine(proc, 6000)
+    await starting
+    await expect(awaitCoreProcess()).resolves.toBe(proc)
+    expect(spawnMock).toHaveBeenCalledWith(
+      expect.any(String),
+      ['start', '--desktop-ipc'],
+      expect.objectContaining({
+        stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
+      }),
+    )
+    proc.stderr.write('sensitive stderr token\n')
+    proc.stdout.write('sensitive stdout token\n')
+    await vi.waitFor(() => {
+      expect(logs.debug).toHaveBeenCalledWith(
+        { bytes: 22 },
+        'Sidecar stdout line received',
+      )
+    })
+    proc.emit('exit', 42, null)
+
+    expect(logs.info).toHaveBeenCalledWith({ attempt: 0 }, 'Starting sidecar')
+    expect(logs.info).toHaveBeenCalledWith({ pid: proc.pid, attempt: 0 }, 'Sidecar ready')
+    expect(logs.warn).toHaveBeenCalledWith(
+      { pid: proc.pid },
+      'Sidecar wrote to stderr; contents omitted',
+    )
+    expect(logs.info).toHaveBeenCalledWith(
+      { pid: proc.pid, code: 42, signal: null, intentional: false, stderrBytes: 23 },
+      'Sidecar process exited',
+    )
+    expect(logs.warn).toHaveBeenCalledWith(
+      { pid: proc.pid, code: 42, signal: null, attempt: 1, willRetry: true },
+      'Sidecar exited unexpectedly',
+    )
+    expect(logs.warn).toHaveBeenCalledWith(
+      { attempt: 1, delayMs: 1_000 },
+      'Sidecar restart scheduled',
+    )
+    expect(statuses).toContain('crashed')
+    expect(statuses).toContain('restarting')
+    expect(JSON.stringify(Object.values(logs).flatMap((log) => log.mock.calls)))
+      .not.toMatch(/sensitive|5000|6000/)
+    await killCore()
+  })
+
+  it('records initial spawn failure without persisting its error message', async () => {
+    const { spawnCore } = await freshCore()
+    spawnMock.mockImplementationOnce(() => {
+      throw new Error('sensitive spawn token')
+    })
+
+    await expect(spawnCore()).rejects.toThrow('sensitive spawn token')
+    expect(logs.error).toHaveBeenCalledWith(
+      { errorName: 'Error' },
+      'Sidecar failed to start',
+    )
+    expect(JSON.stringify(Object.values(logs).flatMap((log) => log.mock.calls)))
+      .not.toContain('sensitive spawn token')
+  })
+
+  it('rejects a ready sidecar without inherited IPC rather than using its control port', async () => {
+    const { spawnCore } = await freshCore()
+    const proc = new FakeChildProcess()
+    spawnMock.mockReturnValueOnce(proc)
+
+    const starting = spawnCore()
+    const line = { v: 1, controlPort: 5000, proxyPort: 6000, pid: proc.pid }
+    proc.stdout.write(`@@MAXIMAL_READY@@ ${JSON.stringify(line)}\n`)
+
+    await expect(starting).rejects.toThrow('did not start with its inherited control channel')
+    expect(proc.killed).toBe(true)
+  })
+
+  it('terminates a sidecar whose inherited channel disconnects', async () => {
+    const { spawnCore, killCore } = await freshCore()
+    const proc = new FakeChildProcess()
+    spawnMock.mockReturnValueOnce(proc)
+
+    const starting = spawnCore()
+    writeReadyLine(proc, 6000)
+    await starting
+    proc.emit('disconnect')
+    expect(proc.killed).toBe(true)
+    await killCore()
+  })
+
+  it('does not wait for a port or timeout when IPC disconnects before readiness', async () => {
+    const { spawnCore, currentCoreStatus } = await freshCore()
+    const proc = new FakeChildProcess()
+    spawnMock.mockReturnValueOnce(proc)
+
+    const starting = spawnCore()
+    await vi.waitFor(() => expect(spawnMock).toHaveBeenCalledOnce())
+    proc.connected = false
+    proc.emit('disconnect')
+
+    await expect(starting).rejects.toThrow('process IPC disconnected before readiness')
+    expect(proc.killed).toBe(true)
+    expect(currentCoreStatus().phase).toBe('failed')
+  })
+})
+
+describe('core lifecycle status (no sidecar spawned)', () => {
+  it('reports "starting" as the initial phase before spawnCore/killCore ever run', async () => {
+    const { currentCoreStatus } = await freshCore()
+
+    expect(currentCoreStatus()).toEqual({ phase: 'starting' })
+  })
+
+  it('killCore() is safe pre-spawn, resets both origins, and publishes "stopped" to subscribers', async () => {
+    const { killCore, proxyUrl, currentCoreStatus, onCoreStatus } = await freshCore()
+
+    const seen: unknown[] = []
+    onCoreStatus((status) => seen.push(status))
+
+    // Guards `if (child && !child.killed)`: without it, killing before any
+    // spawnCore() call would dereference a null child.
+    expect(() => killCore()).not.toThrow()
+
+    expect(proxyUrl()).toBe('')
+    expect(currentCoreStatus()).toEqual({ phase: 'stopped' })
+    expect(seen).toEqual([{ phase: 'stopped' }])
+  })
+
+  it('waits for the sidecar process to exit after signaling shutdown', async () => {
+    const { spawnCore, killCore } = await freshCore()
+    const proc = new FakeChildProcess()
+    spawnMock.mockReturnValueOnce(proc)
+
+    const spawning = spawnCore()
+    writeReadyLine(proc, 6000)
+    await spawning
+
+    const stopping = killCore()
+    await expect(stopping).resolves.toBeUndefined()
+    expect(proc.killed).toBe(true)
+  })
+
+  it('rejects origin reads made after the sidecar has already stopped', async () => {
+    const { awaitCoreProcess, awaitProxyUrl, killCore } = await freshCore()
+    void killCore()
+
+    await expect(awaitCoreProcess()).rejects.toThrow(
+      'maximal-core was stopped before it became available',
+    )
+    await expect(awaitProxyUrl()).rejects.toThrow(
+      'maximal-core was stopped before it became available',
+    )
+  })
+
+  it('rejects origin reads made after startup has already failed', async () => {
+    const { awaitCoreProcess, spawnCore } = await freshCore()
+    spawnMock.mockImplementationOnce(() => {
+      throw new Error('cannot spawn sidecar')
+    })
+
+    await expect(spawnCore()).rejects.toThrow('cannot spawn sidecar')
+    await expect(awaitCoreProcess()).rejects.toThrow(
+      'maximal-core is not available: cannot spawn sidecar',
+    )
+  })
+
+  it('onCoreStatus()\'s unsubscribe function stops further delivery to that listener', async () => {
+    const { killCore, onCoreStatus } = await freshCore()
+
+    const seen: unknown[] = []
+    const unsubscribe = onCoreStatus((status) => seen.push(status))
+    unsubscribe()
+
+    void killCore()
+
+    expect(seen).toEqual([])
+  })
+})
+
+describe('launchCore ready-vs-shutdown race', () => {
+  it('discards a ready line that arrives after killCore() was called mid-startup', async () => {
+    const { spawnCore, killCore, currentCoreStatus } = await freshCore()
+
+    const proc = new FakeChildProcess()
+    spawnMock.mockReturnValueOnce(proc)
+
+    const spawnPromise = spawnCore()
+
+    // Both calls below are synchronous, with no `await` between them — this
+    // reproduces the real race the review flagged: the ready line has been
+    // written (so `awaitReadyLine`'s pending read is about to resolve) at the
+    // exact moment `killCore()` runs, before `launchCore()` gets a chance to
+    // resume and check anything.
+    writeReadyLine(proc, 6000)
+    void killCore()
+
+    // killCore() already published "stopped" — the assertion that matters is
+    // that nothing later overwrites it with a "ready" for a process that is
+    // already gone.
+    expect(currentCoreStatus()).toEqual({ phase: 'stopped' })
+
+    await expect(spawnPromise).rejects.toThrow(/became ready after shutdown was requested/)
+    expect(currentCoreStatus()).toEqual({ phase: 'stopped' })
+  })
+})
+
+describe('restart attempt budget', () => {
+  it('does not reset the attempt counter just because a restart reaches ready — only a stability window does', async () => {
+    vi.useFakeTimers()
+    try {
+      const { spawnCore, onCoreStatus } = await freshCore()
+
+      const statuses: Array<{ phase: string; [key: string]: unknown }> = []
+      onCoreStatus((status) => statuses.push(status))
+
+      const proc1 = new FakeChildProcess()
+      spawnMock.mockReturnValueOnce(proc1)
+
+      const spawnPromise = spawnCore()
+      writeReadyLine(proc1, 2001)
+      await spawnPromise
+
+      // First crash: a fresh boot dying counts as attempt 1.
+      const proc2 = new FakeChildProcess()
+      spawnMock.mockReturnValueOnce(proc2)
+      proc1.emit('exit', 1, null)
+      await vi.waitFor(() => {
+        expect(statuses.some((s) => s.phase === 'crashed' && s.attempt === 1)).toBe(true)
+      })
+
+      // Advance past the attempt-1 backoff so the restart actually spawns —
+      // without this, the restart is still sitting in `restartTimer`.
+      await vi.advanceTimersByTimeAsync(1_000)
+      writeReadyLine(proc2, 2002)
+      await vi.waitFor(() => {
+        expect(statuses.some((s) => s.phase === 'ready' && s.pid === proc2.pid)).toBe(true)
+      })
+
+      // The restart reached `ready`, but nowhere near the 30s stability
+      // window — crashing again immediately must
+      // count as attempt 2, not reset back to a fresh attempt 1. Before the
+      // fix, the reset happened synchronously on `ready`, so this crash would
+      // have reported attempt: 1 again, and a sidecar that dies right after
+      // every ready line would restart forever without ever reaching
+      // `failed`.
+      proc2.emit('exit', 1, null)
+      await vi.waitFor(() => {
+        expect(statuses.some((s) => s.phase === 'crashed' && s.attempt === 2)).toBe(true)
+      })
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})

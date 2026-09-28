@@ -2,7 +2,7 @@ import type {
   LocalModelCapabilities,
   LocalModelContextLimits,
   LocalModelPublication,
-} from "@stuffbucket/maximal-model-contract"
+} from "@maximal/maximal-model-contract"
 
 export interface LocalModelFileSignature {
   readonly hex: string

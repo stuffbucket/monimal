@@ -22,19 +22,18 @@ export interface TermMatch {
   readonly excerpt: string;
 }
 
-export declare const FORBIDDEN_PACKAGES: string[];
+export declare function deniedPackages(
+  policy: { packages: Record<string, { dependsOn?: string[] }> },
+  self: string,
+): string[];
 export declare const DEFAULT_FORBIDDEN_TERMS: string[];
 
 export declare function forbiddenTerms(environment?: Record<string, string | undefined>): string[];
 export declare function moduleSpecifiers(source: string, fileName: string): ModuleSpecifier[];
-export declare function isForbiddenPackage(specifier: string, packages?: string[]): boolean;
+export declare function isForbiddenPackage(specifier: string, packages: string[]): boolean;
 export declare function forbiddenImports(
   source: string,
   fileName: string,
-  packages?: string[],
+  packages: string[],
 ): ModuleSpecifier[];
-export declare function termMatches(
-  text: string,
-  terms: string[],
-  exempt?: string[],
-): TermMatch[];
+export declare function termMatches(text: string, terms: string[]): TermMatch[];

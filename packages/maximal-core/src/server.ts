@@ -1,5 +1,5 @@
-import type { ProviderGateway } from "@stuffbucket/maximal-model-contract"
-import type { TrafficObserver } from "@stuffbucket/maximal-observability-contract"
+import type { ProviderGateway } from "@maximal/maximal-model-contract"
+import type { TrafficObserver } from "@maximal/maximal-observability-contract"
 import type { MiddlewareHandler } from "hono"
 
 import consola from "consola"
@@ -9,6 +9,9 @@ import { logger } from "hono/logger"
 
 import type { AppConfig } from "~/lib/config/config"
 import type { ConfiguratorRegistry } from "~/lib/configurator-host"
+import type { RpcRegistry } from "~/lib/jsonrpc/dispatch"
+import type { ControlHub } from "~/lib/live/hub"
+import type { ControlSnapshot } from "~/lib/live/resources"
 import type {
   ProviderGatewayFactory,
   ProviderHostConfigSource,
@@ -43,7 +46,7 @@ import { BUILD_VERSION } from "./lib/update/build-info"
 import { requireSupportedBuild } from "./lib/update/version-gate"
 import { handleCompletion as handleChatCompletion } from "./routes/chat-completions/handler"
 import { LocalModelOperations } from "./routes/control/local-models"
-import { createControlRoutes } from "./routes/control/route"
+import { createControlRoutesComposition } from "./routes/control/route"
 import { debugRoutes } from "./routes/debug/route"
 import { handleEmbeddings } from "./routes/embeddings/route"
 import { createInternalRoutes } from "./routes/internal/route"
@@ -62,7 +65,7 @@ import { ProviderModelRouter } from "./services/providers/model-router"
 import { createProviderDispatcher } from "./services/providers/provider-dispatcher"
 
 /**
- * The two listeners (maximal-core#10).
+ * The two isolated apps (maximal-core#10).
  *
  * Third-party tools hardcode `http://127.0.0.1:4141/v1`, so the data plane needs
  * a well-known port. The control plane — auth, config, models, live events — is
@@ -74,7 +77,8 @@ import { createProviderDispatcher } from "./services/providers/provider-dispatch
  * Separation is **structural, not a path filter**. `/v1` is never mounted on the
  * control app, so it cannot be reached there by any request-shaping trick — the
  * property the issue asks for is a fact about the route table rather than a
- * check somebody could regress.
+ * check somebody could regress. Desktop runs the control app over inherited
+ * IPC instead of binding its HTTP listener.
  */
 /** Captured at module load — anchors the `/status` uptime to "when the
  *  server module first ran," which is what callers mean by "how long has
@@ -283,6 +287,8 @@ function mountInferenceRoutes(
 
 export interface ServerApps {
   controlApp: Hono
+  controlHub: () => ControlHub<ControlSnapshot>
+  controlRpcMethods: RpcRegistry
   providerDispatcher: ProviderDispatcher
   publicApp: Hono
 }
@@ -317,17 +323,15 @@ export function createServerApps(
   applyCommonMiddleware(controlApp)
 
   // ── Control listener ──────────────────────────────────────────────────────
-  controlApp.route(
-    "/control",
-    createControlRoutes({
-      configurators: options.configurators,
-      listProviderModels: () => providerModelRouter.listAdvertisedModels(),
-      localModelOperations,
-      trafficQueries:
-        options.trafficQueries
-        ?? (isTrafficQueryStore(trafficObserver) ? trafficObserver : undefined),
-    }),
-  )
+  const control = createControlRoutesComposition({
+    configurators: options.configurators,
+    listProviderModels: () => providerModelRouter.listAdvertisedModels(),
+    localModelOperations,
+    trafficQueries:
+      options.trafficQueries
+      ?? (isTrafficQueryStore(trafficObserver) ? trafficObserver : undefined),
+  })
+  controlApp.route("/control", control.app)
   controlApp.route("/_debug", debugRoutes)
 
   // ── Public listener ───────────────────────────────────────────────────────
@@ -387,7 +391,13 @@ export function createServerApps(
     createProviderOpenAiRoute(providerDispatcher, "embeddings"),
   )
 
-  return { controlApp, providerDispatcher, publicApp }
+  return {
+    controlApp,
+    controlHub: control.hub,
+    controlRpcMethods: control.methods,
+    providerDispatcher,
+    publicApp,
+  }
 }
 
 // Backward-compatible standalone apps. No gateway is captured at import time;

@@ -3,7 +3,7 @@ import {
   Field,
   InspectorPanel,
   StatusChip,
-} from '@stuffbucket/maximal-electron/renderer';
+} from '@maximal/maximal-electron/renderer';
 import { Check, X } from 'lucide-react';
 
 import { RUNS, STATUS_LABELS, type AgentRun } from './runs.js';

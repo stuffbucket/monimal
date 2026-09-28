@@ -1,9 +1,9 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "name": "@stuffbucket/maximal-harness",
+  "name": "@maximal/maximal-harness",
   "version": "0.0.0",
   "private": true,
-  "description": "Composable local agent and search connector harness for Maximal desktop clients.",
+  "description": "Composable local agent harness for Maximal desktop clients.",
   "sideEffects": ["./dist/styles.css"],
   "type": "module",
   "monimal": {
@@ -13,10 +13,9 @@
     }
   },
   "exports": {
-    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" },
+    ".": { "types": "./dist/index.d.ts" },
     "./host": { "types": "./dist/host/index.d.ts", "import": "./dist/host/index.js" },
     "./renderer": { "types": "./dist/renderer/index.d.ts", "import": "./dist/renderer/index.js" },
-    "./search": { "types": "./dist/search.d.ts", "import": "./dist/search.js" },
     "./worker": { "types": "./dist/worker/index.d.ts", "import": "./dist/worker/index.js" },
     "./packaging": {
       "types": "./scripts/llama-packaging.d.mts",
@@ -38,25 +37,25 @@
     "docs/agent.md"
   ],
   "scripts": {
-    "build": "tsup src/index.ts src/host/index.ts src/renderer/index.ts src/worker/index.ts src/search.ts src/search/settings.ts src/search/providers/copilot.ts src/search/providers/duckduckgo.ts src/search/providers/ollama.ts --format esm --dts --target es2022 --external electron --external react --external react-dom --external node-llama-cpp --out-dir dist && cp src/styles.css dist/styles.css && node scripts/verify-exports.mjs",
+    "build": "tsup src/index.ts src/host/index.ts src/renderer/index.ts src/worker/index.ts --format esm --dts --target es2022 --external electron --external react --external react-dom --external node-llama-cpp --out-dir dist && cp src/styles.css dist/styles.css && node scripts/verify-exports.mjs",
     "verify:exports": "node scripts/verify-exports.mjs",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "mutate": "stryker run stryker.config.mjs",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "analyze": "bun ../maximal-core/scripts/analyze.ts"
   },
   "dependencies": {
     "@earendil-works/pi-agent-core": "0.84.4",
     "@earendil-works/pi-ai": "0.84.4",
-    "typebox": "1.3.23",
-    "zod": "^4.5.4"
+    "typebox": "1.3.23"
   },
   "devDependencies": {
     "@stryker-mutator/core": "^10.0.0",
     "@stryker-mutator/vitest-runner": "^10.0.0",
-    "@stuffbucket/eslint-config": "workspace:*",
-    "@stuffbucket/maximal-electron": "workspace:*",
+    "@maximal/eslint-config": "workspace:*",
+    "@maximal/maximal-electron": "workspace:*",
     "@types/node": "^26.4.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.5",
@@ -71,7 +70,7 @@
     "vitest": "^4.1.11"
   },
   "peerDependencies": {
-    "@stuffbucket/maximal-electron": "^0.0.9",
+    "@maximal/maximal-electron": "^0.0.9",
     "electron": ">=30.0.0",
     "node-llama-cpp": "3.20.0",
     "react": ">=18.0.0 <20.0.0"

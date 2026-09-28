@@ -1,0 +1,11 @@
+node_modules/
+.electron-dev/
+.vite/
+out/
+resources/bin/
+*.log
+test-results/
+playwright-report/
+build/icon.png
+build/maximal-core.metafile.json
+THIRD-PARTY-LICENSES.txt

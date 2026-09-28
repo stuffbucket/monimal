@@ -1,12 +1,13 @@
-import { describe, expect, test } from "bun:test"
-import { Hono } from "hono"
-
-import type { AccountRecord } from "~/lib/auth/github-token-store"
 import type {
   ApiKeyEntry,
   AppEntry,
   DiagnosticsResponse,
-} from "~/lib/config/settings-types"
+} from "@maximal/maximal-core-contract/settings"
+
+import { describe, expect, test } from "bun:test"
+import { Hono } from "hono"
+
+import type { AccountRecord } from "~/lib/auth/github-token-store"
 import type { GhCliStatus } from "~/lib/system/gh-cli"
 import type { SettingsEndpointDeps } from "~/routes/control/settings-endpoints"
 

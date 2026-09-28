@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "@maximal/maximal-core-contract",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Maximal Core's settings wire types and control-plane contract, shared by Core and its clients.",
+  "sideEffects": false,
+  "type": "module",
+  "exports": {
+    "./control": {
+      "types": "./dist/control.d.ts",
+      "import": "./dist/control.js"
+    },
+    "./package.json": "./package.json",
+    "./settings": {
+      "types": "./dist/settings.d.ts",
+      "import": "./dist/settings.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "analyze": "bun ../maximal-core/scripts/analyze.ts",
+    "build": "tsup src/control.ts src/settings.ts --format esm --dts --clean --target node24 --out-dir dist",
+    "lint": "eslint",
+    "test": "node --test tests/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@maximal/maximal-model-contract": "workspace:*",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@maximal/eslint-config": "workspace:*",
+    "@types/node": "^26.4.0",
+    "@typescript/native": "npm:typescript@^7.0.2",
+    "eslint": "^10.9.1",
+    "tsup": "^8.5.1",
+    "typescript": "npm:@typescript/typescript6@^6.0.2"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

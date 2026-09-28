@@ -20,7 +20,7 @@ Screenshot of the shell: `test-results/shell.png`, after `npm run stills`.
 | Layout | Radix and `react-resizable-panels`. |
 | Terminal | Configurable xterm.js or wterm with libghostty over `node-pty`; xterm.js is the default. |
 | Packaging | Forge `package` on macOS and Windows, verified in CI. |
-| Release | An npm tarball on a GitHub release. No installer. |
+| Release | Private workspace package. The desktop app releases from the repository root. |
 | Tests | Vitest and Playwright. |
 | Demos | A scripted screen recorder that drives the real app. |
 | Harness | `AGENTS.md` and `.claude/skills/`. |
@@ -55,39 +55,14 @@ A dock badge tracks real application state.
 
 ## Consume the shell frame
 
-This file is the only prose the tarball carries. Every path below under the docs
-directory names a file in the repository rather than in your `node_modules`, and
-each one is readable at
-<https://github.com/stuffbucket/maximal-electron/tree/main/docs>. The types are
-the other half: every export ships a `.d.ts` whose comments say what a prop is
-for and why it exists.
+The package is `@maximal/maximal-electron`, private to this monorepo.
+Workspace consumers import the exported subpaths and read
+[docs/consuming.md](./docs/consuming.md) for the supported surface.
 
-The package is `@stuffbucket/maximal-electron`, on the GitHub Packages npm
-registry:
-
-```json
-"@stuffbucket/maximal-electron": "^0.0.5"
-```
-
-Installing from that registry needs an `.npmrc` and a token, for a public
-package as much as a private one. The git ref and the release tarball still
-work and need neither:
-
-```json
-"@stuffbucket/maximal-electron": "github:stuffbucket/maximal-electron#<ref>"
-"@stuffbucket/maximal-electron": "https://github.com/stuffbucket/maximal-electron/releases/download/v0.0.5/stuffbucket-maximal-electron-0.0.5.tgz"
-```
-
-`dist/` is built by a lifecycle script rather than committed, and npm runs a
-different one for each form. A `codeload.github.com` archive URL runs neither,
-so that form is unsupported and refuses to install. Read
-[docs/consuming.md](./docs/consuming.md), which states the token cost and the
-migration from the old unscoped name.
-
-Every supported form exposes the main-process lifecycle at
-`@stuffbucket/maximal-electron/main`, the secured host window at
-`@stuffbucket/maximal-electron/host`, and the generic renderer frame at
-`@stuffbucket/maximal-electron/renderer`. The renderer entry exports the layout
+The package exposes the main-process lifecycle at
+`@maximal/maximal-electron/main`, the secured host window at
+`@maximal/maximal-electron/host`, and the generic renderer frame at
+`@maximal/maximal-electron/renderer`. The renderer entry exports the layout
 — `ShellLayout`, `TitleBar`, `TabBar`, `NavRail`, `Canvas` — a control
 vocabulary from `Button` and `Card` through `Dialog`, `Menu` and the form
 fields, the terminal components with the transport that wires them, and two
@@ -96,12 +71,6 @@ data, or the capture fixture. `docs/embedding.md` groups the whole surface, and
 `RENDERER_SURFACE` in `scripts/export-checks.mjs` is the list
 `npm run verify:exports` holds the built entry to.
 
-The tarball also carries `.vite/build/main.js`, because npm packs whatever
-`main` names and Electron needs that path to run this repository as an
-application. It is not an export: `exports` declares no `.`, so importing the
-package by its bare name fails, and the file loads a chunk the tarball does not
-carry.
-
 `runMain(runtime, options)` runs a main process on this shell's lifecycle: the
 profile directory, the single instance lock, the window, the quit policy, and a
 deferred shutdown. Every application-specific value is a callback in `options`,
@@ -109,22 +78,21 @@ whose shape is versioned. This application's own `src/main/index.ts` runs on it.
 See [docs/embedding.md](./docs/embedding.md).
 
 The package declares no runtime dependencies. Every package an export imports is
-an optional peer, so installing it for `@stuffbucket/maximal-electron/host` adds nothing
+an optional peer, so installing it for `@maximal/maximal-electron/host` adds nothing
 to `node_modules` beyond the package itself. Install the peers for the entries
 you use:
 
 | Entry | Peers |
 | --- | --- |
-| `@stuffbucket/maximal-electron/main` | `electron` |
-| `@stuffbucket/maximal-electron/host` | `electron` |
-| `@stuffbucket/maximal-electron/preload` | `electron` |
-| `@stuffbucket/maximal-electron/host/terminal` | `node-pty` |
-| `@stuffbucket/maximal-electron/electron-terminal` | `electron`, `node-pty` |
-| `@stuffbucket/maximal-electron/electron-panel` | `electron` |
-| `@stuffbucket/maximal-electron/renderer` | `react`, `react-dom`, `@xterm/xterm`, `@xterm/addon-fit`, `@wterm/dom`, `@wterm/ghostty`, `lucide-react`, `react-resizable-panels`, `@radix-ui/react-collapsible`, `@radix-ui/react-dialog`, `@radix-ui/react-dropdown-menu`, `@radix-ui/react-radio-group`, `@radix-ui/react-tabs`, `@radix-ui/react-tooltip`, `@radix-ui/react-visually-hidden` |
-| `@stuffbucket/maximal-electron/verify` | none |
-| `@stuffbucket/maximal-electron/verify/shell-variables` | none |
-| `@stuffbucket/maximal-electron/verify/peers` | none |
+| `@maximal/maximal-electron/main` | `electron` |
+| `@maximal/maximal-electron/host` | `electron` |
+| `@maximal/maximal-electron/preload` | `electron` |
+| `@maximal/maximal-electron/electron-terminal` | `electron`, `@maximal/maximal-terminal` |
+| `@maximal/maximal-electron/electron-panel` | `electron` |
+| `@maximal/maximal-electron/renderer` | `react`, `react-dom`, `@maximal/maximal-terminal`, `lucide-react`, `react-resizable-panels`, `@radix-ui/react-collapsible`, `@radix-ui/react-dialog`, `@radix-ui/react-dropdown-menu`, `@radix-ui/react-radio-group`, `@radix-ui/react-tabs`, `@radix-ui/react-tooltip`, `@radix-ui/react-visually-hidden` |
+| `@maximal/maximal-electron/verify` | none |
+| `@maximal/maximal-electron/verify/shell-variables` | none |
+| `@maximal/maximal-electron/verify/peers` | none |
 
 npm says nothing about a missing optional peer at install time. The failure
 lands later: a bundler stops on the unresolved import and names the package,
@@ -133,7 +101,7 @@ the rows above and compares each one against the packages that entry point's
 built import graph reaches, so a peer the table leaves out and a peer the table
 invents both fail the check.
 
-That check runs here. `@stuffbucket/maximal-electron/verify/peers` is the one
+That check runs here. `@maximal/maximal-electron/verify/peers` is the one
 you run there, against your own installed tree, so a missing peer fails your
 build rather than a browser:
 
@@ -143,11 +111,11 @@ import {
   failedPeerChecks,
   missingPeerChecks,
   peerRequirements,
-} from '@stuffbucket/maximal-electron/verify/peers';
+} from '@maximal/maximal-electron/verify/peers';
 
 const require = createRequire(import.meta.url);
-const root = path.dirname(require.resolve('@stuffbucket/maximal-electron/package.json'));
-const requirements = await peerRequirements(root, require('@stuffbucket/maximal-electron/package.json').exports);
+const root = path.dirname(require.resolve('@maximal/maximal-electron/package.json'));
+const requirements = await peerRequirements(root, require('@maximal/maximal-electron/package.json').exports);
 
 // Name only the entry points you import.
 const failed = failedPeerChecks(
@@ -185,8 +153,8 @@ import {
   ShellLayout,
   TabBar,
   TitleBar,
-} from '@stuffbucket/maximal-electron/renderer';
-import '@stuffbucket/maximal-electron/renderer/styles.css';
+} from '@maximal/maximal-electron/renderer';
+import '@maximal/maximal-electron/renderer/styles.css';
 ```
 
 The stylesheet ships no palette and scopes every rule under `.sb-shell`.
@@ -213,7 +181,7 @@ Thirty-three more variables have structural fallbacks in the CSS, and two are
 read by JavaScript rather than by any rule. `docs/shell-variables.md` holds the
 whole contract, derived from the stylesheet and checked against it in both
 directions. Set the ones your design system disagrees with.
-`@stuffbucket/maximal-electron/verify/shell-variables` exports the derivation so an
+`@maximal/maximal-electron/verify/shell-variables` exports the derivation so an
 application can assert its own adapter against the stylesheet it installed.
 
 Those eleven are the whole of what the shell needs from you. `ShellLayout`'s
@@ -233,7 +201,7 @@ import {
   SHELL_CONTENT,
   ShellContentProvider,
   Usage,
-} from '@stuffbucket/maximal-electron/renderer';
+} from '@maximal/maximal-electron/renderer';
 
 <ShellContentProvider
   content={{ ...SHELL_CONTENT, usage: { ...SHELL_CONTENT.usage, title: 'Spend' } }}
@@ -340,8 +308,8 @@ and verify that every export target appears in `npm pack`.
 
 ## Package the terminal
 
-`@stuffbucket/maximal-electron/host/terminal` and
-`@stuffbucket/maximal-electron/renderer` give a working terminal. `node-pty` is
+[`@maximal/maximal-terminal`](../maximal-terminal/README.md) gives a
+working terminal. `node-pty` is
 native: keep it out of the bundler, and unpack its whole prebuild directory
 rather than only `*.node`. On macOS the shell is started by `spawn-helper`,
 which has no extension and is executed from outside the archive.
@@ -358,7 +326,7 @@ The wire between the two halves is exported rather than hand-written.
 `on` and channel names, and `registerTerminalChannels` answers those channels
 from a `TerminalHost`. Neither picks a name. `docs/embedding.md` has both calls.
 
-`@stuffbucket/maximal-electron/verify` exports those assertions as a function
+`@maximal/maximal-electron/verify` exports those assertions as a function
 to run against a built application. `docs/architecture.md` has the call.
 
 ## Your own icon
@@ -423,12 +391,8 @@ See [docs/recording.md](./docs/recording.md).
 
 ## Release
 
-Push a tag. The npm tarball lands on a draft release, and one job publishes it.
-
-```bash
-git tag -a v0.1.0 -m "Release 0.1.0"
-git push origin v0.1.0
-```
+This package is private to the monorepo and is not published. The desktop app
+is what the repository releases.
 
 **There is no installer.** No MSI and no dmg. `npm run package` produces an
 unsigned `.app` and an unsigned `win32` directory, `ci.yml` runs it on both
@@ -445,8 +409,8 @@ Read [docs/release.md](./docs/release.md) and
 
 Stated here rather than discovered later.
 
-- **No installer, on either platform.** A release carries the library tarball
-  and nothing else. See `docs/release.md`.
+- **No installer, on either platform.** This package builds unsigned app
+  directories only. See `docs/release.md`.
 - **No auto-update.** There is no delivered artifact for an updater to replace.
 - **Nothing is signed.** macOS Gatekeeper refuses an unsigned bundle it did not
   build, and Windows SmartScreen warns on first run.
@@ -459,16 +423,14 @@ Stated here rather than discovered later.
 Read [.claude/skills/port-to-project/SKILL.md](./.claude/skills/port-to-project/SKILL.md).
 
 The short version: rename the app, and point `STUFFBUCKET_ICON_DIR` at your own
-icons. If you distribute an application rather than a library, adding a maker
-and a release job is your first change.
+icons. If you distribute an application, adding a maker is your first change.
 
 ## Credits
 
-The release mechanics and the agent harness follow two existing projects.
+The agent harness and interface discipline follow two existing projects.
 
-- `openai/codex` contributes the `tag-check` gate, the tag-triggered release,
-  the prescriptive `AGENTS.md`, and the self-contained skill format. It
-  contains no Electron; only these patterns transfer.
-- `stuffbucket/maximal` contributes the draft-then-publish release shape, the
-  design token scale, and the layout-verification discipline in
-  `.claude/skills/verify-ui/SKILL.md`.
+- `openai/codex` contributes the prescriptive `AGENTS.md` and the
+  self-contained skill format. It contains no Electron; only these patterns
+  transfer.
+- `stuffbucket/maximal` contributes the design token scale and the
+  layout-verification discipline in `.claude/skills/verify-ui/SKILL.md`.

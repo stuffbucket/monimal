@@ -1,4 +1,4 @@
-import { InspectorPanel } from "@stuffbucket/maximal-electron/renderer"
+import { InspectorPanel } from "@maximal/maximal-electron/renderer"
 import { useState, type ReactElement } from "react"
 
 import { deriveContextSessions } from "../src/context-window.ts"

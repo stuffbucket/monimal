@@ -1,4 +1,4 @@
-import { service } from "@stuffbucket/eslint-config/service"
+import { service } from "@maximal/eslint-config/service"
 
 export default [
   ...service({
@@ -10,10 +10,6 @@ export default [
     // same class of entry removed already; these were the last two. Verify
     // with `ls` before adding one.
     ignores: [
-      // A separate Electron package with its own tsconfig, prettier
-      // conventions and eslint config. Linting it from here would apply this
-      // package's formatting to files that deliberately use another.
-      "client/**",
       "contrib/**",
       "docs/**",
       "scripts/**",

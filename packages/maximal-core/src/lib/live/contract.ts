@@ -88,11 +88,14 @@ export interface SnapshotPayload<Snapshot = unknown> {
  * does not have, and a client would set `Last-Event-ID` on reconnect expecting a
  * replay that never comes.
  */
-export function serializeFrame(frame: ControlFrame): string {
-  const payload = {
+export function notificationForFrame(frame: ControlFrame): FrameEnvelope {
+  return {
     jsonrpc: "2.0" as const,
     method: methodForTopic(frame.topic),
     params: frame.data,
   }
-  return `data: ${JSON.stringify(payload)}\n\n`
+}
+
+export function serializeFrame(frame: ControlFrame): string {
+  return `data: ${JSON.stringify(notificationForFrame(frame))}\n\n`
 }

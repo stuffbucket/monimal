@@ -1,4 +1,4 @@
-import { typescript } from '@stuffbucket/eslint-config/typescript';
+import { typescript } from '@maximal/eslint-config/typescript';
 
 import shell from './eslint/shell.mjs';
 
@@ -150,19 +150,18 @@ export default [
           patterns: [
             {
               group: [
-                '@stuffbucket/*/src',
-                '@stuffbucket/*/src/**',
-                'stuffbucket-electron/src/**',
+                '@maximal/*/src',
+                '@maximal/*/src/**',
               ],
               message:
                 'Import another package through a declared public entry point, never its source tree.',
             },
             {
               group: [
-                'maximal-client',
-                'maximal-client/**',
-                '@stuffbucket/maximal-core',
-                '@stuffbucket/maximal-core/**',
+                '@maximal/maximal-client',
+                '@maximal/maximal-client/**',
+                '@maximal/maximal-core',
+                '@maximal/maximal-core/**',
               ],
               message:
                 'The reusable Electron package must not depend on consumer or Maximal Core policy.',

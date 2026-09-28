@@ -16,10 +16,10 @@ linked document.
 | Lint                                    | `npm run lint`, `npm run lint:fix`                                                                                    |
 | Types                                   | `npm run typecheck`                                                                                                   |
 | Unit tests                              | From the monorepo root, `pnpm test`; see [`docs/testing.md`](docs/testing.md)                                         |
-| Terminal unit tests                     | `pnpm --filter @stuffbucket/maximal-electron run test:terminal`                                                       |
-| Mutation tests                          | `pnpm --filter @stuffbucket/maximal-electron run mutate`                                                              |
-| Terminal mutation tests                 | `pnpm --filter @stuffbucket/maximal-electron run mutate:terminal`                                                     |
-| End-to-end tests                        | `pnpm --filter @stuffbucket/maximal-electron run package && pnpm --filter @stuffbucket/maximal-electron run test:e2e` |
+| Terminal unit tests                     | `pnpm --filter @maximal/maximal-electron run test:terminal`                                                       |
+| Mutation tests                          | `pnpm --filter @maximal/maximal-electron run mutate`                                                              |
+| Terminal mutation tests                 | `pnpm --filter @maximal/maximal-terminal run mutate`                                                              |
+| End-to-end tests                        | `pnpm --filter @maximal/maximal-electron run package && pnpm --filter @maximal/maximal-electron run test:e2e` |
 | Record a demo                           | `npm run package && npm run record`                                                                                   |
 | Re-cut a demo                           | `npm run compose -- <name>`                                                                                           |
 | Capture reference images                | `npm run package && npm run stills`                                                                                   |
@@ -29,20 +29,17 @@ linked document.
 | Package                                 | `npm run package`                                                                                                     |
 | Verify a package                        | `npm run verify:package`                                                                                              |
 | Verify the Electron download cache      | `npm run verify:electron-cache`                                                                                       |
-| Verify a publish                        | `npm run verify:publish`                                                                                              |
 | Launch a package                        | `npm run smoke:packaged`                                                                                              |
 | Verify the exports                      | `npm run verify:exports`                                                                                              |
 | Verify the fixture consumes the package | `npm run verify:fixture-imports`                                                                                      |
-| Verify an install by specifier          | `npm run verify:git-install`                                                                                          |
 | Verify the shell stays agnostic         | `npm run verify:neutral`                                                                                              |
 | Verify the docs                         | `npm run verify:docs`                                                                                                 |
 | Verify every workflow still runs        | `npm run verify:workflow-health`                                                                                      |
-| Verify a tag has never been cut         | `npm run verify:tag`                                                                                                  |
 | Regenerate icons                        | `npm run icons`                                                                                                       |
 
 Run `npm run lint:fix` after you change code. Do not ask first.
 
-Run `pnpm --filter @stuffbucket/maximal-electron run typecheck` and the native
+Run `pnpm --filter @maximal/maximal-electron run typecheck` and the native
 workspace tier from [`docs/testing.md`](docs/testing.md) before you report a
 change as done. Run the pinned-dependency Docker rerun from the primary checkout.
 
@@ -65,7 +62,7 @@ Each of these is load-bearing. Do not relax one to make a change fit.
   worked example: it is configuration the host owns, through
   `STUFFBUCKET_ICON_DIR`, not a request the renderer makes.
 - **Never lower the mutation threshold.** `pnpm --filter
-@stuffbucket/maximal-electron run mutate` breaks below 100.
+@maximal/maximal-electron run mutate` breaks below 100.
   It also breaks when a module the criterion selects is on neither the mutate
   list nor its deferred list, and when the mutant count falls. See
   `docs/testing.md`.
@@ -73,7 +70,6 @@ Each of these is load-bearing. Do not relax one to make a change fit.
   `EnableNodeCliInspectArguments: false` is why the end-to-end tests drive the
   unpackaged build, and why `npm run smoke:packaged` drives the packaged one
   through an argument the application answers itself.
-- **Never add an asset to a published release.** GitHub rejects it with HTTP 422. Everything attaches to the draft.
 - **Never round-trip a manifest through a serializer to edit one field.**
   `json.load` then `json.dumps` on `package.json` rewrites key order, escaping,
   wrapping and the trailing newline, so a one-line version bump arrives as a
@@ -168,33 +164,9 @@ checks names, not prose.
 
 ## Releases
 
-- Work is marshalled on a `release/x.y.z` branch and folded into `main` when the
-  release is cut. **Target the release branch, not `main`.** The tag goes on
-  `main` at the fold, and the tag is what starts the build.
-- **Two trains are open at all times**, at `n+1` and `n+2` from the shipped
-  version. Cutting one opens the next, so there is always somewhere to put work
-  that is not the current release.
-- Every issue and every pull request carries a milestone. If it does not have
-  one, it has not been triaged.
-- **Run `gh pr list --base <branch> --state open` before you delete a branch.**
-  GitHub closes the children rather than retargeting them, and a closed pull
-  request whose base is gone cannot be reopened. Retarget every child first.
-  This has cost a rebuild twice, both times with a prohibition already written
-  here, so the line is a command now.
-- **A pushed tag is immutable.** If the build on a tag fails, cut the next patch
-  rather than moving the tag. A consumer installs this package from a git ref,
-  so a moved tag changes what they install without changing anything they can
-  see. `v0.0.2` was deleted and re-pushed eight minutes later. A tag now also
-  publishes `@stuffbucket/maximal-electron` to the GitHub Packages registry,
-  and a published version cannot be replaced at all. `npm run verify:tag` runs
-  in `tag-check` and refuses a ref that has already been built at another
-  commit. No ruleset stops the tag moving: a tag-target
-  ruleset is the setting that would, and it is set in repository settings
-  rather than here.
-- Bump the patch version on the release branch when the train reaches a stable
-  state, so `main` never claims a version that has not shipped.
-
-See `docs/release.md`.
+This package is private to the monorepo and does not own the repository release
+process. The desktop application release belongs to the repository root; see
+`docs/release.md` for the package boundary and platform notes.
 
 ## Where the rest of the rules are
 
@@ -209,9 +181,9 @@ only background.
 | Random order, mutation testing, layout evidence, the off-screen suite | `docs/testing.md`         |
 | Stories, the a11y run, what is deliberately not in CI                 | `docs/storybook.md`       |
 | Capture and compose, the pacing constants                             | `docs/recording.md`       |
-| Trains, the draft release, macOS signing                              | `docs/release.md`         |
-| The install specifiers a consumer may write, and the registry         | `docs/consuming.md`       |
-| The workflows, the release rehearsal and retry, the merge race        | `docs/ci.md`              |
+| Private package release boundary, installer absence, platform notes   | `docs/release.md`         |
+| The workspace consumers and exported surface                          | `docs/consuming.md`       |
+| The workflows, run health, and the merge race                         | `docs/ci.md`              |
 | Code signing                                                          | `docs/signing.md`         |
 | What is planned and what is deliberately not                          | `docs/roadmap.md`         |
 

@@ -8,8 +8,8 @@ import {
 describe("provider host dependency boundary", () => {
   test("allows only the frozen provider contract across the boundary", () => {
     const source = `
-      import type { ProviderGateway } from "@stuffbucket/maximal-model-contract"
-      export type { ProviderDispatch } from "@stuffbucket/maximal-model-contract"
+      import type { ProviderGateway } from "@maximal/maximal-model-contract"
+      export type { ProviderDispatch } from "@maximal/maximal-model-contract"
     `
 
     expect(findProviderHostImports(source)).toEqual([])
@@ -17,8 +17,8 @@ describe("provider host dependency boundary", () => {
 
   test.each([
     "cordis",
-    "@stuffbucket/maximal-models",
-    "@stuffbucket/maximal-provider-omlx",
+    "@maximal/maximal-models",
+    "@maximal/maximal-provider-omlx",
     "anthropic-provider",
   ])("rejects source imports of %s", (specifier) => {
     const source = `import gateway from ${JSON.stringify(specifier)}`
@@ -31,8 +31,8 @@ describe("provider host dependency boundary", () => {
   test("rejects dynamic, require, import-type, and re-export forms", () => {
     const source = `
       import("cordis")
-      require("@stuffbucket/maximal-models")
-      type Host = import("@stuffbucket/maximal-provider-omlx").Host
+      require("@maximal/maximal-models")
+      type Host = import("@maximal/maximal-provider-omlx").Host
       export { gateway } from "anthropic-provider"
     `
 
@@ -40,8 +40,8 @@ describe("provider host dependency boundary", () => {
       findProviderHostImports(source).map(({ specifier }) => specifier),
     ).toEqual([
       "cordis",
-      "@stuffbucket/maximal-models",
-      "@stuffbucket/maximal-provider-omlx",
+      "@maximal/maximal-models",
+      "@maximal/maximal-provider-omlx",
       "anthropic-provider",
     ])
   })
@@ -49,9 +49,9 @@ describe("provider host dependency boundary", () => {
   test("rejects forbidden packages in every dependency field", () => {
     const manifest = {
       dependencies: { cordis: "1.0.0" },
-      devDependencies: { "@stuffbucket/maximal-models": "workspace:*" },
+      devDependencies: { "@maximal/maximal-models": "workspace:*" },
       optionalDependencies: {
-        "@stuffbucket/maximal-provider-omlx": "workspace:*",
+        "@maximal/maximal-provider-omlx": "workspace:*",
       },
       peerDependencies: { "anthropic-provider": "1.0.0" },
     }
@@ -62,8 +62,8 @@ describe("provider host dependency boundary", () => {
       ),
     ).toEqual([
       "cordis",
-      "@stuffbucket/maximal-models",
-      "@stuffbucket/maximal-provider-omlx",
+      "@maximal/maximal-models",
+      "@maximal/maximal-provider-omlx",
       "anthropic-provider",
     ])
   })

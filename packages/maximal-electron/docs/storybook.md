@@ -18,7 +18,7 @@ on a white page.
 
 `shell.css` is what this application draws with. `shell-package-rules.css`, which
 `scripts/copy-renderer-css.mjs` publishes as
-`@stuffbucket/maximal-electron/renderer/styles.css`, is the only CSS a consumer
+`@maximal/maximal-electron/renderer/styles.css`, is the only CSS a consumer
 installs. They are not the same file: the shipped one declares no palette and
 scopes every rule under `.sb-shell`. Storybook used to load the first and
 nothing loaded the second, so every story showed what this application draws

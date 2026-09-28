@@ -18,7 +18,7 @@ state — including MDM-tier `coworkEgressAllowedHosts` values that
 
 ## Non-goals
 
-- Restoring the `npm install -g @stuffbucket/maximal` path. Maximal's users
+- Restoring the `npm install -g @maximal/maximal` path. Maximal's users
   aren't Node-shop developers; brew + MSI cover the audience.
 - A new install path. We're collapsing, not adding.
 

@@ -211,9 +211,9 @@ it so the credit points at a file that can fail.
 What that file actually asserts, verified by reading it and by breaking the
 invariant:
 
-- It imports the real `AuthStatus` schema from `~/lib/config/settings-types`
-  (the module moved from `src/lib/settings-types.ts` in the lib reorg; migration
-  step 1's path is stale) and the real
+- It imports the real `AuthStatus` schema from
+  `@maximal/maximal-core-contract/settings` (the module moved out of
+  `src/lib/settings-types.ts`; migration step 1's path is stale) and the real
   `getAuthStatus`/`startDeviceFlow`/`markSignedIn`/`markAuthDegraded` from
   `~/lib/auth/auth-controller`. No throwaway re-implementation.
 - Its first invariant drives seven controller states in turn and runs each

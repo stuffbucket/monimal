@@ -1,4 +1,4 @@
-import { NavRail } from '@stuffbucket/maximal-electron/renderer';
+import { NavRail } from '@maximal/maximal-electron/renderer';
 import {
   Bot,
   CheckCircle2,

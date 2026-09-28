@@ -932,13 +932,9 @@ assumptions in `tests/**` that failed there were fixed; 1 case stays
 `skipIf`-ed on `win32` (in `tests/secrets.test.ts`), with the reason at its skip
 site. `e2e` does **not** run here (#89).
 
-Security workflows (CodeQL, trufflehog) run alongside, `release-gates.yml`
-checks a PR's milestone and bump, and `randomized-test-order.yml` runs nightly
-(see below). There is **no** build/sign/publish pipeline on a _PR_ — no dmg,
-MSI, checksums, or signing — and no release automation: a release is a GitHub
-milestone, tagged by hand, and it is the tag push that fires
-`publish-package.yml` and `release-tag-check.yml` (see `docs/architecture.md` →
-_Release & PR conventions_ and `docs/release-runbook.md`).
+Security workflows (CodeQL, trufflehog) run alongside, and
+`randomized-test-order.yml` runs nightly (see below). There is **no**
+build/sign/publish pipeline on a _PR_ — no dmg, MSI, checksums, or signing.
 
 ### Why randomized order is not a PR gate
 
@@ -1020,7 +1016,7 @@ superset of CI rather than an exact match.
 
 **Local pre-merge equivalents (run from the monorepo root):**
 
-- `pnpm --filter @stuffbucket/maximal-core run check:fast` = `lint:fast →
+- `pnpm --filter @maximal/maximal-core run check:fast` = `lint:fast →
 typecheck → lint:all`, the safe native inner loop.
 - `pnpm run check:core` is the supported complete Core gate. It first runs
   `check:deep:host`: `preflight → check:fast → casts:check → knip → deps:check →
@@ -1036,7 +1032,7 @@ dupes:check → ci:check → build → typecheck:downstream`. It then runs the
   aggregate (`check:deep:host → bun test`), so `ci:check` still derives the same
   constituent coverage and retains its justified exclusions; it is not the
   monorepo host entry point.
-- `pnpm --filter @stuffbucket/maximal-core run check:ops` = `typecheck:ops →
+- `pnpm --filter @maximal/maximal-core run check:ops` = `typecheck:ops →
 test:ops`, for `scripts/ops/` (its own tsconfig and test run;
   `tooling-ci.yml` is the CI counterpart).
 - **Pre-commit hook** (simple-git-hooks → lint-staged): `bun run lint --fix` +

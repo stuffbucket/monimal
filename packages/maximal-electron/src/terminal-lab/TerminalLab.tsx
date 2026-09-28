@@ -10,7 +10,7 @@ import {
   currentTerminalTheme,
 } from '../renderer/lib/bridge-terminal.js';
 import { bridge, useBridgeEvent } from '../renderer/lib/bridge.js';
-import type { TerminalEmulatorKind } from '../renderer/lib/terminal-emulator.js';
+import type { TerminalEmulatorKind } from '@maximal/maximal-terminal/renderer';
 import {
   decodeTabTransfer,
   moveTabBefore,
@@ -20,12 +20,12 @@ import {
   isTerminalPane,
   terminalPaneSessionIds,
   type TerminalPane,
-} from '../renderer/lib/terminal-pane.js';
+} from '@maximal/maximal-terminal/renderer';
 import {
   newTerminalTab,
   terminalProcessTitle,
   type TerminalShellTab,
-} from '../renderer/lib/terminal-tab.js';
+} from '@maximal/maximal-terminal/renderer';
 import { useShellTabs } from '../renderer/lib/useShellTabs.js';
 
 type LabPhase = 'starting' | 'running' | 'exited' | 'failed' | 'stopped';

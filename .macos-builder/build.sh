@@ -5,7 +5,7 @@ set -euo pipefail
 #
 # Builds the UNSIGNED Electron client into an .app and leaves it at the path
 # .macos-builder/config names:
-#   packages/maximal/client/out/Maximal-darwin-arm64/Maximal.app
+#   apps/desktop/out/Maximal-darwin-arm64/Maximal.app
 #
 # THIS SCRIPT DOES NOT SIGN, and must not learn how. The builder runs it with the
 # signing keychain LOCKED and SIGN_IDENTITY set to the ad-hoc identity "-", so a
@@ -57,7 +57,7 @@ fail() { echo "::error::$*" >&2; exit 1; }
 VERSION="${TAG#v}"
 ARCH="${ARCH:-arm64}"
 
-# .macos-builder/config names darwin-arm64 literally and client/scripts/build-core.ts
+# .macos-builder/config names darwin-arm64 literally and apps/desktop/scripts/build-core.ts
 # compiles --target=bun-darwin-arm64. On any other arch the packager writes
 # out/Maximal-darwin-<other>/ and the builder fails with "app not found" only
 # after the entire build has already run.
@@ -65,12 +65,12 @@ ARCH="${ARCH:-arm64}"
 
 # Every path below is relative to the checkout root. If the builder ever runs
 # this from elsewhere they resolve somewhere else, silently.
-[ -f pnpm-workspace.yaml ] && [ -f packages/maximal/client/package.json ] \
+[ -f pnpm-workspace.yaml ] && [ -f apps/desktop/package.json ] \
   || fail "Not at the monimal checkout root (cwd=$(pwd)); pnpm-workspace.yaml and the client manifest are both required here."
 
-APP="packages/maximal/client/out/Maximal-darwin-${ARCH}/Maximal.app"
-CLIENT_PKG="packages/maximal/client/package.json"
-CORE="packages/maximal/client/resources/bin/maximal-core"
+APP="apps/desktop/out/Maximal-darwin-${ARCH}/Maximal.app"
+CLIENT_PKG="apps/desktop/package.json"
+CORE="apps/desktop/resources/bin/maximal-core"
 
 # The bundle id is READ, not restated. .macos-builder/config is its owner here
 # (release.yml parses the same file and cross-checks it against forge.config.ts),
@@ -255,18 +255,18 @@ grep -q "\"version\": \"${VERSION}\"" "$CLIENT_PKG" \
 # 7. The runner persists between builds. Delete anything that could hand this
 #    release a previous tag's bytes.
 # ---------------------------------------------------------------------------
-rm -rf packages/maximal/client/out packages/maximal/client/.vite .turbo node_modules/.cache/turbo
+rm -rf apps/desktop/out apps/desktop/.vite .turbo node_modules/.cache/turbo
 
 # ---------------------------------------------------------------------------
 # 8. Build the graph, then package.
 # ---------------------------------------------------------------------------
 # turbo owns the dependency order (maximal-core and maximal-electron before the
 # client sidecar). --force defeats any cache that survived step 7.
-pnpm exec turbo run build --filter maximal-client --force
+pnpm exec turbo run build --filter maximal-desktop --force
 
 [ -s "$CORE" ] || fail "Sidecar not produced at ${CORE}."
 chmod 0755 "$CORE"
-ls -la packages/maximal/client/resources/bin/
+ls -la apps/desktop/resources/bin/
 
 # Bun's compile output carries a linker ad-hoc signature Apple rejects. Strip it;
 # @electron/osx-sign signs the copy inside Maximal.app during its single
@@ -277,7 +277,7 @@ codesign --remove-signature "$CORE" 2>/dev/null || true
 # is `turbo run package`, whose task declares outputs out/** and .vite/**, so a
 # cache hit could restore a bundle this release never built. --arch is pinned so
 # the output directory name matches what .macos-builder/config declares.
-( cd packages/maximal/client && pnpm exec electron-forge package --arch="$ARCH" )
+( cd apps/desktop && pnpm exec electron-forge package --arch="$ARCH" )
 
 ls -la "$(dirname "$APP")"
 

@@ -4,7 +4,8 @@ import type {
   AppsListResponse,
   ConnectionCredentialSummary,
   ConnectionEntry,
-} from "~/lib/config/settings-types"
+} from "@maximal/maximal-core-contract/settings"
+
 import type {
   ConfiguratorConnection,
   ConfiguratorPlugin,

@@ -13,6 +13,14 @@ import {
   type VerifyDeps,
 } from "../scripts/dev/verify-build"
 
+const DEFAULT_BASE_URL = "http://127.0.0.1:4141"
+const baseUrlForPort = (port: number): string => {
+  const url = new URL(DEFAULT_BASE_URL)
+  url.port = String(port)
+  return url.toString().replace(/\/$/u, "")
+}
+const ALTERNATE_BASE_URL = baseUrlForPort(4142)
+
 describe("extractSha", () => {
   it("pulls the +<sha8> suffix from a dev version header", () => {
     expect(extractSha("0.4.39-dev+7856b665")).toBe("7856b665")
@@ -200,15 +208,15 @@ describe("parseArgs", () => {
     const prev = process.env.MAXIMAL_BASE_URL
     delete process.env.MAXIMAL_BASE_URL
     try {
-      expect(parseArgs([]).baseUrl).toBe("http://127.0.0.1:4141")
+      expect(parseArgs([]).baseUrl).toBe(DEFAULT_BASE_URL)
     } finally {
       if (prev !== undefined) process.env.MAXIMAL_BASE_URL = prev
     }
   })
 
   it("takes --base-url and strips a trailing slash", () => {
-    expect(parseArgs(["--base-url", "http://127.0.0.1:4142/"]).baseUrl).toBe(
-      "http://127.0.0.1:4142",
+    expect(parseArgs(["--base-url", `${ALTERNATE_BASE_URL}/`]).baseUrl).toBe(
+      ALTERNATE_BASE_URL,
     )
   })
 })

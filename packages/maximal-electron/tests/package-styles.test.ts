@@ -153,6 +153,8 @@ describe('the exported components', () => {
 
     expect(opaque).toEqual([
       'components/Canvas: 1',
+      'components/RetainedTabPanels: 1',
+      'components/SplitTree: 5',
       'components/controls/Button: 2',
       'components/controls/Fields: 1',
       'components/controls/Overlays: 2',

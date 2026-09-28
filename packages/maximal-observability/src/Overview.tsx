@@ -1,12 +1,12 @@
 import {
   ContextWindowSessionPanel,
   deriveContextSessions,
-} from "@stuffbucket/maximal-context-window"
+} from "@maximal/maximal-context-window"
 import {
   Button,
   InspectorPanel,
   StatusChip,
-} from "@stuffbucket/maximal-electron/renderer"
+} from "@maximal/maximal-electron/renderer"
 import { useState } from "react"
 
 import { TokenSeriesChart } from "./charts/TokenSeries.tsx"

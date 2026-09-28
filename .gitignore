@@ -29,6 +29,6 @@ reports/
 .DS_Store
 
 # packaged app output
-packages/maximal/client/resources/bin/
+apps/desktop/resources/bin/
 packages/maximal/THIRD-PARTY-LICENSES.txt
-packages/maximal/client/build/maximal-core.metafile.json
+apps/desktop/build/maximal-core.metafile.json

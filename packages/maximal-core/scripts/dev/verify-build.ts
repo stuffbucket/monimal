@@ -10,7 +10,7 @@
  * exits 2 and with a release binary running it exits 1 — a release build embeds
  * no `+<sha>`, so the verdict is `UNKNOWN` by construction. Nothing here is on
  * any release path. (`verify:artifact` itself is gone: core stopped compiling
- * binaries when delivery moved to the GitHub Package Registry. The compile that
+ * binaries. The compile that
  * still ships to users happens in `stuffbucket/maximal`, over this repo's
  * `src/main.ts`.)
  *
@@ -43,9 +43,9 @@
  * is thin. No mock.module anywhere (ADR-0011) — deps are injected.
  *
  * Usage:
- *   bun run dev:stale-check                       # against http://127.0.0.1:4141
- *   bun run dev:stale-check -- --base-url http://127.0.0.1:4142
- *   MAXIMAL_BASE_URL=http://127.0.0.1:4142 bun run dev:stale-check
+ *   bun run dev:stale-check                       # against the default proxy
+ *   bun run dev:stale-check -- --base-url <local-proxy-url>
+ *   MAXIMAL_BASE_URL=<local-proxy-url> bun run dev:stale-check
  *
  * Exit codes: 0 PASS, 1 STALE/UNKNOWN, 2 proxy unreachable.
  */

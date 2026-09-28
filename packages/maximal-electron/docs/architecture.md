@@ -151,14 +151,17 @@ frame before crossing IPC. The selected emulator owns clipboard paste and IME
 composition; the shell does not layer competing handlers over them.
 
 It parses and renders. It does not run a process. The shell lives in the main
-process, in `src/main/native/pty.ts`, which is what lets the renderer keep
-`sandbox: true`. That file is the Electron half of the manager: which window
-owns a session, where a session starts, and where its output goes. The manager
-itself is `TerminalHost`, the class `./host/terminal` exports, so this shell
-and a consumer run the same code rather than two copies of it. The wiring
-between the two is exported as well: `src/main/ipc.ts` registers the channels
-through `registerTerminalChannels` and `src/renderer/lib/bridge-terminal.ts`
-builds its transport through `createTerminalTransport`. `docs/embedding.md`
+process, in `src/main/native/pty/`, which is what lets the renderer keep
+`sandbox: true`. That directory is the Electron half of the manager:
+`index.ts` routes each call to which window owns a session (`mirrors.ts`),
+where a session starts (`launcher.ts`), tmux-owned sessions
+(`projections.ts`), and where its output goes. The manager
+itself is `TerminalHost` from `@maximal/maximal-terminal`, so this shell
+and a consumer run the same code rather than two copies of it. `src/main/ipc.ts`
+registers the channels through `registerTerminalChannels` and
+`src/renderer/lib/bridge-terminal.ts` builds its transport through
+`createTerminalTransport`;
+[the terminal README](../../maximal-terminal/README.md#wiring-a-terminal)
 holds the consumer's call of both.
 
 The tab strip uses a versioned drag payload (`tab-transfer.ts`) for immutable
@@ -292,12 +295,8 @@ Four details are load-bearing.
 - **`TerminalHost` batches output.** A build log emits thousands of small
   writes per second. One message each would swamp the channel, so it coalesces
   on an 8 millisecond timer.
-- **Output has a bounded acknowledged window.** The shipped `pty:ack` channel
-  cumulatively confirms `pty:data.sequence` after the emulator finishes a
-  write. `MAX_IN_FLIGHT_BYTES` bounds IPC output. A pausable pty stops at its
-  high watermark and resumes at `RESUME_LOW_WATERMARK`; a non-pausable pty
-  retains only the newest `MAX_PENDING_BYTES` tail and reports one loss notice.
-  The host sends `pty:exit` only after prior output is acknowledged.
+- **Output has a bounded acknowledged window.** See
+  [flow control](../../maximal-terminal/README.md#flow-control).
 - **Terminals stay mounted.** Switching tabs hides the inactive host rather
   than unmounting it. A remount loses the scrollback, which lives in the
   emulator, and by default kills the shell as well.
@@ -310,7 +309,8 @@ Four details are load-bearing.
   window transfer boundaries. The default provider deliberately performs no
   storage or I/O; an application may inject persistence later without changing
   PTY ownership or renderer behavior.
-- **Shared sessions use a projection backend contract.** `host/terminal-session-backend.ts`
+- **Shared sessions use a projection backend contract.** The
+  [session backend](../../maximal-terminal/src/host/session-backend.ts)
   defines attach, focus, write, resize, detach, and geometry independently of
   the backend. The tmux broker implements it today: tmux remains the canonical
   screen and scrollback for multi-view sessions, while direct local PTYs
@@ -362,38 +362,8 @@ Four details are load-bearing.
 
 ### Detaching a session from its view
 
-Unmounting a `TerminalView` terminates its session. That is the default, and
-changing it would leak a process for every caller that relies on a view going
-away ending a shell. `disposition="detach"` opts out, and then the shell keeps
-running with nothing showing it, which is what a long build needs and what
-`tmux detach` means.
-
-`disposition="preserve"` also leaves the session running, but only while a
-parent still owns it. `TerminalTabs` uses this when a split reparents existing
-pane views, then terminates every pane itself when the owning tab unmounts.
-That keeps a layout change from killing a visible shell without turning it
-into a detached session.
-
-Three things make that a detach rather than a leak.
-
-- **It still has an owner.** `TerminalHost.terminateAll` covers every unshared
-  session it holds. A shared session transfers to a surviving viewer when its
-  owner closes; quitting still reaps every host.
-- **It can be found.** `TerminalHost.list` returns every live session, and the
-  `pty:list` channel carries that to the renderer. Nothing signals a detach,
-  because a detach is the absence of a terminate, so the set of detached
-  sessions is derived: `detachedSessions` subtracts the session ids the renderer holds
-  views for. There is no attached flag in the main process to fall out of step
-  with the views.
-- **It can be attached to.** `TerminalHost.spawn` on an id it already holds
-  resizes that session and replays what it retained, rather than refusing.
-
-**What survives a detach is the process, not the screen.** The scrollback lives
-in the selected emulator, in the renderer, and it dies with the view. The
-host keeps its own tail instead, bounded by `MAX_RETAINED_BYTES`, and a view
-that attaches is sent that and nothing older. A session whose output has run
-past the limit says so once, in the replay. `MAX_PENDING_BYTES` is a different
-buffer and records nothing: it is drained on every flush.
+[The terminal README](../../maximal-terminal/README.md#detaching-a-session-from-its-view)
+owns what a detach keeps and how it is found again.
 
 In this shell the `terminalDetach` preference is off by default. With it on,
 closing a terminal tab leaves the shell running, the inspector lists what is
@@ -470,12 +440,12 @@ opens that directory when collection is enabled. Nothing uploads the files.
 
 ## The terminal a consumer gets
 
-Five exports, and they are deliberately separate.
+Four exports, and they are deliberately separate. The Electron-free terminal
+is [`@maximal/maximal-terminal`](../../maximal-terminal/README.md).
 
 | Export | What it is |
 | --- | --- |
-| `./renderer` | `TerminalView` and `TerminalTabs`, the `TerminalTransport` contract, `createTerminalTransport` which builds one, and `readTerminalTheme`. |
-| `./host/terminal` | `TerminalHost`, its `node-pty` connector, and `registerTerminalChannels`, which answers a consumer's channels from one. |
+| `./renderer` | `TerminalTabs` and `TerminalLauncher`, the shell's composition of the terminal views. |
 | `./electron-terminal` | The reference application's Electron IPC and terminal-launcher adapter. |
 | `./renderer/styles.css` | `shell-structural-tokens.css` and `shell-package-rules.css`, which carry the terminal rules. |
 | `./verify` | The packaging assertions, as a function to run against a consumer's own build. |
@@ -489,7 +459,7 @@ drift.
 ```js
 import { readdirSync } from 'node:fs';
 import { listPackage } from '@electron/asar';
-import { terminalPackageChecks } from '@stuffbucket/maximal-electron/verify';
+import { terminalPackageChecks } from '@maximal/maximal-electron/verify';
 
 const resources = 'dist/mac-arm64/YourApp.app/Contents/Resources';
 const checks = terminalPackageChecks({
@@ -535,7 +505,7 @@ the half of the pair that leaks.
 
 `TerminalHost` is an instance, not module state, so a consumer with two windows
 gets two registries and closing one cannot reap the other's shells. This shell
-uses it the same way: `src/main/native/pty.ts` keys one instance per
+uses it the same way: `src/main/native/pty/index.ts` keys one instance per
 `BrowserWindow`. It imports no `electron`: the home directory, the default
 shell, and any extra environment such as `TERM_PROGRAM` are supplied, because
 `app.getPath` is not this module's to call and the product name is not its to

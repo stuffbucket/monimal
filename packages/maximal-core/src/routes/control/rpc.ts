@@ -1,6 +1,20 @@
 import type { Context } from "hono"
 import type { ZodType } from "zod"
 
+import {
+  AccountSetEnabledRequest,
+  ApiKeyCreateRequest,
+  ApiKeyEnforcementRequest,
+  ApiKeyIdRequest,
+  ApiKeyUpdateRpcRequest,
+  AppSetEnabledRequest,
+  ConnectionActionRequest,
+  ConnectionCredentialIdRequest,
+  OllamaSettingsUpdateRequest,
+  SearchProviderValidationRequest,
+  SearchSettingsUpdateRequest,
+  TokenUsageRequest,
+} from "@maximal/maximal-core-contract/settings"
 /**
  * JSON-RPC method registry for the control plane (ADR-0023, maximal-core#4/#8).
  *
@@ -19,7 +33,7 @@ import {
   TrafficRequestDetailSchema,
   TrafficRequestListQuerySchema,
   TrafficRequestListSchema,
-} from "@stuffbucket/maximal-observability-contract"
+} from "@maximal/maximal-observability-contract"
 
 import type { ConfiguratorRegistry } from "~/lib/configurator-host"
 import type { ClientRosterReader } from "~/lib/http/active-clients"
@@ -68,20 +82,6 @@ import {
   updateSearchSettings,
   validateSearchProvider,
 } from "~/lib/config/settings-operations"
-import {
-  AccountSetEnabledRequest,
-  ApiKeyCreateRequest,
-  ApiKeyEnforcementRequest,
-  ApiKeyIdRequest,
-  ApiKeyUpdateRpcRequest,
-  AppSetEnabledRequest,
-  ConnectionActionRequest,
-  ConnectionCredentialIdRequest,
-  OllamaSettingsUpdateRequest,
-  SearchProviderValidationRequest,
-  SearchSettingsUpdateRequest,
-  TokenUsageRequest,
-} from "~/lib/config/settings-types"
 import { listActiveClients } from "~/lib/http/active-clients"
 import { RpcParamsError } from "~/lib/jsonrpc/errors"
 import {
@@ -518,8 +518,12 @@ export function createControlRpcMethods(deps: ControlRpcDeps): RpcRegistry {
      * because a transport-level disconnect is unambiguous and a separate cancel
      * would race it.
      */
-    "subscriptions/listen": (_params: unknown, c: Context) =>
-      streamSubscription(c, hub),
+    "subscriptions/listen": (_params: unknown, c) => {
+      if (!c) {
+        throw new RpcParamsError("subscriptions/listen requires HTTP")
+      }
+      return streamSubscription(c, hub)
+    },
 
     "app/quit": relayToShell(emitQuitRequest, "quitting"),
     "app/upgrade": relayToShell(emitUpdateRequest, "upgrading"),
@@ -543,11 +547,9 @@ export function createControlRpcMethods(deps: ControlRpcDeps): RpcRegistry {
         pid: process.pid,
         startedAt: new Date(state.startedAtMs).toISOString(),
       },
-      // Both bound ports (maximal-core#10). A host reaches the control plane on
-      // an ephemeral port but must advertise `/v1` on the public one, and the
-      // public one is not necessarily the requested 4141 — it falls back when
-      // held. Reported here so a client that missed the ready-line, or
-      // reconnected later, can still learn both without guessing.
+      // Standalone reports both bound ports (maximal-core#10); desktop IPC
+      // reports control 0 because no control listener exists. The proxy port
+      // may differ from the requested one when the port is occupied.
       ports: { control: state.controlPort, proxy: state.proxyPort },
     }),
   }

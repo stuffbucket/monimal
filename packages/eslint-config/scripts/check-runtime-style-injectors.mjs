@@ -13,9 +13,9 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../.
 
 export const allowedInjectors = new Map([
   ['packages/maximal-electron/src/renderer/lib/component-styles.ts', 2],
-  ['packages/maximal/client/src/renderer/base.ts', 1],
-  ['packages/maximal/client/src/renderer/settings/settings-styles.ts', 1],
-  ['packages/maximal/client/src/renderer/theme.ts', 1],
+  ['packages/maximal-client/src/renderer/base.ts', 1],
+  ['packages/maximal-client/src/renderer/settings/settings-styles.ts', 1],
+  ['packages/maximal-client/src/renderer/theme.ts', 1],
 ])
 
 export function findStyleInjectors(source, filePath = 'source.ts') {

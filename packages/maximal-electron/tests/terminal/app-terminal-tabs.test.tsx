@@ -2,6 +2,7 @@
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { describe, expect, it, vi } from 'vitest';
+import type * as TerminalRenderer from '@maximal/maximal-terminal/renderer';
 
 vi.mock('../../src/renderer/components/Canvas.js', () => ({
   Canvas: () => <div data-testid="library" />,
@@ -77,7 +78,8 @@ vi.mock('../../src/renderer/lib/bridge.js', () => ({
   usePreferences: () => [undefined, vi.fn()],
 }));
 
-vi.mock('../../src/renderer/lib/useDetachedTerminals.js', () => ({
+vi.mock('@maximal/maximal-terminal/renderer', async (importOriginal) => ({
+  ...(await importOriginal<typeof TerminalRenderer>()),
   useDetachedTerminals: () => ({ detached: [], refresh: vi.fn() }),
 }));
 

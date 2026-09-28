@@ -1,4 +1,4 @@
-import type { ProviderGateway } from "@stuffbucket/maximal-model-contract"
+import type { ProviderGateway } from "@maximal/maximal-model-contract"
 import type { Resolvable } from "citty"
 
 import { describe, expect, test } from "bun:test"
@@ -72,6 +72,7 @@ describe("public CLI composition", () => {
         c: false,
         "claude-code": false,
         "control-port": "0",
+        "desktop-ipc": true,
         g: "",
         "github-token": "",
         manual: false,
@@ -94,5 +95,6 @@ describe("public CLI composition", () => {
     expect(received?.createConnectorPlugins).toBe(createConnectorPlugins)
     expect(received?.createProviderGateway).toBe(createProviderGateway)
     expect(received?.port).toBe(4141)
+    expect(received?.desktopIpc).toBe(true)
   })
 })

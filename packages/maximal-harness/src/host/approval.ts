@@ -1,4 +1,5 @@
 import type { AgentApproval } from '../contracts.js';
+import { HARNESS_CONFIG } from '../constants.js';
 
 /**
  * Approval policy for the overlay agent's tools.
@@ -44,7 +45,7 @@ export function riskOf(tool: string, declared?: ToolRisk): ToolRisk {
 }
 
 /** Longest summary shown in the card. Longer text is truncated. */
-export const MAX_SUMMARY = 200;
+export const MAX_SUMMARY = HARNESS_CONFIG.approval.maxSummaryCharacters;
 
 /** Does a tool call at this risk need a decision from the user? */
 export function needsApproval(policy: AgentApproval, risk: ToolRisk): boolean {

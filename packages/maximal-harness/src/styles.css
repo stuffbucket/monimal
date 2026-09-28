@@ -1,4 +1,4 @@
-@import '@stuffbucket/maximal-electron/renderer/styles.css';
+@import '@maximal/maximal-electron/renderer/styles.css';
 
 /*
  * The floating overlay.
@@ -8,12 +8,6 @@
  */
 
 @layer sb-shell.base {
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
-
 html,
 body,
 #root {

@@ -46,6 +46,7 @@ describe("start command CLI args — exact key set", () => {
         "account-type",
         "claude-code",
         "control-port",
+        "desktop-ipc",
         "github-token",
         "manual",
         "port",

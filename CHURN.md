@@ -1,6 +1,6 @@
 # Churn
 
-- Maximal runtime logs MUST use `@stuffbucket/maximal-logging`; do not add parallel
+- Maximal runtime logs MUST use `@maximal/maximal-logging`; do not add parallel
   console or file logging.
 - Before duplicating package code, agents MUST query the workspace export map;
   public code MUST be imported through its package entry point. See

@@ -68,11 +68,6 @@ export {
   type TerminalProfileSummary,
   type TerminalTargetSummary,
 } from "./components/TerminalLauncher.js";
-export {
-  TerminalView,
-  type TerminalHost,
-  type TerminalViewProps,
-} from "./components/TerminalView.js";
 export { TitleBar } from "./components/TitleBar.js";
 export {
   WindowChrome,
@@ -93,67 +88,6 @@ export {
   type ShellUsageContent,
 } from "./lib/content.js";
 export { LOREM_CONTENT } from "./lib/content-lorem.js";
-export type {
-  GhosttyWindowAdjustment,
-  TerminalEmulatorKind,
-} from "./lib/terminal-emulator.js";
-export {
-  newTerminalTab,
-  terminalDirectoryTitle,
-  terminalProcessTitle,
-  type TerminalShellTab,
-} from "./lib/terminal-tab.js";
-export {
-  isTerminalPane,
-  removeTerminalPane,
-  splitTerminalPane,
-  terminalPaneSessionIds,
-  type TerminalPane,
-  type TerminalSplitDirection,
-} from "./lib/terminal-pane.js";
-export {
-  assertTerminalWorkspace,
-  closeTerminalView,
-  createTerminalWorkspace,
-  dockTerminalDocument,
-  focusTerminalView,
-  splitTerminalView,
-  terminalDocumentId,
-  terminalPaneViewIds,
-  terminalProjectionId,
-  terminalSessionId,
-  terminalViewId,
-  terminalWorkspaceIssues,
-  undockTerminalDocument,
-  type TerminalDockEdge,
-  type TerminalDocument,
-  type TerminalDocumentId,
-  type TerminalPane as TerminalWorkspacePane,
-  type TerminalProjectionId,
-  type TerminalProjectionRecord,
-  type TerminalSessionId,
-  type TerminalSplitDirection as TerminalWorkspaceSplitDirection,
-  type TerminalViewId,
-  type TerminalViewRecord,
-  type TerminalWorkspace,
-  type TerminalWorkspaceInput,
-} from "./lib/terminal-workspace.js";
-export { detachedSessions } from "./lib/terminal-sessions.js";
-export {
-  createTerminalTransport,
-  readTerminalTheme,
-  SHELL_TERMINAL_PROPERTIES,
-  type DetachableTerminalTransport,
-  type TerminalChannels,
-  type TerminalDataMessage,
-  type TerminalDescriptor,
-  type TerminalDisposition,
-  type TerminalEvent,
-  type TerminalExitMessage,
-  type TerminalSession,
-  type TerminalTransport,
-  type TerminalTransportOptions,
-} from "./lib/terminal-transport.js";
 export {
   Banner,
   Button,
@@ -222,7 +156,6 @@ export {
 } from "./components/settings/index.js";
 export { CopyButton, copyText } from "./components/CopyButton.js";
 export { useShellTabs } from "./lib/useShellTabs.js";
-export { useDetachedTerminals } from "./lib/useDetachedTerminals.js";
 export {
   useThemePreference,
   type ThemePreference,

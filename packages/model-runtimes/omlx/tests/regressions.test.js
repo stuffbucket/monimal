@@ -15,6 +15,9 @@ import test from "node:test"
 import * as plugin from "../src/index.ts"
 
 const API_KEY = "regression-test-key"
+const LOOPBACK_IPV4_HOSTNAME = "127.0.0.1"
+const httpLoopbackUrl = (suffix = "") =>
+  `http://${LOOPBACK_IPV4_HOSTNAME}${suffix}`
 
 function config(baseUrl) {
   return {
@@ -154,13 +157,13 @@ async function collect(iterable) {
 
 async function listen(handler) {
   const server = http.createServer(handler)
-  server.listen(0, "127.0.0.1")
+  server.listen(0, LOOPBACK_IPV4_HOSTNAME)
   await once(server, "listening")
   const address = server.address()
   assert.notEqual(address, null)
   assert.equal(typeof address, "object")
   return {
-    baseUrl: `http://127.0.0.1:${address.port}`,
+    baseUrl: httpLoopbackUrl(`:${address.port}`),
     async close() {
       server.close()
       await once(server, "close")
@@ -267,7 +270,7 @@ test("accepts host-shaped Anthropic replay and round-trips signed reasoning", as
 })
 
 test("rejects malformed and mismatched Anthropic replay before fetch", async () => {
-  const adapter = new plugin.OmlxAdapter(config("http://127.0.0.1:1"))
+  const adapter = new plugin.OmlxAdapter(config(httpLoopbackUrl(":1")))
   const malformedStates = [
     // Another adapter's envelope: well-formed, wrong owner. Keeping this in the
     // envelope shape is the point -- a bare `{type, content}` would be rejected
@@ -432,7 +435,7 @@ test("plugin disposal aborts active requests and removes the alias", async () =>
 })
 
 test("rejects unsupported values and malformed tool arguments before fetch", async () => {
-  const adapter = new plugin.OmlxAdapter(config("http://127.0.0.1:1"))
+  const adapter = new plugin.OmlxAdapter(config(httpLoopbackUrl(":1")))
   const unsupported = [
     options({
       messages: [

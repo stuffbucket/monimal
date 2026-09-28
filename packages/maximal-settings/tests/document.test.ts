@@ -1,4 +1,4 @@
-import { getJsonDocumentStore } from "@stuffbucket/maximal-settings"
+import { getJsonDocumentStore } from "@maximal/maximal-settings"
 import assert from "node:assert/strict"
 import { spawn } from "node:child_process"
 import {
@@ -96,7 +96,7 @@ void test("separate processes do not lose concurrent document updates", async ()
     })
     await store.create({ count: 0 })
     const script = `
-      import { getJsonDocumentStore } from "@stuffbucket/maximal-settings";
+      import { getJsonDocumentStore } from "@maximal/maximal-settings";
       const store = getJsonDocumentStore({ namespace: "workers", filePath: process.argv[1] });
       for (let round = 0; round < 10; round++) {
         await store.update(document => ({ count: document.count + 1 }));
@@ -131,6 +131,6 @@ void test("separate processes do not lose concurrent document updates", async ()
     )
     assert.deepEqual(store.read(), { count: 40 })
   } finally {
-    rmSync(root, { recursive: true, force: true })
+    rmSync(root, { recursive: true, force: true, maxRetries: 5 })
   }
 })

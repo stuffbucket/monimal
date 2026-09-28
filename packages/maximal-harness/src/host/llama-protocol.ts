@@ -1,4 +1,12 @@
 import type { ModelProgress } from '../contracts.js';
+import {
+  ENGINE_PHASE_DETAIL,
+  HARNESS_CONFIG,
+  HARNESS_COPY,
+  POSIX_ENGINE_FAULTS,
+  SIGBUS_BY_PLATFORM,
+  WINDOWS_ENGINE_FAULTS,
+} from '../constants.js';
 
 /**
  * The wire between the main process and the llama.cpp engine process, and the
@@ -10,7 +18,7 @@ import type { ModelProgress } from '../contracts.js';
  * every terminal session with it. Issue #133.
  *
  * This module imports nothing that needs Electron, so it is mutation tested.
- * `llama-host.ts` owns the child, and `src/main/llama-worker.ts` is the child.
+ * `llama-host.ts` owns the child, and `src/main/workers/llama-worker.ts` is the child.
  */
 
 /** A tool the engine may offer the model. Structured-clonable: no functions. */
@@ -87,7 +95,7 @@ export function parseEngineEvent(value: unknown): EngineEvent | undefined {
  * The id `hello` carries. It belongs to the engine rather than to any one
  * operation, so the supervisor intercepts it instead of routing it.
  */
-export const ENGINE_LIFECYCLE = 'engine';
+export const ENGINE_LIFECYCLE = HARNESS_CONFIG.engine.lifecycleId;
 
 /* -------------------------------------------------------- how it went down */
 
@@ -95,17 +103,6 @@ export const ENGINE_LIFECYCLE = 'engine';
  * Signal numbers that mean native code faulted. `SIGBUS` differs by platform,
  * which is the reason this is a per-platform table rather than one constant.
  */
-const POSIX_FAULTS: Readonly<Record<string, number>> = {
-  SIGILL: 4,
-  SIGTRAP: 5,
-  SIGABRT: 6,
-  SIGFPE: 8,
-  SIGKILL: 9,
-  SIGSEGV: 11,
-};
-
-const SIGBUS: Readonly<Record<string, number>> = { darwin: 10, linux: 7 };
-
 /**
  * Windows reports a status code rather than a signal.
  *
@@ -119,14 +116,6 @@ const SIGBUS: Readonly<Record<string, number>> = { darwin: 10, linux: 7 };
  * A Windows code here also depends on Crashpad running: the same fault reports
  * `0xC0000005` with the handler installed and `0xffff7003` without it.
  */
-const WINDOWS_FAULTS: Readonly<Record<number, string>> = {
-  134: 'SIGABRT',
-  0xc0000005: 'access violation',
-  0xc0000374: 'heap corruption',
-  0xc0000409: 'stack buffer overrun',
-  0xc000001d: 'illegal instruction',
-};
-
 /**
  * The name of the fault that killed the engine, or undefined for an ordinary
  * exit.
@@ -138,14 +127,14 @@ const WINDOWS_FAULTS: Readonly<Record<number, string>> = {
  */
 export function faultName(code: number, platform: string): string | undefined {
   if (platform === 'win32') {
-    const named = WINDOWS_FAULTS[code];
+    const named = WINDOWS_ENGINE_FAULTS[code];
     if (named) return named;
     return code >= 0xc0000000 ? `native fault 0x${code.toString(16)}` : undefined;
   }
 
   // `code` is a number, so an unknown platform's absent entry never matches.
-  if (code === SIGBUS[platform]) return 'SIGBUS';
-  for (const [name, number] of Object.entries(POSIX_FAULTS)) {
+  if (code === SIGBUS_BY_PLATFORM[platform]) return 'SIGBUS';
+  for (const [name, number] of Object.entries(POSIX_ENGINE_FAULTS)) {
     if (code === number) return name;
   }
   return undefined;
@@ -159,25 +148,21 @@ export function faultName(code: number, platform: string): string | undefined {
  * user cannot see is only marginally better than one that takes the app.
  */
 export function describeEngineExit(code: number, platform: string): string {
-  if (code === 0) return 'The model engine stopped.';
+  if (code === 0) return HARNESS_COPY.engine.cleanStop;
 
   const fault = faultName(code, platform);
   if (fault === undefined) {
-    return `The model engine exited with code ${String(code)}. Nothing else was affected.`;
+    return HARNESS_COPY.engine.exited(code);
   }
-  return (
-    `The model engine crashed in native code (${fault}). Nothing else was affected. ` +
-    'The model file may be corrupt, or the machine may have run out of memory. ' +
-    'Delete the downloaded weights and try again.'
-  );
+  return HARNESS_COPY.engine.crashed(fault);
 }
 
 /* ---------------------------------------------------------- restart budget */
 /** How long a crash counts against the budget. */
-export const CRASH_WINDOW_MS = 60_000;
+export const CRASH_WINDOW_MS = HARNESS_CONFIG.engine.crashWindowMs;
 
 /** Crashes allowed inside that window before the engine stops being restarted. */
-export const CRASH_LIMIT = 3;
+export const CRASH_LIMIT = HARNESS_CONFIG.engine.crashLimit;
 
 /** Crash times still inside the window, oldest first. */
 export function recentCrashes(times: readonly number[], now: number): number[] {
@@ -198,10 +183,7 @@ export function mayRestart(times: readonly number[], now: number): boolean {
 
 /** What to say once the budget is spent. */
 export function exhaustedMessage(last: string): string {
-  return (
-    `${last} It has crashed ${String(CRASH_LIMIT)} times, so it will not be ` +
-    'started again until the application restarts.'
-  );
+  return HARNESS_COPY.engine.exhausted(last, CRASH_LIMIT);
 }
 
 /* --------------------------------------------------------- where it got to */
@@ -227,18 +209,6 @@ export type EnginePhase =
   /** `getLlama()` returned and named a device. */
   | 'loaded';
 
-const PHASE_DETAIL: Readonly<Record<EnginePhase, string>> = {
-  'not started': 'the engine process was never forked',
-  forked: 'the engine process started but its entry never ran',
-  running:
-    'the engine started and never read the request off its port, so the ' +
-    'request never reached it',
-  acknowledged:
-    'the engine read the request and never named a device, so loading ' +
-    'llama.cpp is where it stopped',
-  loaded: 'the engine had loaded llama.cpp and did not answer',
-};
-
 /**
  * The timeout message, naming what it was waiting on and for how long.
  *
@@ -247,7 +217,7 @@ const PHASE_DETAIL: Readonly<Record<EnginePhase, string>> = {
  * Windows log next needs both to calibrate.
  */
 export function describeEngineWait(phase: EnginePhase, ms: number): string {
-  return `no answer in ${String(ms)} ms: ${PHASE_DETAIL[phase]} (phase ${phase})`;
+  return `no answer in ${String(ms)} ms: ${ENGINE_PHASE_DETAIL[phase]} (phase ${phase})`;
 }
 
 /* ------------------------------------------------------ the packaged check */
@@ -266,9 +236,9 @@ export function describeEngineWait(phase: EnginePhase, ms: number): string {
  * module, so it holds its own copies of these strings.
  * `tests/llama-protocol.test.ts` asserts they match.
  */
-export const LLAMA_CHECK_FLAG = '--self-check=llama';
-export const LLAMA_CHECK_OK = 'self-check llama: ok';
-export const LLAMA_CHECK_FAILED = 'self-check llama: failed';
+export const LLAMA_CHECK_FLAG = HARNESS_COPY.selfCheck.flag;
+export const LLAMA_CHECK_OK = HARNESS_COPY.selfCheck.ok;
+export const LLAMA_CHECK_FAILED = HARNESS_COPY.selfCheck.failed;
 
 /**
  * The failure that means the engine started and could not load the library.
@@ -279,7 +249,7 @@ export const LLAMA_CHECK_FAILED = 'self-check llama: failed';
  * the "failed for the wrong reason" case `.claude/skills/write-a-check` ends
  * on. Naming the branch is what tells the two apart.
  */
-export const LLAMA_NO_LIBRARY = 'did not load llama.cpp';
+export const LLAMA_NO_LIBRARY = HARNESS_COPY.selfCheck.noLibrary;
 
 export type LlamaCheckResult =
   | { ok: true; device: string; loadMs: number; releasedBy: string; survived: string }
@@ -303,7 +273,9 @@ export function llamaCheckRequested(argv: readonly string[]): boolean {
  * build now reports. Issue #149.
  */
 export function engineCheckTimeoutMs(platform: string): number {
-  return platform === 'win32' ? 180_000 : 60_000;
+  return platform === 'win32'
+    ? HARNESS_CONFIG.engine.checkTimeoutMs.win32
+    : HARNESS_CONFIG.engine.checkTimeoutMs.default;
 }
 
 /**

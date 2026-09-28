@@ -9,7 +9,7 @@ import js from "@eslint/js"
  * like protection.
  *
  * Entries here are globbed with `**` on both sides because a consumer's
- * outputs can be nested (`packages/maximal/client/out`), and a bare `out/**`
+ * outputs can be nested (`apps/desktop/out`), and a bare `out/**`
  * anchors to the config file's directory only.
  */
 export const generatedTrees = [

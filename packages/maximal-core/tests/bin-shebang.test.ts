@@ -8,12 +8,12 @@
  * that no other check looks at.
  *
  * IT SHIPPED WRONG. `src/main.ts` carried `#!/usr/bin/env node`, the bundler
- * preserved it, and `@stuffbucket/maximal-core@0.4.4` went to the registry with
+ * preserved it, and `@maximal/maximal-core@0.4.4` went to the registry with
  * a `bin` that Node picks up and dies in:
  *
  *     $ ./node_modules/.bin/maximal start --port 0
  *      ERROR  __require is not a function
- *         at node_modules/@stuffbucket/maximal-core/dist/main.js:33557:14
+ *         at node_modules/@maximal/maximal-core/dist/main.js:33557:14
  *
  * `--version` printed `0.4.4` and looked fine, because citty answers it before
  * reaching the module that needs `__require`. That is why a smoke test of the
@@ -91,7 +91,7 @@ describe("the shipped bin declares the runtime that can run it", () => {
 
   // The artifact itself, because the entry's shebang only matters if it
   // survives the bundler. `dist/main.js` is build output — this reads the bytes
-  // the current build produced, which are the bytes `prepack` uploads.
+  // the current build produced, which are the bytes the package surface names.
   it("the built dist/main.js carries it too", () => {
     const target = buildTarget(MAIN_BUILD_ARGV) ?? ""
     expect(readFirstLine("dist/main.js")).toBe(shebangFor(target))

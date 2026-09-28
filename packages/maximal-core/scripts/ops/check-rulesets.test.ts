@@ -48,7 +48,6 @@ function healthy(): Array<Ruleset> {
             required_status_checks: [
               { context: "test", integration_id: 15368 },
               { context: "windows", integration_id: 15368 },
-              { context: "gate", integration_id: 15368 },
             ],
           },
         },
@@ -150,7 +149,6 @@ describe("weakenings are findings", () => {
     params(live, "required_status_checks").required_status_checks = [{ context: "test" }]
     const assertions = evaluate(live).findings.map((f) => f.assertion)
     expect(assertions).toContain("requires the `windows` check")
-    expect(assertions).toContain("requires the `gate` check")
   })
 
   test("strict-update turned off", () => {
@@ -172,10 +170,10 @@ describe("weakenings are findings", () => {
 
 describe("the bypass assertion", () => {
   // The direction this used to point in is the whole of the change: `main` once
-  // carried an always-mode admin bypass so the release commit could be pushed
-  // straight to it, and the check asserted the bypass was PRESENT. The release
-  // lands through a PR now, so a bypass actor is a weakening — it would restore
-  // the one commit that reached `main` with no check run against it.
+  // carried an always-mode admin bypass for direct maintainer pushes, and the
+  // check asserted the bypass was PRESENT. All changes land through PRs now, so
+  // a bypass actor is a weakening — it would restore a path to `main` with no
+  // check run against it.
   test("a bypass added to the PR requirement is a finding, with the reason named", () => {
     const live = healthy()
     requirePr(live).bypass_actors = [
@@ -183,7 +181,7 @@ describe("the bypass assertion", () => {
     ]
     const finding = evaluate(live).findings[0]
     expect(finding.assertion).toBe("has no bypass actor")
-    expect(finding.detail).toContain("release:prepare")
+    expect(finding.detail).toContain("outside a pull request")
   })
 
   // Any actor at all, in any mode: `evaluate` counts the list rather than
@@ -314,7 +312,7 @@ describe("workflow parsing", () => {
 // The parity guard. A required status check names a JOB ID; if a job is renamed
 // the check never reports and GitHub blocks the PR forever with nothing red to
 // point at. This is the offline half of the ruleset check, and the half that
-// runs on every PR (release-gates.yml's `test:ops` self-check).
+// runs on every PR that touches the ops lane (tooling-ci.yml's `check:ops`).
 describe("required-check parity with the workflows", () => {
   test("every required context is a job in its workflow", async () => {
     for (const { context, workflow } of CHECK_JOBS) {

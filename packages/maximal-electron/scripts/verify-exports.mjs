@@ -72,8 +72,6 @@ for (const { name, ok, detail } of peerTableChecks({
 
 /*
  * `scripts/export-checks.mjs` holds what an export has to satisfy.
- * `verify-git-install.mjs` asks the same questions of a package installed by
- * git ref, which runs `prepare` where this path runs `prepack`. Issue #83.
  */
 const targets = exportTargets(manifest.exports);
 

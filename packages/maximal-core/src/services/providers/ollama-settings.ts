@@ -1,8 +1,9 @@
-import type { AppConfig } from "~/lib/config/config"
 import type {
   OllamaSettingsResponse,
   OllamaSettingsUpdateRequest,
-} from "~/lib/config/settings-types"
+} from "@maximal/maximal-core-contract/settings"
+
+import type { AppConfig } from "~/lib/config/config"
 
 import {
   readSecret,

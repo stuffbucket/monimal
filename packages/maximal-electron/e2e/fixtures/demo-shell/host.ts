@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 
+import { type ThemePreference } from '@maximal/maximal-electron/renderer';
 import {
   createTerminalTransport,
   readTerminalTheme,
   SHELL_TERMINAL_PROPERTIES,
   type DetachableTerminalTransport,
-  type ThemePreference,
-} from '@stuffbucket/maximal-electron/renderer';
+} from '@maximal/maximal-terminal/renderer';
 
 /**
  * What this fixture asks of the window that hosts it.

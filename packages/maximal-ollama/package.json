@@ -1,0 +1,35 @@
+{
+  "name": "@maximal/maximal-ollama",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Node-native Ollama runtime discovery and management for Maximal.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./contract": {
+      "types": "./dist/contract.d.ts",
+      "import": "./dist/contract.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": ["dist"],
+  "scripts": {
+    "analyze": "bun ../maximal-core/scripts/analyze.ts",
+    "build": "tsc --project tsconfig.build.json",
+    "lint": "eslint .",
+    "test": "pnpm run build && node --test tests/*.test.mjs && vitest run tests/runtime.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@maximal/eslint-config": "workspace:*",
+    "@types/node": "^26.4.0",
+    "@typescript/native": "npm:typescript@^7.0.2",
+    "eslint": "^10.9.1",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "vitest": "^4.1.11"
+  },
+  "engines": { "node": ">=24" }
+}

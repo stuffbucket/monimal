@@ -42,9 +42,9 @@ import { BUILD_COMMAND, OUT_DIR as BUILD_OUT_DIR } from "./build-bundle"
 // guards are the deliberate exception — they read the real configs and the real
 // index, which is the point of them.
 //
-// Nothing here may assert on the AMBIENT environment. release-gates.yml's
-// `gate` job runs `check:ops` with no `bun install`, on purpose, so a test that
-// asserted "this checkout has node_modules" failed there and nowhere else.
+// Nothing here may assert on the AMBIENT environment. Tooling CI runs
+// `check:ops` in an environment that is not this process, so a test that asserts
+// "this checkout has node_modules" can fail there and nowhere else.
 // Requirements are tested against temp roots and injected versions instead.
 
 const REPO_ROOT = path.resolve(import.meta.dir, "..", "..")
@@ -161,7 +161,7 @@ describe("parity with the real build config", () => {
 
   // The pin is the whole basis of the bundle's reproducibility, so the file has
   // to exist and read as a bare version. It is tracked, so this holds with no
-  // install — which the `gate` job relies on.
+  // install — which tooling CI relies on.
   test("the real .bun-version parses as a bare version", () => {
     expect(pinnedBunVersion()).toMatch(/^\d+\.\d+\.\d+$/u)
   })

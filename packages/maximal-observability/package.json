@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "name": "@stuffbucket/maximal-observability",
+  "name": "@maximal/maximal-observability",
   "version": "0.0.0",
   "private": true,
   "description": "Composable renderer-only traffic observability surfaces for Maximal.",
@@ -21,19 +21,20 @@
   ],
   "scripts": {
     "analyze": "bun ../maximal-core/scripts/analyze.ts",
-    "build": "tsup src/index.ts --format esm --dts --clean --target es2022 --external react --external @stuffbucket/maximal-data-visualization --external @stuffbucket/maximal-electron --external @stuffbucket/maximal-observability-contract --external @stuffbucket/maximal-context-window --out-dir dist && cp src/styles.css dist/styles.css",
+    "build": "tsup src/index.ts --format esm --dts --clean --target es2022 --external react --external @maximal/maximal-data-visualization --external @maximal/maximal-electron --external @maximal/maximal-observability-contract --external @maximal/maximal-context-window --out-dir dist && cp src/styles.css dist/styles.css",
     "lint": "eslint",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@stuffbucket/maximal-context-window": "workspace:*",
-    "@stuffbucket/maximal-data-visualization": "workspace:*",
-    "@stuffbucket/maximal-observability-contract": "workspace:*"
+    "@maximal/maximal-context-window": "workspace:*",
+    "@maximal/maximal-data-visualization": "workspace:*",
+    "@maximal/maximal-observability-contract": "workspace:*"
   },
   "devDependencies": {
-    "@stuffbucket/eslint-config": "workspace:*",
-    "@stuffbucket/maximal-electron": "workspace:*",
+    "@maximal/eslint-config": "workspace:*",
+    "@maximal/maximal-electron": "workspace:*",
+    "@maximal/maximal-terminal": "workspace:*",
     "@types/node": "^26.4.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.5",
@@ -48,7 +49,7 @@
     "vitest": "^4.1.11"
   },
   "peerDependencies": {
-    "@stuffbucket/maximal-electron": "^0.0.9",
+    "@maximal/maximal-electron": "^0.0.9",
     "react": ">=18.0.0 <20.0.0"
   },
   "engines": {

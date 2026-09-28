@@ -1,6 +1,6 @@
-# @stuffbucket/omlx
+# @maximal/omlx
 
-`@stuffbucket/omlx` is a stock Cordis plugin for the
+`@maximal/omlx` is a stock Cordis plugin for the
 [`@deepseek-ai/dsh-llm`](https://www.npmjs.com/package/@deepseek-ai/dsh-llm)
 service. It registers one DSH provider route for each configured oMLX server
 alias and translates DSH requests to oMLX's Anthropic-compatible
@@ -13,7 +13,7 @@ DSH LLM service.
 ## Installation
 
 ```sh
-pnpm add @stuffbucket/omlx @deepseek-ai/cordis@4.0.1 @deepseek-ai/dsh-llm@0.1.0-rc.6
+pnpm add @maximal/omlx @deepseek-ai/cordis@4.0.1 @deepseek-ai/dsh-llm@0.1.0-rc.6
 ```
 
 Cordis and DSH are exact peer dependencies so the plugin uses the same runtime and
@@ -24,7 +24,7 @@ adapter contracts as its host.
 ```ts
 import { Context } from "@deepseek-ai/cordis"
 import LlmRuntime, { createUserMessage } from "@deepseek-ai/dsh-llm"
-import * as omlx from "@stuffbucket/omlx"
+import * as omlx from "@maximal/omlx"
 
 const ctx = new Context()
 await ctx.plugin(LlmRuntime)
@@ -120,10 +120,10 @@ caches is an oMLX responsibility. This package neither copies nor deletes them.
 Run package-local checks from the workspace root:
 
 ```sh
-pnpm --filter @stuffbucket/omlx run build
-pnpm --filter @stuffbucket/omlx run typecheck
-pnpm --filter @stuffbucket/omlx run lint
-pnpm --filter @stuffbucket/omlx run test
+pnpm --filter @maximal/omlx run build
+pnpm --filter @maximal/omlx run typecheck
+pnpm --filter @maximal/omlx run lint
+pnpm --filter @maximal/omlx run test
 ```
 
 The tests use only `node:http`, stock Cordis, and `@deepseek-ai/dsh-llm`; they do
