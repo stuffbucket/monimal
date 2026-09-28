@@ -558,8 +558,8 @@ importers:
         specifier: ^7.2.4
         version: 7.2.4
       undici:
-        specifier: ^8.10.1
-        version: 8.10.1
+        specifier: ^8.10.2
+        version: 8.10.2
       winreg:
         specifier: ^1.2.5
         version: 1.2.5
@@ -1733,7 +1733,7 @@ packages:
     libc: glibc
 
   '@cdxgen/cdxgen-plugins-bin-linux-arm64@2.5.1':
-    resolution: {integrity: sha1-+a8wy+mZOvtWRxWqKDK8eE+NJp4=}
+    resolution: {integrity: sha512-NjxXYNzqMAv0M5lBDNZZniYvJRgzJlHVsucR2R2DNK7lHzALBWeYdY6FhBSztX6SmK3Ictq8T7g+w1k0vMnxoA==}
     cpu: [arm64]
     os: [linux]
     libc: glibc
@@ -1790,7 +1790,7 @@ packages:
     os: [linux]
 
   '@cdxgen/safer-exec-linux-arm64@0.15.0':
-    resolution: {integrity: sha1-dj44jzACUewyKuFwOAFbM2Sx1qM=}
+    resolution: {integrity: sha512-NRfsNnFcl3qUbxWTNNJltrFAagJcYumTGhK9Ad9BxzFu6l2FS2wozr4pr9KRzSrEXFCiEqm2unAtDgyAGx/nbw==}
     cpu: [arm64]
     os: [linux]
 
@@ -8281,8 +8281,8 @@ packages:
     resolution: {integrity: sha1-rg9vYuBuBXqcu3srX94rt095G48=}
     engines: {node: '>=20.18.1'}
 
-  undici@8.10.1:
-    resolution: {integrity: sha1-WAc6809dBqp6E6Jwc2gSmf4max0=}
+  undici@8.10.2:
+    resolution: {integrity: sha1-lgvLC0PCZ/hpEOp8pAitqEOkS8c=}
     engines: {node: '>=22.19.0'}
 
   unicorn-magic@0.3.0:
@@ -13977,7 +13977,7 @@ snapshots:
       saxes: 6.0.0
       symbol-tree: 3.2.4
       tough-cookie: 6.0.2
-      undici: 8.10.1
+      undici: 8.10.2
       w3c-xmlserializer: 5.0.0
       webidl-conversions: 8.0.1
       whatwg-mimetype: 5.0.0
@@ -15954,7 +15954,7 @@ snapshots:
 
   undici@7.29.0: {}
 
-  undici@8.10.1: {}
+  undici@8.10.2: {}
 
   unicorn-magic@0.3.0: {}
 
