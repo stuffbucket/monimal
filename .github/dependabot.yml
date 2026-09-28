@@ -13,12 +13,17 @@ updates:
         patterns:
           - "*"
 
-  # Refreshes the digest-pinned base image. Dockerfile changes trigger the
-  # pinned-image policy workflow before the update can merge.
+  # Refreshes the digest-pinned Node image within the .nvmrc-owned major.
+  # Dockerfile changes trigger the pinned-image policy workflow before the
+  # update can merge.
   - package-ecosystem: docker
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      - dependency-name: node
+        update-types:
+          - version-update:semver-major
 
   # Routine npm updates. Without this entry the only npm bumps that arrive are
   # security ones -- those come through the npm_and_yarn group regardless of
