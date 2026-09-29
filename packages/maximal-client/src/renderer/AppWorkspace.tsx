@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useState,
   type Dispatch,
@@ -6,6 +7,7 @@ import {
   type SetStateAction,
 } from 'react'
 import { BrowserSurface } from '@maximal/maximal-browser/renderer'
+import { ContextWindowInspector } from '@maximal/maximal-observability'
 import { terminalPaneSessionIds } from '@maximal/maximal-terminal/renderer'
 import {
   Button,
@@ -19,7 +21,13 @@ import {
 
 import type { SettingsSectionId } from '../shared/settings-sections'
 import { AccountStatusLine } from './AccountStatusLine'
-import { AppFrame, PRODUCT_TABS, SurfaceActivity, type AppTab } from './frame/AppFrame'
+import {
+  AppFrame,
+  PRODUCT_TABS,
+  SurfaceActivity,
+  SurfaceRight,
+  type AppTab,
+} from './frame/AppFrame'
 import { WorkspaceRail } from './frame/WorkspaceRail'
 import { WorkspaceMap } from './workspace-map/WorkspaceMap'
 import { Overview } from './overview/Overview'
@@ -67,6 +75,7 @@ interface ActiveSurfaceProps {
   settings: SettingsCapabilities
   sectionRequest: SettingsSectionRequest | null
   terminalState: TerminalTabsState
+  onFocusChange: (tabId: string, sessionId: string) => void
 }
 
 function ActiveSurface({
@@ -76,6 +85,7 @@ function ActiveSurface({
   settings,
   sectionRequest,
   terminalState,
+  onFocusChange,
 }: ActiveSurfaceProps): ReactElement {
   return (
     <>
@@ -99,6 +109,7 @@ function ActiveSurface({
           tabs={terminalTabs}
           activeId={current?.id ?? ''}
           onExit={terminalState.closeTab}
+          onFocusChange={onFocusChange}
           onPaneChange={terminalState.syncPane}
           onTitleChange={terminalState.updateTerminalTitle}
           initialPane={terminalState.detachedWindow?.pane}
@@ -264,6 +275,10 @@ export function AppWorkspace({
   const [profileError, setProfileError] = useState<string>()
   const [browserAddress, setBrowserAddress] = useState<string>()
   const [mapOpen, setMapOpen] = useState(false)
+  const [focusedTerminalSessions, setFocusedTerminalSessions] = useState<
+    Record<string, string>
+  >({})
+  const [contextSessions, setContextSessions] = useState<Record<string, string>>({})
   const visibleTabs = detachedWindow
     ? terminalState.tabs.filter((tab) => tab.kind === 'terminal')
     : terminalState.tabs
@@ -303,6 +318,13 @@ export function AppWorkspace({
   }
   const openProfileSurface = (surface: SettingsSurface): void =>
     openSettings(PROFILE_SETTINGS[surface])
+  const onTerminalFocusChange = useCallback((tabId: string, sessionId: string) => {
+    setFocusedTerminalSessions((current) =>
+      current[tabId] === sessionId ? current : { ...current, [tabId]: sessionId })
+  }, [])
+  const focusedTerminalSession = current?.kind === 'terminal'
+    ? focusedTerminalSessions[current.id] ?? current.sessionId
+    : undefined
 
   const openTerminalWindow = (tab: AppTab, copy: boolean): void => {
     const request = terminalState.terminalWindowRequest(tab)
@@ -477,7 +499,23 @@ export function AppWorkspace({
           settings={settings}
           sectionRequest={sectionRequest}
           terminalState={terminalState}
+          onFocusChange={onTerminalFocusChange}
         />
+        {focusedTerminalSession ? (
+          <SurfaceRight>
+            <ContextWindowInspector
+              selectedSessionId={
+                contextSessions[focusedTerminalSession] ?? focusedTerminalSession
+              }
+              onSelectSession={(sessionId) => {
+                setContextSessions((currentSessions) => ({
+                  ...currentSessions,
+                  [focusedTerminalSession]: sessionId,
+                }))
+              }}
+            />
+          </SurfaceRight>
+        ) : null}
         {!detachedWindow ? (
           <>
             <SurfaceActivity>

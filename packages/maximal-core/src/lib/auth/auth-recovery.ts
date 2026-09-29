@@ -30,7 +30,7 @@ import {
   markNeedsReauthInDefaultRegistry,
   readDefaultRegistry,
   setAccountEnabled,
-  writeDefaultRegistry,
+  updateDefaultRegistry,
 } from "~/lib/auth/github-token-store"
 import { setupCopilotToken, stopCopilotRefreshLoop } from "~/lib/auth/token"
 import { emitAuthChanged } from "~/lib/config/settings-events"
@@ -171,9 +171,8 @@ export async function setAccountEnabledLive(
   }
 
   if (!enabled && registry.activeKey === accountKeyToUpdate) await signOut()
-  const current = await readDefaultRegistry()
-  await writeDefaultRegistry(
-    setAccountEnabled(current, accountKeyToUpdate, enabled),
+  await updateDefaultRegistry((registry) =>
+    setAccountEnabled(registry, accountKeyToUpdate, enabled),
   )
   return { ok: true }
 }

@@ -266,7 +266,7 @@ describe('AppFrame', () => {
     expect(tabs[2]?.querySelector('svg.lucide-settings')).not.toBeNull()
   })
 
-  it('renders a terminal session as a closable full-width document', () => {
+  it('renders a terminal session with a closable document and right inspector', () => {
     const onCloseTab = vi.fn()
     const onNewTab = vi.fn()
     const terminal = { id: 'terminal:session-1', title: 'zsh', icon: 'terminal', kind: 'terminal' } as const
@@ -283,16 +283,19 @@ describe('AppFrame', () => {
           onCloseTab={onCloseTab}
           onNewTab={onNewTab}
         >
-          <p>terminal content</p>
+          <>
+            <SurfaceRight><p data-testid="terminal-right">context</p></SurfaceRight>
+            <p>terminal content</p>
+          </>
         </AppFrame>,
       )
     })
 
     expect(container.querySelector('#left')).toBeNull()
-    expect(container.querySelector('#right')).toBeNull()
+    expect(container.querySelector('#right [data-testid="terminal-right"]')).not.toBeNull()
     expect(container.querySelector('.statusbar')).toBeNull()
     expect(container.querySelector('[data-testid="toggle-left"]')).toBeNull()
-    expect(container.querySelector('[data-testid="toggle-right"]')).toBeNull()
+    expect(container.querySelector('[data-testid="toggle-right"]')).not.toBeNull()
     expect(container.querySelector('[aria-label="Close Overview"]')).toBeNull()
     expect(container.querySelector('[aria-label="Close zsh"]')).not.toBeNull()
 

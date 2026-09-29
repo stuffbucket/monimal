@@ -177,4 +177,42 @@ describe('ShellLayout panel topology', () => {
     expect(panels?.querySelector<HTMLElement>('[data-panel]')?.style.flexGrow).toBe('78');
     act(() => root.unmount());
   });
+
+  it('restores a terminal tab right-panel collapse state in a new frame', () => {
+    const renderWindow = (container: HTMLElement) => {
+      const root = createRoot(container);
+      act(() => root.render(
+        <ShellLayout
+          layoutId="topology-test"
+          tabs={[{ id: 'terminal:session-1', title: 'Terminal' }]}
+          activeTab="terminal:session-1"
+          onSelectTab={() => undefined}
+          right={<aside>Context window</aside>}
+          main={<div>terminal</div>}
+        />,
+      ));
+      act(() => flushResizeObservers());
+      return root;
+    };
+
+    const sourceContainer = document.createElement('div');
+    document.body.append(sourceContainer);
+    const sourceRoot = renderWindow(sourceContainer);
+    const sourceToggle = sourceContainer.querySelector<HTMLElement>('[data-testid="toggle-right"]');
+    if (sourceToggle === null) throw new Error('right panel toggle was not rendered');
+
+    act(() => sourceToggle.click());
+    act(() => flushResizeObservers());
+    expect(sourceToggle.getAttribute('aria-label')).toBe('Show panel');
+    act(() => sourceRoot.unmount());
+    sourceContainer.remove();
+
+    const detachedContainer = document.createElement('div');
+    document.body.append(detachedContainer);
+    const detachedRoot = renderWindow(detachedContainer);
+    expect(
+      detachedContainer.querySelector('[data-testid="toggle-right"]')?.getAttribute('aria-label'),
+    ).toBe('Show panel');
+    act(() => detachedRoot.unmount());
+  });
 });

@@ -121,6 +121,7 @@ Both are monorepo-native;
 | `apps/desktop` | The workspace build must build the Maximal composition and `@maximal/maximal-client` renderer dependencies before compiling the sidecar; Forge bundles its app entry points with product surfaces from `packages/maximal-client/src`. |
 | `@maximal/maximal-client` | Its workspace build waits for dependency builds; typechecking the renderer requires their emitted contracts in a clean Linux checkout. |
 | `apps/desktop` | Development Electron profiles are checkout-isolated and shutdown waits for the Core child. |
+| `apps/desktop` / `maximal-core` | Development worktrees isolate application state while sharing a locked GitHub credential home; `MAXIMAL_DEV_PROFILE` MAY assign a stable explicit development profile name. Packaged and standalone Core credential paths remain unchanged. |
 | `maximal-electron` / `apps/desktop` | Desktop imports the package host-window API directly; it has no local shell adapter. |
 | `maximal-electron` / `apps/desktop` | The host export owns Electron-native system-notification support and trusted macOS notification-settings launching; desktop exposes notification status and the settings action through its typed preload bridge. |
 | `apps/desktop` | Electron owns version, login-item, lifecycle, and Settings integration for General desktop behavior; `uiohook-napi` is limited to the modifier-only Ctrl-twice quick-access gesture that Electron accelerators cannot represent. |

@@ -28,6 +28,7 @@ export interface TerminalPaneTreeOptions {
   launchSplit?: () => Promise<{ sessionId: string }>;
   onExit?: (tabId: string) => void;
   onSessionsChange?: (tabId: string, sessionIds: string[]) => void;
+  onFocusChange?: (tabId: string, sessionId: string) => void;
   onPaneChange?: (tabId: string, pane: TerminalPane, baseRevision: number) => void;
   initialPane?: TerminalPane;
   initialPaneRevision?: number;
@@ -65,6 +66,7 @@ export function useTerminalPaneTree({
   launchSplit,
   onExit,
   onSessionsChange,
+  onFocusChange,
   onPaneChange,
   initialPane,
   initialPaneRevision = 0,
@@ -77,7 +79,7 @@ export function useTerminalPaneTree({
   const pane = paneState.pane;
   const paneRef = useRef(pane);
   const paneRevisionRef = useRef(paneState.revision);
-  const callbacks = useRef({ onPaneChange, onSessionsChange });
+  const callbacks = useRef({ onFocusChange, onPaneChange, onSessionsChange });
   const mountGeneration = useRef(0);
   const [focusedId, setFocusedId] = useState(attachment.sessionId);
   const [focusRequest, setFocusRequest] = useState({ sessionId: '', generation: 0 });
@@ -85,7 +87,7 @@ export function useTerminalPaneTree({
   const [splitFailed, setSplitFailed] = useState(false);
   paneRef.current = pane;
   paneRevisionRef.current = paneState.revision;
-  callbacks.current = { onPaneChange, onSessionsChange };
+  callbacks.current = { onFocusChange, onPaneChange, onSessionsChange };
 
   useEffect(() => {
     if (!initialPane) return;
@@ -112,6 +114,10 @@ export function useTerminalPaneTree({
   useEffect(() => {
     callbacks.current.onSessionsChange?.(attachment.id, terminalPaneSessionIds(pane));
   }, [attachment.id, pane]);
+
+  useEffect(() => {
+    callbacks.current.onFocusChange?.(attachment.id, focusedId);
+  }, [attachment.id, focusedId]);
 
   function commitPane(update: (current: TerminalPane) => TerminalPane): void {
     const next = update(paneRef.current);
