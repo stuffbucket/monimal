@@ -110,6 +110,42 @@ body {
   mask: var(--terminal-profile-icon-mask) center / contain no-repeat;
   -webkit-mask: var(--terminal-profile-icon-mask) center / contain no-repeat;
 }
+
+:root[data-reduced-motion='true'] *,
+:root[data-reduced-motion='true'] *::before,
+:root[data-reduced-motion='true'] *::after {
+  scroll-behavior: auto !important;
+  transition-duration: 0.01ms !important;
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+}
+
+.cozy-background {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 18% 22%, rgb(111 154 165 / 0.2), transparent 38%),
+    radial-gradient(circle at 72% 18%, rgb(154 127 160 / 0.18), transparent 40%),
+    radial-gradient(circle at 56% 72%, rgb(170 135 106 / 0.16), transparent 42%);
+}
+
+.cozy-background canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  opacity: 0.9;
+}
+
+.cozy-background[data-renderer-available='true'] {
+  background: transparent;
+}
+
+:root[data-background-effects='true'] .sb-shell {
+  z-index: 1;
+}
 `
 
 const BASE_STYLE_ID = 'maximal-base'

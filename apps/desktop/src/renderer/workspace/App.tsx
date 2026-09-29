@@ -16,6 +16,8 @@ import {
 } from '@maximal/maximal-client/renderer/unsaved-changes'
 
 import { WorkspaceTerminalLauncher } from './WorkspaceTerminalLauncher'
+import { CozyBackground } from './CozyBackground'
+import { useAppearancePreference } from './useAppearancePreference'
 
 /**
  * Top-level composition.
@@ -46,6 +48,7 @@ export function App(): ReactElement {
 
 function AppContent(): ReactElement {
   const settings = useMemo(() => createCoreSettingsCapabilities(), [])
+  const appearance = useAppearancePreference(settings)
   const observability = useMemo(() => createObservabilitySource(), [])
   const [detachedWindow] = useState(readDetachedTerminal)
   const terminalTabsState = useTerminalTabs(detachedWindow)
@@ -67,6 +70,10 @@ function AppContent(): ReactElement {
 
   return (
     <ObservabilityProvider source={observability}>
+      <CozyBackground
+        enabled={appearance?.backgroundEffectsEnabled === true}
+        reducedMotion={appearance?.reducedMotionEnabled === true}
+      />
       <AppWorkspace
         detachedWindow={detachedWindow}
         accountStatus={accountStatus}
