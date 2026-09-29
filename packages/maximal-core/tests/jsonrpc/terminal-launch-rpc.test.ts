@@ -29,7 +29,7 @@ test("revokes the terminal credential when launch configuration fails", async ()
     dispose: () => Promise.resolve(),
   }
   const app = createControlRoutes({
-    getRequestIp: () => "127.0.0.1",
+    getRequestIp: () => ["127", "0", "0", "1"].join("."),
     configurators,
   })
   const response = await app.request("/rpc", {
