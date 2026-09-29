@@ -3,7 +3,8 @@ import type { GitHubHostProfile, GitHubHostProfileInput } from "./contracts.js";
 const DEFAULT_REST_API_VERSION = "2022-11-28";
 
 function normalizeHostname(input: string): string {
-  const value = input.trim().toLowerCase().replace(/\.+$/u, "");
+  let value = input.trim().toLowerCase();
+  while (value.endsWith(".")) value = value.slice(0, -1);
   if (!value) throw new Error("GitHub hostname must not be empty");
   if (
     value.includes("/") ||

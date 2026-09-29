@@ -24,6 +24,10 @@ export const allowedAdhocStyles = new Map([
   ],
   ['packages/maximal-client/src/renderer/base.ts', { injectors: 1 }],
   [
+    'packages/maximal-client/src/renderer/settings/accounts/CopilotPlanDetails.tsx',
+    { inlineAttributes: 6 },
+  ],
+  [
     'packages/maximal-client/src/renderer/settings/settings-styles.ts',
     { injectors: 1 },
   ],
@@ -41,12 +45,20 @@ export const allowedAdhocStyles = new Map([
     { inlineAttributes: 2 },
   ],
   [
+    'packages/maximal-electron/src/renderer/components/Profile.tsx',
+    { inlineAttributes: 1 },
+  ],
+  [
     'packages/maximal-electron/src/renderer/components/TabBar.tsx',
     { inlineAttributes: 1 },
   ],
   [
     'packages/maximal-electron/src/renderer/components/controls/Fields.tsx',
     { inlineAttributes: 2 },
+  ],
+  [
+    'packages/maximal-electron/src/renderer/components/settings/ModelCards.tsx',
+    { inlineAttributes: 1 },
   ],
   [
     'packages/maximal-electron/src/renderer/lib/component-styles.ts',

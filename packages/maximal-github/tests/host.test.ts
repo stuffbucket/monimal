@@ -50,4 +50,13 @@ describe("createGitHubHostProfile", () => {
       }),
     ).toThrow("bare DNS hostname");
   });
+
+  test("removes trailing root-label dots without regex backtracking", () => {
+    expect(
+      createGitHubHostProfile({
+        kind: "github-enterprise-server",
+        hostname: `github.example${".".repeat(10_000)}`,
+      }).hostname,
+    ).toBe("github.example");
+  });
 });
