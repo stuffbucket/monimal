@@ -207,4 +207,37 @@ describe('desktop window recording', () => {
     expect(recording.isRecording()).toBe(false)
     expect(mocks.errorBox).not.toHaveBeenCalled()
   })
+
+  it('returns to idle when the save dialog fails', async () => {
+    mocks.saveDialog.mockRejectedValue(new Error('Save dialog failed'))
+    const recording = createDesktopRecording(
+      () => windowStub() as BrowserWindow,
+      vi.fn(),
+    )
+
+    await expect(recording.toggle()).rejects.toThrow('Save dialog failed')
+    expect(recording.isRecording()).toBe(false)
+    expect(mocks.start).not.toHaveBeenCalled()
+  })
+
+  it('propagates finalization failure and still returns to idle', async () => {
+    const failure = new Error('Encoder failed')
+    const stop = vi.fn(() => Promise.reject(failure))
+    mocks.saveDialog.mockResolvedValue({
+      canceled: false,
+      filePath: '/tmp/demo.mp4',
+    })
+    mocks.start.mockResolvedValue({ stop })
+    const onChange = vi.fn()
+    const recording = createDesktopRecording(
+      () => windowStub() as BrowserWindow,
+      onChange,
+    )
+
+    await recording.toggle()
+    await expect(recording.stop()).rejects.toThrow('Encoder failed')
+    expect(stop).toHaveBeenCalledOnce()
+    expect(recording.isRecording()).toBe(false)
+    expect(onChange).toHaveBeenCalledTimes(2)
+  })
 })

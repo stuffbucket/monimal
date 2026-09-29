@@ -59,6 +59,7 @@ export async function startWindowRecording(options: RecordingOptions): Promise<R
   let wake: (() => void) | undefined;
   let timer: ReturnType<typeof setTimeout> | undefined;
   const interval = 1000 / fps;
+  const startedAt = performance.now();
   const loop = (async () => {
     while (!stopping) {
       const frame = await options.captureFrame();
@@ -71,7 +72,8 @@ export async function startWindowRecording(options: RecordingOptions): Promise<R
       if (stopping) break;
       await new Promise<void>((resolve) => {
         wake = resolve;
-        timer = setTimeout(resolve, interval);
+        const nextFrameAt = startedAt + frames * interval;
+        timer = setTimeout(resolve, Math.max(0, nextFrameAt - performance.now()));
       });
       wake = undefined;
       timer = undefined;
@@ -94,11 +96,13 @@ export async function startWindowRecording(options: RecordingOptions): Promise<R
         if (!child.stdin.writableEnded) child.stdin.end();
         const encodeError = await completed;
         if (captureError || encodeError || frames === 0) {
+          // Stryker disable next-line ObjectLiteral,BooleanLiteral: force avoids masking the primary failure when no output was created.
           await rm(options.output, { force: true });
           throw captureError ?? encodeError ?? new Error('No window frames were recorded.');
         }
         const output = await stat(options.output);
         if (output.size === 0) {
+          // Stryker disable next-line ObjectLiteral,BooleanLiteral: force tolerates an encoder removing its own empty output.
           await rm(options.output, { force: true });
           throw new Error('ffmpeg produced an empty recording.');
         }
