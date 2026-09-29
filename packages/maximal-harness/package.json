@@ -22,10 +22,12 @@
   ],
   "scripts": {
     "build": "tsup src/index.ts src/host/index.ts src/renderer/index.ts src/cli.ts --format esm --dts --target es2022 --external react --external react-dom --out-dir dist && cp src/styles.css dist/styles.css && node scripts/verify-exports.mjs",
+    "dev": "pnpm run build && node dist/cli.js",
     "verify:exports": "node scripts/verify-exports.mjs",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "mutate": "stryker run stryker.config.mjs",
+    "start": "node dist/cli.js",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "analyze": "bun ../maximal-core/scripts/analyze.ts"
