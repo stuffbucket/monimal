@@ -19,11 +19,12 @@
 # two versions equal anyway -- a switch that works is still a download nobody
 # asked for -- but this is now determinism, not a workaround.
 #
-# The aqua backend fetches from GitHub releases and verifies a checksum, and
-# mise.lock records the resolved version and hash per platform -- that is the
-# content pin, so a re-published or swapped artifact at the same version fails
-# rather than silently installing.
+# Tool backends resolve immutable artifacts whose per-platform URLs and
+# checksums are recorded in mise.lock. That lock is the content pin, so a
+# re-published or swapped artifact at the same version fails rather than
+# silently installing.
 [tools]
+ffmpeg = "9.0.2"
 pnpm = "11.25.0"
 ripgrep = "15.2.0"
 

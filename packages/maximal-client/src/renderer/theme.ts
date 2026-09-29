@@ -89,6 +89,22 @@ const THEME_CSS = `
      than a flat colour, so accent-coloured text on top of it still clears
      4.5:1 — a rounder 0.18 alpha drops it to roughly 4.2:1. */
   --shell-accent-muted: rgb(81 152 166 / 0.12);
+  --shell-provider-anthropic-card-border: color-mix(in srgb, #d97757 35%, var(--shell-border));
+  --shell-provider-anthropic-card-background: color-mix(in srgb, #d97757 12%, var(--shell-raised));
+  --shell-provider-openai-card-border: color-mix(in srgb, #10a37f 35%, var(--shell-border));
+  --shell-provider-openai-card-background: color-mix(in srgb, #10a37f 12%, var(--shell-raised));
+  --shell-provider-grok-card-border: color-mix(in srgb, #f5f5f5 35%, var(--shell-border));
+  --shell-provider-grok-card-background: color-mix(in srgb, #f5f5f5 12%, var(--shell-raised));
+  --shell-provider-google-card-border: color-mix(in srgb, #4285f4 35%, var(--shell-border));
+  --shell-provider-google-card-background: color-mix(in srgb, #4285f4 12%, var(--shell-raised));
+  --shell-provider-mistral-card-border: color-mix(in srgb, #f97316 35%, var(--shell-border));
+  --shell-provider-mistral-card-background: color-mix(in srgb, #f97316 12%, var(--shell-raised));
+  --shell-provider-deepseek-card-border: color-mix(in srgb, #4d6bfe 35%, var(--shell-border));
+  --shell-provider-deepseek-card-background: color-mix(in srgb, #4d6bfe 12%, var(--shell-raised));
+  --shell-provider-meta-card-border: color-mix(in srgb, #0866ff 35%, var(--shell-border));
+  --shell-provider-meta-card-background: color-mix(in srgb, #0866ff 12%, var(--shell-raised));
+  --shell-provider-github-card-border: color-mix(in srgb, #8a50d8 35%, var(--shell-border));
+  --shell-provider-github-card-background: color-mix(in srgb, #8a50d8 12%, var(--shell-raised));
 
   /* Focus indicator. Equal to --shell-accent, defined explicitly so focus
      outlines resolve on the first name rather than by falling through. */
@@ -134,9 +150,9 @@ const THEME_CSS = `
   --data-viz-series-6: #b58ad6;
   --data-viz-series-7: #d8835f;
   --data-viz-series-8: #84919f;
-  --maximal-cloud-1: #6f9aa5;
-  --maximal-cloud-2: #9a7fa0;
-  --maximal-cloud-3: #aa876a;
+  --maximal-cloud-1: #5c9fad;
+  --maximal-cloud-2: #9b6ba2;
+  --maximal-cloud-3: #bb7952;
 
    --shell-terminal-background: #111317;
    --maximal-terminal-foreground: #f5f5f5;
@@ -196,6 +212,26 @@ const THEME_CSS = `
   --shell-background: rgb(255 255 255 / 0.7);
   --shell-canvas: rgb(238 240 244 / 0.78);
   --shell-raised: rgb(255 255 255 / 0.88);
+}
+
+:root[data-background-effects='true'] {
+  --bg-app: rgb(22 24 29 / 0.48);
+  --bg-panel: rgb(27 30 36 / 0.64);
+  --bg-canvas: rgb(16 18 22 / 0.56);
+  --bg-raised: rgb(35 39 47 / 0.78);
+  --shell-background: rgb(22 24 29 / 0.48);
+  --shell-canvas: rgb(16 18 22 / 0.56);
+  --shell-raised: rgb(35 39 47 / 0.78);
+}
+
+:root[data-theme='light'][data-background-effects='true'] {
+  --bg-app: rgb(255 255 255 / 0.52);
+  --bg-panel: rgb(247 248 250 / 0.66);
+  --bg-canvas: rgb(238 240 244 / 0.58);
+  --bg-raised: rgb(255 255 255 / 0.8);
+  --shell-background: rgb(255 255 255 / 0.52);
+  --shell-canvas: rgb(238 240 244 / 0.58);
+  --shell-raised: rgb(255 255 255 / 0.8);
 }
 
 /*

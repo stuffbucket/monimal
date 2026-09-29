@@ -264,16 +264,16 @@ body {
   overflow: hidden;
   pointer-events: none;
   background:
-    radial-gradient(circle at 18% 22%, rgb(111 154 165 / 0.2), transparent 38%),
-    radial-gradient(circle at 72% 18%, rgb(154 127 160 / 0.18), transparent 40%),
-    radial-gradient(circle at 56% 72%, rgb(170 135 106 / 0.16), transparent 42%);
+    radial-gradient(ellipse at 12% 22%, rgb(111 154 165 / 0.38), transparent 46%),
+    radial-gradient(ellipse at 76% 28%, rgb(154 127 160 / 0.34), transparent 44%),
+    radial-gradient(ellipse at 50% 78%, rgb(170 135 106 / 0.32), transparent 48%);
 }
 
 .cozy-background canvas {
   display: block;
   width: 100%;
   height: 100%;
-  opacity: 0.9;
+  opacity: 1;
 }
 
 .cozy-background[data-renderer-available='true'] {

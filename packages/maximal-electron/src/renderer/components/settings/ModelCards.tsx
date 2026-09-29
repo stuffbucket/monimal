@@ -186,17 +186,6 @@ function ModelTable({
   );
 }
 
-const PROVIDER_ACCENTS: Record<string, string> = {
-  anthropic: '#d97757',
-  openai: '#10a37f',
-  grok: '#f5f5f5',
-  google: '#4285f4',
-  mistral: '#f97316',
-  deepseek: '#4d6bfe',
-  meta: '#0866ff',
-  github: '#199fd7',
-};
-
 /**
  * The rules a model card draws itself with.
  *
@@ -233,6 +222,46 @@ const MODEL_CARD_STYLES = `
 
 .sb-shell .model-card:hover {
   transform: translateY(calc(-1 * var(--shell-space-1) / 2));
+}
+
+.sb-shell .model-card[data-provider='anthropic'] {
+  border-color: var(--shell-provider-anthropic-card-border);
+  background: var(--shell-provider-anthropic-card-background);
+}
+
+.sb-shell .model-card[data-provider='openai'] {
+  border-color: var(--shell-provider-openai-card-border);
+  background: var(--shell-provider-openai-card-background);
+}
+
+.sb-shell .model-card[data-provider='grok'] {
+  border-color: var(--shell-provider-grok-card-border);
+  background: var(--shell-provider-grok-card-background);
+}
+
+.sb-shell .model-card[data-provider='google'] {
+  border-color: var(--shell-provider-google-card-border);
+  background: var(--shell-provider-google-card-background);
+}
+
+.sb-shell .model-card[data-provider='mistral'] {
+  border-color: var(--shell-provider-mistral-card-border);
+  background: var(--shell-provider-mistral-card-background);
+}
+
+.sb-shell .model-card[data-provider='deepseek'] {
+  border-color: var(--shell-provider-deepseek-card-border);
+  background: var(--shell-provider-deepseek-card-background);
+}
+
+.sb-shell .model-card[data-provider='meta'] {
+  border-color: var(--shell-provider-meta-card-border);
+  background: var(--shell-provider-meta-card-background);
+}
+
+.sb-shell .model-card[data-provider='github'] {
+  border-color: var(--shell-provider-github-card-border);
+  background: var(--shell-provider-github-card-background);
 }
 
 .sb-shell .model-card[data-activatable='true'],
@@ -454,14 +483,6 @@ export function ModelCardGrid({
         <div className="model-grid">
           {group.models.map((model) => {
             const tone = providerTone(model.provider);
-            const accent = PROVIDER_ACCENTS[tone];
-            const cardStyle =
-              accent && !model.disabled
-                ? {
-                    borderColor: `color-mix(in srgb, ${accent} 35%, var(--shell-border))`,
-                    background: `color-mix(in srgb, ${accent} 12%, var(--shell-raised))`,
-                  }
-                : undefined;
             return (
               <article
                 className="model-card"
@@ -480,7 +501,6 @@ export function ModelCardGrid({
                     ? 'button'
                     : undefined
                 }
-                style={cardStyle}
                 tabIndex={
                   modelIsActivatable(model, onModelActivate) ? 0 : undefined
                 }

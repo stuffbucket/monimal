@@ -15,6 +15,22 @@
   --shell-field-background: var(--shell-input-background, var(--shell-canvas));
   --shell-focus-ring-offset: 2px;
   --shell-input-border: var(--shell-border-strong, var(--shell-border));
+  --shell-provider-anthropic-card-border: var(--shell-border);
+  --shell-provider-anthropic-card-background: var(--shell-raised);
+  --shell-provider-openai-card-border: var(--shell-border);
+  --shell-provider-openai-card-background: var(--shell-raised);
+  --shell-provider-grok-card-border: var(--shell-border);
+  --shell-provider-grok-card-background: var(--shell-raised);
+  --shell-provider-google-card-border: var(--shell-border);
+  --shell-provider-google-card-background: var(--shell-raised);
+  --shell-provider-mistral-card-border: var(--shell-border);
+  --shell-provider-mistral-card-background: var(--shell-raised);
+  --shell-provider-deepseek-card-border: var(--shell-border);
+  --shell-provider-deepseek-card-background: var(--shell-raised);
+  --shell-provider-meta-card-border: var(--shell-border);
+  --shell-provider-meta-card-background: var(--shell-raised);
+  --shell-provider-github-card-border: var(--shell-border);
+  --shell-provider-github-card-background: var(--shell-raised);
 
   --shell-text-xs: 0.6875rem;
   --shell-text-sm: 0.8125rem;

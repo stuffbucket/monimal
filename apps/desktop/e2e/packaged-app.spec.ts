@@ -776,6 +776,14 @@ test('Appearance effects persist, honor reduced motion, and release Pixi when di
   const recordingPath = process.env.MAXIMAL_E2E_CAPTURE_COZY_VIDEO === '1'
     ? testInfo.outputPath('cozy-background-demo.mp4')
     : null
+  const recordingHoldMs = Number.parseInt(
+    process.env.MAXIMAL_E2E_COZY_VIDEO_HOLD_MS ?? '5000',
+    10,
+  )
+  if (!Number.isInteger(recordingHoldMs) || recordingHoldMs < 0) {
+    throw new Error('MAXIMAL_E2E_COZY_VIDEO_HOLD_MS must be a non-negative integer.')
+  }
+  testInfo.setTimeout(Math.max(testInfo.timeout, recordingHoldMs + 30_000))
   await page.evaluate(async () => {
     await window.maximal.appearance.setVibrancyEnabled(false)
     await window.maximal.appearance.setBackgroundEffectsEnabled(false)
@@ -793,7 +801,7 @@ test('Appearance effects persist, honor reduced motion, and release Pixi when di
   const reducedMotion = page.getByTestId('reduced-motion-switch')
   await expect(background).toHaveAttribute('aria-checked', 'false')
   await expect(reducedMotion).toHaveAttribute('aria-checked', 'false')
-  await page.screenshot({
+  const disabledFrame = await page.screenshot({
     path: testInfo.outputPath('appearance-effects-disabled.png'),
   })
   if (recordingPath) {
@@ -829,7 +837,36 @@ test('Appearance effects persist, honor reduced motion, and release Pixi when di
     path: testInfo.outputPath('cozy-background-animated-b.png'),
   })
   expect(animatedFrameB.equals(animatedFrameA)).toBe(false)
-  if (recordingPath) await page.waitForTimeout(5_000)
+  const materialMetrics = await running.app.evaluate(({ nativeImage }, frames) => {
+    const decode = (encoded: string): Buffer =>
+      nativeImage
+        .createFromBuffer(Buffer.from(encoded, 'base64'))
+        .resize({ width: 64, height: 64, quality: 'best' })
+        .toBitmap()
+    const disabled = decode(frames.disabled)
+    const enabled = decode(frames.enabled)
+    let changed = 0
+    let difference = 0
+    const pixelCount = Math.min(disabled.length, enabled.length) / 4
+    for (let index = 0; index < pixelCount * 4; index += 4) {
+      const red = Math.abs((disabled[index] ?? 0) - (enabled[index] ?? 0))
+      const green = Math.abs((disabled[index + 1] ?? 0) - (enabled[index + 1] ?? 0))
+      const blue = Math.abs((disabled[index + 2] ?? 0) - (enabled[index + 2] ?? 0))
+      const pixelDifference = (red + green + blue) / 3
+      difference += pixelDifference
+      if (pixelDifference >= 6) changed += 1
+    }
+    return {
+      changedPixelRatio: changed / pixelCount,
+      meanPixelDifference: difference / pixelCount,
+    }
+  }, {
+    disabled: disabledFrame.toString('base64'),
+    enabled: animatedFrameA.toString('base64'),
+  })
+  expect(materialMetrics.changedPixelRatio).toBeGreaterThan(0.2)
+  expect(materialMetrics.meanPixelDifference).toBeGreaterThan(4)
+  if (recordingPath) await page.waitForTimeout(recordingHoldMs)
 
   await reducedMotion.click()
   await expect(reducedMotion).toHaveAttribute('aria-checked', 'true')

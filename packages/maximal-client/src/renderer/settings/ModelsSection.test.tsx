@@ -271,7 +271,6 @@ describe('ModelsSection', () => {
     expect(surface.querySelectorAll('[data-testid="service-icon-ollama"]')).toHaveLength(2)
     const githubModel = surface.querySelector<HTMLElement>('[data-testid="model-gpt-5"]')
     expect(githubModel?.dataset.provider).toBe('github')
-    expect(githubModel?.style.borderColor).toContain('#199fd7')
     expect(
       githubModel?.querySelector('[data-testid="model-provider-github-copilot"]')
         ?.getAttribute('title'),
