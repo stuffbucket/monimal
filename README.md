@@ -42,7 +42,9 @@ app closes or you press Ctrl+C. Use
 maintenance commands.
 
 See [`docs/testing-in-docker.md`](docs/testing-in-docker.md) for the test
-boundary and [RELEASING.md](RELEASING.md) for release procedures.
+boundary, [`docs/terminal-connection-demo.md`](docs/terminal-connection-demo.md)
+for the tmux, SSH, Pipe, and browser connection demo, and
+[RELEASING.md](RELEASING.md) for release procedures.
 
 `pnpm analyze` runs the Turbo-cached package architecture graph: Knip
 reachability and dependency hygiene, dependency-cruiser package/source cycle
