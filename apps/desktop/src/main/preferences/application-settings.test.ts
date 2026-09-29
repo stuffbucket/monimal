@@ -36,12 +36,23 @@ describe('loadApplicationSettings', () => {
     const directory = await fixture()
     const snapshot = loadApplicationSettings(directory, {
       homeDirectory: directory, cwd: directory,
-      environment: { MAXIMAL_AGENT_TOOLS: 'false', MAXIMAL_TERMINAL_DIAGNOSTICS: 'true' },
+      environment: {
+        MAXIMAL_AGENT_TOOLS: 'false',
+        MAXIMAL_TERMINAL_DIAGNOSTICS: 'true',
+        MAXIMAL_TERMINAL_TMUX_STATUS: 'inherit',
+      },
       argv: ['--setting=agentApproval=all'],
     })
-    expect(snapshot.settings).toMatchObject({ agentTools: false, agentApproval: 'all', terminalDiagnostics: true, terminalSessionPrefix: 'maximal' })
+    expect(snapshot.settings).toMatchObject({
+      agentTools: false,
+      agentApproval: 'all',
+      terminalDiagnostics: true,
+      terminalSessionPrefix: 'maximal',
+      terminalTmuxStatus: 'inherit',
+    })
     expect(snapshot.origins.agentTools).toBe('MAXIMAL_AGENT_TOOLS')
     expect(snapshot.origins.agentApproval).toBe('cli')
+    expect(snapshot.origins.terminalTmuxStatus).toBe('MAXIMAL_TERMINAL_TMUX_STATUS')
     expect(snapshot.files).toEqual([])
   })
 
@@ -71,5 +82,16 @@ describe('loadApplicationSettings', () => {
 
     expect(loadApplicationSettings(directory, context).settings.agentModel)
       .toBe('embedded:tiny.gguf')
+  })
+
+  it('rejects tmux shell text instead of treating it as a status policy', async () => {
+    const directory = await fixture()
+
+    expect(() => loadApplicationSettings(directory, {
+      homeDirectory: directory,
+      cwd: directory,
+      environment: { MAXIMAL_TERMINAL_TMUX_STATUS: 'off; run-shell bad' },
+      argv: [],
+    })).toThrow(/MAXIMAL_TERMINAL_TMUX_STATUS/)
   })
 })

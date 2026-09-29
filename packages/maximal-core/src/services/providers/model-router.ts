@@ -46,7 +46,9 @@ export class ProviderModelRouter {
   }
 
   async listAdvertisedModels(): Promise<ReadonlyArray<ProviderCatalogueModel>> {
-    const models = await this.listProviderModels()
+    const models = (await this.listProviderModels()).filter(
+      (model) => model.enabled !== false,
+    )
     return models.filter((model) => {
       const matches = models.filter((candidate) => candidate.id === model.id)
       const providers = new Set(matches.map((candidate) => candidate.provider))
@@ -66,7 +68,7 @@ export class ProviderModelRouter {
     const modelId = reverseId(requestedModel)
     const providers = new Set(
       (await this.listProviderModels())
-        .filter((model) => model.id === modelId)
+        .filter((model) => model.enabled !== false && model.id === modelId)
         .map((model) => model.provider),
     )
     const copilot = (state.models?.data ?? []).some(

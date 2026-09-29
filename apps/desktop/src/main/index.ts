@@ -10,6 +10,7 @@ import {
   ConnectionActionRequest,
   ConnectionCredentialIdRequest,
   OllamaSettingsUpdateRequest,
+  OllamaApiKeyTestRequest,
   SearchProviderValidationRequest,
   SearchSettingsUpdateRequest,
   TokenUsagePeriod,
@@ -21,9 +22,10 @@ import {
 } from '@maximal/maximal-observability-contract'
 import { listLogFiles, resolveLogDirectory } from '@maximal/maximal-logging'
 import {
+  getOllamaCloudDisabled,
   getOllamaRuntimeStatus,
   launchOllama,
-  updateOllamaContextLength,
+  updateOllamaCloudDisabled,
 } from '@maximal/maximal-ollama'
 import { app, BrowserWindow, dialog, ipcMain, shell, type MessageBoxOptions } from 'electron'
 import { createHostWindow, waitForHostWindowReady } from '@maximal/maximal-electron/host'
@@ -51,6 +53,7 @@ import { createDesktopRecording, type DesktopRecording } from './native/recordin
 import { resolveLicenseBundlePath } from './native/license-bundle.js'
 import { listClientInstallations } from './native/client-installations.js'
 import { toLifecycleStatus } from './sidecar/lifecycle-status.js'
+import { registerOllamaRuntimeIpc } from './ollama-runtime-ipc.js'
 import { MenuBarModeController } from './native/menu-bar-mode.js'
 import { mainLogger } from './main-logger.js'
 import {
@@ -74,7 +77,10 @@ import {
   stageTerminalSessions,
   stopTerminalHost,
 } from './adapters/terminal.js'
-import { loadApplicationSettings } from './preferences/application-settings.js'
+import {
+  loadApplicationSettings,
+  setOllamaStartOnLaunch,
+} from './preferences/application-settings.js'
 
 const SPLASH_PREVIEW_FLAG = '--splash-preview'
 
@@ -105,6 +111,38 @@ let quitting = false
 
 const nonEmptyString = z.string().min(1)
 const localModelIdentifier = z.string().min(1).max(200)
+const ollamaRuntimePreferencesUpdate = z.object({
+  start_on_maximal_launch: z.boolean().optional(),
+  cloud_disabled: z.boolean().optional(),
+})
+
+function ollamaRuntimePreferences(restartRequired = false) {
+  return {
+    start_on_maximal_launch: loadApplicationSettings(app.getPath('userData'))
+      .settings.ollamaStartOnLaunch,
+    cloud_disabled: getOllamaCloudDisabled(),
+    restart_required: restartRequired,
+  }
+}
+
+async function updateOllamaRuntimePreferences(input: unknown) {
+  const update = ollamaRuntimePreferencesUpdate.parse(input)
+  if (update.start_on_maximal_launch !== undefined) {
+    await setOllamaStartOnLaunch(
+      app.getPath('userData'),
+      update.start_on_maximal_launch,
+    )
+  }
+  let restartRequired = false
+  if (update.cloud_disabled !== undefined) {
+    const previous = getOllamaCloudDisabled()
+    await updateOllamaCloudDisabled(update.cloud_disabled)
+    const status = await getOllamaRuntimeStatus()
+    restartRequired = previous !== update.cloud_disabled
+      && (status.running || status.process_id !== null)
+  }
+  return ollamaRuntimePreferences(restartRequired)
+}
 
 function openExternalUrl(input: unknown): Promise<void> {
   const url = nonEmptyString.parse(input)
@@ -212,6 +250,9 @@ function registerIpc(
   )
   ipcMain.handle(BRIDGE_CHANNELS.ollamaSettingsUpdate, (_event, input: unknown) =>
     session.ollamaSettingsUpdate(OllamaSettingsUpdateRequest.parse(input)),
+  )
+  ipcMain.handle(BRIDGE_CHANNELS.ollamaApiKeyTest, (_event, input: unknown) =>
+    session.ollamaApiKeyTest(OllamaApiKeyTestRequest.parse(input)),
   )
   ipcMain.handle(
     BRIDGE_CHANNELS.observabilityOverview,
@@ -321,15 +362,10 @@ function registerIpc(
     BRIDGE_CHANNELS.localModelsOpenFolder,
     openLocalModelsDirectory,
   )
-  ipcMain.handle(BRIDGE_CHANNELS.ollamaRuntimeStatus, () =>
-    getOllamaRuntimeStatus(),
-  )
-  ipcMain.handle(BRIDGE_CHANNELS.ollamaRuntimeLaunch, () => launchOllama())
-  ipcMain.handle(
-    BRIDGE_CHANNELS.ollamaRuntimeUpdateContext,
-    (_event, value: unknown) =>
-      updateOllamaContextLength(z.number().int().parse(value)),
-  )
+  registerOllamaRuntimeIpc({
+    preferences: ollamaRuntimePreferences,
+    updatePreferences: updateOllamaRuntimePreferences,
+  })
   ipcMain.handle(BRIDGE_CHANNELS.pendingSettingsRequest, () => {
     const request = pendingSettingsRequest
     pendingSettingsRequest = null
@@ -633,7 +669,19 @@ void app.whenReady().then(async () => {
     onTrafficInvalidation: (invalidation) =>
       broadcast(BRIDGE_CHANNELS.trafficInvalidated, invalidation),
   })
-  configureTerminalHost(loadApplicationSettings(app.getPath('userData')).settings)
+  const applicationSettings = loadApplicationSettings(app.getPath('userData')).settings
+  configureTerminalHost(applicationSettings)
+  if (applicationSettings.ollamaStartOnLaunch) {
+    void getOllamaRuntimeStatus()
+      .then((status) =>
+        status.running || status.process_id !== null ? status : launchOllama())
+      .catch((error: unknown) => {
+        mainLogger.error(
+          { errorName: error instanceof Error ? error.name : 'unknown' },
+          'Ollama failed to start with Maximal',
+        )
+      })
+  }
   configureTerminalWindowActions({
     undock: (owner, request) =>
       openTransferredTerminal(owner, request, 'move'),

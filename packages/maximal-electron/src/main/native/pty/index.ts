@@ -32,6 +32,8 @@ import { createPtyProjections } from './projections.js';
 import { Owners } from '@maximal/maximal-terminal';
 import { defaultShell } from '@maximal/maximal-terminal';
 import { TerminalWindowGroups } from '@maximal/maximal-terminal';
+import type { TmuxStatusMode } from '@maximal/maximal-terminal';
+import { TERMINAL_PROGRAM } from '../../terminal-identity.js';
 
 export type { PtyOwnershipTransaction } from '@maximal/maximal-terminal';
 export { discoverTerminalTargets, listTerminalProfiles } from './launcher.js';
@@ -50,10 +52,12 @@ export interface PtyOptions {
   tmuxSessionPrefix: string;
   /** App-owned commands offered alongside the built-in terminal destinations. */
   directProfiles?: readonly DirectTerminalProfile[];
+  /** Status-line policy for tmux sessions shown inside this application. */
+  tmuxStatus?: TmuxStatusMode;
 }
 
 export function configurePty(handlers: PtyHandlers, options: PtyOptions): void {
-  configureTmuxSessions(options.tmuxSessionPrefix);
+  configureTmuxSessions(options.tmuxSessionPrefix, options.tmuxStatus);
   configureDirectTerminalProfiles(options.directProfiles ?? []);
   events.emit = handlers.emit;
   events.onExit = handlers.onExit;
@@ -72,7 +76,7 @@ const hosts = new Owners<BrowserWindow, TerminalHost>(
       homeDirectory: app.getPath('home'),
       defaultShell: defaultShell(),
       flowControl: true,
-      env: { TERM_PROGRAM: 'Stuffbucket' },
+      env: { TERM_PROGRAM: TERMINAL_PROGRAM },
       emit: (id, chunk, sequence) => {
         events.emit(owner, id, chunk, sequence);
       },

@@ -194,9 +194,34 @@ describe('Service Icons & Avatar resolution', () => {
       await Promise.resolve()
     })
 
-    const svg = container.querySelector('[data-testid="service-icon-ollama"]')
+    const svg = container.querySelector<SVGElement>('[data-testid="service-icon-ollama"]')
+    const avatar = container.querySelector<HTMLElement>('[data-testid="account-avatar"]')
     expect(svg).not.toBeNull()
+    expect(svg?.style.background).toBe('')
+    expect(svg?.getAttribute('height')).toBe('35')
+    expect(svg?.querySelector('circle')?.getAttribute('fill')).toBe('#fff')
+    expect(svg?.querySelector('path')?.getAttribute('fill')).toBe('#000')
+    expect(avatar?.style.background).toBe('transparent')
+    expect(avatar?.style.borderStyle).toBe('none')
+    expect(avatar?.style.color).toBe('inherit')
     expect(container.querySelector('img')).toBeNull()
+  })
+
+  it('renders the GitHub fallback as a large white glyph without a ring', async () => {
+    if (root === null || container === null) throw new Error('test root not ready')
+    await act(async () => {
+      root?.render(<AccountAvatar account={{ host: 'ghe.example.com' }} size={30} />)
+      await Promise.resolve()
+    })
+
+    const avatar = container.querySelector<HTMLElement>('[data-testid="account-avatar"]')
+    const svg = container.querySelector<SVGElement>('[data-testid="service-icon-github"]')
+    expect(svg?.getAttribute('height')).toBe('24')
+    expect(svg?.getAttribute('fill')).toBe('currentColor')
+    expect(avatar?.style.background).toBe('transparent')
+    expect(avatar?.style.borderStyle).toBe('none')
+    expect(avatar?.style.boxShadow).toBe('none')
+    expect(avatar?.style.color).toBe('inherit')
   })
 
   it('renders image when avatarUrl is present and falls back to service icon on error', async () => {

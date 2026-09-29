@@ -15,6 +15,8 @@ import { AppFrame, PRODUCT_TABS } from '../frame/AppFrame'
 import type { SettingsCapabilities } from './capabilities'
 import { Settings, type SettingsSectionRequest } from './Settings'
 
+const OLLAMA_ENDPOINT = 'http://127.0.0.1:11434'
+
 class NoopResizeObserver implements ResizeObserver {
   observe(): void {}
   unobserve(): void {}
@@ -49,11 +51,15 @@ function fakeCapabilities(): SettingsCapabilities {
     ollamaSettings: {
       get: vi.fn(async () => ({
         has_api_key: false,
+        cloud_enabled: true,
+        api_key: null,
         credential_source: 'none' as const,
         local_enabled: true,
+        local_endpoint: OLLAMA_ENDPOINT,
         prefer_local_models: true,
       })),
       update: vi.fn(),
+      testApiKey: vi.fn(),
     },
     ollamaRuntime: {
       status: vi.fn(async () => ({
@@ -65,11 +71,20 @@ function fakeCapabilities(): SettingsCapabilities {
         application_path: null,
         server_configuration_path: '/home/test/.ollama/server.json',
         desktop_settings_path: null,
-        endpoint: 'http://127.0.0.1:11434',
+        endpoint: OLLAMA_ENDPOINT,
+        process_id: null,
+        process_endpoint: null,
+        suggested_endpoint: null,
         context_length: null,
       })),
       launch: vi.fn(),
       updateContextLength: vi.fn(),
+      preferences: vi.fn(async () => ({
+        start_on_maximal_launch: false,
+        cloud_disabled: false,
+        restart_required: false,
+      })),
+      updatePreferences: vi.fn(),
     },
     general: {
       menuBarMode: vi.fn(async () => ({ enabled: false, pending: false })),
@@ -373,7 +388,7 @@ describe('Settings', () => {
     expect(style?.textContent).toMatch(/\.settings-section__subheading\s*{[^}]*--shell-text-lg/s)
   })
 
-  it('does not replace or duplicate an existing surface style element', async () => {
+  it('updates without replacing or duplicating an existing surface style element', async () => {
     document.querySelectorAll('#settings-styles').forEach((style) => style.remove())
     const existing = document.createElement('style')
     existing.id = 'settings-styles'
@@ -384,6 +399,7 @@ describe('Settings', () => {
 
     expect(document.querySelectorAll('#settings-styles')).toHaveLength(1)
     expect(document.getElementById('settings-styles')).toBe(existing)
-    expect(existing.textContent).toBe('.existing-settings-styles {}')
+    expect(existing.textContent).toContain('.settings-disclosure-list {')
+    expect(existing.textContent).not.toContain('.existing-settings-styles {}')
   })
 })

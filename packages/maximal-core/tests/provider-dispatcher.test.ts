@@ -214,6 +214,7 @@ describe("DSH provider dispatch", () => {
       {
         id: "mlx-community/Qwen3-8B",
         name: "Qwen 3 8B",
+        enabled: true,
         provider: "local",
         providerName: "Local (oMLX)",
       },

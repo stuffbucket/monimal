@@ -8,5 +8,8 @@ export interface OllamaRuntimeStatus {
   server_configuration_path: string
   desktop_settings_path: string | null
   endpoint: string
+  process_id: number | null
+  process_endpoint: string | null
+  suggested_endpoint: string | null
   context_length: number | null
 }

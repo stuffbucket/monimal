@@ -28,11 +28,17 @@ export interface TerminalConnector {
 }
 
 export interface TerminalDiagnostic {
-  component: 'pty-host' | 'tmux-host';
+  component: 'pty-host' | 'tmux-host' | 'terminal-launcher';
   event: string;
   ownerId: string;
-  sessionId: string;
-  sessionCount: number;
+  sessionId?: string;
+  sessionCount?: number;
+  reservationCount?: number;
+  profileId?: string;
+  targetState?: 'available' | 'unavailable' | 'timed-out';
+  targetCount?: number;
+  launchMode?: 'local' | 'command' | 'tmux-control' | 'tmux-projection';
+  errorCode?: string;
   projectionCount?: number;
   commandQueueCount?: number;
   projectionId?: string;

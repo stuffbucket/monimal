@@ -1,4 +1,4 @@
-import { Button, SettingsItem } from "@maximal/maximal-electron/renderer";
+import { Button, SettingsActions } from "@maximal/maximal-electron/renderer";
 
 import type { SettingsCapabilities } from "../capabilities";
 import { useSettingsNavigation } from "../navigation";
@@ -18,41 +18,36 @@ export function OllamaProviderActions({
   const { runtime } = provider;
 
   return (
-    <SettingsItem
-      title="Actions"
-      actions={
-        <>
-          <Button
-            size="sm"
-            onClick={() => navigate("settings-account-heading")}
-          >
-            Edit account…
-          </Button>
-          {runtime?.can_launch ? (
-            <Button
-              variant="primary"
-              size="sm"
-              disabled={provider.launching}
-              onClick={() => void provider.launch()}
-            >
-              {provider.launching
-                ? "Opening…"
-                : runtime.can_manage
-                  ? "Open Ollama"
-                  : "Start Ollama"}
-            </Button>
-          ) : runtime?.installed === false ? (
-            <Button
-              size="sm"
-              onClick={() =>
-                void capabilities.openExternal("https://ollama.com/download")
-              }
-            >
-              Get Ollama
-            </Button>
-          ) : null}
-        </>
-      }
-    />
+    <SettingsActions testId="ollama-provider-actions">
+      <Button
+        size="sm"
+        onClick={() => navigate("settings-account-heading")}
+      >
+        Edit account…
+      </Button>
+      {runtime?.can_launch ? (
+        <Button
+          variant="primary"
+          size="sm"
+          disabled={provider.launching}
+          onClick={() => void provider.launch()}
+        >
+          {provider.launching
+            ? "Opening…"
+            : runtime.can_manage
+              ? "Open Ollama"
+              : "Start Ollama"}
+        </Button>
+      ) : runtime?.installed === false ? (
+        <Button
+          size="sm"
+          onClick={() =>
+            void capabilities.openExternal("https://ollama.com/download")
+          }
+        >
+          Get Ollama
+        </Button>
+      ) : null}
+    </SettingsActions>
   );
 }

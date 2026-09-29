@@ -8,6 +8,8 @@ import { AccountSection } from './AccountSection'
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 
+const OLLAMA_ENDPOINT = 'http://127.0.0.1:11434'
+
 let root: Root | null = null
 let container: HTMLElement | null = null
 
@@ -51,11 +53,12 @@ function fakeCapabilities() {
           {
             type: 'ollama' as const,
             provider: 'ollama',
-            endpoint: 'http://127.0.0.1:11434',
+            endpoint: OLLAMA_ENDPOINT,
             scope: 'localhost' as const,
             account_state: 'unauthenticated' as const,
             availability: 'unavailable' as const,
             model_count: null,
+            error_code: 'ECONNREFUSED',
           },
         ],
       })),
@@ -63,10 +66,39 @@ function fakeCapabilities() {
     ollamaSettings: {
       get: vi.fn(async () => ({
         has_api_key: false,
+        cloud_enabled: true,
+        api_key: null,
         credential_source: 'none' as const,
+        local_enabled: true,
+        local_endpoint: OLLAMA_ENDPOINT,
         prefer_local_models: true,
       })),
       update: vi.fn(),
+      testApiKey: vi.fn(),
+    },
+    ollamaRuntime: {
+      status: vi.fn(async (endpoint: string) => ({
+        installation: 'application' as const,
+        installed: true,
+        running: false,
+        can_launch: true,
+        can_manage: true,
+        application_path: '/Applications/Ollama.app',
+        server_configuration_path: '/Users/test/.ollama/server.json',
+        desktop_settings_path: '/Users/test/Ollama/db.sqlite',
+        endpoint,
+        process_id: null,
+        process_endpoint: null,
+        suggested_endpoint: null,
+        context_length: 4096,
+      })),
+      launch: vi.fn(),
+      preferences: vi.fn(async () => ({
+        start_on_maximal_launch: false,
+        cloud_disabled: false,
+        restart_required: false,
+      })),
+      updatePreferences: vi.fn(),
     },
     subscribe: vi.fn((listener: () => void) => {
       notify = listener
@@ -130,9 +162,9 @@ describe('AccountSection refresh ownership', () => {
 
     expect(surface.textContent).toContain('Ollama')
     expect(surface.textContent).toContain(
-      'No account set. Local Ollama is not currently available.',
+      `Ollama is not responding at ${OLLAMA_ENDPOINT}.`,
     )
-    expect(surface.textContent).toContain('http://127.0.0.1:11434')
+    expect(surface.textContent).toContain(OLLAMA_ENDPOINT)
     expect([...surface.querySelectorAll('h2')].map((heading) => heading.textContent)).toEqual([
       'GitHub Copilot',
       'Ollama',

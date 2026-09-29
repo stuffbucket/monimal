@@ -20,6 +20,45 @@ type OllamaProbe = (
   signal: AbortSignal,
 ) => Promise<Response>
 
+type OllamaAccount = OllamaAccountsListResponse["accounts"][number]
+
+function unavailableAccount(
+  provider: ResolvedOllamaProviderConfig,
+  errorCode: string,
+): OllamaAccount {
+  return {
+    type: "ollama",
+    provider: provider.name,
+    endpoint: provider.baseUrl,
+    scope: isLocalEndpoint(provider.baseUrl) ? "localhost" : "remote",
+    account_state: provider.apiKey ? "authenticated" : "unauthenticated",
+    availability: "unavailable",
+    model_count: null,
+    error_code: errorCode,
+  }
+}
+
+function nestedErrorCode(cause: unknown): string | null {
+  if (cause === null || typeof cause !== "object") return null
+  const code = "code" in cause ? cause.code : undefined
+  if (typeof code === "string" && /^[A-Z0-9_-]+$/u.test(code)) return code
+  const nested = "cause" in cause ? cause.cause : undefined
+  return nested === cause ? null : nestedErrorCode(nested)
+}
+
+function probeErrorCode(cause: unknown): string {
+  const code = nestedErrorCode(cause)
+  if (code !== null) return code
+  if (
+    cause instanceof Error
+    && cause.name !== "Error"
+    && cause.name !== "TypeError"
+  ) {
+    return cause.name
+  }
+  return "NETWORK_ERROR"
+}
+
 async function probeOllama(
   provider: ResolvedOllamaProviderConfig,
   signal: AbortSignal,
@@ -53,14 +92,13 @@ function configuredOllamaProviders(
   runtime: boolean,
 ): Array<ResolvedOllamaProviderConfig> {
   return Object.entries(config.providers ?? {}).flatMap(([name, provider]) => {
-    if (
-      provider.enabled === false
-      || provider.type?.trim().toLowerCase() !== "ollama"
-    ) {
+    if (provider.enabled === false && !provider.apiKey) {
       return []
     }
     const resolved =
-      runtime ? getProviderConfig(name) : resolveProviderConfig(config, name)
+      runtime ?
+        getProviderConfig(name, { includeDisabled: true })
+      : resolveProviderConfig(config, name, { includeDisabled: true })
     return resolved?.type === "ollama" ? [resolved] : []
   })
 }
@@ -85,7 +123,9 @@ async function inspectProvider(
       provider,
       AbortSignal.timeout(PROBE_TIMEOUT_MS),
     )
-    if (!response.ok) throw new Error(`Ollama returned HTTP ${response.status}`)
+    if (!response.ok) {
+      return unavailableAccount(provider, `HTTP ${response.status}`)
+    }
     const body = asRecord(await response.json())
     const modelCount = Array.isArray(body?.data) ? body.data.length : 0
     return {
@@ -96,17 +136,10 @@ async function inspectProvider(
       account_state: provider.apiKey ? "authenticated" : "unauthenticated",
       availability: "available",
       model_count: modelCount,
+      error_code: null,
     }
-  } catch {
-    return {
-      type: "ollama",
-      provider: provider.name,
-      endpoint: provider.baseUrl,
-      scope: isLocalEndpoint(provider.baseUrl) ? "localhost" : "remote",
-      account_state: provider.apiKey ? "authenticated" : "unauthenticated",
-      availability: "unavailable",
-      model_count: null,
-    }
+  } catch (cause) {
+    return unavailableAccount(provider, probeErrorCode(cause))
   }
 }
 

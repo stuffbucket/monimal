@@ -1,8 +1,16 @@
-import { describe, expect, test } from "bun:test"
+import { afterEach, describe, expect, test } from "bun:test"
 
 import type { ResolvedOllamaProviderConfig } from "~/lib/config/config"
 
+import { getConfig, writeConfig } from "~/lib/config/config"
 import { listOllamaAccounts } from "~/services/providers/ollama-accounts"
+
+const originalOllamaApiKey = process.env.OLLAMA_API_KEY
+
+afterEach(() => {
+  if (originalOllamaApiKey === undefined) delete process.env.OLLAMA_API_KEY
+  else process.env.OLLAMA_API_KEY = originalOllamaApiKey
+})
 
 describe("Ollama account status", () => {
   test("represents available localhost Ollama without an account", async () => {
@@ -27,6 +35,7 @@ describe("Ollama account status", () => {
           account_state: "unauthenticated",
           availability: "available",
           model_count: 2,
+          error_code: null,
         },
       ],
     })
@@ -63,6 +72,7 @@ describe("Ollama account status", () => {
         account_state: "unauthenticated",
         availability: "unavailable",
         model_count: null,
+        error_code: "HTTP 503",
       },
       {
         type: "ollama",
@@ -72,10 +82,23 @@ describe("Ollama account status", () => {
         account_state: "authenticated",
         availability: "unavailable",
         model_count: null,
+        error_code: "HTTP 503",
       },
     ])
   })
 
+  test("reports a transport error code without exposing its message", async () => {
+    const result = await listOllamaAccounts({}, () => {
+      const cause = new Error("connect ECONNREFUSED 127.0.0.1")
+      Object.assign(cause, { code: "ECONNREFUSED" })
+      return Promise.reject(new TypeError("fetch failed", { cause }))
+    })
+
+    expect(result.accounts[0]?.error_code).toBe("ECONNREFUSED")
+  })
+})
+
+describe("Ollama account provider filtering", () => {
   test("omits explicitly disabled Ollama providers", async () => {
     const providers: Array<string> = []
     const result = await listOllamaAccounts(
@@ -96,5 +119,119 @@ describe("Ollama account status", () => {
 
     expect(providers).toEqual([])
     expect(result.accounts).toEqual([])
+  })
+
+  test("inspects explicitly enabled Ollama providers without API keys", async () => {
+    const providers: Array<string> = []
+    const result = await listOllamaAccounts(
+      {
+        providers: {
+          ollama: {
+            type: "ollama",
+            enabled: false,
+          },
+          "ollama-remote": {
+            type: "ollama",
+            enabled: true,
+            baseUrl: "https://enabled.example",
+          },
+        },
+      },
+      (provider) => {
+        providers.push(provider.name)
+        return Promise.resolve(Response.json({ data: [] }))
+      },
+    )
+
+    expect(providers).toEqual(["ollama-remote"])
+    expect(result.accounts).toHaveLength(1)
+  })
+
+  test("omits configured providers that are not Ollama", async () => {
+    const inspected: Array<string> = []
+    const result = await listOllamaAccounts(
+      {
+        providers: {
+          ollama: {
+            type: "ollama",
+            enabled: false,
+          },
+          anthropic: {
+            type: "anthropic",
+            apiKey: "test-account-token",
+          },
+        },
+      },
+      (provider) => {
+        inspected.push(provider.name)
+        return Promise.resolve(Response.json({ data: [] }))
+      },
+    )
+
+    expect(inspected).toEqual([])
+    expect(result.accounts).toEqual([])
+  })
+
+  test("inspects a saved API key when its provider is disabled", async () => {
+    const providers: Array<string> = []
+    const result = await listOllamaAccounts(
+      {
+        providers: {
+          "ollama-cloud": {
+            type: "ollama",
+            enabled: false,
+            baseUrl: "https://ollama.example/v1",
+            apiKey: "test-account-token",
+          },
+        },
+      },
+      (provider) => {
+        providers.push(provider.name)
+        return Promise.resolve(new Response(null, { status: 401 }))
+      },
+    )
+
+    expect(providers).toContain("ollama-cloud")
+    expect(result.accounts).toContainEqual({
+      type: "ollama",
+      provider: "ollama-cloud",
+      endpoint: "https://ollama.example/v1",
+      scope: "remote",
+      account_state: "authenticated",
+      availability: "unavailable",
+      model_count: null,
+      error_code: "HTTP 401",
+    })
+  })
+
+  test("inspects a disabled saved API key from the runtime config", async () => {
+    const originalConfig = getConfig()
+    try {
+      delete process.env.OLLAMA_API_KEY
+      writeConfig({
+        providers: {
+          ollama: {
+            type: "ollama",
+            enabled: false,
+          },
+          "ollama-cloud": {
+            type: "ollama",
+            enabled: false,
+            baseUrl: "https://ollama.example/v1",
+            apiKey: "test-account-token",
+          },
+        },
+      })
+
+      const providers: Array<string> = []
+      await listOllamaAccounts(undefined, (provider) => {
+        providers.push(provider.name)
+        return Promise.resolve(new Response(null, { status: 401 }))
+      })
+
+      expect(providers).toEqual(["ollama-cloud"])
+    } finally {
+      writeConfig(originalConfig)
+    }
   })
 })

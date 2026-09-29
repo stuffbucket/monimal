@@ -89,7 +89,7 @@ you use:
 | `@maximal/maximal-electron/preload` | `electron` |
 | `@maximal/maximal-electron/electron-terminal` | `electron`, `@maximal/maximal-terminal` |
 | `@maximal/maximal-electron/electron-panel` | `electron` |
-| `@maximal/maximal-electron/renderer` | `react`, `react-dom`, `@maximal/maximal-terminal`, `lucide-react`, `react-resizable-panels`, `@radix-ui/react-collapsible`, `@radix-ui/react-dialog`, `@radix-ui/react-dropdown-menu`, `@radix-ui/react-radio-group`, `@radix-ui/react-tabs`, `@radix-ui/react-tooltip`, `@radix-ui/react-visually-hidden` |
+| `@maximal/maximal-electron/renderer` | `react`, `react-dom`, `@maximal/maximal-terminal`, `lucide-react`, `react-resizable-panels`, `@radix-ui/react-collapsible`, `@radix-ui/react-dialog`, `@radix-ui/react-dropdown-menu`, `@radix-ui/react-radio-group`, `@radix-ui/react-slider`, `@radix-ui/react-tabs`, `@radix-ui/react-tooltip`, `@radix-ui/react-visually-hidden` |
 | `@maximal/maximal-electron/verify` | none |
 | `@maximal/maximal-electron/verify/shell-variables` | none |
 | `@maximal/maximal-electron/verify/peers` | none |

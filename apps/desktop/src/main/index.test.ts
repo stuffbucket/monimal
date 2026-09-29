@@ -32,6 +32,7 @@ interface CoreControlConnectionSpies {
   accountsSwitch: ReturnType<typeof vi.fn>
   accountsSetEnabled: ReturnType<typeof vi.fn>
   ollamaAccountsList: ReturnType<typeof vi.fn>
+  ollamaApiKeyTest: ReturnType<typeof vi.fn>
   ollamaSettingsGet: ReturnType<typeof vi.fn>
   ollamaSettingsUpdate: ReturnType<typeof vi.fn>
   observabilityOverview: ReturnType<typeof vi.fn>
@@ -222,10 +223,12 @@ const { localModelsMkdir, resolveLocalModelsPathMock } = vi.hoisted(() => ({
 
 const {
   getOllamaRuntimeStatusMock,
+  getOllamaCloudDisabledMock,
   launchedOllamaRuntimeStatus,
   launchOllamaMock,
   ollamaRuntimeStatus,
   updateOllamaContextLengthMock,
+  updateOllamaCloudDisabledMock,
 } = vi.hoisted(() => {
   const ollamaRuntimeStatus = {
     installation: 'application',
@@ -237,6 +240,9 @@ const {
     server_configuration_path: '/Users/test/.ollama/server.json',
     desktop_settings_path: '/Users/test/Ollama/db.sqlite',
     endpoint: 'http://127.0.0.1:11434',
+    process_id: null,
+    process_endpoint: null,
+    suggested_endpoint: null,
     context_length: 4096,
   }
   const launchedOllamaRuntimeStatus = {
@@ -245,10 +251,12 @@ const {
   }
   return {
     getOllamaRuntimeStatusMock: vi.fn(async () => ollamaRuntimeStatus),
+    getOllamaCloudDisabledMock: vi.fn(() => false),
     launchedOllamaRuntimeStatus,
     launchOllamaMock: vi.fn(async () => launchedOllamaRuntimeStatus),
     ollamaRuntimeStatus,
     updateOllamaContextLengthMock: vi.fn(),
+    updateOllamaCloudDisabledMock: vi.fn(async (disabled: boolean) => disabled),
   }
 })
 
@@ -262,8 +270,10 @@ vi.mock('@maximal/local-model-registry', () => ({
 }))
 
 vi.mock('@maximal/maximal-ollama', () => ({
+  getOllamaCloudDisabled: getOllamaCloudDisabledMock,
   getOllamaRuntimeStatus: getOllamaRuntimeStatusMock,
   launchOllama: launchOllamaMock,
+  updateOllamaCloudDisabled: updateOllamaCloudDisabledMock,
   updateOllamaContextLength: updateOllamaContextLengthMock,
 }))
 
@@ -383,6 +393,7 @@ const { createCoreControlConnectionMock, disposeCoreControlConnectionMock } = vi
         accountsSwitch: vi.fn(),
         accountsSetEnabled: vi.fn(),
         ollamaAccountsList: vi.fn(),
+        ollamaApiKeyTest: vi.fn(),
         ollamaSettingsGet: vi.fn(),
         ollamaSettingsUpdate: vi.fn(),
         observabilityOverview: vi.fn(),
@@ -1015,19 +1026,37 @@ describe('closed IPC boundary', () => {
       return registration[1]
     }
 
-    const status = await handlerFor(BRIDGE_CHANNELS.ollamaRuntimeStatus)({})
+    const status = await handlerFor(BRIDGE_CHANNELS.ollamaRuntimeStatus)(
+      {},
+      'http://ollama.lan:11500',
+    )
     const launchedStatus = await handlerFor(
       BRIDGE_CHANNELS.ollamaRuntimeLaunch,
-    )({})
+    )({}, 'http://ollama.lan:11500')
+    const preferences = await handlerFor(
+      BRIDGE_CHANNELS.ollamaRuntimePreferences,
+    )({ sender: 'must not leak into the response' })
     await handlerFor(BRIDGE_CHANNELS.ollamaRuntimeUpdateContext)({}, 8192)
 
     expect(status).toEqual(ollamaRuntimeStatus)
     expect(launchedStatus).toEqual(launchedOllamaRuntimeStatus)
-    expect(getOllamaRuntimeStatusMock).toHaveBeenCalledOnce()
-    expect(launchOllamaMock).toHaveBeenCalledOnce()
+    expect(preferences).toEqual({
+      start_on_maximal_launch: false,
+      cloud_disabled: false,
+      restart_required: false,
+    })
+    expect(getOllamaRuntimeStatusMock).toHaveBeenCalledWith({
+      configuredEndpoint: 'http://ollama.lan:11500',
+    })
+    expect(launchOllamaMock).toHaveBeenCalledWith({
+      configuredEndpoint: 'http://ollama.lan:11500',
+    })
     expect(updateOllamaContextLengthMock).toHaveBeenCalledWith(8192)
     expect(() =>
       handlerFor(BRIDGE_CHANNELS.ollamaRuntimeUpdateContext)({}, '8192'),
+    ).toThrow()
+    expect(() =>
+      handlerFor(BRIDGE_CHANNELS.ollamaRuntimeStatus)({}, 'file:///tmp/ollama'),
     ).toThrow()
   })
 

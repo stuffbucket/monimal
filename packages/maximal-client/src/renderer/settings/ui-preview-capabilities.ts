@@ -16,6 +16,8 @@ import type {
   SettingsCapabilities,
 } from './capabilities'
 
+const OLLAMA_ENDPOINT = 'http://127.0.0.1:11434'
+
 const initialAccountsList: AccountsListResponse = {
   accounts: [
     {
@@ -262,7 +264,11 @@ export function createPreviewSettingsCapabilities(): SettingsCapabilities {
       },
     },
     ollamaAccounts: { list: unavailable },
-    ollamaSettings: { get: unavailable, update: unavailable },
+    ollamaSettings: {
+      get: unavailable,
+      update: unavailable,
+      testApiKey: unavailable,
+    },
     ollamaRuntime: {
       status: () =>
         Promise.resolve({
@@ -274,11 +280,20 @@ export function createPreviewSettingsCapabilities(): SettingsCapabilities {
           application_path: '/Applications/Ollama.app',
           server_configuration_path: '~/.ollama/server.json',
           desktop_settings_path: '~/Library/Application Support/Ollama/db.sqlite',
-          endpoint: 'http://127.0.0.1:11434',
+          endpoint: OLLAMA_ENDPOINT,
+          process_id: 42,
+          process_endpoint: OLLAMA_ENDPOINT,
+          suggested_endpoint: null,
           context_length: 4096,
         }),
       launch: unavailable,
       updateContextLength: unavailable,
+      preferences: () => Promise.resolve({
+        start_on_maximal_launch: false,
+        cloud_disabled: false,
+        restart_required: false,
+      }),
+      updatePreferences: unavailable,
     },
     general: {
       menuBarMode: () => Promise.resolve(menuBarState()),

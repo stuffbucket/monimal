@@ -1,12 +1,22 @@
 import {
-  Button,
   CopyButton,
   Field,
   FieldList,
   FormField,
+  Slider,
 } from "@maximal/maximal-electron/renderer";
 
 import type { useOllamaProvider } from "./useOllamaProvider";
+
+const CONTEXT_LENGTH_OPTIONS = [
+  { value: 4_096, label: "4k" },
+  { value: 8_192, label: "8k" },
+  { value: 16_384, label: "16k" },
+  { value: 32_768, label: "32k" },
+  { value: 65_536, label: "64k" },
+  { value: 131_072, label: "128k" },
+  { value: 262_144, label: "256k" },
+] as const;
 
 interface OllamaRuntimeDetailsProps {
   provider: ReturnType<typeof useOllamaProvider>;
@@ -75,31 +85,23 @@ export function OllamaRuntimeDetails({ provider }: OllamaRuntimeDetailsProps) {
       </FieldList>
       {runtime.context_length !== null ? (
         <FormField
-          label="Context window"
-          hint="Ollama applies this setting to newly loaded models. Larger values use more memory."
+          label="Context length"
+          hint={
+            provider.savingContextLength
+              ? "Saving context length…"
+              : "Context length determines how much of your conversation local models can remember and use to generate responses."
+          }
         >
           {(control) => (
-            <div className="settings__row">
-              <input
-                {...control}
-                className="input"
-                type="number"
-                min={512}
-                step={512}
-                value={provider.contextLength}
-                disabled={provider.savingContextLength}
-                onChange={(event) =>
-                  provider.setContextLength(event.target.value)
-                }
-              />
-              <Button
-                size="sm"
-                disabled={provider.savingContextLength}
-                onClick={() => void provider.saveContextLength()}
-              >
-                {provider.savingContextLength ? "Saving…" : "Save"}
-              </Button>
-            </div>
+            <Slider
+              {...control}
+              label="Context length"
+              value={Number(provider.contextLength)}
+              options={CONTEXT_LENGTH_OPTIONS}
+              testId="ollama-context-length"
+              onChange={(value) => provider.setContextLength(String(value))}
+              onCommit={(value) => void provider.saveContextLength(String(value))}
+            />
           )}
         </FormField>
       ) : null}

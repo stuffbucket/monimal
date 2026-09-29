@@ -42,9 +42,15 @@ const bridge = {
     onChange: (listener) => subscribe(BRIDGE_CHANNELS.localModelsChanged, listener),
   },
   ollamaRuntime: {
-    status: () => ipcRenderer.invoke(BRIDGE_CHANNELS.ollamaRuntimeStatus),
-    launch: () => ipcRenderer.invoke(BRIDGE_CHANNELS.ollamaRuntimeLaunch),
+    status: (endpoint) => endpoint === undefined
+      ? ipcRenderer.invoke(BRIDGE_CHANNELS.ollamaRuntimeStatus)
+      : ipcRenderer.invoke(BRIDGE_CHANNELS.ollamaRuntimeStatus, endpoint),
+    launch: (endpoint) => endpoint === undefined
+      ? ipcRenderer.invoke(BRIDGE_CHANNELS.ollamaRuntimeLaunch)
+      : ipcRenderer.invoke(BRIDGE_CHANNELS.ollamaRuntimeLaunch, endpoint),
     updateContextLength: (value) => ipcRenderer.invoke(BRIDGE_CHANNELS.ollamaRuntimeUpdateContext, value),
+    preferences: () => ipcRenderer.invoke(BRIDGE_CHANNELS.ollamaRuntimePreferences),
+    updatePreferences: (input) => ipcRenderer.invoke(BRIDGE_CHANNELS.ollamaRuntimeUpdatePreferences, input),
   },
   clientInstallations: {
     list: () => ipcRenderer.invoke(BRIDGE_CHANNELS.clientInstallationsList),
@@ -117,6 +123,7 @@ const bridge = {
     ollamaAccountsList: () => ipcRenderer.invoke(BRIDGE_CHANNELS.ollamaAccountsList),
     ollamaSettingsGet: () => ipcRenderer.invoke(BRIDGE_CHANNELS.ollamaSettingsGet),
     ollamaSettingsUpdate: (input) => ipcRenderer.invoke(BRIDGE_CHANNELS.ollamaSettingsUpdate, input),
+    ollamaApiKeyTest: (input) => ipcRenderer.invoke(BRIDGE_CHANNELS.ollamaApiKeyTest, input),
     observabilityOverview: (query) => ipcRenderer.invoke(BRIDGE_CHANNELS.observabilityOverview, query),
     observabilityRequests: (query) => ipcRenderer.invoke(BRIDGE_CHANNELS.observabilityRequests, query),
     observabilityRequest: (query) => ipcRenderer.invoke(BRIDGE_CHANNELS.observabilityRequest, query),

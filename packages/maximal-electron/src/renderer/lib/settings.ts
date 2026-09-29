@@ -51,6 +51,10 @@ export interface ModelCard {
   provider?: string;
   /** Local models use the neutral card treatment. */
   local?: boolean;
+  /** A provider-level gate currently prevents this model from being used. */
+  disabled?: boolean;
+  /** Accessible action text when a disabled card can open remediation. */
+  activationLabel?: string;
   preview?: boolean;
   contextWindowTokens?: number;
   maxOutputTokens?: number;

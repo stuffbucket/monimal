@@ -32,7 +32,7 @@
   {
     "path": "packages/maximal-client/src/renderer/settings/AccountSection.test.tsx",
     "literal": "http://127.0.0.1:11434",
-    "count": 2
+    "count": 1
   },
   {
     "path": "packages/maximal-client/src/renderer/settings/AccountSection.test.tsx",
@@ -57,7 +57,7 @@
   {
     "path": "packages/maximal-client/src/renderer/settings/LocalModelsSection.test.tsx",
     "literal": "http://127.0.0.1:11434",
-    "count": 2
+    "count": 1
   },
   {
     "path": "packages/maximal-client/src/renderer/settings/Settings.test.tsx",
@@ -67,11 +67,6 @@
   {
     "path": "packages/maximal-client/src/renderer/settings/Settings.test.tsx",
     "literal": "http://127.0.0.1:4141",
-    "count": 1
-  },
-  {
-    "path": "packages/maximal-client/src/renderer/settings/accounts/OllamaAccountsSection.tsx",
-    "literal": "localhost",
     "count": 1
   },
   {
@@ -712,7 +707,7 @@
   {
     "path": "packages/maximal-ollama/tests/runtime.test.ts",
     "literal": "http://127.0.0.1:11434",
-    "count": 2
+    "count": 1
   },
   {
     "path": "packages/maximal-ollama/tests/runtime.test.ts",

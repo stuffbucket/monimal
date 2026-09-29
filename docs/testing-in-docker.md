@@ -34,13 +34,18 @@ NOT be used as an estimate of hours of reliable operation.
 
 - Developers MAY enable terminal lifecycle records with
   `MAXIMAL_TERMINAL_DIAGNOSTICS=true pnpm dev` and capture stderr alongside the test seed and
-  source revision.
+  source revision. Records cover connector discovery, launch reservations, local PTY lifecycle,
+  tmux projection lifecycle, geometry, ownership, buffering, and exits without recording terminal
+  input, output, commands, paths, environment values, or remote target labels.
 - Developers MAY set `terminalDiagnostics` in the Maximal user settings document;
   the application MUST resolve it before configuring the host. Client project
   settings MUST remain disabled unless the caller explicitly establishes trust.
-- Developers MAY set `terminalSessionPrefix` (default `maximal`) in the same
-  document to name the tmux sessions the application creates and offers to
-  resume; sessions under another prefix are not offered.
+- Developers MAY set `terminalTmuxStatus` to `off`, `on`, or `inherit` through
+  Maximal settings. `off` and `on` MUST apply Maximal's fixed, terminal-default
+  session and window styles to Maximal-owned tmux sessions, while `inherit`
+  MUST preserve host tmux styling. Explicitly attached host sessions MUST NOT
+  be restyled. Terminal launch commands MUST remain fixed argv rather than
+  configurable shell text.
 - Hosts MAY call `configureTerminalDiagnostics(true)` or
   `configureTerminalDiagnostics(false)` through
   `@maximal/maximal-terminal`; `undefined` MUST disable diagnostics.

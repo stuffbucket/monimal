@@ -7,6 +7,7 @@ import {
   FormField,
   RadioGroup,
   Select,
+  Slider,
   Switch,
   TextInput,
   Textarea,
@@ -66,6 +67,23 @@ export const HintAndError: Story = {
   },
 };
 
+export const Active: Story = {
+  render: () => (
+    <div style={{ width: 380 }}>
+      <FormField label="Service endpoint" hint="The service is available.">
+        {(field) => (
+          <TextInput
+            {...field}
+            value="Service is available"
+            active
+            onChange={() => undefined}
+          />
+        )}
+      </FormField>
+    </div>
+  ),
+};
+
 /* ------------------------------------------------------------- the controls */
 
 const APPROVAL = [
@@ -73,6 +91,13 @@ const APPROVAL = [
   { value: 'all' as const, label: 'Every tool' },
   { value: 'none' as const, label: 'Never ask' },
 ];
+
+const CONTEXT_LENGTHS = [
+  { value: 4_096, label: '4k' },
+  { value: 8_192, label: '8k' },
+  { value: 16_384, label: '16k' },
+  { value: 32_768, label: '32k' },
+] as const;
 
 /** Every control a field can wrap, in one place, so the sizes can be compared. */
 export const AllControls: StoryObj = {
@@ -82,6 +107,7 @@ export const AllControls: StoryObj = {
     const [long, setLong] = useState('');
     const [choice, setChoice] = useState<'writes' | 'all' | 'none'>('writes');
     const [radio, setRadio] = useState<'a' | 'b'>('a');
+    const [contextLength, setContextLength] = useState(8_192);
     const [checked, setChecked] = useState(true);
     const [on, setOn] = useState(true);
 
@@ -121,6 +147,18 @@ export const AllControls: StoryObj = {
                 { value: 'a', label: 'Application' },
                 { value: 'b', label: 'Everything' },
               ]}
+            />
+          )}
+        </FormField>
+
+        <FormField label="Context length">
+          {(field) => (
+            <Slider
+              {...field}
+              label="Context length"
+              value={contextLength}
+              options={CONTEXT_LENGTHS}
+              onChange={setContextLength}
             />
           )}
         </FormField>

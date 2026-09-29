@@ -21,3 +21,8 @@ export {
   writePty,
   type PtyOwnershipTransaction,
 } from '../main/native/pty/index.js';
+
+export {
+  TERMINAL_PROGRAM,
+  TERMINAL_SESSION_PREFIX,
+} from '../main/terminal-identity.js';

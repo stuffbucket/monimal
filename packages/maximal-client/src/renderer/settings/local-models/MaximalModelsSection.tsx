@@ -1,17 +1,28 @@
+import { useEffect, useMemo, useState } from "react";
+
 import {
   Button,
+  CopyButton,
+  Field,
+  FieldList,
+  ModelCardGrid,
   Note,
+  SettingsActions,
   SettingsGroup,
   SettingsItem,
   SettingsSection,
+  Switch,
+  type ModelCard,
 } from "@maximal/maximal-electron/renderer";
 
 import type { LocalModelCatalogSnapshot } from "../../../shared/host";
+import type { SettingsCapabilities } from "../capabilities";
 
 import { formatBytes, progressLabel, publicationLabel } from "./format";
 import type { ActiveOperation } from "./types";
 
 interface MaximalModelsSectionProps {
+  capabilities: SettingsCapabilities;
   catalogue: LocalModelCatalogSnapshot | null;
   operations: Record<string, ActiveOperation>;
   onCancel: (modelKey: string, operationId: string) => void;
@@ -19,77 +30,185 @@ interface MaximalModelsSectionProps {
   onOpenFolder: () => void;
 }
 
+const EMPTY_MODELS: LocalModelCatalogSnapshot["models"] = [];
+
+function cardFor(
+  model: LocalModelCatalogSnapshot["models"][number],
+): ModelCard {
+  return {
+    id: model.modelId,
+    name: model.displayName,
+    kind: "Chat models",
+    provider: "Maximal",
+    local: true,
+    contextWindowTokens: model.context.contextWindow,
+    maxOutputTokens: model.context.maxOutputTokens,
+    capabilities: {
+      vision: model.capabilities.input.includes("image"),
+      imageGeneration: model.capabilities.output.includes("image"),
+      videoGeneration: model.capabilities.output.includes("video"),
+      toolCalls: false,
+      streaming: true,
+      reasoning: false,
+    },
+  };
+}
+
+function MaximalRuntimeDetails({
+  endpoint,
+  contextLength,
+}: {
+  endpoint: string | null;
+  contextLength: number | null;
+}) {
+  return (
+    <FieldList>
+      <Field label="Application" value="Maximal" />
+      <Field
+        label="Endpoint"
+        value={
+          endpoint === null ? (
+            "Checking…"
+          ) : (
+            <>
+              <code>{endpoint}</code>
+              <CopyButton text={endpoint} about="the Maximal endpoint" />
+            </>
+          )
+        }
+      />
+      <Field label="Server configuration" value="Maximal llama.cpp runtime" />
+      <Field
+        label="Context length"
+        value={
+          contextLength === null
+            ? "No model configured"
+            : contextLength.toLocaleString()
+        }
+      />
+    </FieldList>
+  );
+}
+
 export function MaximalModelsSection({
+  capabilities,
   catalogue,
   operations,
   onCancel,
   onDownload,
   onOpenFolder,
 }: MaximalModelsSectionProps) {
+  const [enabled, setEnabled] = useState(true);
+  const [endpoint, setEndpoint] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    void capabilities.connection.proxyUrl().then((value) => {
+      if (active) setEndpoint(value);
+    });
+    return () => {
+      active = false;
+    };
+  }, [capabilities]);
+
+  const models = catalogue?.models ?? EMPTY_MODELS;
+  const cards = useMemo(() => models.map(cardFor), [models]);
+  const contextLength =
+    models.length === 0
+      ? null
+      : Math.max(...models.map((model) => model.context.contextWindow));
+  const providerToggleLabel = enabled ? "Disable provider" : "Enable provider";
+
   return (
     <SettingsSection
-      title="Models hosted by Maximal"
-      description="Models downloaded and served by this device using its hardware."
+      title="Maximal"
+      description="Models downloaded and served by Maximal on this device."
     >
-      {catalogue !== null && catalogue.models.length === 0 ? (
-        <Note>No bundled local models are configured.</Note>
-      ) : null}
-      <SettingsGroup>
-        {catalogue?.models.map((model) => {
-          const operation = operations[model.key];
-          const progress =
-            operation === undefined ? null : progressLabel(operation);
-          const canDownload =
-            operation === undefined &&
-            (model.state === "registered" || model.state === "failed");
-          return (
-            <SettingsItem
-              key={model.key}
-              title={model.displayName}
-              description={model.state}
-              actions={
-                operation !== undefined ? (
-                  <Button
-                    size="sm"
-                    onClick={() => onCancel(model.key, operation.operationId)}
-                  >
-                    Cancel
-                  </Button>
-                ) : canDownload ? (
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={() => onDownload(model.key)}
-                  >
-                    Download
-                  </Button>
-                ) : undefined
-              }
-            >
-              <code>{model.modelId}</code>
-              <span className="settings-list__meta">
-                {model.format.toUpperCase()} ·{" "}
-                {formatBytes(model.expectedBytes)}
-              </span>
-              <span className="settings-list__detail">
-                {publicationLabel(model)}
-              </span>
-              {progress ? (
-                <span className="settings-list__detail" aria-live="polite">
-                  {progress}
-                </span>
-              ) : null}
-            </SettingsItem>
-          );
-        })}
+      <SettingsGroup dividers={false} testId="maximal-provider-settings">
         <SettingsItem
-          title="Models folder"
+          title="Runtime status"
+          description={`${enabled ? "Enabled" : "Disabled"} · Running · Maximal`}
           actions={
-            <Button size="sm" onClick={onOpenFolder}>
-              Open models folder
-            </Button>
+            <Switch
+              label={providerToggleLabel}
+              displayLabel={null}
+              tooltip={providerToggleLabel}
+              checked={enabled}
+              onChange={setEnabled}
+              testId="local-models-enable-maximal"
+            />
           }
-        />
+        >
+          <MaximalRuntimeDetails
+            endpoint={endpoint}
+            contextLength={contextLength}
+          />
+        </SettingsItem>
+
+        {cards.length === 0 ? (
+          <SettingsItem title="Models">
+            <Note>No bundled local models are configured.</Note>
+          </SettingsItem>
+        ) : (
+          <SettingsItem title="Available models">
+            <ModelCardGrid
+              models={cards}
+              renderActions={(card) => {
+                const model = models.find((candidate) => candidate.modelId === card.id);
+                if (model === undefined) return null;
+                const operation = operations[model.key];
+                const details = (
+                  <span>
+                    {model.format.toUpperCase()} · {formatBytes(model.expectedBytes)}
+                    {" · "}
+                    {publicationLabel(model)}
+                  </span>
+                );
+                if (operation !== undefined) {
+                  return (
+                    <>
+                      {details}
+                      <span aria-live="polite">{progressLabel(operation)}</span>
+                      <Button
+                        size="sm"
+                        onClick={() => onCancel(model.key, operation.operationId)}
+                      >
+                        Cancel
+                      </Button>
+                    </>
+                  );
+                }
+                if (model.state === "registered" || model.state === "failed") {
+                  return (
+                    <>
+                      {details}
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        disabled={!enabled}
+                        onClick={() => onDownload(model.key)}
+                      >
+                        Download
+                      </Button>
+                    </>
+                  );
+                }
+                return (
+                  <>
+                    {details}
+                    <span>{model.state}</span>
+                  </>
+                );
+              }}
+            />
+          </SettingsItem>
+        )}
+
+        <SettingsActions>
+          <Button size="sm" onClick={onOpenFolder}>
+            Open models folder
+          </Button>
+        </SettingsActions>
       </SettingsGroup>
     </SettingsSection>
   );
