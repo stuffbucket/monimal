@@ -1,5 +1,5 @@
 import { type ReactElement, type ReactNode } from 'react'
-import { Settings as SettingsIcon, Sparkles } from 'lucide-react'
+import { Globe, Settings as SettingsIcon, Sparkles } from 'lucide-react'
 import {
   AppFrame as PackageAppFrame,
   IconButton,
@@ -29,11 +29,16 @@ const LEFT_PANEL_SIZE = {
 }
 
 export type View = 'overview' | 'traffic' | 'settings'
-export type Surface = View | 'terminal'
+export type Surface = View | 'browser' | 'terminal'
 
 export interface AppTab extends Tab {
   kind: Surface
   sessionId?: string
+  browserId?: string
+  url?: string
+  browserOwner?: 'agent' | 'user'
+  browserControl?: 'user' | 'agent-shared' | 'agent-exclusive'
+  terminalSessionIds?: string[]
   customTitle?: boolean
   canRunInBackground?: boolean
 }
@@ -64,6 +69,7 @@ export function AppFrame({
   onSignIn,
   onSignOut,
   onOpenAssistant,
+  onOpenBrowser,
   settingsOpen = false,
   onToggleSettings,
   children,
@@ -80,6 +86,7 @@ export function AppFrame({
   onSignIn?: () => void
   onSignOut?: () => void
   onOpenAssistant?: () => void
+  onOpenBrowser?: () => void
   settingsOpen?: boolean
   onToggleSettings?: () => void
   children: ReactNode
@@ -106,6 +113,15 @@ export function AppFrame({
               <Sparkles size={15} />
             </IconButton>
           ) : null}
+          {onOpenBrowser ? (
+            <IconButton
+              label="Open Browser"
+              onClick={onOpenBrowser}
+              testId="open-browser"
+            >
+              <Globe size={15} />
+            </IconButton>
+          ) : null}
           {onOpenProfileSurface ? (
             <Profile
               account={account}
@@ -126,9 +142,9 @@ export function AppFrame({
       ) : undefined}
       leftSize={LEFT_PANEL_SIZE}
       withActivity
-      withLeft={surface !== 'terminal'}
+      withLeft={surface !== 'terminal' && surface !== 'browser'}
       withRight={surface === 'overview' || surface === 'traffic'}
-      withStatus={surface !== 'terminal'}
+      withStatus={surface !== 'terminal' && surface !== 'browser'}
     >
       {children}
     </PackageAppFrame>

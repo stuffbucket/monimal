@@ -110,6 +110,143 @@ body {
   mask: var(--terminal-profile-icon-mask) center / contain no-repeat;
   -webkit-mask: var(--terminal-profile-icon-mask) center / contain no-repeat;
 }
+
+.workspace-map__scrim {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+.workspace-map {
+  position: fixed;
+  z-index: 50;
+  inset: 10vh 7vw;
+  display: grid;
+  grid-template-rows: 42px minmax(0, 1fr);
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid var(--shell-border);
+  border-radius: 10px;
+  background: var(--shell-canvas);
+  box-shadow: 0 20px 70px rgb(0 0 0 / 45%);
+}
+
+.workspace-map__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--shell-border);
+  background: var(--shell-raised);
+}
+
+.workspace-map__header > span:not(.workspace-map__hint) {
+  min-width: 38px;
+  text-align: center;
+  color: var(--shell-text-muted);
+  font-size: 11px;
+}
+
+.workspace-map__action {
+  display: inline-grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--shell-radius);
+  color: var(--shell-text);
+  background: transparent;
+  cursor: pointer;
+}
+
+.workspace-map__action:hover {
+  background: var(--shell-hover);
+}
+
+.workspace-map__action:focus-visible {
+  outline: 2px solid var(--shell-focus);
+  outline-offset: -2px;
+}
+
+.workspace-map__hint {
+  flex: 1;
+  color: var(--shell-text-muted);
+  font-size: 11px;
+}
+
+.workspace-map__viewport {
+  position: relative;
+  overflow: hidden;
+  cursor: grab;
+  background-color: var(--shell-background);
+  background-image: radial-gradient(var(--shell-border) 1px, transparent 1px);
+  background-size: 24px 24px;
+  touch-action: none;
+}
+
+.workspace-map__viewport:active {
+  cursor: grabbing;
+}
+
+.workspace-map__plane {
+  position: absolute;
+  width: 4000px;
+  height: 3000px;
+  transform-origin: 0 0;
+}
+
+.workspace-map__edges {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.workspace-map__edges line {
+  stroke: var(--shell-border);
+  stroke-width: 2;
+  stroke-dasharray: 5 5;
+}
+
+.workspace-map__node {
+  position: absolute;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 220px;
+  min-height: 108px;
+  padding: 14px;
+  border: 1px solid var(--shell-border);
+  border-radius: 9px;
+  color: var(--shell-text);
+  background: var(--shell-raised);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 25%);
+  text-align: left;
+  cursor: move;
+  touch-action: none;
+}
+
+.workspace-map__node[data-kind='terminal'] {
+  border-color: var(--shell-accent);
+}
+
+.workspace-map__node strong,
+.workspace-map__node small {
+  display: block;
+}
+
+.workspace-map__node strong {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-map__node small {
+  margin-top: 6px;
+  color: var(--shell-text-muted);
+}
 `
 
 const BASE_STYLE_ID = 'maximal-base'

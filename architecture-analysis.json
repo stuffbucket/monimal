@@ -1,6 +1,15 @@
 {
   "$schema": "./architecture-analysis.schema.json",
   "packages": {
+    "@maximal/maximal-browser": {
+      "root": "packages/maximal-browser",
+      "dependsOn": [
+        "@maximal/eslint-config",
+        "@maximal/maximal-harness"
+      ],
+      "cycleEdges": [],
+      "duplicatePairs": []
+    },
     "@maximal/maximal-settings": {
       "root": "packages/maximal-settings",
       "dependsOn": [
@@ -144,6 +153,7 @@
       "root": "packages/maximal-client",
       "dependsOn": [
         "@maximal/eslint-config",
+        "@maximal/maximal-browser",
         "@maximal/maximal-core-contract",
         "@maximal/maximal-electron",
         "@maximal/maximal-harness",
@@ -171,6 +181,7 @@
         "@maximal/eslint-config",
         "@maximal/local-model-registry",
         "@maximal/maximal-assets",
+        "@maximal/maximal-browser",
         "@maximal/maximal-client",
         "@maximal/maximal-core",
         "@maximal/maximal-core-contract",

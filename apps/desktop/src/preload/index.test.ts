@@ -36,6 +36,7 @@ beforeEach(() => {
 describe('preload bridge allowlist', () => {
   it('exposes exactly the documented deep key set', () => {
     expect(Object.keys(bridge).sort()).toEqual([
+      'browser',
       'clientInstallations',
       'control',
       'getCoreStatus',
@@ -56,6 +57,26 @@ describe('preload bridge allowlist', () => {
       'terminal',
     ])
     expect(Object.keys(bridge.licenses).sort()).toEqual(['text'])
+    expect(Object.keys(bridge.browser).sort()).toEqual([
+      'click',
+      'close',
+      'command',
+      'drag',
+      'hover',
+      'inspect',
+      'list',
+      'navigate',
+      'onEvent',
+      'open',
+      'press',
+      'screenshot',
+      'scroll',
+      'setControl',
+      'setTerminalContext',
+      'show',
+      'type',
+      'wait',
+    ])
     expect(Object.keys(bridge.control).sort()).toEqual([
       'accountsList',
       'accountsReorder',

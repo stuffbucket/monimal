@@ -32,13 +32,14 @@ describe('WorkspaceRail', () => {
           tabs={[...PRODUCT_TABS, terminal, SETTINGS_TAB]}
           current={terminal.id}
           onSelect={vi.fn()}
+          onOpenMap={vi.fn()}
         />,
       )
     })
 
     const items = [...container.querySelectorAll<HTMLElement>('.nav__item')]
-    expect(container.querySelector('.nav__content')?.children).toHaveLength(3)
-    expect(items.map((item) => item.title)).toEqual(['Overview', 'Traffic', 'zsh'])
+    expect(container.querySelector('.nav__content')?.children).toHaveLength(4)
+    expect(items.map((item) => item.title)).toEqual(['Workspace map', 'Overview', 'Traffic', 'zsh'])
     expect(container.querySelector('[data-testid="nav-terminal-one"]')?.getAttribute('aria-current'))
       .toBe('true')
     expect(container.querySelector('[data-testid="nav-settings"]')).toBeNull()
@@ -57,6 +58,7 @@ describe('WorkspaceRail', () => {
           tabs={[...PRODUCT_TABS, terminal]}
           current="overview"
           onSelect={onSelect}
+          onOpenMap={vi.fn()}
         />,
       )
     })
@@ -65,6 +67,32 @@ describe('WorkspaceRail', () => {
     if (traffic === null) throw new Error('Traffic rail item was not rendered')
     act(() => traffic.click())
     expect(onSelect).toHaveBeenCalledWith('traffic')
+
+    act(() => root.unmount())
+  })
+
+  it('opens the workspace map without changing the selected tab', () => {
+    container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container)
+    const onSelect = vi.fn()
+    const onOpenMap = vi.fn()
+    act(() => {
+      root.render(
+        <WorkspaceRail
+          tabs={[...PRODUCT_TABS, terminal]}
+          current="overview"
+          onSelect={onSelect}
+          onOpenMap={onOpenMap}
+        />,
+      )
+    })
+
+    const map = container.querySelector<HTMLElement>('[data-testid="nav-workspace-map"]')
+    if (map === null) throw new Error('Workspace map rail item was not rendered')
+    act(() => map.click())
+    expect(onOpenMap).toHaveBeenCalledOnce()
+    expect(onSelect).not.toHaveBeenCalled()
 
     act(() => root.unmount())
   })

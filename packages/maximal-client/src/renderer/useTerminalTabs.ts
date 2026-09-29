@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import type { BrowserEvent, BrowserSession } from '@maximal/maximal-browser'
 import { moveTabBefore, type TerminalLaunchResult } from '@maximal/maximal-electron/renderer'
 import { terminalPaneSessionIds, terminalProcessTitle, type TerminalPane } from '@maximal/maximal-terminal/renderer'
 
@@ -20,6 +21,32 @@ function terminalTab(result: TerminalLaunchResult): AppTab {
   }
 }
 
+function browserTab(session: BrowserSession): AppTab {
+  return {
+    id: `browser:${session.id}`,
+    title: session.title,
+    icon: 'browser',
+    kind: 'browser',
+    browserId: session.id,
+    url: session.url,
+    browserOwner: session.owner,
+    browserControl: session.control,
+    terminalSessionIds: session.terminalSessionIds,
+    closable: true,
+  }
+}
+
+function upsertBrowserTab(tabs: AppTab[], session: BrowserSession): AppTab[] {
+  const tab = browserTab(session)
+  const index = tabs.findIndex((candidate) => candidate.id === tab.id)
+  if (index >= 0) return tabs.map((candidate) => candidate.id === tab.id ? tab : candidate)
+  if (session.owner === 'agent') return [...tabs, tab]
+  const terminalIndex = tabs.findIndex((candidate) => candidate.kind === 'terminal')
+  return terminalIndex < 0
+    ? [...tabs, tab]
+    : [...tabs.slice(0, terminalIndex), tab, ...tabs.slice(terminalIndex)]
+}
+
 export function useTerminalTabs(
   detachedWindow?: DetachedTerminal,
 ) {
@@ -39,6 +66,7 @@ export function useTerminalTabs(
   const [renameState, setRenameState] = useState<{ tabId: string; title: string }>()
   const [closeState, setCloseState] = useState<{ tabId: string; title: string }>()
   const [terminalError, setTerminalError] = useState<string>()
+  const [browserError, setBrowserError] = useState<string>()
   const transfer = useTerminalWindowTransfer({
     tabs,
     setTabs,
@@ -102,7 +130,11 @@ export function useTerminalTabs(
     setTabs((current) => {
       const index = current.findIndex((tab) => tab.id === id)
       const closing = current[index]
-      if (index < 0 || (closing?.kind !== 'terminal' && closing?.kind !== 'settings')) return current
+      if (index < 0 || (
+        closing?.kind !== 'browser'
+        && closing?.kind !== 'terminal'
+        && closing?.kind !== 'settings'
+      )) return current
       const next = current.filter((tab) => tab.id !== id)
       setActiveTab((active) => active === id
         ? (next[index] ?? next[index - 1] ?? PRODUCT_TABS[0])?.id ?? 'overview'
@@ -110,6 +142,44 @@ export function useTerminalTabs(
       return next
     })
   }, [])
+
+  useEffect(() => {
+    if (detachedWindow) return
+    void window.maximal.browser.list().then((sessions) => {
+      setTabs((current) => sessions.reduce(upsertBrowserTab, current))
+    }).catch(() => setBrowserError('Browser tabs could not be restored.'))
+    return window.maximal.browser.onEvent((event: BrowserEvent) => {
+      if (event.type === 'closed') {
+        closeTab(`browser:${event.id}`)
+        return
+      }
+      setTabs((current) => upsertBrowserTab(current, event.session))
+      if (event.type === 'opened' && event.session.owner === 'agent') {
+        setActiveTab(`browser:${event.session.id}`)
+      }
+    })
+  }, [closeTab, detachedWindow])
+
+  const openBrowser = useCallback(async (url: string) => {
+    try {
+      const session = await window.maximal.browser.open(url)
+      setTabs((current) => upsertBrowserTab(current, session))
+      setActiveTab(`browser:${session.id}`)
+    } catch {
+      setBrowserError('The browser tab could not be opened.')
+    }
+  }, [])
+
+  const closeBrowser = useCallback(async (id: string) => {
+    const tab = tabs.find((candidate) => candidate.id === id)
+    if (!tab?.browserId) return
+    try {
+      await window.maximal.browser.close(tab.browserId)
+      closeTab(id)
+    } catch {
+      setBrowserError('The browser tab could not be closed.')
+    }
+  }, [closeTab, tabs])
 
   const toggleSettings = useCallback(() => {
     setTabs((current) => {
@@ -211,9 +281,13 @@ export function useTerminalTabs(
     setCloseState,
     terminalError,
     setTerminalError,
+    browserError,
+    setBrowserError,
     rememberProfile,
     onTerminalLaunched,
     openSettings,
+    openBrowser,
+    closeBrowser,
     toggleSettings,
     closeTab,
     closeTerminal,

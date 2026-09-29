@@ -30,6 +30,7 @@
   "dependencies": {
     "@maximal/local-model-registry": "workspace:*",
     "@maximal/maximal-assets": "workspace:*",
+    "@maximal/maximal-browser": "workspace:*",
     "@maximal/maximal-client": "workspace:*",
     "@maximal/maximal-core": "workspace:*",
     "@maximal/maximal-core-contract": "workspace:*",

@@ -82,6 +82,7 @@ import {
   loadApplicationSettings,
   setOllamaStartOnLaunch,
 } from './preferences/application-settings.js'
+import { startBrowserHost } from './adapters/browser.js'
 
 const SPLASH_PREVIEW_FLAG = '--splash-preview'
 
@@ -109,6 +110,7 @@ let pendingSettingsRequest: PendingSettingsRequest | null = null
 let menuBarMode: MenuBarModeController | null = null
 let recording: DesktopRecording | null = null
 let quitting = false
+let stopBrowserHost: (() => void) | undefined
 
 const nonEmptyString = z.string().min(1)
 const localModelIdentifier = z.string().min(1).max(200)
@@ -691,6 +693,7 @@ void app.whenReady().then(async () => {
     redock: redockTerminal,
   })
   registerIpc(coreControlConnection, nativeMode)
+  stopBrowserHost = startBrowserHost(() => mainWindow)
   startHarnessHost({ modelDirectory: localModelsDirectory() })
 
   const splashPreview = isSplashPreview()
@@ -777,6 +780,8 @@ shutdownLifecycle.onWillShutdown((event) => {
   quitting = true
   event.report('application', 'Closing application services.')
   event.join(Promise.resolve().then(() => {
+    stopBrowserHost?.()
+    stopBrowserHost = undefined
     menuBarMode?.dispose()
     coreControlConnection?.dispose()
     stopTerminalHost()
