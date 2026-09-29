@@ -237,6 +237,8 @@ describe('Overlay', () => {
     expect(document.body.querySelector('[data-testid="overlay-stage"]')).toBeNull();
     expect(byTestId('overlay-attach')).toBeInstanceOf(HTMLButtonElement);
     expect(byTestId('overlay-send')).toBeInstanceOf(HTMLButtonElement);
+    expect(byTestId('overlay-attach').classList).toContain('mh-composer__button');
+    expect(byTestId('overlay-open-terminal').classList).toContain('mh-composer__button');
     expect(byTestId('overlay-permissions').textContent).toContain('Permissions');
     for (const id of [
       'overlay-model-picker',

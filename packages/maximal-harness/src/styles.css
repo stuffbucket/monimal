@@ -1092,3 +1092,23 @@ body,
 .mh-card {
   z-index: 2;
 }
+
+/*
+ * Shared package-mode button resets are unlayered. Keep these circular
+ * composer actions unlayered too so their tokenized surface is not erased.
+ */
+.mh-overlay-body .mh-composer__button {
+  border: 1px solid var(--shell-border-strong, var(--shell-border));
+  background: var(--shell-raised);
+  box-shadow: var(--shell-elevation, none);
+}
+
+.mh-overlay-body .mh-composer__button:hover:not(:disabled) {
+  border-color: var(--shell-border-hover, var(--shell-accent));
+  background: var(--shell-hover);
+}
+
+.mh-overlay-body .mh-composer__button--send:not(:disabled) {
+  border-color: var(--shell-accent);
+  background: var(--shell-accent);
+}
