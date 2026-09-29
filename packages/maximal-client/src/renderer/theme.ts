@@ -113,9 +113,9 @@ const THEME_CSS = `
   --data-viz-series-6: #b58ad6;
   --data-viz-series-7: #d8835f;
   --data-viz-series-8: #84919f;
-  --maximal-cloud-1: #6f9aa5;
-  --maximal-cloud-2: #9a7fa0;
-  --maximal-cloud-3: #aa876a;
+  --maximal-cloud-1: #5c9fad;
+  --maximal-cloud-2: #9b6ba2;
+  --maximal-cloud-3: #bb7952;
 
    --shell-terminal-background: #111317;
    --maximal-terminal-foreground: #f5f5f5;
@@ -175,6 +175,26 @@ const THEME_CSS = `
   --shell-background: rgb(255 255 255 / 0.7);
   --shell-canvas: rgb(238 240 244 / 0.78);
   --shell-raised: rgb(255 255 255 / 0.88);
+}
+
+:root[data-background-effects='true'] {
+  --bg-app: rgb(22 24 29 / 0.48);
+  --bg-panel: rgb(27 30 36 / 0.64);
+  --bg-canvas: rgb(16 18 22 / 0.56);
+  --bg-raised: rgb(35 39 47 / 0.78);
+  --shell-background: rgb(22 24 29 / 0.48);
+  --shell-canvas: rgb(16 18 22 / 0.56);
+  --shell-raised: rgb(35 39 47 / 0.78);
+}
+
+:root[data-theme='light'][data-background-effects='true'] {
+  --bg-app: rgb(255 255 255 / 0.52);
+  --bg-panel: rgb(247 248 250 / 0.66);
+  --bg-canvas: rgb(238 240 244 / 0.58);
+  --bg-raised: rgb(255 255 255 / 0.8);
+  --shell-background: rgb(255 255 255 / 0.52);
+  --shell-canvas: rgb(238 240 244 / 0.58);
+  --shell-raised: rgb(255 255 255 / 0.8);
 }
 
 /*
