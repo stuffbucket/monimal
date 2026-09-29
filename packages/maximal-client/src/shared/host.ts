@@ -159,6 +159,17 @@ export interface MenuBarModeAttempt {
   deadlineMs: number
 }
 
+export interface SystemNotificationStatus {
+  supported: boolean
+  canOpenSettings: boolean
+}
+
+export interface GeneralDesktopSettings {
+  version: string
+  startOnLogin: boolean
+  quickAccessShortcut: 'control-control'
+}
+
 export interface ProviderOnboardingPreference {
   dismissed: boolean
 }
@@ -257,6 +268,9 @@ export interface MaximalHost {
     coreLocation: () => Promise<string>
     revealCore: () => Promise<void>
   }
+  recordings: {
+    revealFolder: () => Promise<void>
+  }
   localModels: {
     list: () => Promise<ControlResult<LocalModelCatalogSnapshot>>
     ensure: (modelKey: string) => Promise<ControlResult<LocalModelEnsureResult>>
@@ -280,6 +294,14 @@ export interface MaximalHost {
     confirmEnable: (attemptId: string) => Promise<MenuBarModeState>
     cancelEnable: (attemptId: string) => Promise<MenuBarModeState>
     disable: () => Promise<MenuBarModeState>
+  }
+  systemNotifications: {
+    status: () => Promise<SystemNotificationStatus>
+    openSettings: () => Promise<void>
+  }
+  generalSettings: {
+    get: () => Promise<GeneralDesktopSettings>
+    setStartOnLogin: (enabled: boolean) => Promise<GeneralDesktopSettings>
   }
   providerOnboarding: {
     get: () => Promise<ProviderOnboardingPreference>

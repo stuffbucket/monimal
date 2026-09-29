@@ -75,6 +75,24 @@ describe('installApplicationMenu', () => {
     expect(onToggleRecording).toHaveBeenCalledOnce()
   })
 
+  it('reveals the recordings folder from File only when the host supplies it', () => {
+    installApplicationMenu()
+    let reveal = template()
+      .find((item) => item.label === 'File')
+      ?.submenu?.find((item) => item.label === 'Reveal Recordings Folder')
+    expect(reveal?.enabled).toBe(false)
+
+    buildFromTemplate.mockClear()
+    const onRevealRecordings = vi.fn()
+    installApplicationMenu({ onRevealRecordings })
+    reveal = template()
+      .find((item) => item.label === 'File')
+      ?.submenu?.find((item) => item.label === 'Reveal Recordings Folder')
+    expect(reveal?.enabled).toBe(true)
+    reveal?.click?.()
+    expect(onRevealRecordings).toHaveBeenCalledOnce()
+  })
+
   onDarwin('leads with an application submenu labelled from app.name', () => {
     installApplicationMenu()
 

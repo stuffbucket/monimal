@@ -29,6 +29,10 @@ export const allowedAdhocStyles = new Map([
   ],
   ['packages/maximal-client/src/renderer/theme.ts', { injectors: 1 }],
   [
+    'packages/maximal-client/src/renderer/workspace-map/WorkspaceMap.tsx',
+    { inlineAttributes: 2 },
+  ],
+  [
     'packages/maximal-context-window/src/ContextWindowSessionPanel.tsx',
     { inlineAttributes: 3 },
   ],

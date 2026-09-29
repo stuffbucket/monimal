@@ -34,6 +34,10 @@ const bridge = {
     coreLocation: () => ipcRenderer.invoke(BRIDGE_CHANNELS.coreLogsLocation),
     revealCore: () => ipcRenderer.invoke(BRIDGE_CHANNELS.coreLogsReveal),
   },
+  recordings: {
+    revealFolder: () =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.recordingsRevealFolder),
+  },
   localModels: {
     list: () => ipcRenderer.invoke(BRIDGE_CHANNELS.localModelsList),
     ensure: (modelKey) => ipcRenderer.invoke(BRIDGE_CHANNELS.localModelsEnsure, modelKey),
@@ -61,6 +65,16 @@ const bridge = {
     confirmEnable: (attemptId) => ipcRenderer.invoke(BRIDGE_CHANNELS.menuBarModeConfirmEnable, attemptId),
     cancelEnable: (attemptId) => ipcRenderer.invoke(BRIDGE_CHANNELS.menuBarModeCancelEnable, attemptId),
     disable: () => ipcRenderer.invoke(BRIDGE_CHANNELS.menuBarModeDisable),
+  },
+  systemNotifications: {
+    status: () => ipcRenderer.invoke(BRIDGE_CHANNELS.systemNotificationsStatus),
+    openSettings: () =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.systemNotificationsOpenSettings),
+  },
+  generalSettings: {
+    get: () => ipcRenderer.invoke(BRIDGE_CHANNELS.generalSettingsGet),
+    setStartOnLogin: (enabled) =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.generalSettingsSetStartOnLogin, enabled),
   },
   providerOnboarding: {
     get: () => ipcRenderer.invoke(BRIDGE_CHANNELS.providerOnboardingGet),

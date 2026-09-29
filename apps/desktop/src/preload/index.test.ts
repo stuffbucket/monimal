@@ -40,6 +40,7 @@ describe('preload bridge allowlist', () => {
       'browser',
       'clientInstallations',
       'control',
+      'generalSettings',
       'getCoreStatus',
       'getProxyUrl',
       'harness',
@@ -55,7 +56,9 @@ describe('preload bridge allowlist', () => {
       'pendingSettingsRequest',
       'projects',
       'providerOnboarding',
+      'recordings',
       'shutdown',
+      'systemNotifications',
       'terminal',
     ])
     expect(Object.keys(bridge.appearance).sort()).toEqual([
@@ -123,6 +126,7 @@ describe('preload bridge allowlist', () => {
       'usageGet',
     ])
     expect(Object.keys(bridge.logs).sort()).toEqual(['coreLocation', 'list', 'location', 'reveal', 'revealCore'])
+    expect(Object.keys(bridge.recordings).sort()).toEqual(['revealFolder'])
     expect(Object.keys(bridge.localModels).sort()).toEqual([
       'cancel',
       'ensure',
@@ -159,6 +163,14 @@ describe('preload bridge allowlist', () => {
       'confirmEnable',
       'disable',
       'get',
+    ])
+    expect(Object.keys(bridge.systemNotifications).sort()).toEqual([
+      'openSettings',
+      'status',
+    ])
+    expect(Object.keys(bridge.generalSettings).sort()).toEqual([
+      'get',
+      'setStartOnLogin',
     ])
     expect(Object.keys(bridge.providerOnboarding).sort()).toEqual([
       'get',
@@ -250,6 +262,7 @@ describe('preload bridge allowlist', () => {
     await bridge.logs.reveal()
     await bridge.logs.coreLocation()
     await bridge.logs.revealCore()
+    await bridge.recordings.revealFolder()
     await bridge.localModels.openFolder()
     await bridge.ollamaRuntime.status('http://ollama.lan:11500')
     await bridge.ollamaRuntime.launch('http://ollama.lan:11500')
@@ -264,6 +277,10 @@ describe('preload bridge allowlist', () => {
     await bridge.menuBarMode.confirmEnable('attempt-1')
     await bridge.menuBarMode.cancelEnable('attempt-1')
     await bridge.menuBarMode.disable()
+    await bridge.systemNotifications.status()
+    await bridge.systemNotifications.openSettings()
+    await bridge.generalSettings.get()
+    await bridge.generalSettings.setStartOnLogin(true)
     await bridge.providerOnboarding.get()
     await bridge.providerOnboarding.setDismissed(true)
     await bridge.appearance.get()
@@ -360,6 +377,7 @@ describe('preload bridge allowlist', () => {
       [BRIDGE_CHANNELS.logsReveal],
       [BRIDGE_CHANNELS.coreLogsLocation],
       [BRIDGE_CHANNELS.coreLogsReveal],
+      [BRIDGE_CHANNELS.recordingsRevealFolder],
       [BRIDGE_CHANNELS.localModelsOpenFolder],
       [BRIDGE_CHANNELS.ollamaRuntimeStatus, 'http://ollama.lan:11500'],
       [BRIDGE_CHANNELS.ollamaRuntimeLaunch, 'http://ollama.lan:11500'],
@@ -375,6 +393,10 @@ describe('preload bridge allowlist', () => {
       [BRIDGE_CHANNELS.menuBarModeConfirmEnable, 'attempt-1'],
       [BRIDGE_CHANNELS.menuBarModeCancelEnable, 'attempt-1'],
       [BRIDGE_CHANNELS.menuBarModeDisable],
+      [BRIDGE_CHANNELS.systemNotificationsStatus],
+      [BRIDGE_CHANNELS.systemNotificationsOpenSettings],
+      [BRIDGE_CHANNELS.generalSettingsGet],
+      [BRIDGE_CHANNELS.generalSettingsSetStartOnLogin, true],
       [BRIDGE_CHANNELS.providerOnboardingGet],
       [BRIDGE_CHANNELS.providerOnboardingSet, true],
       [BRIDGE_CHANNELS.appearanceGet],

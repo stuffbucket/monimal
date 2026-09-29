@@ -1,7 +1,8 @@
-import { join } from 'node:path'
+import { isAbsolute, join } from 'node:path'
+import { mkdir } from 'node:fs/promises'
 
 import { startWindowRecording, type RecordingSession } from '@maximal/maximal-recording/main'
-import { app, dialog, type BrowserWindow } from 'electron'
+import { app, dialog, shell, type BrowserWindow } from 'electron'
 
 import { mainLogger } from '../main-logger.js'
 
@@ -10,6 +11,24 @@ export interface DesktopRecording {
   toggle(): Promise<void>
   stop(): Promise<void>
   windowClosed(window: BrowserWindow): void
+}
+
+export function recordingsDirectory(
+  environment: NodeJS.ProcessEnv = process.env,
+): string {
+  const configured = environment['XDG_DATA_HOME']
+  const dataHome =
+    configured && isAbsolute(configured)
+      ? configured
+      : join(app.getPath('home'), '.local', 'share')
+  return join(dataHome, 'maximal', 'recordings')
+}
+
+export async function revealRecordingsDirectory(): Promise<void> {
+  const directory = recordingsDirectory()
+  await mkdir(directory, { recursive: true })
+  const error = await shell.openPath(directory)
+  if (error) throw new Error(error)
 }
 
 /** Desktop owns the consent dialog, destination, and selected window. */
@@ -45,9 +64,11 @@ export function createDesktopRecording(
     }
     starting = true
     try {
+      const directory = recordingsDirectory()
+      await mkdir(directory, { recursive: true })
       const { canceled, filePath } = await dialog.showSaveDialog(window, {
         title: 'Record Maximal window',
-        defaultPath: join(app.getPath('documents'), `maximal-${new Date().toISOString().replaceAll(':', '-')}.mp4`),
+        defaultPath: join(directory, `maximal-${new Date().toISOString().replaceAll(':', '-')}.mp4`),
         filters: [{ name: 'MP4 video', extensions: ['mp4'] }],
       })
       if (canceled || !filePath) return

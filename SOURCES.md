@@ -123,6 +123,8 @@ Both are monorepo-native;
 | `apps/desktop` | Development Electron profiles are checkout-isolated and shutdown waits for the Core child. |
 | `apps/desktop` / `maximal-core` | Development worktrees isolate application state while sharing a locked GitHub credential home; `MAXIMAL_DEV_PROFILE` MAY assign a stable explicit development profile name. Packaged and standalone Core credential paths remain unchanged. |
 | `maximal-electron` / `apps/desktop` | Desktop imports the package host-window API directly; it has no local shell adapter. |
+| `maximal-electron` / `apps/desktop` | The host export owns Electron-native system-notification support and trusted macOS notification-settings launching; desktop exposes notification status and the settings action through its typed preload bridge. |
+| `apps/desktop` | Electron owns version, login-item, lifecycle, and Settings integration for General desktop behavior; `uiohook-napi` is limited to the modifier-only Ctrl-twice quick-access gesture that Electron accelerators cannot represent. |
 | `maximal-browser` / `apps/desktop` | Browser pages run in sandboxed `WebContentsView` instances owned by `maximal-browser`; desktop owns IPC transport and window lifecycle. |
 | `@maximal/maximal-client` / `apps/desktop` | Direct lint and typecheck commands re-enter their Turbo tasks through `run-workspace-task.mjs`. |
 | `maximal-electron` | Terminal copies use a main-owned revisioned pane document and geometry controller; window transfers stage before atomic readiness-gated commit or rollback. |

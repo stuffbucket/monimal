@@ -8,6 +8,15 @@ import { loadHarnessOptions } from './harness-options'
 
 const directories: string[] = []
 
+function isolatedContext(directory: string) {
+  return {
+    argv: [],
+    cwd: directory,
+    environment: { XDG_CONFIG_HOME: directory },
+    homeDirectory: homedir(),
+  }
+}
+
 async function fixture(): Promise<string> {
   const directory = await mkdtemp(join(tmpdir(), 'maximal-harness-options-'))
   directories.push(directory)
@@ -26,7 +35,7 @@ describe('loadHarnessOptions', () => {
   it('uses the existing safe defaults when no preference file exists', async () => {
     const directory = await fixture()
 
-    expect(loadHarnessOptions(directory)).toEqual({
+    expect(loadHarnessOptions(directory, isolatedContext(directory))).toEqual({
       approval: 'writes',
       codingTools: true,
       cwd: homedir(),
@@ -48,7 +57,7 @@ describe('loadHarnessOptions', () => {
       }),
     )
 
-    expect(loadHarnessOptions(directory)).toEqual({
+    expect(loadHarnessOptions(directory, isolatedContext(directory))).toEqual({
       approval: 'all',
       codingTools: false,
       cwd: '/workspace/project',
@@ -69,7 +78,7 @@ describe('loadHarnessOptions', () => {
       }),
     )
 
-    expect(loadHarnessOptions(directory)).toEqual({
+    expect(loadHarnessOptions(directory, isolatedContext(directory))).toEqual({
       approval: 'writes',
       codingTools: true,
       cwd: homedir(),

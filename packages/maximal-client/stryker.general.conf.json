@@ -1,0 +1,36 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "packageManager": "npm",
+  "testRunner": "command",
+  "commandRunner": {
+    "command": "pnpm exec vitest run src/renderer/settings/GeneralSection.test.tsx"
+  },
+  "mutate": [
+    "src/renderer/settings/general/GeneralSection.tsx",
+    "src/renderer/settings/general/useGeneralDesktopSettings.ts"
+  ],
+  "reporters": ["progress", "clear-text", "html", "json"],
+  "tempDirName": ".stryker-tmp",
+  "htmlReporter": {
+    "fileName": "reports/mutation/general/index.html"
+  },
+  "jsonReporter": {
+    "fileName": "reports/mutation/general/mutation.json"
+  },
+  "concurrency": 4,
+  "timeoutMS": 30000,
+  "coverageAnalysis": "off",
+  "thresholds": {
+    "break": 100
+  },
+  "ignorePatterns": [
+    "out",
+    ".vite",
+    "node_modules",
+    "dist",
+    "reports",
+    "test-results",
+    "playwright-report",
+    "e2e"
+  ]
+}

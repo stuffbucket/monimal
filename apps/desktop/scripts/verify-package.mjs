@@ -22,7 +22,7 @@ import {
 } from './package-contract.mjs'
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..')
-const EXTERNAL_CLOSURE_ROOTS = ['node-pty', LLAMA_PACKAGE_NAME]
+const EXTERNAL_CLOSURE_ROOTS = ['node-pty', 'uiohook-napi', LLAMA_PACKAGE_NAME]
 const LLAMA_SCOPE = 'node_modules/@node-llama-cpp'
 const failures = []
 
@@ -136,6 +136,22 @@ for (const { name, ok } of terminalPackageChecks({
 })) {
   check(ok, name)
 }
+
+console.log('\nquick access keyboard hook')
+check(
+  listedPaths.has('node_modules/uiohook-napi/package.json'),
+  'uiohook-napi is packed',
+)
+check(
+  unpackedFiles.some((file) => file.endsWith(
+    `node_modules/uiohook-napi/prebuilds/${process.platform}-${process.arch}/uiohook-napi.node`,
+  )),
+  'the uiohook native addon is unpacked',
+)
+check(
+  componentNames.has('uiohook-napi'),
+  'uiohook-napi is inventoried in the runtime SBOM',
+)
 
 const IO = {
   basename: (target) => path.basename(target),

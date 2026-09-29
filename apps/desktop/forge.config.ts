@@ -57,7 +57,7 @@ import {
  * wiping a directory it does not own.
  */
 const PACKAGER_STAGING_BASE = mkdtempSync(path.join(os.tmpdir(), 'forge-maximal-client-'))
-const EXTERNAL_CLOSURE_ROOTS = ['node-pty', LLAMA_PACKAGE_NAME]
+const EXTERNAL_CLOSURE_ROOTS = ['node-pty', 'uiohook-napi', LLAMA_PACKAGE_NAME]
 const NODE_MODULES = path.resolve('node_modules')
 const CDXGEN_CLI = path.join(
   workspaceRoot(),
@@ -103,6 +103,7 @@ const RESOLUTION = { boundary: workspaceRoot() }
 const HOISTED = hoistedDependencies(PACKAGE_IO, NODE_MODULES, EXTERNAL_CLOSURE_ROOTS, RESOLUTION)
 const CLOSURE = externalClosure(PACKAGE_IO, NODE_MODULES, EXTERNAL_CLOSURE_ROOTS, RESOLUTION)
 const PTY_SOURCE = realpathSync(path.join(NODE_MODULES, 'node-pty'))
+const UIOHOOK_SOURCE = realpathSync(path.join(NODE_MODULES, 'uiohook-napi'))
 
 function copyExternalClosure(buildPath: string): void {
   for (const { name, dir, path: placement } of CLOSURE) {
@@ -127,6 +128,26 @@ function stagePtyRuntime(buildPath: string, platform: string, arch: string): voi
   for (const entry of ptyRuntimeEntries(platform, arch)) {
     const source = path.join(PTY_SOURCE, entry)
     if (!existsSync(source)) throw new Error(`node-pty runtime entry does not exist at ${source}.`)
+    const target = path.join(destination, entry)
+    mkdirSync(path.dirname(target), { recursive: true })
+    cpSync(source, target, { recursive: true, dereference: true })
+  }
+}
+
+function stageUiohookRuntime(buildPath: string, platform: string, arch: string): void {
+  const destination = path.join(buildPath, 'node_modules', 'uiohook-napi')
+  rmSync(destination, { recursive: true, force: true })
+  for (const entry of [
+    'package.json',
+    'LICENSE',
+    'README.md',
+    'dist',
+    path.join('prebuilds', `${platform}-${arch}`),
+  ]) {
+    const source = path.join(UIOHOOK_SOURCE, entry)
+    if (!existsSync(source)) {
+      throw new Error(`uiohook-napi runtime entry does not exist at ${source}.`)
+    }
     const target = path.join(destination, entry)
     mkdirSync(path.dirname(target), { recursive: true })
     cpSync(source, target, { recursive: true, dereference: true })
@@ -256,7 +277,7 @@ const config: ForgeConfig = {
     derefSymlinks: true,
     asar: {
       unpack:
-        '{**/*.node,**/node_modules/node-pty/prebuilds/**,**/node_modules/@node-llama-cpp/**,**/node_modules/node-llama-cpp/**}',
+        '{**/*.node,**/node_modules/node-pty/prebuilds/**,**/node_modules/uiohook-napi/prebuilds/**,**/node_modules/@node-llama-cpp/**,**/node_modules/node-llama-cpp/**}',
     },
     ignore: (file: string) => {
       if (!file || file === '/package.json') return false
@@ -305,6 +326,7 @@ const config: ForgeConfig = {
     packageAfterCopy: (_config, buildPath, _electronVersion, platform, arch) => {
       copyExternalClosure(buildPath)
       stagePtyRuntime(buildPath, platform, arch)
+      stageUiohookRuntime(buildPath, platform, arch)
       pruneLlamaBackends(buildPath, platform, arch)
       pruneLlamaSource(buildPath)
       prunePlatformPackages(buildPath, platform, arch)

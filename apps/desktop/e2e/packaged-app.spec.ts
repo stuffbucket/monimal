@@ -1,7 +1,9 @@
 import { randomBytes } from 'node:crypto'
-import { execFileSync, spawnSync } from 'node:child_process'
+import { execFile, execFileSync, spawnSync } from 'node:child_process'
 import { mkdtempSync, rmSync } from 'node:fs'
-import { stat } from 'node:fs/promises'
+import { mkdir, stat } from 'node:fs/promises'
+import { join } from 'node:path'
+import { promisify } from 'node:util'
 
 import { expect, test, type Page } from '@playwright/test'
 import { spawn as spawnPty } from 'node-pty'
@@ -30,6 +32,9 @@ import { assertContrastAtLeast, assertFocusOutlineResolves, assertNoVerticalOver
 
 let running: RunningApp
 let model: ScriptedModel
+const execFileAsync = promisify(execFile)
+const EVIDENCE_HOLD_MS = 7_500
+const MIN_EVIDENCE_SECONDS = 5
 let tmuxSocketDirectory: string | undefined
 
 test.beforeAll(async () => {
@@ -38,6 +43,7 @@ test.beforeAll(async () => {
     tmuxSocketDirectory = mkdtempSync('/tmp/mt-')
   }
   running = await launchPackagedApp({
+    MAXIMAL_DISABLE_GLOBAL_KEYBOARD_HOOK: '1',
     STUFFBUCKET_HARNESS_START_OPEN: '1',
     STUFFBUCKET_PROVIDER: 'maximal',
     STUFFBUCKET_PROVIDER_URL: model.baseUrl,
@@ -110,6 +116,55 @@ async function toggleNativeRecording(output?: string): Promise<void> {
       { keyCode: '', triggeredByAccelerator: false, type: 'keyDown' },
     )
   }, output)
+}
+
+async function startWindowRecording(output: string): Promise<void> {
+  await toggleNativeRecording(output)
+  await expect.poll(() => running.app.evaluate(({ Menu }) =>
+    Menu.getApplicationMenu()?.items
+      .find((item) => item.label === 'File')
+      ?.submenu?.items.some((item) => item.label === 'Stop Window Recording') ?? false,
+  )).toBe(true)
+}
+
+async function stopWindowRecording(
+  output: string,
+  screenshot: string,
+): Promise<void> {
+  await toggleNativeRecording()
+  await expect.poll(() => running.app.evaluate(({ Menu }) =>
+    Menu.getApplicationMenu()?.items
+      .find((item) => item.label === 'File')
+      ?.submenu?.items.some((item) => item.label === 'Record Window…') ?? false,
+  )).toBe(true)
+  await expect.poll(async () => (await stat(output)).size).toBeGreaterThan(0)
+  await execFileAsync(process.env['FFMPEG'] ?? 'ffmpeg', [
+    '-hide_banner',
+    '-loglevel',
+    'error',
+    '-y',
+    '-sseof',
+    '-0.1',
+    '-i',
+    output,
+    '-frames:v',
+    '1',
+    screenshot,
+  ])
+  expect((await stat(screenshot)).size).toBeGreaterThan(0)
+  const { stdout } = await execFileAsync(
+    process.env['FFPROBE'] ?? 'ffprobe',
+    [
+      '-v',
+      'error',
+      '-show_entries',
+      'format=duration',
+      '-of',
+      'default=noprint_wrappers=1:nokey=1',
+      output,
+    ],
+  )
+  expect(Number(stdout.trim())).toBeGreaterThanOrEqual(MIN_EVIDENCE_SECONDS)
 }
 
 test.afterAll(async () => {
@@ -726,6 +781,76 @@ test('native Settings flyout opens every restored section in the packaged UI', a
   await expect(page.locator('[data-testid="toggle-right"]')).toHaveCount(0)
 })
 
+test('General settings expose packaged Electron desktop behavior', async ({ browserName: _browserName }, testInfo) => {
+  const page = await mainWindow()
+  const evidenceDirectory = process.env['MAXIMAL_EVIDENCE_DIR']
+  if (evidenceDirectory) await mkdir(evidenceDirectory, { recursive: true })
+  const evidencePath = (name: string): string =>
+    evidenceDirectory ? join(evidenceDirectory, name) : testInfo.outputPath(name)
+  await openNativeSettings('General')
+  const hasRevealRecordings = await running.app.evaluate(({ Menu }) =>
+    Menu.getApplicationMenu()?.items
+      .find((item) => item.label === 'File')
+      ?.submenu?.items.some((item) =>
+        item.label === 'Reveal Recordings Folder' && item.enabled,
+      ) ?? false,
+  )
+  expect(hasRevealRecordings).toBe(true)
+
+  await expect(page.locator('h1')).toHaveText('General')
+  await expect(page.getByRole('heading', { name: 'Desktop app', level: 2 })).toBeVisible()
+  await expect(page.getByText('Run on startup', { exact: true })).toBeVisible()
+  await expect(page.getByText('Ctrl Ctrl', { exact: true })).toBeVisible()
+  await expect(page.getByText('Menu bar', { exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Notifications', level: 2 })).toBeVisible()
+
+  const native = await running.app.evaluate(({ app }) => ({
+    version: app.getVersion(),
+    startOnLogin: app.getLoginItemSettings().openAtLogin,
+  }))
+  const bridged = await page.evaluate(() => window.maximal.generalSettings.get())
+  expect(bridged).toEqual({
+    ...native,
+    quickAccessShortcut: 'control-control',
+  })
+  await expect(page.getByText(native.version, { exact: true })).toBeVisible()
+  await expect(page.getByTestId('start-on-login-switch')).toHaveAttribute(
+    'aria-checked',
+    String(native.startOnLogin),
+  )
+
+  const unchanged = await page.evaluate((enabled) =>
+    window.maximal.generalSettings.setStartOnLogin(enabled), native.startOnLogin)
+  expect(unchanged).toEqual(bridged)
+
+  const overviewRecording = evidencePath('general-settings.mp4')
+  const overviewScreenshot = evidencePath('general-settings.png')
+  await startWindowRecording(overviewRecording)
+  await expect(page.getByText('System notifications', { exact: true })).toBeVisible()
+  await page.waitForTimeout(EVIDENCE_HOLD_MS)
+  await stopWindowRecording(overviewRecording, overviewScreenshot)
+
+  const confirmationRecording = evidencePath('general-menu-bar-confirmation.mp4')
+  const confirmationScreenshot = evidencePath('general-menu-bar-confirmation.png')
+  await startWindowRecording(confirmationRecording)
+  await page.getByTestId('menu-bar-only-switch').click()
+  await expect(
+    page.getByRole('heading', { name: 'Keep menu bar only?' }).first(),
+  ).toBeVisible()
+  await page.waitForTimeout(EVIDENCE_HOLD_MS)
+  await stopWindowRecording(confirmationRecording, confirmationScreenshot)
+  await page.getByRole('button', { name: 'Revert' }).click()
+  await expect(page.getByText('Keep menu bar only?')).toHaveCount(0)
+  await testInfo.attach('General settings', {
+    path: overviewScreenshot,
+    contentType: 'image/png',
+  })
+  await testInfo.attach('Menu bar confirmation', {
+    path: confirmationScreenshot,
+    contentType: 'image/png',
+  })
+})
+
 test('Appearance effects persist, honor reduced motion, and release Pixi when disabled', async ({ page: _page }, testInfo) => {
   const page = await mainWindow()
   const recordingPath = process.env.MAXIMAL_E2E_CAPTURE_COZY_VIDEO === '1'
@@ -745,11 +870,11 @@ test('Appearance effects persist, honor reduced motion, and release Pixi when di
     await window.maximal.appearance.setReducedMotionEnabled(false)
   })
 
-  await openNativeSettings('Appearance')
-  await expect(page.locator('h1')).toHaveText('Appearance')
+  await openNativeSettings('General')
+  await expect(page.locator('h1')).toHaveText('General')
   await expect(page.getByRole('heading', { name: 'Window materials' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Visual effects' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Desktop presence' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Desktop app' })).toBeVisible()
 
   const vibrancy = page.getByTestId('vibrancy-switch')
   const background = page.getByTestId('background-effects-switch')
@@ -836,7 +961,7 @@ test('Appearance effects persist, honor reduced motion, and release Pixi when di
   if (recordingPath) await page.waitForTimeout(2_000)
 
   await page.reload()
-  await openNativeSettings('Appearance')
+  await openNativeSettings('General')
   await expect(page.getByTestId('background-effects-switch'))
     .toHaveAttribute('aria-checked', 'true')
   await expect(page.getByTestId('reduced-motion-switch'))

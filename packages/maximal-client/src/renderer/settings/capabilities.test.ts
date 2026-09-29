@@ -102,6 +102,9 @@ function fakeBridge(): MaximalHost {
       coreLocation: vi.fn(async () => '/tmp/core/logs'),
       revealCore: vi.fn(async () => {}),
     },
+    recordings: {
+      revealFolder: vi.fn(async () => {}),
+    },
     localModels: {
       list: vi.fn(async () => success({ models: [], revision: 0 })),
       ensure: vi.fn(async (modelKey: string) =>
@@ -161,6 +164,25 @@ function fakeBridge(): MaximalHost {
       confirmEnable: vi.fn(async () => ({ enabled: true, pending: false })),
       cancelEnable: vi.fn(async () => ({ enabled: false, pending: false })),
       disable: vi.fn(async () => ({ enabled: false, pending: false })),
+    },
+    systemNotifications: {
+      status: vi.fn(async () => ({
+        supported: true,
+        canOpenSettings: true,
+      })),
+      openSettings: vi.fn(async () => {}),
+    },
+    generalSettings: {
+      get: vi.fn(async () => ({
+        version: '1.2.3',
+        startOnLogin: false,
+        quickAccessShortcut: 'control-control' as const,
+      })),
+      setStartOnLogin: vi.fn(async (enabled: boolean) => ({
+        version: '1.2.3',
+        startOnLogin: enabled,
+        quickAccessShortcut: 'control-control' as const,
+      })),
     },
     providerOnboarding: {
       get: vi.fn(async () => ({ dismissed: false })),
@@ -415,6 +437,16 @@ describe('createCoreSettingsCapabilities', () => {
       enabled: false,
       pending: false,
     })
+    await expect(capabilities.general.desktopSettings()).resolves.toEqual({
+      version: '1.2.3',
+      startOnLogin: false,
+      quickAccessShortcut: 'control-control',
+    })
+    await expect(capabilities.general.setStartOnLogin(true)).resolves.toEqual({
+      version: '1.2.3',
+      startOnLogin: true,
+      quickAccessShortcut: 'control-control',
+    })
     await expect(capabilities.general.appearance()).resolves.toEqual({
       vibrancyEnabled: false,
       vibrancySupported: true,
@@ -517,6 +549,10 @@ describe('createCoreSettingsCapabilities', () => {
       'attempt-1',
     )
     expect(window.maximal.menuBarMode.disable).toHaveBeenCalledOnce()
+    expect(window.maximal.generalSettings.get).toHaveBeenCalledOnce()
+    expect(window.maximal.generalSettings.setStartOnLogin).toHaveBeenCalledWith(
+      true,
+    )
     expect(window.maximal.control.connectionsAct).toHaveBeenCalledWith(
       'claude-code',
       'connect',

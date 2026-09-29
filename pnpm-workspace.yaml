@@ -33,6 +33,7 @@ allowBuilds:
   "node-llama-cpp": true
   "node-pty": true
   "protobufjs": true
+  "uiohook-napi": true
 
 # Required by Electron Forge and Rolldown.
 publicHoistPattern:

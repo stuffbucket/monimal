@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { createPreviewSettingsCapabilities } from './ui-preview-capabilities'
 
 describe('UI preview menu-bar mode', () => {
-  it('supports the confirmation flow used by Appearance', async () => {
+  it('supports the confirmation flow used by General settings', async () => {
     vi.setSystemTime(new Date('2026-09-10T12:00:00Z'))
     const capabilities = createPreviewSettingsCapabilities()
 

@@ -87,6 +87,16 @@ function fakeCapabilities(): SettingsCapabilities {
       updatePreferences: vi.fn(),
     },
     general: {
+      desktopSettings: vi.fn(async () => ({
+        version: '1.2.3',
+        startOnLogin: false,
+        quickAccessShortcut: 'control-control' as const,
+      })),
+      setStartOnLogin: vi.fn(async (enabled: boolean) => ({
+        version: '1.2.3',
+        startOnLogin: enabled,
+        quickAccessShortcut: 'control-control' as const,
+      })),
       appearance: vi.fn(async () => ({
         vibrancyEnabled: false,
         vibrancySupported: true,
@@ -117,6 +127,11 @@ function fakeCapabilities(): SettingsCapabilities {
       confirmMenuBarOnly: vi.fn(async () => ({ enabled: true, pending: false })),
       cancelMenuBarOnly: vi.fn(async () => ({ enabled: false, pending: false })),
       disableMenuBarOnly: vi.fn(async () => ({ enabled: false, pending: false })),
+      systemNotificationStatus: vi.fn(async () => ({
+        supported: true,
+        canOpenSettings: true,
+      })),
+      openSystemNotificationSettings: vi.fn(async () => {}),
     },
     providerOnboarding: {
       get: vi.fn(async () => ({ dismissed: false })),

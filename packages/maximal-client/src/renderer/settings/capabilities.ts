@@ -37,6 +37,7 @@ import type {
 import type {
   AppearancePreference,
   ClientInstallation,
+  GeneralDesktopSettings,
   LocalModelCancelResult,
   LocalModelCatalogSnapshot,
   LocalModelEnsureResult,
@@ -48,6 +49,7 @@ import type {
   OllamaRuntimePreferences,
   OllamaRuntimePreferencesUpdate,
   ProviderOnboardingPreference,
+  SystemNotificationStatus,
 } from '../../shared/host'
 
 import {
@@ -74,6 +76,7 @@ export type {
   ConnectorSettingValue,
   ClientInstallation,
   DiagnosticsResponse,
+  GeneralDesktopSettings,
   MenuBarModeAttempt,
   MenuBarModeState,
   ModelsListResponse,
@@ -93,6 +96,7 @@ export type {
   SearchProviderValidationResponse,
   SearchSettingsResponse,
   SearchSettingsUpdateRequest,
+  SystemNotificationStatus,
   TokenUsagePeriod,
   TokenUsageSummary,
 }
@@ -122,6 +126,8 @@ export interface SettingsCapabilities {
     testApiKey(input: OllamaApiKeyTestRequest): Promise<OllamaApiKeyTestResponse>
   }
   general: {
+    desktopSettings(): Promise<GeneralDesktopSettings>
+    setStartOnLogin(enabled: boolean): Promise<GeneralDesktopSettings>
     appearance(): Promise<AppearancePreference>
     setVibrancyEnabled(enabled: boolean): Promise<AppearancePreference>
     setBackgroundEffectsEnabled(enabled: boolean): Promise<AppearancePreference>
@@ -132,6 +138,8 @@ export interface SettingsCapabilities {
     confirmMenuBarOnly(attemptId: string): Promise<MenuBarModeState>
     cancelMenuBarOnly(attemptId: string): Promise<MenuBarModeState>
     disableMenuBarOnly(): Promise<MenuBarModeState>
+    systemNotificationStatus(): Promise<SystemNotificationStatus>
+    openSystemNotificationSettings(): Promise<void>
   }
   providerOnboarding: {
     get(): Promise<ProviderOnboardingPreference>
@@ -326,6 +334,9 @@ export function createCoreSettingsCapabilities(): SettingsCapabilities {
         unwrapControlResult(await bridge.control.ollamaApiKeyTest(input)),
     },
     general: {
+      desktopSettings: () => bridge.generalSettings.get(),
+      setStartOnLogin: (enabled) =>
+        bridge.generalSettings.setStartOnLogin(enabled),
       appearance: () => bridge.appearance.get(),
       setVibrancyEnabled: (enabled) =>
         bridge.appearance.setVibrancyEnabled(enabled),
@@ -339,6 +350,9 @@ export function createCoreSettingsCapabilities(): SettingsCapabilities {
       confirmMenuBarOnly: (attemptId) => bridge.menuBarMode.confirmEnable(attemptId),
       cancelMenuBarOnly: (attemptId) => bridge.menuBarMode.cancelEnable(attemptId),
       disableMenuBarOnly: () => bridge.menuBarMode.disable(),
+      systemNotificationStatus: () => bridge.systemNotifications.status(),
+      openSystemNotificationSettings: () =>
+        bridge.systemNotifications.openSettings(),
     },
     providerOnboarding: {
       get: () => bridge.providerOnboarding.get(),

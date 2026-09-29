@@ -88,6 +88,9 @@ importers:
       pixi.js:
         specifier: 8.21.0
         version: 8.21.0
+      uiohook-napi:
+        specifier: 1.5.5
+        version: 1.5.5
       zod:
         specifier: ^4.5.4
         version: 4.5.4
@@ -116,6 +119,12 @@ importers:
       '@playwright/test':
         specifier: ^1.62.1
         version: 1.62.1
+      '@stryker-mutator/core':
+        specifier: ^10.0.0
+        version: 10.0.0(@types/node@26.4.0)
+      '@stryker-mutator/vitest-runner':
+        specifier: ^10.0.0
+        version: 10.0.0(@stryker-mutator/core@10.0.0(@types/node@26.4.0))(vitest@5.0.1(@opentelemetry/api@1.9.0)(@types/node@26.4.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0)))
       '@types/node':
         specifier: ^26.4.0
         version: 26.4.0
@@ -7233,6 +7242,10 @@ packages:
     resolution: {integrity: sha1-0eiJus33M7T/OyskPrehKGagt4s=}
     engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
 
+  node-gyp-build@4.8.4:
+    resolution: {integrity: sha1-inDuhUZK5SMndyqQ1mxgd6kAz8g=}
+    hasBin: true
+
   node-llama-cpp@3.20.0:
     resolution: {integrity: sha1-KuoeU1GLimrB3K7MqDaPV3OkQtQ=}
     engines: {node: '>=20.0.0'}
@@ -8532,6 +8545,10 @@ packages:
     resolution: {integrity: sha1-gjFem7xvKyWIiFis0f/4RBA1t38=}
     engines: {node: '>=0.8.0'}
     hasBin: true
+
+  uiohook-napi@1.5.5:
+    resolution: {integrity: sha1-KO2TJfSusiXAznu+7Mkryn4bons=}
+    engines: {node: '>= 16'}
 
   unbash@4.0.10:
     resolution: {integrity: sha1-EWwCtqNs2gPLVzDcwRC5zn5KvrE=}
@@ -14871,6 +14888,8 @@ snapshots:
       fetch-blob: 3.2.0
       formdata-polyfill: 4.0.10
 
+  node-gyp-build@4.8.4: {}
+
   node-llama-cpp@3.20.0(@typescript/typescript6@6.0.2)(supports-color@8.1.1):
     dependencies:
       '@huggingface/jinja': 0.5.9
@@ -16344,6 +16363,10 @@ snapshots:
 
   uglify-js@3.19.3:
     optional: true
+
+  uiohook-napi@1.5.5:
+    dependencies:
+      node-gyp-build: 4.8.4
 
   unbash@4.0.10: {}
 
