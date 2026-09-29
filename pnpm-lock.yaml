@@ -1792,7 +1792,7 @@ packages:
     libc: glibc
 
   '@cdxgen/cdxgen-plugins-bin-linux-arm64@2.5.1':
-    resolution: {integrity: sha1-+a8wy+mZOvtWRxWqKDK8eE+NJp4=}
+    resolution: {integrity: sha512-NjxXYNzqMAv0M5lBDNZZniYvJRgzJlHVsucR2R2DNK7lHzALBWeYdY6FhBSztX6SmK3Ictq8T7g+w1k0vMnxoA==}
     cpu: [arm64]
     os: [linux]
     libc: glibc
@@ -1849,7 +1849,7 @@ packages:
     os: [linux]
 
   '@cdxgen/safer-exec-linux-arm64@0.15.0':
-    resolution: {integrity: sha1-dj44jzACUewyKuFwOAFbM2Sx1qM=}
+    resolution: {integrity: sha512-NRfsNnFcl3qUbxWTNNJltrFAagJcYumTGhK9Ad9BxzFu6l2FS2wozr4pr9KRzSrEXFCiEqm2unAtDgyAGx/nbw==}
     cpu: [arm64]
     os: [linux]
 
@@ -5833,8 +5833,8 @@ packages:
   fast-string-width@3.0.2:
     resolution: {integrity: sha1-FturtJHOVYW17LZ1tlwWXXFojus=}
 
-  fast-uri@3.1.6:
-    resolution: {integrity: sha1-v90wjvdj+DX+0Fnzxskl9wjjPjo=}
+  fast-uri@3.1.8:
+    resolution: {integrity: sha512-GZMtZUTNRpOVIECoXwLNZS5xUGE+mVNbTB8h/7Rwh2TFWcBQiPzTgyZi05BF9UMZKkLJv8XBRJTlU7zg8+ZfMg==}
 
   fast-wrap-ansi@0.2.2:
     resolution: {integrity: sha1-lelSoBRbzj9ZrVbhefhMSNQHKTU=}
@@ -12301,7 +12301,7 @@ snapshots:
   ajv@8.20.0:
     dependencies:
       fast-deep-equal: 3.1.3
-      fast-uri: 3.1.6
+      fast-uri: 3.1.8
       json-schema-traverse: 1.0.0
       require-from-string: 2.0.2
 
@@ -13372,7 +13372,7 @@ snapshots:
     dependencies:
       fast-string-truncated-width: 3.0.3
 
-  fast-uri@3.1.6: {}
+  fast-uri@3.1.8: {}
 
   fast-wrap-ansi@0.2.2:
     dependencies:
