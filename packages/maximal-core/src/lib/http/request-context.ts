@@ -5,6 +5,8 @@ import type {
 
 import { AsyncLocalStorage } from "node:async_hooks"
 
+import type { TerminalScope } from "~/lib/auth/terminal-scope"
+
 export interface RequestContext {
   traceId: string
   startTime: number
@@ -14,6 +16,7 @@ export interface RequestContext {
   /** Stable configured credential identity; never the key material itself. */
   apiKeyId?: string | null
   apiKeyLabel?: string | null
+  terminalScope?: TerminalScope | null
   trafficObservation?: TrafficObservationHandle
   trafficRequestId?: string
   trafficTokens?: TrafficTokenMetadata

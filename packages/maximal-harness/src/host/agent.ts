@@ -61,13 +61,22 @@ const PINS: readonly Backend[] = HARNESS_CONFIG.discovery.providerPins;
 function environment(): {
   pin: Backend | undefined;
   base: Endpoints<keyof typeof HARNESS_CONFIG.discovery.defaultEndpoints>;
+  maximalApiKey: string;
 } {
   const pin = process.env['STUFFBUCKET_PROVIDER'] ?? '';
   const address = process.env['STUFFBUCKET_PROVIDER_URL'] ?? '';
   return {
     pin: PINS.find((name) => name === pin),
     base: resolveEndpoints(HARNESS_CONFIG.discovery.defaultEndpoints, pin, address),
+    maximalApiKey: process.env['STUFFBUCKET_PROVIDER_API_KEY']?.trim()
+      || HARNESS_CONFIG.discovery.placeholderApiKey,
   };
+}
+
+export function resolveProviderApiKey(provider: AgentProvider): string {
+  return provider === 'maximal'
+    ? environment().maximalApiKey
+    : HARNESS_CONFIG.discovery.placeholderApiKey;
 }
 
 /**
@@ -197,11 +206,13 @@ function ollamaModels(payload: unknown): AgentModelOption[] {
 async function modelCatalogue(
   pin: Backend | undefined,
   base: Endpoints<keyof typeof HARNESS_CONFIG.discovery.defaultEndpoints>,
+  maximalApiKey: string,
 ): Promise<AgentModelOption[]> {
   const [maximal, ollama] = await Promise.all([
     pin === undefined || pin === 'maximal'
       ? fetchJson(`${base.maximal}/v1/models`, {
           'anthropic-version': '2023-06-01',
+          authorization: `Bearer ${maximalApiKey}`,
         }).then(maximalModels)
       : [],
     pin === undefined || pin === 'ollama'
@@ -251,8 +262,8 @@ export async function discoverProvider(): Promise<ProviderStatus> {
   // Pin a provider, for testing and for support. Without it the embedded path
   // is unreachable on any machine that has a proxy running, which is every
   // machine that develops this.
-  const { pin, base } = environment();
-  const models = await modelCatalogue(pin, base);
+  const { pin, base, maximalApiKey } = environment();
+  const models = await modelCatalogue(pin, base, maximalApiKey);
   if (pin !== undefined) {
     if (models.length > 0) {
       const preferred = models.find(
@@ -296,8 +307,8 @@ export async function discoverProvider(): Promise<ProviderStatus> {
 export async function selectAgentModel(modelKey: string): Promise<ProviderStatus> {
   const options = configured;
   if (!options) throw new Error(HARNESS_COPY.agent.notConfigured);
-  const { pin, base } = environment();
-  const models = await modelCatalogue(pin, base);
+  const { pin, base, maximalApiKey } = environment();
+  const models = await modelCatalogue(pin, base, maximalApiKey);
   const selected = models.find((model) => model.key === modelKey);
   if (!selected) throw new Error(HARNESS_COPY.agent.modelUnavailable(modelKey));
   configured = { ...options, preferredModel: selected.key };
@@ -307,8 +318,8 @@ export async function selectAgentModel(modelKey: string): Promise<ProviderStatus
 export async function selectAgentEffort(effort: AgentEffort): Promise<ProviderStatus> {
   const options = configured;
   if (!options) throw new Error(HARNESS_COPY.agent.notConfigured);
-  const { pin, base } = environment();
-  const models = await modelCatalogue(pin, base);
+  const { pin, base, maximalApiKey } = environment();
+  const models = await modelCatalogue(pin, base, maximalApiKey);
   const selected =
     models.find((model) => model.key === options.preferredModel)
     ?? (pin === undefined ? undefined : models[0]);
@@ -672,7 +683,7 @@ async function execute(prompt: string, sink: AgentSink): Promise<void> {
     streamFn: (model, context, options) =>
       streamSimple(model, context, {
         ...options,
-        apiKey: HARNESS_CONFIG.discovery.placeholderApiKey,
+        apiKey: resolveProviderApiKey(status.provider),
       }),
 
     /**

@@ -16,7 +16,10 @@ import {
   claudeCodeFields,
   claudeDesktopGatewayFields,
   createBuiltinConfigurators,
+  createBuiltinConfiguratorRuntime,
   createConfiguratorRegistry,
+  createMaximalTerminalConfigurator,
+  maximalTerminalEnvironment,
 } from "../src/index.ts"
 
 class FakeHost implements ConfiguratorHost {
@@ -105,6 +108,38 @@ void test("registers the static first-party configurator set", () => {
     ["claude-code", "claude-desktop", "copilot-cli"],
   )
   assert.equal(Object.isFrozen(plugins), true)
+})
+
+void test("registers Maximal as a terminal-profile configurator", async () => {
+  const registry = await createBuiltinConfiguratorRuntime(new FakeHost())
+
+  const configurator = registry.terminalProfile("maximal")
+  assert.ok(configurator)
+  assert.equal(configurator.metadata.id, "maximal-terminal")
+  assert.deepEqual(configurator.metadata, {
+    id: "maximal-terminal",
+    name: "Maximal",
+    profileId: "maximal",
+    application: "Maximal",
+  })
+  assert.deepEqual(
+    configurator.environment({
+      baseUrl: "http://127.0.0.1:41501/",
+      credential: "mxt_terminal-token",
+      sessionId: "terminal-1",
+    }),
+    {
+      MAXIMAL_TERMINAL_SESSION_ID: "terminal-1",
+      STUFFBUCKET_PROVIDER: "maximal",
+      STUFFBUCKET_PROVIDER_URL: "http://127.0.0.1:41501",
+      STUFFBUCKET_PROVIDER_API_KEY: "mxt_terminal-token",
+      ANTHROPIC_BASE_URL: "http://127.0.0.1:41501",
+      ANTHROPIC_AUTH_TOKEN: "mxt_terminal-token",
+      OPENAI_BASE_URL: "http://127.0.0.1:41501/v1",
+      OPENAI_API_KEY: "mxt_terminal-token",
+    },
+  )
+  await registry.dispose()
 })
 
 void test("each configurator asks Core to find its associated application", async () => {
@@ -365,6 +400,14 @@ void test("Cordis registration rejects duplicate static dependencies", async () 
   )
 })
 
+void test("registration rejects duplicate terminal profiles", async () => {
+  const terminal = createMaximalTerminalConfigurator()
+  await assert.rejects(
+    createConfiguratorRegistry([], [terminal, terminal]),
+    /Duplicate configurator id: maximal-terminal/u,
+  )
+})
+
 void test("field builders are pure client-specific transforms", () => {
   assert.deepEqual(claudeCodeFields("http://proxy", "token"), [
     { path: ["env", "ANTHROPIC_BASE_URL"], value: "http://proxy" },
@@ -393,5 +436,22 @@ void test("field builders are pure client-specific transforms", () => {
       { path: ["isDesktopExtensionSignatureRequired"], value: false },
       { path: ["isClaudeCodeForDesktopEnabled"], value: true },
     ],
+  )
+  assert.deepEqual(
+    maximalTerminalEnvironment({
+      baseUrl: "http://proxy////",
+      credential: "token",
+      sessionId: "terminal",
+    }),
+    {
+      MAXIMAL_TERMINAL_SESSION_ID: "terminal",
+      STUFFBUCKET_PROVIDER: "maximal",
+      STUFFBUCKET_PROVIDER_URL: "http://proxy",
+      STUFFBUCKET_PROVIDER_API_KEY: "token",
+      ANTHROPIC_BASE_URL: "http://proxy",
+      ANTHROPIC_AUTH_TOKEN: "token",
+      OPENAI_BASE_URL: "http://proxy/v1",
+      OPENAI_API_KEY: "token",
+    },
   )
 })

@@ -39,6 +39,11 @@ const REQUEST: TrafficRequestSummary = {
     subagent: null,
     compactType: null,
   },
+  terminal: {
+    sessionId: "terminal-1",
+    profileId: "claude-code",
+    application: "Claude Code",
+  },
   dispatch: {
     attemptCount: 1,
     retryCount: 0,

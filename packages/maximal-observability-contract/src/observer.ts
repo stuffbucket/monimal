@@ -9,6 +9,7 @@ import {
   TrafficResponseMetadataSchema,
   TrafficRouteMetadataSchema,
   TrafficSizeMetadataSchema,
+  TrafficTerminalMetadataSchema,
   TrafficTokenMetadataSchema,
 } from "./metadata.ts"
 import {
@@ -23,6 +24,7 @@ export const TrafficObservationStartSchema = z
     acceptedAt: TrafficTimestampSchema,
     route: TrafficRouteMetadataSchema,
     attribution: TrafficAttributionMetadataSchema,
+    terminal: TrafficTerminalMetadataSchema,
     context: TrafficContextMetadataSchema,
     size: TrafficSizeMetadataSchema,
   })

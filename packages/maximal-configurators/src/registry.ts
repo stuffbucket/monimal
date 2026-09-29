@@ -1,6 +1,7 @@
 import type {
   ConfiguratorPlugin,
   ConfiguratorRegistry,
+  TerminalProfileConfigurator,
 } from "@maximal/maximal-core/configurator-host"
 
 import { Context, type Fiber } from "@deepseek-ai/cordis"
@@ -33,20 +34,50 @@ function validatePlugins(
   return plugins
 }
 
+function validateTerminalProfiles(
+  configurators: ReadonlyArray<TerminalProfileConfigurator>,
+  pluginIds: ReadonlySet<string>,
+): ReadonlyArray<TerminalProfileConfigurator> {
+  const ids = new Set(pluginIds)
+  const profileIds = new Set<string>()
+  for (const configurator of configurators) {
+    const { id, name, profileId } = configurator.metadata
+    if (!configuratorIdPattern.test(id)) {
+      throw new Error(`Invalid configurator id: ${id}`)
+    }
+    if (name.trim().length === 0) {
+      throw new Error(`Configurator ${id} has no display name`)
+    }
+    if (profileId.trim().length === 0) {
+      throw new Error(`Configurator ${id} has no terminal profile`)
+    }
+    if (ids.has(id)) throw new Error(`Duplicate configurator id: ${id}`)
+    if (profileIds.has(profileId)) {
+      throw new Error(`Duplicate terminal profile configurator: ${profileId}`)
+    }
+    ids.add(id)
+    profileIds.add(profileId)
+  }
+  return configurators
+}
+
 class CordisConfiguratorRegistry implements ConfiguratorRegistry {
   readonly #context: Context
   readonly #plugins: ReadonlyArray<ConfiguratorPlugin>
+  readonly #terminalProfiles: ReadonlyArray<TerminalProfileConfigurator>
   readonly #fibers: Array<Fiber>
   #disposePromise: Promise<void> | undefined
 
-  constructor(
-    context: Context,
-    plugins: ReadonlyArray<ConfiguratorPlugin>,
-    fibers: Array<Fiber>,
-  ) {
-    this.#context = context
-    this.#plugins = Object.freeze([...plugins])
-    this.#fibers = fibers
+  constructor(input: {
+    context: Context
+    plugins: ReadonlyArray<ConfiguratorPlugin>
+    terminalProfiles: ReadonlyArray<TerminalProfileConfigurator>
+    fibers: Array<Fiber>
+  }) {
+    this.#context = input.context
+    this.#plugins = Object.freeze([...input.plugins])
+    this.#terminalProfiles = Object.freeze([...input.terminalProfiles])
+    this.#fibers = input.fibers
   }
 
   all(): ReadonlyArray<ConfiguratorPlugin> {
@@ -55,6 +86,12 @@ class CordisConfiguratorRegistry implements ConfiguratorRegistry {
 
   get(id: string): ConfiguratorPlugin | undefined {
     return this.#plugins.find((plugin) => plugin.metadata.id === id)
+  }
+
+  terminalProfile(profileId: string): TerminalProfileConfigurator | undefined {
+    return this.#terminalProfiles.find(
+      (configurator) => configurator.metadata.profileId === profileId,
+    )
   }
 
   dispose(): Promise<void> {
@@ -125,8 +162,13 @@ function createActivation(
 /** Activate a static, validated configurator set under Cordis lifecycle scopes. */
 export async function createConfiguratorRegistry(
   plugins: ReadonlyArray<ConfiguratorPlugin>,
+  terminalProfiles: ReadonlyArray<TerminalProfileConfigurator> = [],
 ): Promise<ConfiguratorRegistry> {
   const validated = validatePlugins(plugins)
+  const validatedTerminalProfiles = validateTerminalProfiles(
+    terminalProfiles,
+    new Set(validated.map((plugin) => plugin.metadata.id)),
+  )
   const context = new Context()
   const fibers: Array<Fiber> = []
 
@@ -136,7 +178,12 @@ export async function createConfiguratorRegistry(
       await fiber.await()
       fibers.push(fiber)
     }
-    return new CordisConfiguratorRegistry(context, validated, fibers)
+    return new CordisConfiguratorRegistry({
+      context,
+      plugins: validated,
+      terminalProfiles: validatedTerminalProfiles,
+      fibers,
+    })
   } catch (error) {
     await disposeActivation(context, fibers)
     throw error
