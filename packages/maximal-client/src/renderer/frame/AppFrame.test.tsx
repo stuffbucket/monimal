@@ -140,7 +140,8 @@ describe('AppFrame', () => {
     expect(shell.querySelector('.sb-shell.app .titlebar')).not.toBeNull()
   })
 
-  it('places the Settings toggle immediately left of the right-panel toggle', () => {
+  it('places Assistant and Profile immediately left of Settings', () => {
+    const onOpenAssistant = vi.fn()
     const onToggleSettings = vi.fn()
     const shell = renderFrame('overview', vi.fn(), <p>content</p>)
     act(() => {
@@ -150,6 +151,8 @@ describe('AppFrame', () => {
           activeTab="overview"
           surface="overview"
           onSelectTab={vi.fn()}
+          onOpenAssistant={onOpenAssistant}
+          onOpenProfileSurface={vi.fn()}
           settingsOpen={false}
           onToggleSettings={onToggleSettings}
         >
@@ -158,15 +161,65 @@ describe('AppFrame', () => {
       )
     })
 
-    const toggle = shell.querySelector<HTMLElement>('.titlebar__actions [data-testid="toggle-settings"]')
+    const assistant = shell.querySelector<HTMLElement>(
+      '.titlebar__actions [data-testid="open-assistant"]',
+    )
+    const profile = shell.querySelector<HTMLElement>(
+      '.titlebar__actions [data-testid="profile"]',
+    )
+    const toggle = shell.querySelector<HTMLElement>(
+      '.titlebar__actions [data-testid="toggle-settings"]',
+    )
     const rightPanelToggle = shell.querySelector<HTMLElement>(
       '.titlebar__actions [data-testid="toggle-right"]',
     )
+    if (assistant === null) throw new Error('Assistant button was not rendered')
+    if (profile === null) throw new Error('Profile button was not rendered')
     if (toggle === null) throw new Error('Settings toggle was not rendered')
     if (rightPanelToggle === null) throw new Error('right-panel toggle was not rendered')
+    expect(assistant.nextElementSibling).toBe(profile)
+    expect(profile.nextElementSibling).toBe(toggle)
     expect(toggle.nextElementSibling).toBe(rightPanelToggle)
+    act(() => assistant.click())
+    expect(onOpenAssistant).toHaveBeenCalledOnce()
     act(() => toggle.click())
     expect(onToggleSettings).toHaveBeenCalledOnce()
+  })
+
+  it('opens the profile menu and forwards its settings actions', async () => {
+    const onOpenProfileSurface = vi.fn()
+    const shell = renderFrame('overview', vi.fn(), <p>content</p>)
+    act(() => {
+      root?.render(
+        <AppFrame
+          tabs={PRODUCT_TABS}
+          activeTab="overview"
+          surface="overview"
+          onSelectTab={vi.fn()}
+          account={{ id: 'octocat', displayName: 'Octocat', handle: '@octocat' }}
+          onOpenProfileSurface={onOpenProfileSurface}
+          onToggleSettings={vi.fn()}
+        >
+          <p>content</p>
+        </AppFrame>,
+      )
+    })
+
+    const profile = shell.querySelector<HTMLElement>('[data-testid="profile"]')
+    if (profile === null) throw new Error('Profile button was not rendered')
+    await act(async () => {
+      profile.dispatchEvent(new MouseEvent('pointerdown', {
+        bubbles: true,
+        button: 0,
+      }))
+    })
+
+    expect(document.querySelector('[data-testid="profile-menu"]')).not.toBeNull()
+    expect(document.body.textContent).toContain('@octocat')
+    const diagnostics = document.querySelector<HTMLElement>('[data-testid="menu-diagnostics"]')
+    if (diagnostics === null) throw new Error('Diagnostics profile action was not rendered')
+    await act(async () => diagnostics.click())
+    expect(onOpenProfileSurface).toHaveBeenCalledWith('diagnostics')
   })
 
   it('keeps the status bar available in Settings', () => {

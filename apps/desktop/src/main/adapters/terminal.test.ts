@@ -190,4 +190,22 @@ describe('terminal host window actions', () => {
     )
     expect(commit).toHaveBeenCalledOnce()
   })
+
+  it('configures app-owned direct terminal profiles', () => {
+    configureTerminalHost({ terminalDiagnostics: false, terminalSessionPrefix: 'maximal' })
+
+    const options = configurePty.mock.calls.at(-1)?.[1] as {
+      tmuxSessionPrefix: string
+      directProfiles: Terminal.DirectTerminalProfile[]
+    }
+    expect(options.tmuxSessionPrefix).toBe('maximal')
+    expect(options.directProfiles.find(({ profile }) => profile.id === 'claude-code')).toMatchObject({
+      profile: { id: 'claude-code', kind: 'command' },
+      launch: { command: 'claude', args: [] },
+    })
+    expect(options.directProfiles.find(({ profile }) => profile.id === 'maximal')).toMatchObject({
+      profile: { id: 'maximal', kind: 'command' },
+      launch: { command: 'maximal', args: [] },
+    })
+  })
 })

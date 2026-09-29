@@ -155,8 +155,10 @@ function fakeBridge(): MaximalHost {
       setDismissed: vi.fn(async (dismissed: boolean) => ({ dismissed })),
     },
     harness: {
+      show: vi.fn(async () => {}),
       hide: vi.fn(async () => {}),
       provider: vi.fn(async () => ({ state: 'probing' as const })),
+      selectModel: vi.fn(async () => ({ state: 'probing' as const })),
       ask: vi.fn(async () => ({ started: true as const })),
       abort: vi.fn(async () => {}),
       approve: vi.fn(async () => {}),

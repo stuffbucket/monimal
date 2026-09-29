@@ -221,7 +221,7 @@ test('packaged preload exposes only the closed named bridge', async () => {
   })
 })
 
-test('packaged harness opens focused, resolves its theme, and streams an answer', async () => {
+test('packaged harness opens focused, resolves its theme, and streams an answer', async ({ page: _page }, testInfo) => {
   const overlay = running.app.windows().find((page) => page.url().includes('overlay'))
   if (!overlay) throw new Error('The startup summon did not create the overlay window.')
 
@@ -244,6 +244,26 @@ test('packaged harness opens focused, resolves its theme, and streams an answer'
   expect(style.raised).not.toBe('')
   expect(style.background).not.toBe('rgba(0, 0, 0, 0)')
   expect(style.paddingTop).not.toBe('0px')
+
+  const cardBox = await card.boundingBox()
+  const overlayViewport = await overlay.evaluate(() => ({
+    height: document.documentElement.clientHeight,
+    width: document.documentElement.clientWidth,
+  }))
+  expect(cardBox).not.toBeNull()
+  expect(cardBox!.height).toBeLessThan(overlayViewport.height / 2)
+  expect(cardBox!.width).toBeLessThanOrEqual(overlayViewport.width * 0.82 + 1)
+  expect(overlayViewport.height - (cardBox!.y + cardBox!.height)).toBeCloseTo(
+    overlayViewport.height * 0.18,
+    -1,
+  )
+  const inputBox = await input.boundingBox()
+  const footerBox = await overlay.locator('.mh-card__footer').boundingBox()
+  expect(inputBox).not.toBeNull()
+  expect(footerBox).not.toBeNull()
+  expect(footerBox!.y - (inputBox!.y + inputBox!.height)).toBeGreaterThanOrEqual(0)
+  expect(footerBox!.y - (inputBox!.y + inputBox!.height)).toBeLessThanOrEqual(13)
+  await overlay.screenshot({ path: testInfo.outputPath('assistant-overlay.png') })
 
   await overlay.evaluate(() => {
     const state = window as typeof window & {
@@ -279,6 +299,7 @@ test('packaged harness opens focused, resolves its theme, and streams an answer'
     return state.harnessStreamStates ?? []
   })
   expect(new Set(streamed).size).toBeGreaterThan(1)
+  expect((await card.boundingBox())!.height).toBeLessThanOrEqual(overlayViewport.height * 0.8 + 1)
   expect(model.requests).toContainEqual({
     path: '/v1/messages',
     prompt,
@@ -287,6 +308,54 @@ test('packaged harness opens focused, resolves its theme, and streams an answer'
   })
 
   await overlay.keyboard.press('Escape')
+})
+
+test('desktop terminal selector presents the app-owned clients with canonical icons', async ({ page: _page }, testInfo) => {
+  const page = await mainWindow()
+  await page.getByTestId('tab-new').click()
+  const launcher = page.getByTestId('terminal-launcher')
+  await expect(launcher).toBeVisible()
+
+  for (const id of ['claude-desktop', 'claude-code', 'copilot-cli', 'codex', 'maximal']) {
+    await expect(launcher.getByTestId(`terminal-profile-icon-${id}`)).toBeVisible()
+  }
+
+  const profileNames = await page.evaluate(() =>
+    window.maximal.terminal.profiles().then((profiles) =>
+      profiles.slice(0, 5).map(({ id, label }) => [id, label])),
+  )
+  expect(profileNames).toEqual([
+    ['claude-desktop', 'Claude Desktop'],
+    ['claude-code', 'Claude Code'],
+    ['copilot-cli', 'Copilot CLI'],
+    ['codex', 'Codex'],
+    ['maximal', 'Maximal'],
+  ])
+
+  const claudeCode = launcher.getByRole('button', { name: /Claude Code/ })
+  const claudeDesktop = launcher.getByRole('button', { name: /Claude Desktop/ })
+  const local = launcher.locator('[aria-label="Available"]').getByRole('button', { name: /Local/ })
+  const choiceBox = await claudeCode.boundingBox()
+  const adjacentChoiceBox = await claudeDesktop.boundingBox()
+  const launcherBox = await launcher.boundingBox()
+  const nameBox = await claudeCode.locator('.terminal-launcher__choice-name').boundingBox()
+  const descriptionBox = await claudeCode.locator('.terminal-launcher__choice-description').boundingBox()
+  expect(choiceBox).not.toBeNull()
+  expect(adjacentChoiceBox).not.toBeNull()
+  expect(launcherBox).not.toBeNull()
+  expect(nameBox).not.toBeNull()
+  expect(descriptionBox).not.toBeNull()
+  await expect(local).toContainText('Open a terminal on your local file system')
+  expect(choiceBox!.y).toBe(adjacentChoiceBox!.y)
+  expect(choiceBox!.width).toBeLessThan(launcherBox!.width / 2)
+  expect(descriptionBox!.y).toBeGreaterThanOrEqual(nameBox!.y + nameBox!.height)
+  expect(descriptionBox!.y + descriptionBox!.height).toBeLessThanOrEqual(
+    choiceBox!.y + choiceBox!.height,
+  )
+
+  await page.screenshot({ path: testInfo.outputPath('terminal-selector.png') })
+  await page.keyboard.press('Escape')
+  await expect(launcher).toBeHidden()
 })
 
 test('packaged terminal bridge launches and terminates a native shell', async () => {

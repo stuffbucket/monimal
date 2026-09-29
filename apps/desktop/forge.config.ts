@@ -19,10 +19,11 @@ import type { ForgeConfig, StartOptions } from '@electron-forge/shared-types'
 
 import {
   LLAMA_BACKENDS_VARIABLE,
+  LLAMA_PACKAGE_NAME,
   LLAMA_SOURCE_INPUTS,
   llamaPackagePlan,
   parseLlamaBackends,
-} from '@maximal/maximal-harness/packaging'
+} from '@maximal/maximal-llama-cpp/packaging'
 
 import {
   externalClosure,
@@ -56,7 +57,7 @@ import {
  * wiping a directory it does not own.
  */
 const PACKAGER_STAGING_BASE = mkdtempSync(path.join(os.tmpdir(), 'forge-maximal-client-'))
-const EXTERNAL_MODULES = ['node-pty', 'node-llama-cpp']
+const EXTERNAL_CLOSURE_ROOTS = ['node-pty', LLAMA_PACKAGE_NAME]
 const NODE_MODULES = path.resolve('node_modules')
 const CDXGEN_CLI = path.join(
   workspaceRoot(),
@@ -99,8 +100,8 @@ function workspaceRoot(): string {
 }
 
 const RESOLUTION = { boundary: workspaceRoot() }
-const HOISTED = hoistedDependencies(PACKAGE_IO, NODE_MODULES, EXTERNAL_MODULES, RESOLUTION)
-const CLOSURE = externalClosure(PACKAGE_IO, NODE_MODULES, EXTERNAL_MODULES, RESOLUTION)
+const HOISTED = hoistedDependencies(PACKAGE_IO, NODE_MODULES, EXTERNAL_CLOSURE_ROOTS, RESOLUTION)
+const CLOSURE = externalClosure(PACKAGE_IO, NODE_MODULES, EXTERNAL_CLOSURE_ROOTS, RESOLUTION)
 const PTY_SOURCE = realpathSync(path.join(NODE_MODULES, 'node-pty'))
 
 function copyExternalClosure(buildPath: string): void {
@@ -296,11 +297,8 @@ const config: ForgeConfig = {
     // maximal-core ships as a compiled Bun sidecar under resources/bin and is
     // copied into the packaged app at Contents/Resources/bin — OUTSIDE the asar,
     // so it stays a real, spawnable, signable executable; the client spawns it.
-    // Only the sidecar. The runtime PNG that `app.dock.setIcon` reads is
-    // deliberately NOT shipped: a packaged bundle takes its icon from the
-    // .icns Forge installs from `packagerConfig.icon`, so the dock is already
-    // correct there and `applyDockIcon` leaves it alone. The PNG exists for
-    // unpackaged runs only, where the bundle is stock Electron's.
+    // Only the sidecar and tray assets. Packaged and development bundles both
+    // carry the .icns as their bundle icon.
     extraResource: ['resources/bin', 'resources/tray'],
   },
   hooks: {

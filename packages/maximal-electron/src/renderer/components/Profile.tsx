@@ -78,6 +78,7 @@ export function Avatar({ account, large }: { account?: Account; large?: boolean 
   );
 }
 
+/** The account menu and its title-bar trigger. */
 export function Profile({
   account,
   onOpen,
