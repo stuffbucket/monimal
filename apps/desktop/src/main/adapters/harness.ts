@@ -12,7 +12,7 @@ import {
   selectAgentModel,
   shutdownAgent,
 } from '@maximal/maximal-harness/host'
-import { LLAMA_WORKER_FILENAME } from '@maximal/maximal-llama-cpp/packaging'
+import { LLAMA_WORKER_FILENAME } from '@maximal/maximal-llama-cpp'
 import {
   configureLlamaHost,
   configureModel,

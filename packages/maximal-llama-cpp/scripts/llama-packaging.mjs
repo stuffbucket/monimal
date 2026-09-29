@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { URL } from 'node:url';
 
+import { LLAMA_WORKER_FILENAME } from '../llama-worker-contract.mjs';
+
 const PACKAGE = JSON.parse(
   // Stryker disable next-line StringLiteral: JSON.parse accepts the equivalent UTF-8 Buffer.
   readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
@@ -16,7 +18,7 @@ export const OPTIONAL_LLAMA_BACKENDS = ['cuda', 'vulkan'];
 export const LLAMA_BACKENDS_VARIABLE = 'STUFFBUCKET_LLAMA_BACKENDS';
 export const LLAMA_EXTERNAL_MODULES = Object.keys(PACKAGE.dependencies);
 export const LLAMA_PACKAGE_NAME = PACKAGE.name;
-export const LLAMA_WORKER_FILENAME = 'llama-worker.js';
+export { LLAMA_WORKER_FILENAME };
 export const LLAMA_SOURCE_INPUTS = [
   'node_modules/node-llama-cpp/llama/gitRelease.bundle',
 ];

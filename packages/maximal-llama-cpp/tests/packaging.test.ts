@@ -5,11 +5,13 @@ import {
   LLAMA_BACKENDS_VARIABLE,
   LLAMA_EXTERNAL_MODULES,
   LLAMA_PACKAGE_NAME,
+  LLAMA_WORKER_FILENAME,
   OPTIONAL_LLAMA_BACKENDS,
   llamaPackagePlan,
   parseLlamaBackends,
   parseLlamaPackage,
 } from '../scripts/llama-packaging.mjs';
+import { LLAMA_WORKER_FILENAME as RUNTIME_LLAMA_WORKER_FILENAME } from '../src/constants.js';
 
 const keeps = <T extends { keep: boolean }>(plan: T[]) =>
   plan.filter((entry) => entry.keep);
@@ -21,6 +23,7 @@ describe('llama package selection', () => {
     expect(LLAMA_PACKAGE_NAME).toBe('@maximal/maximal-llama-cpp');
     expect(LLAMA_EXTERNAL_MODULES).toEqual(['node-llama-cpp']);
     expect(LLAMA_BACKENDS_VARIABLE).toBe('STUFFBUCKET_LLAMA_BACKENDS');
+    expect(LLAMA_WORKER_FILENAME).toBe(RUNTIME_LLAMA_WORKER_FILENAME);
   });
 
   it('parses target and backend package names', () => {
