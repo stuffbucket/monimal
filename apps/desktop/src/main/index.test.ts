@@ -284,8 +284,15 @@ vi.mock('@maximal/maximal-electron/host', async (importOriginal) => ({
   createHostWindow: createHostWindowMock,
 }))
 
+const { menuBarActivateMock } = vi.hoisted(() => ({
+  menuBarActivateMock: vi.fn(),
+}))
+
 vi.mock('./native/menu-bar-mode.js', () => ({
   MenuBarModeController: class {
+    constructor(onActivate: () => void) {
+      menuBarActivateMock.mockImplementation(onActivate)
+    }
     initialize = vi.fn(async () => {})
     applyToWindow = vi.fn()
     cancelPending = vi.fn()
@@ -333,11 +340,12 @@ vi.mock('./sidecar/core.js', () => ({
   onCoreStatus: onCoreStatusMock,
 }))
 
-const { isHarnessBusyMock, showHarnessHostMock, startHarnessHostMock, stopHarnessHostMock } = vi.hoisted(() => ({
+const { isHarnessBusyMock, showHarnessHostMock, startHarnessHostMock, stopHarnessHostMock, toggleHarnessHostMock } = vi.hoisted(() => ({
   isHarnessBusyMock: vi.fn(() => false),
   showHarnessHostMock: vi.fn(),
   startHarnessHostMock: vi.fn(),
   stopHarnessHostMock: vi.fn(() => Promise.resolve()),
+  toggleHarnessHostMock: vi.fn(),
 }))
 
 vi.mock('./adapters/harness.js', () => ({
@@ -345,6 +353,7 @@ vi.mock('./adapters/harness.js', () => ({
   showHarnessHost: showHarnessHostMock,
   startHarnessHost: startHarnessHostMock,
   stopHarnessHost: stopHarnessHostMock,
+  toggleHarnessHost: toggleHarnessHostMock,
 }))
 
 const {
@@ -429,12 +438,14 @@ function coreControlSpies(): CoreControlConnectionSpies {
 
 async function loadIndexOn(platform: NodeJS.Platform): Promise<void> {
   vi.resetModules()
+  menuBarActivateMock.mockReset()
   killCoreMock.mockClear()
   spawnCoreMock.mockClear()
   ipcMainHandle.mockClear()
   showHarnessHostMock.mockClear()
   startHarnessHostMock.mockClear()
   stopHarnessHostMock.mockClear()
+  toggleHarnessHostMock.mockClear()
   configureTerminalHostMock.mockClear()
   configureTerminalWindowActionsMock.mockClear()
   moveTerminalSessionsMock.mockClear()
@@ -465,6 +476,7 @@ async function loadIndexOn(platform: NodeJS.Platform): Promise<void> {
       BRIDGE_CHANNELS.harnessHide,
       BRIDGE_CHANNELS.harnessProvider,
       BRIDGE_CHANNELS.harnessSelectModel,
+      BRIDGE_CHANNELS.harnessSelectEffort,
       BRIDGE_CHANNELS.harnessAsk,
       BRIDGE_CHANNELS.harnessAbort,
       BRIDGE_CHANNELS.harnessApprove,
@@ -520,6 +532,15 @@ afterEach(() => {
 })
 
 describe('closed IPC boundary', () => {
+  it('toggles the assistant from the menu-bar icon', async () => {
+    await loadIndexOn('darwin')
+
+    menuBarActivateMock()
+
+    expect(toggleHarnessHostMock).toHaveBeenCalledOnce()
+    expect(createHostWindowMock).toHaveBeenCalledOnce()
+  })
+
   it('serves log metadata from the shared logging package', async () => {
     await loadIndexOn('darwin')
     const handler = (channel: string): (() => unknown) => {

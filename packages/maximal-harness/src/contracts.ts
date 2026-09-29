@@ -1,11 +1,14 @@
 export type AgentApproval = 'all' | 'writes' | 'none'
 export type AgentProvider = 'maximal' | 'ollama' | 'embedded'
+export type AgentEffort = 'low' | 'medium' | 'high'
 
 export interface AgentModelOption {
   key: string
   label: string
   model: string
   provider: AgentProvider
+  description: string
+  efforts: AgentEffort[]
 }
 
 export type ProviderStatus =
@@ -16,6 +19,7 @@ export type ProviderStatus =
       model: string
       modelKey: string
       models: AgentModelOption[]
+      effort?: AgentEffort
     }
   | {
       state: 'select-model'
@@ -34,6 +38,7 @@ export interface AskRequest {
 export type AskAccepted = { started: true } | { started: false; reason: string }
 
 export interface AgentToolEvent {
+  id: string
   name: string
   phase: 'start' | 'end'
   isError?: boolean

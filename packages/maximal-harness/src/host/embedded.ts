@@ -40,7 +40,12 @@ export interface EmbeddedRun {
   systemPrompt: string;
   tools: RiskyTool[];
   onDelta: (text: string) => void;
-  onTool: (name: string, phase: 'start' | 'end', isError?: boolean) => void;
+  onTool: (
+    id: string,
+    name: string,
+    phase: 'start' | 'end',
+    isError?: boolean,
+  ) => void;
   /** Resolve true to allow the call. The same gate the pi path uses. */
   approve: (tool: string, risk: ToolRisk, summary: string) => Promise<boolean>;
   signal: AbortSignal;
@@ -107,17 +112,18 @@ async function serveToolCall(
   const allowed = await run.approve(name, riskOf(name, entry.risk), summarise(args));
   if (!allowed) return HARNESS_COPY.common.denied;
 
-  run.onTool(name, 'start');
+  const toolCallId = randomUUID();
+  run.onTool(toolCallId, name, 'start');
   try {
     const result = await entry.tool.execute(
-      `${name}-${String(Date.now())}`,
+      toolCallId,
       args,
       run.signal,
     );
-    run.onTool(name, 'end');
+    run.onTool(toolCallId, name, 'end');
     return textOf(result);
   } catch (error) {
-    run.onTool(name, 'end', true);
+    run.onTool(toolCallId, name, 'end', true);
     // Returned, not thrown. The model can recover from a tool that failed; it
     // cannot recover from the turn ending.
     return HARNESS_COPY.embedded.toolFailed(

@@ -35,6 +35,7 @@ import type {
 } from '@maximal/maximal-core-contract/settings'
 import type {
   AgentApprovalRequest,
+  AgentEffort,
   AgentEnd,
   AgentToolEvent,
   ApproveRequest,
@@ -257,6 +258,7 @@ export interface MaximalHost {
     hide: () => Promise<void>
     provider: () => Promise<ProviderStatus>
     selectModel: (modelKey: string) => Promise<ProviderStatus>
+    selectEffort: (effort: AgentEffort) => Promise<ProviderStatus>
     ask: (prompt: string) => Promise<AskAccepted>
     abort: () => Promise<void>
     approve: (request: ApproveRequest) => Promise<void>

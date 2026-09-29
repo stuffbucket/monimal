@@ -17,12 +17,13 @@ import {
   type AgentToolUpdateCallback,
 } from '@earendil-works/pi-agent-core';
 import { NodeExecutionEnv } from '@earendil-works/pi-agent-core/node';
-import { stream } from '@earendil-works/pi-ai/compat';
+import { streamSimple } from '@earendil-works/pi-ai/compat';
 import type { TSchema } from 'typebox';
 
 import type {
   AgentApproval,
   AgentApprovalRequest,
+  AgentEffort,
   AgentModelOption,
   AgentProvider,
   ApproveRequest,
@@ -84,6 +85,7 @@ export interface AgentOptions {
   approval: AgentApproval;
   cwd: string;
   preferredModel?: string;
+  preferredEffort?: AgentEffort;
   toolsetIds?: readonly string[];
 }
 
@@ -93,17 +95,25 @@ export function configureAgent(options: AgentOptions): void {
   configured = options;
 }
 
+export function setAgentEffortPreference(effort: AgentEffort): void {
+  if (!configured) throw new Error(HARNESS_COPY.agent.notConfigured);
+  configured = { ...configured, preferredEffort: effort };
+}
+
 /* ---------------------------------------------------------------- discovery */
 
 /** GET with a bound timeout. Returns undefined for anything that is not 200. */
-async function fetchJson(url: string): Promise<unknown> {
+async function fetchJson(url: string, headers?: HeadersInit): Promise<unknown> {
   const controller = new AbortController();
   const timer = setTimeout(
     () => controller.abort(),
     HARNESS_CONFIG.discovery.probeTimeoutMs,
   );
   try {
-    const response = await fetch(url, { signal: controller.signal });
+    const response = await fetch(url, {
+      signal: controller.signal,
+      ...(headers === undefined ? {} : { headers }),
+    });
     if (!response.ok) return undefined;
     return await response.json();
   } catch {
@@ -126,18 +136,52 @@ function option(
   provider: AgentProvider,
   model: string,
   label = model,
+  description = provider === 'embedded'
+    ? 'Runs privately on this Mac'
+    : provider === 'ollama'
+      ? 'Local model via Ollama'
+      : 'Available through Maximal',
+  efforts: AgentEffort[] = [],
 ): AgentModelOption {
-  return { key: `${provider}:${model}`, label, model, provider };
+  return {
+    key: `${provider}:${model}`,
+    label,
+    model,
+    provider,
+    description,
+    efforts,
+  };
 }
 
 function maximalModels(payload: unknown): AgentModelOption[] {
-  const data = (payload as { data?: Array<{ id?: unknown }> } | undefined)?.data;
+  const data = (payload as {
+    data?: Array<{
+      id?: unknown;
+      display_name?: unknown;
+      max_input_tokens?: unknown;
+      capabilities?: { thinking?: { supported?: unknown } };
+    }>;
+  } | undefined)?.data;
   if (!Array.isArray(data)) return [];
-  return data.flatMap((entry) =>
-    typeof entry.id === 'string' && entry.id.length > 0
-      ? [option('maximal', entry.id)]
-      : [],
-  );
+  return data.flatMap((entry) => {
+    if (typeof entry.id !== 'string' || entry.id.length === 0) return [];
+    const reasoning = entry.capabilities?.thinking?.supported === true;
+    const context =
+      typeof entry.max_input_tokens === 'number' && entry.max_input_tokens > 0
+        ? `${Math.round(entry.max_input_tokens / 1000)}K context`
+        : undefined;
+    return [option(
+      'maximal',
+      entry.id,
+      typeof entry.display_name === 'string' && entry.display_name.length > 0
+        ? entry.display_name
+        : entry.id,
+      [reasoning ? 'Extended reasoning' : undefined, context]
+        .filter((part): part is string => part !== undefined)
+        .join(' · ') || 'Available through Maximal',
+      reasoning ? ['low', 'medium', 'high'] : [],
+    )];
+  });
 }
 
 function ollamaModels(payload: unknown): AgentModelOption[] {
@@ -156,7 +200,9 @@ async function modelCatalogue(
 ): Promise<AgentModelOption[]> {
   const [maximal, ollama] = await Promise.all([
     pin === undefined || pin === 'maximal'
-      ? fetchJson(`${base.maximal}/v1/models`).then(maximalModels)
+      ? fetchJson(`${base.maximal}/v1/models`, {
+          'anthropic-version': '2023-06-01',
+        }).then(maximalModels)
       : [],
     pin === undefined || pin === 'ollama'
       ? fetchJson(`${base.ollama}/api/tags`).then(ollamaModels)
@@ -176,12 +222,20 @@ function ready(
   models: AgentModelOption[],
 ): ProviderStatus {
   if (selected.provider === 'embedded') selectEmbeddedModel(selected.model);
+  const preferredEffort = configured?.preferredEffort;
+  const effort =
+    preferredEffort !== undefined && selected.efforts.includes(preferredEffort)
+      ? preferredEffort
+      : selected.efforts.includes('high')
+        ? 'high'
+        : selected.efforts[0];
   return {
     state: 'ready',
     provider: selected.provider,
     model: selected.model,
     modelKey: selected.key,
     models,
+    ...(effort === undefined ? {} : { effort }),
   };
 }
 
@@ -250,6 +304,21 @@ export async function selectAgentModel(modelKey: string): Promise<ProviderStatus
   return ready(selected, models);
 }
 
+export async function selectAgentEffort(effort: AgentEffort): Promise<ProviderStatus> {
+  const options = configured;
+  if (!options) throw new Error(HARNESS_COPY.agent.notConfigured);
+  const { pin, base } = environment();
+  const models = await modelCatalogue(pin, base);
+  const selected =
+    models.find((model) => model.key === options.preferredModel)
+    ?? (pin === undefined ? undefined : models[0]);
+  if (!selected || !selected.efforts.includes(effort)) {
+    throw new Error(`The selected model does not support ${effort} effort.`);
+  }
+  configured = { ...options, preferredEffort: effort };
+  return ready(selected, models);
+}
+
 /**
  * Build the model descriptor pi-ai streams from.
  *
@@ -260,6 +329,7 @@ export async function selectAgentModel(modelKey: string): Promise<ProviderStatus
 function buildModel(
   provider: AgentProvider,
   id: string,
+  reasoning: boolean,
   base: Endpoints<keyof typeof HARNESS_CONFIG.discovery.defaultEndpoints>,
 ) {
   const zero = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
@@ -271,7 +341,8 @@ function buildModel(
         api: 'anthropic-messages' as const,
         provider: 'anthropic' as const,
         baseUrl: base.maximal,
-        reasoning: false,
+        reasoning,
+        ...(reasoning ? { compat: { forceAdaptiveThinking: true } } : {}),
         input: ['text' as const],
         cost: zero,
         contextWindow: HARNESS_CONFIG.models.maximal.contextWindow,
@@ -385,7 +456,12 @@ function describeNotReady(status: ProviderStatus): string {
 /** Callbacks the main process wires to IPC events. */
 export interface AgentSink {
   onDelta: (text: string) => void;
-  onTool: (name: string, phase: 'start' | 'end', isError?: boolean) => void;
+  onTool: (
+    id: string,
+    name: string,
+    phase: 'start' | 'end',
+    isError?: boolean,
+  ) => void;
   onApproval: (request: AgentApprovalRequest) => void;
   onEnd: (result: { ok: true } | { ok: false; error: string }) => void;
 }
@@ -594,7 +670,7 @@ async function execute(prompt: string, sink: AgentSink): Promise<void> {
 
   const agent = new Agent({
     streamFn: (model, context, options) =>
-      stream(model, context, {
+      streamSimple(model, context, {
         ...options,
         apiKey: HARNESS_CONFIG.discovery.placeholderApiKey,
       }),
@@ -612,9 +688,15 @@ async function execute(prompt: string, sink: AgentSink): Promise<void> {
     },
 
     initialState: {
-      model: buildModel(status.provider, status.model, environment().base),
+      model: buildModel(
+        status.provider,
+        status.model,
+        status.effort !== undefined,
+        environment().base,
+      ),
       systemPrompt: options.systemPrompt,
       tools: built.tools,
+      thinkingLevel: status.effort ?? 'off',
     },
   });
 
@@ -629,11 +711,11 @@ async function execute(prompt: string, sink: AgentSink): Promise<void> {
       return;
     }
     if (event.type === 'tool_execution_start') {
-      sink.onTool(event.toolName, 'start');
+      sink.onTool(event.toolCallId, event.toolName, 'start');
       return;
     }
     if (event.type === 'tool_execution_end') {
-      sink.onTool(event.toolName, 'end', event.isError);
+      sink.onTool(event.toolCallId, event.toolName, 'end', event.isError);
     }
   });
 

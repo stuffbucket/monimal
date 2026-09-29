@@ -83,7 +83,6 @@ describe('renderer architecture', () => {
       '--shell-space-1',
       '--shell-space-2',
       '--shell-space-3',
-      '--shell-space-4',
       '--shell-radius',
       '--shell-radius-large',
       '--shell-text-sm',

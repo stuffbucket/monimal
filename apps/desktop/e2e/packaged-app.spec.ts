@@ -216,6 +216,9 @@ test('packaged preload exposes only the closed named bridge', async () => {
       'onModelProgress',
       'onTool',
       'provider',
+      'selectEffort',
+      'selectModel',
+      'show',
     ],
     hasCoreOrigin: false,
     hasWindowRequire: false,
@@ -223,6 +226,9 @@ test('packaged preload exposes only the closed named bridge', async () => {
 })
 
 test('packaged harness opens focused, resolves its theme, and streams an answer', async ({ page: _page }, testInfo) => {
+  await expect.poll(() =>
+    running.app.windows().some((page) => page.url().includes('overlay')),
+  ).toBe(true)
   const overlay = running.app.windows().find((page) => page.url().includes('overlay'))
   if (!overlay) throw new Error('The startup summon did not create the overlay window.')
 
@@ -231,8 +237,12 @@ test('packaged harness opens focused, resolves its theme, and streams an answer'
   await expect(card).toBeVisible()
   await expect(input).toBeFocused()
   await expect(overlay.locator('[data-testid="overlay-status"]')).toHaveText(
-    `maximal · ${SCRIPTED_MODEL}`,
+    'maximal · Claude Haiku',
   )
+  await overlay.locator('[data-testid="overlay-model-picker"]').click()
+  await expect(overlay.locator('[data-testid="overlay-model-menu"]'))
+    .toContainText('Extended reasoning · 200K context')
+  await overlay.getByRole('button', { name: 'low', exact: true }).click()
 
   const style = await card.evaluate((element) => {
     const computed = getComputedStyle(element)
@@ -251,20 +261,28 @@ test('packaged harness opens focused, resolves its theme, and streams an answer'
     height: document.documentElement.clientHeight,
     width: document.documentElement.clientWidth,
   }))
+  expect(overlayViewport).toEqual({ height: 480, width: 640 })
   expect(cardBox).not.toBeNull()
   expect(cardBox!.height).toBeLessThan(overlayViewport.height / 2)
-  expect(cardBox!.width).toBeLessThanOrEqual(overlayViewport.width * 0.82 + 1)
-  expect(overlayViewport.height - (cardBox!.y + cardBox!.height)).toBeCloseTo(
-    overlayViewport.height * 0.18,
-    -1,
-  )
+  expect(cardBox!.x).toBeCloseTo(12, 0)
+  expect(cardBox!.y).toBeCloseTo(12, 0)
+  expect(cardBox!.width).toBeCloseTo(overlayViewport.width - 24, 0)
   const inputBox = await input.boundingBox()
   const footerBox = await overlay.locator('.mh-card__footer').boundingBox()
   expect(inputBox).not.toBeNull()
   expect(footerBox).not.toBeNull()
   expect(footerBox!.y - (inputBox!.y + inputBox!.height)).toBeGreaterThanOrEqual(0)
-  expect(footerBox!.y - (inputBox!.y + inputBox!.height)).toBeLessThanOrEqual(13)
+  expect(footerBox!.y - (inputBox!.y + inputBox!.height)).toBeLessThanOrEqual(9)
   await overlay.screenshot({ path: testInfo.outputPath('assistant-overlay.png') })
+
+  expect(await overlay.locator('.mh-drag-handle').evaluate((element) =>
+    getComputedStyle(element).getPropertyValue('-webkit-app-region'),
+  )).toBe('drag')
+  expect(await running.app.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows()
+      .find((window) => window.webContents.getURL().includes('overlay'))
+      ?.isMovable(),
+  )).toBe(true)
 
   await overlay.evaluate(() => {
     const state = window as typeof window & {
@@ -306,6 +324,7 @@ test('packaged harness opens focused, resolves its theme, and streams an answer'
     prompt,
     model: SCRIPTED_MODEL,
     stream: true,
+    effort: 'low',
   })
 
   await overlay.keyboard.press('Escape')

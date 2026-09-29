@@ -7,11 +7,14 @@ const electron = vi.hoisted(() => {
     closed: (() => void) | undefined;
     calls: string[] = [];
     bounds: unknown[] = [];
+    currentBounds = { x: 0, y: 0, width: 0, height: 0 };
+    moved: (() => void) | undefined;
     setAlwaysOnTop = vi.fn();
     setVisibleOnAllWorkspaces = vi.fn();
 
     on(event: string, handler: () => void) {
       if (event === 'closed') this.closed = handler;
+      if (event === 'moved') this.moved = handler;
       return this;
     }
 
@@ -25,6 +28,11 @@ const electron = vi.hoisted(() => {
 
     setBounds(bounds: unknown) {
       this.bounds.push(bounds);
+      this.currentBounds = bounds as typeof this.currentBounds;
+    }
+
+    getBounds() {
+      return this.currentBounds;
     }
 
     showInactive() {
@@ -54,6 +62,7 @@ const electron = vi.hoisted(() => {
     created: [] as FakeWindow[],
     cursor: { x: 1400, y: 320 },
     displayBounds: { x: 1280, y: 0, width: 1280, height: 720 },
+    displayWorkArea: { x: 1280, y: 24, width: 1280, height: 656 },
     getCursorScreenPoint: vi.fn(),
     getDisplayNearestPoint: vi.fn(),
   };
@@ -89,7 +98,10 @@ describe('createElectronPanel', () => {
     electron.getCursorScreenPoint.mockReset().mockReturnValue(electron.cursor);
     electron.getDisplayNearestPoint
       .mockReset()
-      .mockReturnValue({ bounds: electron.displayBounds });
+      .mockReturnValue({
+        bounds: electron.displayBounds,
+        workArea: electron.displayWorkArea,
+      });
   });
 
   afterEach(() => {
@@ -109,7 +121,7 @@ describe('createElectronPanel', () => {
     const window = panel.show();
 
     expect(electron.getDisplayNearestPoint).toHaveBeenCalledWith(electron.cursor);
-    expect(bounds).toHaveBeenCalledWith(electron.displayBounds);
+    expect(bounds).toHaveBeenCalledWith(electron.displayWorkArea);
     expect(electron.constructorOptions).toEqual([
       expect.objectContaining({
         x: 1600,
@@ -142,16 +154,16 @@ describe('createElectronPanel', () => {
       visibleOnFullScreen: true,
       skipTransformProcessType: true,
     });
+    expect(createdWindow().bounds).toEqual([{ x: 1600, y: 80, width: 640, height: 560 }]);
     expect(createdWindow().calls).toEqual(['showInactive', 'focus']);
   });
 
   it('repositions and reuses a hidden panel', () => {
-    const firstBounds = { x: 1280, y: 0, width: 1280, height: 720 };
-    const secondBounds = { x: 0, y: 0, width: 1024, height: 768 };
+    const firstBounds = { x: 1280, y: 24, width: 1280, height: 656 };
+    const secondBounds = { x: 0, y: 48, width: 1024, height: 720 };
     electron.getDisplayNearestPoint
-      .mockReturnValueOnce({ bounds: firstBounds })
-      .mockReturnValueOnce({ bounds: firstBounds })
-      .mockReturnValueOnce({ bounds: secondBounds });
+      .mockReturnValueOnce({ workArea: firstBounds })
+      .mockReturnValueOnce({ workArea: secondBounds });
     const loadRenderer = vi.fn();
     const panel = createElectronPanel({
       preloadPath: '/absolute/preload.js',
@@ -165,7 +177,7 @@ describe('createElectronPanel', () => {
 
     expect(electron.created).toHaveLength(1);
     expect(loadRenderer).toHaveBeenCalledOnce();
-    expect(window.bounds).toEqual([firstBounds, secondBounds]);
+    expect(window.bounds).toEqual([firstBounds, secondBounds, secondBounds]);
     expect(window.calls).toEqual([
       'showInactive',
       'focus',
@@ -199,5 +211,27 @@ describe('createElectronPanel', () => {
     const second = createdWindow();
     second.closed?.();
     expect(panel.window()).toBeUndefined();
+  });
+
+  it('reports completed user moves but ignores programmatic placement', () => {
+    const onMoved = vi.fn();
+    const panel = createElectronPanel({
+      preloadPath: '/absolute/preload.js',
+      loadRenderer: vi.fn(),
+      movable: true,
+      onMoved,
+    });
+
+    panel.show();
+    const window = createdWindow();
+    window.moved?.();
+    expect(onMoved).not.toHaveBeenCalled();
+    expect(electron.constructorOptions[0]).toEqual(
+      expect.objectContaining({ movable: true }),
+    );
+
+    window.currentBounds = { x: 40, y: 50, width: 640, height: 480 };
+    window.moved?.();
+    expect(onMoved).toHaveBeenCalledWith(window.currentBounds);
   });
 });

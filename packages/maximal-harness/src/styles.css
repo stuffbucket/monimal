@@ -32,21 +32,19 @@ body,
  */
 .mh-card {
   position: fixed;
-  top: auto;
-  right: auto;
-  bottom: 18vh;
-  left: 50%;
-  inset: 12px;
+  top: 12px;
+  right: 12px;
+  left: 12px;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  width: min(680px, 82vw);
+  width: auto;
   height: fit-content;
   min-height: 0;
-  max-height: 80vh;
+  max-height: calc(100% - 24px);
   margin: 0;
-  gap: var(--shell-space-3, 12px);
-  padding: var(--shell-space-4, 16px);
-  transform: translateX(-50%);
+  gap: var(--shell-space-2, 8px);
+  padding: var(--shell-space-3, 12px);
   border-radius: var(--shell-radius-large, 8px);
   background: var(--shell-raised);
   border: 1px solid var(--shell-border);
@@ -54,11 +52,36 @@ body,
   animation: mh-card-in 180ms ease-out;
 }
 
+.mh-drag-handle {
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  width: 48px;
+  height: 16px;
+  transform: translateX(-50%);
+  display: grid;
+  place-items: center;
+  cursor: grab;
+  -webkit-app-region: drag;
+}
+
+.mh-drag-handle:active {
+  cursor: grabbing;
+}
+
+.mh-drag-handle span {
+  width: 24px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--shell-border);
+}
+
 .mh-card__input {
   flex: 0 0 auto;
+  box-sizing: border-box;
   width: 100%;
   resize: none;
-  padding: var(--shell-space-3, 12px);
+  padding: 10px var(--shell-space-3, 12px);
   border-radius: var(--shell-radius, 6px);
   border: 1px solid var(--shell-border);
   background: var(--shell-background);
@@ -77,35 +100,132 @@ body,
 }
 
 .mh-model-picker {
-  display: flex;
-  align-items: center;
-  gap: var(--shell-space-2, 8px);
+  position: relative;
+  align-self: flex-start;
   font-size: var(--shell-text-xs, 0.6875rem);
 }
 
-.mh-model-picker__label {
-  color: var(--shell-text-muted);
-}
-
-.mh-model-picker__select {
-  min-width: 0;
-  flex: 1;
-  padding: var(--shell-space-1, 4px) var(--shell-space-2, 8px);
+.mh-model-picker__trigger {
+  display: flex;
+  align-items: center;
+  gap: var(--shell-space-2, 8px);
+  max-width: 360px;
+  padding: 4px 8px;
   border-radius: var(--shell-radius, 6px);
   border: 1px solid var(--shell-border);
-  background: var(--shell-background);
+  background: var(--shell-raised);
   color: var(--shell-text);
   font: inherit;
 }
 
-.mh-model-picker__select:focus-visible {
+.mh-model-picker__trigger:hover {
+  border-color: var(--shell-accent);
+}
+
+.mh-model-picker__trigger:focus-visible {
   outline: 2px solid var(--shell-focus);
   outline-offset: 1px;
 }
 
+.mh-model-picker__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
+.mh-model-picker__effort {
+  color: var(--shell-text-muted);
+  text-transform: capitalize;
+}
+
+.mh-model-menu {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 4px);
+  left: 0;
+  width: min(420px, calc(100vw - 48px));
+  padding: 6px;
+  border: 1px solid var(--shell-border);
+  border-radius: var(--shell-radius-large, 8px);
+  background: var(--shell-raised);
+  box-shadow: var(--shell-elevation, none);
+}
+
+.mh-model-menu__scroll {
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.mh-model-menu__option {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 6px;
+  width: 100%;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: var(--shell-radius, 6px);
+  background: transparent;
+  color: var(--shell-text);
+  text-align: left;
+  font: inherit;
+}
+
+.mh-model-menu__option:hover,
+.mh-model-menu__option[aria-selected='true'] {
+  background: var(--shell-active);
+}
+
+.mh-model-menu__option strong,
+.mh-model-menu__option small {
+  display: block;
+}
+
+.mh-model-menu__option strong {
+  font-weight: 600;
+}
+
+.mh-model-menu__option small {
+  margin-top: 2px;
+  color: var(--shell-text-muted);
+}
+
+.mh-model-menu__check {
+  color: var(--shell-accent);
+}
+
+.mh-effort-picker {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  padding: 7px 8px 1px;
+  border-top: 1px solid var(--shell-border);
+  color: var(--shell-text-muted);
+}
+
+.mh-effort-picker > span {
+  margin-right: auto;
+}
+
+.mh-effort-picker button {
+  padding: 3px 8px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--shell-text-muted);
+  font: inherit;
+  text-transform: capitalize;
+}
+
+.mh-effort-picker button:hover,
+.mh-effort-picker button[aria-pressed='true'] {
+  border-color: var(--shell-border);
+  background: var(--shell-active);
+  color: var(--shell-text);
+}
 
 .mh-card__answer {
+  position: relative;
   min-height: 0;
   max-height: 40vh;
   overflow-y: auto;
@@ -113,17 +233,122 @@ body,
   border-radius: var(--shell-radius, 6px);
   background: var(--shell-canvas);
   border: 1px solid var(--shell-border);
-  font-family: ui-monospace, monospace;
   font-size: var(--shell-text-sm, 0.8125rem);
-  white-space: pre-wrap;
+  line-height: 1.5;
   user-select: text;
   cursor: text;
+}
+
+.mh-response__text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.mh-response__code-wrap {
+  position: relative;
+  margin: 8px 0;
+  border-radius: var(--shell-radius, 6px);
+  background: var(--shell-background);
+  border: 1px solid var(--shell-border);
+}
+
+.mh-response__language {
+  display: block;
+  padding: 4px 8px 0;
+  color: var(--shell-text-muted);
+  font-size: var(--shell-text-xs, 0.6875rem);
+}
+
+.mh-response__code {
+  margin: 0;
+  padding: 8px;
+  overflow-x: auto;
+  white-space: pre;
+  font: var(--shell-text-xs, 0.6875rem)/1.5 ui-monospace, monospace;
+  user-select: text;
+}
+
+.mh-answer-copy {
+  position: sticky;
+  z-index: 1;
+  top: 0;
+  float: right;
+  margin: 0 0 4px 8px;
+  padding: 2px 7px;
+  border: 1px solid var(--shell-border);
+  border-radius: var(--shell-radius, 6px);
+  background: var(--shell-raised);
+  color: var(--shell-text-muted);
+  font: inherit;
+  font-size: var(--shell-text-xs, 0.6875rem);
+}
+
+.mh-answer-copy:hover {
+  color: var(--shell-text);
+  border-color: var(--shell-accent);
+}
+
+.mh-answer-copy span::before {
+  content: 'Copy';
 }
 
 .mh-card__error {
   display: block;
   margin-top: var(--shell-space-2, 8px);
   color: var(--shell-danger);
+}
+
+.mh-tool-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-height: 86px;
+  overflow-y: auto;
+  padding: 6px 8px;
+  border: 1px solid var(--shell-border);
+  border-radius: var(--shell-radius, 6px);
+  background: var(--shell-canvas);
+}
+
+.mh-tool {
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+  color: var(--shell-text-muted);
+  font-size: var(--shell-text-xs, 0.6875rem);
+}
+
+.mh-tool code {
+  overflow: hidden;
+  color: var(--shell-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mh-tool__indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--shell-text-muted);
+}
+
+.mh-tool--running .mh-tool__indicator {
+  background: var(--shell-accent);
+  animation: mh-tool-pulse 1s ease-in-out infinite alternate;
+}
+
+.mh-tool--failed,
+.mh-tool--failed code {
+  color: var(--shell-danger);
+}
+
+.mh-tool--failed .mh-tool__indicator {
+  background: var(--shell-danger);
+}
+
+.mh-tool--complete .mh-tool__indicator {
+  background: var(--shell-status, var(--shell-accent));
 }
 
 /*
@@ -284,25 +509,30 @@ body,
   color: var(--shell-text-muted);
   flex: none;
 }
-
-
-
-/* The mh-card is centred by `translateX(-50%)`, so the animation has to carry
-   that through or it jumps sideways on the first frame. */
 @keyframes mh-card-in {
   from {
     opacity: 0;
-    transform: translate(-50%, 10px);
+    transform: translateY(8px);
+  }
+
+  @keyframes mh-tool-pulse {
+    to {
+      opacity: 0.35;
+    }
   }
   to {
     opacity: 1;
-    transform: translate(-50%, 0);
+    transform: translateY(0);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .mh-scrim,
   .mh-card {
+    animation: none;
+  }
+
+  .mh-tool--running .mh-tool__indicator {
     animation: none;
   }
 }

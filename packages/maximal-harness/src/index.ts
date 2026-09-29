@@ -1,6 +1,7 @@
 export type {
   AgentApproval,
   AgentApprovalRequest,
+  AgentEffort,
   AgentEnd,
   AgentModelOption,
   AgentProvider,

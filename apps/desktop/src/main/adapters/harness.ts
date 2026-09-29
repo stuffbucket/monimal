@@ -1,7 +1,7 @@
 import { join } from 'node:path'
 
 import { createElectronPanel, type ElectronPanel } from '@maximal/maximal-electron/electron-panel'
-import type { AskAccepted } from '@maximal/maximal-harness'
+import type { AgentEffort, AskAccepted } from '@maximal/maximal-harness'
 import {
   abortAgent,
   configureAgent,
@@ -9,7 +9,9 @@ import {
   isAgentBusy,
   resolveApproval,
   runAgent,
+  selectAgentEffort,
   selectAgentModel,
+  setAgentEffortPreference,
   shutdownAgent,
 } from '@maximal/maximal-harness/host'
 import { LLAMA_WORKER_FILENAME } from '@maximal/maximal-llama-cpp/packaging'
@@ -25,6 +27,7 @@ import {
   BrowserWindow,
   globalShortcut,
   ipcMain,
+  screen,
   type IpcMainInvokeEvent,
   type Rectangle,
 } from 'electron'
@@ -33,15 +36,33 @@ import { z } from 'zod'
 import { BRIDGE_CHANNELS } from '../../shared/bridge-channels.js'
 import { loadHarnessOptions } from './harness-options.js'
 import { mainLogger } from '../main-logger.js'
-import { updateUserPreferences } from '../preferences/user-preferences.js'
+import {
+  readUserPreferences,
+  updateUserPreferences,
+} from '../preferences/user-preferences.js'
 
 const HOTKEY = 'CommandOrControl+Shift+Space'
-const PANEL_MAX_WIDTH = 720
-const PANEL_MAX_HEIGHT = 640
+const PANEL_MAX_WIDTH = 640
+const PANEL_MAX_HEIGHT = 480
 const PANEL_HORIZONTAL_MARGIN = 24
-const PANEL_VERTICAL_MARGIN = 48
+const PANEL_VERTICAL_MARGIN = 32
 const askRequest = z.object({ prompt: z.string().trim().min(1) })
 const modelSelection = z.string().trim().min(1).max(1_000)
+const effortSelection = z.enum(['low', 'medium', 'high'])
+const rectangle = z.object({
+  x: z.number().int(),
+  y: z.number().int(),
+  width: z.number().int().positive(),
+  height: z.number().int().positive(),
+})
+const overlayAnchorSchema = z.object({
+  displayWorkArea: rectangle,
+  offsetX: z.number().int(),
+  offsetY: z.number().int(),
+  panelWidth: z.number().int().positive(),
+  panelHeight: z.number().int().positive(),
+})
+type OverlayAnchor = z.infer<typeof overlayAnchorSchema>
 const approvalRequest = z.object({
   id: z.string().min(1),
   allow: z.boolean(),
@@ -58,6 +79,10 @@ const SYSTEM_PROMPT = [
 let panel: ElectronPanel | undefined
 let registered = false
 let boundHotkey = false
+let overlayAnchor: OverlayAnchor | undefined
+let anchorMoved = false
+let preferenceLoadGeneration = 0
+let summonOnStart = false
 
 export function assistantPanelBounds(display: Rectangle): Rectangle {
   const width = Math.min(PANEL_MAX_WIDTH, Math.max(1, display.width - PANEL_HORIZONTAL_MARGIN * 2))
@@ -68,6 +93,48 @@ export function assistantPanelBounds(display: Rectangle): Rectangle {
     width,
     height,
   }
+}
+
+function anchoredPanelBounds(fallbackDisplay: Rectangle): Rectangle {
+  if (!overlayAnchor) return assistantPanelBounds(fallbackDisplay)
+  const matchingDisplay = screen.getDisplayMatching(overlayAnchor.displayWorkArea)
+  const display = matchingDisplay.workArea
+  const bounds = assistantPanelBounds(display)
+  const previousWidth = Math.max(
+    1,
+    overlayAnchor.displayWorkArea.width - overlayAnchor.panelWidth,
+  )
+  const previousHeight = Math.max(
+    1,
+    overlayAnchor.displayWorkArea.height - overlayAnchor.panelHeight,
+  )
+  const availableWidth = Math.max(0, display.width - bounds.width)
+  const availableHeight = Math.max(0, display.height - bounds.height)
+  const relativeX = Math.min(1, Math.max(0, overlayAnchor.offsetX / previousWidth))
+  const relativeY = Math.min(1, Math.max(0, overlayAnchor.offsetY / previousHeight))
+  return {
+    ...bounds,
+    x: display.x + Math.round(relativeX * availableWidth),
+    y: display.y + Math.round(relativeY * availableHeight),
+  }
+}
+
+function persistPanelAnchor(bounds: Rectangle): void {
+  anchorMoved = true
+  const displayWorkArea = screen.getDisplayMatching(bounds).workArea
+  overlayAnchor = {
+    displayWorkArea,
+    offsetX: bounds.x - displayWorkArea.x,
+    offsetY: bounds.y - displayWorkArea.y,
+    panelWidth: bounds.width,
+    panelHeight: bounds.height,
+  }
+  void updateUserPreferences({ overlayAnchor }).catch((error: unknown) => {
+    mainLogger.error(
+      { errorName: error instanceof Error ? error.name : 'unknown' },
+      'Failed to save the assistant overlay position',
+    )
+  })
 }
 
 function owner(event: IpcMainInvokeEvent): BrowserWindow {
@@ -119,6 +186,16 @@ function registerIpc(): void {
       return selected
     },
   )
+  ipcMain.handle(
+    BRIDGE_CHANNELS.harnessSelectEffort,
+    async (event, input: unknown) => {
+      owner(event)
+      const effort: AgentEffort = effortSelection.parse(input)
+      const selected = await selectAgentEffort(effort)
+      await updateUserPreferences({ agentEffort: effort })
+      return selected
+    },
+  )
   ipcMain.handle(BRIDGE_CHANNELS.harnessAsk, (event, input: unknown): AskAccepted => {
     owner(event)
     const { prompt } = askRequest.parse(input)
@@ -126,8 +203,8 @@ function registerIpc(): void {
 
     void runAgent(prompt, {
       onDelta: (text) => send(BRIDGE_CHANNELS.harnessDelta, { text }),
-      onTool: (name, phase, isError) =>
-        send(BRIDGE_CHANNELS.harnessTool, { name, phase, isError }),
+      onTool: (id, name, phase, isError) =>
+        send(BRIDGE_CHANNELS.harnessTool, { id, name, phase, isError }),
       onApproval: (request) => send(BRIDGE_CHANNELS.harnessApproval, request),
       onEnd: (result) => send(BRIDGE_CHANNELS.harnessEnd, result),
     })
@@ -162,15 +239,36 @@ function registerIpc(): void {
 export function startHarnessHost(options: { modelDirectory: string }): void {
   configureLlamaHost({ workerPath: join(__dirname, LLAMA_WORKER_FILENAME) })
   configureModel({ directory: options.modelDirectory })
-  configureAgent({
+  const agentOptions = {
     systemPrompt: SYSTEM_PROMPT,
     ...loadHarnessOptions(app.getPath('userData')),
+  }
+  configureAgent(agentOptions)
+  anchorMoved = false
+  const loadGeneration = ++preferenceLoadGeneration
+  void readUserPreferences().then((preferences) => {
+    if (loadGeneration !== preferenceLoadGeneration) return
+    const anchor = overlayAnchorSchema.safeParse(preferences.overlayAnchor)
+    if (!anchorMoved) overlayAnchor = anchor.success ? anchor.data : undefined
+    const effort = effortSelection.safeParse(preferences.agentEffort)
+    if (effort.success) setAgentEffortPreference(effort.data)
+  }).catch((error: unknown) => {
+    mainLogger.error(
+      { errorName: error instanceof Error ? error.name : 'unknown' },
+      'Failed to load assistant overlay preferences',
+    )
   })
   panel = createElectronPanel({
     preloadPath: join(__dirname, 'preload.js'),
     loadRenderer,
-    bounds: assistantPanelBounds,
+    bounds: anchoredPanelBounds,
+    movable: true,
+    onMoved: persistPanelAnchor,
   })
+  if (summonOnStart) {
+    summonOnStart = false
+    panel.show()
+  }
   registerIpc()
 
   try {
@@ -185,7 +283,13 @@ export function startHarnessHost(options: { modelDirectory: string }): void {
 }
 
 export function showHarnessHost(): void {
-  panel?.show()
+  if (panel) panel.show()
+  else summonOnStart = true
+}
+
+export function toggleHarnessHost(): void {
+  if (panel) panel.toggle()
+  else summonOnStart = !summonOnStart
 }
 
 export function isHarnessBusy(): boolean {
@@ -193,10 +297,12 @@ export function isHarnessBusy(): boolean {
 }
 
 export async function stopHarnessHost(): Promise<void> {
+  preferenceLoadGeneration += 1
   if (boundHotkey) globalShortcut.unregister(HOTKEY)
   boundHotkey = false
   panel?.destroy()
   panel = undefined
+  summonOnStart = false
   await shutdownAgent()
   stopEngine()
 
@@ -206,6 +312,7 @@ export async function stopHarnessHost(): Promise<void> {
       BRIDGE_CHANNELS.harnessHide,
       BRIDGE_CHANNELS.harnessProvider,
       BRIDGE_CHANNELS.harnessSelectModel,
+      BRIDGE_CHANNELS.harnessSelectEffort,
       BRIDGE_CHANNELS.harnessAsk,
       BRIDGE_CHANNELS.harnessAbort,
       BRIDGE_CHANNELS.harnessApprove,

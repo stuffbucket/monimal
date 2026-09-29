@@ -6,7 +6,7 @@ import { BRIDGE_CHANNELS } from '../../shared/bridge-channels'
 
 interface HarnessCallbacks {
   onDelta(text: string): void
-  onTool(name: string, phase: string, isError: boolean): void
+  onTool(id: string, name: string, phase: string, isError: boolean): void
   onApproval(request: unknown): void
   onEnd(result: unknown): void
 }
@@ -31,12 +31,16 @@ const {
   ipcMainHandle,
   ipcMainRemoveHandler,
   isAgentBusyMock,
+  readUserPreferencesMock,
   overlayWebContents,
   panel,
   panelState,
   resolveApprovalMock,
   runAgentMock,
+  screenGetDisplayMatching,
   selectAgentModelMock,
+  selectAgentEffortMock,
+  setAgentEffortPreferenceMock,
   shutdownAgentMock,
   stopEngineMock,
   updateUserPreferencesMock,
@@ -62,7 +66,7 @@ const {
     configureAgentMock: vi.fn(),
     configureLlamaHostMock: vi.fn(),
     configureModelMock: vi.fn(),
-    createElectronPanelMock: vi.fn(() => panel),
+    createElectronPanelMock: vi.fn((_options: unknown) => panel),
     discoverProviderMock: vi.fn(() => ({ id: 'local-provider' })),
     ensureModelMock: vi.fn((..._args: unknown[]) =>
       Promise.resolve({ state: 'ready' }),
@@ -79,11 +83,13 @@ const {
       handlers.delete(channel)
     }),
     isAgentBusyMock: vi.fn(() => false),
+    readUserPreferencesMock: vi.fn(() => Promise.resolve({})),
     overlayWebContents,
     panel,
     panelState,
     resolveApprovalMock: vi.fn(),
     runAgentMock: vi.fn((..._args: unknown[]) => Promise.resolve()),
+    screenGetDisplayMatching: vi.fn((bounds: unknown) => ({ workArea: bounds })),
     selectAgentModelMock: vi.fn((modelKey: string) =>
       Promise.resolve({
         state: 'ready',
@@ -93,6 +99,17 @@ const {
         models: [],
       }),
     ),
+    selectAgentEffortMock: vi.fn((effort: string) =>
+      Promise.resolve({
+        state: 'ready',
+        provider: 'maximal',
+        model: 'claude',
+        modelKey: 'maximal:claude',
+        models: [],
+        effort,
+      }),
+    ),
+    setAgentEffortPreferenceMock: vi.fn(),
     shutdownAgentMock: vi.fn(() => Promise.resolve()),
     stopEngineMock: vi.fn(),
     updateUserPreferencesMock: vi.fn(() => Promise.resolve()),
@@ -109,6 +126,9 @@ vi.mock('electron', () => ({
     handle: ipcMainHandle,
     removeHandler: ipcMainRemoveHandler,
   },
+  screen: {
+    getDisplayMatching: screenGetDisplayMatching,
+  },
 }))
 
 vi.mock('@maximal/maximal-electron/electron-panel', () => ({
@@ -122,7 +142,9 @@ vi.mock('@maximal/maximal-harness/host', () => ({
   isAgentBusy: isAgentBusyMock,
   resolveApproval: resolveApprovalMock,
   runAgent: runAgentMock,
+  selectAgentEffort: selectAgentEffortMock,
   selectAgentModel: selectAgentModelMock,
+  setAgentEffortPreference: setAgentEffortPreferenceMock,
   shutdownAgent: shutdownAgentMock,
 }))
 
@@ -135,6 +157,7 @@ vi.mock('@maximal/maximal-llama-cpp/host', () => ({
 }))
 
 vi.mock('../preferences/user-preferences.js', () => ({
+  readUserPreferences: readUserPreferencesMock,
   updateUserPreferences: updateUserPreferencesMock,
 }))
 
@@ -142,6 +165,7 @@ const overlayInvokeChannels = [
   BRIDGE_CHANNELS.harnessHide,
   BRIDGE_CHANNELS.harnessProvider,
   BRIDGE_CHANNELS.harnessSelectModel,
+  BRIDGE_CHANNELS.harnessSelectEffort,
   BRIDGE_CHANNELS.harnessAsk,
   BRIDGE_CHANNELS.harnessAbort,
   BRIDGE_CHANNELS.harnessApprove,
@@ -188,6 +212,10 @@ beforeEach(() => {
   })
   shutdownAgentMock.mockResolvedValue(undefined)
   updateUserPreferencesMock.mockResolvedValue(undefined)
+  readUserPreferencesMock.mockResolvedValue({})
+  screenGetDisplayMatching.mockImplementation((bounds: unknown) => ({
+    workArea: bounds,
+  }))
 })
 
 describe('harness host IPC boundary', () => {
@@ -298,9 +326,30 @@ describe('harness host IPC boundary', () => {
       state: 'ready',
       modelKey: 'ollama:qwen3:4b',
     })
+
     expect(selectAgentModelMock).toHaveBeenCalledWith('ollama:qwen3:4b')
     expect(updateUserPreferencesMock).toHaveBeenCalledWith({
       agentModel: 'ollama:qwen3:4b',
+    })
+  })
+
+  it('validates, selects, and persists model effort', async () => {
+    await startHost()
+    const selectEffort = handler(BRIDGE_CHANNELS.harnessSelectEffort)
+
+    for (const input of [undefined, null, '', 'max', 42]) {
+      await expect(
+        Promise.resolve(selectEffort(overlayEvent(), input)),
+      ).rejects.toThrow()
+    }
+    expect(selectAgentEffortMock).not.toHaveBeenCalled()
+
+    await expect(
+      selectEffort(overlayEvent(), 'high'),
+    ).resolves.toMatchObject({ state: 'ready', effort: 'high' })
+    expect(selectAgentEffortMock).toHaveBeenCalledWith('high')
+    expect(updateUserPreferencesMock).toHaveBeenCalledWith({
+      agentEffort: 'high',
     })
   })
 
@@ -315,7 +364,7 @@ describe('harness host IPC boundary', () => {
     if (!callbacks) throw new Error('Agent callbacks were not installed')
 
     callbacks.onDelta('partial')
-    callbacks.onTool('bash', 'start', false)
+    callbacks.onTool('tool-1', 'bash', 'start', false)
     callbacks.onApproval({ id: 'approval-1' })
     callbacks.onEnd({ status: 'complete' })
 
@@ -336,7 +385,7 @@ describe('harness host IPC boundary', () => {
       [BRIDGE_CHANNELS.harnessDelta, { text: 'partial' }],
       [
         BRIDGE_CHANNELS.harnessTool,
-        { name: 'bash', phase: 'start', isError: false },
+        { id: 'tool-1', name: 'bash', phase: 'start', isError: false },
       ],
       [BRIDGE_CHANNELS.harnessApproval, { id: 'approval-1' }],
       [BRIDGE_CHANNELS.harnessEnd, { status: 'complete' }],
@@ -354,6 +403,60 @@ describe('harness host IPC boundary', () => {
 })
 
 describe('harness host lifecycle', () => {
+  it('honors a menu-bar summon that arrives during startup', async () => {
+    vi.resetModules()
+    const host = await import('./harness.js')
+
+    host.toggleHarnessHost()
+    host.startHarnessHost({ modelDirectory: '/resolved/local/models' })
+
+    expect(panel.show).toHaveBeenCalledOnce()
+  })
+
+  it('restores and persists a work-area-relative dragged anchor', async () => {
+    const savedWorkArea = { x: 1280, y: 24, width: 1280, height: 696 }
+    readUserPreferencesMock.mockResolvedValue({
+      overlayAnchor: {
+        displayWorkArea: savedWorkArea,
+        offsetX: 160,
+        offsetY: 80,
+        panelWidth: 640,
+        panelHeight: 480,
+      },
+    })
+    screenGetDisplayMatching.mockReturnValue({ workArea: savedWorkArea })
+    await startHost()
+    await Promise.resolve()
+
+    const panelOptions = createElectronPanelMock.mock.calls[0]?.[0] as {
+      bounds: (display: typeof savedWorkArea) => typeof savedWorkArea
+      onMoved: (bounds: typeof savedWorkArea) => void
+    }
+    expect(panelOptions.bounds({ x: 0, y: 0, width: 1024, height: 768 }))
+      .toEqual({ x: 1440, y: 104, width: 640, height: 480 })
+
+    panelOptions.onMoved({ x: 1500, y: 140, width: 640, height: 480 })
+    expect(updateUserPreferencesMock).toHaveBeenCalledWith({
+      overlayAnchor: {
+        displayWorkArea: savedWorkArea,
+        offsetX: 220,
+        offsetY: 116,
+        panelWidth: 640,
+        panelHeight: 480,
+      },
+    })
+  })
+
+  it('restores a valid saved effort without replacing other agent options', async () => {
+    readUserPreferencesMock.mockResolvedValue({ agentEffort: 'medium' })
+
+    await startHost()
+    await Promise.resolve()
+
+    expect(setAgentEffortPreferenceMock).toHaveBeenCalledWith('medium')
+    expect(configureAgentMock).toHaveBeenCalledTimes(1)
+  })
+
   it('creates the panel, binds its hotkey, and tears both down', async () => {
     const host = await startHost()
 
@@ -363,10 +466,10 @@ describe('harness host lifecycle', () => {
       width: 1280,
       height: 720,
     })).toEqual({
-      x: 1560,
-      y: 48,
-      width: 720,
-      height: 624,
+      x: 1600,
+      y: 120,
+      width: 640,
+      height: 480,
     })
     expect(configureLlamaHostMock).toHaveBeenCalledWith({
       workerPath: expect.stringMatching(/llama-worker\.js$/) as unknown,
@@ -385,7 +488,9 @@ describe('harness host lifecycle', () => {
       expect.objectContaining({
         preloadPath: expect.stringMatching(/preload\.js$/) as unknown,
         loadRenderer: expect.any(Function) as unknown,
-        bounds: host.assistantPanelBounds,
+        bounds: expect.any(Function) as unknown,
+        movable: true,
+        onMoved: expect.any(Function) as unknown,
       }),
     )
 
@@ -401,6 +506,9 @@ describe('harness host lifecycle', () => {
 
     host.showHarnessHost()
     expect(panel.show).toHaveBeenCalledTimes(1)
+
+    host.toggleHarnessHost()
+    expect(panel.toggle).toHaveBeenCalledTimes(2)
 
     await host.stopHarnessHost()
     expect(globalShortcutUnregister).toHaveBeenCalledWith(

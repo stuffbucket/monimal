@@ -4,7 +4,9 @@ import { Dialog } from '@maximal/maximal-electron/renderer';
 
 import type {
   AgentApprovalRequest,
+  AgentEffort,
   AgentEnd,
+  AgentModelOption,
   AgentToolEvent,
   ApproveRequest,
   AskAccepted,
@@ -18,6 +20,7 @@ export interface HarnessTransport {
   hide: () => Promise<void>;
   provider: () => Promise<ProviderStatus>;
   selectModel: (modelKey: string) => Promise<ProviderStatus>;
+  selectEffort: (effort: AgentEffort) => Promise<ProviderStatus>;
   ask: (prompt: string) => Promise<AskAccepted>;
   abort: () => Promise<void>;
   approve: (request: ApproveRequest) => Promise<void>;
@@ -41,9 +44,8 @@ function useTransportEvent<T>(
 /**
  * The floating command card, backed by the pi coding agent.
  *
- * The window is a full-screen transparent panel. Everything visible here is
- * CSS: a dim scrim, and a card near the bottom of the display. That split
- * comes from `stuffbucket/wiggle`, and it keeps the native surface small.
+ * The native window is a compact transparent panel. The card fills that
+ * surface with a narrow transparent edge for its shadow.
  *
  * The answer streams. `overlay:ask` returns as soon as the run starts, and
  * text arrives as `agent:delta` events, so a long answer appears as it is
@@ -57,8 +59,10 @@ function providerLabel(status: ProviderStatus): string {
   switch (status.state) {
     case 'probing':
       return HARNESS_COPY.overlay.probing;
-    case 'ready':
-      return `${status.provider} · ${status.model}`;
+    case 'ready': {
+      const model = status.models.find((entry) => entry.key === status.modelKey);
+      return `${status.provider} · ${model?.label ?? status.model}`;
+    }
     case 'select-model':
       return HARNESS_COPY.overlay.modelSelectionRequired;
     case 'needs-model':
@@ -75,18 +79,54 @@ function megabytes(bytes: number): string {
   );
 }
 
+interface ToolActivity {
+  id: string;
+  name: string;
+  state: 'running' | 'complete' | 'failed';
+}
+
+function selectedModel(status: ProviderStatus): AgentModelOption | undefined {
+  if (status.state !== 'ready') return undefined;
+  return status.models.find((model) => model.key === status.modelKey);
+}
+
+function ResponseContent({ text }: { text: string }) {
+  const blocks = text.split(/(```[\s\S]*?```)/g).filter(Boolean);
+  return (
+    <div className="mh-response">
+      {blocks.map((block, index) => {
+        if (block.startsWith('```')) {
+          const content = block.slice(3, -3);
+          const firstNewline = content.indexOf('\n');
+          const language = firstNewline < 0 ? '' : content.slice(0, firstNewline).trim();
+          const code = firstNewline < 0 ? content : content.slice(firstNewline + 1);
+          return (
+            <div className="mh-response__code-wrap" key={index}>
+              {language && <span className="mh-response__language">{language}</span>}
+              <pre className="mh-response__code"><code>{code}</code></pre>
+            </div>
+          );
+        }
+        return <div className="mh-response__text" key={index}>{block}</div>;
+      })}
+    </div>
+  );
+}
+
 export function Overlay({ transport }: { transport: HarnessTransport }) {
   const [status, setStatus] = useState<ProviderStatus>({ state: 'probing' });
   const [prompt, setPrompt] = useState('');
   const [answer, setAnswer] = useState('');
-  const [tool, setTool] = useState<string>();
+  const [tools, setTools] = useState<ToolActivity[]>([]);
   const [approval, setApproval] = useState<AgentApprovalRequest>();
   const [download, setDownload] = useState<ModelProgress>();
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
   const input = useRef<HTMLTextAreaElement>(null);
-  const modelPicker = useRef<HTMLSelectElement>(null);
+  const modelPicker = useRef<HTMLButtonElement>(null);
   const answerBox = useRef<HTMLDivElement>(null);
+  const followOutput = useRef(true);
+  const [modelMenuOpen, setModelMenuOpen] = useState(false);
 
   const hide = useCallback(() => {
     void transport.hide();
@@ -112,7 +152,10 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
 
   useEffect(() => {
     if (status.state === 'ready') input.current?.focus();
-    if (status.state === 'select-model') modelPicker.current?.focus();
+    if (status.state === 'select-model') {
+      setModelMenuOpen(true);
+      modelPicker.current?.focus();
+    }
   }, [status.state]);
 
   /* ------------------------------------------------------------- streaming */
@@ -121,10 +164,25 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
     setAnswer((current) => current + text);
   });
 
-  useTransportEvent(transport.onTool, ({ name, phase }) => {
-    // Show the running tool, then clear it. The user cares that the agent is
-    // touching their machine, not about the arguments.
-    setTool(phase === 'start' ? name : undefined);
+  useTransportEvent(transport.onTool, ({ id, name, phase, isError }) => {
+    setTools((current) => {
+      if (phase === 'start') {
+        const started: ToolActivity = {
+          id,
+          name,
+          state: 'running',
+        };
+        return [...current.filter((entry) => entry.id !== id), started].slice(-6);
+      }
+      return current.map((entry) =>
+        entry.id === id
+          ? {
+              ...entry,
+              state: isError ? 'failed' : 'complete',
+            }
+          : entry,
+      );
+    });
   });
 
   useTransportEvent(transport.onApproval, setApproval);
@@ -150,7 +208,23 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
   const selectModel = useCallback(
     (modelKey: string) => {
       setError(undefined);
-      void transport.selectModel(modelKey).then(setStatus).catch(() => {
+      void transport.selectModel(modelKey).then((next) => {
+        setStatus(next);
+        setModelMenuOpen(false);
+      }).catch(() => {
+        setError(HARNESS_COPY.overlay.requestFailed);
+      });
+    },
+    [transport],
+  );
+
+  const selectEffort = useCallback(
+    (effort: AgentEffort) => {
+      setError(undefined);
+      void transport.selectEffort(effort).then((next) => {
+        setStatus(next);
+        setModelMenuOpen(false);
+      }).catch(() => {
         setError(HARNESS_COPY.overlay.requestFailed);
       });
     },
@@ -159,7 +233,6 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
 
   useTransportEvent(transport.onEnd, (result) => {
     setBusy(false);
-    setTool(undefined);
     setApproval(undefined);
     if (!result.ok) setError(result.error);
   });
@@ -180,10 +253,10 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
     [approval, transport],
   );
 
-  // Keep the newest text in view while it streams.
+  // Follow streamed output only while the reader remains near the bottom.
   useEffect(() => {
     const box = answerBox.current;
-    if (box) box.scrollTop = box.scrollHeight;
+    if (box && followOutput.current) box.scrollTop = box.scrollHeight;
   }, [answer]);
 
   /* ---------------------------------------------------------------- input */
@@ -195,7 +268,9 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
     setBusy(true);
     setPrompt('');
     setAnswer('');
+    setTools([]);
     setError(undefined);
+    followOutput.current = true;
 
     void transport.ask(text).then((accepted) => {
       if (accepted.started) return;
@@ -251,12 +326,18 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
   const onEscape = useCallback(
     (event: KeyboardEvent) => {
       event.preventDefault();
+      if (modelMenuOpen) {
+        setModelMenuOpen(false);
+        return;
+      }
       act(escapeAction(Boolean(approval), busy));
     },
-    [act, approval, busy],
+    [act, approval, busy, modelMenuOpen],
   );
 
   const ready = status.state === 'ready';
+  const currentModel = selectedModel(status);
+  const runningTool = [...tools].reverse().find((entry) => entry.state === 'running');
 
   return (
     /*
@@ -278,13 +359,36 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
       onKeyDown={onKeyDown}
       onEscapeKeyDown={onEscape}
     >
+        <div className="mh-drag-handle" aria-hidden="true"><span /></div>
         {(answer || error) && (
           <div
             className="mh-card__answer"
             ref={answerBox}
             data-testid="overlay-answer"
+            onScroll={(event) => {
+              const box = event.currentTarget;
+              followOutput.current =
+                box.scrollHeight - box.scrollTop - box.clientHeight < 24;
+            }}
           >
-            {answer}
+            {answer && (
+              <>
+                <button
+                  type="button"
+                  className="mh-answer-copy"
+                  onClick={() => {
+                    void navigator.clipboard.writeText(answer).catch(() => {
+                      setError('The response could not be copied.');
+                    });
+                  }}
+                  aria-label="Copy response"
+                  title="Copy response"
+                >
+                  <span aria-hidden="true" />
+                </button>
+                <ResponseContent text={answer} />
+              </>
+            )}
             {error && <span className="mh-card__error">{error}</span>}
           </div>
         )}
@@ -339,34 +443,85 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
         )}
 
         {(status.state === 'ready' || status.state === 'select-model') && (
-          <label className="mh-model-picker">
-            <span className="mh-model-picker__label">
-              {HARNESS_COPY.overlay.modelPickerLabel}
-            </span>
-            <select
+          <div className="mh-model-picker">
+            <button
               ref={modelPicker}
-              className="mh-model-picker__select"
-              value={status.state === 'ready' ? status.modelKey : ''}
-              size={
-                status.state === 'select-model'
-                  ? Math.min(status.models.length + 1, 6)
-                  : undefined
-              }
-              onChange={(event) => selectModel(event.target.value)}
+              type="button"
+              className="mh-model-picker__trigger"
+              aria-haspopup="listbox"
+              aria-expanded={modelMenuOpen}
+              onClick={() => setModelMenuOpen((open) => !open)}
               data-testid="overlay-model-picker"
             >
-              {status.state === 'select-model' && (
-                <option value="" disabled>
-                  {HARNESS_COPY.overlay.modelSelectionRequired}
-                </option>
+              <span className="mh-model-picker__name">
+                {currentModel?.label ?? HARNESS_COPY.overlay.modelSelectionRequired}
+              </span>
+              {status.state === 'ready' && status.effort && (
+                <span className="mh-model-picker__effort">{status.effort}</span>
               )}
-              {status.models.map((model) => (
-                <option key={model.key} value={model.key}>
-                  {model.provider} · {model.label}
-                </option>
-              ))}
-            </select>
-          </label>
+              <span aria-hidden="true">⌄</span>
+            </button>
+            {modelMenuOpen && (
+              <div
+                className="mh-model-menu"
+                role="listbox"
+                aria-label={HARNESS_COPY.overlay.modelPickerLabel}
+                data-testid="overlay-model-menu"
+              >
+                <div className="mh-model-menu__scroll">
+                  {status.models.map((model) => {
+                    const selected =
+                      status.state === 'ready' && model.key === status.modelKey;
+                    return (
+                      <button
+                        type="button"
+                        role="option"
+                        aria-selected={selected}
+                        className="mh-model-menu__option"
+                        key={model.key}
+                        onClick={() => selectModel(model.key)}
+                      >
+                        <span className="mh-model-menu__check">
+                          {selected ? '✓' : ''}
+                        </span>
+                        <span>
+                          <strong>{model.label}</strong>
+                          <small>{model.description}</small>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {status.state === 'ready' && currentModel?.efforts.length ? (
+                  <div className="mh-effort-picker" role="group" aria-label="Effort">
+                    <span>Effort</span>
+                    {currentModel.efforts.map((effort) => (
+                      <button
+                        type="button"
+                        key={effort}
+                        aria-pressed={status.effort === effort}
+                        onClick={() => selectEffort(effort)}
+                      >
+                        {effort}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            )}
+          </div>
+        )}
+
+        {tools.length > 0 && (
+          <div className="mh-tool-list" aria-label="Tool activity" data-testid="overlay-tools">
+            {tools.map((entry) => (
+              <div className={`mh-tool mh-tool--${entry.state}`} key={entry.id}>
+                <span className="mh-tool__indicator" aria-hidden="true" />
+                <code>{entry.name}</code>
+                <span>{entry.state}</span>
+              </div>
+            ))}
+          </div>
         )}
 
         {approval && (
@@ -438,8 +593,8 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
           >
             {approval
               ? HARNESS_COPY.overlay.approvalStatus(approval.tool)
-              : tool
-                ? HARNESS_COPY.overlay.running(tool)
+              : runningTool
+                ? HARNESS_COPY.overlay.running(runningTool.name)
                 : busy
                   ? HARNESS_COPY.overlay.thinking
                   : providerLabel(status)}

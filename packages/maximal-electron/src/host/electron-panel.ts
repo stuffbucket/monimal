@@ -3,9 +3,11 @@ import { BrowserWindow, screen, type Rectangle } from 'electron';
 export interface ElectronPanelOptions {
   preloadPath: string;
   loadRenderer: (window: BrowserWindow) => void;
-  bounds?: (displayBounds: Rectangle) => Rectangle;
+  bounds?: (displayWorkArea: Rectangle) => Rectangle;
   stackAboveFullscreen?: boolean;
   focusWhenShown?: boolean;
+  movable?: boolean;
+  onMoved?: (bounds: Rectangle) => void;
 }
 
 export interface ElectronPanel {
@@ -18,10 +20,11 @@ export interface ElectronPanel {
 
 export function createElectronPanel(options: ElectronPanelOptions): ElectronPanel {
   let panel: BrowserWindow | undefined;
+  let lastProgrammaticBounds: Rectangle | undefined;
 
-  const displayBounds = (): Rectangle => {
-    const bounds = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).bounds;
-    return options.bounds?.(bounds) ?? bounds;
+  const panelBounds = (): Rectangle => {
+    const workArea = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea;
+    return options.bounds?.(workArea) ?? workArea;
   };
 
   const applyStacking = (window: BrowserWindow): void => {
@@ -35,14 +38,14 @@ export function createElectronPanel(options: ElectronPanelOptions): ElectronPane
     });
   };
 
-  const create = (): BrowserWindow => {
+  const create = (bounds: Rectangle): BrowserWindow => {
     const window = new BrowserWindow({
-      ...displayBounds(),
+      ...bounds,
       show: false,
       frame: false,
       transparent: true,
       resizable: false,
-      movable: false,
+      movable: options.movable ?? false,
       minimizable: false,
       maximizable: false,
       fullscreenable: false,
@@ -60,6 +63,16 @@ export function createElectronPanel(options: ElectronPanelOptions): ElectronPane
 
     applyStacking(window);
     options.loadRenderer(window);
+    window.on('moved', () => {
+      const bounds = window.getBounds();
+      const wasProgrammatic =
+        lastProgrammaticBounds !== undefined
+        && bounds.x === lastProgrammaticBounds.x
+        && bounds.y === lastProgrammaticBounds.y
+        && bounds.width === lastProgrammaticBounds.width
+        && bounds.height === lastProgrammaticBounds.height;
+      if (!wasProgrammatic) options.onMoved?.(bounds);
+    });
     window.on('closed', () => {
       if (panel === window) panel = undefined;
     });
@@ -67,8 +80,12 @@ export function createElectronPanel(options: ElectronPanelOptions): ElectronPane
   };
 
   const show = (): BrowserWindow => {
-    if (!panel || panel.isDestroyed()) panel = create();
-    panel.setBounds(displayBounds());
+    const bounds = panelBounds();
+    if (!panel || panel.isDestroyed()) panel = create(bounds);
+    else {
+      lastProgrammaticBounds = bounds;
+      panel.setBounds(bounds);
+    }
     if (options.stackAboveFullscreen !== false) {
       panel.setVisibleOnAllWorkspaces(true, {
         visibleOnFullScreen: true,
@@ -76,6 +93,10 @@ export function createElectronPanel(options: ElectronPanelOptions): ElectronPane
       });
     }
     panel.showInactive();
+    // macOS may adjust a panel while ordering it on screen. Reassert the
+    // requested work-area-relative bounds after it becomes visible.
+    lastProgrammaticBounds = bounds;
+    panel.setBounds(bounds);
     if (options.focusWhenShown !== false) panel.focus();
     return panel;
   };
