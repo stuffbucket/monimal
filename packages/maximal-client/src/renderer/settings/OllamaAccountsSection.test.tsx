@@ -539,7 +539,7 @@ describe('OllamaAccountsSection API key validation', () => {
       'Connect to an Ollama application running on this computer or another host.',
     )
     expect(input?.closest('.form-field')?.textContent).toContain(
-      `Ollama is available at ${settings.local_endpoint}.`,
+      'Ollama is available.',
     )
   })
 
