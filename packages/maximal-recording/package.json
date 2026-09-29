@@ -20,12 +20,14 @@
     "compose": "node scripts/compose.mjs",
     "test": "vitest run",
     "test:rules": "playwright test --config e2e/demo/rules.config.ts",
+    "mutate": "stryker run stryker.config.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "eslint ."
   },
   "devDependencies": {
     "@maximal/eslint-config": "workspace:*",
     "@playwright/test": "^1.62.0",
+    "@stryker-mutator/core": "^10.0.0",
     "@types/node": "^26.4.0",
     "electron": "44.1.0",
     "eslint": "^10.9.1",
