@@ -1131,7 +1131,7 @@
 
 .sb-shell .menu {
   min-width: 220px;
-  max-height: min(360px, var(--radix-dropdown-menu-content-available-height));
+  max-height: min(360px, var(--shell-menu-available-height));
   overflow-y: auto;
   padding: var(--shell-space-1);
   background: var(--shell-raised);
@@ -1155,47 +1155,29 @@
   cursor: pointer;
 }
 
-.sb-shell .menu__item-label {
-  color: var(--shell-text);
-}
-
-.sb-shell .menu__item--described {
-  height: auto;
-  min-height: var(--shell-row-height);
-  padding-top: var(--shell-space-1);
-  padding-bottom: var(--shell-space-1);
-}
-
-.sb-shell .menu__item-copy {
-  display: flex;
-  min-width: 0;
-  flex: 1;
-  flex-direction: column;
-}
-
-.sb-shell .menu__item-description {
-  overflow: hidden;
-  color: var(--shell-text-muted);
-  font-size: 11px;
-  line-height: 1.35;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sb-shell .menu__item-indicator {
-  flex: none;
-  color: var(--shell-accent);
-  font-size: 12px;
-}
-
-.sb-shell .menu__item--selected {
-  background: color-mix(in srgb, var(--shell-accent) 12%, transparent);
-}
-
 .sb-shell .menu__item-shortcut {
   color: var(--shell-text-muted);
   font-size: 11px;
   letter-spacing: 0.02em;
+}
+
+.sb-shell.shell-candy-surface {
+  border-color: var(--shell-candy-border);
+  background: var(--shell-candy-background);
+  background-size: 47px 43px, 71px 67px, 89px 83px, auto;
+  box-shadow: var(--shell-candy-shadow);
+}
+
+.sb-shell.shell-candy-surface::before {
+  background: var(--shell-candy-sheen);
+}
+
+.sb-shell.shell-candy-surface .shell-candy-surface__icon {
+  box-shadow: var(--shell-candy-icon-shadow);
+}
+
+.sb-shell.shell-candy-surface .shell-candy-surface__text {
+  color: var(--shell-candy-text);
 }
 
 .sb-shell .menu__separator {

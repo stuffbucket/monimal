@@ -429,7 +429,9 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
       open
       modal={false}
       title={HARNESS_COPY.overlay.title}
-      className={`sb-shell mh-card${preferences.candy ? ' mh-card--candy' : ''}`}
+      className={`sb-shell mh-card${
+        preferences.candy ? ' mh-card--candy shell-candy-surface' : ''
+      }`}
       testId="overlay-card"
       onKeyDown={onKeyDown}
       onEscapeKeyDown={onEscape}
@@ -437,11 +439,11 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
         <div className="mh-drag-handle" aria-hidden="true"><span /></div>
         <header className="mh-card__header">
           <img
-            className="mh-card__icon"
+            className="mh-card__icon shell-candy-surface__icon"
             src={TERMINAL_ICON_URLS.maximal}
             alt=""
           />
-          <div className="mh-card__identity">
+          <div className="mh-card__identity shell-candy-surface__text">
             <strong>Maximal Assistant</strong>
             <span>{preferences.hotkey}</span>
           </div>

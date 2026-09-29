@@ -43,6 +43,12 @@ The following variables are required:
 | `--shell-active` | Pressed or nested hover controls. |
 | `--shell-background` | Window chrome and side-panel surface. |
 | `--shell-border` | Dividers and quiet outlines. |
+| `--shell-candy-background` | Optional candy-coated surface paint. |
+| `--shell-candy-border` | Optional candy-coated surface outline. |
+| `--shell-candy-icon-shadow` | Icon shadow on a candy-coated surface. |
+| `--shell-candy-shadow` | Optional candy-coated surface elevation. |
+| `--shell-candy-sheen` | Optional candy-coated surface highlight. |
+| `--shell-candy-text` | Foreground drawn directly on candy-coated paint. |
 | `--shell-canvas` | Main document surface and active tab. |
 | `--shell-hover` | Hovered controls. |
 | `--shell-raised` | Tooltip and other floating surfaces. |

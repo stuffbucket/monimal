@@ -4,6 +4,7 @@ import * as Tooltip from '@radix-ui/react-tooltip';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { useContext, useRef, type ComponentType, type ReactNode } from 'react';
 
+import { useComponentStyles } from '../../lib/component-styles.js';
 import { SHELL_ROOT_CLASS, ShellRoot } from '../../lib/shell-root.js';
 
 /**
@@ -202,6 +203,44 @@ export interface MenuItem {
   disabled?: boolean;
 }
 
+const MENU_STYLES = `
+.sb-shell .menu__item-label {
+  color: var(--shell-text);
+}
+
+.sb-shell .menu__item[data-described] {
+  height: auto;
+  min-height: var(--shell-row-height);
+  padding-block: var(--shell-space-1);
+}
+
+.sb-shell .menu__item-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.sb-shell .menu__item-description {
+  overflow: hidden;
+  color: var(--shell-text-muted);
+  font-size: var(--shell-text-xs);
+  line-height: var(--shell-leading-base);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sb-shell .menu__item-indicator {
+  flex: none;
+  color: var(--shell-accent);
+  font-size: var(--shell-text-xs);
+}
+
+.sb-shell .menu__item[data-selected] {
+  background: var(--shell-accent-muted);
+}
+`;
+
 /** A dropdown menu. The trigger is the caller's; the popup is not. */
 export function Menu({
   trigger,
@@ -228,6 +267,7 @@ export function Menu({
   onCloseAutoFocus?: (event: Event) => void;
   testId?: string;
 }) {
+  useComponentStyles('menu', MENU_STYLES);
   const container = useShellPortalContainer();
 
   return (
@@ -249,12 +289,9 @@ export function Menu({
             return (
               <DropdownMenu.Item
                 key={item.id}
-                className={[
-                  'menu__item',
-                  item.description ? 'menu__item--described' : '',
-                  item.selected ? 'menu__item--selected' : '',
-                  item.danger ? 'menu__item--danger' : '',
-                ].filter(Boolean).join(' ')}
+                className={`menu__item${item.danger ? ' menu__item--danger' : ''}`}
+                data-described={item.description ? '' : undefined}
+                data-selected={item.selected ? '' : undefined}
                 disabled={item.disabled}
                 onSelect={item.onSelect}
                 aria-current={item.selected ? 'true' : undefined}

@@ -129,6 +129,7 @@ export const REQUIRED_TOKENS: string[] = [
   '--radius-dialog',
   '--radius-input',
   '--radius-pill',
+  '--radix-dropdown-menu-content-available-height',
   '--size-row',
   '--size-tabbar',
   '--size-titlebar',

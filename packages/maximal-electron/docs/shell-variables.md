@@ -57,6 +57,7 @@ focus rings, type, and optical details are not spacing increments.
 | `--shell-focus-ring-width` | `2px` | Keyboard focus ring width. |
 | `--shell-input-border` | `var(--shell-border-strong, var(--shell-border))` | The outline of a field. |
 | `--shell-leading-base` | `1.5` | Line height for a paragraph. |
+| `--shell-menu-available-height` | Radix available height or `100vh` | The maximum available height for a menu popup. |
 | `--shell-radius` | `6px` | A control corner. |
 | `--shell-radius-large` | `8px` | A card corner. |
 | `--shell-radius-pill` | `9999px` | A fully rounded control. |
@@ -83,7 +84,7 @@ rejects a structural token that nothing reads.
 
 ## Required
 
-Define all eleven. `ShellLayout` applies the `.sb-shell` root class; define them
+Define all seventeen. `ShellLayout` applies the `.sb-shell` root class; define them
 on that container or an ancestor. README.md carries the same table with the
 description of what each one draws.
 
@@ -94,6 +95,12 @@ description of what each one draws.
 | `--shell-active` |
 | `--shell-background` |
 | `--shell-border` |
+| `--shell-candy-background` |
+| `--shell-candy-border` |
+| `--shell-candy-icon-shadow` |
+| `--shell-candy-shadow` |
+| `--shell-candy-sheen` |
+| `--shell-candy-text` |
 | `--shell-canvas` |
 | `--shell-hover` |
 | `--shell-raised` |
@@ -114,12 +121,6 @@ looks exactly like an ordinary hovered one.
 | `--shell-accent-contrast` | `--shell-text` | the `Switch` thumb, and the label on a primary `Button` |
 | `--shell-border-hover` | `--shell-accent` | the outline of a hovered button or field |
 | `--shell-border-strong` | `--shell-border` | tooltip, dialog and menu outlines, hovered card border, scrollbar thumb |
-| `--shell-candy-background` | Maximal candy paint | the optional candy-coated assistant surface |
-| `--shell-candy-border` | Maximal candy paint | the optional candy-coated assistant outline |
-| `--shell-candy-icon-shadow` | Maximal candy paint | the icon shadow on the optional candy-coated assistant surface |
-| `--shell-candy-shadow` | Maximal candy paint | the optional candy-coated assistant elevation |
-| `--shell-candy-sheen` | Maximal candy paint | the animated highlight on the optional candy-coated assistant surface |
-| `--shell-candy-text` | Maximal candy paint | text drawn directly on the optional candy-coated assistant surface |
 | `--shell-control-height` | `28px` | icon button box, field height |
 | `--shell-danger` | `--shell-hover` | destructive icon button, destructive `Button` fill, highlighted destructive menu item |
 | `--shell-danger-contrast` | `--shell-text` | the glyph or label on any of those |

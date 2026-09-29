@@ -67,19 +67,11 @@ body,
   z-index: 1;
 }
 
-.mh-card--candy {
-  border-color: var(--shell-candy-border);
-  background: var(--shell-candy-background);
-  background-size: 47px 43px, 71px 67px, 89px 83px, auto;
-  box-shadow: var(--shell-candy-shadow);
-}
-
 .mh-card--candy::before {
   content: '';
   position: absolute;
   z-index: 0;
   inset: -35% -10%;
-  background: var(--shell-candy-sheen);
   transform: translateX(-45%);
   animation: mh-candy-sheen 8s ease-in-out infinite;
   pointer-events: none;
@@ -96,7 +88,6 @@ body,
   height: 42px;
   flex: none;
   border-radius: 10px;
-  box-shadow: var(--shell-candy-icon-shadow);
 }
 
 .mh-card__identity {
@@ -104,7 +95,6 @@ body,
   min-width: 0;
   flex: 1;
   flex-direction: column;
-  color: var(--shell-candy-text);
 }
 
 .mh-card__identity span,
@@ -140,8 +130,6 @@ body,
   border-radius: var(--shell-radius, 6px);
   background: var(--shell-background);
   color: var(--shell-text);
-  font: inherit;
-  cursor: pointer;
 }
 
 .mh-select-trigger > span:first-child {
