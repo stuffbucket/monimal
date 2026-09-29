@@ -151,6 +151,7 @@
         "@maximal/maximal-observability",
         "@maximal/maximal-observability-contract",
         "@maximal/maximal-ollama",
+        "@maximal/project-catalog",
         "@maximal/maximal-search",
         "@maximal/maximal-terminal"
       ],
@@ -182,6 +183,7 @@
         "@maximal/maximal-observability-contract",
         "@maximal/maximal-ollama",
         "@maximal/maximal-recording",
+        "@maximal/project-catalog",
         "@maximal/maximal-settings",
         "@maximal/maximal-terminal"
       ],
@@ -234,6 +236,14 @@
     },
     "@maximal/maximal-search": {
       "root": "packages/maximal-search",
+      "dependsOn": [
+        "@maximal/eslint-config"
+      ],
+      "cycleEdges": [],
+      "duplicatePairs": []
+    },
+    "@maximal/project-catalog": {
+      "root": "packages/project-catalog",
       "dependsOn": [
         "@maximal/eslint-config"
       ],

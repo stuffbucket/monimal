@@ -55,6 +55,7 @@ import { resolveLicenseBundlePath } from './native/license-bundle.js'
 import { listClientInstallations } from './native/client-installations.js'
 import { toLifecycleStatus } from './sidecar/lifecycle-status.js'
 import { registerOllamaRuntimeIpc } from './ollama-runtime-ipc.js'
+import { DesktopProjectCatalog } from './adapters/project-catalog.js'
 import { MenuBarModeController } from './native/menu-bar-mode.js'
 import { mainLogger } from './main-logger.js'
 import {
@@ -73,6 +74,7 @@ import {
 import {
   activeTerminalCount,
   configureTerminalHost,
+  configureTerminalProjectTrust,
   configureTerminalWindowActions,
   moveTerminalSessions,
   registerTerminalIpc,
@@ -117,6 +119,7 @@ const vibrancyWindows = new Set<BrowserWindow>()
 let pendingSettingsRequest: PendingSettingsRequest | null = null
 let menuBarMode: MenuBarModeController | null = null
 let recording: DesktopRecording | null = null
+let projectCatalog: DesktopProjectCatalog | null = null
 let quitting = false
 
 const nonEmptyString = z.string().min(1)
@@ -245,6 +248,7 @@ async function readLicenseText(): Promise<string> {
 function registerIpc(
   session: CoreControlConnection,
   mode: MenuBarModeController,
+  projects: DesktopProjectCatalog,
 ): void {
   ipcMain.handle(BRIDGE_CHANNELS.lifecycleCurrent, () =>
     toLifecycleStatus(currentCoreStatus()),
@@ -296,6 +300,60 @@ function registerIpc(
     (_event, enabled: unknown) =>
       updateReducedMotion(z.boolean().parse(enabled)),
   )
+  ipcMain.handle(BRIDGE_CHANNELS.projectsSnapshot, () => projects.snapshot())
+  ipcMain.handle(
+    BRIDGE_CHANNELS.projectsSearch,
+    (_event, query: unknown, limit: unknown) =>
+      projects.search(
+        z.string().max(500).parse(query),
+        limit === undefined ? undefined : z.number().int().min(1).max(200).parse(limit),
+      ),
+  )
+  ipcMain.handle(BRIDGE_CHANNELS.projectsAddRoot, async () => {
+    const options = {
+      properties: ['openDirectory', 'createDirectory'],
+      title: 'Add project discovery root',
+    } satisfies Electron.OpenDialogOptions
+    const selection = mainWindow === null
+      ? await dialog.showOpenDialog(options)
+      : await dialog.showOpenDialog(mainWindow, options)
+    if (selection.canceled || selection.filePaths[0] === undefined) return null
+    const root = projects.addRoot(selection.filePaths[0])
+    await projects.refresh(root.id)
+    broadcast(BRIDGE_CHANNELS.projectsChanged)
+    return projects.roots().find(({ id }) => id === root.id) ?? root
+  })
+  ipcMain.handle(
+    BRIDGE_CHANNELS.projectsUpdateRoot,
+    (_event, id: unknown, update: unknown) => {
+      const value = z.object({
+        enabled: z.boolean().optional(),
+        trusted: z.boolean().optional(),
+        trustSubtrees: z.boolean().optional(),
+        maxDepth: z.number().int().min(0).max(20).optional(),
+        includeHidden: z.boolean().optional(),
+        exclusions: z.array(z.string().min(1).max(255)).max(200).optional(),
+      }).parse(update)
+      const result = projects.updateRoot(nonEmptyString.parse(id), value)
+      broadcast(BRIDGE_CHANNELS.projectsChanged)
+      return result
+    },
+  )
+  ipcMain.handle(BRIDGE_CHANNELS.projectsRemoveRoot, (_event, id: unknown) => {
+    projects.removeRoot(nonEmptyString.parse(id))
+    broadcast(BRIDGE_CHANNELS.projectsChanged)
+  })
+  ipcMain.handle(BRIDGE_CHANNELS.projectsRefresh, async (_event, rootId: unknown) => {
+    const result = await projects.refresh(
+      rootId === undefined ? undefined : nonEmptyString.parse(rootId),
+    )
+    broadcast(BRIDGE_CHANNELS.projectsChanged)
+    return result
+  })
+  ipcMain.handle(BRIDGE_CHANNELS.projectsOpened, (_event, projectId: unknown) => {
+    projects.opened(nonEmptyString.parse(projectId))
+    broadcast(BRIDGE_CHANNELS.projectsChanged)
+  })
   ipcMain.handle(BRIDGE_CHANNELS.authStatus, () => session.authStatus())
   ipcMain.handle(BRIDGE_CHANNELS.authStart, () => session.authStart())
   ipcMain.handle(BRIDGE_CHANNELS.authCancel, () => session.authCancel())
@@ -764,7 +822,16 @@ void app.whenReady().then(async () => {
       openTransferredTerminal(owner, request, 'copy'),
     redock: redockTerminal,
   })
-  registerIpc(coreControlConnection, nativeMode)
+  projectCatalog = await DesktopProjectCatalog.open(app.getPath('userData'))
+  configureTerminalProjectTrust((path) => projectCatalog?.isTrustedPath(path) === true)
+  registerIpc(coreControlConnection, nativeMode, projectCatalog)
+  void projectCatalog.refresh().then(
+    () => broadcast(BRIDGE_CHANNELS.projectsChanged),
+    (error: unknown) => mainLogger.error(
+      { errorName: error instanceof Error ? error.name : 'unknown' },
+      'Project catalog startup refresh failed',
+    ),
+  )
   startHarnessHost({ modelDirectory: localModelsDirectory() })
 
   const splashPreview = isSplashPreview()
@@ -853,6 +920,8 @@ shutdownLifecycle.onWillShutdown((event) => {
   event.join(Promise.resolve().then(() => {
     menuBarMode?.dispose()
     coreControlConnection?.dispose()
+    projectCatalog?.close()
+    projectCatalog = null
     stopTerminalHost()
   }), { id: 'application', label: 'Application services' })
 

@@ -387,6 +387,14 @@ export function createPreviewSettingsCapabilities(): SettingsCapabilities {
       get: () => Promise.resolve({ dismissed: false }),
       setDismissed: (dismissed) => Promise.resolve({ dismissed }),
     },
+    projects: {
+      snapshot: () => Promise.resolve({ roots: [], projects: [], refreshing: false }),
+      addRoot: () => Promise.resolve(null),
+      updateRoot: unavailable,
+      removeRoot: unavailable,
+      refresh: () => Promise.resolve({ roots: [], projects: [], refreshing: false }),
+      subscribe: () => () => undefined,
+    },
     connections: {
       list: unavailable,
       act: unavailable,

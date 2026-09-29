@@ -8,11 +8,31 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { loggerError } = vi.hoisted(() => ({ loggerError: vi.fn() }))
+const { projectCatalog } = vi.hoisted(() => ({
+  projectCatalog: {
+    snapshot: vi.fn(() => ({ roots: [], projects: [], refreshing: false })),
+    search: vi.fn(() => []),
+    roots: vi.fn(() => []),
+    addRoot: vi.fn(),
+    updateRoot: vi.fn(),
+    removeRoot: vi.fn(),
+    refresh: vi.fn(async () => ({ roots: [], projects: [], refreshing: false })),
+    isTrustedPath: vi.fn(() => false),
+    opened: vi.fn(),
+    close: vi.fn(),
+  },
+}))
 
 vi.mock('@maximal/maximal-logging', () => ({
   resolveLogDirectory: () => '/state/stuffbucket/logs',
   listLogFiles: () => [{ name: 'sidecar.log', size: 42, modifiedAt: 1 }],
   createLogger: () => ({ info: vi.fn(), warn: vi.fn(), error: loggerError, debug: vi.fn() }),
+}))
+
+vi.mock('./adapters/project-catalog.js', () => ({
+  DesktopProjectCatalog: {
+    open: vi.fn(async () => projectCatalog),
+  },
 }))
 
 import {
@@ -362,6 +382,7 @@ vi.mock('./adapters/harness.js', () => ({
 
 const {
   configureTerminalHostMock,
+  configureTerminalProjectTrustMock,
   configureTerminalWindowActionsMock,
   moveTerminalSessionsMock,
   activeTerminalCountMock,
@@ -371,6 +392,7 @@ const {
 } = vi.hoisted(() => ({
   activeTerminalCountMock: vi.fn(() => 0),
   configureTerminalHostMock: vi.fn(),
+  configureTerminalProjectTrustMock: vi.fn(),
   configureTerminalWindowActionsMock: vi.fn(),
   moveTerminalSessionsMock: vi.fn(() => true),
   registerTerminalIpcMock: vi.fn(),
@@ -381,6 +403,7 @@ const {
 vi.mock('./adapters/terminal.js', () => ({
   activeTerminalCount: activeTerminalCountMock,
   configureTerminalHost: configureTerminalHostMock,
+  configureTerminalProjectTrust: configureTerminalProjectTrustMock,
   configureTerminalWindowActions: configureTerminalWindowActionsMock,
   moveTerminalSessions: moveTerminalSessionsMock,
   registerTerminalIpc: registerTerminalIpcMock,
@@ -585,6 +608,7 @@ describe('closed IPC boundary', () => {
       BRIDGE_CHANNELS.harnessApproval,
       BRIDGE_CHANNELS.harnessEnd,
       BRIDGE_CHANNELS.harnessModelProgress,
+      BRIDGE_CHANNELS.projectsChanged,
     ])
   })
 

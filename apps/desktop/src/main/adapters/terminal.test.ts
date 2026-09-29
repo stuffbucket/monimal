@@ -73,6 +73,7 @@ vi.mock('@maximal/maximal-terminal', async (importOriginal) => ({
 
 const {
   configureTerminalHost,
+  configureTerminalProjectTrust,
   configureTerminalWindowActions,
   copyTerminalSessions,
   moveTerminalSessions,
@@ -159,6 +160,7 @@ describe('terminal host window actions', () => {
     launchTerminal.mockReset()
     logError.mockReset()
     stagePtyOwnership.mockReset()
+    configureTerminalProjectTrust(() => false)
   })
 
   it('validates an undock request before dispatching it with the sender window', () => {
@@ -207,6 +209,33 @@ describe('terminal host window actions', () => {
     )
     expect(JSON.stringify(logError.mock.calls)).not.toContain('private')
     expect(JSON.stringify(logError.mock.calls)).not.toContain('opaque')
+  })
+
+  it('enforces project trust before launching with a working directory', () => {
+    configureTerminalProjectTrust((path) => path === '/trusted/project')
+    registerTerminalIpc()
+    const launch = ipcHandlers.get(BRIDGE_CHANNELS.terminalLaunch)
+
+    expect(() => launch?.({ sender: owner.webContents }, {
+      profileId: 'local',
+      cwd: '/untrusted/project',
+      cols: 80,
+      rows: 24,
+    })).toThrow('The project folder is not trusted.')
+    expect(launchTerminal).not.toHaveBeenCalled()
+
+    launch?.({ sender: owner.webContents }, {
+      profileId: 'local',
+      cwd: '/trusted/project',
+      cols: 80,
+      rows: 24,
+    })
+    expect(launchTerminal).toHaveBeenCalledWith(owner, {
+      profileId: 'local',
+      cwd: '/trusted/project',
+      cols: 80,
+      rows: 24,
+    })
   })
 
   it('configures tmux with the Maximal-owned session prefix', () => {

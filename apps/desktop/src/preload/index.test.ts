@@ -52,6 +52,7 @@ describe('preload bridge allowlist', () => {
       'onOpenSettings',
       'openExternal',
       'pendingSettingsRequest',
+      'projects',
       'providerOnboarding',
       'shutdown',
       'terminal',
@@ -141,6 +142,16 @@ describe('preload bridge allowlist', () => {
     expect(Object.keys(bridge.providerOnboarding).sort()).toEqual([
       'get',
       'setDismissed',
+    ])
+    expect(Object.keys(bridge.projects).sort()).toEqual([
+      'addRoot',
+      'onChange',
+      'opened',
+      'refresh',
+      'removeRoot',
+      'search',
+      'snapshot',
+      'updateRoot',
     ])
     expect(Object.keys(bridge.terminal).sort()).toEqual([
       'acknowledge',
