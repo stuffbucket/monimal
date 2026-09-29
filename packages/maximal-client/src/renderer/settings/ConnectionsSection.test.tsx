@@ -10,6 +10,7 @@ import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { MaximalQueryProvider } from '../query-client'
 import type { SettingsCapabilities } from './capabilities'
 import { ConnectionsSection } from './ConnectionsSection'
 
@@ -165,9 +166,11 @@ async function renderConnections(
   if (root === null || container === null) throw new Error('test root not ready')
   await act(async () => {
     root?.render(
-      <TooltipProvider>
-        <ConnectionsSection capabilities={capabilities} />
-      </TooltipProvider>,
+      <MaximalQueryProvider>
+        <TooltipProvider>
+          <ConnectionsSection capabilities={capabilities} />
+        </TooltipProvider>
+      </MaximalQueryProvider>,
     )
   })
   await vi.waitFor(async () => {

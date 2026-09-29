@@ -12,6 +12,7 @@ import {
   SETTINGS_SECTIONS,
 } from '../../shared/settings-sections'
 import { AppFrame, PRODUCT_TABS } from '../frame/AppFrame'
+import { MaximalQueryProvider } from '../query-client'
 import type { SettingsCapabilities } from './capabilities'
 import { Settings, type SettingsSectionRequest } from './Settings'
 
@@ -271,9 +272,11 @@ async function renderSettings(request?: SettingsSectionRequest): Promise<HTMLEle
 async function rerender(request?: SettingsSectionRequest): Promise<void> {
   await act(async () => {
     root?.render(
-      <AppFrame tabs={PRODUCT_TABS} activeTab="settings" surface="settings" onSelectTab={vi.fn()}>
-        <Settings capabilities={fakeCapabilities()} request={request ?? null} />
-      </AppFrame>,
+      <MaximalQueryProvider>
+        <AppFrame tabs={PRODUCT_TABS} activeTab="settings" surface="settings" onSelectTab={vi.fn()}>
+          <Settings capabilities={fakeCapabilities()} request={request ?? null} />
+        </AppFrame>
+      </MaximalQueryProvider>,
     )
   })
 }
@@ -303,8 +306,10 @@ describe('Settings', () => {
     const surface = await renderSettings()
     const logs = surface.querySelector<HTMLButtonElement>('[data-testid="settings-rail-settings-logs-heading"]')
     if (logs === null) throw new Error('the Logs rail item is missing')
-    await act(async () => logs.click())
-    expect(surface.textContent).toContain('sidecar.log')
+    act(() => logs.click())
+    await vi.waitFor(() => {
+      expect(surface.textContent).toContain('sidecar.log')
+    })
     expect(surface.textContent).toContain('/tmp/maximal/logs')
     expect(surface.textContent).toContain('/tmp/core/logs')
     expect(surface.textContent).toContain('Reveal desktop logs')
@@ -333,14 +338,18 @@ describe('Settings', () => {
     )
     if (connections === null) throw new Error('the Connections rail item is missing')
 
-    await act(async () => connections.click())
+    act(() => connections.click())
 
     const header = surface.querySelector<HTMLElement>('.settings__header')
     if (header === null) throw new Error('the Settings header is missing')
+    await vi.waitFor(() => {
+      expect([...header.querySelectorAll('button')].some(
+        (button) => button.textContent === 'Rescan',
+      )).toBe(true)
+    })
     const rescan = [...header.querySelectorAll('button')].find(
       (button) => button.textContent === 'Rescan',
     )
-    expect(rescan).toBeDefined()
     expect(rescan?.classList.contains('btn--primary')).toBe(true)
   })
 
@@ -354,7 +363,7 @@ describe('Settings', () => {
       if (button === null) throw new Error(`the Settings rail omitted ${id}`)
       expect(button.getAttribute('aria-controls')).toBe(tabpanel.id)
 
-      await act(async () => button.click())
+      act(() => button.click())
 
       expect(activePageLabel(surface)).toBe(label)
       expect(selectedId(surface)).toBe(id)

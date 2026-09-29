@@ -16,6 +16,7 @@
     "check:static": "turbo run build typecheck lint && pnpm run check:network-literals && pnpm run check:settings",
     "check:settings": "pnpm --filter @maximal/maximal-settings run migration:check && pnpm --filter @maximal/maximal-settings run security:check",
     "check:runtime-style-injectors": "pnpm --filter @maximal/eslint-config run check:runtime-style-injectors",
+    "check:ui-query-primitives": "pnpm --filter @maximal/eslint-config run check:ui-query-primitives",
     "check:network-literals": "node scripts/check-network-literals.mjs",
     "test": "node scripts/test-workspace.mjs",
     "test:all": "node scripts/test-workspace.mjs --all",

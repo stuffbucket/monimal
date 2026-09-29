@@ -3,6 +3,7 @@ import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { MaximalQueryProvider } from '../query-client'
 import type { AccountsListResponse, SettingsCapabilities } from './capabilities'
 import { AccountsSection } from './AccountsSection'
 import {
@@ -117,16 +118,23 @@ async function renderSection(
   if (root === null || container === null) throw new Error('test root not ready')
   await act(async () => {
     root?.render(
-      <Tooltip.Provider>
-        <AccountsSection
-          capabilities={capabilities}
-          addingAccount={false}
-          onAddAccount={onAddAccount}
-          {...(authenticatedAccount ? { authenticatedAccount } : {})}
-        />
-      </Tooltip.Provider>,
+      <MaximalQueryProvider>
+        <Tooltip.Provider>
+          <AccountsSection
+            capabilities={capabilities}
+            addingAccount={false}
+            onAddAccount={onAddAccount}
+            {...(authenticatedAccount ? { authenticatedAccount } : {})}
+          />
+        </Tooltip.Provider>
+      </MaximalQueryProvider>,
     )
-    await Promise.resolve()
+  })
+  await vi.waitFor(() => {
+    expect(capabilities.accounts.list).toHaveBeenCalled()
+  })
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0))
   })
   return container
 }

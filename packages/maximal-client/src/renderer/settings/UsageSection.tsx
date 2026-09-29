@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState, type ReactElement } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { useState, type ReactElement } from 'react'
 
 import {
   Button,
@@ -27,39 +28,13 @@ function formatNumber(value: number): string {
 
 export function UsageSection({ capabilities }: UsageSectionProps): ReactElement {
   const [period, setPeriod] = useState<TokenUsagePeriod>('day')
-  const [summary, setSummary] = useState<TokenUsageSummary | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  const load = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      setSummary(await capabilities.usage.get(period))
-    } catch (cause) {
-      setError(describeError(cause))
-    } finally {
-      setLoading(false)
-    }
-  }, [capabilities, period])
-
-  useEffect(() => {
-    let active = true
-    void capabilities.usage
-      .get(period)
-      .then((next) => {
-        if (active) setSummary(next)
-      })
-      .catch((cause: unknown) => {
-        if (active) setError(describeError(cause))
-      })
-      .finally(() => {
-        if (active) setLoading(false)
-      })
-    return () => {
-      active = false
-    }
-  }, [capabilities, period])
+  const query = useQuery({
+    queryKey: ['settings', 'usage', period],
+    queryFn: () => capabilities.usage.get(period),
+  })
+  const summary: TokenUsageSummary | null = query.data ?? null
+  const loading = query.isPending
+  const error = query.error === null ? null : describeError(query.error)
 
   return (
     <section className="settings-section">
@@ -77,11 +52,7 @@ export function UsageSection({ capabilities }: UsageSectionProps): ReactElement 
                     key={value}
                     size="sm"
                     aria-pressed={period === value}
-                    onClick={() => {
-                      setLoading(true)
-                      setError(null)
-                      setPeriod(value)
-                    }}
+                    onClick={() => setPeriod(value)}
                   >
                     {value[0]?.toUpperCase()}{value.slice(1)}
                   </Button>
@@ -94,7 +65,7 @@ export function UsageSection({ capabilities }: UsageSectionProps): ReactElement 
                 <Note status="failed" live="assertive">
                   {error}
                 </Note>
-                <Button size="sm" onClick={() => void load()}>
+                <Button size="sm" onClick={() => void query.refetch()}>
                   Try again
                 </Button>
               </>

@@ -8,6 +8,7 @@ import type {
   SettingsCapabilities,
 } from './capabilities'
 import { AppFrame, PRODUCT_TABS } from '../frame/AppFrame'
+import { MaximalQueryProvider } from '../query-client'
 import {
   UnsavedChangesProvider,
   useGuardedNavigation,
@@ -170,19 +171,25 @@ async function renderSearch(
   if (root === null || container === null) throw new Error('test root not ready')
   await act(async () => {
     root?.render(
-      <UnsavedChangesProvider>
-        <AppFrame
-          tabs={PRODUCT_TABS}
-          activeTab="settings"
-          surface="settings"
-          onSelectTab={vi.fn()}
-        >
-          <SearchSection capabilities={capabilities} />
-        </AppFrame>
-        <LeaveSearchTrigger />
-      </UnsavedChangesProvider>,
+      <MaximalQueryProvider>
+        <UnsavedChangesProvider>
+          <AppFrame
+            tabs={PRODUCT_TABS}
+            activeTab="settings"
+            surface="settings"
+            onSelectTab={vi.fn()}
+          >
+            <SearchSection capabilities={capabilities} />
+          </AppFrame>
+          <LeaveSearchTrigger />
+        </UnsavedChangesProvider>
+      </MaximalQueryProvider>,
     )
-    await Promise.resolve()
+  })
+  await vi.waitFor(() => {
+    expect(container?.querySelector(
+      '[data-testid="search-setting-global-fallback"]',
+    )).not.toBeNull()
   })
   return container
 }

@@ -1,3 +1,4 @@
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useState } from "react";
 
 import type {
@@ -15,6 +16,12 @@ interface UseLocalModelCatalogueOptions {
   clearError: () => void;
   reportError: (message: string) => void;
 }
+
+export const localModelCatalogueQueryKey = [
+  "settings",
+  "local-models",
+  "catalogue",
+] as const;
 
 function replaceModel(
   snapshot: LocalModelCatalogSnapshot | null,
@@ -38,28 +45,21 @@ export function useLocalModelCatalogue({
   clearError,
   reportError,
 }: UseLocalModelCatalogueOptions) {
-  const [catalogue, setCatalogue] = useState<LocalModelCatalogSnapshot | null>(
-    null,
-  );
+  const queryClient = useQueryClient();
+  const query = useQuery({
+    queryKey: localModelCatalogueQueryKey,
+    queryFn: () => capabilities.localModels.list(),
+  });
+  const catalogue = query.data ?? null;
   const [operations, setOperations] = useState<Record<string, ActiveOperation>>(
     {},
   );
 
-  const refresh = useCallback(async () => {
-    try {
-      setCatalogue(await capabilities.localModels.list());
-    } catch (cause) {
-      reportError(describeError(cause));
-    }
-  }, [capabilities, reportError]);
-
   useEffect(() => {
-    let active = true;
     const unsubscribe = capabilities.localModels.subscribe(
       (event: LocalModelOperationEvent) => {
-        if (!active) return;
         if (event.type === "catalog") {
-          setCatalogue(event.snapshot);
+          queryClient.setQueryData(localModelCatalogueQueryKey, event.snapshot);
           return;
         }
         if (event.type === "progress") {
@@ -75,7 +75,10 @@ export function useLocalModelCatalogue({
           return;
         }
         if (event.type === "completed") {
-          setCatalogue((current) => replaceModel(current, event.model));
+          queryClient.setQueryData<LocalModelCatalogSnapshot>(
+            localModelCatalogueQueryKey,
+            (current) => replaceModel(current ?? null, event.model),
+          );
           setOperations((current) => {
             const next = { ...current };
             delete next[event.model.key];
@@ -92,23 +95,18 @@ export function useLocalModelCatalogue({
           ),
         );
         if (event.type === "failed") reportError(event.error.message);
-        void refresh();
+        void queryClient.invalidateQueries({
+          queryKey: localModelCatalogueQueryKey,
+        });
       },
     );
 
-    void capabilities.localModels
-      .list()
-      .then((snapshot) => {
-        if (active) setCatalogue(snapshot);
-      })
-      .catch((cause: unknown) => {
-        if (active) reportError(describeError(cause));
-      });
-    return () => {
-      active = false;
-      unsubscribe();
-    };
-  }, [capabilities, refresh, reportError]);
+    return unsubscribe;
+  }, [capabilities, queryClient, reportError]);
+
+  useEffect(() => {
+    if (query.error !== null) reportError(describeError(query.error));
+  }, [query.error, reportError]);
 
   const openFolder = useCallback(async () => {
     clearError();

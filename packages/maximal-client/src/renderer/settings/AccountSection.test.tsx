@@ -1,10 +1,12 @@
 import * as Tooltip from '@radix-ui/react-tooltip'
+import { QueryClientProvider, type QueryClient } from '@tanstack/react-query'
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { AuthStatus, SettingsCapabilities } from './capabilities'
-import { AccountSection } from './AccountSection'
+import { createMaximalQueryClient } from '../query-client'
+import { AccountSection, copilotUsageQueryKey } from './AccountSection'
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 
@@ -22,7 +24,6 @@ beforeEach(() => {
 afterEach(() => {
   if (root !== null) act(() => root?.unmount())
   container?.remove()
-  localStorage.clear()
   root = null
   container = null
   vi.restoreAllMocks()
@@ -122,13 +123,18 @@ function fakeCapabilities() {
   }
 }
 
-async function renderAccount(capabilities: SettingsCapabilities): Promise<HTMLElement> {
+async function renderAccount(
+  capabilities: SettingsCapabilities,
+  queryClient: QueryClient = createMaximalQueryClient(),
+): Promise<HTMLElement> {
   if (root === null || container === null) throw new Error('test root not ready')
   await act(async () => {
     root?.render(
-      <Tooltip.Provider>
-        <AccountSection capabilities={capabilities} />
-      </Tooltip.Provider>,
+      <QueryClientProvider client={queryClient}>
+        <Tooltip.Provider>
+          <AccountSection capabilities={capabilities} />
+        </Tooltip.Provider>
+      </QueryClientProvider>,
     )
     await Promise.resolve()
   })
@@ -136,7 +142,7 @@ async function renderAccount(capabilities: SettingsCapabilities): Promise<HTMLEl
 }
 
 describe('AccountSection refresh ownership', () => {
-  it('hydrates Copilot usage from the account-keyed settings cache', async () => {
+  it('renders stale account-keyed query data while refreshing it', async () => {
     const { account, capabilities } = fakeCapabilities()
     const activeKey = 'octocat@github.com'
     account.status.mockResolvedValue({
@@ -170,21 +176,19 @@ describe('AccountSection refresh ownership', () => {
           resolveUsage = resolve
         }),
     )
-    localStorage.setItem(
-      `maximal.settings-cache.copilot-usage.${encodeURIComponent(activeKey)}`,
-      JSON.stringify({
-        schemaVersion: 1,
-        savedAt: '2026-09-29T12:00:00.000Z',
-        value: {
-          copilot_plan: 'enterprise',
-          quota_snapshots: {
-            premium_interactions: { percent_remaining: 63 },
-          },
+    const queryClient = createMaximalQueryClient()
+    queryClient.setQueryData(
+      copilotUsageQueryKey(activeKey),
+      {
+        copilot_plan: 'enterprise',
+        quota_snapshots: {
+          premium_interactions: { percent_remaining: 63 },
         },
-      }),
+      },
+      { updatedAt: Date.now() - 6 * 60_000 },
     )
 
-    const surface = await renderAccount(capabilities)
+    const surface = await renderAccount(capabilities, queryClient)
     await act(async () => {
       await Promise.resolve()
       await Promise.resolve()
@@ -202,12 +206,16 @@ describe('AccountSection refresh ownership', () => {
         },
       })
       await Promise.resolve()
+      await new Promise((resolve) => setTimeout(resolve, 0))
     })
 
     expect(surface.textContent).toContain('50% used')
-    expect(localStorage.getItem(
-      `maximal.settings-cache.copilot-usage.${encodeURIComponent(activeKey)}`,
-    )).toContain('"percent_remaining":50')
+    expect(queryClient.getQueryData(copilotUsageQueryKey(activeKey))).toEqual({
+      copilot_plan: 'enterprise',
+      quota_snapshots: {
+        premium_interactions: { percent_remaining: 50 },
+      },
+    })
   })
 
   it('ignores capability refreshes while an account action is in flight', async () => {

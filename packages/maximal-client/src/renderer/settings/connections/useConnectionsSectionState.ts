@@ -1,3 +1,4 @@
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Dispatch, RefObject, SetStateAction } from 'react'
 
@@ -14,69 +15,94 @@ import type {
 import { describeError } from '../../shared/errors'
 import { configuredApps, manualClients } from './connections-section-content'
 
-function useConnectionsInventory(capabilities: SettingsCapabilities) {
-  const mounted = useRef(true)
-  const [proxyUrl, setProxyUrl] = useState<string | null>(null)
-  const [connections, setConnections] = useState<ConnectionsListResponse | null>(null)
-  const [apps, setApps] = useState<AppsListResponse | null>(null)
-  const [installations, setInstallations] = useState<ReadonlyMap<string, ClientInstallation>>(new Map())
-  const [refreshing, setRefreshing] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+interface ConnectionsInventory {
+  proxyUrl: string
+  connections: ConnectionsListResponse
+  apps: AppsListResponse
+  installations: ReadonlyMap<string, ClientInstallation>
+}
 
-  const refresh = useCallback(async () => {
-    try {
+const connectionsInventoryQueryKey = ['settings', 'connections', 'inventory'] as const
+const EMPTY_INSTALLATIONS: ReadonlyMap<string, ClientInstallation> = new Map()
+
+function useConnectionsInventory(capabilities: SettingsCapabilities) {
+  const queryClient = useQueryClient()
+  const mounted = useRef(true)
+  const query = useQuery({
+    queryKey: connectionsInventoryQueryKey,
+    queryFn: async (): Promise<ConnectionsInventory> => {
       const [nextProxyUrl, nextConnections, nextApps, nextInstallations] = await Promise.all([
         capabilities.connection.proxyUrl(),
         capabilities.connections.list(),
         capabilities.apps.list(),
         capabilities.connections.installations(),
       ])
-      if (!mounted.current) return
-      setProxyUrl(nextProxyUrl)
-      setConnections(nextConnections)
-      setApps(nextApps)
-      setInstallations(new Map(nextInstallations.map((entry) => [entry.id, entry])))
-      setError(null)
-    } catch (cause) {
-      if (mounted.current) setError(describeError(cause))
-    }
-  }, [capabilities])
+      return {
+        proxyUrl: nextProxyUrl,
+        connections: nextConnections,
+        apps: nextApps,
+        installations: new Map(nextInstallations.map((entry) => [entry.id, entry])),
+      }
+    },
+  })
+  const [actionError, setError] = useState<string | null>(null)
+  const refetch = query.refetch
+
+  const setConnections: Dispatch<SetStateAction<ConnectionsListResponse | null>> =
+    useCallback((update) => {
+      queryClient.setQueryData<ConnectionsInventory>(
+        connectionsInventoryQueryKey,
+        (current) => {
+          if (current === undefined) return current
+          const next = typeof update === 'function'
+            ? update(current.connections)
+            : update
+          return next === null ? current : { ...current, connections: next }
+        },
+      )
+    }, [queryClient])
+
+  const setApps: Dispatch<SetStateAction<AppsListResponse | null>> =
+    useCallback((update) => {
+      queryClient.setQueryData<ConnectionsInventory>(
+        connectionsInventoryQueryKey,
+        (current) => {
+          if (current === undefined) return current
+          const next = typeof update === 'function'
+            ? update(current.apps)
+            : update
+          return next === null ? current : { ...current, apps: next }
+        },
+      )
+    }, [queryClient])
 
   useEffect(() => {
-    let cancelled = false
     mounted.current = true
-    queueMicrotask(() => {
-      if (cancelled) return
-      void refresh().finally(() => {
-        if (!cancelled && mounted.current) setRefreshing(false)
+    const unsubscribe = capabilities.subscribe(() => {
+      void queryClient.invalidateQueries({
+        queryKey: connectionsInventoryQueryKey,
       })
     })
-    const unsubscribe = capabilities.subscribe(() => {
-      void refresh()
-    })
     return () => {
-      cancelled = true
       mounted.current = false
       unsubscribe()
     }
-  }, [capabilities, refresh])
+  }, [capabilities, queryClient])
 
   const rescan = useCallback(() => {
-    setRefreshing(true)
     setError(null)
-    void refresh().finally(() => {
-      if (mounted.current) setRefreshing(false)
-    })
-  }, [refresh])
+    void refetch()
+  }, [refetch])
 
   return {
     mounted,
-    proxyUrl,
-    connections,
-    apps,
-    installations,
-    refreshing,
-    error,
+    proxyUrl: query.data?.proxyUrl ?? null,
+    connections: query.data?.connections ?? null,
+    apps: query.data?.apps ?? null,
+    installations: query.data?.installations ?? EMPTY_INSTALLATIONS,
+    refreshing: query.isFetching,
+    error:
+      actionError ?? (query.error === null ? null : describeError(query.error)),
     setConnections,
     setApps,
     setError,

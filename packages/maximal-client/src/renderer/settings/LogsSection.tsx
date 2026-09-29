@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState, type ReactElement } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { useCallback, useState, type ReactElement } from 'react'
 import type { LogFile } from '@maximal/maximal-logging'
 
 import {
@@ -18,43 +19,33 @@ interface LogsSectionProps {
 }
 
 export function LogsSection({ capabilities }: LogsSectionProps): ReactElement {
-  const [location, setLocation] = useState<string | null>(null)
-  const [coreLocation, setCoreLocation] = useState<string | null>(null)
-  const [files, setFiles] = useState<LogFile[] | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const query = useQuery({
+    queryKey: ['settings', 'logs'],
+    queryFn: async () => {
+      const [location, coreLocation, files] = await Promise.all([
+        capabilities.logs.location(),
+        capabilities.logs.coreLocation(),
+        capabilities.logs.list(),
+      ])
+      return { location, coreLocation, files }
+    },
+  })
+  const location = query.data?.location ?? null
+  const coreLocation = query.data?.coreLocation ?? null
+  const files: LogFile[] | null = query.data?.files ?? null
+  const queryError = query.error === null ? null : describeError(query.error)
+  const [actionError, setActionError] = useState<string | null>(null)
   const [revealing, setRevealing] = useState(false)
   const [revealingCore, setRevealingCore] = useState(false)
-
-  useEffect(() => {
-    let settled = false
-    void Promise.all([
-      capabilities.logs.location(),
-      capabilities.logs.coreLocation(),
-      capabilities.logs.list(),
-    ]).then(
-      ([path, corePath, entries]) => {
-        if (!settled) {
-          setLocation(path)
-          setCoreLocation(corePath)
-          setFiles(entries)
-        }
-      },
-      (cause: unknown) => {
-        if (!settled) setError(describeError(cause))
-      },
-    )
-    return () => {
-      settled = true
-    }
-  }, [capabilities])
+  const error = actionError ?? queryError
 
   const revealCore = useCallback(async () => {
     setRevealingCore(true)
-    setError(null)
+    setActionError(null)
     try {
       await capabilities.logs.revealCore()
     } catch (cause) {
-      setError(describeError(cause))
+      setActionError(describeError(cause))
     } finally {
       setRevealingCore(false)
     }
@@ -62,11 +53,11 @@ export function LogsSection({ capabilities }: LogsSectionProps): ReactElement {
 
   const reveal = useCallback(async () => {
     setRevealing(true)
-    setError(null)
+    setActionError(null)
     try {
       await capabilities.logs.reveal()
     } catch (cause) {
-      setError(describeError(cause))
+      setActionError(describeError(cause))
     } finally {
       setRevealing(false)
     }

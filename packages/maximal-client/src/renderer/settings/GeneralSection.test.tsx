@@ -1,9 +1,12 @@
 import { act } from 'react'
+import { QueryClientProvider } from '@tanstack/react-query'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { createMaximalQueryClient } from '../query-client'
 import type { SettingsCapabilities } from './capabilities'
 import { GeneralSection } from './GeneralSection'
+import { menuBarModeQueryKey } from './general/useMenuBarPresence'
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 
@@ -108,9 +111,17 @@ afterEach(() => {
 
 async function renderGeneral(capabilities: SettingsCapabilities): Promise<HTMLElement> {
   if (root === null || container === null) throw new Error('test root not ready')
+  const queryClient = createMaximalQueryClient()
+  queryClient.setQueryData(
+    menuBarModeQueryKey,
+    await capabilities.general.menuBarMode(),
+  )
   await act(async () => {
-    root?.render(<GeneralSection capabilities={capabilities} />)
-    await Promise.resolve()
+    root?.render(
+      <QueryClientProvider client={queryClient}>
+        <GeneralSection capabilities={capabilities} />
+      </QueryClientProvider>,
+    )
   })
   return container
 }

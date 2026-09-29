@@ -1,7 +1,6 @@
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   useCallback,
-  useEffect,
-  useEffectEvent,
   useState,
   type ReactElement,
 } from 'react'
@@ -13,40 +12,32 @@ import {
   SettingsItem,
   SettingsSection,
 } from '@maximal/maximal-electron/renderer'
-import {
-  CopilotAccountUsage as CopilotAccountUsageSchema,
-} from '@maximal/maximal-core-contract/settings'
 
 import { describeError } from '../../shared/errors'
+import {
+  accountStatusQueryKey,
+  useAccountStatus,
+} from '../../useAccountStatus'
 import type {
   AuthStatus,
-  CopilotAccountUsage,
   SettingsCapabilities,
 } from '../capabilities'
 import { AccountsSection } from './AccountsSection'
 import { AccountStatusBody } from './AccountStatusBody'
 import { CopilotPlanDetails } from './CopilotPlanDetails'
 import { OllamaAccountsSection } from './OllamaAccountsSection'
-import {
-  readSettingsCache,
-  writeSettingsCache,
-} from '../settings-cache'
+import { accountsQueryKey } from './useAccounts'
 
 // The Accounts section: who's signed in, sign in via GitHub's device flow,
 // sign out. Written entirely against `SettingsCapabilities` — see
 // capabilities.ts for why no component here imports `ControlClient` or
 // touches `window.maximal` directly.
 
-/** How often to re-read status while nothing is pushing changes. Covers the
- *  one transition the server doesn't proactively announce: a device code
- *  simply running out the clock (see capabilities.ts's `account.status` doc
- *  comment) — the next read is what collapses it, and this is what causes
- *  that next read to happen even if no one is pushing. */
-const POLL_MS = 3000
-const COPILOT_USAGE_CACHE_PREFIX = 'copilot-usage.'
+const COPILOT_USAGE_STALE_MS = 5 * 60_000
+const COPILOT_USAGE_RETAIN_MS = 24 * 60 * 60_000
 
-function usageCacheKey(accountKey: string): string {
-  return `${COPILOT_USAGE_CACHE_PREFIX}${encodeURIComponent(accountKey)}`
+export function copilotUsageQueryKey(accountKey: string) {
+  return ['account', 'copilot-usage', accountKey] as const
 }
 
 interface AccountSectionProps {
@@ -77,98 +68,35 @@ function networkBannerMessage(status: AuthStatus | null): string | null {
 export function AccountSection({
   capabilities,
 }: AccountSectionProps): ReactElement {
-  const [status, setStatus] = useState<AuthStatus | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const queryClient = useQueryClient()
   const [busy, setBusy] = useState(false)
-  const [usage, setUsage] = useState<{
-    identity: string
-    value: CopilotAccountUsage
-  } | null>(null)
-  const [usageError, setUsageError] = useState<{
-    identity: string
-    message: string
-  } | null>(null)
-  const [activeAccountKey, setActiveAccountKey] = useState<string | null>(null)
-  const [usageCacheError, setUsageCacheError] = useState<string | null>(null)
-  const [usageLoading, setUsageLoading] = useState(false)
-  const isBusy = useEffectEvent(() => busy)
-
-  // One effect owns the whole read lifetime: the first read, every later
-  // push, the poll fallback, and teardown.
-  useEffect(() => {
-    let settled = false
-
-    const refresh = async () => {
-      // A refresh racing an in-flight action (sign-in/out, cancel) would
-      // render a status the action is about to supersede anyway; skip it
-      // rather than flicker.
-      if (isBusy()) return
-      try {
-        const next = await capabilities.account.status()
-        if (!settled) {
-          let nextAccountKey: string | null = null
-          if (next.state === 'authenticated') {
-            try {
-              const accounts = await capabilities.accounts.list()
-              const accountKey = accounts.active_key
-              nextAccountKey = accountKey
-              if (accountKey !== null) {
-                const cached = readSettingsCache(
-                  usageCacheKey(accountKey),
-                  CopilotAccountUsageSchema,
-                )
-                if (cached !== null) {
-                  setUsage((current) =>
-                    current?.identity === accountKey
-                      ? current
-                      : { identity: accountKey, value: cached })
-                }
-              }
-              setUsageCacheError(null)
-            } catch (cause) {
-              setUsageCacheError(describeError(cause))
-            }
-          }
-          if (settled) return
-          setActiveAccountKey(nextAccountKey)
-          setStatus(next)
-          // A successful read supersedes any earlier transient failure — the
-          // control plane has spoken again since, which is a more current
-          // signal than a stale error from a previous poll. Without this, one
-          // failed poll (e.g. mid core-restart) pins an assertive alert on
-          // screen forever even after every later poll succeeds.
-          setError(null)
-        }
-      } catch (cause) {
-        if (!settled) setError(describeError(cause))
-      }
-    }
-
-    void refresh()
-    const unsubscribe = capabilities.subscribe(() => void refresh())
-    const poll = setInterval(() => void refresh(), POLL_MS)
-
-    return () => {
-      settled = true
-      unsubscribe()
-      clearInterval(poll)
-    }
-  }, [capabilities])
+  const status = useAccountStatus(capabilities, !busy)
+  const accountsQuery = useQuery({
+    queryKey: accountsQueryKey,
+    queryFn: () => capabilities.accounts.list(),
+    enabled: status?.state === 'authenticated',
+  })
+  const [actionError, setActionError] = useState<string | null>(null)
+  const activeAccountKey = accountsQuery.data?.active_key ?? null
+  const error = actionError
+    ?? (accountsQuery.error === null
+      ? null
+      : describeError(accountsQuery.error))
 
   const runAction = useCallback(
     async (action: () => Promise<AuthStatus | void>) => {
       setBusy(true)
-      setError(null)
+      setActionError(null)
       try {
         const next = await action()
-        if (next) setStatus(next)
+        if (next) queryClient.setQueryData(accountStatusQueryKey, next)
       } catch (cause) {
-        setError(describeError(cause))
+        setActionError(describeError(cause))
       } finally {
         setBusy(false)
       }
     },
-    [],
+    [queryClient],
   )
 
   const activateDeviceCode = useCallback(
@@ -185,7 +113,7 @@ export function AccountSection({
         failures.push(`the browser could not be opened: ${describeError(cause)}`)
       }
       if (failures.length > 0) {
-        setError(`GitHub sign-in started, but ${failures.join('; ')}`)
+        setActionError(`GitHub sign-in started, but ${failures.join('; ')}`)
       }
     },
     [capabilities],
@@ -224,62 +152,15 @@ export function AccountSection({
   )
   const authenticatedLogin =
     status?.state === 'authenticated' ? status.account_login : null
-  const usageIdentity = activeAccountKey ?? authenticatedLogin
+  const usageQuery = useQuery({
+    queryKey: copilotUsageQueryKey(activeAccountKey ?? 'inactive'),
+    queryFn: () => capabilities.account.usage(),
+    enabled: authenticatedLogin !== null && activeAccountKey !== null,
+    staleTime: COPILOT_USAGE_STALE_MS,
+    gcTime: COPILOT_USAGE_RETAIN_MS,
+    retry: false,
+  })
   const networkMessage = networkBannerMessage(status)
-  const refreshUsage = useCallback(async () => {
-    if (usageIdentity === null) return
-    setUsageLoading(true)
-    setUsageError(null)
-    try {
-      const value = await capabilities.account.usage()
-      if (activeAccountKey !== null) {
-        try {
-          writeSettingsCache(usageCacheKey(activeAccountKey), value)
-          setUsageCacheError(null)
-        } catch (cause) {
-          setUsageCacheError(describeError(cause))
-        }
-      }
-      setUsage({ identity: usageIdentity, value })
-    } catch (cause) {
-      setUsageError({
-        identity: usageIdentity,
-        message: describeError(cause),
-      })
-    } finally {
-      setUsageLoading(false)
-    }
-  }, [activeAccountKey, capabilities, usageIdentity])
-
-  useEffect(() => {
-    if (usageIdentity === null) return
-    let settled = false
-    const identity = usageIdentity
-    void capabilities.account.usage().then(
-      (value) => {
-        if (!settled) {
-          if (activeAccountKey !== null) {
-            try {
-              writeSettingsCache(usageCacheKey(activeAccountKey), value)
-              setUsageCacheError(null)
-            } catch (cause) {
-              setUsageCacheError(describeError(cause))
-            }
-          }
-          setUsage({ identity, value })
-          setUsageError(null)
-        }
-      },
-      (cause: unknown) => {
-        if (!settled) {
-          setUsageError({ identity, message: describeError(cause) })
-        }
-      },
-    )
-    return () => {
-      settled = true
-    }
-  }, [activeAccountKey, capabilities, usageIdentity])
 
   return (
     <section className="settings-section">
@@ -334,20 +215,14 @@ export function AccountSection({
           </SettingsItem>
           {status?.state === 'authenticated' ? (
             <CopilotPlanDetails
-              usage={
-                usage?.identity === usageIdentity ? usage.value : null
-              }
-              loading={
-                usageLoading
-                || (usage?.identity !== usageIdentity
-                  && usageError?.identity !== usageIdentity)
-              }
+              usage={usageQuery.data ?? null}
+              loading={usageQuery.isFetching}
               error={
-                usageError?.identity === usageIdentity
-                  ? usageError.message
-                  : usageCacheError
+                usageQuery.error === null
+                  ? null
+                  : describeError(usageQuery.error)
               }
-              onRefresh={() => void refreshUsage()}
+              onRefresh={() => void usageQuery.refetch()}
               onOpenInsights={() =>
                 void capabilities.openExternal(
                   'https://github.com/settings/copilot',

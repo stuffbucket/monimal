@@ -2,6 +2,7 @@ import { act, type ReactNode } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { MaximalQueryProvider } from './query-client'
 import type { SettingsCapabilities } from './settings/capabilities'
 
 vi.mock('@maximal/maximal-electron/renderer', () => ({
@@ -67,8 +68,17 @@ async function render(capability: SettingsCapabilities, onSetup = vi.fn()): Prom
   document.body.appendChild(container)
   root = createRoot(container)
   await act(async () => {
-    root?.render(<ProviderOnboarding capabilities={capability} onSetup={onSetup} />)
-    await Promise.resolve()
+    root?.render(
+      <MaximalQueryProvider>
+        <ProviderOnboarding capabilities={capability} onSetup={onSetup} />
+      </MaximalQueryProvider>,
+    )
+  })
+  await act(async () => {
+    await vi.waitFor(() => {
+      expect(capability.providerOnboarding.get).toHaveBeenCalled()
+    })
+    await new Promise((resolve) => setTimeout(resolve, 0))
   })
   return container
 }

@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type ReactElement } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useState, type ReactElement } from 'react'
 import { Button, Checkbox, Dialog } from '@maximal/maximal-electron/renderer'
 
 import type { SettingsCapabilities } from './settings/capabilities'
@@ -8,52 +9,53 @@ interface ProviderOnboardingProps {
   onSetup: () => void
 }
 
+const providerOnboardingQueryKey = ['provider-onboarding', 'eligible'] as const
+
 export function ProviderOnboarding({
   capabilities,
   onSetup,
 }: ProviderOnboardingProps): ReactElement {
-  const [open, setOpen] = useState(false)
+  const queryClient = useQueryClient()
+  const query = useQuery({
+    queryKey: providerOnboardingQueryKey,
+    queryFn: async () => {
+      const [preference, accounts, ollamaAccounts] = await Promise.all([
+        capabilities.providerOnboarding.get(),
+        capabilities.accounts.list(),
+        capabilities.ollamaAccounts.list(),
+      ])
+      const configured =
+        accounts.accounts.some((account) => account.enabled)
+        || ollamaAccounts.accounts.length > 0
+      return !preference.dismissed && !configured
+    },
+  })
+  const [answered, setAnswered] = useState(false)
   const [doNotAskAgain, setDoNotAskAgain] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const answered = useRef(false)
 
-  useEffect(() => {
-    let cancelled = false
-
-    const refresh = async (): Promise<void> => {
-      if (answered.current) return
-      try {
-        const [preference, accounts, ollamaAccounts] = await Promise.all([
-          capabilities.providerOnboarding.get(),
-          capabilities.accounts.list(),
-          capabilities.ollamaAccounts.list(),
-        ])
-        const configured =
-          accounts.accounts.some((account) => account.enabled) ||
-          ollamaAccounts.accounts.length > 0
-        if (!cancelled && !preference.dismissed && !configured) setOpen(true)
-      } catch {
-        // Core may still be starting. A later control event retries the check.
-      }
-    }
-
-    void refresh()
-    const unsubscribe = capabilities.subscribe(() => void refresh())
-    return () => {
-      cancelled = true
-      unsubscribe()
-    }
-  }, [capabilities])
+  useEffect(
+    () =>
+      capabilities.subscribe(() => {
+        if (!answered) {
+          void queryClient.invalidateQueries({
+            queryKey: providerOnboardingQueryKey,
+          })
+        }
+      }),
+    [answered, capabilities, queryClient],
+  )
 
   const finish = async (setup: boolean): Promise<void> => {
     setBusy(true)
     setError(null)
     try {
-      if (doNotAskAgain)
+      if (doNotAskAgain) {
         await capabilities.providerOnboarding.setDismissed(true)
-      answered.current = true
-      setOpen(false)
+        queryClient.setQueryData(providerOnboardingQueryKey, false)
+      }
+      setAnswered(true)
       if (setup) onSetup()
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause))
@@ -64,7 +66,7 @@ export function ProviderOnboarding({
 
   return (
     <Dialog
-      open={open}
+      open={!answered && query.data === true}
       onOpenChange={(nextOpen) => {
         if (!nextOpen && !busy) void finish(false)
       }}
@@ -84,7 +86,11 @@ export function ProviderOnboarding({
         onChange={setDoNotAskAgain}
         disabled={busy}
       />
-      {error ? <p role="alert">{error}</p> : null}
+      {error ?? query.error ? (
+        <p role="alert">
+          {error ?? 'Unable to check configured model providers.'}
+        </p>
+      ) : null}
       <div className="provider-onboarding__actions">
         <Button onClick={() => void finish(false)} disabled={busy}>
           Not now
