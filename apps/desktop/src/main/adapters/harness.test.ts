@@ -142,6 +142,15 @@ vi.mock('uiohook-napi', () => ({
   },
 }))
 
+vi.mock('./harness-options.js', () => ({
+  loadHarnessOptions: () => ({
+    approval: 'writes',
+    codingTools: true,
+    cwd: homedir(),
+    toolsetIds: ['app'],
+  }),
+}))
+
 vi.mock('@maximal/maximal-electron/electron-panel', () => ({
   createElectronPanel: createElectronPanelMock,
 }))
