@@ -209,12 +209,14 @@ describe('AccountSection refresh ownership', () => {
       await new Promise((resolve) => setTimeout(resolve, 0))
     })
 
-    expect(surface.textContent).toContain('50% used')
-    expect(queryClient.getQueryData(copilotUsageQueryKey(activeKey))).toEqual({
-      copilot_plan: 'enterprise',
-      quota_snapshots: {
-        premium_interactions: { percent_remaining: 50 },
-      },
+    await vi.waitFor(() => {
+      expect(surface.textContent).toContain('50% used')
+      expect(queryClient.getQueryData(copilotUsageQueryKey(activeKey))).toEqual({
+        copilot_plan: 'enterprise',
+        quota_snapshots: {
+          premium_interactions: { percent_remaining: 50 },
+        },
+      })
     })
   })
 
