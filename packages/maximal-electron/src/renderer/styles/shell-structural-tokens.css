@@ -35,5 +35,7 @@
   --shell-control-md: 28px;
   --shell-control-lg: 32px;
   --shell-row-height: 32px;
+  --shell-tab-min: 72px;
+  --shell-tab-max: 168px;
 }
 }

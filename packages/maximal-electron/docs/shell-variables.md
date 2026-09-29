@@ -67,6 +67,8 @@ focus rings, type, and optical details are not spacing increments.
 | `--shell-space-3` | `12px` | A gap between controls. |
 | `--shell-space-4` | `16px` | Padding around a surface. |
 | `--shell-space-5` | `24px` | A gap between sections. |
+| `--shell-tab-max` | `168px` | The widest tab before labels truncate. |
+| `--shell-tab-min` | `72px` | The narrowest tab in a crowded strip. |
 | `--shell-text-base` | `0.875rem` | Body text. |
 | `--shell-text-lg` | `1.0625rem` | A section title. |
 | `--shell-text-md` | `0.9375rem` | An emphasized label. |
@@ -102,6 +104,8 @@ description of what each one draws.
 | `--shell-candy-sheen` |
 | `--shell-candy-text` |
 | `--shell-canvas` |
+| `--shell-duration-fast` |
+| `--shell-ease-out` |
 | `--shell-hover` |
 | `--shell-raised` |
 | `--shell-text` |
@@ -140,6 +144,7 @@ looks exactly like an ordinary hovered one.
 | `--shell-status` | `--shell-text-muted` | the status dot, the `StatusChip` label, the `Banner` text, the `Callout` outline; the `Callout` heading reads it too and falls back to `--shell-text`, which is the legible one on a raised fill |
 | `--shell-status-muted` | `--shell-active` | the `StatusChip`, `Banner` and `Callout` fills |
 | `--shell-statusbar-height` | `24px` | the compact register `.statusbar` keeps as a minimum, not a fixed height |
+| `--shell-success` | `--shell-accent` | the marker on a green tab or tab group |
 | `--shell-tab-active` | `--shell-canvas` | the fill behind the selected tab |
 | `--shell-terminal-background` | `--shell-canvas` | the terminal's own surface |
 | `--shell-titlebar-height` | `40px` | the height of the title bar strip |

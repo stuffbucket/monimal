@@ -1,4 +1,10 @@
+import { randomBytes } from 'node:crypto'
+import { execFileSync, spawnSync } from 'node:child_process'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { stat } from 'node:fs/promises'
+
 import { expect, test, type Page } from '@playwright/test'
+import { spawn as spawnPty } from 'node-pty'
 
 import { SETTINGS_SECTIONS } from '@maximal/maximal-client/shared/settings-sections'
 
@@ -24,13 +30,20 @@ import { assertContrastAtLeast, assertFocusOutlineResolves, assertNoVerticalOver
 
 let running: RunningApp
 let model: ScriptedModel
+let tmuxSocketDirectory: string | undefined
 
 test.beforeAll(async () => {
   model = await startScriptedModel()
+  if (process.platform === 'darwin') {
+    tmuxSocketDirectory = mkdtempSync('/tmp/mt-')
+  }
   running = await launchPackagedApp({
     STUFFBUCKET_HARNESS_START_OPEN: '1',
     STUFFBUCKET_PROVIDER: 'maximal',
     STUFFBUCKET_PROVIDER_URL: model.baseUrl,
+    ...(tmuxSocketDirectory
+      ? { TMUX_TMPDIR: tmuxSocketDirectory, TERM: 'xterm-256color' }
+      : {}),
   })
 })
 
@@ -70,6 +83,35 @@ async function openNativeSettings(label: string): Promise<string[]> {
   }, label)
 }
 
+async function toggleNativeRecording(output?: string): Promise<void> {
+  await running.app.evaluate(({ BrowserWindow, dialog, Menu }, destination) => {
+    if (destination) {
+      dialog.showSaveDialog = () => Promise.resolve({
+        canceled: false,
+        filePath: destination,
+      })
+    }
+    const menu = Menu.getApplicationMenu()
+    const file = menu?.items.find((item) => item.label === 'File')
+    const target = file?.submenu?.items.find((item) =>
+      item.label === (destination ? 'Record Window…' : 'Stop Window Recording'),
+    )
+    if (!target || typeof target.click !== 'function') {
+      throw new Error(destination ? 'Record Window menu item is unavailable' : 'Window recording is not active')
+    }
+    const click = target.click as (
+      item: typeof target,
+      window: ReturnType<typeof BrowserWindow.getFocusedWindow> | undefined,
+      event: { keyCode: string; triggeredByAccelerator: boolean; type: 'keyDown' },
+    ) => void
+    click(
+      target,
+      BrowserWindow.getFocusedWindow() ?? undefined,
+      { keyCode: '', triggeredByAccelerator: false, type: 'keyDown' },
+    )
+  }, output)
+}
+
 test.afterAll(async () => {
   // The last test in this file already closes the app itself (to assert
   // clean shutdown) — closing an already-closed ElectronApplication is safe
@@ -81,6 +123,9 @@ test.afterAll(async () => {
     // already closed
   }
   if (running) cleanupPackagedApp(running)
+  if (tmuxSocketDirectory) {
+    rmSync(tmuxSocketDirectory, { recursive: true, force: true })
+  }
   if (model) await model.stop()
 })
 
@@ -149,6 +194,7 @@ test('packaged preload exposes only the closed named bridge', async () => {
 
   expect(exposed).toEqual({
     topLevel: [
+      'appearance',
       'clientInstallations',
       'control',
       'getCoreStatus',
@@ -373,6 +419,37 @@ test('desktop terminal selector presents the app-owned clients with canonical ic
     choiceBox!.y + choiceBox!.height,
   )
 
+  await local.click()
+  await expect(launcher).toBeHidden()
+  await page.getByTestId('tab-new').click()
+  await expect(launcher).toBeVisible()
+  const runningLocal = launcher.locator(
+    '[aria-label="Running"] .terminal-launcher__choice',
+  ).first()
+  await expect(runningLocal).toContainText('Local')
+  await expect(runningLocal).not.toContainText(
+    'Open a terminal on your local file system',
+  )
+  await expect(
+    runningLocal.locator('.terminal-launcher__choice-description'),
+  ).toHaveCount(0)
+  const runningChoiceBox = await runningLocal.boundingBox()
+  const runningNameBox = await runningLocal
+    .locator('.terminal-launcher__choice-name')
+    .boundingBox()
+  const runningKindBox = await runningLocal
+    .locator('.terminal-launcher__kind')
+    .boundingBox()
+  expect(runningChoiceBox).not.toBeNull()
+  expect(runningNameBox).not.toBeNull()
+  expect(runningKindBox).not.toBeNull()
+  expect(runningNameBox!.x + runningNameBox!.width).toBeLessThanOrEqual(
+    runningKindBox!.x,
+  )
+  expect(runningKindBox!.x + runningKindBox!.width).toBeLessThanOrEqual(
+    runningChoiceBox!.x + runningChoiceBox!.width,
+  )
+
   await page.screenshot({ path: testInfo.outputPath('terminal-selector.png') })
   await page.keyboard.press('Escape')
   await expect(launcher).toBeHidden()
@@ -408,6 +485,165 @@ test('packaged terminal bridge launches and terminates a native shell', async ()
 
   expect(result.hasLocal).toBe(true)
   expect(result.output).toContain('MAXIMAL_TERMINAL_READY')
+})
+
+test('macOS terminal picker shares an external tmux parrot session', async ({ page: _page }, testInfo) => {
+  test.skip(process.platform !== 'darwin', 'The external tmux PTY journey requires macOS.')
+  if (!tmuxSocketDirectory) throw new Error('The isolated tmux socket directory was not created.')
+
+  const tmuxEnvironment: Record<string, string> = {
+    ...Object.fromEntries(Object.entries(process.env).filter(
+      (entry): entry is [string, string] => typeof entry[1] === 'string',
+    )),
+    TMUX_TMPDIR: tmuxSocketDirectory,
+    TERM: 'xterm-256color',
+  }
+  const sessionName = `maximal-${randomBytes(16).toString('hex')}`
+  const sessionTarget = `=${sessionName}:0.0`
+  const runTmux = (args: string[]): string => execFileSync('tmux', args, {
+    encoding: 'utf8',
+    env: tmuxEnvironment,
+    timeout: 10_000,
+  }).trim()
+  const killTestSession = (): void => {
+    const result = spawnSync('tmux', ['has-session', '-t', `=${sessionName}`], {
+      encoding: 'utf8',
+      env: tmuxEnvironment,
+    })
+    if (result.error) throw result.error
+    if (result.status === 0) {
+      runTmux(['kill-session', '-t', `=${sessionName}`])
+    } else if (result.status !== 1) {
+      throw new Error(`Could not determine whether the test tmux session still exists: ${result.stderr}`)
+    }
+  }
+  const capturePane = (): string =>
+    runTmux(['capture-pane', '-p', '-t', sessionTarget])
+  let externalClient: ReturnType<typeof spawnPty> | undefined
+  let externalClientExited: Promise<void> | undefined
+  let externalExitCode: number | undefined
+  let externalOutput = ''
+  let terminalId: string | undefined
+  const page = await mainWindow()
+
+  try {
+    runTmux([
+      '-f',
+      '/dev/null',
+      'new-session',
+      '-d',
+      '-s',
+      sessionName,
+      'printf "MAXIMAL_EXTERNAL_READY\\n"; exec /bin/zsh -f',
+    ])
+    const client = spawnPty(
+      'tmux',
+      ['attach-session', '-t', `=${sessionName}`],
+      { name: 'xterm-256color', cols: 80, rows: 24, cwd: process.cwd(), env: tmuxEnvironment },
+    )
+    externalClient = client
+    client.onData((chunk) => {
+      externalOutput = `${externalOutput}${chunk.toString()}`.slice(-500_000)
+    })
+    externalClientExited = new Promise<void>((resolve) => {
+      client.onExit(({ exitCode }) => {
+        externalExitCode = exitCode
+        resolve()
+      })
+    })
+
+    await expect.poll(() => externalOutput).toContain('MAXIMAL_EXTERNAL_READY')
+    externalClient.write('curl parrot.live\r')
+    await expect.poll(() =>
+      runTmux(['display-message', '-p', '-t', sessionTarget, '#{pane_current_command}']),
+    ).toBe('curl')
+    await expect.poll(() => externalOutput).toContain('.cccc')
+
+    await page.evaluate(() => {
+      const state = window as typeof window & {
+        __tmuxOutputById?: Record<string, string>
+        __tmuxOutputUnsubscribe?: () => void
+      }
+      state.__tmuxOutputById = {}
+      state.__tmuxOutputUnsubscribe = window.maximal.terminal.onData(({ id, data }) => {
+        const previous = state.__tmuxOutputById?.[id] ?? ''
+        if (state.__tmuxOutputById) {
+          state.__tmuxOutputById[id] = `${previous}${data}`.slice(-500_000)
+        }
+      })
+    })
+
+    const beforeIds = await page.evaluate(() =>
+      window.maximal.terminal.list().then((sessions) => sessions.map(({ id }) => id)),
+    )
+    await page.getByTestId('tab-new').click()
+    const launcher = page.getByTestId('terminal-launcher')
+    await expect(launcher).toBeVisible()
+    const runningSession = launcher.locator('[aria-label="Running"]')
+      .getByRole('button', { name: /Terminal \d+/ })
+    await expect(runningSession).toBeVisible()
+    await runningSession.click()
+
+    const terminals = page.locator('[data-testid="terminal"]:visible')
+    await expect(terminals).toHaveCount(1, { timeout: 20_000 })
+    await expect.poll(async () =>
+      page.evaluate((knownIds) =>
+        window.maximal.terminal.list().then((sessions) =>
+          sessions.filter(({ id }) => !knownIds.includes(id)).map(({ id }) => id)),
+      beforeIds),
+    ).toHaveLength(1)
+    const sessionIds = await page.evaluate((knownIds) =>
+      window.maximal.terminal.list().then((sessions) =>
+        sessions.filter(({ id }) => !knownIds.includes(id)).map(({ id }) => id)),
+    beforeIds)
+    terminalId = sessionIds[0]
+    if (!terminalId) throw new Error('Maximal did not register the attached tmux session.')
+    const attachedTerminalId = terminalId
+
+    await expect.poll(() =>
+      page.evaluate((id) =>
+        (window as typeof window & { __tmuxOutputById?: Record<string, string> })
+          .__tmuxOutputById?.[id] ?? '',
+      attachedTerminalId),
+    ).toContain('.cccc')
+    expect(externalOutput).toContain('.cccc')
+    await page.screenshot({ path: testInfo.outputPath('tmux-parrot-shared.png') })
+
+    await terminals.first().click()
+    await expect.poll(() =>
+      runTmux(['display-message', '-p', '-t', sessionTarget, '#{pane_current_command}']),
+    ).toBe('curl')
+    await page.keyboard.press('Control+c')
+    await expect.poll(() =>
+      runTmux(['display-message', '-p', '-t', sessionTarget, '#{pane_current_command}']),
+    ).toBe('zsh')
+
+    externalClient.write("printf 'TMUX_EXTERNAL_INPUT_OK\\n'\r")
+    await expect.poll(capturePane).toContain('TMUX_EXTERNAL_INPUT_OK')
+
+    await terminals.first().click()
+    await page.keyboard.insertText("printf 'MAXIMAL_INPUT_OK\\n'")
+    await page.keyboard.press('Enter')
+    await expect.poll(capturePane).toContain('MAXIMAL_INPUT_OK')
+  } finally {
+    try {
+      await page.evaluate(() => {
+        const state = window as typeof window & { __tmuxOutputUnsubscribe?: () => void }
+        state.__tmuxOutputUnsubscribe?.()
+        delete state.__tmuxOutputUnsubscribe
+      })
+      if (terminalId) await page.evaluate((id) => window.maximal.terminal.terminate(id), terminalId)
+    } finally {
+      try {
+        if (externalClient && externalClientExited && externalExitCode === undefined) {
+          externalClient.kill()
+          await externalClientExited
+        }
+      } finally {
+        killTestSession()
+      }
+    }
+  }
 })
 
 test('terminal splits preserve geometry, focus navigation, and theme tokens', async () => {
@@ -533,6 +769,98 @@ test('native Settings flyout opens every restored section in the packaged UI', a
 
   await expect(page.locator('#right')).toHaveCount(0)
   await expect(page.locator('[data-testid="toggle-right"]')).toHaveCount(0)
+})
+
+test('Appearance effects persist, honor reduced motion, and release Pixi when disabled', async ({ page: _page }, testInfo) => {
+  const page = await mainWindow()
+  const recordingPath = process.env.MAXIMAL_E2E_CAPTURE_COZY_VIDEO === '1'
+    ? testInfo.outputPath('cozy-background-demo.mp4')
+    : null
+  await page.evaluate(async () => {
+    await window.maximal.appearance.setVibrancyEnabled(false)
+    await window.maximal.appearance.setBackgroundEffectsEnabled(false)
+    await window.maximal.appearance.setReducedMotionEnabled(false)
+  })
+
+  await openNativeSettings('Appearance')
+  await expect(page.locator('h1')).toHaveText('Appearance')
+  await expect(page.getByRole('heading', { name: 'Window materials' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Visual effects' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Desktop presence' })).toBeVisible()
+
+  const vibrancy = page.getByTestId('vibrancy-switch')
+  const background = page.getByTestId('background-effects-switch')
+  const reducedMotion = page.getByTestId('reduced-motion-switch')
+  await expect(background).toHaveAttribute('aria-checked', 'false')
+  await expect(reducedMotion).toHaveAttribute('aria-checked', 'false')
+  await page.screenshot({
+    path: testInfo.outputPath('appearance-effects-disabled.png'),
+  })
+  if (recordingPath) {
+    await toggleNativeRecording(recordingPath)
+    await expect.poll(() => running.app.evaluate(({ Menu }) =>
+      Menu.getApplicationMenu()?.items
+        .find((item) => item.label === 'File')
+        ?.submenu?.items.some((item) => item.label === 'Stop Window Recording') ?? false,
+    )).toBe(true)
+    await page.waitForTimeout(1_000)
+  }
+
+  const vibrancySupported = await page.evaluate(
+    () => window.maximal.appearance.get().then(({ vibrancySupported }) => vibrancySupported),
+  )
+  if (vibrancySupported) {
+    await expect(vibrancy).toBeEnabled()
+  } else {
+    await expect(vibrancy).toBeDisabled()
+  }
+
+  await background.click()
+  await expect(background).toHaveAttribute('aria-checked', 'true')
+  await expect(page.locator('html')).toHaveAttribute('data-background-effects', 'true')
+  const canvas = page.locator('.cozy-background canvas')
+  await expect(canvas).toHaveCount(1)
+  await page.waitForTimeout(250)
+  const animatedFrameA = await canvas.screenshot({
+    path: testInfo.outputPath('cozy-background-animated-a.png'),
+  })
+  await page.waitForTimeout(250)
+  const animatedFrameB = await canvas.screenshot({
+    path: testInfo.outputPath('cozy-background-animated-b.png'),
+  })
+  expect(animatedFrameB.equals(animatedFrameA)).toBe(false)
+  if (recordingPath) await page.waitForTimeout(5_000)
+
+  await reducedMotion.click()
+  await expect(reducedMotion).toHaveAttribute('aria-checked', 'true')
+  await expect(page.locator('html')).toHaveAttribute('data-reduced-motion', 'true')
+  await page.waitForTimeout(100)
+  const reducedFrameA = await canvas.screenshot({
+    path: testInfo.outputPath('cozy-background-reduced-motion.png'),
+  })
+  await page.waitForTimeout(250)
+  const reducedFrameB = await canvas.screenshot()
+  expect(reducedFrameB.equals(reducedFrameA)).toBe(true)
+  if (recordingPath) await page.waitForTimeout(2_000)
+
+  await page.reload()
+  await openNativeSettings('Appearance')
+  await expect(page.getByTestId('background-effects-switch'))
+    .toHaveAttribute('aria-checked', 'true')
+  await expect(page.getByTestId('reduced-motion-switch'))
+    .toHaveAttribute('aria-checked', 'true')
+  await expect(page.locator('.cozy-background canvas')).toHaveCount(1)
+
+  await page.getByTestId('background-effects-switch').click()
+  await expect(page.locator('.cozy-background')).toHaveCount(0)
+  await expect(page.locator('html')).not.toHaveAttribute('data-background-effects', /.+/)
+  await page.getByTestId('reduced-motion-switch').click()
+  await expect(page.locator('html')).not.toHaveAttribute('data-reduced-motion', /.+/)
+  if (recordingPath) {
+    await page.waitForTimeout(1_000)
+    await toggleNativeRecording()
+    await expect.poll(async () => (await stat(recordingPath)).size).toBeGreaterThan(0)
+  }
 })
 
 test('model settings preserve hierarchy and semantics at narrow widths', async ({ browserName: _browserName }, testInfo) => {

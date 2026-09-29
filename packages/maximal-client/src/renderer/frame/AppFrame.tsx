@@ -2,6 +2,7 @@ import { type ReactElement, type ReactNode } from 'react'
 import {
   Circle,
   CircleDot,
+  FolderSearch,
   History,
   Settings as SettingsIcon,
   Sparkles,
@@ -82,6 +83,7 @@ export function AppFrame({
   onSignIn,
   onSignOut,
   assistant,
+  onOpenProjects,
   settingsOpen = false,
   onToggleSettings,
   children,
@@ -104,6 +106,7 @@ export function AppFrame({
     onOpenChat: (id: string) => void
     onShowMore: () => void
   }
+  onOpenProjects?: () => void
   settingsOpen?: boolean
   onToggleSettings?: () => void
   children: ReactNode
@@ -121,6 +124,15 @@ export function AppFrame({
       newTabLabel="New terminal"
       titleBarActions={onToggleSettings ? (
         <>
+          {onOpenProjects ? (
+            <IconButton
+              label="Open Projects"
+              onClick={onOpenProjects}
+              testId="open-projects"
+            >
+              <FolderSearch size={15} />
+            </IconButton>
+          ) : null}
           {assistant ? (
             <Menu
               align="end"

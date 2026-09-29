@@ -73,6 +73,7 @@ vi.mock('@maximal/maximal-terminal', async (importOriginal) => ({
 
 const {
   configureTerminalHost,
+  configureTerminalProjectTrust,
   configureTerminalWindowActions,
   copyTerminalSessions,
   moveTerminalSessions,
@@ -89,6 +90,29 @@ const request = {
   canRunInBackground: true,
   sessionIds: ['primary', 'split'],
 }
+const core = {
+  terminalScopeIssue: vi.fn(async (input: {
+    sessionId: string
+    profileId: string
+    application: string | null
+  }) => ({
+    ok: true as const,
+    value: {
+      ...input,
+      credential: 'terminal-credential',
+      expiresAt: '2026-09-29T00:00:00.000Z',
+      environment: {},
+    },
+  })),
+  terminalScopeRevoke: vi.fn(async (sessionId: string) => ({
+    ok: true as const,
+    value: { sessionId, revoked: true },
+  })),
+}
+
+vi.mock('../sidecar/core.js', () => ({
+  awaitProxyUrl: vi.fn(async () => 'http://127.0.0.1:4141'),
+}))
 
 describe('terminal host window actions', () => {
   for (const kind of ['output', 'exit'] as const) {
@@ -109,7 +133,7 @@ describe('terminal host window actions', () => {
           terminalDiagnostics: false,
           terminalSessionPrefix: 'maximal',
           terminalTmuxStatus: 'off',
-        })
+        }, core)
         type Owner = typeof targetOwner
         const handlers = configurePty.mock.calls.at(-1)![0] as {
           emit(owner: Owner | undefined, id: string, data: string, sequence: number): void
@@ -136,6 +160,7 @@ describe('terminal host window actions', () => {
     launchTerminal.mockReset()
     logError.mockReset()
     stagePtyOwnership.mockReset()
+    configureTerminalProjectTrust(() => false)
   })
 
   it('validates an undock request before dispatching it with the sender window', () => {
@@ -211,12 +236,39 @@ describe('terminal host window actions', () => {
     expect(JSON.stringify(logError.mock.calls)).not.toContain('opaque')
   })
 
+  it('enforces project trust before launching with a working directory', () => {
+    configureTerminalProjectTrust((path) => path === '/trusted/project')
+    registerTerminalIpc()
+    const launch = ipcHandlers.get(BRIDGE_CHANNELS.terminalLaunch)
+
+    expect(() => launch?.({ sender: owner.webContents }, {
+      profileId: 'local',
+      cwd: '/untrusted/project',
+      cols: 80,
+      rows: 24,
+    })).toThrow('The project folder is not trusted.')
+    expect(launchTerminal).not.toHaveBeenCalled()
+
+    launch?.({ sender: owner.webContents }, {
+      profileId: 'local',
+      cwd: '/trusted/project',
+      cols: 80,
+      rows: 24,
+    })
+    expect(launchTerminal).toHaveBeenCalledWith(owner, {
+      profileId: 'local',
+      cwd: '/trusted/project',
+      cols: 80,
+      rows: 24,
+    })
+  })
+
   it('configures tmux with the Maximal-owned session prefix', () => {
     configureTerminalHost({
       terminalDiagnostics: false,
       terminalSessionPrefix: 'maximal',
       terminalTmuxStatus: 'inherit',
-    })
+    }, core)
 
     expect(configurePty).toHaveBeenLastCalledWith(
       expect.any(Object),
@@ -256,7 +308,7 @@ describe('terminal host window actions', () => {
         terminalDiagnostics: false,
         terminalSessionPrefix: 'maximal',
         terminalTmuxStatus: 'off',
-      })
+      }, core)
       const handlers = configurePty.mock.calls.at(-1)?.[0] as {
         emit(owner: BrowserWindow | undefined, id: string, data: string): void
         onExit(owner: BrowserWindow | undefined, id: string, exitCode: number): void
@@ -292,7 +344,7 @@ describe('terminal host window actions', () => {
       terminalDiagnostics: false,
       terminalSessionPrefix: 'maximal',
       terminalTmuxStatus: 'off',
-    })
+    }, core)
 
     const options = configurePty.mock.calls.at(-1)?.[1] as {
       tmuxSessionPrefix: string
@@ -306,6 +358,78 @@ describe('terminal host window actions', () => {
     expect(options.directProfiles.find(({ profile }) => profile.id === 'maximal')).toMatchObject({
       profile: { id: 'maximal', kind: 'command' },
       launch: { command: 'maximal', args: [] },
+    })
+  })
+
+  it('prepares an isolated proxy environment for each local terminal session', async () => {
+    configureTerminalHost({
+      terminalDiagnostics: false,
+      terminalSessionPrefix: 'maximal',
+      terminalTmuxStatus: 'off',
+    }, core)
+    const options = configurePty.mock.calls.at(-1)?.[1] as {
+      prepareSession(input: {
+        sessionId: string
+        profileId: string
+        label: string
+      }): Promise<Record<string, string>>
+    }
+
+    const environment = await options.prepareSession({
+      sessionId: 'terminal-a',
+      profileId: 'local',
+      label: 'Local',
+    })
+
+    expect(core.terminalScopeIssue).toHaveBeenCalledWith({
+      sessionId: 'terminal-a',
+      profileId: 'local',
+      application: null,
+    })
+    expect(environment).toEqual({
+      MAXIMAL_TERMINAL_SESSION_ID: 'terminal-a',
+      ANTHROPIC_BASE_URL: 'http://127.0.0.1:4141',
+      ANTHROPIC_AUTH_TOKEN: 'terminal-credential',
+      OPENAI_BASE_URL: 'http://127.0.0.1:4141/v1',
+      OPENAI_API_KEY: 'terminal-credential',
+    })
+  })
+
+  it('uses the Maximal profile configurator environment returned by Core', async () => {
+    core.terminalScopeIssue.mockResolvedValueOnce({
+      ok: true,
+      value: {
+        sessionId: 'terminal-maximal',
+        profileId: 'maximal',
+        application: 'Maximal',
+        credential: 'terminal-credential',
+        expiresAt: '2026-09-29T00:00:00.000Z',
+        environment: {
+          MAXIMAL_CONFIGURATOR_MARKER: 'configured-by-core',
+        },
+      },
+    })
+    configureTerminalHost({
+      terminalDiagnostics: false,
+      terminalSessionPrefix: 'maximal',
+      terminalTmuxStatus: 'off',
+    }, core)
+    const options = configurePty.mock.calls.at(-1)?.[1] as {
+      prepareSession(input: {
+        sessionId: string
+        profileId: string
+        label: string
+      }): Promise<Record<string, string>>
+    }
+
+    const environment = await options.prepareSession({
+      sessionId: 'terminal-maximal',
+      profileId: 'maximal',
+      label: 'Maximal',
+    })
+
+    expect(environment).toEqual({
+      MAXIMAL_CONFIGURATOR_MARKER: 'configured-by-core',
     })
   })
 })

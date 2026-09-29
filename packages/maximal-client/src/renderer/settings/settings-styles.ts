@@ -10,7 +10,7 @@
 // check for drift. Values read the `--shell-*` contract with fallbacks, so a
 // host that defines no theme still renders something legible.
 //
-// SettingsPage owns the H1, divider, and scrolling body. These rules only
+// SettingsPage owns the H1, divider, and scrolling surface. These rules only
 // style Maximal-specific content inside that shared frame.
 const SETTINGS_CSS = `
 /* The rail. Its own rules rather than the shell's .nav class, which belongs to
@@ -19,9 +19,8 @@ const SETTINGS_CSS = `
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: var(--shell-space-2, 8px);
+  padding: var(--shell-space-1, 4px);
   min-height: 0;
-  overflow-y: auto;
   font-size: var(--shell-text-base, 0.875rem);
   line-height: var(--shell-leading-base, 1.5);
 }
@@ -33,7 +32,7 @@ const SETTINGS_CSS = `
   appearance: none;
   border: 0;
   border-radius: var(--shell-radius, 6px);
-  min-height: 40px;
+  min-height: 36px;
   padding: 0 var(--shell-space-2, 8px);
   color: var(--shell-text-muted, #a0a8b4);
   background: transparent;
@@ -137,7 +136,8 @@ const SETTINGS_CSS = `
 }
 
 .settings-subsection > :not(.settings-section__subheading) {
-  margin-inline-start: var(--shell-space-4, 16px);
+  max-width: calc(100% - var(--shell-space-2, 8px));
+  margin-inline-start: var(--shell-space-2, 8px);
 }
 
 .settings-connector-form,

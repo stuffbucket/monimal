@@ -725,7 +725,7 @@ body,
 .mh-card__error {
   display: block;
   margin-top: var(--shell-space-2, 8px);
-  color: var(--shell-danger);
+  color: var(--shell-invalid, var(--shell-danger));
 }
 
 .mh-tool-list {
@@ -818,7 +818,7 @@ body,
 
 .mh-tool--failed,
 .mh-tool--failed code {
-  color: var(--shell-danger);
+  color: var(--shell-invalid, var(--shell-danger));
 }
 
 .mh-tool--failed .mh-tool__indicator {
@@ -995,7 +995,7 @@ body,
 }
 
 .mh-card__status--unavailable {
-  color: var(--shell-danger);
+  color: var(--shell-invalid, var(--shell-danger));
   /* The reason can be a full sentence, so let it wrap rather than truncate. */
   white-space: normal;
 }

@@ -7,8 +7,10 @@ utility-process supervision. The application owns IPC names, request
 validation, sender authorization, panel creation, shortcuts, lifecycle, worker
 bundle paths, and native package mutation.
 
-- **Never add an API key.** Discovery finds maximal or Ollama on loopback. A key
-  in this package is a defect.
+- **Never add a user-supplied or persisted API key.** Discovery finds maximal
+  or Ollama on loopback. A Maximal terminal MAY inject its ephemeral traffic
+  scope through `STUFFBUCKET_PROVIDER_API_KEY`; the harness MUST send that
+  credential only to the loopback Maximal endpoint.
 - `buildTools` binds the execution context that pi's plain `Agent` does not
   supply. Keep that bridge.
 - A run streams through `AgentSink`. Do not turn `runAgent` into a buffered
@@ -50,6 +52,11 @@ backend that does not answer reports unavailable instead of falling through.
 `ollama`. `src/host/provider-endpoint.ts` accepts only HTTP or HTTPS on
 `localhost`, `127.0.0.1`, or `[::1]`. An address without a matching pin changes
 nothing.
+
+`STUFFBUCKET_PROVIDER_API_KEY` supplies an ephemeral traffic-scope credential
+for a pinned Maximal terminal. Discovery and pi model requests MUST use it for
+Maximal only. Ollama and ordinary desktop runs MUST retain the keyless local
+backend behavior.
 
 ## Two engines, one gate
 

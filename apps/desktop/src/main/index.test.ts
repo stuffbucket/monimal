@@ -8,11 +8,31 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { loggerError } = vi.hoisted(() => ({ loggerError: vi.fn() }))
+const { projectCatalog } = vi.hoisted(() => ({
+  projectCatalog: {
+    snapshot: vi.fn(() => ({ roots: [], projects: [], refreshing: false })),
+    search: vi.fn(() => []),
+    roots: vi.fn(() => []),
+    addRoot: vi.fn(),
+    updateRoot: vi.fn(),
+    removeRoot: vi.fn(),
+    refresh: vi.fn(async () => ({ roots: [], projects: [], refreshing: false })),
+    isTrustedPath: vi.fn(() => false),
+    opened: vi.fn(),
+    close: vi.fn(),
+  },
+}))
 
 vi.mock('@maximal/maximal-logging', () => ({
   resolveLogDirectory: () => '/state/stuffbucket/logs',
   listLogFiles: () => [{ name: 'sidecar.log', size: 42, modifiedAt: 1 }],
   createLogger: () => ({ info: vi.fn(), warn: vi.fn(), error: loggerError, debug: vi.fn() }),
+}))
+
+vi.mock('./adapters/project-catalog.js', () => ({
+  DesktopProjectCatalog: {
+    open: vi.fn(async () => projectCatalog),
+  },
 }))
 
 import {
@@ -47,7 +67,9 @@ interface CoreControlConnectionSpies {
   localModelsCancel: ReturnType<typeof vi.fn>
   searchSettingsGet: ReturnType<typeof vi.fn>
   searchSettingsUpdate: ReturnType<typeof vi.fn>
-    searchProviderValidate: ReturnType<typeof vi.fn>
+  searchProviderValidate: ReturnType<typeof vi.fn>
+  terminalScopeIssue: ReturnType<typeof vi.fn>
+  terminalScopeRevoke: ReturnType<typeof vi.fn>
   dispose: ReturnType<typeof vi.fn>
 }
 
@@ -117,6 +139,8 @@ const {
     close: vi.fn(),
     loadFile: vi.fn(() => Promise.resolve()),
     loadURL: vi.fn(() => Promise.resolve()),
+    setBackgroundColor: vi.fn(),
+    setVibrancy: vi.fn(),
     setSkipTaskbar: vi.fn(),
     on: vi.fn((event: string, listener: (...args: unknown[]) => void) => {
       addListener(windowListeners, event, listener)
@@ -369,6 +393,7 @@ vi.mock('./adapters/harness.js', () => ({
 
 const {
   configureTerminalHostMock,
+  configureTerminalProjectTrustMock,
   configureTerminalWindowActionsMock,
   moveTerminalSessionsMock,
   activeTerminalCountMock,
@@ -378,6 +403,7 @@ const {
 } = vi.hoisted(() => ({
   activeTerminalCountMock: vi.fn(() => 0),
   configureTerminalHostMock: vi.fn(),
+  configureTerminalProjectTrustMock: vi.fn(),
   configureTerminalWindowActionsMock: vi.fn(),
   moveTerminalSessionsMock: vi.fn(() => true),
   registerTerminalIpcMock: vi.fn(),
@@ -388,6 +414,7 @@ const {
 vi.mock('./adapters/terminal.js', () => ({
   activeTerminalCount: activeTerminalCountMock,
   configureTerminalHost: configureTerminalHostMock,
+  configureTerminalProjectTrust: configureTerminalProjectTrustMock,
   configureTerminalWindowActions: configureTerminalWindowActionsMock,
   moveTerminalSessions: moveTerminalSessionsMock,
   registerTerminalIpc: registerTerminalIpcMock,
@@ -428,6 +455,8 @@ const { createCoreControlConnectionMock, disposeCoreControlConnectionMock } = vi
         searchSettingsGet: vi.fn(),
         searchSettingsUpdate: vi.fn(),
         searchProviderValidate: vi.fn(),
+        terminalScopeIssue: vi.fn(),
+        terminalScopeRevoke: vi.fn(),
         dispose: disposeCoreControlConnectionMock,
       })),
     }
@@ -589,6 +618,7 @@ describe('closed IPC boundary', () => {
 
   it('names every renderer event channel in one closed allowlist', () => {
     expect(EVENT_CHANNELS).toEqual([
+      BRIDGE_CHANNELS.appearanceChanged,
       BRIDGE_CHANNELS.lifecycleChanged,
       BRIDGE_CHANNELS.shutdownChanged,
       BRIDGE_CHANNELS.controlChanged,
@@ -610,6 +640,7 @@ describe('closed IPC boundary', () => {
       BRIDGE_CHANNELS.harnessChatSelected,
       BRIDGE_CHANNELS.harnessChatsChanged,
       BRIDGE_CHANNELS.harnessTerminalOpened,
+      BRIDGE_CHANNELS.projectsChanged,
     ])
   })
 

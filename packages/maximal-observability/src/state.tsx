@@ -66,6 +66,8 @@ const EMPTY_FILTERS: TrafficRequestFilters = {
   models: [],
   clients: [],
   projects: [],
+  terminalSessionIds: [],
+  applications: [],
   streaming: null,
   search: null,
   minimumDurationMs: null,

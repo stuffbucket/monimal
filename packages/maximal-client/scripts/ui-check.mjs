@@ -16,7 +16,7 @@ function check(condition, message) {
 async function layout(page) {
   return page.evaluate(() => {
     const root = document.documentElement
-    const settings = document.querySelector('.settings__body')
+    const settings = document.querySelector('.settings')
     const tabpanel = document.querySelector('[role="tabpanel"]')
     const scrollArea = document.querySelector('.scroll-area')
     const providerRows = [...document.querySelectorAll('.partitioned-sortable__item')]
@@ -52,6 +52,29 @@ async function layout(page) {
       nestedCardCount: document.querySelectorAll('.card .card').length,
       viewportOverflowX: root.scrollWidth - root.clientWidth,
       settingsOverflowX: settings.scrollWidth - settings.clientWidth,
+      settingsOverflowElements: [...settings.querySelectorAll('*')]
+        .filter((element) =>
+          element instanceof HTMLElement
+          && element.getBoundingClientRect().right > settings.getBoundingClientRect().right + 1)
+        .slice(0, 5)
+        .map((element) => {
+          const style = getComputedStyle(element)
+          const bounds = element.getBoundingClientRect()
+          const parentBounds = element.parentElement?.getBoundingClientRect()
+          return [
+            `${element.tagName.toLowerCase()}.${element.className}`,
+            `testid=${element.dataset.testid ?? ''}`,
+            `label=${element.getAttribute('aria-label') ?? ''}`,
+            `parent=${element.parentElement?.className ?? ''}`,
+            `parentLayout=${element.parentElement?.dataset.layout ?? ''}`,
+            `parentBounds=${parentBounds ? `${parentBounds.left}:${parentBounds.right}` : ''}`,
+            `left=${bounds.left}`,
+            `right=${bounds.right}`,
+            `width=${bounds.width}`,
+            `margin=${style.marginInline}`,
+            `max=${style.maxWidth}`,
+          ].join(' ')
+        }),
       settingsScrolls: settings.scrollHeight > settings.clientHeight,
       scrollbarColorScheme: scrollAreaStyle.colorScheme,
       scrollbarColor: scrollAreaStyle.scrollbarColor,
@@ -66,7 +89,7 @@ async function layout(page) {
 async function accountLayout(page) {
   return page.evaluate(() => {
     const root = document.documentElement
-    const settings = document.querySelector('.settings__body')
+    const settings = document.querySelector('.settings')
     const cards = [...document.querySelectorAll('.account-person-card')]
     if (!(settings instanceof HTMLElement)) {
       throw new Error('The Settings body did not render.')
@@ -93,7 +116,7 @@ async function accountLayout(page) {
 
 async function modelLayout(page) {
   return page.evaluate(() => {
-    const settings = document.querySelector('.settings__body')
+    const settings = document.querySelector('.settings')
     const enabled = document.querySelector('[data-testid="model-gpt-5"]')
     const disabled = document.querySelector('[data-testid="model-maximal-qwen-local"]')
     const disabledBadge = disabled?.querySelector('.model-card__disabled')
@@ -253,8 +276,11 @@ try {
   check(desktop.settingsOverflowX === 0, `Desktop Settings content overflows by ${desktop.settingsOverflowX}px.`)
   check(desktop.tabpanelTabIndex === null, 'The non-interactive tabpanel is in the tab order.')
   check(!desktop.hasCoreBridge, 'The renderer-only preview unexpectedly has a Core bridge.')
-  check(desktop.scrollbarColorScheme === 'dark', 'The native scrollbar did not inherit the dark host scheme.')
-  check(desktop.scrollbarColor === 'auto', 'The scroll area overrides the native scrollbar colour.')
+  check(desktop.scrollbarColorScheme === 'dark', 'The scrollbar did not inherit the dark host scheme.')
+  check(
+    desktop.scrollbarColor.includes('rgba(0, 0, 0, 0)'),
+    `The idle scrollbar is visible: ${desktop.scrollbarColor}.`,
+  )
   check(
     desktop.scrollbarThumbBackground === 'rgba(0, 0, 0, 0)',
     'The scroll area overrides the native scrollbar thumb.',
@@ -380,14 +406,38 @@ try {
   check(!duckDuckGoFields.fullFieldDisabled, 'Disabled provider fields are not editable.')
 
   await page.setViewportSize({ width: 520, height: 720 })
-  await page.locator('.settings__body').evaluate((element) => {
+  await page.locator('.settings').evaluate((element) => {
     element.scrollTop = 0
   })
   const compact = await layout(page)
   check(compact.viewportOverflowX === 0, `Compact viewport overflows by ${compact.viewportOverflowX}px.`)
-  check(compact.settingsOverflowX === 0, `Compact Settings content overflows by ${compact.settingsOverflowX}px.`)
+  check(
+    compact.settingsOverflowX === 0,
+    `Compact Settings content overflows by ${compact.settingsOverflowX}px: ${compact.settingsOverflowElements.join(', ')}.`,
+  )
   check(compact.settingsScrolls, 'Compact Settings content does not exercise its scroll boundary.')
   check(compact.providersGrouped, 'Compact providers do not keep disabled rows at the bottom.')
+  const settingsScroll = await page.locator('.settings').evaluate((element) => {
+    const heading = element.querySelector('.settings__header')
+    if (!(heading instanceof HTMLElement)) throw new Error('The Settings header did not render.')
+    const before = heading.getBoundingClientRect().top
+    element.scrollTop = 80
+    return {
+      before,
+      after: heading.getBoundingClientRect().top,
+    }
+  })
+  check(
+    settingsScroll.after < settingsScroll.before,
+    'The Settings header remains fixed outside the shared scroll boundary.',
+  )
+  await page.waitForFunction(() =>
+    document.querySelector('.settings')?.getAttribute('data-scrollbar-visible') === 'true')
+  await page.waitForTimeout(900)
+  check(
+    await page.locator('.settings').getAttribute('data-scrollbar-visible') === null,
+    'The transient scrollbar does not hide after its delay.',
+  )
 
   const compactPath = join(outputDirectory, 'search-settings-compact.png')
   await page.screenshot({ path: compactPath })
@@ -476,7 +526,10 @@ try {
     'Disabled and enabled model cards have the same border colour.',
   )
   check(models.disabledBoxShadow !== 'none', 'The disabled model card has no strong edge marker.')
-  check(models.disabledBadgeDisplay === 'inline-flex', 'The disabled model badge is not visible.')
+  check(
+    models.disabledBadgeDisplay === 'inline-flex' || models.disabledBadgeDisplay === 'flex',
+    `The disabled model badge is not visible (${models.disabledBadgeDisplay}).`,
+  )
   check(models.settingsOverflowX === 0, 'Desktop Models overflows Settings.')
   check(
     (await page.getByText('Enabled · Signed in as octocat', { exact: false }).count()) > 0,

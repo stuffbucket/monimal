@@ -88,6 +88,31 @@ function fakeCapabilities(): SettingsCapabilities {
       updatePreferences: vi.fn(),
     },
     general: {
+      appearance: vi.fn(async () => ({
+        vibrancyEnabled: false,
+        vibrancySupported: true,
+        backgroundEffectsEnabled: false,
+        reducedMotionEnabled: false,
+      })),
+      setVibrancyEnabled: vi.fn(async (enabled: boolean) => ({
+        vibrancyEnabled: enabled,
+        vibrancySupported: true,
+        backgroundEffectsEnabled: false,
+        reducedMotionEnabled: false,
+      })),
+      setBackgroundEffectsEnabled: vi.fn(async (enabled: boolean) => ({
+        vibrancyEnabled: false,
+        vibrancySupported: true,
+        backgroundEffectsEnabled: enabled,
+        reducedMotionEnabled: false,
+      })),
+      setReducedMotionEnabled: vi.fn(async (enabled: boolean) => ({
+        vibrancyEnabled: false,
+        vibrancySupported: true,
+        backgroundEffectsEnabled: false,
+        reducedMotionEnabled: enabled,
+      })),
+      onAppearanceChange: vi.fn(() => () => {}),
       menuBarMode: vi.fn(async () => ({ enabled: false, pending: false })),
       beginMenuBarOnly: vi.fn(async () => ({ attemptId: 'attempt-1', deadlineMs: 1 })),
       confirmMenuBarOnly: vi.fn(async () => ({ enabled: true, pending: false })),
@@ -111,6 +136,14 @@ function fakeCapabilities(): SettingsCapabilities {
     providerOnboarding: {
       get: vi.fn(async () => ({ dismissed: false })),
       setDismissed: vi.fn(async (dismissed: boolean) => ({ dismissed })),
+    },
+    projects: {
+      snapshot: vi.fn(async () => ({ roots: [], projects: [], refreshing: false })),
+      addRoot: vi.fn(async () => null),
+      updateRoot: vi.fn(),
+      removeRoot: vi.fn(async () => {}),
+      refresh: vi.fn(async () => ({ roots: [], projects: [], refreshing: false })),
+      subscribe: vi.fn(() => () => {}),
     },
     connections: {
       list: vi.fn(async () => ({
@@ -387,7 +420,7 @@ describe('Settings', () => {
     expect(page.querySelector('h1')?.textContent).toBe('Cloud Models')
     expect(page.querySelectorAll('h1')).toHaveLength(1)
     expect(page.querySelector('.settings__header')).not.toBeNull()
-    expect(page.querySelector('.settings__body.scroll-area')).not.toBeNull()
+    expect(page.matches('.settings.scroll-area')).toBe(true)
   })
 
   it('injects its surface styles when no style element exists', async () => {

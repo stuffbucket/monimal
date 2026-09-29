@@ -84,6 +84,18 @@ export const BRIDGE_CHANNELS = {
   menuBarModeDisable: 'maximal:native/menu-bar-mode-disable',
   providerOnboardingGet: 'maximal:native/provider-onboarding-get',
   providerOnboardingSet: 'maximal:native/provider-onboarding-set',
+  appearanceGet: 'maximal:native/appearance-get',
+  appearanceSetVibrancy: 'maximal:native/appearance-set-vibrancy',
+  appearanceSetBackgroundEffects: 'maximal:native/appearance-set-background-effects',
+  appearanceSetReducedMotion: 'maximal:native/appearance-set-reduced-motion',
+  appearanceChanged: 'maximal:native/appearance-changed',
+  projectsSnapshot: 'maximal:projects/snapshot',
+  projectsSearch: 'maximal:projects/search',
+  projectsAddRoot: 'maximal:projects/add-root',
+  projectsUpdateRoot: 'maximal:projects/update-root',
+  projectsRemoveRoot: 'maximal:projects/remove-root',
+  projectsRefresh: 'maximal:projects/refresh',
+  projectsOpened: 'maximal:projects/opened',
   terminalSpawn: 'maximal:terminal/spawn',
   terminalWrite: 'maximal:terminal/write',
   terminalResize: 'maximal:terminal/resize',
@@ -121,6 +133,7 @@ export const BRIDGE_CHANNELS = {
   harnessChatSelected: 'maximal:harness/chat-selected',
   harnessChatsChanged: 'maximal:harness/chats-changed',
   harnessTerminalOpened: 'maximal:harness/terminal-opened',
+  projectsChanged: 'maximal:projects/changed',
 } as const
 
 export const INVOKE_CHANNELS = [
@@ -132,6 +145,17 @@ export const INVOKE_CHANNELS = [
   BRIDGE_CHANNELS.openExternal,
   BRIDGE_CHANNELS.providerOnboardingGet,
   BRIDGE_CHANNELS.providerOnboardingSet,
+  BRIDGE_CHANNELS.appearanceGet,
+  BRIDGE_CHANNELS.appearanceSetVibrancy,
+  BRIDGE_CHANNELS.appearanceSetBackgroundEffects,
+  BRIDGE_CHANNELS.appearanceSetReducedMotion,
+  BRIDGE_CHANNELS.projectsSnapshot,
+  BRIDGE_CHANNELS.projectsSearch,
+  BRIDGE_CHANNELS.projectsAddRoot,
+  BRIDGE_CHANNELS.projectsUpdateRoot,
+  BRIDGE_CHANNELS.projectsRemoveRoot,
+  BRIDGE_CHANNELS.projectsRefresh,
+  BRIDGE_CHANNELS.projectsOpened,
   BRIDGE_CHANNELS.authStatus,
   BRIDGE_CHANNELS.authStart,
   BRIDGE_CHANNELS.authCancel,
@@ -204,6 +228,7 @@ export const INVOKE_CHANNELS = [
 ] as const
 
 export const EVENT_CHANNELS = [
+  BRIDGE_CHANNELS.appearanceChanged,
   BRIDGE_CHANNELS.lifecycleChanged,
   BRIDGE_CHANNELS.shutdownChanged,
   BRIDGE_CHANNELS.controlChanged,
@@ -225,4 +250,5 @@ export const EVENT_CHANNELS = [
   BRIDGE_CHANNELS.harnessChatSelected,
   BRIDGE_CHANNELS.harnessChatsChanged,
   BRIDGE_CHANNELS.harnessTerminalOpened,
+  BRIDGE_CHANNELS.projectsChanged,
 ] as const

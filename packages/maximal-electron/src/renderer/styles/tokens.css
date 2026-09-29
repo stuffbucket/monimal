@@ -82,8 +82,8 @@
    * two-word title readable rather than what makes one letter fit. The maximum
    * stops one long title from taking the strip; past it, the label fades.
    */
-  --tab-min: 112px;
-  --tab-max: 216px;
+  --tab-min: 72px;
+  --tab-max: 168px;
 
   /*
    * ---- Navigation rail ----

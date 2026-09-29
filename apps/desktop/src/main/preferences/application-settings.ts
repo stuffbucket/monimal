@@ -22,6 +22,9 @@ const applicationSettingsSchema = z.object({
   terminalSessionPrefix: z.string().regex(TMUX_SESSION_PREFIX_PATTERN),
   terminalTmuxStatus: z.enum(['off', 'on', 'inherit']),
   ollamaStartOnLaunch: z.boolean(),
+  vibrancyEnabled: z.boolean(),
+  backgroundEffectsEnabled: z.boolean(),
+  reducedMotionEnabled: z.boolean(),
 })
 type ApplicationSettings = z.infer<typeof applicationSettingsSchema>
 
@@ -37,6 +40,9 @@ const applicationSettingsPersistence = {
   terminalSessionPrefix: 'user',
   terminalTmuxStatus: 'user',
   ollamaStartOnLaunch: 'user',
+  vibrancyEnabled: 'user',
+  backgroundEffectsEnabled: 'user',
+  reducedMotionEnabled: 'user',
 } as const
 const reportListenerError = (error: unknown): never => {
   throw error
@@ -78,6 +84,9 @@ function applicationSettingsDefaults(
     terminalSessionPrefix: applicationSettingsSchema.shape.terminalSessionPrefix.catch('maximal'),
     terminalTmuxStatus: applicationSettingsSchema.shape.terminalTmuxStatus.catch('off'),
     ollamaStartOnLaunch: applicationSettingsSchema.shape.ollamaStartOnLaunch.catch(false),
+    vibrancyEnabled: applicationSettingsSchema.shape.vibrancyEnabled.catch(false),
+    backgroundEffectsEnabled: applicationSettingsSchema.shape.backgroundEffectsEnabled.catch(false),
+    reducedMotionEnabled: applicationSettingsSchema.shape.reducedMotionEnabled.catch(false),
   }).parse(legacy)
   return defaults
 }
@@ -171,5 +180,65 @@ export async function setAssistantOverlayPreferences(
     assistantOverlayCandy: settings.assistantOverlayCandy,
     agentApproval: settings.agentApproval,
     assistantOutputFont: settings.assistantOutputFont,
+  }
+}
+
+export async function setVibrancyEnabled(
+  userDataDirectory: string,
+  enabled: boolean,
+): Promise<boolean> {
+  const store = applicationSettingsStore(userDataDirectory)
+  try {
+    return (await store.create('vibrancyEnabled', enabled))
+      .settings.vibrancyEnabled
+  } catch (error) {
+    if (
+      !(error instanceof Error)
+      || error.message !== 'Setting already exists in its configured layer: vibrancyEnabled'
+    ) {
+      throw error
+    }
+    return (await store.update('vibrancyEnabled', enabled))
+      .settings.vibrancyEnabled
+  }
+}
+
+export async function setBackgroundEffectsEnabled(
+  userDataDirectory: string,
+  enabled: boolean,
+): Promise<boolean> {
+  const store = applicationSettingsStore(userDataDirectory)
+  try {
+    return (await store.create('backgroundEffectsEnabled', enabled))
+      .settings.backgroundEffectsEnabled
+  } catch (error) {
+    if (
+      !(error instanceof Error)
+      || error.message !== 'Setting already exists in its configured layer: backgroundEffectsEnabled'
+    ) {
+      throw error
+    }
+    return (await store.update('backgroundEffectsEnabled', enabled))
+      .settings.backgroundEffectsEnabled
+  }
+}
+
+export async function setReducedMotionEnabled(
+  userDataDirectory: string,
+  enabled: boolean,
+): Promise<boolean> {
+  const store = applicationSettingsStore(userDataDirectory)
+  try {
+    return (await store.create('reducedMotionEnabled', enabled))
+      .settings.reducedMotionEnabled
+  } catch (error) {
+    if (
+      !(error instanceof Error)
+      || error.message !== 'Setting already exists in its configured layer: reducedMotionEnabled'
+    ) {
+      throw error
+    }
+    return (await store.update('reducedMotionEnabled', enabled))
+      .settings.reducedMotionEnabled
   }
 }

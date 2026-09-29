@@ -13,10 +13,107 @@ import type { AssistantOutputFont } from '@maximal/maximal-harness'
 import type { SettingsCapabilities } from '../capabilities'
 import { MenuBarOnlyDialog } from './MenuBarOnlyDialog'
 import { useAssistantOverlay } from './useAssistantOverlay'
+import { useAppearancePreference } from './useAppearancePreference'
 import { useMenuBarPresence } from './useMenuBarPresence'
 
 interface GeneralSectionProps {
   capabilities: SettingsCapabilities
+}
+
+function AppearanceSections({
+  appearance,
+}: {
+  appearance: ReturnType<typeof useAppearancePreference>
+}): ReactElement {
+  if (appearance.state === null) {
+    return (
+      <>
+        <SettingsSection
+          title="Window materials"
+          description="Use native desktop materials where the operating system supports them."
+        >
+          <Note live="polite">Loading appearance preferences…</Note>
+        </SettingsSection>
+        <SettingsSection
+          title="Visual effects"
+          description="Control optional graphics and motion used by the interface."
+        >
+          <Note live="polite">Loading visual effect preferences…</Note>
+        </SettingsSection>
+      </>
+    )
+  }
+
+  return (
+    <>
+      <SettingsSection
+        title="Window materials"
+        description="Use native desktop materials where the operating system supports them."
+      >
+        <SettingsGroup>
+          <SettingsItem
+            title="Translucent window"
+            description={
+              appearance.state.vibrancySupported
+                ? 'Show the macOS desktop vibrancy material through Maximal surfaces.'
+                : 'Native vibrancy is available on macOS.'
+            }
+            control={
+              <Switch
+                label="Translucent window"
+                displayLabel={null}
+                checked={appearance.state.vibrancyEnabled}
+                disabled={
+                  appearance.busy || !appearance.state.vibrancySupported
+                }
+                onChange={(next) => void appearance.setVibrancyEnabled(next)}
+                testId="vibrancy-switch"
+              />
+            }
+          />
+        </SettingsGroup>
+      </SettingsSection>
+      <SettingsSection
+        title="Visual effects"
+        description="Control optional graphics and motion used by the interface."
+      >
+        <SettingsGroup>
+          <SettingsItem
+            title="Cozy background"
+            description="Render a subtle cloud-like material behind the workspace."
+            control={
+              <Switch
+                label="Cozy background"
+                displayLabel={null}
+                checked={appearance.state.backgroundEffectsEnabled}
+                disabled={appearance.busy}
+                onChange={(next) =>
+                  void appearance.setBackgroundEffectsEnabled(next)
+                }
+                testId="background-effects-switch"
+              />
+            }
+          />
+          <SettingsItem
+            title="Reduce motion"
+            description="Stop decorative animation and minimize transitions throughout Maximal. The operating system preference is always honored."
+            control={
+              <Switch
+                label="Reduce motion"
+                displayLabel={null}
+                checked={appearance.state.reducedMotionEnabled}
+                disabled={appearance.busy}
+                onChange={(next) =>
+                  void appearance.setReducedMotionEnabled(next)
+                }
+                testId="reduced-motion-switch"
+              />
+            }
+          />
+        </SettingsGroup>
+      </SettingsSection>
+    </>
+  )
 }
 
 export function GeneralSection({
@@ -24,9 +121,16 @@ export function GeneralSection({
 }: GeneralSectionProps): ReactElement {
   const presence = useMenuBarPresence(capabilities)
   const assistant = useAssistantOverlay(capabilities)
+  const appearance = useAppearancePreference(capabilities)
 
   return (
-    <>
+    <section className="settings-section">
+      {appearance.error ? (
+        <Note status="failed" live="assertive">
+          {appearance.error}
+        </Note>
+      ) : null}
+      <AppearanceSections appearance={appearance} />
       <SettingsSection
         title="Desktop presence"
         description="Choose where Maximal remains available when its window is closed."
@@ -115,6 +219,6 @@ export function GeneralSection({
           </SettingsGroup>
         )}
       </SettingsSection>
-    </>
+    </section>
   )
 }

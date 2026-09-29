@@ -112,6 +112,7 @@ function emptyConfiguratorRegistry(): ConfiguratorRegistry {
   return {
     all: () => [],
     get: () => undefined,
+    terminalProfile: () => undefined,
     dispose: () => Promise.resolve(),
   }
 }

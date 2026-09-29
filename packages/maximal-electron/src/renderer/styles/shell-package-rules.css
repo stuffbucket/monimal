@@ -106,8 +106,8 @@
 }
 
 .sb-shell .activity-rail {
-  width: 64px;
-  min-width: 64px;
+  width: 48px;
+  min-width: 48px;
   min-height: 0;
   flex: none;
   overflow: hidden;
@@ -310,6 +310,52 @@
   display: none;
 }
 
+.sb-shell .tab-group {
+  display: inline-flex;
+  align-items: center;
+  align-self: center;
+  height: var(--shell-control-md);
+  padding: 0 var(--shell-space-2);
+  flex: none;
+  color: var(--shell-accent);
+  background: color-mix(in srgb, currentColor 14%, transparent);
+  border-radius: var(--shell-radius-pill);
+  font-size: var(--shell-text-xs);
+  font-weight: var(--shell-weight-lg);
+}
+
+.sb-shell .tab-group[data-color='blue'] {
+  color: var(--shell-accent);
+}
+
+.sb-shell .tab-group[data-color='green'] {
+  color: var(--shell-success, var(--shell-accent));
+}
+
+.sb-shell .tab-group[data-color='yellow'] {
+  color: var(--shell-warning, var(--shell-accent));
+}
+
+.sb-shell .tab-group[data-color='red'] {
+  color: var(--shell-danger, var(--shell-accent));
+}
+
+.sb-shell .tab-group[data-color='purple'] {
+  color: color-mix(
+    in srgb,
+    var(--shell-accent) 60%,
+    var(--shell-danger, var(--shell-accent))
+  );
+}
+
+.sb-shell .tab-group[data-color='orange'] {
+  color: color-mix(
+    in srgb,
+    var(--shell-warning, var(--shell-accent)) 65%,
+    var(--shell-danger, var(--shell-accent))
+  );
+}
+
 /*
  * Every button under `.sb-shell` starts from the reference's own reset: a bare
  * `button` selector, at the lowest specificity a class can ever beat, rather
@@ -338,10 +384,10 @@
 .sb-shell .tab {
   display: inline-flex;
   align-items: center;
-  gap: var(--shell-space-2);
-  min-width: 96px;
-  max-width: 200px;
-  padding: 0 var(--shell-space-2) 0 var(--shell-space-3);
+  gap: var(--shell-space-1);
+  min-width: var(--shell-tab-min);
+  max-width: var(--shell-tab-max);
+  padding: 0 var(--shell-space-2);
   color: var(--shell-text-subtle);
   white-space: nowrap;
   border-radius: var(--shell-radius) var(--shell-radius) 0 0;
@@ -366,6 +412,80 @@
   color: var(--shell-text);
   background: var(--shell-tab-active, var(--shell-canvas));
   font-weight: 500;
+}
+
+.sb-shell .tab[data-state='active']::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background: var(--shell-accent);
+}
+
+.sb-shell .tab[data-color='blue'] {
+  box-shadow: inset 0 2px var(--shell-accent);
+}
+
+.sb-shell .tab[data-color='green'] {
+  box-shadow: inset 0 2px var(--shell-success, var(--shell-accent));
+}
+
+.sb-shell .tab[data-color='yellow'] {
+  box-shadow: inset 0 2px var(--shell-warning, var(--shell-accent));
+}
+
+.sb-shell .tab[data-color='red'] {
+  box-shadow: inset 0 2px var(--shell-danger, var(--shell-accent));
+}
+
+.sb-shell .tab[data-color='purple'] {
+  box-shadow: inset 0 2px color-mix(
+    in srgb,
+    var(--shell-accent) 60%,
+    var(--shell-danger, var(--shell-accent))
+  );
+}
+
+.sb-shell .tab[data-color='orange'] {
+  box-shadow: inset 0 2px color-mix(
+    in srgb,
+    var(--shell-warning, var(--shell-accent)) 65%,
+    var(--shell-danger, var(--shell-accent))
+  );
+}
+
+.sb-shell .tab[data-color='blue'][data-state='active']::after {
+  background: var(--shell-accent);
+}
+
+.sb-shell .tab[data-color='green'][data-state='active']::after {
+  background: var(--shell-success, var(--shell-accent));
+}
+
+.sb-shell .tab[data-color='yellow'][data-state='active']::after {
+  background: var(--shell-warning, var(--shell-accent));
+}
+
+.sb-shell .tab[data-color='red'][data-state='active']::after {
+  background: var(--shell-danger, var(--shell-accent));
+}
+
+.sb-shell .tab[data-color='purple'][data-state='active']::after {
+  background: color-mix(
+    in srgb,
+    var(--shell-accent) 60%,
+    var(--shell-danger, var(--shell-accent))
+  );
+}
+
+.sb-shell .tab[data-color='orange'][data-state='active']::after {
+  background: color-mix(
+    in srgb,
+    var(--shell-warning, var(--shell-accent)) 65%,
+    var(--shell-danger, var(--shell-accent))
+  );
 }
 
 /* `min-width: 0` is what lets the label shrink below its own text. Without it
@@ -619,7 +739,7 @@
   height: 100%;
   align-items: center;
   gap: var(--shell-space-2);
-  padding: var(--shell-space-2);
+  padding: var(--shell-space-1);
   overflow-x: hidden;
 }
 
@@ -628,19 +748,19 @@
 }
 
 .sb-shell .activity-rail .nav--collapsed .nav__section {
-  width: 48px;
+  width: 40px;
 }
 
 .sb-shell .activity-rail .nav--collapsed .nav__item {
-  width: 48px;
-  height: 48px;
+  width: 40px;
+  height: 40px;
   flex: none;
-  border-radius: var(--shell-radius-large);
+  border-radius: var(--shell-radius);
 }
 
 .sb-shell .activity-rail .nav--collapsed .nav__item > svg {
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
 }
 
 .sb-shell .toolbar {
@@ -1291,6 +1411,15 @@
 .sb-shell .nav,
 .sb-shell .inspector__body {
   scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+.sb-shell .canvas:hover,
+.sb-shell .canvas:focus-within,
+.sb-shell .nav:hover,
+.sb-shell .nav:focus-within,
+.sb-shell .inspector__body:hover,
+.sb-shell .inspector__body:focus-within {
   scrollbar-color: var(--shell-border-strong, var(--shell-border)) transparent;
 }
 
@@ -1304,11 +1433,20 @@
 .sb-shell .canvas::-webkit-scrollbar-thumb,
 .sb-shell .nav::-webkit-scrollbar-thumb,
 .sb-shell .inspector__body::-webkit-scrollbar-thumb {
-  /* Inset the thumb so it reads as a hint rather than as a rail. */
   border: 3px solid transparent;
   border-radius: 9999px;
-  background: var(--shell-border-strong, var(--shell-border));
+  background: transparent;
   background-clip: content-box;
+  transition: background-color var(--shell-duration-fast) var(--shell-ease-out);
+}
+
+.sb-shell .canvas:hover::-webkit-scrollbar-thumb,
+.sb-shell .canvas:focus-within::-webkit-scrollbar-thumb,
+.sb-shell .nav:hover::-webkit-scrollbar-thumb,
+.sb-shell .nav:focus-within::-webkit-scrollbar-thumb,
+.sb-shell .inspector__body:hover::-webkit-scrollbar-thumb,
+.sb-shell .inspector__body:focus-within::-webkit-scrollbar-thumb {
+  background-color: var(--shell-border-strong, var(--shell-border));
 }
 
 .sb-shell .canvas::-webkit-scrollbar-thumb:hover,
@@ -1353,6 +1491,10 @@
   padding: 0;
   border-radius: 7px;
   box-shadow: none;
+}
+
+.sb-shell .terminal-host .xterm-rows .xterm-dim:not([class*="xterm-fg-"]) {
+  color: color-mix(in srgb, currentColor 60%, transparent) !important;
 }
 
 .sb-shell .terminal-split {

@@ -34,6 +34,7 @@ has ended.
 | `packages/maximal-observability` | Traffic explorer UI. |
 | `packages/maximal-ollama` | Node-native Ollama runtime management and renderer-safe status contract. |
 | `packages/maximal-client` (`@maximal/maximal-client`) | Product renderer, UI controls, and shared desktop contracts. |
+| `packages/project-catalog` (`@maximal/project-catalog`) | Local project discovery, Git interrogation, catalog contracts, and ranking. |
 | `packages/model-qwen3-0.6b-q8-gguf` | Qwen3 artifact metadata and provisioning. |
 | `packages/model-runtimes/anthropic` | Anthropic Messages adapter. |
 | `packages/model-runtimes/omlx` | oMLX HTTP adapter. |
@@ -104,7 +105,7 @@ Both are monorepo-native;
 | `maximal-settings` | The pnpm bootstrap hook MUST load its dependency-policy source before workspace packages are installed; installed consumers MUST use the exported entry point. |
 | `maximal-core` / `maximal-settings` | Core preserves its synchronous `config.json` storage and locking while validating installed connector payloads through the shared settings API; unknown plugins remain opaque. |
 | `maximal-settings` | Dependency changes MUST update the reviewed closure and deterministic SBOM; `.pnpmfile.cjs` MUST enforce the reviewed resolution graph and integrity. |
-| `maximal-configurators` | Owns first-party Cordis registration through Core's capability-scoped configurator host. |
+| `maximal-configurators` | Owns first-party Cordis registration and terminal-profile launch configuration through Core's capability-scoped configurator host. |
 | `maximal` / `maximal-core` | Connector payloads remain opaque in Core and are validated by host-installed Standard Schema plugins. |
 | `maximal-core/downstream` | Declares itself as an independently installed compatibility fixture. |
 | Model packages | Core consumes the side-effect-free model contract; orchestration and concrete runtime adapters remain separate packages. |

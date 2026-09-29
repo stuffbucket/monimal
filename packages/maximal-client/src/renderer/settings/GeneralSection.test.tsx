@@ -12,6 +12,31 @@ let container: HTMLElement | null = null
 
 function fakeCapabilities() {
   const general = {
+    appearance: vi.fn(async () => ({
+      vibrancyEnabled: false,
+      vibrancySupported: true,
+      backgroundEffectsEnabled: false,
+      reducedMotionEnabled: false,
+    })),
+    setVibrancyEnabled: vi.fn(async (enabled: boolean) => ({
+      vibrancyEnabled: enabled,
+      vibrancySupported: true,
+      backgroundEffectsEnabled: false,
+      reducedMotionEnabled: false,
+    })),
+    setBackgroundEffectsEnabled: vi.fn(async (enabled: boolean) => ({
+      vibrancyEnabled: false,
+      vibrancySupported: true,
+      backgroundEffectsEnabled: enabled,
+      reducedMotionEnabled: false,
+    })),
+    setReducedMotionEnabled: vi.fn(async (enabled: boolean) => ({
+      vibrancyEnabled: false,
+      vibrancySupported: true,
+      backgroundEffectsEnabled: false,
+      reducedMotionEnabled: enabled,
+    })),
+    onAppearanceChange: vi.fn(() => () => {}),
     menuBarMode: vi.fn(async () => ({ enabled: false, pending: false })),
     beginMenuBarOnly: vi.fn(async () => ({
       attemptId: 'attempt-1',
@@ -76,6 +101,25 @@ function switchControl(surface: HTMLElement): HTMLButtonElement {
   return control
 }
 
+function vibrancyControl(surface: HTMLElement): HTMLButtonElement {
+  const control = surface.querySelector<HTMLButtonElement>(
+    '[data-testid="vibrancy-switch"]',
+  )
+  if (control === null) throw new Error('vibrancy switch was not rendered')
+  return control
+}
+
+function effectControl(
+  surface: HTMLElement,
+  testId: string,
+): HTMLButtonElement {
+  const control = surface.querySelector<HTMLButtonElement>(
+    `[data-testid="${testId}"]`,
+  )
+  if (control === null) throw new Error(`${testId} was not rendered`)
+  return control
+}
+
 function button(label: string): HTMLButtonElement {
   const control = [...document.querySelectorAll('button')].find(
     (candidate) => candidate.textContent === label,
@@ -85,22 +129,90 @@ function button(label: string): HTMLButtonElement {
 }
 
 describe('GeneralSection menu-bar-only confirmation', () => {
+  it('enables native vibrancy from Appearance settings', async () => {
+    const { capabilities, general } = fakeCapabilities()
+    const surface = await renderGeneral(capabilities)
+
+    expect(surface.textContent).toContain('Window materials')
+    expect(surface.textContent).toContain(
+      'Show the macOS desktop vibrancy material through Maximal surfaces.',
+    )
+    expect(vibrancyControl(surface).getAttribute('aria-checked')).toBe('false')
+
+    await act(async () => vibrancyControl(surface).click())
+
+    expect(general.setVibrancyEnabled).toHaveBeenCalledWith(true)
+    expect(vibrancyControl(surface).getAttribute('aria-checked')).toBe('true')
+  })
+
+  it('disables native vibrancy with unsupported-platform guidance', async () => {
+    const { capabilities, general } = fakeCapabilities()
+    general.appearance.mockResolvedValueOnce({
+      vibrancyEnabled: false,
+      vibrancySupported: false,
+      backgroundEffectsEnabled: false,
+      reducedMotionEnabled: false,
+    })
+    const surface = await renderGeneral(capabilities)
+
+    expect(surface.textContent).toContain('Native vibrancy is available on macOS.')
+    expect(vibrancyControl(surface).disabled).toBe(true)
+  })
+
+  it('updates background and reduced-motion preferences', async () => {
+    const { capabilities, general } = fakeCapabilities()
+    const surface = await renderGeneral(capabilities)
+
+    await act(async () =>
+      effectControl(surface, 'background-effects-switch').click(),
+    )
+    expect(general.setBackgroundEffectsEnabled).toHaveBeenCalledWith(true)
+
+    await act(async () =>
+      effectControl(surface, 'reduced-motion-switch').click(),
+    )
+    expect(general.setReducedMotionEnabled).toHaveBeenCalledWith(true)
+  })
+
+  it('disables visual controls while an appearance update is pending', async () => {
+    const { capabilities, general } = fakeCapabilities()
+    let finish!: (value: Awaited<ReturnType<typeof general.setBackgroundEffectsEnabled>>) => void
+    general.setBackgroundEffectsEnabled.mockImplementationOnce(
+      () => new Promise((resolve) => {
+        finish = resolve
+      }),
+    )
+    const surface = await renderGeneral(capabilities)
+
+    act(() => effectControl(surface, 'background-effects-switch').click())
+    expect(effectControl(surface, 'background-effects-switch').disabled).toBe(true)
+    expect(effectControl(surface, 'reduced-motion-switch').disabled).toBe(true)
+    expect(vibrancyControl(surface).disabled).toBe(true)
+
+    await act(async () => finish({
+      vibrancyEnabled: false,
+      vibrancySupported: true,
+      backgroundEffectsEnabled: true,
+      reducedMotionEnabled: false,
+    }))
+    expect(effectControl(surface, 'background-effects-switch').disabled).toBe(false)
+  })
+
   it('presents the control as an Appearance setting', async () => {
     const { capabilities } = fakeCapabilities()
     const surface = await renderGeneral(capabilities)
 
     expect(surface.querySelector('h1')).toBeNull()
-    expect(surface.querySelector('h2')?.textContent).toBe('Desktop presence')
+    expect([...surface.querySelectorAll('h2')].map(({ textContent }) => textContent))
+      .toContain('Desktop presence')
     expect(surface.textContent).toContain('Assistant overlay')
     expect(surface.querySelector('[data-testid="assistant-candy-switch"]'))
       .not.toBeNull()
-    const section = surface.querySelector('.settings__section')
-    const group = surface.querySelector('.settings__group')
-    expect(surface.firstElementChild).toBe(section)
-    expect(group?.parentElement).toBe(section)
-    expect(surface.querySelector('.settings__item-title')?.textContent).toBe(
-      'Show Maximal in the menu bar only',
-    )
+    expect(surface.querySelector('.settings__group')).not.toBeNull()
+    expect(
+      [...surface.querySelectorAll('.settings__item-title')]
+        .map(({ textContent }) => textContent),
+    ).toContain('Show Maximal in the menu bar only')
     expect(switchControl(surface).getAttribute('role')).toBe('switch')
     expect(switchControl(surface).getAttribute('data-layout')).toBe('compact')
   })

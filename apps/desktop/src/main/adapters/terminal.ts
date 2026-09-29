@@ -28,6 +28,8 @@ import type {
   TerminalWindowRequest,
 } from '@maximal/maximal-client/shared/host'
 import { mainLogger } from '../main-logger.js'
+import { awaitProxyUrl } from '../sidecar/core.js'
+import type { CoreControlOperations } from './core-control-operations.js'
 import { desktopTerminalProfiles } from './terminal-profiles.js'
 
 const nonEmptyString = z.string().min(1)
@@ -45,6 +47,7 @@ const terminalAck = terminalId.extend({ sequence: z.number().int().nonnegative()
 const terminalLaunchRequest = z.object({
   profileId: nonEmptyString,
   targetId: z.string().optional(),
+  cwd: z.string().min(1).optional(),
   cols: positiveInteger,
   rows: positiveInteger,
 })
@@ -102,6 +105,7 @@ let terminalWindowActions: TerminalWindowActions = {
   redock: () => false,
   syncMenu: () => undefined,
 }
+let isTrustedProjectPath = (_path: string): boolean => false
 
 const TERMINAL_CHANNELS = {
   spawn: BRIDGE_CHANNELS.terminalSpawn,
@@ -161,6 +165,9 @@ export function registerTerminalIpc(): void {
   })
   ipcMain.handle(BRIDGE_CHANNELS.terminalLaunch, (event, request: unknown) => {
     const parsed = terminalLaunchRequest.parse(request)
+    if (parsed.cwd !== undefined && !isTrustedProjectPath(parsed.cwd)) {
+      throw new Error('The project folder is not trusted.')
+    }
     try {
       return launchTerminal(
         BrowserWindow.fromWebContents(event.sender) ?? undefined,
@@ -200,11 +207,47 @@ export function registerTerminalIpc(): void {
   )
 }
 
-export function configureTerminalHost(settings: {
-  terminalDiagnostics: boolean
-  terminalSessionPrefix: string
-  terminalTmuxStatus: 'off' | 'on' | 'inherit'
-}): void {
+const ROUTED_TERMINAL_PROFILES = new Set([
+  'local',
+  'claude-code',
+  'copilot-cli',
+  'codex',
+  'maximal',
+])
+
+function applicationForProfile(profileId: string, label: string): string | null {
+  return profileId === 'local' ? null : label
+}
+
+function proxyEnvironment(
+  proxyUrl: string,
+  credential: string,
+  sessionId: string,
+): Record<string, string> {
+  const root = proxyUrl.replace(/\/+$/u, '')
+  return {
+    MAXIMAL_TERMINAL_SESSION_ID: sessionId,
+    ANTHROPIC_BASE_URL: root,
+    ANTHROPIC_AUTH_TOKEN: credential,
+    OPENAI_BASE_URL: `${root}/v1`,
+    OPENAI_API_KEY: credential,
+  }
+}
+
+export function configureTerminalProjectTrust(
+  check: (path: string) => boolean,
+): void {
+  isTrustedProjectPath = check
+}
+
+export function configureTerminalHost(
+  settings: {
+    terminalDiagnostics: boolean
+    terminalSessionPrefix: string
+    terminalTmuxStatus: 'off' | 'on' | 'inherit'
+  },
+  core: Pick<CoreControlOperations, 'terminalScopeIssue' | 'terminalScopeRevoke'>,
+): void {
   configureTerminalDiagnostics(settings.terminalDiagnostics, (record) => {
     mainLogger.warn(record, 'Terminal lifecycle event')
   })
@@ -237,6 +280,29 @@ export function configureTerminalHost(settings: {
     tmuxSessionPrefix: settings.terminalSessionPrefix,
     directProfiles: desktopTerminalProfiles(),
     tmuxStatus: settings.terminalTmuxStatus,
+    prepareSession: async ({ sessionId, profileId, label }) => {
+      if (!ROUTED_TERMINAL_PROFILES.has(profileId)) return {}
+      const issued = await core.terminalScopeIssue({
+        sessionId,
+        profileId,
+        application: applicationForProfile(profileId, label),
+      })
+      if (!issued.ok) throw new Error(issued.error.message)
+      if (Object.keys(issued.value.environment).length > 0) {
+        return issued.value.environment
+      }
+      const proxyUrl = await awaitProxyUrl()
+      return proxyEnvironment(proxyUrl, issued.value.credential, sessionId)
+    },
+    releaseSession: async (sessionId) => {
+      const revoked = await core.terminalScopeRevoke(sessionId)
+      if (!revoked.ok) {
+        mainLogger.warn(
+          { sessionId, reason: revoked.error.reason },
+          'Terminal proxy scope revocation failed',
+        )
+      }
+    },
   })
 }
 

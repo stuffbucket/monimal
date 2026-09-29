@@ -1,3 +1,7 @@
+import type {
+  TrafficObservationStart,
+  TrafficObserver,
+} from "@maximal/maximal-observability-contract"
 import type { Context } from "hono"
 
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test"
@@ -15,6 +19,7 @@ import {
 } from "../src/lib/auth/request-auth"
 import { requestContext } from "../src/lib/http/request-context"
 import { traceIdMiddleware } from "../src/lib/http/trace"
+import { createTrafficObservationMiddleware } from "../src/lib/observability/middleware"
 import { state } from "../src/lib/runtime-state/state"
 
 function buildApp(opts: {
@@ -24,6 +29,11 @@ function buildApp(opts: {
   ip: string | null
   /** Defaults to true — pre-enforce-flag tests assume key gating is on. */
   enforce?: boolean
+  resolveTerminalScope?: (credential: string) => {
+    sessionId: string
+    profileId: string
+    application: string | null
+  } | null
 }) {
   const app = new Hono()
   app.use(
@@ -35,6 +45,7 @@ function buildApp(opts: {
       loopbackOnlyPaths: opts.loopbackOnlyPaths,
       allowUnauthenticatedPrefixes: opts.allowUnauthenticatedPrefixes,
       getRequestIp: () => opts.ip,
+      resolveTerminalScope: opts.resolveTerminalScope,
     }),
   )
   app.get("/usage", (c) => c.text("usage-ok"))
@@ -535,6 +546,93 @@ describe("createAuthMiddleware bypass when no keys configured", () => {
     const app = buildApp({ apiKeys: ["k"], ip: "203.0.113.7" })
     const res = await app.request("/v1/messages", { method: "POST" })
     expect(res.status).toBe(401)
+  })
+
+  test("trusted terminal credentials bypass key enforcement and attach provenance", async () => {
+    const terminalScope = {
+      sessionId: "terminal-1",
+      profileId: "claude-code",
+      application: "Claude Code",
+    }
+    const app = new Hono()
+    app.use("*", traceIdMiddleware)
+    app.use(
+      "*",
+      createAuthMiddleware({
+        getApiKeys: () => [],
+        isEnforcing: () => true,
+        getRequestIp: () => "203.0.113.7",
+        resolveTerminalScope: (credential) =>
+          credential === "mxt_terminal" ? terminalScope : null,
+      }),
+    )
+    app.post("/v1/messages", (c) =>
+      c.json(requestContext.getStore()?.terminalScope ?? null),
+    )
+
+    const res = await app.request("/v1/messages", {
+      method: "POST",
+      headers: { authorization: "Bearer mxt_terminal" },
+    })
+
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual(terminalScope)
+  })
+
+  test("terminal provenance reaches traffic observation through the request middleware chain", async () => {
+    const starts: Array<TrafficObservationStart> = []
+    const observer: TrafficObserver = {
+      beginRequest: (observation) => {
+        starts.push(observation)
+        return {
+          recordDispatch: () => undefined,
+          recordFirstResponse: () => undefined,
+          recordTokens: () => undefined,
+          complete: () => undefined,
+        }
+      },
+    }
+    const app = new Hono()
+    app.use("*", traceIdMiddleware)
+    app.use(
+      "*",
+      createAuthMiddleware({
+        getApiKeys: () => [],
+        isEnforcing: () => true,
+        getRequestIp: () => "127.0.0.1",
+        resolveTerminalScope: (credential) =>
+          credential === "mxt_terminal" ?
+            {
+              sessionId: "terminal-maximal",
+              profileId: "maximal",
+              application: "Maximal",
+            }
+          : null,
+      }),
+    )
+    app.use("*", createTrafficObservationMiddleware(observer))
+    app.post("/v1/messages", (c) => c.json({ ok: true }))
+
+    const response = await app.request("/v1/messages", {
+      method: "POST",
+      headers: {
+        authorization: "Bearer mxt_terminal",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "test-model",
+        max_tokens: 16,
+        messages: [{ role: "user", content: "test" }],
+      }),
+    })
+
+    expect(response.status).toBe(200)
+    expect(starts).toHaveLength(1)
+    expect(starts[0]?.terminal).toEqual({
+      sessionId: "terminal-maximal",
+      profileId: "maximal",
+      application: "Maximal",
+    })
   })
 })
 

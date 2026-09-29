@@ -7,6 +7,7 @@ import type {
 import { createClaudeCodeConfigurator } from "./claude-code/index.ts"
 import { createClaudeDesktopConfigurator } from "./claude-desktop/index.ts"
 import { createCopilotCliConfigurator } from "./copilot-cli/index.ts"
+import { createMaximalTerminalConfigurator } from "./maximal-terminal/index.ts"
 import { createConfiguratorRegistry } from "./registry.ts"
 
 export {
@@ -23,6 +24,11 @@ export {
   copilotCliMetadata,
   createCopilotCliConfigurator,
 } from "./copilot-cli/index.ts"
+export {
+  createMaximalTerminalConfigurator,
+  maximalTerminalEnvironment,
+  maximalTerminalMetadata,
+} from "./maximal-terminal/index.ts"
 export { createConfiguratorRegistry } from "./registry.ts"
 
 /** The complete, statically linked first-party configurator set. */
@@ -40,5 +46,7 @@ export function createBuiltinConfigurators(
 export function createBuiltinConfiguratorRuntime(
   host: ConfiguratorHost,
 ): Promise<ConfiguratorRegistry> {
-  return createConfiguratorRegistry(createBuiltinConfigurators(host))
+  return createConfiguratorRegistry(createBuiltinConfigurators(host), [
+    createMaximalTerminalConfigurator(),
+  ])
 }

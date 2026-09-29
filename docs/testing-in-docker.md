@@ -28,6 +28,7 @@ NOT be used as an estimate of hours of reliable operation.
 | Local tmux | `packages/maximal-electron/tests/integration/tmux-projection.integration.test.ts` | Reports MUST state whether the opt-in real-server tests executed. |
 | SSH and remote tmux | No real-SSH fixture | Connector command assertions MUST NOT count as a successful SSH session. |
 | Window and recovery composition | `apps/desktop/e2e/packaged-app.spec.ts` | Reports MUST distinguish actual renderer crashes from simulated events. |
+| Packaged tmux sharing | `apps/desktop/e2e/packaged-app.spec.ts` | The macOS journey MUST use an isolated tmux socket, an external PTY client, and live `parrot.live` output; skipped or unexecuted runs MUST NOT count as passing evidence. |
 | Sustained use and resource cleanup | No sustained-use acceptance test | Logs and debugger observations MUST NOT count as assertions or a completed soak. |
 
 ### Diagnostic evidence

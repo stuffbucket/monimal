@@ -50,6 +50,8 @@ The following variables are required:
 | `--shell-candy-sheen` | Optional candy-coated surface highlight. |
 | `--shell-candy-text` | Foreground drawn directly on candy-coated paint. |
 | `--shell-canvas` | Main document surface and active tab. |
+| `--shell-duration-fast` | Short control and scrollbar transitions. |
+| `--shell-ease-out` | Easing for short control and scrollbar transitions. |
 | `--shell-hover` | Hovered controls. |
 | `--shell-raised` | Tooltip and other floating surfaces. |
 | `--shell-text` | Primary foreground. |
