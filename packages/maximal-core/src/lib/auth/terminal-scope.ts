@@ -4,7 +4,7 @@ import type {
   TerminalScopeRevokeResult,
 } from "@maximal/maximal-core-contract/control"
 
-import { createHmac, randomBytes } from "node:crypto"
+import { randomBytes } from "node:crypto"
 
 const CREDENTIAL_PREFIX = "mxt_"
 const DEFAULT_TTL_MS = 24 * 60 * 60 * 1000
@@ -32,7 +32,6 @@ function defaultCredential(): string {
 export class TerminalScopeRegistry {
   private readonly byCredential = new Map<string, StoredTerminalScope>()
   private readonly credentialsBySession = new Map<string, Set<string>>()
-  private readonly digestKey = randomBytes(32)
   private readonly now: () => number
   private readonly randomCredential: () => string
   private readonly ttlMs: number
@@ -47,10 +46,9 @@ export class TerminalScopeRegistry {
     this.prune()
     this.revoke(input.sessionId)
     const credential = this.randomCredential()
-    const digest = this.credentialDigest(credential)
     const expiresAtMs = this.now() + this.ttlMs
-    this.byCredential.set(digest, { ...input, expiresAtMs })
-    this.credentialsBySession.set(input.sessionId, new Set([digest]))
+    this.byCredential.set(credential, { ...input, expiresAtMs })
+    this.credentialsBySession.set(input.sessionId, new Set([credential]))
     return {
       ...input,
       credential,
@@ -59,11 +57,10 @@ export class TerminalScopeRegistry {
   }
 
   resolve(credential: string): TerminalScope | null {
-    const digest = this.credentialDigest(credential)
-    const scope = this.byCredential.get(digest)
+    const scope = this.byCredential.get(credential)
     if (!scope) return null
     if (scope.expiresAtMs <= this.now()) {
-      this.removeDigest(digest, scope.sessionId)
+      this.removeCredential(credential, scope.sessionId)
       return null
     }
     return {
@@ -74,31 +71,27 @@ export class TerminalScopeRegistry {
   }
 
   revoke(sessionId: string): TerminalScopeRevokeResult {
-    const digests = this.credentialsBySession.get(sessionId)
-    if (!digests) return { sessionId, revoked: false }
-    for (const digest of digests) this.byCredential.delete(digest)
+    const credentials = this.credentialsBySession.get(sessionId)
+    if (!credentials) return { sessionId, revoked: false }
+    for (const credential of credentials) this.byCredential.delete(credential)
     this.credentialsBySession.delete(sessionId)
     return { sessionId, revoked: true }
   }
 
   private prune(): void {
     const now = this.now()
-    for (const [digest, scope] of this.byCredential) {
-      if (scope.expiresAtMs <= now) this.removeDigest(digest, scope.sessionId)
+    for (const [credential, scope] of this.byCredential) {
+      if (scope.expiresAtMs <= now) {
+        this.removeCredential(credential, scope.sessionId)
+      }
     }
   }
 
-  private credentialDigest(credential: string): string {
-    return createHmac("sha256", this.digestKey)
-      .update(credential)
-      .digest("base64url")
-  }
-
-  private removeDigest(digest: string, sessionId: string): void {
-    this.byCredential.delete(digest)
-    const digests = this.credentialsBySession.get(sessionId)
-    digests?.delete(digest)
-    if (digests?.size === 0) this.credentialsBySession.delete(sessionId)
+  private removeCredential(credential: string, sessionId: string): void {
+    this.byCredential.delete(credential)
+    const credentials = this.credentialsBySession.get(sessionId)
+    credentials?.delete(credential)
+    if (credentials?.size === 0) this.credentialsBySession.delete(sessionId)
   }
 }
 
