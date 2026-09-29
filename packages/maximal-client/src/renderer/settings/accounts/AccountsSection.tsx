@@ -74,7 +74,7 @@ export function AccountsSection({
               : account
           }
           active={isActive && account.enabled && !needsReauth}
-          size={36}
+          size={44}
         />
       ),
     }

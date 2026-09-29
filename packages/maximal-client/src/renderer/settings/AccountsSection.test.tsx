@@ -210,9 +210,8 @@ describe('Service Icons & Avatar resolution', () => {
     expect(svg?.getAttribute('height')).toBe('35')
     expect(svg?.querySelector('circle')?.getAttribute('fill')).toBe('#fff')
     expect(svg?.querySelector('path')?.getAttribute('fill')).toBe('#000')
-    expect(avatar?.style.background).toBe('transparent')
-    expect(avatar?.style.borderStyle).toBe('none')
-    expect(avatar?.style.color).toBe('inherit')
+    expect(avatar?.classList.contains('account-avatar')).toBe(true)
+    expect(avatar?.classList.contains('account-avatar--large')).toBe(true)
     expect(container.querySelector('img')).toBeNull()
   })
 
@@ -227,10 +226,9 @@ describe('Service Icons & Avatar resolution', () => {
     const svg = container.querySelector<SVGElement>('[data-testid="service-icon-github"]')
     expect(svg?.getAttribute('height')).toBe('24')
     expect(svg?.getAttribute('fill')).toBe('currentColor')
-    expect(avatar?.style.background).toBe('transparent')
-    expect(avatar?.style.borderStyle).toBe('none')
-    expect(avatar?.style.boxShadow).toBe('none')
-    expect(avatar?.style.color).toBe('inherit')
+    expect(avatar?.classList.contains('account-avatar')).toBe(true)
+    expect(avatar?.classList.contains('account-avatar--small')).toBe(true)
+    expect(avatar?.classList.contains('account-avatar--active')).toBe(false)
   })
 
   it('renders image when avatarUrl is present and falls back to service icon on error', async () => {
@@ -269,7 +267,7 @@ describe('AccountsSection UI & Actions', () => {
     expect(surface.textContent).toContain('Active')
 
     // Avatars / service icons are rendered
-    const avatars = surface.querySelectorAll('.avatar')
+    const avatars = surface.querySelectorAll('.account-avatar')
     expect(avatars.length).toBe(3)
 
     // First account has GitHub img avatar
@@ -414,11 +412,9 @@ describe('AccountsSection UI & Actions', () => {
       avatarUrl: 'https://avatars.githubusercontent.com/u/583231?v=4',
     })
 
-    const avatars = surface.querySelectorAll('.avatar')
+    const avatars = surface.querySelectorAll('.account-avatar')
     expect(avatars[0]?.getAttribute('data-active')).toBe('true')
-    expect((avatars[0] as HTMLElement | undefined)?.style.boxShadow).toContain(
-      'var(--success)',
-    )
+    expect(avatars[0]?.classList.contains('account-avatar--active')).toBe(true)
     expect(avatars[0]?.querySelector('img')?.src).toBe(
       'https://avatars.githubusercontent.com/u/583231?v=4',
     )
@@ -444,9 +440,9 @@ describe('AccountsSection UI & Actions', () => {
     const { capabilities } = fakeCapabilities(accounts)
     const surface = await renderSection(capabilities)
 
-    const activeAvatar = surface.querySelector<HTMLElement>('.avatar')
+    const activeAvatar = surface.querySelector<HTMLElement>('.account-avatar')
     expect(activeAvatar?.getAttribute('data-active')).toBeNull()
-    expect(activeAvatar?.style.boxShadow).toBe('none')
+    expect(activeAvatar?.classList.contains('account-avatar--active')).toBe(false)
   })
 
   it('marks a rejected active credential as needing sign-in', async () => {
@@ -472,7 +468,9 @@ describe('AccountsSection UI & Actions', () => {
     expect(surface.textContent).toContain('Needs sign-in')
     expect(surface.textContent).toContain('Added with device flow')
     expect(surface.textContent).not.toContain('Signed in here')
-    expect(surface.querySelector('.avatar')?.getAttribute('data-active')).toBeNull()
+    expect(
+      surface.querySelector('.account-avatar')?.getAttribute('data-active'),
+    ).toBeNull()
 
     await act(async () => {
       surface.querySelector<HTMLButtonElement>(
