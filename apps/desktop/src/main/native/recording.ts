@@ -37,10 +37,10 @@ export function createDesktopRecording(
   onChange: () => void,
 ): DesktopRecording {
   let active: { window: BrowserWindow; session: RecordingSession } | null = null
-  let starting = false
+  let starting: Promise<void> | null = null
   let finalizing: Promise<void> | null = null
 
-  const stop = (): Promise<void> => {
+  const stopActive = (): Promise<void> => {
     if (finalizing !== null) return finalizing
     if (active === null) return Promise.resolve()
     const { session } = active
@@ -55,55 +55,68 @@ export function createDesktopRecording(
   }
 
   const start = async (): Promise<void> => {
-    if (starting || active !== null || finalizing !== null) {
-      throw new Error('A window recording is already starting, running, or being saved.')
-    }
     const window = currentWindow()
     if (window === null || window.isDestroyed()) {
       throw new Error('Open the main window before recording it.')
     }
-    starting = true
-    try {
-      const directory = recordingsDirectory()
-      await mkdir(directory, { recursive: true })
-      const { canceled, filePath } = await dialog.showSaveDialog(window, {
-        title: 'Record Maximal window',
-        defaultPath: join(directory, `maximal-${new Date().toISOString().replaceAll(':', '-')}.mp4`),
-        filters: [{ name: 'MP4 video', extensions: ['mp4'] }],
-      })
-      if (canceled || !filePath) return
-      if (window.isDestroyed()) throw new Error('The window closed before recording could start.')
+    const directory = recordingsDirectory()
+    await mkdir(directory, { recursive: true })
+    const { canceled, filePath } = await dialog.showSaveDialog(window, {
+      title: 'Record Maximal window',
+      defaultPath: join(directory, `maximal-${new Date().toISOString().replaceAll(':', '-')}.mp4`),
+      filters: [{ name: 'MP4 video', extensions: ['mp4'] }],
+    })
+    if (canceled || !filePath) return
+    if (window.isDestroyed()) throw new Error('The window closed before recording could start.')
 
-      let captureFailure: Error | undefined
-      const session = await startWindowRecording({
-        output: filePath,
-        captureFrame: async () => {
-          if (window.isDestroyed()) throw new Error('The recorded window has closed.')
-          const image = await window.webContents.capturePage()
-          if (image.isEmpty()) throw new Error('The recorded window returned an empty frame.')
-          return image.toPNG()
-        },
-        onError: (error) => {
-          captureFailure = error
-          mainLogger.error({ errorName: error.name }, 'Window recording failed')
-          if (active?.window !== window) return
-          void stop().catch((failure: unknown) => {
-            const message = failure instanceof Error ? failure.message : String(failure)
-            dialog.showErrorBox('Recording failed', message)
-          })
-        },
-      })
-      active = { window, session }
-      onChange()
-      if (captureFailure && active !== null) await stop()
-    } finally {
-      starting = false
-    }
+    let captureFailure: Error | undefined
+    const session = await startWindowRecording({
+      output: filePath,
+      captureFrame: async () => {
+        if (window.isDestroyed()) throw new Error('The recorded window has closed.')
+        const image = await window.webContents.capturePage()
+        if (image.isEmpty()) throw new Error('The recorded window returned an empty frame.')
+        return image.toPNG()
+      },
+      onError: (error) => {
+        captureFailure = error
+        mainLogger.error({ errorName: error.name }, 'Window recording failed')
+        if (active?.window !== window) return
+        void stopActive().catch((failure: unknown) => {
+          const message = failure instanceof Error ? failure.message : String(failure)
+          dialog.showErrorBox('Recording failed', message)
+        })
+      },
+    })
+    active = { window, session }
+    if (captureFailure) await stopActive()
+  }
+
+  const beginStart = (): Promise<void> => {
+    const pending = start().finally(() => {
+      starting = null
+      if (active === null) onChange()
+    })
+    starting = pending
+    onChange()
+    return pending
+  }
+
+  const stop = (): Promise<void> => {
+    if (finalizing !== null) return finalizing
+    if (starting !== null) return starting.then(stop)
+    return stopActive()
+  }
+
+  const toggle = (): Promise<void> => {
+    if (starting !== null) return starting
+    if (finalizing !== null) return finalizing
+    return active === null ? beginStart() : stopActive()
   }
 
   return {
-    isRecording: () => active !== null || finalizing !== null,
-    toggle: () => active === null ? start() : stop(),
+    isRecording: () => starting !== null || active !== null || finalizing !== null,
+    toggle,
     stop,
     windowClosed: (window) => {
       if (active?.window !== window) return
