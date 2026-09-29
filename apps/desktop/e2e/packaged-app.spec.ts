@@ -354,7 +354,6 @@ test('desktop terminal selector presents the app-owned clients with canonical ic
 
   const claudeCode = launcher.getByRole('button', { name: /Claude Code/ })
   const claudeDesktop = launcher.getByRole('button', { name: /Claude Desktop/ })
-  const runningLocal = launcher.locator('[aria-label="Running"]').getByRole('button', { name: /Terminal 1/ })
   const local = launcher.locator('[aria-label="Available"]').getByRole('button', { name: /Local/ })
   const choiceBox = await claudeCode.boundingBox()
   const adjacentChoiceBox = await claudeDesktop.boundingBox()
@@ -366,15 +365,43 @@ test('desktop terminal selector presents the app-owned clients with canonical ic
   expect(launcherBox).not.toBeNull()
   expect(nameBox).not.toBeNull()
   expect(descriptionBox).not.toBeNull()
-  await expect(runningLocal).toContainText('Local')
-  await expect(runningLocal).not.toContainText('Open a terminal on your local file system')
-  await expect(runningLocal.locator('.terminal-launcher__choice-description')).toHaveCount(0)
   await expect(local).toContainText('Open a terminal on your local file system')
   expect(choiceBox!.y).toBe(adjacentChoiceBox!.y)
   expect(choiceBox!.width).toBeLessThan(launcherBox!.width / 2)
   expect(descriptionBox!.y).toBeGreaterThanOrEqual(nameBox!.y + nameBox!.height)
   expect(descriptionBox!.y + descriptionBox!.height).toBeLessThanOrEqual(
     choiceBox!.y + choiceBox!.height,
+  )
+
+  await local.click()
+  await expect(launcher).toBeHidden()
+  await page.getByTestId('tab-new').click()
+  await expect(launcher).toBeVisible()
+  const runningLocal = launcher.locator(
+    '[aria-label="Running"] .terminal-launcher__choice',
+  ).first()
+  await expect(runningLocal).toContainText('Local')
+  await expect(runningLocal).not.toContainText(
+    'Open a terminal on your local file system',
+  )
+  await expect(
+    runningLocal.locator('.terminal-launcher__choice-description'),
+  ).toHaveCount(0)
+  const runningChoiceBox = await runningLocal.boundingBox()
+  const runningNameBox = await runningLocal
+    .locator('.terminal-launcher__choice-name')
+    .boundingBox()
+  const runningKindBox = await runningLocal
+    .locator('.terminal-launcher__kind')
+    .boundingBox()
+  expect(runningChoiceBox).not.toBeNull()
+  expect(runningNameBox).not.toBeNull()
+  expect(runningKindBox).not.toBeNull()
+  expect(runningNameBox!.x + runningNameBox!.width).toBeLessThanOrEqual(
+    runningKindBox!.x,
+  )
+  expect(runningKindBox!.x + runningKindBox!.width).toBeLessThanOrEqual(
+    runningChoiceBox!.x + runningChoiceBox!.width,
   )
 
   await page.screenshot({ path: testInfo.outputPath('terminal-selector.png') })
