@@ -27,6 +27,15 @@ import {
 } from '../lib/tab-transfer.js';
 import { useShellPortalContainer } from './controls/Overlays.js';
 
+export const TAB_COLORS = ['blue', 'green', 'yellow', 'red', 'purple', 'orange'] as const;
+export type TabColor = (typeof TAB_COLORS)[number];
+
+export interface TabGroup {
+  id: string;
+  label: string;
+  color: TabColor;
+}
+
 /**
  * One tab. What it tabs is the caller's business.
  *
@@ -42,6 +51,8 @@ export interface Tab extends TabAdornment {
   id: string;
   title: string;
   closable?: boolean;
+  color?: TabColor;
+  group?: TabGroup;
 }
 
 /** The glyph behind each name in `TAB_ICON_NAMES`. */
@@ -317,13 +328,25 @@ export function TabBar<T extends Tab>({
           const Named = tab.icon === undefined ? undefined : TAB_ICON_GLYPHS[tab.icon];
           const Glyph = slot === 'custom' ? Custom : slot === 'icon' ? Named : undefined;
           const words = adornmentLabel(tab);
+          const groupStarts = tab.group !== undefined
+            && tabs[index - 1]?.group?.id !== tab.group.id;
           return (
-            <Tabs.Trigger
-              key={tab.id}
-              value={tab.id}
-              className="tab"
-              data-emphasis={tab.emphasis}
-              id={getTabTriggerId(tabIdBase, tab.id)}
+            <Fragment key={tab.id}>
+              {groupStarts && (
+                <span
+                  className="tab-group"
+                  data-color={tab.group?.color}
+                  role="presentation"
+                >
+                  {tab.group?.label}
+                </span>
+              )}
+              <Tabs.Trigger
+                value={tab.id}
+                className="tab"
+                data-color={tab.color ?? tab.group?.color}
+                data-emphasis={tab.emphasis}
+                id={getTabTriggerId(tabIdBase, tab.id)}
               /*
                * The caller renders one panel, for the active tab. Naming a
                * panel that no tab is showing points `aria-controls` at an ID
@@ -384,29 +407,30 @@ export function TabBar<T extends Tab>({
                 event.preventDefault();
                 closeAndRefocus(index);
               }}
-            >
-              {Glyph && <Glyph size={13} />}
-              {slot === 'status' && (
-                <span className="dot" data-status={tab.status} aria-hidden="true" />
-              )}
-              {tab.emphasis && <span className="tab__emphasis" aria-hidden="true" />}
-              <TabLabel title={tab.title} />
-              {/* After the label, so the tab reads "Terminal 1, Working". */}
-              {words !== undefined && <VisuallyHidden>{words}</VisuallyHidden>}
-              {closeThisTab && (
-                <span
-                  aria-hidden="true"
-                  className="tab__close"
-                  onPointerDown={(event) => {
-                    event.stopPropagation();
-                    event.preventDefault();
-                    closeThisTab(tab.id);
-                  }}
-                >
-                  <X size={12} />
-                </span>
-              )}
-            </Tabs.Trigger>
+              >
+                {Glyph && <Glyph size={13} />}
+                {slot === 'status' && (
+                  <span className="dot" data-status={tab.status} aria-hidden="true" />
+                )}
+                {tab.emphasis && <span className="tab__emphasis" aria-hidden="true" />}
+                <TabLabel title={tab.title} />
+                {/* After the label, so the tab reads "Terminal 1, Working". */}
+                {words !== undefined && <VisuallyHidden>{words}</VisuallyHidden>}
+                {closeThisTab && (
+                  <span
+                    aria-hidden="true"
+                    className="tab__close"
+                    onPointerDown={(event) => {
+                      event.stopPropagation();
+                      event.preventDefault();
+                      closeThisTab(tab.id);
+                    }}
+                  >
+                    <X size={12} />
+                  </span>
+                )}
+              </Tabs.Trigger>
+            </Fragment>
           );
         })}
       </Tabs.List>

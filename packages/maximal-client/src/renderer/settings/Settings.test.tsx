@@ -372,7 +372,7 @@ describe('Settings', () => {
     expect(page.querySelector('h1')?.textContent).toBe('Cloud Models')
     expect(page.querySelectorAll('h1')).toHaveLength(1)
     expect(page.querySelector('.settings__header')).not.toBeNull()
-    expect(page.querySelector('.settings__body.scroll-area')).not.toBeNull()
+    expect(page.matches('.settings.scroll-area')).toBe(true)
   })
 
   it('injects its surface styles when no style element exists', async () => {

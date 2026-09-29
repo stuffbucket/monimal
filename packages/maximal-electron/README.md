@@ -44,6 +44,8 @@ The following variables are required:
 | `--shell-background` | Window chrome and side-panel surface. |
 | `--shell-border` | Dividers and quiet outlines. |
 | `--shell-canvas` | Main document surface and active tab. |
+| `--shell-duration-fast` | Short control and scrollbar transitions. |
+| `--shell-ease-out` | Easing for short control and scrollbar transitions. |
 | `--shell-hover` | Hovered controls. |
 | `--shell-raised` | Tooltip and other floating surfaces. |
 | `--shell-text` | Primary foreground. |

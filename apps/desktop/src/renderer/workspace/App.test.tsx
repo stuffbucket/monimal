@@ -50,6 +50,7 @@ const {
 vi.mock('@maximal/maximal-electron/renderer', () => ({
   decodeTabTransfer: vi.fn(),
   isTerminalPane: vi.fn(() => false),
+  TAB_COLORS: ['blue', 'green', 'yellow', 'red', 'purple', 'orange'],
   TAB_TRANSFER_MIME: 'application/x-stuffbucket-shell-tab+json',
   terminalPaneSessionIds: vi.fn((pane: {
     sessionId?: string
@@ -193,6 +194,9 @@ vi.mock('../../../../../packages/maximal-client/src/renderer/frame/AppFrame', ()
       data-view={activeTab}
       data-available-views={tabs.map((tab) => tab.id).join(',')}
     >
+      <output data-testid="tab-state">
+        {JSON.stringify(tabs)}
+      </output>
       <button onClick={() => onSelectTab('traffic')}>Traffic</button>
       {onToggleSettings ? <button onClick={onToggleSettings}>Settings gear</button> : null}
       {tabs.some((tab) => tab.id === 'settings') && onCloseTab
@@ -229,6 +233,20 @@ vi.mock('../../../../../packages/maximal-client/src/renderer/settings/Settings',
 const { App } = await import('./App')
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
+
+interface RenderedTabState {
+  id: string
+  color?: string
+  group?: { label: string; color: string }
+}
+
+function tabState(shell: HTMLElement): RenderedTabState[] {
+  const parsed: unknown = JSON.parse(
+    shell.querySelector('[data-testid="tab-state"]')?.textContent ?? '[]',
+  )
+  if (!Array.isArray(parsed)) throw new Error('tab state did not render as an array')
+  return parsed as RenderedTabState[]
+}
 
 let root: Root | null = null
 let container: HTMLElement | null = null
@@ -472,6 +490,54 @@ describe('App routing', () => {
     await act(async () => confirmClose?.click())
     expect(terminalTerminate).toHaveBeenCalledWith('session-1')
     expect(shell.querySelector('[data-testid="terminal"]')).toBeNull()
+  })
+
+  it('groups and colors terminal tabs from the context menu', async () => {
+    accountStatus.mockResolvedValue({ state: 'authenticated' })
+    const shell = await renderApp()
+    const newTerminal = [...shell.querySelectorAll('button')].find(
+      (button) => button.textContent === 'New terminal',
+    )
+    act(() => newTerminal?.click())
+    const launch = [...shell.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Launch zsh',
+    )
+    act(() => launch?.click())
+
+    const newGroup = [...shell.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Add to New Group zsh',
+    )
+    const orange = [...shell.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Color: Orange zsh',
+    )
+    expect(newGroup).toBeDefined()
+    expect(orange).toBeDefined()
+
+    act(() => newGroup?.click())
+    act(() => orange?.click())
+
+    const state = tabState(shell)
+    const organized = state.find((tab) => tab.id === 'terminal:session-1')
+    expect(organized?.color).toBe('orange')
+    expect(organized?.group).toEqual({
+      id: 'terminal-group-1',
+      label: 'Group 1',
+      color: 'blue',
+    })
+
+    const removeGroup = [...shell.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Remove from Group zsh',
+    )
+    const clearColor = [...shell.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Clear Tab Color zsh',
+    )
+    act(() => removeGroup?.click())
+    act(() => clearColor?.click())
+
+    const cleared = tabState(shell)
+    const plain = cleared.find((tab) => tab.id === 'terminal:session-1')
+    expect(plain?.color).toBeUndefined()
+    expect(plain?.group).toBeUndefined()
   })
 
   it('removes a background terminal tab without ending its session', async () => {
