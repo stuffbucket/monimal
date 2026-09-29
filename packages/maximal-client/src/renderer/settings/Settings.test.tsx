@@ -38,6 +38,7 @@ function fakeCapabilities(): SettingsCapabilities {
       start: vi.fn(async () => authStatus),
       cancel: vi.fn(async () => authStatus),
       signOut: vi.fn(async () => {}),
+      usage: vi.fn(async () => ({})),
     },
     accounts: {
       list: vi.fn(async () => accountsList),
@@ -251,6 +252,7 @@ function fakeCapabilities(): SettingsCapabilities {
       validateProvider: vi.fn(async () => ({ status: 'valid' as const, fieldErrors: {} })),
     },
     onOpenRequest: vi.fn(() => () => {}),
+    copyText: vi.fn(async () => {}),
     openExternal: vi.fn(async () => {}),
   }
 }

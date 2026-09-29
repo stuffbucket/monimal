@@ -204,20 +204,21 @@ export interface MenuItem {
 export function Menu({
   trigger,
   header,
+  headerAction,
   items,
   align = 'start',
   testId,
 }: {
   trigger: ReactNode;
   /**
-   * Non-interactive content above the items.
+   * Content above the items.
    *
-   * A `DropdownMenu.Label`, so roving focus steps over it rather than into it.
-   * The profile menu is why: a menu that says who is signed in has to say it
-   * inside the popup, and a disabled item reads as an action that is
-   * unavailable rather than as a caption.
+   * A `DropdownMenu.Label` when `headerAction` is absent, so roving focus steps
+   * over it rather than into it. When an action is supplied, the header is the
+   * first menu item.
    */
   header?: ReactNode;
+  headerAction?: () => void;
   items: MenuItem[];
   align?: 'start' | 'center' | 'end';
   testId?: string;
@@ -230,7 +231,16 @@ export function Menu({
       <DropdownMenu.Portal container={container}>
         <DropdownMenu.Content className="menu" align={align} sideOffset={6} data-testid={testId}>
           {header !== undefined && (
-            <DropdownMenu.Label className="menu__header">{header}</DropdownMenu.Label>
+            headerAction === undefined ? (
+              <DropdownMenu.Label className="menu__header">{header}</DropdownMenu.Label>
+            ) : (
+              <DropdownMenu.Item
+                className="menu__header menu__header--action"
+                onSelect={headerAction}
+              >
+                {header}
+              </DropdownMenu.Item>
+            )
           )}
           {items.map((item) => {
             const Icon = item.icon;

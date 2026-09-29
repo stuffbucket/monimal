@@ -82,8 +82,8 @@ export const getCopilotToken = async () => {
       const who = state.userName ?? "your account"
       const friendlyMessage =
         response.status === 401 ?
-          `GitHub rejected ${who}'s token — it may be expired or revoked. Run \`gh auth login\` and try again, or sign in with a code.`
-        : `${who} doesn't have access to GitHub Copilot. Pick another account with an active Copilot subscription, or sign in with a code.`
+          `GitHub rejected ${who}'s token — it may be expired or revoked. Sign in again to replace it.`
+        : `${who} doesn't have access to GitHub Copilot. Pick another account with an active Copilot subscription, or sign in again.`
       throw new CopilotAuthFatalError(
         friendlyMessage,
         response.status,

@@ -285,6 +285,16 @@ svg {
   border-bottom: 1px solid var(--border-subtle);
 }
 
+.menu__header--action {
+  border-radius: var(--radius-chip);
+  cursor: pointer;
+  outline: none;
+}
+
+.menu__header--action[data-highlighted] {
+  background: var(--bg-hover);
+}
+
 /* ---------------------------------------------------------------- account */
 
 /*
@@ -297,6 +307,7 @@ svg {
  */
 
 .avatar {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -310,6 +321,7 @@ svg {
   /* Two letters at 11px are wider than they are tall. Without this they sit
      off centre in a circle sized for one. */
   letter-spacing: 0;
+  overflow: hidden;
   user-select: none;
 }
 
@@ -328,6 +340,15 @@ svg {
   background: var(--bg-raised);
   color: var(--text-muted);
   border: 1px solid var(--border-strong);
+}
+
+.avatar__image {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
 }
 
 .profile__identity {

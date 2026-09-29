@@ -29,6 +29,7 @@ import type {
   ConnectionCredentialReveal,
   ConnectionEntry,
   ConnectionsListResponse,
+  CopilotAccountUsage,
   DiagnosticsResponse,
   ModelsListResponse,
   OllamaApiKeyTestRequest,
@@ -373,6 +374,7 @@ export interface MaximalHost {
     accountsSwitch: (key: string) => Promise<ControlResult<null>>
     accountsSetEnabled: (key: string, enabled: boolean) => Promise<ControlResult<null>>
     accountsReorder: (priority: string[]) => Promise<ControlResult<null>>
+    copilotUsageGet: () => Promise<ControlResult<CopilotAccountUsage>>
     ollamaAccountsList: () => Promise<ControlResult<OllamaAccountsListResponse>>
     ollamaSettingsGet: () => Promise<ControlResult<OllamaSettingsResponse>>
     ollamaSettingsUpdate: (input: OllamaSettingsUpdateRequest) => Promise<ControlResult<OllamaSettingsResponse>>

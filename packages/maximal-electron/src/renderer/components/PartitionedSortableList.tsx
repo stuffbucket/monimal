@@ -21,6 +21,9 @@ export interface PartitionedSortableItem {
   id: string;
   label: string;
   description?: string;
+  leading?: ReactNode;
+  meta?: ReactNode;
+  testId?: string;
   toggleDisabled?: boolean;
   toggleBlocked?: boolean;
   toggleTooltip?: ReactNode;
@@ -31,6 +34,7 @@ export interface PartitionedSortableListProps {
   enabledItems: readonly PartitionedSortableItem[];
   disabledItems: readonly PartitionedSortableItem[];
   disabled?: boolean;
+  ariaLabel?: string;
   requestedExpandedItemId?: string | null;
   renderDetails?: (item: PartitionedSortableItem, enabled: boolean) => ReactNode;
   onChange: (
@@ -97,6 +101,12 @@ const STYLES = `
 }
 .sb-shell .partitioned-sortable__row[data-has-details='true'] {
   grid-template-columns: auto auto minmax(0, 1fr) auto;
+}
+.sb-shell .partitioned-sortable__row[data-has-leading='true'] {
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+}
+.sb-shell .partitioned-sortable__row[data-has-details='true'][data-has-leading='true'] {
+  grid-template-columns: auto auto auto minmax(0, 1fr) auto;
 }
 .sb-shell .partitioned-sortable__item[data-dragging='true'] { opacity: var(--shell-partitioned-sortable-drag-opacity); }
 .sb-shell .partitioned-sortable__grip { color: var(--shell-text-subtle); cursor: grab; }
@@ -180,6 +190,7 @@ export function PartitionedSortableList({
   enabledItems,
   disabledItems,
   disabled = false,
+  ariaLabel = 'Provider order',
   requestedExpandedItemId,
   renderDetails,
   onChange,
@@ -260,7 +271,7 @@ export function PartitionedSortableList({
       <div className="partitioned-sortable">
       <ol
         className="partitioned-sortable__list"
-        aria-label="Provider order"
+        aria-label={ariaLabel}
         onDragOver={(event) => event.preventDefault()}
         onDrop={(event) => {
           const itemId = draggedId ?? event.dataTransfer.getData('text/plain');
@@ -284,6 +295,7 @@ export function PartitionedSortableList({
             className="partitioned-sortable__item"
             data-enabled={enabled}
             data-dragging={draggedId === item.id || undefined}
+            data-testid={item.testId}
             draggable={!disabled}
             key={item.id}
             onDragStart={(event) => {
@@ -301,6 +313,7 @@ export function PartitionedSortableList({
             <div
               className="partitioned-sortable__row"
               data-has-details={renderDetails ? 'true' : undefined}
+              data-has-leading={item.leading ? 'true' : undefined}
             >
             <GripVertical aria-hidden="true" className="partitioned-sortable__grip" size={16} />
             {renderDetails ? (
@@ -316,6 +329,7 @@ export function PartitionedSortableList({
                 <ChevronRight aria-hidden="true" size={15} />
               </IconButton>
             ) : null}
+            {item.leading}
             <div className="partitioned-sortable__content">
               <span className="partitioned-sortable__label">{item.label}</span>
               {item.description ? (
@@ -323,6 +337,7 @@ export function PartitionedSortableList({
               ) : null}
             </div>
             <div className="partitioned-sortable__actions">
+              {item.meta}
               <IconButton
                 className="partitioned-sortable__action"
                 label={`Move ${item.label} up`}

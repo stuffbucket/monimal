@@ -78,6 +78,30 @@ export function useAccounts(capabilities: SettingsCapabilities) {
     }
   }, [capabilities, list])
 
+  const updateAccountLayout = useCallback(async (
+    enabledKeys: string[],
+    disabledKeys: string[],
+  ) => {
+    if (!list) return
+    const enabled = new Set(enabledKeys)
+    setReordering(true)
+    setError(null)
+    try {
+      for (const account of list.accounts) {
+        const nextEnabled = enabled.has(account.key)
+        if (account.enabled !== nextEnabled) {
+          await capabilities.accounts.setEnabled(account.key, nextEnabled)
+        }
+      }
+      await capabilities.accounts.reorder([...enabledKeys, ...disabledKeys])
+      setList(await capabilities.accounts.list())
+    } catch (cause) {
+      setError(describeError(cause))
+    } finally {
+      setReordering(false)
+    }
+  }, [capabilities, list])
+
   return {
     list,
     error,
@@ -88,5 +112,6 @@ export function useAccounts(capabilities: SettingsCapabilities) {
     switchAccount,
     setAccountEnabled,
     reorderAccounts,
+    updateAccountLayout,
   }
 }

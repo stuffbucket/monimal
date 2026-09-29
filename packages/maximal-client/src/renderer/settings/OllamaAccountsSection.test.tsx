@@ -324,7 +324,7 @@ describe('OllamaAccountsSection API key validation', () => {
     const navigate = vi.fn()
     const surface = await renderSection(capabilities, navigate)
 
-    expect(surface.textContent).toContain('Direct Cloud API key')
+    expect(surface.textContent).toContain('Direct Cloud API Key')
     expect(surface.textContent).toContain('Local Application')
     expect(surface.textContent).toContain('Ollama starts when Maximal starts')
     expect(surface.textContent).toContain(

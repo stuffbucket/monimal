@@ -517,6 +517,37 @@ export const AuthStatus = z.discriminatedUnion("state", [
 ])
 export type AuthStatus = z.infer<typeof AuthStatus>
 
+export const CopilotQuotaDetail = z
+  .object({
+    entitlement: z.number().optional(),
+    overage_count: z.number().optional(),
+    overage_permitted: z.boolean().optional(),
+    percent_remaining: z.number().optional(),
+    quota_id: z.string().optional(),
+    quota_remaining: z.number().optional(),
+    remaining: z.number().optional(),
+    unlimited: z.boolean().optional(),
+  })
+  .loose()
+export type CopilotQuotaDetail = z.infer<typeof CopilotQuotaDetail>
+
+export const CopilotAccountUsage = z
+  .object({
+    login: z.string().optional(),
+    copilot_plan: z.string().optional(),
+    quota_reset_date: z.string().optional(),
+    quota_snapshots: z
+      .object({
+        chat: CopilotQuotaDetail.optional(),
+        completions: CopilotQuotaDetail.optional(),
+        premium_interactions: CopilotQuotaDetail.optional(),
+      })
+      .loose()
+      .nullish(),
+  })
+  .loose()
+export type CopilotAccountUsage = z.infer<typeof CopilotAccountUsage>
+
 // ---------------------------------------------------------------------------
 // Multi-account roster — Settings → Account quick-switch (slice 3).
 //
@@ -537,6 +568,8 @@ export const AccountSummary = z.object({
   active: z.boolean(),
   /** Whether services may use this saved account. Older Cores omit the field. */
   enabled: z.boolean().default(true),
+  /** GitHub rejected this credential; keep the record but require replacement. */
+  needs_reauth: z.boolean().optional(),
 })
 export type AccountSummary = z.infer<typeof AccountSummary>
 

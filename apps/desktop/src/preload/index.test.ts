@@ -108,6 +108,7 @@ describe('preload bridge allowlist', () => {
       'connectionsAct',
       'connectionsList',
       'connectionsRevealCredential',
+      'copilotUsageGet',
       'diagnosticsGet',
       'modelsList',
       'modelsRefresh',
@@ -224,6 +225,7 @@ describe('preload bridge allowlist', () => {
     await bridge.control.accountsList()
     await bridge.control.accountsSwitch('github.com:octocat')
     await bridge.control.accountsSetEnabled('github.com:octocat', false)
+    await bridge.control.copilotUsageGet()
     await bridge.control.ollamaAccountsList()
     await bridge.control.ollamaSettingsGet()
     await bridge.control.ollamaSettingsUpdate({
@@ -338,6 +340,7 @@ describe('preload bridge allowlist', () => {
       [BRIDGE_CHANNELS.accountsList],
       [BRIDGE_CHANNELS.accountsSwitch, 'github.com:octocat'],
       [BRIDGE_CHANNELS.accountsSetEnabled, 'github.com:octocat', false],
+      [BRIDGE_CHANNELS.copilotUsageGet],
       [BRIDGE_CHANNELS.ollamaAccountsList],
       [BRIDGE_CHANNELS.ollamaSettingsGet],
       [

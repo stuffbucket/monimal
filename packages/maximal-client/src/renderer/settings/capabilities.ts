@@ -11,6 +11,7 @@ import type {
   ConnectionCredentialReveal,
   ConnectionEntry,
   ConnectionsListResponse,
+  CopilotAccountUsage,
   ConnectorSettingField,
   ConnectorSettingValue,
   DiagnosticsResponse,
@@ -72,6 +73,7 @@ export type {
   ConnectionCredentialReveal,
   ConnectionEntry,
   ConnectionsListResponse,
+  CopilotAccountUsage,
   ConnectorSettingField,
   ConnectorSettingValue,
   ClientInstallation,
@@ -110,6 +112,7 @@ export interface SettingsCapabilities {
     start(): Promise<AuthStatus>
     cancel(): Promise<AuthStatus>
     signOut(): Promise<void>
+    usage(): Promise<CopilotAccountUsage>
   }
   accounts: {
     list(): Promise<AccountsListResponse>
@@ -223,6 +226,7 @@ export interface SettingsCapabilities {
   onOpenRequest(
     listener: (sectionId: SettingsSectionId | null) => void,
   ): () => void
+  copyText(text: string): Promise<void>
   openExternal(url: string): Promise<void>
 }
 
@@ -305,6 +309,8 @@ export function createCoreSettingsCapabilities(): SettingsCapabilities {
       signOut: async () => {
         unwrapControlResult(await bridge.control.authSignOut())
       },
+      usage: async () =>
+        unwrapControlResult(await bridge.control.copilotUsageGet()),
     },
     accounts: {
       list: async () =>
@@ -453,6 +459,7 @@ export function createCoreSettingsCapabilities(): SettingsCapabilities {
         })
       return unsubscribe
     },
+    copyText: (text) => navigator.clipboard.writeText(text),
     openExternal: (url) => bridge.openExternal(url),
   }
 }

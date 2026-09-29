@@ -1,5 +1,5 @@
 const ADDED_VIA_LABEL = {
-  'device-code': 'Signed in here',
+  'device-code': 'Added with device flow',
   'gh-cli': 'GitHub CLI',
   migration: 'Migrated account',
 } as const

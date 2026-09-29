@@ -1314,7 +1314,18 @@
   border-bottom: 1px solid var(--shell-border);
 }
 
+.sb-shell .menu__header--action {
+  border-radius: var(--shell-radius-small, 4px);
+  cursor: pointer;
+  outline: none;
+}
+
+.sb-shell .menu__header--action[data-highlighted] {
+  background: var(--shell-hover);
+}
+
 .sb-shell .avatar {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1326,7 +1337,17 @@
   font-size: var(--shell-text-xs);
   font-weight: var(--shell-weight-lg);
   letter-spacing: 0;
+  overflow: hidden;
   user-select: none;
+}
+
+.sb-shell .avatar__image {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
 }
 
 .sb-shell .avatar--lg {

@@ -22,6 +22,7 @@ beforeEach(() => {
 afterEach(() => {
   if (root !== null) act(() => root?.unmount())
   container?.remove()
+  localStorage.clear()
   root = null
   container = null
   vi.restoreAllMocks()
@@ -40,9 +41,14 @@ function fakeCapabilities() {
     ),
     cancel: vi.fn(),
     signOut: vi.fn(),
+    usage: vi.fn(async () => ({ copilot_plan: 'individual' })),
   }
+  const copyText = vi.fn(async () => {})
+  const openExternal = vi.fn(async () => {})
   const capabilities = {
     account,
+    copyText,
+    openExternal,
     accounts: {
       list: vi.fn(async () => ({ accounts: [], active_key: null })),
       switchTo: vi.fn(),
@@ -109,7 +115,9 @@ function fakeCapabilities() {
   return {
     account,
     capabilities,
+    copyText,
     notify: () => notify(),
+    openExternal,
     resolveStart: (status: AuthStatus) => resolveStart(status),
   }
 }
@@ -128,6 +136,80 @@ async function renderAccount(capabilities: SettingsCapabilities): Promise<HTMLEl
 }
 
 describe('AccountSection refresh ownership', () => {
+  it('hydrates Copilot usage from the account-keyed settings cache', async () => {
+    const { account, capabilities } = fakeCapabilities()
+    const activeKey = 'octocat@github.com'
+    account.status.mockResolvedValue({
+      state: 'authenticated',
+      account_login: 'octocat',
+      account_type: 'individual',
+    })
+    capabilities.accounts.list = vi.fn(async () => ({
+      accounts: [
+        {
+          key: activeKey,
+          login: 'octocat',
+          host: 'github.com',
+          added_via: 'device-code' as const,
+          obtained_at: '2026-09-29T12:00:00.000Z',
+          active: true,
+          enabled: true,
+        },
+      ],
+      active_key: activeKey,
+    }))
+    let resolveUsage: (value: {
+      copilot_plan: string
+      quota_snapshots: {
+        premium_interactions: { percent_remaining: number }
+      }
+    }) => void = () => {}
+    account.usage.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveUsage = resolve
+        }),
+    )
+    localStorage.setItem(
+      `maximal.settings-cache.copilot-usage.${encodeURIComponent(activeKey)}`,
+      JSON.stringify({
+        schemaVersion: 1,
+        savedAt: '2026-09-29T12:00:00.000Z',
+        value: {
+          copilot_plan: 'enterprise',
+          quota_snapshots: {
+            premium_interactions: { percent_remaining: 63 },
+          },
+        },
+      }),
+    )
+
+    const surface = await renderAccount(capabilities)
+    await act(async () => {
+      await Promise.resolve()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(surface.textContent).toContain('Enterprise')
+    expect(surface.textContent).toContain('37% used')
+
+    await act(async () => {
+      resolveUsage({
+        copilot_plan: 'enterprise',
+        quota_snapshots: {
+          premium_interactions: { percent_remaining: 50 },
+        },
+      })
+      await Promise.resolve()
+    })
+
+    expect(surface.textContent).toContain('50% used')
+    expect(localStorage.getItem(
+      `maximal.settings-cache.copilot-usage.${encodeURIComponent(activeKey)}`,
+    )).toContain('"percent_remaining":50')
+  })
+
   it('ignores capability refreshes while an account action is in flight', async () => {
     const { account, capabilities, notify, resolveStart } = fakeCapabilities()
     const surface = await renderAccount(capabilities)
@@ -167,5 +249,69 @@ describe('AccountSection refresh ownership', () => {
       'Ollama',
     ])
     expect(surface.querySelector('h3')?.textContent).toBe('Saved accounts')
+  })
+
+  it('opens GitHub automatically after receiving a device code', async () => {
+    const {
+      capabilities,
+      copyText,
+      openExternal,
+      resolveStart,
+    } = fakeCapabilities()
+    const surface = await renderAccount(capabilities)
+    const signIn = [...surface.querySelectorAll('button')].find(
+      (candidate) => candidate.textContent === 'Sign in with GitHub',
+    )
+    if (signIn === undefined) throw new Error('sign-in button was not rendered')
+
+    act(() => signIn.click())
+    await act(async () => {
+      resolveStart({
+        state: 'device_code_issued',
+        user_code: '9B26-5970',
+        verification_uri: 'https://github.com/login/device',
+        expires_at: '2099-01-01T00:00:00.000Z',
+      })
+      await Promise.resolve()
+    })
+
+    expect(copyText).toHaveBeenCalledWith('9B26-5970')
+    expect(openExternal).toHaveBeenCalledWith(
+      'https://github.com/login/device',
+    )
+    expect(surface.textContent).toContain(
+      'Authenticate on GitHub, then paste in this device code. Click to copy to clipboard and open browser window.',
+    )
+    expect(surface.textContent).not.toContain('https://github.com/login/device')
+
+    const codeButton = [...surface.querySelectorAll('button')].find(
+      (candidate) => candidate.textContent === '9B26-5970',
+    )
+    await act(async () => codeButton?.click())
+    expect(copyText).toHaveBeenCalledTimes(2)
+    expect(openExternal).toHaveBeenCalledTimes(2)
+  })
+
+  it('shows an internet banner below the GitHub account heading', async () => {
+    const { account, capabilities } = fakeCapabilities()
+    account.status.mockResolvedValue({
+      state: 'unauthenticated',
+      network_diagnosis: {
+        kind: 'offline',
+        scope: 'github-copilot-auth',
+      },
+    })
+
+    const surface = await renderAccount(capabilities)
+    const heading = [...surface.querySelectorAll('h2')].find(
+      (candidate) => candidate.textContent === 'GitHub Copilot',
+    )
+    const banner = surface.querySelector('[data-status="failed"]')
+
+    expect(banner?.textContent).toContain('No internet connection')
+    if (!heading || !banner) throw new Error('network banner was not rendered')
+    expect(heading.compareDocumentPosition(banner)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    )
   })
 })

@@ -167,7 +167,7 @@ export async function pollAccessToken(
   deviceCode: DeviceCodeResponse,
   signal?: AbortSignal,
 ): Promise<DeviceTokenResult> {
-  const { clientId, headers } = getOauthAppConfig()
+  const { clientId, clientSecret, headers } = getOauthAppConfig()
   const { accessTokenUrl } = getOauthUrls()
 
   // Server-told interval, in seconds, plus a 1s buffer for minor clock skew.
@@ -198,6 +198,7 @@ export async function pollAccessToken(
         signal: pollRequestSignal(signal),
         body: JSON.stringify({
           client_id: clientId,
+          ...(clientSecret ? { client_secret: clientSecret } : {}),
           device_code: deviceCode.device_code,
           grant_type: "urn:ietf:params:oauth:grant-type:device_code",
         }),

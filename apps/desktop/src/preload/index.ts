@@ -184,6 +184,7 @@ const bridge = {
     accountsSwitch: (key) => ipcRenderer.invoke(BRIDGE_CHANNELS.accountsSwitch, key),
     accountsSetEnabled: (key, enabled) => ipcRenderer.invoke(BRIDGE_CHANNELS.accountsSetEnabled, key, enabled),
     accountsReorder: (priority) => ipcRenderer.invoke(BRIDGE_CHANNELS.accountsReorder, priority),
+    copilotUsageGet: () => ipcRenderer.invoke(BRIDGE_CHANNELS.copilotUsageGet),
     ollamaAccountsList: () => ipcRenderer.invoke(BRIDGE_CHANNELS.ollamaAccountsList),
     ollamaSettingsGet: () => ipcRenderer.invoke(BRIDGE_CHANNELS.ollamaSettingsGet),
     ollamaSettingsUpdate: (input) => ipcRenderer.invoke(BRIDGE_CHANNELS.ollamaSettingsUpdate, input),

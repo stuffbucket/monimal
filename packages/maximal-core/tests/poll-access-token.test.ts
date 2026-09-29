@@ -57,7 +57,7 @@ afterEach(() => {
 
 function withResponses(responses: Array<unknown>) {
   let i = 0
-  const fetchMock = mock(() => {
+  const fetchMock = mock((..._args: Parameters<typeof fetch>) => {
     const body = responses[i++] ?? { error: "expired_token" }
     return Promise.resolve(
       new Response(JSON.stringify(body), {
@@ -85,10 +85,19 @@ async function expectRejects(
 
 describe("pollAccessToken (RFC 8628)", () => {
   it("returns the token when GitHub responds with access_token", async () => {
-    withResponses([{ access_token: "ghu_real_token" }])
+    const fetchMock = withResponses([{ access_token: "gho_real_token" }])
     expect((await pollAccessToken(DEVICE_CODE)).accessToken).toBe(
-      "ghu_real_token",
+      "gho_real_token",
     )
+    const request = fetchMock.mock.calls[0]?.[1]
+    expect(request).toBeDefined()
+    if (!request) throw new Error("Expected device token request options")
+    expect(JSON.parse(request.body as string)).toEqual({
+      client_id: "178c6fc778ccc68e1d6a",
+      client_secret: "34ddeff2b558a23d38fba8a6de74f086ede1cc0b",
+      device_code: "device-xyz",
+      grant_type: "urn:ietf:params:oauth:grant-type:device_code",
+    })
   })
 
   it("captures refresh_token + expiries when the App issues expiring tokens", async () => {

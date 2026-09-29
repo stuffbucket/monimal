@@ -166,6 +166,7 @@ describe("control /rpc — discovery", () => {
       "apiKeys/setEnforcement",
       "models/list",
       "models/refresh",
+      "copilotUsage/get",
       "usage/get",
       "diagnostics/get",
       "searchSettings/get",
@@ -175,6 +176,30 @@ describe("control /rpc — discovery", () => {
       "terminalScopes/revoke",
     ]
     for (const method of settingsMethods) expect(caps.methods).toContain(method)
+  })
+})
+
+describe("control /rpc — Copilot usage", () => {
+  test("returns typed quota data through an injected operation", async () => {
+    const usage = {
+      copilot_plan: "enterprise",
+      quota_reset_date: "2026-09-30",
+      quota_snapshots: {
+        premium_interactions: {
+          entitlement: 100,
+          remaining: 65,
+          percent_remaining: 65,
+        },
+        completions: { unlimited: true },
+      },
+    }
+    const custom = appWithOperations({
+      getCopilotUsage: () => Promise.resolve(usage),
+    })
+
+    const body = await rpcThrough(custom.app, "copilotUsage/get")
+
+    expect(body.result).toEqual(usage)
   })
 })
 

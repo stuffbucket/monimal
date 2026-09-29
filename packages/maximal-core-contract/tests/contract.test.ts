@@ -10,6 +10,7 @@ import {
 } from "../src/control.ts"
 import {
   AuthStatus,
+  CopilotAccountUsage,
   OllamaAccountsListResponse,
   OllamaSettingsResponse,
 } from "../src/settings.ts"
@@ -41,6 +42,34 @@ void test("a request parses and its responses echo the id", () => {
 void test("the auth status union rejects an unknown state", () => {
   assert.equal(AuthStatus.safeParse({ state: "unauthenticated" }).success, true)
   assert.equal(AuthStatus.safeParse({ state: "bogus" }).success, false)
+})
+
+void test("Copilot usage preserves known quota data and tolerates upstream additions", () => {
+  const result = CopilotAccountUsage.parse({
+    copilot_plan: "enterprise",
+    quota_reset_date: "2026-09-30",
+    quota_snapshots: {
+      premium_interactions: {
+        entitlement: 100,
+        remaining: 65,
+        percent_remaining: 65,
+        future_field: "preserved",
+      },
+    },
+    future_top_level_field: true,
+  })
+
+  const quotaSnapshots = result.quota_snapshots
+  assert.ok(quotaSnapshots)
+  const premiumInteractions = quotaSnapshots.premium_interactions
+  assert.ok(premiumInteractions)
+  assert.equal(premiumInteractions.percent_remaining, 65)
+  assert.equal(premiumInteractions.future_field, "preserved")
+  assert.equal(result.future_top_level_field, true)
+  assert.equal(
+    CopilotAccountUsage.safeParse({ copilot_plan: 42 }).success,
+    false,
+  )
 })
 
 void test("legacy Ollama account results default a missing error code", () => {
