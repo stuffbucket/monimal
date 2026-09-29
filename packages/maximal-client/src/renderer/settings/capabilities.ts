@@ -30,6 +30,7 @@ import type {
 import type { LogFile } from '@maximal/maximal-logging'
 
 import type {
+  AppearancePreference,
   ClientInstallation,
   LocalModelCancelResult,
   LocalModelCatalogSnapshot,
@@ -58,6 +59,7 @@ export type {
   ApiKeyUpdateRequest,
   AppEntry,
   AppsListResponse,
+  AppearancePreference,
   AuthStatus,
   ConnectionAction,
   ConnectionCredentialReveal,
@@ -115,6 +117,11 @@ export interface SettingsCapabilities {
     testApiKey(input: OllamaApiKeyTestRequest): Promise<OllamaApiKeyTestResponse>
   }
   general: {
+    appearance(): Promise<AppearancePreference>
+    setVibrancyEnabled(enabled: boolean): Promise<AppearancePreference>
+    setBackgroundEffectsEnabled(enabled: boolean): Promise<AppearancePreference>
+    setReducedMotionEnabled(enabled: boolean): Promise<AppearancePreference>
+    onAppearanceChange(listener: (preference: AppearancePreference) => void): () => void
     menuBarMode(): Promise<MenuBarModeState>
     beginMenuBarOnly(): Promise<MenuBarModeAttempt>
     confirmMenuBarOnly(attemptId: string): Promise<MenuBarModeState>
@@ -306,6 +313,14 @@ export function createCoreSettingsCapabilities(): SettingsCapabilities {
         unwrapControlResult(await bridge.control.ollamaApiKeyTest(input)),
     },
     general: {
+      appearance: () => bridge.appearance.get(),
+      setVibrancyEnabled: (enabled) =>
+        bridge.appearance.setVibrancyEnabled(enabled),
+      setBackgroundEffectsEnabled: (enabled) =>
+        bridge.appearance.setBackgroundEffectsEnabled(enabled),
+      setReducedMotionEnabled: (enabled) =>
+        bridge.appearance.setReducedMotionEnabled(enabled),
+      onAppearanceChange: (listener) => bridge.appearance.onChange(listener),
       menuBarMode: () => bridge.menuBarMode.get(),
       beginMenuBarOnly: () => bridge.menuBarMode.beginEnable(),
       confirmMenuBarOnly: (attemptId) => bridge.menuBarMode.confirmEnable(attemptId),

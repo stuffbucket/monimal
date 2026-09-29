@@ -44,6 +44,7 @@
     "@maximal/maximal-settings": "workspace:*",
     "@maximal/maximal-terminal": "workspace:*",
     "node-pty": "1.2.0-beta.15",
+    "pixi.js": "8.21.0",
     "zod": "^4.5.4"
   },
   "devDependencies": {

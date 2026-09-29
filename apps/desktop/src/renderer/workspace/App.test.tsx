@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const {
   accountStatus,
+  appearanceState,
   capabilityState,
   createObservabilitySource,
   observabilitySource,
@@ -21,6 +22,11 @@ const {
   const observabilitySource = { source: 'stable-observability-source' }
   return {
     accountStatus: vi.fn(() => Promise.resolve({ state: 'unauthenticated' })),
+    appearanceState: {
+      vibrancyEnabled: false,
+      backgroundEffectsEnabled: false,
+      reducedMotionEnabled: false,
+    },
     capabilityState: {
       openSettings: null as null | ((sectionId: string | null) => void),
     },
@@ -95,12 +101,36 @@ vi.mock('@maximal/maximal-client/renderer/traffic/source', () => ({ createObserv
 vi.mock('@maximal/maximal-client/renderer/settings/capabilities', () => ({
   createCoreSettingsCapabilities: () => ({
     account: { status: accountStatus },
+    general: {
+      appearance: vi.fn(async () => ({
+        vibrancyEnabled: appearanceState.vibrancyEnabled,
+        vibrancySupported: true,
+        backgroundEffectsEnabled: appearanceState.backgroundEffectsEnabled,
+        reducedMotionEnabled: appearanceState.reducedMotionEnabled,
+      })),
+      onAppearanceChange: vi.fn(() => () => {}),
+    },
     onOpenRequest: (listener: (sectionId: string | null) => void) => {
       capabilityState.openSettings = listener
       return vi.fn()
     },
     subscribe,
   }),
+}))
+vi.mock('./CozyBackground', () => ({
+  CozyBackground: ({
+    enabled,
+    reducedMotion,
+  }: {
+    enabled: boolean
+    reducedMotion: boolean
+  }) => (
+    <div
+      data-testid="cozy-background"
+      data-enabled={String(enabled)}
+      data-reduced-motion={String(reducedMotion)}
+    />
+  ),
 }))
 vi.mock('../../../../../packages/maximal-client/src/renderer/overview/Overview', () => ({
   Overview: () => <div data-testid="overview">Overview content</div>,
@@ -235,6 +265,12 @@ let container: HTMLElement | null = null
 
 beforeEach(() => {
   window.history.replaceState({}, '', '/')
+  appearanceState.vibrancyEnabled = false
+  appearanceState.backgroundEffectsEnabled = false
+  appearanceState.reducedMotionEnabled = false
+  document.documentElement.removeAttribute('data-vibrancy')
+  document.documentElement.removeAttribute('data-background-effects')
+  document.documentElement.removeAttribute('data-reduced-motion')
   capabilityState.openSettings = null
   accountStatus.mockResolvedValue({ state: 'unauthenticated' })
   terminalList.mockResolvedValue([])
@@ -282,6 +318,29 @@ async function renderApp(): Promise<HTMLElement> {
 }
 
 describe('App routing', () => {
+  it('applies the saved native material preference to the document', async () => {
+    appearanceState.vibrancyEnabled = true
+
+    await renderApp()
+
+    expect(document.documentElement.getAttribute('data-vibrancy')).toBe('true')
+  })
+
+  it('applies saved visual effect preferences to the document', async () => {
+    appearanceState.backgroundEffectsEnabled = true
+    appearanceState.reducedMotionEnabled = true
+
+    const shell = await renderApp()
+
+    expect(document.documentElement.getAttribute('data-background-effects'))
+      .toBe('true')
+    expect(document.documentElement.getAttribute('data-reduced-motion'))
+      .toBe('true')
+    const background = shell.querySelector('[data-testid="cozy-background"]')
+    expect(background?.getAttribute('data-enabled')).toBe('true')
+    expect(background?.getAttribute('data-reduced-motion')).toBe('true')
+  })
+
   it('opens the workspace without requiring an authenticated account', async () => {
     const shell = await renderApp()
 

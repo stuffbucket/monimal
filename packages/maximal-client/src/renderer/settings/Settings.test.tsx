@@ -87,6 +87,31 @@ function fakeCapabilities(): SettingsCapabilities {
       updatePreferences: vi.fn(),
     },
     general: {
+      appearance: vi.fn(async () => ({
+        vibrancyEnabled: false,
+        vibrancySupported: true,
+        backgroundEffectsEnabled: false,
+        reducedMotionEnabled: false,
+      })),
+      setVibrancyEnabled: vi.fn(async (enabled: boolean) => ({
+        vibrancyEnabled: enabled,
+        vibrancySupported: true,
+        backgroundEffectsEnabled: false,
+        reducedMotionEnabled: false,
+      })),
+      setBackgroundEffectsEnabled: vi.fn(async (enabled: boolean) => ({
+        vibrancyEnabled: false,
+        vibrancySupported: true,
+        backgroundEffectsEnabled: enabled,
+        reducedMotionEnabled: false,
+      })),
+      setReducedMotionEnabled: vi.fn(async (enabled: boolean) => ({
+        vibrancyEnabled: false,
+        vibrancySupported: true,
+        backgroundEffectsEnabled: false,
+        reducedMotionEnabled: enabled,
+      })),
+      onAppearanceChange: vi.fn(() => () => {}),
       menuBarMode: vi.fn(async () => ({ enabled: false, pending: false })),
       beginMenuBarOnly: vi.fn(async () => ({ attemptId: 'attempt-1', deadlineMs: 1 })),
       confirmMenuBarOnly: vi.fn(async () => ({ enabled: true, pending: false })),
