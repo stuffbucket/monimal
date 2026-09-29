@@ -18,7 +18,7 @@ import {
 import type { LocalModelCatalogSnapshot } from "../../../shared/host";
 import type { SettingsCapabilities } from "../capabilities";
 
-import { progressLabel } from "./format";
+import { formatBytes, progressLabel, publicationLabel } from "./format";
 import type { ActiveOperation } from "./types";
 
 interface MaximalModelsSectionProps {
@@ -157,9 +157,17 @@ export function MaximalModelsSection({
                 const model = models.find((candidate) => candidate.modelId === card.id);
                 if (model === undefined) return null;
                 const operation = operations[model.key];
+                const details = (
+                  <span>
+                    {model.format.toUpperCase()} · {formatBytes(model.expectedBytes)}
+                    {" · "}
+                    {publicationLabel(model)}
+                  </span>
+                );
                 if (operation !== undefined) {
                   return (
                     <>
+                      {details}
                       <span aria-live="polite">{progressLabel(operation)}</span>
                       <Button
                         size="sm"
@@ -172,17 +180,25 @@ export function MaximalModelsSection({
                 }
                 if (model.state === "registered" || model.state === "failed") {
                   return (
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      disabled={!enabled}
-                      onClick={() => onDownload(model.key)}
-                    >
-                      Download
-                    </Button>
+                    <>
+                      {details}
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        disabled={!enabled}
+                        onClick={() => onDownload(model.key)}
+                      >
+                        Download
+                      </Button>
+                    </>
                   );
                 }
-                return <span>{model.state}</span>;
+                return (
+                  <>
+                    {details}
+                    <span>{model.state}</span>
+                  </>
+                );
               }}
             />
           </SettingsItem>

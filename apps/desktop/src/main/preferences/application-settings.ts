@@ -7,6 +7,7 @@ import {
   getSettingsStore,
   loadSettings,
 } from '@maximal/maximal-settings'
+import { TMUX_SESSION_PREFIX_PATTERN } from '@maximal/maximal-terminal'
 import { z } from 'zod'
 
 const applicationSettingsSchema = z.object({
@@ -16,6 +17,7 @@ const applicationSettingsSchema = z.object({
   agentModel: z.string().min(1).optional(),
   agentToolsets: z.array(z.string()),
   terminalDiagnostics: z.boolean(),
+  terminalSessionPrefix: z.string().regex(TMUX_SESSION_PREFIX_PATTERN),
   terminalTmuxStatus: z.enum(['off', 'on', 'inherit']),
   ollamaStartOnLaunch: z.boolean(),
 })
@@ -27,6 +29,7 @@ const applicationSettingsPersistence = {
   agentCwd: 'user',
   agentToolsets: 'user',
   terminalDiagnostics: 'user',
+  terminalSessionPrefix: 'user',
   terminalTmuxStatus: 'user',
   ollamaStartOnLaunch: 'user',
 } as const
@@ -65,6 +68,7 @@ function applicationSettingsDefaults(
       .transform((values) => values.filter((value): value is string => typeof value === 'string'))
       .catch(['app']),
     terminalDiagnostics: applicationSettingsSchema.shape.terminalDiagnostics.catch(false),
+    terminalSessionPrefix: applicationSettingsSchema.shape.terminalSessionPrefix.catch('maximal'),
     terminalTmuxStatus: applicationSettingsSchema.shape.terminalTmuxStatus.catch('off'),
     ollamaStartOnLaunch: applicationSettingsSchema.shape.ollamaStartOnLaunch.catch(false),
   }).parse(legacy)

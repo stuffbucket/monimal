@@ -47,7 +47,11 @@ import { activeTerminalCount, configureTerminalHost, stopTerminalHost } from './
 
 describe('terminal host shutdown', () => {
   it('uses the application-resolved diagnostics setting', () => {
-    configureTerminalHost({ terminalDiagnostics: true, terminalTmuxStatus: 'off' })
+    configureTerminalHost({
+      terminalDiagnostics: true,
+      terminalSessionPrefix: 'maximal',
+      terminalTmuxStatus: 'off',
+    })
     expect(configureTerminalDiagnostics).toHaveBeenLastCalledWith(true, expect.any(Function))
     const record: TerminalDiagnosticRecord = {
       component: 'pty-host', event: 'started', ownerId: 'owner-1',
@@ -56,7 +60,11 @@ describe('terminal host shutdown', () => {
     }
     configureTerminalDiagnostics.mock.lastCall?.[1](record)
     expect(logWarn).toHaveBeenCalledWith(record, 'Terminal lifecycle event')
-    configureTerminalHost({ terminalDiagnostics: false, terminalTmuxStatus: 'off' })
+    configureTerminalHost({
+      terminalDiagnostics: false,
+      terminalSessionPrefix: 'maximal',
+      terminalTmuxStatus: 'off',
+    })
     expect(configureTerminalDiagnostics).toHaveBeenLastCalledWith(false, expect.any(Function))
   })
   it('counts sessions owned by a hidden window as active', () => {
