@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { Dialog, Menu } from '@maximal/maximal-electron/renderer';
+import { Button, Dialog, Menu } from '@maximal/maximal-electron/renderer';
 import { TERMINAL_ICON_URLS } from '@maximal/maximal-assets/terminal-icons';
 
 import type {
@@ -292,6 +292,7 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
   const [outputExpanded, setOutputExpanded] = useState(true);
   const [backgrounded, setBackgrounded] = useState(false);
   const [scrolling, setScrolling] = useState(false);
+  const [terminalConfirmation, setTerminalConfirmation] = useState(false);
   const input = useRef<HTMLTextAreaElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const modelPicker = useRef<HTMLButtonElement>(null);
@@ -582,6 +583,7 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
 
   const openInTerminal = useCallback(() => {
     if (!activeChatId) return;
+    setTerminalConfirmation(false);
     void transport.chats.terminal(activeChatId, 80, 24).then(
       () => transport.hide(),
       () => setError('The conversation could not be opened in the terminal.'),
@@ -677,6 +679,7 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
     || tools.length > 0
     || status.state === 'needs-model'
     || selectedModelUnavailable
+    || terminalConfirmation
   );
 
   return (
@@ -725,16 +728,16 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
               contentClassName="mh-control-menu"
               testId="overlay-conversation-menu"
               trigger={(
-                <button
-                  type="button"
+                <Button
+                  size="lg"
                   className="mh-select-trigger"
-                  data-testid="overlay-conversation"
+                  testId="overlay-conversation"
                 >
                   <span>{activeChatId
                     ? recentChats.find((chat) => chat.id === activeChatId)?.title ?? 'Recent chat'
                     : 'New chat'}</span>
                   <span className="mh-select-trigger__chevron" aria-hidden="true">⌄</span>
-                </button>
+                </Button>
               )}
               items={[
                 {
@@ -772,18 +775,6 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
                 scrollTimer.current = setTimeout(() => setScrolling(false), 700);
               }}
             >
-              {activeChatId && (messages.length > 0 || answer) && (
-                <button
-                  type="button"
-                  className="mh-open-terminal"
-                  aria-label="Open conversation in terminal"
-                  title="Open conversation in terminal"
-                  onClick={openInTerminal}
-                  data-testid="overlay-open-terminal"
-                >
-                  <span aria-hidden="true">↗</span>
-                </button>
-              )}
               {messages.map((message) => (
                 <article
                   className={`mh-message mh-message--${message.role}`}
@@ -929,6 +920,34 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
                   </div>
                 </article>
               )}
+              {terminalConfirmation && (
+                <article
+                  className="mh-message mh-message--approval"
+                  data-testid="overlay-terminal-confirmation"
+                >
+                  <span className="mh-message__role">Open in terminal</span>
+                  <div className="mh-approval__head">
+                    Launch this conversation in a Maximal terminal?
+                  </div>
+                  <div className="mh-approval__actions">
+                    <Button
+                      size="sm"
+                      onClick={() => setTerminalConfirmation(false)}
+                      testId="overlay-terminal-cancel"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      onClick={openInTerminal}
+                      testId="overlay-terminal-confirm"
+                    >
+                      Open terminal
+                    </Button>
+                  </div>
+                </article>
+              )}
             </div>
           </div>
         )}
@@ -944,11 +963,11 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
               testId="overlay-model-menu"
               onCloseAutoFocus={(event) => event.preventDefault()}
               trigger={(
-                <button
+                <Button
                   ref={modelPicker}
-                  type="button"
+                  size="lg"
                   className="mh-select-trigger mh-select-trigger--model"
-                  data-testid="overlay-model-picker"
+                  testId="overlay-model-picker"
                 >
                   <span>
                     {status.state === 'ready'
@@ -957,7 +976,7 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
                       : HARNESS_COPY.overlay.modelSelectionRequired}
                   </span>
                   <span className="mh-select-trigger__chevron" aria-hidden="true">⌄</span>
-                </button>
+                </Button>
               )}
               items={conciseModels(
                 status.models,
@@ -975,14 +994,14 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
                 contentClassName="mh-control-menu"
                 testId="overlay-effort-menu"
                 trigger={(
-                  <button
-                    type="button"
+                  <Button
+                    size="lg"
                     className="mh-select-trigger mh-select-trigger--effort"
-                    data-testid="overlay-effort"
+                    testId="overlay-effort"
                   >
                     <span>{status.effort ? EFFORT_LABELS[status.effort] : 'Effort'}</span>
                     <span className="mh-select-trigger__chevron" aria-hidden="true">⌄</span>
-                  </button>
+                  </Button>
                 )}
                 items={currentModel.efforts.map((effort) => ({
                   id: effort,
@@ -1002,17 +1021,17 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
             contentClassName="mh-control-menu mh-control-menu--permissions"
             testId="overlay-permissions-menu"
             trigger={(
-              <button
-                type="button"
+              <Button
+                size="lg"
                 className="mh-select-trigger"
-                data-testid="overlay-permissions"
+                testId="overlay-permissions"
               >
                 <span className="mh-permission-picker__value">
                   {permissionSelected && <CurrentPermissionIcon />}
                   {permissionSelected ? currentPermission.label : 'Permissions'}
                 </span>
                 <span className="mh-select-trigger__chevron" aria-hidden="true">⌄</span>
-              </button>
+              </Button>
             )}
             items={[
               {
@@ -1179,6 +1198,28 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
               data-testid="overlay-attach"
             >
               <span aria-hidden="true">+</span>
+            </button>
+            <button
+              type="button"
+              className="mh-composer__button"
+              aria-label="Open conversation in terminal"
+              title="Open conversation in terminal"
+              disabled={activeChatId === undefined}
+              onClick={() => {
+                setTerminalConfirmation(true);
+                setOutputExpanded(true);
+              }}
+              data-testid="overlay-open-terminal"
+            >
+              <svg
+                className="mh-terminal-icon"
+                viewBox="0 0 20 20"
+                fill="none"
+                aria-hidden="true"
+              >
+                <rect x="2.5" y="3.5" width="15" height="13" rx="2" />
+                <path d="m6 7 2 2-2 2M10.5 12h3.5" />
+              </svg>
             </button>
             <button
               type="button"

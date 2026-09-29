@@ -113,8 +113,8 @@ body,
 }
 
 .mh-card__identity span,
-.mh-card__conversation span,
-.mh-permission-picker span {
+.mh-card__conversation > span,
+.mh-permission-picker > span {
   font-size: var(--shell-text-xs, 0.6875rem);
   color: color-mix(in srgb, currentColor 72%, transparent);
 }
@@ -162,9 +162,6 @@ body,
   border-radius: var(--shell-radius, 6px);
   background: var(--shell-background);
   color: var(--shell-text);
-  font: inherit;
-  font-size: var(--shell-text-sm, 0.8125rem);
-  line-height: var(--shell-leading-base, 1.4);
   -webkit-app-region: no-drag;
 }
 
@@ -382,6 +379,15 @@ body,
   transform: translateY(-1px);
 }
 
+.mh-terminal-icon {
+  width: var(--shell-text-lg, 1.0625rem);
+  height: var(--shell-text-lg, 1.0625rem);
+  stroke: currentColor;
+  stroke-width: var(--shell-icon-stroke, 1.5);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .mh-stop-icon {
   font-size: 0.75rem;
 }
@@ -563,31 +569,6 @@ body,
 .mh-card__answer:hover::-webkit-scrollbar-thumb,
 .mh-card__answer--scrolling::-webkit-scrollbar-thumb {
   background: var(--shell-text-muted);
-}
-
-.mh-open-terminal {
-  position: sticky;
-  z-index: 3;
-  top: 0;
-  float: right;
-  display: grid;
-  width: var(--shell-control-lg, 32px);
-  height: var(--shell-control-lg, 32px);
-  margin: 0 0 var(--shell-space-2, 8px) var(--shell-space-2, 8px);
-  place-items: center;
-  border: 1px solid var(--shell-border);
-  border-radius: var(--shell-radius, 6px);
-  background: var(--shell-background);
-  color: var(--shell-text-muted);
-  font: inherit;
-  font-size: var(--shell-text-lg, 1rem);
-  cursor: pointer;
-  -webkit-app-region: no-drag;
-}
-
-.mh-open-terminal:hover {
-  border-color: var(--shell-border-strong, var(--shell-accent));
-  color: var(--shell-text);
 }
 
 .mh-message + .mh-message {

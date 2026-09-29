@@ -238,6 +238,14 @@ describe('Overlay', () => {
     expect(byTestId('overlay-attach')).toBeInstanceOf(HTMLButtonElement);
     expect(byTestId('overlay-send')).toBeInstanceOf(HTMLButtonElement);
     expect(byTestId('overlay-permissions').textContent).toContain('Permissions');
+    for (const id of [
+      'overlay-model-picker',
+      'overlay-conversation',
+      'overlay-permissions',
+    ]) {
+      expect(byTestId(id).classList).toContain('btn');
+      expect(byTestId(id).classList).toContain('btn--lg');
+    }
     input.blur();
 
     act(() => {
@@ -464,6 +472,7 @@ describe('Overlay', () => {
     }));
     await renderOverlay(fake.transport);
 
+    expect(byTestId('overlay-effort').classList).toContain('btn--lg');
     act(() => {
       keyDown(byTestId('overlay-effort'), 'Enter');
     });
@@ -514,10 +523,14 @@ describe('Overlay', () => {
     expect(byTestId('overlay-permissions').querySelector('.mh-permission-icon')).toBeTruthy();
   });
 
-  it('opens a populated conversation in the terminal before hiding the overlay', async () => {
+  it('confirms before opening a populated conversation in the terminal', async () => {
     const fake = fakeTransport();
     await renderOverlay(fake.transport);
 
+    expect((byTestId('overlay-open-terminal') as HTMLButtonElement).disabled).toBe(true);
+    expect(byTestId('overlay-open-terminal').previousElementSibling).toBe(
+      byTestId('overlay-attach'),
+    );
     act(() => {
       inputText('Explain this');
       keyDown(byTestId('overlay-input'), 'Enter');
@@ -526,6 +539,15 @@ describe('Overlay', () => {
 
     expect(byTestId('overlay-open-terminal')).toBeTruthy();
     act(() => click('overlay-open-terminal'));
+    expect(fake.transport.chats.terminal).not.toHaveBeenCalled();
+    expect(byTestId('overlay-terminal-confirmation')).toBeTruthy();
+
+    act(() => click('overlay-terminal-cancel'));
+    expect(document.body.querySelector('[data-testid="overlay-terminal-confirmation"]')).toBeNull();
+    expect(fake.transport.chats.terminal).not.toHaveBeenCalled();
+
+    act(() => click('overlay-open-terminal'));
+    act(() => click('overlay-terminal-confirm'));
     await settle();
 
     expect(fake.transport.chats.terminal).toHaveBeenCalledWith('chat-1', 80, 24);
