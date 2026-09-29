@@ -3,6 +3,7 @@
   // The manifest exports point at `dist/`; these are the sources tsup builds them from.
   "entry": [
     "src/index.ts",
+    "src/cli.ts",
     "src/host/index.ts",
     "src/renderer/index.ts",
     "scripts/*.mjs",
