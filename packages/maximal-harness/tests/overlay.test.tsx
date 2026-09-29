@@ -351,8 +351,12 @@ describe('Overlay', () => {
     }));
     await renderOverlay(fake.transport);
 
-    act(() => keyDown(byTestId('overlay-effort'), 'Enter'));
-    act(() => byTestId('menu-high').click());
+    act(() => {
+      keyDown(byTestId('overlay-effort'), 'Enter');
+    });
+    act(() => {
+      byTestId('menu-high').click();
+    });
     await settle();
 
     expect(fake.transport.selectEffort).toHaveBeenCalledWith('high');

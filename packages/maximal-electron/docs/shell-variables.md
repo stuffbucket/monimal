@@ -114,6 +114,12 @@ looks exactly like an ordinary hovered one.
 | `--shell-accent-contrast` | `--shell-text` | the `Switch` thumb, and the label on a primary `Button` |
 | `--shell-border-hover` | `--shell-accent` | the outline of a hovered button or field |
 | `--shell-border-strong` | `--shell-border` | tooltip, dialog and menu outlines, hovered card border, scrollbar thumb |
+| `--shell-candy-background` | Maximal candy paint | the optional candy-coated assistant surface |
+| `--shell-candy-border` | Maximal candy paint | the optional candy-coated assistant outline |
+| `--shell-candy-icon-shadow` | Maximal candy paint | the icon shadow on the optional candy-coated assistant surface |
+| `--shell-candy-shadow` | Maximal candy paint | the optional candy-coated assistant elevation |
+| `--shell-candy-sheen` | Maximal candy paint | the animated highlight on the optional candy-coated assistant surface |
+| `--shell-candy-text` | Maximal candy paint | text drawn directly on the optional candy-coated assistant surface |
 | `--shell-control-height` | `28px` | icon button box, field height |
 | `--shell-danger` | `--shell-hover` | destructive icon button, destructive `Button` fill, highlighted destructive menu item |
 | `--shell-danger-contrast` | `--shell-text` | the glyph or label on any of those |

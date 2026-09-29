@@ -68,17 +68,10 @@ body,
 }
 
 .mh-card--candy {
-  border-color: color-mix(in srgb, #f4ead4 45%, #681321);
-  background:
-    radial-gradient(circle at 12% 24%, rgb(255 245 224 / 28%) 0 1px, transparent 2px),
-    radial-gradient(circle at 78% 18%, rgb(255 245 224 / 22%) 0 1.5px, transparent 2.5px),
-    radial-gradient(circle at 62% 74%, rgb(255 245 224 / 20%) 0 1px, transparent 2px),
-    linear-gradient(155deg, #a91f39 0%, #c8334a 54%, #7d1427 100%);
+  border-color: var(--shell-candy-border);
+  background: var(--shell-candy-background);
   background-size: 47px 43px, 71px 67px, 89px 83px, auto;
-  box-shadow:
-    0 1px 2px rgb(0 0 0 / 24%),
-    0 12px 36px rgb(44 0 8 / 42%),
-    inset 0 1px rgb(255 245 224 / 22%);
+  box-shadow: var(--shell-candy-shadow);
 }
 
 .mh-card--candy::before {
@@ -86,14 +79,7 @@ body,
   position: absolute;
   z-index: 0;
   inset: -35% -10%;
-  background: linear-gradient(
-    112deg,
-    transparent 24%,
-    rgb(255 244 224 / 4%) 40%,
-    rgb(255 244 224 / 22%) 49%,
-    rgb(255 244 224 / 5%) 58%,
-    transparent 72%
-  );
+  background: var(--shell-candy-sheen);
   transform: translateX(-45%);
   animation: mh-candy-sheen 8s ease-in-out infinite;
   pointer-events: none;
@@ -110,7 +96,7 @@ body,
   height: 42px;
   flex: none;
   border-radius: 10px;
-  box-shadow: 0 4px 14px rgb(31 0 6 / 32%);
+  box-shadow: var(--shell-candy-icon-shadow);
 }
 
 .mh-card__identity {
@@ -118,7 +104,7 @@ body,
   min-width: 0;
   flex: 1;
   flex-direction: column;
-  color: #fff8e9;
+  color: var(--shell-candy-text);
 }
 
 .mh-card__identity span,
