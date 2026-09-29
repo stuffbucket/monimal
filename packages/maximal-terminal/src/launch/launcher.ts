@@ -291,6 +291,15 @@ export class TerminalLauncher<Owner> {
       launch = connector.launch(target.target);
       label = launch.tmuxProjection ? target.target.label : connector.label;
     }
+    if (request.cwd !== undefined) {
+      if (
+        request.profileId !== LOCAL_PROFILE.id
+        || (request.targetId !== undefined && request.targetId !== LOCAL_TARGET.id)
+      ) {
+        throw new Error('A working directory can only be selected for a local terminal.');
+      }
+      launch = { ...launch, cwd: request.cwd };
+    }
     const sessionId = (this.options.createId ?? randomUUID)();
     const launchMode = launch.tmuxControl
       ? 'tmux-control'

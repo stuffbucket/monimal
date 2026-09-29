@@ -1,0 +1,13 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
+  "entry": [
+    "src/index.ts",
+    "src/node.ts",
+    "scripts/*.mjs",
+    "tests/**/*.test.ts"
+  ],
+  "ignoreDependencies": [
+    "@stryker-mutator/command-runner",
+    "@stryker-mutator/core"
+  ]
+}

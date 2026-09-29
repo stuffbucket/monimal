@@ -122,6 +122,14 @@ function fakeCapabilities(): SettingsCapabilities {
       get: vi.fn(async () => ({ dismissed: false })),
       setDismissed: vi.fn(async (dismissed: boolean) => ({ dismissed })),
     },
+    projects: {
+      snapshot: vi.fn(async () => ({ roots: [], projects: [], refreshing: false })),
+      addRoot: vi.fn(async () => null),
+      updateRoot: vi.fn(),
+      removeRoot: vi.fn(async () => {}),
+      refresh: vi.fn(async () => ({ roots: [], projects: [], refreshing: false })),
+      subscribe: vi.fn(() => () => {}),
+    },
     connections: {
       list: vi.fn(async () => ({
         clients: [],

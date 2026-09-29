@@ -193,6 +193,16 @@ function fakeBridge(): MaximalHost {
       })),
       onChange: vi.fn(() => () => {}),
     },
+    projects: {
+      snapshot: vi.fn(async () => ({ roots: [], projects: [], refreshing: false })),
+      search: vi.fn(async () => []),
+      addRoot: vi.fn(async () => null),
+      updateRoot: vi.fn(),
+      removeRoot: vi.fn(async () => {}),
+      refresh: vi.fn(async () => ({ roots: [], projects: [], refreshing: false })),
+      opened: vi.fn(async () => {}),
+      onChange: vi.fn(() => () => {}),
+    },
     harness: {
       show: vi.fn(async () => {}),
       hide: vi.fn(async () => {}),

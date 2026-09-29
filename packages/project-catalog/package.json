@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "@maximal/project-catalog",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Local project discovery, Git interrogation, and catalog ranking.",
+  "type": "module",
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" },
+    "./node": { "types": "./dist/node.d.ts", "import": "./dist/node.js" },
+    "./package.json": "./package.json"
+  },
+  "files": ["dist"],
+  "scripts": {
+    "analyze": "bun ../maximal-core/scripts/analyze.ts",
+    "build": "tsup src/index.ts src/node.ts --format esm --dts --clean --target es2022 --out-dir dist",
+    "lint": "eslint .",
+    "mutate": "node ../../scripts/run-mutation.mjs",
+    "mutate:all": "node ../../scripts/run-mutation.mjs --all",
+    "test": "vitest run",
+    "typecheck": "tsc6 --noEmit"
+  },
+  "dependencies": {
+    "fuzzysort": "3.1.0"
+  },
+  "devDependencies": {
+    "@maximal/eslint-config": "workspace:*",
+    "@stryker-mutator/core": "^10.0.0",
+    "@types/node": "^26.4.0",
+    "eslint": "^10.9.1",
+    "tsup": "^8.5.1",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "vitest": "^5.0.1"
+  },
+  "engines": { "node": ">=24" }
+}
