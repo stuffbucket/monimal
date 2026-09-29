@@ -113,3 +113,23 @@ describe('the accessible name', () => {
     expect([...markup.matchAll(/aria-hidden="true"/g)].length).toBeGreaterThanOrEqual(2);
   });
 });
+
+describe('tab organization', () => {
+  it('marks a tab with its selected color', () => {
+    expect(strip([{ id: 'a', title: 'Deploy', color: 'purple' }]))
+      .toContain('data-color="purple"');
+  });
+
+  it('renders one label before each contiguous tab group', () => {
+    const group = { id: 'services', label: 'Services', color: 'green' } as const;
+    const markup = strip([
+      { id: 'a', title: 'API', group },
+      { id: 'b', title: 'Worker', group },
+      { id: 'c', title: 'Notes' },
+    ]);
+
+    expect([...markup.matchAll(/class="tab-group"/g)]).toHaveLength(1);
+    expect(markup).toContain('>Services</span>');
+    expect([...markup.matchAll(/data-color="green"/g)]).toHaveLength(3);
+  });
+});

@@ -2,9 +2,11 @@ import { useState, type ReactElement } from 'react'
 import {
   Button,
   Dialog,
+  TAB_COLORS,
   TextInput,
   type Account,
   type SettingsSurface,
+  type TabColor,
 } from '@maximal/maximal-electron/renderer'
 
 import type { SettingsSectionId } from '../shared/settings-sections'
@@ -37,6 +39,15 @@ const PROFILE_SETTINGS: Record<SettingsSurface, SettingsSectionId> = {
   'app-toggles': 'settings-connections-heading',
   diagnostics: 'settings-diagnostics-heading',
   usage: 'settings-usage-heading',
+}
+
+const TAB_COLOR_LABELS: Record<TabColor, string> = {
+  blue: 'Blue',
+  green: 'Green',
+  yellow: 'Yellow',
+  red: 'Red',
+  purple: 'Purple',
+  orange: 'Orange',
 }
 
 interface ActiveSurfaceProps {
@@ -180,6 +191,10 @@ export function AppWorkspace({
       ? [{ id: tab.id, sessionId: tab.sessionId, title: tab.title }]
       : [],
   )
+  const terminalGroups = [
+    ...new Map(terminalState.tabs.flatMap((tab) =>
+      tab.kind === 'terminal' && tab.group ? [[tab.group.id, tab.group]] : [])).values(),
+  ]
   const account: Account | undefined = accountStatus?.state === 'authenticated'
     ? {
         id: accountStatus.account_login,
@@ -266,9 +281,41 @@ export function AppWorkspace({
                     title: tab.title,
                   }),
                 },
+                ...(tab.group
+                  ? [{
+                      id: 'remove-from-group',
+                      label: 'Remove from Group',
+                      onSelect: () => terminalState.removeTerminalFromGroup(tab.id),
+                    }]
+                  : [{
+                      id: 'new-group',
+                      label: 'Add to New Group',
+                      onSelect: () => terminalState.createTerminalGroup(tab.id),
+                    }]),
+                ...terminalGroups
+                  .filter((group) => group.id !== tab.group?.id)
+                  .map((group) => ({
+                    id: `add-to-group-${group.id}`,
+                    label: `Add to ${group.label}`,
+                    onSelect: () => terminalState.moveTerminalToGroup(tab.id, group.id),
+                  })),
+                ...TAB_COLORS.map((color, index) => ({
+                  id: `color-${color}`,
+                  label: `Color: ${TAB_COLOR_LABELS[color]}`,
+                  separatorBefore: index === 0,
+                  onSelect: () => terminalState.setTerminalTabColor(tab.id, color),
+                })),
+                ...(tab.color
+                  ? [{
+                      id: 'clear-color',
+                      label: 'Clear Tab Color',
+                      onSelect: () => terminalState.setTerminalTabColor(tab.id),
+                    }]
+                  : []),
                 {
                   id: 'move-to-new-window',
                   label: 'Move to New Window',
+                  separatorBefore: true,
                   onSelect: () => openTerminalWindow(tab, false),
                 },
                 {

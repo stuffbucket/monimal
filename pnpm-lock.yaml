@@ -79,6 +79,9 @@ importers:
       node-pty:
         specifier: 1.2.0-beta.15
         version: 1.2.0-beta.15
+      pixi.js:
+        specifier: 8.21.0
+        version: 8.21.0
       zod:
         specifier: ^4.5.4
         version: 4.5.4
@@ -378,9 +381,6 @@ importers:
       '@stryker-mutator/core':
         specifier: ^10.0.0
         version: 10.0.0(@types/node@26.4.0)
-      '@stryker-mutator/vitest-runner':
-        specifier: ^10.0.0
-        version: 10.0.0(@stryker-mutator/core@10.0.0(@types/node@26.4.0))(vitest@5.0.1(@opentelemetry/api@1.9.0)(@types/node@26.4.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0)))
       '@types/node':
         specifier: ^26.4.0
         version: 26.4.0
@@ -3390,6 +3390,9 @@ packages:
   '@pinojs/redact@0.4.0':
     resolution: {integrity: sha1-w94GDdEmQNzIOFFqoqaAPMey6dY=}
 
+  '@pixi/colord@2.9.6':
+    resolution: {integrity: sha1-fk54UUgNpv08704zHwCNYL5+EgQ=}
+
   '@pkgr/core@0.3.6':
     resolution: {integrity: sha1-NWlwi9S+TYhwujK/HEVtrIFgDZc=}
     engines: {node: ^14.18.0 || >=16.0.0}
@@ -4470,6 +4473,9 @@ packages:
   '@types/doctrine@0.0.9':
     resolution: {integrity: sha1-2GpfRSoV4+MRO5njlhapuqD5hj8=}
 
+  '@types/earcut@3.0.0':
+    resolution: {integrity: sha1-whq4NyxH+K8b7GPLNu7LaRe2xbY=}
+
   '@types/esrecurse@4.3.1':
     resolution: {integrity: sha1-b2Nq+WL75hkbgwvWdrpZhpJrzOw=}
 
@@ -4854,6 +4860,9 @@ packages:
   '@webcontainer/env@1.1.1':
     resolution: {integrity: sha1-IwIbK7JL7+7vU9uomW0YhrcBZRU=}
 
+  '@webgpu/types@0.1.74':
+    resolution: {integrity: sha512-lgiI4hbuLcI9unnm2cL/tvCaQU45dp0xcLWJh5uB/9MBGvIA4F8XIk7nSiBeg+K4xWGYwgZKn80LmERI5CxoTA==}
+
   '@wterm/core@0.4.1':
     resolution: {integrity: sha1-vvv3sB5FnXDErgqd5n0FtyiOYok=}
 
@@ -4862,6 +4871,10 @@ packages:
 
   '@wterm/ghostty@0.4.1':
     resolution: {integrity: sha1-/M5AfUi4VFqGzZxvydjf4E4SucI=}
+
+  '@xmldom/xmldom@0.8.15':
+    resolution: {integrity: sha1-cev4Bynk6VIh1Rmsmx4erqd4SQc=}
+    engines: {node: '>=10.0.0'}
 
   '@xmldom/xmldom@0.9.12':
     resolution: {integrity: sha1-H4TAfLlczyggIpn3e1/X/CVxUeg=}
@@ -5570,6 +5583,9 @@ packages:
     resolution: {integrity: sha1-165mfh3INIL4tw/Q9u78UNow9Yo=}
     engines: {node: '>= 0.4'}
 
+  earcut@3.2.3:
+    resolution: {integrity: sha1-dK7BlVWn4odzQpgmcp0uS/6xkCI=}
+
   eastasianwidth@0.2.0:
     resolution: {integrity: sha1-aWzi7Aqg5uqTo5f/zySqeEDIJ8s=}
 
@@ -6142,6 +6158,9 @@ packages:
   get-tsconfig@4.14.3:
     resolution: {integrity: sha1-e8yfOrX7bTCtCjAYmMhZ00Fk3Nk=}
 
+  gifuct-js@2.1.2:
+    resolution: {integrity: sha1-BhUkN7ow7JFNuDmL2Di9D7yKbs0=}
+
   git-hooks-list@4.2.1:
     resolution: {integrity: sha1-grOtEZ7C2optVyKL1o2OQyr8QYw=}
 
@@ -6502,6 +6521,9 @@ packages:
     resolution: {integrity: sha1-SPZXavjoehj+t5a37V4uWQO0Pco=}
     engines: {node: '>=20'}
 
+  ismobilejs@1.1.1:
+    resolution: {integrity: sha1-xWygro5Sskyg8iul7zIVot27qg4=}
+
   jest-worker@27.5.1:
     resolution: {integrity: sha1-jRRvCQDolzsQa29zzB6ajLhvjbA=}
     engines: {node: '>= 10.13.0'}
@@ -6513,6 +6535,9 @@ packages:
   joycon@3.1.1:
     resolution: {integrity: sha1-vOhZbWroCPi2gWj1/GkoCZaJTwM=}
     engines: {node: '>=10'}
+
+  js-binary-schema-parser@2.0.3:
+    resolution: {integrity: sha1-PXhIdI6FhuY7NOiRG2Q/Wc+2OW4=}
 
   js-md4@0.3.2:
     resolution: {integrity: sha1-zTs9wEWwxARVbIHdtXVsI+WdfPU=}
@@ -7366,6 +7391,9 @@ packages:
     resolution: {integrity: sha1-wMBY7dR8KlkBUacYmQUz/WKAPfQ=}
     engines: {node: '>=18'}
 
+  parse-svg-path@0.2.0:
+    resolution: {integrity: sha1-OLyHR+eqMjJ64lecMxsWHEhnoWc=}
+
   parse5-htmlparser2-tree-adapter@7.1.0:
     resolution: {integrity: sha1-tagGVI7Yk6Q+JMy0L7t4BpMR6Bs=}
 
@@ -7463,6 +7491,9 @@ packages:
   pirates@4.0.7:
     resolution: {integrity: sha1-ZDtKGMQlfIplEEtz8wSc6aChXiI=}
     engines: {node: '>= 6'}
+
+  pixi.js@8.21.0:
+    resolution: {integrity: sha512-GJ/KqBtUuWDBPMQu2D0ZHsRCYOcWRjjKrpyC+3jPQI5JTqHMC5dH8l9sSyvoUT4qJidvRzs1fwFWRWceno2Ltw==}
 
   pkg-types@1.3.1:
     resolution: {integrity: sha1-vXzHCIEZJ3fu9TJsGd60bokJF98=}
@@ -8226,6 +8257,10 @@ packages:
 
   tiny-invariant@1.3.3:
     resolution: {integrity: sha1-RmgLeoc6DV0QAFmV65CnDXTWASc=}
+
+  tiny-lru@11.4.7:
+    resolution: {integrity: sha1-fd+r4icgyY9+SLKAbZ2acak+4NY=}
+    engines: {node: '>=12'}
 
   tinybench@6.1.4:
     resolution: {integrity: sha1-+FW7OtHy/oXPYkSQ1Yu09PXTDag=}
@@ -11056,6 +11091,8 @@ snapshots:
 
   '@pinojs/redact@0.4.0': {}
 
+  '@pixi/colord@2.9.6': {}
+
   '@pkgr/core@0.3.6': {}
 
   '@playwright/test@1.62.1':
@@ -12038,6 +12075,8 @@ snapshots:
 
   '@types/doctrine@0.0.9': {}
 
+  '@types/earcut@3.0.0': {}
+
   '@types/esrecurse@4.3.1': {}
 
   '@types/estree@1.0.9': {}
@@ -12430,6 +12469,8 @@ snapshots:
 
   '@webcontainer/env@1.1.1': {}
 
+  '@webgpu/types@0.1.74': {}
+
   '@wterm/core@0.4.1': {}
 
   '@wterm/dom@0.4.1':
@@ -12439,6 +12480,8 @@ snapshots:
   '@wterm/ghostty@0.4.1':
     dependencies:
       '@wterm/core': 0.4.1
+
+  '@xmldom/xmldom@0.8.15': {}
 
   '@xmldom/xmldom@0.9.12': {}
 
@@ -13154,6 +13197,8 @@ snapshots:
       es-errors: 1.3.0
       gopd: 1.2.0
 
+  earcut@3.2.3: {}
+
   eastasianwidth@0.2.0: {}
 
   ecdsa-sig-formatter@1.0.11:
@@ -13815,6 +13860,10 @@ snapshots:
     dependencies:
       resolve-pkg-maps: 1.0.0
 
+  gifuct-js@2.1.2:
+    dependencies:
+      js-binary-schema-parser: 2.0.3
+
   git-hooks-list@4.2.1: {}
 
   glob-parent@5.1.2:
@@ -14175,6 +14224,8 @@ snapshots:
 
   isexe@4.0.0: {}
 
+  ismobilejs@1.1.1: {}
+
   jest-worker@27.5.1:
     dependencies:
       '@types/node': 26.4.0
@@ -14184,6 +14235,8 @@ snapshots:
   jiti@2.7.0: {}
 
   joycon@3.1.1: {}
+
+  js-binary-schema-parser@2.0.3: {}
 
   js-md4@0.3.2: {}
 
@@ -15106,6 +15159,8 @@ snapshots:
 
   parse-ms@4.0.0: {}
 
+  parse-svg-path@0.2.0: {}
+
   parse5-htmlparser2-tree-adapter@7.1.0:
     dependencies:
       domhandler: 5.0.3
@@ -15188,6 +15243,19 @@ snapshots:
       thread-stream: 4.2.0
 
   pirates@4.0.7: {}
+
+  pixi.js@8.21.0:
+    dependencies:
+      '@pixi/colord': 2.9.6
+      '@types/earcut': 3.0.0
+      '@webgpu/types': 0.1.74
+      '@xmldom/xmldom': 0.8.15
+      earcut: 3.2.3
+      eventemitter3: 5.0.4
+      gifuct-js: 2.1.2
+      ismobilejs: 1.1.1
+      parse-svg-path: 0.2.0
+      tiny-lru: 11.4.7
 
   pkg-types@1.3.1:
     dependencies:
@@ -15999,6 +16067,8 @@ snapshots:
       real-require: 1.0.0
 
   tiny-invariant@1.3.3: {}
+
+  tiny-lru@11.4.7: {}
 
   tinybench@6.1.4: {}
 

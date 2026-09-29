@@ -15,6 +15,7 @@ export const traceIdMiddleware: MiddlewareHandler = async (c, next) => {
     parentSessionId: c.req.header("x-parent-session-id"),
     apiKeyId: null,
     apiKeyLabel: null,
+    terminalScope: null,
   }
 
   await requestContext.run(context, async () => {

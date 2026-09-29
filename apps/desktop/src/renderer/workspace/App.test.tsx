@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const {
   accountStatus,
+  appearanceState,
   capabilityState,
   createObservabilitySource,
   observabilitySource,
@@ -21,6 +22,11 @@ const {
   const observabilitySource = { source: 'stable-observability-source' }
   return {
     accountStatus: vi.fn(() => Promise.resolve({ state: 'unauthenticated' })),
+    appearanceState: {
+      vibrancyEnabled: false,
+      backgroundEffectsEnabled: false,
+      reducedMotionEnabled: false,
+    },
     capabilityState: {
       openSettings: null as null | ((sectionId: string | null) => void),
     },
@@ -50,6 +56,7 @@ const {
 vi.mock('@maximal/maximal-electron/renderer', () => ({
   decodeTabTransfer: vi.fn(),
   isTerminalPane: vi.fn(() => false),
+  TAB_COLORS: ['blue', 'green', 'yellow', 'red', 'purple', 'orange'],
   TAB_TRANSFER_MIME: 'application/x-stuffbucket-shell-tab+json',
   terminalPaneSessionIds: vi.fn((pane: {
     sessionId?: string
@@ -95,12 +102,36 @@ vi.mock('@maximal/maximal-client/renderer/traffic/source', () => ({ createObserv
 vi.mock('@maximal/maximal-client/renderer/settings/capabilities', () => ({
   createCoreSettingsCapabilities: () => ({
     account: { status: accountStatus },
+    general: {
+      appearance: vi.fn(async () => ({
+        vibrancyEnabled: appearanceState.vibrancyEnabled,
+        vibrancySupported: true,
+        backgroundEffectsEnabled: appearanceState.backgroundEffectsEnabled,
+        reducedMotionEnabled: appearanceState.reducedMotionEnabled,
+      })),
+      onAppearanceChange: vi.fn(() => () => {}),
+    },
     onOpenRequest: (listener: (sectionId: string | null) => void) => {
       capabilityState.openSettings = listener
       return vi.fn()
     },
     subscribe,
   }),
+}))
+vi.mock('./CozyBackground', () => ({
+  CozyBackground: ({
+    enabled,
+    reducedMotion,
+  }: {
+    enabled: boolean
+    reducedMotion: boolean
+  }) => (
+    <div
+      data-testid="cozy-background"
+      data-enabled={String(enabled)}
+      data-reduced-motion={String(reducedMotion)}
+    />
+  ),
 }))
 vi.mock('../../../../../packages/maximal-client/src/renderer/overview/Overview', () => ({
   Overview: () => <div data-testid="overview">Overview content</div>,
@@ -193,6 +224,9 @@ vi.mock('../../../../../packages/maximal-client/src/renderer/frame/AppFrame', ()
       data-view={activeTab}
       data-available-views={tabs.map((tab) => tab.id).join(',')}
     >
+      <output data-testid="tab-state">
+        {JSON.stringify(tabs)}
+      </output>
       <button onClick={() => onSelectTab('traffic')}>Traffic</button>
       {onToggleSettings ? <button onClick={onToggleSettings}>Settings gear</button> : null}
       {tabs.some((tab) => tab.id === 'settings') && onCloseTab
@@ -230,11 +264,31 @@ const { App } = await import('./App')
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 
+interface RenderedTabState {
+  id: string
+  color?: string
+  group?: { label: string; color: string }
+}
+
+function tabState(shell: HTMLElement): RenderedTabState[] {
+  const parsed: unknown = JSON.parse(
+    shell.querySelector('[data-testid="tab-state"]')?.textContent ?? '[]',
+  )
+  if (!Array.isArray(parsed)) throw new Error('tab state did not render as an array')
+  return parsed as RenderedTabState[]
+}
+
 let root: Root | null = null
 let container: HTMLElement | null = null
 
 beforeEach(() => {
   window.history.replaceState({}, '', '/')
+  appearanceState.vibrancyEnabled = false
+  appearanceState.backgroundEffectsEnabled = false
+  appearanceState.reducedMotionEnabled = false
+  document.documentElement.removeAttribute('data-vibrancy')
+  document.documentElement.removeAttribute('data-background-effects')
+  document.documentElement.removeAttribute('data-reduced-motion')
   capabilityState.openSettings = null
   accountStatus.mockResolvedValue({ state: 'unauthenticated' })
   terminalList.mockResolvedValue([])
@@ -282,6 +336,29 @@ async function renderApp(): Promise<HTMLElement> {
 }
 
 describe('App routing', () => {
+  it('applies the saved native material preference to the document', async () => {
+    appearanceState.vibrancyEnabled = true
+
+    await renderApp()
+
+    expect(document.documentElement.getAttribute('data-vibrancy')).toBe('true')
+  })
+
+  it('applies saved visual effect preferences to the document', async () => {
+    appearanceState.backgroundEffectsEnabled = true
+    appearanceState.reducedMotionEnabled = true
+
+    const shell = await renderApp()
+
+    expect(document.documentElement.getAttribute('data-background-effects'))
+      .toBe('true')
+    expect(document.documentElement.getAttribute('data-reduced-motion'))
+      .toBe('true')
+    const background = shell.querySelector('[data-testid="cozy-background"]')
+    expect(background?.getAttribute('data-enabled')).toBe('true')
+    expect(background?.getAttribute('data-reduced-motion')).toBe('true')
+  })
+
   it('opens the workspace without requiring an authenticated account', async () => {
     const shell = await renderApp()
 
@@ -472,6 +549,54 @@ describe('App routing', () => {
     await act(async () => confirmClose?.click())
     expect(terminalTerminate).toHaveBeenCalledWith('session-1')
     expect(shell.querySelector('[data-testid="terminal"]')).toBeNull()
+  })
+
+  it('groups and colors terminal tabs from the context menu', async () => {
+    accountStatus.mockResolvedValue({ state: 'authenticated' })
+    const shell = await renderApp()
+    const newTerminal = [...shell.querySelectorAll('button')].find(
+      (button) => button.textContent === 'New terminal',
+    )
+    act(() => newTerminal?.click())
+    const launch = [...shell.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Launch zsh',
+    )
+    act(() => launch?.click())
+
+    const newGroup = [...shell.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Add to New Group zsh',
+    )
+    const orange = [...shell.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Color: Orange zsh',
+    )
+    expect(newGroup).toBeDefined()
+    expect(orange).toBeDefined()
+
+    act(() => newGroup?.click())
+    act(() => orange?.click())
+
+    const state = tabState(shell)
+    const organized = state.find((tab) => tab.id === 'terminal:session-1')
+    expect(organized?.color).toBe('orange')
+    expect(organized?.group).toEqual({
+      id: 'terminal-group-1',
+      label: 'Group 1',
+      color: 'blue',
+    })
+
+    const removeGroup = [...shell.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Remove from Group zsh',
+    )
+    const clearColor = [...shell.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Clear Tab Color zsh',
+    )
+    act(() => removeGroup?.click())
+    act(() => clearColor?.click())
+
+    const cleared = tabState(shell)
+    const plain = cleared.find((tab) => tab.id === 'terminal:session-1')
+    expect(plain?.color).toBeUndefined()
+    expect(plain?.group).toBeUndefined()
   })
 
   it('removes a background terminal tab without ending its session', async () => {

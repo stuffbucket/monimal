@@ -5,6 +5,7 @@
     "src/index.ts",
     "src/host/index.ts",
     "src/renderer/index.ts",
+    "src/renderer/Overlay.stories.tsx",
     "scripts/*.mjs",
     "tests/**/*.test.{ts,tsx}"
   ],

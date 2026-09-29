@@ -1,5 +1,9 @@
 import type { Context, MiddlewareHandler } from "hono"
 
+import {
+  resolveTerminalScope,
+  type TerminalScope,
+} from "~/lib/auth/terminal-scope"
 import { getConfig, type AppConfig } from "~/lib/config/config"
 import { recordClient } from "~/lib/http/active-clients"
 import { requestContext } from "~/lib/http/request-context"
@@ -9,6 +13,7 @@ import { hasGithubToken, state } from "~/lib/runtime-state/state"
 interface AuthMiddlewareOptions {
   getApiKeys?: () => Array<string>
   findApiKeyEntry?: (requestKey: string) => { id: string; label: string } | null
+  resolveTerminalScope?: (requestKey: string) => TerminalScope | null
   /**
    * Resolver for the "block unknown connections" flag. When it returns
    * false (the default), the middleware allows every request and only
@@ -187,6 +192,7 @@ export function createAuthMiddleware(
 ): MiddlewareHandler {
   const getApiKeys = options.getApiKeys ?? getConfiguredApiKeys
   const findEntry = options.findApiKeyEntry ?? findApiKeyEntry
+  const resolveScope = options.resolveTerminalScope ?? resolveTerminalScope
   const isEnforcing =
     options.isEnforcing ?? (() => getConfig().auth?.enforce === true)
   const allowUnauthenticatedPaths = options.allowUnauthenticatedPaths ?? ["/"]
@@ -216,18 +222,43 @@ export function createAuthMiddleware(
   }
 
   const decideAuth = (requestApiKey: string | null): AuthDecision => {
+    const terminalScope =
+      requestApiKey === null ? null : resolveScope(requestApiKey)
+    if (terminalScope) {
+      return {
+        allow: true,
+        id: `terminal:${terminalScope.sessionId}`,
+        label: terminalScope.application,
+        terminalScope,
+      }
+    }
     if (isShellKey(requestApiKey)) {
-      return { allow: true, id: null, label: "Maximal Settings" }
+      return {
+        allow: true,
+        id: null,
+        label: "Maximal Settings",
+        terminalScope: null,
+      }
     }
     if (!isEnforcing()) {
       const entry = requestApiKey ? findEntry(requestApiKey) : null
-      return { allow: true, id: entry?.id ?? null, label: entry?.label ?? null }
+      return {
+        allow: true,
+        id: entry?.id ?? null,
+        label: entry?.label ?? null,
+        terminalScope: null,
+      }
     }
     if (!requestApiKey || !apiKeyAllowed(getApiKeys(), requestApiKey)) {
       return { allow: false }
     }
     const entry = findEntry(requestApiKey)
-    return { allow: true, id: entry?.id ?? null, label: entry?.label ?? null }
+    return {
+      allow: true,
+      id: entry?.id ?? null,
+      label: entry?.label ?? null,
+      terminalScope: null,
+    }
   }
 
   return async (c, next) => {
@@ -238,6 +269,7 @@ export function createAuthMiddleware(
     if (context) {
       context.apiKeyId = decision.id
       context.apiKeyLabel = decision.label
+      context.terminalScope = decision.terminalScope
     }
     recordClient({
       apiKeyId: decision.id,
@@ -249,7 +281,13 @@ export function createAuthMiddleware(
 }
 
 type AuthDecision =
-  { allow: true; id: string | null; label: string | null } | { allow: false }
+  | {
+      allow: true
+      id: string | null
+      label: string | null
+      terminalScope: TerminalScope | null
+    }
+  | { allow: false }
 
 /**
  * Gate for routes that forward to the GitHub Copilot upstream. Orthogonal

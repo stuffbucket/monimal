@@ -36,6 +36,7 @@ function registry(plugins: Array<ConfiguratorPlugin>): ConfiguratorRegistry {
   return {
     all: () => plugins,
     get: (id) => plugins.find((candidate) => candidate.metadata.id === id),
+    terminalProfile: () => undefined,
     dispose: () => Promise.resolve(),
   }
 }

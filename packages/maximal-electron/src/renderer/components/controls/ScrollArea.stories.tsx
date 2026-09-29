@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, within } from 'storybook/test';
+import { expect, waitFor, within } from 'storybook/test';
 
 import { ScrollArea } from './ScrollArea.js';
 
@@ -30,7 +30,7 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Native: Story = {
+export const Transient: Story = {
   play: async ({ canvasElement }) => {
     const area = within(canvasElement).getByRole('region', { name: 'Scrollable settings' });
     const style = getComputedStyle(area);
@@ -39,9 +39,16 @@ export const Native: Story = {
 
     await expect(area.scrollHeight).toBeGreaterThan(area.clientHeight);
     await expect(style.colorScheme).toBe('dark');
-    await expect(style.scrollbarColor).toBe('auto');
     await expect(thumb.backgroundColor).toBe('rgba(0, 0, 0, 0)');
     await expect(track.backgroundColor).toBe('rgba(0, 0, 0, 0)');
+
+    area.scrollTop = 24;
+    area.dispatchEvent(new Event('scroll', { bubbles: true }));
+    await expect(area.dataset.scrollbarVisible).toBe('true');
+    await waitFor(
+      () => expect(area.dataset.scrollbarVisible).toBeUndefined(),
+      { timeout: 1_200 },
+    );
   },
 };
 
@@ -59,7 +66,6 @@ export const CanvasSurface: Story = {
     reference.remove();
 
     await expect(style.backgroundColor).toBe(canvasBackground);
-    await expect(style.scrollbarColor).toBe('auto');
     await expect(thumb.backgroundColor).toBe('rgba(0, 0, 0, 0)');
     await expect(track.backgroundColor).toBe('rgba(0, 0, 0, 0)');
   },

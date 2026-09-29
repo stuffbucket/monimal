@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import { execFileSync, spawnSync } from 'node:child_process'
 import { mkdtempSync, rmSync } from 'node:fs'
+import { stat } from 'node:fs/promises'
 
 import { expect, test, type Page } from '@playwright/test'
 import { spawn as spawnPty } from 'node-pty'
@@ -80,6 +81,35 @@ async function openNativeSettings(label: string): Promise<string[]> {
     )
     return leaves?.map((item) => item.label) ?? []
   }, label)
+}
+
+async function toggleNativeRecording(output?: string): Promise<void> {
+  await running.app.evaluate(({ BrowserWindow, dialog, Menu }, destination) => {
+    if (destination) {
+      dialog.showSaveDialog = () => Promise.resolve({
+        canceled: false,
+        filePath: destination,
+      })
+    }
+    const menu = Menu.getApplicationMenu()
+    const file = menu?.items.find((item) => item.label === 'File')
+    const target = file?.submenu?.items.find((item) =>
+      item.label === (destination ? 'Record Window…' : 'Stop Window Recording'),
+    )
+    if (!target || typeof target.click !== 'function') {
+      throw new Error(destination ? 'Record Window menu item is unavailable' : 'Window recording is not active')
+    }
+    const click = target.click as (
+      item: typeof target,
+      window: ReturnType<typeof BrowserWindow.getFocusedWindow> | undefined,
+      event: { keyCode: string; triggeredByAccelerator: boolean; type: 'keyDown' },
+    ) => void
+    click(
+      target,
+      BrowserWindow.getFocusedWindow() ?? undefined,
+      { keyCode: '', triggeredByAccelerator: false, type: 'keyDown' },
+    )
+  }, output)
 }
 
 test.afterAll(async () => {
@@ -164,6 +194,7 @@ test('packaged preload exposes only the closed named bridge', async () => {
 
   expect(exposed).toEqual({
     topLevel: [
+      'appearance',
       'clientInstallations',
       'control',
       'getCoreStatus',
@@ -386,6 +417,37 @@ test('desktop terminal selector presents the app-owned clients with canonical ic
   expect(descriptionBox!.y).toBeGreaterThanOrEqual(nameBox!.y + nameBox!.height)
   expect(descriptionBox!.y + descriptionBox!.height).toBeLessThanOrEqual(
     choiceBox!.y + choiceBox!.height,
+  )
+
+  await local.click()
+  await expect(launcher).toBeHidden()
+  await page.getByTestId('tab-new').click()
+  await expect(launcher).toBeVisible()
+  const runningLocal = launcher.locator(
+    '[aria-label="Running"] .terminal-launcher__choice',
+  ).first()
+  await expect(runningLocal).toContainText('Local')
+  await expect(runningLocal).not.toContainText(
+    'Open a terminal on your local file system',
+  )
+  await expect(
+    runningLocal.locator('.terminal-launcher__choice-description'),
+  ).toHaveCount(0)
+  const runningChoiceBox = await runningLocal.boundingBox()
+  const runningNameBox = await runningLocal
+    .locator('.terminal-launcher__choice-name')
+    .boundingBox()
+  const runningKindBox = await runningLocal
+    .locator('.terminal-launcher__kind')
+    .boundingBox()
+  expect(runningChoiceBox).not.toBeNull()
+  expect(runningNameBox).not.toBeNull()
+  expect(runningKindBox).not.toBeNull()
+  expect(runningNameBox!.x + runningNameBox!.width).toBeLessThanOrEqual(
+    runningKindBox!.x,
+  )
+  expect(runningKindBox!.x + runningKindBox!.width).toBeLessThanOrEqual(
+    runningChoiceBox!.x + runningChoiceBox!.width,
   )
 
   await page.screenshot({ path: testInfo.outputPath('terminal-selector.png') })
@@ -662,6 +724,98 @@ test('native Settings flyout opens every restored section in the packaged UI', a
 
   await expect(page.locator('#right')).toHaveCount(0)
   await expect(page.locator('[data-testid="toggle-right"]')).toHaveCount(0)
+})
+
+test('Appearance effects persist, honor reduced motion, and release Pixi when disabled', async ({ page: _page }, testInfo) => {
+  const page = await mainWindow()
+  const recordingPath = process.env.MAXIMAL_E2E_CAPTURE_COZY_VIDEO === '1'
+    ? testInfo.outputPath('cozy-background-demo.mp4')
+    : null
+  await page.evaluate(async () => {
+    await window.maximal.appearance.setVibrancyEnabled(false)
+    await window.maximal.appearance.setBackgroundEffectsEnabled(false)
+    await window.maximal.appearance.setReducedMotionEnabled(false)
+  })
+
+  await openNativeSettings('Appearance')
+  await expect(page.locator('h1')).toHaveText('Appearance')
+  await expect(page.getByRole('heading', { name: 'Window materials' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Visual effects' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Desktop presence' })).toBeVisible()
+
+  const vibrancy = page.getByTestId('vibrancy-switch')
+  const background = page.getByTestId('background-effects-switch')
+  const reducedMotion = page.getByTestId('reduced-motion-switch')
+  await expect(background).toHaveAttribute('aria-checked', 'false')
+  await expect(reducedMotion).toHaveAttribute('aria-checked', 'false')
+  await page.screenshot({
+    path: testInfo.outputPath('appearance-effects-disabled.png'),
+  })
+  if (recordingPath) {
+    await toggleNativeRecording(recordingPath)
+    await expect.poll(() => running.app.evaluate(({ Menu }) =>
+      Menu.getApplicationMenu()?.items
+        .find((item) => item.label === 'File')
+        ?.submenu?.items.some((item) => item.label === 'Stop Window Recording') ?? false,
+    )).toBe(true)
+    await page.waitForTimeout(1_000)
+  }
+
+  const vibrancySupported = await page.evaluate(
+    () => window.maximal.appearance.get().then(({ vibrancySupported }) => vibrancySupported),
+  )
+  if (vibrancySupported) {
+    await expect(vibrancy).toBeEnabled()
+  } else {
+    await expect(vibrancy).toBeDisabled()
+  }
+
+  await background.click()
+  await expect(background).toHaveAttribute('aria-checked', 'true')
+  await expect(page.locator('html')).toHaveAttribute('data-background-effects', 'true')
+  const canvas = page.locator('.cozy-background canvas')
+  await expect(canvas).toHaveCount(1)
+  await page.waitForTimeout(250)
+  const animatedFrameA = await canvas.screenshot({
+    path: testInfo.outputPath('cozy-background-animated-a.png'),
+  })
+  await page.waitForTimeout(250)
+  const animatedFrameB = await canvas.screenshot({
+    path: testInfo.outputPath('cozy-background-animated-b.png'),
+  })
+  expect(animatedFrameB.equals(animatedFrameA)).toBe(false)
+  if (recordingPath) await page.waitForTimeout(5_000)
+
+  await reducedMotion.click()
+  await expect(reducedMotion).toHaveAttribute('aria-checked', 'true')
+  await expect(page.locator('html')).toHaveAttribute('data-reduced-motion', 'true')
+  await page.waitForTimeout(100)
+  const reducedFrameA = await canvas.screenshot({
+    path: testInfo.outputPath('cozy-background-reduced-motion.png'),
+  })
+  await page.waitForTimeout(250)
+  const reducedFrameB = await canvas.screenshot()
+  expect(reducedFrameB.equals(reducedFrameA)).toBe(true)
+  if (recordingPath) await page.waitForTimeout(2_000)
+
+  await page.reload()
+  await openNativeSettings('Appearance')
+  await expect(page.getByTestId('background-effects-switch'))
+    .toHaveAttribute('aria-checked', 'true')
+  await expect(page.getByTestId('reduced-motion-switch'))
+    .toHaveAttribute('aria-checked', 'true')
+  await expect(page.locator('.cozy-background canvas')).toHaveCount(1)
+
+  await page.getByTestId('background-effects-switch').click()
+  await expect(page.locator('.cozy-background')).toHaveCount(0)
+  await expect(page.locator('html')).not.toHaveAttribute('data-background-effects', /.+/)
+  await page.getByTestId('reduced-motion-switch').click()
+  await expect(page.locator('html')).not.toHaveAttribute('data-reduced-motion', /.+/)
+  if (recordingPath) {
+    await page.waitForTimeout(1_000)
+    await toggleNativeRecording()
+    await expect.poll(async () => (await stat(recordingPath)).size).toBeGreaterThan(0)
+  }
 })
 
 test('model settings preserve hierarchy and semantics at narrow widths', async ({ browserName: _browserName }, testInfo) => {

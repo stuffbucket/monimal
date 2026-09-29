@@ -405,7 +405,7 @@ describe('a component that carries rules', () => {
       createElement(SettingsPage, { title: 'Diagnostics', children: null }),
     );
 
-    expect(markup).toContain('class="settings"');
+    expect(markup).toContain('class="scroll-area settings"');
     expect(markup).toContain('Diagnostics');
   });
 });
