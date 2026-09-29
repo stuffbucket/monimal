@@ -1,10 +1,9 @@
 {
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
-  "packageManager": "pnpm",
-  "plugins": ["@stryker-mutator/vitest-runner"],
-  "testRunner": "vitest",
-  "vitest": {
-    "configFile": "vitest.config.mts"
+  "packageManager": "npm",
+  "testRunner": "command",
+  "commandRunner": {
+    "command": "pnpm exec vitest run src/renderer/settings/GeneralSection.test.tsx"
   },
   "mutate": [
     "src/renderer/settings/general/GeneralSection.tsx",
@@ -20,7 +19,7 @@
   },
   "concurrency": 4,
   "timeoutMS": 30000,
-  "coverageAnalysis": "perTest",
+  "coverageAnalysis": "off",
   "thresholds": {
     "break": 100
   },

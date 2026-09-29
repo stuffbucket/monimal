@@ -46,6 +46,7 @@ import { z } from 'zod'
 
 import { BRIDGE_CHANNELS } from '../shared/bridge-channels.js'
 import type {
+  AppearancePreference,
   PendingSettingsRequest,
   TerminalRedockRequest,
   TerminalWindowRequest,
@@ -99,9 +100,16 @@ import {
   stopTerminalHost,
 } from './adapters/terminal.js'
 import {
+  setBackgroundEffectsEnabled,
   loadApplicationSettings,
   setOllamaStartOnLaunch,
+  setReducedMotionEnabled,
+  setVibrancyEnabled,
 } from './preferences/application-settings.js'
+import {
+  applyVibrancy,
+  vibrancyPreference,
+} from './native/vibrancy.js'
 
 const SPLASH_PREVIEW_FLAG = '--splash-preview'
 
@@ -125,6 +133,7 @@ applyAppName()
 
 let coreControlConnection: CoreControlConnection | null = null
 let mainWindow: BrowserWindow | null = null
+const vibrancyWindows = new Set<BrowserWindow>()
 let pendingSettingsRequest: PendingSettingsRequest | null = null
 let menuBarMode: MenuBarModeController | null = null
 let recording: DesktopRecording | null = null
@@ -144,6 +153,54 @@ function ollamaRuntimePreferences(restartRequired = false) {
     cloud_disabled: getOllamaCloudDisabled(),
     restart_required: restartRequired,
   }
+}
+
+function appearancePreference(): AppearancePreference {
+  const settings = loadApplicationSettings(app.getPath('userData')).settings
+  const vibrancy = vibrancyPreference(settings.vibrancyEnabled)
+  return {
+    vibrancyEnabled: vibrancy.enabled,
+    vibrancySupported: vibrancy.supported,
+    backgroundEffectsEnabled: settings.backgroundEffectsEnabled,
+    reducedMotionEnabled: settings.reducedMotionEnabled,
+  }
+}
+
+function applySavedVibrancy(window: BrowserWindow): void {
+  applyVibrancy(
+    window,
+    loadApplicationSettings(app.getPath('userData')).settings.vibrancyEnabled,
+  )
+}
+
+async function updateVibrancy(enabled: boolean) {
+  const saved = await setVibrancyEnabled(app.getPath('userData'), enabled)
+  for (const window of vibrancyWindows) {
+    if (!window.isDestroyed()) applyVibrancy(window, saved)
+  }
+  const preference = appearancePreference()
+  broadcast(BRIDGE_CHANNELS.appearanceChanged, preference)
+  return preference
+}
+
+async function updateBackgroundEffects(enabled: boolean) {
+  await setBackgroundEffectsEnabled(app.getPath('userData'), enabled)
+  const preference = appearancePreference()
+  broadcast(BRIDGE_CHANNELS.appearanceChanged, preference)
+  return preference
+}
+
+async function updateReducedMotion(enabled: boolean) {
+  await setReducedMotionEnabled(app.getPath('userData'), enabled)
+  const preference = appearancePreference()
+  broadcast(BRIDGE_CHANNELS.appearanceChanged, preference)
+  return preference
+}
+
+function registerVibrancyWindow(window: BrowserWindow): void {
+  vibrancyWindows.add(window)
+  applySavedVibrancy(window)
+  window.on('closed', () => vibrancyWindows.delete(window))
 }
 
 async function updateOllamaRuntimePreferences(input: unknown) {
@@ -243,6 +300,21 @@ function registerIpc(
   )
   ipcMain.handle(BRIDGE_CHANNELS.providerOnboardingSet, (_event, dismissed: unknown) =>
     setProviderOnboardingPreference(z.boolean().parse(dismissed)),
+  )
+  ipcMain.handle(BRIDGE_CHANNELS.appearanceGet, appearancePreference)
+  ipcMain.handle(
+    BRIDGE_CHANNELS.appearanceSetVibrancy,
+    (_event, enabled: unknown) => updateVibrancy(z.boolean().parse(enabled)),
+  )
+  ipcMain.handle(
+    BRIDGE_CHANNELS.appearanceSetBackgroundEffects,
+    (_event, enabled: unknown) =>
+      updateBackgroundEffects(z.boolean().parse(enabled)),
+  )
+  ipcMain.handle(
+    BRIDGE_CHANNELS.appearanceSetReducedMotion,
+    (_event, enabled: unknown) =>
+      updateReducedMotion(z.boolean().parse(enabled)),
   )
   ipcMain.handle(BRIDGE_CHANNELS.authStatus, () => session.authStatus())
   ipcMain.handle(BRIDGE_CHANNELS.authStart, () => session.authStart())
@@ -588,6 +660,7 @@ function createWindow(): BrowserWindow {
     ...centerOnPrimaryDisplay(1280, 768),
     loadRenderer,
   })
+  registerVibrancyWindow(win)
   mainWindow = win
   menuBarMode?.applyToWindow(win)
   win.on('closed', () => {
@@ -611,6 +684,7 @@ function createTerminalWindow(request: TerminalWindowRequest): BrowserWindow {
     showWhenReady: false,
     loadRenderer: () => undefined,
   })
+  registerVibrancyWindow(win)
   installRendererRecovery(win)
   return win
 }
@@ -723,7 +797,7 @@ void app.whenReady().then(async () => {
       broadcast(BRIDGE_CHANNELS.trafficInvalidated, invalidation),
   })
   const applicationSettings = loadApplicationSettings(app.getPath('userData')).settings
-  configureTerminalHost(applicationSettings)
+  configureTerminalHost(applicationSettings, coreControlConnection)
   if (applicationSettings.ollamaStartOnLaunch) {
     void getOllamaRuntimeStatus()
       .then((status) =>

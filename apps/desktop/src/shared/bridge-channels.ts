@@ -65,6 +65,11 @@ export const BRIDGE_CHANNELS = {
   generalSettingsSetStartOnLogin: 'maximal:native/general-settings-set-start-on-login',
   providerOnboardingGet: 'maximal:native/provider-onboarding-get',
   providerOnboardingSet: 'maximal:native/provider-onboarding-set',
+  appearanceGet: 'maximal:native/appearance-get',
+  appearanceSetVibrancy: 'maximal:native/appearance-set-vibrancy',
+  appearanceSetBackgroundEffects: 'maximal:native/appearance-set-background-effects',
+  appearanceSetReducedMotion: 'maximal:native/appearance-set-reduced-motion',
+  appearanceChanged: 'maximal:native/appearance-changed',
   terminalSpawn: 'maximal:terminal/spawn',
   terminalWrite: 'maximal:terminal/write',
   terminalResize: 'maximal:terminal/resize',
@@ -115,6 +120,10 @@ export const INVOKE_CHANNELS = [
   BRIDGE_CHANNELS.openExternal,
   BRIDGE_CHANNELS.providerOnboardingGet,
   BRIDGE_CHANNELS.providerOnboardingSet,
+  BRIDGE_CHANNELS.appearanceGet,
+  BRIDGE_CHANNELS.appearanceSetVibrancy,
+  BRIDGE_CHANNELS.appearanceSetBackgroundEffects,
+  BRIDGE_CHANNELS.appearanceSetReducedMotion,
   BRIDGE_CHANNELS.authStatus,
   BRIDGE_CHANNELS.authStart,
   BRIDGE_CHANNELS.authCancel,
@@ -199,6 +208,7 @@ export const INVOKE_CHANNELS = [
 ] as const
 
 export const EVENT_CHANNELS = [
+  BRIDGE_CHANNELS.appearanceChanged,
   BRIDGE_CHANNELS.lifecycleChanged,
   BRIDGE_CHANNELS.shutdownChanged,
   BRIDGE_CHANNELS.controlChanged,

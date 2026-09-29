@@ -33,11 +33,14 @@ interface Rgb {
 
 function themeValues(): Map<string, string> {
   const source = readFileSync(resolve(import.meta.dirname, 'theme.ts'), 'utf8')
-  return new Map(
-    [...source.matchAll(/^\s*(--shell-[a-z0-9-]+)\s*:\s*([^;]+);/gm)].map(
-      (match) => [match[1] ?? '', (match[2] ?? '').trim()],
-    ),
-  )
+  const values = new Map<string, string>()
+  for (const match of source.matchAll(
+    /^\s*(--shell-[a-z0-9-]+)\s*:\s*([^;]+);/gm,
+  )) {
+    const name = match[1] ?? ''
+    if (!values.has(name)) values.set(name, (match[2] ?? '').trim())
+  }
+  return values
 }
 
 function hex(value: string): Rgb {

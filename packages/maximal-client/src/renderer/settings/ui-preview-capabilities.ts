@@ -340,6 +340,31 @@ export function createPreviewSettingsCapabilities(): SettingsCapabilities {
         startOnLogin: enabled,
         quickAccessShortcut: 'control-control',
       }),
+      appearance: () => Promise.resolve({
+        vibrancyEnabled: false,
+        vibrancySupported: true,
+        backgroundEffectsEnabled: false,
+        reducedMotionEnabled: false,
+      }),
+      setVibrancyEnabled: (enabled) => Promise.resolve({
+        vibrancyEnabled: enabled,
+        vibrancySupported: true,
+        backgroundEffectsEnabled: false,
+        reducedMotionEnabled: false,
+      }),
+      setBackgroundEffectsEnabled: (enabled) => Promise.resolve({
+        vibrancyEnabled: false,
+        vibrancySupported: true,
+        backgroundEffectsEnabled: enabled,
+        reducedMotionEnabled: false,
+      }),
+      setReducedMotionEnabled: (enabled) => Promise.resolve({
+        vibrancyEnabled: false,
+        vibrancySupported: true,
+        backgroundEffectsEnabled: false,
+        reducedMotionEnabled: enabled,
+      }),
+      onAppearanceChange: () => () => {},
       menuBarMode: () => Promise.resolve(menuBarState()),
       beginMenuBarOnly: () => {
         menuBarEnabled = true

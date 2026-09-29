@@ -185,6 +185,15 @@ describe('TerminalLauncher', () => {
     expect(document.body.textContent).toContain('Running');
     expect(document.body.querySelector('[aria-label="Running"] .terminal-launcher__choices')).not.toBeNull();
     expect(document.body.querySelector('[aria-label="Available"] .terminal-launcher__choices')).not.toBeNull();
+    const runningChoice = document.body.querySelector<HTMLButtonElement>(
+      '[aria-label="Running"] .terminal-launcher__choice',
+    );
+    expect(runningChoice?.textContent).toContain('Terminal 1');
+    expect(runningChoice?.textContent).toContain('Local');
+    expect(runningChoice?.textContent).not.toContain('Open a terminal');
+    expect(
+      runningChoice?.querySelector('.terminal-launcher__choice-description'),
+    ).toBeNull();
     const localChoices = [...document.body.querySelectorAll<HTMLButtonElement>('.terminal-launcher__choice')]
       .filter((button) => button.textContent?.trim() === 'Local');
     expect(localChoices).toHaveLength(1);

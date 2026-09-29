@@ -305,7 +305,7 @@ export function TerminalLauncher({
                 {renderProfileIcon?.(profile) ?? <SquareTerminal size={16} />}
                 <span className="terminal-launcher__choice-label">
                   <span className="terminal-launcher__choice-name">{target?.label ?? profile.label}</span>
-                  {profile.description
+                  {profile.description && target?.purpose !== 'running'
                     ? <span className="terminal-launcher__choice-description">{profile.description}</span>
                     : null}
                 </span>

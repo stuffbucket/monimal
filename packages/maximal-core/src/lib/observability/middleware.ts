@@ -6,8 +6,11 @@ import type {
   TrafficErrorMetadata,
   TrafficObservationHandle,
   TrafficObserver,
+  TrafficTerminalMetadata,
 } from "@maximal/maximal-observability-contract"
 import type { Context, MiddlewareHandler } from "hono"
+
+import type { TerminalScope } from "~/lib/auth/terminal-scope"
 
 import { requestContext } from "~/lib/http/request-context"
 import { asRecord } from "~/lib/http/untrusted-frame"
@@ -24,6 +27,16 @@ const OBSERVED_PATHS = [
 ] as const
 
 const BODY_LIMIT_BYTES = 16 * 1024 * 1024
+
+function terminalMetadata(
+  scope: TerminalScope | null | undefined,
+): TrafficTerminalMetadata {
+  return {
+    sessionId: boundedIdentifier(scope?.sessionId),
+    profileId: boundedIdentifier(scope?.profileId),
+    application: boundedIdentifier(scope?.application),
+  }
+}
 
 export function observedInferencePaths(): Array<string> {
   return [
@@ -392,6 +405,7 @@ export function createTrafficObservationMiddleware(
         operation: operationForPath(c.req.path),
       },
       attribution: normalized.attribution,
+      terminal: terminalMetadata(store?.terminalScope),
       context: normalized.context,
       size: {
         requestBytes: requestBytes(c),

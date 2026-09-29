@@ -1,13 +1,13 @@
 {
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
-  "_comment": "Manual, focused mutation testing. Narrow source scope with --mutate while retaining the complete three-project Vitest suite. No mutation-score threshold gates normal development or CI.",
-  "packageManager": "pnpm",
-  "plugins": ["@stryker-mutator/vitest-runner"],
-  "testRunner": "vitest",
-  "vitest": {
-    "configFile": "vitest.config.mts"
+  "_comment": "Manual, focused mutation testing. The command runner starts a fresh Vitest process per mutant for Vitest 5 compatibility. No mutation-score threshold gates normal development or CI.",
+  "packageManager": "npm",
+  "testRunner": "command",
+  "commandRunner": {
+    "command": "pnpm test:mutation"
   },
   "mutate": [
+    "src/renderer/terminal-tab-organization.ts",
     "src/renderer/settings/Settings.tsx:1:0-111:0",
     "src/renderer/settings/Settings.tsx:539:0-546:1"
   ],
@@ -21,7 +21,7 @@
   },
   "concurrency": 4,
   "timeoutMS": 30000,
-  "coverageAnalysis": "perTest",
+  "coverageAnalysis": "off",
   "thresholds": {
     "break": null
   },

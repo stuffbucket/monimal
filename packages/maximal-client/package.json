@@ -30,6 +30,7 @@
     "lint:inner": "eslint .",
     "lint:fix": "eslint . --fix",
     "mutate": "stryker run",
+    "test:mutation": "vitest run --config vitest.mutation.config.mts",
     "test": "vitest run",
     "test:run": "vitest run",
     "mutate:general": "stryker run stryker.general.conf.json",
@@ -66,7 +67,6 @@
   "devDependencies": {
     "@playwright/test": "^1.62.1",
     "@stryker-mutator/core": "^10.0.0",
-    "@stryker-mutator/vitest-runner": "^10.0.0",
     "@maximal/eslint-config": "workspace:*",
     "@types/node": "^26.4.0",
     "@types/react": "^19.2.17",

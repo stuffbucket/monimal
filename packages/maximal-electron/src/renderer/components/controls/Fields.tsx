@@ -99,12 +99,14 @@ const FIELD_STYLES = `
 .sb-shell .form-field {
   display: grid;
   gap: var(--shell-space-1);
+  min-width: 0;
 }
 
 .sb-shell .form-field__label-row {
   display: flex;
   align-items: center;
   gap: var(--shell-space-1);
+  min-width: 0;
 }
 
 .sb-shell .form-field__label {
@@ -114,14 +116,18 @@ const FIELD_STYLES = `
 
 .sb-shell .form-field__hint {
   margin: 0;
+  min-width: 0;
   color: var(--shell-text-subtle);
   font-size: var(--shell-text-sm);
+  overflow-wrap: anywhere;
 }
 
 .sb-shell .form-field__error {
   margin: 0;
+  min-width: 0;
   color: var(--shell-invalid, var(--shell-danger, var(--shell-hover)));
   font-size: var(--shell-text-sm);
+  overflow-wrap: anywhere;
 }
 
 .sb-shell .checkbox,

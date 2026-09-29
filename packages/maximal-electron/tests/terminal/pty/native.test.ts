@@ -153,13 +153,13 @@ describe('native pty adapter', () => {
     state.projectionHosts[0]?.projectionIds.mockReset().mockReturnValue([]);
   });
 
-  it('forwards the host output sequence to the owner event adapter', () => {
+  it('forwards the host output sequence to the owner event adapter', async () => {
     const emit = vi.fn();
     const window = owner();
     pty.configurePty({ emit, onExit: vi.fn(), onStatus: vi.fn() }, { tmuxSessionPrefix: 'maximal' });
 
     expect(() => pty.spawnReservedPty(owner(), { id: 'unreserved', cols: 80, rows: 24 })).toThrow('not reserved');
-    pty.launchTerminal(window, { profileId: 'local', cols: 80, rows: 24 });
+    await pty.launchTerminal(window, { profileId: 'local', cols: 80, rows: 24 });
     pty.acknowledgePty(window, 'session', 7);
 
     expect(emit).toHaveBeenCalledWith(expect.anything(), 'session', 'output', 7);
@@ -199,9 +199,9 @@ describe('native pty adapter', () => {
     expect(host.terminateAll).toHaveBeenCalledOnce();
   });
 
-  it('attaches a view to a session launched for the same owner', () => {
+  it('attaches a view to a session launched for the same owner', async () => {
     const window = owner();
-    const result = pty.launchTerminal(window, { profileId: 'local', cols: 80, rows: 24 });
+    const result = await pty.launchTerminal(window, { profileId: 'local', cols: 80, rows: 24 });
     const host = state.hosts.at(-1)!;
 
     expect(() => {
@@ -251,11 +251,42 @@ describe('native pty adapter', () => {
     })).toBe(true);
   });
 
-  it('does not report a launch when the trusted connector throws synchronously', () => {
+  it('injects prepared session environment into the launched process', async () => {
+    const window = owner();
+    const prepareSession = vi.fn(async () => ({ MAXIMAL_TERMINAL_SESSION_ID: 'scope' }));
+    pty.configurePty(
+      { emit: vi.fn(), onExit: vi.fn(), onStatus: vi.fn() },
+      { tmuxSessionPrefix: 'maximal', prepareSession },
+    );
+
+    const result = await pty.launchTerminal(window, { profileId: 'local', cols: 80, rows: 24 });
+
+    expect(prepareSession).toHaveBeenCalledWith({
+      sessionId: result.sessionId,
+      profileId: 'local',
+      label: 'Local',
+    });
+    expect(state.hosts.at(-1)?.spawn).toHaveBeenLastCalledWith(expect.objectContaining({
+      id: result.sessionId,
+      env: { MAXIMAL_TERMINAL_SESSION_ID: 'scope' },
+    }));
+  });
+
+  it('releases a prepared session when the trusted connector throws', async () => {
     state.throwOnSpawn = true;
     const window = owner();
+    const releaseSession = vi.fn();
+    pty.configurePty(
+      { emit: vi.fn(), onExit: vi.fn(), onStatus: vi.fn() },
+      { tmuxSessionPrefix: 'maximal', releaseSession },
+    );
 
-    expect(() => pty.launchTerminal(window, { profileId: 'local', cols: 80, rows: 24 })).toThrow('connector failed');
+    await expect(pty.launchTerminal(window, {
+      profileId: 'local',
+      cols: 80,
+      rows: 24,
+    })).rejects.toThrow('connector failed');
+    expect(releaseSession).toHaveBeenCalledOnce();
     expect(() => pty.spawnReservedPty(window, { id: 'unknown', cols: 80, rows: 24 })).toThrow('not reserved');
 
     state.throwOnSpawn = false;

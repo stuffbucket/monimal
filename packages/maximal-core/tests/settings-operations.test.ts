@@ -408,6 +408,7 @@ function configuratorRegistry(
   return {
     all: () => [plugin],
     get: (id) => (id === plugin.metadata.id ? plugin : undefined),
+    terminalProfile: () => undefined,
     dispose: () => Promise.resolve(),
   }
 }
@@ -504,6 +505,7 @@ describe("connection settings operations", () => {
           })
         },
       }),
+      terminalProfile: () => undefined,
       dispose: () => Promise.resolve(),
     }
 

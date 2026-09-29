@@ -46,7 +46,9 @@ interface CoreControlConnectionSpies {
   localModelsCancel: ReturnType<typeof vi.fn>
   searchSettingsGet: ReturnType<typeof vi.fn>
   searchSettingsUpdate: ReturnType<typeof vi.fn>
-    searchProviderValidate: ReturnType<typeof vi.fn>
+  searchProviderValidate: ReturnType<typeof vi.fn>
+  terminalScopeIssue: ReturnType<typeof vi.fn>
+  terminalScopeRevoke: ReturnType<typeof vi.fn>
   dispose: ReturnType<typeof vi.fn>
 }
 
@@ -116,6 +118,8 @@ const {
     close: vi.fn(),
     loadFile: vi.fn(() => Promise.resolve()),
     loadURL: vi.fn(() => Promise.resolve()),
+    setBackgroundColor: vi.fn(),
+    setVibrancy: vi.fn(),
     setSkipTaskbar: vi.fn(),
     on: vi.fn((event: string, listener: (...args: unknown[]) => void) => {
       addListener(windowListeners, event, listener)
@@ -422,6 +426,8 @@ const { createCoreControlConnectionMock, disposeCoreControlConnectionMock } = vi
         searchSettingsGet: vi.fn(),
         searchSettingsUpdate: vi.fn(),
         searchProviderValidate: vi.fn(),
+        terminalScopeIssue: vi.fn(),
+        terminalScopeRevoke: vi.fn(),
         dispose: disposeCoreControlConnectionMock,
       })),
     }
@@ -575,6 +581,7 @@ describe('closed IPC boundary', () => {
 
   it('names every renderer event channel in one closed allowlist', () => {
     expect(EVENT_CHANNELS).toEqual([
+      BRIDGE_CHANNELS.appearanceChanged,
       BRIDGE_CHANNELS.lifecycleChanged,
       BRIDGE_CHANNELS.shutdownChanged,
       BRIDGE_CHANNELS.controlChanged,

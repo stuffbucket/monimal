@@ -149,6 +149,13 @@ export interface ProviderOnboardingPreference {
   dismissed: boolean
 }
 
+export interface AppearancePreference {
+  vibrancyEnabled: boolean
+  vibrancySupported: boolean
+  backgroundEffectsEnabled: boolean
+  reducedMotionEnabled: boolean
+}
+
 export interface OllamaRuntimePreferences {
   start_on_maximal_launch: boolean
   cloud_disabled: boolean
@@ -274,6 +281,13 @@ export interface MaximalHost {
   providerOnboarding: {
     get: () => Promise<ProviderOnboardingPreference>
     setDismissed: (dismissed: boolean) => Promise<ProviderOnboardingPreference>
+  }
+  appearance: {
+    get: () => Promise<AppearancePreference>
+    setVibrancyEnabled: (enabled: boolean) => Promise<AppearancePreference>
+    setBackgroundEffectsEnabled: (enabled: boolean) => Promise<AppearancePreference>
+    setReducedMotionEnabled: (enabled: boolean) => Promise<AppearancePreference>
+    onChange: (listener: (preference: AppearancePreference) => void) => Unsubscribe
   }
   harness: {
     show: () => Promise<void>

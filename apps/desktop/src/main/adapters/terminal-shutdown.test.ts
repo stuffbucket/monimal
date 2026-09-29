@@ -45,13 +45,18 @@ vi.mock('@maximal/maximal-terminal', async (importOriginal) => ({
 
 import { activeTerminalCount, configureTerminalHost, stopTerminalHost } from './terminal.js'
 
+const core = {
+  terminalScopeIssue: vi.fn(),
+  terminalScopeRevoke: vi.fn(),
+}
+
 describe('terminal host shutdown', () => {
   it('uses the application-resolved diagnostics setting', () => {
     configureTerminalHost({
       terminalDiagnostics: true,
       terminalSessionPrefix: 'maximal',
       terminalTmuxStatus: 'off',
-    })
+    }, core)
     expect(configureTerminalDiagnostics).toHaveBeenLastCalledWith(true, expect.any(Function))
     const record: TerminalDiagnosticRecord = {
       component: 'pty-host', event: 'started', ownerId: 'owner-1',
@@ -64,7 +69,7 @@ describe('terminal host shutdown', () => {
       terminalDiagnostics: false,
       terminalSessionPrefix: 'maximal',
       terminalTmuxStatus: 'off',
-    })
+    }, core)
     expect(configureTerminalDiagnostics).toHaveBeenLastCalledWith(false, expect.any(Function))
   })
   it('counts sessions owned by a hidden window as active', () => {

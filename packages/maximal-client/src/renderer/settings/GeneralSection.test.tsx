@@ -39,6 +39,31 @@ function fakeCapabilities(options?: {
       startOnLogin: enabled,
       quickAccessShortcut: 'control-control' as const,
     })),
+    appearance: vi.fn(async () => ({
+      vibrancyEnabled: false,
+      vibrancySupported: true,
+      backgroundEffectsEnabled: false,
+      reducedMotionEnabled: false,
+    })),
+    setVibrancyEnabled: vi.fn(async (enabled: boolean) => ({
+      vibrancyEnabled: enabled,
+      vibrancySupported: true,
+      backgroundEffectsEnabled: false,
+      reducedMotionEnabled: false,
+    })),
+    setBackgroundEffectsEnabled: vi.fn(async (enabled: boolean) => ({
+      vibrancyEnabled: false,
+      vibrancySupported: true,
+      backgroundEffectsEnabled: enabled,
+      reducedMotionEnabled: false,
+    })),
+    setReducedMotionEnabled: vi.fn(async (enabled: boolean) => ({
+      vibrancyEnabled: false,
+      vibrancySupported: true,
+      backgroundEffectsEnabled: false,
+      reducedMotionEnabled: enabled,
+    })),
+    onAppearanceChange: vi.fn(() => () => {}),
     menuBarMode: vi.fn(async () => ({ enabled: false, pending: false })),
     beginMenuBarOnly: vi.fn(async () => ({
       attemptId: 'attempt-1',
@@ -92,6 +117,25 @@ function switchControl(surface: HTMLElement): HTMLButtonElement {
   return control
 }
 
+function vibrancyControl(surface: HTMLElement): HTMLButtonElement {
+  const control = surface.querySelector<HTMLButtonElement>(
+    '[data-testid="vibrancy-switch"]',
+  )
+  if (control === null) throw new Error('vibrancy switch was not rendered')
+  return control
+}
+
+function effectControl(
+  surface: HTMLElement,
+  testId: string,
+): HTMLButtonElement {
+  const control = surface.querySelector<HTMLButtonElement>(
+    `[data-testid="${testId}"]`,
+  )
+  if (control === null) throw new Error(`${testId} was not rendered`)
+  return control
+}
+
 function button(label: string): HTMLButtonElement {
   const control = [...document.querySelectorAll('button')].find(
     (candidate) => candidate.textContent === label,
@@ -100,17 +144,88 @@ function button(label: string): HTMLButtonElement {
   return control
 }
 
-describe('GeneralSection desktop behavior', () => {
-  it('groups startup, quick access, menu bar, and notifications as General settings', async () => {
+describe('GeneralSection', () => {
+  it('enables native vibrancy from Appearance settings', async () => {
+    const { capabilities, general } = fakeCapabilities()
+    const surface = await renderGeneral(capabilities)
+
+    expect(surface.textContent).toContain('Window materials')
+    expect(surface.textContent).toContain(
+      'Show the macOS desktop vibrancy material through Maximal surfaces.',
+    )
+    expect(vibrancyControl(surface).getAttribute('aria-checked')).toBe('false')
+
+    await act(async () => vibrancyControl(surface).click())
+
+    expect(general.setVibrancyEnabled).toHaveBeenCalledWith(true)
+    expect(vibrancyControl(surface).getAttribute('aria-checked')).toBe('true')
+  })
+
+  it('disables native vibrancy with unsupported-platform guidance', async () => {
+    const { capabilities, general } = fakeCapabilities()
+    general.appearance.mockResolvedValueOnce({
+      vibrancyEnabled: false,
+      vibrancySupported: false,
+      backgroundEffectsEnabled: false,
+      reducedMotionEnabled: false,
+    })
+    const surface = await renderGeneral(capabilities)
+
+    expect(surface.textContent).toContain('Native vibrancy is available on macOS.')
+    expect(vibrancyControl(surface).disabled).toBe(true)
+  })
+
+  it('updates background and reduced-motion preferences', async () => {
+    const { capabilities, general } = fakeCapabilities()
+    const surface = await renderGeneral(capabilities)
+
+    await act(async () =>
+      effectControl(surface, 'background-effects-switch').click(),
+    )
+    expect(general.setBackgroundEffectsEnabled).toHaveBeenCalledWith(true)
+
+    await act(async () =>
+      effectControl(surface, 'reduced-motion-switch').click(),
+    )
+    expect(general.setReducedMotionEnabled).toHaveBeenCalledWith(true)
+  })
+
+  it('disables visual controls while an appearance update is pending', async () => {
+    const { capabilities, general } = fakeCapabilities()
+    let finish!: (value: Awaited<ReturnType<typeof general.setBackgroundEffectsEnabled>>) => void
+    general.setBackgroundEffectsEnabled.mockImplementationOnce(
+      () => new Promise((resolve) => {
+        finish = resolve
+      }),
+    )
+    const surface = await renderGeneral(capabilities)
+
+    act(() => effectControl(surface, 'background-effects-switch').click())
+    expect(effectControl(surface, 'background-effects-switch').disabled).toBe(true)
+    expect(effectControl(surface, 'reduced-motion-switch').disabled).toBe(true)
+    expect(vibrancyControl(surface).disabled).toBe(true)
+
+    await act(async () => finish({
+      vibrancyEnabled: false,
+      vibrancySupported: true,
+      backgroundEffectsEnabled: true,
+      reducedMotionEnabled: false,
+    }))
+    expect(effectControl(surface, 'background-effects-switch').disabled).toBe(false)
+  })
+
+  it('groups appearance and desktop behavior as General settings', async () => {
     const { capabilities } = fakeCapabilities()
     const surface = await renderGeneral(capabilities)
 
     expect(surface.querySelector('h1')).toBeNull()
     expect([...surface.querySelectorAll('h2')].map(({ textContent }) => textContent)).toEqual([
+      'Window materials',
+      'Visual effects',
       'Desktop app',
       'Notifications',
     ])
-    expect(surface.querySelectorAll('.settings__group')).toHaveLength(2)
+    expect(surface.querySelectorAll('.settings__group')).toHaveLength(4)
     expect(surface.textContent).toContain('Desktop app version')
     expect(surface.textContent).toContain('1.2.3')
     expect(surface.textContent).toContain('Run on startup')
