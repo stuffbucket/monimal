@@ -884,7 +884,7 @@ void app.whenReady().then(async () => {
       'Project catalog startup refresh failed',
     ),
   )
-  startHarnessHost({ modelDirectory: localModelsDirectory() })
+  await startHarnessHost({ modelDirectory: localModelsDirectory() })
 
   const splashPreview = isSplashPreview()
   let coreReady = false
