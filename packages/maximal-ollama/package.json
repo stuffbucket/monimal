@@ -28,9 +28,9 @@
   },
   "devDependencies": {
     "@maximal/eslint-config": "workspace:*",
-    "@types/node": "^26.4.0",
+    "@types/node": "^26.6.2",
     "@typescript/native": "npm:typescript@^7.0.2",
-    "eslint": "^10.9.1",
+    "eslint": "^10.11.0",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "vitest": "^5.0.1"
   },

@@ -25,10 +25,10 @@
   },
   "devDependencies": {
     "@maximal/eslint-config": "workspace:*",
-    "@playwright/test": "^1.62.0",
-    "@types/node": "^26.4.0",
-    "electron": "44.1.0",
-    "eslint": "^10.9.1",
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^26.6.2",
+    "electron": "44.4.4",
+    "eslint": "^10.11.0",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "vitest": "^5.0.1"
   },
