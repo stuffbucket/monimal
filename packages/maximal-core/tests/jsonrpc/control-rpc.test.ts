@@ -167,6 +167,8 @@ describe("control /rpc — discovery", () => {
       "searchSettings/get",
       "searchSettings/update",
       "searchSettings/validateProvider",
+      "terminalScopes/issue",
+      "terminalScopes/revoke",
     ]
     for (const method of settingsMethods) expect(caps.methods).toContain(method)
   })
@@ -218,6 +220,50 @@ describe("control /rpc — params validation", () => {
     const { body } = await rpc("accounts/switch", { id: 1, params: {} })
     expect(body.error?.code).toBe(-32602)
     expect(body.error?.message).toContain("key")
+  })
+
+  describe("control /rpc — terminal scopes", () => {
+    test("issues and revokes a terminal-scoped proxy credential", async () => {
+      const issued = await rpc("terminalScopes/issue", {
+        id: 1,
+        params: {
+          sessionId: "terminal-rpc-1",
+          profileId: "claude-code",
+          application: "Claude Code",
+        },
+      })
+
+      expect(issued.status).toBe(200)
+      expect(issued.body.result).toEqual({
+        sessionId: "terminal-rpc-1",
+        profileId: "claude-code",
+        application: "Claude Code",
+        credential: expect.stringMatching(/^mxt_/),
+        expiresAt: expect.any(String),
+      })
+
+      const revoked = await rpc("terminalScopes/revoke", {
+        id: 2,
+        params: { sessionId: "terminal-rpc-1" },
+      })
+      expect(revoked.body.result).toEqual({
+        sessionId: "terminal-rpc-1",
+        revoked: true,
+      })
+    })
+
+    test("rejects an invalid terminal scope", async () => {
+      const { body } = await rpc("terminalScopes/issue", {
+        id: 1,
+        params: {
+          sessionId: "",
+          profileId: "local",
+          application: null,
+        },
+      })
+
+      expect(body.error?.code).toBe(JSON_RPC_INVALID_PARAMS)
+    })
   })
 
   test("accounts/setEnabled requires a key and boolean", async () => {

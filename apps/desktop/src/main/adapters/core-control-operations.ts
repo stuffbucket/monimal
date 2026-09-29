@@ -4,6 +4,11 @@ import {
   type LocalModelCatalogSnapshot,
   type LocalModelEnsureResult,
   type LocalModelOperationEvent,
+  TerminalScopeCredential as TerminalScopeCredentialSchema,
+  type TerminalScopeCredential,
+  type TerminalScopeIssueRequest,
+  TerminalScopeRevokeResult as TerminalScopeRevokeResultSchema,
+  type TerminalScopeRevokeResult,
 } from '@maximal/maximal-core-contract/control'
 import {
   AccountsListResponse as AccountsListResponseSchema,
@@ -83,6 +88,8 @@ export interface CoreControlOperations {
   observabilityOverview(query: TrafficOverviewQuery): Promise<ControlResult<TrafficOverview>>
   observabilityRequests(query: TrafficRequestListQuery): Promise<ControlResult<TrafficRequestList>>
   observabilityRequest(query: TrafficRequestDetailQuery): Promise<ControlResult<TrafficRequestDetail | null>>
+  terminalScopeIssue(input: TerminalScopeIssueRequest): Promise<ControlResult<TerminalScopeCredential>>
+  terminalScopeRevoke(sessionId: string): Promise<ControlResult<TerminalScopeRevokeResult>>
   connectionsList(): Promise<ControlResult<ConnectionsListResponse>>
   connectionsAct(id: string, action: ConnectionAction): Promise<ControlResult<ConnectionEntry>>
   connectionsRevealCredential(id: string): Promise<ControlResult<ConnectionCredentialReveal>>
@@ -125,6 +132,8 @@ export const optionalMethods = [
   'observability/overview',
   'observability/requests',
   'observability/request',
+  'terminalScopes/issue',
+  'terminalScopes/revoke',
   'connections/list',
   'connections/act',
   'connections/revealCredential',
@@ -282,6 +291,10 @@ export function createCoreControlOperations(call: ControlCall): CoreControlOpera
       call('observability/request',
         (input) => input === null ? null : TrafficRequestDetailSchema.parse(input),
         query, parseWith(TrafficRequestDetailQuerySchema)),
+    terminalScopeIssue: (input) =>
+      call('terminalScopes/issue', parseWith(TerminalScopeCredentialSchema), input),
+    terminalScopeRevoke: (sessionId) =>
+      call('terminalScopes/revoke', parseWith(TerminalScopeRevokeResultSchema), { sessionId }),
     connectionsList: () =>
       call('connections/list', parseWith(ConnectionsListResponseSchema)),
     connectionsAct: (id, action) =>

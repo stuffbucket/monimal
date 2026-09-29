@@ -46,7 +46,9 @@ interface CoreControlConnectionSpies {
   localModelsCancel: ReturnType<typeof vi.fn>
   searchSettingsGet: ReturnType<typeof vi.fn>
   searchSettingsUpdate: ReturnType<typeof vi.fn>
-    searchProviderValidate: ReturnType<typeof vi.fn>
+  searchProviderValidate: ReturnType<typeof vi.fn>
+  terminalScopeIssue: ReturnType<typeof vi.fn>
+  terminalScopeRevoke: ReturnType<typeof vi.fn>
   dispose: ReturnType<typeof vi.fn>
 }
 
@@ -417,6 +419,8 @@ const { createCoreControlConnectionMock, disposeCoreControlConnectionMock } = vi
         searchSettingsGet: vi.fn(),
         searchSettingsUpdate: vi.fn(),
         searchProviderValidate: vi.fn(),
+        terminalScopeIssue: vi.fn(),
+        terminalScopeRevoke: vi.fn(),
         dispose: disposeCoreControlConnectionMock,
       })),
     }

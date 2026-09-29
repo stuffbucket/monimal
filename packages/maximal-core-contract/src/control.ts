@@ -15,6 +15,7 @@ import type {
   LocalModelCatalogSnapshot,
   LocalModelProvisionProgress,
 } from "@maximal/maximal-model-contract"
+import { z } from "zod"
 
 import type { AuthStatus as AuthStatusUnion } from "./settings.ts"
 
@@ -90,6 +91,45 @@ export type LocalModelOperationEvent =
  *   crash. A local type alias publishes the type meaning only.
  */
 export type AuthStatus = AuthStatusUnion
+
+const terminalScopeIdentifier = z.string().trim().min(1).max(200)
+
+export const TerminalScopeIssueRequest = z
+  .object({
+    sessionId: terminalScopeIdentifier,
+    profileId: terminalScopeIdentifier,
+    application: terminalScopeIdentifier.nullable(),
+  })
+  .strict()
+
+export type TerminalScopeIssueRequest = z.infer<
+  typeof TerminalScopeIssueRequest
+>
+
+export const TerminalScopeCredential = TerminalScopeIssueRequest.extend({
+  credential: z.string().min(8).max(128),
+  expiresAt: z.string().datetime(),
+}).strict()
+
+export type TerminalScopeCredential = z.infer<
+  typeof TerminalScopeCredential
+>
+
+export const TerminalScopeRevokeRequest = z
+  .object({ sessionId: terminalScopeIdentifier })
+  .strict()
+
+export type TerminalScopeRevokeRequest = z.infer<
+  typeof TerminalScopeRevokeRequest
+>
+
+export const TerminalScopeRevokeResult = TerminalScopeRevokeRequest.extend({
+  revoked: z.boolean(),
+}).strict()
+
+export type TerminalScopeRevokeResult = z.infer<
+  typeof TerminalScopeRevokeResult
+>
 
 export {
   errorResponse,

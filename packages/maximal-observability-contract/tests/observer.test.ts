@@ -59,6 +59,7 @@ void test("observer boundary uses synchronous passive notifications", () => {
     acceptedAt: request.timing.acceptedAt,
     route: request.route,
     attribution: request.attribution,
+    terminal: request.terminal,
     context: request.context,
     size: { ...request.size, responseBytes: null, responseChunks: null },
   })

@@ -354,6 +354,7 @@ test('desktop terminal selector presents the app-owned clients with canonical ic
 
   const claudeCode = launcher.getByRole('button', { name: /Claude Code/ })
   const claudeDesktop = launcher.getByRole('button', { name: /Claude Desktop/ })
+  const runningLocal = launcher.locator('[aria-label="Running"]').getByRole('button', { name: /Terminal 1/ })
   const local = launcher.locator('[aria-label="Available"]').getByRole('button', { name: /Local/ })
   const choiceBox = await claudeCode.boundingBox()
   const adjacentChoiceBox = await claudeDesktop.boundingBox()
@@ -365,6 +366,9 @@ test('desktop terminal selector presents the app-owned clients with canonical ic
   expect(launcherBox).not.toBeNull()
   expect(nameBox).not.toBeNull()
   expect(descriptionBox).not.toBeNull()
+  await expect(runningLocal).toContainText('Local')
+  await expect(runningLocal).not.toContainText('Open a terminal on your local file system')
+  await expect(runningLocal.locator('.terminal-launcher__choice-description')).toHaveCount(0)
   await expect(local).toContainText('Open a terminal on your local file system')
   expect(choiceBox!.y).toBe(adjacentChoiceBox!.y)
   expect(choiceBox!.width).toBeLessThan(launcherBox!.width / 2)

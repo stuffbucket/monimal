@@ -24,6 +24,11 @@ function buildApp(opts: {
   ip: string | null
   /** Defaults to true — pre-enforce-flag tests assume key gating is on. */
   enforce?: boolean
+  resolveTerminalScope?: (credential: string) => {
+    sessionId: string
+    profileId: string
+    application: string | null
+  } | null
 }) {
   const app = new Hono()
   app.use(
@@ -35,6 +40,7 @@ function buildApp(opts: {
       loopbackOnlyPaths: opts.loopbackOnlyPaths,
       allowUnauthenticatedPrefixes: opts.allowUnauthenticatedPrefixes,
       getRequestIp: () => opts.ip,
+      resolveTerminalScope: opts.resolveTerminalScope,
     }),
   )
   app.get("/usage", (c) => c.text("usage-ok"))
@@ -535,6 +541,37 @@ describe("createAuthMiddleware bypass when no keys configured", () => {
     const app = buildApp({ apiKeys: ["k"], ip: "203.0.113.7" })
     const res = await app.request("/v1/messages", { method: "POST" })
     expect(res.status).toBe(401)
+  })
+
+  test("trusted terminal credentials bypass key enforcement and attach provenance", async () => {
+    const terminalScope = {
+      sessionId: "terminal-1",
+      profileId: "claude-code",
+      application: "Claude Code",
+    }
+    const app = new Hono()
+    app.use("*", traceIdMiddleware)
+    app.use(
+      "*",
+      createAuthMiddleware({
+        getApiKeys: () => [],
+        isEnforcing: () => true,
+        getRequestIp: () => "203.0.113.7",
+        resolveTerminalScope: (credential) =>
+          credential === "mxt_terminal" ? terminalScope : null,
+      }),
+    )
+    app.post("/v1/messages", (c) =>
+      c.json(requestContext.getStore()?.terminalScope ?? null),
+    )
+
+    const res = await app.request("/v1/messages", {
+      method: "POST",
+      headers: { authorization: "Bearer mxt_terminal" },
+    })
+
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual(terminalScope)
   })
 })
 

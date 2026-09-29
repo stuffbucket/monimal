@@ -2,6 +2,10 @@ import type { Context } from "hono"
 import type { ZodType } from "zod"
 
 import {
+  TerminalScopeIssueRequest,
+  TerminalScopeRevokeRequest,
+} from "@maximal/maximal-core-contract/control"
+import {
   AccountSetEnabledRequest,
   ApiKeyCreateRequest,
   ApiKeyEnforcementRequest,
@@ -65,6 +69,10 @@ import {
   setAccountPriority,
   writeDefaultRegistry,
 } from "~/lib/auth/github-token-store"
+import {
+  issueTerminalScope,
+  revokeTerminalScope,
+} from "~/lib/auth/terminal-scope"
 import { getConfig } from "~/lib/config/config"
 import {
   actOnConnection,
@@ -502,6 +510,22 @@ export function createControlRpcMethods(deps: ControlRpcDeps): RpcRegistry {
       )
       const result = await trafficQueries.getRequest(query.requestId)
       return result === null ? null : TrafficRequestDetailSchema.parse(result)
+    },
+    "terminalScopes/issue": (params: unknown) =>
+      issueTerminalScope(
+        parseParams(
+          TerminalScopeIssueRequest,
+          params,
+          "Expected { sessionId, profileId, application }.",
+        ),
+      ),
+    "terminalScopes/revoke": (params: unknown) => {
+      const { sessionId } = parseParams(
+        TerminalScopeRevokeRequest,
+        params,
+        "Expected { sessionId }.",
+      )
+      return revokeTerminalScope(sessionId)
     },
     "config/get": () => projectControlConfig(getConfig()),
     "clients/list": () => {

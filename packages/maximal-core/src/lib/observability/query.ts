@@ -112,6 +112,11 @@ export function rowToSummary(
       subagent: nullableBoolean(row.subagent),
       compactType: nullableString(row.compact_type),
     },
+    terminal: {
+      sessionId: nullableString(row.terminal_session_id),
+      profileId: nullableString(row.terminal_profile_id),
+      application: nullableString(row.terminal_application),
+    },
     dispatch: {
       attemptCount: numberValue(row.attempt_count),
       retryCount: numberValue(row.retry_count),
@@ -231,6 +236,19 @@ export function matchesFilters(
   )
     return false
   if (
+    filters.terminalSessionIds.length > 0
+    && !includesNullableString(
+      filters.terminalSessionIds,
+      item.terminal.sessionId,
+    )
+  )
+    return false
+  if (
+    filters.applications.length > 0
+    && !includesNullableString(filters.applications, item.terminal.application)
+  )
+    return false
+  if (
     filters.streaming !== null
     && item.dispatch.streamed !== filters.streaming
   )
@@ -261,6 +279,9 @@ export function matchesFilters(
       item.attribution.provider,
       item.attribution.model,
       item.attribution.client,
+      item.terminal.sessionId,
+      item.terminal.profileId,
+      item.terminal.application,
     ]
     if (
       !searchableValues.some(

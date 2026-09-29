@@ -89,6 +89,28 @@ const request = {
   canRunInBackground: true,
   sessionIds: ['primary', 'split'],
 }
+const core = {
+  terminalScopeIssue: vi.fn(async (input: {
+    sessionId: string
+    profileId: string
+    application: string | null
+  }) => ({
+    ok: true as const,
+    value: {
+      ...input,
+      credential: 'terminal-credential',
+      expiresAt: '2026-09-29T00:00:00.000Z',
+    },
+  })),
+  terminalScopeRevoke: vi.fn(async (sessionId: string) => ({
+    ok: true as const,
+    value: { sessionId, revoked: true },
+  })),
+}
+
+vi.mock('../sidecar/core.js', () => ({
+  awaitProxyUrl: vi.fn(async () => 'http://127.0.0.1:4141'),
+}))
 
 describe('terminal host window actions', () => {
   for (const kind of ['output', 'exit'] as const) {
@@ -109,7 +131,7 @@ describe('terminal host window actions', () => {
           terminalDiagnostics: false,
           terminalSessionPrefix: 'maximal',
           terminalTmuxStatus: 'off',
-        })
+        }, core)
         type Owner = typeof targetOwner
         const handlers = configurePty.mock.calls.at(-1)![0] as {
           emit(owner: Owner | undefined, id: string, data: string, sequence: number): void
@@ -191,7 +213,7 @@ describe('terminal host window actions', () => {
       terminalDiagnostics: false,
       terminalSessionPrefix: 'maximal',
       terminalTmuxStatus: 'inherit',
-    })
+    }, core)
 
     expect(configurePty).toHaveBeenLastCalledWith(
       expect.any(Object),
@@ -231,7 +253,7 @@ describe('terminal host window actions', () => {
         terminalDiagnostics: false,
         terminalSessionPrefix: 'maximal',
         terminalTmuxStatus: 'off',
-      })
+      }, core)
       const handlers = configurePty.mock.calls.at(-1)?.[0] as {
         emit(owner: BrowserWindow | undefined, id: string, data: string): void
         onExit(owner: BrowserWindow | undefined, id: string, exitCode: number): void
@@ -267,7 +289,7 @@ describe('terminal host window actions', () => {
       terminalDiagnostics: false,
       terminalSessionPrefix: 'maximal',
       terminalTmuxStatus: 'off',
-    })
+    }, core)
 
     const options = configurePty.mock.calls.at(-1)?.[1] as {
       tmuxSessionPrefix: string
@@ -281,6 +303,40 @@ describe('terminal host window actions', () => {
     expect(options.directProfiles.find(({ profile }) => profile.id === 'maximal')).toMatchObject({
       profile: { id: 'maximal', kind: 'command' },
       launch: { command: 'maximal', args: [] },
+    })
+  })
+
+  it('prepares an isolated proxy environment for each local terminal session', async () => {
+    configureTerminalHost({
+      terminalDiagnostics: false,
+      terminalSessionPrefix: 'maximal',
+      terminalTmuxStatus: 'off',
+    }, core)
+    const options = configurePty.mock.calls.at(-1)?.[1] as {
+      prepareSession(input: {
+        sessionId: string
+        profileId: string
+        label: string
+      }): Promise<Record<string, string>>
+    }
+
+    const environment = await options.prepareSession({
+      sessionId: 'terminal-a',
+      profileId: 'local',
+      label: 'Local',
+    })
+
+    expect(core.terminalScopeIssue).toHaveBeenCalledWith({
+      sessionId: 'terminal-a',
+      profileId: 'local',
+      application: null,
+    })
+    expect(environment).toEqual({
+      MAXIMAL_TERMINAL_SESSION_ID: 'terminal-a',
+      ANTHROPIC_BASE_URL: 'http://127.0.0.1:4141',
+      ANTHROPIC_AUTH_TOKEN: 'terminal-credential',
+      OPENAI_BASE_URL: 'http://127.0.0.1:4141/v1',
+      OPENAI_API_KEY: 'terminal-credential',
     })
   })
 })

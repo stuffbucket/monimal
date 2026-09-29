@@ -671,7 +671,7 @@ void app.whenReady().then(async () => {
       broadcast(BRIDGE_CHANNELS.trafficInvalidated, invalidation),
   })
   const applicationSettings = loadApplicationSettings(app.getPath('userData')).settings
-  configureTerminalHost(applicationSettings)
+  configureTerminalHost(applicationSettings, coreControlConnection)
   if (applicationSettings.ollamaStartOnLaunch) {
     void getOllamaRuntimeStatus()
       .then((status) =>
