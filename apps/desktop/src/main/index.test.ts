@@ -154,6 +154,8 @@ const {
     getPath: vi.fn(() => '/tmp/maximal-client-test'),
     getAppPath: vi.fn(() => '/tmp/maximal-client-test'),
     getVersion: vi.fn(() => '0.0.0-test'),
+    getLoginItemSettings: vi.fn(() => ({ openAtLogin: false })),
+    setLoginItemSettings: vi.fn(),
     setPath: vi.fn(),
     on(event: string, listener: (...args: unknown[]) => void) {
       if (!listeners.has(event)) listeners.set(event, new Set())
@@ -197,6 +199,9 @@ const {
 vi.mock('electron', () => ({
   app: fakeApp,
   BrowserWindow: { getAllWindows: () => browserWindows },
+  Notification: class {
+    static isSupported = () => true
+  },
   screen: {
     getPrimaryDisplay: () => ({ workArea: { x: -1600, y: 80, width: 1600, height: 900 } }),
   },
@@ -558,6 +563,14 @@ describe('closed IPC boundary', () => {
     expect(shellOpenPath).toHaveBeenCalledWith('/state/stuffbucket/logs')
     await handler(BRIDGE_CHANNELS.coreLogsReveal)()
     expect(shellOpenPath).toHaveBeenCalledWith(join('/tmp/core-home', 'logs'))
+    await handler(BRIDGE_CHANNELS.recordingsRevealFolder)()
+    expect(localModelsMkdir).toHaveBeenCalledWith(
+      join('/tmp/maximal-client-test', '.local', 'share', 'maximal', 'recordings'),
+      { recursive: true },
+    )
+    expect(shellOpenPath).toHaveBeenCalledWith(
+      join('/tmp/maximal-client-test', '.local', 'share', 'maximal', 'recordings'),
+    )
   })
 
   it('names every renderer event channel in one closed allowlist', () => {

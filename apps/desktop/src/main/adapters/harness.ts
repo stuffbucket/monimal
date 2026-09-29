@@ -25,7 +25,6 @@ import {
 import {
   app,
   BrowserWindow,
-  globalShortcut,
   ipcMain,
   screen,
   type IpcMainInvokeEvent,
@@ -36,12 +35,12 @@ import { z } from 'zod'
 import { BRIDGE_CHANNELS } from '../../shared/bridge-channels.js'
 import { loadHarnessOptions } from './harness-options.js'
 import { mainLogger } from '../main-logger.js'
+import { DoubleControlShortcut } from '../native/double-control-shortcut.js'
 import {
   readUserPreferences,
   updateUserPreferences,
 } from '../preferences/user-preferences.js'
 
-const HOTKEY = 'CommandOrControl+Shift+Space'
 const PANEL_MAX_WIDTH = 640
 const PANEL_MAX_HEIGHT = 480
 const PANEL_HORIZONTAL_MARGIN = 24
@@ -78,7 +77,7 @@ const SYSTEM_PROMPT = [
 
 let panel: ElectronPanel | undefined
 let registered = false
-let boundHotkey = false
+let quickAccessShortcut: DoubleControlShortcut | undefined
 let overlayAnchor: OverlayAnchor | undefined
 let anchorMoved = false
 let preferenceLoadGeneration = 0
@@ -236,7 +235,9 @@ function registerIpc(): void {
   })
 }
 
-export function startHarnessHost(options: { modelDirectory: string }): void {
+export async function startHarnessHost(options: {
+  modelDirectory: string
+}): Promise<void> {
   configureLlamaHost({ workerPath: join(__dirname, LLAMA_WORKER_FILENAME) })
   configureModel({ directory: options.modelDirectory })
   const agentOptions = {
@@ -271,14 +272,18 @@ export function startHarnessHost(options: { modelDirectory: string }): void {
   }
   registerIpc()
 
-  try {
-    boundHotkey = globalShortcut.register(HOTKEY, () => panel?.toggle())
-    if (!boundHotkey) mainLogger.error({ hotkey: HOTKEY }, 'Harness hotkey is already in use')
-  } catch (error) {
-    mainLogger.error(
-      { hotkey: HOTKEY, errorName: error instanceof Error ? error.name : 'unknown' },
-      'Harness hotkey is invalid',
-    )
+  if (process.env['MAXIMAL_DISABLE_GLOBAL_KEYBOARD_HOOK'] !== '1') {
+    const { uIOhook } = await import('uiohook-napi')
+    quickAccessShortcut = new DoubleControlShortcut(uIOhook, () => panel?.toggle())
+    try {
+      quickAccessShortcut.start()
+    } catch (error) {
+      quickAccessShortcut = undefined
+      mainLogger.error(
+        { errorName: error instanceof Error ? error.name : 'unknown' },
+        'Quick access keyboard hook failed to start',
+      )
+    }
   }
 }
 
@@ -298,8 +303,8 @@ export function isHarnessBusy(): boolean {
 
 export async function stopHarnessHost(): Promise<void> {
   preferenceLoadGeneration += 1
-  if (boundHotkey) globalShortcut.unregister(HOTKEY)
-  boundHotkey = false
+  quickAccessShortcut?.stop()
+  quickAccessShortcut = undefined
   panel?.destroy()
   panel = undefined
   summonOnStart = false

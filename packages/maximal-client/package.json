@@ -32,6 +32,7 @@
     "mutate": "stryker run",
     "test": "vitest run",
     "test:run": "vitest run",
+    "mutate:general": "stryker run stryker.general.conf.json",
     "ui:preview": "pnpm --filter @maximal/maximal-electron run build:renderer && vite --config vite.preview.config.mts --host 127.0.0.1 --open /ui-preview.html",
     "ui:check": "pnpm --filter @maximal/maximal-electron run build:renderer && node scripts/ui-check.mjs"
   },

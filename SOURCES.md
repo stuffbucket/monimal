@@ -96,6 +96,7 @@ Both are monorepo-native;
 | --- | --- |
 | Copied packages | `CLAUDE.md` includes `AGENTS.md`; root instructions take precedence. |
 | `maximal-electron` | Uses the workspace mutation runner for changed-line and explicit local scopes, cached edit loops, and fresh complete or sharded audits. |
+| Workspace | Patches `@stryker-mutator/vitest-runner@10.0.0` with upstream StrykerJS PR 6214 so Vitest 5 test-name filtering executes selected mutation tests. |
 | `maximal-electron` | `TextInput` owns the token-based active-service treatment, the Radix-backed `Slider` owns its track, detents, labels, and thumb geometry, settings action rows and divider behavior live with the shared settings components, and `ModelCardGrid` owns provider adornments, disabled-provider activation, and model-action placement so consumers do not recreate those controls. |
 | Workspace | `@maximal/eslint-config` owns the shared ESLint configuration and enforced rule sets. |
 | Workspace | `architecture-analysis.json` owns package coverage, the declared workspace dependency tree (`dependsOn`), external-package deny rules, and non-Core architecture baselines. |
@@ -120,6 +121,8 @@ Both are monorepo-native;
 | `@maximal/maximal-client` | Its workspace build waits for dependency builds; typechecking the renderer requires their emitted contracts in a clean Linux checkout. |
 | `apps/desktop` | Development Electron profiles are checkout-isolated and shutdown waits for the Core child. |
 | `maximal-electron` / `apps/desktop` | Desktop imports the package host-window API directly; it has no local shell adapter. |
+| `maximal-electron` / `apps/desktop` | The host export owns Electron-native system-notification support and trusted macOS notification-settings launching; desktop exposes notification status and the settings action through its typed preload bridge. |
+| `apps/desktop` | Electron owns version, login-item, lifecycle, and Settings integration for General desktop behavior; `uiohook-napi` is limited to the modifier-only Ctrl-twice quick-access gesture that Electron accelerators cannot represent. |
 | `@maximal/maximal-client` / `apps/desktop` | Direct lint and typecheck commands re-enter their Turbo tasks through `run-workspace-task.mjs`. |
 | `maximal-electron` | Terminal copies use a main-owned revisioned pane document and geometry controller; window transfers stage before atomic readiness-gated commit or rollback. |
 | `maximal-electron` / `apps/desktop` | `ElectronPanel` accepts consumer-owned movement policy and reports completed user moves while suppressing programmatic placement events; desktop persists the assistant anchor relative to a display work area. |

@@ -11,6 +11,11 @@ In the desktop **File** menu, choose **Record Window…**, select a new `.mp4`
 file, then choose **Stop Window Recording**. Recording captures the selected
 window without desktop, microphone, or system audio.
 
+The save dialog defaults to `$XDG_DATA_HOME/maximal/recordings`. When
+`XDG_DATA_HOME` is unset or relative, the XDG fallback is
+`~/.local/share/maximal/recordings`. Choose **File → Reveal Recordings Folder**
+to open that directory in the system file manager.
+
 The capability requires `ffmpeg` and `ffprobe` on `PATH`, or `FFMPEG` and
 `FFPROBE` pointing to executable overrides. Missing tools MUST be reported
 before recording begins.

@@ -50,6 +50,8 @@ export interface MenuCallbacks {
   onOpenSettings?: (sectionId: SettingsSectionId | null) => void
   /** Toggle an explicitly user-started recording of the main window. */
   onToggleRecording?: () => void
+  /** Reveal the main-owned recordings directory in the system file manager. */
+  onRevealRecordings?: () => void
   isRecording?: boolean
 }
 
@@ -76,7 +78,14 @@ export interface MenuCallbacks {
  */
 export function installApplicationMenu(callbacks: MenuCallbacks = {}): void {
   const isMac = process.platform === 'darwin'
-  const { onCheckForUpdates, onOpenLicenses, onOpenSettings, onToggleRecording, isRecording } = callbacks
+  const {
+    onCheckForUpdates,
+    onOpenLicenses,
+    onOpenSettings,
+    onRevealRecordings,
+    onToggleRecording,
+    isRecording,
+  } = callbacks
 
   const openLicenses = () => () => {
     onOpenLicenses?.()
@@ -166,6 +175,11 @@ export function installApplicationMenu(callbacks: MenuCallbacks = {}): void {
           label: isRecording ? 'Stop Window Recording' : 'Record Window…',
           enabled: onToggleRecording !== undefined,
           click: () => onToggleRecording?.(),
+        },
+        {
+          label: 'Reveal Recordings Folder',
+          enabled: onRevealRecordings !== undefined,
+          click: () => onRevealRecordings?.(),
         },
         { type: 'separator' },
         isMac ? { role: 'close' } : { role: 'quit' },

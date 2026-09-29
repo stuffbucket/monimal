@@ -2,6 +2,13 @@ import { BrowserWindow, shell, type BrowserWindowConstructorOptions } from 'elec
 
 import { isSafeExternalUrl } from '../shared/urls.js';
 
+export {
+  getSystemNotificationStatus,
+  openSystemNotificationSettings,
+  showSystemNotification,
+  type SystemNotificationStatus,
+} from './system-notifications.js';
+
 export interface HostWindowOptions {
   /** Absolute path to the consumer's sandboxed preload bundle. */
   preloadPath: string;

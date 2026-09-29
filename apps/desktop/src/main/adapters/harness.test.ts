@@ -25,12 +25,13 @@ const {
   createElectronPanelMock,
   discoverProviderMock,
   ensureModelMock,
-  globalShortcutRegister,
-  globalShortcutUnregister,
   handlers,
   ipcMainHandle,
   ipcMainRemoveHandler,
   isAgentBusyMock,
+  keyHookListeners,
+  keyHookStart,
+  keyHookStop,
   readUserPreferencesMock,
   overlayWebContents,
   panel,
@@ -46,6 +47,7 @@ const {
   updateUserPreferencesMock,
 } = vi.hoisted(() => {
   const handlers = new Map<string, InvokeHandler>()
+  const keyHookListeners = new Map<string, (event: unknown) => void>()
   const overlayWebContents = { send: vi.fn() }
   const panelState = { destroyed: false }
   const overlayWindow = {
@@ -71,10 +73,6 @@ const {
     ensureModelMock: vi.fn((..._args: unknown[]) =>
       Promise.resolve({ state: 'ready' }),
     ),
-    globalShortcutRegister: vi.fn(
-      (_accelerator: string, _callback: () => void) => true,
-    ),
-    globalShortcutUnregister: vi.fn(),
     handlers,
     ipcMainHandle: vi.fn((channel: string, handler: InvokeHandler) => {
       handlers.set(channel, handler)
@@ -83,6 +81,9 @@ const {
       handlers.delete(channel)
     }),
     isAgentBusyMock: vi.fn(() => false),
+    keyHookListeners,
+    keyHookStart: vi.fn(),
+    keyHookStop: vi.fn(),
     readUserPreferencesMock: vi.fn(() => Promise.resolve({})),
     overlayWebContents,
     panel,
@@ -118,16 +119,26 @@ const {
 
 vi.mock('electron', () => ({
   app: { getPath: appGetPath },
-  globalShortcut: {
-    register: globalShortcutRegister,
-    unregister: globalShortcutUnregister,
-  },
   ipcMain: {
     handle: ipcMainHandle,
     removeHandler: ipcMainRemoveHandler,
   },
   screen: {
     getDisplayMatching: screenGetDisplayMatching,
+  },
+}))
+
+vi.mock('uiohook-napi', () => ({
+  UiohookKey: { Ctrl: 29, CtrlRight: 3613 },
+  uIOhook: {
+    on: vi.fn((event: string, listener: (value: unknown) => void) => {
+      keyHookListeners.set(event, listener)
+    }),
+    off: vi.fn((event: string) => {
+      keyHookListeners.delete(event)
+    }),
+    start: keyHookStart,
+    stop: keyHookStop,
   },
 }))
 
@@ -179,7 +190,7 @@ const invokeChannels = [
 async function startHost() {
   vi.resetModules()
   const host = await import('./harness.js')
-  host.startHarnessHost({ modelDirectory: '/resolved/local/models' })
+  await host.startHarnessHost({ modelDirectory: '/resolved/local/models' })
   return host
 }
 
@@ -195,9 +206,9 @@ function overlayEvent(): { sender: unknown } {
 
 beforeEach(() => {
   handlers.clear()
+  keyHookListeners.clear()
   vi.clearAllMocks()
   panelState.destroyed = false
-  globalShortcutRegister.mockReturnValue(true)
   isAgentBusyMock.mockReturnValue(false)
   ensureModelMock.mockResolvedValue({ state: 'ready' })
   selectAgentModelMock.mockImplementation((modelKey: string) => {
@@ -408,7 +419,7 @@ describe('harness host lifecycle', () => {
     const host = await import('./harness.js')
 
     host.toggleHarnessHost()
-    host.startHarnessHost({ modelDirectory: '/resolved/local/models' })
+    await host.startHarnessHost({ modelDirectory: '/resolved/local/models' })
 
     expect(panel.show).toHaveBeenCalledOnce()
   })
@@ -457,7 +468,7 @@ describe('harness host lifecycle', () => {
     expect(configureAgentMock).toHaveBeenCalledTimes(1)
   })
 
-  it('creates the panel, binds its hotkey, and tears both down', async () => {
+  it('creates the panel, binds quick access, and tears both down', async () => {
     const host = await startHost()
 
     expect(host.assistantPanelBounds({
@@ -480,7 +491,6 @@ describe('harness host lifecycle', () => {
     expect(configureAgentMock).toHaveBeenCalledWith(
       expect.objectContaining({
         codingTools: true,
-        approval: 'writes',
         cwd: homedir(),
       }),
     )
@@ -494,12 +504,21 @@ describe('harness host lifecycle', () => {
       }),
     )
 
-    const hotkey = globalShortcutRegister.mock.calls[0]?.[1]
-    expect(globalShortcutRegister.mock.calls[0]?.[0]).toBe(
-      'CommandOrControl+Shift+Space',
-    )
-    hotkey?.()
+    const control = {
+      type: 4,
+      time: 0,
+      altKey: false,
+      ctrlKey: true,
+      metaKey: false,
+      shiftKey: false,
+      keycode: 29,
+    }
+    keyHookListeners.get('keydown')?.(control)
+    keyHookListeners.get('keyup')?.(control)
+    keyHookListeners.get('keydown')?.(control)
+    keyHookListeners.get('keyup')?.(control)
     expect(panel.toggle).toHaveBeenCalledTimes(1)
+    expect(keyHookStart).toHaveBeenCalledOnce()
 
     handler(BRIDGE_CHANNELS.harnessHide)(overlayEvent())
     expect(panel.hide).toHaveBeenCalledTimes(1)
@@ -511,12 +530,23 @@ describe('harness host lifecycle', () => {
     expect(panel.toggle).toHaveBeenCalledTimes(2)
 
     await host.stopHarnessHost()
-    expect(globalShortcutUnregister).toHaveBeenCalledWith(
-      'CommandOrControl+Shift+Space',
-    )
+    expect(keyHookStop).toHaveBeenCalledOnce()
     expect(panel.destroy).toHaveBeenCalledTimes(1)
     expect(shutdownAgentMock).toHaveBeenCalledTimes(1)
     expect(stopEngineMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('can disable the global keyboard hook for automated hosts', async () => {
+    process.env['MAXIMAL_DISABLE_GLOBAL_KEYBOARD_HOOK'] = '1'
+    try {
+      const host = await startHost()
+
+      expect(keyHookStart).not.toHaveBeenCalled()
+      await host.stopHarnessHost()
+      expect(keyHookStop).not.toHaveBeenCalled()
+    } finally {
+      delete process.env['MAXIMAL_DISABLE_GLOBAL_KEYBOARD_HOOK']
+    }
   })
 
   it('awaits agent shutdown before stopping the engine and removing IPC', async () => {
@@ -531,7 +561,7 @@ describe('harness host lifecycle', () => {
     const stopping = host.stopHarnessHost()
     await Promise.resolve()
 
-    expect(globalShortcutUnregister).toHaveBeenCalledTimes(1)
+    expect(keyHookStop).toHaveBeenCalledTimes(1)
     expect(panel.destroy).toHaveBeenCalledTimes(1)
     expect(shutdownAgentMock).toHaveBeenCalledTimes(1)
     expect(stopEngineMock).not.toHaveBeenCalled()

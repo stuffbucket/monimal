@@ -59,7 +59,8 @@ See [embedding](./docs/embedding.md) and
 ## Electron host
 
 The host exports provide lifecycle sequencing, hardened BrowserWindow
-construction, secondary-panel mechanics, and terminal ownership adapters.
+construction, system notification support and macOS notification-settings
+launching, secondary-panel mechanics, and terminal ownership adapters.
 
 Consumers MUST provide their own preload, renderer loader, product IPC,
 application state, and packaging configuration.

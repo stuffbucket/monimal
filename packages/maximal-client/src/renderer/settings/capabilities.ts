@@ -31,6 +31,7 @@ import type { LogFile } from '@maximal/maximal-logging'
 
 import type {
   ClientInstallation,
+  GeneralDesktopSettings,
   LocalModelCancelResult,
   LocalModelCatalogSnapshot,
   LocalModelEnsureResult,
@@ -42,6 +43,7 @@ import type {
   OllamaRuntimePreferences,
   OllamaRuntimePreferencesUpdate,
   ProviderOnboardingPreference,
+  SystemNotificationStatus,
 } from '../../shared/host'
 
 import {
@@ -67,6 +69,7 @@ export type {
   ConnectorSettingValue,
   ClientInstallation,
   DiagnosticsResponse,
+  GeneralDesktopSettings,
   MenuBarModeAttempt,
   MenuBarModeState,
   ModelsListResponse,
@@ -86,6 +89,7 @@ export type {
   SearchProviderValidationResponse,
   SearchSettingsResponse,
   SearchSettingsUpdateRequest,
+  SystemNotificationStatus,
   TokenUsagePeriod,
   TokenUsageSummary,
 }
@@ -115,11 +119,15 @@ export interface SettingsCapabilities {
     testApiKey(input: OllamaApiKeyTestRequest): Promise<OllamaApiKeyTestResponse>
   }
   general: {
+    desktopSettings(): Promise<GeneralDesktopSettings>
+    setStartOnLogin(enabled: boolean): Promise<GeneralDesktopSettings>
     menuBarMode(): Promise<MenuBarModeState>
     beginMenuBarOnly(): Promise<MenuBarModeAttempt>
     confirmMenuBarOnly(attemptId: string): Promise<MenuBarModeState>
     cancelMenuBarOnly(attemptId: string): Promise<MenuBarModeState>
     disableMenuBarOnly(): Promise<MenuBarModeState>
+    systemNotificationStatus(): Promise<SystemNotificationStatus>
+    openSystemNotificationSettings(): Promise<void>
   }
   providerOnboarding: {
     get(): Promise<ProviderOnboardingPreference>
@@ -306,11 +314,17 @@ export function createCoreSettingsCapabilities(): SettingsCapabilities {
         unwrapControlResult(await bridge.control.ollamaApiKeyTest(input)),
     },
     general: {
+      desktopSettings: () => bridge.generalSettings.get(),
+      setStartOnLogin: (enabled) =>
+        bridge.generalSettings.setStartOnLogin(enabled),
       menuBarMode: () => bridge.menuBarMode.get(),
       beginMenuBarOnly: () => bridge.menuBarMode.beginEnable(),
       confirmMenuBarOnly: (attemptId) => bridge.menuBarMode.confirmEnable(attemptId),
       cancelMenuBarOnly: (attemptId) => bridge.menuBarMode.cancelEnable(attemptId),
       disableMenuBarOnly: () => bridge.menuBarMode.disable(),
+      systemNotificationStatus: () => bridge.systemNotifications.status(),
+      openSystemNotificationSettings: () =>
+        bridge.systemNotifications.openSettings(),
     },
     providerOnboarding: {
       get: () => bridge.providerOnboarding.get(),

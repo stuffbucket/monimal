@@ -27,8 +27,20 @@ import {
   launchOllama,
   updateOllamaCloudDisabled,
 } from '@maximal/maximal-ollama'
-import { app, BrowserWindow, dialog, ipcMain, shell, type MessageBoxOptions } from 'electron'
-import { createHostWindow, waitForHostWindowReady } from '@maximal/maximal-electron/host'
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  ipcMain,
+  shell,
+  type MessageBoxOptions,
+} from 'electron'
+import {
+  createHostWindow,
+  getSystemNotificationStatus,
+  openSystemNotificationSettings,
+  waitForHostWindowReady,
+} from '@maximal/maximal-electron/host'
 import { ShutdownLifecycle } from '@maximal/maximal-electron/main'
 import { z } from 'zod'
 
@@ -49,12 +61,20 @@ import {
   spawnCore,
 } from './sidecar/core.js'
 import { applyAppName, installApplicationMenu } from './native/identity.js'
-import { createDesktopRecording, type DesktopRecording } from './native/recording.js'
+import {
+  createDesktopRecording,
+  revealRecordingsDirectory,
+  type DesktopRecording,
+} from './native/recording.js'
 import { resolveLicenseBundlePath } from './native/license-bundle.js'
 import { listClientInstallations } from './native/client-installations.js'
 import { toLifecycleStatus } from './sidecar/lifecycle-status.js'
 import { registerOllamaRuntimeIpc } from './ollama-runtime-ipc.js'
 import { MenuBarModeController } from './native/menu-bar-mode.js'
+import {
+  getGeneralDesktopSettings,
+  setStartOnLogin,
+} from './native/general-settings.js'
 import { mainLogger } from './main-logger.js'
 import {
   getProviderOnboardingPreference,
@@ -360,6 +380,10 @@ function registerIpc(
     if (error) throw new Error(error)
   })
   ipcMain.handle(
+    BRIDGE_CHANNELS.recordingsRevealFolder,
+    revealRecordingsDirectory,
+  )
+  ipcMain.handle(
     BRIDGE_CHANNELS.localModelsOpenFolder,
     openLocalModelsDirectory,
   )
@@ -385,6 +409,22 @@ function registerIpc(
       mode.cancelEnable(nonEmptyString.parse(attemptId)),
   )
   ipcMain.handle(BRIDGE_CHANNELS.menuBarModeDisable, () => mode.disable())
+  ipcMain.handle(
+    BRIDGE_CHANNELS.systemNotificationsStatus,
+    () => getSystemNotificationStatus(),
+  )
+  ipcMain.handle(
+    BRIDGE_CHANNELS.systemNotificationsOpenSettings,
+    () => openSystemNotificationSettings(),
+  )
+  ipcMain.handle(
+    BRIDGE_CHANNELS.generalSettingsGet,
+    getGeneralDesktopSettings,
+  )
+  ipcMain.handle(
+    BRIDGE_CHANNELS.generalSettingsSetStartOnLogin,
+    (_event, enabled: unknown) => setStartOnLogin(z.boolean().parse(enabled)),
+  )
   registerTerminalIpc()
 }
 
@@ -652,6 +692,18 @@ void app.whenReady().then(async () => {
       activateWindow().webContents.send(BRIDGE_CHANNELS.menuOpenLicenses)
     },
     onOpenSettings: openSettings,
+    onRevealRecordings: () => {
+      void revealRecordingsDirectory().catch((error: unknown) => {
+        mainLogger.error(
+          { errorName: error instanceof Error ? error.name : 'unknown' },
+          'Failed to reveal recordings folder',
+        )
+        dialog.showErrorBox(
+          'Unable to open recordings folder',
+          error instanceof Error ? error.message : String(error),
+        )
+      })
+    },
     isRecording: recording?.isRecording() ?? false,
     onToggleRecording: () => {
       void recording?.toggle().catch((error: unknown) => {
@@ -691,7 +743,7 @@ void app.whenReady().then(async () => {
     redock: redockTerminal,
   })
   registerIpc(coreControlConnection, nativeMode)
-  startHarnessHost({ modelDirectory: localModelsDirectory() })
+  await startHarnessHost({ modelDirectory: localModelsDirectory() })
 
   const splashPreview = isSplashPreview()
   let coreReady = false

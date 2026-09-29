@@ -66,7 +66,7 @@ export interface SettingsSectionSpec {
  *  between independently-registered contributors, and there is one list. */
 export const SETTINGS_SECTIONS: readonly SettingsSectionSpec[] = [
   { id: 'settings-account-heading', label: 'Accounts' },
-  { id: 'settings-general-heading', label: 'Appearance' },
+  { id: 'settings-general-heading', label: 'General' },
   { id: 'settings-connections-heading', label: 'Connections' },
   { id: 'settings-search-heading', label: 'Search' },
   { id: 'settings-models-heading', label: 'Cloud Models' },

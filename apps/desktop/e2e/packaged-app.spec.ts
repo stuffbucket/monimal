@@ -1,4 +1,10 @@
+import { execFile } from 'node:child_process'
+import { mkdir, stat } from 'node:fs/promises'
+import { join } from 'node:path'
+import { promisify } from 'node:util'
+
 import { expect, test, type Page } from '@playwright/test'
+import type { MenuItem } from 'electron'
 
 import { SETTINGS_SECTIONS } from '@maximal/maximal-client/shared/settings-sections'
 
@@ -24,10 +30,14 @@ import { assertContrastAtLeast, assertFocusOutlineResolves, assertNoVerticalOver
 
 let running: RunningApp
 let model: ScriptedModel
+const execFileAsync = promisify(execFile)
+const EVIDENCE_HOLD_MS = 7_500
+const MIN_EVIDENCE_SECONDS = 5
 
 test.beforeAll(async () => {
   model = await startScriptedModel()
   running = await launchPackagedApp({
+    MAXIMAL_DISABLE_GLOBAL_KEYBOARD_HOOK: '1',
     STUFFBUCKET_HARNESS_START_OPEN: '1',
     STUFFBUCKET_PROVIDER: 'maximal',
     STUFFBUCKET_PROVIDER_URL: model.baseUrl,
@@ -68,6 +78,120 @@ async function openNativeSettings(label: string): Promise<string[]> {
     )
     return leaves?.map((item) => item.label) ?? []
   }, label)
+}
+
+async function startWindowRecording(output: string): Promise<void> {
+  await running.app.evaluate(({ BrowserWindow, Menu, dialog }, filePath) => {
+    const state = globalThis as typeof globalThis & {
+      maximalRecordingError?: string
+    }
+    state.maximalRecordingError = undefined
+    Object.defineProperty(dialog, 'showSaveDialog', {
+      configurable: true,
+      value: () => Promise.resolve({ canceled: false, filePath }),
+    })
+    Object.defineProperty(dialog, 'showErrorBox', {
+      configurable: true,
+      value: (title: string, message: string) => {
+        state.maximalRecordingError = `${title}: ${message}`
+      },
+    })
+    const item = Menu.getApplicationMenu()?.items
+      .find((candidate) => candidate.label === 'File')
+      ?.submenu?.items.find((candidate) => candidate.label === 'Record Window…')
+    if (!item || typeof item.click !== 'function') {
+      throw new Error('Record Window menu action is unavailable')
+    }
+    const click = item.click as (
+      item: MenuItem,
+      window: ReturnType<typeof BrowserWindow.getFocusedWindow> | undefined,
+      event: { keyCode: string; triggeredByAccelerator: boolean; type: 'keyDown' },
+    ) => void
+    click(
+      item,
+      BrowserWindow.getFocusedWindow() ?? undefined,
+      { keyCode: '', triggeredByAccelerator: false, type: 'keyDown' },
+    )
+  }, output)
+  await expect.poll(async () => {
+    const state = await running.app.evaluate(({ Menu }) => ({
+      error: (globalThis as typeof globalThis & {
+        maximalRecordingError?: string
+      }).maximalRecordingError,
+      recording: Menu.getApplicationMenu()?.items
+      .find((candidate) => candidate.label === 'File')
+      ?.submenu?.items.some((candidate) =>
+        candidate.label === 'Stop Window Recording') ?? false,
+    }))
+    if (state.error) throw new Error(state.error)
+    return state.recording
+  }).toBe(true)
+}
+
+async function stopWindowRecording(output: string, screenshot: string): Promise<void> {
+  await running.app.evaluate(({ BrowserWindow, Menu }) => {
+    const item = Menu.getApplicationMenu()?.items
+      .find((candidate) => candidate.label === 'File')
+      ?.submenu?.items.find(
+        (candidate) => candidate.label === 'Stop Window Recording',
+      )
+    if (!item || typeof item.click !== 'function') {
+      throw new Error('Stop Window Recording menu action is unavailable')
+    }
+    const click = item.click as (
+      item: MenuItem,
+      window: ReturnType<typeof BrowserWindow.getFocusedWindow> | undefined,
+      event: { keyCode: string; triggeredByAccelerator: boolean; type: 'keyDown' },
+    ) => void
+    click(
+      item,
+      BrowserWindow.getFocusedWindow() ?? undefined,
+      { keyCode: '', triggeredByAccelerator: false, type: 'keyDown' },
+    )
+  })
+  await expect.poll(() => running.app.evaluate(({ Menu }) =>
+    Menu.getApplicationMenu()?.items
+      .find((candidate) => candidate.label === 'File')
+      ?.submenu?.items.some((candidate) =>
+        candidate.label === 'Record Window…') ?? false,
+  )).toBe(true)
+  await expect.poll(async () => {
+    try {
+      return (await stat(output)).size
+    } catch (error) {
+      if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+        return 0
+      }
+      throw error
+    }
+  }).toBeGreaterThan(0)
+  await execFileAsync(process.env['FFMPEG'] ?? 'ffmpeg', [
+    '-hide_banner',
+    '-loglevel',
+    'error',
+    '-y',
+    '-sseof',
+    '-0.1',
+    '-i',
+    output,
+    '-frames:v',
+    '1',
+    screenshot,
+  ])
+  expect((await stat(screenshot)).size).toBeGreaterThan(0)
+  const { stdout } = await execFileAsync(
+    process.env['FFPROBE'] ?? 'ffprobe',
+    [
+      '-v',
+      'error',
+      '-show_entries',
+      'format=duration',
+      '-of',
+      'default=noprint_wrappers=1:nokey=1',
+      output,
+    ],
+  )
+  expect(Number(stdout.trim())).toBeGreaterThanOrEqual(MIN_EVIDENCE_SECONDS)
 }
 
 test.afterAll(async () => {
@@ -143,6 +267,7 @@ test('packaged preload exposes only the closed named bridge', async () => {
     topLevel: Object.keys(window.maximal).sort(),
     control: Object.keys(window.maximal.control).sort(),
     harness: Object.keys(window.maximal.harness).sort(),
+    recordings: Object.keys(window.maximal.recordings).sort(),
     hasCoreOrigin: 'getCoreOrigin' in window.maximal,
     hasWindowRequire: 'require' in window,
   }))
@@ -151,6 +276,7 @@ test('packaged preload exposes only the closed named bridge', async () => {
     topLevel: [
       'clientInstallations',
       'control',
+      'generalSettings',
       'getCoreStatus',
       'getProxyUrl',
       'harness',
@@ -165,7 +291,9 @@ test('packaged preload exposes only the closed named bridge', async () => {
       'openExternal',
       'pendingSettingsRequest',
       'providerOnboarding',
+      'recordings',
       'shutdown',
+      'systemNotifications',
       'terminal',
     ],
     control: [
@@ -220,6 +348,7 @@ test('packaged preload exposes only the closed named bridge', async () => {
       'selectModel',
       'show',
     ],
+    recordings: ['revealFolder'],
     hasCoreOrigin: false,
     hasWindowRequire: false,
   })
@@ -488,6 +617,76 @@ test('native Settings flyout opens every restored section in the packaged UI', a
 
   await expect(page.locator('#right')).toHaveCount(0)
   await expect(page.locator('[data-testid="toggle-right"]')).toHaveCount(0)
+})
+
+test('General settings expose packaged Electron desktop behavior', async ({ browserName: _browserName }, testInfo) => {
+  const page = await mainWindow()
+  const evidenceDirectory = process.env['MAXIMAL_EVIDENCE_DIR']
+  if (evidenceDirectory) await mkdir(evidenceDirectory, { recursive: true })
+  const evidencePath = (name: string): string =>
+    evidenceDirectory ? join(evidenceDirectory, name) : testInfo.outputPath(name)
+  await openNativeSettings('General')
+  const hasRevealRecordings = await running.app.evaluate(({ Menu }) =>
+    Menu.getApplicationMenu()?.items
+      .find((candidate) => candidate.label === 'File')
+      ?.submenu?.items.some((candidate) =>
+        candidate.label === 'Reveal Recordings Folder' && candidate.enabled,
+      ) ?? false,
+  )
+  expect(hasRevealRecordings).toBe(true)
+
+  await expect(page.locator('h1')).toHaveText('General')
+  await expect(page.getByRole('heading', { name: 'Desktop app', level: 2 })).toBeVisible()
+  await expect(page.getByText('Run on startup', { exact: true })).toBeVisible()
+  await expect(page.getByText('Ctrl Ctrl', { exact: true })).toBeVisible()
+  await expect(page.getByText('Menu bar', { exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Notifications', level: 2 })).toBeVisible()
+
+  const native = await running.app.evaluate(({ app }) => ({
+    version: app.getVersion(),
+    startOnLogin: app.getLoginItemSettings().openAtLogin,
+  }))
+  const bridged = await page.evaluate(() => window.maximal.generalSettings.get())
+  expect(bridged).toEqual({
+    ...native,
+    quickAccessShortcut: 'control-control',
+  })
+  await expect(page.getByText(native.version, { exact: true })).toBeVisible()
+  await expect(page.getByTestId('start-on-login-switch')).toHaveAttribute(
+    'aria-checked',
+    String(native.startOnLogin),
+  )
+
+  const unchanged = await page.evaluate((enabled) =>
+    window.maximal.generalSettings.setStartOnLogin(enabled), native.startOnLogin)
+  expect(unchanged).toEqual(bridged)
+
+  const overviewRecording = evidencePath('general-settings.mp4')
+  const overviewScreenshot = evidencePath('general-settings.png')
+  await startWindowRecording(overviewRecording)
+  await expect(page.getByText('System notifications', { exact: true })).toBeVisible()
+  await page.waitForTimeout(EVIDENCE_HOLD_MS)
+  await stopWindowRecording(overviewRecording, overviewScreenshot)
+
+  const confirmationRecording = evidencePath('general-menu-bar-confirmation.mp4')
+  const confirmationScreenshot = evidencePath('general-menu-bar-confirmation.png')
+  await startWindowRecording(confirmationRecording)
+  await page.getByTestId('menu-bar-only-switch').click()
+  await expect(
+    page.getByRole('heading', { name: 'Keep menu bar only?' }).first(),
+  ).toBeVisible()
+  await page.waitForTimeout(EVIDENCE_HOLD_MS)
+  await stopWindowRecording(confirmationRecording, confirmationScreenshot)
+  await page.getByRole('button', { name: 'Revert' }).click()
+  await expect(page.getByText('Keep menu bar only?')).toHaveCount(0)
+  await testInfo.attach('General settings', {
+    path: overviewScreenshot,
+    contentType: 'image/png',
+  })
+  await testInfo.attach('Menu bar confirmation', {
+    path: confirmationScreenshot,
+    contentType: 'image/png',
+  })
 })
 
 test('model settings preserve hierarchy and semantics at narrow widths', async ({ browserName: _browserName }, testInfo) => {

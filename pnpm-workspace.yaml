@@ -33,7 +33,11 @@ allowBuilds:
   "node-llama-cpp": true
   "node-pty": true
   "protobufjs": true
+  "uiohook-napi": true
 
 # Required by Electron Forge and Rolldown.
 publicHoistPattern:
   - "*"
+
+patchedDependencies:
+  '@stryker-mutator/vitest-runner@10.0.0': patches/@stryker-mutator__vitest-runner@10.0.0.patch

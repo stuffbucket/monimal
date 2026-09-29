@@ -5,6 +5,8 @@ const mocks = vi.hoisted(() => ({
   start: vi.fn(),
   saveDialog: vi.fn(),
   errorBox: vi.fn(),
+  mkdir: vi.fn(),
+  openPath: vi.fn(),
   info: vi.fn(),
   error: vi.fn(),
 }))
@@ -13,17 +15,25 @@ vi.mock('@maximal/maximal-recording/main', () => ({
   startWindowRecording: mocks.start,
 }))
 vi.mock('electron', () => ({
-  app: { getPath: () => '/tmp' },
+  app: { getPath: () => '/home/test' },
   dialog: {
     showSaveDialog: mocks.saveDialog,
     showErrorBox: mocks.errorBox,
   },
+  shell: { openPath: mocks.openPath },
+}))
+vi.mock('node:fs/promises', () => ({
+  mkdir: mocks.mkdir,
 }))
 vi.mock('../main-logger.js', () => ({
   mainLogger: { info: mocks.info, error: mocks.error },
 }))
 
-import { createDesktopRecording } from './recording.js'
+import {
+  createDesktopRecording,
+  recordingsDirectory,
+  revealRecordingsDirectory,
+} from './recording.js'
 
 function windowStub() {
   return {
@@ -39,6 +49,8 @@ function windowStub() {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mocks.mkdir.mockResolvedValue(undefined)
+  mocks.openPath.mockResolvedValue('')
 })
 
 describe('desktop window recording', () => {
@@ -51,7 +63,13 @@ describe('desktop window recording', () => {
     const recording = createDesktopRecording(() => window as BrowserWindow, onChange)
 
     await recording.toggle()
+    expect(mocks.mkdir).toHaveBeenCalledWith('/home/test/.local/share/maximal/recordings', {
+      recursive: true,
+    })
     expect(mocks.saveDialog).toHaveBeenCalledWith(window, expect.objectContaining({
+      defaultPath: expect.stringMatching(
+        /^\/home\/test\/\.local\/share\/maximal\/recordings\/maximal-.*\.mp4$/,
+      ) as unknown,
       filters: [{ name: 'MP4 video', extensions: ['mp4'] }],
     }))
     const options = mocks.start.mock.calls[0]?.[0] as {
@@ -67,6 +85,39 @@ describe('desktop window recording', () => {
     expect(stop).toHaveBeenCalledOnce()
     expect(onChange).toHaveBeenCalledTimes(2)
     expect(recording.isRecording()).toBe(false)
+  })
+
+  it('reveals the fixed app-owned recordings directory', async () => {
+    expect(recordingsDirectory({})).toBe(
+      '/home/test/.local/share/maximal/recordings',
+    )
+
+    await revealRecordingsDirectory()
+
+    expect(mocks.mkdir).toHaveBeenCalledWith(
+      '/home/test/.local/share/maximal/recordings',
+      { recursive: true },
+    )
+    expect(mocks.openPath).toHaveBeenCalledWith(
+      '/home/test/.local/share/maximal/recordings',
+    )
+  })
+
+  it('uses an absolute XDG data directory and ignores a relative one', () => {
+    expect(recordingsDirectory({ XDG_DATA_HOME: '/xdg/data' })).toBe(
+      '/xdg/data/maximal/recordings',
+    )
+    expect(recordingsDirectory({ XDG_DATA_HOME: 'relative' })).toBe(
+      '/home/test/.local/share/maximal/recordings',
+    )
+  })
+
+  it('reports a file-manager error when the recordings folder cannot open', async () => {
+    mocks.openPath.mockResolvedValue('Finder unavailable')
+
+    await expect(revealRecordingsDirectory()).rejects.toThrow(
+      'Finder unavailable',
+    )
   })
 
   it('does not start on cancellation or without a window', async () => {

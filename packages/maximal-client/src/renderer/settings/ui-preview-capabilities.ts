@@ -330,6 +330,16 @@ export function createPreviewSettingsCapabilities(): SettingsCapabilities {
       updatePreferences: unavailable,
     },
     general: {
+      desktopSettings: () => Promise.resolve({
+        version: '0.0.0-preview',
+        startOnLogin: false,
+        quickAccessShortcut: 'control-control',
+      }),
+      setStartOnLogin: (enabled) => Promise.resolve({
+        version: '0.0.0-preview',
+        startOnLogin: enabled,
+        quickAccessShortcut: 'control-control',
+      }),
       menuBarMode: () => Promise.resolve(menuBarState()),
       beginMenuBarOnly: () => {
         menuBarEnabled = true
@@ -357,6 +367,9 @@ export function createPreviewSettingsCapabilities(): SettingsCapabilities {
         menuBarAttempt = null
         return Promise.resolve(menuBarState())
       },
+      systemNotificationStatus: () =>
+        Promise.resolve({ supported: true, canOpenSettings: true }),
+      openSystemNotificationSettings: () => Promise.resolve(),
     },
     providerOnboarding: {
       get: () => Promise.resolve({ dismissed: false }),
