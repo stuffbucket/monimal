@@ -422,7 +422,7 @@ try {
   await page.getByRole('heading', { level: 1, name: 'Cloud Models' }).waitFor()
   await page.getByTestId('model-gpt-5').waitFor()
   const models = await modelLayout(page)
-  check(models.copilotTone === 'copilot', 'The enabled Copilot model does not use the Copilot tone.')
+  check(models.copilotTone === 'github', 'The enabled Copilot model does not use the GitHub tone.')
   check(
     models.copilotInlineStyle.includes('138, 80, 216')
       || models.copilotInlineStyle.includes('#8a50d8'),

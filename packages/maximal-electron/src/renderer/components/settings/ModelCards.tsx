@@ -51,8 +51,7 @@ function providerTone(provider: string | undefined): string {
   if (normalized.includes('grok') || normalized.includes('xai')) return 'grok';
   if (normalized.includes('google') || normalized.includes('gemini'))
     return 'google';
-  if (normalized.includes('github') || normalized.includes('copilot'))
-    return 'copilot';
+  if (normalized.includes('github')) return 'github';
   if (normalized.includes('mistral')) return 'mistral';
   if (normalized.includes('deepseek')) return 'deepseek';
   if (normalized.includes('meta') || normalized.includes('llama'))
@@ -192,7 +191,7 @@ const PROVIDER_ACCENTS: Record<string, string> = {
   mistral: '#f97316',
   deepseek: '#4d6bfe',
   meta: '#0866ff',
-  copilot: '#8a50d8',
+  github: '#8a50d8',
 };
 
 /**

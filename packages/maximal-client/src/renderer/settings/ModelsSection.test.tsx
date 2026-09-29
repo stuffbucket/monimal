@@ -270,7 +270,7 @@ describe('ModelsSection', () => {
     expect(ollama?.querySelector('[data-testid="service-icon-ollama"]')).not.toBeNull()
     expect(surface.querySelectorAll('[data-testid="service-icon-ollama"]')).toHaveLength(2)
     const githubModel = surface.querySelector<HTMLElement>('[data-testid="model-gpt-5"]')
-    expect(githubModel?.dataset.provider).toBe('copilot')
+    expect(githubModel?.dataset.provider).toBe('github')
     expect(
       githubModel?.querySelector('[data-testid="model-provider-github-copilot"]')
         ?.getAttribute('title'),
