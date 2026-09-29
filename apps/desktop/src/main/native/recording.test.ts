@@ -148,7 +148,7 @@ describe('desktop window recording', () => {
 
     expect(second).toBe(first)
     expect(recording.isRecording()).toBe(true)
-    expect(mocks.saveDialog).toHaveBeenCalledOnce()
+    await vi.waitFor(() => expect(mocks.saveDialog).toHaveBeenCalledOnce())
 
     resolveSaveDialog?.({ canceled: true })
     await first
