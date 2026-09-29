@@ -104,12 +104,13 @@ and cloud Ollama follows `ollama.preferLocalModels` (default `true`); duplicates
 across unrelated providers remain conflicts and require a provider-qualified
 route.
 
-The aggregate model catalogue is shared across these API surfaces. Ollama's
-bulk `/v1/models` response omits capabilities, so Core enriches each Ollama
-entry from `/api/show` with the model's declared capabilities, family, and
-context length. Detail requests are bounded to four concurrent calls and a
-five-second timeout; a failed detail request leaves that model available with
-unknown capabilities. The control model list uses this metadata for model type, vision input, image
+The aggregate model catalogue is shared across these API surfaces. Core reads
+local and custom Ollama catalogues from `/v1/models`; direct Ollama Cloud uses
+its native `/api/tags` catalogue. Both bulk responses omit capabilities, so
+Core enriches each Ollama entry from `/api/show` with the model's declared
+capabilities, family, and context length. Detail requests are bounded to four
+concurrent calls and a five-second timeout; a failed detail request leaves that
+model available with unknown capabilities. The control model list uses this metadata for model type, vision input, image
 generation, video generation, tool-calling, streaming, and reasoning flags.
 Image- and video-only models have no token context or maximum output limit; the
 desktop reports those fields as not applicable rather than unknown. The
