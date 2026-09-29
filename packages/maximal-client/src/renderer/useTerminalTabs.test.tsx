@@ -1,6 +1,7 @@
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { BrowserEvent } from '@maximal/maximal-browser'
 import type {
   MaximalHost,
   TerminalMenuFocusRequest,
@@ -36,10 +37,12 @@ let container: HTMLDivElement
 let focusFromMenu: (request: TerminalMenuFocusRequest) => void
 let terminalOpened: Parameters<MaximalHost['harness']['onTerminalOpened']>[0]
 let openAssistantChat: (chatId: string) => void
+let browserListener: ((event: BrowserEvent) => void) | undefined
 
 beforeEach(() => {
   ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
   terminalList.mockReset()
+  browserListener = undefined
   terminalList.mockResolvedValue([durable])
   syncMenu.mockClear()
   chatTerminal.mockReset()
@@ -58,6 +61,14 @@ beforeEach(() => {
   Object.defineProperty(window, 'maximal', {
     configurable: true,
     value: {
+      browser: {
+        list: async () => [],
+        setTerminalContext: async () => undefined,
+        onEvent: (listener: typeof browserListener) => {
+          browserListener = listener
+          return () => { browserListener = undefined }
+        },
+      },
       terminal: {
         frameId: async () => 'test-window',
         syncMenu,
@@ -90,9 +101,10 @@ async function restore(detachedWindow?: DetachedTerminal) {
     openAssistantChat = state.openAssistantChat
     return <pre>{JSON.stringify({
       tabs: state.tabs.filter((tab) => tab.kind === 'terminal'),
+      allTabs: state.tabs,
+      activeTab: state.activeTab,
       panes: [...state.panes],
       revisions: [...state.paneRevisions],
-      activeTab: state.activeTab,
       paneFocusRequest: state.paneFocusRequest,
     })}</pre>
   }
@@ -104,6 +116,7 @@ async function restore(detachedWindow?: DetachedTerminal) {
       canRunInBackground?: boolean
       assistantChatId?: string
     }>
+    allTabs: Array<{ id: string; kind: string; browserOwner?: string }>
     panes: Array<[string, unknown]>
     revisions: Array<[string, number]>
     activeTab: string
@@ -249,6 +262,26 @@ describe('terminal reconstruction', () => {
       assistantChatId: 'chat-2',
     }))
     expect(state.activeTab).toBe('terminal:overlay-terminal')
+  })
+
+  it('groups an agent-opened browser after terminal tabs and activates it', async () => {
+    await restore()
+    await act(async () => {
+      browserListener?.({
+        type: 'opened',
+        session: {
+          id: 'browser-1',
+          url: 'https://example.com/',
+          title: 'Example',
+          owner: 'agent',
+          control: 'agent-exclusive',
+          terminalSessionIds: ['primary', 'split'],
+        },
+      })
+    })
+    const state = JSON.parse(container.textContent ?? '') as Awaited<ReturnType<typeof restore>>
+    expect(state.allTabs.slice(-2).map(({ kind }) => kind)).toEqual(['terminal', 'browser'])
+    expect(state.activeTab).toBe('browser:browser-1')
   })
 
   it('groups terminals and assigns an individual tab color', async () => {

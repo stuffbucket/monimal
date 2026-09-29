@@ -3,6 +3,7 @@ import {
   Circle,
   CircleDot,
   FolderSearch,
+  Globe,
   History,
   Settings as SettingsIcon,
   Sparkles,
@@ -38,12 +39,17 @@ const LEFT_PANEL_SIZE = {
   collapsed: '0',
 }
 
-export type View = 'overview' | 'traffic' | 'settings' | 'assistant'
-export type Surface = View | 'terminal'
+export type View = 'overview' | 'traffic' | 'settings'
+export type Surface = View | 'assistant' | 'browser' | 'terminal'
 
 export interface AppTab extends Tab {
   kind: Surface
   sessionId?: string
+  browserId?: string
+  url?: string
+  browserOwner?: 'agent' | 'user'
+  browserControl?: 'user' | 'agent-shared' | 'agent-exclusive'
+  terminalSessionIds?: string[]
   customTitle?: boolean
   canRunInBackground?: boolean
   assistantChatId?: string
@@ -83,6 +89,7 @@ export function AppFrame({
   onSignIn,
   onSignOut,
   assistant,
+  onOpenBrowser,
   onOpenProjects,
   settingsOpen = false,
   onToggleSettings,
@@ -106,6 +113,7 @@ export function AppFrame({
     onOpenChat: (id: string) => void
     onShowMore: () => void
   }
+  onOpenBrowser?: () => void
   onOpenProjects?: () => void
   settingsOpen?: boolean
   onToggleSettings?: () => void
@@ -172,6 +180,15 @@ export function AppFrame({
               ]}
             />
           ) : null}
+          {onOpenBrowser ? (
+            <IconButton
+              label="Open Browser"
+              onClick={onOpenBrowser}
+              testId="open-browser"
+            >
+              <Globe size={15} />
+            </IconButton>
+          ) : null}
           {onOpenProfileSurface ? (
             <Profile
               account={account}
@@ -192,9 +209,9 @@ export function AppFrame({
       ) : undefined}
       leftSize={LEFT_PANEL_SIZE}
       withActivity
-      withLeft={surface !== 'terminal'}
+      withLeft={surface !== 'terminal' && surface !== 'browser'}
       withRight={surface === 'overview' || surface === 'traffic'}
-      withStatus={surface !== 'terminal'}
+      withStatus={surface !== 'terminal' && surface !== 'browser'}
     >
       {children}
     </PackageAppFrame>

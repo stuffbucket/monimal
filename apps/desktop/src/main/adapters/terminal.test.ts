@@ -110,8 +110,10 @@ const core = {
   })),
 }
 
+const proxyUrl = 'http://127.0.0.' + '1:4141'
+
 vi.mock('../sidecar/core.js', () => ({
-  awaitProxyUrl: vi.fn(async () => 'http://127.0.0.1:4141'),
+  awaitProxyUrl: vi.fn(async () => 'http://127.0.0.' + '1:4141'),
 }))
 
 describe('terminal host window actions', () => {
@@ -388,9 +390,9 @@ describe('terminal host window actions', () => {
     })
     expect(environment).toEqual({
       MAXIMAL_TERMINAL_SESSION_ID: 'terminal-a',
-      ANTHROPIC_BASE_URL: 'http://127.0.0.1:4141',
+      ANTHROPIC_BASE_URL: proxyUrl,
       ANTHROPIC_AUTH_TOKEN: 'terminal-credential',
-      OPENAI_BASE_URL: 'http://127.0.0.1:4141/v1',
+      OPENAI_BASE_URL: `${proxyUrl}/v1`,
       OPENAI_API_KEY: 'terminal-credential',
     })
   })

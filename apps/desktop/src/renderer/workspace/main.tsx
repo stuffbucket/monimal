@@ -7,6 +7,7 @@ import { createRoot } from 'react-dom/client'
 import '@maximal/maximal-client/renderer/theme'
 import '@maximal/maximal-client/renderer/base'
 import '@maximal/maximal-electron/renderer/styles.css'
+import '@maximal/maximal-browser/styles.css'
 import '@maximal/maximal-observability/styles.css'
 
 import { App } from './App'

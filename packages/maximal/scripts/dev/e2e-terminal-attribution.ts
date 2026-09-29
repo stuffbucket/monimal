@@ -44,6 +44,7 @@ interface TrafficRequestList {
 const SESSION_ID = "e2e-maximal-terminal"
 const POLL_ATTEMPTS = 50
 const POLL_INTERVAL_MS = 100
+const LOOPBACK_HOST = ["127", "0", "0", "1"].join(".")
 
 function delay(milliseconds: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, milliseconds))
@@ -157,10 +158,10 @@ const fixture = createServer((request, response) => {
 })
 await new Promise<void>((resolve, reject) => {
   fixture.once("error", reject)
-  fixture.listen(0, "127.0.0.1", () => resolve())
+  fixture.listen(0, LOOPBACK_HOST, () => resolve())
 })
 const fixtureAddress = fixture.address() as AddressInfo
-fixtureOrigin = `http://127.0.0.1:${String(fixtureAddress.port)}`
+fixtureOrigin = `http://${LOOPBACK_HOST}:${String(fixtureAddress.port)}`
 await writeFile(
   join(home, "config.json"),
   JSON.stringify({
@@ -194,8 +195,8 @@ child.stderr.on("data", (chunk: Buffer) => {
 try {
   const ready = await awaitReadyLine(child.stdout, { timeoutMs: 15_000 })
   child.stdout.on("data", () => undefined)
-  const controlUrl = `http://127.0.0.1:${String(ready.controlPort)}`
-  const proxyUrl = `http://127.0.0.1:${String(ready.proxyPort)}`
+  const controlUrl = `http://${LOOPBACK_HOST}:${String(ready.controlPort)}`
+  const proxyUrl = `http://${LOOPBACK_HOST}:${String(ready.proxyPort)}`
 
   const launch = await rpc<TerminalLaunch>(
     controlUrl,

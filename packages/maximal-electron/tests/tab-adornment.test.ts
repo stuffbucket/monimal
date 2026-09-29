@@ -95,7 +95,13 @@ describe('the vocabularies', () => {
     // Pinned rather than derived. Growing either list is a design decision and
     // should not pass as an incidental diff.
     expect([...TAB_EMPHASIS]).toEqual(['attention', 'busy']);
-    expect([...TAB_ICON_NAMES]).toEqual(['document', 'folder', 'settings', 'terminal']);
+    expect([...TAB_ICON_NAMES]).toEqual([
+      'browser',
+      'document',
+      'folder',
+      'settings',
+      'terminal',
+    ]);
   });
 
   it('name every emphasis and every coloured status', () => {

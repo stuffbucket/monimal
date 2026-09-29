@@ -1,4 +1,12 @@
-import { useState, type ReactElement } from 'react'
+import {
+  useEffect,
+  useState,
+  type Dispatch,
+  type ReactElement,
+  type SetStateAction,
+} from 'react'
+import { BrowserSurface } from '@maximal/maximal-browser/renderer'
+import { terminalPaneSessionIds } from '@maximal/maximal-terminal/renderer'
 import {
   Button,
   Dialog,
@@ -15,6 +23,7 @@ import { AssistantHistory } from './assistant/AssistantHistory'
 import { useAssistantMenu } from './assistant/useAssistantMenu'
 import { AppFrame, PRODUCT_TABS, SurfaceActivity, type AppTab } from './frame/AppFrame'
 import { WorkspaceRail } from './frame/WorkspaceRail'
+import { WorkspaceMap } from './workspace-map/WorkspaceMap'
 import { Overview } from './overview/Overview'
 import { Settings, type SettingsSectionRequest } from './settings/Settings'
 import type { SettingsCapabilities } from './settings/capabilities'
@@ -55,6 +64,7 @@ const TAB_COLOR_LABELS: Record<TabColor, string> = {
 
 interface ActiveSurfaceProps {
   current: AppTab | undefined
+  browserVisible: boolean
   terminalTabs: Array<{ id: string; sessionId: string; title: string }>
   settings: SettingsCapabilities
   sectionRequest: SettingsSectionRequest | null
@@ -63,6 +73,7 @@ interface ActiveSurfaceProps {
 
 function ActiveSurface({
   current,
+  browserVisible,
   terminalTabs,
   settings,
   sectionRequest,
@@ -74,6 +85,19 @@ function ActiveSurface({
       {current?.kind === 'traffic' ? <Traffic /> : null}
       {current?.kind === 'assistant' ? (
         <AssistantHistory onOpenTerminal={terminalState.openAssistantChat} />
+      ) : null}
+      {browserVisible && current?.kind === 'browser' && current.browserId && current.url ? (
+        <BrowserSurface
+          session={{
+            id: current.browserId,
+            url: current.url,
+            title: current.title,
+            owner: current.browserOwner ?? 'user',
+            control: current.browserControl ?? 'user',
+            terminalSessionIds: current.terminalSessionIds ?? [],
+          }}
+          bridge={window.maximal.browser}
+        />
       ) : null}
       {terminalTabs.length > 0 ? (
         <Terminal
@@ -178,6 +202,61 @@ function TerminalDialogs({ terminalState }: { terminalState: TerminalTabsState }
   )
 }
 
+function BrowserDialogs({
+  address,
+  setAddress,
+  terminalState,
+}: {
+  address: string | undefined
+  setAddress: Dispatch<SetStateAction<string | undefined>>
+  terminalState: TerminalTabsState
+}): ReactElement {
+  return (
+    <>
+      <Dialog
+        open={address !== undefined}
+        onOpenChange={(open) => {
+          if (!open) setAddress(undefined)
+        }}
+        title="Open browser"
+        description="Open a browser tab that can be shared with the assistant."
+        className="dialog"
+        testId="open-browser"
+      >
+        <form
+          onSubmit={(event) => {
+            event.preventDefault()
+            if (!address) return
+            void terminalState.openBrowser(address)
+            setAddress(undefined)
+          }}
+        >
+          <TextInput
+            aria-label="Browser address"
+            value={address ?? ''}
+            onChange={setAddress}
+          />
+          <Button type="submit" variant="primary">Open</Button>
+        </form>
+      </Dialog>
+      <Dialog
+        open={terminalState.browserError !== undefined}
+        onOpenChange={(open) => {
+          if (!open) terminalState.setBrowserError(undefined)
+        }}
+        title="Browser action failed"
+        description={terminalState.browserError}
+        className="dialog"
+        testId="browser-error"
+      >
+        <Button variant="primary" onClick={() => terminalState.setBrowserError(undefined)}>
+          Done
+        </Button>
+      </Dialog>
+    </>
+  )
+}
+
 export function AppWorkspace({
   detachedWindow,
   accountStatus,
@@ -190,11 +269,21 @@ export function AppWorkspace({
 }: AppWorkspaceProps): ReactElement {
   const [profileError, setProfileError] = useState<string>()
   const assistantMenu = useAssistantMenu()
+  const [browserAddress, setBrowserAddress] = useState<string>()
+  const [mapOpen, setMapOpen] = useState(false)
   const visibleTabs = detachedWindow
     ? terminalState.tabs.filter((tab) => tab.kind === 'terminal')
     : terminalState.tabs
   const current = visibleTabs.find((tab) => tab.id === terminalState.activeTab)
     ?? visibleTabs[0] ?? PRODUCT_TABS[0]
+  useEffect(() => {
+    const sessionIds = current.kind === 'terminal' && current.sessionId
+      ? terminalPaneSessionIds(
+          terminalState.panes.get(current.id) ?? { sessionId: current.sessionId },
+        )
+      : []
+    void window.maximal.browser.setTerminalContext(sessionIds)
+  }, [current, terminalState.panes])
   const terminalTabs = terminalState.tabs.flatMap((tab) =>
     tab.kind === 'terminal' && tab.sessionId
       ? [{ id: tab.id, sessionId: tab.sessionId, title: tab.title }]
@@ -250,6 +339,9 @@ export function AppWorkspace({
         onCloseTab={(id) => {
           const closing = terminalState.tabs.find((tab) => tab.id === id)
           if (closing?.kind === 'terminal') terminalState.requestCloseTerminal(id)
+          if (closing?.kind === 'settings') requestNavigation(() => terminalState.closeTab(id))
+          else if (closing?.kind === 'browser') void terminalState.closeBrowser(id)
+          else if (closing?.kind === 'terminal') terminalState.requestCloseTerminal(id)
           else requestNavigation(() => terminalState.closeTab(id))
         }}
         onNewTab={detachedWindow ? undefined : () => terminalState.setLauncherOpen(true)}
@@ -272,6 +364,7 @@ export function AppWorkspace({
           onOpenChat: terminalState.openAssistantChat,
           onShowMore: terminalState.openAssistant,
         }}
+        onOpenBrowser={detachedWindow ? undefined : () => setBrowserAddress('https://')}
         onOpenProjects={detachedWindow ? undefined : onOpenProjects}
         tabTransfer={{
           frameId: terminalState.frameId,
@@ -287,8 +380,15 @@ export function AppWorkspace({
                 canRunInBackground: tab.canRunInBackground,
               }
             : undefined,
-          contextMenu: (tab) => tab.kind === 'terminal'
-            ? [
+          contextMenu: (tab) => {
+            if (tab.kind !== 'terminal' || !tab.sessionId) return []
+            const terminalIds = new Set(terminalPaneSessionIds(
+              terminalState.panes.get(tab.id) ?? { sessionId: tab.sessionId },
+            ))
+            const browsers = terminalState.tabs.filter((candidate) =>
+              candidate.kind === 'browser'
+              && candidate.terminalSessionIds?.some((id) => terminalIds.has(id)))
+            return [
                 {
                   id: 'rename',
                   label: 'Rename',
@@ -354,8 +454,20 @@ export function AppWorkspace({
                   separatorBefore: !tab.canRunInBackground,
                   onSelect: () => terminalState.requestCloseTerminal(tab.id),
                 },
+                ...browsers.map((browser, index) => ({
+                  id: `browser-${browser.browserId ?? String(index)}`,
+                  label: `Browser · ${browser.title}${
+                    browser.browserControl === 'agent-exclusive'
+                      ? ' (Agent exclusive)'
+                      : browser.browserControl === 'agent-shared'
+                        ? ' (Agent shared)'
+                        : ''
+                  }`,
+                  separatorBefore: index === 0,
+                  onSelect: () => terminalState.setActiveTab(browser.id),
+                })),
               ]
-            : [],
+          },
           onDetachTab: (transfer, position) => {
             const tab = terminalState.getTabs().find((candidate) =>
               candidate.id === transfer.tabId)
@@ -375,6 +487,7 @@ export function AppWorkspace({
       >
         <ActiveSurface
           current={current}
+          browserVisible={!mapOpen}
           terminalTabs={terminalTabs}
           settings={settings}
           sectionRequest={sectionRequest}
@@ -387,6 +500,7 @@ export function AppWorkspace({
                 tabs={terminalState.tabs}
                 current={current.id}
                 onSelect={(id) => requestNavigation(() => terminalState.setActiveTab(id))}
+                onOpenMap={() => setMapOpen(true)}
               />
             </SurfaceActivity>
             <AccountStatusLine status={accountStatus} />
@@ -397,6 +511,11 @@ export function AppWorkspace({
           </>
         ) : null}
       </AppFrame>
+      <BrowserDialogs
+        address={browserAddress}
+        setAddress={setBrowserAddress}
+        terminalState={terminalState}
+      />
       <Dialog
         open={profileError !== undefined}
         onOpenChange={(open) => {
@@ -412,6 +531,13 @@ export function AppWorkspace({
         </Button>
       </Dialog>
       <TerminalDialogs terminalState={terminalState} />
+      <WorkspaceMap
+        open={mapOpen}
+        tabs={terminalState.tabs}
+        panes={terminalState.panes}
+        onOpenChange={setMapOpen}
+        onFocus={(id) => requestNavigation(() => terminalState.setActiveTab(id))}
+      />
     </>
   )
 }

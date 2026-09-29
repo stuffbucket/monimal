@@ -88,6 +88,7 @@ import {
   setReducedMotionEnabled,
   setVibrancyEnabled,
 } from './preferences/application-settings.js'
+import { startBrowserHost } from './adapters/browser.js'
 import {
   applyVibrancy,
   vibrancyPreference,
@@ -121,6 +122,7 @@ let menuBarMode: MenuBarModeController | null = null
 let recording: DesktopRecording | null = null
 let projectCatalog: DesktopProjectCatalog | null = null
 let quitting = false
+let stopBrowserHost: (() => void) | undefined
 
 const nonEmptyString = z.string().min(1)
 const localModelIdentifier = z.string().min(1).max(200)
@@ -834,6 +836,7 @@ void app.whenReady().then(async () => {
   projectCatalog = await DesktopProjectCatalog.open(app.getPath('userData'))
   configureTerminalProjectTrust((path) => projectCatalog?.isTrustedPath(path) === true)
   registerIpc(coreControlConnection, nativeMode, projectCatalog)
+  stopBrowserHost = startBrowserHost(() => mainWindow)
   void projectCatalog.refresh().then(
     () => broadcast(BRIDGE_CHANNELS.projectsChanged),
     (error: unknown) => mainLogger.error(
@@ -930,6 +933,8 @@ shutdownLifecycle.onWillShutdown((event) => {
   quitting = true
   event.report('application', 'Closing application services.')
   event.join(Promise.resolve().then(() => {
+    stopBrowserHost?.()
+    stopBrowserHost = undefined
     menuBarMode?.dispose()
     coreControlConnection?.dispose()
     projectCatalog?.close()

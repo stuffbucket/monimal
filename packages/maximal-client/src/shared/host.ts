@@ -1,4 +1,14 @@
 import type {
+  BrowserBounds,
+  BrowserCommand,
+  BrowserControl,
+  BrowserEvent,
+  BrowserHostBridge,
+  BrowserScreenshot,
+  BrowserSession,
+  BrowserSnapshot,
+} from '@maximal/maximal-browser'
+import type {
   ControlErrorReason,
   LocalModelCancelResult,
   LocalModelCatalogEntry,
@@ -88,6 +98,15 @@ export type {
   LocalModelOperationEvent,
 }
 export type { ShutdownSnapshot }
+export type {
+  BrowserBounds,
+  BrowserCommand,
+  BrowserControl,
+  BrowserEvent,
+  BrowserScreenshot,
+  BrowserSession,
+  BrowserSnapshot,
+}
 
 /** Sidecar lifecycle state that is safe to expose to the product renderer. */
 export type LifecycleStatus =
@@ -355,6 +374,7 @@ export interface MaximalHost {
       ) => Promise<TerminalLaunchResult>
     }
   }
+  browser: BrowserHostBridge
   terminal: {
     spawn: (request: { id: string; cols: number; rows: number; shell?: string; cwd?: string }) => Promise<void>
     write: (id: string, data: string) => Promise<void>

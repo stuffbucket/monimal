@@ -1,7 +1,7 @@
 import * as Tabs from '@radix-ui/react-tabs';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
-import { FileText, Folder, Plus, Settings, SquareTerminal, X } from 'lucide-react';
+import { FileText, Folder, Globe, Plus, Settings, SquareTerminal, X } from 'lucide-react';
 import {
   Fragment,
   useCallback,
@@ -58,6 +58,7 @@ export interface Tab extends TabAdornment {
 
 /** The glyph behind each name in `TAB_ICON_NAMES`. */
 const TAB_ICON_GLYPHS: Record<TabIconName, ComponentType<{ size?: number }>> = {
+  browser: Globe,
   document: FileText,
   folder: Folder,
   settings: Settings,

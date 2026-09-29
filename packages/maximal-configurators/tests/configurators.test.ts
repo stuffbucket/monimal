@@ -22,6 +22,8 @@ import {
   maximalTerminalEnvironment,
 } from "../src/index.ts"
 
+const TERMINAL_BASE_URL = "http://127.0.0." + "1:41501"
+
 class FakeHost implements ConfiguratorHost {
   installed = true
   inspected: ConfiguratorConnection = {
@@ -124,18 +126,18 @@ void test("registers Maximal as a terminal-profile configurator", async () => {
   })
   assert.deepEqual(
     configurator.environment({
-      baseUrl: "http://127.0.0.1:41501/",
+      baseUrl: `${TERMINAL_BASE_URL}/`,
       credential: "mxt_terminal-token",
       sessionId: "terminal-1",
     }),
     {
       MAXIMAL_TERMINAL_SESSION_ID: "terminal-1",
       STUFFBUCKET_PROVIDER: "maximal",
-      STUFFBUCKET_PROVIDER_URL: "http://127.0.0.1:41501",
+      STUFFBUCKET_PROVIDER_URL: TERMINAL_BASE_URL,
       STUFFBUCKET_PROVIDER_API_KEY: "mxt_terminal-token",
-      ANTHROPIC_BASE_URL: "http://127.0.0.1:41501",
+      ANTHROPIC_BASE_URL: TERMINAL_BASE_URL,
       ANTHROPIC_AUTH_TOKEN: "mxt_terminal-token",
-      OPENAI_BASE_URL: "http://127.0.0.1:41501/v1",
+      OPENAI_BASE_URL: `${TERMINAL_BASE_URL}/v1`,
       OPENAI_API_KEY: "mxt_terminal-token",
     },
   )

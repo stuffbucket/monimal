@@ -1,0 +1,14 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
+  // Mirrors the package exports; knip cannot map ./dist back to src on its own.
+  "entry": [
+    "src/index.ts",
+    "src/host/index.ts",
+    "src/renderer/index.ts",
+    "tests/**/*.test.ts"
+  ],
+  "project": ["src/**/*.{ts,tsx}", "tests/**/*.ts"],
+  // The npm alias for the TypeScript 6 preview obscures its tsc binary provider.
+  "ignoreBinaries": ["tsc"],
+  "ignoreExportsUsedInFile": true
+}

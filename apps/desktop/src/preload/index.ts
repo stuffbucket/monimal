@@ -148,6 +148,33 @@ const bridge = {
         }),
     },
   },
+  browser: {
+    list: () => ipcRenderer.invoke(BRIDGE_CHANNELS.browserList),
+    open: (url) => ipcRenderer.invoke(BRIDGE_CHANNELS.browserOpen, url),
+    navigate: (id, url) => ipcRenderer.invoke(BRIDGE_CHANNELS.browserNavigate, { id, url }),
+    command: (id, command) => ipcRenderer.invoke(BRIDGE_CHANNELS.browserCommand, { id, command }),
+    inspect: (id) => ipcRenderer.invoke(BRIDGE_CHANNELS.browserAction, { type: 'inspect', id }),
+    click: (id, ref) => ipcRenderer.invoke(BRIDGE_CHANNELS.browserAction, { type: 'click', id, ref }),
+    hover: (id, ref) => ipcRenderer.invoke(BRIDGE_CHANNELS.browserAction, { type: 'hover', id, ref }),
+    type: (id, ref, text, clear) =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.browserAction, { type: 'type', id, ref, text, clear }),
+    press: (id, key) => ipcRenderer.invoke(BRIDGE_CHANNELS.browserAction, { type: 'press', id, key }),
+    drag: (id, fromRef, toRef) =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.browserAction, { type: 'drag', id, fromRef, toRef }),
+    scroll: (id, direction, amount) =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.browserAction, { type: 'scroll', id, direction, amount }),
+    wait: (id, text, timeoutMs) =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.browserAction, { type: 'wait', id, text, timeoutMs }),
+    screenshot: (id) =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.browserAction, { type: 'screenshot', id }),
+    setControl: (id, control) =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.browserAction, { type: 'set-control', id, control }),
+    setTerminalContext: (sessionIds) =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.browserAction, { type: 'terminal-context', sessionIds }),
+    close: (id) => ipcRenderer.invoke(BRIDGE_CHANNELS.browserClose, id),
+    show: (id, bounds) => ipcRenderer.invoke(BRIDGE_CHANNELS.browserShow, { id, bounds }),
+    onEvent: (listener) => subscribe(BRIDGE_CHANNELS.browserEvent, listener),
+  },
   terminal: {
     spawn: (request) => ipcRenderer.invoke(BRIDGE_CHANNELS.terminalSpawn, request),
     write: (id, data) => ipcRenderer.invoke(BRIDGE_CHANNELS.terminalWrite, { id, data }),

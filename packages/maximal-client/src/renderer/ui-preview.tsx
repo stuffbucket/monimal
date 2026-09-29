@@ -108,6 +108,7 @@ function PreviewFrame(): ReactElement {
           tabs={tabs}
           current={current.id}
           onSelect={(id) => setActiveTab(id)}
+          onOpenMap={() => undefined}
         />
       </SurfaceActivity>
     </AppFrame>

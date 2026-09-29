@@ -24,7 +24,7 @@ export type TabEmphasis = (typeof TAB_EMPHASIS)[number];
  * carry a function. A consumer with a glyph the shell does not source passes a
  * component through `TabBar`'s `icon` instead.
  */
-export const TAB_ICON_NAMES = ['document', 'folder', 'settings', 'terminal'] as const;
+export const TAB_ICON_NAMES = ['browser', 'document', 'folder', 'settings', 'terminal'] as const;
 
 export type TabIconName = (typeof TAB_ICON_NAMES)[number];
 
