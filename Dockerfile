@@ -132,6 +132,7 @@ COPY --chown=maximal:maximal packages/maximal-settings/package.json packages/max
 COPY --chown=maximal:maximal packages/maximal-settings/dependency-review.json packages/maximal-settings/dependency-review.json
 COPY --chown=maximal:maximal packages/maximal-settings/scripts/dependency-policy.cjs packages/maximal-settings/scripts/dependency-policy.cjs
 COPY --chown=maximal:maximal packages/maximal/package.json packages/maximal/package.json
+COPY --chown=maximal:maximal packages/maximal-browser/package.json packages/maximal-browser/package.json
 COPY --chown=maximal:maximal packages/maximal-client/package.json packages/maximal-client/package.json
 COPY --chown=maximal:maximal packages/maximal-ollama/package.json packages/maximal-ollama/package.json
 COPY --chown=maximal:maximal packages/maximal-terminal/package.json packages/maximal-terminal/package.json
