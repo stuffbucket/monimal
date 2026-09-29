@@ -15,6 +15,7 @@ import type {
   LocalModelCatalogSnapshot,
   LocalModelProvisionProgress,
 } from "@maximal/maximal-model-contract"
+
 import { z } from "zod"
 
 import type { AuthStatus as AuthStatusUnion } from "./settings.ts"
@@ -108,12 +109,10 @@ export type TerminalScopeIssueRequest = z.infer<
 
 export const TerminalScopeCredential = TerminalScopeIssueRequest.extend({
   credential: z.string().min(8).max(128),
-  expiresAt: z.string().datetime(),
+  expiresAt: z.iso.datetime(),
 }).strict()
 
-export type TerminalScopeCredential = z.infer<
-  typeof TerminalScopeCredential
->
+export type TerminalScopeCredential = z.infer<typeof TerminalScopeCredential>
 
 export const TerminalScopeLaunch = TerminalScopeCredential.extend({
   environment: z.record(z.string(), z.string()),
