@@ -1,10 +1,13 @@
-import type { ReactElement } from 'react'
+import { useState, type ReactElement } from 'react'
 import {
   Button,
   Dialog,
   TextInput,
+  type Account,
+  type SettingsSurface,
 } from '@maximal/maximal-electron/renderer'
 
+import type { SettingsSectionId } from '../shared/settings-sections'
 import { AccountStatusLine } from './AccountStatusLine'
 import { AppFrame, PRODUCT_TABS, SurfaceActivity, type AppTab } from './frame/AppFrame'
 import { WorkspaceRail } from './frame/WorkspaceRail'
@@ -25,6 +28,15 @@ interface AppWorkspaceProps {
   sectionRequest: SettingsSectionRequest | null
   terminalState: TerminalTabsState
   requestNavigation: (proceed: () => void) => void
+  openSettingsSection: (id: SettingsSectionId) => void
+}
+
+const PROFILE_SETTINGS: Record<SettingsSurface, SettingsSectionId> = {
+  'model-cards': 'settings-models-heading',
+  'api-keys': 'settings-connections-heading',
+  'app-toggles': 'settings-connections-heading',
+  diagnostics: 'settings-diagnostics-heading',
+  usage: 'settings-usage-heading',
 }
 
 interface ActiveSurfaceProps {
@@ -155,7 +167,9 @@ export function AppWorkspace({
   sectionRequest,
   terminalState,
   requestNavigation,
+  openSettingsSection,
 }: AppWorkspaceProps): ReactElement {
+  const [profileError, setProfileError] = useState<string>()
   const visibleTabs = detachedWindow
     ? terminalState.tabs.filter((tab) => tab.kind === 'terminal')
     : terminalState.tabs
@@ -166,6 +180,23 @@ export function AppWorkspace({
       ? [{ id: tab.id, sessionId: tab.sessionId, title: tab.title }]
       : [],
   )
+  const account: Account | undefined = accountStatus?.state === 'authenticated'
+    ? {
+        id: accountStatus.account_login,
+        displayName: accountStatus.account_login,
+        handle: `@${accountStatus.account_login}`,
+        avatarUrl: accountStatus.account_avatar_url,
+        plan: accountStatus.account_type ?? undefined,
+      }
+    : undefined
+  const openSettings = (id: SettingsSectionId): void => {
+    requestNavigation(() => {
+      terminalState.openSettings()
+      openSettingsSection(id)
+    })
+  }
+  const openProfileSurface = (surface: SettingsSurface): void =>
+    openSettings(PROFILE_SETTINGS[surface])
 
   const openTerminalWindow = (tab: AppTab, copy: boolean): void => {
     const request = terminalState.terminalWindowRequest(tab)
@@ -200,6 +231,17 @@ export function AppWorkspace({
         onNewTab={detachedWindow ? undefined : () => terminalState.setLauncherOpen(true)}
         settingsOpen={terminalState.tabs.some((tab) => tab.kind === 'settings')}
         onToggleSettings={detachedWindow ? undefined : () => requestNavigation(terminalState.toggleSettings)}
+        account={account}
+        onOpenProfileSurface={detachedWindow ? undefined : openProfileSurface}
+        onSignIn={detachedWindow ? undefined : () => openSettings('settings-account-heading')}
+        onSignOut={detachedWindow || account === undefined
+          ? undefined
+          : () => {
+              void settings.account.signOut().catch(() => {
+                setProfileError('The account could not be signed out.')
+              })
+            }}
+        onOpenAssistant={detachedWindow ? undefined : () => void window.maximal.harness.show()}
         tabTransfer={{
           frameId: terminalState.frameId,
           canDrag: (tab) => tab.kind === 'terminal',
@@ -292,6 +334,20 @@ export function AppWorkspace({
           </>
         ) : null}
       </AppFrame>
+      <Dialog
+        open={profileError !== undefined}
+        onOpenChange={(open) => {
+          if (!open) setProfileError(undefined)
+        }}
+        title="Account action failed"
+        description={profileError}
+        className="dialog"
+        testId="profile-action-error"
+      >
+        <Button variant="primary" onClick={() => setProfileError(undefined)}>
+          Done
+        </Button>
+      </Dialog>
       <TerminalDialogs terminalState={terminalState} />
     </>
   )

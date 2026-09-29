@@ -295,7 +295,6 @@ vi.mock('./native/menu-bar-mode.js', () => ({
 // `identity.test.ts` covers it against its own fakes.
 vi.mock('./native/identity.js', () => ({
   applyAppName: vi.fn(),
-  applyDockIcon: vi.fn(),
   installApplicationMenu: installApplicationMenuMock,
 }))
 
@@ -451,8 +450,10 @@ async function loadIndexOn(platform: NodeJS.Platform): Promise<void> {
   })
   startHarnessHostMock.mockImplementation(() => {
     for (const channel of [
+      BRIDGE_CHANNELS.harnessShow,
       BRIDGE_CHANNELS.harnessHide,
       BRIDGE_CHANNELS.harnessProvider,
+      BRIDGE_CHANNELS.harnessSelectModel,
       BRIDGE_CHANNELS.harnessAsk,
       BRIDGE_CHANNELS.harnessAbort,
       BRIDGE_CHANNELS.harnessApprove,

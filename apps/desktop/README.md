@@ -7,6 +7,12 @@ Maximal desktop application live here.
 React product surfaces (including `AppWorkspace`), controls, and shared bridge
 contracts. The host bundles those surfaces without owning their components.
 
+The File menu exposes **Record Window…** and **Stop Window Recording**. The
+host asks for an `.mp4` destination and supplies its own main window to the
+[`maximal-recording`](../../packages/maximal-recording/) capability. Recording
+is explicit, window-only, and requires `ffmpeg` and `ffprobe`; it does not
+capture audio or take a path from the renderer.
+
 To verify the packaged app and compiled sidecar on macOS:
 
 ```sh

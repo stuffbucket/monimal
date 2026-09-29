@@ -137,6 +137,7 @@ export const RENDERER_SURFACE = [
   'ApiKeysDialog',
   'AppFrame',
   'AppTogglesDialog',
+  'Avatar',
   'Banner',
   'Button',
   'Callout',
@@ -160,6 +161,7 @@ export const RENDERER_SURFACE = [
   'NavRail',
   'Note',
   'PartitionedSortableList',
+  'Profile',
   'RadioGroup',
   'Row',
   'SHELL_CONTENT',
@@ -342,6 +344,7 @@ export function reExportedNames(source) {
  * `lib/bridge.js` in the graph and fails here.
  */
 const CONTRACTS = [
+  /(?:^|\/)lib\/account(?:\.js)?$/,
   /(?:^|\/)lib\/component-styles(?:\.js)?$/,
   /(?:^|\/)lib\/content(?:-lorem)?(?:\.js)?$/,
   /(?:^|\/)lib\/settings(?:\.js)?$/,

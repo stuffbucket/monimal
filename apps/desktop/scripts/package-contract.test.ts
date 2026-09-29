@@ -102,6 +102,31 @@ function fakeIo(tree: Record<string, Package>, links: Record<string, string> = {
 }
 
 describe('external native dependency closure', () => {
+  it('discovers llama.cpp through the provider package', () => {
+    const provider =
+      '/ws/packages/maximal-llama-cpp'
+    const llamaStore = '/ws/node_modules/.pnpm/node-llama-cpp@3/node_modules/node-llama-cpp'
+    const io = fakeIo(
+      {
+        [provider]: { dependencies: { 'node-llama-cpp': '3.20.0' } },
+        [llamaStore]: {},
+      },
+      {
+        '/ws/app/node_modules/@maximal/maximal-llama-cpp': provider,
+        '/ws/packages/maximal-llama-cpp/node_modules/node-llama-cpp': llamaStore,
+      },
+    )
+
+    expect(
+      externalClosure(
+        io,
+        '/ws/app/node_modules',
+        ['@maximal/maximal-llama-cpp'],
+        { boundary: '/ws' },
+      ).map(({ name, path }) => ({ name, path })),
+    ).toEqual([{ name: 'node-llama-cpp', path: 'node_modules/node-llama-cpp' }])
+  })
+
   it('follows pnpm links and installed optional prebuilds', () => {
     const store = '/ws/node_modules/.pnpm/node-llama-cpp@3/node_modules'
     const io = fakeIo(

@@ -43,7 +43,8 @@ export interface PtyProjectionResizeRequest extends PtyProjectionControlRequest 
 export interface TerminalProfileSummary {
   id: string;
   label: string;
-  kind: 'local' | 'tmux-control' | 'docker' | 'podman' | 'lima' | 'multipass' | 'kubernetes' | 'wsl' | 'vagrant' | 'ssh' | 'tmux' | 'ssh-tmux';
+  description?: string;
+  kind: 'command' | 'local' | 'tmux-control' | 'docker' | 'podman' | 'lima' | 'multipass' | 'kubernetes' | 'wsl' | 'vagrant' | 'ssh' | 'tmux' | 'ssh-tmux';
 }
 
 export interface TerminalTargetSummary {

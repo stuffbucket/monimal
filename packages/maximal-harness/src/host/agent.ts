@@ -1,5 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import {
+  EMBEDDED_MODEL_LABEL,
+  EMBEDDED_MODEL_MB,
+  listEmbeddedModels,
+  selectEmbeddedModel,
+} from '@maximal/maximal-llama-cpp';
+
+import {
   Agent,
   createBashTool,
   createEditTool,
@@ -16,6 +23,7 @@ import type { TSchema } from 'typebox';
 import type {
   AgentApproval,
   AgentApprovalRequest,
+  AgentModelOption,
   AgentProvider,
   ApproveRequest,
   ProviderStatus,
@@ -24,7 +32,6 @@ import { HARNESS_CONFIG, HARNESS_COPY } from '../constants.js';
 
 import { describeToolCall, needsApproval, riskOf, type ToolRisk } from './approval.js';
 import { runEmbedded } from './embedded.js';
-import { EMBEDDED_MODEL_LABEL, EMBEDDED_MODEL_MB, isModelPresent } from './llama.js';
 import {
   resolveEndpoints,
   type Endpoints,
@@ -76,6 +83,7 @@ export interface AgentOptions {
   codingTools: boolean;
   approval: AgentApproval;
   cwd: string;
+  preferredModel?: string;
   toolsetIds?: readonly string[];
 }
 
@@ -86,10 +94,6 @@ export function configureAgent(options: AgentOptions): void {
 }
 
 /* ---------------------------------------------------------------- discovery */
-
-async function reachable(url: string): Promise<boolean> {
-  return (await fetchJson(url)) !== undefined;
-}
 
 /** GET with a bound timeout. Returns undefined for anything that is not 200. */
 async function fetchJson(url: string): Promise<unknown> {
@@ -118,22 +122,67 @@ async function fetchJson(url: string): Promise<unknown> {
  * installed, so the preferred order is applied against reality, and a machine
  * with none of them still gets whatever it does have.
  */
-function chooseOllamaModel(tags: unknown): string | undefined {
-  const models = (tags as { models?: { name?: unknown }[] } | undefined)?.models;
-  if (!Array.isArray(models)) return undefined;
+function option(
+  provider: AgentProvider,
+  model: string,
+  label = model,
+): AgentModelOption {
+  return { key: `${provider}:${model}`, label, model, provider };
+}
 
-  const installed = models
-    .map((entry) => entry.name)
-    .filter((name): name is string => typeof name === 'string');
-  if (installed.length === 0) return undefined;
+function maximalModels(payload: unknown): AgentModelOption[] {
+  const data = (payload as { data?: Array<{ id?: unknown }> } | undefined)?.data;
+  if (!Array.isArray(data)) return [];
+  return data.flatMap((entry) =>
+    typeof entry.id === 'string' && entry.id.length > 0
+      ? [option('maximal', entry.id)]
+      : [],
+  );
+}
 
-  for (const wanted of HARNESS_CONFIG.discovery.ollamaPreferredModels) {
-    const match = installed.find(
-      (name) => name === wanted || name.startsWith(`${wanted}-`),
-    );
-    if (match) return match;
-  }
-  return installed[0];
+function ollamaModels(payload: unknown): AgentModelOption[] {
+  const models = (payload as { models?: Array<{ name?: unknown }> } | undefined)?.models;
+  if (!Array.isArray(models)) return [];
+  return models.flatMap((entry) =>
+    typeof entry.name === 'string' && entry.name.length > 0
+      ? [option('ollama', entry.name)]
+      : [],
+  );
+}
+
+async function modelCatalogue(
+  pin: Backend | undefined,
+  base: Endpoints<keyof typeof HARNESS_CONFIG.discovery.defaultEndpoints>,
+): Promise<AgentModelOption[]> {
+  const [maximal, ollama] = await Promise.all([
+    pin === undefined || pin === 'maximal'
+      ? fetchJson(`${base.maximal}/v1/models`).then(maximalModels)
+      : [],
+    pin === undefined || pin === 'ollama'
+      ? fetchJson(`${base.ollama}/api/tags`).then(ollamaModels)
+      : [],
+  ]);
+  const embedded =
+    pin === undefined || pin === 'embedded'
+      ? listEmbeddedModels().map((model) =>
+          option('embedded', model.fileName, model.label),
+        )
+      : [];
+  return [...maximal, ...ollama, ...embedded];
+}
+
+function ready(
+  selected: AgentModelOption,
+  models: AgentModelOption[],
+): ProviderStatus {
+  if (selected.provider === 'embedded') selectEmbeddedModel(selected.model);
+  return {
+    state: 'ready',
+    provider: selected.provider,
+    model: selected.model,
+    modelKey: selected.key,
+    models,
+  };
 }
 
 /**
@@ -149,45 +198,56 @@ export async function discoverProvider(): Promise<ProviderStatus> {
   // is unreachable on any machine that has a proxy running, which is every
   // machine that develops this.
   const { pin, base } = environment();
-  if (pin === 'embedded') {
-    return isModelPresent()
-      ? { state: 'ready', provider: 'embedded', model: EMBEDDED_MODEL_LABEL }
-      : { state: 'needs-model', model: EMBEDDED_MODEL_LABEL, approxMb: EMBEDDED_MODEL_MB };
+  const models = await modelCatalogue(pin, base);
+  if (pin !== undefined) {
+    if (models.length > 0) {
+      const preferred = models.find(
+        (model) => model.key === configured?.preferredModel,
+      );
+      return ready(preferred ?? models[0]!, models);
+    }
+    return pin === 'embedded'
+      ? {
+          state: 'needs-model',
+          model: EMBEDDED_MODEL_LABEL,
+          approxMb: EMBEDDED_MODEL_MB,
+        }
+      : {
+          state: 'unavailable',
+          reason: HARNESS_COPY.agent.noProviderAnswer(pin),
+        };
   }
 
-  if (pin !== 'ollama' && (await reachable(`${base.maximal}/v1/models`))) {
+  if (models.length === 0) {
     return {
-      state: 'ready',
-      provider: 'maximal',
-      model: HARNESS_CONFIG.discovery.maximalModel,
+      state: 'needs-model',
+      model: EMBEDDED_MODEL_LABEL,
+      approxMb: EMBEDDED_MODEL_MB,
     };
   }
 
-  if (pin !== 'maximal') {
-    const tags = await fetchJson(`${base.ollama}/api/tags`);
-    if (tags !== undefined) {
-      const model = chooseOllamaModel(tags);
-      if (model) return { state: 'ready', provider: 'ollama', model };
-      // Ollama is running but empty. Fall through: the embedded model is a
-      // better answer than telling someone to go and pull one.
-    }
-  }
-
-  // A pin that did not answer says so, rather than quietly becoming a
-  // different backend. Someone who named one wants that one.
-  if (pin !== undefined) {
-    return { state: 'unavailable', reason: HARNESS_COPY.agent.noProviderAnswer(pin) };
-  }
-
-  if (isModelPresent()) {
-    return { state: 'ready', provider: 'embedded', model: EMBEDDED_MODEL_LABEL };
-  }
-
+  const preferred = models.find(
+    (model) => model.key === configured?.preferredModel,
+  );
+  if (preferred) return ready(preferred, models);
   return {
-    state: 'needs-model',
-    model: EMBEDDED_MODEL_LABEL,
-    approxMb: EMBEDDED_MODEL_MB,
+    state: 'select-model',
+    ...(configured?.preferredModel === undefined
+      ? {}
+      : { preferredModel: configured.preferredModel }),
+    models,
   };
+}
+
+export async function selectAgentModel(modelKey: string): Promise<ProviderStatus> {
+  const options = configured;
+  if (!options) throw new Error(HARNESS_COPY.agent.notConfigured);
+  const { pin, base } = environment();
+  const models = await modelCatalogue(pin, base);
+  const selected = models.find((model) => model.key === modelKey);
+  if (!selected) throw new Error(HARNESS_COPY.agent.modelUnavailable(modelKey));
+  configured = { ...options, preferredModel: selected.key };
+  return ready(selected, models);
 }
 
 /**

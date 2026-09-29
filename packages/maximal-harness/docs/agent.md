@@ -1,8 +1,9 @@
 # Agent runtime
 
 `@maximal/maximal-harness` owns provider discovery, the coding-agent loop,
-the approval gate, embedded model management, utility-process supervision, and
-the transport-driven overlay. The application owns IPC names, request
+the approval gate, and the transport-driven overlay.
+`@maximal/maximal-llama-cpp` owns embedded model management and
+utility-process supervision. The application owns IPC names, request
 validation, sender authorization, panel creation, shortcuts, lifecycle, worker
 bundle paths, and native package mutation.
 
@@ -17,19 +18,25 @@ bundle paths, and native package mutation.
 - `src/constants.ts` owns runtime tuning values and human-facing copy. Keep
   protocol discriminants and schema vocabulary with their contracts.
 
-## Provider chain
+## Model selection
 
-`discoverProvider` uses this order:
+`discoverProvider` MUST catalogue every model reported by maximal on
+`localhost:4141`, Ollama on `localhost:11434`, and every GGUF file in the
+embedded model directory. Provider-qualified model keys MUST be stored as the
+preferred-model application setting.
 
-1. maximal on `localhost:4141`.
-2. Ollama on `localhost:11434`, using a model returned by `/api/tags`.
-3. Embedded Qwen3 0.6B.
+When the preferred model exists, discovery MUST select it. When it does not
+exist and alternatives are available, discovery MUST require the overlay to
+show and focus its model picker. When no model is available from any provider,
+the overlay MUST offer the small embedded download.
 
-Embedded is the offline floor, not the default. Its weights are downloaded to
-the model directory supplied by the host and are not part of the application
-package.
+The fallback is Qwen3 0.6B with an 8,192-token context window. Its weights are
+downloaded to the model directory supplied by the host and are not part of the
+application package. A completed fallback download MUST select and persist the
+downloaded model.
 
-`STUFFBUCKET_PROVIDER` may pin `maximal`, `ollama`, or `embedded`. A pinned HTTP
+`STUFFBUCKET_PROVIDER` may pin `maximal`, `ollama`, or `embedded`. A pin MUST
+select the preferred or first available model for that provider. A pinned HTTP
 backend that does not answer reports unavailable instead of falling through.
 `STUFFBUCKET_MODEL_PATH` may name weights already on disk.
 
@@ -44,12 +51,13 @@ The maximal and Ollama paths use pi. The embedded path uses llama.cpp and its
 own tool loop. Both paths use the same risk classification, approval callback,
 and event sink.
 
-`src/worker/index.ts` is the only source file that loads `node-llama-cpp`. It
+`@maximal/maximal-llama-cpp/worker` is the only source that loads
+`node-llama-cpp`. It
 runs in an Electron `utilityProcess` because a native abort cannot be caught by
-the application process. `src/host/llama-host.ts` supervises that process.
+the application process. `@maximal/maximal-llama-cpp/host` supervises that process.
 Never add a second runtime import path.
 
-`src/worker/grammar.ts` translates TypeBox schemas into the grammar shape
+The llama.cpp package translates TypeBox schemas into the grammar shape
 llama.cpp accepts. A schema it cannot express drops the tool rather than
 running it unconstrained.
 
@@ -65,18 +73,6 @@ tools.
 
 The application validates its configured approval policy. The harness accepts
 only the three `AgentApproval` values in its typed options.
-
-## Packaging
-
-`@maximal/maximal-harness/packaging` owns the worker filename, target
-prebuild selection, optional GPU backend policy, and compile-only source list.
-`@maximal/maximal-harness/verify` checks those decisions against a packaged
-file tree. The application owns Forge hooks, dependency closure copying,
-`asar.unpack`, target pruning, and the concrete worker target.
-
-The worker passes `build: 'never'` to `getLlama`. Packaging may remove only the
-source inputs listed by the packaging export; llama grammar files remain runtime
-inputs.
 
 ## Shutdown
 

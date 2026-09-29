@@ -26,8 +26,8 @@ const BUNDLE = path.join(ROOT, '.vite/build/main.js');
  * answer is worse than a failure, which is the same reason `capture` rejects a
  * blank screenshot.
  *
- * Exported because the recorder and the stills runner drive the same bundles
- * from their own configurations, and were not guarded at all.
+ * Also used by the optional recording package so developer captures cannot
+ * silently drive yesterday's renderer.
  */
 export function requireFreshBundles(): void {
   let built: number;
@@ -40,10 +40,7 @@ export function requireFreshBundles(): void {
     );
   }
 
-  // Both trees are compiled into `.vite`: the product from `src`, the capture
-  // fixture from `e2e/fixtures`. An edit to either is not under test until it
-  // has been packaged.
-  const times = [path.join(ROOT, 'src'), path.join(ROOT, 'e2e/fixtures')]
+  const times = [path.join(ROOT, 'src')]
     .map((directory) => newestMtime(directory))
     .filter((time) => time !== undefined);
 

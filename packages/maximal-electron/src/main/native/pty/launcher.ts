@@ -1,6 +1,7 @@
 import { app, type BrowserWindow } from 'electron';
 
 import type {
+  DirectTerminalProfile,
   TerminalDiscovery,
   TerminalProfileSummary,
 } from '@maximal/maximal-terminal';
@@ -22,12 +23,21 @@ import { TerminalLauncher, loadTerminalProfiles } from '@maximal/maximal-termina
 
 let names: TmuxSessionNames | undefined;
 let instance: TerminalLauncher<BrowserWindow> | undefined;
+let directProfiles: readonly DirectTerminalProfile[] = [];
 
 /** Name this app's tmux sessions. Fixed once the launcher has been built. */
 export function configureTmuxSessions(prefix: string): void {
   if (names?.prefix === prefix) return;
   if (instance) throw new Error('The tmux session prefix cannot change after terminals have launched.');
   names = new TmuxSessionNames(prefix);
+}
+
+export function configureDirectTerminalProfiles(profiles: readonly DirectTerminalProfile[]): void {
+  if (instance) {
+    if (profiles.length === 0 && directProfiles.length === 0) return;
+    throw new Error('Direct terminal profiles cannot change after terminals have launched.');
+  }
+  directProfiles = profiles;
 }
 
 export function tmuxSessionNames(): TmuxSessionNames {
@@ -41,6 +51,7 @@ export function launcher(): TerminalLauncher<BrowserWindow> {
 }
 
 const createLauncher = (names: TmuxSessionNames): TerminalLauncher<BrowserWindow> => new TerminalLauncher<BrowserWindow>({
+  directProfiles,
   connectors: [
     new DockerConnector(execFileRunner),
     new PodmanConnector(execFileRunner),

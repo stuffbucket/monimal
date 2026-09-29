@@ -1,0 +1,5 @@
+{
+  "extends": "../maximal-electron/tsconfig.json",
+  "include": ["src/**/*.ts", "e2e/**/*.ts", "tests/**/*.ts"],
+  "exclude": ["node_modules", "demo/takes"]
+}

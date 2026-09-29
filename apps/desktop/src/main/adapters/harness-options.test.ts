@@ -41,6 +41,7 @@ describe('loadHarnessOptions', () => {
       JSON.stringify({
         agentApproval: 'all',
         agentCwd: '/workspace/project',
+        agentModel: 'embedded:tiny.gguf',
         agentTools: false,
         agentToolsets: ['app', 'github', 3],
         menuBarOnly: true,
@@ -51,6 +52,7 @@ describe('loadHarnessOptions', () => {
       approval: 'all',
       codingTools: false,
       cwd: '/workspace/project',
+      preferredModel: 'embedded:tiny.gguf',
       toolsetIds: ['app', 'github'],
     })
   })

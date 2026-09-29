@@ -2,6 +2,7 @@ import type { ReactElement } from 'react'
 import { TerminalLauncher } from '@maximal/maximal-electron/renderer'
 
 import type { TerminalTabsState } from '@maximal/maximal-client/renderer/useTerminalTabs'
+import { renderTerminalProfileIcon } from './TerminalProfileIcon'
 
 export function WorkspaceTerminalLauncher({
   terminalState,
@@ -21,6 +22,7 @@ export function WorkspaceTerminalLauncher({
       }}
       onLaunched={terminalState.onTerminalLaunched}
       recentProfileIds={terminalState.recentProfiles}
+      renderProfileIcon={renderTerminalProfileIcon}
     />
   )
 }

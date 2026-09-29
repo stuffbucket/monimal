@@ -39,7 +39,12 @@ describe('terminal profiles', () => {
     expect(coerceTerminalProfiles({ version: 2, profiles: [{}] })).toEqual({ version: 7, profiles: [{}] });
     expect(coerceTerminalProfiles({ version: 6, profiles: [{ recent: 'docker' }] })).toEqual({ version: 7, profiles: [{ recent: 'docker' }] });
     expect(terminalProfiles('darwin')).toEqual([
-      { id: 'local', label: 'Local', kind: 'local' },
+      {
+        id: 'local',
+        label: 'Local',
+        description: 'Open a terminal on your local file system',
+        kind: 'local',
+      },
       { id: 'docker', label: 'Docker', kind: 'docker' },
       { id: 'podman', label: 'Podman', kind: 'podman' },
       { id: 'lima', label: 'Lima', kind: 'lima' },
@@ -47,7 +52,12 @@ describe('terminal profiles', () => {
       { id: 'kubernetes', label: 'Kubernetes', kind: 'kubernetes' },
       { id: 'vagrant', label: 'Vagrant', kind: 'vagrant' },
       { id: 'ssh', label: 'SSH', kind: 'ssh' },
-      { id: 'tmux', label: 'Local', kind: 'tmux' },
+      {
+        id: 'tmux',
+        label: 'Local',
+        description: 'Open a terminal on your local file system',
+        kind: 'tmux',
+      },
       { id: 'ssh-tmux', label: 'SSH', kind: 'ssh-tmux' },
     ]);
     expect(terminalProfiles('win32').map((profile) => profile.id)).toEqual(['local', 'docker', 'podman', 'multipass', 'kubernetes', 'wsl', 'vagrant', 'ssh', 'ssh-tmux']);
@@ -308,6 +318,51 @@ describe('TerminalLauncher', () => {
     else process.env['SHELL'] = shell;
     const windows = new TerminalLauncher<object>({ createId: () => 'windows', platform: 'win32' });
     expect(windows.take(owner, windows.launch(owner, { profileId: 'local', cols: 80, rows: 24 }).sessionId)).toEqual({ command: 'powershell.exe', args: [] });
+  });
+
+  it('prepends and launches app-owned direct command profiles', () => {
+    const owner = {};
+    const launch = { command: 'agent', args: ['--interactive'] };
+    const launcher = new TerminalLauncher<object>({
+      createId: () => 'session',
+      directProfiles: [{
+        profile: {
+          id: 'agent',
+          label: 'Agent',
+          description: 'Open the app agent',
+          kind: 'command',
+        },
+        launch,
+      }],
+    });
+    expect(launcher.profiles()[0]).toEqual({
+      id: 'agent',
+      label: 'Agent',
+      description: 'Open the app agent',
+      kind: 'command',
+    });
+    expect(launcher.launch(owner, { profileId: 'agent', cols: 80, rows: 24 })).toEqual({
+      sessionId: 'session',
+      label: 'Agent',
+      canRunInBackground: false,
+    });
+    expect(launcher.take(owner, 'session')).toEqual(launch);
+  });
+
+  it('rejects a target for an app-owned direct command profile', () => {
+    const owner = {};
+    const launcher = new TerminalLauncher<object>({
+      directProfiles: [{
+        profile: { id: 'agent', label: 'Agent', kind: 'command' },
+        launch: { command: 'agent', args: [] },
+      }],
+    });
+    expect(() => launcher.launch(owner, {
+      profileId: 'agent',
+      targetId: 'unexpected',
+      cols: 80,
+      rows: 24,
+    })).toThrow('Unknown terminal profile or target.');
   });
 
   it('expires and releases an owner reservation', () => {

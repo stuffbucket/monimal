@@ -55,4 +55,21 @@ describe('loadApplicationSettings', () => {
       ...context, environment: { MAXIMAL_TERMINAL_SESSION_PREFIX: 'work' },
     }).settings.terminalSessionPrefix).toBe('work')
   })
+
+  it('loads the preferred agent model from application settings', async () => {
+    const directory = await fixture()
+    await writeFile(
+      join(directory, 'preferences.json'),
+      JSON.stringify({ agentModel: 'embedded:tiny.gguf' }),
+    )
+    const context = {
+      homeDirectory: directory,
+      cwd: directory,
+      environment: {},
+      argv: [],
+    }
+
+    expect(loadApplicationSettings(directory, context).settings.agentModel)
+      .toBe('embedded:tiny.gguf')
+  })
 })

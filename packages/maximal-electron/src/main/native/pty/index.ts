@@ -1,6 +1,6 @@
 import { app, type BrowserWindow } from 'electron';
 
-import { TerminalHost, type TerminalSession } from '@maximal/maximal-terminal';
+import { TerminalHost, type DirectTerminalProfile, type TerminalSession } from '@maximal/maximal-terminal';
 import type {
   PtySpawnRequest,
   TerminalLaunchRequest,
@@ -14,7 +14,13 @@ import type {
 import { TmuxControlHost } from '@maximal/maximal-terminal';
 
 import type { PtyEvents, PtyHandlers } from './handlers.js';
-import { configureTmuxSessions, launcher, prepareLauncher, tmuxSessionNames } from './launcher.js';
+import {
+  configureDirectTerminalProfiles,
+  configureTmuxSessions,
+  launcher,
+  prepareLauncher,
+  tmuxSessionNames,
+} from './launcher.js';
 import { PtyMirrors } from '@maximal/maximal-terminal';
 import {
   stageOwnership,
@@ -42,10 +48,13 @@ const events: PtyEvents = {
 export interface PtyOptions {
   /** Prefix of the tmux sessions this app creates and later offers to resume. */
   tmuxSessionPrefix: string;
+  /** App-owned commands offered alongside the built-in terminal destinations. */
+  directProfiles?: readonly DirectTerminalProfile[];
 }
 
 export function configurePty(handlers: PtyHandlers, options: PtyOptions): void {
   configureTmuxSessions(options.tmuxSessionPrefix);
+  configureDirectTerminalProfiles(options.directProfiles ?? []);
   events.emit = handlers.emit;
   events.onExit = handlers.onExit;
   events.onStatus = handlers.onStatus;

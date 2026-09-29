@@ -116,6 +116,8 @@ describe('preload bridge allowlist', () => {
       'onModelProgress',
       'onTool',
       'provider',
+      'selectModel',
+      'show',
     ])
     expect(Object.keys(bridge.menuBarMode).sort()).toEqual([
       'beginEnable',
@@ -215,8 +217,10 @@ describe('preload bridge allowlist', () => {
     await bridge.menuBarMode.disable()
     await bridge.providerOnboarding.get()
     await bridge.providerOnboarding.setDismissed(true)
+    await bridge.harness.show()
     await bridge.harness.hide()
     await bridge.harness.provider()
+    await bridge.harness.selectModel('ollama:qwen3:4b')
     await bridge.harness.ask('Explain this file')
     await bridge.harness.abort()
     await bridge.harness.approve({ id: 'approval-1', allow: true, remember: false })
@@ -313,8 +317,10 @@ describe('preload bridge allowlist', () => {
       [BRIDGE_CHANNELS.menuBarModeDisable],
       [BRIDGE_CHANNELS.providerOnboardingGet],
       [BRIDGE_CHANNELS.providerOnboardingSet, true],
+      [BRIDGE_CHANNELS.harnessShow],
       [BRIDGE_CHANNELS.harnessHide],
       [BRIDGE_CHANNELS.harnessProvider],
+      [BRIDGE_CHANNELS.harnessSelectModel, 'ollama:qwen3:4b'],
       [BRIDGE_CHANNELS.harnessAsk, { prompt: 'Explain this file' }],
       [BRIDGE_CHANNELS.harnessAbort],
       [BRIDGE_CHANNELS.harnessApprove, { id: 'approval-1', allow: true, remember: false }],

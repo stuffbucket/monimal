@@ -1,10 +1,15 @@
 import { randomUUID } from 'node:crypto';
 
-import { HARNESS_CONFIG, HARNESS_COPY } from '../constants.js';
+import { LLAMA_CONFIG } from '@maximal/maximal-llama-cpp';
+import {
+  listen,
+  modelPath,
+  send,
+  type ToolOffer,
+} from '@maximal/maximal-llama-cpp/host';
+
+import { HARNESS_COPY } from '../constants.js';
 import { riskOf, type ToolRisk } from './approval.js';
-import { listen, send } from './llama-host.js';
-import { modelPath } from './llama.js';
-import type { ToolOffer } from './llama-protocol.js';
 import type { RiskyTool } from './toolsets.js';
 
 /**
@@ -172,8 +177,8 @@ export function runEmbedded(run: EmbeddedRun): Promise<void> {
         modelPath: modelPath(),
         prompt: run.prompt,
         systemPrompt: run.systemPrompt,
-        maxTokens: HARNESS_CONFIG.models.embedded.maxTokens,
-        contextSize: HARNESS_CONFIG.models.embedded.contextSize,
+        maxTokens: LLAMA_CONFIG.model.maxTokens,
+        contextSize: LLAMA_CONFIG.model.contextSize,
         tools: run.tools.map(offer),
       });
     } catch (error) {

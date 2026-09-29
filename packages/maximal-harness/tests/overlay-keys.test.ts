@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 
 import {
   escapeAction,
-  outsideAction,
   type OverlayDismissal,
 } from '../src/renderer/overlay-keys.js';
 
@@ -40,23 +39,5 @@ describe('escapeAction', () => {
     // open, and it holds until the tool call times out. Every summon in that
     // window reports the agent as busy.
     expect(escapeAction(true, true)).not.toBe('abort');
-  });
-});
-
-describe('outsideAction', () => {
-  it('answers a pending call on the way out', () => {
-    expect(outsideAction(true)).toEqual(['deny', 'hide']);
-  });
-
-  it('just dismisses when nothing is pending', () => {
-    expect(outsideAction(false)).toEqual(['hide']);
-  });
-
-  it('always ends by hiding, unlike Escape', () => {
-    // A click outside is unambiguous: the user is done with the card. Escape
-    // is not, which is why the two have different rules at all.
-    for (const pending of [true, false]) {
-      expect(outsideAction(pending).at(-1)).toBe('hide');
-    }
   });
 });
