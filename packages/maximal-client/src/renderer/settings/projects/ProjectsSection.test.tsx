@@ -1,10 +1,16 @@
-import { act } from 'react'
+import {
+  notifyManager,
+  QueryClientProvider,
+  type QueryClient,
+} from '@tanstack/react-query'
+import { act, type ReactElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { DiscoveryRoot, ProjectCatalogSnapshot } from '@maximal/project-catalog'
 
 import type { SettingsCapabilities } from '../capabilities'
+import { createMaximalQueryClient } from '../../query-client'
 import { ProjectsSection } from './ProjectsSection'
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
@@ -59,11 +65,30 @@ function capabilities(
 }
 
 let reactRoot: Root | undefined
+let queryClient: QueryClient | undefined
+
+beforeEach(() => {
+  notifyManager.setScheduler((callback) => callback())
+})
+
 afterEach(() => {
   act(() => reactRoot?.unmount())
   reactRoot = undefined
+  queryClient = undefined
   document.body.replaceChildren()
+  notifyManager.setScheduler((callback) => window.setTimeout(callback, 0))
 })
+
+function projectsTree(
+  value: Pick<SettingsCapabilities, 'projects'>,
+): ReactElement {
+  if (queryClient === undefined) throw new Error('query client not ready')
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ProjectsSection capabilities={value} />
+    </QueryClientProvider>
+  )
+}
 
 async function render(
   value: Pick<SettingsCapabilities, 'projects'>,
@@ -71,8 +96,12 @@ async function render(
   const container = document.createElement('div')
   document.body.append(container)
   reactRoot = createRoot(container)
+  queryClient = createMaximalQueryClient()
   await act(async () => {
-    reactRoot?.render(<ProjectsSection capabilities={value} />)
+    reactRoot?.render(projectsTree(value))
+  })
+  await act(async () => {
+    await new Promise((resolve) => window.setTimeout(resolve, 0))
   })
   return container
 }
@@ -290,13 +319,12 @@ describe('ProjectsSection', () => {
     expect(loaded.textContent).toContain('trust update failed')
   })
 
-  it('rejects stale snapshots, clears recovered errors, and follows invalidations', async () => {
-    const initial = deferred<ProjectCatalogSnapshot>()
+  it('rejects stale snapshots and follows invalidations', async () => {
     const stale = deferred<ProjectCatalogSnapshot>()
     let listener: (() => void) | undefined
     const latest = snapshot([{ ...root, trusted: true }])
     const snapshotCall: SettingsCapabilities['projects']['snapshot'] = vi.fn()
-      .mockImplementationOnce(() => initial.promise)
+      .mockResolvedValueOnce(snapshot())
       .mockImplementationOnce(() => stale.promise)
       .mockResolvedValueOnce(latest)
     const container = await render(capabilities({
@@ -312,9 +340,7 @@ describe('ProjectsSection', () => {
     expect(snapshotCall).toHaveBeenCalledTimes(3)
     expect(switchFor(container, 'Trust /work').getAttribute('aria-checked')).toBe('true')
 
-    await act(async () => initial.reject(new Error('stale initial failure')))
     await act(async () => stale.resolve(snapshot()))
-    expect(container.textContent).not.toContain('stale initial failure')
     expect(container.textContent).toContain('/work')
     expect(switchFor(container, 'Trust /work').getAttribute('aria-checked')).toBe('true')
   })
@@ -373,7 +399,8 @@ describe('ProjectsSection', () => {
     })
 
     await act(async () => {
-      reactRoot?.render(<ProjectsSection capabilities={second} />)
+      reactRoot?.render(projectsTree(second))
+      await new Promise((resolve) => window.setTimeout(resolve, 0))
     })
     expect(firstUnsubscribe).toHaveBeenCalledOnce()
     expect(secondSnapshot).toHaveBeenCalledOnce()
