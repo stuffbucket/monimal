@@ -145,6 +145,10 @@ export const SETTINGS_STYLES = `
   border-top: 0;
 }
 
+.sb-shell .settings__item[data-divider='false'] {
+  border-top: 0;
+}
+
 .sb-shell .settings__actions-row {
   display: flex;
   align-items: center;
@@ -397,6 +401,7 @@ export function SettingsItem({
   control,
   actions,
   children,
+  divider = true,
   testId,
 }: {
   title: ReactNode;
@@ -404,6 +409,8 @@ export function SettingsItem({
   control?: ReactNode;
   actions?: ReactNode;
   children?: ReactNode;
+  /** Whether this item draws its divider when it follows another item. */
+  divider?: boolean;
   testId?: string;
 }) {
   useComponentStyles("settings-page", SETTINGS_STYLES);
@@ -412,6 +419,7 @@ export function SettingsItem({
   return (
     <div
       className="settings__item"
+      data-divider={divider ? undefined : "false"}
       data-has-control={hasControl ? "true" : undefined}
       data-testid={testId}
     >

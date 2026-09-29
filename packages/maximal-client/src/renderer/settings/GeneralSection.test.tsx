@@ -101,6 +101,11 @@ beforeEach(() => {
     addEventListener: vi.fn(),
     removeEventListener: vi.fn(),
   })))
+  vi.stubGlobal('ResizeObserver', class {
+    observe(): void {}
+    unobserve(): void {}
+    disconnect(): void {}
+  })
 })
 
 afterEach(() => {
@@ -110,6 +115,7 @@ afterEach(() => {
   container = null
   queryClient = null
   vi.useRealTimers()
+  vi.unstubAllGlobals()
 })
 
 async function renderGeneral(
@@ -262,6 +268,44 @@ describe('GeneralSection', () => {
     expect(general.setReducedMotionEnabled).toHaveBeenCalledWith(true)
   })
 
+  it('persists bounded material, quality, motion, and solar controls', async () => {
+    const { capabilities } = fakeCapabilities()
+    const surface = await renderGeneral(capabilities)
+
+    expect(
+      surface.querySelector<HTMLSelectElement>('[data-testid="material-preset"]')
+        ?.disabled,
+    ).toBe(true)
+    await act(async () =>
+      effectControl(surface, 'background-effects-switch').click(),
+    )
+    const preset = surface.querySelector<HTMLSelectElement>(
+      '[data-testid="material-preset"]',
+    )
+    const lighting = surface.querySelector<HTMLSelectElement>(
+      '[data-testid="material-lighting"]',
+    )
+    if (preset === null || lighting === null) {
+      throw new Error('material controls were not rendered')
+    }
+    expect(preset.disabled).toBe(false)
+
+    await act(async () => {
+      preset.value = 'water'
+      preset.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+    await act(async () => {
+      lighting.value = 'timezone'
+      lighting.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+
+    expect(surface.querySelector('[data-testid="material-timezone"]')).not.toBeNull()
+    expect(surface.querySelector('[data-testid="material-latitude"]')).not.toBeNull()
+    expect(surface.querySelector('[data-testid="material-longitude"]')).not.toBeNull()
+    expect(JSON.parse(localStorage.getItem('maximal.material-preference.v1') ?? '{}'))
+      .toMatchObject({ preset: 'water', lighting: 'timezone' })
+  })
+
   it('disables visual controls while an appearance update is pending', async () => {
     const { capabilities, general } = fakeCapabilities()
     let finish!: (value: Awaited<ReturnType<typeof general.setBackgroundEffectsEnabled>>) => void
@@ -305,6 +349,11 @@ describe('GeneralSection', () => {
       'Notifications',
     ])
     expect(surface.querySelectorAll('.settings__group')).toHaveLength(5)
+    expect([
+      ...surface.querySelectorAll(
+        '.settings__group .settings__item + .settings__item',
+      ),
+    ].every((item) => item.getAttribute('data-divider') === 'false')).toBe(true)
     expect(surface.textContent).toContain('Desktop app version')
     expect(surface.textContent).toContain('1.2.3')
     expect(surface.textContent).toContain('Run on startup')

@@ -46,6 +46,7 @@ function ThemeFileControls({
   return (
     <SettingsItem
       title="Custom theme"
+      divider={false}
       description="Name the current theme and optionally choose one accent. Exported files use Maximal Theme JSON v1."
       actions={
         <div className="appearance-actions">
@@ -164,6 +165,7 @@ export function AppearanceSection(): ReactElement {
           />
           <SettingsItem
             title="Palette"
+            divider={false}
             description={
               APPEARANCE_PRESETS.find(({ value }) => value === theme.preset)?.source
             }

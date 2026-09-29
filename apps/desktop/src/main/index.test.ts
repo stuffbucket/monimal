@@ -77,6 +77,7 @@ const {
   browserWindows,
   closeSplashWindowMock,
   createSplashWindowMock,
+  updateSplashStatusMock,
   fakeApp,
   fakeWindow,
   installApplicationMenuMock,
@@ -204,6 +205,7 @@ const {
     }>,
     closeSplashWindowMock: vi.fn(),
     createSplashWindowMock: vi.fn(),
+    updateSplashStatusMock: vi.fn(() => Promise.resolve()),
     fakeApp,
     fakeWindow,
     installApplicationMenuMock: vi.fn(),
@@ -246,6 +248,7 @@ vi.mock('electron', () => ({
 vi.mock('./windows/splash-window.js', () => ({
   closeSplashWindow: closeSplashWindowMock,
   createSplashWindow: createSplashWindowMock,
+  updateSplashStatus: updateSplashStatusMock,
 }))
 
 const { localModelsMkdir, resolveLocalModelsPathMock } = vi.hoisted(() => ({
@@ -480,6 +483,9 @@ async function loadIndexOn(platform: NodeJS.Platform): Promise<void> {
   killCoreMock.mockClear()
   spawnCoreMock.mockClear()
   ipcMainHandle.mockClear()
+  closeSplashWindowMock.mockClear()
+  createSplashWindowMock.mockClear()
+  updateSplashStatusMock.mockClear()
   showHarnessHostMock.mockClear()
   startHarnessHostMock.mockClear()
   stopHarnessHostMock.mockClear()
@@ -557,9 +563,21 @@ async function loadIndexOn(platform: NodeJS.Platform): Promise<void> {
   await Promise.resolve()
 }
 
+function finishStartupPresentation(): void {
+  const options = createSplashWindowMock.mock.calls[0]?.[0] as
+    | { onClosed?: () => void }
+    | undefined
+  if (!options?.onClosed) throw new Error('Splash close callback was not registered')
+  vi.useFakeTimers()
+  options.onClosed()
+  vi.advanceTimersByTime(120)
+  vi.useRealTimers()
+}
+
 const realPlatform = process.platform
 
 afterEach(() => {
+  vi.useRealTimers()
   fakeApp.isPackaged = false
   Object.defineProperty(process, 'platform', {
     value: realPlatform,
@@ -972,8 +990,15 @@ describe('closed IPC boundary', () => {
   it('dismisses the splash only after the renderer and Core are ready', async () => {
     await loadIndexOn('darwin')
     const lifecycleListener = onCoreStatusMock.mock.calls[0]?.[0]
+    const splashOptions = createSplashWindowMock.mock.calls[0]?.[0] as {
+      onClosed: () => void
+    }
 
     fakeWindow.emit('ready-to-show')
+    expect(createHostWindowMock).toHaveBeenCalledWith(
+      expect.objectContaining({ showWhenReady: false }),
+    )
+    expect(fakeWindow.show).not.toHaveBeenCalled()
     expect(closeSplashWindowMock).not.toHaveBeenCalled()
 
     lifecycleListener?.({
@@ -983,6 +1008,53 @@ describe('closed IPC boundary', () => {
     })
 
     expect(closeSplashWindowMock).toHaveBeenCalledOnce()
+    expect(fakeWindow.show).not.toHaveBeenCalled()
+
+    windowState.visible = false
+    vi.useFakeTimers()
+    splashOptions.onClosed()
+    vi.advanceTimersByTime(119)
+    expect(fakeWindow.show).not.toHaveBeenCalled()
+    vi.advanceTimersByTime(1)
+    expect(fakeWindow.show).toHaveBeenCalledOnce()
+    expect(fakeWindow.focus).toHaveBeenCalledOnce()
+    vi.useRealTimers()
+  })
+
+  it('defers start-open until Core, renderer, and splash closure are ready', async () => {
+    vi.stubEnv('STUFFBUCKET_HARNESS_START_OPEN', '1')
+    await loadIndexOn('darwin')
+    const lifecycleListener = onCoreStatusMock.mock.calls[0]?.[0]
+    const harnessOptions = startHarnessHostMock.mock.calls[0]?.[0] as {
+      canActivate: () => boolean
+    }
+    const splashOptions = createSplashWindowMock.mock.calls[0]?.[0] as {
+      onClosed: () => void
+    }
+
+    expect(harnessOptions.canActivate()).toBe(false)
+    expect(showHarnessHostMock).not.toHaveBeenCalled()
+
+    fakeWindow.emit('ready-to-show')
+    lifecycleListener?.({
+      phase: 'ready',
+      proxyUrl: testCoreProxyUrl,
+      pid: 42,
+    })
+    expect(closeSplashWindowMock).toHaveBeenCalledOnce()
+    expect(harnessOptions.canActivate()).toBe(false)
+    expect(showHarnessHostMock).not.toHaveBeenCalled()
+
+    vi.useFakeTimers()
+    splashOptions.onClosed()
+    vi.advanceTimersByTime(119)
+    expect(harnessOptions.canActivate()).toBe(false)
+    expect(showHarnessHostMock).not.toHaveBeenCalled()
+
+    vi.advanceTimersByTime(1)
+    expect(harnessOptions.canActivate()).toBe(true)
+    expect(showHarnessHostMock).toHaveBeenCalledOnce()
+    vi.useRealTimers()
   })
 
   it('broadcasts redacted lifecycle state and payload-free control invalidation', async () => {
@@ -1315,6 +1387,9 @@ describe('native Settings requests', () => {
 
   it('delivers immediately to a live renderer after restoring and focusing its window', async () => {
     await loadIndexOn('darwin')
+    finishStartupPresentation()
+    fakeWindow.show.mockClear()
+    fakeWindow.focus.mockClear()
     windowState.minimized = true
     windowState.visible = false
 
@@ -1348,6 +1423,9 @@ describe('native Settings requests', () => {
 
   it('creates a reachable window and retains the request when none exists', async () => {
     await loadIndexOn('darwin')
+    finishStartupPresentation()
+    fakeWindow.show.mockClear()
+    fakeWindow.focus.mockClear()
     fakeWindow.emit('closed')
 
     onOpenSettings()(null)
