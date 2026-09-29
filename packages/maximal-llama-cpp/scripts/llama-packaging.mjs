@@ -1,4 +1,5 @@
 import PACKAGE from '../package.json' with { type: 'json' };
+import { LLAMA_WORKER_FILENAME } from '../llama-worker-contract.mjs';
 const LLAMA_PLATFORM = {
   darwin: 'mac',
   mas: 'mac',
