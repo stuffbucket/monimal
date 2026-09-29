@@ -190,6 +190,7 @@ export const RENDERER_SURFACE = [
   'SurfaceStatus',
   'SurfaceTop',
   'Switch',
+  'TAB_COLORS',
   'TAB_EMPHASIS',
   'TAB_ICON_NAMES',
   'TAB_TRANSFER_MIME',
