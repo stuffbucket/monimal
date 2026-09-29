@@ -1,9 +1,9 @@
 import { useEffect, useRef, type ReactElement } from 'react'
 import type {
   Application,
-  ColorSource,
-  Graphics,
+  Shader,
   Ticker,
+  UniformGroup,
 } from 'pixi.js'
 
 interface CozyBackgroundProps {
@@ -11,57 +11,150 @@ interface CozyBackgroundProps {
   reducedMotion: boolean
 }
 
-interface Cloud {
-  graphic: Graphics
-  x: number
-  y: number
-  driftX: number
-  driftY: number
-  phase: number
-  speed: number
+type CozyUniforms = {
+  uColor1: { value: Float32Array; type: 'vec3<f32>' }
+  uColor2: { value: Float32Array; type: 'vec3<f32>' }
+  uColor3: { value: Float32Array; type: 'vec3<f32>' }
+  uTime: { value: number; type: 'f32' }
+  uViewport: { value: Float32Array; type: 'vec2<f32>' }
 }
 
-const CLOUD_LAYOUT = [
-  { x: 0.14, y: 0.2, driftX: 0.025, driftY: 0.018, phase: 0.4, speed: 0.035 },
-  { x: 0.7, y: 0.16, driftX: 0.02, driftY: 0.025, phase: 2.1, speed: 0.028 },
-  { x: 0.48, y: 0.58, driftX: 0.035, driftY: 0.018, phase: 4.2, speed: 0.022 },
-  { x: 0.84, y: 0.76, driftX: 0.018, driftY: 0.02, phase: 5.4, speed: 0.03 },
-] as const
+const VERTEX_SHADER = `
+attribute vec2 aPosition;
+attribute vec2 aUV;
+varying vec2 vUV;
 
-function cloudColors(): ColorSource[] {
+void main(void) {
+  vUV = aUV;
+  gl_Position = vec4(aPosition, 0.0, 1.0);
+}
+`
+
+const FRAGMENT_SHADER = `
+varying vec2 vUV;
+uniform vec3 uColor1;
+uniform vec3 uColor2;
+uniform vec3 uColor3;
+uniform float uTime;
+uniform vec2 uViewport;
+
+float cloudBlob(vec2 point, vec2 center, vec2 radius, float aspect) {
+  vec2 offset = (point - center) / radius;
+  offset.x *= aspect;
+  return smoothstep(1.0, 0.05, dot(offset, offset));
+}
+
+float cloudBank(
+  vec2 point,
+  vec2 center,
+  vec2 radius,
+  float aspect,
+  float phase
+) {
+  vec2 motion = vec2(
+    sin(uTime * 0.16 + phase) * 0.028,
+    cos(uTime * 0.11 + phase) * 0.014
+  );
+  vec2 origin = center + motion;
+  float body = cloudBlob(point, origin, radius, aspect);
+  float crown = cloudBlob(
+    point,
+    origin + vec2(radius.x * 0.42, -radius.y * 0.42),
+    radius * vec2(0.72, 0.9),
+    aspect
+  );
+  float edge = cloudBlob(
+    point,
+    origin - vec2(radius.x * 0.55, -radius.y * 0.08),
+    radius * vec2(0.68, 0.76),
+    aspect
+  );
+  return max(body, max(crown, edge));
+}
+
+void main(void) {
+  float aspect = uViewport.x / max(uViewport.y, 1.0);
+  vec2 point = vUV;
+  point += vec2(
+    sin(point.y * 8.0 + uTime * 0.12),
+    cos(point.x * 7.0 - uTime * 0.1)
+  ) * 0.018;
+
+  float first = cloudBank(
+    point,
+    vec2(0.1, 0.2),
+    vec2(0.34, 0.2),
+    aspect,
+    0.3
+  );
+  float second = cloudBank(
+    point,
+    vec2(0.82, 0.3),
+    vec2(0.32, 0.22),
+    aspect,
+    2.4
+  );
+  float third = cloudBank(
+    point,
+    vec2(0.5, 0.8),
+    vec2(0.4, 0.23),
+    aspect,
+    4.7
+  );
+
+  float total = first + second + third;
+  float broadWisp = sin(
+    (point.x * aspect + point.y) * 12.0
+    + sin(point.y * 9.0 - uTime * 0.18)
+  ) * 0.5 + 0.5;
+  float fineWisp = sin(
+    point.x * 19.0
+    - point.y * 8.0
+    + cos(point.x * 7.0 + uTime * 0.14)
+  ) * 0.5 + 0.5;
+  float cloudDetail = 0.48 + broadWisp * fineWisp * 0.52;
+  vec3 color = (
+    uColor1 * first
+    + uColor2 * second
+    + uColor3 * third
+  ) / max(total, 0.001);
+  color = mix(color, vec3(0.88, 0.9, 0.92), broadWisp * 0.24);
+  float alpha = clamp(
+    (max(first, max(second, third)) * 0.75 + min(total, 1.0) * 0.14)
+    * cloudDetail,
+    0.0,
+    0.86
+  );
+
+  gl_FragColor = vec4(color * alpha, alpha);
+}
+`
+
+function cloudColorValues(Color: typeof import('pixi.js').Color): Float32Array[] {
   const styles = getComputedStyle(document.documentElement)
   return [1, 2, 3].map((index) =>
-    styles.getPropertyValue(`--maximal-cloud-${String(index)}`).trim(),
+    new Color(
+      styles.getPropertyValue(`--maximal-cloud-${String(index)}`).trim(),
+    ).toRgbArray(new Float32Array(3)),
   )
 }
 
-function drawCloud(graphic: Graphics, color: ColorSource): void {
-  graphic
-    .clear()
-    .ellipse(-120, 10, 150, 64)
-    .fill({ color, alpha: 0.22 })
-    .circle(-48, -24, 76)
-    .fill({ color, alpha: 0.2 })
-    .circle(54, -12, 92)
-    .fill({ color, alpha: 0.18 })
-    .circle(132, 18, 58)
-    .fill({ color, alpha: 0.16 })
+function updateColors(
+  uniforms: UniformGroup<CozyUniforms>,
+  Color: typeof import('pixi.js').Color,
+): void {
+  const colors = cloudColorValues(Color)
+  uniforms.uniforms.uColor1 = colors[0] ?? new Float32Array([1, 1, 1])
+  uniforms.uniforms.uColor2 = colors[1] ?? new Float32Array([1, 1, 1])
+  uniforms.uniforms.uColor3 = colors[2] ?? new Float32Array([1, 1, 1])
 }
 
-function positionClouds(
-  clouds: readonly Cloud[],
-  width: number,
-  height: number,
-  elapsed: number,
+function updateViewport(
+  app: Application,
+  uniforms: UniformGroup<CozyUniforms>,
 ): void {
-  const scale = Math.max(0.75, Math.min(1.5, Math.min(width, height) / 720))
-  for (const cloud of clouds) {
-    cloud.graphic.scale.set(scale)
-    cloud.graphic.position.set(
-      width * (cloud.x + Math.sin(elapsed * cloud.speed + cloud.phase) * cloud.driftX),
-      height * (cloud.y + Math.cos(elapsed * cloud.speed * 0.8 + cloud.phase) * cloud.driftY),
-    )
-  }
+  uniforms.uniforms.uViewport[0] = app.screen.width
+  uniforms.uniforms.uViewport[1] = app.screen.height
 }
 
 function motionReduced(setting: boolean, media: MediaQueryList): boolean {
@@ -80,11 +173,19 @@ export function CozyBackground({
 
     let disposed = false
     let application: Application | null = null
+    let shader: Shader | null = null
     let cleanupApplication: (() => void) | null = null
 
     void import('pixi.js/unsafe-eval')
       .then(() => import('pixi.js'))
-      .then(async ({ Application, Graphics }) => {
+      .then(async ({
+        Application,
+        Color,
+        Mesh,
+        MeshGeometry,
+        Shader,
+        UniformGroup,
+      }) => {
         if (disposed) return
         const app = new Application()
         await app.init({
@@ -95,7 +196,7 @@ export function CozyBackground({
           powerPreference: 'low-power',
           antialias: false,
           autoDensity: true,
-          resolution: Math.min(window.devicePixelRatio || 1, 1.25),
+          resolution: Math.min(window.devicePixelRatio || 1, 0.75),
           backgroundAlpha: 0,
           eventFeatures: {
             click: false,
@@ -116,18 +217,44 @@ export function CozyBackground({
         app.ticker.maxFPS = 12
         app.ticker.minFPS = 4
 
-        const colors = cloudColors()
-        const clouds = CLOUD_LAYOUT.map((layout, index): Cloud => {
-          const graphic = new Graphics()
-          drawCloud(graphic, colors[index % colors.length] ?? '#ffffff')
-          app.stage.addChild(graphic)
-          return { graphic, ...layout }
+        const colors = cloudColorValues(Color)
+        const uniforms = new UniformGroup<CozyUniforms>({
+          uColor1: {
+            value: colors[0] ?? new Float32Array([1, 1, 1]),
+            type: 'vec3<f32>',
+          },
+          uColor2: {
+            value: colors[1] ?? new Float32Array([1, 1, 1]),
+            type: 'vec3<f32>',
+          },
+          uColor3: {
+            value: colors[2] ?? new Float32Array([1, 1, 1]),
+            type: 'vec3<f32>',
+          },
+          uTime: { value: 0, type: 'f32' },
+          uViewport: {
+            value: new Float32Array([app.screen.width, app.screen.height]),
+            type: 'vec2<f32>',
+          },
         })
-        let elapsed = 0
+        shader = Shader.from({
+          gl: {
+            name: 'cozy-cloud-material',
+            vertex: VERTEX_SHADER,
+            fragment: FRAGMENT_SHADER,
+          },
+          resources: { cozyUniforms: uniforms },
+        })
+        const geometry = new MeshGeometry({
+          positions: new Float32Array([-1, -1, 1, -1, 1, 1, -1, 1]),
+          uvs: new Float32Array([0, 1, 1, 1, 1, 0, 0, 0]),
+          indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
+        })
+        geometry.batchMode = 'no-batch'
+        app.stage.addChild(new Mesh({ geometry, shader }))
 
         const update = (ticker: Ticker): void => {
-          elapsed += Math.min(ticker.deltaMS, 250) / 1_000
-          positionClouds(clouds, app.screen.width, app.screen.height, elapsed)
+          uniforms.uniforms.uTime += Math.min(ticker.deltaMS, 250) / 1_000
         }
         app.ticker.add(update)
 
@@ -141,17 +268,14 @@ export function CozyBackground({
             app.start()
           } else {
             app.stop()
-            positionClouds(clouds, app.screen.width, app.screen.height, 0)
+            uniforms.uniforms.uTime = 0
             app.render()
           }
         }
         const redraw = (): void => {
-          const nextColors = cloudColors()
-          clouds.forEach((cloud, index) =>
-            drawCloud(cloud.graphic, nextColors[index % nextColors.length] ?? '#ffffff'),
-          )
+          updateColors(uniforms, Color)
           app.resize()
-          positionClouds(clouds, app.screen.width, app.screen.height, elapsed)
+          updateViewport(app, uniforms)
           app.render()
         }
         const contextLost = (event: Event): void => {
@@ -203,6 +327,7 @@ export function CozyBackground({
     return () => {
       disposed = true
       cleanupApplication?.()
+      shader?.destroy()
       application?.destroy(
         { removeView: true, releaseGlobalResources: true },
         { children: true },

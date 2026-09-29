@@ -10,6 +10,10 @@ const pixi = vi.hoisted(() => {
   const start = vi.fn()
   const stop = vi.fn()
   const tickerAdd = vi.fn()
+  const shaderDestroy = vi.fn()
+  const shaderFrom = vi.fn<(options: unknown) => { destroy: typeof shaderDestroy }>(
+    () => ({ destroy: shaderDestroy }),
+  )
   const canvas = document.createElement('canvas')
   const application = {
     canvas,
@@ -32,28 +36,59 @@ const pixi = vi.hoisted(() => {
       return application
     }
   }
-  class Graphics {
-    clear = vi.fn(() => this)
-    ellipse = vi.fn(() => this)
-    fill = vi.fn(() => this)
-    circle = vi.fn(() => this)
-    scale = { set: vi.fn() }
-    position = { set: vi.fn() }
+  class Color {
+    constructor(private readonly value: string) {}
+
+    toRgbArray(output: Float32Array): Float32Array {
+      const hex = this.value.replace('#', '')
+      output[0] = Number.parseInt(hex.slice(0, 2), 16) / 255
+      output[1] = Number.parseInt(hex.slice(2, 4), 16) / 255
+      output[2] = Number.parseInt(hex.slice(4, 6), 16) / 255
+      return output
+    }
+  }
+  class Mesh {
+    constructor(readonly options: unknown) {}
+  }
+  class MeshGeometry {
+    batchMode = 'auto'
+
+    constructor(readonly options: unknown) {}
+  }
+  class UniformGroup {
+    uniforms: Record<string, unknown>
+
+    constructor(values: Record<string, { value: unknown }>) {
+      this.uniforms = Object.fromEntries(
+        Object.entries(values).map(([key, uniform]) => [key, uniform.value]),
+      )
+    }
   }
   return {
     Application,
-    Graphics,
+    Color,
+    Mesh,
+    MeshGeometry,
+    Shader: { from: shaderFrom },
+    UniformGroup,
     application,
     destroy,
     render,
+    shaderDestroy,
+    shaderFrom,
     start,
     stop,
+    tickerAdd,
   }
 })
 
 vi.mock('pixi.js', () => ({
   Application: pixi.Application,
-  Graphics: pixi.Graphics,
+  Color: pixi.Color,
+  Mesh: pixi.Mesh,
+  MeshGeometry: pixi.MeshGeometry,
+  Shader: pixi.Shader,
+  UniformGroup: pixi.UniformGroup,
 }))
 vi.mock('pixi.js/unsafe-eval', () => ({}))
 
@@ -71,8 +106,14 @@ beforeEach(() => {
   pixi.application.init.mockClear()
   pixi.destroy.mockClear()
   pixi.render.mockClear()
+  pixi.shaderDestroy.mockClear()
+  pixi.shaderFrom.mockClear()
   pixi.start.mockClear()
   pixi.stop.mockClear()
+  pixi.tickerAdd.mockClear()
+  document.documentElement.style.setProperty('--maximal-cloud-1', '#6f9aa5')
+  document.documentElement.style.setProperty('--maximal-cloud-2', '#9a7fa0')
+  document.documentElement.style.setProperty('--maximal-cloud-3', '#aa876a')
   Object.defineProperty(document, 'visibilityState', {
     value: 'visible',
     configurable: true,
@@ -116,8 +157,16 @@ describe('CozyBackground', () => {
         autoStart: false,
         powerPreference: 'low-power',
         preference: ['webgl'],
+        resolution: 0.75,
       }),
     )
+    expect(pixi.shaderFrom).toHaveBeenCalledOnce()
+    const shaderOptions = pixi.shaderFrom.mock.calls[0]?.[0] as {
+      gl: { name: string }
+      resources: { cozyUniforms: unknown }
+    }
+    expect(shaderOptions.gl.name).toBe('cozy-cloud-material')
+    expect(shaderOptions.resources.cozyUniforms).toBeInstanceOf(pixi.UniformGroup)
     expect(pixi.stop).toHaveBeenCalled()
     expect(pixi.start).not.toHaveBeenCalled()
     expect(pixi.render).toHaveBeenCalled()
@@ -128,7 +177,32 @@ describe('CozyBackground', () => {
       { removeView: true, releaseGlobalResources: true },
       { children: true },
     )
+    expect(pixi.shaderDestroy).toHaveBeenCalledOnce()
     root = createRoot(container)
+  })
+
+  it('advances only the time uniform while animated', async () => {
+    await act(async () => {
+      root.render(<CozyBackground enabled reducedMotion={false} />)
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(pixi.start).toHaveBeenCalled()
+    const update = pixi.tickerAdd.mock.calls[0]?.[0] as
+      | ((ticker: { deltaMS: number }) => void)
+      | undefined
+    expect(update).toBeTypeOf('function')
+    const shaderOptions = pixi.shaderFrom.mock.calls[0]?.[0] as {
+      resources: {
+        cozyUniforms: { uniforms: { uTime: number } }
+      }
+    }
+    expect(shaderOptions.resources.cozyUniforms.uniforms.uTime).toBe(0)
+
+    update?.({ deltaMS: 100 })
+
+    expect(shaderOptions.resources.cozyUniforms.uniforms.uTime).toBeCloseTo(0.1)
   })
 
   it('destroys once when disabled during asynchronous initialization', async () => {
