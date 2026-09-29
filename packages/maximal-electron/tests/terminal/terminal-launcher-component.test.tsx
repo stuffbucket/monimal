@@ -3,39 +3,11 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { describe, expect, it, vi } from 'vitest';
 
-import { TerminalLauncher } from '../../src/renderer/components/TerminalLauncher.js';
-import type {
-  TerminalDiscovery as RendererTerminalDiscovery,
-  TerminalLaunchRequest as RendererTerminalLaunchRequest,
-  TerminalLaunchResult as RendererTerminalLaunchResult,
-  TerminalProfileSummary as RendererTerminalProfileSummary,
-  TerminalTargetSummary as RendererTerminalTargetSummary,
+import {
+  TerminalLauncher,
+  type TerminalDiscovery,
+  type TerminalProfileSummary,
 } from '../../src/renderer/components/TerminalLauncher.js';
-import type {
-  TerminalDiscovery as IpcTerminalDiscovery,
-  TerminalLaunchRequest as IpcTerminalLaunchRequest,
-  TerminalLaunchResult as IpcTerminalLaunchResult,
-  TerminalProfileSummary as IpcTerminalProfileSummary,
-  TerminalTargetSummary as IpcTerminalTargetSummary,
-} from '../../src/shared/ipc.js';
-
-type Equal<Left, Right> =
-  (<Value>() => Value extends Left ? 1 : 2) extends
-  (<Value>() => Value extends Right ? 1 : 2)
-    ? true
-    : false;
-type Assert<Value extends true> = Value;
-
-type TerminalLauncherContractParity = [
-  Assert<Equal<RendererTerminalProfileSummary, IpcTerminalProfileSummary>>,
-  Assert<Equal<RendererTerminalTargetSummary, IpcTerminalTargetSummary>>,
-  Assert<Equal<RendererTerminalDiscovery, IpcTerminalDiscovery>>,
-  Assert<Equal<RendererTerminalLaunchRequest, IpcTerminalLaunchRequest>>,
-  Assert<Equal<RendererTerminalLaunchResult, IpcTerminalLaunchResult>>,
-];
-
-void (undefined as unknown as TerminalLauncherContractParity);
-
 const profiles = async () => [
   {
     id: 'local',
@@ -57,10 +29,10 @@ const discover = async () => ({
 
 describe('TerminalLauncher', () => {
   it('shows Local as soon as profiles load while target discovery continues', async () => {
-    let resolveProfiles!: (value: RendererTerminalProfileSummary[]) => void;
-    let resolveDiscovery!: (value: RendererTerminalDiscovery) => void;
-    const pendingProfiles = new Promise<RendererTerminalProfileSummary[]>((resolve) => { resolveProfiles = resolve; });
-    const pendingDiscovery = new Promise<RendererTerminalDiscovery>((resolve) => { resolveDiscovery = resolve; });
+    let resolveProfiles!: (value: TerminalProfileSummary[]) => void;
+    let resolveDiscovery!: (value: TerminalDiscovery) => void;
+    const pendingProfiles = new Promise<TerminalProfileSummary[]>((resolve) => { resolveProfiles = resolve; });
+    const pendingDiscovery = new Promise<TerminalDiscovery>((resolve) => { resolveDiscovery = resolve; });
     const element = document.createElement('div');
     const root = createRoot(element);
     await act(async () => {

@@ -130,7 +130,6 @@ describe('the scope convention', () => {
 
   /** Scripts not yet moved onto the runner, and why. */
   const PENDING = new Map([
-    ['scripts/verify-package.mjs', '#92 is rewriting its check helper on the v0.0.4 train'],
     ['scripts/verify-exports.mjs', '#98 follow-up: its targets are still listed by hand'],
     ['scripts/verify-neutral.mjs', '#98 follow-up'],
     ['scripts/storybook-check.mjs', '#98 follow-up'],

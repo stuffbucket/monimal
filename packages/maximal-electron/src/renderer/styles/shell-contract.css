@@ -1,5 +1,5 @@
 /*
- * The reference application, supplying the contract as a consumer does.
+ * A local consumer fixture supplying the public token contract.
  *
  * Rules a component carries read the published namespace — the one `README.md`
  * tabulates and a consumer defines. Rules in this directory read the short
@@ -11,7 +11,7 @@
  * holds the two together. It used to be generated from `REQUIRED_TOKENS`
  * instead — `--shell-` plus the short name — which produced a third vocabulary
  * that no consumer defines and no shipped rule reads, and then defined it on
- * `:root` so the reference application rendered perfectly while a consumer got
+ * `:root` so the local fixture rendered perfectly while a consumer got
  * rules with no border and no background at all. Deriving it from the worked
  * example is what stops that: a name here is a name somebody has actually had
  * to supply.

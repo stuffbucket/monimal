@@ -1,9 +1,9 @@
-import * as Tooltip from '@radix-ui/react-tooltip';
 import { Copy } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { useShellContent } from '../lib/content.js';
 import { IconButton } from './controls/Button.js';
+import { TooltipProvider } from './controls/Overlays.js';
 
 /** Best effort. The clipboard is absent outside a secure context. */
 export function copyText(text: string): void {
@@ -44,7 +44,7 @@ export function CopyButton({
   }, [copied]);
 
   return (
-    <Tooltip.Provider delayDuration={400}>
+    <TooltipProvider>
       <IconButton
         testId={testId}
         label={accessibleLabel}
@@ -56,6 +56,6 @@ export function CopyButton({
       >
         <Copy size={14} />
       </IconButton>
-    </Tooltip.Provider>
+    </TooltipProvider>
   );
 }

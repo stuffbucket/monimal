@@ -464,7 +464,11 @@ export function TextInput({
         disabled={disabled}
         onClick={() => setRevealed((current) => !current)}
       >
-        {revealed ? <EyeOff aria-hidden="true" size={14} /> : <Eye aria-hidden="true" size={14} />}
+        {revealed ? (
+          <EyeOff aria-hidden="true" size={14} />
+        ) : (
+          <Eye aria-hidden="true" size={14} />
+        )}
       </IconButton>
     </div>
   );
@@ -476,9 +480,9 @@ function sliderIndex(value: number, options: readonly SliderOption[]): number {
     const closest = options[closestIndex];
     const candidate = options[index];
     if (
-      closest !== undefined
-      && candidate !== undefined
-      && Math.abs(candidate.value - value) < Math.abs(closest.value - value)
+      closest !== undefined &&
+      candidate !== undefined &&
+      Math.abs(candidate.value - value) < Math.abs(closest.value - value)
     ) {
       closestIndex = index;
     }
@@ -506,7 +510,8 @@ export function Slider({
   testId?: string;
 } & Partial<FieldControl>) {
   useFieldStyles();
-  if (options.length === 0) throw new Error('Slider requires at least one option');
+  if (options.length === 0)
+    throw new Error('Slider requires at least one option');
   const selectedIndex = sliderIndex(value, options);
   const selected = options[selectedIndex];
   const maximum = options.length - 1;
@@ -814,14 +819,20 @@ const FIELD_LIST_STYLES = `
  * `Field` on its own could not render `dt`/`dd`, because those are only valid
  * inside a `<dl>` — which is why this exists rather than an option on `Field`.
  *
- * Three spellings of one thing is what prompted it. `ModelCards` here already
- * renders a real `<dl>`; `ApiKeysDialog` and `Diagnostics` write
+ * Three spellings of one thing is what prompted it. `ModelCardGrid` here
+ * already renders a real `<dl>`; `ApiKeysDialog` writes
  * `.field`/`.field__label` markup by hand; and `Field`, the one this package
  * actually exports, rendered spans. A consuming application kept its own
  * `<dl>` rather than use the export, which was the correct call and the
  * evidence.
  */
-export function FieldList({ children, testId }: { children: ReactNode; testId?: string }) {
+export function FieldList({
+  children,
+  testId,
+}: {
+  children: ReactNode;
+  testId?: string;
+}) {
   useComponentStyles('field-list', FIELD_LIST_STYLES);
 
   return (

@@ -2,7 +2,7 @@
   "name": "@maximal/maximal-recording",
   "private": true,
   "type": "module",
-  "description": "Optional screen recorder and still-image tooling for the Electron reference shell",
+  "description": "Optional window recording and video composition tooling for the Maximal desktop",
   "exports": {
     "./main": {
       "types": "./dist/main.d.ts",
@@ -11,23 +11,17 @@
   },
   "monimal": {
     "taskExemptions": {
-      "package": "The recorder drives the Electron package; it does not distribute an application.",
-      "start": "Use record or stills to drive the Electron package on demand."
+      "package": "The consuming desktop application owns Electron packaging.",
+      "start": "The consuming desktop application owns the Electron lifecycle."
     }
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "build:app": "node scripts/build-app.mjs",
-    "record": "node scripts/record.mjs",
     "compose": "node scripts/compose.mjs",
-    "stills": "node scripts/stills.mjs",
     "test": "vitest run",
     "test:rules": "playwright test --config e2e/demo/rules.config.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint ."
-  },
-  "dependencies": {
-    "@maximal/maximal-electron": "workspace:*"
   },
   "devDependencies": {
     "@maximal/eslint-config": "workspace:*",

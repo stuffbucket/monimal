@@ -1,7 +1,9 @@
-import * as Tooltip from '@radix-ui/react-tooltip';
 import { useState, type ReactElement, type ReactNode } from 'react';
 
-import { ShellPortalRoot } from './controls/Overlays.js';
+import {
+  ShellPortalRoot,
+  TooltipProvider,
+} from './controls/Overlays.js';
 import { getTabPanelId, getTabTriggerId, type Tab } from './TabBar.js';
 import { TitleBar } from './TitleBar.js';
 
@@ -23,7 +25,7 @@ export function WindowChrome({
   const tabIdBase = `${layoutId}-documents`;
 
   return (
-    <Tooltip.Provider delayDuration={400}>
+    <TooltipProvider>
       <ShellPortalRoot element={root}>
         <div className="sb-shell app" ref={setRoot}>
           <TitleBar
@@ -46,6 +48,6 @@ export function WindowChrome({
           </div>
         </div>
       </ShellPortalRoot>
-    </Tooltip.Provider>
+    </TooltipProvider>
   );
 }

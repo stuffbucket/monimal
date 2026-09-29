@@ -1,5 +1,5 @@
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
-import { Cpu, RefreshCw } from 'lucide-react';
+import { Cpu } from 'lucide-react';
 import {
   useState,
   type KeyboardEvent,
@@ -8,19 +8,20 @@ import {
 } from 'react';
 
 import { useComponentStyles } from '../../lib/component-styles.js';
-import { fill, useShellContent } from '../../lib/content.js';
+import { useShellContent } from '../../lib/content.js';
 import {
   capabilityLabels,
   groupByKind,
   NO_VALUE,
-  relativeTime,
   formatCompact,
   type ModelCard,
 } from '../../lib/settings.js';
-import { Button } from '../controls/Button.js';
-import { EmptyState, Tag, ViewModeSwitch, type ViewMode } from '../controls/Layout.js';
-
-import { SettingsPage } from './SettingsPage.js';
+import {
+  EmptyState,
+  Tag,
+  ViewModeSwitch,
+  type ViewMode,
+} from '../controls/Layout.js';
 
 /**
  * The model catalogue.
@@ -42,13 +43,16 @@ function tokens(value: number | undefined): string {
 
 function providerTone(provider: string | undefined): string {
   const normalized = provider?.trim().toLowerCase() ?? '';
-  if (normalized.includes('anthropic') || normalized.includes('claude')) return 'anthropic';
+  if (normalized.includes('anthropic') || normalized.includes('claude'))
+    return 'anthropic';
   if (normalized.includes('openai') || normalized === 'gpt') return 'openai';
   if (normalized.includes('grok') || normalized.includes('xai')) return 'grok';
-  if (normalized.includes('google') || normalized.includes('gemini')) return 'google';
+  if (normalized.includes('google') || normalized.includes('gemini'))
+    return 'google';
   if (normalized.includes('mistral')) return 'mistral';
   if (normalized.includes('deepseek')) return 'deepseek';
-  if (normalized.includes('meta') || normalized.includes('llama')) return 'meta';
+  if (normalized.includes('meta') || normalized.includes('llama'))
+    return 'meta';
   return 'neutral';
 }
 
@@ -57,7 +61,12 @@ function activateModel(
   model: ModelCard,
   onModelActivate: ((model: ModelCard) => void) | undefined,
 ): void {
-  if (!model.disabled || !model.activationLabel || onModelActivate === undefined) return;
+  if (
+    !model.disabled ||
+    !model.activationLabel ||
+    onModelActivate === undefined
+  )
+    return;
   if ('key' in event && event.key !== 'Enter' && event.key !== ' ') return;
   if ('key' in event) event.preventDefault();
   onModelActivate(model);
@@ -84,9 +93,7 @@ function ModelTable({
     <div className="model-table-wrap">
       <table className="model-table">
         <caption>
-          <VisuallyHidden>
-            {content.kinds[kind] ?? kind}
-          </VisuallyHidden>
+          <VisuallyHidden>{content.kinds[kind] ?? kind}</VisuallyHidden>
         </caption>
         <thead>
           <tr>
@@ -105,11 +112,19 @@ function ModelTable({
               }
               data-disabled={model.disabled ? 'true' : undefined}
               data-testid={`model-${model.id}`}
-              role={modelIsActivatable(model, onModelActivate) ? 'button' : undefined}
-              tabIndex={modelIsActivatable(model, onModelActivate) ? 0 : undefined}
+              role={
+                modelIsActivatable(model, onModelActivate)
+                  ? 'button'
+                  : undefined
+              }
+              tabIndex={
+                modelIsActivatable(model, onModelActivate) ? 0 : undefined
+              }
               aria-label={model.disabled ? model.activationLabel : undefined}
               onClick={(event) => activateModel(event, model, onModelActivate)}
-              onKeyDown={(event) => activateModel(event, model, onModelActivate)}
+              onKeyDown={(event) =>
+                activateModel(event, model, onModelActivate)
+              }
             >
               <td>
                 <strong>{model.name}</strong>
@@ -122,7 +137,8 @@ function ModelTable({
                   {capabilityLabels(model.capabilities).map((label) => (
                     <Tag key={label}>{label}</Tag>
                   ))}
-                  {capabilityLabels(model.capabilities).length === 0 && NO_VALUE}
+                  {capabilityLabels(model.capabilities).length === 0 &&
+                    NO_VALUE}
                 </span>
               </td>
             </tr>
@@ -132,16 +148,6 @@ function ModelTable({
     </div>
   );
 }
-
-const PROVIDER_ACCENTS: Record<string, string> = {
-  anthropic: '#d97757',
-  openai: '#10a37f',
-  grok: '#f5f5f5',
-  google: '#4285f4',
-  mistral: '#f97316',
-  deepseek: '#4d6bfe',
-  meta: '#0866ff',
-};
 
 /**
  * The rules a model card draws itself with.
@@ -370,34 +376,39 @@ export function ModelCardGrid({
         <div className="model-grid">
           {group.models.map((model) => {
             const tone = providerTone(model.provider);
-            const accent = PROVIDER_ACCENTS[tone];
-            const cardStyle = accent && !model.disabled
-              ? {
-                  borderColor: `color-mix(in srgb, ${accent} 35%, var(--shell-border))`,
-                  background: `color-mix(in srgb, ${accent} 12%, var(--shell-raised))`,
-                }
-              : undefined;
             return (
               <article
                 className="model-card"
                 key={model.id}
                 aria-label={model.disabled ? model.activationLabel : undefined}
                 data-activatable={
-                  modelIsActivatable(model, onModelActivate) ? 'true' : undefined
+                  modelIsActivatable(model, onModelActivate)
+                    ? 'true'
+                    : undefined
                 }
                 data-disabled={model.disabled ? 'true' : undefined}
                 data-provider={tone}
                 data-testid={`model-${model.id}`}
-                role={modelIsActivatable(model, onModelActivate) ? 'button' : undefined}
-                style={cardStyle}
-                tabIndex={modelIsActivatable(model, onModelActivate) ? 0 : undefined}
-                onClick={(event) => activateModel(event, model, onModelActivate)}
-                onKeyDown={(event) => activateModel(event, model, onModelActivate)}
+                role={
+                  modelIsActivatable(model, onModelActivate)
+                    ? 'button'
+                    : undefined
+                }
+                tabIndex={
+                  modelIsActivatable(model, onModelActivate) ? 0 : undefined
+                }
+                onClick={(event) =>
+                  activateModel(event, model, onModelActivate)
+                }
+                onKeyDown={(event) =>
+                  activateModel(event, model, onModelActivate)
+                }
               >
                 <header className="model-card__head">
                   <h3 className="model-card__name">{model.name}</h3>
                   {model.preview === true && <Tag>{content.preview}</Tag>}
-                  {model.provider !== undefined && renderProviderAvatar !== undefined ? (
+                  {model.provider !== undefined &&
+                  renderProviderAvatar !== undefined ? (
                     <span className="model-card__provider">
                       {renderProviderAvatar(model.provider)}
                     </span>
@@ -420,7 +431,8 @@ export function ModelCardGrid({
                   {capabilityLabels(model.capabilities).map((label) => (
                     <Tag key={label}>{label}</Tag>
                   ))}
-                  {capabilityLabels(model.capabilities).length === 0 && NO_VALUE}
+                  {capabilityLabels(model.capabilities).length === 0 &&
+                    NO_VALUE}
                 </p>
                 {renderActions !== undefined ? (
                   <div className="model-card__actions">
@@ -434,48 +446,4 @@ export function ModelCardGrid({
       )}
     </section>
   ));
-}
-
-/** A complete model-catalogue settings page with an optional refresh action. */
-export function ModelCards({
-  models,
-  loadedAtMs,
-  nowMs = Date.now(),
-  onRefresh,
-  refreshing = false,
-}: {
-  models: ModelCard[];
-  /** When the catalogue was last pulled. Absent means never. */
-  loadedAtMs?: number;
-  /** An argument so a story and a test can pin the freshness label. */
-  nowMs?: number;
-  onRefresh?: () => void;
-  refreshing?: boolean;
-}) {
-  const content = useShellContent().models;
-  const freshness =
-    loadedAtMs === undefined
-      ? content.neverLoaded
-      : fill(content.updated, { when: relativeTime(loadedAtMs, nowMs) });
-
-  return (
-    <SettingsPage
-      testId="settings-model-cards"
-      title={content.title}
-      description={content.description}
-      actions={
-        <>
-          <span className="settings__note">{freshness}</span>
-          {onRefresh && (
-            <Button size="sm" onClick={onRefresh} disabled={refreshing} testId="models-refresh">
-              <RefreshCw size={14} />
-              {refreshing ? content.refreshing : content.refresh}
-            </Button>
-          )}
-        </>
-      }
-    >
-      <ModelCardGrid models={models} />
-    </SettingsPage>
-  );
 }

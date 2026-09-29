@@ -688,24 +688,6 @@ importers:
 
   packages/maximal-electron:
     devDependencies:
-      '@electron-forge/cli':
-        specifier: 7.11.2
-        version: 7.11.2(bluebird@3.7.2)(csso@5.0.5)(encoding@0.1.13)(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.26)(supports-color@8.1.1)(uglify-js@3.19.3)
-      '@electron-forge/plugin-fuses':
-        specifier: 7.11.2
-        version: 7.11.2(@electron/fuses@2.1.3)(bluebird@3.7.2)(supports-color@8.1.1)
-      '@electron-forge/plugin-vite':
-        specifier: 7.11.2
-        version: 7.11.2(bluebird@3.7.2)(supports-color@8.1.1)
-      '@electron-forge/shared-types':
-        specifier: 7.11.2
-        version: 7.11.2(bluebird@3.7.2)(supports-color@8.1.1)
-      '@electron/asar':
-        specifier: ^4.3.0
-        version: 4.3.0
-      '@electron/fuses':
-        specifier: ^2.1.3
-        version: 2.1.3
       '@maximal/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
@@ -766,9 +748,6 @@ importers:
       '@typescript/native':
         specifier: npm:typescript@^7.0.2
         version: typescript@7.0.2
-      '@vitejs/plugin-react':
-        specifier: ^6.1.0
-        version: 6.1.1(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))
       '@wterm/dom':
         specifier: 0.4.1
         version: 0.4.1
@@ -1096,10 +1075,6 @@ importers:
         version: 5.0.1(@opentelemetry/api@1.9.0)(@types/node@26.4.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))
 
   packages/maximal-recording:
-    dependencies:
-      '@maximal/maximal-electron':
-        specifier: workspace:*
-        version: link:../maximal-electron
     devDependencies:
       '@maximal/eslint-config':
         specifier: workspace:*
@@ -1799,7 +1774,7 @@ packages:
     libc: glibc
 
   '@cdxgen/cdxgen-plugins-bin-linux-arm64@2.5.1':
-    resolution: {integrity: sha512-NjxXYNzqMAv0M5lBDNZZniYvJRgzJlHVsucR2R2DNK7lHzALBWeYdY6FhBSztX6SmK3Ictq8T7g+w1k0vMnxoA==}
+    resolution: {integrity: sha1-+a8wy+mZOvtWRxWqKDK8eE+NJp4=}
     cpu: [arm64]
     os: [linux]
     libc: glibc
@@ -1856,7 +1831,7 @@ packages:
     os: [linux]
 
   '@cdxgen/safer-exec-linux-arm64@0.15.0':
-    resolution: {integrity: sha512-NRfsNnFcl3qUbxWTNNJltrFAagJcYumTGhK9Ad9BxzFu6l2FS2wozr4pr9KRzSrEXFCiEqm2unAtDgyAGx/nbw==}
+    resolution: {integrity: sha1-dj44jzACUewyKuFwOAFbM2Sx1qM=}
     cpu: [arm64]
     os: [linux]
 
@@ -1991,12 +1966,6 @@ packages:
     resolution: {integrity: sha1-kvgyyY+FS5Q/JPQ2aC5qEP3gXdE=}
     engines: {node: '>= 16.4.0'}
 
-  '@electron-forge/plugin-fuses@7.11.2':
-    resolution: {integrity: sha1-pYf6xOLw7ReMtCDNmvr4FYrH2Ho=}
-    engines: {node: '>= 16.4.0'}
-    peerDependencies:
-      '@electron/fuses': ^1.0.0
-
   '@electron-forge/plugin-vite@7.11.2':
     resolution: {integrity: sha1-ubiLueWx2n/a+efVVKDE1MaWLAo=}
     engines: {node: '>= 16.4.0'}
@@ -2044,11 +2013,6 @@ packages:
 
   '@electron/asar@4.3.0':
     resolution: {integrity: sha1-7ORTonrdyNGH1B6h1EVcKh5ssQ4=}
-    engines: {node: '>=22.12.0'}
-    hasBin: true
-
-  '@electron/fuses@2.1.3':
-    resolution: {integrity: sha1-mmOgq4jalDNBez1aOpVIfkYUiNY=}
     engines: {node: '>=22.12.0'}
     hasBin: true
 
@@ -9841,15 +9805,6 @@ snapshots:
       - bluebird
       - supports-color
 
-  '@electron-forge/plugin-fuses@7.11.2(@electron/fuses@2.1.3)(bluebird@3.7.2)(supports-color@8.1.1)':
-    dependencies:
-      '@electron-forge/plugin-base': 7.11.2(bluebird@3.7.2)(supports-color@8.1.1)
-      '@electron-forge/shared-types': 7.11.2(bluebird@3.7.2)(supports-color@8.1.1)
-      '@electron/fuses': 2.1.3
-    transitivePeerDependencies:
-      - bluebird
-      - supports-color
-
   '@electron-forge/plugin-vite@7.11.2(bluebird@3.7.2)(supports-color@8.1.1)':
     dependencies:
       '@electron-forge/plugin-base': 7.11.2(bluebird@3.7.2)(supports-color@8.1.1)
@@ -9959,8 +9914,6 @@ snapshots:
     dependencies:
       glob: 13.0.6
       minimatch: 10.2.6
-
-  '@electron/fuses@2.1.3': {}
 
   '@electron/get@3.1.0(supports-color@8.1.1)':
     dependencies:

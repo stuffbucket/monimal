@@ -1,7 +1,6 @@
 import type { BrowserWindow } from 'electron';
 
-import type { PtyStatus } from '@maximal/maximal-terminal';
-import type { TerminalPaneLayout } from '../../../shared/ipc.js';
+import type { PtyStatus, TerminalPane } from '@maximal/maximal-terminal';
 
 export interface PtyHandlers {
   emit: (
@@ -28,7 +27,7 @@ export interface PtyHandlers {
   onPane?: (
     owner: BrowserWindow,
     id: string,
-    pane: TerminalPaneLayout,
+    pane: TerminalPane,
     revision: number,
     origin: string,
   ) => void;

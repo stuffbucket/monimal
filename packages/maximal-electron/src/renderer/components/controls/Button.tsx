@@ -68,7 +68,7 @@ export function Button({
 /**
  * An icon button with a tooltip.
  *
- * Radix `Tooltip.Root` needs a `Tooltip.Provider` above it. `ShellLayout`
+ * Radix `Tooltip.Root` needs a `TooltipProvider` above it. `ShellLayout`
  * supplies one; the overlay document does not, and forgetting it renders
  * nothing rather than throwing. Use `Button` there.
  */

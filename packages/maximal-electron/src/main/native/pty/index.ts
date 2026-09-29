@@ -1,16 +1,17 @@
 import { app, type BrowserWindow } from 'electron';
 
-import { TerminalHost, type DirectTerminalProfile, type TerminalSession } from '@maximal/maximal-terminal';
+import {
+  TerminalHost,
+  type DirectTerminalProfile,
+  type TerminalPane,
+  type TerminalSession,
+} from '@maximal/maximal-terminal';
 import type {
   PtySpawnRequest,
   TerminalLaunchRequest,
   TerminalLaunchResult,
 } from '@maximal/maximal-terminal';
 import { clampTerminalGrid } from '@maximal/maximal-terminal';
-import type {
-  TerminalPaneLayout,
-  TerminalRestoreEntry,
-} from '../../../shared/ipc.js';
 import { TmuxControlHost } from '@maximal/maximal-terminal';
 
 import type { PtyEvents, PtyHandlers } from './handlers.js';
@@ -33,6 +34,15 @@ import { Owners } from '@maximal/maximal-terminal';
 import { defaultShell } from '@maximal/maximal-terminal';
 import { TerminalWindowGroups } from '@maximal/maximal-terminal';
 import type { TmuxStatusMode } from '@maximal/maximal-terminal';
+
+export type TerminalPaneLayout = TerminalPane;
+
+export interface TerminalRestoreEntry extends TerminalSession {
+  title: string;
+  canRunInBackground: boolean;
+  pane?: TerminalPaneLayout;
+  revision?: number;
+}
 import { TERMINAL_PROGRAM } from '../../terminal-identity.js';
 
 export type { PtyOwnershipTransaction } from '@maximal/maximal-terminal';
@@ -477,10 +487,6 @@ export function resizePty(
 }
 
 export const attachPtyProjection = projections.attach;
-export const focusPtyProjection = projections.focus;
-export const writePtyProjection = projections.write;
-export const resizePtyProjection = projections.resize;
-export const detachPtyProjection = projections.detach;
 export const grantPtyProjection = projections.grant;
 export const transferPtyProjection = projections.transfer;
 

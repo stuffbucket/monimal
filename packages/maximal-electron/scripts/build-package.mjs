@@ -49,7 +49,7 @@ function compile(project) {
   execFileSync(TSC, ['-p', project], { cwd: ROOT, stdio: 'inherit' });
 }
 
-/** The host and preload entry points a consumer imports from `./main`. */
+/** The host entry points consumers import from the package. */
 export function buildHost() {
   compile('tsconfig.host.json');
 }

@@ -9,6 +9,11 @@ const ICONS: Partial<Record<string, { url: string; color?: string }>> = {
   codex: { url: TERMINAL_ICON_URLS.codex },
 }
 
+type TerminalProfileIconStyle = CSSProperties & {
+  '--terminal-profile-icon-color': string
+  '--terminal-profile-icon-mask': string
+}
+
 export function renderTerminalProfileIcon(
   profile: TerminalProfileSummary,
 ): ReactElement | undefined {
@@ -26,22 +31,14 @@ export function renderTerminalProfileIcon(
   }
   const icon = ICONS[profile.id]
   if (!icon) return undefined
-  const style = {
-    backgroundColor: icon.color ?? 'currentColor',
-    height: 24,
-    maskImage: `url("${icon.url}")`,
-    maskPosition: 'center',
-    maskRepeat: 'no-repeat',
-    maskSize: 'contain',
-    width: 24,
-    WebkitMaskImage: `url("${icon.url}")`,
-    WebkitMaskPosition: 'center',
-    WebkitMaskRepeat: 'no-repeat',
-    WebkitMaskSize: 'contain',
-  } satisfies CSSProperties
+  const style: TerminalProfileIconStyle = {
+    '--terminal-profile-icon-color': icon.color ?? 'currentColor',
+    '--terminal-profile-icon-mask': `url("${icon.url}")`,
+  }
   return (
     <span
       aria-hidden="true"
+      className="terminal-profile-icon"
       data-testid={`terminal-profile-icon-${profile.id}`}
       style={style}
     />

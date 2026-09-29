@@ -102,10 +102,16 @@ export function readToolPins(root = repositoryRoot) {
   const bunArm64 = readToolPlatform(lock, "bun", "linux-arm64");
   const pnpmAmd64 = readToolPlatform(lock, "pnpm", "linux-x64");
   const pnpmArm64 = readToolPlatform(lock, "pnpm", "linux-arm64");
+  const nodeAmd64 = readToolPlatform(lock, "node", "linux-x64");
+  const nodeArm64 = readToolPlatform(lock, "node", "linux-arm64");
 
   return {
     nodeMajor,
     nodeVersion,
+    nodeUrlAmd64: nodeAmd64.url,
+    nodeUrlArm64: nodeArm64.url,
+    nodeSha256Amd64: nodeAmd64.checksum,
+    nodeSha256Arm64: nodeArm64.checksum,
     bunVersion,
     pnpmVersion,
     bunUrlAmd64: bunAmd64.url,
@@ -284,6 +290,14 @@ export function buildDockerArguments({
     `NODE_MAJOR=${pins.nodeMajor}`,
     "--build-arg",
     `NODE_VERSION=${pins.nodeVersion}`,
+    "--build-arg",
+    `NODE_URL_AMD64=${pins.nodeUrlAmd64}`,
+    "--build-arg",
+    `NODE_URL_ARM64=${pins.nodeUrlArm64}`,
+    "--build-arg",
+    `NODE_SHA256_AMD64=${pins.nodeSha256Amd64}`,
+    "--build-arg",
+    `NODE_SHA256_ARM64=${pins.nodeSha256Arm64}`,
     "--build-arg",
     `BUN_VERSION=${pins.bunVersion}`,
     "--build-arg",

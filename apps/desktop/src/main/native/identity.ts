@@ -7,9 +7,8 @@
  * bundle — so a window titled "Maximal" still sits under a menu bar reading
  * "Electron", which is what an unconfigured Electron app shows.
  *
- * The shell package solves the same problems for its own reference app, but
- * `tsconfig.host.json` compiles only `src/host/**`, so none of it reaches a
- * consumer. This is the client's own copy, deliberately small.
+ * The embeddable shell package does not own application identity. This is the
+ * desktop client's implementation, deliberately small.
  */
 
 import { app, Menu, shell, type MenuItemConstructorOptions } from 'electron'

@@ -10,7 +10,6 @@ test-results/
 playwright-report/
 blob-report/
 coverage/
-.terminal-lab-window.json
 
 .stryker-tmp/
 reports/

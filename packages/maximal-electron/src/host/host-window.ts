@@ -1,24 +1,10 @@
 import { BrowserWindow, shell, type BrowserWindowConstructorOptions } from 'electron';
 
-import { capabilityArguments, type BridgeDeclaration } from '../preload/capabilities.js';
 import { isSafeExternalUrl } from '../shared/urls.js';
-
-export { capabilityArguments };
-export type { BridgeDeclaration };
 
 export interface HostWindowOptions {
   /** Absolute path to the consumer's sandboxed preload bundle. */
   preloadPath: string;
-  /**
-   * What that preload may offer the renderer: the capabilities this main
-   * process has handlers for, and an origin to inject.
-   *
-   * The declaration travels as `additionalArguments`, so the preload defines
-   * only the methods named here and the renderer feature-tests by asking
-   * whether a method exists. Omitted, the bridge carries none. See
-   * `docs/embedding.md`.
-   */
-  bridge?: BridgeDeclaration;
   title: string;
   x?: number;
   y?: number;
@@ -104,7 +90,6 @@ export function createHostWindow(options: HostWindowOptions): BrowserWindow {
     trafficLightPosition: options.trafficLightPosition,
     webPreferences: {
       preload: options.preloadPath,
-      additionalArguments: capabilityArguments(options.bridge),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,

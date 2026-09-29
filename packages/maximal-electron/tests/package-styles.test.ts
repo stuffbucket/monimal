@@ -38,9 +38,8 @@ const reads = packageReads(packageRules);
 const SHELL_ROOT = '.sb-shell';
 
 /**
- * The reference application's stylesheets, which are the oracle for a rule the
- * package owes. They are the ones an eye is on: `npm start` renders them and
- * `npm run stills` photographs them.
+ * The local fixture stylesheets, which are the oracle for a rule the package
+ * owes.
  *
  * `shell.css` alone was the oracle until the class-name reader was widened, and
  * it holds the shell and none of the controls. Stripping the base

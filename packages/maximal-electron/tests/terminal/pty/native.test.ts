@@ -6,6 +6,7 @@ const state = vi.hoisted(() => ({
     spawn: ReturnType<typeof vi.fn>;
     list: ReturnType<typeof vi.fn>;
     acknowledge: ReturnType<typeof vi.fn>;
+    terminateAll: ReturnType<typeof vi.fn>;
     has: ReturnType<typeof vi.fn>;
     mirror: ReturnType<typeof vi.fn>;
     emitMirror: (id: string, chunk: string) => void;
@@ -174,6 +175,28 @@ describe('native pty adapter', () => {
       cols: 80,
       rows: 24,
     });
+  });
+
+  it('releases a window-owned host when the window closes', () => {
+    let onClosed: (() => void) | undefined;
+    const window = {
+      id: nextOwnerId++,
+      once: vi.fn((event: string, listener: () => void) => {
+        if (event === 'closed') onClosed = listener;
+      }),
+      isDestroyed: () => false,
+      isResizable: () => true,
+      getContentSize: () => [800, 600],
+      setContentSize: vi.fn(),
+    } as never;
+
+    pty.spawnPty(window, { id: 'window-owned', cols: 80, rows: 24 });
+    const host = state.hosts.at(-1)!;
+
+    expect(onClosed).toBeTypeOf('function');
+    onClosed?.();
+
+    expect(host.terminateAll).toHaveBeenCalledOnce();
   });
 
   it('attaches a view to a session launched for the same owner', () => {

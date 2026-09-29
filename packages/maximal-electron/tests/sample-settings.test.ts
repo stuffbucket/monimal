@@ -1,12 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  SAMPLE_APPS,
   SAMPLE_CLIENTS,
   SAMPLE_ENDPOINT,
   SAMPLE_MODELS,
-  sampleUsage,
-} from '../src/renderer/lib/sample-settings.js';
+} from '../.storybook/sample-settings.js';
 import { groupByKind } from '../src/renderer/lib/settings.js';
 
 /**
@@ -16,7 +14,7 @@ import { groupByKind } from '../src/renderer/lib/settings.js';
  * example values is exactly where one gets committed by accident.
  *
  * The second is content that does not exercise the surface it is there to
- * fill: a catalogue with one group, an application list with one state.
+ * fill, such as a catalogue with one group.
  */
 
 describe('the sample settings content', () => {
@@ -32,18 +30,5 @@ describe('the sample settings content', () => {
 
   it('covers more than one kind of model, so the grouping shows', () => {
     expect(groupByKind(SAMPLE_MODELS).length).toBeGreaterThan(1);
-  });
-
-  it('covers every application state', () => {
-    expect(new Set(SAMPLE_APPS.map((app) => app.status))).toEqual(
-      new Set(['ready', 'not-installed', 'coming-soon']),
-    );
-  });
-
-  it('dates its events from the clock it is given', () => {
-    const now = 1_700_000_000_000;
-    for (const event of sampleUsage(now).events) {
-      expect(event.atMs).toBeLessThan(now);
-    }
   });
 });

@@ -77,8 +77,7 @@
     "@maximal/maximal-recording": {
       "root": "packages/maximal-recording",
       "dependsOn": [
-        "@maximal/eslint-config",
-        "@maximal/maximal-electron"
+        "@maximal/eslint-config"
       ],
       "cycleEdges": [],
       "duplicatePairs": []

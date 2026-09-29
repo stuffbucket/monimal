@@ -1,387 +1,54 @@
 # Testing
 
-`docs/architecture.md` lists the three layers and what each covers. This
-document holds the package-specific rules for writing or reading a test. The
-[monorepo test workflow](https://github.com/stuffbucket/monimal/blob/main/docs/testing-in-docker.md)
-owns normal unit-test entry, native isolation and scopes, and the pinned Linux
-Docker rerun. Run `pnpm test` from the monorepo root for the affected native tier;
-do not invoke this package's `test` script directly as a normal shortcut.
+## Unit and component tests
 
-## Tests run in a random order
+Package tests MUST run through the workspace test runner from the repository
+root.
 
-Both suites shuffle. A suite that only passes in declaration order is hiding
-shared state. These specs share one Electron application, which makes that easy
-to do by accident. It has already happened here once.
+Tests MUST establish their own state and MUST pass in randomized order.
 
-- **No test may depend on another.** Set up what you need inside the test.
-- `e2e/harness.ts` exports `resetShell`, called from `beforeEach`. Extend it
-  when you add state that leaks between tests.
-- Both suites print a seed. `VITEST_SEED` and `E2E_SEED` replay a failing order.
-- `E2E_SHUFFLE=0` restores declaration order while debugging.
+Host tests MUST cover lifecycle sequencing, hardened window defaults, safe
+navigation, shutdown, and terminal ownership.
 
-Known cost: the end-to-end tests all register from one call site, so the
-reporter shows the same source line for each. Names stay unique, and `--grep`
-still works.
+Renderer tests MUST cover exported component behavior and contracts without
+mounting a product application.
 
-## Terminal scope
+## Terminal tests
 
-`tests/terminal/` owns the terminal unit-test boundary. `npm run test:terminal`
-runs that directory alone. The terminal modules themselves are mutated by
-`@maximal/maximal-terminal`'s own mutation commands.
+Electron-free terminal behavior MUST be tested in
+`@maximal/maximal-terminal`.
+
+Electron ownership, native adapter behavior, and renderer integration MUST be
+tested in this package.
+
+Packaged native-terminal behavior MUST be tested by `apps/desktop`, which owns
+the artifact.
 
 ## Mutation testing
 
-Mutation testing reports what the tests actually catch, which coverage does
-not. **Every mode breaks below 100.** `pnpm run mutate` selects mutable lines
-changed since `origin/main`; `--mutate=file[:start-end]` selects an explicit
-scope. `pnpm run mutate:all` is the fresh complete audit, while
-four isolated jobs can run `pnpm run mutate -- --all --shard=1/4` through
-`4/4`; after their report directories are collected, `pnpm run
-mutate:merge-shards` produces and verifies the same complete evidence. Shards
-must use separate checkouts because the Vitest adapter writes worker setup
-files in the package root. The commands around Stryker exist because a
-percentage on its own is a weak claim: it says nothing about how many mutants
-there were, which files produced them, or what did the killing.
+The mutation threshold MUST remain 100.
 
-Changed-line selection fails closed when no configured mutable line changed.
-Changes to tests, dependencies, shared test support, Stryker configuration, or
-the runner itself require `pnpm run mutate:all`, because source ranges cannot
-represent their impact.
+Every eligible source module MUST be either in the mutation configuration or
+in the deferred map with its tracking issue.
 
-| Step | What it decides |
-| --- | --- |
-| `scripts/mutation-scope.mjs` | Which modules a complete audit must cover |
-| `../../scripts/run-mutation.mjs` | Changed, explicit, complete, cached, and sharded scopes |
-| `stryker run` | Runtime mutants in the selected scope, against `break: 100` |
-| `stryker run stryker.static.conf.mjs` | Static initializers, active before Vitest imports them |
-| `scripts/mutation-report.mjs` | Whether the selected scope measured what it claims |
+Mutation scope checks MUST fail when they inspect no files.
 
-The dynamic coverage pass records which test files loaded each selected static
-initializer. The static command runner starts fresh processes with the union
-of those files. Static initializers that execute before Vitest starts reporting
-coverage have no trustworthy mapping, so that scope falls back to the complete
-package suite. The command runner reports its tests as one aggregate, so kill
-attribution comes from the Vitest phase; the report joiner separately requires
-every static mutant to fail the aggregate.
-Static mutants are retained because module initializers and exported defaults
-have already executed by the time a hot mutant is activated. Reusing the
-Vitest process can therefore let their original values survive unchanged.
+## Browser rendering
 
-A surviving mutant is a real gap. It found one here: `src/renderer/lib/data.ts`
-scored 0 with 77 untouched mutants, because it had no unit tests at all.
+Shared component rendering and accessibility MUST be checked through Storybook.
 
-### Which modules to sweep: a criterion, not a hand-list
+Layout assertions MUST inspect computed layout in a real browser.
 
-`mutate` in `stryker.conf.json` is a list, but it is no longer maintained by
-hand. `scripts/mutation-scope.mjs` derives the set it should hold: **every file
-under `src/` and `scripts/` whose import closure reaches neither `electron` nor
-React for a value.** Anything that does needs a real Electron runtime or a
-browser, not Node, and Stryker cannot run it at all.
+Screenshots MUST NOT be the only oracle.
 
-The criterion counts value imports only. `import type { BrowserWindow }` does
-not put a module out of reach, because TypeScript erases it and the emitted
-module never loads Electron. `src/host/main-options.ts` is the worked example,
-and it is mutated.
+Product composition, terminal split geometry, terminal theme resolution, and
+packaged Electron behavior MUST be tested in `apps/desktop/e2e`.
 
-A file the criterion selects that is on neither `mutate` nor the `DEFERRED` map
-fails the check. That is the whole point: #102 records two modules landing with
-fixture tests and no mutation coverage while the headline stayed 100.00, because
-nobody remembered to name them.
+## Validation
 
-`DEFERRED` is the backlog, one entry per file with the issue that closes it, and
-#125 holds the measurement: applying the criterion to everything scores **38.44
-over 4391 mutants**, of which 2449 have no coverage at all. Moving a file off
-that map means getting it to 100 first.
+Changes to this package MUST run build, typecheck, lint, unit tests, export
+verification, neutrality verification, documentation verification, and the
+applicable Storybook checks.
 
-### What the score does not say
-
-Three things move Stryker's denominator without moving its percentage, and
-`scripts/mutation-report.mjs` reads the JSON report back to catch each one.
-
-- A mutant that **crashes the runner** is scored `RuntimeError` and leaves the
-  denominator entirely. It is not a false kill — Stryker keeps it out of the
-  score rather than counting it — but nothing failed the build over it either.
-  See #116.
-- A mutant nothing imports is scored `NoCoverage`.
-- A file that quietly drops off `mutate` produces no mutants, and its absence
-  looks exactly like success.
-
-So the check asserts the shape of the run: every kill names a test that
-reported, every file on the list produced at least one mutant, the total is at
-or above `MUTANT_FLOOR`, and nothing ended in `RuntimeError`, `NoCoverage` or a
-timeout. `IGNORED_CEILING` holds the suppression count, so a third
-`// Stryker disable` has to be added on purpose.
-
-Raise `MUTANT_FLOOR` when the count rises. A fall is the defect it exists to
-catch, and the one exception is code deleted on purpose: say which deletion
-paid for the new number, in the constant's comment and in the pull request.
-
-### Reaching 100 after you add code
-
-The threshold is 100, so a new module has to get there before it lands. A
-survivor is one of exactly three things, and **"documented-equivalent" as a
-catch-all is not acceptable**:
-
-1. **Killable.** Write the test, and show the mutant going Survived to Killed.
-   Most survivors are this. If a mutant lives, ask what behaviour it changed
-   and whether anything asserts that behaviour.
-2. **Dead.** Delete the code, or encode the impossibility in the type system.
-   `noUncheckedIndexedAccess` forces a fallback on every index read, and a
-   fallback that can never run is dead code that reads as untested. `cycle` in
-   `data.ts` and `firstLine` in the recording package's `ffmpeg.ts` both exist to remove one. Prefer
-  this to a suppression.
-3. **A deliberately-retained equivalent, with a written proof** over the
-   reachable input domain. Use `// Stryker disable next-line <Mutator>: why`,
-  and state the evidence, not the conclusion. Read the existing ones before
-  you write another, and raise
-   `IGNORED_CEILING`.
-
-The rule comes from `stuffbucket/maximal-core`'s testing strategy, which states
-it better than anything written here before.
-
-Never lower the threshold to make a change fit.
-
-## Property testing, over one module
-
-`fast-check` runs over the numeric core of `src/renderer/lib/contrast.ts`, and
-nowhere else. It answers the question mutation testing cannot: Stryker mutates
-the code that exists, so it proves every syntactic variant is caught by some
-test, and it can never find an input nobody wrote a test for. `parseHex`,
-`luminance`, `contrastRatio` and `meets` all run over a domain far larger than
-the points `tests/contrast.test.ts` pins by hand.
-
-Three rules come with it.
-
-- **The seed is fixed, and `FAST_CHECK_SEED` moves it.** Stryker maps tests to
-  mutants from a dry run and reruns the covering tests once per mutant. A suite
-  that draws different inputs on the second run can report a mutant as
-  surviving for a reason that has nothing to do with the mutant, and
-  `pnpm --filter @maximal/maximal-electron run mutate` breaks below 100.
-  Exploration is something a person does by
-  moving the seed, not something a gate does by accident.
-- **A property over an empty set asserts nothing.** The same rule as a check
-  with no scope. A property whose body returns early for most inputs counts the
-  runs that reached the assertions and fails when that count is zero;
-  `checkPalette`'s accounting property counts the pairs it saw checked and the
-  pairs it saw skipped, because a generator that only ever produced unreadable
-  colours would leave half of it unexercised.
-- **A property that has never shrunk to a failure is a declaration.** Break the
-  implementation, record the counterexample fast-check prints, and put it in
-  the pull request. #132 carries two.
-
-Do not extend it to a domain the tests already enumerate. The rejection below
-holds, and it is the reason this section names one module.
-
-## The packaged application answers for itself
-
-`pnpm --filter @maximal/maximal-electron run test:e2e` drives the unpackaged
-build, because
-`EnableNodeCliInspectArguments: false` stops Playwright attaching to a packaged
-one. That fuse stays as it is. Until now nothing launched the artifact a user
-installs, and two defects shipped inside it: #86 and #88. `verify-package.mjs`
-reads the archive listing, which finds a file that is absent and not one that
-is present where the loader cannot reach it.
-
-Run `pnpm --filter @maximal/maximal-electron run package` and then
-`pnpm --filter @maximal/maximal-electron run smoke:packaged` to close it on
-macOS and Windows.
-`scripts/smoke-packaged.mjs` copies the package out of this checkout —
-`scripts/packaged-app.mjs` does that, and issue #149 is why — then launches
-`Stuffbucket.app/Contents/MacOS/Stuffbucket`, or `Stuffbucket.exe`, with
-`--self-check=terminal` and a token. The application opens a shell through
-`TerminalHost`, the same class the terminal uses, makes it print the token,
-writes one line, and exits with a code. `src/main/native/self-check.ts` holds
-the argument protocol, and `tests/self-check.test.ts` pairs it with the
-driver's copy of the strings.
-
-Three properties are what stop it passing for nothing:
-
-- **The token is random per run.** It reaches the driver only through a shell
-  that ran a command, so a launch that opens no shell cannot produce one.
-- **The command carries the token in two halves.** A pty echoes what is written
-  to it, so a command containing the whole token would satisfy the assertion
-  from that echo, with nothing having run. `printf '%s%s\n' 01234567 89abcdef`
-  joins them under a POSIX shell. `cmd.exe` has no `printf` and its `echo` puts
-  a space between two arguments, so the caret does the joining instead:
-  `echo 01234567^89abcdef`. `cmd.exe` strips the caret while parsing the line,
-  which leaves the halves apart in the command text and joined in the output.
-- **Every run reproduces #88.** The driver moves the one native file the
-  terminal cannot resolve without out of `app.asar.unpacked` and launches
-  again. That run has to fail, and it has to fail by reporting the shell rather
-  than by dying before the check. Then the file goes back.
-
-The file is `spawn-helper` on macOS and `conpty.node` on Windows.
-`conpty.dll` and `OpenConsole.exe` sit beside `conpty.node` in the same
-prebuild directory and are **not** on this path: `node-pty` leaves
-`useConptyDll` off, so `conpty.cc` takes `CreatePseudoConsole` out of
-`kernel32` and never opens the DLL. Moving either of them aside on a Windows
-runner leaves the check green, which is what established that rather than the
-issue text, which named `OpenConsole.exe`.
-
-The check runs before `whenReady` and opens no window, so it needs no window
-server and no signed binary. `package (macos-latest)` and
-`package (windows-latest)` both run it.
-
-## User interface changes
-
-Green unit tests are necessary but not sufficient for a layout change.
-
-Assert **computed** layout in a real engine, and look at the screenshot. See
-`.claude/skills/verify-ui/SKILL.md`. This rule comes from maximal's
-`ui-layout-verification` skill, which exists because two real regressions
-shipped past a green suite.
-
-Use `capture` from `e2e/harness.ts` rather than `page.screenshot`. macOS stops
-giving an occluded window frames. The plain call then hangs until its timeout.
-`capture` reads the renderer through the debugger, which does not care what
-is in front.
-
-### A still is not an oracle
-
-Reference stills from `maximal-recording` are artifacts to look at. Do not diff them for equality and
-read the result as proof a change was neutral.
-
-They are bistable. Running
-`pnpm --filter @maximal/maximal-recording run stills` three times over
-identical code
-produced state A once and state B twice, differing by 179,000 pixels — around
-four percent of the frame — in the canvas region of `01-projects` and
-`03-multi-agent-tabs`. A separate 5,024-pixel floor is the macOS traffic lights,
-which are coloured or grey depending on whether the window was key. A third,
-worth 938 pixels, is the focus ring on `[data-testid="mode-grid"]` in
-`test-results/shell.png`, which sits or does not depending on what the run
-touched last.
-
-This was learned the expensive way: a pixel difference was attributed to a CSS
-change, bisected to a single rule, and that rule then turned out to match zero
-elements in the fixture under a DOM probe. The instrument was the variable. The
-938-pixel ring cost two package builds the same way, after the paragraph above
-was already written.
-
-For a renderer change, the evidence is a computed-layout assertion in a real
-engine, and for a stylesheet change, a text diff of the built CSS in
-`.vite/renderer/*/assets/*.css`. Both are deterministic. The images are for a
-human to look at afterwards.
-
-## The suite stays off the screen
-
-A run drives a real application on the developer's desktop. Left alone, its
-windows cover work and take focus. A test run therefore parks them off the side
-of the display.
-
-- `isE2EQuiet` and `quietBounds` in `src/main/native/preferences.ts` decide
-  this. Quiet is the default. `STUFFBUCKET_E2E_VISIBLE=1` shows a run.
-- **Move windows, never hide them.** `setOpacity(0)` also makes a run invisible,
-  and it stops the compositor producing content. Every reference screenshot came
-  back blank white while the suite stayed green.
-- Both windows set `backgroundThrottling: false`. An off-screen window reads as
-  occluded to macOS, and Chromium then throttles the renderer to that same blank
-  result.
-- `capture` fails when an image falls under `MIN_BYTES_PER_PIXEL`, in
-  `e2e/screenshot.ts`. That guard exists because the blank captures above looked
-  exactly like success. It measures compressed bytes per pixel rather than a
-  byte count, because an absolute floor is a pixel-density constant and failed
-  real Windows screenshots.
-- **A quiet run takes no focus and puts no icon in the dock.** `focusWindow` and
-  `setDockVisible` both return early. Nothing under test asserts either, because
-  Playwright dispatches input through the debugger rather than the window
-  server.
-
-### No specification needs a real frame
-
-`e2e/*.spec.ts` never calls `capture`. Every assertion goes through a Playwright
-locator, `getComputedStyle`, or `getBoundingClientRect`, none of which need the
-window composited. Only `*.stills.ts` and the recorder need real pixels, and
-both are outside `playwright.config.ts` and outside CI.
-
-So the suite that runs constantly does not need to be seen. If it is visible on
-your desktop, that is a leak worth fixing rather than a requirement.
-
-## Recording lives outside the Electron package
-
-`maximal-recording` owns both the video pipeline and its demo output. Its
-`.demo.ts` timeline drives the reference Electron shell through the existing
-test harness. The `.compose.ts` runner cuts recorded takes, and `.stills.ts`
-photographs the shell. None belongs in Electron's blocking `.spec.ts` suite.
-
-The shipped desktop app separately composes `maximal-recording`'s main-process
-window capability; only the host can choose a window and a destination.
-
-## Techniques rejected, with the reason
-
-Each of these was investigated against this repository and turned down. They
-are recorded because the argument is the expensive part, and because a
-technique with no stated rejection gets proposed again every six months.
-
-Each one would also run, print green, and check less than what is already
-here. That is worse than not having it, because a green run reads as verified.
-
-- **Do not diff recording stills for equality**, in Playwright's
-  `toHaveScreenshot` or anything else, and call it a regression gate. A pixel
-  diff reads as "layout unchanged" on a still that is bistable for reasons
-  unrelated to the change under review. That is the empty-scope failure wearing
-  a different tool: a check that returns green because it quietly stopped
-  checking the thing that matters. See "A still is not an oracle" above.
-- **Do not put Storybook in CI**, through the test runner or its successor the
-  Vitest addon. Both turn every story into a gating test, which reopens the
-  choice `docs/storybook.md` already made and defended: a workshop tool does
-  not gate a pull request, and a story broken by a refactor is allowed to rot
-  until somebody opens it. The newer tool is the same decision by another name.
-- **Do not adopt Playwright component testing** as a second mounting harness.
-  The components worth protecting are the ones with `play` functions — the
-  roving keyboard navigation on the tab strip and the title bar, and the
-  generic dialog pattern. Porting each specific assertion into the end-to-end
-  suite that already runs closes the same gap without a second framework that
-  knows how to render them.
-- **Do not add a coverage percentage gate on top of the package `mutate`
-  command.** Line
-  coverage answers "did this execute", which a 100 mutation score subsumes and
-  exceeds. It is a second number to chase carrying less information than the
-  first. It could mean something on the modules Stryker cannot reach, but that
-  is a different scope, and even there it proves execution rather than
-  correctness.
-- **Do not use Stryker's incremental mode as a gate.** `pnpm run
-  mutate:incremental` is an edit-loop command that reuses dynamic-mutant
-  results while still rerunning static mutants in fresh processes. Stryker
-  cannot invalidate cached results for every environment change, dependency
-  bump, or non-test support-file change. Only `pnpm run mutate:all` or a merged
-  set of fresh shards starts every mutant from fresh evidence and therefore
-  owns the authoritative 100 percent claim.
-- **Do not run `fast-check` over a domain the tests already enumerate.**
-  `escapeAction` takes two booleans and its whole input domain is four values.
-  Generating inputs for that is exhaustive testing done slower, with a
-  dependency to show for it. The numeric core of `src/renderer/lib/contrast.ts`
-  is the one place a continuous domain makes it pay, and it is the only place
-  the dependency is used. See "Property testing, over one module" above.
-
-### Infrastructure rejected for the same question
-
-A run drives a real application on the developer's desktop, and the answer was
-two guards in this repository rather than a machine. These were the
-alternatives.
-
-- **A separate macOS Space is not reachable.** `NSWindow` exposes a collection
-  behaviour for a window the process already shows, and nothing in AppKit lets
-  a process open a window on a Space it is not on. Every tool that does this
-  reaches a private, undocumented API, and some of those commands need System
-  Integrity Protection turned off. That is not a foundation for a test suite.
-- **A container or a Linux virtual machine tests the wrong platform.** Every
-  option available here runs a Linux guest only. The dock and the packaging
-  assertions are macOS behaviour a Linux guest cannot exercise, so this trades
-  "off the desktop" for "untested on the platform most of the native code
-  targets".
-- **A virtual display driver changes nothing that matters.** It adds a monitor
-  inside the session the developer is already logged into. It is a fancier
-  version of `quietBounds`, at the cost of a third-party dependency, and it
-  leaves the dock and the activation alone because it is the same user.
-- **Offscreen rendering was not tried, and is not free.** An offscreen window
-  is always frameless, so the traffic lights the stills exist partly to show
-  would never appear, and it needs a second window-construction path kept in
-  step with the real one. Whether the debugger capture path can read an
-  offscreen surface at all is unknown.
-
-A second macOS user account, logged in through Fast User Switching, is the one
-alternative that was not ruled out: it has its own fully composited session,
-independent of the primary user. It was never tried here, and it stopped being
-worth trying once `focusWindow` and `setDockVisible` learned to return early.
-Treat it as a spike rather than a fix if the question comes back.
+Changes to exported behavior consumed by the desktop MUST also run the
+corresponding desktop tests.

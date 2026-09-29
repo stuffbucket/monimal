@@ -29,8 +29,9 @@ export function ProviderOnboarding({
           capabilities.accounts.list(),
           capabilities.ollamaAccounts.list(),
         ])
-        const configured = accounts.accounts.some((account) => account.enabled)
-          || ollamaAccounts.accounts.length > 0
+        const configured =
+          accounts.accounts.some((account) => account.enabled) ||
+          ollamaAccounts.accounts.length > 0
         if (!cancelled && !preference.dismissed && !configured) setOpen(true)
       } catch {
         // Core may still be starting. A later control event retries the check.
@@ -49,7 +50,8 @@ export function ProviderOnboarding({
     setBusy(true)
     setError(null)
     try {
-      if (doNotAskAgain) await capabilities.providerOnboarding.setDismissed(true)
+      if (doNotAskAgain)
+        await capabilities.providerOnboarding.setDismissed(true)
       answered.current = true
       setOpen(false)
       if (setup) onSetup()
@@ -87,18 +89,14 @@ export function ProviderOnboarding({
         <Button onClick={() => void finish(false)} disabled={busy}>
           Not now
         </Button>
-        <Button variant="primary" onClick={() => void finish(true)} disabled={busy}>
+        <Button
+          variant="primary"
+          onClick={() => void finish(true)}
+          disabled={busy}
+        >
           Set up a provider
         </Button>
       </div>
-      <style>{`
-        .provider-onboarding__actions {
-          display: flex;
-          justify-content: flex-end;
-          gap: var(--shell-space-2, 8px);
-          flex-wrap: wrap;
-        }
-      `}</style>
     </Dialog>
   )
 }

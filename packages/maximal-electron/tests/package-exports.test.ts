@@ -66,32 +66,13 @@ describe('package exports', () => {
     expect(manifest.scripts.prepack).toBe(manifest.scripts['build:package']);
   });
 
-  /*
-   * A caret on a version this repository ships is a version nobody chose.
-   * `^1.2.0-beta.14` admitted every later beta and every 1.x release from a
-   * prerelease line. Issue #79.
-   *
-   * These moved to `devDependencies` when issue #31 took them off a consumer's
-   * install path, and a packaged build still contains them, so the pin still
-   * applies. `react` and `react-dom` are exempt because the consumer owns that
-   * instance, which is the reason they are a peer. A `workspace:` range names
-   * the one copy in this tree, so it is already exact.
-   */
-  it('pins every package a build ships to an exact version', async () => {
+  it('pins the development copy of every non-React peer', async () => {
     const manifest = JSON.parse(
       await readFile(path.join(ROOT, 'package.json'), 'utf8'),
     ) as PackageManifest;
-    const mainConfig = await readFile(path.join(ROOT, 'vite.main.config.mts'), 'utf8');
-
-    // The externals arrive as real files rather than bundled, so they are
-    // shipped whether or not an export imports them.
-    const externals = [...(/external:\s*\[([^\]]*)]/.exec(mainConfig)?.[1] ?? '').matchAll(
-      /'([^']+)'/g,
-    )].map((match) => match[1] ?? '');
-    expect(externals.length).toBeGreaterThan(0);
 
     const shipped = [
-      ...new Set([...externals, ...Object.keys(manifest.peerDependencies)]),
+      ...new Set(Object.keys(manifest.peerDependencies)),
     ].filter((name) => name !== 'react' && name !== 'react-dom');
     expect(shipped.length).toBeGreaterThan(0);
 

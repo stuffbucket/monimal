@@ -1770,6 +1770,10 @@ test("tool pins and Docker artifacts come from their owner files", () => {
   const manifest = JSON.parse(read("package.json"));
   assert.equal(pins.nodeMajor, read(".nvmrc").trim());
   assert.match(pins.nodeVersion, new RegExp(`^${pins.nodeMajor}\\.`));
+  assert.match(pins.nodeUrlAmd64, /node-v[^/]+-linux-x64\.tar\.gz$/);
+  assert.match(pins.nodeUrlArm64, /node-v[^/]+-linux-arm64\.tar\.gz$/);
+  assert.match(pins.nodeSha256Amd64, /^[0-9a-f]{64}$/);
+  assert.match(pins.nodeSha256Arm64, /^[0-9a-f]{64}$/);
   assert.equal(pins.bunVersion, read(".bun-version").trim());
   assert.equal(pins.pnpmVersion, manifest.packageManager.slice("pnpm@".length));
   assert.match(pins.bunUrlAmd64, /bun-linux-x64\.zip$/);
@@ -1788,6 +1792,14 @@ test("tool pins and Docker artifacts come from their owner files", () => {
   });
   assert.ok(arguments_.includes(`NODE_MAJOR=${pins.nodeMajor}`));
   assert.ok(arguments_.includes(`NODE_VERSION=${pins.nodeVersion}`));
+  assert.ok(arguments_.includes(`NODE_URL_AMD64=${pins.nodeUrlAmd64}`));
+  assert.ok(arguments_.includes(`NODE_URL_ARM64=${pins.nodeUrlArm64}`));
+  assert.ok(
+    arguments_.includes(`NODE_SHA256_AMD64=${pins.nodeSha256Amd64}`),
+  );
+  assert.ok(
+    arguments_.includes(`NODE_SHA256_ARM64=${pins.nodeSha256Arm64}`),
+  );
   assert.ok(arguments_.includes(`BUN_VERSION=${pins.bunVersion}`));
   assert.ok(arguments_.includes(`BUN_URL_AMD64=${pins.bunUrlAmd64}`));
   assert.ok(arguments_.includes(`BUN_URL_ARM64=${pins.bunUrlArm64}`));
@@ -1957,7 +1969,13 @@ test("the reusable Docker dependency image includes every workspace manifest", (
 
 test("the image owns test homes and stages commands as non-root", () => {
   const dockerfile = read("Dockerfile");
-  assert.match(dockerfile, /^FROM node:24-bookworm-slim@sha256:[0-9a-f]{64} AS dependency-base$/m);
+  assert.match(
+    dockerfile,
+    /^FROM debian:bookworm-slim@sha256:[0-9a-f]{64} AS dependency-base$/m,
+  );
+  assert.doesNotMatch(dockerfile, /^FROM node:/m);
+  assert.match(dockerfile, /curl -fsSL "\$\{node_url\}"/);
+  assert.match(dockerfile, /node_sha.*sha256sum -c -/s);
   assert.match(dockerfile, /test "\$\(node --version\)" = "v\$\{NODE_VERSION\}"/);
   assert.doesNotMatch(dockerfile, /https:\/\/bun\.sh\/install/);
   assert.match(dockerfile, /curl -fsSL "\$\{bun_url\}"/);

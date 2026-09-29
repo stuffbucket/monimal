@@ -1,6 +1,7 @@
-import * as Tooltip from '@radix-ui/react-tooltip';
 import { createElement } from 'react';
 import type { Decorator, Preview } from '@storybook/react-vite';
+
+import { TooltipProvider } from '../src/renderer/components/controls/Overlays.js';
 
 // Neither stylesheet is imported for its side effect. `shell-mode.ts` holds
 // both and installs one, because the two cannot share a document: see the
@@ -60,7 +61,7 @@ const withShellMode: Decorator = (Story, context) => {
  * throwing. Global, because forgetting it per story is exactly the trap.
  */
 const withTooltips: Decorator = (Story) =>
-  createElement(Tooltip.Provider, { delayDuration: 200, children: Story() });
+  createElement(TooltipProvider, { delayDuration: 200, children: Story() });
 
 const preview: Preview = {
   decorators: [withTooltips, withTheme, withShellMode],

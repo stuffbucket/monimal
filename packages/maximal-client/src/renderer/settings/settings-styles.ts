@@ -75,6 +75,67 @@ const SETTINGS_CSS = `
   min-width: 0;
 }
 
+.account-person-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--shell-space-3, 12px);
+}
+
+.account-person-card__identity {
+  display: flex;
+  flex: 1 1 12rem;
+  align-items: center;
+  min-width: 0;
+  gap: var(--shell-space-3, 12px);
+}
+
+.account-person-card__copy {
+  display: grid;
+  min-width: 0;
+  gap: var(--shell-space-1, 4px);
+}
+
+.account-person-card__actions {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--shell-space-2, 8px);
+  margin-inline-start: auto;
+}
+
+.account-avatar {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  border-radius: 50%;
+  box-shadow: none;
+  transition: box-shadow 150ms ease, border-color 150ms ease;
+}
+
+.account-avatar--small {
+  width: 30px;
+  height: 30px;
+}
+
+.account-avatar--large {
+  width: 44px;
+  height: 44px;
+}
+
+.account-avatar__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .sb-shell .settings__section > :not(.settings__section-title):not(.settings__description),
 .settings-subsection > :not(.settings-section__subheading) {
   margin-inline-start: var(--shell-space-4, 16px);
@@ -555,7 +616,8 @@ const SETTINGS_STYLE_ID = 'settings-styles'
 export function ensureSettingsStyles(): void {
   const existing = document.getElementById(SETTINGS_STYLE_ID)
   if (existing !== null) {
-    if (existing.textContent !== SETTINGS_CSS) existing.textContent = SETTINGS_CSS
+    if (existing.textContent !== SETTINGS_CSS)
+      existing.textContent = SETTINGS_CSS
     return
   }
 

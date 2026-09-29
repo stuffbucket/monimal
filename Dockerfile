@@ -1,8 +1,12 @@
 # syntax=docker/dockerfile:1.7
-FROM node:24-bookworm-slim@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6 AS dependency-base
+FROM debian:bookworm-slim@sha256:3783cc01769c7b2b1b83a5c5ad96c815348e28ed7da68e2e3687004faa906251 AS dependency-base
 
 ARG NODE_MAJOR
 ARG NODE_VERSION
+ARG NODE_URL_AMD64
+ARG NODE_URL_ARM64
+ARG NODE_SHA256_AMD64
+ARG NODE_SHA256_ARM64
 ARG BUN_VERSION
 ARG BUN_URL_AMD64
 ARG BUN_URL_ARM64
@@ -15,7 +19,8 @@ ARG PNPM_SHA256_AMD64
 ARG PNPM_SHA256_ARM64
 ARG TARGETARCH
 
-# Stryker's process cleanup invokes `ps` through tree-kill.
+# Tests exercise tmux integration; Stryker's process cleanup invokes `ps`
+# through tree-kill.
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
     ca-certificates \
@@ -23,11 +28,23 @@ RUN apt-get update \
     git \
     libatomic1 \
     procps \
+    tmux \
     unzip \
   && rm -rf /var/lib/apt/lists/*
 
-RUN test "$(node -p "process.versions.node.split('.')[0]")" = "${NODE_MAJOR}" \
-  && test "$(node --version)" = "v${NODE_VERSION}"
+RUN set -eux; \
+  case "${TARGETARCH}" in \
+    amd64) node_url="${NODE_URL_AMD64}"; node_sha="${NODE_SHA256_AMD64}" ;; \
+    arm64) node_url="${NODE_URL_ARM64}"; node_sha="${NODE_SHA256_ARM64}" ;; \
+    *) echo "unsupported Docker architecture: ${TARGETARCH}" >&2; exit 1 ;; \
+  esac; \
+  archive=/tmp/node.tar.gz; \
+  curl -fsSL "${node_url}" -o "${archive}"; \
+  printf '%s  %s\n' "${node_sha}" "${archive}" | sha256sum -c -; \
+  tar -xzf "${archive}" -C /usr/local --strip-components=1 --no-same-owner; \
+  test "$(node -p "process.versions.node.split('.')[0]")" = "${NODE_MAJOR}"; \
+  test "$(node --version)" = "v${NODE_VERSION}"; \
+  rm -f "${archive}"
 
 RUN set -eux; \
   case "${TARGETARCH}" in \

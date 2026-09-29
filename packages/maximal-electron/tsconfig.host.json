@@ -11,6 +11,6 @@
     "lib": ["ES2022"],
     "types": ["node"]
   },
-  "include": ["src/host/**/*.ts", "src/preload/bridge.ts"],
+  "include": ["src/host/**/*.ts"],
   "exclude": ["node_modules", "out", ".vite", "dist", "tests", "e2e"]
 }

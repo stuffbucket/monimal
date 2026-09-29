@@ -1,34 +1,22 @@
 # Maximal recording
 
-`@maximal/maximal-recording` provides a window-video capability to
-`apps/desktop` and owns the optional reference-shell demo recorder. The desktop
-host chooses the window and output path; the renderer never supplies a file
-path or starts a capture on its own.
+`@maximal/maximal-recording` provides the window-recording capability used by
+`apps/desktop`.
 
-In the desktop application's **File** menu, choose **Record Window…**, select
-a new `.mp4` file, then choose **Stop Window Recording** to save it. Only the
-main window's image is captured (no desktop, microphone, or system audio).
-Recording runs at 10 frames per second and requires `ffmpeg` and `ffprobe` on
-`PATH`, or `FFMPEG` and `FFPROBE` pointing to them. Missing tools are reported
-before recording begins. The capability also stops on window close or app
-shutdown.
+The desktop MUST choose the BrowserWindow and output path. The renderer MUST
+NOT supply an arbitrary destination path or start capture without a
+host-mediated user action.
 
-The reference-shell timeline and stills are separate developer tools. From
-the repository root:
+In the desktop **File** menu, choose **Record Window…**, select a new `.mp4`
+file, then choose **Stop Window Recording**. Recording captures the selected
+window without desktop, microphone, or system audio.
 
-```sh
-pnpm --filter @maximal/maximal-recording run build:app
-pnpm --filter @maximal/maximal-recording run record
-pnpm --filter @maximal/maximal-recording run stills
-pnpm --filter @maximal/maximal-recording run compose -- pipeline-check
-```
+The capability requires `ffmpeg` and `ffprobe` on `PATH`, or `FFMPEG` and
+`FFPROBE` pointing to executable overrides. Missing tools MUST be reported
+before recording begins.
 
-To supply the encoder with mise:
+The package retains pure offline composition helpers and pacing-rule tests.
+It MUST NOT own an Electron application, application launch harness, product
+timeline, or reference-shell still capture.
 
-```sh
-mise exec conda:ffmpeg@8.0.1 -- pnpm --filter @maximal/maximal-recording run record
-```
-
-`demo/edits/pipeline-check.json` is the tracked cut; raw takes and generated
-video are produced on demand. See [recording.md](docs/recording.md) for the
-capture and compose pipeline.
+See [recording architecture](docs/recording.md).

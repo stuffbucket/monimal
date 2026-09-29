@@ -7,14 +7,10 @@
  * It takes seconds, so changing a hold, reordering clips, freezing on a mark,
  * or hiding a card costs nothing.
  *
- * Capture the frames first, once:
- *
- *   pnpm run build:app && pnpm run record
- *
- * Then re-cut as often as you like:
+ * After an application-owned capture writes a take, re-cut as often as needed:
  *
  *   pnpm run compose                 every edit that has a take
- *   pnpm run compose -- pipeline-check     one of them
+ *   pnpm run compose -- <take-name>   one of them
  *
  * `ffmpeg` and `ffprobe` have to be installed. `src/ffmpeg.ts`
  * owns that search and says what to do when they are missing.

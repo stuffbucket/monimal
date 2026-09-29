@@ -68,11 +68,56 @@ body {
   outline: 2px solid var(--shell-focus);
   outline-offset: 2px;
 }
+
+.license-dialog {
+  width: min(48rem, calc(100vw - var(--shell-space-5, 24px)));
+  max-height: min(44rem, calc(100vh - var(--shell-space-5, 24px)));
+}
+
+.license-dialog__reader {
+  min-height: 0;
+  max-height: min(32rem, calc(100vh - 15rem));
+  overflow: auto;
+  padding: var(--shell-space-3, 12px);
+  border: 1px solid var(--shell-border);
+  border-radius: var(--shell-radius, 6px);
+  background: var(--shell-canvas);
+}
+
+.license-dialog__text {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--shell-text);
+  font: var(--shell-text-sm, 0.875rem)/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  white-space: pre-wrap;
+}
+
+.license-dialog__actions,
+.provider-onboarding__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.provider-onboarding__actions {
+  gap: var(--shell-space-2, 8px);
+}
+
+.terminal-profile-icon {
+  width: 24px;
+  height: 24px;
+  background-color: var(--terminal-profile-icon-color);
+  mask: var(--terminal-profile-icon-mask) center / contain no-repeat;
+  -webkit-mask: var(--terminal-profile-icon-mask) center / contain no-repeat;
+}
 `
 
 const BASE_STYLE_ID = 'maximal-base'
 
-if (typeof document !== 'undefined' && !document.getElementById(BASE_STYLE_ID)) {
+if (
+  typeof document !== 'undefined' &&
+  !document.getElementById(BASE_STYLE_ID)
+) {
   const style = document.createElement('style')
   style.id = BASE_STYLE_ID
   style.textContent = BASE_CSS

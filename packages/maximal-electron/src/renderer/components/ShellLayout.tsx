@@ -1,4 +1,3 @@
-import * as Tooltip from '@radix-ui/react-tooltip';
 import { PanelLeft, PanelRight } from 'lucide-react';
 import {
   useCallback,
@@ -18,9 +17,11 @@ import {
   useGroupRef,
   usePanelRef,
 } from 'react-resizable-panels';
-
 import { IconButton } from './controls/Button.js';
-import { ShellPortalRoot } from './controls/Overlays.js';
+import {
+  ShellPortalRoot,
+  TooltipProvider,
+} from './controls/Overlays.js';
 import { TitleBar } from './TitleBar.js';
 import {
   getTabPanelId,
@@ -250,7 +251,7 @@ export function ShellLayout<T extends Tab>({
   );
 
   return (
-    <Tooltip.Provider delayDuration={400}>
+    <TooltipProvider>
       <ShellPortalRoot element={root}>
         <div className="sb-shell app" ref={setRoot}>
           <TitleBar
@@ -390,6 +391,6 @@ export function ShellLayout<T extends Tab>({
           </div>
         </div>
       </ShellPortalRoot>
-    </Tooltip.Provider>
+    </TooltipProvider>
   );
 }

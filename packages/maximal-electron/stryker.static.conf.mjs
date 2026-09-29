@@ -9,7 +9,6 @@ export default staticStrykerConfig(import.meta.url, config, {
   // These tests import only helpers under ignored `e2e/`, which is absent
   // from the command-runner sandbox and outside this mutation scope.
   vitestArguments: [
-    '--exclude tests/freshness.test.ts',
     '--exclude tests/screenshot.test.ts',
     '--exclude tests/shuffle.test.ts',
   ],

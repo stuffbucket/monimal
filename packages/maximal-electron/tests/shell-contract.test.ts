@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 /**
- * The shim that lets the reference application render published rules.
+ * The shim that lets the local consumer fixture render published rules.
  *
  * `shell-contract.css` declares each published name against the short name
  * `tokens.css` authors, so a component carrying its own rules renders here as
@@ -13,9 +13,9 @@ import { describe, expect, it } from 'vitest';
  *
  * Derived from `.storybook/consumer.css`, the one worked example of a host
  * defining the contract. The first version was generated from
- * `REQUIRED_TOKENS`, which is the reference application's own token list: that
+ * `REQUIRED_TOKENS`, which was the old local token list: that
  * minted `--shell-` plus each short name, a third vocabulary nothing defines
- * and no shipped rule reads, and then declared it so the reference application
+ * and no shipped rule reads, and then declared it so the local fixture
  * could never observe the contract being broken. Holding the shim to the
  * worked example is what keeps a name here a name somebody has had to supply.
  */
@@ -43,7 +43,7 @@ describe('the contract shim', () => {
     expect(aliases).toEqual(read(consumer));
   });
 
-  it('names only tokens the reference palette actually authors', () => {
+  it('names only tokens the local palette actually authors', () => {
     // The other direction. An alias forwarding a short name `tokens.css` never
     // defines resolves to nothing, which is the failure this file exists to
     // prevent rather than cause.
