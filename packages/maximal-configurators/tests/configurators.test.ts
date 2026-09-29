@@ -439,7 +439,7 @@ void test("field builders are pure client-specific transforms", () => {
   )
   assert.deepEqual(
     maximalTerminalEnvironment({
-      baseUrl: "http://proxy/",
+      baseUrl: "http://proxy////",
       credential: "token",
       sessionId: "terminal",
     }),

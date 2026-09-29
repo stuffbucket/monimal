@@ -11,10 +11,16 @@ export const maximalTerminalMetadata = Object.freeze({
   application: "Maximal",
 } satisfies TerminalProfileConfiguratorMetadata)
 
+function trimTrailingSlashes(value: string): string {
+  let end = value.length
+  while (end > 0 && value[end - 1] === "/") end -= 1
+  return value.slice(0, end)
+}
+
 export function maximalTerminalEnvironment(
   material: TerminalProfileConfiguratorMaterial,
 ): Readonly<Record<string, string>> {
-  const baseUrl = material.baseUrl.replace(/\/+$/u, "")
+  const baseUrl = trimTrailingSlashes(material.baseUrl)
   return Object.freeze({
     MAXIMAL_TERMINAL_SESSION_ID: material.sessionId,
     STUFFBUCKET_PROVIDER: "maximal",

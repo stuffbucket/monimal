@@ -4,7 +4,7 @@ import type {
   TerminalScopeRevokeResult,
 } from "@maximal/maximal-core-contract/control"
 
-import { createHash, randomBytes } from "node:crypto"
+import { createHmac, randomBytes } from "node:crypto"
 
 const CREDENTIAL_PREFIX = "mxt_"
 const DEFAULT_TTL_MS = 24 * 60 * 60 * 1000
@@ -25,10 +25,6 @@ interface TerminalScopeRegistryOptions {
   ttlMs?: number
 }
 
-function credentialDigest(credential: string): string {
-  return createHash("sha256").update(credential).digest("base64url")
-}
-
 function defaultCredential(): string {
   return `${CREDENTIAL_PREFIX}${randomBytes(24).toString("base64url")}`
 }
@@ -36,6 +32,7 @@ function defaultCredential(): string {
 export class TerminalScopeRegistry {
   private readonly byCredential = new Map<string, StoredTerminalScope>()
   private readonly credentialsBySession = new Map<string, Set<string>>()
+  private readonly digestKey = randomBytes(32)
   private readonly now: () => number
   private readonly randomCredential: () => string
   private readonly ttlMs: number
@@ -50,7 +47,7 @@ export class TerminalScopeRegistry {
     this.prune()
     this.revoke(input.sessionId)
     const credential = this.randomCredential()
-    const digest = credentialDigest(credential)
+    const digest = this.credentialDigest(credential)
     const expiresAtMs = this.now() + this.ttlMs
     this.byCredential.set(digest, { ...input, expiresAtMs })
     this.credentialsBySession.set(input.sessionId, new Set([digest]))
@@ -62,7 +59,7 @@ export class TerminalScopeRegistry {
   }
 
   resolve(credential: string): TerminalScope | null {
-    const digest = credentialDigest(credential)
+    const digest = this.credentialDigest(credential)
     const scope = this.byCredential.get(digest)
     if (!scope) return null
     if (scope.expiresAtMs <= this.now()) {
@@ -89,6 +86,12 @@ export class TerminalScopeRegistry {
     for (const [digest, scope] of this.byCredential) {
       if (scope.expiresAtMs <= now) this.removeDigest(digest, scope.sessionId)
     }
+  }
+
+  private credentialDigest(credential: string): string {
+    return createHmac("sha256", this.digestKey)
+      .update(credential)
+      .digest("base64url")
   }
 
   private removeDigest(digest: string, sessionId: string): void {
