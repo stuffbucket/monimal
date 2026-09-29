@@ -44,6 +44,8 @@
   },
   "files": [
     "dist",
+    "llama-worker-contract.mjs",
+    "llama-worker-contract.d.mts",
     "scripts/llama-packaging.mjs",
     "scripts/llama-packaging.d.mts",
     "scripts/llama-package-checks.mjs",
