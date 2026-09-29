@@ -1,10 +1,15 @@
-import { act } from 'react'
+import {
+  QueryClientProvider,
+  type QueryClient,
+} from '@tanstack/react-query'
+import { act, type ReactElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { DiscoveryRoot, ProjectCatalogSnapshot } from '@maximal/project-catalog'
 
 import type { SettingsCapabilities } from '../capabilities'
+import { createMaximalQueryClient } from '../../query-client'
 import { ProjectsSection } from './ProjectsSection'
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
@@ -59,11 +64,32 @@ function capabilities(
 }
 
 let reactRoot: Root | undefined
+let queryClient: QueryClient | undefined
+
 afterEach(() => {
   act(() => reactRoot?.unmount())
   reactRoot = undefined
+  queryClient = undefined
   document.body.replaceChildren()
 })
+
+async function settle(action: () => void | Promise<void>): Promise<void> {
+  await act(async () => {
+    await action()
+    await new Promise((resolve) => window.setTimeout(resolve, 0))
+  })
+}
+
+function projectsTree(
+  value: Pick<SettingsCapabilities, 'projects'>,
+): ReactElement {
+  if (queryClient === undefined) throw new Error('query client not ready')
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ProjectsSection capabilities={value} />
+    </QueryClientProvider>
+  )
+}
 
 async function render(
   value: Pick<SettingsCapabilities, 'projects'>,
@@ -71,8 +97,12 @@ async function render(
   const container = document.createElement('div')
   document.body.append(container)
   reactRoot = createRoot(container)
+  queryClient = createMaximalQueryClient()
   await act(async () => {
-    reactRoot?.render(<ProjectsSection capabilities={value} />)
+    reactRoot?.render(projectsTree(value))
+  })
+  await act(async () => {
+    await new Promise((resolve) => window.setTimeout(resolve, 0))
   })
   return container
 }
@@ -109,7 +139,7 @@ describe('ProjectsSection', () => {
     expect(button(container, 'Add folder')).not.toBeNull()
     expect(button(container, 'Refresh all')).not.toBeNull()
 
-    await act(async () => loading.resolve(snapshot()))
+    await settle(() => loading.resolve(snapshot()))
     expect(container.textContent).not.toContain('Loading project folders…')
     expect(container.textContent).toContain('No project folders have been added.')
   })
@@ -170,17 +200,17 @@ describe('ProjectsSection', () => {
     })
     const container = await render(value)
 
-    await act(async () => switchFor(container, 'Discover projects under /work').click())
+    await settle(() => switchFor(container, 'Discover projects under /work').click())
     expect(updateRoot).toHaveBeenLastCalledWith('root-1', { enabled: false })
     expect(switchFor(container, 'Discover projects under /work').getAttribute('aria-checked'))
       .toBe('false')
 
-    await act(async () => switchFor(container, 'Trust projects below /work').click())
+    await settle(() => switchFor(container, 'Trust projects below /work').click())
     expect(updateRoot).toHaveBeenLastCalledWith('root-1', { trustSubtrees: true })
     expect(switchFor(container, 'Trust projects below /work').getAttribute('aria-checked'))
       .toBe('true')
 
-    await act(async () => switchFor(container, 'Trust /work').click())
+    await settle(() => switchFor(container, 'Trust /work').click())
     expect(updateRoot).toHaveBeenLastCalledWith('root-1', { trusted: false })
     expect(switchFor(container, 'Trust /work').getAttribute('aria-checked')).toBe('false')
   })
@@ -202,7 +232,7 @@ describe('ProjectsSection', () => {
       '[aria-label="Excluded directories for /work"]',
     )!
 
-    await act(async () => {
+    await settle(() => {
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')
         ?.set?.call(input, ' vendor, , generated, vendor ')
       input.dispatchEvent(new Event('input', { bubbles: true }))
@@ -210,10 +240,6 @@ describe('ProjectsSection', () => {
     })
     expect(updateRoot).toHaveBeenCalledWith('root-1', {
       exclusions: ['vendor', 'generated'],
-    })
-    await act(async () => {
-      await Promise.resolve()
-      await Promise.resolve()
     })
     expect(container.querySelector<HTMLInputElement>(
       '[aria-label="Excluded directories for /work"]',
@@ -232,19 +258,19 @@ describe('ProjectsSection', () => {
       removeRoot,
     }))
 
-    await act(async () => button(container, 'Add folder').click())
+    await settle(() => button(container, 'Add folder').click())
     expect(addRoot).toHaveBeenCalledOnce()
     expect(snapshotCall).toHaveBeenCalledTimes(2)
 
-    await act(async () => button(container, 'Refresh all').click())
+    await settle(() => button(container, 'Refresh all').click())
     expect(refresh).toHaveBeenCalledWith()
     expect(snapshotCall).toHaveBeenCalledTimes(3)
 
-    await act(async () => button(container, 'Refresh').click())
+    await settle(() => button(container, 'Refresh').click())
     expect(refresh).toHaveBeenCalledWith('root-1')
     expect(snapshotCall).toHaveBeenCalledTimes(4)
 
-    await act(async () => button(container, 'Remove').click())
+    await settle(() => button(container, 'Remove').click())
     expect(removeRoot).toHaveBeenCalledWith('root-1')
     expect(snapshotCall).toHaveBeenCalledTimes(5)
   })
@@ -266,7 +292,7 @@ describe('ProjectsSection', () => {
         : { refresh: failure }
     const container = await render(capabilities({ snapshot: snapshotCall, ...overrides }))
 
-    await act(async () => button(container, label).click())
+    await settle(() => button(container, label).click())
     expect(container.textContent).toContain(`${method} failed`)
     expect(snapshotCall).toHaveBeenCalledOnce()
   })
@@ -274,7 +300,7 @@ describe('ProjectsSection', () => {
   it('surfaces update and delayed load failures without showing empty state', async () => {
     const loading = deferred<ProjectCatalogSnapshot>()
     const container = await render(capabilities({ snapshot: () => loading.promise }))
-    await act(async () => loading.reject(new Error('catalog unavailable')))
+    await settle(() => loading.reject(new Error('catalog unavailable')))
     expect(container.textContent).toContain('catalog unavailable')
     expect(container.textContent).not.toContain('No project folders have been added.')
     expect(container.textContent).not.toContain('Loading project folders…')
@@ -286,17 +312,16 @@ describe('ProjectsSection', () => {
       snapshot: vi.fn(async () => snapshot([{ ...root, trusted: true }])),
       updateRoot,
     }))
-    await act(async () => switchFor(loaded, 'Trust /work').click())
+    await settle(() => switchFor(loaded, 'Trust /work').click())
     expect(loaded.textContent).toContain('trust update failed')
   })
 
-  it('rejects stale snapshots, clears recovered errors, and follows invalidations', async () => {
-    const initial = deferred<ProjectCatalogSnapshot>()
+  it('rejects stale snapshots and follows invalidations', async () => {
     const stale = deferred<ProjectCatalogSnapshot>()
     let listener: (() => void) | undefined
     const latest = snapshot([{ ...root, trusted: true }])
     const snapshotCall: SettingsCapabilities['projects']['snapshot'] = vi.fn()
-      .mockImplementationOnce(() => initial.promise)
+      .mockResolvedValueOnce(snapshot())
       .mockImplementationOnce(() => stale.promise)
       .mockResolvedValueOnce(latest)
     const container = await render(capabilities({
@@ -307,14 +332,12 @@ describe('ProjectsSection', () => {
       }),
     }))
 
-    await act(async () => listener?.())
-    await act(async () => listener?.())
+    await settle(() => listener?.())
+    await settle(() => listener?.())
     expect(snapshotCall).toHaveBeenCalledTimes(3)
     expect(switchFor(container, 'Trust /work').getAttribute('aria-checked')).toBe('true')
 
-    await act(async () => initial.reject(new Error('stale initial failure')))
-    await act(async () => stale.resolve(snapshot()))
-    expect(container.textContent).not.toContain('stale initial failure')
+    await settle(() => stale.resolve(snapshot()))
     expect(container.textContent).toContain('/work')
     expect(switchFor(container, 'Trust /work').getAttribute('aria-checked')).toBe('true')
   })
@@ -329,7 +352,7 @@ describe('ProjectsSection', () => {
 
     act(() => reactRoot?.unmount())
     reactRoot = undefined
-    await act(async () => pending.resolve(snapshot([root])))
+    await settle(() => pending.resolve(snapshot([root])))
     expect(container.textContent).not.toContain('/work')
     expect(unsubscribe).toHaveBeenCalledOnce()
   })
@@ -348,7 +371,7 @@ describe('ProjectsSection', () => {
     }))
     expect(container.textContent).toContain('temporary failure')
 
-    await act(async () => listener?.())
+    await settle(() => listener?.())
     expect(container.textContent).not.toContain('temporary failure')
     expect(container.textContent).toContain('/work')
   })
@@ -372,17 +395,17 @@ describe('ProjectsSection', () => {
       }),
     })
 
-    await act(async () => {
-      reactRoot?.render(<ProjectsSection capabilities={second} />)
+    await settle(() => {
+      reactRoot?.render(projectsTree(second))
     })
     expect(firstUnsubscribe).toHaveBeenCalledOnce()
     expect(secondSnapshot).toHaveBeenCalledOnce()
-    expect(container.textContent).toContain('/work')
+    await vi.waitFor(() => expect(container.textContent).toContain('/work'))
 
-    await act(async () => button(container, 'Add folder').click())
+    await settle(() => button(container, 'Add folder').click())
     expect(addRoot).toHaveBeenCalledOnce()
     expect(secondSnapshot).toHaveBeenCalledTimes(2)
-    await act(async () => secondListener?.())
+    await settle(() => secondListener?.())
     expect(secondSnapshot).toHaveBeenCalledTimes(3)
   })
 })

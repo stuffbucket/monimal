@@ -58,7 +58,7 @@ describe("getCopilotToken", () => {
       expect(e.status).toBe(401)
       expect(e.message).not.toContain("AuthenticateToken")
       expect(e.message).toContain("expired or revoked")
-      expect(e.message).toContain("gh auth login")
+      expect(e.message).toContain("Sign in again")
     }
   })
 

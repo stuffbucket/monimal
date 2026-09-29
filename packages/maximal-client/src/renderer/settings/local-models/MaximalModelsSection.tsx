@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
 
 import {
   Button,
@@ -99,17 +100,11 @@ export function MaximalModelsSection({
   onOpenFolder,
 }: MaximalModelsSectionProps) {
   const [enabled, setEnabled] = useState(true);
-  const [endpoint, setEndpoint] = useState<string | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    void capabilities.connection.proxyUrl().then((value) => {
-      if (active) setEndpoint(value);
-    });
-    return () => {
-      active = false;
-    };
-  }, [capabilities]);
+  const endpointQuery = useQuery({
+    queryKey: ["settings", "connection", "proxy-url"],
+    queryFn: () => capabilities.connection.proxyUrl(),
+  });
+  const endpoint = endpointQuery.data ?? null;
 
   const models = catalogue?.models ?? EMPTY_MODELS;
   const cards = useMemo(() => models.map(cardFor), [models]);

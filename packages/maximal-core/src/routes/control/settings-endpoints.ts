@@ -40,7 +40,7 @@ import {
 import { forwardError } from "~/lib/errors/error"
 
 type GhCliModule = Pick<
-  typeof import("~/lib/system/gh-cli"),
+  typeof import("@maximal/maximal-github/gh"),
   "detectGhCli" | "getGhAccountToken"
 >
 
@@ -180,7 +180,9 @@ function registerApiKeyMutations(
 }
 
 async function loadGhCli(deps: SettingsEndpointDeps): Promise<GhCliModule> {
-  return deps.loadGhCli ? deps.loadGhCli() : import("~/lib/system/gh-cli")
+  return deps.loadGhCli ?
+      deps.loadGhCli()
+    : import("@maximal/maximal-github/gh")
 }
 
 function registerGh(app: HonoApp, deps: SettingsEndpointDeps): void {

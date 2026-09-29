@@ -86,7 +86,7 @@ export const getEnterpriseDomain = (): string | null => {
  * carries the credential — so `tests/github-api-base-override.test.ts` asserts
  * each rejected shape by name.
  */
-const GITHUB_API_BASE_OVERRIDE_IPV4_HOSTNAME = "127.0.0.1"
+export const GITHUB_API_BASE_OVERRIDE_IPV4_HOSTNAME = "127.0.0.1"
 const GITHUB_API_BASE_OVERRIDE_IPV6_HOSTNAME = "[::1]"
 
 const LOOPBACK_OVERRIDE_HOSTNAMES = new Set([
@@ -179,6 +179,7 @@ export const getOauthUrls = (): {
 
 interface OauthAppConfig {
   clientId: string
+  clientSecret?: string
   headers: Record<string, string>
   scope: string
 }
@@ -194,6 +195,7 @@ export const getOauthAppConfig = (): OauthAppConfig => {
 
   return {
     clientId: GITHUB_CLIENT_ID,
+    clientSecret: GITHUB_CLIENT_SECRET,
     headers: standardHeaders(),
     scope: GITHUB_APP_SCOPES,
   }
@@ -435,6 +437,12 @@ export const githubHeaders = (): Record<string, string> => {
 }
 
 export const GITHUB_BASE_URL = "https://github.com"
-export const GITHUB_CLIENT_ID = "Iv1.b507a08c87ecfe98"
+// GitHub CLI's OAuth app credentials are intentionally public and committed in
+// its MIT-licensed source. Using the same device-flow client produces durable
+// `gho_` credentials; the Copilot GitHub App client previously used here issued
+// `ghu_` credentials that GitHub revoked shortly after sign-in.
+// https://github.com/cli/cli/blob/trunk/internal/authflow/flow.go
+export const GITHUB_CLIENT_ID = "178c6fc778ccc68e1d6a"
+export const GITHUB_CLIENT_SECRET = "34ddeff2b558a23d38fba8a6de74f086ede1cc0b"
 export const GITHUB_APP_SCOPES = ["read:user"].join(" ")
 export const OPENCODE_GITHUB_CLIENT_ID = "Ov23li8tweQw6odWQebz"

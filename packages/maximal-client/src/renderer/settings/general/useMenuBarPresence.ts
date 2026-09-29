@@ -1,3 +1,4 @@
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useState } from 'react'
 
 import type {
@@ -11,27 +12,27 @@ function secondsRemaining(deadlineMs: number): number {
   return Math.max(0, Math.ceil((deadlineMs - Date.now()) / 1_000))
 }
 
+export const menuBarModeQueryKey = [
+  'settings',
+  'general',
+  'menu-bar-mode',
+] as const
+
 export function useMenuBarPresence(capabilities: SettingsCapabilities) {
-  const [state, setState] = useState<MenuBarModeState | null>(null)
+  const queryClient = useQueryClient()
+  const query = useQuery({
+    queryKey: menuBarModeQueryKey,
+    queryFn: () => capabilities.general.menuBarMode(),
+  })
   const [attempt, setAttempt] = useState<MenuBarModeAttempt | null>(null)
   const [remaining, setRemaining] = useState(0)
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    let settled = false
-    void capabilities.general
-      .menuBarMode()
-      .then((next) => {
-        if (!settled) setState(next)
-      })
-      .catch((cause: unknown) => {
-        if (!settled) setError(describeError(cause))
-      })
-    return () => {
-      settled = true
-    }
-  }, [capabilities])
+  const [actionError, setActionError] = useState<string | null>(null)
+  const setState = useCallback(
+    (state: MenuBarModeState) =>
+      queryClient.setQueryData(menuBarModeQueryKey, state),
+    [queryClient],
+  )
 
   useEffect(() => {
     if (attempt === null) return
@@ -46,28 +47,28 @@ export function useMenuBarPresence(capabilities: SettingsCapabilities) {
     update()
     const timer = window.setInterval(update, 250)
     return () => window.clearInterval(timer)
-  }, [attempt])
+  }, [attempt, setState])
 
   const cancel = useCallback(async () => {
     if (attempt === null) return
     setBusy(true)
-    setError(null)
+    setActionError(null)
     try {
       setState(await capabilities.general.cancelMenuBarOnly(attempt.attemptId))
       setAttempt(null)
     } catch (cause) {
-      setError(describeError(cause))
+      setActionError(describeError(cause))
       setAttempt(null)
-      setState(await capabilities.general.menuBarMode())
+      await query.refetch()
     } finally {
       setBusy(false)
     }
-  }, [attempt, capabilities])
+  }, [attempt, capabilities, query, setState])
 
   const changeMode = useCallback(
     async (enabled: boolean) => {
       setBusy(true)
-      setError(null)
+      setActionError(null)
       try {
         if (enabled) {
           const nextAttempt = await capabilities.general.beginMenuBarOnly()
@@ -78,39 +79,40 @@ export function useMenuBarPresence(capabilities: SettingsCapabilities) {
           setState(await capabilities.general.disableMenuBarOnly())
         }
       } catch (cause) {
-        setError(describeError(cause))
-        setState(await capabilities.general.menuBarMode().catch(() => null))
+        setActionError(describeError(cause))
+        await query.refetch()
       } finally {
         setBusy(false)
       }
     },
-    [capabilities],
+    [capabilities, query, setState],
   )
 
   const confirm = useCallback(async () => {
     if (attempt === null) return
     setBusy(true)
-    setError(null)
+    setActionError(null)
     try {
       setState(
         await capabilities.general.confirmMenuBarOnly(attempt.attemptId),
       )
       setAttempt(null)
     } catch (cause) {
-      setError(describeError(cause))
+      setActionError(describeError(cause))
       setAttempt(null)
-      setState(await capabilities.general.menuBarMode().catch(() => null))
+      await query.refetch()
     } finally {
       setBusy(false)
     }
-  }, [attempt, capabilities])
+  }, [attempt, capabilities, query, setState])
 
   return {
-    state,
+    state: query.data ?? null,
     attempt,
     remaining,
     busy,
-    error,
+    error:
+      actionError ?? (query.error === null ? null : describeError(query.error)),
     cancel,
     changeMode,
     confirm,

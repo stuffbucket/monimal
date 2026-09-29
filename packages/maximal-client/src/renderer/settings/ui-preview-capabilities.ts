@@ -247,6 +247,19 @@ export function createPreviewSettingsCapabilities(): SettingsCapabilities {
       start: unavailable,
       cancel: unavailable,
       signOut: unavailable,
+      usage: () =>
+        Promise.resolve({
+          copilot_plan: 'enterprise',
+          quota_reset_date: '2026-09-30T00:00:00Z',
+          quota_snapshots: {
+            premium_interactions: {
+              entitlement: 1000,
+              remaining: 650,
+              percent_remaining: 65,
+            },
+            completions: { unlimited: true },
+          },
+        }),
     },
     accounts: {
       list: () => Promise.resolve(cloneAccountsList(accountList)),
@@ -470,6 +483,7 @@ export function createPreviewSettingsCapabilities(): SettingsCapabilities {
       },
     },
     onOpenRequest: () => () => undefined,
+    copyText: unavailable,
     openExternal: unavailable,
   }
 }

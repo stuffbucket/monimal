@@ -3,6 +3,7 @@ import { createRoot, type Root } from 'react-dom/client'
 import { TooltipProvider } from '@radix-ui/react-tooltip'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { MaximalQueryProvider } from '../query-client'
 import type {
   LocalModelCatalogSnapshot,
   LocalModelOperationEvent,
@@ -154,11 +155,18 @@ async function renderLocalModels(
   if (root === null || container === null) throw new Error('test root not ready')
   await act(async () => {
     root?.render(
-      <TooltipProvider>
-        <LocalModelsSection capabilities={capabilities} />
-      </TooltipProvider>,
+      <MaximalQueryProvider>
+        <TooltipProvider>
+          <LocalModelsSection capabilities={capabilities} />
+        </TooltipProvider>
+      </MaximalQueryProvider>,
     )
-    await Promise.resolve()
+  })
+  await vi.waitFor(() => {
+    expect(capabilities.localModels.list).toHaveBeenCalled()
+  })
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0))
   })
   return container
 }
@@ -220,25 +228,31 @@ describe('LocalModelsSection', () => {
     const surface = await renderLocalModels(capabilities)
 
     await act(async () => button(surface, 'Download').click())
-    act(() => {
+    await act(async () => {
       emit({
         type: 'completed',
         operationId: 'operation-1',
         model: { ...catalogue.models[0], state: 'ready' },
       })
+      await Promise.resolve()
     })
 
     expect(surface.textContent).toContain('ready')
     expect(surface.textContent).not.toContain('Cancel')
     expect(surface.textContent).not.toContain('Delete')
 
-    act(() => {
+    await act(async () => {
       emit({
         type: 'catalog',
         snapshot: { models: [], revision: 2 },
       })
+      await Promise.resolve()
     })
-    expect(surface.textContent).toContain('No bundled local models are configured.')
+    await vi.waitFor(() => {
+      expect(surface.textContent).toContain(
+        'No bundled local models are configured.',
+      )
+    })
   })
 
   it('surfaces provisioning and folder failures', async () => {

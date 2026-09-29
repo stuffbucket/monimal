@@ -1,21 +1,24 @@
-import { useEffect, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect } from 'react'
 
 import type { ShutdownSnapshot } from '../shared/host'
 
+const shutdownStatusQueryKey = ['desktop', 'shutdown', 'status'] as const
+
 export function useShutdownStatus(): ShutdownSnapshot | null {
-  const [snapshot, setSnapshot] = useState<ShutdownSnapshot | null>(null)
+  const queryClient = useQueryClient()
+  const query = useQuery({
+    queryKey: shutdownStatusQueryKey,
+    queryFn: () => window.maximal.shutdown.current(),
+  })
 
-  useEffect(() => {
-    let active = true
-    void window.maximal.shutdown.current().then((current) => {
-      if (active) setSnapshot(current)
-    })
-    const unsubscribe = window.maximal.shutdown.onChange(setSnapshot)
-    return () => {
-      active = false
-      unsubscribe()
-    }
-  }, [])
+  useEffect(
+    () =>
+      window.maximal.shutdown.onChange((snapshot) => {
+        queryClient.setQueryData(shutdownStatusQueryKey, snapshot)
+      }),
+    [queryClient],
+  )
 
-  return snapshot
+  return query.data ?? null
 }

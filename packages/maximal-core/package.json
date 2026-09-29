@@ -128,6 +128,7 @@
   "dependencies": {
     "@hono/zod-openapi": "1.6.1",
     "@maximal/maximal-core-contract": "workspace:*",
+    "@maximal/maximal-github": "workspace:*",
     "@maximal/maximal-logging": "workspace:*",
     "@maximal/maximal-model-contract": "workspace:*",
     "@maximal/maximal-observability-contract": "workspace:*",

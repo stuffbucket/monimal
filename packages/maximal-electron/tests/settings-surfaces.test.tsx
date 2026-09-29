@@ -22,8 +22,10 @@ describe('Avatar', () => {
     const markup = renderToStaticMarkup(
       <Avatar account={{ ...ada, avatarUrl: 'https://example.com/a.png' }} />,
     );
-    expect(markup).toContain('src="https://example.com/a.png"');
-    expect(markup).toContain('alt=""');
+    expect(markup).toContain(
+      'background-image:url(&quot;https://example.com/a.png&quot;)',
+    );
+    expect(markup).toContain('aria-hidden="true"');
   });
 
   it('falls back to initials when there is not', () => {

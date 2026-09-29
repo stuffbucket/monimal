@@ -110,6 +110,7 @@ import { getTokenUsageSummary } from "~/lib/token-usage"
 import { BUILD_VERSION } from "~/lib/update/build-info"
 import { getUpdateStatus } from "~/lib/update/update-check"
 import { projectControlConfig } from "~/routes/control/config-projection"
+import { getCopilotUsage } from "~/services/github/get-copilot-usage"
 import { listOllamaAccounts } from "~/services/providers/ollama-accounts"
 import {
   getOllamaSettings,
@@ -120,6 +121,7 @@ import {
 export interface ControlRpcOperationOverrides {
   buildSearchSettings?: typeof buildSearchSettings
   createApiKey?: typeof createApiKey
+  getCopilotUsage?: typeof getCopilotUsage
   refreshModels?: typeof cacheModels
   setAppEnabled?: typeof setAppEnabled
   updateSearchSettings?: typeof updateSearchSettings
@@ -316,6 +318,7 @@ function createSettingsRpcMethods({
   operations = {},
 }: ControlRpcDeps): RpcRegistry {
   const createApiKeyOperation = operations.createApiKey ?? createApiKey
+  const getCopilotUsageOperation = operations.getCopilotUsage ?? getCopilotUsage
   const refreshModels = operations.refreshModels ?? cacheModels
   const setAppEnabledOperation =
     operations.setAppEnabled
@@ -342,6 +345,7 @@ function createSettingsRpcMethods({
     "apps/list": readApps,
     "apiKeys/list": () => listApiKeys(),
     "models/list": async () => buildModelsList(await listProviderModels()),
+    "copilotUsage/get": () => getCopilotUsageOperation(),
     "usage/get": (params: unknown) => {
       const { period } = parseParams(
         TokenUsageRequest,

@@ -166,6 +166,7 @@ describe("control /rpc — discovery", () => {
       "apiKeys/setEnforcement",
       "models/list",
       "models/refresh",
+      "copilotUsage/get",
       "usage/get",
       "diagnostics/get",
       "searchSettings/get",

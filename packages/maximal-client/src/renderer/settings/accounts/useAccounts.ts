@@ -1,65 +1,62 @@
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useState } from 'react'
 
 import type { AccountsListResponse, SettingsCapabilities } from '../capabilities'
 import { describeError } from '../../shared/errors'
 
+export const accountsQueryKey = ['account', 'saved-accounts'] as const
+
 export function useAccounts(capabilities: SettingsCapabilities) {
-  const [list, setList] = useState<AccountsListResponse | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const queryClient = useQueryClient()
+  const query = useQuery({
+    queryKey: accountsQueryKey,
+    queryFn: () => capabilities.accounts.list(),
+  })
+  const list: AccountsListResponse | null = query.data ?? null
+  const [actionError, setActionError] = useState<string | null>(null)
   const [switchingKey, setSwitchingKey] = useState<string | null>(null)
   const [togglingKey, setTogglingKey] = useState<string | null>(null)
   const [reordering, setReordering] = useState(false)
-  const [reloadKey, setReloadKey] = useState(0)
 
-  useEffect(() => {
-    let settled = false
-
-    const refresh = async () => {
-      try {
-        const next = await capabilities.accounts.list()
-        if (!settled) {
-          setList(next)
-          setError(null)
-        }
-      } catch (cause) {
-        if (!settled) setError(describeError(cause))
-      }
-    }
-
-    void refresh()
-    const unsubscribe = capabilities.subscribe(() => void refresh())
-
-    return () => {
-      settled = true
-      unsubscribe()
-    }
-  }, [capabilities, reloadKey])
+  useEffect(
+    () =>
+      capabilities.subscribe(() => {
+        void queryClient.invalidateQueries({ queryKey: accountsQueryKey })
+      }),
+    [capabilities, queryClient],
+  )
 
   const switchAccount = useCallback(async (key: string) => {
     setSwitchingKey(key)
-    setError(null)
+    setActionError(null)
     try {
       await capabilities.accounts.switchTo(key)
-      setList(await capabilities.accounts.list())
+      queryClient.setQueryData(
+        accountsQueryKey,
+        await capabilities.accounts.list(),
+      )
     } catch (cause) {
-      setError(describeError(cause))
+      setActionError(describeError(cause))
     } finally {
       setSwitchingKey(null)
     }
-  }, [capabilities])
+  }, [capabilities, queryClient])
 
   const setAccountEnabled = useCallback(async (key: string, enabled: boolean) => {
     setTogglingKey(key)
-    setError(null)
+    setActionError(null)
     try {
       await capabilities.accounts.setEnabled(key, enabled)
-      setList(await capabilities.accounts.list())
+      queryClient.setQueryData(
+        accountsQueryKey,
+        await capabilities.accounts.list(),
+      )
     } catch (cause) {
-      setError(describeError(cause))
+      setActionError(describeError(cause))
     } finally {
       setTogglingKey(null)
     }
-  }, [capabilities])
+  }, [capabilities, queryClient])
 
   const reorderAccounts = useCallback(async (index: number, direction: -1 | 1) => {
     if (!list) return
@@ -70,23 +67,53 @@ export function useAccounts(capabilities: SettingsCapabilities) {
     setReordering(true)
     try {
       await capabilities.accounts.reorder(next.map((account) => account.key))
-      setList({ ...list, accounts: next })
+      queryClient.setQueryData(accountsQueryKey, { ...list, accounts: next })
     } catch (cause) {
-      setError(describeError(cause))
+      setActionError(describeError(cause))
     } finally {
       setReordering(false)
     }
-  }, [capabilities, list])
+  }, [capabilities, list, queryClient])
+
+  const updateAccountLayout = useCallback(async (
+    enabledKeys: string[],
+    disabledKeys: string[],
+  ) => {
+    if (!list) return
+    const enabled = new Set(enabledKeys)
+    setReordering(true)
+    setActionError(null)
+    try {
+      for (const account of list.accounts) {
+        const nextEnabled = enabled.has(account.key)
+        if (account.enabled !== nextEnabled) {
+          await capabilities.accounts.setEnabled(account.key, nextEnabled)
+        }
+      }
+      await capabilities.accounts.reorder([...enabledKeys, ...disabledKeys])
+      queryClient.setQueryData(
+        accountsQueryKey,
+        await capabilities.accounts.list(),
+      )
+    } catch (cause) {
+      setActionError(describeError(cause))
+    } finally {
+      setReordering(false)
+    }
+  }, [capabilities, list, queryClient])
 
   return {
     list,
-    error,
+    error:
+      actionError ?? (query.error === null ? null : describeError(query.error)),
     switchingKey,
     togglingKey,
     busy: switchingKey !== null || togglingKey !== null || reordering,
-    reload: () => setReloadKey((key) => key + 1),
+    reload: () =>
+      void queryClient.invalidateQueries({ queryKey: accountsQueryKey }),
     switchAccount,
     setAccountEnabled,
     reorderAccounts,
+    updateAccountLayout,
   }
 }

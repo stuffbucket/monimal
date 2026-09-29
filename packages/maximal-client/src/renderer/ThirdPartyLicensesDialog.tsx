@@ -1,27 +1,29 @@
+import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState, type ReactElement } from 'react'
 import { Button, Dialog } from '@maximal/maximal-electron/renderer'
 
 export function ThirdPartyLicensesDialog(): ReactElement {
   const [open, setOpen] = useState(false)
-  const [text, setText] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const query = useQuery({
+    queryKey: ['desktop', 'licenses', 'text'],
+    queryFn: () => window.maximal.licenses.text(),
+    enabled: open,
+    staleTime: Number.POSITIVE_INFINITY,
+  })
 
   useEffect(
     () =>
       window.maximal.onOpenLicenses(() => {
         setOpen(true)
-        setText(null)
-        setError(null)
-        void window.maximal.licenses.text().then(setText, (cause: unknown) => {
-          setError(
-            cause instanceof Error
-              ? cause.message
-              : 'Unable to load license information.',
-          )
-        })
       }),
     [],
   )
+
+  const error = query.error instanceof Error
+    ? query.error.message
+    : query.error === null
+      ? null
+      : 'Unable to load license information.'
 
   return (
     <Dialog
@@ -41,10 +43,10 @@ export function ThirdPartyLicensesDialog(): ReactElement {
       >
         {error ? (
           <p role="alert">{error}</p>
-        ) : text === null ? (
+        ) : query.data === undefined ? (
           <p>Loading licenses...</p>
         ) : (
-          <pre className="license-dialog__text">{text}</pre>
+          <pre className="license-dialog__text">{query.data}</pre>
         )}
       </div>
       <div className="license-dialog__actions">

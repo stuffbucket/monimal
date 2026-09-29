@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "@maximal/maximal-github",
+  "version": "0.0.0",
+  "private": true,
+  "description": "GitHub host, account, API, and GitHub CLI interoperability for Maximal.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./contracts": {
+      "types": "./dist/contracts.d.ts",
+      "import": "./dist/contracts.js"
+    },
+    "./device-auth": {
+      "types": "./dist/device-auth.d.ts",
+      "import": "./dist/device-auth.js"
+    },
+    "./gh": {
+      "types": "./dist/gh.d.ts",
+      "import": "./dist/gh.js"
+    },
+    "./octokit": {
+      "types": "./dist/octokit.d.ts",
+      "import": "./dist/octokit.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "analyze": "bun ../maximal-core/scripts/analyze.ts",
+    "build": "tsup src/index.ts src/contracts.ts src/device-auth.ts src/gh.ts src/octokit.ts --format esm --dts --clean --target es2022 --out-dir dist",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "typecheck": "tsc6 --noEmit"
+  },
+  "dependencies": {
+    "@octokit/plugin-retry": "8.1.1",
+    "@octokit/plugin-throttling": "11.0.5",
+    "@octokit/rest": "22.0.1",
+    "zod": "4.5.4"
+  },
+  "devDependencies": {
+    "@maximal/eslint-config": "workspace:*",
+    "@types/node": "^26.4.0",
+    "eslint": "^10.9.1",
+    "tsup": "^8.5.1",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "vitest": "^5.0.1"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

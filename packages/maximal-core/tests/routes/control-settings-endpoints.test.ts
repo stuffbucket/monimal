@@ -3,12 +3,12 @@ import type {
   AppEntry,
   DiagnosticsResponse,
 } from "@maximal/maximal-core-contract/settings"
+import type { GhCliStatus } from "@maximal/maximal-github/gh"
 
 import { describe, expect, test } from "bun:test"
 import { Hono } from "hono"
 
 import type { AccountRecord } from "~/lib/auth/github-token-store"
-import type { GhCliStatus } from "~/lib/system/gh-cli"
 import type { SettingsEndpointDeps } from "~/routes/control/settings-endpoints"
 
 import { SettingsOperationError } from "~/lib/config/settings-operations"
@@ -204,7 +204,10 @@ describe("control settings endpoints — API keys", () => {
       jsonRequest("PATCH", { enforce: true }),
     )
     expect(enabled.status).toBe(200)
-    expect(await enabled.json()).toEqual({ entries: [apiKey], enforcing: true })
+    expect(await enabled.json()).toEqual({
+      entries: [apiKey],
+      enforcing: true,
+    })
 
     const disabled = await app.request(
       "/api-keys/enforce",

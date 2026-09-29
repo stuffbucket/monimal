@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useCallback, useMemo, useState } from 'react'
 
 import type {
   ConnectorSettingValue,
@@ -36,29 +37,21 @@ interface SearchSettingsState {
   validateProviderForEnable: (providerId: string) => Promise<boolean>
 }
 
+export const searchSettingsQueryKey = ['settings', 'search'] as const
+
 export function useSearchSettings(
   capabilities: SettingsCapabilities,
 ): SearchSettingsState {
-  const [snapshot, setSnapshot] = useState<SearchSettingsResponse | null>(null)
+  const queryClient = useQueryClient()
+  const query = useQuery({
+    queryKey: searchSettingsQueryKey,
+    queryFn: () => capabilities.search.get(),
+  })
+  const snapshot: SearchSettingsResponse | null = query.data ?? null
   const [updates, setUpdates] = useState<SearchSettingsUpdateRequest>({})
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
   const [providerChecks, setProviderChecks] = useState<Record<string, ProviderCheckState>>({})
-
-  useEffect(() => {
-    let active = true
-    void capabilities.search
-      .get()
-      .then((next) => {
-        if (active) setSnapshot(next)
-      })
-      .catch((cause: unknown) => {
-        if (active) setError(describeError(cause))
-      })
-    return () => {
-      active = false
-    }
-  }, [capabilities])
 
   const setGlobal = (key: string, value: ConnectorSettingValue | null): void => {
     setUpdates((previous) => ({
@@ -180,7 +173,7 @@ export function useSearchSettings(
     if (!hasUpdates) return true
     if (blockingValidationError) return false
     setBusy(true)
-    setError(null)
+    setActionError(null)
     try {
       if (snapshot !== null) {
         const changedEnabledProviderIds = Object.entries(updates.providers ?? {})
@@ -195,12 +188,15 @@ export function useSearchSettings(
           if (!await validateProviderForEnable(providerId)) return false
         }
       }
-      setSnapshot(await capabilities.search.update(updates))
+      queryClient.setQueryData(
+        searchSettingsQueryKey,
+        await capabilities.search.update(updates),
+      )
       setUpdates({})
       setProviderChecks({})
       return true
     } catch (cause) {
-      setError(describeError(cause))
+      setActionError(describeError(cause))
       return false
     } finally {
       setBusy(false)
@@ -209,6 +205,7 @@ export function useSearchSettings(
     blockingValidationError,
     capabilities,
     hasUpdates,
+    queryClient,
     snapshot,
     updates,
     validateProviderForEnable,
@@ -233,7 +230,8 @@ export function useSearchSettings(
     snapshot,
     updates,
     busy,
-    error,
+    error:
+      actionError ?? (query.error === null ? null : describeError(query.error)),
     providerChecks,
     blockingValidationError,
     setGlobal,

@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState, type ReactElement } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { type ReactElement } from 'react'
 
 import { Button, CopyButton, Note } from '@maximal/maximal-electron/renderer'
 
@@ -153,12 +154,9 @@ function diagnosticsRows(
 export function DiagnosticsSection({
   capabilities,
 }: DiagnosticsSectionProps): ReactElement {
-  const [snapshot, setSnapshot] = useState<DiagnosticsSnapshot | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  const loadSnapshot = useCallback(
-    async (): Promise<DiagnosticsSnapshot> => {
+  const query = useQuery({
+    queryKey: ['settings', 'diagnostics'],
+    queryFn: async (): Promise<DiagnosticsSnapshot> => {
       const [diagnostics, models, apps, connections, search] = await Promise.all([
         capabilities.diagnostics.get(),
         capabilities.models.list(),
@@ -168,38 +166,10 @@ export function DiagnosticsSection({
       ])
       return { diagnostics, models, apps, connections, search }
     },
-    [capabilities],
-  )
-
-  const refresh = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      setSnapshot(await loadSnapshot())
-    } catch (cause) {
-      setError(describeError(cause))
-    } finally {
-      setLoading(false)
-    }
-  }, [loadSnapshot])
-
-  useEffect(() => {
-    let active = true
-    void loadSnapshot()
-      .then((next) => {
-        if (active) setSnapshot(next)
-      })
-      .catch((cause: unknown) => {
-        if (active) setError(describeError(cause))
-      })
-      .finally(() => {
-        if (active) setLoading(false)
-      })
-    return () => {
-      active = false
-    }
-  }, [loadSnapshot])
-
+  })
+  const snapshot = query.data ?? null
+  const loading = query.isPending || query.isFetching
+  const error = query.error === null ? null : describeError(query.error)
   const rows = snapshot ? diagnosticsRows(snapshot) : []
 
   return (
@@ -212,7 +182,7 @@ export function DiagnosticsSection({
             about="the diagnostics report"
           />
         ) : null}
-        <Button size="sm" onClick={() => void refresh()} disabled={loading}>
+        <Button size="sm" onClick={() => void query.refetch()} disabled={loading}>
           {loading ? 'Refreshing…' : 'Refresh'}
         </Button>
       </div>

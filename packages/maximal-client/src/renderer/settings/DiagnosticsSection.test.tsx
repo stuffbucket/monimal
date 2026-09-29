@@ -3,6 +3,7 @@ import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { MaximalQueryProvider } from '../query-client'
 import type { SettingsCapabilities } from './capabilities'
 import { DiagnosticsSection } from './DiagnosticsSection'
 
@@ -138,10 +139,14 @@ async function renderDiagnostics(capabilities: SettingsCapabilities): Promise<HT
   await act(async () => {
     root?.render(
       <Tooltip.Provider>
-        <DiagnosticsSection capabilities={capabilities} />
+        <MaximalQueryProvider>
+          <DiagnosticsSection capabilities={capabilities} />
+        </MaximalQueryProvider>
       </Tooltip.Provider>,
     )
-    await Promise.resolve()
+  })
+  await vi.waitFor(() => {
+    expect(container?.textContent).toContain('1.2.3')
   })
   return container
 }

@@ -2,7 +2,6 @@ import {
   ChartColumn,
   Cpu,
   KeyRound,
-  LogIn,
   LogOut,
   ScrollText,
   ToggleLeft,
@@ -67,13 +66,16 @@ export function Avatar({ account, large }: { account?: Account; large?: boolean 
     );
   }
 
-  if (account.avatarUrl !== undefined) {
-    return <img className={className} src={account.avatarUrl} alt="" />;
-  }
-
   return (
     <span className={`${className} avatar--initials`} data-testid="avatar-initials">
       {initials(account.displayName)}
+      {account.avatarUrl !== undefined ? (
+        <span
+          aria-hidden="true"
+          className="avatar__image"
+          style={{ backgroundImage: `url(${JSON.stringify(account.avatarUrl)})` }}
+        />
+      ) : null}
     </span>
   );
 }
@@ -107,9 +109,6 @@ export function Profile({
 
   // Absent means the consumer has no such action, so no entry. A disabled one
   // would advertise a sign-in that is never coming.
-  if (account === undefined && onSignIn) {
-    items.push({ id: 'sign-in', label: 'Sign in', icon: LogIn, onSelect: onSignIn });
-  }
   if (account !== undefined && onSignOut) {
     items.push({
       id: 'sign-out',
@@ -145,6 +144,7 @@ export function Profile({
           )}
         </span>
       }
+      headerAction={account === undefined ? onSignIn : undefined}
       items={items}
     />
   );

@@ -16,6 +16,7 @@ import {
   type AppTab,
 } from './frame/AppFrame'
 import { WorkspaceRail } from './frame/WorkspaceRail'
+import { MaximalQueryProvider } from './query-client'
 import { Settings } from './settings/Settings'
 import { createPreviewSettingsCapabilities } from './settings/ui-preview-capabilities'
 import { UnsavedChangesProvider, useGuardedNavigation } from './unsaved-changes'
@@ -109,9 +110,11 @@ function PreviewFrame(): ReactElement {
 
 function SettingsPreview(): ReactElement {
   return (
-    <UnsavedChangesProvider>
-      <PreviewFrame />
-    </UnsavedChangesProvider>
+    <MaximalQueryProvider>
+      <UnsavedChangesProvider>
+        <PreviewFrame />
+      </UnsavedChangesProvider>
+    </MaximalQueryProvider>
   )
 }
 

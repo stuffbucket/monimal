@@ -9,7 +9,8 @@ interface AccountStatusBodyProps {
   status: AuthStatus | null
   error: string | null
   busy: boolean
-  onOpenVerification: (uri: string) => void
+  onActivateDeviceCode: (code: string, uri: string) => void
+  onOpenExternal: (uri: string) => void
   onCancel: () => void
   onRequestNewCode: () => void
 }
@@ -18,7 +19,8 @@ export function AccountStatusBody({
   status,
   error,
   busy,
-  onOpenVerification,
+  onActivateDeviceCode,
+  onOpenExternal,
   onCancel,
   onRequestNewCode,
 }: AccountStatusBodyProps) {
@@ -45,7 +47,9 @@ export function AccountStatusBody({
         <DeviceCodePanel
           status={status}
           busy={busy}
-          onOpenVerification={() => onOpenVerification(status.verification_uri)}
+          onCopyAndOpen={() =>
+            onActivateDeviceCode(status.user_code, status.verification_uri)
+          }
           onCancel={onCancel}
           onRequestNewCode={onRequestNewCode}
         />
@@ -81,7 +85,7 @@ export function AccountStatusBody({
               <button
                 type="button"
                 className="settings-link-button"
-                onClick={() => onOpenVerification(status.remediation_url ?? '')}
+                onClick={() => onOpenExternal(status.remediation_url ?? '')}
               >
                 Learn more
               </button>

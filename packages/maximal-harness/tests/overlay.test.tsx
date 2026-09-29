@@ -222,7 +222,7 @@ describe('Overlay', () => {
     expect(byTestId('overlay-status').textContent).toBe('embedded · local-model');
   });
 
-  it('opens and focuses the model picker when the preference is unavailable', async () => {
+  it('focuses the closed model picker when the preference is unavailable', async () => {
     const models = [
       {
         key: 'ollama:qwen3:4b',
@@ -253,6 +253,8 @@ describe('Overlay', () => {
     expect(document.activeElement).toBe(picker);
     expect((byTestId('overlay-input') as HTMLTextAreaElement).disabled).toBe(true);
 
+    expect(document.querySelector('[data-testid="overlay-model-menu"]')).toBeNull();
+    act(() => picker.click());
     expect(byTestId('overlay-model-menu')).toBeTruthy();
     const option = [...document.body.querySelectorAll<HTMLButtonElement>('[role="option"]')]
       .find((element) => element.textContent?.includes('small'));

@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState, type ReactElement } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useCallback, useEffect, useState, type ReactElement } from 'react'
 
 import {
   Button,
@@ -13,6 +14,8 @@ import type { DiscoveryRoot, ProjectCatalogSnapshot } from '@maximal/project-cat
 
 import type { SettingsCapabilities } from '../capabilities'
 import { describeError } from '../../shared/errors'
+
+export const projectCatalogQueryKey = ['settings', 'projects', 'catalog'] as const
 
 function RootSettings({
   root,
@@ -88,41 +91,41 @@ export function ProjectsSection({
 }: {
   capabilities: Pick<SettingsCapabilities, 'projects'>
 }): ReactElement {
-  const [snapshot, setSnapshot] = useState<ProjectCatalogSnapshot | null>(null)
-  const [error, setError] = useState<string>()
-  const latestSnapshot = useRef<Promise<ProjectCatalogSnapshot> | undefined>(undefined)
-  const load = useCallback(async () => {
-    const request = capabilities.projects.snapshot()
-    latestSnapshot.current = request
-    try {
-      const value = await request
-      if (latestSnapshot.current !== request) return
-      setSnapshot(value)
-      setError(undefined)
-    } catch (cause) {
-      if (latestSnapshot.current === request) setError(describeError(cause))
-    }
-  }, [capabilities])
+  const queryClient = useQueryClient()
+  const query = useQuery({
+    queryKey: projectCatalogQueryKey,
+    queryFn: () => capabilities.projects.snapshot(),
+  })
+  const mutation = useMutation({
+    mutationFn: (action: () => Promise<unknown>) => action(),
+    onSuccess: () => queryClient.invalidateQueries({
+      queryKey: projectCatalogQueryKey,
+      exact: true,
+    }),
+  })
+  const mutateAsync = mutation.mutateAsync
+  const resetMutation = mutation.reset
 
   const perform = useCallback(async (action: () => Promise<unknown>): Promise<void> => {
-    try {
-      await action()
-      await load()
-    } catch (cause) {
-      setError(describeError(cause))
-    }
-  }, [load])
+    await mutateAsync(action).catch(() => undefined)
+  }, [mutateAsync])
 
   useEffect(() => {
-    // The host snapshot is awaited before load can update state.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void load()
-    const unsubscribe = capabilities.projects.subscribe(() => void load())
-    return () => {
-      latestSnapshot.current = undefined
-      unsubscribe()
+    const invalidate = (): void => {
+      resetMutation()
+      void queryClient.invalidateQueries({
+        queryKey: projectCatalogQueryKey,
+        exact: true,
+      })
     }
-  }, [capabilities, load])
+    const unsubscribe = capabilities.projects.subscribe(invalidate)
+    invalidate()
+    return unsubscribe
+  }, [capabilities, queryClient, resetMutation])
+
+  const snapshot: ProjectCatalogSnapshot | null = query.data ?? null
+  const cause = mutation.error ?? query.error
+  const error = cause === null ? undefined : describeError(cause)
 
   return (
     <section className="settings-section">

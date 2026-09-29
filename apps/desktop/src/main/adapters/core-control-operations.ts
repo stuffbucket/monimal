@@ -32,6 +32,8 @@ import {
   type ConnectionEntry,
   ConnectionsListResponse as ConnectionsListResponseSchema,
   type ConnectionsListResponse,
+  CopilotAccountUsage as CopilotAccountUsageSchema,
+  type CopilotAccountUsage,
   DiagnosticsResponse as DiagnosticsResponseSchema,
   type DiagnosticsResponse,
   ModelsListResponse as ModelsListResponseSchema,
@@ -81,6 +83,7 @@ export interface CoreControlOperations {
   accountsSwitch(key: string): Promise<ControlResult<null>>
   accountsSetEnabled(key: string, enabled: boolean): Promise<ControlResult<null>>
   accountsReorder(priority: string[]): Promise<ControlResult<null>>
+  copilotUsageGet(): Promise<ControlResult<CopilotAccountUsage>>
   ollamaAccountsList(): Promise<ControlResult<OllamaAccountsListResponse>>
   ollamaSettingsGet(): Promise<ControlResult<OllamaSettingsResponse>>
   ollamaSettingsUpdate(input: OllamaSettingsUpdateRequest): Promise<ControlResult<OllamaSettingsResponse>>
@@ -125,6 +128,7 @@ export const optionalMethods = [
   'accounts/switch',
   'accounts/setEnabled',
   'accounts/reorder',
+  'copilotUsage/get',
   'ollamaAccounts/list',
   'ollamaSettings/get',
   'ollamaSettings/update',
@@ -271,6 +275,8 @@ export function createCoreControlOperations(call: ControlCall): CoreControlOpera
         accountsSwitchResultSchema.parse(input)
         return null
       }, { priority }),
+    copilotUsageGet: () =>
+      call('copilotUsage/get', parseWith(CopilotAccountUsageSchema)),
     ollamaAccountsList: () =>
       call('ollamaAccounts/list', parseWith(OllamaAccountsListResponseSchema)),
     ollamaSettingsGet: () =>

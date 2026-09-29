@@ -77,6 +77,7 @@ export async function buildAccountsList(): Promise<AccountsListResponse> {
     obtained_at: account.obtainedAt,
     active: account.active,
     enabled: account.enabled,
+    needs_reauth: account.needsReauth ?? false,
   }))
   return { accounts, active_key: reg.activeKey }
 }

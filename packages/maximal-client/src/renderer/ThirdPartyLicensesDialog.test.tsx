@@ -1,6 +1,7 @@
 import { act, type ReactNode } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { MaximalQueryProvider } from './query-client'
 
 const { getLicenseText, openLicenses } = vi.hoisted(() => ({
   getLicenseText: vi.fn(() => Promise.resolve('Example dependency\nLicense: MIT')),
@@ -55,26 +56,34 @@ describe('ThirdPartyLicensesDialog', () => {
     if (root === null || container === null) throw new Error('Test root is not ready')
     const mountedRoot = root
     await act(async () => {
-      mountedRoot.render(<ThirdPartyLicensesDialog />)
+      mountedRoot.render(
+        <MaximalQueryProvider>
+          <ThirdPartyLicensesDialog />
+        </MaximalQueryProvider>,
+      )
     })
     if (openLicenses.listener === null) throw new Error('License menu listener was not installed')
+    const mountedContainer = container
 
     await act(async () => {
       openLicenses.listener?.()
-      await Promise.resolve()
+    })
+    await vi.waitFor(() => {
+      expect(mountedContainer.querySelector('[role="dialog"]')?.textContent).toContain(
+        'Example dependency',
+      )
     })
 
     expect(getLicenseText).toHaveBeenCalledOnce()
-    expect(container.querySelector('[role="dialog"]')?.textContent).toContain('Example dependency')
-    expect(container.querySelector('.license-dialog__reader')).not.toBeNull()
-    expect(container.querySelector('.license-dialog__text')?.tagName).toBe('PRE')
+    expect(mountedContainer.querySelector('.license-dialog__reader')).not.toBeNull()
+    expect(mountedContainer.querySelector('.license-dialog__text')?.tagName).toBe('PRE')
 
-    const close = [...container.querySelectorAll('button')].find(
+    const close = [...mountedContainer.querySelectorAll('button')].find(
       (button) => button.textContent === 'Close',
     )
     if (close === undefined) throw new Error('Close button was not rendered')
     act(() => close.click())
 
-    expect(container.querySelector('[role="dialog"]')).toBeNull()
+    expect(mountedContainer.querySelector('[role="dialog"]')).toBeNull()
   })
 })

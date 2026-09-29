@@ -153,7 +153,6 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
   useEffect(() => {
     if (status.state === 'ready') input.current?.focus();
     if (status.state === 'select-model') {
-      setModelMenuOpen(true);
       modelPicker.current?.focus();
     }
   }, [status.state]);

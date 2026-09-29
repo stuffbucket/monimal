@@ -26,7 +26,8 @@
   "scripts": {
     "analyze": "bun ../maximal-core/scripts/analyze.ts",
     "check:runtime-style-injectors": "node scripts/check-runtime-style-injectors.mjs",
-    "lint": "eslint && node scripts/check-runtime-style-injectors.mjs",
+    "check:ui-query-primitives": "node scripts/check-ui-query-primitives.mjs",
+    "lint": "eslint && node scripts/check-ui-query-primitives.mjs && node scripts/check-runtime-style-injectors.mjs",
     "test": "node --test tests/*.test.mjs"
   },
   "dependencies": {

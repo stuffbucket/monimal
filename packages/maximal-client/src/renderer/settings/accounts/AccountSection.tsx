@@ -1,12 +1,12 @@
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   useCallback,
-  useEffect,
-  useEffectEvent,
   useState,
   type ReactElement,
 } from 'react'
 
 import {
+  Banner,
   Button,
   SettingsGroup,
   SettingsItem,
@@ -14,91 +14,123 @@ import {
 } from '@maximal/maximal-electron/renderer'
 
 import { describeError } from '../../shared/errors'
-import type { AuthStatus, SettingsCapabilities } from '../capabilities'
+import {
+  accountStatusQueryKey,
+  useAccountStatus,
+} from '../../useAccountStatus'
+import type {
+  AuthStatus,
+  SettingsCapabilities,
+} from '../capabilities'
 import { AccountsSection } from './AccountsSection'
 import { AccountStatusBody } from './AccountStatusBody'
+import { CopilotPlanDetails } from './CopilotPlanDetails'
 import { OllamaAccountsSection } from './OllamaAccountsSection'
+import { accountsQueryKey } from './useAccounts'
 
 // The Accounts section: who's signed in, sign in via GitHub's device flow,
 // sign out. Written entirely against `SettingsCapabilities` — see
 // capabilities.ts for why no component here imports `ControlClient` or
 // touches `window.maximal` directly.
 
-/** How often to re-read status while nothing is pushing changes. Covers the
- *  one transition the server doesn't proactively announce: a device code
- *  simply running out the clock (see capabilities.ts's `account.status` doc
- *  comment) — the next read is what collapses it, and this is what causes
- *  that next read to happen even if no one is pushing. */
-const POLL_MS = 3000
+const COPILOT_USAGE_STALE_MS = 5 * 60_000
+const COPILOT_USAGE_RETAIN_MS = 24 * 60 * 60_000
+
+export function copilotUsageQueryKey(accountKey: string) {
+  return ['account', 'copilot-usage', accountKey] as const
+}
 
 interface AccountSectionProps {
   capabilities: SettingsCapabilities
 }
 
+function networkBannerMessage(status: AuthStatus | null): string | null {
+  if (
+    status?.state !== 'authenticated'
+    && status?.state !== 'unauthenticated'
+  ) {
+    return null
+  }
+  switch (status.network_diagnosis?.kind) {
+    case 'offline':
+      return 'No internet connection. Connect to a network to use GitHub accounts.'
+    case 'dns-failure':
+      return 'GitHub cannot be reached because the network lookup failed. Check your internet connection.'
+    case 'scope-unreachable':
+      return 'GitHub authentication is unreachable. Check your network or organization access.'
+    case 'unknown':
+      return 'GitHub cannot be reached right now. Check your internet connection.'
+    case undefined:
+      return null
+  }
+}
+
 export function AccountSection({
   capabilities,
 }: AccountSectionProps): ReactElement {
-  const [status, setStatus] = useState<AuthStatus | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const queryClient = useQueryClient()
   const [busy, setBusy] = useState(false)
-  const isBusy = useEffectEvent(() => busy)
-
-  // One effect owns the whole read lifetime: the first read, every later
-  // push, the poll fallback, and teardown.
-  useEffect(() => {
-    let settled = false
-
-    const refresh = async () => {
-      // A refresh racing an in-flight action (sign-in/out, cancel) would
-      // render a status the action is about to supersede anyway; skip it
-      // rather than flicker.
-      if (isBusy()) return
-      try {
-        const next = await capabilities.account.status()
-        if (!settled) {
-          setStatus(next)
-          // A successful read supersedes any earlier transient failure — the
-          // control plane has spoken again since, which is a more current
-          // signal than a stale error from a previous poll. Without this, one
-          // failed poll (e.g. mid core-restart) pins an assertive alert on
-          // screen forever even after every later poll succeeds.
-          setError(null)
-        }
-      } catch (cause) {
-        if (!settled) setError(describeError(cause))
-      }
-    }
-
-    void refresh()
-    const unsubscribe = capabilities.subscribe(() => void refresh())
-    const poll = setInterval(() => void refresh(), POLL_MS)
-
-    return () => {
-      settled = true
-      unsubscribe()
-      clearInterval(poll)
-    }
-  }, [capabilities])
+  const status = useAccountStatus(capabilities, !busy)
+  const accountsQuery = useQuery({
+    queryKey: accountsQueryKey,
+    queryFn: () => capabilities.accounts.list(),
+    enabled: status?.state === 'authenticated',
+  })
+  const [actionError, setActionError] = useState<string | null>(null)
+  const activeAccountKey = accountsQuery.data?.active_key ?? null
+  const error = actionError
+    ?? (accountsQuery.error === null
+      ? null
+      : describeError(accountsQuery.error))
 
   const runAction = useCallback(
     async (action: () => Promise<AuthStatus | void>) => {
       setBusy(true)
-      setError(null)
+      setActionError(null)
       try {
         const next = await action()
-        if (next) setStatus(next)
+        if (next) queryClient.setQueryData(accountStatusQueryKey, next)
       } catch (cause) {
-        setError(describeError(cause))
+        setActionError(describeError(cause))
       } finally {
         setBusy(false)
       }
     },
-    [],
+    [queryClient],
   )
 
+  const activateDeviceCode = useCallback(
+    async (code: string, uri: string) => {
+      const failures: string[] = []
+      try {
+        await capabilities.copyText(code)
+      } catch (cause) {
+        failures.push(`the code could not be copied: ${describeError(cause)}`)
+      }
+      try {
+        await capabilities.openExternal(uri)
+      } catch (cause) {
+        failures.push(`the browser could not be opened: ${describeError(cause)}`)
+      }
+      if (failures.length > 0) {
+        setActionError(`GitHub sign-in started, but ${failures.join('; ')}`)
+      }
+    },
+    [capabilities],
+  )
   const handleStart = useCallback(
-    () => void runAction(() => capabilities.account.start()),
-    [capabilities, runAction],
+    () =>
+      void runAction(async () => {
+        const next = await capabilities.account.start()
+        if (
+          next.state === 'device_code_issued'
+          || next.state === 'polling'
+        ) {
+          await activateDeviceCode(next.user_code, next.verification_uri)
+        }
+        return next
+      }),
+    [activateDeviceCode, capabilities, runAction],
   )
   const handleCancel = useCallback(
     () => void runAction(() => capabilities.account.cancel()),
@@ -112,19 +144,37 @@ export function AccountSection({
       }),
     [capabilities, runAction],
   )
-  const handleOpenVerification = useCallback(
+  const handleOpenExternal = useCallback(
     (uri: string) => {
       void capabilities.openExternal(uri)
     },
     [capabilities],
   )
+  const authenticatedLogin =
+    status?.state === 'authenticated' ? status.account_login : null
+  const usageQuery = useQuery({
+    queryKey: copilotUsageQueryKey(activeAccountKey ?? 'inactive'),
+    queryFn: () => capabilities.account.usage(),
+    enabled: authenticatedLogin !== null && activeAccountKey !== null,
+    staleTime: COPILOT_USAGE_STALE_MS,
+    gcTime: COPILOT_USAGE_RETAIN_MS,
+    retry: false,
+  })
+  const networkMessage = networkBannerMessage(status)
 
   return (
     <section className="settings-section">
       <SettingsSection title="GitHub Copilot">
-        <SettingsGroup>
+        {networkMessage ? (
+          <Banner status="failed">{networkMessage}</Banner>
+        ) : null}
+        <SettingsGroup layout="grid">
           <SettingsItem
-            title="GitHub account"
+            title={
+              status?.state === 'authenticated'
+                ? 'Active Account'
+                : 'GitHub account'
+            }
             description={
               status?.state === 'authenticated'
                 ? 'Connected to GitHub Copilot.'
@@ -146,7 +196,7 @@ export function AccountSection({
                 </Button>
               ) : status?.state === 'error' ? (
                 <Button variant="primary" onClick={handleStart} disabled={busy}>
-                  {busy ? 'Starting…' : 'Try again'}
+                  {busy ? 'Starting…' : 'Sign in again'}
                 </Button>
               ) : undefined
             }
@@ -155,13 +205,47 @@ export function AccountSection({
               status={status}
               error={error}
               busy={busy}
-              onOpenVerification={handleOpenVerification}
+              onActivateDeviceCode={(code, uri) =>
+                void activateDeviceCode(code, uri)
+              }
+              onOpenExternal={handleOpenExternal}
               onCancel={handleCancel}
               onRequestNewCode={handleStart}
             />
           </SettingsItem>
+          {status?.state === 'authenticated' ? (
+            <CopilotPlanDetails
+              usage={usageQuery.data ?? null}
+              loading={usageQuery.isFetching}
+              error={
+                usageQuery.error === null
+                  ? null
+                  : describeError(usageQuery.error)
+              }
+              onRefresh={() => void usageQuery.refetch()}
+              onOpenInsights={() =>
+                void capabilities.openExternal(
+                  'https://github.com/settings/copilot',
+                )
+              }
+            />
+          ) : null}
         </SettingsGroup>
-        <AccountsSection capabilities={capabilities} />
+        <AccountsSection
+          capabilities={capabilities}
+          addingAccount={busy}
+          onAddAccount={handleStart}
+          authenticatedAccount={
+            status?.state === 'authenticated'
+              ? {
+                  login: status.account_login,
+                  ...(status.account_avatar_url
+                    ? { avatarUrl: status.account_avatar_url }
+                    : {}),
+                }
+              : undefined
+          }
+        />
       </SettingsSection>
       <OllamaAccountsSection capabilities={capabilities} />
     </section>

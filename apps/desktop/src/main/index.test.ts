@@ -51,6 +51,7 @@ interface CoreControlConnectionSpies {
   accountsList: ReturnType<typeof vi.fn>
   accountsSwitch: ReturnType<typeof vi.fn>
   accountsSetEnabled: ReturnType<typeof vi.fn>
+  copilotUsageGet: ReturnType<typeof vi.fn>
   ollamaAccountsList: ReturnType<typeof vi.fn>
   ollamaApiKeyTest: ReturnType<typeof vi.fn>
   ollamaSettingsGet: ReturnType<typeof vi.fn>
@@ -435,6 +436,7 @@ const { createCoreControlConnectionMock, disposeCoreControlConnectionMock } = vi
         accountsList: vi.fn(),
         accountsSwitch: vi.fn(),
         accountsSetEnabled: vi.fn(),
+        copilotUsageGet: vi.fn(),
         ollamaAccountsList: vi.fn(),
         ollamaApiKeyTest: vi.fn(),
         ollamaSettingsGet: vi.fn(),
@@ -736,6 +738,20 @@ describe('closed IPC boundary', () => {
     expect(ipcMainHandle.mock.calls.map(([channel]) => channel)).not.toContain(
       'maximal:control/call',
     )
+  })
+
+  it('routes Copilot usage through its named control method', async () => {
+    await loadIndexOn('darwin')
+    const session = coreControlSpies()
+    const registration = ipcMainHandle.mock.calls.find(
+      ([registered]) => registered === BRIDGE_CHANNELS.copilotUsageGet,
+    )
+    if (!registration) throw new Error('Copilot usage IPC was not registered')
+
+    const handler = registration[1] as (event: unknown) => Promise<unknown>
+    await handler({})
+
+    expect(session.copilotUsageGet).toHaveBeenCalledOnce()
   })
 
   it('routes each observability invoke channel to its named session method', async () => {

@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, userEvent, within } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 
 import type { Account } from '../lib/account.js';
 
@@ -114,19 +114,22 @@ export const MenuEntries: Story = {
 /** Signed out, the last entry is a way in rather than a way out. */
 export const SignedOutMenu: Story = {
   name: 'Menu — signed out',
-  args: { account: undefined },
-  play: async ({ canvasElement }) => {
+  args: { account: undefined, onSignIn: fn() },
+  play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(
       canvas.getByRole('button', { name: 'Account: not signed in' }),
     );
 
     const menu = await within(document.body).findByTestId('profile-menu');
-    await expect(within(menu).getByText('Not signed in')).toBeInTheDocument();
-    await expect(within(menu).getByText('Sign in')).toBeInTheDocument();
+    const accountLink = within(menu).getByRole('menuitem', {
+      name: 'Not signed in',
+    });
+    await expect(accountLink).toBeInTheDocument();
     await expect(within(menu).queryByText('Sign out')).not.toBeInTheDocument();
 
-    await userEvent.keyboard('{Escape}');
+    await userEvent.click(accountLink);
+    await expect(args.onSignIn).toHaveBeenCalledOnce();
   },
 };
 

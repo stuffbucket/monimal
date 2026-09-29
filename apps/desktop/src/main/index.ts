@@ -398,6 +398,9 @@ function registerIpc(
   ipcMain.handle(BRIDGE_CHANNELS.accountsReorder, (_event, priority: unknown) =>
     session.accountsReorder(z.array(nonEmptyString).parse(priority)),
   )
+  ipcMain.handle(BRIDGE_CHANNELS.copilotUsageGet, () =>
+    session.copilotUsageGet(),
+  )
   ipcMain.handle(BRIDGE_CHANNELS.ollamaAccountsList, () =>
     session.ollamaAccountsList(),
   )

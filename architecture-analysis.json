@@ -57,6 +57,7 @@
       "dependsOn": [
         "@maximal/eslint-config",
         "@maximal/maximal-core-contract",
+        "@maximal/maximal-github",
         "@maximal/maximal-logging",
         "@maximal/maximal-model-contract",
         "@maximal/maximal-observability-contract",
@@ -64,6 +65,14 @@
         "@maximal/maximal-settings"
       ],
       "existingRatchets": true
+    },
+    "@maximal/maximal-github": {
+      "root": "packages/maximal-github",
+      "dependsOn": [
+        "@maximal/eslint-config"
+      ],
+      "cycleEdges": [],
+      "duplicatePairs": []
     },
     "@maximal/maximal-models": {
       "root": "packages/maximal-models",

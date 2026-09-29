@@ -38,7 +38,7 @@ const RefreshResponseSchema = z
 export async function refreshAccessToken(
   refreshToken: string,
 ): Promise<DeviceTokenResult> {
-  const { clientId, headers } = getOauthAppConfig()
+  const { clientId, clientSecret, headers } = getOauthAppConfig()
   const { accessTokenUrl } = getOauthUrls()
 
   const response = await sendRequest(accessTokenUrl, {
@@ -47,6 +47,7 @@ export async function refreshAccessToken(
     signal: AbortSignal.timeout(GITHUB_API_TIMEOUT_MS),
     body: JSON.stringify({
       client_id: clientId,
+      ...(clientSecret ? { client_secret: clientSecret } : {}),
       grant_type: "refresh_token",
       refresh_token: refreshToken,
     }),

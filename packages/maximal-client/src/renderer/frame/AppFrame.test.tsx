@@ -222,6 +222,44 @@ describe('AppFrame', () => {
     expect(onOpenProfileSurface).toHaveBeenCalledWith('diagnostics')
   })
 
+  it('uses the signed-out identity as the account setup action', async () => {
+    const onSignIn = vi.fn()
+    const shell = renderFrame('overview', vi.fn(), <p>content</p>)
+    act(() => {
+      root?.render(
+        <AppFrame
+          tabs={PRODUCT_TABS}
+          activeTab="overview"
+          surface="overview"
+          onSelectTab={vi.fn()}
+          onOpenProfileSurface={vi.fn()}
+          onSignIn={onSignIn}
+          onToggleSettings={vi.fn()}
+        >
+          <p>content</p>
+        </AppFrame>,
+      )
+    })
+
+    const profile = shell.querySelector<HTMLElement>('[data-testid="profile"]')
+    if (profile === null) throw new Error('Profile button was not rendered')
+    await act(async () => {
+      profile.dispatchEvent(new MouseEvent('pointerdown', {
+        bubbles: true,
+        button: 0,
+      }))
+    })
+
+    const accountSetup = document.querySelector<HTMLElement>(
+      '.menu__header--action',
+    )
+    expect(accountSetup?.getAttribute('role')).toBe('menuitem')
+    expect(accountSetup?.textContent).toContain('Not signed in')
+    await act(async () => accountSetup?.click())
+    expect(onSignIn).toHaveBeenCalledOnce()
+    expect(document.querySelector('[data-testid="menu-sign-in"]')).toBeNull()
+  })
+
   it('keeps the status bar available in Settings', () => {
     const settings = renderFrame('settings', vi.fn(), <p>settings</p>)
     expect(settings.querySelector('.statusbar')).not.toBeNull()

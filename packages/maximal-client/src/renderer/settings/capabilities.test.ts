@@ -290,6 +290,7 @@ function fakeBridge(): MaximalHost {
       accountsSwitch: vi.fn(async () => success(null)),
       accountsSetEnabled: vi.fn(async () => success(null)),
       accountsReorder: vi.fn(async () => success(null)),
+      copilotUsageGet: vi.fn(async () => success({})),
       ollamaAccountsList: vi.fn(async () => success({ accounts: [] })),
       ollamaSettingsGet: vi.fn(async () =>
         success({

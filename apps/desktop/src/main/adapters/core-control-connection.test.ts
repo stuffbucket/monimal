@@ -129,6 +129,7 @@ function discovery(overrides: Record<string, unknown> = {}): unknown {
         'accounts/list',
         'accounts/setEnabled',
         'accounts/switch',
+        'copilotUsage/get',
         'observability/overview',
         'observability/requests',
         'observability/request',
@@ -277,6 +278,18 @@ function fullLiveClient(
       key: 'github.com:octocat',
       enabled: false,
     },
+    'copilotUsage/get': {
+      copilot_plan: 'enterprise',
+      quota_reset_date: '2026-09-30T00:00:00Z',
+      quota_snapshots: {
+        premium_interactions: {
+          entitlement: 100,
+          remaining: 65,
+          percent_remaining: 65,
+        },
+        completions: { unlimited: true },
+      },
+    },
     'observability/overview': emptyOverview,
     'observability/requests': emptyRequestPage,
     'observability/request': null,
@@ -374,6 +387,12 @@ describe('named control operations', () => {
     await expect(
       harness.session.accountsSetEnabled('github.com:octocat', false),
     ).resolves.toEqual({ ok: true, value: null })
+    await expect(harness.session.copilotUsageGet()).resolves.toMatchObject({
+      ok: true,
+      value: {
+        copilot_plan: 'enterprise',
+      },
+    })
     await expect(
       harness.session.observabilityOverview(overviewQuery),
     ).resolves.toEqual({ ok: true, value: emptyOverview })
@@ -426,6 +445,7 @@ describe('named control operations', () => {
         method: 'accounts/setEnabled',
         params: { key: 'github.com:octocat', enabled: false },
       },
+      { method: 'copilotUsage/get' },
       { method: 'observability/overview', params: overviewQuery },
       { method: 'observability/requests', params: requestsQuery },
       { method: 'observability/request', params: { requestId: 'req-1' } },

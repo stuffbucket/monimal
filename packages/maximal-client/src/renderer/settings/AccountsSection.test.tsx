@@ -3,6 +3,7 @@ import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { MaximalQueryProvider } from '../query-client'
 import type { AccountsListResponse, SettingsCapabilities } from './capabilities'
 import { AccountsSection } from './AccountsSection'
 import {
@@ -111,16 +112,29 @@ function fakeCapabilities(initialAccounts?: AccountsListResponse) {
 
 async function renderSection(
   capabilities: SettingsCapabilities,
+  authenticatedAccount?: { login: string; avatarUrl?: string },
+  onAddAccount: () => void = () => undefined,
 ): Promise<HTMLElement> {
-  if (root === null || container === null)
-    throw new Error('test root not ready')
+  if (root === null || container === null) throw new Error('test root not ready')
   await act(async () => {
     root?.render(
-      <Tooltip.Provider>
-        <AccountsSection capabilities={capabilities} />
-      </Tooltip.Provider>,
+      <MaximalQueryProvider>
+        <Tooltip.Provider>
+          <AccountsSection
+            capabilities={capabilities}
+            addingAccount={false}
+            onAddAccount={onAddAccount}
+            {...(authenticatedAccount ? { authenticatedAccount } : {})}
+          />
+        </Tooltip.Provider>
+      </MaximalQueryProvider>,
     )
-    await Promise.resolve()
+  })
+  await vi.waitFor(() => {
+    expect(capabilities.accounts.list).toHaveBeenCalled()
+  })
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0))
   })
   return container
 }
@@ -167,9 +181,7 @@ describe('Service Icons & Avatar resolution', () => {
     expect(resolveService({ provider: 'copilot' }).id).toBe('github')
     expect(resolveService({ provider: 'ollama' }).id).toBe('ollama')
     expect(resolveService({ host: '127.0.0.1:11434' }).id).toBe('ollama')
-    expect(resolveService({ endpoint: 'http://localhost:11434' }).id).toBe(
-      'ollama',
-    )
+    expect(resolveService({ endpoint: 'http://localhost:11434' }).id).toBe('ollama')
     expect(resolveService({ provider: 'openai' }).id).toBe('openai')
     expect(resolveService({ provider: 'anthropic' }).id).toBe('anthropic')
     expect(resolveService({ provider: 'claude' }).id).toBe('anthropic')
@@ -181,13 +193,9 @@ describe('Service Icons & Avatar resolution', () => {
     registerService({
       id: 'custom-ai',
       name: 'Custom AI',
-      match: (acc) =>
-        typeof acc === 'object' && acc?.host === 'custom.ai.internal',
+      match: (acc) => typeof acc === 'object' && acc?.host === 'custom.ai.internal',
       renderIcon: ({ testId }) => (
-        <svg
-          data-testid={testId ?? 'service-icon-custom-ai'}
-          viewBox="0 0 10 10"
-        >
+        <svg data-testid={testId ?? 'service-icon-custom-ai'} viewBox="0 0 10 10">
           <circle cx="5" cy="5" r="5" />
         </svg>
       ),
@@ -197,60 +205,44 @@ describe('Service Icons & Avatar resolution', () => {
   })
 
   it('renders service SVG icon fallback when avatarUrl is absent', async () => {
-    if (root === null || container === null)
-      throw new Error('test root not ready')
+    if (root === null || container === null) throw new Error('test root not ready')
     await act(async () => {
-      root?.render(
-        <AccountAvatar
-          account={{ host: '127.0.0.1:11434', login: 'ollama-user' }}
-        />,
-      )
+      root?.render(<AccountAvatar account={{ host: '127.0.0.1:11434', login: 'ollama-user' }} />)
       await Promise.resolve()
     })
 
-    const svg = container.querySelector<SVGElement>(
-      '[data-testid="service-icon-ollama"]',
-    )
-    const avatar = container.querySelector<HTMLElement>(
-      '[data-testid="account-avatar"]',
-    )
+    const svg = container.querySelector<SVGElement>('[data-testid="service-icon-ollama"]')
+    const avatar = container.querySelector<HTMLElement>('[data-testid="account-avatar"]')
     expect(svg).not.toBeNull()
     expect(svg?.style.background).toBe('')
     expect(svg?.getAttribute('height')).toBe('35')
     expect(svg?.querySelector('circle')?.getAttribute('fill')).toBe('#fff')
     expect(svg?.querySelector('path')?.getAttribute('fill')).toBe('#000')
+    expect(avatar?.classList.contains('account-avatar')).toBe(true)
     expect(avatar?.classList.contains('account-avatar--large')).toBe(true)
     expect(container.querySelector('img')).toBeNull()
   })
 
   it('renders the GitHub fallback as a large white glyph without a ring', async () => {
-    if (root === null || container === null)
-      throw new Error('test root not ready')
+    if (root === null || container === null) throw new Error('test root not ready')
     await act(async () => {
-      root?.render(
-        <AccountAvatar account={{ host: 'ghe.example.com' }} size={30} />,
-      )
+      root?.render(<AccountAvatar account={{ host: 'ghe.example.com' }} size={30} />)
       await Promise.resolve()
     })
 
-    const avatar = container.querySelector<HTMLElement>(
-      '[data-testid="account-avatar"]',
-    )
-    const svg = container.querySelector<SVGElement>(
-      '[data-testid="service-icon-github"]',
-    )
+    const avatar = container.querySelector<HTMLElement>('[data-testid="account-avatar"]')
+    const svg = container.querySelector<SVGElement>('[data-testid="service-icon-github"]')
     expect(svg?.getAttribute('height')).toBe('24')
     expect(svg?.getAttribute('fill')).toBe('currentColor')
+    expect(avatar?.classList.contains('account-avatar')).toBe(true)
     expect(avatar?.classList.contains('account-avatar--small')).toBe(true)
+    expect(avatar?.classList.contains('account-avatar--active')).toBe(false)
   })
 
   it('renders image when avatarUrl is present and falls back to service icon on error', async () => {
-    if (root === null || container === null)
-      throw new Error('test root not ready')
+    if (root === null || container === null) throw new Error('test root not ready')
     await act(async () => {
-      root?.render(
-        <AccountAvatar account={{ host: 'github.com', login: 'octocat' }} />,
-      )
+      root?.render(<AccountAvatar account={{ host: 'github.com', login: 'octocat' }} />)
       await Promise.resolve()
     })
 
@@ -265,9 +257,7 @@ describe('Service Icons & Avatar resolution', () => {
     })
 
     expect(container.querySelector('img')).toBeNull()
-    expect(
-      container.querySelector('[data-testid="service-icon-github"]'),
-    ).not.toBeNull()
+    expect(container.querySelector('[data-testid="service-icon-github"]')).not.toBeNull()
   })
 })
 
@@ -293,40 +283,40 @@ describe('AccountsSection UI & Actions', () => {
     expect(firstImg?.src).toContain('https://github.com/octocat.png?size=64')
 
     // Second account (GHE without direct .png) falls back to GitHub service SVG icon
-    expect(
-      avatars[1]?.querySelector('[data-testid="service-icon-github"]'),
-    ).not.toBeNull()
+    expect(avatars[1]?.querySelector('[data-testid="service-icon-github"]')).not.toBeNull()
 
     // Third account (Ollama) falls back to Ollama service SVG icon
-    expect(
-      avatars[2]?.querySelector('[data-testid="service-icon-ollama"]'),
-    ).not.toBeNull()
+    expect(avatars[2]?.querySelector('[data-testid="service-icon-ollama"]')).not.toBeNull()
   })
 
   it('switches the active account when clicking Switch to account', async () => {
     const { capabilities, accounts } = fakeCapabilities()
     const surface = await renderSection(capabilities)
 
+    await act(async () => {
+      surface.querySelector<HTMLButtonElement>(
+        '[aria-label="Configure enterprise-user"]',
+      )?.click()
+      await Promise.resolve()
+    })
     const switchButtons = [...surface.querySelectorAll('button')].filter(
       (b) => b.textContent === 'Switch to account',
     )
-    expect(switchButtons.length).toBe(2)
+    expect(switchButtons.length).toBe(1)
 
     await act(async () => {
       switchButtons[0]?.click()
       await Promise.resolve()
     })
 
-    expect(accounts.switchTo).toHaveBeenCalledWith(
-      'enterprise-user@ghe.example.com',
-    )
+    expect(accounts.switchTo).toHaveBeenCalledWith('enterprise-user@ghe.example.com')
   })
 
   it('disables a saved account without removing its card', async () => {
     const { capabilities, accounts } = fakeCapabilities()
     const surface = await renderSection(capabilities)
     const toggle = surface.querySelector<HTMLButtonElement>(
-      '[data-testid="account-enabled-enterprise-user@ghe.example.com"]',
+      '[aria-label="Disable enterprise-user"]',
     )
 
     expect(toggle?.getAttribute('aria-checked')).toBe('true')
@@ -372,12 +362,8 @@ describe('AccountsSection UI & Actions', () => {
     const { capabilities, accounts } = fakeCapabilities()
     const surface = await renderSection(capabilities)
 
-    const upButtons = surface.querySelectorAll(
-      'button[aria-label^="Move"][aria-label$="up"]',
-    )
-    const downButtons = surface.querySelectorAll(
-      'button[aria-label^="Move"][aria-label$="down"]',
-    )
+    const upButtons = surface.querySelectorAll('button[aria-label^="Move"][aria-label$="up"]')
+    const downButtons = surface.querySelectorAll('button[aria-label^="Move"][aria-label$="down"]')
 
     expect(upButtons.length).toBe(3)
     expect(downButtons.length).toBe(3)
@@ -418,12 +404,8 @@ describe('AccountsSection UI & Actions', () => {
     const { capabilities } = fakeCapabilities(singleAccount)
     const surface = await renderSection(capabilities)
 
-    const upButton = surface.querySelector<HTMLButtonElement>(
-      'button[aria-label="Move single-user up"]',
-    )
-    const downButton = surface.querySelector<HTMLButtonElement>(
-      'button[aria-label="Move single-user down"]',
-    )
+    const upButton = surface.querySelector<HTMLButtonElement>('button[aria-label="Move single-user up"]')
+    const downButton = surface.querySelector<HTMLButtonElement>('button[aria-label="Move single-user down"]')
 
     expect(upButton).not.toBeNull()
     expect(downButton).not.toBeNull()
@@ -431,23 +413,111 @@ describe('AccountsSection UI & Actions', () => {
     expect(downButton?.disabled).toBe(true)
   })
 
-  it('applies active glow attribute to the active account avatar', async () => {
+  it('glows the active enabled account and uses its API avatar', async () => {
     const { capabilities } = fakeCapabilities()
-    const surface = await renderSection(capabilities)
+    const surface = await renderSection(capabilities, {
+      login: 'octocat',
+      avatarUrl: 'https://avatars.githubusercontent.com/u/583231?v=4',
+    })
 
     const avatars = surface.querySelectorAll('.account-avatar')
     expect(avatars[0]?.getAttribute('data-active')).toBe('true')
+    expect(avatars[0]?.classList.contains('account-avatar--active')).toBe(true)
+    expect(avatars[0]?.querySelector('img')?.src).toBe(
+      'https://avatars.githubusercontent.com/u/583231?v=4',
+    )
     expect(avatars[1]?.getAttribute('data-active')).toBeNull()
     expect(avatars[2]?.getAttribute('data-active')).toBeNull()
   })
 
+  it('does not glow an active account when it is disabled', async () => {
+    const accounts: AccountsListResponse = {
+      accounts: [
+        {
+          key: 'octocat@github.com',
+          login: 'octocat',
+          host: 'github.com',
+          added_via: 'device-code',
+          obtained_at: '2025-01-01T00:00:00Z',
+          active: true,
+          enabled: false,
+        },
+      ],
+      active_key: 'octocat@github.com',
+    }
+    const { capabilities } = fakeCapabilities(accounts)
+    const surface = await renderSection(capabilities)
+
+    const activeAvatar = surface.querySelector<HTMLElement>('.account-avatar')
+    expect(activeAvatar?.getAttribute('data-active')).toBeNull()
+    expect(activeAvatar?.classList.contains('account-avatar--active')).toBe(false)
+  })
+
+  it('marks a rejected active credential as needing sign-in', async () => {
+    const accounts: AccountsListResponse = {
+      accounts: [
+        {
+          key: 'octocat@github.com',
+          login: 'octocat',
+          host: 'github.com',
+          added_via: 'device-code',
+          obtained_at: '2025-01-01T00:00:00Z',
+          active: true,
+          enabled: true,
+          needs_reauth: true,
+        },
+      ],
+      active_key: 'octocat@github.com',
+    }
+    const { capabilities } = fakeCapabilities(accounts)
+    const onAddAccount = vi.fn()
+    const surface = await renderSection(capabilities, undefined, onAddAccount)
+
+    expect(surface.textContent).toContain('Needs sign-in')
+    expect(surface.textContent).toContain('Added with device flow')
+    expect(surface.textContent).not.toContain('Signed in here')
+    expect(
+      surface.querySelector('.account-avatar')?.getAttribute('data-active'),
+    ).toBeNull()
+
+    await act(async () => {
+      surface.querySelector<HTMLButtonElement>(
+        '[aria-label="Configure octocat"]',
+      )?.click()
+      await Promise.resolve()
+    })
+    const signInAgain = [...surface.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Sign in again',
+    )
+    await act(async () => signInAgain?.click())
+    expect(onAddAccount).toHaveBeenCalledOnce()
+  })
+
+  it('offers an add account affordance', async () => {
+    const { capabilities } = fakeCapabilities()
+    const onAddAccount = vi.fn()
+    const surface = await renderSection(capabilities, undefined, onAddAccount)
+
+    await act(async () => {
+      ;[...surface.querySelectorAll('button')]
+        .find((button) => button.textContent === 'Add account')
+        ?.click()
+    })
+
+    expect(onAddAccount).toHaveBeenCalledOnce()
+  })
+
   it('renders and dismisses error banner on failure', async () => {
     const { capabilities, accounts } = fakeCapabilities()
-    accounts.switchTo.mockRejectedValueOnce(
-      new Error('Connection lost to daemon'),
-    )
+    accounts.switchTo.mockRejectedValueOnce(new Error('Connection lost to daemon'))
 
     const surface = await renderSection(capabilities)
+    await act(async () => {
+      surface.querySelector<HTMLButtonElement>(
+        '[aria-label="Configure enterprise-user"]',
+      )?.click()
+      await Promise.resolve()
+    })
     const switchButton = [...surface.querySelectorAll('button')].find(
       (b) => b.textContent === 'Switch to account',
     )
@@ -460,9 +530,7 @@ describe('AccountsSection UI & Actions', () => {
     expect(surface.textContent).toContain('Connection lost to daemon')
 
     // Banner dismiss button
-    const dismissButton = surface.querySelector<HTMLButtonElement>(
-      'button[aria-label="Dismiss"]',
-    )
+    const dismissButton = surface.querySelector<HTMLButtonElement>('button[aria-label="Dismiss"]')
     if (dismissButton) {
       await act(async () => {
         dismissButton.click()
