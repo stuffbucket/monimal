@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMaximalQueryClient } from '../query-client'
 import type { SettingsCapabilities } from './capabilities'
 import { GeneralSection } from './GeneralSection'
+import { appearancePreferenceQueryKey } from './general/useAppearancePreference'
 import { menuBarModeQueryKey } from './general/useMenuBarPresence'
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
@@ -113,6 +114,10 @@ async function renderGeneral(capabilities: SettingsCapabilities): Promise<HTMLEl
   if (root === null || container === null) throw new Error('test root not ready')
   const queryClient = createMaximalQueryClient()
   queryClient.setQueryData(
+    appearancePreferenceQueryKey,
+    await capabilities.general.appearance(),
+  )
+  queryClient.setQueryData(
     menuBarModeQueryKey,
     await capabilities.general.menuBarMode(),
   )
@@ -202,7 +207,10 @@ describe('GeneralSection', () => {
     )
     expect(vibrancyControl(surface).getAttribute('aria-checked')).toBe('false')
 
-    await act(async () => vibrancyControl(surface).click())
+    await act(async () => {
+      vibrancyControl(surface).click()
+      await vi.advanceTimersByTimeAsync(0)
+    })
 
     expect(general.setVibrancyEnabled).toHaveBeenCalledWith(true)
     expect(vibrancyControl(surface).getAttribute('aria-checked')).toBe('true')
@@ -247,17 +255,23 @@ describe('GeneralSection', () => {
     )
     const surface = await renderGeneral(capabilities)
 
-    act(() => effectControl(surface, 'background-effects-switch').click())
+    await act(async () => {
+      effectControl(surface, 'background-effects-switch').click()
+      await vi.advanceTimersByTimeAsync(0)
+    })
     expect(effectControl(surface, 'background-effects-switch').disabled).toBe(true)
     expect(effectControl(surface, 'reduced-motion-switch').disabled).toBe(true)
     expect(vibrancyControl(surface).disabled).toBe(true)
 
-    await act(async () => finish({
-      vibrancyEnabled: false,
-      vibrancySupported: true,
-      backgroundEffectsEnabled: true,
-      reducedMotionEnabled: false,
-    }))
+    await act(async () => {
+      finish({
+        vibrancyEnabled: false,
+        vibrancySupported: true,
+        backgroundEffectsEnabled: true,
+        reducedMotionEnabled: false,
+      })
+      await vi.advanceTimersByTimeAsync(0)
+    })
     expect(effectControl(surface, 'background-effects-switch').disabled).toBe(false)
   })
 
