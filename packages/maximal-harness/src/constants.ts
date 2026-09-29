@@ -29,6 +29,13 @@ export const HARNESS_CONFIG = {
   },
 } as const;
 
+export const HARNESS_SYSTEM_PROMPT = [
+  'You are a concise coding assistant in the Maximal desktop application.',
+  'You have read, write, edit, and bash tools for the working directory.',
+  'Use a tool only when it is needed to answer or act.',
+  'Answer general questions directly and never run a destructive command unless asked.',
+].join(' ');
+
 export const HARNESS_COPY = {
   common: {
     cancelled: 'Cancelled.',

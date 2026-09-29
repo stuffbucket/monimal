@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { Dialog } from '@maximal/maximal-electron/renderer';
+import { Dialog, Menu } from '@maximal/maximal-electron/renderer';
+import { TERMINAL_ICON_URLS } from '@maximal/maximal-assets/terminal-icons';
 
 import type {
   AgentApprovalRequest,
@@ -10,26 +11,64 @@ import type {
   AgentToolEvent,
   ApproveRequest,
   AskAccepted,
+  AssistantChat,
+  AssistantChatListQuery,
+  AssistantChatMessage,
+  AssistantChatUpdate,
+  AssistantOverlayPreferences,
   ModelProgress,
   ProviderStatus,
 } from '../contracts.js';
 import { HARNESS_CONFIG, HARNESS_COPY } from '../constants.js';
 import { escapeAction } from './overlay-keys.js';
 
+function conciseModels(
+  models: readonly AgentModelOption[],
+  selectedKey?: string,
+): AgentModelOption[] {
+  const choices = new Map<string, AgentModelOption>();
+  for (const model of models) {
+    const identity = model.label.trim().toLocaleLowerCase();
+    if (!choices.has(identity) || model.key === selectedKey) {
+      choices.set(identity, model);
+    }
+  }
+  return [...choices.values()];
+}
+
 export interface HarnessTransport {
   hide: () => Promise<void>;
   provider: () => Promise<ProviderStatus>;
   selectModel: (modelKey: string) => Promise<ProviderStatus>;
   selectEffort: (effort: AgentEffort) => Promise<ProviderStatus>;
-  ask: (prompt: string) => Promise<AskAccepted>;
+  ask: (prompt: string, chatId?: string) => Promise<AskAccepted>;
   abort: () => Promise<void>;
   approve: (request: ApproveRequest) => Promise<void>;
   ensureModel: () => Promise<ModelProgress>;
+  preferences: () => Promise<AssistantOverlayPreferences>;
+  updatePreferences: (
+    update: Partial<Pick<AssistantOverlayPreferences, 'candy' | 'approval'>>,
+  ) => Promise<AssistantOverlayPreferences>;
   onDelta: (listener: (text: string) => void) => () => void;
   onTool: (listener: (event: AgentToolEvent) => void) => () => void;
   onApproval: (listener: (request: AgentApprovalRequest) => void) => () => void;
   onEnd: (listener: (result: AgentEnd) => void) => () => void;
   onModelProgress: (listener: (progress: ModelProgress) => void) => () => void;
+  onPreferences: (
+    listener: (preferences: AssistantOverlayPreferences) => void,
+  ) => () => void;
+  onChatSelected: (listener: (id: string) => void) => () => void;
+  chats: {
+    list: (query?: AssistantChatListQuery) => Promise<{
+      chats: AssistantChat[];
+      total: number;
+    }>;
+    create: (title?: string) => Promise<AssistantChat>;
+    open: (id: string) => Promise<AssistantChat>;
+    update: (id: string, update: AssistantChatUpdate) => Promise<AssistantChat>;
+    remove: (id: string) => Promise<void>;
+    messages: (id: string) => Promise<AssistantChatMessage[]>;
+  };
 }
 
 function useTransportEvent<T>(
@@ -122,11 +161,17 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
   const [download, setDownload] = useState<ModelProgress>();
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
+  const [recentChats, setRecentChats] = useState<AssistantChat[]>([]);
+  const [activeChatId, setActiveChatId] = useState<string>();
+  const [preferences, setPreferences] = useState<AssistantOverlayPreferences>({
+    candy: true,
+    approval: 'writes',
+    hotkey: '',
+  });
   const input = useRef<HTMLTextAreaElement>(null);
   const modelPicker = useRef<HTMLButtonElement>(null);
   const answerBox = useRef<HTMLDivElement>(null);
   const followOutput = useRef(true);
-  const [modelMenuOpen, setModelMenuOpen] = useState(false);
 
   const hide = useCallback(() => {
     void transport.hide();
@@ -143,6 +188,33 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
     return () => window.removeEventListener('focus', probe);
   }, [transport]);
 
+  const reloadChats = useCallback(() => {
+    void transport.chats.list({
+      status: 'active',
+      sort: 'activity',
+      direction: 'desc',
+      limit: 5,
+    }).then((result) => setRecentChats(result.chats));
+  }, [transport]);
+
+  useEffect(reloadChats, [reloadChats]);
+
+  const loadChat = useCallback((id: string) => {
+    void transport.chats.open(id).then(() =>
+      transport.chats.messages(id)).then((messages) => {
+        setActiveChatId(id);
+        setAnswer(messages.map((entry) =>
+          `${entry.role === 'user' ? 'You' : 'Maximal'}: ${entry.content}`,
+        ).join('\n\n'));
+        reloadChats();
+      });
+  }, [reloadChats, transport]);
+
+  useEffect(
+    () => transport.onChatSelected(loadChat),
+    [loadChat, transport],
+  );
+
   useEffect(() => {
     const focus = () => input.current?.focus();
     focus();
@@ -151,9 +223,13 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
   }, []);
 
   useEffect(() => {
+    void transport.preferences().then(setPreferences);
+    return transport.onPreferences(setPreferences);
+  }, [transport]);
+
+  useEffect(() => {
     if (status.state === 'ready') input.current?.focus();
     if (status.state === 'select-model') {
-      setModelMenuOpen(true);
       modelPicker.current?.focus();
     }
   }, [status.state]);
@@ -210,7 +286,6 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
       setError(undefined);
       void transport.selectModel(modelKey).then((next) => {
         setStatus(next);
-        setModelMenuOpen(false);
       }).catch(() => {
         setError(HARNESS_COPY.overlay.requestFailed);
       });
@@ -223,7 +298,6 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
       setError(undefined);
       void transport.selectEffort(effort).then((next) => {
         setStatus(next);
-        setModelMenuOpen(false);
       }).catch(() => {
         setError(HARNESS_COPY.overlay.requestFailed);
       });
@@ -235,6 +309,7 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
     setBusy(false);
     setApproval(undefined);
     if (!result.ok) setError(result.error);
+    reloadChats();
   });
 
   /**
@@ -272,8 +347,12 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
     setError(undefined);
     followOutput.current = true;
 
-    void transport.ask(text).then((accepted) => {
-      if (accepted.started) return;
+    void transport.ask(text, activeChatId).then((accepted) => {
+      if (accepted.started) {
+        setActiveChatId(accepted.chatId);
+        reloadChats();
+        return;
+      }
       setBusy(false);
       setPrompt(text);
       setError(accepted.reason);
@@ -282,7 +361,7 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
       setPrompt(text);
       setError(HARNESS_COPY.overlay.requestFailed);
     });
-  }, [prompt, busy, transport]);
+  }, [activeChatId, busy, prompt, reloadChats, transport]);
 
   /**
    * Enter, when a tool call is waiting.
@@ -326,13 +405,9 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
   const onEscape = useCallback(
     (event: KeyboardEvent) => {
       event.preventDefault();
-      if (modelMenuOpen) {
-        setModelMenuOpen(false);
-        return;
-      }
       act(escapeAction(Boolean(approval), busy));
     },
-    [act, approval, busy, modelMenuOpen],
+    [act, approval, busy],
   );
 
   const ready = status.state === 'ready';
@@ -354,12 +429,60 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
       open
       modal={false}
       title={HARNESS_COPY.overlay.title}
-      className="sb-shell mh-card"
+      className={`sb-shell mh-card${preferences.candy ? ' mh-card--candy' : ''}`}
       testId="overlay-card"
       onKeyDown={onKeyDown}
       onEscapeKeyDown={onEscape}
     >
         <div className="mh-drag-handle" aria-hidden="true"><span /></div>
+        <header className="mh-card__header">
+          <img
+            className="mh-card__icon"
+            src={TERMINAL_ICON_URLS.maximal}
+            alt=""
+          />
+          <div className="mh-card__identity">
+            <strong>Maximal Assistant</strong>
+            <span>{preferences.hotkey}</span>
+          </div>
+          <div className="mh-card__conversation">
+            <span>Conversation</span>
+            <Menu
+              align="end"
+              contentClassName="mh-control-menu"
+              testId="overlay-conversation-menu"
+              trigger={(
+                <button
+                  type="button"
+                  className="mh-select-trigger"
+                  data-testid="overlay-conversation"
+                >
+                  <span>{activeChatId
+                    ? recentChats.find((chat) => chat.id === activeChatId)?.title ?? 'Recent chat'
+                    : 'New chat'}</span>
+                  <span className="mh-select-trigger__chevron" aria-hidden="true">⌄</span>
+                </button>
+              )}
+              items={[
+                {
+                  id: 'new',
+                  label: 'New chat',
+                  selected: activeChatId === undefined,
+                  onSelect: () => {
+                    setActiveChatId(undefined);
+                    setAnswer('');
+                  },
+                },
+                ...recentChats.map((chat) => ({
+                  id: chat.id,
+                  label: chat.title,
+                  selected: chat.id === activeChatId,
+                  onSelect: () => loadChat(chat.id),
+                })),
+              ]}
+            />
+          </div>
+        </header>
         {(answer || error) && (
           <div
             className="mh-card__answer"
@@ -444,71 +567,63 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
 
         {(status.state === 'ready' || status.state === 'select-model') && (
           <div className="mh-model-picker">
-            <button
-              ref={modelPicker}
-              type="button"
-              className="mh-model-picker__trigger"
-              aria-haspopup="listbox"
-              aria-expanded={modelMenuOpen}
-              onClick={() => setModelMenuOpen((open) => !open)}
-              data-testid="overlay-model-picker"
-            >
-              <span className="mh-model-picker__name">
-                {currentModel?.label ?? HARNESS_COPY.overlay.modelSelectionRequired}
-              </span>
-              {status.state === 'ready' && status.effort && (
-                <span className="mh-model-picker__effort">{status.effort}</span>
+            <span className="mh-model-picker__label">
+              {HARNESS_COPY.overlay.modelPickerLabel}
+            </span>
+            <Menu
+              align="end"
+              contentClassName="mh-control-menu mh-control-menu--models"
+              testId="overlay-model-menu"
+              onCloseAutoFocus={(event) => event.preventDefault()}
+              trigger={(
+                <button
+                  ref={modelPicker}
+                  type="button"
+                  className="mh-select-trigger mh-select-trigger--model"
+                  data-testid="overlay-model-picker"
+                >
+                  <span>
+                    {status.state === 'ready'
+                      ? status.models.find((model) => model.key === status.modelKey)?.label
+                        ?? status.model
+                      : HARNESS_COPY.overlay.modelSelectionRequired}
+                  </span>
+                  <span className="mh-select-trigger__chevron" aria-hidden="true">⌄</span>
+                </button>
               )}
-              <span aria-hidden="true">⌄</span>
-            </button>
-            {modelMenuOpen && (
-              <div
-                className="mh-model-menu"
-                role="listbox"
-                aria-label={HARNESS_COPY.overlay.modelPickerLabel}
-                data-testid="overlay-model-menu"
-              >
-                <div className="mh-model-menu__scroll">
-                  {status.models.map((model) => {
-                    const selected =
-                      status.state === 'ready' && model.key === status.modelKey;
-                    return (
-                      <button
-                        type="button"
-                        role="option"
-                        aria-selected={selected}
-                        className="mh-model-menu__option"
-                        key={model.key}
-                        onClick={() => selectModel(model.key)}
-                      >
-                        <span className="mh-model-menu__check">
-                          {selected ? '✓' : ''}
-                        </span>
-                        <span>
-                          <strong>{model.label}</strong>
-                          <small>{model.description}</small>
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-                {status.state === 'ready' && currentModel?.efforts.length ? (
-                  <div className="mh-effort-picker" role="group" aria-label="Effort">
-                    <span>Effort</span>
-                    {currentModel.efforts.map((effort) => (
-                      <button
-                        type="button"
-                        key={effort}
-                        aria-pressed={status.effort === effort}
-                        onClick={() => selectEffort(effort)}
-                      >
-                        {effort}
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            )}
+              items={conciseModels(
+                status.models,
+                status.state === 'ready' ? status.modelKey : undefined,
+              ).map((model) => ({
+                id: model.key,
+                label: model.label,
+                selected: status.state === 'ready' && model.key === status.modelKey,
+                onSelect: () => selectModel(model.key),
+              }))}
+            />
+            {status.state === 'ready' && currentModel?.efforts.length ? (
+              <Menu
+                align="end"
+                contentClassName="mh-control-menu"
+                testId="overlay-effort-menu"
+                trigger={(
+                  <button
+                    type="button"
+                    className="mh-select-trigger mh-select-trigger--effort"
+                    data-testid="overlay-effort"
+                  >
+                    <span>{status.effort ?? 'Effort'}</span>
+                    <span className="mh-select-trigger__chevron" aria-hidden="true">⌄</span>
+                  </button>
+                )}
+                items={currentModel.efforts.map((effort) => ({
+                  id: effort,
+                  label: effort,
+                  selected: status.effort === effort,
+                  onSelect: () => selectEffort(effort),
+                }))}
+              />
+            ) : null}
           </div>
         )}
 
@@ -523,6 +638,52 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
             ))}
           </div>
         )}
+        <div className="mh-permission-picker">
+          <span>Tool permissions</span>
+          <Menu
+            align="end"
+            contentClassName="mh-control-menu"
+            testId="overlay-permissions-menu"
+            trigger={(
+              <button
+                type="button"
+                className="mh-select-trigger"
+                data-testid="overlay-permissions"
+              >
+                <span>{preferences.approval === 'all'
+                  ? 'Ask every time'
+                  : preferences.approval === 'writes'
+                    ? 'Ask before changes'
+                    : 'Allow tools'}</span>
+                <span className="mh-select-trigger__chevron" aria-hidden="true">⌄</span>
+              </button>
+            )}
+            items={[
+              {
+                id: 'all',
+                label: 'Ask for every tool',
+                description: 'Approval is required before any tool runs.',
+              },
+              {
+                id: 'writes',
+                label: 'Ask before changes',
+                description: 'Read-only tools run without interruption.',
+              },
+              {
+                id: 'none',
+                label: 'Allow tools',
+                description: 'Tools run without asking for approval.',
+              },
+            ].map((item) => ({
+              ...item,
+              selected: preferences.approval === item.id,
+              onSelect: () => {
+                const approval = item.id as AssistantOverlayPreferences['approval'];
+                void transport.updatePreferences({ approval }).then(setPreferences);
+              },
+            }))}
+          />
+        </div>
 
         {approval && (
           <div className="mh-approval" data-testid="overlay-approval">

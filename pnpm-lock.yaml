@@ -814,6 +814,9 @@ importers:
       '@earendil-works/pi-ai':
         specifier: 0.84.4
         version: 0.84.4(supports-color@8.1.1)(ws@8.21.3)(zod@4.5.4)
+      '@maximal/maximal-assets':
+        specifier: workspace:*
+        version: link:../maximal-assets
       '@maximal/maximal-llama-cpp':
         specifier: workspace:*
         version: link:../maximal-llama-cpp

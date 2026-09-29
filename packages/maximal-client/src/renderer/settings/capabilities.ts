@@ -27,6 +27,7 @@ import type {
   TokenUsagePeriod,
   TokenUsageSummary,
 } from '@maximal/maximal-core-contract/settings'
+import type { AssistantOverlayPreferences } from '@maximal/maximal-harness'
 import type { LogFile } from '@maximal/maximal-logging'
 
 import type {
@@ -67,6 +68,7 @@ export type {
   ConnectorSettingValue,
   ClientInstallation,
   DiagnosticsResponse,
+  AssistantOverlayPreferences,
   MenuBarModeAttempt,
   MenuBarModeState,
   ModelsListResponse,
@@ -120,6 +122,10 @@ export interface SettingsCapabilities {
     confirmMenuBarOnly(attemptId: string): Promise<MenuBarModeState>
     cancelMenuBarOnly(attemptId: string): Promise<MenuBarModeState>
     disableMenuBarOnly(): Promise<MenuBarModeState>
+    assistantOverlay(): Promise<AssistantOverlayPreferences>
+    updateAssistantOverlay(
+      update: Partial<Pick<AssistantOverlayPreferences, 'candy' | 'approval'>>,
+    ): Promise<AssistantOverlayPreferences>
   }
   providerOnboarding: {
     get(): Promise<ProviderOnboardingPreference>
@@ -311,6 +317,8 @@ export function createCoreSettingsCapabilities(): SettingsCapabilities {
       confirmMenuBarOnly: (attemptId) => bridge.menuBarMode.confirmEnable(attemptId),
       cancelMenuBarOnly: (attemptId) => bridge.menuBarMode.cancelEnable(attemptId),
       disableMenuBarOnly: () => bridge.menuBarMode.disable(),
+      assistantOverlay: () => bridge.harness.preferences(),
+      updateAssistantOverlay: (update) => bridge.harness.updatePreferences(update),
     },
     providerOnboarding: {
       get: () => bridge.providerOnboarding.get(),

@@ -194,8 +194,10 @@ export function Dialog({
 export interface MenuItem {
   id: string;
   label: string;
+  description?: string;
   icon?: ComponentType<{ size?: number }>;
   onSelect: () => void;
+  selected?: boolean;
   danger?: boolean;
   disabled?: boolean;
 }
@@ -206,6 +208,8 @@ export function Menu({
   header,
   items,
   align = 'start',
+  contentClassName,
+  onCloseAutoFocus,
   testId,
 }: {
   trigger: ReactNode;
@@ -220,6 +224,8 @@ export function Menu({
   header?: ReactNode;
   items: MenuItem[];
   align?: 'start' | 'center' | 'end';
+  contentClassName?: string;
+  onCloseAutoFocus?: (event: Event) => void;
   testId?: string;
 }) {
   const container = useShellPortalContainer();
@@ -228,7 +234,13 @@ export function Menu({
     <DropdownMenu.Root>
       <DropdownMenu.Trigger asChild>{trigger}</DropdownMenu.Trigger>
       <DropdownMenu.Portal container={container}>
-        <DropdownMenu.Content className="menu" align={align} sideOffset={6} data-testid={testId}>
+        <DropdownMenu.Content
+          className={`menu${contentClassName ? ` ${contentClassName}` : ''}`}
+          align={align}
+          sideOffset={6}
+          onCloseAutoFocus={onCloseAutoFocus}
+          data-testid={testId}
+        >
           {header !== undefined && (
             <DropdownMenu.Label className="menu__header">{header}</DropdownMenu.Label>
           )}
@@ -237,13 +249,27 @@ export function Menu({
             return (
               <DropdownMenu.Item
                 key={item.id}
-                className={`menu__item${item.danger ? ' menu__item--danger' : ''}`}
+                className={[
+                  'menu__item',
+                  item.description ? 'menu__item--described' : '',
+                  item.selected ? 'menu__item--selected' : '',
+                  item.danger ? 'menu__item--danger' : '',
+                ].filter(Boolean).join(' ')}
                 disabled={item.disabled}
                 onSelect={item.onSelect}
+                aria-current={item.selected ? 'true' : undefined}
                 data-testid={`menu-${item.id}`}
               >
                 {Icon && <Icon size={14} />}
-                <span>{item.label}</span>
+                <span className="menu__item-copy">
+                  <span className="menu__item-label">{item.label}</span>
+                  {item.description && (
+                    <span className="menu__item-description">{item.description}</span>
+                  )}
+                </span>
+                {item.selected && (
+                  <span className="menu__item-indicator" aria-hidden="true">✓</span>
+                )}
               </DropdownMenu.Item>
             );
           })}

@@ -3,6 +3,7 @@ import type {
   AuthStatus,
   TokenUsagePeriod,
 } from '@maximal/maximal-core-contract/settings'
+import type { AssistantOverlayPreferences } from '@maximal/maximal-harness'
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -92,6 +93,18 @@ function fakeCapabilities(): SettingsCapabilities {
       confirmMenuBarOnly: vi.fn(async () => ({ enabled: true, pending: false })),
       cancelMenuBarOnly: vi.fn(async () => ({ enabled: false, pending: false })),
       disableMenuBarOnly: vi.fn(async () => ({ enabled: false, pending: false })),
+      assistantOverlay: vi.fn(async () => ({
+        candy: true,
+        approval: 'writes' as const,
+        hotkey: 'CommandOrControl+Shift+Space',
+      })),
+      updateAssistantOverlay: vi.fn(async (
+        update: Partial<Pick<AssistantOverlayPreferences, 'candy' | 'approval'>>,
+      ) => ({
+        candy: update.candy ?? true,
+        approval: update.approval ?? 'writes',
+        hotkey: 'CommandOrControl+Shift+Space',
+      })),
     },
     providerOnboarding: {
       get: vi.fn(async () => ({ dismissed: false })),
@@ -385,6 +398,7 @@ describe('Settings', () => {
     expect(style?.tagName).toBe('STYLE')
     expect(style?.textContent).toContain('.settings-disclosure-list {')
     expect(style?.textContent).not.toContain('.settings-section__heading')
+    expect(style?.textContent).not.toContain('.settings__section >')
     expect(style?.textContent).toMatch(/\.settings-section__subheading\s*{[^}]*--shell-text-lg/s)
   })
 

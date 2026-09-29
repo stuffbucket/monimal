@@ -220,6 +220,8 @@ svg {
 
 .menu {
   min-width: 220px;
+  max-height: min(360px, var(--radix-dropdown-menu-content-available-height));
+  overflow-y: auto;
   padding: var(--space-1);
   border-radius: var(--radius-input);
   background: var(--bg-panel);
@@ -241,7 +243,40 @@ svg {
 }
 
 .menu__item-label {
+  color: var(--shell-text);
+}
+
+.menu__item--described {
+  height: auto;
+  min-height: var(--shell-row-height);
+  padding-top: var(--shell-space-1);
+  padding-bottom: var(--shell-space-1);
+}
+
+.menu__item-copy {
+  display: flex;
+  min-width: 0;
   flex: 1;
+  flex-direction: column;
+}
+
+.menu__item-description {
+  overflow: hidden;
+  color: var(--shell-text-muted);
+  font-size: 11px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menu__item-indicator {
+  flex: none;
+  color: var(--shell-accent);
+  font-size: 12px;
+}
+
+.menu__item--selected {
+  background: color-mix(in srgb, var(--shell-accent) 12%, transparent);
 }
 
 .menu__item-shortcut {

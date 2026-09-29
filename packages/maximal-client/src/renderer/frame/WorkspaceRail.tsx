@@ -1,4 +1,4 @@
-import { FileText, Folder, SquareTerminal } from 'lucide-react'
+import { FileText, Folder, Sparkles, SquareTerminal } from 'lucide-react'
 import type { ComponentType, ReactElement } from 'react'
 import { NavRail, type NavRailSection } from '@maximal/maximal-electron/renderer'
 
@@ -10,6 +10,8 @@ function tabIcon(tab: AppTab): ComponentType<{ size?: number }> {
       return Folder
     case 'terminal':
       return SquareTerminal
+    case 'assistant':
+      return Sparkles
     case 'overview':
     case 'settings':
       return FileText

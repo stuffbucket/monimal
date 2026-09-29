@@ -7,11 +7,12 @@ import type * as TerminalRenderer from '@maximal/maximal-terminal/renderer';
 
 vi.mock('@maximal/maximal-terminal/renderer', async (importOriginal) => ({
   ...(await importOriginal<typeof TerminalRenderer>()),
-  TerminalView: ({ id, focusRequest, focused, focusIndicator, onExit, onSplit, onNavigateSplit }: {
+  TerminalView: ({ id, focusRequest, focused, focusIndicator, onActivate, onExit, onSplit, onNavigateSplit }: {
     id: string;
     focusRequest?: number;
     focused?: boolean;
     focusIndicator?: boolean;
+    onActivate?: () => void;
     onExit?: (exitCode: number) => void;
     onSplit?: (direction: 'right') => void;
     onNavigateSplit?: (direction: 'next') => void;
@@ -21,7 +22,10 @@ vi.mock('@maximal/maximal-terminal/renderer', async (importOriginal) => ({
       data-focus-request={focusRequest || undefined}
       data-focused={focused || undefined}
       data-focus-indicator={focusIndicator || undefined}
-      onClick={() => onSplit?.('right')}
+      onClick={() => {
+        onActivate?.();
+        onSplit?.('right');
+      }}
       onDoubleClick={() => onNavigateSplit?.('next')}
       onContextMenu={(event) => {
         event.preventDefault();
@@ -79,6 +83,68 @@ describe('TerminalTabs attachments', () => {
     await act(async () => root.render(render({ sessionId: 'session-4' }, 1)));
     expect(element.querySelectorAll('[data-session-id]')).toHaveLength(2);
     expect(onPaneChange).not.toHaveBeenCalled();
+    await act(async () => root.unmount());
+  });
+
+  it('routes native menu focus requests only to the selected terminal split', async () => {
+    const element = document.createElement('div');
+    const root = createRoot(element);
+    const transport = {
+      spawn: async () => undefined,
+      write: async () => undefined,
+      resize: async () => undefined,
+      terminate: async () => undefined,
+      subscribe: () => () => undefined,
+    };
+    const panes = new Map([['tab-17', {
+      direction: 'right' as const,
+      first: { sessionId: 'session-4' },
+      second: { sessionId: 'session-5' },
+    }]]);
+    const render = (generation: number) => (
+      <TerminalTabs
+        attachments={[
+          { id: 'tab-17', sessionId: 'session-4' },
+          { id: 'tab-18', sessionId: 'session-6' },
+        ]}
+        activeId="tab-17"
+        initialPanes={panes}
+        paneFocusRequest={{
+          tabId: 'tab-17',
+          sessionId: 'session-5',
+          generation,
+        }}
+        transport={transport}
+      />
+    );
+
+    await act(async () => root.render(render(1)));
+    expect(element.querySelector('[data-session-id="session-5"]')?.getAttribute(
+      'data-focus-request',
+    )).toBe('1');
+    expect(element.querySelector('[data-session-id="session-4"]')?.getAttribute(
+      'data-focus-request',
+    )).toBeNull();
+    expect(element.querySelector('[data-session-id="session-6"]')?.getAttribute(
+      'data-focus-request',
+    )).toBeNull();
+
+    await act(async () => {
+      (element.querySelector('[data-session-id="session-4"]') as HTMLButtonElement)
+        .click();
+    });
+    expect(element.querySelector('[data-session-id="session-4"]')?.getAttribute(
+      'data-focused',
+    )).toBe('true');
+    await act(async () => root.render(render(1)));
+    expect(element.querySelector('[data-session-id="session-4"]')?.getAttribute(
+      'data-focused',
+    )).toBe('true');
+
+    await act(async () => root.render(render(2)));
+    expect(element.querySelector('[data-session-id="session-5"]')?.getAttribute(
+      'data-focus-request',
+    )).toBe('2');
     await act(async () => root.unmount());
   });
 

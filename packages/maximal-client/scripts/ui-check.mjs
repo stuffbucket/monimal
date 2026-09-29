@@ -119,6 +119,38 @@ async function modelLayout(page) {
   })
 }
 
+async function appearanceLayout(page) {
+  return page.evaluate(() => {
+    const root = document.documentElement
+    const settings = document.querySelector('.settings__body')
+    const section = document.querySelector('.settings__section')
+    const group = document.querySelector('.settings__group')
+    const item = document.querySelector('.settings__item')
+    if (
+      !(settings instanceof HTMLElement)
+      || !(section instanceof HTMLElement)
+      || !(group instanceof HTMLElement)
+      || !(item instanceof HTMLElement)
+    ) {
+      throw new Error('The Appearance settings hierarchy did not render.')
+    }
+    const sectionBounds = section.getBoundingClientRect()
+    const groupBounds = group.getBoundingClientRect()
+    const itemBounds = item.getBoundingClientRect()
+    return {
+      sectionDisplay: getComputedStyle(section).display,
+      groupBackground: getComputedStyle(group).backgroundColor,
+      groupIsDirectChild: group.parentElement === section,
+      groupLeftOffset: groupBounds.left - sectionBounds.left,
+      groupRightOffset: sectionBounds.right - groupBounds.right,
+      itemLeftOffset: itemBounds.left - groupBounds.left,
+      itemRightOffset: groupBounds.right - itemBounds.right,
+      viewportOverflowX: root.scrollWidth - root.clientWidth,
+      settingsOverflowX: settings.scrollWidth - settings.clientWidth,
+    }
+  })
+}
+
 async function providerFieldLayout(page, providerId, fullFieldId) {
   return page.evaluate(
     ({ providerId: id, fullFieldId: fullId }) => {
@@ -192,7 +224,18 @@ try {
   await page.goto(`http://${loopbackHost}:${address.port}/ui-preview.html`, {
     waitUntil: 'networkidle',
   })
-  await page.getByRole('heading', { level: 1, name: 'Search' }).waitFor()
+  try {
+    await page.getByRole('heading', { level: 1, name: 'Search' }).waitFor({
+      timeout: 5_000,
+    })
+  } catch {
+    // Vite can invalidate its optimized dependency graph during the first
+    // request after a linked package rebuild. The second load uses the graph
+    // it just regenerated.
+    pageErrors.length = 0
+    await page.reload({ waitUntil: 'networkidle' })
+    await page.getByRole('heading', { level: 1, name: 'Search' }).waitFor()
+  }
 
   const desktop = await layout(page)
   check(desktop.h1Count === 1, `Expected one primary heading; found ${desktop.h1Count}.`)
@@ -424,9 +467,9 @@ try {
   const models = await modelLayout(page)
   check(models.copilotTone === 'github', 'The enabled Copilot model does not use the GitHub tone.')
   check(
-    models.copilotInlineStyle.includes('138, 80, 216')
-      || models.copilotInlineStyle.includes('#8a50d8'),
-    `The enabled Copilot model does not use #8a50d8: ${models.copilotInlineStyle}`,
+    models.copilotInlineStyle.includes('25, 159, 215')
+      || models.copilotInlineStyle.includes('#199fd7'),
+    `The enabled Copilot model does not use #199fd7: ${models.copilotInlineStyle}`,
   )
   check(
     models.disabledBorderColor !== models.enabledBorderColor,
@@ -447,9 +490,43 @@ try {
   const modelsPath = join(outputDirectory, 'models-settings-desktop.png')
   await page.screenshot({ path: modelsPath })
 
+  await page.setViewportSize({ width: 1280, height: 800 })
+  await page.goto(
+    `http://${loopbackHost}:${address.port}/ui-preview.html?section=appearance`,
+    { waitUntil: 'networkidle' },
+  )
+  await page.getByRole('heading', { level: 1, name: 'Appearance' }).waitFor()
+  const appearance = await appearanceLayout(page)
+  check(appearance.sectionDisplay === 'grid', 'Appearance does not use the shared section layout.')
+  check(appearance.groupIsDirectChild, 'Appearance does not use the shared section/group hierarchy.')
+  check(
+    appearance.groupBackground !== 'rgba(0, 0, 0, 0)',
+    'Appearance does not use the shared settings group surface.',
+  )
+  check(
+    Math.abs(appearance.groupLeftOffset) <= 1 && Math.abs(appearance.groupRightOffset) <= 1,
+    'The Appearance group is inset from its shared section.',
+  )
+  check(
+    appearance.itemLeftOffset >= 0 && appearance.itemRightOffset >= 0,
+    'The Appearance item overflows its shared group.',
+  )
+  check(appearance.viewportOverflowX === 0, 'Appearance overflows the viewport.')
+  check(appearance.settingsOverflowX === 0, 'Appearance overflows Settings.')
+
+  await page.setViewportSize({ width: 520, height: 720 })
+  const compactAppearance = await appearanceLayout(page)
+  check(
+    Math.abs(compactAppearance.groupLeftOffset) <= 1
+      && Math.abs(compactAppearance.groupRightOffset) <= 1,
+    'The compact Appearance group is inset from its shared section.',
+  )
+  check(compactAppearance.viewportOverflowX === 0, 'Compact Appearance overflows the viewport.')
+  check(compactAppearance.settingsOverflowX === 0, 'Compact Appearance overflows Settings.')
+
   check(pageErrors.length === 0, `The preview raised browser errors: ${pageErrors.join('; ')}`)
 
-  console.log('UI check: 2 viewports, 6 captures, 4 sections, 3 providers, 2 accounts, 2 model states, 0 browser errors.')
+  console.log('UI check: 2 viewports, 6 captures, 5 sections, 3 providers, 2 accounts, 2 model states, 0 browser errors.')
   console.log(`Search desktop: ${desktopPath}`)
   console.log(`Search compact: ${compactPath}`)
   console.log(`Search compact Copilot: ${providerPath}`)

@@ -5,6 +5,7 @@ import {
   killAllPtys,
   killPty,
   launchTerminal,
+  launchTrustedTerminal,
   listTerminalProfiles,
   listPtys,
   resizePty,
@@ -21,6 +22,7 @@ import { z } from 'zod'
 
 import { BRIDGE_CHANNELS } from '../../shared/bridge-channels.js'
 import type {
+  TerminalMenuEntry,
   TerminalPaneLayout,
   TerminalRedockRequest,
   TerminalWindowRequest,
@@ -69,6 +71,11 @@ const terminalRedockRequest = terminalWindowRequest.extend({
   targetFrameId: nonEmptyString,
 })
 const terminalPaneSync = terminalId.extend({ pane: terminalPane })
+const terminalMenuEntry: z.ZodType<TerminalMenuEntry> = z.object({
+  id: nonEmptyString,
+  title: nonEmptyString,
+  paneSessionIds: z.array(nonEmptyString).min(1),
+})
 
 interface TerminalWindowActions {
   undock(
@@ -83,12 +90,17 @@ interface TerminalWindowActions {
     owner: BrowserWindow | undefined,
     request: TerminalRedockRequest,
   ): boolean | Promise<boolean>
+  syncMenu(
+    owner: BrowserWindow | undefined,
+    entries: TerminalMenuEntry[],
+  ): void
 }
 
 let terminalWindowActions: TerminalWindowActions = {
   undock: () => false,
   copy: () => false,
   redock: () => false,
+  syncMenu: () => undefined,
 }
 
 const TERMINAL_CHANNELS = {
@@ -129,6 +141,12 @@ export function registerTerminalIpc(): void {
   ipcMain.handle(BRIDGE_CHANNELS.terminalPaneSync, (event, request: unknown) => {
     const parsed = terminalPaneSync.parse(request)
     syncPtyPane(BrowserWindow.fromWebContents(event.sender) ?? undefined, parsed.id, parsed.pane)
+  })
+  ipcMain.handle(BRIDGE_CHANNELS.terminalMenuSync, (event, entries: unknown) => {
+    terminalWindowActions.syncMenu(
+      BrowserWindow.fromWebContents(event.sender) ?? undefined,
+      z.array(terminalMenuEntry).parse(entries),
+    )
   })
   ipcMain.handle(BRIDGE_CHANNELS.terminalProfiles, (event) =>
     listTerminalProfiles(BrowserWindow.fromWebContents(event.sender) ?? undefined),
@@ -219,6 +237,29 @@ export function configureTerminalHost(settings: {
     tmuxSessionPrefix: settings.terminalSessionPrefix,
     directProfiles: desktopTerminalProfiles(),
     tmuxStatus: settings.terminalTmuxStatus,
+  })
+}
+
+export function launchAssistantTerminal(
+  owner: BrowserWindow | undefined,
+  launch: {
+    command: string
+    args: string[]
+    cwd: string
+    env: Record<string, string>
+    cols: number
+    rows: number
+    label: string
+  },
+): ReturnType<typeof launchTrustedTerminal> {
+  return launchTrustedTerminal(owner, {
+    cols: launch.cols,
+    rows: launch.rows,
+    command: launch.command,
+    args: launch.args,
+    cwd: launch.cwd,
+    env: launch.env,
+    label: launch.label,
   })
 }
 

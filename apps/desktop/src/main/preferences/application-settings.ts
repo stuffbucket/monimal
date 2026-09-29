@@ -11,6 +11,7 @@ import { TMUX_SESSION_PREFIX_PATTERN } from '@maximal/maximal-terminal'
 import { z } from 'zod'
 
 const applicationSettingsSchema = z.object({
+  assistantOverlayCandy: z.boolean(),
   agentApproval: z.enum(['all', 'writes', 'none']),
   agentTools: z.boolean(),
   agentCwd: z.string().min(1),
@@ -24,9 +25,11 @@ const applicationSettingsSchema = z.object({
 type ApplicationSettings = z.infer<typeof applicationSettingsSchema>
 
 const applicationSettingsPersistence = {
+  assistantOverlayCandy: 'user',
   agentApproval: 'user',
   agentTools: 'user',
   agentCwd: 'user',
+  agentModel: 'user',
   agentToolsets: 'user',
   terminalDiagnostics: 'user',
   terminalSessionPrefix: 'user',
@@ -60,6 +63,7 @@ function applicationSettingsDefaults(
     legacy = {}
   }
   const defaults = z.object({
+    assistantOverlayCandy: applicationSettingsSchema.shape.assistantOverlayCandy.catch(true),
     agentApproval: applicationSettingsSchema.shape.agentApproval.catch('writes'),
     agentTools: applicationSettingsSchema.shape.agentTools.catch(true),
     agentCwd: applicationSettingsSchema.shape.agentCwd.catch(homeDirectory),
@@ -122,7 +126,40 @@ export async function setOllamaStartOnLaunch(
     ) {
       throw error
     }
+
     return (await store.update('ollamaStartOnLaunch', enabled))
       .settings.ollamaStartOnLaunch
+  }
+}
+
+export async function setAssistantOverlayPreferences(
+  userDataDirectory: string,
+  update: {
+    candy?: boolean
+    approval?: ApplicationSettings['agentApproval']
+  },
+): Promise<Pick<ApplicationSettings, 'assistantOverlayCandy' | 'agentApproval'>> {
+  const store = applicationSettingsStore(userDataDirectory)
+  let settings = store.getSnapshot().settings
+  for (const [key, value] of [
+    ['assistantOverlayCandy', update.candy],
+    ['agentApproval', update.approval],
+  ] as const) {
+    if (value === undefined) continue
+    try {
+      settings = (await store.create(key, value)).settings
+    } catch (error) {
+      if (
+        !(error instanceof Error)
+        || error.message !== `Setting already exists in its configured layer: ${key}`
+      ) {
+        throw error
+      }
+      settings = (await store.update(key, value)).settings
+    }
+  }
+  return {
+    assistantOverlayCandy: settings.assistantOverlayCandy,
+    agentApproval: settings.agentApproval,
   }
 }

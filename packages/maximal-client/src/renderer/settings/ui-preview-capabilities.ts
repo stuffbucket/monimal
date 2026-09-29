@@ -7,6 +7,7 @@ import {
 
 import type {
   AccountsListResponse,
+  AssistantOverlayPreferences,
   ConnectorSettingValue,
   MenuBarModeAttempt,
   MenuBarModeState,
@@ -230,6 +231,11 @@ export function createPreviewSettingsCapabilities(): SettingsCapabilities {
   let menuBarEnabled = false
   let menuBarAttempt: MenuBarModeAttempt | null = null
   let menuBarAttemptSequence = 0
+  let assistantOverlay: AssistantOverlayPreferences = {
+    candy: true,
+    approval: 'writes',
+    hotkey: 'CommandOrControl+Shift+Space',
+  }
   const menuBarState = (): MenuBarModeState => ({
     enabled: menuBarEnabled,
     pending: menuBarAttempt !== null,
@@ -356,6 +362,11 @@ export function createPreviewSettingsCapabilities(): SettingsCapabilities {
         menuBarEnabled = false
         menuBarAttempt = null
         return Promise.resolve(menuBarState())
+      },
+      assistantOverlay: () => Promise.resolve(assistantOverlay),
+      updateAssistantOverlay: (update) => {
+        assistantOverlay = { ...assistantOverlay, ...update }
+        return Promise.resolve(assistantOverlay)
       },
     },
     providerOnboarding: {

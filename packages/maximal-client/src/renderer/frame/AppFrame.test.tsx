@@ -140,7 +140,7 @@ describe('AppFrame', () => {
     expect(shell.querySelector('.sb-shell.app .titlebar')).not.toBeNull()
   })
 
-  it('places Assistant and Profile immediately left of Settings', () => {
+  it('places Assistant and Profile immediately left of Settings', async () => {
     const onOpenAssistant = vi.fn()
     const onToggleSettings = vi.fn()
     const shell = renderFrame('overview', vi.fn(), <p>content</p>)
@@ -151,7 +151,13 @@ describe('AppFrame', () => {
           activeTab="overview"
           surface="overview"
           onSelectTab={vi.fn()}
-          onOpenAssistant={onOpenAssistant}
+          assistant={{
+            recent: [],
+            hotkey: '⌘⇧Space',
+            onToggle: onOpenAssistant,
+            onOpenChat: vi.fn(),
+            onShowMore: vi.fn(),
+          }}
           onOpenProfileSurface={vi.fn()}
           settingsOpen={false}
           onToggleSettings={onToggleSettings}
@@ -180,7 +186,15 @@ describe('AppFrame', () => {
     expect(assistant.nextElementSibling).toBe(profile)
     expect(profile.nextElementSibling).toBe(toggle)
     expect(toggle.nextElementSibling).toBe(rightPanelToggle)
-    act(() => assistant.click())
+    await act(async () => {
+      assistant.dispatchEvent(new MouseEvent('pointerdown', {
+        bubbles: true,
+        button: 0,
+      }))
+    })
+    const toggleAssistant = document.querySelector<HTMLElement>('[data-testid="menu-toggle"]')
+    if (toggleAssistant === null) throw new Error('Assistant toggle was not rendered')
+    await act(async () => toggleAssistant.click())
     expect(onOpenAssistant).toHaveBeenCalledOnce()
     act(() => toggle.click())
     expect(onToggleSettings).toHaveBeenCalledOnce()

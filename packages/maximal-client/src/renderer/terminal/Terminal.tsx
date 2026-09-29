@@ -44,6 +44,7 @@ export function Terminal({
   initialPane,
   initialPanes,
   paneRevisions,
+  paneFocusRequest,
 }: {
   tabs: TerminalTab[]
   activeId: string
@@ -53,6 +54,7 @@ export function Terminal({
   initialPane?: TerminalPane
   initialPanes?: ReadonlyMap<string, TerminalPane>
   paneRevisions?: ReadonlyMap<string, number>
+  paneFocusRequest?: { tabId: string; sessionId: string; generation: number }
 }): ReactElement {
   const launchSplit = useCallback(async () => {
     const result = await window.maximal.terminal.launch({ profileId: 'local', cols: 80, rows: 24 })
@@ -73,6 +75,7 @@ export function Terminal({
       initialPane={initialPane}
       initialPanes={initialPanes}
       paneRevisions={paneRevisions}
+      paneFocusRequest={paneFocusRequest}
       theme={currentTheme()}
       transport={terminalTransport}
     />

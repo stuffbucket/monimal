@@ -136,7 +136,6 @@ const SETTINGS_CSS = `
   object-fit: cover;
 }
 
-.sb-shell .settings__section > :not(.settings__section-title):not(.settings__description),
 .settings-subsection > :not(.settings-section__subheading) {
   margin-inline-start: var(--shell-space-4, 16px);
 }

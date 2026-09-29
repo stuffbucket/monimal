@@ -49,7 +49,9 @@ function PreviewFrame(): ReactElement {
       ? { id: 'settings-account-heading' as const }
       : section === 'models'
         ? { id: 'settings-models-heading' as const }
-        : { id: 'settings-search-heading' as const }
+        : section === 'appearance'
+          ? { id: 'settings-general-heading' as const }
+          : { id: 'settings-search-heading' as const }
   const current = tabs.find((tab) => tab.id === activeTab) ?? PRODUCT_TABS[0]
   const settingsOpen = tabs.some((tab) => tab.kind === 'settings')
 
@@ -86,7 +88,13 @@ function PreviewFrame(): ReactElement {
       }}
       onOpenProfileSurface={() => undefined}
       onSignOut={() => undefined}
-      onOpenAssistant={() => undefined}
+      assistant={{
+        recent: [],
+        hotkey: 'CommandOrControl+Shift+Space',
+        onToggle: () => undefined,
+        onOpenChat: () => undefined,
+        onShowMore: () => undefined,
+      }}
       settingsOpen={settingsOpen}
       onToggleSettings={toggleSettings}
     >

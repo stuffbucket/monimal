@@ -20,6 +20,19 @@ function fakeCapabilities() {
     confirmMenuBarOnly: vi.fn(async () => ({ enabled: true, pending: false })),
     cancelMenuBarOnly: vi.fn(async () => ({ enabled: false, pending: false })),
     disableMenuBarOnly: vi.fn(async () => ({ enabled: false, pending: false })),
+    assistantOverlay: vi.fn(async () => ({
+      candy: true,
+      approval: 'writes' as const,
+      hotkey: 'CommandOrControl+Shift+Space',
+    })),
+    updateAssistantOverlay: vi.fn(async (update: {
+      candy?: boolean
+      approval?: 'all' | 'writes' | 'none'
+    }) => ({
+      candy: update.candy ?? true,
+      approval: update.approval ?? 'writes',
+      hotkey: 'CommandOrControl+Shift+Space',
+    })),
   }
   return {
     capabilities: { general } as unknown as SettingsCapabilities,
@@ -75,12 +88,31 @@ describe('GeneralSection menu-bar-only confirmation', () => {
 
     expect(surface.querySelector('h1')).toBeNull()
     expect(surface.querySelector('h2')?.textContent).toBe('Desktop presence')
-    expect(surface.querySelector('.settings__group')).not.toBeNull()
+    expect(surface.textContent).toContain('Assistant overlay')
+    expect(surface.querySelector('[data-testid="assistant-candy-switch"]'))
+      .not.toBeNull()
+    const section = surface.querySelector('.settings__section')
+    const group = surface.querySelector('.settings__group')
+    expect(surface.firstElementChild).toBe(section)
+    expect(group?.parentElement).toBe(section)
     expect(surface.querySelector('.settings__item-title')?.textContent).toBe(
       'Show Maximal in the menu bar only',
     )
     expect(switchControl(surface).getAttribute('role')).toBe('switch')
     expect(switchControl(surface).getAttribute('data-layout')).toBe('compact')
+  })
+
+  it('persists the candy-coated assistant preference', async () => {
+    const { capabilities, general } = fakeCapabilities()
+    const surface = await renderGeneral(capabilities)
+    const control = surface.querySelector<HTMLButtonElement>(
+      '[data-testid="assistant-candy-switch"]',
+    )
+    if (control === null) throw new Error('assistant candy switch was not rendered')
+
+    await act(async () => control.click())
+
+    expect(general.updateAssistantOverlay).toHaveBeenCalledWith({ candy: false })
   })
 
   it('counts down and closes when main reaches its automatic rollback deadline', async () => {

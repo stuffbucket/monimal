@@ -1,10 +1,12 @@
 import { app, type BrowserWindow } from 'electron';
+import { randomUUID } from 'node:crypto';
 
 import {
   TerminalHost,
   type DirectTerminalProfile,
   type TerminalPane,
   type TerminalSession,
+  type TrustedTerminalLaunch,
 } from '@maximal/maximal-terminal';
 import type {
   PtySpawnRequest,
@@ -414,6 +416,7 @@ export function launchTerminal(
       startedAt: Date.now(),
     });
   }
+
   if (reserved.tmuxControl) {
     const sessions = controlHosts.for(owner);
     const host = new TmuxControlHost({
@@ -424,6 +427,7 @@ export function launchTerminal(
     sessions.set(result.sessionId, host);
     return result;
   }
+
   if (reserved.tmuxProjection) {
     projections.reserve(owner, result.sessionId, {
       command: reserved.command,
@@ -449,6 +453,35 @@ export function launchTerminal(
   trackViewerSize(result.sessionId, owner, request.cols, request.rows);
   paneDocuments.flush();
   return result;
+}
+
+export function launchTrustedTerminal(
+  owner: BrowserWindow | undefined,
+  request: TrustedTerminalLaunch & {
+    cols: number;
+    rows: number;
+    label: string;
+  },
+): TerminalLaunchResult {
+  if (!owner) throw new Error('Trusted terminal launch has no owning window.');
+  const sessionId = randomUUID();
+  hosts.for(owner).spawn({
+    id: sessionId,
+    cols: request.cols,
+    rows: request.rows,
+    shell: request.command,
+    args: request.args,
+    cwd: request.cwd,
+    env: request.env,
+  });
+  mirrors.setOwner(sessionId, owner);
+  trackViewerSize(sessionId, owner, request.cols, request.rows);
+  paneDocuments.flush();
+  return {
+    sessionId,
+    label: request.label,
+    canRunInBackground: false,
+  };
 }
 
 export function writePty(

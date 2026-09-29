@@ -26,6 +26,15 @@ body,
   cursor: default;
 }
 
+.mh-overlay-body > [data-sb-shell-portal-root] {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  overflow: hidden;
+}
+
 /*
  * The native window owns placement; the card fills it with a transparent edge
  * for its shadow.
@@ -50,6 +59,139 @@ body,
   border: 1px solid var(--shell-border);
   box-shadow: var(--shell-elevation, none);
   animation: mh-card-in 180ms ease-out;
+  overflow: hidden;
+}
+
+.mh-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.mh-card--candy {
+  border-color: color-mix(in srgb, #f4ead4 45%, #681321);
+  background:
+    radial-gradient(circle at 12% 24%, rgb(255 245 224 / 28%) 0 1px, transparent 2px),
+    radial-gradient(circle at 78% 18%, rgb(255 245 224 / 22%) 0 1.5px, transparent 2.5px),
+    radial-gradient(circle at 62% 74%, rgb(255 245 224 / 20%) 0 1px, transparent 2px),
+    linear-gradient(155deg, #a91f39 0%, #c8334a 54%, #7d1427 100%);
+  background-size: 47px 43px, 71px 67px, 89px 83px, auto;
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 24%),
+    0 12px 36px rgb(44 0 8 / 42%),
+    inset 0 1px rgb(255 245 224 / 22%);
+}
+
+.mh-card--candy::before {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  inset: -35% -10%;
+  background: linear-gradient(
+    112deg,
+    transparent 24%,
+    rgb(255 244 224 / 4%) 40%,
+    rgb(255 244 224 / 22%) 49%,
+    rgb(255 244 224 / 5%) 58%,
+    transparent 72%
+  );
+  transform: translateX(-45%);
+  animation: mh-candy-sheen 8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.mh-card__header {
+  display: flex;
+  align-items: center;
+  gap: var(--shell-space-3, 12px);
+}
+
+.mh-card__icon {
+  width: 42px;
+  height: 42px;
+  flex: none;
+  border-radius: 10px;
+  box-shadow: 0 4px 14px rgb(31 0 6 / 32%);
+}
+
+.mh-card__identity {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  color: #fff8e9;
+}
+
+.mh-card__identity span,
+.mh-card__conversation span,
+.mh-permission-picker span {
+  font-size: var(--shell-text-xs, 0.6875rem);
+  color: color-mix(in srgb, currentColor 72%, transparent);
+}
+
+.mh-card__conversation,
+.mh-permission-picker {
+  display: flex;
+  align-items: center;
+  gap: var(--shell-space-2, 8px);
+  color: var(--shell-text);
+}
+
+.mh-card__conversation {
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.mh-select-trigger {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 260px;
+  min-height: var(--shell-control-sm, 28px);
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--shell-space-2, 8px);
+  padding: var(--shell-space-1, 4px) var(--shell-space-2, 8px);
+  border: 1px solid var(--shell-border);
+  border-radius: var(--shell-radius, 6px);
+  background: var(--shell-background);
+  color: var(--shell-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.mh-select-trigger > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mh-select-trigger:hover,
+.mh-select-trigger[data-state='open'] {
+  border-color: var(--shell-border-strong, var(--shell-accent));
+  background: var(--shell-hover);
+}
+
+.mh-select-trigger:focus-visible {
+  outline: 2px solid var(--shell-focus);
+  outline-offset: 1px;
+}
+
+.mh-select-trigger__chevron {
+  flex: none;
+  color: var(--shell-text-muted);
+  transition: transform 120ms ease;
+}
+
+.mh-select-trigger[data-state='open'] .mh-select-trigger__chevron {
+  transform: rotate(180deg);
+}
+
+.mh-control-menu {
+  width: max(220px, var(--radix-dropdown-menu-trigger-width));
+  max-width: min(360px, var(--radix-dropdown-menu-content-available-width));
+}
+
+.mh-control-menu--models {
+  width: max(280px, var(--radix-dropdown-menu-trigger-width));
 }
 
 .mh-drag-handle {
@@ -101,30 +243,26 @@ body,
 
 .mh-model-picker {
   position: relative;
-  align-self: flex-start;
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: var(--shell-space-2, 8px);
   font-size: var(--shell-text-xs, 0.6875rem);
 }
 
-.mh-model-picker__trigger {
-  display: flex;
-  align-items: center;
-  gap: var(--shell-space-2, 8px);
-  max-width: 360px;
-  padding: 4px 8px;
-  border-radius: var(--shell-radius, 6px);
-  border: 1px solid var(--shell-border);
-  background: var(--shell-raised);
-  color: var(--shell-text);
-  font: inherit;
+.mh-model-picker__label {
+  color: var(--shell-text-muted);
 }
 
-.mh-model-picker__trigger:hover {
-  border-color: var(--shell-accent);
+.mh-select-trigger--model {
+  min-width: 0;
+  flex: 1;
 }
 
-.mh-model-picker__trigger:focus-visible {
-  outline: 2px solid var(--shell-focus);
-  outline-offset: 1px;
+.mh-select-trigger--effort {
+  flex: none;
+  text-transform: capitalize;
 }
 
 .mh-model-picker__name {
@@ -226,13 +364,14 @@ body,
 
 .mh-card__answer {
   position: relative;
+  flex: 1 1 auto;
   min-height: 0;
-  max-height: 40vh;
+  max-height: none;
   overflow-y: auto;
-  padding: var(--shell-space-3, 12px);
-  border-radius: var(--shell-radius, 6px);
-  background: var(--shell-canvas);
-  border: 1px solid var(--shell-border);
+  padding: var(--shell-space-2, 8px) 0;
+  border: 0;
+  background: transparent;
+  font-family: ui-monospace, monospace;
   font-size: var(--shell-text-sm, 0.8125rem);
   line-height: 1.5;
   user-select: text;
@@ -514,15 +653,27 @@ body,
     opacity: 0;
     transform: translateY(8px);
   }
-
-  @keyframes mh-tool-pulse {
-    to {
-      opacity: 0.35;
-    }
-  }
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes mh-tool-pulse {
+  to {
+    opacity: 0.35;
+  }
+}
+
+@keyframes mh-candy-sheen {
+  0%,
+  34% {
+    transform: translateX(-45%);
+  }
+
+  68%,
+  100% {
+    transform: translateX(45%);
   }
 }
 
@@ -532,7 +683,8 @@ body,
     animation: none;
   }
 
-  .mh-tool--running .mh-tool__indicator {
+  .mh-tool--running .mh-tool__indicator,
+  .mh-card--candy::before {
     animation: none;
   }
 }

@@ -2,6 +2,56 @@ export type AgentApproval = 'all' | 'writes' | 'none'
 export type AgentProvider = 'maximal' | 'ollama' | 'embedded'
 export type AgentEffort = 'low' | 'medium' | 'high'
 
+export interface AssistantOverlayPreferences {
+  candy: boolean
+  approval: AgentApproval
+  hotkey: string
+}
+
+export type AssistantChatStatus = 'active' | 'archived'
+export type AssistantChatAttention = 'read' | 'unread' | 'notification'
+export type AssistantChatSort = 'activity' | 'created' | 'title'
+
+export interface AssistantChat {
+  id: string
+  title: string
+  status: AssistantChatStatus
+  attention: AssistantChatAttention
+  pinned: boolean
+  createdAt: number
+  updatedAt: number
+  lastOpenedAt: number
+}
+
+export interface AssistantChatMessage {
+  id: number
+  chatId: string
+  role: 'user' | 'assistant' | 'system'
+  content: string
+  createdAt: number
+}
+
+export interface AssistantChatListQuery {
+  search?: string
+  status?: AssistantChatStatus | 'all'
+  sort?: AssistantChatSort
+  direction?: 'asc' | 'desc'
+  limit?: number
+  offset?: number
+}
+
+export interface AssistantChatList {
+  chats: AssistantChat[]
+  total: number
+}
+
+export interface AssistantChatUpdate {
+  title?: string
+  status?: AssistantChatStatus
+  attention?: AssistantChatAttention
+  pinned?: boolean
+}
+
 export interface AgentModelOption {
   key: string
   label: string
@@ -33,9 +83,12 @@ export type { ModelProgress } from '@maximal/maximal-llama-cpp'
 
 export interface AskRequest {
   prompt: string
+  chatId?: string
 }
 
-export type AskAccepted = { started: true } | { started: false; reason: string }
+export type AskAccepted =
+  | { started: true; chatId: string }
+  | { started: false; reason: string }
 
 export interface AgentToolEvent {
   id: string

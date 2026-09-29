@@ -571,6 +571,7 @@ function createTerminalWindow(request: TerminalWindowRequest): BrowserWindow {
     showWhenReady: false,
     loadRenderer: () => undefined,
   })
+  menuBarMode?.applyToWindow(win)
   installRendererRecovery(win)
   return win
 }
@@ -640,7 +641,12 @@ function openSettings(sectionId: PendingSettingsRequest['sectionId']): void {
 void app.whenReady().then(async () => {
   const nativeMode = new MenuBarModeController(() => {
     toggleHarnessHost()
-  })
+  },
+    (win, request) => {
+      focusWindow(win)
+      win.webContents.send(BRIDGE_CHANNELS.terminalMenuFocus, request)
+    },
+  )
   menuBarMode = nativeMode
   await nativeMode.initialize()
 
@@ -689,6 +695,9 @@ void app.whenReady().then(async () => {
     copy: (owner, request) =>
       openTransferredTerminal(owner, request, 'copy'),
     redock: redockTerminal,
+    syncMenu: (owner, entries) => {
+      nativeMode.syncTerminalMenu(owner, entries)
+    },
   })
   registerIpc(coreControlConnection, nativeMode)
   startHarnessHost({ modelDirectory: localModelsDirectory() })

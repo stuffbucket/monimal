@@ -135,6 +135,37 @@ describe('discoverProvider', () => {
     },
   );
 
+  it('uses human-facing names from the Maximal model catalogue', async () => {
+    process.env['STUFFBUCKET_PROVIDER'] = 'maximal';
+    configureAgent({
+      ...agentOptions,
+      preferredModel: 'maximal:claude-opus-5-5',
+    });
+    const fetchModel = vi.fn((
+      _input: string | URL | Request,
+    ) => Promise.resolve(Response.json({
+      data: [{
+        id: 'claude-opus-5-5',
+        display_name: 'Claude Opus 5.5',
+      }],
+    })));
+    vi.stubGlobal('fetch', fetchModel);
+
+    await expect(discoverProvider()).resolves.toMatchObject({
+      state: 'ready',
+      models: [{
+        key: 'maximal:claude-opus-5-5',
+        label: 'Claude Opus 5.5',
+      }],
+    });
+    expect(fetchModel).toHaveBeenCalledWith(
+      expect.stringContaining('/v1/models'),
+      expect.objectContaining({
+        headers: { 'anthropic-version': '2023-06-01' },
+      }),
+    );
+  });
+
   it('selects a preferred GGUF from the shared embedded inventory', async () => {
     delete process.env['STUFFBUCKET_PROVIDER'];
     await modelDirectory(['first.gguf', 'preferred.gguf']);

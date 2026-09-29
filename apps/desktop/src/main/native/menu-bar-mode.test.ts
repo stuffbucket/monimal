@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { BrowserWindow } from 'electron'
 
 const {
   appGetPath,
@@ -12,11 +13,13 @@ const {
   imageResize,
   imageSetTemplate,
   logError,
+  menuBuildFromTemplate,
   randomUUID,
   readFile,
   trayConstruct,
   trayDestroy,
   trayOn,
+  traySetContextMenu,
   traySetToolTip,
   writeFile,
 } = vi.hoisted(() => {
@@ -41,6 +44,7 @@ const {
     imageResize: vi.fn(),
     imageSetTemplate: vi.fn(),
     logError: vi.fn(),
+    menuBuildFromTemplate: vi.fn((template: unknown) => ({ template })),
     randomUUID: vi.fn(() => 'attempt-1'),
     readFile: vi.fn<() => Promise<string>>(() =>
       Promise.reject(new Error('missing')),
@@ -48,6 +52,7 @@ const {
     trayConstruct: vi.fn(),
     trayDestroy: vi.fn(),
     trayOn: vi.fn(),
+    traySetContextMenu: vi.fn(),
     traySetToolTip: vi.fn(),
     writeFile: vi.fn(() => Promise.resolve()),
   }
@@ -81,6 +86,7 @@ vi.mock('electron', () => {
       },
     },
     BrowserWindow: { getAllWindows: () => browserWindows },
+    Menu: { buildFromTemplate: menuBuildFromTemplate },
     nativeImage: { createFromPath },
     Tray: class {
       constructor(value: unknown) {
@@ -93,6 +99,10 @@ vi.mock('electron', () => {
 
       on(event: string, listener: () => void): void {
         trayOn(event, listener)
+      }
+
+      setContextMenu(menu: unknown): void {
+        traySetContextMenu(menu)
       }
 
       destroy(): void {
@@ -111,6 +121,36 @@ function setPlatform(platform: NodeJS.Platform): void {
     value: platform,
     configurable: true,
   })
+}
+
+function fakeBrowserWindow({
+  minimized = false,
+  visible = true,
+}: {
+  minimized?: boolean
+  visible?: boolean
+} = {}) {
+  const listeners = new Map<string, Array<() => void>>()
+  const state = { destroyed: false, minimized, visible }
+  const win = {
+    isDestroyed: vi.fn(() => state.destroyed),
+    isMinimized: vi.fn(() => state.minimized),
+    isVisible: vi.fn(() => state.visible),
+    hide: vi.fn(() => {
+      state.visible = false
+    }),
+    setSkipTaskbar: vi.fn(),
+    on: vi.fn((event: string, listener: () => void) => {
+      listeners.set(event, [...(listeners.get(event) ?? []), listener])
+    }),
+  }
+  return {
+    win,
+    state,
+    emit(event: string): void {
+      for (const listener of listeners.get(event) ?? []) listener()
+    },
+  }
 }
 
 beforeEach(() => {
@@ -162,8 +202,6 @@ describe('MenuBarModeController', () => {
   })
 
   it('creates the tray before provisionally hiding normal launcher presence', () => {
-    const setSkipTaskbar = vi.fn()
-    browserWindows.push({ setSkipTaskbar })
     const onActivate = vi.fn()
     const controller = new MenuBarModeController(onActivate)
 
@@ -182,13 +220,163 @@ describe('MenuBarModeController', () => {
     expect(createFromPath).toHaveBeenCalledWith(
       '/app/resources/tray/trayTemplate.png',
     )
-    expect(imageResize).toHaveBeenCalledWith({ width: 18, height: 18 })
+    expect(imageResize).not.toHaveBeenCalled()
     expect(imageSetTemplate).toHaveBeenCalledWith(true)
     expect(traySetToolTip).toHaveBeenCalledWith('Maximal')
     expect(trayOn).toHaveBeenCalledWith('click', onActivate)
-    expect(setSkipTaskbar).toHaveBeenCalledWith(false)
+    expect(menuBuildFromTemplate).toHaveBeenCalledWith([
+      { label: 'Open Maximal', click: onActivate },
+      { type: 'separator' },
+      { role: 'quit' },
+    ])
+    expect(traySetContextMenu).toHaveBeenCalledWith({
+      template: [
+        { label: 'Open Maximal', click: onActivate },
+        { type: 'separator' },
+        { role: 'quit' },
+      ],
+    })
     expect(controller.state()).toEqual({ enabled: true, pending: true })
     expect(controller.keepsAlive()).toBe(false)
+  })
+
+  it('keeps the Dock and application menu while a window is visible', () => {
+    const window = fakeBrowserWindow()
+    browserWindows.push(window.win)
+    const controller = new MenuBarModeController(vi.fn())
+
+    controller.beginEnable()
+
+    expect(dockHide).not.toHaveBeenCalled()
+    expect(dockShow).not.toHaveBeenCalled()
+    expect(window.win.hide).not.toHaveBeenCalled()
+  })
+
+  it('minimizes to the menu bar and restores Dock presence with the window', () => {
+    const window = fakeBrowserWindow()
+    browserWindows.push(window.win)
+    const controller = new MenuBarModeController(vi.fn())
+    controller.beginEnable()
+
+    window.state.minimized = true
+    window.emit('minimize')
+
+    expect(window.win.hide).toHaveBeenCalledOnce()
+    expect(dockHide).toHaveBeenCalledOnce()
+
+    window.state.minimized = false
+    window.state.visible = true
+    window.emit('restore')
+
+    expect(dockShow).toHaveBeenCalledOnce()
+  })
+
+  it('keeps Dock presence while another application window remains visible', () => {
+    const first = fakeBrowserWindow()
+    const second = fakeBrowserWindow()
+    browserWindows.push(first.win, second.win)
+    const controller = new MenuBarModeController(vi.fn())
+    controller.beginEnable()
+
+    first.state.minimized = true
+    first.emit('minimize')
+
+    expect(first.win.hide).toHaveBeenCalledOnce()
+    expect(dockHide).not.toHaveBeenCalled()
+  })
+
+  it('hides Dock presence after main and detached terminal windows are minimized', () => {
+    const main = fakeBrowserWindow()
+    const detachedTerminal = fakeBrowserWindow()
+    browserWindows.push(main.win, detachedTerminal.win)
+    const controller = new MenuBarModeController(vi.fn())
+    controller.beginEnable()
+
+    main.state.minimized = true
+    main.emit('minimize')
+    detachedTerminal.state.minimized = true
+    detachedTerminal.emit('minimize')
+
+    expect(main.win.hide).toHaveBeenCalledOnce()
+    expect(detachedTerminal.win.hide).toHaveBeenCalledOnce()
+    expect(dockHide).toHaveBeenCalledOnce()
+  })
+
+  it('hides Dock presence after the last application window closes', () => {
+    const window = fakeBrowserWindow()
+    browserWindows.push(window.win)
+    const controller = new MenuBarModeController(vi.fn())
+    controller.beginEnable()
+
+    window.state.destroyed = true
+    window.state.visible = false
+    window.emit('closed')
+
+    expect(dockHide).toHaveBeenCalledOnce()
+  })
+
+  it('lists terminals and routes parent and split selections to their owner', () => {
+    const window = fakeBrowserWindow()
+    browserWindows.push(window.win)
+    const onTerminalActivate = vi.fn()
+    const controller = new MenuBarModeController(vi.fn(), onTerminalActivate)
+    controller.beginEnable()
+
+    controller.syncTerminalMenu(window.win as unknown as BrowserWindow, [{
+      id: 'primary',
+      title: 'Build workspace',
+      paneSessionIds: ['primary', 'split'],
+    }])
+
+    type TestMenuItem = {
+      label?: string
+      type?: string
+      click?: () => void
+      submenu?: TestMenuItem[]
+    }
+    const template = menuBuildFromTemplate.mock.calls.at(-1)?.[0] as TestMenuItem[]
+    const terminal = template.find((item) => item.label === 'Build workspace')
+    expect(terminal?.submenu?.map((item) => item.label ?? item.type)).toEqual([
+      'Show Terminal',
+      'separator',
+      'Split 1',
+      'Split 2',
+    ])
+
+    terminal?.submenu?.[0]?.click?.()
+    terminal?.submenu?.[3]?.click?.()
+    expect(onTerminalActivate).toHaveBeenNthCalledWith(
+      1,
+      window.win,
+      { id: 'primary' },
+    )
+    expect(onTerminalActivate).toHaveBeenNthCalledWith(
+      2,
+      window.win,
+      { id: 'primary', paneSessionId: 'split' },
+    )
+  })
+
+  it('removes a closed window terminal registry from the tray menu', () => {
+    const window = fakeBrowserWindow()
+    browserWindows.push(window.win)
+    const controller = new MenuBarModeController(vi.fn())
+    controller.beginEnable()
+    controller.syncTerminalMenu(window.win as unknown as BrowserWindow, [{
+      id: 'primary',
+      title: 'Build workspace',
+      paneSessionIds: ['primary'],
+    }])
+
+    window.state.destroyed = true
+    window.state.visible = false
+    window.emit('closed')
+
+    type TestMenuItem = { label?: string }
+    const template = menuBuildFromTemplate.mock.calls.at(-1)?.[0] as TestMenuItem[]
+    expect(template.map((item) => item.label).filter(Boolean)).toEqual([
+      'Open Maximal',
+    ])
   })
 
   it('persists and keeps the app alive only after matching confirmation', async () => {
@@ -499,18 +687,18 @@ describe('MenuBarModeController', () => {
 
   it('uses taskbar visibility rather than the Dock off macOS', () => {
     setPlatform('win32')
-    const setSkipTaskbar = vi.fn()
-    browserWindows.push({ setSkipTaskbar })
+    const window = fakeBrowserWindow()
+    browserWindows.push(window.win)
     const controller = new MenuBarModeController(vi.fn())
 
     const attempt = controller.beginEnable()
     expect(existsSync).toHaveBeenCalledWith('/app/resources/tray/tray.png')
-    expect(setSkipTaskbar).toHaveBeenLastCalledWith(true)
+    expect(window.win.setSkipTaskbar).toHaveBeenLastCalledWith(true)
     expect(imageSetTemplate).not.toHaveBeenCalled()
     expect(dockHide).not.toHaveBeenCalled()
 
     controller.cancelEnable(attempt.attemptId)
-    expect(setSkipTaskbar).toHaveBeenLastCalledWith(false)
+    expect(window.win.setSkipTaskbar).toHaveBeenLastCalledWith(false)
     expect(dockShow).not.toHaveBeenCalled()
   })
 })

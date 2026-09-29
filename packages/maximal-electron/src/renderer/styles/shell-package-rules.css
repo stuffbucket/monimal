@@ -1131,6 +1131,8 @@
 
 .sb-shell .menu {
   min-width: 220px;
+  max-height: min(360px, var(--radix-dropdown-menu-content-available-height));
+  overflow-y: auto;
   padding: var(--shell-space-1);
   background: var(--shell-raised);
   border: 1px solid var(--shell-border-strong, var(--shell-border));
@@ -1154,7 +1156,40 @@
 }
 
 .sb-shell .menu__item-label {
+  color: var(--shell-text);
+}
+
+.sb-shell .menu__item--described {
+  height: auto;
+  min-height: var(--shell-row-height);
+  padding-top: var(--shell-space-1);
+  padding-bottom: var(--shell-space-1);
+}
+
+.sb-shell .menu__item-copy {
+  display: flex;
+  min-width: 0;
   flex: 1;
+  flex-direction: column;
+}
+
+.sb-shell .menu__item-description {
+  overflow: hidden;
+  color: var(--shell-text-muted);
+  font-size: 11px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sb-shell .menu__item-indicator {
+  flex: none;
+  color: var(--shell-accent);
+  font-size: 12px;
+}
+
+.sb-shell .menu__item--selected {
+  background: color-mix(in srgb, var(--shell-accent) 12%, transparent);
 }
 
 .sb-shell .menu__item-shortcut {

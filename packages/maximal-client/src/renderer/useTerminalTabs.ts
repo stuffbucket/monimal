@@ -2,12 +2,18 @@ import { useCallback, useEffect, useState } from 'react'
 import { moveTabBefore, type TerminalLaunchResult } from '@maximal/maximal-electron/renderer'
 import { terminalPaneSessionIds, terminalProcessTitle, type TerminalPane } from '@maximal/maximal-terminal/renderer'
 
-import { PRODUCT_TABS, SETTINGS_TAB, type AppTab } from './frame/AppFrame'
+import {
+  ASSISTANT_TAB,
+  PRODUCT_TABS,
+  SETTINGS_TAB,
+  type AppTab,
+} from './frame/AppFrame'
 import { terminalTransport } from './terminal/transport'
 import {
   useTerminalWindowTransfer,
   type DetachedTerminal,
 } from './terminal/window-transfer'
+import type { TerminalMenuEntry } from '../shared/host'
 
 function terminalTab(result: TerminalLaunchResult): AppTab {
   return {
@@ -18,6 +24,22 @@ function terminalTab(result: TerminalLaunchResult): AppTab {
     sessionId: result.sessionId,
     canRunInBackground: result.canRunInBackground,
   }
+}
+
+function terminalMenuEntries(
+  tabs: readonly AppTab[],
+  panes: ReadonlyMap<string, TerminalPane>,
+): TerminalMenuEntry[] {
+  return tabs.flatMap((tab) => {
+    if (tab.kind !== 'terminal' || !tab.sessionId) return []
+    return [{
+      id: tab.sessionId,
+      title: tab.title,
+      paneSessionIds: terminalPaneSessionIds(
+        panes.get(tab.id) ?? { sessionId: tab.sessionId },
+      ),
+    }]
+  })
 }
 
 export function useTerminalTabs(
@@ -39,6 +61,11 @@ export function useTerminalTabs(
   const [renameState, setRenameState] = useState<{ tabId: string; title: string }>()
   const [closeState, setCloseState] = useState<{ tabId: string; title: string }>()
   const [terminalError, setTerminalError] = useState<string>()
+  const [paneFocusRequest, setPaneFocusRequest] = useState<{
+    tabId: string
+    sessionId: string
+    generation: number
+  }>()
   const transfer = useTerminalWindowTransfer({
     tabs,
     setTabs,
@@ -49,6 +76,34 @@ export function useTerminalTabs(
     makeTerminalTab: terminalTab,
     onError: setTerminalError,
   })
+
+  useEffect(() => {
+    void window.maximal.terminal.syncMenu(
+      terminalMenuEntries(tabs, transfer.panes),
+    )
+  }, [tabs, transfer.panes])
+
+  useEffect(() => {
+    const stop = window.maximal.terminal.onMenuFocus((request) => {
+      const tab = tabs.find((candidate) =>
+        candidate.kind === 'terminal' && candidate.sessionId === request.id)
+      if (!tab) return
+      setActiveTab(tab.id)
+      if (request.paneSessionId) {
+        const sessionId = request.paneSessionId
+        setPaneFocusRequest((previous) => ({
+          tabId: tab.id,
+          sessionId,
+          generation: (previous?.generation ?? 0) + 1,
+        }))
+      }
+    })
+    return stop
+  }, [tabs])
+
+  useEffect(() => () => {
+    void window.maximal.terminal.syncMenu([])
+  }, [])
 
   useEffect(() => {
     if (detachedWindow) return
@@ -91,6 +146,23 @@ export function useTerminalTabs(
     setActiveTab(tab.id)
   }, [])
 
+  const openAssistantChat = useCallback((chatId: string) => {
+    const existing = tabs.find((tab) => tab.assistantChatId === chatId)
+    if (existing) {
+      setActiveTab(existing.id)
+      return
+    }
+    void window.maximal.harness.chats.terminal(chatId, 80, 24).then((result) => {
+      const tab = { ...terminalTab(result), assistantChatId: chatId }
+      setTabs((current) => current.some((candidate) => candidate.id === tab.id)
+        ? current
+        : [...current, tab])
+      setActiveTab(tab.id)
+    }).catch(() => {
+      setTerminalError('The Assistant chat could not be opened in a terminal.')
+    })
+  }, [tabs])
+
   const openSettings = useCallback(() => {
     setTabs((current) => current.some((tab) => tab.id === SETTINGS_TAB.id)
       ? current
@@ -98,11 +170,23 @@ export function useTerminalTabs(
     setActiveTab(SETTINGS_TAB.id)
   }, [])
 
+  const openAssistant = useCallback(() => {
+    setTabs((current) => current.some((tab) => tab.id === ASSISTANT_TAB.id)
+      ? current
+      : [...current, ASSISTANT_TAB])
+    setActiveTab(ASSISTANT_TAB.id)
+  }, [])
+
   const closeTab = useCallback((id: string) => {
     setTabs((current) => {
       const index = current.findIndex((tab) => tab.id === id)
       const closing = current[index]
-      if (index < 0 || (closing?.kind !== 'terminal' && closing?.kind !== 'settings')) return current
+      if (
+        index < 0
+        || (closing?.kind !== 'terminal'
+          && closing?.kind !== 'settings'
+          && closing?.kind !== 'assistant')
+      ) return current
       const next = current.filter((tab) => tab.id !== id)
       setActiveTab((active) => active === id
         ? (next[index] ?? next[index - 1] ?? PRODUCT_TABS[0])?.id ?? 'overview'
@@ -187,6 +271,9 @@ export function useTerminalTabs(
     transfer.paneRevisions.set(tabId, baseRevision)
     const tab = tabs.find((candidate) => candidate.id === tabId)
     if (tab?.sessionId) void window.maximal.terminal.syncPane(tab.sessionId, pane)
+    void window.maximal.terminal.syncMenu(
+      terminalMenuEntries(tabs, transfer.panes),
+    )
   }, [tabs, transfer.paneRevisions, transfer.panes])
 
   const rememberProfile = useCallback((profileId: string) => {
@@ -211,9 +298,12 @@ export function useTerminalTabs(
     setCloseState,
     terminalError,
     setTerminalError,
+    paneFocusRequest,
     rememberProfile,
     onTerminalLaunched,
+    openAssistantChat,
     openSettings,
+    openAssistant,
     toggleSettings,
     closeTab,
     closeTerminal,

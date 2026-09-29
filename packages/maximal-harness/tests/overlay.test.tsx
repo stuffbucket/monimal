@@ -8,6 +8,7 @@ import type {
   AgentEffort,
   AgentEnd,
   AgentToolEvent,
+  AssistantOverlayPreferences,
   ModelProgress,
   ProviderStatus,
 } from '../src/contracts.js';
@@ -58,6 +59,8 @@ function fakeTransport(initialStatus: ProviderStatus = {
   const approval = channel<AgentApprovalRequest>();
   const end = channel<AgentEnd>();
   const modelProgress = channel<ModelProgress>();
+  const preferences = channel<AssistantOverlayPreferences>();
+  const chatSelected = channel<string>();
   const transport: HarnessTransport = {
     hide: vi.fn(() => Promise.resolve()),
     provider: vi.fn(() => Promise.resolve(status)),
@@ -76,15 +79,58 @@ function fakeTransport(initialStatus: ProviderStatus = {
       return Promise.resolve(status);
     }),
     selectEffort: vi.fn(() => Promise.resolve(status)),
-    ask: vi.fn(() => Promise.resolve({ started: true as const })),
+    ask: vi.fn(() => Promise.resolve({
+      started: true as const,
+      chatId: 'chat-1',
+    })),
     abort: vi.fn(() => Promise.resolve()),
     approve: vi.fn(() => Promise.resolve()),
     ensureModel: vi.fn(() => Promise.resolve({ state: 'ready' as const })),
+    preferences: vi.fn(() => Promise.resolve({
+      candy: true,
+      approval: 'writes' as const,
+      hotkey: 'CommandOrControl+Shift+Space',
+    })),
+    updatePreferences: vi.fn((
+      update: Partial<Pick<AssistantOverlayPreferences, 'candy' | 'approval'>>,
+    ) => Promise.resolve({
+      candy: update.candy ?? true,
+      approval: update.approval ?? 'writes',
+      hotkey: 'CommandOrControl+Shift+Space',
+    })),
+    chats: {
+      list: vi.fn(() => Promise.resolve({ chats: [], total: 0 })),
+      create: vi.fn(() => Promise.resolve({
+        id: 'chat-1',
+        title: 'New chat',
+        status: 'active' as const,
+        attention: 'read' as const,
+        pinned: false,
+        createdAt: 1,
+        updatedAt: 1,
+        lastOpenedAt: 1,
+      })),
+      open: vi.fn(() => Promise.resolve({
+        id: 'chat-1',
+        title: 'New chat',
+        status: 'active' as const,
+        attention: 'read' as const,
+        pinned: false,
+        createdAt: 1,
+        updatedAt: 1,
+        lastOpenedAt: 1,
+      })),
+      update: vi.fn(),
+      remove: vi.fn(() => Promise.resolve()),
+      messages: vi.fn(() => Promise.resolve([])),
+    },
     onDelta: delta.subscribe,
     onTool: tool.subscribe,
     onApproval: approval.subscribe,
     onEnd: end.subscribe,
     onModelProgress: modelProgress.subscribe,
+    onPreferences: preferences.subscribe,
+    onChatSelected: chatSelected.subscribe,
   };
 
   return {
@@ -200,7 +246,7 @@ describe('Overlay', () => {
 
     await settle();
 
-    expect(fake.transport.ask).toHaveBeenCalledWith('explain this');
+    expect(fake.transport.ask).toHaveBeenCalledWith('explain this', undefined);
     expect((byTestId('overlay-input') as HTMLTextAreaElement).value).toBe('');
     expect(byTestId('overlay-status').textContent).toBe('Thinking…');
 
@@ -240,6 +286,14 @@ describe('Overlay', () => {
         description: 'Runs privately on this Mac',
         efforts: [],
       },
+      {
+        key: 'maximal:qwen-alias',
+        label: 'qwen3:4b',
+        model: 'qwen-alias',
+        provider: 'maximal' as const,
+        description: 'Available through Maximal',
+        efforts: [],
+      },
     ];
     const fake = fakeTransport({
       state: 'select-model',
@@ -253,12 +307,13 @@ describe('Overlay', () => {
     expect(document.activeElement).toBe(picker);
     expect((byTestId('overlay-input') as HTMLTextAreaElement).disabled).toBe(true);
 
-    expect(byTestId('overlay-model-menu')).toBeTruthy();
-    const option = [...document.body.querySelectorAll<HTMLButtonElement>('[role="option"]')]
-      .find((element) => element.textContent?.includes('small'));
-    if (!option) throw new Error('Expected embedded model option');
     act(() => {
-      option.click();
+      keyDown(picker, 'Enter');
+    });
+    expect(document.body.querySelectorAll('[data-testid^="menu-"]')).toHaveLength(2);
+    expect(byTestId('menu-ollama:qwen3:4b').textContent).toBe('qwen3:4b');
+    act(() => {
+      byTestId('menu-embedded:small.gguf').click();
     });
     await settle();
 
@@ -269,7 +324,7 @@ describe('Overlay', () => {
     expect(document.activeElement).toBe(byTestId('overlay-input'));
   });
 
-  it('shows model metadata and changes reasoning effort', async () => {
+  it('changes reasoning effort without dismissing the card', async () => {
     const model = {
       key: 'maximal:claude',
       label: 'Claude',
@@ -296,18 +351,33 @@ describe('Overlay', () => {
     }));
     await renderOverlay(fake.transport);
 
-    act(() => byTestId('overlay-model-picker').click());
-    expect(byTestId('overlay-model-menu').textContent).toContain(
-      'Extended reasoning · 200K context',
-    );
-    const high = [...document.body.querySelectorAll<HTMLButtonElement>('.mh-effort-picker button')]
-      .find((button) => button.textContent === 'high');
-    if (!high) throw new Error('Expected high effort option');
-    act(() => high.click());
+    act(() => keyDown(byTestId('overlay-effort'), 'Enter'));
+    act(() => byTestId('menu-high').click());
     await settle();
 
     expect(fake.transport.selectEffort).toHaveBeenCalledWith('high');
-    expect(byTestId('overlay-model-picker').textContent).toContain('high');
+    expect(byTestId('overlay-card')).toBeTruthy();
+  });
+
+  it('keeps the card mounted while changing tool permissions', async () => {
+    const fake = fakeTransport();
+    await renderOverlay(fake.transport);
+
+    act(() => {
+      keyDown(byTestId('overlay-permissions'), 'Enter');
+    });
+    expect(byTestId('overlay-card')).toBeTruthy();
+    expect(byTestId('overlay-permissions-menu')).toBeTruthy();
+
+    act(() => {
+      byTestId('menu-none').click();
+    });
+    await settle();
+
+    expect(fake.transport.updatePreferences).toHaveBeenCalledWith({
+      approval: 'none',
+    });
+    expect(byTestId('overlay-card')).toBeTruthy();
   });
 
   it('aborts before dismissing', async () => {

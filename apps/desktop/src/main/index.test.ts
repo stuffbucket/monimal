@@ -20,6 +20,7 @@ import {
   EVENT_CHANNELS,
   INVOKE_CHANNELS,
 } from '../shared/bridge-channels'
+import { setOllamaStartOnLaunch } from './preferences/application-settings'
 
 const testRendererUrl = 'http://renderer.invalid'
 
@@ -284,17 +285,27 @@ vi.mock('@maximal/maximal-electron/host', async (importOriginal) => ({
   createHostWindow: createHostWindowMock,
 }))
 
-const { menuBarActivateMock } = vi.hoisted(() => ({
+const {
+  menuBarActivateMock,
+  menuBarApplyToWindowMock,
+  menuBarControllerConstructMock,
+  menuBarSyncTerminalMenuMock,
+} = vi.hoisted(() => ({
   menuBarActivateMock: vi.fn(),
+  menuBarApplyToWindowMock: vi.fn(),
+  menuBarControllerConstructMock: vi.fn(),
+  menuBarSyncTerminalMenuMock: vi.fn(),
 }))
 
 vi.mock('./native/menu-bar-mode.js', () => ({
   MenuBarModeController: class {
-    constructor(onActivate: () => void) {
+    constructor(onActivate: () => void, ...args: unknown[]) {
       menuBarActivateMock.mockImplementation(onActivate)
+      menuBarControllerConstructMock(onActivate, ...args)
     }
     initialize = vi.fn(async () => {})
-    applyToWindow = vi.fn()
+    applyToWindow = menuBarApplyToWindowMock
+    syncTerminalMenu = menuBarSyncTerminalMenuMock
     cancelPending = vi.fn()
     keepsAlive = vi.fn(() => false)
     state = vi.fn(() => ({ enabled: false, pending: false }))
@@ -448,6 +459,9 @@ async function loadIndexOn(platform: NodeJS.Platform): Promise<void> {
   toggleHarnessHostMock.mockClear()
   configureTerminalHostMock.mockClear()
   configureTerminalWindowActionsMock.mockClear()
+  menuBarApplyToWindowMock.mockClear()
+  menuBarControllerConstructMock.mockClear()
+  menuBarSyncTerminalMenuMock.mockClear()
   moveTerminalSessionsMock.mockClear()
   registerTerminalIpcMock.mockClear()
   stageTerminalSessionsMock.mockReset()
@@ -462,6 +476,7 @@ async function loadIndexOn(platform: NodeJS.Platform): Promise<void> {
       BRIDGE_CHANNELS.terminalCopy,
       BRIDGE_CHANNELS.terminalRedock,
       BRIDGE_CHANNELS.terminalPaneSync,
+      BRIDGE_CHANNELS.terminalMenuSync,
       BRIDGE_CHANNELS.terminalSpawn,
       BRIDGE_CHANNELS.terminalWrite,
       BRIDGE_CHANNELS.terminalResize,
@@ -473,6 +488,8 @@ async function loadIndexOn(platform: NodeJS.Platform): Promise<void> {
   startHarnessHostMock.mockImplementation(() => {
     for (const channel of [
       BRIDGE_CHANNELS.harnessShow,
+      BRIDGE_CHANNELS.harnessToggle,
+      BRIDGE_CHANNELS.harnessOpenChat,
       BRIDGE_CHANNELS.harnessHide,
       BRIDGE_CHANNELS.harnessProvider,
       BRIDGE_CHANNELS.harnessSelectModel,
@@ -481,6 +498,15 @@ async function loadIndexOn(platform: NodeJS.Platform): Promise<void> {
       BRIDGE_CHANNELS.harnessAbort,
       BRIDGE_CHANNELS.harnessApprove,
       BRIDGE_CHANNELS.harnessEnsureModel,
+      BRIDGE_CHANNELS.harnessPreferences,
+      BRIDGE_CHANNELS.harnessUpdatePreferences,
+      BRIDGE_CHANNELS.harnessChatsList,
+      BRIDGE_CHANNELS.harnessChatCreate,
+      BRIDGE_CHANNELS.harnessChatOpen,
+      BRIDGE_CHANNELS.harnessChatUpdate,
+      BRIDGE_CHANNELS.harnessChatRemove,
+      BRIDGE_CHANNELS.harnessChatMessages,
+      BRIDGE_CHANNELS.harnessChatTerminal,
     ]) ipcMainHandle(channel, vi.fn())
   })
   createCoreControlConnectionMock.mockClear()
@@ -573,11 +599,15 @@ describe('closed IPC boundary', () => {
       BRIDGE_CHANNELS.terminalExit,
       BRIDGE_CHANNELS.terminalTabRedocked,
       BRIDGE_CHANNELS.terminalPaneChanged,
+      BRIDGE_CHANNELS.terminalMenuFocus,
       BRIDGE_CHANNELS.harnessDelta,
       BRIDGE_CHANNELS.harnessTool,
       BRIDGE_CHANNELS.harnessApproval,
       BRIDGE_CHANNELS.harnessEnd,
       BRIDGE_CHANNELS.harnessModelProgress,
+      BRIDGE_CHANNELS.harnessPreferencesChanged,
+      BRIDGE_CHANNELS.harnessChatSelected,
+      BRIDGE_CHANNELS.harnessChatsChanged,
     ])
   })
 
@@ -598,6 +628,14 @@ describe('closed IPC boundary', () => {
         owner: typeof fakeWindow,
         request: typeof terminalRequest,
       ): Promise<boolean>
+      syncMenu(
+        owner: typeof fakeWindow,
+        entries: Array<{
+          id: string
+          title: string
+          paneSessionIds: string[]
+        }>,
+      ): void
     } {
       vi.stubGlobal('MAIN_WINDOW_VITE_DEV_SERVER_URL', testRendererUrl)
       const actions: unknown =
@@ -612,6 +650,55 @@ describe('closed IPC boundary', () => {
       }
       return actions as ReturnType<typeof terminalActions>
     }
+
+    it('registers detached terminal windows with menu-bar presence', async () => {
+      await loadIndexOn('darwin')
+      stageTerminalSessionsMock.mockReturnValue(undefined)
+
+      await expect(
+        terminalActions().undock(fakeWindow, terminalRequest),
+      ).resolves.toBe(false)
+
+      expect(menuBarApplyToWindowMock).toHaveBeenCalledTimes(2)
+      expect(menuBarApplyToWindowMock).toHaveBeenLastCalledWith(fakeWindow)
+    })
+
+    it('publishes each renderer terminal menu through the native controller', async () => {
+      await loadIndexOn('darwin')
+      const entries = [{
+        id: 'primary',
+        title: 'Build workspace',
+        paneSessionIds: ['primary', 'split'],
+      }]
+
+      terminalActions().syncMenu(fakeWindow, entries)
+
+      expect(menuBarSyncTerminalMenuMock).toHaveBeenCalledWith(
+        fakeWindow,
+        entries,
+      )
+    })
+
+    it('focuses the owning window before forwarding a terminal menu selection', async () => {
+      await loadIndexOn('darwin')
+      windowState.minimized = true
+      windowState.visible = false
+      const activate = menuBarControllerConstructMock.mock.calls[0]?.[1] as (
+        win: typeof fakeWindow,
+        request: { id: string; paneSessionId?: string },
+      ) => void
+      const request = { id: 'primary', paneSessionId: 'split' }
+
+      activate(fakeWindow, request)
+
+      expect(fakeWindow.restore).toHaveBeenCalledOnce()
+      expect(fakeWindow.show).toHaveBeenCalledOnce()
+      expect(fakeWindow.focus).toHaveBeenCalledOnce()
+      expect(webContentsSend).toHaveBeenCalledWith(
+        BRIDGE_CHANNELS.terminalMenuFocus,
+        request,
+      )
+    })
 
     it('commits and reports success only after the destination is ready', async () => {
       await loadIndexOn('darwin')
@@ -1038,6 +1125,7 @@ describe('closed IPC boundary', () => {
   })
 
   it('routes Ollama runtime operations through the native bridge', async () => {
+    await setOllamaStartOnLaunch('/tmp/maximal-client-test', false)
     await loadIndexOn('darwin')
     const handlerFor = (channel: string) => {
       const registration = ipcMainHandle.mock.calls.find(

@@ -471,6 +471,51 @@ test('terminal splits preserve geometry, focus navigation, and theme tokens', as
   })
 })
 
+test('recent Assistant chat opens the resumable CLI in wterm', async () => {
+  const page = await mainWindow()
+  const chat = await page.evaluate(() =>
+    window.maximal.harness.chats.create('CLI terminal E2E'),
+  )
+  await page.evaluate(() => {
+    const state = window as typeof window & {
+      __assistantTerminalOutput?: Array<{ id: string; data: string }>
+    }
+    state.__assistantTerminalOutput = []
+    window.maximal.terminal.onData((message) => {
+      state.__assistantTerminalOutput?.push(message)
+    })
+  })
+
+  await page.getByTestId('open-assistant').click()
+  const recentChat = page.getByTestId(`menu-chat-${chat.id}`)
+  await expect(recentChat).toBeVisible()
+  await recentChat.click()
+
+  await expect(page.getByRole('tab', { name: 'CLI terminal E2E' })).toBeVisible()
+  await expect(page.locator('.terminal[data-session-id]')).toBeVisible()
+  await expect.poll(() => page.evaluate(() => {
+    const state = window as typeof window & {
+      __assistantTerminalOutput?: Array<{ id: string; data: string }>
+    }
+    return state.__assistantTerminalOutput
+      ?.map(({ data }) => data)
+      .join('') ?? ''
+  })).toContain('Maximal Assistant · CLI terminal E2E')
+
+  const sessionId = await page.evaluate(() => {
+    const state = window as typeof window & {
+      __assistantTerminalOutput?: Array<{ id: string; data: string }>
+    }
+    return state.__assistantTerminalOutput?.find(({ data }) =>
+      data.includes('Maximal Assistant'))?.id
+  })
+  expect(sessionId).toBeTruthy()
+  if (!sessionId) throw new Error('Assistant CLI did not publish a PTY session.')
+
+  await expect(page.locator(`.terminal[data-session-id="${sessionId}"]`)).toBeVisible()
+  await page.evaluate((id) => window.maximal.terminal.write(id, '/exit\r'), sessionId)
+})
+
 test('native Settings flyout opens every restored section in the packaged UI', async () => {
   const page = await mainWindow()
   const nativeLabels = await openNativeSettings('Usage')

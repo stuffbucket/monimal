@@ -9,6 +9,8 @@ import {
 
 import type { SettingsSectionId } from '../shared/settings-sections'
 import { AccountStatusLine } from './AccountStatusLine'
+import { AssistantHistory } from './assistant/AssistantHistory'
+import { useAssistantMenu } from './assistant/useAssistantMenu'
 import { AppFrame, PRODUCT_TABS, SurfaceActivity, type AppTab } from './frame/AppFrame'
 import { WorkspaceRail } from './frame/WorkspaceRail'
 import { Overview } from './overview/Overview'
@@ -58,6 +60,9 @@ function ActiveSurface({
     <>
       {current?.kind === 'overview' ? <Overview /> : null}
       {current?.kind === 'traffic' ? <Traffic /> : null}
+      {current?.kind === 'assistant' ? (
+        <AssistantHistory onOpenTerminal={terminalState.openAssistantChat} />
+      ) : null}
       {terminalTabs.length > 0 ? (
         <Terminal
           tabs={terminalTabs}
@@ -68,6 +73,7 @@ function ActiveSurface({
           initialPane={terminalState.detachedWindow?.pane}
           initialPanes={terminalState.panes}
           paneRevisions={terminalState.paneRevisions}
+          paneFocusRequest={terminalState.paneFocusRequest}
         />
       ) : null}
       {current?.kind === 'settings' ? (
@@ -170,6 +176,7 @@ export function AppWorkspace({
   openSettingsSection,
 }: AppWorkspaceProps): ReactElement {
   const [profileError, setProfileError] = useState<string>()
+  const assistantMenu = useAssistantMenu()
   const visibleTabs = detachedWindow
     ? terminalState.tabs.filter((tab) => tab.kind === 'terminal')
     : terminalState.tabs
@@ -225,8 +232,8 @@ export function AppWorkspace({
         onSelectTab={(id) => requestNavigation(() => terminalState.setActiveTab(id))}
         onCloseTab={(id) => {
           const closing = terminalState.tabs.find((tab) => tab.id === id)
-          if (closing?.kind === 'settings') requestNavigation(() => terminalState.closeTab(id))
-          else terminalState.requestCloseTerminal(id)
+          if (closing?.kind === 'terminal') terminalState.requestCloseTerminal(id)
+          else requestNavigation(() => terminalState.closeTab(id))
         }}
         onNewTab={detachedWindow ? undefined : () => terminalState.setLauncherOpen(true)}
         settingsOpen={terminalState.tabs.some((tab) => tab.kind === 'settings')}
@@ -241,7 +248,13 @@ export function AppWorkspace({
                 setProfileError('The account could not be signed out.')
               })
             }}
-        onOpenAssistant={detachedWindow ? undefined : () => void window.maximal.harness.show()}
+        assistant={detachedWindow ? undefined : {
+          recent: assistantMenu.recent,
+          hotkey: assistantMenu.hotkey,
+          onToggle: assistantMenu.toggle,
+          onOpenChat: terminalState.openAssistantChat,
+          onShowMore: terminalState.openAssistant,
+        }}
         tabTransfer={{
           frameId: terminalState.frameId,
           canDrag: (tab) => tab.kind === 'terminal',
