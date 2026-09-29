@@ -126,11 +126,23 @@ function ContextWindowTurns({
   inputSegmentsFor?:
     ((turn: Turn) => Array<ContextInputSegment> | undefined) | undefined
 }) {
-  const [selectedIndex, setSelectedIndex] = useState(
-    Math.max(0, session.turns.length - 1),
-  )
+  const [selection, setSelection] = useState<{
+    requestId: string | null
+    followLatest: boolean
+  }>(() => ({
+    requestId: session.turns.at(-1)?.identity.requestId ?? null,
+    followLatest: true,
+  }))
   const { tooltip, show, hide } = useDataVizTooltip()
-  const turn = session.turns[selectedIndex] ?? session.turns.at(-1)
+  const latestIndex = Math.max(0, session.turns.length - 1)
+  const selectedIndex =
+    selection.followLatest ? latestIndex : (
+      session.turns.findIndex(
+        ({ identity }) => identity.requestId === selection.requestId,
+      )
+    )
+  const resolvedIndex = selectedIndex < 0 ? latestIndex : selectedIndex
+  const turn = session.turns[resolvedIndex] ?? session.turns.at(-1)
   if (!turn) return null
   const inputSegments = inputSegmentsFor?.(turn)
   const grid = deriveContextGrid({ request: turn, inputSegments })
@@ -142,8 +154,13 @@ function ContextWindowTurns({
       {session.turns.length > 1 && (
         <TurnPicker
           turns={session.turns}
-          selectedIndex={selectedIndex}
-          onSelect={setSelectedIndex}
+          selectedIndex={resolvedIndex}
+          onSelect={(index) => {
+            setSelection({
+              requestId: session.turns[index]?.identity.requestId ?? null,
+              followLatest: index === latestIndex,
+            })
+          }}
         />
       )}
       <TurnCompositionBar

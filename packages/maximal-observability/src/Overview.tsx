@@ -1,16 +1,8 @@
-import {
-  ContextWindowSessionPanel,
-  deriveContextSessions,
-} from "@maximal/maximal-context-window"
-import {
-  Button,
-  InspectorPanel,
-  StatusChip,
-} from "@maximal/maximal-electron/renderer"
-import { useState } from "react"
+import { Button, StatusChip } from "@maximal/maximal-electron/renderer"
 
 import { TokenSeriesChart } from "./charts/TokenSeries.tsx"
 import { TrafficFlowChart } from "./charts/TrafficFlow.tsx"
+import { ContextWindowInspector } from "./ContextWindowInspector.tsx"
 import { ObservabilityFilters } from "./Filters.tsx"
 import { formatCount, formatDuration, formatTimestamp } from "./format.ts"
 import { RequestTable } from "./RequestTable.tsx"
@@ -98,45 +90,10 @@ export function OverviewMain() {
 
 export function OverviewInspector() {
   const { requestItems, requests } = useObservability()
-  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(
-    null,
-  )
-  const sessions = deriveContextSessions(requestItems)
-  const session =
-    sessions.find(({ id }) => id === selectedSessionId) ?? sessions[0]
 
   return (
     <aside className="mo-inspector" aria-label="Context window">
-      <InspectorPanel title="Context window">
-        {requests.status === "loading" && (
-          <p className="mo-state" role="status" aria-live="polite">
-            Loading session context…
-          </p>
-        )}
-        {requests.status === "error" && (
-          <p className="mo-state" role="alert">
-            Session context could not be loaded. {requests.message}
-          </p>
-        )}
-        {requests.status === "unsupported" && (
-          <p className="mo-state">
-            Session context is not supported. {requests.message}
-          </p>
-        )}
-        {(requests.status === "ready" || requests.status === "empty")
-          && !session && (
-            <p className="mo-state">
-              No session-scoped traffic is available for these filters.
-            </p>
-          )}
-        {session && (
-          <ContextWindowSessionPanel
-            session={session}
-            sessionIds={sessions.map(({ id }) => id)}
-            onSelectSession={setSelectedSessionId}
-          />
-        )}
-      </InspectorPanel>
+      <ContextWindowInspector requests={requests} requestItems={requestItems} />
     </aside>
   )
 }

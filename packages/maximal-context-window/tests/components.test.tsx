@@ -102,6 +102,62 @@ describe("ContextWindowSessionPanel", () => {
     ).toContain("Other content: 35 tokens, 20 cached")
   })
 
+  it("follows newly appended turns until an earlier turn is selected", () => {
+    const earlier = {
+      ...REQUEST,
+      identity: { ...REQUEST.identity, requestId: "req-0" },
+      timing: { ...REQUEST.timing, acceptedAt: "2026-09-07T19:00:00.000Z" },
+      tokens: { ...TOKENS, inputTokens: 5 },
+    }
+    const latest = {
+      ...REQUEST,
+      identity: { ...REQUEST.identity, requestId: "req-2" },
+      timing: { ...REQUEST.timing, acceptedAt: "2026-09-07T21:00:00.000Z" },
+      tokens: { ...TOKENS, inputTokens: 200 },
+    }
+    const [initialSession] = deriveContextSessions([earlier, REQUEST])
+    const [updatedSession] = deriveContextSessions([earlier, REQUEST, latest])
+    if (!initialSession || !updatedSession)
+      throw new Error("Fixture session missing")
+
+    act(() =>
+      root.render(
+        <ContextWindowSessionPanel
+          session={initialSession}
+          sessionIds={[initialSession.id]}
+          onSelectSession={() => undefined}
+        />,
+      ),
+    )
+    expect(button("Turn 2").getAttribute("aria-pressed")).toBe("true")
+
+    act(() =>
+      root.render(
+        <ContextWindowSessionPanel
+          session={updatedSession}
+          sessionIds={[updatedSession.id]}
+          onSelectSession={() => undefined}
+        />,
+      ),
+    )
+    expect(button("Turn 3").getAttribute("aria-pressed")).toBe("true")
+    expect(
+      container.querySelector(".mcw-grid")?.getAttribute("aria-label"),
+    ).toContain("Other content: 230 tokens, 20 cached")
+
+    act(() => button("Turn 1").click())
+    act(() =>
+      root.render(
+        <ContextWindowSessionPanel
+          session={updatedSession}
+          sessionIds={[updatedSession.id]}
+          onSelectSession={() => undefined}
+        />,
+      ),
+    )
+    expect(button("Turn 1").getAttribute("aria-pressed")).toBe("true")
+  })
+
   it("renders explicit input segments as positioned, cache-textured spans", () => {
     const segments: Array<ContextInputSegment> = [
       { category: "system", tokens: 1_000, cachedTokens: 1_000 },
