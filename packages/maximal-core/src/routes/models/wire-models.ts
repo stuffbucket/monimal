@@ -114,9 +114,9 @@ export function toAnthropicModel(model: Model): AnthropicModel {
       structured_outputs: { supported: profile.supportsStructuredOutputs },
       thinking: {
         supported: profile.isReasoning,
-        ...(profile.reasoningEffortLadder === undefined
-          ? {}
-          : { efforts: [...profile.reasoningEffortLadder] }),
+        ...(profile.reasoningEffortLadder === undefined ?
+          {}
+        : { efforts: [...profile.reasoningEffortLadder] }),
       },
     },
   }
