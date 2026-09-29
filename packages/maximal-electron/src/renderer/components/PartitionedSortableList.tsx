@@ -12,11 +12,10 @@ import {
   ChevronRight,
   GripVertical,
 } from 'lucide-react';
-import * as Tooltip from '@radix-ui/react-tooltip';
-
 import { useComponentStyles } from '../lib/component-styles.js';
 import { IconButton } from './controls/Button.js';
 import { Switch } from './controls/Fields.js';
+import { TooltipProvider } from './controls/Overlays.js';
 
 export interface PartitionedSortableItem {
   id: string;
@@ -257,7 +256,7 @@ export function PartitionedSortableList({
   ];
 
   return (
-    <Tooltip.Provider delayDuration={400}>
+    <TooltipProvider>
       <div className="partitioned-sortable">
       <ol
         className="partitioned-sortable__list"
@@ -377,6 +376,6 @@ export function PartitionedSortableList({
           {announcement}
         </span>
       </div>
-    </Tooltip.Provider>
+    </TooltipProvider>
   );
 }

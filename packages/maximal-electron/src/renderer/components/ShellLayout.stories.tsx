@@ -1,7 +1,7 @@
 import { Copy, Info, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, userEvent, within } from 'storybook/test';
+import { expect, userEvent, waitFor, within } from 'storybook/test';
 
 import { Button, IconButton } from './controls/Button.js';
 import { Banner } from './controls/Layout.js';
@@ -437,10 +437,17 @@ export const Portalled: StoryObj = {
     // popup and report the trigger as focusable inside `aria-hidden`.
     await userEvent.keyboard('{Escape}');
 
-    await userEvent.hover(canvas.getByRole('button', { name: 'Hide sidebar' }));
+    const sidebarButton = canvas.getByRole('button', { name: 'Hide sidebar' });
+    await userEvent.hover(sidebarButton);
     const tooltip = await body.findByText('Hide sidebar', { selector: '.tooltip' });
     await expect(tooltip.closest('.sb-shell')).toBe(root);
-    await userEvent.unhover(canvas.getByRole('button', { name: 'Hide sidebar' }));
+    await userEvent.unhover(sidebarButton);
+    await userEvent.hover(tooltip);
+    await waitFor(async () => {
+      await expect(
+        body.queryByText('Hide sidebar', { selector: '.tooltip' }),
+      ).not.toBeInTheDocument();
+    });
   },
 };
 

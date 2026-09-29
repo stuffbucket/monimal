@@ -1,5 +1,6 @@
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import * as Tooltip from '@radix-ui/react-tooltip';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { useContext, useRef, type ComponentType, type ReactNode } from 'react';
 
@@ -34,6 +35,20 @@ export function ShellPortalRoot({
   children: ReactNode;
 }) {
   return <ShellRoot.Provider value={element}>{children}</ShellRoot.Provider>;
+}
+
+export function TooltipProvider({
+  children,
+  delayDuration = 400,
+}: {
+  children: ReactNode;
+  delayDuration?: number;
+}) {
+  return (
+    <Tooltip.Provider delayDuration={delayDuration} disableHoverableContent>
+      {children}
+    </Tooltip.Provider>
+  );
 }
 
 /**

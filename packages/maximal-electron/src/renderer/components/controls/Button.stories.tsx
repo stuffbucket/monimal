@@ -62,7 +62,7 @@ export const Sizes: Story = {
 /**
  * An icon button carries its label in a tooltip rather than on screen.
  *
- * It needs a `Tooltip.Provider` above it, which `.storybook/preview.ts`
+ * It needs a `TooltipProvider` above it, which `.storybook/preview.ts`
  * supplies globally and `ShellLayout` supplies in the application. Rendered in
  * the overlay document, which has neither, it renders nothing at all — use
  * `Button` there.
