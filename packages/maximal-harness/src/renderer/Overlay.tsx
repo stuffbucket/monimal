@@ -494,6 +494,10 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
   const submit = useCallback(() => {
     const text = prompt.trim();
     if (!text && attachments.length === 0) return;
+    if (text === '/exit' || text === '/quit') {
+      hide();
+      return;
+    }
     if (text === '/terminal' || text === '!') {
       if (!activeChatId) {
         setError('Start a conversation before opening it in the terminal.');
@@ -579,7 +583,7 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
       setMessages((current) => current.filter((entry) => entry.id !== pendingId));
       setError(HARNESS_COPY.overlay.requestFailed);
     });
-  }, [activeChatId, attachments, busy, prompt, reloadChats, transport]);
+  }, [activeChatId, attachments, busy, hide, prompt, reloadChats, transport]);
 
   const openInTerminal = useCallback(() => {
     if (!activeChatId) return;

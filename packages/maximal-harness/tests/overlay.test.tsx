@@ -577,6 +577,21 @@ describe('Overlay', () => {
     },
   );
 
+  it.each(['/exit', '/quit'])('treats %s as an overlay exit command', async (command) => {
+    const fake = fakeTransport();
+    await renderOverlay(fake.transport);
+
+    act(() => {
+      inputText(command);
+      keyDown(byTestId('overlay-input'), 'Enter');
+    });
+    await settle();
+
+    expect(fake.transport.hide).toHaveBeenCalledTimes(1);
+    expect(fake.transport.ask).not.toHaveBeenCalled();
+    expect(fake.transport.chats.terminal).not.toHaveBeenCalled();
+  });
+
   it('aborts on Escape and clears a draft on double Escape without dismissing', async () => {
     const fake = fakeTransport();
     await renderOverlay(fake.transport);
