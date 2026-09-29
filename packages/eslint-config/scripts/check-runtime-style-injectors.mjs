@@ -45,6 +45,10 @@ export const allowedAdhocStyles = new Map([
     { inlineAttributes: 2 },
   ],
   [
+    'packages/maximal-electron/src/renderer/components/settings/ModelCards.tsx',
+    { inlineAttributes: 1 },
+  ],
+  [
     'packages/maximal-electron/src/renderer/lib/component-styles.ts',
     { injectors: 2 },
   ],
