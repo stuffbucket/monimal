@@ -6,7 +6,7 @@ export default {
   },
   mutate: [
     'src/main.ts:23-29',
-    'src/main.ts:96-105',
+    'src/main.ts:98-108',
   ],
   reporters: ['progress', 'clear-text', 'json'],
   jsonReporter: { fileName: 'reports/mutation/mutation.json' },

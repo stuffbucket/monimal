@@ -59,6 +59,7 @@ export async function startWindowRecording(options: RecordingOptions): Promise<R
   let wake: (() => void) | undefined;
   let timer: ReturnType<typeof setTimeout> | undefined;
   const interval = 1000 / fps;
+  const startedAt = performance.now();
   const loop = (async () => {
     while (!stopping) {
       const frame = await options.captureFrame();
@@ -71,7 +72,8 @@ export async function startWindowRecording(options: RecordingOptions): Promise<R
       if (stopping) break;
       await new Promise<void>((resolve) => {
         wake = resolve;
-        timer = setTimeout(resolve, interval);
+        const nextFrameAt = startedAt + frames * interval;
+        timer = setTimeout(resolve, Math.max(0, nextFrameAt - performance.now()));
       });
       wake = undefined;
       timer = undefined;

@@ -93,22 +93,28 @@ describe('real recording encoder', () => {
 
     const output = path.join(directory, 'playable.mp4')
     let captures = 0
+    const startedAt = performance.now()
     const session = await startWindowRecording({
       output,
       fps: 30,
       onError: vi.fn(),
       captureFrame: async () => {
+        await new Promise((resolve) => setTimeout(resolve, 20))
         captures += 1
         return frame
       },
     })
-    await vi.waitFor(() => expect(captures).toBeGreaterThanOrEqual(3))
+    await new Promise((resolve) => setTimeout(resolve, 600))
     const result = await session.stop()
+    const elapsed = (performance.now() - startedAt) / 1000
     const metadata = await probe(output, ffprobe.path)
 
-    expect(result.frames).toBeGreaterThanOrEqual(2)
+    expect(result.frames).toBeGreaterThanOrEqual(15)
+    expect(captures).toBeGreaterThanOrEqual(result.frames)
+    expect(captures).toBeLessThanOrEqual(result.frames + 1)
     expect(Number(metadata.format.size)).toBeGreaterThan(0)
-    expect(Number(metadata.format.duration)).toBeGreaterThan(0)
+    expect(Number(metadata.format.duration)).toBeGreaterThanOrEqual(elapsed * 0.8)
+    expect(Number(metadata.format.duration)).toBeLessThanOrEqual(elapsed * 1.2)
     expect(metadata.streams).toEqual([
       expect.objectContaining({
         codec_name: 'h264',
