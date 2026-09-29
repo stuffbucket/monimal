@@ -1,8 +1,10 @@
+import { QueryClientProvider, type QueryClient } from '@tanstack/react-query'
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { AppearancePreference, SettingsCapabilities } from '../capabilities'
+import { createMaximalQueryClient } from '../../query-client'
 import { useAppearancePreference } from './useAppearancePreference'
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
@@ -16,6 +18,7 @@ const defaultPreference: AppearancePreference = {
 
 let container: HTMLElement
 let root: Root
+let queryClient: QueryClient
 let current: ReturnType<typeof useAppearancePreference> | null
 
 function deferred<T>() {
@@ -59,7 +62,11 @@ function Probe({ value }: { value: SettingsCapabilities }) {
 
 async function render(value: SettingsCapabilities): Promise<void> {
   await act(async () => {
-    root.render(<Probe value={value} />)
+    root.render(
+      <QueryClientProvider client={queryClient}>
+        <Probe value={value} />
+      </QueryClientProvider>,
+    )
     await Promise.resolve()
   })
 }
@@ -68,6 +75,7 @@ beforeEach(() => {
   container = document.createElement('div')
   document.body.appendChild(container)
   root = createRoot(container)
+  queryClient = createMaximalQueryClient()
   current = null
 })
 
@@ -97,7 +105,7 @@ describe('useAppearancePreference', () => {
       await initial.promise
     })
 
-    expect(current?.state).toEqual(changed)
+    await vi.waitFor(() => expect(current?.state).toEqual(changed))
     expect(current?.error).toBeNull()
     act(() => root.unmount())
     expect(unsubscribe).toHaveBeenCalledOnce()
@@ -117,10 +125,14 @@ describe('useAppearancePreference', () => {
     })
     await render(value)
 
-    expect(current?.error).toBe('appearance unavailable')
+    await vi.waitFor(() =>
+      expect(current?.error).toBe('appearance unavailable'),
+    )
     act(() => notify?.(defaultPreference))
-    expect(current?.state).toEqual(defaultPreference)
-    expect(current?.error).toBeNull()
+    await vi.waitFor(() => {
+      expect(current?.state).toEqual(defaultPreference)
+      expect(current?.error).toBeNull()
+    })
   })
 
   it('ignores an initial-read failure after unmount', async () => {
@@ -150,7 +162,7 @@ describe('useAppearancePreference', () => {
     act(() => {
       updating = current!.setBackgroundEffectsEnabled(true)
     })
-    expect(current?.busy).toBe(true)
+    await vi.waitFor(() => expect(current?.busy).toBe(true))
     expect(current?.error).toBeNull()
 
     const changed = { ...defaultPreference, backgroundEffectsEnabled: true }
@@ -159,7 +171,7 @@ describe('useAppearancePreference', () => {
       await updating
     })
     expect(general.setBackgroundEffectsEnabled).toHaveBeenCalledWith(true)
-    expect(current?.state).toEqual(changed)
+    await vi.waitFor(() => expect(current?.state).toEqual(changed))
     expect(current?.busy).toBe(false)
   })
 
@@ -172,21 +184,23 @@ describe('useAppearancePreference', () => {
       setReducedMotionEnabled: vi.fn(() => update.promise),
     })
     await render(value)
-    expect(current?.error).toBe('initial failure')
+    await vi.waitFor(() => expect(current?.error).toBe('initial failure'))
 
     let updating!: Promise<void>
     act(() => {
       updating = current!.setReducedMotionEnabled(true)
     })
-    expect(current?.busy).toBe(true)
+    await vi.waitFor(() => expect(current?.busy).toBe(true))
     expect(current?.error).toBeNull()
     await act(async () => {
       update.reject(new Error('motion update failed'))
       await updating
     })
 
-    expect(current?.error).toBe('motion update failed')
-    expect(current?.busy).toBe(false)
+    await vi.waitFor(() => {
+      expect(current?.error).toBe('motion update failed')
+      expect(current?.busy).toBe(false)
+    })
     expect(current?.state).toBeNull()
   })
 
@@ -209,6 +223,8 @@ describe('useAppearancePreference', () => {
     expect(second.general.setVibrancyEnabled).toHaveBeenCalledWith(true)
     expect(second.general.setBackgroundEffectsEnabled).toHaveBeenCalledWith(true)
     expect(second.general.setReducedMotionEnabled).toHaveBeenCalledWith(true)
-    expect(current?.state?.reducedMotionEnabled).toBe(true)
+    await vi.waitFor(() =>
+      expect(current?.state?.reducedMotionEnabled).toBe(true),
+    )
   })
 })

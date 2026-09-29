@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useCallback, useEffect } from 'react'
 
 import type {
   AppearancePreference,
@@ -6,49 +7,43 @@ import type {
 } from '../capabilities'
 import { describeError } from '../../shared/errors'
 
+export const appearancePreferenceQueryKey = [
+  'settings',
+  'general',
+  'appearance',
+] as const
+
 export function useAppearancePreference(capabilities: SettingsCapabilities) {
-  const [state, setState] = useState<AppearancePreference | null>(null)
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const queryClient = useQueryClient()
+  const query = useQuery({
+    queryKey: appearancePreferenceQueryKey,
+    queryFn: () => capabilities.general.appearance(),
+  })
+  const mutation = useMutation({
+    mutationFn: (request: () => Promise<AppearancePreference>) => request(),
+    onSuccess: (next) =>
+      queryClient.setQueryData(appearancePreferenceQueryKey, next),
+  })
+  const mutateAsync = mutation.mutateAsync
+  const resetMutation = mutation.reset
 
   useEffect(() => {
-    let settled = false
-    let changed = false
     const unsubscribe = capabilities.general.onAppearanceChange((next) => {
-      changed = true
-      setState(next)
-      setError(null)
+      void queryClient.cancelQueries({
+        queryKey: appearancePreferenceQueryKey,
+        exact: true,
+      })
+      queryClient.setQueryData(appearancePreferenceQueryKey, next)
+      resetMutation()
     })
-    void capabilities.general.appearance().then(
-      (next) => {
-        if (!settled && !changed) setState(next)
-      },
-      (cause: unknown) => {
-        // Stryker disable next-line ConditionalExpression: React ignores state updates after unmount; this guard avoids needless work.
-        if (!settled) setError(describeError(cause))
-      },
-    )
-    return () => {
-      // Stryker disable next-line BooleanLiteral: React ignores state updates after unmount, making the false mutant externally equivalent.
-      settled = true
-      unsubscribe()
-    }
-  }, [capabilities])
+    return unsubscribe
+  }, [capabilities, queryClient, resetMutation])
 
   const update = useCallback(
     async (request: () => Promise<AppearancePreference>) => {
-      setBusy(true)
-      setError(null)
-      try {
-        setState(await request())
-      } catch (cause) {
-        setError(describeError(cause))
-      } finally {
-        setBusy(false)
-      }
+      await mutateAsync(request).catch(() => undefined)
     },
-    // Stryker disable next-line ArrayDeclaration: this callback has no reactive dependencies, and a stable constant dependency is equivalent.
-    [],
+    [mutateAsync],
   )
 
   const setVibrancyEnabled = useCallback(
@@ -70,9 +65,14 @@ export function useAppearancePreference(capabilities: SettingsCapabilities) {
   )
 
   return {
-    state,
-    busy,
-    error,
+    state: query.data ?? null,
+    busy: mutation.isPending,
+    error:
+      mutation.error === null
+        ? mutation.isPending || query.error === null
+          ? null
+          : describeError(query.error)
+        : describeError(mutation.error),
     setVibrancyEnabled,
     setBackgroundEffectsEnabled,
     setReducedMotionEnabled,
