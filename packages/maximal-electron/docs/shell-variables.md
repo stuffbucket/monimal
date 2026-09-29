@@ -57,6 +57,22 @@ focus rings, type, and optical details are not spacing increments.
 | `--shell-focus-ring-width` | `2px` | Keyboard focus ring width. |
 | `--shell-input-border` | `var(--shell-border-strong, var(--shell-border))` | The outline of a field. |
 | `--shell-leading-base` | `1.5` | Line height for a paragraph. |
+| `--shell-provider-anthropic-card-background` | `var(--shell-raised)` | The Anthropic model-card surface. |
+| `--shell-provider-anthropic-card-border` | `var(--shell-border)` | The Anthropic model-card outline. |
+| `--shell-provider-deepseek-card-background` | `var(--shell-raised)` | The DeepSeek model-card surface. |
+| `--shell-provider-deepseek-card-border` | `var(--shell-border)` | The DeepSeek model-card outline. |
+| `--shell-provider-github-card-background` | `var(--shell-raised)` | The GitHub model-card surface. |
+| `--shell-provider-github-card-border` | `var(--shell-border)` | The GitHub model-card outline. |
+| `--shell-provider-google-card-background` | `var(--shell-raised)` | The Google model-card surface. |
+| `--shell-provider-google-card-border` | `var(--shell-border)` | The Google model-card outline. |
+| `--shell-provider-grok-card-background` | `var(--shell-raised)` | The Grok model-card surface. |
+| `--shell-provider-grok-card-border` | `var(--shell-border)` | The Grok model-card outline. |
+| `--shell-provider-meta-card-background` | `var(--shell-raised)` | The Meta model-card surface. |
+| `--shell-provider-meta-card-border` | `var(--shell-border)` | The Meta model-card outline. |
+| `--shell-provider-mistral-card-background` | `var(--shell-raised)` | The Mistral model-card surface. |
+| `--shell-provider-mistral-card-border` | `var(--shell-border)` | The Mistral model-card outline. |
+| `--shell-provider-openai-card-background` | `var(--shell-raised)` | The OpenAI model-card surface. |
+| `--shell-provider-openai-card-border` | `var(--shell-border)` | The OpenAI model-card outline. |
 | `--shell-radius` | `6px` | A control corner. |
 | `--shell-radius-large` | `8px` | A card corner. |
 | `--shell-radius-pill` | `9999px` | A fully rounded control. |

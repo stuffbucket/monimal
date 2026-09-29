@@ -79,7 +79,7 @@ function AppearanceSections({
         <SettingsGroup>
           <SettingsItem
             title="Cozy background"
-            description="Render a subtle cloud-like material behind the workspace."
+            description="Render a gently moving cloud material behind the workspace."
             control={
               <Switch
                 label="Cozy background"

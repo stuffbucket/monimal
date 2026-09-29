@@ -18,7 +18,8 @@ to open that directory in the system file manager.
 
 The capability requires `ffmpeg` and `ffprobe` on `PATH`, or `FFMPEG` and
 `FFPROBE` pointing to executable overrides. Missing tools MUST be reported
-before recording begins.
+before recording begins. The workspace's pinned `ffmpeg` mise tool supplies
+both executables after `mise install`.
 
 The package retains pure offline composition helpers and pacing-rule tests.
 It MUST NOT own an Electron application, application launch harness, product

@@ -111,6 +111,143 @@ body {
   -webkit-mask: var(--terminal-profile-icon-mask) center / contain no-repeat;
 }
 
+.workspace-map__scrim {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+.workspace-map {
+  position: fixed;
+  z-index: 50;
+  inset: 10vh 7vw;
+  display: grid;
+  grid-template-rows: 42px minmax(0, 1fr);
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid var(--shell-border);
+  border-radius: 10px;
+  background: var(--shell-canvas);
+  box-shadow: 0 20px 70px rgb(0 0 0 / 45%);
+}
+
+.workspace-map__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--shell-border);
+  background: var(--shell-raised);
+}
+
+.workspace-map__header > span:not(.workspace-map__hint) {
+  min-width: 38px;
+  text-align: center;
+  color: var(--shell-text-muted);
+  font-size: 11px;
+}
+
+.workspace-map__action {
+  display: inline-grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--shell-radius);
+  color: var(--shell-text);
+  background: transparent;
+  cursor: pointer;
+}
+
+.workspace-map__action:hover {
+  background: var(--shell-hover);
+}
+
+.workspace-map__action:focus-visible {
+  outline: 2px solid var(--shell-focus);
+  outline-offset: -2px;
+}
+
+.workspace-map__hint {
+  flex: 1;
+  color: var(--shell-text-muted);
+  font-size: 11px;
+}
+
+.workspace-map__viewport {
+  position: relative;
+  overflow: hidden;
+  cursor: grab;
+  background-color: var(--shell-background);
+  background-image: radial-gradient(var(--shell-border) 1px, transparent 1px);
+  background-size: 24px 24px;
+  touch-action: none;
+}
+
+.workspace-map__viewport:active {
+  cursor: grabbing;
+}
+
+.workspace-map__plane {
+  position: absolute;
+  width: 4000px;
+  height: 3000px;
+  transform-origin: 0 0;
+}
+
+.workspace-map__edges {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.workspace-map__edges line {
+  stroke: var(--shell-border);
+  stroke-width: 2;
+  stroke-dasharray: 5 5;
+}
+
+.workspace-map__node {
+  position: absolute;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 220px;
+  min-height: 108px;
+  padding: 14px;
+  border: 1px solid var(--shell-border);
+  border-radius: 9px;
+  color: var(--shell-text);
+  background: var(--shell-raised);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 25%);
+  text-align: left;
+  cursor: move;
+  touch-action: none;
+}
+
+.workspace-map__node[data-kind='terminal'] {
+  border-color: var(--shell-accent);
+}
+
+.workspace-map__node strong,
+.workspace-map__node small {
+  display: block;
+}
+
+.workspace-map__node strong {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-map__node small {
+  margin-top: 6px;
+  color: var(--shell-text-muted);
+}
+
 :root[data-reduced-motion='true'] *,
 :root[data-reduced-motion='true'] *::before,
 :root[data-reduced-motion='true'] *::after {
@@ -127,16 +264,16 @@ body {
   overflow: hidden;
   pointer-events: none;
   background:
-    radial-gradient(circle at 18% 22%, rgb(111 154 165 / 0.2), transparent 38%),
-    radial-gradient(circle at 72% 18%, rgb(154 127 160 / 0.18), transparent 40%),
-    radial-gradient(circle at 56% 72%, rgb(170 135 106 / 0.16), transparent 42%);
+    radial-gradient(ellipse at 12% 22%, rgb(111 154 165 / 0.38), transparent 46%),
+    radial-gradient(ellipse at 76% 28%, rgb(154 127 160 / 0.34), transparent 44%),
+    radial-gradient(ellipse at 50% 78%, rgb(170 135 106 / 0.32), transparent 48%);
 }
 
 .cozy-background canvas {
   display: block;
   width: 100%;
   height: 100%;
-  opacity: 0.9;
+  opacity: 1;
 }
 
 .cozy-background[data-renderer-available='true'] {

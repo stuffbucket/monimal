@@ -80,6 +80,7 @@ const {
   fakeWindow,
   installApplicationMenuMock,
   ipcMainHandle,
+  ipcMainRemoveHandler,
   onBeforeSendHeaders,
   onHeadersReceived,
   createHostWindowMock,
@@ -208,6 +209,7 @@ const {
     ipcMainHandle: vi.fn<
       (channel: string, handler: (...args: unknown[]) => unknown) => void
     >(),
+    ipcMainRemoveHandler: vi.fn(),
     onBeforeSendHeaders: vi.fn(),
     onHeadersReceived: vi.fn(),
     createHostWindowMock: vi.fn(() => fakeWindow),
@@ -230,7 +232,7 @@ vi.mock('electron', () => ({
     getPrimaryDisplay: () => ({ workArea: { x: -1600, y: 80, width: 1600, height: 900 } }),
   },
   dialog: { showMessageBox },
-  ipcMain: { handle: ipcMainHandle },
+  ipcMain: { handle: ipcMainHandle, removeHandler: ipcMainRemoveHandler },
   // Keep spies available to prove index.ts never installs the old shim.
   session: {
     defaultSession: {
@@ -618,6 +620,7 @@ describe('closed IPC boundary', () => {
       BRIDGE_CHANNELS.terminalExit,
       BRIDGE_CHANNELS.terminalTabRedocked,
       BRIDGE_CHANNELS.terminalPaneChanged,
+      BRIDGE_CHANNELS.browserEvent,
       BRIDGE_CHANNELS.harnessDelta,
       BRIDGE_CHANNELS.harnessTool,
       BRIDGE_CHANNELS.harnessApproval,

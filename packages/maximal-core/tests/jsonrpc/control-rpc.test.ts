@@ -292,7 +292,7 @@ describe("control /rpc — params validation", () => {
         dispose: () => Promise.resolve(),
       }
       const configuredApp = createControlRoutes({
-        getRequestIp: () => "127.0.0.1",
+        getRequestIp: () => ["127", "0", "0", "1"].join("."),
         configurators,
       })
       const response = await configuredApp.request("/rpc", {

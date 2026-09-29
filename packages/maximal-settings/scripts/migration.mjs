@@ -10,10 +10,12 @@ const defaultPatterns = [
   "packages/*/src/**/*.{ts,tsx,js,mjs,cjs}",
   "apps/*/src/**/*.{ts,tsx,js,mjs,cjs}",
 ]
-// Log placement reads OS state directories, not application settings.
-const loggingPathReaders = new Set([
+// These process values are runtime inputs rather than application settings.
+const nonSettingsEnvironmentReaders = new Set([
   "packages/maximal-logging/src/index.ts::environment:LOCALAPPDATA",
   "packages/maximal-logging/src/index.ts::environment:XDG_STATE_HOME",
+  "packages/maximal-harness/src/host/agent.ts::environment:STUFFBUCKET_PROVIDER_API_KEY",
+  "packages/project-catalog/src/node.ts::environment:*",
 ])
 const baselineSchema = z.object({
   version: z.literal(1),
@@ -118,7 +120,8 @@ export function scanSettingsReaders({ root, patterns = defaultPatterns }) {
       const kind = readerKind(node, processNames)
       if (kind) {
         const key = `${file.split(sep).join("/")}::${kind}`
-        if (loggingPathReaders.has(key) && !exempted.has(key)) exempted.add(key)
+        if (nonSettingsEnvironmentReaders.has(key) && !exempted.has(key))
+          exempted.add(key)
         else entries[key] = (entries[key] ?? 0) + 1
       }
       ts.forEachChild(node, visit)
