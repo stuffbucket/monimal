@@ -145,7 +145,6 @@ export function useOllamaAccounts(capabilities: SettingsCapabilities) {
       setSettings(await capabilities.ollamaSettings.update({ api_key: '' }))
       setApiKey('')
       setList({ accounts: [] })
-      setKeyMessage('Saved API key removed.')
     } catch (cause) {
       setKeyError(describeError(cause))
     } finally {
