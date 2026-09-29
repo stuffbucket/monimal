@@ -673,6 +673,11 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
   const currentPermission = permissionPresentation(preferences.approval);
   const CurrentPermissionIcon = currentPermission.Icon;
   const runningTool = [...tools].reverse().find((entry) => entry.state === 'running');
+  const hasAssistantResponse =
+    answer.trim().length > 0
+    || messages.some(
+      (message) => message.role === 'assistant' && message.content.trim().length > 0,
+    );
   const selectedModelUnavailable =
     status.state === 'select-model' && status.preferredModel !== undefined;
   const showStage = outputExpanded && (
@@ -1208,7 +1213,7 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
               className="mh-composer__button"
               aria-label="Open conversation in terminal"
               title="Open conversation in terminal"
-              disabled={activeChatId === undefined}
+              disabled={activeChatId === undefined || !hasAssistantResponse}
               onClick={() => {
                 setTerminalConfirmation(true);
                 setOutputExpanded(true);

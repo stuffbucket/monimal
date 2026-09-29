@@ -540,6 +540,12 @@ describe('Overlay', () => {
     await settle();
 
     expect(byTestId('overlay-open-terminal')).toBeTruthy();
+    expect((byTestId('overlay-open-terminal') as HTMLButtonElement).disabled).toBe(true);
+    expect(document.body.querySelector('.mh-open-terminal')).toBeNull();
+    act(() => {
+      fake.delta.emit('A terminal-ready response');
+    });
+    expect((byTestId('overlay-open-terminal') as HTMLButtonElement).disabled).toBe(false);
     act(() => click('overlay-open-terminal'));
     expect(fake.transport.chats.terminal).not.toHaveBeenCalled();
     expect(byTestId('overlay-terminal-confirmation')).toBeTruthy();

@@ -652,13 +652,10 @@ body,
 }
 
 .mh-card--font-auto .mh-message--assistant .mh-response {
-  max-width: 68ch;
+  max-width: 80ch;
+  margin-inline: auto;
   font-family: var(--font-body, system-ui, sans-serif);
-  font-size: clamp(
-    var(--shell-text-sm, 0.8125rem),
-    0.78rem + 0.18vw,
-    var(--shell-text-md, 0.9375rem)
-  );
+  font-size: 1rem;
   line-height: 1.6;
   letter-spacing: -0.006em;
 }
