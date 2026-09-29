@@ -8,10 +8,56 @@ import { runtimeLogger } from "~/lib/platform/runtime-logger"
 const DETAIL_CONCURRENCY = 4
 const DETAIL_TIMEOUT_MS = 5_000
 
+export async function fetchOllamaModelCatalogue(
+  provider: ResolvedOllamaProviderConfig,
+): Promise<Response> {
+  const path = provider.name === "ollama-cloud" ? "/api/tags" : "/v1/models"
+  return await sendProviderRequest(provider, `${provider.baseUrl}${path}`, {
+    method: "GET",
+    headers: { accept: "application/json" },
+  })
+}
+
+export function parseOllamaModelCatalogue(
+  provider: ResolvedOllamaProviderConfig,
+  value: unknown,
+  enabled: boolean,
+): Array<ProviderCatalogueModel> {
+  const body = asRecord(value)
+  const entries = provider.name === "ollama-cloud" ? body?.models : body?.data
+  if (!Array.isArray(entries)) return []
+  return entries.flatMap((value): Array<ProviderCatalogueModel> => {
+    const model = asRecord(value)
+    const id = readCatalogueModelId(provider, model)
+    if (typeof id !== "string") return []
+    const displayName =
+      typeof model?.display_name === "string" ? model.display_name : undefined
+    const name =
+      typeof model?.name === "string" ? model.name : (displayName ?? id)
+    return [
+      {
+        id,
+        name,
+        enabled,
+        provider: provider.name,
+        providerName: provider.name,
+      },
+    ]
+  })
+}
+
 interface OllamaModelDetails {
   capabilities?: ReadonlyArray<string>
   contextWindowTokens?: number
   family?: string
+}
+
+function readCatalogueModelId(
+  provider: ResolvedOllamaProviderConfig,
+  model: Record<string, unknown> | undefined,
+): unknown {
+  if (provider.name !== "ollama-cloud") return model?.id
+  return typeof model?.model === "string" ? model.model : model?.name
 }
 
 function readCapabilities(value: unknown): ReadonlyArray<string> | undefined {

@@ -310,6 +310,58 @@ describe("Ollama provider configuration", () => {
 })
 
 describe("Ollama model discovery", () => {
+  test("discovers direct cloud models from Ollama's native catalogue", async () => {
+    const requests: Array<Request> = []
+    globalThis.fetch = ((input, init) => {
+      const request = capturedRequest(input, init)
+      requests.push(request)
+      if (request.url.endsWith("/api/tags")) {
+        return Promise.resolve(
+          Response.json({
+            models: [
+              {
+                model: "gemma4:31b",
+                name: "gemma4:31b",
+              },
+            ],
+          }),
+        )
+      }
+      return Promise.resolve(Response.json({}))
+    }) as typeof fetch
+    const dispatcher = createProviderDispatcher({
+      readConfig: () => ({
+        providers: {
+          ollama: { type: "ollama", enabled: false },
+          "ollama-cloud": {
+            type: "ollama",
+            baseUrl: "https://ollama.com",
+            apiKey: "saved-api-key",
+          },
+        },
+      }),
+    })
+
+    expect(await dispatcher.listModels()).toEqual([
+      expect.objectContaining({
+        id: "gemma4:31b",
+        name: "gemma4:31b",
+        enabled: true,
+        provider: "ollama-cloud",
+      }),
+    ])
+    const cloudRequests = requests.filter(
+      ({ url }) => new URL(url).hostname === "ollama.com",
+    )
+    expect(cloudRequests.map(({ url }) => new URL(url).pathname)).toEqual([
+      "/api/tags",
+      "/api/show",
+    ])
+    expect(cloudRequests[0]?.headers.get("authorization")).toBe(
+      "Bearer saved-api-key",
+    )
+  })
+
   test("enriches listed models with details from the show endpoint", async () => {
     const requests: Array<Request> = []
     globalThis.fetch = ((input, init) => {
@@ -368,12 +420,12 @@ describe("Ollama model discovery", () => {
   test("lists disabled provider models for Settings without advertising them", async () => {
     globalThis.fetch = ((input, init) => {
       const request = capturedRequest(input, init)
-      if (request.url.endsWith("/v1/models")) {
+      if (request.url.endsWith("/api/tags")) {
         return Promise.resolve(
           Response.json({
-            data:
+            models:
               request.url.startsWith("https://ollama.example") ?
-                [{ id: "gemma4:31b", name: "Gemma 4" }]
+                [{ model: "gemma4:31b", name: "Gemma 4" }]
               : [],
           }),
         )

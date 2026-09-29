@@ -10,7 +10,7 @@ export const OPTIONAL_LLAMA_BACKENDS = ['cuda', 'vulkan'];
 export const LLAMA_BACKENDS_VARIABLE = 'STUFFBUCKET_LLAMA_BACKENDS';
 export const LLAMA_EXTERNAL_MODULES = Object.keys(PACKAGE.dependencies);
 export const LLAMA_PACKAGE_NAME = PACKAGE.name;
-export const LLAMA_WORKER_FILENAME = 'llama-worker.js';
+export { LLAMA_WORKER_FILENAME };
 export const LLAMA_SOURCE_INPUTS = [
   'node_modules/node-llama-cpp/llama/gitRelease.bundle',
 ];

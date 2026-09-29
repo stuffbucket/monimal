@@ -1,5 +1,5 @@
 export type { ModelProgress } from './contracts.js'
-export { LLAMA_CONFIG } from './constants.js'
+export { LLAMA_CONFIG, LLAMA_WORKER_FILENAME } from './constants.js'
 export {
   EMBEDDED_MODEL_LABEL,
   EMBEDDED_MODEL_MB,

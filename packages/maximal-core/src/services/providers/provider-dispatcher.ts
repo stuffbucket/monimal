@@ -33,7 +33,11 @@ import {
   normalizeAnthropicUsage,
 } from "~/lib/token-usage"
 import { forwardProviderModels } from "~/services/providers/anthropic-proxy"
-import { enrichOllamaModels } from "~/services/providers/ollama-models"
+import {
+  enrichOllamaModels,
+  fetchOllamaModelCatalogue,
+  parseOllamaModelCatalogue,
+} from "~/services/providers/ollama-models"
 
 export interface ProviderDispatchOptions {
   legacy: () => Promise<Response>
@@ -166,36 +170,39 @@ export function createProviderDispatcher(
         if (!provider) return []
         const enabled = config.providers?.[name]?.enabled !== false
         try {
-          const response = await forwardProviderModels(provider, new Headers())
+          const response =
+            provider.type === "ollama" ?
+              await fetchOllamaModelCatalogue(provider)
+            : await forwardProviderModels(provider, new Headers())
           if (!response.ok) return []
-          const body = asRecord(await response.json())
-          if (!Array.isArray(body?.data)) return []
-          const models = body.data.flatMap(
-            (value): Array<ProviderCatalogueModel> => {
-              const model = asRecord(value)
-              if (typeof model?.id !== "string") return []
-              const displayName =
-                typeof model.display_name === "string" ?
-                  model.display_name
-                : undefined
-              const modelName =
-                typeof model.name === "string" ?
-                  model.name
-                : (displayName ?? model.id)
-              return [
-                {
-                  id: model.id,
-                  name: modelName,
-                  enabled,
-                  provider: name,
-                  providerName: name,
-                },
-              ]
-            },
-          )
-          return provider.type === "ollama" ?
-              [...(await enrichOllamaModels(provider, models))]
-            : models
+          const body = await response.json()
+          if (provider.type === "ollama") {
+            const models = parseOllamaModelCatalogue(provider, body, enabled)
+            return [...(await enrichOllamaModels(provider, models))]
+          }
+          const record = asRecord(body)
+          if (!Array.isArray(record?.data)) return []
+          return record.data.flatMap((value): Array<ProviderCatalogueModel> => {
+            const model = asRecord(value)
+            if (typeof model?.id !== "string") return []
+            const displayName =
+              typeof model.display_name === "string" ?
+                model.display_name
+              : undefined
+            const modelName =
+              typeof model.name === "string" ?
+                model.name
+              : (displayName ?? model.id)
+            return [
+              {
+                id: model.id,
+                name: modelName,
+                enabled,
+                provider: name,
+                providerName: name,
+              },
+            ]
+          })
         } catch {
           return []
         }

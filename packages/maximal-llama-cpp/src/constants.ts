@@ -1,3 +1,5 @@
+export { LLAMA_WORKER_FILENAME } from '../llama-worker-contract.mjs'
+
 export const LLAMA_CONFIG = {
   model: {
     approxMb: 610,
