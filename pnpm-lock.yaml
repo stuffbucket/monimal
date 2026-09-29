@@ -4755,8 +4755,8 @@ packages:
   '@wterm/ghostty@0.4.1':
     resolution: {integrity: sha1-/M5AfUi4VFqGzZxvydjf4E4SucI=}
 
-  '@xmldom/xmldom@0.9.10':
-    resolution: {integrity: sha1-oK1aJv6KqZYxCHBybhcEl392ne4=}
+  '@xmldom/xmldom@0.9.12':
+    resolution: {integrity: sha1-H4TAfLlczyggIpn3e1/X/CVxUeg=}
     engines: {node: '>=14.6'}
 
   '@xterm/addon-fit@0.11.0':
@@ -6267,8 +6267,8 @@ packages:
     resolution: {integrity: sha1-W+DO7WfKecbEvFzw1+6EPc6hEMQ=}
     engines: {node: '>=10.13.0'}
 
-  ip-address@10.5.0:
-    resolution: {integrity: sha1-/NbX3+nmhBa3y3Gv6byWCz44wTs=}
+  ip-address@10.7.2:
+    resolution: {integrity: sha512-7H/2gFSIitxc0hG3nOI1glS8QLo/EHBFFLk8vEUjXY/xu0AdL8jZ9U1IzO2PUm0d2D/ofQcAifb0g6OBkt8U7w==}
     engines: {node: '>= 12'}
 
   ipull@3.9.5:
@@ -12233,7 +12233,7 @@ snapshots:
     dependencies:
       '@wterm/core': 0.4.1
 
-  '@xmldom/xmldom@0.9.10': {}
+  '@xmldom/xmldom@0.9.12': {}
 
   '@xterm/addon-fit@0.11.0': {}
 
@@ -13863,7 +13863,7 @@ snapshots:
 
   interpret@3.1.1: {}
 
-  ip-address@10.5.0: {}
+  ip-address@10.7.2: {}
 
   ipull@3.9.5:
     dependencies:
@@ -14998,7 +14998,7 @@ snapshots:
 
   plist@3.1.1:
     dependencies:
-      '@xmldom/xmldom': 0.9.10
+      '@xmldom/xmldom': 0.9.12
       base64-js: 1.5.1
       xmlbuilder: 15.1.1
 
@@ -15534,7 +15534,7 @@ snapshots:
 
   socks@2.8.9:
     dependencies:
-      ip-address: 10.5.0
+      ip-address: 10.7.2
       smart-buffer: 4.2.0
 
   sonic-boom@4.2.1:
