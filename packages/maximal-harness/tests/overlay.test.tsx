@@ -401,6 +401,10 @@ describe('Overlay', () => {
     expect(picker).toBeInstanceOf(HTMLButtonElement);
     expect(document.activeElement).toBe(picker);
     expect((byTestId('overlay-input') as HTMLTextAreaElement).disabled).toBe(true);
+    expect(byTestId('overlay-stage')).toBeTruthy();
+    expect(byTestId('overlay-model-unavailable').textContent).toContain(
+      'The selected model is not available at this time.',
+    );
 
     act(() => {
       keyDown(picker, 'Enter');
@@ -417,6 +421,20 @@ describe('Overlay', () => {
     );
     expect((byTestId('overlay-input') as HTMLTextAreaElement).disabled).toBe(false);
     expect(document.activeElement).toBe(byTestId('overlay-input'));
+  });
+
+  it('keeps a transparent outside-click target and hides when it is pressed', async () => {
+    const fake = fakeTransport();
+    await renderOverlay(fake.transport);
+
+    act(() => {
+      byTestId('overlay-click-away').dispatchEvent(
+        new MouseEvent('pointerdown', { bubbles: true }),
+      );
+    });
+    await settle();
+
+    expect(fake.transport.hide).toHaveBeenCalledTimes(1);
   });
 
   it('changes reasoning effort without dismissing the card', async () => {

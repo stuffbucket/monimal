@@ -77,6 +77,8 @@ export const HARNESS_COPY = {
     modelMissing: (model: string) => `${model} is not downloaded yet`,
     modelPickerLabel: 'Model',
     modelSelectionRequired: 'Choose an available model to continue.',
+    selectedModelUnavailable:
+      'The selected model is not available at this time. Select a new model to continue.',
     probing: 'Looking for a local model…',
     requestFailed: 'The request could not be started.',
     runToolPrefix: 'Run',

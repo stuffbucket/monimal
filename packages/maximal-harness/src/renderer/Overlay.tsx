@@ -667,6 +667,8 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
   const currentPermission = permissionPresentation(preferences.approval);
   const CurrentPermissionIcon = currentPermission.Icon;
   const runningTool = [...tools].reverse().find((entry) => entry.state === 'running');
+  const selectedModelUnavailable =
+    status.state === 'select-model' && status.preferredModel !== undefined;
   const showStage = outputExpanded && (
     messages.length > 0
     || answer.length > 0
@@ -674,6 +676,7 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
     || approval !== undefined
     || tools.length > 0
     || status.state === 'needs-model'
+    || selectedModelUnavailable
   );
 
   return (
@@ -687,17 +690,23 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
      * nothing. Radix supplies all four; the three behaviours that were already
      * right are preserved through its callbacks rather than a window listener.
      */
-    <Dialog
-      open
-      modal={false}
-      title={HARNESS_COPY.overlay.title}
-      className={`sb-shell mh-card${showStage ? ' mh-card--expanded' : ''}${
-        preferences.candy ? ' mh-card--candy shell-candy-surface' : ''
-      } mh-card--font-${preferences.outputFont}`}
-      testId="overlay-card"
-      onKeyDown={onKeyDown}
-      onEscapeKeyDown={onEscape}
-    >
+    <>
+      <div
+        className="mh-click-away"
+        data-testid="overlay-click-away"
+        onPointerDown={hide}
+      />
+      <Dialog
+        open
+        modal={false}
+        title={HARNESS_COPY.overlay.title}
+        className={`sb-shell mh-card${showStage ? ' mh-card--expanded' : ''}${
+          preferences.candy ? ' mh-card--candy shell-candy-surface' : ''
+        } mh-card--font-${preferences.outputFont}`}
+        testId="overlay-card"
+        onKeyDown={onKeyDown}
+        onEscapeKeyDown={onEscape}
+      >
         {preferences.candy && <CandyPaint />}
         <header className="mh-card__header">
           <img
@@ -791,6 +800,15 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
                   <ResponseContent text={message.content} />
                 </article>
               ))}
+              {selectedModelUnavailable && (
+                <article
+                  className="mh-message mh-message--system"
+                  data-testid="overlay-model-unavailable"
+                >
+                  <span className="mh-message__role">System</span>
+                  <ResponseContent text={HARNESS_COPY.overlay.selectedModelUnavailable} />
+                </article>
+              )}
               {answer && (
                 <article className="mh-message mh-message--assistant" data-role="assistant">
                   <span className="mh-message__role">Maximal</span>
@@ -1199,6 +1217,7 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
                   : inactiveStatusLabel(status)}
           </span>
         </div>
-    </Dialog>
+      </Dialog>
+    </>
   );
 }

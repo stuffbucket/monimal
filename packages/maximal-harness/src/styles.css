@@ -99,6 +99,11 @@ body,
   display: contents;
 }
 
+.mh-card__header > * {
+  position: relative;
+  z-index: 2;
+}
+
 .mh-card__icon {
   display: none;
 }
@@ -1086,4 +1091,23 @@ body,
     animation: none;
   }
 }
+}
+
+/*
+ * The standalone Dialog portal also carries `.sb-shell`, whose unlayered
+ * package-mode default is opaque. It must be overridden outside our layer.
+ */
+.mh-overlay-body > [data-sb-shell-portal-root] {
+  background: transparent;
+}
+
+.mh-click-away {
+  position: fixed;
+  z-index: 1;
+  inset: 0;
+  background: transparent;
+}
+
+.mh-card {
+  z-index: 2;
 }
