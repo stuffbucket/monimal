@@ -5,7 +5,9 @@ import {
   InspectorPanel,
   StatusChip,
 } from "@maximal/maximal-electron/renderer"
+import { useState } from "react"
 
+import { ContextWindowPanel } from "./ContextWindowInspector.tsx"
 import { ObservabilityFilters } from "./Filters.tsx"
 import {
   displayValue,
@@ -88,9 +90,29 @@ export function TrafficExplorerMain() {
 }
 
 export function TrafficExplorerInspector() {
-  const { detail, selectedRequestId, selectRequest } = useObservability()
+  const { detail, requestItems, requests, selectedRequestId, selectRequest } =
+    useObservability()
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(
+    null,
+  )
+  const preferredSessionId = preferredSessionForRequest(
+    detail,
+    requestItems,
+    selectedRequestId,
+  )
+
   return (
     <aside className="mo-inspector" aria-label="Request metadata">
+      <ContextWindowPanel
+        requests={requests}
+        requestItems={requestItems}
+        preferredSessionId={preferredSessionId}
+        selectedSessionId={selectedSessionId}
+        onSelectSession={(sessionId) => {
+          setSelectedSessionId(sessionId)
+          selectRequest(null)
+        }}
+      />
       <InspectorPanel title="Request metadata">
         {selectedRequestId === null && (
           <p className="mo-state">Select a request to inspect its metadata.</p>
@@ -204,6 +226,20 @@ export function TrafficExplorerInspector() {
         )}
       </InspectorPanel>
     </aside>
+  )
+}
+
+function preferredSessionForRequest(
+  detail: ReturnType<typeof useObservability>["detail"],
+  requestItems: ReturnType<typeof useObservability>["requestItems"],
+  selectedRequestId: string | null,
+): string | null {
+  if (detail?.status === "ready" || detail?.status === "empty")
+    return detail.data.request.identity.sessionId
+  return (
+    requestItems.find(
+      ({ identity }) => identity.requestId === selectedRequestId,
+    )?.identity.sessionId ?? null
   )
 }
 

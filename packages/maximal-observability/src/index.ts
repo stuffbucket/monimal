@@ -14,12 +14,12 @@ export {
   formatTimestamp,
 } from "./format.ts"
 export {
-  ContextWindowInspector,
   OverviewInspector,
   OverviewMain,
   OverviewRail,
   OverviewStatus,
 } from "./Overview.tsx"
+export { ContextWindowInspector } from "./ContextWindowInspector.tsx"
 export type { ObservabilityRead, ObservabilitySource } from "./source.ts"
 export {
   type Loadable,
