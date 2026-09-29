@@ -127,20 +127,20 @@ interface PendingAttachment extends AssistantAttachment {
   kind: 'image' | 'document';
 }
 
-function ManualPermissionIcon({ size = 14 }: { size?: number }) {
-  return <span className="mh-permission-icon" style={{ fontSize: size }} aria-hidden="true">✋</span>;
+function ManualPermissionIcon() {
+  return <span className="mh-permission-icon" aria-hidden="true">✋</span>;
 }
 
-function ReadOnlyPermissionIcon({ size = 14 }: { size?: number }) {
-  return <span className="mh-permission-icon" style={{ fontSize: size }} aria-hidden="true">▤</span>;
+function ReadOnlyPermissionIcon() {
+  return <span className="mh-permission-icon" aria-hidden="true">▤</span>;
 }
 
-function AssistedPermissionIcon({ size = 14 }: { size?: number }) {
-  return <span className="mh-permission-icon" style={{ fontSize: size }} aria-hidden="true">✦</span>;
+function AssistedPermissionIcon() {
+  return <span className="mh-permission-icon" aria-hidden="true">✦</span>;
 }
 
-function AutomaticPermissionIcon({ size = 14 }: { size?: number }) {
-  return <span className="mh-permission-icon" style={{ fontSize: size }} aria-hidden="true">▷</span>;
+function AutomaticPermissionIcon() {
+  return <span className="mh-permission-icon" aria-hidden="true">▷</span>;
 }
 
 const PERMISSION_ORDER: AssistantOverlayPreferences['approval'][] = [

@@ -397,6 +397,7 @@ body,
   width: 1rem;
   place-items: center;
   color: var(--shell-text-muted);
+  font-size: var(--shell-text-base);
   line-height: 1;
 }
 
