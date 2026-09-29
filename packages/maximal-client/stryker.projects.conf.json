@@ -1,0 +1,40 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "_comment": "Project browser and settings lifecycle mutation gate. The command runner avoids the Vitest 5 zero-test false signal in the native Stryker runner.",
+  "packageManager": "npm",
+  "testRunner": "command",
+  "commandRunner": {
+    "command": "pnpm exec vitest run src/renderer/projects/ProjectBrowser.test.tsx src/renderer/settings/projects/ProjectsSection.test.tsx"
+  },
+  "mutate": [
+    "src/renderer/projects/ProjectBrowser.tsx",
+    "src/renderer/settings/projects/ProjectsSection.tsx"
+  ],
+  "reporters": ["progress", "clear-text", "html", "json"],
+  "tempDirName": ".stryker-tmp/projects",
+  "cleanTempDir": "always",
+  "htmlReporter": {
+    "fileName": "reports/mutation/projects/index.html"
+  },
+  "jsonReporter": {
+    "fileName": "reports/mutation/projects/mutation.json"
+  },
+  "concurrency": 4,
+  "timeoutMS": 30000,
+  "thresholds": {
+    "high": 100,
+    "low": 100,
+    "break": 100
+  },
+  "ignorePatterns": [
+    "out",
+    ".electron-dev",
+    ".vite",
+    "node_modules",
+    "dist",
+    "reports",
+    "test-results",
+    "playwright-report",
+    "e2e"
+  ]
+}

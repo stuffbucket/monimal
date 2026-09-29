@@ -69,6 +69,7 @@ vi.mock('@maximal/maximal-electron/renderer', () => ({
   ),
   Dialog: ({ children, open, title }: { children: ReactNode; open: boolean; title: string }) =>
     open ? <div role="dialog" aria-label={title}>{children}</div> : null,
+  Note: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   UnsavedChangesDialog: () => null,
   TerminalLauncher: ({ open, onLaunched }: {
     open: boolean
@@ -297,6 +298,16 @@ beforeEach(() => {
       shutdown: {
         current: vi.fn(async () => ({ phase: 'idle', operations: [] })),
         force: vi.fn(async () => false),
+        onChange: vi.fn(() => () => {}),
+      },
+      projects: {
+        search: vi.fn(async () => []),
+        snapshot: vi.fn(async () => ({ roots: [], projects: [], refreshing: false })),
+        addRoot: vi.fn(async () => null),
+        updateRoot: vi.fn(),
+        removeRoot: vi.fn(async () => {}),
+        refresh: vi.fn(async () => ({ roots: [], projects: [], refreshing: false })),
+        opened: vi.fn(async () => {}),
         onChange: vi.fn(() => () => {}),
       },
       terminal: {

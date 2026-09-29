@@ -34,6 +34,7 @@ has ended.
 | `packages/maximal-observability` | Traffic explorer UI. |
 | `packages/maximal-ollama` | Node-native Ollama runtime management and renderer-safe status contract. |
 | `packages/maximal-client` (`@maximal/maximal-client`) | Product renderer, UI controls, and shared desktop contracts. |
+| `packages/project-catalog` (`@maximal/project-catalog`) | Local project discovery, Git interrogation, catalog contracts, and ranking. |
 | `packages/model-qwen3-0.6b-q8-gguf` | Qwen3 artifact metadata and provisioning. |
 | `packages/model-runtimes/anthropic` | Anthropic Messages adapter. |
 | `packages/model-runtimes/omlx` | oMLX HTTP adapter. |

@@ -42,6 +42,7 @@
     "@maximal/maximal-observability-contract": "workspace:*",
     "@maximal/maximal-ollama": "workspace:*",
     "@maximal/maximal-recording": "workspace:*",
+    "@maximal/project-catalog": "workspace:*",
     "@maximal/maximal-settings": "workspace:*",
     "@maximal/maximal-terminal": "workspace:*",
     "node-pty": "1.2.0-beta.15",

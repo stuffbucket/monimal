@@ -70,6 +70,13 @@ export const BRIDGE_CHANNELS = {
   appearanceSetBackgroundEffects: 'maximal:native/appearance-set-background-effects',
   appearanceSetReducedMotion: 'maximal:native/appearance-set-reduced-motion',
   appearanceChanged: 'maximal:native/appearance-changed',
+  projectsSnapshot: 'maximal:projects/snapshot',
+  projectsSearch: 'maximal:projects/search',
+  projectsAddRoot: 'maximal:projects/add-root',
+  projectsUpdateRoot: 'maximal:projects/update-root',
+  projectsRemoveRoot: 'maximal:projects/remove-root',
+  projectsRefresh: 'maximal:projects/refresh',
+  projectsOpened: 'maximal:projects/opened',
   terminalSpawn: 'maximal:terminal/spawn',
   terminalWrite: 'maximal:terminal/write',
   terminalResize: 'maximal:terminal/resize',
@@ -109,6 +116,7 @@ export const BRIDGE_CHANNELS = {
   harnessApproval: 'maximal:harness/approval',
   harnessEnd: 'maximal:harness/end',
   harnessModelProgress: 'maximal:harness/model-progress',
+  projectsChanged: 'maximal:projects/changed',
 } as const
 
 export const INVOKE_CHANNELS = [
@@ -124,6 +132,13 @@ export const INVOKE_CHANNELS = [
   BRIDGE_CHANNELS.appearanceSetVibrancy,
   BRIDGE_CHANNELS.appearanceSetBackgroundEffects,
   BRIDGE_CHANNELS.appearanceSetReducedMotion,
+  BRIDGE_CHANNELS.projectsSnapshot,
+  BRIDGE_CHANNELS.projectsSearch,
+  BRIDGE_CHANNELS.projectsAddRoot,
+  BRIDGE_CHANNELS.projectsUpdateRoot,
+  BRIDGE_CHANNELS.projectsRemoveRoot,
+  BRIDGE_CHANNELS.projectsRefresh,
+  BRIDGE_CHANNELS.projectsOpened,
   BRIDGE_CHANNELS.authStatus,
   BRIDGE_CHANNELS.authStart,
   BRIDGE_CHANNELS.authCancel,
@@ -225,4 +240,5 @@ export const EVENT_CHANNELS = [
   BRIDGE_CHANNELS.harnessApproval,
   BRIDGE_CHANNELS.harnessEnd,
   BRIDGE_CHANNELS.harnessModelProgress,
+  BRIDGE_CHANNELS.projectsChanged,
 ] as const

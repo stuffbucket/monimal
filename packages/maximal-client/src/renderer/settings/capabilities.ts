@@ -28,6 +28,11 @@ import type {
   TokenUsageSummary,
 } from '@maximal/maximal-core-contract/settings'
 import type { LogFile } from '@maximal/maximal-logging'
+import type {
+  DiscoveryRoot,
+  ProjectCatalogSnapshot,
+  UpdateDiscoveryRoot,
+} from '@maximal/project-catalog'
 
 import type {
   AppearancePreference,
@@ -139,6 +144,14 @@ export interface SettingsCapabilities {
   providerOnboarding: {
     get(): Promise<ProviderOnboardingPreference>
     setDismissed(dismissed: boolean): Promise<ProviderOnboardingPreference>
+  }
+  projects: {
+    snapshot(): Promise<ProjectCatalogSnapshot>
+    addRoot(): Promise<DiscoveryRoot | null>
+    updateRoot(id: string, update: UpdateDiscoveryRoot): Promise<DiscoveryRoot>
+    removeRoot(id: string): Promise<void>
+    refresh(rootId?: string): Promise<ProjectCatalogSnapshot>
+    subscribe(listener: () => void): () => void
   }
   connections: {
     list(): Promise<ConnectionsListResponse>
@@ -344,6 +357,14 @@ export function createCoreSettingsCapabilities(): SettingsCapabilities {
     providerOnboarding: {
       get: () => bridge.providerOnboarding.get(),
       setDismissed: (dismissed) => bridge.providerOnboarding.setDismissed(dismissed),
+    },
+    projects: {
+      snapshot: () => bridge.projects.snapshot(),
+      addRoot: () => bridge.projects.addRoot(),
+      updateRoot: (id, update) => bridge.projects.updateRoot(id, update),
+      removeRoot: (id) => bridge.projects.removeRoot(id),
+      refresh: (rootId) => bridge.projects.refresh(rootId),
+      subscribe: (listener) => bridge.projects.onChange(listener),
     },
     connections: {
       list: async () =>

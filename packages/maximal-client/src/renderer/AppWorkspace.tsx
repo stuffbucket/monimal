@@ -31,6 +31,7 @@ interface AppWorkspaceProps {
   terminalState: TerminalTabsState
   requestNavigation: (proceed: () => void) => void
   openSettingsSection: (id: SettingsSectionId) => void
+  onOpenProjects?: () => void
 }
 
 const PROFILE_SETTINGS: Record<SettingsSurface, SettingsSectionId> = {
@@ -179,6 +180,7 @@ export function AppWorkspace({
   terminalState,
   requestNavigation,
   openSettingsSection,
+  onOpenProjects,
 }: AppWorkspaceProps): ReactElement {
   const [profileError, setProfileError] = useState<string>()
   const visibleTabs = detachedWindow
@@ -257,6 +259,7 @@ export function AppWorkspace({
               })
             }}
         onOpenAssistant={detachedWindow ? undefined : () => void window.maximal.harness.show()}
+        onOpenProjects={detachedWindow ? undefined : onOpenProjects}
         tabTransfer={{
           frameId: terminalState.frameId,
           canDrag: (tab) => tab.kind === 'terminal',

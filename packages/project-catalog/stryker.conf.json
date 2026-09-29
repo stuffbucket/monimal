@@ -1,0 +1,21 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "_comment": "The complete catalog mutation scope. The workspace runner narrows normal runs to changed lines; --all is the explicit full gate.",
+  "packageManager": "npm",
+  "testRunner": "command",
+  "commandRunner": { "command": "pnpm exec vitest run" },
+  "mutate": [
+    "src/index.ts",
+    "src/node.ts"
+  ],
+  "reporters": ["progress", "clear-text", "html", "json"],
+  "tempDirName": ".stryker-tmp",
+  "cleanTempDir": "always",
+  "htmlReporter": { "fileName": "reports/mutation/index.html" },
+  "jsonReporter": { "fileName": "reports/mutation/mutation.json" },
+  "incrementalFile": "reports/mutation/incremental.json",
+  "concurrency": 8,
+  "timeoutMS": 30000,
+  "thresholds": { "high": 100, "low": 100, "break": 100 },
+  "ignorePatterns": ["dist", "node_modules", "reports"]
+}

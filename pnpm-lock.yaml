@@ -76,6 +76,9 @@ importers:
       '@maximal/maximal-terminal':
         specifier: workspace:*
         version: link:../../packages/maximal-terminal
+      '@maximal/project-catalog':
+        specifier: workspace:*
+        version: link:../../packages/project-catalog
       node-pty:
         specifier: 1.2.0-beta.15
         version: 1.2.0-beta.15
@@ -332,6 +335,9 @@ importers:
       '@maximal/maximal-terminal':
         specifier: workspace:*
         version: link:../maximal-terminal
+      '@maximal/project-catalog':
+        specifier: workspace:*
+        version: link:../project-catalog
       '@radix-ui/react-collapsible':
         specifier: ^1.1.20
         version: 1.1.20(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -1342,6 +1348,34 @@ importers:
       typescript:
         specifier: npm:@typescript/typescript6@^6.0.2
         version: '@typescript/typescript6@6.0.2'
+
+  packages/project-catalog:
+    dependencies:
+      fuzzysort:
+        specifier: 3.1.0
+        version: 3.1.0
+    devDependencies:
+      '@maximal/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@stryker-mutator/core':
+        specifier: ^10.0.0
+        version: 10.0.0(@types/node@26.4.0)
+      '@types/node':
+        specifier: ^26.4.0
+        version: 26.4.0
+      eslint:
+        specifier: ^10.9.1
+        version: 10.9.1(jiti@2.7.0)(supports-color@8.1.1)
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(@typescript/typescript6@6.0.2)(jiti@2.7.0)(postcss@8.5.26)(supports-color@8.1.1)(yaml@2.9.0)
+      typescript:
+        specifier: npm:@typescript/typescript6@^6.0.2
+        version: '@typescript/typescript6@6.0.2'
+      vitest:
+        specifier: ^5.0.1
+        version: 5.0.1(@opentelemetry/api@1.9.0)(@types/node@26.4.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))
 
 packages:
 
@@ -6103,6 +6137,9 @@ packages:
 
   function-bind@1.1.2:
     resolution: {integrity: sha1-LALYZNl/PqbIgwxGTL0Rq26rehw=}
+
+  fuzzysort@3.1.0:
+    resolution: {integrity: sha1-TXgy2PpIrTgXU+qnp6rpknvcEKg=}
 
   galactus@1.0.0:
     resolution: {integrity: sha1-wmFRgq+gxtCFm5LlauNtBSgn234=}
@@ -13791,6 +13828,8 @@ snapshots:
     optional: true
 
   function-bind@1.1.2: {}
+
+  fuzzysort@3.1.0: {}
 
   galactus@1.0.0(supports-color@8.1.1):
     dependencies:

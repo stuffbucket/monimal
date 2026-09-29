@@ -45,6 +45,7 @@ const terminalAck = terminalId.extend({ sequence: z.number().int().nonnegative()
 const terminalLaunchRequest = z.object({
   profileId: nonEmptyString,
   targetId: z.string().optional(),
+  cwd: z.string().min(1).optional(),
   cols: positiveInteger,
   rows: positiveInteger,
 })
@@ -92,6 +93,7 @@ let terminalWindowActions: TerminalWindowActions = {
   copy: () => false,
   redock: () => false,
 }
+let isTrustedProjectPath = (_path: string): boolean => false
 
 const TERMINAL_CHANNELS = {
   spawn: BRIDGE_CHANNELS.terminalSpawn,
@@ -145,6 +147,9 @@ export function registerTerminalIpc(): void {
   })
   ipcMain.handle(BRIDGE_CHANNELS.terminalLaunch, (event, request: unknown) => {
     const parsed = terminalLaunchRequest.parse(request)
+    if (parsed.cwd !== undefined && !isTrustedProjectPath(parsed.cwd)) {
+      throw new Error('The project folder is not trusted.')
+    }
     try {
       return launchTerminal(
         BrowserWindow.fromWebContents(event.sender) ?? undefined,
@@ -209,6 +214,12 @@ function proxyEnvironment(
     OPENAI_BASE_URL: `${root}/v1`,
     OPENAI_API_KEY: credential,
   }
+}
+
+export function configureTerminalProjectTrust(
+  check: (path: string) => boolean,
+): void {
+  isTrustedProjectPath = check
 }
 
 export function configureTerminalHost(

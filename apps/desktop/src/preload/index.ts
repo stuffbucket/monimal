@@ -90,6 +90,17 @@ const bridge = {
       ipcRenderer.invoke(BRIDGE_CHANNELS.appearanceSetReducedMotion, enabled),
     onChange: (listener) => subscribe(BRIDGE_CHANNELS.appearanceChanged, listener),
   },
+  projects: {
+    snapshot: () => ipcRenderer.invoke(BRIDGE_CHANNELS.projectsSnapshot),
+    search: (query, limit) => ipcRenderer.invoke(BRIDGE_CHANNELS.projectsSearch, query, limit),
+    addRoot: () => ipcRenderer.invoke(BRIDGE_CHANNELS.projectsAddRoot),
+    updateRoot: (id, update) =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.projectsUpdateRoot, id, update),
+    removeRoot: (id) => ipcRenderer.invoke(BRIDGE_CHANNELS.projectsRemoveRoot, id),
+    refresh: (rootId) => ipcRenderer.invoke(BRIDGE_CHANNELS.projectsRefresh, rootId),
+    opened: (projectId) => ipcRenderer.invoke(BRIDGE_CHANNELS.projectsOpened, projectId),
+    onChange: (listener) => subscribe(BRIDGE_CHANNELS.projectsChanged, listener),
+  },
   harness: {
     show: () => ipcRenderer.invoke(BRIDGE_CHANNELS.harnessShow),
     hide: () => ipcRenderer.invoke(BRIDGE_CHANNELS.harnessHide),

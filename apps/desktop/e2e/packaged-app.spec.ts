@@ -1,9 +1,12 @@
-import { execFile } from 'node:child_process'
+import { randomBytes } from 'node:crypto'
+import { execFile, execFileSync, spawnSync } from 'node:child_process'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { mkdir, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 
 import { expect, test, type Page } from '@playwright/test'
+import { spawn as spawnPty } from 'node-pty'
 
 import { SETTINGS_SECTIONS } from '@maximal/maximal-client/shared/settings-sections'
 
@@ -32,14 +35,21 @@ let model: ScriptedModel
 const execFileAsync = promisify(execFile)
 const EVIDENCE_HOLD_MS = 7_500
 const MIN_EVIDENCE_SECONDS = 5
+let tmuxSocketDirectory: string | undefined
 
 test.beforeAll(async () => {
   model = await startScriptedModel()
+  if (process.platform === 'darwin') {
+    tmuxSocketDirectory = mkdtempSync('/tmp/mt-')
+  }
   running = await launchPackagedApp({
     MAXIMAL_DISABLE_GLOBAL_KEYBOARD_HOOK: '1',
     STUFFBUCKET_HARNESS_START_OPEN: '1',
     STUFFBUCKET_PROVIDER: 'maximal',
     STUFFBUCKET_PROVIDER_URL: model.baseUrl,
+    ...(tmuxSocketDirectory
+      ? { TMUX_TMPDIR: tmuxSocketDirectory, TERM: 'xterm-256color' }
+      : {}),
   })
 })
 
@@ -168,6 +178,9 @@ test.afterAll(async () => {
     // already closed
   }
   if (running) cleanupPackagedApp(running)
+  if (tmuxSocketDirectory) {
+    rmSync(tmuxSocketDirectory, { recursive: true, force: true })
+  }
   if (model) await model.stop()
 })
 
@@ -527,6 +540,165 @@ test('packaged terminal bridge launches and terminates a native shell', async ()
 
   expect(result.hasLocal).toBe(true)
   expect(result.output).toContain('MAXIMAL_TERMINAL_READY')
+})
+
+test('macOS terminal picker shares an external tmux parrot session', async ({ page: _page }, testInfo) => {
+  test.skip(process.platform !== 'darwin', 'The external tmux PTY journey requires macOS.')
+  if (!tmuxSocketDirectory) throw new Error('The isolated tmux socket directory was not created.')
+
+  const tmuxEnvironment: Record<string, string> = {
+    ...Object.fromEntries(Object.entries(process.env).filter(
+      (entry): entry is [string, string] => typeof entry[1] === 'string',
+    )),
+    TMUX_TMPDIR: tmuxSocketDirectory,
+    TERM: 'xterm-256color',
+  }
+  const sessionName = `maximal-${randomBytes(16).toString('hex')}`
+  const sessionTarget = `=${sessionName}:0.0`
+  const runTmux = (args: string[]): string => execFileSync('tmux', args, {
+    encoding: 'utf8',
+    env: tmuxEnvironment,
+    timeout: 10_000,
+  }).trim()
+  const killTestSession = (): void => {
+    const result = spawnSync('tmux', ['has-session', '-t', `=${sessionName}`], {
+      encoding: 'utf8',
+      env: tmuxEnvironment,
+    })
+    if (result.error) throw result.error
+    if (result.status === 0) {
+      runTmux(['kill-session', '-t', `=${sessionName}`])
+    } else if (result.status !== 1) {
+      throw new Error(`Could not determine whether the test tmux session still exists: ${result.stderr}`)
+    }
+  }
+  const capturePane = (): string =>
+    runTmux(['capture-pane', '-p', '-t', sessionTarget])
+  let externalClient: ReturnType<typeof spawnPty> | undefined
+  let externalClientExited: Promise<void> | undefined
+  let externalExitCode: number | undefined
+  let externalOutput = ''
+  let terminalId: string | undefined
+  const page = await mainWindow()
+
+  try {
+    runTmux([
+      '-f',
+      '/dev/null',
+      'new-session',
+      '-d',
+      '-s',
+      sessionName,
+      'printf "MAXIMAL_EXTERNAL_READY\\n"; exec /bin/zsh -f',
+    ])
+    const client = spawnPty(
+      'tmux',
+      ['attach-session', '-t', `=${sessionName}`],
+      { name: 'xterm-256color', cols: 80, rows: 24, cwd: process.cwd(), env: tmuxEnvironment },
+    )
+    externalClient = client
+    client.onData((chunk) => {
+      externalOutput = `${externalOutput}${chunk.toString()}`.slice(-500_000)
+    })
+    externalClientExited = new Promise<void>((resolve) => {
+      client.onExit(({ exitCode }) => {
+        externalExitCode = exitCode
+        resolve()
+      })
+    })
+
+    await expect.poll(() => externalOutput).toContain('MAXIMAL_EXTERNAL_READY')
+    externalClient.write('curl parrot.live\r')
+    await expect.poll(() =>
+      runTmux(['display-message', '-p', '-t', sessionTarget, '#{pane_current_command}']),
+    ).toBe('curl')
+    await expect.poll(() => externalOutput).toContain('.cccc')
+
+    await page.evaluate(() => {
+      const state = window as typeof window & {
+        __tmuxOutputById?: Record<string, string>
+        __tmuxOutputUnsubscribe?: () => void
+      }
+      state.__tmuxOutputById = {}
+      state.__tmuxOutputUnsubscribe = window.maximal.terminal.onData(({ id, data }) => {
+        const previous = state.__tmuxOutputById?.[id] ?? ''
+        if (state.__tmuxOutputById) {
+          state.__tmuxOutputById[id] = `${previous}${data}`.slice(-500_000)
+        }
+      })
+    })
+
+    const beforeIds = await page.evaluate(() =>
+      window.maximal.terminal.list().then((sessions) => sessions.map(({ id }) => id)),
+    )
+    await page.getByTestId('tab-new').click()
+    const launcher = page.getByTestId('terminal-launcher')
+    await expect(launcher).toBeVisible()
+    const runningSession = launcher.locator('[aria-label="Running"]')
+      .getByRole('button', { name: /Terminal \d+/ })
+    await expect(runningSession).toBeVisible()
+    await runningSession.click()
+
+    const terminals = page.locator('[data-testid="terminal"]:visible')
+    await expect(terminals).toHaveCount(1, { timeout: 20_000 })
+    await expect.poll(async () =>
+      page.evaluate((knownIds) =>
+        window.maximal.terminal.list().then((sessions) =>
+          sessions.filter(({ id }) => !knownIds.includes(id)).map(({ id }) => id)),
+      beforeIds),
+    ).toHaveLength(1)
+    const sessionIds = await page.evaluate((knownIds) =>
+      window.maximal.terminal.list().then((sessions) =>
+        sessions.filter(({ id }) => !knownIds.includes(id)).map(({ id }) => id)),
+    beforeIds)
+    terminalId = sessionIds[0]
+    if (!terminalId) throw new Error('Maximal did not register the attached tmux session.')
+    const attachedTerminalId = terminalId
+
+    await expect.poll(() =>
+      page.evaluate((id) =>
+        (window as typeof window & { __tmuxOutputById?: Record<string, string> })
+          .__tmuxOutputById?.[id] ?? '',
+      attachedTerminalId),
+    ).toContain('.cccc')
+    expect(externalOutput).toContain('.cccc')
+    await page.screenshot({ path: testInfo.outputPath('tmux-parrot-shared.png') })
+
+    await terminals.first().click()
+    await expect.poll(() =>
+      runTmux(['display-message', '-p', '-t', sessionTarget, '#{pane_current_command}']),
+    ).toBe('curl')
+    await page.keyboard.press('Control+c')
+    await expect.poll(() =>
+      runTmux(['display-message', '-p', '-t', sessionTarget, '#{pane_current_command}']),
+    ).toBe('zsh')
+
+    externalClient.write("printf 'TMUX_EXTERNAL_INPUT_OK\\n'\r")
+    await expect.poll(capturePane).toContain('TMUX_EXTERNAL_INPUT_OK')
+
+    await terminals.first().click()
+    await page.keyboard.insertText("printf 'MAXIMAL_INPUT_OK\\n'")
+    await page.keyboard.press('Enter')
+    await expect.poll(capturePane).toContain('MAXIMAL_INPUT_OK')
+  } finally {
+    try {
+      await page.evaluate(() => {
+        const state = window as typeof window & { __tmuxOutputUnsubscribe?: () => void }
+        state.__tmuxOutputUnsubscribe?.()
+        delete state.__tmuxOutputUnsubscribe
+      })
+      if (terminalId) await page.evaluate((id) => window.maximal.terminal.terminate(id), terminalId)
+    } finally {
+      try {
+        if (externalClient && externalClientExited && externalExitCode === undefined) {
+          externalClient.kill()
+          await externalClientExited
+        }
+      } finally {
+        killTestSession()
+      }
+    }
+  }
 })
 
 test('terminal splits preserve geometry, focus navigation, and theme tokens', async () => {
