@@ -10,7 +10,10 @@ import {
 } from '@maximal/maximal-electron/renderer'
 
 import { formatTimestamp } from '../../shared/format'
-import type { AccountsListResponse, SettingsCapabilities } from '../capabilities'
+import type {
+  AccountsListResponse,
+  SettingsCapabilities,
+} from '../capabilities'
 import { AccountAvatar } from '../service-icons'
 import { addedViaLabel } from './format'
 import { useAccounts } from './useAccounts'
@@ -56,49 +59,18 @@ function AccountCard({
       data-active={isActive ? 'true' : undefined}
       data-enabled={account.enabled ? 'true' : 'false'}
       data-testid={`account-card-${account.login}`}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: 'var(--shell-space-3, 12px)',
-        flexWrap: 'wrap',
-      }}
     >
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 'var(--shell-space-3, 12px)',
-          minWidth: 0,
-          flex: '1 1 12rem',
-        }}
-      >
+      <div className="account-person-card__identity">
         <AccountAvatar account={account} active={isActive} size={44} />
-        <div
-          className="settings__item-copy"
-          style={{
-            display: 'grid',
-            gap: 'var(--shell-space-1, 4px)',
-            minWidth: 0,
-          }}
-        >
+        <div className="settings__item-copy account-person-card__copy">
           <span className="settings__item-title">{account.login}</span>
           <p className="settings__item-description">
-            {account.host} · {addedViaLabel(account.added_via)} · added {formatTimestamp(account.obtained_at)}
+            {account.host} · {addedViaLabel(account.added_via)} · added{' '}
+            {formatTimestamp(account.obtained_at)}
           </p>
         </div>
       </div>
-      <div
-        className="settings__item-actions"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 'var(--shell-space-2, 8px)',
-          flexShrink: 0,
-          flexWrap: 'wrap',
-          marginInlineStart: 'auto',
-        }}
-      >
+      <div className="settings__item-actions account-person-card__actions">
         {isActive ? (
           <StatusChip status="active" label="Active" />
         ) : account.enabled ? (
@@ -112,7 +84,9 @@ function AccountCard({
         ) : null}
         <Switch
           label={`Allow ${account.login}`}
-          displayLabel={isToggling ? 'Updating…' : account.enabled ? 'Enabled' : 'Disabled'}
+          displayLabel={
+            isToggling ? 'Updating…' : account.enabled ? 'Enabled' : 'Disabled'
+          }
           checked={account.enabled}
           disabled={busy}
           onChange={(enabled) => void onEnabledChange(account.key, enabled)}
@@ -163,7 +137,11 @@ export function AccountsSection({
       {bannerVisible ? (
         <Banner
           status="failed"
-          action={<Button size="sm" onClick={reload}>Try again</Button>}
+          action={
+            <Button size="sm" onClick={reload}>
+              Try again
+            </Button>
+          }
           onDismiss={() => setDismissedError(error)}
         >
           {error}

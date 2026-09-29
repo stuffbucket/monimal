@@ -19,7 +19,8 @@ ARG PNPM_SHA256_AMD64
 ARG PNPM_SHA256_ARM64
 ARG TARGETARCH
 
-# Stryker's process cleanup invokes `ps` through tree-kill.
+# Tests exercise tmux integration; Stryker's process cleanup invokes `ps`
+# through tree-kill.
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
     ca-certificates \
@@ -27,6 +28,7 @@ RUN apt-get update \
     git \
     libatomic1 \
     procps \
+    tmux \
     unzip \
   && rm -rf /var/lib/apt/lists/*
 

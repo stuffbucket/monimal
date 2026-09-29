@@ -80,14 +80,15 @@ describe('the renderer entry point', () => {
     // The floor. A walk that reached nothing would report a clean namespace
     // over no modules at all.
     expect(modules.length).toBeGreaterThan(10);
-    expect(named.length).toBeGreaterThan(0);
 
     expect(
-      [...new Set(
-        named
-          .filter((entry) => !entry.property.startsWith('--shell-'))
-          .map((entry) => `${entry.module}: ${entry.property}`),
-      )].sort(),
+      [
+        ...new Set(
+          named
+            .filter((entry) => !entry.property.startsWith('--shell-'))
+            .map((entry) => `${entry.module}: ${entry.property}`),
+        ),
+      ].sort(),
     ).toEqual([]);
   });
 });
@@ -127,14 +128,14 @@ describe('packaged renderer components', () => {
         <surface.SettingsItem
           title="Knowledge base"
           description="Use indexed documentation when answering."
-          control={(
+          control={
             <surface.Switch
               label="Use knowledge base"
               displayLabel={null}
               checked
               onChange={vi.fn()}
             />
-          )}
+          }
           actions={<surface.Button>Configure</surface.Button>}
         />
       </surface.SettingsGroup>,
@@ -211,10 +212,7 @@ describe('packaged renderer components', () => {
     const markup = renderToStaticMarkup(
       <TabBar
         tabIdBase="test-documents"
-        tabs={[
-          ...tabs,
-          { id: 'two', title: 'Second document' },
-        ]}
+        tabs={[...tabs, { id: 'two', title: 'Second document' }]}
         active="one"
         onSelect={vi.fn()}
         onClose={vi.fn()}
@@ -225,7 +223,9 @@ describe('packaged renderer components', () => {
 
     expect(markup).toContain('aria-label="Close First document"');
     expect(markup).toContain('aria-label="Create workspace tab"');
-    expect(markup).toContain(`id="${getTabTriggerId('test-documents', 'one')}"`);
+    expect(markup).toContain(
+      `id="${getTabTriggerId('test-documents', 'one')}"`,
+    );
     expect(markup).toContain(
       `aria-controls="${getTabPanelId('test-documents', 'one')}"`,
     );

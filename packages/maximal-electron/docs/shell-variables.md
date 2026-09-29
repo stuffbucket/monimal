@@ -189,22 +189,19 @@ stylesheet never needed, that they may write no value a token should hold. A
 colour or a size spelled out in a TypeScript file is a design decision in a
 place no theme can reach.
 
-Where a component needs geometry the ramp has no name for — the height of a
-usage bar, the width of a legend swatch — it declares a token for it in its own
-sheet, with a value, overridable at the root. That is the third tier of the
-usual primitive, semantic and component split, and it is the only way a literal
-gets into one of these files.
+Where a component needs geometry the ramp has no name for, it declares a token
+for it in its own sheet, with a value, overridable at the root. That is the
+third tier of the usual primitive, semantic and component split, and it is the
+only way a literal gets into one of these files.
 
 ## The words a surface says
 
 Not a variable, and named here because it is the other half of the same
-question. Colour, spacing and radius come from the token contract above; the
-copy comes from `SHELL_CONTENT`, supplied through `ShellContentProvider` and
-read by every settings surface. Five components held fifty-seven strings of
-their own before that, which fixed the language and the product's voice for
-everyone who installed the package. `LOREM_CONTENT` is the stub half, and
-`tests/content-seam.test.ts` renders each surface from it and fails on English
-that still reaches the DOM.
+question. Colour, spacing and radius come from the token contract above; copy
+for reusable package-owned surfaces comes from `SHELL_CONTENT`, supplied
+through `ShellContentProvider`. `LOREM_CONTENT` is the stub half, and
+`tests/content-seam.test.ts` verifies that the live model-card surface reads
+copy through that seam instead of fixing a product voice in the package.
 
 ## Overriding what the package draws
 

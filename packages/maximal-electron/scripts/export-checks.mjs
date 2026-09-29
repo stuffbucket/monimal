@@ -46,11 +46,16 @@ import path from 'node:path';
  */
 export function exportTargets(exports) {
   return Object.entries(exports ?? {}).flatMap(([subpath, entry]) => {
-    if (typeof entry === 'string') return [{ subpath, condition: 'default', target: entry }];
+    if (typeof entry === 'string')
+      return [{ subpath, condition: 'default', target: entry }];
     if (entry === null || typeof entry !== 'object') return [];
     return Object.entries(entry)
       .filter(([, target]) => typeof target === 'string')
-      .map(([condition, target]) => ({ subpath, condition, target: String(target) }));
+      .map(([condition, target]) => ({
+        subpath,
+        condition,
+        target: String(target),
+      }));
   });
 }
 
@@ -129,14 +134,15 @@ export function declaredTargets(exports) {
  * @returns {string[]}
  */
 export function missingTargets(root, exports) {
-  return declaredTargets(exports).filter((target) => !targetPresent(root, target));
+  return declaredTargets(exports).filter(
+    (target) => !targetPresent(root, target),
+  );
 }
 
 /** The component surface `./renderer` promises a consumer. */
 export const RENDERER_SURFACE = [
   'ApiKeysDialog',
   'AppFrame',
-  'AppTogglesDialog',
   'Avatar',
   'Banner',
   'Button',
@@ -145,7 +151,6 @@ export const RENDERER_SURFACE = [
   'Card',
   'Checkbox',
   'CopyButton',
-  'Diagnostics',
   'Dialog',
   'EMPHASIS_LABELS',
   'EmptyState',
@@ -157,7 +162,6 @@ export const RENDERER_SURFACE = [
   'LOREM_CONTENT',
   'Menu',
   'ModelCardGrid',
-  'ModelCards',
   'NavRail',
   'Note',
   'PartitionedSortableList',
@@ -198,7 +202,6 @@ export const RENDERER_SURFACE = [
   'TitleBar',
   'Toolbar',
   'UnsavedChangesDialog',
-  'Usage',
   'ViewModeSwitch',
   'WindowChrome',
   'adornmentLabel',
@@ -247,11 +250,19 @@ export const MAIN_SURFACE = [
  * @param {readonly string[]} names
  * @returns {Promise<{ checks: Check[] }>}
  */
-export async function declarationSurfaceChecks(packageRoot, declaration, subpath, names) {
+export async function declarationSurfaceChecks(
+  packageRoot,
+  declaration,
+  subpath,
+  names,
+) {
   /** @type {Check[]} */
   const checks = [];
   const declared = typeof declaration === 'string';
-  checks.push({ name: `the manifest declares a ${subpath} export`, ok: declared });
+  checks.push({
+    name: `the manifest declares a ${subpath} export`,
+    ok: declared,
+  });
   if (!declared) return { checks };
 
   let source;
@@ -280,7 +291,12 @@ export async function declarationSurfaceChecks(packageRoot, declaration, subpath
  * @returns {Promise<{ checks: Check[] }>}
  */
 export async function mainSurfaceChecks(packageRoot, declaration) {
-  return declarationSurfaceChecks(packageRoot, declaration, './main', MAIN_SURFACE);
+  return declarationSurfaceChecks(
+    packageRoot,
+    declaration,
+    './main',
+    MAIN_SURFACE,
+  );
 }
 
 /**
@@ -401,7 +417,12 @@ export function importedPackages(source) {
       const specifier = match[1];
       if (specifier === undefined) continue;
       if (specifier.startsWith('.') || specifier.startsWith('node:')) continue;
-      found.add(specifier.split('/').slice(0, specifier.startsWith('@') ? 2 : 1).join('/'));
+      found.add(
+        specifier
+          .split('/')
+          .slice(0, specifier.startsWith('@') ? 2 : 1)
+          .join('/'),
+      );
     }
   }
   return [...found].sort();
@@ -432,7 +453,8 @@ export async function dependencyContractChecks(root, manifest) {
   /** @type {Check[]} */
   const checks = [];
   const entries = exportTargets(manifest.exports).filter(
-    ({ condition, target }) => condition === 'default' && /\.m?js$/.test(target),
+    ({ condition, target }) =>
+      condition === 'default' && /\.m?js$/.test(target),
   );
 
   /** @type {Map<string, string[]>} */
@@ -465,7 +487,10 @@ export async function dependencyContractChecks(root, manifest) {
     // The floor, per entry. Every claim below is about a set this walk
     // produced, so an entry point nothing could read would satisfy all of them
     // by contributing nothing.
-    checks.push({ name: `${subpath} resolves to a module that can be read`, ok: read > 0 });
+    checks.push({
+      name: `${subpath} resolves to a module that can be read`,
+      ok: read > 0,
+    });
     reached.set(subpath, [...packages].sort());
   }
 
@@ -474,7 +499,10 @@ export async function dependencyContractChecks(root, manifest) {
     ok: entries.length > 0,
   });
   const imported = new Set([...reached.values()].flat());
-  checks.push({ name: 'the entry points import at least one package', ok: imported.size > 0 });
+  checks.push({
+    name: 'the entry points import at least one package',
+    ok: imported.size > 0,
+  });
 
   checks.push({
     name: 'the package declares no runtime dependencies',
@@ -565,6 +593,9 @@ export async function moduleGraphChecks(root, entry) {
    * assertion over it as a pass. The renderer entry re-exports from nine
    * modules.
    */
-  checks.push({ name: 'the import graph reaches past the entry', ok: visited.size > 1 });
+  checks.push({
+    name: 'the import graph reaches past the entry',
+    ok: visited.size > 1,
+  });
   return { checks, inspected: visited.size };
 }

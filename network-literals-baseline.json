@@ -570,11 +570,6 @@
     "count": 1
   },
   {
-    "path": "packages/maximal-electron/.storybook/sample-settings.ts",
-    "literal": "localhost:4141",
-    "count": 1
-  },
-  {
     "path": "packages/maximal-electron/tests/main-options.test.ts",
     "literal": "http://127.0.0.1:53211",
     "count": 4
