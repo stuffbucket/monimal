@@ -48,6 +48,12 @@ describe('material preference', () => {
     saveMaterialPreference(preference)
 
     expect(readMaterialPreference()).toEqual(preference)
+    expect(localStorage.getItem('maximal.material-preference.v1')).not.toContain(
+      'latitude',
+    )
+    expect(localStorage.getItem('maximal.material-preference.v1')).not.toContain(
+      'longitude',
+    )
     expect(listener).toHaveBeenCalledWith(preference)
     unsubscribe()
   })

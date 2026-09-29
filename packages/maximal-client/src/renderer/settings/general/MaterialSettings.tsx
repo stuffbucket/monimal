@@ -88,7 +88,7 @@ function SolarLocationSettings({
       </FormField>
       <FormField
         label="Latitude"
-        hint="Stored locally and used only to calculate the sun angle."
+        hint="Kept for this app session and used only to calculate the sun angle."
       >
         {(field) => (
           <TextInput
@@ -104,7 +104,7 @@ function SolarLocationSettings({
       </FormField>
       <FormField
         label="Longitude"
-        hint="Stored locally; Maximal does not request device location."
+        hint="Kept for this app session; Maximal does not request device location."
       >
         {(field) => (
           <TextInput

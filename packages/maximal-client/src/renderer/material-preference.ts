@@ -28,6 +28,7 @@ export interface MaterialPreference {
 
 const STORAGE_KEY = 'maximal.material-preference.v1'
 const CHANGE_EVENT = 'maximal-material-preference-change'
+let sessionCoordinates = { latitude: 0, longitude: 0 }
 
 export const DEFAULT_MATERIAL_PREFERENCE: MaterialPreference = {
   preset: 'clouds',
@@ -85,17 +86,27 @@ export function parseMaterialPreference(value: unknown): MaterialPreference {
 export function readMaterialPreference(): MaterialPreference {
   try {
     const saved = localStorage.getItem(STORAGE_KEY)
-    return saved === null
+    const preference = saved === null
       ? DEFAULT_MATERIAL_PREFERENCE
       : parseMaterialPreference(JSON.parse(saved))
+    return { ...preference, ...sessionCoordinates }
   } catch {
-    return DEFAULT_MATERIAL_PREFERENCE
+    return { ...DEFAULT_MATERIAL_PREFERENCE, ...sessionCoordinates }
   }
 }
 
 export function saveMaterialPreference(preference: MaterialPreference): void {
   const parsed = parseMaterialPreference(preference)
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed))
+  sessionCoordinates = {
+    latitude: parsed.latitude,
+    longitude: parsed.longitude,
+  }
+  const {
+    latitude: _latitude,
+    longitude: _longitude,
+    ...persisted
+  } = parsed
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted))
   window.dispatchEvent(new CustomEvent(CHANGE_EVENT, { detail: parsed }))
 }
 
