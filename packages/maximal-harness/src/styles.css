@@ -45,16 +45,18 @@ body,
   right: 12px;
   left: 12px;
   box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: max-content max-content max-content minmax(0, 1fr);
+  grid-template-rows: minmax(180px, 1fr) auto auto;
   width: auto;
-  height: fit-content;
+  height: calc(100% - 24px);
   min-height: 0;
   max-height: calc(100% - 24px);
   margin: 0;
-  gap: var(--shell-space-2, 8px);
-  padding: var(--shell-space-3, 12px);
-  border-radius: var(--shell-radius-large, 8px);
+  gap: var(--shell-space-3, 12px);
+  padding: calc(var(--shell-space-4, 16px) + 8px) var(--shell-space-4, 16px)
+    var(--shell-space-4, 16px);
+  border-radius: calc(var(--shell-radius-large, 8px) + 6px);
   background: var(--shell-raised);
   border: 1px solid var(--shell-border);
   box-shadow: var(--shell-elevation, none);
@@ -64,13 +66,23 @@ body,
 
 .mh-card > * {
   position: relative;
-  z-index: 1;
+  z-index: 2;
+}
+
+.mh-card > .mh-card__paint {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
 }
 
 .mh-card--candy::before {
   content: '';
   position: absolute;
-  z-index: 0;
+  z-index: 1;
   inset: -35% -10%;
   transform: translateX(-45%);
   animation: mh-candy-sheen 8s ease-in-out infinite;
@@ -78,23 +90,15 @@ body,
 }
 
 .mh-card__header {
-  display: flex;
-  align-items: center;
-  gap: var(--shell-space-3, 12px);
+  display: contents;
 }
 
 .mh-card__icon {
-  width: 42px;
-  height: 42px;
-  flex: none;
-  border-radius: 10px;
+  display: none;
 }
 
 .mh-card__identity {
-  display: flex;
-  min-width: 0;
-  flex: 1;
-  flex-direction: column;
+  display: none;
 }
 
 .mh-card__identity span,
@@ -113,11 +117,22 @@ body,
 }
 
 .mh-card__conversation {
-  flex-direction: column;
-  align-items: flex-end;
+  grid-row: 3;
+  grid-column: 2;
 }
 
-.mh-select-trigger {
+.mh-permission-picker {
+  grid-row: 3;
+  grid-column: 3;
+}
+
+.mh-card__conversation > span,
+.mh-permission-picker > span,
+.mh-model-picker__label {
+  display: none;
+}
+
+.mh-card .mh-select-trigger {
   display: inline-flex;
   min-width: 0;
   max-width: 260px;
@@ -132,19 +147,38 @@ body,
   color: var(--shell-text);
 }
 
-.mh-select-trigger > span:first-child {
+.mh-model-picker .mh-select-trigger,
+.mh-card__conversation .mh-select-trigger,
+.mh-permission-picker .mh-select-trigger {
+  min-height: var(--shell-control-lg, 32px);
+  padding-inline: var(--shell-space-3, 12px);
+}
+
+.mh-model-picker .mh-select-trigger {
+  min-width: 148px;
+}
+
+.mh-card__conversation .mh-select-trigger {
+  min-width: 132px;
+}
+
+.mh-permission-picker .mh-select-trigger {
+  min-width: 168px;
+}
+
+.mh-card .mh-select-trigger > span:first-child {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.mh-select-trigger:hover,
-.mh-select-trigger[data-state='open'] {
+.mh-card .mh-select-trigger:hover,
+.mh-card .mh-select-trigger[data-state='open'] {
   border-color: var(--shell-border-strong, var(--shell-accent));
   background: var(--shell-hover);
 }
 
-.mh-select-trigger:focus-visible {
+.mh-card .mh-select-trigger:focus-visible {
   outline: 2px solid var(--shell-focus);
   outline-offset: 1px;
 }
@@ -155,7 +189,7 @@ body,
   transition: transform 120ms ease;
 }
 
-.mh-select-trigger[data-state='open'] .mh-select-trigger__chevron {
+.mh-card .mh-select-trigger[data-state='open'] .mh-select-trigger__chevron {
   transform: rotate(180deg);
 }
 
@@ -193,22 +227,43 @@ body,
 }
 
 .mh-card__input {
-  flex: 0 0 auto;
   box-sizing: border-box;
   width: 100%;
+  min-height: 72px;
   resize: none;
-  padding: 10px var(--shell-space-3, 12px);
-  border-radius: var(--shell-radius, 6px);
-  border: 1px solid var(--shell-border);
-  background: var(--shell-background);
+  padding: var(--shell-space-3, 12px) var(--shell-space-3, 12px);
+  border: 0;
+  background: transparent;
   color: var(--shell-text);
   font: inherit;
   user-select: text;
   cursor: text;
 }
 
-.mh-card__input:hover:not(:disabled) {
+.mh-card__prompt {
+  grid-row: 2;
+  grid-column: 1 / -1;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--shell-space-3, 12px);
+  padding: var(--shell-space-2, 8px) var(--shell-space-3, 12px);
+  border: 1px solid var(--shell-border);
+  border-radius: calc(var(--shell-radius-large, 8px) + 2px);
+  background: var(--shell-background);
+}
+
+.mh-card__prompt:focus-within,
+.mh-card__prompt:hover {
   border-color: var(--shell-accent);
+}
+
+.mh-card__prompt-icon {
+  width: 42px;
+  height: 42px;
+  flex: none;
+  border-radius: var(--shell-radius-large, 8px);
+  box-shadow: var(--shell-candy-icon-shadow);
 }
 
 .mh-card__input::placeholder {
@@ -216,9 +271,10 @@ body,
 }
 
 .mh-model-picker {
-  position: relative;
+  grid-row: 3;
+  grid-column: 1;
   display: flex;
-  width: 100%;
+  width: auto;
   min-width: 0;
   align-items: center;
   gap: var(--shell-space-2, 8px);
@@ -338,11 +394,12 @@ body,
 
 .mh-card__answer {
   position: relative;
-  flex: 1 1 auto;
+  height: 100%;
+  box-sizing: border-box;
   min-height: 0;
   max-height: none;
   overflow-y: auto;
-  padding: var(--shell-space-2, 8px) 0;
+  padding: var(--shell-space-4, 16px);
   border: 0;
   background: transparent;
   font-family: ui-monospace, monospace;
@@ -350,6 +407,17 @@ body,
   line-height: 1.5;
   user-select: text;
   cursor: text;
+}
+
+.mh-card__stage {
+  grid-row: 1;
+  grid-column: 1 / -1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--shell-border);
+  border-radius: calc(var(--shell-radius-large, 8px) + 2px);
+  background: var(--shell-canvas);
 }
 
 .mh-response__text {
@@ -412,6 +480,10 @@ body,
 }
 
 .mh-tool-list {
+  grid-row: 1;
+  grid-column: 1 / -1;
+  align-self: end;
+  margin: var(--shell-space-4, 16px);
   display: flex;
   flex-direction: column;
   gap: 3px;
@@ -472,6 +544,10 @@ body,
  * answers it are next to each other.
  */
 .mh-approval {
+  grid-row: 1;
+  grid-column: 1 / -1;
+  align-self: end;
+  margin: var(--shell-space-4, 16px);
   display: flex;
   flex-direction: column;
   gap: var(--shell-space-2, 8px);
@@ -540,6 +616,10 @@ body,
  * thing to start without saying so.
  */
 .mh-setup {
+  grid-row: 1;
+  grid-column: 1 / -1;
+  align-self: center;
+  margin: var(--shell-space-4, 16px);
   display: flex;
   flex-direction: column;
   gap: var(--shell-space-2, 8px);
@@ -590,17 +670,20 @@ body,
 }
 
 .mh-card__footer {
-  flex: 0 0 auto;
+  grid-row: 3;
+  grid-column: 4;
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: var(--shell-space-3, 12px);
   font-size: var(--shell-text-xs, 0.6875rem);
 }
 
 .mh-card__status {
-  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-align: right;
   white-space: nowrap;
 }
 

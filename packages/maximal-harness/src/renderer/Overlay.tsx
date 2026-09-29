@@ -20,6 +20,7 @@ import type {
   ProviderStatus,
 } from '../contracts.js';
 import { HARNESS_CONFIG, HARNESS_COPY } from '../constants.js';
+import { CandyPaint } from './CandyPaint.js';
 import { escapeAction } from './overlay-keys.js';
 
 function conciseModels(
@@ -436,6 +437,7 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
       onKeyDown={onKeyDown}
       onEscapeKeyDown={onEscape}
     >
+        {preferences.candy && <CandyPaint />}
         <div className="mh-drag-handle" aria-hidden="true"><span /></div>
         <header className="mh-card__header">
           <img
@@ -485,38 +487,40 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
             />
           </div>
         </header>
-        {(answer || error) && (
-          <div
-            className="mh-card__answer"
-            ref={answerBox}
-            data-testid="overlay-answer"
-            onScroll={(event) => {
-              const box = event.currentTarget;
-              followOutput.current =
-                box.scrollHeight - box.scrollTop - box.clientHeight < 24;
-            }}
-          >
-            {answer && (
-              <>
-                <button
-                  type="button"
-                  className="mh-answer-copy"
-                  onClick={() => {
-                    void navigator.clipboard.writeText(answer).catch(() => {
-                      setError('The response could not be copied.');
-                    });
-                  }}
-                  aria-label="Copy response"
-                  title="Copy response"
-                >
-                  <span aria-hidden="true" />
-                </button>
-                <ResponseContent text={answer} />
-              </>
-            )}
-            {error && <span className="mh-card__error">{error}</span>}
-          </div>
-        )}
+        <div className="mh-card__stage">
+          {(answer || error) && (
+            <div
+              className="mh-card__answer"
+              ref={answerBox}
+              data-testid="overlay-answer"
+              onScroll={(event) => {
+                const box = event.currentTarget;
+                followOutput.current =
+                  box.scrollHeight - box.scrollTop - box.clientHeight < 24;
+              }}
+            >
+              {answer && (
+                <>
+                  <button
+                    type="button"
+                    className="mh-answer-copy"
+                    onClick={() => {
+                      void navigator.clipboard.writeText(answer).catch(() => {
+                        setError('The response could not be copied.');
+                      });
+                    }}
+                    aria-label="Copy response"
+                    title="Copy response"
+                  >
+                    <span aria-hidden="true" />
+                  </button>
+                  <ResponseContent text={answer} />
+                </>
+              )}
+              {error && <span className="mh-card__error">{error}</span>}
+            </div>
+          )}
+        </div>
 
         {status.state === 'needs-model' && (
           <div className="mh-setup" data-testid="overlay-setup">
@@ -726,28 +730,35 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
           </div>
         )}
 
-        <textarea
-          ref={input}
-          className="mh-card__input"
-          rows={HARNESS_CONFIG.overlay.inputRows}
-          placeholder={
-            ready
-              ? HARNESS_COPY.overlay.readyPlaceholder
-              : HARNESS_COPY.overlay.waitingPlaceholder
-          }
-          value={prompt}
-          disabled={!ready}
-          onChange={(event) => setPrompt(event.target.value)}
-          onKeyDown={(event) => {
-            if (approval) return;
-            // Enter sends. Shift and Enter makes a new line.
-            if (event.key === 'Enter' && !event.shiftKey) {
-              event.preventDefault();
-              submit();
+        <div className="mh-card__prompt">
+          <img
+            className="mh-card__prompt-icon"
+            src={TERMINAL_ICON_URLS.maximal}
+            alt=""
+          />
+          <textarea
+            ref={input}
+            className="mh-card__input"
+            rows={HARNESS_CONFIG.overlay.inputRows}
+            placeholder={
+              ready
+                ? HARNESS_COPY.overlay.readyPlaceholder
+                : HARNESS_COPY.overlay.waitingPlaceholder
             }
-          }}
-          data-testid="overlay-input"
-        />
+            value={prompt}
+            disabled={!ready}
+            onChange={(event) => setPrompt(event.target.value)}
+            onKeyDown={(event) => {
+              if (approval) return;
+              // Enter sends. Shift and Enter makes a new line.
+              if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                submit();
+              }
+            }}
+            data-testid="overlay-input"
+          />
+        </div>
 
         <div className="mh-card__footer">
           <span

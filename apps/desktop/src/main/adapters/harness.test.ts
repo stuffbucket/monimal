@@ -516,16 +516,16 @@ describe('harness host lifecycle', () => {
       onMoved: (bounds: typeof savedWorkArea) => void
     }
     expect(panelOptions.bounds({ x: 0, y: 0, width: 1024, height: 768 }))
-      .toEqual({ x: 1440, y: 104, width: 640, height: 480 })
+      .toEqual({ x: 1360, y: 89, width: 960, height: 520 })
 
-    panelOptions.onMoved({ x: 1500, y: 140, width: 640, height: 480 })
+    panelOptions.onMoved({ x: 1400, y: 100, width: 960, height: 520 })
     expect(updateUserPreferencesMock).toHaveBeenCalledWith({
       overlayAnchor: {
         displayWorkArea: savedWorkArea,
-        offsetX: 220,
-        offsetY: 116,
-        panelWidth: 640,
-        panelHeight: 480,
+        offsetX: 120,
+        offsetY: 76,
+        panelWidth: 960,
+        panelHeight: 520,
       },
     })
   })
@@ -549,10 +549,10 @@ describe('harness host lifecycle', () => {
       width: 1280,
       height: 720,
     })).toEqual({
-      x: 1600,
-      y: 208,
-      width: 640,
-      height: 480,
+      x: 1440,
+      y: 168,
+      width: 960,
+      height: 520,
     })
     expect(configureLlamaHostMock).toHaveBeenCalledWith({
       workerPath: expect.stringMatching(/llama-worker\.js$/) as unknown,

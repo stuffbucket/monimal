@@ -54,8 +54,8 @@ import {
 } from '../preferences/application-settings.js'
 
 const HOTKEY = 'CommandOrControl+Shift+Space'
-const PANEL_MAX_WIDTH = 640
-const PANEL_MAX_HEIGHT = 480
+const PANEL_MAX_WIDTH = 960
+const PANEL_MAX_HEIGHT = 520
 const PANEL_HORIZONTAL_MARGIN = 24
 const PANEL_VERTICAL_MARGIN = 32
 const CHAT_DATABASE_FILENAME = 'assistant-chats.sqlite'

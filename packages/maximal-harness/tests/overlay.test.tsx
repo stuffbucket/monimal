@@ -150,6 +150,7 @@ let container: HTMLDivElement;
 let root: Root | undefined;
 
 beforeEach(() => {
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => null);
   container = document.createElement('div');
   document.body.append(container);
   root = createRoot(container);
