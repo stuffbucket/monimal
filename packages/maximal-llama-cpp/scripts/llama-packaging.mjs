@@ -1,10 +1,4 @@
-import { readFileSync } from 'node:fs';
-import { URL } from 'node:url';
-
-const PACKAGE = JSON.parse(
-  // Stryker disable next-line StringLiteral: JSON.parse accepts the equivalent UTF-8 Buffer.
-  readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
-);
+import PACKAGE from '../package.json' with { type: 'json' };
 const LLAMA_PLATFORM = {
   darwin: 'mac',
   mas: 'mac',
