@@ -8,6 +8,7 @@ const applicationSettingsSchema = z.object({
   agentApproval: z.enum(['all', 'writes', 'none']),
   agentTools: z.boolean(),
   agentCwd: z.string().min(1),
+  agentModel: z.string().min(1).optional(),
   agentToolsets: z.array(z.string()),
   terminalDiagnostics: z.boolean(),
   terminalSessionPrefix: z.string().regex(TMUX_SESSION_PREFIX_PATTERN),
@@ -36,6 +37,7 @@ export function loadApplicationSettings(userDataDirectory: string, context: Appl
     agentApproval: applicationSettingsSchema.shape.agentApproval.catch('writes'),
     agentTools: applicationSettingsSchema.shape.agentTools.catch(true),
     agentCwd: applicationSettingsSchema.shape.agentCwd.catch(homeDirectory),
+    agentModel: applicationSettingsSchema.shape.agentModel.catch(undefined),
     agentToolsets: z.array(z.unknown())
       .transform((values) => values.filter((value): value is string => typeof value === 'string'))
       .catch(['app']),

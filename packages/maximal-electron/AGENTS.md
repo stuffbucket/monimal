@@ -20,9 +20,6 @@ linked document.
 | Mutation tests                          | `pnpm --filter @maximal/maximal-electron run mutate`                                                              |
 | Terminal mutation tests                 | `pnpm --filter @maximal/maximal-terminal run mutate`                                                              |
 | End-to-end tests                        | `pnpm --filter @maximal/maximal-electron run package && pnpm --filter @maximal/maximal-electron run test:e2e` |
-| Record a demo                           | `npm run package && npm run record`                                                                                   |
-| Re-cut a demo                           | `npm run compose -- <name>`                                                                                           |
-| Capture reference images                | `npm run package && npm run stills`                                                                                   |
 | Look at a component                     | `npm run storybook`                                                                                                   |
 | Check every story                       | `npm run storybook:check`                                                                                             |
 | Check the palette                       | `npm run check:contrast`                                                                                              |
@@ -179,7 +176,6 @@ only background.
 | The `--shell-*` contract the renderer package reads from its host     | `docs/shell-variables.md` |
 | Random order, mutation testing, layout evidence, the off-screen suite | `docs/testing.md`         |
 | Stories, the a11y run, what is deliberately not in CI                 | `docs/storybook.md`       |
-| Capture and compose, the pacing constants                             | `docs/recording.md`       |
 | Private package release boundary, installer absence, platform notes   | `docs/release.md`         |
 | The workspace consumers and exported surface                          | `docs/consuming.md`       |
 | The workflows, run health, and the merge race                         | `docs/ci.md`              |

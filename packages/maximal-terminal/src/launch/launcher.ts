@@ -29,9 +29,15 @@ export interface TerminalProfilesFile {
   profiles?: unknown[];
 }
 
+export interface DirectTerminalProfile {
+  profile: TerminalProfileSummary & { kind: 'command' };
+  launch: TrustedTerminalLaunch;
+}
+
 const LOCAL_PROFILE: TerminalProfileSummary = Object.freeze({
   id: 'local',
   label: 'Local',
+  description: 'Open a terminal on your local file system',
   kind: 'local',
 });
 
@@ -92,6 +98,7 @@ const SSH_PROFILE: TerminalProfileSummary = Object.freeze({
 const TMUX_PROFILE: TerminalProfileSummary = Object.freeze({
   id: 'tmux',
   label: 'Local',
+  description: 'Open a terminal on your local file system',
   kind: 'tmux',
 });
 
@@ -176,6 +183,7 @@ export class TerminalLauncher<Owner> {
       discoveryMs?: number;
       createId?: () => string;
       localLaunch?: TrustedTerminalLaunch;
+      directProfiles?: readonly DirectTerminalProfile[];
       connectors?: readonly CommandConnector[];
       platform?: NodeJS.Platform;
     } = {},
@@ -184,7 +192,10 @@ export class TerminalLauncher<Owner> {
   }
 
   profiles(): readonly TerminalProfileSummary[] {
-    return terminalProfiles(this.options.platform);
+    return [
+      ...(this.options.directProfiles ?? []).map(({ profile }) => profile),
+      ...terminalProfiles(this.options.platform),
+    ];
   }
 
   async discover(owner: Owner): Promise<TerminalDiscovery> {
@@ -238,7 +249,12 @@ export class TerminalLauncher<Owner> {
   launch(owner: Owner, request: TerminalLaunchRequest): TerminalLaunchResult {
     let launch: TrustedTerminalLaunch;
     let label = LOCAL_PROFILE.label;
-    if (request.profileId === LOCAL_PROFILE.id && (!request.targetId || request.targetId === LOCAL_TARGET.id)) {
+    const directProfile = this.options.directProfiles?.find(({ profile }) =>
+      profile.id === request.profileId);
+    if (directProfile && !request.targetId) {
+      launch = directProfile.launch;
+      label = directProfile.profile.label;
+    } else if (request.profileId === LOCAL_PROFILE.id && (!request.targetId || request.targetId === LOCAL_TARGET.id)) {
       launch = this.options.localLaunch ?? {
         command: (this.options.platform ?? process.platform) === 'win32' ? 'powershell.exe' : process.env['SHELL'] ?? '/bin/zsh',
         args: [],
@@ -296,4 +312,5 @@ export class TerminalLauncher<Owner> {
       if (reservation.expiresAt <= now) this.reservations.delete(id);
     }
   }
+
 }

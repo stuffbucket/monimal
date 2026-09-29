@@ -26,6 +26,7 @@ import type {
   TerminalWindowRequest,
 } from '@maximal/maximal-client/shared/host'
 import { mainLogger } from '../main-logger.js'
+import { desktopTerminalProfiles } from './terminal-profiles.js'
 
 const nonEmptyString = z.string().min(1)
 const positiveInteger = z.number().int().positive()
@@ -195,7 +196,10 @@ export function configureTerminalHost(settings: {
         origin,
       })
     },
-  }, { tmuxSessionPrefix: settings.terminalSessionPrefix })
+  }, {
+    tmuxSessionPrefix: settings.terminalSessionPrefix,
+    directProfiles: desktopTerminalProfiles(),
+  })
 }
 
 export function configureTerminalWindowActions(actions: TerminalWindowActions): void {

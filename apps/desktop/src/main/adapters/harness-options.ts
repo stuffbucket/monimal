@@ -5,6 +5,7 @@ export interface HarnessOptions {
   approval: AgentApproval
   codingTools: boolean
   cwd: string
+  preferredModel?: string
   toolsetIds: readonly string[]
 }
 
@@ -14,6 +15,9 @@ export function loadHarnessOptions(userDataDirectory: string): HarnessOptions {
     approval: settings.agentApproval,
     codingTools: settings.agentTools,
     cwd: settings.agentCwd,
+    ...(settings.agentModel === undefined
+      ? {}
+      : { preferredModel: settings.agentModel }),
     toolsetIds: settings.agentToolsets,
   }
 }

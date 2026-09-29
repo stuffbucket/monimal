@@ -1,0 +1,44 @@
+{
+  "name": "@maximal/maximal-recording",
+  "private": true,
+  "type": "module",
+  "description": "Optional screen recorder and still-image tooling for the Electron reference shell",
+  "exports": {
+    "./main": {
+      "types": "./dist/main.d.ts",
+      "default": "./dist/main.js"
+    }
+  },
+  "monimal": {
+    "taskExemptions": {
+      "package": "The recorder drives the Electron package; it does not distribute an application.",
+      "start": "Use record or stills to drive the Electron package on demand."
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "build:app": "node scripts/build-app.mjs",
+    "record": "node scripts/record.mjs",
+    "compose": "node scripts/compose.mjs",
+    "stills": "node scripts/stills.mjs",
+    "test": "vitest run",
+    "test:rules": "playwright test --config e2e/demo/rules.config.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@maximal/maximal-electron": "workspace:*"
+  },
+  "devDependencies": {
+    "@maximal/eslint-config": "workspace:*",
+    "@playwright/test": "^1.62.0",
+    "@types/node": "^26.4.0",
+    "electron": "44.1.0",
+    "eslint": "^10.9.1",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "vitest": "^5.0.1"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

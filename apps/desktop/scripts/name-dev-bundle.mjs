@@ -1,13 +1,13 @@
 /**
- * Give the development Electron bundle this application's name.
+ * Give the development Electron bundle this application's identity.
  *
  * macOS reads the bold application-menu title from the RUNNING BUNDLE's
  * `CFBundleName`, not from `app.setName()` and not from the menu template. A
- * packaged build is correct already — Forge writes `CFBundleName: Maximal` —
- * but `electron-forge start` runs the stock binary out of the `electron`
- * package, whose plist says "Electron". No amount of main-process code changes
- * that, so the only way to see the real name while developing is to name the
- * bundle that runs.
+ * packaged build is correct already — Forge writes `CFBundleName: Maximal`
+ * and installs the product icon — but `electron-forge start` runs the stock
+ * binary out of the `electron` package. Runtime overrides disappear during
+ * process teardown, so the private development bundle owns both the product
+ * name and icon.
  *
  * ## Why this does not edit `node_modules/electron`
  *
@@ -88,13 +88,24 @@
  */
 
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 
 const PRODUCT_NAME = 'Maximal'
 
 /** The stock value, and what a bundle this script renamed is restored to. */
 const STOCK_NAME = 'Electron'
+
+const BUNDLE_ICON = `${PRODUCT_NAME}.icns`
 
 /** Where the named copy lives. Package-local, and in `.gitignore`. */
 const DEV_DIST = resolve('.electron-dev')
@@ -118,6 +129,7 @@ const MARKER = join(DEV_DIST, '.built-from.json')
  * reason to run something called Electron.
  */
 const NAME_KEYS = ['CFBundleName', 'CFBundleDisplayName']
+const ICON_KEY = 'CFBundleIconFile'
 
 /*
  * The plist is XML, and a key's value is the `<string>` immediately after its
@@ -155,9 +167,35 @@ export function renameBundle(plist, name) {
   return { changed, was, plist: next }
 }
 
+/**
+ * Point a bundle at an icon it owns.
+ *
+ * @param {string} plist
+ * @param {string} icon
+ * @returns {{ changed: boolean, found: boolean, plist: string }}
+ */
+export function replaceBundleIcon(plist, icon) {
+  const pattern = keyPattern(ICON_KEY)
+  const match = pattern.exec(plist)
+  if (!match) return { changed: false, found: false, plist }
+  if (match[2] === icon) return { changed: false, found: true, plist }
+  return {
+    changed: true,
+    found: true,
+    plist: plist.replace(pattern, `$1${icon}$3`),
+  }
+}
+
 /** @param {string} file @param {string} name */
 function writeName(file, name) {
   const result = renameBundle(readFileSync(file, 'utf8'), name)
+  if (result.changed) writeFileSync(file, result.plist)
+  return result
+}
+
+/** @param {string} file @param {string} icon */
+function writeIcon(file, icon) {
+  const result = replaceBundleIcon(readFileSync(file, 'utf8'), icon)
   if (result.changed) writeFileSync(file, result.plist)
   return result
 }
@@ -256,6 +294,11 @@ export function prepareDevBundle() {
 
   const stockDist = resolve('node_modules/electron/dist')
   const stockPlist = join(stockDist, 'Electron.app/Contents/Info.plist')
+  const productIcon = resolve('build/icon.icns')
+  if (!existsSync(productIcon)) {
+    console.log(`name-dev-bundle: no product icon at ${productIcon}, nothing to do`)
+    return undefined
+  }
   if (!ensureStockDist(stockPlist)) {
     console.log('name-dev-bundle: no development Electron bundle, nothing to do')
     return undefined
@@ -264,6 +307,7 @@ export function prepareDevBundle() {
   repairSharedBundle(stockPlist)
 
   const version = readFileSync(resolve('node_modules/electron/package.json'), 'utf8')
+  const iconHash = createHash('sha256').update(readFileSync(productIcon)).digest('hex')
   // The keys are part of what the copy was built for, not just the version:
   // teaching this script a new key has to rebuild a copy made before it knew.
   const built = JSON.stringify({
@@ -271,10 +315,12 @@ export function prepareDevBundle() {
     name: PRODUCT_NAME,
     keys: NAME_KEYS,
     bundle: BUNDLE_DIR,
+    icon: { file: BUNDLE_ICON, hash: iconHash },
   })
   const current = existsSync(MARKER) ? readFileSync(MARKER, 'utf8') : undefined
+  const devIcon = join(DEV_DIST, BUNDLE_DIR, 'Contents/Resources', BUNDLE_ICON)
 
-  if (current === built) {
+  if (current === built && existsSync(devIcon)) {
     console.log(`name-dev-bundle: ${PRODUCT_NAME} bundle is current`)
     return executablePath(DEV_DIST)
   }
@@ -298,7 +344,8 @@ export function prepareDevBundle() {
   const stockBundle = join(DEV_DIST, STOCK_BUNDLE_DIR)
   if (existsSync(stockBundle)) renameSync(stockBundle, join(DEV_DIST, BUNDLE_DIR))
 
-  const result = writeName(join(DEV_DIST, BUNDLE_DIR, 'Contents/Info.plist'), PRODUCT_NAME)
+  const devPlist = join(DEV_DIST, BUNDLE_DIR, 'Contents/Info.plist')
+  const result = writeName(devPlist, PRODUCT_NAME)
   if (!result.changed && result.was === undefined) {
     // The layout changed upstream. Leave the copy in place and run the stock
     // bundle rather than a half-named one.
@@ -306,6 +353,14 @@ export function prepareDevBundle() {
     rmSync(DEV_DIST, { recursive: true, force: true })
     return undefined
   }
+
+  const iconResult = writeIcon(devPlist, BUNDLE_ICON)
+  if (!iconResult.found) {
+    console.log(`name-dev-bundle: ${ICON_KEY} not found, running the stock bundle`)
+    rmSync(DEV_DIST, { recursive: true, force: true })
+    return undefined
+  }
+  copyFileSync(productIcon, devIcon)
 
   writeFileSync(MARKER, built)
   console.log(`name-dev-bundle: ${result.was ?? STOCK_NAME} -> ${PRODUCT_NAME} (private copy)`)

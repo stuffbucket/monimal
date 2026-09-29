@@ -17,7 +17,6 @@
     "src/preload/capabilities.ts",
     "src/renderer/lib/data.ts",
     "src/renderer/lib/theme.ts",
-    "src/main/native/ffmpeg.ts",
     "src/main/native/icons.ts",
     "src/renderer/lib/resolve-bridge.ts",
     "src/renderer/lib/contrast.ts",

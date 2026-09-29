@@ -1,7 +1,7 @@
 /**
  * What the capture fixture imports, and whether it could.
  *
- * `docs/recording.md` says the fixture is "the first consumer of those
+ * The recording package documentation described its fixture as "the first consumer of those
  * primitives, which is the same relationship a dependent project will have".
  * That claim was false for as long as every import read `../../../src/`, which
  * is a path no third party has. It is true now, and this module is the part

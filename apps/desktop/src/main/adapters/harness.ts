@@ -2,29 +2,46 @@ import { join } from 'node:path'
 
 import { createElectronPanel, type ElectronPanel } from '@maximal/maximal-electron/electron-panel'
 import type { AskAccepted } from '@maximal/maximal-harness'
-import { LLAMA_WORKER_FILENAME } from '@maximal/maximal-harness/packaging'
 import {
   abortAgent,
   configureAgent,
-  configureLlamaHost,
-  configureModel,
   discoverProvider,
-  ensureModel,
   isAgentBusy,
   resolveApproval,
   runAgent,
+  selectAgentModel,
   shutdownAgent,
-  stopEngine,
 } from '@maximal/maximal-harness/host'
-import { app, BrowserWindow, globalShortcut, ipcMain, type IpcMainInvokeEvent } from 'electron'
+import { LLAMA_WORKER_FILENAME } from '@maximal/maximal-llama-cpp/packaging'
+import {
+  configureLlamaHost,
+  configureModel,
+  DEFAULT_EMBEDDED_MODEL_FILE,
+  ensureModel,
+  stopEngine,
+} from '@maximal/maximal-llama-cpp/host'
+import {
+  app,
+  BrowserWindow,
+  globalShortcut,
+  ipcMain,
+  type IpcMainInvokeEvent,
+  type Rectangle,
+} from 'electron'
 import { z } from 'zod'
 
 import { BRIDGE_CHANNELS } from '../../shared/bridge-channels.js'
 import { loadHarnessOptions } from './harness-options.js'
 import { mainLogger } from '../main-logger.js'
+import { updateUserPreferences } from '../preferences/user-preferences.js'
 
 const HOTKEY = 'CommandOrControl+Shift+Space'
+const PANEL_MAX_WIDTH = 720
+const PANEL_MAX_HEIGHT = 640
+const PANEL_HORIZONTAL_MARGIN = 24
+const PANEL_VERTICAL_MARGIN = 48
 const askRequest = z.object({ prompt: z.string().trim().min(1) })
+const modelSelection = z.string().trim().min(1).max(1_000)
 const approvalRequest = z.object({
   id: z.string().min(1),
   allow: z.boolean(),
@@ -41,6 +58,17 @@ const SYSTEM_PROMPT = [
 let panel: ElectronPanel | undefined
 let registered = false
 let boundHotkey = false
+
+export function assistantPanelBounds(display: Rectangle): Rectangle {
+  const width = Math.min(PANEL_MAX_WIDTH, Math.max(1, display.width - PANEL_HORIZONTAL_MARGIN * 2))
+  const height = Math.min(PANEL_MAX_HEIGHT, Math.max(1, display.height - PANEL_VERTICAL_MARGIN * 2))
+  return {
+    x: display.x + Math.floor((display.width - width) / 2),
+    y: display.y + Math.floor((display.height - height) / 2),
+    width,
+    height,
+  }
+}
 
 function owner(event: IpcMainInvokeEvent): BrowserWindow {
   const window = panel?.window()
@@ -68,6 +96,9 @@ function registerIpc(): void {
   if (registered) return
   registered = true
 
+  ipcMain.handle(BRIDGE_CHANNELS.harnessShow, () => {
+    panel?.show()
+  })
   ipcMain.handle(BRIDGE_CHANNELS.harnessHide, (event) => {
     owner(event)
     panel?.hide()
@@ -76,6 +107,18 @@ function registerIpc(): void {
     owner(event)
     return discoverProvider()
   })
+  ipcMain.handle(
+    BRIDGE_CHANNELS.harnessSelectModel,
+    async (event, input: unknown) => {
+      owner(event)
+      const selected = await selectAgentModel(modelSelection.parse(input))
+      if (selected.state !== 'ready') {
+        throw new Error('The selected model did not become ready.')
+      }
+      await updateUserPreferences({ agentModel: selected.modelKey })
+      return selected
+    },
+  )
   ipcMain.handle(BRIDGE_CHANNELS.harnessAsk, (event, input: unknown): AskAccepted => {
     owner(event)
     const { prompt } = askRequest.parse(input)
@@ -98,15 +141,27 @@ function registerIpc(): void {
     owner(event)
     resolveApproval(approvalRequest.parse(input))
   })
-  ipcMain.handle(BRIDGE_CHANNELS.harnessEnsureModel, (event) => {
+  ipcMain.handle(BRIDGE_CHANNELS.harnessEnsureModel, async (event) => {
     owner(event)
-    return ensureModel((progress) => send(BRIDGE_CHANNELS.harnessModelProgress, progress))
+    const progress = await ensureModel((next) =>
+      send(BRIDGE_CHANNELS.harnessModelProgress, next),
+    )
+    if (progress.state === 'ready') {
+      const selected = await selectAgentModel(
+        `embedded:${DEFAULT_EMBEDDED_MODEL_FILE}`,
+      )
+      if (selected.state !== 'ready') {
+        throw new Error('The downloaded model did not become ready.')
+      }
+      await updateUserPreferences({ agentModel: selected.modelKey })
+    }
+    return progress
   })
 }
 
-export function startHarnessHost(): void {
+export function startHarnessHost(options: { modelDirectory: string }): void {
   configureLlamaHost({ workerPath: join(__dirname, LLAMA_WORKER_FILENAME) })
-  configureModel({ directory: join(app.getPath('userData'), 'models') })
+  configureModel({ directory: options.modelDirectory })
   configureAgent({
     systemPrompt: SYSTEM_PROMPT,
     ...loadHarnessOptions(app.getPath('userData')),
@@ -114,6 +169,7 @@ export function startHarnessHost(): void {
   panel = createElectronPanel({
     preloadPath: join(__dirname, 'preload.js'),
     loadRenderer,
+    bounds: assistantPanelBounds,
   })
   registerIpc()
 
@@ -146,8 +202,10 @@ export async function stopHarnessHost(): Promise<void> {
 
   if (registered) {
     for (const channel of [
+      BRIDGE_CHANNELS.harnessShow,
       BRIDGE_CHANNELS.harnessHide,
       BRIDGE_CHANNELS.harnessProvider,
+      BRIDGE_CHANNELS.harnessSelectModel,
       BRIDGE_CHANNELS.harnessAsk,
       BRIDGE_CHANNELS.harnessAbort,
       BRIDGE_CHANNELS.harnessApprove,

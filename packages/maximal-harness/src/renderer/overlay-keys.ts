@@ -1,11 +1,11 @@
 /**
- * What the overlay does when a key or a click asks it to go away.
+ * What the overlay does when Escape asks it to go away.
  *
  * Pulled out of the component because it is the part that can be wrong, and
  * the tests that used to cover it need a running local model — so they do not
  * run in CI, and they did not run while this was being changed. A three-way
  * decision that nothing could check was the risk in moving these rules onto a
- * dialog's callbacks.
+ * dialog's keyboard callback.
  *
  * The order is the point. Answer the question in front of the user first, then
  * stop the run underneath it, and only dismiss when there is nothing else to
@@ -26,12 +26,4 @@ export function escapeAction(pending: boolean, busy: boolean): OverlayDismissal 
   if (pending) return 'deny';
   if (busy) return 'abort';
   return 'hide';
-}
-
-/**
- * A click outside the card always dismisses, and answers a pending question on
- * the way out for the same reason `escapeAction` does.
- */
-export function outsideAction(pending: boolean): OverlayDismissal[] {
-  return pending ? ['deny', 'hide'] : ['hide'];
 }
