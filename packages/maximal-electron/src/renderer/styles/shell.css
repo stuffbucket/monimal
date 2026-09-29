@@ -141,8 +141,8 @@ body {
 }
 
 .activity-rail {
-  width: 64px;
-  min-width: 64px;
+  width: 48px;
+  min-width: 48px;
   min-height: 0;
   flex: none;
   overflow: hidden;
@@ -319,7 +319,7 @@ body {
   height: 100%;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-2);
+  padding: var(--space-1);
   overflow-x: hidden;
 }
 
@@ -328,19 +328,19 @@ body {
 }
 
 .activity-rail .nav--collapsed .nav__section {
-  width: 48px;
+  width: 40px;
 }
 
 .activity-rail .nav--collapsed .nav__item {
-  width: 48px;
-  height: 48px;
+  width: 40px;
+  height: 40px;
   flex: none;
-  border-radius: var(--radius-card);
+  border-radius: var(--radius-input);
 }
 
 .activity-rail .nav--collapsed .nav__item > svg {
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
 }
 
 /*
@@ -399,12 +399,50 @@ body {
   display: none;
 }
 
+.tab-group {
+  display: inline-flex;
+  align-items: center;
+  align-self: center;
+  height: var(--control-md);
+  padding: 0 var(--space-2);
+  flex: none;
+  color: var(--accent);
+  background: color-mix(in srgb, currentColor 14%, transparent);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-lg);
+}
+
+.tab-group[data-color='blue'] {
+  color: var(--accent);
+}
+
+.tab-group[data-color='green'] {
+  color: var(--success);
+}
+
+.tab-group[data-color='yellow'] {
+  color: var(--warning);
+}
+
+.tab-group[data-color='red'] {
+  color: var(--danger);
+}
+
+.tab-group[data-color='purple'] {
+  color: color-mix(in srgb, var(--accent) 60%, var(--danger));
+}
+
+.tab-group[data-color='orange'] {
+  color: color-mix(in srgb, var(--warning) 65%, var(--danger));
+}
+
 .tab {
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: 0 var(--space-2) 0 var(--space-3);
+  gap: var(--space-1);
+  padding: 0 var(--space-2);
   min-width: var(--tab-min);
   max-width: var(--tab-max);
   /*
@@ -511,6 +549,54 @@ body {
   left: 0;
   height: 2px;
   background: var(--accent);
+}
+
+.tab[data-color='blue'] {
+  box-shadow: inset 0 2px var(--accent);
+}
+
+.tab[data-color='green'] {
+  box-shadow: inset 0 2px var(--success);
+}
+
+.tab[data-color='yellow'] {
+  box-shadow: inset 0 2px var(--warning);
+}
+
+.tab[data-color='red'] {
+  box-shadow: inset 0 2px var(--danger);
+}
+
+.tab[data-color='purple'] {
+  box-shadow: inset 0 2px color-mix(in srgb, var(--accent) 60%, var(--danger));
+}
+
+.tab[data-color='orange'] {
+  box-shadow: inset 0 2px color-mix(in srgb, var(--warning) 65%, var(--danger));
+}
+
+.tab[data-color='blue'][data-state='active']::after {
+  background: var(--accent);
+}
+
+.tab[data-color='green'][data-state='active']::after {
+  background: var(--success);
+}
+
+.tab[data-color='yellow'][data-state='active']::after {
+  background: var(--warning);
+}
+
+.tab[data-color='red'][data-state='active']::after {
+  background: var(--danger);
+}
+
+.tab[data-color='purple'][data-state='active']::after {
+  background: color-mix(in srgb, var(--accent) 60%, var(--danger));
+}
+
+.tab[data-color='orange'][data-state='active']::after {
+  background: color-mix(in srgb, var(--warning) 65%, var(--danger));
 }
 
 /* Drawn inside the box. The title bar clips overflow and a tab is full height,
@@ -868,6 +954,10 @@ body {
   box-shadow: none;
 }
 
+.terminal-host .xterm-rows .xterm-dim:not([class*="xterm-fg-"]) {
+  color: color-mix(in srgb, currentColor 60%, transparent) !important;
+}
+
 .terminal-split {
   flex: 1;
   align-self: stretch;
@@ -1130,6 +1220,15 @@ body {
 .nav,
 .inspector__body {
   scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+.canvas:hover,
+.canvas:focus-within,
+.nav:hover,
+.nav:focus-within,
+.inspector__body:hover,
+.inspector__body:focus-within {
   scrollbar-color: var(--border-strong) transparent;
 }
 
@@ -1143,11 +1242,20 @@ body {
 .canvas::-webkit-scrollbar-thumb,
 .nav::-webkit-scrollbar-thumb,
 .inspector__body::-webkit-scrollbar-thumb {
-  background: var(--border-strong);
-  /* Inset the thumb so it reads as a hint rather than a rail. */
+  background: transparent;
   border: 3px solid transparent;
   background-clip: content-box;
   border-radius: var(--radius-pill);
+  transition: background-color var(--duration-fast) var(--ease-out);
+}
+
+.canvas:hover::-webkit-scrollbar-thumb,
+.canvas:focus-within::-webkit-scrollbar-thumb,
+.nav:hover::-webkit-scrollbar-thumb,
+.nav:focus-within::-webkit-scrollbar-thumb,
+.inspector__body:hover::-webkit-scrollbar-thumb,
+.inspector__body:focus-within::-webkit-scrollbar-thumb {
+  background-color: var(--border-strong);
 }
 
 .canvas::-webkit-scrollbar-thumb:hover,

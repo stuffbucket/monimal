@@ -1,9 +1,19 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { BrowserEvent, BrowserSession } from '@maximal/maximal-browser'
-import { moveTabBefore, type TerminalLaunchResult } from '@maximal/maximal-electron/renderer'
+import {
+  moveTabBefore,
+  type TabColor,
+  type TerminalLaunchResult,
+} from '@maximal/maximal-electron/renderer'
 import { terminalPaneSessionIds, terminalProcessTitle, type TerminalPane } from '@maximal/maximal-terminal/renderer'
 
 import { PRODUCT_TABS, SETTINGS_TAB, type AppTab } from './frame/AppFrame'
+import {
+  createTerminalGroup as createGroup,
+  moveTerminalToGroup as moveToGroup,
+  removeTerminalFromGroup as removeFromGroup,
+  setTerminalTabColor as setTabColor,
+} from './terminal-tab-organization'
 import { terminalTransport } from './terminal/transport'
 import {
   useTerminalWindowTransfer,
@@ -67,6 +77,7 @@ export function useTerminalTabs(
   const [closeState, setCloseState] = useState<{ tabId: string; title: string }>()
   const [terminalError, setTerminalError] = useState<string>()
   const [browserError, setBrowserError] = useState<string>()
+  const nextGroupId = useRef(1)
   const transfer = useTerminalWindowTransfer({
     tabs,
     setTabs,
@@ -213,6 +224,26 @@ export function useTerminalTabs(
     })
   }, [])
 
+  const createTerminalGroup = useCallback((id: string) => {
+    setTabs((current) => {
+      const next = createGroup(current, id, `terminal-group-${nextGroupId.current}`)
+      if (next !== current) nextGroupId.current += 1
+      return next
+    })
+  }, [])
+
+  const moveTerminalToGroup = useCallback((id: string, groupId: string) => {
+    setTabs((current) => moveToGroup(current, id, groupId))
+  }, [])
+
+  const removeTerminalFromGroup = useCallback((id: string) => {
+    setTabs((current) => removeFromGroup(current, id))
+  }, [])
+
+  const setTerminalTabColor = useCallback((id: string, color?: TabColor) => {
+    setTabs((current) => setTabColor(current, id, color))
+  }, [])
+
   const closeTerminal = useCallback(async (id: string) => {
     const sessionId = tabs.find((tab) => tab.id === id)?.sessionId
     if (sessionId === undefined) return
@@ -295,6 +326,10 @@ export function useTerminalTabs(
     renameTerminal,
     updateTerminalTitle,
     moveTerminalTab,
+    createTerminalGroup,
+    moveTerminalToGroup,
+    removeTerminalFromGroup,
+    setTerminalTabColor,
     syncPane,
     ...transfer,
   }

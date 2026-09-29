@@ -145,9 +145,15 @@ export function mutantsForTarget(report, target) {
  * code is deleted on purpose. `ignoredCeiling` counts `// Stryker disable`
  * suppressions in mutants, because one comment covers every mutant on its line.
  *
- * @param {{ root: string, mutantFloor: number, ignoredCeiling: number, reportDirectory?: string }} options
+ * @param {{ root: string, mutantFloor: number, ignoredCeiling: number, reportDirectory?: string, allowEmptyStatic?: boolean }} options
  */
-export function checkMutationReport({ root, mutantFloor, ignoredCeiling, reportDirectory = 'reports/mutation' }) {
+export function checkMutationReport({
+  root,
+  mutantFloor,
+  ignoredCeiling,
+  reportDirectory = 'reports/mutation',
+  allowEmptyStatic = false,
+}) {
   reportDirectory = process.env.MONIMAL_MUTATION_REPORT_DIRECTORY ?? reportDirectory;
   const reportArgument = process.argv.slice(2).find((argument) => !argument.startsWith('--'));
   const file = path.resolve(root, reportArgument ?? `${reportDirectory}/mutation.json`);
@@ -218,7 +224,7 @@ export function checkMutationReport({ root, mutantFloor, ignoredCeiling, reportD
   // a kill, so it is the one status that inflates the headline silently.
   if (counted('Timeout') > 0) failures.push(`${counted('Timeout')} mutants timed out. A timeout is not an assertion.`);
 
-  if (canonicalStatic.length === 0 && !scoped) {
+  if (canonicalStatic.length === 0 && !scoped && !allowEmptyStatic) {
     failures.push('The static mutation scope is empty.');
   } else if (canonicalStatic.length > 0) {
     const staticFile = path.resolve(root, `${reportDirectory}/static.json`);

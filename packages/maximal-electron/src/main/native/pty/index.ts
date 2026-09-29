@@ -64,13 +64,27 @@ export interface PtyOptions {
   directProfiles?: readonly DirectTerminalProfile[];
   /** Status-line policy for tmux sessions shown inside this application. */
   tmuxStatus?: TmuxStatusMode;
+  prepareSession?: (input: {
+    sessionId: string;
+    profileId: string;
+    label: string;
+  }) => Promise<Record<string, string>>;
+  releaseSession?: (sessionId: string) => Promise<void> | void;
 }
+
+let prepareSession: NonNullable<PtyOptions['prepareSession']> = () => Promise.resolve({});
+let releaseSession: NonNullable<PtyOptions['releaseSession']> = () => undefined;
 
 export function configurePty(handlers: PtyHandlers, options: PtyOptions): void {
   configureTmuxSessions(options.tmuxSessionPrefix, options.tmuxStatus);
   configureDirectTerminalProfiles(options.directProfiles ?? []);
+  prepareSession = options.prepareSession ?? (() => Promise.resolve({}));
+  releaseSession = options.releaseSession ?? (() => undefined);
   events.emit = handlers.emit;
-  events.onExit = handlers.onExit;
+  events.onExit = (owner, id, exitCode, projectionId) => {
+    void releaseSession(id);
+    handlers.onExit(owner, id, exitCode, projectionId);
+  };
   events.onStatus = handlers.onStatus;
   events.onSize = handlers.onSize ?? (() => undefined);
   events.onPane = handlers.onPane ?? (() => undefined);
@@ -396,59 +410,70 @@ export function syncPtyPane(
   paneDocuments.request(id, owner, pane);
 }
 
-export function launchTerminal(
+export async function launchTerminal(
   owner: BrowserWindow | undefined,
   request: TerminalLaunchRequest,
-): TerminalLaunchResult {
+): Promise<TerminalLaunchResult> {
   if (!owner) throw new Error('Terminal launch has no owning window.');
   prepareLauncher(owner);
   const result = launcher().launch(owner, request);
   const reserved = launcher().take(owner, result.sessionId);
   if (!reserved) throw new Error('Terminal launch reservation was unavailable.');
-  if (result.canRunInBackground) {
-    restoreMetadata.set(result.sessionId, {
-      title: result.label,
-      canRunInBackground: true,
-      cwd: reserved.cwd ?? app.getPath('home'),
+  try {
+    const scopeEnvironment = await prepareSession({
+      sessionId: result.sessionId,
+      profileId: request.profileId,
+      label: result.label,
+    });
+    const environment = { ...reserved.env, ...scopeEnvironment };
+    if (result.canRunInBackground) {
+      restoreMetadata.set(result.sessionId, {
+        title: result.label,
+        canRunInBackground: true,
+        cwd: reserved.cwd ?? app.getPath('home'),
+        shell: reserved.command,
+        startedAt: Date.now(),
+      });
+    }
+    if (reserved.tmuxControl) {
+      const sessions = controlHosts.for(owner);
+      const host = new TmuxControlHost({
+        session: tmuxSessionNames().create(),
+        emit: (chunk) => events.emit(owner, result.sessionId, chunk),
+        onExit: (exitCode) => events.onExit(owner, result.sessionId, exitCode),
+      });
+      sessions.set(result.sessionId, host);
+      return result;
+    }
+    if (reserved.tmuxProjection) {
+      projections.reserve(owner, result.sessionId, {
+        command: reserved.command,
+        args: reserved.args,
+        cwd: reserved.cwd,
+        env: environment,
+        ownership: reserved.tmuxProjection.ownership,
+        geometry: reserved.tmuxProjection.geometry,
+        terminate: reserved.tmuxProjection.terminate,
+      });
+      return result;
+    }
+    hosts.for(owner).spawn({
+      id: result.sessionId,
+      cols: request.cols,
+      rows: request.rows,
       shell: reserved.command,
-      startedAt: Date.now(),
-    });
-  }
-  if (reserved.tmuxControl) {
-    const sessions = controlHosts.for(owner);
-    const host = new TmuxControlHost({
-      session: tmuxSessionNames().create(),
-      emit: (chunk) => events.emit(owner, result.sessionId, chunk),
-      onExit: (exitCode) => events.onExit(owner, result.sessionId, exitCode),
-    });
-    sessions.set(result.sessionId, host);
-    return result;
-  }
-  if (reserved.tmuxProjection) {
-    projections.reserve(owner, result.sessionId, {
-      command: reserved.command,
-      args: reserved.args,
       cwd: reserved.cwd,
-      env: reserved.env,
-      ownership: reserved.tmuxProjection.ownership,
-      geometry: reserved.tmuxProjection.geometry,
-      terminate: reserved.tmuxProjection.terminate,
+      args: reserved.args,
+      env: environment,
     });
+    mirrors.setOwner(result.sessionId, owner);
+    trackViewerSize(result.sessionId, owner, request.cols, request.rows);
+    paneDocuments.flush();
     return result;
+  } catch (error) {
+    await releaseSession(result.sessionId);
+    throw error;
   }
-  hosts.for(owner).spawn({
-    id: result.sessionId,
-    cols: request.cols,
-    rows: request.rows,
-    shell: reserved.command,
-    cwd: reserved.cwd,
-    args: reserved.args,
-    env: reserved.env,
-  });
-  mirrors.setOwner(result.sessionId, owner);
-  trackViewerSize(result.sessionId, owner, request.cols, request.rows);
-  paneDocuments.flush();
-  return result;
 }
 
 export function writePty(

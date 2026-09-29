@@ -66,6 +66,27 @@ const bridge = {
     get: () => ipcRenderer.invoke(BRIDGE_CHANNELS.providerOnboardingGet),
     setDismissed: (dismissed) => ipcRenderer.invoke(BRIDGE_CHANNELS.providerOnboardingSet, dismissed),
   },
+  appearance: {
+    get: () => ipcRenderer.invoke(BRIDGE_CHANNELS.appearanceGet),
+    setVibrancyEnabled: (enabled) =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.appearanceSetVibrancy, enabled),
+    setBackgroundEffectsEnabled: (enabled) =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.appearanceSetBackgroundEffects, enabled),
+    setReducedMotionEnabled: (enabled) =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.appearanceSetReducedMotion, enabled),
+    onChange: (listener) => subscribe(BRIDGE_CHANNELS.appearanceChanged, listener),
+  },
+  projects: {
+    snapshot: () => ipcRenderer.invoke(BRIDGE_CHANNELS.projectsSnapshot),
+    search: (query, limit) => ipcRenderer.invoke(BRIDGE_CHANNELS.projectsSearch, query, limit),
+    addRoot: () => ipcRenderer.invoke(BRIDGE_CHANNELS.projectsAddRoot),
+    updateRoot: (id, update) =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.projectsUpdateRoot, id, update),
+    removeRoot: (id) => ipcRenderer.invoke(BRIDGE_CHANNELS.projectsRemoveRoot, id),
+    refresh: (rootId) => ipcRenderer.invoke(BRIDGE_CHANNELS.projectsRefresh, rootId),
+    opened: (projectId) => ipcRenderer.invoke(BRIDGE_CHANNELS.projectsOpened, projectId),
+    onChange: (listener) => subscribe(BRIDGE_CHANNELS.projectsChanged, listener),
+  },
   harness: {
     show: () => ipcRenderer.invoke(BRIDGE_CHANNELS.harnessShow),
     hide: () => ipcRenderer.invoke(BRIDGE_CHANNELS.harnessHide),

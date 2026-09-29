@@ -10,7 +10,7 @@ vi.mock('./frame/AppFrame', () => ({
   SETTINGS_TAB: { id: 'settings', title: 'Settings', kind: 'settings' },
 }))
 
-import { useTerminalTabs } from './useTerminalTabs'
+import { useTerminalTabs, type TerminalTabsState } from './useTerminalTabs'
 
 const pane = {
   direction: 'right',
@@ -122,5 +122,36 @@ describe('terminal reconstruction', () => {
     const state = JSON.parse(container.textContent ?? '') as Awaited<ReturnType<typeof restore>>
     expect(state.allTabs.slice(-2).map(({ kind }) => kind)).toEqual(['terminal', 'browser'])
     expect(state.activeTab).toBe('browser:browser-1')
+  })
+
+  it('groups terminals and assigns an individual tab color', async () => {
+    terminalList.mockResolvedValue([
+      { id: 'api', cwd: '/tmp', shell: '/bin/zsh', startedAt: 1 },
+      { id: 'worker', cwd: '/tmp', shell: '/bin/zsh', startedAt: 2 },
+    ])
+    let state: TerminalTabsState | undefined
+
+    function Harness() {
+      state = useTerminalTabs()
+      return null
+    }
+
+    await act(async () => { root.render(<Harness />) })
+    if (!state) throw new Error('terminal state did not render')
+
+    act(() => state?.createTerminalGroup('terminal:api'))
+    const group = state.tabs.find((tab) => tab.id === 'terminal:api')?.group
+    expect(group).toEqual(expect.objectContaining({ label: 'Group 1', color: 'blue' }))
+
+    act(() => {
+      if (group) state?.moveTerminalToGroup('terminal:worker', group.id)
+      state?.setTerminalTabColor('terminal:worker', 'orange')
+    })
+    expect(state.tabs.filter((tab) => tab.group?.id === group?.id).map((tab) => tab.id))
+      .toEqual(['terminal:api', 'terminal:worker'])
+    expect(state.tabs.find((tab) => tab.id === 'terminal:worker')?.color).toBe('orange')
+
+    act(() => state?.removeTerminalFromGroup('terminal:worker'))
+    expect(state.tabs.find((tab) => tab.id === 'terminal:worker')?.group).toBeUndefined()
   })
 })

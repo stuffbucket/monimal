@@ -71,6 +71,12 @@ import type {
 } from '@maximal/maximal-terminal/renderer'
 import type { ShutdownSnapshot } from '@maximal/maximal-electron/main'
 import type {
+  DiscoveryRoot,
+  ProjectCatalogSnapshot,
+  ProjectSearchResult,
+  UpdateDiscoveryRoot,
+} from '@maximal/project-catalog'
+import type {
   TerminalDiscovery,
   TerminalLaunchRequest,
   TerminalLaunchResult,
@@ -155,6 +161,13 @@ export interface MenuBarModeAttempt {
 
 export interface ProviderOnboardingPreference {
   dismissed: boolean
+}
+
+export interface AppearancePreference {
+  vibrancyEnabled: boolean
+  vibrancySupported: boolean
+  backgroundEffectsEnabled: boolean
+  reducedMotionEnabled: boolean
 }
 
 export interface OllamaRuntimePreferences {
@@ -271,6 +284,23 @@ export interface MaximalHost {
   providerOnboarding: {
     get: () => Promise<ProviderOnboardingPreference>
     setDismissed: (dismissed: boolean) => Promise<ProviderOnboardingPreference>
+  }
+  appearance: {
+    get: () => Promise<AppearancePreference>
+    setVibrancyEnabled: (enabled: boolean) => Promise<AppearancePreference>
+    setBackgroundEffectsEnabled: (enabled: boolean) => Promise<AppearancePreference>
+    setReducedMotionEnabled: (enabled: boolean) => Promise<AppearancePreference>
+    onChange: (listener: (preference: AppearancePreference) => void) => Unsubscribe
+  }
+  projects: {
+    snapshot: () => Promise<ProjectCatalogSnapshot>
+    search: (query: string, limit?: number) => Promise<ProjectSearchResult[]>
+    addRoot: () => Promise<DiscoveryRoot | null>
+    updateRoot: (id: string, update: UpdateDiscoveryRoot) => Promise<DiscoveryRoot>
+    removeRoot: (id: string) => Promise<void>
+    refresh: (rootId?: string) => Promise<ProjectCatalogSnapshot>
+    opened: (projectId: string) => Promise<void>
+    onChange: (listener: () => void) => Unsubscribe
   }
   harness: {
     show: () => Promise<void>

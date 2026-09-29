@@ -30,12 +30,15 @@ export const SETTINGS_STYLES = `
   flex-direction: column;
   min-height: 0;
   flex: 1;
+  overflow-y: auto;
 }
 
 .sb-shell .settings__header {
   display: flex;
   align-items: flex-start;
   gap: var(--shell-space-2);
+  width: 100%;
+  min-width: 0;
   padding: var(--shell-space-4);
   flex: none;
   border-bottom: 1px solid var(--shell-border);
@@ -82,9 +85,8 @@ export const SETTINGS_STYLES = `
 }
 
 .sb-shell .settings__body {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
+  width: 100%;
+  min-width: 0;
   padding: var(--shell-space-4);
   display: flex;
   flex-direction: column;
@@ -277,7 +279,7 @@ export const SETTINGS_STYLES = `
  * The frame a settings surface hosted in a tab draws.
  *
  * A title, a sentence saying what the surface is for, the actions that apply
- * to the whole surface, and a scrolling body. Three surfaces need exactly
+ * to the whole surface, and its content. Three surfaces need exactly
  * this, which is why it is here rather than written out three times.
  *
  * `h1` because a tab panel is the document. The sections inside use `h2`.
@@ -298,7 +300,7 @@ export function SettingsPage({
   useComponentStyles("settings-page", SETTINGS_STYLES);
 
   return (
-    <div className="settings" data-testid={testId}>
+    <ScrollArea className="settings" data-testid={testId}>
       <header className="settings__header">
         <div className="settings__heading">
           <h1 className="settings__title">{title}</h1>
@@ -312,8 +314,8 @@ export function SettingsPage({
         ) : null}
       </header>
 
-      <ScrollArea className="settings__body">{children}</ScrollArea>
-    </div>
+      <div className="settings__body">{children}</div>
+    </ScrollArea>
   );
 }
 

@@ -3,6 +3,7 @@ import {
   Cpu,
   HardDrive,
   Link2,
+  FolderGit2,
   ScrollText,
   Search,
   SlidersHorizontal,
@@ -24,6 +25,7 @@ import { GeneralSection } from './GeneralSection'
 import { LocalModelsSection } from './LocalModelsSection'
 import { LogsSection } from './LogsSection'
 import { ModelsSection } from './ModelsSection'
+import { ProjectsSection } from './projects/ProjectsSection'
 import { SearchSection } from './SearchSection'
 import { UsageSection } from './UsageSection'
 
@@ -40,6 +42,7 @@ const SECTION_PARTS: Record<SettingsSectionId, SectionParts> = {
     icon: SlidersHorizontal,
     Panel: GeneralSection,
   },
+  'settings-projects-heading': { icon: FolderGit2, Panel: ProjectsSection },
   'settings-connections-heading': { icon: Link2, Panel: ConnectionsSection },
   'settings-search-heading': { icon: Search, Panel: SearchSection },
   'settings-models-heading': { icon: Cpu, Panel: ModelsSection },

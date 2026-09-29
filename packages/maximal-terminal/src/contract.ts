@@ -63,6 +63,7 @@ export interface TerminalDiscovery {
 export interface TerminalLaunchRequest {
   profileId: string;
   targetId?: string;
+  cwd?: string;
   cols: number;
   rows: number;
 }

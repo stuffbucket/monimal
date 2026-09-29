@@ -367,6 +367,36 @@ describe('TerminalLauncher', () => {
     expect(() => launcher.launch(owner, { profileId: 'local', targetId: 'not-local', cols: 80, rows: 24 })).toThrow('Unknown terminal profile or target.');
   });
 
+  it('uses a requested working directory only for a local launch', () => {
+    const owner = {};
+    const launcher = new TerminalLauncher<object>({
+      createId: () => 'session',
+      localLaunch: { command: '/bin/example', args: [], cwd: '/home/test' },
+      directProfiles: [{
+        profile: { id: 'agent', label: 'Agent', kind: 'command' },
+        launch: { command: 'agent', args: [] },
+      }],
+    });
+
+    const result = launcher.launch(owner, {
+      profileId: 'local',
+      cwd: '/work/project',
+      cols: 80,
+      rows: 24,
+    });
+    expect(launcher.take(owner, result.sessionId)).toEqual({
+      command: '/bin/example',
+      args: [],
+      cwd: '/work/project',
+    });
+    expect(() => launcher.launch(owner, {
+      profileId: 'agent',
+      cwd: '/work/project',
+      cols: 80,
+      rows: 24,
+    })).toThrow('A working directory can only be selected for a local terminal.');
+  });
+
   it('uses the selected platform and shell fallback for an unconfigured Local launch', () => {
     const owner = {};
     vi.stubEnv('SHELL', '/bin/test-shell');

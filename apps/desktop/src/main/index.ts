@@ -34,6 +34,7 @@ import { z } from 'zod'
 
 import { BRIDGE_CHANNELS } from '../shared/bridge-channels.js'
 import type {
+  AppearancePreference,
   PendingSettingsRequest,
   TerminalRedockRequest,
   TerminalWindowRequest,
@@ -54,6 +55,7 @@ import { resolveLicenseBundlePath } from './native/license-bundle.js'
 import { listClientInstallations } from './native/client-installations.js'
 import { toLifecycleStatus } from './sidecar/lifecycle-status.js'
 import { registerOllamaRuntimeIpc } from './ollama-runtime-ipc.js'
+import { DesktopProjectCatalog } from './adapters/project-catalog.js'
 import { MenuBarModeController } from './native/menu-bar-mode.js'
 import { mainLogger } from './main-logger.js'
 import {
@@ -72,6 +74,7 @@ import {
 import {
   activeTerminalCount,
   configureTerminalHost,
+  configureTerminalProjectTrust,
   configureTerminalWindowActions,
   moveTerminalSessions,
   registerTerminalIpc,
@@ -79,10 +82,17 @@ import {
   stopTerminalHost,
 } from './adapters/terminal.js'
 import {
+  setBackgroundEffectsEnabled,
   loadApplicationSettings,
   setOllamaStartOnLaunch,
+  setReducedMotionEnabled,
+  setVibrancyEnabled,
 } from './preferences/application-settings.js'
 import { startBrowserHost } from './adapters/browser.js'
+import {
+  applyVibrancy,
+  vibrancyPreference,
+} from './native/vibrancy.js'
 
 const SPLASH_PREVIEW_FLAG = '--splash-preview'
 
@@ -106,9 +116,11 @@ applyAppName()
 
 let coreControlConnection: CoreControlConnection | null = null
 let mainWindow: BrowserWindow | null = null
+const vibrancyWindows = new Set<BrowserWindow>()
 let pendingSettingsRequest: PendingSettingsRequest | null = null
 let menuBarMode: MenuBarModeController | null = null
 let recording: DesktopRecording | null = null
+let projectCatalog: DesktopProjectCatalog | null = null
 let quitting = false
 let stopBrowserHost: (() => void) | undefined
 
@@ -126,6 +138,54 @@ function ollamaRuntimePreferences(restartRequired = false) {
     cloud_disabled: getOllamaCloudDisabled(),
     restart_required: restartRequired,
   }
+}
+
+function appearancePreference(): AppearancePreference {
+  const settings = loadApplicationSettings(app.getPath('userData')).settings
+  const vibrancy = vibrancyPreference(settings.vibrancyEnabled)
+  return {
+    vibrancyEnabled: vibrancy.enabled,
+    vibrancySupported: vibrancy.supported,
+    backgroundEffectsEnabled: settings.backgroundEffectsEnabled,
+    reducedMotionEnabled: settings.reducedMotionEnabled,
+  }
+}
+
+function applySavedVibrancy(window: BrowserWindow): void {
+  applyVibrancy(
+    window,
+    loadApplicationSettings(app.getPath('userData')).settings.vibrancyEnabled,
+  )
+}
+
+async function updateVibrancy(enabled: boolean) {
+  const saved = await setVibrancyEnabled(app.getPath('userData'), enabled)
+  for (const window of vibrancyWindows) {
+    if (!window.isDestroyed()) applyVibrancy(window, saved)
+  }
+  const preference = appearancePreference()
+  broadcast(BRIDGE_CHANNELS.appearanceChanged, preference)
+  return preference
+}
+
+async function updateBackgroundEffects(enabled: boolean) {
+  await setBackgroundEffectsEnabled(app.getPath('userData'), enabled)
+  const preference = appearancePreference()
+  broadcast(BRIDGE_CHANNELS.appearanceChanged, preference)
+  return preference
+}
+
+async function updateReducedMotion(enabled: boolean) {
+  await setReducedMotionEnabled(app.getPath('userData'), enabled)
+  const preference = appearancePreference()
+  broadcast(BRIDGE_CHANNELS.appearanceChanged, preference)
+  return preference
+}
+
+function registerVibrancyWindow(window: BrowserWindow): void {
+  vibrancyWindows.add(window)
+  applySavedVibrancy(window)
+  window.on('closed', () => vibrancyWindows.delete(window))
 }
 
 async function updateOllamaRuntimePreferences(input: unknown) {
@@ -190,6 +250,7 @@ async function readLicenseText(): Promise<string> {
 function registerIpc(
   session: CoreControlConnection,
   mode: MenuBarModeController,
+  projects: DesktopProjectCatalog,
 ): void {
   ipcMain.handle(BRIDGE_CHANNELS.lifecycleCurrent, () =>
     toLifecycleStatus(currentCoreStatus()),
@@ -226,6 +287,75 @@ function registerIpc(
   ipcMain.handle(BRIDGE_CHANNELS.providerOnboardingSet, (_event, dismissed: unknown) =>
     setProviderOnboardingPreference(z.boolean().parse(dismissed)),
   )
+  ipcMain.handle(BRIDGE_CHANNELS.appearanceGet, appearancePreference)
+  ipcMain.handle(
+    BRIDGE_CHANNELS.appearanceSetVibrancy,
+    (_event, enabled: unknown) => updateVibrancy(z.boolean().parse(enabled)),
+  )
+  ipcMain.handle(
+    BRIDGE_CHANNELS.appearanceSetBackgroundEffects,
+    (_event, enabled: unknown) =>
+      updateBackgroundEffects(z.boolean().parse(enabled)),
+  )
+  ipcMain.handle(
+    BRIDGE_CHANNELS.appearanceSetReducedMotion,
+    (_event, enabled: unknown) =>
+      updateReducedMotion(z.boolean().parse(enabled)),
+  )
+  ipcMain.handle(BRIDGE_CHANNELS.projectsSnapshot, () => projects.snapshot())
+  ipcMain.handle(
+    BRIDGE_CHANNELS.projectsSearch,
+    (_event, query: unknown, limit: unknown) =>
+      projects.search(
+        z.string().max(500).parse(query),
+        limit === undefined ? undefined : z.number().int().min(1).max(200).parse(limit),
+      ),
+  )
+  ipcMain.handle(BRIDGE_CHANNELS.projectsAddRoot, async () => {
+    const options = {
+      properties: ['openDirectory', 'createDirectory'],
+      title: 'Add project discovery root',
+    } satisfies Electron.OpenDialogOptions
+    const selection = mainWindow === null
+      ? await dialog.showOpenDialog(options)
+      : await dialog.showOpenDialog(mainWindow, options)
+    if (selection.canceled || selection.filePaths[0] === undefined) return null
+    const root = projects.addRoot(selection.filePaths[0])
+    await projects.refresh(root.id)
+    broadcast(BRIDGE_CHANNELS.projectsChanged)
+    return projects.roots().find(({ id }) => id === root.id) ?? root
+  })
+  ipcMain.handle(
+    BRIDGE_CHANNELS.projectsUpdateRoot,
+    (_event, id: unknown, update: unknown) => {
+      const value = z.object({
+        enabled: z.boolean().optional(),
+        trusted: z.boolean().optional(),
+        trustSubtrees: z.boolean().optional(),
+        maxDepth: z.number().int().min(0).max(20).optional(),
+        includeHidden: z.boolean().optional(),
+        exclusions: z.array(z.string().min(1).max(255)).max(200).optional(),
+      }).parse(update)
+      const result = projects.updateRoot(nonEmptyString.parse(id), value)
+      broadcast(BRIDGE_CHANNELS.projectsChanged)
+      return result
+    },
+  )
+  ipcMain.handle(BRIDGE_CHANNELS.projectsRemoveRoot, (_event, id: unknown) => {
+    projects.removeRoot(nonEmptyString.parse(id))
+    broadcast(BRIDGE_CHANNELS.projectsChanged)
+  })
+  ipcMain.handle(BRIDGE_CHANNELS.projectsRefresh, async (_event, rootId: unknown) => {
+    const result = await projects.refresh(
+      rootId === undefined ? undefined : nonEmptyString.parse(rootId),
+    )
+    broadcast(BRIDGE_CHANNELS.projectsChanged)
+    return result
+  })
+  ipcMain.handle(BRIDGE_CHANNELS.projectsOpened, (_event, projectId: unknown) => {
+    projects.opened(nonEmptyString.parse(projectId))
+    broadcast(BRIDGE_CHANNELS.projectsChanged)
+  })
   ipcMain.handle(BRIDGE_CHANNELS.authStatus, () => session.authStatus())
   ipcMain.handle(BRIDGE_CHANNELS.authStart, () => session.authStart())
   ipcMain.handle(BRIDGE_CHANNELS.authCancel, () => session.authCancel())
@@ -550,6 +680,7 @@ function createWindow(): BrowserWindow {
     ...centerOnPrimaryDisplay(1280, 768),
     loadRenderer,
   })
+  registerVibrancyWindow(win)
   mainWindow = win
   menuBarMode?.applyToWindow(win)
   win.on('closed', () => {
@@ -573,6 +704,7 @@ function createTerminalWindow(request: TerminalWindowRequest): BrowserWindow {
     showWhenReady: false,
     loadRenderer: () => undefined,
   })
+  registerVibrancyWindow(win)
   installRendererRecovery(win)
   return win
 }
@@ -673,7 +805,7 @@ void app.whenReady().then(async () => {
       broadcast(BRIDGE_CHANNELS.trafficInvalidated, invalidation),
   })
   const applicationSettings = loadApplicationSettings(app.getPath('userData')).settings
-  configureTerminalHost(applicationSettings)
+  configureTerminalHost(applicationSettings, coreControlConnection)
   if (applicationSettings.ollamaStartOnLaunch) {
     void getOllamaRuntimeStatus()
       .then((status) =>
@@ -692,8 +824,17 @@ void app.whenReady().then(async () => {
       openTransferredTerminal(owner, request, 'copy'),
     redock: redockTerminal,
   })
-  registerIpc(coreControlConnection, nativeMode)
+  projectCatalog = await DesktopProjectCatalog.open(app.getPath('userData'))
+  configureTerminalProjectTrust((path) => projectCatalog?.isTrustedPath(path) === true)
+  registerIpc(coreControlConnection, nativeMode, projectCatalog)
   stopBrowserHost = startBrowserHost(() => mainWindow)
+  void projectCatalog.refresh().then(
+    () => broadcast(BRIDGE_CHANNELS.projectsChanged),
+    (error: unknown) => mainLogger.error(
+      { errorName: error instanceof Error ? error.name : 'unknown' },
+      'Project catalog startup refresh failed',
+    ),
+  )
   startHarnessHost({ modelDirectory: localModelsDirectory() })
 
   const splashPreview = isSplashPreview()
@@ -784,6 +925,8 @@ shutdownLifecycle.onWillShutdown((event) => {
     stopBrowserHost = undefined
     menuBarMode?.dispose()
     coreControlConnection?.dispose()
+    projectCatalog?.close()
+    projectCatalog = null
     stopTerminalHost()
   }), { id: 'application', label: 'Application services' })
 

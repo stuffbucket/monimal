@@ -50,6 +50,29 @@ const SESSIONS: Tab[] = [
   { id: 'd', title: 'idle shell', icon: 'terminal' },
 ];
 
+const DOZEN: Tab[] = Array.from({ length: 12 }, (_, index) => ({
+  id: `terminal-${index + 1}`,
+  title: `Terminal ${index + 1}`,
+  icon: 'terminal' as const,
+}));
+
+const GROUPED: Tab[] = [
+  {
+    id: 'api',
+    title: 'API',
+    icon: 'terminal',
+    group: { id: 'services', label: 'Services', color: 'purple' },
+  },
+  {
+    id: 'worker',
+    title: 'Worker',
+    icon: 'terminal',
+    color: 'orange',
+    group: { id: 'services', label: 'Services', color: 'purple' },
+  },
+  { id: 'tests', title: 'Tests', icon: 'terminal', color: 'green' },
+];
+
 function Strip({
   tabs,
   width,
@@ -210,6 +233,33 @@ export const Truncated: Story = {
 /** Narrower than the strip wants. Tabs reach their minimum and then scroll. */
 export const Crowded: Story = {
   render: () => <Strip tabs={LONG} width={380} />,
+};
+
+/** A default desktop title bar fits a dozen terminals without horizontal scrolling. */
+export const DozenTabs: Story = {
+  render: () => <Strip tabs={DOZEN} width={1180} />,
+  play: async ({ canvasElement }) => {
+    const tablist = within(canvasElement).getByRole('tablist');
+    await expect(tablist.scrollWidth).toBeLessThanOrEqual(tablist.clientWidth);
+    await expect(within(tablist).getAllByRole('tab')).toHaveLength(12);
+  },
+};
+
+/** Terminal groups and individual colors remain visible without dominating the strip. */
+export const GroupedAndColored: Story = {
+  render: () => <Strip tabs={GROUPED} width={640} active="worker" />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const group = canvas.getByText('Services');
+    const worker = canvas.getByRole('tab', { name: 'Worker' });
+    const groupColor = getComputedStyle(group).color;
+    const workerMarker = getComputedStyle(worker).boxShadow;
+
+    await expect(group).toHaveAttribute('data-color', 'purple');
+    await expect(groupColor).not.toBe('rgba(0, 0, 0, 0)');
+    await expect(worker).toHaveAttribute('data-color', 'orange');
+    await expect(workerMarker).not.toBe('none');
+  },
 };
 
 /** A status dot per tab, for a strip tracking things with a lifecycle. */

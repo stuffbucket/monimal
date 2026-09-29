@@ -247,6 +247,120 @@ body {
   margin-top: 6px;
   color: var(--shell-text-muted);
 }
+
+:root[data-reduced-motion='true'] *,
+:root[data-reduced-motion='true'] *::before,
+:root[data-reduced-motion='true'] *::after {
+  scroll-behavior: auto !important;
+  transition-duration: 0.01ms !important;
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+}
+
+.cozy-background {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 18% 22%, rgb(111 154 165 / 0.2), transparent 38%),
+    radial-gradient(circle at 72% 18%, rgb(154 127 160 / 0.18), transparent 40%),
+    radial-gradient(circle at 56% 72%, rgb(170 135 106 / 0.16), transparent 42%);
+}
+
+.cozy-background canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  opacity: 0.9;
+}
+
+.cozy-background[data-renderer-available='true'] {
+  background: transparent;
+}
+
+:root[data-background-effects='true'] .sb-shell {
+  z-index: 1;
+}
+
+.project-browser {
+  width: min(42rem, calc(100vw - var(--shell-space-5, 24px)));
+}
+
+.project-browser__results {
+  display: grid;
+  max-height: min(28rem, calc(100vh - 18rem));
+  overflow: auto;
+  gap: 2px;
+}
+
+.project-browser__result {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: var(--shell-space-3, 12px);
+  color: var(--shell-text);
+  background: transparent;
+  border: 0;
+  border-radius: var(--shell-radius, 6px);
+  text-align: left;
+  cursor: pointer;
+}
+
+.project-browser__result:hover:not(:disabled),
+.project-browser__result:focus-visible {
+  background: var(--shell-hover);
+}
+
+.project-browser__result:disabled {
+  opacity: 0.62;
+  cursor: not-allowed;
+}
+
+.project-browser__name {
+  font-weight: 600;
+}
+
+.project-browser__path,
+.project-browser__meta {
+  color: var(--shell-text-muted);
+  font-size: 0.8rem;
+}
+
+.project-browser__path {
+  grid-column: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.project-browser__meta {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+}
+
+.project-browser__actions,
+.project-root-settings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--shell-space-2, 8px);
+}
+
+.project-browser__actions {
+  justify-content: flex-end;
+}
+
+.project-root-settings {
+  align-items: end;
+}
+
+.project-root-settings__field {
+  display: grid;
+  min-width: min(24rem, 100%);
+  gap: var(--shell-space-1, 4px);
+  color: var(--shell-text-muted);
+  font-size: 0.8rem;
+}
 `
 
 const BASE_STYLE_ID = 'maximal-base'

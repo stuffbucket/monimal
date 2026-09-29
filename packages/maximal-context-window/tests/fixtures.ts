@@ -40,6 +40,11 @@ export const REQUEST: TrafficRequestSummary = {
     subagent: null,
     compactType: null,
   },
+  terminal: {
+    sessionId: null,
+    profileId: null,
+    application: null,
+  },
   dispatch: {
     attemptCount: 1,
     retryCount: 0,

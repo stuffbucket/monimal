@@ -91,6 +91,11 @@ function start(requestId: string, acceptedAt: string): TrafficObservationStart {
       subagent: null,
       compactType: null,
     },
+    terminal: {
+      sessionId: null,
+      profileId: null,
+      application: null,
+    },
     context: {
       messageCount: 1,
       toolDefinitionCount: 0,
@@ -153,6 +158,45 @@ function observer(
 
 // eslint-disable-next-line max-lines-per-function
 describe("SQLite traffic observability", () => {
+  test("migrates version 1 request tables to terminal provenance columns", async () => {
+    const initial = observer()
+    initial.beginRequest(start("before-migration", "2026-09-07T11:59:59.000Z"))
+    await initial.close()
+
+    const dbPath = process.env[DB_PATH_ENV]
+    if (!dbPath) throw new Error("Expected an observability database path")
+    const previous = new Database(dbPath)
+    previous.run("ALTER TABLE traffic_requests DROP COLUMN terminal_session_id")
+    previous.run("ALTER TABLE traffic_requests DROP COLUMN terminal_profile_id")
+    previous.run(
+      "ALTER TABLE traffic_requests DROP COLUMN terminal_application",
+    )
+    previous.run("DELETE FROM traffic_schema_migrations")
+    previous.run(
+      "INSERT INTO traffic_schema_migrations (version, applied_at_ms) VALUES (1, 0)",
+    )
+    previous.close()
+
+    const migrated = observer()
+    migrated.beginRequest(start("after-migration", "2026-09-07T12:00:00.000Z"))
+    await migrated.close()
+
+    const verified = new Database(dbPath)
+    const columns = verified
+      .query("PRAGMA table_info(traffic_requests)")
+      .all() as Array<{ name: string }>
+    const version = verified
+      .query("SELECT MAX(version) AS version FROM traffic_schema_migrations")
+      .get() as { version: number }
+    verified.close()
+
+    const columnNames = new Set(columns.map(({ name }) => name))
+    expect(columnNames.has("terminal_session_id")).toBe(true)
+    expect(columnNames.has("terminal_profile_id")).toBe(true)
+    expect(columnNames.has("terminal_application")).toBe(true)
+    expect(version.version).toBe(2)
+  })
+
   test("persists lifecycle, zero-token completion, and contract-valid queries", async () => {
     const traffic = observer()
     const handle = traffic.beginRequest(
@@ -518,6 +562,11 @@ describe("SQLite traffic observability", () => {
         project: "project-a",
         model: "alpha",
       },
+      terminal: {
+        sessionId: "terminal-a",
+        profileId: "local",
+        application: "Claude Code",
+      },
     })
     const targetCompletion = finish("2026-09-07T11:57:01.000Z")
     target.complete({
@@ -582,6 +631,8 @@ describe("SQLite traffic observability", () => {
       [{ models: ["alpha"] }, ["target"]],
       [{ clients: ["cursor"] }, ["target"]],
       [{ projects: ["project-a"] }, ["target"]],
+      [{ terminalSessionIds: ["terminal-a"] }, ["target"]],
+      [{ applications: ["Claude Code"] }, ["target"]],
       [{ streaming: true }, ["target"]],
       [{ minimumDurationMs: 1_000, maximumDurationMs: 1_000 }, ["target"]],
       [{ search: "ALPHA" }, ["target"]],

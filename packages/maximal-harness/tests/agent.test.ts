@@ -12,6 +12,7 @@ import {
   configureAgent,
   discoverProvider,
   isAgentBusy,
+  resolveProviderApiKey,
   runAgent,
   selectAgentEffort,
   shutdownAgent,
@@ -21,6 +22,7 @@ import { registerToolset } from '../src/host/toolsets.js';
 
 const originalProvider = process.env['STUFFBUCKET_PROVIDER'];
 const originalProviderUrl = process.env['STUFFBUCKET_PROVIDER_URL'];
+const originalProviderApiKey = process.env['STUFFBUCKET_PROVIDER_API_KEY'];
 const directories: string[] = [];
 
 const agentOptions = {
@@ -52,6 +54,11 @@ afterEach(async () => {
   else process.env['STUFFBUCKET_PROVIDER'] = originalProvider;
   if (originalProviderUrl === undefined) delete process.env['STUFFBUCKET_PROVIDER_URL'];
   else process.env['STUFFBUCKET_PROVIDER_URL'] = originalProviderUrl;
+  if (originalProviderApiKey === undefined) {
+    delete process.env['STUFFBUCKET_PROVIDER_API_KEY'];
+  } else {
+    process.env['STUFFBUCKET_PROVIDER_API_KEY'] = originalProviderApiKey;
+  }
   vi.unstubAllGlobals();
   await Promise.all(
     directories.splice(0).map((directory) =>
@@ -63,6 +70,7 @@ afterEach(async () => {
 describe('discoverProvider', () => {
   it('uses safe catalogue metadata for model labels and reasoning effort', async () => {
     process.env['STUFFBUCKET_PROVIDER'] = 'maximal';
+    process.env['STUFFBUCKET_PROVIDER_API_KEY'] = 'mxt_terminal-token';
     configureAgent({
       ...agentOptions,
       preferredModel: 'maximal:claude',
@@ -91,13 +99,24 @@ describe('discoverProvider', () => {
       }],
     });
     expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
-      headers: { 'anthropic-version': '2023-06-01' },
+      headers: {
+        'anthropic-version': '2023-06-01',
+        authorization: 'Bearer mxt_terminal-token',
+      },
     });
 
     await expect(selectAgentEffort('high')).resolves.toMatchObject({
       state: 'ready',
       effort: 'high',
     });
+
+  });
+
+  it('uses the terminal credential only for the Maximal pi provider', () => {
+    process.env['STUFFBUCKET_PROVIDER_API_KEY'] = '  mxt_terminal-token  ';
+
+    expect(resolveProviderApiKey('maximal')).toBe('mxt_terminal-token');
+    expect(resolveProviderApiKey('ollama')).toBe('supplied-by-local-backend');
   });
 
   it.each([

@@ -125,10 +125,11 @@ export class SqliteTrafficObserver
           request_id, trace_id, session_id, parent_request_id, client_request_id,
           accepted_at_ms, accepted_at_utc, state, method, path, operation,
           source, client, project, provider, model, parent_session_id,
-          subagent, compact_type, message_count, tool_definition_count,
+          subagent, compact_type, terminal_session_id, terminal_profile_id,
+          terminal_application, message_count, tool_definition_count,
           context_window_tokens, requested_max_output_tokens, used_tokens,
           used_ratio, request_bytes, response_bytes, response_chunks
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, 'accepted', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, 'accepted', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       ).run(
         start.identity.requestId,
@@ -149,6 +150,9 @@ export class SqliteTrafficObserver
         start.attribution.parentSessionId,
         sqliteBoolean(start.attribution.subagent),
         start.attribution.compactType,
+        start.terminal.sessionId,
+        start.terminal.profileId,
+        start.terminal.application,
         start.context.messageCount,
         start.context.toolDefinitionCount,
         start.context.contextWindowTokens,

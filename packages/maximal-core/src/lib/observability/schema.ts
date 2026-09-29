@@ -4,7 +4,7 @@ import { initializeTokenUsageDb } from "~/lib/token-usage/store"
 
 import { numberValue, stringValue } from "./query"
 
-const TRAFFIC_SCHEMA_VERSION = 1
+const TRAFFIC_SCHEMA_VERSION = 2
 const DAY_MS = 86_400_000
 
 type Row = Record<string, unknown>
@@ -54,6 +54,9 @@ export function initializeTrafficDb(
       parent_session_id TEXT,
       subagent INTEGER,
       compact_type TEXT,
+      terminal_session_id TEXT,
+      terminal_profile_id TEXT,
+      terminal_application TEXT,
       attempt_count INTEGER NOT NULL DEFAULT 0,
       retry_count INTEGER NOT NULL DEFAULT 0,
       status_code INTEGER,
@@ -105,6 +108,7 @@ export function initializeTrafficDb(
     CREATE INDEX IF NOT EXISTS idx_traffic_requests_dimensions
       ON traffic_requests(operation, provider, model, client);
   `)
+  ensureTrafficColumns(db)
   const migration = db
     .prepare("SELECT version FROM traffic_schema_migrations WHERE version = ?")
     .get(TRAFFIC_SCHEMA_VERSION)
@@ -112,6 +116,24 @@ export function initializeTrafficDb(
     db.prepare(
       "INSERT INTO traffic_schema_migrations (version, applied_at_ms) VALUES (?, ?)",
     ).run(TRAFFIC_SCHEMA_VERSION, nowMs)
+  }
+
+  function ensureTrafficColumns(db: SqliteDatabase): void {
+    const columns = new Set(
+      (
+        db.prepare("PRAGMA table_info(traffic_requests)").all() as Array<Row>
+      ).map((row) => stringValue(row.name)),
+    )
+    const additions = [
+      ["terminal_session_id", "TEXT"],
+      ["terminal_profile_id", "TEXT"],
+      ["terminal_application", "TEXT"],
+    ] as const
+    for (const [name, type] of additions) {
+      if (!columns.has(name)) {
+        db.exec(`ALTER TABLE traffic_requests ADD COLUMN ${name} ${type}`)
+      }
+    }
   }
   recoverActiveRows(db, nowMs)
   backfillLegacyUsageRows(db)

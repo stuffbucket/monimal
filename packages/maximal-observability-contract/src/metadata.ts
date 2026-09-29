@@ -74,6 +74,19 @@ export type TrafficAttributionMetadata = z.infer<
   typeof TrafficAttributionMetadataSchema
 >
 
+/** Maximal-owned terminal provenance, independent of model session identity. */
+export const TrafficTerminalMetadataSchema = z
+  .object({
+    sessionId: nullableIdentifier,
+    profileId: nullableIdentifier,
+    application: nullableIdentifier,
+  })
+  .strict()
+
+export type TrafficTerminalMetadata = z.infer<
+  typeof TrafficTerminalMetadataSchema
+>
+
 /** Upstream dispatch facts, with no URL, headers, or transport objects. */
 export const TrafficDispatchMetadataSchema = z
   .object({

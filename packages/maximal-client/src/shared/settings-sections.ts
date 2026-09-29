@@ -38,6 +38,7 @@
 export const SETTINGS_SECTION_IDS = [
   'settings-account-heading',
   'settings-general-heading',
+  'settings-projects-heading',
   'settings-connections-heading',
   'settings-search-heading',
   'settings-models-heading',
@@ -67,6 +68,7 @@ export interface SettingsSectionSpec {
 export const SETTINGS_SECTIONS: readonly SettingsSectionSpec[] = [
   { id: 'settings-account-heading', label: 'Accounts' },
   { id: 'settings-general-heading', label: 'Appearance' },
+  { id: 'settings-projects-heading', label: 'Projects' },
   { id: 'settings-connections-heading', label: 'Connections' },
   { id: 'settings-search-heading', label: 'Search' },
   { id: 'settings-models-heading', label: 'Cloud Models' },

@@ -36,6 +36,7 @@ beforeEach(() => {
 describe('preload bridge allowlist', () => {
   it('exposes exactly the documented deep key set', () => {
     expect(Object.keys(bridge).sort()).toEqual([
+      'appearance',
       'browser',
       'clientInstallations',
       'control',
@@ -52,9 +53,17 @@ describe('preload bridge allowlist', () => {
       'onOpenSettings',
       'openExternal',
       'pendingSettingsRequest',
+      'projects',
       'providerOnboarding',
       'shutdown',
       'terminal',
+    ])
+    expect(Object.keys(bridge.appearance).sort()).toEqual([
+      'get',
+      'onChange',
+      'setBackgroundEffectsEnabled',
+      'setReducedMotionEnabled',
+      'setVibrancyEnabled',
     ])
     expect(Object.keys(bridge.licenses).sort()).toEqual(['text'])
     expect(Object.keys(bridge.browser).sort()).toEqual([
@@ -155,6 +164,16 @@ describe('preload bridge allowlist', () => {
       'get',
       'setDismissed',
     ])
+    expect(Object.keys(bridge.projects).sort()).toEqual([
+      'addRoot',
+      'onChange',
+      'opened',
+      'refresh',
+      'removeRoot',
+      'search',
+      'snapshot',
+      'updateRoot',
+    ])
     expect(Object.keys(bridge.terminal).sort()).toEqual([
       'acknowledge',
       'copy',
@@ -247,6 +266,10 @@ describe('preload bridge allowlist', () => {
     await bridge.menuBarMode.disable()
     await bridge.providerOnboarding.get()
     await bridge.providerOnboarding.setDismissed(true)
+    await bridge.appearance.get()
+    await bridge.appearance.setVibrancyEnabled(true)
+    await bridge.appearance.setBackgroundEffectsEnabled(true)
+    await bridge.appearance.setReducedMotionEnabled(true)
     await bridge.harness.show()
     await bridge.harness.hide()
     await bridge.harness.provider()
@@ -354,6 +377,10 @@ describe('preload bridge allowlist', () => {
       [BRIDGE_CHANNELS.menuBarModeDisable],
       [BRIDGE_CHANNELS.providerOnboardingGet],
       [BRIDGE_CHANNELS.providerOnboardingSet, true],
+      [BRIDGE_CHANNELS.appearanceGet],
+      [BRIDGE_CHANNELS.appearanceSetVibrancy, true],
+      [BRIDGE_CHANNELS.appearanceSetBackgroundEffects, true],
+      [BRIDGE_CHANNELS.appearanceSetReducedMotion, true],
       [BRIDGE_CHANNELS.harnessShow],
       [BRIDGE_CHANNELS.harnessHide],
       [BRIDGE_CHANNELS.harnessProvider],
@@ -430,6 +457,33 @@ describe('preload bridge allowlist', () => {
       handler,
     )
     expect(invoke).not.toHaveBeenCalled()
+  })
+
+  it('wraps appearance changes and removes only its own listener', () => {
+    const listener = vi.fn()
+    const unsubscribe = bridge.appearance.onChange(listener)
+    const handler = on.mock.calls[0]?.[1] as (
+      event: unknown,
+      preference: {
+        vibrancyEnabled: boolean
+        vibrancySupported: boolean
+        backgroundEffectsEnabled: boolean
+        reducedMotionEnabled: boolean
+      },
+    ) => void
+    const preference = {
+      vibrancyEnabled: true,
+      vibrancySupported: true,
+      backgroundEffectsEnabled: true,
+      reducedMotionEnabled: true,
+    }
+
+    handler({ raw: 'electron-event' }, preference)
+    expect(listener).toHaveBeenCalledWith(preference)
+
+    unsubscribe()
+    expect(on).toHaveBeenCalledWith(BRIDGE_CHANNELS.appearanceChanged, handler)
+    expect(off).toHaveBeenCalledWith(BRIDGE_CHANNELS.appearanceChanged, handler)
   })
 
   it('wraps local model events and removes only its own listener', () => {

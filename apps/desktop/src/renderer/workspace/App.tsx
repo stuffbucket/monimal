@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState, type ReactElement } from 'react'
 
 import { AppWorkspace } from '@maximal/maximal-client/renderer/AppWorkspace'
 import { MaximalQueryProvider } from '@maximal/maximal-client/renderer/query-client'
+import { ProjectBrowser } from '@maximal/maximal-client/renderer/projects/ProjectBrowser'
+import type { ProjectSearchResult } from '@maximal/project-catalog'
 import { ThirdPartyLicensesDialog } from '@maximal/maximal-client/renderer/ThirdPartyLicensesDialog'
 import { useAccountStatus } from '@maximal/maximal-client/renderer/useAccountStatus'
 import type { SettingsSectionRequest } from '@maximal/maximal-client/renderer/settings/Settings'
@@ -16,6 +18,8 @@ import {
 } from '@maximal/maximal-client/renderer/unsaved-changes'
 
 import { WorkspaceTerminalLauncher } from './WorkspaceTerminalLauncher'
+import { CozyBackground } from './CozyBackground'
+import { useAppearancePreference } from './useAppearancePreference'
 
 /**
  * Top-level composition.
@@ -46,12 +50,14 @@ export function App(): ReactElement {
 
 function AppContent(): ReactElement {
   const settings = useMemo(() => createCoreSettingsCapabilities(), [])
+  const appearance = useAppearancePreference(settings)
   const observability = useMemo(() => createObservabilitySource(), [])
   const [detachedWindow] = useState(readDetachedTerminal)
   const terminalTabsState = useTerminalTabs(detachedWindow)
   const { openSettings } = terminalTabsState
   const accountStatus = useAccountStatus(settings)
   const [sectionRequest, setSectionRequest] = useState<SettingsSectionRequest | null>(null)
+  const [projectBrowserOpen, setProjectBrowserOpen] = useState(false)
   const requestNavigation = useGuardedNavigation()
 
   useEffect(
@@ -67,6 +73,10 @@ function AppContent(): ReactElement {
 
   return (
     <ObservabilityProvider source={observability}>
+      <CozyBackground
+        enabled={appearance?.backgroundEffectsEnabled === true}
+        reducedMotion={appearance?.reducedMotionEnabled === true}
+      />
       <AppWorkspace
         detachedWindow={detachedWindow}
         accountStatus={accountStatus}
@@ -75,9 +85,31 @@ function AppContent(): ReactElement {
         terminalState={terminalTabsState}
         requestNavigation={requestNavigation}
         openSettingsSection={(id) => setSectionRequest({ id })}
+        onOpenProjects={() => setProjectBrowserOpen(true)}
       />
       {/* Detached windows display transferred sessions; only the workspace launches new ones. */}
       {!detachedWindow && <WorkspaceTerminalLauncher terminalState={terminalTabsState} />}
+      {!detachedWindow ? (
+        <ProjectBrowser
+          open={projectBrowserOpen}
+          onOpenChange={setProjectBrowserOpen}
+          onOpenProject={async (project: ProjectSearchResult) => {
+            const result = await window.maximal.terminal.launch({
+              profileId: 'local',
+              cwd: project.path,
+              cols: 100,
+              rows: 30,
+            })
+            terminalTabsState.rememberProfile('local')
+            terminalTabsState.onTerminalLaunched(result)
+          }}
+          onOpenSettings={() => {
+            setProjectBrowserOpen(false)
+            terminalTabsState.openSettings()
+            setSectionRequest({ id: 'settings-projects-heading' })
+          }}
+        />
+      ) : null}
       <ThirdPartyLicensesDialog />
     </ObservabilityProvider>
   )

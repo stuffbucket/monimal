@@ -330,6 +330,31 @@ export function createPreviewSettingsCapabilities(): SettingsCapabilities {
       updatePreferences: unavailable,
     },
     general: {
+      appearance: () => Promise.resolve({
+        vibrancyEnabled: false,
+        vibrancySupported: true,
+        backgroundEffectsEnabled: false,
+        reducedMotionEnabled: false,
+      }),
+      setVibrancyEnabled: (enabled) => Promise.resolve({
+        vibrancyEnabled: enabled,
+        vibrancySupported: true,
+        backgroundEffectsEnabled: false,
+        reducedMotionEnabled: false,
+      }),
+      setBackgroundEffectsEnabled: (enabled) => Promise.resolve({
+        vibrancyEnabled: false,
+        vibrancySupported: true,
+        backgroundEffectsEnabled: enabled,
+        reducedMotionEnabled: false,
+      }),
+      setReducedMotionEnabled: (enabled) => Promise.resolve({
+        vibrancyEnabled: false,
+        vibrancySupported: true,
+        backgroundEffectsEnabled: false,
+        reducedMotionEnabled: enabled,
+      }),
+      onAppearanceChange: () => () => {},
       menuBarMode: () => Promise.resolve(menuBarState()),
       beginMenuBarOnly: () => {
         menuBarEnabled = true
@@ -361,6 +386,14 @@ export function createPreviewSettingsCapabilities(): SettingsCapabilities {
     providerOnboarding: {
       get: () => Promise.resolve({ dismissed: false }),
       setDismissed: (dismissed) => Promise.resolve({ dismissed }),
+    },
+    projects: {
+      snapshot: () => Promise.resolve({ roots: [], projects: [], refreshing: false }),
+      addRoot: () => Promise.resolve(null),
+      updateRoot: unavailable,
+      removeRoot: unavailable,
+      refresh: () => Promise.resolve({ roots: [], projects: [], refreshing: false }),
+      subscribe: () => () => undefined,
     },
     connections: {
       list: unavailable,

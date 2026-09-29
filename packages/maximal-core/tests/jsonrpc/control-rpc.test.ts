@@ -12,6 +12,10 @@ import {
 import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test"
 import { Hono } from "hono"
 
+import type {
+  ConfiguratorRegistry,
+  TerminalProfileConfigurator,
+} from "~/lib/configurator-host"
 import type { ControlSnapshot } from "~/lib/live/resources"
 import type { ControlRpcOperationOverrides } from "~/routes/control/rpc"
 
@@ -167,6 +171,8 @@ describe("control /rpc — discovery", () => {
       "searchSettings/get",
       "searchSettings/update",
       "searchSettings/validateProvider",
+      "terminalScopes/issue",
+      "terminalScopes/revoke",
     ]
     for (const method of settingsMethods) expect(caps.methods).toContain(method)
   })
@@ -218,6 +224,107 @@ describe("control /rpc — params validation", () => {
     const { body } = await rpc("accounts/switch", { id: 1, params: {} })
     expect(body.error?.code).toBe(-32602)
     expect(body.error?.message).toContain("key")
+  })
+
+  describe("control /rpc — terminal scopes", () => {
+    test("issues and revokes a terminal-scoped proxy credential", async () => {
+      const issued = await rpc("terminalScopes/issue", {
+        id: 1,
+        params: {
+          sessionId: "terminal-rpc-1",
+          profileId: "claude-code",
+          application: "Claude Code",
+        },
+      })
+
+      expect(issued.status).toBe(200)
+      expect(issued.body.result).toEqual({
+        sessionId: "terminal-rpc-1",
+        profileId: "claude-code",
+        application: "Claude Code",
+        credential: expect.stringMatching(/^mxt_/),
+        expiresAt: expect.any(String),
+        environment: {},
+      })
+
+      const revoked = await rpc("terminalScopes/revoke", {
+        id: 2,
+        params: { sessionId: "terminal-rpc-1" },
+      })
+      expect(revoked.body.result).toEqual({
+        sessionId: "terminal-rpc-1",
+        revoked: true,
+      })
+    })
+
+    test("rejects an invalid terminal scope", async () => {
+      const { body } = await rpc("terminalScopes/issue", {
+        id: 1,
+        params: {
+          sessionId: "",
+          profileId: "local",
+          application: null,
+        },
+      })
+
+      expect(body.error?.code).toBe(JSON_RPC_INVALID_PARAMS)
+    })
+
+    test("applies a registered terminal profile configurator", async () => {
+      const terminalProfile: TerminalProfileConfigurator = {
+        metadata: {
+          id: "maximal-terminal",
+          name: "Maximal",
+          profileId: "maximal",
+          application: "Maximal",
+        },
+        environment: ({ baseUrl, credential, sessionId }) => ({
+          MAXIMAL_TERMINAL_SESSION_ID: sessionId,
+          MAXIMAL_PROXY_URL: baseUrl,
+          MAXIMAL_PROXY_TOKEN: credential,
+        }),
+      }
+      const configurators: ConfiguratorRegistry = {
+        all: () => [],
+        get: () => undefined,
+        terminalProfile: (profileId) =>
+          profileId === "maximal" ? terminalProfile : undefined,
+        dispose: () => Promise.resolve(),
+      }
+      const configuredApp = createControlRoutes({
+        getRequestIp: () => "127.0.0.1",
+        configurators,
+      })
+      const response = await configuredApp.request("/rpc", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "terminalScopes/issue",
+          params: {
+            sessionId: "terminal-maximal",
+            profileId: "maximal",
+            application: "untrusted-label",
+          },
+        }),
+      })
+      const body = (await response.json()) as RpcBody
+
+      expect(body.result).toMatchObject({
+        sessionId: "terminal-maximal",
+        profileId: "maximal",
+        application: "Maximal",
+      })
+      const environment = body.result?.environment
+      if (!environment || typeof environment !== "object") {
+        throw new Error("Expected a terminal configurator environment")
+      }
+      const variables = environment as Record<string, unknown>
+      expect(variables.MAXIMAL_TERMINAL_SESSION_ID).toBe("terminal-maximal")
+      expect(variables.MAXIMAL_PROXY_URL).toMatch(/^http:\/\/127\.0\.0\.1:/u)
+      expect(variables.MAXIMAL_PROXY_TOKEN).toMatch(/^mxt_/u)
+    })
   })
 
   test("accounts/setEnabled requires a key and boolean", async () => {

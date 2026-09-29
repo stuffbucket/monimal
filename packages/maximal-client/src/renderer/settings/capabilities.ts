@@ -28,8 +28,14 @@ import type {
   TokenUsageSummary,
 } from '@maximal/maximal-core-contract/settings'
 import type { LogFile } from '@maximal/maximal-logging'
+import type {
+  DiscoveryRoot,
+  ProjectCatalogSnapshot,
+  UpdateDiscoveryRoot,
+} from '@maximal/project-catalog'
 
 import type {
+  AppearancePreference,
   ClientInstallation,
   LocalModelCancelResult,
   LocalModelCatalogSnapshot,
@@ -58,6 +64,7 @@ export type {
   ApiKeyUpdateRequest,
   AppEntry,
   AppsListResponse,
+  AppearancePreference,
   AuthStatus,
   ConnectionAction,
   ConnectionCredentialReveal,
@@ -115,6 +122,11 @@ export interface SettingsCapabilities {
     testApiKey(input: OllamaApiKeyTestRequest): Promise<OllamaApiKeyTestResponse>
   }
   general: {
+    appearance(): Promise<AppearancePreference>
+    setVibrancyEnabled(enabled: boolean): Promise<AppearancePreference>
+    setBackgroundEffectsEnabled(enabled: boolean): Promise<AppearancePreference>
+    setReducedMotionEnabled(enabled: boolean): Promise<AppearancePreference>
+    onAppearanceChange(listener: (preference: AppearancePreference) => void): () => void
     menuBarMode(): Promise<MenuBarModeState>
     beginMenuBarOnly(): Promise<MenuBarModeAttempt>
     confirmMenuBarOnly(attemptId: string): Promise<MenuBarModeState>
@@ -124,6 +136,14 @@ export interface SettingsCapabilities {
   providerOnboarding: {
     get(): Promise<ProviderOnboardingPreference>
     setDismissed(dismissed: boolean): Promise<ProviderOnboardingPreference>
+  }
+  projects: {
+    snapshot(): Promise<ProjectCatalogSnapshot>
+    addRoot(): Promise<DiscoveryRoot | null>
+    updateRoot(id: string, update: UpdateDiscoveryRoot): Promise<DiscoveryRoot>
+    removeRoot(id: string): Promise<void>
+    refresh(rootId?: string): Promise<ProjectCatalogSnapshot>
+    subscribe(listener: () => void): () => void
   }
   connections: {
     list(): Promise<ConnectionsListResponse>
@@ -306,6 +326,14 @@ export function createCoreSettingsCapabilities(): SettingsCapabilities {
         unwrapControlResult(await bridge.control.ollamaApiKeyTest(input)),
     },
     general: {
+      appearance: () => bridge.appearance.get(),
+      setVibrancyEnabled: (enabled) =>
+        bridge.appearance.setVibrancyEnabled(enabled),
+      setBackgroundEffectsEnabled: (enabled) =>
+        bridge.appearance.setBackgroundEffectsEnabled(enabled),
+      setReducedMotionEnabled: (enabled) =>
+        bridge.appearance.setReducedMotionEnabled(enabled),
+      onAppearanceChange: (listener) => bridge.appearance.onChange(listener),
       menuBarMode: () => bridge.menuBarMode.get(),
       beginMenuBarOnly: () => bridge.menuBarMode.beginEnable(),
       confirmMenuBarOnly: (attemptId) => bridge.menuBarMode.confirmEnable(attemptId),
@@ -315,6 +343,14 @@ export function createCoreSettingsCapabilities(): SettingsCapabilities {
     providerOnboarding: {
       get: () => bridge.providerOnboarding.get(),
       setDismissed: (dismissed) => bridge.providerOnboarding.setDismissed(dismissed),
+    },
+    projects: {
+      snapshot: () => bridge.projects.snapshot(),
+      addRoot: () => bridge.projects.addRoot(),
+      updateRoot: (id, update) => bridge.projects.updateRoot(id, update),
+      removeRoot: (id) => bridge.projects.removeRoot(id),
+      refresh: (rootId) => bridge.projects.refresh(rootId),
+      subscribe: (listener) => bridge.projects.onChange(listener),
     },
     connections: {
       list: async () =>

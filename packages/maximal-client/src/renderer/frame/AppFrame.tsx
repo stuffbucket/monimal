@@ -1,5 +1,5 @@
 import { type ReactElement, type ReactNode } from 'react'
-import { Globe, Settings as SettingsIcon, Sparkles } from 'lucide-react'
+import { FolderSearch, Globe, Settings as SettingsIcon, Sparkles } from 'lucide-react'
 import {
   AppFrame as PackageAppFrame,
   IconButton,
@@ -70,6 +70,7 @@ export function AppFrame({
   onSignOut,
   onOpenAssistant,
   onOpenBrowser,
+  onOpenProjects,
   settingsOpen = false,
   onToggleSettings,
   children,
@@ -87,6 +88,7 @@ export function AppFrame({
   onSignOut?: () => void
   onOpenAssistant?: () => void
   onOpenBrowser?: () => void
+  onOpenProjects?: () => void
   settingsOpen?: boolean
   onToggleSettings?: () => void
   children: ReactNode
@@ -104,6 +106,15 @@ export function AppFrame({
       newTabLabel="New terminal"
       titleBarActions={onToggleSettings ? (
         <>
+          {onOpenProjects ? (
+            <IconButton
+              label="Open Projects"
+              onClick={onOpenProjects}
+              testId="open-projects"
+            >
+              <FolderSearch size={15} />
+            </IconButton>
+          ) : null}
           {onOpenAssistant ? (
             <IconButton
               label="Open Assistant"
