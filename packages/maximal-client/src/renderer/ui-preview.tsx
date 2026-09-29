@@ -44,9 +44,12 @@ function PreviewFrame(): ReactElement {
   const [activeTab, setActiveTab] = useState(SETTINGS_TAB.id)
   const requestNavigation = useGuardedNavigation()
   const section = new URLSearchParams(window.location.search).get('section')
-  const request = section === 'accounts'
-    ? { id: 'settings-account-heading' as const }
-    : { id: 'settings-search-heading' as const }
+  const request =
+    section === 'accounts'
+      ? { id: 'settings-account-heading' as const }
+      : section === 'models'
+        ? { id: 'settings-models-heading' as const }
+        : { id: 'settings-search-heading' as const }
   const current = tabs.find((tab) => tab.id === activeTab) ?? PRODUCT_TABS[0]
   const settingsOpen = tabs.some((tab) => tab.kind === 'settings')
 

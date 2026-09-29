@@ -11,25 +11,25 @@ import {
   Switch,
 } from '@maximal/maximal-electron/renderer'
 
-import type { CloudModelProvider } from './cloud-model-providers'
+import type { ModelProviderInventory } from './useModelProviderRegistry'
 import { AccountAvatar } from './service-icons'
 
 interface CloudProviderControlsProps {
-  providers: CloudModelProvider[]
+  providers: ModelProviderInventory[]
   updating: string | null
   error: string | null
-  requestedProvider: CloudModelProvider | null
-  onRequestedProviderChange: (provider: CloudModelProvider | null) => void
+  requestedProvider: ModelProviderInventory | null
+  onRequestedProviderChange: (provider: ModelProviderInventory | null) => void
   onEnabledChange: (providerId: string, enabled: boolean) => Promise<void>
   onSetupProvider: () => void
 }
 
-function providerToggleLabel(provider: CloudModelProvider): string {
+function providerToggleLabel(provider: ModelProviderInventory): string {
   const name = provider.id === 'ollama' ? 'Ollama Cloud' : provider.name
   return `${provider.enabled ? 'Disable' : 'Enable'} ${name}`
 }
 
-function providerSetupDescription(provider: CloudModelProvider): string {
+function providerSetupDescription(provider: ModelProviderInventory): string {
   if (provider.id === 'github-copilot') {
     return 'GitHub Copilot needs a signed-in GitHub account before its cloud models can be enabled. Go to Accounts to sign in now?'
   }
@@ -37,6 +37,24 @@ function providerSetupDescription(provider: CloudModelProvider): string {
     return 'Ollama Cloud needs an API key or a signed-in local Ollama application before its cloud models can be enabled. Go to Accounts to set it up now?'
   }
   return `${provider.name} needs a configured account or API key before its cloud models can be enabled. Go to Accounts to set it up now?`
+}
+
+function providerInventoryDescription(provider: ModelProviderInventory): string {
+  const details = [
+    provider.description,
+    provider.active ? 'Active' : 'Inactive',
+  ]
+  if (!provider.description.startsWith(provider.enabled ? 'Enabled ·' : 'Disabled ·')) {
+    details.push(provider.enabled ? 'Enabled' : 'Disabled')
+  }
+  if (!provider.description.startsWith(provider.available ? 'Available ·' : 'Unavailable ·')) {
+    details.push(provider.available ? 'Available' : 'Unavailable')
+  }
+  details.push(
+    `${provider.modelCount} ${provider.modelCount === 1 ? 'model' : 'models'}`,
+    `${provider.state} inventory`,
+  )
+  return details.join(' · ')
 }
 
 export function CloudProviderControls({
@@ -65,7 +83,7 @@ export function CloudProviderControls({
 
   return (
     <>
-      <SettingsSection title="Cloud providers" as="h2">
+      <SettingsSection title="Model providers" as="h2">
         <SettingsGroup dividers={false}>
           {providers.map((provider) => {
             const toggleLabel = providerToggleLabel(provider)
@@ -73,7 +91,7 @@ export function CloudProviderControls({
               <SettingsItem
                 key={provider.id}
                 title={provider.name}
-                description={provider.description}
+                description={providerInventoryDescription(provider)}
                 control={(
                   <AccountAvatar
                     account={{ provider: provider.name, login: provider.name }}

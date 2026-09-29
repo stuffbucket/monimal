@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactElement } from 'react'
+import { useEffect, useMemo, useState, type ReactElement } from 'react'
 
 import {
   Button,
@@ -12,7 +12,6 @@ import type {
   ModelsListResponse,
   SettingsCapabilities,
 } from './capabilities'
-import { describeError } from '../shared/errors'
 import { formatTimestamp } from '../shared/format'
 import { useSettingsHeaderActions } from './header-actions'
 import { useSettingsNavigation } from './navigation'
@@ -20,34 +19,15 @@ import { AccountAvatar } from './service-icons'
 import {
   cloudProviderId,
   cloudProviderName,
-  type CloudModelProvider,
-  useCloudModelProviders,
 } from './cloud-model-providers'
 import { CloudProviderControls } from './CloudProviderControls'
+import {
+  type ModelProviderInventory,
+  useModelProviderRegistry,
+} from './useModelProviderRegistry'
 
 interface ModelsSectionProps {
   capabilities: SettingsCapabilities
-}
-
-const catalogueCache = new WeakMap<SettingsCapabilities, ModelsListResponse>()
-const catalogueLoads = new WeakMap<SettingsCapabilities, Promise<ModelsListResponse>>()
-
-function loadCatalogue(capabilities: SettingsCapabilities): Promise<ModelsListResponse> {
-  const cached = catalogueCache.get(capabilities)
-  if (cached !== undefined) return Promise.resolve(cached)
-  const pending = catalogueLoads.get(capabilities)
-  if (pending !== undefined) return pending
-
-  const load = capabilities.models.list().then((next) => {
-    catalogueCache.set(capabilities, next)
-    catalogueLoads.delete(capabilities)
-    return next
-  }, (cause: unknown) => {
-    catalogueLoads.delete(capabilities)
-    throw cause
-  })
-  catalogueLoads.set(capabilities, load)
-  return load
 }
 
 function modelKind(type: string): string {
@@ -78,7 +58,7 @@ function providerStatusUrl(provider: string): string | null {
 
 function modelCards(
   models: ModelsListResponse['models'],
-  providers: ReadonlyMap<string, CloudModelProvider>,
+  providers: ReadonlyMap<string, ModelProviderInventory>,
 ): ModelCard[] {
   return models.map((model) => {
     const providerId = cloudProviderId(model)
@@ -112,55 +92,43 @@ function modelCards(
   })
 }
 
-function useModelCatalogue(capabilities: SettingsCapabilities) {
-  const cachedCatalogue = catalogueCache.get(capabilities) ?? null
-  const [catalogue, setCatalogue] = useState<ModelsListResponse | null>(cachedCatalogue)
-  const [refreshing, setRefreshing] = useState(cachedCatalogue === null)
-  const [error, setError] = useState<string | null>(null)
-
-  const refresh = useCallback(async () => {
-    setRefreshing(true)
-    setError(null)
-    try {
-      const next = await capabilities.models.refresh()
-      catalogueCache.set(capabilities, next)
-      setCatalogue(next)
-    } catch (cause) {
-      setError(describeError(cause))
-    } finally {
-      setRefreshing(false)
-    }
-  }, [capabilities])
-
-  useEffect(() => {
-    if (catalogueCache.has(capabilities)) return
-    let active = true
-    void loadCatalogue(capabilities)
-      .then((next) => {
-        if (!active) return
-        setCatalogue(next)
-      })
-      .catch((cause: unknown) => {
-        if (active) setError(describeError(cause))
-      })
-      .finally(() => {
-        if (active) setRefreshing(false)
-      })
-    return () => {
-      active = false
-    }
-  }, [capabilities])
-
-  return { catalogue, error, refresh, refreshing }
+function localModelCards(
+  models: NonNullable<ReturnType<typeof useModelProviderRegistry>['local']>['models'],
+): ModelCard[] {
+  return models.map((model) => ({
+    id: `maximal-${model.key}`,
+    name: model.displayName,
+    kind: 'Chat models',
+    provider: 'Maximal',
+    local: true,
+    disabled: model.state !== 'ready',
+    contextWindowTokens: model.context.contextWindow,
+    maxOutputTokens: model.context.maxOutputTokens,
+    capabilities: {
+      vision: model.capabilities.input.includes('image'),
+      imageGeneration: model.capabilities.output.includes('image'),
+      videoGeneration: model.capabilities.output.includes('video'),
+      toolCalls: false,
+      streaming: false,
+      reasoning: false,
+    },
+  }))
 }
 
 export function ModelsSection({ capabilities }: ModelsSectionProps): ReactElement {
   const navigate = useSettingsNavigation()
   const { hasHeader, setActions: setHeaderActions } = useSettingsHeaderActions()
-  const { catalogue, error, refresh, refreshing } = useModelCatalogue(capabilities)
-  const providerState = useCloudModelProviders(capabilities, catalogue)
+  const registry = useModelProviderRegistry(capabilities)
+  const {
+    catalogue,
+    error,
+    inventoryState,
+    local,
+    refresh,
+    refreshing,
+  } = registry
   const [requestedProvider, setRequestedProvider] =
-    useState<CloudModelProvider | null>(null)
+    useState<ModelProviderInventory | null>(null)
   const catalogueIsStale = catalogue?.loaded_at
     ? new Date(catalogue.loaded_at).getTime() < performance.timeOrigin
     : false
@@ -179,7 +147,7 @@ export function ModelsSection({ capabilities }: ModelsSectionProps): ReactElemen
     return () => setHeaderActions(null)
   }, [refresh, refreshing, setHeaderActions])
 
-  const { cloudCards, cloudProviders, providerByName } = useMemo(
+  const { cloudCards, cloudProviders, localCards, providerByName } = useMemo(
     () => {
       const models = catalogue?.models ?? []
       const cloudModels = models.filter(
@@ -188,18 +156,23 @@ export function ModelsSection({ capabilities }: ModelsSectionProps): ReactElemen
           || (model.location === undefined && !isLocalProvider(model.vendor)),
       )
       const providerById = new Map(
-        providerState.providers.map((provider) => [provider.id, provider]),
+        registry.providers.map((provider) => [provider.id, provider]),
       )
       const cards = modelCards(cloudModels, providerById)
+      const localProviderModels = models.filter((model) => model.location === 'local')
       return {
         cloudCards: cards,
         cloudProviders: [...new Set(cards.map((model) => model.provider ?? ''))],
+        localCards: [
+          ...modelCards(localProviderModels, providerById),
+          ...localModelCards(local?.models ?? []),
+        ],
         providerByName: new Map(
-          providerState.providers.map((provider) => [provider.name, provider]),
+          registry.providers.map((provider) => [provider.name, provider]),
         ),
       }
     },
-    [catalogue, providerState.providers],
+    [catalogue, local?.models, registry.providers],
   )
 
   return (
@@ -220,22 +193,26 @@ export function ModelsSection({ capabilities }: ModelsSectionProps): ReactElemen
         <Note status="failed" live="assertive">
           {error}
         </Note>
-      ) : catalogue === null ? (
+      ) : null}
+      {catalogue === null ? (
         <Note live="polite">Loading model catalogue…</Note>
       ) : (
         <>
           {catalogue.loaded_at ? (
             <Note>
-              {catalogueIsStale ? 'Stale · ' : ''}Updated {formatTimestamp(catalogue.loaded_at)}
+              {catalogueIsStale || inventoryState === 'stale' ? 'Stale · ' : ''}
+              Updated {formatTimestamp(catalogue.loaded_at)}
             </Note>
+          ) : inventoryState === 'stale' ? (
+            <Note>Stale · Showing last-known model inventory</Note>
           ) : null}
           <CloudProviderControls
-            providers={providerState.providers}
-            updating={providerState.updating}
-            error={providerState.error}
+            providers={registry.providers}
+            updating={registry.updating}
+            error={null}
             requestedProvider={requestedProvider}
             onRequestedProviderChange={setRequestedProvider}
-            onEnabledChange={providerState.setEnabled}
+            onEnabledChange={registry.setEnabled}
             onSetupProvider={() => navigate('settings-account-heading')}
           />
           {cloudCards.length > 0 ? (
@@ -253,6 +230,7 @@ export function ModelsSection({ capabilities }: ModelsSectionProps): ReactElemen
                 <AccountAvatar
                   account={{ provider, login: provider }}
                   size={30}
+                  title={provider}
                   testId={`model-provider-${provider.toLowerCase().replaceAll(' ', '-')}`}
                 />
               )}
@@ -272,6 +250,14 @@ export function ModelsSection({ capabilities }: ModelsSectionProps): ReactElemen
               })}
             </SettingsActions>
           ) : null}
+          {localCards.length > 0 ? (
+            <>
+              <h2 className="settings__section-title">Local provider models</h2>
+              <ModelCardGrid models={localCards} />
+            </>
+          ) : (
+            <Note>No local provider models are currently registered.</Note>
+          )}
         </>
       )}
     </section>

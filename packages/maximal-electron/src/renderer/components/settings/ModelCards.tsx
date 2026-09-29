@@ -1,4 +1,5 @@
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
+import * as Tooltip from '@radix-ui/react-tooltip';
 import { Cpu } from 'lucide-react';
 import {
   useState,
@@ -8,7 +9,7 @@ import {
 } from 'react';
 
 import { useComponentStyles } from '../../lib/component-styles.js';
-import { useShellContent } from '../../lib/content.js';
+import { fill, useShellContent } from '../../lib/content.js';
 import {
   capabilityLabels,
   groupByKind,
@@ -22,6 +23,7 @@ import {
   ViewModeSwitch,
   type ViewMode,
 } from '../controls/Layout.js';
+import { useShellPortalContainer } from '../controls/Overlays.js';
 
 /**
  * The model catalogue.
@@ -49,6 +51,7 @@ function providerTone(provider: string | undefined): string {
   if (normalized.includes('grok') || normalized.includes('xai')) return 'grok';
   if (normalized.includes('google') || normalized.includes('gemini'))
     return 'google';
+  if (normalized.includes('github')) return 'github';
   if (normalized.includes('mistral')) return 'mistral';
   if (normalized.includes('deepseek')) return 'deepseek';
   if (normalized.includes('meta') || normalized.includes('llama'))
@@ -77,6 +80,34 @@ function modelIsActivatable(
   onModelActivate: ((model: ModelCard) => void) | undefined,
 ): boolean {
   return Boolean(model.disabled && model.activationLabel && onModelActivate);
+}
+
+function ProviderAvatar({
+  provider,
+  render,
+}: {
+  provider: string;
+  render: (provider: string) => ReactNode;
+}) {
+  const container = useShellPortalContainer();
+  const content = useShellContent().models;
+  return (
+    <Tooltip.Root>
+      <Tooltip.Trigger asChild>
+        <span
+          className="model-card__provider"
+          aria-label={fill(content.provider, { provider })}
+        >
+          {render(provider)}
+        </span>
+      </Tooltip.Trigger>
+      <Tooltip.Portal container={container}>
+        <Tooltip.Content className="tooltip" sideOffset={6}>
+          {provider}
+        </Tooltip.Content>
+      </Tooltip.Portal>
+    </Tooltip.Root>
+  );
 }
 
 function ModelTable({
@@ -129,6 +160,9 @@ function ModelTable({
               <td>
                 <strong>{model.name}</strong>
                 <div className="model-table__id">{model.id}</div>
+                {model.disabled === true ? (
+                  <span className="model-table__disabled">{content.disabled}</span>
+                ) : null}
               </td>
               <td>{tokens(model.contextWindowTokens)}</td>
               <td>{tokens(model.maxOutputTokens)}</td>
@@ -148,6 +182,17 @@ function ModelTable({
     </div>
   );
 }
+
+const PROVIDER_ACCENTS: Record<string, string> = {
+  anthropic: '#d97757',
+  openai: '#10a37f',
+  grok: '#f5f5f5',
+  google: '#4285f4',
+  mistral: '#f97316',
+  deepseek: '#4d6bfe',
+  meta: '#0866ff',
+  github: '#8a50d8',
+};
 
 /**
  * The rules a model card draws itself with.
@@ -198,7 +243,9 @@ const MODEL_CARD_STYLES = `
 }
 
 .sb-shell .model-card[data-disabled='true'] {
-  border-color: var(--shell-border);
+  border-color: var(--shell-danger, var(--shell-hover));
+  background: var(--shell-hover);
+  box-shadow: inset var(--shell-space-1) 0 0 var(--shell-danger, var(--shell-hover));
 }
 
 .sb-shell .model-card[data-disabled='true']:hover {
@@ -208,6 +255,23 @@ const MODEL_CARD_STYLES = `
 .sb-shell .model-card[data-disabled='true'] .model-card__name,
 .sb-shell .model-card[data-disabled='true'] .model-card__stats dd {
   color: var(--shell-text-subtle);
+}
+
+.sb-shell .model-card__disabled,
+.sb-shell .model-table__disabled {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 1px var(--shell-space-2);
+  border-radius: var(--shell-radius-pill);
+  color: var(--shell-danger-contrast, var(--shell-text));
+  background: var(--shell-danger, var(--shell-hover));
+  font-size: var(--shell-text-xs);
+  font-weight: var(--shell-weight-md);
+}
+
+.sb-shell .model-table__disabled {
+  margin-top: var(--shell-space-1);
 }
 
 .sb-shell .model-table-wrap {
@@ -376,6 +440,14 @@ export function ModelCardGrid({
         <div className="model-grid">
           {group.models.map((model) => {
             const tone = providerTone(model.provider);
+            const accent = PROVIDER_ACCENTS[tone];
+            const cardStyle =
+              accent && !model.disabled
+                ? {
+                    borderColor: `color-mix(in srgb, ${accent} 35%, var(--shell-border))`,
+                    background: `color-mix(in srgb, ${accent} 12%, var(--shell-raised))`,
+                  }
+                : undefined;
             return (
               <article
                 className="model-card"
@@ -394,6 +466,7 @@ export function ModelCardGrid({
                     ? 'button'
                     : undefined
                 }
+                style={cardStyle}
                 tabIndex={
                   modelIsActivatable(model, onModelActivate) ? 0 : undefined
                 }
@@ -407,11 +480,17 @@ export function ModelCardGrid({
                 <header className="model-card__head">
                   <h3 className="model-card__name">{model.name}</h3>
                   {model.preview === true && <Tag>{content.preview}</Tag>}
+                  {model.disabled === true ? (
+                    <span className="model-card__disabled">
+                      {content.disabled}
+                    </span>
+                  ) : null}
                   {model.provider !== undefined &&
                   renderProviderAvatar !== undefined ? (
-                    <span className="model-card__provider">
-                      {renderProviderAvatar(model.provider)}
-                    </span>
+                    <ProviderAvatar
+                      provider={model.provider}
+                      render={renderProviderAvatar}
+                    />
                   ) : null}
                 </header>
                 <p className="model-card__id">{model.id}</p>

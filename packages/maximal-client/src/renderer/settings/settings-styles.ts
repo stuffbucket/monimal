@@ -252,14 +252,42 @@ const SETTINGS_CSS = `
 }
 
 .settings-device-code__code {
+  display: flex;
+  align-items: center;
+  gap: var(--shell-space-3, 12px);
   margin: 0;
   padding: var(--shell-space-2, 8px) var(--shell-space-4, 16px);
+  border: 1px solid transparent;
   border-radius: var(--shell-radius, 6px);
   background: var(--shell-hover, rgb(255 255 255 / 0.06));
+  color: inherit;
+  cursor: pointer;
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
   font-size: 1.5em;
   font-weight: 700;
   letter-spacing: 0.08em;
+}
+
+.settings-device-code__code:hover {
+  border-color: var(--shell-border-hover, var(--shell-accent, #5198a6));
+}
+
+.settings-device-code__code:focus-visible {
+  outline: 2px solid var(--shell-focus, var(--shell-accent, #5198a6));
+  outline-offset: 2px;
+}
+
+.settings-device-code__code:disabled {
+  cursor: default;
+  opacity: var(--shell-disabled-opacity, 0.5);
+}
+
+.settings-device-code__copied {
+  color: var(--shell-accent, #5198a6);
+  font-family: var(--shell-font, system-ui, sans-serif);
+  font-size: var(--shell-text-sm, 0.8125rem);
+  font-weight: var(--shell-weight-md, 500);
+  letter-spacing: normal;
 }
 
 .settings-device-code__link-row {

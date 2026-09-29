@@ -31,6 +31,8 @@ export const LOREM_CONTENT: ShellContent = {
   models: {
     empty: 'Non proident sunt in culpa.',
     preview: 'Laborum',
+    disabled: 'Tempor',
+    provider: 'Provider: {provider}',
     context: 'Perspiciatis',
     maxOutput: 'Unde omnis',
     model: 'Laboris',

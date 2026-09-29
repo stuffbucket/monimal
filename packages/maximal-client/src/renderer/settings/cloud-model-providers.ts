@@ -6,13 +6,15 @@ import { describeError } from '../shared/errors'
 export interface CloudModelProvider {
   id: string
   name: string
+  active: boolean
+  configured: boolean
   available: boolean
   enabled: boolean
   configurable: boolean
   description: string
 }
 
-interface ProviderAccess {
+export interface ProviderAccess {
   accounts: Awaited<ReturnType<SettingsCapabilities['accounts']['list']>>
   ollamaAccounts: Awaited<ReturnType<SettingsCapabilities['ollamaAccounts']['list']>>
   ollamaSettings: Awaited<ReturnType<SettingsCapabilities['ollamaSettings']['get']>>
@@ -36,7 +38,7 @@ export function cloudProviderName(id: string, vendor?: string): string {
   return vendor?.trim() || id
 }
 
-async function readProviderAccess(
+export async function readProviderAccess(
   capabilities: SettingsCapabilities,
 ): Promise<ProviderAccess> {
   const [accounts, ollamaAccounts, ollamaSettings, ollamaPreferences] =
@@ -47,6 +49,20 @@ async function readProviderAccess(
       capabilities.ollamaRuntime.preferences(),
     ])
   return { accounts, ollamaAccounts, ollamaSettings, ollamaPreferences }
+}
+
+export function configuredCloudProviderIds(
+  access: ProviderAccess,
+): ReadonlySet<string> {
+  const configured = new Set<string>()
+  if (access.accounts.accounts.length > 0) configured.add('github-copilot')
+  if (
+    access.ollamaSettings.has_api_key
+    || access.ollamaAccounts.accounts.length > 0
+  ) {
+    configured.add('ollama')
+  }
+  return configured
 }
 
 function providerDescription(
@@ -78,6 +94,10 @@ function knownProviders(
   catalogue: ModelsListResponse,
 ): CloudModelProvider[] {
   const githubAvailable = access.accounts.accounts.length > 0
+  const githubAccount =
+    access.accounts.accounts.find((account) => account.active)
+    ?? access.accounts.accounts[0]
+  const githubActive = githubAccount?.active ?? false
   const githubEnabled = access.accounts.accounts.some((account) => account.enabled)
   const ollamaLocalAvailable = localOllamaCloudAvailable(access, catalogue)
   const ollamaDirectAvailable = access.ollamaSettings.has_api_key
@@ -98,18 +118,25 @@ function knownProviders(
     {
       id: 'github-copilot',
       name: 'GitHub Copilot',
+      active: githubActive,
+      configured: githubAvailable,
       available: githubAvailable,
       enabled: githubAvailable && githubEnabled,
       configurable: true,
       description: providerDescription(
         githubAvailable,
         githubEnabled,
-        'Sign in with a GitHub account',
+        githubAccount === undefined
+          ? 'Sign in with a GitHub account'
+          : `Signed in as ${githubAccount.login}`,
       ),
     },
     {
       id: 'ollama',
       name: 'Ollama',
+      active: ollamaAvailable,
+      configured:
+        ollamaDirectAvailable || access.ollamaAccounts.accounts.length > 0,
       available: ollamaAvailable,
       enabled: ollamaAvailable && ollamaEnabled,
       configurable: true,
@@ -131,6 +158,8 @@ function discoveredProviders(
   return [...providers].map(([id, vendor]) => ({
     id,
     name: cloudProviderName(id, vendor),
+    active: true,
+    configured: true,
     available: true,
     enabled: true,
     configurable: false,
