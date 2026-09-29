@@ -25,6 +25,7 @@ import {
   removeAccount,
   setAccountEnabled,
   setActive,
+  updateRegistryFile,
   writeGitHubTokenRecord,
   writeRegistry,
 } from "~/lib/auth/github-token-store"
@@ -280,6 +281,23 @@ describe("registry — pure ops", () => {
 })
 
 describe("registry — persistence", () => {
+  it("serializes concurrent read-modify-write updates", async () => {
+    await Promise.all([
+      updateRegistryFile(registryPath, (registry) =>
+        addAndActivate(registry, rec("alice")),
+      ),
+      updateRegistryFile(registryPath, (registry) =>
+        addAndActivate(registry, rec("bob")),
+      ),
+    ])
+
+    const stored = await readRegistry(registryPath)
+    expect(Object.keys(stored.accounts).sort()).toEqual([
+      testAccountKey("alice"),
+      testAccountKey("bob"),
+    ])
+  })
+
   it("write then read round-trips", async () => {
     const reg = addAndActivate(emptyRegistry(), {
       ...rec("alice"),

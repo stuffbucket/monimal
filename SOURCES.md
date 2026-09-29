@@ -121,6 +121,7 @@ Both are monorepo-native;
 | `apps/desktop` | The workspace build must build the Maximal composition and `@maximal/maximal-client` renderer dependencies before compiling the sidecar; Forge bundles its app entry points with product surfaces from `packages/maximal-client/src`. |
 | `@maximal/maximal-client` | Its workspace build waits for dependency builds; typechecking the renderer requires their emitted contracts in a clean Linux checkout. |
 | `apps/desktop` | Development Electron profiles are checkout-isolated and shutdown waits for the Core child. |
+| `apps/desktop` / `maximal-core` | Development worktrees isolate application state while sharing a locked GitHub credential home; `MAXIMAL_DEV_PROFILE` MAY assign a stable explicit development profile name. Packaged and standalone Core credential paths remain unchanged. |
 | `maximal-electron` / `apps/desktop` | Desktop imports the package host-window API directly; it has no local shell adapter. |
 | `maximal-browser` / `apps/desktop` | Browser pages run in sandboxed `WebContentsView` instances owned by `maximal-browser`; desktop owns IPC transport and window lifecycle. |
 | `@maximal/maximal-client` / `apps/desktop` | Direct lint and typecheck commands re-enter their Turbo tasks through `run-workspace-task.mjs`. |

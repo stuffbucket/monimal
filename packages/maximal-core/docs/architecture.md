@@ -147,14 +147,15 @@ models use the native Messages API or fall back to Chat Completions.
 - `src/lib/config/config.ts` — `AppConfig` shape, disk read/write from `~/.local/share/maximal/config.json` (Linux/macOS) or `%USERPROFILE%\.local\share\maximal\config.json` (Windows). Also respects `COPILOT_API_HOME` env var.
 - `src/lib/config/config-schema.ts` — zod runtime validation. Bad config → exit non-zero with key path. Unknown keys → warning, kept via `.loose()`.
 - `src/lib/runtime-state/state.ts` — singleton mutable state: tokens, accountType, rate-limit, models cache.
-- `src/lib/auth/github-token-store.ts` — the GitHub identity store. Multi-account registry (schema v2) at `accounts.json` beside the legacy `github_token`: `{ activeKey, accounts: Record<"login@host", AccountRecord> }`, atomic temp+rename writes. Boot reads the active account; the legacy single-record file is migrated in once (gated, offline→`unknown@host`) and kept as a rollback fallback. The three sign-in producers (device-code, CLI, gh-reuse) all persist a typed `AccountRecord`. The `/control/accounts/switch` and `/control/accounts/remove` actions edit this registry (set active → a reconnect/restart adopts it). Sign-out forgets the active account; Remove forgets a specific one; both touch only maximal's own copy — never `gh`. RMW takes no lock (safe on the single Bun process; see the comment above `addAccountToDefaultRegistry`).
+- `src/lib/auth/github-token-store.ts` — the GitHub identity store. Multi-account registry (schema v2) at `accounts.json` beside the legacy `github_token`: `{ activeKey, accounts: Record<"login@host", AccountRecord> }`, atomic temp+rename writes. Boot reads the active account; the legacy single-record file is migrated in once (gated, offline→`unknown@host`) and kept as a rollback fallback. The three sign-in producers (device-code, CLI, gh-reuse) all persist a typed `AccountRecord`. The `/control/accounts/switch` and `/control/accounts/remove` actions edit this registry (set active → a reconnect/restart adopts it). Sign-out forgets the active account; Remove forgets a specific one; both touch only maximal's own copy — never `gh`. Registry read-modify-write operations take an inter-process lock because development sidecars can share the credential directory.
 - `src/lib/auth/secrets.ts` — file-based provider keys at `~/.local/share/maximal/secrets/<name>` (mode 0600). Env wins; file fills in unset values.
 - `src/lib/runtime-state/cache.ts` — `Cache<K,V>` LRU wrapper with hit/miss/eviction metrics. Wrapped instances register globally for `/_debug/state`.
 
 #### Token storage: 0600 file, no OS keyring (maximal-core#6)
 
-The GitHub bearer lives in a `0600` file under the data home (`COPILOT_API_HOME`
-/ `~/.local/share/maximal`) and nowhere else — written temp+rename with
+The GitHub bearer lives in a `0600` file under the credential home
+(`COPILOT_API_CREDENTIAL_HOME`, otherwise `COPILOT_API_HOME` /
+`~/.local/share/maximal`) and nowhere else — written temp+rename with
 `{ mode: 0o600 }` so the mode survives the swap, and `ensurePaths` chmods on
 create. **An OS keyring was considered and deliberately not built.** Core is a
 headless sidecar; a keyring would add a native dependency and three per-platform
@@ -166,6 +167,11 @@ the same model `gh auth login` ships (see ADR-0001), and the repo's documented
 threat model is about the *network* surface (ADR-0021's Origin/CSRF hardening,
 loopback-only control plane), not local same-user file reads. Revisit only if
 core ever runs under an account the user does not control.
+
+When a host first separates the credential home from the instance home,
+`ensurePaths` copies an existing legacy token and account registry only when
+the shared destination does not yet exist. Exclusive creation keeps concurrent
+development sidecars from replacing a vault another worktree already seeded.
 
 The paired invariant is that the bearer never leaves that file: the file sink in
 `logger.ts` runs every string through `scrubSecrets` and every object through
@@ -223,13 +229,14 @@ happened to exist would be worse than either policy.
 
 #### Audit: no shared global state keyed outside the home
 
-Every piece of per-instance state is derived from `PATHS.APP_DIR`, so two
-engines with distinct homes cannot collide regardless of port. The complete
-inventory:
+Every piece of runtime state is derived from `PATHS.APP_DIR`, so two engines
+with distinct homes cannot collide regardless of port. Credentials may
+deliberately use a shared directory supplied by the desktop development host;
+their registry mutations are inter-process locked. The complete inventory:
 
 | State | Where | Path |
 |---|---|---|
-| Token file + multi-account registry | `src/lib/platform/paths.ts` | `<home>/<oauth-app>/github_token`, `accounts.json` |
+| Token file + multi-account registry | `src/lib/platform/paths.ts` | `<credential-home>/<oauth-app>/github_token`, `accounts.json` |
 | `config.json` | `src/lib/config/config.ts` | `<home>/config.json` |
 | Logs | `src/lib/platform/logger.ts` | `<home>/logs` |
 | Provider secrets | `src/lib/auth/secrets.ts` | `<home>/secrets` |

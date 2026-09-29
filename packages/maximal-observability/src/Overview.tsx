@@ -97,10 +97,25 @@ export function OverviewMain() {
 }
 
 export function OverviewInspector() {
-  const { requestItems, requests } = useObservability()
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(
     null,
   )
+  return (
+    <ContextWindowInspector
+      selectedSessionId={selectedSessionId}
+      onSelectSession={setSelectedSessionId}
+    />
+  )
+}
+
+export function ContextWindowInspector({
+  selectedSessionId,
+  onSelectSession,
+}: {
+  selectedSessionId: string | null
+  onSelectSession: (sessionId: string) => void
+}) {
+  const { requestItems, requests } = useObservability()
   const sessions = deriveContextSessions(requestItems)
   const session =
     sessions.find(({ id }) => id === selectedSessionId) ?? sessions[0]
@@ -133,7 +148,7 @@ export function OverviewInspector() {
           <ContextWindowSessionPanel
             session={session}
             sessionIds={sessions.map(({ id }) => id)}
-            onSelectSession={setSelectedSessionId}
+            onSelectSession={onSelectSession}
           />
         )}
       </InspectorPanel>

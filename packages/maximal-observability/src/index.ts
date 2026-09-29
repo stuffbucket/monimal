@@ -14,6 +14,7 @@ export {
   formatTimestamp,
 } from "./format.ts"
 export {
+  ContextWindowInspector,
   OverviewInspector,
   OverviewMain,
   OverviewRail,

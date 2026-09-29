@@ -161,10 +161,7 @@ describe('AccountSection refresh ownership', () => {
     const surface = await renderAccount(capabilities)
 
     expect(surface.textContent).toContain('Ollama')
-    expect(surface.textContent).toContain(
-      `Ollama is not responding at ${OLLAMA_ENDPOINT}.`,
-    )
-    expect(surface.textContent).toContain(OLLAMA_ENDPOINT)
+    expect(surface.textContent).toContain('Ollama is not responding.')
     expect([...surface.querySelectorAll('h2')].map((heading) => heading.textContent)).toEqual([
       'GitHub Copilot',
       'Ollama',

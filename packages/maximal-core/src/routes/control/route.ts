@@ -34,7 +34,7 @@ import {
 import {
   readDefaultRegistry,
   removeAccount,
-  writeDefaultRegistry,
+  updateDefaultRegistry,
 } from "~/lib/auth/github-token-store"
 import { defaultGetRequestIp, isLoopbackAddress } from "~/lib/auth/request-auth"
 import { getConfig } from "~/lib/config/config"
@@ -295,12 +295,15 @@ function registerAccountActions(
         if (!key) {
           return c.json({ error: { message: "Expected { key } string." } }, 400)
         }
-        const reg = await readDefaultRegistry()
-        if (!(key in reg.accounts)) {
+        const current = await readDefaultRegistry()
+        if (!(key in current.accounts)) {
           return c.json({ error: { message: `No account ${key}.` } }, 404)
         }
-        const wasActive = reg.activeKey === key
-        await writeDefaultRegistry(removeAccount(reg, key))
+        const wasActive = current.activeKey === key
+        await updateDefaultRegistry((registry) => {
+          if (!(key in registry.accounts)) return registry
+          return removeAccount(registry, key)
+        })
         hub().emit("accounts", await buildAccountsList())
         return c.json({ ok: true, key, was_active: wasActive })
       } catch (error) {

@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto'
 import { mkdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
@@ -50,6 +49,7 @@ import {
   spawnCore,
 } from './sidecar/core.js'
 import { applyAppName, installApplicationMenu } from './native/identity.js'
+import { developmentUserDataPath } from './development-profile.js'
 import { createDesktopRecording, type DesktopRecording } from './native/recording.js'
 import { resolveLicenseBundlePath } from './native/license-bundle.js'
 import { listClientInstallations } from './native/client-installations.js'
@@ -102,11 +102,14 @@ function isSplashPreview(): boolean {
 
 function isolateDevelopmentUserData(): void {
   if (app.isPackaged || app.commandLine.hasSwitch('user-data-dir')) return
-  const checkoutId = createHash('sha256')
-    .update(app.getAppPath())
-    .digest('hex')
-    .slice(0, 8)
-  app.setPath('userData', `${app.getPath('userData')}-${checkoutId}`)
+  app.setPath(
+    'userData',
+    developmentUserDataPath(
+      app.getPath('userData'),
+      app.getAppPath(),
+      process.env.MAXIMAL_DEV_PROFILE,
+    ),
+  )
 }
 
 // Before `whenReady`, not inside it: `app.name` is read when the default menu
