@@ -61,6 +61,14 @@ describe('appearance themes', () => {
     expect(document.documentElement.dataset.theme).toBe('light')
   })
 
+  it('uses the shipped dark palette when matchMedia is unavailable', () => {
+    vi.stubGlobal('matchMedia', undefined)
+
+    expect(appearanceAccent(DEFAULT_APPEARANCE)).toBe('#5198A6')
+    expect(() => applyAppearance(DEFAULT_APPEARANCE)).not.toThrow()
+    expect(document.documentElement.dataset.theme).toBe('dark')
+  })
+
   it('applies Apple semantic surfaces and mode-specific system blue', () => {
     applyAppearance({
       ...DEFAULT_APPEARANCE,

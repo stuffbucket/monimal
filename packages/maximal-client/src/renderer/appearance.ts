@@ -176,7 +176,10 @@ export function readAppearance(): AppearanceState {
 
 function effectiveMode(mode: AppearanceMode): Exclude<AppearanceMode, 'system'> {
   if (mode !== 'system') return mode
-  return matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
+  return typeof matchMedia === 'function'
+    && matchMedia('(prefers-color-scheme: light)').matches
+    ? 'light'
+    : 'dark'
 }
 
 function contrastForeground(hex: string): '#000000' | '#FFFFFF' {
@@ -277,6 +280,7 @@ export function subscribeToAppearance(listener: (theme: AppearanceThemeFile) => 
 export function initializeAppearance(): AppearanceState {
   const state = readAppearance()
   applyAppearance(state.theme)
+  if (typeof matchMedia !== 'function') return state
   const media = matchMedia('(prefers-color-scheme: light)')
   const onSystemChange = (): void => {
     const current = readAppearance().theme
