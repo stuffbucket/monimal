@@ -27,14 +27,14 @@ describe('loadHarnessOptions', () => {
     const directory = await fixture()
 
     expect(loadHarnessOptions(directory)).toEqual({
-      approval: 'writes',
+      approval: 'none',
       codingTools: true,
       cwd: homedir(),
       toolsetIds: ['app'],
     })
   })
 
-  it('preserves the extracted harness policy preferences', async () => {
+  it('preserves non-approval preferences while failing approval closed', async () => {
     const directory = await fixture()
     await writeFile(
       join(directory, 'preferences.json'),
@@ -49,7 +49,7 @@ describe('loadHarnessOptions', () => {
     )
 
     expect(loadHarnessOptions(directory)).toEqual({
-      approval: 'all',
+      approval: 'none',
       codingTools: false,
       cwd: '/workspace/project',
       preferredModel: 'embedded:tiny.gguf',
@@ -70,7 +70,7 @@ describe('loadHarnessOptions', () => {
     )
 
     expect(loadHarnessOptions(directory)).toEqual({
-      approval: 'writes',
+      approval: 'none',
       codingTools: true,
       cwd: homedir(),
       toolsetIds: ['app'],

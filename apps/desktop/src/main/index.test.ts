@@ -563,6 +563,7 @@ afterEach(() => {
   })
   vi.clearAllMocks()
   vi.unstubAllGlobals()
+  vi.unstubAllEnvs()
 })
 
 describe('closed IPC boundary', () => {
@@ -576,6 +577,7 @@ describe('closed IPC boundary', () => {
   })
 
   it('serves log metadata from the shared logging package', async () => {
+    vi.stubEnv('XDG_DATA_HOME', '')
     await loadIndexOn('darwin')
     const handler = (channel: string): (() => unknown) => {
       const registration = ipcMainHandle.mock.calls.find(([name]) => name === channel)

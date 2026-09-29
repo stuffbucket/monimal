@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { BrowserWindow } from 'electron'
 
 const mocks = vi.hoisted(() => ({
@@ -48,9 +48,14 @@ function windowStub() {
 }
 
 beforeEach(() => {
+  vi.stubEnv('XDG_DATA_HOME', '')
   vi.clearAllMocks()
   mocks.mkdir.mockResolvedValue(undefined)
   mocks.openPath.mockResolvedValue('')
+})
+
+afterEach(() => {
+  vi.unstubAllEnvs()
 })
 
 describe('desktop window recording', () => {
