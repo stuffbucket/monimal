@@ -40,6 +40,12 @@ MAY. Documentation MUST NOT include nonbinding background.
   `mise.toml` and `mise.lock` provide the local pnpm resolution and artifact
   checksums. [SOURCES.md](SOURCES.md) owns the toolchain policy.
 
+## Renderer queries
+
+- Sidecar-backed product queries MUST live in `packages/maximal-client`.
+- `apps/desktop` MUST mount the shared Maximal TanStack Query provider.
+- `packages/maximal-electron` MUST remain independent of sidecar query state.
+
 ## CI workflows:
 
 - Runners MUST be ubuntu, windows, or macos-builder.

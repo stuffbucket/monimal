@@ -2,6 +2,7 @@ import { ObservabilityProvider } from '@maximal/maximal-observability'
 import { useEffect, useMemo, useState, type ReactElement } from 'react'
 
 import { AppWorkspace } from '@maximal/maximal-client/renderer/AppWorkspace'
+import { MaximalQueryProvider } from '@maximal/maximal-client/renderer/query-client'
 import { ThirdPartyLicensesDialog } from '@maximal/maximal-client/renderer/ThirdPartyLicensesDialog'
 import { useAccountStatus } from '@maximal/maximal-client/renderer/useAccountStatus'
 import type { SettingsSectionRequest } from '@maximal/maximal-client/renderer/settings/Settings'
@@ -35,9 +36,11 @@ import { WorkspaceTerminalLauncher } from './WorkspaceTerminalLauncher'
 
 export function App(): ReactElement {
   return (
-    <UnsavedChangesProvider>
-      <AppContent />
-    </UnsavedChangesProvider>
+    <MaximalQueryProvider>
+      <UnsavedChangesProvider>
+        <AppContent />
+      </UnsavedChangesProvider>
+    </MaximalQueryProvider>
   )
 }
 
