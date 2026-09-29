@@ -68,6 +68,22 @@ const THEME_CSS = `
      than a flat colour, so accent-coloured text on top of it still clears
      4.5:1 — a rounder 0.18 alpha drops it to roughly 4.2:1. */
   --shell-accent-muted: rgb(81 152 166 / 0.12);
+  --shell-provider-anthropic-card-border: color-mix(in srgb, #d97757 35%, var(--shell-border));
+  --shell-provider-anthropic-card-background: color-mix(in srgb, #d97757 12%, var(--shell-raised));
+  --shell-provider-openai-card-border: color-mix(in srgb, #10a37f 35%, var(--shell-border));
+  --shell-provider-openai-card-background: color-mix(in srgb, #10a37f 12%, var(--shell-raised));
+  --shell-provider-grok-card-border: color-mix(in srgb, #f5f5f5 35%, var(--shell-border));
+  --shell-provider-grok-card-background: color-mix(in srgb, #f5f5f5 12%, var(--shell-raised));
+  --shell-provider-google-card-border: color-mix(in srgb, #4285f4 35%, var(--shell-border));
+  --shell-provider-google-card-background: color-mix(in srgb, #4285f4 12%, var(--shell-raised));
+  --shell-provider-mistral-card-border: color-mix(in srgb, #f97316 35%, var(--shell-border));
+  --shell-provider-mistral-card-background: color-mix(in srgb, #f97316 12%, var(--shell-raised));
+  --shell-provider-deepseek-card-border: color-mix(in srgb, #4d6bfe 35%, var(--shell-border));
+  --shell-provider-deepseek-card-background: color-mix(in srgb, #4d6bfe 12%, var(--shell-raised));
+  --shell-provider-meta-card-border: color-mix(in srgb, #0866ff 35%, var(--shell-border));
+  --shell-provider-meta-card-background: color-mix(in srgb, #0866ff 12%, var(--shell-raised));
+  --shell-provider-github-card-border: color-mix(in srgb, #8a50d8 35%, var(--shell-border));
+  --shell-provider-github-card-background: color-mix(in srgb, #8a50d8 12%, var(--shell-raised));
 
   /* Focus indicator. Equal to --shell-accent, defined explicitly so focus
      outlines resolve on the first name rather than by falling through. */

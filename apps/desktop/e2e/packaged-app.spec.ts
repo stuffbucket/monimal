@@ -731,6 +731,14 @@ test('Appearance effects persist, honor reduced motion, and release Pixi when di
   const recordingPath = process.env.MAXIMAL_E2E_CAPTURE_COZY_VIDEO === '1'
     ? testInfo.outputPath('cozy-background-demo.mp4')
     : null
+  const recordingHoldMs = Number.parseInt(
+    process.env.MAXIMAL_E2E_COZY_VIDEO_HOLD_MS ?? '5000',
+    10,
+  )
+  if (!Number.isInteger(recordingHoldMs) || recordingHoldMs < 0) {
+    throw new Error('MAXIMAL_E2E_COZY_VIDEO_HOLD_MS must be a non-negative integer.')
+  }
+  testInfo.setTimeout(Math.max(testInfo.timeout, recordingHoldMs + 30_000))
   await page.evaluate(async () => {
     await window.maximal.appearance.setVibrancyEnabled(false)
     await window.maximal.appearance.setBackgroundEffectsEnabled(false)
@@ -813,7 +821,7 @@ test('Appearance effects persist, honor reduced motion, and release Pixi when di
   })
   expect(materialMetrics.changedPixelRatio).toBeGreaterThan(0.2)
   expect(materialMetrics.meanPixelDifference).toBeGreaterThan(4)
-  if (recordingPath) await page.waitForTimeout(5_000)
+  if (recordingPath) await page.waitForTimeout(recordingHoldMs)
 
   await reducedMotion.click()
   await expect(reducedMotion).toHaveAttribute('aria-checked', 'true')
