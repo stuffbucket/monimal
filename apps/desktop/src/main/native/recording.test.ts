@@ -135,6 +135,50 @@ describe('desktop window recording', () => {
       .rejects.toThrow(/Open the main window/)
   })
 
+  it('coalesces repeated toggles while a recording is starting', async () => {
+    let resolveSaveDialog: ((result: { canceled: true }) => void) | undefined
+    mocks.saveDialog.mockReturnValue(new Promise((resolve) => {
+      resolveSaveDialog = resolve
+    }))
+    const onChange = vi.fn()
+    const recording = createDesktopRecording(() => windowStub() as BrowserWindow, onChange)
+
+    const first = recording.toggle()
+    const second = recording.toggle()
+
+    expect(second).toBe(first)
+    expect(recording.isRecording()).toBe(true)
+    expect(mocks.saveDialog).toHaveBeenCalledOnce()
+
+    resolveSaveDialog?.({ canceled: true })
+    await first
+    expect(recording.isRecording()).toBe(false)
+    expect(onChange).toHaveBeenCalledTimes(2)
+  })
+
+  it('coalesces repeated toggles while a recording is being saved', async () => {
+    let resolveStop: ((result: { output: string; frames: number }) => void) | undefined
+    const stop = vi.fn(() => new Promise<{ output: string; frames: number }>((resolve) => {
+      resolveStop = resolve
+    }))
+    mocks.saveDialog.mockResolvedValue({ canceled: false, filePath: '/tmp/demo.mp4' })
+    mocks.start.mockResolvedValue({ stop })
+    const recording = createDesktopRecording(() => windowStub() as BrowserWindow, vi.fn())
+    await recording.toggle()
+
+    const first = recording.toggle()
+    const second = recording.toggle()
+
+    expect(second).toBe(first)
+    expect(recording.isRecording()).toBe(true)
+    expect(stop).toHaveBeenCalledOnce()
+    expect(mocks.saveDialog).toHaveBeenCalledOnce()
+
+    resolveStop?.({ output: '/tmp/demo.mp4', frames: 1 })
+    await first
+    expect(recording.isRecording()).toBe(false)
+  })
+
   it('stops an active recording when its window closes', async () => {
     const window = windowStub()
     const stop = vi.fn(async () => ({ output: '/tmp/demo.mp4', frames: 1 }))
