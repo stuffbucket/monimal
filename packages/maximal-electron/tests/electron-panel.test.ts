@@ -137,9 +137,10 @@ describe('createElectronPanel', () => {
       }),
     ]);
     expect(loadRenderer).toHaveBeenCalledWith(window);
-    expect(createdWindow().setAlwaysOnTop).toHaveBeenCalledWith(true, 'screen-saver');
+    expect(createdWindow().setAlwaysOnTop).toHaveBeenCalledWith(true, 'floating');
     expect(createdWindow().setVisibleOnAllWorkspaces).toHaveBeenCalledWith(true, {
       visibleOnFullScreen: true,
+      skipTransformProcessType: true,
     });
     expect(createdWindow().calls).toEqual(['showInactive', 'focus']);
   });

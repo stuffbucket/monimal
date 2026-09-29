@@ -37,7 +37,12 @@ type TerminalLauncherContractParity = [
 void (undefined as unknown as TerminalLauncherContractParity);
 
 const profiles = async () => [
-  { id: 'local', label: 'Local', kind: 'local' as const },
+  {
+    id: 'local',
+    label: 'Local',
+    description: 'Open a terminal on your local file system',
+    kind: 'local' as const,
+  },
   { id: 'docker', label: 'Docker', kind: 'docker' as const },
 ];
 const discover = async () => ({
@@ -69,6 +74,7 @@ describe('TerminalLauncher', () => {
     });
     expect(document.body.textContent).not.toContain('Loading terminal profiles...');
     expect(document.body.textContent).toContain('Local');
+    expect(document.body.textContent).toContain('Open a terminal on your local file system');
     expect(document.body.textContent).toContain('Checking running terminals, SSH, containers, and virtual machines...');
     expect(document.body.textContent).not.toContain('unavailable profiles');
     await act(async () => {
@@ -92,6 +98,7 @@ describe('TerminalLauncher', () => {
     await act(async () => {
       root.render(<TerminalLauncher open onOpenChange={() => undefined} profiles={profiles} discover={discover} launch={launch} onLaunched={launched} />);
     });
+
     const input = document.body.querySelector('input')!;
     await act(async () => {
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, 'docker');
@@ -104,6 +111,43 @@ describe('TerminalLauncher', () => {
       label: 'Local',
       canRunInBackground: false,
     });
+    await act(async () => root.unmount());
+  });
+
+  it('searches direct command profiles by description and renders a supplied icon', async () => {
+    const launch = vi.fn(async () => ({
+      sessionId: 'session-1',
+      label: 'Agent',
+      canRunInBackground: false,
+    }));
+    const element = document.createElement('div');
+    const root = createRoot(element);
+    await act(async () => {
+      root.render(
+        <TerminalLauncher
+          open
+          onOpenChange={() => undefined}
+          profiles={async () => [{
+            id: 'agent',
+            label: 'Agent',
+            description: 'Start the app agent',
+            kind: 'command',
+          }]}
+          discover={discover}
+          launch={launch}
+          onLaunched={() => undefined}
+          renderProfileIcon={(profile) => <span data-testid={`profile-icon-${profile.id}`} />}
+        />,
+      );
+    });
+    const input = document.body.querySelector('input')!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, 'app agent');
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      document.body.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    });
+    expect(launch).toHaveBeenCalledWith({ profileId: 'agent', targetId: undefined, cols: 80, rows: 24 });
+    expect(document.body.querySelector('[data-testid="profile-icon-agent"]')).not.toBeNull();
     await act(async () => root.unmount());
   });
 
@@ -138,6 +182,8 @@ describe('TerminalLauncher', () => {
       );
     });
     expect(document.body.textContent).toContain('Running');
+    expect(document.body.querySelector('[aria-label="Running"] .terminal-launcher__choices')).not.toBeNull();
+    expect(document.body.querySelector('[aria-label="Available"] .terminal-launcher__choices')).not.toBeNull();
     const localChoices = [...document.body.querySelectorAll<HTMLButtonElement>('.terminal-launcher__choice')]
       .filter((button) => button.textContent?.trim() === 'Local');
     expect(localChoices).toHaveLength(1);

@@ -3,7 +3,7 @@ import path from 'node:path';
 
 import type {} from 'electron';
 
-import { HARNESS_CONFIG, HARNESS_COPY } from '../constants.js';
+import { LLAMA_CONFIG, LLAMA_COPY } from '../constants.js';
 import { ENGINE_LIFECYCLE } from '../host/llama-protocol.js';
 import type { EngineEvent, EngineRequest } from '../host/llama-protocol.js';
 import { toGrammarSchema } from './grammar.js';
@@ -58,12 +58,12 @@ async function library(): Promise<Record<string, unknown>> {
       () =>
         reject(
           new Error(
-            HARNESS_COPY.engine.importTimeout(
-              HARNESS_CONFIG.engine.importTimeoutMs,
+            LLAMA_COPY.engine.importTimeout(
+              LLAMA_CONFIG.engine.importTimeoutMs,
             ),
           ),
         ),
-      HARNESS_CONFIG.engine.importTimeoutMs,
+      LLAMA_CONFIG.engine.importTimeoutMs,
     );
   });
 
@@ -96,12 +96,11 @@ interface ChatSessionCtor {
  * `"never"` there, against `"auto"` everywhere else. Passing it makes that an
  * argument this application chose rather than a default it happens to inherit.
  *
- * The packaging depends on it. `forge.config.ts` drops the 33 MB llama.cpp
- * source bundle and the compiler tooling that only a from-source build reads,
- * and `scripts/verify-package.mjs` asserts both that they are gone and that
- * this option is still here. Change one and the other fails, which is the
- * point: a build this bundle cannot perform should fail at load with
- * `NoBinaryFoundError` and not halfway through a compile.
+ * The packaging policy depends on it. Consumers may drop the 33 MB llama.cpp
+ * source bundle and compiler tooling that only a from-source build reads, and
+ * the verification export asserts both that they are gone and that this option
+ * is still here. Change one and the other fails: a build this bundle cannot
+ * perform must fail at load, not halfway through a compile.
  */
 let loaded: { path: string; model: LoadedModel } | undefined;
 
@@ -110,9 +109,9 @@ async function probe(id: string): Promise<string> {
   const started = Date.now();
   const nlc = await library();
   const getLlama = nlc.getLlama as (
-    options: typeof HARNESS_CONFIG.engine.llamaOptions,
+    options: typeof LLAMA_CONFIG.engine.llamaOptions,
   ) => Promise<{ gpu: string | false }>;
-  const llama = await getLlama(HARNESS_CONFIG.engine.llamaOptions);
+  const llama = await getLlama(LLAMA_CONFIG.engine.llamaOptions);
   const device = llama.gpu === false ? 'cpu' : llama.gpu;
   // The number, not a round guess, is what a timeout on a platform nobody has
   // measured should be derived from. Issue #133.
@@ -136,12 +135,12 @@ async function model(modelPath: string, id: string): Promise<LoadedModel> {
   await probe(id);
   const nlc = await library();
   const getLlama = nlc.getLlama as (
-    options: typeof HARNESS_CONFIG.engine.llamaOptions,
+    options: typeof LLAMA_CONFIG.engine.llamaOptions,
   ) => Promise<{
     loadModel: (options: { modelPath: string }) => Promise<LoadedModel>;
   }>;
 
-  const llama = await getLlama(HARNESS_CONFIG.engine.llamaOptions);
+  const llama = await getLlama(LLAMA_CONFIG.engine.llamaOptions);
   const opened = await llama.loadModel({ modelPath });
   loaded = { path: modelPath, model: opened };
   return opened;
@@ -211,7 +210,7 @@ async function download(request: Extract<EngineRequest, { kind: 'ensure-model' }
   } catch (error) {
     const aborted = controller.signal.aborted;
     const reason = aborted
-      ? HARNESS_COPY.download.cancelled
+      ? LLAMA_COPY.download.cancelled
       : describeDownloadFailure(error);
 
     // A failed attempt that is not a cancellation may have left a corrupt
@@ -229,10 +228,10 @@ async function download(request: Extract<EngineRequest, { kind: 'ensure-model' }
 function describeDownloadFailure(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
   if (/ENOTFOUND|EAI_AGAIN|ECONNREFUSED|ETIMEDOUT|fetch failed/i.test(message)) {
-    return HARNESS_COPY.download.hostUnavailable;
+    return LLAMA_COPY.download.hostUnavailable;
   }
-  if (/ENOSPC/i.test(message)) return HARNESS_COPY.download.diskFull;
-  return HARNESS_COPY.download.failed(message);
+  if (/ENOSPC/i.test(message)) return LLAMA_COPY.download.diskFull;
+  return LLAMA_COPY.download.failed(message);
 }
 
 /* ------------------------------------------------------------------- run */
@@ -287,7 +286,7 @@ async function run(request: Extract<EngineRequest, { kind: 'run' }>): Promise<vo
           description: tool.description,
           params,
           handler: async (args: unknown) => {
-            if (controller.signal.aborted) return HARNESS_COPY.common.cancelled;
+            if (controller.signal.aborted) return LLAMA_COPY.common.cancelled;
             return callTool(id, tool.name, args);
           },
         });
@@ -323,7 +322,7 @@ async function run(request: Extract<EngineRequest, { kind: 'run' }>): Promise<vo
     running = undefined;
     // Nothing is coming back for a call whose run has ended.
     for (const settle of [...awaiting.values()]) {
-      settle(HARNESS_COPY.common.cancelled);
+      settle(LLAMA_COPY.common.cancelled);
     }
     awaiting.clear();
   }

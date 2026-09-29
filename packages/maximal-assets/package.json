@@ -10,7 +10,11 @@
       "types": "./src/brand.ts",
       "import": "./src/brand.ts"
     },
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./terminal-icons": {
+      "types": "./src/terminal-icons.ts",
+      "import": "./src/terminal-icons.ts"
+    }
   },
   "scripts": {
     "analyze": "bun ../maximal-core/scripts/analyze.ts",

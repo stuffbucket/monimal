@@ -642,7 +642,7 @@ void app.whenReady().then(async () => {
     redock: redockTerminal,
   })
   registerIpc(coreControlConnection, nativeMode)
-  startHarnessHost()
+  startHarnessHost({ modelDirectory: localModelsDirectory() })
 
   const splashPreview = isSplashPreview()
   let coreReady = false

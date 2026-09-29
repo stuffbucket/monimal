@@ -23,7 +23,8 @@ has ended.
 | `packages/maximal-context-window` | Context-window derivation and UI. |
 | `packages/maximal-recording` | Optional video capture engine and developer recording tools; desktop owns consent and output selection. |
 | `packages/maximal-data-visualization` | Visualization primitives and styles. |
-| `packages/maximal-harness` | Local agent runtime, workers, and renderer. |
+| `packages/maximal-harness` | Local agent orchestration and renderer. |
+| `packages/maximal-llama-cpp` | Standalone Electron-hosted llama.cpp provider, worker, and packaging policy. |
 | `packages/maximal-search` | Search connector contract, first-party providers, and provider settings manifest. |
 | `packages/maximal-logging` | Persistent structured runtime logging and log discovery. |
 | `packages/maximal-model-contract` | Runtime-neutral model gateway contract. |
@@ -36,6 +37,13 @@ has ended.
 | `packages/model-qwen3-0.6b-q8-gguf` | Qwen3 artifact metadata and provisioning. |
 | `packages/model-runtimes/anthropic` | Anthropic Messages adapter. |
 | `packages/model-runtimes/omlx` | oMLX HTTP adapter. |
+
+## Asset provenance
+
+| Assets | Source | Commit | License |
+| --- | --- | --- | --- |
+| Claude, Claude Code, GitHub Copilot, and Codex terminal icons | `lobehub/lobe-icons` | `329f378cbd1a88f45b60cd096b9111ce16f3ea39` | MIT |
+| Maximal terminal icon | `apps/desktop/build/icon.icns` | Workspace-owned | Workspace license |
 
 ## Rules
 

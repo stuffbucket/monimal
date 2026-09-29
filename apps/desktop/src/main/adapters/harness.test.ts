@@ -36,8 +36,10 @@ const {
   panelState,
   resolveApprovalMock,
   runAgentMock,
+  selectAgentModelMock,
   shutdownAgentMock,
   stopEngineMock,
+  updateUserPreferencesMock,
 } = vi.hoisted(() => {
   const handlers = new Map<string, InvokeHandler>()
   const overlayWebContents = { send: vi.fn() }
@@ -62,7 +64,9 @@ const {
     configureModelMock: vi.fn(),
     createElectronPanelMock: vi.fn(() => panel),
     discoverProviderMock: vi.fn(() => ({ id: 'local-provider' })),
-    ensureModelMock: vi.fn((..._args: unknown[]) => Promise.resolve()),
+    ensureModelMock: vi.fn((..._args: unknown[]) =>
+      Promise.resolve({ state: 'ready' }),
+    ),
     globalShortcutRegister: vi.fn(
       (_accelerator: string, _callback: () => void) => true,
     ),
@@ -80,8 +84,18 @@ const {
     panelState,
     resolveApprovalMock: vi.fn(),
     runAgentMock: vi.fn((..._args: unknown[]) => Promise.resolve()),
+    selectAgentModelMock: vi.fn((modelKey: string) =>
+      Promise.resolve({
+        state: 'ready',
+        provider: 'embedded',
+        model: modelKey.replace('embedded:', ''),
+        modelKey,
+        models: [],
+      }),
+    ),
     shutdownAgentMock: vi.fn(() => Promise.resolve()),
     stopEngineMock: vi.fn(),
+    updateUserPreferencesMock: vi.fn(() => Promise.resolve()),
   }
 })
 
@@ -104,30 +118,44 @@ vi.mock('@maximal/maximal-electron/electron-panel', () => ({
 vi.mock('@maximal/maximal-harness/host', () => ({
   abortAgent: abortAgentMock,
   configureAgent: configureAgentMock,
-  configureLlamaHost: configureLlamaHostMock,
-  configureModel: configureModelMock,
   discoverProvider: discoverProviderMock,
-  ensureModel: ensureModelMock,
   isAgentBusy: isAgentBusyMock,
   resolveApproval: resolveApprovalMock,
   runAgent: runAgentMock,
+  selectAgentModel: selectAgentModelMock,
   shutdownAgent: shutdownAgentMock,
+}))
+
+vi.mock('@maximal/maximal-llama-cpp/host', () => ({
+  DEFAULT_EMBEDDED_MODEL_FILE: 'Qwen3-0.6B-Q8_0.gguf',
+  configureLlamaHost: configureLlamaHostMock,
+  configureModel: configureModelMock,
+  ensureModel: ensureModelMock,
   stopEngine: stopEngineMock,
 }))
 
-const invokeChannels = [
+vi.mock('../preferences/user-preferences.js', () => ({
+  updateUserPreferences: updateUserPreferencesMock,
+}))
+
+const overlayInvokeChannels = [
   BRIDGE_CHANNELS.harnessHide,
   BRIDGE_CHANNELS.harnessProvider,
+  BRIDGE_CHANNELS.harnessSelectModel,
   BRIDGE_CHANNELS.harnessAsk,
   BRIDGE_CHANNELS.harnessAbort,
   BRIDGE_CHANNELS.harnessApprove,
   BRIDGE_CHANNELS.harnessEnsureModel,
 ]
+const invokeChannels = [
+  BRIDGE_CHANNELS.harnessShow,
+  ...overlayInvokeChannels,
+]
 
 async function startHost() {
   vi.resetModules()
   const host = await import('./harness.js')
-  host.startHarnessHost()
+  host.startHarnessHost({ modelDirectory: '/resolved/local/models' })
   return host
 }
 
@@ -147,7 +175,19 @@ beforeEach(() => {
   panelState.destroyed = false
   globalShortcutRegister.mockReturnValue(true)
   isAgentBusyMock.mockReturnValue(false)
+  ensureModelMock.mockResolvedValue({ state: 'ready' })
+  selectAgentModelMock.mockImplementation((modelKey: string) => {
+    const [provider, ...modelParts] = modelKey.split(':')
+    return Promise.resolve({
+      state: 'ready',
+      provider,
+      model: modelParts.join(':'),
+      modelKey,
+      models: [],
+    })
+  })
   shutdownAgentMock.mockResolvedValue(undefined)
+  updateUserPreferencesMock.mockResolvedValue(undefined)
 })
 
 describe('harness host IPC boundary', () => {
@@ -177,8 +217,12 @@ describe('harness host IPC boundary', () => {
       ],
     ])
 
-    for (const channel of invokeChannels) {
-      expect(() => handler(channel)(foreignEvent, inputs.get(channel))).toThrow(
+    for (const channel of overlayInvokeChannels) {
+      await expect(
+        Promise.resolve().then(() =>
+          handler(channel)(foreignEvent, inputs.get(channel)),
+        ),
+      ).rejects.toThrow(
         'Harness requests are accepted only from the overlay window.',
       )
     }
@@ -189,6 +233,15 @@ describe('harness host IPC boundary', () => {
     expect(abortAgentMock).not.toHaveBeenCalled()
     expect(resolveApprovalMock).not.toHaveBeenCalled()
     expect(ensureModelMock).not.toHaveBeenCalled()
+    expect(selectAgentModelMock).not.toHaveBeenCalled()
+  })
+
+  it('shows the overlay when the application renderer requests it', async () => {
+    await startHost()
+
+    handler(BRIDGE_CHANNELS.harnessShow)({ sender: { send: vi.fn() } })
+
+    expect(panel.show).toHaveBeenCalledOnce()
   })
 
   it('validates and normalizes ask requests before running the agent', async () => {
@@ -229,6 +282,28 @@ describe('harness host IPC boundary', () => {
     expect(resolveApprovalMock).toHaveBeenCalledWith(request)
   })
 
+  it('validates, selects, and persists an available model', async () => {
+    await startHost()
+    const selectModel = handler(BRIDGE_CHANNELS.harnessSelectModel)
+
+    for (const input of [undefined, null, '', '  ', 42]) {
+      await expect(
+        Promise.resolve(selectModel(overlayEvent(), input)),
+      ).rejects.toThrow()
+    }
+    expect(selectAgentModelMock).not.toHaveBeenCalled()
+
+    const result = selectModel(overlayEvent(), '  ollama:qwen3:4b  ')
+    await expect(result).resolves.toMatchObject({
+      state: 'ready',
+      modelKey: 'ollama:qwen3:4b',
+    })
+    expect(selectAgentModelMock).toHaveBeenCalledWith('ollama:qwen3:4b')
+    expect(updateUserPreferencesMock).toHaveBeenCalledWith({
+      agentModel: 'ollama:qwen3:4b',
+    })
+  })
+
   it('streams agent and model events only to the live overlay', async () => {
     await startHost()
     const foreignWebContents = { send: vi.fn() }
@@ -245,11 +320,17 @@ describe('harness host IPC boundary', () => {
     callbacks.onEnd({ status: 'complete' })
 
     const modelResult = handler(BRIDGE_CHANNELS.harnessEnsureModel)(overlayEvent())
-    await expect(modelResult).resolves.toBeUndefined()
+    await expect(modelResult).resolves.toEqual({ state: 'ready' })
     const onProgress = ensureModelMock.mock.calls[0]?.[0] as
       | ((progress: unknown) => void)
       | undefined
-    onProgress?.({ completed: 2, total: 10 })
+    onProgress?.({ state: 'downloading', received: 2, total: 10 })
+    expect(selectAgentModelMock).toHaveBeenCalledWith(
+      'embedded:Qwen3-0.6B-Q8_0.gguf',
+    )
+    expect(updateUserPreferencesMock).toHaveBeenCalledWith({
+      agentModel: 'embedded:Qwen3-0.6B-Q8_0.gguf',
+    })
 
     expect(overlayWebContents.send.mock.calls).toEqual([
       [BRIDGE_CHANNELS.harnessDelta, { text: 'partial' }],
@@ -261,7 +342,7 @@ describe('harness host IPC boundary', () => {
       [BRIDGE_CHANNELS.harnessEnd, { status: 'complete' }],
       [
         BRIDGE_CHANNELS.harnessModelProgress,
-        { completed: 2, total: 10 },
+        { state: 'downloading', received: 2, total: 10 },
       ],
     ])
     expect(foreignWebContents.send).not.toHaveBeenCalled()
@@ -276,11 +357,22 @@ describe('harness host lifecycle', () => {
   it('creates the panel, binds its hotkey, and tears both down', async () => {
     const host = await startHost()
 
+    expect(host.assistantPanelBounds({
+      x: 1280,
+      y: 0,
+      width: 1280,
+      height: 720,
+    })).toEqual({
+      x: 1560,
+      y: 48,
+      width: 720,
+      height: 624,
+    })
     expect(configureLlamaHostMock).toHaveBeenCalledWith({
       workerPath: expect.stringMatching(/llama-worker\.js$/) as unknown,
     })
     expect(configureModelMock).toHaveBeenCalledWith({
-      directory: '/tmp/maximal-client-test/models',
+      directory: '/resolved/local/models',
     })
     expect(configureAgentMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -293,6 +385,7 @@ describe('harness host lifecycle', () => {
       expect.objectContaining({
         preloadPath: expect.stringMatching(/preload\.js$/) as unknown,
         loadRenderer: expect.any(Function) as unknown,
+        bounds: host.assistantPanelBounds,
       }),
     )
 

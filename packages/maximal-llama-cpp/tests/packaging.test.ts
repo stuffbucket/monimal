@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { llamaPackageChecks } from '../scripts/llama-package-checks.mjs';
 import {
   LLAMA_BACKENDS_VARIABLE,
+  LLAMA_EXTERNAL_MODULES,
+  LLAMA_PACKAGE_NAME,
   OPTIONAL_LLAMA_BACKENDS,
   llamaPackagePlan,
   parseLlamaBackends,
@@ -15,6 +17,12 @@ const failures = (checks: Array<{ name: string; ok: boolean }>) =>
   checks.filter(({ ok }) => !ok).map(({ name }) => name);
 
 describe('llama package selection', () => {
+  it('publishes package and runtime dependency identity from its manifest', () => {
+    expect(LLAMA_PACKAGE_NAME).toBe('@maximal/maximal-llama-cpp');
+    expect(LLAMA_EXTERNAL_MODULES).toEqual(['node-llama-cpp']);
+    expect(LLAMA_BACKENDS_VARIABLE).toBe('STUFFBUCKET_LLAMA_BACKENDS');
+  });
+
   it('parses target and backend package names', () => {
     expect(parseLlamaPackage('win-x64-cuda-fast-ext')).toEqual({
       os: 'win',
@@ -67,6 +75,27 @@ describe('llama package selection', () => {
         ({ name }) => name,
       ),
     ).toEqual(present);
+  });
+
+  it('maps Linux and Mac App Store targets to prebuild package names', () => {
+    expect(
+      keeps(llamaPackagePlan(['linux-x64', 'mac-x64'], 'linux', 'x64', [])),
+    ).toEqual([
+      {
+        name: 'linux-x64',
+        keep: true,
+        reason: 'the CPU build for this target',
+      },
+    ]);
+    expect(
+      keeps(llamaPackagePlan(['linux-arm64', 'mac-arm64'], 'mas', 'arm64', [])),
+    ).toEqual([
+      {
+        name: 'mac-arm64',
+        keep: true,
+        reason: 'the CPU build for this target',
+      },
+    ]);
   });
 
   it('sorts and explains every target decision', () => {

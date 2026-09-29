@@ -12,11 +12,12 @@ import type {
   ProviderStatus,
 } from '../contracts.js';
 import { HARNESS_CONFIG, HARNESS_COPY } from '../constants.js';
-import { escapeAction, outsideAction } from './overlay-keys.js';
+import { escapeAction } from './overlay-keys.js';
 
 export interface HarnessTransport {
   hide: () => Promise<void>;
   provider: () => Promise<ProviderStatus>;
+  selectModel: (modelKey: string) => Promise<ProviderStatus>;
   ask: (prompt: string) => Promise<AskAccepted>;
   abort: () => Promise<void>;
   approve: (request: ApproveRequest) => Promise<void>;
@@ -58,6 +59,8 @@ function providerLabel(status: ProviderStatus): string {
       return HARNESS_COPY.overlay.probing;
     case 'ready':
       return `${status.provider} · ${status.model}`;
+    case 'select-model':
+      return HARNESS_COPY.overlay.modelSelectionRequired;
     case 'needs-model':
       return HARNESS_COPY.overlay.modelMissing(status.model);
     case 'unavailable':
@@ -82,6 +85,7 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
   const input = useRef<HTMLTextAreaElement>(null);
+  const modelPicker = useRef<HTMLSelectElement>(null);
   const answerBox = useRef<HTMLDivElement>(null);
 
   const hide = useCallback(() => {
@@ -108,6 +112,7 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
 
   useEffect(() => {
     if (status.state === 'ready') input.current?.focus();
+    if (status.state === 'select-model') modelPicker.current?.focus();
   }, [status.state]);
 
   /* ------------------------------------------------------------- streaming */
@@ -141,6 +146,16 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
     setDownload({ state: 'downloading', received: 0, total: 0 });
     void transport.ensureModel().then(setDownload);
   }, [transport]);
+
+  const selectModel = useCallback(
+    (modelKey: string) => {
+      setError(undefined);
+      void transport.selectModel(modelKey).then(setStatus).catch(() => {
+        setError(HARNESS_COPY.overlay.requestFailed);
+      });
+    },
+    [transport],
+  );
 
   useTransportEvent(transport.onEnd, (result) => {
     setBusy(false);
@@ -241,21 +256,6 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
     [act, approval, busy],
   );
 
-  /**
-   * A click outside the card.
-   *
-   * Dismissing with a question on screen answers it. Leaving the gate open
-   * would park the run until the timeout, and every summon in that window
-   * would report the agent as busy.
-   */
-  const onOutside = useCallback(
-    (event: Event) => {
-      event.preventDefault();
-      for (const action of outsideAction(Boolean(approval))) act(action);
-    },
-    [act, approval],
-  );
-
   const ready = status.state === 'ready';
 
   return (
@@ -271,13 +271,12 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
      */
     <Dialog
       open
+      modal={false}
       title={HARNESS_COPY.overlay.title}
       className="sb-shell mh-card"
-      overlayClassName="mh-scrim"
       testId="overlay-card"
       onKeyDown={onKeyDown}
       onEscapeKeyDown={onEscape}
-      onPointerDownOutside={onOutside}
     >
         {(answer || error) && (
           <div
@@ -337,6 +336,37 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
               </span>
             )}
           </div>
+        )}
+
+        {(status.state === 'ready' || status.state === 'select-model') && (
+          <label className="mh-model-picker">
+            <span className="mh-model-picker__label">
+              {HARNESS_COPY.overlay.modelPickerLabel}
+            </span>
+            <select
+              ref={modelPicker}
+              className="mh-model-picker__select"
+              value={status.state === 'ready' ? status.modelKey : ''}
+              size={
+                status.state === 'select-model'
+                  ? Math.min(status.models.length + 1, 6)
+                  : undefined
+              }
+              onChange={(event) => selectModel(event.target.value)}
+              data-testid="overlay-model-picker"
+            >
+              {status.state === 'select-model' && (
+                <option value="" disabled>
+                  {HARNESS_COPY.overlay.modelSelectionRequired}
+                </option>
+              )}
+              {status.models.map((model) => (
+                <option key={model.key} value={model.key}>
+                  {model.provider} · {model.label}
+                </option>
+              ))}
+            </select>
+          </label>
         )}
 
         {approval && (

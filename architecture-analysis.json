@@ -177,6 +177,7 @@
         "@maximal/maximal-core-contract",
         "@maximal/maximal-electron",
         "@maximal/maximal-harness",
+        "@maximal/maximal-llama-cpp",
         "@maximal/maximal-logging",
         "@maximal/maximal-observability",
         "@maximal/maximal-observability-contract",
@@ -218,7 +219,16 @@
       "root": "packages/maximal-harness",
       "dependsOn": [
         "@maximal/eslint-config",
-        "@maximal/maximal-electron"
+        "@maximal/maximal-electron",
+        "@maximal/maximal-llama-cpp"
+      ],
+      "cycleEdges": [],
+      "duplicatePairs": []
+    },
+    "@maximal/maximal-llama-cpp": {
+      "root": "packages/maximal-llama-cpp",
+      "dependsOn": [
+        "@maximal/eslint-config"
       ],
       "cycleEdges": [],
       "duplicatePairs": []

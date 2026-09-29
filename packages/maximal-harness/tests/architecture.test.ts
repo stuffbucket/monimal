@@ -88,7 +88,6 @@ describe('renderer architecture', () => {
       '--shell-radius-large',
       '--shell-text-sm',
       '--shell-text-xs',
-      '--shell-scrim',
       '--shell-elevation',
     ]) {
       expect(own.fallback, `${variable} must work without a host override`).toContain(

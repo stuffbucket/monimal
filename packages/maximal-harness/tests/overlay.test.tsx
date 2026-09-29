@@ -39,6 +39,15 @@ function fakeTransport(initialStatus: ProviderStatus = {
   state: 'ready',
   provider: 'embedded',
   model: 'local-model',
+  modelKey: 'embedded:local-model',
+  models: [
+    {
+      key: 'embedded:local-model',
+      label: 'local-model',
+      model: 'local-model',
+      provider: 'embedded',
+    },
+  ],
 }) {
   let status = initialStatus;
   const delta = channel<string>();
@@ -49,6 +58,20 @@ function fakeTransport(initialStatus: ProviderStatus = {
   const transport: HarnessTransport = {
     hide: vi.fn(() => Promise.resolve()),
     provider: vi.fn(() => Promise.resolve(status)),
+    selectModel: vi.fn((modelKey: string) => {
+      if (!('models' in status)) return Promise.reject(new Error('unavailable'));
+      const models = status.models;
+      const selected = models.find((model) => model.key === modelKey);
+      if (!selected) return Promise.reject(new Error('unavailable'));
+      status = {
+        state: 'ready',
+        provider: selected.provider,
+        model: selected.model,
+        modelKey: selected.key,
+        models,
+      };
+      return Promise.resolve(status);
+    }),
     ask: vi.fn(() => Promise.resolve({ started: true as const })),
     abort: vi.fn(() => Promise.resolve()),
     approve: vi.fn(() => Promise.resolve()),
@@ -127,13 +150,14 @@ function click(id: string): void {
 }
 
 describe('Overlay', () => {
-  it('probes on mount and focus, focuses the prompt, and exposes a named modal', async () => {
+  it('probes on mount and focus, focuses the prompt, and exposes a named modeless dialog', async () => {
     const fake = fakeTransport();
     await renderOverlay(fake.transport);
 
     expect(fake.transport.provider).toHaveBeenCalledTimes(1);
     const dialog = document.body.querySelector('[role="dialog"]');
     expect(dialog).not.toBeNull();
+    expect(dialog?.getAttribute('aria-modal')).toBeNull();
     const labelledBy = dialog?.getAttribute('aria-labelledby');
     expect(labelledBy).toBeTruthy();
     expect(document.getElementById(labelledBy ?? '')?.textContent).toBe('Ask the agent');
@@ -169,6 +193,7 @@ describe('Overlay', () => {
       inputText('  explain this  ');
       keyDown(byTestId('overlay-input'), 'Enter');
     });
+
     await settle();
 
     expect(fake.transport.ask).toHaveBeenCalledWith('explain this');
@@ -191,7 +216,49 @@ describe('Overlay', () => {
     expect(byTestId('overlay-status').textContent).toBe('embedded · local-model');
   });
 
-  it('aborts before dismissing and denies approval before an outside dismissal', async () => {
+  it('opens and focuses the model picker when the preference is unavailable', async () => {
+    const models = [
+      {
+        key: 'ollama:qwen3:4b',
+        label: 'qwen3:4b',
+        model: 'qwen3:4b',
+        provider: 'ollama' as const,
+      },
+      {
+        key: 'embedded:small.gguf',
+        label: 'small',
+        model: 'small.gguf',
+        provider: 'embedded' as const,
+      },
+    ];
+    const fake = fakeTransport({
+      state: 'select-model',
+      preferredModel: 'maximal:missing',
+      models,
+    });
+    await renderOverlay(fake.transport);
+
+    const picker = byTestId('overlay-model-picker');
+    expect(picker).toBeInstanceOf(HTMLSelectElement);
+    expect((picker as HTMLSelectElement).size).toBe(3);
+    expect(document.activeElement).toBe(picker);
+    expect((byTestId('overlay-input') as HTMLTextAreaElement).disabled).toBe(true);
+
+    act(() => {
+      Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')
+        ?.set?.call(picker, 'embedded:small.gguf');
+      picker.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await settle();
+
+    expect(fake.transport.selectModel).toHaveBeenCalledWith(
+      'embedded:small.gguf',
+    );
+    expect((byTestId('overlay-input') as HTMLTextAreaElement).disabled).toBe(false);
+    expect(document.activeElement).toBe(byTestId('overlay-input'));
+  });
+
+  it('aborts before dismissing', async () => {
     const fake = fakeTransport();
     await renderOverlay(fake.transport);
 
@@ -211,22 +278,6 @@ describe('Overlay', () => {
       keyDown(document, 'Escape');
     });
     expect(fake.transport.hide).toHaveBeenCalledTimes(1);
-
-    act(() => fake.approval.emit({ id: 'approval-1', tool: 'bash', summary: 'rm draft' }));
-    const scrim = document.body.querySelector('.mh-scrim');
-    if (!scrim) throw new Error('Overlay scrim not found');
-    await new Promise<void>((resolve) => setTimeout(resolve, 0));
-    act(() => {
-      scrim.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, cancelable: true }));
-      scrim.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
-    });
-
-    expect(fake.transport.approve).toHaveBeenCalledWith({
-      id: 'approval-1',
-      allow: false,
-      remember: false,
-    });
-    expect(fake.transport.hide).toHaveBeenCalledTimes(2);
   });
 
   it('supports approval buttons and gives approval Enter priority over a draft prompt', async () => {
@@ -288,7 +339,20 @@ describe('Overlay', () => {
     expect(byTestId('overlay-download').textContent).toContain('1 MB of 4 MB');
     expect(document.body.querySelector<HTMLElement>('.mh-setup__bar')?.style.width).toBe('25%');
 
-    fake.setStatus({ state: 'ready', provider: 'ollama', model: 'coder' });
+    fake.setStatus({
+      state: 'ready',
+      provider: 'ollama',
+      model: 'coder',
+      modelKey: 'ollama:coder',
+      models: [
+        {
+          key: 'ollama:coder',
+          label: 'coder',
+          model: 'coder',
+          provider: 'ollama',
+        },
+      ],
+    });
     act(() => fake.modelProgress.emit({ state: 'ready' }));
     await settle();
     expect(fake.transport.provider).toHaveBeenCalledTimes(2);

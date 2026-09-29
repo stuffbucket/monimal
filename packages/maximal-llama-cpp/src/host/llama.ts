@@ -1,9 +1,9 @@
-import { existsSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, statSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 
 import type { ModelProgress } from '../contracts.js';
-import { HARNESS_CONFIG, HARNESS_COPY } from '../constants.js';
+import { LLAMA_CONFIG, LLAMA_COPY } from '../constants.js';
 
 import { listen, send } from './llama-host.js';
 
@@ -18,8 +18,8 @@ import { listen, send } from './llama-host.js';
  *
  * **Nothing here loads `node-llama-cpp`.** The engine runs in a
  * `utilityProcess` because a native abort is not catchable and took the whole
- * application with it; `src/main/workers/llama-worker.ts` is the only file that loads
- * the library, and `llama-host.ts` supervises it. Issue #133.
+ * application with it; the package's worker entry is the only source that
+ * loads the library, and `llama-host.ts` supervises it. Issue #133.
  */
 
 /**
@@ -34,27 +34,96 @@ import { listen, send } from './llama-host.js';
  * Only Q8_0 is published in that repository, so there is no smaller quant to
  * pick without moving to a community mirror.
  */
-export const EMBEDDED_MODEL_LABEL = HARNESS_CONFIG.models.embedded.label;
-export const EMBEDDED_MODEL_MB = HARNESS_CONFIG.models.embedded.approxMb;
+export const EMBEDDED_MODEL_LABEL = LLAMA_CONFIG.model.label;
+export const EMBEDDED_MODEL_MB = LLAMA_CONFIG.model.approxMb;
+export const DEFAULT_EMBEDDED_MODEL_FILE = LLAMA_CONFIG.model.file;
+
+export interface EmbeddedModel {
+  fileName: string;
+  label: string;
+}
 
 let modelDirectory: string | undefined;
+let selectedModelFile: string | undefined;
 
 export function configureModel(options: { directory: string }): void {
   modelDirectory = options.directory;
+  selectedModelFile = undefined;
 }
 
 /* ----------------------------------------------------------------- paths */
 
-export function modelPath(): string {
+function configuredDirectory(): string {
+  if (!modelDirectory) {
+    throw new Error(LLAMA_COPY.engine.modelDirectoryNotConfigured);
+  }
+  return modelDirectory;
+}
+
+function overridePath(): string | undefined {
   // An override, for testing and for support. It lets a run point at weights
   // that are already on disk instead of fetching another copy into a throwaway
   // profile, which is what the end-to-end test does.
   const override = process.env['STUFFBUCKET_MODEL_PATH'];
-  if (override) return override;
-  if (!modelDirectory) {
-    throw new Error(HARNESS_COPY.engine.modelDirectoryNotConfigured);
+  return override || undefined;
+}
+
+function usableFile(file: string): boolean {
+  try {
+    const info = statSync(file);
+    return info.isFile() && info.size > 0;
+  } catch {
+    return false;
   }
-  return path.join(modelDirectory, HARNESS_CONFIG.models.embedded.file);
+}
+
+export function listEmbeddedModels(): EmbeddedModel[] {
+  const override = overridePath();
+  if (override) {
+    if (!usableFile(override)) return [];
+    const fileName = path.basename(override);
+    return [{ fileName, label: fileName.replace(/\.gguf$/iu, '') }];
+  }
+
+  const directory = configuredDirectory();
+  try {
+    return readdirSync(directory, { withFileTypes: true })
+      .filter(
+        (entry) =>
+          entry.isFile() &&
+          entry.name.toLocaleLowerCase('en-US').endsWith('.gguf') &&
+          usableFile(path.join(directory, entry.name)),
+      )
+      .map(({ name: fileName }) => ({
+        fileName,
+        label: fileName.replace(/\.gguf$/iu, ''),
+      }))
+      .sort((left, right) => left.label.localeCompare(right.label));
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      'code' in error &&
+      (error as NodeJS.ErrnoException).code === 'ENOENT'
+    ) {
+      return [];
+    }
+    throw error;
+  }
+}
+
+export function selectEmbeddedModel(fileName: string): void {
+  const selected = listEmbeddedModels().find((model) => model.fileName === fileName);
+  if (!selected) throw new Error(`Local model "${fileName}" is not available.`);
+  selectedModelFile = selected.fileName;
+}
+
+export function modelPath(): string {
+  const override = overridePath();
+  if (override) return override;
+  return path.join(
+    configuredDirectory(),
+    selectedModelFile ?? DEFAULT_EMBEDDED_MODEL_FILE,
+  );
 }
 
 /**
@@ -69,7 +138,7 @@ export function isModelPresent(): boolean {
   const file = modelPath();
   if (!existsSync(file)) return false;
   try {
-    return statSync(file).size >= HARNESS_CONFIG.models.embedded.minBytes;
+    return statSync(file).size >= LLAMA_CONFIG.model.minBytes;
   } catch {
     return false;
   }
@@ -124,6 +193,7 @@ function download(
       }
       if (event.kind === 'done') {
         stop();
+        if (last.state === 'ready') selectedModelFile = DEFAULT_EMBEDDED_MODEL_FILE;
         resolve(last);
       }
     });
@@ -132,9 +202,9 @@ function download(
       send({
         kind: 'ensure-model',
         id,
-        modelPath: modelPath(),
-        url: HARNESS_CONFIG.models.embedded.url,
-        minBytes: HARNESS_CONFIG.models.embedded.minBytes,
+        modelPath: path.join(configuredDirectory(), DEFAULT_EMBEDDED_MODEL_FILE),
+        url: LLAMA_CONFIG.model.url,
+        minBytes: LLAMA_CONFIG.model.minBytes,
       });
     } catch (error) {
       // The engine has crashed too often to be started again.
