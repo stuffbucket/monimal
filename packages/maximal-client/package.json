@@ -17,6 +17,7 @@
     "./renderer/traffic/source": "./src/renderer/traffic/source.ts",
     "./renderer/useTerminalTabs": "./src/renderer/useTerminalTabs.ts",
     "./renderer/unsaved-changes": "./src/renderer/unsaved-changes.tsx",
+    "./renderer/appearance": "./src/renderer/appearance.ts",
     "./renderer/theme": "./src/renderer/theme.ts",
     "./renderer/base": "./src/renderer/base.ts",
     "./renderer/harness/transport": "./src/renderer/harness/transport.ts"

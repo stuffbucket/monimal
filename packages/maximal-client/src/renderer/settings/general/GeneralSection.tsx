@@ -9,6 +9,7 @@ import {
 } from '@maximal/maximal-electron/renderer'
 
 import type { SettingsCapabilities } from '../capabilities'
+import { AppearanceSection } from './AppearanceSection'
 import { MenuBarOnlyDialog } from './MenuBarOnlyDialog'
 import { useMenuBarPresence } from './useMenuBarPresence'
 
@@ -23,6 +24,7 @@ export function GeneralSection({
 
   return (
     <section className="settings-section">
+      <AppearanceSection />
       {presence.error ? (
         <Note status="failed" live="assertive">
           {presence.error}

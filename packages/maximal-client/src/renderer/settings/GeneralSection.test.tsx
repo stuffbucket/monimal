@@ -33,6 +33,12 @@ beforeEach(() => {
   container = document.createElement('div')
   document.body.appendChild(container)
   root = createRoot(container)
+  localStorage.clear()
+  vi.stubGlobal('matchMedia', vi.fn(() => ({
+    matches: false,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  })))
 })
 
 afterEach(() => {
@@ -69,16 +75,48 @@ function button(label: string): HTMLButtonElement {
 }
 
 describe('GeneralSection menu-bar-only confirmation', () => {
+  it('offers auto, light, dark, sourced palettes, and portable theme actions', async () => {
+    const { capabilities } = fakeCapabilities()
+    const surface = await renderGeneral(capabilities)
+
+    expect(surface.querySelector('[data-testid="appearance-mode"]')).not.toBeNull()
+    expect(surface.querySelector('[data-testid="appearance-preset"]')?.textContent).toContain(
+      'Mocha Mousse',
+    )
+    expect(surface.querySelector('[data-testid="appearance-preset"]')?.textContent).toContain(
+      'Apple System',
+    )
+    expect(surface.querySelector('[data-testid="appearance-preset"]')?.textContent).toContain(
+      'Very Peri',
+    )
+    expect(surface.querySelector('[data-testid="appearance-preset"]')?.textContent).toContain(
+      'Viva Magenta',
+    )
+    const preset = surface.querySelector<HTMLSelectElement>(
+      '[data-testid="appearance-preset"]',
+    )
+    if (preset === null) throw new Error('appearance preset was not rendered')
+    await act(async () => {
+      preset.value = 'mocha-mousse-2025'
+      preset.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+    expect(surface.textContent).toContain('PANTONE 17-1230')
+    expect(surface.textContent).toContain('Import')
+    expect(surface.textContent).toContain('Export')
+  })
+
   it('presents the control as an Appearance setting', async () => {
     const { capabilities } = fakeCapabilities()
     const surface = await renderGeneral(capabilities)
 
     expect(surface.querySelector('h1')).toBeNull()
-    expect(surface.querySelector('h2')?.textContent).toBe('Desktop presence')
+    expect([...surface.querySelectorAll('h2')].some(
+      (heading) => heading.textContent === 'Desktop presence',
+    )).toBe(true)
     expect(surface.querySelector('.settings__group')).not.toBeNull()
-    expect(surface.querySelector('.settings__item-title')?.textContent).toBe(
-      'Show Maximal in the menu bar only',
-    )
+    expect([...surface.querySelectorAll('.settings__item-title')].some(
+      (title) => title.textContent === 'Show Maximal in the menu bar only',
+    )).toBe(true)
     expect(switchControl(surface).getAttribute('role')).toBe('switch')
     expect(switchControl(surface).getAttribute('data-layout')).toBe('compact')
   })

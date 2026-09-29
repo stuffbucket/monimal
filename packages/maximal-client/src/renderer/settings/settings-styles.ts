@@ -75,6 +75,41 @@ const SETTINGS_CSS = `
   min-width: 0;
 }
 
+.appearance-actions,
+.appearance-editor,
+.appearance-color {
+  display: flex;
+  align-items: center;
+  gap: var(--shell-space-2, 8px);
+}
+
+.appearance-editor {
+  flex-wrap: wrap;
+  margin-top: var(--shell-space-3, 12px);
+}
+
+.appearance-editor > .input {
+  flex: 1 1 14rem;
+}
+
+.appearance-color {
+  color: var(--shell-text-muted, #a0a8b4);
+  font-size: var(--shell-text-sm, 0.8125rem);
+}
+
+.appearance-color input {
+  width: 32px;
+  height: 28px;
+  padding: 2px;
+  border: 1px solid var(--shell-input-border, #343943);
+  border-radius: var(--shell-radius, 6px);
+  background: var(--shell-field-background, #171a20);
+}
+
+.appearance-file-input {
+  display: none;
+}
+
 .account-person-card {
   display: flex;
   flex-wrap: wrap;
