@@ -1,4 +1,5 @@
 import type { ComponentType, ReactElement } from 'react'
+import { ScrollArea } from '@maximal/maximal-electron/renderer'
 
 import type { SettingsSectionId } from '../../shared/settings-sections'
 
@@ -23,7 +24,7 @@ export function SectionRail({
   collapsed: boolean
 }): ReactElement {
   return (
-    <nav className="settings-rail" aria-label="Settings sections">
+    <ScrollArea as="nav" className="settings-rail" aria-label="Settings sections">
       {sections.map(({ id, label, icon: Icon }) => (
         <button
           key={id}
@@ -40,6 +41,6 @@ export function SectionRail({
           {!collapsed && <span>{label}</span>}
         </button>
       ))}
-    </nav>
+    </ScrollArea>
   )
 }

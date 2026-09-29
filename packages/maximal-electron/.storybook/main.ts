@@ -13,12 +13,15 @@ import type { StorybookConfig } from '@storybook/react-vite';
  * capture stills: a tool for looking at things should not gate a pull request.
  * The cost is that a story broken by a refactor rots until someone opens it.
  *
- * Stories sit beside the components they cover. Nothing imports them, so Vite
- * never reaches them from an entry point and they do not reach the bundle.
- * `scripts/verify-package.mjs` asserts that rather than assuming it.
+ * Stories sit beside the components they cover, including renderer components
+ * owned by adjacent workspace packages. Nothing imports them from a product
+ * entry point, so they do not reach a production bundle.
  */
 const config: StorybookConfig = {
-  stories: ['../src/renderer/**/*.stories.tsx'],
+  stories: [
+    '../src/renderer/**/*.stories.tsx',
+    '../../maximal-harness/src/renderer/**/*.stories.tsx',
+  ],
   addons: [
     // A docs page per component, generated from the args and the docstring.
     '@storybook/addon-docs',

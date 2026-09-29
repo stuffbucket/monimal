@@ -30,8 +30,11 @@ export {
 export {
   getTabPanelId,
   getTabTriggerId,
+  TAB_COLORS,
   TabBar,
   type Tab,
+  type TabColor,
+  type TabGroup,
   type TabStripProps,
   type TabTransferOptions,
 } from './components/TabBar.js';

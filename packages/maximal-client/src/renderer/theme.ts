@@ -73,6 +73,10 @@ const THEME_CSS = `
      outlines resolve on the first name rather than by falling through. */
   --shell-focus: var(--shell-accent);
 
+  /* Shared motion for controls and transient scrollbars. */
+  --shell-duration-fast: 120ms;
+  --shell-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
   /* The application's type. Defined here, and read by base.ts for the
      document as well as by the package's own .sb-shell rule, so the family and
      size are stated once instead of once per consumer of them.
