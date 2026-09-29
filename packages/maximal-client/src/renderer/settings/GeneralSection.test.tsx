@@ -257,9 +257,10 @@ describe('GeneralSection', () => {
     const { capabilities, general } = fakeCapabilities()
     const surface = await renderGeneral(capabilities)
 
-    await act(async () =>
-      effectControl(surface, 'background-effects-switch').click(),
-    )
+    await act(async () => {
+      effectControl(surface, 'background-effects-switch').click()
+      await vi.advanceTimersByTimeAsync(0)
+    })
     expect(general.setBackgroundEffectsEnabled).toHaveBeenCalledWith(true)
 
     await act(async () =>
@@ -276,9 +277,10 @@ describe('GeneralSection', () => {
       surface.querySelector<HTMLSelectElement>('[data-testid="material-preset"]')
         ?.disabled,
     ).toBe(true)
-    await act(async () =>
-      effectControl(surface, 'background-effects-switch').click(),
-    )
+    await act(async () => {
+      effectControl(surface, 'background-effects-switch').click()
+      await vi.advanceTimersByTimeAsync(0)
+    })
     const preset = surface.querySelector<HTMLSelectElement>(
       '[data-testid="material-preset"]',
     )
