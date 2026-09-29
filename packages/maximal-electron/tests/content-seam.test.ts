@@ -16,7 +16,7 @@ import {
   SAMPLE_ENDPOINT,
   SAMPLE_MODELS,
   sampleUsage,
-} from '../src/renderer/lib/sample-settings.js';
+} from '../.storybook/sample-settings.js';
 
 /**
  * Whether a control still holds its own words.

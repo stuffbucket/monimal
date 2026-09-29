@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
-import { SAMPLE_DIAGNOSTICS } from '../../lib/sample-settings.js';
+import { SAMPLE_DIAGNOSTICS } from '../../../../.storybook/sample-settings.js';
 
 import { Diagnostics } from './Diagnostics.js';
 

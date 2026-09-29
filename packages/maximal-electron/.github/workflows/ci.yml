@@ -1,180 +1,34 @@
-# Blocking CI. Runs on pull requests, and on pushes to main and a release
-# branch.
-#
-# A release branch accumulates merges and is only folded into main at the cut.
-# Without it here, the state that is about to become a release is the one state
-# nothing has run against.
-#
-# The split between this and the release workflow follows openai/codex:
-# a fast blocking gate here, and the expensive platform matrix at release time.
-# Packaging runs on both macOS and Windows, because most breakage between
-# `npm start` and a shipped build shows up only at package time.
-#
-# `merge_group` is inert until a merge queue is enabled in the repository
-# settings, which is the owner's call. `docs/ci.md` states what enabling it
-# would do and what it costs. Until then `merge-preview.yml` is what tests the
-# state a merge produces.
-#
-# `workflow_dispatch` is the manual lever. The other three triggers are all
-# webhook-driven, so when GitHub throttles the conversion of an event into a
-# run — as it did for nine hours on 2026-08-06 — there was no way to get checks
-# onto a commit at all: `gh workflow run` returns 422 on a workflow that does
-# not declare it, and `gh run rerun` re-runs an existing run at its original
-# head, which cannot produce a check for a commit that never had one. Every
-# other workflow here already has this escape. The gate that blocks every pull
-# request did not. Issue #164.
-#
-# GitHub registers `workflow_dispatch` from the default branch only, so this is
-# inert until it reaches `main` and the pull request that adds it cannot
-# demonstrate it working. See `docs/ci.md`.
-
-name: ci
+name: CI
 
 on:
-  pull_request:
-  merge_group:
   push:
-    branches: [main, 'release/**']
+    branches: [main]
+  pull_request:
   workflow_dispatch:
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
-  static:
-    name: lint, types, tests
-    runs-on: ubuntu-latest
+  check:
+    name: build, typecheck, lint, test
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v6
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 22
+          node-version: 24.19.0
           cache: pnpm
-
-      # No Electron cache here. Electron 43 has no `postinstall`, so `pnpm install --frozen-lockfile`
-      # downloads no binary, and this job never resolves one. Caching an empty
-      # directory is worse than not caching: every later run restores nothing
-      # and reports a hit. Issue #129.
       - run: pnpm install --frozen-lockfile
-      - run: pnpm run lint
+      - run: pnpm run build
       - run: pnpm run typecheck
-
-      # The pair to `verify:exports` below. It reads only the checkout — no
-      # build, no dist/, no Electron — so it runs before the minutes that
-      # `pnpm test` and `pnpm run mutate` cost.
-      - run: pnpm run verify:fixture-imports
-
-      # Unit tests run in a random order. The seed is printed, and VITEST_SEED
-      # replays a failure exactly.
+      - run: pnpm run lint
       - run: pnpm test
-
-      # Mutation testing. It measures what the tests actually catch, which
-      # coverage does not. Scoped to pure-logic modules; see stryker.conf.json.
-      - run: pnpm run mutate
-
-      # Names the documentation claims. No style rules: a prose linter lived
-      # here and could not tell a rule from a description. This asks only
-      # whether a script, a constant, or a link target exists.
       - run: pnpm run verify:docs
-
-      # The shipped palette stays legible. See src/renderer/lib/contrast.ts.
-      - run: pnpm run check:contrast
-
-      # The shipped shell knows nothing about the application it hosts. An
-      # AST parse over src, because require.resolve and createRequire launder
-      # an import past a grep, plus a word-boundary scan for the terms in
-      # FORBIDDEN_TERMS. See scripts/verify-neutral.mjs for the scope.
       - run: pnpm run verify:neutral
-
-      # The library exports. This rebuilds dist/, walks the renderer import
-      # graph, and asserts the committed artifact matches that build. Nothing
-      # in CI ran it before, so the built ./renderer export was free to drift
-      # behind src/ — and did.
       - run: pnpm run verify:exports
-
-  package:
-    name: package (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [macos-latest, windows-latest]
-    steps:
-      - uses: actions/checkout@v6
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 22
-          cache: pnpm
-
-      # `electron-forge package` is what downloads the Electron binary, so the
-      # cache is restored before it and asserted after it. Issue #129.
-      - uses: ./.github/actions/electron-cache
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm run package
-      - run: pnpm run verify:electron-cache
-
-      # asar contents plus the fuse values. The end-to-end tests cannot cover
-      # these: the EnableNodeCliInspectArguments fuse stops Playwright
-      # attaching to a packaged build.
-      - run: pnpm run verify:package
-
-      # Launches the artifact and makes it open a shell, which is what an
-      # archive listing cannot check. It runs on both packaging hosts: the
-      # negative control moves `spawn-helper` aside on macOS and `conpty.node`
-      # on Windows, so neither can report success without having started a
-      # shell inside the package. Issue #89. It launches from a copy of the
-      # package outside this checkout, because a package that resolves into the
-      # repository above it is not the one a user installs. Issue #149.
-      - run: pnpm run smoke:packaged
-
-      # Crashes the packaged application's engine on purpose and reads the
-      # minidump back off disk, against a control run that crashes nothing.
-      # Issue #134.
-      - run: pnpm run verify:crash-artifact
-
-  e2e:
-    name: end-to-end (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [macos-latest, windows-latest]
-    steps:
-      - uses: actions/checkout@v6
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 22
-          cache: pnpm
-      - uses: ./.github/actions/electron-cache
-      - run: pnpm install --frozen-lockfile
-
-      # Produces the .vite bundles the harness drives. Not the capture fixture:
-      # no spec reaches it, and this job does not run `verify:package`, which is
-      # the check that fixture exists to satisfy.
-      - run: pnpm run package
-        env:
-          STUFFBUCKET_SKIP_FIXTURE: '1'
-
-      # After packaging, because that is the step that resolves the Electron
-      # binary and therefore the step that fills the cache. Issue #129.
-      - run: pnpm run verify:electron-cache
-
-      - run: pnpm run test:e2e
-
-      - if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: e2e-artifacts-${{ matrix.os }}
-          path: |
-            test-results/
-            playwright-report/
-            reports/
-          if-no-files-found: ignore
-

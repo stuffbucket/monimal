@@ -1,92 +1,18 @@
-# Stuffbucket
+# Maximal Electron
 
-A reference Electron application. It exists to be forked.
+Embeddable Electron host utilities, renderer components, terminal integration,
+and artifact-verification contracts for the Maximal desktop application.
 
-It answers two questions that every desktop project has to answer, and that
-most templates leave out:
+This private workspace package MUST NOT contain a standalone application.
+`apps/desktop` owns product composition, preload APIs, packaging, signing, and
+release.
 
-1. How does this build and package on macOS and Windows, and how is the package
-   proved correct?
-2. How does an agent work in this repository without breaking it?
-
-Reference-shell stills are captured by [`maximal-recording`](../maximal-recording/).
-
-## What is here
-
-| Area | Choice |
-| --- | --- |
-| Framework | Electron 43 with Forge 7. |
-| Renderer | React 19 on Vite 7. |
-| Layout | Radix and `react-resizable-panels`. |
-| Terminal | Configurable xterm.js or wterm with libghostty over `node-pty`; xterm.js is the default. |
-| Packaging | Forge `package` on macOS and Windows, verified in CI. |
-| Release | Private workspace package. The desktop app releases from the repository root. |
-| Tests | Vitest and Playwright. |
-| Demos | A scripted screen recorder that drives the real app. |
-| Harness | `AGENTS.md` and `.claude/skills/`. |
-
-## Quick start
-
-```bash
-npm ci
-npm start
-```
-
-Other commands are in [AGENTS.md](./AGENTS.md).
-
-## The shell
-
-A document layout with an optional inspector:
-
-- A **collapsible left navigation** that reduces to an icon rail, with
-  sections that collapse on their own.
-- **Document tabs in the title bar**, not in a row of their own.
-- **Real terminals in tabs.** The `+` button opens a shell rendered by the
-  configured xterm.js or wterm/libghostty engine.
-- A **grid and list canvas** with selection.
-- An optional **collapsible right inspector** for documents that have secondary
-  properties to show.
-
-Panel sizes and collapsed state persist per document tab across restarts.
-
-Native integration covers a splash window and the application menu. It also
-covers an optional menu bar or tray icon, notifications, and an update check.
-A dock badge tracks real application state.
-
-## Consume the shell frame
-
-The package is `@maximal/maximal-electron`, private to this monorepo.
-Workspace consumers import the exported subpaths and read
-[docs/consuming.md](./docs/consuming.md) for the supported surface.
-
-The package exposes the main-process lifecycle at
-`@maximal/maximal-electron/main`, the secured host window at
-`@maximal/maximal-electron/host`, and the generic renderer frame at
-`@maximal/maximal-electron/renderer`. The renderer entry exports the layout
-— `ShellLayout`, `TitleBar`, `TabBar`, `NavRail`, `Canvas` — a control
-vocabulary from `Button` and `Card` through `Dialog`, `Menu` and the form
-fields, the terminal components with the transport that wires them, and two
-hooks. It does not export the reference application, the agent, the sample
-data, or the capture fixture. `docs/embedding.md` groups the whole surface, and
-`RENDERER_SURFACE` in `scripts/export-checks.mjs` is the list
-`npm run verify:exports` holds the built entry to.
-
-`runMain(runtime, options)` runs a main process on this shell's lifecycle: the
-profile directory, the single instance lock, the window, the quit policy, and a
-deferred shutdown. Every application-specific value is a callback in `options`,
-whose shape is versioned. This application's own `src/main/index.ts` runs on it.
-See [docs/embedding.md](./docs/embedding.md).
-
-The package declares no runtime dependencies. Every package an export imports is
-an optional peer, so installing it for `@maximal/maximal-electron/host` adds nothing
-to `node_modules` beyond the package itself. Install the peers for the entries
-you use:
+## Exports
 
 | Entry | Peers |
 | --- | --- |
 | `@maximal/maximal-electron/main` | `electron` |
 | `@maximal/maximal-electron/host` | `electron` |
-| `@maximal/maximal-electron/preload` | `electron` |
 | `@maximal/maximal-electron/electron-terminal` | `electron`, `@maximal/maximal-terminal` |
 | `@maximal/maximal-electron/electron-panel` | `electron` |
 | `@maximal/maximal-electron/renderer` | `react`, `react-dom`, `@maximal/maximal-terminal`, `lucide-react`, `react-resizable-panels`, `@radix-ui/react-collapsible`, `@radix-ui/react-dialog`, `@radix-ui/react-dropdown-menu`, `@radix-ui/react-radio-group`, `@radix-ui/react-slider`, `@radix-ui/react-tabs`, `@radix-ui/react-tooltip`, `@radix-ui/react-visually-hidden` |
@@ -94,343 +20,67 @@ you use:
 | `@maximal/maximal-electron/verify/shell-variables` | none |
 | `@maximal/maximal-electron/verify/peers` | none |
 
-npm says nothing about a missing optional peer at install time. The failure
-lands later: a bundler stops on the unresolved import and names the package,
-and a main-process entry throws when it loads. `npm run verify:exports` parses
-the rows above and compares each one against the packages that entry point's
-built import graph reaches, so a peer the table leaves out and a peer the table
-invents both fail the check.
+Every runtime package reached by an export MUST remain an optional peer.
 
-That check runs here. `@maximal/maximal-electron/verify/peers` is the one
-you run there, against your own installed tree, so a missing peer fails your
-build rather than a browser:
+`npm run verify:exports` MUST compare this table with the built entry-point
+graph and package contents.
 
-```js
-import { createRequire } from 'node:module';
-import {
-  failedPeerChecks,
-  missingPeerChecks,
-  peerRequirements,
-} from '@maximal/maximal-electron/verify/peers';
+## Renderer
 
-const require = createRequire(import.meta.url);
-const root = path.dirname(require.resolve('@maximal/maximal-electron/package.json'));
-const requirements = await peerRequirements(root, require('@maximal/maximal-electron/package.json').exports);
+The renderer export provides reusable shell layout, navigation, controls,
+settings surfaces, terminal tabs, and renderer-safe helpers.
 
-// Name only the entry points you import.
-const failed = failedPeerChecks(
-  missingPeerChecks({
-    requirements,
-    subpaths: ['./renderer'],
-    resolve: (specifier) => {
-      try {
-        require.resolve(specifier);
-        return true;
-      } catch {
-        return false;
-      }
-    },
-  }),
-);
+Consumers MUST import
+`@maximal/maximal-electron/renderer/styles.css` and define their own
+`--shell-*` palette.
 
-if (failed.length > 0) throw new Error(failed.join('\n'));
-```
-
-The requirements come out of the graph the package shipped you, not out of the
-table above, so a version that adds an import reports it without anyone
-updating prose. `resolve` is yours because only your project can answer what
-resolves from it. `react-dom` is the one name no import reaches: a
-React component does not import a renderer, the consumer mounting these
-components needs one, and `scripts/peer-table.mjs` names it as the single
-exception rather than allowing any.
-
-Import the structural styles separately:
-
-```ts
-import {
-  Canvas,
-  NavRail,
-  ShellLayout,
-  TabBar,
-  TitleBar,
-} from '@maximal/maximal-electron/renderer';
-import '@maximal/maximal-electron/renderer/styles.css';
-```
-
-The stylesheet ships no palette and scopes every rule under `.sb-shell`.
-`ShellLayout` applies that root class. Apply it yourself when composing the
-smaller exports directly. Import the components without it and the markup is
-unstyled; import it and define nothing and the surfaces draw nothing. Define
-these semantic variables on `:root` or `body`:
+The following variables are required:
 
 | Variable | Contract |
 | --- | --- |
+| `--shell-accent` | Selection, focus, and resize feedback. |
+| `--shell-accent-muted` | Selected-control background. |
+| `--shell-active` | Pressed or nested hover controls. |
 | `--shell-background` | Window chrome and side-panel surface. |
+| `--shell-border` | Dividers and quiet outlines. |
 | `--shell-canvas` | Main document surface and active tab. |
+| `--shell-hover` | Hovered controls. |
 | `--shell-raised` | Tooltip and other floating surfaces. |
 | `--shell-text` | Primary foreground. |
 | `--shell-text-muted` | Secondary foreground and inactive controls. |
 | `--shell-text-subtle` | Tertiary labels and counts. |
-| `--shell-border` | Dividers and quiet outlines. |
-| `--shell-hover` | Hovered controls. |
-| `--shell-active` | Pressed or nested hover controls. |
-| `--shell-accent` | Selection, focus, and resize feedback. |
-| `--shell-accent-muted` | Selected-control background. |
 
-Thirty-three more variables have structural fallbacks in the CSS, and two are
-read by JavaScript rather than by any rule. `docs/shell-variables.md` holds the
-whole contract, derived from the stylesheet and checked against it in both
-directions. Set the ones your design system disagrees with.
-`@maximal/maximal-electron/verify/shell-variables` exports the derivation so an
-application can assert its own adapter against the stylesheet it installed.
+The package stylesheet MUST remain structural and MUST NOT provide product
+branding or a product palette.
 
-Those eleven are the whole of what the shell needs from you. `ShellLayout`'s
-root is fixed to the viewport, so it fills the window with no document reset of
-your own; set `--shell-position: static` to lay the shell out inside a container
-you have given a height to instead.
+See [embedding](./docs/embedding.md) and
+[shell variables](./docs/shell-variables.md).
 
-### The words
+## Electron host
 
-The five settings surfaces take their copy from a catalogue rather than holding
-it. `SHELL_CONTENT` is the shipped one, in English; pass your own — or a
-partial spread of it — through `ShellContentProvider` and every surface below
-follows.
+The host exports provide lifecycle sequencing, hardened BrowserWindow
+construction, secondary-panel mechanics, and terminal ownership adapters.
 
-```tsx
-import {
-  SHELL_CONTENT,
-  ShellContentProvider,
-  Usage,
-} from '@maximal/maximal-electron/renderer';
+Consumers MUST provide their own preload, renderer loader, product IPC,
+application state, and packaging configuration.
 
-<ShellContentProvider
-  content={{ ...SHELL_CONTENT, usage: { ...SHELL_CONTENT.usage, title: 'Spend' } }}
->
-  <Usage report={report} period={period} onPeriodChange={setPeriod} />
-</ShellContentProvider>;
-```
+See [architecture](./docs/architecture.md) and
+[consuming](./docs/consuming.md).
 
-`LOREM_CONTENT` is the same shape filled with lorem ipsum, for building a
-surface before its wording exists. It is also what holds the seam: the package's
-own tests render every surface from it and fail on any English that reaches the
-DOM, so a string left inside a component cannot ship quietly.
+## Development
 
-Everything the package draws sits in a cascade layer, `sb-shell.base` for the
-stylesheet and `sb-shell.components` for the rules a component injects when it
-first renders. A rule of your own outside a layer beats both, whatever their
-specificity, so overriding one takes no `!important` and no counting of
-classes. `@layer reset, sb-shell, app;` in your own CSS places the package
-against layers you already have.
+Run commands from the repository root with pnpm.
 
-`:root` or `body` rather than your own container, because `Dialog`, `Menu` and
-`IconButton`'s tooltip do not render where they are written. Each portals above
-the page, so it lands outside whatever element you put `.sb-shell` on. The
-components handle the class themselves — a surface with no `ShellLayout` above
-it mounts into a `div.sb-shell` the package appends to `body`, so the rules
-match either way — but that element inherits from `body`, and a property
-defined only on your container never reaches it. `docs/embedding.md` has the
-measurements.
-
-Status colour is yours to map. `StatusChip`, the status dot, `NavRail` items,
-`Banner` and `Callout` all put their state on `data-status`, and the shipped
-stylesheet maps no value of it, because a status vocabulary belongs to the
-application. Pass a status and every state draws the same neutral fill until you
-write the rules:
-
-```css
-.sb-shell .chip[data-status='failed'] { --shell-status: #f87171 }
-.sb-shell .chip[data-status='done']   { --shell-status: #4ade80 }
-```
-
-`--shell-status` is the label colour, `--shell-status-muted` the fill. Three
-consumers in a row passed a status, saw a grey pill, and reported that the
-colour worked, so this is stated rather than left to be discovered.
-
-`IconButton` renders a tooltip, so it needs a `Tooltip.Provider` from
-`@radix-ui/react-tooltip` above it. `ShellLayout` supplies one. Compose
-`IconButton` outside it — or `Banner` with `onDismiss`, which draws one — and
-the button is absent rather than broken.
-
-`ShellLayout` takes no children. `left`, `main` and `status` are named props;
-`top`, `bottom` and `right` are optional. Omit `right` to remove the inspector
-and its title-bar toggle. `left` is a function of the collapsed state because
-`ShellLayout` owns that state and `NavRail` needs it. Panel geometry is restored
-per active tab. [docs/embedding.md](./docs/embedding.md) assembles a whole
-application — nav rail, canvas, inspector, tabs, status bar — in one snippet.
-
-`NavRail` is a list of labelled collapsible groups, not a flat icon strip. A
-`NavRailSection` carries a heading that collapses the entries under it, and a
-`NavRailEntry` carries an icon, a label, a count and an optional status. So a
-rail of a Projects group and an Agents group is two array entries and one
-element, with no list markup and no stylesheet of the caller's own. Three
-consumers in a row read the types, concluded the component could not do it, and
-rebuilt it by hand, so this is stated here as well as in the `.d.ts`.
-
-`Canvas` is a `role="listbox"`, so every item must render exactly one element
-carrying `role="option"` and `aria-selected`, and it must be what `renderCard`
-or `renderRow` returns rather than something inside a wrapper. `Card` and `Row`
-are that element. In return the canvas owns the keyboard: one tab stop rather
-than one per tile, arrow keys between options, Enter and Space to activate. It
-writes `tabIndex` on the elements the caller returned, so a consumer supplies
-no `tabIndex` and no key handler, and an option does not have to be a button to
-be reachable. Selection stays the consumer's, in `selectedId`, and does not
-follow focus. [docs/embedding.md](./docs/embedding.md) is the contract in full.
-
-`Callout` is the box that asks for a decision: a titled region with an outline,
-a body of your markup, and a row of actions. It is not a `Card` — `Card` and
-`Row` are one selectable option in a listbox, and take `selected` and
-`onSelect` — and it is not a `Banner`, which is a strip in `ShellLayout`'s top
-slot that reports rather than asks. Three consumers in a row built this shape
-out of raw CSS for an approval prompt, so it is named here as well.
-
-```tsx
-<Callout status="blocked" title="Approval needed" actions={
-  <>
-    <Button size="sm">Deny</Button>
-    <Button size="sm" variant="primary">Allow once</Button>
-  </>
-}>
-  <span>The agent wants to run a command outside the workspace.</span>
-  <code className="field__value">npm run package</code>
-</Callout>
-```
-
-`TitleBar` accepts caller-owned `leading` and `actions` nodes. Direct `TitleBar`
-and `TabBar` consumers provide `tabIdBase` and use `getTabTriggerId` and
-`getTabPanelId` on their document tabpanels. `ShellLayout` creates that
-association from `layoutId`. It also accepts the same title bar regions and an
-optional panel-toggle subscription adapter, so host IPC stays in the consuming
-application.
-
-Run `npm run build:package` after changing an exported source file. Run
-`npm run verify:exports` to rebuild, inspect the complete renderer import graph,
-and verify that every export target appears in `npm pack`.
-
-## Package the terminal
-
-[`@maximal/maximal-terminal`](../maximal-terminal/README.md) gives a
-working terminal. `node-pty` is
-native: keep it out of the bundler, and unpack its whole prebuild directory
-rather than only `*.node`. On macOS the shell is started by `spawn-helper`,
-which has no extension and is executed from outside the archive.
-
-`TerminalView` and `TerminalTabs` accept `emulator="xterm"` or
-`emulator="ghostty"`. The default is `xterm`. The Ghostty option requires
-`'wasm-unsafe-eval'` in `script-src` and `data:` in `connect-src`.
-`ghosttyWindow` configures Ghostty-only window padding, balanced opposing
-edges, background opacity, and backdrop blur. Pixel values and opacity are
-bounded before they reach the host element; xterm ignores the option.
-
-The wire between the two halves is exported rather than hand-written.
-`createTerminalTransport` builds the renderer transport from your own `invoke`,
-`on` and channel names, and `registerTerminalChannels` answers those channels
-from a `TerminalHost`. Neither picks a name. `docs/embedding.md` has both calls.
-
-`@maximal/maximal-electron/verify` exports those assertions as a function
-to run against a built application. `docs/architecture.md` has the call.
-
-## Your own icon
-
-The dock, taskbar, window, and menu bar icons all come from one directory.
-`STUFFBUCKET_ICON_DIR` says which one, so a fork brands its build without
-editing the shell.
-
-```bash
-STUFFBUCKET_ICON_DIR=~/brand/icons npm run package
-STUFFBUCKET_ICON_DIR=~/brand/icons npm start
-```
-
-The directory must carry all five names. `npm run icons` installs Maximal's
-canonical set there, and honours the same variable.
-
-| File | Used for |
+| Task | Command |
 | --- | --- |
-| `icon.icns` | The macOS bundle icon. |
-| `icon.ico` | The Windows executable icon. |
-| `icon.png` | 512 square. Linux, the dock, the taskbar, and the window. |
-| `tray.png` | 22 square, full colour. The menu bar and system tray. |
-| `tray@2x.png` | 44 square, full colour. The same, on a retina display. |
+| Build | `pnpm --filter @maximal/maximal-electron build` |
+| Typecheck | `pnpm --filter @maximal/maximal-electron typecheck` |
+| Lint | `pnpm --filter @maximal/maximal-electron lint` |
+| Unit tests | `pnpm --filter @maximal/maximal-electron test` |
+| Export verification | `pnpm --filter @maximal/maximal-electron verify:exports` |
+| Neutrality verification | `pnpm --filter @maximal/maximal-electron verify:neutral` |
+| Documentation verification | `pnpm --filter @maximal/maximal-electron verify:docs` |
+| Storybook | `pnpm --filter @maximal/maximal-electron storybook` |
+| Storybook browser checks | `pnpm --filter @maximal/maximal-electron storybook:check` |
 
-`forge.config.ts` reads the variable at build time and fails the build when a
-name is missing. `src/main/native/icons.ts` reads it again at run time, which is
-what makes an unpackaged `npm start` on macOS show the icon: **a development run
-takes its dock icon from Electron itself**, and no amount of packaging changes
-that, so `app.dock.setIcon` is the only way to see it before a build.
-
-There is no channel for this. The renderer cannot set an icon, because a
-filesystem path taken from a renderer and loaded as an image is an arbitrary
-file read. The icon belongs to whoever launches the application.
-
-A consumer depending on this shell as a package passes `icon` to
-`createHostWindow` instead, and sets `packagerConfig.icon` in their own Forge
-configuration.
-
-## Demos
-
-The optional [`maximal-recording`](../maximal-recording/) package drives the
-reference shell and owns the edit and output directories.
-
-```bash
-pnpm --filter @maximal/maximal-recording run build:app
-pnpm --filter @maximal/maximal-recording run record
-pnpm --filter @maximal/maximal-recording run compose -- pipeline-check
-```
-
-Nothing in the output is a mock. The window is the window `npm start` opens,
-and the terminal runs a real shell. A change that breaks the interface breaks
-the recording, so a demo cannot quietly go stale.
-
-Recording is two steps. **Capture** drives the application and keeps every
-frame. **Compose** cuts those frames into a video. An edit file says what plays,
-in what order, how long each beat holds, and where it freezes.
-
-That split is what makes the timing workable. A capture takes about 45 seconds.
-A re-cut takes about 6, and needs no build and no application.
-
-See [recording.md](../maximal-recording/docs/recording.md).
-
-## Release
-
-This package is private to the monorepo and is not published. The desktop app
-is what the repository releases.
-
-**There is no installer.** No MSI and no dmg. `npm run package` produces an
-unsigned `.app` and an unsigned `win32` directory, `ci.yml` runs it on both
-platforms, `npm run verify:package` proves the result is correct, and `npm run
-smoke:packaged` launches it. Nothing wraps it. `docs/release.md` says why, and
-what a fork adds to change that.
-
-Nothing here is signed, and **no Apple credential belongs in this repository**.
-
-Read [docs/release.md](./docs/release.md) and
-[docs/signing.md](./docs/signing.md).
-
-## Known gaps
-
-Stated here rather than discovered later.
-
-- **No installer, on either platform.** This package builds unsigned app
-  directories only. See `docs/release.md`.
-- **No auto-update.** There is no delivered artifact for an updater to replace.
-- **Nothing is signed.** macOS Gatekeeper refuses an unsigned bundle it did not
-  build, and Windows SmartScreen warns on first run.
-- **Maximal icons.** `scripts/gen-icons.mjs` installs the canonical application
-  and tray assets retired with the Tauri shell. Point `STUFFBUCKET_ICON_DIR` at
-  a complete replacement set to ship another identity.
-
-## Fork it
-
-Read [.claude/skills/port-to-project/SKILL.md](./.claude/skills/port-to-project/SKILL.md).
-
-The short version: rename the app, and point `STUFFBUCKET_ICON_DIR` at your own
-icons. If you distribute an application, adding a maker is your first change.
-
-## Credits
-
-The agent harness and interface discipline follow two existing projects.
-
-- `openai/codex` contributes the prescriptive `AGENTS.md` and the
-  self-contained skill format. It contains no Electron; only these patterns
-  transfer.
-- `stuffbucket/maximal` contributes the design token scale and the
-  layout-verification discipline in `.claude/skills/verify-ui/SKILL.md`.
+Application-level Electron behavior MUST be validated in `apps/desktop/e2e`.

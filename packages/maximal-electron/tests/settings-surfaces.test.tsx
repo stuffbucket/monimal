@@ -8,7 +8,7 @@ import { ModelCards } from '../src/renderer/components/settings/ModelCards.js';
 import { SettingsDisclosure } from '../src/renderer/components/settings/SettingsDisclosure.js';
 import { Usage } from '../src/renderer/components/settings/Usage.js';
 import type { Account } from '../src/renderer/lib/account.js';
-import { sampleUsage, SAMPLE_MODELS } from '../src/renderer/lib/sample-settings.js';
+import { sampleUsage, SAMPLE_MODELS } from '../.storybook/sample-settings.js';
 
 /**
  * The rendered surfaces.

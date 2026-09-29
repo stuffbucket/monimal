@@ -98,18 +98,11 @@ describe('mutationScope', () => {
   });
 
   it('rejects a module that imports electron for a value', () => {
-    expect(scope.eligible).not.toContain('src/main/index.ts');
+    expect(scope.eligible).not.toContain('src/host/host-window.ts');
   });
 
   it('rejects a React component', () => {
-    expect(scope.eligible).not.toContain('src/renderer/App.tsx');
-  });
-
-  it('rejects a module that reaches electron through another module', () => {
-    const indirect = scope.outOfScope.find(
-      (entry) => entry.file === 'src/main/windows/main-window.ts',
-    );
-    expect(indirect?.reason).toContain('electron');
+    expect(scope.eligible).not.toContain('src/renderer/components/ShellLayout.tsx');
   });
 
   it('would have caught the two modules #102 names', () => {

@@ -50,7 +50,7 @@ const DOC_EXEMPT = ['docs/proposals'];
  * an environment variable in a workflow. The check is "does this exist
  * anywhere outside the prose", not "is it exported from the module I expect".
  */
-const SOURCE_ROOTS = ['src', 'e2e', 'tests', 'scripts', '.github', 'build'];
+const SOURCE_ROOTS = ['src', 'tests', 'scripts', '.github', 'build'];
 
 /**
  * This checker does not count as evidence for itself.
@@ -71,11 +71,9 @@ const SELF = [
 ];
 const SOURCE_FILES = [
   'package.json',
-  'forge.config.ts',
   'stryker.conf.json',
   'eslint.config.mjs',
   'vitest.config.mts',
-  'playwright.config.ts',
   'tsconfig.json',
 ];
 
@@ -95,7 +93,7 @@ const PATH_ROOTS = [...SOURCE_ROOTS, 'docs', '.claude'];
  * product name and the target triple, so there is no literal in the source to
  * match, and a bare `out` matches the English word in every file.
  */
-const BUILD_ROOTS = ['.vite'];
+const BUILD_ROOTS = ['dist'];
 
 /**
  * Bases that a document writes module paths relative to.
@@ -120,12 +118,14 @@ const MODULE_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.css', '.html'
  * rule.
  */
 const PATHS_NOT_HERE = new Map([
-  ['scripts/build-msi.ps1', 'deleted with the MSI in #119; docs/release.md records what went'],
-  ['scripts/verify-msi.ps1', 'deleted with the MSI in #119'],
-  ['build/windows/app.wxs', 'deleted with the MSI in #119'],
-  ['tests/wxs.test.ts', 'deleted with the MSI in #119'],
+  ['forge.config.ts', 'application packaging belongs to apps/desktop'],
+  ['playwright.config.ts', 'application end-to-end tests belong to apps/desktop'],
+  ['src/main/index.ts', 'application lifecycle composition belongs to apps/desktop'],
+  ['src/preload/index.ts', 'the consuming application owns its preload'],
+  ['src/renderer/main.tsx', 'the consuming application owns its renderer root'],
+  ['src/renderer/index.html', 'the consuming application owns renderer HTML'],
+  ['src/terminal-lab/index.html', 'the package contains no terminal application stub'],
   ['scripts/prebuild.js', "node-pty's, run by its own install"],
-  ['src/renderer/.vite/', 'the output path a misconfigured `root` produces, and must not exist'],
   [
     'maximal-client/src/renderer/styles/shell-adapter.css',
     "maximal-client's adapter, counted in docs/shell-variables.md",

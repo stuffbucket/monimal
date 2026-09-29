@@ -1,12 +1,10 @@
 {
   "name": "@maximal/maximal-electron",
-  "productName": "Stuffbucket",
   "version": "0.0.9",
   "private": true,
-  "description": "Reference Electron application with cross-platform build and release mechanics",
+  "description": "Embeddable Electron host and renderer components for Maximal applications",
   "license": "MIT",
   "author": "stuffbucket",
-  "main": ".vite/build/main.js",
   "exports": {
     "./main": {
       "types": "./dist/host/run-main.d.ts",
@@ -15,10 +13,6 @@
     "./host": {
       "types": "./dist/host/host-window.d.ts",
       "default": "./dist/host/host-window.js"
-    },
-    "./preload": {
-      "types": "./dist/preload/bridge.d.ts",
-      "default": "./dist/preload/bridge.js"
     },
     "./renderer": {
       "types": "./dist/renderer/index.d.ts",
@@ -61,21 +55,19 @@
     "type": "git",
     "url": "git+https://github.com/stuffbucket/maximal-electron.git"
   },
+  "monimal": {
+    "taskExemptions": {
+      "package": "The consuming desktop application owns Electron packaging.",
+      "start": "The consuming desktop application owns the Electron lifecycle."
+    }
+  },
   "scripts": {
     "analyze": "bun ../maximal-core/scripts/analyze.ts",
-    "start": "electron-forge start",
     "build:host": "node scripts/build-package.mjs --host",
     "build:renderer": "node scripts/build-package.mjs --renderer",
     "build:package": "node scripts/build-package.mjs",
     "prepack": "node scripts/build-package.mjs",
-    "prestart": "node scripts/build-package.mjs",
-    "prepackage": "node scripts/build-package.mjs",
     "postinstall": "node scripts/check-install.mjs",
-    "package": "electron-forge package",
-    "icons": "node scripts/gen-icons.mjs",
-    "verify:package": "node scripts/verify-package.mjs",
-    "verify:electron-cache": "node scripts/verify-electron-cache.mjs",
-    "smoke:packaged": "node scripts/smoke-packaged.mjs",
     "verify:exports": "node scripts/verify-exports.mjs",
     "verify:neutral": "node scripts/verify-neutral.mjs",
     "verify:workflow-health": "node scripts/verify-workflow-health.mjs",
@@ -85,7 +77,6 @@
     "test": "vitest run",
     "test:terminal": "vitest run tests/terminal",
     "test:watch": "vitest",
-    "test:e2e": "playwright test",
     "mutate": "node ../../scripts/run-mutation.mjs",
     "mutate:all": "node ../../scripts/run-mutation.mjs --all",
     "mutate:incremental": "node ../../scripts/run-mutation.mjs --incremental",
@@ -178,12 +169,6 @@
     }
   },
   "devDependencies": {
-    "@electron-forge/cli": "7.11.2",
-    "@electron-forge/plugin-fuses": "7.11.2",
-    "@electron-forge/plugin-vite": "7.11.2",
-    "@electron-forge/shared-types": "7.11.2",
-    "@electron/asar": "^4.3.0",
-    "@electron/fuses": "^2.1.3",
     "@playwright/test": "^1.62.0",
     "@radix-ui/react-collapsible": "1.1.20",
     "@radix-ui/react-dialog": "1.1.23",
@@ -204,7 +189,6 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.5",
     "@typescript/native": "npm:typescript@^7.0.2",
-    "@vitejs/plugin-react": "^6.1.0",
     "@wterm/dom": "0.4.1",
     "@wterm/ghostty": "0.4.1",
     "@xterm/addon-fit": "0.11.0",

@@ -565,29 +565,14 @@
     "count": 1
   },
   {
-    "path": "packages/maximal-electron/src/renderer/lib/sample-settings.ts",
+    "path": "packages/maximal-electron/.storybook/sample-settings.ts",
     "literal": "http://127.0.0.1:4141",
     "count": 1
   },
   {
-    "path": "packages/maximal-electron/src/renderer/lib/sample-settings.ts",
+    "path": "packages/maximal-electron/.storybook/sample-settings.ts",
     "literal": "localhost:4141",
     "count": 1
-  },
-  {
-    "path": "packages/maximal-electron/tests/bridge-capabilities.test.ts",
-    "literal": "http://127.0.0.1:9731",
-    "count": 8
-  },
-  {
-    "path": "packages/maximal-electron/tests/bridge-capabilities.test.ts",
-    "literal": "localhost:9731",
-    "count": 2
-  },
-  {
-    "path": "packages/maximal-electron/tests/host-window.test.ts",
-    "literal": "http://127.0.0.1:9731",
-    "count": 2
   },
   {
     "path": "packages/maximal-electron/tests/main-options.test.ts",

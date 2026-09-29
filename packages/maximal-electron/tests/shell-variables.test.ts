@@ -387,13 +387,11 @@ describe('the published contract', () => {
     ]);
   });
 
-  it('carries the emulator stylesheets the renderer entry imports', () => {
-    const entry = readFileSync(new URL('src/renderer/main.tsx', ROOT), 'utf8');
-    const emulatorSheets = [...entry.matchAll(/^import '(@[^']+(?:\/css|\.css))';$/gm)]
-      .map((match) => match[1]);
-
-    expect(emulatorSheets.length).toBeGreaterThan(0);
-    expect(packageStylesheets().flatMap((sheet) => sheet.imports)).toEqual(emulatorSheets);
+  it('carries the emulator stylesheets required by the exported terminal components', () => {
+    expect(packageStylesheets().flatMap((sheet) => sheet.imports)).toEqual([
+      '@wterm/dom/css',
+      '@xterm/xterm/css/xterm.css',
+    ]);
   });
 
   it('names the same required variables as the README table', () => {

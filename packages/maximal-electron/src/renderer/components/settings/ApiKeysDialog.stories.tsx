@@ -4,7 +4,7 @@ import { expect, userEvent, within } from 'storybook/test';
 
 import { LOREM_CONTENT } from '../../lib/content-lorem.js';
 import { ShellContentProvider } from '../../lib/content.js';
-import { SAMPLE_CLIENTS, SAMPLE_ENDPOINT } from '../../lib/sample-settings.js';
+import { SAMPLE_CLIENTS, SAMPLE_ENDPOINT } from '../../../../.storybook/sample-settings.js';
 import type { ApiClient } from '../../lib/settings.js';
 
 import { ApiKeysDialog } from './ApiKeysDialog.js';

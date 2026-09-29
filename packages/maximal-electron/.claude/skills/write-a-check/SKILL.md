@@ -82,13 +82,13 @@ The recipe is the same each time.
    pass.
 5. Put both messages in the pull request body.
 
-For a packaging check, mutate the built package rather than the source, because
+For an export check, mutate the built package rather than the source, because
 that is the artifact the check reads:
 
 ```bash
-npm run package
-rm out/*/Electron.app/Contents/Resources/app.asar.unpacked/**/libggml-base.dylib
-npm run verify:package
+npm run build:package
+rm dist/renderer/index.js
+npm run verify:exports
 ```
 
 A check you have not seen fail is a claim, not a check.

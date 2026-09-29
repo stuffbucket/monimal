@@ -12,26 +12,19 @@ linked document.
 
 | Task                                    | Command                                                                                                               |
 | --------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| Run the app                             | `npm start`                                                                                                           |
 | Lint                                    | `npm run lint`, `npm run lint:fix`                                                                                    |
 | Types                                   | `npm run typecheck`                                                                                                   |
 | Unit tests                              | From the monorepo root, `pnpm test`; see [`docs/testing.md`](docs/testing.md)                                         |
 | Terminal unit tests                     | `pnpm --filter @maximal/maximal-electron run test:terminal`                                                       |
 | Mutation tests                          | `pnpm --filter @maximal/maximal-electron run mutate`                                                              |
 | Terminal mutation tests                 | `pnpm --filter @maximal/maximal-terminal run mutate`                                                              |
-| End-to-end tests                        | `pnpm --filter @maximal/maximal-electron run package && pnpm --filter @maximal/maximal-electron run test:e2e` |
 | Look at a component                     | `npm run storybook`                                                                                                   |
 | Check every story                       | `npm run storybook:check`                                                                                             |
 | Check the palette                       | `npm run check:contrast`                                                                                              |
-| Package                                 | `npm run package`                                                                                                     |
-| Verify a package                        | `npm run verify:package`                                                                                              |
-| Verify the Electron download cache      | `npm run verify:electron-cache`                                                                                       |
-| Launch a package                        | `npm run smoke:packaged`                                                                                              |
 | Verify the exports                      | `npm run verify:exports`                                                                                              |
 | Verify the shell stays agnostic         | `npm run verify:neutral`                                                                                              |
 | Verify the docs                         | `npm run verify:docs`                                                                                                 |
 | Verify every workflow still runs        | `npm run verify:workflow-health`                                                                                      |
-| Regenerate icons                        | `npm run icons`                                                                                                       |
 
 Run `npm run lint:fix` after you change code. Do not ask first.
 
@@ -46,26 +39,16 @@ Each of these is load-bearing. Do not relax one to make a change fit.
 - **Never add an API key**, or any credential. Discovery finds a provider on
   localhost. A key in this repository is a defect, and no Apple credential
   belongs here.
-- **Never expose `ipcRenderer` through `contextBridge`.** The renderer gets
-  `invoke` and `on`, both of which reject a name outside the contract.
 - **Never weaken `contextIsolation: true`, `nodeIntegration: false`, or
   `sandbox: true`** on any window.
 - **Never widen the `shell:open-external` allow-list** beyond `http`, `https`,
   and `mailto`. `setWindowOpenHandler` denies, and `will-navigate` blocks
   cross-origin navigation. Both send the URL to the real browser instead.
-- **Never let a channel take a filesystem path from the renderer.** That is an
-  arbitrary file read and a path traversal surface. The application icon is the
-  worked example: it is configuration the host owns, through
-  `STUFFBUCKET_ICON_DIR`, not a request the renderer makes.
 - **Never lower the mutation threshold.** `pnpm --filter
 @maximal/maximal-electron run mutate` breaks below 100.
   It also breaks when a module the criterion selects is on neither the mutate
   list nor its deferred list, and when the mutant count falls. See
   `docs/testing.md`.
-- **Never turn a fuse back on to make a test pass.**
-  `EnableNodeCliInspectArguments: false` is why the end-to-end tests drive the
-  unpackaged build, and why `npm run smoke:packaged` drives the packaged one
-  through an argument the application answers itself.
 - **Never round-trip a manifest through a serializer to edit one field.**
   `json.load` then `json.dumps` on `package.json` rewrites key order, escaping,
   wrapping and the trailing newline, so a one-line version bump arrives as a
@@ -111,9 +94,7 @@ message in the pull request. See
 ## Writing code
 
 - Target under 300 lines for a module, excluding tests. Past roughly 400 lines,
-  add a new module instead of growing the file. This applies most to
-  `src/renderer/App.tsx` and `src/main/index.ts`, which both attract unrelated
-  changes.
+  add a new module instead of growing the file.
 - Match the density and idiom of the surrounding code.
 
 ### Comments
@@ -171,12 +152,12 @@ only background.
 
 | Area                                                                  | Document                  |
 | --------------------------------------------------------------------- | ------------------------- |
-| Processes, the IPC contract, terminals, build output                  | `docs/architecture.md`    |
+| Host APIs, renderer components, terminals, build output               | `docs/architecture.md`    |
 | The exports a consumer imports, `runMain`, the `options` shape        | `docs/embedding.md`       |
 | The `--shell-*` contract the renderer package reads from its host     | `docs/shell-variables.md` |
 | Random order, mutation testing, layout evidence, the off-screen suite | `docs/testing.md`         |
 | Stories, the a11y run, what is deliberately not in CI                 | `docs/storybook.md`       |
-| Private package release boundary, installer absence, platform notes   | `docs/release.md`         |
+| Private package and application ownership boundary                    | `docs/release.md`         |
 | The workspace consumers and exported surface                          | `docs/consuming.md`       |
 | The workflows, run health, and the merge race                         | `docs/ci.md`              |
 | Code signing                                                          | `docs/signing.md`         |
@@ -185,30 +166,13 @@ only background.
 Skills carry the walk-throughs. Read `.claude/skills/`. A list written out here
 goes stale; the one this replaces named three of the five that existed.
 
-## Two rules that live outside those documents
+## Package boundary
 
-**Fuses.** `scripts/package-contract.mjs` holds the expected fuse values.
-`forge.config.ts` burns them into the binary and `scripts/verify-package.mjs`
-reads them back off it, both from that one list, so a seventh fuse is applied
-and checked from a single edit rather than from a review convention. A change to
-the values invalidates an existing signature, so say so in the pull request: the
-macOS build must be redone.
+This package MUST NOT contain an Electron application entry point, Forge
+configuration, product preload, product renderer composition, application
+branding, or packaged-application test harness.
 
-**External native modules.** Adding one means editing the Vite external list,
-`EXTERNAL_MODULES` in `forge.config.ts`, and `scripts/verify-package.mjs`.
-`node-pty` also needs `prunePtyPrebuilds` in `forge.config.ts` to drop platforms
-the target cannot use. It goes in `devDependencies`: this package declares no
-runtime dependencies, so that entry does not reach every consumer install.
+Application lifecycle and packaging MUST live in `apps/desktop`.
 
-**Icons.** `STUFFBUCKET_ICON_DIR` names the directory, defaults to
-`build/icons`, and is the seam a consumer swaps. The run-time file names live in
-`scripts/package-contract.mjs`, which `forge.config.ts` copies from and
-`scripts/verify-package.mjs` checks against, so there is one list rather than
-two. Resolution lives in `src/main/native/icons.ts`, which imports no `electron`
-and is on the mutate list — keep it that way, and leave `nativeImage` to
-`app-icon.ts`. **A platform decision is an argument here, never a
-`process.platform` read.** Everything reachable from `windowIcon`,
-`applyDockIcon` and `setTrayEnabled` takes the platform in, so one host tests
-every branch; issue #49 is what happens otherwise. A macOS development run shows
-Electron's own dock icon until `app.dock.setIcon` runs. That is not a defect, and
-packaging does not change it.
+Native terminal packaging checks MUST remain exported through `./verify` so the
+application that owns the artifact can validate it.

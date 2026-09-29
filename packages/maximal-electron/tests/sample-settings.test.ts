@@ -6,7 +6,7 @@ import {
   SAMPLE_ENDPOINT,
   SAMPLE_MODELS,
   sampleUsage,
-} from '../src/renderer/lib/sample-settings.js';
+} from '../.storybook/sample-settings.js';
 import { groupByKind } from '../src/renderer/lib/settings.js';
 
 /**

@@ -1,5 +1,22 @@
 {
-  "extends": "../maximal-electron/tsconfig.json",
+  "compilerOptions": {
+    "ignoreDeprecations": "6.0",
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "moduleDetection": "force",
+    "types": ["node", "vitest/globals"],
+    "verbatimModuleSyntax": true,
+    "noEmit": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "skipLibCheck": true
+  },
   "include": ["src/**/*.ts", "e2e/**/*.ts", "tests/**/*.ts"],
   "exclude": ["node_modules", "demo/takes"]
 }

@@ -27,7 +27,7 @@ NOT be used as an estimate of hours of reliable operation.
 | Local processes | `packages/maximal-electron/tests/terminal/terminal-host.test.ts` | Shell identity, owner isolation, replay, and process reaping MUST use real PTYs. |
 | Local tmux | `packages/maximal-electron/tests/integration/tmux-projection.integration.test.ts` | Reports MUST state whether the opt-in real-server tests executed. |
 | SSH and remote tmux | No real-SSH fixture | Connector command assertions MUST NOT count as a successful SSH session. |
-| Window and recovery composition | `packages/maximal-electron/e2e/terminal-*.spec.ts` | Reports MUST distinguish the standalone shell from the Maximal client and actual renderer crashes from simulated events. |
+| Window and recovery composition | `apps/desktop/e2e/packaged-app.spec.ts` | Reports MUST distinguish actual renderer crashes from simulated events. |
 | Sustained use and resource cleanup | No sustained-use acceptance test | Logs and debugger observations MUST NOT count as assertions or a completed soak. |
 
 ### Diagnostic evidence

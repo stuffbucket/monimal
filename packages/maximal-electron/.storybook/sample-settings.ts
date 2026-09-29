@@ -5,7 +5,7 @@ import type {
   Endpoint,
   ModelCard,
   UsageReport,
-} from './settings.js';
+} from '../src/renderer/lib/settings.js';
 
 /**
  * Sample settings content.

@@ -109,7 +109,6 @@ describe('createHostWindow', () => {
         backgroundColor: '#16181d',
         webPreferences: {
           preload: '/absolute/preload.js',
-          additionalArguments: [],
           contextIsolation: true,
           nodeIntegration: false,
           sandbox: true,
@@ -117,53 +116,6 @@ describe('createHostWindow', () => {
         },
       }),
     );
-  });
-
-  /**
-   * The bridge declaration. Issue #17.
-   *
-   * `additionalArguments` is what a sandboxed preload can read, so it is how
-   * the host says which capabilities it registered handlers for. The preload
-   * defines those methods and no others, and the renderer feature-tests by
-   * asking whether a method exists.
-   */
-  it('declares the bridge capabilities to the preload as arguments', () => {
-    createHostWindow({
-      preloadPath: '/absolute/preload.js',
-      bridge: {
-        capabilities: ['openExternal', 'versions'],
-        serviceOrigin: 'http://127.0.0.1:9731/',
-      },
-      title: 'Consumer',
-      width: 900,
-      height: 600,
-      loadRenderer: vi.fn(),
-    });
-
-    const options = electron.constructorOptions[0] as {
-      webPreferences: { additionalArguments: string[]; sandbox: boolean };
-    };
-    expect(options.webPreferences.additionalArguments).toEqual([
-      '--bridge-capability=openExternal',
-      '--bridge-capability=versions',
-      '--bridge-origin=http://127.0.0.1:9731',
-    ]);
-    // The declaration is worth nothing if the window that carries it drops the
-    // constraint the bridge is written for.
-    expect(options.webPreferences.sandbox).toBe(true);
-  });
-
-  it('refuses to open a window declaring a capability the bridge does not carry', () => {
-    expect(() =>
-      createHostWindow({
-        preloadPath: '/absolute/preload.js',
-        bridge: { capabilities: ['readFile' as never] },
-        title: 'Consumer',
-        width: 900,
-        height: 600,
-        loadRenderer: vi.fn(),
-      }),
-    ).toThrow(/readFile is not a bridge capability/);
   });
 
   it('reveals the window on ready unless the consumer takes that over', () => {

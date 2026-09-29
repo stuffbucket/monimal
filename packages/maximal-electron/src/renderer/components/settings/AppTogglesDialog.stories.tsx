@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
-import { SAMPLE_APPS } from '../../lib/sample-settings.js';
+import { SAMPLE_APPS } from '../../../../.storybook/sample-settings.js';
 import type { AppIntegration } from '../../lib/settings.js';
 
 import { AppTogglesDialog } from './AppTogglesDialog.js';

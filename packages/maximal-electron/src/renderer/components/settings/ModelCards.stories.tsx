@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
-import { SAMPLE_MODELS } from '../../lib/sample-settings.js';
+import { SAMPLE_MODELS } from '../../../../.storybook/sample-settings.js';
 
 import { ModelCards } from './ModelCards.js';
 

@@ -328,11 +328,3 @@ jobs:
           SIDECAR="$(find "$APP" -name 'maximal-core*' | head -1)"
           test -s "$SIDECAR" || { echo "::error::no sidecar in $APP"; exit 1; }
           echo "asar $(stat -c%s "$ASAR") bytes, sidecar $(stat -c%s "$SIDECAR") bytes"
-
-      # The shell's bundle has its own check already written. It reads the asar
-      # listing, the renderer content policy, the fuse wire off the built
-      # binary, and the native-module closure -- none of which any other job
-      # can see, because the end-to-end suite deliberately drives the
-      # UNPACKAGED tree. Nothing in this repository ran it until now.
-      - name: Verify the shell's packaged app
-        run: pnpm --filter @maximal/maximal-electron run verify:package

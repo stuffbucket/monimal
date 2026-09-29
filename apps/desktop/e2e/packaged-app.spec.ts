@@ -410,6 +410,67 @@ test('packaged terminal bridge launches and terminates a native shell', async ()
   expect(result.output).toContain('MAXIMAL_TERMINAL_READY')
 })
 
+test('terminal splits preserve geometry, focus navigation, and theme tokens', async () => {
+  const page = await mainWindow()
+  await page.keyboard.press('Escape')
+  await page.getByTestId('tab-new').click()
+  const launcher = page.getByTestId('terminal-launcher')
+  await expect(launcher).toBeVisible()
+  await launcher.locator('[aria-label="Available"]').getByRole('button', { name: /Local/ }).click()
+
+  const terminals = page.locator('[data-testid="terminal"]:visible')
+  await expect(terminals).toHaveCount(1, { timeout: 20_000 })
+  await expect(terminals.first()).toHaveAttribute('aria-label', 'Terminal')
+
+  const colours = await terminals.first().evaluate((node) => {
+    const probe = document.createElement('span')
+    probe.style.background = 'var(--shell-terminal-background)'
+    node.appendChild(probe)
+    const expected = getComputedStyle(probe).backgroundColor
+    probe.remove()
+    return {
+      actual: getComputedStyle(node).backgroundColor,
+      expected,
+    }
+  })
+  expect(colours.expected).not.toBe('')
+  expect(colours.actual).toBe(colours.expected)
+
+  await terminals.first().click()
+  await page.keyboard.press('Meta+d')
+  await expect(terminals).toHaveCount(2, { timeout: 20_000 })
+
+  const left = await terminals.nth(0).boundingBox()
+  const right = await terminals.nth(1).boundingBox()
+  expect(left).not.toBeNull()
+  expect(right).not.toBeNull()
+  expect(right!.x).toBeGreaterThan(left!.x)
+  expect(Math.abs(right!.y - left!.y)).toBeLessThan(10)
+
+  await terminals.nth(1).click()
+  await page.keyboard.press('Meta+Shift+d')
+  await expect(terminals).toHaveCount(3, { timeout: 20_000 })
+
+  const upperRight = await terminals.nth(1).boundingBox()
+  const lowerRight = await terminals.nth(2).boundingBox()
+  expect(upperRight).not.toBeNull()
+  expect(lowerRight).not.toBeNull()
+  expect(lowerRight!.y).toBeGreaterThan(upperRight!.y)
+  expect(Math.abs(lowerRight!.x - upperRight!.x)).toBeLessThan(10)
+
+  await page.keyboard.press('Meta+[')
+  await expect.poll(() => terminals.evaluateAll((nodes) =>
+    nodes.findIndex((node) => node.contains(document.activeElement)))).toBe(1)
+  await page.keyboard.press('Meta+]')
+  await expect.poll(() => terminals.evaluateAll((nodes) =>
+    nodes.findIndex((node) => node.contains(document.activeElement)))).toBe(2)
+
+  await page.evaluate(async () => {
+    const sessions = await window.maximal.terminal.list()
+    await Promise.all(sessions.map(({ id }) => window.maximal.terminal.terminate(id)))
+  })
+})
+
 test('native Settings flyout opens every restored section in the packaged UI', async () => {
   const page = await mainWindow()
   const nativeLabels = await openNativeSettings('Usage')

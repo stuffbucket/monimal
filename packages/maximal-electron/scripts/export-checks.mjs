@@ -233,20 +233,6 @@ export const MAIN_SURFACE = [
   'MainRuntime',
 ];
 
-/** The names `./preload` promises a consumer. Issue #17. */
-export const PRELOAD_SURFACE = [
-  'exposeBridge',
-  'createBridge',
-  'capabilityArguments',
-  'BRIDGE_CAPABILITIES',
-  'CAPABILITY_CHANNELS',
-  'Bridge',
-  'BridgeCapability',
-  'BridgeDeclaration',
-  'Envelope',
-  'ExposeBridgeOptions',
-];
-
 /**
  * Whether a declaration promises what its subpath says it does.
  *
@@ -295,15 +281,6 @@ export async function declarationSurfaceChecks(packageRoot, declaration, subpath
  */
 export async function mainSurfaceChecks(packageRoot, declaration) {
   return declarationSurfaceChecks(packageRoot, declaration, './main', MAIN_SURFACE);
-}
-
-/**
- * @param {string} packageRoot
- * @param {unknown} declaration
- * @returns {Promise<{ checks: Check[] }>}
- */
-export async function preloadSurfaceChecks(packageRoot, declaration) {
-  return declarationSurfaceChecks(packageRoot, declaration, './preload', PRELOAD_SURFACE);
 }
 
 /**

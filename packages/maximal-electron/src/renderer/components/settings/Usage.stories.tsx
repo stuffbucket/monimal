@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 
 import { LOREM_CONTENT } from '../../lib/content-lorem.js';
 import { ShellContentProvider } from '../../lib/content.js';
-import { sampleUsage } from '../../lib/sample-settings.js';
+import { sampleUsage } from '../../../../.storybook/sample-settings.js';
 import type { UsagePeriod, UsageReport } from '../../lib/settings.js';
 
 import { Usage } from './Usage.js';

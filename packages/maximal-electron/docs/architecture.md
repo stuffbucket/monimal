@@ -1,631 +1,160 @@
 # Architecture
 
-## Processes
+## Package boundary
 
-```text
-main process                  preload (sandboxed)         renderer
-─────────────                 ───────────────────         ────────
-src/main/index.ts             src/preload/index.ts        src/renderer/main.tsx
-  lifecycle, windows            contextBridge only          React 19 shell
-src/main/ipc.ts               exposes: invoke, on
-  handler map
-src/main/native/*             ↑ both derive their types from ↓
-  menu, tray, notifications
-  preferences, updates              src/shared/ipc.ts
-src/main/windows/*                  the contract
-  main window, splash
-```
+`@maximal/maximal-electron` MUST remain an embeddable library.
 
-## The contract
+The package MUST NOT contain an Electron application main entry, product
+preload, product renderer root, Forge configuration, application HTML, product
+IPC contract, application branding, or packaged-application harness.
 
-`src/shared/ipc.ts` is the load-bearing file.
+`apps/desktop` MUST own those application concerns.
 
-`IpcContract` maps each channel to a request type and a response type.
-`IpcEvents` maps each event to a payload. Everything else derives from those
-two.
+## Host APIs
 
-Three properties fall out, and each is enforced by the compiler rather than by
-review:
+`src/host/run-main.ts` MUST own reusable Electron lifecycle sequencing. Within
+the source tree, `host/run-main.ts` is the reusable main-process entry.
 
-1. **No missing handler.** `src/main/ipc.ts` types its handler map over every
-   channel except the terminal's, and `registerTerminalChannels` answers those
-   five. Declare a channel without handling it and the build fails; take a name
-   out of `TERMINAL_CHANNELS` without giving it a handler and the build fails
-   the same way, because the map's key type stops excluding it.
-  `tests/terminal/terminal-channels.test.ts` covers the seam the two registrations
-   leave, and asserts they cover `IPC_CHANNELS` exactly once between them.
-2. **No drift.** A handler's argument and return types come from the contract,
-   so it cannot quietly return a different shape.
-3. **No stale runtime list.** `IPC_CHANNELS` and `IPC_EVENTS` are checked
-   against the type maps by an exhaustiveness assertion at the bottom of the
-   file.
+`src/host/host-window.ts` MUST create consumer windows with
+`contextIsolation: true`, `nodeIntegration: false`, and `sandbox: true`.
 
-The preload bridge checks every name against those runtime lists. That check is
-the security boundary: a compromised renderer cannot reach an arbitrary main
-process handler, because the name is not in the set.
+The consumer MUST supply its own preload path and renderer loader.
 
-The renderer never sees `ipcRenderer`.
+Cross-origin navigation and new-window requests MUST be denied in the Electron
+window and MAY be forwarded only through the safe external URL policy.
 
-## The shell
+`src/host/electron-panel.ts` MUST own reusable secondary-panel window mechanics
+without selecting product content or policy.
 
-A three-panel layout, in the shape Figma uses.
+## Renderer APIs
 
-[`embedding.md`](embedding.md#renderer-ownership) owns the package-versus-consumer
-component placement rules and defines the roles of `ShellLayout`, `AppFrame`,
-and `WindowChrome`.
+`src/renderer/index.ts` MUST remain the only renderer export root.
 
-| Region | Component | Behaviour |
-| --- | --- | --- |
-| Title bar | `TitleBar` | Draggable. Hosts the document tabs and the profile control. |
-| Left | `LeftNav` | Collapses to an icon rail. Sections collapse on their own. |
-| Centre | `Toolbar`, `Canvas` | Grid or list. Selection drives the inspector. |
-| Right | `Inspector` | Properties when something is selected, settings when not. |
+The renderer export MAY expose shell layout, tabs, controls, settings
+components, terminal components, and renderer-safe helpers.
 
-Libraries do the work that is easy to get wrong:
+The renderer export MUST NOT expose product composition, sample application
+state, or a product bridge.
 
-- `react-resizable-panels` owns panel width, collapse, and layout persistence.
-  Version 4 exports `Group`, `Panel`, and `Separator`. It is not the version 3
-  API most examples show.
-- Radix supplies `Tabs`, `Collapsible`, and `Tooltip`, so keyboard navigation,
-  roving focus, and ARIA wiring are not hand-rolled.
-- `lucide-react` supplies icons.
+`src/renderer/styles/shell-structural-tokens.css`,
+`src/renderer/styles/shell-accessibility.css`, and
+`src/renderer/styles/shell-package-rules.css` MUST compose the exported
+stylesheet.
 
-Tabs live in the title bar rather than in a row of their own. That is where
-Figma puts them, and it returns a row of vertical space to the canvas.
-
-## The account, and the settings behind it
-
-`Profile` is the account control in the title bar. It knows a display name, a
-handle, an avatar and a plan, and it knows nothing else: `Account` is a value
-the consumer already holds, and sign-in and sign-out are callbacks the consumer
-already implements. The shell has no idea what an identity provider is. This is
-the rule `lib/data.ts` states for content and `tokens.css` states for the
+The exported stylesheet MUST define structure and MUST NOT define a product
 palette.
 
-Its menu reaches five settings surfaces, which are the shell's own and are
-therefore named by the shell. Where each one opens is a decision:
+## Terminal integration
 
-| Surface | Where | Why |
-| --- | --- | --- |
-| Model cards | Tab | A catalogue that grows with the provider. Read, not operated. |
-| Logs and diagnostics | Tab | Kept open while the fault being reported is reproduced. |
-| Usage | Tab | The widest surface here, and the one left open while work runs. |
-| API keys | Dialog | One bounded task, and the only surface that puts a secret on screen. A modal takes it away again. |
-| Apps | Dialog | A short list of switches with one decision each. |
+Electron-free terminal behavior MUST live in `@maximal/maximal-terminal`.
 
-Every surface takes its content as props. `ShellSettings.tsx` is the reference
-application's wiring of them, and `lib/sample-settings.ts` is the sample
-content it passes. Both are the parts a consumer replaces.
+`./electron-terminal` MUST adapt terminal behavior to Electron window ownership
+without defining product IPC channel names.
 
-The functionality is ported from the parked Tauri shell in
-`stuffbucket/maximal-client`; none of its markup or its stylesheet is.
+Each BrowserWindow owner MUST receive an independent terminal host.
 
-## Terminals
+Closing an owner MUST release its terminal host and terminate sessions that
+were not transferred or explicitly retained.
 
-A tab holds the library grid, a settings surface, or a terminal. The `+`
-button opens a terminal.
+Terminal ownership transfers MUST stage before commit and MUST roll back on a
+failed destination.
 
-`TerminalView` selects xterm.js by default. Its `emulator` option can select
-wterm instead. `@wterm/dom` supplies the DOM renderer and input handling, and
-`@wterm/ghostty` supplies the libghostty virtual terminal compiled to
-WebAssembly. Both wterm packages are Apache-2.0 licensed.
+`TerminalView` MUST select xterm.js by default and MAY select wterm/libghostty
+through its `emulator` option.
 
-Ghostty renders bounded direct Kitty PNG, RGB, and RGBA images. It does not
-render SIXEL, iTerm2 images, animations, indirect media, or persistent images.
-Kitty graphics inside tmux require the user's pane-level `allow-passthrough`
-setting; this shell does not mutate an existing tmux session's options.
+`@wterm/dom` MUST own wterm DOM rendering and input handling.
 
-The optional `ghosttyWindow` value carries renderer-owned window adjustments:
-horizontal and vertical padding, balanced opposing edges, background opacity,
-and backdrop blur. It applies only when `emulator="ghostty"`; xterm geometry is
-unchanged.
+`@wterm/ghostty` MUST own the libghostty virtual terminal compiled to
+WebAssembly.
 
-Native Ghostty owns windows and splits outside its virtual terminal. This shell
-therefore owns that layer: `TerminalView` consumes Command+D and
-Command+Shift+D, while `TerminalTabs` builds a resizable right or down split
-from a second host-launched Local session. An embedder that supplies no split
-launcher keeps those keys unconsumed. Command+[ and Command+] cycle split
-focus, and the active pane carries the focus ring. An exited pane collapses to
-its sibling; an exited final pane closes the terminal tab. Command+K, Command+A,
-Command+Home, and Command+End use the emulator's
-clear, select, and scroll actions. OSC 0 and OSC 2 title changes name a terminal
-tab; controls are removed and titles are bounded before the tab stores them.
-The PTY launch directory basename is the initial shell title.
+Ghostty MAY render bounded direct Kitty PNG, RGB, and RGBA images. The package
+MUST NOT claim support for SIXEL, iTerm2 images, animations, indirect media, or
+persistent images.
 
-`terminal-workspace.ts` defines the renderer aggregate for terminal composition.
-A terminal document owns one pane tree and its logical focus. Pane leaves
-reference branded view identities. A view references one session and may
-reference one backend projection. A session may have any number of views and
-projections, but one backend projection belongs to at most one live view because
-its focus and resize epoch identify one control endpoint. The aggregate owns
-split, close, focus, and document docking as immutable operations. It owns no
-emulator, DOM node, Electron object, or process lifetime. `TerminalTabs` still
-renders its compatible session-leaf shape, but applies main-process pane
-revisions as observations: only local split/close commands emit a pane change,
-and an older revision can neither replace nor echo newer document state.
+Kitty graphics through tmux MUST rely on the user's pane-level
+`allow-passthrough` setting; the package MUST NOT mutate an existing tmux
+session's options.
 
-`init()` is shared across terminal views. A rejected load clears that shared
-promise, and the view shows a retry action rather than leaving an empty canvas.
-Emulator resize events coalesce to the latest dimensions once per animation
-frame before crossing IPC. The selected emulator owns clipboard paste and IME
-composition; the shell does not layer competing handlers over them.
+The optional `ghosttyWindow` value MAY adjust horizontal and vertical padding,
+balanced opposing edges, background opacity, and backdrop blur only when
+`emulator="ghostty"`.
 
-It parses and renders. It does not run a process. The shell lives in the main
-process, in `src/main/native/pty/`, which is what lets the renderer keep
-`sandbox: true`. That directory is the Electron half of the manager:
-`index.ts` routes each call to which window owns a session (`mirrors.ts`),
-where a session starts (`launcher.ts`), tmux-owned sessions
-(`projections.ts`), and where its output goes. The manager
-itself is `TerminalHost` from `@maximal/maximal-terminal`, so this shell
-and a consumer run the same code rather than two copies of it. `src/main/ipc.ts`
-registers the channels through `registerTerminalChannels` and
-`src/renderer/lib/bridge-terminal.ts` builds its transport through
-`createTerminalTransport`;
-[the terminal README](../../maximal-terminal/README.md#wiring-a-terminal)
-holds the consumer's call of both.
+`TerminalView` MUST consume Command+D and Command+Shift+D only when the
+consumer supplies split launching.
 
-The tab strip uses a versioned drag payload (`tab-transfer.ts`) for immutable
-same-window reordering and cross-window identity. Moving a live terminal must
-reparent its `TerminalHost` session rather than call `pty:spawn` again:
-`TerminalHost.transfer` changes the event sink and retains the process,
-scrollback, and flow-control state. Window creation and IPC code MUST use that
-operation for undocking/redocking; closing a detached window then follows the
-normal owner cleanup path.
+`TerminalTabs` MUST create resizable right and down splits from separately
+host-launched Local sessions.
 
-The application also owns a separate launcher path. `terminal:profiles`,
-`terminal:discover`, and `terminal:launch` accept only opaque identifiers and
-dimensions. `terminal-launcher.ts` repairs versioned `terminal-profiles.json`
-under `userData`, always synthesizes Local, and holds a short-lived reservation
-for the owning window. `terminal:launch` consumes that reservation and starts
-the process before it returns a session id. Its later `pty:spawn` attaches the
-view and resizes the live id. The shipped spawn request accepts only that id
-and dimensions, so a renderer cannot override executable configuration.
-Direct `pty:spawn` remains the exported compatibility path for trusted
-embedders. Discovery is generation-labelled and bounds a connector failure or
-timeout to that profile, while Local remains available.
+Command+[ and Command+] MUST cycle split focus, and the active pane MUST carry
+the focus ring.
 
-Local, Docker, Podman, Lima, Multipass, Kubernetes, WSL, Vagrant, SSH, and the
-local and remote durable variants are immutable built-in profiles. The
-launcher presents one destination per machine: when tmux is available it
-prefers the durable variant, and otherwise retains the direct Local or SSH
-choice. Existing Maximal-owned durable sessions appear separately under
-Running. Podman is available on supported hosts; Lima is
-available on macOS and Linux; Multipass, Kubernetes, and Vagrant are available
-on macOS, Linux, and Windows when their CLI is present; WSL is Windows only.
-SSH is available on macOS, Linux, and Windows when system OpenSSH is present;
-a bounded `ssh -V` probe makes an absent client SSH-local unavailable.
-Discovery runs only in the main process through bounded `execFile` calls. WSL
-uses `wsl.exe --list --quiet` and launches a registered distribution with its
-exact `--distribution` argv. Vagrant reads pruned machine-readable global
-status, exposes only running machines, retains its project directory only in
-main, and launches its stable machine id without a renderer supplied cwd.
-Kubernetes uses the current context and one
-all-namespace JSON pod query, then exposes only Running pods and declared
-normal containers. It caps subprocesses, duration, bytes, namespaces, pods,
-containers, and labels. The renderer receives opaque target ids and labels,
-never connection names, instance names, Kubernetes contexts, namespaces, pod
-UIDs, container ids, Vagrant project directories, or WSL distribution names.
-Kubernetes target state retains the context, namespace, pod name and UID, and
-container in main. A later discovery invalidates all
-older targets for that window. This slice launches its exact `kubectl exec`
-argv without a third UID preflight, so a same-name replacement between discovery
-and launch is resolved by Kubernetes rather than silently remapped by this
-application. SSH reads only the trusted primary user config at `~/.ssh/config`
-through a capped main-owned reader. It accepts a single strict `Host alias`
-directive before `Match`; comments, wildcard and negated aliases, multi-pattern
-entries, `Include`, and every option are ignored. Alias target ids are opaque;
-the main process validates the cached alias again and launches exactly
-`ssh -tt alias`. System OpenSSH retains all configuration and authentication.
-Background terminals require tmux to be installed. They are available locally
-on macOS and Linux and through SSH on every SSH platform. Discovery reads
-`tmux -V` before the fixed bounded `tmux list-sessions
--F '#{session_name}'` command; the SSH form runs those exact remote commands
-against at most 16 strict aliases. A missing tmux server still exposes one host-generated New
-target, named `stuffbucket-` plus 32 lowercase hexadecimal characters; a
-missing binary is unavailable. Discovery ignores sessions that do not have the
-host-generated prefix, so Maximal never imports or takes ownership of a
-user-managed tmux session. Existing background session names and SSH aliases
-remain in the owner- and generation-scoped main-process target cache. The
-renderer sees only `Terminal N`, a local or SSH destination label, the target
-purpose used to separate Running sessions, and opaque ids.
-Tmux 3.4 and newer launches use `tmux -T hyperlinks new-session -A -s NAME` or
-`ssh -tt ALIAS tmux -T hyperlinks new-session -A -s NAME`; older clients omit
-the unsupported feature flag. Both renderer emulators support OSC 8 links, and
-no renderer value becomes command text. Putting a terminal in the background,
-closing its owner window, or quitting the app preserves the tmux session.
-Closing the terminal explicitly kills its Maximal-owned tmux session. A
-background terminal can be discovered and reopened after restart; renderer
-scrollback and an SSH connection do not persist. Multiple windows may attach
-to the same background session; tmux owns terminal-size arbitration.
+An exited pane MUST collapse to its sibling, and an exited final pane MUST
+close the terminal tab.
 
-Tmux control mode is an internal local macOS/Linux capability and is not
-exposed as a terminal profile. Its
-main-process control client selects one pane and forwards that pane through the
-existing terminal channel, so Ghostty excludes tmux status, copy, and choose
-interfaces. It has no SSH form. The client bounds protocol and output backlog
-and closes on a protocol failure; renderer acknowledgement does not currently
-drive tmux `pause-after` flow control.
+OSC 0 and OSC 2 title changes MAY name a terminal tab after control characters
+are removed and the title is bounded.
 
-`TmuxProjectionBroker` is the reusable multi-client policy above ordinary tmux
-client PTYs. One logical session holds canonical columns and rows, zero or one
-focus owner, a monotonic focus epoch, and any number of projections. Each
-projection receives its own tmux-rendered VT stream. Only the projection that
-names the current focus epoch may write or resize. An accepted resize applies
-to every client PTY, so tmux receives one geometry regardless of renderer
-window size. Detaching or losing a projection kills only that tmux client.
-Explicit session termination kills every client, but calls the tmux session
-terminator only for a session the application created. Attaching to an existing
-user session never grants permission to kill that server session.
+`terminal-workspace.ts` MUST own the immutable renderer aggregate for pane
+trees, logical focus, view identities, sessions, projections, splits, closes,
+and document docking.
 
-The broker takes process creation and session termination as callbacks. A
-consumer may attach local tmux, SSH plus tmux, or another connector without
-putting command construction in the renderer. Tmux control mode stays on a
-separate host-only connection. `TmuxProjectionHost` retains the trusted attach
-and termination commands for the reference Electron host. The
-`pty:projection-*` channels carry opaque session and projection ids plus the
-focus epoch. Attach, focus, write, resize, and detach stay separate so stale
-input cannot become current merely by arriving later. The application renderer
-allocates one projection id per mounted view, uses the returned epoch for every
-write and resize, filters output by projection id, and detaches that projection
-when the view closes. Existing `pty:*` calls remain a main-process compatibility
-path rather than the renderer's projection control path.
+The terminal workspace MUST NOT own an emulator, DOM node, Electron object, or
+process lifetime.
 
-The connector is mutation tested through `command-connectors.ts`. Command-backed
-sessions are ephemeral and non-reconnectable:
-closing their view terminates the command, and the application does not claim
-detach support.
+Main-process pane revisions MUST be observations; an older revision MUST NOT
+replace or echo newer document state.
 
-```
-keystroke -> term.onData -> `pty:write` channel -> shell
-shell     -> `pty:data` event                   -> term.write
-term.write -> `pty:ack` channel                 -> shell
-```
+Terminal emulator initialization MUST be shared across terminal views, and a
+rejected initialization MUST clear the shared promise so the renderer can
+offer retry.
 
-Four details are load-bearing.
+Emulator resize events MUST coalesce to the latest dimensions once per
+animation frame before crossing the consumer-owned bridge.
 
-- **A session has one process owner at a time.** `pty.ts` holds one
-  `TerminalHost` per `BrowserWindow`. Closing an unshared owner reaps its
-  sessions. Closing the owner of a shared session first transfers the live
-  process and output sink to a surviving authorized viewer; it never restarts
-  the process. Undocking uses the same `TerminalHost.transfer` primitive. Quit
-  reaps every host.
-  A request that arrives with no window is refused: nothing would reap it.
-  A detached session is reaped the same way; detach is a view's lifetime, not
-  a window's.
-- **`TerminalHost` batches output.** A build log emits thousands of small
-  writes per second. One message each would swamp the channel, so it coalesces
-  on an 8 millisecond timer.
-- **Output has a bounded acknowledged window.** See
-  [flow control](../../maximal-terminal/README.md#flow-control).
-- **Terminals stay mounted.** Switching tabs hides the inactive host rather
-  than unmounting it. A remount loses the scrollback, which lives in the
-  emulator, and by default kills the shell as well.
-- **Tab and session identity differ.** The renderer owns tab ids and gives each
-  terminal tab an opaque session id. IPC keeps the backward-compatible `id`
-  field name for that session id. `pty:status` reports `started` after host
-  registration and `exited` only for the current process generation.
-- **Shared sessions use a projection backend contract.** The
-  [session backend](../../maximal-terminal/src/host/session-backend.ts)
-  defines attach, focus, write, resize, detach, and geometry independently of
-  the backend. The tmux broker implements it today: tmux remains the canonical
-  screen and scrollback for multi-view sessions, while direct local PTYs
-  additionally support one caller-invoked mirror mechanism, described below,
-  for the single "copy this tab into another window" case.
-- **A direct local PTY can be mirrored to a second window.** "Copy into New
-  Window" does not spawn a second process or wrap the shell in tmux: `pty.ts`
-  tracks the session's real owner in `sessionOwner` and registers the new
-  window as a mirror. `TerminalHost.mirror` adds the window to the session's
-  observer set, replays the retained buffer to it immediately, and every
-  subsequent chunk and exit notification broadcasts to owner and mirrors
-  alike. The topology is flat: copying from either the owner or any mirror
-  resolves the current `sessionOwner` and attaches the destination directly
-  to that canonical session; a mirror never forwards to or owns another
-  mirror. A mirror's `pty:write`/`pty:resize` calls likewise resolve the
-  current real owner before delegating, so they keep working even if the
-  owning window later undocks the tab elsewhere; the mirror set lives on the
-  `Session` object itself, so an ownership transfer carries every surviving
-  sibling along with no extra rewiring. Main assigns each group member a
-  strictly increasing creation index using the wall clock or the previous
-  index plus one, whichever is greater. When the owner closes, the attached
-  surviving sibling with the smallest index becomes the new owner; active
-  native-window focus does not affect that lifecycle decision. A mirror
-  window closing detaches only its own subscription; the owner and any other
-  mirrors are unaffected.
-- **A mirrored session has one canonical PTY grid and one window-group
-  controller.** Attach/detach reconciliation uses the smallest live grid.
-  During a user resize, that viewer's grid becomes authoritative and broadcasts
-  through `pty:size`; the controller copies the root document window's physical
-  content size to other resizable Electron viewers. Split leaves retain their
-  own PTY grids and never independently resize the OS window. Applied physical
-  geometry is tagged and consumed across every split leaf, so its
-  `ResizeObserver` reports cannot become new user intent. Non-resizable and
-  projection-backed clients retain their capability-specific geometry policy.
-  Font cell metrics stay fixed: native content/pane bounds are changed, each
-  emulator fits those real bounds, and the resulting columns and rows resize
-  the PTY and deliver normal reflow/SIGWINCH behavior. The controller does not
-  synthesize convergence with padding, clipping, transforms, or text scaling.
-  Tmux projections request manual server geometry and publish only the geometry
-  tmux confirms; a rejected local or SSH geometry command is reported visibly
-  to every attached projection instead of pretending it converged.
-- **Window transfer moves a tab's session group.** A split tab serializes its
-  validated pane tree and session ids in the drag/IPC payload. The main process
-  transfers every live session in that tree, and the destination reconstructs
-  the same split rather than silently reducing it to the root terminal.
-- **The content policy permits WebAssembly.** `script-src` needs
-  `'wasm-unsafe-eval'`. Vite emits wterm's `ghostty-vt.wasm` as a same-origin
-  package asset, so `connect-src 'self'` covers its startup fetch.
+The selected emulator MUST own clipboard paste and IME composition.
 
-### Detaching a session from its view
+`src/main/native/pty/` MUST contain the Electron terminal manager, while
+`TerminalHost` from `@maximal/maximal-terminal` MUST own process behavior.
 
-[The terminal README](../../maximal-terminal/README.md#detaching-a-session-from-its-view)
-owns what a detach keeps and how it is found again.
+The consuming application MUST own IPC channel names and adapt its preload
+contract to the exported terminal functions and renderer transport.
 
-In this shell the `terminalDetach` preference is off by default. With it on,
-closing a terminal tab leaves the shell running, the inspector lists what is
-running with no tab, and clicking one reopens its tab and attaches.
+Moving a live terminal between windows MUST transfer its `TerminalHost`
+session rather than spawn a replacement process.
 
-### The terminal and the theme
+Terminal profile discovery and launch MUST accept opaque identifiers and
+dimensions instead of renderer-supplied executable configuration.
 
-The emulator draws to a canvas. It is the one surface that cannot inherit
-colours from CSS. `src/renderer/lib/theme.ts` resolves three design tokens to
-literal values, and the terminal starts with those.
+Discovery MUST run in the main process through bounded process calls, isolate a
+connector failure to its profile, and keep Local available.
 
-**A terminal keeps the scheme it opened in.** Those colours reach the
-WebAssembly terminal at construction. They become the default background,
-foreground, and palette of every cell. `renderer.setTheme` changes only the
-layer those cells cover. Assigning `options.theme` after `open()` does nothing,
-and logs a warning. The supported route is `reset()`, which rebuilds the
-WebAssembly terminal and wipes the screen and the scrollback.
+The fixed terminal identity and tmux prefix MUST remain Maximal-owned rather
+than derive from product settings or legacy application branding.
 
-Losing a build log to a theme toggle is the worse trade. So a running terminal
-keeps its colours, and a new tab picks up the current scheme.
-`e2e/shell.spec.ts` asserts both from canvas pixels. The value handed to the
-emulator proves nothing about what reached the screen.
-
-### Packaging the native module
-
-`node-pty` is native, and this is the part that breaks quietly.
-
-It stays external to the Vite bundle. Bundling it would inline code that
-resolves a `.node` file by relative path, and that path does not survive the
-move into `.vite/build`. Being external means it has to arrive as real files.
-
-Forge's Vite plugin sets `packagerConfig.ignore` to "keep only `/.vite`",
-because it assumes everything is bundled. That excluded the module entirely.
-The package built, every test passed, and a user would still have had no
-terminal. `forge.config.ts` now supplies its own `ignore`, and
-`scripts/verify-package.mjs` asserts the module is present.
-
-That `ignore` is the whole filter, because `packagerConfig.prune` is `false`.
-Packager's own walk keeps `dependencies` and drops the rest, while this package
-declares no runtime dependencies. An external native module therefore goes in
-`devDependencies` and reaches the reference package through the keep-list.
-
-**The package comes from Microsoft.** `@lydell/node-pty` repackages the same
-published tarball — the binaries and the seven files in the package's `lib`
-directory hash identically — and adds a single maintainer with no continuous
-integration.
-Microsoft ships every platform in one 26 MB package instead of a prebuild per
-platform (their issue #864), so `prunePtyPrebuilds` in `forge.config.ts` drops
-the ones a given build cannot use. It runs as `packageAfterCopy` rather than in
-`packagerConfig.ignore`, because the `ignore` predicate is handed a path and
-not the target platform, and a cross-platform build would otherwise keep the
-build host's prebuild.
-
-The binary is Node-API: 38 `napi_*` imports and no V8 symbols. One binary per
-platform serves every Electron version, which is why `@electron/rebuild` does
-not appear anywhere in this repository. A registry install runs
-`scripts/prebuild.js`, which checks that the prebuild directory exists and exits
-0. `node-gyp` fires only on an unsupported platform or under
-`npm_config_build_from_source`.
-
-Every runtime dependency is pinned to an exact version. `^1.2.0-beta.14`
-admitted every later beta on a prerelease line, plus every 1.x release.
-`tests/package-exports.test.ts` holds that rule.
-
-## Crash artifacts
-
-The reference application starts `crashReporter` with uploads disabled.
-`runMain` leaves collection off unless a consumer sets `collectCrashDumps` and
-supplies the reporter through `MainRuntime`.
-
-`host/crash-artifacts.ts` asks Electron for the `crashDumps` directory and scans
-it recursively because Crashpad's layout differs by platform. The Help menu
-opens that directory when collection is enabled. Nothing uploads the files.
-
-## The terminal a consumer gets
-
-Four exports, and they are deliberately separate. The Electron-free terminal
-is [`@maximal/maximal-terminal`](../../maximal-terminal/README.md).
-
-| Export | What it is |
-| --- | --- |
-| `./renderer` | `TerminalTabs` and `TerminalLauncher`, the shell's composition of the terminal views. |
-| `./electron-terminal` | The reference application's Electron IPC and terminal-launcher adapter. |
-| `./renderer/styles.css` | `shell-structural-tokens.css` and `shell-package-rules.css`, which carry the terminal rules. |
-| `./verify` | The packaging assertions, as a function to run against a consumer's own build. |
-
-### Verifying a consumer's own package
-
-A consumer inherits both traps and none of the checks. `./verify` closes that,
-and `scripts/verify-package.mjs` calls the same function, so the two cannot
-drift.
-
-```js
-import { readdirSync } from 'node:fs';
-import { listPackage } from '@electron/asar';
-import { terminalPackageChecks } from '@maximal/maximal-electron/verify';
-
-const resources = 'dist/mac-arm64/YourApp.app/Contents/Resources';
-const checks = terminalPackageChecks({
-  packedFiles: listPackage(`${resources}/app.asar`),
-  unpackedFiles: readdirSync(`${resources}/app.asar.unpacked`, {
-    recursive: true,
-    encoding: 'utf8',
-  }),
-  platform: process.platform,
-  arch: process.arch,
-  contentSecurityPolicy: "script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'",
-});
-
-for (const { name, ok } of checks) if (!ok) throw new Error(name);
-```
-
-It is plain ESM under `scripts/`, not TypeScript in `src/`, because `dist/` is
-ESM syntax in a package with no `"type": "module"`: a bundler reads it and
-`node` refuses it. A packaging check runs under plain `node`.
-
-The first three checks it returns are floors. Point either list at the wrong
-directory and it is empty, and omit `contentSecurityPolicy` and there is no
-policy to measure; in each case every assertion over the missing input would
-otherwise report a pass. That is not hypothetical: the policy was optional and
-this repository's own caller supplied none, so the WebAssembly grant
-above were never measured against a shipped document. Read the policy out of the
-HTML the build produced, as `scripts/verify-package.mjs` does, rather than
-restating it beside the call.
-
-`TerminalView` takes its transport as a value. It knows nothing about an IPC
-contract, so a consumer wires `TerminalHost` to whatever channels they already
-have. Hand-writing that wiring is no longer part of it:
-`createTerminalTransport` builds the renderer half from the caller's `invoke`,
-`on` and channel names, and `registerTerminalChannels` answers the five request
-channels from a `TerminalHost`. `docs/embedding.md` has both calls.
-
-The transport `createTerminalTransport` returns is a
-`DetachableTerminalTransport`, so `disposition="detach"` works without a sixth
-method. A consumer writing the object by hand still owes `list`, because the
-type demands it: a shell that outlives every view and that nothing can
-enumerate is a process the user cannot see and cannot stop, so the prop refuses
-the half of the pair that leaks.
-
-`TerminalHost` is an instance, not module state, so a consumer with two windows
-gets two registries and closing one cannot reap the other's shells. This shell
-uses it the same way: `src/main/native/pty/index.ts` keys one instance per
-`BrowserWindow`. It imports no `electron`: the home directory, the default
-shell, and any extra environment such as `TERM_PROGRAM` are supplied, because
-`app.getPath` is not this module's to call and the product name is not its to
-know.
-
-Three custom properties have no declaration in any stylesheet and cannot have
-one. The emulator renders to a canvas and takes literal colours at
-construction, so `--shell-terminal-background`, `--shell-terminal-foreground`
-and `--shell-terminal-cursor` are read by `readTerminalTheme` in JavaScript.
-
-## Design tokens
-
-`src/renderer/styles/tokens.css` follows the scale and the naming in
-`maximal`'s `shell/src/ui/styles/tokens.css`, so a component can move between
-the two projects. The palette differs, because this is a document-style
-application rather than a menu-bar utility.
-
-Components reference semantic names only. No component contains a hex value.
-
-### Contrast
-
-`src/renderer/lib/contrast.ts` records which token is drawn on which surface,
-and therefore which pairs must be legible, plus every token the stylesheets
-read. `npm run check:contrast` measures the palette against it, and CI runs it.
-
-Three failures are reported separately, because they need different fixes: a
-token that is not defined, a token defined in a form the check cannot read —
-anything but `#rgb` or `#rrggbb` — and a pair that reads fine and does not
-contrast. An unreadable pair is never counted as a pass.
-
-## Native integration
-
-| Feature | Module | Note |
-| --- | --- | --- |
-| Splash | `windows/splash.ts` | Self-contained HTML. A timer closes it, so a missed signal cannot strand it. |
-| Application menu | `native/menu.ts` | Sends typed events. It never mutates renderer state directly. |
-| Menu bar or tray | `native/tray.ts` | Optional, driven by a preference. macOS needs a `Template` image. |
-| Icons | `native/icons.ts`, `native/app-icon.ts` | One directory, named by `STUFFBUCKET_ICON_DIR`. Resolution is pure, takes the platform as an argument, and is mutation tested. |
-| Notifications | `native/notifications.ts` | Also owns the dock bounce. |
-| Dock badge | `native/notifications.ts` | The renderer reports a count; the main process decides whether to show it. |
-| Preferences | `native/preferences.ts` | One JSON file under `userData`. |
-| Updates | `native/updates.ts` | Returns `unsupported`. See `docs/release.md`. |
-| Electron panel | `host/electron-panel.ts` | Reusable transparent panel mechanics; the consumer owns content and policy. |
-| Crash artifacts | `native/crash-reports.ts`, `host/crash-artifacts.ts` | Starts Crashpad, finds the dumps, opens the directory. Resolution is pure and mutation tested. |
-
-The menu and the tray both route through `sendEvent`, so the React shell stays
-the single owner of view state.
-
-### The Electron panel
-
-`host/electron-panel.ts` owns only `BrowserWindow` and display mechanics. The
-consumer supplies the preload path, renderer loader, work-area-relative bounds,
-stacking policy, focus policy, movement policy, and an optional completed-move
-callback. The export keeps hardened web preferences, reasserts the requested
-bounds after a panel is shown without reporting that placement as a user move,
-and supports warm hide/reuse plus explicit destruction.
-
-### The application icon
-
-Two halves, and they answer different questions.
-
-**Build time** is what a user sees after installing. `forge.config.ts` sets
-`packagerConfig.icon` from `STUFFBUCKET_ICON_DIR`, which defaults to
-`build/icons`. macOS reads the bundle, Windows reads the executable. `bundleIcon`
-in `scripts/package-contract.mjs` names the format each one needs, and
-`forge.config.ts` then checks that file is present, because a missing bundle icon
-is silent: packager warns and ships the Electron default.
-
-**Run time** is what the developer sees, and what the tray needs. The main
-process loads `icon.png` for the dock and for the `BrowserWindow` icon, and the
-coloured Tauri icon at 22pt or 44px retina for the menu bar and system tray.
-Those files ship beside `app.asar` rather than inside it, because they are read
-as files.
-
-`src/main/native/icons.ts` decides which directory that is and which file each
-platform takes, and imports no Electron, so both decisions are unit and mutation
-tested. `windowIconName`, `dockIconName` and `trayIconChoice` read their inputs
-rather than `process.platform`, so a run on any host answers for all three
-targets. The tray choice is deliberately the same coloured image everywhere;
-macOS must not tint it as a template. `src/main/native/app-icon.ts` is the thin
-part that touches `nativeImage`, and `tests/app-icon.test.ts` mocks Electron to
-check the decision reaches it.
-
-**A development run on macOS shows Electron's dock icon.** Packaging cannot
-change that, because there is no bundle. `app.dock.setIcon` is the only way to
-see a different one before a build, and `bootstrap` calls it. So a stock icon
-during `npm start` on a build predating this is not a defect.
-
-**There is no channel.** A renderer that can name a file and have the main
-process load it as an image has an arbitrary file read and a path traversal
-surface, and the icon is a decision belonging to whoever launched the
-application rather than to a document. The seam is the environment and the
-`createHostWindow` options, both of which the host owns.
+`./verify` MUST expose native terminal package checks for the consuming
+application's artifact.
 
 ## Build output
 
-| Source | Output | Why |
-| --- | --- | --- |
-| `src/main/index.ts` | `.vite/build/main.js` | `entryFileNames` is explicit, or it collides with preload. |
-| `src/preload/index.ts` | `.vite/build/preload.js` | Emits CommonJS: a sandboxed preload cannot use ES modules. |
-| `src/renderer/*.html` | `.vite/renderer/main_window/` | `root` is set, so `outDir` must be absolute. |
+`scripts/build-package.mjs` MUST compile host declarations and renderer
+declarations and copy the exported stylesheet.
+
+The build MUST write library artifacts under `dist/`.
+
+The build MUST NOT create `.app`, `.exe`, asar, Forge, Vite-renderer, or
+application HTML output.
+
+The package export map MUST own the supported runtime surface.
+
+`scripts/verify-exports.mjs` MUST verify every declared export and the renderer
+dependency graph.
 
 ## Testing
 
-| Layer | Tool | Covers |
-| --- | --- | --- |
-| Unit | Vitest | Main-process logic and contract types. |
-| End to end | Playwright | Behaviour and computed layout, against the built bundles. |
-| Packaging | `scripts/verify-package.mjs` | asar contents, the shipped content policy, and fuse values. |
+Vitest MUST cover host lifecycle, host-window security, renderer components,
+terminal ownership, exported contracts, and verification helpers.
 
-The third layer exists because the second cannot reach it. Playwright attaches
-through the Node inspector, and `EnableNodeCliInspectArguments: false` disables
-that on a packaged binary. So the end-to-end tests drive the unpackaged build,
-and a separate script checks what only a package can show.
+Storybook browser checks MUST cover rendered shared components and accessibility.
 
-Reference screenshots go through `capture` in `e2e/harness.ts`, not
-`page.screenshot`. macOS stops compositing an occluded window. The plain call
-then blocks until its timeout instead of returning. `capture` reads the
-renderer through the debugger. So it does not depend on what is in front.
-
-A run also keeps off the developer's screen. Under `STUFFBUCKET_E2E` the
-windows move off the side of the display instead. They still show, still report
-visible, and still lay out identically. `STUFFBUCKET_E2E_VISIBLE=1` puts them
-back.
-
-Moving them is deliberate. Making them transparent works too, and it stops the
-compositor producing content. The images came out blank while the suite stayed
-green. `capture` now rejects an image under a size floor for that reason.
+Application packaging and Electron end-to-end behavior MUST be tested by
+`apps/desktop`.
