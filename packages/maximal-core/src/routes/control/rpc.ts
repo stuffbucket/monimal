@@ -64,10 +64,9 @@ import {
   setAccountEnabledLive,
 } from "~/lib/auth/auth-recovery"
 import {
-  readDefaultRegistry,
   removeAccount,
   setAccountPriority,
-  writeDefaultRegistry,
+  updateDefaultRegistry,
 } from "~/lib/auth/github-token-store"
 import {
   issueTerminalScope,
@@ -451,8 +450,9 @@ function createAccountRpcMethods(
           Array.isArray(rawPriority) ?
             rawPriority.filter((key): key is string => typeof key === "string")
           : []
-        const reg = await readDefaultRegistry()
-        await writeDefaultRegistry(setAccountPriority(reg, priority))
+        await updateDefaultRegistry((registry) =>
+          setAccountPriority(registry, priority),
+        )
         hub().emit("accounts", await buildAccountsList())
         return { ok: true }
       }),
@@ -479,12 +479,14 @@ function createAccountRpcMethods(
     "accounts/remove": (params: unknown) =>
       mutex.runExclusive(async () => {
         const key = keyFromParams(params)
-        const reg = await readDefaultRegistry()
-        if (!(key in reg.accounts)) {
-          throw new RpcParamsError(`No account ${key}.`)
-        }
-        const wasActive = reg.activeKey === key
-        await writeDefaultRegistry(removeAccount(reg, key))
+        let wasActive = false
+        await updateDefaultRegistry((registry) => {
+          if (!(key in registry.accounts)) {
+            throw new RpcParamsError(`No account ${key}.`)
+          }
+          wasActive = registry.activeKey === key
+          return removeAccount(registry, key)
+        })
         hub().emit("accounts", await buildAccountsList())
         return { ok: true, key, was_active: wasActive }
       }),

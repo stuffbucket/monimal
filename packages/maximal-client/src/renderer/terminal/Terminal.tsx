@@ -39,6 +39,7 @@ export function Terminal({
   tabs,
   activeId,
   onExit,
+  onFocusChange,
   onTitleChange,
   onPaneChange,
   initialPane,
@@ -48,6 +49,7 @@ export function Terminal({
   tabs: TerminalTab[]
   activeId: string
   onExit: (id: string) => void
+  onFocusChange?: (tabId: string, sessionId: string) => void
   onTitleChange: (id: string, title: string) => void
   onPaneChange?: (id: string, pane: TerminalPane, baseRevision: number) => void
   initialPane?: TerminalPane
@@ -68,6 +70,7 @@ export function Terminal({
       ghosttyWindow={GHOSTTY_WINDOW}
       launchSplit={launchSplit}
       onExit={onExit}
+      onFocusChange={onFocusChange}
       onPaneChange={onPaneChange}
       onTitleChange={onTitleChange}
       initialPane={initialPane}

@@ -68,9 +68,6 @@ export function OllamaApiKeySettings({
   onOpenPrivacy,
   onOpenCloudSettings,
 }: OllamaApiKeySettingsProps): ReactElement {
-  const description = settings.has_api_key
-    ? `A direct Cloud API key is configured from ${settings.credential_source}. Enter a replacement, or leave empty to keep the current key.`
-    : 'Use an API key to send requests directly to Ollama.com.'
   const statusMessage = settings.has_api_key
     ? savedKeyStatus(
         statusChecked,
@@ -85,7 +82,7 @@ export function OllamaApiKeySettings({
     <>
       <SettingsItem
         title="Direct Cloud API key"
-        description={description}
+        description="Use an API key to send requests directly to Ollama.com."
         actions={
           <>
             <Button size="sm" onClick={onManageKeys}>

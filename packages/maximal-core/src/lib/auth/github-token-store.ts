@@ -22,6 +22,7 @@
 import fs from "node:fs/promises"
 import { z } from "zod"
 
+import { withHostConfigLock } from "~/lib/host-config/lock"
 import { PATHS } from "~/lib/platform/paths"
 
 export type TokenType = "ghu_" | "gho_" | "unknown"
@@ -468,8 +469,11 @@ export async function migrateLegacyRecord(opts: {
   // Preserve the legacy obtainedAt rather than stamping "now".
   rec.obtainedAt = legacy.obtainedAt
   const migrated = addAndActivate(emptyRegistry(), rec)
-  await writeRegistry(opts.registryPath, migrated)
-  return migrated
+  const committed = await updateRegistryFile(opts.registryPath, (current) => {
+    if (Object.keys(current.accounts).length > 0) return current
+    return migrated
+  })
+  return committed === migrated ? migrated : null
 }
 
 /** The registry file that sits beside a given legacy token file — same
@@ -486,17 +490,24 @@ export const readDefaultRegistry = (): Promise<AccountRegistry> =>
   readRegistry(PATHS.ACCOUNTS_PATH)
 
 export const writeDefaultRegistry = (reg: AccountRegistry): Promise<void> =>
-  writeRegistry(PATHS.ACCOUNTS_PATH, reg)
+  withHostConfigLock(`${PATHS.ACCOUNTS_PATH}.write-lock`, () =>
+    writeRegistry(PATHS.ACCOUNTS_PATH, reg),
+  )
 
-// Concurrency: these read-modify-write helpers take no lock. That's safe on a
-// single sidecar — Bun's event loop serializes Hono handlers, so no two writes
-// interleave (the `await`s yield, but the next handler doesn't start mid-write).
-// The only race is the pathological case of running the `maximal auth` CLI (a
-// separate process) WHILE the sidecar is live; a lost write there drops an
-// account entry (not the GitHub credential — re-add via gh-reuse or re-auth),
-// and the atomic temp+rename write rules out a corrupt/torn file regardless.
-// Not a documented workflow; revisit with an OS file-lock if the CLI ever
-// becomes a first-class concurrent auth path.
+export const updateRegistryFile = (
+  filePath: string,
+  update: (registry: AccountRegistry) => AccountRegistry,
+): Promise<AccountRegistry> =>
+  withHostConfigLock(`${filePath}.write-lock`, async () => {
+    const current = await readRegistry(filePath)
+    const next = update(current)
+    if (next !== current) await writeRegistry(filePath, next)
+    return next
+  })
+
+export const updateDefaultRegistry = (
+  update: (registry: AccountRegistry) => AccountRegistry,
+): Promise<AccountRegistry> => updateRegistryFile(PATHS.ACCOUNTS_PATH, update)
 
 /** Read-modify-write: add (or replace by `login@host`) an account, make it the
  *  active one, persist. The shared path for every sign-in producer
@@ -504,17 +515,16 @@ export const writeDefaultRegistry = (reg: AccountRegistry): Promise<void> =>
 export async function addAccountToDefaultRegistry(
   rec: AccountRecord,
 ): Promise<void> {
-  const reg = await readDefaultRegistry()
-  await writeDefaultRegistry(addAndActivate(reg, rec))
+  await updateDefaultRegistry((registry) => addAndActivate(registry, rec))
 }
 
 /** Sign-out helper that RETAINS the account: drop the active pointer but keep
  *  every record. The signed-out UI can still name the last account and offer
  *  reconnect. No-op when nothing is active. */
 export async function deactivateActiveInDefaultRegistry(): Promise<void> {
-  const reg = await readDefaultRegistry()
-  if (!reg.activeKey) return
-  await writeDefaultRegistry(deactivate(reg))
+  await updateDefaultRegistry((registry) =>
+    registry.activeKey ? deactivate(registry) : registry,
+  )
 }
 
 /** Flag the active account as needing re-auth on disk (credential rejected),
@@ -522,9 +532,11 @@ export async function deactivateActiveInDefaultRegistry(): Promise<void> {
 export async function markActiveNeedsReauthInDefaultRegistry(
   error: AccountAuthError,
 ): Promise<void> {
-  const reg = await readDefaultRegistry()
-  if (!reg.activeKey) return
-  await writeDefaultRegistry(markNeedsReauth(reg, reg.activeKey, error))
+  await updateDefaultRegistry((registry) =>
+    registry.activeKey ?
+      markNeedsReauth(registry, registry.activeKey, error)
+    : registry,
+  )
 }
 
 /** Clear the active account's needs-reauth flag on disk after a successful
@@ -532,11 +544,11 @@ export async function markActiveNeedsReauthInDefaultRegistry(
  *  returns the same registry when there's nothing flagged, so a healthy session
  *  doesn't rewrite the file on every refresh. No-op when nothing is active. */
 export async function clearActiveNeedsReauthInDefaultRegistry(): Promise<void> {
-  const reg = await readDefaultRegistry()
-  if (!reg.activeKey) return
-  const cleared = clearNeedsReauth(reg, reg.activeKey)
-  if (cleared === reg) return
-  await writeDefaultRegistry(cleared)
+  await updateDefaultRegistry((registry) =>
+    registry.activeKey ?
+      clearNeedsReauth(registry, registry.activeKey)
+    : registry,
+  )
 }
 
 /** Flag a SPECIFIC account (by key) as needing re-auth on disk — for the
@@ -546,8 +558,9 @@ export async function markNeedsReauthInDefaultRegistry(
   key: AccountKey,
   error: AccountAuthError,
 ): Promise<void> {
-  const reg = await readDefaultRegistry()
-  await writeDefaultRegistry(markNeedsReauth(reg, key, error))
+  await updateDefaultRegistry((registry) =>
+    markNeedsReauth(registry, key, error),
+  )
 }
 
 /** Commit a recovered account as active on disk and clear its needs-reauth in
@@ -558,8 +571,9 @@ export async function markNeedsReauthInDefaultRegistry(
 export async function activateAndClearNeedsReauthInDefaultRegistry(
   key: AccountKey,
 ): Promise<void> {
-  const reg = await readDefaultRegistry()
-  await writeDefaultRegistry(clearNeedsReauth(setActive(reg, key), key))
+  await updateDefaultRegistry((registry) =>
+    clearNeedsReauth(setActive(registry, key), key),
+  )
 }
 
 /**
