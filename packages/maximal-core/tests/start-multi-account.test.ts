@@ -5,12 +5,14 @@
  * is exercised — the part no in-process test can reach cleanly because PATHS is
  * captured at import time.
  *
- * Two release-critical paths:
+ * Three release-critical paths:
  *   1. A legacy single-record token on disk is migrated into accounts.json on
  *      first boot (so users who signed in before multi-account keep working).
  *   2. A registry with NO active account (e.g. after signing out of the active
  *      one while others remain) boots cleanly to unauthenticated — not a
  *      dead-end or a crash.
+ *   3. A persisted active OAuth account is restored after a full process stop
+ *      and restart without mutating its registry record.
  *
  * Ports are ephemeral and read back off the ready-line — see
  * `tests/helpers/spawn-engine.ts` for why guessing one was flaky.
@@ -20,11 +22,22 @@ import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
 
+import {
+  addAndActivate,
+  emptyRegistry,
+  makeAccountRecord,
+  readRegistry,
+  writeRegistry,
+} from "~/lib/auth/github-token-store"
+
 import type { Engine } from "./helpers/spawn-engine"
 
 import { startEngine } from "./helpers/spawn-engine"
 
 const TEST_LEGACY_TOKEN = "gho_maximal_test_only_legacy_noncredential"
+const TEST_RESTART_TOKEN = "gho_maximal_test_only_restart_noncredential"
+const TEST_RESTART_LOGIN = "maximal-test-only-restart"
+const TEST_RESTART_KEY = `${TEST_RESTART_LOGIN}@github.com`
 const TEST_INACTIVE_HOST = "github.example.invalid"
 const TEST_INACTIVE_LOGIN = "maximal-test-only-bob"
 const TEST_INACTIVE_KEY = `${TEST_INACTIVE_LOGIN}@${TEST_INACTIVE_HOST}`
@@ -128,4 +141,117 @@ describe("boot with a registry that has no active account", () => {
     expect(reg.activeKey).toBeNull()
     expect(TEST_INACTIVE_KEY in reg.accounts).toBe(true)
   })
+})
+
+describe("boot restores an active OAuth account across process restarts", () => {
+  const tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "maximal-restart-"))
+  const requests: Array<{ path: string; authorization: string | null }> = []
+  const fixture = Bun.serve({
+    port: 0,
+    hostname: "127.0.0.1",
+    fetch(request) {
+      const { pathname } = new URL(request.url)
+      requests.push({
+        path: pathname,
+        authorization: request.headers.get("authorization"),
+      })
+      if (pathname === "/user") {
+        return Response.json({ login: TEST_RESTART_LOGIN })
+      }
+      return new Response("not found", { status: 404 })
+    },
+  })
+
+  async function seedActiveAccount(): Promise<void> {
+    await writeRegistry(
+      path.join(tmpHome, "accounts.json"),
+      addAndActivate(
+        emptyRegistry(),
+        makeAccountRecord({
+          login: TEST_RESTART_LOGIN,
+          host: "github.com",
+          token: TEST_RESTART_TOKEN,
+          addedVia: "device-code",
+        }),
+      ),
+    )
+  }
+
+  afterAll(async () => {
+    await fixture.stop(true)
+    fs.rmSync(tmpHome, { recursive: true, force: true })
+  })
+
+  async function startAndAssertCredentialRestored(): Promise<void> {
+    const currentEngine = await startEngine({
+      home: tmpHome,
+      args: ["--verbose"],
+      env: {
+        NODE_ENV: "test",
+        GITHUB_API_BASE: fixture.url.origin,
+      },
+    })
+
+    try {
+      let tokenStatus:
+        | { github_token_present: boolean; copilot_token_present: boolean }
+        | undefined
+      const deadline = Date.now() + 5_000
+      do {
+        const response = await fetch(`${currentEngine.controlUrl}/_debug/state`)
+        expect(response.status).toBe(200)
+        const body = (await response.json()) as {
+          runtime: {
+            github_token_present: boolean
+            copilot_token_present: boolean
+          }
+        }
+        tokenStatus = body.runtime
+        if (
+          tokenStatus.github_token_present
+          && tokenStatus.copilot_token_present
+        ) {
+          break
+        }
+        await Bun.sleep(25)
+      } while (Date.now() < deadline)
+
+      expect(tokenStatus).toMatchObject({
+        github_token_present: true,
+        copilot_token_present: true,
+      })
+    } finally {
+      await currentEngine.stop()
+    }
+  }
+
+  test("restores the same active account after a full stop and second start", async () => {
+    await seedActiveAccount()
+    expect(
+      (await readRegistry(path.join(tmpHome, "accounts.json"))).activeKey,
+    ).toBe(TEST_RESTART_KEY)
+    await startAndAssertCredentialRestored()
+    await startAndAssertCredentialRestored()
+
+    const authenticatedRequests = requests.filter(
+      ({ path: requestPath }) => requestPath === "/user",
+    )
+    expect(
+      authenticatedRequests.map(({ path: requestPath }) => requestPath),
+    ).toEqual(["/user", "/user"])
+    expect(
+      authenticatedRequests.every(
+        ({ authorization }) => authorization === `token ${TEST_RESTART_TOKEN}`,
+      ),
+    ).toBe(true)
+
+    const registry = JSON.parse(
+      fs.readFileSync(path.join(tmpHome, "accounts.json"), "utf8"),
+    ) as {
+      activeKey: string | null
+      accounts: Record<string, { token: string }>
+    }
+    expect(registry.activeKey).toBe(TEST_RESTART_KEY)
+    expect(registry.accounts[TEST_RESTART_KEY].token).toBe(TEST_RESTART_TOKEN)
+  }, 60_000)
 })
