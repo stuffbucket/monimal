@@ -29,6 +29,10 @@ export const allowedAdhocStyles = new Map([
   ],
   ['packages/maximal-client/src/renderer/theme.ts', { injectors: 1 }],
   [
+    'packages/maximal-client/src/renderer/workspace-map/WorkspaceMap.tsx',
+    { inlineAttributes: 2 },
+  ],
+  [
     'packages/maximal-context-window/src/ContextWindowSessionPanel.tsx',
     { inlineAttributes: 3 },
   ],
@@ -43,10 +47,6 @@ export const allowedAdhocStyles = new Map([
   [
     'packages/maximal-electron/src/renderer/components/controls/Fields.tsx',
     { inlineAttributes: 2 },
-  ],
-  [
-    'packages/maximal-electron/src/renderer/components/settings/ModelCards.tsx',
-    { inlineAttributes: 1 },
   ],
   [
     'packages/maximal-electron/src/renderer/lib/component-styles.ts',
