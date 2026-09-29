@@ -66,6 +66,16 @@ const bridge = {
     get: () => ipcRenderer.invoke(BRIDGE_CHANNELS.providerOnboardingGet),
     setDismissed: (dismissed) => ipcRenderer.invoke(BRIDGE_CHANNELS.providerOnboardingSet, dismissed),
   },
+  appearance: {
+    get: () => ipcRenderer.invoke(BRIDGE_CHANNELS.appearanceGet),
+    setVibrancyEnabled: (enabled) =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.appearanceSetVibrancy, enabled),
+    setBackgroundEffectsEnabled: (enabled) =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.appearanceSetBackgroundEffects, enabled),
+    setReducedMotionEnabled: (enabled) =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.appearanceSetReducedMotion, enabled),
+    onChange: (listener) => subscribe(BRIDGE_CHANNELS.appearanceChanged, listener),
+  },
   harness: {
     show: () => ipcRenderer.invoke(BRIDGE_CHANNELS.harnessShow),
     hide: () => ipcRenderer.invoke(BRIDGE_CHANNELS.harnessHide),

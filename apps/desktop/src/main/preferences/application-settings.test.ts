@@ -4,7 +4,12 @@ import { join } from 'node:path'
 
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { loadApplicationSettings } from './application-settings'
+import {
+  loadApplicationSettings,
+  setBackgroundEffectsEnabled,
+  setReducedMotionEnabled,
+  setVibrancyEnabled,
+} from './application-settings'
 
 const directories: string[] = []
 
@@ -82,6 +87,48 @@ describe('loadApplicationSettings', () => {
 
     expect(loadApplicationSettings(directory, context).settings.agentModel)
       .toBe('embedded:tiny.gguf')
+  })
+
+  it('loads vibrancy disabled by default and migrates a saved preference', async () => {
+    const directory = await fixture()
+    const context = {
+      homeDirectory: directory,
+      cwd: directory,
+      environment: {},
+      argv: [],
+    }
+
+    expect(loadApplicationSettings(directory, context).settings.vibrancyEnabled)
+      .toBe(false)
+    expect(loadApplicationSettings(directory, context).settings.backgroundEffectsEnabled)
+      .toBe(false)
+    expect(loadApplicationSettings(directory, context).settings.reducedMotionEnabled)
+      .toBe(false)
+
+    await writeFile(
+      join(directory, 'preferences.json'),
+      JSON.stringify({ vibrancyEnabled: true }),
+    )
+
+    expect(loadApplicationSettings(directory, context).settings.vibrancyEnabled)
+      .toBe(true)
+  })
+
+  it('persists vibrancy changes in the user settings layer', async () => {
+    const directory = await fixture()
+
+    await setVibrancyEnabled(directory, true)
+    await setBackgroundEffectsEnabled(directory, true)
+    await setReducedMotionEnabled(directory, true)
+    expect(loadApplicationSettings(directory).settings).toMatchObject({
+      vibrancyEnabled: true,
+      backgroundEffectsEnabled: true,
+      reducedMotionEnabled: true,
+    })
+
+    await setVibrancyEnabled(directory, false)
+    expect(loadApplicationSettings(directory).settings.vibrancyEnabled)
+      .toBe(false)
   })
 
   it('rejects tmux shell text instead of treating it as a status policy', async () => {

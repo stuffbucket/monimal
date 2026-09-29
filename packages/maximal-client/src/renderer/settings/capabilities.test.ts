@@ -166,6 +166,33 @@ function fakeBridge(): MaximalHost {
       get: vi.fn(async () => ({ dismissed: false })),
       setDismissed: vi.fn(async (dismissed: boolean) => ({ dismissed })),
     },
+    appearance: {
+      get: vi.fn(async () => ({
+        vibrancyEnabled: false,
+        vibrancySupported: true,
+        backgroundEffectsEnabled: false,
+        reducedMotionEnabled: false,
+      })),
+      setVibrancyEnabled: vi.fn(async (enabled: boolean) => ({
+        vibrancyEnabled: enabled,
+        vibrancySupported: true,
+        backgroundEffectsEnabled: false,
+        reducedMotionEnabled: false,
+      })),
+      setBackgroundEffectsEnabled: vi.fn(async (enabled: boolean) => ({
+        vibrancyEnabled: false,
+        vibrancySupported: true,
+        backgroundEffectsEnabled: enabled,
+        reducedMotionEnabled: false,
+      })),
+      setReducedMotionEnabled: vi.fn(async (enabled: boolean) => ({
+        vibrancyEnabled: false,
+        vibrancySupported: true,
+        backgroundEffectsEnabled: false,
+        reducedMotionEnabled: enabled,
+      })),
+      onChange: vi.fn(() => () => {}),
+    },
     harness: {
       show: vi.fn(async () => {}),
       hide: vi.fn(async () => {}),
@@ -358,6 +385,29 @@ describe('createCoreSettingsCapabilities', () => {
       enabled: false,
       pending: false,
     })
+    await expect(capabilities.general.appearance()).resolves.toEqual({
+      vibrancyEnabled: false,
+      vibrancySupported: true,
+      backgroundEffectsEnabled: false,
+      reducedMotionEnabled: false,
+    })
+    await expect(capabilities.general.setVibrancyEnabled(true)).resolves.toEqual({
+      vibrancyEnabled: true,
+      vibrancySupported: true,
+      backgroundEffectsEnabled: false,
+      reducedMotionEnabled: false,
+    })
+    await expect(
+      capabilities.general.setBackgroundEffectsEnabled(true),
+    ).resolves.toMatchObject({ backgroundEffectsEnabled: true })
+    await expect(
+      capabilities.general.setReducedMotionEnabled(true),
+    ).resolves.toMatchObject({ reducedMotionEnabled: true })
+    const onAppearanceChange = vi.fn()
+    capabilities.general.onAppearanceChange(onAppearanceChange)
+    expect(window.maximal.appearance.onChange).toHaveBeenCalledWith(
+      onAppearanceChange,
+    )
     await expect(capabilities.general.beginMenuBarOnly()).resolves.toEqual({
       attemptId: 'attempt-1',
       deadlineMs: 1,

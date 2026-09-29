@@ -116,6 +116,8 @@ const {
     close: vi.fn(),
     loadFile: vi.fn(() => Promise.resolve()),
     loadURL: vi.fn(() => Promise.resolve()),
+    setBackgroundColor: vi.fn(),
+    setVibrancy: vi.fn(),
     setSkipTaskbar: vi.fn(),
     on: vi.fn((event: string, listener: (...args: unknown[]) => void) => {
       addListener(windowListeners, event, listener)
@@ -562,6 +564,7 @@ describe('closed IPC boundary', () => {
 
   it('names every renderer event channel in one closed allowlist', () => {
     expect(EVENT_CHANNELS).toEqual([
+      BRIDGE_CHANNELS.appearanceChanged,
       BRIDGE_CHANNELS.lifecycleChanged,
       BRIDGE_CHANNELS.shutdownChanged,
       BRIDGE_CHANNELS.controlChanged,
