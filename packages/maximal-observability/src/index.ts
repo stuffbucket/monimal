@@ -1,3 +1,4 @@
+export { ContextWindowInspector } from "./ContextWindowInspector.tsx"
 export {
   deriveDisplayFlow,
   deriveTokenStacks,
@@ -19,7 +20,6 @@ export {
   OverviewRail,
   OverviewStatus,
 } from "./Overview.tsx"
-export { ContextWindowInspector } from "./ContextWindowInspector.tsx"
 export type { ObservabilityRead, ObservabilitySource } from "./source.ts"
 export {
   type Loadable,

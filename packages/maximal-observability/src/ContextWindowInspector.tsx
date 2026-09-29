@@ -9,8 +9,7 @@ import {
 } from "@maximal/maximal-context-window"
 import { InspectorPanel } from "@maximal/maximal-electron/renderer"
 
-import type { Loadable } from "./state.tsx"
-import { useObservability } from "./state.tsx"
+import { type Loadable, useObservability } from "./state.tsx"
 
 export function ContextWindowInspector({
   selectedSessionId,
