@@ -127,7 +127,7 @@ export function AppFrame({
       leftSize={LEFT_PANEL_SIZE}
       withActivity
       withLeft={surface !== 'terminal'}
-      withRight={surface === 'overview' || surface === 'traffic'}
+      withRight={surface === 'overview' || surface === 'traffic' || surface === 'terminal'}
       withStatus={surface !== 'terminal'}
     >
       {children}

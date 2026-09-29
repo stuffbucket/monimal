@@ -7,6 +7,7 @@ import { createLogger } from '@maximal/maximal-logging'
 import { app } from 'electron'
 
 import { CoreProcessClient } from '../adapters/core-process-client.js'
+import { developmentCredentialHome } from '../development-profile.js'
 
 const logger = createLogger('sidecar')
 
@@ -21,6 +22,10 @@ export function proxyUrl(): string {
 
 export function coreHomePath(): string {
   return join(app.getPath('userData'), 'core-home')
+}
+
+export function coreCredentialHomePath(): string | undefined {
+  return app.isPackaged ? undefined : developmentCredentialHome(app.getPath('appData'))
 }
 
 /**
@@ -290,6 +295,8 @@ function onUnexpectedExit(proc: ChildProcess, code: number | null, signal: NodeJ
 async function launchCore(): Promise<{ proxyUrl: string; port: number; pid: number }> {
   const dataHome = coreHomePath()
   await mkdir(dataHome, { recursive: true })
+  const credentialHome = coreCredentialHomePath()
+  if (credentialHome !== undefined) await mkdir(credentialHome, { recursive: true })
 
   // `--port` is the PUBLIC PROXY port, not the control port. Passing `--port 0`
   // made the proxy ephemeral, which is why the UI advertised a random port to
@@ -303,6 +310,9 @@ async function launchCore(): Promise<{ proxyUrl: string; port: number; pid: numb
     env: {
       ...process.env,
       COPILOT_API_HOME: dataHome,
+      ...(credentialHome === undefined
+        ? {}
+        : { COPILOT_API_CREDENTIAL_HOME: credentialHome }),
       ...sidecarSpawnEnv(),
     },
   })

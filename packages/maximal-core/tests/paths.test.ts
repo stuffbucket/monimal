@@ -19,6 +19,7 @@ import {
   HOME_POLICY_ENV,
   requireExistingHome,
   resolveAppDir,
+  resolveCredentialDir,
   resolveHomePolicy,
 } from "~/lib/platform/paths"
 
@@ -31,6 +32,23 @@ describe("resolveAppDir", () => {
     expect(resolveAppDir({ platform: "linux", homedir: HOME })).toBe(
       path.join(HOME, ".local", "share", "maximal"),
     )
+  })
+
+  describe("resolveCredentialDir", () => {
+    it("uses the instance home when no credential override is supplied", () => {
+      expect(resolveCredentialDir("/profiles/worktree", undefined)).toBe(
+        "/profiles/worktree",
+      )
+    })
+
+    it("uses a shared credential home without moving other instance state", () => {
+      expect(
+        resolveCredentialDir("/profiles/worktree", "/profiles/credentials"),
+      ).toBe("/profiles/credentials")
+      expect(resolveCredentialDir("/profiles/worktree", "   ")).toBe(
+        "/profiles/worktree",
+      )
+    })
   })
 
   it("uses ~/.local/share/maximal on macOS (darwin), unchanged", () => {

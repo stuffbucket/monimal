@@ -89,6 +89,11 @@ vi.mock('@maximal/maximal-electron/renderer', () => ({
 
 vi.mock('@maximal/maximal-observability', () => ({
   ObservabilityProvider: ({ children }: { children: ReactNode }) => children,
+  ContextWindowInspector: ({
+    selectedSessionId,
+  }: {
+    selectedSessionId: string | null
+  }) => <div data-testid="context-window" data-selected-session={selectedSessionId ?? ''} />,
 }))
 vi.mock('@maximal/maximal-client/renderer/ThirdPartyLicensesDialog', () => ({ ThirdPartyLicensesDialog: () => null }))
 vi.mock('@maximal/maximal-client/renderer/traffic/source', () => ({ createObservabilitySource }))
@@ -113,12 +118,14 @@ vi.mock('../../../../../packages/maximal-client/src/renderer/terminal/Terminal',
     activeId,
     initialPanes,
     onExit,
+    onFocusChange,
     onPaneChange,
     paneRevisions,
   }: {
     activeId: string
     initialPanes?: ReadonlyMap<string, unknown>
     onExit: (id: string) => void
+    onFocusChange?: (tabId: string, sessionId: string) => void
     onPaneChange?: (
       id: string,
       pane: {
@@ -139,11 +146,14 @@ vi.mock('../../../../../packages/maximal-client/src/renderer/terminal/Terminal',
     >
       Terminal content
       <button onClick={() => onExit(activeId)}>Exit shell</button>
-      <button onClick={() => onPaneChange?.(activeId, {
-        direction: 'right',
-        first: { sessionId: 'session-1' },
-        second: { sessionId: 'session-2' },
-      }, 1)}>
+      <button onClick={() => {
+        onPaneChange?.(activeId, {
+          direction: 'right',
+          first: { sessionId: 'session-1' },
+          second: { sessionId: 'session-2' },
+        }, 1)
+        onFocusChange?.(activeId, 'session-2')
+      }}>
         Split shell
       </button>
     </div>
@@ -159,6 +169,7 @@ vi.mock('../../../../../packages/maximal-client/src/renderer/frame/AppFrame', ()
   ],
   SETTINGS_TAB: { id: 'settings', title: 'Settings', kind: 'settings' },
   SurfaceActivity: ({ children }: { children: ReactNode }) => <aside>{children}</aside>,
+  SurfaceRight: ({ children }: { children: ReactNode }) => <aside>{children}</aside>,
   SurfaceRail: ({ children }: { children: (collapsed: boolean) => ReactNode }) => (
     <aside>{children(false)}</aside>
   ),
@@ -327,6 +338,16 @@ describe('App routing', () => {
       'terminal:session-1',
     )
     expect(shell.querySelector('[data-testid="settings"]')).toBeNull()
+    expect(shell.querySelector('[data-testid="context-window"]')?.getAttribute(
+      'data-selected-session',
+    )).toBe('session-1')
+
+    act(() => [...shell.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Split shell',
+    )?.click())
+    expect(shell.querySelector('[data-testid="context-window"]')?.getAttribute(
+      'data-selected-session',
+    )).toBe('session-2')
   })
 
   it('does not offer a launcher in a detached terminal window', async () => {
@@ -341,6 +362,9 @@ describe('App routing', () => {
     expect([...shell.querySelectorAll('button')].some(
       (button) => button.textContent === 'Launch zsh',
     )).toBe(false)
+    expect(shell.querySelector('[data-testid="context-window"]')?.getAttribute(
+      'data-selected-session',
+    )).toBe('session-1')
   })
 
   it.each(['authenticated', 'unauthenticated'])(
