@@ -230,12 +230,12 @@ export function OllamaLocalSettings({
         </div>
         <div className="settings-field">
           <Switch
-            label="Disable cloud models in the local Ollama application"
-            displayLabel="Disable cloud models in the local Ollama application"
-            checked={preferences.cloud_disabled}
+            label="Access cloud models via local Ollama application"
+            displayLabel="Access Ollama Cloud via the local Ollama application"
+            checked={!preferences.cloud_disabled}
             disabled={saving}
             onChange={(next) => onUpdatePreferences({
-              cloud_disabled: next,
+              cloud_disabled: !next,
             })}
             testId="ollama-disable-cloud"
           />

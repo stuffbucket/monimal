@@ -18,15 +18,34 @@ interface OllamaApiKeySettingsProps {
   keyMessage: string | null
   available: boolean
   statusChecked: boolean
+  statusChecking: boolean
   statusErrorCode: string | null
   onApiKeyChange: (value: string) => void
   onSave: () => void
+  onRefreshStatus: () => void
   onRemove: () => void
   onManageKeys: () => void
   onOpenCloudModels: () => void
   onOpenSearch: () => void
   onOpenPrivacy: () => void
   onOpenCloudSettings: () => void
+}
+
+function savedKeyStatus(
+  statusChecked: boolean,
+  statusChecking: boolean,
+  available: boolean,
+  errorCode: string | null,
+): string {
+  if (statusChecking || !statusChecked) return 'Checking the saved API key…'
+  if (available) return 'API key is saved and working.'
+  if (errorCode === null || errorCode === 'UNKNOWN') {
+    return 'API key is saved, but Ollama Cloud could not be checked because no error code was returned.'
+  }
+  if (errorCode.startsWith('HTTP ')) {
+    return `API key is saved, but Ollama Cloud returned ${errorCode}.`
+  }
+  return `API key is saved, but Ollama Cloud could not be reached (${errorCode}).`
 }
 
 export function OllamaApiKeySettings({
@@ -37,9 +56,11 @@ export function OllamaApiKeySettings({
   keyMessage,
   available,
   statusChecked,
+  statusChecking,
   statusErrorCode,
   onApiKeyChange,
   onSave,
+  onRefreshStatus,
   onRemove,
   onManageKeys,
   onOpenCloudModels,
@@ -51,12 +72,11 @@ export function OllamaApiKeySettings({
     ? `A direct Cloud API key is configured from ${settings.credential_source}. Enter a replacement, or leave empty to keep the current key.`
     : 'Use an API key to send requests directly to Ollama.com.'
   const statusMessage = settings.has_api_key
-    ? (
-        !statusChecked
-          ? 'Checking the saved API key…'
-          : available
-            ? 'API key is saved and working.'
-            : `API key is saved but there is an error (${statusErrorCode ?? 'UNKNOWN'}).`
+    ? savedKeyStatus(
+        statusChecked,
+        statusChecking,
+        available,
+        statusErrorCode,
       )
     : keyMessage
   const keyChanged = apiKey.trim() !== (settings.api_key ?? '')
@@ -72,9 +92,18 @@ export function OllamaApiKeySettings({
               API keys
             </Button>
             {settings.has_api_key ? (
-              <Button size="sm" onClick={onRemove} disabled={saving}>
-                Remove saved key
-              </Button>
+              <>
+                <Button
+                  size="sm"
+                  onClick={onRefreshStatus}
+                  disabled={saving || statusChecking}
+                >
+                  {statusChecking ? 'Checking…' : 'Check key'}
+                </Button>
+                <Button size="sm" onClick={onRemove} disabled={saving}>
+                  Remove saved key
+                </Button>
+              </>
             ) : null}
           </>
         }

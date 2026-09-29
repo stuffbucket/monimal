@@ -244,7 +244,8 @@
     "@maximal/maximal-ollama": {
       "root": "packages/maximal-ollama",
       "dependsOn": [
-        "@maximal/eslint-config"
+        "@maximal/eslint-config",
+        "@maximal/maximal-settings"
       ],
       "cycleEdges": [],
       "duplicatePairs": []

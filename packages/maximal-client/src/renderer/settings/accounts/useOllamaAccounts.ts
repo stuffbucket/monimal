@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 import type {
   OllamaAccountsListResponse,
@@ -9,7 +9,7 @@ import type {
 } from '../capabilities'
 import { describeError } from '../../shared/errors'
 
-const POLL_MS = 5000
+const LOCAL_POLL_MS = 5000
 const MIN_OLLAMA_KEY_LENGTH = 8
 
 export function useOllamaAccounts(capabilities: SettingsCapabilities) {
@@ -23,6 +23,7 @@ export function useOllamaAccounts(capabilities: SettingsCapabilities) {
     useState<OllamaRuntimePreferences | null>(null)
   const [keyError, setKeyError] = useState<string | null>(null)
   const [keyMessage, setKeyMessage] = useState<string | null>(null)
+  const [checkingApiKey, setCheckingApiKey] = useState(false)
   const [endpointError, setEndpointError] = useState<string | null>(null)
   const [endpointMessage, setEndpointMessage] = useState<string | null>(null)
   const [suggestedEndpoint, setSuggestedEndpoint] = useState<string | null>(null)
@@ -50,17 +51,31 @@ export function useOllamaAccounts(capabilities: SettingsCapabilities) {
     }
   }, [capabilities])
 
+  const refreshApiKeyStatus = useCallback(async () => {
+    setCheckingApiKey(true)
+    try {
+      setList(await capabilities.ollamaAccounts.list())
+      setError(null)
+    } catch (cause) {
+      setError(describeError(cause))
+    } finally {
+      setCheckingApiKey(false)
+    }
+  }, [capabilities])
+
+  const hasApiKey = settings?.has_api_key ?? false
+  useEffect(() => {
+    if (hasApiKey) void Promise.resolve().then(refreshApiKeyStatus)
+  }, [hasApiKey, refreshApiKeyStatus])
+
   useEffect(() => {
     if (settings === null) return
     let settled = false
-    const refresh = async () => {
+    const refreshRuntime = async () => {
       try {
-        const [next, nextRuntime] = await Promise.all([
-          capabilities.ollamaAccounts.list(),
-          capabilities.ollamaRuntime.status(settings.local_endpoint),
-        ])
+        const nextRuntime =
+          await capabilities.ollamaRuntime.status(settings.local_endpoint)
         if (!settled) {
-          setList(next)
           setRuntime(nextRuntime)
           if (
             nextRuntime.suggested_endpoint !== null
@@ -75,8 +90,8 @@ export function useOllamaAccounts(capabilities: SettingsCapabilities) {
       }
     }
 
-    void refresh()
-    const poll = setInterval(() => void refresh(), POLL_MS)
+    void refreshRuntime()
+    const poll = setInterval(() => void refreshRuntime(), LOCAL_POLL_MS)
     return () => {
       settled = true
       clearInterval(poll)
@@ -114,11 +129,7 @@ export function useOllamaAccounts(capabilities: SettingsCapabilities) {
       setApiKey(nextSettings.api_key ?? candidate)
       setKeyError(null)
       setKeyMessage('Ollama API key saved.')
-      try {
-        setList(await capabilities.ollamaAccounts.list())
-      } catch (cause) {
-        setError(describeError(cause))
-      }
+      await refreshApiKeyStatus()
     } catch (cause) {
       setKeyError(describeError(cause))
     } finally {
@@ -133,12 +144,8 @@ export function useOllamaAccounts(capabilities: SettingsCapabilities) {
     try {
       setSettings(await capabilities.ollamaSettings.update({ api_key: '' }))
       setApiKey('')
+      setList({ accounts: [] })
       setKeyMessage('Saved API key removed.')
-      try {
-        setList(await capabilities.ollamaAccounts.list())
-      } catch (cause) {
-        setError(describeError(cause))
-      }
     } catch (cause) {
       setKeyError(describeError(cause))
     } finally {
@@ -176,14 +183,11 @@ export function useOllamaAccounts(capabilities: SettingsCapabilities) {
       const nextSettings = await capabilities.ollamaSettings.update({
         local_endpoint: normalized,
       })
-      const [nextRuntime, nextList] = await Promise.all([
-        capabilities.ollamaRuntime.status(nextSettings.local_endpoint),
-        capabilities.ollamaAccounts.list(),
-      ])
+      const nextRuntime =
+        await capabilities.ollamaRuntime.status(nextSettings.local_endpoint)
       setSettings(nextSettings)
       setEndpoint(nextSettings.local_endpoint)
       setRuntime(nextRuntime)
-      setList(nextList)
       setSuggestedEndpoint(null)
       setEndpointMessage(
         nextRuntime.running
@@ -229,7 +233,6 @@ export function useOllamaAccounts(capabilities: SettingsCapabilities) {
     setError(null)
     try {
       setRuntime(await capabilities.ollamaRuntime.launch(settings.local_endpoint))
-      setList(await capabilities.ollamaAccounts.list())
       setStartPromptOpen(false)
     } catch (cause) {
       setError(describeError(cause))
@@ -253,12 +256,14 @@ export function useOllamaAccounts(capabilities: SettingsCapabilities) {
     runtimePreferences,
     keyError,
     keyMessage,
+    checkingApiKey,
     endpointError,
     endpointMessage,
     suggestedEndpoint,
     startPromptOpen,
     error,
     updateApiKey,
+    refreshApiKeyStatus,
     saveApiKey,
     removeApiKey,
     updateEndpoint,

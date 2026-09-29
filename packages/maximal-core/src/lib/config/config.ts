@@ -651,6 +651,7 @@ function resolveAnthropicProvider(
 export function resolveProviderConfig(
   config: AppConfig,
   name: string,
+  options: { includeDisabled?: boolean } = {},
 ): ResolvedProviderConfig | null {
   const providerName = name.trim()
   if (!providerName) {
@@ -665,7 +666,7 @@ export function resolveProviderConfig(
     return null
   }
 
-  if (provider.enabled === false) {
+  if (provider.enabled === false && options.includeDisabled !== true) {
     return null
   }
 
@@ -681,7 +682,10 @@ export function resolveProviderConfig(
     : resolveAnthropicProvider(providerName, provider)
 }
 
-export function getProviderConfig(name: string): ResolvedProviderConfig | null {
+export function getProviderConfig(
+  name: string,
+  options: { includeDisabled?: boolean } = {},
+): ResolvedProviderConfig | null {
   const config = getConfig()
   const apiKey = process.env.OLLAMA_API_KEY?.trim()
   const resolved =
@@ -702,8 +706,9 @@ export function getProviderConfig(name: string): ResolvedProviderConfig | null {
           },
         },
         name,
+        options,
       )
-    : resolveProviderConfig(config, name)
+    : resolveProviderConfig(config, name, options)
   if (resolved?.type !== "ollama") return resolved
   return apiKey ? { ...resolved, apiKey } : resolved
 }

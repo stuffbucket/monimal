@@ -214,6 +214,7 @@ function fakeBridge(): MaximalHost {
       ollamaSettingsGet: vi.fn(async () =>
         success({
           has_api_key: false,
+          cloud_enabled: true,
           api_key: null,
           credential_source: 'none' as const,
           local_enabled: true,
@@ -224,6 +225,7 @@ function fakeBridge(): MaximalHost {
       ollamaSettingsUpdate: vi.fn(async () =>
         success({
           has_api_key: true,
+          cloud_enabled: true,
           api_key: 'saved-key',
           credential_source: 'file' as const,
           local_enabled: true,

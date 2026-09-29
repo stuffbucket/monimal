@@ -12,6 +12,7 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 
 const settings = {
   has_api_key: false,
+  cloud_enabled: true,
   api_key: null,
   credential_source: 'none' as const,
   local_enabled: true,
@@ -58,13 +59,15 @@ function fakeCapabilities(options?: {
   const current = {
     ...settings,
     has_api_key: options?.configured ?? false,
+    cloud_enabled: true,
     api_key: options?.configured ? savedApiKey : null,
     credential_source: options?.configured ? 'file' as const : 'none' as const,
   }
   const update = options?.update
-    ?? vi.fn(async (input: { api_key?: string }) => ({
+    ?? vi.fn(async (input: { api_key?: string; cloud_enabled?: boolean }) => ({
       ...settings,
       has_api_key: Boolean(input.api_key),
+      cloud_enabled: input.cloud_enabled ?? current.cloud_enabled,
       api_key: input.api_key || null,
       credential_source: input.api_key ? 'file' as const : 'none' as const,
     }))
@@ -88,27 +91,29 @@ function fakeCapabilities(options?: {
     context_length: options?.installed === false ? null : 4096,
   })
   const status = vi.fn(runtimeStatus)
+  const list = vi.fn(async () => ({
+    accounts: options?.cloudAvailable || options?.cloudErrorCode
+      ? [{
+          type: 'ollama' as const,
+          provider: 'ollama-cloud',
+          endpoint: 'https://ollama.com',
+          scope: 'remote' as const,
+          account_state: 'authenticated' as const,
+          availability: options?.cloudAvailable
+            ? 'available' as const
+            : 'unavailable' as const,
+          model_count: options?.cloudAvailable ? 1 : null,
+          error_code: options?.cloudErrorCode ?? null,
+        }]
+      : [],
+  }))
   return {
     update,
     status,
+    list,
     capabilities: {
       ollamaAccounts: {
-        list: vi.fn(async () => ({
-          accounts: options?.cloudAvailable || options?.cloudErrorCode
-            ? [{
-                type: 'ollama' as const,
-                provider: 'ollama-cloud',
-                endpoint: 'https://ollama.com',
-                scope: 'remote' as const,
-                account_state: 'authenticated' as const,
-                availability: options?.cloudAvailable
-                  ? 'available' as const
-                  : 'unavailable' as const,
-                model_count: options?.cloudAvailable ? 1 : null,
-                error_code: options?.cloudErrorCode ?? null,
-              }]
-            : [],
-        })),
+        list,
       },
       ollamaSettings: {
         get: vi.fn(async () => current),
@@ -272,8 +277,46 @@ describe('OllamaAccountsSection API key validation', () => {
     const surface = await renderSection(capabilities)
 
     expect(surface.textContent).toContain(
-      'API key is saved but there is an error (HTTP 503).',
+      'API key is saved, but Ollama Cloud returned HTTP 503.',
     )
+  })
+
+  it('checks a saved key once on entry and only again when requested', async () => {
+    const { capabilities, list } = fakeCapabilities({
+      configured: true,
+      cloudErrorCode: 'UNKNOWN',
+    })
+    const surface = await renderSection(capabilities)
+
+    expect(list).toHaveBeenCalledOnce()
+    expect(surface.textContent).toContain(
+      'API key is saved, but Ollama Cloud could not be checked because no error code was returned.',
+    )
+    await act(async () => button(surface, 'Check key').click())
+
+    expect(list).toHaveBeenCalledTimes(2)
+  })
+
+  it('polls the local runtime without repeatedly checking Ollama Cloud', async () => {
+    vi.useFakeTimers()
+    try {
+      const { capabilities, list, status } = fakeCapabilities({
+        configured: true,
+        cloudAvailable: true,
+      })
+      await renderSection(capabilities)
+
+      expect(list).toHaveBeenCalledOnce()
+      expect(status).toHaveBeenCalledOnce()
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(15_000)
+      })
+
+      expect(status).toHaveBeenCalledTimes(4)
+      expect(list).toHaveBeenCalledOnce()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('shows direct and local Ollama controls and links related settings', async () => {
@@ -284,7 +327,13 @@ describe('OllamaAccountsSection API key validation', () => {
     expect(surface.textContent).toContain('Direct Cloud API key')
     expect(surface.textContent).toContain('Local Application')
     expect(surface.textContent).toContain('Ollama starts when Maximal starts')
-    expect(surface.textContent).toContain('Disable cloud models')
+    expect(surface.textContent).toContain(
+      'Access Ollama Cloud via the local Ollama application',
+    )
+    expect(
+      surface.querySelector('[data-testid="ollama-disable-cloud"]')
+        ?.getAttribute('aria-checked'),
+    ).toBe('true')
     expect(surface.querySelectorAll('input[type="password"]')).toHaveLength(1)
     expect(
       surface.querySelector('[data-testid="ollama-start-on-launch"]')
@@ -293,6 +342,14 @@ describe('OllamaAccountsSection API key validation', () => {
       surface.querySelector('[data-testid="ollama-disable-cloud"]')
         ?.closest('.settings__item'),
     )
+    await act(async () => {
+      surface.querySelector<HTMLButtonElement>(
+        '[data-testid="ollama-disable-cloud"]',
+      )?.click()
+    })
+    expect(capabilities.ollamaRuntime.updatePreferences).toHaveBeenCalledWith({
+      cloud_disabled: true,
+    })
 
     const cloudModels = [...surface.querySelectorAll('button')].find(
       (button) => button.textContent === 'Cloud models',
@@ -453,6 +510,7 @@ describe('OllamaAccountsSection API key validation', () => {
 
   it('marks working cloud and local inputs as active', async () => {
     const { capabilities } = fakeCapabilities({
+      configured: true,
       cloudAvailable: true,
       running: true,
     })

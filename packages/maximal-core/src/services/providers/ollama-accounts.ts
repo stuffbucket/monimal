@@ -92,14 +92,13 @@ function configuredOllamaProviders(
   runtime: boolean,
 ): Array<ResolvedOllamaProviderConfig> {
   return Object.entries(config.providers ?? {}).flatMap(([name, provider]) => {
-    if (
-      provider.enabled === false
-      || provider.type?.trim().toLowerCase() !== "ollama"
-    ) {
+    if (provider.enabled === false && !provider.apiKey) {
       return []
     }
     const resolved =
-      runtime ? getProviderConfig(name) : resolveProviderConfig(config, name)
+      runtime ?
+        getProviderConfig(name, { includeDisabled: true })
+      : resolveProviderConfig(config, name, { includeDisabled: true })
     return resolved?.type === "ollama" ? [resolved] : []
   })
 }

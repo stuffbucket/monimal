@@ -96,7 +96,7 @@ Both are monorepo-native;
 | --- | --- |
 | Copied packages | `CLAUDE.md` includes `AGENTS.md`; root instructions take precedence. |
 | `maximal-electron` | Uses the workspace mutation runner for changed-line and explicit local scopes, cached edit loops, and fresh complete or sharded audits. |
-| `maximal-electron` | `TextInput` owns the token-based active-service treatment, the Radix-backed `Slider` owns its track, detents, labels, and thumb geometry, settings action rows and divider behavior live with the shared settings components, and `ModelCardGrid` owns provider-adornment and model-action placement so consumers do not recreate those controls. |
+| `maximal-electron` | `TextInput` owns the token-based active-service treatment, the Radix-backed `Slider` owns its track, detents, labels, and thumb geometry, settings action rows and divider behavior live with the shared settings components, and `ModelCardGrid` owns provider adornments, disabled-provider activation, and model-action placement so consumers do not recreate those controls. |
 | Workspace | `@maximal/eslint-config` owns the shared ESLint configuration and enforced rule sets. |
 | Workspace | `architecture-analysis.json` owns package coverage, the declared workspace dependency tree (`dependsOn`), external-package deny rules, and non-Core architecture baselines. |
 | `maximal-settings` | The pnpm bootstrap hook MUST load its dependency-policy source before workspace packages are installed; installed consumers MUST use the exported entry point. |
@@ -113,6 +113,7 @@ Both are monorepo-native;
 | `maximal-core` | Ollama API keys are saved without using a malformed inference request as an authentication probe; Ollama has no dedicated key-validation endpoint. |
 | `maximal-core` / `maximal-core-contract` | Ollama account probes expose a sanitized error code with unavailable results so Settings can distinguish a saved working key from a saved key whose validation failed. |
 | `@maximal/maximal-client` / `maximal-core` | Ollama direct Cloud API keys are entered in Maximal and returned only through the private desktop settings control path so the password field can hide or reveal the configured value; Ollama device identities remain owned by the Ollama app or CLI. |
+| `@maximal/maximal-client` / `maximal-core` / `maximal-core-contract` | Cloud model summaries identify their routing provider and local/cloud location; Ollama direct-cloud enablement is persisted separately from the local Ollama provider so Settings can preserve the documented API-key and signed-in application access paths. |
 | `apps/desktop` | Packaged Linux smoke uses the `desktop-smoke` target of the pinned Docker dependency build, stages Git-visible source, and runs Electron E2E under Xvfb without container networking. |
 | `maximal-ollama` | Desktop calls the package behind validated IPC. The package owns installed-process and listening-port discovery; Core owns the persisted inference endpoint. Core provider policy and Settings integration remain in their existing owners until an optional provider seam is established. |
 | `apps/desktop` | The workspace build must build the Maximal composition and `@maximal/maximal-client` renderer dependencies before compiling the sidecar; Forge bundles its app entry points with product surfaces from `packages/maximal-client/src`. |

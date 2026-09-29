@@ -11,12 +11,14 @@ import {
   resolveProviderConfig,
   writeConfig,
 } from "~/lib/config/config"
+import { buildModelsList } from "~/lib/live/resources"
 import { state } from "~/lib/runtime-state/state"
 import {
   createOllamaChatPayload,
   handleOllamaMessages,
 } from "~/routes/provider/messages/handler"
 import { forwardProviderModels } from "~/services/providers/anthropic-proxy"
+import { ProviderModelRouter } from "~/services/providers/model-router"
 import {
   testOllamaApiKey,
   updateOllamaSettings,
@@ -50,6 +52,7 @@ describe("Ollama account settings", () => {
     const saved = await updateOllamaSettings({ api_key: "valid-key" })
     expect(saved).toMatchObject({
       has_api_key: true,
+      cloud_enabled: true,
       api_key: "valid-key",
       credential_source: "file",
     })
@@ -60,6 +63,7 @@ describe("Ollama account settings", () => {
     const removed = await updateOllamaSettings({ api_key: "" })
     expect(removed).toMatchObject({
       has_api_key: false,
+      cloud_enabled: true,
       api_key: null,
       credential_source: "none",
     })
@@ -83,6 +87,79 @@ describe("Ollama account settings", () => {
     } finally {
       writeConfig(originalConfig)
     }
+  })
+
+  test("persists direct cloud provider enablement", async () => {
+    const originalConfig = getConfig()
+    try {
+      const disabled = await updateOllamaSettings({ cloud_enabled: false })
+      expect(disabled.cloud_enabled).toBe(false)
+      expect(getProviderConfig("ollama-cloud")).toBeNull()
+
+      const enabled = await updateOllamaSettings({ cloud_enabled: true })
+      expect(enabled.cloud_enabled).toBe(true)
+      expect(getProviderConfig("ollama-cloud")?.type).toBe("ollama")
+    } finally {
+      writeConfig(originalConfig)
+    }
+  })
+
+  describe("model catalogue provider identity", () => {
+    test("distinguishes direct, local-cloud, and local Ollama models", () => {
+      state.models = undefined
+      const result = buildModelsList([
+        {
+          id: "qwen3:8b-cloud",
+          name: "Qwen 3 8B Cloud",
+          provider: "ollama",
+          providerName: "Ollama",
+        },
+        {
+          id: "qwen3:cloud",
+          name: "Qwen 3 Cloud",
+          provider: "ollama",
+          providerName: "Ollama",
+        },
+        {
+          id: "qwen3:8b",
+          name: "Qwen 3 8B",
+          provider: "ollama",
+          providerName: "Ollama",
+        },
+        {
+          id: "gemma4:31b",
+          name: "Gemma 4",
+          provider: "ollama-cloud",
+          providerName: "Ollama",
+        },
+      ])
+
+      const identities = result.models.map(({ id, provider, location }) => ({
+        id,
+        provider,
+        location,
+      }))
+      expect(identities).toContainEqual({
+        id: "qwen3:8b-cloud",
+        provider: "ollama",
+        location: "cloud",
+      })
+      expect(identities).toContainEqual({
+        id: "qwen3:cloud",
+        provider: "ollama",
+        location: "cloud",
+      })
+      expect(identities).toContainEqual({
+        id: "qwen3:8b",
+        provider: "ollama",
+        location: "local",
+      })
+      expect(identities).toContainEqual({
+        id: "gemma4:31b",
+        provider: "ollama-cloud",
+        location: "cloud",
+      })
+    })
   })
 
   test("tests a candidate API key without invoking a model", async () => {
@@ -276,6 +353,7 @@ describe("Ollama model discovery", () => {
         family: "qwen3",
         id: "qwen3:8b",
         name: "Qwen 3 8B",
+        enabled: true,
         provider: "ollama",
         providerName: "ollama",
       },
@@ -285,6 +363,45 @@ describe("Ollama model discovery", () => {
       "/api/show",
     ])
     expect(await requests[1]?.json()).toEqual({ model: "qwen3:8b" })
+  })
+
+  test("lists disabled provider models for Settings without advertising them", async () => {
+    globalThis.fetch = ((input, init) => {
+      const request = capturedRequest(input, init)
+      if (request.url.endsWith("/v1/models")) {
+        return Promise.resolve(
+          Response.json({
+            data:
+              request.url.startsWith("https://ollama.example") ?
+                [{ id: "gemma4:31b", name: "Gemma 4" }]
+              : [],
+          }),
+        )
+      }
+      return Promise.resolve(Response.json({}))
+    }) as typeof fetch
+    const dispatcher = createProviderDispatcher({
+      readConfig: () => ({
+        providers: {
+          "ollama-cloud": {
+            type: "ollama",
+            enabled: false,
+            baseUrl: "https://ollama.example",
+            apiKey: "account-key",
+          },
+        },
+      }),
+    })
+    const router = new ProviderModelRouter(dispatcher)
+
+    expect(await router.listProviderModels()).toEqual([
+      expect.objectContaining({
+        id: "gemma4:31b",
+        enabled: false,
+        provider: "ollama-cloud",
+      }),
+    ])
+    expect(await router.listAdvertisedModels()).toEqual([])
   })
 })
 

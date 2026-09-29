@@ -35,6 +35,7 @@ import { getTokenUsageSummary } from "~/lib/token-usage"
 export interface ProviderCatalogueModel {
   readonly capabilities?: ReadonlyArray<string>
   readonly contextWindowTokens?: number
+  readonly enabled?: boolean
   readonly family?: string
   readonly id: string
   readonly name: string
@@ -53,6 +54,16 @@ function providerModelType(capabilities: ReadonlySet<string>): string {
     return "image"
   }
   return "chat"
+}
+
+function providerModelLocation(
+  model: ProviderCatalogueModel,
+): "cloud" | "local" {
+  if (model.providerName.toLowerCase().startsWith("local")) return "local"
+  // Ollama's signed-in local server uses both `:cloud` and `:<size>-cloud`.
+  if (model.provider === "ollama" && !/[:-]cloud$/iu.test(model.id))
+    return "local"
+  return "cloud"
 }
 
 /** The `/control/accounts` body, from maximal's on-disk registry. */
@@ -101,6 +112,8 @@ function toModelSummary(model: Model): ModelSummary {
     id: model.id,
     name: model.name,
     vendor: model.vendor,
+    provider: "github-copilot",
+    location: "cloud",
     family: capabilities.family ?? "",
     type: capabilities.type ?? "",
     preview: model.preview,
@@ -139,6 +152,8 @@ export function buildModelsList(
       id: model.id,
       name: model.name,
       vendor: model.providerName,
+      provider: model.provider,
+      location: providerModelLocation(model),
       family: model.family ?? "",
       type: providerModelType(capabilities),
       preview: false,

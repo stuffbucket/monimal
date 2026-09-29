@@ -349,6 +349,11 @@ export const ModelSummary = z.object({
   id: z.string(),
   name: z.string(),
   vendor: z.string(),
+  /** Routing provider that supplies the model. Omitted by older Cores, whose
+   * catalogue contains GitHub Copilot models only. */
+  provider: z.string().optional(),
+  /** Whether the provider serves this model locally or over a cloud path. */
+  location: z.enum(["cloud", "local"]).optional(),
   family: z.string(),
   /** Upstream `capabilities.type` — "chat", "embeddings", etc. The UI
    *  groups by this. */
@@ -570,6 +575,7 @@ export const OllamaSettingsResponse = z.object({
   has_api_key: z.boolean(),
   api_key: z.string().nullable().default(null),
   credential_source: z.enum(["environment", "file", "none"]),
+  cloud_enabled: z.boolean().default(true),
   local_enabled: z.boolean(),
   local_endpoint: z.url(),
   prefer_local_models: z.boolean(),
@@ -578,6 +584,7 @@ export type OllamaSettingsResponse = z.infer<typeof OllamaSettingsResponse>
 
 export const OllamaSettingsUpdateRequest = z.object({
   api_key: z.string().max(4096).optional(),
+  cloud_enabled: z.boolean().optional(),
   local_enabled: z.boolean().optional(),
   local_endpoint: z
     .union([

@@ -40,9 +40,11 @@ export function OllamaAccountsSection({
             keyMessage={state.keyMessage}
             available={cloudAvailable}
             statusChecked={list !== null}
+            statusChecking={state.checkingApiKey}
             statusErrorCode={cloudAccount?.error_code ?? null}
             onApiKeyChange={state.updateApiKey}
             onSave={() => void state.saveApiKey()}
+            onRefreshStatus={() => void state.refreshApiKeyStatus()}
             onRemove={() => void state.removeApiKey()}
             onManageKeys={() => void capabilities.openExternal('https://ollama.com/settings/keys')}
             onOpenCloudModels={() => navigate('settings-models-heading')}

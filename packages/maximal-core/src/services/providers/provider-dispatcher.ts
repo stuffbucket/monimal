@@ -161,9 +161,10 @@ export function createProviderDispatcher(
       [...names].map(async (name): Promise<Array<ProviderCatalogueModel>> => {
         const provider =
           usesDefaultConfig ?
-            getProviderConfig(name)
-          : resolveProviderConfig(config, name)
+            getProviderConfig(name, { includeDisabled: true })
+          : resolveProviderConfig(config, name, { includeDisabled: true })
         if (!provider) return []
+        const enabled = config.providers?.[name]?.enabled !== false
         try {
           const response = await forwardProviderModels(provider, new Headers())
           if (!response.ok) return []
@@ -185,6 +186,7 @@ export function createProviderDispatcher(
                 {
                   id: model.id,
                   name: modelName,
+                  enabled,
                   provider: name,
                   providerName: name,
                 },
@@ -410,6 +412,7 @@ export function createProviderDispatcher(
                         typeof model.display_name === "string" ?
                           model.display_name
                         : model.id,
+                      enabled: true,
                       provider: status.provider,
                       providerName: status.displayName ?? status.provider,
                     },

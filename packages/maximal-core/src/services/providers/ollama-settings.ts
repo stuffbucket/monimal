@@ -47,6 +47,7 @@ export function getOllamaSettings(
     has_api_key: secret.value !== undefined,
     api_key: secret.value ?? null,
     credential_source: credentialSource(secret.source, fromFile),
+    cloud_enabled: config.providers?.["ollama-cloud"]?.enabled !== false,
     local_enabled: configuredOllama?.enabled !== false,
     local_endpoint: normalizeProviderBaseUrl(
       configuredOllama?.baseUrl ?? DEFAULT_OLLAMA_BASE_URL,
@@ -75,6 +76,21 @@ export function updateOllamaSettings(
       ollama: {
         ...config.ollama,
         preferLocalModels: input.prefer_local_models,
+      },
+    })
+  }
+  if (input.cloud_enabled !== undefined) {
+    const config = getConfig()
+    writeConfig({
+      ...config,
+      providers: {
+        ...config.providers,
+        "ollama-cloud": {
+          ...config.providers?.["ollama-cloud"],
+          baseUrl: DEFAULT_OLLAMA_CLOUD_BASE_URL,
+          enabled: input.cloud_enabled,
+          type: "ollama",
+        },
       },
     })
   }

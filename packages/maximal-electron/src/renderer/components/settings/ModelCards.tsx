@@ -1,6 +1,11 @@
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { Cpu, RefreshCw } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import {
+  useState,
+  type KeyboardEvent,
+  type MouseEvent,
+  type ReactNode,
+} from 'react';
 
 import { useComponentStyles } from '../../lib/component-styles.js';
 import { fill, useShellContent } from '../../lib/content.js';
@@ -47,7 +52,33 @@ function providerTone(provider: string | undefined): string {
   return 'neutral';
 }
 
-function ModelTable({ models, kind }: { models: ModelCard[]; kind: string }) {
+function activateModel(
+  event: KeyboardEvent | MouseEvent,
+  model: ModelCard,
+  onModelActivate: ((model: ModelCard) => void) | undefined,
+): void {
+  if (!model.disabled || !model.activationLabel || onModelActivate === undefined) return;
+  if ('key' in event && event.key !== 'Enter' && event.key !== ' ') return;
+  if ('key' in event) event.preventDefault();
+  onModelActivate(model);
+}
+
+function modelIsActivatable(
+  model: ModelCard,
+  onModelActivate: ((model: ModelCard) => void) | undefined,
+): boolean {
+  return Boolean(model.disabled && model.activationLabel && onModelActivate);
+}
+
+function ModelTable({
+  models,
+  kind,
+  onModelActivate,
+}: {
+  models: ModelCard[];
+  kind: string;
+  onModelActivate?: (model: ModelCard) => void;
+}) {
   const content = useShellContent().models;
   return (
     <div className="model-table-wrap">
@@ -67,7 +98,19 @@ function ModelTable({ models, kind }: { models: ModelCard[]; kind: string }) {
         </thead>
         <tbody>
           {models.map((model) => (
-            <tr key={model.id} data-testid={`model-${model.id}`}>
+            <tr
+              key={model.id}
+              data-activatable={
+                modelIsActivatable(model, onModelActivate) ? 'true' : undefined
+              }
+              data-disabled={model.disabled ? 'true' : undefined}
+              data-testid={`model-${model.id}`}
+              role={modelIsActivatable(model, onModelActivate) ? 'button' : undefined}
+              tabIndex={modelIsActivatable(model, onModelActivate) ? 0 : undefined}
+              aria-label={model.disabled ? model.activationLabel : undefined}
+              onClick={(event) => activateModel(event, model, onModelActivate)}
+              onKeyDown={(event) => activateModel(event, model, onModelActivate)}
+            >
               <td>
                 <strong>{model.name}</strong>
                 <div className="model-table__id">{model.id}</div>
@@ -136,6 +179,29 @@ const MODEL_CARD_STYLES = `
 
 .sb-shell .model-card:hover {
   transform: translateY(calc(-1 * var(--shell-space-1) / 2));
+}
+
+.sb-shell .model-card[data-activatable='true'],
+.sb-shell .model-table tr[data-activatable='true'] {
+  cursor: pointer;
+}
+
+.sb-shell .model-card[data-disabled='true'],
+.sb-shell .model-table tr[data-disabled='true'] {
+  color: var(--shell-text-subtle);
+}
+
+.sb-shell .model-card[data-disabled='true'] {
+  border-color: var(--shell-border);
+}
+
+.sb-shell .model-card[data-disabled='true']:hover {
+  transform: none;
+}
+
+.sb-shell .model-card[data-disabled='true'] .model-card__name,
+.sb-shell .model-card[data-disabled='true'] .model-card__stats dd {
+  color: var(--shell-text-subtle);
 }
 
 .sb-shell .model-table-wrap {
@@ -270,10 +336,12 @@ export function ModelCardGrid({
   models,
   renderProviderAvatar,
   renderActions,
+  onModelActivate,
 }: {
   models: ModelCard[];
   renderProviderAvatar?: (provider: string) => ReactNode;
   renderActions?: (model: ModelCard) => ReactNode;
+  onModelActivate?: (model: ModelCard) => void;
 }) {
   useComponentStyles('model-cards', MODEL_CARD_STYLES);
   const [mode, setMode] = useState<ViewMode>('grid');
@@ -292,12 +360,18 @@ export function ModelCardGrid({
         <ViewModeSwitch mode={mode} onChange={setMode} />
       </div>
 
-      {mode === 'list' ? <ModelTable models={group.models} kind={group.kind} /> : (
+      {mode === 'list' ? (
+        <ModelTable
+          models={group.models}
+          kind={group.kind}
+          onModelActivate={onModelActivate}
+        />
+      ) : (
         <div className="model-grid">
           {group.models.map((model) => {
             const tone = providerTone(model.provider);
             const accent = PROVIDER_ACCENTS[tone];
-            const cardStyle = accent
+            const cardStyle = accent && !model.disabled
               ? {
                   borderColor: `color-mix(in srgb, ${accent} 35%, var(--shell-border))`,
                   background: `color-mix(in srgb, ${accent} 12%, var(--shell-raised))`,
@@ -307,9 +381,18 @@ export function ModelCardGrid({
               <article
                 className="model-card"
                 key={model.id}
+                aria-label={model.disabled ? model.activationLabel : undefined}
+                data-activatable={
+                  modelIsActivatable(model, onModelActivate) ? 'true' : undefined
+                }
+                data-disabled={model.disabled ? 'true' : undefined}
                 data-provider={tone}
                 data-testid={`model-${model.id}`}
+                role={modelIsActivatable(model, onModelActivate) ? 'button' : undefined}
                 style={cardStyle}
+                tabIndex={modelIsActivatable(model, onModelActivate) ? 0 : undefined}
+                onClick={(event) => activateModel(event, model, onModelActivate)}
+                onKeyDown={(event) => activateModel(event, model, onModelActivate)}
               >
                 <header className="model-card__head">
                   <h3 className="model-card__name">{model.name}</h3>

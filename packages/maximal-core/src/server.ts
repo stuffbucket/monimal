@@ -325,7 +325,7 @@ export function createServerApps(
   // ── Control listener ──────────────────────────────────────────────────────
   const control = createControlRoutesComposition({
     configurators: options.configurators,
-    listProviderModels: () => providerModelRouter.listAdvertisedModels(),
+    listProviderModels: () => providerModelRouter.listProviderModels(),
     localModelOperations,
     trafficQueries:
       options.trafficQueries

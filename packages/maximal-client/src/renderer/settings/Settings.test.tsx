@@ -51,6 +51,7 @@ function fakeCapabilities(): SettingsCapabilities {
     ollamaSettings: {
       get: vi.fn(async () => ({
         has_api_key: false,
+        cloud_enabled: true,
         api_key: null,
         credential_source: 'none' as const,
         local_enabled: true,
