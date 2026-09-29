@@ -12,9 +12,13 @@ const defaultPatterns = [
 ]
 // These process values are runtime inputs rather than application settings.
 const nonSettingsEnvironmentReaders = new Set([
+  "apps/desktop/src/main/adapters/harness.ts::environment:MAXIMAL_DISABLE_GLOBAL_KEYBOARD_HOOK",
+  "apps/desktop/src/main/index.ts::environment:MAXIMAL_DEV_PROFILE",
+  "apps/desktop/src/main/native/recording.ts::environment:*",
   "packages/maximal-logging/src/index.ts::environment:LOCALAPPDATA",
   "packages/maximal-logging/src/index.ts::environment:XDG_STATE_HOME",
   "packages/maximal-harness/src/host/agent.ts::environment:STUFFBUCKET_PROVIDER_API_KEY",
+  "packages/maximal-core/src/lib/platform/paths.ts::environment:COPILOT_API_CREDENTIAL_HOME",
   "packages/project-catalog/src/node.ts::environment:*",
 ])
 const baselineSchema = z.object({

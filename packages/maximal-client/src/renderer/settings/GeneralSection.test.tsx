@@ -1,5 +1,5 @@
 import { act } from 'react'
-import { QueryClientProvider } from '@tanstack/react-query'
+import { QueryClientProvider, type QueryClient } from '@tanstack/react-query'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -13,6 +13,7 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 
 let root: Root | null = null
 let container: HTMLElement | null = null
+let queryClient: QueryClient | null = null
 
 function deferred<T>() {
   let resolve!: (value: T) => void
@@ -107,28 +108,44 @@ afterEach(() => {
   container?.remove()
   root = null
   container = null
+  queryClient = null
   vi.useRealTimers()
 })
 
-async function renderGeneral(capabilities: SettingsCapabilities): Promise<HTMLElement> {
+async function renderGeneral(
+  capabilities: SettingsCapabilities,
+  options: { seedMenuBar?: boolean } = {},
+): Promise<HTMLElement> {
   if (root === null || container === null) throw new Error('test root not ready')
-  const queryClient = createMaximalQueryClient()
-  queryClient.setQueryData(
+  const client = createMaximalQueryClient()
+  queryClient = client
+  client.setQueryData(
     appearancePreferenceQueryKey,
     await capabilities.general.appearance(),
   )
-  queryClient.setQueryData(
-    menuBarModeQueryKey,
-    await capabilities.general.menuBarMode(),
-  )
+  if (options.seedMenuBar !== false) {
+    client.setQueryData(
+      menuBarModeQueryKey,
+      await capabilities.general.menuBarMode(),
+    )
+  }
   await act(async () => {
     root?.render(
-      <QueryClientProvider client={queryClient}>
+      <QueryClientProvider client={client}>
         <GeneralSection capabilities={capabilities} />
       </QueryClientProvider>,
     )
   })
   return container
+}
+
+function rerenderGeneral(capabilities: SettingsCapabilities): void {
+  if (root === null || queryClient === null) throw new Error('test root not ready')
+  root.render(
+    <QueryClientProvider client={queryClient}>
+      <GeneralSection capabilities={capabilities} />
+    </QueryClientProvider>,
+  )
 }
 
 function switchControl(surface: HTMLElement): HTMLButtonElement {
@@ -431,7 +448,7 @@ describe('GeneralSection', () => {
     const second = fakeCapabilities({ version: '2.0.0' })
 
     await act(async () => {
-      root?.render(<GeneralSection capabilities={second.capabilities} />)
+      rerenderGeneral(second.capabilities)
       await Promise.resolve()
     })
     await act(async () => {
@@ -453,7 +470,7 @@ describe('GeneralSection', () => {
     const second = fakeCapabilities({ version: '2.0.0' })
 
     await act(async () => {
-      root?.render(<GeneralSection capabilities={second.capabilities} />)
+      rerenderGeneral(second.capabilities)
       await Promise.resolve()
     })
     expect(surface.textContent).toContain('2.0.0')
@@ -471,9 +488,9 @@ describe('GeneralSection', () => {
       first.general.systemNotificationStatus.mockRejectedValueOnce(
         new Error('stale error'),
       )
-      root?.render(<GeneralSection capabilities={first.capabilities} />)
+      rerenderGeneral(first.capabilities)
       await Promise.resolve()
-      root?.render(<GeneralSection capabilities={second.capabilities} />)
+      rerenderGeneral(second.capabilities)
       await Promise.resolve()
     })
     expect(surface.textContent).not.toContain('stale error')
@@ -495,18 +512,20 @@ describe('GeneralSection', () => {
     const loadingMenuBar = deferred<{ enabled: boolean; pending: boolean }>()
     const { capabilities, general } = fakeCapabilities()
     general.menuBarMode.mockReturnValueOnce(loadingMenuBar.promise)
-    const surface = await renderGeneral(capabilities)
+    const surface = await renderGeneral(capabilities, { seedMenuBar: false })
 
     expect(surface.textContent).toContain('Loading general desktop settings…')
 
     await act(async () =>
       loadingMenuBar.resolve({ enabled: false, pending: true }),
     )
-    expect(switchControl(surface).disabled).toBe(true)
+    await vi.waitFor(() => {
+      expect(switchControl(surface).disabled).toBe(true)
+    })
 
     general.menuBarMode.mockResolvedValueOnce({ enabled: false, pending: false })
     await act(async () => {
-      root?.render(<GeneralSection capabilities={fakeCapabilities().capabilities} />)
+      rerenderGeneral(fakeCapabilities().capabilities)
       await Promise.resolve()
     })
     const beginAttempt = deferred<{
@@ -516,7 +535,7 @@ describe('GeneralSection', () => {
     const active = fakeCapabilities()
     active.general.beginMenuBarOnly.mockReturnValueOnce(beginAttempt.promise)
     await act(async () => {
-      root?.render(<GeneralSection capabilities={active.capabilities} />)
+      rerenderGeneral(active.capabilities)
       await Promise.resolve()
     })
     await act(async () => switchControl(surface).click())

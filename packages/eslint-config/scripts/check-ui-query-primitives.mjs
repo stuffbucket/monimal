@@ -31,6 +31,19 @@ const NON_QUERY_CALLS = new Set(['window.maximal.terminal.frameId'])
 
 export const allowedAdhocUiQueries = new Map([
   [
+    'packages/maximal-client/src/renderer/appearance.ts',
+    [
+      'browser-storage:localStorage',
+      'browser-storage:localStorage',
+    ],
+  ],
+  [
+    'packages/maximal-client/src/renderer/settings/general/useGeneralDesktopSettings.ts',
+    [
+      'effect-fetch:useGeneralDesktopSettings:capabilities.general.desktopSettings,capabilities.general.systemNotificationStatus',
+    ],
+  ],
+  [
     'packages/maximal-client/src/renderer/settings/accounts/useOllamaAccounts.ts',
     [
       'effect-fetch:useOllamaAccounts:capabilities.ollamaRuntime.preferences,capabilities.ollamaSettings.get',
@@ -56,6 +69,12 @@ export const allowedAdhocUiQueries = new Map([
     [
       'module-cache:inventoryCache',
       'effect-fetch:useModelProviderRegistry:capabilities.localModels.list,capabilities.models.list,capabilities.models.refresh',
+    ],
+  ],
+  [
+    'packages/maximal-client/src/renderer/useTerminalTabs.ts',
+    [
+      'effect-fetch:useTerminalTabs:window.maximal.browser.list',
     ],
   ],
 ])
@@ -325,10 +344,13 @@ export function ratchetUiQueryFindings(
 ) {
   const failures = []
   for (const [file, findings] of found) {
-    const allowed = new Set(allowedFindings.get(file) ?? [])
+    const allowed = [...(allowedFindings.get(file) ?? [])]
     for (const finding of findings) {
-      if (!allowed.delete(finding.identity)) {
+      const allowedIndex = allowed.indexOf(finding.identity)
+      if (allowedIndex === -1) {
         failures.push({ file, ...finding, stale: false })
+      } else {
+        allowed.splice(allowedIndex, 1)
       }
     }
     for (const identity of allowed) {

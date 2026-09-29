@@ -86,7 +86,7 @@ export const getEnterpriseDomain = (): string | null => {
  * carries the credential — so `tests/github-api-base-override.test.ts` asserts
  * each rejected shape by name.
  */
-const GITHUB_API_BASE_OVERRIDE_IPV4_HOSTNAME = "127.0.0.1"
+export const GITHUB_API_BASE_OVERRIDE_IPV4_HOSTNAME = "127.0.0.1"
 const GITHUB_API_BASE_OVERRIDE_IPV6_HOSTNAME = "[::1]"
 
 const LOOPBACK_OVERRIDE_HOSTNAMES = new Set([

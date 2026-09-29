@@ -29,6 +29,7 @@ import {
   readRegistry,
   writeRegistry,
 } from "~/lib/auth/github-token-store"
+import { GITHUB_API_BASE_OVERRIDE_IPV4_HOSTNAME } from "~/lib/config/api-config"
 
 import type { Engine } from "./helpers/spawn-engine"
 
@@ -148,7 +149,7 @@ describe("boot restores an active OAuth account across process restarts", () => 
   const requests: Array<{ path: string; authorization: string | null }> = []
   const fixture = Bun.serve({
     port: 0,
-    hostname: "127.0.0.1",
+    hostname: GITHUB_API_BASE_OVERRIDE_IPV4_HOSTNAME,
     fetch(request) {
       const { pathname } = new URL(request.url)
       requests.push({
