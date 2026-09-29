@@ -1,11 +1,10 @@
-import { describe, expect, test } from "bun:test"
-
 import {
   detectGhCli,
   getGhAccountToken,
   type GhRunner,
   isReadOnlyGhArgs,
-} from "~/lib/system/gh-cli"
+} from "@maximal/maximal-github/gh"
+import { describe, expect, test } from "bun:test"
 
 // Build a runner that returns canned results keyed by the gh subcommand, so
 // the parser is exercised without a real `gh` binary.

@@ -24,6 +24,7 @@ has ended.
 | `packages/maximal-context-window` | Context-window derivation and UI. |
 | `packages/maximal-recording` | Optional video capture engine and developer recording tools; desktop owns consent and output selection. |
 | `packages/maximal-data-visualization` | Visualization primitives and styles. |
+| `packages/maximal-github` | Runtime-neutral GitHub contracts, device authentication, Octokit API adapter, host profiles, and read-only GitHub CLI interoperability. |
 | `packages/maximal-harness` | Local agent orchestration and renderer. |
 | `packages/maximal-llama-cpp` | Standalone Electron-hosted llama.cpp provider, worker, and packaging policy. |
 | `packages/maximal-search` | Search connector contract, first-party providers, and provider settings manifest. |

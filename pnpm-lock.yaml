@@ -573,6 +573,9 @@ importers:
       '@maximal/maximal-core-contract':
         specifier: workspace:*
         version: link:../maximal-core-contract
+      '@maximal/maximal-github':
+        specifier: workspace:*
+        version: link:../maximal-github
       '@maximal/maximal-logging':
         specifier: workspace:*
         version: link:../maximal-logging
@@ -863,6 +866,40 @@ importers:
       yaml:
         specifier: ^2.9.0
         version: 2.9.0
+
+  packages/maximal-github:
+    dependencies:
+      '@octokit/plugin-retry':
+        specifier: 8.1.1
+        version: 8.1.1(@octokit/core@7.0.8)
+      '@octokit/plugin-throttling':
+        specifier: 11.0.5
+        version: 11.0.5(@octokit/core@7.0.8)
+      '@octokit/rest':
+        specifier: 22.0.1
+        version: 22.0.1
+      zod:
+        specifier: 4.5.4
+        version: 4.5.4
+    devDependencies:
+      '@maximal/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@types/node':
+        specifier: ^26.4.0
+        version: 26.4.0
+      eslint:
+        specifier: ^10.9.1
+        version: 10.9.1(jiti@2.7.0)(supports-color@8.1.1)
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(@typescript/typescript6@6.0.2)(jiti@2.7.0)(postcss@8.5.26)(supports-color@8.1.1)(yaml@2.9.0)
+      typescript:
+        specifier: npm:@typescript/typescript6@^6.0.2
+        version: '@typescript/typescript6@6.0.2'
+      vitest:
+        specifier: ^5.0.1
+        version: 5.0.1(@opentelemetry/api@1.9.0)(@types/node@26.4.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))
 
   packages/maximal-harness:
     dependencies:
@@ -2888,6 +2925,82 @@ packages:
   '@npmcli/promise-spawn@9.0.1':
     resolution: {integrity: sha1-IOgMvdLyStJjoV3j67sWc8uCAFs=}
     engines: {node: ^20.17.0 || >=22.9.0}
+
+  '@octokit/auth-token@6.0.0':
+    resolution: {integrity: sha1-sC6cCKLYk33wmiqYHyJq0hkXTFM=}
+    engines: {node: '>= 20'}
+
+  '@octokit/core@7.0.8':
+    resolution: {integrity: sha1-vIwFvDoCANH0U9T+WckFOnRGyfM=}
+    engines: {node: '>= 20'}
+
+  '@octokit/endpoint@11.0.5':
+    resolution: {integrity: sha1-1+yIhDv+7qaS/ul7UufCzcA5PbQ=}
+    engines: {node: '>= 20'}
+
+  '@octokit/graphql@9.0.5':
+    resolution: {integrity: sha1-2gvDWE15+VjlNzte0emEJcpe/cA=}
+    engines: {node: '>= 20'}
+
+  '@octokit/openapi-types@27.0.0':
+    resolution: {integrity: sha1-N06lN4GWX9AqnTbKy5fhUs7/8S0=}
+
+  '@octokit/openapi-types@28.0.0':
+    resolution: {integrity: sha1-qOR2kcFgL0d2Tn8V0WXW9mc2sAU=}
+
+  '@octokit/openapi-types@29.0.1':
+    resolution: {integrity: sha1-BYlcyK4ygFjnr3W2CMTJfwvBvAA=}
+
+  '@octokit/plugin-paginate-rest@14.0.0':
+    resolution: {integrity: sha1-RNyf/y2ssUjUxceItXPdwERQMCY=}
+    engines: {node: '>= 20'}
+    peerDependencies:
+      '@octokit/core': '>=6'
+
+  '@octokit/plugin-request-log@6.0.0':
+    resolution: {integrity: sha1-3hweVX32wIrbYxv3gmT6dB4Bsxc=}
+    engines: {node: '>= 20'}
+    peerDependencies:
+      '@octokit/core': '>=6'
+
+  '@octokit/plugin-rest-endpoint-methods@17.0.0':
+    resolution: {integrity: sha1-jFQ5fTpAYDVqHIqXQZHr+UWSQQU=}
+    engines: {node: '>= 20'}
+    peerDependencies:
+      '@octokit/core': '>=6'
+
+  '@octokit/plugin-retry@8.1.1':
+    resolution: {integrity: sha1-66jGcMMSilR06NH2K9GxX/8JxYM=}
+    engines: {node: '>= 20'}
+    peerDependencies:
+      '@octokit/core': '>=7'
+
+  '@octokit/plugin-throttling@11.0.5':
+    resolution: {integrity: sha1-Rpswbw8WLniwOshI95x4q0dxhmU=}
+    engines: {node: '>= 20'}
+    peerDependencies:
+      '@octokit/core': ^7.0.0
+
+  '@octokit/request-error@7.1.2':
+    resolution: {integrity: sha1-BHfz7BA0hpIF+L2AVg8rxVtlmXM=}
+    engines: {node: '>= 20'}
+
+  '@octokit/request@10.0.16':
+    resolution: {integrity: sha1-tUj4+Ej/5Mz1CCFC+sCW/nuCIrI=}
+    engines: {node: '>= 20'}
+
+  '@octokit/rest@22.0.1':
+    resolution: {integrity: sha1-TYZsMrdrcR0/c2+RmS4rU0FjtBY=}
+    engines: {node: '>= 20'}
+
+  '@octokit/types@16.0.0':
+    resolution: {integrity: sha1-+9f6WQwu8ir4gbHXl1i/qiNNu3w=}
+
+  '@octokit/types@17.0.0':
+    resolution: {integrity: sha1-wPpAkLjZV92bZaUR9x+H7hQDdpQ=}
+
+  '@octokit/types@18.0.0':
+    resolution: {integrity: sha1-dj7uuvtIjY6oqDIur7LZsYhdKEQ=}
 
   '@opentelemetry/api@1.9.0':
     resolution: {integrity: sha1-0D66aCc9wPdQnio9XLoh6uEDef4=}
@@ -5147,6 +5260,9 @@ packages:
     engines: {node: '>=6.0.0'}
     hasBin: true
 
+  before-after-hook@4.0.0:
+    resolution: {integrity: sha1-zxRHq5Fg32pA82Idpk1v/DYFDLk=}
+
   bidi-js@1.0.3:
     resolution: {integrity: sha1-b4vPPId8TZIg3fSbm7aTDIj4d9I=}
 
@@ -5169,6 +5285,9 @@ packages:
   boolean@3.2.0:
     resolution: {integrity: sha1-nlKUr06YMUSUy7F5efpUyhWfEWs=}
     deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+
+  bottleneck@2.19.5:
+    resolution: {integrity: sha1-XfC5D1n9R2VuvmPHiphBkgXK3ZE=}
 
   bowser@2.14.1:
     resolution: {integrity: sha1-TqOb8x4wUYRSLXrXv9kTieTwy3k=}
@@ -5468,6 +5587,10 @@ packages:
   content-type@2.1.0:
     resolution: {integrity: sha1-2TicQ8Coz2o1XbRk0h4HCSpASTo=}
     engines: {node: '>=18'}
+
+  content-type@3.1.1:
+    resolution: {integrity: sha512-GW4qUsfFo59d0HbUibDlWv5wPz+vAAcaTWbKIuKCf0JkC7wWkSyf8f13IpXn5JkeMlB2P8iTSSIjwXljorg2vA==}
+    engines: {node: '>=22'}
 
   convert-source-map@2.0.0:
     resolution: {integrity: sha1-S1YPZJ/E6RjdCrdc9JYei8iC2Co=}
@@ -6736,6 +6859,9 @@ packages:
 
   json-stringify-safe@5.0.1:
     resolution: {integrity: sha1-Epai1Y/UXxmg9s4B1lcB4sc1tus=}
+
+  json-with-bigint@3.5.12:
+    resolution: {integrity: sha1-n2v3IqmEftcvqbIXsrZhgSJ8RUw=}
 
   json5@2.2.3:
     resolution: {integrity: sha1-eM1vGhm9wStz21rQxh79ZsHikoM=}
@@ -8602,6 +8728,9 @@ packages:
   unique-string@3.0.0:
     resolution: {integrity: sha1-hKHDd6/1/XqLxrVdgkSyvZDXW5o=}
     engines: {node: '>=12'}
+
+  universal-user-agent@7.0.3:
+    resolution: {integrity: sha1-wFhwpYElotwAQx8t+BWnf+aXNr4=}
 
   universalify@0.1.2:
     resolution: {integrity: sha1-tkb2m+OULavOzJ1mOcgNwQXvqmY=}
@@ -10882,6 +11011,94 @@ snapshots:
     dependencies:
       which: 6.0.1
 
+  '@octokit/auth-token@6.0.0': {}
+
+  '@octokit/core@7.0.8':
+    dependencies:
+      '@octokit/auth-token': 6.0.0
+      '@octokit/graphql': 9.0.5
+      '@octokit/request': 10.0.16
+      '@octokit/request-error': 7.1.2
+      '@octokit/types': 18.0.0
+      before-after-hook: 4.0.0
+      universal-user-agent: 7.0.3
+
+  '@octokit/endpoint@11.0.5':
+    dependencies:
+      '@octokit/types': 18.0.0
+      universal-user-agent: 7.0.3
+
+  '@octokit/graphql@9.0.5':
+    dependencies:
+      '@octokit/request': 10.0.16
+      '@octokit/types': 18.0.0
+      universal-user-agent: 7.0.3
+
+  '@octokit/openapi-types@27.0.0': {}
+
+  '@octokit/openapi-types@28.0.0': {}
+
+  '@octokit/openapi-types@29.0.1': {}
+
+  '@octokit/plugin-paginate-rest@14.0.0(@octokit/core@7.0.8)':
+    dependencies:
+      '@octokit/core': 7.0.8
+      '@octokit/types': 16.0.0
+
+  '@octokit/plugin-request-log@6.0.0(@octokit/core@7.0.8)':
+    dependencies:
+      '@octokit/core': 7.0.8
+
+  '@octokit/plugin-rest-endpoint-methods@17.0.0(@octokit/core@7.0.8)':
+    dependencies:
+      '@octokit/core': 7.0.8
+      '@octokit/types': 16.0.0
+
+  '@octokit/plugin-retry@8.1.1(@octokit/core@7.0.8)':
+    dependencies:
+      '@octokit/core': 7.0.8
+      '@octokit/request-error': 7.1.2
+      '@octokit/types': 17.0.0
+      bottleneck: 2.19.5
+
+  '@octokit/plugin-throttling@11.0.5(@octokit/core@7.0.8)':
+    dependencies:
+      '@octokit/core': 7.0.8
+      '@octokit/types': 17.0.0
+      bottleneck: 2.19.5
+
+  '@octokit/request-error@7.1.2':
+    dependencies:
+      '@octokit/types': 18.0.0
+
+  '@octokit/request@10.0.16':
+    dependencies:
+      '@octokit/endpoint': 11.0.5
+      '@octokit/request-error': 7.1.2
+      '@octokit/types': 18.0.0
+      content-type: 3.1.1
+      json-with-bigint: 3.5.12
+      universal-user-agent: 7.0.3
+
+  '@octokit/rest@22.0.1':
+    dependencies:
+      '@octokit/core': 7.0.8
+      '@octokit/plugin-paginate-rest': 14.0.0(@octokit/core@7.0.8)
+      '@octokit/plugin-request-log': 6.0.0(@octokit/core@7.0.8)
+      '@octokit/plugin-rest-endpoint-methods': 17.0.0(@octokit/core@7.0.8)
+
+  '@octokit/types@16.0.0':
+    dependencies:
+      '@octokit/openapi-types': 27.0.0
+
+  '@octokit/types@17.0.0':
+    dependencies:
+      '@octokit/openapi-types': 28.0.0
+
+  '@octokit/types@18.0.0':
+    dependencies:
+      '@octokit/openapi-types': 29.0.1
+
   '@opentelemetry/api@1.9.0':
     optional: true
 
@@ -12723,6 +12940,8 @@ snapshots:
 
   baseline-browser-mapping@2.11.13: {}
 
+  before-after-hook@4.0.0: {}
+
   bidi-js@1.0.3:
     dependencies:
       require-from-string: 2.0.2
@@ -12756,6 +12975,8 @@ snapshots:
 
   boolean@3.2.0:
     optional: true
+
+  bottleneck@2.19.5: {}
 
   bowser@2.14.1: {}
 
@@ -13085,6 +13306,8 @@ snapshots:
 
   content-type@2.1.0:
     optional: true
+
+  content-type@3.1.1: {}
 
   convert-source-map@2.0.0: {}
 
@@ -14444,6 +14667,8 @@ snapshots:
 
   json-stringify-safe@5.0.1:
     optional: true
+
+  json-with-bigint@3.5.12: {}
 
   json5@2.2.3: {}
 
@@ -16413,6 +16638,8 @@ snapshots:
   unique-string@3.0.0:
     dependencies:
       crypto-random-string: 4.0.0
+
+  universal-user-agent@7.0.3: {}
 
   universalify@0.1.2: {}
 

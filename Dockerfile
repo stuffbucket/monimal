@@ -114,6 +114,7 @@ COPY --chown=maximal:maximal packages/maximal-assets/package.json packages/maxim
 COPY --chown=maximal:maximal packages/maximal-configurators/package.json packages/maximal-configurators/package.json
 COPY --chown=maximal:maximal packages/maximal-harness/package.json packages/maximal-harness/package.json
 COPY --chown=maximal:maximal packages/maximal-llama-cpp/package.json packages/maximal-llama-cpp/package.json
+COPY --chown=maximal:maximal packages/maximal-github/package.json packages/maximal-github/package.json
 COPY --chown=maximal:maximal packages/maximal-search/package.json packages/maximal-search/package.json
 COPY --chown=maximal:maximal packages/project-catalog/package.json packages/project-catalog/package.json
 COPY --chown=maximal:maximal packages/maximal-core/package.json packages/maximal-core/package.json
