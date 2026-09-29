@@ -8,6 +8,7 @@ export {
   selectAgentEffort,
   selectAgentModel,
   setAgentEffortPreference,
+  steerAgent,
   shutdownAgent,
   type AgentOptions,
   type AgentRunOptions,

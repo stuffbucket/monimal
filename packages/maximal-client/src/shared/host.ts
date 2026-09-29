@@ -37,6 +37,7 @@ import type {
   AgentApprovalRequest,
   AgentEffort,
   AssistantChat,
+  AssistantAttachment,
   AssistantChatList,
   AssistantChatListQuery,
   AssistantChatMessage,
@@ -278,13 +279,21 @@ export interface MaximalHost {
     provider: () => Promise<ProviderStatus>
     selectModel: (modelKey: string) => Promise<ProviderStatus>
     selectEffort: (effort: AgentEffort) => Promise<ProviderStatus>
-    ask: (prompt: string, chatId?: string) => Promise<AskAccepted>
+    ask: (
+      prompt: string,
+      chatId?: string,
+      attachments?: AssistantAttachment[],
+    ) => Promise<AskAccepted>
+    steer: (prompt: string, chatId?: string) => Promise<boolean>
     abort: () => Promise<void>
     approve: (request: ApproveRequest) => Promise<void>
     ensureModel: () => Promise<ModelProgress>
     preferences: () => Promise<AssistantOverlayPreferences>
     updatePreferences: (
-      update: Partial<Pick<AssistantOverlayPreferences, 'candy' | 'approval'>>,
+      update: Partial<Pick<
+        AssistantOverlayPreferences,
+        'candy' | 'approval' | 'outputFont'
+      >>,
     ) => Promise<AssistantOverlayPreferences>
     onDelta: (listener: (text: string) => void) => Unsubscribe
     onTool: (listener: (event: AgentToolEvent) => void) => Unsubscribe
@@ -296,6 +305,12 @@ export interface MaximalHost {
     ) => Unsubscribe
     onChatSelected: (listener: (id: string) => void) => Unsubscribe
     onChatsChanged: (listener: () => void) => Unsubscribe
+    onTerminalOpened: (
+      listener: (opened: {
+        chatId: string
+        result: TerminalLaunchResult
+      }) => void,
+    ) => Unsubscribe
     chats: {
       list: (query?: AssistantChatListQuery) => Promise<AssistantChatList>
       create: (title?: string) => Promise<AssistantChat>

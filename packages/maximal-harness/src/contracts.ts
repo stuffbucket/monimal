@@ -1,10 +1,17 @@
-export type AgentApproval = 'all' | 'writes' | 'none'
+export type AgentApproval = 'all' | 'read-only' | 'writes' | 'none'
 export type AgentProvider = 'maximal' | 'ollama' | 'embedded'
-export type AgentEffort = 'low' | 'medium' | 'high'
+export type AgentEffort = 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+export type AssistantOutputFont =
+  | 'auto'
+  | 'default'
+  | 'terminal'
+  | 'open-dyslexic'
+  | 'serif'
 
 export interface AssistantOverlayPreferences {
   candy: boolean
   approval: AgentApproval
+  outputFont: AssistantOutputFont
   hotkey: string
 }
 
@@ -84,6 +91,13 @@ export type { ModelProgress } from '@maximal/maximal-llama-cpp'
 export interface AskRequest {
   prompt: string
   chatId?: string
+  attachments?: AssistantAttachment[]
+}
+
+export interface AssistantAttachment {
+  name: string
+  mimeType: string
+  data: string
 }
 
 export type AskAccepted =

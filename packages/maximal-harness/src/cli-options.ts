@@ -56,8 +56,8 @@ export function parseAssistantCliOptions(arguments_: string[]): AssistantCliOpti
       continue
     }
     if (key === 'approval') {
-      if (value !== 'all' && value !== 'writes' && value !== 'none') {
-        throw new Error('--approval must be all, writes, or none.')
+      if (value !== 'all' && value !== 'read-only' && value !== 'writes' && value !== 'none') {
+        throw new Error('--approval must be all, read-only, writes, or none.')
       }
       values.approval = value
       continue

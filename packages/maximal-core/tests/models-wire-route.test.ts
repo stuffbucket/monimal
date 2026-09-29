@@ -79,6 +79,7 @@ function richModel(over: Partial<Model> = {}): Model {
         vision: true,
         structured_outputs: true,
         adaptive_thinking: true,
+        reasoning_effort: ["low", "medium", "high", "xhigh", "max"],
       },
     },
     ...over,
@@ -239,7 +240,10 @@ describe("GET /v1/models — Anthropic shape on signal", () => {
       image_input: { supported: true },
       pdf_input: { supported: true },
       structured_outputs: { supported: true },
-      thinking: { supported: true },
+      thinking: {
+        supported: true,
+        efforts: ["low", "medium", "high", "xhigh", "max"],
+      },
     })
     // OpenAI-only fields absent.
     expect(entry.object).toBeUndefined()

@@ -74,7 +74,12 @@ describe('discoverProvider', () => {
           id: 'claude',
           display_name: 'Claude',
           max_input_tokens: 200_000,
-          capabilities: { thinking: { supported: true } },
+          capabilities: {
+            thinking: {
+              supported: true,
+              efforts: ['low', 'medium', 'high', 'xhigh', 'max'],
+            },
+          },
         }],
       })),
     );
@@ -87,7 +92,7 @@ describe('discoverProvider', () => {
       models: [{
         label: 'Claude',
         description: 'Extended reasoning · 200K context',
-        efforts: ['low', 'medium', 'high'],
+        efforts: ['low', 'medium', 'high', 'xhigh', 'max'],
       }],
     });
     expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({

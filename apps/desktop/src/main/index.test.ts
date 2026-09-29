@@ -495,6 +495,7 @@ async function loadIndexOn(platform: NodeJS.Platform): Promise<void> {
       BRIDGE_CHANNELS.harnessSelectModel,
       BRIDGE_CHANNELS.harnessSelectEffort,
       BRIDGE_CHANNELS.harnessAsk,
+      BRIDGE_CHANNELS.harnessSteer,
       BRIDGE_CHANNELS.harnessAbort,
       BRIDGE_CHANNELS.harnessApprove,
       BRIDGE_CHANNELS.harnessEnsureModel,
@@ -608,6 +609,7 @@ describe('closed IPC boundary', () => {
       BRIDGE_CHANNELS.harnessPreferencesChanged,
       BRIDGE_CHANNELS.harnessChatSelected,
       BRIDGE_CHANNELS.harnessChatsChanged,
+      BRIDGE_CHANNELS.harnessTerminalOpened,
     ])
   })
 

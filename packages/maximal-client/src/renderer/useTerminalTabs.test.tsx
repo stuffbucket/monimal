@@ -1,7 +1,10 @@
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { TerminalMenuFocusRequest } from '../shared/host'
+import type {
+  MaximalHost,
+  TerminalMenuFocusRequest,
+} from '../shared/host'
 
 const { chatTerminal, onMenuFocus, syncMenu, terminalList } = vi.hoisted(() => ({
   chatTerminal: vi.fn(),
@@ -30,6 +33,7 @@ const durable = {
 let root: Root
 let container: HTMLDivElement
 let focusFromMenu: (request: TerminalMenuFocusRequest) => void
+let terminalOpened: Parameters<MaximalHost['harness']['onTerminalOpened']>[0]
 let openAssistantChat: (chatId: string) => void
 
 beforeEach(() => {
@@ -62,6 +66,10 @@ beforeEach(() => {
       },
       harness: {
         chats: { terminal: chatTerminal },
+        onTerminalOpened: vi.fn((listener: typeof terminalOpened) => {
+          terminalOpened = listener
+          return () => undefined
+        }),
       },
     },
   })
@@ -218,5 +226,27 @@ describe('terminal reconstruction', () => {
       assistantChatId: 'chat-1',
     }))
     expect(state.activeTab).toBe('terminal:assistant-terminal')
+  })
+
+  it('adopts an Assistant terminal launched by the overlay', async () => {
+    await restore()
+
+    act(() => terminalOpened({
+      chatId: 'chat-2',
+      result: {
+        sessionId: 'overlay-terminal',
+        label: 'Overlay chat',
+        canRunInBackground: false,
+      },
+    }))
+
+    const state = JSON.parse(container.textContent ?? '') as {
+      tabs: Array<{ assistantChatId?: string }>
+      activeTab: string
+    }
+    expect(state.tabs).toContainEqual(expect.objectContaining({
+      assistantChatId: 'chat-2',
+    }))
+    expect(state.activeTab).toBe('terminal:overlay-terminal')
   })
 })

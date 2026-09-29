@@ -1,5 +1,6 @@
 import { homedir } from 'node:os'
 
+import type { BrowserWindow } from 'electron'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { BRIDGE_CHANNELS } from '../../shared/bridge-channels'
@@ -19,6 +20,7 @@ type InvokeHandler = (
 const {
   abortAgentMock,
   appGetPath,
+  browserWindows,
   configureAgentMock,
   configureLlamaHostMock,
   configureModelMock,
@@ -32,6 +34,7 @@ const {
   ipcMainHandle,
   ipcMainRemoveHandler,
   isAgentBusyMock,
+  loadHarnessOptionsMock,
   readUserPreferencesMock,
   overlayWebContents,
   panel,
@@ -44,10 +47,15 @@ const {
   selectAgentEffortMock,
   setAgentEffortPreferenceMock,
   shutdownAgentMock,
+  steerAgentMock,
   stopEngineMock,
   updateUserPreferencesMock,
 } = vi.hoisted(() => {
   const handlers = new Map<string, InvokeHandler>()
+  const browserWindows: Array<{
+    isDestroyed(): boolean
+    webContents: { send: ReturnType<typeof vi.fn> }
+  }> = []
   const overlayWebContents = { send: vi.fn() }
   const panelState = { destroyed: false }
   const overlayWindow = {
@@ -91,6 +99,7 @@ const {
   return {
     abortAgentMock: vi.fn(),
     appGetPath: vi.fn(() => '/tmp/maximal-client-test'),
+    browserWindows,
     configureAgentMock: vi.fn(),
     configureLlamaHostMock: vi.fn(),
     configureModelMock: vi.fn(),
@@ -112,6 +121,12 @@ const {
       handlers.delete(channel)
     }),
     isAgentBusyMock: vi.fn(() => false),
+    loadHarnessOptionsMock: vi.fn(() => ({
+      approval: 'writes',
+      codingTools: true,
+      cwd: process.env.HOME ?? process.cwd(),
+      toolsetIds: ['app'],
+    })),
     readUserPreferencesMock: vi.fn(() => Promise.resolve({})),
     launchAssistantTerminalMock: vi.fn(() => ({
       sessionId: 'assistant-session',
@@ -145,6 +160,7 @@ const {
     ),
     setAgentEffortPreferenceMock: vi.fn(),
     shutdownAgentMock: vi.fn(() => Promise.resolve()),
+    steerAgentMock: vi.fn(() => true),
     stopEngineMock: vi.fn(),
     updateUserPreferencesMock: vi.fn(() => Promise.resolve()),
   }
@@ -154,7 +170,7 @@ vi.mock('electron', () => ({
   app: { getPath: appGetPath },
   BrowserWindow: {
     fromWebContents: vi.fn((sender: unknown) => ({ webContents: sender })),
-    getAllWindows: vi.fn(() => []),
+    getAllWindows: vi.fn(() => browserWindows),
   },
   globalShortcut: {
     register: globalShortcutRegister,
@@ -186,6 +202,7 @@ vi.mock('@maximal/maximal-harness/host', () => ({
   selectAgentModel: selectAgentModelMock,
   setAgentEffortPreference: setAgentEffortPreferenceMock,
   shutdownAgent: shutdownAgentMock,
+  steerAgent: steerAgentMock,
 }))
 
 vi.mock('./terminal.js', () => ({
@@ -205,12 +222,17 @@ vi.mock('../preferences/user-preferences.js', () => ({
   updateUserPreferences: updateUserPreferencesMock,
 }))
 
+vi.mock('./harness-options.js', () => ({
+  loadHarnessOptions: loadHarnessOptionsMock,
+}))
+
 const overlayInvokeChannels = [
   BRIDGE_CHANNELS.harnessHide,
   BRIDGE_CHANNELS.harnessProvider,
   BRIDGE_CHANNELS.harnessSelectModel,
   BRIDGE_CHANNELS.harnessSelectEffort,
   BRIDGE_CHANNELS.harnessAsk,
+  BRIDGE_CHANNELS.harnessSteer,
   BRIDGE_CHANNELS.harnessAbort,
   BRIDGE_CHANNELS.harnessApprove,
   BRIDGE_CHANNELS.harnessEnsureModel,
@@ -231,10 +253,13 @@ const invokeChannels = [
   BRIDGE_CHANNELS.harnessChatTerminal,
 ]
 
-async function startHost() {
+async function startHost(applicationWindow?: () => BrowserWindow | null) {
   vi.resetModules()
   const host = await import('./harness.js')
-  host.startHarnessHost({ modelDirectory: '/resolved/local/models' })
+  host.startHarnessHost({
+    modelDirectory: '/resolved/local/models',
+    applicationWindow,
+  })
   return host
 }
 
@@ -250,6 +275,7 @@ function overlayEvent(): { sender: unknown } {
 
 beforeEach(() => {
   handlers.clear()
+  browserWindows.length = 0
   vi.clearAllMocks()
   panelState.destroyed = false
   globalShortcutRegister.mockReturnValue(true)
@@ -294,6 +320,7 @@ describe('harness host IPC boundary', () => {
     const foreignEvent = { sender: { send: vi.fn() } }
     const inputs = new Map<string, unknown>([
       [BRIDGE_CHANNELS.harnessAsk, { prompt: 'hello' }],
+      [BRIDGE_CHANNELS.harnessSteer, { prompt: 'focus on tests' }],
       [
         BRIDGE_CHANNELS.harnessApprove,
         { id: 'approval-1', allow: true, remember: false },
@@ -343,8 +370,21 @@ describe('harness host IPC boundary', () => {
     expect(runAgentMock).toHaveBeenCalledWith(
       'explain this',
       expect.any(Object),
-      { initialMessages: [] },
+      { images: [], initialMessages: [] },
     )
+  })
+
+  it('validates steering requests before forwarding them to the active agent', async () => {
+    await startHost()
+    const steer = handler(BRIDGE_CHANNELS.harnessSteer)
+
+    for (const input of [undefined, null, {}, { prompt: 42 }, { prompt: '  ' }]) {
+      expect(() => steer(overlayEvent(), input)).toThrow()
+    }
+    expect(steerAgentMock).not.toHaveBeenCalled()
+
+    expect(steer(overlayEvent(), { prompt: '  focus on tests  ' })).toBe(true)
+    expect(steerAgentMock).toHaveBeenCalledWith('focus on tests')
   })
 
   it('launches a selected chat in a trusted terminal session', async () => {
@@ -361,6 +401,7 @@ describe('harness host IPC boundary', () => {
       label: 'Test chat',
       canRunInBackground: false,
     })
+
     expect(launchAssistantTerminalMock).toHaveBeenCalledWith(
       { webContents: sender },
       expect.objectContaining({
@@ -371,6 +412,29 @@ describe('harness host IPC boundary', () => {
         env: { ELECTRON_RUN_AS_NODE: '1' },
       }),
     )
+  })
+
+  it('publishes an overlay-launched terminal after the session is ready', async () => {
+    const applicationWebContents = { send: vi.fn() }
+    const applicationWindow = {
+      isDestroyed: () => false,
+      webContents: applicationWebContents,
+      show: vi.fn(),
+      focus: vi.fn(),
+    } as unknown as BrowserWindow
+    await startHost(() => applicationWindow)
+
+    const result = handler(BRIDGE_CHANNELS.harnessChatTerminal)(
+      overlayEvent(),
+      { id: 'chat-1', cols: 80, rows: 24 },
+    )
+
+    expect(applicationWebContents.send).toHaveBeenCalledWith(
+      BRIDGE_CHANNELS.harnessTerminalOpened,
+      { chatId: 'chat-1', result },
+    )
+    expect(applicationWindow.show).toHaveBeenCalledOnce()
+    expect(applicationWindow.focus).toHaveBeenCalledOnce()
   })
 
   it('validates approval requests before resolving them', async () => {
@@ -420,7 +484,7 @@ describe('harness host IPC boundary', () => {
     await startHost()
     const selectEffort = handler(BRIDGE_CHANNELS.harnessSelectEffort)
 
-    for (const input of [undefined, null, '', 'max', 42]) {
+    for (const input of [undefined, null, '', 'ultra', 42]) {
       await expect(
         Promise.resolve(selectEffort(overlayEvent(), input)),
       ).rejects.toThrow()
@@ -434,6 +498,11 @@ describe('harness host IPC boundary', () => {
     expect(updateUserPreferencesMock).toHaveBeenCalledWith({
       agentEffort: 'high',
     })
+
+    await expect(
+      selectEffort(overlayEvent(), 'max'),
+    ).resolves.toMatchObject({ state: 'ready', effort: 'max' })
+    expect(selectAgentEffortMock).toHaveBeenCalledWith('max')
   })
 
   it('streams agent and model events only to the live overlay', async () => {

@@ -12,7 +12,8 @@ import { z } from 'zod'
 
 const applicationSettingsSchema = z.object({
   assistantOverlayCandy: z.boolean(),
-  agentApproval: z.enum(['all', 'writes', 'none']),
+  assistantOutputFont: z.enum(['auto', 'default', 'terminal', 'open-dyslexic', 'serif']),
+  agentApproval: z.enum(['all', 'read-only', 'writes', 'none']),
   agentTools: z.boolean(),
   agentCwd: z.string().min(1),
   agentModel: z.string().min(1).optional(),
@@ -26,6 +27,7 @@ type ApplicationSettings = z.infer<typeof applicationSettingsSchema>
 
 const applicationSettingsPersistence = {
   assistantOverlayCandy: 'user',
+  assistantOutputFont: 'user',
   agentApproval: 'user',
   agentTools: 'user',
   agentCwd: 'user',
@@ -64,6 +66,7 @@ function applicationSettingsDefaults(
   }
   const defaults = z.object({
     assistantOverlayCandy: applicationSettingsSchema.shape.assistantOverlayCandy.catch(true),
+    assistantOutputFont: applicationSettingsSchema.shape.assistantOutputFont.catch('auto'),
     agentApproval: applicationSettingsSchema.shape.agentApproval.catch('writes'),
     agentTools: applicationSettingsSchema.shape.agentTools.catch(true),
     agentCwd: applicationSettingsSchema.shape.agentCwd.catch(homeDirectory),
@@ -88,6 +91,7 @@ function applicationSettingsOptions(
     applicationName: 'maximal', environmentPrefix: 'MAXIMAL',
     schema: applicationSettingsSchema,
     defaults: applicationSettingsDefaults(userDataDirectory, context),
+    userFile: join(userDataDirectory, 'settings.json'),
     project: context.projectTrusted === true,
     environment: context.environment ?? process.env,
     argv: context.argv ?? process.argv.slice(1),
@@ -137,13 +141,18 @@ export async function setAssistantOverlayPreferences(
   update: {
     candy?: boolean
     approval?: ApplicationSettings['agentApproval']
+    outputFont?: ApplicationSettings['assistantOutputFont']
   },
-): Promise<Pick<ApplicationSettings, 'assistantOverlayCandy' | 'agentApproval'>> {
+): Promise<Pick<
+  ApplicationSettings,
+  'assistantOverlayCandy' | 'agentApproval' | 'assistantOutputFont'
+>> {
   const store = applicationSettingsStore(userDataDirectory)
   let settings = store.getSnapshot().settings
   for (const [key, value] of [
     ['assistantOverlayCandy', update.candy],
     ['agentApproval', update.approval],
+    ['assistantOutputFont', update.outputFont],
   ] as const) {
     if (value === undefined) continue
     try {
@@ -161,5 +170,6 @@ export async function setAssistantOverlayPreferences(
   return {
     assistantOverlayCandy: settings.assistantOverlayCandy,
     agentApproval: settings.agentApproval,
+    assistantOutputFont: settings.assistantOutputFont,
   }
 }

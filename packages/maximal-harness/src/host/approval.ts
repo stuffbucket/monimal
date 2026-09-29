@@ -50,8 +50,14 @@ export const MAX_SUMMARY = HARNESS_CONFIG.approval.maxSummaryCharacters;
 /** Does a tool call at this risk need a decision from the user? */
 export function needsApproval(policy: AgentApproval, risk: ToolRisk): boolean {
   if (policy === 'none') return false;
+  if (policy === 'read-only') return false;
   if (policy === 'all') return true;
   return risk !== 'safe';
+}
+
+/** Whether a policy permits a tool to proceed, before any approval prompt. */
+export function permitsTool(policy: AgentApproval, risk: ToolRisk): boolean {
+  return policy !== 'read-only' || risk === 'safe';
 }
 
 /** Cut `text` to `MAX_SUMMARY`, marking that something was removed. */

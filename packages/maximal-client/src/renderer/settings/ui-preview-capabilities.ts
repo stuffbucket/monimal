@@ -234,6 +234,7 @@ export function createPreviewSettingsCapabilities(): SettingsCapabilities {
   let assistantOverlay: AssistantOverlayPreferences = {
     candy: true,
     approval: 'writes',
+    outputFont: 'auto',
     hotkey: 'CommandOrControl+Shift+Space',
   }
   const menuBarState = (): MenuBarModeState => ({

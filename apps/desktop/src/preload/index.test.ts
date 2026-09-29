@@ -121,6 +121,7 @@ describe('preload bridge allowlist', () => {
       'onEnd',
       'onModelProgress',
       'onPreferences',
+      'onTerminalOpened',
       'onTool',
       'openChat',
       'preferences',
@@ -128,6 +129,7 @@ describe('preload bridge allowlist', () => {
       'selectEffort',
       'selectModel',
       'show',
+      'steer',
       'toggle',
       'updatePreferences',
     ])
@@ -251,6 +253,7 @@ describe('preload bridge allowlist', () => {
     await bridge.harness.selectModel('ollama:qwen3:4b')
     await bridge.harness.selectEffort('high')
     await bridge.harness.ask('Explain this file')
+    await bridge.harness.steer('Focus on tests')
     await bridge.harness.abort()
     await bridge.harness.approve({ id: 'approval-1', allow: true, remember: false })
     await bridge.harness.ensureModel()
@@ -364,6 +367,7 @@ describe('preload bridge allowlist', () => {
       [BRIDGE_CHANNELS.harnessSelectModel, 'ollama:qwen3:4b'],
       [BRIDGE_CHANNELS.harnessSelectEffort, 'high'],
       [BRIDGE_CHANNELS.harnessAsk, { prompt: 'Explain this file' }],
+      [BRIDGE_CHANNELS.harnessSteer, { prompt: 'Focus on tests' }],
       [BRIDGE_CHANNELS.harnessAbort],
       [BRIDGE_CHANNELS.harnessApprove, { id: 'approval-1', allow: true, remember: false }],
       [BRIDGE_CHANNELS.harnessEnsureModel],

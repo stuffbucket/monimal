@@ -12,6 +12,7 @@ import {
 } from '@earendil-works/pi-agent-core';
 import { NodeExecutionEnv } from '@earendil-works/pi-agent-core/node';
 import { streamSimple } from '@earendil-works/pi-ai/compat';
+import type { ImageContent } from '@earendil-works/pi-ai';
 import type { TSchema } from 'typebox';
 
 import type {
@@ -25,7 +26,13 @@ import type {
 } from '../contracts.js';
 import { HARNESS_CONFIG, HARNESS_COPY } from '../constants.js';
 
-import { describeToolCall, needsApproval, riskOf, type ToolRisk } from './approval.js';
+import {
+  describeToolCall,
+  needsApproval,
+  permitsTool,
+  riskOf,
+  type ToolRisk,
+} from './approval.js';
 import {
   resolveEndpoints,
   type Endpoints,
@@ -42,6 +49,7 @@ import { buildToolsetTools, type RiskyTool } from './toolsets.js';
  */
 
 type Backend = keyof typeof HARNESS_CONFIG.discovery.defaultEndpoints | 'embedded';
+const AGENT_EFFORTS = new Set<AgentEffort>(['low', 'medium', 'high', 'xhigh', 'max']);
 
 const PINS: readonly Backend[] = HARNESS_CONFIG.discovery.providerPins;
 
@@ -154,13 +162,23 @@ function maximalModels(payload: unknown): AgentModelOption[] {
       id?: unknown;
       display_name?: unknown;
       max_input_tokens?: unknown;
-      capabilities?: { thinking?: { supported?: unknown } };
+      capabilities?: {
+        thinking?: {
+          supported?: unknown;
+          efforts?: unknown;
+        };
+      };
     }>;
   } | undefined)?.data;
   if (!Array.isArray(data)) return [];
   return data.flatMap((entry) => {
     if (typeof entry.id !== 'string' || entry.id.length === 0) return [];
     const reasoning = entry.capabilities?.thinking?.supported === true;
+    const efforts = entry.capabilities?.thinking?.efforts;
+    const supportedEfforts = Array.isArray(efforts)
+      ? efforts.filter((effort): effort is AgentEffort =>
+          typeof effort === 'string' && AGENT_EFFORTS.has(effort as AgentEffort))
+      : [];
     const context =
       typeof entry.max_input_tokens === 'number' && entry.max_input_tokens > 0
         ? `${Math.round(entry.max_input_tokens / 1000)}K context`
@@ -174,7 +192,7 @@ function maximalModels(payload: unknown): AgentModelOption[] {
       [reasoning ? 'Extended reasoning' : undefined, context]
         .filter((part): part is string => part !== undefined)
         .join(' · ') || 'Available through Maximal',
-      reasoning ? ['low', 'medium', 'high'] : [],
+      reasoning ? supportedEfforts : [],
     )];
   });
 }
@@ -226,9 +244,7 @@ async function ready(
   const effort =
     preferredEffort !== undefined && selected.efforts.includes(preferredEffort)
       ? preferredEffort
-      : selected.efforts.includes('high')
-        ? 'high'
-        : selected.efforts[0];
+      : selected.efforts.at(-1);
   return {
     state: 'ready',
     provider: selected.provider,
@@ -474,6 +490,17 @@ export interface AgentSink {
 
 export interface AgentRunOptions {
   initialMessages?: AgentMessage[];
+  images?: ImageContent[];
+}
+
+export function steerAgent(prompt: string): boolean {
+  if (!active?.agent) return false;
+  active.agent.steer({
+    role: 'user',
+    content: prompt,
+    timestamp: Date.now(),
+  });
+  return true;
 }
 
 /**
@@ -658,6 +685,7 @@ async function execute(
     risk: ToolRisk,
     summary: string,
   ): Promise<boolean> => {
+    if (!permitsTool(options.approval, risk)) return false;
     if (!needsApproval(options.approval, risk)) return true;
     if (allowed.has(tool)) return true;
     return requestApproval(pending, tool, summary, sink);
@@ -705,7 +733,12 @@ async function execute(
       const tool = toolCall.name;
       const risk = riskOf(tool, built.risk.get(tool));
       const ok = await gate(tool, risk, describeToolCall(tool, args));
-      return ok ? undefined : { block: true, reason: HARNESS_COPY.common.denied };
+      return ok ? undefined : {
+        block: true,
+        reason: options.approval === 'read-only'
+          ? HARNESS_COPY.agent.readOnlyDenied
+          : HARNESS_COPY.common.denied,
+      };
     },
 
     initialState: {
@@ -742,7 +775,7 @@ async function execute(
   });
 
   try {
-    await agent.prompt(prompt);
+    await agent.prompt(prompt, runOptions.images);
     sink.onEnd({ ok: true });
   } catch (error) {
     sink.onEnd({

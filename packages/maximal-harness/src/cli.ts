@@ -41,7 +41,7 @@ function help(): void {
     'Usage: maximal-agent --chat ID --database PATH --cwd PATH [options] [-- agent-options]',
     '',
     'Options:',
-    '  --approval all|writes|none',
+    '  --approval all|read-only|writes|none',
     '  --model PROVIDER:MODEL',
     '  --toolset ID[,ID...]',
     '  --coding-tools | --no-coding-tools',

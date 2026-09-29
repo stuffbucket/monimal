@@ -23,14 +23,17 @@ function fakeCapabilities() {
     assistantOverlay: vi.fn(async () => ({
       candy: true,
       approval: 'writes' as const,
+      outputFont: 'auto' as const,
       hotkey: 'CommandOrControl+Shift+Space',
     })),
     updateAssistantOverlay: vi.fn(async (update: {
       candy?: boolean
-      approval?: 'all' | 'writes' | 'none'
+      approval?: 'all' | 'read-only' | 'writes' | 'none'
+      outputFont?: 'auto' | 'default' | 'terminal' | 'open-dyslexic' | 'serif'
     }) => ({
       candy: update.candy ?? true,
       approval: update.approval ?? 'writes',
+      outputFont: update.outputFont ?? 'auto',
       hotkey: 'CommandOrControl+Shift+Space',
     })),
   }
@@ -113,6 +116,24 @@ describe('GeneralSection menu-bar-only confirmation', () => {
     await act(async () => control.click())
 
     expect(general.updateAssistantOverlay).toHaveBeenCalledWith({ candy: false })
+  })
+
+  it('persists the assistant conversation font', async () => {
+    const { capabilities, general } = fakeCapabilities()
+    const surface = await renderGeneral(capabilities)
+    const control = surface.querySelector<HTMLSelectElement>(
+      '[data-testid="assistant-output-font"]',
+    )
+    if (control === null) throw new Error('assistant output font was not rendered')
+
+    await act(async () => {
+      control.value = 'serif'
+      control.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+
+    expect(general.updateAssistantOverlay).toHaveBeenCalledWith({
+      outputFont: 'serif',
+    })
   })
 
   it('counts down and closes when main reaches its automatic rollback deadline', async () => {

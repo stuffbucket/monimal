@@ -124,7 +124,10 @@ export interface SettingsCapabilities {
     disableMenuBarOnly(): Promise<MenuBarModeState>
     assistantOverlay(): Promise<AssistantOverlayPreferences>
     updateAssistantOverlay(
-      update: Partial<Pick<AssistantOverlayPreferences, 'candy' | 'approval'>>,
+      update: Partial<Pick<
+        AssistantOverlayPreferences,
+        'candy' | 'approval' | 'outputFont'
+      >>,
     ): Promise<AssistantOverlayPreferences>
   }
   providerOnboarding: {

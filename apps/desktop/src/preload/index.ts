@@ -76,8 +76,14 @@ const bridge = {
       ipcRenderer.invoke(BRIDGE_CHANNELS.harnessSelectModel, modelKey),
     selectEffort: (effort) =>
       ipcRenderer.invoke(BRIDGE_CHANNELS.harnessSelectEffort, effort),
-    ask: (prompt, chatId) =>
+    ask: (prompt, chatId, attachments) =>
       ipcRenderer.invoke(BRIDGE_CHANNELS.harnessAsk, {
+        prompt,
+        ...(chatId ? { chatId } : {}),
+        ...(attachments?.length ? { attachments } : {}),
+      }),
+    steer: (prompt, chatId) =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.harnessSteer, {
         prompt,
         ...(chatId ? { chatId } : {}),
       }),
@@ -102,6 +108,8 @@ const bridge = {
       ),
     onChatsChanged: (listener) =>
       subscribe(BRIDGE_CHANNELS.harnessChatsChanged, listener),
+    onTerminalOpened: (listener) =>
+      subscribe(BRIDGE_CHANNELS.harnessTerminalOpened, listener),
     chats: {
       list: (query) => ipcRenderer.invoke(BRIDGE_CHANNELS.harnessChatsList, query),
       create: (title) => ipcRenderer.invoke(BRIDGE_CHANNELS.harnessChatCreate, title),

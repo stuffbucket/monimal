@@ -17,6 +17,7 @@ import {
   selectAgentEffort,
   selectAgentModel,
   setAgentEffortPreference,
+  steerAgent,
   shutdownAgent,
   HARNESS_SYSTEM_PROMPT,
   type AssistantChatStore,
@@ -66,9 +67,18 @@ const CHAT_LEASE_RENEW_MS = 10_000
 const askRequest = z.object({
   prompt: z.string().trim().min(1),
   chatId: z.string().min(1).optional(),
+  attachments: z.array(z.object({
+    name: z.string().trim().min(1).max(255),
+    mimeType: z.string().trim().min(1).max(100),
+    data: z.string().max(14_000_000),
+  })).max(8).optional(),
+})
+const steerRequest = z.object({
+  prompt: z.string().trim().min(1).max(100_000),
+  chatId: z.string().min(1).optional(),
 })
 const modelSelection = z.string().trim().min(1).max(1_000)
-const effortSelection = z.enum(['low', 'medium', 'high'])
+const effortSelection = z.enum(['low', 'medium', 'high', 'xhigh', 'max'])
 const rectangle = z.object({
   x: z.number().int(),
   y: z.number().int(),
@@ -90,7 +100,8 @@ const approvalRequest = z.object({
 })
 const overlayPreferencesUpdate = z.object({
   candy: z.boolean().optional(),
-  approval: z.enum(['all', 'writes', 'none']).optional(),
+  approval: z.enum(['all', 'read-only', 'writes', 'none']).optional(),
+  outputFont: z.enum(['auto', 'default', 'terminal', 'open-dyslexic', 'serif']).optional(),
 }).refine((update) => Object.keys(update).length > 0)
 const chatId = z.string().min(1)
 const chatListQuery = z.object({
@@ -139,6 +150,7 @@ function overlayPreferences(): AssistantOverlayPreferences {
   return {
     candy: settings.assistantOverlayCandy,
     approval: settings.agentApproval,
+    outputFont: settings.assistantOutputFont,
     hotkey: HOTKEY,
   }
 }
@@ -233,7 +245,7 @@ function loadRenderer(window: BrowserWindow): void {
   }
 }
 
-function registerIpc(): void {
+function registerIpc(applicationWindow?: () => BrowserWindow | null): void {
   if (registered) return
   registered = true
 
@@ -281,7 +293,7 @@ function registerIpc(): void {
   )
   ipcMain.handle(BRIDGE_CHANNELS.harnessAsk, (event, input: unknown): AskAccepted => {
     owner(event)
-    const { prompt, chatId: requestedChatId } = askRequest.parse(input)
+    const { prompt, chatId: requestedChatId, attachments = [] } = askRequest.parse(input)
     if (isAgentBusy()) return { started: false, reason: 'Already working on the previous request.' }
     const conversation = requestedChatId
       ? chatStore().open(requestedChatId)
@@ -323,12 +335,29 @@ function registerIpc(): void {
       },
     }, {
       initialMessages,
+      images: attachments
+        .filter((attachment) => attachment.mimeType.startsWith('image/'))
+        .map((attachment) => ({
+          type: 'image' as const,
+          data: attachment.data,
+          mimeType: attachment.mimeType,
+        })),
     }).then((messages) => {
       if (messages) {
         chatStore().saveAgentState(conversation.id, { version: 1, messages })
       }
     })
     return { started: true, chatId: conversation.id }
+  })
+  ipcMain.handle(BRIDGE_CHANNELS.harnessSteer, (event, input: unknown) => {
+    owner(event)
+    const request = steerRequest.parse(input)
+    const accepted = steerAgent(request.prompt)
+    if (accepted && request.chatId) {
+      chatStore().append(request.chatId, 'user', request.prompt)
+      broadcastChatsChanged()
+    }
+    return accepted
   })
   ipcMain.handle(BRIDGE_CHANNELS.harnessAbort, (event) => {
     owner(event)
@@ -410,7 +439,7 @@ function registerIpc(): void {
       ...(options.preferredModel ? ['--model', options.preferredModel] : []),
     ]
     broadcastChatsChanged()
-    return launchAssistantTerminal(
+    const result = launchAssistantTerminal(
       BrowserWindow.fromWebContents(event.sender) ?? undefined,
       {
         command: process.execPath,
@@ -422,10 +451,25 @@ function registerIpc(): void {
         label: conversation.title,
       },
     )
+    if (event.sender === panel?.window()?.webContents) {
+      const window = applicationWindow?.()
+      if (window && !window.isDestroyed()) {
+        window.show()
+        window.focus()
+        window.webContents.send(BRIDGE_CHANNELS.harnessTerminalOpened, {
+          chatId: conversation.id,
+          result,
+        })
+      }
+    }
+    return result
   })
 }
 
-export function startHarnessHost(options: { modelDirectory: string }): void {
+export function startHarnessHost(options: {
+  modelDirectory: string
+  applicationWindow?: () => BrowserWindow | null
+}): void {
   configureLlamaHost({ workerPath: join(__dirname, LLAMA_WORKER_FILENAME) })
   configureModel({ directory: options.modelDirectory })
   chats = createAssistantChatStore(chatDatabasePath())
@@ -455,7 +499,7 @@ export function startHarnessHost(options: { modelDirectory: string }): void {
     summonOnStart = false
     panel.show()
   }
-  registerIpc()
+  registerIpc(options.applicationWindow)
 
   try {
     boundHotkey = globalShortcut.register(HOTKEY, () => panel?.toggle())
@@ -502,6 +546,7 @@ export async function stopHarnessHost(): Promise<void> {
       BRIDGE_CHANNELS.harnessSelectModel,
       BRIDGE_CHANNELS.harnessSelectEffort,
       BRIDGE_CHANNELS.harnessAsk,
+      BRIDGE_CHANNELS.harnessSteer,
       BRIDGE_CHANNELS.harnessAbort,
       BRIDGE_CHANNELS.harnessApprove,
       BRIDGE_CHANNELS.harnessEnsureModel,

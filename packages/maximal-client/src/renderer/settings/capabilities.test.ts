@@ -173,17 +173,20 @@ function fakeBridge(): MaximalHost {
       selectModel: vi.fn(async () => ({ state: 'probing' as const })),
       selectEffort: vi.fn(async () => ({ state: 'probing' as const })),
       ask: vi.fn(async () => ({ started: true as const, chatId: 'chat-1' })),
+      steer: vi.fn(async () => true),
       abort: vi.fn(async () => {}),
       approve: vi.fn(async () => {}),
       ensureModel: vi.fn(async () => ({ state: 'absent' as const })),
       preferences: vi.fn(async () => ({
         candy: true,
         approval: 'writes' as const,
+        outputFont: 'auto' as const,
         hotkey: 'CommandOrControl+Shift+Space',
       })),
       updatePreferences: vi.fn(async () => ({
         candy: true,
         approval: 'writes' as const,
+        outputFont: 'auto' as const,
         hotkey: 'CommandOrControl+Shift+Space',
       })),
       chats: {
@@ -205,6 +208,7 @@ function fakeBridge(): MaximalHost {
       onPreferences: vi.fn(() => () => {}),
       onChatSelected: vi.fn(() => () => {}),
       onChatsChanged: vi.fn(() => () => {}),
+      onTerminalOpened: vi.fn(() => () => {}),
     },
     terminal: {
       spawn: vi.fn(async () => {}),

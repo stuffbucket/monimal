@@ -7,6 +7,7 @@ const HARNESS_INVOKE_CHANNELS = {
   harnessSelectModel: 'maximal:harness/select-model',
   harnessSelectEffort: 'maximal:harness/select-effort',
   harnessAsk: 'maximal:harness/ask',
+  harnessSteer: 'maximal:harness/steer',
   harnessAbort: 'maximal:harness/abort',
   harnessApprove: 'maximal:harness/approve',
   harnessEnsureModel: 'maximal:harness/ensure-model',
@@ -119,6 +120,7 @@ export const BRIDGE_CHANNELS = {
   harnessPreferencesChanged: 'maximal:harness/preferences-changed',
   harnessChatSelected: 'maximal:harness/chat-selected',
   harnessChatsChanged: 'maximal:harness/chats-changed',
+  harnessTerminalOpened: 'maximal:harness/terminal-opened',
 } as const
 
 export const INVOKE_CHANNELS = [
@@ -222,4 +224,5 @@ export const EVENT_CHANNELS = [
   BRIDGE_CHANNELS.harnessPreferencesChanged,
   BRIDGE_CHANNELS.harnessChatSelected,
   BRIDGE_CHANNELS.harnessChatsChanged,
+  BRIDGE_CHANNELS.harnessTerminalOpened,
 ] as const

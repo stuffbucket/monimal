@@ -96,13 +96,15 @@ function fakeCapabilities(): SettingsCapabilities {
       assistantOverlay: vi.fn(async () => ({
         candy: true,
         approval: 'writes' as const,
+        outputFont: 'auto' as const,
         hotkey: 'CommandOrControl+Shift+Space',
       })),
       updateAssistantOverlay: vi.fn(async (
-        update: Partial<Pick<AssistantOverlayPreferences, 'candy' | 'approval'>>,
+        update: Partial<Pick<AssistantOverlayPreferences, 'candy' | 'approval' | 'outputFont'>>,
       ) => ({
         candy: update.candy ?? true,
         approval: update.approval ?? 'writes',
+        outputFont: update.outputFont ?? 'auto',
         hotkey: 'CommandOrControl+Shift+Space',
       })),
     },

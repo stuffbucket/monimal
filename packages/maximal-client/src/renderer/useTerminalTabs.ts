@@ -146,6 +146,14 @@ export function useTerminalTabs(
     setActiveTab(tab.id)
   }, [])
 
+  useEffect(() => window.maximal.harness.onTerminalOpened(({ chatId, result }) => {
+    const tab = { ...terminalTab(result), assistantChatId: chatId }
+    setTabs((current) => current.some((candidate) => candidate.id === tab.id)
+      ? current
+      : [...current, tab])
+    setActiveTab(tab.id)
+  }), [])
+
   const openAssistantChat = useCallback((chatId: string) => {
     const existing = tabs.find((tab) => tab.assistantChatId === chatId)
     if (existing) {

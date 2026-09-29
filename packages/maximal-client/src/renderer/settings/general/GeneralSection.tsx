@@ -5,8 +5,10 @@ import {
   SettingsGroup,
   SettingsItem,
   SettingsSection,
+  Select,
   Switch,
 } from '@maximal/maximal-electron/renderer'
+import type { AssistantOutputFont } from '@maximal/maximal-harness'
 
 import type { SettingsCapabilities } from '../capabilities'
 import { MenuBarOnlyDialog } from './MenuBarOnlyDialog'
@@ -87,6 +89,26 @@ export function GeneralSection({
                   disabled={assistant.busy}
                   onChange={(next) => void assistant.setCandy(next)}
                   testId="assistant-candy-switch"
+                />
+              )}
+            />
+            <SettingsItem
+              title="Conversation font"
+              description="Choose the typeface used for assistant responses."
+              control={(
+                <Select<AssistantOutputFont>
+                  aria-label="Conversation font"
+                  value={assistant.preferences.outputFont}
+                  disabled={assistant.busy}
+                  onChange={(next) => void assistant.setOutputFont(next)}
+                  options={[
+                    { value: 'auto', label: 'Auto' },
+                    { value: 'default', label: 'Default' },
+                    { value: 'terminal', label: 'Terminal' },
+                    { value: 'open-dyslexic', label: 'OpenDyslexic' },
+                    { value: 'serif', label: 'Baskerville' },
+                  ]}
+                  testId="assistant-output-font"
                 />
               )}
             />

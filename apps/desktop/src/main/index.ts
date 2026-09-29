@@ -700,7 +700,10 @@ void app.whenReady().then(async () => {
     },
   })
   registerIpc(coreControlConnection, nativeMode)
-  startHarnessHost({ modelDirectory: localModelsDirectory() })
+  startHarnessHost({
+    modelDirectory: localModelsDirectory(),
+    applicationWindow: () => mainWindow,
+  })
 
   const splashPreview = isSplashPreview()
   let coreReady = false

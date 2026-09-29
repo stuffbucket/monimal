@@ -252,12 +252,14 @@ beforeEach(() => {
         preferences: vi.fn(async () => ({
           candy: true,
           approval: 'writes' as const,
+          outputFont: 'auto' as const,
           hotkey: 'CommandOrControl+Shift+Space',
         })),
         toggle: vi.fn(async () => {}),
         openChat: vi.fn(async () => {}),
         onPreferences: vi.fn(() => () => {}),
         onChatsChanged: vi.fn(() => () => {}),
+        onTerminalOpened: vi.fn(() => () => {}),
       },
       terminal: {
         profiles: vi.fn(() => Promise.resolve([])),
