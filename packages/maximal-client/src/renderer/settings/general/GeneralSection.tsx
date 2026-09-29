@@ -10,6 +10,7 @@ import {
 } from '@maximal/maximal-electron/renderer'
 
 import type { SettingsCapabilities } from '../capabilities'
+import { AppearanceSection } from './AppearanceSection'
 import { MenuBarOnlyDialog } from './MenuBarOnlyDialog'
 import { useGeneralDesktopSettings } from './useGeneralDesktopSettings'
 import { useAppearancePreference } from './useAppearancePreference'
@@ -124,6 +125,7 @@ export function GeneralSection({
 
   return (
     <section className="settings-section">
+      <AppearanceSection />
       {appearance.error ? (
         <Note status="failed" live="assertive">
           {appearance.error}
