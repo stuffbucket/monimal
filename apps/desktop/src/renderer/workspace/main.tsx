@@ -10,8 +10,12 @@ import '@maximal/maximal-electron/renderer/styles.css'
 import '@maximal/maximal-browser/styles.css'
 import '@maximal/maximal-observability/styles.css'
 
+import { initializeAppearance } from '@maximal/maximal-client/renderer/appearance'
+
 import { App } from './App'
 import { RendererErrorBoundary } from './RendererErrorBoundary'
+
+initializeAppearance()
 
 const root = document.getElementById('root')
 if (root) {
