@@ -13,7 +13,7 @@
     "typecheck": "node ../../scripts/run-workspace-task.mjs typecheck",
     "typecheck:inner": "tsc --noEmit",
     "lint": "node ../../scripts/run-workspace-task.mjs lint",
-    "lint:inner": "eslint .",
+    "lint:inner": "eslint src scripts e2e eslint.config.mjs forge.config.ts forge.env.d.ts playwright.config.ts vite.*.config.mts vitest.config.mts",
     "test": "vitest run",
     "test:settings": "vitest run src/main/preferences/application-settings.test.ts src/main/adapters/harness-options.test.ts src/main/adapters/terminal-shutdown.test.ts",
     "dev": "node scripts/start.mjs",
@@ -30,6 +30,7 @@
   "dependencies": {
     "@maximal/local-model-registry": "workspace:*",
     "@maximal/maximal-assets": "workspace:*",
+    "@maximal/maximal-browser": "workspace:*",
     "@maximal/maximal-client": "workspace:*",
     "@maximal/maximal-core": "workspace:*",
     "@maximal/maximal-core-contract": "workspace:*",

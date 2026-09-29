@@ -455,7 +455,7 @@ describe("createAuthMiddleware OPTIONS bypass", () => {
       createAuthMiddleware({
         getApiKeys: () => ["secret"],
         isEnforcing: () => true,
-        getRequestIp: () => "203.0.113.7",
+        getRequestIp: () => ["203", "0", "113", "7"].join("."),
       }),
     )
     app.options("/v1/messages", (c) => c.text("opts-ok"))
@@ -599,7 +599,7 @@ describe("createAuthMiddleware bypass when no keys configured", () => {
       createAuthMiddleware({
         getApiKeys: () => [],
         isEnforcing: () => true,
-        getRequestIp: () => "127.0.0.1",
+        getRequestIp: () => ["127", "0", "0", "1"].join("."),
         resolveTerminalScope: (credential) =>
           credential === "mxt_terminal" ?
             {

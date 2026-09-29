@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const {
   accountStatus,
+  browserList,
   appearanceState,
   capabilityState,
   createObservabilitySource,
@@ -22,6 +23,14 @@ const {
   const observabilitySource = { source: 'stable-observability-source' }
   return {
     accountStatus: vi.fn(() => Promise.resolve({ state: 'unauthenticated' })),
+    browserList: vi.fn((): Promise<Array<{
+      id: string
+      url: string
+      title: string
+      owner: 'agent' | 'user'
+      control: 'user' | 'agent-shared' | 'agent-exclusive'
+      terminalSessionIds: string[]
+    }>> => Promise.resolve([])),
     appearanceState: {
       vibrancyEnabled: false,
       backgroundEffectsEnabled: false,
@@ -293,12 +302,33 @@ beforeEach(() => {
   capabilityState.openSettings = null
   accountStatus.mockResolvedValue({ state: 'unauthenticated' })
   terminalList.mockResolvedValue([])
+  browserList.mockResolvedValue([])
   Object.assign(window, {
     maximal: {
       shutdown: {
         current: vi.fn(async () => ({ phase: 'idle', operations: [] })),
         force: vi.fn(async () => false),
         onChange: vi.fn(() => () => {}),
+      },
+      browser: {
+        list: browserList,
+        open: vi.fn(),
+        navigate: vi.fn(),
+        command: vi.fn(() => Promise.resolve()),
+        inspect: vi.fn(),
+        click: vi.fn(() => Promise.resolve()),
+        hover: vi.fn(() => Promise.resolve()),
+        type: vi.fn(() => Promise.resolve()),
+        press: vi.fn(() => Promise.resolve()),
+        drag: vi.fn(() => Promise.resolve()),
+        scroll: vi.fn(() => Promise.resolve()),
+        wait: vi.fn(() => Promise.resolve()),
+        screenshot: vi.fn(),
+        setControl: vi.fn(),
+        setTerminalContext: vi.fn(() => Promise.resolve()),
+        close: vi.fn(() => Promise.resolve()),
+        show: vi.fn(() => Promise.resolve()),
+        onEvent: vi.fn(() => () => {}),
       },
       projects: {
         search: vi.fn(async () => []),
@@ -490,6 +520,7 @@ describe('App routing', () => {
     const newTerminal = [...shell.querySelectorAll('button')].find(
       (button) => button.textContent === 'New terminal',
     )
+
     if (newTerminal === undefined) throw new Error('New terminal action was not rendered')
 
     act(() => newTerminal.click())
@@ -511,6 +542,44 @@ describe('App routing', () => {
     expect(shell.querySelector('[data-testid="app-frame"]')?.getAttribute('data-view')).toBe(
       'traffic',
     )
+  })
+
+  it('lists browsers associated with any PTY in a terminal split context menu', async () => {
+    terminalList.mockResolvedValue([
+      {
+        id: 'document-root',
+        cwd: '/work',
+        shell: '/bin/zsh',
+        startedAt: 2,
+        title: 'Workspace',
+        canRunInBackground: false,
+        pane: {
+          direction: 'right',
+          first: { sessionId: 'document-root' },
+          second: { sessionId: 'document-leaf' },
+        },
+        revision: 7,
+      },
+      {
+        id: 'document-leaf',
+        cwd: '/work',
+        shell: '/bin/zsh',
+        startedAt: 3,
+      },
+    ])
+    browserList.mockResolvedValue([{
+      id: '11111111-1111-4111-8111-111111111111',
+      url: 'https://example.com/',
+      title: 'Example',
+      owner: 'agent',
+      control: 'agent-exclusive',
+      terminalSessionIds: ['document-leaf'],
+    }])
+
+    const shell = await renderApp()
+
+    expect([...shell.querySelectorAll('button')].some((button) =>
+      button.textContent?.includes('Browser · Example (Agent exclusive) Workspace'))).toBe(true)
   })
 
   it('provides rename and close actions for a terminal tab context menu', async () => {

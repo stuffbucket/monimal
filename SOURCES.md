@@ -15,6 +15,7 @@ has ended.
 
 | Package | Purpose |
 | --- | --- |
+| `packages/maximal-browser` | Agent-shareable browser sessions, native Electron views, and browser-tab renderer UI. |
 | `packages/maximal-terminal` | Electron-free terminal hosts, tmux control and projection, launch connectors, and the terminal renderer. |
 | `packages/maximal-settings` | Typed layered settings, process-owned JSON stores, plugin-schema validation, and the settings migration ratchet. |
 | `packages/local-model-registry` | Local-model registration and provisioning. |
@@ -121,6 +122,7 @@ Both are monorepo-native;
 | `@maximal/maximal-client` | Its workspace build waits for dependency builds; typechecking the renderer requires their emitted contracts in a clean Linux checkout. |
 | `apps/desktop` | Development Electron profiles are checkout-isolated and shutdown waits for the Core child. |
 | `maximal-electron` / `apps/desktop` | Desktop imports the package host-window API directly; it has no local shell adapter. |
+| `maximal-browser` / `apps/desktop` | Browser pages run in sandboxed `WebContentsView` instances owned by `maximal-browser`; desktop owns IPC transport and window lifecycle. |
 | `@maximal/maximal-client` / `apps/desktop` | Direct lint and typecheck commands re-enter their Turbo tasks through `run-workspace-task.mjs`. |
 | `maximal-electron` | Terminal copies use a main-owned revisioned pane document and geometry controller; window transfers stage before atomic readiness-gated commit or rollback. |
 | `maximal-electron` / `apps/desktop` | `ElectronPanel` accepts consumer-owned movement policy and reports completed user moves while suppressing programmatic placement events; desktop persists the assistant anchor relative to a display work area. |

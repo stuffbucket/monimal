@@ -1,6 +1,7 @@
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { BrowserEvent } from '@maximal/maximal-browser'
 
 const { terminalList } = vi.hoisted(() => ({ terminalList: vi.fn() }))
 vi.mock('./terminal/transport', () => ({ terminalTransport: { list: terminalList } }))
@@ -22,14 +23,24 @@ const durable = {
 }
 let root: Root
 let container: HTMLDivElement
+let browserListener: ((event: BrowserEvent) => void) | undefined
 
 beforeEach(() => {
   ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
   terminalList.mockReset()
+  browserListener = undefined
   terminalList.mockResolvedValue([durable])
   Object.defineProperty(window, 'maximal', {
     configurable: true,
     value: {
+      browser: {
+        list: async () => [],
+        setTerminalContext: async () => undefined,
+        onEvent: (listener: typeof browserListener) => {
+          browserListener = listener
+          return () => { browserListener = undefined }
+        },
+      },
       terminal: {
         frameId: async () => 'test-window',
         onTabRedocked: () => () => undefined,
@@ -52,6 +63,8 @@ async function restore() {
     const state = useTerminalTabs()
     return <pre>{JSON.stringify({
       tabs: state.tabs.filter((tab) => tab.kind === 'terminal'),
+      allTabs: state.tabs,
+      activeTab: state.activeTab,
       panes: [...state.panes],
       revisions: [...state.paneRevisions],
     })}</pre>
@@ -59,6 +72,8 @@ async function restore() {
   await act(async () => { root.render(<Harness />) })
   return JSON.parse(container.textContent ?? '') as {
     tabs: Array<{ id: string; title: string; canRunInBackground?: boolean }>
+    allTabs: Array<{ id: string; kind: string; browserOwner?: string }>
+    activeTab: string
     panes: Array<[string, unknown]>
     revisions: Array<[string, number]>
   }
@@ -87,6 +102,26 @@ describe('terminal reconstruction', () => {
 
   it('retains the host-owned background capability', async () => {
     expect((await restore()).tabs[0]?.canRunInBackground).toBe(true)
+  })
+
+  it('groups an agent-opened browser after terminal tabs and activates it', async () => {
+    await restore()
+    await act(async () => {
+      browserListener?.({
+        type: 'opened',
+        session: {
+          id: 'browser-1',
+          url: 'https://example.com/',
+          title: 'Example',
+          owner: 'agent',
+          control: 'agent-exclusive',
+          terminalSessionIds: ['primary', 'split'],
+        },
+      })
+    })
+    const state = JSON.parse(container.textContent ?? '') as Awaited<ReturnType<typeof restore>>
+    expect(state.allTabs.slice(-2).map(({ kind }) => kind)).toEqual(['terminal', 'browser'])
+    expect(state.activeTab).toBe('browser:browser-1')
   })
 
   it('groups terminals and assigns an individual tab color', async () => {

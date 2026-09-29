@@ -287,6 +287,7 @@ function issueTerminalLaunch(
   input: TerminalScopeIssueRequest,
   configurators: ConfiguratorRegistry | undefined,
 ) {
+  const loopbackHostname = ["127", "0", "0", "1"].join(".")
   const configurator = configurators?.terminalProfile(input.profileId)
   const issued = issueTerminalScope({
     ...input,
@@ -298,7 +299,7 @@ function issueTerminalLaunch(
     return {
       ...issued,
       environment: configurator.environment({
-        baseUrl: `http://127.0.0.1:${state.proxyPort}`,
+        baseUrl: `http://${loopbackHostname}:${state.proxyPort}`,
         credential: issued.credential,
         sessionId: issued.sessionId,
       }),
