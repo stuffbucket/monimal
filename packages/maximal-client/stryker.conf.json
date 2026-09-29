@@ -4,7 +4,7 @@
   "packageManager": "npm",
   "testRunner": "command",
   "commandRunner": {
-    "command": "pnpm exec vitest run --config vitest.mutation.config.mts"
+    "command": "pnpm test:mutation"
   },
   "mutate": [
     "src/renderer/terminal-tab-organization.ts",

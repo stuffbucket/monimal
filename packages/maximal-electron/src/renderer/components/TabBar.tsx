@@ -27,6 +27,7 @@ import {
 } from '../lib/tab-transfer.js';
 import { useShellPortalContainer } from './controls/Overlays.js';
 
+/** Stable color names accepted by tabs and tab groups. */
 export const TAB_COLORS = ['blue', 'green', 'yellow', 'red', 'purple', 'orange'] as const;
 export type TabColor = (typeof TAB_COLORS)[number];
 
