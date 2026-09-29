@@ -1,5 +1,8 @@
 import type { AgentApproval } from '@maximal/maximal-harness'
-import { loadApplicationSettings } from '../preferences/application-settings.js'
+import {
+  loadApplicationSettings,
+  type ApplicationSettingsContext,
+} from '../preferences/application-settings.js'
 
 export interface HarnessOptions {
   approval: AgentApproval
@@ -9,8 +12,11 @@ export interface HarnessOptions {
   toolsetIds: readonly string[]
 }
 
-export function loadHarnessOptions(userDataDirectory: string): HarnessOptions {
-  const { settings } = loadApplicationSettings(userDataDirectory)
+export function loadHarnessOptions(
+  userDataDirectory: string,
+  context: ApplicationSettingsContext = {},
+): HarnessOptions {
+  const { settings } = loadApplicationSettings(userDataDirectory, context)
   return {
     approval: settings.agentApproval,
     codingTools: settings.agentTools,
