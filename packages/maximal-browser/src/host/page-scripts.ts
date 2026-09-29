@@ -3,7 +3,7 @@ import type { BrowserSnapshot } from '../contract.js';
 const REF_ATTRIBUTE = 'data-maximal-browser-ref';
 const REF_PATTERN = /^e\d+$/;
 
-export function assertElementRef(ref: string): void {
+function assertElementRef(ref: string): void {
   if (!REF_PATTERN.test(ref)) throw new Error(`Invalid browser element reference: ${ref}`);
 }
 
