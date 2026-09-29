@@ -1,3 +1,4 @@
+export { ContextWindowInspector } from "./ContextWindowInspector.tsx"
 export {
   deriveDisplayFlow,
   deriveTokenStacks,
@@ -14,7 +15,6 @@ export {
   formatTimestamp,
 } from "./format.ts"
 export {
-  ContextWindowInspector,
   OverviewInspector,
   OverviewMain,
   OverviewRail,

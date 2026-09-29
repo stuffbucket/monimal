@@ -16,7 +16,7 @@ import {
   TrafficExplorerMain,
   TrafficExplorerStatus,
 } from "../src/index.ts"
-import { FakeSource } from "./fixtures.ts"
+import { FakeSource, REQUEST } from "./fixtures.ts"
 ;(
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
 ).IS_REACT_ACT_ENVIRONMENT = true
@@ -109,10 +109,72 @@ describe("observability components", () => {
     expect(source.detailReads).toBe(1)
     expect(container.textContent).toContain("trace-1")
     expect(container.textContent).toContain("Lifecycle")
+    expect(container.textContent).toContain("Context window")
+    expect(container.textContent).toContain("session-1")
     const explorerResults = await axe.run(container, {
       rules: { "color-contrast": { enabled: false } },
     })
     expect(explorerResults.violations.map(({ id }) => id)).toEqual([])
+  })
+
+  it("updates the selected session context when live traffic arrives", async () => {
+    const source = new FakeSource()
+    act(() =>
+      root.render(
+        <ObservabilityProvider
+          source={source}
+          now={() => new Date("2026-09-07T20:01:00.000Z")}
+        >
+          <TrafficExplorerInspector />
+        </ObservabilityProvider>,
+      ),
+    )
+    await settle()
+    expect(container.querySelectorAll(".mcw-turn-picker-button")).toHaveLength(
+      0,
+    )
+
+    source.requestItems = [
+      {
+        ...REQUEST,
+        identity: { ...REQUEST.identity, requestId: "req-2" },
+        timing: {
+          ...REQUEST.timing,
+          acceptedAt: "2026-09-07T20:02:00.000Z",
+        },
+      },
+      REQUEST,
+      {
+        ...REQUEST,
+        identity: {
+          ...REQUEST.identity,
+          requestId: "req-other",
+          sessionId: "session-2",
+        },
+        timing: {
+          ...REQUEST.timing,
+          acceptedAt: "2026-09-07T20:03:00.000Z",
+        },
+      },
+    ]
+    source.invalidate({
+      contractVersion: 1,
+      revision: 1,
+      emittedAt: "2026-09-07T20:03:00.000Z",
+      activeCount: 0,
+      overflow: false,
+      scopes: ["requests"],
+      requestIds: ["req-2", "req-other"],
+    })
+    await settle()
+
+    expect(source.requestReads).toBe(2)
+    expect(container.querySelectorAll(".mcw-turn-picker-button")).toHaveLength(
+      2,
+    )
+    expect(button("Turn 2").getAttribute("aria-pressed")).toBe("true")
+    const sessionSelect = container.querySelector("select")
+    expect(sessionSelect?.querySelectorAll("option")).toHaveLength(2)
   })
 
   it("pauses live invalidation and exposes unsupported states", async () => {

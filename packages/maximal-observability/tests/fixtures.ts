@@ -9,7 +9,7 @@ import type {
 
 import type { ObservabilitySource } from "../src/source.ts"
 
-const REQUEST: TrafficRequestSummary = {
+export const REQUEST: TrafficRequestSummary = {
   identity: {
     requestId: "req-1",
     traceId: "trace-1",
@@ -225,6 +225,7 @@ export class FakeSource implements ObservabilitySource {
   requestReads = 0
   detailReads = 0
   listener: TrafficInvalidationListener | null = null
+  requestItems: Array<TrafficRequestSummary> = [REQUEST]
 
   readOverview() {
     this.overviewReads += 1
@@ -233,7 +234,10 @@ export class FakeSource implements ObservabilitySource {
 
   readRequests() {
     this.requestReads += 1
-    return Promise.resolve({ status: "ready" as const, data: PAGE })
+    return Promise.resolve({
+      status: "ready" as const,
+      data: { ...PAGE, items: this.requestItems },
+    })
   }
 
   readRequestDetail() {
