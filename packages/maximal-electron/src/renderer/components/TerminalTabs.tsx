@@ -24,6 +24,7 @@ interface TerminalTabsCommonProps {
   launchSplit?: () => Promise<{ sessionId: string }>;
   onExit?: (tabId: string) => void;
   onSessionsChange?: (tabId: string, sessionIds: string[]) => void;
+  onFocusChange?: (tabId: string, sessionId: string) => void;
   onPaneChange?: (tabId: string, pane: TerminalPane, baseRevision: number) => void;
   initialPane?: TerminalPane;
   initialPanes?: ReadonlyMap<string, TerminalPane>;
@@ -115,6 +116,7 @@ export function TerminalTabs(props: TerminalTabsProps) {
           launchSplit={props.launchSplit}
           onExit={props.onExit}
           onSessionsChange={props.onSessionsChange}
+          onFocusChange={props.onFocusChange}
           onPaneChange={props.onPaneChange}
           requestedFocus={props.paneFocusRequest?.tabId === attachment.id
             ? {

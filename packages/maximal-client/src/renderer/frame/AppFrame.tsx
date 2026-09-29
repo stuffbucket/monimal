@@ -210,7 +210,7 @@ export function AppFrame({
       leftSize={LEFT_PANEL_SIZE}
       withActivity
       withLeft={surface !== 'terminal' && surface !== 'browser'}
-      withRight={surface === 'overview' || surface === 'traffic'}
+      withRight={surface === 'overview' || surface === 'traffic' || surface === 'terminal'}
       withStatus={surface !== 'terminal' && surface !== 'browser'}
     >
       {children}

@@ -121,14 +121,11 @@ function StartOllamaDialog({
   )
 }
 
-function localStatus(
-  runtime: OllamaRuntimeStatus | null,
-  endpoint: string,
-): string {
+function localStatus(runtime: OllamaRuntimeStatus | null): string {
   if (runtime === null) return 'Checking the configured Ollama location…'
   return runtime.running
-    ? `Ollama is available at ${runtime.endpoint}.`
-    : `Ollama is not responding at ${endpoint}.`
+    ? `Ollama is available.`
+    : `Ollama is not responding.`
 }
 
 function localApplicationAction(
@@ -183,10 +180,10 @@ export function OllamaLocalSettings({
         )}
       >
         <FormField
-          label="Ollama location"
+          label="Ollama Application URL"
           hint={
             <span aria-live="polite">
-              {endpointMessage ?? localStatus(runtime, settings.local_endpoint)}
+              {endpointMessage ?? localStatus(runtime)}
             </span>
           }
           error={endpointError ?? undefined}

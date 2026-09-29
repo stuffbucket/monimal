@@ -201,6 +201,7 @@ describe('TerminalTabs attachments', () => {
   it('inserts a trusted launched session into a resizable split', async () => {
     const launchSplit = vi.fn(async () => ({ sessionId: 'session-5' }));
     const onSessionsChange = vi.fn();
+    const onFocusChange = vi.fn();
     const terminate = vi.fn(async () => undefined);
     const element = document.createElement('div');
     const root = createRoot(element);
@@ -212,6 +213,7 @@ describe('TerminalTabs attachments', () => {
           activeId="tab-17"
           launchSplit={launchSplit}
           onSessionsChange={onSessionsChange}
+          onFocusChange={onFocusChange}
           transport={{
             spawn: async () => undefined,
             write: async () => undefined,
@@ -239,6 +241,7 @@ describe('TerminalTabs attachments', () => {
       'data-focused',
     )).toBeNull();
     expect(onSessionsChange).toHaveBeenLastCalledWith('tab-17', ['session-4', 'session-5']);
+    expect(onFocusChange).toHaveBeenLastCalledWith('tab-17', 'session-5');
     expect(terminate).not.toHaveBeenCalled();
 
     await act(async () => {
@@ -248,6 +251,7 @@ describe('TerminalTabs attachments', () => {
     expect(element.querySelector('[data-session-id="session-4"]')?.getAttribute(
       'data-focus-request',
     )).toBe('2');
+    expect(onFocusChange).toHaveBeenLastCalledWith('tab-17', 'session-4');
 
     await act(async () => root.unmount());
     expect(terminate.mock.calls).toEqual([['session-4'], ['session-5']]);

@@ -35,6 +35,11 @@ Traffic, and Settings are its document tabs. Feature surfaces render their main
 content normally and use `SurfaceRail`, `SurfaceRight`, `SurfaceStatus`, and
 `SurfaceTop` portals for host-owned shell slots.
 
+Terminal documents use the right slot for the context-window inspector. Its
+selection is keyed by the focused terminal leaf, while the shell persists the
+right panel geometry under the terminal tab id so transferred windows retain
+the tab's expanded or collapsed state.
+
 ## Privacy boundary
 
 The dashboard is metadata-first. It may display normalized request identity,

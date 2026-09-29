@@ -7,6 +7,8 @@ import { assertIsolatedTestPath } from "~/lib/platform/test-isolation"
 
 const AUTH_APP = process.env.COPILOT_API_OAUTH_APP?.trim() || ""
 const ENTERPRISE_PREFIX = process.env.COPILOT_API_ENTERPRISE_URL ? "ent_" : ""
+const CREDENTIAL_HOME_OVERRIDE =
+  process.env.COPILOT_API_CREDENTIAL_HOME?.trim() || undefined
 
 /** Inputs to {@link resolveAppDir}, injected so the resolver is pure/testable. */
 export interface AppDirEnv {
@@ -43,6 +45,13 @@ export function resolveAppDir(env: AppDirEnv): string {
     return path.join(roaming, "maximal")
   }
   return path.join(env.homedir, ".local", "share", "maximal")
+}
+
+export function resolveCredentialDir(
+  appDir: string,
+  credentialHome: string | undefined,
+): string {
+  return credentialHome?.trim() || appDir
 }
 
 /** How maximal treats a data home that is not there yet. */
@@ -189,14 +198,14 @@ const APP_DIR = ((): string => {
 })()
 
 const GITHUB_TOKEN_PATH = path.join(
-  APP_DIR,
+  resolveCredentialDir(APP_DIR, CREDENTIAL_HOME_OVERRIDE),
   AUTH_APP,
   ENTERPRISE_PREFIX + "github_token",
 )
 // Multi-account registry (schema v2). Co-located with the legacy single-record
 // token file so it inherits the same oauth-app + enterprise-prefix namespacing.
 const ACCOUNTS_PATH = path.join(
-  APP_DIR,
+  resolveCredentialDir(APP_DIR, CREDENTIAL_HOME_OVERRIDE),
   AUTH_APP,
   ENTERPRISE_PREFIX + "accounts.json",
 )
@@ -204,15 +213,44 @@ const CONFIG_PATH = path.join(APP_DIR, "config.json")
 
 export const PATHS = {
   APP_DIR,
+  CREDENTIAL_DIR: resolveCredentialDir(APP_DIR, CREDENTIAL_HOME_OVERRIDE),
   GITHUB_TOKEN_PATH,
   ACCOUNTS_PATH,
   CONFIG_PATH,
 }
 
 export async function ensurePaths(): Promise<void> {
-  await fs.mkdir(path.join(PATHS.APP_DIR, AUTH_APP), { recursive: true })
+  await fs.mkdir(path.join(PATHS.CREDENTIAL_DIR, AUTH_APP), {
+    recursive: true,
+    mode: 0o700,
+  })
+  await fs.mkdir(PATHS.APP_DIR, { recursive: true })
+  if (PATHS.CREDENTIAL_DIR !== PATHS.APP_DIR) {
+    await Promise.all([
+      migrateCredentialFile(ENTERPRISE_PREFIX + "github_token"),
+      migrateCredentialFile(ENTERPRISE_PREFIX + "accounts.json"),
+    ])
+  }
   await ensureFile(PATHS.GITHUB_TOKEN_PATH)
   await ensureFile(PATHS.CONFIG_PATH)
+}
+
+async function migrateCredentialFile(fileName: string): Promise<void> {
+  const source = path.join(PATHS.APP_DIR, AUTH_APP, fileName)
+  const destination = path.join(PATHS.CREDENTIAL_DIR, AUTH_APP, fileName)
+  try {
+    await fs.copyFile(source, destination, nodeFs.constants.COPYFILE_EXCL)
+    await fs.chmod(destination, 0o600)
+  } catch (error) {
+    if (
+      error instanceof Error
+      && "code" in error
+      && (error.code === "ENOENT" || error.code === "EEXIST")
+    ) {
+      return
+    }
+    throw error
+  }
 }
 
 async function ensureFile(filePath: string): Promise<void> {

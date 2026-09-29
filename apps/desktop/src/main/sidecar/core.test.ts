@@ -109,6 +109,13 @@ describe('sidecar lifecycle logging', () => {
         stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
       }),
     )
+    const spawnOptions = spawnMock.mock.calls[0]?.[2] as
+      | { env?: NodeJS.ProcessEnv }
+      | undefined
+    expect(spawnOptions?.env?.COPILOT_API_HOME).toContain('core-home')
+    expect(spawnOptions?.env?.COPILOT_API_CREDENTIAL_HOME).toContain(
+      'Maximal-development-credentials',
+    )
     proc.stderr.write('sensitive stderr token\n')
     proc.stdout.write('sensitive stdout token\n')
     await vi.waitFor(() => {
