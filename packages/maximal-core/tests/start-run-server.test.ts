@@ -478,6 +478,7 @@ describe("runServer — configurator lifecycle", () => {
     const registry: ConfiguratorRegistry = {
       all: () => [plugin],
       get: (id) => (id === plugin.metadata.id ? plugin : undefined),
+      terminalProfile: () => undefined,
       dispose: () => Promise.resolve(),
     }
 

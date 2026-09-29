@@ -1,3 +1,7 @@
+import type {
+  TrafficObservationStart,
+  TrafficObserver,
+} from "@maximal/maximal-observability-contract"
 import type { Context } from "hono"
 
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test"
@@ -15,6 +19,7 @@ import {
 } from "../src/lib/auth/request-auth"
 import { requestContext } from "../src/lib/http/request-context"
 import { traceIdMiddleware } from "../src/lib/http/trace"
+import { createTrafficObservationMiddleware } from "../src/lib/observability/middleware"
 import { state } from "../src/lib/runtime-state/state"
 
 function buildApp(opts: {
@@ -572,6 +577,62 @@ describe("createAuthMiddleware bypass when no keys configured", () => {
 
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual(terminalScope)
+  })
+
+  test("terminal provenance reaches traffic observation through the request middleware chain", async () => {
+    const starts: Array<TrafficObservationStart> = []
+    const observer: TrafficObserver = {
+      beginRequest: (observation) => {
+        starts.push(observation)
+        return {
+          recordDispatch: () => undefined,
+          recordFirstResponse: () => undefined,
+          recordTokens: () => undefined,
+          complete: () => undefined,
+        }
+      },
+    }
+    const app = new Hono()
+    app.use("*", traceIdMiddleware)
+    app.use(
+      "*",
+      createAuthMiddleware({
+        getApiKeys: () => [],
+        isEnforcing: () => true,
+        getRequestIp: () => "127.0.0.1",
+        resolveTerminalScope: (credential) =>
+          credential === "mxt_terminal" ?
+            {
+              sessionId: "terminal-maximal",
+              profileId: "maximal",
+              application: "Maximal",
+            }
+          : null,
+      }),
+    )
+    app.use("*", createTrafficObservationMiddleware(observer))
+    app.post("/v1/messages", (c) => c.json({ ok: true }))
+
+    const response = await app.request("/v1/messages", {
+      method: "POST",
+      headers: {
+        authorization: "Bearer mxt_terminal",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "test-model",
+        max_tokens: 16,
+        messages: [{ role: "user", content: "test" }],
+      }),
+    })
+
+    expect(response.status).toBe(200)
+    expect(starts).toHaveLength(1)
+    expect(starts[0]?.terminal).toEqual({
+      sessionId: "terminal-maximal",
+      profileId: "maximal",
+      application: "Maximal",
+    })
   })
 })
 

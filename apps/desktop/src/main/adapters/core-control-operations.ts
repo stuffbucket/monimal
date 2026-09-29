@@ -4,8 +4,8 @@ import {
   type LocalModelCatalogSnapshot,
   type LocalModelEnsureResult,
   type LocalModelOperationEvent,
-  TerminalScopeCredential as TerminalScopeCredentialSchema,
-  type TerminalScopeCredential,
+  TerminalScopeLaunch as TerminalScopeLaunchSchema,
+  type TerminalScopeLaunch,
   type TerminalScopeIssueRequest,
   TerminalScopeRevokeResult as TerminalScopeRevokeResultSchema,
   type TerminalScopeRevokeResult,
@@ -88,7 +88,7 @@ export interface CoreControlOperations {
   observabilityOverview(query: TrafficOverviewQuery): Promise<ControlResult<TrafficOverview>>
   observabilityRequests(query: TrafficRequestListQuery): Promise<ControlResult<TrafficRequestList>>
   observabilityRequest(query: TrafficRequestDetailQuery): Promise<ControlResult<TrafficRequestDetail | null>>
-  terminalScopeIssue(input: TerminalScopeIssueRequest): Promise<ControlResult<TerminalScopeCredential>>
+  terminalScopeIssue(input: TerminalScopeIssueRequest): Promise<ControlResult<TerminalScopeLaunch>>
   terminalScopeRevoke(sessionId: string): Promise<ControlResult<TerminalScopeRevokeResult>>
   connectionsList(): Promise<ControlResult<ConnectionsListResponse>>
   connectionsAct(id: string, action: ConnectionAction): Promise<ControlResult<ConnectionEntry>>
@@ -292,7 +292,7 @@ export function createCoreControlOperations(call: ControlCall): CoreControlOpera
         (input) => input === null ? null : TrafficRequestDetailSchema.parse(input),
         query, parseWith(TrafficRequestDetailQuerySchema)),
     terminalScopeIssue: (input) =>
-      call('terminalScopes/issue', parseWith(TerminalScopeCredentialSchema), input),
+      call('terminalScopes/issue', parseWith(TerminalScopeLaunchSchema), input),
     terminalScopeRevoke: (sessionId) =>
       call('terminalScopes/revoke', parseWith(TerminalScopeRevokeResultSchema), { sessionId }),
     connectionsList: () =>

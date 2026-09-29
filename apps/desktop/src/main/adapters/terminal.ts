@@ -253,15 +253,16 @@ export function configureTerminalHost(
     tmuxStatus: settings.terminalTmuxStatus,
     prepareSession: async ({ sessionId, profileId, label }) => {
       if (!ROUTED_TERMINAL_PROFILES.has(profileId)) return {}
-      const [issued, proxyUrl] = await Promise.all([
-        core.terminalScopeIssue({
-          sessionId,
-          profileId,
-          application: applicationForProfile(profileId, label),
-        }),
-        awaitProxyUrl(),
-      ])
+      const issued = await core.terminalScopeIssue({
+        sessionId,
+        profileId,
+        application: applicationForProfile(profileId, label),
+      })
       if (!issued.ok) throw new Error(issued.error.message)
+      if (Object.keys(issued.value.environment).length > 0) {
+        return issued.value.environment
+      }
+      const proxyUrl = await awaitProxyUrl()
       return proxyEnvironment(proxyUrl, issued.value.credential, sessionId)
     },
     releaseSession: async (sessionId) => {

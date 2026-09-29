@@ -283,6 +283,32 @@ function createOllamaSettingsRpcMethods(): RpcRegistry {
   }
 }
 
+function issueTerminalLaunch(
+  input: TerminalScopeIssueRequest,
+  configurators: ConfiguratorRegistry | undefined,
+) {
+  const configurator = configurators?.terminalProfile(input.profileId)
+  const issued = issueTerminalScope({
+    ...input,
+    application:
+      configurator ? configurator.metadata.application : input.application,
+  })
+  if (!configurator) return { ...issued, environment: {} }
+  try {
+    return {
+      ...issued,
+      environment: configurator.environment({
+        baseUrl: `http://127.0.0.1:${state.proxyPort}`,
+        credential: issued.credential,
+        sessionId: issued.sessionId,
+      }),
+    }
+  } catch (error) {
+    revokeTerminalScope(issued.sessionId)
+    throw error
+  }
+}
+
 function createSettingsRpcMethods({
   configurators,
   hub,
@@ -512,12 +538,13 @@ export function createControlRpcMethods(deps: ControlRpcDeps): RpcRegistry {
       return result === null ? null : TrafficRequestDetailSchema.parse(result)
     },
     "terminalScopes/issue": (params: unknown) =>
-      issueTerminalScope(
+      issueTerminalLaunch(
         parseParams(
           TerminalScopeIssueRequest,
           params,
           "Expected { sessionId, profileId, application }.",
         ),
+        deps.configurators,
       ),
     "terminalScopes/revoke": (params: unknown) => {
       const { sessionId } = parseParams(

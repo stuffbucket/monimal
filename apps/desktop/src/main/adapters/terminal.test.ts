@@ -100,6 +100,7 @@ const core = {
       ...input,
       credential: 'terminal-credential',
       expiresAt: '2026-09-29T00:00:00.000Z',
+      environment: {},
     },
   })),
   terminalScopeRevoke: vi.fn(async (sessionId: string) => ({
@@ -337,6 +338,44 @@ describe('terminal host window actions', () => {
       ANTHROPIC_AUTH_TOKEN: 'terminal-credential',
       OPENAI_BASE_URL: 'http://127.0.0.1:4141/v1',
       OPENAI_API_KEY: 'terminal-credential',
+    })
+  })
+
+  it('uses the Maximal profile configurator environment returned by Core', async () => {
+    core.terminalScopeIssue.mockResolvedValueOnce({
+      ok: true,
+      value: {
+        sessionId: 'terminal-maximal',
+        profileId: 'maximal',
+        application: 'Maximal',
+        credential: 'terminal-credential',
+        expiresAt: '2026-09-29T00:00:00.000Z',
+        environment: {
+          MAXIMAL_CONFIGURATOR_MARKER: 'configured-by-core',
+        },
+      },
+    })
+    configureTerminalHost({
+      terminalDiagnostics: false,
+      terminalSessionPrefix: 'maximal',
+      terminalTmuxStatus: 'off',
+    }, core)
+    const options = configurePty.mock.calls.at(-1)?.[1] as {
+      prepareSession(input: {
+        sessionId: string
+        profileId: string
+        label: string
+      }): Promise<Record<string, string>>
+    }
+
+    const environment = await options.prepareSession({
+      sessionId: 'terminal-maximal',
+      profileId: 'maximal',
+      label: 'Maximal',
+    })
+
+    expect(environment).toEqual({
+      MAXIMAL_CONFIGURATOR_MARKER: 'configured-by-core',
     })
   })
 })

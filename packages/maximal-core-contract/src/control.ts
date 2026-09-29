@@ -115,6 +115,12 @@ export type TerminalScopeCredential = z.infer<
   typeof TerminalScopeCredential
 >
 
+export const TerminalScopeLaunch = TerminalScopeCredential.extend({
+  environment: z.record(z.string(), z.string()),
+}).strict()
+
+export type TerminalScopeLaunch = z.infer<typeof TerminalScopeLaunch>
+
 export const TerminalScopeRevokeRequest = z
   .object({ sessionId: terminalScopeIdentifier })
   .strict()

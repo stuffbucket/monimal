@@ -65,6 +65,27 @@ export interface ConfiguratorConnectionMaterial {
   readonly workspaceDirectory?: string
 }
 
+export interface TerminalProfileConfiguratorMaterial {
+  readonly baseUrl: string
+  readonly credential: string
+  readonly sessionId: string
+}
+
+export interface TerminalProfileConfiguratorMetadata {
+  readonly id: ConfiguratorId
+  readonly name: string
+  readonly profileId: string
+  readonly application: string | null
+}
+
+/** Launch-only configuration that never claims or mutates a persistent target. */
+export interface TerminalProfileConfigurator {
+  readonly metadata: TerminalProfileConfiguratorMetadata
+  environment(
+    material: TerminalProfileConfiguratorMaterial,
+  ): Readonly<Record<string, string>>
+}
+
 export interface ConfiguratorTargetPatch {
   readonly targetId: ConfiguratorTargetId
   readonly fields: ReadonlyArray<ManagedFieldPatch>
@@ -112,8 +133,11 @@ export type ConfiguratorSetFactory = (
 ) => ReadonlyArray<ConfiguratorPlugin>
 
 export interface ConfiguratorRegistry {
+  /** Persistent configurators exposed through the Connections interface. */
   all(): ReadonlyArray<ConfiguratorPlugin>
   get(id: string): ConfiguratorPlugin | undefined
+  /** Resolve launch-only configuration by the terminal profile that owns it. */
+  terminalProfile(profileId: string): TerminalProfileConfigurator | undefined
   dispose(): Promise<void>
 }
 
