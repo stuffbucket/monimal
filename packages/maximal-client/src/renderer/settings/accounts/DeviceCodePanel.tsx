@@ -30,6 +30,7 @@ interface DeviceCodePanelProps {
  *  time do I have left" cue, not a precision countdown, and a coarser tick
  *  respects `prefers-reduced-motion` users by not re-rendering constantly. */
 const TICK_MS = 15_000
+const COPY_CONFIRMATION_MS = 1500
 
 export function DeviceCodePanel({
   status,
@@ -39,39 +40,65 @@ export function DeviceCodePanel({
   busy,
 }: DeviceCodePanelProps): ReactElement {
   const [now, setNow] = useState(() => Date.now())
+  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle')
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), TICK_MS)
     return () => clearInterval(timer)
   }, [])
 
+  useEffect(() => {
+    if (copyState !== 'copied') return
+    const timer = window.setTimeout(() => setCopyState('idle'), COPY_CONFIRMATION_MS)
+    return () => window.clearTimeout(timer)
+  }, [copyState])
+
   const expired = hasExpired(status.expires_at, now)
   const minutesLeft = minutesRemaining(status.expires_at, now)
+  const copyCode = async (): Promise<void> => {
+    const clipboard = navigator.clipboard
+    if (clipboard === undefined) {
+      setCopyState('failed')
+      return
+    }
+    try {
+      await clipboard.writeText(status.user_code)
+      setCopyState('copied')
+    } catch {
+      setCopyState('failed')
+    }
+  }
 
   return (
     <div className="settings-device-code">
       {/* Was `.settings-device-code__instructions`, whose four declarations
           were `.settings-note`'s four declarations under another name. */}
       <Note>Enter this code on GitHub to finish signing in:</Note>
-      {/* Visual rendering: hidden from assistive tech so it isn't announced
-          twice alongside the spelled-out version below. `aria-label` on a
-          role-less `<p>` is prohibited by ARIA-in-HTML and silently dropped
-          by browsers/screen readers — the name must be exposed via a real
-          text node instead. */}
-      <p className="settings-device-code__code" aria-hidden="true">
-        {status.user_code}
-      </p>
-      {/* What a screen reader actually announces: discrete characters, with
-          "-" replaced by the word "dash",
-          via the shared `spellOutCode` helper, so the code reads identically
-          in both surfaces. Not a Note: a Note is a visible sentence, and this
-          one exists only to be read aloud. */}
-      <p className="settings-visually-hidden">Verification code: {spellOutCode(status.user_code)}</p>
+      <button
+        type="button"
+        className="settings-device-code__code"
+        onClick={() => void copyCode()}
+        disabled={busy || expired}
+      >
+        <span aria-hidden="true">{status.user_code}</span>
+        <span className="settings-visually-hidden">
+          Copy verification code {spellOutCode(status.user_code)}
+        </span>
+        {copyState === 'copied' ? (
+          <span className="settings-device-code__copied" role="status">
+            (Copied to clipboard)
+          </span>
+        ) : null}
+      </button>
+      {copyState === 'failed' ? (
+        <Note status="failed" live="assertive">
+          Could not copy the code to your clipboard.
+        </Note>
+      ) : null}
       <p className="settings-device-code__link-row">
-        {/* Stays a link, not a Button: it opens the verification URL and its
-            label *is* that URL. */}
+        Click on the code above to copy it to your clipboard and{' '}
         <button type="button" className="settings-link-button" onClick={onOpenVerification} disabled={busy}>
-          Open {status.verification_uri}
+          launch sign in on your browser.
         </button>
       </p>
       {/* Polite: this is progress narration, not a blocking error. */}

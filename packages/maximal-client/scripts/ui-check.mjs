@@ -71,6 +71,7 @@ async function accountLayout(page) {
     if (!(settings instanceof HTMLElement)) {
       throw new Error('The Settings body did not render.')
     }
+
     return {
       accountCount: cards.length,
       switchCount: document.querySelectorAll('.account-person-card [role="switch"]').length,
@@ -85,6 +86,34 @@ async function accountLayout(page) {
         ...cards.map((card) => card.scrollWidth - card.clientWidth),
       ),
       viewportOverflowX: root.scrollWidth - root.clientWidth,
+      settingsOverflowX: settings.scrollWidth - settings.clientWidth,
+    }
+  })
+}
+
+async function modelLayout(page) {
+  return page.evaluate(() => {
+    const settings = document.querySelector('.settings__body')
+    const enabled = document.querySelector('[data-testid="model-gpt-5"]')
+    const disabled = document.querySelector('[data-testid="model-maximal-qwen-local"]')
+    const disabledBadge = disabled?.querySelector('.model-card__disabled')
+    if (
+      !(settings instanceof HTMLElement)
+      || !(enabled instanceof HTMLElement)
+      || !(disabled instanceof HTMLElement)
+      || !(disabledBadge instanceof HTMLElement)
+    ) {
+      throw new Error('The Models preview did not render its model states.')
+    }
+    const enabledStyle = getComputedStyle(enabled)
+    const disabledStyle = getComputedStyle(disabled)
+    return {
+      copilotTone: enabled.getAttribute('data-provider'),
+      copilotInlineStyle: enabled.getAttribute('style') ?? '',
+      disabledBorderColor: disabledStyle.borderColor,
+      disabledBoxShadow: disabledStyle.boxShadow,
+      disabledBadgeDisplay: getComputedStyle(disabledBadge).display,
+      enabledBorderColor: enabledStyle.borderColor,
       settingsOverflowX: settings.scrollWidth - settings.clientWidth,
     }
   })
@@ -384,14 +413,49 @@ try {
     await page.getByRole('button', { name: 'Switch to account' }).count() === 1,
     'Re-enabling the disabled account did not offer it as a switch target.',
   )
+
+  await page.setViewportSize({ width: 1280, height: 800 })
+  await page.goto(
+    `http://${loopbackHost}:${address.port}/ui-preview.html?section=models`,
+    { waitUntil: 'networkidle' },
+  )
+  await page.getByRole('heading', { level: 1, name: 'Cloud Models' }).waitFor()
+  await page.getByTestId('model-gpt-5').waitFor()
+  const models = await modelLayout(page)
+  check(models.copilotTone === 'copilot', 'The enabled Copilot model does not use the Copilot tone.')
+  check(
+    models.copilotInlineStyle.includes('138, 80, 216')
+      || models.copilotInlineStyle.includes('#8a50d8'),
+    `The enabled Copilot model does not use #8a50d8: ${models.copilotInlineStyle}`,
+  )
+  check(
+    models.disabledBorderColor !== models.enabledBorderColor,
+    'Disabled and enabled model cards have the same border colour.',
+  )
+  check(models.disabledBoxShadow !== 'none', 'The disabled model card has no strong edge marker.')
+  check(models.disabledBadgeDisplay === 'inline-flex', 'The disabled model badge is not visible.')
+  check(models.settingsOverflowX === 0, 'Desktop Models overflows Settings.')
+  check(
+    (await page.getByText('Enabled · Signed in as octocat', { exact: false }).count()) > 0,
+    'The active GitHub account is not shown next to enabled provider state.',
+  )
+  const githubModelProvider = page
+    .getByTestId('model-gpt-5')
+    .getByLabel('Provider: GitHub Copilot')
+  await githubModelProvider.hover()
+  await page.locator('.tooltip').filter({ hasText: 'GitHub Copilot' }).waitFor()
+  const modelsPath = join(outputDirectory, 'models-settings-desktop.png')
+  await page.screenshot({ path: modelsPath })
+
   check(pageErrors.length === 0, `The preview raised browser errors: ${pageErrors.join('; ')}`)
 
-  console.log('UI check: 2 viewports, 5 captures, 3 sections, 3 providers, 2 accounts, 0 browser errors.')
+  console.log('UI check: 2 viewports, 6 captures, 4 sections, 3 providers, 2 accounts, 2 model states, 0 browser errors.')
   console.log(`Search desktop: ${desktopPath}`)
   console.log(`Search compact: ${compactPath}`)
   console.log(`Search compact Copilot: ${providerPath}`)
   console.log(`Accounts desktop: ${accountsDesktopPath}`)
   console.log(`Accounts compact: ${accountsCompactPath}`)
+  console.log(`Models desktop: ${modelsPath}`)
 } finally {
   await browser?.close()
   await server.close()

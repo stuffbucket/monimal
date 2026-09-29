@@ -10,6 +10,7 @@ import type {
   ConnectorSettingValue,
   MenuBarModeAttempt,
   MenuBarModeState,
+  ModelsListResponse,
   SearchProviderValidationResponse,
   SearchSettingsResponse,
   SearchSettingsUpdateRequest,
@@ -40,6 +41,31 @@ const initialAccountsList: AccountsListResponse = {
     },
   ],
   active_key: 'octocat@github.com',
+}
+
+const previewModels: ModelsListResponse = {
+  models: [{
+    id: 'gpt-5',
+    name: 'GPT-5',
+    vendor: 'GitHub Copilot',
+    provider: 'github-copilot',
+    location: 'cloud',
+    family: 'gpt',
+    type: 'chat',
+    preview: false,
+    context_window_tokens: 128_000,
+    max_output_tokens: 32_000,
+    capabilities: {
+      vision: true,
+      image_generation: false,
+      video_generation: false,
+      tool_calls: true,
+      streaming: true,
+      reasoning: true,
+    },
+  }],
+  count: 1,
+  loaded_at: '2026-09-29T12:00:00Z',
 }
 
 type ManifestProvider = SearchSettingsResponse['manifest']['providers'][number]
@@ -263,9 +289,17 @@ export function createPreviewSettingsCapabilities(): SettingsCapabilities {
         return Promise.resolve()
       },
     },
-    ollamaAccounts: { list: unavailable },
+    ollamaAccounts: { list: () => Promise.resolve({ accounts: [] }) },
     ollamaSettings: {
-      get: unavailable,
+      get: () => Promise.resolve({
+        has_api_key: false,
+        api_key: null,
+        credential_source: 'none',
+        cloud_enabled: false,
+        local_enabled: true,
+        local_endpoint: OLLAMA_ENDPOINT,
+        prefer_local_models: true,
+      }),
       update: unavailable,
       testApiKey: unavailable,
     },
@@ -343,9 +377,25 @@ export function createPreviewSettingsCapabilities(): SettingsCapabilities {
       remove: unavailable,
       setEnforcement: unavailable,
     },
-    models: { list: unavailable, refresh: unavailable },
+    models: {
+      list: () => Promise.resolve(structuredClone(previewModels)),
+      refresh: () => Promise.resolve(structuredClone(previewModels)),
+    },
     localModels: {
-      list: unavailable,
+      list: () => Promise.resolve({
+        revision: 1,
+        models: [{
+          key: 'qwen-local',
+          modelId: 'qwen-local',
+          displayName: 'Qwen Local',
+          format: 'gguf',
+          expectedBytes: 1024,
+          publication: 'provider',
+          state: 'registered',
+          capabilities: { input: ['text'], output: ['text'] },
+          context: { contextWindow: 32_768, maxOutputTokens: 4096 },
+        }],
+      }),
       ensure: unavailable,
       cancel: unavailable,
       openFolder: unavailable,

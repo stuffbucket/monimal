@@ -292,11 +292,13 @@ export function AccountAvatar({
   size = 44,
   active = false,
   testId,
+  title,
 }: {
   account: AccountLike
   size?: 30 | 44
   active?: boolean
   testId?: string
+  title?: string
 }): ReactElement {
   const [imgFailed, setImgFailed] = useState(false)
   const avatarUrl = resolveAccountAvatarUrl(account)
@@ -305,7 +307,7 @@ export function AccountAvatar({
   return (
     <span
       className={`account-avatar account-avatar--${size === 30 ? 'small' : 'large'}${active ? ' account-avatar--active' : ''}`}
-      title={`Avatar for ${account.login || account.provider || 'account'}`}
+      title={title ?? `Avatar for ${account.login || account.provider || 'account'}`}
       data-testid={testId ?? 'account-avatar'}
       data-active={active ? 'true' : undefined}
     >

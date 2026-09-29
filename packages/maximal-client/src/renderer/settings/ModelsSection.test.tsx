@@ -5,6 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { SettingsSectionId } from '../../shared/settings-sections'
 import type {
+  LocalModelCatalogSnapshot,
+  LocalModelOperationEvent,
   ModelsListResponse,
   OllamaAccountsListResponse,
   SettingsCapabilities,
@@ -102,10 +104,13 @@ function fakeCapabilities(
   list: () => Promise<ModelsListResponse>,
   options: {
     githubAvailable?: boolean
+    localCatalogue?: LocalModelCatalogSnapshot
     ollamaHasApiKey?: boolean
     localOllamaAvailable?: boolean
   } = {},
 ) {
+  const changeListeners = new Set<() => void>()
+  const localListeners = new Set<(event: LocalModelOperationEvent) => void>()
   let githubEnabled = true
   let ollamaCloudEnabled = true
   let ollamaCloudDisabled = false
@@ -114,6 +119,19 @@ function fakeCapabilities(
   const models = {
     list: vi.fn(list),
     refresh: vi.fn(async () => catalogue),
+  }
+  const localModels = {
+    list: vi.fn(async () => options.localCatalogue ?? {
+      models: [],
+      revision: 0,
+    }),
+    ensure: vi.fn(),
+    cancel: vi.fn(),
+    openFolder: vi.fn(),
+    subscribe: vi.fn((listener: (event: LocalModelOperationEvent) => void) => {
+      localListeners.add(listener)
+      return () => localListeners.delete(listener)
+    }),
   }
   const accounts = {
     list: vi.fn(async () => ({
@@ -167,8 +185,12 @@ function fakeCapabilities(
   return {
     capabilities: {
       models,
+      localModels,
       accounts,
-      subscribe: vi.fn(() => () => {}),
+      subscribe: vi.fn((listener: () => void) => {
+        changeListeners.add(listener)
+        return () => changeListeners.delete(listener)
+      }),
       ollamaAccounts: {
         list: vi.fn(async () => ({
           accounts: options.localOllamaAvailable
@@ -193,6 +215,13 @@ function fakeCapabilities(
     accounts,
     ollamaSettings,
     ollamaRuntime,
+    emitChange: () => {
+      for (const listener of changeListeners) listener()
+    },
+    emitLocal: (event: LocalModelOperationEvent) => {
+      for (const listener of localListeners) listener(event)
+    },
+    localModels,
   }
 }
 
@@ -219,23 +248,33 @@ describe('ModelsSection', () => {
     const { capabilities } = fakeCapabilities(async () => catalogue)
     const surface = await renderModels(capabilities)
 
-    expect(surface.querySelector('h2')?.textContent).toBe('Cloud providers')
+    expect(surface.querySelector('h2')?.textContent).toBe('Model providers')
     expect([...surface.querySelectorAll('.settings__section-title')].map(
       (heading) => heading.textContent,
-    )).toEqual(['Cloud providers', 'Chat models (2)', 'Image models (1)'])
+    )).toEqual(['Model providers', 'Chat models (2)', 'Image models (1)'])
     expect(surface.querySelectorAll('.model-card')).toHaveLength(3)
     expect(surface.textContent).toContain('Claude Opus 5')
     expect(surface.textContent).toContain('claude-opus-5')
     expect(surface.textContent).toContain('1.0M')
     expect(surface.textContent).toContain('Tools')
     expect(surface.textContent).toContain('Image generation')
+    expect(surface.textContent).toContain(
+      'Enabled · Signed in as octocat · Active · Available · 1 model · current inventory',
+    )
     const anthropic = surface.querySelector('[data-testid="model-provider-anthropic"]')
     const github = surface.querySelector('[data-testid="model-provider-github-copilot"]')
     const ollama = surface.querySelector('[data-testid="model-provider-ollama"]')
     expect(anthropic?.querySelector('[data-testid="service-icon-anthropic"]')).not.toBeNull()
     expect(github?.querySelector('[data-testid="service-icon-github"]')).not.toBeNull()
+    expect(github?.querySelector('img')).toBeNull()
     expect(ollama?.querySelector('[data-testid="service-icon-ollama"]')).not.toBeNull()
     expect(surface.querySelectorAll('[data-testid="service-icon-ollama"]')).toHaveLength(2)
+    const githubModel = surface.querySelector<HTMLElement>('[data-testid="model-gpt-5"]')
+    expect(githubModel?.dataset.provider).toBe('copilot')
+    expect(
+      githubModel?.querySelector('[data-testid="model-provider-github-copilot"]')
+        ?.getAttribute('title'),
+    ).toBe('GitHub Copilot')
   })
 
   it('shows loading, empty, and error states', async () => {
@@ -298,6 +337,7 @@ describe('ModelsSection', () => {
 
     const model = surface.querySelector<HTMLElement>('[data-testid="model-gpt-5"]')
     expect(model?.dataset.disabled).toBe('true')
+    expect(model?.textContent).toContain('Disabled')
     await act(async () => model?.click())
     expect(document.body.textContent).toContain('Enable GitHub Copilot?')
 
@@ -443,5 +483,96 @@ describe('ModelsSection', () => {
     expect(models.list).toHaveBeenCalledOnce()
     expect(surface.textContent).toContain('Claude Opus 5')
     expect(surface.textContent).not.toContain('Loading model catalogue…')
+  })
+
+  it('reconciles bundled and provider-local models into the same inventory', async () => {
+    const localCatalogue: LocalModelCatalogSnapshot = {
+      revision: 1,
+      models: [{
+        key: 'qwen-local',
+        modelId: 'qwen-local',
+        displayName: 'Qwen Local',
+        format: 'gguf',
+        expectedBytes: 1024,
+        publication: 'provider',
+        state: 'registered',
+        capabilities: { input: ['text'], output: ['text'] },
+        context: { contextWindow: 32_768, maxOutputTokens: 4096 },
+      }],
+    }
+    const localProviderCatalogue: ModelsListResponse = {
+      ...catalogue,
+      models: [
+        ...catalogue.models,
+        {
+          ...catalogue.models[0],
+          id: 'llama-local',
+          name: 'Llama Local',
+          vendor: 'Ollama',
+          provider: 'ollama',
+          location: 'local',
+        },
+      ],
+      count: catalogue.count + 1,
+    }
+    const { capabilities } = fakeCapabilities(
+      async () => localProviderCatalogue,
+      { localCatalogue },
+    )
+    const surface = await renderModels(capabilities)
+
+    expect(surface.textContent).toContain('Local provider models')
+    expect(surface.textContent).toContain('Llama Local')
+    expect(surface.textContent).toContain('Qwen Local')
+    expect(surface.querySelector('[data-testid="model-maximal-qwen-local"]'))
+      .not.toBeNull()
+  })
+
+  it('reloads inventory when account and token state changes', async () => {
+    const initial = { ...catalogue, models: [catalogue.models[0]], count: 1 }
+    const refreshed = { ...catalogue, models: [catalogue.models[1]], count: 1 }
+    const { capabilities, emitChange, models } =
+      fakeCapabilities(async () => initial)
+    const surface = await renderModels(capabilities)
+    models.list.mockResolvedValue(refreshed)
+
+    act(() => emitChange())
+    await vi.waitFor(() => {
+      expect(surface.textContent).toContain('GPT-5')
+    })
+
+    expect(surface.textContent).not.toContain('Claude Opus 5')
+    expect(models.list).toHaveBeenCalledTimes(2)
+  })
+
+  it('retains last-known inventory and marks it stale on transient failures', async () => {
+    const { capabilities, emitChange, models } =
+      fakeCapabilities(async () => catalogue)
+    const surface = await renderModels(capabilities)
+    models.list.mockRejectedValue(new Error('provider network unavailable'))
+
+    act(() => emitChange())
+    await vi.waitFor(() => {
+      expect(surface.textContent).toContain('provider network unavailable')
+    })
+
+    expect(surface.textContent).toContain('Claude Opus 5')
+    expect(surface.textContent).toContain('Stale')
+  })
+
+  it('clears cached provider models when its account is removed', async () => {
+    const { accounts, capabilities, emitChange, models } =
+      fakeCapabilities(async () => catalogue)
+    const surface = await renderModels(capabilities)
+    accounts.list.mockResolvedValue({ accounts: [], active_key: null })
+    models.list.mockRejectedValue(new Error('not authenticated'))
+
+    act(() => emitChange())
+    await vi.waitFor(() => {
+      expect(surface.textContent).not.toContain('GPT-5')
+    })
+
+    expect(surface.textContent).toContain('Claude Opus 5')
+    expect(surface.textContent).toContain('not authenticated')
   })
 })

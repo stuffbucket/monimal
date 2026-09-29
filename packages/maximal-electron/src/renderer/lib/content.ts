@@ -69,6 +69,9 @@ export interface ShellChromeContent {
 export interface ShellModelsContent {
   empty: string;
   preview: string;
+  disabled: string;
+  /** `{provider}` is the provider name. */
+  provider: string;
   context: string;
   maxOutput: string;
   model: string;
@@ -130,6 +133,8 @@ export const SHELL_CONTENT: ShellContent = {
   models: {
     empty: 'No models cached yet.',
     preview: 'Preview',
+    disabled: 'Disabled',
+    provider: 'Provider: {provider}',
     context: 'Context',
     maxOutput: 'Max out',
     model: 'Model',
