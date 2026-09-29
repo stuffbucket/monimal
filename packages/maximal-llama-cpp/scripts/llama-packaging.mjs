@@ -1,12 +1,5 @@
-import { readFileSync } from 'node:fs';
-import { URL } from 'node:url';
-
+import PACKAGE from '../package.json' with { type: 'json' };
 import { LLAMA_WORKER_FILENAME } from '../llama-worker-contract.mjs';
-
-const PACKAGE = JSON.parse(
-  // Stryker disable next-line StringLiteral: JSON.parse accepts the equivalent UTF-8 Buffer.
-  readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
-);
 const LLAMA_PLATFORM = {
   darwin: 'mac',
   mas: 'mac',

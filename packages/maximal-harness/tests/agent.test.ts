@@ -13,6 +13,7 @@ import {
   discoverProvider,
   isAgentBusy,
   runAgent,
+  selectAgentEffort,
   shutdownAgent,
   type AgentSink,
 } from '../src/host/agent.js';
@@ -60,6 +61,45 @@ afterEach(async () => {
 });
 
 describe('discoverProvider', () => {
+  it('uses safe catalogue metadata for model labels and reasoning effort', async () => {
+    process.env['STUFFBUCKET_PROVIDER'] = 'maximal';
+    configureAgent({
+      ...agentOptions,
+      preferredModel: 'maximal:claude',
+      preferredEffort: 'medium',
+    });
+    const fetchMock = vi.fn((_input: string | URL | Request, _init?: RequestInit) =>
+      Promise.resolve(Response.json({
+        data: [{
+          id: 'claude',
+          display_name: 'Claude',
+          max_input_tokens: 200_000,
+          capabilities: { thinking: { supported: true } },
+        }],
+      })),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(discoverProvider()).resolves.toMatchObject({
+      state: 'ready',
+      modelKey: 'maximal:claude',
+      effort: 'medium',
+      models: [{
+        label: 'Claude',
+        description: 'Extended reasoning · 200K context',
+        efforts: ['low', 'medium', 'high'],
+      }],
+    });
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
+      headers: { 'anthropic-version': '2023-06-01' },
+    });
+
+    await expect(selectAgentEffort('high')).resolves.toMatchObject({
+      state: 'ready',
+      effort: 'high',
+    });
+  });
+
   it.each([
     ['maximal:cloud-model', 'maximal', 'cloud-model'],
     ['ollama:qwen3:4b', 'ollama', 'qwen3:4b'],
@@ -135,6 +175,8 @@ describe('discoverProvider', () => {
         label: 'available',
         model: 'available.gguf',
         provider: 'embedded',
+        description: 'Runs privately on this Mac',
+        efforts: [],
       }],
     });
   });

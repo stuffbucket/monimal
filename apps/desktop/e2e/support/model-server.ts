@@ -10,6 +10,7 @@ export interface ScriptedRequest {
   prompt: string
   model: string | undefined
   stream: boolean | undefined
+  effort: string | undefined
 }
 
 export interface ScriptedModel {
@@ -38,6 +39,7 @@ function requestOf(path: string, body: string): ScriptedRequest {
     messages?: unknown
     model?: unknown
     stream?: unknown
+    output_config?: { effort?: unknown }
   }
   const messages = candidate.messages
   const prompts = Array.isArray(messages)
@@ -48,6 +50,10 @@ function requestOf(path: string, body: string): ScriptedRequest {
     prompt: textOf(prompts.at(-1)?.content),
     model: typeof candidate.model === 'string' ? candidate.model : undefined,
     stream: typeof candidate.stream === 'boolean' ? candidate.stream : undefined,
+    effort:
+      typeof candidate.output_config?.effort === 'string'
+        ? candidate.output_config.effort
+        : undefined,
   }
 }
 
@@ -168,7 +174,13 @@ export async function startScriptedModel(): Promise<ScriptedModel> {
         response.writeHead(200, { 'Content-Type': 'application/json' })
         response.end(
           JSON.stringify({
-            data: [{ id: SCRIPTED_MODEL, type: 'model', display_name: SCRIPTED_MODEL }],
+            data: [{
+              id: SCRIPTED_MODEL,
+              type: 'model',
+              display_name: 'Claude Haiku',
+              max_input_tokens: 200_000,
+              capabilities: { thinking: { supported: true } },
+            }],
             has_more: false,
           }),
         )

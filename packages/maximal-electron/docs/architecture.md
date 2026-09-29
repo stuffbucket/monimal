@@ -552,9 +552,11 @@ the single owner of view state.
 ### The Electron panel
 
 `host/electron-panel.ts` owns only `BrowserWindow` and display mechanics. The
-consumer supplies the preload path, renderer loader, bounds, stacking policy,
-and focus policy. The export keeps hardened web preferences and supports warm
-hide/reuse plus explicit destruction.
+consumer supplies the preload path, renderer loader, work-area-relative bounds,
+stacking policy, focus policy, movement policy, and an optional completed-move
+callback. The export keeps hardened web preferences, reasserts the requested
+bounds after a panel is shown without reporting that placement as a user move,
+and supports warm hide/reuse plus explicit destruction.
 
 ### The application icon
 

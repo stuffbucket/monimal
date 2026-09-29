@@ -72,6 +72,8 @@ const bridge = {
     provider: () => ipcRenderer.invoke(BRIDGE_CHANNELS.harnessProvider),
     selectModel: (modelKey) =>
       ipcRenderer.invoke(BRIDGE_CHANNELS.harnessSelectModel, modelKey),
+    selectEffort: (effort) =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.harnessSelectEffort, effort),
     ask: (prompt) => ipcRenderer.invoke(BRIDGE_CHANNELS.harnessAsk, { prompt }),
     abort: () => ipcRenderer.invoke(BRIDGE_CHANNELS.harnessAbort),
     approve: (request) => ipcRenderer.invoke(BRIDGE_CHANNELS.harnessApprove, request),

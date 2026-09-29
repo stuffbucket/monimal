@@ -67,6 +67,7 @@ import {
   showHarnessHost,
   startHarnessHost,
   stopHarnessHost,
+  toggleHarnessHost,
 } from './adapters/harness.js'
 import {
   activeTerminalCount,
@@ -638,7 +639,7 @@ function openSettings(sectionId: PendingSettingsRequest['sectionId']): void {
 
 void app.whenReady().then(async () => {
   const nativeMode = new MenuBarModeController(() => {
-    activateWindow()
+    toggleHarnessHost()
   })
   menuBarMode = nativeMode
   await nativeMode.initialize()

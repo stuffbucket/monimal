@@ -35,6 +35,12 @@ downloaded to the model directory supplied by the host and are not part of the
 application package. A completed fallback download MUST select and persist the
 downloaded model.
 
+The maximal catalogue MUST use the Anthropic model-list shape so the overlay
+can show the provider's display name, context window, and reasoning capability
+without model-name guessing. Reasoning-capable models MUST expose low, medium,
+and high effort. The selected effort MUST be sent as pi's `thinkingLevel`;
+models without reasoning support MUST NOT show an effort control.
+
 `STUFFBUCKET_PROVIDER` may pin `maximal`, `ollama`, or `embedded`. A pin MUST
 select the preferred or first available model for that provider. A pinned HTTP
 backend that does not answer reports unavailable instead of falling through.
@@ -50,6 +56,10 @@ nothing.
 The maximal and Ollama paths use pi. The embedded path uses llama.cpp and its
 own tool loop. Both paths use the same risk classification, approval callback,
 and event sink.
+
+Tool events MUST include the engine's stable tool-call identifier. The overlay
+MUST retain bounded completed and failed activity instead of replacing one
+global tool label. Partial tool arguments MUST NOT be sent to the renderer.
 
 `@maximal/maximal-llama-cpp/worker` is the only source that loads
 `node-llama-cpp`. It

@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type {
   AgentApprovalRequest,
+  AgentEffort,
   AgentEnd,
   AgentToolEvent,
   ModelProgress,
@@ -36,7 +37,7 @@ function channel<T>(): Channel<T> {
 }
 
 function fakeTransport(initialStatus: ProviderStatus = {
-  state: 'ready',
+  state: 'ready' as const,
   provider: 'embedded',
   model: 'local-model',
   modelKey: 'embedded:local-model',
@@ -46,6 +47,8 @@ function fakeTransport(initialStatus: ProviderStatus = {
       label: 'local-model',
       model: 'local-model',
       provider: 'embedded',
+      description: 'Runs privately on this Mac',
+      efforts: [],
     },
   ],
 }) {
@@ -72,6 +75,7 @@ function fakeTransport(initialStatus: ProviderStatus = {
       };
       return Promise.resolve(status);
     }),
+    selectEffort: vi.fn(() => Promise.resolve(status)),
     ask: vi.fn(() => Promise.resolve({ started: true as const })),
     abort: vi.fn(() => Promise.resolve()),
     approve: vi.fn(() => Promise.resolve()),
@@ -203,16 +207,18 @@ describe('Overlay', () => {
     act(() => {
       fake.delta.emit('Hello');
       fake.delta.emit(' world');
-      fake.tool.emit({ name: 'read', phase: 'start' });
+      fake.tool.emit({ id: 'tool-1', name: 'read', phase: 'start' });
     });
-    expect(byTestId('overlay-answer').textContent).toBe('Hello world');
+    expect(byTestId('overlay-answer').textContent).toContain('Hello world');
     expect(byTestId('overlay-status').textContent).toBe('Running read…');
+    expect(byTestId('overlay-tools').textContent).toContain('readrunning');
 
-    act(() => fake.tool.emit({ name: 'read', phase: 'end' }));
+    act(() => fake.tool.emit({ id: 'tool-1', name: 'read', phase: 'end' }));
     expect(byTestId('overlay-status').textContent).toBe('Thinking…');
+    expect(byTestId('overlay-tools').textContent).toContain('readcomplete');
 
     act(() => fake.end.emit({ ok: false, error: 'Model stopped' }));
-    expect(byTestId('overlay-answer').textContent).toBe('Hello worldModel stopped');
+    expect(byTestId('overlay-answer').textContent).toContain('Hello worldModel stopped');
     expect(byTestId('overlay-status').textContent).toBe('embedded · local-model');
   });
 
@@ -223,12 +229,16 @@ describe('Overlay', () => {
         label: 'qwen3:4b',
         model: 'qwen3:4b',
         provider: 'ollama' as const,
+        description: 'Local model via Ollama',
+        efforts: [],
       },
       {
         key: 'embedded:small.gguf',
         label: 'small',
         model: 'small.gguf',
         provider: 'embedded' as const,
+        description: 'Runs privately on this Mac',
+        efforts: [],
       },
     ];
     const fake = fakeTransport({
@@ -239,15 +249,16 @@ describe('Overlay', () => {
     await renderOverlay(fake.transport);
 
     const picker = byTestId('overlay-model-picker');
-    expect(picker).toBeInstanceOf(HTMLSelectElement);
-    expect((picker as HTMLSelectElement).size).toBe(3);
+    expect(picker).toBeInstanceOf(HTMLButtonElement);
     expect(document.activeElement).toBe(picker);
     expect((byTestId('overlay-input') as HTMLTextAreaElement).disabled).toBe(true);
 
+    expect(byTestId('overlay-model-menu')).toBeTruthy();
+    const option = [...document.body.querySelectorAll<HTMLButtonElement>('[role="option"]')]
+      .find((element) => element.textContent?.includes('small'));
+    if (!option) throw new Error('Expected embedded model option');
     act(() => {
-      Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')
-        ?.set?.call(picker, 'embedded:small.gguf');
-      picker.dispatchEvent(new Event('change', { bubbles: true }));
+      option.click();
     });
     await settle();
 
@@ -256,6 +267,47 @@ describe('Overlay', () => {
     );
     expect((byTestId('overlay-input') as HTMLTextAreaElement).disabled).toBe(false);
     expect(document.activeElement).toBe(byTestId('overlay-input'));
+  });
+
+  it('shows model metadata and changes reasoning effort', async () => {
+    const model = {
+      key: 'maximal:claude',
+      label: 'Claude',
+      model: 'claude',
+      provider: 'maximal' as const,
+      description: 'Extended reasoning · 200K context',
+      efforts: ['low', 'medium', 'high'] as const,
+    };
+    const fake = fakeTransport({
+      state: 'ready',
+      provider: 'maximal' as const,
+      model: model.model,
+      modelKey: model.key,
+      models: [{ ...model, efforts: [...model.efforts] }],
+      effort: 'medium',
+    });
+    fake.transport.selectEffort = vi.fn((effort: AgentEffort) => Promise.resolve({
+      state: 'ready' as const,
+      provider: 'maximal' as const,
+      model: model.model,
+      modelKey: model.key,
+      models: [{ ...model, efforts: [...model.efforts] }],
+      effort,
+    }));
+    await renderOverlay(fake.transport);
+
+    act(() => byTestId('overlay-model-picker').click());
+    expect(byTestId('overlay-model-menu').textContent).toContain(
+      'Extended reasoning · 200K context',
+    );
+    const high = [...document.body.querySelectorAll<HTMLButtonElement>('.mh-effort-picker button')]
+      .find((button) => button.textContent === 'high');
+    if (!high) throw new Error('Expected high effort option');
+    act(() => high.click());
+    await settle();
+
+    expect(fake.transport.selectEffort).toHaveBeenCalledWith('high');
+    expect(byTestId('overlay-model-picker').textContent).toContain('high');
   });
 
   it('aborts before dismissing', async () => {
@@ -350,6 +402,8 @@ describe('Overlay', () => {
           label: 'coder',
           model: 'coder',
           provider: 'ollama',
+          description: 'Local model via Ollama',
+          efforts: [],
         },
       ],
     });
