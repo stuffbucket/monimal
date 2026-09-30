@@ -301,9 +301,11 @@ describe('ProjectsSection', () => {
     const loading = deferred<ProjectCatalogSnapshot>()
     const container = await render(capabilities({ snapshot: () => loading.promise }))
     await settle(() => loading.reject(new Error('catalog unavailable')))
-    expect(container.textContent).toContain('catalog unavailable')
-    expect(container.textContent).not.toContain('No project folders have been added.')
-    expect(container.textContent).not.toContain('Loading project folders…')
+    await vi.waitFor(() => {
+      expect(container.textContent).toContain('catalog unavailable')
+      expect(container.textContent).not.toContain('No project folders have been added.')
+      expect(container.textContent).not.toContain('Loading project folders…')
+    })
 
     const updateRoot = vi.fn(async () => {
       throw new Error('trust update failed')
