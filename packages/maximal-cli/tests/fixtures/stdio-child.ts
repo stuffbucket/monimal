@@ -17,22 +17,9 @@ function writer(stream: NodeJS.WritableStream): ByteWriter {
   }
 }
 
-async function* tracedStdin(): AsyncIterable<Uint8Array> {
-  const stdin: AsyncIterable<Uint8Array> = process.stdin
-  for await (const chunk of stdin) {
-    process.stderr.write(
-      `stdin chunk ${chunk.byteLength}: ${Buffer.from(chunk).toString("hex")}\n`,
-    )
-    yield chunk
-  }
-}
-
 await runJsonLinesStdio({
   commands: [registerCommand(echoCommand)],
-  stdin:
-    process.env["MAXIMAL_CLI_TRACE_STDIN"] === "1" ?
-      tracedStdin()
-    : process.stdin,
+  stdin: process.stdin,
   stdout: writer(process.stdout),
   stderr: writer(process.stderr),
 })

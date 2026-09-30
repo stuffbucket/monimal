@@ -800,6 +800,10 @@ test("PowerShell 5.1 conformance writes explicit UTF-16LE bytes", () => {
   assert.match(harness, /\$preamble = \$encoding\.GetPreamble\(\)/);
   assert.match(harness, /\$body = \$encoding\.GetBytes\(/);
   assert.doesNotMatch(harness, /Out-File/);
+  assert.match(
+    harness,
+    /\$startInfo\.StandardInputEncoding = New-Object Text\.UTF8Encoding\(\$false\)/,
+  );
   assert.match(harness, /\$stdin = \$process\.StandardInput\.BaseStream/);
   assert.match(harness, /\$stdin\.Close\(\)/);
   assert.doesNotMatch(harness, /\$process\.StandardInput\.Close\(\)/);
