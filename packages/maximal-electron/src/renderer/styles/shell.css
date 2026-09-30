@@ -141,8 +141,8 @@ body {
 }
 
 .activity-rail {
-  width: var(--workbar-width);
-  min-width: var(--workbar-width);
+  width: var(--nav-collapsed);
+  min-width: var(--nav-collapsed);
   min-height: 0;
   flex: none;
   overflow: hidden;

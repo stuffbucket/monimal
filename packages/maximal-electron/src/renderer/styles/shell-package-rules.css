@@ -106,8 +106,8 @@
 }
 
 .sb-shell .activity-rail {
-  width: var(--shell-workbar-width);
-  min-width: var(--shell-workbar-width);
+  width: calc(var(--shell-control-lg) + 2 * var(--shell-space-2));
+  min-width: calc(var(--shell-control-lg) + 2 * var(--shell-space-2));
   min-height: 0;
   flex: none;
   overflow: hidden;
@@ -783,8 +783,8 @@
 }
 
 .sb-shell .workbar__item > svg {
-  width: var(--shell-icon-size);
-  height: var(--shell-icon-size);
+  width: var(--shell-space-4);
+  height: var(--shell-space-4);
 }
 
 .sb-shell .workbar__bottom .icon-button {
@@ -793,8 +793,8 @@
 }
 
 .sb-shell .workbar__bottom .icon-button > svg {
-  width: var(--shell-icon-size);
-  height: var(--shell-icon-size);
+  width: var(--shell-space-4);
+  height: var(--shell-space-4);
 }
 
 .sb-shell .toolbar {

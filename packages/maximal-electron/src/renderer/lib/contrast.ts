@@ -122,6 +122,7 @@ export const REQUIRED_TOKENS: string[] = [
   '--font-mono',
   '--icon-stroke',
   '--leading-base',
+  '--nav-collapsed',
   '--nav-heading',
   '--opacity-disabled',
   '--radius-card',
@@ -159,7 +160,6 @@ export const REQUIRED_TOKENS: string[] = [
   '--weight-base',
   '--weight-lg',
   '--weight-md',
-  '--workbar-width',
 ];
 
 /** The tokens the shell needs that a palette does not define. */

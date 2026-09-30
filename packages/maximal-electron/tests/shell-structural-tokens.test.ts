@@ -40,7 +40,6 @@ const AUTHORED = new Map(
 );
 
 const REFERENCE_NAMES = new Map([
-  ['icon-size', 'size-icon'],
   ['radius', 'radius-input'],
   ['radius-large', 'radius-card'],
   ['row-height', 'size-row'],
