@@ -24,6 +24,7 @@ $startInfo.UseShellExecute = $false
 $startInfo.RedirectStandardInput = $true
 $startInfo.RedirectStandardOutput = $true
 $startInfo.RedirectStandardError = $true
+$startInfo.EnvironmentVariables["MAXIMAL_CLI_TRACE_STDIN"] = "1"
 
 $process = New-Object Diagnostics.Process
 $process.StartInfo = $startInfo
