@@ -22,8 +22,8 @@ afterAll(() => {
 const decoder = new TextDecoder()
 const baseEnv = {
   ...process.env,
-  COPILOT_API_HOME: "",
-  COPILOT_API_HOME_POLICY: "",
+  MAXIMAL_HOME: "",
+  MAXIMAL_HOME_POLICY: "",
   COPILOT_API_OAUTH_APP: "",
   COPILOT_API_ENTERPRISE_URL: "",
 }
@@ -105,7 +105,7 @@ describe("root-level global CLI options", () => {
 /**
  * maximal-core#2. The data home is normally maximal's own directory, so the
  * default policy is to look after it — a missing one is created, exactly as
- * before. `COPILOT_API_HOME_POLICY=require` is for the case where the home is
+ * before. `MAXIMAL_HOME_POLICY=require` is for the case where the home is
  * shared and the CALLER owns the decision: a host passes one so its sidecar
  * cannot adopt the user's own instance, and there a missing home is an error.
  *
@@ -113,7 +113,7 @@ describe("root-level global CLI options", () => {
  * what a host observes is an exit code, a message on the pipes, and whether a
  * directory appeared on disk.
  */
-describe("the COPILOT_API_HOME_POLICY data-home policy", () => {
+describe("the MAXIMAL_HOME_POLICY data-home policy", () => {
   const absent = path.join(os.tmpdir(), `maximal-absent-home-${process.pid}`)
 
   afterAll(() => {
@@ -126,7 +126,7 @@ describe("the COPILOT_API_HOME_POLICY data-home policy", () => {
     // `setup` is the cheapest command that calls `ensurePaths` (src/setup.ts),
     // which is the thing that creates the home. No port, no ready-line.
     const result = runCli(["setup", "--unattended", "--skip-auth"], {
-      COPILOT_API_HOME: absent,
+      MAXIMAL_HOME: absent,
     })
 
     expect(result.exitCode).toBe(0)
@@ -137,8 +137,8 @@ describe("the COPILOT_API_HOME_POLICY data-home policy", () => {
     fs.rmSync(absent, { recursive: true, force: true })
 
     const result = runCli(["setup", "--unattended", "--skip-auth"], {
-      COPILOT_API_HOME: absent,
-      COPILOT_API_HOME_POLICY: "require",
+      MAXIMAL_HOME: absent,
+      MAXIMAL_HOME_POLICY: "require",
     })
 
     expect(result.exitCode).not.toBe(0)
@@ -154,11 +154,11 @@ describe("the COPILOT_API_HOME_POLICY data-home policy", () => {
     // ready-line, so it would only ever report a 30s timeout.
     const result = await startEngineExpectingExit({
       home: absent,
-      env: { COPILOT_API_HOME_POLICY: "require" },
+      env: { MAXIMAL_HOME_POLICY: "require" },
     })
 
     expect(result.exitCode).not.toBe(0)
-    expect(result.output).toContain("COPILOT_API_HOME_POLICY")
+    expect(result.output).toContain("MAXIMAL_HOME_POLICY")
     expect(result.output).toContain(absent)
     expect(fs.existsSync(absent)).toBe(false)
   })
@@ -167,8 +167,8 @@ describe("the COPILOT_API_HOME_POLICY data-home policy", () => {
     fs.rmSync(absent, { recursive: true, force: true })
 
     const result = runCli(["debug", "--json"], {
-      COPILOT_API_HOME: absent,
-      COPILOT_API_HOME_POLICY: "require",
+      MAXIMAL_HOME: absent,
+      MAXIMAL_HOME_POLICY: "require",
     })
 
     expect(result.exitCode).not.toBe(0)
@@ -182,15 +182,15 @@ describe("the COPILOT_API_HOME_POLICY data-home policy", () => {
     // `required` is the typo this guard exists for: absorbing it would hand the
     // caller the permissive default while they believed they had the strict one.
     const result = runCli(["debug", "--json"], {
-      COPILOT_API_HOME: tmpHome,
-      COPILOT_API_HOME_POLICY: "required",
+      MAXIMAL_HOME: tmpHome,
+      MAXIMAL_HOME_POLICY: "required",
     })
 
     expect(result.exitCode).not.toBe(0)
-    expect(result.output).toContain("not a policy")
+    expect(result.output).toContain("Invalid MAXIMAL_HOME_POLICY override")
   })
 
-  test("a blank COPILOT_API_HOME still means the default home", () => {
+  test("a blank MAXIMAL_HOME still means the default home", () => {
     // The counterpart decision: "" is how a spawner clears an inherited value,
     // so it reads as unset — the lazily-created default, not a failure.
     const info = runDebugJson()

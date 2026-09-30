@@ -225,7 +225,7 @@ describe("setNetworkDiagnosis / clearNetworkDiagnosis", () => {
 // Per ADR-0011 this drives the REAL modules — no `mock.module` of a shared
 // module (whose awaited afterAll restore doesn't reliably land before the next
 // file's imports on CI, leaking stubs sideways). The test preload redirects
-// COPILOT_API_HOME to a container-only temp dir. signOut's registry deactivation
+// MAXIMAL_HOME to a container-only temp dir. signOut's registry deactivation
 // and token-file unlink land there (both are ENOENT-tolerant), and afterEach
 // clears the shared worker registry so this file cannot affect a later one.
 // markSignedIn / getAuthStatus are pure in-memory state; nothing here touches the

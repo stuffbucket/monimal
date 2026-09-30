@@ -50,7 +50,7 @@
   <key>EnvironmentVariables</key>
   <dict>
     <!-- The proxy reads OLLAMA_API_KEY from the secrets/ file under
-         the COPILOT_API_HOME dir if not set in env. Add other env
+         the MAXIMAL_HOME dir if not set in env. Add other env
          vars here only if there's no file-based fallback. -->
     <key>PATH</key>
     <string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin</string>

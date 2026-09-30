@@ -172,7 +172,7 @@ describe('scanning prose and code for a forbidden term', () => {
     // `\b` does not treat `_` as a boundary, so `\bcopilot\b` misses a
     // constant.
     expect(found("const COPILOT_BASE = 'http://localhost:4141';")).toEqual(['copilot']);
-    expect(found('COPILOT_API_HOME')).toEqual(['copilot']);
+    expect(found('MAXIMAL_HOME')).toEqual(['copilot']);
     expect(found("id: 'copilot-cli'")).toEqual(['copilot']);
   });
 

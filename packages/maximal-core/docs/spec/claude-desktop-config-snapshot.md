@@ -14,7 +14,7 @@ Reference for what the two configuration tiers actually are:
 
 ## Design
 
-New file: `${COPILOT_API_HOME}/state/claude-desktop.snapshot.json`.
+New file: `${MAXIMAL_HOME}/state/claude-desktop.snapshot.json`.
 Schema:
 
 ```jsonc
@@ -68,7 +68,7 @@ restored.
    enough for revert; history is cheap to add later if needed.
 2. What if `configure-claude-desktop --revert` is invoked from a snapshot
    created by a *different* user? Scope the snapshot to current user's
-   home; `${COPILOT_API_HOME}` already does that.
+   home; `${MAXIMAL_HOME}` already does that.
 3. The MDM-tier write is the sharp edge: nothing in `src/` shells out to
    `defaults` today, and restoring a key we never cleared would be worse
    than leaving it. Confirm the apply side actually clears it before

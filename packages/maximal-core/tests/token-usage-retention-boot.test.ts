@@ -28,7 +28,7 @@ import path from "node:path"
 
 import { closeUsageStore, startTokenUsageRetention } from "~/lib/token-usage"
 
-const DB_PATH_ENV = "COPILOT_API_SQLITE_DB_PATH"
+const DB_PATH_ENV = "MAXIMAL_API_SQLITE_DB_PATH"
 
 let tmpDir: string
 let stop: (() => void) | undefined

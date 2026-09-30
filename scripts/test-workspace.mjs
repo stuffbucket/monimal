@@ -133,7 +133,7 @@ export function createIsolatedTestEnvironment(parent = os.tmpdir()) {
     USERPROFILE: directories.home,
     APPDATA: directories.appData,
     LOCALAPPDATA: directories.localAppData,
-    COPILOT_API_HOME: directories.maximal,
+    MAXIMAL_HOME: directories.maximal,
     CLAUDE_CONFIG_DIR: directories.claude,
   });
   delete environment.MAXIMAL_TEST_CONTAINER;

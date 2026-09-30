@@ -12,7 +12,7 @@ synthetic frames with the real event sequence a `/responses`-only model emits.
 | Model | `gpt-5.6-sol` (Copilot; `/responses`-only — not served on `/chat/completions`) |
 | Path | `POST /v1/messages` → web-tools agent loop → Copilot `/responses` |
 | Build | the fix branch, run from `dist/main.js` with `--verbose` |
-| Isolation | a throwaway container with its own `COPILOT_API_HOME`, so no host state was read or written beyond a copied credential that was destroyed afterwards |
+| Isolation | a throwaway container with its own `MAXIMAL_HOME`, so no host state was read or written beyond a copied credential that was destroyed afterwards |
 
 `agent-loop-handler.trace.txt` is the engine's own daily handler log — the
 redacted file copy, not the console tee. It carries the `.txt` extension because

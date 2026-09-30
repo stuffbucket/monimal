@@ -78,7 +78,7 @@ export interface StartOptions {
   proxyPort?: number;
   /** Pass `--replace`: evict whatever holds `proxyPort` before binding. */
   replace?: boolean;
-  /** `COPILOT_API_HOME` for this engine. Defaults to a fresh temp dir. Pass one
+  /** `MAXIMAL_HOME` for this engine. Defaults to a fresh temp dir. Pass one
    *  you made yourself when the engine has to boot with a seeded `config.json`
    *  — config is read during boot, so it cannot be written afterwards. */
   home?: string;
@@ -151,7 +151,7 @@ export function spawnEngine(options: StartOptions = {}): SidecarChild {
     env: {
       ...process.env,
       ...sidecarSpawnEnv(options.parentPid ?? process.pid),
-      COPILOT_API_HOME: home,
+      MAXIMAL_HOME: home,
     },
     stdio: ["ignore", "pipe", "pipe"],
   });

@@ -12,7 +12,7 @@
  * saved credential. The recoverable-`ghu_` re-mint path is covered in
  * tests/auth-controller.test.ts (rearmCopilotAuth).
  *
- * Registry/token paths are isolated to a temp COPILOT_API_HOME by the global
+ * Registry/token paths are isolated to a temp MAXIMAL_HOME by the global
  * test preload (tests/test-setup.ts), so the real registry is never touched. We
  * still stub fs.unlink so an assertion can prove it is never called on the
  * token path.

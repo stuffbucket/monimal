@@ -1322,7 +1322,7 @@ test('renderer window is hardened: contextIsolation, no nodeIntegration, sandbox
  *
  * The tests below use it to tell the signed-in chrome apart from first-run.
  * This suite is always signed out: `support/launch.ts` gives every run a fresh
- * `--user-data-dir`, and `main/core.ts` scopes `COPILOT_API_HOME` under that
+ * `--user-data-dir`, and `main/core.ts` scopes `MAXIMAL_HOME` under that
  * same directory, so no GitHub session survives to be resumed. Reaching the
  * signed-in chrome needs a live device-code flow, which is not scriptable here.
  *
@@ -1343,7 +1343,7 @@ async function probeVisible(window: Page, selector: string, timeoutMs = 3_000): 
 
 const SIGNED_OUT_SKIP_MESSAGE =
   'Package chrome (post sign-in) did not render within the probe window. This harness is ' +
-  'structurally always signed out (a fresh --user-data-dir per run scopes COPILOT_API_HOME to an ' +
+  'structurally always signed out (a fresh --user-data-dir per run scopes MAXIMAL_HOME to an ' +
   'empty profile — see src/main/sidecar/core.ts), which is also the state a real CI machine is in, so this ' +
   'is expected here and is not a failure.'
 

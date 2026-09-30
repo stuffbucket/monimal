@@ -78,3 +78,32 @@ void test("migration ratchet recognizes runtime readers, ignores comments/tests,
     rmSync(root, { recursive: true, force: true })
   }
 })
+
+void test("settings adapters exempt only their environment handoff", () => {
+  const root = mkdtempSync(join(tmpdir(), "settings-adapter-ratchet-"))
+  try {
+    const directory = join(
+      root,
+      "packages",
+      "maximal-core",
+      "src",
+      "lib",
+      "config",
+    )
+    mkdirSync(directory, { recursive: true })
+    writeFileSync(
+      join(directory, "runtime-settings.ts"),
+      `
+      const settingsEnvironment = process.env;
+      const directEnvironment = process.env;
+      export { settingsEnvironment, directEnvironment };
+    `,
+    )
+
+    assert.deepEqual(scanSettingsReaders({ root }), {
+      "packages/maximal-core/src/lib/config/runtime-settings.ts::environment:*": 1,
+    })
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})

@@ -188,17 +188,17 @@ export function assessConfigFlags(
 
 /**
  * Resolve the app-data config path exactly as the app does
- * (maximal-core's paths resolver): `$COPILOT_API_HOME` overrides everywhere;
+ * (maximal-core's paths resolver): `$MAXIMAL_HOME` overrides everywhere;
  * else `%APPDATA%\maximal` on win32; else `~/.local/share/maximal`. Kept in
  * sync with that resolver by mirroring its precedence — pure so it's testable.
  */
 export function resolveConfigPath(env: {
   platform: NodeJS.Platform
   homedir: string
-  copilotApiHome?: string
+  maximalHome?: string
   appData?: string
 }): string {
-  const override = env.copilotApiHome?.trim()
+  const override = env.maximalHome?.trim()
   const appDir =
     override ? override
     : env.platform === "win32" ?
@@ -380,7 +380,7 @@ async function main(): Promise<void> {
   const configPath = resolveConfigPath({
     platform: process.platform,
     homedir: os.homedir(),
-    copilotApiHome: process.env.COPILOT_API_HOME,
+    maximalHome: process.env.MAXIMAL_HOME,
     appData: process.env.APPDATA,
   })
   const report = await verifyBuild(baseUrl, configPath)

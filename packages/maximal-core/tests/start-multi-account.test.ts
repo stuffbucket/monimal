@@ -1,7 +1,7 @@
 /**
  * Boot-time integration for the multi-account registry (slice 3). Unit tests
  * cover the pure registry ops + migration in isolation; these spawn the real
- * `start` subprocess against a fresh COPILOT_API_HOME so the actual boot wiring
+ * `start` subprocess against a fresh MAXIMAL_HOME so the actual boot wiring
  * is exercised — the part no in-process test can reach cleanly because PATHS is
  * captured at import time.
  *

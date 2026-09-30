@@ -182,7 +182,7 @@ const child = spawn(
     env: {
       ...process.env,
       ...sidecarSpawnEnv(),
-      COPILOT_API_HOME: home,
+      MAXIMAL_HOME: home,
     },
     stdio: ["ignore", "pipe", "pipe"],
   },
