@@ -58,6 +58,10 @@ import { createProviderMessageRoutes } from "./routes/provider/messages/route"
 import { createProviderModelRoutes } from "./routes/provider/models/route"
 import { createProviderOpenAiRoute } from "./routes/provider/openai-route"
 import { handleResponses } from "./routes/responses/handler"
+import {
+  createProviderSystemOneRoute,
+  createSystemOneRoute,
+} from "./routes/system-one/route"
 import { tokenUsageRoute } from "./routes/token-usage/route"
 import { usageRoute } from "./routes/usage/route"
 import { readRequestedModel } from "./services/providers/model-request"
@@ -245,6 +249,7 @@ function applyPublicAuth(
     "/v1/embeddings",
     "/v1/messages",
     "/v1/responses",
+    "/v1/systemone",
   ]
   for (const path of modelRoutedPaths) {
     app.use(path, requireSupportedBuild)
@@ -283,6 +288,7 @@ function mountInferenceRoutes(
   app.route("/v1/chat/completions", routes.chat)
   app.route("/v1/embeddings", routes.embeddings)
   app.route("/v1/responses", routes.responses)
+  app.route("/v1/systemone", createSystemOneRoute({ dispatcher, modelRouter }))
 }
 
 export interface ServerApps {
@@ -368,7 +374,6 @@ export function createServerApps(
 
   // Anthropic compatible endpoints
   publicApp.route("/v1/messages", messageRoutes)
-
   // Provider scoped Anthropic-compatible endpoints
   publicApp.route(
     "/:provider/v1/messages",
@@ -389,6 +394,10 @@ export function createServerApps(
   publicApp.route(
     "/:provider/v1/embeddings",
     createProviderOpenAiRoute(providerDispatcher, "embeddings"),
+  )
+  publicApp.route(
+    "/:provider/v1/systemone",
+    createProviderSystemOneRoute(providerDispatcher),
   )
 
   return {

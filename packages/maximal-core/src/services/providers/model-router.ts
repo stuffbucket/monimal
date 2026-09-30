@@ -12,6 +12,18 @@ export type ModelRoute =
   | { readonly kind: "copilot" }
   | { readonly kind: "provider"; readonly provider: string }
 
+function matchesProviderModel(
+  model: ProviderCatalogueModel,
+  requestedModel: string,
+): boolean {
+  if (model.id === requestedModel) return true
+  if (requestedModel.includes(":")) return false
+  if (model.provider !== "ollama" && model.provider !== "ollama-cloud") {
+    return false
+  }
+  return model.id === `${requestedModel}:latest`
+}
+
 export class ProviderModelRouter {
   readonly #dispatcher: ProviderDispatcher
   readonly #now: () => number
@@ -68,7 +80,10 @@ export class ProviderModelRouter {
     const modelId = reverseId(requestedModel)
     const providers = new Set(
       (await this.listProviderModels())
-        .filter((model) => model.enabled !== false && model.id === modelId)
+        .filter(
+          (model) =>
+            model.enabled !== false && matchesProviderModel(model, modelId),
+        )
         .map((model) => model.provider),
     )
     const copilot = (state.models?.data ?? []).some(

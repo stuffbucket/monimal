@@ -145,6 +145,7 @@ Both are monorepo-native;
 | `maximal-electron` / `maximal` | Consumers and design docs name the package `@maximal/maximal-electron`; the `stuffbucket-electron` workspace alias is removed. |
 | `maximal-core` | Private workspace package, not published; the registry publish, release-tag, release-gates, and release-notes tooling are removed. |
 | `maximal-core` | The settings wire types and control contract live in `maximal-core-contract`; Core's `./settings-types` and `./control-contract` exports republish them. |
+| `maximal-core` / `maximal-model-contract` | Core exposes Ollama's local `/v1/systemone` decision API through model-routed and provider-qualified endpoints; the provider gateway identifies this capability as `systemone`. Model weights remain Ollama-managed and are not distributed by the workspace. |
 | `maximal-core` / `cli/cli` | GitHub.com device authentication uses the GitHub CLI OAuth application's public client credentials from its MIT-licensed `internal/authflow/flow.go`; Maximal owns polling and persistence and does not require the `gh` executable. |
 | Test workflow | Native tests enter through the root isolation wrapper; Docker stages Git-visible source with container-owned dependencies. |
 
