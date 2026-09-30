@@ -1,7 +1,7 @@
 /**
  * Zero-click auto-recovery (src/lib/auth-recovery.ts). Drives the DI shim so
  * preflight / mint / model-refresh are observable without real network. The
- * registry is the real store, isolated to a temp COPILOT_API_HOME by the global
+ * registry is the real store, isolated to a temp MAXIMAL_HOME by the global
  * test preload (tests/test-setup.ts).
  */
 

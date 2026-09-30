@@ -51,7 +51,7 @@ import {
   recordTokenUsageEvent,
 } from "~/lib/token-usage"
 
-const DB_PATH_ENV = "COPILOT_API_SQLITE_DB_PATH"
+const DB_PATH_ENV = "MAXIMAL_API_SQLITE_DB_PATH"
 let temporaryDirectory = ""
 
 beforeEach(async () => {

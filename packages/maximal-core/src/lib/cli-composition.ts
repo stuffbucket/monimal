@@ -6,6 +6,8 @@ import type { ConnectorPluginFactory } from "~/lib/config/connector-plugins"
 import type { ConfiguratorRuntimeFactory } from "~/lib/configurator-host"
 import type { ProviderGatewayFactory } from "~/lib/provider-host-types"
 
+import { setRuntimeHomeCliOverride } from "~/lib/config/runtime-settings"
+
 const cliArgs = {
   apiKeyHelper: {
     type: "string",
@@ -17,7 +19,7 @@ const cliArgs = {
     type: "string",
     description:
       "Path to the API home directory. Created if missing, unless"
-      + " COPILOT_API_HOME_POLICY=require, which makes a missing one an error.",
+      + " MAXIMAL_HOME_POLICY=require, which makes a missing one an error.",
   },
   "oauth-app": {
     type: "string",
@@ -101,9 +103,7 @@ export async function runCli(options: RunCliOptions = {}): Promise<void> {
     options.rawArgs ? ["bun", "maximal", ...options.rawArgs] : process.argv
   const args = parseArgs(argv, cliArgs)
 
-  if (typeof args["api-home"] === "string") {
-    process.env.COPILOT_API_HOME = args["api-home"]
-  }
+  setRuntimeHomeCliOverride(args["api-home"])
   if (typeof args["oauth-app"] === "string") {
     process.env.COPILOT_API_OAUTH_APP = args["oauth-app"]
   }

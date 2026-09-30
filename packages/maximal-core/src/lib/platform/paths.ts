@@ -3,8 +3,10 @@ import fs from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
 
+import { loadRuntimeSettings } from "~/lib/config/runtime-settings"
 import { assertIsolatedTestPath } from "~/lib/platform/test-isolation"
 
+const RUNTIME_SETTINGS = loadRuntimeSettings()
 const AUTH_APP = process.env.COPILOT_API_OAUTH_APP?.trim() || ""
 const ENTERPRISE_PREFIX = process.env.COPILOT_API_ENTERPRISE_URL ? "ent_" : ""
 const CREDENTIAL_HOME_OVERRIDE =
@@ -14,15 +16,15 @@ const CREDENTIAL_HOME_OVERRIDE =
 export interface AppDirEnv {
   platform: NodeJS.Platform
   homedir: string
-  /** `COPILOT_API_HOME` override (highest precedence on every platform). */
-  copilotApiHome?: string
+  /** `MAXIMAL_HOME`/`home` override (highest precedence on every platform). */
+  maximalHome?: string
   /** `%APPDATA%` (win32 only); falls back to `<home>\AppData\Roaming`. */
   appData?: string
 }
 
 /**
  * Resolve the single app-data root, per the cross-platform convention:
- *   - `COPILOT_API_HOME` overrides everywhere (highest precedence).
+ *   - `MAXIMAL_HOME` or the `home` setting overrides everywhere.
  *   - win32:  `%APPDATA%\maximal`  (fallback `<home>\AppData\Roaming\maximal`).
  *   - else:   `<home>/.local/share/maximal`  (macOS + Linux, unchanged).
  *
@@ -35,7 +37,7 @@ export interface AppDirEnv {
  * enforced by {@link requireExistingHome}, both applied once below.
  */
 export function resolveAppDir(env: AppDirEnv): string {
-  const override = env.copilotApiHome?.trim()
+  const override = env.maximalHome?.trim()
   if (override) {
     return override
   }
@@ -58,7 +60,7 @@ export function resolveCredentialDir(
 export type HomePolicy = "create" | "require"
 
 /** Env var carrying {@link HomePolicy}. */
-export const HOME_POLICY_ENV = "COPILOT_API_HOME_POLICY"
+export const HOME_POLICY_ENV = "MAXIMAL_HOME_POLICY"
 
 /**
  * Read the data-home policy.
@@ -72,11 +74,9 @@ export const HOME_POLICY_ENV = "COPILOT_API_HOME_POLICY"
  *     what lives there. It must already exist; maximal will not create it and
  *     will not fall back to the default. See {@link requireExistingHome}.
  *
- * An env var rather than a `config.json` key, deliberately: `config.json` lives
- * *inside* the home, so a policy about the home cannot be read from it. It is
- * also what the actual consumer can set — a host spawning maximal-core as a
- * sidecar builds a child env, and `COPILOT_API_HOME_POLICY=require` next to
- * `COPILOT_API_HOME` is one line there (maximal-core#2).
+ * The setting lives in the external Maximal settings file rather than
+ * `config.json`, which is inside the home whose handling this policy controls.
+ * A host spawning maximal-core can override it with `MAXIMAL_HOME_POLICY`.
  *
  * An unrecognised value throws rather than falling back to `create`. A caller
  * who wrote `required` and got the permissive default would have silently lost
@@ -85,7 +85,7 @@ export const HOME_POLICY_ENV = "COPILOT_API_HOME_POLICY"
  */
 export function resolveHomePolicy(raw: string | undefined): HomePolicy {
   const value = raw?.trim().toLowerCase()
-  // Blank is unset, for the same reason a blank COPILOT_API_HOME is: `""` is
+  // Blank is unset, for the same reason a blank MAXIMAL_HOME is: `""` is
   // how a spawner clears an inherited variable.
   if (!value) return "create"
   if (value === "create" || value === "require") return value
@@ -101,7 +101,7 @@ export function resolveHomePolicy(raw: string | undefined): HomePolicy {
  * Require a data home to already exist and be usable, and canonicalize it.
  * Throws — loudly, naming the offending value — otherwise.
  *
- * Only reached under `COPILOT_API_HOME_POLICY=require`. That policy is opt-in
+ * Only reached under `MAXIMAL_HOME_POLICY=require`. That policy is opt-in
  * precisely because this is the OPPOSITE of how the rest of this codebase
  * treats a missing directory: `ensureConfigFile` (`src/lib/config/config.ts`),
  * `ensurePaths` below and `markSessionRunning` all create what is missing and
@@ -158,22 +158,22 @@ export function requireExistingHome(dir: string): string {
     throw new Error(
       `The maximal data home ${shown} (resolved to "${real}") cannot be written`
         + ` to by this process, and ${because} requires a writable home. Fix`
-        + " its permissions, or point COPILOT_API_HOME somewhere writable.",
+        + " its permissions, or point MAXIMAL_HOME somewhere writable.",
     )
   }
   return real
 }
 
 /**
- * `COPILOT_API_HOME` counts as *set* only when it is non-blank — the same
+ * `MAXIMAL_HOME` counts as *set* only when it is non-blank — the same
  * `trim()` gate `resolveAppDir` applies. An empty or whitespace-only value is
- * "not set": clearing an inherited variable with `COPILOT_API_HOME: ""` is how
+ * "not set": clearing an inherited variable with `MAXIMAL_HOME: ""` is how
  * every spawner in this repo asks for the default home (see
  * `tests/helpers/spawn-engine.ts` and `tests/main-cli-global-options.test.ts`),
  * and that must keep meaning the default, not a hard boot failure.
  */
-const HOME_OVERRIDE = process.env.COPILOT_API_HOME?.trim()
-assertIsolatedTestPath(HOME_OVERRIDE, "COPILOT_API_HOME")
+const HOME_OVERRIDE = RUNTIME_SETTINGS.home
+assertIsolatedTestPath(HOME_OVERRIDE, "MAXIMAL_HOME")
 
 // `resolveAppDir` stays pure — no fs, no throw. It is the shared convention
 // table, and `scripts/dev/verify-build.ts` plus `tests/paths.test.ts` drive it
@@ -182,17 +182,17 @@ assertIsolatedTestPath(HOME_OVERRIDE, "COPILOT_API_HOME")
 //
 // The policy applies to the home whatever its source, rather than only to an
 // explicitly-set one. One rule is easier to hold than a conjunction, and the
-// alternative makes `COPILOT_API_HOME_POLICY=require` a silent no-op for anyone
+// alternative makes `MAXIMAL_HOME_POLICY=require` a silent no-op for anyone
 // who forgot to pass a home — the same class of quiet failure the policy exists
 // to remove.
 const APP_DIR = ((): string => {
   const resolved = resolveAppDir({
     platform: process.platform,
     homedir: os.homedir(),
-    copilotApiHome: HOME_OVERRIDE,
+    maximalHome: HOME_OVERRIDE,
     appData: process.env.APPDATA,
   })
-  return resolveHomePolicy(process.env[HOME_POLICY_ENV]) === "require" ?
+  return resolveHomePolicy(RUNTIME_SETTINGS.homePolicy) === "require" ?
       requireExistingHome(resolved)
     : resolved
 })()

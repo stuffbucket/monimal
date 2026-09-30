@@ -144,7 +144,7 @@ models use the native Messages API or fall back to Chat Completions.
 
 ## Config and state
 
-- `src/lib/config/config.ts` — `AppConfig` shape, disk read/write from `~/.local/share/maximal/config.json` (Linux/macOS) or `%USERPROFILE%\.local\share\maximal\config.json` (Windows). Also respects `COPILOT_API_HOME` env var.
+- `src/lib/config/config.ts` — `AppConfig` shape, disk read/write from `~/.local/share/maximal/config.json` (Linux/macOS) or `%USERPROFILE%\.local\share\maximal\config.json` (Windows). Also respects `MAXIMAL_HOME` env var.
 - `src/lib/config/config-schema.ts` — zod runtime validation. Bad config → exit non-zero with key path. Unknown keys → warning, kept via `.loose()`.
 - `src/lib/runtime-state/state.ts` — singleton mutable state: tokens, accountType, rate-limit, models cache.
 - `src/lib/auth/github-token-store.ts` — the GitHub identity store. Multi-account registry (schema v2) at `accounts.json` beside the legacy `github_token`: `{ activeKey, accounts: Record<"login@host", AccountRecord> }`, atomic temp+rename writes. Boot reads the active account; the legacy single-record file is migrated in once (gated, offline→`unknown@host`) and kept as a rollback fallback. The three sign-in producers (device-code, CLI, gh-reuse) all persist a typed `AccountRecord`. The `/control/accounts/switch` and `/control/accounts/remove` actions edit this registry (set active → a reconnect/restart adopts it). Sign-out forgets the active account; Remove forgets a specific one; both touch only maximal's own copy — never `gh`. Registry read-modify-write operations take an inter-process lock because development sidecars can share the credential directory.
@@ -154,7 +154,7 @@ models use the native Messages API or fall back to Chat Completions.
 #### Token storage: 0600 file, no OS keyring (maximal-core#6)
 
 The GitHub bearer lives in a `0600` file under the credential home
-(`COPILOT_API_CREDENTIAL_HOME`, otherwise `COPILOT_API_HOME` /
+(`COPILOT_API_CREDENTIAL_HOME`, otherwise `MAXIMAL_HOME` /
 `~/.local/share/maximal`) and nowhere else — written temp+rename with
 `{ mode: 0o600 }` so the mode survives the swap, and `ensurePaths` chmods on
 create. **An OS keyring was considered and deliberately not built.** Core is a
@@ -191,9 +191,9 @@ It stops being right when the home is *shared* — when an Electron host
 the sidecar cannot adopt or clobber the proxy the user already has running.
 There the caller owns the decision, and a home that is not there means the
 caller got something wrong. So the caller picks, with
-`COPILOT_API_HOME_POLICY` (maximal-core#2):
+`MAXIMAL_HOME_POLICY` (maximal-core#2):
 
-| `COPILOT_API_HOME_POLICY` | Behaviour |
+| `MAXIMAL_HOME_POLICY` | Behaviour |
 |---|---|
 | Unset, blank, or `create` (**default**) | A missing home is created lazily by `ensurePaths`. Unchanged from every prior release. |
 | `require` | The home must **already exist**, be a directory, and be writable. It is canonicalized with `realpathSync`. Anything else throws at startup and the process exits non-zero — never created, never fallen back from. |
@@ -202,14 +202,14 @@ caller got something wrong. So the caller picks, with
 An env var rather than a `config.json` key for two reasons: `config.json` lives
 *inside* the home, so a policy about the home cannot be read from it; and a
 sidecar spawner builds a child env, where this is one line next to
-`COPILOT_API_HOME`.
+`MAXIMAL_HOME`.
 
 The policy applies to whichever home resolves, not only to an explicitly-passed
 one. One rule is easier to hold than a conjunction, and the alternative makes
 `require` a silent no-op for a caller who forgot to pass a home — the same class
 of quiet failure the policy exists to remove.
 
-Blank counts as unset for both variables: `COPILOT_API_HOME: ""` is how a
+Blank counts as unset for both variables: `MAXIMAL_HOME: ""` is how a
 spawner clears an inherited value (`tests/helpers/spawn-engine.ts`), and that
 has to keep meaning "the default".
 
@@ -252,7 +252,7 @@ home dimension are independent, which is what lets two instances run at once.
 
 Three deliberate exceptions, none of which is per-instance state:
 
-1. **`COPILOT_API_SQLITE_DB_PATH`** (`src/lib/token-usage/store.ts`) — an opt-in
+1. **`MAXIMAL_API_SQLITE_DB_PATH`** (`src/lib/token-usage/store.ts`) — an opt-in
    escape hatch that relocates the usage database out of the home. It is the one
    supported way to make two instances share a file, and setting it in two
    instances is how you would deliberately break the isolation described above.

@@ -9,6 +9,14 @@
     ".nvmrc",
     ".bun-version"
   ],
+  "globalEnv": [
+    "COPILOT_API_CREDENTIAL_HOME",
+    "COPILOT_API_ENTERPRISE_URL",
+    "MAXIMAL_HOME",
+    "MAXIMAL_HOME_POLICY",
+    "COPILOT_API_OAUTH_APP",
+    "MAXIMAL_API_SQLITE_DB_PATH"
+  ],
   "tasks": {
     "analyze": {
       "outputs": [],
@@ -86,7 +94,6 @@
       "passThroughEnv": [
         "APPDATA",
         "CLAUDE_CONFIG_DIR",
-        "COPILOT_API_HOME",
         "HOME",
         "LOCALAPPDATA",
         "MAXIMAL_TEST_ROOT",

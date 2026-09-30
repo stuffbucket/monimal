@@ -129,7 +129,7 @@ buffer`.
 
 ### 4.6 Token storage shape
 
-Today's `${COPILOT_API_HOME}/<oauth-app>/github_token` contains the bare
+Today's `${MAXIMAL_HOME}/<oauth-app>/github_token` contains the bare
 token string. Promote to JSON with schema versioning so future changes
 (refresh-token rotation if we ever switch flows, multi-account, expiry
 caching) don't require a parse-rewrite migration:

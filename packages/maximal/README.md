@@ -94,16 +94,17 @@ claude
 
 ## Configuration
 
-Settings can be supplied through five sources. Higher in the list
+Settings can be supplied through six sources. Higher in the list
 wins:
 
 | # | Source | Lifetime | Notes |
 |---|---|---|---|
 | 1 | **CLI flags** | per-invocation | `--port`, `--account-type`, `--verbose`, etc. See `maximal start --help`. |
-| 2 | **Environment variables** | shell scope | `OLLAMA_API_KEY`, `ANTHROPIC_API_KEY`, `COPILOT_API_HOME`, `COPILOT_API_ENTERPRISE_URL`, `COPILOT_API_OAUTH_APP`. Bun also auto-loads `.env`. |
-| 3 | **Secrets files** | persistent, mode 0600 | `~/.local/share/maximal/secrets/<provider>` (e.g. `secrets/ollama`). Refused if mode is broader than 0600. |
-| 4 | **Config file** | persistent | `~/.local/share/maximal/config.json`. Schema-validated at boot; bad keys fail with a key path. Unknown keys warn but pass through. |
-| 5 | **Built-in defaults** | always | `src/lib/config.ts`. |
+| 2 | **Environment variables** | shell scope | `OLLAMA_API_KEY`, `ANTHROPIC_API_KEY`, `MAXIMAL_HOME`, `COPILOT_API_ENTERPRISE_URL`, `COPILOT_API_OAUTH_APP`. Bun also auto-loads `.env`. |
+| 3 | **Settings file** | persistent | `$XDG_CONFIG_HOME/maximal/settings.json` (or `~/.config/maximal/settings.json`) supplies `home`, `homePolicy`, and `apiSqliteDbPath`. |
+| 4 | **Secrets files** | persistent, mode 0600 | `~/.local/share/maximal/secrets/<provider>` (e.g. `secrets/ollama`). Refused if mode is broader than 0600. |
+| 5 | **Config file** | persistent | `~/.local/share/maximal/config.json`. Schema-validated at boot; bad keys fail with a key path. Unknown keys warn but pass through. |
+| 6 | **Built-in defaults** | always | `src/lib/config.ts`. |
 
 ### Knob reference
 
@@ -117,7 +118,9 @@ wins:
 | Ollama API key | — | `OLLAMA_API_KEY` | `secrets/ollama` | unset |
 | Anthropic API key | — | `ANTHROPIC_API_KEY` | `secrets/anthropic` | `config.anthropicApiKey` |
 | GitHub token | `--github-token` | — | `app/github_token` | from `auth` flow |
-| App home dir | — | `COPILOT_API_HOME` | — | `~/.local/share/maximal` |
+| App home dir | — | `MAXIMAL_HOME` | `settings.home` | `~/.local/share/maximal` |
+| Data-home policy | — | `MAXIMAL_HOME_POLICY` | `settings.homePolicy` | `create` |
+| API SQLite database | — | `MAXIMAL_API_SQLITE_DB_PATH` | `settings.apiSqliteDbPath` | `<home>/copilot-api.sqlite` |
 | Enterprise URL | — | `COPILOT_API_ENTERPRISE_URL` | — | unset |
 | OAuth app ID | — | `COPILOT_API_OAUTH_APP` | — | upstream default |
 | Use Messages API | — | — | `useMessagesApi` | `true` |

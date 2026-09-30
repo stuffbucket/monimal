@@ -112,7 +112,7 @@ describe('sidecar lifecycle logging', () => {
     const spawnOptions = spawnMock.mock.calls[0]?.[2] as
       | { env?: NodeJS.ProcessEnv }
       | undefined
-    expect(spawnOptions?.env?.COPILOT_API_HOME).toContain('core-home')
+    expect(spawnOptions?.env?.MAXIMAL_HOME).toContain('core-home')
     expect(spawnOptions?.env?.COPILOT_API_CREDENTIAL_HOME).toContain(
       'Maximal-development-credentials',
     )

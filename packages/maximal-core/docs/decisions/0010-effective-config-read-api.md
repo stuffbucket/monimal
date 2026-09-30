@@ -30,7 +30,7 @@ Configuration values come from at least four sources:
    mode 0600 — `src/lib/secrets.ts`)
 4. Environment variables (env wins, file fills in unset)
 
-Plus the `COPILOT_API_HOME` override that relocates all of the above.
+Plus the `MAXIMAL_HOME` override that relocates all of the above.
 
 There is **no single function** that returns the effective merged
 view of "what would this proxy use right now, and where did each

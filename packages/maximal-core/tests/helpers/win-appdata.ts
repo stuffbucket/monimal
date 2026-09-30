@@ -11,7 +11,7 @@
  * real `%LOCALAPPDATA%\Claude-3p` — the user's actual Claude Desktop 3P config
  * — and, because that path is shared, leak state into each other and across
  * files. This is the same hazard `tests/test-setup.ts` closes for
- * `COPILOT_API_HOME`, in the one place that env var does not cover.
+ * `MAXIMAL_HOME`, in the one place that env var does not cover.
  *
  * So: point `%LOCALAPPDATA%` at the per-test temp home before exercising any
  * code that resolves it, and restore it afterwards. No-op on POSIX, where the

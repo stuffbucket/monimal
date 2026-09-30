@@ -50,7 +50,7 @@ export interface Engine {
 }
 
 export interface StartEngineOptions {
-  /** `COPILOT_API_HOME` for this engine — always a fresh temp dir, so a test
+  /** `MAXIMAL_HOME` for this engine — always a fresh temp dir, so a test
    *  never reads or writes the developer's real data. */
   home: string
   /** Extra `start` args appended after the two port flags. */
@@ -115,7 +115,7 @@ function spawnEngineProcess(
     env: {
       ...process.env,
       ...sidecarSpawnEnv(process.pid),
-      COPILOT_API_HOME: options.home,
+      MAXIMAL_HOME: options.home,
       COPILOT_API_OAUTH_APP: "",
       COPILOT_API_ENTERPRISE_URL: "",
       // Make sure no env-bearer slips in.
@@ -132,7 +132,7 @@ function spawnEngineProcess(
  * it wrote.
  *
  * The complement to `startEngine`, for the boots whose subject is a *failure* —
- * a `COPILOT_API_HOME` that does not exist never reaches a ready-line, so
+ * a `MAXIMAL_HOME` that does not exist never reaches a ready-line, so
  * `startEngine` could only ever report that as a 30-second timeout. Same spawn,
  * same ephemeral ports, opposite expectation.
  */

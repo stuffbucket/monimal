@@ -52,7 +52,7 @@
  * announce it. Nothing here hardcodes a port (maximal-core#34).
  *
  * The "without the flag" block additionally carries the concurrency acceptance
- * for maximal-core#2: two engines with distinct `COPILOT_API_HOME`s and
+ * for maximal-core#2: two engines with distinct `MAXIMAL_HOME`s and
  * ephemeral ports run at the same time, one is stopped, and the other is asked
  * again. Coexistence alone was never the property worth having — a pidfile,
  * token store or sqlite handle keyed OUTSIDE the home only shows itself when
@@ -120,7 +120,7 @@ function track<T extends { child: ChildProcess }>(thing: T): T {
   return thing
 }
 
-/** A temp `COPILOT_API_HOME` with `config.json` already written. Config is read
+/** A temp `MAXIMAL_HOME` with `config.json` already written. Config is read
  *  during boot, so seeding it afterwards would be too late. */
 function homeWithConfig(config: unknown): string {
   const home = mkdtempSync(join(tmpdir(), "maximal-e2e-replace-"))
@@ -219,7 +219,7 @@ const report = createReporter(
 // the first one's corpse.
 //
 // This block doubles as the concurrency acceptance for maximal-core#2: two
-// engines, two DISTINCT `COPILOT_API_HOME`s, ephemeral ports, running at the
+// engines, two DISTINCT `MAXIMAL_HOME`s, ephemeral ports, running at the
 // same time — and then one of them is stopped and the other is asked again.
 // The homes are passed explicitly rather than left to `spawnEngine`'s default
 // temp dir, so "distinct" is a property this harness asserts rather than one it
