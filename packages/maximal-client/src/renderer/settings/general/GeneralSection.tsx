@@ -11,6 +11,7 @@ import {
 
 import type { SettingsCapabilities } from '../capabilities'
 import { AppearanceSection } from './AppearanceSection'
+import { MaterialSettings } from './MaterialSettings'
 import { MenuBarOnlyDialog } from './MenuBarOnlyDialog'
 import { useGeneralDesktopSettings } from './useGeneralDesktopSettings'
 import { useAppearancePreference } from './useAppearancePreference'
@@ -79,11 +80,11 @@ function AppearanceSections({
       >
         <SettingsGroup>
           <SettingsItem
-            title="Cozy background"
-            description="Render a gently moving cloud material behind the workspace."
+            title="Background material"
+            description="Render a configurable material behind the workspace."
             control={
               <Switch
-                label="Cozy background"
+                label="Background material"
                 displayLabel={null}
                 checked={appearance.state.backgroundEffectsEnabled}
                 disabled={appearance.busy}
@@ -93,9 +94,14 @@ function AppearanceSections({
                 testId="background-effects-switch"
               />
             }
-          />
+          >
+            <MaterialSettings
+              disabled={appearance.busy || !appearance.state.backgroundEffectsEnabled}
+            />
+          </SettingsItem>
           <SettingsItem
             title="Reduce motion"
+            divider={false}
             description="Stop decorative animation and minimize transitions throughout Maximal. The operating system preference is always honored."
             control={
               <Switch
@@ -156,6 +162,7 @@ export function GeneralSection({
             />
             <SettingsItem
               title="Run on startup"
+              divider={false}
               description="Automatically start Maximal when you log in to your computer."
               control={
                 <Switch
@@ -170,11 +177,13 @@ export function GeneralSection({
             />
             <SettingsItem
               title="Quick access shortcut"
+              divider={false}
               description="Open or hide Maximal from anywhere on your desktop."
               control={<kbd>Ctrl Ctrl</kbd>}
             />
             <SettingsItem
               title="Menu bar"
+              divider={false}
               description="Show Maximal in the menu bar without keeping it in the Dock or taskbar."
               control={
                 <Switch

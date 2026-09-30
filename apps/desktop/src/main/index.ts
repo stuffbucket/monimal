@@ -82,7 +82,11 @@ import {
   getProviderOnboardingPreference,
   setProviderOnboardingPreference,
 } from './preferences/provider-onboarding-preference.js'
-import { closeSplashWindow, createSplashWindow } from './windows/splash-window.js'
+import {
+  closeSplashWindow,
+  createSplashWindow,
+  updateSplashStatus,
+} from './windows/splash-window.js'
 import { centerOnPrimaryDisplay } from './windows/window-placement.js'
 import {
   isHarnessBusy,
@@ -139,6 +143,7 @@ applyAppName()
 
 let coreControlConnection: CoreControlConnection | null = null
 let mainWindow: BrowserWindow | null = null
+let mainWindowRevealAllowed = true
 const vibrancyWindows = new Set<BrowserWindow>()
 let pendingSettingsRequest: PendingSettingsRequest | null = null
 let menuBarMode: MenuBarModeController | null = null
@@ -146,6 +151,7 @@ let recording: DesktopRecording | null = null
 let projectCatalog: DesktopProjectCatalog | null = null
 let quitting = false
 let stopBrowserHost: (() => void) | undefined
+const MAIN_WINDOW_REVEAL_DELAY_MS = 120
 
 const nonEmptyString = z.string().min(1)
 const localModelIdentifier = z.string().min(1).max(200)
@@ -602,6 +608,7 @@ function loadRenderer(win: BrowserWindow, terminal?: TerminalWindowRequest): voi
 }
 
 function focusWindow(win: BrowserWindow): void {
+  if (win === mainWindow && !mainWindowRevealAllowed) return
   if (win.isMinimized()) win.restore()
   if (!win.isVisible()) win.show()
   win.focus()
@@ -724,6 +731,7 @@ function createWindow(): BrowserWindow {
     width: 1280,
     height: 768,
     ...centerOnPrimaryDisplay(1280, 768),
+    showWhenReady: mainWindowRevealAllowed,
     loadRenderer,
   })
   registerVibrancyWindow(win)
@@ -818,6 +826,55 @@ function openSettings(sectionId: PendingSettingsRequest['sectionId']): void {
 }
 
 void app.whenReady().then(async () => {
+  const splashPreview = isSplashPreview()
+  mainWindowRevealAllowed = false
+  let coreReady = false
+  let rendererReady = false
+  let splashClosed = false
+  let startupPresentationReady = false
+  let harnessStartRequested = process.env.STUFFBUCKET_HARNESS_START_OPEN === '1'
+  const canActivateHarness = (): boolean =>
+    coreReady && rendererReady && startupPresentationReady
+  const activateRequestedHarness = (): void => {
+    if (!harnessStartRequested || !canActivateHarness()) return
+    harnessStartRequested = false
+    showHarnessHost()
+  }
+  const setSplashStatus = (message: string): void => {
+    void updateSplashStatus(message).catch((error: unknown) => {
+      mainLogger.error(
+        { errorName: error instanceof Error ? error.name : 'unknown' },
+        'Failed to update splash startup status',
+      )
+    })
+  }
+  const closeReadySplash = (): void => {
+    if (!splashPreview && coreReady && rendererReady) {
+      setSplashStatus('Finishing startup…')
+      closeSplashWindow()
+    }
+  }
+
+  createSplashWindow({
+    name: 'maximal',
+    version: app.getVersion(),
+    dismissAfterMs: splashPreview ? false : undefined,
+    onClosed: () => {
+      splashClosed = true
+      setTimeout(() => {
+        if (!splashClosed) return
+        startupPresentationReady = true
+        mainWindowRevealAllowed = true
+        const target = mainWindow
+        if (rendererReady && target !== null && !target.isDestroyed()) {
+          focusWindow(target)
+        }
+        activateRequestedHarness()
+      }, MAIN_WINDOW_REVEAL_DELAY_MS)
+    },
+  })
+  setSplashStatus('Loading desktop services…')
+
   const nativeMode = new MenuBarModeController(() => {
     toggleHarnessHost()
   })
@@ -882,6 +939,7 @@ void app.whenReady().then(async () => {
       openTransferredTerminal(owner, request, 'copy'),
     redock: redockTerminal,
   })
+  setSplashStatus('Loading project catalog…')
   projectCatalog = await DesktopProjectCatalog.open(app.getPath('userData'))
   configureTerminalProjectTrust((path) => projectCatalog?.isTrustedPath(path) === true)
   registerIpc(coreControlConnection, nativeMode, projectCatalog)
@@ -893,42 +951,54 @@ void app.whenReady().then(async () => {
       'Project catalog startup refresh failed',
     ),
   )
-  await startHarnessHost({ modelDirectory: localModelsDirectory() })
-
-  const splashPreview = isSplashPreview()
-  let coreReady = false
-  let rendererReady = false
-  const closeReadySplash = (): void => {
-    if (!splashPreview && coreReady && rendererReady) closeSplashWindow()
-  }
+  setSplashStatus('Preparing the assistant…')
+  await startHarnessHost({
+    modelDirectory: localModelsDirectory(),
+    canActivate: canActivateHarness,
+  })
 
   onCoreStatus((status) => {
     if (status.phase === 'ready') {
       coreReady = true
       mainLogger.info({ pid: status.pid }, 'Sidecar is ready for desktop requests')
+      setSplashStatus(rendererReady
+        ? 'Finishing startup…'
+        : 'Connecting the workspace…')
       closeReadySplash()
+      activateRequestedHarness()
+    } else if (status.phase === 'boot-status') {
+      setSplashStatus(status.message === 'Checking configuration'
+        ? 'Validating local service configuration…'
+        : status.message === 'Starting proxy'
+          ? 'Opening the secure local model gateway…'
+          : status.message)
+    } else if (status.phase === 'starting') {
+      setSplashStatus('Starting Maximal Core…')
+    } else if (status.phase === 'failed') {
+      setSplashStatus('Local services could not start.')
     }
     broadcastCoreStatus(status)
   })
 
-  createSplashWindow({
-    name: 'maximal',
-    version: app.getVersion(),
-    dismissAfterMs: splashPreview ? false : undefined,
-  })
+  setSplashStatus('Loading the workspace…')
   const win = createWindow()
   if (!splashPreview) {
     win.once('ready-to-show', () => {
       rendererReady = true
+      setSplashStatus(coreReady
+        ? 'Finishing startup…'
+        : 'Waiting for local services…')
       closeReadySplash()
+      if (startupPresentationReady && !win.isDestroyed()) focusWindow(win)
+      activateRequestedHarness()
     })
   }
-  if (process.env.STUFFBUCKET_HARNESS_START_OPEN === '1') showHarnessHost()
   app.on('activate', () => {
     activateWindow()
   })
 
   try {
+    setSplashStatus('Starting Maximal Core…')
     await spawnCore()
   } catch (error) {
     // `spawnCore()` emits a failed lifecycle state for the in-app problem screen.

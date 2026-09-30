@@ -91,6 +91,44 @@ const SETTINGS_CSS = `
   flex: 1 1 14rem;
 }
 
+.material-settings {
+  padding: var(--shell-space-4, 16px);
+  border: 1px solid var(--shell-border);
+  border-radius: var(--shell-radius-large, 10px);
+  background: color-mix(in srgb, var(--shell-canvas) 88%, transparent);
+}
+
+.material-settings__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(15rem, 1fr));
+  align-items: start;
+  gap: var(--shell-space-4, 16px);
+}
+
+.material-settings__field--wide,
+.material-settings__location {
+  grid-column: 1 / -1;
+}
+
+.material-settings__location {
+  display: grid;
+  grid-template-columns: minmax(15rem, 1.5fr) repeat(2, minmax(9rem, 1fr));
+  gap: var(--shell-space-3, 12px);
+  padding-top: var(--shell-space-3, 12px);
+  border-top: 1px solid var(--shell-border);
+}
+
+.material-settings .input {
+  width: 100%;
+}
+
+@media (max-width: 760px) {
+  .material-settings__grid,
+  .material-settings__location {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .appearance-color {
   color: var(--shell-text-muted, #a0a8b4);
   font-size: var(--shell-text-sm, 0.8125rem);

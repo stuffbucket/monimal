@@ -93,6 +93,7 @@ vi.mock('pixi.js', () => ({
 vi.mock('pixi.js/unsafe-eval', () => ({}))
 
 import { CozyBackground } from './CozyBackground'
+import { DEFAULT_MATERIAL_PREFERENCE } from '@maximal/maximal-client/renderer/material-preference'
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 
@@ -137,7 +138,13 @@ afterEach(() => {
 describe('CozyBackground', () => {
   it('does not allocate Pixi while the effect is disabled', async () => {
     await act(async () => {
-      root.render(<CozyBackground enabled={false} reducedMotion={false} />)
+      root.render(
+        <CozyBackground
+          enabled={false}
+          reducedMotion={false}
+          material={DEFAULT_MATERIAL_PREFERENCE}
+        />,
+      )
       await Promise.resolve()
     })
 
@@ -147,7 +154,13 @@ describe('CozyBackground', () => {
 
   it('renders a static frame and releases GPU resources for reduced motion', async () => {
     await act(async () => {
-      root.render(<CozyBackground enabled reducedMotion />)
+      root.render(
+        <CozyBackground
+          enabled
+          reducedMotion
+          material={DEFAULT_MATERIAL_PREFERENCE}
+        />,
+      )
       await Promise.resolve()
       await Promise.resolve()
     })
@@ -165,7 +178,7 @@ describe('CozyBackground', () => {
       gl: { name: string }
       resources: { cozyUniforms: unknown }
     }
-    expect(shaderOptions.gl.name).toBe('cozy-cloud-material')
+    expect(shaderOptions.gl.name).toBe('maximal-procedural-material')
     expect(shaderOptions.resources.cozyUniforms).toBeInstanceOf(pixi.UniformGroup)
     expect(pixi.stop).toHaveBeenCalled()
     expect(pixi.start).not.toHaveBeenCalled()
@@ -183,7 +196,13 @@ describe('CozyBackground', () => {
 
   it('advances only the time uniform while animated', async () => {
     await act(async () => {
-      root.render(<CozyBackground enabled reducedMotion={false} />)
+      root.render(
+        <CozyBackground
+          enabled
+          reducedMotion={false}
+          material={DEFAULT_MATERIAL_PREFERENCE}
+        />,
+      )
       await Promise.resolve()
       await Promise.resolve()
     })
@@ -205,6 +224,42 @@ describe('CozyBackground', () => {
     expect(shaderOptions.resources.cozyUniforms.uniforms.uTime).toBeCloseTo(0.1)
   })
 
+  it('selects material and battery quality without adding another draw', async () => {
+    await act(async () => {
+      root.render(
+        <CozyBackground
+          enabled
+          reducedMotion={false}
+          material={{
+            ...DEFAULT_MATERIAL_PREFERENCE,
+            preset: 'water',
+            quality: 'battery',
+          }}
+        />,
+      )
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(pixi.application.init).toHaveBeenCalledWith(
+      expect.objectContaining({ resolution: 0.5 }),
+    )
+    expect(pixi.application.ticker.maxFPS).toBe(8)
+    expect(pixi.application.stage.addChild).toHaveBeenCalledTimes(1)
+    const shaderOptions = pixi.shaderFrom.mock.calls[0]?.[0] as {
+      resources: {
+        cozyUniforms: {
+          uniforms: { uMaterial: number; uStrength: number; uMotion: number }
+        }
+      }
+    }
+    expect(shaderOptions.resources.cozyUniforms.uniforms).toMatchObject({
+      uMaterial: 5,
+      uStrength: 0.75,
+      uMotion: 0.5,
+    })
+  })
+
   it('destroys once when disabled during asynchronous initialization', async () => {
     let finishInitialization: (() => void) | undefined
     pixi.application.init.mockImplementationOnce(
@@ -215,7 +270,13 @@ describe('CozyBackground', () => {
     )
 
     await act(async () => {
-      root.render(<CozyBackground enabled reducedMotion={false} />)
+      root.render(
+        <CozyBackground
+          enabled
+          reducedMotion={false}
+          material={DEFAULT_MATERIAL_PREFERENCE}
+        />,
+      )
       await Promise.resolve()
       await Promise.resolve()
     })

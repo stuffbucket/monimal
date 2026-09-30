@@ -20,8 +20,8 @@
  * Contrast (WCAG 2.1) for the pairs that carry meaning:
  *   --shell-text on --shell-background          16.29:1
  *   --shell-text on --shell-canvas              15.13:1
- *   --shell-text-muted on --shell-background     7.40:1
- *   --shell-text-subtle on --shell-background    6.02:1
+ *   --shell-text-muted on --shell-background     9.47:1
+ *   --shell-text-subtle on --shell-background    7.92:1
  *   --shell-accent on --shell-background         5.41:1
  *   --shell-accent-contrast on --shell-accent    5.41:1  (primary actions)
  *   --shell-accent on --shell-accent-muted       4.61:1  (selected nav text)
@@ -44,13 +44,13 @@ const THEME_CSS = `
 
   /* Foreground scale. */
   --shell-text: #f5f5f5;
-   --shell-text-muted: #a0a8b4;
-   --shell-text-subtle: #8f97a2;
+   --shell-text-muted: #b6bec9;
+   --shell-text-subtle: #a5aeba;
 
   /* Dividers and control outlines. The strong step is part of the renderer
      contract and keeps inputs and scroll thumbs distinct from the canvas. */
   --shell-border: #343943;
-  --shell-border-strong: #515a69;
+  --shell-border-strong: #687386;
   --shell-input-background: #171a20;
   --shell-border-hover: var(--shell-accent);
 
@@ -132,6 +132,9 @@ const THEME_CSS = `
   --maximal-cloud-1: #5c9fad;
   --maximal-cloud-2: #9b6ba2;
   --maximal-cloud-3: #bb7952;
+  --maximal-overlay-material: rgb(32 36 44 / 0.97);
+  --maximal-overlay-highlight: rgb(255 255 255 / 0.08);
+  --maximal-material-scrim: rgb(8 10 14 / 0.42);
 
    --shell-terminal-background: #111317;
    --maximal-terminal-foreground: #f5f5f5;
@@ -144,10 +147,10 @@ const THEME_CSS = `
   --shell-canvas: #eef0f4;
   --shell-raised: #ffffff;
   --shell-text: #12141a;
-  --shell-text-muted: #545c68;
-  --shell-text-subtle: #656d78;
+  --shell-text-muted: #46505e;
+  --shell-text-subtle: #566171;
   --shell-border: #e3e6eb;
-  --shell-border-strong: #ccd2da;
+  --shell-border-strong: #808b9a;
   --shell-input-background: #ffffff;
   --shell-hover: #eceef2;
   --shell-active: #e2e6ec;
@@ -166,9 +169,12 @@ const THEME_CSS = `
   --data-viz-series-6: #74449a;
   --data-viz-series-7: #a64d28;
   --data-viz-series-8: #53606e;
-  --maximal-cloud-1: #b9dce3;
-  --maximal-cloud-2: #ddc9df;
-  --maximal-cloud-3: #ead4b9;
+  --maximal-cloud-1: #4e95a3;
+  --maximal-cloud-2: #a66eac;
+  --maximal-cloud-3: #c9804e;
+  --maximal-overlay-material: rgb(250 251 253 / 0.97);
+  --maximal-overlay-highlight: rgb(255 255 255 / 0.72);
+  --maximal-material-scrim: rgb(30 38 50 / 0.22);
 }
 
 :root[data-vibrancy='true'],
@@ -194,23 +200,23 @@ const THEME_CSS = `
 }
 
 :root[data-background-effects='true'] {
-  --bg-app: rgb(22 24 29 / 0.48);
-  --bg-panel: rgb(27 30 36 / 0.64);
-  --bg-canvas: rgb(16 18 22 / 0.56);
-  --bg-raised: rgb(35 39 47 / 0.78);
-  --shell-background: rgb(22 24 29 / 0.48);
-  --shell-canvas: rgb(16 18 22 / 0.56);
-  --shell-raised: rgb(35 39 47 / 0.78);
+  --bg-app: rgb(22 24 29 / 0.58);
+  --bg-panel: rgb(27 30 36 / 0.72);
+  --bg-canvas: rgb(16 18 22 / 0.62);
+  --bg-raised: rgb(35 39 47 / 0.92);
+  --shell-background: rgb(22 24 29 / 0.58);
+  --shell-canvas: rgb(16 18 22 / 0.62);
+  --shell-raised: rgb(35 39 47 / 0.92);
 }
 
 :root[data-theme='light'][data-background-effects='true'] {
   --bg-app: rgb(255 255 255 / 0.52);
   --bg-panel: rgb(247 248 250 / 0.66);
   --bg-canvas: rgb(238 240 244 / 0.58);
-  --bg-raised: rgb(255 255 255 / 0.8);
+  --bg-raised: rgb(255 255 255 / 0.92);
   --shell-background: rgb(255 255 255 / 0.52);
   --shell-canvas: rgb(238 240 244 / 0.58);
-  --shell-raised: rgb(255 255 255 / 0.8);
+  --shell-raised: rgb(255 255 255 / 0.92);
 }
 
 /*

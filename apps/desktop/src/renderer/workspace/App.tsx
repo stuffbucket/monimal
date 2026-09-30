@@ -2,6 +2,10 @@ import { ObservabilityProvider } from '@maximal/maximal-observability'
 import { useEffect, useMemo, useState, type ReactElement } from 'react'
 
 import { AppWorkspace } from '@maximal/maximal-client/renderer/AppWorkspace'
+import {
+  readMaterialPreference,
+  subscribeMaterialPreference,
+} from '@maximal/maximal-client/renderer/material-preference'
 import { MaximalQueryProvider } from '@maximal/maximal-client/renderer/query-client'
 import { ProjectBrowser } from '@maximal/maximal-client/renderer/projects/ProjectBrowser'
 import type { ProjectSearchResult } from '@maximal/project-catalog'
@@ -51,6 +55,7 @@ export function App(): ReactElement {
 function AppContent(): ReactElement {
   const settings = useMemo(() => createCoreSettingsCapabilities(), [])
   const appearance = useAppearancePreference(settings)
+  const [material, setMaterial] = useState(readMaterialPreference)
   const observability = useMemo(() => createObservabilitySource(), [])
   const [detachedWindow] = useState(readDetachedTerminal)
   const terminalTabsState = useTerminalTabs(detachedWindow)
@@ -59,6 +64,8 @@ function AppContent(): ReactElement {
   const [sectionRequest, setSectionRequest] = useState<SettingsSectionRequest | null>(null)
   const [projectBrowserOpen, setProjectBrowserOpen] = useState(false)
   const requestNavigation = useGuardedNavigation()
+
+  useEffect(() => subscribeMaterialPreference(setMaterial), [])
 
   useEffect(
     () =>
@@ -76,6 +83,7 @@ function AppContent(): ReactElement {
       <CozyBackground
         enabled={appearance?.backgroundEffectsEnabled === true}
         reducedMotion={appearance?.reducedMotionEnabled === true}
+        material={material}
       />
       <AppWorkspace
         detachedWindow={detachedWindow}

@@ -32,6 +32,7 @@ import { assertContrastAtLeast, assertFocusOutlineResolves, assertNoVerticalOver
 
 let running: RunningApp
 let model: ScriptedModel
+let startupWindowState: Array<{ url: string; visible: boolean }>
 const execFileAsync = promisify(execFile)
 const EVIDENCE_HOLD_MS = 7_500
 const MIN_EVIDENCE_SECONDS = 5
@@ -51,6 +52,17 @@ test.beforeAll(async () => {
       ? { TMUX_TMPDIR: tmuxSocketDirectory, TERM: 'xterm-256color' }
       : {}),
   })
+  await expect.poll(() => running.app.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows().some((window) =>
+      window.isVisible() && window.webContents.getURL().startsWith('data:text/html'),
+    ),
+  )).toBe(true)
+  startupWindowState = await running.app.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows().map((window) => ({
+      url: window.webContents.getURL(),
+      visible: window.isVisible(),
+    })),
+  )
 })
 
 async function mainWindow(): Promise<Page> {
@@ -64,6 +76,32 @@ async function mainWindow(): Promise<Page> {
   if (!page) throw new Error('The packaged main window did not open.')
   return page
 }
+
+test('keeps application windows hidden while the startup splash is visible', async () => {
+  expect(startupWindowState.some(({ url, visible }) =>
+    visible && url.startsWith('data:text/html'),
+  )).toBe(true)
+  expect(startupWindowState.some(({ url, visible }) =>
+    visible && url.includes('/main_window/index.html'),
+  )).toBe(false)
+  expect(startupWindowState.some(({ url, visible }) =>
+    visible && url.includes('/overlay.html'),
+  )).toBe(false)
+
+  await expect.poll(() => running.app.evaluate(({ BrowserWindow }) => {
+    const windows = BrowserWindow.getAllWindows()
+    return {
+      mainVisible: windows.some((window) =>
+        window.isVisible()
+        && window.webContents.getURL().includes('/main_window/index.html'),
+      ),
+      splashVisible: windows.some((window) =>
+        window.isVisible()
+        && window.webContents.getURL().startsWith('data:text/html'),
+      ),
+    }
+  })).toEqual({ mainVisible: true, splashVisible: false })
+})
 
 async function openNativeSettings(label: string): Promise<string[]> {
   return running.app.evaluate(({ BrowserWindow, Menu }, wanted) => {
@@ -853,6 +891,10 @@ test('General settings expose packaged Electron desktop behavior', async ({ brow
 
 test('Appearance effects persist, honor reduced motion, and release Pixi when disabled', async ({ page: _page }, testInfo) => {
   const page = await mainWindow()
+  const evidenceDirectory = process.env['MAXIMAL_EVIDENCE_DIR']
+  if (evidenceDirectory) await mkdir(evidenceDirectory, { recursive: true })
+  const evidencePath = (name: string): string =>
+    evidenceDirectory ? join(evidenceDirectory, name) : testInfo.outputPath(name)
   const recordingPath = process.env.MAXIMAL_E2E_CAPTURE_COZY_VIDEO === '1'
     ? testInfo.outputPath('cozy-background-demo.mp4')
     : null
@@ -875,6 +917,10 @@ test('Appearance effects persist, honor reduced motion, and release Pixi when di
   await expect(page.getByRole('heading', { name: 'Window materials' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Visual effects' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Desktop app' })).toBeVisible()
+  const generalItemDividers = await page
+    .locator('.settings__group .settings__item + .settings__item')
+    .evaluateAll((items) => items.map((item) => getComputedStyle(item).borderTopWidth))
+  expect(generalItemDividers).not.toContain('1px')
 
   const vibrancy = page.getByTestId('vibrancy-switch')
   const background = page.getByTestId('background-effects-switch')
@@ -908,6 +954,83 @@ test('Appearance effects persist, honor reduced motion, and release Pixi when di
   await expect(page.locator('html')).toHaveAttribute('data-background-effects', 'true')
   const canvas = page.locator('.cozy-background canvas')
   await expect(canvas).toHaveCount(1)
+  const materialPreset = page.getByTestId('material-preset')
+  await expect(materialPreset.locator('option')).toHaveCount(10)
+  const sliderLabelsOverlap = await page
+    .locator('[data-testid="material-settings"] .slider')
+    .evaluateAll((sliders) => sliders.some((slider) => {
+      const labels = [...slider.querySelectorAll('.slider__label')]
+        .map((label) => label.getBoundingClientRect())
+        .sort((first, second) => first.left - second.left)
+      return labels.some((label, index) => {
+        const next = labels[index + 1]
+        return next !== undefined && label.right > next.left
+      })
+    }))
+  expect(sliderLabelsOverlap).toBe(false)
+  const materialSettingsPath = evidencePath('material-settings-composed.png')
+  await page.getByTestId('material-settings').screenshot({
+    path: materialSettingsPath,
+  })
+  await testInfo.attach('Composed material settings', {
+    path: materialSettingsPath,
+    contentType: 'image/png',
+  })
+  const materialFrames: Buffer[] = []
+  for (const preset of [
+    'clouds',
+    'acrylic',
+    'paper',
+    'cloth',
+    'marble',
+    'water',
+    'cel-sky',
+    'halftone',
+    'ink-wash',
+    'stardust',
+  ]) {
+    await materialPreset.selectOption(preset)
+    await expect(page.locator('.cozy-background')).toHaveAttribute(
+      'data-material',
+      preset,
+    )
+    await page.waitForTimeout(100)
+    materialFrames.push(await canvas.screenshot())
+  }
+  expect(
+    new Set(materialFrames.map((frame) => frame.toString('base64'))).size,
+  ).toBe(10)
+  await page.getByTestId('material-quality').selectOption('battery')
+  await expect(page.locator('.cozy-background canvas')).toHaveCount(1)
+  await page.getByTestId('material-lighting').selectOption('timezone')
+  await expect(page.getByTestId('material-timezone')).toBeVisible()
+  await expect(page.getByTestId('material-latitude')).toBeVisible()
+  await expect(page.getByTestId('material-longitude')).toBeVisible()
+  await page.getByTestId('material-lighting').selectOption('fixed')
+  await materialPreset.selectOption('clouds')
+  await page.getByTestId('material-quality').selectOption('balanced')
+  await expect(page.locator('.cozy-background')).toHaveAttribute(
+    'data-material',
+    'clouds',
+  )
+  const floatingMaterial = await page.locator('.sb-shell.app').evaluate((shell) => {
+    const surface = document.createElement('div')
+    surface.className = 'dialog'
+    shell.append(surface)
+    const style = getComputedStyle(surface)
+    const result = {
+      backdropFilter: style.backdropFilter,
+      backgroundColor: style.backgroundColor,
+      backgroundImage: style.backgroundImage,
+    }
+    surface.remove()
+    return result
+  })
+  expect(floatingMaterial.backdropFilter).toContain('blur(28px)')
+  expect(floatingMaterial.backgroundColor).toMatch(
+    /^rgba\(\s*(?:32,\s*36,\s*44|250,\s*251,\s*253),\s*0\.97\s*\)$/,
+  )
+  expect(floatingMaterial.backgroundImage).toContain('linear-gradient')
   await page.waitForTimeout(250)
   const animatedFrameA = await canvas.screenshot({
     path: testInfo.outputPath('cozy-background-animated-a.png'),
@@ -917,35 +1040,71 @@ test('Appearance effects persist, honor reduced motion, and release Pixi when di
     path: testInfo.outputPath('cozy-background-animated-b.png'),
   })
   expect(animatedFrameB.equals(animatedFrameA)).toBe(false)
-  const materialMetrics = await running.app.evaluate(({ nativeImage }, frames) => {
-    const decode = (encoded: string): Buffer =>
-      nativeImage
-        .createFromBuffer(Buffer.from(encoded, 'base64'))
-        .resize({ width: 64, height: 64, quality: 'best' })
-        .toBitmap()
-    const disabled = decode(frames.disabled)
-    const enabled = decode(frames.enabled)
-    let changed = 0
-    let difference = 0
-    const pixelCount = Math.min(disabled.length, enabled.length) / 4
-    for (let index = 0; index < pixelCount * 4; index += 4) {
-      const red = Math.abs((disabled[index] ?? 0) - (enabled[index] ?? 0))
-      const green = Math.abs((disabled[index + 1] ?? 0) - (enabled[index + 1] ?? 0))
-      const blue = Math.abs((disabled[index + 2] ?? 0) - (enabled[index + 2] ?? 0))
-      const pixelDifference = (red + green + blue) / 3
-      difference += pixelDifference
-      if (pixelDifference >= 6) changed += 1
-    }
-    return {
-      changedPixelRatio: changed / pixelCount,
-      meanPixelDifference: difference / pixelCount,
-    }
-  }, {
-    disabled: disabledFrame.toString('base64'),
-    enabled: animatedFrameA.toString('base64'),
-  })
+  const measureDifference = (disabled: Buffer, enabled: Buffer) =>
+    running.app.evaluate(({ nativeImage }, frames) => {
+      const decode = (encoded: string): Buffer =>
+        nativeImage
+          .createFromBuffer(Buffer.from(encoded, 'base64'))
+          .resize({ width: 64, height: 64, quality: 'best' })
+          .toBitmap()
+      const disabled = decode(frames.disabled)
+      const enabled = decode(frames.enabled)
+      let changed = 0
+      let difference = 0
+      const pixelCount = Math.min(disabled.length, enabled.length) / 4
+      for (let index = 0; index < pixelCount * 4; index += 4) {
+        const red = Math.abs((disabled[index] ?? 0) - (enabled[index] ?? 0))
+        const green = Math.abs((disabled[index + 1] ?? 0) - (enabled[index + 1] ?? 0))
+        const blue = Math.abs((disabled[index + 2] ?? 0) - (enabled[index + 2] ?? 0))
+        const pixelDifference = (red + green + blue) / 3
+        difference += pixelDifference
+        if (pixelDifference >= 6) changed += 1
+      }
+      return {
+        changedPixelRatio: changed / pixelCount,
+        meanPixelDifference: difference / pixelCount,
+      }
+    }, {
+      disabled: disabled.toString('base64'),
+      enabled: enabled.toString('base64'),
+    })
+  const materialMetrics = await measureDifference(disabledFrame, animatedFrameA)
   expect(materialMetrics.changedPixelRatio).toBeGreaterThan(0.2)
   expect(materialMetrics.meanPixelDifference).toBeGreaterThan(4)
+
+  await page.locator('html').evaluate((root) => {
+    root.dataset.theme = 'light'
+  })
+  await page.waitForTimeout(100)
+  const lightEnabledPath = evidencePath('cozy-background-light-enabled.png')
+  const lightEnabledFrame = await page.screenshot({
+    path: lightEnabledPath,
+  })
+  await background.click()
+  await expect(page.locator('.cozy-background')).toHaveCount(0)
+  const lightDisabledPath = evidencePath('cozy-background-light-disabled.png')
+  const lightDisabledFrame = await page.screenshot({
+    path: lightDisabledPath,
+  })
+  const lightMaterialMetrics = await measureDifference(
+    lightDisabledFrame,
+    lightEnabledFrame,
+  )
+  expect(lightMaterialMetrics.changedPixelRatio).toBeGreaterThan(0.2)
+  expect(lightMaterialMetrics.meanPixelDifference).toBeGreaterThan(4)
+  await testInfo.attach('Light theme with cozy background', {
+    path: lightEnabledPath,
+    contentType: 'image/png',
+  })
+  await testInfo.attach('Light theme without cozy background', {
+    path: lightDisabledPath,
+    contentType: 'image/png',
+  })
+  await background.click()
+  await expect(page.locator('.cozy-background canvas')).toHaveCount(1)
+  await page.locator('html').evaluate((root) => {
+    delete root.dataset.theme
+  })
   if (recordingPath) await page.waitForTimeout(recordingHoldMs)
 
   await reducedMotion.click()

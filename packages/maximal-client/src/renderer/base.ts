@@ -248,6 +248,27 @@ body {
   color: var(--shell-text-muted);
 }
 
+:root:is([data-vibrancy='true'], [data-background-effects='true'])
+  .sb-shell
+  :is(.dialog, .menu, .tooltip, .workspace-map) {
+  background-color: var(--maximal-overlay-material);
+  background-image: linear-gradient(
+    145deg,
+    var(--maximal-overlay-highlight),
+    transparent 42%
+  );
+  -webkit-backdrop-filter: blur(28px) saturate(1.25);
+  backdrop-filter: blur(28px) saturate(1.25);
+}
+
+:root:is([data-vibrancy='true'], [data-background-effects='true'])
+  .sb-shell
+  .dialog__scrim {
+  background: var(--maximal-material-scrim);
+  -webkit-backdrop-filter: blur(3px) saturate(0.9);
+  backdrop-filter: blur(3px) saturate(0.9);
+}
+
 :root[data-reduced-motion='true'] *,
 :root[data-reduced-motion='true'] *::before,
 :root[data-reduced-motion='true'] *::after {

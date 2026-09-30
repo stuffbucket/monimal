@@ -137,13 +137,16 @@ vi.mock('./CozyBackground', () => ({
   CozyBackground: ({
     enabled,
     reducedMotion,
+    material,
   }: {
     enabled: boolean
     reducedMotion: boolean
+    material: { preset: string }
   }) => (
     <div
       data-testid="cozy-background"
       data-enabled={String(enabled)}
+      data-material={material.preset}
       data-reduced-motion={String(reducedMotion)}
     />
   ),
@@ -408,6 +411,7 @@ describe('App routing', () => {
       .toBe('true')
     const background = shell.querySelector('[data-testid="cozy-background"]')
     expect(background?.getAttribute('data-enabled')).toBe('true')
+    expect(background?.getAttribute('data-material')).toBe('clouds')
     expect(background?.getAttribute('data-reduced-motion')).toBe('true')
   })
 

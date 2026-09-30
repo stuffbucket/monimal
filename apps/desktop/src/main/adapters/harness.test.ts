@@ -545,6 +545,43 @@ describe('harness host lifecycle', () => {
     expect(stopEngineMock).toHaveBeenCalledTimes(1)
   })
 
+  it('blocks every assistant activation path until startup is ready', async () => {
+    vi.resetModules()
+    const host = await import('./harness.js')
+    let ready = false
+    await host.startHarnessHost({
+      modelDirectory: '/resolved/local/models',
+      canActivate: () => ready,
+    })
+    const control = {
+      type: 4,
+      time: 0,
+      altKey: false,
+      ctrlKey: true,
+      metaKey: false,
+      shiftKey: false,
+      keycode: 29,
+    }
+
+    host.showHarnessHost()
+    host.toggleHarnessHost()
+    handler(BRIDGE_CHANNELS.harnessShow)({ sender: {} })
+    keyHookListeners.get('keydown')?.(control)
+    keyHookListeners.get('keyup')?.(control)
+    keyHookListeners.get('keydown')?.(control)
+    keyHookListeners.get('keyup')?.(control)
+    expect(panel.show).not.toHaveBeenCalled()
+    expect(panel.toggle).not.toHaveBeenCalled()
+
+    ready = true
+    host.showHarnessHost()
+    host.toggleHarnessHost()
+    expect(panel.show).toHaveBeenCalledOnce()
+    expect(panel.toggle).toHaveBeenCalledOnce()
+
+    await host.stopHarnessHost()
+  })
+
   it('can disable the global keyboard hook for automated hosts', async () => {
     process.env['MAXIMAL_DISABLE_GLOBAL_KEYBOARD_HOOK'] = '1'
     try {

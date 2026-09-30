@@ -78,6 +78,7 @@ const SYSTEM_PROMPT = [
 let panel: ElectronPanel | undefined
 let registered = false
 let quickAccessShortcut: DoubleControlShortcut | undefined
+let activationAllowed = (): boolean => true
 let overlayAnchor: OverlayAnchor | undefined
 let anchorMoved = false
 let preferenceLoadGeneration = 0
@@ -162,9 +163,7 @@ function registerIpc(): void {
   if (registered) return
   registered = true
 
-  ipcMain.handle(BRIDGE_CHANNELS.harnessShow, () => {
-    panel?.show()
-  })
+  ipcMain.handle(BRIDGE_CHANNELS.harnessShow, showHarnessHost)
   ipcMain.handle(BRIDGE_CHANNELS.harnessHide, (event) => {
     owner(event)
     panel?.hide()
@@ -237,7 +236,9 @@ function registerIpc(): void {
 
 export async function startHarnessHost(options: {
   modelDirectory: string
+  canActivate?: () => boolean
 }): Promise<void> {
+  activationAllowed = options.canActivate ?? (() => true)
   configureLlamaHost({ workerPath: join(__dirname, LLAMA_WORKER_FILENAME) })
   configureModel({ directory: options.modelDirectory })
   const agentOptions = {
@@ -266,7 +267,7 @@ export async function startHarnessHost(options: {
     movable: true,
     onMoved: persistPanelAnchor,
   })
-  if (summonOnStart) {
+  if (summonOnStart && activationAllowed()) {
     summonOnStart = false
     panel.show()
   }
@@ -274,7 +275,7 @@ export async function startHarnessHost(options: {
 
   if (process.env['MAXIMAL_DISABLE_GLOBAL_KEYBOARD_HOOK'] !== '1') {
     const { uIOhook } = await import('uiohook-napi')
-    quickAccessShortcut = new DoubleControlShortcut(uIOhook, () => panel?.toggle())
+    quickAccessShortcut = new DoubleControlShortcut(uIOhook, toggleHarnessHost)
     try {
       quickAccessShortcut.start()
     } catch (error) {
@@ -288,11 +289,13 @@ export async function startHarnessHost(options: {
 }
 
 export function showHarnessHost(): void {
+  if (!activationAllowed()) return
   if (panel) panel.show()
   else summonOnStart = true
 }
 
 export function toggleHarnessHost(): void {
+  if (!activationAllowed()) return
   if (panel) panel.toggle()
   else summonOnStart = !summonOnStart
 }
@@ -308,6 +311,7 @@ export async function stopHarnessHost(): Promise<void> {
   panel?.destroy()
   panel = undefined
   summonOnStart = false
+  activationAllowed = () => true
   await shutdownAgent()
   stopEngine()
 

@@ -6,9 +6,16 @@ import type {
   UniformGroup,
 } from 'pixi.js'
 
+import {
+  materialPresetIndex,
+  solarLightDirection,
+  type MaterialPreference,
+} from '@maximal/maximal-client/renderer/material-preference'
+
 interface CozyBackgroundProps {
   enabled: boolean
   reducedMotion: boolean
+  material: MaterialPreference
 }
 
 type CozyUniforms = {
@@ -17,6 +24,10 @@ type CozyUniforms = {
   uColor3: { value: Float32Array; type: 'vec3<f32>' }
   uTime: { value: number; type: 'f32' }
   uViewport: { value: Float32Array; type: 'vec2<f32>' }
+  uMaterial: { value: number; type: 'f32' }
+  uStrength: { value: number; type: 'f32' }
+  uMotion: { value: number; type: 'f32' }
+  uLight: { value: Float32Array; type: 'vec2<f32>' }
 }
 
 const VERTEX_SHADER = `
@@ -37,6 +48,14 @@ uniform vec3 uColor2;
 uniform vec3 uColor3;
 uniform float uTime;
 uniform vec2 uViewport;
+uniform float uMaterial;
+uniform float uStrength;
+uniform float uMotion;
+uniform vec2 uLight;
+
+float hash(vec2 point) {
+  return fract(sin(dot(point, vec2(127.1, 311.7))) * 43758.5453);
+}
 
 float cloudBlob(vec2 point, vec2 center, vec2 radius, float aspect) {
   vec2 offset = (point - center) / radius;
@@ -52,8 +71,8 @@ float cloudBank(
   float phase
 ) {
   vec2 motion = vec2(
-    sin(uTime * 0.16 + phase) * 0.028,
-    cos(uTime * 0.11 + phase) * 0.014
+    sin(uTime * 0.16 * uMotion + phase) * 0.028,
+    cos(uTime * 0.11 * uMotion + phase) * 0.014
   );
   vec2 origin = center + motion;
   float body = cloudBlob(point, origin, radius, aspect);
@@ -76,8 +95,8 @@ void main(void) {
   float aspect = uViewport.x / max(uViewport.y, 1.0);
   vec2 point = vUV;
   point += vec2(
-    sin(point.y * 8.0 + uTime * 0.12),
-    cos(point.x * 7.0 - uTime * 0.1)
+    sin(point.y * 8.0 + uTime * 0.12 * uMotion),
+    cos(point.x * 7.0 - uTime * 0.1 * uMotion)
   ) * 0.018;
 
   float first = cloudBank(
@@ -105,12 +124,12 @@ void main(void) {
   float total = first + second + third;
   float broadWisp = sin(
     (point.x * aspect + point.y) * 12.0
-    + sin(point.y * 9.0 - uTime * 0.18)
+    + sin(point.y * 9.0 - uTime * 0.18 * uMotion)
   ) * 0.5 + 0.5;
   float fineWisp = sin(
     point.x * 19.0
     - point.y * 8.0
-    + cos(point.x * 7.0 + uTime * 0.14)
+    + cos(point.x * 7.0 + uTime * 0.14 * uMotion)
   ) * 0.5 + 0.5;
   float cloudDetail = 0.48 + broadWisp * fineWisp * 0.52;
   vec3 color = (
@@ -124,7 +143,84 @@ void main(void) {
     * cloudDetail,
     0.0,
     0.86
-  );
+  ) * uStrength;
+
+  if (uMaterial > 0.5 && uMaterial < 1.5) {
+    float grain = hash(floor(point * uViewport / 3.0)) - 0.5;
+    float glow = clamp(dot(normalize(point - 0.5), normalize(uLight)), 0.0, 1.0);
+    color = mix(uColor1, uColor2, point.x + grain * 0.08);
+    color += vec3(glow * 0.16 + grain * 0.035);
+    alpha = (0.42 + glow * 0.18) * uStrength;
+  } else if (uMaterial > 1.5 && uMaterial < 2.5) {
+    float fiber = sin(point.x * 720.0) * sin(point.y * 430.0);
+    float grain = hash(floor(point * uViewport / 2.0));
+    color = mix(vec3(0.78, 0.72, 0.62), uColor3, 0.28 + grain * 0.1);
+    color += fiber * 0.025;
+    alpha = (0.5 + grain * 0.08) * uStrength;
+  } else if (uMaterial > 2.5 && uMaterial < 3.5) {
+    float warp = sin(point.x * 380.0 + sin(point.y * 11.0));
+    float weft = sin(point.y * 310.0);
+    float weave = warp * weft;
+    color = mix(uColor1, uColor2, 0.42 + weave * 0.16);
+    alpha = (0.48 + abs(weave) * 0.12) * uStrength;
+  } else if (uMaterial > 3.5 && uMaterial < 4.5) {
+    float vein = sin(
+      point.x * 13.0 + point.y * 8.0
+      + sin(point.y * 21.0 + uTime * 0.025 * uMotion) * 1.8
+    );
+    float fissure = smoothstep(0.7, 0.98, abs(vein));
+    color = mix(uColor2, uColor3, 0.25 + fissure * 0.65);
+    color = mix(color, vec3(0.92), (1.0 - fissure) * 0.18);
+    alpha = (0.48 + fissure * 0.25) * uStrength;
+  } else if (uMaterial > 4.5 && uMaterial < 5.5) {
+    float wave = sin(point.x * 22.0 + uTime * 0.32 * uMotion);
+    wave += sin(point.y * 17.0 - uTime * 0.24 * uMotion);
+    float caustic = pow(abs(sin(wave + point.x * point.y * 18.0)), 7.0);
+    float light = clamp(dot(normalize(vec2(wave, 1.0)), normalize(uLight)), 0.0, 1.0);
+    color = mix(uColor1, uColor2, 0.38 + wave * 0.1);
+    color += vec3(caustic * 0.24 + light * 0.08);
+    alpha = (0.46 + caustic * 0.28) * uStrength;
+  } else if (uMaterial > 5.5 && uMaterial < 6.5) {
+    float horizon = floor((point.y + sin(point.x * 4.0) * 0.03) * 5.0) / 5.0;
+    float celCloud = step(0.42, max(first, max(second, third)));
+    float celShade = step(0.68, max(first, max(second, third)));
+    color = mix(uColor1, uColor2, horizon);
+    color = mix(color, uColor3, celCloud * 0.72);
+    color = mix(color, vec3(0.96), celShade * 0.42);
+    alpha = (0.48 + celCloud * 0.28) * uStrength;
+  } else if (uMaterial > 6.5 && uMaterial < 7.5) {
+    vec2 grid = fract(point * vec2(110.0, 82.0)) - 0.5;
+    float tone = 0.18 + broadWisp * 0.25;
+    float dot = 1.0 - step(tone, length(grid));
+    float panel = step(0.5, fract(point.x * 3.0 + point.y * 2.0));
+    color = mix(uColor1, uColor2, panel);
+    color = mix(color, uColor3, dot * 0.72);
+    alpha = (0.38 + dot * 0.32) * uStrength;
+  } else if (uMaterial > 7.5 && uMaterial < 8.5) {
+    float stroke = sin(
+      point.x * 9.0 + sin(point.y * 14.0 + uTime * 0.05 * uMotion) * 2.2
+    );
+    float wash = smoothstep(-0.7, 0.8, stroke + broadWisp * 0.55);
+    float dryBrush = step(0.64, hash(floor(point * uViewport / 4.0)));
+    color = mix(vec3(0.1, 0.11, 0.13), uColor2, wash);
+    color = mix(color, uColor3, dryBrush * (1.0 - wash) * 0.34);
+    alpha = (0.3 + wash * 0.42 + dryBrush * 0.08) * uStrength;
+  } else if (uMaterial > 8.5) {
+    vec2 cells = point * vec2(34.0, 22.0);
+    vec2 cell = floor(cells);
+    vec2 local = fract(cells) - 0.5;
+    float seed = hash(cell);
+    vec2 drift = vec2(
+      sin(uTime * 0.18 * uMotion + seed * 6.28),
+      cos(uTime * 0.14 * uMotion + seed * 9.42)
+    ) * 0.18;
+    float star = pow(max(0.0, 1.0 - length(local + drift) * 4.2), 8.0);
+    star *= step(0.86, seed);
+    float aura = pow(max(0.0, 1.0 - length(local + drift) * 2.2), 3.0);
+    color = mix(uColor1, uColor2, point.y);
+    color += uColor3 * star * 1.4 + vec3(aura * 0.18);
+    alpha = (0.28 + aura * 0.28 + star * 0.42) * uStrength;
+  }
 
   gl_FragColor = vec4(color * alpha, alpha);
 }
@@ -161,9 +257,16 @@ function motionReduced(setting: boolean, media: MediaQueryList): boolean {
   return setting || media.matches
 }
 
+const QUALITY = {
+  battery: { resolution: 0.5, maximumFps: 8, minimumFps: 2 },
+  balanced: { resolution: 0.75, maximumFps: 12, minimumFps: 4 },
+  high: { resolution: 1, maximumFps: 20, minimumFps: 6 },
+} as const
+
 export function CozyBackground({
   enabled,
   reducedMotion,
+  material,
 }: CozyBackgroundProps): ReactElement | null {
   const hostRef = useRef<HTMLDivElement>(null)
 
@@ -188,6 +291,7 @@ export function CozyBackground({
       }) => {
         if (disposed) return
         const app = new Application()
+        const quality = QUALITY[material.quality]
         await app.init({
           resizeTo: host,
           autoStart: false,
@@ -196,7 +300,7 @@ export function CozyBackground({
           powerPreference: 'low-power',
           antialias: false,
           autoDensity: true,
-          resolution: Math.min(window.devicePixelRatio || 1, 0.75),
+          resolution: Math.min(window.devicePixelRatio || 1, quality.resolution),
           backgroundAlpha: 0,
           eventFeatures: {
             click: false,
@@ -214,8 +318,8 @@ export function CozyBackground({
         app.canvas.setAttribute('aria-hidden', 'true')
         host.appendChild(app.canvas)
         app.stage.eventMode = 'none'
-        app.ticker.maxFPS = 12
-        app.ticker.minFPS = 4
+        app.ticker.maxFPS = quality.maximumFps
+        app.ticker.minFPS = quality.minimumFps
 
         const colors = cloudColorValues(Color)
         const uniforms = new UniformGroup<CozyUniforms>({
@@ -236,10 +340,20 @@ export function CozyBackground({
             value: new Float32Array([app.screen.width, app.screen.height]),
             type: 'vec2<f32>',
           },
+          uMaterial: {
+            value: materialPresetIndex(material.preset),
+            type: 'f32',
+          },
+          uStrength: { value: material.strength, type: 'f32' },
+          uMotion: { value: material.motion, type: 'f32' },
+          uLight: {
+            value: solarLightDirection(material),
+            type: 'vec2<f32>',
+          },
         })
         shader = Shader.from({
           gl: {
-            name: 'cozy-cloud-material',
+            name: 'maximal-procedural-material',
             vertex: VERTEX_SHADER,
             fragment: FRAGMENT_SHADER,
           },
@@ -274,6 +388,7 @@ export function CozyBackground({
         }
         const redraw = (): void => {
           updateColors(uniforms, Color)
+          uniforms.uniforms.uLight = solarLightDirection(material)
           app.resize()
           updateViewport(app, uniforms)
           app.render()
@@ -289,6 +404,9 @@ export function CozyBackground({
           updateMotion()
         }
         const themeObserver = new MutationObserver(redraw)
+        const lightTimer = material.lighting === 'timezone'
+          ? window.setInterval(redraw, 60_000)
+          : null
 
         app.canvas.addEventListener('webglcontextlost', contextLost)
         app.canvas.addEventListener('webglcontextrestored', contextRestored)
@@ -304,6 +422,7 @@ export function CozyBackground({
 
         cleanupApplication = () => {
           themeObserver.disconnect()
+          if (lightTimer !== null) window.clearInterval(lightTimer)
           app.canvas.removeEventListener('webglcontextlost', contextLost)
           app.canvas.removeEventListener('webglcontextrestored', contextRestored)
           document.removeEventListener('visibilitychange', updateMotion)
@@ -333,13 +452,14 @@ export function CozyBackground({
         { children: true },
       )
     }
-  }, [enabled, reducedMotion])
+  }, [enabled, material, reducedMotion])
 
   return enabled ? (
     <div
       ref={hostRef}
       className="cozy-background"
       aria-hidden="true"
+      data-material={material.preset}
       data-renderer-available="false"
     />
   ) : null

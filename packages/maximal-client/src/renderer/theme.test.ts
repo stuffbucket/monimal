@@ -124,6 +124,30 @@ describe('switch non-text contrast', () => {
   })
 })
 
+describe('default theme contrast', () => {
+  it('keeps secondary text and strong boundaries comfortably distinguishable', () => {
+    const values = themeValues()
+    const value = (name: string) => {
+      const found = values.get(name)
+      if (found === undefined) throw new Error(`${name} is not defined by the theme`)
+      return found
+    }
+
+    expect(
+      contrast(hex(value('--shell-text-muted')), hex(value('--shell-background'))),
+      'muted text',
+    ).toBeGreaterThanOrEqual(7)
+    expect(
+      contrast(hex(value('--shell-text-subtle')), hex(value('--shell-background'))),
+      'subtle text',
+    ).toBeGreaterThanOrEqual(7)
+    expect(
+      contrast(hex(value('--shell-border-strong')), hex(value('--shell-canvas'))),
+      'strong control boundary',
+    ).toBeGreaterThanOrEqual(3)
+  })
+})
+
 /** Every `.ts`/`.tsx` under the renderer, so no stylesheet is missed. */
 function rendererSources(): string[] {
   const walk = (directory: string, found: string[]): string[] => {
