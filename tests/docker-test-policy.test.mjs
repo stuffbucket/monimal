@@ -794,12 +794,12 @@ test("required CI runs native checks before Docker and has one cache writer", ()
   assert.equal(workflow.split("turbo-v2-").length - 1, 6);
 });
 
-test("PowerShell 5.1 conformance preserves long JSON Lines records", () => {
+test("PowerShell 5.1 conformance writes explicit UTF-16LE bytes", () => {
   const harness = read("packages/maximal-cli/tests/windows-powershell51.ps1");
-  assert.match(
-    harness,
-    /Out-File -FilePath \$inputPath -Encoding Unicode -Width 4096/,
-  );
+  assert.match(harness, /New-Object Text\.UnicodeEncoding\(\$false, \$true\)/);
+  assert.match(harness, /\$preamble = \$encoding\.GetPreamble\(\)/);
+  assert.match(harness, /\$body = \$encoding\.GetBytes\(/);
+  assert.doesNotMatch(harness, /Out-File/);
   assert.match(harness, /\$stdin = \$process\.StandardInput\.BaseStream/);
   assert.match(harness, /\$stdin\.Close\(\)/);
   assert.doesNotMatch(harness, /\$process\.StandardInput\.Close\(\)/);
