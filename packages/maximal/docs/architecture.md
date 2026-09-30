@@ -13,7 +13,7 @@ this document deliberately does not mirror it, because the mirrored copy drifted
 badly enough to be worse than no copy at all.
 
 `src/` was removed in #442 and now contains only the composition that joins
-Core's public startup seam to the optional generic DSH provider host and the
+Core's public startup seam to the optional generic provider plugin host and the
 statically linked first-party configurator runtime. It must not acquire routes,
 provider implementations, or engine policy.
 
@@ -45,11 +45,11 @@ The composition invokes Core's public CLI unchanged and supplies a
 provider-gateway factory plus the built-in configurator runtime. `dev` and
 `start` run the same source entry directly; `prepack` runs `build`.
 
-The generic DSH host, provider contract, and configurator-owned Cordis runtime
-may be compiled into the artifact. The DSH runtime, service plugins, and
-concrete adapters remain external profile dependencies. Package-boundary and
-bundle-metafile checks fail if oMLX, the external Anthropic adapter, or
-fixture-provider code enters the CLI.
+The generic provider plugin host, provider contract, and configurator-owned
+Cordis runtime may be compiled into the artifact. The Cordis LLM runtime,
+service plugins, and concrete adapters remain external profile dependencies.
+Package-boundary and bundle-metafile checks fail if oMLX, the external
+Anthropic adapter, or fixture-provider code enters the CLI.
 
 The desktop app's [sidecar builder](../../../apps/desktop/scripts/build-core.ts)
 compiles this same entry into the sidecar while

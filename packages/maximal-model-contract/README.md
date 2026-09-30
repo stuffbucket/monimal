@@ -2,7 +2,7 @@
 
 A pure ESM TypeScript contract between Maximal and model runtime gateways. The
 package contains types only and has no runtime dependency on Maximal, Cordis,
-DSH, model orchestration, or any concrete model runtime.
+provider plugin orchestration, or any concrete model runtime.
 
 ## Boundary
 
@@ -14,6 +14,10 @@ cancellation without introducing a framework-specific transport.
 The stable operations are:
 
 - `messages`
+- `chat-completions`
+- `responses`
+- `embeddings`
+- `systemone`
 - `count-tokens`
 - `models`
 
@@ -21,6 +25,15 @@ A gateway also exposes immutable provider status snapshots and topology
 subscriptions. `subscribe` immediately delivers the current topology, then
 future revisions until its idempotent unsubscribe function is called. `dispose`
 is asynchronous and idempotent; no listener is called after it resolves.
+
+Provider model descriptors may carry immutable runtime evidence for lifecycle,
+selection, access, supported endpoints, complete limits, capabilities,
+tokenizer pricing, and typed provider details. Shared evidence remains
+provider-neutral; provider-only values use a discriminated details payload.
+Token prices always carry their token batch and optional currency explicitly.
+Invalid or unusable provider integers are retained as `null` evidence instead
+of invalidating the containing model list. Provider-specific legacy billing
+flags remain inside the discriminated provider-details payload.
 
 The status and topology DTOs are deeply readonly. Their diagnostics use these
 stable codes:

@@ -1,10 +1,10 @@
 export {
-  createDshHost,
-  DshHost,
-  type DshHostOptions,
-  type DshHostReconcileInput,
-  type DshHostReconcileResult,
-  startDshHost,
+  createProviderPluginHost,
+  ProviderPluginHost,
+  type ProviderPluginHostOptions,
+  type ProviderPluginHostReconcileInput,
+  type ProviderPluginHostReconcileResult,
+  startProviderPluginHost,
 } from "./host.ts"
 export {
   type ActivationEntry,
@@ -15,6 +15,8 @@ export {
   type ProfilePluginKind,
   type ProfileService,
   ProfileValidationError,
+  PROVIDER_PLUGIN_API_VERSION,
+  type ProviderPluginApiVersion,
   RestartRequiredError,
 } from "./profile.ts"
 export type {
@@ -46,5 +48,5 @@ export type {
  * cannot recover timers, listeners, or other ambient resources a plugin leaks
  * outside that scope.
  */
-export const DSH_HOST_TRUST_LIMITATION =
+export const PROVIDER_PLUGIN_HOST_TRUST_LIMITATION =
   "External profile packages are trusted in-process code; resources leaked outside Cordis scope cannot be recovered by the host."

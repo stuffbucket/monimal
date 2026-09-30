@@ -7,20 +7,25 @@ import {
   SettingsActions,
   type ModelCard,
 } from '@maximal/maximal-electron/renderer'
+import {
+  reconcileModelInventory,
+  type ModelCatalogIndex,
+  type ModelInventoryEntry,
+  type RuntimeModelObservation,
+} from '@maximal/maximal-model-catalog'
 
-import type {
-  ModelsListResponse,
-  SettingsCapabilities,
-} from './capabilities'
+import type { SettingsCapabilities } from './capabilities'
 import { formatTimestamp } from '../shared/format'
 import { useSettingsHeaderActions } from './header-actions'
 import { useSettingsNavigation } from './navigation'
 import { AccountAvatar } from './service-icons'
-import {
-  cloudProviderId,
-  cloudProviderName,
-} from './cloud-model-providers'
 import { CloudProviderControls } from './CloudProviderControls'
+import {
+  cloudModelObservations,
+  isLocalModelProvider,
+  localModelObservations,
+  modelFeatureEnabled,
+} from './model-inventory'
 import {
   type ModelProviderInventory,
   useModelProviderRegistry,
@@ -28,19 +33,6 @@ import {
 
 interface ModelsSectionProps {
   capabilities: SettingsCapabilities
-}
-
-function modelKind(type: string): string {
-  const normalized = type.trim().toLowerCase()
-  if (normalized === 'image') return 'Image models'
-  if (normalized === 'video') return 'Video models'
-  return normalized || 'Other models'
-}
-
-function isLocalProvider(provider: string): boolean {
-  const normalized = provider.trim().toLowerCase()
-  return normalized === 'local'
-    || normalized === 'embedded'
 }
 
 function providerStatusUrl(provider: string): string | null {
@@ -56,63 +48,50 @@ function providerStatusUrl(provider: string): string | null {
   return null
 }
 
-function modelCards(
-  models: ModelsListResponse['models'],
+function modelCard(
+  model: ModelInventoryEntry,
   providers: ReadonlyMap<string, ModelProviderInventory>,
-): ModelCard[] {
-  return models.map((model) => {
-    const providerId = cloudProviderId(model)
-    const provider = providers.get(providerId)
-    const disabled = provider !== undefined && (!provider.available || !provider.enabled)
-    return {
-      id: model.id,
-      name: model.name,
-      kind: modelKind(model.type),
-      provider: cloudProviderName(providerId, model.vendor),
-      local: model.location === 'local' || isLocalProvider(model.vendor),
-      disabled,
-      activationLabel:
-        disabled
-          ? provider?.available
-            ? `Enable ${provider.name} to access ${model.name}`
-            : `Set up ${provider?.name ?? model.vendor} to access ${model.name}`
-          : undefined,
-      preview: model.preview,
-      contextWindowTokens: model.context_window_tokens ?? undefined,
-      maxOutputTokens: model.max_output_tokens ?? undefined,
-      capabilities: {
-        vision: model.capabilities.vision,
-        imageGeneration: model.capabilities.image_generation,
-        videoGeneration: model.capabilities.video_generation,
-        toolCalls: model.capabilities.tool_calls,
-        streaming: model.capabilities.streaming,
-        reasoning: model.capabilities.reasoning,
-      },
-    }
-  })
+): ModelCard {
+  const provider = providers.get(model.provider.id)
+  const disabled = model.availability !== 'available'
+  return {
+    id:
+      model.provider.id === 'maximal-local'
+        ? `maximal-${model.instanceId}`
+        : model.id,
+    name: model.name,
+    kind: model.kind,
+    provider: model.provider.name,
+    local: model.location === 'local',
+    disabled,
+    activationLabel:
+      disabled && provider !== undefined
+        ? provider.available
+          ? `Enable ${provider.name} to access ${model.name}`
+          : `Set up ${provider.name} to access ${model.name}`
+        : undefined,
+    preview: model.preview,
+    contextWindowTokens: model.limits.contextTokens.value ?? undefined,
+    maxOutputTokens: model.limits.outputTokens.value ?? undefined,
+    capabilities: {
+      vision: modelFeatureEnabled(model, 'vision'),
+      imageGeneration: modelFeatureEnabled(model, 'imageGeneration'),
+      videoGeneration: modelFeatureEnabled(model, 'videoGeneration'),
+      toolCalls: modelFeatureEnabled(model, 'toolCalls'),
+      streaming: modelFeatureEnabled(model, 'streaming'),
+      reasoning: modelFeatureEnabled(model, 'reasoning'),
+    },
+  }
 }
 
-function localModelCards(
-  models: NonNullable<ReturnType<typeof useModelProviderRegistry>['local']>['models'],
+function modelCards(
+  catalog: ModelCatalogIndex | null,
+  observations: ReadonlyArray<RuntimeModelObservation>,
+  providers: ReadonlyMap<string, ModelProviderInventory>,
 ): ModelCard[] {
-  return models.map((model) => ({
-    id: `maximal-${model.key}`,
-    name: model.displayName,
-    kind: 'Chat models',
-    provider: 'Maximal',
-    local: true,
-    disabled: model.state !== 'ready',
-    contextWindowTokens: model.context.contextWindow,
-    maxOutputTokens: model.context.maxOutputTokens,
-    capabilities: {
-      vision: model.capabilities.input.includes('image'),
-      imageGeneration: model.capabilities.output.includes('image'),
-      videoGeneration: model.capabilities.output.includes('video'),
-      toolCalls: false,
-      streaming: false,
-      reasoning: false,
-    },
-  }))
+  return reconcileModelInventory(catalog, observations).models.map((model) =>
+    modelCard(model, providers),
+  )
 }
 
 export function ModelsSection({ capabilities }: ModelsSectionProps): ReactElement {
@@ -153,19 +132,34 @@ export function ModelsSection({ capabilities }: ModelsSectionProps): ReactElemen
       const cloudModels = models.filter(
         (model) =>
           model.location === 'cloud'
-          || (model.location === undefined && !isLocalProvider(model.vendor)),
+          || (
+            model.location === undefined
+            && !isLocalModelProvider(model.vendor)
+          ),
       )
       const providerById = new Map(
         registry.providers.map((provider) => [provider.id, provider]),
       )
-      const cards = modelCards(cloudModels, providerById)
+      const cards = modelCards(
+        null,
+        cloudModelObservations(cloudModels, providerById),
+        providerById,
+      )
       const localProviderModels = models.filter((model) => model.location === 'local')
       return {
         cloudCards: cards,
         cloudProviders: [...new Set(cards.map((model) => model.provider ?? ''))],
         localCards: [
-          ...modelCards(localProviderModels, providerById),
-          ...localModelCards(local?.models ?? []),
+          ...modelCards(
+            null,
+            cloudModelObservations(localProviderModels, providerById),
+            providerById,
+          ),
+          ...modelCards(
+            null,
+            localModelObservations(local?.models ?? []),
+            providerById,
+          ),
         ],
         providerByName: new Map(
           registry.providers.map((provider) => [provider.name, provider]),

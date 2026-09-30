@@ -41,7 +41,7 @@ arbitrary test paths.
 `dev`, `build`, and `start` all begin at `src/main.ts`, the package-owned
 composition entry. `dev` is a watched CLI runner, so it requires a CLI
 subcommand such as `start`. The composition invokes `@maximal/maximal-core`'s
-public CLI and may supply the generic DSH provider host and built-in
+public CLI and may supply the generic provider plugin host and built-in
 configurators; routing and engine behavior remain in Core, and concrete
 providers remain external profile packages.
 

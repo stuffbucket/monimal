@@ -17,6 +17,10 @@ import type {
   ModelsListResponse,
   ModelSummary,
 } from "@maximal/maximal-core-contract/settings"
+import type {
+  ModelOperation,
+  ProviderModelDescriptor,
+} from "@maximal/maximal-model-contract"
 
 import type { ConfiguratorRegistry } from "~/lib/configurator-host"
 import type { Model } from "~/services/copilot/get-models"
@@ -29,18 +33,28 @@ import {
 } from "~/lib/auth/github-token-store"
 import { buildConfiguratorAppsList } from "~/lib/configurator-app-compat"
 import { listActiveClients } from "~/lib/http/active-clients"
+import {
+  copilotModelEvidence,
+  copilotModelOperations,
+  modelEvidenceWire,
+} from "~/lib/live/model-evidence"
 import { getModelsLoadedAtMs, state } from "~/lib/runtime-state/state"
 import { getTokenUsageSummary } from "~/lib/token-usage"
 
-export interface ProviderCatalogueModel {
-  readonly capabilities?: ReadonlyArray<string>
-  readonly contextWindowTokens?: number
-  readonly enabled?: boolean
-  readonly family?: string
-  readonly id: string
-  readonly name: string
-  readonly provider: string
-  readonly providerName: string
+export type ProviderCatalogueModel = ProviderModelDescriptor
+
+function completionOperations(): Array<ModelOperation> {
+  return ["messages", "chat-completions", "responses"]
+}
+
+function providerModelOperations(
+  capabilities: ReadonlySet<string>,
+): Array<ModelOperation> {
+  return [
+    ...(capabilities.has("completion") ? completionOperations() : []),
+    ...(capabilities.has("embedding") ? (["embeddings"] as const) : []),
+    ...(capabilities.has("systemone") ? (["systemone"] as const) : []),
+  ]
 }
 
 function providerModelType(capabilities: ReadonlySet<string>): string {
@@ -109,6 +123,7 @@ function toModelSummary(model: Model): ModelSummary {
     ?? {}
   const limits = capabilities.limits ?? {}
   const supports = capabilities.supports ?? {}
+  const evidence = copilotModelEvidence(model)
   return {
     id: model.id,
     name: model.name,
@@ -120,6 +135,12 @@ function toModelSummary(model: Model): ModelSummary {
     preview: model.preview,
     context_window_tokens: limits.max_context_window_tokens ?? null,
     max_output_tokens: limits.max_output_tokens ?? null,
+    tokenizer:
+      capabilities.tokenizer === undefined ?
+        null
+      : { id: capabilities.tokenizer },
+    operations: copilotModelOperations(model),
+    evidence: modelEvidenceWire(evidence),
     capabilities: {
       vision: supports.vision ?? false,
       image_generation: false,
@@ -159,7 +180,15 @@ export function buildModelsList(
       type: providerModelType(capabilities),
       preview: false,
       context_window_tokens: model.contextWindowTokens ?? null,
-      max_output_tokens: null,
+      max_output_tokens: model.maxOutputTokens ?? null,
+      tokenizer: model.tokenizer ?? null,
+      ...(model.evidence === undefined ?
+        {}
+      : { evidence: modelEvidenceWire(model.evidence) }),
+      operations:
+        model.operations === undefined ?
+          providerModelOperations(capabilities)
+        : [...model.operations],
       capabilities: {
         vision: capabilities.has("vision"),
         image_generation: supportsImageGeneration,

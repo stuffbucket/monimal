@@ -11,15 +11,15 @@ import type {
 
 import {
   ProfileValidationError,
-  type DshHostOptions,
-  type DshHostReconcileInput,
-  type DshHostReconcileResult,
+  type ProviderPluginHostOptions,
+  type ProviderPluginHostReconcileInput,
+  type ProviderPluginHostReconcileResult,
 } from "@maximal/maximal-models"
 import { describe, expect, test } from "bun:test"
 
 import {
   buildProviderActivation,
-  createDshProviderGateway,
+  createProviderPluginGateway,
 } from "../src/provider-gateway"
 
 const noop = (): void => undefined
@@ -31,7 +31,7 @@ function snapshot(
     appDataDirectory: "/app-data",
     configStatus: { state: "ready" },
     defaultProfileDirectory: "/app-data/provider-host",
-    providerHost: { mode: "dsh" },
+    providerHost: { mode: "plugins" },
     providers: {},
     ...overrides,
   }
@@ -75,9 +75,13 @@ const emptyTopology: ProviderTopology = {
 
 class FakeHost {
   disposed = 0
-  readonly reconciliations: Array<DshHostReconcileInput | undefined> = []
+  readonly reconciliations: Array<
+    ProviderPluginHostReconcileInput | undefined
+  > = []
 
-  reconcile(input?: DshHostReconcileInput): Promise<DshHostReconcileResult> {
+  reconcile(
+    input?: ProviderPluginHostReconcileInput,
+  ): Promise<ProviderPluginHostReconcileResult> {
     this.reconciliations.push(input)
     return Promise.resolve({
       committed: true,
@@ -199,13 +203,13 @@ describe("provider activation composition", () => {
   })
 })
 
-describe("managed DSH gateway", () => {
-  test("uses Core paths, reconciles live DSH changes, and disposes once", async () => {
+describe("managed provider plugin gateway", () => {
+  test("uses Core paths, reconciles live provider plugin changes, and disposes once", async () => {
     const initial = snapshot()
     const source = new ConfigSource(initial)
     const host = new FakeHost()
-    const starts: Array<DshHostOptions> = []
-    const gateway = await createDshProviderGateway(
+    const starts: Array<ProviderPluginHostOptions> = []
+    const gateway = await createProviderPluginGateway(
       { config: initial, configSource: source },
       {
         startHost(options) {
@@ -221,7 +225,7 @@ describe("managed DSH gateway", () => {
 
     source.publish(
       snapshot({
-        providerHost: { mode: "dsh", profileDirectory: "/profiles/next" },
+        providerHost: { mode: "plugins", profileDirectory: "/profiles/next" },
         providerPlugins: { omlx: { enabled: false } },
       }),
     )

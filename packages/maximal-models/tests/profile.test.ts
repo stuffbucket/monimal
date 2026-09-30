@@ -4,9 +4,13 @@ import { join } from "node:path"
 import test from "node:test"
 
 import { createCordisRuntime } from "../src/cordis-runtime.ts"
-import { createDshHost, startDshHost } from "../src/index.ts"
+import {
+  createProviderPluginHost,
+  startProviderPluginHost,
+} from "../src/index.ts"
 import {
   PROFILE_VALIDATION_FAILURE_REASONS,
+  PROVIDER_PLUGIN_API_VERSION,
   ProfileValidationError,
   profileValidationFailure,
   resolveExternalProfile,
@@ -51,6 +55,7 @@ void test("providers.json v1 normalizes plugins to provider kind", async () => {
   const fixture = await createFixtureProfile()
   const profile = await resolveExternalProfile(fixture.directory)
   assert.equal(profile.document.schemaVersion, 1)
+  assert.equal(profile.document.pluginApiVersion, PROVIDER_PLUGIN_API_VERSION)
   assert.equal(profile.plugins[0]?.kind, "provider")
 })
 
@@ -71,6 +76,7 @@ void test("providers.json v2 requires and preserves plugin kinds", async () => {
     ],
   })
   const profile = await resolveExternalProfile(fixture.directory)
+  assert.equal(profile.document.pluginApiVersion, PROVIDER_PLUGIN_API_VERSION)
   assert.deepEqual(
     profile.plugins.map(({ id, kind }) => ({ id, kind })),
     [
@@ -109,6 +115,44 @@ void test("providers.json v2 requires and preserves plugin kinds", async () => {
   )
 })
 
+void test("providers.json v3 requires a supported plugin API version", async () => {
+  const fixture = await createFixtureProfile()
+  const document = {
+    schemaVersion: 3,
+    pluginApiVersion: PROVIDER_PLUGIN_API_VERSION,
+    runtime: {
+      cordis: "@deepseek-ai/cordis",
+      llm: "@deepseek-ai/dsh-llm",
+    },
+    services: [],
+    plugins: [
+      {
+        id: "fixture",
+        kind: "provider",
+        package: "fixture-provider",
+        providers: ["fixture"],
+      },
+    ],
+  } as const
+  await fixture.writeProviders(document)
+  const profile = await resolveExternalProfile(fixture.directory)
+  assert.equal(profile.document.schemaVersion, 3)
+  assert.equal(profile.document.pluginApiVersion, PROVIDER_PLUGIN_API_VERSION)
+
+  const { pluginApiVersion: _, ...withoutApiVersion } = document
+  await fixture.writeProviders(withoutApiVersion)
+  await assert.rejects(
+    resolveExternalProfile(fixture.directory),
+    /pluginApiVersion must be 1/u,
+  )
+
+  await fixture.writeProviders({ ...document, pluginApiVersion: 2 })
+  await assert.rejects(
+    resolveExternalProfile(fixture.directory),
+    /pluginApiVersion must be 1/u,
+  )
+})
+
 void test("v2 model plugins declare no expected provider status", async () => {
   const fixture = await createFixtureProfile()
   await fixture.writeProviders({
@@ -125,7 +169,7 @@ void test("v2 model plugins declare no expected provider status", async () => {
       },
     ],
   })
-  const host = await startDshHost({
+  const host = await startProviderPluginHost({
     profileDirectory: fixture.directory,
     activation: {
       catalog: { enabled: false },
@@ -181,7 +225,7 @@ void test("profile accepts only declared bare exact dependencies", async () => {
 
 void test("missing package entries publish redacted load failures and preserve the LKG", async () => {
   const fixture = await createFixtureProfile()
-  const host = await startDshHost({
+  const host = await startProviderPluginHost({
     profileDirectory: fixture.directory,
     activation: { fixture: { enabled: true, config: { text: "old" } } },
     reconcileDebounceMs: 0,
@@ -207,7 +251,7 @@ void test("missing package entries publish redacted load failures and preserve t
 void test("CommonJS package entries publish redacted load failures", async () => {
   const fixture = await createFixtureProfile()
   await updatePluginManifest(fixture.pluginPackageJson, { type: "commonjs" })
-  const host = createDshHost({
+  const host = createProviderPluginHost({
     profileDirectory: fixture.directory,
     activation: { fixture: { enabled: true } },
     reconcileDebounceMs: 0,
@@ -231,7 +275,7 @@ void test("unreadable profile documents remain typed profile failures", async (c
       context.skip("The current user can read mode-000 files.")
       return
     }
-    const host = createDshHost({
+    const host = createProviderPluginHost({
       profileDirectory: fixture.directory,
       activation: { fixture: { enabled: true } },
       reconcileDebounceMs: 0,
@@ -257,7 +301,7 @@ void test("unreadable package files remain typed load failures", async (context)
       context.skip("The current user can read mode-000 files.")
       return
     }
-    const host = createDshHost({
+    const host = createProviderPluginHost({
       profileDirectory: fixture.directory,
       activation: { fixture: { enabled: true } },
       reconcileDebounceMs: 0,
@@ -293,7 +337,7 @@ void test("dynamic import failures publish redacted load failures and preserve t
 
   for (const failure of failures) {
     const fixture = await createFixtureProfile()
-    const host = await startDshHost({
+    const host = await startProviderPluginHost({
       profileDirectory: fixture.directory,
       activation: { fixture: { enabled: false } },
       reconcileDebounceMs: 0,
@@ -332,7 +376,7 @@ void test("provider status diagnostics redact declared and runtime identifiers",
       },
     ],
   })
-  const host = await startDshHost({
+  const host = await startProviderPluginHost({
     profileDirectory: fixture.directory,
     activation: { fixture: { enabled: false } },
     reconcileDebounceMs: 0,
@@ -385,7 +429,7 @@ void test("external ProfileValidationError callers retain constructor compatibil
     { cause },
   )
   assert.equal(injected.cause, cause)
-  const host = createDshHost({
+  const host = createProviderPluginHost({
     profileDirectory: fixture.directory,
     activation: {
       snapshot: () => {
@@ -427,7 +471,7 @@ void test("typed profile failure reasons map exhaustively to stable public diagn
     { readonly code: string; readonly message: string }
   >
   const fixture = await createFixtureProfile()
-  const host = await startDshHost({
+  const host = await startProviderPluginHost({
     profileDirectory: fixture.directory,
     activation: { fixture: { enabled: true } },
     reconcileDebounceMs: 0,
@@ -505,7 +549,7 @@ ${configDeclaration}
 export function apply() {}
 `,
     )
-    const host = createDshHost({
+    const host = createProviderPluginHost({
       profileDirectory: fixture.directory,
       activation: { fixture: { enabled: true, config: {} } },
       reconcileDebounceMs: 0,
@@ -523,7 +567,7 @@ export function apply() {}
 
 void test("failed activation still records modules that entered the ESM cache", async () => {
   const fixture = await createFixtureProfile()
-  const host = await startDshHost({
+  const host = await startProviderPluginHost({
     profileDirectory: fixture.directory,
     activation: { fixture: { enabled: false } },
     reconcileDebounceMs: 0,
@@ -543,7 +587,7 @@ void test("failed activation still records modules that entered the ESM cache", 
 
 void test("changed package implementation code requires restart", async () => {
   const fixture = await createFixtureProfile()
-  const host = await startDshHost({
+  const host = await startProviderPluginHost({
     profileDirectory: fixture.directory,
     activation: { fixture: { enabled: true, config: {} } },
   })
@@ -557,7 +601,7 @@ void test("changed package implementation code requires restart", async () => {
 
 void test("changed transitive dependency code requires restart", async () => {
   const fixture = await createFixtureProfile()
-  const host = await startDshHost({
+  const host = await startProviderPluginHost({
     profileDirectory: fixture.directory,
     activation: { fixture: { enabled: true, config: {} } },
   })
@@ -571,7 +615,7 @@ void test("changed transitive dependency code requires restart", async () => {
 
 void test("changed package code is restart-required and leaves the active generation", async () => {
   const fixture = await createFixtureProfile()
-  const host = await startDshHost({
+  const host = await startProviderPluginHost({
     profileDirectory: fixture.directory,
     activation: { fixture: { enabled: true, config: { text: "old" } } },
   })

@@ -23,6 +23,7 @@ import {
 } from "~/lib/update/update-check"
 import { createControlRoutes } from "~/routes/control/route"
 
+import { copilotModelMetadataFixture } from "../fixtures/copilot-model-metadata"
 import {
   makeTestAccount,
   resetDefaultTestRegistry,
@@ -152,6 +153,117 @@ test("GET /models represents declared media generation capabilities", async () =
     ],
   })
 })
+
+test("GET /models retains normalized Copilot evidence on the private control route", async () => {
+  const model = copilotModelMetadataFixture[0]
+  state.models = { data: [model], object: "list" }
+
+  const response = await makeApp().request("/models")
+
+  expect(response.status).toBe(200)
+  expect(await response.json()).toMatchObject({
+    models: [
+      {
+        evidence: {
+          access: {
+            restricted_to: ["pro_plus", "business", "enterprise", "max"],
+            state: "enabled",
+            terms: "Enable access to Claude Opus 4.7.",
+          },
+          capabilities: {
+            adaptive_thinking: true,
+            max_thinking_budget: 32_000,
+            min_thinking_budget: 1024,
+            parallel_tool_calls: true,
+            reasoning_effort: ["low", "medium", "high", "xhigh", "max"],
+            streaming: true,
+            structured_outputs: true,
+            tool_calls: true,
+            vision: true,
+          },
+          endpoints: ["/v1/messages", "/chat/completions"],
+          lifecycle: {
+            deprecation_date: "2026-10-02",
+            info: model.info_messages,
+            state: "pending-deprecation",
+            warnings: model.warning_messages,
+          },
+          limits: {
+            context_tokens: 1_000_000,
+            input_tokens: 936_000,
+            non_streaming_output_tokens: 16_000,
+            output_tokens: 64_000,
+            vision: {
+              max_image_bytes: 3_145_728,
+              max_images: 1,
+              supported_media_types: [
+                "image/jpeg",
+                "image/png",
+                "application/pdf",
+              ],
+            },
+          },
+          pricing: {
+            default: {
+              cache_read_amount: 50,
+              cache_write_1h_amount: 1000,
+              cache_write_amount: 625,
+              input_amount: 500,
+              max_input_tokens: 200_000,
+              output_amount: 2500,
+            },
+            long_context: {
+              max_input_tokens: 936_000,
+            },
+            unit: {
+              currency: null,
+              tokens_per_batch: 1_000_000,
+            },
+          },
+          provider_details: {
+            kind: "github-copilot",
+            picker_category: "powerful",
+            picker_price_category: "high",
+            version: "claude-opus-4.7",
+          },
+          selection: {
+            default: false,
+            fallback: false,
+            preview: false,
+            selectable: true,
+          },
+        },
+        id: "claude-opus-4.7",
+        operations: ["messages", "chat-completions"],
+        tokenizer: { id: "o200k_base" },
+      },
+    ],
+  })
+})
+
+test("GET /models does not invent tokenizer evidence", async () => {
+  const model = copilotModelMetadataFixture[0]
+  state.models = {
+    data: [
+      {
+        ...model,
+        capabilities: {
+          ...model.capabilities,
+          tokenizer: undefined,
+        },
+      },
+    ],
+    object: "list",
+  }
+
+  const response = await makeApp().request("/models")
+
+  expect(response.status).toBe(200)
+  expect(await response.json()).toMatchObject({
+    models: [{ id: "claude-opus-4.7", tokenizer: null }],
+  })
+})
+
 describe("control route — reads", () => {
   test("GET /auth returns the auth status", async () => {
     const res = await makeApp().request("/auth")

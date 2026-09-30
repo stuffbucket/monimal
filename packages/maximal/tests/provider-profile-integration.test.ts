@@ -23,7 +23,7 @@ import { createRequire } from "node:module"
 import { tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
 
-import { createDshProviderGateway } from "../src/provider-gateway"
+import { createProviderPluginGateway } from "../src/provider-gateway"
 
 const require = createRequire(import.meta.url)
 const API_KEY = "profile-integration-key"
@@ -328,7 +328,7 @@ function snapshot(options: SnapshotOptions): ProviderHostConfigSnapshot {
     appDataDirectory,
     configStatus: { state: "ready" },
     defaultProfileDirectory: profileDirectory,
-    providerHost: { mode: "dsh", profileDirectory },
+    providerHost: { mode: "plugins", profileDirectory },
     providerPlugins: {
       omlx: {
         enabled: true,
@@ -494,7 +494,7 @@ describe("external oMLX profile integration", () => {
     let gateway: ProviderGateway | undefined
 
     try {
-      gateway = await createDshProviderGateway({
+      gateway = await createProviderPluginGateway({
         config: initial,
         configSource: source,
       })
@@ -585,7 +585,7 @@ describe("compiled external oMLX profile integration", () => {
           auth: { enforce: false },
           checkUpdates: false,
           enforceVersionFloor: false,
-          providerHost: { mode: "dsh", profileDirectory },
+          providerHost: { mode: "plugins", profileDirectory },
           providerPlugins: {
             omlx: {
               enabled: true,
@@ -672,7 +672,7 @@ describe("live external oMLX profile integration", () => {
       let gateway: ProviderGateway | undefined
 
       try {
-        gateway = await createDshProviderGateway({
+        gateway = await createProviderPluginGateway({
           config: initial,
           configSource: source,
         })
@@ -741,7 +741,7 @@ describe("live external oMLX profile integration", () => {
           auth: { enforce: false },
           checkUpdates: false,
           enforceVersionFloor: false,
-          providerHost: { mode: "dsh", profileDirectory },
+          providerHost: { mode: "plugins", profileDirectory },
           providerPlugins: {
             omlx: {
               enabled: true,

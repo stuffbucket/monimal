@@ -1,13 +1,13 @@
 /* eslint-disable complexity, max-lines, max-lines-per-function, max-params */
 import type {
-  CallId as DshCallId,
-  ContentBlock as DshContentBlock,
+  CallId as RuntimeCallId,
+  ContentBlock as RuntimeContentBlock,
   FinishReason,
   GenerateOptions,
   LlmFailure,
   LlmModelInfo,
-  Message as DshMessage,
-  MessageId as DshMessageId,
+  Message as RuntimeMessage,
+  MessageId as RuntimeMessageId,
   ReasoningEffortId,
   StreamChunk,
   TokenUsage,
@@ -144,15 +144,18 @@ function finiteNumber(value: unknown, label: string): number {
   return value
 }
 
-function callId(value: string): DshCallId {
-  return value as DshCallId
+function callId(value: string): RuntimeCallId {
+  return value as RuntimeCallId
 }
 
-function messageId(): DshMessageId {
-  return randomUUID() as DshMessageId
+function messageId(): RuntimeMessageId {
+  return randomUUID() as RuntimeMessageId
 }
 
-function contentText(value: unknown, label: string): Array<DshContentBlock> {
+function contentText(
+  value: unknown,
+  label: string,
+): Array<RuntimeContentBlock> {
   if (typeof value === "string") return [{ type: "text", text: value }]
   if (!Array.isArray(value))
     throw new GatewayError(
@@ -160,7 +163,7 @@ function contentText(value: unknown, label: string): Array<DshContentBlock> {
       "invalid_request_error",
       `${label} must be text or an array.`,
     )
-  const blocks: Array<DshContentBlock> = []
+  const blocks: Array<RuntimeContentBlock> = []
   for (const [index, element] of value.entries()) {
     const block = object(element, `${label}[${index}]`)
     assertOnlyKeys(block, textBlockKeys, `${label}[${index}]`)
@@ -189,7 +192,7 @@ function parseContent(
   role: "user" | "assistant",
   provider: string,
   model: string,
-): Array<DshMessage> {
+): Array<RuntimeMessage> {
   if (typeof value === "string") {
     return [
       {
@@ -210,8 +213,8 @@ function parseContent(
       "message content must be non-empty text or content blocks.",
     )
   }
-  const messages: Array<DshMessage> = []
-  let ordinary: Array<DshContentBlock> = []
+  const messages: Array<RuntimeMessage> = []
+  let ordinary: Array<RuntimeContentBlock> = []
   let replay: Array<unknown> = []
   const flushOrdinary = (): void => {
     if (ordinary.length === 0) return
@@ -466,7 +469,7 @@ async function parseMessageRequest(
       "messages must be a non-empty array.",
     )
   }
-  const messages: Array<DshMessage> = []
+  const messages: Array<RuntimeMessage> = []
   for (let index = 0; index < body.messages.length; index += 1) {
     const label = `messages[${index}]`
     const message = object(body.messages[index], label)
@@ -576,7 +579,7 @@ function parsedToolInput(argumentsText: string): JsonObject {
 }
 
 function mapBlock(
-  block: DshContentBlock,
+  block: RuntimeContentBlock,
   replayBlock: unknown,
 ): AnthropicBlock {
   switch (block.type) {
@@ -639,7 +642,7 @@ function mapBlock(
 }
 
 function completionBlocks(
-  indexed: ReadonlyMap<number, DshContentBlock>,
+  indexed: ReadonlyMap<number, RuntimeContentBlock>,
   replayState: unknown,
 ): Array<AnthropicBlock> {
   const entries = [...indexed.entries()].sort(([left], [right]) => left - right)
@@ -648,7 +651,8 @@ function completionBlocks(
   const needsReplay = entries.some(([, block]) => block.type === "reasoning")
   let replay: Array<unknown> | undefined
   if (needsReplay) {
-    // dsh-llm's ReplayEnvelope: `response` carries what is true of the whole
+    // The runtime replay envelope stores response-level metadata separately
+    // from the emitted content blocks.
     // reply, `blocks` one entry per emitted block. The assembler prunes
     // `blocks` alongside any block it drops, so the lengths agree here unless
     // the provider built the envelope wrong -- and when they disagree earlier,
@@ -690,7 +694,7 @@ async function closeIterator(
 async function collectIteratorUnchecked(
   iterator: AsyncIterator<StreamChunk>,
 ): Promise<Completion> {
-  const indexed = new Map<number, DshContentBlock>()
+  const indexed = new Map<number, RuntimeContentBlock>()
   let usage: TokenUsage | undefined
   let finish: FinishReason | undefined
   let replayState: unknown
@@ -974,7 +978,7 @@ class AnthropicSsePump {
   readonly #release: () => void
   readonly #events: Array<Uint8Array> = []
   readonly #blockTypes = new Map<number, "text" | "reasoning" | "tool-call">()
-  readonly #indexed = new Map<number, DshContentBlock>()
+  readonly #indexed = new Map<number, RuntimeContentBlock>()
   readonly #text = new Map<number, string>()
   readonly #tools = new Map<number, ToolProgress>()
   readonly #emittedStarts = new Set<number>()
@@ -1209,7 +1213,7 @@ class AnthropicSsePump {
     )
   }
 
-  #endBlock(index: number, block: DshContentBlock): void {
+  #endBlock(index: number, block: RuntimeContentBlock): void {
     const expected = this.#blockTypes.get(index)
     if (expected === undefined || this.#indexed.has(index))
       providerProtocol("The provider ended an unknown content block.")
@@ -1223,7 +1227,7 @@ class AnthropicSsePump {
     this.#completeEmittedBlock(index, block)
   }
 
-  #validateCompletedBlock(index: number, block: DshContentBlock): void {
+  #validateCompletedBlock(index: number, block: RuntimeContentBlock): void {
     if (block.type === "text" || block.type === "reasoning") {
       const streamed = this.#text.get(index) ?? ""
       if (streamed !== "" && streamed !== block.text)
@@ -1246,7 +1250,7 @@ class AnthropicSsePump {
     providerProtocol("The provider returned an unsupported content block.")
   }
 
-  #completeEmittedBlock(index: number, block: DshContentBlock): void {
+  #completeEmittedBlock(index: number, block: RuntimeContentBlock): void {
     if (block.type === "text") {
       if (!this.#emittedStarts.has(index))
         providerProtocol("The provider ended a text block before it started.")
@@ -1446,7 +1450,7 @@ export async function dispatchRuntime(
           new GatewayError(
             501,
             "invalid_request_error",
-            "Token counting is not supported by the DSH LLM contract.",
+            "Token counting is not supported by the provider plugin runtime contract.",
             "UNSUPPORTED",
           ),
         )

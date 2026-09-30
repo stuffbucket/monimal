@@ -53,7 +53,9 @@ export function normalizeModel(raw: Model): Model {
     capabilities: {
       family: capabilities.family ?? "",
       type: capabilities.type ?? "",
-      tokenizer: capabilities.tokenizer ?? "o200k_base",
+      ...(capabilities.tokenizer === undefined ?
+        {}
+      : { tokenizer: capabilities.tokenizer }),
       object: capabilities.object ?? "model_capabilities",
       limits: capabilities.limits ?? {},
       supports: capabilities.supports ?? {},
@@ -68,9 +70,15 @@ export interface ModelsResponse {
 
 interface ModelLimits {
   max_context_window_tokens?: number
+  max_inputs?: number
+  max_non_streaming_output_tokens?: number
   max_output_tokens?: number
   max_prompt_tokens?: number
-  max_inputs?: number
+  vision?: {
+    max_prompt_image_size?: number
+    max_prompt_images?: number
+    supported_media_types?: Array<string>
+  }
 }
 
 interface ModelSupports {
@@ -93,14 +101,19 @@ interface ModelCapabilities {
   limits: ModelLimits
   object: string
   supports: ModelSupports
-  tokenizer: string
+  tokenizer?: string
   type: string
 }
 
 export interface Model {
   capabilities: ModelCapabilities
   id: string
+  info_messages?: Array<ModelMessage>
+  is_chat_default?: boolean
+  is_chat_fallback?: boolean
+  model_picker_category?: string
   model_picker_enabled: boolean
+  model_picker_price_category?: string
   name: string
   object: string
   preview: boolean
@@ -111,6 +124,7 @@ export interface Model {
     terms: string
   }
   supported_endpoints?: Array<string>
+  warning_messages?: Array<ModelMessage>
   /** Per-model billing metadata — Copilot-specific (see ADR-0016,
    *  divergence 1). A second provider would carry its own price sheet or
    *  none; nothing here transfers.
@@ -127,33 +141,38 @@ export interface Model {
    *  (The actual per-request cost is `copilot_usage.total_nano_aiu` on
    *  completions — captured separately, not from this field.) */
   billing?: {
+    auto_discount?: number
     /** LEGACY. Premium-quota flag; unreliable under usage-based billing. */
     is_premium?: boolean
     /** LEGACY. Per-model multiplier; retained for annual plans only. */
     multiplier?: number
-    /** PRIMARY. Per-model token rates. Copilot documents these as
-     *  USD-per-1M-tokens (input / cached / cache-write / output). We only
-     *  read presence + sign here (paid vs free), not the magnitude, so the
-     *  exact unit is not load-bearing for this signal — but see
-     *  `TokenPrices` for the encoded key/unit assumption. */
+    restricted_to?: Array<string>
+    /** PRIMARY. Per-model token rates. The live response includes an explicit
+     *  token batch size but does not state a currency. */
     token_prices?: TokenPrices
   }
+}
+
+export interface ModelMessage {
+  code: string
+  message: string
 }
 
 /**
  * Copilot's per-model `token_prices` (Copilot-specific — ADR-0016 div. 1).
  *
- * ASSUMPTION (encoded, not verified against a live fixture — no `/models`
- * sample in-repo carries this field yet): the object uses the keys below and
- * each value is a rate in USD-per-1M-tokens, matching the semantic names
- * ADR-0016 records (input / cached / cache-write / output). Extra/renamed
- * keys are tolerated via the index signature. The only property this codebase
- * currently depends on is "any positive rate ⇒ the model is paid", which holds
- * regardless of the precise unit (per-token vs per-1M) as long as rates are
- * non-negative. If a future consumer needs the magnitude, verify the unit
- * against a live response first. See `pricedModelIsPaid` + its test.
+ * The current live shape carries an explicit `batch_size` and named default
+ * and long-context tiers. Older annual-plan responses used flat rate keys, so
+ * both forms remain accepted. The response does not state a currency; callers
+ * retaining magnitude must not infer one.
  */
 export interface TokenPrices {
+  /** Number of tokens represented by each advertised amount. */
+  batch_size?: number
+  /** Current default rate tier. */
+  default?: TokenPriceTier
+  /** Rate tier used above the default tier's prompt threshold. */
+  long_context?: TokenPriceTier
   /** Uncached input tokens. */
   input?: number
   /** Cache-read (cached input) tokens. */
@@ -162,7 +181,28 @@ export interface TokenPrices {
   cache_write?: number
   /** Output tokens. */
   output?: number
+  [key: string]: number | TokenPriceTier | undefined
+}
+
+export interface TokenPriceTier {
+  cache_read_price?: number
+  cache_write_1h_price?: number
+  cache_write_price?: number
+  input_price?: number
+  max_prompt_tokens?: number
+  output_price?: number
   [key: string]: number | undefined
+}
+
+function tokenPriceTierRates(tier: TokenPriceTier | undefined): Array<number> {
+  if (tier === undefined) return []
+  return Object.entries(tier)
+    .filter(([key]) => key.endsWith("_price"))
+    .map(([, value]) => value)
+    .filter(
+      (value): value is number =>
+        typeof value === "number" && Number.isFinite(value),
+    )
 }
 
 /**
@@ -183,9 +223,22 @@ export function pricedModelIsPaid(
   prices: TokenPrices | null | undefined,
 ): boolean | null {
   if (!prices) return null
-  const rates = Object.values(prices).filter(
-    (v): v is number => typeof v === "number" && Number.isFinite(v),
-  )
+  const legacyRates = Object.entries(prices)
+    .filter(
+      ([key]) =>
+        ["cache_read", "cache_write", "input", "output"].includes(key)
+        || key.endsWith("_price"),
+    )
+    .map(([, value]) => value)
+    .filter(
+      (value): value is number =>
+        typeof value === "number" && Number.isFinite(value),
+    )
+  const rates = [
+    ...legacyRates,
+    ...tokenPriceTierRates(prices.default),
+    ...tokenPriceTierRates(prices.long_context),
+  ]
   if (rates.length === 0) return null
   return rates.some((rate) => rate > 0)
 }

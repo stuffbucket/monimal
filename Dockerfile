@@ -119,6 +119,7 @@ COPY --chown=maximal:maximal packages/maximal-search/package.json packages/maxim
 COPY --chown=maximal:maximal packages/project-catalog/package.json packages/project-catalog/package.json
 COPY --chown=maximal:maximal packages/maximal-core/package.json packages/maximal-core/package.json
 COPY --chown=maximal:maximal packages/maximal-core/downstream/package.json packages/maximal-core/downstream/package.json
+COPY --chown=maximal:maximal packages/maximal-model-catalog/package.json packages/maximal-model-catalog/package.json
 COPY --chown=maximal:maximal packages/maximal-models/package.json packages/maximal-models/package.json
 COPY --chown=maximal:maximal packages/maximal-electron/package.json packages/maximal-electron/package.json
 COPY --chown=maximal:maximal packages/maximal-recording/package.json packages/maximal-recording/package.json
