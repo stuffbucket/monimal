@@ -15,6 +15,7 @@ has ended.
 
 | Package | Purpose |
 | --- | --- |
+| `packages/design-tokens` (`@maximal/design-tokens`) | Workspace-wide Style Dictionary inventory and down-only design-token migration ratchet. |
 | `packages/maximal-browser` | Agent-shareable browser sessions, native Electron views, and browser-tab renderer UI. |
 | `packages/maximal-terminal` | Electron-free terminal hosts, tmux control and projection, launch connectors, and the terminal renderer. |
 | `packages/maximal-settings` | Typed layered settings, process-owned JSON stores, plugin-schema validation, and the settings migration ratchet. |
