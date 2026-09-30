@@ -358,18 +358,6 @@ export function AppWorkspace({
           else terminalState.requestCloseTerminal(id)
         }}
         onNewTab={detachedWindow ? undefined : () => terminalState.setLauncherOpen(true)}
-        settingsOpen={terminalState.tabs.some((tab) => tab.kind === 'settings')}
-        onToggleSettings={detachedWindow ? undefined : () => requestNavigation(terminalState.toggleSettings)}
-        account={account}
-        onOpenProfileSurface={detachedWindow ? undefined : openProfileSurface}
-        onSignIn={detachedWindow ? undefined : () => openSettings('settings-account-heading')}
-        onSignOut={detachedWindow || account === undefined
-          ? undefined
-          : () => {
-              void settings.account.signOut().catch(() => {
-                setProfileError('The account could not be signed out.')
-              })
-            }}
         onOpenAssistant={detachedWindow ? undefined : () => void window.maximal.harness.show()}
         onOpenBrowser={detachedWindow ? undefined : () => setBrowserAddress('https://')}
         onOpenProjects={detachedWindow ? undefined : onOpenProjects}
@@ -524,6 +512,18 @@ export function AppWorkspace({
                 current={current.id}
                 onSelect={(id) => requestNavigation(() => terminalState.setActiveTab(id))}
                 onOpenMap={() => setMapOpen(true)}
+                account={account}
+                onOpenProfileSurface={openProfileSurface}
+                onSignIn={() => openSettings('settings-account-heading')}
+                onSignOut={account === undefined
+                  ? undefined
+                  : () => {
+                      void settings.account.signOut().catch(() => {
+                        setProfileError('The account could not be signed out.')
+                      })
+                    }}
+                settingsOpen={terminalState.tabs.some((tab) => tab.kind === 'settings')}
+                onToggleSettings={() => requestNavigation(terminalState.toggleSettings)}
               />
             </SurfaceActivity>
             <AccountStatusLine status={accountStatus} />

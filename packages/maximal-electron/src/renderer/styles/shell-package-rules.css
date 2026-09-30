@@ -106,8 +106,8 @@
 }
 
 .sb-shell .activity-rail {
-  width: 48px;
-  min-width: 48px;
+  width: var(--shell-workbar-width);
+  min-width: var(--shell-workbar-width);
   min-height: 0;
   flex: none;
   overflow: hidden;
@@ -215,6 +215,7 @@
 .sb-shell .tab:focus-visible,
 .sb-shell .tab__new:focus-visible,
 .sb-shell .nav button:focus-visible,
+.sb-shell .workbar__item:focus-visible,
 .sb-shell .segmented button:focus-visible,
 .sb-shell .card:focus-visible,
 .sb-shell .row:focus-visible,
@@ -734,33 +735,66 @@
   display: none;
 }
 
-.sb-shell .activity-rail .nav--collapsed {
+.sb-shell .workbar {
+  display: flex;
+  flex-direction: column;
   width: 100%;
   height: 100%;
+  padding: var(--shell-space-1);
+  overflow: hidden auto;
+}
+
+.sb-shell .workbar__main,
+.sb-shell .workbar__bottom {
+  display: flex;
+  flex-direction: column;
   align-items: center;
   gap: var(--shell-space-2);
-  padding: var(--shell-space-1);
-  overflow-x: hidden;
 }
 
-.sb-shell .activity-rail .nav--collapsed .nav__break {
-  display: none;
+.sb-shell .workbar__bottom {
+  margin-top: auto;
 }
 
-.sb-shell .activity-rail .nav--collapsed .nav__section {
-  width: 40px;
-}
-
-.sb-shell .activity-rail .nav--collapsed .nav__item {
-  width: 40px;
-  height: 40px;
+.sb-shell .workbar__item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--shell-workbar-item-size);
+  height: var(--shell-workbar-item-size);
   flex: none;
+  padding: 0;
+  color: var(--shell-text-muted);
+  background: transparent;
+  border: 0;
   border-radius: var(--shell-radius);
+  cursor: pointer;
+  transition: background 120ms ease-out;
 }
 
-.sb-shell .activity-rail .nav--collapsed .nav__item > svg {
-  width: 20px;
-  height: 20px;
+.sb-shell .workbar__item:hover {
+  color: var(--shell-text);
+  background: var(--shell-hover);
+}
+
+.sb-shell .workbar__item[aria-current='true'] {
+  color: var(--shell-accent);
+  background: var(--shell-accent-muted);
+}
+
+.sb-shell .workbar__item > svg {
+  width: var(--shell-workbar-icon-size);
+  height: var(--shell-workbar-icon-size);
+}
+
+.sb-shell .workbar__bottom .icon-button {
+  width: var(--shell-workbar-item-size);
+  height: var(--shell-workbar-item-size);
+}
+
+.sb-shell .workbar__bottom .icon-button > svg {
+  width: var(--shell-workbar-icon-size);
+  height: var(--shell-workbar-icon-size);
 }
 
 .sb-shell .toolbar {

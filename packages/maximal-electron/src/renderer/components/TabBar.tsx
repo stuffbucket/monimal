@@ -1,7 +1,7 @@
 import * as Tabs from '@radix-ui/react-tabs';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
-import { FileText, Folder, Globe, Plus, Settings, SquareTerminal, X } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 import {
   Fragment,
   useCallback,
@@ -16,8 +16,8 @@ import {
   adornmentLabel,
   tabSlot,
   type TabAdornment,
-  type TabIconName,
 } from '../lib/tab-adornment.js';
+import { tabIcon } from '../lib/shell-icons.js';
 import {
   decodeTabTransfer,
   encodeTabTransfer,
@@ -55,15 +55,6 @@ export interface Tab extends TabAdornment {
   color?: TabColor;
   group?: TabGroup;
 }
-
-/** The glyph behind each name in `TAB_ICON_NAMES`. */
-const TAB_ICON_GLYPHS: Record<TabIconName, ComponentType<{ size?: number }>> = {
-  browser: Globe,
-  document: FileText,
-  folder: Folder,
-  settings: Settings,
-  terminal: SquareTerminal,
-};
 
 /**
  * Everything needed to drive a tab strip.
@@ -327,7 +318,7 @@ export function TabBar<T extends Tab>({
           const closeThisTab = tab.closable === false ? undefined : closeTab;
           const Custom = icon?.(tab);
           const slot = tabSlot(tab, Custom !== undefined);
-          const Named = tab.icon === undefined ? undefined : TAB_ICON_GLYPHS[tab.icon];
+          const Named = tab.icon === undefined ? undefined : tabIcon(tab.icon);
           const Glyph = slot === 'custom' ? Custom : slot === 'icon' ? Named : undefined;
           const words = adornmentLabel(tab);
           const groupStarts = tab.group !== undefined

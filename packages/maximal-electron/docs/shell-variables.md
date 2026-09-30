@@ -93,6 +93,9 @@ focus rings, type, and optical details are not spacing increments.
 | `--shell-tracking-caps` | `0.04em` | Tracking for an all-caps label. |
 | `--shell-weight-lg` | `600` | A heading. |
 | `--shell-weight-md` | `500` | A label that carries emphasis. |
+| `--shell-workbar-icon-size` | `20px` | The workbar glyph size. |
+| `--shell-workbar-item-size` | `40px` | The square workbar action size. |
+| `--shell-workbar-width` | `48px` | The persistent workbar column width. |
 
 Package rules and carried component rules inherit these names without inline
 fallback values. `tests/shell-structural-tokens.test.ts` holds concrete values

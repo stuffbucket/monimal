@@ -22,7 +22,7 @@ afterEach(() => {
 })
 
 describe('WorkspaceRail', () => {
-  it('shows product and terminal documents as titled icons when collapsed', () => {
+  it('shows product and terminal documents as titled workbar icons', () => {
     container = document.createElement('div')
     document.body.appendChild(container)
     const root = createRoot(container)
@@ -37,12 +37,12 @@ describe('WorkspaceRail', () => {
       )
     })
 
-    const items = [...container.querySelectorAll<HTMLElement>('.nav__item')]
-    expect(container.querySelector('.nav__content')?.children).toHaveLength(4)
+    const items = [...container.querySelectorAll<HTMLElement>('.workbar__item')]
+    expect(container.querySelector('.workbar__main')?.children).toHaveLength(4)
     expect(items.map((item) => item.title)).toEqual(['Workspace map', 'Overview', 'Traffic', 'zsh'])
-    expect(container.querySelector('[data-testid="nav-terminal-one"]')?.getAttribute('aria-current'))
+    expect(container.querySelector('[data-testid="workbar-terminal-one"]')?.getAttribute('aria-current'))
       .toBe('true')
-    expect(container.querySelector('[data-testid="nav-settings"]')).toBeNull()
+    expect(container.querySelector('[data-testid="workbar-settings"]')).toBeNull()
 
     act(() => root.unmount())
   })
@@ -63,7 +63,7 @@ describe('WorkspaceRail', () => {
       )
     })
 
-    const traffic = container.querySelector<HTMLElement>('[data-testid="nav-traffic"]')
+    const traffic = container.querySelector<HTMLElement>('[data-testid="workbar-traffic"]')
     if (traffic === null) throw new Error('Traffic rail item was not rendered')
     act(() => traffic.click())
     expect(onSelect).toHaveBeenCalledWith('traffic')
@@ -88,7 +88,7 @@ describe('WorkspaceRail', () => {
       )
     })
 
-    const map = container.querySelector<HTMLElement>('[data-testid="nav-workspace-map"]')
+    const map = container.querySelector<HTMLElement>('[data-testid="workbar-workspace-map"]')
     if (map === null) throw new Error('Workspace map rail item was not rendered')
     act(() => map.click())
     expect(onOpenMap).toHaveBeenCalledOnce()

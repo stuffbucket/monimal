@@ -141,8 +141,8 @@ body {
 }
 
 .activity-rail {
-  width: 48px;
-  min-width: 48px;
+  width: var(--workbar-width);
+  min-width: var(--workbar-width);
   min-height: 0;
   flex: none;
   overflow: hidden;
@@ -314,33 +314,66 @@ body {
   display: none;
 }
 
-.activity-rail .nav--collapsed {
+.workbar {
+  display: flex;
+  flex-direction: column;
   width: 100%;
   height: 100%;
+  padding: var(--space-1);
+  overflow: hidden auto;
+}
+
+.workbar__main,
+.workbar__bottom {
+  display: flex;
+  flex-direction: column;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-1);
-  overflow-x: hidden;
 }
 
-.activity-rail .nav--collapsed .nav__break {
-  display: none;
+.workbar__bottom {
+  margin-top: auto;
 }
 
-.activity-rail .nav--collapsed .nav__section {
-  width: 40px;
-}
-
-.activity-rail .nav--collapsed .nav__item {
-  width: 40px;
-  height: 40px;
+.workbar__item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--workbar-item-size);
+  height: var(--workbar-item-size);
   flex: none;
+  padding: 0;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 0;
   border-radius: var(--radius-input);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out);
 }
 
-.activity-rail .nav--collapsed .nav__item > svg {
-  width: 20px;
-  height: 20px;
+.workbar__item:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.workbar__item[aria-current='true'] {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.workbar__item > svg {
+  width: var(--workbar-icon-size);
+  height: var(--workbar-icon-size);
+}
+
+.workbar__bottom .icon-button {
+  width: var(--workbar-item-size);
+  height: var(--workbar-item-size);
+}
+
+.workbar__bottom .icon-button > svg {
+  width: var(--workbar-icon-size);
+  height: var(--workbar-icon-size);
 }
 
 /*
