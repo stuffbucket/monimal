@@ -40,6 +40,14 @@
       "cycleEdges": [],
       "duplicatePairs": []
     },
+    "@maximal/maximal-cli": {
+      "root": "packages/maximal-cli",
+      "dependsOn": [
+        "@maximal/eslint-config"
+      ],
+      "cycleEdges": [],
+      "duplicatePairs": []
+    },
     "@maximal/maximal": {
       "root": "packages/maximal",
       "dependsOn": [

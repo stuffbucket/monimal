@@ -30,6 +30,7 @@ has ended.
 | `packages/maximal-search` | Search connector contract, first-party providers, and provider settings manifest. |
 | `packages/maximal-logging` | Persistent structured runtime logging and log discovery. |
 | `packages/maximal-model-contract` | Runtime-neutral model gateway contract. |
+| `packages/maximal-cli` | Transport-neutral command contracts, adapters, and conformance suites. |
 | `packages/maximal-core-contract` | Core's settings wire types and control-plane contract; Core republishes them. |
 | `packages/maximal-models` | Model runtime lifecycle and DSH dispatch. |
 | `packages/maximal-observability-contract` | Traffic schemas and observer interfaces. |

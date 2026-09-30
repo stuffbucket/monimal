@@ -1694,6 +1694,7 @@ test("each suite selects one fixed root-owned inner script", () => {
     Object.fromEntries(
       [
         "workspace",
+        "maximal-cli",
         "maximal-core",
         "maximal-models",
         "maximal-configurators",
@@ -1703,6 +1704,7 @@ test("each suite selects one fixed root-owned inner script", () => {
     ),
     {
       workspace: "test:inner",
+      "maximal-cli": "test:maximal-cli:inner",
       "maximal-core": "test:maximal-core:inner",
       "maximal-models": "test:maximal-models:inner",
       "maximal-configurators": "test:maximal-configurators:inner",
@@ -1728,6 +1730,34 @@ test("each suite selects one fixed root-owned inner script", () => {
     "test:maximal-core:inner",
   ]);
   assert.ok(arguments_.includes("MAXIMAL_TEST_TRACE=1"));
+
+  const cliArguments = runDockerArguments(imageId, {
+    suite: "maximal-cli",
+  });
+  assert.deepEqual(cliArguments.slice(-8), [
+    imageId,
+    "node",
+    "/opt/monimal/stage-test-checkout.mjs",
+    "--rebuild=maximal-cli",
+    "--",
+    "pnpm",
+    "run",
+    "test:maximal-cli:inner",
+  ]);
+  assert.deepEqual(
+    parseStageOptions([
+      "--rebuild=maximal-cli",
+      "--",
+      "pnpm",
+      "run",
+      "test:maximal-cli:inner",
+    ]),
+    {
+      command: "pnpm",
+      commandArguments: ["run", "test:maximal-cli:inner"],
+      rebuild: "maximal-cli",
+    },
+  );
 });
 
 test("only the configurator suite receives disposable system install roots", () => {
