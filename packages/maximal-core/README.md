@@ -38,12 +38,20 @@ plane is a second listener on its own ephemeral port**, loopback-only — see
 | Path | Listener | Purpose |
 |---|---|---|
 | `POST /v1/messages`, `/v1/messages/count_tokens` | public | Anthropic-compatible messages API |
-| `POST /:provider/v1/messages`, `/:provider/v1/models` | public | Provider-scoped Anthropic-compatible endpoints |
+| `POST /:provider/v1/messages`, `/:provider/v1/models`, `/:provider/v1/systemone` | public | Provider-scoped model endpoints |
 | `POST /chat/completions`, `/v1/chat/completions` | public | OpenAI-compatible chat completions |
 | `POST /responses`, `/v1/responses` | public | OpenAI Responses API |
 | `POST /embeddings`, `/v1/embeddings` | public | Embeddings |
+| `POST /v1/systemone` | public | Ollama System One decision API |
 | `GET /models`, `/v1/models` | public | Model catalog |
 | `GET /status` | public | Identity + liveness probe (unauthenticated) |
+
+Ollama 0.35 or later serves local decision models through
+`POST /v1/systemone`. Core routes the request by its `model` field or accepts
+an explicit provider through `POST /:provider/v1/systemone`; it does not bundle
+or redistribute model weights. Install supported models with Ollama, for
+example `ollama pull nimble`, `ollama pull tev1`, or
+`ollama pull tev1:0.8b`.
 | `GET /` | public | `Server running` identity probe used by port contention |
 | `GET /setup-status`, `/openapi.json` | public | Fresh-install status + its OpenAPI document (unauthenticated) |
 | `GET /usage`, `/token-usage`, `/token-usage/events` | public | Usage surfaces (loopback callers skip the API key) |

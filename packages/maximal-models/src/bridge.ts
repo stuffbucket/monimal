@@ -1453,7 +1453,8 @@ export async function dispatchRuntime(
       }
       case "chat-completions":
       case "responses":
-      case "embeddings": {
+      case "embeddings":
+      case "system-one": {
         return errorResponse(
           new GatewayError(
             501,

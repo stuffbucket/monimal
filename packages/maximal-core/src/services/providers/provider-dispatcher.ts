@@ -449,9 +449,13 @@ export function createProviderDispatcher(
     requiresGithubAuth(provider) {
       if (!isLegacyMode()) return false
       if (provider === undefined) return true
-      return (
-        (readConfig().providers?.[provider]?.type ?? "anthropic") !== "ollama"
-      )
+      const resolved =
+        usesDefaultConfig ?
+          getProviderConfig(provider, { includeDisabled: true })
+        : resolveProviderConfig(readConfig(), provider, {
+            includeDisabled: true,
+          })
+      return resolved?.type !== "ollama"
     },
   }
 }

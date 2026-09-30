@@ -24,6 +24,7 @@ const OBSERVED_PATHS = [
   "/v1/messages",
   "/v1/messages/count_tokens",
   "/v1/responses",
+  "/v1/systemone",
 ] as const
 
 const BODY_LIMIT_BYTES = 16 * 1024 * 1024
@@ -44,6 +45,8 @@ export function observedInferencePaths(): Array<string> {
     ...OBSERVED_PATHS.map((path) => `${path}/*`),
     "/:provider/v1/messages",
     "/:provider/v1/messages/*",
+    "/:provider/v1/systemone",
+    "/:provider/v1/systemone/*",
   ]
 }
 
@@ -54,6 +57,9 @@ function normalizedRoutePath(path: string): string {
   }
   if (/^\/[^/]+\/v1\/messages(?:\/|$)/u.test(path)) {
     return "/:provider/v1/messages"
+  }
+  if (/^\/[^/]+\/v1\/systemone(?:\/|$)/u.test(path)) {
+    return "/:provider/v1/systemone"
   }
   for (const candidate of [...OBSERVED_PATHS].sort(
     (left, right) => right.length - left.length,
@@ -68,6 +74,7 @@ function operationForPath(path: string): string {
   if (path.includes("/chat/completions")) return "chat-completions"
   if (path.includes("/embeddings")) return "embeddings"
   if (path.includes("/responses")) return "responses"
+  if (path.includes("/systemone")) return "system-one"
   return "messages"
 }
 
@@ -77,7 +84,7 @@ function boundedIdentifier(value: string | null | undefined): string | null {
 }
 
 function providerForPath(path: string): string {
-  const match = /^\/([^/]+)\/v1\/messages(?:\/|$)/u.exec(path)
+  const match = /^\/([^/]+)\/v1\/(?:messages|systemone)(?:\/|$)/u.exec(path)
   return boundedIdentifier(match?.[1]) ?? "copilot"
 }
 

@@ -16,6 +16,7 @@ import type {
 } from "~/lib/provider-host-types"
 import type { PersistedTokenUsageEvent } from "~/lib/token-usage"
 
+import { getConfig, writeConfig } from "~/lib/config/config"
 import { clearTokenTrio } from "~/lib/runtime-state/state"
 import { onTokenUsageRecorded } from "~/lib/token-usage"
 import { createServerApps } from "~/server"
@@ -145,7 +146,50 @@ describe("legacy provider authentication", () => {
     expect(dispatcher.requiresGithubAuth("local")).toBe(false)
     expect(dispatcher.requiresGithubAuth("hosted")).toBe(true)
     expect(dispatcher.requiresGithubAuth("unknown")).toBe(true)
+    expect(dispatcher.requiresGithubAuth()).toBe(true)
     await dispatcher.dispose()
+  })
+
+  test("recognizes the implicit local Ollama provider", async () => {
+    const dispatcher = createProviderDispatcher({
+      readConfig: () => ({}),
+    })
+
+    expect(dispatcher.requiresGithubAuth("ollama")).toBe(false)
+    expect(dispatcher.requiresGithubAuth("unknown")).toBe(true)
+    await dispatcher.dispose()
+  })
+
+  test("recognizes a configured disabled Ollama provider", async () => {
+    const dispatcher = createProviderDispatcher({
+      readConfig: () => ({
+        providers: {
+          disabled: { type: "ollama", enabled: false },
+        },
+      }),
+    })
+
+    expect(dispatcher.requiresGithubAuth("disabled")).toBe(false)
+    await dispatcher.dispose()
+  })
+
+  test("recognizes a disabled Ollama provider from the runtime config", async () => {
+    const original = getConfig()
+    writeConfig({
+      ...original,
+      providers: {
+        ...original.providers,
+        disabled: { type: "ollama", enabled: false },
+      },
+    })
+    const dispatcher = createProviderDispatcher()
+
+    try {
+      expect(dispatcher.requiresGithubAuth("disabled")).toBe(false)
+    } finally {
+      await dispatcher.dispose()
+      writeConfig(original)
+    }
   })
 })
 

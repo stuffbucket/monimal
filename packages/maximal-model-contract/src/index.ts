@@ -4,6 +4,7 @@ export type ProviderOperation =
   | "chat-completions"
   | "responses"
   | "embeddings"
+  | "system-one"
   | "count-tokens"
   | "models"
 
