@@ -431,7 +431,7 @@ test("the outer and fixed inner test scripts cannot recurse", () => {
   );
   assert.equal(
     manifest.scripts["check:static"],
-    "turbo run build typecheck lint && pnpm run check:network-literals && pnpm run check:settings",
+    "turbo run build typecheck lint && pnpm run check:network-literals && pnpm run check:settings && pnpm run check:tokens",
   );
   assert.equal(
     manifest.scripts["check:settings"],
