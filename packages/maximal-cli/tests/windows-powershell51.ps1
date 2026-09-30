@@ -24,11 +24,16 @@ $startInfo.UseShellExecute = $false
 $startInfo.RedirectStandardInput = $true
 $startInfo.RedirectStandardOutput = $true
 $startInfo.RedirectStandardError = $true
-$startInfo.StandardInputEncoding = New-Object Text.UTF8Encoding($false)
 
 $process = New-Object Diagnostics.Process
 $process.StartInfo = $startInfo
-[void]$process.Start()
+$originalInputEncoding = [Console]::InputEncoding
+try {
+  [Console]::InputEncoding = New-Object Text.UTF8Encoding($false)
+  [void]$process.Start()
+} finally {
+  [Console]::InputEncoding = $originalInputEncoding
+}
 $stdin = $process.StandardInput.BaseStream
 $stdin.Write($inputBytes, 0, $inputBytes.Length)
 $stdin.Close()
