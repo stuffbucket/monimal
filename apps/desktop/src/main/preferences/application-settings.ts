@@ -219,6 +219,7 @@ function applicationSettingsOptions(
     applicationName: 'maximal', environmentPrefix: 'MAXIMAL',
     schema: applicationSettingsSchema,
     defaults: applicationSettingsDefaults(userDataDirectory, context),
+    userFile: join(userDataDirectory, 'settings.json'),
     project: context.projectTrusted === true,
     environment: context.environment ?? process.env,
     argv: context.argv ?? process.argv.slice(1),

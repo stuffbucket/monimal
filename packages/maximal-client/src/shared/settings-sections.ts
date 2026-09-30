@@ -37,7 +37,6 @@
  */
 export const SETTINGS_SECTION_IDS = [
   'settings-account-heading',
-  'settings-general-heading',
   'settings-models-heading',
   'settings-local-models-heading',
   'settings-typography-heading',
@@ -73,7 +72,6 @@ export interface SettingsSectionSpec {
  *  between independently-registered contributors, and there is one list. */
 export const SETTINGS_SECTIONS: readonly SettingsSectionSpec[] = [
   { id: 'settings-account-heading', label: 'Accounts' },
-  { id: 'settings-general-heading', label: 'General' },
   { id: 'settings-models-heading', label: 'Cloud Models' },
   { id: 'settings-local-models-heading', label: 'Local models' },
   { id: 'settings-typography-heading', label: 'Typography' },

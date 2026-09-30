@@ -1,7 +1,6 @@
 import {
   ChartColumn,
   Cloud,
-  Cpu,
   FolderGit2,
   Laptop,
   Link2,
@@ -10,7 +9,6 @@ import {
   PanelLeft,
   ScrollText,
   Search,
-  SlidersHorizontal,
   Sparkles,
   Stethoscope,
   SunMoon,
@@ -54,10 +52,6 @@ interface SectionParts {
 
 const SECTION_PARTS: Record<SettingsSectionId, SectionParts> = {
   'settings-account-heading': { icon: User, Panel: AccountSection },
-  'settings-general-heading': {
-    icon: SlidersHorizontal,
-    Panel: GeneralSection,
-  },
   'settings-projects-heading': { icon: FolderGit2, Panel: ProjectsSection },
   'settings-models-heading': { icon: Cloud, Panel: ModelsSection },
   'settings-local-models-heading': {

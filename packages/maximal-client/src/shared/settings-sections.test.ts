@@ -31,6 +31,7 @@ describe('SETTINGS_SECTIONS', () => {
       'Themes',
       'Interaction',
       'Workbar',
+      'Projects',
       'Connections',
       'Search',
       'Usage',

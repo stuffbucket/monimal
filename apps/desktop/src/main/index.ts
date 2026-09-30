@@ -784,7 +784,9 @@ function createWindow(): BrowserWindow {
 
 function openTypographyPreviewWindow(): void {
   if (typographyPreviewWindow !== null && !typographyPreviewWindow.isDestroyed()) {
-    focusWindow(typographyPreviewWindow)
+    if (typographyPreviewWindow.isMinimized()) typographyPreviewWindow.restore()
+    if (!typographyPreviewWindow.isVisible()) typographyPreviewWindow.show()
+    typographyPreviewWindow.focus()
     return
   }
   const width = 1180

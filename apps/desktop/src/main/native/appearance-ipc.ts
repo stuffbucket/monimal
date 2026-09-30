@@ -9,10 +9,6 @@ import {
 } from './ghostty-fonts.js'
 import { installNerdFont } from './nerd-font-installer.js'
 import {
-  getProviderOnboardingPreference,
-  setProviderOnboardingPreference,
-} from '../preferences/provider-onboarding-preference.js'
-import {
   loadApplicationSettings,
   setTerminalTypography,
   terminalTypographySettingsSchema,
@@ -22,12 +18,6 @@ export function registerAppearanceIpc(
   broadcast: (channel: string, settings: TerminalTypographySettings) => void,
   openTypographyPreview: () => void,
 ): void {
-  ipcMain.handle(BRIDGE_CHANNELS.providerOnboardingGet, () =>
-    getProviderOnboardingPreference(),
-  )
-  ipcMain.handle(BRIDGE_CHANNELS.providerOnboardingSet, (_event, dismissed: unknown) =>
-    setProviderOnboardingPreference(z.boolean().parse(dismissed)),
-  )
   ipcMain.handle(BRIDGE_CHANNELS.terminalTypographyGet, () =>
     loadApplicationSettings(app.getPath('userData')).settings.terminalTypography,
   )
