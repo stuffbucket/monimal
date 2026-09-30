@@ -800,6 +800,9 @@ test("PowerShell 5.1 conformance preserves long JSON Lines records", () => {
     harness,
     /Out-File -FilePath \$inputPath -Encoding Unicode -Width 4096/,
   );
+  assert.match(harness, /\$stdin = \$process\.StandardInput\.BaseStream/);
+  assert.match(harness, /\$stdin\.Close\(\)/);
+  assert.doesNotMatch(harness, /\$process\.StandardInput\.Close\(\)/);
 });
 
 test("root automation schedules Docker and keeps CodeQL lean and pinned", () => {

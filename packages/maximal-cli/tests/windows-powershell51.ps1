@@ -27,8 +27,9 @@ try {
   $process = New-Object Diagnostics.Process
   $process.StartInfo = $startInfo
   [void]$process.Start()
-  $process.StandardInput.BaseStream.Write($inputBytes, 0, $inputBytes.Length)
-  $process.StandardInput.Close()
+  $stdin = $process.StandardInput.BaseStream
+  $stdin.Write($inputBytes, 0, $inputBytes.Length)
+  $stdin.Close()
   $stdout = $process.StandardOutput.ReadToEnd()
   $stderr = $process.StandardError.ReadToEnd()
   $process.WaitForExit()
