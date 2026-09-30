@@ -24,7 +24,13 @@ export default defineConfig({
   build: {
     sourcemap: true,
     rollupOptions: {
-      external: [/^node:/, 'electron', ...LLAMA_EXTERNAL_MODULES, 'node-pty'],
+      external: [
+        /^node:/,
+        'electron',
+        ...LLAMA_EXTERNAL_MODULES,
+        'node-pty',
+        'uiohook-napi',
+      ],
       output: { entryFileNames: 'main.js' },
     },
   },

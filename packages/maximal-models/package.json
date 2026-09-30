@@ -2,7 +2,7 @@
   "name": "@maximal/maximal-models",
   "version": "0.0.0",
   "private": true,
-  "description": "Model runtime orchestration for profile-installed Maximal providers.",
+  "description": "Cordis-backed provider plugin lifecycle and dispatch for Maximal.",
   "sideEffects": false,
   "type": "module",
   "exports": {

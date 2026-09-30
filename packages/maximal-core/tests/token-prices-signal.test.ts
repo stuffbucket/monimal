@@ -9,9 +9,9 @@
  *   - present-but-all-zero ⇒ free (false);
  *   - absent / empty / non-numeric ⇒ unknown (null → caller falls back).
  *
- * Encoded unit assumption: we read presence + sign only, never magnitude, so
- * the per-token-vs-per-1M question does not change any result here. If that
- * ever stops being true, this file is where the assumption breaks first.
+ * The live nested shape declares its token batch size. This interpreter reads
+ * only rate presence and sign, and never mistakes that batch size or a prompt
+ * threshold for a positive price.
  */
 
 import { describe, expect, test } from "bun:test"
@@ -44,6 +44,31 @@ describe("pricedModelIsPaid", () => {
     ).toBe(false)
   })
 
+  test("reads live nested tiers without treating batch size as a price", () => {
+    expect(
+      pricedModelIsPaid({
+        batch_size: 1_000_000,
+        default: {
+          input_price: 0,
+          max_prompt_tokens: 272_000,
+          output_price: 0,
+        },
+      }),
+    ).toBe(false)
+    expect(
+      pricedModelIsPaid({
+        batch_size: 1_000_000,
+        default: { input_price: 175, output_price: 1400 },
+      }),
+    ).toBe(true)
+    expect(
+      pricedModelIsPaid({
+        batch_size: 1_000_000,
+        max_prompt_tokens: 272_000,
+      }),
+    ).toBeNull()
+  })
+
   test("magnitude does not matter — a per-token rate still reads paid", () => {
     // Whether the unit is per-1M ($2.00) or per-token (0.000002), any positive
     // rate is paid. This is the encoded unit-agnostic assumption.
@@ -59,7 +84,21 @@ describe("pricedModelIsPaid", () => {
     expect(pricedModelIsPaid({ input: Number.NaN })).toBeNull()
   })
 
-  test("tolerates extra/renamed keys via the index signature", () => {
-    expect(pricedModelIsPaid({ some_future_rate: 5 })).toBe(true)
+  test("tolerates future rate keys without treating metadata as prices", () => {
+    expect(pricedModelIsPaid({ some_future_price: 5 })).toBe(true)
+    expect(
+      pricedModelIsPaid({
+        default: {
+          max_prompt_tokens: 272_000,
+          some_future_price: 5,
+        },
+      }),
+    ).toBe(true)
+    expect(pricedModelIsPaid({ some_future_metadata: 5 })).toBeNull()
+    expect(
+      pricedModelIsPaid({
+        default: { max_prompt_tokens: 272_000 },
+      }),
+    ).toBeNull()
   })
 })

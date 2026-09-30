@@ -160,7 +160,7 @@ export interface RunServerOptions {
   providerGateway?: ProviderGateway
   /**
    * Lazy host-owned provider boundary. Called only by `start`, only after config
-   * validation, and only when `providerHost.mode` is `dsh`.
+   * validation, and only when `providerHost.mode` is `plugins`.
    */
   createProviderGateway?: ProviderGatewayFactory
 }

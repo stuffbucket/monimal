@@ -42,7 +42,7 @@ export interface ProviderHostConfigSnapshot {
   readonly defaultProfileDirectory: string
   readonly configStatus: ProviderHostConfigStatus
   readonly providerHost: {
-    readonly mode: "legacy" | "dsh"
+    readonly mode: "legacy" | "plugins"
     readonly profileDirectory?: string
   }
   readonly providers: Readonly<Record<string, ProviderCompatibilityConfig>>

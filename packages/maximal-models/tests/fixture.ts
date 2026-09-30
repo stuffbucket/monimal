@@ -259,7 +259,9 @@ export async function apply(ctx, config) {
 `
 
 export async function createFixtureProfile(): Promise<FixtureProfile> {
-  const directory = await mkdtemp(join(tmpdir(), "maximal-dsh-profile-"))
+  const directory = await mkdtemp(
+    join(tmpdir(), "maximal-provider-plugin-profile-"),
+  )
   const nodeModules = join(directory, "node_modules")
   await mkdir(nodeModules, { recursive: true })
   const cordisRoot = packageRoot("@deepseek-ai/cordis")

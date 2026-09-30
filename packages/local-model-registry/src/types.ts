@@ -2,6 +2,8 @@ import type {
   LocalModelCapabilities,
   LocalModelContextLimits,
   LocalModelPublication,
+  ModelOperation,
+  ModelTokenizerDescriptor,
 } from "@maximal/maximal-model-contract"
 
 export interface LocalModelFileSignature {
@@ -19,8 +21,10 @@ export interface LocalModelManifest {
   readonly format: string
   readonly key: string
   readonly modelId: string
+  readonly operations?: ReadonlyArray<ModelOperation>
   readonly publication: LocalModelPublication
   readonly sha256: string
+  readonly tokenizer?: ModelTokenizerDescriptor
 }
 
 export interface LocalModelSource {

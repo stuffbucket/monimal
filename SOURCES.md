@@ -18,7 +18,7 @@ has ended.
 | `packages/maximal-browser` | Agent-shareable browser sessions, native Electron views, and browser-tab renderer UI. |
 | `packages/maximal-terminal` | Electron-free terminal hosts, tmux control and projection, launch connectors, and the terminal renderer. |
 | `packages/maximal-settings` | Typed layered settings, process-owned JSON stores, plugin-schema validation, and the settings migration ratchet. |
-| `packages/local-model-registry` | Local-model registration and provisioning. |
+| `packages/local-model-registry` | Local-model artifact registration, tokenizer metadata, operation declarations, and provisioning. |
 | `packages/maximal-assets` | Brand assets and visual configuration. |
 | `packages/maximal-configurators` | First-party client configurators. |
 | `packages/maximal-context-window` | Context-window derivation and UI. |
@@ -29,9 +29,10 @@ has ended.
 | `packages/maximal-llama-cpp` | Standalone Electron-hosted llama.cpp provider, worker, and packaging policy. |
 | `packages/maximal-search` | Search connector contract, first-party providers, and provider settings manifest. |
 | `packages/maximal-logging` | Persistent structured runtime logging and log discovery. |
-| `packages/maximal-model-contract` | Runtime-neutral model gateway contract. |
+| `packages/maximal-model-catalog` | Trusted released model metadata, release verification, and runtime inventory reconciliation. |
+| `packages/maximal-model-contract` | Runtime-neutral model gateway, discovery descriptor, tokenizer identity, and operation vocabulary. |
 | `packages/maximal-core-contract` | Core's settings wire types and control-plane contract; Core republishes them. |
-| `packages/maximal-models` | Model runtime lifecycle and DSH dispatch. |
+| `packages/maximal-models` | Provider plugin lifecycle and model dispatch. |
 | `packages/maximal-observability-contract` | Traffic schemas and observer interfaces. |
 | `packages/maximal-observability` | Traffic explorer UI. |
 | `packages/maximal-ollama` | Node-native Ollama runtime management and renderer-safe status contract. |
@@ -111,14 +112,17 @@ Both are monorepo-native;
 | `maximal` / `maximal-core` | Connector payloads remain opaque in Core and are validated by host-installed Standard Schema plugins. |
 | `maximal-core/downstream` | Declares itself as an independently installed compatibility fixture. |
 | Model packages | Core consumes the side-effect-free model contract; orchestration and concrete runtime adapters remain separate packages. |
+| Model packages | `maximal-model-contract` owns live model-operation names and normalized provider evidence for lifecycle, selection, access, endpoints, limits, capabilities, pricing units, and typed provider details; API wire contracts and released catalog schemas project that vocabulary without becoming runtime authorities. |
+| `maximal-model-catalog` | Released catalog data is descriptive; local manifests and live provider discovery remain authoritative for runtime behavior, and runtime offering evidence resolves before release-catalog offering values without replacing canonical descriptive facts. |
 | Observability packages | The contract is runtime-neutral; renderer surfaces depend on it, not the reverse. |
-| `model-runtimes/omlx` | Ships as a profile-installed Cordis/DSH adapter, not as compiled Core code. |
+| `model-runtimes/omlx` | Ships as a profile-installed Cordis adapter, not as compiled Core code. |
 | `maximal` / `apps/desktop` | Core dependencies are workspace links; the desktop sidecar builds the Maximal composition. |
 | `maximal-core` / `maximal` | Desktop-spawned Core (`start --desktop-ipc`) uses inherited Node child-process IPC for control RPC and events instead of binding its private HTTP listener; standalone Core keeps its loopback control listener and public proxy unchanged. |
 | `maximal-core` | Ollama API keys are saved without using a malformed inference request as an authentication probe; Ollama has no dedicated key-validation endpoint. |
 | `maximal-core` / `maximal-core-contract` | Ollama account probes expose a sanitized error code with unavailable results so Settings can distinguish a saved working key from a saved key whose validation failed. |
 | `@maximal/maximal-client` / `maximal-core` | Ollama direct Cloud API keys are entered in Maximal and returned only through the private desktop settings control path so the password field can hide or reveal the configured value; Ollama device identities remain owned by the Ollama app or CLI. |
 | `@maximal/maximal-client` / `maximal-core` / `maximal-core-contract` | Cloud model summaries identify their routing provider and local/cloud location; Ollama direct-cloud enablement is persisted separately from the local Ollama provider so Settings can preserve the documented API-key and signed-in application access paths. |
+| `maximal-model-catalog` / `@maximal/maximal-client` | Shared provider identity and inventory reconciliation normalize live cloud and local observations; the renderer supplies provider access state and presentation. |
 | `apps/desktop` | Packaged Linux smoke uses the `desktop-smoke` target of the pinned Docker dependency build, stages Git-visible source, and runs Electron E2E under Xvfb without container networking. |
 | `maximal-ollama` | Desktop calls the package behind validated IPC. The package owns installed-process and listening-port discovery; Core owns the persisted inference endpoint. Core provider policy and Settings integration remain in their existing owners until an optional provider seam is established. |
 | `apps/desktop` | The workspace build must build the Maximal composition and `@maximal/maximal-client` renderer dependencies before compiling the sidecar; Forge bundles its app entry points with product surfaces from `packages/maximal-client/src`. |

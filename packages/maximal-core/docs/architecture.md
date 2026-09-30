@@ -117,6 +117,23 @@ desktop reports those fields as not applicable rather than unknown. The
 Anthropic model shape publishes the capabilities it can represent. Ollama
 remains authoritative when a selected model rejects an operation.
 
+The private control model list also retains normalized live-provider evidence
+that the public OpenAI and Anthropic model-list projections intentionally omit:
+lifecycle diagnostics, picker/default state, access policy, supported
+endpoints, complete token and vision limits, capability details, tokenizer,
+and unit-bearing price tiers. Copilot-only picker labels and version data stay
+inside a discriminated provider-details payload. The desktop reconciles this
+live evidence ahead of reviewed release-catalog offering values; canonical
+descriptive model facts remain catalog-owned.
+
+Copilot lifecycle normalization scans both information and warning notices for
+deprecation-related codes and only accepts valid ISO dates. Malformed integer
+evidence is serialized as `null` per field so one bad limit cannot invalidate
+the complete control response. Tiered prices never inherit missing fields from
+legacy flat rates; flat legacy rates form a separate million-token tier.
+Unusable advertised batch sizes become `null`, and absent tokenizer evidence
+remains absent even though token counting may use its own operational fallback.
+
 At runtime, `OLLAMA_API_KEY` takes precedence over `providers.*.apiKey`.
 Bootstrap loads the owner-only `secrets/ollama` file into that environment
 slot, so desktop-managed Ollama credentials can reuse Core's existing secret

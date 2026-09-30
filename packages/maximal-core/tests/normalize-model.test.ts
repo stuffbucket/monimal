@@ -37,8 +37,9 @@ describe("normalizeModel", () => {
     expect(out.capabilities).toBeDefined()
     expect(out.capabilities.limits).toEqual({})
     expect(out.capabilities.supports).toEqual({})
-    // Tokenizer gets a working default (drives local token counting).
-    expect(out.capabilities.tokenizer).toBe("o200k_base")
+    // Missing provider evidence remains absent; token counting owns its
+    // operational fallback separately.
+    expect(out.capabilities.tokenizer).toBeUndefined()
     expect(out.capabilities.family).toBe("")
     expect(out.capabilities.type).toBe("")
     // Leaf limits are NOT invented — they read as "missing", not zero.

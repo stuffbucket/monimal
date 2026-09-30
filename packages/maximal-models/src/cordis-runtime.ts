@@ -75,7 +75,7 @@ interface GenuinePluginModule {
   readonly apply: (context: unknown, config: unknown) => unknown
 }
 
-export interface CordisRuntimeFacade {
+export interface ProviderPluginRuntime {
   readonly localModels?: LocalModelControl | undefined
   listProviders(): ReadonlyArray<LlmProviderInfo>
   listModels(provider: string): Promise<ReadonlyArray<LlmModelInfo>>
@@ -235,7 +235,7 @@ function localModelControl(value: unknown): LocalModelControl | undefined {
   return value as LocalModelControl
 }
 
-class RuntimeAggregate implements CordisRuntimeFacade {
+class RuntimeAggregate implements ProviderPluginRuntime {
   readonly localModels: LocalModelControl | undefined
   readonly #context: ContextLike
   readonly #llm: LlmRuntimeLike
@@ -305,7 +305,7 @@ export async function createCordisRuntime(
   profile: ResolvedProfile,
   activation: ActivationSnapshot,
   hooks: CordisRuntimeHooks | ((module: ResolvedPackage) => void) = {},
-): Promise<CordisRuntimeFacade> {
+): Promise<ProviderPluginRuntime> {
   const onImport =
     typeof hooks === "function" ? hooks : (hooks.onImport ?? (() => undefined))
   const onDisposalFailure =
