@@ -782,6 +782,14 @@ test("required CI runs native checks before Docker and has one cache writer", ()
   assert.equal(workflow.split("turbo-v2-").length - 1, 6);
 });
 
+test("PowerShell 5.1 conformance preserves long JSON Lines records", () => {
+  const harness = read("packages/maximal-cli/tests/windows-powershell51.ps1");
+  assert.match(
+    harness,
+    /Out-File -FilePath \$inputPath -Encoding Unicode -Width 4096/,
+  );
+});
+
 test("root automation schedules Docker and keeps CodeQL lean and pinned", () => {
   const dockerWorkflow = read(".github/workflows/docker-policy.yml");
   const codeqlWorkflow = read(".github/workflows/codeql.yml");

@@ -9,7 +9,7 @@ $inputPath = Join-Path $env:TEMP "maximal-cli-powershell51-$PID.jsonl"
 $request = '{"type":"invoke","id":"powershell-51","command":"echo","input":{"message":"through powershell"}}'
 
 try {
-  $request | Out-File -FilePath $inputPath -Encoding Unicode
+  $request | Out-File -FilePath $inputPath -Encoding Unicode -Width 4096
   $inputBytes = [IO.File]::ReadAllBytes($inputPath)
 
   if ($inputBytes.Length -lt 2 -or $inputBytes[0] -ne 0xff -or $inputBytes[1] -ne 0xfe) {
