@@ -130,14 +130,10 @@ export function scanSettingsReaders({ root, patterns = defaultPatterns }) {
       const kind = readerKind(node, processNames)
       if (kind) {
         const key = `${file.split(sep).join("/")}::${kind}`
-        if (
-          (
-            nonSettingsEnvironmentReaders.has(key)
-            || settingsEnvironmentAdapters.has(key)
-          )
-          && !exempted.has(key)
-        )
-          exempted.add(key)
+        const allowedEnvironmentReader =
+          nonSettingsEnvironmentReaders.has(key)
+          || settingsEnvironmentAdapters.has(key)
+        if (allowedEnvironmentReader && !exempted.has(key)) exempted.add(key)
         else entries[key] = (entries[key] ?? 0) + 1
       }
       ts.forEachChild(node, visit)
