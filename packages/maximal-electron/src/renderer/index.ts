@@ -157,6 +157,7 @@ export {
   InspectorPanel,
   Menu,
   Note,
+  NumberInput,
   RadioGroup,
   Row,
   ScrollArea,

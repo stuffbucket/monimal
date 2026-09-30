@@ -5,7 +5,7 @@ import { TokenSeriesChart } from "./charts/TokenSeries.tsx"
 import { TrafficFlowChart } from "./charts/TrafficFlow.tsx"
 import { ContextWindowInspector } from "./ContextWindowInspector.tsx"
 import { ObservabilityFilters } from "./Filters.tsx"
-import { formatCount, formatDuration, formatTimestamp } from "./format.ts"
+import { formatCount, formatDuration, formatStatusTimestamp } from "./format.ts"
 import { RequestTable } from "./RequestTable.tsx"
 import { useObservability } from "./state.tsx"
 
@@ -22,8 +22,8 @@ export function OverviewMain() {
           <p className="mo-eyebrow">Observability</p>
           <h1 id="mo-overview-title">Traffic overview</h1>
         </div>
-        <Button size="sm" onClick={() => void refresh()}>
-          Refresh
+        <Button variant="primary" size="sm" onClick={() => void refresh()}>
+          Update
         </Button>
       </header>
       {overview.status === "loading" && (
@@ -105,14 +105,15 @@ export function OverviewStatus() {
   const { live, overview } = useObservability()
   const summary =
     overview.status === "ready" || overview.status === "empty" ?
-      `${formatCount(overview.data.totals.requests)} requests · updated ${formatTimestamp(overview.data.generatedAt)}`
+      `${formatCount(overview.data.totals.requests)} ${
+        overview.data.totals.requests === 1 ? "request" : "requests"
+      } as of ${formatStatusTimestamp(overview.data.generatedAt)}`
     : "Traffic overview unavailable"
   return (
     <div className="mo-status" role="status" aria-live="polite">
-      <StatusChip
-        status={live ? "live" : "paused"}
-        label={live ? "Live" : "Paused"}
-      />
+      {!live ?
+        <StatusChip status="paused" label="Updates paused" />
+      : null}
       <span>{summary}</span>
     </div>
   )

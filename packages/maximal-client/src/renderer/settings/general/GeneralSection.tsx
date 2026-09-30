@@ -16,6 +16,7 @@ import { MenuBarOnlyDialog } from './MenuBarOnlyDialog'
 import { useGeneralDesktopSettings } from './useGeneralDesktopSettings'
 import { useAppearancePreference } from './useAppearancePreference'
 import { useMaterialPreference } from '../../useMaterialPreference'
+import { TerminalTypographySettings } from './TerminalTypographySettings'
 import { useMenuBarPresence } from './useMenuBarPresence'
 
 interface GeneralSectionProps {
@@ -243,6 +244,32 @@ export function GeneralSection({
         busy={presence.busy}
         onCancel={() => void presence.cancel()}
         onConfirm={() => void presence.confirm()}
+      />
+    </section>
+  )
+}
+
+export function TypographySection({
+  capabilities,
+}: GeneralSectionProps): ReactElement {
+  return (
+    <section className="settings-section">
+      <TerminalTypographySettings
+        capabilities={capabilities.terminalTypography}
+        surface="typography"
+      />
+    </section>
+  )
+}
+
+export function ColorPalettesSection({
+  capabilities,
+}: GeneralSectionProps): ReactElement {
+  return (
+    <section className="settings-section">
+      <TerminalTypographySettings
+        capabilities={capabilities.terminalTypography}
+        surface="palette"
       />
     </section>
   )

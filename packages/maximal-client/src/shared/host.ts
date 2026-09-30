@@ -71,7 +71,10 @@ import type {
   TerminalDataMessage,
   TerminalExitMessage,
   TerminalSession,
+  TerminalTypography,
 } from '@maximal/maximal-terminal/renderer'
+
+export const TERMINAL_THICKEN_DEFAULT = 5
 import type { ShutdownSnapshot } from '@maximal/maximal-electron/main'
 import type {
   DiscoveryRoot,
@@ -209,6 +212,42 @@ export interface PersistedMaterialPreference {
   lighting: MaterialLighting
   timezone: string
 }
+
+export type TerminalTypographySettings = TerminalTypography
+
+export interface TerminalFontDownload {
+  id: string
+  label: string
+  family: string
+  installed: boolean
+  downloadSize: number
+  license: string
+  sourceUrl: string
+}
+
+export interface TerminalFontAxis {
+  tag: string
+  minimum: number
+  default: number
+  maximum: number
+}
+
+export type TerminalFontCatalog =
+  | {
+      status: 'available'
+      fonts: string[]
+      fontWeights?: Record<string, number[]>
+      fontAxes?: Record<string, TerminalFontAxis[]>
+      fontAxesMessage?: string
+      downloads: TerminalFontDownload[]
+      ghosttyPath: string
+    }
+  | {
+      status: 'unavailable'
+      fonts: []
+      downloads: TerminalFontDownload[]
+      message: string
+    }
 
 export interface OllamaRuntimePreferences {
   start_on_maximal_launch: boolean
@@ -361,6 +400,14 @@ export interface MaximalHost {
     refresh: (rootId?: string) => Promise<ProjectCatalogSnapshot>
     opened: (projectId: string) => Promise<void>
     onChange: (listener: () => void) => Unsubscribe
+  }
+  terminalTypography: {
+    get: () => Promise<TerminalTypographySettings>
+    update: (settings: TerminalTypographySettings) => Promise<TerminalTypographySettings>
+    fonts: () => Promise<TerminalFontCatalog>
+    installFont: (fontId: string) => Promise<TerminalFontCatalog>
+    openPreview: () => Promise<void>
+    onChange: (listener: (settings: TerminalTypographySettings) => void) => Unsubscribe
   }
   harness: {
     show: () => Promise<void>

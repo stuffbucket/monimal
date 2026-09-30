@@ -107,6 +107,14 @@ const bridge = {
     opened: (projectId) => ipcRenderer.invoke(BRIDGE_CHANNELS.projectsOpened, projectId),
     onChange: (listener) => subscribe(BRIDGE_CHANNELS.projectsChanged, listener),
   },
+  terminalTypography: {
+    get: () => ipcRenderer.invoke(BRIDGE_CHANNELS.terminalTypographyGet),
+    update: (settings) => ipcRenderer.invoke(BRIDGE_CHANNELS.terminalTypographyUpdate, settings),
+    fonts: () => ipcRenderer.invoke(BRIDGE_CHANNELS.terminalTypographyFonts),
+    installFont: (fontId) => ipcRenderer.invoke(BRIDGE_CHANNELS.terminalTypographyInstallFont, fontId),
+    openPreview: () => ipcRenderer.invoke(BRIDGE_CHANNELS.terminalTypographyOpenPreview),
+    onChange: (listener) => subscribe(BRIDGE_CHANNELS.terminalTypographyChanged, listener),
+  },
   harness: {
     show: () => ipcRenderer.invoke(BRIDGE_CHANNELS.harnessShow),
     hide: () => ipcRenderer.invoke(BRIDGE_CHANNELS.harnessHide),

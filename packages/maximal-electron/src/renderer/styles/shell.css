@@ -41,6 +41,9 @@ body {
   color: var(--text-primary);
   font:
     var(--weight-base) var(--text-base) / var(--leading-base) var(--font-body);
+  font-optical-sizing: auto;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
 }
 

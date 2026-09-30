@@ -164,6 +164,7 @@ export const RENDERER_SURFACE = [
   'ModelCardGrid',
   'NavRail',
   'Note',
+  'NumberInput',
   'PartitionedSortableList',
   'Profile',
   'RadioGroup',

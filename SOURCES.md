@@ -54,6 +54,7 @@ has ended.
 | --- | --- | --- | --- |
 | Claude, Claude Code, GitHub Copilot, and Codex terminal icons | `lobehub/lobe-icons` | `329f378cbd1a88f45b60cd096b9111ce16f3ea39` | MIT |
 | Maximal terminal icon | `apps/desktop/build/icon.icns` | Workspace-owned | Workspace license |
+| Curated terminal font downloads and generated specimens | `ryanoasis/nerd-fonts` release assets | `v3.5.1`; SHA-256 digests and font identities in `packages/maximal-client/src/shared/terminal-font-downloads.json` | Per-font OFL-1.1 or MIT |
 
 ## API provenance
 
@@ -127,6 +128,8 @@ Both are monorepo-native;
 | `maximal-systemone` | The evaluation corpus and fixtures are project-authored internal regression material; no upstream harness code or restricted benchmark text is copied, and results MUST NOT be described as upstream benchmark equivalence. |
 | `maximal-electron` / `maximal-project-browser` / `maximal-client` / `apps/desktop` | `maximal-electron` owns token-driven spatial canvas presentation and control primitives; the reusable project map owns interaction and collaborative state, the client owns project discovery and opening, and desktop owns composition and shared shell stylesheet loading. |
 | `maximal-storybook` | Owns workspace Storybook integration while stories and deterministic fixtures remain beside the packages they exercise. |
+| `maximal-electron` | `NumberInput` owns bounded numeric draft-and-commit behavior, and `TerminalTabs` forwards consumer-owned live typography to terminal views without owning its persistence or font discovery. |
+| `@wterm/dom` 0.4.1 | Kitty graphics canvas backing stores scale with the bounded device pixel ratio so terminal images remain sharp on HiDPI displays. |
 | Workspace | `@maximal/eslint-config` owns the shared ESLint configuration and enforced rule sets. |
 | Workspace | `architecture-analysis.json` owns package coverage, the declared workspace dependency tree (`dependsOn`), external-package deny rules, and non-Core architecture baselines. |
 | `maximal-settings` | The pnpm bootstrap hook MUST load its dependency-policy source before workspace packages are installed; installed consumers MUST use the exported entry point. |

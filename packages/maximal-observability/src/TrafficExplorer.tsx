@@ -41,8 +41,8 @@ export function TrafficExplorerMain() {
           <p className="mo-eyebrow">Observability</p>
           <h1 id="mo-traffic-title">Traffic explorer</h1>
         </div>
-        <Button size="sm" onClick={() => void refresh()}>
-          Refresh
+        <Button variant="primary" size="sm" onClick={() => void refresh()}>
+          Update
         </Button>
       </header>
       {requests.status === "loading" && (

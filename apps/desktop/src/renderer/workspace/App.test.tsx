@@ -148,6 +148,7 @@ vi.mock('@maximal/maximal-client/renderer/settings/capabilities', () => ({
       ),
       onMaterialChange: vi.fn(() => () => {}),
     },
+    terminalTypography: { preview: true },
     onOpenRequest: (listener: (sectionId: string | null) => void) => {
       capabilityState.openSettings = listener
       return vi.fn()
@@ -173,6 +174,14 @@ vi.mock('./CozyBackground', () => ({
     />
   ),
 }))
+vi.mock(
+  '@maximal/maximal-client/renderer/settings/TerminalTypographyPreviewWindow',
+  () => ({
+    TerminalTypographyPreviewWindow: () => (
+      <div data-testid="terminal-typography-preview-window" />
+    ),
+  }),
+)
 vi.mock('../../../../../packages/maximal-client/src/renderer/overview/Overview', () => ({
   Overview: () => <div data-testid="overview">Overview content</div>,
 }))
@@ -422,6 +431,17 @@ async function renderApp(): Promise<HTMLElement> {
   })
   return container
 }
+
+it('mounts only the terminal typography preview in its dedicated window', async () => {
+  window.history.replaceState({}, '', '/?terminalTypographyPreview=true')
+
+  const shell = await renderApp()
+
+  expect(shell.querySelector('[data-testid="terminal-typography-preview-window"]'))
+    .not.toBeNull()
+  expect(shell.querySelector('[data-testid="settings"]')).toBeNull()
+  expect(shell.querySelector('[data-testid="overview"]')).toBeNull()
+})
 
 describe('App routing', () => {
   it('applies the saved native material preference to the document', async () => {

@@ -29,6 +29,9 @@ body {
   color: var(--shell-text);
   background: var(--shell-background);
   font: var(--shell-font);
+  font-optical-sizing: auto;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
 }
 
 .renderer-failure {

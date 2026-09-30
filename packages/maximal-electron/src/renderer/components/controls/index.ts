@@ -32,6 +32,8 @@ export {
   type SliderOption,
 } from './Fields.js';
 
+export { NumberInput } from './NumberInput.js';
+
 export {
   Banner,
   EmptyState,

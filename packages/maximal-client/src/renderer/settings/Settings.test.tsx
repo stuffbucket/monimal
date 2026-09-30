@@ -14,7 +14,10 @@ import {
 import type { PersistedMaterialPreference } from '../../shared/host'
 import { AppFrame, PRODUCT_TABS } from '../frame/AppFrame'
 import { MaximalQueryProvider } from '../query-client'
-import type { SettingsCapabilities } from './capabilities'
+import type {
+  SettingsCapabilities,
+  TerminalTypographySettings,
+} from './capabilities'
 import { Settings, type SettingsSectionRequest } from './Settings'
 
 const OLLAMA_ENDPOINT = 'http://127.0.0.1:11434'
@@ -174,6 +177,30 @@ function fakeCapabilities(): SettingsCapabilities {
       updateRoot: vi.fn(),
       removeRoot: vi.fn(async () => {}),
       refresh: vi.fn(async () => ({ roots: [], projects: [], refreshing: false })),
+      subscribe: vi.fn(() => () => {}),
+    },
+    terminalTypography: {
+      get: vi.fn(async () => ({
+        fontFamily: 'ui-monospace',
+        fontSize: 13,
+        fontWeight: 400 as const,
+        fontVariations: {},
+        cellHeight: 0,
+        tracking: 0,
+        baseline: 0,
+        thicken: false,
+        thickenStrength: 50,
+        ligatures: true,
+      })),
+      update: vi.fn(async (settings: TerminalTypographySettings) => settings),
+      fonts: vi.fn(async () => ({
+        status: 'available' as const,
+        fonts: ['JetBrainsMono Nerd Font'],
+        downloads: [],
+        ghosttyPath: '/Applications/Ghostty.app/Contents/MacOS/ghostty',
+      })),
+      installFont: vi.fn(),
+      openPreview: vi.fn(async () => {}),
       subscribe: vi.fn(() => () => {}),
     },
     connections: {

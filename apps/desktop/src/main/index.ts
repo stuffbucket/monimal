@@ -71,6 +71,7 @@ import {
 } from './native/recording.js'
 import { resolveLicenseBundlePath } from './native/license-bundle.js'
 import { listClientInstallations } from './native/client-installations.js'
+import { registerAppearanceIpc } from './native/appearance-ipc.js'
 import { toLifecycleStatus } from './sidecar/lifecycle-status.js'
 import { registerOllamaRuntimeIpc } from './ollama-runtime-ipc.js'
 import { DesktopProjectCatalog } from './adapters/project-catalog.js'
@@ -124,9 +125,7 @@ import {
 
 const SPLASH_PREVIEW_FLAG = '--splash-preview'
 
-function isSplashPreview(): boolean {
-  return !app.isPackaged && process.argv.includes(SPLASH_PREVIEW_FLAG)
-}
+function isSplashPreview(): boolean { return !app.isPackaged && process.argv.includes(SPLASH_PREVIEW_FLAG) }
 
 function isolateDevelopmentUserData(): void {
   if (app.isPackaged || app.commandLine.hasSwitch('user-data-dir')) return
@@ -149,6 +148,7 @@ let coreControlConnection: CoreControlConnection | null = null
 let mainWindow: BrowserWindow | null = null
 let mainWindowRevealAllowed = true
 const vibrancyWindows = new Set<BrowserWindow>()
+let typographyPreviewWindow: BrowserWindow | null = null
 let pendingSettingsRequest: PendingSettingsRequest | null = null
 let menuBarMode: MenuBarModeController | null = null
 let recording: DesktopRecording | null = null
@@ -406,6 +406,7 @@ function registerIpc(
     projects.opened(nonEmptyString.parse(projectId))
     broadcast(BRIDGE_CHANNELS.projectsChanged)
   })
+  registerAppearanceIpc(broadcast, openTypographyPreviewWindow)
   ipcMain.handle(BRIDGE_CHANNELS.authStatus, () => session.authStatus())
   ipcMain.handle(BRIDGE_CHANNELS.authStart, () => session.authStart())
   ipcMain.handle(BRIDGE_CHANNELS.authCancel, () => session.authCancel())
@@ -624,6 +625,10 @@ function loadRenderer(win: BrowserWindow, terminal?: TerminalWindowRequest): voi
     query.set('terminalCanRunInBackground', String(terminal.canRunInBackground))
     if (terminal.pane) query.set('terminalPane', JSON.stringify(terminal.pane))
   }
+  loadRendererQuery(win, query)
+}
+
+function loadRendererQuery(win: BrowserWindow, query: URLSearchParams): void {
   const search = query.toString()
   if (
     typeof MAIN_WINDOW_VITE_DEV_SERVER_URL !== 'undefined' &&
@@ -775,6 +780,31 @@ function createWindow(): BrowserWindow {
   })
   installRendererRecovery(win)
   return win
+}
+
+function openTypographyPreviewWindow(): void {
+  if (typographyPreviewWindow !== null && !typographyPreviewWindow.isDestroyed()) {
+    focusWindow(typographyPreviewWindow)
+    return
+  }
+  const width = 1180
+  const height = 760
+  const win = createHostWindow({
+    preloadPath: join(__dirname, 'preload.js'),
+    title: 'Terminal Typography Preview',
+    titleBarStyle: 'hiddenInset',
+    width,
+    height,
+    ...centerOnPrimaryDisplay(width, height),
+    loadRenderer: (window) => {
+      loadRendererQuery(window, new URLSearchParams({ terminalTypographyPreview: 'true' }))
+    },
+  })
+  typographyPreviewWindow = win
+  win.on('closed', () => {
+    if (typographyPreviewWindow === win) typographyPreviewWindow = null
+  })
+  installRendererRecovery(win)
 }
 
 function createTerminalWindow(request: TerminalWindowRequest): BrowserWindow {

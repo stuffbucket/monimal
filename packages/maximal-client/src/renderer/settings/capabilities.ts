@@ -54,6 +54,9 @@ import type {
   OllamaRuntimePreferencesUpdate,
   ProviderOnboardingPreference,
   SystemNotificationStatus,
+  TerminalFontAxis,
+  TerminalFontCatalog,
+  TerminalTypographySettings,
 } from '../../shared/host'
 
 import {
@@ -97,6 +100,9 @@ export type {
   LocalModelEnsureResult,
   LocalModelOperationEvent,
   OllamaRuntimeStatus,
+  TerminalFontAxis,
+  TerminalFontCatalog,
+  TerminalTypographySettings,
   SearchProviderValidationRequest,
   SearchProviderValidationResponse,
   SearchSettingsResponse,
@@ -171,6 +177,14 @@ export interface SettingsCapabilities {
     removeRoot(id: string): Promise<void>
     refresh(rootId?: string): Promise<ProjectCatalogSnapshot>
     subscribe(listener: () => void): () => void
+  }
+  terminalTypography: {
+    get(): Promise<TerminalTypographySettings>
+    update(settings: TerminalTypographySettings): Promise<TerminalTypographySettings>
+    fonts(): Promise<TerminalFontCatalog>
+    installFont(fontId: string): Promise<TerminalFontCatalog>
+    openPreview(): Promise<void>
+    subscribe(listener: (settings: TerminalTypographySettings) => void): () => void
   }
   connections: {
     list(): Promise<ConnectionsListResponse>
@@ -396,6 +410,14 @@ export function createCoreSettingsCapabilities(): SettingsCapabilities {
       removeRoot: (id) => bridge.projects.removeRoot(id),
       refresh: (rootId) => bridge.projects.refresh(rootId),
       subscribe: (listener) => bridge.projects.onChange(listener),
+    },
+    terminalTypography: {
+      get: () => bridge.terminalTypography.get(),
+      update: (settings) => bridge.terminalTypography.update(settings),
+      fonts: () => bridge.terminalTypography.fonts(),
+      installFont: (fontId) => bridge.terminalTypography.installFont(fontId),
+      openPreview: () => bridge.terminalTypography.openPreview(),
+      subscribe: (listener) => bridge.terminalTypography.onChange(listener),
     },
     connections: {
       list: async () =>

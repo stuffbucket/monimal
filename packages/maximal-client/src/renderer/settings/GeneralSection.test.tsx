@@ -5,12 +5,30 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { PersistedMaterialPreference } from '../../shared/host'
 import { createMaximalQueryClient } from '../query-client'
-import type { SettingsCapabilities } from './capabilities'
+import type {
+  SettingsCapabilities,
+  TerminalTypographySettings,
+} from './capabilities'
 import { GeneralSection } from './GeneralSection'
+import { TerminalTypographySettings as TerminalAppearanceSettings } from './general/TerminalTypographySettings'
 import { appearancePreferenceQueryKey } from './general/useAppearancePreference'
 import { menuBarModeQueryKey } from './general/useMenuBarPresence'
 
+vi.mock('./general/TerminalTypographyPreview', () => ({
+  TerminalTypographyPreview: () => (
+    <div aria-label="Live terminal typography preview" />
+  ),
+}))
+
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
+
+class NoopResizeObserver {
+  observe(): void {}
+  unobserve(): void {}
+  disconnect(): void {}
+}
+
+globalThis.ResizeObserver = NoopResizeObserver
 
 let root: Root | null = null
 let container: HTMLElement | null = null
@@ -96,9 +114,80 @@ function fakeCapabilities(options?: {
     })),
     openSystemNotificationSettings: vi.fn(async () => undefined),
   }
+  const initialTypography = {
+    fontFamily: 'JetBrainsMono Nerd Font',
+    fontSize: 13,
+    fontWeight: 400 as const,
+    fontVariations: {},
+    cellHeight: 0,
+    tracking: 0,
+    baseline: 0,
+    thicken: false,
+    thickenStrength: 50,
+    ligatures: true,
+    fontFeatures: {},
+  }
+  const terminalTypography = {
+    get: vi.fn(async () => initialTypography),
+    update: vi.fn(async (settings: TerminalTypographySettings) => settings),
+    fonts: vi.fn(async () => ({
+      status: 'available' as const,
+      fonts: ['FiraCode Nerd Font', 'JetBrainsMono Nerd Font'],
+      fontWeights: {
+        'FiraCode Nerd Font': [300, 400, 500, 600, 700],
+        'JetBrainsMono Nerd Font': [400, 700],
+      },
+      fontAxes: {
+        'JetBrainsMono Nerd Font': [
+          { tag: 'wght', minimum: 100, default: 400, maximum: 900 },
+          { tag: 'WONK', minimum: 0, default: 0, maximum: 1 },
+          { tag: 'GRAD', minimum: -100, default: 0, maximum: 150 },
+        ],
+      },
+      downloads: [{
+        id: 'intel-one-mono',
+        label: 'Intel One Mono',
+        family: 'IntoneMono Nerd Font Mono',
+        installed: false,
+        downloadSize: 32_279_622,
+        license: 'OFL-1.1',
+        sourceUrl: 'https://github.com/intel/intel-one-mono',
+      }],
+      ghosttyPath: '/Applications/Ghostty.app/Contents/MacOS/ghostty',
+    })),
+    installFont: vi.fn(async () => ({
+      status: 'available' as const,
+      fonts: [
+        'FiraCode Nerd Font',
+        'IntoneMono Nerd Font Mono',
+        'JetBrainsMono Nerd Font',
+      ],
+      fontWeights: {
+        'FiraCode Nerd Font': [300, 400, 500, 600, 700],
+        'IntoneMono Nerd Font Mono': [300, 400, 500, 600, 700],
+        'JetBrainsMono Nerd Font': [400, 700],
+      },
+      downloads: [{
+        id: 'intel-one-mono',
+        label: 'Intel One Mono',
+        family: 'IntoneMono Nerd Font Mono',
+        installed: true,
+        downloadSize: 32_279_622,
+        license: 'OFL-1.1',
+        sourceUrl: 'https://github.com/intel/intel-one-mono',
+      }],
+      ghosttyPath: '/Applications/Ghostty.app/Contents/MacOS/ghostty',
+    })),
+    openPreview: vi.fn(async () => {}),
+    subscribe: vi.fn(() => () => {}),
+  }
   return {
-    capabilities: { general } as unknown as SettingsCapabilities,
+    capabilities: {
+      general,
+      terminalTypography,
+    } as unknown as SettingsCapabilities,
     general,
+    terminalTypography,
   }
 }
 
@@ -133,7 +222,11 @@ afterEach(() => {
 
 async function renderGeneral(
   capabilities: SettingsCapabilities,
-  options: { seedMenuBar?: boolean } = {},
+  optionsOrSurface:
+    | { seedMenuBar?: boolean }
+    | 'interaction'
+    | 'typography'
+    | 'palette' = 'interaction',
 ): Promise<HTMLElement> {
   if (root === null || container === null) throw new Error('test root not ready')
   const client = createMaximalQueryClient()
@@ -142,6 +235,12 @@ async function renderGeneral(
     appearancePreferenceQueryKey,
     await capabilities.general.appearance(),
   )
+  const surface = typeof optionsOrSurface === 'string'
+    ? optionsOrSurface
+    : 'interaction'
+  const options = typeof optionsOrSurface === 'string'
+    ? {}
+    : optionsOrSurface
   if (options.seedMenuBar !== false) {
     client.setQueryData(
       menuBarModeQueryKey,
@@ -151,9 +250,17 @@ async function renderGeneral(
   await act(async () => {
     root?.render(
       <QueryClientProvider client={client}>
-        <GeneralSection capabilities={capabilities} />
+        {surface === 'interaction'
+          ? <GeneralSection capabilities={capabilities} />
+          : (
+              <TerminalAppearanceSettings
+                capabilities={capabilities.terminalTypography}
+                surface={surface}
+              />
+            )}
       </QueryClientProvider>,
     )
+    await Promise.resolve()
   })
   return container
 }
@@ -192,6 +299,24 @@ function effectControl(
   )
   if (control === null) throw new Error(`${testId} was not rendered`)
   return control
+}
+
+function setInputValue(input: HTMLInputElement, value: string): void {
+  const setter = Object.getOwnPropertyDescriptor(
+    HTMLInputElement.prototype,
+    'value',
+  )?.set
+  setter?.call(input, value)
+  input.dispatchEvent(new Event('input', { bubbles: true }))
+}
+
+function setSelectValue(select: HTMLSelectElement, value: string): void {
+  const setter = Object.getOwnPropertyDescriptor(
+    HTMLSelectElement.prototype,
+    'value',
+  )?.set
+  setter?.call(select, value)
+  select.dispatchEvent(new Event('change', { bubbles: true }))
 }
 
 function button(label: string): HTMLButtonElement {
@@ -607,6 +732,311 @@ describe('GeneralSection', () => {
     })
     await act(async () => switchControl(surface).click())
     expect(switchControl(surface).disabled).toBe(true)
+  })
+
+  it('offers Ghostty-discovered Nerd Fonts and persists typography changes', async () => {
+    const { capabilities, terminalTypography } = fakeCapabilities()
+    const surface = await renderGeneral(capabilities, 'typography')
+    const family = surface.querySelector<HTMLSelectElement>(
+      '[data-testid="terminal-font-family"]',
+    )
+    const section = surface.querySelector<HTMLSelectElement>(
+      '[data-testid="terminal-typography-section"]',
+    )
+
+    expect(surface.textContent).toContain('Terminal Typography')
+    expect(surface.querySelector('[data-testid="terminal-font-size-slider"]')).toBeNull()
+    expect(surface.querySelector<HTMLInputElement>('[data-testid="terminal-font-size"]')?.step)
+      .toBe('0.25')
+    const weight = surface.querySelector<HTMLInputElement>(
+      '[data-testid="terminal-font-weight"]',
+    )
+    const style = surface.querySelector<HTMLSelectElement>(
+      '[data-testid="terminal-font-style"]',
+    )
+    expect(weight?.min).toBe('50')
+    expect(weight?.max).toBe('1000')
+    expect(weight?.step).toBe('25')
+    expect([...style?.options ?? []].map(({ text }) => text)).toEqual([
+      'Regular',
+      'Bold',
+    ])
+    expect(surface.textContent).not.toContain('Apply variable')
+    expect(surface.querySelector<HTMLInputElement>(
+      '[data-testid="terminal-cell-height"]',
+    )).not.toBeNull()
+    expect(surface.querySelector<HTMLInputElement>(
+      '[data-testid="terminal-tracking"]',
+    )).not.toBeNull()
+    expect(section).not.toBeNull()
+    expect(surface.querySelector('[data-testid="terminal-color-mode"]'))
+      .toBeNull()
+    expect(surface.querySelector('[data-testid="terminal-background-opacity"]'))
+      .toBeNull()
+    expect(surface.querySelector('[data-testid="terminal-background-blur"]'))
+      .toBeNull()
+    expect(surface.querySelector('[data-testid="terminal-window-tint"]'))
+      .toBeNull()
+    expect(surface.querySelector('[data-testid="terminal-tint-blend-mode"]'))
+      .toBeNull()
+    expect(surface.querySelector('[data-testid="terminal-tone"]'))
+      .toBeNull()
+    expect(surface.querySelector('[data-testid="terminal-palette-stamp"]'))
+      .toBeNull()
+    expect(surface.querySelector('[data-testid="terminal-font-axis-WONK"]'))
+      .not.toBeNull()
+    expect(surface.querySelector('[data-testid="terminal-font-axis-GRAD"]'))
+      .not.toBeNull()
+    expect(surface.querySelector('[data-testid="terminal-font-axis-wght"]'))
+      .toBeNull()
+    expect(surface.textContent).toContain('Wonky')
+    expect(surface.querySelector('[data-testid="terminal-thicken"]')).toBeNull()
+    expect(surface.textContent).not.toContain('Open live preview')
+    expect(surface.querySelector('[aria-label="Live terminal typography preview"]'))
+      .not.toBeNull()
+    expect([...family?.options ?? []].map(({ text }) => text)).toEqual([
+      'System monospace (recommended)',
+      'FiraCode Nerd Font',
+      'JetBrainsMono Nerd Font',
+    ])
+    await act(async () => {
+      if (style !== null) setSelectValue(style, '700')
+      await Promise.resolve()
+    })
+    expect(terminalTypography.update.mock.lastCall?.[0]).toMatchObject({
+      fontWeight: 700,
+    })
+    await act(async () => {
+      if (weight !== null) {
+        weight.focus()
+        setInputValue(weight, '525')
+        weight.blur()
+        await Promise.resolve()
+      }
+    })
+    expect(terminalTypography.update.mock.lastCall?.[0]).toMatchObject({
+      fontWeight: 525,
+    })
+    act(() => {
+      if (section !== null) setSelectValue(section, 'spacing')
+    })
+    expect(surface.querySelector('[data-testid="terminal-tracking"]')).toBeNull()
+    expect(surface.querySelector('[data-testid="terminal-baseline"]')).not.toBeNull()
+    act(() => {
+      if (section !== null) setSelectValue(section, 'rendering')
+    })
+    expect(surface.querySelector(
+      '[data-testid="terminal-thicken-strength"] [role="slider"]',
+    )?.getAttribute('aria-valuenow')).toBe('0')
+    act(() => {
+      if (section !== null) setSelectValue(section, 'features')
+    })
+    const standardLigatures = surface.querySelector<HTMLButtonElement>(
+      '[data-testid="terminal-font-feature-liga"]',
+    )
+    const contextualAlternates = surface.querySelector<HTMLButtonElement>(
+      '[data-testid="terminal-font-feature-calt"]',
+    )
+    expect(surface.querySelectorAll('.terminal-typography-features [role="switch"]'))
+      .toHaveLength(18)
+    await act(async () => standardLigatures?.click())
+    expect(terminalTypography.update.mock.lastCall?.[0]).toMatchObject({
+      ligatures: true,
+      fontFeatures: { liga: false },
+    })
+    await act(async () => contextualAlternates?.click())
+    expect(terminalTypography.update.mock.lastCall?.[0]).toMatchObject({
+      ligatures: false,
+      fontFeatures: { liga: false, calt: false },
+    })
+  })
+
+  it('persists terminal palette modes, colors, and effect switches', async () => {
+    const { capabilities, terminalTypography } = fakeCapabilities()
+    const surface = await renderGeneral(capabilities, 'palette')
+    const mode = surface.querySelector<HTMLSelectElement>(
+      '[data-testid="terminal-color-mode"]',
+    )
+    const compensate = surface.querySelector<HTMLButtonElement>(
+      '[data-testid="terminal-palette-compensate"]',
+    )
+    const stamp = surface.querySelector<HTMLButtonElement>(
+      '[data-testid="terminal-palette-stamp"]',
+    )
+    const minimumContrast = surface.querySelector<HTMLElement>(
+      '[data-testid="terminal-minimum-contrast"] [role="slider"]',
+    )
+
+    expect(mode).not.toBeNull()
+    expect(compensate).not.toBeNull()
+    expect(stamp).not.toBeNull()
+    expect(minimumContrast?.hasAttribute('data-disabled')).toBe(false)
+
+    await act(async () => {
+      if (mode !== null) {
+        mode.value = 'dark'
+        mode.dispatchEvent(new Event('change', { bubbles: true }))
+      }
+      await Promise.resolve()
+    })
+    expect(terminalTypography.update.mock.lastCall?.[0].palette?.mode).toBe('dark')
+
+    const background = surface.querySelector<HTMLButtonElement>(
+      '[data-testid="terminal-palette-light-background"]',
+    )
+    expect(background).not.toBeNull()
+    await act(async () => background?.click())
+    const backgroundHex = document.querySelector<HTMLInputElement>(
+      '[data-testid="terminal-palette-light-background-hex"]',
+    )
+    expect(backgroundHex).not.toBeNull()
+    expect(document.querySelector(
+      '[data-testid="terminal-palette-light-background-close"]',
+    )).not.toBeNull()
+    await act(async () => {
+      if (backgroundHex !== null) setInputValue(backgroundHex, '#123456')
+      await Promise.resolve()
+    })
+    await act(async () => {
+      backgroundHex?.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'Enter',
+        bubbles: true,
+      }))
+      await Promise.resolve()
+    })
+    expect(
+      terminalTypography.update.mock.lastCall?.[0].palette?.light.background,
+    ).toBe('#123456')
+
+    await act(async () => {
+      document.querySelector<HTMLButtonElement>(
+        '[data-testid="terminal-palette-light-background-close"]',
+      )?.click()
+      await Promise.resolve()
+    })
+    expect(document.querySelector(
+      '[data-testid="terminal-palette-light-background-dialog"]',
+    )).toBeNull()
+
+    await act(async () => background?.click())
+    await act(async () => {
+      document.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'Escape',
+        bubbles: true,
+      }))
+      await Promise.resolve()
+    })
+    expect(document.querySelector(
+      '[data-testid="terminal-palette-light-background-dialog"]',
+    )).toBeNull()
+
+    await act(async () => {
+      compensate?.click()
+      await Promise.resolve()
+    })
+    expect(terminalTypography.update.mock.lastCall?.[0].palette?.effects.compensate)
+      .toBe(false)
+    expect(minimumContrast?.hasAttribute('data-disabled')).toBe(true)
+
+    await act(async () => {
+      stamp?.click()
+      await Promise.resolve()
+    })
+    expect(terminalTypography.update.mock.lastCall?.[0].palette?.effects.stamp)
+      .toBe(true)
+  })
+
+  it('keeps controls interactive while serializing typography saves', async () => {
+    const { capabilities, terminalTypography } = fakeCapabilities()
+    let finishFirst: ((settings: TerminalTypographySettings) => void) | undefined
+    terminalTypography.update.mockImplementationOnce((settings) =>
+      new Promise<TerminalTypographySettings>((resolve) => {
+        finishFirst = () => resolve(settings)
+      }))
+    const surface = await renderGeneral(capabilities, 'typography')
+    const section = surface.querySelector<HTMLSelectElement>(
+      '[data-testid="terminal-typography-section"]',
+    )
+    act(() => {
+      if (section !== null) setSelectValue(section, 'features')
+    })
+    const standardLigatures = surface.querySelector<HTMLButtonElement>(
+      '[data-testid="terminal-font-feature-liga"]',
+    )
+    const contextualAlternates = surface.querySelector<HTMLButtonElement>(
+      '[data-testid="terminal-font-feature-calt"]',
+    )
+
+    act(() => standardLigatures?.click())
+    act(() => contextualAlternates?.click())
+    await act(async () => Promise.resolve())
+
+    expect(section?.disabled).toBe(false)
+    expect(standardLigatures?.getAttribute('aria-checked')).toBe('false')
+    expect(contextualAlternates?.getAttribute('aria-checked')).toBe('false')
+    expect(terminalTypography.update).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      finishFirst?.(terminalTypography.update.mock.calls[0][0])
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(terminalTypography.update).toHaveBeenCalledTimes(2)
+    expect(terminalTypography.update.mock.calls[1]?.[0]).toMatchObject({
+      ligatures: false,
+      fontFeatures: { liga: false, calt: false },
+    })
+  })
+
+  it('installs curated Nerd Fonts and refreshes the family options', async () => {
+    const { capabilities, terminalTypography } = fakeCapabilities()
+    const surface = await renderGeneral(capabilities, 'typography')
+
+    await act(async () => button('Install').click())
+
+    expect(terminalTypography.installFont).toHaveBeenCalledWith('intel-one-mono')
+    const family = surface.querySelector<HTMLSelectElement>(
+      '[data-testid="terminal-font-family"]',
+    )
+    expect([...family?.options ?? []].map(({ text }) => text)).toContain(
+      'Intel One Mono',
+    )
+    expect(button('Installed').disabled).toBe(true)
+    expect(surface.textContent)
+      .toContain('Intel One Mono is installed and available in Family.')
+  })
+
+  it('collapses undivided font specimens and reports installation failures above them', async () => {
+    const { capabilities, terminalTypography } = fakeCapabilities()
+    terminalTypography.installFont.mockRejectedValueOnce(
+      new Error(
+        "Error invoking remote method 'maximal:native/terminal-typography-install-font': Error: Download failed.",
+      ),
+    )
+    const surface = await renderGeneral(capabilities, 'typography')
+    const disclosure = surface.querySelector<HTMLDetailsElement>(
+      '.terminal-font-downloads details',
+    )
+
+    expect(disclosure?.open).toBe(false)
+    expect(surface.querySelectorAll('.terminal-font-specimen')).toHaveLength(1)
+    expect(surface.querySelectorAll('.terminal-font-ramp')).toHaveLength(0)
+    expect(surface.querySelector('.terminal-font-downloads .settings__group')
+      ?.getAttribute('data-dividers')).toBe('false')
+
+    await act(async () => button('Install').click())
+
+    const banner = [...surface.querySelectorAll('.banner')].find(
+      (candidate) => candidate.textContent?.includes('Font installation failed'),
+    )
+    const downloads = surface.querySelector('.terminal-font-downloads')
+    expect(banner?.textContent).toContain('Download failed.')
+    expect(banner?.textContent).not.toContain('Error invoking remote method')
+    expect(
+      banner !== undefined
+      && downloads !== null
+      && (banner.compareDocumentPosition(downloads) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0,
+    ).toBe(true)
   })
 
   it('counts down and closes when main reaches its automatic rollback deadline', async () => {

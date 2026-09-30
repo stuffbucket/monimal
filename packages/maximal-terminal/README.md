@@ -7,7 +7,20 @@ React terminal views. Nothing here imports `electron`; the Electron adapter is
 | Entry | What it is | Peers |
 | --- | --- | --- |
 | `.` | `TerminalHost`, its `node-pty` connector, `registerTerminalChannels`, the launcher and its connectors, and tmux control and projection | `node-pty` |
-| `./renderer` | `TerminalView`, the `TerminalTransport` contract, `createTerminalTransport`, `readTerminalTheme`, and the pane and workspace models | `react`, `@xterm/xterm`, `@xterm/addon-fit`, `@wterm/dom`, `@wterm/ghostty` |
+| `./renderer` | `TerminalView`, its live `TerminalTypography` options, the `TerminalTransport` contract, `createTerminalTransport`, `readTerminalTheme`, and the pane and workspace models | `react`, `@xterm/xterm`, `@xterm/addon-fit`, `@wterm/dom`, `@wterm/ghostty` |
+
+`TerminalTypography` applies family, point size, weight, font-declared
+variation axes, leading, tracking, baseline, thickening, and ligature choices
+live without replacing terminal state or scrollback. OpenType feature tags can
+also be enabled or disabled individually; unsupported tags remain harmless and
+are ignored by the selected font.
+
+`TerminalView` also accepts live terminal palettes and window adjustments.
+Consumers can update the foreground, background, cursor, selection, all 16
+ANSI colors, background opacity, backdrop blur, tint, tone, and tint blend
+mode without replacing terminal state or scrollback. The exported appearance
+helpers resolve independent light and dark palettes, minimum-contrast
+compensation, and layered or palette-stamped tint and tone effects.
 
 Generated tmux session names take their prefix from the host through
 `TmuxSessionNames`; only names under that prefix are offered for resume.

@@ -642,6 +642,7 @@ describe('closed IPC boundary', () => {
       BRIDGE_CHANNELS.terminalTabRedocked,
       BRIDGE_CHANNELS.terminalPaneChanged,
       BRIDGE_CHANNELS.browserEvent,
+      BRIDGE_CHANNELS.terminalTypographyChanged,
       BRIDGE_CHANNELS.harnessDelta,
       BRIDGE_CHANNELS.harnessTool,
       BRIDGE_CHANNELS.harnessApproval,
@@ -1228,6 +1229,37 @@ describe('closed IPC boundary', () => {
 })
 
 describe('window defaults', () => {
+  it('opens and reuses a dedicated terminal typography preview window', async () => {
+    await loadIndexOn('darwin')
+    const registration = ipcMainHandle.mock.calls.find(
+      ([channel]) => channel === BRIDGE_CHANNELS.terminalTypographyOpenPreview,
+    )
+    if (!registration) throw new Error('Typography preview IPC not registered')
+
+    registration[1]()
+
+    expect(createHostWindowMock).toHaveBeenCalledTimes(2)
+    expect(createHostWindowMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        title: 'Terminal Typography Preview',
+        width: 1180,
+        height: 760,
+      }),
+    )
+    const options = (
+      createHostWindowMock.mock.calls as unknown as Array<[
+        { loadRenderer: (window: typeof fakeWindow) => void },
+      ]>
+    )[1]?.[0]
+    if (!options) throw new Error('Typography preview window was not created')
+    expect(options.loadRenderer).toEqual(expect.any(Function))
+
+    registration[1]()
+
+    expect(createHostWindowMock).toHaveBeenCalledTimes(2)
+    expect(fakeWindow.focus).toHaveBeenCalledOnce()
+  })
+
   it('opens wide enough for the three-panel Overview without horizontal scrolling', async () => {
     await loadIndexOn('darwin')
 

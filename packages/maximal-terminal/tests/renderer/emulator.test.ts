@@ -173,6 +173,7 @@ describe('terminal emulator adapter', () => {
       core: ghostty.core,
       cursorBlink: true,
     });
+
     expect(host.style.getPropertyValue('--term-fg')).toBe('#eef0f4');
     expect(host.style.getPropertyValue('--term-bg')).toBe(
       'color-mix(in srgb, #101216 80%, transparent)',
@@ -215,6 +216,87 @@ describe('terminal emulator adapter', () => {
     emulator.dispose();
     expect(ghostty.destroy).toHaveBeenCalledOnce();
     expect(ghostty.core.dispose).toHaveBeenCalledOnce();
+  });
+
+  it('applies and updates Ghostty typography through wterm CSS properties', async () => {
+    const emulator = await createTerminalEmulator(
+      'ghostty',
+      undefined,
+      undefined,
+      {
+        fontFamily: 'JetBrainsMono Nerd Font',
+        fontSize: 15,
+        fontWeight: 500,
+        fontVariations: { GRAD: 50, WONK: 1 },
+        cellHeight: 10,
+        tracking: 5,
+        baseline: 10,
+        thicken: true,
+        thickenStrength: 50,
+        ligatures: false,
+        fontFeatures: { zero: true },
+      },
+    );
+    const host = document.createElement('div');
+    await emulator.open(host);
+
+    expect(host.style.getPropertyValue('--term-font-family')).toBe(
+      '"JetBrainsMono Nerd Font"',
+    );
+    expect(host.style.getPropertyValue('--term-font-size')).toBe('20px');
+    expect(host.style.getPropertyValue('--term-row-height')).toBe(
+      '26.400000000000002px',
+    );
+    expect(host.style.fontWeight).toBe('500');
+    expect(host.style.fontVariationSettings).toBe(
+      '"GRAD" 50, "WONK" 1, "wght" 500',
+    );
+    expect(host.style.letterSpacing).toBe('0.05em');
+    expect(host.style.getPropertyValue('--maximal-term-baseline')).toBe('-0.1em');
+    expect(host.style.webkitTextStroke).toBe('0.0268em currentColor');
+    expect(host.style.fontVariantLigatures).toBe('none');
+    expect(host.style.fontFeatureSettings).toContain('"calt" 0');
+    expect(host.style.fontFeatureSettings).toContain('"zero" 1');
+
+    emulator.setAppearance({
+      background: '#112233',
+      foreground: '#ddeeff',
+      cursor: '#abcdef',
+      selectionBackground: '#334455',
+      red: '#ff0000',
+    }, {
+      opacity: 0.8,
+      blur: 12,
+      tint: '#123456',
+      tintAmount: 0.25,
+      tone: -0.1,
+      blendMode: 'multiply',
+    });
+    expect(host.style.getPropertyValue('--term-bg')).toContain('#112233');
+    expect(host.style.getPropertyValue('--term-fg')).toBe('#ddeeff');
+    expect(host.style.getPropertyValue('--term-color-1')).toBe('#ff0000');
+    expect(host.style.getPropertyValue('--term-selection')).toBe('#334455');
+    expect(host.style.backdropFilter).toBe('blur(12px)');
+    expect(host.style.backgroundImage).toContain('rgb(18, 52, 86)');
+    expect(host.style.backgroundBlendMode).toContain('multiply');
+
+    emulator.setTypography({
+      fontFamily: 'ui-monospace',
+      fontSize: 12,
+      fontWeight: 400,
+      fontVariations: {},
+      cellHeight: 0,
+      tracking: 0,
+      baseline: 0,
+      thicken: false,
+      thickenStrength: 50,
+      ligatures: true,
+    });
+    expect(host.style.getPropertyValue('--term-font-family')).toContain(
+      'ui-monospace',
+    );
+    expect(host.style.getPropertyValue('--term-font-size')).toBe('16px');
+    expect(host.style.fontVariantLigatures).toBe('normal');
   });
 
   it('projects bounded top-level OSC titles across writes', async () => {

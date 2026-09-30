@@ -8,6 +8,7 @@ import { useMaterialPreference } from '@maximal/maximal-client/renderer/useMater
 import { ThirdPartyLicensesDialog } from '@maximal/maximal-client/renderer/ThirdPartyLicensesDialog'
 import { useAccountStatus } from '@maximal/maximal-client/renderer/useAccountStatus'
 import type { SettingsSectionRequest } from '@maximal/maximal-client/renderer/settings/Settings'
+import { TerminalTypographyPreviewWindow } from '@maximal/maximal-client/renderer/settings/TerminalTypographyPreviewWindow'
 import { createCoreSettingsCapabilities } from '@maximal/maximal-client/renderer/settings/capabilities'
 import { readDetachedTerminal } from '@maximal/maximal-client/renderer/terminal/window-transfer'
 import { createObservabilitySource } from '@maximal/maximal-client/renderer/traffic/source'
@@ -39,12 +40,24 @@ import { useAppearancePreference } from './useAppearancePreference'
  */
 
 export function App(): ReactElement {
+  if (new URLSearchParams(window.location.search).has('terminalTypographyPreview')) {
+    return <TypographyPreviewApp />
+  }
   return (
     <MaximalQueryProvider>
       <UnsavedChangesProvider>
         <AppContent />
       </UnsavedChangesProvider>
     </MaximalQueryProvider>
+  )
+}
+
+function TypographyPreviewApp(): ReactElement {
+  const settings = useMemo(() => createCoreSettingsCapabilities(), [])
+  return (
+    <TerminalTypographyPreviewWindow
+      capabilities={settings.terminalTypography}
+    />
   )
 }
 
