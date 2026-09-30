@@ -1,7 +1,7 @@
 /**
  * On-disk shape for the GitHub user token.
  *
- * Historically the file at `${COPILOT_API_HOME}/<oauth-app>/github_token`
+ * Historically the file at `${MAXIMAL_HOME}/<oauth-app>/github_token`
  * contained a bare token string. v1 promotes it to JSON so future fields
  * (refresh tokens, expiry caching, multi-account) don't need a parse-rewrite
  * migration. Reads tolerate both shapes; writes are always v1 JSON.

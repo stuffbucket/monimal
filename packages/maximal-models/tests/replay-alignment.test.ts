@@ -16,11 +16,14 @@ import type { ProviderOperation } from "@maximal/maximal-model-contract"
 import assert from "node:assert/strict"
 import test from "node:test"
 
-import { startDshHost, type DshHost } from "../src/index.ts"
+import {
+  startProviderPluginHost,
+  type ProviderPluginHost,
+} from "../src/index.ts"
 import { createFixtureProfile } from "./fixture.ts"
 
 async function dispatch(
-  host: DshHost,
+  host: ProviderPluginHost,
   operation: ProviderOperation,
 ): Promise<Response> {
   const signal = new AbortController().signal
@@ -43,7 +46,7 @@ async function dispatch(
 
 void test("replay state that does not align with the emitted blocks is rejected", async () => {
   const fixture = await createFixtureProfile()
-  const host = await startDshHost({
+  const host = await startProviderPluginHost({
     profileDirectory: fixture.directory,
     activation: {
       fixture: {

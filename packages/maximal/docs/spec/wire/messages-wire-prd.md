@@ -199,8 +199,8 @@ forwarded verbatim.
    Claude (`getClaudeTokenMultiplier()`).
 
 The provider-scoped variant is mode-dependent. In `legacy` mode it uses
-the local tokenizer (no real-Anthropic path, no multiplier). The pinned DSH
-LLM contract has no universal token-count operation, so `dsh` mode returns an
+the local tokenizer (no real-Anthropic path, no multiplier). The pinned plugin
+runtime contract has no universal token-count operation, so `plugins` mode returns an
 explicit `UNSUPPORTED` response rather than estimating, dropping options, or
 falling back to legacy.
 
@@ -214,10 +214,10 @@ passthrough (`src/routes/provider/messages/handler.ts`,
 hop-by-hop headers are stripped, and `adjustInputTokens()` may subtract cache
 tokens.
 
-`dsh` mode forwards the raw `Request`, response body, and cancellation signal
+`plugins` mode forwards the raw `Request`, response body, and cancellation signal
 through the injected provider gateway. The external plugin owns transport and
 credentials. Core still inspects the returned Anthropic JSON/SSE usage for
-accounting, but does not buffer the response. A selected DSH mode never silently
+accounting, but does not buffer the response. A selected plugin mode never silently
 falls back to the legacy branch; unavailable, invalid, and unsupported cases
 remain explicit bounded errors.
 

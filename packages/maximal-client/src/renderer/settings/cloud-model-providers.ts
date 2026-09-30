@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
+import {
+  normalizeProviderId,
+  providerDisplayName,
+} from '@maximal/maximal-model-catalog'
+
 import type { ModelsListResponse, SettingsCapabilities } from './capabilities'
 import { describeError } from '../shared/errors'
 
@@ -24,18 +29,11 @@ export interface ProviderAccess {
 export function cloudProviderId(
   model: ModelsListResponse['models'][number],
 ): string {
-  const source = model.provider?.trim().toLowerCase() ?? 'github-copilot'
-  if (source === 'ollama' || source === 'ollama-cloud') return 'ollama'
-  if (source.includes('github') || source.includes('copilot')) {
-    return 'github-copilot'
-  }
-  return source
+  return normalizeProviderId(model.provider ?? 'github-copilot')
 }
 
 export function cloudProviderName(id: string, vendor?: string): string {
-  if (id === 'github-copilot') return 'GitHub Copilot'
-  if (id === 'ollama') return 'Ollama'
-  return vendor?.trim() || id
+  return providerDisplayName(id, vendor)
 }
 
 export async function readProviderAccess(

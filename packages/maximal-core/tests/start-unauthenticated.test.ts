@@ -9,7 +9,7 @@
  * when absent, and gate `/v1/*` and friends with `requireGithubAuth`.
  *
  * This test starts the real `start` subprocess against a fresh
- * `COPILOT_API_HOME` (so no token record exists) and asserts:
+ * `MAXIMAL_HOME` (so no token record exists) and asserts:
  *   1. The engine binds and announces its ports (no auth blocking startup).
  *   2. `/_debug/state` reports `github_token_present: false`.
  *   3. Upstream-touching routes 401 with `{ error: "not_authenticated" }`.

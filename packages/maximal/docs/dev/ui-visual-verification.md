@@ -45,7 +45,7 @@ the browser layer is a thin, targeted guard over the islands.
 ### 1. Playwright served-UI harness (`tests/e2e/`)
 - A Playwright project (Chromium, Linux-pinned in CI for deterministic AA/fonts)
   that boots a `maximal start` instance on an ephemeral port with an isolated
-  temp `COPILOT_API_HOME`/`CLAUDE_CONFIG_DIR` (the exact recipe already used for
+  temp `MAXIMAL_HOME`/`CLAUDE_CONFIG_DIR` (the exact recipe already used for
   the manual preview), then drives `http://127.0.0.1:<port>/ui/settings/#<section>`.
 - **Data is stubbed at the boundary** via `page.route('**/settings/api/**', …)`
   returning a fixed fixture — so dynamic fields (version, PID, uptime, git SHA,

@@ -27,7 +27,7 @@ const { __setCreateResponsesForTests, __resetCreateResponsesForTests } =
   await import("../src/routes/responses/handler")
 __setCreateResponsesForTests(createResponses)
 
-const DB_PATH_ENV = "COPILOT_API_SQLITE_DB_PATH"
+const DB_PATH_ENV = "MAXIMAL_API_SQLITE_DB_PATH"
 
 const originalState = {
   copilotToken: state.copilotToken,
@@ -192,7 +192,7 @@ afterAll(() => {
   // `mock.module` on `~/lib/config/config` or `~/lib/http/rate-limit` — see the
   // header comment at the createResponses DI shim for why. The real
   // config module is used directly (test isolation via the temp
-  // COPILOT_API_HOME preload), and rate limiting is inert because
+  // MAXIMAL_HOME preload), and rate limiting is inert because
   // `beforeEach` leaves `state.rateLimitSeconds` undefined.
   __resetCreateResponsesForTests()
 })

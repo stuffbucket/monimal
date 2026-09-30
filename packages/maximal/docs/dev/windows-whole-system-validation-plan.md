@@ -117,7 +117,7 @@ a "the *build* runs as expected as a whole" test rather than a unit test.
    apex host and alters proxy headers; the enterprise override outranks it, but
    keep the harness on the default app to avoid surprises.
 
-3. **Auth seeding.** Pre-seed a fake credential in a temp `COPILOT_API_HOME` so
+3. **Auth seeding.** Pre-seed a fake credential in a temp `MAXIMAL_HOME` so
    the proxy boots "authenticated" and hits the stub for the Copilot token:
    write the `github_token` file / `accounts.json` per
    `src/lib/auth/github-token-store.ts` (schemaVersion 1) + the multi-account

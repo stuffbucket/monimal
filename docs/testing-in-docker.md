@@ -117,7 +117,7 @@ all user-state paths below that root:
 
 - `HOME`, `USERPROFILE`, `APPDATA`, and `LOCALAPPDATA`;
 - every XDG cache, config, data, and state directory;
-- `COPILOT_API_HOME` and `CLAUDE_CONFIG_DIR`.
+- `MAXIMAL_HOME` and `CLAUDE_CONFIG_DIR`.
 
 The wrapper removes inherited API credentials, GitHub credentials, and proxy
 variables before it starts the graph. It also removes any inherited

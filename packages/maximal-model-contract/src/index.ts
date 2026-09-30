@@ -1,11 +1,136 @@
 /** An HTTP operation a provider can serve through the gateway. */
-export type ProviderOperation =
-  | "messages"
-  | "chat-completions"
-  | "responses"
-  | "embeddings"
-  | "count-tokens"
-  | "models"
+export const MODEL_OPERATIONS = Object.freeze([
+  "messages",
+  "chat-completions",
+  "responses",
+  "embeddings",
+  "systemone",
+] as const)
+
+export type ModelOperation = (typeof MODEL_OPERATIONS)[number]
+
+export type ProviderOperation = ModelOperation | "count-tokens" | "models"
+
+export interface ModelTokenizerDescriptor {
+  readonly id: string
+}
+
+export interface ModelDiagnosticEvidence {
+  readonly code: string
+  readonly message: string
+}
+
+export type ModelLifecycleState =
+  "active" | "pending-deprecation" | "deprecated" | "unknown"
+
+export interface ModelLifecycleEvidence {
+  readonly deprecationDate?: string
+  readonly info: ReadonlyArray<ModelDiagnosticEvidence>
+  readonly state: ModelLifecycleState
+  readonly warnings: ReadonlyArray<ModelDiagnosticEvidence>
+}
+
+export interface ModelSelectionEvidence {
+  readonly default?: boolean
+  readonly fallback?: boolean
+  readonly preview?: boolean
+  readonly selectable?: boolean
+}
+
+export interface ModelAccessEvidence {
+  readonly restrictedTo?: ReadonlyArray<string>
+  readonly state?: string
+  readonly terms?: string
+}
+
+export interface ModelVisionLimits {
+  readonly maxImageBytes?: number | null
+  readonly maxImages?: number | null
+  readonly supportedMediaTypes?: ReadonlyArray<string>
+}
+
+export interface ModelRuntimeLimits {
+  readonly contextTokens?: number | null
+  readonly embeddingMaxInputs?: number | null
+  readonly inputTokens?: number | null
+  readonly nonStreamingOutputTokens?: number | null
+  readonly outputTokens?: number | null
+  readonly vision?: ModelVisionLimits
+}
+
+export interface ModelRuntimeCapabilities {
+  readonly adaptiveThinking?: boolean
+  readonly dimensions?: boolean
+  readonly maxThinkingBudget?: number | null
+  readonly minThinkingBudget?: number | null
+  readonly parallelToolCalls?: boolean
+  readonly reasoningEffort?: ReadonlyArray<string>
+  readonly streaming?: boolean
+  readonly structuredOutputs?: boolean
+  readonly toolCalls?: boolean
+  readonly vision?: boolean
+}
+
+export interface ModelTokenPriceTier {
+  readonly cacheReadAmount?: number | null
+  readonly cacheWrite1HourAmount?: number | null
+  readonly cacheWriteAmount?: number | null
+  readonly inputAmount?: number | null
+  readonly maxInputTokens?: number | null
+  readonly outputAmount?: number | null
+  readonly reasoningAmount?: number | null
+}
+
+export interface ModelTokenPriceUnit {
+  readonly currency: string | null
+  readonly tokensPerBatch: number | null
+}
+
+export interface ModelTokenPricing {
+  readonly autoDiscount?: number | null
+  readonly default: ModelTokenPriceTier
+  readonly longContext?: ModelTokenPriceTier
+  readonly unit: ModelTokenPriceUnit
+}
+
+export interface GithubCopilotModelDetails {
+  readonly kind: "github-copilot"
+  readonly legacyBilling?: {
+    readonly isPremium: boolean | null
+    readonly multiplier: number | null
+  }
+  readonly pickerCategory?: string
+  readonly pickerPriceCategory?: string
+  readonly version: string
+}
+
+export type ModelProviderDetails = GithubCopilotModelDetails
+
+export interface ModelRuntimeEvidence {
+  readonly access?: ModelAccessEvidence
+  readonly capabilities?: ModelRuntimeCapabilities
+  readonly endpoints?: ReadonlyArray<string>
+  readonly lifecycle?: ModelLifecycleEvidence
+  readonly limits?: ModelRuntimeLimits
+  readonly pricing?: ModelTokenPricing
+  readonly providerDetails?: ModelProviderDetails
+  readonly selection?: ModelSelectionEvidence
+}
+
+export interface ProviderModelDescriptor {
+  readonly capabilities?: ReadonlyArray<string>
+  readonly contextWindowTokens?: number
+  readonly enabled?: boolean
+  readonly evidence?: ModelRuntimeEvidence
+  readonly family?: string
+  readonly id: string
+  readonly maxOutputTokens?: number
+  readonly name: string
+  readonly operations?: ReadonlyArray<ModelOperation>
+  readonly provider: string
+  readonly providerName: string
+  readonly tokenizer?: ModelTokenizerDescriptor
+}
 
 /**
  * One provider-bound Web API exchange.
@@ -93,8 +218,10 @@ export interface LocalModelCatalogEntry {
   readonly format: string
   readonly key: string
   readonly modelId: string
+  readonly operations?: ReadonlyArray<ModelOperation>
   readonly publication: LocalModelPublication
   readonly state: LocalModelState
+  readonly tokenizer?: ModelTokenizerDescriptor
 }
 
 /** An immutable local-model catalog snapshot. */

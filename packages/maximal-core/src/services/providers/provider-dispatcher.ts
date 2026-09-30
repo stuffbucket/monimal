@@ -269,7 +269,7 @@ export function createProviderDispatcher(
       if (
         disposed
         || activationGeneration !== generation
-        || configSource.getSnapshot().providerHost.mode !== "dsh"
+        || configSource.getSnapshot().providerHost.mode !== "plugins"
       ) {
         await safeRetire(candidate, "stale activation")
         return
@@ -283,7 +283,7 @@ export function createProviderDispatcher(
         queuedActivation = undefined
         return
       }
-      if (configSource.getSnapshot().providerHost.mode !== "dsh") {
+      if (configSource.getSnapshot().providerHost.mode !== "plugins") {
         queuedActivation = undefined
         return
       }
@@ -311,7 +311,7 @@ export function createProviderDispatcher(
 
   const unsubscribeConfig = configSource?.subscribe(onConfig)
   const initialActivation =
-    configSource?.getSnapshot().providerHost.mode === "dsh" ?
+    configSource?.getSnapshot().providerHost.mode === "plugins" ?
       activate(configSource.getSnapshot())
     : undefined
 
@@ -412,6 +412,10 @@ export function createProviderDispatcher(
                 (value): Array<ProviderCatalogueModel> => {
                   const model = asRecord(value)
                   if (typeof model?.id !== "string") return []
+                  const operations = status.operations.filter(
+                    (operation) =>
+                      operation !== "count-tokens" && operation !== "models",
+                  )
                   return [
                     {
                       id: model.id,
@@ -420,6 +424,7 @@ export function createProviderDispatcher(
                           model.display_name
                         : model.id,
                       enabled: true,
+                      ...(operations.length === 0 ? {} : { operations }),
                       provider: status.provider,
                       providerName: status.displayName ?? status.provider,
                     },

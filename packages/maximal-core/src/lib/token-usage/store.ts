@@ -1,6 +1,7 @@
 import path from "node:path"
 
 /* eslint-disable max-lines -- legacy usage store remains one transactional module */
+import { loadRuntimeSettings } from "~/lib/config/runtime-settings"
 import { PATHS } from "~/lib/platform/paths"
 import { registerProcessCleanup } from "~/lib/platform/process-cleanup"
 import { runtimeLogger } from "~/lib/platform/runtime-logger"
@@ -161,14 +162,14 @@ export interface TokenUsageEventsPage {
   total_pages: number
 }
 
-const DB_PATH_ENV = "COPILOT_API_SQLITE_DB_PATH"
 const DEFAULT_DB_FILENAME = "copilot-api.sqlite"
 
 let writeQueue: Promise<void> = Promise.resolve()
 
 function getDbPath(): string {
   return (
-    process.env[DB_PATH_ENV] ?? path.join(PATHS.APP_DIR, DEFAULT_DB_FILENAME)
+    loadRuntimeSettings().apiSqliteDbPath
+    ?? path.join(PATHS.APP_DIR, DEFAULT_DB_FILENAME)
   )
 }
 

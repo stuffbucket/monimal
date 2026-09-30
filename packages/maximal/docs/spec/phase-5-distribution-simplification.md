@@ -42,7 +42,7 @@ deployments expect (group-policy-deployable). install.ps1 was only ever
 
 ### 5.2 Config snapshot for `configure-claude-desktop`
 
-New file: `${COPILOT_API_HOME}/state/claude-desktop.snapshot.json`.
+New file: `${MAXIMAL_HOME}/state/claude-desktop.snapshot.json`.
 Schema:
 
 ```jsonc
@@ -84,7 +84,7 @@ weren't restored.
 
 ### 5.3 Install-source marker
 
-`installer scripts` write `${COPILOT_API_HOME}/state/installed-by` containing
+`installer scripts` write `${MAXIMAL_HOME}/state/installed-by` containing
 one of:
 
 - `homebrew`
@@ -126,7 +126,7 @@ write hooks.
    enough for revert; history is cheap to add later if needed.
 2. What if `configure-claude-desktop --revert` is invoked from a snapshot
    created by a *different* user? Scope the snapshot to current user's
-   home; `${COPILOT_API_HOME}` already does that.
+   home; `${MAXIMAL_HOME}` already does that.
 3. The MSI "drop install.ps1" decision — does anyone in the field already
    depend on `iex (irm install.ps1)` for unattended setup? Internal-MS
    audit before merging.

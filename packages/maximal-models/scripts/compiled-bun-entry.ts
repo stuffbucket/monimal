@@ -1,4 +1,7 @@
-import { startDshHost, type ActivationSnapshot } from "../src/index.ts"
+import {
+  startProviderPluginHost,
+  type ActivationSnapshot,
+} from "../src/index.ts"
 
 const args = process.argv.slice(2)
 if (args.length !== 3)
@@ -11,7 +14,10 @@ const [profileDirectory, activationJson, provider] = args as [
   string,
 ]
 const activation = JSON.parse(activationJson) as ActivationSnapshot
-await using host = await startDshHost({ profileDirectory, activation })
+await using host = await startProviderPluginHost({
+  profileDirectory,
+  activation,
+})
 const signal = new AbortController().signal
 const response = await host.dispatch({
   operation: "models",

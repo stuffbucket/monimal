@@ -15,12 +15,17 @@ import {
   Switch,
   type ModelCard,
 } from "@maximal/maximal-electron/renderer";
+import { reconcileModelInventory } from "@maximal/maximal-model-catalog";
 
 import type { LocalModelCatalogSnapshot } from "../../../shared/host";
 import type { SettingsCapabilities } from "../capabilities";
 
 import { formatBytes, progressLabel, publicationLabel } from "./format";
 import type { ActiveOperation } from "./types";
+import {
+  localModelObservations,
+  modelFeatureEnabled,
+} from "../model-inventory";
 
 interface MaximalModelsSectionProps {
   capabilities: SettingsCapabilities;
@@ -34,23 +39,23 @@ interface MaximalModelsSectionProps {
 const EMPTY_MODELS: LocalModelCatalogSnapshot["models"] = [];
 
 function cardFor(
-  model: LocalModelCatalogSnapshot["models"][number],
+  model: ReturnType<typeof reconcileModelInventory>["models"][number],
 ): ModelCard {
   return {
-    id: model.modelId,
-    name: model.displayName,
-    kind: "Chat models",
-    provider: "Maximal",
+    id: model.id,
+    name: model.name,
+    kind: model.kind,
+    provider: model.provider.name,
     local: true,
-    contextWindowTokens: model.context.contextWindow,
-    maxOutputTokens: model.context.maxOutputTokens,
+    contextWindowTokens: model.limits.contextTokens.value ?? undefined,
+    maxOutputTokens: model.limits.outputTokens.value ?? undefined,
     capabilities: {
-      vision: model.capabilities.input.includes("image"),
-      imageGeneration: model.capabilities.output.includes("image"),
-      videoGeneration: model.capabilities.output.includes("video"),
-      toolCalls: false,
+      vision: modelFeatureEnabled(model, "vision"),
+      imageGeneration: modelFeatureEnabled(model, "imageGeneration"),
+      videoGeneration: modelFeatureEnabled(model, "videoGeneration"),
+      toolCalls: modelFeatureEnabled(model, "toolCalls"),
       streaming: true,
-      reasoning: false,
+      reasoning: modelFeatureEnabled(model, "reasoning"),
     },
   };
 }
@@ -107,7 +112,13 @@ export function MaximalModelsSection({
   const endpoint = endpointQuery.data ?? null;
 
   const models = catalogue?.models ?? EMPTY_MODELS;
-  const cards = useMemo(() => models.map(cardFor), [models]);
+  const cards = useMemo(
+    () =>
+      reconcileModelInventory(null, localModelObservations(models)).models.map(
+        cardFor,
+      ),
+    [models],
+  );
   const contextLength =
     models.length === 0
       ? null

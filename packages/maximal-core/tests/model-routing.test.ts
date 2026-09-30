@@ -94,7 +94,7 @@ const message = (provider: string): Response =>
 function appFor(gateway: ProviderGateway, config: AppConfig = {}) {
   return createServerApps({
     providerGateway: gateway,
-    readConfig: () => ({ ...config, providerHost: { mode: "dsh" } }),
+    readConfig: () => ({ ...config, providerHost: { mode: "plugins" } }),
   }).publicApp
 }
 

@@ -100,7 +100,7 @@ const PATH_ROOTS = ["src", "tests", "scripts", "docs", "downstream", ".github"]
 /**
  * A token containing any of these is a pattern, a placeholder or a shell
  * expansion — `src/…`, `tests/**`, `docs/decisions/<id>-<slug>.md`,
- * `${COPILOT_API_HOME}/state`, `.github/workflows/*.yml`. Never a literal path.
+ * `${MAXIMAL_HOME}/state`, `.github/workflows/*.yml`. Never a literal path.
  */
 const PLACEHOLDER = /[*?<>{}$|\\%~…]|\.\.\./
 

@@ -131,7 +131,7 @@ describe("validateAppConfig", () => {
   it("preserves opaque provider plugin config", () => {
     const config = {
       providerHost: {
-        mode: "dsh" as const,
+        mode: "plugins" as const,
         profileDirectory: "/tmp/maximal-providers",
       },
       providerPlugins: {

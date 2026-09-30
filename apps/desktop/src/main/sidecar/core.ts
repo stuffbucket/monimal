@@ -309,7 +309,7 @@ async function launchCore(): Promise<{ proxyUrl: string; port: number; pid: numb
     stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
     env: {
       ...process.env,
-      COPILOT_API_HOME: dataHome,
+      MAXIMAL_HOME: dataHome,
       ...(credentialHome === undefined
         ? {}
         : { COPILOT_API_CREDENTIAL_HOME: credentialHome }),

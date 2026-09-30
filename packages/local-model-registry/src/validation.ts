@@ -4,6 +4,8 @@ import type {
   LocalModelPublication,
 } from "@maximal/maximal-model-contract"
 
+import { MODEL_OPERATIONS } from "@maximal/maximal-model-contract"
+
 import type { LocalModelManifest, LocalModelRunnerDescriptor } from "./types.ts"
 
 const IDENTIFIER = /^[a-z0-9][\w.-]*$/i
@@ -78,6 +80,36 @@ function publication(value: unknown): LocalModelPublication {
   return value
 }
 
+function tokenizer(
+  value: unknown,
+): NonNullable<LocalModelManifest["tokenizer"]> {
+  const input = record(value, "manifest.tokenizer")
+  return Object.freeze({
+    id: identifier(input.id, "manifest.tokenizer.id"),
+  })
+}
+
+function modelOperations(
+  value: unknown,
+): NonNullable<LocalModelManifest["operations"]> {
+  if (!Array.isArray(value) || value.length === 0)
+    throw new TypeError("manifest.operations must be a non-empty array.")
+  const operations = value.map((operation, index) => {
+    const matched = MODEL_OPERATIONS.find(
+      (candidate) => candidate === operation,
+    )
+    if (matched === undefined) {
+      throw new TypeError(
+        `manifest.operations[${index}] must be a model operation.`,
+      )
+    }
+    return matched
+  })
+  if (new Set(operations).size !== operations.length)
+    throw new TypeError("manifest.operations must not contain duplicates.")
+  return Object.freeze(operations)
+}
+
 function fileSignature(
   value: unknown,
   expectedBytes: number,
@@ -111,6 +143,12 @@ export function validateManifest(value: unknown): LocalModelManifest {
   const sha256 = nonEmpty(input.sha256, "manifest.sha256")
   if (!SHA256.test(sha256))
     throw new TypeError("manifest.sha256 must be a SHA-256 hex digest.")
+  const tokenizerDescriptor =
+    input.tokenizer === undefined ? undefined : tokenizer(input.tokenizer)
+  const operations =
+    input.operations === undefined ?
+      undefined
+    : modelOperations(input.operations)
   return Object.freeze({
     capabilities: capabilities(input.capabilities, "manifest.capabilities"),
     context: contextLimits(input.context),
@@ -121,8 +159,12 @@ export function validateManifest(value: unknown): LocalModelManifest {
     format: identifier(input.format, "manifest.format"),
     key: identifier(input.key, "manifest.key"),
     modelId: nonEmpty(input.modelId, "manifest.modelId"),
+    ...(operations === undefined ? {} : { operations }),
     publication: publication(input.publication),
     sha256: sha256.toLowerCase(),
+    ...(tokenizerDescriptor === undefined ?
+      {}
+    : { tokenizer: tokenizerDescriptor }),
   })
 }
 

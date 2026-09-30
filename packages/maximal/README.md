@@ -26,7 +26,7 @@ runs in-process.
 
 ```
 src/                       Packaging composition entry (Core CLI + optional
-                           generic DSH provider host; no concrete providers).
+                           generic provider plugin host; no concrete providers).
 tests/                     bun-test packaging and composition suites.
 docs/admin/                MDM reference, Cowork client config notes.
 docs/spec/                 Architecture specs (web-tools, tool-bridge).
@@ -94,16 +94,17 @@ claude
 
 ## Configuration
 
-Settings can be supplied through five sources. Higher in the list
+Settings can be supplied through six sources. Higher in the list
 wins:
 
 | # | Source | Lifetime | Notes |
 |---|---|---|---|
 | 1 | **CLI flags** | per-invocation | `--port`, `--account-type`, `--verbose`, etc. See `maximal start --help`. |
-| 2 | **Environment variables** | shell scope | `OLLAMA_API_KEY`, `ANTHROPIC_API_KEY`, `COPILOT_API_HOME`, `COPILOT_API_ENTERPRISE_URL`, `COPILOT_API_OAUTH_APP`. Bun also auto-loads `.env`. |
-| 3 | **Secrets files** | persistent, mode 0600 | `~/.local/share/maximal/secrets/<provider>` (e.g. `secrets/ollama`). Refused if mode is broader than 0600. |
-| 4 | **Config file** | persistent | `~/.local/share/maximal/config.json`. Schema-validated at boot; bad keys fail with a key path. Unknown keys warn but pass through. |
-| 5 | **Built-in defaults** | always | `src/lib/config.ts`. |
+| 2 | **Environment variables** | shell scope | `OLLAMA_API_KEY`, `ANTHROPIC_API_KEY`, `MAXIMAL_HOME`, `COPILOT_API_ENTERPRISE_URL`, `COPILOT_API_OAUTH_APP`. Bun also auto-loads `.env`. |
+| 3 | **Settings file** | persistent | `$XDG_CONFIG_HOME/maximal/settings.json` (or `~/.config/maximal/settings.json`) supplies `home`, `homePolicy`, and `apiSqliteDbPath`. |
+| 4 | **Secrets files** | persistent, mode 0600 | `~/.local/share/maximal/secrets/<provider>` (e.g. `secrets/ollama`). Refused if mode is broader than 0600. |
+| 5 | **Config file** | persistent | `~/.local/share/maximal/config.json`. Schema-validated at boot; bad keys fail with a key path. Unknown keys warn but pass through. |
+| 6 | **Built-in defaults** | always | `src/lib/config.ts`. |
 
 ### Knob reference
 
@@ -117,7 +118,9 @@ wins:
 | Ollama API key | — | `OLLAMA_API_KEY` | `secrets/ollama` | unset |
 | Anthropic API key | — | `ANTHROPIC_API_KEY` | `secrets/anthropic` | `config.anthropicApiKey` |
 | GitHub token | `--github-token` | — | `app/github_token` | from `auth` flow |
-| App home dir | — | `COPILOT_API_HOME` | — | `~/.local/share/maximal` |
+| App home dir | — | `MAXIMAL_HOME` | `settings.home` | `~/.local/share/maximal` |
+| Data-home policy | — | `MAXIMAL_HOME_POLICY` | `settings.homePolicy` | `create` |
+| API SQLite database | — | `MAXIMAL_API_SQLITE_DB_PATH` | `settings.apiSqliteDbPath` | `<home>/copilot-api.sqlite` |
 | Enterprise URL | — | `COPILOT_API_ENTERPRISE_URL` | — | unset |
 | OAuth app ID | — | `COPILOT_API_OAUTH_APP` | — | upstream default |
 | Use Messages API | — | — | `useMessagesApi` | `true` |
@@ -138,12 +141,12 @@ Secrets are masked everywhere — the debug output reports `<env>` /
 
 ## External provider plugins
 
-Provider-scoped routes can optionally use genuine Cordis/DeepSeek Harness LLM
-adapter plugins installed in a user-managed profile. The default remains
-`providerHost.mode: "legacy"`; select `"dsh"` explicitly to activate a profile.
-A selected DSH mode never falls back silently to legacy.
+Provider-scoped routes can optionally use Cordis LLM adapter plugins installed
+in a user-managed profile. The default remains
+`providerHost.mode: "legacy"`; select `"plugins"` explicitly to activate a
+profile. A selected plugin mode never falls back silently to legacy.
 
-Profiles use exact package versions and keep Cordis, DSH, services, and concrete
+Profiles use exact package versions and keep Cordis, services, and concrete
 adapters outside the Maximal executable. Plugin enablement and native config can
 change live; replacing installed package code requires a provider-host restart.
 Plugins are trusted in-process code, not sandboxed extensions.

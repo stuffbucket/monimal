@@ -5,6 +5,6 @@
 # run by tooling-ci.yml). Drop this and `bun test` would
 # swallow the ops suite into the product gate.
 root = "tests"
-# Redirect COPILOT_API_HOME to a temp dir before any module loads, so no test
+# Redirect MAXIMAL_HOME to a temp dir before any module loads, so no test
 # reads/writes the developer's real ~/.local/share/maximal data. See test-setup.ts.
 preload = ["./tests/test-setup.ts"]

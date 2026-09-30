@@ -13,7 +13,7 @@ const isolatedPathVariables = [
   "USERPROFILE",
   "APPDATA",
   "LOCALAPPDATA",
-  "COPILOT_API_HOME",
+  "MAXIMAL_HOME",
   "CLAUDE_CONFIG_DIR",
 ]
 

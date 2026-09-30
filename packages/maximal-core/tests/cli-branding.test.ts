@@ -29,7 +29,7 @@ function runCli(args: Array<string>) {
       HOME: process.env.HOME ?? cwd,
       PATH: process.env.PATH ?? "",
       TMPDIR: testHome,
-      COPILOT_API_HOME: testHome,
+      MAXIMAL_HOME: testHome,
       COPILOT_API_OAUTH_APP: "",
       COPILOT_API_ENTERPRISE_URL: "",
       NO_COLOR: "1",
