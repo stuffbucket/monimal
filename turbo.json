@@ -38,6 +38,15 @@
         ],
       "description": "Build package outputs after building workspace dependencies."
     },
+    "token:inventory": {
+      "outputs": ["dist/**"],
+      "description": "Build the workspace-wide Style Dictionary token inventory."
+    },
+    "token:check": {
+      "dependsOn": ["token:inventory"],
+      "outputs": [],
+      "description": "Enforce the down-only warning ratchet for token migration issues."
+    },
     "@maximal/maximal-client#build": {
       "dependsOn": ["^build"],
       "outputs": []
