@@ -88,6 +88,34 @@ export {
   type WindowChromeProps,
 } from './components/WindowChrome.js';
 export {
+  SpatialCanvas,
+  SpatialCanvasCommentPin,
+  SpatialCanvasConnectorLayer,
+  SpatialCanvasCursor,
+  SpatialCanvasItem,
+  SpatialCanvasMarquee,
+  SpatialCanvasProjectCard,
+  SpatialCanvasScene,
+  SpatialCanvasViewport,
+  type SpatialCanvasLine,
+} from './components/SpatialCanvas.js';
+export {
+  SpatialCanvasAvatar,
+  SpatialCanvasControlGroup,
+  SpatialCanvasCorner,
+  SpatialCanvasFloatingPanel,
+  SpatialCanvasHeaderAction,
+  SpatialCanvasPages,
+  SpatialCanvasPresence,
+  SpatialCanvasSidePanel,
+  SpatialCanvasToolButton,
+  SpatialCanvasTopBar,
+  SpatialCanvasZoomControls,
+  type SpatialCanvasHeaderActionKind,
+  type SpatialCanvasPage,
+  type SpatialCanvasToolKind,
+} from './components/SpatialCanvasChrome.js';
+export {
   fill,
   SHELL_CONTENT,
   ShellContentContext,
@@ -124,6 +152,7 @@ export {
   Tag,
   TextInput,
   Textarea,
+  TooltipProvider,
   Toolbar,
   UnsavedChangesDialog,
   ViewModeSwitch,

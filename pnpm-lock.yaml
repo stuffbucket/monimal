@@ -70,6 +70,9 @@ importers:
       '@maximal/maximal-ollama':
         specifier: workspace:*
         version: link:../../packages/maximal-ollama
+      '@maximal/maximal-project-browser':
+        specifier: workspace:*
+        version: link:../../packages/maximal-project-browser
       '@maximal/maximal-recording':
         specifier: workspace:*
         version: link:../../packages/maximal-recording
@@ -427,6 +430,9 @@ importers:
       '@maximal/maximal-ollama':
         specifier: workspace:*
         version: link:../maximal-ollama
+      '@maximal/maximal-project-browser':
+        specifier: workspace:*
+        version: link:../maximal-project-browser
       '@maximal/maximal-search':
         specifier: workspace:*
         version: link:../maximal-search
@@ -1254,6 +1260,52 @@ importers:
       eslint:
         specifier: ^10.9.1
         version: 10.9.1(jiti@2.7.0)(supports-color@8.1.1)
+      typescript:
+        specifier: npm:@typescript/typescript6@^6.0.2
+        version: '@typescript/typescript6@6.0.2'
+      vitest:
+        specifier: ^5.0.1
+        version: 5.0.1(@opentelemetry/api@1.9.0)(@types/node@26.4.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))
+
+  packages/maximal-project-browser:
+    dependencies:
+      '@maximal/maximal-electron':
+        specifier: workspace:*
+        version: link:../maximal-electron
+      y-protocols:
+        specifier: 1.0.7
+        version: 1.0.7(yjs@13.6.27)
+      yjs:
+        specifier: 13.6.27
+        version: 13.6.27
+    devDependencies:
+      '@maximal/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@types/react':
+        specifier: ^19.2.17
+        version: 19.2.18
+      '@types/react-dom':
+        specifier: ^19.2.5
+        version: 19.2.5(@types/react@19.2.18)
+      '@typescript/native':
+        specifier: npm:typescript@^7.0.2
+        version: typescript@7.0.2
+      eslint:
+        specifier: ^10.9.1
+        version: 10.9.1(jiti@2.7.0)(supports-color@8.1.1)
+      jsdom:
+        specifier: ^30.0.1
+        version: 30.0.1
+      react:
+        specifier: ^19.2.8
+        version: 19.2.8
+      react-dom:
+        specifier: ^19.2.8
+        version: 19.2.8(react@19.2.8)
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(@typescript/typescript6@6.0.2)(jiti@2.7.0)(postcss@8.5.26)(supports-color@8.1.1)(yaml@2.9.0)
       typescript:
         specifier: npm:@typescript/typescript6@^6.0.2
         version: '@typescript/typescript6@6.0.2'
@@ -7140,6 +7192,9 @@ packages:
   ismobilejs@1.1.1:
     resolution: {integrity: sha1-xWygro5Sskyg8iul7zIVot27qg4=}
 
+  isomorphic.js@0.2.5:
+    resolution: {integrity: sha1-E+7PNvLbpT6F01XhG/nUIIxvf4g=}
+
   jest-worker@27.5.1:
     resolution: {integrity: sha1-jRRvCQDolzsQa29zzB6ajLhvjbA=}
     engines: {node: '>= 10.13.0'}
@@ -7324,6 +7379,11 @@ packages:
   levn@0.4.1:
     resolution: {integrity: sha1-rkViwAdHO5MqYgDUAyaN0v/8at4=}
     engines: {node: '>= 0.8.0'}
+
+  lib0@0.2.117:
+    resolution: {integrity: sha1-bD+SZHXSiQSvBbWQcDy7vClHVxY=}
+    engines: {node: '>=16'}
+    hasBin: true
 
   lifecycle-utils@2.1.0:
     resolution: {integrity: sha1-RHxoSao2aSoNIyeTfI8tOxQR9Ns=}
@@ -8861,7 +8921,7 @@ packages:
     engines: {node: '>=0.10.0'}
 
   style-dictionary@https://codeload.github.com/style-dictionary/style-dictionary/tar.gz/489abdfcf6c4a23c35e9d4e85ae93b9c02d9cf4a:
-    resolution: {integrity: sha512-eTH0SOtKX0bTK3NQsW6hp7pXRw17MDmM0X56szflqaWAcTyXWQyRjwnEA+dH6tQgtzhsmxMYQO42qmTcHazfSQ==, tarball: https://codeload.github.com/style-dictionary/style-dictionary/tar.gz/489abdfcf6c4a23c35e9d4e85ae93b9c02d9cf4a}
+    resolution: {gitHosted: true, integrity: sha512-eTH0SOtKX0bTK3NQsW6hp7pXRw17MDmM0X56szflqaWAcTyXWQyRjwnEA+dH6tQgtzhsmxMYQO42qmTcHazfSQ==, tarball: https://codeload.github.com/style-dictionary/style-dictionary/tar.gz/489abdfcf6c4a23c35e9d4e85ae93b9c02d9cf4a}
     version: 5.5.5
     engines: {node: '>=22.0.0'}
     hasBin: true
@@ -9535,6 +9595,12 @@ packages:
   xmlchars@2.2.0:
     resolution: {integrity: sha1-Bg/hvLf5x2/ioX24apvDq4lCEMs=}
 
+  y-protocols@1.0.7:
+    resolution: {integrity: sha1-ZjHEkudbeLOmE1OmAGfm+KTDjV8=}
+    engines: {node: '>=16.0.0', npm: '>=8.0.0'}
+    peerDependencies:
+      yjs: ^13.0.0
+
   y18n@5.0.8:
     resolution: {integrity: sha1-f0k00PfKjFb5UxSTndzS3ZHOHVU=}
     engines: {node: '>=10'}
@@ -9569,6 +9635,10 @@ packages:
   yargs@18.1.0:
     resolution: {integrity: sha1-zX6YxwPvUWlbu/Bi7VjyjpQpG1Y=}
     engines: {node: ^20.19.0 || ^22.12.0 || >=23}
+
+  yjs@13.6.27:
+    resolution: {integrity: sha1-iJm+kp1X2gWgqhEtBEpcIEOTq3s=}
+    engines: {node: '>=16.0.0', npm: '>=8.0.0'}
 
   yocto-queue@0.1.0:
     resolution: {integrity: sha1-ApTrPe4FAo0x7hpfosVWpqrxChs=}
@@ -15282,6 +15352,8 @@ snapshots:
 
   ismobilejs@1.1.1: {}
 
+  isomorphic.js@0.2.5: {}
+
   jest-worker@27.5.1:
     dependencies:
       '@types/node': 26.4.0
@@ -15471,6 +15543,10 @@ snapshots:
     dependencies:
       prelude-ls: 1.2.1
       type-check: 0.4.0
+
+  lib0@0.2.117:
+    dependencies:
+      isomorphic.js: 0.2.5
 
   lifecycle-utils@2.1.0: {}
 
@@ -17758,6 +17834,11 @@ snapshots:
 
   xmlchars@2.2.0: {}
 
+  y-protocols@1.0.7(yjs@13.6.27):
+    dependencies:
+      lib0: 0.2.117
+      yjs: 13.6.27
+
   y18n@5.0.8: {}
 
   yallist@3.1.1: {}
@@ -17790,6 +17871,10 @@ snapshots:
       string-width: 8.2.2
       y18n: 5.0.8
       yargs-parser: 22.0.0
+
+  yjs@13.6.27:
+    dependencies:
+      lib0: 0.2.117
 
   yocto-queue@0.1.0: {}
 

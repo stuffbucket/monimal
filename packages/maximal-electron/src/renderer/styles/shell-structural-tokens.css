@@ -54,5 +54,14 @@
   --shell-row-height: 32px;
   --shell-tab-min: 72px;
   --shell-tab-max: 168px;
+  --shell-spatial-height: min(78vh, 56rem);
+  --shell-spatial-min-height: 34rem;
+  --shell-spatial-center: 50%;
+  --shell-spatial-dot-size: 1px;
+  --shell-spatial-dot-cutoff: 1.25px;
+  --shell-spatial-panel-top: 3.5rem;
+  --shell-spatial-panel-width: 11rem;
+  --shell-spatial-panel-clearance: 7rem;
+  --shell-spatial-side-bottom: 3rem;
 }
 }

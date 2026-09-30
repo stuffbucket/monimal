@@ -142,6 +142,76 @@ async function modelLayout(page) {
   })
 }
 
+async function projectMapLayout(page) {
+  return page.evaluate(() => {
+    const canvas = document.querySelector('.spatial-canvas')
+    const pages = document.querySelector('.spatial-canvas__pages')
+    const presence = document.querySelector('.spatial-canvas__presence')
+    const controls = document.querySelector('.spatial-canvas__controls')
+    const zoom = document.querySelector('.spatial-canvas__zoom')
+    const cards = [...document.querySelectorAll('.spatial-canvas__project')]
+    if (
+      !(canvas instanceof HTMLElement)
+      || !(pages instanceof HTMLElement)
+      || !(presence instanceof HTMLElement)
+      || !(controls instanceof HTMLElement)
+      || !(zoom instanceof HTMLElement)
+      || cards.some((card) => !(card instanceof HTMLElement))
+    ) {
+      throw new Error('The ProjectBrowser spatial layout did not render.')
+    }
+
+    const canvasBounds = canvas.getBoundingClientRect()
+    const bounds = (element) => element.getBoundingClientRect()
+    const pagesBounds = bounds(pages)
+    const presenceBounds = bounds(presence)
+    const controlsBounds = bounds(controls)
+    const zoomBounds = bounds(zoom)
+    const cardBounds = cards.map(bounds)
+    const overlaps = (a, b) =>
+      a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top
+
+    return {
+      canvasPosition: getComputedStyle(canvas).position,
+      controlsPosition: getComputedStyle(controls).position,
+      pagesInTopLeft:
+        pagesBounds.left >= canvasBounds.left
+        && pagesBounds.top >= canvasBounds.top
+        && pagesBounds.left < canvasBounds.left + canvasBounds.width / 2,
+      presenceInTopRight:
+        presenceBounds.right <= canvasBounds.right
+        && presenceBounds.top >= canvasBounds.top
+        && presenceBounds.left > canvasBounds.left + canvasBounds.width / 2,
+      controlsAtBottomCenter:
+        controlsBounds.bottom <= canvasBounds.bottom
+        && controlsBounds.top > canvasBounds.top + canvasBounds.height / 2
+        && Math.abs(
+          controlsBounds.left + controlsBounds.width / 2
+            - (canvasBounds.left + canvasBounds.width / 2),
+        ) < 2,
+      zoomInLowerRight:
+        zoomBounds.right <= canvasBounds.right
+        && zoomBounds.bottom <= canvasBounds.bottom
+        && zoomBounds.left > canvasBounds.left + canvasBounds.width / 2,
+      cardCount: cards.length,
+      maxCardWidth: Math.max(...cardBounds.map((card) => card.width)),
+      maxCardHeight: Math.max(...cardBounds.map((card) => card.height)),
+      cardsInsideCanvas: cardBounds.every((card) =>
+        card.left >= canvasBounds.left
+        && card.right <= canvasBounds.right
+        && card.top >= canvasBounds.top
+        && card.bottom <= canvasBounds.bottom),
+      cardsOverlap: cardBounds.some((card, index) =>
+        cardBounds.slice(index + 1).some((other) => overlaps(card, other))),
+      toolIconCount: controls.querySelectorAll('button svg').length,
+      toolsUseTextGlyphs: [...controls.querySelectorAll('button')]
+        .some((button) => button.textContent?.trim()),
+      viewportOverflowX:
+        document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    }
+  })
+}
+
 async function providerFieldLayout(page, providerId, fullFieldId) {
   return page.evaluate(
     ({ providerId: id, fullFieldId: fullId }) => {
@@ -500,15 +570,56 @@ try {
   const modelsPath = join(outputDirectory, 'models-settings-desktop.png')
   await page.screenshot({ path: modelsPath })
 
+  await page.goto(
+    `http://${loopbackHost}:${address.port}/ui-preview.html?surface=projects`,
+    { waitUntil: 'networkidle' },
+  )
+  await page.getByTestId('project-map').waitFor()
+  const projectMap = await projectMapLayout(page)
+  check(projectMap.canvasPosition === 'relative', 'The spatial canvas is not its positioning root.')
+  check(projectMap.controlsPosition === 'absolute', 'The project tools are not canvas-positioned.')
+  check(projectMap.pagesInTopLeft, 'The page controls are not in the top-left cluster.')
+  check(projectMap.presenceInTopRight, 'Presence and sharing are not in the top-right cluster.')
+  check(projectMap.controlsAtBottomCenter, 'The project tools are not bottom-centered.')
+  check(projectMap.zoomInLowerRight, 'The zoom controls are not in the lower-right corner.')
+  check(projectMap.cardCount === 3, `Expected three project cards; found ${projectMap.cardCount}.`)
+  check(projectMap.maxCardWidth <= 248, `Project cards are ${projectMap.maxCardWidth}px wide.`)
+  check(projectMap.maxCardHeight <= 88, `Project cards are ${projectMap.maxCardHeight}px tall.`)
+  check(projectMap.cardsInsideCanvas, 'A project card is clipped by the initial viewport.')
+  check(!projectMap.cardsOverlap, 'Project cards overlap in the initial layout.')
+  check(projectMap.toolIconCount === 7, `Expected seven toolbar icons; found ${projectMap.toolIconCount}.`)
+  check(!projectMap.toolsUseTextGlyphs, 'The spatial toolbar uses text glyphs instead of icons.')
+  check(projectMap.viewportOverflowX === 0, 'ProjectBrowser overflows the viewport.')
+
+  const initialTabCount = await page.getByRole('tab').count()
+  await page.getByRole('button', { name: 'Add page' }).click()
+  check(
+    await page.getByRole('tab').count() === initialTabCount + 1,
+    'Adding a project-map page did not update page navigation.',
+  )
+  await page.getByRole('button', { name: 'Zoom in' }).click()
+  check(
+    (await page.getByRole('button', { name: /%/ }).textContent()) !== '100%',
+    'Zoom in did not update the project-map scale.',
+  )
+  await page.getByRole('button', { name: /^Comments/ }).click()
+  await page.getByLabel('Comments').waitFor()
+  await page.getByRole('button', { name: 'Close Comments' }).click()
+  await page.getByRole('button', { name: 'Chat' }).click()
+  await page.getByLabel('Team chat').waitFor()
+  const projectsPath = join(outputDirectory, 'project-browser-desktop.png')
+  await page.screenshot({ path: projectsPath })
+
   check(pageErrors.length === 0, `The preview raised browser errors: ${pageErrors.join('; ')}`)
 
-  console.log('UI check: 2 viewports, 6 captures, 4 sections, 3 providers, 2 accounts, 2 model states, 0 browser errors.')
+  console.log('UI check: 2 viewports, 7 captures, 5 sections, 3 providers, 2 accounts, 2 model states, 3 projects, 0 browser errors.')
   console.log(`Search desktop: ${desktopPath}`)
   console.log(`Search compact: ${compactPath}`)
   console.log(`Search compact Copilot: ${providerPath}`)
   console.log(`Accounts desktop: ${accountsDesktopPath}`)
   console.log(`Accounts compact: ${accountsCompactPath}`)
   console.log(`Models desktop: ${modelsPath}`)
+  console.log(`ProjectBrowser desktop: ${projectsPath}`)
 } finally {
   await browser?.close()
   await server.close()

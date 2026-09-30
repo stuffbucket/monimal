@@ -87,6 +87,15 @@ focus rings, type, and optical details are not spacing increments.
 | `--shell-space-3` | `12px` | A gap between controls. |
 | `--shell-space-4` | `16px` | Padding around a surface. |
 | `--shell-space-5` | `24px` | A gap between sections. |
+| `--shell-spatial-center` | `50%` | The horizontal anchor for centered canvas controls. |
+| `--shell-spatial-dot-cutoff` | `1.25px` | The outer edge of a canvas grid dot. |
+| `--shell-spatial-dot-size` | `1px` | The solid center of a canvas grid dot. |
+| `--shell-spatial-height` | `min(78vh, 56rem)` | The responsive spatial canvas height. |
+| `--shell-spatial-min-height` | `34rem` | The minimum usable spatial canvas height. |
+| `--shell-spatial-panel-clearance` | `7rem` | Vertical space reserved around a floating canvas panel. |
+| `--shell-spatial-panel-top` | `3.5rem` | The canvas panel offset below top controls. |
+| `--shell-spatial-panel-width` | `11rem` | The width of the compact canvas overview. |
+| `--shell-spatial-side-bottom` | `3rem` | Clearance below a canvas side panel. |
 | `--shell-tab-max` | `168px` | The widest tab before labels truncate. |
 | `--shell-tab-min` | `72px` | The narrowest tab in a crowded strip. |
 | `--shell-text-base` | `0.875rem` | Body text. |

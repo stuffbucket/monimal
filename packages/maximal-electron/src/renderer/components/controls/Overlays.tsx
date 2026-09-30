@@ -37,6 +37,7 @@ export function ShellPortalRoot({
   return <ShellRoot.Provider value={element}>{children}</ShellRoot.Provider>;
 }
 
+/** Provides the shared Radix tooltip timing and hover behavior. */
 export function TooltipProvider({
   children,
   delayDuration = 400,

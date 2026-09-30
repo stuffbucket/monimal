@@ -134,6 +134,15 @@
       "cycleEdges": [],
       "duplicatePairs": []
     },
+    "@maximal/maximal-project-browser": {
+      "root": "packages/maximal-project-browser",
+      "dependsOn": [
+        "@maximal/eslint-config",
+        "@maximal/maximal-electron"
+      ],
+      "cycleEdges": [],
+      "duplicatePairs": []
+    },
     "@maximal/maximal-context-window": {
       "root": "packages/maximal-context-window",
       "dependsOn": [
@@ -214,6 +223,7 @@
         "@maximal/maximal-observability",
         "@maximal/maximal-observability-contract",
         "@maximal/maximal-ollama",
+        "@maximal/maximal-project-browser",
         "@maximal/project-catalog",
         "@maximal/maximal-search",
         "@maximal/maximal-terminal"
@@ -246,6 +256,7 @@
         "@maximal/maximal-observability",
         "@maximal/maximal-observability-contract",
         "@maximal/maximal-ollama",
+        "@maximal/maximal-project-browser",
         "@maximal/maximal-react-component",
         "@maximal/maximal-recording",
         "@maximal/project-catalog",

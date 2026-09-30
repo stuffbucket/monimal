@@ -306,7 +306,8 @@ body {
 }
 
 .project-browser {
-  width: min(42rem, calc(100vw - var(--shell-space-5, 24px)));
+  width: min(92rem, calc(100vw - var(--shell-space-5, 24px)));
+  max-height: calc(100vh - var(--shell-space-5, 24px));
 }
 
 .project-browser__results {

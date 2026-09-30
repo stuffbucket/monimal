@@ -42,6 +42,7 @@
     "@maximal/maximal-observability": "workspace:*",
     "@maximal/maximal-observability-contract": "workspace:*",
     "@maximal/maximal-ollama": "workspace:*",
+    "@maximal/maximal-project-browser": "workspace:*",
     "@maximal/maximal-recording": "workspace:*",
     "@maximal/project-catalog": "workspace:*",
     "@maximal/maximal-settings": "workspace:*",

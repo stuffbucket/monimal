@@ -89,6 +89,17 @@
   --tab-min: 72px;
   --tab-max: 168px;
 
+  /* ---- Spatial canvas ---- */
+  --spatial-height: min(78vh, 56rem);
+  --spatial-min-height: 34rem;
+  --spatial-center: 50%;
+  --spatial-dot-size: 1px;
+  --spatial-dot-cutoff: 1.25px;
+  --spatial-panel-top: 3.5rem;
+  --spatial-panel-width: 11rem;
+  --spatial-panel-clearance: 7rem;
+  --spatial-side-bottom: 3rem;
+
   /*
    * ---- Navigation rail ----
    *
