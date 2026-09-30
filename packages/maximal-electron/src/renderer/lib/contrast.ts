@@ -130,6 +130,7 @@ export const REQUIRED_TOKENS: string[] = [
   '--radius-input',
   '--radius-pill',
   '--size-row',
+  '--size-icon',
   '--size-tabbar',
   '--size-titlebar',
   '--space-1',
@@ -158,8 +159,6 @@ export const REQUIRED_TOKENS: string[] = [
   '--weight-base',
   '--weight-lg',
   '--weight-md',
-  '--workbar-icon-size',
-  '--workbar-item-size',
   '--workbar-width',
 ];
 

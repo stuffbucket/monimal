@@ -111,7 +111,7 @@
   min-height: 0;
   flex: none;
   overflow: hidden;
-  border-right: 1px solid var(--shell-border);
+  box-shadow: inset -1px 0 var(--shell-border);
 }
 
 .sb-shell .panels {
@@ -740,7 +740,7 @@
   flex-direction: column;
   width: 100%;
   height: 100%;
-  padding: var(--shell-space-1);
+  padding: var(--shell-space-2);
   overflow: hidden auto;
 }
 
@@ -749,7 +749,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--shell-space-2);
+  gap: var(--shell-space-1);
 }
 
 .sb-shell .workbar__bottom {
@@ -760,8 +760,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: var(--shell-workbar-item-size);
-  height: var(--shell-workbar-item-size);
+  width: var(--shell-control-lg);
+  height: var(--shell-control-lg);
   flex: none;
   padding: 0;
   color: var(--shell-text-muted);
@@ -783,18 +783,18 @@
 }
 
 .sb-shell .workbar__item > svg {
-  width: var(--shell-workbar-icon-size);
-  height: var(--shell-workbar-icon-size);
+  width: var(--shell-icon-size);
+  height: var(--shell-icon-size);
 }
 
 .sb-shell .workbar__bottom .icon-button {
-  width: var(--shell-workbar-item-size);
-  height: var(--shell-workbar-item-size);
+  width: var(--shell-control-lg);
+  height: var(--shell-control-lg);
 }
 
 .sb-shell .workbar__bottom .icon-button > svg {
-  width: var(--shell-workbar-icon-size);
-  height: var(--shell-workbar-icon-size);
+  width: var(--shell-icon-size);
+  height: var(--shell-icon-size);
 }
 
 .sb-shell .toolbar {

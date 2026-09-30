@@ -15,17 +15,19 @@ const ITEMS: WorkbarItem<string>[] = [
 function Example() {
   const [current, setCurrent] = useState('overview');
   return (
-    <div className="sb-shell" style={{ width: 'var(--shell-workbar-width)', height: '100vh' }}>
-      <Workbar
-        items={ITEMS}
-        current={current}
-        onSelect={setCurrent}
-        account={{ id: 'octocat', displayName: 'Octocat', handle: '@octocat' }}
-        onOpenProfileSurface={() => undefined}
-        onSignOut={() => undefined}
-        settingsOpen={false}
-        onToggleSettings={() => undefined}
-      />
+    <div className="sb-shell" style={{ display: 'flex', height: '100vh' }}>
+      <aside className="activity-rail">
+        <Workbar
+          items={ITEMS}
+          current={current}
+          onSelect={setCurrent}
+          account={{ id: 'octocat', displayName: 'Octocat', handle: '@octocat' }}
+          onOpenProfileSurface={() => undefined}
+          onSignOut={() => undefined}
+          settingsOpen={false}
+          onToggleSettings={() => undefined}
+        />
+      </aside>
     </div>
   );
 }
@@ -45,5 +47,29 @@ export const Default: Story = {
     const terminal = canvas.getByRole('button', { name: 'Terminal' });
     await userEvent.click(terminal);
     await expect(terminal).toHaveAttribute('aria-current', 'true');
+    await expect(canvas.getByRole('navigation', { name: 'Workspace views' })).toHaveStyle({
+      width: '48px',
+      padding: '8px',
+    });
+    await expect(canvasElement.querySelector('.activity-rail')).toHaveStyle({
+      width: '48px',
+      minWidth: '48px',
+    });
+    await expect(terminal).toHaveStyle({
+      width: '32px',
+      height: '32px',
+    });
+    await expect(terminal.querySelector('svg')).toHaveStyle({
+      width: '16px',
+      height: '16px',
+    });
+    await expect(canvas.getByTestId('profile')).toHaveStyle({
+      width: '32px',
+      height: '32px',
+    });
+    await expect(canvas.getByTestId('toggle-settings')).toHaveStyle({
+      width: '32px',
+      height: '32px',
+    });
   },
 };

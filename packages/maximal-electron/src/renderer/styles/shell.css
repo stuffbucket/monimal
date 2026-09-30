@@ -146,7 +146,7 @@ body {
   min-height: 0;
   flex: none;
   overflow: hidden;
-  border-right: 1px solid var(--border-subtle);
+  box-shadow: inset -1px 0 var(--border-subtle);
 }
 
 .panels {
@@ -319,7 +319,7 @@ body {
   flex-direction: column;
   width: 100%;
   height: 100%;
-  padding: var(--space-1);
+  padding: var(--space-2);
   overflow: hidden auto;
 }
 
@@ -328,7 +328,7 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-1);
 }
 
 .workbar__bottom {
@@ -339,8 +339,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: var(--workbar-item-size);
-  height: var(--workbar-item-size);
+  width: var(--control-lg);
+  height: var(--control-lg);
   flex: none;
   padding: 0;
   color: var(--text-secondary);
@@ -362,18 +362,18 @@ body {
 }
 
 .workbar__item > svg {
-  width: var(--workbar-icon-size);
-  height: var(--workbar-icon-size);
+  width: var(--size-icon);
+  height: var(--size-icon);
 }
 
 .workbar__bottom .icon-button {
-  width: var(--workbar-item-size);
-  height: var(--workbar-item-size);
+  width: var(--control-lg);
+  height: var(--control-lg);
 }
 
 .workbar__bottom .icon-button > svg {
-  width: var(--workbar-icon-size);
-  height: var(--workbar-icon-size);
+  width: var(--size-icon);
+  height: var(--size-icon);
 }
 
 /*

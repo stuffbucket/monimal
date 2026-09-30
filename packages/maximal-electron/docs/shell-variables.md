@@ -56,6 +56,7 @@ focus rings, type, and optical details are not spacing increments.
 | `--shell-focus-ring-offset` | `2px` | Space between a control and its keyboard focus ring. |
 | `--shell-focus-ring-width` | `2px` | Keyboard focus ring width. |
 | `--shell-input-border` | `var(--shell-border-strong, var(--shell-border))` | The outline of a field. |
+| `--shell-icon-size` | `16px` | A standard shell glyph. |
 | `--shell-leading-base` | `1.5` | Line height for a paragraph. |
 | `--shell-provider-anthropic-card-background` | `var(--shell-raised)` | The Anthropic model-card surface. |
 | `--shell-provider-anthropic-card-border` | `var(--shell-border)` | The Anthropic model-card outline. |
@@ -93,8 +94,6 @@ focus rings, type, and optical details are not spacing increments.
 | `--shell-tracking-caps` | `0.04em` | Tracking for an all-caps label. |
 | `--shell-weight-lg` | `600` | A heading. |
 | `--shell-weight-md` | `500` | A label that carries emphasis. |
-| `--shell-workbar-icon-size` | `20px` | The workbar glyph size. |
-| `--shell-workbar-item-size` | `40px` | The square workbar action size. |
 | `--shell-workbar-width` | `48px` | The persistent workbar column width. |
 
 Package rules and carried component rules inherit these names without inline

@@ -46,10 +46,9 @@
   --shell-control-sm: 24px;
   --shell-control-md: 28px;
   --shell-control-lg: 32px;
+  --shell-icon-size: 16px;
   --shell-row-height: 32px;
   --shell-workbar-width: 48px;
-  --shell-workbar-item-size: 40px;
-  --shell-workbar-icon-size: 20px;
   --shell-tab-min: 72px;
   --shell-tab-max: 168px;
 }
