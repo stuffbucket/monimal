@@ -16,7 +16,7 @@ import { watch } from "node:fs"
 import { dispatchRuntime } from "./bridge.ts"
 import {
   createCordisRuntime,
-  type CordisRuntimeFacade,
+  type ProviderPluginRuntime,
 } from "./cordis-runtime.ts"
 import {
   cloneActivation,
@@ -31,7 +31,7 @@ import {
   type ResolvedProfile,
 } from "./profile.ts"
 
-export interface DshHostOptions {
+export interface ProviderPluginHostOptions {
   readonly profileDirectory: string
   readonly activation: ActivationSnapshot | ActivationSource
   readonly reconcileDebounceMs?: number
@@ -39,12 +39,12 @@ export interface DshHostOptions {
   readonly abortGraceMs?: number
 }
 
-export interface DshHostReconcileInput {
+export interface ProviderPluginHostReconcileInput {
   readonly profileDirectory?: string
   readonly activation?: ActivationSnapshot | ActivationSource
 }
 
-export interface DshHostReconcileResult {
+export interface ProviderPluginHostReconcileResult {
   readonly committed: boolean
   readonly diagnostics: ReadonlyArray<ProviderDiagnostic>
   readonly restartRequired: boolean
@@ -178,7 +178,7 @@ function normalizedDelay(
 class Generation {
   readonly profile: ResolvedProfile
   readonly activation: ActivationSnapshot
-  readonly runtime: CordisRuntimeFacade
+  readonly runtime: ProviderPluginRuntime
   readonly #forceAbort = new AbortController()
   readonly #leases = new Set<symbol>()
   #topologyDispose: (() => void) | undefined
@@ -190,7 +190,7 @@ class Generation {
   constructor(
     profile: ResolvedProfile,
     activation: ActivationSnapshot,
-    runtime: CordisRuntimeFacade,
+    runtime: ProviderPluginRuntime,
   ) {
     this.profile = profile
     this.activation = activation
@@ -339,19 +339,19 @@ class Generation {
 }
 
 interface PendingReconcile {
-  readonly input: DshHostReconcileInput
-  readonly resolve: (result: DshHostReconcileResult) => void
+  readonly input: ProviderPluginHostReconcileInput
+  readonly resolve: (result: ProviderPluginHostReconcileResult) => void
 }
 
 /**
- * In-process blue/green host for profile-installed Cordis/DSH plugins.
+ * In-process blue/green host for profile-installed Cordis plugins.
  *
  * External plugins are trusted code. Cordis scopes effects created through its
  * context, but no host can recover resources a plugin leaks through ambient
  * globals or APIs outside that scope. Profiles must therefore contain only
  * packages trusted to run with the embedding process's authority.
  */
-export class DshHost implements ProviderGateway, AsyncDisposable {
+export class ProviderPluginHost implements ProviderGateway, AsyncDisposable {
   readonly #debounceMs: number
   readonly #drainTimeoutMs: number
   readonly #abortGraceMs: number
@@ -379,7 +379,7 @@ export class DshHost implements ProviderGateway, AsyncDisposable {
   #disposed = false
   #disposePromise: Promise<void> | undefined
 
-  constructor(options: DshHostOptions) {
+  constructor(options: ProviderPluginHostOptions) {
     this.#profileDirectory = options.profileDirectory
     this.#activation = options.activation
     this.#debounceMs = normalizedDelay(
@@ -419,7 +419,7 @@ export class DshHost implements ProviderGateway, AsyncDisposable {
       const error = new Error(
         result.diagnostics[0]?.message ?? "The provider host failed to start.",
       )
-      error.name = "DshHostStartError"
+      error.name = "ProviderPluginHostStartError"
       throw error
     }
     this.#started = true
@@ -427,8 +427,8 @@ export class DshHost implements ProviderGateway, AsyncDisposable {
   }
 
   reconcile(
-    input: DshHostReconcileInput = {},
-  ): Promise<DshHostReconcileResult> {
+    input: ProviderPluginHostReconcileInput = {},
+  ): Promise<ProviderPluginHostReconcileResult> {
     if (this.#disposed) {
       return Promise.resolve(
         Object.freeze({
@@ -451,7 +451,7 @@ export class DshHost implements ProviderGateway, AsyncDisposable {
         this.#debounceTimer = undefined
         const pending = this.#pending
         this.#pending = []
-        const merged = pending.reduce<DshHostReconcileInput>(
+        const merged = pending.reduce<ProviderPluginHostReconcileInput>(
           (result, item) => ({
             ...result,
             ...(item.input.profileDirectory === undefined ?
@@ -544,8 +544,8 @@ export class DshHost implements ProviderGateway, AsyncDisposable {
   }
 
   #enqueueReconcile(
-    input: DshHostReconcileInput,
-  ): Promise<DshHostReconcileResult> {
+    input: ProviderPluginHostReconcileInput,
+  ): Promise<ProviderPluginHostReconcileResult> {
     const operation = this.#serial.then(
       async () => await this.#reconcileNow(input),
     )
@@ -559,8 +559,8 @@ export class DshHost implements ProviderGateway, AsyncDisposable {
   // Candidate activation is kept in one transaction to preserve atomicity.
   // eslint-disable-next-line max-lines-per-function
   async #reconcileNow(
-    input: DshHostReconcileInput,
-  ): Promise<DshHostReconcileResult> {
+    input: ProviderPluginHostReconcileInput,
+  ): Promise<ProviderPluginHostReconcileResult> {
     if (this.#isDisposed()) return this.#disposedResult()
     const nextDirectory = input.profileDirectory ?? this.#profileDirectory
     const nextActivationValue = input.activation ?? this.#activation
@@ -877,7 +877,7 @@ export class DshHost implements ProviderGateway, AsyncDisposable {
     return this.#disposed
   }
 
-  #disposedResult(): DshHostReconcileResult {
+  #disposedResult(): ProviderPluginHostReconcileResult {
     return Object.freeze({
       committed: false,
       diagnostics: Object.freeze([
@@ -920,10 +920,14 @@ export class DshHost implements ProviderGateway, AsyncDisposable {
   }
 }
 
-export function createDshHost(options: DshHostOptions): DshHost {
-  return new DshHost(options)
+export function createProviderPluginHost(
+  options: ProviderPluginHostOptions,
+): ProviderPluginHost {
+  return new ProviderPluginHost(options)
 }
 
-export async function startDshHost(options: DshHostOptions): Promise<DshHost> {
-  return await new DshHost(options).start()
+export async function startProviderPluginHost(
+  options: ProviderPluginHostOptions,
+): Promise<ProviderPluginHost> {
+  return await new ProviderPluginHost(options).start()
 }

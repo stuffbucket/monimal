@@ -14,12 +14,12 @@ import type {
 
 import {
   ProfileValidationError,
-  startDshHost,
+  startProviderPluginHost,
   type ActivationSnapshot,
   type ActivationSource,
-  type DshHostOptions,
-  type DshHostReconcileInput,
-  type DshHostReconcileResult,
+  type ProviderPluginHostOptions,
+  type ProviderPluginHostReconcileInput,
+  type ProviderPluginHostReconcileResult,
 } from "@maximal/maximal-models"
 
 interface AnthropicCompatibilityInstance {
@@ -33,17 +33,21 @@ interface AnthropicCompatibilityInstance {
 }
 
 interface ReconciliableGateway extends ProviderGateway {
-  reconcile(input?: DshHostReconcileInput): Promise<DshHostReconcileResult>
+  reconcile(
+    input?: ProviderPluginHostReconcileInput,
+  ): Promise<ProviderPluginHostReconcileResult>
 }
 
-type StartHost = (options: DshHostOptions) => Promise<ReconciliableGateway>
+type StartHost = (
+  options: ProviderPluginHostOptions,
+) => Promise<ReconciliableGateway>
 
-export interface DshProviderGatewayComposition {
+export interface ProviderPluginGatewayComposition {
   readonly defaultActivation?: ActivationSnapshot | ActivationSource
   readonly defaultProfileDirectory?: string
 }
 
-export interface DshProviderGatewayDependencies extends DshProviderGatewayComposition {
+export interface ProviderPluginGatewayDependencies extends ProviderPluginGatewayComposition {
   readonly startHost?: StartHost
 }
 
@@ -97,7 +101,7 @@ function compatibilityInstances(
     if (config.enabled === false) continue
     if ((config.type ?? "anthropic") !== "anthropic") {
       throw new ProfileValidationError(
-        "A configured legacy provider type is unsupported in DSH mode.",
+        "A configured legacy provider type is unsupported in provider plugin mode.",
       )
     }
     instances.push(compatibilityInstance(provider, config))
@@ -105,7 +109,7 @@ function compatibilityInstances(
   return instances
 }
 
-/** Convert Core's validated, provider-agnostic snapshot to DSH activation data. */
+/** Convert Core's validated, provider-agnostic snapshot to plugin activation data. */
 export function buildProviderActivation(
   snapshot: ProviderHostConfigSnapshot,
 ): ActivationSnapshot {
@@ -171,10 +175,10 @@ function activationSource(
   }
 }
 
-class ManagedDshGateway implements ProviderGateway {
+class ManagedProviderPluginGateway implements ProviderGateway {
   readonly #host: ReconciliableGateway
   readonly #source: ProviderGatewayFactoryContext["configSource"]
-  readonly #composition: DshProviderGatewayComposition
+  readonly #composition: ProviderPluginGatewayComposition
   readonly #unsubscribe: () => void
   #disposed = false
   #disposePromise: Promise<void> | undefined
@@ -183,7 +187,7 @@ class ManagedDshGateway implements ProviderGateway {
   constructor(
     host: ReconciliableGateway,
     source: ProviderGatewayFactoryContext["configSource"],
-    composition: DshProviderGatewayComposition,
+    composition: ProviderPluginGatewayComposition,
   ) {
     this.#host = host
     this.#source = source
@@ -204,7 +208,7 @@ class ManagedDshGateway implements ProviderGateway {
   }
 
   #enqueue(snapshot: ProviderHostConfigSnapshot): void {
-    if (this.#disposed || snapshot.providerHost.mode !== "dsh") return
+    if (this.#disposed || snapshot.providerHost.mode !== "plugins") return
     const reconcile = async (): Promise<void> => {
       if (this.#disposed) return
       try {
@@ -219,7 +223,7 @@ class ManagedDshGateway implements ProviderGateway {
           ),
         })
       } catch {
-        // DshHost converts candidate failures into bounded topology diagnostics.
+        // ProviderPluginHost converts candidate failures into bounded topology diagnostics.
         // A throw here means the host is already disposing; retain its last state.
       }
     }
@@ -255,11 +259,11 @@ class ManagedDshGateway implements ProviderGateway {
 }
 
 /** Start the generic host and bind it to Core's live validated configuration. */
-export async function createDshProviderGateway(
+export async function createProviderPluginGateway(
   context: ProviderGatewayFactoryContext,
-  dependencies: DshProviderGatewayDependencies = {},
+  dependencies: ProviderPluginGatewayDependencies = {},
 ): Promise<ProviderGateway> {
-  const startHost: StartHost = dependencies.startHost ?? startDshHost
+  const startHost: StartHost = dependencies.startHost ?? startProviderPluginHost
   const host = await startHost({
     activation: activationSource(
       context.config,
@@ -271,7 +275,7 @@ export async function createDshProviderGateway(
     ),
   })
   try {
-    const gateway = new ManagedDshGateway(
+    const gateway = new ManagedProviderPluginGateway(
       host,
       context.configSource,
       dependencies,

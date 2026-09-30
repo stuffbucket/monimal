@@ -38,7 +38,7 @@ export interface CliCompositionOptions {
   createConnectorPlugins?: ConnectorPluginFactory
   /**
    * Lazy start-only provider boundary. Core invokes it only after validated
-   * config explicitly selects DSH mode.
+   * config explicitly selects provider plugin mode.
    */
   createProviderGateway?: ProviderGatewayFactory
 }

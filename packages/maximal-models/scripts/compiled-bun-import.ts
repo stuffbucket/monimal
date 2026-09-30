@@ -25,7 +25,9 @@ async function command(
   })
 }
 
-const outputDirectory = await mkdtemp(join(tmpdir(), "maximal-dsh-bun-"))
+const outputDirectory = await mkdtemp(
+  join(tmpdir(), "maximal-provider-plugins-bun-"),
+)
 try {
   const executable = join(outputDirectory, "external-import-smoke")
   const entry = new URL("./compiled-bun-entry.ts", import.meta.url).pathname

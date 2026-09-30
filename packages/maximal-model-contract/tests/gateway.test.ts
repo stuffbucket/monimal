@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import test from "node:test"
 
 import type {
+  ModelOperation,
   LocalModelCatalogSnapshot,
   LocalModelProvisionProgress,
   ProviderDiagnostic,
@@ -14,6 +15,11 @@ import type {
   ProviderTopologyListener,
   ProviderUnsubscribe,
 } from "../src/index.ts"
+
+void test("model operations reserve systemone", () => {
+  const operation: ModelOperation = "systemone"
+  assert.equal(operation, "systemone")
+})
 
 const freezeDiagnostic = (diagnostic: ProviderDiagnostic): ProviderDiagnostic =>
   Object.freeze({ ...diagnostic })

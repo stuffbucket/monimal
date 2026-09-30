@@ -23,7 +23,7 @@ const createProviderGateway: ProviderGatewayFactory = ({
 }) => {
   expectAssignable<string>(config.appDataDirectory)
   expectAssignable<string>(config.defaultProfileDirectory)
-  expectAssignable<"legacy" | "dsh">(config.providerHost.mode)
+  expectAssignable<"legacy" | "plugins">(config.providerHost.mode)
   configSource.subscribe((next: ProviderHostConfigSnapshot) => {
     expectAssignable<unknown>(next.providerPlugins?.hosted?.config)
     expectAssignable<string | undefined>(next.providers.compatible?.apiKey)

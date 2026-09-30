@@ -26,7 +26,7 @@ runs in-process.
 
 ```
 src/                       Packaging composition entry (Core CLI + optional
-                           generic DSH provider host; no concrete providers).
+                           generic provider plugin host; no concrete providers).
 tests/                     bun-test packaging and composition suites.
 docs/admin/                MDM reference, Cowork client config notes.
 docs/spec/                 Architecture specs (web-tools, tool-bridge).
@@ -141,12 +141,12 @@ Secrets are masked everywhere — the debug output reports `<env>` /
 
 ## External provider plugins
 
-Provider-scoped routes can optionally use genuine Cordis/DeepSeek Harness LLM
-adapter plugins installed in a user-managed profile. The default remains
-`providerHost.mode: "legacy"`; select `"dsh"` explicitly to activate a profile.
-A selected DSH mode never falls back silently to legacy.
+Provider-scoped routes can optionally use Cordis LLM adapter plugins installed
+in a user-managed profile. The default remains
+`providerHost.mode: "legacy"`; select `"plugins"` explicitly to activate a
+profile. A selected plugin mode never falls back silently to legacy.
 
-Profiles use exact package versions and keep Cordis, DSH, services, and concrete
+Profiles use exact package versions and keep Cordis, services, and concrete
 adapters outside the Maximal executable. Plugin enablement and native config can
 change live; replacing installed package code requires a provider-host restart.
 Plugins are trusted in-process code, not sandboxed extensions.

@@ -115,7 +115,7 @@ export const AppConfigSchema = z
       .optional(),
     providerHost: z
       .object({
-        mode: z.enum(["legacy", "dsh"]).optional(),
+        mode: z.enum(["legacy", "plugins"]).optional(),
         profileDirectory: z.string().optional(),
       })
       .optional(),

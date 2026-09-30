@@ -37,6 +37,46 @@ function manifest(
   }
 }
 
+void test("registration preserves tokenizer metadata", async () => {
+  const fixture = await registryFixture()
+  try {
+    fixture.registry.registerModel(
+      manifest(bytes, {
+        operations: ["systemone"],
+        tokenizer: { id: "o200k_base" },
+      }),
+      source(bytes),
+    )
+
+    assert.deepEqual(fixture.registry.list().models[0]?.operations, [
+      "systemone",
+    ])
+    assert.deepEqual(fixture.registry.list().models[0]?.tokenizer, {
+      id: "o200k_base",
+    })
+  } finally {
+    await fixture.registry.dispose()
+    await rm(fixture.directory, { recursive: true, force: true })
+  }
+})
+
+void test("registration rejects invalid tokenizer metadata", async () => {
+  const fixture = await registryFixture()
+  try {
+    assert.throws(
+      () =>
+        fixture.registry.registerModel(
+          manifest(bytes, { tokenizer: { id: "bad tokenizer" } }),
+          source(bytes),
+        ),
+      /manifest\.tokenizer\.id/u,
+    )
+  } finally {
+    await fixture.registry.dispose()
+    await rm(fixture.directory, { recursive: true, force: true })
+  }
+})
+
 function source(
   content: Uint8Array,
   onOpen: () => void = () => undefined,

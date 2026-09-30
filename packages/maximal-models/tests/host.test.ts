@@ -6,10 +6,10 @@ import test from "node:test"
 
 import { createCordisRuntime } from "../src/cordis-runtime.ts"
 import {
-  createDshHost,
-  startDshHost,
+  createProviderPluginHost,
+  startProviderPluginHost,
   type ActivationSource,
-  type DshHost,
+  type ProviderPluginHost,
 } from "../src/index.ts"
 import { resolveExternalProfile } from "../src/profile.ts"
 import { createFixtureProfile, fixtureState } from "./fixture.ts"
@@ -28,7 +28,7 @@ function requestBody(
 // The test helper mirrors ProviderGateway.dispatch while adding body defaults.
 // eslint-disable-next-line max-params
 async function dispatch(
-  host: DshHost,
+  host: ProviderPluginHost,
   operation: ProviderOperation,
   body: unknown = requestBody(),
   signal: AbortSignal = new AbortController().signal,
@@ -61,7 +61,7 @@ async function waitUntil(
   }
 }
 
-async function responseText(host: DshHost): Promise<string> {
+async function responseText(host: ProviderPluginHost): Promise<string> {
   const response = await dispatch(host, "messages")
   assert.equal(response.status, 200)
   const body = (await response.json()) as { content: Array<{ text: string }> }
@@ -104,9 +104,9 @@ void test("runtime facade unloads plugin fibers", async () => {
   assert.equal((await fixtureState(fixture.pluginEntry)).active, 0)
 })
 
-void test("genuine external DSH plugin receives Anthropic messages, tools, and controls", async () => {
+void test("external provider plugin receives Anthropic messages, tools, and controls", async () => {
   const fixture = await createFixtureProfile()
-  const host = await startDshHost({
+  const host = await startProviderPluginHost({
     profileDirectory: fixture.directory,
     activation: { fixture: { enabled: true, config: { echo: true } } },
   })
@@ -162,7 +162,7 @@ void test("genuine external DSH plugin receives Anthropic messages, tools, and c
 
 void test("models is advisory and count tokens is explicitly unsupported", async () => {
   const fixture = await createFixtureProfile()
-  const host = await startDshHost({
+  const host = await startProviderPluginHost({
     profileDirectory: fixture.directory,
     activation: { fixture: { enabled: true, config: {} } },
   })
@@ -182,7 +182,10 @@ void test("models is advisory and count tokens is explicitly unsupported", async
   const countBody = (await count.json()) as {
     error: { code?: string; message: string; type: string }
   }
-  assert.match(countBody.error.message, /not supported by the DSH LLM contract/)
+  assert.match(
+    countBody.error.message,
+    /not supported by the provider plugin runtime contract/,
+  )
   assert.equal(countBody.error.type, "invalid_request_error")
   assert.equal(countBody.error.code, "UNSUPPORTED")
   await host.dispose()
@@ -190,7 +193,7 @@ void test("models is advisory and count tokens is explicitly unsupported", async
 
 void test("SSE maps tool calls without fabricating provider pings", async () => {
   const fixture = await createFixtureProfile()
-  const host = await startDshHost({
+  const host = await startProviderPluginHost({
     profileDirectory: fixture.directory,
     activation: { fixture: { enabled: true, config: { mode: "tool" } } },
   })
@@ -218,7 +221,7 @@ void test("SSE maps tool calls without fabricating provider pings", async () => 
 
 void test("SSE buffers tool arguments until the provider supplies a name", async () => {
   const fixture = await createFixtureProfile()
-  const host = await startDshHost({
+  const host = await startProviderPluginHost({
     profileDirectory: fixture.directory,
     activation: {
       fixture: { enabled: true, config: { mode: "tool-delayed-name" } },
@@ -246,7 +249,7 @@ void test("SSE buffers tool arguments until the provider supplies a name", async
 
 void test("ordinary SSE is incremental, backpressure-aware, and cancellable", async () => {
   const fixture = await createFixtureProfile()
-  const host = await startDshHost({
+  const host = await startProviderPluginHost({
     profileDirectory: fixture.directory,
     activation: { fixture: { enabled: true, config: { mode: "incremental" } } },
   })
@@ -271,7 +274,7 @@ void test("ordinary SSE is incremental, backpressure-aware, and cancellable", as
 
 void test("terminal provider failures map before success-only usage validation", async () => {
   const fixture = await createFixtureProfile()
-  const host = await startDshHost({
+  const host = await startProviderPluginHost({
     profileDirectory: fixture.directory,
     activation: {
       fixture: { enabled: true, config: { mode: "error-no-usage" } },
@@ -307,7 +310,7 @@ void test("terminal provider failures map before success-only usage validation",
 
 void test("provider failures close iterators before dispatch releases their generation", async () => {
   const fixture = await createFixtureProfile()
-  const host = await startDshHost({
+  const host = await startProviderPluginHost({
     profileDirectory: fixture.directory,
     activation: {
       fixture: { enabled: true, config: { mode: "error-finally" } },
@@ -346,7 +349,7 @@ void test("provider failures close iterators before dispatch releases their gene
 
 void test("Anthropic replay signatures are preserved without fabrication", async () => {
   const fixture = await createFixtureProfile()
-  const host = await startDshHost({
+  const host = await startProviderPluginHost({
     profileDirectory: fixture.directory,
     activation: { fixture: { enabled: true, config: { mode: "reasoning" } } },
   })
@@ -392,7 +395,7 @@ void test("Anthropic replay signatures are preserved without fabrication", async
 
 void test("assistant thinking history carries strict Anthropic replay state", async () => {
   const fixture = await createFixtureProfile()
-  const host = await startDshHost({
+  const host = await startProviderPluginHost({
     profileDirectory: fixture.directory,
     activation: { fixture: { enabled: true, config: { echo: true } } },
   })
@@ -437,7 +440,7 @@ void test("assistant thinking history carries strict Anthropic replay state", as
 
 void test("unsupported request fields and stream chunks fail explicitly", async () => {
   const fixture = await createFixtureProfile()
-  const host = await startDshHost({
+  const host = await startProviderPluginHost({
     profileDirectory: fixture.directory,
     activation: { fixture: { enabled: true, config: {} } },
     reconcileDebounceMs: 0,
@@ -489,7 +492,7 @@ void test("unsupported request fields and stream chunks fail explicitly", async 
 
 void test("failed reconciliation rolls back, then hot reconfiguration commits", async () => {
   const fixture = await createFixtureProfile()
-  const host = await startDshHost({
+  const host = await startProviderPluginHost({
     profileDirectory: fixture.directory,
     activation: { fixture: { enabled: true, config: { text: "old" } } },
     reconcileDebounceMs: 0,
@@ -515,7 +518,7 @@ void test("failed reconciliation rolls back, then hot reconfiguration commits", 
 
 void test("profile plugin removal commits with stale activation as unavailable", async () => {
   const fixture = await createFixtureProfile()
-  const host = await startDshHost({
+  const host = await startProviderPluginHost({
     profileDirectory: fixture.directory,
     activation: { fixture: { enabled: true, config: { text: "old" } } },
     reconcileDebounceMs: 0,
@@ -546,7 +549,7 @@ void test("profile plugin removal commits with stale activation as unavailable",
 
 void test("failed reconciliation publishes diagnostics with LKG statuses", async () => {
   const fixture = await createFixtureProfile()
-  const host = await startDshHost({
+  const host = await startProviderPluginHost({
     profileDirectory: fixture.directory,
     activation: { fixture: { enabled: true, config: { text: "old" } } },
     reconcileDebounceMs: 0,
@@ -579,7 +582,7 @@ void test("failed reconciliation publishes diagnostics with LKG statuses", async
 
 void test("fallible candidate subscriptions cannot replace the LKG", async () => {
   const fixture = await createFixtureProfile()
-  const host = await startDshHost({
+  const host = await startProviderPluginHost({
     profileDirectory: fixture.directory,
     activation: { fixture: { enabled: true, config: { text: "old" } } },
     reconcileDebounceMs: 0,
@@ -601,7 +604,7 @@ void test("fallible candidate subscriptions cannot replace the LKG", async () =>
 
 void test("candidate cleanup failures publish bounded diagnostics and preserve the LKG", async () => {
   const fixture = await createFixtureProfile()
-  const host = await startDshHost({
+  const host = await startProviderPluginHost({
     profileDirectory: fixture.directory,
     activation: { fixture: { enabled: true, config: { text: "old" } } },
     reconcileDebounceMs: 0,
@@ -651,7 +654,7 @@ void test("retirement and source disposal failures are reported without replacin
     }),
     subscribe: () => rejectActivationDisposal,
   }
-  const host = await startDshHost({
+  const host = await startProviderPluginHost({
     profileDirectory: fixture.directory,
     activation: source,
     reconcileDebounceMs: 0,
@@ -688,7 +691,7 @@ void test("retirement and source disposal failures are reported without replacin
 
 void test("active runtime disposal failures remain diagnostic and idempotent", async () => {
   const fixture = await createFixtureProfile()
-  const host = await startDshHost({
+  const host = await startProviderPluginHost({
     profileDirectory: fixture.directory,
     activation: {
       fixture: { enabled: true, config: { disposeReject: true } },
@@ -713,7 +716,7 @@ void test("active runtime disposal failures remain diagnostic and idempotent", a
 
 void test("topology observer failures are contained and unsubscribe is idempotent", async () => {
   const fixture = await createFixtureProfile()
-  const host = await startDshHost({
+  const host = await startProviderPluginHost({
     profileDirectory: fixture.directory,
     activation: { fixture: { enabled: true, config: {} } },
     reconcileDebounceMs: 0,
@@ -734,7 +737,7 @@ void test("topology observer failures are contained and unsubscribe is idempoten
 
 void test("stream cancellation releases the old generation and disposal is idempotent", async () => {
   const fixture = await createFixtureProfile()
-  const host = await startDshHost({
+  const host = await startProviderPluginHost({
     profileDirectory: fixture.directory,
     activation: { fixture: { enabled: true, config: { wait: true } } },
     reconcileDebounceMs: 0,
@@ -768,7 +771,7 @@ void test("stream cancellation releases the old generation and disposal is idemp
 
 void test("dispose waits for in-flight activation and prevents publication", async () => {
   const fixture = await createFixtureProfile()
-  const host = createDshHost({
+  const host = createProviderPluginHost({
     profileDirectory: fixture.directory,
     activation: {
       fixture: { enabled: true, config: { activationDelayMs: 75 } },
@@ -778,7 +781,7 @@ void test("dispose waits for in-flight activation and prevents publication", asy
   const starting = host.start()
   await new Promise((resolve) => setTimeout(resolve, 10))
   await host.dispose()
-  await assert.rejects(starting, { name: "DshHostStartError" })
+  await assert.rejects(starting, { name: "ProviderPluginHostStartError" })
   assert.equal((await fixtureState(fixture.pluginEntry)).active, 0)
   const response = await dispatch(host, "messages")
   assert.equal(response.status, 503)
@@ -786,7 +789,7 @@ void test("dispose waits for in-flight activation and prevents publication", asy
 
 void test("providers.json changes reconcile through the production watcher", async () => {
   const fixture = await createFixtureProfile()
-  const host = await startDshHost({
+  const host = await startProviderPluginHost({
     profileDirectory: fixture.directory,
     activation: { fixture: { enabled: true, config: {} } },
     reconcileDebounceMs: 5,

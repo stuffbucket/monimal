@@ -6,7 +6,7 @@ tests. The [`../../../maximal-client/`](../../../maximal-client/) package owns
 reusable React features, controls, and shared contracts. The application
 composes the `@maximal/maximal-electron` shell and supervises a bundled sidecar named
 `maximal-core`. That binary starts at Maximal's composition entry, invokes
-Core's public CLI, and can load the generic DSH host without bundling concrete
+Core's public CLI, and can load the generic provider plugin host without bundling concrete
 providers.
 
 ## Process boundary

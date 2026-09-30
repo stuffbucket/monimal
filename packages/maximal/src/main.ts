@@ -5,11 +5,11 @@ import { runCli } from "@maximal/maximal-core/provider-host"
 import { createBuiltinConnectorPlugins } from "@maximal/maximal-core/search-connector"
 
 import {
-  createDshProviderGateway,
-  type DshProviderGatewayComposition,
+  createProviderPluginGateway,
+  type ProviderPluginGatewayComposition,
 } from "./provider-gateway"
 
-export type MaximalCompositionOptions = DshProviderGatewayComposition
+export type MaximalCompositionOptions = ProviderPluginGatewayComposition
 
 export async function main(
   options: MaximalCompositionOptions = {},
@@ -18,7 +18,7 @@ export async function main(
     createConfiguratorRuntime: createBuiltinConfiguratorRuntime,
     createConnectorPlugins: createBuiltinConnectorPlugins,
     createProviderGateway: async (context) =>
-      await createDshProviderGateway(context, options),
+      await createProviderPluginGateway(context, options),
   })
 }
 

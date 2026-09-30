@@ -116,7 +116,7 @@ provider's `${baseUrl}/v1/models` (`src/services/providers/anthropic-proxy.ts`),
 applies that provider's auth and forwardable headers, strips hop-by-hop headers,
 and relays the Anthropic models-list body.
 
-In `dsh` mode, the raw request is dispatched through the injected provider
+In `plugins` mode, the raw request is dispatched through the injected provider
 gateway. Model discovery is advisory rather than a routing whitelist. The
 external adapter owns credentials and transport; Core relays the bounded
 status, headers, and body without silently retrying through legacy mode.

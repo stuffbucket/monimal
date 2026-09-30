@@ -35,7 +35,7 @@ export interface AppConfig {
     preferLocalModels?: boolean
   }
   providerHost?: {
-    mode?: "legacy" | "dsh"
+    mode?: "legacy" | "plugins"
     profileDirectory?: string
   }
   providerPlugins?: Record<

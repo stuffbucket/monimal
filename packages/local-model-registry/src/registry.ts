@@ -104,8 +104,14 @@ function entry(
     format: manifest.format,
     key: manifest.key,
     modelId: manifest.modelId,
+    ...(manifest.operations === undefined ?
+      {}
+    : { operations: manifest.operations }),
     publication: manifest.publication,
     state,
+    ...(manifest.tokenizer === undefined ?
+      {}
+    : { tokenizer: manifest.tokenizer }),
   })
 }
 
