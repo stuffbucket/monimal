@@ -67,10 +67,13 @@ bun run scan:secrets # manual full-repo trufflehog scan. Requires trufflehog on
                      # over the PR diff, and the pre-commit hook scans only staged
                      # paths. Excluding a path here does not exclude it there.
 
-# End-to-end (spawns the real binary + a real port; outside `bun test`)
-bun run e2e          # e2e:seam + e2e:feed + e2e:lifecycle + e2e:replace
+# End-to-end (spawns real processes + real ports; outside `bun test`)
+bun run e2e          # seam + feed + System One composition + lifecycle + replace
+bun run e2e:system-one # shipping composition against a local TypeSafe fixture
 MAXIMAL_E2E_BINARY=<path> bun run e2e
-                     # the same four harnesses against a compiled binary. Core
+                     # four Core harnesses use the compiled binary. The System
+                     # One composition harness always uses the source host.
+                     # Core
                      # builds none — stuffbucket/maximal compiles this repo's
                      # src/main.ts — so point it at that artifact.
 

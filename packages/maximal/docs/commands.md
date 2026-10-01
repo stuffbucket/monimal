@@ -18,6 +18,9 @@ pnpm test            # From monorepo root: isolated affected native tests
 pnpm test -- --all   # From monorepo root: isolated full native graph
 pnpm run test:docker # From the primary checkout: mountless final gate
 
+# Socket-level composition test
+pnpm run e2e:systemone # System One REST API against a local TypeSafe fixture
+
 # Aggregates
 bun run check:fast   # lint:fast + typecheck + lint:all (the per-edit inner loop)
 pnpm check           # From monorepo root: build, type, lint, and affected tests

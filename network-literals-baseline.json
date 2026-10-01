@@ -31,13 +31,8 @@
   },
   {
     "path": "packages/maximal-client/src/renderer/settings/AccountSection.test.tsx",
-    "literal": "http://127.0.0.1:11434",
-    "count": 1
-  },
-  {
-    "path": "packages/maximal-client/src/renderer/settings/AccountSection.test.tsx",
     "literal": "localhost",
-    "count": 2
+    "count": 1
   },
   {
     "path": "packages/maximal-client/src/renderer/settings/AccountsSection.test.tsx",
@@ -445,11 +440,6 @@
     "count": 4
   },
   {
-    "path": "packages/maximal-core/tests/model-routing.test.ts",
-    "literal": "http://localhost",
-    "count": 2
-  },
-  {
     "path": "packages/maximal-core/tests/ollama-accounts.test.ts",
     "literal": "http://127.0.0.1:11434",
     "count": 2
@@ -555,17 +545,17 @@
     "count": 1
   },
   {
+    "path": "packages/maximal-electron/.storybook/sample-settings.ts",
+    "literal": "http://127.0.0.1:4141",
+    "count": 1
+  },
+  {
     "path": "packages/maximal-electron/scripts/storybook-check.mjs",
     "literal": "http://localhost",
     "count": 1
   },
   {
     "path": "packages/maximal-electron/src/renderer/components/settings/SettingsPage.stories.tsx",
-    "literal": "http://127.0.0.1:4141",
-    "count": 1
-  },
-  {
-    "path": "packages/maximal-electron/.storybook/sample-settings.ts",
     "literal": "http://127.0.0.1:4141",
     "count": 1
   },

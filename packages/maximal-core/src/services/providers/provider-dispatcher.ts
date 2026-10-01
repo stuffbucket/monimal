@@ -181,6 +181,24 @@ export function createProviderDispatcher(
             return [...(await enrichOllamaModels(provider, models))]
           }
           const record = asRecord(body)
+          if (name === "typesafe-jev" && Array.isArray(record?.models)) {
+            return record.models.flatMap(
+              (value): Array<ProviderCatalogueModel> => {
+                const model = asRecord(value)
+                if (typeof model?.name !== "string") return []
+                return [
+                  {
+                    id: model.name,
+                    name: model.name,
+                    enabled,
+                    operations: ["systemone"],
+                    provider: name,
+                    providerName: "TypeSafe JEV",
+                  },
+                ]
+              },
+            )
+          }
           if (!Array.isArray(record?.data)) return []
           return record.data.flatMap((value): Array<ProviderCatalogueModel> => {
             const model = asRecord(value)
@@ -454,9 +472,13 @@ export function createProviderDispatcher(
     requiresGithubAuth(provider) {
       if (!isLegacyMode()) return false
       if (provider === undefined) return true
-      return (
-        (readConfig().providers?.[provider]?.type ?? "anthropic") !== "ollama"
-      )
+      const resolved =
+        usesDefaultConfig ?
+          getProviderConfig(provider, { includeDisabled: true })
+        : resolveProviderConfig(readConfig(), provider, {
+            includeDisabled: true,
+          })
+      return resolved?.type !== "ollama"
     },
   }
 }

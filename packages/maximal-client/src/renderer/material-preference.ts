@@ -1,34 +1,41 @@
-export const MATERIAL_PRESETS = [
-  { value: 'clouds', label: 'Cozy clouds', cost: 'Low' },
-  { value: 'acrylic', label: 'Acrylic', cost: 'Low' },
-  { value: 'paper', label: 'Paper', cost: 'Low' },
-  { value: 'cloth', label: 'Cloth', cost: 'Low' },
-  { value: 'marble', label: 'Marble', cost: 'Low' },
-  { value: 'water', label: 'Water', cost: 'Medium' },
-  { value: 'cel-sky', label: 'Cel-painted sky', cost: 'Low' },
-  { value: 'halftone', label: 'Manga halftone', cost: 'Low' },
-  { value: 'ink-wash', label: 'Ink wash', cost: 'Low' },
-  { value: 'stardust', label: 'Animated stardust', cost: 'Medium' },
-] as const
+import {
+  MATERIAL_PRESET_VALUES,
+  type MaterialPreset,
+  type PersistedMaterialPreference,
+} from '../shared/host'
 
-export type MaterialPreset = (typeof MATERIAL_PRESETS)[number]['value']
-export type MaterialQuality = 'battery' | 'balanced' | 'high'
-export type MaterialLighting = 'fixed' | 'timezone'
+export type {
+  MaterialLighting,
+  MaterialPreset,
+  MaterialQuality,
+  PersistedMaterialPreference,
+} from '../shared/host'
 
-export interface MaterialPreference {
-  preset: MaterialPreset
-  quality: MaterialQuality
-  strength: number
-  motion: number
-  lighting: MaterialLighting
-  timezone: string
+const MATERIAL_DETAILS: Record<
+  MaterialPreset,
+  { readonly label: string; readonly cost: 'Low' | 'Medium' }
+> = {
+  clouds: { label: 'Cozy clouds', cost: 'Low' },
+  acrylic: { label: 'Acrylic', cost: 'Low' },
+  paper: { label: 'Paper', cost: 'Low' },
+  cloth: { label: 'Cloth', cost: 'Low' },
+  marble: { label: 'Marble', cost: 'Low' },
+  water: { label: 'Water', cost: 'Medium' },
+  'cel-sky': { label: 'Cel-painted sky', cost: 'Low' },
+  halftone: { label: 'Manga halftone', cost: 'Low' },
+  'ink-wash': { label: 'Ink wash', cost: 'Low' },
+  stardust: { label: 'Animated stardust', cost: 'Medium' },
+}
+
+export const MATERIAL_PRESETS = MATERIAL_PRESET_VALUES.map((value) => ({
+  value,
+  ...MATERIAL_DETAILS[value],
+}))
+
+export interface MaterialPreference extends PersistedMaterialPreference {
   latitude: number
   longitude: number
 }
-
-const STORAGE_KEY = 'maximal.material-preference.v1'
-const CHANGE_EVENT = 'maximal-material-preference-change'
-let sessionCoordinates = { latitude: 0, longitude: 0 }
 
 export const DEFAULT_MATERIAL_PREFERENCE: MaterialPreference = {
   preset: 'clouds',
@@ -39,85 +46,6 @@ export const DEFAULT_MATERIAL_PREFERENCE: MaterialPreference = {
   timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
   latitude: 0,
   longitude: 0,
-}
-
-function numberInRange(
-  value: unknown,
-  minimum: number,
-  maximum: number,
-  fallback: number,
-): number {
-  return typeof value === 'number' && Number.isFinite(value)
-    ? Math.min(maximum, Math.max(minimum, value))
-    : fallback
-}
-
-export function parseMaterialPreference(value: unknown): MaterialPreference {
-  if (typeof value !== 'object' || value === null) {
-    return DEFAULT_MATERIAL_PREFERENCE
-  }
-  const input = value as Record<string, unknown>
-  const preset = MATERIAL_PRESETS.some(({ value }) => value === input.preset)
-    ? input.preset as MaterialPreset
-    : DEFAULT_MATERIAL_PREFERENCE.preset
-  const quality = ['battery', 'balanced', 'high'].includes(String(input.quality))
-    ? input.quality as MaterialQuality
-    : DEFAULT_MATERIAL_PREFERENCE.quality
-  const lighting = ['fixed', 'timezone'].includes(String(input.lighting))
-    ? input.lighting as MaterialLighting
-    : DEFAULT_MATERIAL_PREFERENCE.lighting
-  const timezone = typeof input.timezone === 'string'
-    && Intl.supportedValuesOf('timeZone').includes(input.timezone)
-    ? input.timezone
-    : DEFAULT_MATERIAL_PREFERENCE.timezone
-
-  return {
-    preset,
-    quality,
-    strength: numberInRange(input.strength, 0.25, 1, DEFAULT_MATERIAL_PREFERENCE.strength),
-    motion: numberInRange(input.motion, 0, 1, DEFAULT_MATERIAL_PREFERENCE.motion),
-    lighting,
-    timezone,
-    latitude: numberInRange(input.latitude, -90, 90, DEFAULT_MATERIAL_PREFERENCE.latitude),
-    longitude: numberInRange(input.longitude, -180, 180, DEFAULT_MATERIAL_PREFERENCE.longitude),
-  }
-}
-
-export function readMaterialPreference(): MaterialPreference {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY)
-    const preference = saved === null
-      ? DEFAULT_MATERIAL_PREFERENCE
-      : parseMaterialPreference(JSON.parse(saved))
-    return { ...preference, ...sessionCoordinates }
-  } catch {
-    return { ...DEFAULT_MATERIAL_PREFERENCE, ...sessionCoordinates }
-  }
-}
-
-export function saveMaterialPreference(preference: MaterialPreference): void {
-  const parsed = parseMaterialPreference(preference)
-  sessionCoordinates = {
-    latitude: parsed.latitude,
-    longitude: parsed.longitude,
-  }
-  const {
-    latitude: _latitude,
-    longitude: _longitude,
-    ...persisted
-  } = parsed
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted))
-  window.dispatchEvent(new CustomEvent(CHANGE_EVENT, { detail: parsed }))
-}
-
-export function subscribeMaterialPreference(
-  listener: (preference: MaterialPreference) => void,
-): () => void {
-  const onChange = (event: Event): void => {
-    listener((event as CustomEvent<MaterialPreference>).detail)
-  }
-  window.addEventListener(CHANGE_EVENT, onChange)
-  return () => window.removeEventListener(CHANGE_EVENT, onChange)
 }
 
 export function materialPresetIndex(preset: MaterialPreset): number {

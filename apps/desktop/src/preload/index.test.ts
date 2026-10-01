@@ -47,6 +47,7 @@ describe('preload bridge allowlist', () => {
       'licenses',
       'localModels',
       'logs',
+      'material',
       'menuBarMode',
       'ollamaRuntime',
       'onCoreStatus',
@@ -67,6 +68,11 @@ describe('preload bridge allowlist', () => {
       'setBackgroundEffectsEnabled',
       'setReducedMotionEnabled',
       'setVibrancyEnabled',
+    ])
+    expect(Object.keys(bridge.material).sort()).toEqual([
+      'get',
+      'onChange',
+      'set',
     ])
     expect(Object.keys(bridge.licenses).sort()).toEqual(['text'])
     expect(Object.keys(bridge.browser).sort()).toEqual([
@@ -124,6 +130,8 @@ describe('preload bridge allowlist', () => {
       'searchProviderValidate',
       'searchSettingsGet',
       'searchSettingsUpdate',
+      'systemOneSettingsGet',
+      'systemOneSettingsUpdate',
       'usageGet',
     ])
     expect(Object.keys(bridge.logs).sort()).toEqual(['coreLocation', 'list', 'location', 'reveal', 'revealCore'])
@@ -254,6 +262,12 @@ describe('preload bridge allowlist', () => {
     await bridge.control.diagnosticsGet()
     await bridge.control.searchSettingsGet()
     await bridge.control.searchSettingsUpdate({ settings: { fallback: false } })
+    await bridge.control.systemOneSettingsGet()
+    await bridge.control.systemOneSettingsUpdate({
+      local_provider: 'maximal',
+      model_order: ['nimble', 'tev1', 'tev1:0.8b'],
+      fallback_to_local: true,
+    })
     await bridge.control.searchProviderValidate({
       providerId: 'ollama',
       settings: { apiKey: 'test-key' },
@@ -289,6 +303,15 @@ describe('preload bridge allowlist', () => {
     await bridge.appearance.setVibrancyEnabled(true)
     await bridge.appearance.setBackgroundEffectsEnabled(true)
     await bridge.appearance.setReducedMotionEnabled(true)
+    await bridge.material.get()
+    await bridge.material.set({
+      preset: 'water',
+      quality: 'high',
+      strength: 1,
+      motion: 0.25,
+      lighting: 'timezone',
+      timezone: 'UTC',
+    })
     await bridge.harness.show()
     await bridge.harness.hide()
     await bridge.harness.provider()
@@ -370,6 +393,15 @@ describe('preload bridge allowlist', () => {
       [BRIDGE_CHANNELS.diagnosticsGet],
       [BRIDGE_CHANNELS.searchSettingsGet],
       [BRIDGE_CHANNELS.searchSettingsUpdate, { settings: { fallback: false } }],
+      [BRIDGE_CHANNELS.systemOneSettingsGet],
+      [
+        BRIDGE_CHANNELS.systemOneSettingsUpdate,
+        {
+          local_provider: 'maximal',
+          model_order: ['nimble', 'tev1', 'tev1:0.8b'],
+          fallback_to_local: true,
+        },
+      ],
       [
         BRIDGE_CHANNELS.searchProviderValidate,
         { providerId: 'ollama', settings: { apiKey: 'test-key' } },
@@ -406,6 +438,18 @@ describe('preload bridge allowlist', () => {
       [BRIDGE_CHANNELS.appearanceSetVibrancy, true],
       [BRIDGE_CHANNELS.appearanceSetBackgroundEffects, true],
       [BRIDGE_CHANNELS.appearanceSetReducedMotion, true],
+      [BRIDGE_CHANNELS.materialGet],
+      [
+        BRIDGE_CHANNELS.materialSet,
+        {
+          preset: 'water',
+          quality: 'high',
+          strength: 1,
+          motion: 0.25,
+          lighting: 'timezone',
+          timezone: 'UTC',
+        },
+      ],
       [BRIDGE_CHANNELS.harnessShow],
       [BRIDGE_CHANNELS.harnessHide],
       [BRIDGE_CHANNELS.harnessProvider],
@@ -509,6 +553,30 @@ describe('preload bridge allowlist', () => {
     unsubscribe()
     expect(on).toHaveBeenCalledWith(BRIDGE_CHANNELS.appearanceChanged, handler)
     expect(off).toHaveBeenCalledWith(BRIDGE_CHANNELS.appearanceChanged, handler)
+  })
+
+  it('wraps material changes and removes only its own listener', () => {
+    const listener = vi.fn()
+    const unsubscribe = bridge.material.onChange(listener)
+    const handler = on.mock.calls[0]?.[1] as (
+      event: unknown,
+      preference: unknown,
+    ) => void
+    const preference = {
+      preset: 'water',
+      quality: 'high',
+      strength: 1,
+      motion: 0.25,
+      lighting: 'timezone',
+      timezone: 'UTC',
+    }
+
+    handler({ raw: 'electron-event' }, preference)
+    expect(listener).toHaveBeenCalledWith(preference)
+
+    unsubscribe()
+    expect(on).toHaveBeenCalledWith(BRIDGE_CHANNELS.materialChanged, handler)
+    expect(off).toHaveBeenCalledWith(BRIDGE_CHANNELS.materialChanged, handler)
   })
 
   it('wraps local model events and removes only its own listener', () => {

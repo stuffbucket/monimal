@@ -32,6 +32,7 @@
     "check:deep": "bun run check:fast && bun test",
     "check:fast": "bun run lint:fast && bun run typecheck && bun run lint:all",
     "dev": "bun run --watch ./src/main.ts",
+    "e2e:systemone": "pnpm --filter @maximal/maximal-core run e2e:system-one",
     "e2e:terminal": "pnpm exec turbo run build --filter=@maximal/maximal... && bun scripts/dev/e2e-terminal-attribution.ts",
     "lint": "eslint",
     "lint:all": "eslint .",

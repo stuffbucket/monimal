@@ -46,6 +46,34 @@ afterEach(() => {
   }
 })
 
+describe("System One provider host credentials", () => {
+  test("materializes the TypeSafe credential for the System One adapter", async () => {
+    const source = createProviderHostConfigSource({
+      readSystemOneApiKey: () => "typesafe-test-key",
+      readConfig: () => ({
+        providerHost: { mode: "plugins" },
+        providers: {
+          "typesafe-jev": {
+            authType: "authorization",
+            baseUrl: "https://api.typesafe.ai",
+            type: "systemone",
+          },
+        },
+      }),
+      subscribeValidatedConfig: ignoreConfigChanges,
+      watchExternalWrites: false,
+    })
+
+    expect(source.getSnapshot().providers["typesafe-jev"]).toEqual({
+      apiKey: "typesafe-test-key",
+      authType: "authorization",
+      baseUrl: "https://api.typesafe.ai",
+      type: "systemone",
+    })
+    await source.dispose()
+  })
+})
+
 describe("provider host config source", () => {
   test("publishes validated in-memory mode and opaque plugin changes", async () => {
     let config: AppConfig = {}

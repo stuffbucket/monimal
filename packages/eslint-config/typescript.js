@@ -2,6 +2,7 @@ import tseslint from "typescript-eslint"
 
 import { architecture } from "./architecture.js"
 import { base } from "./base.js"
+import { unsafeTypeAssertionsPlugin } from "./unsafe-type-assertions.js"
 
 /**
  * Files the TypeScript project service is pointed at.
@@ -81,11 +82,13 @@ export function typescript({
 
     {
       files,
+      plugins: { "maximal-model-policy": unsafeTypeAssertionsPlugin },
       languageOptions: {
         globals,
         parserOptions: { projectService: true, tsconfigRootDir },
       },
       rules: {
+        "maximal-model-policy/no-unsafe-type-assertions": "warn",
         // A leading underscore means "deliberately unused" across this
         // workspace. Without these patterns the rule reports every such
         // binding: 56 findings in the two service packages and 4 in the

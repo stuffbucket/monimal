@@ -89,6 +89,19 @@
       ],
       "description": "Enforce the down-only cross-package duplicate ratchet."
     },
+    "@maximal/eslint-config#check:unsafe-type-assertions": {
+      "outputs": [],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/apps/**",
+        "$TURBO_ROOT$/packages/**",
+        "!$TURBO_ROOT$/apps/**/dist/**",
+        "!$TURBO_ROOT$/apps/**/.turbo/**",
+        "!$TURBO_ROOT$/packages/**/dist/**",
+        "!$TURBO_ROOT$/packages/**/.turbo/**"
+      ],
+      "description": "Enforce the workspace-wide unsafe TypeScript assertion ratchet."
+    },
     "@maximal/maximal-settings#migration:check": {
       "outputs": [],
       "inputs": [

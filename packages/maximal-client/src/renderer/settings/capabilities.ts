@@ -25,6 +25,8 @@ import type {
   SearchSettingsUpdateRequest,
   SearchProviderValidationRequest,
   SearchProviderValidationResponse,
+  SystemOneSettingsResponse,
+  SystemOneSettingsUpdateRequest,
   TokenUsagePeriod,
   TokenUsageSummary,
 } from '@maximal/maximal-core-contract/settings'
@@ -37,6 +39,7 @@ import type {
 
 import type {
   AppearancePreference,
+  PersistedMaterialPreference,
   ClientInstallation,
   GeneralDesktopSettings,
   LocalModelCancelResult,
@@ -98,6 +101,8 @@ export type {
   SearchProviderValidationResponse,
   SearchSettingsResponse,
   SearchSettingsUpdateRequest,
+  SystemOneSettingsResponse,
+  SystemOneSettingsUpdateRequest,
   SystemNotificationStatus,
   TokenUsagePeriod,
   TokenUsageSummary,
@@ -128,6 +133,10 @@ export interface SettingsCapabilities {
     update(input: OllamaSettingsUpdateRequest): Promise<OllamaSettingsResponse>
     testApiKey(input: OllamaApiKeyTestRequest): Promise<OllamaApiKeyTestResponse>
   }
+  systemOneSettings: {
+    get(): Promise<SystemOneSettingsResponse>
+    update(input: SystemOneSettingsUpdateRequest): Promise<SystemOneSettingsResponse>
+  }
   general: {
     desktopSettings(): Promise<GeneralDesktopSettings>
     setStartOnLogin(enabled: boolean): Promise<GeneralDesktopSettings>
@@ -136,6 +145,13 @@ export interface SettingsCapabilities {
     setBackgroundEffectsEnabled(enabled: boolean): Promise<AppearancePreference>
     setReducedMotionEnabled(enabled: boolean): Promise<AppearancePreference>
     onAppearanceChange(listener: (preference: AppearancePreference) => void): () => void
+    material(): Promise<PersistedMaterialPreference>
+    setMaterial(
+      preference: PersistedMaterialPreference,
+    ): Promise<PersistedMaterialPreference>
+    onMaterialChange(
+      listener: (preference: PersistedMaterialPreference) => void,
+    ): () => void
     menuBarMode(): Promise<MenuBarModeState>
     beginMenuBarOnly(): Promise<MenuBarModeAttempt>
     confirmMenuBarOnly(attemptId: string): Promise<MenuBarModeState>
@@ -339,6 +355,12 @@ export function createCoreSettingsCapabilities(): SettingsCapabilities {
       testApiKey: async (input) =>
         unwrapControlResult(await bridge.control.ollamaApiKeyTest(input)),
     },
+    systemOneSettings: {
+      get: async () =>
+        unwrapControlResult(await bridge.control.systemOneSettingsGet()),
+      update: async (input) =>
+        unwrapControlResult(await bridge.control.systemOneSettingsUpdate(input)),
+    },
     general: {
       desktopSettings: () => bridge.generalSettings.get(),
       setStartOnLogin: (enabled) =>
@@ -351,6 +373,9 @@ export function createCoreSettingsCapabilities(): SettingsCapabilities {
       setReducedMotionEnabled: (enabled) =>
         bridge.appearance.setReducedMotionEnabled(enabled),
       onAppearanceChange: (listener) => bridge.appearance.onChange(listener),
+      material: () => bridge.material.get(),
+      setMaterial: (preference) => bridge.material.set(preference),
+      onMaterialChange: (listener) => bridge.material.onChange(listener),
       menuBarMode: () => bridge.menuBarMode.get(),
       beginMenuBarOnly: () => bridge.menuBarMode.beginEnable(),
       confirmMenuBarOnly: (attemptId) => bridge.menuBarMode.confirmEnable(attemptId),

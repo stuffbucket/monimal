@@ -41,6 +41,8 @@ import type {
   SearchProviderValidationResponse,
   SearchSettingsResponse,
   SearchSettingsUpdateRequest,
+  SystemOneSettingsResponse,
+  SystemOneSettingsUpdateRequest,
   TokenUsagePeriod,
   TokenUsageSummary,
 } from '@maximal/maximal-core-contract/settings'
@@ -182,6 +184,32 @@ export interface AppearancePreference {
   reducedMotionEnabled: boolean
 }
 
+export const MATERIAL_PRESET_VALUES = [
+  'clouds',
+  'acrylic',
+  'paper',
+  'cloth',
+  'marble',
+  'water',
+  'cel-sky',
+  'halftone',
+  'ink-wash',
+  'stardust',
+] as const
+
+export type MaterialPreset = (typeof MATERIAL_PRESET_VALUES)[number]
+export type MaterialQuality = 'battery' | 'balanced' | 'high'
+export type MaterialLighting = 'fixed' | 'timezone'
+
+export interface PersistedMaterialPreference {
+  preset: MaterialPreset
+  quality: MaterialQuality
+  strength: number
+  motion: number
+  lighting: MaterialLighting
+  timezone: string
+}
+
 export interface OllamaRuntimePreferences {
   start_on_maximal_launch: boolean
   cloud_disabled: boolean
@@ -315,6 +343,15 @@ export interface MaximalHost {
     setReducedMotionEnabled: (enabled: boolean) => Promise<AppearancePreference>
     onChange: (listener: (preference: AppearancePreference) => void) => Unsubscribe
   }
+  material: {
+    get: () => Promise<PersistedMaterialPreference>
+    set: (
+      preference: PersistedMaterialPreference,
+    ) => Promise<PersistedMaterialPreference>
+    onChange: (
+      listener: (preference: PersistedMaterialPreference) => void,
+    ) => Unsubscribe
+  }
   projects: {
     snapshot: () => Promise<ProjectCatalogSnapshot>
     search: (query: string, limit?: number) => Promise<ProjectSearchResult[]>
@@ -379,6 +416,8 @@ export interface MaximalHost {
     ollamaSettingsGet: () => Promise<ControlResult<OllamaSettingsResponse>>
     ollamaSettingsUpdate: (input: OllamaSettingsUpdateRequest) => Promise<ControlResult<OllamaSettingsResponse>>
     ollamaApiKeyTest: (input: OllamaApiKeyTestRequest) => Promise<ControlResult<OllamaApiKeyTestResponse>>
+    systemOneSettingsGet: () => Promise<ControlResult<SystemOneSettingsResponse>>
+    systemOneSettingsUpdate: (input: SystemOneSettingsUpdateRequest) => Promise<ControlResult<SystemOneSettingsResponse>>
     observabilityOverview: (query: TrafficOverviewQuery) => Promise<ControlResult<TrafficOverview>>
     observabilityRequests: (query: TrafficRequestListQuery) => Promise<ControlResult<TrafficRequestList>>
     observabilityRequest: (query: TrafficRequestDetailQuery) => Promise<ControlResult<TrafficRequestDetail | null>>
