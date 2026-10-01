@@ -774,7 +774,10 @@ test("architecture analysis has one cacheable Turbo execution path", () => {
 
 test("required CI runs native checks before Docker and has one cache writer", () => {
   const workflow = read(".github/workflows/ci.yml");
-  const staticGate = "pnpm run check:static";
+  const staticGate = "pnpm exec turbo run build typecheck lint";
+  const staticRatchets =
+    "pnpm exec turbo run @maximal/eslint-config#check:unsafe-type-assertions @maximal/maximal-settings#migration:check @maximal/maximal-settings#security:check //#check:network-literals";
+  const tokenGate = "pnpm run check:tokens";
   const duplicateGate =
     "pnpm exec turbo run //#check:cross-package-duplicates";
   const hostGate =
@@ -785,6 +788,8 @@ test("required CI runs native checks before Docker and has one cache writer", ()
     "pnpm run test:all -- --trace=${{ inputs.test_trace || 'off' }}";
   const packageGate = "pnpm run package:all";
   assert.equal(workflow.split(staticGate).length - 1, 1);
+  assert.equal(workflow.split(staticRatchets).length - 1, 1);
+  assert.equal(workflow.split(tokenGate).length - 1, 1);
   assert.equal(workflow.split(duplicateGate).length - 1, 1);
   assert.equal(workflow.split(hostGate).length - 1, 1);
   assert.equal(workflow.split(sidecarProvenance).length - 1, 1);

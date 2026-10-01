@@ -226,9 +226,9 @@ jobs:
           echo "started_at=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
           echo "started_epoch=$(date +%s)" >> "$GITHUB_OUTPUT"
 
-      - name: Check workspace static gates
+      - name: Build, typecheck, and lint workspace
         id: workspace-check
-        run: pnpm run check:static
+        run: pnpm exec turbo run build typecheck lint
 
       - name: Record workspace check timing
         if: always() && steps.workspace-check-start.outcome == 'success'
@@ -242,6 +242,12 @@ jobs:
           status=failure
           if [ "$OUTCOME" = success ]; then status=success; fi
           echo "perf-marker phase=workspace-check-window started_at=$STARTED_AT ended_at=$ended_at elapsed_seconds=$elapsed_seconds status=$status"
+
+      - name: Check workspace static ratchets
+        run: pnpm exec turbo run @maximal/eslint-config#check:unsafe-type-assertions @maximal/maximal-settings#migration:check @maximal/maximal-settings#security:check //#check:network-literals
+
+      - name: Check design tokens
+        run: pnpm run check:tokens
 
       - name: Check for cross-package and intra-package duplicate logic
         run: pnpm exec turbo run //#check:cross-package-duplicates
