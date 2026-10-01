@@ -36,6 +36,7 @@ has ended.
 | `packages/maximal-cli` | Transport-neutral command contracts, adapters, and conformance suites. |
 | `packages/maximal-core-contract` | Core's settings wire types and control-plane contract; Core republishes them. |
 | `packages/maximal-models` | Provider plugin lifecycle and model dispatch. |
+| `packages/maximal-react-component` (`@maximal/maximal-react-component`) | Development-only React component framing and source-location connection for Vite renderers. |
 | `packages/maximal-observability-contract` | Traffic schemas and observer interfaces. |
 | `packages/maximal-observability` | Traffic explorer UI. |
 | `packages/maximal-ollama` | Node-native Ollama runtime management and renderer-safe status contract. |

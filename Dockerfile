@@ -125,6 +125,7 @@ COPY --chown=maximal:maximal packages/maximal-model-catalog/package.json package
 COPY --chown=maximal:maximal packages/maximal-models/package.json packages/maximal-models/package.json
 COPY --chown=maximal:maximal packages/maximal-systemone/package.json packages/maximal-systemone/package.json
 COPY --chown=maximal:maximal packages/maximal-electron/package.json packages/maximal-electron/package.json
+COPY --chown=maximal:maximal packages/maximal-react-component/package.json packages/maximal-react-component/package.json
 COPY --chown=maximal:maximal packages/maximal-recording/package.json packages/maximal-recording/package.json
 COPY --chown=maximal:maximal packages/maximal-data-visualization/package.json packages/maximal-data-visualization/package.json
 COPY --chown=maximal:maximal packages/maximal-context-window/package.json packages/maximal-context-window/package.json
