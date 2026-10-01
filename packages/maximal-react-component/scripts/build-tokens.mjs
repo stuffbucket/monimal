@@ -5,6 +5,10 @@ import StyleDictionary from "style-dictionary"
 
 const packageRoot = path.resolve(fileURLToPath(new URL("..", import.meta.url)))
 const formatName = "maximal/typescript-inspector-tokens"
+const generatedRoot = path.join(packageRoot, "src/generated")
+const temporaryBuildPath = fs.mkdtempSync(
+  path.join(generatedRoot, ".inspector-tokens-"),
+)
 
 function propertyName(tokenPath) {
   return tokenPath
@@ -36,7 +40,7 @@ const dictionary = new StyleDictionary({
   platforms: {
     typescript: {
       transforms: ["name/camel"],
-      buildPath: `${path.join(packageRoot, "src/generated")}${path.sep}`,
+      buildPath: `${temporaryBuildPath}${path.sep}`,
       files: [
         {
           destination: "inspector-tokens.ts",
@@ -47,4 +51,12 @@ const dictionary = new StyleDictionary({
   },
 })
 
-await dictionary.buildAllPlatforms()
+try {
+  await dictionary.buildAllPlatforms()
+  fs.renameSync(
+    path.join(temporaryBuildPath, "inspector-tokens.ts"),
+    path.join(generatedRoot, "inspector-tokens.ts"),
+  )
+} finally {
+  fs.rmSync(temporaryBuildPath, { recursive: true, force: true })
+}

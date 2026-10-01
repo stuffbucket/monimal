@@ -7,11 +7,13 @@ import type {
 
 import { describe, expect, it } from "vitest"
 
+import { INSPECTOR_STYLE_ID } from "../src/constants.js"
 import {
   createReactComponentInspectorPlugin,
   injectReactSourceMetadata,
   maximalReactComponent,
 } from "../src/index.js"
+import { inspectorStyles } from "../src/inspector-card.js"
 
 interface InspectorPlugin extends Plugin {
   configResolved(config: ResolvedConfig): void
@@ -58,6 +60,11 @@ describe("React component inspector Vite plugin", () => {
     expect(plugin.transformIndexHtml.order).toBe("pre")
     expect(plugin.transformIndexHtml.handler()).toEqual([
       {
+        tag: "style",
+        attrs: { "data-vite-dev-id": INSPECTOR_STYLE_ID },
+        children: inspectorStyles,
+      },
+      {
         tag: "script",
         attrs: { type: "module" },
         children:
@@ -71,6 +78,11 @@ describe("React component inspector Vite plugin", () => {
 
   it("uses empty Vite defaults before configuration resolves", () => {
     expect(inspectorPlugin().transformIndexHtml.handler()).toEqual([
+      {
+        tag: "style",
+        attrs: { "data-vite-dev-id": INSPECTOR_STYLE_ID },
+        children: inspectorStyles,
+      },
       {
         tag: "script",
         attrs: { type: "module" },

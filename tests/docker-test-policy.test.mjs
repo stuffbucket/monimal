@@ -283,7 +283,13 @@ test("removed packages cannot retain root workflow or Turbo references", () => {
     );
     fs.writeFileSync(
       path.join(fixture, "turbo.json"),
-      JSON.stringify({ tasks: { build: {}, "removed-app#build": {} } }),
+      JSON.stringify({
+        tasks: {
+          build: {},
+          "//#root-check": {},
+          "removed-app#build": {},
+        },
+      }),
     );
     assert.deepEqual(
       auditWorkspaceReferences(fixture, ["packages/library"]),
@@ -365,17 +371,19 @@ test("lockfile host repair retains the default mutating behavior", () => {
   }
 });
 
-test("turbo catalogs runtime settings environment variables", () => {
+test("turbo hashes stable runtime settings and passes the isolated test home", () => {
   const turbo = JSON.parse(read("turbo.json"));
 
+  assert.equal(turbo.cacheMaxAge, "7d");
+  assert.equal(turbo.cacheMaxSize, "1GB");
   assert.deepEqual(turbo.globalEnv, [
     "COPILOT_API_CREDENTIAL_HOME",
     "COPILOT_API_ENTERPRISE_URL",
-    "MAXIMAL_HOME",
     "MAXIMAL_HOME_POLICY",
     "COPILOT_API_OAUTH_APP",
     "MAXIMAL_API_SQLITE_DB_PATH",
   ]);
+  assert.ok(turbo.tasks.test.passThroughEnv.includes("MAXIMAL_HOME"));
 });
 
 test("the outer and fixed inner test scripts cannot recurse", () => {
@@ -444,7 +452,7 @@ test("the outer and fixed inner test scripts cannot recurse", () => {
   );
   assert.equal(
     manifest.scripts["check:static"],
-    "turbo run build typecheck lint && pnpm run check:network-literals && pnpm run check:unsafe-type-assertions && pnpm run check:settings && pnpm run check:tokens",
+    "turbo run build typecheck lint @maximal/eslint-config#check:unsafe-type-assertions @maximal/maximal-settings#migration:check @maximal/maximal-settings#security:check //#check:network-literals && pnpm run check:tokens",
   );
   assert.equal(
     manifest.scripts["check:settings"],
@@ -461,13 +469,31 @@ test("the outer and fixed inner test scripts cannot recurse", () => {
   );
   assert.equal(
     manifest.scripts.check,
-    "pnpm run check:static && pnpm run check:cross-package-duplicates && pnpm --filter @maximal/maximal-core run check:deep:host && pnpm test",
+    "pnpm run check:static && turbo run //#check:cross-package-duplicates @maximal/maximal-core#check:deep:host:after-workspace && pnpm test",
+  );
+  assert.equal(
+    manifest.scripts["check:affected"],
+    "turbo run build typecheck lint --affected && turbo run @maximal/design-tokens#token:check @maximal/maximal-settings#migration:check @maximal/maximal-settings#security:check //#check:network-literals //#check:cross-package-duplicates && turbo run @maximal/maximal-core#check:deep:host:after-workspace --affected && pnpm test",
   );
   assert.equal(
     (manifest.scripts.check.match(/(?:^|&& )pnpm test(?: |$)/g) ?? []).length,
     1,
   );
   assert.doesNotMatch(manifest.scripts.check, /pnpm run check:core/);
+  assert.deepEqual(turbo.tasks["//#check:network-literals"].outputs, []);
+  assert.deepEqual(
+    turbo.tasks["//#check:cross-package-duplicates"].outputs,
+    ["reports/cross-package-duplicates/**"],
+  );
+  assert.deepEqual(
+    turbo.tasks["@maximal/maximal-core#check:deep:host:after-workspace"].dependsOn,
+    ["build", "typecheck", "lint"],
+  );
+  assert.ok(
+    turbo.tasks["@maximal/eslint-config#lint"].inputs.includes(
+      "$TURBO_ROOT$/packages/**",
+    ),
+  );
   assert.deepEqual(turbo.tasks["@maximal/maximal-client#build"].outputs, []);
   assert.equal(turbo.tasks["maximal-desktop#build"].cache, false);
   assert.ok(
@@ -492,6 +518,7 @@ test("the outer and fixed inner test scripts cannot recurse", () => {
     "CLAUDE_CONFIG_DIR",
     "HOME",
     "LOCALAPPDATA",
+    "MAXIMAL_HOME",
     "MAXIMAL_TEST_ROOT",
     "USERPROFILE",
     "XDG_CACHE_HOME",
@@ -753,14 +780,22 @@ test("architecture analysis has one cacheable Turbo execution path", () => {
 test("required CI runs native checks before Docker and has one cache writer", () => {
   const workflow = read(".github/workflows/ci.yml");
   const staticGate = "pnpm exec turbo run build typecheck lint";
+  const staticRatchets =
+    "pnpm exec turbo run @maximal/eslint-config#check:unsafe-type-assertions @maximal/maximal-settings#migration:check @maximal/maximal-settings#security:check //#check:network-literals";
+  const tokenGate = "pnpm run check:tokens";
+  const duplicateGate =
+    "pnpm exec turbo run //#check:cross-package-duplicates";
   const hostGate =
-    "pnpm --filter @maximal/maximal-core run check:deep:host:after-workspace";
+    "pnpm exec turbo run @maximal/maximal-core#check:deep:host:after-workspace";
   const sidecarProvenance =
     "LINK=apps/desktop/node_modules/@maximal/maximal-core";
   const testGate =
     "pnpm run test:all -- --trace=${{ inputs.test_trace || 'off' }}";
   const packageGate = "pnpm run package:all";
   assert.equal(workflow.split(staticGate).length - 1, 1);
+  assert.equal(workflow.split(staticRatchets).length - 1, 1);
+  assert.equal(workflow.split(tokenGate).length - 1, 1);
+  assert.equal(workflow.split(duplicateGate).length - 1, 1);
   assert.equal(workflow.split(hostGate).length - 1, 1);
   assert.equal(workflow.split(sidecarProvenance).length - 1, 1);
   assert.equal(workflow.split(testGate).length - 1, 1);
@@ -787,9 +822,11 @@ test("required CI runs native checks before Docker and has one cache writer", ()
   );
   assert.ok(workflow.indexOf(hostGate) < workflow.indexOf(testGate));
   assert.ok(workflow.indexOf(sidecarProvenance) < workflow.indexOf(testGate));
-  assert.equal(workflow.split("uses: actions/cache/save@").length - 1, 1);
+  assert.equal(workflow.split("uses: actions/cache/save@").length - 1, 3);
   assert.equal(workflow.split("uses: actions/cache@").length - 1, 1);
-  assert.equal(workflow.split("uses: actions/cache/restore@").length - 1, 2);
+  assert.equal(workflow.split("uses: actions/cache/restore@").length - 1, 5);
+  assert.equal(workflow.split("cache: pnpm").length - 1, 0);
+  assert.equal(workflow.split("pnpm-v1-").length - 1, 6);
   assert.match(workflow, /if: github\.event_name == 'push'/);
   assert.equal(workflow.split("turbo-v2-").length - 1, 6);
 });

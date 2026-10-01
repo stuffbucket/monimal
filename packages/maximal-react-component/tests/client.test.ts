@@ -279,10 +279,8 @@ describe("React component source discovery", () => {
 })
 
 describe("React component inspector overlay", () => {
-  it("injects isolated inspector styles and removes them on disposal", () => {
-    const style = document.head.querySelector("style")
-    expect(style?.dataset["viteDevId"]).toBe("maximal-react-component")
-    expect(style?.textContent).toBe(inspectorStyles)
+  it("uses package-owned styles and removes interactions on disposal", () => {
+    expect(document.head.querySelector("style")).toBeNull()
     expect(inspectorStyles).toContain(`[${TARGET_ATTRIBUTE}]`)
     expect(inspectorStyles).toContain("#maximal-react-component-card")
 
@@ -291,7 +289,6 @@ describe("React component inspector overlay", () => {
     )
     dispose?.()
     dispose = undefined
-    expect(document.head.querySelector("style")).toBeNull()
     expect(target.hasAttribute(TARGET_ATTRIBUTE)).toBe(false)
 
     target.dispatchEvent(
@@ -304,7 +301,7 @@ describe("React component inspector overlay", () => {
     dispose?.()
     dispose = installReactComponentInspector({ root: ROOT, base: "/" })
 
-    expect(document.head.querySelector("style")).not.toBeNull()
+    expect(document.head.querySelector("style")).toBeNull()
   })
 
   it("removes every interaction listener with matching capture options", () => {

@@ -1,6 +1,8 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "ui": "stream",
+  "cacheMaxAge": "7d",
+  "cacheMaxSize": "1GB",
   "globalDependencies": [
     ".npmrc",
     "pnpm-workspace.yaml",
@@ -12,7 +14,6 @@
   "globalEnv": [
     "COPILOT_API_CREDENTIAL_HOME",
     "COPILOT_API_ENTERPRISE_URL",
-    "MAXIMAL_HOME",
     "MAXIMAL_HOME_POLICY",
     "COPILOT_API_OAUTH_APP",
     "MAXIMAL_API_SQLITE_DB_PATH"
@@ -63,6 +64,69 @@
       "dependsOn": ["token:inventory"],
       "outputs": [],
       "description": "Enforce the down-only warning ratchet for token migration issues."
+    },
+    "//#check:network-literals": {
+      "outputs": [],
+      "inputs": [
+        "$TURBO_ROOT$/**",
+        "!$TURBO_ROOT$/**/dist/**",
+        "!$TURBO_ROOT$/**/.turbo/**",
+        "!$TURBO_ROOT$/research_log/**",
+        "!$TURBO_ROOT$/.claude/**",
+        "!$TURBO_ROOT$/.github/pr-artifacts/**"
+      ],
+      "description": "Enforce the workspace-wide network literal ratchet."
+    },
+    "//#check:cross-package-duplicates": {
+      "outputs": ["reports/cross-package-duplicates/**"],
+      "inputs": [
+        "$TURBO_ROOT$/architecture-analysis.json",
+        "$TURBO_ROOT$/scripts/check-cross-package-duplicates.mjs",
+        "$TURBO_ROOT$/apps/*/src/**",
+        "$TURBO_ROOT$/packages/*/src/**",
+        "$TURBO_ROOT$/package.json",
+        "$TURBO_ROOT$/pnpm-lock.yaml"
+      ],
+      "description": "Enforce the down-only cross-package duplicate ratchet."
+    },
+    "@maximal/eslint-config#check:unsafe-type-assertions": {
+      "outputs": [],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/apps/**",
+        "$TURBO_ROOT$/packages/**",
+        "!$TURBO_ROOT$/apps/**/dist/**",
+        "!$TURBO_ROOT$/apps/**/.turbo/**",
+        "!$TURBO_ROOT$/packages/**/dist/**",
+        "!$TURBO_ROOT$/packages/**/.turbo/**"
+      ],
+      "description": "Enforce the workspace-wide unsafe TypeScript assertion ratchet."
+    },
+    "@maximal/maximal-settings#migration:check": {
+      "outputs": [],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/apps/**",
+        "$TURBO_ROOT$/packages/**",
+        "!$TURBO_ROOT$/apps/**/dist/**",
+        "!$TURBO_ROOT$/apps/**/.turbo/**",
+        "!$TURBO_ROOT$/packages/**/dist/**",
+        "!$TURBO_ROOT$/packages/**/.turbo/**"
+      ],
+      "description": "Enforce the workspace-wide application settings migration ratchet."
+    },
+    "@maximal/maximal-settings#security:check": {
+      "outputs": [],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/pnpm-lock.yaml"
+      ],
+      "description": "Verify the reviewed settings dependency graph and checked-in SBOM."
+    },
+    "@maximal/maximal-core#check:deep:host:after-workspace": {
+      "dependsOn": ["build", "typecheck", "lint"],
+      "outputs": [],
+      "description": "Run Core's remaining host checks after workspace build, typecheck, and lint."
     },
     "@maximal/maximal-client#build": {
       "dependsOn": ["^build"],
@@ -127,6 +191,7 @@
         "CLAUDE_CONFIG_DIR",
         "HOME",
         "LOCALAPPDATA",
+        "MAXIMAL_HOME",
         "MAXIMAL_TEST_ROOT",
         "USERPROFILE",
         "XDG_CACHE_HOME",
@@ -157,6 +222,20 @@
       "cache": false,
       "outputs": [],
       "description": "Rescan current runtime source for legacy logging on every lint run."
+    },
+    "@maximal/eslint-config#lint": {
+      "dependsOn": ["transit", "^build"],
+      "outputs": [],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/apps/**",
+        "$TURBO_ROOT$/packages/**",
+        "!$TURBO_ROOT$/apps/**/dist/**",
+        "!$TURBO_ROOT$/apps/**/.turbo/**",
+        "!$TURBO_ROOT$/packages/**/dist/**",
+        "!$TURBO_ROOT$/packages/**/.turbo/**"
+      ],
+      "description": "Lint shared configuration and rescan workspace-wide renderer style policies."
     },
     "package": {
       "dependsOn": ["build"],

@@ -6,6 +6,9 @@ import type {
   ResolvedConfig,
 } from "vite"
 
+import { INSPECTOR_STYLE_ID } from "./constants.js"
+import { inspectorStyles } from "./inspector-card.js"
+
 const CLIENT_MODULE = "@maximal/maximal-react-component/client"
 
 export function injectReactSourceMetadata(code: string): string | undefined {
@@ -60,6 +63,11 @@ export function createReactComponentInspectorPlugin(): Plugin {
       handler(): IndexHtmlTransformResult {
         const options = JSON.stringify({ root, base })
         return [
+          {
+            tag: "style",
+            attrs: { "data-vite-dev-id": INSPECTOR_STYLE_ID },
+            children: inspectorStyles,
+          },
           {
             tag: "script",
             attrs: { type: "module" },
