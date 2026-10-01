@@ -39,11 +39,9 @@ owning design system already has stricter limits.
 
 Reaching a search limit is a diagnostic. It is not evidence that the limit
 should be expanded.
-
 ## Source expectations
 
 Inputs MUST be monochrome SVG icons with a `viewBox`. `currentColor` is resolved
 from each configured state. Fixed SVG colors are measured as authored, so a
 fixed-color icon that is intended to respond to state colors MUST be corrected
 at its source before analysis.
-
