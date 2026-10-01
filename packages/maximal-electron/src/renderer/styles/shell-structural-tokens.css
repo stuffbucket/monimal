@@ -12,6 +12,7 @@
   --shell-radius: 6px;
   --shell-radius-large: 8px;
   --shell-focus-ring-width: 2px;
+  --shell-icon-stroke: 1px;
   --shell-field-background: var(--shell-input-background, var(--shell-canvas));
   --shell-focus-ring-offset: 2px;
   --shell-input-border: var(--shell-border-strong, var(--shell-border));
@@ -54,14 +55,5 @@
   --shell-row-height: 32px;
   --shell-tab-min: 72px;
   --shell-tab-max: 168px;
-  --shell-spatial-height: min(78vh, 56rem);
-  --shell-spatial-min-height: 34rem;
-  --shell-spatial-center: 50%;
-  --shell-spatial-dot-size: 1px;
-  --shell-spatial-dot-cutoff: 1.25px;
-  --shell-spatial-panel-top: 3.5rem;
-  --shell-spatial-panel-width: 11rem;
-  --shell-spatial-panel-clearance: 7rem;
-  --shell-spatial-side-bottom: 3rem;
 }
 }

@@ -7,7 +7,7 @@ import {
   type ReactElement,
 } from 'react'
 
-import { Dialog } from '@maximal/maximal-electron/renderer'
+import { SpatialCanvasSurface } from '@maximal/maximal-electron/renderer'
 import {
   ProjectMap,
   createYProjectMapStore,
@@ -124,12 +124,11 @@ export function ProjectBrowser({
   )
 
   return (
-    <Dialog
+    <SpatialCanvasSurface
       open={open}
       onOpenChange={onOpenChange}
       title="Open project"
       description="Search local folders and repositories."
-      className="dialog project-browser"
       testId="project-browser"
     >
       <ProjectMap
@@ -151,6 +150,6 @@ export function ProjectBrowser({
           void projectsApi.addRoot().catch((cause: unknown) =>
             setError(describeError(cause)))}
       />
-    </Dialog>
+    </SpatialCanvasSurface>
   )
 }

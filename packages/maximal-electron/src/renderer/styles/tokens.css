@@ -89,17 +89,6 @@
   --tab-min: 72px;
   --tab-max: 168px;
 
-  /* ---- Spatial canvas ---- */
-  --spatial-height: min(78vh, 56rem);
-  --spatial-min-height: 34rem;
-  --spatial-center: 50%;
-  --spatial-dot-size: 1px;
-  --spatial-dot-cutoff: 1.25px;
-  --spatial-panel-top: 3.5rem;
-  --spatial-panel-width: 11rem;
-  --spatial-panel-clearance: 7rem;
-  --spatial-side-bottom: 3rem;
-
   /*
    * ---- Navigation rail ----
    *
@@ -124,8 +113,8 @@
    * One ring. This was written out five times in three different geometries,
    * so a control's focus outline depended on which stylesheet it landed in.
    */
-  /* Lucide draws at 2. That reads as heavy next to text at these sizes. */
-  --icon-stroke: 1.5;
+  /* Lucide draws at 2. Shell glyphs use the thin one-pixel stroke. */
+  --icon-stroke: 1px;
 
   --focus-ring-width: 2px;
   --focus-ring-offset: 2px;

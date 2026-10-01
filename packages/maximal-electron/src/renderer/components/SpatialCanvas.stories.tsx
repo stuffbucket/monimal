@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { useRef, useState, type PointerEvent } from 'react';
 
 import {
   SpatialCanvas,
@@ -9,10 +10,12 @@ import {
   SpatialCanvasViewport,
 } from './SpatialCanvas.js';
 import {
+  SpatialCanvasAvatar,
   SpatialCanvasControlGroup,
   SpatialCanvasCorner,
   SpatialCanvasHeaderAction,
   SpatialCanvasPages,
+  SpatialCanvasPresence,
   SpatialCanvasToolButton,
   SpatialCanvasTopBar,
   SpatialCanvasZoomControls,
@@ -40,10 +43,38 @@ export const Board: Story = {
           <SpatialCanvasPages
             pages={[{ id: 'projects', name: 'Projects' }]}
             activePageId="projects"
+            panelId="spatial-story-panel"
             onPageChange={() => undefined}
             onAddPage={() => undefined}
           />
         </SpatialCanvasCorner>
+        <SpatialCanvasPresence>
+          <SpatialCanvasAvatar
+            initials="JD"
+            color="var(--shell-accent)"
+            title="Jordan · human"
+          />
+          <SpatialCanvasAvatar
+            initials="AG"
+            color="var(--shell-warning, var(--shell-text-muted))"
+            title="Agent · agent"
+          />
+          <SpatialCanvasHeaderAction
+            kind="comments"
+            label="Comments (2)"
+            onClick={() => undefined}
+          />
+          <SpatialCanvasHeaderAction
+            kind="chat"
+            label="Chat"
+            onClick={() => undefined}
+          />
+          <SpatialCanvasHeaderAction
+            kind="share"
+            label="Share"
+            onClick={() => undefined}
+          />
+        </SpatialCanvasPresence>
       </SpatialCanvasTopBar>
       <SpatialCanvasControlGroup label="Board tools">
         <SpatialCanvasToolButton
@@ -67,16 +98,21 @@ export const Board: Story = {
         onReset={() => undefined}
         onZoomIn={() => undefined}
       />
-      <SpatialCanvasViewport tool="select" aria-label="Spatial canvas">
+      <SpatialCanvasViewport
+        id="spatial-story-panel"
+        tool="select"
+        role="tabpanel"
+        aria-label="Spatial canvas"
+      >
         <SpatialCanvasScene x={240} y={140} zoom={1}>
           <SpatialCanvasConnectorLayer
-            lines={[{ id: 'line', x1: 130, y1: 60, x2: 440, y2: 220 }]}
+            lines={[{ id: 'line', x1: 208, y1: 32, x2: 300, y2: 184 }]}
           />
           <SpatialCanvasProjectCard
             x={0}
             y={0}
-            width={260}
-            height={120}
+            width={208}
+            height={64}
             selected={false}
             kind="repository"
             title="maximal-electron"
@@ -88,15 +124,122 @@ export const Board: Story = {
           <SpatialCanvasItem
             kind="sticky"
             label="Shared idea"
-            x={330}
-            y={150}
-            width={200}
-            height={160}
+            x={300}
+            y={128}
+            width={160}
+            height={112}
             selected
+            connectionMode
             onPointerDown={() => undefined}
           />
         </SpatialCanvasScene>
       </SpatialCanvasViewport>
     </SpatialCanvas>
   ),
+};
+
+function AttachedConnectorDemo() {
+  const [position, setPosition] = useState({ x: 320, y: 100 });
+  const drag = useRef<
+    { x: number; y: number; originX: number; originY: number } | undefined
+  >(undefined);
+
+  const beginDrag = (event: PointerEvent<HTMLButtonElement>) => {
+    drag.current = {
+      x: event.clientX,
+      y: event.clientY,
+      originX: position.x,
+      originY: position.y,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const moveDrag = (event: PointerEvent<HTMLDivElement>) => {
+    if (drag.current === undefined) return;
+    setPosition({
+      x: drag.current.originX + event.clientX - drag.current.x,
+      y: drag.current.originY + event.clientY - drag.current.y,
+    });
+  };
+
+  return (
+    <SpatialCanvas>
+      <SpatialCanvasControlGroup label="Board tools">
+        <SpatialCanvasToolButton
+          tool="select"
+          label="Move"
+          shortcut="V"
+          active
+          onClick={() => undefined}
+        />
+        <SpatialCanvasToolButton
+          tool="connector"
+          label="Connector"
+          shortcut="L"
+          active={false}
+          onClick={() => undefined}
+        />
+      </SpatialCanvasControlGroup>
+      <SpatialCanvasZoomControls
+        zoom={1}
+        onZoomOut={() => undefined}
+        onReset={() => undefined}
+        onZoomIn={() => undefined}
+      />
+      <SpatialCanvasViewport
+        id="connector-demo-panel"
+        tool="select"
+        role="tabpanel"
+        aria-label="Attached connector demonstration"
+        onPointerMove={moveDrag}
+        onPointerUp={() => {
+          drag.current = undefined;
+        }}
+        onPointerCancel={() => {
+          drag.current = undefined;
+        }}
+      >
+        <SpatialCanvasScene x={180} y={150} zoom={1}>
+          <SpatialCanvasConnectorLayer
+            lines={[{
+              id: 'responsive-line',
+              x1: 208,
+              y1: 32,
+              x2: position.x,
+              y2: position.y + 56,
+            }]}
+          />
+          <SpatialCanvasProjectCard
+            x={0}
+            y={0}
+            width={208}
+            height={64}
+            selected={false}
+            kind="repository"
+            title="maximal-electron"
+            description="/workspace/packages/maximal-electron"
+            meta="repository"
+            onPointerDown={() => undefined}
+            onDoubleClick={() => undefined}
+          />
+          <SpatialCanvasItem
+            kind="sticky"
+            label="Drag me — the connector stays attached"
+            x={position.x}
+            y={position.y}
+            width={160}
+            height={112}
+            selected
+            connectionMode
+            onPointerDown={beginDrag}
+          />
+        </SpatialCanvasScene>
+      </SpatialCanvasViewport>
+    </SpatialCanvas>
+  );
+}
+
+export const AttachedConnector: Story = {
+  args: { children: null },
+  render: () => <AttachedConnectorDemo />,
 };

@@ -100,6 +100,12 @@ export {
   type SpatialCanvasLine,
 } from './components/SpatialCanvas.js';
 export {
+  SpatialCanvasCommentComposer,
+  SpatialCanvasCommentThread,
+  SpatialCanvasPanelHeader,
+} from './components/SpatialCanvasDiscussion.js';
+export { SpatialCanvasSurface } from './components/SpatialCanvasSurface.js';
+export {
   SpatialCanvasAvatar,
   SpatialCanvasControlGroup,
   SpatialCanvasCorner,

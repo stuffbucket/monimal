@@ -6,16 +6,21 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   SpatialCanvas,
+  SpatialCanvasAvatar,
+  SpatialCanvasCommentComposer,
+  SpatialCanvasCommentThread,
   SpatialCanvasConnectorLayer,
   SpatialCanvasItem,
   SpatialCanvasMarquee,
   SpatialCanvasPages,
+  SpatialCanvasPresence,
   SpatialCanvasProjectCard,
   SpatialCanvasScene,
   SpatialCanvasToolButton,
   SpatialCanvasViewport,
   SpatialCanvasZoomControls,
 } from '../src/renderer/index.js';
+import { SPATIAL_CANVAS_STYLES } from '../src/renderer/components/SpatialCanvasStyles.js';
 import { TooltipProvider } from '../src/renderer/components/controls/Overlays.js';
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
@@ -45,16 +50,29 @@ describe('SpatialCanvas', () => {
                 { id: 'planning', name: 'Planning' },
               ]}
               activePageId="projects"
+              panelId="board-panel"
               onPageChange={onPageChange}
               onAddPage={onAddPage}
             />
+            <SpatialCanvasPresence>
+              <SpatialCanvasAvatar
+                initials="MA"
+                color="purple"
+                title="Map agent · agent"
+              />
+            </SpatialCanvasPresence>
             <SpatialCanvasZoomControls
               zoom={1.25}
               onZoomOut={vi.fn()}
               onReset={vi.fn()}
               onZoomIn={vi.fn()}
             />
-            <SpatialCanvasViewport tool="sticky" aria-label="Board">
+            <SpatialCanvasViewport
+              id="board-panel"
+              tool="sticky"
+              role="tabpanel"
+              aria-label="Board"
+            >
               <SpatialCanvasScene x={40} y={60} zoom={1.25}>
                 <SpatialCanvasConnectorLayer
                   lines={[{ id: 'link', x1: 1, y1: 2, x2: 3, y2: 4 }]}
@@ -80,6 +98,7 @@ describe('SpatialCanvas', () => {
                   width={200}
                   height={160}
                   selected={false}
+                  connectionMode
                   onPointerDown={vi.fn()}
                 />
                 <SpatialCanvasMarquee x={0} y={0} width={20} height={30} />
@@ -101,15 +120,37 @@ describe('SpatialCanvas', () => {
     expect(container.querySelector('.spatial-canvas__item')?.getAttribute('data-kind'))
       .toBe('sticky');
     expect(container.querySelector('.spatial-canvas__connectors line')).not.toBeNull();
+    expect(container.querySelectorAll('.spatial-canvas__connectors circle')).toHaveLength(2);
     expect(container.querySelector('.spatial-canvas__project-icon svg')).not.toBeNull();
+    expect(container.querySelector('.spatial-canvas__project-copy')?.children)
+      .toHaveLength(3);
+    expect(container.querySelector('.spatial-canvas__project > strong')).toBeNull();
+    expect(container.querySelector('.spatial-canvas__project > small')).toBeNull();
+    expect(container.querySelector('.spatial-canvas__item-label')?.tagName).toBe('SPAN');
+    expect(container.querySelectorAll(
+      '.spatial-canvas__item .spatial-canvas__connection-handles > span',
+    )).toHaveLength(4);
     expect(container.querySelector('[aria-label="Zoom controls"]')?.textContent)
       .toContain('125%');
+    expect(container.querySelector('[aria-label="People in this project map"]')
+      ?.getAttribute('role')).toBe('group');
+    expect(container.querySelector('[aria-label="Map agent · agent"]')).not.toBeNull();
+    act(() => {
+      container.querySelector<HTMLButtonElement>('[aria-label="Pages"]')?.click();
+    });
+    const tabs = container.querySelectorAll<HTMLButtonElement>('[role="tab"]');
+    expect(tabs[0]?.getAttribute('aria-controls')).toBe('board-panel');
+    expect(tabs[1]?.tabIndex).toBe(-1);
 
     act(() => {
-      container.querySelectorAll<HTMLButtonElement>('[role="tab"]')[1]?.click();
+      tabs[0]?.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'ArrowRight',
+        bubbles: true,
+      }));
       container.querySelector<HTMLButtonElement>('[aria-label="Add page"]')?.click();
     });
     expect(onPageChange).toHaveBeenCalledWith('planning');
+    expect(document.activeElement).toBe(tabs[1]);
     expect(onAddPage).toHaveBeenCalledOnce();
   });
 
@@ -134,5 +175,55 @@ describe('SpatialCanvas', () => {
 
     expect(container.querySelector('[aria-label="Sticky note (S)"] svg')).not.toBeNull();
     expect(container.textContent).not.toContain('S');
+  });
+
+  it('provides compact comment composer and thread semantics', () => {
+    const container = document.createElement('div');
+    document.body.append(container);
+    root = createRoot(container);
+
+    act(() => {
+      root?.render(
+        <TooltipProvider>
+          <SpatialCanvasCommentComposer
+            x={40}
+            y={60}
+            value="Review this"
+            onChange={vi.fn()}
+            onInsertEmoji={vi.fn()}
+            onInsertMention={vi.fn()}
+            onSubmit={vi.fn()}
+            onCancel={vi.fn()}
+          />
+          <SpatialCanvasCommentThread
+            initials="MA"
+            author="Map agent"
+            body="Review this"
+            resolved={false}
+            selected
+            onSelect={vi.fn()}
+            onToggleResolved={vi.fn()}
+          />
+        </TooltipProvider>,
+      );
+    });
+
+    expect(container.querySelector('[aria-label="Add a comment"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label="Comment tools"]')
+      ?.querySelectorAll('button')).toHaveLength(3);
+    expect(container.querySelector('[aria-label="Attach image"]')
+      ?.hasAttribute('disabled')).toBe(true);
+    expect(container.querySelector('.spatial-canvas__comment-thread')
+      ?.getAttribute('data-selected')).toBe('true');
+    expect(container.querySelector('.spatial-canvas__comment-author')?.textContent)
+      .toBe('MA');
+  });
+
+  it('reads the thin stroke token instead of carrying stroke widths', () => {
+    expect(SPATIAL_CANVAS_STYLES).toContain('stroke-width: var(--shell-icon-stroke)');
+    expect(SPATIAL_CANVAS_STYLES).not.toMatch(/stroke-width:\s*\d/);
+    expect(SPATIAL_CANVAS_STYLES).not.toMatch(/border(?:-\\w+)?:\s*\d+px/);
+    expect(SPATIAL_CANVAS_STYLES).toContain('.spatial-canvas-surface');
+    expect(SPATIAL_CANVAS_STYLES).toContain('inset: 0');
   });
 });

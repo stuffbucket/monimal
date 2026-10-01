@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest"
 
-import { geometryBackend, rectanglesIntersect } from "../src/geometry.ts"
+import {
+  connectorSegment,
+  geometryBackend,
+  rectanglesIntersect,
+} from "../src/geometry.ts"
 
 describe("WebAssembly geometry", () => {
   it("uses the WebAssembly backend", () => {
@@ -36,5 +40,25 @@ describe("WebAssembly geometry", () => {
 
     expect(visible.length).toBeGreaterThan(0)
     expect(duration).toBeLessThan(1000 / 60)
+  })
+
+  it("attaches connectors to the facing rectangle edges", () => {
+    const horizontal = connectorSegment(
+      { x: 0, y: 0, width: 100, height: 60 },
+      { x: 200, y: 10, width: 80, height: 80 },
+    )
+    expect(horizontal.x1).toBe(100)
+    expect(horizontal.x2).toBe(200)
+    expect(horizontal.y1).toBeCloseTo(35.263)
+    expect(horizontal.y2).toBeCloseTo(45.789)
+
+    const vertical = connectorSegment(
+      { x: 0, y: 0, width: 100, height: 60 },
+      { x: 20, y: 120, width: 80, height: 80 },
+    )
+    expect(vertical.y1).toBe(60)
+    expect(vertical.y2).toBe(120)
+    expect(vertical.x1).toBeCloseTo(52.308)
+    expect(vertical.x2).toBeCloseTo(56.923)
   })
 })

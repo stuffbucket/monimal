@@ -33,6 +33,7 @@ interface ToolEntry {
 }
 
 interface ProjectMapChromeProps {
+  panelId: string
   query: string
   onQueryChange: (value: string) => void
   pages: Array<ProjectMapPage>
@@ -41,6 +42,8 @@ interface ProjectMapChromeProps {
   onAddPage: () => void
   presence: Array<ProjectMapPresence>
   comments: Array<ProjectMapComment>
+  activeCommentId?: string
+  onSelectComment: (commentId: string) => void
   messages: Array<ProjectMapMessage>
   commentsOpen: boolean
   onCommentsOpenChange: (open: boolean) => void
@@ -50,10 +53,7 @@ interface ProjectMapChromeProps {
   tools: ReadonlyArray<ToolEntry>
   tool: ProjectMapTool
   onToolChange: (tool: ProjectMapTool) => void
-  projectCount: number
   onOpenSettings: () => void
-  selectedLabel?: string
-  onSelectedLabelChange: (value: string) => void
   error?: string
   zoom: number
   onZoom: (factor: number) => void
@@ -72,17 +72,27 @@ function PresenceActions({
   shareOpen: boolean
   onShareOpenChange: (open: boolean) => void
 }) {
+  const [searchOpen, setSearchOpen] = useState(false)
+  const showSearch = () => {
+    onShareOpenChange(false)
+    chrome.onCommentsOpenChange(false)
+    chrome.onChatOpenChange(false)
+    setSearchOpen((current) => !current)
+  }
   const showComments = () => {
+    setSearchOpen(false)
     onShareOpenChange(false)
     chrome.onChatOpenChange(false)
     chrome.onCommentsOpenChange(!chrome.commentsOpen)
   }
   const showChat = () => {
+    setSearchOpen(false)
     onShareOpenChange(false)
     chrome.onCommentsOpenChange(false)
     chrome.onChatOpenChange(!chrome.chatOpen)
   }
   const showShare = () => {
+    setSearchOpen(false)
     chrome.onCommentsOpenChange(false)
     chrome.onChatOpenChange(false)
     onShareOpenChange(!shareOpen)
@@ -98,6 +108,20 @@ function PresenceActions({
           title={`${person.name} · ${person.kind}`}
         />
       ))}
+      <SpatialCanvasHeaderAction
+        kind="search"
+        label={searchOpen ? "Close project search" : "Search projects"}
+        active={searchOpen}
+        onClick={showSearch}
+      />
+      {searchOpen ?
+        <TextInput
+          aria-label="Search projects"
+          value={chrome.query}
+          placeholder="Search projects"
+          onChange={chrome.onQueryChange}
+        />
+      : null}
       <SpatialCanvasHeaderAction
         kind="comments"
         label={`Comments (${chrome.comments.filter((comment) => !comment.resolved).length})`}
@@ -152,6 +176,7 @@ function MapHeader({
         <SpatialCanvasPages
           pages={chrome.pages}
           activePageId={chrome.pageId}
+          panelId={chrome.panelId}
           onPageChange={chrome.onPageChange}
           onAddPage={chrome.onAddPage}
         />
@@ -180,35 +205,13 @@ function MapControls({ chrome }: { chrome: ProjectMapChromeProps }) {
           />
         ))}
       </SpatialCanvasControlGroup>
-      <SpatialCanvasFloatingPanel label="Map overview">
-        <TextInput
-          aria-label="Search projects"
-          value={chrome.query}
-          placeholder="Search by name, path, or remote"
-          onChange={chrome.onQueryChange}
-        />
-        <strong>Projects</strong>
-        <span>{chrome.projectCount} on map</span>
-        {chrome.selectedLabel === undefined ? null : (
-          <label>
-            Label
-            <TextInput
-              value={chrome.selectedLabel}
-              onChange={chrome.onSelectedLabelChange}
-            />
-          </label>
-        )}
-        {chrome.error ?
+      {chrome.error ?
+        <SpatialCanvasFloatingPanel label="Map error">
           <Note status="failed" live="assertive">
             {chrome.error}
           </Note>
-        : null}
-        {chrome.projectCount === 0 && !chrome.error ?
-          <Note>
-            No projects found. Add a discovery folder in Projects settings.
-          </Note>
-        : null}
-      </SpatialCanvasFloatingPanel>
+        </SpatialCanvasFloatingPanel>
+      : null}
       <SpatialCanvasZoomControls
         zoom={chrome.zoom}
         onZoomOut={() => chrome.onZoom(1 / 1.2)}
@@ -237,6 +240,10 @@ export function ProjectMapChrome(chrome: ProjectMapChromeProps) {
           messages={chrome.messages}
           onClose={() => chrome.onCommentsOpenChange(false)}
           onToggleComment={chrome.onToggleComment}
+          {...(chrome.activeCommentId ?
+            { activeCommentId: chrome.activeCommentId }
+          : {})}
+          onSelectComment={chrome.onSelectComment}
           onSubmit={chrome.onAddComment}
         />
       : null}
@@ -247,6 +254,7 @@ export function ProjectMapChrome(chrome: ProjectMapChromeProps) {
           messages={chrome.messages}
           onClose={() => chrome.onChatOpenChange(false)}
           onToggleComment={chrome.onToggleComment}
+          onSelectComment={chrome.onSelectComment}
           onSubmit={chrome.onAddMessage}
         />
       : null}

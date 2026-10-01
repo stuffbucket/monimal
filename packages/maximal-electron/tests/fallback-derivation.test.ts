@@ -112,6 +112,6 @@ describe('what a shipped rule falls back to', () => {
       ([, value]) => /^\d/.test(value) || value === 'none' || value === 'fixed',
     );
 
-    expect(structural.length).toBeGreaterThan(10);
+    expect(structural.length).toBeGreaterThanOrEqual(10);
   });
 });

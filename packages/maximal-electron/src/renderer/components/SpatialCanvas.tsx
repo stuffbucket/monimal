@@ -19,6 +19,17 @@ export interface SpatialCanvasLine {
   y2: number;
 }
 
+function ConnectionHandles() {
+  return (
+    <span className="spatial-canvas__connection-handles" aria-hidden="true">
+      <span data-edge="top" />
+      <span data-edge="right" />
+      <span data-edge="bottom" />
+      <span data-edge="left" />
+    </span>
+  );
+}
+
 interface Positioned {
   x: number;
   y: number;
@@ -102,13 +113,16 @@ export function SpatialCanvasConnectorLayer({
       height="1"
     >
       {lines.map((line) => (
-        <line
-          key={line.id}
-          x1={line.x1}
-          y1={line.y1}
-          x2={line.x2}
-          y2={line.y2}
-        />
+        <g key={line.id} data-connector-id={line.id}>
+          <line
+            x1={line.x1}
+            y1={line.y1}
+            x2={line.x2}
+            y2={line.y2}
+          />
+          <circle cx={line.x1} cy={line.y1} r="3" />
+          <circle cx={line.x2} cy={line.y2} r="3" />
+        </g>
       ))}
     </svg>
   );
@@ -121,6 +135,7 @@ export function SpatialCanvasProjectCard({
   width,
   height,
   selected,
+  connectionMode = false,
   disabled,
   kind,
   title,
@@ -130,11 +145,12 @@ export function SpatialCanvasProjectCard({
   onDoubleClick,
 }: Sized & {
   selected: boolean;
+  connectionMode?: boolean;
   disabled?: boolean;
   kind: string;
   title: string;
   description: string;
-  meta: string;
+  meta?: string;
   onPointerDown: PointerEventHandler<HTMLButtonElement>;
   onDoubleClick: () => void;
 }) {
@@ -144,6 +160,7 @@ export function SpatialCanvasProjectCard({
       aria-pressed={selected}
       className="spatial-canvas__node spatial-canvas__project"
       data-selected={selected}
+      data-connecting={connectionMode}
       disabled={disabled}
       style={sizedStyle({ x, y, width, height })}
       onPointerDown={onPointerDown}
@@ -151,12 +168,17 @@ export function SpatialCanvasProjectCard({
     >
       <span className="spatial-canvas__project-icon" aria-hidden="true">
         {kind === "repository" ?
-          <FolderGit2 size={16} strokeWidth={1.75} />
-        : <Folder size={16} strokeWidth={1.75} />}
+          <FolderGit2 size={16} />
+        : <Folder size={16} />}
       </span>
-      <strong>{title}</strong>
-      <span>{description}</span>
-      <small className="spatial-canvas__project-meta">{meta}</small>
+      <span className="spatial-canvas__project-copy">
+        <span className="spatial-canvas__project-title">{title}</span>
+        <span className="spatial-canvas__project-path">{description}</span>
+        {meta ?
+          <span className="spatial-canvas__project-meta">{meta}</span>
+        : null}
+      </span>
+      {connectionMode ? <ConnectionHandles /> : null}
     </button>
   );
 }
@@ -166,24 +188,31 @@ export function SpatialCanvasItem({
   kind,
   label,
   selected,
+  connectionMode = false,
   onPointerDown,
   ...bounds
 }: Sized & {
   kind: "sticky" | "shape" | "section";
   label: string;
   selected: boolean;
-  onPointerDown: PointerEventHandler<HTMLElement>;
+  connectionMode?: boolean;
+  onPointerDown: PointerEventHandler<HTMLButtonElement>;
 }) {
   return (
-    <article
+    <button
+      type="button"
+      aria-pressed={selected}
+      aria-label={`${kind}: ${label}`}
       className="spatial-canvas__node spatial-canvas__item"
       data-kind={kind}
       data-selected={selected}
+      data-connecting={connectionMode}
       style={sizedStyle(bounds)}
       onPointerDown={onPointerDown}
     >
-      <strong>{label}</strong>
-    </article>
+      <span className="spatial-canvas__item-label">{label}</span>
+      {connectionMode ? <ConnectionHandles /> : null}
+    </button>
   );
 }
 
@@ -192,10 +221,12 @@ export function SpatialCanvasCommentPin({
   x,
   y,
   label,
+  selected = false,
   children,
   onClick,
 }: Positioned & {
   label: string;
+  selected?: boolean;
   children: ReactNode;
   onClick: () => void;
 }) {
@@ -203,6 +234,7 @@ export function SpatialCanvasCommentPin({
     <button
       type="button"
       className="spatial-canvas__comment-pin"
+      data-selected={selected}
       style={positionStyle({ x, y })}
       aria-label={label}
       onClick={onClick}

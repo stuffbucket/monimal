@@ -112,6 +112,19 @@ async function typeQuery(input: HTMLInputElement, value: string): Promise<void> 
   })
 }
 
+function openSearch(container: ParentNode): HTMLInputElement {
+  act(() => {
+    container.querySelector<HTMLButtonElement>(
+      '[aria-label="Search projects"]',
+    )?.click()
+  })
+  const input = container.querySelector<HTMLInputElement>(
+    'input[aria-label="Search projects"]',
+  )
+  if (!input) throw new Error('Expected the project search input')
+  return input
+}
+
 async function openProject(button: HTMLButtonElement): Promise<void> {
   await act(async () => {
     button.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))
@@ -126,16 +139,18 @@ describe('ProjectBrowser', () => {
     await runTimers()
 
     expect(search).toHaveBeenCalledWith('', 75)
-    expect(container.querySelector('[data-testid="project-browser"]')).not.toBeNull()
-    expect(container.querySelector('[aria-label="Search projects"]')
-      ?.getAttribute('placeholder')).toBe('Search by name, path, or remote')
-    expect(container.querySelector('[role="application"]')?.getAttribute('aria-label'))
+    expect(container.querySelector('[data-testid="project-browser"]')
+      ?.classList.contains('spatial-canvas-surface')).toBe(true)
+    expect(container.querySelector('[data-testid="project-browser"]')
+      ?.classList.contains('dialog')).toBe(false)
+    expect(container.querySelector('input[aria-label="Search projects"]')).toBeNull()
+    expect(openSearch(container).getAttribute('placeholder')).toBe('Search projects')
+    expect(container.querySelector('[role="tabpanel"]')?.getAttribute('aria-label'))
       .toBe('Project map canvas')
+    expect(container.querySelector('[role="application"]')).toBeNull()
     expect(container.textContent).toContain('Open project')
     expect(container.textContent).toContain('Search local folders and repositories.')
-    expect(container.textContent).toContain(
-      'No projects found. Add a discovery folder in Projects settings.',
-    )
+    expect(container.textContent).not.toContain('0 on map')
     expect(container.querySelector('[aria-label="Maximal menu"]')).not.toBeNull()
   })
 
@@ -160,7 +175,7 @@ describe('ProjectBrowser', () => {
     })
     await runTimers()
     expect(container.querySelectorAll('.spatial-canvas__project')).toHaveLength(0)
-    const input = container.querySelector<HTMLInputElement>('[aria-label="Search projects"]')!
+    const input = openSearch(container)
 
     await typeQuery(input, 'new')
     expect(search).toHaveBeenCalledTimes(1)
@@ -392,7 +407,7 @@ describe('ProjectBrowser', () => {
       )
     })
     await runTimers()
-    const input = document.body.querySelector<HTMLInputElement>('[aria-label="Search projects"]')!
+    const input = openSearch(document.body)
     await typeQuery(input, 'delayed')
     await act(async () => {
       reactRoot?.render(

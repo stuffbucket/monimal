@@ -5,6 +5,13 @@ export interface Rectangle {
   height: number
 }
 
+export interface ConnectorSegment {
+  x1: number
+  y1: number
+  x2: number
+  y2: number
+}
+
 // WebAssembly exports are positional at this ABI boundary.
 // eslint-disable-next-line max-params
 type Intersects = (
@@ -44,4 +51,42 @@ export function rectanglesIntersect(a: Rectangle, b: Rectangle): boolean {
   return (
     intersects(a.x, a.y, a.width, a.height, b.x, b.y, b.width, b.height) === 1
   )
+}
+
+function edgePoint(from: Rectangle, to: Rectangle): { x: number; y: number } {
+  const center = {
+    x: from.x + from.width / 2,
+    y: from.y + from.height / 2,
+  }
+  const target = {
+    x: to.x + to.width / 2,
+    y: to.y + to.height / 2,
+  }
+  const dx = target.x - center.x
+  const dy = target.y - center.y
+  if (dx === 0 && dy === 0) return center
+
+  const horizontal =
+    dx === 0 ? Number.POSITIVE_INFINITY : from.width / 2 / Math.abs(dx)
+  const vertical =
+    dy === 0 ? Number.POSITIVE_INFINITY : from.height / 2 / Math.abs(dy)
+  const distance = Math.min(horizontal, vertical)
+  return {
+    x: center.x + dx * distance,
+    y: center.y + dy * distance,
+  }
+}
+
+export function connectorSegment(
+  from: Rectangle,
+  to: Rectangle,
+): ConnectorSegment {
+  const start = edgePoint(from, to)
+  const end = edgePoint(to, from)
+  return {
+    x1: start.x,
+    y1: start.y,
+    x2: end.x,
+    y2: end.y,
+  }
 }

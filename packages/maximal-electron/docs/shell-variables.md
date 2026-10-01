@@ -60,6 +60,7 @@ focus rings, type, and optical details are not spacing increments.
 | `--shell-icon-optical-folder-offset-y` | `0.5px` | Centers the Folder glyph's painted bounds in its slot. |
 | `--shell-icon-optical-map-scale` | `1.111111` | Expands the Map glyph to the prominent painted extent. |
 | `--shell-icon-optical-terminal-scale` | `1.111111` | Expands the Terminal glyph to the prominent painted extent. |
+| `--shell-icon-stroke` | `1px` | The thin stroke used by shell iconography and spatial lines. |
 | `--shell-input-border` | `var(--shell-border-strong, var(--shell-border))` | The outline of a field. |
 | `--shell-leading-base` | `1.5` | Line height for a paragraph. |
 | `--shell-provider-anthropic-card-background` | `var(--shell-raised)` | The Anthropic model-card surface. |
@@ -87,15 +88,6 @@ focus rings, type, and optical details are not spacing increments.
 | `--shell-space-3` | `12px` | A gap between controls. |
 | `--shell-space-4` | `16px` | Padding around a surface. |
 | `--shell-space-5` | `24px` | A gap between sections. |
-| `--shell-spatial-center` | `50%` | The horizontal anchor for centered canvas controls. |
-| `--shell-spatial-dot-cutoff` | `1.25px` | The outer edge of a canvas grid dot. |
-| `--shell-spatial-dot-size` | `1px` | The solid center of a canvas grid dot. |
-| `--shell-spatial-height` | `min(78vh, 56rem)` | The responsive spatial canvas height. |
-| `--shell-spatial-min-height` | `34rem` | The minimum usable spatial canvas height. |
-| `--shell-spatial-panel-clearance` | `7rem` | Vertical space reserved around a floating canvas panel. |
-| `--shell-spatial-panel-top` | `3.5rem` | The canvas panel offset below top controls. |
-| `--shell-spatial-panel-width` | `11rem` | The width of the compact canvas overview. |
-| `--shell-spatial-side-bottom` | `3rem` | Clearance below a canvas side panel. |
 | `--shell-tab-max` | `168px` | The widest tab before labels truncate. |
 | `--shell-tab-min` | `72px` | The narrowest tab in a crowded strip. |
 | `--shell-text-base` | `0.875rem` | Body text. |
@@ -156,7 +148,6 @@ looks exactly like an ordinary hovered one.
 | `--shell-focus` | `--shell-accent` | focus ring on every control |
 | `--shell-font` | `400 14px/1.5 system-ui, sans-serif` | the shell's whole type |
 | `--shell-font-mono` | `ui-monospace, SFMono-Regular, Menlo, monospace` | the value half of a `Field` |
-| `--shell-icon-stroke` | `1.5` | the stroke weight of every Lucide glyph inside the shell |
 | `--shell-input-background` | `--shell-canvas` | the surface of a text field, textarea, select and radio |
 | `--shell-invalid` | `--shell-danger` | the outline and the message of a field that failed validation |
 | `--shell-nav-heading-height` | `24px` | the space a collapsed `NavRail` keeps for a section heading |

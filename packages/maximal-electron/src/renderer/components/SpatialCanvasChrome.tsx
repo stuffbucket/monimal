@@ -1,12 +1,14 @@
 import {
+  Copy,
   Frame,
   Hand,
   LayoutGrid,
-  MessageSquare,
+  MessageCircle,
   MessagesSquare,
   Minus,
   MousePointer2,
   Plus,
+  Search,
   Shapes,
   Share2,
   StickyNote,
@@ -16,7 +18,10 @@ import {
 import {
   forwardRef,
   type ComponentPropsWithoutRef,
+  type KeyboardEvent,
   type ReactNode,
+  useRef,
+  useState,
 } from "react";
 
 import { Button, IconButton } from "./controls/Button.js";
@@ -37,14 +42,14 @@ export type SpatialCanvasToolKind =
   | "comment";
 
 function toolIcon(tool: SpatialCanvasToolKind) {
-  const props = { size: 16, strokeWidth: 1.75 };
+  const props = { size: 16 };
   if (tool === "select") return <MousePointer2 {...props} />;
   if (tool === "hand") return <Hand {...props} />;
   if (tool === "sticky") return <StickyNote {...props} />;
   if (tool === "shape") return <Shapes {...props} />;
   if (tool === "section") return <Frame {...props} />;
   if (tool === "connector") return <Workflow {...props} />;
-  return <MessageSquare {...props} />;
+  return <MessageCircle {...props} />;
 }
 
 /** Renders one compact icon action in the spatial editing toolbar. */
@@ -78,13 +83,15 @@ export type SpatialCanvasHeaderActionKind =
   | "menu"
   | "comments"
   | "chat"
-  | "share";
+  | "share"
+  | "search";
 
 function headerActionIcon(kind: SpatialCanvasHeaderActionKind) {
-  const props = { size: 16, strokeWidth: 1.75 };
+  const props = { size: 16 };
   if (kind === "menu") return <LayoutGrid {...props} />;
-  if (kind === "comments") return <MessageSquare {...props} />;
+  if (kind === "comments") return <MessageCircle {...props} />;
   if (kind === "chat") return <MessagesSquare {...props} />;
+  if (kind === "search") return <Search {...props} />;
   return <Share2 {...props} />;
 }
 
@@ -121,32 +128,83 @@ export function SpatialCanvasCorner({ children }: { children: ReactNode }) {
 export function SpatialCanvasPages({
   pages,
   activePageId,
+  panelId,
   onPageChange,
   onAddPage,
 }: {
   pages: ReadonlyArray<SpatialCanvasPage>;
   activePageId: string;
+  panelId: string;
   onPageChange: (pageId: string) => void;
   onAddPage: () => void;
 }) {
+  const tabs = useRef<Array<HTMLButtonElement | null>>([]);
+  const [open, setOpen] = useState(false);
+  const activePage = pages.find((page) => page.id === activePageId);
+  const moveFocus = (
+    event: KeyboardEvent<HTMLButtonElement>,
+    index: number,
+  ) => {
+    let next: number;
+    if (event.key === "ArrowRight") next = (index + 1) % pages.length;
+    else if (event.key === "ArrowLeft") next = (index - 1 + pages.length) % pages.length;
+    else if (event.key === "Home") next = 0;
+    else if (event.key === "End") next = pages.length - 1;
+    else return;
+
+    event.preventDefault();
+    const page = pages[next];
+    if (page === undefined) return;
+    onPageChange(page.id);
+    tabs.current[next]?.focus();
+  };
+
   return (
-    <div className="spatial-canvas__pages">
-      <div role="tablist" aria-label="Map pages">
-        {pages.map((page) => (
-          <Button
-            size="sm"
-            role="tab"
-            key={page.id}
-            aria-selected={page.id === activePageId}
-            onClick={() => onPageChange(page.id)}
-          >
-            {page.name}
-          </Button>
-        ))}
-      </div>
-      <IconButton label="Add page" onClick={onAddPage}>
-        <Plus size={14} />
+    <div className="spatial-canvas__pages" data-open={open}>
+      <span className="spatial-canvas__page-title">
+        {activePage?.name ?? "Untitled"}
+      </span>
+      <IconButton
+        label="Pages"
+        aria-expanded={open}
+        active={open}
+        onClick={() => setOpen((current) => !current)}
+      >
+        <Copy size={16} />
       </IconButton>
+      {open ?
+        <aside className="spatial-canvas__pages-popover" aria-label="Pages">
+          <header>
+            <strong>Pages</strong>
+            <IconButton label="Add page" onClick={onAddPage}>
+              <Plus size={16} />
+            </IconButton>
+          </header>
+          <div role="tablist" aria-label="Map pages">
+            {pages.map((page, index) => (
+              <Button
+                size="sm"
+                role="tab"
+                key={page.id}
+                ref={(element) => {
+                  tabs.current[index] = element;
+                }}
+                id={`${panelId}-tab-${String(index)}`}
+                aria-controls={panelId}
+                aria-selected={page.id === activePageId}
+                tabIndex={page.id === activePageId ? 0 : -1}
+                onKeyDown={(event) => moveFocus(event, index)}
+                onClick={() => {
+                  onPageChange(page.id);
+                  setOpen(false);
+                }}
+              >
+                {page.name}
+              </Button>
+            ))}
+          </div>
+        </aside>
+      : null}
     </div>
   );
 }
@@ -156,6 +214,7 @@ export function SpatialCanvasPresence({ children }: { children: ReactNode }) {
   return (
     <div
       className="spatial-canvas__presence"
+      role="group"
       aria-label="People in this project map"
     >
       {children}
@@ -177,6 +236,8 @@ export function SpatialCanvasAvatar({
     <span
       className="spatial-canvas__avatar"
       title={title}
+      role="img"
+      aria-label={title}
       style={{ backgroundColor: color }}
     >
       {initials}
@@ -221,17 +282,25 @@ export function SpatialCanvasSidePanel({
   onClose,
   children,
   footer,
+  header,
+  edge = false,
 }: {
   label: string;
   title: string;
   onClose: () => void;
   children: ReactNode;
   footer?: ReactNode;
+  header?: ReactNode;
+  edge?: boolean;
 }) {
   return (
-    <aside className="spatial-canvas__side-panel" aria-label={label}>
+    <aside
+      className="spatial-canvas__side-panel"
+      aria-label={label}
+      data-edge={edge}
+    >
       <header>
-        <strong>{title}</strong>
+        {header ?? <strong>{title}</strong>}
         <IconButton label={`Close ${title}`} onClick={onClose}>
           <X size={14} />
         </IconButton>
@@ -255,7 +324,11 @@ export function SpatialCanvasZoomControls({
   onZoomIn: () => void;
 }) {
   return (
-    <div className="spatial-canvas__zoom" aria-label="Zoom controls">
+    <div
+      className="spatial-canvas__zoom"
+      role="group"
+      aria-label="Zoom controls"
+    >
       <IconButton label="Zoom out" onClick={onZoomOut}>
         <Minus size={14} />
       </IconButton>

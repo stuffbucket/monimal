@@ -1,7 +1,7 @@
 export function newItemDefinition(tool: "sticky" | "shape" | "section") {
-  if (tool === "section") return { width: 720, height: 440, text: "Section" }
-  if (tool === "sticky") return { width: 176, height: 136, text: "Sticky note" }
-  return { width: 176, height: 104, text: "Diagram" }
+  if (tool === "section") return { width: 640, height: 400, text: "Section" }
+  if (tool === "sticky") return { width: 160, height: 112, text: "Sticky note" }
+  return { width: 160, height: 88, text: "Diagram" }
 }
 
 export function selectionAfterPointer(

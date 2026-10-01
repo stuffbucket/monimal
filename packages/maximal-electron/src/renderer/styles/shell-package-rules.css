@@ -39,7 +39,7 @@
  * drawn at.
  */
 .sb-shell svg.lucide {
-  stroke-width: var(--shell-icon-stroke, 1.5);
+  stroke-width: var(--shell-icon-stroke);
 }
 
 /*

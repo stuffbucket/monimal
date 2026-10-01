@@ -28,7 +28,11 @@ import type {
   ProjectMapViewer,
 } from "./store.ts"
 
-import { rectanglesIntersect, type Rectangle } from "./geometry.ts"
+import {
+  connectorSegment,
+  rectanglesIntersect,
+  type Rectangle,
+} from "./geometry.ts"
 import {
   arrowDelta,
   newItemDefinition,
@@ -41,6 +45,10 @@ import {
   type SceneItem,
 } from "./model.ts"
 import { ProjectMapChrome } from "./ProjectMapChrome.tsx"
+import {
+  ProjectMapCommentComposer,
+  type ProjectMapCommentDraft,
+} from "./ProjectMapCommentComposer.tsx"
 
 interface Camera {
   x: number
@@ -60,6 +68,12 @@ interface DragState {
   camera: Camera
   worldOrigin: Point
   itemOrigins: Map<string, Point>
+}
+
+interface PendingMove {
+  itemOrigins: Map<string, Point>
+  dx: number
+  dy: number
 }
 
 export interface ProjectMapProps {
@@ -119,6 +133,14 @@ function editableTarget(target: EventTarget | null): boolean {
   )
 }
 
+function initials(name: string): string {
+  return name
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("")
+}
+
 function useRafCamera(initial: Camera): [Camera, (next: Camera) => void] {
   const [camera, setCamera] = useState(initial)
   const pending = useRef<Camera | undefined>(undefined)
@@ -162,8 +184,11 @@ export function ProjectMap({
 }: ProjectMapProps) {
   const generatedViewId = useId()
   const viewId = providedViewId ?? generatedViewId
+  const panelId = `${generatedViewId}-panel`
   const viewport = useRef<HTMLDivElement>(null)
   const drag = useRef<DragState | undefined>(undefined)
+  const pendingMove = useRef<PendingMove | undefined>(undefined)
+  const moveFrame = useRef<number | undefined>(undefined)
   const nextId = useRef(0)
   const connectorStart = useRef<string | undefined>(undefined)
   const cursor = useRef<Point | undefined>(undefined)
@@ -174,6 +199,8 @@ export function ProjectMap({
   const [marquee, setMarquee] = useState<Rectangle | undefined>(undefined)
   const [chatOpen, setChatOpen] = useState(false)
   const [commentsOpen, setCommentsOpen] = useState(false)
+  const [activeCommentId, setActiveCommentId] = useState<string>()
+  const [commentDraft, setCommentDraft] = useState<ProjectMapCommentDraft>()
   const [viewportSize, setViewportSize] = useState({ width: 1200, height: 700 })
   const snapshot = useMemo(
     () => store.getSnapshot(pageId),
@@ -192,6 +219,34 @@ export function ProjectMap({
       })
     },
     [updatePage],
+  )
+  const flushMove = useCallback(() => {
+    if (moveFrame.current !== undefined) {
+      cancelAnimationFrame(moveFrame.current)
+      moveFrame.current = undefined
+    }
+    const pending = pendingMove.current
+    pendingMove.current = undefined
+    if (!pending) return
+    setItems((current) =>
+      current.map((item) => {
+        const origin = pending.itemOrigins.get(item.id)
+        return origin && "x" in item ?
+            { ...item, x: origin.x + pending.dx, y: origin.y + pending.dy }
+          : item
+      }),
+    )
+  }, [setItems])
+  const scheduleMove = useCallback(
+    (next: PendingMove) => {
+      pendingMove.current = next
+      if (moveFrame.current !== undefined) return
+      moveFrame.current = requestAnimationFrame(() => {
+        moveFrame.current = undefined
+        flushMove()
+      })
+    },
+    [flushMove],
   )
 
   useEffect(
@@ -231,6 +286,14 @@ export function ProjectMap({
   }, [pageId, selected, store, viewId, viewer])
 
   useEffect(() => () => store.removePresence(viewId), [store, viewId])
+
+  useEffect(
+    () => () => {
+      if (moveFrame.current !== undefined)
+        cancelAnimationFrame(moveFrame.current)
+    },
+    [],
+  )
 
   useEffect(() => {
     const element = viewport.current
@@ -310,23 +373,13 @@ export function ProjectMap({
   }
 
   const createAt = (world: Point) => {
-    const id = `local:${++nextId.current}`
     if (tool === "comment") {
-      updatePage((draft) => {
-        draft.comments.push({
-          id,
-          author: viewer.name,
-          body: "New comment",
-          x: world.x,
-          y: world.y,
-          resolved: false,
-        })
-      })
-      setCommentsOpen(true)
+      setCommentDraft({ ...world, body: "" })
       setTool("select")
       return
     }
     if (tool !== "sticky" && tool !== "shape" && tool !== "section") return
+    const id = `local:${++nextId.current}`
     const definition = newItemDefinition(tool)
     setItems((current) => [
       ...current,
@@ -370,7 +423,7 @@ export function ProjectMap({
   }
 
   const beginItemPointer = (
-    event: PointerEvent<HTMLElement>,
+    event: PointerEvent<HTMLButtonElement>,
     item: SceneItem,
   ) => {
     if (item.type === "connector" || tool === "hand") return
@@ -460,19 +513,13 @@ export function ProjectMap({
     }
     const dx = world.x - active.worldOrigin.x
     const dy = world.y - active.worldOrigin.y
-    setItems((current) =>
-      current.map((item) => {
-        const origin = active.itemOrigins.get(item.id)
-        return origin && "x" in item ?
-            { ...item, x: origin.x + dx, y: origin.y + dy }
-          : item
-      }),
-    )
+    scheduleMove({ itemOrigins: active.itemOrigins, dx, dy })
   }
 
   const endPointer = (event: PointerEvent<HTMLDivElement>) => {
     const active = drag.current
     if (!active || active.pointerId !== event.pointerId) return
+    if (active.mode === "move") flushMove()
     if (active.mode === "marquee" && marquee) {
       setSelected(
         new Set(
@@ -543,11 +590,21 @@ export function ProjectMap({
       }
       case "Backspace":
       case "Delete": {
-        setItems((current) =>
-          current.filter(
-            (item) => item.type === "project" || !selected.has(item.id),
-          ),
-        )
+        setItems((current) => {
+          const removed = new Set(
+            current
+              .filter(
+                (item) => item.type !== "project" && selected.has(item.id),
+              )
+              .map((item) => item.id),
+          )
+          return current.filter(
+            (item) =>
+              !removed.has(item.id)
+              && (item.type !== "connector"
+                || (!removed.has(item.fromId) && !removed.has(item.toId))),
+          )
+        })
         setSelected(new Set())
 
         break
@@ -580,29 +637,36 @@ export function ProjectMap({
     return [
       {
         ...item,
-        x1: from.x + from.width / 2,
-        y1: from.y + from.height / 2,
-        x2: to.x + to.width / 2,
-        y2: to.y + to.height / 2,
+        ...connectorSegment(from, to),
       },
     ]
   })
 
-  const updateSelectedText = (text: string) => {
-    setItems((current) =>
-      current.map((item) =>
-        selected.has(item.id) && "text" in item ? { ...item, text } : item,
-      ),
-    )
+  const submitCommentDraft = () => {
+    if (!commentDraft) return
+    const body = commentDraft.body.trim()
+    if (!body) return
+    const id = `comment:${++nextId.current}`
+    updatePage((draft) => {
+      draft.comments.push({
+        id,
+        author: viewer.name,
+        body,
+        x: commentDraft.x,
+        y: commentDraft.y,
+        resolved: false,
+      })
+    })
+    setActiveCommentId(id)
+    setCommentDraft(undefined)
+    setCommentsOpen(true)
   }
-
-  const selectedEditable =
-    selected.size === 1 ? itemById.get([...selected][0] ?? "") : undefined
 
   return (
     <TooltipProvider>
       <SpatialCanvas testId="project-map">
         <ProjectMapChrome
+          panelId={panelId}
           query={query}
           onQueryChange={onQueryChange}
           pages={pages}
@@ -611,6 +675,8 @@ export function ProjectMap({
           onAddPage={() => onPageChange(store.addPage().id)}
           presence={collaborators}
           comments={comments}
+          {...(activeCommentId ? { activeCommentId } : {})}
+          onSelectComment={setActiveCommentId}
           messages={messages}
           commentsOpen={commentsOpen}
           onCommentsOpenChange={setCommentsOpen}
@@ -620,12 +686,7 @@ export function ProjectMap({
           tools={TOOL_LABELS}
           tool={tool}
           onToolChange={setTool}
-          projectCount={projects.length}
           onOpenSettings={onOpenSettings}
-          {...(selectedEditable && "text" in selectedEditable ?
-            { selectedLabel: selectedEditable.text }
-          : {})}
-          onSelectedLabelChange={updateSelectedText}
           {...(error ? { error } : {})}
           zoom={camera.zoom}
           onZoom={zoomAt}
@@ -664,9 +725,10 @@ export function ProjectMap({
 
         <SpatialCanvasViewport
           ref={viewport}
+          id={panelId}
           tool={tool}
           tabIndex={0}
-          role="application"
+          role="tabpanel"
           aria-label="Project map canvas"
           onWheel={onWheel}
           onPointerDown={beginCanvasPointer}
@@ -683,10 +745,17 @@ export function ProjectMap({
               if (item.type === "project") {
                 const disabled =
                   busy || !item.project.available || !item.project.trusted
+                const meta =
+                  !item.project.trusted || !item.project.available ?
+                    `${item.project.kind}${
+                      !item.project.trusted ? " · Restricted mode" : ""
+                    }${!item.project.available ? " · missing" : ""}`
+                  : undefined
                 return (
                   <SpatialCanvasProjectCard
                     key={item.id}
                     selected={isSelected}
+                    connectionMode={tool === "connector"}
                     disabled={disabled}
                     x={item.x}
                     y={item.y}
@@ -697,9 +766,7 @@ export function ProjectMap({
                     kind={item.project.kind}
                     title={item.project.name}
                     description={item.project.path}
-                    meta={`${item.project.kind}${
-                      !item.project.trusted ? " · Restricted mode" : ""
-                    }${!item.project.available ? " · missing" : ""}`}
+                    {...(meta ? { meta } : {})}
                   />
                 )
               }
@@ -709,6 +776,7 @@ export function ProjectMap({
                   kind={item.type}
                   label={item.text}
                   selected={isSelected}
+                  connectionMode={tool === "connector"}
                   x={item.x}
                   y={item.y}
                   width={item.width}
@@ -719,15 +787,19 @@ export function ProjectMap({
             })}
             {comments
               .filter((comment) => !comment.resolved)
-              .map((comment, index) => (
+              .map((comment) => (
                 <SpatialCanvasCommentPin
                   key={comment.id}
                   x={comment.x}
                   y={comment.y}
-                  label={`Comment ${index + 1} by ${comment.author}`}
-                  onClick={() => setCommentsOpen(true)}
+                  label={`Comment by ${comment.author}: ${comment.body}`}
+                  selected={comment.id === activeCommentId}
+                  onClick={() => {
+                    setActiveCommentId(comment.id)
+                    setCommentsOpen(true)
+                  }}
                 >
-                  {index + 1}
+                  {initials(comment.author)}
                 </SpatialCanvasCommentPin>
               ))}
             {collaborators.flatMap((person) =>
@@ -748,6 +820,15 @@ export function ProjectMap({
               <SpatialCanvasMarquee {...marquee} />
             : null}
           </SpatialCanvasScene>
+          {commentDraft ?
+            <ProjectMapCommentComposer
+              draft={commentDraft}
+              camera={camera}
+              onChange={setCommentDraft}
+              onSubmit={submitCommentDraft}
+              onCancel={() => setCommentDraft(undefined)}
+            />
+          : null}
         </SpatialCanvasViewport>
       </SpatialCanvas>
     </TooltipProvider>

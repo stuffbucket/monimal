@@ -71,10 +71,10 @@ export function layoutProjects(
     return {
       id: `project:${project.id}`,
       type: "project",
-      x: column * 276 + (seed % 13),
-      y: row * 120 + ((seed >>> 8) % 11),
-      width: 248,
-      height: 88,
+      x: column * 232 + (seed % 9),
+      y: row * 88 + ((seed >>> 8) % 7),
+      width: 208,
+      height: 64,
       project,
     }
   })
