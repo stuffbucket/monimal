@@ -11,6 +11,7 @@ import {
   SpatialCanvasCommentThread,
   SpatialCanvasCommentThreadCard,
   SpatialCanvasConnectorLayer,
+  SpatialCanvasCursor,
   SpatialCanvasItem,
   SpatialCanvasMarquee,
   SpatialCanvasPages,
@@ -105,6 +106,9 @@ describe('SpatialCanvas', () => {
                   onPointerDown={vi.fn()}
                 />
                 <SpatialCanvasMarquee x={0} y={0} width={20} height={30} />
+                <SpatialCanvasCursor x={40} y={50} color="magenta">
+                  Yav
+                </SpatialCanvasCursor>
               </SpatialCanvasScene>
             </SpatialCanvasViewport>
           </SpatialCanvas>
@@ -124,6 +128,11 @@ describe('SpatialCanvas', () => {
       .toBe('sticky');
     expect(container.querySelector('.spatial-canvas__connectors line')).not.toBeNull();
     expect(container.querySelectorAll('.spatial-canvas__connectors circle')).toHaveLength(2);
+    expect(container.querySelector('.spatial-canvas__cursor > svg')).not.toBeNull();
+    expect(container.querySelector('.spatial-canvas__cursor-label')?.textContent)
+      .toBe('Yav');
+    expect(container.querySelector('.spatial-canvas__cursor')?.getAttribute('aria-hidden'))
+      .toBe('true');
     expect(container.querySelector('.spatial-canvas__project-icon svg')).not.toBeNull();
     expect(container.querySelector('.spatial-canvas__project-copy')?.children)
       .toHaveLength(3);

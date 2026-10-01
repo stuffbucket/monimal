@@ -80,6 +80,15 @@ vi.mock('@maximal/maximal-electron/renderer', () => ({
   Dialog: ({ children, open, title }: { children: ReactNode; open: boolean; title: string }) =>
     open ? <div role="dialog" aria-label={title}>{children}</div> : null,
   Note: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  SpatialCanvasSurface: ({
+    children,
+    open,
+    testId,
+  }: {
+    children: ReactNode
+    open: boolean
+    testId?: string
+  }) => open ? <div data-testid={testId}>{children}</div> : null,
   UnsavedChangesDialog: () => null,
   TerminalLauncher: ({ open, onLaunched }: {
     open: boolean

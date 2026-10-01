@@ -5,7 +5,7 @@ import {
   type PointerEventHandler,
   type ReactNode,
 } from "react";
-import { Folder, FolderGit2 } from "lucide-react";
+import { Folder, FolderGit2, MousePointer2 } from "lucide-react";
 
 import { useComponentStyles } from "../lib/component-styles.js";
 import { SPATIAL_CANVAS_STYLES } from "./SpatialCanvasStyles.js";
@@ -254,12 +254,13 @@ export function SpatialCanvasCursor({
   return (
     <span
       className="spatial-canvas__cursor"
-      style={{
-        color,
-        ...positionStyle({ x, y }),
-      }}
+      style={{ color, ...positionStyle({ x, y }) }}
+      aria-hidden="true"
     >
-      <span>{children}</span>
+      <MousePointer2 size={16} />
+      <span className="spatial-canvas__cursor-label">
+        <span>{children}</span>
+      </span>
     </span>
   );
 }

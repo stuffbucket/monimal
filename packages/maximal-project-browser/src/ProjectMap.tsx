@@ -2,7 +2,6 @@ import {
   SpatialCanvas,
   SpatialCanvasCommentPin,
   SpatialCanvasConnectorLayer,
-  SpatialCanvasCursor,
   SpatialCanvasItem,
   SpatialCanvasMarquee,
   SpatialCanvasProjectCard,
@@ -51,6 +50,7 @@ import {
   commentPosition,
   ProjectMapActiveComment,
 } from "./ProjectMapComments.tsx"
+import { ProjectMapPresenceCursors } from "./ProjectMapPresenceCursors.tsx"
 import { useProjectMapComments } from "./useProjectMapComments.ts"
 import {
   clampZoom,
@@ -468,16 +468,6 @@ export function ProjectMap({
   }
 
   const movePointer = (event: PointerEvent<HTMLDivElement>) => {
-    const active = drag.current
-    if (!active || active.pointerId !== event.pointerId) return
-    if (active.mode === "pan") {
-      scheduleCamera({
-        ...active.camera,
-        x: active.camera.x + event.clientX - active.origin.x,
-        y: active.camera.y + event.clientY - active.origin.y,
-      })
-      return
-    }
     const bounds = event.currentTarget.getBoundingClientRect()
     const world = screenToWorld(
       { x: event.clientX, y: event.clientY },
@@ -491,6 +481,16 @@ export function ProjectMap({
       cursor: world,
       selectedIds: [...selected],
     })
+    const active = drag.current
+    if (!active || active.pointerId !== event.pointerId) return
+    if (active.mode === "pan") {
+      scheduleCamera({
+        ...active.camera,
+        x: active.camera.x + event.clientX - active.origin.x,
+        y: active.camera.y + event.clientY - active.origin.y,
+      })
+      return
+    }
     if (active.mode === "marquee") {
       setMarquee({
         x: Math.min(active.worldOrigin.x, world.x),
@@ -503,6 +503,15 @@ export function ProjectMap({
     const dx = world.x - active.worldOrigin.x
     const dy = world.y - active.worldOrigin.y
     scheduleMove({ itemOrigins: active.itemOrigins, dx, dy })
+  }
+
+  const clearPointerPresence = () => {
+    cursor.current = undefined
+    store.updatePresence(viewId, {
+      ...viewer,
+      pageId,
+      selectedIds: [...selected],
+    })
   }
 
   const endPointer = (event: PointerEvent<HTMLDivElement>) => {
@@ -705,6 +714,7 @@ export function ProjectMap({
           onPointerMove={movePointer}
           onPointerUp={endPointer}
           onPointerCancel={endPointer}
+          onPointerLeave={clearPointerPresence}
           onKeyDown={onKeyDown}
         >
           <SpatialCanvasScene x={camera.x} y={camera.y} zoom={camera.zoom}>
@@ -779,20 +789,10 @@ export function ProjectMap({
                   )
                 })(),
               )}
-            {collaborators.flatMap((person) =>
-              person.cursor ?
-                [
-                  <SpatialCanvasCursor
-                    key={person.id}
-                    x={person.cursor.x}
-                    y={person.cursor.y}
-                    color={person.color}
-                  >
-                    {person.name}
-                  </SpatialCanvasCursor>,
-                ]
-              : [],
-            )}
+            <ProjectMapPresenceCursors
+              collaborators={collaborators}
+              viewId={viewId}
+            />
             {marquee ?
               <SpatialCanvasMarquee {...marquee} />
             : null}

@@ -145,47 +145,50 @@ function exerciseAnchoredComment({
   expect(threadCard.getAttribute("data-resolved")).toBe("true")
 }
 
+function renderProjectMap(container: HTMLElement, store: ProjectMapStore) {
+  root = createRoot(container)
+  act(() => {
+    root?.render(
+      <TooltipProvider>
+        <ProjectMap
+          projects={[
+            {
+              id: "one",
+              name: "One",
+              path: "/work/one",
+              kind: "repository",
+              available: true,
+              trusted: true,
+            },
+          ]}
+          query=""
+          onQueryChange={vi.fn()}
+          onOpenProject={vi.fn()}
+          onOpenSettings={vi.fn()}
+          onAddFolder={vi.fn()}
+          store={store}
+          pageId="projects"
+          onPageChange={vi.fn()}
+          viewer={{
+            id: "agent",
+            name: "Map agent",
+            initials: "MA",
+            color: "#8b5cf6",
+            kind: "agent",
+          }}
+          viewId="agent-overview"
+        />
+      </TooltipProvider>,
+    )
+  })
+}
+
 describe("ProjectMap", () => {
   it("renders independent pages, board tools, presence, comments, and chat", () => {
     const store = createYProjectMapStore()
     const container = document.createElement("div")
     document.body.append(container)
-    root = createRoot(container)
-
-    act(() => {
-      root?.render(
-        <TooltipProvider>
-          <ProjectMap
-            projects={[
-              {
-                id: "one",
-                name: "One",
-                path: "/work/one",
-                kind: "repository",
-                available: true,
-                trusted: true,
-              },
-            ]}
-            query=""
-            onQueryChange={vi.fn()}
-            onOpenProject={vi.fn()}
-            onOpenSettings={vi.fn()}
-            onAddFolder={vi.fn()}
-            store={store}
-            pageId="projects"
-            onPageChange={vi.fn()}
-            viewer={{
-              id: "agent",
-              name: "Map agent",
-              initials: "MA",
-              color: "#8b5cf6",
-              kind: "agent",
-            }}
-            viewId="agent-overview"
-          />
-        </TooltipProvider>,
-      )
-    })
+    renderProjectMap(container, store)
 
     expect(container.querySelectorAll(".spatial-canvas__project")).toHaveLength(
       1,
@@ -331,5 +334,62 @@ describe("ProjectMap", () => {
     act(() => root?.unmount())
     root = undefined
     store.destroy()
+  })
+
+  it("shows remote cursors without echoing or retaining the local cursor", () => {
+    const store = createYProjectMapStore()
+    store.updatePresence("remote-overview", {
+      id: "remote",
+      name: "Yav",
+      initials: "YA",
+      color: "#ff4f9a",
+      kind: "human",
+      pageId: "projects",
+      cursor: { x: 120, y: 80 },
+      selectedIds: [],
+    })
+    const container = document.createElement("div")
+    document.body.append(container)
+    renderProjectMap(container, store)
+
+    const viewport = requiredElement(
+      container,
+      '[aria-label="Project map canvas"]',
+    )
+    act(() => {
+      viewport.dispatchEvent(
+        new MouseEvent("pointermove", {
+          bubbles: true,
+          clientX: 360,
+          clientY: 240,
+        }),
+      )
+    })
+
+    expect(
+      store
+        .getSnapshot("projects")
+        .presence.find((person) => person.viewId === "agent-overview")?.cursor,
+    ).toEqual({ x: 20, y: 140 })
+    expect(container.querySelectorAll(".spatial-canvas__cursor")).toHaveLength(
+      1,
+    )
+    expect(
+      container.querySelector(".spatial-canvas__cursor-label")?.textContent,
+    ).toBe("Yav")
+
+    act(() => {
+      viewport.dispatchEvent(
+        new MouseEvent("pointerout", {
+          bubbles: true,
+          relatedTarget: document.body,
+        }),
+      )
+    })
+    expect(
+      store
+        .getSnapshot("projects")
+        .presence.find((person) => person.viewId === "agent-overview")?.cursor,
+    ).toBeUndefined()
   })
 })

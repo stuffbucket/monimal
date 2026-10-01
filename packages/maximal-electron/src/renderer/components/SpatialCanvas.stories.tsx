@@ -4,6 +4,7 @@ import { useRef, useState, type PointerEvent } from 'react';
 import {
   SpatialCanvas,
   SpatialCanvasConnectorLayer,
+  SpatialCanvasCursor,
   SpatialCanvasItem,
   SpatialCanvasProjectCard,
   SpatialCanvasScene,
@@ -132,6 +133,20 @@ export const Board: Story = {
             connectionMode
             onPointerDown={() => undefined}
           />
+          <SpatialCanvasCursor
+            x={248}
+            y={72}
+            color="var(--shell-accent)"
+          >
+            Yav
+          </SpatialCanvasCursor>
+          <SpatialCanvasCursor
+            x={480}
+            y={240}
+            color="var(--shell-warning, var(--shell-text-muted))"
+          >
+            Sophie
+          </SpatialCanvasCursor>
         </SpatialCanvasScene>
       </SpatialCanvasViewport>
     </SpatialCanvas>

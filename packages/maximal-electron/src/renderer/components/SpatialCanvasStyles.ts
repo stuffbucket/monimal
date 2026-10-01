@@ -221,6 +221,10 @@ export const SPATIAL_CANVAS_STYLES = `
   cursor: grab;
 }
 
+.sb-shell .spatial-canvas__viewport[data-tool="hand"]:active {
+  cursor: grabbing;
+}
+
 .sb-shell .spatial-canvas__viewport:not([data-tool="select"]):not([data-tool="hand"]) {
   cursor: crosshair;
 }
@@ -264,7 +268,7 @@ export const SPATIAL_CANVAS_STYLES = `
   font-size: var(--shell-text-sm);
   line-height: var(--shell-leading-base);
   text-align: left;
-  cursor: move;
+  cursor: default;
 }
 
 .sb-shell .spatial-canvas__project:hover:not(:disabled) {
@@ -330,7 +334,7 @@ export const SPATIAL_CANVAS_STYLES = `
   font-size: var(--shell-text-sm);
   line-height: var(--shell-leading-base);
   text-align: left;
-  cursor: move;
+  cursor: default;
 }
 
 .sb-shell .spatial-canvas__item-label {
@@ -465,27 +469,51 @@ export const SPATIAL_CANVAS_STYLES = `
   position: absolute;
   top: 0;
   left: 0;
-  padding: var(--shell-space-1) var(--shell-space-2);
-  color: currentColor;
-  background: currentColor;
-  border-radius: 0 var(--shell-radius) var(--shell-radius);
-  font-size: var(--shell-text-xs);
   pointer-events: none;
 }
 
-.sb-shell .spatial-canvas__cursor::before {
+.sb-shell .spatial-canvas__cursor > svg {
   position: absolute;
-  top: calc(-1 * var(--shell-space-2));
-  left: calc(-1 * var(--shell-focus-ring-width));
-  width: 0;
-  height: 0;
-  border-right: var(--shell-space-2) solid transparent;
-  border-bottom: var(--shell-space-3) solid currentColor;
-  content: "";
+  top: 0;
+  left: 0;
+  width: var(--shell-space-4);
+  height: var(--shell-space-4);
+  color: inherit;
+  fill: currentColor;
+  stroke: var(--shell-canvas);
+  stroke-width: var(--shell-icon-stroke);
 }
 
-.sb-shell .spatial-canvas__cursor > span {
+.sb-shell .spatial-canvas__cursor-label {
+  position: absolute;
+  top: var(--shell-space-3);
+  left: var(--shell-space-4);
+  display: flex;
+  min-height: var(--shell-control-sm);
+  align-items: center;
+  padding-inline: var(--shell-space-2);
+  color: inherit;
+  background: currentColor;
+  border-radius: var(--shell-radius-pill);
+  box-shadow: var(--shell-elevation, none);
+  font-size: var(--shell-text-sm);
+  font-weight: var(--shell-weight-md);
+  line-height: var(--shell-leading-base);
+  white-space: nowrap;
+}
+
+.sb-shell .spatial-canvas__cursor-label > span {
   color: var(--shell-accent-contrast, var(--shell-text));
+}
+
+.sb-shell .spatial-canvas__viewport[data-tool="hand"] .spatial-canvas__project,
+.sb-shell .spatial-canvas__viewport[data-tool="hand"] .spatial-canvas__item {
+  cursor: grab;
+}
+
+.sb-shell .spatial-canvas__viewport[data-tool="hand"]:active .spatial-canvas__project,
+.sb-shell .spatial-canvas__viewport[data-tool="hand"]:active .spatial-canvas__item {
+  cursor: grabbing;
 }
 
 .sb-shell .spatial-canvas__floating-panel {
