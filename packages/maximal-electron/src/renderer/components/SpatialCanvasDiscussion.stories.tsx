@@ -1,7 +1,11 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
+import { expect, userEvent, within } from 'storybook/test';
 
-import { SpatialCanvas } from './SpatialCanvas.js';
+import {
+  SpatialCanvas,
+  SpatialCanvasCommentAnchor,
+} from './SpatialCanvas.js';
 import {
   SpatialCanvasCommentComposer,
   SpatialCanvasCommentThread,
@@ -17,9 +21,10 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 function DiscussionExample() {
-  const [value, setValue] = useState('Please review this path');
+  const [value, setValue] = useState('');
   return (
     <SpatialCanvas>
+      <SpatialCanvasCommentAnchor x={160} y={120} color="#8b5cf6" />
       <SpatialCanvasCommentComposer
         x={160}
         y={120}
@@ -29,7 +34,7 @@ function DiscussionExample() {
         onInsertMention={() => setValue((current) => `${current}@`)}
         onSubmit={() => undefined}
         onCancel={() => setValue('')}
-        initials="MA"
+        color="#8b5cf6"
       />
       <SpatialCanvasCommentThread
         initials="MA"
@@ -86,7 +91,31 @@ export const ComposerAndThread: Story = {
     onInsertMention: () => undefined,
     onSubmit: () => undefined,
     onCancel: () => undefined,
-    initials: 'MA',
+    color: '#8b5cf6',
   },
   render: () => <DiscussionExample />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const anchor = canvasElement.querySelector<HTMLElement>(
+      '.spatial-canvas__comment-anchor',
+    );
+    const composer = canvas.getByRole('region', { name: 'Add a comment' });
+    if (!anchor) throw new Error('Missing anchored comment marker');
+
+    const anchorRect = anchor.getBoundingClientRect();
+    const emptyRect = composer.getBoundingClientRect();
+    const emptyCenterDelta = Math.abs(
+      anchorRect.top + anchorRect.height / 2
+      - (emptyRect.top + emptyRect.height / 2),
+    );
+    await expect(emptyCenterDelta).toBeLessThanOrEqual(0.5);
+
+    await userEvent.type(
+      canvas.getByRole('textbox', { name: 'Comment' }),
+      'Optically balanced',
+    );
+    const typingRect = composer.getBoundingClientRect();
+    await expect(composer).toHaveAttribute('data-state', 'typing');
+    await expect(anchorRect.top - typingRect.top).toBeCloseTo(8, 1);
+  },
 };

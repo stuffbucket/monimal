@@ -582,6 +582,7 @@ export function Textarea({
   onChange,
   placeholder,
   disabled,
+  autoFocus,
   rows = 3,
   onBlur,
   onKeyDown,
@@ -592,6 +593,7 @@ export function Textarea({
   onChange: (next: string) => void;
   placeholder?: string;
   disabled?: boolean;
+  autoFocus?: boolean;
   rows?: number;
   onBlur?: (event: React.FocusEvent<HTMLTextAreaElement>) => void;
   onKeyDown?: (event: React.KeyboardEvent<HTMLTextAreaElement>) => void;
@@ -605,6 +607,7 @@ export function Textarea({
       value={value}
       placeholder={placeholder}
       disabled={disabled}
+      autoFocus={autoFocus}
       onChange={(event) => onChange(event.target.value)}
       onBlur={onBlur}
       onKeyDown={onKeyDown}

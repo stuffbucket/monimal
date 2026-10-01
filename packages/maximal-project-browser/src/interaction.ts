@@ -1,3 +1,19 @@
+import type { ProjectMapTool } from "./model.ts"
+
+export const PROJECT_MAP_TOOLS: ReadonlyArray<{
+  tool: ProjectMapTool
+  label: string
+  shortcut: string
+}> = [
+  { tool: "select", label: "Move", shortcut: "V" },
+  { tool: "hand", label: "Hand", shortcut: "H" },
+  { tool: "sticky", label: "Sticky note", shortcut: "S" },
+  { tool: "shape", label: "Shape", shortcut: "O" },
+  { tool: "section", label: "Section", shortcut: "⇧S" },
+  { tool: "connector", label: "Connector", shortcut: "L" },
+  { tool: "comment", label: "Comment", shortcut: "C" },
+]
+
 export function newItemDefinition(tool: "sticky" | "shape" | "section") {
   if (tool === "section") return { width: 640, height: 400, text: "Section" }
   if (tool === "sticky") return { width: 160, height: 112, text: "Sticky note" }

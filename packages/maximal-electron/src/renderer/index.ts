@@ -89,6 +89,8 @@ export {
 } from './components/WindowChrome.js';
 export {
   SpatialCanvas,
+  SpatialCanvasCommentAnchor,
+  SpatialCanvasCommentCursor,
   SpatialCanvasCommentPin,
   SpatialCanvasConnectorLayer,
   SpatialCanvasCursor,

@@ -7,7 +7,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   SpatialCanvas,
   SpatialCanvasAvatar,
+  SpatialCanvasCommentAnchor,
   SpatialCanvasCommentComposer,
+  SpatialCanvasCommentCursor,
   SpatialCanvasCommentThread,
   SpatialCanvasCommentThreadCard,
   SpatialCanvasConnectorLayer,
@@ -110,6 +112,8 @@ describe('SpatialCanvas', () => {
                   Yav
                 </SpatialCanvasCursor>
               </SpatialCanvasScene>
+              <SpatialCanvasCommentCursor x={80} y={90} color="magenta" />
+              <SpatialCanvasCommentAnchor x={120} y={90} color="magenta" />
             </SpatialCanvasViewport>
           </SpatialCanvas>
         </TooltipProvider>,
@@ -133,6 +137,12 @@ describe('SpatialCanvas', () => {
       .toBe('Yav');
     expect(container.querySelector('.spatial-canvas__cursor')?.getAttribute('aria-hidden'))
       .toBe('true');
+    expect(container.querySelector('.spatial-canvas__comment-cursor')
+      ?.getAttribute('aria-hidden')).toBe('true');
+    expect(container.querySelector('.spatial-canvas__comment-cursor')
+      ?.getAttribute('data-state')).toBe('tool');
+    expect(container.querySelector('.spatial-canvas__comment-anchor')
+      ?.getAttribute('data-state')).toBe('anchored');
     expect(container.querySelector('.spatial-canvas__project-icon svg')).not.toBeNull();
     expect(container.querySelector('.spatial-canvas__project-copy')?.children)
       .toHaveLength(3);
@@ -189,7 +199,7 @@ describe('SpatialCanvas', () => {
     expect(container.textContent).not.toContain('S');
   });
 
-  it('provides compact comment composer and thread semantics', () => {
+  it('provides adaptive comment composer and thread semantics', () => {
     const container = document.createElement('div');
     document.body.append(container);
     root = createRoot(container);
@@ -209,7 +219,7 @@ describe('SpatialCanvas', () => {
             onInsertMention={vi.fn()}
             onSubmit={onSubmitComment}
             onCancel={onCancelComment}
-            initials="MA"
+            color="magenta"
           />
           <SpatialCanvasCommentThread
             initials="MA"
@@ -248,7 +258,12 @@ describe('SpatialCanvas', () => {
       );
     });
 
-    expect(container.querySelector('[aria-label="Add a comment"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label="Add a comment"]')
+      ?.getAttribute('data-state')).toBe('typing');
+    expect(container.querySelector('[aria-label="Add a comment"]')
+      ?.getAttribute('style')).toContain('border-color: magenta');
+    expect(container.querySelector('[aria-label="Post comment"]')
+      ?.getAttribute('style')).toContain('background-color: magenta');
     expect(container.querySelector('[aria-label="Comment tools"]')
       ?.querySelectorAll('button')).toHaveLength(3);
     expect(container.querySelector('[aria-label="Attach image"]')

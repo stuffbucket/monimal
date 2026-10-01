@@ -225,8 +225,12 @@ export const SPATIAL_CANVAS_STYLES = `
   cursor: grabbing;
 }
 
-.sb-shell .spatial-canvas__viewport:not([data-tool="select"]):not([data-tool="hand"]) {
+.sb-shell .spatial-canvas__viewport:not([data-tool="select"]):not([data-tool="hand"]):not([data-tool="comment"]) {
   cursor: crosshair;
+}
+
+.sb-shell .spatial-canvas__viewport[data-tool="comment"] {
+  cursor: none;
 }
 
 .sb-shell .spatial-canvas__scene {
@@ -442,22 +446,57 @@ export const SPATIAL_CANVAS_STYLES = `
   pointer-events: none;
 }
 
-.sb-shell .spatial-canvas__comment-pin {
+.sb-shell .spatial-canvas__comment-pin,
+.sb-shell .spatial-canvas__comment-cursor,
+.sb-shell .spatial-canvas__comment-anchor {
   position: absolute;
   top: 0;
   left: 0;
   display: grid;
-  width: var(--shell-control-sm);
-  height: var(--shell-control-sm);
+  box-sizing: border-box;
+  width: var(--shell-control-md);
+  height: var(--shell-control-md);
+  padding: var(--shell-space-1);
   place-items: center;
-  color: var(--shell-accent-contrast, var(--shell-text));
-  background: var(--shell-accent);
-  border: var(--shell-icon-stroke) solid var(--shell-canvas);
   border-radius: var(--shell-radius-pill) var(--shell-radius-pill) var(--shell-radius-pill) 0;
   box-shadow: var(--shell-elevation, none);
   font-size: var(--shell-text-xs);
   font-weight: var(--shell-weight-md);
+  line-height: var(--shell-leading-base);
+  translate: 0 -100%;
+}
+
+.sb-shell .spatial-canvas__comment-pin {
+  color: var(--shell-text);
+  background: var(--shell-raised);
+  border: var(--shell-icon-stroke) solid var(--shell-border);
   cursor: pointer;
+}
+
+.sb-shell .spatial-canvas__comment-cursor,
+.sb-shell .spatial-canvas__comment-anchor {
+  z-index: 12;
+  pointer-events: none;
+}
+
+.sb-shell .spatial-canvas__comment-cursor {
+  background: var(--shell-raised);
+  border: var(--shell-icon-stroke) solid currentColor;
+}
+
+.sb-shell .spatial-canvas__comment-anchor {
+  background: currentColor;
+  border: var(--shell-icon-stroke) solid currentColor;
+}
+
+.sb-shell .spatial-canvas__comment-pin-avatar {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  color: var(--shell-accent-contrast, var(--shell-text));
+  background: var(--shell-accent);
+  border-radius: var(--shell-radius-pill);
 }
 
 .sb-shell .spatial-canvas__comment-pin[data-selected="true"] {
@@ -777,22 +816,38 @@ export const SPATIAL_CANVAS_STYLES = `
   top: 0;
   left: 0;
   display: grid;
-  width: calc(var(--shell-row-height) * 8 + var(--shell-space-2));
+  width: calc(var(--shell-row-height) * 7);
   overflow: hidden;
   background: var(--shell-raised);
   border: var(--shell-icon-stroke) solid var(--shell-accent);
   border-radius: var(--shell-radius-large);
   box-shadow: var(--shell-elevation, none);
-  margin: var(--shell-space-3);
+  translate:
+    calc(var(--shell-control-md) + var(--shell-space-3))
+    calc(-1 * (var(--shell-control-md) + var(--shell-space-2)));
 }
 
-.sb-shell .spatial-canvas__comment-composer[data-compact="true"] {
-  grid-template-columns: var(--shell-control-sm) minmax(0, 1fr) var(--shell-control-sm);
+.sb-shell .spatial-canvas__comment-composer[data-state="empty"] {
+  grid-template-columns: minmax(0, 1fr) var(--shell-control-sm);
   align-items: center;
-  width: calc(var(--shell-row-height) * 7);
-  padding: var(--shell-space-2);
-  gap: var(--shell-space-2);
-  border-color: var(--shell-border);
+  padding: var(--shell-space-1);
+  gap: var(--shell-space-1);
+  border-radius: var(--shell-radius-pill);
+  margin-top:
+    calc(
+      -1 * (
+        var(--shell-space-3) +
+        var(--shell-icon-stroke) +
+        var(--shell-icon-stroke)
+      )
+    );
+  translate:
+    calc(var(--shell-control-md) + var(--shell-space-3))
+    -50%;
+}
+
+.sb-shell .spatial-canvas__comment-composer[data-state="empty"]:focus-within {
+  border-color: var(--shell-accent);
 }
 
 .sb-shell .spatial-canvas__comment-composer .input {
@@ -804,12 +859,18 @@ export const SPATIAL_CANVAS_STYLES = `
   border-radius: 0;
 }
 
-.sb-shell .spatial-canvas__comment-composer[data-compact="true"] .input {
-  min-height: var(--shell-control-sm);
-  padding: var(--shell-space-1) var(--shell-space-2);
-  background: var(--shell-field-background);
-  border: var(--shell-icon-stroke) solid var(--shell-input-border);
-  border-radius: var(--shell-radius);
+.sb-shell .spatial-canvas__comment-composer .input:focus-visible {
+  box-shadow: none;
+  outline: 0;
+}
+
+.sb-shell .spatial-canvas__comment-composer[data-state="empty"] .input {
+  min-height: var(--shell-control-md);
+  padding: 0 var(--shell-space-2);
+  background: transparent;
+  border: 0;
+  border-radius: var(--shell-radius-pill);
+  line-height: var(--shell-control-md);
 }
 
 .sb-shell .spatial-canvas__comment-composer > footer {
@@ -820,9 +881,17 @@ export const SPATIAL_CANVAS_STYLES = `
   border-top: var(--shell-icon-stroke) solid var(--shell-border);
 }
 
-.sb-shell .spatial-canvas__comment-composer[data-compact="true"] > footer {
+.sb-shell .spatial-canvas__comment-composer[data-state="empty"] > footer {
   padding: 0;
   border: 0;
+}
+
+.sb-shell .spatial-canvas__comment-submit {
+  border-radius: var(--shell-radius-pill);
+}
+
+.sb-shell .spatial-canvas__comment-composer[data-state="typing"] .spatial-canvas__comment-submit:not(:disabled) {
+  color: var(--shell-accent-contrast, var(--shell-text));
 }
 
 .sb-shell .spatial-canvas__comment-composer > footer > [role="group"] {

@@ -239,8 +239,40 @@ export function SpatialCanvasCommentPin({
       aria-label={label}
       onClick={onClick}
     >
-      {children}
+      <span className="spatial-canvas__comment-pin-avatar">{children}</span>
     </button>
+  );
+}
+
+/** Renders the local comment placement cursor in viewport coordinates. */
+export function SpatialCanvasCommentCursor({
+  x,
+  y,
+  color,
+}: Positioned & { color: string }) {
+  return (
+    <span
+      className="spatial-canvas__comment-cursor"
+      data-state="tool"
+      style={{ color, ...positionStyle({ x, y }) }}
+      aria-hidden="true"
+    />
+  );
+}
+
+/** Renders the fixed marker for a new comment draft. */
+export function SpatialCanvasCommentAnchor({
+  x,
+  y,
+  color,
+}: Positioned & { color: string }) {
+  return (
+    <span
+      className="spatial-canvas__comment-anchor"
+      data-state="anchored"
+      style={{ color, ...positionStyle({ x, y }) }}
+      aria-hidden="true"
+    />
   );
 }
 

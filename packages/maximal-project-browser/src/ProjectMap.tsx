@@ -35,6 +35,7 @@ import {
 import {
   arrowDelta,
   newItemDefinition,
+  PROJECT_MAP_TOOLS,
   selectionAfterPointer,
 } from "./interaction.ts"
 import {
@@ -44,7 +45,7 @@ import {
   type SceneItem,
 } from "./model.ts"
 import { ProjectMapChrome } from "./ProjectMapChrome.tsx"
-import { ProjectMapCommentComposer } from "./ProjectMapCommentComposer.tsx"
+import { ProjectMapCommentPlacement } from "./ProjectMapCommentPlacement.tsx"
 import {
   commentInitials,
   commentPosition,
@@ -93,27 +94,12 @@ export interface ProjectMapProps {
   viewId?: string
 }
 
-const TOOL_LABELS: ReadonlyArray<{
-  tool: ProjectMapTool
-  label: string
-  shortcut: string
-}> = [
-  { tool: "select", label: "Move", shortcut: "V" },
-  { tool: "hand", label: "Hand", shortcut: "H" },
-  { tool: "sticky", label: "Sticky note", shortcut: "S" },
-  { tool: "shape", label: "Shape", shortcut: "O" },
-  { tool: "section", label: "Section", shortcut: "⇧S" },
-  { tool: "connector", label: "Connector", shortcut: "L" },
-  { tool: "comment", label: "Comment", shortcut: "C" },
-]
-
 function itemRectangle(item: SceneItem): Rectangle | undefined {
   return "x" in item ?
       { x: item.x, y: item.y, width: item.width, height: item.height }
     : undefined
 }
 
-// The coordinator intentionally keeps gesture state and scene rendering in one component.
 // eslint-disable-next-line max-lines-per-function
 export function ProjectMap({
   projects,
@@ -544,12 +530,11 @@ export function ProjectMap({
     )
   }
 
-  // Keyboard dispatch is one interaction model even though it has many key branches.
   // eslint-disable-next-line complexity
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (editableTarget(event.target)) return
     const lower = event.key.toLowerCase()
-    const shortcut = TOOL_LABELS.find((entry) =>
+    const shortcut = PROJECT_MAP_TOOLS.find((entry) =>
       entry.shortcut === "⇧S" ?
         event.shiftKey && lower === "s"
       : !event.shiftKey && entry.shortcut.toLowerCase() === lower,
@@ -664,7 +649,7 @@ export function ProjectMap({
           chatOpen={chatOpen}
           onChatOpenChange={setChatOpen}
           onAddFolder={onAddFolder}
-          tools={TOOL_LABELS}
+          tools={PROJECT_MAP_TOOLS}
           tool={tool}
           onToolChange={setTool}
           onOpenSettings={onOpenSettings}
@@ -797,20 +782,23 @@ export function ProjectMap({
               <SpatialCanvasMarquee {...marquee} />
             : null}
           </SpatialCanvasScene>
-          {commentDraft ?
-            <ProjectMapCommentComposer
-              draft={{
-                ...commentDraft,
-                ...commentPosition(commentDraft, itemById),
-              }}
-              camera={camera}
-              onChange={setCommentDraft}
-              onSubmit={submitCommentDraft}
-              onCancel={() => setCommentDraft(undefined)}
-              initials={viewer.initials}
-              compact={commentDraft.anchor !== undefined}
-            />
-          : null}
+          <ProjectMapCommentPlacement
+            tool={tool}
+            cursor={cursor.current}
+            camera={camera}
+            color={viewer.color}
+            draft={
+              commentDraft ?
+                {
+                  ...commentDraft,
+                  ...commentPosition(commentDraft, itemById),
+                }
+              : undefined
+            }
+            onDraftChange={setCommentDraft}
+            onSubmit={submitCommentDraft}
+            onCancel={() => setCommentDraft(undefined)}
+          />
           {activeComment ?
             <ProjectMapActiveComment
               comment={activeComment}

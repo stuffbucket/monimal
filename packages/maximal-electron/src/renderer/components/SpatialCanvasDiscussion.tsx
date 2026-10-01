@@ -53,7 +53,7 @@ function CommentBody({ children }: { children: string }) {
   );
 }
 
-/** Renders a compact anchored comment draft. */
+/** Renders an anchored comment draft entry surface. */
 export function SpatialCanvasCommentComposer({
   x,
   y,
@@ -63,8 +63,7 @@ export function SpatialCanvasCommentComposer({
   onInsertMention,
   onSubmit,
   onCancel,
-  initials,
-  compact = false,
+  color,
 }: {
   x: number;
   y: number;
@@ -74,10 +73,11 @@ export function SpatialCanvasCommentComposer({
   onInsertMention: () => void;
   onSubmit: () => void;
   onCancel: () => void;
-  initials: string;
-  compact?: boolean;
+  color: string;
 }) {
+  const state = value.length > 0 ? "typing" : "empty";
   const style: CSSProperties = {
+    borderColor: color,
     transform: `translate3d(${x}px, ${y}px, 0)`,
   };
   const stopPointer = (event: PointerEvent<HTMLElement>) => {
@@ -88,16 +88,16 @@ export function SpatialCanvasCommentComposer({
     <section
       className="spatial-canvas__comment-composer"
       aria-label="Add a comment"
-      data-compact={compact}
+      data-state={state}
       style={style}
       onPointerDown={stopPointer}
     >
-      {compact ? <CommentAvatar initials={initials} /> : null}
       <Textarea
         aria-label="Comment"
-        rows={compact ? 1 : 2}
+        rows={state === "empty" ? 1 : 3}
         value={value}
-        placeholder={compact ? "Comment" : "Add a comment"}
+        placeholder="Add a comment"
+        autoFocus
         onChange={onChange}
         onKeyDown={(event) => {
           if (event.key === "Escape") onCancel();
@@ -108,7 +108,7 @@ export function SpatialCanvasCommentComposer({
         }}
       />
       <footer>
-        {!compact ?
+        {state === "typing" ?
           <div role="group" aria-label="Comment tools">
             <IconButton label="Add emoji" onClick={onInsertEmoji}>
               <Smile size={16} />
@@ -123,8 +123,10 @@ export function SpatialCanvasCommentComposer({
         : null}
         <IconButton
           label="Post comment"
+          className="spatial-canvas__comment-submit"
           active
           disabled={!value.trim()}
+          style={value.trim() ? { backgroundColor: color } : undefined}
           onClick={onSubmit}
         >
           <ArrowUp size={16} />
