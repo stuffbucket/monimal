@@ -266,6 +266,32 @@
       "persistent": true,
       "description": "Launch the focused context-window visualization development lab."
     },
+    "storybook": {
+      "dependsOn": [
+        "@maximal/maximal-electron#build",
+        "@maximal/maximal-harness#build"
+      ],
+      "cache": false,
+      "persistent": true,
+      "description": "Launch the workspace Storybook integration."
+    },
+    "storybook:build": {
+      "dependsOn": [
+        "@maximal/maximal-electron#build",
+        "@maximal/maximal-harness#build"
+      ],
+      "outputs": ["storybook-static/**"],
+      "description": "Build the workspace Storybook integration."
+    },
+    "storybook:check": {
+      "dependsOn": [
+        "@maximal/maximal-electron#build",
+        "@maximal/maximal-harness#build"
+      ],
+      "cache": false,
+      "outputs": [],
+      "description": "Render, play, and accessibility-check workspace stories."
+    },
     "maximal-desktop#dev": {
       "dependsOn": ["build"],
       "cache": false,

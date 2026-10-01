@@ -5,10 +5,16 @@ import {
   type PointerEventHandler,
   type ReactNode,
 } from "react";
-import { Folder, FolderGit2, MousePointer2 } from "lucide-react";
+import { Folder, FolderGit2 } from "lucide-react";
 
 import { useComponentStyles } from "../lib/component-styles.js";
+import {
+  SpatialCanvasCursorGlyph,
+  type SpatialCanvasCursorState,
+} from "./SpatialCanvasCursorGlyph.js";
 import { SPATIAL_CANVAS_STYLES } from "./SpatialCanvasStyles.js";
+
+export type { SpatialCanvasCursorState } from "./SpatialCanvasCursorGlyph.js";
 
 /** A connector segment expressed in spatial canvas coordinates. */
 export interface SpatialCanvasLine {
@@ -282,17 +288,32 @@ export function SpatialCanvasCursor({
   y,
   color,
   children,
-}: Positioned & { color: string; children: ReactNode }) {
+  state = "select",
+}: Positioned & {
+  color: string;
+  children?: ReactNode;
+  state?: SpatialCanvasCursorState;
+}) {
+  const labeled = children !== undefined && children !== null;
   return (
     <span
       className="spatial-canvas__cursor"
-      style={{ color, ...positionStyle({ x, y }) }}
+      data-labeled={labeled}
+      data-state={state}
+      style={{
+        color,
+        ...positionStyle({ x, y }),
+      }}
       aria-hidden="true"
     >
-      <MousePointer2 size={16} />
-      <span className="spatial-canvas__cursor-label">
-        <span>{children}</span>
+      <span className="spatial-canvas__cursor-glyph">
+        <SpatialCanvasCursorGlyph state="select" />
       </span>
+      {labeled ?
+        <span className="spatial-canvas__cursor-label">
+          <span>{children}</span>
+        </span>
+      : null}
     </span>
   );
 }

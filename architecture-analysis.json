@@ -113,7 +113,16 @@
       "root": "packages/maximal-electron",
       "dependsOn": [
         "@maximal/eslint-config",
+        "@maximal/maximal-storybook",
         "@maximal/maximal-terminal"
+      ],
+      "cycleEdges": [],
+      "duplicatePairs": []
+    },
+    "@maximal/maximal-storybook": {
+      "root": "packages/maximal-storybook",
+      "dependsOn": [
+        "@maximal/eslint-config"
       ],
       "cycleEdges": [],
       "duplicatePairs": []

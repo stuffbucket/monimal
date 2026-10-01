@@ -124,6 +124,8 @@ export type ShellLayoutProps<T extends Tab> = {
   bottom?: ReactNode;
   right?: ReactNode;
   status?: ReactNode;
+  /** Initial panel geometry used only when no persisted layout exists. */
+  initialDocumentLayout?: Layout;
   leftSize?: PanelSize;
   rightSize?: PanelSize;
   bottomSize?: PanelSize;
@@ -151,6 +153,7 @@ export function ShellLayout<T extends Tab>({
   bottom,
   right,
   status,
+  initialDocumentLayout,
   leftSize = LEFT,
   rightSize = RIGHT,
   bottomSize = BOTTOM,
@@ -180,6 +183,7 @@ export function ShellLayout<T extends Tab>({
     panelIds: documentPanelIds,
   });
   const defaultDocumentLayout = layoutForPanels(layout.defaultLayout, documentPanelIds);
+  const initialLayout = layoutForPanels(initialDocumentLayout, documentPanelIds);
 
   useLayoutEffect(() => {
     let topologyDefault = topologyDefaultLayouts.current.get(documentTopologyId);
@@ -192,7 +196,7 @@ export function ShellLayout<T extends Tab>({
         topologyDefaultLayouts.current.set(documentTopologyId, topologyDefault);
       }
     }
-    const nextLayout = defaultDocumentLayout ?? topologyDefault;
+    const nextLayout = defaultDocumentLayout ?? initialLayout ?? topologyDefault;
     if (nextLayout !== undefined) {
       documentGroup.current?.setLayout(nextLayout);
     }
@@ -204,6 +208,7 @@ export function ShellLayout<T extends Tab>({
     documentGroup,
     documentPanelIds,
     documentTopologyId,
+    initialLayout,
     leftPanel,
     rightPanel,
   ]);
@@ -225,13 +230,20 @@ export function ShellLayout<T extends Tab>({
     (panel: ShellPanel) => {
       const handle = panel === 'left' ? leftPanel.current : rightPanel.current;
       if (!handle) return;
-      const collapsed = handle.isCollapsed();
-      if (collapsed) handle.expand();
+      const collapsed = panel === 'left' ? leftCollapsed : rightCollapsed;
+      if (collapsed) handle.resize(panel === 'left' ? leftSize.default : rightSize.default);
       else handle.collapse();
       if (panel === 'left') setLeftCollapsed(!collapsed);
       else setRightCollapsed(!collapsed);
     },
-    [leftPanel, rightPanel],
+    [
+      leftCollapsed,
+      leftPanel,
+      leftSize.default,
+      rightCollapsed,
+      rightPanel,
+      rightSize.default,
+    ],
   );
 
   useEffect(() => {

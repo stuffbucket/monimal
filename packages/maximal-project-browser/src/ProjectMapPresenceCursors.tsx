@@ -17,6 +17,7 @@ export function ProjectMapPresenceCursors({
         x={person.cursor?.x ?? 0}
         y={person.cursor?.y ?? 0}
         color={person.color}
+        state={person.cursorState ?? "select"}
       >
         {person.name}
       </SpatialCanvasCursor>

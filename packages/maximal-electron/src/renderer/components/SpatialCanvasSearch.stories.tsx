@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react-vite';
+import type { Meta, StoryObj } from '@maximal/maximal-storybook';
 
 import { SpatialCanvas } from './SpatialCanvas.js';
 import {

@@ -25,7 +25,6 @@ export const DEFERRED = new Map([
   ['scripts/mutation-report.mjs', 125],
   ['scripts/mutation-scope.mjs', 125],
   ['scripts/neutrality.mjs', 125],
-  ['scripts/storybook-check.mjs', 125],
   ['scripts/verify-docs.mjs', 125],
   ['scripts/verify-exports.mjs', 125],
   ['src/host/shutdown-lifecycle.ts', 125],

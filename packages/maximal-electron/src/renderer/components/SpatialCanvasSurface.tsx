@@ -10,6 +10,7 @@ export function SpatialCanvasSurface({
   description,
   children,
   testId,
+  embedded = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -17,7 +18,23 @@ export function SpatialCanvasSurface({
   description: string;
   children: ReactNode;
   testId?: string;
+  embedded?: boolean;
 }) {
+  if (!open) return null;
+
+  if (embedded) {
+    return (
+      <section
+        aria-label={title}
+        aria-description={description}
+        className="spatial-canvas-surface spatial-canvas-surface--embedded"
+        data-testid={testId}
+      >
+        {children}
+      </section>
+    );
+  }
+
   return (
     <Dialog
       open={open}

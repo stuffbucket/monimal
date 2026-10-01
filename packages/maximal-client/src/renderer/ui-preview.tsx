@@ -172,7 +172,7 @@ function PreviewFrame(): ReactElement {
     <AppFrame
       tabs={tabs}
       activeTab={current.id}
-      surface={current.kind}
+      surface={projectBrowserOpen ? 'projects' : current.kind}
       onSelectTab={(id) => requestNavigation(() => setActiveTab(id))}
       onCloseTab={(id) => {
         if (id === SETTINGS_TAB.id) requestNavigation(closeSettings)
@@ -180,9 +180,9 @@ function PreviewFrame(): ReactElement {
       onOpenAssistant={() => undefined}
       onOpenProjects={() => setProjectBrowserOpen(true)}
     >
-      {current.kind === 'overview' ? <ProductPreview title="Overview" /> : null}
-      {current.kind === 'traffic' ? <ProductPreview title="Traffic" /> : null}
-      {current.kind === 'settings' ? (
+      {!projectBrowserOpen && current.kind === 'overview' ? <ProductPreview title="Overview" /> : null}
+      {!projectBrowserOpen && current.kind === 'traffic' ? <ProductPreview title="Traffic" /> : null}
+      {!projectBrowserOpen && current.kind === 'settings' ? (
         <Settings capabilities={capabilities} request={request} />
       ) : null}
       <SurfaceActivity>
@@ -205,6 +205,7 @@ function PreviewFrame(): ReactElement {
       </SurfaceActivity>
       <ProjectBrowser
         open={projectBrowserOpen}
+        embedded
         onOpenChange={setProjectBrowserOpen}
         onOpenProject={(project) => {
           setOpenedProject(project.id)

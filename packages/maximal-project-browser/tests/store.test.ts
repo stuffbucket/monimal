@@ -53,6 +53,7 @@ describe("Yjs project map store", () => {
       color: "#8b5cf6",
       kind: "agent" as const,
       pageId: "projects",
+      cursorState: "text" as const,
       selectedIds: ["project:one"],
     }
 
@@ -62,6 +63,7 @@ describe("Yjs project map store", () => {
     expect(
       store.getSnapshot("projects").presence.map((view) => view.viewId),
     ).toEqual(["overview", "detail"])
+    expect(store.getSnapshot("projects").presence[0]?.cursorState).toBe("text")
 
     store.removePresence("overview")
     expect(

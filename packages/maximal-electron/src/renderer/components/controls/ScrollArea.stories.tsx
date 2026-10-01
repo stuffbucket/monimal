@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react-vite';
+import type { Meta, StoryObj } from '@maximal/maximal-storybook';
 import { expect, waitFor, within } from 'storybook/test';
 
 import { ScrollArea } from './ScrollArea.js';

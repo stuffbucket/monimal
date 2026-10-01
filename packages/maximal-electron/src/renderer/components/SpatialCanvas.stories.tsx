@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react-vite';
+import type { Meta, StoryObj } from '@maximal/maximal-storybook';
 import { useRef, useState, type PointerEvent } from 'react';
 
 import {
@@ -25,6 +25,14 @@ import {
 const meta = {
   title: 'Canvas/SpatialCanvas',
   component: SpatialCanvas,
+  parameters: {
+    docs: {
+      description: {
+        component:
+          'Low-level canvas composition and geometry examples. Cursor behavior and multiplayer cursor states are documented separately under Controls/Cursor.',
+      },
+    },
+  },
 } satisfies Meta<typeof SpatialCanvas>;
 
 export default meta;
@@ -32,6 +40,15 @@ type Story = StoryObj<typeof meta>;
 
 export const Board: Story = {
   args: { children: null },
+  name: 'Primitive Composition',
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'A static integration example for canvas chrome, viewport transforms, project cards, items, connectors, and controls. It does not define project-browser behavior.',
+      },
+    },
+  },
   render: () => (
     <SpatialCanvas>
       <SpatialCanvasTopBar>
@@ -256,5 +273,14 @@ function AttachedConnectorDemo() {
 
 export const AttachedConnector: Story = {
   args: { children: null },
+  name: 'Attached Connector Interaction',
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'Drag the sticky note to verify that a connector endpoint remains attached while the item moves.',
+      },
+    },
+  },
   render: () => <AttachedConnectorDemo />,
 };

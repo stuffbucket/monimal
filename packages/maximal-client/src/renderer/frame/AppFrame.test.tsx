@@ -74,6 +74,7 @@ let container: HTMLElement | null = null
 afterEach(() => {
   if (root !== null) act(() => root?.unmount())
   container?.remove()
+  localStorage.clear()
   root = null
   container = null
 })
@@ -328,25 +329,57 @@ describe('AppFrame', () => {
     expect(surface.querySelector('#right [data-testid="overview-right"]')).not.toBeNull()
   })
 
-  it('reports sidebar collapse state to rail content', () => {
+  it('starts both side panes collapsed and remembers user expansion', () => {
     const shell = renderFrame(
       'overview',
       vi.fn(),
-      <SurfaceRail>
-        {(collapsed) => <p data-testid="rail-state">{collapsed ? 'collapsed' : 'expanded'}</p>}
-      </SurfaceRail>,
+      <>
+        <SurfaceRail>
+          {(collapsed) => <p data-testid="rail-state">{collapsed ? 'collapsed' : 'expanded'}</p>}
+        </SurfaceRail>
+        <SurfaceRight><p>inspector</p></SurfaceRight>
+      </>,
     )
-    const toggle = shell.querySelector<HTMLElement>('[data-testid="toggle-left"]')
-    if (toggle === null) throw new Error('no sidebar toggle was rendered')
-
-    expect(shell.querySelector('[data-testid="rail-state"]')?.textContent).toBe('expanded')
-    expect(toggle.getAttribute('aria-label')).toBe('Hide sidebar')
-
-    act(() => toggle.click())
     act(() => flushResizeObservers())
+    const leftToggle = shell.querySelector<HTMLElement>('[data-testid="toggle-left"]')
+    const rightToggle = shell.querySelector<HTMLElement>('[data-testid="toggle-right"]')
+    if (leftToggle === null) throw new Error('no sidebar toggle was rendered')
+    if (rightToggle === null) throw new Error('no right-panel toggle was rendered')
 
     expect(shell.querySelector('[data-testid="rail-state"]')?.textContent).toBe('collapsed')
-    expect(toggle.getAttribute('aria-label')).toBe('Show sidebar')
+    expect(leftToggle.getAttribute('aria-label')).toBe('Show sidebar')
+    expect(rightToggle.getAttribute('aria-label')).toBe('Show panel')
+
+    act(() => {
+      leftToggle.click()
+      rightToggle.click()
+    })
+    act(() => flushResizeObservers())
+
+    expect(shell.querySelector('[data-testid="rail-state"]')?.textContent).toBe('expanded')
+    expect(leftToggle.getAttribute('aria-label')).toBe('Hide sidebar')
+    expect(rightToggle.getAttribute('aria-label')).toBe('Hide panel')
+
+    act(() => root?.unmount())
+    container?.remove()
+    root = null
+    container = null
+    const restored = renderFrame(
+      'overview',
+      vi.fn(),
+      <>
+        <SurfaceRail>
+          {(collapsed) => <p data-testid="rail-state">{collapsed ? 'collapsed' : 'expanded'}</p>}
+        </SurfaceRail>
+        <SurfaceRight><p>inspector</p></SurfaceRight>
+      </>,
+    )
+    act(() => flushResizeObservers())
+
+    expect(restored.querySelector('[data-testid="toggle-left"]')?.getAttribute('aria-label'))
+      .toBe('Hide sidebar')
+    expect(restored.querySelector('[data-testid="toggle-right"]')?.getAttribute('aria-label'))
+      .toBe('Hide panel')
   })
 
   it('routes each slot into its own region of the shell, not another one', () => {

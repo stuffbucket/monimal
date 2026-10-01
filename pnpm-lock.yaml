@@ -819,12 +819,12 @@ importers:
       '@maximal/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
+      '@maximal/maximal-storybook':
+        specifier: workspace:*
+        version: link:../maximal-storybook
       '@maximal/maximal-terminal':
         specifier: workspace:*
         version: link:../maximal-terminal
-      '@playwright/test':
-        specifier: ^1.62.0
-        version: 1.62.1
       '@radix-ui/react-collapsible':
         specifier: 1.1.20
         version: 1.1.20(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -849,15 +849,6 @@ importers:
       '@radix-ui/react-visually-hidden':
         specifier: 1.2.11
         version: 1.2.11(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      '@storybook/addon-a11y':
-        specifier: 10.5.10
-        version: 10.5.10(storybook@10.5.10(@types/react@19.2.18)(prettier@3.9.6)(react@19.2.8))
-      '@storybook/addon-docs':
-        specifier: 10.5.10
-        version: 10.5.10(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(esbuild@0.28.2)(rollup@4.62.4)(storybook@10.5.10(@types/react@19.2.18)(prettier@3.9.6)(react@19.2.8))(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))(webpack@5.109.2(csso@5.0.5)(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.26)(uglify-js@3.19.3))
-      '@storybook/react-vite':
-        specifier: 10.5.10
-        version: 10.5.10(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(@typescript/typescript6@6.0.2)(esbuild@0.28.2)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(rollup@4.62.4)(storybook@10.5.10(@types/react@19.2.18)(prettier@3.9.6)(react@19.2.8))(supports-color@8.1.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))(webpack@5.109.2(csso@5.0.5)(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.26)(uglify-js@3.19.3))
       '@stryker-mutator/core':
         specifier: ^10.0.0
         version: 10.0.0(@types/node@26.4.0)
@@ -888,9 +879,6 @@ importers:
       '@xterm/xterm':
         specifier: 6.0.0
         version: 6.0.0
-      axe-core:
-        specifier: 4.13.0
-        version: 4.13.0
       electron:
         specifier: 44.1.0
         version: 44.1.0(supports-color@8.1.1)
@@ -915,9 +903,6 @@ importers:
       react-resizable-panels:
         specifier: 4.12.3
         version: 4.12.3(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      storybook:
-        specifier: 10.5.10
-        version: 10.5.10(@types/react@19.2.18)(prettier@3.9.6)(react@19.2.8)
       typescript:
         specifier: npm:@typescript/typescript6@^6.0.2
         version: '@typescript/typescript6@6.0.2'
@@ -1467,6 +1452,57 @@ importers:
       yaml:
         specifier: 2.9.0
         version: 2.9.0
+
+  packages/maximal-storybook:
+    devDependencies:
+      '@maximal/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@playwright/test':
+        specifier: ^1.62.0
+        version: 1.62.1
+      '@storybook/addon-a11y':
+        specifier: 10.5.10
+        version: 10.5.10(storybook@10.5.10(@types/react@19.2.18)(prettier@3.9.6)(react@19.2.8))
+      '@storybook/addon-docs':
+        specifier: 10.5.10
+        version: 10.5.10(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(esbuild@0.28.2)(rollup@4.62.4)(storybook@10.5.10(@types/react@19.2.18)(prettier@3.9.6)(react@19.2.8))(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))(webpack@5.109.2(csso@5.0.5)(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.26)(uglify-js@3.19.3))
+      '@storybook/react-vite':
+        specifier: 10.5.10
+        version: 10.5.10(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(@typescript/typescript6@6.0.2)(esbuild@0.28.2)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(rollup@4.62.4)(storybook@10.5.10(@types/react@19.2.18)(prettier@3.9.6)(react@19.2.8))(supports-color@8.1.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))(webpack@5.109.2(csso@5.0.5)(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.26)(uglify-js@3.19.3))
+      '@types/node':
+        specifier: ^26.4.0
+        version: 26.4.0
+      '@types/react':
+        specifier: ^19.2.17
+        version: 19.2.18
+      '@types/react-dom':
+        specifier: ^19.2.5
+        version: 19.2.5(@types/react@19.2.18)
+      '@typescript/native':
+        specifier: npm:typescript@^7.0.2
+        version: typescript@7.0.2
+      axe-core:
+        specifier: 4.13.0
+        version: 4.13.0
+      eslint:
+        specifier: ^10.9.1
+        version: 10.9.1(jiti@2.7.0)(supports-color@8.1.1)
+      react:
+        specifier: ^19.2.8
+        version: 19.2.8
+      react-dom:
+        specifier: ^19.2.8
+        version: 19.2.8(react@19.2.8)
+      storybook:
+        specifier: 10.5.10
+        version: 10.5.10(@types/react@19.2.18)(prettier@3.9.6)(react@19.2.8)
+      typescript:
+        specifier: npm:@typescript/typescript6@^6.0.2
+        version: '@typescript/typescript6@6.0.2'
+      vite:
+        specifier: ^8.2.2
+        version: 8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0)
 
   packages/maximal-systemone:
     dependencies:

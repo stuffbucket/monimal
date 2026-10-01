@@ -39,6 +39,7 @@ import { Terminal } from './terminal/Terminal'
 import type { DetachedTerminal } from './terminal/window-transfer'
 import { Traffic } from './traffic/Traffic'
 import type { TerminalTabsState } from './useTerminalTabs'
+import { ProjectBrowser } from './projects/ProjectBrowser'
 
 interface AppWorkspaceProps {
   detachedWindow?: DetachedTerminal
@@ -48,7 +49,6 @@ interface AppWorkspaceProps {
   terminalState: TerminalTabsState
   requestNavigation: (proceed: () => void) => void
   openSettingsSection: (id: SettingsSectionId) => void
-  onOpenProjects?: () => void
 }
 
 const PROFILE_SETTINGS: Record<SettingsSurface, SettingsSectionId> = {
@@ -76,6 +76,7 @@ interface ActiveSurfaceProps {
   sectionRequest: SettingsSectionRequest | null
   terminalState: TerminalTabsState
   onFocusChange: (tabId: string, sessionId: string) => void
+  projectBrowser?: ReactElement
 }
 
 function ActiveSurface({
@@ -86,7 +87,10 @@ function ActiveSurface({
   sectionRequest,
   terminalState,
   onFocusChange,
+  projectBrowser,
 }: ActiveSurfaceProps): ReactElement {
+  if (projectBrowser) return projectBrowser
+
   return (
     <>
       {current?.kind === 'overview' ? <Overview /> : null}
@@ -270,11 +274,11 @@ export function AppWorkspace({
   terminalState,
   requestNavigation,
   openSettingsSection,
-  onOpenProjects,
 }: AppWorkspaceProps): ReactElement {
   const [profileError, setProfileError] = useState<string>()
   const [browserAddress, setBrowserAddress] = useState<string>()
   const [mapOpen, setMapOpen] = useState(false)
+  const [projectBrowserOpen, setProjectBrowserOpen] = useState(false)
   const [focusedTerminalSessions, setFocusedTerminalSessions] = useState<
     Record<string, string>
   >({})
@@ -349,8 +353,11 @@ export function AppWorkspace({
       <AppFrame
         tabs={visibleTabs}
         activeTab={current?.id ?? 'settings'}
-        surface={current?.kind ?? 'settings'}
-        onSelectTab={(id) => requestNavigation(() => terminalState.setActiveTab(id))}
+        surface={projectBrowserOpen ? 'projects' : current?.kind ?? 'settings'}
+        onSelectTab={(id) => requestNavigation(() => {
+          setProjectBrowserOpen(false)
+          terminalState.setActiveTab(id)
+        })}
         onCloseTab={(id) => {
           const closing = terminalState.tabs.find((tab) => tab.id === id)
           if (closing?.kind === 'settings') requestNavigation(() => terminalState.closeTab(id))
@@ -360,7 +367,7 @@ export function AppWorkspace({
         onNewTab={detachedWindow ? undefined : () => terminalState.setLauncherOpen(true)}
         onOpenAssistant={detachedWindow ? undefined : () => void window.maximal.harness.show()}
         onOpenBrowser={detachedWindow ? undefined : () => setBrowserAddress('https://')}
-        onOpenProjects={detachedWindow ? undefined : onOpenProjects}
+        onOpenProjects={detachedWindow ? undefined : () => setProjectBrowserOpen(true)}
         tabTransfer={{
           frameId: terminalState.frameId,
           canDrag: (tab) => tab.kind === 'terminal',
@@ -488,6 +495,27 @@ export function AppWorkspace({
           sectionRequest={sectionRequest}
           terminalState={terminalState}
           onFocusChange={onTerminalFocusChange}
+          projectBrowser={projectBrowserOpen ? (
+            <ProjectBrowser
+              open
+              embedded
+              onOpenChange={setProjectBrowserOpen}
+              onOpenProject={async (project) => {
+                const result = await window.maximal.terminal.launch({
+                  profileId: 'local',
+                  cwd: project.path,
+                  cols: 100,
+                  rows: 30,
+                })
+                terminalState.rememberProfile('local')
+                terminalState.onTerminalLaunched(result)
+              }}
+              onOpenSettings={() => {
+                setProjectBrowserOpen(false)
+                openSettings('settings-projects-heading')
+              }}
+            />
+          ) : undefined}
         />
         {focusedTerminalSession ? (
           <SurfaceRight>

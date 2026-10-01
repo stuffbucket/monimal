@@ -51,6 +51,7 @@ import {
   commentPosition,
   ProjectMapActiveComment,
 } from "./ProjectMapComments.tsx"
+import { projectMapCursorState } from "./ProjectMapPresence.tsx"
 import { ProjectMapPresenceCursors } from "./ProjectMapPresenceCursors.tsx"
 import { useProjectMapComments } from "./useProjectMapComments.ts"
 import {
@@ -212,10 +213,11 @@ export function ProjectMap({
     store.updatePresence(viewId, {
       ...viewer,
       pageId,
+      cursorState: projectMapCursorState(tool, undefined, chatOpen),
       selectedIds: [...selected],
       ...(cursor.current ? { cursor: cursor.current } : {}),
     })
-  }, [pageId, selected, store, viewId, viewer])
+  }, [chatOpen, pageId, selected, store, tool, viewId, viewer])
 
   useEffect(() => () => store.removePresence(viewId), [store, viewId])
 
@@ -465,6 +467,7 @@ export function ProjectMap({
       ...viewer,
       pageId,
       cursor: world,
+      cursorState: projectMapCursorState(tool, drag.current?.mode, chatOpen),
       selectedIds: [...selected],
     })
     const active = drag.current
@@ -491,15 +494,6 @@ export function ProjectMap({
     scheduleMove({ itemOrigins: active.itemOrigins, dx, dy })
   }
 
-  const clearPointerPresence = () => {
-    cursor.current = undefined
-    store.updatePresence(viewId, {
-      ...viewer,
-      pageId,
-      selectedIds: [...selected],
-    })
-  }
-
   const endPointer = (event: PointerEvent<HTMLDivElement>) => {
     const active = drag.current
     if (!active || active.pointerId !== event.pointerId) return
@@ -518,6 +512,23 @@ export function ProjectMap({
     }
     drag.current = undefined
     setMarquee(undefined)
+    store.updatePresence(viewId, {
+      ...viewer,
+      pageId,
+      ...(cursor.current ? { cursor: cursor.current } : {}),
+      cursorState: projectMapCursorState(tool, undefined, chatOpen),
+      selectedIds: [...selected],
+    })
+  }
+
+  const clearPointerPresence = () => {
+    cursor.current = undefined
+    store.updatePresence(viewId, {
+      ...viewer,
+      pageId,
+      cursorState: projectMapCursorState(tool, undefined, chatOpen),
+      selectedIds: [...selected],
+    })
   }
 
   const nudgeSelection = (dx: number, dy: number) => {

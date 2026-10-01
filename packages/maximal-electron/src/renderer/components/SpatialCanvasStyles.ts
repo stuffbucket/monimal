@@ -1,3 +1,18 @@
+export const SPATIAL_CANVAS_CURSORS = {
+  select: 'default',
+  pan: 'grab',
+  panning: 'grabbing',
+  crosshair: 'crosshair',
+  text: 'text',
+  resizeColumn: 'col-resize',
+  resizeRow: 'row-resize',
+  resizeNorthwestSoutheast: 'nwse-resize',
+  resizeNortheastSouthwest: 'nesw-resize',
+  move: 'move',
+  unavailable: 'not-allowed',
+  action: 'pointer',
+} as const;
+
 export const SPATIAL_CANVAS_STYLES = `
 .sb-shell .spatial-canvas-surface__overlay {
   position: fixed;
@@ -17,6 +32,14 @@ export const SPATIAL_CANVAS_STYLES = `
   border: 0;
   border-radius: 0;
   box-shadow: none;
+}
+
+.sb-shell .spatial-canvas-surface--embedded {
+  position: relative;
+  inset: auto;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
 }
 
 .sb-shell .spatial-canvas-surface > .spatial-canvas {
@@ -191,7 +214,7 @@ export const SPATIAL_CANVAS_STYLES = `
   overflow: hidden;
   outline: none;
   background-color: var(--shell-canvas);
-  cursor: default;
+  cursor: ${SPATIAL_CANVAS_CURSORS.select};
   touch-action: none;
   user-select: none;
 }
@@ -218,15 +241,25 @@ export const SPATIAL_CANVAS_STYLES = `
 }
 
 .sb-shell .spatial-canvas__viewport[data-tool="hand"] {
-  cursor: grab;
+  cursor: ${SPATIAL_CANVAS_CURSORS.pan};
 }
 
 .sb-shell .spatial-canvas__viewport[data-tool="hand"]:active {
-  cursor: grabbing;
+  cursor: ${SPATIAL_CANVAS_CURSORS.panning};
+}
+
+.sb-shell .spatial-canvas__viewport[data-tool="select"]:active {
+  cursor: ${SPATIAL_CANVAS_CURSORS.crosshair};
 }
 
 .sb-shell .spatial-canvas__viewport:not([data-tool="select"]):not([data-tool="hand"]):not([data-tool="comment"]) {
-  cursor: crosshair;
+  cursor: ${SPATIAL_CANVAS_CURSORS.crosshair};
+}
+
+.sb-shell .spatial-canvas input,
+.sb-shell .spatial-canvas textarea,
+.sb-shell .spatial-canvas [contenteditable="true"] {
+  cursor: ${SPATIAL_CANVAS_CURSORS.text};
 }
 
 .sb-shell .spatial-canvas__viewport[data-tool="comment"] {
@@ -282,7 +315,7 @@ export const SPATIAL_CANVAS_STYLES = `
 
 .sb-shell .spatial-canvas__project:disabled {
   opacity: var(--shell-disabled-opacity, 0.5);
-  cursor: not-allowed;
+  cursor: ${SPATIAL_CANVAS_CURSORS.unavailable};
 }
 
 .sb-shell .spatial-canvas__project > .spatial-canvas__project-icon {
@@ -470,7 +503,7 @@ export const SPATIAL_CANVAS_STYLES = `
   color: var(--shell-text);
   background: var(--shell-raised);
   border: var(--shell-icon-stroke) solid var(--shell-border);
-  cursor: pointer;
+  cursor: ${SPATIAL_CANVAS_CURSORS.action};
 }
 
 .sb-shell .spatial-canvas__comment-cursor,
@@ -508,19 +541,44 @@ export const SPATIAL_CANVAS_STYLES = `
   position: absolute;
   top: 0;
   left: 0;
+  color: currentColor;
   pointer-events: none;
 }
 
-.sb-shell .spatial-canvas__cursor > svg {
+.sb-shell .spatial-canvas__cursor-glyph {
   position: absolute;
   top: 0;
   left: 0;
+  display: grid;
+  width: var(--shell-control-sm);
+  height: var(--shell-control-sm);
+  place-items: center;
+  color: inherit;
+}
+
+.sb-shell .spatial-canvas__cursor-glyph > svg {
   width: var(--shell-space-4);
   height: var(--shell-space-4);
-  color: inherit;
-  fill: currentColor;
-  stroke: var(--shell-canvas);
   stroke-width: var(--shell-icon-stroke);
+}
+
+.sb-shell .spatial-canvas__cursor-unavailable {
+  position: relative;
+  display: block;
+  width: var(--shell-space-4);
+  height: var(--shell-space-4);
+}
+
+.sb-shell .spatial-canvas__cursor-unavailable > svg {
+  position: absolute;
+  stroke-width: var(--shell-icon-stroke);
+}
+
+.sb-shell .spatial-canvas__cursor-unavailable-badge {
+  right: calc(var(--shell-space-1) * -1);
+  bottom: calc(var(--shell-space-1) * -1);
+  width: calc(var(--shell-space-3) + 1px);
+  height: calc(var(--shell-space-3) + 1px);
 }
 
 .sb-shell .spatial-canvas__cursor-label {
@@ -648,7 +706,7 @@ export const SPATIAL_CANVAS_STYLES = `
 }
 
 .sb-shell .spatial-canvas__side-panel-body article[data-resolved="true"] {
-  opacity: var(--shell-disabled-opacity, 0.5);
+  background: var(--shell-hover);
 }
 
 .sb-shell .spatial-canvas__side-panel-body p {
@@ -688,7 +746,7 @@ export const SPATIAL_CANVAS_STYLES = `
   border-radius: var(--shell-radius);
   font: inherit;
   text-align: left;
-  cursor: pointer;
+  cursor: ${SPATIAL_CANVAS_CURSORS.action};
 }
 
 .sb-shell .spatial-canvas__search-result:hover:not(:disabled),
@@ -698,7 +756,7 @@ export const SPATIAL_CANVAS_STYLES = `
 
 .sb-shell .spatial-canvas__search-result:disabled {
   opacity: var(--shell-disabled-opacity, 0.5);
-  cursor: not-allowed;
+  cursor: ${SPATIAL_CANVAS_CURSORS.unavailable};
 }
 
 .sb-shell .spatial-canvas__search-result > span {
@@ -744,7 +802,7 @@ export const SPATIAL_CANVAS_STYLES = `
 }
 
 .sb-shell .spatial-canvas__comment-thread[data-resolved="true"] {
-  opacity: var(--shell-disabled-opacity, 0.5);
+  background: var(--shell-hover);
 }
 
 .sb-shell .spatial-canvas__comment-thread > button:first-child {
@@ -758,7 +816,7 @@ export const SPATIAL_CANVAS_STYLES = `
   border: 0;
   font: inherit;
   text-align: left;
-  cursor: pointer;
+  cursor: ${SPATIAL_CANVAS_CURSORS.action};
 }
 
 .sb-shell .spatial-canvas__comment-thread > button:first-child > span:last-child {
@@ -915,7 +973,8 @@ export const SPATIAL_CANVAS_STYLES = `
 }
 
 .sb-shell .spatial-canvas__comment-card[data-resolved="true"] {
-  opacity: var(--shell-disabled-opacity, 0.5);
+  border-style: dashed;
+  box-shadow: none;
 }
 
 .sb-shell .spatial-canvas__comment-card[data-side="left"] {
@@ -969,6 +1028,10 @@ export const SPATIAL_CANVAS_STYLES = `
   gap: var(--shell-space-1);
 }
 
+.sb-shell .spatial-canvas__comment-card-thread > article > .spatial-canvas__comment-author {
+  translate: 0 calc(var(--shell-icon-stroke) * -2);
+}
+
 .sb-shell .spatial-canvas__comment-body {
   overflow-wrap: anywhere;
   font-size: var(--shell-text-sm);
@@ -984,7 +1047,7 @@ export const SPATIAL_CANVAS_STYLES = `
 .sb-shell .spatial-canvas__comment-card > form {
   display: grid;
   grid-template-columns: var(--shell-control-sm) minmax(0, 1fr) var(--shell-control-sm);
-  padding: var(--shell-space-2);
+  padding: var(--shell-space-2) var(--shell-space-3);
   gap: var(--shell-space-2);
   border-top: var(--shell-icon-stroke) solid var(--shell-border);
 }

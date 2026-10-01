@@ -6,7 +6,7 @@
  * names `tokens.css` authors. Both render in the same document here, so this
  * is what makes the published names resolve while that is true.
  *
- * Every row is a row of `.storybook/consumer.css`, which is the one worked
+ * Every row is a row of maximal-storybook's `consumer.css`, the worked
  * example of a host defining the contract, and `tests/shell-contract.test.ts`
  * holds the two together. It used to be generated from `REQUIRED_TOKENS`
  * instead — `--shell-` plus the short name — which produced a third vocabulary

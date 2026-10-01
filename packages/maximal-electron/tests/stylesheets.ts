@@ -118,6 +118,33 @@ export function exportedModules(): [string, string][] {
   return found;
 }
 
+/** Component styles with simple constant-object interpolations resolved. */
+export function componentStylesFromSource(source: string): string[] {
+  const values = new Map<string, string>();
+  for (const object of source.matchAll(
+    /(?:export )?const ([A-Z_]+) = \{([\s\S]*?)\}\s+as const;/g,
+  )) {
+    const name = object[1];
+    if (name === undefined) continue;
+    for (const entry of (object[2] ?? '').matchAll(
+      /([A-Za-z0-9_]+):\s*(['"])(.*?)\2/g,
+    )) {
+      if (entry[1] !== undefined && entry[3] !== undefined) {
+        values.set(`${name}.${entry[1]}`, entry[3]);
+      }
+    }
+  }
+
+  return [...source.matchAll(/^(?:export )?const [A-Z_]+ = `([^`]*)`;$/gm)]
+    .map((match) =>
+      (match[1] ?? '').replace(
+        /\$\{([A-Z_]+\.[A-Za-z0-9_]+)\}/g,
+        (interpolation, key: string) => values.get(key) ?? interpolation,
+      ),
+    )
+    .filter((css) => css.includes('.sb-shell'));
+}
+
 /**
  * Every rule an exported component carries in its own source.
  *
@@ -139,9 +166,7 @@ export function exportedModules(): [string, string][] {
  */
 export function componentStyles(): string {
   return exportedModules()
-    .flatMap(([, source]) => [...source.matchAll(/^(?:export )?const [A-Z_]+ = `([^`]*)`;$/gm)])
-    .filter((match) => (match[1] ?? '').includes('.sb-shell'))
-    .map((match) => match[1] ?? '')
+    .flatMap(([, source]) => componentStylesFromSource(source))
     .join('\n');
 }
 

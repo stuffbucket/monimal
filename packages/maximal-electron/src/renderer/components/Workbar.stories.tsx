@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Meta, StoryObj } from '@storybook/react-vite';
+import type { Meta, StoryObj } from '@maximal/maximal-storybook';
 import { expect, userEvent, within } from 'storybook/test';
 
 import { Workbar, type WorkbarItem } from './Workbar.js';

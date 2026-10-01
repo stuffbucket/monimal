@@ -44,6 +44,7 @@ export function ProjectBrowser({
   onOpenSettings,
   projectsApi = window.maximal.projects,
   mapStore,
+  embedded = false,
   viewer = {
     id: 'local',
     name: 'You',
@@ -58,6 +59,7 @@ export function ProjectBrowser({
   onOpenSettings: () => void
   projectsApi?: MaximalHost['projects']
   mapStore?: ProjectMapStore
+  embedded?: boolean
   viewer?: ProjectMapViewer
 }): ReactElement {
   const [query, setQuery] = useState('')
@@ -130,6 +132,7 @@ export function ProjectBrowser({
       title="Open project"
       description="Search local folders and repositories."
       testId="project-browser"
+      embedded={embedded}
     >
       <ProjectMap
         projects={mapProjects}

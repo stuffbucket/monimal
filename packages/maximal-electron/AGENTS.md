@@ -18,8 +18,8 @@ linked document.
 | Terminal unit tests                     | `pnpm --filter @maximal/maximal-electron run test:terminal`                                                       |
 | Mutation tests                          | `pnpm --filter @maximal/maximal-electron run mutate`                                                              |
 | Terminal mutation tests                 | `pnpm --filter @maximal/maximal-terminal run mutate`                                                              |
-| Look at a component                     | `npm run storybook`                                                                                                   |
-| Check every story                       | `npm run storybook:check`                                                                                             |
+| Look at a component                     | `pnpm storybook` from the workspace root                                                                              |
+| Check every story                       | `pnpm storybook:check` from the workspace root                                                                        |
 | Check the palette                       | `npm run check:contrast`                                                                                              |
 | Verify the exports                      | `npm run verify:exports`                                                                                              |
 | Verify the shell stays agnostic         | `npm run verify:neutral`                                                                                              |
@@ -156,7 +156,7 @@ only background.
 | The exports a consumer imports, `runMain`, the `options` shape        | `docs/embedding.md`       |
 | The `--shell-*` contract the renderer package reads from its host     | `docs/shell-variables.md` |
 | Random order, mutation testing, layout evidence, the off-screen suite | `docs/testing.md`         |
-| Stories, the a11y run, what is deliberately not in CI                 | `docs/storybook.md`       |
+| Stories, the a11y run, what is deliberately not in CI                 | `../maximal-storybook/docs/storybook.md` |
 | Private package and application ownership boundary                    | `docs/release.md`         |
 | The workspace consumers and exported surface                          | `docs/consuming.md`       |
 | The workflows, run health, and the merge race                         | `docs/ci.md`              |

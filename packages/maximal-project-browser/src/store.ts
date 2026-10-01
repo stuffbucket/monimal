@@ -1,3 +1,5 @@
+import type { SpatialCanvasCursorState } from "@maximal/maximal-electron/renderer"
+
 import { Awareness } from "y-protocols/awareness"
 import * as Y from "yjs"
 
@@ -21,6 +23,7 @@ export interface ProjectMapPresence extends ProjectMapViewer {
   viewId: string
   pageId: string
   cursor?: { x: number; y: number }
+  cursorState?: SpatialCanvasCursorState
   selectedIds: Array<string>
 }
 

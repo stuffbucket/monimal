@@ -1,6 +1,6 @@
 import { Copy, Info, Trash2 } from 'lucide-react';
 import { useState } from 'react';
-import type { Meta, StoryObj } from '@storybook/react-vite';
+import type { Meta, StoryObj } from '@maximal/maximal-storybook';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
 
 import { Button, IconButton } from './controls/Button.js';
@@ -367,8 +367,8 @@ function TopSlotShell() {
  * measures the reference stylesheet rather than the one the package ships;
  * `tests/package-styles.test.ts` is what carries the claim across to
  * `shell-package-rules.css`, and it compares property names rather than values.
- * `npm run storybook:check` is not in CI, so nothing runs this on a pull
- * request. See `docs/storybook.md`.
+ * `pnpm storybook:check` is not in CI, so nothing runs this on a pull
+ * request. See `packages/maximal-storybook/docs/storybook.md`.
  */
 export const TopSlot: StoryObj = {
   render: () => <TopSlotShell />,

@@ -35,7 +35,11 @@ function trackedFiles(root = WORKSPACE_ROOT, pattern = SOURCE_PATTERN) {
     { cwd: root, encoding: 'utf8' },
   )
     .split('\0')
-    .filter((file) => pattern.test(file))
+    .filter(
+      (file) =>
+        pattern.test(file)
+        && fs.existsSync(path.join(root, file)),
+    )
     .sort();
 }
 

@@ -26,6 +26,7 @@ has ended.
 | `packages/maximal-recording` | Optional video capture engine and developer recording tools; desktop owns consent and output selection. |
 | `packages/maximal-data-visualization` | Visualization primitives and styles. |
 | `packages/maximal-project-browser` | WASM-accelerated spatial project canvas, navigation, board tools, presence, comments, and chat UI. |
+| `packages/maximal-storybook` | Workspace Storybook configuration, preview decorators, browser checks, and developer commands. |
 | `packages/maximal-github` | Runtime-neutral GitHub contracts, device authentication, Octokit API adapter, host profiles, and read-only GitHub CLI interoperability. |
 | `packages/maximal-harness` | Local agent orchestration and renderer. |
 | `packages/maximal-llama-cpp` | Standalone Electron-hosted llama.cpp provider, worker, and packaging policy. |
@@ -125,6 +126,7 @@ Both are monorepo-native;
 | `maximal-electron` / `apps/desktop` | Profile avatars accept authenticated HTTPS image URLs in the desktop renderer and fall back to account initials when an image cannot load; the signed-out profile identity invokes the consumer-owned account setup action. |
 | `maximal-systemone` | The evaluation corpus and fixtures are project-authored internal regression material; no upstream harness code or restricted benchmark text is copied, and results MUST NOT be described as upstream benchmark equivalence. |
 | `maximal-electron` / `maximal-project-browser` / `maximal-client` / `apps/desktop` | `maximal-electron` owns token-driven spatial canvas presentation and control primitives; the reusable project map owns interaction and collaborative state, the client owns project discovery and opening, and desktop owns composition and shared shell stylesheet loading. |
+| `maximal-storybook` | Owns workspace Storybook integration while stories and deterministic fixtures remain beside the packages they exercise. |
 | Workspace | `@maximal/eslint-config` owns the shared ESLint configuration and enforced rule sets. |
 | Workspace | `architecture-analysis.json` owns package coverage, the declared workspace dependency tree (`dependsOn`), external-package deny rules, and non-Core architecture baselines. |
 | `maximal-settings` | The pnpm bootstrap hook MUST load its dependency-policy source before workspace packages are installed; installed consumers MUST use the exported entry point. |

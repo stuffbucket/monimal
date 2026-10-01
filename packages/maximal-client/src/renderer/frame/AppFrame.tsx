@@ -24,9 +24,14 @@ const LEFT_PANEL_SIZE = {
   max: '320px',
   collapsed: '0',
 }
+const COLLAPSED_LAYOUTS = {
+  both: { left: 0, main: 100, right: 0 },
+  left: { left: 0, main: 100 },
+  right: { main: 100, right: 0 },
+}
 
 export type View = 'overview' | 'traffic' | 'settings'
-export type Surface = View | 'browser' | 'terminal'
+export type Surface = View | 'browser' | 'projects' | 'terminal'
 
 export interface AppTab extends Tab {
   kind: Surface
@@ -78,6 +83,12 @@ export function AppFrame({
   onOpenProjects?: () => void
   children: ReactNode
 }): ReactElement {
+  const withLeft = surface === 'overview' || surface === 'traffic' || surface === 'settings'
+  const withRight = surface === 'overview' || surface === 'traffic' || surface === 'terminal'
+  const initialDocumentLayout = withLeft
+    ? (withRight ? COLLAPSED_LAYOUTS.both : COLLAPSED_LAYOUTS.left)
+    : (withRight ? COLLAPSED_LAYOUTS.right : undefined)
+
   return (
     <PackageAppFrame
       layoutId={LAYOUT_ID}
@@ -120,11 +131,12 @@ export function AppFrame({
           ) : null}
         </>
       ) : undefined}
+      initialDocumentLayout={initialDocumentLayout}
       leftSize={LEFT_PANEL_SIZE}
       withActivity
-      withLeft={surface !== 'terminal' && surface !== 'browser'}
-      withRight={surface === 'overview' || surface === 'traffic' || surface === 'terminal'}
-      withStatus={surface !== 'terminal' && surface !== 'browser'}
+      withLeft={withLeft}
+      withRight={withRight}
+      withStatus={surface === 'overview' || surface === 'traffic' || surface === 'settings'}
     >
       {children}
     </PackageAppFrame>

@@ -173,7 +173,7 @@ dark palette and 5.39:1 in the light one, both above the 4.5:1 AA text
 minimum. `--shell-text-subtle` carried this fallback before and measured
 4.17:1 and 4.18:1: below the minimum in both, which is how three consumers
 passed a status, got the neutral fill by leaving both unmapped, and shipped it
-unread. `STORYBOOK_SHELL_MODE=package npm run storybook:check` is what found
+unread. `STORYBOOK_SHELL_MODE=package pnpm storybook:check` is what found
 it, over the shipped stylesheet under a consumer's own palette; `npm run
 check:contrast` checks this application's tokens and never reads `--shell-*`
 at all.

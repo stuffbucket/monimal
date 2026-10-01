@@ -83,7 +83,7 @@ Run commands from the repository root with pnpm.
 | Export verification | `pnpm --filter @maximal/maximal-electron verify:exports` |
 | Neutrality verification | `pnpm --filter @maximal/maximal-electron verify:neutral` |
 | Documentation verification | `pnpm --filter @maximal/maximal-electron verify:docs` |
-| Storybook | `pnpm --filter @maximal/maximal-electron storybook` |
-| Storybook browser checks | `pnpm --filter @maximal/maximal-electron storybook:check` |
+| Storybook | `pnpm storybook` |
+| Storybook browser checks | `pnpm storybook:check` |
 
 Application-level Electron behavior MUST be validated in `apps/desktop/e2e`.

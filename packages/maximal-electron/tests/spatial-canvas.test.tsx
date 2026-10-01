@@ -26,7 +26,11 @@ import {
   SpatialCanvasViewport,
   SpatialCanvasZoomControls,
 } from '../src/renderer/index.js';
-import { SPATIAL_CANVAS_STYLES } from '../src/renderer/components/SpatialCanvasStyles.js';
+import {
+  SPATIAL_CANVAS_CURSORS,
+  SPATIAL_CANVAS_STYLES,
+} from '../src/renderer/components/SpatialCanvasStyles.js';
+import { SpatialCanvasCursorGlyph } from '../src/renderer/components/SpatialCanvasCursorGlyph.js';
 import { TooltipProvider } from '../src/renderer/components/controls/Overlays.js';
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
@@ -39,6 +43,46 @@ afterEach(() => {
 });
 
 describe('SpatialCanvas', () => {
+  it('keeps the participant caret independent from remote interaction state', () => {
+    const container = document.createElement('div');
+    document.body.append(container);
+    root = createRoot(container);
+
+    act(() => {
+      root?.render(
+        <>
+          <SpatialCanvasCursor x={0} y={0} color="blue" state="select" />
+          <SpatialCanvasCursor x={20} y={0} color="blue" state="unavailable" />
+        </>,
+      );
+    });
+
+    const select = container.querySelector('[data-state="select"]');
+    const unavailable = container.querySelector('[data-state="unavailable"]');
+    expect(select?.querySelector('[data-cursor-part="caret"]')).not.toBeNull();
+    expect(unavailable?.querySelector('[data-cursor-part="caret"]')).not.toBeNull();
+    expect(unavailable?.querySelectorAll('svg')).toHaveLength(1);
+    expect(
+      unavailable?.querySelector('.spatial-canvas__cursor-unavailable-badge'),
+    ).toBeNull();
+  });
+
+  it('composes the standalone unavailable glyph from the selection caret', () => {
+    const container = document.createElement('div');
+    document.body.append(container);
+    root = createRoot(container);
+
+    act(() => {
+      root?.render(<SpatialCanvasCursorGlyph state="unavailable" />);
+    });
+
+    expect(container.querySelector('[data-cursor-part="caret"]')).not.toBeNull();
+    expect(
+      container.querySelector('.spatial-canvas__cursor-unavailable-badge'),
+    ).not.toBeNull();
+    expect(container.querySelectorAll('svg')).toHaveLength(2);
+  });
+
   it('owns board geometry, control semantics, and shell class names', () => {
     const container = document.createElement('div');
     document.body.append(container);
@@ -108,8 +152,13 @@ describe('SpatialCanvas', () => {
                   onPointerDown={vi.fn()}
                 />
                 <SpatialCanvasMarquee x={0} y={0} width={20} height={30} />
-                <SpatialCanvasCursor x={40} y={50} color="magenta">
-                  Yav
+                <SpatialCanvasCursor
+                  x={80}
+                  y={90}
+                  color="var(--shell-accent)"
+                  state="text"
+                >
+                  Editor
                 </SpatialCanvasCursor>
               </SpatialCanvasScene>
               <SpatialCanvasCommentCursor x={80} y={90} color="magenta" />
@@ -132,9 +181,11 @@ describe('SpatialCanvas', () => {
       .toBe('sticky');
     expect(container.querySelector('.spatial-canvas__connectors line')).not.toBeNull();
     expect(container.querySelectorAll('.spatial-canvas__connectors circle')).toHaveLength(2);
-    expect(container.querySelector('.spatial-canvas__cursor > svg')).not.toBeNull();
+    expect(container.querySelector('.spatial-canvas__cursor')?.getAttribute('data-state'))
+      .toBe('text');
+    expect(container.querySelector('.spatial-canvas__cursor-glyph svg')).not.toBeNull();
     expect(container.querySelector('.spatial-canvas__cursor-label')?.textContent)
-      .toBe('Yav');
+      .toBe('Editor');
     expect(container.querySelector('.spatial-canvas__cursor')?.getAttribute('aria-hidden'))
       .toBe('true');
     expect(container.querySelector('.spatial-canvas__comment-cursor')
@@ -334,5 +385,27 @@ describe('SpatialCanvas', () => {
     expect(SPATIAL_CANVAS_STYLES).toContain(
       'font-weight: var(--shell-weight-md)',
     );
+  });
+
+  it('owns every project browser cursor state, including active panning', () => {
+    expect(SPATIAL_CANVAS_CURSORS).toEqual({
+      select: 'default',
+      pan: 'grab',
+      panning: 'grabbing',
+      crosshair: 'crosshair',
+      text: 'text',
+      resizeColumn: 'col-resize',
+      resizeRow: 'row-resize',
+      resizeNorthwestSoutheast: 'nwse-resize',
+      resizeNortheastSouthwest: 'nesw-resize',
+      move: 'move',
+      unavailable: 'not-allowed',
+      action: 'pointer',
+    });
+    expect(SPATIAL_CANVAS_STYLES).toContain(
+      '.spatial-canvas__viewport[data-tool="hand"]:active',
+    );
+    expect(SPATIAL_CANVAS_STYLES).toContain('cursor: grabbing');
+    expect(SPATIAL_CANVAS_STYLES).toContain('cursor: text');
   });
 });

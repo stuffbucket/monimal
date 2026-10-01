@@ -99,6 +99,7 @@ export {
   SpatialCanvasProjectCard,
   SpatialCanvasScene,
   SpatialCanvasViewport,
+  type SpatialCanvasCursorState,
   type SpatialCanvasLine,
 } from './components/SpatialCanvas.js';
 export {

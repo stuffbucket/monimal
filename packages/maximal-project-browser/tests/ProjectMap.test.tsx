@@ -341,6 +341,7 @@ it("shows remote cursors without echoing or retaining the local cursor", () => {
     kind: "human",
     pageId: "projects",
     cursor: { x: 120, y: 80 },
+    cursorState: "comment",
     selectedIds: [],
   })
   const container = document.createElement("div")
@@ -370,6 +371,11 @@ it("shows remote cursors without echoing or retaining the local cursor", () => {
   expect(
     container.querySelector(".spatial-canvas__cursor-label")?.textContent,
   ).toBe("Yav")
+  expect(
+    container
+      .querySelector(".spatial-canvas__cursor")
+      ?.getAttribute("data-state"),
+  ).toBe("comment")
 
   act(() => {
     viewport.dispatchEvent(

@@ -1,6 +1,6 @@
 import { Command, PanelTop } from 'lucide-react';
 import { useState } from 'react';
-import type { Meta, StoryObj } from '@storybook/react-vite';
+import type { Meta, StoryObj } from '@maximal/maximal-storybook';
 import { expect, userEvent, within } from 'storybook/test';
 
 import { IconButton } from './controls/Button.js';

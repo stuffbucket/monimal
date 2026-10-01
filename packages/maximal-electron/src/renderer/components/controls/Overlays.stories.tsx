@@ -1,7 +1,7 @@
 import { Copy, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { expect, userEvent, within } from 'storybook/test';
-import type { Meta, StoryObj } from '@storybook/react-vite';
+import type { Meta, StoryObj } from '@maximal/maximal-storybook';
 
 import { Button } from './Button.js';
 import { Dialog, Menu } from './Overlays.js';

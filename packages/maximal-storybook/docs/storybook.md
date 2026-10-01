@@ -3,18 +3,18 @@
 Storybook MUST render the reusable renderer exports without a product
 application.
 
-`.storybook/preview.tsx` MUST install the package stylesheet, consumer palette,
+`.storybook/preview.ts` MUST install the package stylesheet, consumer palette,
 content provider, and providers required by exported components.
 
 `.storybook/consumer.css` MUST remain the worked example of the public
 `--shell-*` variable contract.
 
-Stories MUST use deterministic fixtures from `.storybook/sample-settings.ts`.
+Stories MUST use deterministic fixtures owned beside the package they exercise.
 
 Every exported component that owns rendered UI MUST have a story or an explicit
 non-visual classification in the Storybook checks.
 
-`npm run storybook:check` MUST inspect real computed layout and accessibility in
+`pnpm storybook:check` MUST inspect real computed layout and accessibility in
 a browser.
 
 Screenshots MAY support diagnosis but MUST NOT be the only oracle.

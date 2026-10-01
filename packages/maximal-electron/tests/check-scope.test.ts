@@ -132,7 +132,6 @@ describe('the scope convention', () => {
   const PENDING = new Map([
     ['scripts/verify-exports.mjs', '#98 follow-up: its targets are still listed by hand'],
     ['scripts/verify-neutral.mjs', '#98 follow-up'],
-    ['scripts/storybook-check.mjs', '#98 follow-up'],
   ]);
 
   const checkScripts = [

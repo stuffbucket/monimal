@@ -74,12 +74,14 @@ async function renderBrowser({
   onOpenChange = vi.fn(),
   onOpenProject = vi.fn(async () => {}),
   onOpenSettings = vi.fn(),
+  embedded = false,
 }: {
   api?: MaximalHost['projects']
   open?: boolean
   onOpenChange?: (open: boolean) => void
   onOpenProject?: (project: ProjectSearchResult) => Promise<void>
   onOpenSettings?: () => void
+  embedded?: boolean
 } = {}): Promise<HTMLElement> {
   const container = document.createElement('div')
   document.body.append(container)
@@ -93,6 +95,7 @@ async function renderBrowser({
           onOpenProject={onOpenProject}
           onOpenSettings={onOpenSettings}
           projectsApi={api}
+          embedded={embedded}
         />
       </TooltipProvider>,
     )
@@ -132,6 +135,16 @@ async function openProject(button: HTMLButtonElement): Promise<void> {
 }
 
 describe('ProjectBrowser', () => {
+  it('fills an application-frame surface without mounting a dialog', async () => {
+    const container = await renderBrowser({ embedded: true })
+    const browser = container.querySelector('[data-testid="project-browser"]')
+
+    expect(browser?.tagName).toBe('SECTION')
+    expect(browser?.getAttribute('aria-label')).toBe('Open project')
+    expect(browser?.classList.contains('spatial-canvas-surface--embedded')).toBe(true)
+    expect(container.querySelector('[role="dialog"]')).toBeNull()
+  })
+
   it('renders its search contract and empty result state', async () => {
     vi.useFakeTimers()
     const search = vi.fn(async () => [])

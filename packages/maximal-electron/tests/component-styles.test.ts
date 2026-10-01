@@ -18,7 +18,12 @@ import {
   injectComponentStyles,
 } from '../src/renderer/lib/component-styles.js';
 import { SettingsPage } from '../src/renderer/components/settings/SettingsPage.js';
-import { componentStyles, exportedModules, publishedTokens } from './stylesheets.js';
+import {
+  componentStyles,
+  componentStylesFromSource,
+  exportedModules,
+  publishedTokens,
+} from './stylesheets.js';
 
 /**
  * What a component's own rules may say.
@@ -126,9 +131,7 @@ describe('the rules a component carries', () => {
      * one is not a wrong colour, it is no border at all.
      */
     const found = exportedModules().flatMap(([name, source]) =>
-      [...source.matchAll(/^(?:export )?const [A-Z_]+ = `([^`]*)`;$/gm)]
-        .map((match) => match[1] ?? '')
-        .filter((css) => css.includes('.sb-shell'))
+      componentStylesFromSource(source)
         .flatMap((css) =>
           componentCssFindings(css, contract).map(
             (finding) => `${name}: ${finding.id} ${finding.text}`,
