@@ -1,4 +1,4 @@
-import { expect, within } from 'storybook/test';
+import { expect, within } from '@maximal/maximal-storybook/test';
 import type { Meta, StoryObj } from '@maximal/maximal-storybook';
 
 import { Button } from './Button.js';

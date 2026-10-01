@@ -30,7 +30,7 @@ export interface ProjectMapComment {
   resolved: boolean
 }
 
-export interface ProjectMapCommentReply {
+interface ProjectMapCommentReply {
   id: string
   author: string
   authorId?: string

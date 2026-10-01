@@ -1,7 +1,7 @@
 import { Copy, Info, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import type { Meta, StoryObj } from '@maximal/maximal-storybook';
-import { expect, userEvent, waitFor, within } from 'storybook/test';
+import { expect, userEvent, waitFor, within } from '@maximal/maximal-storybook/test';
 
 import { Button, IconButton } from './controls/Button.js';
 import { Banner } from './controls/Layout.js';

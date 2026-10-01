@@ -1,6 +1,6 @@
 import { Copy, Trash2 } from 'lucide-react';
 import { useState } from 'react';
-import { expect, userEvent, within } from 'storybook/test';
+import { expect, userEvent, within } from '@maximal/maximal-storybook/test';
 import type { Meta, StoryObj } from '@maximal/maximal-storybook';
 
 import { Button } from './Button.js';

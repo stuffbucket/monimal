@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@maximal/maximal-storybook';
-import { expect, fn, userEvent, within } from 'storybook/test';
+import { expect, fn, userEvent, within } from '@maximal/maximal-storybook/test';
 
 import type { Account } from '../lib/account.js';
 

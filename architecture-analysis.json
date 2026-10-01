@@ -265,7 +265,6 @@
         "@maximal/maximal-observability",
         "@maximal/maximal-observability-contract",
         "@maximal/maximal-ollama",
-        "@maximal/maximal-project-browser",
         "@maximal/maximal-react-component",
         "@maximal/maximal-recording",
         "@maximal/project-catalog",

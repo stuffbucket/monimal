@@ -49,6 +49,18 @@ export const allowedAdhocStyles = new Map([
     { inlineAttributes: 1 },
   ],
   [
+    'packages/maximal-electron/src/renderer/components/SpatialCanvas.tsx',
+    { inlineAttributes: 8 },
+  ],
+  [
+    'packages/maximal-electron/src/renderer/components/SpatialCanvasChrome.tsx',
+    { inlineAttributes: 1 },
+  ],
+  [
+    'packages/maximal-electron/src/renderer/components/SpatialCanvasDiscussion.tsx',
+    { inlineAttributes: 4 },
+  ],
+  [
     'packages/maximal-electron/src/renderer/components/TabBar.tsx',
     { inlineAttributes: 1 },
   ],

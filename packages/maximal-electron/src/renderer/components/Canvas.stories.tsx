@@ -1,7 +1,7 @@
 import { FileText, FolderOpen, Layers } from 'lucide-react';
 import { useState } from 'react';
 import type { Meta, StoryObj } from '@maximal/maximal-storybook';
-import { expect, userEvent, within } from 'storybook/test';
+import { expect, userEvent, within } from '@maximal/maximal-storybook/test';
 
 import { Canvas } from './Canvas.js';
 import { EmptyState, Toolbar } from './controls/Layout.js';

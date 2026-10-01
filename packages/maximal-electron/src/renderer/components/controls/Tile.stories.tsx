@@ -1,6 +1,6 @@
 import { FileText, FolderOpen } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
-import { expect, within } from 'storybook/test';
+import { expect, within } from '@maximal/maximal-storybook/test';
 import type { Meta, StoryObj } from '@maximal/maximal-storybook';
 
 import { Card, Row } from './Tile.js';

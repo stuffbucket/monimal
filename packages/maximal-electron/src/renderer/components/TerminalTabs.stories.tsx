@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import type { Meta, StoryObj } from '@maximal/maximal-storybook';
-import { expect, userEvent, within } from 'storybook/test';
+import { expect, userEvent, within } from '@maximal/maximal-storybook/test';
 
 import type { TerminalTheme } from '@maximal/maximal-terminal/renderer';
 import type { TerminalTransport } from '@maximal/maximal-terminal/renderer';

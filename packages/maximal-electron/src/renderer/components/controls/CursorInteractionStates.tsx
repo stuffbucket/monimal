@@ -1,8 +1,5 @@
-import type { CSSProperties } from 'react';
-
 import { SPATIAL_CANVAS_CURSORS } from '../SpatialCanvasStyles.js';
 import {
-  CURSOR_STORY_PAGE_STYLE,
   CursorStoryIntroduction,
 } from './CursorStoryParts.js';
 
@@ -52,38 +49,20 @@ const interactionStates = [
   { label: 'Open', cursor: SPATIAL_CANVAS_CURSORS.action, usage: 'Open a pin or control' },
 ] as const;
 
-const sampleStyle: CSSProperties = {
-  display: 'grid',
-  minHeight: 'calc(var(--shell-row-height) * 4)',
-  padding: 'var(--shell-space-4)',
-  alignContent: 'space-between',
-  gap: 'var(--shell-space-3)',
-  background: 'var(--shell-raised)',
-  border: 'var(--shell-icon-stroke) solid var(--shell-border)',
-  borderRadius: 'var(--shell-radius)',
-};
-
 export function CursorInteractionStates() {
   return (
-    <div style={CURSOR_STORY_PAGE_STYLE}>
+    <div className="cursor-story">
       <CursorStoryIntroduction eyebrow="Local system pointer" title="Hover each action">
         Move your mouse over a tile. The pointer shape communicates what the
         project browser will do before you click or drag.
       </CursorStoryIntroduction>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns:
-            'repeat(auto-fit, minmax(calc(var(--shell-row-height) * 7), 1fr))',
-          gap: 'var(--shell-space-4)',
-        }}
-      >
+      <div className="cursor-story__interaction-grid">
         {interactionStates.map((state) => (
           <div
             key={state.label}
             data-cursor={state.cursor}
             aria-label={`${state.label}: hover to preview the ${state.cursor} cursor`}
-            style={{ ...sampleStyle, cursor: state.cursor }}
+            className="cursor-story__sample"
           >
             <strong>{state.label}</strong>
             <span>{state.usage}</span>

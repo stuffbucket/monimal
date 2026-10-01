@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@maximal/maximal-storybook';
-import { expect, waitFor, within } from 'storybook/test';
+import { expect, waitFor, within } from '@maximal/maximal-storybook/test';
 
 import { ScrollArea } from './ScrollArea.js';
 

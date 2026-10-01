@@ -70,9 +70,6 @@ importers:
       '@maximal/maximal-ollama':
         specifier: workspace:*
         version: link:../../packages/maximal-ollama
-      '@maximal/maximal-project-browser':
-        specifier: workspace:*
-        version: link:../../packages/maximal-project-browser
       '@maximal/maximal-recording':
         specifier: workspace:*
         version: link:../../packages/maximal-recording
