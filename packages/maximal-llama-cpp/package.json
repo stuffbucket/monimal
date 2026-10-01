@@ -62,15 +62,15 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "node-llama-cpp": "3.20.0"
+    "node-llama-cpp": "3.21.1"
   },
   "devDependencies": {
     "@maximal/eslint-config": "workspace:*",
     "@stryker-mutator/core": "^10.0.0",
-    "@types/node": "^26.4.0",
+    "@types/node": "^26.6.2",
     "@typescript/native": "npm:typescript@^7.0.2",
-    "electron": "44.1.0",
-    "eslint": "^10.9.1",
+    "electron": "44.4.5",
+    "eslint": "^10.11.0",
     "tsup": "^8.5.1",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "vitest": "^5.0.1"

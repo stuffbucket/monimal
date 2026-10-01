@@ -26,8 +26,8 @@
   "devDependencies": {
     "@maximal/eslint-config": "workspace:*",
     "@stryker-mutator/core": "^10.0.0",
-    "@types/node": "^26.4.0",
-    "eslint": "^10.9.1",
+    "@types/node": "^26.6.2",
+    "eslint": "^10.11.0",
     "tsup": "^8.5.1",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "vitest": "^5.0.1"

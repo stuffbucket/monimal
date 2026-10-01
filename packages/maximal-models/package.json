@@ -27,12 +27,12 @@
     "@maximal/maximal-model-contract": "workspace:*"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "4.0.2",
+    "@deepseek-ai/cordis": "4.0.4",
     "@deepseek-ai/dsh-llm": "0.1.0-rc.8",
     "@maximal/eslint-config": "workspace:*",
-    "@types/node": "^26.4.0",
+    "@types/node": "^26.6.2",
     "@typescript/native": "npm:typescript@^7.0.2",
-    "eslint": "^10.9.1",
+    "eslint": "^10.11.0",
     "tsup": "^8.5.1",
     "typescript": "npm:@typescript/typescript6@^6.0.2"
   },
