@@ -1,6 +1,14 @@
 {
   "$schema": "./architecture-analysis.schema.json",
   "packages": {
+    "@maximal/design-tokens": {
+      "root": "packages/design-tokens",
+      "dependsOn": [
+        "@maximal/eslint-config"
+      ],
+      "cycleEdges": [],
+      "duplicatePairs": []
+    },
     "@maximal/maximal-browser": {
       "root": "packages/maximal-browser",
       "dependsOn": [
@@ -37,6 +45,14 @@
     "@maximal/eslint-config": {
       "root": "packages/eslint-config",
       "dependsOn": [],
+      "cycleEdges": [],
+      "duplicatePairs": []
+    },
+    "@maximal/maximal-cli": {
+      "root": "packages/maximal-cli",
+      "dependsOn": [
+        "@maximal/eslint-config"
+      ],
       "cycleEdges": [],
       "duplicatePairs": []
     },

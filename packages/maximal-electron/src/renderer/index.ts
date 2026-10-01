@@ -5,6 +5,10 @@ export {
   type NavRailSection,
 } from './components/NavRail.js';
 export {
+  Workbar,
+  type WorkbarItem,
+} from './components/Workbar.js';
+export {
   AppFrame,
   SurfaceActivity,
   SurfaceRail,
@@ -58,6 +62,11 @@ export {
   type TabIconName,
   type TabSlot,
 } from './lib/tab-adornment.js';
+export {
+  SHELL_ICON_NAMES,
+  shellIcon,
+  type ShellIconName,
+} from './lib/shell-icons.js';
 export {
   TerminalTabs,
   type TerminalTabsProps,

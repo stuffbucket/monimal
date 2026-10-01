@@ -238,7 +238,6 @@ vi.mock('../../../../../packages/maximal-client/src/renderer/frame/AppFrame', ()
     onNewTab,
     onSelectTab,
     tabTransfer,
-    onToggleSettings,
     tabs,
   }: {
     activeTab: string
@@ -254,7 +253,6 @@ vi.mock('../../../../../packages/maximal-client/src/renderer/frame/AppFrame', ()
       }>
     }
     tabs: Array<{ id: string; title: string; kind: string }>
-    onToggleSettings?: () => void
   }) => (
     <div
       data-testid="app-frame"
@@ -265,7 +263,6 @@ vi.mock('../../../../../packages/maximal-client/src/renderer/frame/AppFrame', ()
         {JSON.stringify(tabs)}
       </output>
       <button onClick={() => onSelectTab('traffic')}>Traffic</button>
-      {onToggleSettings ? <button onClick={onToggleSettings}>Settings gear</button> : null}
       {tabs.some((tab) => tab.id === 'settings') && onCloseTab
         ? <button onClick={() => onCloseTab('settings')}>Close Settings</button>
         : null}
@@ -281,7 +278,11 @@ vi.mock('../../../../../packages/maximal-client/src/renderer/frame/AppFrame', ()
 }))
 vi.mock('../../../../../packages/maximal-client/src/renderer/ProviderOnboarding', () => ({ ProviderOnboarding: () => null }))
 vi.mock('../../../../../packages/maximal-client/src/renderer/frame/WorkspaceRail', () => ({
-  WorkspaceRail: () => <nav data-testid="workspace-rail" />,
+  WorkspaceRail: ({ onToggleSettings }: { onToggleSettings?: () => void }) => (
+    <nav data-testid="workspace-rail">
+      {onToggleSettings ? <button onClick={onToggleSettings}>Settings gear</button> : null}
+    </nav>
+  ),
 }))
 vi.mock('../../../../../packages/maximal-client/src/renderer/settings/Settings', () => ({
   Settings: ({

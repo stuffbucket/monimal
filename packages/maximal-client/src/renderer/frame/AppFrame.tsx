@@ -1,11 +1,8 @@
 import { type ReactElement, type ReactNode } from 'react'
-import { FolderSearch, Globe, Settings as SettingsIcon, Sparkles } from 'lucide-react'
+import { FolderSearch, Globe, Sparkles } from 'lucide-react'
 import {
   AppFrame as PackageAppFrame,
   IconButton,
-  Profile,
-  type Account,
-  type SettingsSurface,
   type Tab,
   type TabTransferOptions,
 } from '@maximal/maximal-electron/renderer'
@@ -64,15 +61,9 @@ export function AppFrame({
   onCloseTab,
   onNewTab,
   tabTransfer,
-  account,
-  onOpenProfileSurface,
-  onSignIn,
-  onSignOut,
   onOpenAssistant,
   onOpenBrowser,
   onOpenProjects,
-  settingsOpen = false,
-  onToggleSettings,
   children,
 }: {
   tabs: AppTab[]
@@ -82,15 +73,9 @@ export function AppFrame({
   onCloseTab?: (id: string) => void
   onNewTab?: () => void
   tabTransfer?: TabTransferOptions<AppTab>
-  account?: Account
-  onOpenProfileSurface?: (surface: SettingsSurface) => void
-  onSignIn?: () => void
-  onSignOut?: () => void
   onOpenAssistant?: () => void
   onOpenBrowser?: () => void
   onOpenProjects?: () => void
-  settingsOpen?: boolean
-  onToggleSettings?: () => void
   children: ReactNode
 }): ReactElement {
   return (
@@ -104,7 +89,7 @@ export function AppFrame({
       tabTransfer={tabTransfer}
       tabsLabel="Views"
       newTabLabel="New terminal"
-      titleBarActions={onToggleSettings ? (
+      titleBarActions={onOpenProjects || onOpenAssistant || onOpenBrowser ? (
         <>
           {onOpenProjects ? (
             <IconButton
@@ -112,7 +97,7 @@ export function AppFrame({
               onClick={onOpenProjects}
               testId="open-projects"
             >
-              <FolderSearch size={15} />
+              <FolderSearch size={16} />
             </IconButton>
           ) : null}
           {onOpenAssistant ? (
@@ -121,7 +106,7 @@ export function AppFrame({
               onClick={onOpenAssistant}
               testId="open-assistant"
             >
-              <Sparkles size={15} />
+              <Sparkles size={16} />
             </IconButton>
           ) : null}
           {onOpenBrowser ? (
@@ -130,25 +115,9 @@ export function AppFrame({
               onClick={onOpenBrowser}
               testId="open-browser"
             >
-              <Globe size={15} />
+              <Globe size={16} />
             </IconButton>
           ) : null}
-          {onOpenProfileSurface ? (
-            <Profile
-              account={account}
-              onOpen={onOpenProfileSurface}
-              onSignIn={onSignIn}
-              onSignOut={onSignOut}
-            />
-          ) : null}
-          <IconButton
-            label={settingsOpen ? 'Close Settings' : 'Open Settings'}
-            active={settingsOpen}
-            onClick={onToggleSettings}
-            testId="toggle-settings"
-          >
-            <SettingsIcon size={15} />
-          </IconButton>
         </>
       ) : undefined}
       leftSize={LEFT_PANEL_SIZE}

@@ -71,16 +71,16 @@ export const Icons: StoryObj<typeof IconButton> = {
   render: () => (
     <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
       <IconButton label="Toggle panel" onClick={() => undefined}>
-        <PanelLeft size={15} />
+        <PanelLeft size={16} />
       </IconButton>
       <IconButton label="Active" onClick={() => undefined} active>
-        <PanelLeft size={15} />
+        <PanelLeft size={16} />
       </IconButton>
       <IconButton label="Delete" onClick={() => undefined} danger>
-        <Trash2 size={15} />
+        <Trash2 size={16} />
       </IconButton>
       <IconButton label="Unavailable" onClick={() => undefined} disabled>
-        <Trash2 size={15} />
+        <Trash2 size={16} />
       </IconButton>
     </div>
   ),

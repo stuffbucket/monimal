@@ -360,8 +360,7 @@ body {
   align-self: center;
 }
 
-.project-browser__actions,
-.project-root-settings {
+.project-browser__actions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--shell-space-2, 8px);
@@ -371,16 +370,9 @@ body {
   justify-content: flex-end;
 }
 
-.project-root-settings {
-  align-items: end;
-}
-
-.project-root-settings__field {
+.project-root-controls {
   display: grid;
-  min-width: min(24rem, 100%);
-  gap: var(--shell-space-1, 4px);
-  color: var(--shell-text-muted);
-  font-size: 0.8rem;
+  gap: var(--shell-space-3, 12px);
 }
 `
 

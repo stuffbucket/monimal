@@ -63,6 +63,10 @@
   --size-tabbar: 36px;
   --size-row: 32px;
   --size-icon: 16px;
+  --size-icon-prominent: 24px;
+  --icon-optical-map-scale: 1.111111;
+  --icon-optical-terminal-scale: 1.111111;
+  --icon-optical-folder-offset-y: 0.5px;
 
   /*
    * ---- Control heights ----

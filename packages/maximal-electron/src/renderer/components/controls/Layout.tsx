@@ -25,7 +25,7 @@ export function ViewModeSwitch({
         onClick={() => onChange("grid")}
         data-testid="mode-grid"
       >
-        <LayoutGrid size={14} />
+        <LayoutGrid size={16} />
       </button>
       <button
         type="button"
@@ -34,7 +34,7 @@ export function ViewModeSwitch({
         onClick={() => onChange("list")}
         data-testid="mode-list"
       >
-        <List size={14} />
+        <List size={16} />
       </button>
     </div>
   );
@@ -289,7 +289,7 @@ export function Banner({
       {action}
       {onDismiss && (
         <IconButton label="Dismiss" onClick={onDismiss}>
-          <X size={14} />
+          <X size={16} />
         </IconButton>
       )}
     </div>

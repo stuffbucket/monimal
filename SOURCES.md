@@ -15,6 +15,7 @@ has ended.
 
 | Package | Purpose |
 | --- | --- |
+| `packages/design-tokens` (`@maximal/design-tokens`) | Workspace-wide Style Dictionary inventory and down-only design-token and icon-metric migration ratchet. |
 | `packages/maximal-browser` | Agent-shareable browser sessions, native Electron views, and browser-tab renderer UI. |
 | `packages/maximal-terminal` | Electron-free terminal hosts, tmux control and projection, launch connectors, and the terminal renderer. |
 | `packages/maximal-settings` | Typed layered settings, process-owned JSON stores, plugin-schema validation, and the settings migration ratchet. |
@@ -32,6 +33,7 @@ has ended.
 | `packages/maximal-model-catalog` | Trusted released model metadata, release verification, and runtime inventory reconciliation. |
 | `packages/maximal-model-contract` | Runtime-neutral model gateway, discovery descriptor, tokenizer identity, and operation vocabulary. |
 | `packages/maximal-systemone` | Provider-neutral System One HTTP API contract and runtime schemas. |
+| `packages/maximal-cli` | Transport-neutral command contracts, adapters, and conformance suites. |
 | `packages/maximal-core-contract` | Core's settings wire types and control-plane contract; Core republishes them. |
 | `packages/maximal-models` | Provider plugin lifecycle and model dispatch. |
 | `packages/maximal-observability-contract` | Traffic schemas and observer interfaces. |
@@ -117,6 +119,7 @@ Both are monorepo-native;
 | Copied packages | `CLAUDE.md` includes `AGENTS.md`; root instructions take precedence. |
 | `maximal-electron` | Uses the workspace mutation runner for changed-line and explicit local scopes, cached edit loops, and fresh complete or sharded audits. |
 | `maximal-electron` | `TextInput` owns the token-based active-service treatment, the Radix-backed `Slider` owns its track, detents, labels, and thumb geometry, settings action rows and divider behavior live with the shared settings components, and `ModelCardGrid` owns provider adornments, disabled-provider activation, and model-action placement so consumers do not recreate those controls. |
+| `maximal-electron` | `Workbar` owns the persistent activity navigation geometry and the shared shell-icon vocabulary so consumers do not specialize collapsed side navigation or remap tab icons locally. |
 | `maximal-electron` / `apps/desktop` | Profile avatars accept authenticated HTTPS image URLs in the desktop renderer and fall back to account initials when an image cannot load; the signed-out profile identity invokes the consumer-owned account setup action. |
 | `maximal-systemone` | The evaluation corpus and fixtures are project-authored internal regression material; no upstream harness code or restricted benchmark text is copied, and results MUST NOT be described as upstream benchmark equivalence. |
 | Workspace | `@maximal/eslint-config` owns the shared ESLint configuration and enforced rule sets. |
@@ -157,6 +160,7 @@ Both are monorepo-native;
 | `maximal-electron` | `verify:neutral` denies imports of workspace packages outside its `dependsOn` in the root `architecture-analysis.json` instead of a fixed name list, and bare `maximal` is no longer a forbidden term. |
 | `maximal-electron` | Private workspace package, not published; the registry publish, tag, and git-install checks are removed. |
 | `maximal-electron` | Workspace installation MUST NOT build the package; Turbo MUST own dependency-ordered builds. |
+| `design-tokens` | Its package build and Turbo token inventory hash tracked application and package sources because the Style Dictionary inventory is workspace-wide. |
 | `maximal-electron` | The package MUST NOT contain demo-shell or terminal-lab application composition. |
 | `maximal-recording` / `apps/desktop` | Recording owns capture and encoding; desktop owns explicit initiation, destination, and window selection. |
 | `apps/desktop` | The desktop application MUST own terminal integration behavior and end-to-end coverage. |

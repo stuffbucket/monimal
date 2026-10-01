@@ -266,7 +266,7 @@ export function ShellLayout<T extends Tab>({
                     active={!leftCollapsed}
                     testId="toggle-left"
                   >
-                    <PanelLeft size={15} />
+                    <PanelLeft size={16} />
                   </IconButton>
                 )}
               </>
@@ -281,7 +281,7 @@ export function ShellLayout<T extends Tab>({
                     active={!rightCollapsed}
                     testId="toggle-right"
                   >
-                    <PanelRight size={15} />
+                    <PanelRight size={16} />
                   </IconButton>
                 )}
               </>

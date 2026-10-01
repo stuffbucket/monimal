@@ -108,6 +108,7 @@ WORKDIR /workspace
 COPY --chown=maximal:maximal package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc .pnpmfile.cjs ./
 COPY --chown=maximal:maximal scripts/lockfile-shard-hosts.cjs scripts/lockfile-shard-hosts.cjs
 COPY --chown=maximal:maximal packages/model-runtimes/anthropic/package.json packages/model-runtimes/anthropic/package.json
+COPY --chown=maximal:maximal packages/design-tokens/package.json packages/design-tokens/package.json
 COPY --chown=maximal:maximal packages/eslint-config/package.json packages/eslint-config/package.json
 COPY --chown=maximal:maximal packages/local-model-registry/package.json packages/local-model-registry/package.json
 COPY --chown=maximal:maximal packages/maximal-assets/package.json packages/maximal-assets/package.json
@@ -118,6 +119,7 @@ COPY --chown=maximal:maximal packages/maximal-github/package.json packages/maxim
 COPY --chown=maximal:maximal packages/maximal-search/package.json packages/maximal-search/package.json
 COPY --chown=maximal:maximal packages/project-catalog/package.json packages/project-catalog/package.json
 COPY --chown=maximal:maximal packages/maximal-core/package.json packages/maximal-core/package.json
+COPY --chown=maximal:maximal packages/maximal-cli/package.json packages/maximal-cli/package.json
 COPY --chown=maximal:maximal packages/maximal-core/downstream/package.json packages/maximal-core/downstream/package.json
 COPY --chown=maximal:maximal packages/maximal-model-catalog/package.json packages/maximal-model-catalog/package.json
 COPY --chown=maximal:maximal packages/maximal-models/package.json packages/maximal-models/package.json

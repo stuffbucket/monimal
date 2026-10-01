@@ -33,6 +33,7 @@ allowBuilds:
   "node-llama-cpp": true
   "node-pty": true
   "protobufjs": true
+  "style-dictionary@https://codeload.github.com/style-dictionary/style-dictionary/tar.gz/489abdfcf6c4a23c35e9d4e85ae93b9c02d9cf4a": true
   "uiohook-napi": true
 
 # Required by Electron Forge and Rolldown.

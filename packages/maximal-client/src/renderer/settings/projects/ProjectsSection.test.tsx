@@ -123,16 +123,12 @@ describe('ProjectsSection', () => {
     const loading = deferred<ProjectCatalogSnapshot>()
     const container = await render(capabilities({ snapshot: () => loading.promise }))
 
-    expect(container.textContent).toContain('Discovery and trust')
+    expect(container.textContent).toContain('Discovery roots')
     expect(container.textContent).toContain(
       'Choose where Maximal discovers projects and which folders may launch terminals.',
     )
-    expect(container.textContent).toContain('Discovery roots')
     expect(container.textContent).toContain(
-      'Maximal scans only folders you add. New roots start untrusted.',
-    )
-    expect(container.textContent).toContain(
-      'Trusting a folder permits opening it in a terminal. “Trust subtrees” extends that permission to discovered projects below the selected folder.',
+      'Maximal scans only folders you add. New roots start untrusted. Trusting a folder permits opening it in a terminal; trusting subtrees extends that permission to projects below it.',
     )
     expect(container.textContent).toContain('Loading project folders…')
     expect(container.textContent).not.toContain('No project folders have been added.')
@@ -155,9 +151,11 @@ describe('ProjectsSection', () => {
     const container = await render(value)
 
     expect(container.textContent).toContain('/work')
-    expect(container.textContent).toContain('Scan: partial · 2 issues')
+    expect(container.textContent).toContain('Project discovery enabled')
+    expect(container.textContent).toContain('partial · 2 issues')
     expect(container.textContent).not.toContain('No project folders have been added.')
-    expect(container.querySelector('.settings__group')?.getAttribute('data-dividers')).toBe('false')
+    expect(container.querySelector('.settings-disclosure-list')).not.toBeNull()
+    expect(container.querySelector('details.settings-disclosure')).not.toBeNull()
     expect(container.textContent).toContain('Discover subtrees')
     expect(container.textContent).toContain('Trust this folder')
     expect(container.textContent).toContain('Trust subtrees')
@@ -179,9 +177,8 @@ describe('ProjectsSection', () => {
     const container = await render(capabilities({
       snapshot: vi.fn(async () => snapshot([root])),
     }))
-    const description = [...container.querySelectorAll('p')]
-      .find((element) => element.textContent?.startsWith('Scan:'))
-    expect(description?.textContent).toBe('Scan: complete')
+    const status = container.querySelector('.settings-disclosure__meta')
+    expect(status?.textContent).toBe('complete')
     expect(container.textContent).not.toContain('issues')
   })
 

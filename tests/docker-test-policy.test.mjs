@@ -444,7 +444,7 @@ test("the outer and fixed inner test scripts cannot recurse", () => {
   );
   assert.equal(
     manifest.scripts["check:static"],
-    "turbo run build typecheck lint && pnpm run check:network-literals && pnpm run check:unsafe-type-assertions && pnpm run check:settings",
+    "turbo run build typecheck lint && pnpm run check:network-literals && pnpm run check:unsafe-type-assertions && pnpm run check:settings && pnpm run check:tokens",
   );
   assert.equal(
     manifest.scripts["check:settings"],
@@ -792,6 +792,23 @@ test("required CI runs native checks before Docker and has one cache writer", ()
   assert.equal(workflow.split("uses: actions/cache/restore@").length - 1, 2);
   assert.match(workflow, /if: github\.event_name == 'push'/);
   assert.equal(workflow.split("turbo-v2-").length - 1, 6);
+});
+
+test("PowerShell 5.1 conformance writes explicit UTF-16LE bytes", () => {
+  const harness = read("packages/maximal-cli/tests/windows-powershell51.ps1");
+  assert.match(harness, /New-Object Text\.UnicodeEncoding\(\$false, \$true\)/);
+  assert.match(harness, /\$preamble = \$encoding\.GetPreamble\(\)/);
+  assert.match(harness, /\$body = \$encoding\.GetBytes\(/);
+  assert.doesNotMatch(harness, /Out-File/);
+  assert.match(
+    harness,
+    /\[Console\]::InputEncoding = New-Object Text\.UTF8Encoding\(\$false\)/,
+  );
+  assert.match(harness, /\[Console\]::InputEncoding = \$originalInputEncoding/);
+  assert.doesNotMatch(harness, /\$startInfo\.StandardInputEncoding/);
+  assert.match(harness, /\$stdin = \$process\.StandardInput\.BaseStream/);
+  assert.match(harness, /\$stdin\.Close\(\)/);
+  assert.doesNotMatch(harness, /\$process\.StandardInput\.Close\(\)/);
 });
 
 test("root automation schedules Docker and keeps CodeQL lean and pinned", () => {
@@ -1706,6 +1723,7 @@ test("each suite selects one fixed root-owned inner script", () => {
     Object.fromEntries(
       [
         "workspace",
+        "maximal-cli",
         "maximal-core",
         "maximal-models",
         "maximal-configurators",
@@ -1715,6 +1733,7 @@ test("each suite selects one fixed root-owned inner script", () => {
     ),
     {
       workspace: "test:inner",
+      "maximal-cli": "test:maximal-cli:inner",
       "maximal-core": "test:maximal-core:inner",
       "maximal-models": "test:maximal-models:inner",
       "maximal-configurators": "test:maximal-configurators:inner",
@@ -1740,6 +1759,34 @@ test("each suite selects one fixed root-owned inner script", () => {
     "test:maximal-core:inner",
   ]);
   assert.ok(arguments_.includes("MAXIMAL_TEST_TRACE=1"));
+
+  const cliArguments = runDockerArguments(imageId, {
+    suite: "maximal-cli",
+  });
+  assert.deepEqual(cliArguments.slice(-8), [
+    imageId,
+    "node",
+    "/opt/monimal/stage-test-checkout.mjs",
+    "--rebuild=maximal-cli",
+    "--",
+    "pnpm",
+    "run",
+    "test:maximal-cli:inner",
+  ]);
+  assert.deepEqual(
+    parseStageOptions([
+      "--rebuild=maximal-cli",
+      "--",
+      "pnpm",
+      "run",
+      "test:maximal-cli:inner",
+    ]),
+    {
+      command: "pnpm",
+      commandArguments: ["run", "test:maximal-cli:inner"],
+      rebuild: "maximal-cli",
+    },
+  );
 });
 
 test("only the configurator suite receives disposable system install roots", () => {

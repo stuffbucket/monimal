@@ -49,7 +49,6 @@ preserves provider `null` limit evidence, rejects missing or duplicate adapter
 mappings and credential-bearing endpoint URLs, and never promotes provider
 limits to intrinsic model facts. A missing provider `enabled` value projects
 to unknown availability rather than optimistic health.
-
 The status and topology DTOs are deeply readonly. Their diagnostics use these
 stable codes:
 

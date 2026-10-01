@@ -64,7 +64,7 @@ function Secret({
         }}
         testId={`${testId}-reveal`}
       >
-        {revealed ? <EyeOff size={14} /> : <Eye size={14} />}
+        {revealed ? <EyeOff size={16} /> : <Eye size={16} />}
       </IconButton>
       <CopyButton text={value} about={name} testId={`${testId}-copy`} />
     </span>
@@ -292,7 +292,7 @@ export function ApiKeysDialog({
                     }}
                     testId={`client-${client.id}-remove`}
                   >
-                    <Trash2 size={14} />
+                    <Trash2 size={16} />
                   </IconButton>
                 )}
               </li>

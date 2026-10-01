@@ -46,6 +46,11 @@
   --shell-control-sm: 24px;
   --shell-control-md: 28px;
   --shell-control-lg: 32px;
+  --shell-icon-size: 16px;
+  --shell-icon-prominent: 24px;
+  --shell-icon-optical-map-scale: 1.111111;
+  --shell-icon-optical-terminal-scale: 1.111111;
+  --shell-icon-optical-folder-offset-y: 0.5px;
   --shell-row-height: 32px;
   --shell-tab-min: 72px;
   --shell-tab-max: 168px;
