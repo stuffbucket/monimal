@@ -65,7 +65,7 @@ function NewCommentExample() {
       <SpatialCanvasCommentAnchor x={160} y={120} color="#8b5cf6" />
       <SpatialCanvasCommentComposer
         x={160}
-        y={160}
+        y={120}
         value={value}
         onChange={setValue}
         onInsertEmoji={() => setValue((current) => `${current}🙂`)}
