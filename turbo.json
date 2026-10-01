@@ -1,6 +1,8 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "ui": "stream",
+  "cacheMaxAge": "7d",
+  "cacheMaxSize": "1GB",
   "globalDependencies": [
     ".npmrc",
     "pnpm-workspace.yaml",

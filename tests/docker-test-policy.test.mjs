@@ -374,6 +374,8 @@ test("lockfile host repair retains the default mutating behavior", () => {
 test("turbo hashes stable runtime settings and passes the isolated test home", () => {
   const turbo = JSON.parse(read("turbo.json"));
 
+  assert.equal(turbo.cacheMaxAge, "7d");
+  assert.equal(turbo.cacheMaxSize, "1GB");
   assert.deepEqual(turbo.globalEnv, [
     "COPILOT_API_CREDENTIAL_HOME",
     "COPILOT_API_ENTERPRISE_URL",
