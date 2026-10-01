@@ -127,6 +127,10 @@ export function readToolPins(root = repositoryRoot) {
 
 const suites = Object.freeze({
   workspace: { innerScript: "test:inner", rebuild: "workspace" },
+  "maximal-cli": {
+    innerScript: "test:maximal-cli:inner",
+    rebuild: "maximal-cli",
+  },
   "maximal-core": {
     innerScript: "test:maximal-core:inner",
     rebuild: "core",
@@ -148,7 +152,7 @@ const suites = Object.freeze({
 });
 
 const usage =
-  "Usage: pnpm run test:docker -- [--all] [--suite=workspace|maximal-core|maximal-models|maximal-configurators|connections|policy|settings] [--trace=off|tests|all]";
+  "Usage: pnpm run test:docker -- [--all] [--suite=workspace|maximal-cli|maximal-core|maximal-models|maximal-configurators|connections|policy|settings] [--trace=off|tests|all]";
 
 export function parseOptions(arguments_) {
   const options = arguments_[0] === "--" ? arguments_.slice(1) : arguments_;

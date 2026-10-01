@@ -11,6 +11,10 @@ The workflow has three tiers:
 | Full or focused native | `pnpm test -- --all` or `pnpm test -- --core` | Complete workspace admission or a focused Core rerun in the same isolated host boundary. |
 | Pinned Docker          | `pnpm run test:docker`                        | Linux rerun with container-owned dependencies and toolchains from any checkout.          |
 
+`pnpm run test:docker -- --suite=maximal-cli` runs the command-contract,
+JSON-lines, pipe, and MCP adapter conformance suite with the pinned Linux
+toolchain.
+
 Raw package test commands are inner scripts, not supported host entry points. In
 particular, do not run `bun test`, a package-local `test` script, or a test file
 directly to bypass the root wrapper.

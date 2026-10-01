@@ -1,0 +1,61 @@
+{
+  "name": "@maximal/maximal-cli",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Transport-neutral command contracts, adapters, and conformance tests for Maximal.",
+  "sideEffects": false,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./cli": {
+      "types": "./dist/cli.d.ts",
+      "import": "./dist/cli.js"
+    },
+    "./conformance": {
+      "types": "./dist/conformance.d.ts",
+      "import": "./dist/conformance.js"
+    },
+    "./mcp": {
+      "types": "./dist/mcp.d.ts",
+      "import": "./dist/mcp.js"
+    },
+    "./package.json": "./package.json",
+    "./stdio": {
+      "types": "./dist/stdio.d.ts",
+      "import": "./dist/stdio.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "analyze": "bun ../maximal-core/scripts/analyze.ts",
+    "build": "tsup src/index.ts src/cli.ts src/conformance.ts src/mcp.ts src/stdio.ts --format esm --dts --clean --target node24 --out-dir dist",
+    "lint": "eslint",
+    "mutate": "stryker run",
+    "test": "node --test tests/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "2.1.0",
+    "@standard-schema/spec": "1.1.0"
+  },
+  "devDependencies": {
+    "@maximal/eslint-config": "workspace:*",
+    "@modelcontextprotocol/client": "2.1.0",
+    "@stryker-mutator/core": "^10.0.0",
+    "@types/node": "^26.4.0",
+    "@typescript/native": "npm:typescript@^7.0.2",
+    "eslint": "^10.9.1",
+    "fast-check": "4.9.0",
+    "tsup": "^8.5.1",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "zod": "4.5.4"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

@@ -28,6 +28,7 @@
     "verify:desktop:linux": "node scripts/verify-linux-desktop.mjs",
     "test:inner": "node scripts/docker-workspace-test.mjs",
     "test:maximal-core:inner": "node scripts/assert-test-container.mjs && pnpm --filter @maximal/maximal-core test",
+    "test:maximal-cli:inner": "node scripts/assert-test-container.mjs && pnpm --filter @maximal/maximal-cli test",
     "test:maximal-configurators:inner": "node scripts/assert-test-container.mjs && pnpm --filter @maximal/maximal-configurators test && pnpm --filter @maximal/maximal-core run test:configurator-harness",
     "test:connections:inner": "node scripts/assert-test-container.mjs && pnpm --filter @maximal/maximal-configurators test && pnpm --filter @maximal/maximal-core test && pnpm --filter @maximal/maximal-client test && pnpm --filter maximal-desktop test",
     "test:maximal-models:inner": "node scripts/assert-test-container.mjs && pnpm --filter @maximal/maximal-models test",
