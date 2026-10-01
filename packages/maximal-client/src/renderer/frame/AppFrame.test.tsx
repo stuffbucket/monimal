@@ -6,9 +6,9 @@ import {
   AppFrame,
   PRODUCT_TABS,
   SETTINGS_TAB,
+  Status,
   SurfaceRail,
   SurfaceRight,
-  SurfaceStatus,
   SurfaceTop,
   useTabPanelId,
   useTabTriggerId,
@@ -171,8 +171,12 @@ describe('AppFrame', () => {
     expect(onOpenAssistant).toHaveBeenCalledOnce()
   })
 
-  it('keeps the status bar available in Settings', () => {
-    const settings = renderFrame('settings', vi.fn(), <p>settings</p>)
+  it('shows the status bar only while a status is registered', () => {
+    const settings = renderFrame(
+      'settings',
+      vi.fn(),
+      <Status id="settings-status">Settings status</Status>,
+    )
     expect(settings.querySelector('.statusbar')).not.toBeNull()
 
     act(() => {
@@ -187,7 +191,7 @@ describe('AppFrame', () => {
         </AppFrame>,
       )
     })
-    expect(settings.querySelector('.statusbar')).not.toBeNull()
+    expect(settings.querySelector('.statusbar')).toBeNull()
   })
 
   it('keeps product views on the workbar rather than document tabs', () => {
@@ -392,9 +396,9 @@ describe('AppFrame', () => {
         <SurfaceRight>
           <p data-testid="right-content">right</p>
         </SurfaceRight>
-        <SurfaceStatus>
+        <Status id="status-content">
           <p data-testid="status-content">status</p>
-        </SurfaceStatus>
+        </Status>
         <p data-testid="main-content">main</p>
       </>,
     )

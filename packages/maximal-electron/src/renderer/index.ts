@@ -13,12 +13,17 @@ export {
   SurfaceActivity,
   SurfaceRail,
   SurfaceRight,
-  SurfaceStatus,
   SurfaceTop,
   useTabPanelId,
   useTabTriggerId,
   type AppFrameProps,
 } from './components/AppFrame.js';
+export {
+  Status,
+  StatusProvider,
+  StatusViewport,
+  type StatusProps,
+} from './components/Status.js';
 export {
   PartitionedSortableList,
   type PartitionedSortableItem,

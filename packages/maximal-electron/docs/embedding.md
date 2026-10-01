@@ -48,6 +48,11 @@ capabilities, terminal transport, and product composition.
 `AppFrame`, `ShellLayout`, `WindowChrome`, `TabBar`, and the exported controls
 MUST remain policy-free rendering primitives.
 
+`StatusProvider` MUST own keyed status registration independently of
+`AppFrame`. `StatusViewport` MUST page the provider's ordered visible entries.
+`AppFrame` MUST compose both and MUST render its status region only while at
+least one entry is visible.
+
 Components that portal MUST resolve their target document through the shell
 root so detached windows receive the same component styles.
 

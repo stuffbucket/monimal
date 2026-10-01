@@ -174,6 +174,10 @@ export const ModelSelection: Story = {
     models: MODELS,
   }),
   play: async (context) => {
+    requireElement(
+      page(context),
+      '[data-testid="overlay-model-picker"]',
+    ).click();
     await eventually(() => {
       const document = page(context);
       const menu = requireElement(document, '[data-testid="overlay-model-menu"]');

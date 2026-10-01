@@ -11,10 +11,10 @@ import { WORKBAR_ITEMS, type WorkbarItemId } from './workbar-layout'
 import { ensureAppFrameStyles } from './app-frame-styles'
 
 export {
+  Status,
   SurfaceActivity,
   SurfaceRail,
   SurfaceRight,
-  SurfaceStatus,
   SurfaceTop,
   useTabPanelId,
   useTabTriggerId,

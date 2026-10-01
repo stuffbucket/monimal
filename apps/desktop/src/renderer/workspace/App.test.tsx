@@ -252,7 +252,7 @@ vi.mock('../../../../../packages/maximal-client/src/renderer/frame/AppFrame', ()
   SurfaceRail: ({ children }: { children: (collapsed: boolean) => ReactNode }) => (
     <aside>{children(false)}</aside>
   ),
-  SurfaceStatus: ({ children }: { children: ReactNode }) => <footer>{children}</footer>,
+  Status: ({ children }: { children: ReactNode }) => <footer>{children}</footer>,
   AppFrame: ({
     activeTab,
     children,
