@@ -48,7 +48,7 @@ Release binaries (no `.git`) omit the `+<sha>` suffix; `verify:build` reports
 
    - macOS / Linux: `~/.local/share/maximal/config.json`
    - Windows: `%APPDATA%\maximal\config.json`
-   - Override (any platform): `$COPILOT_API_HOME/config.json`
+   - Override (any platform): `$MAXIMAL_HOME/config.json`
 
    Add:
    ```json

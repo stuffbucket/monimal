@@ -3,7 +3,10 @@ import { mkdir, readFile, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import test from "node:test"
 
-import { createDshHost, startDshHost } from "../src/index.ts"
+import {
+  createProviderPluginHost,
+  startProviderPluginHost,
+} from "../src/index.ts"
 import { createFixtureProfile } from "./fixture.ts"
 
 const serviceSource = `
@@ -88,13 +91,14 @@ async function installService(
   )
 }
 
-void test("DSH host structurally adapts a conforming localModels service", async () => {
+void test("provider plugin host structurally adapts a conforming localModels service", async () => {
   const fixture = await createFixtureProfile()
   await installService(fixture.directory, false)
-  const host = await startDshHost({
+  const host = await startProviderPluginHost({
     profileDirectory: fixture.directory,
     activation: { fixture: { enabled: false } },
   })
+
   try {
     const control = host.localModels
     assert.ok(control)
@@ -116,10 +120,29 @@ void test("DSH host structurally adapts a conforming localModels service", async
   assert.equal(host.localModels, undefined)
 })
 
-void test("DSH host rejects a malformed localModels service without a concrete import", async () => {
+void test("provider plugin host exposes the Cordis model topology service", async () => {
+  const fixture = await createFixtureProfile()
+  const host = await startProviderPluginHost({
+    profileDirectory: fixture.directory,
+    activation: { fixture: { enabled: false } },
+  })
+  try {
+    const topology = host.modelTopology
+    assert.ok(topology)
+    assert.deepEqual(topology.snapshot(), {
+      revision: 0,
+      targets: [],
+    })
+  } finally {
+    await host.dispose()
+  }
+  assert.equal(host.modelTopology, undefined)
+})
+
+void test("provider plugin host rejects a malformed localModels service without a concrete import", async () => {
   const fixture = await createFixtureProfile()
   await installService(fixture.directory, true)
-  const host = createDshHost({
+  const host = createProviderPluginHost({
     profileDirectory: fixture.directory,
     activation: { fixture: { enabled: false } },
   })

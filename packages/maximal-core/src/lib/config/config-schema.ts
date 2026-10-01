@@ -113,9 +113,23 @@ export const AppConfigSchema = z
         preferLocalModels: z.boolean().optional(),
       })
       .optional(),
+    systemOne: z
+      .object({
+        localProvider: z.enum(["maximal", "ollama"]).optional(),
+        modelOrder: z
+          .array(z.enum(["nimble", "tev1", "tev1:0.8b"]))
+          .length(3)
+          .refine(
+            (models) => new Set(models).size === 3,
+            "System One model order must contain each supported local model exactly once.",
+          )
+          .optional(),
+        fallbackToLocal: z.boolean().optional(),
+      })
+      .optional(),
     providerHost: z
       .object({
-        mode: z.enum(["legacy", "dsh"]).optional(),
+        mode: z.enum(["legacy", "plugins"]).optional(),
         profileDirectory: z.string().optional(),
       })
       .optional(),

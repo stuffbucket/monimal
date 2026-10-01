@@ -1,0 +1,177 @@
+import type { Model } from "~/services/copilot/get-models"
+
+const warning = {
+  code: "client_version_deprecated",
+  message: "Update your client to see the current billing information.",
+}
+
+export const copilotModelMetadataFixture = [
+  {
+    billing: {
+      restricted_to: ["pro_plus", "business", "enterprise", "max"],
+      token_prices: {
+        batch_size: 1_000_000,
+        default: {
+          cache_read_price: 50,
+          cache_write_1h_price: 1000,
+          cache_write_price: 625,
+          input_price: 500,
+          max_prompt_tokens: 200_000,
+          output_price: 2500,
+        },
+        long_context: {
+          cache_read_price: 50,
+          cache_write_1h_price: 1000,
+          cache_write_price: 625,
+          input_price: 500,
+          max_prompt_tokens: 936_000,
+          output_price: 2500,
+        },
+      },
+    },
+    capabilities: {
+      family: "claude-opus-4.7",
+      limits: {
+        max_context_window_tokens: 1_000_000,
+        max_non_streaming_output_tokens: 16_000,
+        max_output_tokens: 64_000,
+        max_prompt_tokens: 936_000,
+        vision: {
+          max_prompt_image_size: 3_145_728,
+          max_prompt_images: 1,
+          supported_media_types: ["image/jpeg", "image/png", "application/pdf"],
+        },
+      },
+      object: "model_capabilities",
+      supports: {
+        adaptive_thinking: true,
+        max_thinking_budget: 32_000,
+        min_thinking_budget: 1024,
+        parallel_tool_calls: true,
+        reasoning_effort: ["low", "medium", "high", "xhigh", "max"],
+        streaming: true,
+        structured_outputs: true,
+        tool_calls: true,
+        vision: true,
+      },
+      tokenizer: "o200k_base",
+      type: "chat",
+    },
+    id: "claude-opus-4.7",
+    info_messages: [
+      {
+        code: "model_pending_deprecation",
+        message:
+          "Claude Opus 4.7 has a planned deprecation date of 2026-10-02.",
+      },
+    ],
+    is_chat_default: false,
+    is_chat_fallback: false,
+    model_picker_category: "powerful",
+    model_picker_enabled: true,
+    model_picker_price_category: "high",
+    name: "Claude Opus 4.7",
+    object: "model",
+    policy: {
+      state: "enabled",
+      terms: "Enable access to Claude Opus 4.7.",
+    },
+    preview: false,
+    supported_endpoints: ["/v1/messages", "/chat/completions"],
+    vendor: "Anthropic",
+    version: "claude-opus-4.7",
+    warning_messages: [warning],
+  },
+  {
+    billing: {
+      is_premium: false,
+      multiplier: 0,
+      restricted_to: ["free", "pro", "max"],
+      token_prices: {
+        batch_size: 0,
+        default: {
+          cache_read_price: 0,
+          cache_write_price: 0,
+          input_price: 0,
+          output_price: 0,
+        },
+      },
+    },
+    capabilities: {
+      family: "trajectory-compaction",
+      limits: {
+        max_context_window_tokens: 262_144,
+        max_output_tokens: 16_384,
+        max_prompt_tokens: 245_760,
+      },
+      object: "model_capabilities",
+      supports: {
+        parallel_tool_calls: true,
+        streaming: true,
+        tool_calls: true,
+      },
+      tokenizer: "o200k_base",
+      type: "chat",
+    },
+    id: "trajectory-compaction",
+    is_chat_default: false,
+    is_chat_fallback: false,
+    model_picker_enabled: false,
+    model_picker_price_category: "low",
+    name: "Trajectory Compaction",
+    object: "model",
+    preview: true,
+    supported_endpoints: ["/chat/completions"],
+    vendor: "GitHub",
+    version: "trajectory-compaction",
+    warning_messages: [warning],
+  },
+  {
+    billing: {
+      auto_discount: 0.1,
+      restricted_to: ["pro", "business", "enterprise", "max"],
+      token_prices: {
+        batch_size: 1_000_000,
+        default: {
+          cache_read_price: 17.5,
+          cache_write_price: 0,
+          input_price: 175,
+          max_prompt_tokens: 272_000,
+          output_price: 1400,
+        },
+      },
+    },
+    capabilities: {
+      family: "gpt-5.3-codex",
+      limits: {
+        max_context_window_tokens: 400_000,
+        max_output_tokens: 128_000,
+        max_prompt_tokens: 272_000,
+      },
+      object: "model_capabilities",
+      supports: {
+        parallel_tool_calls: true,
+        reasoning_effort: ["low", "medium", "high", "xhigh"],
+        streaming: true,
+        structured_outputs: true,
+        tool_calls: true,
+        vision: true,
+      },
+      tokenizer: "o200k_base",
+      type: "chat",
+    },
+    id: "gpt-5.3-codex",
+    is_chat_default: true,
+    is_chat_fallback: true,
+    model_picker_category: "powerful",
+    model_picker_enabled: true,
+    model_picker_price_category: "medium",
+    name: "GPT-5.3-Codex",
+    object: "model",
+    preview: false,
+    supported_endpoints: ["/responses", "ws:/responses"],
+    vendor: "OpenAI",
+    version: "gpt-5.3-codex",
+    warning_messages: [warning],
+  },
+] satisfies Array<Model>

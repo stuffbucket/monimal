@@ -41,6 +41,8 @@ import type {
   SearchProviderValidationResponse,
   SearchSettingsResponse,
   SearchSettingsUpdateRequest,
+  SystemOneSettingsResponse,
+  SystemOneSettingsUpdateRequest,
   TokenUsagePeriod,
   TokenUsageSummary,
 } from '@maximal/maximal-core-contract/settings'
@@ -414,6 +416,8 @@ export interface MaximalHost {
     ollamaSettingsGet: () => Promise<ControlResult<OllamaSettingsResponse>>
     ollamaSettingsUpdate: (input: OllamaSettingsUpdateRequest) => Promise<ControlResult<OllamaSettingsResponse>>
     ollamaApiKeyTest: (input: OllamaApiKeyTestRequest) => Promise<ControlResult<OllamaApiKeyTestResponse>>
+    systemOneSettingsGet: () => Promise<ControlResult<SystemOneSettingsResponse>>
+    systemOneSettingsUpdate: (input: SystemOneSettingsUpdateRequest) => Promise<ControlResult<SystemOneSettingsResponse>>
     observabilityOverview: (query: TrafficOverviewQuery) => Promise<ControlResult<TrafficOverview>>
     observabilityRequests: (query: TrafficRequestListQuery) => Promise<ControlResult<TrafficRequestList>>
     observabilityRequest: (query: TrafficRequestDetailQuery) => Promise<ControlResult<TrafficRequestDetail | null>>

@@ -14,7 +14,8 @@ export interface ProviderCompatibilityModelConfig {
 /**
  * A validated compatibility-provider entry. Missing `type` means `anthropic`
  * and missing `enabled` means enabled, matching Core's legacy semantics.
- * Consumers must reject any explicit type they do not support.
+ * `systemone` entries are direct HTTP operation adapters rather than LLM
+ * stream adapters. Consumers must reject any explicit type they do not support.
  */
 export interface ProviderCompatibilityConfig {
   readonly type?: string
@@ -42,7 +43,7 @@ export interface ProviderHostConfigSnapshot {
   readonly defaultProfileDirectory: string
   readonly configStatus: ProviderHostConfigStatus
   readonly providerHost: {
-    readonly mode: "legacy" | "dsh"
+    readonly mode: "legacy" | "plugins"
     readonly profileDirectory?: string
   }
   readonly providers: Readonly<Record<string, ProviderCompatibilityConfig>>

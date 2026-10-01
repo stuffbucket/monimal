@@ -335,6 +335,36 @@ function fakeBridge(): MaximalHost {
           message: 'Ollama accepted this API key.',
         }),
       ),
+      systemOneSettingsGet: vi.fn(async () =>
+        success({
+          has_api_key: false,
+          api_key: null,
+          credential_source: 'none' as const,
+          local_provider: 'maximal' as const,
+          ollama_configured: false,
+          model_order: [
+            'nimble',
+            'tev1',
+            'tev1:0.8b',
+          ] as Array<'nimble' | 'tev1' | 'tev1:0.8b'>,
+          fallback_to_local: true,
+        }),
+      ),
+      systemOneSettingsUpdate: vi.fn(async () =>
+        success({
+          has_api_key: true,
+          api_key: 'saved-key',
+          credential_source: 'file' as const,
+          local_provider: 'maximal' as const,
+          ollama_configured: false,
+          model_order: [
+            'nimble',
+            'tev1',
+            'tev1:0.8b',
+          ] as Array<'nimble' | 'tev1' | 'tev1:0.8b'>,
+          fallback_to_local: true,
+        }),
+      ),
       observabilityOverview: vi.fn(),
       observabilityRequests: vi.fn(),
       observabilityRequest: vi.fn(),

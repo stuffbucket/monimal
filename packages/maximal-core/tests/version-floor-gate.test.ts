@@ -493,7 +493,9 @@ describe("the proxy path refuses a retired build", () => {
       "/v1/chat/completions",
       "/v1/models",
       "/v1/messages",
+      "/v1/systemone",
       "/copilot/v1/messages",
+      "/ollama/v1/systemone",
     ]) {
       const res = await publicApp.request(path, { method: "POST" })
       expect({ path, status: res.status }).toEqual({ path, status: 426 })

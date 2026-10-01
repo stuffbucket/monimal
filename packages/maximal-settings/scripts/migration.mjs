@@ -21,6 +21,12 @@ const nonSettingsEnvironmentReaders = new Set([
   "packages/maximal-core/src/lib/platform/paths.ts::environment:COPILOT_API_CREDENTIAL_HOME",
   "packages/project-catalog/src/node.ts::environment:*",
 ])
+// Each settings adapter may hand the environment object to maximal-settings
+// once. A second access with the same identity remains visible to the ratchet.
+const settingsEnvironmentAdapters = new Set([
+  "apps/desktop/src/main/preferences/application-settings.ts::environment:*",
+  "packages/maximal-core/src/lib/config/runtime-settings.ts::environment:*",
+])
 const baselineSchema = z.object({
   version: z.literal(1),
   patterns: z.array(z.string()).nonempty(),
@@ -124,8 +130,10 @@ export function scanSettingsReaders({ root, patterns = defaultPatterns }) {
       const kind = readerKind(node, processNames)
       if (kind) {
         const key = `${file.split(sep).join("/")}::${kind}`
-        if (nonSettingsEnvironmentReaders.has(key) && !exempted.has(key))
-          exempted.add(key)
+        const allowedEnvironmentReader =
+          nonSettingsEnvironmentReaders.has(key)
+          || settingsEnvironmentAdapters.has(key)
+        if (allowedEnvironmentReader && !exempted.has(key)) exempted.add(key)
         else entries[key] = (entries[key] ?? 0) + 1
       }
       ts.forEachChild(node, visit)

@@ -66,6 +66,11 @@ export interface Sidecar {
 }
 
 export interface StartOptions {
+  /** Source entrypoint to run instead of MAXIMAL_E2E_BINARY. Composition E2Es
+   *  use this to guarantee that they exercise the shipping host. */
+  entrypoint?: string;
+  /** Additional child environment for an isolated fixture. */
+  environment?: NodeJS.ProcessEnv;
   /** Pid the sidecar's watchdog should watch. Defaults to this harness. Pass a
    *  decoy when the point of the harness is to kill the watched parent without
    *  killing the process that owns the pipes. */
@@ -78,7 +83,7 @@ export interface StartOptions {
   proxyPort?: number;
   /** Pass `--replace`: evict whatever holds `proxyPort` before binding. */
   replace?: boolean;
-  /** `COPILOT_API_HOME` for this engine. Defaults to a fresh temp dir. Pass one
+  /** `MAXIMAL_HOME` for this engine. Defaults to a fresh temp dir. Pass one
    *  you made yourself when the engine has to boot with a seeded `config.json`
    *  — config is read during boot, so it cannot be written afterwards. */
   home?: string;
@@ -115,6 +120,9 @@ function launchCommand(options: StartOptions): {
     "0",
     ...(options.replace === true ? ["--replace"] : []),
   ];
+  if (options.entrypoint) {
+    return { cmd: "bun", args: [options.entrypoint, ...args] };
+  }
   const binary = process.env.MAXIMAL_E2E_BINARY;
   if (binary) return { cmd: binary, args };
   return { cmd: "bun", args: ["src/main.ts", ...args] };
@@ -150,8 +158,9 @@ export function spawnEngine(options: StartOptions = {}): SidecarChild {
     cwd: process.cwd(),
     env: {
       ...process.env,
+      ...options.environment,
       ...sidecarSpawnEnv(options.parentPid ?? process.pid),
-      COPILOT_API_HOME: home,
+      MAXIMAL_HOME: home,
     },
     stdio: ["ignore", "pipe", "pipe"],
   });

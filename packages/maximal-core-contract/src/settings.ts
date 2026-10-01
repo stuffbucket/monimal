@@ -14,6 +14,7 @@
  * and the Anthropic / OpenAI JSON conventions.
  */
 
+import { MODEL_OPERATIONS } from "@maximal/maximal-model-contract"
 import { z } from "zod"
 
 /** Tail-4 redacted token presence + (when known) source. We do NOT
@@ -341,10 +342,117 @@ export const ModelCapabilityFlags = z.object({
 })
 export type ModelCapabilityFlags = z.infer<typeof ModelCapabilityFlags>
 
+const ModelDiagnosticEvidence = z.object({
+  code: z.string(),
+  message: z.string(),
+})
+
+const ModelTokenPriceTier = z.object({
+  cache_read_amount: z.number().nullable().optional(),
+  cache_write_1h_amount: z.number().nullable().optional(),
+  cache_write_amount: z.number().nullable().optional(),
+  input_amount: z.number().nullable().optional(),
+  max_input_tokens: z.number().int().nonnegative().nullable().optional(),
+  output_amount: z.number().nullable().optional(),
+  reasoning_amount: z.number().nullable().optional(),
+})
+
+export const ModelRuntimeEvidence = z.object({
+  access: z
+    .object({
+      restricted_to: z.array(z.string()).optional(),
+      state: z.string().optional(),
+      terms: z.string().optional(),
+    })
+    .optional(),
+  capabilities: z
+    .object({
+      adaptive_thinking: z.boolean().optional(),
+      dimensions: z.boolean().optional(),
+      max_thinking_budget: z.number().int().nonnegative().nullable().optional(),
+      min_thinking_budget: z.number().int().nonnegative().nullable().optional(),
+      parallel_tool_calls: z.boolean().optional(),
+      reasoning_effort: z.array(z.string()).optional(),
+      streaming: z.boolean().optional(),
+      structured_outputs: z.boolean().optional(),
+      tool_calls: z.boolean().optional(),
+      vision: z.boolean().optional(),
+    })
+    .optional(),
+  endpoints: z.array(z.string()).optional(),
+  lifecycle: z
+    .object({
+      deprecation_date: z.string().optional(),
+      info: z.array(ModelDiagnosticEvidence),
+      state: z.enum(["active", "pending-deprecation", "deprecated", "unknown"]),
+      warnings: z.array(ModelDiagnosticEvidence),
+    })
+    .optional(),
+  limits: z
+    .object({
+      context_tokens: z.number().int().nonnegative().nullable().optional(),
+      embedding_max_inputs: z
+        .number()
+        .int()
+        .nonnegative()
+        .nullable()
+        .optional(),
+      input_tokens: z.number().int().nonnegative().nullable().optional(),
+      non_streaming_output_tokens: z
+        .number()
+        .int()
+        .nonnegative()
+        .nullable()
+        .optional(),
+      output_tokens: z.number().int().nonnegative().nullable().optional(),
+      vision: z
+        .object({
+          max_image_bytes: z.number().int().nonnegative().nullable().optional(),
+          max_images: z.number().int().nonnegative().nullable().optional(),
+          supported_media_types: z.array(z.string()).optional(),
+        })
+        .optional(),
+    })
+    .optional(),
+  pricing: z
+    .object({
+      auto_discount: z.number().nullable().optional(),
+      default: ModelTokenPriceTier,
+      long_context: ModelTokenPriceTier.optional(),
+      unit: z.object({
+        currency: z.string().nullable(),
+        tokens_per_batch: z.number().int().positive().nullable(),
+      }),
+    })
+    .optional(),
+  provider_details: z
+    .object({
+      kind: z.literal("github-copilot"),
+      legacy_billing: z
+        .object({
+          is_premium: z.boolean().nullable(),
+          multiplier: z.number().nullable(),
+        })
+        .optional(),
+      picker_category: z.string().optional(),
+      picker_price_category: z.string().optional(),
+      version: z.string(),
+    })
+    .optional(),
+  selection: z
+    .object({
+      default: z.boolean().optional(),
+      fallback: z.boolean().optional(),
+      preview: z.boolean().optional(),
+      selectable: z.boolean().optional(),
+    })
+    .optional(),
+})
+export type ModelRuntimeEvidence = z.infer<typeof ModelRuntimeEvidence>
+
 /** One row in the Settings → Models list. A flattened, UI-shaped view
- *  of the upstream `Model` (src/services/copilot/get-models.ts) — only
- *  the fields the section actually renders, snake_cased per the
- *  contract convention. */
+ *  of provider observations. `evidence` retains normalized runtime metadata
+ *  for inventory reconciliation even when Settings does not render it yet. */
 export const ModelSummary = z.object({
   id: z.string(),
   name: z.string(),
@@ -363,6 +471,14 @@ export const ModelSummary = z.object({
   context_window_tokens: z.number().int().nullable(),
   /** Max output tokens, or null when upstream omits it. */
   max_output_tokens: z.number().int().nullable(),
+  operations: z.array(z.enum(MODEL_OPERATIONS)).optional(),
+  tokenizer: z
+    .object({
+      id: z.string(),
+    })
+    .nullable()
+    .optional(),
+  evidence: ModelRuntimeEvidence.optional(),
   capabilities: ModelCapabilityFlags,
 })
 export type ModelSummary = z.infer<typeof ModelSummary>
@@ -644,6 +760,45 @@ export const OllamaApiKeyTestResponse = z.object({
   message: z.string(),
 })
 export type OllamaApiKeyTestResponse = z.infer<typeof OllamaApiKeyTestResponse>
+
+export const SYSTEM_ONE_LOCAL_MODELS = ["nimble", "tev1", "tev1:0.8b"] as const
+
+export const SystemOneLocalModel = z.enum(SYSTEM_ONE_LOCAL_MODELS)
+export type SystemOneLocalModel = z.infer<typeof SystemOneLocalModel>
+
+export const SystemOneLocalProvider = z.enum(["maximal", "ollama"])
+export type SystemOneLocalProvider = z.infer<typeof SystemOneLocalProvider>
+
+const SystemOneModelOrder = z
+  .array(SystemOneLocalModel)
+  .length(SYSTEM_ONE_LOCAL_MODELS.length)
+  .refine(
+    (models) => new Set(models).size === SYSTEM_ONE_LOCAL_MODELS.length,
+    "System One model order must contain each supported local model exactly once.",
+  )
+
+export const SystemOneSettingsResponse = z.object({
+  has_api_key: z.boolean(),
+  api_key: z.string().nullable().default(null),
+  credential_source: z.enum(["environment", "file", "none"]),
+  local_provider: SystemOneLocalProvider,
+  ollama_configured: z.boolean(),
+  model_order: SystemOneModelOrder,
+  fallback_to_local: z.boolean(),
+})
+export type SystemOneSettingsResponse = z.infer<
+  typeof SystemOneSettingsResponse
+>
+
+export const SystemOneSettingsUpdateRequest = z.object({
+  api_key: z.string().max(4096).optional(),
+  local_provider: SystemOneLocalProvider.optional(),
+  model_order: SystemOneModelOrder.optional(),
+  fallback_to_local: z.boolean().optional(),
+})
+export type SystemOneSettingsUpdateRequest = z.infer<
+  typeof SystemOneSettingsUpdateRequest
+>
 
 /**
  * An API-key entry as managed by Settings → API clients. The key value

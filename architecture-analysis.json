@@ -62,7 +62,8 @@
         "@maximal/maximal-model-contract",
         "@maximal/maximal-observability-contract",
         "@maximal/maximal-search",
-        "@maximal/maximal-settings"
+        "@maximal/maximal-settings",
+        "@maximal/maximal-systemone"
       ],
       "existingRatchets": true
     },
@@ -78,7 +79,8 @@
       "root": "packages/maximal-models",
       "dependsOn": [
         "@maximal/eslint-config",
-        "@maximal/maximal-model-contract"
+        "@maximal/maximal-model-contract",
+        "@maximal/maximal-systemone"
       ],
       "cycleEdges": [],
       "duplicatePairs": []
@@ -141,6 +143,15 @@
       "cycleEdges": [],
       "duplicatePairs": []
     },
+    "@maximal/maximal-model-catalog": {
+      "root": "packages/maximal-model-catalog",
+      "dependsOn": [
+        "@maximal/eslint-config",
+        "@maximal/maximal-model-contract"
+      ],
+      "cycleEdges": [],
+      "duplicatePairs": []
+    },
     "@maximal/maximal-model-contract": {
       "root": "packages/maximal-model-contract",
       "dependsOn": [
@@ -175,6 +186,7 @@
         "@maximal/maximal-electron",
         "@maximal/maximal-harness",
         "@maximal/maximal-logging",
+        "@maximal/maximal-model-catalog",
         "@maximal/maximal-observability",
         "@maximal/maximal-observability-contract",
         "@maximal/maximal-ollama",

@@ -5,21 +5,25 @@ import type {
 } from "@maximal/maximal-core/provider-host"
 import type {
   LocalModelControl,
+  ModelTopologyService,
   ProviderDispatch,
   ProviderGateway,
   ProviderStatus,
+  ProviderTopology,
   ProviderTopologyListener,
   ProviderUnsubscribe,
 } from "@maximal/maximal-model-contract"
 
 import {
   ProfileValidationError,
-  startDshHost,
+  dispatchSystemOneHttpProvider,
+  startProviderPluginHost,
   type ActivationSnapshot,
   type ActivationSource,
-  type DshHostOptions,
-  type DshHostReconcileInput,
-  type DshHostReconcileResult,
+  type ProviderPluginHostOptions,
+  type ProviderPluginHostReconcileInput,
+  type ProviderPluginHostReconcileResult,
+  type SystemOneHttpProviderFetch,
 } from "@maximal/maximal-models"
 
 interface AnthropicCompatibilityInstance {
@@ -33,17 +37,22 @@ interface AnthropicCompatibilityInstance {
 }
 
 interface ReconciliableGateway extends ProviderGateway {
-  reconcile(input?: DshHostReconcileInput): Promise<DshHostReconcileResult>
+  reconcile(
+    input?: ProviderPluginHostReconcileInput,
+  ): Promise<ProviderPluginHostReconcileResult>
 }
 
-type StartHost = (options: DshHostOptions) => Promise<ReconciliableGateway>
+type StartHost = (
+  options: ProviderPluginHostOptions,
+) => Promise<ReconciliableGateway>
 
-export interface DshProviderGatewayComposition {
+export interface ProviderPluginGatewayComposition {
   readonly defaultActivation?: ActivationSnapshot | ActivationSource
   readonly defaultProfileDirectory?: string
 }
 
-export interface DshProviderGatewayDependencies extends DshProviderGatewayComposition {
+export interface ProviderPluginGatewayDependencies extends ProviderPluginGatewayComposition {
+  readonly fetchImplementation?: SystemOneHttpProviderFetch
   readonly startHost?: StartHost
 }
 
@@ -95,17 +104,71 @@ function compatibilityInstances(
   const instances: Array<AnthropicCompatibilityInstance> = []
   for (const [provider, config] of Object.entries(snapshot.providers)) {
     if (config.enabled === false) continue
-    if ((config.type ?? "anthropic") !== "anthropic") {
+    const type = config.type ?? "anthropic"
+    if (type === "systemone") continue
+    if (type !== "anthropic") {
       throw new ProfileValidationError(
-        "A configured legacy provider type is unsupported in DSH mode.",
+        "A configured legacy provider type is unsupported in provider plugin mode.",
       )
     }
+
     instances.push(compatibilityInstance(provider, config))
   }
   return instances
 }
 
-/** Convert Core's validated, provider-agnostic snapshot to DSH activation data. */
+function systemOneProviderStatus(
+  provider: string,
+  config: ProviderCompatibilityConfig,
+): ProviderStatus {
+  if (config.enabled === false) {
+    return {
+      provider,
+      state: "disabled",
+      operations: [],
+      diagnostics: [
+        {
+          code: "provider-disabled",
+          provider,
+          message: "The System One provider is disabled.",
+        },
+      ],
+    }
+  }
+  if (!config.baseUrl?.trim() || !config.apiKey?.trim()) {
+    return {
+      provider,
+      state: "unavailable",
+      operations: [],
+      diagnostics: [
+        {
+          code: "provider-unavailable",
+          provider,
+          message:
+            "The System One provider requires an endpoint and credential.",
+        },
+      ],
+    }
+  }
+  return {
+    provider,
+    state: "available",
+    operations: ["models", "systemone"],
+    diagnostics: [],
+  }
+}
+
+function systemOneProviderStatuses(
+  snapshot: ProviderHostConfigSnapshot,
+): ReadonlyArray<ProviderStatus> {
+  return Object.entries(snapshot.providers).flatMap(([provider, config]) =>
+    config.type === "systemone" ?
+      [systemOneProviderStatus(provider, config)]
+    : [],
+  )
+}
+
+/** Convert Core's validated, provider-agnostic snapshot to plugin activation data. */
 export function buildProviderActivation(
   snapshot: ProviderHostConfigSnapshot,
 ): ActivationSnapshot {
@@ -171,11 +234,20 @@ function activationSource(
   }
 }
 
-class ManagedDshGateway implements ProviderGateway {
+class ManagedProviderPluginGateway implements ProviderGateway {
   readonly #host: ReconciliableGateway
   readonly #source: ProviderGatewayFactoryContext["configSource"]
-  readonly #composition: DshProviderGatewayComposition
+  readonly #composition: ProviderPluginGatewayDependencies
   readonly #unsubscribe: () => void
+  readonly #unsubscribeHost: () => void
+  readonly #listeners = new Set<ProviderTopologyListener>()
+  #snapshot: ProviderHostConfigSnapshot
+  #hostTopology: ProviderTopology = {
+    diagnostics: [],
+    revision: 0,
+    statuses: [],
+  }
+  #topologyRevision = 0
   #disposed = false
   #disposePromise: Promise<void> | undefined
   #reconcileTail: Promise<void> = Promise.resolve()
@@ -183,18 +255,29 @@ class ManagedDshGateway implements ProviderGateway {
   constructor(
     host: ReconciliableGateway,
     source: ProviderGatewayFactoryContext["configSource"],
-    composition: DshProviderGatewayComposition,
+    composition: ProviderPluginGatewayDependencies,
   ) {
     this.#host = host
     this.#source = source
     this.#composition = composition
+    this.#snapshot = source.getSnapshot()
     this.#unsubscribe = source.subscribe((snapshot) => {
+      this.#snapshot = snapshot
       this.#enqueue(snapshot)
+      this.#publishTopology()
+    })
+    this.#unsubscribeHost = host.subscribe((topology) => {
+      this.#hostTopology = topology
+      this.#publishTopology()
     })
   }
 
   get localModels(): LocalModelControl | undefined {
     return this.#host.localModels
+  }
+
+  get modelTopology(): ModelTopologyService | undefined {
+    return this.#host.modelTopology
   }
 
   async synchronize(initial: ProviderHostConfigSnapshot): Promise<void> {
@@ -204,7 +287,7 @@ class ManagedDshGateway implements ProviderGateway {
   }
 
   #enqueue(snapshot: ProviderHostConfigSnapshot): void {
-    if (this.#disposed || snapshot.providerHost.mode !== "dsh") return
+    if (this.#disposed || snapshot.providerHost.mode !== "plugins") return
     const reconcile = async (): Promise<void> => {
       if (this.#disposed) return
       try {
@@ -219,7 +302,7 @@ class ManagedDshGateway implements ProviderGateway {
           ),
         })
       } catch {
-        // DshHost converts candidate failures into bounded topology diagnostics.
+        // ProviderPluginHost converts candidate failures into bounded topology diagnostics.
         // A throw here means the host is already disposing; retain its last state.
       }
     }
@@ -227,19 +310,76 @@ class ManagedDshGateway implements ProviderGateway {
   }
 
   dispatch(input: ProviderDispatch): Promise<Response> {
+    const config: ProviderCompatibilityConfig | undefined =
+      Object.hasOwn(this.#snapshot.providers, input.provider) ?
+        this.#snapshot.providers[input.provider]
+      : undefined
+    if (config?.type === "systemone") {
+      const status = systemOneProviderStatus(input.provider, config)
+      if (status.state !== "available") {
+        return Promise.resolve(
+          Response.json(
+            {
+              type: "error",
+              error: {
+                type: "api_error",
+                message: `Provider '${input.provider}' is unavailable`,
+              },
+            },
+            { status: 503 },
+          ),
+        )
+      }
+      return dispatchSystemOneHttpProvider(
+        {
+          apiKey: config.apiKey ?? "",
+          authType: config.authType ?? "x-api-key",
+          baseUrl: config.baseUrl ?? "",
+        },
+        input,
+        this.#composition.fetchImplementation,
+      )
+    }
     return this.#host.dispatch(input)
   }
 
   getStatus(provider: string): ProviderStatus | undefined {
-    return this.#host.getStatus(provider)
+    return this.listStatuses().find((status) => status.provider === provider)
   }
 
   listStatuses(): ReadonlyArray<ProviderStatus> {
-    return this.#host.listStatuses()
+    const statuses = new Map(
+      this.#host.listStatuses().map((status) => [status.provider, status]),
+    )
+    for (const status of systemOneProviderStatuses(this.#snapshot)) {
+      statuses.set(status.provider, status)
+    }
+    return [...statuses.values()]
   }
 
   subscribe(listener: ProviderTopologyListener): ProviderUnsubscribe {
-    return this.#host.subscribe(listener)
+    this.#listeners.add(listener)
+    listener(this.#topology())
+    return () => this.#listeners.delete(listener)
+  }
+
+  #topology(): ProviderTopology {
+    return {
+      diagnostics: [
+        ...this.#hostTopology.diagnostics,
+        ...systemOneProviderStatuses(this.#snapshot).flatMap(
+          (status) => status.diagnostics,
+        ),
+      ],
+      revision: this.#topologyRevision,
+      statuses: this.listStatuses(),
+    }
+  }
+
+  #publishTopology(): void {
+    this.#topologyRevision += 1
+    const topology = this.#topology()
+    for (const listener of this.#listeners) listener(topology)
   }
 
   dispose(): Promise<void> {
@@ -247,6 +387,8 @@ class ManagedDshGateway implements ProviderGateway {
     this.#disposed = true
     this.#disposePromise = (async () => {
       this.#unsubscribe()
+      this.#unsubscribeHost()
+      this.#listeners.clear()
       await this.#reconcileTail
       await this.#host.dispose()
     })()
@@ -255,11 +397,11 @@ class ManagedDshGateway implements ProviderGateway {
 }
 
 /** Start the generic host and bind it to Core's live validated configuration. */
-export async function createDshProviderGateway(
+export async function createProviderPluginGateway(
   context: ProviderGatewayFactoryContext,
-  dependencies: DshProviderGatewayDependencies = {},
+  dependencies: ProviderPluginGatewayDependencies = {},
 ): Promise<ProviderGateway> {
-  const startHost: StartHost = dependencies.startHost ?? startDshHost
+  const startHost: StartHost = dependencies.startHost ?? startProviderPluginHost
   const host = await startHost({
     activation: activationSource(
       context.config,
@@ -271,7 +413,7 @@ export async function createDshProviderGateway(
     ),
   })
   try {
-    const gateway = new ManagedDshGateway(
+    const gateway = new ManagedProviderPluginGateway(
       host,
       context.configSource,
       dependencies,

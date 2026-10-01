@@ -25,6 +25,9 @@ export interface ActivationSource {
   subscribe?(listener: (snapshot?: ActivationSnapshot) => void): () => void
 }
 
+export const PROVIDER_PLUGIN_API_VERSION = 1 as const
+export type ProviderPluginApiVersion = typeof PROVIDER_PLUGIN_API_VERSION
+
 export interface ProfileService {
   readonly id: string
   readonly package: string
@@ -41,7 +44,8 @@ export interface ProfilePlugin {
 }
 
 export interface ExternalProfileDocument {
-  readonly schemaVersion: 1 | 2
+  readonly schemaVersion: 1 | 2 | 3
+  readonly pluginApiVersion: ProviderPluginApiVersion
   readonly runtime: {
     readonly cordis: string
     readonly llm: string
@@ -221,7 +225,7 @@ function parseService(value: unknown, index: number): ProfileService {
 function pluginKind(
   value: unknown,
   index: number,
-  schemaVersion: 1 | 2,
+  schemaVersion: 1 | 2 | 3,
 ): ProfilePluginKind {
   if (schemaVersion === 1) return "provider"
   if (value !== "model" && value !== "provider" && value !== "runner") {
@@ -236,7 +240,7 @@ function pluginKind(
 function parsePlugin(
   value: unknown,
   index: number,
-  schemaVersion: 1 | 2,
+  schemaVersion: 1 | 2 | 3,
 ): ProfilePlugin {
   const entry = object(value, `providers.json plugins[${index}]`)
   assertOnlyKeys(
@@ -287,19 +291,36 @@ function parsePlugin(
   })
 }
 
-function parseDocument(raw: unknown): ExternalProfileDocument {
-  const document = object(raw, "providers.json")
-  assertOnlyKeys(
-    document,
-    ["schemaVersion", "runtime", "services", "plugins"],
-    "providers.json",
-  )
-  if (document.schemaVersion !== 1 && document.schemaVersion !== 2)
+function pluginApiVersion(
+  document: Record<string, unknown>,
+  schemaVersion: 1 | 2 | 3,
+): ProviderPluginApiVersion {
+  if (schemaVersion < 3) return PROVIDER_PLUGIN_API_VERSION
+  if (document.pluginApiVersion !== PROVIDER_PLUGIN_API_VERSION) {
     throw profileValidationFailure(
       "profile-invalid",
-      "providers.json schemaVersion must be 1 or 2.",
+      `providers.json pluginApiVersion must be ${PROVIDER_PLUGIN_API_VERSION}.`,
     )
+  }
+  return document.pluginApiVersion
+}
+
+function parseDocument(raw: unknown): ExternalProfileDocument {
+  const document = object(raw, "providers.json")
   const schemaVersion = document.schemaVersion
+  if (schemaVersion !== 1 && schemaVersion !== 2 && schemaVersion !== 3)
+    throw profileValidationFailure(
+      "profile-invalid",
+      "providers.json schemaVersion must be 1, 2, or 3.",
+    )
+  assertOnlyKeys(
+    document,
+    schemaVersion === 3 ?
+      ["schemaVersion", "pluginApiVersion", "runtime", "services", "plugins"]
+    : ["schemaVersion", "runtime", "services", "plugins"],
+    "providers.json",
+  )
+  const apiVersion = pluginApiVersion(document, schemaVersion)
   const runtime = object(document.runtime, "providers.json runtime")
   assertOnlyKeys(runtime, ["cordis", "llm"], "providers.json runtime")
   const cordis = packageName(runtime.cordis, "providers.json runtime.cordis")
@@ -348,6 +369,7 @@ function parseDocument(raw: unknown): ExternalProfileDocument {
   }
   return Object.freeze({
     schemaVersion,
+    pluginApiVersion: apiVersion,
     runtime: Object.freeze({ cordis, llm }),
     services: Object.freeze(services),
     plugins: Object.freeze(plugins),

@@ -17,7 +17,7 @@ import {
 } from "~/lib/token-usage"
 import { tokenUsageRoute } from "~/routes/token-usage/route"
 
-const DB_PATH_ENV = "COPILOT_API_SQLITE_DB_PATH"
+const DB_PATH_ENV = "MAXIMAL_API_SQLITE_DB_PATH"
 
 beforeEach(async () => {
   process.env[DB_PATH_ENV] = ":memory:"

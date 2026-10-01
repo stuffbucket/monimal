@@ -1,6 +1,6 @@
 /**
  * Unit coverage for the app-data root resolver. Drives the pure
- * `resolveAppDir({ platform, homedir, copilotApiHome, appData })` overload so
+ * `resolveAppDir({ platform, homedir, maximalHome, appData })` overload so
  * the tests assert the win32 / POSIX / override convention deterministically on
  * any host without mutating `process.platform` or `process.env`.
  *
@@ -79,38 +79,38 @@ describe("resolveAppDir", () => {
     ).toBe(path.join(WIN_HOME, "AppData", "Roaming", "maximal"))
   })
 
-  it("COPILOT_API_HOME overrides on win32", () => {
+  it("MAXIMAL_HOME overrides on win32", () => {
     const override = String.raw`D:\custom\maximal-home`
     expect(
       resolveAppDir({
         platform: "win32",
         homedir: WIN_HOME,
         appData: WIN_APPDATA,
-        copilotApiHome: override,
+        maximalHome: override,
       }),
     ).toBe(override)
   })
 
-  it("COPILOT_API_HOME overrides on POSIX", () => {
+  it("MAXIMAL_HOME overrides on POSIX", () => {
     const override = "/srv/maximal-home"
     expect(
       resolveAppDir({
         platform: "linux",
         homedir: HOME,
-        copilotApiHome: override,
+        maximalHome: override,
       }),
     ).toBe(override)
   })
 
-  it("treats a blank/whitespace COPILOT_API_HOME as unset (falls through to default)", () => {
+  it("treats a blank/whitespace MAXIMAL_HOME as unset (falls through to default)", () => {
     // DELIBERATE, and load-bearing for the fail-loud override rule
-    // (maximal-core#2): "set" means non-blank. `COPILOT_API_HOME: ""` is how a
+    // (maximal-core#2): "set" means non-blank. `MAXIMAL_HOME: ""` is how a
     // spawner CLEARS an inherited value — tests/helpers/spawn-engine.ts and
     // tests/main-cli-global-options.test.ts both do it — so a blank value asks
     // for the default home. It must not be read as "an override that does not
     // exist" and turned into a boot failure.
     expect(
-      resolveAppDir({ platform: "linux", homedir: HOME, copilotApiHome: "  " }),
+      resolveAppDir({ platform: "linux", homedir: HOME, maximalHome: "  " }),
     ).toBe(path.join(HOME, ".local", "share", "maximal"))
   })
 
@@ -138,7 +138,7 @@ describe("resolveHomePolicy", () => {
   })
 
   it("treats a blank/whitespace value as unset", () => {
-    // Same reasoning as a blank COPILOT_API_HOME: `""` is how a spawner clears
+    // Same reasoning as a blank MAXIMAL_HOME: `""` is how a spawner clears
     // an inherited variable, so it must mean the default, not a failure.
     expect(resolveHomePolicy("")).toBe("create")
     expect(resolveHomePolicy("   ")).toBe("create")
@@ -172,7 +172,7 @@ describe("resolveHomePolicy", () => {
 })
 
 /**
- * The fail-loud path, reached only under `COPILOT_API_HOME_POLICY=require`.
+ * The fail-loud path, reached only under `MAXIMAL_HOME_POLICY=require`.
  * `resolveAppDir` stays pure; this is where a home is required to already exist
  * and is canonicalized. It is what an Electron host opts into so its sidecar
  * cannot adopt the user's own instance.

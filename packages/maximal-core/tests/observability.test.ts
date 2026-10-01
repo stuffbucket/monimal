@@ -51,7 +51,7 @@ import {
   recordTokenUsageEvent,
 } from "~/lib/token-usage"
 
-const DB_PATH_ENV = "COPILOT_API_SQLITE_DB_PATH"
+const DB_PATH_ENV = "MAXIMAL_API_SQLITE_DB_PATH"
 let temporaryDirectory = ""
 
 beforeEach(async () => {
@@ -1135,12 +1135,15 @@ describe("traffic inference middleware", () => {
       "/v1/messages",
       "/v1/messages/count_tokens",
       "/v1/responses",
+      "/v1/systemone",
     ]
     expect(observedInferencePaths()).toEqual([
       ...exact,
       ...exact.map((path) => `${path}/*`),
       "/:provider/v1/messages",
       "/:provider/v1/messages/*",
+      "/:provider/v1/systemone",
+      "/:provider/v1/systemone/*",
     ])
   })
 
@@ -1648,10 +1651,13 @@ describe("traffic inference middleware", () => {
         "count-tokens",
       ],
       ["/hosted/v1/messages", "/:provider/v1/messages", "messages"],
+      ["/hosted/v1/systemone", "/:provider/v1/systemone", "systemone"],
       ["/chat/completions/private", "/chat/completions", "chat-completions"],
       ["/v1/embeddings", "/v1/embeddings", "embeddings"],
       ["/responses/private", "/responses", "responses"],
       ["/v1/messages/private", "/v1/messages", "messages"],
+      ["/v1/systemone", "/v1/systemone", "systemone"],
+      ["/prefix/hosted/v1/systemone", "/inference", "systemone"],
       ["/unknown", "/inference", "messages"],
     ] as const
 
@@ -1670,6 +1676,14 @@ describe("traffic inference middleware", () => {
     expect(capture.starts[1]?.attribution).toMatchObject({
       source: "provider",
       provider: "hosted",
+    })
+    expect(capture.starts[4]?.attribution).toMatchObject({
+      source: "provider",
+      provider: "hosted",
+    })
+    expect(capture.starts[10]?.attribution).toMatchObject({
+      source: "copilot",
+      provider: "copilot",
     })
   })
 

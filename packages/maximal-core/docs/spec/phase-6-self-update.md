@@ -28,7 +28,7 @@ urgency than Phases 1-5; ship when other phases land.
 
 ### 6.1 Install-source detection
 
-Reads `${COPILOT_API_HOME}/state/installed-by` (Phase 5). Possible values:
+Reads `${MAXIMAL_HOME}/state/installed-by` (Phase 5). Possible values:
 `homebrew`, `msi`, `app-bundle`, `tarball`, `unknown`.
 
 If absent (pre-Phase-5 install), heuristic:

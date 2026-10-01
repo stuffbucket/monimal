@@ -181,6 +181,24 @@ export function createProviderDispatcher(
             return [...(await enrichOllamaModels(provider, models))]
           }
           const record = asRecord(body)
+          if (name === "typesafe-jev" && Array.isArray(record?.models)) {
+            return record.models.flatMap(
+              (value): Array<ProviderCatalogueModel> => {
+                const model = asRecord(value)
+                if (typeof model?.name !== "string") return []
+                return [
+                  {
+                    id: model.name,
+                    name: model.name,
+                    enabled,
+                    operations: ["systemone"],
+                    provider: name,
+                    providerName: "TypeSafe JEV",
+                  },
+                ]
+              },
+            )
+          }
           if (!Array.isArray(record?.data)) return []
           return record.data.flatMap((value): Array<ProviderCatalogueModel> => {
             const model = asRecord(value)
@@ -269,7 +287,7 @@ export function createProviderDispatcher(
       if (
         disposed
         || activationGeneration !== generation
-        || configSource.getSnapshot().providerHost.mode !== "dsh"
+        || configSource.getSnapshot().providerHost.mode !== "plugins"
       ) {
         await safeRetire(candidate, "stale activation")
         return
@@ -283,7 +301,7 @@ export function createProviderDispatcher(
         queuedActivation = undefined
         return
       }
-      if (configSource.getSnapshot().providerHost.mode !== "dsh") {
+      if (configSource.getSnapshot().providerHost.mode !== "plugins") {
         queuedActivation = undefined
         return
       }
@@ -311,7 +329,7 @@ export function createProviderDispatcher(
 
   const unsubscribeConfig = configSource?.subscribe(onConfig)
   const initialActivation =
-    configSource?.getSnapshot().providerHost.mode === "dsh" ?
+    configSource?.getSnapshot().providerHost.mode === "plugins" ?
       activate(configSource.getSnapshot())
     : undefined
 
@@ -412,6 +430,10 @@ export function createProviderDispatcher(
                 (value): Array<ProviderCatalogueModel> => {
                   const model = asRecord(value)
                   if (typeof model?.id !== "string") return []
+                  const operations = status.operations.filter(
+                    (operation) =>
+                      operation !== "count-tokens" && operation !== "models",
+                  )
                   return [
                     {
                       id: model.id,
@@ -420,6 +442,7 @@ export function createProviderDispatcher(
                           model.display_name
                         : model.id,
                       enabled: true,
+                      ...(operations.length === 0 ? {} : { operations }),
                       provider: status.provider,
                       providerName: status.displayName ?? status.provider,
                     },
@@ -449,9 +472,13 @@ export function createProviderDispatcher(
     requiresGithubAuth(provider) {
       if (!isLegacyMode()) return false
       if (provider === undefined) return true
-      return (
-        (readConfig().providers?.[provider]?.type ?? "anthropic") !== "ollama"
-      )
+      const resolved =
+        usesDefaultConfig ?
+          getProviderConfig(provider, { includeDisabled: true })
+        : resolveProviderConfig(readConfig(), provider, {
+            includeDisabled: true,
+          })
+      return resolved?.type !== "ollama"
     },
   }
 }

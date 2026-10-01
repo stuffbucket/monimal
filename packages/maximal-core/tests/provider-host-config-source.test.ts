@@ -46,6 +46,34 @@ afterEach(() => {
   }
 })
 
+describe("System One provider host credentials", () => {
+  test("materializes the TypeSafe credential for the System One adapter", async () => {
+    const source = createProviderHostConfigSource({
+      readSystemOneApiKey: () => "typesafe-test-key",
+      readConfig: () => ({
+        providerHost: { mode: "plugins" },
+        providers: {
+          "typesafe-jev": {
+            authType: "authorization",
+            baseUrl: "https://api.typesafe.ai",
+            type: "systemone",
+          },
+        },
+      }),
+      subscribeValidatedConfig: ignoreConfigChanges,
+      watchExternalWrites: false,
+    })
+
+    expect(source.getSnapshot().providers["typesafe-jev"]).toEqual({
+      apiKey: "typesafe-test-key",
+      authType: "authorization",
+      baseUrl: "https://api.typesafe.ai",
+      type: "systemone",
+    })
+    await source.dispose()
+  })
+})
+
 describe("provider host config source", () => {
   test("publishes validated in-memory mode and opaque plugin changes", async () => {
     let config: AppConfig = {}
@@ -67,7 +95,7 @@ describe("provider host config source", () => {
     source.subscribe((snapshot) => snapshots.push(snapshot))
 
     config = {
-      providerHost: { mode: "dsh" },
+      providerHost: { mode: "plugins" },
       providers: {
         compatible: {
           apiKey: "secret",
@@ -90,7 +118,7 @@ describe("provider host config source", () => {
       appDataDirectory,
       defaultProfileDirectory: path.join(appDataDirectory, "provider-host"),
       configStatus: { state: "ready" },
-      providerHost: { mode: "dsh", profileDirectory: undefined },
+      providerHost: { mode: "plugins", profileDirectory: undefined },
       providers: config.providers ?? {},
       providerPlugins: config.providerPlugins,
     })
@@ -135,7 +163,7 @@ describe("provider host config source", () => {
 
     const firstSnapshot = published
     config = {
-      providerHost: { mode: "dsh" },
+      providerHost: { mode: "plugins" },
       providerPlugins: { hosted: { config: { generation: 2 } } },
     }
     publish?.(config)
@@ -171,7 +199,7 @@ describe("provider host config source", () => {
     fs.writeFileSync(
       replacement,
       JSON.stringify({
-        providerHost: { mode: "dsh", profileDirectory: "/profiles/custom" },
+        providerHost: { mode: "plugins", profileDirectory: "/profiles/custom" },
         providerPlugins: { hosted: { config: { token: "opaque" } } },
       }),
       "utf8",
@@ -188,7 +216,7 @@ describe("provider host config source", () => {
     expect(reloads).toBe(1)
     expect(snapshot.configStatus).toEqual({ state: "ready" })
     expect(snapshot.providerHost).toEqual({
-      mode: "dsh",
+      mode: "plugins",
       profileDirectory: "/profiles/custom",
     })
     expect(snapshot.providers).toEqual({})
@@ -208,7 +236,7 @@ describe("provider host config source", () => {
     const replacement = path.join(directory, "editor-save-buffer")
     fs.writeFileSync(
       replacement,
-      JSON.stringify({ providerHost: { mode: "dsh" } }),
+      JSON.stringify({ providerHost: { mode: "plugins" } }),
       "utf8",
     )
     let reloads = 0
@@ -228,7 +256,7 @@ describe("provider host config source", () => {
 
     const snapshot = await waitForSnapshot(
       source,
-      (candidate) => candidate.providerHost.mode === "dsh",
+      (candidate) => candidate.providerHost.mode === "plugins",
     )
 
     expect(reloads).toBe(1)
@@ -238,7 +266,7 @@ describe("provider host config source", () => {
 })
 
 describe("provider host config source failure handling", () => {
-  test("retains the last valid DSH snapshot across bounded reload failures and recovers", async () => {
+  test("retains the last valid provider plugin snapshot across bounded reload failures and recovers", async () => {
     const directory = fs.mkdtempSync(
       path.join(os.tmpdir(), "maximal-config-failure-source-"),
     )
@@ -246,7 +274,7 @@ describe("provider host config source failure handling", () => {
     const configPath = path.join(directory, "config.json")
     fs.writeFileSync(configPath, "{}", "utf8")
     const stableConfig: AppConfig = {
-      providerHost: { mode: "dsh" },
+      providerHost: { mode: "plugins" },
       providers: {
         compatible: {
           apiKey: "last-known-secret",
@@ -281,7 +309,7 @@ describe("provider host config source failure handling", () => {
       const failedSnapshot = await failed
 
       expect(failedSnapshot.configStatus).toEqual({ state: "error", reason })
-      expect(failedSnapshot.providerHost.mode).toBe("dsh")
+      expect(failedSnapshot.providerHost.mode).toBe("plugins")
       expect(failedSnapshot.providers.compatible.apiKey).toBe(
         "last-known-secret",
       )

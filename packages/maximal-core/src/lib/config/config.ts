@@ -1,5 +1,6 @@
 import fs from "node:fs"
 
+import { readSecret } from "~/lib/auth/secrets"
 import {
   ConfigValidationError,
   detectUnknownKeys,
@@ -34,8 +35,13 @@ export interface AppConfig {
     /** Prefer localhost when Ollama local and cloud advertise the same model. */
     preferLocalModels?: boolean
   }
+  systemOne?: {
+    localProvider?: "maximal" | "ollama"
+    modelOrder?: Array<"nimble" | "tev1" | "tev1:0.8b">
+    fallbackToLocal?: boolean
+  }
   providerHost?: {
-    mode?: "legacy" | "dsh"
+    mode?: "legacy" | "plugins"
     profileDirectory?: string
   }
   providerPlugins?: Record<
@@ -191,13 +197,20 @@ export interface ResolvedAnthropicProviderConfig extends ResolvedProviderConfigB
   apiKey: string
 }
 
+export interface ResolvedSystemOneProviderConfig extends ResolvedProviderConfigBase {
+  type: "systemone"
+  apiKey: string
+}
+
 export interface ResolvedOllamaProviderConfig extends ResolvedProviderConfigBase {
   type: "ollama"
   apiKey?: string
 }
 
 export type ResolvedProviderConfig =
-  ResolvedAnthropicProviderConfig | ResolvedOllamaProviderConfig
+  | ResolvedAnthropicProviderConfig
+  | ResolvedOllamaProviderConfig
+  | ResolvedSystemOneProviderConfig
 
 export const DEFAULT_OLLAMA_BASE_URL = "http://127.0.0.1:11434"
 export const DEFAULT_OLLAMA_CLOUD_BASE_URL = "https://ollama.com"
@@ -638,6 +651,7 @@ function resolveAnthropicProvider(
     )
     return null
   }
+
   return {
     ...providerCommon(providerName, provider, {
       baseUrl,
@@ -646,6 +660,14 @@ function resolveAnthropicProvider(
     type: "anthropic",
     apiKey,
   }
+}
+
+function resolveSystemOneProvider(
+  providerName: string,
+  provider: ProviderConfig,
+): ResolvedSystemOneProviderConfig | null {
+  const resolved = resolveAnthropicProvider(providerName, provider)
+  return resolved === null ? null : { ...resolved, type: "systemone" }
 }
 
 export function resolveProviderConfig(
@@ -671,15 +693,17 @@ export function resolveProviderConfig(
   }
 
   const type = provider.type ?? "anthropic"
-  if (type !== "anthropic" && type !== "ollama") {
+  if (type !== "anthropic" && type !== "ollama" && type !== "systemone") {
     runtimeLogger.warn(
       `Provider ${providerName} is ignored because type '${type}' is unsupported`,
     )
     return null
   }
-  return type === "ollama" ?
-      resolveOllamaProvider(providerName, provider)
-    : resolveAnthropicProvider(providerName, provider)
+  if (type === "ollama") return resolveOllamaProvider(providerName, provider)
+  if (type === "systemone") {
+    return resolveSystemOneProvider(providerName, provider)
+  }
+  return resolveAnthropicProvider(providerName, provider)
 }
 
 export function getProviderConfig(
@@ -688,6 +712,23 @@ export function getProviderConfig(
 ): ResolvedProviderConfig | null {
   const config = getConfig()
   const apiKey = process.env.OLLAMA_API_KEY?.trim()
+  const typeSafeApiKey = readSecret({
+    envVar: "TYPESAFE_API_KEY",
+    fileName: "typesafe",
+  }).value?.trim()
+  const effectiveConfig =
+    name === "typesafe-jev" && typeSafeApiKey ?
+      {
+        ...config,
+        providers: {
+          ...config.providers,
+          [name]: {
+            ...config.providers?.[name],
+            apiKey: typeSafeApiKey,
+          },
+        },
+      }
+    : config
   const resolved =
     (
       name === "ollama-cloud"
@@ -696,9 +737,9 @@ export function getProviderConfig(
     ) ?
       resolveProviderConfig(
         {
-          ...config,
+          ...effectiveConfig,
           providers: {
-            ...config.providers,
+            ...effectiveConfig.providers,
             [name]: {
               type: "ollama",
               baseUrl: DEFAULT_OLLAMA_CLOUD_BASE_URL,
@@ -708,7 +749,7 @@ export function getProviderConfig(
         name,
         options,
       )
-    : resolveProviderConfig(config, name, options)
+    : resolveProviderConfig(effectiveConfig, name, options)
   if (resolved?.type !== "ollama") return resolved
   return apiKey ? { ...resolved, apiKey } : resolved
 }

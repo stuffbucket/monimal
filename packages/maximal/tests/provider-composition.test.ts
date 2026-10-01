@@ -11,15 +11,15 @@ import type {
 
 import {
   ProfileValidationError,
-  type DshHostOptions,
-  type DshHostReconcileInput,
-  type DshHostReconcileResult,
+  type ProviderPluginHostOptions,
+  type ProviderPluginHostReconcileInput,
+  type ProviderPluginHostReconcileResult,
 } from "@maximal/maximal-models"
 import { describe, expect, test } from "bun:test"
 
 import {
   buildProviderActivation,
-  createDshProviderGateway,
+  createProviderPluginGateway,
 } from "../src/provider-gateway"
 
 const noop = (): void => undefined
@@ -31,7 +31,7 @@ function snapshot(
     appDataDirectory: "/app-data",
     configStatus: { state: "ready" },
     defaultProfileDirectory: "/app-data/provider-host",
-    providerHost: { mode: "dsh" },
+    providerHost: { mode: "plugins" },
     providers: {},
     ...overrides,
   }
@@ -75,9 +75,13 @@ const emptyTopology: ProviderTopology = {
 
 class FakeHost {
   disposed = 0
-  readonly reconciliations: Array<DshHostReconcileInput | undefined> = []
+  readonly reconciliations: Array<
+    ProviderPluginHostReconcileInput | undefined
+  > = []
 
-  reconcile(input?: DshHostReconcileInput): Promise<DshHostReconcileResult> {
+  reconcile(
+    input?: ProviderPluginHostReconcileInput,
+  ): Promise<ProviderPluginHostReconcileResult> {
     this.reconciliations.push(input)
     return Promise.resolve({
       committed: true,
@@ -174,6 +178,23 @@ describe("provider activation composition", () => {
     })
   })
 
+  test("keeps System One providers out of the Anthropic compatibility plugin", () => {
+    expect(
+      buildProviderActivation(
+        snapshot({
+          providers: {
+            "typesafe-jev": {
+              apiKey: "typesafe-key",
+              authType: "authorization",
+              baseUrl: "https://api.typesafe.ai",
+              type: "systemone",
+            },
+          },
+        }),
+      ),
+    ).toEqual({})
+  })
+
   test("rejects unsupported legacy types without reflecting their value", () => {
     const secretType = "unsupported-secret-value"
     expect(() =>
@@ -199,13 +220,13 @@ describe("provider activation composition", () => {
   })
 })
 
-describe("managed DSH gateway", () => {
-  test("uses Core paths, reconciles live DSH changes, and disposes once", async () => {
+describe("managed provider plugin gateway", () => {
+  test("uses Core paths, reconciles live provider plugin changes, and disposes once", async () => {
     const initial = snapshot()
     const source = new ConfigSource(initial)
     const host = new FakeHost()
-    const starts: Array<DshHostOptions> = []
-    const gateway = await createDshProviderGateway(
+    const starts: Array<ProviderPluginHostOptions> = []
+    const gateway = await createProviderPluginGateway(
       { config: initial, configSource: source },
       {
         startHost(options) {
@@ -221,7 +242,7 @@ describe("managed DSH gateway", () => {
 
     source.publish(
       snapshot({
-        providerHost: { mode: "dsh", profileDirectory: "/profiles/next" },
+        providerHost: { mode: "plugins", profileDirectory: "/profiles/next" },
         providerPlugins: { omlx: { enabled: false } },
       }),
     )
@@ -237,5 +258,85 @@ describe("managed DSH gateway", () => {
     await gateway.dispose()
     expect(host.disposed).toBe(1)
     expect(source.disposed).toBe(false)
+  })
+
+  test("advertises and dispatches a configured System One HTTP provider", async () => {
+    const initial = snapshot({
+      providers: {
+        "typesafe-jev": {
+          apiKey: "typesafe-key",
+          authType: "authorization",
+          baseUrl: "https://api.typesafe.ai",
+          type: "systemone",
+        },
+      },
+    })
+    const source = new ConfigSource(initial)
+    const host = new FakeHost()
+    const requests: Array<Request> = []
+    const fetchImplementation = (
+      input: string | URL | Request,
+      init?: RequestInit,
+    ) => {
+      const request =
+        input instanceof Request ?
+          new Request(input, init)
+        : new Request(input.toString(), init)
+      requests.push(request)
+      return Promise.resolve(
+        request.url.endsWith("/v1/models") ?
+          Response.json({ models: [{ name: "jev-latest" }] })
+        : Response.json({ answer: 0.6 }),
+      )
+    }
+    const gateway = await createProviderPluginGateway(
+      { config: initial, configSource: source },
+      {
+        fetchImplementation,
+        startHost: () => Promise.resolve(host),
+      },
+    )
+
+    expect(gateway.getStatus("typesafe-jev")).toMatchObject({
+      state: "available",
+      operations: ["models", "systemone"],
+    })
+    const models = await gateway.dispatch({
+      operation: "models",
+      provider: "typesafe-jev",
+      request: new Request("http://gateway.test/v1/models"),
+      signal: new AbortController().signal,
+    })
+    expect(await models.json()).toEqual({
+      data: [
+        {
+          display_name: "jev-latest",
+          id: "jev-latest",
+          type: "model",
+        },
+      ],
+      has_more: false,
+    })
+    const response = await gateway.dispatch({
+      operation: "systemone",
+      provider: "typesafe-jev",
+      request: new Request("http://gateway.test/v1/systemone", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ model: "jev-latest" }),
+      }),
+      signal: new AbortController().signal,
+    })
+
+    expect(response.status).toBe(200)
+    expect(requests).toHaveLength(2)
+    expect(requests[0]?.url).toBe("https://api.typesafe.ai/v1/models")
+    expect(requests[1]?.url).toBe("https://api.typesafe.ai/v1/systemone")
+    expect(requests[1]?.headers.get("authorization")).toBe(
+      "Bearer typesafe-key",
+    )
+    expect(await requests[1]?.json()).toEqual({ model: "jev-latest" })
+    expect(host.reconciliations).toHaveLength(0)
+    await gateway.dispose()
   })
 })

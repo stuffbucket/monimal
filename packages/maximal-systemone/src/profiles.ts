@@ -310,7 +310,6 @@ export const ollamaSystemOneErrorResponseSchema = z.looseObject({
 export const OLLAMA_SYSTEM_ONE_RESPONSE_STATUSES = [
   200, 400, 404, 413, 500,
 ] as const
-export const SYSTEM_ONE_RESPONSE_STATUSES = OLLAMA_SYSTEM_ONE_RESPONSE_STATUSES
 
 export const ollamaSystemOneResponseSchemas = {
   200: ollamaSystemOneResponseSchema,
@@ -473,26 +472,6 @@ export type OllamaSystemOneErrorResponse = SystemOneErrorResponse
 export type SystemOneProbabilities = z.infer<
   typeof ollamaSystemOneProbabilitiesSchema
 >
-
-// Compatibility aliases are the Ollama profile that originally defined this package.
-export const systemOneContentSchema = ollamaSystemOneContentSchema
-export const systemOneChoiceQuestionSchema = ollamaSystemOneChoiceQuestionSchema
-export const systemOneNoulQuestionSchema = ollamaSystemOneNoulQuestionSchema
-export const systemOneScoreQuestionSchema = ollamaSystemOneScoreQuestionSchema
-export const systemOneQuestionSchema = ollamaSystemOneQuestionSchema
-export const systemOneQuestionsSchema = ollamaSystemOneQuestionsSchema
-export const systemOneRequestSchema = ollamaSystemOneRequestSchema
-export const systemOneProbabilitiesSchema = ollamaSystemOneProbabilitiesSchema
-export const systemOneConfidenceSchema = ollamaSystemOneConfidenceSchema
-export const systemOneChoiceAnswerSchema = ollamaSystemOneChoiceAnswerSchema
-export const systemOneNoulAnswerSchema = ollamaSystemOneNoulAnswerSchema
-export const systemOneScoreAnswerSchema = ollamaSystemOneScoreAnswerSchema
-export const systemOneAnswerSchema = ollamaSystemOneAnswerSchema
-export const systemOneUsageSchema = ollamaSystemOneUsageSchema
-export const systemOneResponseSchema = ollamaSystemOneResponseSchema
-export const systemOneErrorResponseSchema = ollamaSystemOneErrorResponseSchema
-export const systemOneResponseSchemas = ollamaSystemOneResponseSchemas
-export const systemOneOperation = ollamaSystemOneProfile
 
 export type TypeSafeSystemOneAnswers<TQuestions extends SystemOneQuestions> =
   SystemOneAnswers<TQuestions>

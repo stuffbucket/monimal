@@ -38,12 +38,22 @@ plane is a second listener on its own ephemeral port**, loopback-only — see
 | Path | Listener | Purpose |
 |---|---|---|
 | `POST /v1/messages`, `/v1/messages/count_tokens` | public | Anthropic-compatible messages API |
-| `POST /:provider/v1/messages`, `/:provider/v1/models` | public | Provider-scoped Anthropic-compatible endpoints |
+| `POST /:provider/v1/messages`, `/:provider/v1/models`, `/:provider/v1/systemone` | public | Provider-scoped model endpoints |
 | `POST /chat/completions`, `/v1/chat/completions` | public | OpenAI-compatible chat completions |
 | `POST /responses`, `/v1/responses` | public | OpenAI Responses API |
 | `POST /embeddings`, `/v1/embeddings` | public | Embeddings |
+| `POST /v1/systemone` | public | Aggregate System One decision API with configured provider fallback |
 | `GET /models`, `/v1/models` | public | Model catalog |
 | `GET /status` | public | Identity + liveness probe (unauthenticated) |
+
+Core routes `POST /v1/systemone` from catalog evidence. TypeSafe JEV cloud
+models may fall back to the configured Maximal or Ollama local provider and
+the configured local model order; retryable authentication, availability,
+rate-limit, and upstream failures advance to the next route. Provider-qualified
+requests through `POST /:provider/v1/systemone` remain direct. Core does not
+bundle or redistribute model weights. Ollama 0.35 or later can serve the local
+models after `ollama pull nimble`, `ollama pull tev1`, or
+`ollama pull tev1:0.8b`.
 | `GET /` | public | `Server running` identity probe used by port contention |
 | `GET /setup-status`, `/openapi.json` | public | Fresh-install status + its OpenAPI document (unauthenticated) |
 | `GET /usage`, `/token-usage`, `/token-usage/events` | public | Usage surfaces (loopback callers skip the API key) |
@@ -101,22 +111,23 @@ The CLI (`src/main.ts`, via `citty`) dispatches these subcommands: `auth`,
 
 ## Configuration
 
-Settings can be supplied through five sources. Higher in the list wins:
+Settings can be supplied through six sources. Higher in the list wins:
 
 | # | Source | Lifetime | Notes |
 |---|---|---|---|
 | 1 | **CLI flags** | per-invocation | `--port`, `--account-type`, `--verbose`, etc. See `maximal start --help`. |
-| 2 | **Environment variables** | shell scope | `OLLAMA_API_KEY`, `ANTHROPIC_API_KEY`, `COPILOT_API_HOME`, `COPILOT_API_HOME_POLICY`, `COPILOT_API_ENTERPRISE_URL`, `COPILOT_API_OAUTH_APP`, `GITHUB_API_BASE`. Bun also auto-loads `.env`. |
-| 3 | **Secrets files** | persistent, mode 0600 | `~/.local/share/maximal/secrets/<provider>` (e.g. `secrets/ollama`). Refused if mode is broader than 0600. |
-| 4 | **Config file** | persistent | `~/.local/share/maximal/config.json`. Schema-validated at boot; bad keys fail with a key path. Unknown keys warn but pass through. |
-| 5 | **Built-in defaults** | always | `src/lib/config/config.ts`. |
+| 2 | **Environment variables** | shell scope | `OLLAMA_API_KEY`, `ANTHROPIC_API_KEY`, `MAXIMAL_HOME`, `MAXIMAL_HOME_POLICY`, `COPILOT_API_ENTERPRISE_URL`, `COPILOT_API_OAUTH_APP`, `GITHUB_API_BASE`. Bun also auto-loads `.env`. |
+| 3 | **Settings file** | persistent | `$XDG_CONFIG_HOME/maximal/settings.json` (or `~/.config/maximal/settings.json`) supplies `home`, `homePolicy`, and `apiSqliteDbPath`. |
+| 4 | **Secrets files** | persistent, mode 0600 | `~/.local/share/maximal/secrets/<provider>` (e.g. `secrets/ollama`). Refused if mode is broader than 0600. |
+| 5 | **Config file** | persistent | `~/.local/share/maximal/config.json`. Schema-validated at boot; bad keys fail with a key path. Unknown keys warn but pass through. |
+| 6 | **Built-in defaults** | always | `src/lib/config/config.ts`. |
 
-The XDG home (`~/.local/share/maximal`, overridable via `COPILOT_API_HOME`)
+The XDG home (`~/.local/share/maximal`, overridable via `MAXIMAL_HOME`)
 and config are shared with the parent `maximal` app.
 
 By default maximal treats the home as its own directory and creates it if it is
 missing — unchanged from every prior release. Set
-`COPILOT_API_HOME_POLICY=require` and it must **already exist** and be writable
+`MAXIMAL_HOME_POLICY=require` and it must **already exist** and be writable
 instead: maximal canonicalizes it and exits non-zero with an error if it is
 missing or unusable, rather than creating it or falling back to the shared
 default. That is for callers who pass a home *because* it is shared — a host
@@ -140,10 +151,15 @@ data home_.
 | Wait on rate limit | `--wait` / `-w` | — | — | off |
 | Evict a running instance | `--replace` | — | — | off |
 | Ollama API key | — | `OLLAMA_API_KEY` | `secrets/ollama` | unset |
+| TypeSafe JEV API key | — | `TYPESAFE_API_KEY` | `secrets/typesafe` | unset |
+| System One local provider | — | — | `config.systemOne.localProvider` | `maximal` |
+| System One local model order | — | — | `config.systemOne.modelOrder` | `nimble`, `tev1`, `tev1:0.8b` |
+| System One local fallback | — | — | `config.systemOne.fallbackToLocal` | `true` |
 | Anthropic API key | — | `ANTHROPIC_API_KEY` | `secrets/anthropic` | `config.anthropicApiKey` |
 | GitHub token | `--github-token` / `-g` | — | `app/github_token` | from `auth` flow |
-| App home dir | `--api-home` | `COPILOT_API_HOME` | — | `~/.local/share/maximal` |
-| Data-home policy | — | `COPILOT_API_HOME_POLICY` | — | `create` (or `require`: must already exist) |
+| App home dir | `--api-home` | `MAXIMAL_HOME` | `settings.home` | `~/.local/share/maximal` |
+| Data-home policy | — | `MAXIMAL_HOME_POLICY` | `settings.homePolicy` | `create` (or `require`: must already exist) |
+| API SQLite database | — | `MAXIMAL_API_SQLITE_DB_PATH` | `settings.apiSqliteDbPath` | `<home>/copilot-api.sqlite` |
 | Enterprise URL | — | `COPILOT_API_ENTERPRISE_URL` | — | unset |
 | GitHub host override (test-only) | — | `GITHUB_API_BASE` | — | unset |
 | OAuth app ID | — | `COPILOT_API_OAUTH_APP` | — | upstream default |

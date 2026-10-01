@@ -167,12 +167,12 @@ describe("assessConfigFlags", () => {
 })
 
 describe("resolveConfigPath", () => {
-  it("honors COPILOT_API_HOME on any platform", () => {
+  it("honors MAXIMAL_HOME on any platform", () => {
     expect(
       resolveConfigPath({
         platform: "darwin",
         homedir: "/home/u",
-        copilotApiHome: "/custom/home",
+        maximalHome: "/custom/home",
       }),
     ).toBe("/custom/home/config.json")
   })

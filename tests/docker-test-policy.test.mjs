@@ -365,6 +365,19 @@ test("lockfile host repair retains the default mutating behavior", () => {
   }
 });
 
+test("turbo catalogs runtime settings environment variables", () => {
+  const turbo = JSON.parse(read("turbo.json"));
+
+  assert.deepEqual(turbo.globalEnv, [
+    "COPILOT_API_CREDENTIAL_HOME",
+    "COPILOT_API_ENTERPRISE_URL",
+    "MAXIMAL_HOME",
+    "MAXIMAL_HOME_POLICY",
+    "COPILOT_API_OAUTH_APP",
+    "MAXIMAL_API_SQLITE_DB_PATH",
+  ]);
+});
+
 test("the outer and fixed inner test scripts cannot recurse", () => {
   const manifest = JSON.parse(read("package.json"));
   const coreManifest = JSON.parse(read("packages/maximal-core/package.json"));
@@ -431,7 +444,7 @@ test("the outer and fixed inner test scripts cannot recurse", () => {
   );
   assert.equal(
     manifest.scripts["check:static"],
-    "turbo run build typecheck lint && pnpm run check:network-literals && pnpm run check:settings",
+    "turbo run build typecheck lint && pnpm run check:network-literals && pnpm run check:unsafe-type-assertions && pnpm run check:settings",
   );
   assert.equal(
     manifest.scripts["check:settings"],
@@ -477,7 +490,6 @@ test("the outer and fixed inner test scripts cannot recurse", () => {
   assert.deepEqual(turbo.tasks.test.passThroughEnv, [
     "APPDATA",
     "CLAUDE_CONFIG_DIR",
-    "COPILOT_API_HOME",
     "HOME",
     "LOCALAPPDATA",
     "MAXIMAL_TEST_ROOT",
@@ -1022,7 +1034,7 @@ test("native test isolation redirects state and scrubs credentials", () => {
       "USERPROFILE",
       "APPDATA",
       "LOCALAPPDATA",
-      "COPILOT_API_HOME",
+      "MAXIMAL_HOME",
       "CLAUDE_CONFIG_DIR",
     ]) {
       const relative = path.relative(isolated.root, isolated.environment[name]);

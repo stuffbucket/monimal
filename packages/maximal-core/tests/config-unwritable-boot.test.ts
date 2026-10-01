@@ -34,7 +34,7 @@ import { PATHS } from "~/lib/platform/paths"
 const CONFIG_PATH = PATHS.CONFIG_PATH
 
 /** Restore write permission (if the file is still there) and delete it, so the
- *  shared per-worker COPILOT_API_HOME is left exactly as a fresh boot would
+ *  shared per-worker MAXIMAL_HOME is left exactly as a fresh boot would
  *  find it. Runs on the way IN and the way OUT — a module-level `cachedConfig`
  *  only reset on one side leaks in the other direction (testing-strategy §5.6).
  *  Seed a clean file, then leave the cache cold for the next reader. */

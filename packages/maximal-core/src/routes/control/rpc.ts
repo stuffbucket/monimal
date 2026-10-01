@@ -18,6 +18,7 @@ import {
   OllamaApiKeyTestRequest,
   SearchProviderValidationRequest,
   SearchSettingsUpdateRequest,
+  SystemOneSettingsUpdateRequest,
   TokenUsageRequest,
 } from "@maximal/maximal-core-contract/settings"
 /**
@@ -117,6 +118,10 @@ import {
   testOllamaApiKey,
   updateOllamaSettings,
 } from "~/services/providers/ollama-settings"
+import {
+  getSystemOneSettings,
+  updateSystemOneSettings,
+} from "~/services/providers/system-one-settings"
 
 export interface ControlRpcOperationOverrides {
   buildSearchSettings?: typeof buildSearchSettings
@@ -284,6 +289,22 @@ function createOllamaSettingsRpcMethods(): RpcRegistry {
   }
 }
 
+function createSystemOneSettingsRpcMethods(): RpcRegistry {
+  return {
+    "systemOneSettings/get": () => getSystemOneSettings(),
+    "systemOneSettings/update": (params: unknown) =>
+      asRpcOperation(() =>
+        updateSystemOneSettings(
+          parseParams(
+            SystemOneSettingsUpdateRequest,
+            params,
+            "Expected a System One settings update.",
+          ),
+        ),
+      ),
+  }
+}
+
 function issueTerminalLaunch(
   input: TerminalScopeIssueRequest,
   configurators: ConfiguratorRegistry | undefined,
@@ -331,6 +352,7 @@ function createSettingsRpcMethods({
   return {
     ...createSearchSettingsRpcMethods(operations),
     ...createOllamaSettingsRpcMethods(),
+    ...createSystemOneSettingsRpcMethods(),
     "connections/list": readConnections,
     "connections/act": createConnectionActionRpc(configurators, hub, readApps),
     "connections/revealCredential": (params: unknown) =>

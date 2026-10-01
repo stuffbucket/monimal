@@ -1,5 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useCallback, useEffect } from 'react'
+import { useMemo } from 'react'
 
 import type { SettingsCapabilities } from './settings/capabilities'
 import {
@@ -7,7 +6,7 @@ import {
   type MaterialPreference,
   type PersistedMaterialPreference,
 } from './material-preference'
-import { describeError } from './shared/errors'
+import { usePreferenceQuery } from './usePreferenceQuery'
 
 export const materialPreferenceQueryKey = [
   'settings',
@@ -43,55 +42,32 @@ function withSessionCoordinates(
 export function useMaterialPreference(
   capabilities: MaterialPreferenceCapabilities,
 ) {
-  const queryClient = useQueryClient()
-  const query = useQuery({
-    queryKey: materialPreferenceQueryKey,
-    queryFn: async () =>
-      withSessionCoordinates(await capabilities.general.material()),
-  })
-  const mutation = useMutation({
-    mutationFn: async (next: MaterialPreference) =>
-      withSessionCoordinates(
-        await capabilities.general.setMaterial(persistedPreference(next)),
-        next,
-      ),
-    onSuccess: (next) =>
-      queryClient.setQueryData(materialPreferenceQueryKey, next),
-  })
-  const mutateAsync = mutation.mutateAsync
-  const resetMutation = mutation.reset
-
-  useEffect(() => {
-    const unsubscribe = capabilities.general.onMaterialChange((next) => {
-      void queryClient.cancelQueries({
+  const preference = usePreferenceQuery(
+    useMemo(
+      () => ({
         queryKey: materialPreferenceQueryKey,
-        exact: true,
-      })
-      queryClient.setQueryData<MaterialPreference>(
-        materialPreferenceQueryKey,
-        (current) => withSessionCoordinates(next, current),
-      )
-      resetMutation()
-    })
-    return unsubscribe
-  }, [capabilities, queryClient, resetMutation])
-
-  const set = useCallback(
-    async (next: MaterialPreference) => {
-      await mutateAsync(next).catch(() => undefined)
-    },
-    [mutateAsync],
+        query: async () =>
+          withSessionCoordinates(await capabilities.general.material()),
+        mutate: async (next: MaterialPreference) =>
+          withSessionCoordinates(
+            await capabilities.general.setMaterial(persistedPreference(next)),
+            next,
+          ),
+        subscribe: (listener: (next: PersistedMaterialPreference) => void) =>
+          capabilities.general.onMaterialChange(listener),
+        resolveEvent: (
+          next: PersistedMaterialPreference,
+          current?: MaterialPreference,
+        ) => withSessionCoordinates(next, current),
+      }),
+      [capabilities],
+    ),
   )
 
   return {
-    state: query.data ?? null,
-    busy: mutation.isPending,
-    error:
-      mutation.error === null
-        ? mutation.isPending || query.error === null
-          ? null
-          : describeError(query.error)
-        : describeError(mutation.error),
-    set,
+    state: preference.state,
+    busy: preference.busy,
+    error: preference.error,
+    set: preference.update,
   }
 }

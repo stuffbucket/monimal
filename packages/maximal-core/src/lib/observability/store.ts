@@ -21,6 +21,7 @@ import {
 } from "@maximal/maximal-observability-contract"
 import path from "node:path"
 
+import { loadRuntimeSettings } from "~/lib/config/runtime-settings"
 import { PATHS } from "~/lib/platform/paths"
 import { registerProcessCleanup } from "~/lib/platform/process-cleanup"
 import { runtimeLogger } from "~/lib/platform/runtime-logger"
@@ -52,7 +53,6 @@ import {
   nextSequence,
 } from "./schema"
 
-const DB_PATH_ENV = "COPILOT_API_SQLITE_DB_PATH"
 const DEFAULT_DB_FILENAME = "copilot-api.sqlite"
 const DEFAULT_RETENTION_DAYS = 365
 const RETENTION_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1_000
@@ -99,7 +99,7 @@ export class SqliteTrafficObserver
     this.onInvalidation = options.onInvalidation
     const dbPath =
       options.dbPath
-      ?? process.env[DB_PATH_ENV]
+      ?? loadRuntimeSettings().apiSqliteDbPath
       ?? path.join(PATHS.APP_DIR, DEFAULT_DB_FILENAME)
     const retentionDays = Math.max(
       1,

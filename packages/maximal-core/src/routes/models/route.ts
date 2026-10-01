@@ -25,6 +25,7 @@ const EPOCH_ISO = new Date(0).toISOString()
 
 export interface ModelRoutesOptions {
   localModels?: () => LocalModelControl | undefined
+  modelOrder?: () => ReadonlyArray<string>
   providerModels?: () => Promise<ReadonlyArray<ProviderCatalogueModel>>
 }
 
@@ -116,42 +117,63 @@ class ModelCatalogConflictError extends Error {}
 function mergeById<T extends { readonly id: string }>(
   primary: ReadonlyArray<T>,
   additional: ReadonlyArray<T>,
+  preferredOrder: ReadonlyArray<string>,
 ): Array<T> {
   const merged = new Map<string, T>()
   for (const model of [...primary, ...additional]) {
     if (merged.has(model.id)) throw new ModelCatalogConflictError()
     merged.set(model.id, model)
   }
-  return [...merged.values()].toSorted((left, right) =>
-    left.id.localeCompare(right.id),
-  )
+  const rank = new Map(preferredOrder.map((id, index) => [id, index]))
+  return [...merged.values()].toSorted((left, right) => {
+    const leftRank = rank.get(left.id)
+    const rightRank = rank.get(right.id)
+    if (leftRank !== undefined && rightRank !== undefined) {
+      return leftRank - rightRank
+    }
+    if (leftRank !== undefined) return -1
+    if (rightRank !== undefined) return 1
+    return left.id.localeCompare(right.id)
+  })
+}
+
+interface AggregateSources {
+  readonly local: ReadonlyArray<LocalModelCatalogEntry>
+  readonly preferredOrder: ReadonlyArray<string>
+  readonly providers: ReadonlyArray<ProviderCatalogueModel>
 }
 
 function openAiAggregate(
   models: Parameters<typeof openAiModelList>[0],
-  local: ReadonlyArray<LocalModelCatalogEntry>,
-  providers: ReadonlyArray<ProviderCatalogueModel>,
+  sources: AggregateSources,
 ): OpenAiModelList {
   const upstream = openAiModelList(models)
   return {
     ...upstream,
-    data: mergeById(upstream.data, [
-      ...local.map((model) => localOpenAiModel(model)),
-      ...providers.map((model) => providerOpenAiModel(model)),
-    ]),
+    data: mergeById(
+      upstream.data,
+      [
+        ...sources.local.map((model) => localOpenAiModel(model)),
+        ...sources.providers.map((model) => providerOpenAiModel(model)),
+      ],
+      sources.preferredOrder,
+    ),
   }
 }
 
 function anthropicAggregate(
   models: Parameters<typeof anthropicModelList>[0],
-  local: ReadonlyArray<LocalModelCatalogEntry>,
-  providers: ReadonlyArray<ProviderCatalogueModel>,
+  sources: AggregateSources,
 ): AnthropicModelList {
   const upstream = anthropicModelList(models)
-  const data = mergeById(upstream.data, [
-    ...local.map((model) => localAnthropicModel(model)),
-    ...providers.map((model) => providerAnthropicModel(model)),
-  ])
+  const data = mergeById(
+    upstream.data,
+    [
+      ...sources.local.map((model) => localAnthropicModel(model)),
+      ...sources.providers.map((model) => providerAnthropicModel(model)),
+    ],
+    sources.preferredOrder,
+  )
   return {
     ...upstream,
     data,
@@ -194,10 +216,12 @@ export function createModelRoutes(options: ModelRoutesOptions = {}): Hono {
     try {
       const local = aggregateLocalModels(options.localModels?.())
       const providers = (await options.providerModels?.()) ?? []
+      const preferredOrder = options.modelOrder?.() ?? []
+      const sources = { local, preferredOrder, providers }
       return c.json(
         prefersAnthropicModels(c.req.raw.headers) ?
-          anthropicAggregate(models, local, providers)
-        : openAiAggregate(models, local, providers),
+          anthropicAggregate(models, sources)
+        : openAiAggregate(models, sources),
       )
     } catch (error) {
       if (!(error instanceof ModelCatalogConflictError)) throw error

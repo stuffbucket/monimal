@@ -172,12 +172,12 @@ describe("resolveConfigPath", () => {
   // its result with `path.join`, so the expected value has to be built the
   // same way or the assertion is really testing `path.sep`. Same discipline as
   // tests/paths.test.ts, which covers the identical convention in src/.
-  it("honors COPILOT_API_HOME on any platform", () => {
+  it("honors MAXIMAL_HOME on any platform", () => {
     expect(
       resolveConfigPath({
         platform: "darwin",
         homedir: path.join("/home", "u"),
-        copilotApiHome: path.join("/custom", "home"),
+        maximalHome: path.join("/custom", "home"),
       }),
     ).toBe(path.join("/custom", "home", "config.json"))
   })

@@ -54,8 +54,8 @@ function childEnvironment(home: string): NodeJS.ProcessEnv {
     XDG_DATA_HOME: path.join(home, ".local/share"),
   }
   delete environment.MAXIMAL_TEST_CONTAINER
-  delete environment.COPILOT_API_HOME
-  delete environment.COPILOT_API_HOME_POLICY
+  delete environment.MAXIMAL_HOME
+  delete environment.MAXIMAL_HOME_POLICY
   delete environment.CLAUDE_CONFIG_DIR
   return environment
 }
@@ -92,13 +92,13 @@ function expectRefused(
 
 describe("test path isolation", () => {
   test("the preload installs separate fresh path families", () => {
-    const maximalHome = process.env.COPILOT_API_HOME
+    const maximalHome = process.env.MAXIMAL_HOME
     const claudeConfigDir = process.env.CLAUDE_CONFIG_DIR
     expect(
       process.env.MAXIMAL_TEST_CONTAINER === "1"
         || process.env.MAXIMAL_TEST_HOST === "1",
     ).toBe(true)
-    expect(process.env.COPILOT_API_HOME_POLICY).toBe("require")
+    expect(process.env.MAXIMAL_HOME_POLICY).toBe("require")
     expect(maximalHome).toBeTruthy()
     expect(claudeConfigDir).toBeTruthy()
     expect(maximalHome).not.toBe(claudeConfigDir)

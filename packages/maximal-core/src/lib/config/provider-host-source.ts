@@ -8,6 +8,7 @@ import type {
   ProviderHostConfigSource,
 } from "~/lib/provider-host-types"
 
+import { readSecret } from "~/lib/auth/secrets"
 import {
   type AppConfig,
   ConfigReloadError,
@@ -22,6 +23,7 @@ import { runtimeLogger } from "~/lib/platform/runtime-logger"
 export interface CreateProviderHostConfigSourceOptions {
   appDataDirectory?: string
   configPath?: string
+  readSystemOneApiKey?: () => string | undefined
   readConfig?: () => AppConfig
   reloadConfig?: () => AppConfig
   subscribeValidatedConfig?: (
@@ -39,14 +41,29 @@ const deepFreeze = <T>(value: T): T => {
 const isolatedSnapshotValue = <T>(value: T): T =>
   deepFreeze(structuredClone(value))
 
+const readTypeSafeApiKey = (): string | undefined =>
+  readSecret({ envVar: "TYPESAFE_API_KEY", fileName: "typesafe" }).value
+
 const readonlyProvidersFor = (
   config: AppConfig,
-): Readonly<Record<string, ProviderCompatibilityConfig>> =>
-  isolatedSnapshotValue(config.providers ?? {})
+  systemOneApiKey: string | undefined,
+): Readonly<Record<string, ProviderCompatibilityConfig>> => {
+  const providers = { ...config.providers }
+  const typeSafe: ProviderCompatibilityConfig | undefined =
+    Object.hasOwn(providers, "typesafe-jev") ?
+      providers["typesafe-jev"]
+    : undefined
+  const apiKey = systemOneApiKey?.trim()
+  if (typeSafe?.type === "systemone" && apiKey) {
+    providers["typesafe-jev"] = { ...typeSafe, apiKey }
+  }
+  return isolatedSnapshotValue(providers)
+}
 
 const snapshotFor = (
   config: AppConfig,
   appDataDirectory: string,
+  readSystemOneApiKey: () => string | undefined,
 ): ProviderHostConfigSnapshot =>
   Object.freeze({
     appDataDirectory,
@@ -56,7 +73,7 @@ const snapshotFor = (
       mode: config.providerHost?.mode ?? "legacy",
       profileDirectory: config.providerHost?.profileDirectory,
     }),
-    providers: readonlyProvidersFor(config),
+    providers: readonlyProvidersFor(config, readSystemOneApiKey()),
     providerPlugins:
       config.providerPlugins === undefined ?
         undefined
@@ -90,6 +107,7 @@ export function createProviderHostConfigSource(
   options: CreateProviderHostConfigSourceOptions = {},
 ): ProviderHostConfigSource {
   const appDataDirectory = options.appDataDirectory ?? PATHS.APP_DIR
+  const readSystemOneApiKey = options.readSystemOneApiKey ?? readTypeSafeApiKey
   const configPath = options.configPath ?? PATHS.CONFIG_PATH
   const configDirectory = path.dirname(configPath)
   const configFilename = path.basename(configPath)
@@ -101,7 +119,11 @@ export function createProviderHostConfigSource(
   // Capture before the initial read so the post-watch comparison also closes the
   // otherwise unobservable read-to-watch setup gap.
   let observedConfigIdentity = fileIdentity(configPath)
-  let snapshot = snapshotFor(readConfig(), appDataDirectory)
+  let snapshot = snapshotFor(
+    readConfig(),
+    appDataDirectory,
+    readSystemOneApiKey,
+  )
   let fingerprint = JSON.stringify(snapshot)
   let disposed = false
   let reloadTimer: ReturnType<typeof setTimeout> | undefined
@@ -116,7 +138,7 @@ export function createProviderHostConfigSource(
   }
 
   const update = (config: AppConfig): void => {
-    publish(snapshotFor(config, appDataDirectory))
+    publish(snapshotFor(config, appDataDirectory, readSystemOneApiKey))
   }
 
   const publishReloadFailure = (error: unknown): void => {

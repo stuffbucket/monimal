@@ -16,6 +16,7 @@ import type {
 } from "~/lib/provider-host-types"
 import type { PersistedTokenUsageEvent } from "~/lib/token-usage"
 
+import { getConfig, writeConfig } from "~/lib/config/config"
 import { clearTokenTrio } from "~/lib/runtime-state/state"
 import { onTokenUsageRecorded } from "~/lib/token-usage"
 import { createServerApps } from "~/server"
@@ -98,7 +99,7 @@ class FakeConfigSource implements ProviderHostConfigSource {
 }
 
 const configSnapshot = (
-  mode: "legacy" | "dsh",
+  mode: "legacy" | "plugins",
   providerPlugins?: ProviderHostConfigSnapshot["providerPlugins"],
 ): ProviderHostConfigSnapshot => ({
   appDataDirectory: "/data/maximal",
@@ -109,7 +110,7 @@ const configSnapshot = (
   providerPlugins,
 })
 
-const dshConfig = (): AppConfig => ({ providerHost: { mode: "dsh" } })
+const pluginConfig = (): AppConfig => ({ providerHost: { mode: "plugins" } })
 const jsonHeaders = { "content-type": "application/json" }
 let unsubscribeUsage: (() => void) | undefined
 
@@ -145,13 +146,56 @@ describe("legacy provider authentication", () => {
     expect(dispatcher.requiresGithubAuth("local")).toBe(false)
     expect(dispatcher.requiresGithubAuth("hosted")).toBe(true)
     expect(dispatcher.requiresGithubAuth("unknown")).toBe(true)
+    expect(dispatcher.requiresGithubAuth()).toBe(true)
     await dispatcher.dispose()
+  })
+
+  test("recognizes the implicit local Ollama provider", async () => {
+    const dispatcher = createProviderDispatcher({
+      readConfig: () => ({}),
+    })
+
+    expect(dispatcher.requiresGithubAuth("ollama")).toBe(false)
+    expect(dispatcher.requiresGithubAuth("unknown")).toBe(true)
+    await dispatcher.dispose()
+  })
+
+  test("recognizes a configured disabled Ollama provider", async () => {
+    const dispatcher = createProviderDispatcher({
+      readConfig: () => ({
+        providers: {
+          disabled: { type: "ollama", enabled: false },
+        },
+      }),
+    })
+
+    expect(dispatcher.requiresGithubAuth("disabled")).toBe(false)
+    await dispatcher.dispose()
+  })
+
+  test("recognizes a disabled Ollama provider from the runtime config", async () => {
+    const original = getConfig()
+    writeConfig({
+      ...original,
+      providers: {
+        ...original.providers,
+        disabled: { type: "ollama", enabled: false },
+      },
+    })
+    const dispatcher = createProviderDispatcher()
+
+    try {
+      expect(dispatcher.requiresGithubAuth("disabled")).toBe(false)
+    } finally {
+      await dispatcher.dispose()
+      writeConfig(original)
+    }
   })
 })
 
-// DSH dispatch cases share route setup, gateway fakes, and usage fixtures.
+// provider plugin dispatch cases share route setup, gateway fakes, and usage fixtures.
 // eslint-disable-next-line max-lines-per-function
-describe("DSH provider dispatch", () => {
+describe("provider plugin dispatch", () => {
   test("lists models only from available providers with non-empty catalogues", async () => {
     const statuses: ReadonlyArray<ProviderStatus> = [
       {
@@ -207,7 +251,7 @@ describe("DSH provider dispatch", () => {
     )
     const dispatcher = createProviderDispatcher({
       gateway,
-      readConfig: dshConfig,
+      readConfig: pluginConfig,
     })
 
     expect(await dispatcher.listModels()).toEqual([
@@ -215,6 +259,7 @@ describe("DSH provider dispatch", () => {
         id: "mlx-community/Qwen3-8B",
         name: "Qwen 3 8B",
         enabled: true,
+        operations: ["messages"],
         provider: "local",
         providerName: "Local (oMLX)",
       },
@@ -241,7 +286,7 @@ describe("DSH provider dispatch", () => {
     unsubscribeUsage = onTokenUsageRecorded((event) => usageEvents.push(event))
     const { publicApp } = createServerApps({
       providerGateway: gateway,
-      readConfig: dshConfig,
+      readConfig: pluginConfig,
     })
     const body = JSON.stringify({
       model: "host-model",
@@ -293,7 +338,7 @@ describe("DSH provider dispatch", () => {
     })
     const { publicApp } = createServerApps({
       providerGateway: gateway,
-      readConfig: dshConfig,
+      readConfig: pluginConfig,
     })
 
     const response = await publicApp.request("/hosted/v1/messages", {
@@ -328,7 +373,7 @@ describe("DSH provider dispatch", () => {
     )
     const { publicApp } = createServerApps({
       providerGateway: gateway,
-      readConfig: dshConfig,
+      readConfig: pluginConfig,
     })
 
     const response = await publicApp.request("/hosted/v1/messages", {
@@ -359,7 +404,7 @@ describe("DSH provider dispatch", () => {
     )
     const { publicApp } = createServerApps({
       providerGateway: gateway,
-      readConfig: dshConfig,
+      readConfig: pluginConfig,
     })
 
     const models = await publicApp.request("/hosted/v1/models")
@@ -381,7 +426,7 @@ describe("DSH provider dispatch", () => {
   })
 
   test("returns a stable Anthropic error when no gateway was injected", async () => {
-    const { publicApp } = createServerApps({ readConfig: dshConfig })
+    const { publicApp } = createServerApps({ readConfig: pluginConfig })
 
     const response = await publicApp.request("/missing/v1/messages", {
       method: "POST",
@@ -407,7 +452,7 @@ describe("DSH provider dispatch", () => {
     })
     const { publicApp } = createServerApps({
       providerGateway: gateway,
-      readConfig: dshConfig,
+      readConfig: pluginConfig,
     })
     const abortController = new AbortController()
     const request = new Request("http://localhost/hosted/v1/models", {
@@ -437,7 +482,7 @@ describe("DSH provider dispatch", () => {
     )
     const { publicApp } = createServerApps({
       providerGateway: gateway,
-      readConfig: dshConfig,
+      readConfig: pluginConfig,
     })
 
     const response = await publicApp.request("/hosted/v1/messages", {
@@ -458,7 +503,7 @@ describe("provider rollout boundary", () => {
     let config: AppConfig = {}
     let legacyCalls = 0
     const gateway = new FakeGateway(() =>
-      Promise.resolve(Response.json({ source: "dsh" })),
+      Promise.resolve(Response.json({ source: "plugins" })),
     )
     const dispatcher = createProviderDispatcher({
       gateway,
@@ -477,8 +522,8 @@ describe("provider rollout boundary", () => {
       })
 
     expect(await (await dispatch()).json()).toEqual({ source: "legacy" })
-    config = { providerHost: { mode: "dsh" } }
-    expect(await (await dispatch()).json()).toEqual({ source: "dsh" })
+    config = { providerHost: { mode: "plugins" } }
+    expect(await (await dispatch()).json()).toEqual({ source: "plugins" })
     config = { providerHost: { mode: "legacy" } }
     expect(await (await dispatch()).json()).toEqual({ source: "legacy" })
     expect(legacyCalls).toBe(2)
@@ -486,9 +531,9 @@ describe("provider rollout boundary", () => {
   })
 
   test("keeps a static gateway dormant and reusable across explicit rollback", async () => {
-    const source = new FakeConfigSource(configSnapshot("dsh"))
+    const source = new FakeConfigSource(configSnapshot("plugins"))
     const gateway = new FakeGateway(() =>
-      Promise.resolve(Response.json({ source: "dsh" })),
+      Promise.resolve(Response.json({ source: "plugins" })),
     )
     const dispatcher = createProviderDispatcher({
       configSource: source,
@@ -507,13 +552,13 @@ describe("provider rollout boundary", () => {
         signal: AbortSignal.timeout(1_000),
       })
 
-    expect(await (await dispatch()).json()).toEqual({ source: "dsh" })
+    expect(await (await dispatch()).json()).toEqual({ source: "plugins" })
     source.update(configSnapshot("legacy"))
     expect(await (await dispatch()).json()).toEqual({ source: "legacy" })
     expect(gateway.disposeCalls).toBe(0)
 
-    source.update(configSnapshot("dsh"))
-    expect(await (await dispatch()).json()).toEqual({ source: "dsh" })
+    source.update(configSnapshot("plugins"))
+    expect(await (await dispatch()).json()).toEqual({ source: "plugins" })
     expect(gateway.dispatches).toHaveLength(2)
     expect(legacyCalls).toBe(1)
 
@@ -523,7 +568,7 @@ describe("provider rollout boundary", () => {
   })
 
   test("requires GitHub auth only for provider routes in legacy mode", async () => {
-    let config: AppConfig = { providerHost: { mode: "dsh" } }
+    let config: AppConfig = { providerHost: { mode: "plugins" } }
     const gateway = new FakeGateway(() =>
       Promise.resolve(Response.json({ data: [] })),
     )
@@ -545,7 +590,7 @@ describe("provider rollout boundary", () => {
   test("returns 503 without legacy fallback while factory activation is pending", async () => {
     const source = new FakeConfigSource(configSnapshot("legacy"))
     const gateway = new FakeGateway(() =>
-      Promise.resolve(Response.json({ source: "dsh" })),
+      Promise.resolve(Response.json({ source: "plugins" })),
     )
     let resolveGateway: ((gateway: FakeGateway) => void) | undefined
     const pendingGateway = new Promise<FakeGateway>((resolve) => {
@@ -568,7 +613,7 @@ describe("provider rollout boundary", () => {
         signal: AbortSignal.timeout(1_000),
       })
 
-    source.update(configSnapshot("dsh"))
+    source.update(configSnapshot("plugins"))
     await Bun.sleep(0)
     const unavailable = await dispatch()
     expect(unavailable.status).toBe(503)
@@ -576,7 +621,7 @@ describe("provider rollout boundary", () => {
 
     resolveGateway?.(gateway)
     await Bun.sleep(0)
-    expect(await (await dispatch()).json()).toEqual({ source: "dsh" })
+    expect(await (await dispatch()).json()).toEqual({ source: "plugins" })
 
     await dispatcher.dispose()
   })
@@ -593,7 +638,7 @@ describe("provider rollout boundary", () => {
         observedConfigs.push(config)
         configSource.subscribe((snapshot) => observedConfigs.push(snapshot))
         const next = new FakeGateway(() =>
-          Promise.resolve(Response.json({ source: "dsh" })),
+          Promise.resolve(Response.json({ source: "plugins" })),
         )
         gateways.push(next)
         return next
@@ -616,13 +661,13 @@ describe("provider rollout boundary", () => {
     expect(factoryCalls).toBe(0)
     expect(await (await dispatch()).json()).toEqual({ source: "legacy" })
 
-    source.update(configSnapshot("dsh", { hosted: { enabled: true } }))
+    source.update(configSnapshot("plugins", { hosted: { enabled: true } }))
     await Bun.sleep(0)
     expect(factoryCalls).toBe(1)
-    expect(await (await dispatch()).json()).toEqual({ source: "dsh" })
+    expect(await (await dispatch()).json()).toEqual({ source: "plugins" })
 
     source.update(
-      configSnapshot("dsh", {
+      configSnapshot("plugins", {
         hosted: { config: { nested: ["opaque", { value: 2 }] } },
       }),
     )
@@ -636,10 +681,10 @@ describe("provider rollout boundary", () => {
     expect(gateways[0]?.disposeCalls).toBe(1)
     expect(await (await dispatch()).json()).toEqual({ source: "legacy" })
 
-    source.update(configSnapshot("dsh"))
+    source.update(configSnapshot("plugins"))
     await Bun.sleep(0)
     expect(factoryCalls).toBe(2)
-    expect(await (await dispatch()).json()).toEqual({ source: "dsh" })
+    expect(await (await dispatch()).json()).toEqual({ source: "plugins" })
     expect(legacyCalls).toBe(2)
 
     await dispatcher.dispose()
@@ -648,9 +693,9 @@ describe("provider rollout boundary", () => {
   })
 
   test("returns 503 without legacy fallback while factory activation is pending", async () => {
-    const source = new FakeConfigSource(configSnapshot("dsh"))
+    const source = new FakeConfigSource(configSnapshot("plugins"))
     const gateway = new FakeGateway(() =>
-      Promise.resolve(Response.json({ source: "dsh" })),
+      Promise.resolve(Response.json({ source: "plugins" })),
     )
     let resolveGateway: ((gateway: FakeGateway) => void) | undefined
     const pendingGateway = new Promise<FakeGateway>((resolve) => {
@@ -685,13 +730,13 @@ describe("provider rollout boundary", () => {
       request: new Request("http://localhost/hosted/v1/models"),
       signal: AbortSignal.timeout(1_000),
     })
-    expect(await activated.json()).toEqual({ source: "dsh" })
+    expect(await activated.json()).toEqual({ source: "plugins" })
     await dispatcher.dispose()
   })
 
   test("releases the gateway lease when response wrapping fails", async () => {
     const source = new FakeConfigSource(configSnapshot("legacy"))
-    const response = Response.json({ source: "dsh" })
+    const response = Response.json({ source: "plugins" })
     const lockedReader = response.body?.getReader()
     expect(lockedReader).toBeDefined()
     const gateway = new FakeGateway(() => Promise.resolve(response))
@@ -699,7 +744,7 @@ describe("provider rollout boundary", () => {
       configSource: source,
       gatewayFactory: () => gateway,
     })
-    source.update(configSnapshot("dsh"))
+    source.update(configSnapshot("plugins"))
     await Bun.sleep(0)
 
     let dispatchError: unknown
@@ -748,7 +793,7 @@ describe("provider rollout boundary", () => {
       configSource: source,
       gatewayFactory: () => gateway,
     })
-    source.update(configSnapshot("dsh"))
+    source.update(configSnapshot("plugins"))
     await Bun.sleep(0)
 
     const response = await dispatcher.dispatch({
@@ -797,7 +842,7 @@ describe("provider rollout boundary", () => {
       configSource: source,
       gatewayFactory: () => gateway,
     })
-    source.update(configSnapshot("dsh"))
+    source.update(configSnapshot("plugins"))
     await Bun.sleep(0)
 
     const response = await dispatcher.dispatch({
@@ -841,7 +886,7 @@ describe("provider rollout boundary", () => {
       configSource: source,
       gatewayFactory: () => gateway,
     })
-    source.update(configSnapshot("dsh"))
+    source.update(configSnapshot("plugins"))
     await Bun.sleep(0)
 
     const responses = await Promise.all([
@@ -900,7 +945,7 @@ describe("provider rollout boundary", () => {
       configSource: source,
       gatewayFactory: () => gateway,
     })
-    source.update(configSnapshot("dsh"))
+    source.update(configSnapshot("plugins"))
     await Bun.sleep(0)
 
     const responsePromise = dispatcher.dispatch({
@@ -914,10 +959,10 @@ describe("provider rollout boundary", () => {
     await Bun.sleep(0)
     expect(gateway.disposeCalls).toBe(0)
 
-    resolveResponse?.(Response.json({ source: "dsh" }))
+    resolveResponse?.(Response.json({ source: "plugins" }))
     const response = await responsePromise
     expect(gateway.disposeCalls).toBe(0)
-    expect(await response.json()).toEqual({ source: "dsh" })
+    expect(await response.json()).toEqual({ source: "plugins" })
     await Bun.sleep(0)
     expect(gateway.disposeCalls).toBe(1)
     await dispatcher.dispose()
@@ -938,13 +983,13 @@ describe("provider rollout boundary", () => {
       gatewayFactory: () => (factoryCalls++ === 0 ? first : second),
     })
 
-    source.update(configSnapshot("dsh"))
+    source.update(configSnapshot("plugins"))
     await Bun.sleep(0)
     source.update(configSnapshot("legacy"))
     await Bun.sleep(0)
     expect(first.disposeCalls).toBe(1)
 
-    source.update(configSnapshot("dsh"))
+    source.update(configSnapshot("plugins"))
     await Bun.sleep(0)
     const response = await dispatcher.dispatch({
       legacy: () => Promise.resolve(Response.json({ source: "legacy" })),
@@ -960,7 +1005,7 @@ describe("provider rollout boundary", () => {
     expect(source.disposeCalls).toBe(1)
   })
 
-  test("activates the latest DSH snapshot after a pending candidate fails", async () => {
+  test("activates the latest provider plugin snapshot after a pending candidate fails", async () => {
     const source = new FakeConfigSource(configSnapshot("legacy"))
     const gateway = new FakeGateway(() =>
       Promise.resolve(Response.json({ source: "corrected" })),
@@ -979,10 +1024,10 @@ describe("provider rollout boundary", () => {
         return factoryCalls === 1 ? firstCandidate : gateway
       },
     })
-    const pendingSnapshot = configSnapshot("dsh", {
+    const pendingSnapshot = configSnapshot("plugins", {
       hosted: { config: { profile: "pending" } },
     })
-    const correctedSnapshot = configSnapshot("dsh", {
+    const correctedSnapshot = configSnapshot("plugins", {
       hosted: { config: { profile: "corrected" } },
     })
 
@@ -1009,7 +1054,7 @@ describe("provider rollout boundary", () => {
     expect(gateway.disposeCalls).toBe(1)
   })
 
-  test("retries activation after dsh to legacy to dsh while a candidate is pending", async () => {
+  test("retries activation after plugins to legacy to plugins while a candidate is pending", async () => {
     const source = new FakeConfigSource(configSnapshot("legacy"))
     const staleGateway = new FakeGateway(() =>
       Promise.resolve(Response.json({ source: "stale" })),
@@ -1030,10 +1075,10 @@ describe("provider rollout boundary", () => {
       },
     })
 
-    source.update(configSnapshot("dsh"))
+    source.update(configSnapshot("plugins"))
     await Bun.sleep(0)
     source.update(configSnapshot("legacy"))
-    source.update(configSnapshot("dsh"))
+    source.update(configSnapshot("plugins"))
     expect(factoryCalls).toBe(1)
 
     resolveFirst?.(staleGateway)
@@ -1056,7 +1101,7 @@ describe("provider rollout boundary", () => {
   })
 
   test("contains final disposal rejection and cleans up once concurrently", async () => {
-    const source = new FakeConfigSource(configSnapshot("dsh"))
+    const source = new FakeConfigSource(configSnapshot("plugins"))
     const gateway = new FakeGateway(
       () => Promise.resolve(Response.json({ data: [] })),
       () => Promise.reject(new Error("final disposal failed")),

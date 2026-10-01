@@ -25,7 +25,7 @@ const isolatedPathVariables = [
   "USERPROFILE",
   "APPDATA",
   "LOCALAPPDATA",
-  "COPILOT_API_HOME",
+  "MAXIMAL_HOME",
   "CLAUDE_CONFIG_DIR",
 ]
 
@@ -79,8 +79,8 @@ const maximalHome = path.join(testRoot, "maximal")
 const claudeConfigDir = path.join(testRoot, "claude")
 fs.mkdirSync(maximalHome, { recursive: true })
 fs.mkdirSync(claudeConfigDir, { recursive: true })
-process.env.COPILOT_API_HOME = maximalHome
-process.env.COPILOT_API_HOME_POLICY = "require"
+process.env.MAXIMAL_HOME = maximalHome
+process.env.MAXIMAL_HOME_POLICY = "require"
 process.env.CLAUDE_CONFIG_DIR = claudeConfigDir
 
 // Reset the global consola level before every test. Some tests bump it to 5

@@ -1,11 +1,12 @@
 export {
-  createDshHost,
-  DshHost,
-  type DshHostOptions,
-  type DshHostReconcileInput,
-  type DshHostReconcileResult,
-  startDshHost,
+  createProviderPluginHost,
+  ProviderPluginHost,
+  type ProviderPluginHostOptions,
+  type ProviderPluginHostReconcileInput,
+  type ProviderPluginHostReconcileResult,
+  startProviderPluginHost,
 } from "./host.ts"
+export { ModelTopologyRegistry } from "./model-topology.ts"
 export {
   type ActivationEntry,
   type ActivationSnapshot,
@@ -15,30 +16,16 @@ export {
   type ProfilePluginKind,
   type ProfileService,
   ProfileValidationError,
+  PROVIDER_PLUGIN_API_VERSION,
+  type ProviderPluginApiVersion,
   RestartRequiredError,
 } from "./profile.ts"
-export type {
-  LocalModelCapabilities,
-  LocalModelCatalogEntry,
-  LocalModelCatalogListener,
-  LocalModelCatalogSnapshot,
-  LocalModelContextLimits,
-  LocalModelControl,
-  LocalModelProgressListener,
-  LocalModelProvisionPhase,
-  LocalModelProvisionProgress,
-  LocalModelPublication,
-  LocalModelState,
-  ProviderDiagnostic,
-  ProviderDispatch,
-  ProviderGateway,
-  ProviderOperation,
-  ProviderStatus,
-  ProviderStatusState,
-  ProviderTopology,
-  ProviderTopologyListener,
-  ProviderUnsubscribe,
-} from "@maximal/maximal-model-contract"
+export {
+  dispatchSystemOneHttpProvider,
+  type SystemOneHttpProviderConfig,
+  type SystemOneHttpProviderFetch,
+} from "./system-one-http-provider.ts"
+export type * from "@maximal/maximal-model-contract"
 
 /**
  * Trust boundary: profile packages execute in-process with the embedding
@@ -46,5 +33,5 @@ export type {
  * cannot recover timers, listeners, or other ambient resources a plugin leaks
  * outside that scope.
  */
-export const DSH_HOST_TRUST_LIMITATION =
+export const PROVIDER_PLUGIN_HOST_TRUST_LIMITATION =
   "External profile packages are trusted in-process code; resources leaked outside Cordis scope cannot be recovered by the host."

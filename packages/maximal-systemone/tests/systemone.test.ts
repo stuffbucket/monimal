@@ -6,9 +6,9 @@ import {
   SYSTEM_ONE_MAX_QUESTIONS,
   SYSTEM_ONE_METHOD,
   SYSTEM_ONE_PATH,
-  systemOneOperation,
-  systemOneRequestSchema,
-  systemOneResponseSchema,
+  ollamaSystemOneProfile as systemOneOperation,
+  ollamaSystemOneRequestSchema as systemOneRequestSchema,
+  ollamaSystemOneResponseSchema as systemOneResponseSchema,
   type SystemOneRequest,
   type SystemOneResponse,
 } from "../src/index.ts"

@@ -18,6 +18,9 @@ pnpm test            # From monorepo root: isolated affected native tests
 pnpm test -- --all   # From monorepo root: isolated full native graph
 pnpm run test:docker # From the primary checkout: mountless final gate
 
+# Socket-level composition test
+pnpm run e2e:systemone # System One REST API against a local TypeSafe fixture
+
 # Aggregates
 bun run check:fast   # lint:fast + typecheck + lint:all (the per-edit inner loop)
 pnpm check           # From monorepo root: build, type, lint, and affected tests
@@ -41,7 +44,7 @@ arbitrary test paths.
 `dev`, `build`, and `start` all begin at `src/main.ts`, the package-owned
 composition entry. `dev` is a watched CLI runner, so it requires a CLI
 subcommand such as `start`. The composition invokes `@maximal/maximal-core`'s
-public CLI and may supply the generic DSH provider host and built-in
+public CLI and may supply the generic provider plugin host and built-in
 configurators; routing and engine behavior remain in Core, and concrete
 providers remain external profile packages.
 

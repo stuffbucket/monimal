@@ -4,7 +4,10 @@ import type {
   LlmProviderInfo,
   StreamChunk,
 } from "@deepseek-ai/dsh-llm"
-import type { LocalModelControl } from "@maximal/maximal-model-contract"
+import type {
+  LocalModelControl,
+  ModelTopologyService,
+} from "@maximal/maximal-model-contract"
 
 import type {
   ActivationSnapshot,
@@ -12,6 +15,7 @@ import type {
   ResolvedProfile,
 } from "./profile.ts"
 
+import { ModelTopologyRegistry } from "./model-topology.ts"
 import {
   currentPackageFingerprint,
   profileValidationFailure,
@@ -27,6 +31,7 @@ interface ContextLike {
   plugin(plugin: unknown, config?: unknown): FiberLike
   get(name: string): unknown
   on(name: string, listener: () => void): () => void
+  provide(name: string, value: unknown): () => void
   readonly llm?: LlmRuntimeLike
 }
 
@@ -75,8 +80,9 @@ interface GenuinePluginModule {
   readonly apply: (context: unknown, config: unknown) => unknown
 }
 
-export interface CordisRuntimeFacade {
+export interface ProviderPluginRuntime {
   readonly localModels?: LocalModelControl | undefined
+  readonly modelTopology: ModelTopologyService
   listProviders(): ReadonlyArray<LlmProviderInfo>
   listModels(provider: string): Promise<ReadonlyArray<LlmModelInfo>>
   stream(options: GenerateOptions): AsyncIterable<StreamChunk>
@@ -235,22 +241,25 @@ function localModelControl(value: unknown): LocalModelControl | undefined {
   return value as LocalModelControl
 }
 
-class RuntimeAggregate implements CordisRuntimeFacade {
+class RuntimeAggregate implements ProviderPluginRuntime {
   readonly localModels: LocalModelControl | undefined
+  readonly modelTopology: ModelTopologyService
   readonly #context: ContextLike
   readonly #llm: LlmRuntimeLike
   readonly #disposers: Array<() => void | Promise<void>>
   #disposePromise: Promise<void> | undefined
 
-  constructor(
-    context: ContextLike,
-    llm: LlmRuntimeLike,
-    disposers: Array<() => void | Promise<void>>,
-  ) {
-    this.#context = context
-    this.#llm = llm
-    this.#disposers = disposers
-    this.localModels = localModelControl(context.get("localModels"))
+  constructor(options: {
+    readonly context: ContextLike
+    readonly disposers: Array<() => void | Promise<void>>
+    readonly llm: LlmRuntimeLike
+    readonly modelTopology: ModelTopologyService
+  }) {
+    this.#context = options.context
+    this.#llm = options.llm
+    this.#disposers = options.disposers
+    this.localModels = localModelControl(options.context.get("localModels"))
+    this.modelTopology = options.modelTopology
   }
 
   listProviders(): ReadonlyArray<LlmProviderInfo> {
@@ -305,7 +314,7 @@ export async function createCordisRuntime(
   profile: ResolvedProfile,
   activation: ActivationSnapshot,
   hooks: CordisRuntimeHooks | ((module: ResolvedPackage) => void) = {},
-): Promise<CordisRuntimeFacade> {
+): Promise<ProviderPluginRuntime> {
   const onImport =
     typeof hooks === "function" ? hooks : (hooks.onImport ?? (() => undefined))
   const onDisposalFailure =
@@ -325,8 +334,12 @@ export async function createCordisRuntime(
       "LLM runtime constructor is unavailable.",
     )
   const context = new Cordis.Context()
+  const modelTopology = new ModelTopologyRegistry()
+  const removeModelTopology = context.provide("modelTopology", modelTopology)
   const disposers: Array<() => void | Promise<void>> = [
     () => context.fiber.dispose(),
+    () => modelTopology.dispose(),
+    removeModelTopology,
   ]
   try {
     const llmFiber = context.plugin(LlmRuntime)
@@ -344,7 +357,7 @@ export async function createCordisRuntime(
         "The mounted LLM runtime did not provide the llm service.",
       )
     }
-    const services = new Set(["llm"])
+    const services = new Set(["llm", "modelTopology"])
     for (const service of profile.services) {
       const namespace = await importAbsoluteModule(service.module, onImport)
       const plugin = genuinePlugin(namespace, service.module.name)
@@ -370,7 +383,7 @@ export async function createCordisRuntime(
       await fiber.await()
       disposers.push(() => fiber.dispose())
     }
-    return new RuntimeAggregate(context, llm, disposers)
+    return new RuntimeAggregate({ context, disposers, llm, modelTopology })
   } catch (error) {
     let disposalFailed = false
     for (const dispose of disposers.reverse()) {

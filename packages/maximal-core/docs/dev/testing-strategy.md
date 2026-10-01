@@ -162,9 +162,9 @@ derived.
 After admission, `tests/test-setup.ts` runs before product modules:
 
 1. It creates one fresh temporary root per Bun worker and unconditionally places
-   both `COPILOT_API_HOME` and `CLAUDE_CONFIG_DIR` beneath it. Inherited values
+   both `MAXIMAL_HOME` and `CLAUDE_CONFIG_DIR` beneath it. Inherited values
    never win. The Maximal home is created first and uses
-   `COPILOT_API_HOME_POLICY=require`, so a typo cannot silently create or select
+   `MAXIMAL_HOME_POLICY=require`, so a typo cannot silently create or select
    another home.
 2. `consola.level` is reset to Info (3) before every test, because some tests
    raise verbosity and otherwise leak flooding debug output into later tests.
@@ -280,7 +280,7 @@ order from the guarded run.
 **Mitigations, in order of strength:**
 
 - **Durable fix: don't mock a shared module across files.** Prefer the **real**
-  module — the preload redirects `COPILOT_API_HOME` to a temp dir and
+  module — the preload redirects `MAXIMAL_HOME` to a temp dir and
   `getClaudeCodeSettingsPath()` honors `CLAUDE_CONFIG_DIR`, so config/settings
   round-trips are already isolated — or **injectable function options**
   (`__setServeForTests`, `__setBootSecretsForTests`). Only stub a module with no
