@@ -62,6 +62,25 @@ void test("normalizes TypeSafe model discovery for the provider gateway", async 
   })
 })
 
+void test("normalizes long runs of trailing base URL slashes", async () => {
+  let requestedUrl: string | undefined
+  await dispatchSystemOneHttpProvider(
+    {
+      ...config,
+      baseUrl: `https://api.typesafe.ai${"/".repeat(100_000)}`,
+    },
+    dispatch("models"),
+    (input) => {
+      if (typeof input === "string") requestedUrl = input
+      else if (input instanceof URL) requestedUrl = input.href
+      else requestedUrl = input.url
+      return Promise.resolve(Response.json({ models: [] }))
+    },
+  )
+
+  assert.equal(requestedUrl, "https://api.typesafe.ai/v1/models")
+})
+
 void test("forwards System One inference without accepting caller credentials", async () => {
   let request: Request | undefined
   const body = JSON.stringify({ model: "jev-latest", state: "test" })

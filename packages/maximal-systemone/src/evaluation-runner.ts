@@ -63,6 +63,12 @@ const tagsResponseSchema = z.looseObject({
   ),
 })
 
+function withoutTrailingSlashes(value: string): string {
+  let end = value.length
+  while (end > 0 && value.codePointAt(end - 1) === 47) end -= 1
+  return value.slice(0, end)
+}
+
 export function assertOllamaIdentity(
   versionValue: unknown,
   tagsValue: unknown,
@@ -103,7 +109,7 @@ export async function verifyOllamaIdentity(
   tag: EvaluationModelTag,
   fetcher: typeof fetch = fetch,
 ): Promise<OllamaIdentity> {
-  const base = baseUrl.replace(/\/+$/, "")
+  const base = withoutTrailingSlashes(baseUrl)
   const [versionResponse, tagsResponse] = await Promise.all([
     fetcher(`${base}/api/version`),
     fetcher(`${base}/api/tags`),
@@ -192,7 +198,7 @@ async function evaluateBatch(
   let response: Response
   try {
     response = await (options.fetcher ?? fetch)(
-      `${options.baseUrl.replace(/\/+$/, "")}/v1/systemone`,
+      `${withoutTrailingSlashes(options.baseUrl)}/v1/systemone`,
       {
         method: "POST",
         headers: { "content-type": "application/json" },

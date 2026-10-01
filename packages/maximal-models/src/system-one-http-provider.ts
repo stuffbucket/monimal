@@ -18,8 +18,14 @@ export type SystemOneHttpProviderFetch = (
 
 const jsonHeaders = { "content-type": SYSTEM_ONE_MEDIA_TYPE }
 
+function withoutTrailingSlashes(value: string): string {
+  let end = value.length
+  while (end > 0 && value.codePointAt(end - 1) === 47) end -= 1
+  return value.slice(0, end)
+}
+
 function endpoint(baseUrl: string, path: string): string {
-  return `${baseUrl.replace(/\/+$/u, "")}${path}`
+  return `${withoutTrailingSlashes(baseUrl)}${path}`
 }
 
 function authorizedHeaders(

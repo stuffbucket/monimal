@@ -21,6 +21,7 @@ import {
   selectRegressionLabel,
   systemOneRegressionCorpusSha256,
   validateRegressionBaseline,
+  verifyOllamaIdentity,
   wilson95,
   type RegressionAnswer,
   type RegressionBaseline,
@@ -469,6 +470,46 @@ void test("CLI parsing and Ollama identity guard are network-free", () => {
       ),
     )
   }
+})
+
+void test("Ollama identity URLs normalize long trailing slash runs", async () => {
+  const expected = OLLAMA_EVALUATION_MODELS["tev1:0.8b"]
+  const requestedUrls: Array<string> = []
+  const identity = await verifyOllamaIdentity(
+    `${OLLAMA_DEFAULT_BASE_URL}${"/".repeat(100_000)}`,
+    expected.tag,
+    (input) => {
+      let url: string
+      if (typeof input === "string") url = input
+      else if (input instanceof URL) url = input.href
+      else url = input.url
+      requestedUrls.push(url)
+      if (url.endsWith("/api/version")) {
+        return Promise.resolve(Response.json({ version: "0.35.0" }))
+      }
+      return Promise.resolve(
+        Response.json({
+          models: [
+            {
+              name: expected.tag,
+              digest: expected.digest,
+              details: {
+                family: expected.architecture,
+                quantization_level: expected.quantization,
+                parameter_size: expected.parameterSize,
+              },
+            },
+          ],
+        }),
+      )
+    },
+  )
+
+  assert.equal(identity.model.digest, expected.digest)
+  assert.deepEqual(requestedUrls, [
+    `${OLLAMA_DEFAULT_BASE_URL}/api/version`,
+    `${OLLAMA_DEFAULT_BASE_URL}/api/tags`,
+  ])
 })
 
 void test("committed baselines strictly validate and replay offline", async () => {
