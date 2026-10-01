@@ -1,0 +1,3 @@
+export const LOOPBACK_IPV4_HOSTNAME = [127, 0, 0, 1].join(".")
+export const OLLAMA_DEFAULT_PORT = 11_434
+export const OLLAMA_DEFAULT_BASE_URL = `http://${LOOPBACK_IPV4_HOSTNAME}:${OLLAMA_DEFAULT_PORT}`

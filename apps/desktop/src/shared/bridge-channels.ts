@@ -78,6 +78,9 @@ export const BRIDGE_CHANNELS = {
   appearanceSetBackgroundEffects: 'maximal:native/appearance-set-background-effects',
   appearanceSetReducedMotion: 'maximal:native/appearance-set-reduced-motion',
   appearanceChanged: 'maximal:native/appearance-changed',
+  materialGet: 'maximal:native/material-get',
+  materialSet: 'maximal:native/material-set',
+  materialChanged: 'maximal:native/material-changed',
   projectsSnapshot: 'maximal:projects/snapshot',
   projectsSearch: 'maximal:projects/search',
   projectsAddRoot: 'maximal:projects/add-root',
@@ -141,6 +144,8 @@ export const INVOKE_CHANNELS = [
   BRIDGE_CHANNELS.appearanceSetVibrancy,
   BRIDGE_CHANNELS.appearanceSetBackgroundEffects,
   BRIDGE_CHANNELS.appearanceSetReducedMotion,
+  BRIDGE_CHANNELS.materialGet,
+  BRIDGE_CHANNELS.materialSet,
   BRIDGE_CHANNELS.projectsSnapshot,
   BRIDGE_CHANNELS.projectsSearch,
   BRIDGE_CHANNELS.projectsAddRoot,
@@ -241,6 +246,7 @@ export const INVOKE_CHANNELS = [
 
 export const EVENT_CHANNELS = [
   BRIDGE_CHANNELS.appearanceChanged,
+  BRIDGE_CHANNELS.materialChanged,
   BRIDGE_CHANNELS.lifecycleChanged,
   BRIDGE_CHANNELS.shutdownChanged,
   BRIDGE_CHANNELS.controlChanged,

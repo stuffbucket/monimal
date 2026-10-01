@@ -182,6 +182,32 @@ export interface AppearancePreference {
   reducedMotionEnabled: boolean
 }
 
+export const MATERIAL_PRESET_VALUES = [
+  'clouds',
+  'acrylic',
+  'paper',
+  'cloth',
+  'marble',
+  'water',
+  'cel-sky',
+  'halftone',
+  'ink-wash',
+  'stardust',
+] as const
+
+export type MaterialPreset = (typeof MATERIAL_PRESET_VALUES)[number]
+export type MaterialQuality = 'battery' | 'balanced' | 'high'
+export type MaterialLighting = 'fixed' | 'timezone'
+
+export interface PersistedMaterialPreference {
+  preset: MaterialPreset
+  quality: MaterialQuality
+  strength: number
+  motion: number
+  lighting: MaterialLighting
+  timezone: string
+}
+
 export interface OllamaRuntimePreferences {
   start_on_maximal_launch: boolean
   cloud_disabled: boolean
@@ -314,6 +340,15 @@ export interface MaximalHost {
     setBackgroundEffectsEnabled: (enabled: boolean) => Promise<AppearancePreference>
     setReducedMotionEnabled: (enabled: boolean) => Promise<AppearancePreference>
     onChange: (listener: (preference: AppearancePreference) => void) => Unsubscribe
+  }
+  material: {
+    get: () => Promise<PersistedMaterialPreference>
+    set: (
+      preference: PersistedMaterialPreference,
+    ) => Promise<PersistedMaterialPreference>
+    onChange: (
+      listener: (preference: PersistedMaterialPreference) => void,
+    ) => Unsubscribe
   }
   projects: {
     snapshot: () => Promise<ProjectCatalogSnapshot>

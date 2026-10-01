@@ -629,6 +629,7 @@ describe('closed IPC boundary', () => {
   it('names every renderer event channel in one closed allowlist', () => {
     expect(EVENT_CHANNELS).toEqual([
       BRIDGE_CHANNELS.appearanceChanged,
+      BRIDGE_CHANNELS.materialChanged,
       BRIDGE_CHANNELS.lifecycleChanged,
       BRIDGE_CHANNELS.shutdownChanged,
       BRIDGE_CHANNELS.controlChanged,

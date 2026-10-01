@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import {
   loadApplicationSettings,
   setBackgroundEffectsEnabled,
+  setMaterialPreference,
   setReducedMotionEnabled,
   setVibrancyEnabled,
 } from './application-settings'
@@ -104,6 +105,12 @@ describe('loadApplicationSettings', () => {
       .toBe(false)
     expect(loadApplicationSettings(directory, context).settings.reducedMotionEnabled)
       .toBe(false)
+    expect(loadApplicationSettings(directory, context).settings)
+      .toMatchObject({
+        materialPreset: 'clouds',
+        materialQuality: 'balanced',
+        materialLighting: 'fixed',
+      })
 
     await writeFile(
       join(directory, 'preferences.json'),
@@ -116,15 +123,39 @@ describe('loadApplicationSettings', () => {
 
   it('persists vibrancy changes in the user settings layer', async () => {
     const directory = await fixture()
+    const material = {
+      preset: 'water',
+      quality: 'high',
+      strength: 1,
+      motion: 0.25,
+      lighting: 'timezone',
+      timezone: 'America/Los_Angeles',
+    } as const
 
     await setVibrancyEnabled(directory, true)
     await setBackgroundEffectsEnabled(directory, true)
     await setReducedMotionEnabled(directory, true)
+    await expect(setMaterialPreference(directory, material))
+      .resolves.toEqual(material)
     expect(loadApplicationSettings(directory).settings).toMatchObject({
       vibrancyEnabled: true,
       backgroundEffectsEnabled: true,
       reducedMotionEnabled: true,
+      materialPreset: 'water',
+      materialQuality: 'high',
+      materialStrength: 1,
+      materialMotion: 0.25,
+      materialLighting: 'timezone',
+      materialTimezone: 'America/Los_Angeles',
     })
+    await expect(setMaterialPreference(directory, {
+      ...material,
+      strength: 2,
+    })).rejects.toThrow()
+    await expect(setMaterialPreference(directory, {
+      ...material,
+      timezone: 'Invalid/Timezone',
+    })).rejects.toThrow()
 
     await setVibrancyEnabled(directory, false)
     expect(loadApplicationSettings(directory).settings.vibrancyEnabled)

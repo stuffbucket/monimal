@@ -1,0 +1,987 @@
+[
+  {
+    "path": "apps/desktop/e2e/packaged-app.spec.ts",
+    "kind": "double-assertion",
+    "count": 1
+  },
+  {
+    "path": "apps/desktop/forge.config.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 2
+  },
+  {
+    "path": "apps/desktop/scripts/build-core.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 1
+  },
+  {
+    "path": "apps/desktop/src/main/adapters/project-catalog.ts",
+    "kind": "double-assertion",
+    "count": 5
+  },
+  {
+    "path": "apps/desktop/src/main/adapters/project-catalog.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 3
+  },
+  {
+    "path": "apps/desktop/src/main/adapters/terminal.test.ts",
+    "kind": "double-assertion",
+    "count": 1
+  },
+  {
+    "path": "packages/local-model-registry/tests/registry.test.ts",
+    "kind": "double-assertion",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-client/src/renderer/appearance.test.ts",
+    "kind": "double-assertion",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-client/src/renderer/frame/AppFrame.test.tsx",
+    "kind": "double-assertion",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-client/src/renderer/ProviderOnboarding.test.tsx",
+    "kind": "double-assertion",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-client/src/renderer/settings/AccountSection.test.tsx",
+    "kind": "double-assertion",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-client/src/renderer/settings/AccountsSection.test.tsx",
+    "kind": "double-assertion",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-client/src/renderer/settings/ConnectionsSection.test.tsx",
+    "kind": "double-assertion",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-client/src/renderer/settings/DiagnosticsSection.test.tsx",
+    "kind": "double-assertion",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-client/src/renderer/settings/general/useAppearancePreference.test.tsx",
+    "kind": "double-assertion",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-client/src/renderer/settings/GeneralSection.test.tsx",
+    "kind": "double-assertion",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-client/src/renderer/settings/LocalModelsSection.test.tsx",
+    "kind": "double-assertion",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-client/src/renderer/settings/ModelsSection.test.tsx",
+    "kind": "double-assertion",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-client/src/renderer/settings/OllamaAccountsSection.test.tsx",
+    "kind": "double-assertion",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-client/src/renderer/settings/SearchSection.test.tsx",
+    "kind": "double-assertion",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-client/src/renderer/useAccountStatus.test.tsx",
+    "kind": "double-assertion",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-client/src/renderer/useTerminalTabs.test.tsx",
+    "kind": "unvalidated-json-parse",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-context-window/tests/architecture.test.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/scripts/analysis/duplicates.ts",
+    "kind": "unvalidated-response-json",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/scripts/dev/e2e-seam.ts",
+    "kind": "unvalidated-response-json",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/scripts/dev/harness/feed.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/scripts/dev/harness/occupant.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/scripts/dev/measure-baseline.ts",
+    "kind": "unvalidated-response-json",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/scripts/dev/win11/paths.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-core/scripts/dev/win11/qga.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/scripts/dev/win11/qmp.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/scripts/dev/win11/tests/diagnose.test.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/scripts/ops/check-bindings.test.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/scripts/ops/check-ci-coverage.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/scripts/ops/watch-external-drift.test.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 3
+  },
+  {
+    "path": "packages/maximal-core/scripts/ops/watch-external-drift.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-core/scripts/sbom.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/src/lib/auth/github-token-store.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/src/lib/host-config/json-resource-set.ts",
+    "kind": "double-assertion",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-core/src/lib/host-config/json-target.ts",
+    "kind": "double-assertion",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-core/src/lib/host-config/runtime-identity.ts",
+    "kind": "unvalidated-response-json",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/src/lib/http/proxy.ts",
+    "kind": "double-assertion",
+    "count": 4
+  },
+  {
+    "path": "packages/maximal-core/src/lib/live/client.ts",
+    "kind": "unvalidated-response-json",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/src/lib/platform/logger.ts",
+    "kind": "double-assertion",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/src/lib/platform/runtime-logger.ts",
+    "kind": "double-assertion",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/src/routes/chat-completions/handler.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/src/routes/messages/api-flows.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 3
+  },
+  {
+    "path": "packages/maximal-core/src/routes/messages/count-tokens-handler.ts",
+    "kind": "unvalidated-response-json",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/src/routes/messages/stream-translation.ts",
+    "kind": "double-assertion",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/src/routes/messages/web-tools/rewriter.ts",
+    "kind": "double-assertion",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/src/routes/messages/web-tools/stream.ts",
+    "kind": "double-assertion",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/src/routes/messages/web-tools/stream.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/src/routes/provider/messages/handler.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/src/routes/provider/messages/handler.ts",
+    "kind": "unvalidated-response-json",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-core/src/routes/responses/handler.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/src/services/copilot/get-models.ts",
+    "kind": "unvalidated-response-json",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/src/services/copilot/upstream-request.ts",
+    "kind": "unvalidated-response-json",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/atomic-json-write.test.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-core/tests/auth-controller.test.ts",
+    "kind": "double-assertion",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/chat-completions-handler.test.ts",
+    "kind": "double-assertion",
+    "count": 3
+  },
+  {
+    "path": "packages/maximal-core/tests/claude-desktop-3p-config.test.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/completion-rejection.test.ts",
+    "kind": "double-assertion",
+    "count": 3
+  },
+  {
+    "path": "packages/maximal-core/tests/configurator-host-runtime.test.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/configurator-install-discovery.test.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/copilot-token-stale.test.ts",
+    "kind": "double-assertion",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/copilot-usage-schema.test.ts",
+    "kind": "double-assertion",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/create-chat-completions.test.ts",
+    "kind": "double-assertion",
+    "count": 3
+  },
+  {
+    "path": "packages/maximal-core/tests/debug-route.test.ts",
+    "kind": "unvalidated-response-json",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/desktop-ipc.test.ts",
+    "kind": "double-assertion",
+    "count": 4
+  },
+  {
+    "path": "packages/maximal-core/tests/device-code-error-body.test.ts",
+    "kind": "double-assertion",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/docs-reference-parity.test.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/forward-error-auth-fatal.test.ts",
+    "kind": "double-assertion",
+    "count": 4
+  },
+  {
+    "path": "packages/maximal-core/tests/get-copilot-token.test.ts",
+    "kind": "double-assertion",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-core/tests/github-token-store.test.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/helpers/configurator-install-probe.ts",
+    "kind": "unvalidated-environment",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/host-config-json-resource-set.test.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/host-config-json-target.test.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/jsonrpc/control-rpc.test.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 3
+  },
+  {
+    "path": "packages/maximal-core/tests/jsonrpc/control-rpc.test.ts",
+    "kind": "unvalidated-response-json",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-core/tests/jsonrpc/dispatch.test.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/jsonrpc/terminal-launch-rpc.test.ts",
+    "kind": "unvalidated-response-json",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/live/control-client.test.ts",
+    "kind": "double-assertion",
+    "count": 3
+  },
+  {
+    "path": "packages/maximal-core/tests/live/control-route.test.ts",
+    "kind": "double-assertion",
+    "count": 3
+  },
+  {
+    "path": "packages/maximal-core/tests/live/control-route.test.ts",
+    "kind": "unvalidated-response-json",
+    "count": 7
+  },
+  {
+    "path": "packages/maximal-core/tests/local-model-control.test.ts",
+    "kind": "unvalidated-response-json",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/logger.test.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-core/tests/main-cli-global-options.test.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/messages-context-management.test.ts",
+    "kind": "double-assertion",
+    "count": 31
+  },
+  {
+    "path": "packages/maximal-core/tests/messages-context-management.test.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/messages-count-tokens-handler.test.ts",
+    "kind": "double-assertion",
+    "count": 3
+  },
+  {
+    "path": "packages/maximal-core/tests/messages-count-tokens-handler.test.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/messages-handler.test.ts",
+    "kind": "double-assertion",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/messages-handler.test.ts",
+    "kind": "unvalidated-response-json",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/messages-preprocess-pipeline.test.ts",
+    "kind": "double-assertion",
+    "count": 11
+  },
+  {
+    "path": "packages/maximal-core/tests/messages-preprocess.test.ts",
+    "kind": "double-assertion",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/messages-request-boundary.test.ts",
+    "kind": "unvalidated-response-json",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-core/tests/model-profile.test.ts",
+    "kind": "double-assertion",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-core/tests/models-wire-route.test.ts",
+    "kind": "unvalidated-response-json",
+    "count": 9
+  },
+  {
+    "path": "packages/maximal-core/tests/normalize-model.test.ts",
+    "kind": "double-assertion",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-core/tests/poll-access-token-cancel.test.ts",
+    "kind": "double-assertion",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-core/tests/poll-access-token.test.ts",
+    "kind": "double-assertion",
+    "count": 5
+  },
+  {
+    "path": "packages/maximal-core/tests/provider-auth.test.ts",
+    "kind": "double-assertion",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/ready-line.test.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-core/tests/refresh-access-token.test.ts",
+    "kind": "double-assertion",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-core/tests/replace-running.test.ts",
+    "kind": "double-assertion",
+    "count": 7
+  },
+  {
+    "path": "packages/maximal-core/tests/request-auth.test.ts",
+    "kind": "double-assertion",
+    "count": 11
+  },
+  {
+    "path": "packages/maximal-core/tests/request-auth.test.ts",
+    "kind": "unvalidated-response-json",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-core/tests/responses-handler.test.ts",
+    "kind": "unvalidated-response-json",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/responses-prompt-cache-retention.test.ts",
+    "kind": "double-assertion",
+    "count": 3
+  },
+  {
+    "path": "packages/maximal-core/tests/responses-prompt-cache-retention.test.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/responses-remove-unsupported-tools.test.ts",
+    "kind": "double-assertion",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/responses-stream-translation.test.ts",
+    "kind": "double-assertion",
+    "count": 3
+  },
+  {
+    "path": "packages/maximal-core/tests/responses-translation.test.ts",
+    "kind": "double-assertion",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/routes/control-settings-endpoints.test.ts",
+    "kind": "unvalidated-response-json",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-core/tests/security/cli-client-regression.test.ts",
+    "kind": "double-assertion",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/security/cli-client-regression.test.ts",
+    "kind": "unvalidated-response-json",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-core/tests/security/origin-guard.test.ts",
+    "kind": "unvalidated-response-json",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/security/shell-key-bypass.test.ts",
+    "kind": "double-assertion",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/security/shell-key-bypass.test.ts",
+    "kind": "unvalidated-response-json",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/send-request.test.ts",
+    "kind": "double-assertion",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/session-sentinel.test.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-core/tests/setup-smoke.test.ts",
+    "kind": "double-assertion",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/setup-status-openapi.test.ts",
+    "kind": "unvalidated-response-json",
+    "count": 6
+  },
+  {
+    "path": "packages/maximal-core/tests/shutdown.test.ts",
+    "kind": "double-assertion",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/small-model.test.ts",
+    "kind": "double-assertion",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/start-multi-account.test.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 3
+  },
+  {
+    "path": "packages/maximal-core/tests/start-multi-account.test.ts",
+    "kind": "unvalidated-response-json",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-core/tests/start-run-server.test.ts",
+    "kind": "double-assertion",
+    "count": 9
+  },
+  {
+    "path": "packages/maximal-core/tests/start-unauthenticated.test.ts",
+    "kind": "unvalidated-response-json",
+    "count": 4
+  },
+  {
+    "path": "packages/maximal-core/tests/stream-boundary-tolerance.test.ts",
+    "kind": "double-assertion",
+    "count": 6
+  },
+  {
+    "path": "packages/maximal-core/tests/stream-boundary-tolerance.test.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-core/tests/stream-malformed-frame.test.ts",
+    "kind": "double-assertion",
+    "count": 3
+  },
+  {
+    "path": "packages/maximal-core/tests/streaming-error-resilience.test.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-core/tests/tee-logger.test.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/token-usage.test.ts",
+    "kind": "unvalidated-response-json",
+    "count": 10
+  },
+  {
+    "path": "packages/maximal-core/tests/uninstall.test.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 3
+  },
+  {
+    "path": "packages/maximal-core/tests/upstream-error-advice.test.ts",
+    "kind": "double-assertion",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-core/tests/utils.test.ts",
+    "kind": "double-assertion",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-core/tests/version-floor-gate.test.ts",
+    "kind": "unvalidated-response-json",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/warmup.test.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/warmup.test.ts",
+    "kind": "unvalidated-response-json",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/web-tools-agent.test.ts",
+    "kind": "double-assertion",
+    "count": 5
+  },
+  {
+    "path": "packages/maximal-core/tests/web-tools-captured-traces.test.ts",
+    "kind": "unvalidated-response-json",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/web-tools-executor.test.ts",
+    "kind": "double-assertion",
+    "count": 3
+  },
+  {
+    "path": "packages/maximal-core/tests/web-tools-rewriter.test.ts",
+    "kind": "double-assertion",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-core/tests/web-tools-stream-error.test.ts",
+    "kind": "double-assertion",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/web-tools-stream-responses.test.ts",
+    "kind": "double-assertion",
+    "count": 3
+  },
+  {
+    "path": "packages/maximal-core/tests/web-tools-stream-responses.test.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-core/tests/web-tools-stream.test.ts",
+    "kind": "double-assertion",
+    "count": 5
+  },
+  {
+    "path": "packages/maximal-core/tests/web-tools-stream.test.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-electron/.storybook/shell-mode.ts",
+    "kind": "unvalidated-environment",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-electron/src/renderer/lib/tab-transfer.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-electron/tests/check-scope.test.ts",
+    "kind": "double-assertion",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-electron/tests/check-scope.test.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-electron/tests/class-names.ts",
+    "kind": "double-assertion",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-electron/tests/component-styles.test.ts",
+    "kind": "double-assertion",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-electron/tests/crash-artifacts.test.ts",
+    "kind": "double-assertion",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-electron/tests/package-exports.test.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 4
+  },
+  {
+    "path": "packages/maximal-electron/tests/peer-table.test.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-electron/tests/portal-container.test.ts",
+    "kind": "double-assertion",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-electron/tests/run-main.test.ts",
+    "kind": "double-assertion",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-electron/tests/shell-layout.test.tsx",
+    "kind": "double-assertion",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-electron/tests/shell-variables.test.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-electron/tests/terminal/pty/resize-reconcile.test.ts",
+    "kind": "double-assertion",
+    "count": 5
+  },
+  {
+    "path": "packages/maximal-github/src/gh.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-harness/tests/verify-exports.test.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-llama-cpp/src/host/llama-protocol.ts",
+    "kind": "double-assertion",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-llama-cpp/src/worker/index.ts",
+    "kind": "double-assertion",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-llama-cpp/tests/architecture.test.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-models/scripts/compiled-bun-entry.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-models/scripts/compiled-bun-import.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-models/src/bridge.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-models/src/cordis-runtime.ts",
+    "kind": "double-assertion",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-models/src/profile.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-models/tests/bridge.test.ts",
+    "kind": "unvalidated-response-json",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-models/tests/host.test.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-models/tests/host.test.ts",
+    "kind": "unvalidated-response-json",
+    "count": 8
+  },
+  {
+    "path": "packages/maximal-models/tests/local-model-control.test.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-models/tests/profile.test.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-observability/tests/architecture.test.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-recording/e2e/demo/edit.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-recording/e2e/demo/encode.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal-recording/e2e/demo/take.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-recording/tests/main.integration.test.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-systemone/tests/evaluation.test.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-systemone/tests/profiles.test.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 4
+  },
+  {
+    "path": "packages/maximal-terminal/src/renderer/useDetachedTerminals.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-terminal/tests/host/terminal-host.test.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-terminal/tests/pty/ownership.test.ts",
+    "kind": "double-assertion",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-terminal/tests/tmux/projection-host.test.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 5
+  },
+  {
+    "path": "packages/maximal-terminal/tests/tmux/projection-owners.test.ts",
+    "kind": "double-assertion",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal/scripts/dev/e2e-terminal-attribution.ts",
+    "kind": "unvalidated-response-json",
+    "count": 2
+  },
+  {
+    "path": "packages/maximal/scripts/sbom.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal/tests/provider-profile-integration.test.ts",
+    "kind": "double-assertion",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal/tests/provider-profile-integration.test.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 2
+  },
+  {
+    "path": "packages/model-runtimes/anthropic/src/config.ts",
+    "kind": "double-assertion",
+    "count": 1
+  },
+  {
+    "path": "packages/model-runtimes/omlx/src/serialize.ts",
+    "kind": "double-assertion",
+    "count": 1
+  }
+]

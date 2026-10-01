@@ -6,6 +6,7 @@ import {
 } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { PersistedMaterialPreference } from '@maximal/maximal-client/shared/host'
 
 const {
   accountStatus,
@@ -125,6 +126,18 @@ vi.mock('@maximal/maximal-client/renderer/settings/capabilities', () => ({
         reducedMotionEnabled: appearanceState.reducedMotionEnabled,
       })),
       onAppearanceChange: vi.fn(() => () => {}),
+      material: vi.fn(async () => ({
+        preset: 'clouds',
+        quality: 'balanced',
+        strength: 0.75,
+        motion: 0.5,
+        lighting: 'fixed',
+        timezone: 'UTC',
+      })),
+      setMaterial: vi.fn(
+        async (preference: PersistedMaterialPreference) => preference,
+      ),
+      onMaterialChange: vi.fn(() => () => {}),
     },
     onOpenRequest: (listener: (sectionId: string | null) => void) => {
       capabilityState.openSettings = listener

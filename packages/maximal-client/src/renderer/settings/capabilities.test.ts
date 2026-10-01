@@ -12,6 +12,7 @@ import type {
   ControlResult,
   LifecycleStatus,
   MaximalHost,
+  PersistedMaterialPreference,
 } from '../../shared/host'
 import { ControlCallError } from '../shared/control-error'
 import {
@@ -213,6 +214,20 @@ function fakeBridge(): MaximalHost {
         backgroundEffectsEnabled: false,
         reducedMotionEnabled: enabled,
       })),
+      onChange: vi.fn(() => () => {}),
+    },
+    material: {
+      get: vi.fn(async () => ({
+        preset: 'clouds' as const,
+        quality: 'balanced' as const,
+        strength: 0.75,
+        motion: 0.5,
+        lighting: 'fixed' as const,
+        timezone: 'UTC',
+      })),
+      set: vi.fn(
+        async (preference: PersistedMaterialPreference) => preference,
+      ),
       onChange: vi.fn(() => () => {}),
     },
     projects: {

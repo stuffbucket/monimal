@@ -3,6 +3,7 @@ import { QueryClientProvider, type QueryClient } from '@tanstack/react-query'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import type { PersistedMaterialPreference } from '../../shared/host'
 import { createMaximalQueryClient } from '../query-client'
 import type { SettingsCapabilities } from './capabilities'
 import { GeneralSection } from './GeneralSection'
@@ -69,6 +70,18 @@ function fakeCapabilities(options?: {
       reducedMotionEnabled: enabled,
     })),
     onAppearanceChange: vi.fn(() => () => {}),
+    material: vi.fn(async () => ({
+      preset: 'clouds' as const,
+      quality: 'balanced' as const,
+      strength: 0.75,
+      motion: 0.5,
+      lighting: 'fixed' as const,
+      timezone: 'UTC',
+    })),
+    setMaterial: vi.fn(
+      async (preference: PersistedMaterialPreference) => preference,
+    ),
+    onMaterialChange: vi.fn(() => () => {}),
     menuBarMode: vi.fn(async () => ({ enabled: false, pending: false })),
     beginMenuBarOnly: vi.fn(async () => ({
       attemptId: 'attempt-1',
@@ -270,7 +283,7 @@ describe('GeneralSection', () => {
   })
 
   it('persists bounded material, quality, motion, and solar controls', async () => {
-    const { capabilities } = fakeCapabilities()
+    const { capabilities, general } = fakeCapabilities()
     const surface = await renderGeneral(capabilities)
 
     expect(
@@ -295,17 +308,20 @@ describe('GeneralSection', () => {
     await act(async () => {
       preset.value = 'water'
       preset.dispatchEvent(new Event('change', { bubbles: true }))
+      await vi.advanceTimersByTimeAsync(0)
     })
     await act(async () => {
       lighting.value = 'timezone'
       lighting.dispatchEvent(new Event('change', { bubbles: true }))
+      await vi.advanceTimersByTimeAsync(0)
     })
 
     expect(surface.querySelector('[data-testid="material-timezone"]')).not.toBeNull()
     expect(surface.querySelector('[data-testid="material-latitude"]')).not.toBeNull()
     expect(surface.querySelector('[data-testid="material-longitude"]')).not.toBeNull()
-    expect(JSON.parse(localStorage.getItem('maximal.material-preference.v1') ?? '{}'))
-      .toMatchObject({ preset: 'water', lighting: 'timezone' })
+    expect(general.setMaterial).toHaveBeenLastCalledWith(
+      expect.objectContaining({ preset: 'water', lighting: 'timezone' }),
+    )
   })
 
   it('disables visual controls while an appearance update is pending', async () => {

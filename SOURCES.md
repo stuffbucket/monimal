@@ -30,6 +30,7 @@ has ended.
 | `packages/maximal-search` | Search connector contract, first-party providers, and provider settings manifest. |
 | `packages/maximal-logging` | Persistent structured runtime logging and log discovery. |
 | `packages/maximal-model-contract` | Runtime-neutral model gateway contract. |
+| `packages/maximal-systemone` | Provider-neutral System One HTTP API contract and runtime schemas. |
 | `packages/maximal-core-contract` | Core's settings wire types and control-plane contract; Core republishes them. |
 | `packages/maximal-models` | Model runtime lifecycle and DSH dispatch. |
 | `packages/maximal-observability-contract` | Traffic schemas and observer interfaces. |
@@ -47,6 +48,20 @@ has ended.
 | --- | --- | --- | --- |
 | Claude, Claude Code, GitHub Copilot, and Codex terminal icons | `lobehub/lobe-icons` | `329f378cbd1a88f45b60cd096b9111ce16f3ea39` | MIT |
 | Maximal terminal icon | `apps/desktop/build/icon.icns` | Workspace-owned | Workspace license |
+
+## API provenance
+
+| Contract | Source | Commit |
+| --- | --- | --- |
+| `packages/maximal-systemone/src/index.ts` | `ollama/ollama` `docs/openapi.yaml` | `1abe35e6e6e777e858bbfbba283667ee8d516801` |
+| `packages/maximal-systemone` TypeSafe profile and Jev oracle | `typesafe-ai/typesafe-sdk-js` | `66880ccded6cb642dc1809620c2b108c33730214` |
+| `packages/maximal-systemone/fixtures/oracles/typesafe-jev-latest.json` | `docs.typesafe.ai` OpenAPI `0.2.0` and quick start | OpenAPI SHA-256 `a191f8a7df6bd6fedced8120dd0fd106f88575d1d1c8360d08900a6c7c0360d5` |
+| `packages/maximal-systemone/fixtures/oracles/ollama-nimble.json` | Ollama `0.35.0`, `nimble:latest` | Model digest `24e550a16a7081881be2f1f0d91e8cc13a597472735c04119f035a0a85c67e0c` |
+| `packages/maximal-systemone/fixtures/oracles/ollama-tev1-0.8b.json` | Ollama `0.35.0`, `tev1:0.8b` | Model digest `d45e875d63fed9465390a4eb9e55f51f470390a446667b55d0a075a15e0336bf` |
+| `packages/maximal-systemone/fixtures/oracles/ollama-tev1-4b.json` | Ollama `0.35.0`, `tev1:4b` | Model digest `cef45ef93cf6df8bf32bdd689b0a8fd01f88ae9034d33ce890c54f77e4cd981e` |
+| `packages/maximal-systemone` Nimble evaluation methodology | `bespokelabsai/nimble` (`public_benchmarks.py`, `evaluate_public.py`, `compare_public.py`, `summarize_public_suite.py`) | `62076b4f2d365b5879dafcf7f6dd072a1fe76df7` |
+| `packages/maximal-systemone` Tev evaluation methodology | `togethercomputer/tev1` (`scripts/evaluate.py`) | `1dde7782382c9f49d627153759b8d1deab426ce0` |
+| `packages/maximal-systemone/fixtures/evaluation` | Project-authored 600-decision corpus; live Ollama `0.35.0` captures | Corpus SHA-256 `557a91a7278fa31a37ee56b99603843e5e87b8502a071eea33c345122c73cb28` |
 
 ## Rules
 
@@ -82,6 +97,7 @@ Both are monorepo-native;
 | Docker dependency images MUST verify tool versions, URLs, and checksums from `mise.lock`. | `Dockerfile`, Docker policy tests. |
 | Docker dependency builds MUST use the dedicated `monimal-test` builder; cleanup MUST remain builder-scoped. | Docker scripts and policy tests. |
 | Network literals MUST be scanned in executable, test, and machine configuration files; the baseline is down-only. | `check-network-literals.mjs`, `network-literals-baseline.json`. |
+| Unsafe TypeScript assertions MUST warn through the shared ESLint config; the workspace baseline is down-only. | `unsafe-type-assertions.js`, `check-unsafe-type-assertions.mjs`, `unsafe-type-assertions-baseline.json`. |
 
 ## Lockfile integrity
 
@@ -101,6 +117,7 @@ Both are monorepo-native;
 | `maximal-electron` | Uses the workspace mutation runner for changed-line and explicit local scopes, cached edit loops, and fresh complete or sharded audits. |
 | `maximal-electron` | `TextInput` owns the token-based active-service treatment, the Radix-backed `Slider` owns its track, detents, labels, and thumb geometry, settings action rows and divider behavior live with the shared settings components, and `ModelCardGrid` owns provider adornments, disabled-provider activation, and model-action placement so consumers do not recreate those controls. |
 | `maximal-electron` / `apps/desktop` | Profile avatars accept authenticated HTTPS image URLs in the desktop renderer and fall back to account initials when an image cannot load; the signed-out profile identity invokes the consumer-owned account setup action. |
+| `maximal-systemone` | The evaluation corpus and fixtures are project-authored internal regression material; no upstream harness code or restricted benchmark text is copied, and results MUST NOT be described as upstream benchmark equivalence. |
 | Workspace | `@maximal/eslint-config` owns the shared ESLint configuration and enforced rule sets. |
 | Workspace | `architecture-analysis.json` owns package coverage, the declared workspace dependency tree (`dependsOn`), external-package deny rules, and non-Core architecture baselines. |
 | `maximal-settings` | The pnpm bootstrap hook MUST load its dependency-policy source before workspace packages are installed; installed consumers MUST use the exported entry point. |

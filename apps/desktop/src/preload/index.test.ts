@@ -47,6 +47,7 @@ describe('preload bridge allowlist', () => {
       'licenses',
       'localModels',
       'logs',
+      'material',
       'menuBarMode',
       'ollamaRuntime',
       'onCoreStatus',
@@ -67,6 +68,11 @@ describe('preload bridge allowlist', () => {
       'setBackgroundEffectsEnabled',
       'setReducedMotionEnabled',
       'setVibrancyEnabled',
+    ])
+    expect(Object.keys(bridge.material).sort()).toEqual([
+      'get',
+      'onChange',
+      'set',
     ])
     expect(Object.keys(bridge.licenses).sort()).toEqual(['text'])
     expect(Object.keys(bridge.browser).sort()).toEqual([
@@ -289,6 +295,15 @@ describe('preload bridge allowlist', () => {
     await bridge.appearance.setVibrancyEnabled(true)
     await bridge.appearance.setBackgroundEffectsEnabled(true)
     await bridge.appearance.setReducedMotionEnabled(true)
+    await bridge.material.get()
+    await bridge.material.set({
+      preset: 'water',
+      quality: 'high',
+      strength: 1,
+      motion: 0.25,
+      lighting: 'timezone',
+      timezone: 'UTC',
+    })
     await bridge.harness.show()
     await bridge.harness.hide()
     await bridge.harness.provider()
@@ -406,6 +421,18 @@ describe('preload bridge allowlist', () => {
       [BRIDGE_CHANNELS.appearanceSetVibrancy, true],
       [BRIDGE_CHANNELS.appearanceSetBackgroundEffects, true],
       [BRIDGE_CHANNELS.appearanceSetReducedMotion, true],
+      [BRIDGE_CHANNELS.materialGet],
+      [
+        BRIDGE_CHANNELS.materialSet,
+        {
+          preset: 'water',
+          quality: 'high',
+          strength: 1,
+          motion: 0.25,
+          lighting: 'timezone',
+          timezone: 'UTC',
+        },
+      ],
       [BRIDGE_CHANNELS.harnessShow],
       [BRIDGE_CHANNELS.harnessHide],
       [BRIDGE_CHANNELS.harnessProvider],
@@ -509,6 +536,30 @@ describe('preload bridge allowlist', () => {
     unsubscribe()
     expect(on).toHaveBeenCalledWith(BRIDGE_CHANNELS.appearanceChanged, handler)
     expect(off).toHaveBeenCalledWith(BRIDGE_CHANNELS.appearanceChanged, handler)
+  })
+
+  it('wraps material changes and removes only its own listener', () => {
+    const listener = vi.fn()
+    const unsubscribe = bridge.material.onChange(listener)
+    const handler = on.mock.calls[0]?.[1] as (
+      event: unknown,
+      preference: unknown,
+    ) => void
+    const preference = {
+      preset: 'water',
+      quality: 'high',
+      strength: 1,
+      motion: 0.25,
+      lighting: 'timezone',
+      timezone: 'UTC',
+    }
+
+    handler({ raw: 'electron-event' }, preference)
+    expect(listener).toHaveBeenCalledWith(preference)
+
+    unsubscribe()
+    expect(on).toHaveBeenCalledWith(BRIDGE_CHANNELS.materialChanged, handler)
+    expect(off).toHaveBeenCalledWith(BRIDGE_CHANNELS.materialChanged, handler)
   })
 
   it('wraps local model events and removes only its own listener', () => {

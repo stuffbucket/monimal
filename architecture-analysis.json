@@ -149,6 +149,14 @@
       "cycleEdges": [],
       "duplicatePairs": []
     },
+    "@maximal/maximal-systemone": {
+      "root": "packages/maximal-systemone",
+      "dependsOn": [
+        "@maximal/eslint-config"
+      ],
+      "cycleEdges": [],
+      "duplicatePairs": []
+    },
     "@maximal/maximal-core-contract": {
       "root": "packages/maximal-core-contract",
       "dependsOn": [

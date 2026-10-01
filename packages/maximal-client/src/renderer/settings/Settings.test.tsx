@@ -11,6 +11,7 @@ import {
   DEFAULT_SETTINGS_SECTION_ID,
   SETTINGS_SECTIONS,
 } from '../../shared/settings-sections'
+import type { PersistedMaterialPreference } from '../../shared/host'
 import { AppFrame, PRODUCT_TABS } from '../frame/AppFrame'
 import { MaximalQueryProvider } from '../query-client'
 import type { SettingsCapabilities } from './capabilities'
@@ -124,6 +125,18 @@ function fakeCapabilities(): SettingsCapabilities {
         reducedMotionEnabled: enabled,
       })),
       onAppearanceChange: vi.fn(() => () => {}),
+      material: vi.fn(async () => ({
+        preset: 'clouds' as const,
+        quality: 'balanced' as const,
+        strength: 0.75,
+        motion: 0.5,
+        lighting: 'fixed' as const,
+        timezone: 'UTC',
+      })),
+      setMaterial: vi.fn(
+        async (preference: PersistedMaterialPreference) => preference,
+      ),
+      onMaterialChange: vi.fn(() => () => {}),
       menuBarMode: vi.fn(async () => ({ enabled: false, pending: false })),
       beginMenuBarOnly: vi.fn(async () => ({ attemptId: 'attempt-1', deadlineMs: 1 })),
       confirmMenuBarOnly: vi.fn(async () => ({ enabled: true, pending: false })),

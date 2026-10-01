@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "id": "support-ticket-mixed",
+  "profile": "ollama",
+  "source": {
+    "kind": "live-capture",
+    "ollama_version": "0.35.0",
+    "api_spec_commit": "1abe35e6e6e777e858bbfbba283667ee8d516801",
+    "api_spec_sha256": "9e7dac7361a9159310e265b56a2505933b446b61ef34053cd76ce97e4ad723f1",
+    "requested_model": "tev1:4b",
+    "resolved_model": "tev1:4b",
+    "model_tag": "tev1:4b",
+    "model_digest": "cef45ef93cf6df8bf32bdd689b0a8fd01f88ae9034d33ce890c54f77e4cd981e",
+    "model_size": 4482415847,
+    "response_sha256": "cd181003767bb044bfe0158521f97bab63d800054f0f5bb9bebde5d56ea601be",
+    "repeat_capture": "exact",
+    "recorded_at": "2026-09-30T20:55:00Z"
+  },
+  "request": {
+    "state": "Hi, I've been trying to connect my Stripe account for 3 days and the integration keeps failing. I'm losing sales. Please help ASAP.",
+    "model": "tev1:4b",
+    "questions": {
+      "department": {
+        "type": "choice",
+        "instructions": "Which team should handle this",
+        "criteria": {
+          "billing": "Payment or subscription issues",
+          "technical": "Bugs or integration problems",
+          "sales": "Pricing or account questions"
+        }
+      },
+      "frustration": {
+        "type": "score",
+        "instructions": "How frustrated the customer appears",
+        "criteria": [
+          "Calm, just stating facts",
+          "Frustrated but civil",
+          "Very angry, strong language"
+        ]
+      },
+      "is_urgent": {
+        "type": "noul",
+        "instructions": "The message conveys urgency or time-sensitivity"
+      }
+    }
+  },
+  "response": {
+    "model": "tev1:4b",
+    "answers": {
+      "department": {
+        "type": "choice",
+        "choice": "technical",
+        "probabilities": {
+          "billing": 0.03458382662745332,
+          "technical": 0.960652360262827,
+          "sales": 0.004763813109719701
+        },
+        "confidence": 0.8358050089037106
+      },
+      "frustration": {
+        "type": "score",
+        "score": 1.4146080972236548,
+        "legend": {
+          "0": "Calm, just stating facts",
+          "1": "Frustrated but civil",
+          "2": "Very angry, strong language"
+        },
+        "probabilities": {
+          "0": 0.007939889344111785,
+          "1": 0.5695121240881217,
+          "2": 0.4225479865677665
+        },
+        "confidence": 0.3418767539480323
+      },
+      "is_urgent": {
+        "type": "noul",
+        "noul": 0.958285633172519
+      }
+    },
+    "usage": {
+      "input_tokens": 814,
+      "output_tokens": 4
+    }
+  }
+}

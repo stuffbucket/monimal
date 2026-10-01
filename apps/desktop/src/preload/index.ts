@@ -90,6 +90,12 @@ const bridge = {
       ipcRenderer.invoke(BRIDGE_CHANNELS.appearanceSetReducedMotion, enabled),
     onChange: (listener) => subscribe(BRIDGE_CHANNELS.appearanceChanged, listener),
   },
+  material: {
+    get: () => ipcRenderer.invoke(BRIDGE_CHANNELS.materialGet),
+    set: (preference) =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.materialSet, preference),
+    onChange: (listener) => subscribe(BRIDGE_CHANNELS.materialChanged, listener),
+  },
   projects: {
     snapshot: () => ipcRenderer.invoke(BRIDGE_CHANNELS.projectsSnapshot),
     search: (query, limit) => ipcRenderer.invoke(BRIDGE_CHANNELS.projectsSearch, query, limit),

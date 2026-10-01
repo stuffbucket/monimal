@@ -1,7 +1,8 @@
-import { useEffect, useState, type ReactElement } from 'react'
+import { useState, type ReactElement } from 'react'
 
 import {
   FormField,
+  Note,
   Select,
   Slider,
   TextInput,
@@ -9,14 +10,12 @@ import {
 
 import {
   MATERIAL_PRESETS,
-  readMaterialPreference,
-  saveMaterialPreference,
-  subscribeMaterialPreference,
   type MaterialLighting,
   type MaterialPreference,
   type MaterialPreset,
   type MaterialQuality,
 } from '../../material-preference'
+import type { useMaterialPreference } from '../../useMaterialPreference'
 
 const TIMEZONE_OPTIONS = [
   'UTC',
@@ -122,20 +121,22 @@ function SolarLocationSettings({
   )
 }
 
+interface MaterialSettingsProps {
+  disabled: boolean
+  preference: ReturnType<typeof useMaterialPreference>
+}
+
 export function MaterialSettings({
   disabled,
-}: {
-  disabled: boolean
-}): ReactElement {
-  const [material, setMaterial] = useState(readMaterialPreference)
-
-  useEffect(() => subscribeMaterialPreference((next) => {
-    setMaterial(next)
-  }), [])
+  preference,
+}: MaterialSettingsProps): ReactElement {
+  const material = preference.state
+  if (material === null) {
+    return <Note live="polite">Loading material preferences…</Note>
+  }
 
   const update = (next: MaterialPreference): void => {
-    saveMaterialPreference(next)
-    setMaterial(next)
+    void preference.set(next)
   }
   const cost = MATERIAL_PRESETS.find(({ value }) => value === material.preset)?.cost
 
@@ -154,7 +155,7 @@ export function MaterialSettings({
                 value,
                 label,
               }))}
-              disabled={disabled}
+              disabled={disabled || preference.busy}
               onChange={(preset) => update({ ...material, preset })}
               aria-label="Background material"
               testId="material-preset"
@@ -174,7 +175,7 @@ export function MaterialSettings({
                 { value: 'balanced', label: 'Balanced' },
                 { value: 'high', label: 'High fidelity' },
               ]}
-              disabled={disabled}
+              disabled={disabled || preference.busy}
               onChange={(quality) => update({ ...material, quality })}
               aria-label="Material quality"
               testId="material-quality"
@@ -189,7 +190,7 @@ export function MaterialSettings({
                 label="Material strength"
                 value={material.strength}
                 options={STRENGTH_OPTIONS}
-                disabled={disabled}
+                disabled={disabled || preference.busy}
                 onChange={(strength) => update({ ...material, strength })}
                 testId="material-strength"
               />
@@ -207,7 +208,7 @@ export function MaterialSettings({
                 label="Material motion"
                 value={material.motion}
                 options={MOTION_OPTIONS}
-                disabled={disabled}
+                disabled={disabled || preference.busy}
                 onChange={(motion) => update({ ...material, motion })}
                 testId="material-motion"
               />
@@ -226,7 +227,7 @@ export function MaterialSettings({
                 { value: 'fixed', label: 'Fixed studio light' },
                 { value: 'timezone', label: 'Date, time, and location' },
               ]}
-              disabled={disabled}
+              disabled={disabled || preference.busy}
               onChange={(lighting) => update({ ...material, lighting })}
               aria-label="Material lighting"
               testId="material-lighting"
@@ -237,7 +238,7 @@ export function MaterialSettings({
           <SolarLocationSettings
             key={`${String(material.latitude)}:${String(material.longitude)}`}
             material={material}
-            disabled={disabled}
+            disabled={disabled || preference.busy}
             update={update}
           />
         ) : null}

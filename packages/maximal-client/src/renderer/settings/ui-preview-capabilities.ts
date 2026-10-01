@@ -378,6 +378,16 @@ export function createPreviewSettingsCapabilities(): SettingsCapabilities {
         reducedMotionEnabled: enabled,
       }),
       onAppearanceChange: () => () => {},
+      material: () => Promise.resolve({
+        preset: 'clouds',
+        quality: 'balanced',
+        strength: 0.75,
+        motion: 0.5,
+        lighting: 'fixed',
+        timezone: 'UTC',
+      }),
+      setMaterial: (preference) => Promise.resolve(preference),
+      onMaterialChange: () => () => {},
       menuBarMode: () => Promise.resolve(menuBarState()),
       beginMenuBarOnly: () => {
         menuBarEnabled = true

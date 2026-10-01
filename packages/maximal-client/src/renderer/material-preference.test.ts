@@ -1,61 +1,19 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 import {
   DEFAULT_MATERIAL_PREFERENCE,
-  parseMaterialPreference,
-  readMaterialPreference,
-  saveMaterialPreference,
   solarLightDirection,
-  subscribeMaterialPreference,
 } from './material-preference'
 
-beforeEach(() => {
-  localStorage.clear()
-})
-
 describe('material preference', () => {
-  it('bounds persisted controls and rejects unknown preset values', () => {
-    expect(parseMaterialPreference({
-      preset: 'unknown',
-      quality: 'high',
-      strength: 4,
-      motion: -2,
-      lighting: 'timezone',
-      timezone: 'America/Los_Angeles',
-      latitude: 120,
-      longitude: -220,
-    })).toEqual({
+  it('provides a complete default preference', () => {
+    expect(DEFAULT_MATERIAL_PREFERENCE).toMatchObject({
       preset: 'clouds',
-      quality: 'high',
-      strength: 1,
-      motion: 0,
-      lighting: 'timezone',
-      timezone: 'America/Los_Angeles',
-      latitude: 90,
-      longitude: -180,
+      quality: 'balanced',
+      lighting: 'fixed',
+      latitude: 0,
+      longitude: 0,
     })
-  })
-
-  it('persists and broadcasts a validated preference', () => {
-    const listener = vi.fn()
-    const unsubscribe = subscribeMaterialPreference(listener)
-    const preference = {
-      ...DEFAULT_MATERIAL_PREFERENCE,
-      preset: 'water' as const,
-      quality: 'battery' as const,
-    }
-
-    saveMaterialPreference(preference)
-
-    expect(readMaterialPreference()).toEqual(preference)
-    expect(localStorage.getItem('maximal.material-preference.v1')).not.toContain(
-      'latitude',
-    )
-    expect(localStorage.getItem('maximal.material-preference.v1')).not.toContain(
-      'longitude',
-    )
-    expect(listener).toHaveBeenCalledWith(preference)
-    unsubscribe()
   })
 })
 
