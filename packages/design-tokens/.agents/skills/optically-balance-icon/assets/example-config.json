@@ -1,0 +1,33 @@
+{
+  "$schema": "./config.schema.json",
+  "role": "workbar",
+  "candidate": {
+    "name": "candidate-icon",
+    "path": "/absolute/path/to/candidate.svg"
+  },
+  "references": [
+    { "name": "reference-1", "path": "/absolute/path/to/reference-1.svg" },
+    { "name": "reference-2", "path": "/absolute/path/to/reference-2.svg" },
+    { "name": "reference-3", "path": "/absolute/path/to/reference-3.svg" },
+    { "name": "reference-4", "path": "/absolute/path/to/reference-4.svg" },
+    { "name": "reference-5", "path": "/absolute/path/to/reference-5.svg" }
+  ],
+  "referenceFamily": "interface",
+  "slots": [16, 24],
+  "densities": [1, 2],
+  "states": [
+    { "name": "normal-light", "foreground": "#24292f", "background": "#ffffff" },
+    { "name": "muted-light", "foreground": "#656d76", "background": "#ffffff" },
+    { "name": "selected-light", "foreground": "#0969da", "background": "#ddf4ff" },
+    { "name": "normal-dark", "foreground": "#f0f6fc", "background": "#0d1117" },
+    { "name": "muted-dark", "foreground": "#8b949e", "background": "#0d1117" }
+  ],
+  "shapeHints": [],
+  "search": {
+    "minimumScale": 0.85,
+    "maximumScale": 1.15,
+    "maximumTranslation": 1,
+    "translationSnap": 0.25
+  }
+}
+

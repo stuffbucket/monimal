@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://maximal.dev/schemas/icon-optical-balance-config.json",
+  "title": "Icon optical balance configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "role",
+    "candidate",
+    "references",
+    "referenceFamily",
+    "slots",
+    "densities",
+    "states"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "role": { "type": "string", "minLength": 1 },
+    "candidate": { "$ref": "#/$defs/icon" },
+    "references": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 10,
+      "items": { "$ref": "#/$defs/icon" }
+    },
+    "referenceFamily": {
+      "type": "string",
+      "enum": ["interface", "brand"]
+    },
+    "slots": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "integer", "minimum": 8, "maximum": 128 }
+    },
+    "densities": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "integer", "enum": [1, 2, 3] }
+    },
+    "states": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "foreground", "background"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "foreground": { "$ref": "#/$defs/color" },
+          "background": { "$ref": "#/$defs/color" }
+        }
+      }
+    },
+    "shapeHints": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "curved",
+          "pointed",
+          "diagonal-heavy",
+          "open",
+          "dense",
+          "asymmetric",
+          "brand"
+        ]
+      },
+      "default": []
+    },
+    "search": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "minimumScale": {
+          "type": "number",
+          "minimum": 0.5,
+          "maximum": 1
+        },
+        "maximumScale": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 2
+        },
+        "maximumTranslation": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 4
+        },
+        "translationSnap": {
+          "type": "number",
+          "enum": [0.125, 0.25, 0.5, 1]
+        }
+      }
+    }
+  },
+  "$defs": {
+    "icon": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "path"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "path": { "type": "string", "minLength": 1 }
+      }
+    },
+    "color": {
+      "type": "string",
+      "pattern": "^#[0-9a-fA-F]{3}([0-9a-fA-F]{3}([0-9a-fA-F]{2})?)?$"
+    }
+  }
+}
+

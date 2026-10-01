@@ -39,3 +39,11 @@ has exact value and name parity with the existing token owners.
 token outliers without requiring a separate validation command. Both Turbo
 tasks MUST hash tracked `apps/**` and `packages/**` sources because the inventory
 is workspace-wide rather than package-local.
+
+## Icon optical balance skill
+
+The
+[optically-balance-icon skill](./.agents/skills/optically-balance-icon/SKILL.md)
+MUST be used to produce reviewable optical scale and translation proposals for
+SVG icons. Generated proposals MUST NOT update token metadata without designer
+approval.
