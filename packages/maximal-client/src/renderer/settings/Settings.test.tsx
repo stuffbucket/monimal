@@ -63,6 +63,22 @@ function fakeCapabilities(): SettingsCapabilities {
       update: vi.fn(),
       testApiKey: vi.fn(),
     },
+    systemOneSettings: {
+      get: vi.fn(async () => ({
+        has_api_key: false,
+        api_key: null,
+        credential_source: 'none' as const,
+        local_provider: 'maximal' as const,
+        ollama_configured: false,
+        model_order: [
+          'nimble',
+          'tev1',
+          'tev1:0.8b',
+        ] as Array<'nimble' | 'tev1' | 'tev1:0.8b'>,
+        fallback_to_local: true,
+      })),
+      update: vi.fn(),
+    },
     ollamaRuntime: {
       status: vi.fn(async () => ({
         installation: 'none' as const,

@@ -67,6 +67,7 @@ import { usageRoute } from "./routes/usage/route"
 import { readRequestedModel } from "./services/providers/model-request"
 import { ProviderModelRouter } from "./services/providers/model-router"
 import { createProviderDispatcher } from "./services/providers/provider-dispatcher"
+import { getSystemOneSettings } from "./services/providers/system-one-settings"
 
 /**
  * The two isolated apps (maximal-core#10).
@@ -314,11 +315,12 @@ export function createServerApps(
     gatewayFactory: options.createProviderGateway,
     readConfig: options.readConfig,
   })
-  const providerModelRouter = new ProviderModelRouter(
-    providerDispatcher,
-    Date.now,
-    () => (options.readConfig ?? getConfig)().ollama?.preferLocalModels ?? true,
-  )
+  const providerModelRouter = new ProviderModelRouter(providerDispatcher, {
+    preferLocal: () =>
+      (options.readConfig ?? getConfig)().ollama?.preferLocalModels ?? true,
+    systemOneSettings: () =>
+      getSystemOneSettings((options.readConfig ?? getConfig)()),
+  })
   const localModelOperations = new LocalModelOperations({
     control: () => providerDispatcher.localModels(),
     hub: getControlHub,
@@ -358,6 +360,8 @@ export function createServerApps(
 
   const modelRoutes = createModelRoutes({
     localModels: () => providerDispatcher.localModels(),
+    modelOrder: () =>
+      getSystemOneSettings((options.readConfig ?? getConfig)()).model_order,
     providerModels: () => providerModelRouter.listAdvertisedModels(),
   })
   const messageRoutes = createMessageRoutes({

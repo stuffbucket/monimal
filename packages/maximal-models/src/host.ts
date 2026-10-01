@@ -1,6 +1,7 @@
 /* eslint-disable max-lines */
 import type {
   LocalModelControl,
+  ModelTopologyService,
   ProviderDiagnostic,
   ProviderDispatch,
   ProviderGateway,
@@ -405,6 +406,10 @@ export class ProviderPluginHost implements ProviderGateway, AsyncDisposable {
 
   get localModels(): LocalModelControl | undefined {
     return this.#active?.runtime.localModels
+  }
+
+  get modelTopology(): ModelTopologyService | undefined {
+    return this.#active?.runtime.modelTopology
   }
 
   getProviderGateway(): ProviderGateway {

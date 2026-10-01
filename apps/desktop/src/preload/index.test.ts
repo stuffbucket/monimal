@@ -124,6 +124,8 @@ describe('preload bridge allowlist', () => {
       'searchProviderValidate',
       'searchSettingsGet',
       'searchSettingsUpdate',
+      'systemOneSettingsGet',
+      'systemOneSettingsUpdate',
       'usageGet',
     ])
     expect(Object.keys(bridge.logs).sort()).toEqual(['coreLocation', 'list', 'location', 'reveal', 'revealCore'])
@@ -254,6 +256,12 @@ describe('preload bridge allowlist', () => {
     await bridge.control.diagnosticsGet()
     await bridge.control.searchSettingsGet()
     await bridge.control.searchSettingsUpdate({ settings: { fallback: false } })
+    await bridge.control.systemOneSettingsGet()
+    await bridge.control.systemOneSettingsUpdate({
+      local_provider: 'maximal',
+      model_order: ['nimble', 'tev1', 'tev1:0.8b'],
+      fallback_to_local: true,
+    })
     await bridge.control.searchProviderValidate({
       providerId: 'ollama',
       settings: { apiKey: 'test-key' },
@@ -370,6 +378,15 @@ describe('preload bridge allowlist', () => {
       [BRIDGE_CHANNELS.diagnosticsGet],
       [BRIDGE_CHANNELS.searchSettingsGet],
       [BRIDGE_CHANNELS.searchSettingsUpdate, { settings: { fallback: false } }],
+      [BRIDGE_CHANNELS.systemOneSettingsGet],
+      [
+        BRIDGE_CHANNELS.systemOneSettingsUpdate,
+        {
+          local_provider: 'maximal',
+          model_order: ['nimble', 'tev1', 'tev1:0.8b'],
+          fallback_to_local: true,
+        },
+      ],
       [
         BRIDGE_CHANNELS.searchProviderValidate,
         { providerId: 'ollama', settings: { apiKey: 'test-key' } },

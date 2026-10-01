@@ -316,6 +316,18 @@ export function createPreviewSettingsCapabilities(): SettingsCapabilities {
       update: unavailable,
       testApiKey: unavailable,
     },
+    systemOneSettings: {
+      get: () => Promise.resolve({
+        has_api_key: false,
+        api_key: null,
+        credential_source: 'none',
+        local_provider: 'maximal',
+        ollama_configured: false,
+        model_order: ['nimble', 'tev1', 'tev1:0.8b'],
+        fallback_to_local: true,
+      }),
+      update: unavailable,
+    },
     ollamaRuntime: {
       status: () =>
         Promise.resolve({

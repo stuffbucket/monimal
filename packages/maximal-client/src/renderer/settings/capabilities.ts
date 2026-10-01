@@ -25,6 +25,8 @@ import type {
   SearchSettingsUpdateRequest,
   SearchProviderValidationRequest,
   SearchProviderValidationResponse,
+  SystemOneSettingsResponse,
+  SystemOneSettingsUpdateRequest,
   TokenUsagePeriod,
   TokenUsageSummary,
 } from '@maximal/maximal-core-contract/settings'
@@ -98,6 +100,8 @@ export type {
   SearchProviderValidationResponse,
   SearchSettingsResponse,
   SearchSettingsUpdateRequest,
+  SystemOneSettingsResponse,
+  SystemOneSettingsUpdateRequest,
   SystemNotificationStatus,
   TokenUsagePeriod,
   TokenUsageSummary,
@@ -127,6 +131,10 @@ export interface SettingsCapabilities {
     get(): Promise<OllamaSettingsResponse>
     update(input: OllamaSettingsUpdateRequest): Promise<OllamaSettingsResponse>
     testApiKey(input: OllamaApiKeyTestRequest): Promise<OllamaApiKeyTestResponse>
+  }
+  systemOneSettings: {
+    get(): Promise<SystemOneSettingsResponse>
+    update(input: SystemOneSettingsUpdateRequest): Promise<SystemOneSettingsResponse>
   }
   general: {
     desktopSettings(): Promise<GeneralDesktopSettings>
@@ -338,6 +346,12 @@ export function createCoreSettingsCapabilities(): SettingsCapabilities {
         unwrapControlResult(await bridge.control.ollamaSettingsUpdate(input)),
       testApiKey: async (input) =>
         unwrapControlResult(await bridge.control.ollamaApiKeyTest(input)),
+    },
+    systemOneSettings: {
+      get: async () =>
+        unwrapControlResult(await bridge.control.systemOneSettingsGet()),
+      update: async (input) =>
+        unwrapControlResult(await bridge.control.systemOneSettingsUpdate(input)),
     },
     general: {
       desktopSettings: () => bridge.generalSettings.get(),

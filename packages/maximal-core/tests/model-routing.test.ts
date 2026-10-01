@@ -15,6 +15,7 @@ import { createServerApps } from "~/server"
 import { ProviderModelRouter } from "~/services/providers/model-router"
 
 const jsonHeaders = { "content-type": "application/json" }
+const testOrigin = "https://maximal.test"
 const noop = (): void => undefined
 const originalGithubToken = state.githubToken
 const originalModels = state.models
@@ -71,8 +72,15 @@ const status = (provider: string): ProviderStatus => ({
   diagnostics: [],
 })
 
+const systemOneStatus = (provider: string): ProviderStatus => ({
+  provider,
+  state: "available",
+  operations: ["models", "systemone"],
+  diagnostics: [],
+})
+
 const request = (model: string): Request =>
-  new Request("http://localhost/v1/messages", {
+  new Request(`${testOrigin}/v1/messages`, {
     method: "POST",
     headers: jsonHeaders,
     body: JSON.stringify({
@@ -130,7 +138,7 @@ describe("Ollama model alias routing", () => {
     const body = { model: "nimble", state: "hello", questions: {} }
 
     const response = await appFor(gateway).request(
-      new Request("http://localhost/v1/systemone", {
+      new Request(`${testOrigin}/v1/systemone`, {
         method: "POST",
         headers: jsonHeaders,
         body: JSON.stringify(body),
@@ -196,7 +204,7 @@ describe("Ollama model alias routing", () => {
       )
 
       const response = await appFor(gateway).request(
-        new Request("http://localhost/v1/systemone", {
+        new Request(`${testOrigin}/v1/systemone`, {
           method: "POST",
           headers: jsonHeaders,
           body: JSON.stringify({
@@ -242,6 +250,107 @@ describe("Ollama model alias routing", () => {
   })
 })
 
+describe("System One fallback routing", () => {
+  test("falls back from TypeSafe to ordered local models", async () => {
+    const gateway = new RoutingGateway(
+      [systemOneStatus("typesafe-jev"), systemOneStatus("ollama")],
+      (dispatch) => {
+        if (dispatch.operation === "models") {
+          return dispatch.provider === "typesafe-jev" ?
+              Response.json({ data: [{ id: "jev-latest" }] })
+            : Response.json({
+                data: [{ id: "nimble" }, { id: "tev1:0.8b" }],
+              })
+        }
+        return dispatch.provider === "typesafe-jev" ?
+            Response.json({ error: "unavailable" }, { status: 503 })
+          : Response.json({ model: "tev1:0.8b", answers: {} })
+      },
+    )
+
+    const response = await appFor(gateway, {
+      systemOne: {
+        fallbackToLocal: true,
+        localProvider: "ollama",
+        modelOrder: ["tev1:0.8b", "nimble", "tev1"],
+      },
+    }).request(
+      new Request(`${testOrigin}/v1/systemone`, {
+        method: "POST",
+        headers: jsonHeaders,
+        body: JSON.stringify({
+          model: "jev-latest",
+          state: "hello",
+          questions: {},
+        }),
+      }),
+    )
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({
+      model: "tev1:0.8b",
+      answers: {},
+    })
+    const attempts = gateway.dispatches.filter(
+      ({ operation }) => operation === "systemone",
+    )
+    expect(attempts.map(({ provider }) => provider)).toEqual([
+      "typesafe-jev",
+      "ollama",
+    ])
+    expect(await attempts[0]?.request.clone().json()).toMatchObject({
+      model: "jev-latest",
+    })
+    expect(await attempts[1]?.request.clone().json()).toMatchObject({
+      model: "tev1:0.8b",
+    })
+  })
+
+  test("does not use local fallback when it is disabled", async () => {
+    const gateway = new RoutingGateway(
+      [systemOneStatus("typesafe-jev"), systemOneStatus("ollama")],
+      (dispatch) =>
+        dispatch.operation === "models" ?
+          Response.json({
+            data: [
+              {
+                id:
+                  dispatch.provider === "typesafe-jev" ?
+                    "jev-latest"
+                  : "nimble",
+              },
+            ],
+          })
+        : Response.json({ error: "unavailable" }, { status: 503 }),
+    )
+
+    const response = await appFor(gateway, {
+      systemOne: {
+        fallbackToLocal: false,
+        localProvider: "ollama",
+        modelOrder: ["nimble", "tev1", "tev1:0.8b"],
+      },
+    }).request(
+      new Request(`${testOrigin}/v1/systemone`, {
+        method: "POST",
+        headers: jsonHeaders,
+        body: JSON.stringify({
+          model: "jev-latest",
+          state: "hello",
+          questions: {},
+        }),
+      }),
+    )
+
+    expect(response.status).toBe(503)
+    expect(
+      gateway.dispatches
+        .filter(({ operation }) => operation === "systemone")
+        .map(({ provider }) => provider),
+    ).toEqual(["typesafe-jev"])
+  })
+})
+
 describe("catalog-driven model routing", () => {
   test.each([
     ["/v1/chat/completions", "chat-completions"],
@@ -261,7 +370,7 @@ describe("catalog-driven model routing", () => {
       )
 
       const response = await appFor(gateway).request(
-        new Request(`http://localhost${path}`, {
+        new Request(`${testOrigin}${path}`, {
           method: "POST",
           headers: jsonHeaders,
           body: JSON.stringify({ model: "qwen3:8b", input: "hello" }),
@@ -286,7 +395,7 @@ describe("catalog-driven model routing", () => {
     )
 
     const response = await appFor(gateway).request(
-      new Request("http://localhost/v1/systemone", {
+      new Request(`${testOrigin}/v1/systemone`, {
         method: "POST",
         headers: jsonHeaders,
         body: JSON.stringify({ state: "hello", questions: {} }),
@@ -309,7 +418,7 @@ describe("catalog-driven model routing", () => {
     )
 
     const response = await appFor(gateway).request(
-      new Request("http://localhost/v1/systemone", {
+      new Request(`${testOrigin}/v1/systemone`, {
         method: "POST",
         headers: jsonHeaders,
         body: JSON.stringify({ model: "copilot-only", questions: {} }),
@@ -336,7 +445,7 @@ describe("catalog-driven model routing", () => {
     )
 
     const response = await appFor(gateway).request(
-      new Request("http://localhost/ollama/v1/systemone", {
+      new Request(`${testOrigin}/ollama/v1/systemone`, {
         method: "POST",
         headers: jsonHeaders,
         body: JSON.stringify({ model: "nimble", questions: {} }),
@@ -370,7 +479,7 @@ describe("catalog-driven model routing", () => {
       })
 
       const response = await appFor(gateway).request(
-        new Request(`http://localhost${path}`, {
+        new Request(`${testOrigin}${path}`, {
           method: "POST",
           headers: jsonHeaders,
           body: JSON.stringify({ model: "nimble", questions: {} }),

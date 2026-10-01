@@ -4,13 +4,17 @@ import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { AuthStatus, SettingsCapabilities } from './capabilities'
+import type {
+  AuthStatus,
+  SettingsCapabilities,
+  SystemOneSettingsUpdateRequest,
+} from './capabilities'
 import { createMaximalQueryClient } from '../query-client'
 import { AccountSection, copilotUsageQueryKey } from './AccountSection'
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 
-const OLLAMA_ENDPOINT = 'http://127.0.0.1:11434'
+const OLLAMA_ENDPOINT = 'https://ollama.test'
 
 let root: Root | null = null
 let container: HTMLElement | null = null
@@ -106,6 +110,26 @@ function fakeCapabilities() {
         restart_required: false,
       })),
       updatePreferences: vi.fn(),
+    },
+    systemOneSettings: {
+      get: vi.fn(async () => ({
+        has_api_key: false,
+        api_key: null,
+        credential_source: 'none' as const,
+        local_provider: 'maximal' as const,
+        ollama_configured: false,
+        model_order: ['nimble', 'tev1', 'tev1:0.8b'] as const,
+        fallback_to_local: true,
+      })),
+      update: vi.fn(async (input: SystemOneSettingsUpdateRequest) => ({
+        has_api_key: input.api_key !== undefined && input.api_key.length > 0,
+        api_key: input.api_key ?? null,
+        credential_source: 'file' as const,
+        local_provider: input.local_provider ?? 'maximal',
+        ollama_configured: false,
+        model_order: input.model_order ?? ['nimble', 'tev1', 'tev1:0.8b'],
+        fallback_to_local: input.fallback_to_local ?? true,
+      })),
     },
     subscribe: vi.fn((listener: () => void) => {
       notify = listener
@@ -248,15 +272,33 @@ describe('AccountSection refresh ownership', () => {
     expect(account.status).toHaveBeenCalledTimes(2)
   })
 
-  it('shows unauthenticated localhost Ollama when no account is set', async () => {
+  it('shows configured model provider accounts', async () => {
     const { capabilities } = fakeCapabilities()
     const surface = await renderAccount(capabilities)
 
     expect(surface.textContent).toContain('Ollama')
     expect(surface.textContent).toContain('Ollama is not responding.')
+    expect(surface.textContent).toContain('Calibrated Decisions')
+    expect(surface.textContent).toContain(
+      'AI system that predicts the probability of an outcome occurring (60% of the time it works every time)',
+    )
+    expect(surface.textContent).toContain('Nimble')
+    expect(surface.textContent).toContain('Tev1 4B')
+    expect(surface.textContent).toContain('Tev1 0.8B')
+    expect(
+      surface.querySelector<HTMLSelectElement>(
+        '[data-testid="system-one-local-provider"]',
+      )?.options,
+    ).toHaveLength(1)
+    expect(
+      surface.querySelector<HTMLElement>(
+        '[data-testid="system-one-local-fallback"]',
+      )?.getAttribute('aria-checked'),
+    ).toBe('true')
     expect([...surface.querySelectorAll('h2')].map((heading) => heading.textContent)).toEqual([
       'GitHub Copilot',
       'Ollama',
+      'System 1',
     ])
     expect(surface.querySelector('h3')?.textContent).toBe('Saved accounts')
   })

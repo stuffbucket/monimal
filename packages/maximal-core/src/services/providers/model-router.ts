@@ -1,3 +1,6 @@
+import type { SystemOneLocalModel } from "@maximal/maximal-core-contract/settings"
+import type { SystemOneSettingsResponse } from "@maximal/maximal-core-contract/settings"
+
 import type { ProviderCatalogueModel } from "~/lib/live/resources"
 import type { ProviderDispatcher } from "~/services/providers/provider-dispatcher"
 
@@ -5,12 +8,30 @@ import { getConfig } from "~/lib/config/config"
 import { HTTPError } from "~/lib/errors/error"
 import { reverseId } from "~/lib/models/anthropic-id-rewrite"
 import { state } from "~/lib/runtime-state/state"
+import { getSystemOneSettings } from "~/services/providers/system-one-settings"
 
 const CATALOG_TTL_MS = 10_000
 
 export type ModelRoute =
   | { readonly kind: "copilot" }
   | { readonly kind: "provider"; readonly provider: string }
+
+export interface SystemOneModelRoute {
+  readonly model: string
+  readonly provider: string
+}
+
+interface ProviderModelRouterOptions {
+  readonly now?: () => number
+  readonly preferLocal?: () => boolean
+  readonly systemOneSettings?: () => SystemOneSettingsResponse
+}
+
+const SYSTEM_ONE_CLOUD_MODELS = new Set([
+  "jev-latest",
+  "jev-preview",
+  "jev-1.13.0",
+])
 
 function matchesProviderModel(
   model: ProviderCatalogueModel,
@@ -28,19 +49,21 @@ export class ProviderModelRouter {
   readonly #dispatcher: ProviderDispatcher
   readonly #now: () => number
   readonly #preferLocal: () => boolean
+  readonly #systemOneSettings: () => SystemOneSettingsResponse
   #catalogue: ReadonlyArray<ProviderCatalogueModel> = []
   #expiresAt = 0
   #loading: Promise<ReadonlyArray<ProviderCatalogueModel>> | undefined
 
   constructor(
     dispatcher: ProviderDispatcher,
-    now: () => number = Date.now,
-    preferLocal: () => boolean = () =>
-      getConfig().ollama?.preferLocalModels ?? true,
+    options: ProviderModelRouterOptions = {},
   ) {
     this.#dispatcher = dispatcher
-    this.#now = now
-    this.#preferLocal = preferLocal
+    this.#now = options.now ?? Date.now
+    this.#preferLocal =
+      options.preferLocal
+      ?? (() => getConfig().ollama?.preferLocalModels ?? true)
+    this.#systemOneSettings = options.systemOneSettings ?? getSystemOneSettings
   }
 
   async listProviderModels(): Promise<ReadonlyArray<ProviderCatalogueModel>> {
@@ -61,7 +84,7 @@ export class ProviderModelRouter {
     const models = (await this.listProviderModels()).filter(
       (model) => model.enabled !== false,
     )
-    return models.filter((model) => {
+    const preferredModels = models.filter((model) => {
       const matches = models.filter((candidate) => candidate.id === model.id)
       const providers = new Set(matches.map((candidate) => candidate.provider))
       if (
@@ -74,6 +97,106 @@ export class ProviderModelRouter {
       const preferred = this.#preferLocal() ? "ollama" : "ollama-cloud"
       return model.provider === preferred
     })
+    const systemOne = this.#systemOneSettings()
+    const rank = new Map(
+      systemOne.model_order.map((model, index) => [model, index]),
+    )
+    const localProviders =
+      systemOne.fallback_to_local ?
+        [
+          systemOne.local_provider,
+          systemOne.local_provider === "maximal" ? "ollama" : "maximal",
+        ]
+      : [systemOne.local_provider]
+    const selectedProviderByModel = new Map(
+      systemOne.model_order.flatMap((model) => {
+        const provider = localProviders.find((candidate) =>
+          preferredModels.some(
+            (offering) =>
+              offering.id === model && offering.provider === candidate,
+          ),
+        )
+        return provider === undefined ? [] : [[model, provider] as const]
+      }),
+    )
+    return preferredModels
+      .filter(
+        (model) =>
+          !rank.has(model.id as SystemOneLocalModel)
+          || model.provider
+            === selectedProviderByModel.get(model.id as SystemOneLocalModel),
+      )
+      .toSorted((left, right) => {
+        const leftRank = rank.get(left.id as SystemOneLocalModel)
+        const rightRank = rank.get(right.id as SystemOneLocalModel)
+        if (leftRank !== undefined && rightRank !== undefined) {
+          return leftRank - rightRank
+        }
+        if (leftRank !== undefined) return -1
+        if (rightRank !== undefined) return 1
+        return left.id.localeCompare(right.id)
+      })
+  }
+
+  async resolveSystemOne(
+    requestedModel: string,
+  ): Promise<ReadonlyArray<SystemOneModelRoute>> {
+    const settings = this.#systemOneSettings()
+    const models = (await this.listProviderModels()).filter(
+      (model) => model.enabled !== false,
+    )
+    const routes: Array<SystemOneModelRoute> = []
+    const append = (model: string, provider: string): void => {
+      if (
+        routes.some(
+          (candidate) =>
+            candidate.model === model && candidate.provider === provider,
+        )
+      ) {
+        return
+      }
+      if (
+        models.some(
+          (candidate) =>
+            matchesProviderModel(candidate, model)
+            && candidate.provider === provider
+            && (candidate.operations === undefined
+              || candidate.operations.includes("systemone")),
+        )
+      ) {
+        routes.push({ model, provider })
+      }
+    }
+
+    const localProviders =
+      settings.fallback_to_local ?
+        [
+          settings.local_provider,
+          settings.local_provider === "maximal" ? "ollama" : "maximal",
+        ]
+      : [settings.local_provider]
+
+    const isCloudModel = SYSTEM_ONE_CLOUD_MODELS.has(requestedModel)
+    const isLocalModel = settings.model_order.includes(
+      requestedModel as SystemOneLocalModel,
+    )
+    if (isCloudModel) {
+      append(requestedModel, "typesafe-jev")
+    } else if (isLocalModel) {
+      for (const provider of localProviders) append(requestedModel, provider)
+    }
+
+    if ((isCloudModel || isLocalModel) && settings.fallback_to_local) {
+      for (const model of settings.model_order) {
+        for (const provider of localProviders) append(model, provider)
+      }
+    }
+    if (routes.length > 0) return routes
+
+    const route = await this.resolve(requestedModel)
+    return route.kind === "provider" ?
+        [{ model: requestedModel, provider: route.provider }]
+      : []
   }
 
   async resolve(requestedModel: string): Promise<ModelRoute> {

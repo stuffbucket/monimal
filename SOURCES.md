@@ -112,6 +112,7 @@ Both are monorepo-native;
 | `maximal-core/downstream` | Declares itself as an independently installed compatibility fixture. |
 | Model packages | Core consumes the side-effect-free model contract; orchestration and concrete runtime adapters remain separate packages. |
 | Model packages | `maximal-model-contract` owns live model-operation names and normalized provider evidence for lifecycle, selection, access, endpoints, limits, capabilities, pricing units, and typed provider details; API wire contracts and released catalog schemas project that vocabulary without becoming runtime authorities. |
+| Model topology | `maximal-model-contract` owns Cordis-independent execution targets binding model IDs to provider/accounts, runners, endpoints, operation adapters, tokenizer evidence, and separately owned intrinsic/effective limits; `maximal-models` mounts the revisioned `modelTopology` Cordis service and binds target registrations to explicit lifetimes. Reviewed catalog facts remain separate from effective execution-target evidence. |
 | `maximal-model-catalog` | Released catalog data is descriptive; local manifests and live provider discovery remain authoritative for runtime behavior, and runtime offering evidence resolves before release-catalog offering values without replacing canonical descriptive facts. |
 | Observability packages | The contract is runtime-neutral; renderer surfaces depend on it, not the reverse. |
 | `model-runtimes/omlx` | Ships as a profile-installed Cordis adapter, not as compiled Core code. |

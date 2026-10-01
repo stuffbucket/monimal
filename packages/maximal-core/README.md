@@ -42,15 +42,17 @@ plane is a second listener on its own ephemeral port**, loopback-only — see
 | `POST /chat/completions`, `/v1/chat/completions` | public | OpenAI-compatible chat completions |
 | `POST /responses`, `/v1/responses` | public | OpenAI Responses API |
 | `POST /embeddings`, `/v1/embeddings` | public | Embeddings |
-| `POST /v1/systemone` | public | Ollama System One decision API |
+| `POST /v1/systemone` | public | Aggregate System One decision API with configured provider fallback |
 | `GET /models`, `/v1/models` | public | Model catalog |
 | `GET /status` | public | Identity + liveness probe (unauthenticated) |
 
-Ollama 0.35 or later serves local decision models through
-`POST /v1/systemone`. Core routes the request by its `model` field or accepts
-an explicit provider through `POST /:provider/v1/systemone`; it does not bundle
-or redistribute model weights. Install supported models with Ollama, for
-example `ollama pull nimble`, `ollama pull tev1`, or
+Core routes `POST /v1/systemone` from catalog evidence. TypeSafe JEV cloud
+models may fall back to the configured Maximal or Ollama local provider and
+the configured local model order; retryable authentication, availability,
+rate-limit, and upstream failures advance to the next route. Provider-qualified
+requests through `POST /:provider/v1/systemone` remain direct. Core does not
+bundle or redistribute model weights. Ollama 0.35 or later can serve the local
+models after `ollama pull nimble`, `ollama pull tev1`, or
 `ollama pull tev1:0.8b`.
 | `GET /` | public | `Server running` identity probe used by port contention |
 | `GET /setup-status`, `/openapi.json` | public | Fresh-install status + its OpenAPI document (unauthenticated) |
@@ -149,6 +151,10 @@ data home_.
 | Wait on rate limit | `--wait` / `-w` | — | — | off |
 | Evict a running instance | `--replace` | — | — | off |
 | Ollama API key | — | `OLLAMA_API_KEY` | `secrets/ollama` | unset |
+| TypeSafe JEV API key | — | `TYPESAFE_API_KEY` | `secrets/typesafe` | unset |
+| System One local provider | — | — | `config.systemOne.localProvider` | `maximal` |
+| System One local model order | — | — | `config.systemOne.modelOrder` | `nimble`, `tev1`, `tev1:0.8b` |
+| System One local fallback | — | — | `config.systemOne.fallbackToLocal` | `true` |
 | Anthropic API key | — | `ANTHROPIC_API_KEY` | `secrets/anthropic` | `config.anthropicApiKey` |
 | GitHub token | `--github-token` / `-g` | — | `app/github_token` | from `auth` flow |
 | App home dir | `--api-home` | `MAXIMAL_HOME` | `settings.home` | `~/.local/share/maximal` |

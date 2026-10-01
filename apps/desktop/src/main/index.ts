@@ -12,6 +12,7 @@ import {
   OllamaApiKeyTestRequest,
   SearchProviderValidationRequest,
   SearchSettingsUpdateRequest,
+  SystemOneSettingsUpdateRequest,
   TokenUsagePeriod,
 } from '@maximal/maximal-core-contract/settings'
 import {
@@ -418,6 +419,16 @@ function registerIpc(
   )
   ipcMain.handle(BRIDGE_CHANNELS.ollamaApiKeyTest, (_event, input: unknown) =>
     session.ollamaApiKeyTest(OllamaApiKeyTestRequest.parse(input)),
+  )
+  ipcMain.handle(BRIDGE_CHANNELS.systemOneSettingsGet, () =>
+    session.systemOneSettingsGet(),
+  )
+  ipcMain.handle(
+    BRIDGE_CHANNELS.systemOneSettingsUpdate,
+    (_event, input: unknown) =>
+      session.systemOneSettingsUpdate(
+        SystemOneSettingsUpdateRequest.parse(input),
+      ),
   )
   ipcMain.handle(
     BRIDGE_CHANNELS.observabilityOverview,

@@ -98,6 +98,7 @@ void test("provider plugin host structurally adapts a conforming localModels ser
     profileDirectory: fixture.directory,
     activation: { fixture: { enabled: false } },
   })
+
   try {
     const control = host.localModels
     assert.ok(control)
@@ -117,6 +118,25 @@ void test("provider plugin host structurally adapts a conforming localModels ser
     await host.dispose()
   }
   assert.equal(host.localModels, undefined)
+})
+
+void test("provider plugin host exposes the Cordis model topology service", async () => {
+  const fixture = await createFixtureProfile()
+  const host = await startProviderPluginHost({
+    profileDirectory: fixture.directory,
+    activation: { fixture: { enabled: false } },
+  })
+  try {
+    const topology = host.modelTopology
+    assert.ok(topology)
+    assert.deepEqual(topology.snapshot(), {
+      revision: 0,
+      targets: [],
+    })
+  } finally {
+    await host.dispose()
+  }
+  assert.equal(host.modelTopology, undefined)
 })
 
 void test("provider plugin host rejects a malformed localModels service without a concrete import", async () => {

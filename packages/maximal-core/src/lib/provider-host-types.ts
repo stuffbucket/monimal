@@ -14,7 +14,8 @@ export interface ProviderCompatibilityModelConfig {
 /**
  * A validated compatibility-provider entry. Missing `type` means `anthropic`
  * and missing `enabled` means enabled, matching Core's legacy semantics.
- * Consumers must reject any explicit type they do not support.
+ * `systemone` entries are direct HTTP operation adapters rather than LLM
+ * stream adapters. Consumers must reject any explicit type they do not support.
  */
 export interface ProviderCompatibilityConfig {
   readonly type?: string

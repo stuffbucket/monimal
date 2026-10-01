@@ -761,6 +761,45 @@ export const OllamaApiKeyTestResponse = z.object({
 })
 export type OllamaApiKeyTestResponse = z.infer<typeof OllamaApiKeyTestResponse>
 
+export const SYSTEM_ONE_LOCAL_MODELS = ["nimble", "tev1", "tev1:0.8b"] as const
+
+export const SystemOneLocalModel = z.enum(SYSTEM_ONE_LOCAL_MODELS)
+export type SystemOneLocalModel = z.infer<typeof SystemOneLocalModel>
+
+export const SystemOneLocalProvider = z.enum(["maximal", "ollama"])
+export type SystemOneLocalProvider = z.infer<typeof SystemOneLocalProvider>
+
+const SystemOneModelOrder = z
+  .array(SystemOneLocalModel)
+  .length(SYSTEM_ONE_LOCAL_MODELS.length)
+  .refine(
+    (models) => new Set(models).size === SYSTEM_ONE_LOCAL_MODELS.length,
+    "System One model order must contain each supported local model exactly once.",
+  )
+
+export const SystemOneSettingsResponse = z.object({
+  has_api_key: z.boolean(),
+  api_key: z.string().nullable().default(null),
+  credential_source: z.enum(["environment", "file", "none"]),
+  local_provider: SystemOneLocalProvider,
+  ollama_configured: z.boolean(),
+  model_order: SystemOneModelOrder,
+  fallback_to_local: z.boolean(),
+})
+export type SystemOneSettingsResponse = z.infer<
+  typeof SystemOneSettingsResponse
+>
+
+export const SystemOneSettingsUpdateRequest = z.object({
+  api_key: z.string().max(4096).optional(),
+  local_provider: SystemOneLocalProvider.optional(),
+  model_order: SystemOneModelOrder.optional(),
+  fallback_to_local: z.boolean().optional(),
+})
+export type SystemOneSettingsUpdateRequest = z.infer<
+  typeof SystemOneSettingsUpdateRequest
+>
+
 /**
  * An API-key entry as managed by Settings → API clients. The key value
  * is returned in full to the local Settings UI — the endpoint is
