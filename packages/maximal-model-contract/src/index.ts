@@ -132,6 +132,410 @@ export interface ProviderModelDescriptor {
   readonly tokenizer?: ModelTokenizerDescriptor
 }
 
+/** How evidence entered the model topology. */
+export type ModelEvidenceMethod =
+  "declared" | "discovered" | "observed" | "derived"
+
+/** The owner of one model-topology fact. */
+export type ModelEvidenceSource =
+  | "catalog"
+  | "configuration"
+  | "manifest"
+  | "provider"
+  | "runner"
+  | "compatibility"
+
+/** Serializable attribution for model-topology evidence. */
+export interface ModelEvidenceProvenance {
+  readonly method: ModelEvidenceMethod
+  readonly observedAt?: string
+  readonly revision?: string
+  readonly source: ModelEvidenceSource
+  readonly sourceId: string
+}
+
+/** The account through which a provider-backed target is accessed. */
+export interface ModelProviderAccountReference {
+  readonly accountId?: string
+  readonly provider: string
+  readonly providerName?: string
+}
+
+/** The execution engine that serves a target. */
+export interface ModelRunnerReference {
+  readonly id: string
+  readonly kind: "managed-local" | "external-local" | "remote-managed"
+  readonly name?: string
+}
+
+/** Where the runner endpoint executes relative to Maximal. */
+export type ModelExecutionLocation = "device" | "lan" | "cloud"
+
+/** A credential-free endpoint identity used by an execution target. */
+export interface ModelEndpointReference {
+  readonly id: string
+  readonly url?: string
+}
+
+/** The adapter used to invoke one operation on an execution target. */
+export interface ModelOperationAdapterReference {
+  readonly id: string
+  readonly operation: ModelOperation
+}
+
+export type ModelExecutionTargetAvailabilityState =
+  "available" | "degraded" | "unavailable" | "disabled" | "unknown"
+
+/** Current reachability of an execution target. */
+export interface ModelExecutionTargetAvailability {
+  readonly message?: string
+  readonly state: ModelExecutionTargetAvailabilityState
+}
+
+export type ModelExecutionTargetLifecycleState =
+  | "declared"
+  | "provisioning"
+  | "starting"
+  | "running"
+  | "stopping"
+  | "stopped"
+  | "failed"
+  | "unknown"
+
+/** Current lifecycle phase of the runner/deployment behind a target. */
+export interface ModelExecutionTargetLifecycle {
+  readonly message?: string
+  readonly state: ModelExecutionTargetLifecycleState
+}
+
+export interface ModelExecutionTargetLimits {
+  readonly effective?: ModelRuntimeLimits
+  readonly effectiveProvenance?: ModelEvidenceProvenance
+  readonly intrinsic?: ModelRuntimeLimits
+  readonly intrinsicProvenance?: ModelEvidenceProvenance
+}
+
+/** Tokenizer identity observed for one execution target. */
+export interface ModelTokenizerEvidence {
+  readonly provenance: ModelEvidenceProvenance
+  readonly tokenizer: ModelTokenizerDescriptor
+}
+
+/** Provider and runner evidence retained on one execution target. */
+export interface ModelExecutionTargetEvidence {
+  readonly access?: ModelAccessEvidence
+  readonly advertisedEndpoints?: ReadonlyArray<string>
+  readonly capabilities?: ModelRuntimeCapabilities
+  readonly declaredCapabilities?: ReadonlyArray<string>
+  readonly limits: ModelExecutionTargetLimits
+  readonly modelLifecycle?: ModelLifecycleEvidence
+  readonly pricing?: ModelTokenPricing
+  readonly providerDetails?: ModelProviderDetails
+  readonly provenance: ModelEvidenceProvenance
+  readonly selection?: ModelSelectionEvidence
+  readonly tokenizer?: ModelTokenizerEvidence
+}
+
+/** One concrete, operation-aware way to execute a model. */
+export interface ModelExecutionTarget {
+  readonly adapters: ReadonlyArray<ModelOperationAdapterReference>
+  readonly availability: ModelExecutionTargetAvailability
+  readonly endpoint: ModelEndpointReference
+  readonly evidence: ModelExecutionTargetEvidence
+  readonly id: string
+  readonly lifecycle: ModelExecutionTargetLifecycle
+  readonly location: ModelExecutionLocation
+  readonly modelId: string
+  readonly providerAccount: ModelProviderAccountReference
+  readonly runner: ModelRunnerReference
+}
+
+/** Explicit runtime binding used to project a provider-model pair. */
+export interface ProviderModelTargetBinding {
+  readonly accountId?: string
+  readonly adapters: ReadonlyArray<ModelOperationAdapterReference>
+  readonly availability?: ModelExecutionTargetAvailability
+  readonly endpoint: ModelEndpointReference
+  readonly id: string
+  readonly intrinsicLimits?: ModelRuntimeLimits
+  readonly intrinsicLimitsProvenance?: ModelEvidenceProvenance
+  readonly lifecycle?: ModelExecutionTargetLifecycle
+  readonly location: ModelExecutionLocation
+  readonly provenance: ModelEvidenceProvenance
+  readonly runner: ModelRunnerReference
+}
+
+export interface ModelTopologySnapshot {
+  readonly revision: number
+  readonly targets: ReadonlyArray<ModelExecutionTarget>
+}
+
+export type ModelTopologyListener = (snapshot: ModelTopologySnapshot) => void
+
+export interface ModelTopologyRegistration {
+  dispose(): void
+}
+
+export interface ModelTopologyService {
+  registerTarget(
+    target: ModelExecutionTarget,
+    lifetime?: AbortSignal,
+  ): ModelTopologyRegistration
+  snapshot(): ModelTopologySnapshot
+  subscribe(listener: ModelTopologyListener): ProviderUnsubscribe
+}
+
+function immutableProvenance(
+  provenance: ModelEvidenceProvenance,
+): ModelEvidenceProvenance {
+  return Object.freeze({ ...provenance })
+}
+
+function immutableLimits(limits: ModelRuntimeLimits): ModelRuntimeLimits {
+  if (limits.vision === undefined) return Object.freeze({ ...limits })
+  return Object.freeze({
+    ...limits,
+    vision: Object.freeze({
+      ...limits.vision,
+      supportedMediaTypes:
+        limits.vision.supportedMediaTypes === undefined ?
+          undefined
+        : Object.freeze([...limits.vision.supportedMediaTypes]),
+    }),
+  })
+}
+
+function effectiveProviderLimits(
+  descriptor: ProviderModelDescriptor,
+): ModelRuntimeLimits | undefined {
+  if (descriptor.evidence?.limits !== undefined) {
+    return immutableLimits(descriptor.evidence.limits)
+  }
+  if (
+    descriptor.contextWindowTokens === undefined
+    && descriptor.maxOutputTokens === undefined
+  ) {
+    return undefined
+  }
+  return immutableLimits({
+    contextTokens: descriptor.contextWindowTokens,
+    outputTokens: descriptor.maxOutputTokens,
+  })
+}
+
+function assertCredentialFreeEndpoint(endpoint: ModelEndpointReference): void {
+  if (endpoint.url === undefined) return
+  const url = new URL(endpoint.url)
+  if (url.username !== "" || url.password !== "") {
+    throw new TypeError(
+      `Execution target endpoint "${endpoint.id}" must not contain credentials.`,
+    )
+  }
+}
+
+function intrinsicLimitProvenance(
+  binding: ProviderModelTargetBinding,
+): ModelEvidenceProvenance | undefined {
+  if (binding.intrinsicLimits === undefined) return undefined
+  if (binding.intrinsicLimitsProvenance === undefined) {
+    throw new TypeError(
+      `Execution target "${binding.id}" intrinsic limits require their own provenance.`,
+    )
+  }
+  return immutableProvenance(binding.intrinsicLimitsProvenance)
+}
+
+function immutableLifecycle(
+  lifecycle: ModelLifecycleEvidence,
+): ModelLifecycleEvidence {
+  return Object.freeze({
+    ...lifecycle,
+    info: Object.freeze(
+      lifecycle.info.map((diagnostic) => Object.freeze({ ...diagnostic })),
+    ),
+    warnings: Object.freeze(
+      lifecycle.warnings.map((diagnostic) => Object.freeze({ ...diagnostic })),
+    ),
+  })
+}
+
+function immutableAccess(
+  access: ModelAccessEvidence | undefined,
+): ModelAccessEvidence | undefined {
+  if (access === undefined) return undefined
+  return Object.freeze({
+    ...access,
+    ...(access.restrictedTo === undefined ?
+      {}
+    : { restrictedTo: Object.freeze([...access.restrictedTo]) }),
+  })
+}
+
+function immutableCapabilities(
+  capabilities: ModelRuntimeCapabilities | undefined,
+): ModelRuntimeCapabilities | undefined {
+  if (capabilities === undefined) return undefined
+  return Object.freeze({
+    ...capabilities,
+    ...(capabilities.reasoningEffort === undefined ?
+      {}
+    : { reasoningEffort: Object.freeze([...capabilities.reasoningEffort]) }),
+  })
+}
+
+function immutablePricing(
+  pricing: ModelTokenPricing | undefined,
+): ModelTokenPricing | undefined {
+  if (pricing === undefined) return undefined
+  return Object.freeze({
+    ...pricing,
+    default: Object.freeze({ ...pricing.default }),
+    ...(pricing.longContext === undefined ?
+      {}
+    : { longContext: Object.freeze({ ...pricing.longContext }) }),
+    unit: Object.freeze({ ...pricing.unit }),
+  })
+}
+
+function immutableProviderDetails(
+  details: ModelProviderDetails | undefined,
+): ModelProviderDetails | undefined {
+  if (details === undefined) return undefined
+  return Object.freeze({
+    ...details,
+    ...(details.legacyBilling === undefined ?
+      {}
+    : { legacyBilling: Object.freeze({ ...details.legacyBilling }) }),
+  })
+}
+
+function immutableOptionalRecord<T extends object>(
+  value: T | undefined,
+): Readonly<T> | undefined {
+  if (value === undefined) return undefined
+  return Object.freeze({ ...value })
+}
+
+function immutableOptionalArray<T>(
+  value: ReadonlyArray<T> | undefined,
+): ReadonlyArray<T> | undefined {
+  if (value === undefined) return undefined
+  return Object.freeze([...value])
+}
+
+function projectTokenizerEvidence(
+  tokenizer: ModelTokenizerDescriptor | undefined,
+  provenance: ModelEvidenceProvenance,
+): ModelTokenizerEvidence | undefined {
+  if (tokenizer === undefined) return undefined
+  return Object.freeze({
+    provenance,
+    tokenizer: Object.freeze({ ...tokenizer }),
+  })
+}
+
+function assertAdapterCoverage(
+  descriptor: ProviderModelDescriptor,
+  adapters: ReadonlyArray<ModelOperationAdapterReference>,
+): void {
+  const operations = adapters.map(({ operation }) => operation)
+  if (new Set(operations).size !== operations.length) {
+    throw new TypeError(
+      `Execution target "${descriptor.id}" has duplicate operation adapters.`,
+    )
+  }
+  if (descriptor.operations === undefined) return
+  const expected = new Set(descriptor.operations)
+  const actual = new Set(operations)
+  if (
+    expected.size !== actual.size
+    || [...expected].some((operation) => !actual.has(operation))
+  ) {
+    throw new TypeError(
+      `Execution target "${descriptor.id}" must bind every advertised operation exactly once.`,
+    )
+  }
+}
+
+function projectTargetEvidence(
+  descriptor: ProviderModelDescriptor,
+  binding: ProviderModelTargetBinding,
+  provenance: ModelEvidenceProvenance,
+): ModelExecutionTargetEvidence {
+  const runtimeEvidence: Partial<ModelRuntimeEvidence> =
+    descriptor.evidence ?? {}
+  const effectiveLimits = effectiveProviderLimits(descriptor)
+  return Object.freeze({
+    access: immutableAccess(runtimeEvidence.access),
+    advertisedEndpoints: immutableOptionalArray(runtimeEvidence.endpoints),
+    capabilities: immutableCapabilities(runtimeEvidence.capabilities),
+    declaredCapabilities: immutableOptionalArray(descriptor.capabilities),
+    limits: Object.freeze({
+      effective: effectiveLimits,
+      effectiveProvenance:
+        effectiveLimits === undefined ? undefined : provenance,
+      intrinsic:
+        binding.intrinsicLimits === undefined ?
+          undefined
+        : immutableLimits(binding.intrinsicLimits),
+      intrinsicProvenance: intrinsicLimitProvenance(binding),
+    }),
+    modelLifecycle:
+      runtimeEvidence.lifecycle === undefined ?
+        undefined
+      : immutableLifecycle(runtimeEvidence.lifecycle),
+    pricing: immutablePricing(runtimeEvidence.pricing),
+    providerDetails: immutableProviderDetails(runtimeEvidence.providerDetails),
+    provenance,
+    selection: immutableOptionalRecord(runtimeEvidence.selection),
+    tokenizer: projectTokenizerEvidence(descriptor.tokenizer, provenance),
+  })
+}
+
+function providerAvailability(
+  enabled: boolean | undefined,
+): ModelExecutionTargetAvailability {
+  if (enabled === false) return { state: "disabled" }
+  if (enabled === true) return { state: "available" }
+  return { state: "unknown" }
+}
+
+/**
+ * Projects provider discovery into an execution target without inferring
+ * runner, endpoint, location, account, adapter, or intrinsic model facts.
+ */
+export function projectProviderModelExecutionTarget(
+  descriptor: ProviderModelDescriptor,
+  binding: ProviderModelTargetBinding,
+): ModelExecutionTarget {
+  assertAdapterCoverage(descriptor, binding.adapters)
+  assertCredentialFreeEndpoint(binding.endpoint)
+  const provenance = immutableProvenance(binding.provenance)
+  const availability: ModelExecutionTargetAvailability =
+    binding.availability ?? providerAvailability(descriptor.enabled)
+  const lifecycle: ModelExecutionTargetLifecycle = binding.lifecycle ?? {
+    state: "unknown",
+  }
+  return Object.freeze({
+    adapters: Object.freeze(
+      binding.adapters.map((adapter) => Object.freeze({ ...adapter })),
+    ),
+    availability: Object.freeze({ ...availability }),
+    endpoint: Object.freeze({ ...binding.endpoint }),
+    evidence: projectTargetEvidence(descriptor, binding, provenance),
+    id: binding.id,
+    lifecycle: Object.freeze({ ...lifecycle }),
+    location: binding.location,
+    modelId: descriptor.id,
+    providerAccount: Object.freeze({
+      accountId: binding.accountId,
+      provider: descriptor.provider,
+      providerName: descriptor.providerName,
+    }),
+    runner: Object.freeze({ ...binding.runner }),
+  })
+}
+
 /**
  * One provider-bound Web API exchange.
  *
@@ -278,6 +682,8 @@ export interface LocalModelControl {
 export interface ProviderGateway {
   /** Present only when the active provider host exposes local-model control. */
   readonly localModels?: LocalModelControl | undefined
+  /** Present when the provider host exposes normalized execution topology. */
+  readonly modelTopology?: ModelTopologyService | undefined
   dispatch(dispatch: ProviderDispatch): Promise<Response>
   dispose(): Promise<void>
   getStatus(provider: string): ProviderStatus | undefined

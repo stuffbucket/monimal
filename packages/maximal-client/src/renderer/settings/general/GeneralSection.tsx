@@ -15,6 +15,7 @@ import { MaterialSettings } from './MaterialSettings'
 import { MenuBarOnlyDialog } from './MenuBarOnlyDialog'
 import { useGeneralDesktopSettings } from './useGeneralDesktopSettings'
 import { useAppearancePreference } from './useAppearancePreference'
+import { useMaterialPreference } from '../../useMaterialPreference'
 import { useMenuBarPresence } from './useMenuBarPresence'
 
 interface GeneralSectionProps {
@@ -23,8 +24,10 @@ interface GeneralSectionProps {
 
 function AppearanceSections({
   appearance,
+  material,
 }: {
   appearance: ReturnType<typeof useAppearancePreference>
+  material: ReturnType<typeof useMaterialPreference>
 }): ReactElement {
   if (appearance.state === null) {
     return (
@@ -97,6 +100,7 @@ function AppearanceSections({
           >
             <MaterialSettings
               disabled={appearance.busy || !appearance.state.backgroundEffectsEnabled}
+              preference={material}
             />
           </SettingsItem>
           <SettingsItem
@@ -128,6 +132,7 @@ export function GeneralSection({
   const presence = useMenuBarPresence(capabilities)
   const general = useGeneralDesktopSettings(capabilities)
   const appearance = useAppearancePreference(capabilities)
+  const material = useMaterialPreference(capabilities)
 
   return (
     <section className="settings-section">
@@ -135,6 +140,11 @@ export function GeneralSection({
       {appearance.error ? (
         <Note status="failed" live="assertive">
           {appearance.error}
+        </Note>
+      ) : null}
+      {material.error ? (
+        <Note status="failed" live="assertive">
+          {material.error}
         </Note>
       ) : null}
       {presence.error ? (
@@ -147,7 +157,7 @@ export function GeneralSection({
           {general.error}
         </Note>
       ) : null}
-      <AppearanceSections appearance={appearance} />
+      <AppearanceSections appearance={appearance} material={material} />
       <SettingsSection
         title="Desktop app"
         description="Control how Maximal starts and stays available."

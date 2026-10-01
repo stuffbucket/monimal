@@ -316,6 +316,18 @@ export function createPreviewSettingsCapabilities(): SettingsCapabilities {
       update: unavailable,
       testApiKey: unavailable,
     },
+    systemOneSettings: {
+      get: () => Promise.resolve({
+        has_api_key: false,
+        api_key: null,
+        credential_source: 'none',
+        local_provider: 'maximal',
+        ollama_configured: false,
+        model_order: ['nimble', 'tev1', 'tev1:0.8b'],
+        fallback_to_local: true,
+      }),
+      update: unavailable,
+    },
     ollamaRuntime: {
       status: () =>
         Promise.resolve({
@@ -378,6 +390,16 @@ export function createPreviewSettingsCapabilities(): SettingsCapabilities {
         reducedMotionEnabled: enabled,
       }),
       onAppearanceChange: () => () => {},
+      material: () => Promise.resolve({
+        preset: 'clouds',
+        quality: 'balanced',
+        strength: 0.75,
+        motion: 0.5,
+        lighting: 'fixed',
+        timezone: 'UTC',
+      }),
+      setMaterial: (preference) => Promise.resolve(preference),
+      onMaterialChange: () => () => {},
       menuBarMode: () => Promise.resolve(menuBarState()),
       beginMenuBarOnly: () => {
         menuBarEnabled = true

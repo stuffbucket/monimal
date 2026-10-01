@@ -160,22 +160,10 @@ void test("command execution checks report exact failure reasons", async () => {
 })
 
 void test("command conformance reports unavailable projected schemas", async () => {
-  const unavailableInput = {
-    input() {
-      return null as unknown as Record<string, unknown>
-    },
-    output() {
-      return {}
-    },
-  }
-  const unavailableOutput = {
-    input() {
-      return {}
-    },
-    output() {
-      return null as unknown as Record<string, unknown>
-    },
-  }
+  const unavailableInput = { input: () => ({}), output: () => ({}) }
+  Object.defineProperty(unavailableInput, "input", { value: () => null })
+  const unavailableOutput = { input: () => ({}), output: () => ({}) }
+  Object.defineProperty(unavailableOutput, "output", { value: () => null })
   const fixture = {
     validInput: { message: "hello" },
     expectedOutput: { echoed: "hello" },
@@ -217,14 +205,10 @@ void test("command conformance reports unavailable projected schemas", async () 
     message: "Output JSON Schema is unavailable.",
   })
 
-  const stringSchema = {
-    input() {
-      return "not-an-object" as unknown as Record<string, unknown>
-    },
-    output() {
-      return {}
-    },
-  }
+  const stringSchema = { input: () => ({}), output: () => ({}) }
+  Object.defineProperty(stringSchema, "input", {
+    value: () => "not-an-object",
+  })
   const stringReport = await checkCommandConformance(
     {
       ...echoCommand,

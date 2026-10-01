@@ -10,12 +10,25 @@ Concrete model runtime adapters are not dependencies of this package. They are
 installed in a user-managed profile and loaded at runtime, which keeps adapter
 replacement independent of Maximal releases.
 
+The first-party System One HTTP operation adapter is the bounded exception. It
+normalizes TypeSafe's model catalog and forwards `systemone` requests for a
+configured provider, while the shipping composition owns activation and Core
+continues to own route selection and fallback. TypeSafe remains the combined
+cloud provider and remote-managed runner; this package does not model its
+internal execution topology.
+
 Maximal Core depends only on `@maximal/maximal-model-contract`. The shipping
 Maximal composition root supplies this orchestration package to Core.
 
 `ProviderPluginHost` and its reconcile types are Maximal-owned lifecycle
 primitives. Cordis is the current in-process runtime implementation, not part
 of the Core-facing gateway contract.
+
+Every Cordis runtime generation mounts a `modelTopology` service backed by
+`ModelTopologyRegistry`. Plugins register complete execution targets for an
+explicit lifetime. Registrations are withdrawn with that lifetime, while Core
+sees only the Cordis-independent `ModelTopologyService` contract exposed by
+the provider gateway.
 
 `PROVIDER_PLUGIN_API_VERSION` owns compatibility between a provider profile
 and the host. New `providers.json` documents use schema version 3 and declare

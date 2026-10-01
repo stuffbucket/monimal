@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "id": "support-ticket-mixed",
+  "profile": "ollama",
+  "source": {
+    "kind": "live-capture",
+    "ollama_version": "0.35.0",
+    "api_spec_commit": "1abe35e6e6e777e858bbfbba283667ee8d516801",
+    "api_spec_sha256": "9e7dac7361a9159310e265b56a2505933b446b61ef34053cd76ce97e4ad723f1",
+    "requested_model": "nimble",
+    "resolved_model": "nimble",
+    "model_tag": "nimble:latest",
+    "model_digest": "24e550a16a7081881be2f1f0d91e8cc13a597472735c04119f035a0a85c67e0c",
+    "model_size": 9527502277,
+    "response_sha256": "73170a14f906cf8e7c93d2b16fbe9ec66d492a03c6f29042d9dd2044d171c512",
+    "repeat_capture": "exact",
+    "recorded_at": "2026-09-30T20:48:00Z"
+  },
+  "request": {
+    "state": "Hi, I've been trying to connect my Stripe account for 3 days and the integration keeps failing. I'm losing sales. Please help ASAP.",
+    "model": "nimble",
+    "questions": {
+      "department": {
+        "type": "choice",
+        "instructions": "Which team should handle this",
+        "criteria": {
+          "billing": "Payment or subscription issues",
+          "technical": "Bugs or integration problems",
+          "sales": "Pricing or account questions"
+        }
+      },
+      "frustration": {
+        "type": "score",
+        "instructions": "How frustrated the customer appears",
+        "criteria": [
+          "Calm, just stating facts",
+          "Frustrated but civil",
+          "Very angry, strong language"
+        ]
+      },
+      "is_urgent": {
+        "type": "noul",
+        "instructions": "The message conveys urgency or time-sensitivity"
+      }
+    }
+  },
+  "response": {
+    "model": "nimble",
+    "answers": {
+      "department": {
+        "type": "choice",
+        "choice": "technical",
+        "probabilities": {
+          "billing": 0.0032246715105961545,
+          "technical": 0.9953180354974821,
+          "sales": 0.0014572929919219057
+        },
+        "confidence": 0.9702456286124624
+      },
+      "frustration": {
+        "type": "score",
+        "score": 1.0181314483139434,
+        "legend": {
+          "0": "Calm, just stating facts",
+          "1": "Frustrated but civil",
+          "2": "Very angry, strong language"
+        },
+        "probabilities": {
+          "0": 0.01116676912195213,
+          "1": 0.9595350134421525,
+          "2": 0.0292982174358954
+        },
+        "confidence": 0.8240899426500493
+      },
+      "is_urgent": {
+        "type": "noul",
+        "noul": 0.9958666596280351
+      }
+    },
+    "usage": {
+      "input_tokens": 928,
+      "output_tokens": 4
+    }
+  }
+}

@@ -177,6 +177,43 @@ describe("GET /v1/models — OpenAI default (no protocol signal)", () => {
     })
   })
 
+  test("offers System One models in configured order", async () => {
+    const app = new Hono()
+    app.route(
+      "/v1/models",
+      createModelRoutes({
+        modelOrder: () => ["tev1:0.8b", "nimble", "tev1"],
+        providerModels: () =>
+          Promise.resolve([
+            {
+              id: "nimble",
+              name: "Nimble",
+              provider: "maximal",
+              providerName: "Maximal",
+            },
+            {
+              id: "tev1",
+              name: "Tev1",
+              provider: "maximal",
+              providerName: "Maximal",
+            },
+            {
+              id: "tev1:0.8b",
+              name: "Tev1 0.8B",
+              provider: "maximal",
+              providerName: "Maximal",
+            },
+          ]),
+      }),
+    )
+
+    const response = await app.request("/v1/models")
+    const body: unknown = await response.json()
+    expect(body).toHaveProperty("data.0.id", "tev1:0.8b")
+    expect(body).toHaveProperty("data.1.id", "nimble")
+    expect(body).toHaveProperty("data.2.id", "tev1")
+  })
+
   test("publishes Ollama details in the Anthropic model shape", async () => {
     const response = await buildProviderApp().request("/v1/models", {
       headers: { "anthropic-version": "2023-06-01" },

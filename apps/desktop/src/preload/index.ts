@@ -90,6 +90,12 @@ const bridge = {
       ipcRenderer.invoke(BRIDGE_CHANNELS.appearanceSetReducedMotion, enabled),
     onChange: (listener) => subscribe(BRIDGE_CHANNELS.appearanceChanged, listener),
   },
+  material: {
+    get: () => ipcRenderer.invoke(BRIDGE_CHANNELS.materialGet),
+    set: (preference) =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.materialSet, preference),
+    onChange: (listener) => subscribe(BRIDGE_CHANNELS.materialChanged, listener),
+  },
   projects: {
     snapshot: () => ipcRenderer.invoke(BRIDGE_CHANNELS.projectsSnapshot),
     search: (query, limit) => ipcRenderer.invoke(BRIDGE_CHANNELS.projectsSearch, query, limit),
@@ -189,6 +195,8 @@ const bridge = {
     ollamaSettingsGet: () => ipcRenderer.invoke(BRIDGE_CHANNELS.ollamaSettingsGet),
     ollamaSettingsUpdate: (input) => ipcRenderer.invoke(BRIDGE_CHANNELS.ollamaSettingsUpdate, input),
     ollamaApiKeyTest: (input) => ipcRenderer.invoke(BRIDGE_CHANNELS.ollamaApiKeyTest, input),
+    systemOneSettingsGet: () => ipcRenderer.invoke(BRIDGE_CHANNELS.systemOneSettingsGet),
+    systemOneSettingsUpdate: (input) => ipcRenderer.invoke(BRIDGE_CHANNELS.systemOneSettingsUpdate, input),
     observabilityOverview: (query) => ipcRenderer.invoke(BRIDGE_CHANNELS.observabilityOverview, query),
     observabilityRequests: (query) => ipcRenderer.invoke(BRIDGE_CHANNELS.observabilityRequests, query),
     observabilityRequest: (query) => ipcRenderer.invoke(BRIDGE_CHANNELS.observabilityRequest, query),

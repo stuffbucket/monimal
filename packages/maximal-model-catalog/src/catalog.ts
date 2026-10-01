@@ -61,5 +61,5 @@ export function createModelCatalogIndex(input: unknown): ModelCatalogIndex {
 }
 
 export function parseModelCatalogJson(json: string): ModelCatalogIndex {
-  return createModelCatalogIndex(JSON.parse(json) as unknown)
+  return createModelCatalogIndex(JSON.parse(json))
 }

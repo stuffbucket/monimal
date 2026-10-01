@@ -1,11 +1,10 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useCallback, useEffect } from 'react'
+import { useCallback, useMemo } from 'react'
 
 import type {
   AppearancePreference,
   SettingsCapabilities,
 } from '../capabilities'
-import { describeError } from '../../shared/errors'
+import { usePreferenceQuery } from '../../usePreferenceQuery'
 
 export const appearancePreferenceQueryKey = [
   'settings',
@@ -14,65 +13,48 @@ export const appearancePreferenceQueryKey = [
 ] as const
 
 export function useAppearancePreference(capabilities: SettingsCapabilities) {
-  const queryClient = useQueryClient()
-  const query = useQuery({
-    queryKey: appearancePreferenceQueryKey,
-    queryFn: () => capabilities.general.appearance(),
-  })
-  const mutation = useMutation({
-    mutationFn: (request: () => Promise<AppearancePreference>) => request(),
-    onSuccess: (next) =>
-      queryClient.setQueryData(appearancePreferenceQueryKey, next),
-  })
-  const mutateAsync = mutation.mutateAsync
-  const resetMutation = mutation.reset
-
-  useEffect(() => {
-    const unsubscribe = capabilities.general.onAppearanceChange((next) => {
-      void queryClient.cancelQueries({
+  const preference = usePreferenceQuery(
+    useMemo(
+      () => ({
         queryKey: appearancePreferenceQueryKey,
-        exact: true,
-      })
-      queryClient.setQueryData(appearancePreferenceQueryKey, next)
-      resetMutation()
-    })
-    return unsubscribe
-  }, [capabilities, queryClient, resetMutation])
-
-  const update = useCallback(
-    async (request: () => Promise<AppearancePreference>) => {
-      await mutateAsync(request).catch(() => undefined)
-    },
-    [mutateAsync],
+        query: () => capabilities.general.appearance(),
+        mutate: (request: () => Promise<AppearancePreference>) => request(),
+        subscribe: (listener: (next: AppearancePreference) => void) =>
+          capabilities.general.onAppearanceChange(listener),
+        resolveEvent: (next: AppearancePreference) => next,
+      }),
+      [capabilities],
+    ),
   )
 
   const setVibrancyEnabled = useCallback(
     (enabled: boolean) =>
-      update(() => capabilities.general.setVibrancyEnabled(enabled)),
-    [capabilities, update],
+      preference.update(() =>
+        capabilities.general.setVibrancyEnabled(enabled),
+      ),
+    [capabilities, preference],
   )
 
   const setBackgroundEffectsEnabled = useCallback(
     (enabled: boolean) =>
-      update(() => capabilities.general.setBackgroundEffectsEnabled(enabled)),
-    [capabilities, update],
+      preference.update(() =>
+        capabilities.general.setBackgroundEffectsEnabled(enabled),
+      ),
+    [capabilities, preference],
   )
 
   const setReducedMotionEnabled = useCallback(
     (enabled: boolean) =>
-      update(() => capabilities.general.setReducedMotionEnabled(enabled)),
-    [capabilities, update],
+      preference.update(() =>
+        capabilities.general.setReducedMotionEnabled(enabled),
+      ),
+    [capabilities, preference],
   )
 
   return {
-    state: query.data ?? null,
-    busy: mutation.isPending,
-    error:
-      mutation.error === null
-        ? mutation.isPending || query.error === null
-          ? null
-          : describeError(query.error)
-        : describeError(mutation.error),
+    state: preference.state,
+    busy: preference.busy,
+    error: preference.error,
     setVibrancyEnabled,
     setBackgroundEffectsEnabled,
     setReducedMotionEnabled,

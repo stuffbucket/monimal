@@ -646,6 +646,9 @@ importers:
       '@maximal/maximal-settings':
         specifier: workspace:*
         version: link:../maximal-settings
+      '@maximal/maximal-systemone':
+        specifier: workspace:*
+        version: link:../maximal-systemone
       citty:
         specifier: ^0.2.2
         version: 0.2.2
@@ -1121,6 +1124,9 @@ importers:
       '@maximal/maximal-model-contract':
         specifier: workspace:*
         version: link:../maximal-model-contract
+      '@maximal/maximal-systemone':
+        specifier: workspace:*
+        version: link:../maximal-systemone
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: 4.0.2
@@ -1349,6 +1355,31 @@ importers:
       yaml:
         specifier: 2.9.0
         version: 2.9.0
+
+  packages/maximal-systemone:
+    dependencies:
+      zod:
+        specifier: ^4.5.4
+        version: 4.5.4
+    devDependencies:
+      '@maximal/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@types/node':
+        specifier: ^26.4.0
+        version: 26.4.0
+      '@typescript/native':
+        specifier: npm:typescript@^7.0.2
+        version: typescript@7.0.2
+      eslint:
+        specifier: ^10.9.1
+        version: 10.9.1(jiti@2.7.0)(supports-color@8.1.1)
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(@typescript/typescript6@6.0.2)(jiti@2.7.0)(postcss@8.5.26)(supports-color@8.1.1)(yaml@2.9.0)
+      typescript:
+        specifier: npm:@typescript/typescript6@^6.0.2
+        version: '@typescript/typescript6@6.0.2'
 
   packages/maximal-terminal:
     devDependencies:

@@ -12,6 +12,7 @@ import {
   OllamaApiKeyTestRequest,
   SearchProviderValidationRequest,
   SearchSettingsUpdateRequest,
+  SystemOneSettingsUpdateRequest,
   TokenUsagePeriod,
 } from '@maximal/maximal-core-contract/settings'
 import {
@@ -46,6 +47,7 @@ import { z } from 'zod'
 import { BRIDGE_CHANNELS } from '../shared/bridge-channels.js'
 import type {
   AppearancePreference,
+  PersistedMaterialPreference,
   PendingSettingsRequest,
   TerminalRedockRequest,
   TerminalWindowRequest,
@@ -108,8 +110,10 @@ import {
 import {
   setBackgroundEffectsEnabled,
   loadApplicationSettings,
+  materialPreferenceFrom,
   setOllamaStartOnLaunch,
   setReducedMotionEnabled,
+  setMaterialPreference,
   setVibrancyEnabled,
 } from './preferences/application-settings.js'
 import { startBrowserHost } from './adapters/browser.js'
@@ -180,6 +184,12 @@ function appearancePreference(): AppearancePreference {
   }
 }
 
+function materialPreference(): PersistedMaterialPreference {
+  return materialPreferenceFrom(
+    loadApplicationSettings(app.getPath('userData')).settings,
+  )
+}
+
 function applySavedVibrancy(window: BrowserWindow): void {
   applyVibrancy(
     window,
@@ -208,6 +218,12 @@ async function updateReducedMotion(enabled: boolean) {
   await setReducedMotionEnabled(app.getPath('userData'), enabled)
   const preference = appearancePreference()
   broadcast(BRIDGE_CHANNELS.appearanceChanged, preference)
+  return preference
+}
+
+async function updateMaterialPreference(input: unknown) {
+  const preference = await setMaterialPreference(app.getPath('userData'), input)
+  broadcast(BRIDGE_CHANNELS.materialChanged, preference)
   return preference
 }
 
@@ -331,6 +347,11 @@ function registerIpc(
     (_event, enabled: unknown) =>
       updateReducedMotion(z.boolean().parse(enabled)),
   )
+  ipcMain.handle(BRIDGE_CHANNELS.materialGet, materialPreference)
+  ipcMain.handle(
+    BRIDGE_CHANNELS.materialSet,
+    (_event, preference: unknown) => updateMaterialPreference(preference),
+  )
   ipcMain.handle(BRIDGE_CHANNELS.projectsSnapshot, () => projects.snapshot())
   ipcMain.handle(
     BRIDGE_CHANNELS.projectsSearch,
@@ -418,6 +439,16 @@ function registerIpc(
   )
   ipcMain.handle(BRIDGE_CHANNELS.ollamaApiKeyTest, (_event, input: unknown) =>
     session.ollamaApiKeyTest(OllamaApiKeyTestRequest.parse(input)),
+  )
+  ipcMain.handle(BRIDGE_CHANNELS.systemOneSettingsGet, () =>
+    session.systemOneSettingsGet(),
+  )
+  ipcMain.handle(
+    BRIDGE_CHANNELS.systemOneSettingsUpdate,
+    (_event, input: unknown) =>
+      session.systemOneSettingsUpdate(
+        SystemOneSettingsUpdateRequest.parse(input),
+      ),
   )
   ipcMain.handle(
     BRIDGE_CHANNELS.observabilityOverview,

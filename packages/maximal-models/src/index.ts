@@ -6,6 +6,7 @@ export {
   type ProviderPluginHostReconcileResult,
   startProviderPluginHost,
 } from "./host.ts"
+export { ModelTopologyRegistry } from "./model-topology.ts"
 export {
   type ActivationEntry,
   type ActivationSnapshot,
@@ -19,28 +20,12 @@ export {
   type ProviderPluginApiVersion,
   RestartRequiredError,
 } from "./profile.ts"
-export type {
-  LocalModelCapabilities,
-  LocalModelCatalogEntry,
-  LocalModelCatalogListener,
-  LocalModelCatalogSnapshot,
-  LocalModelContextLimits,
-  LocalModelControl,
-  LocalModelProgressListener,
-  LocalModelProvisionPhase,
-  LocalModelProvisionProgress,
-  LocalModelPublication,
-  LocalModelState,
-  ProviderDiagnostic,
-  ProviderDispatch,
-  ProviderGateway,
-  ProviderOperation,
-  ProviderStatus,
-  ProviderStatusState,
-  ProviderTopology,
-  ProviderTopologyListener,
-  ProviderUnsubscribe,
-} from "@maximal/maximal-model-contract"
+export {
+  dispatchSystemOneHttpProvider,
+  type SystemOneHttpProviderConfig,
+  type SystemOneHttpProviderFetch,
+} from "./system-one-http-provider.ts"
+export type * from "@maximal/maximal-model-contract"
 
 /**
  * Trust boundary: profile packages execute in-process with the embedding

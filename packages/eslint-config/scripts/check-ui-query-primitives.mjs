@@ -38,13 +38,6 @@ export const allowedAdhocUiQueries = new Map([
     ],
   ],
   [
-    'packages/maximal-client/src/renderer/material-preference.ts',
-    [
-      'browser-storage:localStorage',
-      'browser-storage:localStorage',
-    ],
-  ],
-  [
     'packages/maximal-client/src/renderer/settings/general/useGeneralDesktopSettings.ts',
     [
       'effect-fetch:useGeneralDesktopSettings:capabilities.general.desktopSettings,capabilities.general.systemNotificationStatus',

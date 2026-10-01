@@ -53,6 +53,10 @@ import {
   SearchSettingsResponse as SearchSettingsResponseSchema,
   type SearchSettingsResponse,
   type SearchSettingsUpdateRequest,
+  SystemOneSettingsResponse as SystemOneSettingsResponseSchema,
+  type SystemOneSettingsResponse,
+  SystemOneSettingsUpdateRequest as SystemOneSettingsUpdateRequestSchema,
+  type SystemOneSettingsUpdateRequest,
   TokenUsageSummary as TokenUsageSummarySchema,
   type TokenUsagePeriod,
   type TokenUsageSummary,
@@ -88,6 +92,8 @@ export interface CoreControlOperations {
   ollamaSettingsGet(): Promise<ControlResult<OllamaSettingsResponse>>
   ollamaSettingsUpdate(input: OllamaSettingsUpdateRequest): Promise<ControlResult<OllamaSettingsResponse>>
   ollamaApiKeyTest(input: OllamaApiKeyTestRequest): Promise<ControlResult<OllamaApiKeyTestResponse>>
+  systemOneSettingsGet(): Promise<ControlResult<SystemOneSettingsResponse>>
+  systemOneSettingsUpdate(input: SystemOneSettingsUpdateRequest): Promise<ControlResult<SystemOneSettingsResponse>>
   observabilityOverview(query: TrafficOverviewQuery): Promise<ControlResult<TrafficOverview>>
   observabilityRequests(query: TrafficRequestListQuery): Promise<ControlResult<TrafficRequestList>>
   observabilityRequest(query: TrafficRequestDetailQuery): Promise<ControlResult<TrafficRequestDetail | null>>
@@ -133,6 +139,8 @@ export const optionalMethods = [
   'ollamaSettings/get',
   'ollamaSettings/update',
   'ollamaSettings/testApiKey',
+  'systemOneSettings/get',
+  'systemOneSettings/update',
   'observability/overview',
   'observability/requests',
   'observability/request',
@@ -287,6 +295,11 @@ export function createCoreControlOperations(call: ControlCall): CoreControlOpera
     ollamaApiKeyTest: (input) =>
       call('ollamaSettings/testApiKey', parseWith(OllamaApiKeyTestResponseSchema),
         input),
+    systemOneSettingsGet: () =>
+      call('systemOneSettings/get', parseWith(SystemOneSettingsResponseSchema)),
+    systemOneSettingsUpdate: (input) =>
+      call('systemOneSettings/update', parseWith(SystemOneSettingsResponseSchema),
+        input, parseWith(SystemOneSettingsUpdateRequestSchema)),
     observabilityOverview: (query) =>
       call('observability/overview', parseWith(TrafficOverviewSchema),
         query, parseWith(TrafficOverviewQuerySchema)),

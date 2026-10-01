@@ -26,6 +26,7 @@ import { AccountsSection } from './AccountsSection'
 import { AccountStatusBody } from './AccountStatusBody'
 import { CopilotPlanDetails } from './CopilotPlanDetails'
 import { OllamaAccountsSection } from './OllamaAccountsSection'
+import { SystemOneAccountSection } from './SystemOneAccountSection'
 import { accountsQueryKey } from './useAccounts'
 
 // The Accounts section: who's signed in, sign in via GitHub's device flow,
@@ -248,6 +249,7 @@ export function AccountSection({
         />
       </SettingsSection>
       <OllamaAccountsSection capabilities={capabilities} />
+      <SystemOneAccountSection capabilities={capabilities} />
     </section>
   )
 }

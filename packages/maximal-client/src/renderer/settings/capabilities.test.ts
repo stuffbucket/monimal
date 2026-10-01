@@ -12,6 +12,7 @@ import type {
   ControlResult,
   LifecycleStatus,
   MaximalHost,
+  PersistedMaterialPreference,
 } from '../../shared/host'
 import { ControlCallError } from '../shared/control-error'
 import {
@@ -215,6 +216,20 @@ function fakeBridge(): MaximalHost {
       })),
       onChange: vi.fn(() => () => {}),
     },
+    material: {
+      get: vi.fn(async () => ({
+        preset: 'clouds' as const,
+        quality: 'balanced' as const,
+        strength: 0.75,
+        motion: 0.5,
+        lighting: 'fixed' as const,
+        timezone: 'UTC',
+      })),
+      set: vi.fn(
+        async (preference: PersistedMaterialPreference) => preference,
+      ),
+      onChange: vi.fn(() => () => {}),
+    },
     projects: {
       snapshot: vi.fn(async () => ({ roots: [], projects: [], refreshing: false })),
       search: vi.fn(async () => []),
@@ -318,6 +333,36 @@ function fakeBridge(): MaximalHost {
         success({
           status: 'valid' as const,
           message: 'Ollama accepted this API key.',
+        }),
+      ),
+      systemOneSettingsGet: vi.fn(async () =>
+        success({
+          has_api_key: false,
+          api_key: null,
+          credential_source: 'none' as const,
+          local_provider: 'maximal' as const,
+          ollama_configured: false,
+          model_order: [
+            'nimble',
+            'tev1',
+            'tev1:0.8b',
+          ] as Array<'nimble' | 'tev1' | 'tev1:0.8b'>,
+          fallback_to_local: true,
+        }),
+      ),
+      systemOneSettingsUpdate: vi.fn(async () =>
+        success({
+          has_api_key: true,
+          api_key: 'saved-key',
+          credential_source: 'file' as const,
+          local_provider: 'maximal' as const,
+          ollama_configured: false,
+          model_order: [
+            'nimble',
+            'tev1',
+            'tev1:0.8b',
+          ] as Array<'nimble' | 'tev1' | 'tev1:0.8b'>,
+          fallback_to_local: true,
         }),
       ),
       observabilityOverview: vi.fn(),

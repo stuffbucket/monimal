@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "@maximal/maximal-systemone",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Provider-neutral TypeScript contract for the System One decision API.",
+  "sideEffects": false,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./evaluation": {
+      "types": "./dist/evaluation.d.ts",
+      "import": "./dist/evaluation.js"
+    },
+    "./fixtures/evaluation/*": "./fixtures/evaluation/*",
+    "./fixtures/oracles/*": "./fixtures/oracles/*",
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "maximal-systemone-eval": "./dist/evaluation-cli.js"
+  },
+  "files": [
+    "dist",
+    "fixtures/evaluation",
+    "fixtures/oracles"
+  ],
+  "scripts": {
+    "analyze": "bun ../maximal-core/scripts/analyze.ts",
+    "build": "tsup src/index.ts src/evaluation.ts src/evaluation-cli.ts --format esm --dts --clean --target node24 --out-dir dist",
+    "eval:live": "node src/evaluation-cli.ts",
+    "lint": "eslint",
+    "test": "pnpm run test:unit && pnpm run test:mutation",
+    "test:mutation": "node scripts/mutation-test.mjs",
+    "test:unit": "node --test tests/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@maximal/eslint-config": "workspace:*",
+    "@types/node": "^26.4.0",
+    "@typescript/native": "npm:typescript@^7.0.2",
+    "eslint": "^10.9.1",
+    "tsup": "^8.5.1",
+    "typescript": "npm:@typescript/typescript6@^6.0.2"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "monimal": {
+    "taskExemptions": {
+      "dev": "The live evaluation CLI runs only through the explicit eval:live task.",
+      "start": "This library does not own a persistent service lifecycle."
+    }
+  }
+}

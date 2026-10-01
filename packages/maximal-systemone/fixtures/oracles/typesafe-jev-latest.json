@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "id": "support-ticket-mixed",
+  "profile": "typesafe",
+  "source": {
+    "kind": "published-example",
+    "url": "https://docs.typesafe.ai/introduction/quickstart",
+    "api_spec_version": "0.2.0",
+    "api_spec_sha256": "a191f8a7df6bd6fedced8120dd0fd106f88575d1d1c8360d08900a6c7c0360d5",
+    "requested_model": "jev-latest",
+    "resolved_model": "jev-1.13.0",
+    "recorded_at": "2026-09-30T20:46:00Z"
+  },
+  "request": {
+    "state": "Hi, I've been trying to connect my Stripe account for 3 days and the integration keeps failing. I'm losing sales. Please help ASAP.",
+    "model": "jev-latest",
+    "questions": {
+      "department": {
+        "type": "choice",
+        "instructions": "Which team should handle this",
+        "criteria": {
+          "billing": "Payment or subscription issues",
+          "technical": "Bugs or integration problems",
+          "sales": "Pricing or account questions"
+        }
+      },
+      "frustration": {
+        "type": "score",
+        "instructions": "How frustrated the customer appears",
+        "criteria": [
+          "Calm, just stating facts",
+          "Frustrated but civil",
+          "Very angry, strong language"
+        ]
+      },
+      "is_urgent": {
+        "type": "noul",
+        "instructions": "The message conveys urgency or time-sensitivity"
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "department": {
+        "type": "choice",
+        "choice": "technical",
+        "confidence": 0.78,
+        "probabilities": {
+          "technical": 0.85,
+          "sales": 0,
+          "billing": 0.15
+        }
+      },
+      "frustration": {
+        "type": "score",
+        "score": 1,
+        "confidence": 1,
+        "legend": {
+          "0": "Calm, just stating facts",
+          "1": "Frustrated but civil",
+          "2": "Very angry, strong language"
+        },
+        "probabilities": {
+          "0": 0,
+          "1": 1,
+          "2": 0
+        }
+      },
+      "is_urgent": {
+        "type": "noul",
+        "noul": 1
+      }
+    },
+    "usage": {
+      "input_tokens": 392,
+      "output_tokens": 65
+    }
+  }
+}

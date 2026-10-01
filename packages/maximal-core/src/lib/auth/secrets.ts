@@ -242,6 +242,11 @@ export interface SecretDef {
 export const SECRET_DEFS: ReadonlyArray<SecretDef> = [
   { name: "ollama_api_key", envVar: "OLLAMA_API_KEY", fileName: "ollama" },
   {
+    name: "typesafe_api_key",
+    envVar: "TYPESAFE_API_KEY",
+    fileName: "typesafe",
+  },
+  {
     name: "anthropic_api_key",
     envVar: "ANTHROPIC_API_KEY",
     fileName: "anthropic",

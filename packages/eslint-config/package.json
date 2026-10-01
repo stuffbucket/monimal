@@ -14,18 +14,21 @@
   "exports": {
     "./architecture": "./architecture.js",
     "./base": "./base.js",
+    "./unsafe-type-assertions": "./unsafe-type-assertions.js",
     "./typescript": "./typescript.js",
     "./service": "./service.js"
   },
   "files": [
     "architecture.js",
     "base.js",
+    "unsafe-type-assertions.js",
     "typescript.js",
     "service.js"
   ],
   "scripts": {
     "analyze": "bun ../maximal-core/scripts/analyze.ts",
     "check:runtime-style-injectors": "node scripts/check-runtime-style-injectors.mjs",
+    "check:unsafe-type-assertions": "node scripts/check-unsafe-type-assertions.mjs",
     "check:ui-query-primitives": "node scripts/check-ui-query-primitives.mjs",
     "lint": "eslint && node scripts/check-ui-query-primitives.mjs && node scripts/check-runtime-style-injectors.mjs",
     "test": "node --test tests/*.test.mjs"
