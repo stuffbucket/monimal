@@ -252,7 +252,7 @@ export function Menu({
                 onSelect={item.onSelect}
                 data-testid={`menu-${item.id}`}
               >
-                {Icon && <Icon size={14} />}
+                {Icon && <Icon size={16} />}
                 <span>{item.label}</span>
               </DropdownMenu.Item>
             );

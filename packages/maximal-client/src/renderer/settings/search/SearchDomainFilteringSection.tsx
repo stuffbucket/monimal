@@ -64,7 +64,7 @@ export function SearchDomainFilteringSection({
                         tooltip={DOMAIN_HELP[field.key]}
                         className="search-behavior__help"
                       >
-                        <Info size={13} />
+                        <Info size={12} />
                       </IconButton>
                     }
                     onChange={(next) => onGlobalChange(field.key, next)}

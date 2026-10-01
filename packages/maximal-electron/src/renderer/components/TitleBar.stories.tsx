@@ -30,13 +30,13 @@ function TitleBarStory({
         tabIdBase={tabIdBase}
         leading={
           <IconButton label="Open workspace switcher">
-            <PanelTop size={15} />
+            <PanelTop size={16} />
           </IconButton>
         }
         actions={
           injectedActions ? (
             <IconButton label="Open command palette">
-              <Command size={15} />
+              <Command size={16} />
             </IconButton>
           ) : undefined
         }

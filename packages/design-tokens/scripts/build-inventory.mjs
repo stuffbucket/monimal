@@ -7,7 +7,9 @@ import {
   INVENTORY_PATH,
   PACKAGE_ROOT,
   dtcgInventory,
+  iconMetricIssues,
   inventoryIssues,
+  readIconMetrics,
   scanTokenSources,
 } from './inventory.mjs';
 
@@ -35,9 +37,13 @@ StyleDictionary.registerFormat({
 
 export async function buildInventory() {
   const scan = scanTokenSources();
+  const iconMetrics = readIconMetrics();
   const dictionary = new StyleDictionary({
     usesDtcg: true,
-    tokens: dtcgInventory(scan.tokens),
+    tokens: {
+      standards: iconMetrics,
+      ...dtcgInventory(scan.tokens, iconMetrics),
+    },
     platforms: {
       inventory: {
         buildPath: `${path.join(PACKAGE_ROOT, 'dist')}${path.sep}`,
@@ -48,7 +54,10 @@ export async function buildInventory() {
 
   await dictionary.buildAllPlatforms();
   const inventory = JSON.parse(fs.readFileSync(INVENTORY_PATH, 'utf8'));
-  const issues = inventoryIssues(scan);
+  const issues = [
+    ...inventoryIssues(scan, iconMetrics),
+    ...iconMetricIssues(undefined, iconMetrics),
+  ];
   const summary = Object.fromEntries(
     [...new Set(issues.map(({ kind }) => kind))]
       .sort()

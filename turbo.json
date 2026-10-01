@@ -48,6 +48,15 @@
     },
     "token:inventory": {
       "outputs": ["dist/**"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/apps/**",
+        "$TURBO_ROOT$/packages/**",
+        "!$TURBO_ROOT$/apps/**/dist/**",
+        "!$TURBO_ROOT$/apps/**/.turbo/**",
+        "!$TURBO_ROOT$/packages/**/dist/**",
+        "!$TURBO_ROOT$/packages/**/.turbo/**"
+      ],
       "description": "Build the workspace-wide Style Dictionary token inventory."
     },
     "token:check": {
@@ -58,6 +67,19 @@
     "@maximal/maximal-client#build": {
       "dependsOn": ["^build"],
       "outputs": []
+    },
+    "@maximal/design-tokens#build": {
+      "outputs": ["dist/**"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/apps/**",
+        "$TURBO_ROOT$/packages/**",
+        "!$TURBO_ROOT$/apps/**/dist/**",
+        "!$TURBO_ROOT$/apps/**/.turbo/**",
+        "!$TURBO_ROOT$/packages/**/dist/**",
+        "!$TURBO_ROOT$/packages/**/.turbo/**"
+      ],
+      "description": "Enforce the workspace-wide design token and icon metric ratchet."
     },
     "maximal-desktop#build": {
       "dependsOn": ["^build", "@maximal/maximal#build"],

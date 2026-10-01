@@ -40,6 +40,11 @@ const AUTHORED = new Map(
 );
 
 const REFERENCE_NAMES = new Map([
+  ['icon-prominent', 'size-icon-prominent'],
+  ['icon-size', 'size-icon'],
+  ['icon-optical-folder-offset-y', 'icon-optical-folder-offset-y'],
+  ['icon-optical-map-scale', 'icon-optical-map-scale'],
+  ['icon-optical-terminal-scale', 'icon-optical-terminal-scale'],
   ['radius', 'radius-input'],
   ['radius-large', 'radius-card'],
   ['row-height', 'size-row'],

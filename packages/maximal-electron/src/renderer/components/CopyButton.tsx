@@ -54,7 +54,7 @@ export function CopyButton({
           setCopied(true);
         }}
       >
-        <Copy size={14} />
+        <Copy size={16} />
       </IconButton>
     </TooltipProvider>
   );

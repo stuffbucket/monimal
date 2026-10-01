@@ -471,9 +471,9 @@ export function TextInput({
         onClick={() => setRevealed((current) => !current)}
       >
         {revealed ? (
-          <EyeOff aria-hidden="true" size={14} />
+          <EyeOff aria-hidden="true" size={16} />
         ) : (
-          <Eye aria-hidden="true" size={14} />
+          <Eye aria-hidden="true" size={16} />
         )}
       </IconButton>
     </div>

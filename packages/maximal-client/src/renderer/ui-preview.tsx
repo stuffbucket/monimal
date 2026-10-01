@@ -79,17 +79,7 @@ function PreviewFrame(): ReactElement {
       onCloseTab={(id) => {
         if (id === SETTINGS_TAB.id) requestNavigation(closeSettings)
       }}
-      account={{
-        id: 'octocat',
-        displayName: 'Octocat',
-        handle: '@octocat',
-        plan: 'individual',
-      }}
-      onOpenProfileSurface={() => undefined}
-      onSignOut={() => undefined}
       onOpenAssistant={() => undefined}
-      settingsOpen={settingsOpen}
-      onToggleSettings={toggleSettings}
     >
       {current.kind === 'overview' ? <ProductPreview title="Overview" /> : null}
       {current.kind === 'traffic' ? <ProductPreview title="Traffic" /> : null}
@@ -102,6 +92,16 @@ function PreviewFrame(): ReactElement {
           current={current.id}
           onSelect={(id) => setActiveTab(id)}
           onOpenMap={() => undefined}
+          account={{
+            id: 'octocat',
+            displayName: 'Octocat',
+            handle: '@octocat',
+            plan: 'individual',
+          }}
+          onOpenProfileSurface={() => undefined}
+          onSignOut={() => undefined}
+          settingsOpen={settingsOpen}
+          onToggleSettings={toggleSettings}
         />
       </SurfaceActivity>
     </AppFrame>
