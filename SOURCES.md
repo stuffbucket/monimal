@@ -32,6 +32,7 @@ has ended.
 | `packages/maximal-logging` | Persistent structured runtime logging and log discovery. |
 | `packages/maximal-model-catalog` | Trusted released model metadata, release verification, and runtime inventory reconciliation. |
 | `packages/maximal-model-contract` | Runtime-neutral model gateway, discovery descriptor, tokenizer identity, and operation vocabulary. |
+| `packages/maximal-cli` | Transport-neutral command contracts, adapters, and conformance suites. |
 | `packages/maximal-core-contract` | Core's settings wire types and control-plane contract; Core republishes them. |
 | `packages/maximal-models` | Provider plugin lifecycle and model dispatch. |
 | `packages/maximal-observability-contract` | Traffic schemas and observer interfaces. |
