@@ -183,7 +183,9 @@ describe('SpatialCanvas', () => {
     expect(container.querySelectorAll('.spatial-canvas__connectors circle')).toHaveLength(2);
     expect(container.querySelector('.spatial-canvas__cursor')?.getAttribute('data-state'))
       .toBe('text');
-    expect(container.querySelector('.spatial-canvas__cursor-glyph svg')).not.toBeNull();
+    expect(container.querySelector(
+      '.spatial-canvas__cursor-glyph [data-cursor-part="caret"]',
+    )).not.toBeNull();
     expect(container.querySelector('.spatial-canvas__cursor-label')?.textContent)
       .toBe('Editor');
     expect(container.querySelector('.spatial-canvas__cursor')?.getAttribute('aria-hidden'))

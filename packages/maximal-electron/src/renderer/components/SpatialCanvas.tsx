@@ -282,7 +282,10 @@ export function SpatialCanvasCommentAnchor({
   );
 }
 
-/** Renders a participant cursor at a world-space point. */
+/**
+ * Renders a stable participant caret while exposing remote activity as
+ * metadata for observers and integrations.
+ */
 export function SpatialCanvasCursor({
   x,
   y,
