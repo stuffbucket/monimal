@@ -223,6 +223,20 @@
       "outputs": [],
       "description": "Rescan current runtime source for legacy logging on every lint run."
     },
+    "@maximal/eslint-config#lint": {
+      "dependsOn": ["transit", "^build"],
+      "outputs": [],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/apps/**",
+        "$TURBO_ROOT$/packages/**",
+        "!$TURBO_ROOT$/apps/**/dist/**",
+        "!$TURBO_ROOT$/apps/**/.turbo/**",
+        "!$TURBO_ROOT$/packages/**/dist/**",
+        "!$TURBO_ROOT$/packages/**/.turbo/**"
+      ],
+      "description": "Lint shared configuration and rescan workspace-wide renderer style policies."
+    },
     "package": {
       "dependsOn": ["build"],
       "cache": false,

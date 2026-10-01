@@ -1,12 +1,8 @@
 import type { ComponentLayer } from "./types.js"
 
 import { createBoxOverlay, type BoxOverlay } from "./box-overlay.js"
-import { INSPECTOR_CARD_Z_INDEX, INSPECTOR_STYLE_ID } from "./constants.js"
-import {
-  createInspectorCard,
-  inspectorStyles,
-  type InspectorCard,
-} from "./inspector-card.js"
+import { INSPECTOR_CARD_Z_INDEX } from "./constants.js"
+import { createInspectorCard, type InspectorCard } from "./inspector-card.js"
 import { positionInspectorCard } from "./positioning.js"
 
 const TARGET_ATTRIBUTE = "data-maximal-react-component-target"
@@ -72,6 +68,27 @@ export interface InspectorEnvironment {
   window: Window
 }
 
+function isObject(value: unknown): value is Record<PropertyKey, unknown> {
+  return typeof value === "object" && value !== null
+}
+
+function isReactFiber(value: unknown): value is ReactFiber {
+  if (!isObject(value)) return false
+
+  const { type } = value
+  return typeof type === "string" || isObject(type)
+}
+
+function isReactRootContainer(value: unknown): value is ReactRootContainer {
+  if (!isObject(value)) return false
+
+  const { _internalRoot } = value
+  if (!isObject(_internalRoot) || !isObject(_internalRoot.current)) return false
+
+  const { child } = _internalRoot.current
+  return child === undefined || isReactFiber(child)
+}
+
 export function sourcePath(fiber: ReactFiber): string | undefined {
   const source = fiber._debugSource ?? fiber._debugInfo
   if (!source) return undefined
@@ -96,14 +113,17 @@ export function getReactInstanceForElement(
     }
   }
 
-  const rootContainer = (
-    element as Element & { _reactRootContainer?: ReactRootContainer }
-  )._reactRootContainer
-  if (rootContainer) return rootContainer._internalRoot.current.child
+  const rootContainer: unknown = Object.getOwnPropertyDescriptor(
+    element,
+    "_reactRootContainer",
+  )?.value
+  if (isReactRootContainer(rootContainer)) {
+    return rootContainer._internalRoot.current.child
+  }
 
-  const record = element as unknown as Record<string, unknown>
-  for (const key of Object.keys(record)) {
-    if (key.startsWith("__reactFiber")) return record[key] as ReactFiber
+  for (const key of Object.keys(element)) {
+    const value: unknown = Object.getOwnPropertyDescriptor(element, key)?.value
+    if (key.startsWith("__reactFiber") && isReactFiber(value)) return value
   }
   return undefined
 }
@@ -183,14 +203,6 @@ function resolveEnvironment(
       window: globalThis.window,
     }
   )
-}
-
-function installInspectorStyles(documentObject: Document): HTMLStyleElement {
-  const style = documentObject.createElement("style")
-  style.dataset["viteDevId"] = INSPECTOR_STYLE_ID
-  style.textContent = inspectorStyles
-  documentObject.head.append(style)
-  return style
 }
 
 class InspectorSession {
@@ -414,11 +426,9 @@ export function installReactComponentInspector(
   suppliedEnvironment?: InspectorEnvironment,
 ): () => void {
   const environment = resolveEnvironment(suppliedEnvironment)
-  const style = installInspectorStyles(environment.document)
   const session = new InspectorSession(options, environment)
   session.start()
   return () => {
     session.dispose()
-    style.remove()
   }
 }

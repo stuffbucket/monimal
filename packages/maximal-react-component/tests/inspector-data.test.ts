@@ -175,7 +175,7 @@ describe("inspector data edge cases", () => {
     if (!filesystemSheet) throw new Error("Expected a filesystem stylesheet")
     Object.defineProperty(filesystemSheet, "href", {
       configurable: true,
-      value: "http://localhost/@fs/workspace/maximal/src/grouped.css",
+      value: "https://example.test/@fs/workspace/maximal/src/grouped.css",
     })
     const rootStyle = document.createElement("style")
     rootStyle.textContent = ".target { background-color: black; }"
@@ -184,7 +184,7 @@ describe("inspector data edge cases", () => {
     if (!rootSheet) throw new Error("Expected a root stylesheet")
     Object.defineProperty(rootSheet, "href", {
       configurable: true,
-      value: "http://localhost/src/root.css",
+      value: "https://example.test/src/root.css",
     })
     const anonymousStyle = document.createElement("style")
     anonymousStyle.textContent = ".target { opacity: 0.5; }"

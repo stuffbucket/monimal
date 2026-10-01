@@ -489,6 +489,11 @@ test("the outer and fixed inner test scripts cannot recurse", () => {
     turbo.tasks["@maximal/maximal-core#check:deep:host:after-workspace"].dependsOn,
     ["build", "typecheck", "lint"],
   );
+  assert.ok(
+    turbo.tasks["@maximal/eslint-config#lint"].inputs.includes(
+      "$TURBO_ROOT$/packages/**",
+    ),
+  );
   assert.deepEqual(turbo.tasks["@maximal/maximal-client#build"].outputs, []);
   assert.equal(turbo.tasks["maximal-desktop#build"].cache, false);
   assert.ok(
