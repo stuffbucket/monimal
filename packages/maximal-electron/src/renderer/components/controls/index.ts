@@ -33,6 +33,17 @@ export {
 } from './Fields.js';
 
 export { NumberInput } from './NumberInput.js';
+export {
+  UnitValueInput,
+  type MeasurementUnit,
+  type UnitValueInputProps,
+} from './UnitValueInput.js';
+export {
+  TypefaceControls,
+  type TypefaceMetric,
+  type TypefaceSelectField,
+  type TypefaceWeightField,
+} from './TypefaceControls.js';
 
 export {
   Banner,

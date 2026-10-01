@@ -74,7 +74,7 @@ describe('what a shipped rule falls back to', () => {
   it('is read from the stylesheets this package ships', () => {
     // The floor. A reader that matched nothing reports every fallback as a
     // derivation by finding none of them.
-    expect(found.size).toBeGreaterThan(25);
+    expect(found.size).toBeGreaterThan(20);
     expect(found.get('--shell-border-strong')).toBe('var(--shell-border)');
   });
 

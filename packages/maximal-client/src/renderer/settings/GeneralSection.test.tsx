@@ -740,14 +740,14 @@ describe('GeneralSection', () => {
     const family = surface.querySelector<HTMLSelectElement>(
       '[data-testid="terminal-font-family"]',
     )
-    const section = surface.querySelector<HTMLSelectElement>(
-      '[data-testid="terminal-typography-section"]',
+    const spacingSection = surface.querySelector<HTMLButtonElement>(
+      '[data-testid="terminal-typography-section-spacing"]',
     )
 
     expect(surface.textContent).toContain('Terminal Typography')
     expect(surface.querySelector('[data-testid="terminal-font-size-slider"]')).toBeNull()
-    expect(surface.querySelector<HTMLInputElement>('[data-testid="terminal-font-size"]')?.step)
-      .toBe('0.25')
+    expect(surface.querySelector<HTMLInputElement>('[data-testid="terminal-font-size"]')?.value)
+      .toBe('13')
     const weight = surface.querySelector<HTMLInputElement>(
       '[data-testid="terminal-font-weight"]',
     )
@@ -768,7 +768,16 @@ describe('GeneralSection', () => {
     expect(surface.querySelector<HTMLInputElement>(
       '[data-testid="terminal-tracking"]',
     )).not.toBeNull()
-    expect(section).not.toBeNull()
+    const lineHeight = surface.querySelector<HTMLInputElement>(
+      '[data-testid="terminal-cell-height"]',
+    )
+    const lineHeightUnit = surface.querySelector<HTMLSelectElement>(
+      '[data-testid="terminal-cell-height-unit"]',
+    )
+    expect(lineHeight?.value).toBe('')
+    expect(lineHeight?.placeholder).toBe('Auto')
+    expect(lineHeightUnit?.value).toBe('percent')
+    expect(spacingSection).not.toBeNull()
     expect(surface.querySelector('[data-testid="terminal-color-mode"]'))
       .toBeNull()
     expect(surface.querySelector('[data-testid="terminal-background-opacity"]'))
@@ -794,6 +803,8 @@ describe('GeneralSection', () => {
     expect(surface.textContent).not.toContain('Open live preview')
     expect(surface.querySelector('[aria-label="Live terminal typography preview"]'))
       .not.toBeNull()
+    expect(surface.querySelector('.terminal-typography-group__fields--font'))
+      .not.toBeNull()
     expect([...family?.options ?? []].map(({ text }) => text)).toEqual([
       'System monospace (recommended)',
       'FiraCode Nerd Font',
@@ -817,19 +828,48 @@ describe('GeneralSection', () => {
     expect(terminalTypography.update.mock.lastCall?.[0]).toMatchObject({
       fontWeight: 525,
     })
-    act(() => {
-      if (section !== null) setSelectValue(section, 'spacing')
+    await act(async () => {
+      if (lineHeight !== null) {
+        lineHeight.focus()
+        setInputValue(lineHeight, '1.2em')
+        lineHeight.blur()
+        await Promise.resolve()
+      }
     })
+    expect(terminalTypography.update.mock.lastCall?.[0].cellHeight)
+      .toBeCloseTo(20)
+    expect(lineHeightUnit?.value).toBe('em')
+    expect(localStorage.getItem('maximal.typeface.terminal.line-height'))
+      .toBe('em|manual')
+    await act(async () => {
+      if (lineHeight !== null) {
+        lineHeight.focus()
+        setInputValue(lineHeight, '')
+        lineHeight.blur()
+        await Promise.resolve()
+      }
+    })
+    expect(terminalTypography.update.mock.lastCall?.[0].cellHeight).toBe(0)
+    expect(lineHeight?.placeholder).toBe('Auto')
+    act(() => {
+      spacingSection?.click()
+    })
+    expect(surface.querySelector('.terminal-typography-group__fields--spacing'))
+      .not.toBeNull()
     expect(surface.querySelector('[data-testid="terminal-tracking"]')).toBeNull()
     expect(surface.querySelector('[data-testid="terminal-baseline"]')).not.toBeNull()
     act(() => {
-      if (section !== null) setSelectValue(section, 'rendering')
+      surface.querySelector<HTMLButtonElement>(
+        '[data-testid="terminal-typography-section-rendering"]',
+      )?.click()
     })
     expect(surface.querySelector(
       '[data-testid="terminal-thicken-strength"] [role="slider"]',
     )?.getAttribute('aria-valuenow')).toBe('0')
     act(() => {
-      if (section !== null) setSelectValue(section, 'features')
+      surface.querySelector<HTMLButtonElement>(
+        '[data-testid="terminal-typography-section-features"]',
+      )?.click()
     })
     const standardLigatures = surface.querySelector<HTMLButtonElement>(
       '[data-testid="terminal-font-feature-liga"]',
@@ -881,6 +921,13 @@ describe('GeneralSection', () => {
     })
     expect(terminalTypography.update.mock.lastCall?.[0].palette?.mode).toBe('dark')
 
+    const editing = surface.querySelector<HTMLSelectElement>(
+      '[data-testid="terminal-palette-editing"]',
+    )
+    await act(async () => {
+      if (editing !== null) setSelectValue(editing, 'light')
+      await Promise.resolve()
+    })
     const background = surface.querySelector<HTMLButtonElement>(
       '[data-testid="terminal-palette-light-background"]',
     )
@@ -954,11 +1001,11 @@ describe('GeneralSection', () => {
         finishFirst = () => resolve(settings)
       }))
     const surface = await renderGeneral(capabilities, 'typography')
-    const section = surface.querySelector<HTMLSelectElement>(
-      '[data-testid="terminal-typography-section"]',
+    const section = surface.querySelector<HTMLButtonElement>(
+      '[data-testid="terminal-typography-section-features"]',
     )
     act(() => {
-      if (section !== null) setSelectValue(section, 'features')
+      section?.click()
     })
     const standardLigatures = surface.querySelector<HTMLButtonElement>(
       '[data-testid="terminal-font-feature-liga"]',

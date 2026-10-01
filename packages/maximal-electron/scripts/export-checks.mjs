@@ -234,6 +234,8 @@ export const RENDERER_SURFACE = [
   'TitleBar',
   'Toolbar',
   'TooltipProvider',
+  'TypefaceControls',
+  'UnitValueInput',
   'UnsavedChangesDialog',
   'ViewModeSwitch',
   'WindowChrome',

@@ -169,7 +169,9 @@ export {
   TextInput,
   Textarea,
   TooltipProvider,
+  TypefaceControls,
   Toolbar,
+  UnitValueInput,
   UnsavedChangesDialog,
   ViewModeSwitch,
   type ButtonSize,
@@ -179,6 +181,11 @@ export {
   type Option,
   type SliderOption,
   type TileProps,
+  type MeasurementUnit,
+  type TypefaceMetric,
+  type TypefaceSelectField,
+  type TypefaceWeightField,
+  type UnitValueInputProps,
   type ViewMode,
 } from './components/controls/index.js';
 export {

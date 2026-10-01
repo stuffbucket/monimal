@@ -261,10 +261,43 @@ function usePreviewRasterScale(): number {
   return rasterScale
 }
 
-export function TerminalTypographyPreview({
+function CompactTypographyPreview({
   typography,
 }: {
   typography: TerminalTypography | null
+}): ReactElement {
+  return (
+    <div
+      className="terminal-typography-preview terminal-typography-preview--compact"
+      aria-label="Live terminal typography preview"
+    >
+      {typography === null ? (
+        <div className="terminal-typography-preview__placeholder" role="status">
+          Loading terminal preview…
+        </div>
+      ) : (
+        <div className="terminal-typography-preview__proof">
+          <span className="terminal-typography-preview__proof-label">
+            LIVE PROOF / {String(typography.fontSize)}PT
+          </span>
+          <strong style={variationSampleStyle(typography)}>
+            Hamburgefontsiv
+          </strong>
+          <span style={variationSampleStyle(typography)}>
+            Aa Bb Gg 00 1lI rn/m {'{}'} =&gt; !=
+          </span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export function TerminalTypographyPreview({
+  typography,
+  compact = false,
+}: {
+  typography: TerminalTypography | null
+  compact?: boolean
 }): ReactElement {
   const rasterScale = usePreviewRasterScale()
   const key = useMemo(
@@ -280,10 +313,13 @@ export function TerminalTypographyPreview({
   const cachedSource = key === null ? undefined : rampCache.get(key)
   const displayedSource = cachedSource ?? source
   const failed = key !== null && failedKey === key
-  const rendering = key !== null && cachedSource === undefined && !failed
+  const rendering = !compact
+    && key !== null
+    && cachedSource === undefined
+    && !failed
 
   useEffect(() => {
-    if (typography === null || key === null) return
+    if (compact || typography === null || key === null) return
     const cached = rampCache.get(key)
     if (cached !== undefined) return
     let active = true
@@ -309,7 +345,9 @@ export function TerminalTypographyPreview({
       active = false
       window.clearTimeout(timer)
     }
-  }, [key, rasterScale, typography])
+  }, [compact, key, rasterScale, typography])
+
+  if (compact) return <CompactTypographyPreview typography={typography} />
 
   return (
     <div

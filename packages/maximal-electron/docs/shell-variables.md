@@ -56,7 +56,10 @@ focus rings, type, and optical details are not spacing increments.
 | `--shell-focus-ring-offset` | `2px` | Space between a control and its keyboard focus ring. |
 | `--shell-focus-ring-width` | `2px` | Keyboard focus ring width. |
 | `--shell-icon-prominent` | `24px` | A prominent navigation or feature glyph. |
-| `--shell-icon-size` | `16px` | A standard control glyph. |
+| `--shell-icon-size` | `16px` | The default Lucide glyph size. |
+| `--shell-icon-size-large` | `20px` | An emphasized navigation glyph size. |
+| `--shell-icon-size-small` | `14px` | A compact action glyph size. |
+| `--shell-icon-stroke` | `1.5` | The stroke weight of every Lucide glyph inside the shell. |
 | `--shell-icon-optical-folder-offset-y` | `0.5px` | Centers the Folder glyph's painted bounds in its slot. |
 | `--shell-icon-optical-map-scale` | `1.111111` | Expands the Map glyph to the prominent painted extent. |
 | `--shell-icon-optical-terminal-scale` | `1.111111` | Expands the Terminal glyph to the prominent painted extent. |
@@ -79,8 +82,9 @@ focus rings, type, and optical details are not spacing increments.
 | `--shell-provider-mistral-card-border` | `var(--shell-border)` | The Mistral model-card outline. |
 | `--shell-provider-openai-card-background` | `var(--shell-raised)` | The OpenAI model-card surface. |
 | `--shell-provider-openai-card-border` | `var(--shell-border)` | The OpenAI model-card outline. |
-| `--shell-radius` | `6px` | A control corner. |
-| `--shell-radius-large` | `8px` | A card corner. |
+| `--shell-radius` | `4px` | A control corner. |
+| `--shell-radius-dialog` | `4px` | A dialog corner. |
+| `--shell-radius-large` | `4px` | A card corner. |
 | `--shell-radius-pill` | `9999px` | A fully rounded control. |
 | `--shell-row-height` | `32px` | A compact navigation, menu, or list row. |
 | `--shell-space-1` | `4px` | The tightest gap. |
@@ -88,8 +92,6 @@ focus rings, type, and optical details are not spacing increments.
 | `--shell-space-3` | `12px` | A gap between controls. |
 | `--shell-space-4` | `16px` | Padding around a surface. |
 | `--shell-space-5` | `24px` | A gap between sections. |
-| `--shell-tab-max` | `168px` | The widest tab before labels truncate. |
-| `--shell-tab-min` | `72px` | The narrowest tab in a crowded strip. |
 | `--shell-text-base` | `0.875rem` | Body text. |
 | `--shell-text-lg` | `1.0625rem` | A section title. |
 | `--shell-text-md` | `0.9375rem` | An emphasized label. |
@@ -152,7 +154,6 @@ looks exactly like an ordinary hovered one.
 | `--shell-invalid` | `--shell-danger` | the outline and the message of a field that failed validation |
 | `--shell-nav-heading-height` | `24px` | the space a collapsed `NavRail` keeps for a section heading |
 | `--shell-position` | `fixed` | how the `ShellLayout` root meets the window; `static` lays it out inside the consumer's own container instead |
-| `--shell-radius-dialog` | `14px` | the modal card, which is a panel rather than a control |
 | `--shell-radius-small` | `4px` | tab close affordance, tooltip, segmented control, menu item |
 | `--shell-scrim` | `rgb(0 0 0 / 0.34)` | the layer a modal dims the window with |
 | `--shell-status` | `--shell-text-muted` | the status dot, the `StatusChip` label, the `Banner` text, the `Callout` outline; the `Callout` heading reads it too and falls back to `--shell-text`, which is the legible one on a raised fill |

@@ -39,7 +39,14 @@
  * drawn at.
  */
 .sb-shell svg.lucide {
+  width: var(--shell-icon-size);
+  height: var(--shell-icon-size);
   stroke-width: var(--shell-icon-stroke);
+}
+
+.sb-shell .icon-button svg.lucide {
+  width: var(--shell-icon-size-small);
+  height: var(--shell-icon-size-small);
 }
 
 /*
@@ -1276,7 +1283,7 @@
   padding: var(--shell-space-4);
   background: var(--shell-raised);
   border: 1px solid var(--shell-border-strong, var(--shell-border));
-  border-radius: var(--shell-radius-dialog, 14px);
+  border-radius: var(--shell-radius-dialog);
   box-shadow: var(--shell-elevation, none);
   transform: translate(-50%, -50%);
 }

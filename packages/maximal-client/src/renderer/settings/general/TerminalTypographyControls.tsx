@@ -1,5 +1,4 @@
 import {
-  Select,
   Slider,
   Switch,
 } from '@maximal/maximal-electron/renderer'
@@ -63,6 +62,36 @@ const FONT_FEATURES = [
     }
   }),
 ]
+
+function SectionTabs({
+  selected,
+  onSelect,
+}: {
+  selected: TypographySection
+  onSelect: (section: TypographySection) => void
+}): ReactElement {
+  return (
+    <div
+      className="terminal-typography-tabs"
+      role="tablist"
+      aria-label="Terminal typography controls"
+    >
+      {TYPOGRAPHY_SECTIONS.map(({ value, label }) => (
+        <button
+          key={value}
+          type="button"
+          className="terminal-typography-tabs__tab"
+          role="tab"
+          aria-selected={selected === value}
+          onClick={() => onSelect(value)}
+          data-testid={`terminal-typography-section-${value}`}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  )
+}
 
 interface ControlProps {
   settings: TypographySettings
@@ -200,28 +229,15 @@ export function TerminalTypographyControls({
   }
   return (
     <div className="terminal-typography-controls">
-      <label className="terminal-typography-section-picker">
-        <span>Controls</span>
-        <Select
-          aria-label="Terminal typography control section"
-          value={section}
-          options={TYPOGRAPHY_SECTIONS}
-          onChange={(value) => {
-            if (TYPOGRAPHY_SECTIONS.some((option) => option.value === value)) {
-              setSection(value)
-            }
-          }}
-          testId="terminal-typography-section"
-        />
-      </label>
+      <SectionTabs selected={section} onSelect={setSection} />
       <div className="terminal-typography-group">
-        <h4>{TYPOGRAPHY_SECTIONS.find(({ value }) => value === section)?.label}</h4>
-        <div className="terminal-typography-group__fields">
+        <div
+          className={`terminal-typography-group__fields terminal-typography-group__fields--${section}`}
+        >
           {section === 'font' ? (
-            <>
-              <TerminalTypographyBasics
-                {...{ settings, catalog, fontOptions, onUpdate }}
-              />
+            <TerminalTypographyBasics
+              {...{ settings, catalog, fontOptions, onUpdate }}
+            >
               {axes.length > 0 ? (
                 <div className="terminal-typography-axes">
                   <div className="terminal-typography-group__title">
@@ -238,7 +254,7 @@ export function TerminalTypographyControls({
                   </div>
                 </div>
               ) : null}
-            </>
+            </TerminalTypographyBasics>
           ) : null}
           {section === 'spacing' ? (
             <>

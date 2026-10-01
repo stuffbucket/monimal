@@ -135,17 +135,13 @@ const SETTINGS_CSS = `
   }
 }
 
-.appearance-color {
-
 .terminal-typography-workbench {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: minmax(30rem, 3fr) minmax(18rem, 2fr);
   gap: var(--shell-space-4, 16px);
+  align-items: start;
   width: 100%;
-  padding:
-    0
-    var(--shell-space-4, 16px)
-    var(--shell-space-4, 16px);
+  padding: 0;
 }
 
 .terminal-typography-controls {
@@ -156,31 +152,51 @@ const SETTINGS_CSS = `
   min-width: 0;
 }
 
-.terminal-typography-section-picker {
+.terminal-typography-tabs {
   display: grid;
-  grid-template-columns: 6rem minmax(0, 1fr);
-  gap: var(--shell-space-2, 8px);
-  align-items: center;
-  color: var(--shell-text-muted, #a0a8b4);
-  font-size: var(--shell-text-sm, 0.8125rem);
-  font-weight: 500;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--shell-space-1, 4px);
+  padding: var(--shell-space-1, 4px);
+  border-radius: var(--shell-radius, 4px);
+  background: var(--shell-active, rgb(255 255 255 / 0.1));
 }
 
-.terminal-typography-section-picker select {
-  width: 100%;
+.terminal-typography-tabs__tab {
+  min-width: 0;
+  min-height: var(--shell-control-md, 28px);
+  padding: 0 var(--shell-space-2, 8px);
+  overflow: hidden;
+  color: var(--shell-text-subtle, #8f97a2);
+  font: inherit;
+  font-size: var(--shell-text-xs, 0.75rem);
+  font-weight: var(--shell-weight-md, 500);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border: 0;
+  border-radius: var(--shell-radius, 4px);
+  background: transparent;
+}
+
+.terminal-typography-tabs__tab:hover {
+  color: var(--shell-text, #e6e8eb);
+  background: var(--shell-hover, rgb(255 255 255 / 0.06));
+}
+
+.terminal-typography-tabs__tab[aria-selected='true'] {
+  color: var(--shell-text, #e6e8eb);
+  background: var(--shell-raised, #252830);
+  box-shadow: 0 1px 2px var(--maximal-shadow, rgb(0 0 0 / 0.2));
+}
+
+.terminal-typography-tabs__tab:focus-visible {
+  outline: var(--shell-focus-ring-width, 2px) solid var(--shell-focus);
+  outline-offset: calc(-1 * var(--shell-focus-ring-width, 2px));
 }
 
 .terminal-typography-group {
   padding: var(--shell-space-3, 12px);
   border-radius: calc(var(--shell-radius, 6px) + 2px);
   background: var(--shell-raised, #252830);
-}
-
-.terminal-typography-group h4 {
-  margin: 0 0 var(--shell-space-3, 12px);
-  color: var(--shell-text, #e6e8eb);
-  font-size: var(--shell-text-sm, 0.8125rem);
-  font-weight: 600;
 }
 
 .terminal-typography-group__title {
@@ -211,59 +227,8 @@ const SETTINGS_CSS = `
   gap: var(--shell-space-3, 12px) var(--shell-space-5, 20px);
 }
 
-.terminal-typography-basics {
-  display: grid;
-  grid-column: 1 / -1;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: var(--shell-space-2, 8px);
-}
-
-.terminal-typography-basics .terminal-typography-field--family {
-  --shell-control-height: var(--shell-control-md, 28px);
-
-  display: flex;
-  grid-column: 1 / -1;
-  flex-direction: column;
-  gap: var(--shell-space-1, 4px);
-}
-
-.terminal-typography-basic-field {
-  display: flex;
-  grid-column: span 2;
-  min-width: 0;
-  flex-direction: column;
-  gap: var(--shell-space-1, 4px);
-  color: var(--shell-text-muted, #a0a8b4);
-  font-size: var(--shell-text-xs, 0.75rem);
-  font-weight: var(--shell-weight-md, 500);
-}
-
-.terminal-typography-basic-field:nth-child(5),
-.terminal-typography-basic-field:nth-child(6) {
-  grid-column: span 3;
-}
-
-.terminal-typography-basic-field select,
-.terminal-typography-basic-field .number-input {
-  width: 100%;
-  min-width: 0;
-}
-
-.terminal-typography-basic-field__value {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-}
-
-.terminal-typography-basic-field__value > span {
-  margin-left: calc(-1 * var(--shell-space-4, 16px));
-  color: var(--shell-text-subtle, #8f97a2);
-  font-weight: 400;
-  pointer-events: none;
-}
-
-.terminal-typography-field--family {
-  grid-column: 1 / -1;
+.terminal-typography-group__fields--font {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .terminal-typography-thicken-controls {
@@ -529,6 +494,7 @@ const SETTINGS_CSS = `
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
 
 .terminal-palette-preview-frame {
   padding: var(--shell-space-4, 16px);
@@ -877,27 +843,15 @@ const SETTINGS_CSS = `
   font-size: var(--shell-text-xs, 0.75rem);
 }
 
+@media (max-width: 64rem) {
+  .terminal-typography-workbench {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 @media (max-width: 46rem) {
   .terminal-typography-group__fields {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .terminal-typography-basics {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .terminal-typography-basic-field,
-  .terminal-typography-basic-field:nth-child(5),
-  .terminal-typography-basic-field:nth-child(6) {
-    grid-column: span 1;
-  }
-
-  .terminal-typography-field--family {
-    grid-column: auto;
-  }
-
-  .terminal-typography-basics .terminal-typography-field--family {
-    grid-column: 1 / -1;
   }
 
   .terminal-palette-toolbar,
@@ -917,17 +871,61 @@ const SETTINGS_CSS = `
 }
 
 .terminal-typography-preview {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
   min-width: 0;
+  max-height: calc(var(--shell-control-lg, 32px) * 9);
   overflow: hidden;
   border-radius: var(--shell-radius, 6px);
   background: #111318;
 }
 
+.terminal-typography-preview--compact {
+  min-height: calc(var(--shell-control-lg, 32px) * 7);
+}
+
+.terminal-typography-preview__proof {
+  display: grid;
+  align-content: center;
+  gap: var(--shell-space-4, 16px);
+  min-width: 0;
+  height: 100%;
+  padding: var(--shell-space-5, 20px);
+  overflow: hidden;
+  background:
+    linear-gradient(rgb(255 255 255 / 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 0.025) 1px, transparent 1px),
+    #181713;
+  background-size:
+    var(--shell-space-5, 20px) var(--shell-space-5, 20px);
+  color: #f2ead3;
+}
+
+.terminal-typography-preview__proof-label {
+  color: #968d78;
+  font: 600 var(--shell-text-xs, 0.75rem)/1 ui-monospace, monospace;
+  letter-spacing: 0.04em;
+}
+
+.terminal-typography-preview__proof strong,
+.terminal-typography-preview__proof > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.terminal-typography-preview__proof strong {
+  font-size: clamp(1.5rem, 3vw, 2.75rem) !important;
+}
+
 .terminal-typography-preview__image {
   display: block;
   width: 100%;
-  height: auto;
-  aspect-ratio: 1200 / 620;
+  height: 100%;
+  min-height: 0;
+  object-fit: cover;
+  object-position: top;
 }
 
 .terminal-typography-preview__variation {
@@ -997,6 +995,7 @@ const SETTINGS_CSS = `
 .terminal-typography-preview-window .terminal-typography-preview {
   display: grid;
   height: 100%;
+  max-height: none;
   place-items: center;
 }
 

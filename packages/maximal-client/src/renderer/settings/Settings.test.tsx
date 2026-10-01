@@ -497,10 +497,16 @@ describe('Settings', () => {
 
     const style = document.getElementById('settings-styles')
     expect(style).toBeInstanceOf(HTMLStyleElement)
+    if (!(style instanceof HTMLStyleElement)) {
+      throw new Error('settings styles did not render')
+    }
     expect(style?.tagName).toBe('STYLE')
     expect(style?.textContent).toContain('.settings-disclosure-list {')
     expect(style?.textContent).not.toContain('.settings-section__heading')
     expect(style?.textContent).toMatch(/\.settings-section__subheading\s*{[^}]*--shell-text-lg/s)
+    expect(style.textContent.match(/\{/g)).toHaveLength(
+      style.textContent.match(/\}/g)?.length ?? 0,
+    )
   })
 
   it('updates without replacing or duplicating an existing surface style element', async () => {

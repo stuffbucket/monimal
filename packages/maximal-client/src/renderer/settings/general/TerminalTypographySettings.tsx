@@ -1,5 +1,6 @@
 import {
   Banner,
+  Button,
   Note,
   SettingsGroup,
   SettingsItem,
@@ -82,10 +83,12 @@ function TypographySurface({
   settingsError,
   fontError,
   fontNotice,
+  previewError,
   installingFont,
   onPreview,
   onUpdate,
   onInstall,
+  onOpenPreview,
 }: {
   surface: 'typography' | 'palette'
   settings: TypographySettings | null
@@ -94,10 +97,12 @@ function TypographySurface({
   settingsError?: string
   fontError?: string
   fontNotice?: string
+  previewError?: string
   installingFont?: string
   onPreview: (patch: Partial<TypographySettings>) => void
   onUpdate: (patch: Partial<TypographySettings>) => void
   onInstall: (fontId: string) => void
+  onOpenPreview: () => void
 }): ReactElement {
   return (
     <section
@@ -112,14 +117,23 @@ function TypographySurface({
           <strong>Terminal appearance could not be updated:</strong> {settingsError}
         </Banner>
       ) : null}
+      {previewError ? (
+        <Banner status="failed">
+          <strong>The full specimen could not be opened:</strong> {previewError}
+        </Banner>
+      ) : null}
       {surface === 'typography' ? (
         <SettingsGroup dividers={false}>
           <SettingsItem
             title="Terminal Typography"
-            description="Tune terminal type against the live specimen."
+            description="Shape terminal type with a compact proof beside the controls."
+            actions={(
+              <Button size="sm" onClick={onOpenPreview}>
+                Full specimen
+              </Button>
+            )}
           />
           <div className="terminal-typography-workbench">
-            <TerminalTypographyPreview typography={settings} />
             {settings === null ? (
               <Note live="polite">Loading terminal typography…</Note>
             ) : (
@@ -131,6 +145,7 @@ function TypographySurface({
                 onUpdate={onUpdate}
               />
             )}
+            <TerminalTypographyPreview typography={settings} compact />
           </div>
         </SettingsGroup>
       ) : settings === null ? (
@@ -191,6 +206,7 @@ export function TerminalTypographySettings({
   const [settingsError, setSettingsError] = useState<string>()
   const [fontError, setFontError] = useState<string>()
   const [fontNotice, setFontNotice] = useState<string>()
+  const [previewError, setPreviewError] = useState<string>()
   const [installingFont, setInstallingFont] = useState<string>()
   const persisted = useRef<TypographySettings | null>(null)
   const settingsRef = useRef<TypographySettings | null>(null)
@@ -311,11 +327,21 @@ export function TerminalTypographySettings({
         settingsError,
         fontError,
         fontNotice,
+        previewError,
         installingFont,
       }}
       onPreview={preview}
       onUpdate={update}
       onInstall={(fontId) => void installFont(fontId)}
+      onOpenPreview={() => {
+        setPreviewError(undefined)
+        void capabilities.openPreview().catch((cause: unknown) => {
+          setPreviewError(errorMessage(
+            cause,
+            'The terminal typography preview could not be opened.',
+          ))
+        })
+      }}
     />
   )
 }

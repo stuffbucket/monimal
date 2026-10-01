@@ -51,6 +51,11 @@ MUST remain policy-free rendering primitives.
 Components that portal MUST resolve their target document through the shell
 root so detached windows receive the same component styles.
 
+Consumers MAY compose typeface editors with `TypefaceControls`.
+
+Consumers using `UnitValueInput` MUST own canonical value conversion; the
+control owns only presentation-unit and automatic/manual UI state.
+
 The consumer MUST import `@maximal/maximal-electron/renderer/styles.css` and
 MUST define the required `--shell-*` palette variables documented in
 `shell-variables.md`.
