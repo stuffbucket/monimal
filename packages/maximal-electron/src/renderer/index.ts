@@ -101,10 +101,16 @@ export {
 } from './components/SpatialCanvas.js';
 export {
   SpatialCanvasCommentComposer,
+  SpatialCanvasCommentThreadCard,
   SpatialCanvasCommentThread,
   SpatialCanvasPanelHeader,
+  type SpatialCanvasCommentEntry,
 } from './components/SpatialCanvasDiscussion.js';
 export { SpatialCanvasSurface } from './components/SpatialCanvasSurface.js';
+export {
+  SpatialCanvasSearchResult,
+  SpatialCanvasSearchResults,
+} from './components/SpatialCanvasSearch.js';
 export {
   SpatialCanvasAvatar,
   SpatialCanvasControlGroup,

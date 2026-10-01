@@ -14,10 +14,30 @@ export interface ProjectMapProject {
 export interface ProjectMapComment {
   id: string
   author: string
+  authorId?: string
+  authorInitials?: string
+  authorColor?: string
   body: string
+  createdAt?: string
   x: number
   y: number
+  anchor?: {
+    itemId: string
+    offsetX: number
+    offsetY: number
+  }
+  replies?: Array<ProjectMapCommentReply>
   resolved: boolean
+}
+
+export interface ProjectMapCommentReply {
+  id: string
+  author: string
+  authorId?: string
+  authorInitials?: string
+  authorColor?: string
+  body: string
+  createdAt: string
 }
 
 export interface ProjectMapMessage {

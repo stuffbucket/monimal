@@ -45,21 +45,22 @@ import {
   type SceneItem,
 } from "./model.ts"
 import { ProjectMapChrome } from "./ProjectMapChrome.tsx"
+import { ProjectMapCommentComposer } from "./ProjectMapCommentComposer.tsx"
 import {
-  ProjectMapCommentComposer,
-  type ProjectMapCommentDraft,
-} from "./ProjectMapCommentComposer.tsx"
-
-interface Camera {
-  x: number
-  y: number
-  zoom: number
-}
-
-interface Point {
-  x: number
-  y: number
-}
+  commentInitials,
+  commentPosition,
+  ProjectMapActiveComment,
+} from "./ProjectMapComments.tsx"
+import { useProjectMapComments } from "./useProjectMapComments.ts"
+import {
+  clampZoom,
+  editableTarget,
+  INITIAL_CAMERA,
+  screenToWorld,
+  useRafCamera,
+  type Camera,
+  type Point,
+} from "./view.ts"
 
 interface DragState {
   mode: "pan" | "move" | "marquee"
@@ -106,63 +107,10 @@ const TOOL_LABELS: ReadonlyArray<{
   { tool: "comment", label: "Comment", shortcut: "C" },
 ]
 
-const INITIAL_CAMERA = { x: 340, y: 100, zoom: 1 } as const
-
-function clampZoom(value: number): number {
-  return Math.min(4, Math.max(0.1, value))
-}
-
 function itemRectangle(item: SceneItem): Rectangle | undefined {
   return "x" in item ?
       { x: item.x, y: item.y, width: item.width, height: item.height }
     : undefined
-}
-
-function screenToWorld(point: Point, camera: Camera, bounds: DOMRect): Point {
-  return {
-    x: (point.x - bounds.left - camera.x) / camera.zoom,
-    y: (point.y - bounds.top - camera.y) / camera.zoom,
-  }
-}
-
-function editableTarget(target: EventTarget | null): boolean {
-  return (
-    target instanceof HTMLInputElement
-    || target instanceof HTMLTextAreaElement
-    || (target instanceof HTMLElement && target.isContentEditable)
-  )
-}
-
-function initials(name: string): string {
-  return name
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? "")
-    .join("")
-}
-
-function useRafCamera(initial: Camera): [Camera, (next: Camera) => void] {
-  const [camera, setCamera] = useState(initial)
-  const pending = useRef<Camera | undefined>(undefined)
-  const frame = useRef<number | undefined>(undefined)
-
-  const schedule = useCallback((next: Camera) => {
-    pending.current = next
-    if (frame.current !== undefined) return
-    frame.current = requestAnimationFrame(() => {
-      frame.current = undefined
-      if (pending.current) setCamera(pending.current)
-    })
-  }, [])
-
-  useEffect(
-    () => () => {
-      if (frame.current !== undefined) cancelAnimationFrame(frame.current)
-    },
-    [],
-  )
-
-  return [camera, schedule]
 }
 
 // The coordinator intentionally keeps gesture state and scene rendering in one component.
@@ -199,8 +147,6 @@ export function ProjectMap({
   const [marquee, setMarquee] = useState<Rectangle | undefined>(undefined)
   const [chatOpen, setChatOpen] = useState(false)
   const [commentsOpen, setCommentsOpen] = useState(false)
-  const [activeCommentId, setActiveCommentId] = useState<string>()
-  const [commentDraft, setCommentDraft] = useState<ProjectMapCommentDraft>()
   const [viewportSize, setViewportSize] = useState({ width: 1200, height: 700 })
   const snapshot = useMemo(
     () => store.getSnapshot(pageId),
@@ -336,6 +282,29 @@ export function ProjectMap({
     () => new Map(items.map((item) => [item.id, item])),
     [items],
   )
+  const nextCommentId = useCallback(
+    (kind: "comment" | "reply") => `${kind}:${++nextId.current}`,
+    [],
+  )
+  const {
+    activeComment,
+    activeCommentId,
+    commentDraft,
+    deleteComment,
+    replyDraft,
+    setActiveCommentId,
+    setCommentDraft,
+    setReplyDraft,
+    submitCommentDraft,
+    submitReply,
+    toggleComment,
+  } = useProjectMapComments({
+    comments,
+    viewer,
+    updatePage,
+    nextId: nextCommentId,
+    onPosted: () => setCommentsOpen(true),
+  })
 
   const zoomAt = useCallback(
     (factor: number, point?: Point) => {
@@ -428,6 +397,26 @@ export function ProjectMap({
   ) => {
     if (item.type === "connector" || tool === "hand") return
     event.stopPropagation()
+    if (tool === "comment" && "x" in item) {
+      const bounds = viewport.current?.getBoundingClientRect()
+      if (!bounds) return
+      const world = screenToWorld(
+        { x: event.clientX, y: event.clientY },
+        camera,
+        bounds,
+      )
+      setCommentDraft({
+        ...world,
+        body: "",
+        anchor: {
+          itemId: item.id,
+          offsetX: world.x - item.x,
+          offsetY: world.y - item.y,
+        },
+      })
+      setTool("select")
+      return
+    }
     if (tool === "connector") {
       const start = connectorStart.current
       if (start && start !== item.id) {
@@ -642,26 +631,6 @@ export function ProjectMap({
     ]
   })
 
-  const submitCommentDraft = () => {
-    if (!commentDraft) return
-    const body = commentDraft.body.trim()
-    if (!body) return
-    const id = `comment:${++nextId.current}`
-    updatePage((draft) => {
-      draft.comments.push({
-        id,
-        author: viewer.name,
-        body,
-        x: commentDraft.x,
-        y: commentDraft.y,
-        resolved: false,
-      })
-    })
-    setActiveCommentId(id)
-    setCommentDraft(undefined)
-    setCommentsOpen(true)
-  }
-
   return (
     <TooltipProvider>
       <SpatialCanvas testId="project-map">
@@ -669,6 +638,9 @@ export function ProjectMap({
           panelId={panelId}
           query={query}
           onQueryChange={onQueryChange}
+          projects={projects}
+          busy={busy}
+          onOpenProject={onOpenProject}
           pages={pages}
           pageId={pageId}
           onPageChange={onPageChange}
@@ -691,23 +663,21 @@ export function ProjectMap({
           zoom={camera.zoom}
           onZoom={zoomAt}
           onResetCamera={() => scheduleCamera(INITIAL_CAMERA)}
-          onToggleComment={(commentId) =>
-            updatePage((draft) => {
-              draft.comments = draft.comments.map((entry) =>
-                entry.id === commentId ?
-                  { ...entry, resolved: !entry.resolved }
-                : entry,
-              )
-            })
-          }
+          onToggleComment={toggleComment}
+          onDeleteComment={deleteComment}
           onAddComment={(body) =>
             updatePage((draft) => {
               draft.comments.push({
                 id: `comment:${++nextId.current}`,
                 author: viewer.name,
+                authorId: viewer.id,
+                authorInitials: viewer.initials,
+                authorColor: viewer.color,
                 body,
+                createdAt: new Date().toISOString(),
                 x: (-camera.x + viewportSize.width / 2) / camera.zoom,
                 y: (-camera.y + viewportSize.height / 2) / camera.zoom,
+                replies: [],
                 resolved: false,
               })
             })
@@ -787,21 +757,28 @@ export function ProjectMap({
             })}
             {comments
               .filter((comment) => !comment.resolved)
-              .map((comment) => (
-                <SpatialCanvasCommentPin
-                  key={comment.id}
-                  x={comment.x}
-                  y={comment.y}
-                  label={`Comment by ${comment.author}: ${comment.body}`}
-                  selected={comment.id === activeCommentId}
-                  onClick={() => {
-                    setActiveCommentId(comment.id)
-                    setCommentsOpen(true)
-                  }}
-                >
-                  {initials(comment.author)}
-                </SpatialCanvasCommentPin>
-              ))}
+              .map((comment) =>
+                (() => {
+                  const position = commentPosition(comment, itemById)
+                  return (
+                    <SpatialCanvasCommentPin
+                      key={comment.id}
+                      x={position.x}
+                      y={position.y}
+                      label={`Comment by ${comment.author}: ${comment.body}`}
+                      selected={comment.id === activeCommentId}
+                      onClick={() => {
+                        setActiveCommentId(comment.id)
+                        setReplyDraft("")
+                        setCommentsOpen(true)
+                      }}
+                    >
+                      {comment.authorInitials
+                        ?? commentInitials(comment.author)}
+                    </SpatialCanvasCommentPin>
+                  )
+                })(),
+              )}
             {collaborators.flatMap((person) =>
               person.cursor ?
                 [
@@ -822,11 +799,35 @@ export function ProjectMap({
           </SpatialCanvasScene>
           {commentDraft ?
             <ProjectMapCommentComposer
-              draft={commentDraft}
+              draft={{
+                ...commentDraft,
+                ...commentPosition(commentDraft, itemById),
+              }}
               camera={camera}
               onChange={setCommentDraft}
               onSubmit={submitCommentDraft}
               onCancel={() => setCommentDraft(undefined)}
+              initials={viewer.initials}
+              compact={commentDraft.anchor !== undefined}
+            />
+          : null}
+          {activeComment ?
+            <ProjectMapActiveComment
+              comment={activeComment}
+              position={commentPosition(activeComment, itemById)}
+              camera={camera}
+              viewportWidth={viewportSize.width}
+              viewportHeight={viewportSize.height}
+              viewer={viewer}
+              reply={replyDraft}
+              onReplyChange={setReplyDraft}
+              onSubmitReply={submitReply}
+              onToggleResolved={() => toggleComment(activeComment.id)}
+              onDelete={() => deleteComment(activeComment.id)}
+              onClose={() => {
+                setActiveCommentId(undefined)
+                setReplyDraft("")
+              }}
             />
           : null}
         </SpatialCanvasViewport>

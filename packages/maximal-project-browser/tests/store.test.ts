@@ -10,6 +10,24 @@ describe("Yjs project map store", () => {
 
     first.transact(page.id, (draft) => {
       draft.messages.push({ id: "message-1", author: "Agent", body: "Mapped" })
+      draft.comments.push({
+        id: "comment-1",
+        author: "Agent",
+        body: "Keep this attached",
+        createdAt: "2026-09-30T00:00:00.000Z",
+        x: 24,
+        y: 32,
+        anchor: { itemId: "sticky-1", offsetX: 24, offsetY: 32 },
+        replies: [
+          {
+            id: "reply-1",
+            author: "Human",
+            body: "Agreed",
+            createdAt: "2026-09-30T00:01:00.000Z",
+          },
+        ],
+        resolved: false,
+      })
     })
     second.applyUpdate(first.encodeState())
 
@@ -17,6 +35,10 @@ describe("Yjs project map store", () => {
       { id: "message-1", author: "Agent", body: "Mapped" },
     ])
     expect(second.getSnapshot("projects").messages).toEqual([])
+    expect(second.getSnapshot(page.id).comments[0]?.replies?.[0]?.body).toBe(
+      "Agreed",
+    )
+    expect(second.getSnapshot("projects").comments).toEqual([])
 
     first.destroy()
     second.destroy()

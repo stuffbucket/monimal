@@ -302,7 +302,7 @@ export function SpatialCanvasSidePanel({
       <header>
         {header ?? <strong>{title}</strong>}
         <IconButton label={`Close ${title}`} onClick={onClose}>
-          <X size={14} />
+          <X size={16} />
         </IconButton>
       </header>
       <div className="spatial-canvas__side-panel-body">{children}</div>
@@ -330,13 +330,13 @@ export function SpatialCanvasZoomControls({
       aria-label="Zoom controls"
     >
       <IconButton label="Zoom out" onClick={onZoomOut}>
-        <Minus size={14} />
+        <Minus size={16} />
       </IconButton>
       <Button size="sm" onClick={onReset}>
         {Math.round(zoom * 100)}%
       </Button>
       <IconButton label="Zoom in" onClick={onZoomIn}>
-        <Plus size={14} />
+        <Plus size={16} />
       </IconButton>
     </div>
   );

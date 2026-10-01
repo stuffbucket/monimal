@@ -4,6 +4,11 @@ export interface ProjectMapCommentDraft {
   x: number
   y: number
   body: string
+  anchor?: {
+    itemId: string
+    offsetX: number
+    offsetY: number
+  }
 }
 
 export function ProjectMapCommentComposer({
@@ -12,12 +17,16 @@ export function ProjectMapCommentComposer({
   onChange,
   onSubmit,
   onCancel,
+  initials,
+  compact = false,
 }: {
   draft: ProjectMapCommentDraft
   camera: { x: number; y: number; zoom: number }
   onChange: (draft: ProjectMapCommentDraft) => void
   onSubmit: () => void
   onCancel: () => void
+  initials: string
+  compact?: boolean
 }) {
   return (
     <SpatialCanvasCommentComposer
@@ -29,6 +38,8 @@ export function ProjectMapCommentComposer({
       onInsertMention={() => onChange({ ...draft, body: `${draft.body}@` })}
       onSubmit={onSubmit}
       onCancel={onCancel}
+      initials={initials}
+      compact={compact}
     />
   )
 }

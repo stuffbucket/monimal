@@ -13,18 +13,19 @@ import {
   SpatialCanvasToolButton,
   SpatialCanvasTopBar,
   SpatialCanvasZoomControls,
-  TextInput,
 } from "@maximal/maximal-electron/renderer"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 import type {
   ProjectMapComment,
   ProjectMapMessage,
+  ProjectMapProject,
   ProjectMapTool,
 } from "./model.ts"
 import type { ProjectMapPage, ProjectMapPresence } from "./store.ts"
 
 import { ProjectMapDiscussion } from "./ProjectMapDiscussion.tsx"
+import { ProjectMapSearchPanel } from "./ProjectMapSearchPanel.tsx"
 
 interface ToolEntry {
   tool: ProjectMapTool
@@ -36,6 +37,9 @@ interface ProjectMapChromeProps {
   panelId: string
   query: string
   onQueryChange: (value: string) => void
+  projects: Array<ProjectMapProject>
+  busy: boolean
+  onOpenProject: (project: ProjectMapProject) => void
   pages: Array<ProjectMapPage>
   pageId: string
   onPageChange: (pageId: string) => void
@@ -59,6 +63,7 @@ interface ProjectMapChromeProps {
   onZoom: (factor: number) => void
   onResetCamera: () => void
   onToggleComment: (commentId: string) => void
+  onDeleteComment: (commentId: string) => void
   onAddComment: (body: string) => void
   onAddMessage: (body: string) => void
 }
@@ -66,33 +71,36 @@ interface ProjectMapChromeProps {
 function PresenceActions({
   chrome,
   shareOpen,
+  searchOpen,
   onShareOpenChange,
+  onSearchOpenChange,
 }: {
   chrome: ProjectMapChromeProps
   shareOpen: boolean
+  searchOpen: boolean
   onShareOpenChange: (open: boolean) => void
+  onSearchOpenChange: (open: boolean) => void
 }) {
-  const [searchOpen, setSearchOpen] = useState(false)
   const showSearch = () => {
     onShareOpenChange(false)
     chrome.onCommentsOpenChange(false)
     chrome.onChatOpenChange(false)
-    setSearchOpen((current) => !current)
+    onSearchOpenChange(!searchOpen)
   }
   const showComments = () => {
-    setSearchOpen(false)
+    onSearchOpenChange(false)
     onShareOpenChange(false)
     chrome.onChatOpenChange(false)
     chrome.onCommentsOpenChange(!chrome.commentsOpen)
   }
   const showChat = () => {
-    setSearchOpen(false)
+    onSearchOpenChange(false)
     onShareOpenChange(false)
     chrome.onCommentsOpenChange(false)
     chrome.onChatOpenChange(!chrome.chatOpen)
   }
   const showShare = () => {
-    setSearchOpen(false)
+    onSearchOpenChange(false)
     chrome.onCommentsOpenChange(false)
     chrome.onChatOpenChange(false)
     onShareOpenChange(!shareOpen)
@@ -114,14 +122,6 @@ function PresenceActions({
         active={searchOpen}
         onClick={showSearch}
       />
-      {searchOpen ?
-        <TextInput
-          aria-label="Search projects"
-          value={chrome.query}
-          placeholder="Search projects"
-          onChange={chrome.onQueryChange}
-        />
-      : null}
       <SpatialCanvasHeaderAction
         kind="comments"
         label={`Comments (${chrome.comments.filter((comment) => !comment.resolved).length})`}
@@ -147,11 +147,15 @@ function PresenceActions({
 function MapHeader({
   chrome,
   shareOpen,
+  searchOpen,
   onShareOpenChange,
+  onSearchOpenChange,
 }: {
   chrome: ProjectMapChromeProps
   shareOpen: boolean
+  searchOpen: boolean
   onShareOpenChange: (open: boolean) => void
+  onSearchOpenChange: (open: boolean) => void
 }) {
   return (
     <SpatialCanvasTopBar>
@@ -184,7 +188,9 @@ function MapHeader({
       <PresenceActions
         chrome={chrome}
         shareOpen={shareOpen}
+        searchOpen={searchOpen}
         onShareOpenChange={onShareOpenChange}
+        onSearchOpenChange={onSearchOpenChange}
       />
     </SpatialCanvasTopBar>
   )
@@ -224,15 +230,34 @@ function MapControls({ chrome }: { chrome: ProjectMapChromeProps }) {
 
 export function ProjectMapChrome(chrome: ProjectMapChromeProps) {
   const [shareOpen, setShareOpen] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
+
+  useEffect(() => {
+    if (!chrome.commentsOpen && !chrome.chatOpen) return
+    setSearchOpen(false)
+    setShareOpen(false)
+  }, [chrome.chatOpen, chrome.commentsOpen])
 
   return (
     <>
       <MapHeader
         chrome={chrome}
         shareOpen={shareOpen}
+        searchOpen={searchOpen}
         onShareOpenChange={setShareOpen}
+        onSearchOpenChange={setSearchOpen}
       />
       <MapControls chrome={chrome} />
+      {searchOpen ?
+        <ProjectMapSearchPanel
+          query={chrome.query}
+          projects={chrome.projects}
+          busy={chrome.busy}
+          onQueryChange={chrome.onQueryChange}
+          onOpenProject={chrome.onOpenProject}
+          onClose={() => setSearchOpen(false)}
+        />
+      : null}
       {chrome.commentsOpen ?
         <ProjectMapDiscussion
           kind="comments"
@@ -240,6 +265,7 @@ export function ProjectMapChrome(chrome: ProjectMapChromeProps) {
           messages={chrome.messages}
           onClose={() => chrome.onCommentsOpenChange(false)}
           onToggleComment={chrome.onToggleComment}
+          onDeleteComment={chrome.onDeleteComment}
           {...(chrome.activeCommentId ?
             { activeCommentId: chrome.activeCommentId }
           : {})}
@@ -254,6 +280,7 @@ export function ProjectMapChrome(chrome: ProjectMapChromeProps) {
           messages={chrome.messages}
           onClose={() => chrome.onChatOpenChange(false)}
           onToggleComment={chrome.onToggleComment}
+          onDeleteComment={chrome.onDeleteComment}
           onSelectComment={chrome.onSelectComment}
           onSubmit={chrome.onAddMessage}
         />

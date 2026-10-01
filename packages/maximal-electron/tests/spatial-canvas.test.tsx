@@ -9,6 +9,7 @@ import {
   SpatialCanvasAvatar,
   SpatialCanvasCommentComposer,
   SpatialCanvasCommentThread,
+  SpatialCanvasCommentThreadCard,
   SpatialCanvasConnectorLayer,
   SpatialCanvasItem,
   SpatialCanvasMarquee,
@@ -16,6 +17,8 @@ import {
   SpatialCanvasPresence,
   SpatialCanvasProjectCard,
   SpatialCanvasScene,
+  SpatialCanvasSearchResult,
+  SpatialCanvasSearchResults,
   SpatialCanvasToolButton,
   SpatialCanvasViewport,
   SpatialCanvasZoomControls,
@@ -181,6 +184,9 @@ describe('SpatialCanvas', () => {
     const container = document.createElement('div');
     document.body.append(container);
     root = createRoot(container);
+    const onCancelComment = vi.fn();
+    const onSubmitComment = vi.fn();
+    const onSubmitReply = vi.fn();
 
     act(() => {
       root?.render(
@@ -192,17 +198,42 @@ describe('SpatialCanvas', () => {
             onChange={vi.fn()}
             onInsertEmoji={vi.fn()}
             onInsertMention={vi.fn()}
-            onSubmit={vi.fn()}
-            onCancel={vi.fn()}
+            onSubmit={onSubmitComment}
+            onCancel={onCancelComment}
+            initials="MA"
           />
           <SpatialCanvasCommentThread
             initials="MA"
             author="Map agent"
             body="Review this"
+            timestamp="Just now"
             resolved={false}
             selected
             onSelect={vi.fn()}
             onToggleResolved={vi.fn()}
+            onDelete={vi.fn()}
+          />
+          <SpatialCanvasCommentThreadCard
+            x={360}
+            y={60}
+            side="right"
+            vertical="below"
+            comment={{
+              id: 'comment-1',
+              initials: 'MA',
+              author: 'Map agent',
+              body: 'Review @Taylor',
+              timestamp: 'Just now',
+            }}
+            replies={[]}
+            resolved={false}
+            reply=""
+            replyInitials="MA"
+            onReplyChange={vi.fn()}
+            onSubmitReply={onSubmitReply}
+            onToggleResolved={vi.fn()}
+            onDelete={vi.fn()}
+            onClose={vi.fn()}
           />
         </TooltipProvider>,
       );
@@ -217,6 +248,54 @@ describe('SpatialCanvas', () => {
       ?.getAttribute('data-selected')).toBe('true');
     expect(container.querySelector('.spatial-canvas__comment-author')?.textContent)
       .toBe('MA');
+    expect(container.querySelector('[aria-label="Comment by Map agent"]'))
+      .not.toBeNull();
+    expect(container.querySelector('.spatial-canvas__comment-body mark')?.textContent)
+      .toBe('@Taylor');
+    act(() => {
+      container.querySelector('[aria-label="Comment"]')?.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Enter', metaKey: true, bubbles: true }),
+      );
+      container.querySelector('[aria-label="Comment"]')?.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+      );
+      container.querySelector('[aria-label="Reply to comment"]')?.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true, bubbles: true }),
+      );
+    });
+    expect(onSubmitComment).toHaveBeenCalledOnce();
+    expect(onCancelComment).toHaveBeenCalledOnce();
+    expect(onSubmitReply).toHaveBeenCalledOnce();
+  });
+
+  it('provides compact spatial search result semantics', () => {
+    const container = document.createElement('div');
+    document.body.append(container);
+    root = createRoot(container);
+    const onSelect = vi.fn();
+
+    act(() => {
+      root?.render(
+        <SpatialCanvasSearchResults emptyMessage="No projects match">
+          <SpatialCanvasSearchResult
+            title="maximal-electron"
+            description="/workspace/packages/maximal-electron"
+            onSelect={onSelect}
+          />
+        </SpatialCanvasSearchResults>,
+      );
+    });
+
+    expect(container.querySelector('[role="list"]')).not.toBeNull();
+    expect(container.querySelectorAll('[role="listitem"]')).toHaveLength(1);
+    expect(container.querySelector('.spatial-canvas__search-result strong')?.textContent)
+      .toBe('maximal-electron');
+    act(() => {
+      container.querySelector<HTMLButtonElement>(
+        '.spatial-canvas__search-result',
+      )?.click();
+    });
+    expect(onSelect).toHaveBeenCalledOnce();
   });
 
   it('reads the thin stroke token instead of carrying stroke widths', () => {
@@ -225,5 +304,11 @@ describe('SpatialCanvas', () => {
     expect(SPATIAL_CANVAS_STYLES).not.toMatch(/border(?:-\\w+)?:\s*\d+px/);
     expect(SPATIAL_CANVAS_STYLES).toContain('.spatial-canvas-surface');
     expect(SPATIAL_CANVAS_STYLES).toContain('inset: 0');
+    expect(SPATIAL_CANVAS_STYLES).toContain(
+      '.spatial-canvas__comment-thread-meta strong',
+    );
+    expect(SPATIAL_CANVAS_STYLES).toContain(
+      'font-weight: var(--shell-weight-md)',
+    );
   });
 });

@@ -9,13 +9,10 @@ import { useState } from "react"
 
 import type { ProjectMapComment, ProjectMapMessage } from "./model.ts"
 
-function initials(name: string): string {
-  return name
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? "")
-    .join("")
-}
+import {
+  commentInitials,
+  commentTimestampLabel,
+} from "./ProjectMapComments.tsx"
 
 export function ProjectMapDiscussion({
   kind,
@@ -23,6 +20,7 @@ export function ProjectMapDiscussion({
   messages,
   onClose,
   onToggleComment,
+  onDeleteComment,
   activeCommentId,
   onSelectComment,
   onSubmit,
@@ -32,6 +30,7 @@ export function ProjectMapDiscussion({
   messages: Array<ProjectMapMessage>
   onClose: () => void
   onToggleComment: (commentId: string) => void
+  onDeleteComment: (commentId: string) => void
   activeCommentId?: string
   onSelectComment: (commentId: string) => void
   onSubmit: (body: string) => void
@@ -92,13 +91,16 @@ export function ProjectMapDiscussion({
         visibleComments.map((comment) => (
           <SpatialCanvasCommentThread
             key={comment.id}
-            initials={initials(comment.author)}
+            initials={comment.authorInitials ?? commentInitials(comment.author)}
             author={comment.author}
             body={comment.body}
+            timestamp={commentTimestampLabel(comment.createdAt)}
+            replyCount={comment.replies?.length ?? 0}
             resolved={comment.resolved}
             selected={comment.id === activeCommentId}
             onSelect={() => onSelectComment(comment.id)}
             onToggleResolved={() => onToggleComment(comment.id)}
+            onDelete={() => onDeleteComment(comment.id)}
           />
         ))
       : messages.map((message) => (
