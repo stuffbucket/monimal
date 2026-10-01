@@ -45,14 +45,6 @@ export const inspectorStyles = `[${TARGET_ATTRIBUTE}] {
     box-shadow ${token.motionDurationFast} ${standardEasing} !important;
 }
 #${INSPECTOR_CARD_ID} {
-  --mrc-surface: ${token.colorSurface};
-  --mrc-surface-raised: ${token.colorSurfaceRaised};
-  --mrc-surface-hover: ${token.colorSurfaceHover};
-  --mrc-border: ${token.colorBorder};
-  --mrc-text: ${token.colorText};
-  --mrc-text-muted: ${token.colorTextMuted};
-  --mrc-accent: ${token.colorAccent};
-  --mrc-accent-text: ${token.colorAccentText};
   all: initial;
   box-sizing: border-box !important;
   position: fixed !important;
@@ -62,9 +54,9 @@ export const inspectorStyles = `[${TARGET_ATTRIBUTE}] {
   width: min(${token.sizeCard}, calc(100vw - ${token.space4} * 2)) !important;
   max-width: calc(100vw - ${token.space4} * 2) !important;
   overflow: hidden !important;
-  color: var(--mrc-text) !important;
-  background: var(--mrc-surface) !important;
-  border: 1px solid var(--mrc-border) !important;
+  color: ${token.colorText} !important;
+  background: ${token.colorSurface} !important;
+  border: 1px solid ${token.colorBorder} !important;
   border-radius: ${token.radiusCard} !important;
   box-shadow: ${token.shadowCard} !important;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif !important;
@@ -114,7 +106,7 @@ export const inspectorStyles = `[${TARGET_ATTRIBUTE}] {
   width: 36px !important;
   height: 3px !important;
   border-radius: 999px !important;
-  background: var(--mrc-border) !important;
+  background: ${token.colorBorder} !important;
   content: "" !important;
   transform: translateX(-50%) !important;
 }
@@ -142,7 +134,7 @@ export const inspectorStyles = `[${TARGET_ATTRIBUTE}] {
   box-sizing: border-box !important;
 }
 #${INSPECTOR_CARD_ID}:focus-visible {
-  outline: 2px solid var(--mrc-accent) !important;
+  outline: 2px solid ${token.colorAccent} !important;
   outline-offset: 2px !important;
 }
 #${INSPECTOR_CARD_ID} .maximal-react-component-selection {
@@ -170,7 +162,7 @@ export const inspectorStyles = `[${TARGET_ATTRIBUTE}] {
   display: inline-block !important;
   flex: 0 0 auto !important;
   min-width: 0 !important;
-  color: var(--mrc-text-muted) !important;
+  color: ${token.colorTextMuted} !important;
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace !important;
   font-size: ${token.typeLabel} !important;
   font-weight: 600 !important;
@@ -181,13 +173,13 @@ export const inspectorStyles = `[${TARGET_ATTRIBUTE}] {
   transition: color ${token.motionDurationFast} ${standardEasing} !important;
 }
 #${INSPECTOR_CARD_ID} .maximal-react-component-name-link[data-active="true"] {
-  color: var(--mrc-text) !important;
+  color: ${token.colorText} !important;
 }
 #${INSPECTOR_CARD_ID} .maximal-react-component-name-link:hover {
-  color: var(--mrc-accent) !important;
+  color: ${token.colorAccent} !important;
 }
 #${INSPECTOR_CARD_ID} .maximal-react-component-name-link:focus-visible {
-  outline: 2px solid var(--mrc-accent) !important;
+  outline: 2px solid ${token.colorAccent} !important;
   outline-offset: 2px !important;
   border-radius: ${token.radiusControl} !important;
 }
@@ -196,7 +188,7 @@ export const inspectorStyles = `[${TARGET_ATTRIBUTE}] {
   grid-column: 2 !important;
   min-width: 0 !important;
   overflow: hidden !important;
-  color: var(--mrc-text-muted) !important;
+  color: ${token.colorTextMuted} !important;
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace !important;
   font-size: ${token.typeCaption} !important;
   line-height: 1.4 !important;
@@ -209,8 +201,8 @@ export const inspectorStyles = `[${TARGET_ATTRIBUTE}] {
   gap: ${token.space1} !important;
   min-width: 0 !important;
   padding: ${token.space2} !important;
-  background: var(--mrc-surface-raised) !important;
-  border-top: 1px solid var(--mrc-border) !important;
+  background: ${token.colorSurfaceRaised} !important;
+  border-top: 1px solid ${token.colorBorder} !important;
 }
 #${INSPECTOR_CARD_ID} .${CONTROL_CLASS} {
   all: unset !important;
@@ -222,7 +214,7 @@ export const inspectorStyles = `[${TARGET_ATTRIBUTE}] {
   min-width: ${token.sizeControl} !important;
   height: ${token.sizeControl} !important;
   padding: 0 ${token.space2} !important;
-  color: var(--mrc-text-muted) !important;
+  color: ${token.colorTextMuted} !important;
   border-radius: ${token.radiusControl} !important;
   cursor: pointer !important;
   transition:
@@ -230,15 +222,15 @@ export const inspectorStyles = `[${TARGET_ATTRIBUTE}] {
     background-color ${token.motionDurationFast} ${standardEasing} !important;
 }
 #${INSPECTOR_CARD_ID} .${CONTROL_CLASS}:hover {
-  color: var(--mrc-text) !important;
-  background: var(--mrc-surface-hover) !important;
+  color: ${token.colorText} !important;
+  background: ${token.colorSurfaceHover} !important;
 }
 #${INSPECTOR_CARD_ID} .${CONTROL_CLASS}:focus-visible {
-  outline: 2px solid var(--mrc-accent) !important;
+  outline: 2px solid ${token.colorAccent} !important;
   outline-offset: -2px !important;
 }
 #${INSPECTOR_CARD_ID} .${CONTROL_CLASS}:disabled {
-  color: var(--mrc-text-muted) !important;
+  color: ${token.colorTextMuted} !important;
   cursor: default !important;
   opacity: 0.38 !important;
   background: transparent !important;
@@ -254,18 +246,18 @@ export const inspectorStyles = `[${TARGET_ATTRIBUTE}] {
 #${INSPECTOR_CARD_ID} .${OPEN_CLASS} {
   margin-left: auto !important;
   padding: 0 ${token.space2} !important;
-  color: var(--mrc-accent-text) !important;
-  background: var(--mrc-accent) !important;
+  color: ${token.colorAccentText} !important;
+  background: ${token.colorAccent} !important;
   font-weight: 600 !important;
 }
 #${INSPECTOR_CARD_ID} .${OPEN_CLASS}:hover {
-  color: var(--mrc-accent-text) !important;
-  background: var(--mrc-accent) !important;
+  color: ${token.colorAccentText} !important;
+  background: ${token.colorAccent} !important;
   filter: brightness(1.08) !important;
 }
 #${INSPECTOR_CARD_ID} .maximal-react-component-count {
   min-width: 48px !important;
-  color: var(--mrc-text) !important;
+  color: ${token.colorText} !important;
   font-variant-numeric: tabular-nums !important;
   font-weight: 600 !important;
   text-align: center !important;
@@ -274,7 +266,7 @@ export const inspectorStyles = `[${TARGET_ATTRIBUTE}] {
   width: 1px !important;
   height: 20px !important;
   margin: 0 ${token.space1} !important;
-  background: var(--mrc-border) !important;
+  background: ${token.colorBorder} !important;
 }
 #${INSPECTOR_CARD_ID} .maximal-react-component-view-tabs,
 #${INSPECTOR_CARD_ID} .maximal-react-component-view-panel {
@@ -290,7 +282,7 @@ export const inspectorStyles = `[${TARGET_ATTRIBUTE}] {
   min-height: 0 !important;
   overflow: auto !important;
   padding: ${token.space2} !important;
-  border-top: 1px solid var(--mrc-border) !important;
+  border-top: 1px solid ${token.colorBorder} !important;
 }
 #${INSPECTOR_CARD_ID} .maximal-react-component-view-tab,
 #${INSPECTOR_CARD_ID} .maximal-react-component-mode-button,
@@ -302,7 +294,7 @@ export const inspectorStyles = `[${TARGET_ATTRIBUTE}] {
 }
 #${INSPECTOR_CARD_ID} .maximal-react-component-mode-button {
   padding: ${token.space1} ${token.space2} !important;
-  color: var(--mrc-text-muted) !important;
+  color: ${token.colorTextMuted} !important;
   font-size: ${token.typeCaption} !important;
 }
 #${INSPECTOR_CARD_ID} .maximal-react-component-view-tab {
@@ -312,12 +304,12 @@ export const inspectorStyles = `[${TARGET_ATTRIBUTE}] {
   width: ${token.sizeControl} !important;
   height: ${token.sizeControl} !important;
   padding: 0 !important;
-  color: var(--mrc-text-muted) !important;
+  color: ${token.colorTextMuted} !important;
 }
 #${INSPECTOR_CARD_ID} [data-active="true"],
 #${INSPECTOR_CARD_ID} [aria-selected="true"] {
-  color: var(--mrc-text) !important;
-  background: var(--mrc-surface-hover) !important;
+  color: ${token.colorText} !important;
+  background: ${token.colorSurfaceHover} !important;
 }
 #${INSPECTOR_CARD_ID} .maximal-react-component-css-modes {
   display: flex !important;
@@ -329,8 +321,8 @@ export const inspectorStyles = `[${TARGET_ATTRIBUTE}] {
   grid-template-columns: minmax(96px, 0.8fr) minmax(120px, 1fr) !important;
   gap: ${token.space2} !important;
   padding: ${token.space1} ${token.space2} !important;
-  color: var(--mrc-text-muted) !important;
-  border-bottom: 1px solid var(--mrc-border) !important;
+  color: ${token.colorTextMuted} !important;
+  border-bottom: 1px solid ${token.colorBorder} !important;
   font-size: ${token.typeCaption} !important;
 }
 #${INSPECTOR_CARD_ID} .maximal-react-component-css-row code {
@@ -343,13 +335,13 @@ export const inspectorStyles = `[${TARGET_ATTRIBUTE}] {
 #${INSPECTOR_CARD_ID} .maximal-react-component-css-row > span {
   grid-column: 1 / -1 !important;
   overflow: hidden !important;
-  color: var(--mrc-accent) !important;
+  color: ${token.colorAccent} !important;
   text-overflow: ellipsis !important;
   white-space: nowrap !important;
 }
 #${INSPECTOR_CARD_ID} .maximal-react-component-view-warning {
   margin: 0 0 ${token.space2} !important;
-  color: var(--mrc-text-muted) !important;
+  color: ${token.colorTextMuted} !important;
   font-size: ${token.typeCaption} !important;
 }
 #${INSPECTOR_CARD_ID} .maximal-react-component-box-model {
