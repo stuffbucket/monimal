@@ -18,6 +18,14 @@
       "cycleEdges": [],
       "duplicatePairs": []
     },
+    "@maximal/maximal-react-component": {
+      "root": "packages/maximal-react-component",
+      "dependsOn": [
+        "@maximal/eslint-config"
+      ],
+      "cycleEdges": [],
+      "duplicatePairs": []
+    },
     "@maximal/maximal-settings": {
       "root": "packages/maximal-settings",
       "dependsOn": [
@@ -228,6 +236,7 @@
         "@maximal/maximal-observability",
         "@maximal/maximal-observability-contract",
         "@maximal/maximal-ollama",
+        "@maximal/maximal-react-component",
         "@maximal/maximal-recording",
         "@maximal/project-catalog",
         "@maximal/maximal-settings",

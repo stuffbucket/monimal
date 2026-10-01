@@ -1,0 +1,128 @@
+{
+  "inspector": {
+    "color": {
+      "$type": "color",
+      "surface": {
+        "$value": "#16181d"
+      },
+      "surfaceRaised": {
+        "$value": "#23272f"
+      },
+      "surfaceHover": {
+        "$value": "#2f3540"
+      },
+      "border": {
+        "$value": "#363d48"
+      },
+      "text": {
+        "$value": "#e6e8ec"
+      },
+      "textMuted": {
+        "$value": "#a0a8b4"
+      },
+      "accent": {
+        "$value": "#6ea8fe"
+      },
+      "accentText": {
+        "$value": "#0d1117"
+      },
+      "boxMargin": {
+        "$value": "#f6b26ba8"
+      },
+      "boxBorder": {
+        "$value": "#ffe599c0"
+      },
+      "boxPadding": {
+        "$value": "#c3d69bc0"
+      },
+      "boxContent": {
+        "$value": "#6fa8dca8"
+      }
+    },
+    "space": {
+      "$type": "dimension",
+      "1": {
+        "$value": "4px"
+      },
+      "2": {
+        "$value": "8px"
+      },
+      "3": {
+        "$value": "12px"
+      },
+      "4": {
+        "$value": "16px"
+      }
+    },
+    "radius": {
+      "$type": "dimension",
+      "control": {
+        "$value": "6px"
+      },
+      "card": {
+        "$value": "12px"
+      }
+    },
+    "size": {
+      "$type": "dimension",
+      "control": {
+        "$value": "32px"
+      },
+      "icon": {
+        "$value": "16px"
+      },
+      "card": {
+        "$value": "380px"
+      },
+      "preview": {
+        "$value": "220px"
+      },
+      "expanded": {
+        "$value": "480px"
+      },
+      "grabber": {
+        "$value": "20px"
+      }
+    },
+    "type": {
+      "caption": {
+        "$type": "dimension",
+        "$value": "11px"
+      },
+      "body": {
+        "$type": "dimension",
+        "$value": "13px"
+      },
+      "label": {
+        "$type": "dimension",
+        "$value": "14px"
+      }
+    },
+    "motion": {
+      "duration": {
+        "$type": "duration",
+        "fast": {
+          "$value": "120ms"
+        },
+        "base": {
+          "$value": "180ms"
+        }
+      },
+      "easing": {
+        "$type": "cubicBezier",
+        "standard": {
+          "$value": [0.2, 0, 0, 1]
+        },
+        "emphasized": {
+          "$value": [0.16, 1, 0.3, 1]
+        }
+      }
+    },
+    "shadow": {
+      "$type": "string",
+      "card": {
+        "$value": "0 16px 40px rgb(0 0 0 / 0.38), 0 2px 8px rgb(0 0 0 / 0.24)"
+      }
+    }
+  }
+}

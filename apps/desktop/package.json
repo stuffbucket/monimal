@@ -59,6 +59,7 @@
     "@electron/asar": "^4.3.0",
     "@electron/packager": "^20.3.0",
     "@maximal/eslint-config": "workspace:*",
+    "@maximal/maximal-react-component": "workspace:*",
     "@playwright/test": "^1.62.1",
     "@stryker-mutator/core": "^10.0.0",
     "@stryker-mutator/vitest-runner": "^10.0.0",
@@ -76,7 +77,6 @@
     "react-dom": "^19.2.8",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "vite": "^8.2.2",
-    "vite-plugin-react-click-to-component": "4.2.3",
     "vitest": "^5.0.1"
   },
   "engines": {

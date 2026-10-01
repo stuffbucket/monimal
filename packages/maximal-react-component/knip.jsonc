@@ -1,0 +1,12 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
+  "entry": [
+    "src/index.ts",
+    "src/client.ts",
+    "tests/**/*.test.ts"
+  ],
+  "project": ["src/**/*.ts", "tests/**/*.ts"],
+  // The command runner is built into Stryker core but is inferred as a plugin.
+  "ignoreDependencies": ["@stryker-mutator/command-runner"],
+  "ignoreExportsUsedInFile": true
+}

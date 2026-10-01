@@ -67,10 +67,12 @@ compile or start the Core sidecar, read `window.maximal`, or bind the proxy port
 The preview supplies an in-memory `SettingsCapabilities` implementation to the
 production `AppFrame`, `Settings`, and `SearchSection` components.
 
-Vite development servers include the React source inspector. Hold Option while
-moving the pointer to outline a control. Option-right-click the control to list
-its React component stack and source locations, then select a location to open
-it in the configured editor. Production builds do not include the inspector.
+Vite development servers include the React source inspector owned by
+`@maximal/maximal-react-component`. Hold Option while moving the pointer to
+outline a control. Option-right-click the control to list its React component
+stack and source locations, then select a location to open it in the configured
+editor. The package owns the React source discovery, overlay, and editor
+handoff, and omits the inspector from production builds.
 
 `ui:check` starts Vite on an ephemeral loopback port and closes it after the
 run. It checks the heading hierarchy, provider count, tab order, horizontal

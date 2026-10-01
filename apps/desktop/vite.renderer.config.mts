@@ -1,8 +1,8 @@
 import { resolve } from 'node:path'
 
+import { maximalReactComponent } from '@maximal/maximal-react-component'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
-import { reactClickToComponent } from 'vite-plugin-react-click-to-component'
 
 // Renderer. Root is src/renderer; outDir must be absolute when overriding root
 // or Vite misdirects the output away from the package.
@@ -10,7 +10,7 @@ export default defineConfig(({ command }) => ({
   root: resolve(import.meta.dirname, 'src/renderer'),
   plugins: [
     react(),
-    ...(command === 'serve' ? [reactClickToComponent()] : []),
+    ...maximalReactComponent(command),
   ],
   resolve: {
     // Forge's renderer base sets `preserveSymlinks: true`. Under pnpm that keys
