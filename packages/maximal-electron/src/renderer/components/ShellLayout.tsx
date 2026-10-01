@@ -285,7 +285,6 @@ export function ShellLayout<T extends Tab>({
                     onClick={() => togglePanel('left')}
                     active={!leftCollapsed}
                     testId="toggle-left"
-                    className="titlebar__panel-toggle"
                   >
                     <PanelLeft size={16} />
                   </IconButton>
@@ -301,7 +300,6 @@ export function ShellLayout<T extends Tab>({
                     onClick={() => togglePanel('right')}
                     active={!rightCollapsed}
                     testId="toggle-right"
-                    className="titlebar__panel-toggle"
                   >
                     <PanelRight size={16} />
                   </IconButton>

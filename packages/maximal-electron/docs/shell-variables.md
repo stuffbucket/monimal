@@ -57,8 +57,6 @@ focus rings, type, and optical details are not spacing increments.
 | `--shell-focus-ring-width` | `2px` | Keyboard focus ring width. |
 | `--shell-icon-prominent` | `24px` | A prominent navigation or feature glyph. |
 | `--shell-icon-size` | `16px` | The default Lucide glyph size. |
-| `--shell-icon-size-large` | `20px` | An emphasized navigation glyph size. |
-| `--shell-icon-size-small` | `14px` | A compact action glyph size. |
 | `--shell-icon-stroke` | `1.5` | The stroke weight of every Lucide glyph inside the shell. |
 | `--shell-icon-optical-folder-offset-y` | `0.5px` | Centers the Folder glyph's painted bounds in its slot. |
 | `--shell-icon-optical-map-scale` | `1.111111` | Expands the Map glyph to the prominent painted extent. |
@@ -87,6 +85,8 @@ focus rings, type, and optical details are not spacing increments.
 | `--shell-radius-large` | `4px` | A card corner. |
 | `--shell-radius-pill` | `9999px` | A fully rounded control. |
 | `--shell-row-height` | `32px` | A compact navigation, menu, or list row. |
+| `--shell-tab-max` | `168px` | The maximum document-tab width. |
+| `--shell-tab-min` | `72px` | The minimum document-tab width. |
 | `--shell-space-1` | `4px` | The tightest gap. |
 | `--shell-space-2` | `8px` | A gap inside a control. |
 | `--shell-space-3` | `12px` | A gap between controls. |

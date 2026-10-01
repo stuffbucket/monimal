@@ -40,7 +40,7 @@ describe('WorkbarSection', () => {
       '[aria-label="Move Projects up"]',
     )
     act(() => moveProjectsUp?.click())
-    expect([...container.querySelectorAll<HTMLElement>('.nav__item')]
+    expect([...container.querySelectorAll<HTMLElement>('.workbar__item')]
       .map((item) => item.title)).toEqual([
         'Projects',
         'Home',

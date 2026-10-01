@@ -31,8 +31,8 @@ const APP_FRAME_CSS = `
 }
 
 .sb-shell .workspace-workbar__destinations .nav__item[aria-current='true'] {
-  color: var(--maximal-workbar-selection-text, var(--shell-accent));
-  background: var(--maximal-workbar-selection, var(--shell-accent-muted));
+  color: var(--shell-accent);
+  background: var(--shell-accent-muted);
 }
 
 .sb-shell .workspace-workbar__status-spacer {
@@ -55,8 +55,8 @@ const APP_FRAME_CSS = `
 
 .sb-shell .workspace-workbar__menu-check {
   display: inline-flex;
-  width: var(--shell-icon-size-small, 14px);
-  height: var(--shell-icon-size-small, 14px);
+  width: var(--shell-icon-size, 16px);
+  height: var(--shell-icon-size, 16px);
   align-items: center;
   justify-content: center;
 }

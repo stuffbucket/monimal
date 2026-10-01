@@ -9,8 +9,9 @@
   --shell-space-3: 12px;
   --shell-space-4: 16px;
   --shell-space-5: 24px;
-  --shell-radius: 6px;
-  --shell-radius-large: 8px;
+  --shell-radius: 4px;
+  --shell-radius-large: 4px;
+  --shell-radius-dialog: 4px;
   --shell-focus-ring-width: 2px;
   --shell-icon-stroke: 1px;
   --shell-field-background: var(--shell-input-background, var(--shell-canvas));
@@ -47,14 +48,14 @@
   --shell-control-sm: 24px;
   --shell-control-md: 28px;
   --shell-control-lg: 32px;
-  --shell-icon-size-small: 14px;
   --shell-icon-size: 16px;
-  --shell-icon-size-large: 20px;
   --shell-icon-prominent: 24px;
   --shell-icon-stroke: 1.5;
   --shell-icon-optical-map-scale: 1.111111;
   --shell-icon-optical-terminal-scale: 1.111111;
   --shell-icon-optical-folder-offset-y: 0.5px;
+  --shell-tab-min: 72px;
+  --shell-tab-max: 168px;
   --shell-row-height: 32px;
 }
 }

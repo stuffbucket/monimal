@@ -18,6 +18,7 @@ import {
   ratchetChanges,
   readIconMetrics,
   scanTokenSources,
+  runtimePropertyDeclarations,
 } from '../scripts/inventory.mjs';
 
 test('DTCG inventory preserves CSS identity and observed declarations', () => {
@@ -65,6 +66,16 @@ test('ratchet reports additions and stale baseline entries', () => {
     } finally {
       rmSync(root, { recursive: true });
     }
+  });
+
+  test('runtime style properties satisfy dynamic CSS declarations', () => {
+    assert.deepEqual(
+      [...runtimePropertyDeclarations(`
+        host.style.setProperty('--term-selection', theme.selection);
+        host.style.setProperty("--maximal-term-baseline", baseline);
+      `)],
+      ['--term-selection', '--maximal-term-baseline'],
+    );
   });
 });
 

@@ -185,7 +185,7 @@ const SETTINGS_CSS = `
 .terminal-typography-tabs__tab[aria-selected='true'] {
   color: var(--shell-text, #e6e8eb);
   background: var(--shell-raised, #252830);
-  box-shadow: 0 1px 2px var(--maximal-shadow, rgb(0 0 0 / 0.2));
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.2);
 }
 
 .terminal-typography-tabs__tab:focus-visible {
@@ -243,8 +243,6 @@ const SETTINGS_CSS = `
 }
 
 .terminal-typography-field {
-  --shell-control-height: 1.5rem;
-
   display: flex;
   flex-direction: column;
   gap: var(--shell-space-1, 4px);
@@ -619,9 +617,6 @@ const SETTINGS_CSS = `
   overflow: hidden;
   border: 1px solid var(--shell-border-strong, #515a69);
   border-radius: var(--shell-radius, 6px);
-  background:
-    linear-gradient(to top, #000, transparent),
-    linear-gradient(to right, #fff, var(--terminal-picker-hue));
   cursor: crosshair;
   touch-action: none;
 }

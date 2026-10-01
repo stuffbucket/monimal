@@ -84,8 +84,6 @@ const THEME_CSS = `
   --shell-provider-meta-card-background: color-mix(in srgb, #0866ff 12%, var(--shell-raised));
   --shell-provider-github-card-border: color-mix(in srgb, #8a50d8 35%, var(--shell-border));
   --shell-provider-github-card-background: color-mix(in srgb, #8a50d8 12%, var(--shell-raised));
-  --maximal-workbar-selection: #35445f;
-  --maximal-workbar-selection-text: #8bd8e8;
 
   /* Focus indicator. Equal to --shell-accent, defined explicitly so focus
      outlines resolve on the first name rather than by falling through. */
@@ -160,8 +158,6 @@ const THEME_CSS = `
   --shell-accent: #2563eb;
   --shell-accent-contrast: #ffffff;
   --shell-accent-muted: rgb(37 99 235 / 0.1);
-  --maximal-workbar-selection: #dce6ff;
-  --maximal-workbar-selection-text: #2563eb;
   --shell-focus: var(--shell-accent);
   --shell-danger: #c0272b;
   --shell-warning: #a9691b;

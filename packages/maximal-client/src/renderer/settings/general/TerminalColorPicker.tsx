@@ -5,7 +5,6 @@ import { X } from 'lucide-react'
 import {
   useRef,
   useState,
-  type CSSProperties,
   type PointerEvent,
   type ReactElement,
 } from 'react'
@@ -148,14 +147,17 @@ export function TerminalColorPicker({
             onClick={close}
             data-testid={`${testId}-close`}
           >
-            <X aria-hidden="true" size={18} />
+            <X aria-hidden="true" size={16} />
           </button>
         </div>
         <div
           className="terminal-color-picker__saturation"
           style={{
-            '--terminal-picker-hue': `hsl(${String(hsv.hue)} 100% 50%)`,
-          } as CSSProperties}
+            background: [
+              'linear-gradient(to top, #000, transparent)',
+              `linear-gradient(to right, #fff, hsl(${String(hsv.hue)} 100% 50%))`,
+            ].join(', '),
+          }}
           onPointerDown={(event) => {
             event.currentTarget.setPointerCapture(event.pointerId)
             updateSaturationValue(event, false)

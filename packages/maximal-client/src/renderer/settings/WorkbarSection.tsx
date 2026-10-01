@@ -5,6 +5,7 @@ import {
   SettingsGroup,
   SettingsItem,
   SettingsSection,
+  shellIcon,
   Switch,
 } from '@maximal/maximal-electron/renderer'
 
@@ -27,7 +28,7 @@ export function WorkbarSection(): ReactElement {
       >
         <SettingsGroup dividers={false}>
           {orderedItems.map((item, index) => {
-            const Icon = item.icon
+            const Icon = shellIcon(item.icon)
             return (
               <SettingsItem
                 key={item.id}
@@ -44,14 +45,14 @@ export function WorkbarSection(): ReactElement {
                       disabled={index === 0}
                       onClick={() => move(item.id, -1)}
                     >
-                      <ChevronUp size={14} />
+                      <ChevronUp size={16} />
                     </IconButton>
                     <IconButton
                       label={`Move ${item.label} down`}
                       disabled={index === orderedItems.length - 1}
                       onClick={() => move(item.id, 1)}
                     >
-                      <ChevronDown size={14} />
+                      <ChevronDown size={16} />
                     </IconButton>
                     <Switch
                       label={`Show ${item.label} in workbar`}

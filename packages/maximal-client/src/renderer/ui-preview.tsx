@@ -187,10 +187,8 @@ function PreviewFrame(): ReactElement {
       ) : null}
       <SurfaceActivity>
         <WorkspaceRail
-          tabs={tabs}
           current={current.id}
           onSelect={(id) => setActiveTab(id)}
-          onOpenMap={() => undefined}
           account={{
             id: 'octocat',
             displayName: 'Octocat',

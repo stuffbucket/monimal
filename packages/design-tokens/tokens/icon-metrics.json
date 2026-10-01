@@ -46,6 +46,35 @@
         }
       }
     },
+    "stroke": {
+      "$type": "number",
+      "$value": 1.5,
+      "$extensions": {
+        "dev.maximal.design-token": {
+          "cssCustomProperties": [
+            "--icon-stroke",
+            "--shell-icon-stroke"
+          ]
+        }
+      }
+    },
+    "radius": {
+      "dialog": {
+        "$type": "dimension",
+        "$value": {
+          "value": 4,
+          "unit": "px"
+        },
+        "$extensions": {
+          "dev.maximal.design-token": {
+            "cssCustomProperties": [
+              "--radius-dialog",
+              "--shell-radius-dialog"
+            ]
+          }
+        }
+      }
+    },
     "workbar-optical": {
       "$description": "Semantic glyph corrections inside the shared 24px prominent slot.",
       "map-scale": {

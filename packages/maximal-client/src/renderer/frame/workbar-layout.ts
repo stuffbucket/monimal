@@ -1,29 +1,21 @@
 import {
-  ChartNoAxesCombined,
-  FolderKanban,
-  Globe2,
-  House,
-  LayoutDashboard,
-  SquareTerminal,
-} from 'lucide-react'
-import {
   useCallback,
   useEffect,
   useState,
-  type ComponentType,
 } from 'react'
+import type { ShellIconName } from '@maximal/maximal-electron/renderer'
 
 export const WORKBAR_ITEMS = [
-  { id: 'home', label: 'Home', icon: House },
-  { id: 'projects', label: 'Projects', icon: FolderKanban },
-  { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-  { id: 'traffic', label: 'Traffic', icon: ChartNoAxesCombined },
-  { id: 'terminals', label: 'Terminals', icon: SquareTerminal },
-  { id: 'browsers', label: 'Browsers', icon: Globe2 },
+  { id: 'home', label: 'Home', icon: 'map' },
+  { id: 'projects', label: 'Projects', icon: 'folder' },
+  { id: 'overview', label: 'Overview', icon: 'document' },
+  { id: 'traffic', label: 'Traffic', icon: 'folder' },
+  { id: 'terminals', label: 'Terminals', icon: 'terminal' },
+  { id: 'browsers', label: 'Browsers', icon: 'browser' },
 ] as const satisfies readonly {
   id: string
   label: string
-  icon: ComponentType<{ size?: number }>
+  icon: ShellIconName
 }[]
 
 export type WorkbarItemId = (typeof WORKBAR_ITEMS)[number]['id']
