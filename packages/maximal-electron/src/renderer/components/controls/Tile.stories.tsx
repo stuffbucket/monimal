@@ -88,7 +88,7 @@ export const CardTile: Story = {
       <Listbox>
         <Card {...args} onSelect={() => undefined}>
           <span className="card__thumb">
-            <FolderOpen size={28} />
+            <FolderOpen size={24} />
           </span>
           <span className="card__meta">
             <span className="card__name">Design system</span>
@@ -163,12 +163,12 @@ export const RowTile: StoryObj = {
     return (
       <div style={{ width: 420 }} role="listbox" aria-label="Items">
         <Row selected={picked === 'a'} onSelect={() => setPicked('a')}>
-          <FileText size={14} />
+          <FileText size={16} />
           <span className="row__name">Marketing site</span>
           <span className="row__sub">2 days ago</span>
         </Row>
         <Row selected={picked === 'b'} onSelect={() => setPicked('b')}>
-          <FileText size={14} />
+          <FileText size={16} />
           <span className="row__name">Icon set</span>
           <span className="row__sub">Last week</span>
         </Row>

@@ -58,7 +58,7 @@ export function Workbar<Id extends string>({
                 onClick={() => onSelect(item.id)}
                 data-testid={`workbar-${item.id.replace(':', '-')}`}
               >
-                <Icon aria-hidden="true" />
+                <Icon aria-hidden="true" data-shell-icon={item.icon} />
               </button>
             );
           })}
@@ -80,7 +80,7 @@ export function Workbar<Id extends string>({
                 onClick={onToggleSettings}
                 testId="toggle-settings"
               >
-                <Settings aria-hidden="true" />
+                <Settings aria-hidden="true" data-shell-icon="settings" />
               </IconButton>
             ) : null}
           </div>

@@ -127,7 +127,7 @@ export function SearchSettingControl({
               : (
                   <span className="search-behavior__switch-label">
                     {field.label}
-                    <Info size={13} aria-hidden="true" />
+                    <Info size={12} aria-hidden="true" />
                   </span>
                 )
           }

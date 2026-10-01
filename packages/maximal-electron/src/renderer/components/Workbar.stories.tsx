@@ -60,8 +60,12 @@ export const Default: Story = {
       height: '32px',
     });
     await expect(terminal.querySelector('svg')).toHaveStyle({
-      width: '16px',
-      height: '16px',
+      width: '24px',
+      height: '24px',
+      transform: 'matrix(1.11111, 0, 0, 1.11111, 0, 0)',
+    });
+    await expect(canvas.getByRole('button', { name: 'Traffic' }).querySelector('svg')).toHaveStyle({
+      transform: 'matrix(1, 0, 0, 1, 0, 0.5)',
     });
     await expect(canvas.getByTestId('profile')).toHaveStyle({
       width: '32px',

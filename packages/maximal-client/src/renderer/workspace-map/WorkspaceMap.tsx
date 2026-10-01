@@ -106,14 +106,14 @@ export function WorkspaceMap({
         <MapIcon size={16} />
         <strong>Workspace map</strong>
         <span className="workspace-map__hint">Grab to pan · ⌘/Ctrl+wheel to zoom · double-click to focus</span>
-        <button className="workspace-map__action" type="button" aria-label="Zoom out" onClick={() => zoom(viewport.scale / 1.2)}><Minus size={14} /></button>
+        <button className="workspace-map__action" type="button" aria-label="Zoom out" onClick={() => zoom(viewport.scale / 1.2)}><Minus size={16} /></button>
         <span>{Math.round(viewport.scale * 100)}%</span>
-        <button className="workspace-map__action" type="button" aria-label="Zoom in" onClick={() => zoom(viewport.scale * 1.2)}><Plus size={14} /></button>
+        <button className="workspace-map__action" type="button" aria-label="Zoom in" onClick={() => zoom(viewport.scale * 1.2)}><Plus size={16} /></button>
         <button className="workspace-map__action" type="button" aria-label="Reset map" onClick={() => {
           setViewport(INITIAL_VIEWPORT)
           setPositions({})
-        }}><RotateCcw size={14} /></button>
-        <button className="workspace-map__action" type="button" aria-label="Close map" onClick={() => onOpenChange(false)}><X size={14} /></button>
+        }}><RotateCcw size={16} /></button>
+        <button className="workspace-map__action" type="button" aria-label="Close map" onClick={() => onOpenChange(false)}><X size={16} /></button>
       </header>
       <div
         className="workspace-map__viewport"
@@ -170,7 +170,7 @@ export function WorkspaceMap({
                 onPointerMove={move}
                 onPointerUp={end}
               >
-                <Icon size={18} />
+                <Icon size={16} />
                 <span>
                   <strong>{node.title}</strong>
                   <small>{node.detail}</small>

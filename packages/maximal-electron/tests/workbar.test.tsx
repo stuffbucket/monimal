@@ -50,6 +50,14 @@ describe('Workbar', () => {
       'terminal',
     ]);
     expect(container.querySelectorAll('.workbar__main svg.lucide')).toHaveLength(2);
+    expect(
+      container.querySelector('[data-testid="workbar-map"] svg')
+        ?.getAttribute('data-shell-icon'),
+    ).toBe('map');
+    expect(
+      container.querySelector('[data-testid="workbar-terminal-one"] svg')
+        ?.getAttribute('data-shell-icon'),
+    ).toBe('terminal');
     expect(container.querySelector('[data-testid="profile"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="toggle-settings"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="workbar-map"]')?.getAttribute('aria-current'))

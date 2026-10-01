@@ -401,7 +401,7 @@ export function TabBar<T extends Tab>({
                 closeAndRefocus(index);
               }}
               >
-                {Glyph && <Glyph size={13} />}
+                {Glyph && <Glyph size={12} />}
                 {slot === 'status' && (
                   <span className="dot" data-status={tab.status} aria-hidden="true" />
                 )}
@@ -445,7 +445,7 @@ export function TabBar<T extends Tab>({
           aria-label={newLabel}
           data-testid="tab-new"
         >
-          <Plus size={14} />
+          <Plus size={16} />
         </button>
         )}
       </Tabs.Root>

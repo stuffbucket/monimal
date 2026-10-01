@@ -15,7 +15,7 @@ has ended.
 
 | Package | Purpose |
 | --- | --- |
-| `packages/design-tokens` (`@maximal/design-tokens`) | Workspace-wide Style Dictionary inventory and down-only design-token migration ratchet. |
+| `packages/design-tokens` (`@maximal/design-tokens`) | Workspace-wide Style Dictionary inventory and down-only design-token and icon-metric migration ratchet. |
 | `packages/maximal-browser` | Agent-shareable browser sessions, native Electron views, and browser-tab renderer UI. |
 | `packages/maximal-terminal` | Electron-free terminal hosts, tmux control and projection, launch connectors, and the terminal renderer. |
 | `packages/maximal-settings` | Typed layered settings, process-owned JSON stores, plugin-schema validation, and the settings migration ratchet. |
@@ -141,6 +141,7 @@ Both are monorepo-native;
 | `maximal-electron` | `verify:neutral` denies imports of workspace packages outside its `dependsOn` in the root `architecture-analysis.json` instead of a fixed name list, and bare `maximal` is no longer a forbidden term. |
 | `maximal-electron` | Private workspace package, not published; the registry publish, tag, and git-install checks are removed. |
 | `maximal-electron` | Workspace installation MUST NOT build the package; Turbo MUST own dependency-ordered builds. |
+| `design-tokens` | Its package build and Turbo token inventory hash tracked application and package sources because the Style Dictionary inventory is workspace-wide. |
 | `maximal-electron` | The package MUST NOT contain demo-shell or terminal-lab application composition. |
 | `maximal-recording` / `apps/desktop` | Recording owns capture and encoding; desktop owns explicit initiation, destination, and window selection. |
 | `apps/desktop` | The desktop application MUST own terminal integration behavior and end-to-end coverage. |

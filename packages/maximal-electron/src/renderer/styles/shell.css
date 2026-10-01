@@ -116,6 +116,13 @@ body {
   transition: background var(--duration-fast) var(--ease-out);
 }
 
+.icon-button > svg {
+  display: block;
+  width: var(--size-icon);
+  height: var(--size-icon);
+  flex: none;
+}
+
 .icon-button:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
@@ -362,8 +369,12 @@ body {
 }
 
 .workbar__item > svg {
-  width: var(--size-icon);
-  height: var(--size-icon);
+  display: block;
+  width: var(--size-icon-prominent);
+  height: var(--size-icon-prominent);
+  flex: none;
+  transform-box: view-box;
+  transform-origin: center;
 }
 
 .workbar__bottom .icon-button {
@@ -372,8 +383,24 @@ body {
 }
 
 .workbar__bottom .icon-button > svg {
-  width: var(--size-icon);
-  height: var(--size-icon);
+  display: block;
+  width: var(--size-icon-prominent);
+  height: var(--size-icon-prominent);
+  flex: none;
+  transform-box: view-box;
+  transform-origin: center;
+}
+
+.workbar svg[data-shell-icon='map'] {
+  transform: scale(var(--icon-optical-map-scale));
+}
+
+.workbar svg[data-shell-icon='terminal'] {
+  transform: scale(var(--icon-optical-terminal-scale));
+}
+
+.workbar svg[data-shell-icon='folder'] {
+  transform: translateY(var(--icon-optical-folder-offset-y));
 }
 
 /*

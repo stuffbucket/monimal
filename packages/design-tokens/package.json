@@ -7,7 +7,7 @@
   "type": "module",
   "scripts": {
     "analyze": "bun ../maximal-core/scripts/analyze.ts",
-    "build": "node scripts/build-inventory.mjs",
+    "build": "node scripts/check-inventory.mjs",
     "lint": "eslint .",
     "test": "node --test",
     "token:inventory": "node scripts/build-inventory.mjs",

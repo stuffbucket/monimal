@@ -97,7 +97,7 @@ export function AppFrame({
               onClick={onOpenProjects}
               testId="open-projects"
             >
-              <FolderSearch size={15} />
+              <FolderSearch size={16} />
             </IconButton>
           ) : null}
           {onOpenAssistant ? (
@@ -106,7 +106,7 @@ export function AppFrame({
               onClick={onOpenAssistant}
               testId="open-assistant"
             >
-              <Sparkles size={15} />
+              <Sparkles size={16} />
             </IconButton>
           ) : null}
           {onOpenBrowser ? (
@@ -115,7 +115,7 @@ export function AppFrame({
               onClick={onOpenBrowser}
               testId="open-browser"
             >
-              <Globe size={15} />
+              <Globe size={16} />
             </IconButton>
           ) : null}
         </>

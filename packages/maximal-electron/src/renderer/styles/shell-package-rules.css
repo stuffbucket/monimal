@@ -188,6 +188,13 @@
   transition: background 120ms ease-out;
 }
 
+.sb-shell .icon-button > svg {
+  display: block;
+  width: var(--shell-icon-size);
+  height: var(--shell-icon-size);
+  flex: none;
+}
+
 .sb-shell .icon-button:hover {
   color: var(--shell-text);
   background: var(--shell-hover);
@@ -783,8 +790,12 @@
 }
 
 .sb-shell .workbar__item > svg {
-  width: var(--shell-space-4);
-  height: var(--shell-space-4);
+  display: block;
+  width: var(--shell-icon-prominent);
+  height: var(--shell-icon-prominent);
+  flex: none;
+  transform-box: view-box;
+  transform-origin: center;
 }
 
 .sb-shell .workbar__bottom .icon-button {
@@ -793,8 +804,24 @@
 }
 
 .sb-shell .workbar__bottom .icon-button > svg {
-  width: var(--shell-space-4);
-  height: var(--shell-space-4);
+  display: block;
+  width: var(--shell-icon-prominent);
+  height: var(--shell-icon-prominent);
+  flex: none;
+  transform-box: view-box;
+  transform-origin: center;
+}
+
+.sb-shell .workbar svg[data-shell-icon='map'] {
+  transform: scale(var(--shell-icon-optical-map-scale));
+}
+
+.sb-shell .workbar svg[data-shell-icon='terminal'] {
+  transform: scale(var(--shell-icon-optical-terminal-scale));
+}
+
+.sb-shell .workbar svg[data-shell-icon='folder'] {
+  transform: translateY(var(--shell-icon-optical-folder-offset-y));
 }
 
 .sb-shell .toolbar {

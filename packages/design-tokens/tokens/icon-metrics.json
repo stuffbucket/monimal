@@ -1,0 +1,131 @@
+{
+  "icon": {
+    "$description": "Canonical icon geometry for renderer glyphs and source assets.",
+    "size": {
+      "$type": "dimension",
+      "compact": {
+        "$value": {
+          "value": 12,
+          "unit": "px"
+        },
+        "$extensions": {
+          "dev.maximal.design-token": {
+            "cssCustomProperties": [
+              "--size-icon-compact",
+              "--shell-icon-compact"
+            ]
+          }
+        }
+      },
+      "standard": {
+        "$value": {
+          "value": 16,
+          "unit": "px"
+        },
+        "$extensions": {
+          "dev.maximal.design-token": {
+            "cssCustomProperties": [
+              "--size-icon",
+              "--shell-icon-size"
+            ]
+          }
+        }
+      },
+      "prominent": {
+        "$value": {
+          "value": 24,
+          "unit": "px"
+        },
+        "$extensions": {
+          "dev.maximal.design-token": {
+            "cssCustomProperties": [
+              "--size-icon-prominent",
+              "--shell-icon-prominent"
+            ]
+          }
+        }
+      }
+    },
+    "workbar-optical": {
+      "$description": "Semantic glyph corrections inside the shared 24px prominent slot.",
+      "map-scale": {
+        "$type": "number",
+        "$value": 1.111111,
+        "$extensions": {
+          "dev.maximal.design-token": {
+            "cssCustomProperties": [
+              "--icon-optical-map-scale",
+              "--shell-icon-optical-map-scale"
+            ]
+          }
+        }
+      },
+      "terminal-scale": {
+        "$type": "number",
+        "$value": 1.111111,
+        "$extensions": {
+          "dev.maximal.design-token": {
+            "cssCustomProperties": [
+              "--icon-optical-terminal-scale",
+              "--shell-icon-optical-terminal-scale"
+            ]
+          }
+        }
+      },
+      "folder-offset-y": {
+        "$type": "dimension",
+        "$value": {
+          "value": 0.5,
+          "unit": "px"
+        },
+        "$extensions": {
+          "dev.maximal.design-token": {
+            "cssCustomProperties": [
+              "--icon-optical-folder-offset-y",
+              "--shell-icon-optical-folder-offset-y"
+            ]
+          }
+        }
+      }
+    },
+    "source-canvas": {
+      "$type": "dimension",
+      "tray": {
+        "$value": {
+          "value": 22,
+          "unit": "px"
+        }
+      },
+      "glyph": {
+        "$value": {
+          "value": 24,
+          "unit": "px"
+        }
+      },
+      "tray-2x": {
+        "$value": {
+          "value": 44,
+          "unit": "px"
+        }
+      },
+      "terminal-raster": {
+        "$value": {
+          "value": 64,
+          "unit": "px"
+        }
+      },
+      "application-raster": {
+        "$value": {
+          "value": 512,
+          "unit": "px"
+        }
+      },
+      "application-vector": {
+        "$value": {
+          "value": 1024,
+          "unit": "px"
+        }
+      }
+    }
+  }
+}

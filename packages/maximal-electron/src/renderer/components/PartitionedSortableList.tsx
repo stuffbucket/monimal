@@ -326,7 +326,7 @@ export function PartitionedSortableList({
                 disabled={disabled}
                 onClick={() => setExpandedId(expanded ? null : item.id)}
               >
-                <ChevronRight aria-hidden="true" size={15} />
+                <ChevronRight aria-hidden="true" size={16} />
               </IconButton>
             ) : null}
             {item.leading}
@@ -345,7 +345,7 @@ export function PartitionedSortableList({
                 disabled={disabled || index === 0}
                 onClick={() => move(item, partition, index - 1)}
               >
-                <ArrowUp aria-hidden="true" size={15} />
+                <ArrowUp aria-hidden="true" size={16} />
               </IconButton>
               <IconButton
                 className="partitioned-sortable__action"
@@ -354,7 +354,7 @@ export function PartitionedSortableList({
                 disabled={disabled || index === partitionItems.length - 1}
                 onClick={() => move(item, partition, index + 1)}
               >
-                <ArrowDown aria-hidden="true" size={15} />
+                <ArrowDown aria-hidden="true" size={16} />
               </IconButton>
               <Switch
                 label={`${partition === 'enabled' ? 'Disable' : 'Enable'} ${item.label}`}
