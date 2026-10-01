@@ -163,8 +163,11 @@ The aggregate gates remain native:
 
 - `pnpm run check:core` runs Core's complete non-test `check:deep:host` gate and
   then the focused native Core suite.
-- `pnpm run check` runs workspace build, typecheck, and lint, Core's host-only
-  deep checks, and the default affected native test tier.
+- `pnpm run check:affected` uses Turbo's current-branch affected graph for
+  workspace build, typecheck, lint, and Core's post-workspace host checks while
+  retaining workspace-wide ratchets and the default affected native test tier.
+- `pnpm run check` runs workspace build, typecheck, and lint, Core's remaining
+  post-workspace host checks, and the default affected native test tier.
 
 Neither aggregate proves that the workspace also passes with the pinned Linux
 dependencies and toolchains.

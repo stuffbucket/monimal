@@ -58,12 +58,30 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
-          cache: pnpm
+
+      - name: Locate pnpm store
+        id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore pnpm cache
+        id: pnpm-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-v1-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-v1-${{ runner.os }}-
 
       - name: Normalise the lockfile
         run: node scripts/strip-lockfile-hosts.mjs
 
       - run: pnpm install --frozen-lockfile
+
+      - name: Save pnpm cache
+        if: github.event_name == 'push' && steps.pnpm-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: ${{ steps.pnpm-cache.outputs.cache-primary-key }}
 
       - name: Test transport-neutral command contracts
         run: pnpm --filter @maximal/maximal-cli test
@@ -110,7 +128,7 @@ jobs:
       - name: Test the release verification shell
         run: scripts/release/selftest.sh
 
-      # pnpm before setup-node, so setup-node's cache can find it. The version
+      # pnpm must be available before the store path is resolved. Its version
       # comes from packageManager in package.json.
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
@@ -119,7 +137,18 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
-          cache: pnpm
+
+      - name: Locate pnpm store
+        id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore pnpm cache
+        id: pnpm-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-v1-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-v1-${{ runner.os }}-
 
       # maximal and maximal-core genuinely build and test with Bun. The root
       # version file is also a Turbo global input, so runtime bumps invalidate
@@ -155,6 +184,13 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - name: Save pnpm cache
+        if: github.event_name == 'push' && steps.pnpm-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: ${{ steps.pnpm-cache.outputs.cache-primary-key }}
+
       # The step above repairs the tree, so nothing downstream can notice a
       # host-pinned lockfile. This is the one place it is still visible: a
       # warning on a pull request, and a hard failure once it is on main, where
@@ -182,17 +218,17 @@ jobs:
       - name: Verify workspace installation
         run: pnpm run verify:workspace
 
-      # Build/typecheck/lint remain native and use normal graph parallelism. The
-      # sidecar build is intentionally uncached and executes on every run.
+      # Static checks use the same task graph as the local gate. The sidecar
+      # build is intentionally uncached and executes on every run.
       - name: Start workspace check timer
         id: workspace-check-start
         run: |
           echo "started_at=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
           echo "started_epoch=$(date +%s)" >> "$GITHUB_OUTPUT"
 
-      - name: Build, typecheck, and lint workspace
+      - name: Check workspace static gates
         id: workspace-check
-        run: pnpm exec turbo run build typecheck lint
+        run: pnpm run check:static
 
       - name: Record workspace check timing
         if: always() && steps.workspace-check-start.outcome == 'success'
@@ -208,16 +244,16 @@ jobs:
           echo "perf-marker phase=workspace-check-window started_at=$STARTED_AT ended_at=$ended_at elapsed_seconds=$elapsed_seconds status=$status"
 
       - name: Check for cross-package and intra-package duplicate logic
-        run: pnpm run check:cross-package-duplicates
+        run: pnpm exec turbo run //#check:cross-package-duplicates
 
-      # Turbo already covered Core's build and typecheck above. Retain both lint
-      # variants and the remaining host checks; Bun tests use the wrapper below.
+      # Turbo already covered Core's build and typecheck above. Cache the
+      # remaining host checks; Bun tests use the wrapper below.
       - name: Check remaining Core host verification
         run: |
           SECONDS=0
           started_at=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
           set +e
-          pnpm --filter @maximal/maximal-core run check:deep:host:after-workspace
+          pnpm exec turbo run @maximal/maximal-core#check:deep:host:after-workspace
           command_status=$?
           set -e
           ended_at=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
@@ -304,7 +340,19 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
-          cache: pnpm
+
+      - name: Locate pnpm store
+        id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      # The check job owns Linux pnpm cache writes. Restore-only avoids the
+      # package job racing it for the same immutable cache key.
+      - name: Restore pnpm cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-v1-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-v1-${{ runner.os }}-
 
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:

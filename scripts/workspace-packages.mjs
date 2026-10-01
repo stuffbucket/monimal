@@ -136,6 +136,7 @@ export function auditWorkspaceReferences(root, workspacePaths) {
     const separator = taskName.indexOf("#");
     if (separator < 0) continue;
     const packageName = taskName.slice(0, separator);
+    if (packageName === "//") continue;
     if (!packageNames.has(packageName)) {
       issues.push(`${taskName} targets a package outside the pnpm workspace`);
     }
