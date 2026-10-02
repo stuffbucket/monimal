@@ -19,23 +19,8 @@ import type { ProjectSearchResult } from '@maximal/project-catalog'
 
 import { describeError } from '../shared/errors'
 import type { MaximalHost } from '../../shared/host'
-
-function useOwnedMapStoreCleanup(
-  ownedMapStore: ProjectMapStore,
-  externalMapStore?: ProjectMapStore,
-): void {
-  const [lifecycleState] = useState({ generation: 0 })
-  useEffect(() => {
-    const lifecycle = ++lifecycleState.generation
-    return () => {
-      queueMicrotask(() => {
-        if (!externalMapStore && lifecycleState.generation === lifecycle) {
-          ownedMapStore.destroy()
-        }
-      })
-    }
-  }, [externalMapStore, lifecycleState, ownedMapStore])
-}
+import { useOwnedMapStoreCleanup } from './map-store-lifecycle'
+import { INITIAL_PROJECT_VIEW, type ProjectBrowserView } from './window-state'
 
 export function ProjectBrowser({
   open,
@@ -45,6 +30,8 @@ export function ProjectBrowser({
   projectsApi = window.maximal.projects,
   mapStore,
   embedded = false,
+  initialView = INITIAL_PROJECT_VIEW,
+  onViewChange,
   viewer = {
     id: 'local',
     name: 'You',
@@ -60,15 +47,19 @@ export function ProjectBrowser({
   projectsApi?: MaximalHost['projects']
   mapStore?: ProjectMapStore
   embedded?: boolean
+  initialView?: ProjectBrowserView
+  onViewChange?: (view: ProjectBrowserView) => void
   viewer?: ProjectMapViewer
 }): ReactElement {
-  const [query, setQuery] = useState('')
+  const [query, setQuery] = useState(initialView.query)
   const [projects, setProjects] = useState<ProjectSearchResult[]>([])
   const [error, setError] = useState<string>()
   const [busy, setBusy] = useState(false)
-  const [ownedMapStore] = useState(createYProjectMapStore)
+  const [ownedMapStore] = useState(() => mapStore ?? createYProjectMapStore())
   const store = mapStore ?? ownedMapStore
-  const [pageId, setPageId] = useState('projects')
+  const [pageId, setPageId] = useState(initialView.pageId)
+  const [camera, setCamera] = useState(initialView.camera)
+  useEffect(() => onViewChange?.({ query, pageId, camera }), [camera, onViewChange, pageId, query])
   const latestSearch = useRef<symbol | undefined>(undefined)
 
   useOwnedMapStoreCleanup(ownedMapStore, mapStore)
@@ -135,6 +126,8 @@ export function ProjectBrowser({
       embedded={embedded}
     >
       <ProjectMap
+        initialCamera={initialView.camera}
+        onCameraChange={setCamera}
         projects={mapProjects}
         query={query}
         onQueryChange={setQuery}

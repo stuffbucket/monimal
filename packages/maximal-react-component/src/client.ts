@@ -53,6 +53,7 @@ interface ReactRootContainer {
 
 declare global {
   interface Window {
+    __MAXIMAL_REACT_COMPONENT_INSPECTOR_DISPOSE__?: () => void
     __REACT_DEVTOOLS_GLOBAL_HOOK__?: ReactDevtoolsHook
   }
 }
@@ -87,6 +88,28 @@ function isReactRootContainer(value: unknown): value is ReactRootContainer {
 
   const { child } = _internalRoot.current
   return child === undefined || isReactFiber(child)
+}
+
+function eventElement(
+  target: EventTarget | null,
+  windowObject: Window,
+): Element | undefined {
+  const ElementConstructor =
+    windowObject.document.defaultView?.Element ?? globalThis.Element
+  return target instanceof ElementConstructor ? target : undefined
+}
+
+function owningHtmlElement(
+  element: Element,
+  windowObject: Window,
+): HTMLElement | undefined {
+  const HTMLElementConstructor =
+    windowObject.document.defaultView?.HTMLElement ?? globalThis.HTMLElement
+  let current: Element | null = element
+  while (current && !(current instanceof HTMLElementConstructor)) {
+    current = current.parentElement
+  }
+  return current ?? undefined
 }
 
 export function sourcePath(fiber: ReactFiber): string | undefined {
@@ -156,6 +179,8 @@ export function getLayersForElement(
   element: Element,
   windowObject: Window,
 ): Array<ComponentLayer> {
+  const HTMLElementConstructor =
+    windowObject.document.defaultView?.HTMLElement ?? globalThis.HTMLElement
   let instance = getReactInstanceForElement(element, windowObject)
   const layers: Array<ComponentLayer> = []
   while (instance) {
@@ -163,7 +188,7 @@ export function getLayersForElement(
     if (path) {
       const target =
         hostElementForFiber(instance, windowObject)
-        ?? (element instanceof globalThis.HTMLElement ? element : undefined)
+        ?? (element instanceof HTMLElementConstructor ? element : undefined)
       layers.push({
         name: componentName(instance.type),
         path,
@@ -213,6 +238,7 @@ class InspectorSession {
   activationTarget: HTMLElement | undefined
   currentTarget: HTMLElement | undefined
   hasCard = false
+  altPressed = false
   previewing = false
   previousBodyPointerEvents: string | undefined
 
@@ -285,12 +311,26 @@ class InspectorSession {
     this.hasCard = false
     this.previewing = false
     this.activationTarget = undefined
+    this.restoreBodyPointerEvents()
+  }
+
+  restoreBodyPointerEvents(): void {
     if (this.previousBodyPointerEvents !== undefined) {
       this.environment.document.body.style.pointerEvents =
         this.previousBodyPointerEvents
       this.environment.document.body.removeAttribute(UNLOCKED_ATTRIBUTE)
       this.previousBodyPointerEvents = undefined
     }
+  }
+
+  reconcileCardConnection(): void {
+    if (!this.hasCard || this.card.element.isConnected) return
+    this.hasCard = false
+    this.previewing = false
+    this.activationTarget = undefined
+    this.restoreBodyPointerEvents()
+    this.boxOverlay.clear()
+    this.clearOutline()
   }
 
   cleanUp = (): void => {
@@ -300,6 +340,7 @@ class InspectorSession {
   }
 
   onKeyUp = (event: KeyboardEvent): void => {
+    if (event.key === "Alt") this.altPressed = false
     if (event.key === "Control" && this.previewing) {
       this.previewing = false
       this.card.setMode("full")
@@ -311,6 +352,7 @@ class InspectorSession {
   }
 
   onKeyDown = (event: KeyboardEvent): void => {
+    if (event.key === "Alt") this.altPressed = true
     if (event.key === "Escape" && this.hasCard) this.cleanUp()
     if (event.key === "Control" && this.hasCard && !this.previewing) {
       this.previewing = true
@@ -320,27 +362,32 @@ class InspectorSession {
   }
 
   onMouseMove = (event: MouseEvent): void => {
-    if (!event.altKey) {
+    this.reconcileCardConnection()
+    if (!event.altKey && !this.altPressed) {
       if (!this.hasCard) this.clearOutline()
       return
     }
     if (this.hasCard) return
-    if (!(event.target instanceof globalThis.HTMLElement)) {
+    const element = eventElement(event.target, this.environment.window)
+    const target =
+      element ? owningHtmlElement(element, this.environment.window) : undefined
+    if (!target) {
       this.clearOutline()
       return
     }
-    if (event.target === this.currentTarget) return
+    if (target === this.currentTarget) return
 
-    this.setOutlineTarget(event.target)
+    this.setOutlineTarget(target)
   }
 
   onClick = (event: MouseEvent): void => {
     if (!this.hasCard) return
-    if (!(event.target instanceof globalThis.Node)) return
-    if (this.card.element.contains(event.target)) return
+    const element = eventElement(event.target, this.environment.window)
+    if (!element) return
+    if (this.card.element.contains(element)) return
     const selectedTarget =
       this.card.selectedLayer().target ?? this.activationTarget
-    if (!event.ctrlKey || !selectedTarget?.contains(event.target)) {
+    if (!event.ctrlKey || !selectedTarget?.contains(element)) {
       this.cleanUp()
       return
     }
@@ -371,15 +418,19 @@ class InspectorSession {
   }
 
   onContextMenu = (event: MouseEvent): void => {
-    if (!event.altKey) return
-    if (!(event.target instanceof globalThis.HTMLElement)) return
-    if (this.card.element.contains(event.target)) return
+    this.reconcileCardConnection()
+    if (!event.altKey && !this.altPressed) return
+    const element = eventElement(event.target, this.environment.window)
+    if (!element) return
+    if (this.card.element.contains(element)) return
+    const activationTarget = owningHtmlElement(element, this.environment.window)
+    if (!activationTarget) return
 
     event.preventDefault()
-    const layers = getLayersForElement(event.target, this.environment.window)
+    const layers = getLayersForElement(element, this.environment.window)
     if (layers.length === 0) return
 
-    this.activationTarget = event.target
+    this.activationTarget = activationTarget
     this.previewing = false
     this.card.setMode("full")
 
@@ -398,8 +449,14 @@ class InspectorSession {
     this.card.focus()
   }
 
+  onBlur = (): void => {
+    this.altPressed = false
+    if (!this.hasCard) this.clearOutline()
+  }
+
   start(): void {
     const { window: windowObject } = this.environment
+    windowObject.addEventListener("blur", this.onBlur)
     windowObject.addEventListener("click", this.onClick, true)
     windowObject.addEventListener("keydown", this.onKeyDown)
     windowObject.addEventListener("keyup", this.onKeyUp)
@@ -410,6 +467,7 @@ class InspectorSession {
 
   dispose(): void {
     const { window: windowObject } = this.environment
+    windowObject.removeEventListener("blur", this.onBlur)
     windowObject.removeEventListener("click", this.onClick, true)
     windowObject.removeEventListener("keydown", this.onKeyDown)
     windowObject.removeEventListener("keyup", this.onKeyUp)
@@ -426,9 +484,21 @@ export function installReactComponentInspector(
   suppliedEnvironment?: InspectorEnvironment,
 ): () => void {
   const environment = resolveEnvironment(suppliedEnvironment)
+  environment.window.__MAXIMAL_REACT_COMPONENT_INSPECTOR_DISPOSE__?.()
   const session = new InspectorSession(options, environment)
   session.start()
-  return () => {
+  let active = true
+  const dispose = (): void => {
+    if (!active) return
+    active = false
     session.dispose()
+    if (
+      environment.window.__MAXIMAL_REACT_COMPONENT_INSPECTOR_DISPOSE__
+      === dispose
+    ) {
+      delete environment.window.__MAXIMAL_REACT_COMPONENT_INSPECTOR_DISPOSE__
+    }
   }
+  environment.window.__MAXIMAL_REACT_COMPONENT_INSPECTOR_DISPOSE__ = dispose
+  return dispose
 }

@@ -113,10 +113,18 @@ export const SPATIAL_CANVAS_STYLES = `
   background: transparent;
 }
 
+.sb-shell .spatial-canvas__pages .spatial-canvas__page-trigger {
+  width: auto;
+  min-width: 0;
+  padding-inline-end: var(--shell-space-2);
+  gap: var(--shell-space-1);
+}
+
 .sb-shell .spatial-canvas__page-title {
   max-width: calc(var(--shell-row-height) * 4);
   padding-inline: var(--shell-space-2);
   overflow: hidden;
+  color: var(--shell-text);
   font-size: var(--shell-text-sm);
   font-weight: var(--shell-weight-md);
   text-overflow: ellipsis;
@@ -213,26 +221,27 @@ export const SPATIAL_CANVAS_STYLES = `
   inset: 0;
   overflow: hidden;
   outline: none;
-  background-color: var(--shell-canvas);
+  background-color: light-dark(
+    var(--shell-spatial-grid-background-light, var(--shell-canvas)),
+    var(--shell-canvas)
+  );
   cursor: ${SPATIAL_CANVAS_CURSORS.select};
   touch-action: none;
   user-select: none;
 }
 
-.sb-shell .spatial-canvas__viewport::before {
+.sb-shell .spatial-canvas__grid {
   position: absolute;
   inset: 0;
+  color: light-dark(
+    var(--shell-spatial-grid-dot-light, var(--shell-text-subtle)),
+    var(--shell-spatial-grid-dot-dark, var(--shell-text-subtle))
+  );
   background-image: radial-gradient(
     circle,
-    var(--shell-border) var(--shell-icon-stroke),
-    transparent var(--shell-icon-stroke)
+    currentColor calc(var(--shell-spatial-grid-radius) - var(--shell-spatial-grid-edge)),
+    transparent calc(var(--shell-spatial-grid-radius) + var(--shell-spatial-grid-edge))
   );
-  background-position:
-    calc(-1 * var(--shell-icon-stroke))
-    calc(-1 * var(--shell-icon-stroke));
-  background-size: var(--shell-space-4) var(--shell-space-4);
-  content: "";
-  opacity: var(--shell-disabled-opacity, 0.5);
   pointer-events: none;
 }
 

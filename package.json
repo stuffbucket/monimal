@@ -11,6 +11,8 @@
     "dev:context": "turbo run dev:context --filter=@maximal/maximal-context-window",
     "dev:server": "turbo run dev --filter=@maximal/maximal -- start",
     "storybook": "turbo run storybook --filter=@maximal/maximal-storybook",
+    "storybook:list": "pnpm --filter @maximal/maximal-storybook run storybook:list",
+    "storybook:stop": "pnpm --filter @maximal/maximal-storybook run storybook:stop",
     "storybook:build": "turbo run storybook:build --filter=@maximal/maximal-storybook",
     "storybook:check": "turbo run storybook:check --filter=@maximal/maximal-storybook",
     "build": "turbo run build",

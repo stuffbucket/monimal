@@ -48,6 +48,11 @@ function projectsApi(
   overrides: Partial<MaximalHost['projects']> = {},
 ): MaximalHost['projects'] {
   return {
+    undockWindow: vi.fn(async () => true),
+    redockWindow: vi.fn(async () => true),
+    windowState: vi.fn(async () => undefined),
+    onWindowRedocked: vi.fn(() => () => {}),
+    openWorkspaceSettings: vi.fn(async () => {}),
     search: vi.fn(async () => []),
     snapshot: vi.fn(async () => ({ roots: [], projects: [], refreshing: false })),
     addRoot: vi.fn(async () => null),

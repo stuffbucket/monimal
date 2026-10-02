@@ -22,3 +22,4 @@ export {
   type ProjectMapStore,
   type ProjectMapViewer,
 } from "./store.ts"
+export { type Camera, INITIAL_CAMERA } from "./view.ts"

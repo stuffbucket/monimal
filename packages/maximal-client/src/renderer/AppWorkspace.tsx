@@ -14,6 +14,7 @@ import {
   Dialog,
   TAB_COLORS,
   TextInput,
+  moveTabBefore,
   type Account,
   type SettingsSurface,
   type TabColor,
@@ -31,34 +32,31 @@ import {
   type AppTab,
 } from './frame/AppFrame'
 import { WorkspaceRail } from './frame/WorkspaceRail'
-import { WorkspaceMap } from './home/WorkspaceMap'
+import { WORKBAR_PROFILE_SECTIONS } from './frame/workbar-layout'
+import { WorkspaceHome } from './home/WorkspaceHome'
+import { BrowserSessions, TerminalSessions } from './home/WorkspaceSessions'
 import { Overview } from './overview/Overview'
 import { Settings, type SettingsSectionRequest } from './settings/Settings'
 import type { SettingsCapabilities } from './settings/capabilities'
 import type { AuthStatus } from './settings/capabilities'
 import { ProviderOnboarding } from './ProviderOnboarding'
 import { Terminal } from './terminal/Terminal'
+import { terminalTransport } from './terminal/transport'
 import type { DetachedTerminal } from './terminal/window-transfer'
 import { Traffic } from './traffic/Traffic'
 import type { TerminalTabsState } from './useTerminalTabs'
 import { ProjectBrowser } from './projects/ProjectBrowser'
+import { useProjectWindowTransfer } from './projects/window-transfer'
 
 interface AppWorkspaceProps {
   detachedWindow?: DetachedTerminal
+  detachedProjects?: boolean
   accountStatus: AuthStatus | null
   settings: SettingsCapabilities
   sectionRequest: SettingsSectionRequest | null
   terminalState: TerminalTabsState
   requestNavigation: (proceed: () => void) => void
   openSettingsSection: (id: SettingsSectionId) => void
-}
-
-const PROFILE_SETTINGS: Record<SettingsSurface, SettingsSectionId> = {
-  'model-cards': 'settings-models-heading',
-  'api-keys': 'settings-connections-heading',
-  'app-toggles': 'settings-connections-heading',
-  diagnostics: 'settings-diagnostics-heading',
-  usage: 'settings-usage-heading',
 }
 
 const TAB_COLOR_LABELS: Record<TabColor, string> = {
@@ -78,47 +76,9 @@ interface ActiveSurfaceProps {
   terminalState: TerminalTabsState
   onFocusChange: (tabId: string, sessionId: string) => void
   projectBrowser?: ReactElement
-}
-
-const WORKSPACE_SURFACE_COPY = {
-  projects: {
-    title: 'Projects',
-    description: 'Browse and manage your Maximal projects.',
-  },
-  terminals: {
-    title: 'Terminals',
-    description: 'Manage terminal sessions and reopen background terminals.',
-  },
-  browsers: {
-    title: 'Browsers',
-    description: 'Manage browser sessions connected to your workspaces.',
-  },
-} as const
-
-function WorkspaceSurface({
-  surface,
-}: {
-  surface: keyof typeof WORKSPACE_SURFACE_COPY
-}): ReactElement {
-  const copy = WORKSPACE_SURFACE_COPY[surface]
-  return (
-    <main className="workspace-surface">
-      <header className="workspace-surface__header">
-        <h1>{copy.title}</h1>
-        <p>{copy.description}</p>
-      </header>
-    </main>
-  )
-}
-
-function workspaceSurfaceFrom(
-  kind: AppTab['kind'] | undefined,
-): keyof typeof WORKSPACE_SURFACE_COPY | null {
-  return kind === 'projects'
-    || kind === 'terminals'
-    || kind === 'browsers'
-    ? kind
-    : null
+  onSelectTab: (id: string) => void
+  onNewTerminal: () => void
+  onNewBrowser: () => void
 }
 
 function ActiveSurface({
@@ -129,14 +89,42 @@ function ActiveSurface({
   terminalState,
   onFocusChange,
   projectBrowser,
+  onSelectTab,
+  onNewTerminal,
+  onNewBrowser,
 }: ActiveSurfaceProps): ReactElement {
   if (projectBrowser) return projectBrowser
 
-  const workspaceSurface = workspaceSurfaceFrom(current?.kind)
   return (
     <>
-      {current?.kind === 'home' ? <WorkspaceMap /> : null}
-      {workspaceSurface ? <WorkspaceSurface surface={workspaceSurface} /> : null}
+      {current?.kind === 'home' ? (
+        <WorkspaceHome
+          tabs={terminalState.tabs}
+          panes={terminalState.panes}
+          onSelectTab={onSelectTab}
+          onOpenProjects={() => onSelectTab('projects')}
+          onNewTerminal={onNewTerminal}
+          onNewBrowser={onNewBrowser}
+        />
+      ) : null}
+      {current?.kind === 'terminals' ? (
+        <TerminalSessions
+          tabs={terminalState.tabs}
+          transport={terminalTransport}
+          onSelectTab={onSelectTab}
+          onResume={terminalState.reopenTerminalSession}
+          onNew={onNewTerminal}
+          onClose={terminalState.requestCloseTerminal}
+        />
+      ) : null}
+      {current?.kind === 'browsers' ? (
+        <BrowserSessions
+          tabs={terminalState.tabs}
+          onSelectTab={onSelectTab}
+          onNew={onNewBrowser}
+          onClose={(id) => void terminalState.closeBrowser(id)}
+        />
+      ) : null}
       {current?.kind === 'overview' ? <Overview /> : null}
       {current?.kind === 'traffic' ? <Traffic /> : null}
       {current?.kind === 'assistant' ? (
@@ -317,6 +305,7 @@ function BrowserDialogs({
 
 export function AppWorkspace({
   detachedWindow,
+  detachedProjects = false,
   accountStatus,
   settings,
   sectionRequest,
@@ -325,26 +314,37 @@ export function AppWorkspace({
   openSettingsSection,
 }: AppWorkspaceProps): ReactElement {
   const [profileError, setProfileError] = useState<string>()
+  const [projectError, setProjectError] = useState<string>()
   const assistantMenu = useAssistantMenu()
   const [browserAddress, setBrowserAddress] = useState<string>()
-  const [projectBrowserOpen, setProjectBrowserOpen] = useState(false)
   const [focusedTerminalSessions, setFocusedTerminalSessions] = useState<
     Record<string, string>
   >({})
   const [contextSessions, setContextSessions] = useState<Record<string, string>>({})
+  const projectWindows = useProjectWindowTransfer({
+    detached: detachedProjects,
+    enabled: detachedWindow === undefined,
+    frameId: terminalState.frameId,
+    tabs: terminalState.tabs,
+    openProjects: terminalState.openProjects,
+    closeTab: terminalState.closeTab,
+    onError: setProjectError,
+  })
+  const detached = detachedWindow !== undefined || detachedProjects
   const visibleTabs = detachedWindow
     ? terminalState.tabs.filter((tab) => tab.kind === 'terminal')
     : terminalState.tabs
   const current = visibleTabs.find((tab) => tab.id === terminalState.activeTab)
     ?? visibleTabs[0] ?? PRODUCT_TABS[0]
   useEffect(() => {
+    if (detachedProjects) return
     const sessionIds = current.kind === 'terminal' && current.sessionId
       ? terminalPaneSessionIds(
           terminalState.panes.get(current.id) ?? { sessionId: current.sessionId },
         )
       : []
     void window.maximal.browser.setTerminalContext(sessionIds)
-  }, [current, terminalState.panes])
+  }, [current, detachedProjects, terminalState.panes])
   const terminalTabs = terminalState.tabs.flatMap((tab) =>
     tab.kind === 'terminal' && tab.sessionId
       ? [{ id: tab.id, sessionId: tab.sessionId, title: tab.title }]
@@ -370,7 +370,11 @@ export function AppWorkspace({
     })
   }
   const openProfileSurface = (surface: SettingsSurface): void =>
-    openSettings(PROFILE_SETTINGS[surface])
+    openSettings(WORKBAR_PROFILE_SECTIONS[surface])
+  const selectTab = (id: string): void => requestNavigation(() => {
+    if (id === 'projects') terminalState.openProjects()
+    else terminalState.setActiveTab(id)
+  })
   const onTerminalFocusChange = useCallback((tabId: string, sessionId: string) => {
     setFocusedTerminalSessions((current) =>
       current[tabId] === sessionId ? current : { ...current, [tabId]: sessionId })
@@ -402,11 +406,8 @@ export function AppWorkspace({
       <AppFrame
         tabs={visibleTabs}
         activeTab={current?.id ?? 'settings'}
-        surface={projectBrowserOpen ? 'projects' : current?.kind ?? 'settings'}
-        onSelectTab={(id) => requestNavigation(() => {
-          setProjectBrowserOpen(false)
-          terminalState.setActiveTab(id)
-        })}
+        surface={current?.kind ?? 'settings'}
+        onSelectTab={selectTab}
         onCloseTab={(id) => {
           const closing = terminalState.tabs.find((tab) => tab.id === id)
           if (closing?.kind === 'settings') requestNavigation(() => terminalState.closeTab(id))
@@ -414,23 +415,32 @@ export function AppWorkspace({
           else if (closing?.kind === 'terminal') terminalState.requestCloseTerminal(id)
           else requestNavigation(() => terminalState.closeTab(id))
         }}
-        onNewTab={detachedWindow ? undefined : () => terminalState.setLauncherOpen(true)}
-        assistant={detachedWindow ? undefined : {
+        onNewTab={detached ? undefined : () => terminalState.setLauncherOpen(true)}
+        assistant={detached ? undefined : {
           recent: assistantMenu.recent,
           hotkey: assistantMenu.hotkey,
           onToggle: assistantMenu.toggle,
           onOpenChat: terminalState.openAssistantChat,
           onShowMore: terminalState.openAssistant,
         }}
-        onOpenBrowser={detachedWindow ? undefined : () => setBrowserAddress('https://')}
-        onOpenProjects={detachedWindow ? undefined : () => setProjectBrowserOpen(true)}
+        onOpenBrowser={detached ? undefined : () => setBrowserAddress('https://')}
+        onOpenProjects={detached ? undefined : () => selectTab('projects')}
         tabTransfer={{
           frameId: terminalState.frameId,
-          canDrag: (tab) => tab.kind === 'terminal',
-          canDropBefore: (tab) => tab === undefined || tab.kind === 'terminal',
-          onMoveTab: terminalState.moveTerminalTab,
-          onReceiveTab: detachedWindow ? undefined : terminalState.receiveTab,
-          getTransfer: (tab) => tab.kind === 'terminal' && tab.sessionId
+          canDrag: (tab) => tab.kind === 'terminal'
+            || (tab.kind === 'projects' && projectWindows.ready),
+          canDropBefore: (tab) => tab === undefined || tab.kind === 'terminal' || tab.kind === 'projects',
+          onMoveTab: (id, beforeId) => {
+            if (id === 'projects') terminalState.setTabs((tabs) => moveTabBefore(tabs, id, beforeId))
+            else terminalState.moveTerminalTab(id, beforeId)
+          },
+          onReceiveTab: detachedWindow ? undefined : (transfer) => {
+            if (transfer.document?.kind === 'projects') projectWindows.receive(transfer)
+            else terminalState.receiveTab(transfer)
+          },
+          getTransfer: (tab) => tab.kind === 'projects'
+            ? { document: { kind: 'projects', state: projectWindows.encodeState() } }
+            : tab.kind === 'terminal' && tab.sessionId
             ? {
                 sessionId: tab.sessionId,
                 title: tab.title,
@@ -439,6 +449,20 @@ export function AppWorkspace({
               }
             : undefined,
           contextMenu: (tab) => {
+            if (tab.kind === 'projects') return [
+              {
+                id: 'move-to-new-window',
+                label: 'Move to New Window',
+                disabled: !projectWindows.ready,
+                onSelect: () => void projectWindows.undock(),
+              },
+              {
+                id: 'close',
+                label: 'Close Projects',
+                shortcut: '⌘W',
+                onSelect: () => terminalState.closeTab(tab.id),
+              },
+            ]
             if (tab.kind !== 'terminal' || !tab.sessionId) return []
             const terminalIds = new Set(terminalPaneSessionIds(
               terminalState.panes.get(tab.id) ?? { sessionId: tab.sessionId },
@@ -530,6 +554,10 @@ export function AppWorkspace({
             const tab = terminalState.getTabs().find((candidate) =>
               candidate.id === transfer.tabId)
             if (!tab) return
+            if (tab.kind === 'projects') {
+              void projectWindows.undock(position)
+              return
+            }
             const request = terminalState.terminalWindowRequest(tab, position)
             if (!request) return
             void window.maximal.terminal.undock(request).then((moved) => {
@@ -550,11 +578,20 @@ export function AppWorkspace({
           sectionRequest={sectionRequest}
           terminalState={terminalState}
           onFocusChange={onTerminalFocusChange}
-          projectBrowser={projectBrowserOpen ? (
+          onSelectTab={selectTab}
+          onNewTerminal={() => terminalState.setLauncherOpen(true)}
+          onNewBrowser={() => setBrowserAddress('https://')}
+          projectBrowser={current?.kind === 'projects' && projectWindows.ready ? (
             <ProjectBrowser
+              key={projectWindows.generation}
+              mapStore={projectWindows.store}
+              initialView={projectWindows.view.current}
+              onViewChange={projectWindows.updateView}
               open
               embedded
-              onOpenChange={setProjectBrowserOpen}
+              onOpenChange={(open) => {
+                if (!open) terminalState.closeTab('projects')
+              }}
               onOpenProject={async (project) => {
                 const result = await window.maximal.terminal.launch({
                   profileId: 'local',
@@ -563,11 +600,31 @@ export function AppWorkspace({
                   rows: 30,
                 })
                 terminalState.rememberProfile('local')
-                terminalState.onTerminalLaunched(result)
+                if (detachedProjects) {
+                  try {
+                    const moved = await window.maximal.terminal.undock({
+                      id: result.sessionId,
+                      title: result.label,
+                      canRunInBackground: result.canRunInBackground,
+                      cols: 100,
+                      rows: 30,
+                      x: window.screenX + 100,
+                      y: window.screenY + 100,
+                    })
+                    if (!moved) throw new Error('The project terminal could not be opened in a window.')
+                  } catch (cause) {
+                    await window.maximal.terminal.terminate(result.sessionId)
+                    throw cause
+                  }
+                } else terminalState.onTerminalLaunched(result)
               }}
               onOpenSettings={() => {
-                setProjectBrowserOpen(false)
-                openSettings('settings-projects-heading')
+                if (detachedProjects) {
+                  void window.maximal.projects.openWorkspaceSettings()
+                    .catch((cause: unknown) => setProjectError(
+                      cause instanceof Error ? cause.message : 'Workspace settings could not be opened.',
+                    ))
+                } else openSettings('settings-projects-heading')
               }}
             />
           ) : undefined}
@@ -587,12 +644,12 @@ export function AppWorkspace({
             />
           </SurfaceRight>
         ) : null}
-        {!detachedWindow ? (
+        {!detached ? (
           <>
             <SurfaceActivity>
               <WorkspaceRail
-                current={current.id}
-                onSelect={(id) => requestNavigation(() => terminalState.setActiveTab(id))}
+                current={current.kind}
+                onSelect={selectTab}
                 workbar={settings.workbar}
                 account={account}
                 onOpenProfileSurface={openProfileSurface}
@@ -636,6 +693,16 @@ export function AppWorkspace({
         </Button>
       </Dialog>
       <TerminalDialogs terminalState={terminalState} />
+      <Dialog
+        open={projectError !== undefined}
+        onOpenChange={(open) => { if (!open) setProjectError(undefined) }}
+        title="Project browser action failed"
+        description={projectError}
+        className="dialog"
+        testId="project-window-error"
+      >
+        <Button variant="primary" onClick={() => setProjectError(undefined)}>Done</Button>
+      </Dialog>
     </>
   )
 }

@@ -5,9 +5,10 @@ import { expect, userEvent, within } from '@maximal/maximal-storybook/test';
 import { Workbar, type WorkbarItem } from './Workbar.js';
 
 const ITEMS: WorkbarItem<string>[] = [
-  { id: 'map', label: 'Workspace map', icon: 'map' },
-  { id: 'overview', label: 'Overview', icon: 'document' },
-  { id: 'traffic', label: 'Traffic', icon: 'folder' },
+  { id: 'home', label: 'Home', icon: 'home' },
+  { id: 'projects', label: 'Projects', icon: 'folder' },
+  { id: 'overview', label: 'Overview', icon: 'overview' },
+  { id: 'traffic', label: 'Traffic', icon: 'traffic' },
   { id: 'terminal:one', label: 'Terminal', icon: 'terminal' },
   { id: 'browser:one', label: 'Browser', icon: 'browser' },
 ];
@@ -65,8 +66,11 @@ export const Default: Story = {
       transform: 'matrix(1.11111, 0, 0, 1.11111, 0, 0)',
     });
     await expect(canvas.getByRole('button', { name: 'Traffic' }).querySelector('svg')).toHaveStyle({
-      transform: 'matrix(1, 0, 0, 1, 0, 0.5)',
+      transform: 'none',
     });
+    await expect(canvas.getByRole('button', { name: 'Home' }).querySelector('svg')).toHaveAttribute('data-shell-icon', 'home');
+    await expect(canvas.getByRole('button', { name: 'Overview' }).querySelector('svg')).toHaveAttribute('data-shell-icon', 'overview');
+    await expect(canvas.getByRole('button', { name: 'Traffic' }).querySelector('svg')).toHaveAttribute('data-shell-icon', 'traffic');
     await expect(canvas.getByTestId('profile')).toHaveStyle({
       width: '32px',
       height: '32px',

@@ -77,9 +77,11 @@ export const inspectorStyles = `[${TARGET_ATTRIBUTE}] {
 #${INSPECTOR_CARD_ID}[data-expanded="true"] {
   height: min(${token.sizeExpanded}, calc(100vh - ${token.space4} * 2)) !important;
 }
+#${INSPECTOR_CARD_ID}[data-interacting] {
+  transition: none !important;
+}
 #${INSPECTOR_CARD_ID}[data-interacting="drag"] {
   cursor: grabbing !important;
-  transition: none !important;
 }
 #${INSPECTOR_CARD_ID} .maximal-react-component-grabber,
 #${INSPECTOR_CARD_ID} .maximal-react-component-resize-bottom,
@@ -132,6 +134,8 @@ export const inspectorStyles = `[${TARGET_ATTRIBUTE}] {
 #${INSPECTOR_CARD_ID},
 #${INSPECTOR_CARD_ID} * {
   box-sizing: border-box !important;
+  scrollbar-width: thin !important;
+  scrollbar-color: ${token.colorBorder} transparent !important;
 }
 #${INSPECTOR_CARD_ID}:focus-visible {
   outline: 2px solid ${token.colorAccent} !important;
@@ -151,7 +155,7 @@ export const inspectorStyles = `[${TARGET_ATTRIBUTE}] {
   flex-direction: column !important;
   align-items: flex-start !important;
   gap: ${token.space1} !important;
-  max-height: 120px !important;
+  max-height: min(240px, 35vh) !important;
   min-width: 0 !important;
   overflow: hidden !important;
   overflow-y: auto !important;

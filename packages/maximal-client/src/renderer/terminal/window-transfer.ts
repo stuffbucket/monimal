@@ -181,7 +181,7 @@ export function useTerminalWindowTransfer({
       const encoded = event.dataTransfer?.getData(TAB_TRANSFER_MIME)
       if (!encoded) return
       const transfer = decodeTabTransfer(encoded)
-      if (!transfer || transfer.sourceFrameId === frameId) return
+      if (!transfer || transfer.document || transfer.sourceFrameId === frameId) return
       event.preventDefault()
       receiveTab(transfer)
     }

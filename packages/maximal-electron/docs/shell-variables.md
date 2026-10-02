@@ -56,6 +56,8 @@ focus rings, type, and optical details are not spacing increments.
 | `--shell-focus-ring-offset` | `2px` | Space between a control and its keyboard focus ring. |
 | `--shell-focus-ring-width` | `2px` | Keyboard focus ring width. |
 | `--shell-icon-prominent` | `24px` | A prominent navigation or feature glyph. |
+| `--shell-spatial-grid-radius` | `1px` | The spatial grid dot radius at 100% zoom. |
+| `--shell-spatial-grid-edge` | `0.25px` | The spatial grid dot's antialiased edge. |
 | `--shell-icon-size` | `16px` | The default Lucide glyph size. |
 | `--shell-icon-stroke` | `1.5` | The stroke weight of every Lucide glyph inside the shell. |
 | `--shell-icon-optical-folder-offset-y` | `0.5px` | Centers the Folder glyph's painted bounds in its slot. |
@@ -161,6 +163,9 @@ looks exactly like an ordinary hovered one.
 | `--shell-position` | `fixed` | how the `ShellLayout` root meets the window; `static` lays it out inside the consumer's own container instead |
 | `--shell-radius-small` | `4px` | tab close affordance, tooltip, segmented control, menu item |
 | `--shell-scrim` | `rgb(0 0 0 / 0.34)` | the layer a modal dims the window with |
+| `--shell-spatial-grid-background-light` | `--shell-canvas` | the spatial canvas surface in light mode |
+| `--shell-spatial-grid-dot-light` | `--shell-text-subtle` | spatial grid dots in light mode |
+| `--shell-spatial-grid-dot-dark` | `--shell-text-subtle` | spatial grid dots in dark mode |
 | `--shell-status` | `--shell-text-muted` | the status dot, the `StatusChip` label, the `Banner` text, the `Callout` outline; the `Callout` heading reads it too and falls back to `--shell-text`, which is the legible one on a raised fill |
 | `--shell-status-muted` | `--shell-active` | the `StatusChip`, `Banner` and `Callout` fills |
 | `--shell-statusbar-height` | `24px` | the compact register `.statusbar` keeps as a minimum, not a fixed height |

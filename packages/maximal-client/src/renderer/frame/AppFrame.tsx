@@ -19,6 +19,7 @@ import type { AssistantChat } from '@maximal/maximal-harness'
 
 import { WORKBAR_ITEMS, type WorkbarItemId } from './workbar-layout'
 import { ensureAppFrameStyles } from './app-frame-styles'
+import { documentTabs as frameDocumentTabs } from './document-tabs'
 
 export {
   Status,
@@ -59,13 +60,25 @@ export interface AppTab extends Tab {
   assistantChatId?: string
 }
 
-export const PRODUCT_TABS: AppTab[] = WORKBAR_ITEMS.map((item) => ({
-  id: item.id,
-  title: item.label,
-  icon: item.icon === 'map' ? 'document' : item.icon,
-  kind: item.id,
-  closable: false,
-}))
+export const PRODUCT_TABS: AppTab[] = WORKBAR_ITEMS
+  .filter((item) => item.id !== 'projects')
+  .map((item) => ({
+    id: item.id,
+    title: item.label,
+    icon: item.icon,
+    kind: item.id,
+    closable: false,
+  }))
+
+// The project browser opens on demand as a closable document, like Settings,
+// even though its Projects workbar destination is permanent.
+export const PROJECTS_TAB: AppTab = {
+  id: 'projects',
+  title: 'Projects',
+  icon: 'folder',
+  kind: 'projects',
+  closable: true,
+}
 
 export const SETTINGS_TAB: AppTab = {
   id: 'settings',
@@ -115,8 +128,7 @@ export function AppFrame({
   children: ReactNode
 }): ReactElement {
   ensureAppFrameStyles()
-  const workbarIds = new Set<Surface>(WORKBAR_ITEMS.map(({ id }) => id))
-  const documentTabs = tabs.filter((tab) => !workbarIds.has(tab.kind))
+  const documentTabs = frameDocumentTabs(tabs)
   const documentLabel = tabs.find(({ id }) => id === activeTab)?.title
   const withLeft = surface !== 'terminal' && surface !== 'browser'
   const withRight = surface === 'overview' || surface === 'traffic' || surface === 'terminal'

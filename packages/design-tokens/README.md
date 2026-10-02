@@ -20,8 +20,8 @@ The ratchet tracks:
 - literal Lucide sizes outside the typed 12px, 16px, and 24px icon roles;
 - icon SVG and PNG source canvases outside typed glyph, tray, and application
   asset dimensions;
-- CSS icon properties whose values drift from their explicitly owned DTCG
-  dimensions;
+- CSS icon and spatial grid properties whose values drift from their explicitly
+  owned DTCG dimensions, numbers, or opaque sRGB colors;
 - provisional string types that MUST become explicitly owned DTCG types;
 - names with multiple observed source values that MUST be modeled as deliberate
   contexts or aliases;
@@ -30,6 +30,9 @@ The ratchet tracks:
 
 Style Dictionary MUST remain pinned to the full upstream commit SHA in
 `package.json` and the matching `pnpm-workspace.yaml` build allowlist.
+
+[tokens/icon-metrics.json](./tokens/icon-metrics.json) MUST own the spatial
+grid dot geometry and reference palette.
 
 Production CSS MUST NOT be generated from this package until generated output
 has exact value and name parity with the existing token owners.

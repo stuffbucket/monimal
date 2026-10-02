@@ -67,7 +67,9 @@ function AppContent(): ReactElement {
   const material = useMaterialPreference(settings)
   const observability = useMemo(() => createObservabilitySource(), [])
   const [detachedWindow] = useState(readDetachedTerminal)
-  const terminalTabsState = useTerminalTabs(detachedWindow)
+  const [detachedProjects] = useState(() =>
+    new URLSearchParams(window.location.search).get('projectsWindow') === 'true')
+  const terminalTabsState = useTerminalTabs(detachedWindow, detachedProjects)
   const { openSettings } = terminalTabsState
   const accountStatus = useAccountStatus(settings)
   const [sectionRequest, setSectionRequest] = useState<SettingsSectionRequest | null>(null)
@@ -93,6 +95,7 @@ function AppContent(): ReactElement {
       />
       <AppWorkspace
         detachedWindow={detachedWindow}
+        detachedProjects={detachedProjects}
         accountStatus={accountStatus}
         settings={settings}
         sectionRequest={sectionRequest}
@@ -101,7 +104,7 @@ function AppContent(): ReactElement {
         openSettingsSection={(id) => setSectionRequest({ id })}
       />
       {/* Detached windows display transferred sessions; only the workspace launches new ones. */}
-      {!detachedWindow && <WorkspaceTerminalLauncher terminalState={terminalTabsState} />}
+      {!detachedWindow && !detachedProjects && <WorkspaceTerminalLauncher terminalState={terminalTabsState} />}
       <ThirdPartyLicensesDialog />
     </ObservabilityProvider>
   )

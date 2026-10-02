@@ -11,6 +11,12 @@
  */
 
 :root {
+  --shell-spatial-grid-dot-light: rgb(196 196 196);
+  --shell-spatial-grid-dot-dark: rgb(96 96 96);
+  --shell-spatial-grid-background-light: rgb(245 245 245);
+  --spatial-grid-radius: 1px;
+  --spatial-grid-edge: 0.25px;
+
   /* ---- Font stacks ---- */
   --font-body:
     -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;

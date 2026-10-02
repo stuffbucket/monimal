@@ -81,7 +81,7 @@ describe("inspector card geometry", () => {
     expect(card.style.left).toBe("")
   })
 
-  it("expands from either resize edge and preserves the opposite edge", () => {
+  it("resizes from either vertical edge, keeps the opposite edge, and retains the height", () => {
     const card = document.createElement("section")
     const top = document.createElement("div")
     top.dataset["resizeEdge"] = "top"
@@ -89,6 +89,7 @@ describe("inspector card geometry", () => {
     bottom.dataset["resizeEdge"] = "bottom"
     card.append(top, bottom)
     document.body.append(card)
+    card.style.maxHeight = "200px"
     card.getBoundingClientRect = () => {
       const height = Number.parseFloat(card.style.height) || 120
       const top = Number.parseFloat(card.style.top) || 300
@@ -108,23 +109,36 @@ describe("inspector card geometry", () => {
     })
 
     mouse(bottom, "mousedown", { x: 100, y: 420 })
+    expect(card.dataset["interacting"]).toBe("resize")
+    expect(card.style.maxHeight).toBe("")
     mouse(globalThis.window, "mousemove", { x: 100, y: 540 })
     expect(card.style.height).toBe("240px")
     expect(card.style.getPropertyPriority("height")).toBe("important")
     expect(onExpandedChange).toHaveBeenLastCalledWith(true)
     mouse(globalThis.window, "mouseup", { x: 100, y: 540 })
-    expect(card.style.height).toBe("")
+    expect(card.dataset["interacting"]).toBeUndefined()
+    expect(card.style.height).toBe("240px")
+    expect(card.style.top).toBe("300px")
 
     mouse(top, "mousedown", { x: 100, y: 300 })
     mouse(globalThis.window, "mousemove", { x: 100, y: 100 })
-    expect(card.style.height).toBe("320px")
+    expect(card.style.height).toBe("440px")
     expect(card.style.top).toBe("100px")
     mouse(globalThis.window, "mouseup", { x: 100, y: 100 })
-    expect(card.style.top).toBe("300px")
+    expect(card.style.height).toBe("440px")
+    expect(card.style.top).toBe("100px")
 
-    mouse(bottom, "mousedown", { x: 100, y: 420 })
+    mouse(top, "mousedown", { x: 100, y: 100 })
+    mouse(globalThis.window, "mousemove", { x: 100, y: -1000 })
+    expect(card.style.top).toBe("16px")
+    expect(card.style.height).toBe("524px")
+    mouse(globalThis.window, "mouseup", { x: 100, y: -1000 })
+
+    mouse(bottom, "mousedown", { x: 100, y: 540 })
     mouse(globalThis.window, "mousemove", { x: 100, y: 2000 })
     expect(card.style.height).toBe("736px")
+    expect(card.style.top).toBe("16px")
+    mouse(globalThis.window, "mouseup", { x: 100, y: 2000 })
     dispose()
   })
 

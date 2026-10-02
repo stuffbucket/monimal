@@ -1,5 +1,5 @@
 import { useCallback, useEffect } from 'react'
-import type { ShellIconName } from '@maximal/maximal-electron/renderer'
+import type { SettingsSurface, ShellIconName } from '@maximal/maximal-electron/renderer'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import {
@@ -8,20 +8,30 @@ import {
   type WorkbarLayout,
 } from '../../shared/host'
 import type { SettingsCapabilities } from '../settings/capabilities'
+import type { SettingsSectionId } from '../../shared/settings-sections'
 
 export type { WorkbarItemId, WorkbarLayout } from '../../shared/host'
 
+export const WORKBAR_PROFILE_SECTIONS: Record<SettingsSurface, SettingsSectionId> = {
+  'model-cards': 'settings-models-heading',
+  'api-keys': 'settings-connections-heading',
+  'app-toggles': 'settings-connections-heading',
+  diagnostics: 'settings-diagnostics-heading',
+  usage: 'settings-usage-heading',
+}
+
 export const WORKBAR_ITEMS = [
-  { id: 'home', label: 'Home', icon: 'map' },
-  { id: 'projects', label: 'Projects', icon: 'folder' },
-  { id: 'overview', label: 'Overview', icon: 'document' },
-  { id: 'traffic', label: 'Traffic', icon: 'folder' },
-  { id: 'terminals', label: 'Terminals', icon: 'terminal' },
-  { id: 'browsers', label: 'Browsers', icon: 'browser' },
+  { id: 'home', label: 'Home', icon: 'home', description: 'Start work and return to open documents.' },
+  { id: 'projects', label: 'Projects', icon: 'folder', description: 'Find and open local projects on the spatial board.' },
+  { id: 'overview', label: 'Overview', icon: 'overview', description: 'See live request activity and aggregate traffic statistics.' },
+  { id: 'traffic', label: 'Traffic', icon: 'traffic', description: 'Inspect individual requests, responses, and their context.' },
+  { id: 'terminals', label: 'Terminals', icon: 'terminal', description: 'Open terminal tabs and resume background sessions.' },
+  { id: 'browsers', label: 'Browsers', icon: 'browser', description: 'Open and manage user and agent browser tabs.' },
 ] as const satisfies readonly {
   id: WorkbarItemId
   label: string
   icon: ShellIconName
+  description: string
 }[]
 
 const workbarLayoutQueryKey = ['workbar', 'layout'] as const

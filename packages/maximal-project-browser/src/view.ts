@@ -11,6 +11,12 @@ export interface Point {
   y: number
 }
 
+export interface PendingMove {
+  itemOrigins: Map<string, Point>
+  dx: number
+  dy: number
+}
+
 export const INITIAL_CAMERA: Camera = { x: 340, y: 100, zoom: 1 }
 
 export function clampZoom(value: number): number {

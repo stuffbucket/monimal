@@ -72,7 +72,9 @@ export function WorkbarSection({
                     />
                   </>
                 )}
-              />
+              >
+                {item.description}
+              </SettingsItem>
             )
           })}
         </SettingsGroup>

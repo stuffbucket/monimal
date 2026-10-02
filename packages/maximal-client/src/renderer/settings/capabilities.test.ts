@@ -233,6 +233,11 @@ function fakeBridge(): MaximalHost {
       onChange: vi.fn(() => () => {}),
     },
     projects: {
+      undockWindow: vi.fn(async () => true),
+      redockWindow: vi.fn(async () => true),
+      windowState: vi.fn(async () => undefined),
+      onWindowRedocked: vi.fn(() => () => {}),
+      openWorkspaceSettings: vi.fn(async () => {}),
       snapshot: vi.fn(async () => ({ roots: [], projects: [], refreshing: false })),
       search: vi.fn(async () => []),
       addRoot: vi.fn(async () => null),
