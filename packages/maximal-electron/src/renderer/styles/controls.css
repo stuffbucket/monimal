@@ -220,6 +220,8 @@ svg {
 
 .menu {
   min-width: 220px;
+  max-height: min(360px, var(--radix-dropdown-menu-content-available-height));
+  overflow-y: auto;
   padding: var(--space-1);
   border-radius: var(--radius-input);
   background: var(--bg-panel);
@@ -238,10 +240,6 @@ svg {
   color: var(--text-secondary);
   cursor: pointer;
   outline: none;
-}
-
-.menu__item-label {
-  flex: 1;
 }
 
 .menu__item-shortcut {

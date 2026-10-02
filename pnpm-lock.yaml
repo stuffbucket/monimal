@@ -958,6 +958,12 @@ importers:
       '@earendil-works/pi-ai':
         specifier: 0.84.4
         version: 0.84.4(supports-color@8.1.1)(ws@8.21.3)(zod@4.5.4)
+      '@fontsource/opendyslexic':
+        specifier: 5.3.0
+        version: 5.3.0
+      '@maximal/maximal-assets':
+        specifier: workspace:*
+        version: link:../maximal-assets
       '@maximal/maximal-llama-cpp':
         specifier: workspace:*
         version: link:../maximal-llama-cpp
@@ -2726,6 +2732,9 @@ packages:
 
   '@floating-ui/utils@0.2.12':
     resolution: {integrity: sha1-r+/nhZSfFqxM3R5pWTWjIVct1Wo=}
+
+  '@fontsource/opendyslexic@5.3.0':
+    resolution: {integrity: sha512-BVYIW/ghc1U2iAghhYTN+GFWiZ3lnCy8Jf2KkZC23aHQHBNcMqKT718zckfqVxRx4qsXJmIMPWvczirRuhmtsg==}
 
   '@gar/promise-retry@1.0.3':
     resolution: {integrity: sha1-ZecmQo55S8RFOUjgpB5t5CFc6LA=}
@@ -11158,6 +11167,8 @@ snapshots:
       react-dom: 19.2.8(react@19.2.8)
 
   '@floating-ui/utils@0.2.12': {}
+
+  '@fontsource/opendyslexic@5.3.0': {}
 
   '@gar/promise-retry@1.0.3': {}
 

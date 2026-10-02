@@ -122,7 +122,7 @@ Both are monorepo-native;
 | --- | --- |
 | Copied packages | `CLAUDE.md` includes `AGENTS.md`; root instructions take precedence. |
 | `maximal-electron` | Uses the workspace mutation runner for changed-line and explicit local scopes, cached edit loops, and fresh complete or sharded audits. |
-| `maximal-electron` | `TextInput` owns the token-based active-service treatment, the Radix-backed `Slider` owns its track, detents, labels, and thumb geometry, settings action rows and divider behavior live with the shared settings components, and `ModelCardGrid` owns provider adornments, disabled-provider activation, and model-action placement so consumers do not recreate those controls. |
+| `maximal-electron` | `TextInput` owns the token-based active-service treatment, the Radix-backed `Slider` owns its track, detents, labels, and thumb geometry, `Menu` owns described and selected dropdown rows, settings action rows and divider behavior live with the shared settings components, and `ModelCardGrid` owns provider adornments, disabled-provider activation, and model-action placement so consumers do not recreate those controls. |
 | `maximal-electron` | `Workbar` owns the persistent activity navigation geometry and the shared shell-icon vocabulary so consumers do not specialize collapsed side navigation or remap tab icons locally. |
 | `maximal-electron` | `StatusProvider` owns keyed, ordered status registration; `StatusViewport` owns paging and per-entry dismissal; and `AppFrame` composes them so status layout follows visible content rather than a consumer-owned region flag. |
 | `maximal-electron` / `apps/desktop` | Profile avatars accept authenticated HTTPS image URLs in the desktop renderer and fall back to account initials when an image cannot load; the signed-out profile identity invokes the consumer-owned account setup action. |
@@ -131,6 +131,8 @@ Both are monorepo-native;
 | `maximal-storybook` | Owns workspace Storybook integration while stories and deterministic fixtures remain beside the packages they exercise. |
 | `maximal-electron` | `NumberInput` owns bounded numeric draft-and-commit behavior; `UnitValueInput` owns automatic/manual presentation and persisted display units while consumers own canonical conversion; `TypefaceControls` composes reusable compact typeface fields; and `TerminalTabs` forwards consumer-owned live typography to terminal views without owning its persistence or font discovery. |
 | `@wterm/dom` 0.4.1 | Kitty graphics canvas backing stores scale with the bounded device pixel ratio so terminal images remain sharp on HiDPI displays. |
+| `maximal-electron` | Electron hosts MAY launch trusted application-owned terminal commands through the main-only `launchTrustedTerminal` API; renderer PTY requests remain restricted to opaque session geometry. |
+| `maximal-electron` | The shared shell contract owns the optional Maximal candy-paint surface tokens so consumers do not embed product palette literals. |
 | Workspace | `@maximal/eslint-config` owns the shared ESLint configuration and enforced rule sets. |
 | Workspace | `architecture-analysis.json` owns package coverage, the declared workspace dependency tree (`dependsOn`), external-package deny rules, and non-Core architecture baselines. |
 | `maximal-settings` | The pnpm bootstrap hook MUST load its dependency-policy source before workspace packages are installed; installed consumers MUST use the exported entry point. |

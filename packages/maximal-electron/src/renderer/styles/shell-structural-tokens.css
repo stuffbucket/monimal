@@ -43,6 +43,10 @@
   --shell-weight-lg: 600;
   --shell-leading-base: 1.5;
   --shell-tracking-caps: 0.04em;
+  --shell-menu-available-height: var(
+    --radix-dropdown-menu-content-available-height,
+    100vh
+  );
   --shell-radius-pill: 9999px;
   --shell-control-sm: 24px;
   --shell-control-md: 28px;

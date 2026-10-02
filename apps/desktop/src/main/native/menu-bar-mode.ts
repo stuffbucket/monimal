@@ -2,10 +2,21 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 
-import { app, BrowserWindow, nativeImage, Tray } from 'electron'
+import {
+  app,
+  BrowserWindow,
+  Menu,
+  nativeImage,
+  Tray,
+  type MenuItemConstructorOptions,
+} from 'electron'
 import { z } from 'zod'
 
 import type { MenuBarModeAttempt, MenuBarModeState } from '@maximal/maximal-client/shared/host'
+import type {
+  TerminalMenuEntry,
+  TerminalMenuFocusRequest,
+} from '@maximal/maximal-client/shared/host'
 import { readUserPreferences, updateUserPreferences } from '../preferences/user-preferences.js'
 import { mainLogger } from '../main-logger.js'
 
@@ -36,10 +47,24 @@ export class MenuBarModeController {
   private enabled = false
   private confirmed = false
   private pending: PendingAttempt | null = null
+  private dockHidden = false
+  private readonly observedWindows = new WeakSet<BrowserWindow>()
+  private readonly terminalMenus = new Map<BrowserWindow, TerminalMenuEntry[]>()
   private readonly onActivate: () => void
+  private readonly onTerminalActivate: (
+    win: BrowserWindow,
+    request: TerminalMenuFocusRequest,
+  ) => void
 
-  constructor(onActivate: () => void) {
+  constructor(
+    onActivate: () => void,
+    onTerminalActivate: (
+      win: BrowserWindow,
+      request: TerminalMenuFocusRequest,
+    ) => void = () => undefined,
+  ) {
     this.onActivate = onActivate
+    this.onTerminalActivate = onTerminalActivate
   }
 
   state(): MenuBarModeState {
@@ -107,7 +132,36 @@ export class MenuBarModeController {
   }
 
   applyToWindow(win: BrowserWindow): void {
-    win.setSkipTaskbar(this.enabled && process.platform !== 'darwin')
+    if (!this.observedWindows.has(win)) {
+      this.observedWindows.add(win)
+      win.on('closed', () => {
+        this.terminalMenus.delete(win)
+        this.updateTrayMenu()
+        this.updateMacPresence()
+      })
+      if (process.platform === 'darwin') {
+        win.on('show', () => this.updateMacPresence())
+        win.on('restore', () => this.updateMacPresence())
+        win.on('focus', () => this.updateMacPresence())
+        win.on('hide', () => this.updateMacPresence())
+        win.on('minimize', () => {
+          if (!this.enabled) return
+          win.hide()
+          this.updateMacPresence()
+        })
+      }
+    }
+    if (process.platform !== 'darwin') {
+      win.setSkipTaskbar(this.enabled)
+      return
+    }
+    this.updateMacPresence()
+  }
+
+  syncTerminalMenu(win: BrowserWindow | undefined, entries: TerminalMenuEntry[]): void {
+    if (!win || win.isDestroyed()) return
+    this.terminalMenus.set(win, entries)
+    this.updateTrayMenu()
   }
 
   cancelPending(): void {
@@ -116,6 +170,8 @@ export class MenuBarModeController {
 
   dispose(): void {
     this.clearPending()
+    this.enabled = false
+    this.showDock()
     this.tray?.destroy()
     this.tray = null
   }
@@ -141,28 +197,92 @@ export class MenuBarModeController {
     this.ensureTray()
     this.enabled = true
     for (const win of BrowserWindow.getAllWindows()) this.applyToWindow(win)
-    if (process.platform === 'darwin') void app.dock?.hide()
+    this.updateMacPresence()
   }
 
   private restoreNormalPresence(): void {
     this.enabled = false
-    if (process.platform === 'darwin') void app.dock?.show()
+    this.showDock()
     for (const win of BrowserWindow.getAllWindows()) win.setSkipTaskbar(false)
     this.tray?.destroy()
     this.tray = null
+  }
+
+  private updateMacPresence(): void {
+    if (process.platform !== 'darwin') return
+    const hasVisibleWindow = BrowserWindow.getAllWindows().some(
+      (win) => !win.isDestroyed() && win.isVisible() && !win.isMinimized(),
+    )
+    if (this.enabled && !hasVisibleWindow) {
+      if (this.dockHidden) return
+      this.dockHidden = true
+      void app.dock?.hide()
+      return
+    }
+    this.showDock()
+  }
+
+  private showDock(): void {
+    if (process.platform !== 'darwin' || !this.dockHidden) return
+    this.dockHidden = false
+    void app.dock?.show()
   }
 
   private ensureTray(): void {
     if (this.tray !== null) return
     const path = trayIconPath()
     if (!existsSync(path)) throw new Error(`Tray icon is missing at ${path}`)
-    let image = nativeImage.createFromPath(path)
+    const image = nativeImage.createFromPath(path)
     if (image.isEmpty()) throw new Error(`Tray icon is unreadable at ${path}`)
-    image = image.resize({ width: 18, height: 18 })
     if (process.platform === 'darwin') image.setTemplateImage(true)
     const tray = new Tray(image)
     tray.setToolTip('Maximal')
     tray.on('click', this.onActivate)
     this.tray = tray
+    this.updateTrayMenu()
+  }
+
+  private terminalMenuItems(): MenuItemConstructorOptions[] {
+    const items: MenuItemConstructorOptions[] = []
+    for (const [win, terminals] of this.terminalMenus) {
+      if (win.isDestroyed()) continue
+      for (const terminal of terminals) {
+        const activate = (paneSessionId?: string): void => {
+          this.onTerminalActivate(win, {
+            id: terminal.id,
+            ...(paneSessionId ? { paneSessionId } : {}),
+          })
+        }
+        if (terminal.paneSessionIds.length <= 1) {
+          items.push({ label: terminal.title, click: () => activate() })
+          continue
+        }
+        items.push({
+          label: terminal.title,
+          submenu: [
+            { label: 'Show Terminal', click: () => activate() },
+            { type: 'separator' },
+            ...terminal.paneSessionIds.map((sessionId, index) => ({
+              label: `Split ${String(index + 1)}`,
+              click: () => activate(sessionId),
+            })),
+          ],
+        })
+      }
+    }
+    return items
+  }
+
+  private updateTrayMenu(): void {
+    if (this.tray === null) return
+    const terminals = this.terminalMenuItems()
+    this.tray.setContextMenu(Menu.buildFromTemplate([
+      { label: 'Open Maximal', click: this.onActivate },
+      ...(terminals.length > 0
+        ? [{ type: 'separator' as const }, ...terminals]
+        : []),
+      { type: 'separator' },
+      { role: 'quit' },
+    ]))
   }
 }

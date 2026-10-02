@@ -31,6 +31,7 @@ interface TerminalTabsCommonProps {
   initialPane?: TerminalPane;
   initialPanes?: ReadonlyMap<string, TerminalPane>;
   paneRevisions?: ReadonlyMap<string, number>;
+  paneFocusRequest?: { tabId: string; sessionId: string; generation: number };
   onTitleChange?: (tabId: string, title: string) => void;
 }
 
@@ -133,6 +134,12 @@ export function TerminalTabs(props: TerminalTabsProps) {
           onSessionsChange={props.onSessionsChange}
           onFocusChange={props.onFocusChange}
           onPaneChange={props.onPaneChange}
+          requestedFocus={props.paneFocusRequest?.tabId === attachment.id
+            ? {
+                sessionId: props.paneFocusRequest.sessionId,
+                generation: props.paneFocusRequest.generation,
+              }
+            : undefined}
           initialPane={initialPanes?.get(attachment.id) ?? initialPane}
           initialPaneRevision={paneRevisions?.get(attachment.id)}
           onTitleChange={props.onTitleChange}

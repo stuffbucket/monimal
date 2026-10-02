@@ -169,6 +169,22 @@ function fakeCapabilities(): SettingsCapabilities {
         canOpenSettings: true,
       })),
       openSystemNotificationSettings: vi.fn(async () => {}),
+      assistantOverlay: vi.fn(async () => ({
+        candy: true,
+        approval: 'writes' as const,
+        outputFont: 'auto' as const,
+        hotkey: 'CommandOrControl+Shift+Space',
+      })),
+      updateAssistantOverlay: vi.fn(async (update: {
+        candy?: boolean
+        approval?: 'all' | 'read-only' | 'writes' | 'none'
+        outputFont?: 'auto' | 'default' | 'terminal' | 'open-dyslexic' | 'serif'
+      }) => ({
+        candy: update.candy ?? true,
+        approval: update.approval ?? 'writes',
+        outputFont: update.outputFont ?? 'auto',
+        hotkey: 'CommandOrControl+Shift+Space',
+      })),
     },
     providerOnboarding: {
       get: vi.fn(async () => ({ dismissed: false })),

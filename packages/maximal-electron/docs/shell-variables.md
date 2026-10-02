@@ -63,6 +63,7 @@ focus rings, type, and optical details are not spacing increments.
 | `--shell-icon-optical-terminal-scale` | `1.111111` | Expands the Terminal glyph to the prominent painted extent. |
 | `--shell-input-border` | `var(--shell-border-strong, var(--shell-border))` | The outline of a field. |
 | `--shell-leading-base` | `1.5` | Line height for a paragraph. |
+| `--shell-menu-available-height` | Radix available height or `100vh` | The maximum available height for a menu popup. |
 | `--shell-provider-anthropic-card-background` | `var(--shell-raised)` | The Anthropic model-card surface. |
 | `--shell-provider-anthropic-card-border` | `var(--shell-border)` | The Anthropic model-card outline. |
 | `--shell-provider-deepseek-card-background` | `var(--shell-raised)` | The DeepSeek model-card surface. |
@@ -108,7 +109,7 @@ rejects a structural token that nothing reads.
 
 ## Required
 
-Define all thirteen. `ShellLayout` applies the `.sb-shell` root class; define them
+Define all seventeen. `ShellLayout` applies the `.sb-shell` root class; define them
 on that container or an ancestor. README.md carries the same table with the
 description of what each one draws.
 
@@ -119,6 +120,12 @@ description of what each one draws.
 | `--shell-active` |
 | `--shell-background` |
 | `--shell-border` |
+| `--shell-candy-background` |
+| `--shell-candy-border` |
+| `--shell-candy-icon-shadow` |
+| `--shell-candy-shadow` |
+| `--shell-candy-sheen` |
+| `--shell-candy-text` |
 | `--shell-canvas` |
 | `--shell-duration-fast` |
 | `--shell-ease-out` |

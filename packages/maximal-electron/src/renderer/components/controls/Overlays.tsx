@@ -4,6 +4,7 @@ import * as Tooltip from '@radix-ui/react-tooltip';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { useContext, useRef, type ComponentType, type ReactNode } from 'react';
 
+import { useComponentStyles } from '../../lib/component-styles.js';
 import { SHELL_ROOT_CLASS, ShellRoot } from '../../lib/shell-root.js';
 
 /**
@@ -195,11 +196,51 @@ export function Dialog({
 export interface MenuItem {
   id: string;
   label: string;
+  description?: string;
   icon?: ComponentType<{ size?: number }>;
   onSelect: () => void;
+  selected?: boolean;
   danger?: boolean;
   disabled?: boolean;
 }
+
+const MENU_STYLES = `
+.sb-shell .menu__item-label {
+  color: var(--shell-text);
+}
+
+.sb-shell .menu__item[data-described] {
+  height: auto;
+  min-height: var(--shell-row-height);
+  padding-block: var(--shell-space-1);
+}
+
+.sb-shell .menu__item-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.sb-shell .menu__item-description {
+  overflow: hidden;
+  color: var(--shell-text-muted);
+  font-size: var(--shell-text-xs);
+  line-height: var(--shell-leading-base);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sb-shell .menu__item-indicator {
+  flex: none;
+  color: var(--shell-accent);
+  font-size: var(--shell-text-xs);
+}
+
+.sb-shell .menu__item[data-selected] {
+  background: var(--shell-accent-muted);
+}
+`;
 
 /** A dropdown menu. The trigger is the caller's; the popup is not. */
 export function Menu({
@@ -208,6 +249,8 @@ export function Menu({
   headerAction,
   items,
   align = 'start',
+  contentClassName,
+  onCloseAutoFocus,
   testId,
 }: {
   trigger: ReactNode;
@@ -222,15 +265,24 @@ export function Menu({
   headerAction?: () => void;
   items: MenuItem[];
   align?: 'start' | 'center' | 'end';
+  contentClassName?: string;
+  onCloseAutoFocus?: (event: Event) => void;
   testId?: string;
 }) {
+  useComponentStyles('menu', MENU_STYLES);
   const container = useShellPortalContainer();
 
   return (
     <DropdownMenu.Root>
       <DropdownMenu.Trigger asChild>{trigger}</DropdownMenu.Trigger>
       <DropdownMenu.Portal container={container}>
-        <DropdownMenu.Content className="menu" align={align} sideOffset={6} data-testid={testId}>
+        <DropdownMenu.Content
+          className={`menu${contentClassName ? ` ${contentClassName}` : ''}`}
+          align={align}
+          sideOffset={6}
+          onCloseAutoFocus={onCloseAutoFocus}
+          data-testid={testId}
+        >
           {header !== undefined && (
             headerAction === undefined ? (
               <DropdownMenu.Label className="menu__header">{header}</DropdownMenu.Label>
@@ -249,12 +301,23 @@ export function Menu({
               <DropdownMenu.Item
                 key={item.id}
                 className={`menu__item${item.danger ? ' menu__item--danger' : ''}`}
+                data-described={item.description ? '' : undefined}
+                data-selected={item.selected ? '' : undefined}
                 disabled={item.disabled}
                 onSelect={item.onSelect}
+                aria-current={item.selected ? 'true' : undefined}
                 data-testid={`menu-${item.id}`}
               >
                 {Icon && <Icon size={16} />}
-                <span>{item.label}</span>
+                <span className="menu__item-copy">
+                  <span className="menu__item-label">{item.label}</span>
+                  {item.description && (
+                    <span className="menu__item-description">{item.description}</span>
+                  )}
+                </span>
+                {item.selected && (
+                  <span className="menu__item-indicator" aria-hidden="true">✓</span>
+                )}
               </DropdownMenu.Item>
             );
           })}

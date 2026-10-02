@@ -366,6 +366,22 @@ beforeEach(() => {
         force: vi.fn(async () => false),
         onChange: vi.fn(() => () => {}),
       },
+      harness: {
+        chats: {
+          list: vi.fn(async () => ({ chats: [], total: 0 })),
+        },
+        preferences: vi.fn(async () => ({
+          candy: true,
+          approval: 'writes' as const,
+          outputFont: 'auto' as const,
+          hotkey: 'CommandOrControl+Shift+Space',
+        })),
+        toggle: vi.fn(async () => {}),
+        openChat: vi.fn(async () => {}),
+        onPreferences: vi.fn(() => () => {}),
+        onChatsChanged: vi.fn(() => () => {}),
+        onTerminalOpened: vi.fn(() => () => {}),
+      },
       browser: {
         list: browserList,
         open: vi.fn(),
@@ -405,8 +421,10 @@ beforeEach(() => {
         copy: terminalCopy,
         redock: vi.fn(() => Promise.resolve(true)),
         syncPane: vi.fn(() => Promise.resolve()),
+        syncMenu: vi.fn(() => Promise.resolve()),
         onTabRedocked: vi.fn(() => () => {}),
         onPaneChanged: vi.fn(() => () => {}),
+        onMenuFocus: vi.fn(() => () => {}),
       },
     },
   })

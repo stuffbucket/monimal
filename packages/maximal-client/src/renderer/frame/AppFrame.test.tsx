@@ -141,7 +141,7 @@ describe('AppFrame', () => {
     expect(shell.querySelector('.sb-shell.app .titlebar')).not.toBeNull()
   })
 
-  it('keeps product actions in the title bar', () => {
+  it('keeps the Assistant action in the title bar', async () => {
     const onOpenAssistant = vi.fn()
     const shell = renderFrame('overview', vi.fn(), <p>content</p>)
     act(() => {
@@ -151,7 +151,13 @@ describe('AppFrame', () => {
           activeTab="overview"
           surface="overview"
           onSelectTab={vi.fn()}
-          onOpenAssistant={onOpenAssistant}
+          assistant={{
+            recent: [],
+            hotkey: '⌘⇧Space',
+            onToggle: onOpenAssistant,
+            onOpenChat: vi.fn(),
+            onShowMore: vi.fn(),
+          }}
         >
           <p>content</p>
         </AppFrame>,
@@ -167,7 +173,15 @@ describe('AppFrame', () => {
     if (assistant === null) throw new Error('Assistant button was not rendered')
     if (rightPanelToggle === null) throw new Error('right-panel toggle was not rendered')
     expect(assistant.nextElementSibling).toBe(rightPanelToggle)
-    act(() => assistant.click())
+    await act(async () => {
+      assistant.dispatchEvent(new MouseEvent('pointerdown', {
+        bubbles: true,
+        button: 0,
+      }))
+    })
+    const toggleAssistant = document.querySelector<HTMLElement>('[data-testid="menu-toggle"]')
+    if (toggleAssistant === null) throw new Error('Assistant toggle was not rendered')
+    await act(async () => toggleAssistant.click())
     expect(onOpenAssistant).toHaveBeenCalledOnce()
   })
 

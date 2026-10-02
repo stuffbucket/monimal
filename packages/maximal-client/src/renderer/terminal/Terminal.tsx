@@ -100,6 +100,7 @@ export function Terminal({
   initialPanes,
   paneRevisions,
   typography,
+  paneFocusRequest,
 }: {
   tabs: TerminalTab[]
   activeId: string
@@ -111,6 +112,7 @@ export function Terminal({
   initialPanes?: ReadonlyMap<string, TerminalPane>
   paneRevisions?: ReadonlyMap<string, number>
   typography: SettingsCapabilities['terminalTypography']
+  paneFocusRequest?: { tabId: string; sessionId: string; generation: number }
 }): ReactElement {
   const [terminalTypography, setTerminalTypography] =
     useState<TerminalTypography>(DEFAULT_TYPOGRAPHY)
@@ -170,6 +172,7 @@ export function Terminal({
         initialPane={initialPane}
         initialPanes={initialPanes}
         paneRevisions={paneRevisions}
+        paneFocusRequest={paneFocusRequest}
         theme={appearance.theme}
         transport={terminalTransport}
       />

@@ -6,11 +6,14 @@ import {
   SettingsGroup,
   SettingsItem,
   SettingsSection,
+  Select,
   Switch,
 } from '@maximal/maximal-electron/renderer'
+import type { AssistantOutputFont } from '@maximal/maximal-harness'
 
 import type { SettingsCapabilities } from '../capabilities'
 import { MenuBarOnlyDialog } from './MenuBarOnlyDialog'
+import { useAssistantOverlay } from './useAssistantOverlay'
 import { useGeneralDesktopSettings } from './useGeneralDesktopSettings'
 import { TerminalTypographySettings } from './TerminalTypographySettings'
 import { useMenuBarPresence } from './useMenuBarPresence'
@@ -24,6 +27,7 @@ export function GeneralSection({
 }: GeneralSectionProps): ReactElement {
   const presence = useMenuBarPresence(capabilities)
   const general = useGeneralDesktopSettings(capabilities)
+  const assistant = useAssistantOverlay(capabilities)
 
   return (
     <section className="settings-section">
@@ -84,6 +88,56 @@ export function GeneralSection({
                   testId="menu-bar-only-switch"
                 />
               }
+            />
+          </SettingsGroup>
+        )}
+      </SettingsSection>
+      <SettingsSection
+        title="Assistant overlay"
+        description="Choose how the quick assistant appears above the desktop."
+      >
+        {assistant.error ? (
+          <Note status="failed" live="assertive">
+            {assistant.error}
+          </Note>
+        ) : null}
+        {assistant.preferences === null ? (
+          <Note live="polite">Loading assistant preferences…</Note>
+        ) : (
+          <SettingsGroup>
+            <SettingsItem
+              title="Candy-coated background"
+              description="Use Maximal's sparkling red finish around the assistant controls."
+              control={(
+                <Switch
+                  label="Candy-coated assistant background"
+                  displayLabel={null}
+                  checked={assistant.preferences.candy}
+                  disabled={assistant.busy}
+                  onChange={(next) => void assistant.setCandy(next)}
+                  testId="assistant-candy-switch"
+                />
+              )}
+            />
+            <SettingsItem
+              title="Conversation font"
+              description="Choose the typeface used for assistant responses."
+              control={(
+                <Select<AssistantOutputFont>
+                  aria-label="Conversation font"
+                  value={assistant.preferences.outputFont}
+                  disabled={assistant.busy}
+                  onChange={(next) => void assistant.setOutputFont(next)}
+                  options={[
+                    { value: 'auto', label: 'Auto' },
+                    { value: 'default', label: 'Default' },
+                    { value: 'terminal', label: 'Terminal' },
+                    { value: 'open-dyslexic', label: 'OpenDyslexic' },
+                    { value: 'serif', label: 'Baskerville' },
+                  ]}
+                  testId="assistant-output-font"
+                />
+              )}
             />
           </SettingsGroup>
         )}

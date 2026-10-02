@@ -2,18 +2,29 @@ import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { BrowserEvent } from '@maximal/maximal-browser'
+import type {
+  MaximalHost,
+  TerminalMenuFocusRequest,
+} from '../shared/host'
 
-const { terminalList } = vi.hoisted(() => ({ terminalList: vi.fn() }))
+const { chatTerminal, onMenuFocus, syncMenu, terminalList } = vi.hoisted(() => ({
+  chatTerminal: vi.fn(),
+  onMenuFocus: vi.fn(),
+  syncMenu: vi.fn(() => Promise.resolve()),
+  terminalList: vi.fn(),
+}))
 vi.mock('./terminal/transport', () => ({ terminalTransport: { list: terminalList } }))
 vi.mock('./frame/AppFrame', () => ({
   PRODUCT_TABS: [{ id: 'overview', title: 'Overview', kind: 'overview' }],
   SETTINGS_TAB: { id: 'settings', title: 'Settings', kind: 'settings' },
+  ASSISTANT_TAB: { id: 'assistant', title: 'Assistant', kind: 'assistant' },
 }))
 
 import { useTerminalTabs, type TerminalTabsState } from './useTerminalTabs'
+import type { DetachedTerminal } from './terminal/window-transfer'
 
 const pane = {
-  direction: 'right',
+  direction: 'right' as const,
   first: { sessionId: 'primary' },
   second: { sessionId: 'split' },
 }
@@ -23,6 +34,9 @@ const durable = {
 }
 let root: Root
 let container: HTMLDivElement
+let focusFromMenu: (request: TerminalMenuFocusRequest) => void
+let terminalOpened: Parameters<MaximalHost['harness']['onTerminalOpened']>[0]
+let openAssistantChat: (chatId: string) => void
 let browserListener: ((event: BrowserEvent) => void) | undefined
 
 beforeEach(() => {
@@ -30,6 +44,20 @@ beforeEach(() => {
   terminalList.mockReset()
   browserListener = undefined
   terminalList.mockResolvedValue([durable])
+  syncMenu.mockClear()
+  chatTerminal.mockReset()
+  chatTerminal.mockResolvedValue({
+    sessionId: 'assistant-terminal',
+    label: 'Assistant chat',
+    canRunInBackground: false,
+  })
+  onMenuFocus.mockReset()
+  onMenuFocus.mockImplementation((
+    listener: (request: TerminalMenuFocusRequest) => void,
+  ) => {
+    focusFromMenu = listener
+    return () => undefined
+  })
   Object.defineProperty(window, 'maximal', {
     configurable: true,
     value: {
@@ -43,8 +71,17 @@ beforeEach(() => {
       },
       terminal: {
         frameId: async () => 'test-window',
+        syncMenu,
+        onMenuFocus,
         onTabRedocked: () => () => undefined,
         onPaneChanged: () => () => undefined,
+      },
+      harness: {
+        chats: { terminal: chatTerminal },
+        onTerminalOpened: vi.fn((listener: typeof terminalOpened) => {
+          terminalOpened = listener
+          return () => undefined
+        }),
       },
     },
   })
@@ -58,24 +95,36 @@ afterEach(() => {
   container.remove()
 })
 
-async function restore() {
+async function restore(detachedWindow?: DetachedTerminal) {
   function Harness() {
-    const state = useTerminalTabs()
+    const state = useTerminalTabs(detachedWindow)
+    openAssistantChat = state.openAssistantChat
     return <pre>{JSON.stringify({
       tabs: state.tabs.filter((tab) => tab.kind === 'terminal'),
       allTabs: state.tabs,
       activeTab: state.activeTab,
       panes: [...state.panes],
       revisions: [...state.paneRevisions],
+      paneFocusRequest: state.paneFocusRequest,
     })}</pre>
   }
   await act(async () => { root.render(<Harness />) })
   return JSON.parse(container.textContent ?? '') as {
-    tabs: Array<{ id: string; title: string; canRunInBackground?: boolean }>
+    tabs: Array<{
+      id: string
+      title: string
+      canRunInBackground?: boolean
+      assistantChatId?: string
+    }>
     allTabs: Array<{ id: string; kind: string; browserOwner?: string }>
-    activeTab: string
     panes: Array<[string, unknown]>
     revisions: Array<[string, number]>
+    activeTab: string
+    paneFocusRequest?: {
+      tabId: string
+      sessionId: string
+      generation: number
+    }
   }
 }
 
@@ -102,6 +151,117 @@ describe('terminal reconstruction', () => {
 
   it('retains the host-owned background capability', async () => {
     expect((await restore()).tabs[0]?.canRunInBackground).toBe(true)
+  })
+
+  it('publishes terminal tabs and their split sessions to the native menu', async () => {
+    await restore()
+
+    expect(syncMenu).toHaveBeenLastCalledWith([{
+      id: 'primary',
+      title: 'Build workspace',
+      paneSessionIds: ['primary', 'split'],
+    }])
+  })
+
+  it('publishes terminals and splits owned by a detached window', async () => {
+    await restore({
+      sessionId: 'primary',
+      title: 'Detached build',
+      canRunInBackground: true,
+      pane,
+    })
+
+    expect(syncMenu).toHaveBeenLastCalledWith([{
+      id: 'primary',
+      title: 'Detached build',
+      paneSessionIds: ['primary', 'split'],
+    }])
+  })
+
+  it('activates a terminal without changing its focused split', async () => {
+    await restore()
+
+    await act(async () => {
+      focusFromMenu({ id: 'primary' })
+    })
+
+    const state = JSON.parse(container.textContent ?? '') as {
+      activeTab: string
+      paneFocusRequest?: unknown
+    }
+    expect(state.activeTab).toBe('terminal:primary')
+    expect(state.paneFocusRequest).toBeUndefined()
+  })
+
+  it('activates and repeatedly focuses a split selected from the native menu', async () => {
+    await restore()
+
+    await act(async () => {
+      focusFromMenu({ id: 'primary', paneSessionId: 'split' })
+    })
+    await act(async () => {
+      focusFromMenu({ id: 'primary', paneSessionId: 'split' })
+    })
+
+    const state = JSON.parse(container.textContent ?? '') as {
+      activeTab: string
+      paneFocusRequest?: {
+        tabId: string
+        sessionId: string
+        generation: number
+      }
+    }
+    expect(state.activeTab).toBe('terminal:primary')
+    expect(state.paneFocusRequest).toEqual({
+      tabId: 'terminal:primary',
+      sessionId: 'split',
+      generation: 2,
+    })
+  })
+
+  it('launches an Assistant chat once and reuses its terminal tab', async () => {
+    await restore()
+
+    await act(async () => {
+      openAssistantChat('chat-1')
+      await Promise.resolve()
+    })
+    await act(async () => {
+      openAssistantChat('chat-1')
+    })
+
+    const state = JSON.parse(container.textContent ?? '') as {
+      tabs: Array<{ assistantChatId?: string }>
+      activeTab: string
+    }
+    expect(chatTerminal).toHaveBeenCalledOnce()
+    expect(chatTerminal).toHaveBeenCalledWith('chat-1', 80, 24)
+    expect(state.tabs).toContainEqual(expect.objectContaining({
+      assistantChatId: 'chat-1',
+    }))
+    expect(state.activeTab).toBe('terminal:assistant-terminal')
+  })
+
+  it('adopts an Assistant terminal launched by the overlay', async () => {
+    await restore()
+
+    act(() => terminalOpened({
+      chatId: 'chat-2',
+      result: {
+        sessionId: 'overlay-terminal',
+        label: 'Overlay chat',
+        canRunInBackground: false,
+      },
+    }))
+
+    const state = JSON.parse(container.textContent ?? '') as {
+      tabs: Array<{ assistantChatId?: string }>
+      activeTab: string
+    }
+    expect(state.tabs).toContainEqual(expect.objectContaining({
+      assistantChatId: 'chat-2',
+    }))
+    expect(state.activeTab).toBe('terminal:overlay-terminal')
   })
 
   it('groups an agent-opened browser after terminal tabs and activates it', async () => {
@@ -153,5 +313,6 @@ describe('terminal reconstruction', () => {
 
     act(() => state?.removeTerminalFromGroup('terminal:worker'))
     expect(state.tabs.find((tab) => tab.id === 'terminal:worker')?.group).toBeUndefined()
+
   })
 })
