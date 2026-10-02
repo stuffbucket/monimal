@@ -66,46 +66,49 @@ function verifyNameToolPreview(): void {
     secondTarget.getBoundingClientRect = () =>
       ({ height: 40, width: 90 }) as DOMRect
     const { card, onInspectTarget } = setup()
-    card.setLayers([
-      { ...layers[0], target: firstTarget },
-      { ...layers[1], target: secondTarget },
-    ])
+    card.setLayers(
+      [
+        { ...layers[0], target: firstTarget },
+        { ...layers[1], target: secondTarget },
+      ],
+      1,
+    )
     card.setView("css")
     onInspectTarget.mockClear()
-    const panelName = button(
+    const appName = button(
       card.element,
-      "Select Panel; double-click to open source",
+      "Select App; double-click to open source",
     )
-    panelName.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }))
-    expect(card.element.textContent).toContain("colorblue")
-    expect(card.element.textContent).not.toContain("colorred")
-    panelName.dispatchEvent(new MouseEvent("mouseout", { bubbles: true }))
+    appName.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }))
     expect(card.element.textContent).toContain("colorred")
     expect(card.element.textContent).not.toContain("colorblue")
+    appName.dispatchEvent(new MouseEvent("mouseout", { bubbles: true }))
+    expect(card.element.textContent).toContain("colorblue")
+    expect(card.element.textContent).not.toContain("colorred")
 
     card.setView("box")
     onInspectTarget.mockClear()
-    panelName.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }))
+    appName.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }))
     expect(
       card.element.querySelector(".maximal-react-component-location")
         ?.textContent,
-    ).toBe("src/Panel.tsx:20:3")
+    ).toBe("src/App.tsx:8:1")
     expect(
       card.element.querySelector(".box-margin")?.getAttribute("data-label"),
-    ).toBe("margin · 12 12 12 12")
+    ).toBe("margin · 4 4 4 4")
     expect(
       card.element.querySelector(".maximal-react-component-box-content")
         ?.textContent,
-    ).toBe("90.0 × 40.0")
-    expect(onInspectTarget).toHaveBeenLastCalledWith(secondTarget, true)
+    ).toBe("160.0 × 80.0")
+    expect(onInspectTarget).toHaveBeenLastCalledWith(firstTarget, true)
 
-    panelName.click()
+    appName.click()
     vi.advanceTimersByTime(200)
-    expect(card.selectedLayer().target).toBe(secondTarget)
+    expect(card.selectedLayer().target).toBe(firstTarget)
     expect(
       card.element.querySelector(".box-margin")?.getAttribute("data-label"),
-    ).toBe("margin · 12 12 12 12")
-    expect(onInspectTarget).toHaveBeenLastCalledWith(secondTarget, true)
+    ).toBe("margin · 4 4 4 4")
+    expect(onInspectTarget).toHaveBeenLastCalledWith(firstTarget, true)
   } finally {
     vi.useRealTimers()
   }
@@ -123,7 +126,7 @@ describe("inspector card", () => {
     expect(card.element.textContent).not.toContain("Component stack")
     expect(
       card.element.querySelectorAll(".maximal-react-component-name-link"),
-    ).toHaveLength(3)
+    ).toHaveLength(2)
     expect(card.element.textContent).toContain("Panel")
     expect(
       card.element.querySelector(".maximal-react-component-location")
@@ -257,11 +260,7 @@ describe("inspector card", () => {
         link.dataset["active"],
         link.style.paddingLeft,
       ]),
-    ).toEqual([
-      ["App", "true", "0px"],
-      ["Panel", "false", "10px"],
-      ["button", "false", "20px"],
-    ])
+    ).toEqual([["App", "true", "0px"]])
     expect(inspectorStyles).toContain("cubic-bezier(0.2, 0, 0, 1)")
     expect(inspectorStyles).toContain("cubic-bezier(0.16, 1, 0.3, 1)")
     expect(inspectorStyles).toContain("z-index: 2147483647")
@@ -397,6 +396,9 @@ describe("inspector card interactions", () => {
       expect(onSelect).toHaveBeenCalledWith(layers[0], 0)
       expect(onOpen).not.toHaveBeenCalled()
 
+      button(card.element, "Next component").click()
+      expect(card.selectedLayer()).toBe(layers[1])
+      onSelect.mockClear()
       button(
         card.element,
         "Select Panel; double-click to open source",
@@ -407,7 +409,7 @@ describe("inspector card interactions", () => {
         }),
       )
       expect(card.selectedLayer()).toBe(layers[1])
-      expect(onSelect).toHaveBeenLastCalledWith(layers[1], 1)
+      expect(onSelect).not.toHaveBeenCalled()
       expect(onOpen).toHaveBeenCalledOnce()
       expect(onOpen).toHaveBeenCalledWith(layers[1])
     } finally {

@@ -12,6 +12,8 @@ import {
   createReactComponentInspectorPlugin,
   injectReactSourceMetadata,
   maximalReactComponent,
+  normalizeEditorFile,
+  normalizeEditorRequestUrl,
 } from "../src/index.js"
 import { inspectorStyles } from "../src/inspector-card.js"
 
@@ -98,6 +100,45 @@ describe("React component inspector Vite plugin", () => {
     expect(
       inspectorPlugin().transform.handler('"_debugInfo"; value: null'),
     ).toBe('"_debugInfo"; value: source')
+  })
+
+  it("normalizes editor requests before Vite launches the editor", () => {
+    expect(
+      normalizeEditorRequestUrl(
+        "/desktop/__open-in-editor?file=src%2FApp.tsx%3A4%3A2",
+        "/workspace/maximal/src/renderer",
+        "/desktop/",
+      ),
+    ).toBe(
+      "/desktop/__open-in-editor?file="
+        + "%2Fworkspace%2Fmaximal%2Fsrc%2Frenderer%2Fsrc%2FApp.tsx%3A4%3A2",
+    )
+  })
+
+  it("normalizes Vite and URL source identifiers without moving real paths", () => {
+    expect(
+      normalizeEditorFile(
+        "/src/App.tsx?t=123:4:2",
+        "/workspace/maximal/src/renderer",
+        (path) =>
+          path === "/workspace/maximal/src/renderer/src/App.tsx"
+          || path === "/workspace/shared/Panel.tsx",
+      ),
+    ).toBe("/workspace/maximal/src/renderer/src/App.tsx:4:2")
+    expect(
+      normalizeEditorFile(
+        "/@fs/workspace/shared/Panel.tsx:5:3",
+        "/workspace/maximal/src/renderer",
+        (path) => path === "/workspace/shared/Panel.tsx",
+      ),
+    ).toBe("/workspace/shared/Panel.tsx:5:3")
+    expect(
+      normalizeEditorFile(
+        "file:///workspace/shared/Panel.tsx:5:3",
+        "/workspace/maximal/src/renderer",
+        (path) => path === "/workspace/shared/Panel.tsx",
+      ),
+    ).toBe("/workspace/shared/Panel.tsx:5:3")
   })
 })
 

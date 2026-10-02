@@ -6,10 +6,56 @@ import type {
   ResolvedConfig,
 } from "vite"
 
+import { existsSync } from "node:fs"
+import { isAbsolute, resolve } from "node:path"
+import { fileURLToPath } from "node:url"
+
 import { INSPECTOR_STYLE_ID } from "./constants.js"
 import { inspectorStyles } from "./inspector-card.js"
 
 const CLIENT_MODULE = "@maximal/maximal-react-component/client"
+const EDITOR_PATH = "__open-in-editor"
+const POSITION = /:\d+(?::\d+)?$/u
+
+export function normalizeEditorFile(
+  file: string,
+  root: string,
+  fileExists: (path: string) => boolean = existsSync,
+): string {
+  const position = file.match(POSITION)?.[0] ?? ""
+  const sourceWithQuery = file.slice(0, file.length - position.length)
+  const source = sourceWithQuery.replace(/[?#].*$/u, "")
+  let filesystemPath = source
+  if (source.startsWith("file://")) {
+    filesystemPath = fileURLToPath(source)
+  } else if (source.startsWith("/@fs/")) {
+    filesystemPath = decodeURIComponent(source.slice("/@fs".length))
+  }
+
+  if (!isAbsolute(filesystemPath)) {
+    filesystemPath = resolve(root, filesystemPath)
+  } else if (!fileExists(filesystemPath)) {
+    const rootRelative = resolve(root, `.${filesystemPath}`)
+    if (fileExists(rootRelative)) filesystemPath = rootRelative
+  }
+  return `${filesystemPath}${position}`
+}
+
+export function normalizeEditorRequestUrl(
+  requestUrl: string,
+  root: string,
+  base: string,
+): string {
+  const endpoint = `${base.endsWith("/") ? base : `${base}/`}${EDITOR_PATH}`
+  const url = new URL(requestUrl, "http://vite.local")
+  if (url.pathname !== endpoint && url.pathname !== `/${EDITOR_PATH}`) {
+    return requestUrl
+  }
+  const file = url.searchParams.get("file")
+  if (!file) return requestUrl
+  url.searchParams.set("file", normalizeEditorFile(file, root))
+  return `${url.pathname}${url.search}${url.hash}`
+}
 
 export function injectReactSourceMetadata(code: string): string | undefined {
   if (code.includes("_source")) return undefined
@@ -51,6 +97,14 @@ export function createReactComponentInspectorPlugin(): Plugin {
     configResolved(config: ResolvedConfig) {
       root = config.root
       base = config.base
+    },
+    configureServer(server) {
+      server.middlewares.use((request, _response, next) => {
+        if (request.url) {
+          request.url = normalizeEditorRequestUrl(request.url, root, base)
+        }
+        next()
+      })
     },
     transform: {
       filter: { id: /jsx-dev-runtime(\.development)?\.js/u },

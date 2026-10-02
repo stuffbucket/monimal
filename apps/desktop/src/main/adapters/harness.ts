@@ -45,6 +45,7 @@ import { loadHarnessOptions } from './harness-options.js'
 import { launchAssistantTerminal } from './terminal.js'
 import { mainLogger } from '../main-logger.js'
 import { DoubleControlShortcut } from '../native/double-control-shortcut.js'
+import { GlobalShortcutOwner } from '../native/global-shortcut-owner.js'
 import {
   readUserPreferences,
   updateUserPreferences,
@@ -130,6 +131,7 @@ const chatTerminal = z.object({
 let panel: ElectronPanel | undefined
 let registered = false
 let quickAccessShortcut: DoubleControlShortcut | undefined
+let quickAccessOwner: GlobalShortcutOwner | undefined
 let activationAllowed = (): boolean => true
 let overlayAnchor: OverlayAnchor | undefined
 let anchorMoved = false
@@ -506,10 +508,25 @@ export async function startHarnessHost(options: {
 
   if (process.env['MAXIMAL_DISABLE_GLOBAL_KEYBOARD_HOOK'] !== '1') {
     const { uIOhook } = await import('uiohook-napi')
-    quickAccessShortcut = new DoubleControlShortcut(uIOhook, toggleHarnessHost)
+    // Parallel development profiles share the OS gesture; only the newest live
+    // app may react, while older profiles remain available through their UI.
+    const owner = new GlobalShortcutOwner()
+    quickAccessShortcut = new DoubleControlShortcut(uIOhook, () => {
+      try {
+        if (owner.isOwner()) toggleHarnessHost()
+      } catch (error) {
+        mainLogger.error(
+          { errorName: error instanceof Error ? error.name : 'unknown' },
+          'Assistant shortcut ownership check failed',
+        )
+      }
+    })
     try {
+      owner.start()
       quickAccessShortcut.start()
+      quickAccessOwner = owner
     } catch (error) {
+      owner.stop()
       quickAccessShortcut = undefined
       mainLogger.error(
         { errorName: error instanceof Error ? error.name : 'unknown' },
@@ -539,6 +556,8 @@ export async function stopHarnessHost(): Promise<void> {
   preferenceLoadGeneration += 1
   quickAccessShortcut?.stop()
   quickAccessShortcut = undefined
+  quickAccessOwner?.stop()
+  quickAccessOwner = undefined
   panel?.destroy()
   panel = undefined
   summonOnStart = false

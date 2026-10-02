@@ -28,6 +28,9 @@ const {
   createElectronPanelMock,
   discoverProviderMock,
   ensureModelMock,
+  globalShortcutOwnerIsOwner,
+  globalShortcutOwnerStart,
+  globalShortcutOwnerStop,
   handlers,
   ipcMainHandle,
   ipcMainRemoveHandler,
@@ -111,6 +114,9 @@ const {
     ensureModelMock: vi.fn((..._args: unknown[]) =>
       Promise.resolve({ state: 'ready' }),
     ),
+    globalShortcutOwnerIsOwner: vi.fn(() => true),
+    globalShortcutOwnerStart: vi.fn(),
+    globalShortcutOwnerStop: vi.fn(),
     handlers,
     ipcMainHandle: vi.fn((channel: string, handler: InvokeHandler) => {
       handlers.set(channel, handler)
@@ -193,6 +199,14 @@ vi.mock('uiohook-napi', () => ({
     }),
     start: keyHookStart,
     stop: keyHookStop,
+  },
+}))
+
+vi.mock('../native/global-shortcut-owner.js', () => ({
+  GlobalShortcutOwner: class {
+    start = globalShortcutOwnerStart
+    stop = globalShortcutOwnerStop
+    isOwner = globalShortcutOwnerIsOwner
   },
 }))
 
@@ -299,6 +313,7 @@ beforeEach(() => {
   browserWindows.length = 0
   vi.clearAllMocks()
   panelState.destroyed = false
+  globalShortcutOwnerIsOwner.mockReturnValue(true)
   isAgentBusyMock.mockReturnValue(false)
   ensureModelMock.mockResolvedValue({ state: 'ready' })
   selectAgentModelMock.mockImplementation((modelKey: string) => {
@@ -680,6 +695,14 @@ describe('harness host lifecycle', () => {
     keyHookListeners.get('keyup')?.(control)
     expect(panel.toggle).toHaveBeenCalledTimes(1)
     expect(keyHookStart).toHaveBeenCalledOnce()
+    expect(globalShortcutOwnerStart).toHaveBeenCalledOnce()
+
+    globalShortcutOwnerIsOwner.mockReturnValue(false)
+    keyHookListeners.get('keydown')?.(control)
+    keyHookListeners.get('keyup')?.(control)
+    keyHookListeners.get('keydown')?.(control)
+    keyHookListeners.get('keyup')?.(control)
+    expect(panel.toggle).toHaveBeenCalledTimes(1)
 
     handler(BRIDGE_CHANNELS.harnessHide)(overlayEvent())
     expect(panel.hide).toHaveBeenCalledTimes(1)
@@ -692,6 +715,7 @@ describe('harness host lifecycle', () => {
 
     await host.stopHarnessHost()
     expect(keyHookStop).toHaveBeenCalledOnce()
+    expect(globalShortcutOwnerStop).toHaveBeenCalledOnce()
     expect(panel.destroy).toHaveBeenCalledTimes(1)
     expect(shutdownAgentMock).toHaveBeenCalledTimes(1)
     expect(stopEngineMock).toHaveBeenCalledTimes(1)
