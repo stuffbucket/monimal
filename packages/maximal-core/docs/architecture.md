@@ -409,6 +409,15 @@ source for the legacy usage API and are linked to active observations; older and
 direct-call rows are projected once with deterministic `legacy-token-usage-*`
 request IDs.
 
+Production traffic and token-usage persistence and queries run in a Core-owned
+child process, not on the proxy event loop. Core batches validated lifecycle
+and usage observations over inherited process IPC; the child owns the SQLite
+connections, migrations, retention, aggregation, and query execution.
+Observation delivery is passive and bounded, while query failures are returned
+explicitly. The same entry point starts the hidden child mode under source Bun,
+bundled JavaScript, and the compiled sidecar. Direct SQLite store construction
+remains available for focused storage tests.
+
 The validated JSON-RPC reads are `observability/overview`,
 `observability/requests`, and `observability/request`. Request lists use a
 snapshot watermark plus keyset cursor, so concurrent inserts cannot reorder a
@@ -417,7 +426,9 @@ coalesced invalidations only: consumers re-run the reads instead of receiving a
 payload-bearing event for every lifecycle update. `traceIdMiddleware`
 (`src/lib/http/trace.ts`) still accepts `x-trace-id`, `x-session-affinity` and
 `x-parent-session-id`; the observation keeps only the normalized identifiers
-needed for correlation.
+needed for correlation. Model session identity discovered from request metadata
+after ingress is attached to the active observation, and request reads can
+filter by either model session or Maximal-owned terminal session.
 
 ## Diagnostic surfaces
 

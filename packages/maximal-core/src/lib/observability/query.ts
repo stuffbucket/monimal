@@ -236,6 +236,11 @@ export function matchesFilters(
   )
     return false
   if (
+    filters.sessionIds.length > 0
+    && !includesNullableString(filters.sessionIds, item.identity.sessionId)
+  )
+    return false
+  if (
     filters.terminalSessionIds.length > 0
     && !includesNullableString(
       filters.terminalSessionIds,

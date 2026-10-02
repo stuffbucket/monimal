@@ -97,6 +97,9 @@ export function ObservabilityFilters({ title }: { title: string }) {
       ...requestItems.map(({ attribution }) => attribution.model),
       ...nodes.filter(({ kind }) => kind === "model").map(({ label }) => label),
     ]),
+    sessionIds: distinct(
+      requestItems.map(({ identity }) => identity.sessionId),
+    ),
   }
 
   return (
@@ -132,6 +135,11 @@ export function ObservabilityFilters({ title }: { title: string }) {
           label="Model"
           dimension="models"
           values={values.models}
+        />
+        <DimensionFilter
+          label="Session"
+          dimension="sessionIds"
+          values={values.sessionIds}
         />
         <FormField label="Outcome">
           {(field) => (

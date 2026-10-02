@@ -28,7 +28,8 @@ export type Loadable<T> =
   | { status: "unsupported"; message: string }
 
 export type TimePreset = "15m" | "1h" | "24h" | "7d" | "all"
-export type FilterDimension = "clients" | "operations" | "providers" | "models"
+export type FilterDimension =
+  "clients" | "operations" | "providers" | "models" | "sessionIds"
 
 const systemNow = (): Date => new Date()
 
@@ -66,6 +67,7 @@ const EMPTY_FILTERS: TrafficRequestFilters = {
   models: [],
   clients: [],
   projects: [],
+  sessionIds: [],
   terminalSessionIds: [],
   applications: [],
   streaming: null,

@@ -11,6 +11,7 @@ import {
   TrafficRequestDetailSchema,
   TrafficRequestListQuerySchema,
   TrafficRequestListSchema,
+  TrafficSessionObservationSchema,
   TrafficTokenObservationSchema,
   type TrafficCompletionObservation,
   type TrafficContextObservation,
@@ -18,6 +19,7 @@ import {
   type TrafficFirstResponseObservation,
   type TrafficInvalidation,
   type TrafficObservationHandle,
+  type TrafficSessionObservation,
   type TrafficTokenObservation,
   type TrafficObservationStart,
   type TrafficObserver,
@@ -569,6 +571,10 @@ describe("SQLite traffic observability", () => {
       },
     })
     const targetCompletion = finish("2026-09-07T11:57:01.000Z")
+    target.recordSession?.({
+      at: "2026-09-07T11:57:00.500Z",
+      sessionId: "session-a",
+    })
     target.complete({
       ...targetCompletion,
       dispatch: {
@@ -631,6 +637,7 @@ describe("SQLite traffic observability", () => {
       [{ models: ["alpha"] }, ["target"]],
       [{ clients: ["cursor"] }, ["target"]],
       [{ projects: ["project-a"] }, ["target"]],
+      [{ sessionIds: ["session-a"] }, ["target"]],
       [{ terminalSessionIds: ["terminal-a"] }, ["target"]],
       [{ applications: ["Claude Code"] }, ["target"]],
       [{ streaming: true }, ["target"]],
@@ -1068,6 +1075,7 @@ class CaptureHandle implements TrafficObservationHandle {
   contexts: Array<TrafficContextObservation> = []
   dispatchObservations: Array<TrafficDispatchObservation> = []
   firstResponseObservations: Array<TrafficFirstResponseObservation> = []
+  sessions: Array<TrafficSessionObservation> = []
   tokens: Array<TrafficTokenObservation> = []
   dispatches = 0
   firstResponses = 0
@@ -1088,6 +1096,9 @@ class CaptureHandle implements TrafficObservationHandle {
     this.firstResponseObservations.push(
       TrafficFirstResponseObservationSchema.parse(observation),
     )
+  }
+  recordSession(observation: TrafficSessionObservation): void {
+    this.sessions.push(TrafficSessionObservationSchema.parse(observation))
   }
   recordTokens(observation: TrafficTokenObservation): void {
     this.tokens.push(TrafficTokenObservationSchema.parse(observation))

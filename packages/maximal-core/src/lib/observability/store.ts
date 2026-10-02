@@ -12,6 +12,7 @@ import type {
   TrafficRequestDetail,
   TrafficRequestList,
   TrafficRequestListQuery,
+  TrafficSessionObservation,
   TrafficTokenObservation,
 } from "@maximal/maximal-observability-contract"
 
@@ -22,6 +23,7 @@ import {
 import path from "node:path"
 
 import { loadRuntimeSettings } from "~/lib/config/runtime-settings"
+import { TrafficProcessClient } from "~/lib/observability/process-client"
 import { PATHS } from "~/lib/platform/paths"
 import { registerProcessCleanup } from "~/lib/platform/process-cleanup"
 import { runtimeLogger } from "~/lib/platform/runtime-logger"
@@ -30,7 +32,11 @@ import {
   SqliteDbStore,
   type SqliteDatabase,
 } from "~/lib/platform/sqlite"
-import { flushTokenUsageEvents } from "~/lib/token-usage/store"
+import { isBunTestProcess } from "~/lib/platform/test-isolation"
+import {
+  flushTokenUsageEventsLocal,
+  setTokenUsageStoreDelegate,
+} from "~/lib/token-usage/store"
 
 import {
   buildFlow,
@@ -73,6 +79,13 @@ export interface SqliteTrafficObserverOptions {
   retentionDays?: number
 }
 
+export function resolveTrafficDatabasePath(): string {
+  return (
+    loadRuntimeSettings().apiSqliteDbPath
+    ?? path.join(PATHS.APP_DIR, DEFAULT_DB_FILENAME)
+  )
+}
+
 function timestampMs(value: string): number {
   const parsed = Date.parse(value)
   return Number.isFinite(parsed) ? parsed : Date.now()
@@ -97,10 +110,7 @@ export class SqliteTrafficObserver
   constructor(options: SqliteTrafficObserverOptions = {}) {
     this.now = options.now ?? (() => new Date())
     this.onInvalidation = options.onInvalidation
-    const dbPath =
-      options.dbPath
-      ?? loadRuntimeSettings().apiSqliteDbPath
-      ?? path.join(PATHS.APP_DIR, DEFAULT_DB_FILENAME)
+    const dbPath = options.dbPath ?? resolveTrafficDatabasePath()
     const retentionDays = Math.max(
       1,
       Math.floor(options.retentionDays ?? DEFAULT_RETENTION_DAYS),
@@ -266,6 +276,21 @@ export class SqliteTrafficObserver
         context.usedRatio,
         requestId,
       )
+    }, requestId)
+  }
+
+  recordSession(
+    requestId: string,
+    observation: TrafficSessionObservation,
+  ): void {
+    this.enqueue((db) => {
+      db.prepare(
+        `
+        UPDATE traffic_requests
+        SET session_id = COALESCE(session_id, ?)
+        WHERE request_id = ? AND state != 'completed'
+      `,
+      ).run(observation.sessionId, requestId)
     }, requestId)
   }
 
@@ -614,7 +639,7 @@ export class SqliteTrafficObserver
 
   async prune(beforeMs: number): Promise<number> {
     if (!isSqliteRuntimeSupported()) return 0
-    await this.flush()
+    await this.flushObservations()
     const db = await this.store.getDb()
     return numberValue(
       (
@@ -628,7 +653,7 @@ export class SqliteTrafficObserver
   }
 
   async close(): Promise<void> {
-    await this.flush()
+    await this.flushObservations()
     await this.store.close({
       beforeClose: (db) => {
         try {
@@ -656,6 +681,20 @@ export class SqliteTrafficObserver
       .catch((error: unknown) => {
         runtimeLogger.warn("Failed to persist traffic observation", error)
       })
+  }
+
+  async initialize(): Promise<void> {
+    if (!isSqliteRuntimeSupported()) return
+    await this.store.getDb()
+  }
+
+  async flushObservations(): Promise<void> {
+    let current = this.queue
+    while (true) {
+      await current
+      if (current === this.queue) return
+      current = this.queue
+    }
   }
 
   private pruneExpired(db: SqliteDatabase): void {
@@ -690,18 +729,9 @@ export class SqliteTrafficObserver
     }
   }
 
-  private async flush(): Promise<void> {
-    let current = this.queue
-    while (true) {
-      await current
-      if (current === this.queue) return
-      current = this.queue
-    }
-  }
-
   private async synchronize(): Promise<void> {
-    await flushTokenUsageEvents()
-    await this.flush()
+    await flushTokenUsageEventsLocal()
+    await this.flushObservations()
     const db = await this.store.getDb()
     backfillLegacyUsageRows(db)
   }
@@ -727,6 +757,9 @@ class SqliteTrafficObservationHandle implements TrafficObservationHandle {
   recordContext(observation: TrafficContextObservation): void {
     if (!this.terminal) this.observer.recordContext(this.requestId, observation)
   }
+  recordSession(observation: TrafficSessionObservation): void {
+    if (!this.terminal) this.observer.recordSession(this.requestId, observation)
+  }
   recordTokens(observation: TrafficTokenObservation): void {
     if (!this.terminal) this.observer.recordTokens(this.requestId, observation)
   }
@@ -737,7 +770,9 @@ class SqliteTrafficObservationHandle implements TrafficObservationHandle {
   }
 }
 
-let defaultObserver: SqliteTrafficObserver | null = null
+type DefaultTrafficObserver = SqliteTrafficObserver | TrafficProcessClient
+
+let defaultObserver: DefaultTrafficObserver | null = null
 let invalidationListener: TrafficInvalidationListener | undefined
 
 export function setDefaultTrafficInvalidationListener(
@@ -746,17 +781,29 @@ export function setDefaultTrafficInvalidationListener(
   invalidationListener = listener
 }
 
-export function getDefaultTrafficObserver(): SqliteTrafficObserver {
-  defaultObserver ??= new SqliteTrafficObserver({
-    onInvalidation: (invalidation) => invalidationListener?.(invalidation),
-  })
+export function getDefaultTrafficObserver(): DefaultTrafficObserver {
+  defaultObserver ??=
+    isBunTestProcess() ?
+      new SqliteTrafficObserver({
+        onInvalidation: (invalidation) => invalidationListener?.(invalidation),
+      })
+    : new TrafficProcessClient({
+        databasePath: resolveTrafficDatabasePath(),
+        onInvalidation: (invalidation) => invalidationListener?.(invalidation),
+      })
+  if (defaultObserver instanceof TrafficProcessClient)
+    setTokenUsageStoreDelegate(defaultObserver)
   return defaultObserver
 }
 
 export async function closeTrafficStore(): Promise<void> {
   const observer = defaultObserver
   defaultObserver = null
-  await observer?.close()
+  try {
+    await observer?.close()
+  } finally {
+    setTokenUsageStoreDelegate(undefined)
+  }
 }
 
 registerProcessCleanup(closeTrafficStore)

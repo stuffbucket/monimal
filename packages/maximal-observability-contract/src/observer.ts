@@ -70,6 +70,18 @@ export type TrafficContextObservation = z.infer<
   typeof TrafficContextObservationSchema
 >
 
+/** Model-session identity discovered after passive ingress observation starts. */
+export const TrafficSessionObservationSchema = z
+  .object({
+    at: TrafficTimestampSchema,
+    sessionId: z.string().trim().min(1).max(200),
+  })
+  .strict()
+
+export type TrafficSessionObservation = z.infer<
+  typeof TrafficSessionObservationSchema
+>
+
 /** A complete token snapshot; repeated observations replace rather than add. */
 export const TrafficTokenObservationSchema = z
   .object({
@@ -120,6 +132,7 @@ export interface TrafficObservationHandle {
   recordDispatch(observation: TrafficDispatchObservation): void
   recordFirstResponse(observation: TrafficFirstResponseObservation): void
   recordContext?(observation: TrafficContextObservation): void
+  recordSession?(observation: TrafficSessionObservation): void
   recordTokens(observation: TrafficTokenObservation): void
   complete(observation: TrafficCompletionObservation): void
 }

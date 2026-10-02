@@ -44,6 +44,7 @@ export const TrafficRequestFiltersSchema = z
     models: uniqueFilter.default([]),
     clients: uniqueFilter.default([]),
     projects: uniqueFilter.default([]),
+    sessionIds: uniqueFilter.default([]),
     terminalSessionIds: uniqueFilter.default([]),
     applications: uniqueFilter.default([]),
     streaming: z.boolean().nullable().default(null),

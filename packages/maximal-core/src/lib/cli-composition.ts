@@ -7,6 +7,7 @@ import type { ConfiguratorRuntimeFactory } from "~/lib/configurator-host"
 import type { ProviderGatewayFactory } from "~/lib/provider-host-types"
 
 import { setRuntimeHomeCliOverride } from "~/lib/config/runtime-settings"
+import { TRAFFIC_OBSERVABILITY_CHILD_ARGUMENT } from "~/lib/observability/process-protocol"
 
 const cliArgs = {
   apiKeyHelper: {
@@ -99,6 +100,17 @@ export async function createMain(
  * as it does in the standalone binary.
  */
 export async function runCli(options: RunCliOptions = {}): Promise<void> {
+  const commandArgs = options.rawArgs ?? process.argv.slice(2)
+  if (
+    commandArgs.length === 1
+    && commandArgs[0] === TRAFFIC_OBSERVABILITY_CHILD_ARGUMENT
+  ) {
+    const { runTrafficObservabilityChild } =
+      await import("~/lib/observability/process-host")
+    await runTrafficObservabilityChild()
+    return
+  }
+
   const argv =
     options.rawArgs ? ["bun", "maximal", ...options.rawArgs] : process.argv
   const args = parseArgs(argv, cliArgs)

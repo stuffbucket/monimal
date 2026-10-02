@@ -9,6 +9,10 @@ live invalidation hints, and passive observation callbacks. It represents only
 plain serializable values and does not depend on a web framework, database,
 desktop shell, UI framework, or Maximal runtime implementation.
 
+Request filters can isolate model-session and terminal-session traffic.
+Collectors can attach a model session after ingress through the passive
+`recordSession` callback when that identity is discovered from the request.
+
 Every serialized response and invalidation carries
 `TRAFFIC_OBSERVABILITY_CONTRACT_VERSION`. Cursors are opaque. Invalidation hints
 carry no query results; consumers re-read the affected request or overview
