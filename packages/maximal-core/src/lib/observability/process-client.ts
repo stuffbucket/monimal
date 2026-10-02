@@ -293,7 +293,6 @@ export class TrafficProcessClient
         invocation.command,
         invocation.args,
         {
-          env: process.env,
           stdio: ["ignore", "ignore", "inherit", "ipc"],
         },
       )
