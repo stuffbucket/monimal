@@ -46,7 +46,9 @@ export function ThirdPartyLicensesDialog(): ReactElement {
         ) : query.data === undefined ? (
           <p>Loading licenses...</p>
         ) : (
-          <pre className="license-dialog__text">{query.data}</pre>
+          <pre className="license-dialog__text" data-shell-selectable="true">
+            {query.data}
+          </pre>
         )}
       </div>
       <div className="license-dialog__actions">

@@ -59,6 +59,18 @@ body {
   display: flex;
   flex-direction: column;
   height: 100%;
+  user-select: none;
+}
+
+.app :is(
+  input,
+  textarea,
+  [contenteditable]:not([contenteditable='false']),
+  [data-shell-selectable='true'],
+  .terminal,
+  .terminal *
+) {
+  user-select: text;
 }
 
 /* ---------------------------------------------------------------- titlebar */
