@@ -513,6 +513,7 @@ function themeTokens(seed: ThemePaletteSeed): ThemeTokens {
   return {
     '--shell-background': seed.background,
     '--shell-canvas': seed.surface,
+    '--shell-spatial-canvas-background': seed.surface,
     '--shell-raised': mix(seed.surface, seed.text, 0.08),
     '--shell-text': seed.text,
     '--shell-text-muted': mix(seed.background, seed.text, 0.72),

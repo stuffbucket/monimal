@@ -160,6 +160,15 @@ describe('appearance themes', () => {
     ).toThrow('Spatial canvas background')
     expect(() =>
       parseAppearanceTheme(JSON.stringify({
+        schema: 'https://maximal.dev/schemas/theme/v1',
+        name: 'Legacy',
+        appearance: 'dark',
+        preset: 'maximal',
+        colors: { spatialCanvasBackground: 'transparent' },
+      })),
+    ).toThrow('Spatial canvas background')
+    expect(() =>
+      parseAppearanceTheme(JSON.stringify({
         ...DEFAULT_APPEARANCE,
         colors: {
           ...DEFAULT_APPEARANCE.colors,
@@ -213,16 +222,25 @@ describe('appearance themes', () => {
   })
 
   it('migrates a v1 preset into a complete v2 theme', () => {
+    const themeWithoutOverrides = parseAppearanceTheme(JSON.stringify({
+      schema: 'https://maximal.dev/schemas/theme/v1',
+      name: 'Maximal',
+      appearance: 'system',
+      preset: 'maximal',
+    }))
     const theme = parseAppearanceTheme(JSON.stringify({
       schema: 'https://maximal.dev/schemas/theme/v1',
       name: 'Mocha',
       appearance: 'dark',
       preset: 'mocha-mousse-2025',
+      colors: { spatialCanvasBackground: '#123abc' },
     }))
 
+    expect(themeWithoutOverrides.colors.spatialCanvasBackground).toBeUndefined()
     expect(theme.schema).toBe('https://maximal.dev/schemas/theme/v2')
     expect(theme.id).toBe('mocha-mousse-2025')
     expect(theme.colors.dark.accent).toBe('#C8967F')
+    expect(theme.colors.spatialCanvasBackground).toBe('#123ABC')
   })
 
   it('persists and applies complete semantic tokens', () => {

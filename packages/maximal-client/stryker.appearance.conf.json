@@ -7,12 +7,12 @@
     "command": "pnpm exec vitest run src/renderer/appearance.test.ts"
   },
   "mutate": [
-    "src/renderer/appearance.ts:74:0-76:1",
-    "src/renderer/appearance.ts:162:0-168:1",
-    "src/renderer/appearance.ts:171:0-175:1",
-    "src/renderer/appearance.ts:180:0-181:1",
-    "src/renderer/appearance.ts:267:0-279:1",
-    "src/renderer/appearance.ts:288:0-293:1"
+    "src/renderer/appearance.ts:366:0-369:1",
+    "src/renderer/appearance.ts:385:0-388:1",
+    "src/renderer/appearance.ts:413:0-417:1",
+    "src/renderer/appearance.ts:426:0-429:1",
+    "src/renderer/appearance.ts:547:0-554:1",
+    "src/renderer/appearance.ts:565:0-569:1"
   ],
   "reporters": ["progress", "clear-text", "html", "json"],
   "tempDirName": ".stryker-tmp/appearance",
